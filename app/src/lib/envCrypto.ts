@@ -116,6 +116,34 @@ export async function decryptEnvContent(payload: EncryptedEnvFile, password: str
 export function parseDotEnv(content: string): Record<string, string> {
   const result: Record<string, string> = {}
 
+  const stripInlineComment = (rawValue: string): string => {
+    let inSingleQuote = false
+    let inDoubleQuote = false
+
+    for (let index = 0; index < rawValue.length; index += 1) {
+      const char = rawValue[index]
+
+      if (char === "'" && !inDoubleQuote) {
+        inSingleQuote = !inSingleQuote
+        continue
+      }
+
+      if (char === '"' && !inSingleQuote) {
+        inDoubleQuote = !inDoubleQuote
+        continue
+      }
+
+      if (char === '#' && !inSingleQuote && !inDoubleQuote) {
+        const previousChar = index > 0 ? rawValue[index - 1] : ''
+        if (!previousChar || /\s/.test(previousChar)) {
+          return rawValue.slice(0, index).trim()
+        }
+      }
+    }
+
+    return rawValue.trim()
+  }
+
   for (const rawLine of content.split(/\r?\n/)) {
     const line = rawLine.trim()
     if (!line || line.startsWith('#')) continue
@@ -123,8 +151,14 @@ export function parseDotEnv(content: string): Record<string, string> {
     const eqIndex = line.indexOf('=')
     if (eqIndex <= 0) continue
 
-    const key = line.slice(0, eqIndex).trim()
-    let value = line.slice(eqIndex + 1).trim()
+    const rawKey = line.slice(0, eqIndex).trim()
+    let value = stripInlineComment(line.slice(eqIndex + 1)).trim()
+
+    const key = rawKey.startsWith('export ')
+      ? rawKey.slice('export '.length).trim()
+      : rawKey
+
+    if (!key) continue
 
     if (
       (value.startsWith('"') && value.endsWith('"')) ||
@@ -133,9 +167,7 @@ export function parseDotEnv(content: string): Record<string, string> {
       value = value.slice(1, -1)
     }
 
-    if (key) {
-      result[key] = value
-    }
+    result[key] = value.trim()
   }
 
   return result

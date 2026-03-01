@@ -1,6 +1,7 @@
-import { useState, useCallback, useMemo, useEffect, useRef, type FormEvent } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { StudioSidebar } from './StudioSidebar'
+import { ThingPanel } from './ThingPanel'
 import { Bot, Folder, Download, Github } from 'lucide-react'
 import { PromptLibrary } from '@/sections/prompt-library/components/PromptLibrary'
 import { AgentFormBuilder } from '@/sections/agent-builder/components/AgentFormBuilder'
@@ -8,11 +9,9 @@ import { AgentRuntimeView } from '@/sections/agent-runtime/components'
 import { useAgents, useKnowledgeSections, useFlows, useRuntimeAgents } from '@/lib/workspaceContext'
 import { useWorkspaceData } from '@/lib/workspaceDataContext'
 import { useGithub } from '@/lib/github/GithubContext'
-import type { PromptConfig } from 'lmthing'
 import type {
   KnowledgeNode,
   Agent as WorkspaceAgent,
-  Flow as WorkspaceFlow,
 } from '@/types/workspace-data'
 import type {
   FileSystemNode,
@@ -214,60 +213,6 @@ type AgentConfig = {
   updatedAt: string
 }
 
-type ThingMessage = {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-}
-
-type ThingLmthingModelId = Extract<PromptConfig['model'], string>
-
-const THING_ACTION_NAMES = [
-  'setCurrentWorkspace',
-  'reload',
-  'upsertAgent',
-  'deleteAgent',
-  'upsertFlow',
-  'deleteFlow',
-  'updateKnowledgeFileContent',
-  'updateKnowledgeFileFrontmatter',
-  'updateKnowledgeDirectoryConfig',
-  'addKnowledgeNode',
-  'updateKnowledgeNodePath',
-  'deleteKnowledgeNode',
-  'duplicateKnowledgeNode',
-] as const
-
-const THING_WELCOME_MESSAGE =
-  'I am thing. I can execute workspace data actions directly. Send a JSON action envelope, or type help.'
-
-const THING_HELP_MESSAGE = [
-  `Available actions: ${THING_ACTION_NAMES.join(', ')}`,
-  'Format: {"action":"upsertAgent","payload":{...}}',
-  'Example: {"action":"deleteKnowledgeNode","payload":{"nodePath":"education/sections/old-node.md"}}',
-].join('\n')
-
-function stripCodeFence(input: string): string {
-  const trimmed = input.trim()
-  if (!trimmed.startsWith('```')) return trimmed
-
-  return trimmed
-    .replace(/^```[a-zA-Z]*\n?/, '')
-    .replace(/\n?```$/, '')
-    .trim()
-}
-
-function countKnowledgeNodes(nodes: KnowledgeNode[]): number {
-  return nodes.reduce((sum, node) => sum + 1 + countKnowledgeNodes(node.children || []), 0)
-}
-
-function isThingLmthingModelId(value: unknown): value is ThingLmthingModelId {
-  if (typeof value !== 'string') return false
-
-  const [provider, model] = value.split(':')
-  return Boolean(provider?.trim() && model?.trim())
-}
-
 export function StudioShell({
   user: _user,
   onLogout: _onLogout,
@@ -336,16 +281,6 @@ export function StudioShell({
   const [isExportingWorkspace, setIsExportingWorkspace] = useState(false)
   const [isExportingGithubRepo, setIsExportingGithubRepo] = useState(false)
   const [isThingOpen, setIsThingOpen] = useState(false)
-  const [thingInput, setThingInput] = useState('')
-  const [thingMessages, setThingMessages] = useState<ThingMessage[]>([
-    {
-      id: 'thing-welcome',
-      role: 'assistant',
-      content: THING_WELCOME_MESSAGE,
-    },
-  ])
-  const [isThingWorking, setIsThingWorking] = useState(false)
-  const thingMessagesEndRef = useRef<HTMLDivElement | null>(null)
   const [githubExportProgress, setGithubExportProgress] = useState<{
     uploadedFiles: number
     totalFiles: number
@@ -408,23 +343,14 @@ export function StudioShell({
 
   // Access raw knowledge nodes and in-memory mutators from workspace context
   const {
-    setCurrentWorkspace,
-    reload,
     workspaceData,
     isLoading,
     githubLoadProgress,
     knowledge: rawKnowledge,
     upsertAgent,
-    deleteAgent,
-    upsertFlow,
-    deleteFlow,
     updateKnowledgeFileContent,
     updateKnowledgeFileFrontmatter,
     updateKnowledgeDirectoryConfig,
-    addKnowledgeNode,
-    updateKnowledgeNodePath,
-    deleteKnowledgeNode,
-    duplicateKnowledgeNode,
   } = useWorkspaceData()
   const { octokit, isAuthenticated, user: githubUser } = useGithub()
 
@@ -523,8 +449,6 @@ export function StudioShell({
       runtimeFields: runtimeFieldsForConversation,
     }
   }, [activeRuntimeAgent, selectedDomainsForRuntime, runtimeFieldsForConversation])
-
-  const totalKnowledgeNodeCount = useMemo(() => countKnowledgeNodes(rawKnowledge), [rawKnowledge])
 
   const runtimeConversations = useMemo<RuntimeConversation[]>(() => {
     if (!agentId) return []
@@ -1261,252 +1185,6 @@ export function StudioShell({
     }
   }, [workspaceData, octokit, githubUser])
 
-  const handleThingMessage = useCallback((rawInput: string): string => {
-    const input = stripCodeFence(rawInput)
-    const normalized = input.trim()
-
-    if (!normalized) {
-      return 'Please enter a message or JSON action envelope.'
-    }
-
-    if (normalized.toLowerCase() === 'help' || normalized === '/help') {
-      return THING_HELP_MESSAGE
-    }
-
-    if (normalized.toLowerCase() === 'status' || normalized === '/status') {
-      return [
-        `Workspace: ${workspaceData?.id || 'none'}`,
-        `Agents: ${Object.keys(agentsMap).length}`,
-        `Flows: ${Object.keys(flowsMap).length}`,
-        `Knowledge nodes: ${totalKnowledgeNodeCount}`,
-      ].join('\n')
-    }
-
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(normalized)
-    } catch {
-      return [
-        'I could not parse JSON.',
-        'Type help for supported actions, or send a JSON envelope.',
-      ].join('\n')
-    }
-
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return 'Invalid action envelope. Expected an object with action and payload.'
-    }
-
-    const envelope = parsed as { action?: unknown; payload?: unknown }
-    if (typeof envelope.action !== 'string') {
-      return 'Invalid action envelope: action must be a string.'
-    }
-
-    const payload =
-      envelope.payload && typeof envelope.payload === 'object' && !Array.isArray(envelope.payload)
-        ? (envelope.payload as Record<string, unknown>)
-        : {}
-
-    try {
-      switch (envelope.action) {
-        case 'setCurrentWorkspace': {
-          const workspaceId = payload.workspaceId
-          if (typeof workspaceId !== 'string' || !workspaceId.trim()) {
-            return 'setCurrentWorkspace requires payload.workspaceId (string).'
-          }
-          setCurrentWorkspace(workspaceId)
-          return `Switched workspace context to ${workspaceId}.`
-        }
-        case 'reload': {
-          void reload()
-          return 'Reload started for workspace data.'
-        }
-        case 'upsertAgent': {
-          const agent = payload.agent as WorkspaceAgent | undefined
-          if (!agent?.id) {
-            return 'upsertAgent requires payload.agent with a valid id.'
-          }
-          upsertAgent(agent)
-          return `Upserted agent ${agent.id}.`
-        }
-        case 'deleteAgent': {
-          const targetAgentId = payload.agentId
-          if (typeof targetAgentId !== 'string' || !targetAgentId.trim()) {
-            return 'deleteAgent requires payload.agentId (string).'
-          }
-          deleteAgent(targetAgentId)
-          return `Deleted agent ${targetAgentId}.`
-        }
-        case 'upsertFlow': {
-          const flow = payload.flow as WorkspaceFlow | undefined
-          if (!flow?.id) {
-            return 'upsertFlow requires payload.flow with a valid id.'
-          }
-
-          const invalidTask = flow.tasks?.find((task) => {
-            const model = task.frontmatter?.model
-            return model !== undefined && !isThingLmthingModelId(model)
-          })
-
-          if (invalidTask) {
-            return [
-              `Invalid model in flow task ${invalidTask.order}.`,
-              'Expected model format: provider:model_id (for example openai:gpt-4o).',
-            ].join('\n')
-          }
-
-          upsertFlow(flow)
-          return `Upserted flow ${flow.id}.`
-        }
-        case 'deleteFlow': {
-          const flowId = payload.flowId
-          if (typeof flowId !== 'string' || !flowId.trim()) {
-            return 'deleteFlow requires payload.flowId (string).'
-          }
-          deleteFlow(flowId)
-          return `Deleted flow ${flowId}.`
-        }
-        case 'updateKnowledgeFileContent': {
-          const filePath = payload.filePath
-          const content = payload.content
-          if (typeof filePath !== 'string' || typeof content !== 'string') {
-            return 'updateKnowledgeFileContent requires payload.filePath and payload.content (string).'
-          }
-          updateKnowledgeFileContent(filePath, content)
-          return `Updated file content at ${filePath}.`
-        }
-        case 'updateKnowledgeFileFrontmatter': {
-          const filePath = payload.filePath
-          const frontmatter = payload.frontmatter
-          if (
-            typeof filePath !== 'string' ||
-            !frontmatter ||
-            typeof frontmatter !== 'object' ||
-            Array.isArray(frontmatter)
-          ) {
-            return 'updateKnowledgeFileFrontmatter requires payload.filePath (string) and payload.frontmatter (object).'
-          }
-          updateKnowledgeFileFrontmatter(filePath, frontmatter as Record<string, unknown>)
-          return `Updated file frontmatter at ${filePath}.`
-        }
-        case 'updateKnowledgeDirectoryConfig': {
-          const directoryPath = payload.directoryPath
-          const config = payload.config
-          if (
-            typeof directoryPath !== 'string' ||
-            !config ||
-            typeof config !== 'object' ||
-            Array.isArray(config)
-          ) {
-            return 'updateKnowledgeDirectoryConfig requires payload.directoryPath (string) and payload.config (object).'
-          }
-          updateKnowledgeDirectoryConfig(directoryPath, config as Record<string, unknown>)
-          return `Updated directory config at ${directoryPath}.`
-        }
-        case 'addKnowledgeNode': {
-          const parentNodePath = payload.parentNodePath
-          const node = payload.node as KnowledgeNode | undefined
-          if (!node?.path || !node.type) {
-            return 'addKnowledgeNode requires payload.node with path and type.'
-          }
-          if (
-            parentNodePath !== null
-            && parentNodePath !== undefined
-            && typeof parentNodePath !== 'string'
-          ) {
-            return 'addKnowledgeNode payload.parentNodePath must be string or null.'
-          }
-          addKnowledgeNode((parentNodePath as string | null | undefined) ?? null, node)
-          return `Added knowledge node ${node.path}.`
-        }
-        case 'updateKnowledgeNodePath': {
-          const oldPath = payload.oldPath
-          const newPath = payload.newPath
-          if (typeof oldPath !== 'string' || typeof newPath !== 'string') {
-            return 'updateKnowledgeNodePath requires payload.oldPath and payload.newPath (string).'
-          }
-          updateKnowledgeNodePath(oldPath, newPath)
-          return `Renamed or moved knowledge node from ${oldPath} to ${newPath}.`
-        }
-        case 'deleteKnowledgeNode': {
-          const nodePath = payload.nodePath
-          if (typeof nodePath !== 'string' || !nodePath.trim()) {
-            return 'deleteKnowledgeNode requires payload.nodePath (string).'
-          }
-          deleteKnowledgeNode(nodePath)
-          return `Deleted knowledge node ${nodePath}.`
-        }
-        case 'duplicateKnowledgeNode': {
-          const nodePath = payload.nodePath
-          if (typeof nodePath !== 'string' || !nodePath.trim()) {
-            return 'duplicateKnowledgeNode requires payload.nodePath (string).'
-          }
-          duplicateKnowledgeNode(nodePath)
-          return `Duplicated knowledge node ${nodePath}.`
-        }
-        default:
-          return `Unknown action: ${envelope.action}. Type help for supported actions.`
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error'
-      return `Action failed: ${message}`
-    }
-  }, [
-    workspaceData?.id,
-    agentsMap,
-    flowsMap,
-    totalKnowledgeNodeCount,
-    setCurrentWorkspace,
-    reload,
-    upsertAgent,
-    deleteAgent,
-    upsertFlow,
-    deleteFlow,
-    updateKnowledgeFileContent,
-    updateKnowledgeFileFrontmatter,
-    updateKnowledgeDirectoryConfig,
-    addKnowledgeNode,
-    updateKnowledgeNodePath,
-    deleteKnowledgeNode,
-    duplicateKnowledgeNode,
-  ])
-
-  const handleThingSubmit = useCallback((event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-
-    const nextInput = thingInput.trim()
-    if (!nextInput || isThingWorking) return
-
-    setThingInput('')
-    setThingMessages((prev) => [
-      ...prev,
-      {
-        id: `thing-user-${Date.now()}`,
-        role: 'user',
-        content: nextInput,
-      },
-    ])
-
-    setIsThingWorking(true)
-
-    const response = handleThingMessage(nextInput)
-
-    setThingMessages((prev) => [
-      ...prev,
-      {
-        id: `thing-assistant-${Date.now()}`,
-        role: 'assistant',
-        content: response,
-      },
-    ])
-
-    setIsThingWorking(false)
-  }, [thingInput, isThingWorking, handleThingMessage])
-
-  useEffect(() => {
-    if (!isThingOpen) return
-    thingMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [thingMessages, isThingOpen])
-
   // Show loading state while workspace data loads
   if (isLoading) {
     return (
@@ -1863,63 +1541,7 @@ export function StudioShell({
           </div>
         </div>
 
-        {isThingOpen && (
-          <aside className="w-[420px] border-l border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/80 flex min-w-0 flex-col">
-            <div className="h-14 border-b border-slate-200 px-4 flex items-center justify-between dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <Bot className="h-4 w-4 text-violet-500" />
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">thing</h2>
-              </div>
-              <span className="text-xs text-slate-500 dark:text-slate-400">Workspace actions</span>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {thingMessages.map((message) => (
-                <div
-                  key={message.id}
-                  className={
-                    message.role === 'user'
-                      ? 'ml-8 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-900 dark:border-violet-900/40 dark:bg-violet-900/20 dark:text-violet-100'
-                      : 'mr-8 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
-                  }
-                >
-                  <div className="mb-1 text-[11px] font-medium uppercase tracking-wide opacity-70">
-                    {message.role === 'user' ? 'You' : 'Thing'}
-                  </div>
-                  <p className="whitespace-pre-wrap break-words">{message.content}</p>
-                </div>
-              ))}
-
-              {isThingWorking && (
-                <div className="mr-8 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                  thing is processing...
-                </div>
-              )}
-
-              <div ref={thingMessagesEndRef} />
-            </div>
-
-            <form onSubmit={handleThingSubmit} className="border-t border-slate-200 p-3 space-y-2 dark:border-slate-800">
-              <textarea
-                value={thingInput}
-                onChange={(event) => setThingInput(event.target.value)}
-                rows={5}
-                placeholder="Type help or paste JSON action envelope..."
-                className="w-full resize-none rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-violet-500 focus:ring-2 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-              />
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-xs text-slate-500 dark:text-slate-400">Try: help or status</span>
-                <button
-                  type="submit"
-                  disabled={isThingWorking || !thingInput.trim()}
-                  className="inline-flex items-center rounded-md bg-violet-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Send
-                </button>
-              </div>
-            </form>
-          </aside>
-        )}
+        <ThingPanel isOpen={isThingOpen} />
       </div>
     </div>
   )

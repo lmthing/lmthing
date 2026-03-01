@@ -29,7 +29,7 @@ export function FlowDetailEditor({
   onUpdateTask,
   onDeleteTask,
   onDuplicateTask,
-  onReorderTasks,
+  onReorderTasks: _onReorderTasks,
   onBack,
 }: FlowDetailEditorProps) {
   const [isEditingMeta, setIsEditingMeta] = useState(false)

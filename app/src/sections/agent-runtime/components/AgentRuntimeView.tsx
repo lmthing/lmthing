@@ -51,7 +51,6 @@ export function AgentRuntimeView({
   hideTopNav = false,
 }: AgentRuntimeViewProps) {
   const [runtimeFieldValues, setRuntimeFieldValues] = useState<Record<string, string | string[] | boolean>>({})
-  const [isToolsExpanded, setIsToolsExpanded] = useState(false)
 
   // Find active conversation
   const activeConversation = conversations.find((c) => c.id === activeConversationId) || null
@@ -121,7 +120,6 @@ export function AgentRuntimeView({
         <RuntimePanel
           agent={agent}
           runtimeFieldValues={runtimeFieldValues}
-          isToolsExpanded={isToolsExpanded}
           onRuntimeFieldChange={handleFieldChange}
         />
       </div>

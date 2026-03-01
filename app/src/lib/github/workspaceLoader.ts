@@ -11,8 +11,10 @@ import type {
   KnowledgeNode,
   PackageJson,
   TaskFrontmatter,
+  WorkspaceEnv,
   WorkspaceData,
 } from '@/types/workspace-data'
+import { parseEncryptedEnvFileContent } from '@/lib/envCrypto'
 
 const FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/
 
@@ -247,6 +249,7 @@ async function listRepoTextFiles(
 
   const relevantEntries = fileEntries.filter((entry) =>
     entry.path === 'package.json' ||
+    /^\.env(?:\.[A-Za-z0-9_-]+)*$/.test(entry.path) ||
     entry.path.startsWith('agents/') ||
     entry.path.startsWith('flows/') ||
     entry.path.startsWith('knowledge/')
@@ -304,6 +307,7 @@ export async function loadWorkspaceDataFromGithubRepo(params: {
   const knowledgeMarkdown: Array<{ relativePath: string; content: string }> = []
   const knowledgeConfigs: Array<{ relativePath: string; content: string }> = []
   let packageJson: PackageJson | null = null
+  const env: WorkspaceEnv = {}
 
   for (const file of files) {
     if (file.path === 'package.json') {
@@ -311,6 +315,14 @@ export async function loadWorkspaceDataFromGithubRepo(params: {
         packageJson = JSON.parse(file.content) as PackageJson
       } catch {
         packageJson = null
+      }
+      continue
+    }
+
+    if (/^\.env(?:\.[A-Za-z0-9_-]+)*$/.test(file.path)) {
+      const encrypted = parseEncryptedEnvFileContent(file.content)
+      if (encrypted) {
+        env[file.path] = encrypted
       }
       continue
     }
@@ -440,5 +452,6 @@ export async function loadWorkspaceDataFromGithubRepo(params: {
     flows,
     knowledge,
     packageJson: packageJson || fallbackPackageJson,
+    env,
   }
 }

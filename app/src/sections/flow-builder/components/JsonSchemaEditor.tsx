@@ -71,7 +71,7 @@ function TypeIcon({ type }: { type: PropertyType }) {
 
 function PropertyRow({
   property,
-  index,
+  index: _index,
   onUpdate,
   onDelete,
   onToggleRequired,

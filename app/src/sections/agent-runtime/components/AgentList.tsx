@@ -138,7 +138,7 @@ function EmptyState() {
 // Main Agent List component
 export function AgentList({
   agents,
-  selectedAgentId = null,
+  selectedAgentId: _selectedAgentId = null,
   isLoading = false,
   onSelectAgent
 }: AgentListProps) {

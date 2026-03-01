@@ -1,4 +1,4 @@
-import type { Tool, EnabledToolMapping, ToolConfigStatus, ToolSource } from '@/../product/sections/agent-builder/types'
+import type { Tool, EnabledToolMapping, ToolConfigStatus } from '@/../product/sections/agent-builder/types'
 
 interface ToolsPanelProps {
   toolLibrary: Tool[]
@@ -52,12 +52,12 @@ const categoryIcons: Record<string, string> = {
 }
 
 export function ToolsPanel({
-  toolLibrary,
+  toolLibrary: _toolLibrary,
   enabledTools,
-  isOpen,
+  isOpen: _isOpen,
   onOpen,
-  onClose,
-  onAddTool,
+  onClose: _onClose,
+  onAddTool: _onAddTool,
   onRemoveTool,
   onConfigureTool,
 }: ToolsPanelProps) {

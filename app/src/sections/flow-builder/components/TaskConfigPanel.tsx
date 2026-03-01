@@ -82,7 +82,7 @@ export function TaskConfigPanel({ task, availableTools, availablePromptFragments
   if (!isOpen) return null
 
   const isEditMode = task !== null
-  const taskConfig = TASK_TYPES.find(t => t.type === selectedType)
+  const _taskConfig = TASK_TYPES.find(t => t.type === selectedType)
 
   const handleSave = () => {
     const config: TaskConfig = {

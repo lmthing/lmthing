@@ -7,11 +7,9 @@ import {
   File,
   Folder,
   FolderOpen,
-  Plus,
   MoreVertical,
   X,
   FileText,
-  Check,
   AlertCircle,
   Loader2,
   Search,
@@ -31,8 +29,6 @@ import {
   Link2,
   Quote,
   Minus,
-  ChevronUp,
-  ChevronDown as ChevronDownIcon,
 } from 'lucide-react'
 import type {
   PromptLibraryProps,
@@ -984,7 +980,7 @@ interface WysiwygEditorProps {
   isLoading?: boolean
 }
 
-function WysiwygEditor({ content, onChange, onSave, unsavedChanges, isLoading = false }: WysiwygEditorProps) {
+function WysiwygEditor({ content, onChange, onSave, unsavedChanges: _unsavedChanges, isLoading: _isLoading = false }: WysiwygEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [showPreview, setShowPreview] = useState(false)
 
@@ -1170,7 +1166,7 @@ export function PromptLibrary({
   isLoading = false,
   error = null,
   validationErrors = [],
-  emptyState,
+  emptyState: _emptyState,
   onSelectFile,
   onToggleFolder,
   onExpandAll,

@@ -15,16 +15,6 @@ const TASK_TYPE_CONFIG: Record<TaskType, { label: string; icon: string; color: s
   'executeTask': { label: 'Execute', icon: '⚡', color: 'amber', passesData: false },
 }
 
-function formatDate(isoString: string | null): string {
-  if (!isoString) return 'Never'
-  return new Date(isoString).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
 export function TaskCard({ task, isExpanded, isDraggable, onClick, onEdit, onDelete, onDuplicate }: TaskCardProps) {
   const config = TASK_TYPE_CONFIG[task.type]
   const isValid = task.status === 'valid'

@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import type { Task } from '@/../product/sections/flow-builder/types'
 
 interface FlowBuilderModalProps {
   isOpen: boolean
@@ -13,7 +12,7 @@ interface FlowBuilderModalProps {
 export function FlowBuilderModal({
   isOpen,
   onClose,
-  agentId,
+  agentId: _agentId,
   availableFlows,
   onAttachFlow,
   onCreateNewFlow,
@@ -101,7 +100,7 @@ export function FlowBuilderModal({
                 <button
                   onClick={() => setMode('create')}
                   className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                    mode === 'create'
+                    (mode as 'select' | 'create') === 'create'
                       ? 'bg-violet-500 text-white'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                   }`}

@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef, type FormEvent } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { StudioSidebar } from './StudioSidebar'
-import { Plus, Bot, Folder, Zap, Play, Download, Github } from 'lucide-react'
+import { Bot, Folder, Download, Github } from 'lucide-react'
 import { PromptLibrary } from '@/sections/prompt-library/components/PromptLibrary'
 import { AgentFormBuilder } from '@/sections/agent-builder/components/AgentFormBuilder'
 import { AgentRuntimeView } from '@/sections/agent-runtime/components'
@@ -15,7 +15,6 @@ import type {
   Flow as WorkspaceFlow,
 } from '@/types/workspace-data'
 import type {
-  PromptLibraryProps,
   FileSystemNode,
   PromptFragment,
   Directory,
@@ -130,10 +129,6 @@ function useWorkspace(workspaceName?: string): Workspace {
   }, [workspaceName, workspaces])
 }
 
-type StudioState = {
-  sidebarCollapsed: boolean
-}
-
 export interface StudioShellProps {
   // User props
   user?: { name: string; avatarUrl?: string }
@@ -164,16 +159,6 @@ export interface StudioShellProps {
   onMove?: (nodeId: string, newParentPath: string) => void
   onDelete?: (nodeId: string) => void
   onDuplicate?: (nodeId: string) => void
-}
-
-type Domain = {
-  id: string
-  name: string
-  label: string
-  description: string
-  icon: string
-  color: string
-  path: string
 }
 
 /**
@@ -221,8 +206,8 @@ type AgentConfig = {
   description: string
   selectedDomains: string[]
   formValues: Record<string, FormFieldValue>
-  enabledTools: Array<{ toolId: string; source: string; config?: Record<string, unknown> }>
-  emptyFieldsForRuntime?: string[]
+  enabledTools: Array<{ toolId: string; source: 'manual'; config?: Record<string, unknown> }>
+  emptyFieldsForRuntime: string[]
   attachedFlows: AttachedFlow[]
   mainInstruction?: string
   createdAt: string
@@ -284,17 +269,17 @@ function isThingLmthingModelId(value: unknown): value is ThingLmthingModelId {
 }
 
 export function StudioShell({
-  user,
-  onLogout,
+  user: _user,
+  onLogout: _onLogout,
   onOpenSettings,
   defaultSidebarCollapsed = false,
   onSidebarCollapsedChange,
   onCreateDomain,
-  onEditDomain,
-  onDeleteDomain,
+  onEditDomain: _onEditDomain,
+  onDeleteDomain: _onDeleteDomain,
   onCreateAgent,
-  onEditAgent,
-  onDeleteAgent,
+  onEditAgent: _onEditAgent,
+  onDeleteAgent: _onDeleteAgent,
   onSelectFile,
   onToggleFolder,
   onExpandAll,
@@ -379,9 +364,13 @@ export function StudioShell({
           label: field.label || field.path,
           description: field.description || '',
           variableName: field.variableName || field.path.split('/').pop() || field.path,
-          fieldType: field.fieldType || 'select',
+          fieldType: (field.fieldType || 'select') as import('@/../product/sections/agent-builder/types').SchemaFieldType,
           required: field.required || false,
           runtimeOptional: true,
+          default: '' as const,
+          placeholder: '',
+          hint: field.description || '',
+          directoryPath: field.path,
           options: (field.children || []).map(opt => {
             const stem = opt.path.split('/').pop()?.replace(/\.md$/, '') ?? opt.path
             return {
@@ -410,9 +399,9 @@ export function StudioShell({
             label: section.label || section.path,
             description: section.description || '',
             children: fieldNodes,
+            directoryPath: section.path,
           },
         },
-        fields: fieldNodes,
       }
     })
   }, [knowledgeSections])
@@ -451,7 +440,7 @@ export function StudioShell({
       ),
       formValues: agent.formValues,
       enabledTools: [],
-      emptyFieldsForRuntime: flattenEmptyFieldsForRuntime(agent.config.emptyFieldsForRuntime),
+      emptyFieldsForRuntime: flattenEmptyFieldsForRuntime(agent.config.emptyFieldsForRuntime) || [],
       attachedFlows: (agent.slashActions || []).map(sa => ({
         flowId: sa.flowId,
         flowName: sa.name,
@@ -496,8 +485,19 @@ export function StudioShell({
   const runtimeFieldsForConversation = useMemo(() => {
     const runtimeFieldIds = new Set(emptyFieldsForRuntime)
 
+    // Helper to extract fields from a domain schema
+    const extractFields = (node: import('@/../product/sections/agent-builder/types').SchemaNode): import('@/../product/sections/agent-builder/types').SchemaField[] => {
+      if (node.type === 'field') {
+        return [node]
+      }
+      if (node.type === 'section' && node.children) {
+        return node.children.flatMap(extractFields)
+      }
+      return []
+    }
+
     const selectedFieldEntries = selectedDomainsForRuntime.flatMap((domain) =>
-      (domain.fields || []).map((field) => ({ field, domainName: domain.name }))
+      extractFields(domain.schema.root).map((field) => ({ field, domainName: domain.name }))
     )
 
     return selectedFieldEntries
@@ -508,7 +508,7 @@ export function StudioShell({
         id: field.id,
         label: field.label,
         type: toRuntimeFieldType(field.fieldType),
-        options: (field.options || []).map((option) => option.label),
+        options: (field.options || []).map((option) => option.label || option.id),
         value: toRuntimeDefaultValue(field.fieldType),
         domain: domainName,
       }))
@@ -1177,27 +1177,6 @@ export function StudioShell({
   const handleCreateDomain = useCallback(() => {
     onCreateDomain?.()
   }, [onCreateDomain])
-
-  const handleEditAgentClick = useCallback((agentId: string) => {
-    onEditAgent?.(agentId)
-  }, [onEditAgent])
-
-  const handleDeleteAgentClick = useCallback((targetAgentId: string) => {
-    deleteAgent(targetAgentId)
-    onDeleteAgent?.(targetAgentId)
-
-    if (agentId === targetAgentId) {
-      navigate(studioPath)
-    }
-  }, [agentId, deleteAgent, navigate, onDeleteAgent, studioPath])
-
-  const handleEditDomainClick = useCallback((domainId: string) => {
-    onEditDomain?.(domainId)
-  }, [onEditDomain])
-
-  const handleDeleteDomainClick = useCallback((domainId: string) => {
-    onDeleteDomain?.(domainId)
-  }, [onDeleteDomain])
 
   const handleExportWorkspace = useCallback(async () => {
     if (!workspaceData) return

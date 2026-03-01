@@ -80,7 +80,7 @@ function AgentCard({ agent, domains, toolCount, onLoad, onDuplicate, onDelete }:
           {agentDomains.slice(0, 3).map(domain => (
             <span
               key={domain.id}
-              className={`text-[10px] px-2 py-0.5 rounded-full ${categoryColors[domain.category] || 'bg-slate-100 text-slate-600'}`}
+              className={`text-[10px] px-2 py-0.5 rounded-full ${categoryColors[domain.category ?? ''] || 'bg-slate-100 text-slate-600'}`}
             >
               {domain.name}
             </span>
@@ -126,7 +126,7 @@ function AgentCard({ agent, domains, toolCount, onLoad, onDuplicate, onDelete }:
 
 export function SavedAgentsList({
   domains,
-  toolLibrary,
+  toolLibrary: _toolLibrary,
   savedAgentConfigs,
   onLoadAgent,
   onDuplicateAgent,

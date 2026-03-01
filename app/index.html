@@ -11,6 +11,10 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      window.process = window.process || { env: {} };
+      window.process.env = window.process.env || {};
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

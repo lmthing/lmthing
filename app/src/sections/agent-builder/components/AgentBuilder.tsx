@@ -37,24 +37,33 @@ export function AgentBuilder({
   const selectedDomains = domains.filter(d => selectedDomainIds.includes(d.id))
 
   // Collect all form fields from selected domains
-  const allFields = selectedDomains.flatMap(domain =>
-    domain.schema.fields.map(field => ({
+  const allFields = selectedDomains.flatMap(domain => {
+    const extractFields = (node: import('@/../product/sections/agent-builder/types').SchemaNode): import('@/../product/sections/agent-builder/types').SchemaField[] => {
+      if (node.type === 'field') {
+        return [node]
+      }
+      if (node.type === 'section') {
+        return node.children.flatMap(extractFields)
+      }
+      return []
+    }
+    return extractFields(domain.schema.root).map((field: import('@/../product/sections/agent-builder/types').SchemaField) => ({
       ...field,
       domainId: domain.id,
       domainName: domain.name
     }))
-  )
+  })
 
   // Check if form is valid
   const isFormValid = allFields.every(field => {
     if (!field.required) return true
     const value = formValues[field.id]
-    if (field.type === 'multiselect') return Array.isArray(value) && value.length > 0
+    if (field.fieldType === 'multiselect') return Array.isArray(value) && value.length > 0
     return value !== undefined && value !== '' && value !== false
   })
 
   // Get categories for domain grouping
-  const categories = Array.from(new Set(domains.map(d => d.category)))
+  const categories = Array.from(new Set(domains.map(d => d.category).filter((c): c is string => c != null)))
 
   return (
     <div className="flex flex-col h-screen bg-slate-950 text-slate-200">
@@ -101,8 +110,9 @@ export function AgentBuilder({
 
         {/* Saved Agents Drawer */}
         <SavedAgentsList
-          agents={savedAgentConfigs}
-          loadedAgentId={loadedAgentId}
+          domains={domains}
+          toolLibrary={[]}
+          savedAgentConfigs={savedAgentConfigs}
           onLoadAgent={onLoadAgent}
           onDeleteAgent={onDeleteAgent}
         />

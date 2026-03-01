@@ -18,7 +18,7 @@ export default function FlowDetailPreview() {
     console.log('Add task to flow:', task)
   }, [])
 
-  const handleUpdateTask = useCallback((taskId: string, updates: Partial<Task>) => {
+  const handleUpdateTask = useCallback((taskId: string, _updates: Partial<Task>) => {
     console.log('Update task:', taskId)
   }, [])
 

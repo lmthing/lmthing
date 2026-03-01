@@ -260,7 +260,7 @@ function VariableRow({
   onDelete
 }: VariableRowProps) {
 
-  const displayValue = variable.isSecret && variable.value && !variable.value.includes('***')
+  const _displayValue = variable.isSecret && variable.value && !variable.value.includes('***')
     ? '•'.repeat(Math.min(variable.value.length, 24))
     : variable.value
 

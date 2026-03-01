@@ -182,6 +182,22 @@ export interface PackageJson {
   [key: string]: unknown
 }
 
+export interface EncryptedEnvFile {
+  schema: 'lmthing-env-v1'
+  algorithm: 'AES-GCM'
+  kdf: 'PBKDF2'
+  digest: 'SHA-256'
+  iterations: number
+  salt: string
+  iv: string
+  ciphertext: string
+  createdAt: string
+  updatedAt: string
+  expiresAt?: string
+}
+
+export type WorkspaceEnv = Record<string, EncryptedEnvFile>
+
 // ============== Workspace Types ==============
 export interface WorkspaceData {
   id: string
@@ -189,6 +205,7 @@ export interface WorkspaceData {
   flows: Record<string, Flow>
   knowledge: KnowledgeNode[]
   packageJson: PackageJson
+  env?: WorkspaceEnv
 }
 
 export interface WorkspaceState {

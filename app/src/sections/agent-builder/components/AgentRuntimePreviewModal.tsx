@@ -24,7 +24,7 @@ interface AgentRuntimePreviewModalProps {
 export function AgentRuntimePreviewModal({
   isOpen,
   onClose,
-  enabledFilePaths,
+  enabledFilePaths: _enabledFilePaths,
   generatedPrompt,
   runtimeFields,
   onSaveConversation,

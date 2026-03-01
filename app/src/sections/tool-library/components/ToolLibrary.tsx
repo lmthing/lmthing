@@ -1,4 +1,4 @@
-import type { ToolLibraryProps, ToolLibraryView, Tool, ToolPackage, EnvironmentVariable } from '@/../product/sections/tool-library/types'
+import type { ToolLibraryProps, ToolLibraryView } from '@/../product/sections/tool-library/types'
 import { ToolsView } from './ToolsView'
 import { PackagesView } from './PackagesView'
 import { EnvironmentView } from './EnvironmentView'

@@ -28,7 +28,6 @@ import { workspaceToSlug, type Workspace } from './components/WorkspaceSelector'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
 import { GithubLoginButton } from '@/components/GithubLoginButton'
 import { useGithub } from '@/lib/github/GithubContext'
-import { useWorkspaceDataContext } from '@/lib/workspaceContext'
 import { useQueryClient } from '@tanstack/react-query'
 import { Input } from '@/components/ui/input'
 import { toWorkspaceName } from '@/lib/workspaces'
@@ -46,7 +45,6 @@ const MOCK_WORKSPACES = [
 export default function LandingLayout() {
   const navigate = useNavigate()
   const { data: githubWorkspaces, isLoading } = useWorkspaces()
-  const { workspaces: jsonWorkspaces } = useWorkspaceDataContext()
   const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false)
 
   const { octokit, user, addSelectedWorkspaceRepo } = useGithub()
@@ -64,8 +62,7 @@ export default function LandingLayout() {
         id: mock.id,
         name: mock.name,
         color: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length],
-        description: mock.description,
-      })
+      } as Workspace)
     })
 
     // Add GitHub workspaces

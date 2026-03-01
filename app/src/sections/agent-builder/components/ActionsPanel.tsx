@@ -12,11 +12,11 @@ interface ActionsPanelProps {
 
 export function ActionsPanel({
   attachedFlows,
-  availableFlows,
+  availableFlows: _availableFlows,
   onToggleEnabled,
   onEditAction,
   onDetachFlow,
-  onAttachFlow,
+  onAttachFlow: _onAttachFlow,
   onOpenFlowBuilder,
 }: ActionsPanelProps) {
   return (

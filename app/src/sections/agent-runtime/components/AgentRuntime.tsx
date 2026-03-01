@@ -45,7 +45,7 @@ function StatusBadge({ status }: StatusBadgeProps) {
     starting: { color: 'bg-amber-500', label: 'Starting...' },
     stopping: { color: 'bg-amber-500', label: 'Stopping...' },
     error: { color: 'bg-rose-500', label: 'Error' }
-  }[status] || { color: 'bg-slate-400', label: status }
+  }[status || 'ready'] || { color: 'bg-slate-400', label: status || 'Unknown' }
 
   return (
     <div className="flex items-center gap-1.5">

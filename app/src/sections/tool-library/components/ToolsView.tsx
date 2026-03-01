@@ -1,4 +1,4 @@
-import type { Tool, ToolParameter, UsageReference } from '@/../product/sections/tool-library/types'
+import type { Tool, ToolParameter, UsageReference, ToolSource, ToolStatus } from '@/../product/sections/tool-library/types'
 import { useState } from 'react'
 
 interface ToolsViewProps {
@@ -10,8 +10,8 @@ interface ToolsViewProps {
 export function ToolsView({ tools, onToggleTool, onSearchTools }: ToolsViewProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTool, setSelectedTool] = useState<Tool | null>(null)
-  const [filterSource, setFilterSource] = useState<'all' | 'builtin' | 'package'>('all')
-  const [filterStatus, setFilterStatus] = useState<'all' | 'enabled' | 'disabled'>('all')
+  const [filterSource, setFilterSource] = useState<'all' | ToolSource>('all')
+  const [filterStatus, setFilterStatus] = useState<'all' | ToolStatus>('all')
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value)
@@ -57,7 +57,7 @@ export function ToolsView({ tools, onToggleTool, onSearchTools }: ToolsViewProps
           <div className="flex gap-2">
             <select
               value={filterSource}
-              onChange={(e) => setFilterSource(e.target.value as any)}
+              onChange={(e) => setFilterSource(e.target.value as 'all' | ToolSource)}
               className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border-0 rounded-lg text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-violet-500 dark:focus:ring-violet-400 cursor-pointer"
             >
               <option value="all">All Sources</option>
@@ -67,7 +67,7 @@ export function ToolsView({ tools, onToggleTool, onSearchTools }: ToolsViewProps
 
             <select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as any)}
+              onChange={(e) => setFilterStatus(e.target.value as 'all' | ToolStatus)}
               className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border-0 rounded-lg text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-violet-500 dark:focus:ring-violet-400 cursor-pointer"
             >
               <option value="all">All Status</option>

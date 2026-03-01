@@ -1,5 +1,5 @@
 import type { WorkspaceUser, WorkspaceUserRole } from '@/../product/sections/workspaces/types'
-import { Search, Shield, UserPlus, Clock, Mail } from 'lucide-react'
+import { Search, UserPlus, Clock, Mail } from 'lucide-react'
 import { useState } from 'react'
 
 interface WorkspaceListProps {

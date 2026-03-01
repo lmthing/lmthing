@@ -14,6 +14,8 @@ import type {
   Flow,
   KnowledgeNode,
   PackageJson,
+  WorkspaceEnv,
+  EncryptedEnvFile,
   AgentListItem,
   FlowListItem,
   KnowledgeItem,
@@ -39,6 +41,7 @@ interface WorkspaceDataContextValue {
   flows: Record<string, Flow>
   knowledge: KnowledgeNode[]
   packageJson: PackageJson | null
+  env: WorkspaceEnv
 
   // Computed lists for UI
   agentList: AgentListItem[]
@@ -47,10 +50,13 @@ interface WorkspaceDataContextValue {
 
   // Actions
   setCurrentWorkspace: (workspaceId: string) => void
+  updatePackageJson: (packageJson: PackageJson) => void
   upsertAgent: (agent: Agent) => void
   deleteAgent: (agentId: string) => void
   upsertFlow: (flow: Flow) => void
   deleteFlow: (flowId: string) => void
+  upsertEnvFile: (fileName: string, file: EncryptedEnvFile) => void
+  deleteEnvFile: (fileName: string) => void
   updateKnowledgeFileContent: (filePath: string, content: string) => void
   updateKnowledgeFileFrontmatter: (filePath: string, frontmatter: Record<string, unknown>) => void
   updateKnowledgeDirectoryConfig: (directoryPath: string, config: Record<string, unknown>) => void
@@ -451,6 +457,16 @@ export function WorkspaceDataProvider({
     [updateCurrentWorkspace]
   )
 
+  const updatePackageJson = useCallback(
+    (packageJson: PackageJson) => {
+      updateCurrentWorkspace((workspace) => ({
+        ...workspace,
+        packageJson,
+      }))
+    },
+    [updateCurrentWorkspace]
+  )
+
   const deleteAgent = useCallback(
     (agentId: string) => {
       updateCurrentWorkspace((workspace) => {
@@ -486,6 +502,33 @@ export function WorkspaceDataProvider({
         return {
           ...workspace,
           flows: remainingFlows,
+        }
+      })
+    },
+    [updateCurrentWorkspace]
+  )
+
+  const upsertEnvFile = useCallback(
+    (fileName: string, file: EncryptedEnvFile) => {
+      updateCurrentWorkspace((workspace) => ({
+        ...workspace,
+        env: {
+          ...(workspace.env || {}),
+          [fileName]: file,
+        },
+      }))
+    },
+    [updateCurrentWorkspace]
+  )
+
+  const deleteEnvFile = useCallback(
+    (fileName: string) => {
+      updateCurrentWorkspace((workspace) => {
+        const nextEnv = { ...(workspace.env || {}) }
+        delete nextEnv[fileName]
+        return {
+          ...workspace,
+          env: nextEnv,
         }
       })
     },
@@ -610,6 +653,7 @@ export function WorkspaceDataProvider({
   const flows = useMemo<Record<string, Flow>>(() => workspaceData?.flows || {}, [workspaceData])
   const knowledge = useMemo<KnowledgeNode[]>(() => workspaceData?.knowledge || [], [workspaceData])
   const packageJson = useMemo<PackageJson | null>(() => workspaceData?.packageJson || null, [workspaceData])
+  const env = useMemo<WorkspaceEnv>(() => workspaceData?.env || {}, [workspaceData])
 
   const agentList = useMemo<AgentListItem[]>(() => Object.values(agents).map(toAgentListItem), [agents])
   const flowList = useMemo<FlowListItem[]>(() => Object.values(flows).map(toFlowListItem), [flows])
@@ -625,14 +669,18 @@ export function WorkspaceDataProvider({
     flows,
     knowledge,
     packageJson,
+    env,
     agentList,
     flowList,
     knowledgeTree,
     setCurrentWorkspace: setCurrentWorkspaceSafe,
+    updatePackageJson,
     upsertAgent,
     deleteAgent,
     upsertFlow,
     deleteFlow,
+    upsertEnvFile,
+    deleteEnvFile,
     updateKnowledgeFileContent,
     updateKnowledgeFileFrontmatter,
     updateKnowledgeDirectoryConfig,

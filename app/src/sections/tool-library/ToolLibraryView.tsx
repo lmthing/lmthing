@@ -10,7 +10,7 @@ type ToolLibraryData = {
 }
 
 export default function ToolLibraryPreview() {
-  const { data, loading, error } = useWorkspaceData<ToolLibraryData>('tool-library')
+  const { data, isLoading: _isLoading, error } = useWorkspaceData<ToolLibraryData>('tool-library')
   const [currentView, setCurrentView] = useState<ToolLibraryView>('tools')
 
   const handleInstallPackage = useCallback((packageName: string) => {
@@ -54,7 +54,7 @@ export default function ToolLibraryPreview() {
     console.log('Search tools:', query)
   }, [])
 
-  if (loading) {
+  if (isLoading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>
   }
   if (error || !data) {
@@ -63,9 +63,9 @@ export default function ToolLibraryPreview() {
 
   return (
     <ToolLibrary
-      tools={data.tools}
-      packages={data.packages}
-      environmentVariables={data.environmentVariables}
+      tools={data.tools as import('@/../product/sections/tool-library/types').Tool[]}
+      packages={data.packages as import('@/../product/sections/tool-library/types').ToolPackage[]}
+      environmentVariables={data.environmentVariables as import('@/../product/sections/tool-library/types').EnvironmentVariable[]}
       currentView={currentView}
       onInstallPackage={handleInstallPackage}
       onUninstallPackage={handleUninstallPackage}

@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useWorkspaceData } from '@/hooks/useWorkspaceData'
 import { PromptLibrary } from './components/PromptLibrary'
-import type { Directory, PromptFragment, NewFileForm, NewFolderForm, UnsavedChangesAction, FileSystemNode } from '@/../product/sections/prompt-library/types'
+import type { Directory, PromptFragment, NewFileForm, NewFolderForm, FileSystemNode } from '@/../product/sections/prompt-library/types'
 
 // This is a preview wrapper for LMThing only
 // It loads workspace-specific sample data and feeds it to the props-based component
@@ -25,7 +25,7 @@ type PromptLibraryData = {
 }
 
 export default function PromptLibraryPreview() {
-  const { data, loading, error } = useWorkspaceData<PromptLibraryData>('prompt-library')
+  const { data, isLoading: _isLoading, error } = useWorkspaceData<PromptLibraryData>('prompt-library')
 
   // State for expanded folders - initialize with empty array
   const [expandedFolders, setExpandedFolders] = useState<string[]>([])
@@ -63,7 +63,7 @@ export default function PromptLibraryPreview() {
     console.log('Select file:', file.id)
   }
 
-  const handleEditContent = (content: string) => {
+  const handleEditContent = (_content: string) => {
     // console.log('Edit content, length:', content.length)
   }
 
@@ -95,7 +95,7 @@ export default function PromptLibraryPreview() {
     console.log('Duplicate node:', nodeId)
   }
 
-  if (loading) {
+  if (isLoading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>
   }
   if (error || !data) {

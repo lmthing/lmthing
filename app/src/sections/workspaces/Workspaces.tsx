@@ -2,6 +2,7 @@
 
 import { useWorkspaceData } from '@/hooks/useWorkspaceData'
 import { Workspaces } from './components/Workspaces'
+import type { WorkspaceUser, RoleDefinition } from '@/../product/sections/workspaces/types'
 
 type WorkspacesData = {
   workspaceUsers: WorkspaceUser[]
@@ -9,7 +10,7 @@ type WorkspacesData = {
 }
 
 export default function WorkspacesPreview() {
-  const { data, loading, error } = useWorkspaceData<WorkspacesData>('workspaces')
+  const { data, isLoading, error } = useWorkspaceData<WorkspacesData>('workspaces')
 
   const handleSelectUser = (id: string) => {
     console.log('Selected user:', id)
@@ -35,7 +36,7 @@ export default function WorkspacesPreview() {
     console.log('Cancel edit')
   }
 
-  if (loading) {
+  if (isLoading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>
   }
   if (error || !data?.workspaceUsers) {

@@ -158,7 +158,7 @@ function FormField({
       </label>
 
       {/* Text input */}
-      {field.type === 'text' && (
+      {field.fieldType === 'text' && (
         <input
           type="text"
           value={value as string}
@@ -177,7 +177,7 @@ function FormField({
       )}
 
       {/* Textarea */}
-      {field.type === 'textarea' && (
+      {field.fieldType === 'textarea' && (
         <textarea
           value={value as string}
           onChange={(e) => onTextChange(fieldId, e.target.value)}
@@ -196,7 +196,7 @@ function FormField({
       )}
 
       {/* Select dropdown */}
-      {field.type === 'select' && (
+      {field.fieldType === 'select' && (
         <select
           value={value as string}
           onChange={(e) => onSelectChange(fieldId, e.target.value)}
@@ -211,23 +211,23 @@ function FormField({
           `}
         >
           {field.options?.map(option => (
-            <option key={option} value={option} className="bg-slate-900">
-              {option}
+            <option key={option.id} value={option.id} className="bg-slate-900">
+              {option.label}
             </option>
           ))}
         </select>
       )}
 
       {/* Multi-select pills */}
-      {field.type === 'multiselect' && (
+      {field.fieldType === 'multiselect' && (
         <div className="flex flex-wrap gap-2">
           {field.options?.map(option => {
-            const isSelected = Array.isArray(value) && value.includes(option)
+            const isSelected = Array.isArray(value) && value.includes(option.id)
             return (
               <button
-                key={option}
+                key={option.id}
                 type="button"
-                onClick={() => onMultiSelectToggle(fieldId, option)}
+                onClick={() => onMultiSelectToggle(fieldId, option.id)}
                 className={`
                   px-3 py-1.5 rounded-lg text-xs font-medium transition-all
                   ${isSelected
@@ -236,7 +236,7 @@ function FormField({
                   }
                 `}
               >
-                {option}
+                {option.label}
               </button>
             )
           })}
@@ -244,7 +244,7 @@ function FormField({
       )}
 
       {/* Toggle switch */}
-      {field.type === 'toggle' && (
+      {field.fieldType === 'toggle' && (
         <button
           type="button"
           onClick={() => onToggleChange(fieldId, !value)}

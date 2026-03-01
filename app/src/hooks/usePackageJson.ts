@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 import { useWorkspaceData } from '@/lib/workspaceDataContext'
-import type { PackageJson } from '@/types/workspace-data'
 
 /**
  * Hook to access package.json data from the workspace state

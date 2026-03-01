@@ -277,6 +277,12 @@ export function workspaceToFileTreeJson(workspace: WorkspaceData): FileTreeDirec
     addFileAtPath(root, 'package.json', JSON.stringify(workspace.packageJson, null, 2))
   }
 
+  const envEntries = Object.entries(workspace.env || {}).sort(([a], [b]) => a.localeCompare(b))
+  for (const [fileName, encryptedEnv] of envEntries) {
+    if (!fileName.startsWith('.env')) continue
+    addFileAtPath(root, fileName, JSON.stringify(encryptedEnv, null, 2))
+  }
+
   const sortedAgents = Object.values(workspace.agents || {}).sort((a, b) => a.id.localeCompare(b.id))
   for (const agent of sortedAgents) {
     const agentBase = `agents/${agent.id}`

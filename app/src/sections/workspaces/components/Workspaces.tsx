@@ -1,4 +1,4 @@
-import type { WorkspacesProps, WorkspaceUser } from '@/../product/sections/workspaces/types'
+import type { WorkspacesProps } from '@/../product/sections/workspaces/types'
 import { WorkspaceList } from './WorkspaceList'
 import { UserDetailPanel } from './UserDetailPanel'
 

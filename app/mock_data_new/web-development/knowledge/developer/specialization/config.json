@@ -1,0 +1,6 @@
+{
+  "label": "Specialization",
+  "description": "Areas of expertise",
+  "icon": "code",
+  "renderAs": "field"
+}

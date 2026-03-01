@@ -1,0 +1,152 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e6]:
+      - link "lmthing logo" [ref=e7] [cursor=pointer]:
+        - /url: /
+        - img "lmthing logo" [ref=e8]
+      - button "Select workspace" [ref=e10]:
+        - img [ref=e12]
+        - generic "local/education" [ref=e16]
+        - img [ref=e17]
+    - generic [ref=e20]:
+      - generic [ref=e21]:
+        - button "Knowledge (4)" [ref=e22]:
+          - img [ref=e23]
+          - text: Knowledge
+          - generic [ref=e25]: (4)
+        - generic [ref=e26]:
+          - link "Classroom Management 5 categories" [ref=e27] [cursor=pointer]:
+            - /url: /workspace/local%2Feducation/studio/domain/classroom
+            - img [ref=e28]
+            - generic [ref=e30]:
+              - generic [ref=e31]: Classroom Management
+              - generic [ref=e32]: 5 categories
+          - link "Curriculum Standards 5 categories" [ref=e33] [cursor=pointer]:
+            - /url: /workspace/local%2Feducation/studio/domain/curriculum
+            - img [ref=e34]
+            - generic [ref=e36]:
+              - generic [ref=e37]: Curriculum Standards
+              - generic [ref=e38]: 5 categories
+          - link "Subject Topics 5 categories" [ref=e39] [cursor=pointer]:
+            - /url: /workspace/local%2Feducation/studio/domain/subjects
+            - img [ref=e40]
+            - generic [ref=e42]:
+              - generic [ref=e43]: Subject Topics
+              - generic [ref=e44]: 5 categories
+          - link "Teacher Profile 5 categories" [ref=e45] [cursor=pointer]:
+            - /url: /workspace/local%2Feducation/studio/domain/teacher
+            - img [ref=e46]
+            - generic [ref=e48]:
+              - generic [ref=e49]: Teacher Profile
+              - generic [ref=e50]: 5 categories
+          - button "Create Knowledge" [ref=e51]:
+            - img [ref=e52]
+            - generic [ref=e53]: Create Knowledge
+      - generic [ref=e54]:
+        - button "Agents (2)" [ref=e55]:
+          - img [ref=e56]
+          - text: Agents
+          - generic [ref=e58]: (2)
+        - generic [ref=e59]:
+          - link "AssessmentAgent 3 knowledge areas" [ref=e60] [cursor=pointer]:
+            - /url: /workspace/local%2Feducation/studio/agent/agent-assessment
+            - img [ref=e61]
+            - generic [ref=e64]:
+              - generic [ref=e65]: AssessmentAgent
+              - generic [ref=e66]: 3 knowledge areas
+          - link "LessonPlanAgent 4 knowledge areas" [ref=e67] [cursor=pointer]:
+            - /url: /workspace/local%2Feducation/studio/agent/agent-lesson-plan
+            - img [ref=e68]
+            - generic [ref=e71]:
+              - generic [ref=e72]: LessonPlanAgent
+              - generic [ref=e73]: 4 knowledge areas
+          - button "Create Agent" [ref=e74]:
+            - img [ref=e75]
+            - generic [ref=e76]: Create Agent
+      - generic [ref=e77]:
+        - button "Conversations (2)" [ref=e78]:
+          - img [ref=e79]
+          - text: Conversations
+          - generic [ref=e81]: (2)
+        - generic [ref=e83]: Select an agent to view its conversations.
+    - generic [ref=e85]:
+      - button "Settings" [ref=e86]:
+        - img [ref=e87]
+        - generic [ref=e90]: Settings
+      - button "Collapse" [ref=e91]:
+        - img [ref=e92]
+        - generic [ref=e94]: Collapse
+  - generic [ref=e95]:
+    - banner [ref=e96]:
+      - generic [ref=e97]:
+        - button [ref=e98]:
+          - img [ref=e99]
+        - heading "Classroom Management" [level=1] [ref=e101]
+        - generic [ref=e102]: Classroom characteristics, student demographics, and learning environment configuration
+      - button "Export" [ref=e104]:
+        - img [ref=e105]
+        - text: Export
+    - generic [ref=e109]:
+      - complementary [ref=e110]:
+        - generic [ref=e111]:
+          - generic [ref=e112]:
+            - generic [ref=e113]:
+              - heading "Knowledge Base" [level=2] [ref=e114]: Knowledge Base
+              - paragraph [ref=e116]: Add the documents, rules, and context your agent needs to understand your specific knowledge.
+            - generic [ref=e117]:
+              - button "New File" [ref=e118]:
+                - img [ref=e119]
+              - button "New Folder" [ref=e122]:
+                - img [ref=e123]
+          - generic [ref=e125]:
+            - img [ref=e126]
+            - textbox "Search files..." [ref=e129]
+          - generic [ref=e130]:
+            - button "Expand" [ref=e131]:
+              - img [ref=e132]
+              - text: Expand
+            - button "Collapse" [ref=e134]:
+              - img [ref=e135]
+              - text: Collapse
+        - generic [ref=e137]:
+          - generic [ref=e139] [cursor=pointer]:
+            - img [ref=e140]
+            - img [ref=e142]
+            - generic [ref=e144]: Class Size
+            - button [ref=e145]:
+              - img [ref=e146]
+          - generic [ref=e151] [cursor=pointer]:
+            - img [ref=e152]
+            - img [ref=e154]
+            - generic [ref=e156]: Grade Level
+            - button [ref=e157]:
+              - img [ref=e158]
+          - generic [ref=e163] [cursor=pointer]:
+            - img [ref=e164]
+            - img [ref=e166]
+            - generic [ref=e168]: Learning Model
+            - button [ref=e169]:
+              - img [ref=e170]
+          - generic [ref=e175] [cursor=pointer]:
+            - img [ref=e176]
+            - img [ref=e178]
+            - generic [ref=e180]: Available Resources
+            - button [ref=e181]:
+              - img [ref=e182]
+          - generic [ref=e187] [cursor=pointer]:
+            - img [ref=e188]
+            - img [ref=e190]
+            - generic [ref=e192]: Student Support Needs
+            - button [ref=e193]:
+              - img [ref=e194]
+        - generic [ref=e200]: 39 items
+      - main [ref=e201]:
+        - generic [ref=e204]: No item selected
+        - generic [ref=e207]:
+          - img [ref=e209]
+          - heading "No file selected" [level=3] [ref=e212]
+          - paragraph [ref=e213]: Select a file from the tree to view and edit its content, or create a new prompt fragment.
+```

@@ -1,0 +1,7 @@
+{
+  "label": "Classroom Management",
+  "description": "Classroom characteristics, student demographics, and learning environment configuration",
+  "icon": "users",
+  "color": "#3b82f6",
+  "renderAs": "section"
+}

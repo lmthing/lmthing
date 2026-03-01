@@ -1,0 +1,11 @@
+{
+  "label": "Topics to Cover",
+  "description": "Specific topics within the subject",
+  "fieldType": "multiselect",
+  "required": false,
+  "default": [],
+  "variableName": "topics",
+  "placeholder": "Specific topics will be suggested based on subject",
+  "runtimeOptional": true,
+  "renderAs": "field"
+}

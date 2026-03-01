@@ -1,0 +1,11 @@
+{
+  "name": "web-development",
+  "version": "1.0.0",
+  "description": "Workspace: web-development",
+  "dependencies": {
+    "@devtools/components": "1.0.0",
+    "@devtools/hooks": "1.0.0",
+    "@devtools/api": "2.0.0",
+    "@devtools/types": "1.5.0"
+  }
+}

@@ -1,0 +1,533 @@
+{
+  "_meta": {
+    "models": {
+      "Agent": "A deployed educational AI agent configured from Agent Builder.",
+      "RuntimeField": "A field configured at runtime for dynamic lesson/unit customization.",
+      "EnabledTool": "An educational tool enabled for the agent.",
+      "Message": "A single message in a teacher-agent conversation.",
+      "Conversation": "A chat session between a teacher and an educational agent."
+    },
+    "relationships": [
+      "Agent has many RuntimeFields for dynamic configuration",
+      "Agent has many EnabledTools",
+      "Agent has many Conversations",
+      "Conversation has many Messages"
+    ]
+  },
+  "agents": [
+    {
+      "id": "agent-lesson-plan",
+      "name": "LessonPlanAgent",
+      "description": "Creates comprehensive lesson plans aligned with standards, customized for classroom and teacher needs",
+      "domains": [
+        "Classroom Management",
+        "Teacher Profile",
+        "Curriculum Standards",
+        "Subject Topics"
+      ],
+      "formValues": {
+        "gradeLevel": "5th Grade",
+        "classSize": "Medium (16-25)",
+        "studentNeeds": [
+          "English Language Learners",
+          "Gifted & Talented"
+        ],
+        "learningModel": "In-Person",
+        "resourcesAvailable": [
+          "1:1 Devices",
+          "Interactive Whiteboard"
+        ],
+        "yearsExperience": "3-5 years (Beginning)",
+        "subjectExpertise": [
+          "Mathematics",
+          "Science"
+        ],
+        "teachingStyle": [
+          "Differentiated Instruction",
+          "Project-Based Learning"
+        ],
+        "certifications": [
+          "General Elementary"
+        ],
+        "curriculumFramework": "Common Core State Standards",
+        "assessmentMethods": [
+          "Formative Assessment",
+          "Project-Based"
+        ],
+        "pacingGuide": true,
+        "differentiationRequired": true,
+        "primarySubject": "Mathematics",
+        "topics": [
+          "Fractions",
+          "Decimals"
+        ],
+        "skillLevel": "Developing",
+        "crossCurricular": [
+          "Real-World Applications",
+          "Technology"
+        ]
+      },
+      "runtimeFields": [
+        {
+          "id": "unitFocus",
+          "label": "Unit/Topic Focus",
+          "type": "text",
+          "placeholder": "e.g., Fractions, Civil War, Ecosystems...",
+          "value": "",
+          "domain": "Curriculum Standards"
+        },
+        {
+          "id": "lessonLength",
+          "label": "Lesson Length (minutes)",
+          "type": "select",
+          "options": [
+            "30",
+            "45",
+            "60",
+            "90",
+            "120"
+          ],
+          "value": "60",
+          "domain": "Classroom Management"
+        },
+        {
+          "id": "essentialQuestions",
+          "label": "Essential Questions",
+          "type": "textarea",
+          "placeholder": "What big questions should students answer?",
+          "value": "",
+          "domain": "Subject Topics"
+        }
+      ],
+      "enabledTools": [
+        {
+          "toolId": "standards-alignment-checker",
+          "name": "Standards Alignment Checker",
+          "package": "@edtools/standards",
+          "version": "2.1.0",
+          "installed": true,
+          "source": "manual",
+          "icon": "📚"
+        },
+        {
+          "toolId": "resource-library-search",
+          "name": "Resource Library Search",
+          "package": "@edtools/resources",
+          "version": "1.5.0",
+          "installed": true,
+          "source": "manual",
+          "icon": "🔍"
+        },
+        {
+          "toolId": "assessment-generator",
+          "name": "Assessment Generator",
+          "package": "@edtools/assessment",
+          "version": "3.0.0",
+          "installed": true,
+          "source": "manual",
+          "icon": "📝"
+        }
+      ],
+      "systemPrompt": "# Lesson Planning Assistant\n\nYou are an expert lesson planning assistant for teachers. You create comprehensive, standards-aligned lesson plans customized to the teacher's classroom context, teaching style, and student needs.\n\n## Your Approach\n1. Always consider the specific grade level and student needs\n2. Align all activities to the specified curriculum framework\n3. Include differentiation strategies for diverse learners\n4. Suggest formative and summative assessments\n5. Provide timing guidance and pacing\n6. Recommend resources that match available classroom technology\n\n## Lesson Plan Structure\n- Learning objectives aligned to standards\n- Essential questions\n- Materials and preparation needed\n- Lesson sequence with timing\n- Differentiation strategies\n- Assessment methods\n- Extension activities for early finishers",
+      "slashActions": [
+        {
+          "id": "sc_lesson_generate",
+          "actionId": "generate",
+          "name": "Generate Lesson",
+          "description": "Create a complete lesson plan based on your specifications",
+          "flowId": "flow_lesson_generate",
+          "agentId": "agent-lesson-plan",
+          "enabled": true
+        }
+      ],
+      "createdAt": "2025-01-15T09:00:00Z",
+      "lastUsedAt": "2025-02-20T14:30:00Z"
+    },
+    {
+      "id": "agent-assessment",
+      "name": "AssessmentAgent",
+      "description": "Designs formative and summative assessments aligned to learning objectives and standards",
+      "domains": [
+        "Curriculum Standards",
+        "Subject Topics",
+        "Classroom Management"
+      ],
+      "formValues": {
+        "gradeLevel": "8th Grade",
+        "classSize": "Large (26-35)",
+        "studentNeeds": [
+          "Reading Intervention",
+          "Special Education"
+        ],
+        "learningModel": "In-Person",
+        "resourcesAvailable": [
+          "1:1 Devices"
+        ],
+        "curriculumFramework": "Common Core State Standards",
+        "assessmentMethods": [
+          "Formative Assessment",
+          "Summative Assessment",
+          "Performance Tasks"
+        ],
+        "pacingGuide": true,
+        "differentiationRequired": true,
+        "primarySubject": "Mathematics",
+        "topics": [
+          "Algebra",
+          "Linear Equations",
+          "Graphing"
+        ],
+        "skillLevel": "Proficient",
+        "crossCurricular": [
+          "Real-World Applications"
+        ]
+      },
+      "runtimeFields": [
+        {
+          "id": "assessmentType",
+          "label": "Assessment Type",
+          "type": "select",
+          "options": [
+            "Quiz",
+            "Test",
+            "Project",
+            "Performance Task",
+            "Exit Ticket",
+            "Portfolio"
+          ],
+          "value": "",
+          "domain": "Curriculum Standards"
+        },
+        {
+          "id": "learningObjectives",
+          "label": "Learning Objectives",
+          "type": "textarea",
+          "placeholder": "What should students know or be able to do?",
+          "value": "",
+          "domain": "Subject Topics"
+        },
+        {
+          "id": "pointValue",
+          "label": "Point Value",
+          "type": "select",
+          "options": [
+            "10",
+            "20",
+            "50",
+            "100"
+          ],
+          "value": "100",
+          "domain": "Curriculum Standards"
+        }
+      ],
+      "enabledTools": [
+        {
+          "toolId": "standards-alignment-checker",
+          "name": "Standards Alignment Checker",
+          "package": "@edtools/standards",
+          "version": "2.1.0",
+          "installed": true,
+          "source": "manual",
+          "icon": "📚"
+        },
+        {
+          "toolId": "rubric-generator",
+          "name": "Rubric Generator",
+          "package": "@edtools/rubrics",
+          "version": "1.2.0",
+          "installed": true,
+          "source": "manual",
+          "icon": "📋"
+        },
+        {
+          "toolId": "question-bank",
+          "name": "Question Bank",
+          "package": "@edtools/questions",
+          "version": "2.3.0",
+          "installed": true,
+          "source": "manual",
+          "icon": "❓"
+        },
+        {
+          "toolId": "accommodation-suggester",
+          "name": "Accommodation Suggester",
+          "package": "@edtools/special-ed",
+          "version": "1.0.0",
+          "installed": true,
+          "source": "manual",
+          "icon": "♿"
+        }
+      ],
+      "systemPrompt": "# Assessment Design Assistant\n\nYou are an expert assessment designer. You create valid, reliable assessments that measure student learning aligned to standards.\n\n## Your Approach\n1. Align all items to specific learning objectives and standards\n2. Use Webb's Depth of Knowledge for cognitive complexity\n3. Include multiple question formats (selected response, constructed response, performance)\n4. Provide accommodations and modifications for diverse learners\n5. Create clear, user-friendly rubrics for performance tasks\n6. Ensure items are unbiased and accessible\n\n## Assessment Design Principles\n- Begin with the end in mind (backwards design)\n- Balance recall, application, and critical thinking\n- Include both scaffolded and extension items\n- Provide clear instructions and examples\n- Consider timing and appropriate length",
+      "slashActions": [
+        {
+          "id": "sc_assessment_generate",
+          "actionId": "generate",
+          "name": "Generate Assessment",
+          "description": "Create a complete assessment with items and rubric",
+          "flowId": "flow_assessment_generate",
+          "agentId": "agent-assessment",
+          "enabled": true
+        }
+      ],
+      "createdAt": "2025-01-20T10:30:00Z",
+      "lastUsedAt": "2025-02-18T11:15:00Z"
+    }
+  ],
+  "conversations": [
+    {
+      "id": "conv_001",
+      "agentId": "agent-lesson-plan",
+      "agentName": "LessonPlanAgent",
+      "messages": [
+        {
+          "id": "msg_001_1",
+          "role": "user",
+          "content": "I need a lesson plan for introducing fractions to my 5th graders. Many of them are ELL students.",
+          "timestamp": "2025-02-20T14:30:00Z"
+        },
+        {
+          "id": "msg_001_2",
+          "role": "assistant",
+          "content": "I'll create a fractions lesson plan designed for your 5th grade class with ELL students. Let me align it to Common Core standards.\n\n## Lesson: Understanding Fractions as Numbers\n\n**Standards:** 5.NF.A.1 - Add and subtract fractions with unlike denominators\n\n**Learning Objectives:**\n- Students will understand fractions as numbers on the number line\n- Students will visualize fractions using area models\n- Students will compare fractions with unlike denominators\n\n**Essential Question:** How can we represent parts of a whole and compare them?\n\n**Differentiation for ELL:**\n- Visual supports with fraction tiles and manipulatives\n- Vocabulary bank with pictures (numerator, denominator, equivalent)\n- Sentence frames for mathematical discourse\n- Partner work with mixed-language pairing\n\nWould you like me to expand any section or add specific activities?",
+          "timestamp": "2025-02-20T14:30:45Z"
+        },
+        {
+          "id": "msg_001_3",
+          "role": "user",
+          "content": "/generate --unitFocus \"Introduction to Fractions\" --lessonLength 60 --essentialQuestions \"How do fractions represent parts of a whole?\"",
+          "timestamp": "2025-02-20T14:31:30Z",
+          "slashAction": {
+            "action": "generate",
+            "agentId": "agent-lesson-plan",
+            "flowId": "flow_lesson_generate",
+            "parameters": {
+              "unitFocus": "Introduction to Fractions",
+              "lessonLength": "60",
+              "essentialQuestions": "How do fractions represent parts of a whole?"
+            }
+          }
+        },
+        {
+          "id": "msg_001_4",
+          "role": "assistant",
+          "content": "Generating lesson plan structure...",
+          "timestamp": "2025-02-20T14:31:31Z",
+          "structuredOutput": {
+            "type": "lessonPlan",
+            "version": "1.0",
+            "metadata": {
+              "generatedAt": "2025-02-20T14:31:31Z",
+              "generatedBy": "LessonPlanAgent",
+              "agentId": "agent-lesson-plan"
+            },
+            "lessonPlan": {
+              "title": "Introduction to Fractions",
+              "gradeLevel": "5th Grade",
+              "duration": 60,
+              "standards": [
+                "5.NF.A.1",
+                "5.NF.A.2"
+              ],
+              "objectives": [
+                "Identify numerator and denominator",
+                "Represent fractions using area models",
+                "Compare fractions with like denominators"
+              ],
+              "materials": [
+                "Fraction tiles",
+                "Graph paper",
+                "Whiteboard",
+                "Worksheets"
+              ],
+              "segments": [
+                {
+                  "id": "warmup",
+                  "title": "Warm-Up (10 min)",
+                  "activities": [
+                    "Fraction vocabulary review",
+                    "Quick fraction identifier game"
+                  ]
+                },
+                {
+                  "id": "instruction",
+                  "title": "Direct Instruction (15 min)",
+                  "activities": [
+                    "Introduction to fraction notation",
+                    "Area model demonstration"
+                  ]
+                },
+                {
+                  "id": "guided",
+                  "title": "Guided Practice (20 min)",
+                  "activities": [
+                    "Hands-on fraction tiles",
+                    "Partner work with manipulatives"
+                  ]
+                },
+                {
+                  "id": "closure",
+                  "title": "Closure (15 min)",
+                  "activities": [
+                    "Exit ticket",
+                    "Student reflection"
+                  ]
+                }
+              ],
+              "differentiation": {
+                "ell": {
+                  "visualSupports": true,
+                  "vocabularyBank": true,
+                  "sentenceFrames": true,
+                  "nativeLanguagePairs": true
+                },
+                "gifted": {
+                  "extension": "Equivalent fractions exploration",
+                  "challenge": "Design your own fraction model"
+                }
+              },
+              "assessment": {
+                "formative": [
+                  "Observation during practice",
+                  "Whiteboard responses"
+                ],
+                "summative": [
+                  "Exit ticket (5 questions)"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "createdAt": "2025-02-20T14:30:00Z",
+      "updatedAt": "2025-02-20T14:30:45Z"
+    },
+    {
+      "id": "conv_002",
+      "agentId": "agent-assessment",
+      "agentName": "AssessmentAgent",
+      "messages": [
+        {
+          "id": "msg_002_1",
+          "role": "user",
+          "content": "Create a quiz on linear equations for my 8th graders. Include accommodations for students with IEPs.",
+          "timestamp": "2025-02-18T11:15:00Z"
+        },
+        {
+          "id": "msg_002_2",
+          "role": "assistant",
+          "content": "I'll create a linear equations quiz with appropriate accommodations.\n\n## Linear Equations Quiz (8th Grade)\n\n**Standards:** 8.EE.C.7 - Solve linear equations in one variable\n\n### Questions (10 points total)\n\n1. Solve: 3x + 5 = 20 (2 pts)\n2. Solve: 2(x - 4) = 18 (2 pts)\n3. Write an equation for: Five more than twice a number is 23 (2 pts)\n4. Solve and graph: x - 7 ≤ -3 (2 pts)\n5. Word problem: A phone plan costs $15 plus $0.10 per minute. Write an equation and find cost for 100 minutes. (2 pts)\n\n### Accommodations for IEP/504:\n- **Reduced items**: Provide 5 key questions instead of 10\n- **Calculator**: Allow for all computation\n- **Formula sheet**: Provide equation-solving steps reference\n- **Extended time**: 1.5x time allowance\n- **Read aloud**: Test items read to student\n- **Scribe**: Student responds orally, scribe records\n\n### Modified Version (Alternative Assessment):\nFor students requiring significant modification, consider a performance task where students demonstrate solving one multi-step equation with verbal explanation of each step.\n\nWould you like a rubric for the word problem or additional modifications?",
+          "timestamp": "2025-02-18T11:16:00Z"
+        },
+        {
+          "id": "msg_002_3",
+          "role": "user",
+          "content": "/generate --assessmentType Quiz --learningObjectives \"Solve linear equations in one variable\" --pointValue 100",
+          "timestamp": "2025-02-18T11:17:00Z",
+          "slashAction": {
+            "action": "generate",
+            "agentId": "agent-assessment",
+            "flowId": "flow_assessment_generate",
+            "parameters": {
+              "assessmentType": "Quiz",
+              "learningObjectives": "Solve linear equations in one variable",
+              "pointValue": "100"
+            }
+          }
+        },
+        {
+          "id": "msg_002_4",
+          "role": "assistant",
+          "content": "Generating assessment structure...",
+          "timestamp": "2025-02-18T11:17:01Z",
+          "structuredOutput": {
+            "type": "assessment",
+            "version": "1.0",
+            "metadata": {
+              "generatedAt": "2025-02-18T11:17:01Z",
+              "generatedBy": "AssessmentAgent",
+              "agentId": "agent-assessment"
+            },
+            "assessment": {
+              "title": "Linear Equations Quiz",
+              "gradeLevel": "8th Grade",
+              "assessmentType": "Quiz",
+              "pointValue": 100,
+              "standards": [
+                "8.EE.C.7",
+                "8.EE.C.7a",
+                "8.EE.C.7b"
+              ],
+              "duration": 45,
+              "items": [
+                {
+                  "id": "q1",
+                  "type": "multiple-choice",
+                  "points": 10,
+                  "dokLevel": 1,
+                  "question": "Solve for x: 3x + 5 = 20",
+                  "options": [
+                    "x = 3",
+                    "x = 5",
+                    "x = 7",
+                    "x = 15"
+                  ],
+                  "correctAnswer": "x = 5",
+                  "standard": "8.EE.C.7"
+                },
+                {
+                  "id": "q2",
+                  "type": "constructed-response",
+                  "points": 15,
+                  "dokLevel": 2,
+                  "question": "Solve: 2(x - 4) = 18. Show your work.",
+                  "rubric": {
+                    "fullCredit": "Correct answer (x = 13) with complete work shown",
+                    "partialCredit": "Correct answer with partial work OR correct process with calculation error",
+                    "noCredit": "Incorrect answer with no work"
+                  },
+                  "standard": "8.EE.C.7b"
+                },
+                {
+                  "id": "q3",
+                  "type": "constructed-response",
+                  "points": 15,
+                  "dokLevel": 3,
+                  "question": "Write an equation for: Five more than twice a number is 23. Then solve it.",
+                  "rubric": {
+                    "fullCredit": "Correct equation (2x + 5 = 23) and solution (x = 9)",
+                    "partialCredit": "Correct equation or correct solution only",
+                    "noCredit": "Incorrect equation and solution"
+                  },
+                  "standard": "8.EE.C.7a"
+                }
+              ],
+              "accommodations": {
+                "iep": {
+                  "reducedItems": 5,
+                  "calculator": true,
+                  "formulaSheet": true,
+                  "extendedTime": 1.5,
+                  "readAloud": true,
+                  "scribe": true
+                },
+                "ell": {
+                  "translatedGlossary": true,
+                  "extendedTime": 1.25,
+                  "bilingualDictionary": true
+                }
+              },
+              "answerKey": {
+                "q1": "x = 5",
+                "q2": "x = 13",
+                "q3": "2x + 5 = 23, x = 9"
+              }
+            }
+          }
+        }
+      ],
+      "createdAt": "2025-02-18T11:15:00Z",
+      "updatedAt": "2025-02-18T11:16:00Z"
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "_meta": {
+    "models": {
+      "WorkspaceUser": "A collaborator in the plants workspace"
+    }
+  },
+  "workspaceUsers": [
+    {
+      "id": "usr_plants_01",
+      "name": "Maya Green",
+      "email": "maya.green@gardenlab.io",
+      "avatarUrl": "https://i.pravatar.cc/150?u=maya.green",
+      "role": "admin",
+      "status": "active",
+      "joinedAt": "2025-11-05T09:10:00Z",
+      "lastActive": "2026-02-27T16:20:00Z"
+    },
+    {
+      "id": "usr_plants_02",
+      "name": "Leo Rivera",
+      "email": "leo.rivera@gardenlab.io",
+      "avatarUrl": "https://i.pravatar.cc/150?u=leo.rivera",
+      "role": "editor",
+      "status": "active",
+      "joinedAt": "2025-12-01T11:30:00Z",
+      "lastActive": "2026-02-26T10:45:00Z"
+    },
+    {
+      "id": "usr_plants_03",
+      "name": "Iris Bloom",
+      "email": "iris.bloom@gardenlab.io",
+      "avatarUrl": "https://i.pravatar.cc/150?u=iris.bloom",
+      "role": "viewer",
+      "status": "invited",
+      "joinedAt": null,
+      "lastActive": null
+    }
+  ],
+  "roles": [
+    {
+      "value": "admin",
+      "label": "Admin",
+      "description": "Full access including user and workspace management"
+    },
+    {
+      "value": "editor",
+      "label": "Editor",
+      "description": "Can create and update agents, prompts, and flows"
+    },
+    {
+      "value": "viewer",
+      "label": "Viewer",
+      "description": "Read-only access"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "label": "Years of Experience",
+  "description": "Teacher's level of experience",
+  "fieldType": "select",
+  "required": true,
+  "default": "3-5-years",
+  "variableName": "yearsExperience",
+  "renderAs": "field"
+}

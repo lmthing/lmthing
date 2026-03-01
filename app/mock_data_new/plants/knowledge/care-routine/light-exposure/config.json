@@ -1,0 +1,9 @@
+{
+  "label": "Light Exposure",
+  "description": "Typical light available",
+  "fieldType": "select",
+  "required": true,
+  "default": "bright-indirect",
+  "variableName": "lightExposure",
+  "renderAs": "field"
+}

@@ -1,0 +1,117 @@
+{
+  "savedAgentConfigs": [
+    {
+      "id": "agent-api-integrator",
+      "name": "APIIntegratorAgent",
+      "description": "Handles REST and GraphQL API integrations with proper error handling and types",
+      "enabledTools": [
+        "api-client-generator",
+        "type-generator"
+      ],
+      "selectedDomains": [
+        "domain-project",
+        "domain-developer",
+        "domain-architecture"
+      ],
+      "emptyFieldsForRuntime": [],
+      "formValues": {
+        "projectType": "opt-spa",
+        "frontendFramework": "opt-react",
+        "cssFramework": "opt-tailwind",
+        "stateManagement": "opt-zustand",
+        "buildTool": "opt-vite",
+        "testingFramework": [
+          "vitest",
+          "msw"
+        ],
+        "experienceLevel": "opt-intermediate",
+        "specialization": [
+          "opt-fullstack"
+        ],
+        "codingStyle": [
+          "opt-typescript",
+          "opt-functional"
+        ],
+        "architecturePattern": "opt-component-based",
+        "designPatterns": [
+          "opt-observer"
+        ]
+      },
+      "mainInstruction": ""
+    },
+    {
+      "id": "agent-component-builder",
+      "name": "ComponentBuilderAgent",
+      "description": "Creates React components with TypeScript, Tailwind CSS, and best practices",
+      "enabledTools": [
+        "component-generator",
+        "hook-generator"
+      ],
+      "selectedDomains": [
+        "domain-project",
+        "domain-developer",
+        "domain-architecture",
+        "domain-feature"
+      ],
+      "emptyFieldsForRuntime": [
+        "field-feature-description"
+      ],
+      "formValues": {
+        "projectType": "opt-spa",
+        "frontendFramework": "opt-react",
+        "cssFramework": "opt-tailwind",
+        "stateManagement": "opt-zustand",
+        "buildTool": "opt-vite",
+        "testingFramework": [
+          "vitest",
+          "testing-library"
+        ],
+        "experienceLevel": "opt-intermediate",
+        "specialization": [
+          "opt-frontend"
+        ],
+        "codingStyle": [
+          "opt-functional",
+          "opt-typescript"
+        ],
+        "learningGoals": "Advanced React patterns",
+        "architecturePattern": "opt-component-based",
+        "designPatterns": [],
+        "codeOrganization": [
+          "opt-feature-based"
+        ],
+        "featureType": "opt-component",
+        "featureDescription": ""
+      },
+      "mainInstruction": "# Component Building Assistant\n\nYou are an expert React developer helping create production-ready components.\n\n## Your Approach\n- Always consider accessibility first\n- Write clean, type-safe TypeScript\n- Use proper React patterns and hooks\n- Include proper error handling\n- Consider performance implications\n- Follow the project's established patterns\n\n## Output Format\nStructure your code with clear imports, proper types, and inline documentation.",
+      "attachedFlows": [
+        {
+          "slashAction": {
+            "name": "Generate Component",
+            "description": "Create a complete component with tests",
+            "flowId": "component_generate",
+            "actionId": "generate"
+          }
+        }
+      ]
+    }
+  ],
+  "toolLibrary": [
+    {
+      "package": "@devtools/components",
+      "version": "1.0.0"
+    },
+    {
+      "package": "@devtools/hooks",
+      "version": "1.0.0"
+    },
+    {
+      "package": "@devtools/api",
+      "version": "2.0.0"
+    },
+    {
+      "package": "@devtools/types",
+      "version": "1.5.0"
+    }
+  ]
+}

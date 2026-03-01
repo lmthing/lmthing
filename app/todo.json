@@ -1,0 +1,18 @@
+[
+    {
+        "feature": "Create Knowledge Area",
+        "issue": "Clicking the 'Create Knowledge' button only logs to console 'Create domain' and doesn't open a modal or perform any action."
+    },
+    {
+        "feature": "Create Agent",
+        "issue": "Clicking the 'Create Agent' button only logs to console 'Create agent' and doesn't perform any action."
+    },
+    {
+        "feature": "Save Content",
+        "issue": "Auto save is enabled so it doesn't need to be manually triggered."
+    },
+    {
+        "feature": "File Management Operations (Create/Rename/Delete)",
+        "issue": "Most file explorer actions (Create File, Create Folder, Rename, Delete, Duplicate) simply log to the console and do not perform any real UI or state change."
+    }
+]

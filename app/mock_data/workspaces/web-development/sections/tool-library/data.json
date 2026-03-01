@@ -1,0 +1,514 @@
+{
+  "_meta": {
+    "models": {
+      "Tool": "A web development capability that agents can invoke for development tasks.",
+      "ToolParameter": "A parameter that a development tool accepts.",
+      "ToolPackage": "An npm package that provides development tools.",
+      "EnvironmentVariable": "Workspace configuration for APIs and services.",
+      "UsageReference": "Where a tool is used in the prompt library."
+    },
+    "relationships": [
+      "Tool belongs to one ToolPackage",
+      "Tool has many ToolParameters",
+      "Tool has many UsageReferences",
+      "ToolPackage has many Tools",
+      "EnvironmentVariable is used by one or more Tools"
+    ]
+  },
+  "tools": [
+    {
+      "id": "component-generator",
+      "name": "Component Generator",
+      "description": "Generates React components with TypeScript, proper typing, and boilerplate code.",
+      "source": "package",
+      "packageName": "@devtools/components",
+      "status": "enabled",
+      "parameters": [
+        {
+          "name": "componentName",
+          "type": "string",
+          "required": true,
+          "description": "Name of the component to generate"
+        },
+        {
+          "name": "props",
+          "type": "array",
+          "required": false,
+          "description": "Array of prop definitions with types"
+        },
+        {
+          "name": "cssFramework",
+          "type": "string",
+          "required": false,
+          "description": "CSS framework to use (tailwind, css-modules, styled-components)"
+        },
+        {
+          "name": "includeTests",
+          "type": "boolean",
+          "required": false,
+          "description": "Whether to generate test files"
+        }
+      ],
+      "envRequirements": [],
+      "usageReferences": [
+        {
+          "type": "directory",
+          "path": "feature",
+          "source": "config.json"
+        }
+      ],
+      "documentation": "Generates production-ready React components with TypeScript interfaces, proper prop typing, accessibility attributes, and optional test files. Supports Tailwind CSS, CSS Modules, and styled-components."
+    },
+    {
+      "id": "hook-generator",
+      "name": "Hook Generator",
+      "description": "Creates custom React hooks with TypeScript typing and proper patterns.",
+      "source": "package",
+      "packageName": "@devtools/hooks",
+      "status": "enabled",
+      "parameters": [
+        {
+          "name": "hookName",
+          "type": "string",
+          "required": true,
+          "description": "Name of the hook (must start with 'use')"
+        },
+        {
+          "name": "parameters",
+          "type": "array",
+          "required": false,
+          "description": "Hook parameters with types"
+        },
+        {
+          "name": "returnType",
+          "type": "string",
+          "required": false,
+          "description": "Return type of the hook"
+        }
+      ],
+      "envRequirements": [],
+      "usageReferences": [
+        {
+          "type": "directory",
+          "path": "feature",
+          "source": "config.json"
+        }
+      ],
+      "documentation": "Generates custom React hooks following best practices. Includes proper TypeScript typing, effect cleanup, dependency array handling, and optional test files using @testing-library/react-hooks."
+    },
+    {
+      "id": "api-client-generator",
+      "name": "API Client Generator",
+      "description": "Generates typed API clients from OpenAPI/Swagger specifications.",
+      "source": "package",
+      "packageName": "@devtools/api",
+      "status": "enabled",
+      "parameters": [
+        {
+          "name": "specUrl",
+          "type": "string",
+          "required": true,
+          "description": "URL to OpenAPI/Swagger specification"
+        },
+        {
+          "name": "clientType",
+          "type": "string",
+          "required": false,
+          "description": "Type of client: fetch, axios, or ky"
+        },
+        {
+          "name": "includeReactHooks",
+          "type": "boolean",
+          "required": false,
+          "description": "Generate React Query/SWR hooks"
+        }
+      ],
+      "envRequirements": [],
+      "usageReferences": [
+        {
+          "type": "directory",
+          "path": "feature",
+          "source": "config.json"
+        }
+      ],
+      "documentation": "Generates fully typed API clients from OpenAPI specifications. Creates TypeScript interfaces for all request/response types, endpoint functions with proper typing, error handling, and optional React hooks for data fetching."
+    },
+    {
+      "id": "type-generator",
+      "name": "TypeScript Type Generator",
+      "description": "Infers and generates TypeScript types from JSON schemas and API responses.",
+      "source": "package",
+      "packageName": "@devtools/types",
+      "status": "enabled",
+      "parameters": [
+        {
+          "name": "source",
+          "type": "string",
+          "required": true,
+          "description": "JSON schema or example JSON object"
+        },
+        {
+          "name": "typeName",
+          "type": "string",
+          "required": true,
+          "description": "Name for the generated interface or type"
+        },
+        {
+          "name": "options",
+          "type": "object",
+          "required": false,
+          "description": "Options for type generation (strict, optional props, etc.)"
+        }
+      ],
+      "envRequirements": [],
+      "usageReferences": [
+        {
+          "type": "directory",
+          "path": "architecture",
+          "source": "config.json"
+        }
+      ],
+      "documentation": "Generates TypeScript interfaces and types from JSON schemas or example JSON objects. Handles nested objects, arrays, unions, and optional properties. Useful for quickly typing API responses."
+    },
+    {
+      "id": "test-generator",
+      "name": "Test Generator",
+      "description": "Generates unit tests using Testing Library and Vitest/Jest.",
+      "source": "package",
+      "packageName": "@devtools/testing",
+      "status": "enabled",
+      "parameters": [
+        {
+          "name": "componentPath",
+          "type": "string",
+          "required": true,
+          "description": "Path to the component file to test"
+        },
+        {
+          "name": "testFramework",
+          "type": "string",
+          "required": false,
+          "description": "Testing framework: vitest or jest"
+        },
+        {
+          "name": "coverage",
+          "type": "string",
+          "required": false,
+          "description": "Coverage target percentage"
+        }
+      ],
+      "envRequirements": [],
+      "usageReferences": [
+        {
+          "type": "directory",
+          "path": "project",
+          "source": "config.json"
+        }
+      ],
+      "documentation": "Generates comprehensive unit tests for React components using Testing Library. Includes tests for rendering, user interactions, accessibility attributes, edge cases, and error states."
+    },
+    {
+      "id": "bundle-analyzer",
+      "name": "Bundle Analyzer",
+      "description": "Analyzes bundle size and provides optimization recommendations.",
+      "source": "package",
+      "packageName": "@devtools/bundle",
+      "status": "enabled",
+      "parameters": [
+        {
+          "name": "buildPath",
+          "type": "string",
+          "required": true,
+          "description": "Path to the build output directory"
+        },
+        {
+          "name": "threshold",
+          "type": "number",
+          "required": false,
+          "description": "Size threshold for warnings in KB"
+        }
+      ],
+      "envRequirements": [],
+      "usageReferences": [
+        {
+          "type": "directory",
+          "path": "project",
+          "source": "config.json"
+        }
+      ],
+      "documentation": "Analyzes webpack/vite bundle output to identify large modules, duplicate code, and optimization opportunities. Provides actionable recommendations for reducing bundle size."
+    },
+    {
+      "id": "accessibility-linter",
+      "name": "Accessibility Linter",
+      "description": "Checks components for accessibility issues and WCAG compliance.",
+      "source": "package",
+      "packageName": "@devtools/a11y",
+      "status": "enabled",
+      "parameters": [
+        {
+          "name": "componentPath",
+          "type": "string",
+          "required": true,
+          "description": "Path to component file"
+        },
+        {
+          "name": "wcagLevel",
+          "type": "string",
+          "required": false,
+          "description": "WCAG compliance level: A, AA, or AAA"
+        }
+      ],
+      "envRequirements": [],
+      "usageReferences": [
+        {
+          "type": "directory",
+          "path": "developer",
+          "source": "config.json"
+        }
+      ],
+      "documentation": "Analyzes React components for accessibility issues including missing ARIA labels, keyboard navigation problems, color contrast issues, and semantic HTML violations. Provides WCAG compliance reports."
+    },
+    {
+      "id": "performance-profiler",
+      "name": "Performance Profiler",
+      "description": "Profiles component render performance and identifies optimization opportunities.",
+      "source": "package",
+      "packageName": "@devtools/performance",
+      "status": "disabled",
+      "parameters": [
+        {
+          "name": "componentPath",
+          "type": "string",
+          "required": true,
+          "description": "Path to component to profile"
+        },
+        {
+          "name": "scenarios",
+          "type": "array",
+          "required": false,
+          "description": "Test scenarios to profile"
+        }
+      ],
+      "envRequirements": [],
+      "usageReferences": [
+        {
+          "type": "directory",
+          "path": "developer",
+          "source": "config.json"
+        }
+      ],
+      "documentation": "Profiles React component render performance using React DevTools Profiler API. Identifies unnecessary re-renders, expensive computations, and memoization opportunities."
+    },
+    {
+      "id": "eslint-config-generator",
+      "name": "ESLint Config Generator",
+      "description": "Generates ESLint configuration based on project tech stack.",
+      "source": "package",
+      "packageName": "@devtools/linting",
+      "status": "enabled",
+      "parameters": [
+        {
+          "name": "framework",
+          "type": "string",
+          "required": true,
+          "description": "Framework: react, vue, svelte, etc."
+        },
+        {
+          "name": "typescript",
+          "type": "boolean",
+          "required": false,
+          "description": "Enable TypeScript rules"
+        },
+        {
+          "name": "strictness",
+          "type": "string",
+          "required": false,
+          "description": "Rule strictness level"
+        }
+      ],
+      "envRequirements": [],
+      "usageReferences": [],
+      "documentation": "Generates optimized ESLint configuration based on the project's tech stack. Includes framework-specific rules, TypeScript support, and recommended settings for the chosen strictness level."
+    },
+    {
+      "id": "storybook-generator",
+      "name": "Storybook Generator",
+      "description": "Generates Storybook stories for components.",
+      "source": "package",
+      "packageName": "@devtools/storybook",
+      "status": "disabled",
+      "parameters": [
+        {
+          "name": "componentPath",
+          "type": "string",
+          "required": true,
+          "description": "Path to component file"
+        },
+        {
+          "name": "variantTypes",
+          "type": "array",
+          "required": false,
+          "description": "Types of story variants to generate"
+        }
+      ],
+      "envRequirements": [],
+      "usageReferences": [
+        {
+          "type": "directory",
+          "path": "feature",
+          "source": "config.json"
+        }
+      ],
+      "documentation": "Generates Storybook stories for React components including common variants (states, sizes, themes), interactive controls, and documentation. Supports CSF format and autodocs."
+    }
+  ],
+  "packages": [
+    {
+      "id": "@devtools/components",
+      "name": "@devtools/components",
+      "version": "1.0.0",
+      "description": "Component generation tools for React and TypeScript.",
+      "author": "DevTools",
+      "installed": true,
+      "isBuiltin": false,
+      "latestVersion": "1.0.0",
+      "updateAvailable": false,
+      "toolCount": 1,
+      "tools": ["component-generator"]
+    },
+    {
+      "id": "@devtools/hooks",
+      "name": "@devtools/hooks",
+      "version": "1.0.0",
+      "description": "Custom React hook generation utilities.",
+      "author": "DevTools",
+      "installed": true,
+      "isBuiltin": false,
+      "latestVersion": "1.0.0",
+      "updateAvailable": false,
+      "toolCount": 1,
+      "tools": ["hook-generator"]
+    },
+    {
+      "id": "@devtools/api",
+      "name": "@devtools/api",
+      "version": "2.0.0",
+      "description": "API client generation from OpenAPI specifications.",
+      "author": "DevTools",
+      "installed": true,
+      "isBuiltin": false,
+      "latestVersion": "2.0.0",
+      "updateAvailable": false,
+      "toolCount": 1,
+      "tools": ["api-client-generator"]
+    },
+    {
+      "id": "@devtools/types",
+      "name": "@devtools/types",
+      "version": "1.5.0",
+      "description": "TypeScript type inference and generation tools.",
+      "author": "DevTools",
+      "installed": true,
+      "isBuiltin": false,
+      "latestVersion": "1.5.0",
+      "updateAvailable": false,
+      "toolCount": 1,
+      "tools": ["type-generator"]
+    },
+    {
+      "id": "@devtools/testing",
+      "name": "@devtools/testing",
+      "version": "1.2.0",
+      "description": "Test generation utilities for Testing Library.",
+      "author": "DevTools",
+      "installed": true,
+      "isBuiltin": false,
+      "latestVersion": "1.2.0",
+      "updateAvailable": false,
+      "toolCount": 1,
+      "tools": ["test-generator"]
+    },
+    {
+      "id": "@devtools/bundle",
+      "name": "@devtools/bundle",
+      "version": "1.0.0",
+      "description": "Bundle analysis and optimization tools.",
+      "author": "DevTools",
+      "installed": true,
+      "isBuiltin": false,
+      "latestVersion": "1.0.0",
+      "updateAvailable": false,
+      "toolCount": 1,
+      "tools": ["bundle-analyzer"]
+    },
+    {
+      "id": "@devtools/a11y",
+      "name": "@devtools/a11y",
+      "version": "1.3.0",
+      "description": "Accessibility linting and WCAG compliance checking.",
+      "author": "DevTools",
+      "installed": true,
+      "isBuiltin": false,
+      "latestVersion": "1.3.0",
+      "updateAvailable": false,
+      "toolCount": 1,
+      "tools": ["accessibility-linter"]
+    },
+    {
+      "id": "@devtools/performance",
+      "name": "@devtools/performance",
+      "version": "0.9.0",
+      "description": "Performance profiling and optimization tools.",
+      "author": "DevTools",
+      "installed": false,
+      "isBuiltin": false,
+      "latestVersion": "1.0.0",
+      "updateAvailable": true,
+      "toolCount": 1,
+      "tools": ["performance-profiler"]
+    },
+    {
+      "id": "@devtools/linting",
+      "name": "@devtools/linting",
+      "version": "1.0.0",
+      "description": "ESLint and Prettier configuration generators.",
+      "author": "DevTools",
+      "installed": true,
+      "isBuiltin": false,
+      "latestVersion": "1.0.0",
+      "updateAvailable": false,
+      "toolCount": 1,
+      "tools": ["eslint-config-generator"]
+    },
+    {
+      "id": "@devtools/storybook",
+      "name": "@devtools/storybook",
+      "version": "1.1.0",
+      "description": "Storybook story generation tools.",
+      "author": "DevTools",
+      "installed": false,
+      "isBuiltin": false,
+      "latestVersion": "1.1.0",
+      "updateAvailable": false,
+      "toolCount": 1,
+      "tools": ["storybook-generator"]
+    }
+  ],
+  "environmentVariables": [
+    {
+      "key": "OPENAI_API_KEY",
+      "value": "sk-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+      "description": "API key for OpenAI/Anthropic services",
+      "isSecret": true,
+      "usedBy": ["component-generator", "hook-generator"]
+    },
+    {
+      "key": "CI",
+      "value": "false",
+      "description": "Whether running in CI environment",
+      "isSecret": false,
+      "usedBy": ["test-generator", "bundle-analyzer"]
+    }
+  ]
+}

@@ -1,0 +1,389 @@
+{
+  "_meta": {
+    "models": {
+      "Agent": "A deployed web development AI agent configured from Agent Builder.",
+      "RuntimeField": "A field configured at runtime for dynamic customization.",
+      "EnabledTool": "A development tool enabled for the agent.",
+      "Message": "A single message in a developer-agent conversation.",
+      "Conversation": "A chat session between a developer and an agent."
+    },
+    "relationships": [
+      "Agent has many RuntimeFields for dynamic configuration",
+      "Agent has many EnabledTools",
+      "Agent has many Conversations",
+      "Conversation has many Messages"
+    ]
+  },
+  "agents": [
+    {
+      "id": "agent_wd_001",
+      "name": "ComponentBuilderAgent",
+      "description": "Creates React components with TypeScript, Tailwind CSS, and best practices",
+      "domains": ["Project Context", "Developer Profile", "Architecture & Patterns", "Feature Requirements"],
+      "formValues": {
+        "projectType": "Single Page Application (SPA)",
+        "frontendFramework": "React",
+        "cssFramework": "Tailwind CSS",
+        "stateManagement": "Zustand",
+        "buildTool": "Vite",
+        "testingFramework": ["Vitest", "Testing Library"],
+        "experienceLevel": "Intermediate (2-5 years)",
+        "specialization": ["Frontend Development"],
+        "codingStyle": ["Functional Programming", "Type-Safe (TypeScript)"],
+        "learningGoals": "Advanced React patterns",
+        "architecturePattern": "Component-Based",
+        "featureType": "UI Component"
+      },
+      "runtimeFields": [
+        {
+          "id": "componentName",
+          "label": "Component Name",
+          "type": "text",
+          "placeholder": "e.g., UserCard, DataTable, NavigationBar...",
+          "value": "",
+          "domain": "Feature Requirements"
+        },
+        {
+          "id": "componentProps",
+          "label": "Component Props",
+          "type": "textarea",
+          "placeholder": "Describe the props this component should accept...",
+          "value": "",
+          "domain": "Feature Requirements"
+        },
+        {
+          "id": "stylingRequirements",
+          "label": "Styling Notes",
+          "type": "textarea",
+          "placeholder": "Any specific styling requirements?",
+          "value": "",
+          "domain": "Project Context"
+        }
+      ],
+      "enabledTools": [
+        {
+          "toolId": "component-generator",
+          "name": "Component Generator",
+          "package": "@devtools/components",
+          "version": "1.0.0",
+          "installed": true,
+          "source": "manual",
+          "icon": "⚛️"
+        },
+        {
+          "toolId": "hook-generator",
+          "name": "Hook Generator",
+          "package": "@devtools/hooks",
+          "version": "1.0.0",
+          "installed": true,
+          "source": "manual",
+          "icon": "🪝"
+        }
+      ],
+      "systemPrompt": "# Component Building Assistant\n\nYou are an expert React developer helping create production-ready components.\n\n## Your Approach\n1. Always consider accessibility first\n2. Write clean, type-safe TypeScript\n3. Use proper React patterns and hooks\n4. Include proper error handling\n5. Consider performance implications\n6. Follow the project's established patterns\n\n## Component Best Practices\n- Use semantic HTML elements\n- Include ARIA labels and roles\n- Write self-documenting code with clear variable names\n- Include JSDoc comments for complex logic\n- Optimize re-renders with useMemo/useCallback where appropriate\n- Handle loading and error states gracefully",
+      "slashActions": [
+        {
+          "id": "sc_wd_comp_generate",
+          "actionId": "generate",
+          "name": "Generate Component",
+          "description": "Create a complete component based on your specifications",
+          "flowId": "flow_component_generate",
+          "agentId": "agent_wd_001",
+          "enabled": true
+        }
+      ],
+      "createdAt": "2025-01-15T09:00:00Z",
+      "lastUsedAt": "2025-02-28T10:30:00Z"
+    },
+    {
+      "id": "agent_wd_002",
+      "name": "APIIntegratorAgent",
+      "description": "Handles REST and GraphQL API integrations with proper error handling and types",
+      "domains": ["Project Context", "Developer Profile", "Architecture & Patterns"],
+      "formValues": {
+        "projectType": "Single Page Application (SPA)",
+        "frontendFramework": "React",
+        "cssFramework": "Tailwind CSS",
+        "stateManagement": "Zustand",
+        "buildTool": "Vite",
+        "testingFramework": ["Vitest", "MSW"],
+        "experienceLevel": "Intermediate (2-5 years)",
+        "specialization": ["Full Stack"],
+        "codingStyle": ["Type-Safe (TypeScript)", "Functional Programming"],
+        "architecturePattern": "Component-Based"
+      },
+      "runtimeFields": [
+        {
+          "id": "apiBaseUrl",
+          "label": "API Base URL",
+          "type": "text",
+          "placeholder": "e.g., https://api.example.com/v1",
+          "value": "",
+          "domain": "Project Context"
+        },
+        {
+          "id": "authenticationType",
+          "label": "Authentication",
+          "type": "select",
+          "options": ["None", "Bearer Token", "API Key", "OAuth2", "Basic Auth"],
+          "value": "",
+          "domain": "Project Context"
+        },
+        {
+          "id": "endpointsDescription",
+          "label": "Endpoints",
+          "type": "textarea",
+          "placeholder": "Describe the API endpoints to integrate...",
+          "value": "",
+          "domain": "Feature Requirements"
+        }
+      ],
+      "enabledTools": [
+        {
+          "toolId": "api-client-generator",
+          "name": "API Client Generator",
+          "package": "@devtools/api",
+          "version": "2.0.0",
+          "installed": true,
+          "source": "manual",
+          "icon": "🔌"
+        },
+        {
+          "toolId": "type-generator",
+          "name": "TypeScript Type Generator",
+          "package": "@devtools/types",
+          "version": "1.5.0",
+          "installed": true,
+          "source": "manual",
+          "icon": "📝"
+        }
+      ],
+      "systemPrompt": "# API Integration Assistant\n\nYou are an expert in building type-safe API integrations for React applications.\n\n## Your Approach\n1. Create strongly-typed interfaces for all API contracts\n2. Handle errors gracefully with proper error types\n3. Implement retry logic for failed requests\n4. Use React Query/SWR patterns for data fetching\n5. Mock API responses for testing\n6. Handle authentication and authorization properly\n\n## API Integration Best Practices\n- Use fetch or axios with proper configuration\n- Implement request/response interceptors\n- Handle loading, error, and success states\n- Cache responses appropriately\n- Implement optimistic updates where applicable\n- Handle pagination and infinite scrolling",
+      "slashActions": [
+        {
+          "id": "sc_wd_api_generate",
+          "actionId": "generate",
+          "name": "Generate API Integration",
+          "description": "Create a complete API integration with types and tests",
+          "flowId": "flow_api_integration",
+          "agentId": "agent_wd_002",
+          "enabled": true
+        }
+      ],
+      "createdAt": "2025-02-01T10:30:00Z",
+      "lastUsedAt": "2025-02-27T14:15:00Z"
+    },
+    {
+      "id": "agent_wd_003",
+      "name": "HookBuilderAgent",
+      "description": "Creates custom React hooks with proper typing, testing, and documentation",
+      "domains": ["Developer Profile", "Architecture & Patterns", "Feature Requirements"],
+      "formValues": {
+        "experienceLevel": "Intermediate (2-5 years)",
+        "specialization": ["Frontend Development"],
+        "codingStyle": ["Functional Programming", "Type-Safe (TypeScript)", "Test-Driven Development"],
+        "architecturePattern": "Component-Based",
+        "designPatterns": ["Custom Hooks Pattern"],
+        "featureType": "Custom Hook"
+      },
+      "runtimeFields": [
+        {
+          "id": "hookName",
+          "label": "Hook Name",
+          "type": "text",
+          "placeholder": "e.g., useLocalStorage, useDebounce, useFetch...",
+          "value": "",
+          "domain": "Feature Requirements"
+        },
+        {
+          "id": "hookPurpose",
+          "label": "Purpose",
+          "type": "textarea",
+          "placeholder": "What should this hook do?",
+          "value": "",
+          "domain": "Feature Requirements"
+        }
+      ],
+      "enabledTools": [
+        {
+          "toolId": "hook-generator",
+          "name": "Hook Generator",
+          "package": "@devtools/hooks",
+          "version": "1.0.0",
+          "installed": true,
+          "source": "manual",
+          "icon": "🪝"
+        }
+      ],
+      "systemPrompt": "# Custom Hook Builder Assistant\n\nYou are an expert in creating reusable React hooks with proper patterns.\n\n## Your Approach\n1. Follow the Rules of Hooks strictly\n2. Return consistent, typed values from hooks\n3. Handle cleanup in useEffect properly\n4. Use useCallback and useMemo for performance\n5. Write comprehensive tests with @testing-library/react-hooks\n6. Document hook usage with examples\n\n## Hook Best Practices\n- Start with 'use' prefix\n- Accept parameters and return an array or object\n- Handle edge cases and error states\n- Provide stable references with useCallback\n- Include proper TypeScript typing\n- Write self-documenting code",
+      "slashActions": [
+        {
+          "id": "sc_wd_hook_generate",
+          "actionId": "generate",
+          "name": "Generate Hook",
+          "description": "Create a complete custom hook with tests",
+          "flowId": "flow_hook_generate",
+          "agentId": "agent_wd_003",
+          "enabled": true
+        }
+      ],
+      "createdAt": "2025-02-10T08:00:00Z",
+      "lastUsedAt": "2025-02-26T16:45:00Z"
+    }
+  ],
+  "conversations": [
+    {
+      "id": "conv_wd_001",
+      "agentId": "agent_wd_001",
+      "agentName": "ComponentBuilderAgent",
+      "messages": [
+        {
+          "id": "msg_wd_001_1",
+          "role": "user",
+          "content": "I need a reusable UserCard component for my React app. It should display user avatar, name, email, and a follow button.",
+          "timestamp": "2025-02-28T10:30:00Z"
+        },
+        {
+          "id": "msg_wd_001_2",
+          "role": "assistant",
+          "content": "I'll create a UserCard component with TypeScript and Tailwind CSS. Let me build it with proper accessibility and prop types.\n\nHere's what the component will include:\n- Avatar image with fallback\n- User name and email display\n- Follow/unfollow button with state\n- Proper ARIA labels\n- Responsive design\n- TypeScript interface for props\n\nShould I include any additional features like online status indicator or user role badges?",
+          "timestamp": "2025-02-28T10:30:30Z"
+        },
+        {
+          "id": "msg_wd_001_3",
+          "role": "user",
+          "content": "/generate --componentName UserCard --componentProps 'user: User object with id, name, email, avatarUrl; onFollow: callback for follow action; isFollowing: boolean'",
+          "timestamp": "2025-02-28T10:31:00Z",
+          "slashAction": {
+            "action": "generate",
+            "agentId": "agent_wd_001",
+            "flowId": "flow_component_generate",
+            "parameters": {
+              "componentName": "UserCard",
+              "componentProps": "user: User object with id, name, email, avatarUrl; onFollow: callback for follow action; isFollowing: boolean"
+            }
+          }
+        },
+        {
+          "id": "msg_wd_001_4",
+          "role": "assistant",
+          "content": "Generating UserCard component structure...",
+          "timestamp": "2025-02-28T10:31:01Z",
+          "structuredOutput": {
+            "type": "component",
+            "version": "1.0",
+            "metadata": {
+              "generatedAt": "2025-02-28T10:31:01Z",
+              "generatedBy": "ComponentBuilderAgent",
+              "agentId": "agent_wd_001"
+            },
+            "component": {
+              "name": "UserCard",
+              "files": [
+                {
+                  "path": "src/components/UserCard/UserCard.tsx",
+                  "content": "import { useState } from 'react'\nimport { User } from '@/types'\nimport { cn } from '@/lib/utils'\n\ninterface UserCardProps {\n  user: User\n  onFollow?: (userId: string) => void\n  onUnfollow?: (userId: string) => void\n  isFollowing?: boolean\n  className?: string\n}\n\nexport function UserCard({ user, onFollow, onUnfollow, isFollowing = false, className }: UserCardProps) {\n  const [localFollowing, setLocalFollowing] = useState(isFollowing)\n  \n  const handleFollowToggle = () => {\n    if (localFollowing) {\n      onUnfollow?.(user.id)\n    } else {\n      onFollow?.(user.id)\n    }\n    setLocalFollowing(!localFollowing)\n  }\n  \n  return (\n    <article\n      className={cn(\n        'bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 flex items-center gap-4',\n        'hover:shadow-lg transition-shadow duration-200',\n        className\n      )}\n    >\n      <img\n        src={user.avatarUrl}\n        alt={`Avatar for ${user.name}`}\n        className=\"w-16 h-16 rounded-full object-cover\"\n        onError={(e) => {\n          e.currentTarget.src = '/default-avatar.png'\n        }}\n      />\n      <div className=\"flex-1\">\n        <h3 className=\"font-semibold text-gray-900 dark:text-white\">{user.name}</h3>\n        <p className=\"text-sm text-gray-600 dark:text-gray-400\">{user.email}</p>\n      </div>\n      <button\n        onClick={handleFollowToggle}\n        className={cn(\n          'px-4 py-2 rounded-md font-medium transition-colors',\n          localFollowing\n            ? 'bg-gray-200 hover:bg-gray-300 text-gray-800'\n            : 'bg-blue-600 hover:bg-blue-700 text-white'\n        )}\n        aria-label={localFollowing ? `Unfollow ${user.name}` : `Follow ${user.name}`}\n      >\n        {localFollowing ? 'Following' : 'Follow'}\n      </button>\n    </article>\n  )\n}"
+                },
+                {
+                  "path": "src/components/UserCard/UserCard.test.tsx",
+                  "content": "import { render, screen, fireEvent } from '@testing-library/react'\nimport { describe, it, expect, vi } from 'vitest'\nimport { UserCard } from './UserCard'\nimport { User } from '@/types'\n\ndescribe('UserCard', () => {\n  const mockUser: User = {\n    id: '1',\n    name: 'John Doe',\n    email: 'john@example.com',\n    avatarUrl: 'https://example.com/avatar.jpg'\n  }\n  \n  it('renders user information', () => {\n    render(<UserCard user={mockUser} />)\n    \n    expect(screen.getByText('John Doe')).toBeInTheDocument()\n    expect(screen.getByText('john@example.com')).toBeInTheDocument()\n    expect(screen.getByAltText('Avatar for John Doe')).toBeInTheDocument()\n  })\n  \n  it('calls onFollow when Follow button is clicked', () => {\n    const onFollow = vi.fn()\n    render(<UserCard user={mockUser} onFollow={onFollow} />)\n    \n    const followButton = screen.getByRole('button', { name: /follow john doe/i })\n    fireEvent.click(followButton)\n    \n    expect(onFollow).toHaveBeenCalledWith('1')\n  })\n  \n  it('displays Following state when isFollowing is true', () => {\n    render(<UserCard user={mockUser} isFollowing={true} />)\n    \n    expect(screen.getByRole('button', { name: /following/i })).toBeInTheDocument()\n  })\n})"
+                }
+              ],
+              "types": [
+                {
+                  "name": "User",
+                  "definition": "interface User {\n  id: string\n  name: string\n  email: string\n  avatarUrl: string\n}"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "createdAt": "2025-02-28T10:30:00Z",
+      "updatedAt": "2025-02-28T10:31:01Z"
+    },
+    {
+      "id": "conv_wd_002",
+      "agentId": "agent_wd_002",
+      "agentName": "APIIntegratorAgent",
+      "messages": [
+        {
+          "id": "msg_wd_002_1",
+          "role": "user",
+          "content": "I need to integrate with the JSONPlaceholder API for posts and comments.",
+          "timestamp": "2025-02-27T14:15:00Z"
+        },
+        {
+          "id": "msg_wd_002_2",
+          "role": "assistant",
+          "content": "I'll create a type-safe API integration for JSONPlaceholder. This will include:\n\n- TypeScript interfaces for Posts and Comments\n- Configured fetch client\n- Typed endpoint functions\n- Custom React hooks for data fetching\n- Error handling with retry logic\n- MSW mocks for testing\n\nThe endpoints will be:\n- GET /posts - List all posts\n- GET /posts/:id - Get single post\n- GET /posts/:id/comments - Get post comments\n- GET /comments?postId=:id - Filter comments by post\n\nShall I proceed with the implementation?",
+          "timestamp": "2025-02-27T14:15:45Z"
+        }
+      ],
+      "createdAt": "2025-02-27T14:15:00Z",
+      "updatedAt": "2025-02-27T14:15:45Z"
+    },
+    {
+      "id": "conv_wd_003",
+      "agentId": "agent_wd_003",
+      "agentName": "HookBuilderAgent",
+      "messages": [
+        {
+          "id": "msg_wd_003_1",
+          "role": "user",
+          "content": "I need a useDebounce hook for my search input.",
+          "timestamp": "2025-02-26T16:45:00Z"
+        },
+        {
+          "id": "msg_wd_003_2",
+          "role": "assistant",
+          "content": "I'll create a useDebounce hook with proper TypeScript typing and cleanup.\n\nThe hook will:\n- Accept a value and delay in milliseconds\n- Return the debounced value\n- Properly cleanup timeouts on unmount\n- Include proper typing for any value type\n\nLet me generate this for you.",
+          "timestamp": "2025-02-26T16:45:30Z"
+        },
+        {
+          "id": "msg_wd_003_3",
+          "role": "user",
+          "content": "/generate --hookName useDebounce --hookPurpose 'Delays updating a value until after a specified delay has passed'",
+          "timestamp": "2025-02-26T16:46:00Z",
+          "slashAction": {
+            "action": "generate",
+            "agentId": "agent_wd_003",
+            "flowId": "flow_hook_generate",
+            "parameters": {
+              "hookName": "useDebounce",
+              "hookPurpose": "Delays updating a value until after a specified delay has passed"
+            }
+          }
+        },
+        {
+          "id": "msg_wd_003_4",
+          "role": "assistant",
+          "content": "Generating useDebounce hook...",
+          "timestamp": "2025-02-26T16:46:01Z",
+          "structuredOutput": {
+            "type": "hook",
+            "version": "1.0",
+            "metadata": {
+              "generatedAt": "2025-02-26T16:46:01Z",
+              "generatedBy": "HookBuilderAgent",
+              "agentId": "agent_wd_003"
+            },
+            "hook": {
+              "name": "useDebounce",
+              "file": {
+                "path": "src/hooks/useDebounce.ts",
+                "content": "import { useEffect, useState } from 'react'\n\n/**\n * Debounces a value update until after a specified delay.\n *\n * @param value - The value to debounce\n * @param delay - The delay in milliseconds (default: 500ms)\n * @returns The debounced value\n *\n * @example\n * const debouncedSearchTerm = useDebounce(searchTerm, 300)\n */\nexport function useDebounce<T>(value: T, delay = 500): T {\n  const [debouncedValue, setDebouncedValue] = useState<T>(value)\n\n  useEffect(() => {\n    // Set up timer to update debounced value after delay\n    const timer = setTimeout(() => {\n      setDebouncedValue(value)\n    }, delay)\n\n    // Cleanup timer if value changes before delay expires\n    // or if component unmounts\n    return () => {\n      clearTimeout(timer)\n    }\n  }, [value, delay])\n\n  return debouncedValue\n}"
+              },
+              "testFile": {
+                "path": "src/hooks/useDebounce.test.ts",
+                "content": "import { renderHook, waitFor } from '@testing-library/react'\nimport { describe, it, expect, vi } from 'vitest'\nimport { useDebounce } from './useDebounce'\n\ndescribe('useDebounce', () => {\n  it('returns initial value immediately', () => {\n    const { result } = renderHook(() => useDebounce('initial', 500))\n    expect(result.current).toBe('initial')\n  })\n\n  it('debounces value updates', async () => {\n    const { result, rerender } = renderHook(\n      ({ value }) => useDebounce(value, 500),\n      { initialProps: { value: 'initial' } }\n    )\n\n    // Rapid updates\n    rerender({ value: 'update 1' })\n    rerender({ value: 'update 2' })\n    rerender({ value: 'final' })\n\n    // Should still be initial before delay\n    expect(result.current).toBe('initial')\n\n    // Should update after delay\n    await waitFor(\n      () => expect(result.current).toBe('final'),\n      { timeout: 600 }\n    )\n  })\n\n  it('works with different types', () => {\n    const { result: numResult } = renderHook(() => useDebounce(42, 100))\n    expect(numResult.current).toBe(42)\n\n    const { result: objResult } = renderHook(() => \n      useDebounce({ key: 'value' }, 100)\n    )\n    expect(objResult.current).toEqual({ key: 'value' })\n  })\n})"
+              }
+            }
+          }
+        }
+      ],
+      "createdAt": "2025-02-26T16:45:00Z",
+      "updatedAt": "2025-02-26T16:46:01Z"
+    }
+  ]
+}

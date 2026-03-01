@@ -1,0 +1,98 @@
+{
+  "_meta": {
+    "models": {
+      "Flow": "A plant-care workflow",
+      "Task": "A step in a flow that builds structured output"
+    }
+  },
+  "flows": [
+    {
+      "id": "flow-generate-care-plan",
+      "name": "Generate Care Plan",
+      "description": "Creates a personalized weekly care plan for an indoor plant",
+      "status": "active",
+      "scope": "agent-specific",
+      "agentId": "agent_plants_001",
+      "tags": ["plants", "care", "schedule"],
+      "taskCount": 3,
+      "createdAt": "2026-02-18T09:00:00Z",
+      "updatedAt": "2026-02-27T17:55:00Z",
+      "lastRunAt": "2026-02-27T18:02:05Z"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task_plants_001",
+      "flowId": "flow-generate-care-plan",
+      "type": "updateFlowOutput",
+      "order": 1,
+      "name": "Create Plant Snapshot",
+      "description": "Summarize current plant context and risk signals",
+      "config": {
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "plantType": { "type": "string" },
+            "growthStage": { "type": "string" },
+            "riskLevel": { "type": "string", "enum": ["low", "medium", "high"] }
+          },
+          "required": ["plantType", "growthStage", "riskLevel"]
+        },
+        "targetFieldName": "snapshot",
+        "taskInstructions": "Create a concise status snapshot from profile and symptom inputs.",
+        "model": "claude-3-5-sonnet",
+        "temperature": 0.2
+      },
+      "status": "valid"
+    },
+    {
+      "id": "task_plants_002",
+      "flowId": "flow-generate-care-plan",
+      "type": "updateFlowOutput",
+      "order": 2,
+      "name": "Generate Weekly Actions",
+      "description": "Create practical daily/weekly tasks",
+      "config": {
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "actions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "day": { "type": "string" },
+                  "task": { "type": "string" },
+                  "reason": { "type": "string" }
+                },
+                "required": ["day", "task"]
+              }
+            }
+          },
+          "required": ["actions"]
+        },
+        "targetFieldName": "weeklyActions",
+        "isPushable": false,
+        "taskInstructions": "Generate a safe, low-maintenance one-week action list.",
+        "model": "claude-3-5-sonnet",
+        "temperature": 0.3
+      },
+      "status": "valid"
+    },
+    {
+      "id": "task_plants_003",
+      "flowId": "flow-generate-care-plan",
+      "type": "executeTask",
+      "order": 3,
+      "name": "Recommend Follow-up Check",
+      "description": "Provide a follow-up checkpoint for symptom re-evaluation",
+      "config": {
+        "taskInstructions": "Suggest when the user should reassess and what to observe.",
+        "enabledTools": ["plant-care-scheduler", "disease-symptom-checker"],
+        "model": "claude-3-5-sonnet",
+        "temperature": 0.2
+      },
+      "status": "valid"
+    }
+  ]
+}

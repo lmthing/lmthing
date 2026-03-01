@@ -1,0 +1,10 @@
+{
+  "name": "plants",
+  "version": "1.0.0",
+  "description": "Workspace: plants",
+  "dependencies": {
+    "@growwise/scheduler": "1.2.0",
+    "@growwise/diagnostics": "2.0.1",
+    "@growwise/light": "0.9.3"
+  }
+}

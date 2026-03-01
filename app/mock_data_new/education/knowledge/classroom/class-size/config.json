@@ -1,0 +1,9 @@
+{
+  "label": "Class Size",
+  "description": "Number of students in the class",
+  "fieldType": "select",
+  "required": true,
+  "default": "medium",
+  "variableName": "classSize",
+  "renderAs": "field"
+}

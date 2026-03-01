@@ -1,0 +1,9 @@
+{
+  "label": "Plant Type",
+  "description": "Primary plant category",
+  "fieldType": "select",
+  "required": true,
+  "default": "houseplant",
+  "variableName": "plantType",
+  "renderAs": "field"
+}

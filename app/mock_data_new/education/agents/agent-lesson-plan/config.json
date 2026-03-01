@@ -1,0 +1,6 @@
+{
+  "emptyFieldsForRuntime": {
+    "curriculum": ["unit-focus"],
+    "subjects": ["topics"]
+  }
+}

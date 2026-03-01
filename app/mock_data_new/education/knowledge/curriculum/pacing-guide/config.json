@@ -1,0 +1,9 @@
+{
+  "label": "Include Pacing Guide Considerations",
+  "description": "Factor pacing into recommendations",
+  "fieldType": "toggle",
+  "required": false,
+  "default": true,
+  "variableName": "pacingGuide",
+  "renderAs": "field"
+}

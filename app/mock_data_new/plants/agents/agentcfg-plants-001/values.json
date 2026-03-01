@@ -1,0 +1,10 @@
+{
+  "plant-profile": {
+    "plant-type": "houseplant",
+    "growth-stage": "vegetative"
+  },
+  "care-routine": {
+    "light-exposure": "bright indirect",
+    "watering-frequency": "weekly"
+  }
+}

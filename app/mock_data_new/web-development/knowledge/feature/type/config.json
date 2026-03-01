@@ -1,0 +1,6 @@
+{
+  "label": "Feature Type",
+  "description": "Type of feature being built",
+  "icon": "folder",
+  "renderAs": "field"
+}

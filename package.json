@@ -1,0 +1,12 @@
+{
+  "name": "lmthing-monorepo",
+  "private": true,
+  "packageManager": "pnpm@10.17.1",
+  "scripts": {
+    "dev": "pnpm --filter ./app dev",
+    "build": "pnpm --filter ./app build",
+    "build:pages": "pnpm --filter ./app build:pages",
+    "lint": "pnpm --filter ./app lint",
+    "preview": "pnpm --filter ./app preview"
+  }
+}

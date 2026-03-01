@@ -1,0 +1,491 @@
+{
+  "_meta": {
+    "models": {
+      "FileSystemNode": "A node in the prompt library file tree, representing directories or prompt fragment files.",
+      "Directory": "A folder of prompt fragments. When renderAs='section', contains nested fields. When renderAs='field', child files are selectable options.",
+      "PromptFragment": "A markdown file representing a selectable option within its parent directory field.",
+      "DirectoryConfig": "Metadata configuration in a directory's config.json file controlling how it renders in Agent Builder forms."
+    },
+    "relationships": [
+      "FileSystemNode is a union type of Directory and PromptFragment",
+      "Directory contains children which are FileSystemNodes",
+      "Directory has a DirectoryConfig for metadata and field rendering behavior",
+      "PromptFragment content is inserted into template when that option is selected",
+      "Top-level directories in Prompt Library become Domains in Agent Builder"
+    ]
+  },
+  "fileSystem": {
+    "id": "root",
+    "name": "Prompt Library",
+    "type": "directory",
+    "path": "/",
+    "children": [
+      {
+        "id": "dir-project",
+        "name": "project",
+        "type": "directory",
+        "path": "/project",
+        "config": {
+          "label": "Project Context",
+          "description": "Project type, tech stack, and development environment configuration",
+          "icon": "rocket",
+          "color": "#3b82f6",
+          "renderAs": "section"
+        },
+        "children": [
+          {
+            "id": "dir-project-type",
+            "name": "project-type",
+            "type": "directory",
+            "path": "/project/project-type",
+            "config": {
+              "label": "Project Type",
+              "description": "The type of web project being developed",
+              "icon": "folder",
+              "renderAs": "field"
+            },
+            "children": [
+              {
+                "id": "frag-spa",
+                "name": "spa.md",
+                "type": "file",
+                "path": "/project/project-type/spa.md",
+                "content": "# Single Page Application (SPA)\n\nThis is a Single Page Application built with modern JavaScript frameworks. SPAs load a single HTML page and dynamically update content as the user interacts with the app.\n\n**Characteristics:**\n- Client-side routing\n- Dynamic content loading\n- Smooth transitions without page refresh\n- API-driven data fetching\n\nConsider bundle size optimization and initial load performance."
+              },
+              {
+                "id": "frag-ssr",
+                "name": "ssr.md",
+                "type": "file",
+                "path": "/project/project-type/ssr.md",
+                "content": "# Server-Side Rendered (SSR)\n\nThis application uses Server-Side Rendering to generate HTML on the server for each request.\n\n**Characteristics:**\n- Faster initial page load\n- Better SEO capabilities\n- Server can access data during render\n- May require Node.js server\n\nConsider server load and caching strategies."
+              },
+              {
+                "id": "frag-pwa",
+                "name": "pwa.md",
+                "type": "file",
+                "path": "/project/project-type/pwa.md",
+                "content": "# Progressive Web App (PWA)\n\nThis is a Progressive Web App that combines web and native app features.\n\n**Characteristics:**\n- Installable on home screen\n- Works offline with service workers\n- Push notification support\n- App-like experience\n\nImplement service worker caching strategies and app manifests."
+              }
+            ]
+          },
+          {
+            "id": "dir-frontend-framework",
+            "name": "frontend-framework",
+            "type": "directory",
+            "path": "/project/frontend-framework",
+            "config": {
+              "label": "Frontend Framework",
+              "description": "Primary frontend framework/library",
+              "icon": "code",
+              "renderAs": "field"
+            },
+            "children": [
+              {
+                "id": "frag-react",
+                "name": "react.md",
+                "type": "file",
+                "path": "/project/frontend-framework/react.md",
+                "content": "# React\n\nComponent-based UI library using virtual DOM for efficient rendering.\n\n**Key Patterns:**\n- Functional components with hooks\n- Props for data flow\n- Context for state sharing\n- Controlled components for forms\n\nUse `useCallback`, `useMemo` for performance optimization."
+              },
+              {
+                "id": "frag-nextjs",
+                "name": "nextjs.md",
+                "type": "file",
+                "path": "/project/frontend-framework/nextjs.md",
+                "content": "# Next.js\n\nReact framework with SSR, SSG, and API routes.\n\n**Key Features:**\n- File-based routing\n- Server components (RSC)\n- API routes for backend\n- Built-in image optimization\n- App router with layouts\n\nUse server components for static content, client for interactivity."
+              },
+              {
+                "id": "frag-vue",
+                "name": "vue.md",
+                "type": "file",
+                "path": "/project/frontend-framework/vue.md",
+                "content": "# Vue.js\n\nProgressive framework with reactive data binding.\n\n**Key Patterns:**\n- Template syntax with directives\n- Reactive refs and computed\n- Composition API\n- Single File Components (.vue)\n\nUse `computed` for derived state, `watch` for side effects."
+              },
+              {
+                "id": "frag-svelte",
+                "name": "svelte.md",
+                "type": "file",
+                "path": "/project/frontend-framework/svelte.md",
+                "content": "# Svelte\n\nCompile-time framework that generates vanilla JavaScript.\n\n**Key Characteristics:**\n- No virtual DOM overhead\n- Built-in state management\n- Transitions and animations\n- Smaller bundle sizes\n\nReactivity is built into assignments. No need for special state APIs."
+              }
+            ]
+          },
+          {
+            "id": "dir-css-framework",
+            "name": "css-framework",
+            "type": "directory",
+            "path": "/project/css-framework",
+            "config": {
+              "label": "CSS Approach",
+              "description": "Styling and CSS framework approach",
+              "icon": "palette",
+              "renderAs": "field"
+            },
+            "children": [
+              {
+                "id": "frag-tailwind",
+                "name": "tailwind.md",
+                "type": "file",
+                "path": "/project/css-framework/tailwind.md",
+                "content": "# Tailwind CSS\n\nUtility-first CSS framework for rapid UI development.\n\n**Usage:**\n- Use utility classes for styling\n- `@apply` for component classes\n- `theme()` function for design tokens\n- Responsive prefixes: `sm:`, `md:`, `lg:`, `xl:`\n- State variants: `hover:`, `focus:`, `active:`\n\nEnable `jit` mode for smaller CSS bundles."
+              },
+              {
+                "id": "frag-css-modules",
+                "name": "css-modules.md",
+                "type": "file",
+                "path": "/project/css-framework/css-modules.md",
+                "content": "# CSS Modules\n\nScoped CSS by generating unique class names.\n\n**Usage:**\n```tsx\nimport styles from './Component.module.css'\n\n<div className={styles.container} />\n```\n\n**Benefits:**\n- No global namespace pollution\n- Dead code elimination\n- Composable styles\n- Type-safe with CSS modules typedef"
+              },
+              {
+                "id": "frag-styled-components",
+                "name": "styled-components.md",
+                "type": "file",
+                "path": "/project/css-framework/styled-components.md",
+                "content": "# Styled Components\n\nCSS-in-JS library with styled components and theme support.\n\n**Usage:**\n```tsx\nconst Button = styled.button<ButtonProps>`\n  background: ${props => props.primary ? 'blue' : 'gray'};\n  padding: 12px 24px;\n`\n```\n\n**Features:**\n- Dynamic styling via props\n- Theme provider\n- Automatic vendor prefixing\n- No class name conflicts"
+              }
+            ]
+          },
+          {
+            "id": "dir-state-management",
+            "name": "state-management",
+            "type": "directory",
+            "path": "/project/state-management",
+            "config": {
+              "label": "State Management",
+              "description": "State management library or approach",
+              "icon": "database",
+              "renderAs": "field"
+            },
+            "children": [
+              {
+                "id": "frag-zustand",
+                "name": "zustand.md",
+                "type": "file",
+                "path": "/project/state-management/zustand.md",
+                "content": "# Zustand\n\nSmall, fast state management solution.\n\n**Usage:**\n```tsx\nconst useStore = create((set) => ({\n  count: 0,\n  increment: () => set((state) => ({ count: state.count + 1 }))\n}))\n```\n\n**Benefits:**\n- Minimal boilerplate\n- No providers needed\n- TypeScript support\n- Can be used outside React\n- DevTools integration"
+              },
+              {
+                "id": "frag-redux",
+                "name": "redux.md",
+                "type": "file",
+                "path": "/project/state-management/redux.md",
+                "content": "# Redux Toolkit\n\nPredictable state container with best practices built-in.\n\n**Pattern:**\n- Slices for domain state\n- Async thunks for API calls\n- Selectors for derived data\n- Immer for immutable updates\n\nUse RTK Query for server state caching instead of manual async handling."
+              },
+              {
+                "id": "frag-context",
+                "name": "context.md",
+                "type": "file",
+                "path": "/project/state-management/context.md",
+                "content": "# React Context\n\nBuilt-in state sharing across components.\n\n**Best Practices:**\n- Split contexts by domain\n- Use separate contexts for state and dispatch\n- Memoize context values to prevent re-renders\n- Consider lifting state before context\n\nAvoid context for frequently changing values (bubbles re-renders)."
+              }
+            ]
+          },
+          {
+            "id": "dir-testing-framework",
+            "name": "testing-framework",
+            "type": "directory",
+            "path": "/project/testing-framework",
+            "config": {
+              "label": "Testing Tools",
+              "description": "Testing frameworks and utilities",
+              "icon": "check-circle",
+              "renderAs": "field"
+            },
+            "children": [
+              {
+                "id": "frag-vitest",
+                "name": "vitest.md",
+                "type": "file",
+                "path": "/project/testing-framework/vitest.md",
+                "content": "# Vitest\n\nFast unit testing with native ESM support.\n\n**Features:**\n- Jest-compatible API\n- Out-of-box TypeScript/JSX\n- Watch mode with HMR\n- Built-in code coverage\n\nUse `describe`, `it`, `expect` as in Jest. Imports work natively without transforms."
+              },
+              {
+                "id": "frag-testing-library",
+                "name": "testing-library.md",
+                "type": "file",
+                "path": "/project/testing-framework/testing-library.md",
+                "content": "# Testing Library\n\nUser-centric testing approach.\n\n**Principles:**\n- Test user behavior, not implementation\n- Queries mirror how users find elements\n- Avoid testing internals\n\n**Preferred queries (in order):**\n1. `getByRole` - most accessible\n2. `getByLabelText` - form elements\n3. `getByPlaceholderText` - inputs\n4. `getByText` - content\n\nAvoid `getByTestId` unless necessary."
+              },
+              {
+                "id": "frag-playwright",
+                "name": "playwright.md",
+                "type": "file",
+                "path": "/project/testing-framework/playwright.md",
+                "content": "# Playwright\n\nEnd-to-end testing for modern web apps.\n\n**Features:**\n- Cross-browser testing\n- Fast parallel execution\n- Auto-waiting for elements\n- Network interception\n- Visual regression\n\nWrite tests that verify critical user flows: login, checkout, form submissions."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "dir-developer",
+        "name": "developer",
+        "type": "directory",
+        "path": "/developer",
+        "config": {
+          "label": "Developer Profile",
+          "description": "Developer experience level, specialization, and coding preferences",
+          "icon": "user",
+          "color": "#8b5cf6",
+          "renderAs": "section"
+        },
+        "children": [
+          {
+            "id": "dir-experience-level",
+            "name": "experience-level",
+            "type": "directory",
+            "path": "/developer/experience-level",
+            "config": {
+              "label": "Experience Level",
+              "description": "Developer's experience level in web development",
+              "icon": "award",
+              "renderAs": "field"
+            },
+            "children": [
+              {
+                "id": "frag-beginner",
+                "name": "beginner.md",
+                "type": "file",
+                "path": "/developer/experience-level/beginner.md",
+                "content": "# Beginner (0-2 years)\n\nEarly in the development journey. Focus on learning fundamentals.\n\n**Provide:**\n- Detailed explanations of concepts\n- Comments explaining why, not just what\n- Links to documentation for learning\n- Simple, straightforward solutions\n- Avoid complex patterns until understood\n\n**Avoid:**\n- Advanced patterns without explanation\n- Assuming prior knowledge\n- Skipping over fundamentals"
+              },
+              {
+                "id": "frag-intermediate",
+                "name": "intermediate.md",
+                "type": "file",
+                "path": "/developer/experience-level/intermediate.md",
+                "content": "# Intermediate (2-5 years)\n\nComfortable with core concepts, learning advanced patterns.\n\n**Provide:**\n- Efficient, idiomatic solutions\n- Introduce common patterns\n- Explain trade-offs of approaches\n- Best practices with reasoning\n- Performance considerations\n\n**Focus Areas:**\n- Design patterns\n- Performance optimization\n- Testing strategies\n- State management patterns"
+              },
+              {
+                "id": "frag-advanced",
+                "name": "advanced.md",
+                "type": "file",
+                "path": "/developer/experience-level/advanced.md",
+                "content": "# Advanced (5-10 years)\n\nDeep understanding, focusing on optimization and architecture.\n\n**Provide:**\n- Advanced pattern implementations\n- Performance optimization techniques\n- Architecture discussions\n- Edge case handling\n- Scalability considerations\n\n**Assumes:**\n- Strong understanding of fundamentals\n- Familiarity with common patterns\n- Ability to reason about trade-offs\n\n**Focus on:**\n- Micro-optimizations\n- Advanced TypeScript patterns\n- Complex state scenarios\n- Architecture decisions"
+              }
+            ]
+          },
+          {
+            "id": "dir-specialization",
+            "name": "specialization",
+            "type": "directory",
+            "path": "/developer/specialization",
+            "config": {
+              "label": "Specialization",
+              "description": "Areas of expertise",
+              "icon": "code",
+              "renderAs": "field"
+            },
+            "children": [
+              {
+                "id": "frag-frontend",
+                "name": "frontend.md",
+                "type": "file",
+                "path": "/developer/specialization/frontend.md",
+                "content": "# Frontend Development\n\nFocus on UI/UX implementation and user interactions.\n\n**Emphasize:**\n- Component design and composition\n- Accessibility (ARIA, keyboard navigation)\n- Responsive layouts\n- Browser compatibility\n- Performance (lazy loading, code splitting)\n- CSS best practices"
+              },
+              {
+                "id": "frag-backend",
+                "name": "backend.md",
+                "type": "file",
+                "path": "/developer/specialization/backend.md",
+                "content": "# Backend Development\n\nFocus on server-side logic and data management.\n\n**Emphasize:**\n- API design and documentation\n- Database optimization\n- Authentication/authorization\n- Caching strategies\n- Error handling\n- Rate limiting and security"
+              },
+              {
+                "id": "frag-fullstack",
+                "name": "fullstack.md",
+                "type": "file",
+                "path": "/developer/specialization/fullstack.md",
+                "content": "# Full Stack Development\n\nComfortable across the entire application stack.\n\n**Emphasize:**\n- Integration patterns between frontend/backend\n- Data flow and state synchronization\n- End-to-end features\n- Deployment considerations\n- Monitoring and debugging\n- API contracts and types"
+              },
+              {
+                "id": "frag-performance",
+                "name": "performance.md",
+                "type": "file",
+                "path": "/developer/specialization/performance.md",
+                "content": "# Performance Optimization\n\nFocus on making applications fast and efficient.\n\n**Emphasize:**\n- Bundle size optimization\n- Code splitting strategies\n- Memoization techniques\n- Lazy loading patterns\n- Network optimization\n- Rendering performance\n- Profiling and measurement"
+              },
+              {
+                "id": "frag-accessibility",
+                "name": "accessibility.md",
+                "type": "file",
+                "path": "/developer/specialization/accessibility.md",
+                "content": "# Accessibility (a11y)\n\nFocus on inclusive design for all users.\n\n**Emphasize:**\n- Semantic HTML elements\n- ARIA labels and roles\n- Keyboard navigation\n- Screen reader compatibility\n- Focus management\n- Color contrast requirements\n- Alternative text for images"
+              }
+            ]
+          },
+          {
+            "id": "dir-coding-style",
+            "name": "coding-style",
+            "type": "directory",
+            "path": "/developer/coding-style",
+            "config": {
+              "label": "Coding Preferences",
+              "description": "Preferred coding style and patterns",
+              "icon": "sliders",
+              "renderAs": "field"
+            },
+            "children": [
+              {
+                "id": "frag-functional",
+                "name": "functional.md",
+                "type": "file",
+                "path": "/developer/coding-style/functional.md",
+                "content": "# Functional Programming\n\nEmphasize immutable data and pure functions.\n\n**Patterns:**\n- Avoid mutations, use spread operators\n- Pure functions without side effects\n- Map/filter/reduce over loops\n- Function composition\n- Higher-order functions\n\n**Benefits:**\n- Predictable code\n- Easier testing\n- Better debugging"
+              },
+              {
+                "id": "frag-typescript",
+                "name": "typescript.md",
+                "type": "file",
+                "path": "/developer/coding-style/typescript.md",
+                "content": "# Type-Safe (TypeScript)\n\nLeverage TypeScript's type system for safer code.\n\n**Patterns:**\n- Strict mode enabled\n- Interface for public APIs\n- Type aliases for unions\n- Generics for reusable code\n- Type guards for narrowing\n- No `any` without justification\n\n**Benefits:**\n- Catch errors at compile time\n- Better IDE support\n- Self-documenting code"
+              },
+              {
+                "id": "frag-tdd",
+                "name": "tdd.md",
+                "type": "file",
+                "path": "/developer/coding-style/tdd.md",
+                "content": "# Test-Driven Development\n\nWrite tests before implementation.\n\n**Workflow:**\n1. Write failing test\n2. Write minimal code to pass\n3. Refactor\n4. Repeat\n\n**Benefits:**\n- Confirmed requirements\n- Safer refactoring\n- Living documentation\n- Fewer bugs"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "dir-architecture",
+        "name": "architecture",
+        "type": "directory",
+        "path": "/architecture",
+        "config": {
+          "label": "Architecture & Patterns",
+          "description": "Architectural patterns, design principles, and best practices",
+          "icon": "layers",
+          "color": "#10b981",
+          "renderAs": "section"
+        },
+        "children": [
+          {
+            "id": "dir-pattern",
+            "name": "pattern",
+            "type": "directory",
+            "path": "/architecture/pattern",
+            "config": {
+              "label": "Architecture Pattern",
+              "description": "Primary architectural pattern",
+              "icon": "grid",
+              "renderAs": "field"
+            },
+            "children": [
+              {
+                "id": "frag-component-based",
+                "name": "component-based.md",
+                "type": "file",
+                "path": "/architecture/pattern/component-based.md",
+                "content": "# Component-Based Architecture\n\nBuild UI as composable, reusable components.\n\n**Principles:**\n- Single responsibility per component\n- Props in, events out\n- Composition over inheritance\n- Container vs presentational components\n\n**File Structure:**\n```\nComponent/\n  Component.tsx\n  Component.test.tsx\n  Component.stories.tsx\n  index.ts\n```\n\nKeep components small and focused."
+              },
+              {
+                "id": "frag-micro-frontend",
+                "name": "micro-frontend.md",
+                "type": "file",
+                "path": "/architecture/pattern/micro-frontend.md",
+                "content": "# Micro-Frontends\n\nDecompose frontend into independently deployable units.\n\n**Patterns:**\n- Module Federation\n- Single-SPA\n- Frame routing\n- Web Components for sharing\n\n**Considerations:**\n- Shared dependency management\n- Cross-app communication\n- Consistent styling\n- Performance overhead"
+              }
+            ]
+          },
+          {
+            "id": "dir-design-patterns",
+            "name": "design-patterns",
+            "type": "directory",
+            "path": "/architecture/design-patterns",
+            "config": {
+              "label": "Design Patterns",
+              "description": "Design patterns to emphasize",
+              "icon": "box",
+              "renderAs": "field"
+            },
+            "children": [
+              {
+                "id": "frag-observer",
+                "name": "observer.md",
+                "type": "file",
+                "path": "/architecture/design-patterns/observer.md",
+                "content": "# Observer / Pub-Sub\n\nComponents react to state changes automatically.\n\n**In React:**\n- Use for global state\n- Components subscribe to changes\n- Re-render on state updates\n\n**Implementation:**\n- Redux, Zustand, RxJS\n- Custom hooks with context\n- Event emitters"
+              },
+              {
+                "id": "frag-hooks",
+                "name": "hooks.md",
+                "type": "file",
+                "path": "/architecture/design-patterns/hooks.md",
+                "content": "# Custom Hooks Pattern\n\nExtract reusable stateful logic.\n\n**Naming:**\n- Always start with `use`\n- Reflect the purpose: `useFetch`, `useForm`\n\n**When to Create:**\n- Duplicated stateful logic\n- Complex state with side effects\n- Shared behavior across components\n\n**Example:**\n```tsx\nfunction useLocalStorage<T>(key: string, initial: T) {\n  // ... implementation\n}\n```"
+              },
+              {
+                "id": "frag-compound",
+                "name": "compound.md",
+                "type": "file",
+                "path": "/architecture/design-patterns/compound.md",
+                "content": "# Compound Components\n\nParent and child components share implicit state.\n\n**Example:**\n```tsx\n<Tabs>\n  <Tabs.List>\n    <Tabs.Tab>One</Tabs.Tab>\n    <Tabs.Tab>Two</Tabs.Tab>\n  </Tabs.List>\n  <Tabs.Panels>\n    <Tabs.Panel>Content 1</Tabs.Panel>\n    <Tabs.Panel>Content 2</Tabs.Panel>\n  </Tabs.Panels>\n</Tabs>\n```\n\n**Implementation:**\n- Context for shared state\n- Compound components use context\n- Flexible composition for users"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "dir-feature",
+        "name": "feature",
+        "type": "directory",
+        "path": "/feature",
+        "config": {
+          "label": "Feature Requirements",
+          "description": "Specific feature requirements and functionality to implement",
+          "icon": "zap",
+          "color": "#f59e0b",
+          "renderAs": "section"
+        },
+        "children": [
+          {
+            "id": "dir-type",
+            "name": "type",
+            "type": "directory",
+            "path": "/feature/type",
+            "config": {
+              "label": "Feature Type",
+              "description": "Type of feature being built",
+              "icon": "folder",
+              "renderAs": "field"
+            },
+            "children": [
+              {
+                "id": "frag-component",
+                "name": "component.md",
+                "type": "file",
+                "path": "/feature/type/component.md",
+                "content": "# UI Component\n\nA reusable UI component.\n\n**Consider:**\n- Props interface and defaults\n- Accessibility attributes\n- Responsive behavior\n- Loading/error states\n- Variant styles\n- Test coverage\n\n**Output:**\n- Component file\n- Props TypeScript interface\n- Storybook stories\n- Unit tests"
+              },
+              {
+                "id": "frag-hook",
+                "name": "hook.md",
+                "type": "file",
+                "path": "/feature/type/hook.md",
+                "content": "# Custom Hook\n\nA reusable React hook.\n\n**Consider:**\n- Hook signature and return type\n- Effect cleanup\n- Dependency arrays\n- Error handling\n- TypeScript typing\n\n**Output:**\n- Hook implementation\n- TypeScript types\n- Tests with @testing-library/react-hooks\n- Usage documentation"
+              },
+              {
+                "id": "frag-form",
+                "name": "form.md",
+                "type": "file",
+                "path": "/feature/type/form.md",
+                "content": "# Form / Data Entry\n\nA form with validation and submission.\n\n**Consider:**\n- Form library (react-hook-form, formik)\n- Validation rules and schema\n- Error display\n- Success/error states\n- Loading states\n- Accessibility (labels, errors)\n\n**Output:**\n- Form component\n- Validation schema\n- Submit handler\n- Error handling"
+              },
+              {
+                "id": "frag-auth",
+                "name": "auth.md",
+                "type": "file",
+                "path": "/feature/type/auth.md",
+                "content": "# Authentication\n\nUser authentication and authorization.\n\n**Consider:**\n- Auth provider (Auth0, Clerk, Supabase)\n- Session management\n- Protected routes\n- Token refresh\n- Logout flow\n- Role-based access\n\n**Security:**\n- Secure token storage\n- HTTPS only\n- CSRF protection\n- Proper error handling (no info leakage)"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

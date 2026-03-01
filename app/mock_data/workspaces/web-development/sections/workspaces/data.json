@@ -1,0 +1,100 @@
+{
+  "_meta": {
+    "models": {
+      "WorkspaceUser": "A web developer or team member within the workspace with profile information, role, and current status."
+    },
+    "relationships": [
+      "WorkspaceUsers belong to a single Web Development workspace",
+      "Roles determine permissions: Admin can manage users, Editor can modify agents and prompts, Viewer has read-only access"
+    ]
+  },
+  "workspaceUsers": [
+    {
+      "id": "usr_wd_01",
+      "name": "Alex Chen",
+      "email": "alex.chen@techstudio.com",
+      "avatarUrl": "https://i.pravatar.cc/150?u=alex.chen",
+      "role": "admin",
+      "status": "active",
+      "joinedAt": "2024-01-15T09:30:00Z",
+      "lastActive": "2025-02-28T10:22:00Z"
+    },
+    {
+      "id": "usr_wd_02",
+      "name": "Sarah Kim",
+      "email": "sarah.kim@techstudio.com",
+      "avatarUrl": "https://i.pravatar.cc/150?u=sarah.kim",
+      "role": "editor",
+      "status": "active",
+      "joinedAt": "2024-03-22T14:15:00Z",
+      "lastActive": "2025-02-28T09:45:00Z"
+    },
+    {
+      "id": "usr_wd_03",
+      "name": "Marcus Rodriguez",
+      "email": "m.rodriguez@techstudio.com",
+      "avatarUrl": "https://i.pravatar.cc/150?u=marcus.rodriguez",
+      "role": "editor",
+      "status": "active",
+      "joinedAt": "2024-05-10T08:00:00Z",
+      "lastActive": "2025-02-27T16:30:00Z"
+    },
+    {
+      "id": "usr_wd_04",
+      "name": "Emily Watson",
+      "email": "emily.w@techstudio.com",
+      "avatarUrl": "https://i.pravatar.cc/150?u=emily.watson",
+      "role": "viewer",
+      "status": "active",
+      "joinedAt": "2024-06-18T10:45:00Z",
+      "lastActive": "2025-02-26T14:20:00Z"
+    },
+    {
+      "id": "usr_wd_05",
+      "name": "David Park",
+      "email": "david.park@techstudio.com",
+      "avatarUrl": "https://i.pravatar.cc/150?u=david.park",
+      "role": "editor",
+      "status": "active",
+      "joinedAt": "2024-07-01T13:20:00Z",
+      "lastActive": "2025-02-28T08:15:00Z"
+    },
+    {
+      "id": "usr_wd_06",
+      "name": "Lisa Johansson",
+      "email": "lisa.j@techstudio.com",
+      "avatarUrl": "https://i.pravatar.cc/150?u=lisa.johansson",
+      "role": "viewer",
+      "status": "invited",
+      "joinedAt": null,
+      "lastActive": null
+    },
+    {
+      "id": "usr_wd_07",
+      "name": "James Okonkwo",
+      "email": "james.o@techstudio.com",
+      "avatarUrl": "https://i.pravatar.cc/150?u=james.okonkwo",
+      "role": "admin",
+      "status": "active",
+      "joinedAt": "2024-02-28T16:30:00Z",
+      "lastActive": "2025-02-28T11:00:00Z"
+    }
+  ],
+  "roles": [
+    {
+      "value": "admin",
+      "label": "Admin",
+      "description": "Full access to all workspace features, including user management"
+    },
+    {
+      "value": "editor",
+      "label": "Editor",
+      "description": "Can create and modify agents and prompt fragments, but cannot manage users"
+    },
+    {
+      "value": "viewer",
+      "label": "Viewer",
+      "description": "Read-only access to workspace content"
+    }
+  ]
+}

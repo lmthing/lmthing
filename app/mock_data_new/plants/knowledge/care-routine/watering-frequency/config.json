@@ -1,0 +1,9 @@
+{
+  "label": "Watering Frequency",
+  "description": "How often watering is feasible",
+  "fieldType": "select",
+  "required": true,
+  "default": "weekly",
+  "variableName": "wateringFrequency",
+  "renderAs": "field"
+}

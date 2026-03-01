@@ -1,0 +1,9 @@
+{
+  "label": "Cross-Curricular Connections",
+  "description": "Interdisciplinary connections to emphasize",
+  "fieldType": "multiselect",
+  "required": false,
+  "default": [],
+  "variableName": "crossCurricular",
+  "renderAs": "field"
+}

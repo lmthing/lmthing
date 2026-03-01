@@ -1,0 +1,948 @@
+{
+  "_meta": {
+    "models": {
+      "Domain": "Derived from top-level directories in the Prompt Library. Each domain has a schema generated from the nested directory structure.",
+      "SchemaNode": "Union of SchemaSection (nested directory) and SchemaField (directory with file options).",
+      "SchemaField": "A form field representing a directory where child files are selectable options.",
+      "FieldOption": "Represents a file in the Prompt Library - a selectable option with content value.",
+      "AgentConfig": "A saved agent configuration combining selected domains with their form values.",
+      "Tool": "A web development capability that can be enabled for agents.",
+      "PromptPreview": "Live-generated system prompt from selected domains and their option contents."
+    },
+    "relationships": [
+      "Domain is derived from a top-level Prompt Library directory",
+      "DomainSchema.root contains SchemaNodes mirroring the directory structure",
+      "SchemaFields represent directories with file children as options",
+      "SchemaSections represent directories with nested structure",
+      "FieldOptions represent PromptFragment files with their content",
+      "AgentConfig.formValues store selected option IDs for each field",
+      "PromptPreview assembles content from selected options"
+    ]
+  },
+  "domains": [
+    {
+      "id": "domain-project",
+      "name": "Project Context",
+      "description": "Project type, tech stack, and development environment configuration",
+      "category": "Development",
+      "tags": ["project", "tech-stack", "environment", "setup"],
+      "icon": "🚀",
+      "color": "#3b82f6",
+      "directoryPath": "/project",
+      "schema": {
+        "root": {
+          "type": "section",
+          "id": "section-project",
+          "label": "Project Context",
+          "description": "Project type, tech stack, and development environment configuration",
+          "icon": "🚀",
+          "directoryPath": "/project",
+          "children": [
+            {
+              "type": "field",
+              "id": "field-project-type",
+              "fieldType": "select",
+              "label": "Project Type",
+              "description": "The type of web project being developed",
+              "required": true,
+              "default": "spa",
+              "variableName": "projectType",
+              "directoryPath": "/project/project-type",
+              "options": [
+                {
+                  "id": "opt-spa",
+                  "label": "Single Page Application (SPA)",
+                  "filePath": "/project/project-type/spa.md",
+                  "value": "Single Page Application (SPA)",
+                  "order": 0
+                },
+                {
+                  "id": "opt-ssr",
+                  "label": "Server-Side Rendered (SSR)",
+                  "filePath": "/project/project-type/ssr.md",
+                  "value": "Server-Side Rendered (SSR)",
+                  "order": 1
+                },
+                {
+                  "id": "opt-static",
+                  "label": "Static Site",
+                  "filePath": "/project/project-type/static.md",
+                  "value": "Static Site",
+                  "order": 2
+                },
+                {
+                  "id": "opt-pwa",
+                  "label": "Progressive Web App (PWA)",
+                  "filePath": "/project/project-type/pwa.md",
+                  "value": "Progressive Web App (PWA)",
+                  "order": 3
+                },
+                {
+                  "id": "opt-fullstack",
+                  "label": "Full Stack Application",
+                  "filePath": "/project/project-type/fullstack.md",
+                  "value": "Full Stack Application",
+                  "order": 4
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-frontend-framework",
+              "fieldType": "select",
+              "label": "Frontend Framework",
+              "description": "Primary frontend framework/library",
+              "required": true,
+              "default": "react",
+              "variableName": "frontendFramework",
+              "directoryPath": "/project/frontend-framework",
+              "options": [
+                {
+                  "id": "opt-react",
+                  "label": "React",
+                  "filePath": "/project/frontend-framework/react.md",
+                  "value": "React",
+                  "order": 0
+                },
+                {
+                  "id": "opt-nextjs",
+                  "label": "Next.js",
+                  "filePath": "/project/frontend-framework/nextjs.md",
+                  "value": "Next.js",
+                  "order": 1
+                },
+                {
+                  "id": "opt-vue",
+                  "label": "Vue.js",
+                  "filePath": "/project/frontend-framework/vue.md",
+                  "value": "Vue.js",
+                  "order": 2
+                },
+                {
+                  "id": "opt-nuxt",
+                  "label": "Nuxt",
+                  "filePath": "/project/frontend-framework/nuxt.md",
+                  "value": "Nuxt",
+                  "order": 3
+                },
+                {
+                  "id": "opt-svelte",
+                  "label": "Svelte",
+                  "filePath": "/project/frontend-framework/svelte.md",
+                  "value": "Svelte",
+                  "order": 4
+                },
+                {
+                  "id": "opt-angular",
+                  "label": "Angular",
+                  "filePath": "/project/frontend-framework/angular.md",
+                  "value": "Angular",
+                  "order": 5
+                },
+                {
+                  "id": "opt-vanilla",
+                  "label": "Vanilla JavaScript",
+                  "filePath": "/project/frontend-framework/vanilla.md",
+                  "value": "Vanilla JavaScript",
+                  "order": 6
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-css-framework",
+              "fieldType": "select",
+              "label": "CSS Approach",
+              "description": "Styling and CSS framework approach",
+              "required": true,
+              "default": "tailwind",
+              "variableName": "cssFramework",
+              "directoryPath": "/project/css-framework",
+              "options": [
+                {
+                  "id": "opt-tailwind",
+                  "label": "Tailwind CSS",
+                  "filePath": "/project/css-framework/tailwind.md",
+                  "value": "Tailwind CSS",
+                  "order": 0
+                },
+                {
+                  "id": "opt-css-modules",
+                  "label": "CSS Modules",
+                  "filePath": "/project/css-framework/css-modules.md",
+                  "value": "CSS Modules",
+                  "order": 1
+                },
+                {
+                  "id": "opt-styled-components",
+                  "label": "Styled Components",
+                  "filePath": "/project/css-framework/styled-components.md",
+                  "value": "Styled Components",
+                  "order": 2
+                },
+                {
+                  "id": "opt-bootstrap",
+                  "label": "Bootstrap",
+                  "filePath": "/project/css-framework/bootstrap.md",
+                  "value": "Bootstrap",
+                  "order": 3
+                },
+                {
+                  "id": "opt-mui",
+                  "label": "MUI / Material-UI",
+                  "filePath": "/project/css-framework/mui.md",
+                  "value": "MUI / Material-UI",
+                  "order": 4
+                },
+                {
+                  "id": "opt-chakra",
+                  "label": "Chakra UI",
+                  "filePath": "/project/css-framework/chakra.md",
+                  "value": "Chakra UI",
+                  "order": 5
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-state-management",
+              "fieldType": "select",
+              "label": "State Management",
+              "description": "State management library or approach",
+              "required": true,
+              "default": "zustand",
+              "variableName": "stateManagement",
+              "directoryPath": "/project/state-management",
+              "options": [
+                {
+                  "id": "opt-zustand",
+                  "label": "Zustand",
+                  "filePath": "/project/state-management/zustand.md",
+                  "value": "Zustand",
+                  "order": 0
+                },
+                {
+                  "id": "opt-redux",
+                  "label": "Redux Toolkit",
+                  "filePath": "/project/state-management/redux.md",
+                  "value": "Redux Toolkit",
+                  "order": 1
+                },
+                {
+                  "id": "opt-context",
+                  "label": "React Context",
+                  "filePath": "/project/state-management/context.md",
+                  "value": "React Context",
+                  "order": 2
+                },
+                {
+                  "id": "opt-jotai",
+                  "label": "Jotai",
+                  "filePath": "/project/state-management/jotai.md",
+                  "value": "Jotai",
+                  "order": 3
+                },
+                {
+                  "id": "opt-pinia",
+                  "label": "Pinia (Vue)",
+                  "filePath": "/project/state-management/pinia.md",
+                  "value": "Pinia",
+                  "order": 4
+                },
+                {
+                  "id": "opt-signals",
+                  "label": "Signals (Preact/Solid)",
+                  "filePath": "/project/state-management/signals.md",
+                  "value": "Signals",
+                  "order": 5
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-build-tool",
+              "fieldType": "select",
+              "label": "Build Tool",
+              "description": "Build and bundler tooling",
+              "required": true,
+              "default": "vite",
+              "variableName": "buildTool",
+              "directoryPath": "/project/build-tool",
+              "options": [
+                {
+                  "id": "opt-vite",
+                  "label": "Vite",
+                  "filePath": "/project/build-tool/vite.md",
+                  "value": "Vite",
+                  "order": 0
+                },
+                {
+                  "id": "opt-webpack",
+                  "label": "Webpack",
+                  "filePath": "/project/build-tool/webpack.md",
+                  "value": "Webpack",
+                  "order": 1
+                },
+                {
+                  "id": "opt-esbuild",
+                  "label": "esbuild",
+                  "filePath": "/project/build-tool/esbuild.md",
+                  "value": "esbuild",
+                  "order": 2
+                },
+                {
+                  "id": "opt-turbopack",
+                  "label": "Turbopack",
+                  "filePath": "/project/build-tool/turbopack.md",
+                  "value": "Turbopack",
+                  "order": 3
+                },
+                {
+                  "id": "opt-next-builtin",
+                  "label": "Next.js Built-in",
+                  "filePath": "/project/build-tool/next-builtin.md",
+                  "value": "Next.js Built-in",
+                  "order": 4
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-testing-framework",
+              "fieldType": "multiselect",
+              "label": "Testing Tools",
+              "description": "Testing frameworks and utilities",
+              "required": false,
+              "default": ["vitest", "testing-library"],
+              "variableName": "testingFramework",
+              "hint": "Select all testing tools used in the project",
+              "directoryPath": "/project/testing-framework",
+              "options": [
+                {
+                  "id": "opt-vitest",
+                  "label": "Vitest",
+                  "filePath": "/project/testing-framework/vitest.md",
+                  "value": "Vitest",
+                  "order": 0
+                },
+                {
+                  "id": "opt-jest",
+                  "label": "Jest",
+                  "filePath": "/project/testing-framework/jest.md",
+                  "value": "Jest",
+                  "order": 1
+                },
+                {
+                  "id": "opt-testing-library",
+                  "label": "Testing Library",
+                  "filePath": "/project/testing-framework/testing-library.md",
+                  "value": "Testing Library",
+                  "order": 2
+                },
+                {
+                  "id": "opt-cypress",
+                  "label": "Cypress (E2E)",
+                  "filePath": "/project/testing-framework/cypress.md",
+                  "value": "Cypress",
+                  "order": 3
+                },
+                {
+                  "id": "opt-playwright",
+                  "label": "Playwright (E2E)",
+                  "filePath": "/project/testing-framework/playwright.md",
+                  "value": "Playwright",
+                  "order": 4
+                },
+                {
+                  "id": "opt-msw",
+                  "label": "MSW (Mock Service Worker)",
+                  "filePath": "/project/testing-framework/msw.md",
+                  "value": "MSW",
+                  "order": 5
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "domain-developer",
+      "name": "Developer Profile",
+      "description": "Developer experience level, specialization, and coding preferences",
+      "category": "Development",
+      "tags": ["developer", "profile", "experience", "preferences"],
+      "icon": "👨‍💻",
+      "color": "#8b5cf6",
+      "directoryPath": "/developer",
+      "schema": {
+        "root": {
+          "type": "section",
+          "id": "section-developer",
+          "label": "Developer Profile",
+          "description": "Developer experience level, specialization, and coding preferences",
+          "icon": "👨‍💻",
+          "directoryPath": "/developer",
+          "children": [
+            {
+              "type": "field",
+              "id": "field-experience-level",
+              "fieldType": "select",
+              "label": "Experience Level",
+              "description": "Developer's experience level in web development",
+              "required": true,
+              "default": "intermediate",
+              "variableName": "experienceLevel",
+              "directoryPath": "/developer/experience-level",
+              "options": [
+                {
+                  "id": "opt-beginner",
+                  "label": "Beginner (0-2 years)",
+                  "description": "Learning fundamentals, needs detailed explanations",
+                  "filePath": "/developer/experience-level/beginner.md",
+                  "value": "Beginner (0-2 years)",
+                  "order": 0
+                },
+                {
+                  "id": "opt-intermediate",
+                  "label": "Intermediate (2-5 years)",
+                  "description": "Comfortable with core concepts, learning advanced patterns",
+                  "filePath": "/developer/experience-level/intermediate.md",
+                  "value": "Intermediate (2-5 years)",
+                  "order": 1
+                },
+                {
+                  "id": "opt-advanced",
+                  "label": "Advanced (5-10 years)",
+                  "description": "Deep understanding, focusing on optimization and architecture",
+                  "filePath": "/developer/experience-level/advanced.md",
+                  "value": "Advanced (5-10 years)",
+                  "order": 2
+                },
+                {
+                  "id": "opt-expert",
+                  "label": "Expert (10+ years)",
+                  "description": "Mastery of web development, focuses on complex systems",
+                  "filePath": "/developer/experience-level/expert.md",
+                  "value": "Expert (10+ years)",
+                  "order": 3
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-specialization",
+              "fieldType": "multiselect",
+              "label": "Specialization",
+              "description": "Areas of expertise",
+              "required": true,
+              "default": [],
+              "variableName": "specialization",
+              "hint": "Select all areas of expertise",
+              "directoryPath": "/developer/specialization",
+              "options": [
+                {
+                  "id": "opt-frontend",
+                  "label": "Frontend Development",
+                  "filePath": "/developer/specialization/frontend.md",
+                  "value": "Frontend Development",
+                  "order": 0
+                },
+                {
+                  "id": "opt-backend",
+                  "label": "Backend Development",
+                  "filePath": "/developer/specialization/backend.md",
+                  "value": "Backend Development",
+                  "order": 1
+                },
+                {
+                  "id": "opt-fullstack",
+                  "label": "Full Stack",
+                  "filePath": "/developer/specialization/fullstack.md",
+                  "value": "Full Stack",
+                  "order": 2
+                },
+                {
+                  "id": "opt-uiux",
+                  "label": "UI/UX Design",
+                  "filePath": "/developer/specialization/uiux.md",
+                  "value": "UI/UX Design",
+                  "order": 3
+                },
+                {
+                  "id": "opt-performance",
+                  "label": "Performance Optimization",
+                  "filePath": "/developer/specialization/performance.md",
+                  "value": "Performance Optimization",
+                  "order": 4
+                },
+                {
+                  "id": "opt-accessibility",
+                  "label": "Accessibility (a11y)",
+                  "filePath": "/developer/specialization/accessibility.md",
+                  "value": "Accessibility (a11y)",
+                  "order": 5
+                },
+                {
+                  "id": "opt-devops",
+                  "label": "DevOps/CI/CD",
+                  "filePath": "/developer/specialization/devops.md",
+                  "value": "DevOps/CI/CD",
+                  "order": 6
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-coding-style",
+              "fieldType": "multiselect",
+              "label": "Coding Preferences",
+              "description": "Preferred coding style and patterns",
+              "required": false,
+              "default": ["functional"],
+              "variableName": "codingStyle",
+              "hint": "Select preferred coding approaches",
+              "directoryPath": "/developer/coding-style",
+              "options": [
+                {
+                  "id": "opt-functional",
+                  "label": "Functional Programming",
+                  "filePath": "/developer/coding-style/functional.md",
+                  "value": "Functional Programming",
+                  "order": 0
+                },
+                {
+                  "id": "opt-oop",
+                  "label": "Object-Oriented",
+                  "filePath": "/developer/coding-style/oop.md",
+                  "value": "Object-Oriented",
+                  "order": 1
+                },
+                {
+                  "id": "opt-typescript",
+                  "label": "Type-Safe (TypeScript)",
+                  "filePath": "/developer/coding-style/typescript.md",
+                  "value": "Type-Safe (TypeScript)",
+                  "order": 2
+                },
+                {
+                  "id": "opt-tdd",
+                  "label": "Test-Driven Development",
+                  "filePath": "/developer/coding-style/tdd.md",
+                  "value": "Test-Driven Development",
+                  "order": 3
+                },
+                {
+                  "id": "opt-clean-code",
+                  "label": "Clean Code Principles",
+                  "filePath": "/developer/coding-style/clean-code.md",
+                  "value": "Clean Code Principles",
+                  "order": 4
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-learning-goals",
+              "fieldType": "textarea",
+              "label": "Learning Goals",
+              "description": "Specific skills or concepts to focus on",
+              "required": false,
+              "default": "",
+              "variableName": "learningGoals",
+              "placeholder": "Describe skills or concepts you want to improve...",
+              "directoryPath": "/developer/learning-goals",
+              "options": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "domain-architecture",
+      "name": "Architecture & Patterns",
+      "description": "Architectural patterns, design principles, and best practices",
+      "category": "Architecture",
+      "tags": ["architecture", "patterns", "design", "structure"],
+      "icon": "🏗️",
+      "color": "#10b981",
+      "directoryPath": "/architecture",
+      "schema": {
+        "root": {
+          "type": "section",
+          "id": "section-architecture",
+          "label": "Architecture & Patterns",
+          "description": "Architectural patterns, design principles, and best practices",
+          "icon": "🏗️",
+          "directoryPath": "/architecture",
+          "children": [
+            {
+              "type": "field",
+              "id": "field-architecture-pattern",
+              "fieldType": "select",
+              "label": "Architecture Pattern",
+              "description": "Primary architectural pattern",
+              "required": true,
+              "default": "component-based",
+              "variableName": "architecturePattern",
+              "directoryPath": "/architecture/pattern",
+              "options": [
+                {
+                  "id": "opt-component-based",
+                  "label": "Component-Based",
+                  "filePath": "/architecture/pattern/component-based.md",
+                  "value": "Component-Based",
+                  "order": 0
+                },
+                {
+                  "id": "opt-micro-frontend",
+                  "label": "Micro-Frontends",
+                  "filePath": "/architecture/pattern/micro-frontend.md",
+                  "value": "Micro-Frontends",
+                  "order": 1
+                },
+                {
+                  "id": "opt-mvc",
+                  "label": "MVC / MVVM",
+                  "filePath": "/architecture/pattern/mvc.md",
+                  "value": "MVC / MVVM",
+                  "order": 2
+                },
+                {
+                  "id": "opt-monorepo",
+                  "label": "Monorepo Architecture",
+                  "filePath": "/architecture/pattern/monorepo.md",
+                  "value": "Monorepo Architecture",
+                  "order": 3
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-design-patterns",
+              "fieldType": "multiselect",
+              "label": "Design Patterns",
+              "description": "Design patterns to emphasize",
+              "required": false,
+              "default": [],
+              "variableName": "designPatterns",
+              "directoryPath": "/architecture/design-patterns",
+              "options": [
+                {
+                  "id": "opt-observer",
+                  "label": "Observer / Pub-Sub",
+                  "filePath": "/architecture/design-patterns/observer.md",
+                  "value": "Observer / Pub-Sub",
+                  "order": 0
+                },
+                {
+                  "id": "opt-factory",
+                  "label": "Factory Pattern",
+                  "filePath": "/architecture/design-patterns/factory.md",
+                  "value": "Factory Pattern",
+                  "order": 1
+                },
+                {
+                  "id": "opt-hoc",
+                  "label": "Higher-Order Components",
+                  "filePath": "/architecture/design-patterns/hoc.md",
+                  "value": "Higher-Order Components",
+                  "order": 2
+                },
+                {
+                  "id": "opt-hooks-pattern",
+                  "label": "Custom Hooks Pattern",
+                  "filePath": "/architecture/design-patterns/hooks.md",
+                  "value": "Custom Hooks Pattern",
+                  "order": 3
+                },
+                {
+                  "id": "opt-compound",
+                  "label": "Compound Components",
+                  "filePath": "/architecture/design-patterns/compound.md",
+                  "value": "Compound Components",
+                  "order": 4
+                },
+                {
+                  "id": "opt-render-props",
+                  "label": "Render Props",
+                  "filePath": "/architecture/design-patterns/render-props.md",
+                  "value": "Render Props",
+                  "order": 5
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-code-organization",
+              "fieldType": "multiselect",
+              "label": "Code Organization",
+              "description": "File structure and organization preferences",
+              "required": false,
+              "default": [],
+              "variableName": "codeOrganization",
+              "directoryPath": "/architecture/code-organization",
+              "options": [
+                {
+                  "id": "opt-feature-based",
+                  "label": "Feature-Based",
+                  "filePath": "/architecture/code-organization/feature-based.md",
+                  "value": "Feature-Based",
+                  "order": 0
+                },
+                {
+                  "id": "opt-layer-based",
+                  "label": "Layer-Based",
+                  "filePath": "/architecture/code-organization/layer-based.md",
+                  "value": "Layer-Based",
+                  "order": 1
+                },
+                {
+                  "id": "opt-domain-driven",
+                  "label": "Domain-Driven Design",
+                  "filePath": "/architecture/code-organization/domain-driven.md",
+                  "value": "Domain-Driven Design",
+                  "order": 2
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "domain-feature",
+      "name": "Feature Requirements",
+      "description": "Specific feature requirements and functionality to implement",
+      "category": "Requirements",
+      "tags": ["features", "requirements", "functionality", "specs"],
+      "icon": "⚡",
+      "color": "#f59e0b",
+      "directoryPath": "/feature",
+      "schema": {
+        "root": {
+          "type": "section",
+          "id": "section-feature",
+          "label": "Feature Requirements",
+          "description": "Specific feature requirements and functionality to implement",
+          "icon": "⚡",
+          "directoryPath": "/feature",
+          "children": [
+            {
+              "type": "field",
+              "id": "field-feature-type",
+              "fieldType": "select",
+              "label": "Feature Type",
+              "description": "Type of feature being built",
+              "required": true,
+              "default": "component",
+              "variableName": "featureType",
+              "directoryPath": "/feature/type",
+              "options": [
+                {
+                  "id": "opt-component",
+                  "label": "UI Component",
+                  "filePath": "/feature/type/component.md",
+                  "value": "UI Component",
+                  "order": 0
+                },
+                {
+                  "id": "opt-page",
+                  "label": "Page / View",
+                  "filePath": "/feature/type/page.md",
+                  "value": "Page / View",
+                  "order": 1
+                },
+                {
+                  "id": "opt-hook",
+                  "label": "Custom Hook",
+                  "filePath": "/feature/type/hook.md",
+                  "value": "Custom Hook",
+                  "order": 2
+                },
+                {
+                  "id": "opt-api-integration",
+                  "label": "API Integration",
+                  "filePath": "/feature/type/api-integration.md",
+                  "value": "API Integration",
+                  "order": 3
+                },
+                {
+                  "id": "opt-form",
+                  "label": "Form / Data Entry",
+                  "filePath": "/feature/type/form.md",
+                  "value": "Form / Data Entry",
+                  "order": 4
+                },
+                {
+                  "id": "opt-auth",
+                  "label": "Authentication",
+                  "filePath": "/feature/type/auth.md",
+                  "value": "Authentication",
+                  "order": 5
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-feature-focus",
+              "fieldType": "textarea",
+              "label": "Feature Description",
+              "description": "Detailed description of what needs to be built",
+              "required": false,
+              "default": "",
+              "variableName": "featureDescription",
+              "placeholder": "Describe the feature, functionality, and requirements...",
+              "runtimeOptional": true,
+              "directoryPath": "/feature/description",
+              "options": []
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "savedAgentConfigs": [
+    {
+      "id": "agent-component-builder",
+      "name": "ComponentBuilderAgent",
+      "description": "Creates React components with TypeScript, Tailwind CSS, and best practices",
+      "mainInstruction": "# Component Building Assistant\n\nYou are an expert React developer helping create production-ready components.\n\n## Your Approach\n- Always consider accessibility first\n- Write clean, type-safe TypeScript\n- Use proper React patterns and hooks\n- Include proper error handling\n- Consider performance implications\n- Follow the project's established patterns\n\n## Output Format\nStructure your code with clear imports, proper types, and inline documentation.\n",
+      "selectedDomains": ["domain-project", "domain-developer", "domain-architecture", "domain-feature"],
+      "formValues": {
+        "projectType": "opt-spa",
+        "frontendFramework": "opt-react",
+        "cssFramework": "opt-tailwind",
+        "stateManagement": "opt-zustand",
+        "buildTool": "opt-vite",
+        "testingFramework": ["vitest", "testing-library"],
+        "experienceLevel": "opt-intermediate",
+        "specialization": ["opt-frontend"],
+        "codingStyle": ["opt-functional", "opt-typescript"],
+        "learningGoals": "Advanced React patterns",
+        "architecturePattern": "opt-component-based",
+        "designPatterns": [],
+        "codeOrganization": ["opt-feature-based"],
+        "featureType": "opt-component",
+        "featureDescription": ""
+      },
+      "enabledTools": [
+        {
+          "toolId": "component-generator",
+          "source": "manual"
+        },
+        {
+          "toolId": "hook-generator",
+          "source": "manual"
+        }
+      ],
+      "emptyFieldsForRuntime": ["field-feature-description"],
+      "attachedFlows": [
+        {
+          "flowId": "flow_component_generate",
+          "flowName": "Generate Component",
+          "flowDescription": "Creates a complete React component with props, types, and tests",
+          "taskCount": 5,
+          "slashAction": {
+            "id": "sc_component_generate",
+            "actionId": "generate",
+            "name": "Generate Component",
+            "description": "Create a complete component with tests",
+            "flowId": "flow_component_generate",
+            "enabled": true
+          }
+        }
+      ],
+      "createdAt": "2025-01-15T09:00:00Z",
+      "updatedAt": "2025-02-28T10:00:00Z"
+    },
+    {
+      "id": "agent-api-integrator",
+      "name": "APIIntegratorAgent",
+      "description": "Handles REST and GraphQL API integrations with proper error handling and types",
+      "selectedDomains": ["domain-project", "domain-developer", "domain-architecture"],
+      "formValues": {
+        "projectType": "opt-spa",
+        "frontendFramework": "opt-react",
+        "cssFramework": "opt-tailwind",
+        "stateManagement": "opt-zustand",
+        "buildTool": "opt-vite",
+        "testingFramework": ["vitest", "msw"],
+        "experienceLevel": "opt-intermediate",
+        "specialization": ["opt-fullstack"],
+        "codingStyle": ["opt-typescript", "opt-functional"],
+        "architecturePattern": "opt-component-based",
+        "designPatterns": ["opt-observer"]
+      },
+      "enabledTools": [
+        {
+          "toolId": "api-client-generator",
+          "source": "manual"
+        },
+        {
+          "toolId": "type-generator",
+          "source": "manual"
+        }
+      ],
+      "emptyFieldsForRuntime": [],
+      "attachedFlows": [],
+      "createdAt": "2025-02-01T10:30:00Z",
+      "updatedAt": "2025-02-20T14:00:00Z"
+    }
+  ],
+  "toolLibrary": [
+    {
+      "id": "component-generator",
+      "name": "Component Generator",
+      "description": "Generates React components with TypeScript and proper patterns",
+      "category": "Code Generation",
+      "package": "@devtools/components",
+      "version": "1.0.0",
+      "installed": true,
+      "configRequired": false,
+      "config": {}
+    },
+    {
+      "id": "hook-generator",
+      "name": "Hook Generator",
+      "description": "Creates custom React hooks with TypeScript types",
+      "category": "Code Generation",
+      "package": "@devtools/hooks",
+      "version": "1.0.0",
+      "installed": true,
+      "configRequired": false,
+      "config": {}
+    },
+    {
+      "id": "api-client-generator",
+      "name": "API Client Generator",
+      "description": "Generates typed API clients from OpenAPI specs",
+      "category": "API",
+      "package": "@devtools/api",
+      "version": "2.0.0",
+      "installed": true,
+      "configRequired": true,
+      "config": {
+        "specUrl": ""
+      }
+    },
+    {
+      "id": "type-generator",
+      "name": "TypeScript Type Generator",
+      "description": "Infers TypeScript types from JSON schemas",
+      "category": "Types",
+      "package": "@devtools/types",
+      "version": "1.5.0",
+      "installed": true,
+      "configRequired": false,
+      "config": {}
+    }
+  ],
+  "promptPreview": {
+    "agentId": "agent-component-builder",
+    "domains": ["Project Context", "Developer Profile", "Architecture & Patterns", "Feature Requirements"],
+    "generatedPrompt": "# Component Building Assistant\n\nYou are helping create a React component for a Single Page Application (SPA) using React, Tailwind CSS, and Zustand for state management. Built with Vite and tested with Vitest and Testing Library.\n\nThe developer has Intermediate (2-5 years) experience with Frontend Development specialization. Preferred coding styles: Functional Programming, Type-Safe (TypeScript). Learning goals: Advanced React patterns\n\nUsing Component-Based architecture with Feature-Based organization.\n\nFocusing on: UI Component",
+    "tokenCount": 156,
+    "lastGenerated": "2025-02-28T10:00:00Z"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "label": "Growth Stage",
+  "description": "Current growth phase",
+  "fieldType": "select",
+  "required": true,
+  "default": "vegetative",
+  "variableName": "growthStage",
+  "renderAs": "field"
+}

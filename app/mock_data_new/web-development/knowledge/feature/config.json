@@ -1,0 +1,7 @@
+{
+  "label": "Feature Requirements",
+  "description": "Specific feature requirements and functionality to implement",
+  "icon": "zap",
+  "color": "#f59e0b",
+  "renderAs": "section"
+}

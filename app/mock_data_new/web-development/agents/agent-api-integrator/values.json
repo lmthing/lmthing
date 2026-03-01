@@ -1,0 +1,27 @@
+{
+  "project": {
+    "project-type": "spa",
+    "frontend-framework": "react",
+    "css-framework": "tailwind",
+    "state-management": "zustand",
+    "testing-framework": [
+      "vitest",
+      "msw"
+    ]
+  },
+  "developer": {
+    "experience-level": "intermediate",
+    "specialization": [
+      "fullstack"
+    ],
+    "coding-style": [
+      "typescript",
+      "functional"
+    ]
+  },
+  "architecture": {
+    "design-patterns": [
+      "observer"
+    ]
+  }
+}

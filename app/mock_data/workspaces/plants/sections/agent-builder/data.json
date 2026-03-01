@@ -1,0 +1,317 @@
+{
+  "_meta": {
+    "models": {
+      "Domain": "Plant care domain schema for agent setup",
+      "AgentConfig": "Saved plant assistant agent configuration",
+      "Tool": "Plant-specific tools available for the agent",
+      "PromptPreview": "Generated system prompt preview"
+    }
+  },
+  "domains": [
+    {
+      "id": "domain-plant-profile",
+      "name": "Plant Profile",
+      "description": "Plant identity and growth context",
+      "category": "Teaching",
+      "tags": ["plants", "profile", "species"],
+      "icon": "🌿",
+      "color": "#16a34a",
+      "directoryPath": "/plant-profile",
+      "schema": {
+        "root": {
+          "type": "section",
+          "id": "section-plant-profile",
+          "label": "Plant Profile",
+          "description": "Core details about the plant",
+          "icon": "🌿",
+          "directoryPath": "/plant-profile",
+          "children": [
+            {
+              "type": "field",
+              "id": "field-plant-type",
+              "fieldType": "select",
+              "label": "Plant Type",
+              "description": "Primary plant category",
+              "required": true,
+              "default": "houseplant",
+              "variableName": "plantType",
+              "directoryPath": "/plant-profile/plant-type",
+              "options": [
+                {
+                  "id": "opt-houseplant",
+                  "label": "Houseplant",
+                  "filePath": "/plant-profile/plant-type/houseplant.md",
+                  "value": "Houseplant",
+                  "order": 0
+                },
+                {
+                  "id": "opt-herb",
+                  "label": "Herb",
+                  "filePath": "/plant-profile/plant-type/herb.md",
+                  "value": "Herb",
+                  "order": 1
+                },
+                {
+                  "id": "opt-flowering",
+                  "label": "Flowering Plant",
+                  "filePath": "/plant-profile/plant-type/flowering.md",
+                  "value": "Flowering Plant",
+                  "order": 2
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-growth-stage",
+              "fieldType": "select",
+              "label": "Growth Stage",
+              "description": "Current plant growth phase",
+              "required": true,
+              "default": "vegetative",
+              "variableName": "growthStage",
+              "directoryPath": "/plant-profile/growth-stage",
+              "options": [
+                {
+                  "id": "opt-seedling",
+                  "label": "Seedling",
+                  "filePath": "/plant-profile/growth-stage/seedling.md",
+                  "value": "Seedling",
+                  "order": 0
+                },
+                {
+                  "id": "opt-vegetative",
+                  "label": "Vegetative",
+                  "filePath": "/plant-profile/growth-stage/vegetative.md",
+                  "value": "Vegetative",
+                  "order": 1
+                },
+                {
+                  "id": "opt-flowering-stage",
+                  "label": "Flowering",
+                  "filePath": "/plant-profile/growth-stage/flowering.md",
+                  "value": "Flowering",
+                  "order": 2
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "domain-care-routine",
+      "name": "Care Routine",
+      "description": "Daily and weekly care setup",
+      "category": "Assessment",
+      "tags": ["watering", "light", "schedule"],
+      "icon": "💧",
+      "color": "#0ea5e9",
+      "directoryPath": "/care-routine",
+      "schema": {
+        "root": {
+          "type": "section",
+          "id": "section-care-routine",
+          "label": "Care Routine",
+          "description": "Environment and maintenance preferences",
+          "icon": "💧",
+          "directoryPath": "/care-routine",
+          "children": [
+            {
+              "type": "field",
+              "id": "field-light-exposure",
+              "fieldType": "select",
+              "label": "Light Exposure",
+              "description": "Typical light available",
+              "required": true,
+              "default": "bright-indirect",
+              "variableName": "lightExposure",
+              "directoryPath": "/care-routine/light-exposure",
+              "options": [
+                {
+                  "id": "opt-full-sun",
+                  "label": "Full Sun",
+                  "filePath": "/care-routine/light-exposure/full-sun.md",
+                  "value": "Full Sun",
+                  "order": 0
+                },
+                {
+                  "id": "opt-bright-indirect",
+                  "label": "Bright Indirect",
+                  "filePath": "/care-routine/light-exposure/bright-indirect.md",
+                  "value": "Bright Indirect",
+                  "order": 1
+                },
+                {
+                  "id": "opt-low-light",
+                  "label": "Low Light",
+                  "filePath": "/care-routine/light-exposure/low-light.md",
+                  "value": "Low Light",
+                  "order": 2
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-watering-frequency",
+              "fieldType": "select",
+              "label": "Watering Frequency",
+              "description": "How often watering is feasible",
+              "required": true,
+              "default": "weekly",
+              "variableName": "wateringFrequency",
+              "directoryPath": "/care-routine/watering-frequency",
+              "options": [
+                {
+                  "id": "opt-every-2-days",
+                  "label": "Every 2-3 Days",
+                  "filePath": "/care-routine/watering-frequency/every-2-3-days.md",
+                  "value": "Every 2-3 Days",
+                  "order": 0
+                },
+                {
+                  "id": "opt-weekly",
+                  "label": "Weekly",
+                  "filePath": "/care-routine/watering-frequency/weekly.md",
+                  "value": "Weekly",
+                  "order": 1
+                },
+                {
+                  "id": "opt-biweekly",
+                  "label": "Biweekly",
+                  "filePath": "/care-routine/watering-frequency/biweekly.md",
+                  "value": "Biweekly",
+                  "order": 2
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-constraints",
+              "fieldType": "multiselect",
+              "label": "Care Constraints",
+              "description": "Conditions that affect care choices",
+              "required": false,
+              "default": [],
+              "variableName": "constraints",
+              "hint": "Select all that apply",
+              "directoryPath": "/care-routine/constraints",
+              "options": [
+                {
+                  "id": "opt-pets",
+                  "label": "Pet-safe only",
+                  "filePath": "/care-routine/constraints/pet-safe-only.md",
+                  "value": "Pet-safe only",
+                  "order": 0
+                },
+                {
+                  "id": "opt-low-maintenance",
+                  "label": "Low maintenance",
+                  "filePath": "/care-routine/constraints/low-maintenance.md",
+                  "value": "Low maintenance",
+                  "order": 1
+                },
+                {
+                  "id": "opt-small-space",
+                  "label": "Small space",
+                  "filePath": "/care-routine/constraints/small-space.md",
+                  "value": "Small space",
+                  "order": 2
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "toolLibrary": [
+    {
+      "id": "plant-care-scheduler",
+      "name": "Plant Care Scheduler",
+      "description": "Builds recurring watering, feeding, and maintenance schedules",
+      "category": "Reporting",
+      "package": "@growwise/scheduler",
+      "version": "1.2.0",
+      "installed": true,
+      "configRequired": false,
+      "config": {}
+    },
+    {
+      "id": "disease-symptom-checker",
+      "name": "Disease Symptom Checker",
+      "description": "Identifies likely stress or disease patterns from symptoms",
+      "category": "Assessment",
+      "package": "@growwise/diagnostics",
+      "version": "2.0.1",
+      "installed": true,
+      "configRequired": true,
+      "config": {
+        "region": "mediterranean"
+      }
+    },
+    {
+      "id": "light-mapper",
+      "name": "Light Mapper",
+      "description": "Maps room light zones to plant light requirements",
+      "category": "Teaching",
+      "package": "@growwise/light",
+      "version": "0.9.3",
+      "installed": true,
+      "configRequired": false,
+      "config": {}
+    }
+  ],
+  "savedAgentConfigs": [
+    {
+      "id": "agentcfg-plants-001",
+      "name": "Indoor Plant Coach",
+      "description": "Guides users on plant setup and weekly care adjustments",
+      "mainInstruction": "Provide concise, safe, and practical plant care guidance for home growers.",
+      "selectedDomains": ["domain-plant-profile", "domain-care-routine"],
+      "formValues": {
+        "field-plant-type": "Houseplant",
+        "field-growth-stage": "Vegetative",
+        "field-light-exposure": "Bright Indirect",
+        "field-watering-frequency": "Weekly",
+        "field-constraints": ["Pet-safe only", "Low maintenance"]
+      },
+      "enabledTools": [
+        {
+          "toolId": "plant-care-scheduler",
+          "source": "manual"
+        },
+        {
+          "toolId": "disease-symptom-checker",
+          "source": "manual"
+        }
+      ],
+      "emptyFieldsForRuntime": ["field-watering-frequency"],
+      "attachedFlows": [
+        {
+          "flowId": "flow-generate-care-plan",
+          "flowName": "Generate Care Plan",
+          "flowDescription": "Creates a personalized plant care plan",
+          "taskCount": 3,
+          "slashAction": {
+            "id": "sc-care-plan",
+            "actionId": "careplan",
+            "name": "Generate Care Plan",
+            "description": "Create a customized care plan for the selected plant",
+            "flowId": "flow-generate-care-plan",
+            "flowName": "Generate Care Plan",
+            "enabled": true
+          }
+        }
+      ],
+      "createdAt": "2026-02-18T08:10:00Z",
+      "updatedAt": "2026-02-27T17:40:00Z"
+    }
+  ],
+  "promptPreview": {
+    "agentId": "agentcfg-plants-001",
+    "domains": ["Plant Profile", "Care Routine"],
+    "generatedPrompt": "You are an indoor plant care specialist. Use plant profile and care routine data to provide practical guidance, clear schedules, and troubleshooting steps.",
+    "tokenCount": 129,
+    "lastGenerated": "2026-02-27T17:41:00Z"
+  }
+}

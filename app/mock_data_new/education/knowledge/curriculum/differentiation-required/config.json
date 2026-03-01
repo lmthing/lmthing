@@ -1,0 +1,9 @@
+{
+  "label": "Require Differentiation Strategies",
+  "description": "All recommendations must include differentiation",
+  "fieldType": "toggle",
+  "required": false,
+  "default": true,
+  "variableName": "differentiationRequired",
+  "renderAs": "field"
+}

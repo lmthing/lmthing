@@ -1,0 +1,248 @@
+{
+  "_meta": {
+    "models": {
+      "FileSystemNode": "Directory or prompt fragment for plants workspace"
+    }
+  },
+  "fileSystem": {
+    "id": "root",
+    "name": "Prompt Library",
+    "type": "directory",
+    "path": "/",
+    "children": [
+      {
+        "id": "dir-plant-profile",
+        "name": "plant-profile",
+        "type": "directory",
+        "path": "/plant-profile",
+        "config": {
+          "label": "Plant Profile",
+          "description": "Plant identity and growth context",
+          "icon": "leaf",
+          "color": "#16a34a",
+          "renderAs": "section"
+        },
+        "children": [
+          {
+            "id": "dir-plant-type",
+            "name": "plant-type",
+            "type": "directory",
+            "path": "/plant-profile/plant-type",
+            "config": {
+              "label": "Plant Type",
+              "description": "Primary plant category",
+              "fieldType": "select",
+              "required": true,
+              "default": "houseplant",
+              "variableName": "plantType",
+              "renderAs": "field"
+            },
+            "children": [
+              {
+                "id": "frag-houseplant",
+                "name": "houseplant.md",
+                "type": "file",
+                "path": "/plant-profile/plant-type/houseplant.md",
+                "frontmatter": {
+                  "title": "Houseplant",
+                  "order": 0
+                },
+                "content": "# Houseplant\n\nGeneral indoor plant profile focusing on home conditions and manageable care routines."
+              },
+              {
+                "id": "frag-herb",
+                "name": "herb.md",
+                "type": "file",
+                "path": "/plant-profile/plant-type/herb.md",
+                "frontmatter": {
+                  "title": "Herb",
+                  "order": 1
+                },
+                "content": "# Herb\n\nEdible aromatic plants that typically prefer high light and regular harvesting."
+              },
+              {
+                "id": "frag-flowering",
+                "name": "flowering.md",
+                "type": "file",
+                "path": "/plant-profile/plant-type/flowering.md",
+                "frontmatter": {
+                  "title": "Flowering Plant",
+                  "order": 2
+                },
+                "content": "# Flowering Plant\n\nPlants prioritized for bloom cycles, with attention to light and nutrient timing."
+              }
+            ]
+          },
+          {
+            "id": "dir-growth-stage",
+            "name": "growth-stage",
+            "type": "directory",
+            "path": "/plant-profile/growth-stage",
+            "config": {
+              "label": "Growth Stage",
+              "description": "Current growth phase",
+              "fieldType": "select",
+              "required": true,
+              "default": "vegetative",
+              "variableName": "growthStage",
+              "renderAs": "field"
+            },
+            "children": [
+              {
+                "id": "frag-seedling",
+                "name": "seedling.md",
+                "type": "file",
+                "path": "/plant-profile/growth-stage/seedling.md",
+                "frontmatter": {
+                  "title": "Seedling",
+                  "order": 0
+                },
+                "content": "# Seedling\n\nEarly-stage plants needing stable moisture and gentle light exposure."
+              },
+              {
+                "id": "frag-vegetative",
+                "name": "vegetative.md",
+                "type": "file",
+                "path": "/plant-profile/growth-stage/vegetative.md",
+                "frontmatter": {
+                  "title": "Vegetative",
+                  "order": 1
+                },
+                "content": "# Vegetative\n\nActive foliage growth stage requiring consistent water/light balance."
+              },
+              {
+                "id": "frag-flowering-stage",
+                "name": "flowering.md",
+                "type": "file",
+                "path": "/plant-profile/growth-stage/flowering.md",
+                "frontmatter": {
+                  "title": "Flowering",
+                  "order": 2
+                },
+                "content": "# Flowering\n\nBloom-focused stage with higher light and nutrient precision."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "dir-care-routine",
+        "name": "care-routine",
+        "type": "directory",
+        "path": "/care-routine",
+        "config": {
+          "label": "Care Routine",
+          "description": "Environment and maintenance preferences",
+          "icon": "droplets",
+          "color": "#0ea5e9",
+          "renderAs": "section"
+        },
+        "children": [
+          {
+            "id": "dir-light-exposure",
+            "name": "light-exposure",
+            "type": "directory",
+            "path": "/care-routine/light-exposure",
+            "config": {
+              "label": "Light Exposure",
+              "description": "Typical light available",
+              "fieldType": "select",
+              "required": true,
+              "default": "bright-indirect",
+              "variableName": "lightExposure",
+              "renderAs": "field"
+            },
+            "children": [
+              {
+                "id": "frag-full-sun",
+                "name": "full-sun.md",
+                "type": "file",
+                "path": "/care-routine/light-exposure/full-sun.md",
+                "frontmatter": {
+                  "title": "Full Sun",
+                  "order": 0
+                },
+                "content": "# Full Sun\n\n6+ hours of direct sun, typically near south or west windows."
+              },
+              {
+                "id": "frag-bright-indirect",
+                "name": "bright-indirect.md",
+                "type": "file",
+                "path": "/care-routine/light-exposure/bright-indirect.md",
+                "frontmatter": {
+                  "title": "Bright Indirect",
+                  "order": 1
+                },
+                "content": "# Bright Indirect\n\nStrong ambient light without prolonged direct midday rays."
+              },
+              {
+                "id": "frag-low-light",
+                "name": "low-light.md",
+                "type": "file",
+                "path": "/care-routine/light-exposure/low-light.md",
+                "frontmatter": {
+                  "title": "Low Light",
+                  "order": 2
+                },
+                "content": "# Low Light\n\nLimited natural light requiring conservative watering and hardy species."
+              }
+            ]
+          },
+          {
+            "id": "dir-watering-frequency",
+            "name": "watering-frequency",
+            "type": "directory",
+            "path": "/care-routine/watering-frequency",
+            "config": {
+              "label": "Watering Frequency",
+              "description": "How often watering is feasible",
+              "fieldType": "select",
+              "required": true,
+              "default": "weekly",
+              "variableName": "wateringFrequency",
+              "renderAs": "field"
+            },
+            "children": [
+              {
+                "id": "frag-every-2-3-days",
+                "name": "every-2-3-days.md",
+                "type": "file",
+                "path": "/care-routine/watering-frequency/every-2-3-days.md",
+                "frontmatter": {
+                  "title": "Every 2-3 Days",
+                  "order": 0
+                },
+                "content": "# Every 2-3 Days\n\nSuitable for thirsty plants in warm, bright conditions with draining soil."
+              },
+              {
+                "id": "frag-weekly",
+                "name": "weekly.md",
+                "type": "file",
+                "path": "/care-routine/watering-frequency/weekly.md",
+                "frontmatter": {
+                  "title": "Weekly",
+                  "order": 1
+                },
+                "content": "# Weekly\n\nBalanced cadence for many common indoor plants."
+              },
+              {
+                "id": "frag-biweekly",
+                "name": "biweekly.md",
+                "type": "file",
+                "path": "/care-routine/watering-frequency/biweekly.md",
+                "frontmatter": {
+                  "title": "Biweekly",
+                  "order": 2
+                },
+                "content": "# Biweekly\n\nWorks for drought-tolerant plants in low-transpiration conditions."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "selectedFile": null,
+  "expandedFolders": ["/", "/plant-profile", "/plant-profile/plant-type", "/care-routine"],
+  "unsavedChanges": false
+}

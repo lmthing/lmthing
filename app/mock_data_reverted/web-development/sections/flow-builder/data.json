@@ -1,0 +1,594 @@
+{
+  "flows": [
+    {
+      "id": "api_integration",
+      "name": "Generate API Integration",
+      "status": "active",
+      "scope": "agent-specific",
+      "agentId": "agent-api-integrator",
+      "tags": [
+        "api",
+        "integration",
+        "generate",
+        "structured"
+      ],
+      "taskCount": 6,
+      "createdAt": "2025-02-10T16:00:00Z",
+      "updatedAt": "2025-02-28T10:00:00Z",
+      "lastRunAt": "2025-02-28T10:00:00Z",
+      "description": "Creates a complete API integration layer with typed clients and error handling"
+    },
+    {
+      "id": "component_generate",
+      "name": "Generate Component",
+      "status": "active",
+      "scope": "agent-specific",
+      "agentId": "agent-component-builder",
+      "tags": [
+        "component",
+        "react",
+        "generate",
+        "structured"
+      ],
+      "taskCount": 5,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "updatedAt": "2025-02-28T10:00:00Z",
+      "lastRunAt": "2025-02-28T10:00:00Z",
+      "description": "ComponentBuilderAgent flow: Creates a complete React component with 5 gradual section generation tasks"
+    },
+    {
+      "id": "hook_generate",
+      "name": "Generate Custom Hook",
+      "status": "active",
+      "scope": "agent-specific",
+      "agentId": "agent-component-builder",
+      "tags": [
+        "hook",
+        "react",
+        "generate",
+        "structured"
+      ],
+      "taskCount": 4,
+      "createdAt": "2025-02-01T09:15:00Z",
+      "updatedAt": "2025-02-28T10:00:00Z",
+      "lastRunAt": "2025-02-28T10:00:00Z",
+      "description": "Creates a complete custom React hook with proper typing and tests"
+    }
+  ],
+  "tasks": [
+    {
+      "flowId": "api_integration",
+      "order": 1,
+      "name": "Generate API Types",
+      "description": "Generates TypeScript types for API requests/responses",
+      "type": "updateFlowOutput",
+      "config": {
+        "model": "claude-3-5-sonnet",
+        "temperature": 0.2,
+        "taskInstructions": "Generate TypeScript interfaces and types for API requests, responses, and error handling. Include proper type discrimination for union types, optional fields marked correctly, and proper nested object types. Consider pagination, filtering, and sorting types if applicable.",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "requestTypes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "responseTypes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "errorTypes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "targetFieldName": "types"
+      }
+    },
+    {
+      "flowId": "api_integration",
+      "order": 2,
+      "name": "Generate API Client",
+      "description": "Generates the base API client with fetch/axios",
+      "type": "updateFlowOutput",
+      "config": {
+        "model": "claude-3-5-sonnet",
+        "temperature": 0.2,
+        "taskInstructions": "Generate a configured API client using fetch or axios with base URL configuration, timeout handling, and request/response interceptors for auth tokens and error handling. Include proper TypeScript typing for the client instance.",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "clientCode": {
+              "type": "string"
+            },
+            "configuration": {
+              "type": "object",
+              "properties": {
+                "baseURL": {
+                  "type": "string"
+                },
+                "timeout": {
+                  "type": "number"
+                },
+                "interceptors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "targetFieldName": "client"
+      }
+    },
+    {
+      "flowId": "api_integration",
+      "order": 3,
+      "name": "Generate API Endpoints",
+      "description": "Generates typed endpoint functions",
+      "type": "updateFlowOutput",
+      "config": {
+        "model": "claude-3-5-sonnet",
+        "temperature": 0.2,
+        "taskInstructions": "Generate typed API endpoint functions for CRUD operations (Create, Read, Update, Delete, List). Each function should have proper parameter typing, return type promises, and error handling. Include query parameter support and request body typing where applicable.",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "endpoints": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "method": {
+                    "type": "string"
+                  },
+                  "path": {
+                    "type": "string"
+                  },
+                  "implementation": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "targetFieldName": "endpoints"
+      }
+    },
+    {
+      "flowId": "api_integration",
+      "order": 4,
+      "name": "Generate Error Handling",
+      "description": "Generates error handling and retry logic",
+      "type": "updateFlowOutput",
+      "config": {
+        "model": "claude-3-5-sonnet",
+        "temperature": 0.2,
+        "taskInstructions": "Generate error handling classes and utilities including custom API error types, error response parsing, retry logic with exponential backoff, and request cancellation support. Handle network errors, timeout errors, and HTTP error status codes appropriately.",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "errorClasses": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "errorHandlers": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "retryLogic": {
+              "type": "string"
+            }
+          }
+        },
+        "targetFieldName": "errorHandling"
+      }
+    },
+    {
+      "flowId": "api_integration",
+      "order": 5,
+      "name": "Generate Data Hooks",
+      "description": "Generates React hooks for data fetching",
+      "type": "updateFlowOutput",
+      "config": {
+        "model": "claude-3-5-sonnet",
+        "temperature": 0.3,
+        "taskInstructions": "Generate custom React hooks that wrap the API endpoints for common data fetching patterns. Include hooks for: fetching single items, fetching lists with pagination, mutations (create/update/delete), and optimistic updates. Return consistent loading, error, and data states.",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "hooks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "implementation": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "targetFieldName": "hooks"
+      }
+    },
+    {
+      "flowId": "api_integration",
+      "order": 6,
+      "name": "Generate API Tests",
+      "description": "Generates tests for API integration",
+      "type": "updateFlowOutput",
+      "config": {
+        "model": "claude-3-5-sonnet",
+        "temperature": 0.2,
+        "taskInstructions": "Generate tests for the API integration layer using MSW for mocking. Include tests for: successful requests, error responses, loading states, retry logic, and request cancellation. Set up proper request/response handlers for mocked API calls.",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "testFile": {
+              "type": "string"
+            },
+            "mockSetup": {
+              "type": "string"
+            }
+          }
+        },
+        "targetFieldName": "tests"
+      }
+    },
+    {
+      "flowId": "component_generate",
+      "order": 1,
+      "name": "Generate Component Signature",
+      "description": "Generates component interface and props definition",
+      "type": "updateFlowOutput",
+      "config": {
+        "model": "claude-3-5-sonnet",
+        "temperature": 0.3,
+        "taskInstructions": "Generate a React component signature with proper TypeScript interface for props. Include all necessary imports from React and any UI libraries. The interface should be descriptive with proper types and optional flags where appropriate.",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "componentName": {
+              "type": "string",
+              "description": "Component name"
+            },
+            "propsInterface": {
+              "type": "object",
+              "description": "TypeScript props interface"
+            },
+            "imports": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Required imports"
+            }
+          },
+          "required": [
+            "componentName",
+            "propsInterface"
+          ]
+        },
+        "targetFieldName": "signature"
+      }
+    },
+    {
+      "flowId": "component_generate",
+      "order": 2,
+      "name": "Generate Component Structure",
+      "description": "Generates the basic component structure and state",
+      "type": "updateFlowOutput",
+      "config": {
+        "model": "claude-3-5-sonnet",
+        "temperature": 0.3,
+        "taskInstructions": "Generate the component's internal structure including useState hooks for managing component state and useEffect hooks for side effects. Each hook should have a clear purpose and proper dependency arrays.",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "stateHooks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "initialValue": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "effectHooks": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "useEffect hooks with dependencies"
+            }
+          }
+        },
+        "targetFieldName": "structure"
+      }
+    },
+    {
+      "flowId": "component_generate",
+      "order": 3,
+      "name": "Generate JSX Structure",
+      "description": "Generates the component's JSX markup",
+      "type": "updateFlowOutput",
+      "config": {
+        "model": "claude-3-5-sonnet",
+        "temperature": 0.4,
+        "taskInstructions": "Generate clean, semantic JSX markup using the project's CSS framework (Tailwind CSS). Include proper accessibility attributes (ARIA labels, roles), semantic HTML elements, and responsive design considerations.",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "jsx": {
+              "type": "string",
+              "description": "JSX markup"
+            },
+            "className": {
+              "type": "string",
+              "description": "Tailwind CSS classes"
+            }
+          }
+        },
+        "targetFieldName": "jsx"
+      }
+    },
+    {
+      "flowId": "component_generate",
+      "order": 4,
+      "name": "Generate Event Handlers",
+      "description": "Generates event handlers and helper functions",
+      "type": "updateFlowOutput",
+      "config": {
+        "model": "claude-3-5-sonnet",
+        "temperature": 0.3,
+        "taskInstructions": "Generate event handlers and helper functions needed by the component. Each handler should be properly typed, handle errors appropriately, and follow React best practices (useCallback where beneficial). Include proper type guards and validation.",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "handlers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "parameters": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "implementation": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "helpers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "implementation": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "targetFieldName": "handlers"
+      }
+    },
+    {
+      "flowId": "component_generate",
+      "order": 5,
+      "name": "Generate Tests",
+      "description": "Generates component tests with Testing Library",
+      "type": "updateFlowOutput",
+      "config": {
+        "model": "claude-3-5-sonnet",
+        "temperature": 0.3,
+        "taskInstructions": "Generate comprehensive tests using React Testing Library and Vitest. Include tests for: rendering with different props, user interactions (click, type, submit), accessibility attributes, and edge cases. Use getBy*, queryBy*, and findBy* selectors appropriately. Include setup helpers and mock data where needed.",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "testFile": {
+              "type": "string",
+              "description": "Test file content"
+            },
+            "testCases": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string"
+                  },
+                  "testType": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "targetFieldName": "tests"
+      }
+    },
+    {
+      "flowId": "hook_generate",
+      "order": 1,
+      "name": "Generate Hook Signature",
+      "description": "Generates hook interface and parameters",
+      "type": "updateFlowOutput",
+      "config": {
+        "model": "claude-3-5-sonnet",
+        "temperature": 0.3,
+        "taskInstructions": "Generate a custom React hook signature with properly typed parameters and return value. The hook name should start with 'use'. Include clear TypeScript types for all parameters and the return type (typically an array or object for multiple return values).",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "hookName": {
+              "type": "string"
+            },
+            "parameters": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "required": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            },
+            "returnType": {
+              "type": "string"
+            }
+          }
+        },
+        "targetFieldName": "signature"
+      }
+    },
+    {
+      "flowId": "hook_generate",
+      "order": 2,
+      "name": "Generate Hook Logic",
+      "description": "Generates hook implementation with state and effects",
+      "type": "updateFlowOutput",
+      "config": {
+        "model": "claude-3-5-sonnet",
+        "temperature": 0.3,
+        "taskInstructions": "Generate the hook's internal logic including state management with useState and side effects with useEffect. Include proper cleanup functions in effects, correct dependency arrays, and memoization with useMemo/useCallback where appropriate for performance.",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "useState declarations"
+            },
+            "effects": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "useEffect implementations"
+            },
+            "logic": {
+              "type": "string",
+              "description": "Core hook logic"
+            }
+          }
+        },
+        "targetFieldName": "logic"
+      }
+    },
+    {
+      "flowId": "hook_generate",
+      "order": 3,
+      "name": "Generate Hook Utilities",
+      "description": "Generates helper functions and error handling",
+      "type": "updateFlowOutput",
+      "config": {
+        "model": "claude-3-5-sonnet",
+        "temperature": 0.3,
+        "taskInstructions": "Generate any helper functions and error handling logic needed by the hook. Include try-catch blocks for async operations, proper error types, and error recovery strategies. Helpers should be pure functions where possible and properly typed.",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "helpers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "implementation": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "errorHandling": {
+              "type": "string"
+            }
+          }
+        },
+        "targetFieldName": "utilities"
+      }
+    },
+    {
+      "flowId": "hook_generate",
+      "order": 4,
+      "name": "Generate Hook Tests",
+      "description": "Generates tests for the custom hook",
+      "type": "updateFlowOutput",
+      "config": {
+        "model": "claude-3-5-sonnet",
+        "temperature": 0.3,
+        "taskInstructions": "Generate comprehensive tests for the custom hook using @testing-library/react-hooks. Include tests for: initial state, state updates, effect execution, cleanup, error cases, and edge cases. Use act() for state updates and waitFor for async operations.",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "testFile": {
+              "type": "string"
+            },
+            "testCases": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Test case descriptions"
+            }
+          }
+        },
+        "targetFieldName": "tests"
+      }
+    }
+  ]
+}

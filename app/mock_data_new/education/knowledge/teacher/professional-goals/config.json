@@ -1,0 +1,10 @@
+{
+  "label": "Professional Development Goals",
+  "description": "Areas for growth or improvement",
+  "fieldType": "textarea",
+  "required": false,
+  "default": "",
+  "variableName": "professionalGoals",
+  "placeholder": "Describe areas for growth or improvement...",
+  "renderAs": "field"
+}

@@ -1,0 +1,1335 @@
+{
+  "_meta": {
+    "models": {
+      "Domain": "Derived from top-level directories in the Prompt Library. Each domain has a schema generated from the nested directory structure.",
+      "SchemaNode": "Union of SchemaSection (nested directory) and SchemaField (directory with file options). Derived from Prompt Library structure.",
+      "SchemaField": "A form field representing a directory where child files are selectable options.",
+      "FieldOption": "Represents a file in the Prompt Library - a selectable option with content value.",
+      "AgentConfig": "A saved agent configuration combining selected domains with their form values.",
+      "Tool": "An educational capability that can be enabled for agents.",
+      "PromptPreview": "Live-generated system prompt from selected domains and their option contents."
+    },
+    "relationships": [
+      "Domain is derived from a top-level Prompt Library directory",
+      "DomainSchema.root contains SchemaNodes mirroring the directory structure",
+      "SchemaFields represent directories with file children as options",
+      "SchemaSections represent directories with nested structure",
+      "FieldOptions represent PromptFragment files with their content",
+      "AgentConfig.formValues store selected option IDs for each field",
+      "PromptPreview assembles content from selected options"
+    ]
+  },
+  "domains": [
+    {
+      "id": "domain-classroom",
+      "name": "Classroom Management",
+      "description": "Classroom characteristics, student demographics, and learning environment configuration",
+      "category": "Teaching",
+      "tags": ["classroom", "management", "environment", "students"],
+      "icon": "👥",
+      "color": "#3b82f6",
+      "directoryPath": "/classroom",
+      "schema": {
+        "root": {
+          "type": "section",
+          "id": "section-classroom",
+          "label": "Classroom Management",
+          "description": "Classroom characteristics, student demographics, and learning environment configuration",
+          "icon": "👥",
+          "directoryPath": "/classroom",
+          "children": [
+            {
+              "type": "field",
+              "id": "field-grade-level",
+              "fieldType": "select",
+              "label": "Grade Level",
+              "description": "The grade level of the class",
+              "required": true,
+              "default": "5th-grade",
+              "variableName": "gradeLevel",
+              "directoryPath": "/classroom/grade-level",
+              "options": [
+                {
+                  "id": "opt-kindergarten",
+                  "label": "Kindergarten",
+                  "filePath": "/classroom/grade-level/kindergarten.md",
+                  "value": "Kindergarten",
+                  "order": 0
+                },
+                {
+                  "id": "opt-1st-grade",
+                  "label": "1st Grade",
+                  "filePath": "/classroom/grade-level/1st-grade.md",
+                  "value": "1st Grade",
+                  "order": 1
+                },
+                {
+                  "id": "opt-2nd-grade",
+                  "label": "2nd Grade",
+                  "filePath": "/classroom/grade-level/2nd-grade.md",
+                  "value": "2nd Grade",
+                  "order": 2
+                },
+                {
+                  "id": "opt-3rd-grade",
+                  "label": "3rd Grade",
+                  "filePath": "/classroom/grade-level/3rd-grade.md",
+                  "value": "3rd Grade",
+                  "order": 3
+                },
+                {
+                  "id": "opt-4th-grade",
+                  "label": "4th Grade",
+                  "filePath": "/classroom/grade-level/4th-grade.md",
+                  "value": "4th Grade",
+                  "order": 4
+                },
+                {
+                  "id": "opt-5th-grade",
+                  "label": "5th Grade",
+                  "filePath": "/classroom/grade-level/5th-grade.md",
+                  "value": "5th Grade",
+                  "order": 5
+                },
+                {
+                  "id": "opt-6th-grade",
+                  "label": "6th Grade",
+                  "filePath": "/classroom/grade-level/6th-grade.md",
+                  "value": "6th Grade",
+                  "order": 6
+                },
+                {
+                  "id": "opt-7th-grade",
+                  "label": "7th Grade",
+                  "filePath": "/classroom/grade-level/7th-grade.md",
+                  "value": "7th Grade",
+                  "order": 7
+                },
+                {
+                  "id": "opt-8th-grade",
+                  "label": "8th Grade",
+                  "filePath": "/classroom/grade-level/8th-grade.md",
+                  "value": "8th Grade",
+                  "order": 8
+                },
+                {
+                  "id": "opt-9th-grade",
+                  "label": "9th Grade",
+                  "filePath": "/classroom/grade-level/9th-grade.md",
+                  "value": "9th Grade",
+                  "order": 9
+                },
+                {
+                  "id": "opt-10th-grade",
+                  "label": "10th Grade",
+                  "filePath": "/classroom/grade-level/10th-grade.md",
+                  "value": "10th Grade",
+                  "order": 10
+                },
+                {
+                  "id": "opt-11th-grade",
+                  "label": "11th Grade",
+                  "filePath": "/classroom/grade-level/11th-grade.md",
+                  "value": "11th Grade",
+                  "order": 11
+                },
+                {
+                  "id": "opt-12th-grade",
+                  "label": "12th Grade",
+                  "filePath": "/classroom/grade-level/12th-grade.md",
+                  "value": "12th Grade",
+                  "order": 12
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-class-size",
+              "fieldType": "select",
+              "label": "Class Size",
+              "description": "Number of students in the class",
+              "required": true,
+              "default": "medium",
+              "variableName": "classSize",
+              "directoryPath": "/classroom/class-size",
+              "options": [
+                {
+                  "id": "opt-small",
+                  "label": "Small (1-15 students)",
+                  "description": "Ideal for personalized attention",
+                  "filePath": "/classroom/class-size/small.md",
+                  "value": "Small (1-15 students)",
+                  "order": 0
+                },
+                {
+                  "id": "opt-medium",
+                  "label": "Medium (16-25 students)",
+                  "description": "Standard class size",
+                  "filePath": "/classroom/class-size/medium.md",
+                  "value": "Medium (16-25 students)",
+                  "order": 1
+                },
+                {
+                  "id": "opt-large",
+                  "label": "Large (26-35 students)",
+                  "description": "Requires additional management strategies",
+                  "filePath": "/classroom/class-size/large.md",
+                  "value": "Large (26-35 students)",
+                  "order": 2
+                },
+                {
+                  "id": "opt-very-large",
+                  "label": "Very Large (36+ students)",
+                  "description": "Requires significant classroom management focus",
+                  "filePath": "/classroom/class-size/very-large.md",
+                  "value": "Very Large (36+ students)",
+                  "order": 3
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-student-needs",
+              "fieldType": "multiselect",
+              "label": "Student Support Needs",
+              "description": "Special populations and support requirements in the class",
+              "required": false,
+              "default": [],
+              "variableName": "studentNeeds",
+              "hint": "Select all that apply to your student population",
+              "directoryPath": "/classroom/student-needs",
+              "options": [
+                {
+                  "id": "opt-ell",
+                  "label": "English Language Learners",
+                  "description": "Students who are developing English proficiency",
+                  "filePath": "/classroom/student-needs/english-language-learners.md",
+                  "value": "English Language Learners",
+                  "order": 0
+                },
+                {
+                  "id": "opt-special-ed",
+                  "label": "Special Education",
+                  "description": "Students with IEPs or specialized learning plans",
+                  "filePath": "/classroom/student-needs/special-education.md",
+                  "value": "Special Education",
+                  "order": 1
+                },
+                {
+                  "id": "opt-gifted",
+                  "label": "Gifted & Talented",
+                  "description": "Students requiring enrichment and acceleration",
+                  "filePath": "/classroom/student-needs/gifted-talented.md",
+                  "value": "Gifted & Talented",
+                  "order": 2
+                },
+                {
+                  "id": "opt-reading-intervention",
+                  "label": "Reading Intervention",
+                  "description": "Students receiving additional reading support",
+                  "filePath": "/classroom/student-needs/reading-intervention.md",
+                  "value": "Reading Intervention",
+                  "order": 3
+                },
+                {
+                  "id": "opt-math-intervention",
+                  "label": "Math Intervention",
+                  "description": "Students receiving additional math support",
+                  "filePath": "/classroom/student-needs/math-intervention.md",
+                  "value": "Math Intervention",
+                  "order": 4
+                },
+                {
+                  "id": "opt-behavioral",
+                  "label": "Behavioral Support",
+                  "description": "Students with behavioral or social-emotional needs",
+                  "filePath": "/classroom/student-needs/behavioral-support.md",
+                  "value": "Behavioral Support",
+                  "order": 5
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-learning-model",
+              "fieldType": "select",
+              "label": "Learning Model",
+              "description": "Primary instructional delivery model",
+              "required": true,
+              "default": "in-person",
+              "variableName": "learningModel",
+              "directoryPath": "/classroom/learning-model",
+              "options": [
+                {
+                  "id": "opt-in-person",
+                  "label": "In-Person",
+                  "description": "Traditional face-to-face classroom instruction",
+                  "filePath": "/classroom/learning-model/in-person.md",
+                  "value": "In-Person",
+                  "order": 0
+                },
+                {
+                  "id": "opt-hybrid",
+                  "label": "Hybrid",
+                  "description": "Combination of in-person and remote learning",
+                  "filePath": "/classroom/learning-model/hybrid.md",
+                  "value": "Hybrid",
+                  "order": 1
+                },
+                {
+                  "id": "opt-remote",
+                  "label": "Remote/Online",
+                  "description": "Fully virtual instruction",
+                  "filePath": "/classroom/learning-model/remote.md",
+                  "value": "Remote/Online",
+                  "order": 2
+                },
+                {
+                  "id": "opt-flipped",
+                  "label": "Flipped Classroom",
+                  "description": "Content delivery at home, practice in class",
+                  "filePath": "/classroom/learning-model/flipped-classroom.md",
+                  "value": "Flipped Classroom",
+                  "order": 3
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-resources",
+              "fieldType": "multiselect",
+              "label": "Available Resources",
+              "description": "Physical and digital resources available in the classroom",
+              "required": false,
+              "default": [],
+              "variableName": "resourcesAvailable",
+              "hint": "Select all resources that are available",
+              "directoryPath": "/classroom/resources",
+              "options": [
+                {
+                  "id": "opt-1to1",
+                  "label": "1:1 Devices",
+                  "description": "Each student has their own device",
+                  "filePath": "/classroom/resources/1to1-devices.md",
+                  "value": "1:1 Devices",
+                  "order": 0
+                },
+                {
+                  "id": "opt-interactive-whiteboard",
+                  "label": "Interactive Whiteboard",
+                  "description": "Smart board or interactive display",
+                  "filePath": "/classroom/resources/interactive-whiteboard.md",
+                  "value": "Interactive Whiteboard",
+                  "order": 1
+                },
+                {
+                  "id": "opt-science-lab",
+                  "label": "Science Lab",
+                  "description": "Access to laboratory facilities",
+                  "filePath": "/classroom/resources/science-lab.md",
+                  "value": "Science Lab",
+                  "order": 2
+                },
+                {
+                  "id": "opt-library",
+                  "label": "Library Access",
+                  "description": "School library available for research and reading",
+                  "filePath": "/classroom/resources/library-access.md",
+                  "value": "Library Access",
+                  "order": 3
+                },
+                {
+                  "id": "opt-art-supplies",
+                  "label": "Art Supplies",
+                  "description": "Basic art materials available",
+                  "filePath": "/classroom/resources/art-supplies.md",
+                  "value": "Art Supplies",
+                  "order": 4
+                },
+                {
+                  "id": "opt-music-room",
+                  "label": "Music Room",
+                  "description": "Access to music facilities and instruments",
+                  "filePath": "/classroom/resources/music-room.md",
+                  "value": "Music Room",
+                  "order": 5
+                },
+                {
+                  "id": "opt-gym",
+                  "label": "Gym/Outdoor Space",
+                  "description": "Access to physical activity spaces",
+                  "filePath": "/classroom/resources/gym-outdoor-space.md",
+                  "value": "Gym/Outdoor Space",
+                  "order": 6
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "domain-teacher",
+      "name": "Teacher Profile",
+      "description": "Teacher experience, specialization, and teaching preferences",
+      "category": "Teaching",
+      "tags": ["teacher", "profile", "experience", "specialization"],
+      "icon": "👤",
+      "color": "#8b5cf6",
+      "directoryPath": "/teacher",
+      "schema": {
+        "root": {
+          "type": "section",
+          "id": "section-teacher",
+          "label": "Teacher Profile",
+          "description": "Teacher experience, specialization, and teaching preferences",
+          "icon": "👤",
+          "directoryPath": "/teacher",
+          "children": [
+            {
+              "type": "field",
+              "id": "field-experience",
+              "fieldType": "select",
+              "label": "Years of Experience",
+              "description": "Teacher's level of experience",
+              "required": true,
+              "default": "3-5-years",
+              "variableName": "yearsExperience",
+              "directoryPath": "/teacher/experience",
+              "options": [
+                {
+                  "id": "opt-novice",
+                  "label": "0-2 years (Novice)",
+                  "description": "Early career teacher building foundational skills",
+                  "filePath": "/teacher/experience/0-2-years.md",
+                  "value": "0-2 years (Novice)",
+                  "order": 0
+                },
+                {
+                  "id": "opt-beginning",
+                  "label": "3-5 years (Beginning)",
+                  "description": "Developing core competencies",
+                  "filePath": "/teacher/experience/3-5-years.md",
+                  "value": "3-5 years (Beginning)",
+                  "order": 1
+                },
+                {
+                  "id": "opt-experienced",
+                  "label": "6-10 years (Experienced)",
+                  "description": "Confident with established practices",
+                  "filePath": "/teacher/experience/6-10-years.md",
+                  "value": "6-10 years (Experienced)",
+                  "order": 2
+                },
+                {
+                  "id": "opt-advanced",
+                  "label": "11-20 years (Advanced)",
+                  "description": "Seasoned educator with deep expertise",
+                  "filePath": "/teacher/experience/11-20-years.md",
+                  "value": "11-20 years (Advanced)",
+                  "order": 3
+                },
+                {
+                  "id": "opt-expert",
+                  "label": "20+ years (Expert)",
+                  "description": "Veteran teacher with extensive experience",
+                  "filePath": "/teacher/experience/20-plus-years.md",
+                  "value": "20+ years (Expert)",
+                  "order": 4
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-subject-expertise",
+              "fieldType": "multiselect",
+              "label": "Subject Expertise",
+              "description": "Areas of subject matter expertise",
+              "required": true,
+              "default": [],
+              "variableName": "subjectExpertise",
+              "hint": "Select all areas of certification or expertise",
+              "directoryPath": "/teacher/subject-expertise",
+              "options": [
+                {
+                  "id": "opt-math",
+                  "label": "Mathematics",
+                  "filePath": "/teacher/subject-expertise/mathematics.md",
+                  "value": "Mathematics",
+                  "order": 0
+                },
+                {
+                  "id": "opt-ela",
+                  "label": "English Language Arts",
+                  "filePath": "/teacher/subject-expertise/english-language-arts.md",
+                  "value": "English Language Arts",
+                  "order": 1
+                },
+                {
+                  "id": "opt-science",
+                  "label": "Science",
+                  "filePath": "/teacher/subject-expertise/science.md",
+                  "value": "Science",
+                  "order": 2
+                },
+                {
+                  "id": "opt-social-studies",
+                  "label": "Social Studies",
+                  "filePath": "/teacher/subject-expertise/social-studies.md",
+                  "value": "Social Studies",
+                  "order": 3
+                },
+                {
+                  "id": "opt-art",
+                  "label": "Art",
+                  "filePath": "/teacher/subject-expertise/art.md",
+                  "value": "Art",
+                  "order": 4
+                },
+                {
+                  "id": "opt-music",
+                  "label": "Music",
+                  "filePath": "/teacher/subject-expertise/music.md",
+                  "value": "Music",
+                  "order": 5
+                },
+                {
+                  "id": "opt-pe",
+                  "label": "Physical Education",
+                  "filePath": "/teacher/subject-expertise/physical-education.md",
+                  "value": "Physical Education",
+                  "order": 6
+                },
+                {
+                  "id": "opt-special-ed",
+                  "label": "Special Education",
+                  "filePath": "/teacher/subject-expertise/special-education.md",
+                  "value": "Special Education",
+                  "order": 7
+                },
+                {
+                  "id": "opt-esl",
+                  "label": "ESL/ELL",
+                  "filePath": "/teacher/subject-expertise/esl-ell.md",
+                  "value": "ESL/ELL",
+                  "order": 8
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-teaching-style",
+              "fieldType": "multiselect",
+              "label": "Teaching Style",
+              "description": "Preferred instructional approaches",
+              "required": false,
+              "default": ["direct-instruction"],
+              "variableName": "teachingStyle",
+              "hint": "Select preferred approaches (multiple allowed)",
+              "directoryPath": "/teacher/teaching-style",
+              "options": [
+                {
+                  "id": "opt-direct",
+                  "label": "Direct Instruction",
+                  "description": "Teacher-led explicit instruction",
+                  "filePath": "/teacher/teaching-style/direct-instruction.md",
+                  "value": "Direct Instruction",
+                  "order": 0
+                },
+                {
+                  "id": "opt-inquiry",
+                  "label": "Inquiry-Based",
+                  "description": "Student-led questioning and exploration",
+                  "filePath": "/teacher/teaching-style/inquiry-based.md",
+                  "value": "Inquiry-Based",
+                  "order": 1
+                },
+                {
+                  "id": "opt-cooperative",
+                  "label": "Cooperative Learning",
+                  "description": "Structured group work strategies",
+                  "filePath": "/teacher/teaching-style/cooperative-learning.md",
+                  "value": "Cooperative Learning",
+                  "order": 2
+                },
+                {
+                  "id": "opt-pbl",
+                  "label": "Project-Based Learning",
+                  "description": "Learning through projects",
+                  "filePath": "/teacher/teaching-style/project-based-learning.md",
+                  "value": "Project-Based Learning",
+                  "order": 3
+                },
+                {
+                  "id": "opt-differentiated",
+                  "label": "Differentiated Instruction",
+                  "description": "Tailored instruction for diverse needs",
+                  "filePath": "/teacher/teaching-style/differentiated-instruction.md",
+                  "value": "Differentiated Instruction",
+                  "order": 4
+                },
+                {
+                  "id": "opt-gamification",
+                  "label": "Gamification",
+                  "description": "Game-based learning elements",
+                  "filePath": "/teacher/teaching-style/gamification.md",
+                  "value": "Gamification",
+                  "order": 5
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-certifications",
+              "fieldType": "multiselect",
+              "label": "Certifications",
+              "description": "Teaching certifications and endorsements",
+              "required": false,
+              "default": [],
+              "variableName": "certifications",
+              "directoryPath": "/teacher/certifications",
+              "options": [
+                {
+                  "id": "opt-elementary",
+                  "label": "General Elementary",
+                  "filePath": "/teacher/certifications/general-elementary.md",
+                  "value": "General Elementary",
+                  "order": 0
+                },
+                {
+                  "id": "opt-secondary",
+                  "label": "Subject-Specific Secondary",
+                  "filePath": "/teacher/certifications/subject-specific-secondary.md",
+                  "value": "Subject-Specific Secondary",
+                  "order": 1
+                },
+                {
+                  "id": "opt-sp-ed-cert",
+                  "label": "Special Education",
+                  "filePath": "/teacher/certifications/special-education.md",
+                  "value": "Special Education",
+                  "order": 2
+                },
+                {
+                  "id": "opt-esl-cert",
+                  "label": "ESL/ELL Endorsement",
+                  "filePath": "/teacher/certifications/esl-ell-endorsement.md",
+                  "value": "ESL/ELL Endorsement",
+                  "order": 3
+                },
+                {
+                  "id": "opt-gifted-cert",
+                  "label": "Gifted Education",
+                  "filePath": "/teacher/certifications/gifted-education.md",
+                  "value": "Gifted Education",
+                  "order": 4
+                },
+                {
+                  "id": "opt-reading-cert",
+                  "label": "Reading Specialist",
+                  "filePath": "/teacher/certifications/reading-specialist.md",
+                  "value": "Reading Specialist",
+                  "order": 5
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-professional-goals",
+              "fieldType": "textarea",
+              "label": "Professional Development Goals",
+              "description": "Areas for growth or improvement",
+              "required": false,
+              "default": "",
+              "variableName": "professionalGoals",
+              "placeholder": "Describe areas for growth or improvement...",
+              "directoryPath": "/teacher/professional-goals",
+              "options": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "domain-curriculum",
+      "name": "Curriculum Standards",
+      "description": "Curriculum frameworks, standards alignment, and learning objectives",
+      "category": "Curriculum",
+      "tags": ["curriculum", "standards", "objectives", "alignment"],
+      "icon": "📚",
+      "color": "#10b981",
+      "directoryPath": "/curriculum",
+      "schema": {
+        "root": {
+          "type": "section",
+          "id": "section-curriculum",
+          "label": "Curriculum Standards",
+          "description": "Curriculum frameworks, standards alignment, and learning objectives",
+          "icon": "📚",
+          "directoryPath": "/curriculum",
+          "children": [
+            {
+              "type": "field",
+              "id": "field-framework",
+              "fieldType": "select",
+              "label": "Curriculum Framework",
+              "description": "The governing standards framework",
+              "required": true,
+              "default": "common-core",
+              "variableName": "curriculumFramework",
+              "directoryPath": "/curriculum/framework",
+              "options": [
+                {
+                  "id": "opt-common-core",
+                  "label": "Common Core State Standards",
+                  "filePath": "/curriculum/framework/common-core.md",
+                  "value": "Common Core State Standards",
+                  "order": 0
+                },
+                {
+                  "id": "opt-ngss",
+                  "label": "NGSS",
+                  "filePath": "/curriculum/framework/ngss.md",
+                  "value": "NGSS",
+                  "order": 1
+                },
+                {
+                  "id": "opt-teks",
+                  "label": "TEKS",
+                  "filePath": "/curriculum/framework/teks.md",
+                  "value": "TEKS",
+                  "order": 2
+                },
+                {
+                  "id": "opt-state",
+                  "label": "State Specific",
+                  "filePath": "/curriculum/framework/state-specific.md",
+                  "value": "State Specific",
+                  "order": 3
+                },
+                {
+                  "id": "opt-ib",
+                  "label": "International Baccalaureate",
+                  "filePath": "/curriculum/framework/international-baccalaureate.md",
+                  "value": "International Baccalaureate",
+                  "order": 4
+                },
+                {
+                  "id": "opt-cambridge",
+                  "label": "Cambridge International",
+                  "filePath": "/curriculum/framework/cambridge-international.md",
+                  "value": "Cambridge International",
+                  "order": 5
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-assessment-methods",
+              "fieldType": "multiselect",
+              "label": "Assessment Methods",
+              "description": "Preferred approaches to assessment",
+              "required": false,
+              "default": ["formative", "summative"],
+              "variableName": "assessmentMethods",
+              "directoryPath": "/curriculum/assessment-methods",
+              "options": [
+                {
+                  "id": "opt-formative",
+                  "label": "Formative Assessment",
+                  "description": "Ongoing assessment for learning",
+                  "filePath": "/curriculum/assessment-methods/formative.md",
+                  "value": "Formative Assessment",
+                  "order": 0
+                },
+                {
+                  "id": "opt-summative",
+                  "label": "Summative Assessment",
+                  "description": "End-of-unit assessment of learning",
+                  "filePath": "/curriculum/assessment-methods/summative.md",
+                  "value": "Summative Assessment",
+                  "order": 1
+                },
+                {
+                  "id": "opt-portfolio",
+                  "label": "Portfolio-Based",
+                  "description": "Collection of student work over time",
+                  "filePath": "/curriculum/assessment-methods/portfolio-based.md",
+                  "value": "Portfolio-Based",
+                  "order": 2
+                },
+                {
+                  "id": "opt-project-based-assessment",
+                  "label": "Project-Based",
+                  "description": "Assessment through project completion",
+                  "filePath": "/curriculum/assessment-methods/project-based.md",
+                  "value": "Project-Based",
+                  "order": 3
+                },
+                {
+                  "id": "opt-standardized",
+                  "label": "Standardized Testing",
+                  "description": "Preparation for standardized assessments",
+                  "filePath": "/curriculum/assessment-methods/standardized-testing.md",
+                  "value": "Standardized Testing",
+                  "order": 4
+                },
+                {
+                  "id": "opt-performance",
+                  "label": "Performance Tasks",
+                  "description": "Applied skills demonstrations",
+                  "filePath": "/curriculum/assessment-methods/performance-tasks.md",
+                  "value": "Performance Tasks",
+                  "order": 5
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-pacing-guide",
+              "fieldType": "toggle",
+              "label": "Include Pacing Guide Considerations",
+              "description": "Factor pacing into recommendations",
+              "required": false,
+              "default": true,
+              "variableName": "pacingGuide",
+              "directoryPath": "/curriculum/pacing-guide",
+              "options": []
+            },
+            {
+              "type": "field",
+              "id": "field-differentiation-required",
+              "fieldType": "toggle",
+              "label": "Require Differentiation Strategies",
+              "description": "All recommendations must include differentiation",
+              "required": false,
+              "default": true,
+              "variableName": "differentiationRequired",
+              "directoryPath": "/curriculum/differentiation-required",
+              "options": []
+            },
+            {
+              "type": "field",
+              "id": "field-unit-focus",
+              "fieldType": "text",
+              "label": "Current Unit or Topic Focus",
+              "description": "Specific content focus for this lesson/unit",
+              "required": false,
+              "default": "",
+              "variableName": "unitFocus",
+              "placeholder": "e.g., Fractions, Civil Rights Movement, Photosynthesis...",
+              "runtimeOptional": true,
+              "directoryPath": "/curriculum/unit-focus",
+              "options": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "domain-subjects",
+      "name": "Subject Topics",
+      "description": "Topic breakdowns and content areas by subject",
+      "category": "Curriculum",
+      "tags": ["subjects", "topics", "content", "standards"],
+      "icon": "📖",
+      "color": "#f59e0b",
+      "directoryPath": "/subjects",
+      "schema": {
+        "root": {
+          "type": "section",
+          "id": "section-subjects",
+          "label": "Subject Topics",
+          "description": "Topic breakdowns and content areas by subject",
+          "icon": "📖",
+          "directoryPath": "/subjects",
+          "children": [
+            {
+              "type": "field",
+              "id": "field-primary-subject",
+              "fieldType": "select",
+              "label": "Primary Subject",
+              "description": "Main subject area focus",
+              "required": true,
+              "default": "mathematics",
+              "variableName": "primarySubject",
+              "directoryPath": "/subjects/primary-subject",
+              "options": [
+                {
+                  "id": "opt-math-subject",
+                  "label": "Mathematics",
+                  "filePath": "/subjects/primary-subject/mathematics.md",
+                  "value": "Mathematics",
+                  "order": 0
+                },
+                {
+                  "id": "opt-ela-subject",
+                  "label": "English Language Arts",
+                  "filePath": "/subjects/primary-subject/english-language-arts.md",
+                  "value": "English Language Arts",
+                  "order": 1
+                },
+                {
+                  "id": "opt-science-subject",
+                  "label": "Science",
+                  "filePath": "/subjects/primary-subject/science.md",
+                  "value": "Science",
+                  "order": 2
+                },
+                {
+                  "id": "opt-social-studies-subject",
+                  "label": "Social Studies",
+                  "filePath": "/subjects/primary-subject/social-studies.md",
+                  "value": "Social Studies",
+                  "order": 3
+                },
+                {
+                  "id": "opt-art-subject",
+                  "label": "Art",
+                  "filePath": "/subjects/primary-subject/art.md",
+                  "value": "Art",
+                  "order": 4
+                },
+                {
+                  "id": "opt-music-subject",
+                  "label": "Music",
+                  "filePath": "/subjects/primary-subject/music.md",
+                  "value": "Music",
+                  "order": 5
+                },
+                {
+                  "id": "opt-pe-subject",
+                  "label": "Physical Education",
+                  "filePath": "/subjects/primary-subject/physical-education.md",
+                  "value": "Physical Education",
+                  "order": 6
+                },
+                {
+                  "id": "opt-health-subject",
+                  "label": "Health",
+                  "filePath": "/subjects/primary-subject/health.md",
+                  "value": "Health",
+                  "order": 7
+                },
+                {
+                  "id": "opt-cs-subject",
+                  "label": "Computer Science",
+                  "filePath": "/subjects/primary-subject/computer-science.md",
+                  "value": "Computer Science",
+                  "order": 8
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-topics",
+              "fieldType": "multiselect",
+              "label": "Topics to Cover",
+              "description": "Specific topics within the subject",
+              "required": false,
+              "default": [],
+              "variableName": "topics",
+              "placeholder": "Specific topics will be suggested based on subject",
+              "runtimeOptional": true,
+              "directoryPath": "/subjects/topics",
+              "options": []
+            },
+            {
+              "type": "field",
+              "id": "field-skill-level",
+              "fieldType": "select",
+              "label": "Target Skill Level",
+              "description": "Cognitive demand of the content",
+              "required": true,
+              "default": "developing",
+              "variableName": "skillLevel",
+              "directoryPath": "/subjects/skill-level",
+              "options": [
+                {
+                  "id": "opt-intro",
+                  "label": "Introduction",
+                  "description": "First exposure to content",
+                  "filePath": "/subjects/skill-level/introduction.md",
+                  "value": "Introduction",
+                  "order": 0
+                },
+                {
+                  "id": "opt-developing",
+                  "label": "Developing",
+                  "description": "Building foundational understanding",
+                  "filePath": "/subjects/skill-level/developing.md",
+                  "value": "Developing",
+                  "order": 1
+                },
+                {
+                  "id": "opt-proficient",
+                  "label": "Proficient",
+                  "description": "Solid understanding with some depth",
+                  "filePath": "/subjects/skill-level/proficient.md",
+                  "value": "Proficient",
+                  "order": 2
+                },
+                {
+                  "id": "opt-advanced",
+                  "label": "Advanced",
+                  "description": "Deep, complex understanding",
+                  "filePath": "/subjects/skill-level/advanced.md",
+                  "value": "Advanced",
+                  "order": 3
+                },
+                {
+                  "id": "opt-extension",
+                  "label": "Extension",
+                  "description": "Beyond grade-level expectations",
+                  "filePath": "/subjects/skill-level/extension.md",
+                  "value": "Extension",
+                  "order": 4
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-cross-curricular",
+              "fieldType": "multiselect",
+              "label": "Cross-Curricular Connections",
+              "description": "Interdisciplinary connections to emphasize",
+              "required": false,
+              "default": [],
+              "variableName": "crossCurricular",
+              "directoryPath": "/subjects/cross-curricular",
+              "options": [
+                {
+                  "id": "opt-literacy",
+                  "label": "Literacy",
+                  "description": "Reading and writing integration",
+                  "filePath": "/subjects/cross-curricular/literacy.md",
+                  "value": "Literacy",
+                  "order": 0
+                },
+                {
+                  "id": "opt-numeracy",
+                  "label": "Numeracy",
+                  "description": "Math skills integration",
+                  "filePath": "/subjects/cross-curricular/numeracy.md",
+                  "value": "Numeracy",
+                  "order": 1
+                },
+                {
+                  "id": "opt-technology",
+                  "label": "Technology",
+                  "description": "Digital tools and integration",
+                  "filePath": "/subjects/cross-curricular/technology.md",
+                  "value": "Technology",
+                  "order": 2
+                },
+                {
+                  "id": "opt-arts",
+                  "label": "Arts Integration",
+                  "description": "Visual and performing arts",
+                  "filePath": "/subjects/cross-curricular/arts-integration.md",
+                  "value": "Arts Integration",
+                  "order": 3
+                },
+                {
+                  "id": "opt-real-world",
+                  "label": "Real-World Applications",
+                  "description": "Authentic, practical contexts",
+                  "filePath": "/subjects/cross-curricular/real-world-applications.md",
+                  "value": "Real-World Applications",
+                  "order": 4
+                },
+                {
+                  "id": "opt-sel",
+                  "label": "Social-Emotional Learning",
+                  "description": "SEL competencies integration",
+                  "filePath": "/subjects/cross-curricular/social-emotional-learning.md",
+                  "value": "Social-Emotional Learning",
+                  "order": 5
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "id": "field-essential-questions",
+              "fieldType": "textarea",
+              "label": "Essential Questions to Address",
+              "description": "Big questions students should be able to answer",
+              "required": false,
+              "default": "",
+              "variableName": "essentialQuestions",
+              "placeholder": "What big questions should students be able to answer?",
+              "runtimeOptional": true,
+              "directoryPath": "/subjects/essential-questions",
+              "options": []
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "savedAgentConfigs": [
+    {
+      "id": "agent-lesson-plan",
+      "name": "LessonPlanAgent",
+      "description": "Creates comprehensive lesson plans aligned with standards, customized for classroom and teacher needs",
+      "mainInstruction": "# Lesson Plan Assistant\n\nYou are an expert instructional coach helping teachers create engaging, standards-aligned lesson plans. \n\n## Your Approach\n- Always start by understanding the specific classroom context and student needs\n- Suggest active learning strategies that promote student engagement\n- Include differentiation for diverse learners\n- Provide clear learning objectives and success criteria\n- Align all activities to the selected curriculum standards\n\n## Output Format\nStructure your lesson plans with clear sections including objectives, materials, procedure, assessment, and differentiation.\n",
+      "selectedDomains": ["domain-classroom", "domain-teacher", "domain-curriculum", "domain-subjects"],
+      "formValues": {
+        "gradeLevel": "opt-5th-grade",
+        "classSize": "opt-medium",
+        "studentNeeds": ["opt-ell", "opt-gifted"],
+        "learningModel": "opt-in-person",
+        "resourcesAvailable": ["opt-1to1", "opt-interactive-whiteboard"],
+        "yearsExperience": "opt-beginning",
+        "subjectExpertise": ["opt-math", "opt-science"],
+        "teachingStyle": ["opt-differentiated", "opt-pbl"],
+        "certifications": ["opt-elementary"],
+        "professionalGoals": "Improve engagement through hands-on activities",
+        "curriculumFramework": "opt-common-core",
+        "assessmentMethods": ["opt-formative", "opt-project-based-assessment"],
+        "pacingGuide": true,
+        "differentiationRequired": true,
+        "unitFocus": "",
+        "primarySubject": "opt-math-subject",
+        "topics": [],
+        "skillLevel": "opt-developing",
+        "crossCurricular": ["opt-real-world", "opt-technology"],
+        "essentialQuestions": ""
+      },
+      "enabledTools": [
+        {
+          "toolId": "standards-alignment-checker",
+          "source": "manual"
+        },
+        {
+          "toolId": "resource-library-search",
+          "source": "manual"
+        },
+        {
+          "toolId": "assessment-generator",
+          "source": "manual"
+        }
+      ],
+      "emptyFieldsForRuntime": [
+        {
+          "id": "field-unit-focus",
+          "label": "Current Unit or Topic Focus",
+          "domain": "/curriculum/unit-focus"
+        },
+        {
+          "id": "field-topics",
+          "label": "Topics to Cover",
+          "domain": "/subjects/topics"
+        },
+        {
+          "id": "field-essential-questions",
+          "label": "Essential Questions to Address",
+          "domain": "/subjects/essential-questions"
+        }
+      ],
+      "attachedFlows": [
+        {
+          "flowId": "flow_lesson_generate",
+          "flowName": "Generate Lesson Plan",
+          "flowDescription": "Creates a complete lesson plan with 8 gradual section generation tasks",
+          "taskCount": 8,
+          "slashAction": {
+            "id": "sc_lesson_generate",
+            "actionId": "generate",
+            "name": "Generate Lesson",
+            "description": "Create a complete lesson plan with structured sections",
+            "flowId": "flow_lesson_generate",
+            "enabled": true
+          }
+        }
+      ],
+      "createdAt": "2025-01-15T09:00:00Z",
+      "updatedAt": "2025-02-20T14:30:00Z"
+    },
+    {
+      "id": "agent-assessment",
+      "name": "AssessmentAgent",
+      "description": "Designs formative and summative assessments aligned to learning objectives and standards",
+      "selectedDomains": ["domain-curriculum", "domain-subjects", "domain-classroom"],
+      "formValues": {
+        "gradeLevel": "opt-8th-grade",
+        "classSize": "opt-large",
+        "studentNeeds": ["opt-reading-intervention", "opt-special-ed"],
+        "learningModel": "opt-in-person",
+        "resourcesAvailable": ["opt-1to1"],
+        "curriculumFramework": "opt-common-core",
+        "assessmentMethods": ["opt-formative", "opt-summative", "opt-performance"],
+        "pacingGuide": true,
+        "differentiationRequired": true,
+        "unitFocus": "Linear Equations",
+        "primarySubject": "opt-math-subject",
+        "topics": [],
+        "skillLevel": "opt-proficient",
+        "crossCurricular": ["opt-real-world"],
+        "essentialQuestions": "How can we represent real-world situations with equations?"
+      },
+      "enabledTools": [
+        {
+          "toolId": "standards-alignment-checker",
+          "source": "manual"
+        },
+        {
+          "toolId": "rubric-generator",
+          "source": "manual"
+        },
+        {
+          "toolId": "question-bank",
+          "source": "manual"
+        },
+        {
+          "toolId": "accommodation-suggester",
+          "source": "manual"
+        }
+      ],
+      "emptyFieldsForRuntime": ["field-unit-focus", "field-topics"],
+      "attachedFlows": [
+        {
+          "flowId": "flow_assessment_generate",
+          "flowName": "Generate Assessment",
+          "flowDescription": "Creates a complete assessment with 6 gradual section generation tasks",
+          "taskCount": 6,
+          "slashAction": {
+            "id": "sc_assessment_generate",
+            "actionId": "generate",
+            "name": "Generate Assessment",
+            "description": "Create a complete assessment with structured sections",
+            "flowId": "flow_assessment_generate",
+            "enabled": true
+          }
+        }
+      ],
+      "createdAt": "2025-01-20T10:30:00Z",
+      "updatedAt": "2025-02-18T11:15:00Z"
+    }
+  ],
+  "toolLibrary": [
+    {
+      "id": "standards-alignment-checker",
+      "name": "Standards Alignment Checker",
+      "description": "Validates lesson plans and assessments against curriculum standards",
+      "category": "Curriculum",
+      "package": "@edtools/standards",
+      "version": "2.1.0",
+      "installed": true,
+      "configRequired": true,
+      "config": {
+        "framework": "CCSS",
+        "state": ""
+      }
+    },
+    {
+      "id": "resource-library-search",
+      "name": "Resource Library Search",
+      "description": "Searches educational resource libraries for lesson materials",
+      "category": "Teaching",
+      "package": "@edtools/resources",
+      "version": "1.5.0",
+      "installed": true,
+      "configRequired": false,
+      "config": {}
+    },
+    {
+      "id": "assessment-generator",
+      "name": "Assessment Generator",
+      "description": "Creates quizzes, tests, and performance tasks based on learning objectives",
+      "category": "Curriculum",
+      "package": "@edtools/assessment",
+      "version": "3.0.0",
+      "installed": true,
+      "configRequired": false,
+      "config": {}
+    },
+    {
+      "id": "rubric-generator",
+      "name": "Rubric Generator",
+      "description": "Creates customizable rubrics for performance-based assessments",
+      "category": "Curriculum",
+      "package": "@edtools/rubrics",
+      "version": "1.2.0",
+      "installed": true,
+      "configRequired": false,
+      "config": {}
+    },
+    {
+      "id": "question-bank",
+      "name": "Question Bank",
+      "description": "Access to thousands of standards-aligned assessment questions",
+      "category": "Curriculum",
+      "package": "@edtools/questions",
+      "version": "2.3.0",
+      "installed": true,
+      "configRequired": true,
+      "config": {
+        "subjects": ["Math", "ELA"],
+        "gradeLevels": ["K-8"]
+      }
+    },
+    {
+      "id": "accommodation-suggester",
+      "name": "Accommodation Suggester",
+      "description": "Suggests IEP/504 accommodations and modifications for assessments",
+      "category": "Teaching",
+      "package": "@edtools/special-ed",
+      "version": "1.0.0",
+      "installed": true,
+      "configRequired": false,
+      "config": {}
+    },
+    {
+      "id": "activity-database",
+      "name": "Activity Database",
+      "description": "Database of team-building and collaborative learning activities",
+      "category": "Collaboration",
+      "package": "@edtools/activities",
+      "version": "1.8.0",
+      "installed": true,
+      "configRequired": false,
+      "config": {}
+    },
+    {
+      "id": "grouping-strategy",
+      "name": "Grouping Strategy Advisor",
+      "description": "Suggests optimal student grouping strategies based on class profile",
+      "category": "Collaboration",
+      "package": "@edtools/grouping",
+      "version": "1.1.0",
+      "installed": true,
+      "configRequired": false,
+      "config": {}
+    },
+    {
+      "id": "differentiation-helper",
+      "name": "Differentiation Helper",
+      "description": "Suggests differentiation strategies for diverse learner needs",
+      "category": "Teaching",
+      "package": "@edtools/differentiation",
+      "version": "2.0.0",
+      "installed": true,
+      "configRequired": false,
+      "config": {}
+    },
+    {
+      "id": "parent-communication",
+      "name": "Parent Communication Assistant",
+      "description": "Drafts professional emails and updates for families",
+      "category": "Communication",
+      "package": "@edtools/communication",
+      "version": "1.3.0",
+      "installed": false,
+      "configRequired": false,
+      "config": {}
+    }
+  ],
+  "promptPreview": {
+    "agentId": "agent-lesson-plan",
+    "domains": ["Classroom Management", "Teacher Profile", "Curriculum Standards", "Subject Topics"],
+    "generatedPrompt": "# Lesson Plan Assistant\n\nYou are helping create a lesson plan for a 5th Grade class of Medium (16-25 students) with English Language Learners, Gifted & Talented support needs. The learning model is In-Person with 1:1 Devices, Interactive Whiteboard available.\n\nThe teacher has 3-5 years (Beginning) experience with expertise in Mathematics, Science. Their preferred teaching styles include Differentiated Instruction, Project-Based Learning with General Elementary certification. Professional goals: Improve engagement through hands-on activities\n\nFollowing Common Core State Standards framework with pacing guide considerations. All recommendations must include differentiation strategies. Assessment approaches: Formative Assessment, Project-Based.\n\nFocusing on Mathematics at Developing level. Integrating: Real-World Applications, Technology.",
+    "tokenCount": 198,
+    "lastGenerated": "2025-02-20T14:30:00Z"
+  }
+}

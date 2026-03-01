@@ -1,0 +1,17 @@
+{
+  "name": "education",
+  "version": "1.0.0",
+  "description": "Workspace: education",
+  "dependencies": {
+    "@edtools/standards": "2.1.0",
+    "@edtools/resources": "1.5.0",
+    "@edtools/assessment": "3.0.0",
+    "@edtools/rubrics": "1.2.0",
+    "@edtools/questions": "2.3.0",
+    "@edtools/special-ed": "1.0.0",
+    "@edtools/activities": "1.8.0",
+    "@edtools/grouping": "1.1.0",
+    "@edtools/differentiation": "2.0.0",
+    "@edtools/communication": "1.3.0"
+  }
+}

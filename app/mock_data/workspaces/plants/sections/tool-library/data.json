@@ -1,0 +1,159 @@
+{
+  "_meta": {
+    "models": {
+      "Tool": "Plant-care function calling tool",
+      "ToolPackage": "Package that provides plant tools"
+    }
+  },
+  "tools": [
+    {
+      "id": "plant-care-scheduler",
+      "name": "Plant Care Scheduler",
+      "description": "Creates watering and maintenance reminders based on plant profile and season.",
+      "source": "package",
+      "packageName": "@growwise/scheduler",
+      "status": "enabled",
+      "parameters": [
+        {
+          "name": "plantType",
+          "type": "string",
+          "required": true,
+          "description": "Plant category"
+        },
+        {
+          "name": "lightExposure",
+          "type": "string",
+          "required": true,
+          "description": "Light conditions"
+        },
+        {
+          "name": "season",
+          "type": "string",
+          "required": false,
+          "description": "Current season"
+        }
+      ],
+      "envRequirements": [],
+      "usageReferences": [
+        {
+          "type": "directory",
+          "path": "care-routine",
+          "source": "config.json"
+        }
+      ],
+      "documentation": "Generates weekly and monthly recurring tasks with safe defaults."
+    },
+    {
+      "id": "disease-symptom-checker",
+      "name": "Disease Symptom Checker",
+      "description": "Suggests probable stress factors and first-response actions.",
+      "source": "package",
+      "packageName": "@growwise/diagnostics",
+      "status": "enabled",
+      "parameters": [
+        {
+          "name": "symptoms",
+          "type": "array",
+          "required": true,
+          "description": "Observed symptoms"
+        },
+        {
+          "name": "wateringHistory",
+          "type": "string",
+          "required": false,
+          "description": "Recent watering behavior"
+        },
+        {
+          "name": "humidity",
+          "type": "number",
+          "required": false,
+          "description": "Ambient humidity percentage"
+        }
+      ],
+      "envRequirements": ["GROWWISE_API_KEY"],
+      "usageReferences": [
+        {
+          "type": "fragment",
+          "path": "care-routine/diagnostics.md",
+          "source": "frontmatter"
+        }
+      ],
+      "documentation": "Returns likely causes with confidence estimates and low-risk corrective actions."
+    },
+    {
+      "id": "light-mapper",
+      "name": "Light Mapper",
+      "description": "Maps indoor locations to usable light zones for plant placement.",
+      "source": "builtin",
+      "packageName": "@domainsmith/builtin-plants",
+      "status": "enabled",
+      "parameters": [
+        {
+          "name": "windowDirection",
+          "type": "string",
+          "required": true,
+          "description": "Primary window orientation"
+        },
+        {
+          "name": "distanceFromWindow",
+          "type": "number",
+          "required": true,
+          "description": "Meters from window"
+        }
+      ],
+      "envRequirements": [],
+      "usageReferences": [],
+      "documentation": "Provides placement advice with morning/afternoon exposure notes."
+    }
+  ],
+  "packages": [
+    {
+      "id": "pkg-growwise-scheduler",
+      "name": "@growwise/scheduler",
+      "version": "1.2.0",
+      "description": "Scheduling utilities for plant care automation",
+      "author": "Growwise",
+      "installed": true,
+      "isBuiltin": false,
+      "latestVersion": "1.2.0",
+      "updateAvailable": false,
+      "toolCount": 1,
+      "tools": ["plant-care-scheduler"]
+    },
+    {
+      "id": "pkg-growwise-diagnostics",
+      "name": "@growwise/diagnostics",
+      "version": "2.0.1",
+      "description": "Plant stress and disease diagnostics",
+      "author": "Growwise",
+      "installed": true,
+      "isBuiltin": false,
+      "latestVersion": "2.1.0",
+      "updateAvailable": true,
+      "toolCount": 1,
+      "tools": ["disease-symptom-checker"]
+    },
+    {
+      "id": "pkg-domainsmith-builtin-plants",
+      "name": "@domainsmith/builtin-plants",
+      "version": "0.3.0",
+      "description": "Built-in plant assistant tooling",
+      "author": "DomainSmith",
+      "installed": true,
+      "isBuiltin": true,
+      "latestVersion": "0.3.0",
+      "updateAvailable": false,
+      "toolCount": 1,
+      "tools": ["light-mapper"]
+    }
+  ],
+  "environmentVariables": [
+    {
+      "key": "GROWWISE_API_KEY",
+      "value": "••••••••••",
+      "description": "API key for external plant diagnostics",
+      "isSecret": true,
+      "usedBy": ["disease-symptom-checker"]
+    }
+  ]
+}

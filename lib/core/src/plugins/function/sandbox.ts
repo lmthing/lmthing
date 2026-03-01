@@ -1,6 +1,255 @@
-import { VM } from 'vm2';
 import type { FunctionDefinition, FunctionAgentDefinition } from './types';
 import type { FunctionRegistry } from './FunctionRegistry';
+
+const SANDBOX_TIMEOUT_MS = 5000;
+
+function isBrowserEnvironment(): boolean {
+  const g = globalThis as any;
+  return typeof g.window !== 'undefined' && typeof g.document !== 'undefined';
+}
+
+function getValueByPath(target: Record<string, any>, path: string): any {
+  const parts = path.split('.');
+  let current: any = target;
+
+  for (const part of parts) {
+    if (current == null) {
+      return undefined;
+    }
+    current = current[part];
+  }
+
+  return current;
+}
+
+function collectCallablePaths(target: Record<string, any>, prefix = ''): string[] {
+  const paths: string[] = [];
+
+  for (const [key, value] of Object.entries(target)) {
+    const fullPath = prefix ? `${prefix}.${key}` : key;
+    if (typeof value === 'function') {
+      paths.push(fullPath);
+      continue;
+    }
+
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      paths.push(...collectCallablePaths(value, fullPath));
+    }
+  }
+
+  return paths;
+}
+
+function escapeScriptCloseTag(input: string): string {
+  return input.replace(/<\/script>/gi, '<\\/script>');
+}
+
+async function executeSandboxInNode(code: string, sandboxObject: Record<string, any>): Promise<any> {
+  const { VM } = await import('vm2');
+
+  const vm = new VM({
+    timeout: SANDBOX_TIMEOUT_MS,
+    sandbox: sandboxObject,
+    eval: false,
+    wasm: false,
+  });
+
+  const wrappedCode = `(async () => {\n${code}\n})()`;
+  return vm.run(wrappedCode);
+}
+
+async function executeSandboxInBrowser(code: string, sandboxObject: Record<string, any>): Promise<any> {
+  const g = globalThis as any;
+  const documentRef = g.document as any;
+  const iframe = documentRef.createElement('iframe') as any;
+  const channel = `lmthing-sandbox-${Math.random().toString(36).slice(2)}`;
+  const callablePaths = collectCallablePaths(sandboxObject).filter((path) => !path.startsWith('console.'));
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+
+    const cleanup = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      g.removeEventListener('message', onMessage);
+      if (timeoutId) {
+        g.clearTimeout(timeoutId);
+      }
+      if (iframe.parentNode) {
+        iframe.parentNode.removeChild(iframe);
+      }
+    };
+
+    const finishWithError = (error: Error) => {
+      cleanup();
+      reject(error);
+    };
+
+    const timeoutId = g.setTimeout(() => {
+      finishWithError(new Error(`Sandbox execution timed out after ${SANDBOX_TIMEOUT_MS}ms`));
+    }, SANDBOX_TIMEOUT_MS);
+
+    const onMessage = async (event: any) => {
+      if (event.source !== iframe.contentWindow) {
+        return;
+      }
+
+      const data = event.data;
+      if (!data || data.__sandboxChannel !== channel) {
+        return;
+      }
+
+      if (data.type === 'sandbox-result') {
+        cleanup();
+        resolve(data.result);
+        return;
+      }
+
+      if (data.type === 'sandbox-error') {
+        finishWithError(new Error(data.error || 'Sandbox execution failed'));
+        return;
+      }
+
+      if (data.type === 'sandbox-call') {
+        const { callId, path, arg } = data;
+        try {
+          const fn = getValueByPath(sandboxObject, path);
+          if (typeof fn !== 'function') {
+            throw new Error(`Sandbox function not found: ${path}`);
+          }
+
+          const result = await Promise.resolve(fn(arg));
+          iframe.contentWindow?.postMessage(
+            {
+              __sandboxChannel: channel,
+              type: 'sandbox-call-result',
+              callId,
+              result,
+            },
+            '*'
+          );
+        } catch (error: any) {
+          iframe.contentWindow?.postMessage(
+            {
+              __sandboxChannel: channel,
+              type: 'sandbox-call-error',
+              callId,
+              error: error?.message || String(error),
+            },
+            '*'
+          );
+        }
+      }
+    };
+
+    g.addEventListener('message', onMessage);
+
+    const iframeScript = `
+      (() => {
+        const CHANNEL = ${JSON.stringify(channel)};
+        const FUNCTION_PATHS = ${JSON.stringify(callablePaths)};
+        const USER_CODE = ${JSON.stringify(code)};
+
+        const pendingCalls = new Map();
+        let callCounter = 0;
+
+        const send = (payload) => {
+          window.parent.postMessage({ __sandboxChannel: CHANNEL, ...payload }, '*');
+        };
+
+        const onMessage = (event) => {
+          const data = event.data;
+          if (!data || data.__sandboxChannel !== CHANNEL) {
+            return;
+          }
+
+          if (data.type === 'sandbox-call-result' || data.type === 'sandbox-call-error') {
+            const pending = pendingCalls.get(data.callId);
+            if (!pending) {
+              return;
+            }
+
+            pendingCalls.delete(data.callId);
+            if (data.type === 'sandbox-call-error') {
+              pending.reject(new Error(data.error || 'Sandbox call failed'));
+            } else {
+              pending.resolve(data.result);
+            }
+          }
+        };
+
+        window.addEventListener('message', onMessage);
+
+        const callParent = (path, arg) => {
+          const callId = 'call-' + Date.now() + '-' + (++callCounter);
+          return new Promise((resolve, reject) => {
+            pendingCalls.set(callId, { resolve, reject });
+            send({ type: 'sandbox-call', callId, path, arg });
+          });
+        };
+
+        const createSandbox = () => {
+          const sandbox = {
+            console: {
+              log: (...args) => console.log('[Sandbox]', ...args),
+              warn: (...args) => console.warn('[Sandbox]', ...args),
+              error: (...args) => console.error('[Sandbox]', ...args),
+            },
+          };
+
+          const createPathFunction = (path) => async (arg) => callParent(path, arg);
+
+          for (const path of FUNCTION_PATHS) {
+            const parts = path.split('.');
+            let current = sandbox;
+
+            for (let i = 0; i < parts.length; i++) {
+              const part = parts[i];
+              const isLast = i === parts.length - 1;
+
+              if (isLast) {
+                current[part] = createPathFunction(path);
+              } else {
+                current[part] = current[part] || {};
+                current = current[part];
+              }
+            }
+          }
+
+          return sandbox;
+        };
+
+        const run = async () => {
+          const sandbox = createSandbox();
+          const runner = new Function(
+            '__sandbox',
+            'return (async () => { with (__sandbox) { ' + USER_CODE + ' } })();'
+          );
+
+          try {
+            const result = await runner(sandbox);
+            send({ type: 'sandbox-result', result });
+          } catch (error) {
+            const message = error && error.message ? error.message : String(error);
+            send({ type: 'sandbox-error', error: message });
+          } finally {
+            window.removeEventListener('message', onMessage);
+          }
+        };
+
+        run();
+      })();
+    `;
+
+    iframe.setAttribute('sandbox', 'allow-scripts');
+    iframe.setAttribute('style', 'display:none;');
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.srcdoc = `<script>${escapeScriptCloseTag(iframeScript)}<\/script>`;
+    documentRef.body.appendChild(iframe);
+  });
+}
 
 /**
  * Creates wrapped version of a function with validation and callbacks
@@ -174,18 +423,17 @@ export async function executeSandbox(code: string, registry: FunctionRegistry, p
   // Create sandbox with wrapped functions and agents
   const sandboxObject = createSandboxObject(registry, parentPrompt, StatefulPromptClass);
 
-  // Create VM2 instance with security restrictions
-  const vm = new VM({
-    timeout: 5000, // 5 seconds
-    sandbox: sandboxObject,
-    eval: false,
-    wasm: false,
-  });
+  return executeSandboxWithObject(code, sandboxObject);
+}
 
-  // Wrap code in async IIFE to support await
-  const wrappedCode = `(async () => {\n${code}\n})()`;
+/**
+ * Executes user code in a secure sandbox using a provided sandbox object.
+ */
+export async function executeSandboxWithObject(code: string, sandboxObject: Record<string, any>): Promise<any> {
 
-  // Execute code and return result
-  const result = await vm.run(wrappedCode);
-  return result;
+  if (isBrowserEnvironment()) {
+    return executeSandboxInBrowser(code, sandboxObject);
+  }
+
+  return executeSandboxInNode(code, sandboxObject);
 }

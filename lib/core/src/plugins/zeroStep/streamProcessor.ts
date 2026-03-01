@@ -1,6 +1,6 @@
-import { VM } from 'vm2';
 import type { MethodRegistry } from './MethodRegistry';
 import { validateTypeScript } from './typeChecker';
+import { executeSandboxWithObject } from '../function/sandbox';
 
 const RUN_CODE_OPEN = '<run_code>';
 const RUN_CODE_CLOSE = '</run_code>';
@@ -59,17 +59,9 @@ async function tryExecuteCode(
   }
 
   const sandbox = buildSandbox(registry);
-  const vm = new VM({
-    timeout: 5000,
-    sandbox,
-    eval: false,
-    wasm: false,
-  });
-
-  const wrappedCode = `(async () => {\n${code}\n})()`;
 
   try {
-    const result = await vm.run(wrappedCode);
+    const result = await executeSandboxWithObject(code, sandbox);
     if (result !== undefined) {
       return { type: 'return', value: result };
     }

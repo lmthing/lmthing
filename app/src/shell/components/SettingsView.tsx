@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { X, Shield, KeyRound, FileCode2 } from 'lucide-react'
 import { useWorkspaceData } from '@/lib/workspaceDataContext'
 import type { PackageJson } from '@/types/workspace-data'
@@ -14,6 +14,39 @@ import {
 interface SettingsViewProps {
   isOpen: boolean
   onClose: () => void
+}
+
+const ENV_SESSION_CACHE_PREFIX = 'lmthing-session-env'
+
+function getEnvSessionCacheKey(workspaceId: string, fileName: string): string {
+  return `${ENV_SESSION_CACHE_PREFIX}:${workspaceId}:${fileName}`
+}
+
+function readSessionEnvPlaintext(workspaceId: string, fileName: string): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    return window.sessionStorage.getItem(getEnvSessionCacheKey(workspaceId, fileName))
+  } catch {
+    return null
+  }
+}
+
+function writeSessionEnvPlaintext(workspaceId: string, fileName: string, plaintext: string) {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(getEnvSessionCacheKey(workspaceId, fileName), plaintext)
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+function removeSessionEnvPlaintext(workspaceId: string, fileName: string) {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.removeItem(getEnvSessionCacheKey(workspaceId, fileName))
+  } catch {
+    // Ignore storage errors
+  }
 }
 
 export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
@@ -47,12 +80,26 @@ export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
 
   const effectiveSelectedEnvFile =
     selectedEnvFile || (envFileNames.length > 0 ? envFileNames[0] : '.env.local')
+  const workspaceId = workspaceData?.id || 'workspace'
+  const cachedSessionEnvContent = useMemo(
+    () => (isOpen ? readSessionEnvPlaintext(workspaceId, effectiveSelectedEnvFile) : null),
+    [isOpen, workspaceId, effectiveSelectedEnvFile]
+  )
 
   const selectedEncryptedEnv = env[effectiveSelectedEnvFile]
+  const displayedPackageJsonDraft = packageJsonDraft || packageJsonSerialized
+  const displayedEnvContent = envContent || cachedSessionEnvContent || ''
+  const derivedSessionStatus =
+    !envStatus && cachedSessionEnvContent !== null
+      ? `Auto-loaded ${effectiveSelectedEnvFile} from session memory (unencrypted).`
+      : null
+
+  useEffect(() => {
+    if (!isOpen || cachedSessionEnvContent === null) return
+    applyEnvToWindowProcessEnv(parseDotEnv(cachedSessionEnvContent))
+  }, [isOpen, cachedSessionEnvContent])
 
   if (!isOpen) return null
-
-  const displayedPackageJsonDraft = packageJsonDraft || packageJsonSerialized
 
   const handleSavePackageJson = () => {
     try {
@@ -84,11 +131,31 @@ export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
     setEnvStatus(null)
     setEnvError(null)
     setIsEnvLoaded(false)
+
+    const cachedPlaintext = readSessionEnvPlaintext(workspaceId, normalized)
+    if (cachedPlaintext !== null) {
+      setEnvContent(cachedPlaintext)
+      setIsEnvLoaded(true)
+      setEnvStatus(`Loaded ${normalized} from session memory (unencrypted).`)
+      applyEnvToWindowProcessEnv(parseDotEnv(cachedPlaintext))
+    }
   }
 
   const handleLoadEnvFile = async () => {
     setEnvError(null)
     setEnvStatus(null)
+
+    const cachedPlaintext = readSessionEnvPlaintext(workspaceId, effectiveSelectedEnvFile)
+    if (cachedPlaintext !== null) {
+      setEnvContent(cachedPlaintext)
+      setIsEnvLoaded(true)
+      const envMap = parseDotEnv(cachedPlaintext)
+      applyEnvToWindowProcessEnv(envMap)
+      setEnvStatus(
+        `Loaded ${effectiveSelectedEnvFile} from session memory (${Object.keys(envMap).length} vars).`
+      )
+      return
+    }
 
     if (!selectedEncryptedEnv) {
       setEnvContent('')
@@ -101,6 +168,7 @@ export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
       const plaintext = await decryptEnvContent(selectedEncryptedEnv, envPassword)
       setEnvContent(plaintext)
       setIsEnvLoaded(true)
+      writeSessionEnvPlaintext(workspaceId, effectiveSelectedEnvFile, plaintext)
 
       const envMap = parseDotEnv(plaintext)
       applyEnvToWindowProcessEnv(envMap)
@@ -131,15 +199,16 @@ export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
     try {
       const expiresDaysNumber = Number.parseInt(expiresInDays, 10)
       const encrypted = await encryptEnvContent({
-        plaintext: envContent,
+        plaintext: displayedEnvContent,
         password: envPassword,
         previous: selectedEncryptedEnv,
         expiresInDays: Number.isNaN(expiresDaysNumber) ? 30 : Math.max(expiresDaysNumber, 1),
       })
 
       upsertEnvFile(effectiveSelectedEnvFile, encrypted)
+      writeSessionEnvPlaintext(workspaceId, effectiveSelectedEnvFile, displayedEnvContent)
 
-      const envMap = parseDotEnv(envContent)
+      const envMap = parseDotEnv(displayedEnvContent)
       applyEnvToWindowProcessEnv(envMap)
 
       setIsEnvLoaded(true)
@@ -159,6 +228,7 @@ export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
     if (!confirmed) return
 
     deleteEnvFile(effectiveSelectedEnvFile)
+    removeSessionEnvPlaintext(workspaceId, effectiveSelectedEnvFile)
     setEnvContent('')
     setIsEnvLoaded(false)
     setEnvStatus(`${effectiveSelectedEnvFile} deleted.`)
@@ -250,10 +320,21 @@ export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
               <select
                 value={effectiveSelectedEnvFile}
                 onChange={(event) => {
-                  setSelectedEnvFile(event.target.value)
+                  const nextFileName = event.target.value
+                  setSelectedEnvFile(nextFileName)
                   setEnvStatus(null)
                   setEnvError(null)
                   setIsEnvLoaded(false)
+
+                  const cachedPlaintext = readSessionEnvPlaintext(workspaceId, nextFileName)
+                  if (cachedPlaintext !== null) {
+                    setEnvContent(cachedPlaintext)
+                    setIsEnvLoaded(true)
+                    setEnvStatus(`Loaded ${nextFileName} from session memory (unencrypted).`)
+                    applyEnvToWindowProcessEnv(parseDotEnv(cachedPlaintext))
+                  } else {
+                    setEnvContent('')
+                  }
                 }}
                 className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
               >
@@ -292,7 +373,7 @@ export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
             </div>
 
             <textarea
-              value={envContent}
+              value={displayedEnvContent}
               onChange={(event) => setEnvContent(event.target.value)}
               placeholder="API_KEY=value"
               spellCheck={false}
@@ -340,6 +421,8 @@ export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
                 <span className="text-red-500">{envError}</span>
               ) : envStatus ? (
                 <span className="text-emerald-600 dark:text-emerald-400">{envStatus}</span>
+              ) : derivedSessionStatus ? (
+                <span className="text-emerald-600 dark:text-emerald-400">{derivedSessionStatus}</span>
               ) : isEnvLoaded ? (
                 <span className="text-slate-500 dark:text-slate-400">Env file decrypted in editor.</span>
               ) : (

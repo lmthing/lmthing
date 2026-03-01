@@ -4,6 +4,7 @@ const TEXT_ENCODER = new TextEncoder()
 const TEXT_DECODER = new TextDecoder()
 
 const DEFAULT_ITERATIONS = 250_000
+const ENV_SESSION_CACHE_PREFIX = 'lmthing-session-env'
 
 function toBase64(bytes: Uint8Array): string {
   let binary = ''
@@ -206,4 +207,29 @@ export function applyEnvToWindowProcessEnv(envMap: Record<string, string>) {
   }
 
   Object.assign(globalWindow.process.env, envMap)
+}
+
+export function hydrateWindowProcessEnvFromSessionCache() {
+  if (typeof window === 'undefined') return
+
+  try {
+    const sessionKeys: string[] = []
+
+    for (let index = 0; index < window.sessionStorage.length; index += 1) {
+      const key = window.sessionStorage.key(index)
+      if (!key) continue
+      if (key.startsWith(`${ENV_SESSION_CACHE_PREFIX}:`)) {
+        sessionKeys.push(key)
+      }
+    }
+
+    for (const key of sessionKeys) {
+      const plaintext = window.sessionStorage.getItem(key)
+      if (!plaintext) continue
+      const envMap = parseDotEnv(plaintext)
+      applyEnvToWindowProcessEnv(envMap)
+    }
+  } catch {
+    // Ignore session storage errors
+  }
 }

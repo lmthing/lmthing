@@ -3,7 +3,7 @@ import { useWorkspaceData } from '@/hooks/useWorkspaceData'
 import { PromptLibrary } from './components/PromptLibrary'
 import type { Directory, PromptFragment, NewFileForm, NewFolderForm, UnsavedChangesAction, FileSystemNode } from '@/../product/sections/prompt-library/types'
 
-// This is a preview wrapper for Design OS only
+// This is a preview wrapper for LMThing only
 // It loads workspace-specific sample data and feeds it to the props-based component
 
 // Helper to collect all folder paths from the file system

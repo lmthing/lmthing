@@ -3,6 +3,10 @@
  * This defines the state structure for workspace data loaded from JSON
  */
 
+import type { PromptConfig } from 'lmthing'
+
+export type LmthingModelId = Extract<PromptConfig['model'], string>
+
 // ============== Message Types ==============
 export type MessageRole = 'user' | 'assistant' | 'system'
 
@@ -94,7 +98,7 @@ export interface TaskOutputSchema {
 export interface TaskFrontmatter {
   description?: string
   type?: string
-  model?: string
+  model?: LmthingModelId
   temperature?: number
   isPushable?: string
   enabledTools?: string[]

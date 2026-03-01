@@ -8,6 +8,7 @@ import { AgentRuntimeView } from '@/sections/agent-runtime/components'
 import { useAgents, useKnowledgeSections, useFlows, useRuntimeAgents } from '@/lib/workspaceContext'
 import { useWorkspaceData } from '@/lib/workspaceDataContext'
 import { useGithub } from '@/lib/github/GithubContext'
+import type { PromptConfig } from 'lmthing'
 import type {
   KnowledgeNode,
   Agent as WorkspaceAgent,
@@ -234,6 +235,8 @@ type ThingMessage = {
   content: string
 }
 
+type ThingLmthingModelId = Extract<PromptConfig['model'], string>
+
 const THING_ACTION_NAMES = [
   'setCurrentWorkspace',
   'reload',
@@ -271,6 +274,13 @@ function stripCodeFence(input: string): string {
 
 function countKnowledgeNodes(nodes: KnowledgeNode[]): number {
   return nodes.reduce((sum, node) => sum + 1 + countKnowledgeNodes(node.children || []), 0)
+}
+
+function isThingLmthingModelId(value: unknown): value is ThingLmthingModelId {
+  if (typeof value !== 'string') return false
+
+  const [provider, model] = value.split(':')
+  return Boolean(provider?.trim() && model?.trim())
 }
 
 export function StudioShell({
@@ -1352,6 +1362,19 @@ export function StudioShell({
           if (!flow?.id) {
             return 'upsertFlow requires payload.flow with a valid id.'
           }
+
+          const invalidTask = flow.tasks?.find((task) => {
+            const model = task.frontmatter?.model
+            return model !== undefined && !isThingLmthingModelId(model)
+          })
+
+          if (invalidTask) {
+            return [
+              `Invalid model in flow task ${invalidTask.order}.`,
+              'Expected model format: provider:model_id (for example openai:gpt-4o).',
+            ].join('\n')
+          }
+
           upsertFlow(flow)
           return `Upserted flow ${flow.id}.`
         }

@@ -411,7 +411,7 @@ export async function exportWorkspaceToNewGithubRepo(
   const fileEntries =
     originalEntries.length > 0
       ? originalEntries
-      : [{ path: 'README.md', content: `# ${repoName}\n\nExported from Design OS workspace \`${workspace.id}\`.` }]
+      : [{ path: 'README.md', content: `# ${repoName}\n\nExported from LMThing workspace \`${workspace.id}\`.` }]
   const totalFiles = fileEntries.length
 
   onProgress?.({
@@ -422,7 +422,7 @@ export async function exportWorkspaceToNewGithubRepo(
 
   const { data: createdRepo } = await octokit.rest.repos.createForAuthenticatedUser({
     name: repoName,
-    description: description || `Exported workspace "${workspace.id}" from Design OS`,
+    description: description || `Exported workspace "${workspace.id}" from LMThing`,
     private: privateRepo,
     auto_init: true,
   })

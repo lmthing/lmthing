@@ -1,5 +1,5 @@
 /**
- * Product types for Design OS v2
+ * Product types for LMThing v2
  */
 
 // =============================================================================

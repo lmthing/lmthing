@@ -217,7 +217,7 @@ export function StudioSidebar({
       `}
     >
       {/* Logo and App Name */}
-      <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+      <div className="p-0 border-b border-slate-200 dark:border-slate-800">
         <div
           className={`
             flex items-center gap-2
@@ -226,10 +226,10 @@ export function StudioSidebar({
         >
           <Link
             to="/"
-            className="flex h-8 w-8 shrink-0 items-center justify-center"
+            className="flex h-12 w-12 shrink-0 items-center justify-center"
             title="lmthing"
           >
-            <img src={logo} alt="lmthing logo" className="h-8 w-8 rounded-md object-contain" />
+            <img src={logo} alt="lmthing logo" className="h-12 w-12 rounded-md object-contain" />
           </Link>
           {!isCollapsed && (
             <div className="min-w-0 flex-1">

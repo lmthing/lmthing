@@ -144,7 +144,7 @@ export default function LandingLayout() {
       <header className="border-b bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2">
-            <img src={logo} alt="lmthing" className="size-8" />
+            <img src={logo} alt="lmthing" className="size-12" />
             <h1 className="text-xl font-semibold">lmthing</h1>
           </div>
           <div className="flex items-center gap-3">

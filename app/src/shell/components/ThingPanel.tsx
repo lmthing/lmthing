@@ -73,6 +73,8 @@ const THING_TOOL_EVENT_CLOSE = '[[/THING_TOOL_EVENT]]'
 const THING_PANEL_MIN_WIDTH = 320
 const THING_PANEL_MAX_WIDTH = 800
 const THING_PANEL_DEFAULT_WIDTH = 420
+const THING_PANEL_COLLAPSED_WIDTH = 48
+const THING_PANEL_COLLAPSED_STORAGE_KEY = 'lmthing-thing-panel-collapsed-v1'
 
 const THING_HELP_MESSAGE = [
   `Available actions: ${THING_ACTION_NAMES.join(', ')}`,
@@ -451,11 +453,11 @@ function loadThingConversationsFromStorage(): ThingConversation[] {
 }
 
 export interface ThingPanelProps {
-  isOpen: boolean
   agentBuilderProps?: AgentBuilderScreenProps
+  onStatusChange?: (status: { isStreaming: boolean; hasError: boolean }) => void
 }
 
-export function ThingPanel({ isOpen, agentBuilderProps }: ThingPanelProps) {
+export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProps) {
   const { agents: agentsMap } = useAgents()
   const { flows: flowsMap } = useFlows()
   const {
@@ -484,6 +486,7 @@ export function ThingPanel({ isOpen, agentBuilderProps }: ThingPanelProps) {
   const [thingConversations, setThingConversations] = useState<ThingConversation[]>(() => loadThingConversationsFromStorage())
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
   const [isThingWorking, setIsThingWorking] = useState(false)
+  const [hasThingError, setHasThingError] = useState(false)
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editingMessageContent, setEditingMessageContent] = useState('')
   const [editingConversationId, setEditingConversationId] = useState<string | null>(null)
@@ -495,6 +498,11 @@ export function ThingPanel({ isOpen, agentBuilderProps }: ThingPanelProps) {
     return Number.isFinite(parsed) ? Math.max(THING_PANEL_MIN_WIDTH, Math.min(THING_PANEL_MAX_WIDTH, parsed)) : THING_PANEL_DEFAULT_WIDTH
   })
   const [isResizing, setIsResizing] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    const stored = window.localStorage.getItem(THING_PANEL_COLLAPSED_STORAGE_KEY)
+    return stored === 'true'
+  })
   const thingSnapshotsRef = useRef<Record<string, unknown>>({})
   const thingMessagesEndRef = useRef<HTMLDivElement | null>(null)
   const resizeStartXRef = useRef<number>(0)
@@ -513,6 +521,19 @@ export function ThingPanel({ isOpen, agentBuilderProps }: ThingPanelProps) {
   )
 
   const totalKnowledgeNodeCount = useMemo(() => countKnowledgeNodes(knowledge), [knowledge])
+
+  useEffect(() => {
+    onStatusChange?.({
+      isStreaming: isThingWorking,
+      hasError: hasThingError,
+    })
+  }, [isThingWorking, hasThingError, onStatusChange])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(THING_PANEL_COLLAPSED_STORAGE_KEY, String(isCollapsed))
+    }
+  }, [isCollapsed])
 
   useEffect(() => {
     if (thingConversations.length === 0) {
@@ -2152,6 +2173,7 @@ export function ThingPanel({ isOpen, agentBuilderProps }: ThingPanelProps) {
     ])
 
     setIsThingWorking(true)
+    setHasThingError(false)
 
     void (async () => {
       let streamedContent = ''
@@ -2179,11 +2201,17 @@ export function ThingPanel({ isOpen, agentBuilderProps }: ThingPanelProps) {
         appendToAssistantMessage(chunk)
       }
 
-      const response = await handleThingMessage(
-        conversation,
-        (delta) => appendToAssistantMessage(delta),
-        (eventMessage) => appendToolEvent(eventMessage),
-      )
+      let response: string
+      try {
+        response = await handleThingMessage(
+          conversation,
+          (delta) => appendToAssistantMessage(delta),
+          (eventMessage) => appendToolEvent(eventMessage),
+        )
+      } catch (error) {
+        setHasThingError(true)
+        response = `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }
 
       setThingConversations((prev) => prev.map((item) => {
         if (item.id !== conversationId) return item
@@ -2326,41 +2354,87 @@ export function ThingPanel({ isOpen, agentBuilderProps }: ThingPanelProps) {
   }, [thingInput, thingMessages, isThingWorking, runThingConversation, currentConversation])
 
   useEffect(() => {
-    if (!isOpen) return
+    if (isCollapsed) return
     thingMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [thingMessages, isOpen])
+  }, [thingMessages, isCollapsed])
 
-  if (!isOpen) return null
+  const actualWidth = isCollapsed ? THING_PANEL_COLLAPSED_WIDTH : panelWidth
 
   return (
     <aside
-      style={{ width: `${panelWidth}px` }}
-      className="relative border-l border-stone-300 bg-gradient-to-b from-amber-50 to-stone-100 dark:border-stone-700 dark:bg-gradient-to-b dark:from-stone-900 dark:to-stone-950 flex min-w-0 flex-col"
+      style={{ width: `${actualWidth}px` }}
+      className="relative border-l border-stone-300 bg-gradient-to-b from-amber-50 to-stone-100 dark:border-stone-700 dark:bg-gradient-to-b dark:from-stone-900 dark:to-stone-950 flex min-w-0 flex-col transition-all duration-200"
     >
-      <div
-        onMouseDown={handleResizeStart}
-        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-amber-600/30 active:bg-amber-600/50 transition-colors z-10"
-        style={{ marginLeft: '-2px' }}
-      />
-      <div className="h-14 border-b border-stone-300 px-4 flex items-center justify-between bg-amber-100/60 dark:border-stone-700 dark:bg-stone-900">
-        <div className="flex items-center gap-2">
-          <Bot className="h-4 w-4 text-amber-700 dark:text-amber-500" />
-          <h2 className="text-sm font-semibold text-stone-800 dark:text-amber-100">thing</h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-stone-600 dark:text-stone-400">Workspace actions</span>
+      {!isCollapsed && (
+        <div
+          onMouseDown={handleResizeStart}
+          className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-amber-600/30 active:bg-amber-600/50 transition-colors z-10"
+          style={{ marginLeft: '-2px' }}
+        />
+      )}
+
+      {isCollapsed ? (
+        <div className="flex flex-col items-center gap-3 py-3">
           <button
-            type="button"
-            onClick={createNewChat}
-            disabled={isThingWorking}
-            className="rounded-md border border-amber-600 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200 dark:hover:bg-amber-900/40"
+            onClick={() => setIsCollapsed(false)}
+            className="relative inline-flex items-center justify-center p-2 rounded-md hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+            title="Expand Thing panel"
           >
-            New chat
+            <Bot className="h-5 w-5 text-amber-700 dark:text-amber-500" />
+            <span
+              className={
+                hasThingError
+                  ? 'absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-500'
+                  : isThingWorking
+                    ? 'absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 animate-pulse'
+                    : 'absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500'
+              }
+            />
           </button>
         </div>
-      </div>
+      ) : (
+        <>
+          <div className="h-14 border-b border-stone-300 px-4 flex items-center justify-between bg-amber-100/60 dark:border-stone-700 dark:bg-stone-900">
+            <div className="flex items-center gap-2">
+              <div className="relative inline-flex items-center">
+                <Bot className="h-4 w-4 text-amber-700 dark:text-amber-500" />
+                <span
+                  className={
+                    hasThingError
+                      ? 'absolute -right-1 -top-1 h-2 w-2 rounded-full bg-red-500'
+                      : isThingWorking
+                        ? 'absolute -right-1 -top-1 h-2 w-2 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 animate-pulse'
+                        : 'absolute -right-1 -top-1 h-2 w-2 rounded-full bg-emerald-500'
+                  }
+                />
+              </div>
+              <h2 className="text-sm font-semibold text-stone-800 dark:text-amber-100">thing</h2>
+              <button
+                onClick={() => setIsCollapsed(true)}
+                className="ml-1 text-xs text-amber-700 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-300 underline"
+                title="Collapse Thing panel"
+              >
+                collapse
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-stone-600 dark:text-stone-400">Workspace actions</span>
+              <button
+                type="button"
+                onClick={createNewChat}
+                disabled={isThingWorking}
+                className="rounded-md border border-amber-600 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200 dark:hover:bg-amber-900/40"
+              >
+                New chat
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      {!isCollapsed && (
+        <>
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
         <div className="rounded-lg border border-stone-300 bg-white shadow-sm p-2 dark:border-stone-700 dark:bg-stone-900/50">
           <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-stone-600 dark:text-amber-500">
             History
@@ -2523,6 +2597,8 @@ export function ThingPanel({ isOpen, agentBuilderProps }: ThingPanelProps) {
           </button>
         </div>
       </form>
+        </>
+      )}
     </aside>
   )
 }

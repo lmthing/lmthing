@@ -276,7 +276,10 @@ export function StudioShell({
   const runtimeResponseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [isExportingWorkspace, setIsExportingWorkspace] = useState(false)
   const [isExportingGithubRepo, setIsExportingGithubRepo] = useState(false)
-  const [isThingOpen, setIsThingOpen] = useState(false)
+  const [thingStatus, setThingStatus] = useState<{ isStreaming: boolean; hasError: boolean }>({
+    isStreaming: false,
+    hasError: false,
+  })
   const [githubExportProgress, setGithubExportProgress] = useState<{
     uploadedFiles: number
     totalFiles: number
@@ -1393,15 +1396,6 @@ export function StudioShell({
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsThingOpen((prev) => !prev)}
-              className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-            >
-              <Bot className="h-4 w-4" />
-              {isThingOpen ? 'Hide Thing' : 'Thing'}
-            </button>
-          </div>
         </header>
 
           {/* Content Area */}
@@ -1579,7 +1573,10 @@ export function StudioShell({
           </div>
         </div>
 
-        <ThingPanel isOpen={isThingOpen} agentBuilderProps={agentBuilderProps} />
+        <ThingPanel
+          agentBuilderProps={agentBuilderProps}
+          onStatusChange={setThingStatus}
+        />
       </div>
     </div>
   )

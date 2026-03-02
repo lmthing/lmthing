@@ -31,6 +31,7 @@ import { useGithub } from '@/lib/github/GithubContext'
 import { useQueryClient } from '@tanstack/react-query'
 import { Input } from '@/components/ui/input'
 import { toWorkspaceName } from '@/lib/workspaces'
+import { ThingPanel } from './components/ThingPanel'
 import logo from '@/assets/logo.png'
 
 const WORKSPACE_COLORS = ['#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ef4444', '#84cc16']
@@ -139,7 +140,8 @@ export default function LandingLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900">
+    <div className="flex min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900">
+      <div className="flex-1 flex flex-col">
       {/* Header */}
       <header className="border-b bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
@@ -475,6 +477,10 @@ export default function LandingLayout() {
           <p>lmthing — Turn Knowledge into LLM Engineers</p>
         </div>
       </footer>
+      </div>
+      
+      {/* ThingPanel - collapsed by default */}
+      <ThingPanel />
     </div>
   )
 }

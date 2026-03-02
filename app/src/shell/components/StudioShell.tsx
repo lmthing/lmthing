@@ -518,7 +518,7 @@ export function StudioShell({
 
   // Determine view mode from URL params
   const viewMode: 'list' | 'domain-detail' | 'agent-detail' | 'agent-conversation' | 'settings' = 
-    location.pathname.endsWith('/settings')
+    location.pathname.includes('/settings')
       ? 'settings'
       : conversationId
       ? 'agent-conversation'
@@ -1586,7 +1586,7 @@ export function StudioShell({
           {/* Settings View */}
           {viewMode === 'settings' && (
             <div className="h-full">
-              <SettingsView isOpen={true} onClose={handleBackToList} />
+              <SettingsView isOpen={true} />
             </div>
           )}
           </div>

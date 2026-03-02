@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Shield, KeyRound, FileCode2, Sparkles, Search, PackagePlus, Trash2, Info } from 'lucide-react'
+import { Shield, FileCode2, Search, PackagePlus, Trash2, Info } from 'lucide-react'
 import { useWorkspaceData } from '@/lib/workspaceDataContext'
 import type { PackageJson } from '@/types/workspace-data'
+import { toWorkspaceRouteParam } from '@/lib/workspaces'
 import {
   applyEnvToWindowProcessEnv,
   decryptEnvContent,
@@ -10,30 +11,17 @@ import {
   isValidEnvFileName,
   normalizeEnvFileName,
   parseDotEnv,
-  stringifyDotEnv,
 } from '@/lib/envCrypto'
-import { ENV_EXAMPLE_CONTENT } from '@/data/env-example'
-import { toWorkspaceRouteParam } from '@/lib/workspaces'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 interface SettingsViewProps {
   isOpen: boolean
-  onClose: () => void
-}
-
-interface ProviderFieldDefinition {
-  key: string
-  label: string
-  required?: boolean
-  placeholder?: string
-}
-
-interface ProviderDefinition {
-  id: string
-  label: string
-  description: string
-  instructions: string
-  requiredFields: ProviderFieldDefinition[]
-  optionalFields?: ProviderFieldDefinition[]
 }
 
 interface DependencyRow {
@@ -56,192 +44,6 @@ interface NpmSearchItem {
   name: string
   version: string
   description: string
-}
-
-const SUPPORTED_PROVIDERS: ProviderDefinition[] = [
-  {
-    id: 'openai',
-    label: 'OpenAI',
-    description: 'GPT models via OpenAI.',
-    instructions: 'Create an OpenAI API key and paste it below.',
-    requiredFields: [{ key: 'OPENAI_API_KEY', label: 'OpenAI API Key', required: true, placeholder: 'sk-...' }],
-  },
-  {
-    id: 'anthropic',
-    label: 'Anthropic',
-    description: 'Claude models via Anthropic.',
-    instructions: 'Create an Anthropic API key and paste it below.',
-    requiredFields: [{ key: 'ANTHROPIC_API_KEY', label: 'Anthropic API Key', required: true, placeholder: 'sk-ant-...' }],
-  },
-  {
-    id: 'google',
-    label: 'Google Generative AI',
-    description: 'Gemini via Google Generative AI.',
-    instructions: 'Create a Google AI key for the Generative AI API.',
-    requiredFields: [{ key: 'GOOGLE_GENERATIVE_AI_API_KEY', label: 'Google API Key', required: true, placeholder: 'AIza...' }],
-  },
-  {
-    id: 'vertex',
-    label: 'Google Vertex AI',
-    description: 'Gemini via Google Vertex AI.',
-    instructions: 'Set your GCP project and location for Vertex AI.',
-    requiredFields: [
-      { key: 'GOOGLE_VERTEX_PROJECT', label: 'GCP Project ID', required: true, placeholder: 'my-project' },
-    ],
-    optionalFields: [
-      { key: 'GOOGLE_VERTEX_LOCATION', label: 'Vertex Location', placeholder: 'us-central1' },
-    ],
-  },
-  {
-    id: 'mistral',
-    label: 'Mistral',
-    description: 'Mistral hosted models.',
-    instructions: 'Create a Mistral API key.',
-    requiredFields: [{ key: 'MISTRAL_API_KEY', label: 'Mistral API Key', required: true, placeholder: '...' }],
-  },
-  {
-    id: 'azure',
-    label: 'Azure OpenAI',
-    description: 'Azure-hosted OpenAI models.',
-    instructions: 'Provide Azure OpenAI key and resource name (deployment is model id at runtime).',
-    requiredFields: [
-      { key: 'AZURE_API_KEY', label: 'Azure API Key', required: true, placeholder: '...' },
-      { key: 'AZURE_RESOURCE_NAME', label: 'Azure Resource Name', required: true, placeholder: 'my-openai-resource' },
-    ],
-  },
-  {
-    id: 'groq',
-    label: 'Groq',
-    description: 'Fast inference via Groq.',
-    instructions: 'Create a Groq API key.',
-    requiredFields: [{ key: 'GROQ_API_KEY', label: 'Groq API Key', required: true, placeholder: 'gsk_...' }],
-  },
-  {
-    id: 'cohere',
-    label: 'Cohere',
-    description: 'Cohere command models.',
-    instructions: 'Create a Cohere API key.',
-    requiredFields: [{ key: 'COHERE_API_KEY', label: 'Cohere API Key', required: true, placeholder: '...' }],
-  },
-  {
-    id: 'bedrock',
-    label: 'Amazon Bedrock',
-    description: 'AWS Bedrock-hosted models.',
-    instructions: 'Set AWS credentials and region for Bedrock access.',
-    requiredFields: [
-      { key: 'AWS_ACCESS_KEY_ID', label: 'AWS Access Key ID', required: true, placeholder: 'AKIA...' },
-      { key: 'AWS_SECRET_ACCESS_KEY', label: 'AWS Secret Access Key', required: true, placeholder: '...' },
-    ],
-    optionalFields: [
-      { key: 'AWS_REGION', label: 'AWS Region', placeholder: 'us-east-1' },
-      { key: 'AWS_SESSION_TOKEN', label: 'AWS Session Token (optional)', placeholder: '...' },
-    ],
-  },
-  {
-    id: 'custom-openai',
-    label: 'Custom OpenAI-Compatible',
-    description: 'Any OpenAI-compatible endpoint.',
-    instructions:
-      'Set a provider prefix (e.g. ZAI), key, base URL, and API type openai. Optional display name is used in model ids.',
-    requiredFields: [
-      { key: 'PREFIX', label: 'Provider Prefix', required: true, placeholder: 'ZAI' },
-      { key: 'API_KEY', label: 'API Key', required: true, placeholder: '...' },
-      { key: 'API_BASE', label: 'API Base URL', required: true, placeholder: 'https://api.example.com/v1' },
-      { key: 'API_TYPE', label: 'API Type', required: true, placeholder: 'openai' },
-    ],
-    optionalFields: [
-      { key: 'API_NAME', label: 'Display Name (optional)', placeholder: 'zai' },
-    ],
-  },
-]
-
-function getProviderColorClass(providerId: string): string {
-  const palette: Record<string, string> = {
-    openai: 'from-emerald-500 to-green-600',
-    anthropic: 'from-amber-500 to-orange-600',
-    google: 'from-blue-500 to-cyan-600',
-    vertex: 'from-indigo-500 to-blue-700',
-    mistral: 'from-fuchsia-500 to-pink-600',
-    azure: 'from-sky-500 to-blue-600',
-    groq: 'from-violet-500 to-purple-700',
-    cohere: 'from-rose-500 to-red-600',
-    bedrock: 'from-yellow-500 to-amber-700',
-    'custom-openai': 'from-slate-600 to-slate-800',
-  }
-
-  return `bg-gradient-to-r text-white shadow-md ${palette[providerId] || 'from-slate-500 to-slate-700'}`
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-function upsertDotEnvEntries(content: string, entries: Array<[string, string]>): string {
-  const lines = content.length > 0 ? content.split(/\r?\n/) : []
-  const seen = new Set<string>()
-
-  for (const [key, value] of entries) {
-    const safeKey = key.trim()
-    if (!safeKey || seen.has(safeKey)) continue
-    seen.add(safeKey)
-
-    const pattern = new RegExp(`^\\s*(?:export\\s+)?${escapeRegExp(safeKey)}\\s*=`)
-    const nextLine = `${safeKey}=${value}`
-    const existingIndex = lines.findIndex((line) => pattern.test(line))
-
-    if (existingIndex >= 0) {
-      lines[existingIndex] = nextLine
-    } else {
-      lines.push(nextLine)
-    }
-  }
-
-  return lines.join('\n').replace(/^\n+/, '')
-}
-
-function removeDotEnvEntry(content: string, keyToRemove: string): string {
-  const pattern = new RegExp(`^\\s*(?:export\\s+)?${escapeRegExp(keyToRemove)}\\s*=`)
-  return content
-    .split(/\r?\n/)
-    .filter((line) => !pattern.test(line))
-    .join('\n')
-}
-
-function normalizeAliasName(aliasName: string): string {
-  return aliasName
-    .trim()
-    .replace(/^LM_MODEL_/i, '')
-    .replace(/[^A-Za-z0-9_]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .toUpperCase()
-}
-
-function getDefaultProviderInputValues(provider: ProviderDefinition): Record<string, string> {
-  const base: Record<string, string> = {}
-
-  if (provider.id === 'custom-openai') {
-    base.PREFIX = 'CUSTOM'
-    base.API_TYPE = 'openai'
-  }
-
-  if (provider.id === 'vertex') {
-    base.GOOGLE_VERTEX_LOCATION = 'us-central1'
-  }
-
-  if (provider.id === 'bedrock') {
-    base.AWS_REGION = 'us-east-1'
-  }
-
-  return base
-}
-
-function isProviderConfigured(provider: ProviderDefinition, envMap: Record<string, string>): boolean {
-  if (provider.id === 'custom-openai') return false
-
-  return provider.requiredFields.every((field) => {
-    const value = envMap[field.key]
-    return typeof value === 'string' && value.trim().length > 0
-  })
 }
 
 const ENV_SESSION_CACHE_PREFIX = 'lmthing-session-env'
@@ -277,7 +79,7 @@ function removeSessionEnvPlaintext(workspaceId: string, fileName: string) {
   }
 }
 
-export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
+export function SettingsView({ isOpen }: SettingsViewProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const { workspaceName } = useParams()
@@ -299,7 +101,7 @@ export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
 
   const handleTabChange = (tab: 'env' | 'package-json') => {
     if (!workspaceName) return
-    const basePath = `/workspace/${workspaceName}/studio/settings`
+    const basePath = `/workspace/${toWorkspaceRouteParam(workspaceName)}/studio/settings`
     navigate(`${basePath}/${tab}`)
   }
 
@@ -328,12 +130,7 @@ export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
   const [envError, setEnvError] = useState<string | null>(null)
   const [isEnvLoaded, setIsEnvLoaded] = useState(false)
   const [expiresInDays, setExpiresInDays] = useState('30')
-  const [selectedProviderId, setSelectedProviderId] = useState(SUPPORTED_PROVIDERS[0].id)
-  const [providerDraftValues, setProviderDraftValues] = useState<Record<string, string>>(
-    getDefaultProviderInputValues(SUPPORTED_PROVIDERS[0])
-  )
-  const [aliasDraftName, setAliasDraftName] = useState('')
-  const [aliasDraftModel, setAliasDraftModel] = useState('')
+  const [isEnvExampleDialogOpen, setIsEnvExampleDialogOpen] = useState(false)
 
   const effectiveSelectedEnvFile =
     selectedEnvFile || (envFileNames.length > 0 ? envFileNames[0] : '.env.local')
@@ -346,13 +143,9 @@ export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
   const selectedEncryptedEnv = env[effectiveSelectedEnvFile]
   const displayedPackageJsonDraft = packageJsonDraft || packageJsonSerialized
   const displayedEnvContent = envContent || cachedSessionEnvContent || ''
-  const parsedEnvMap = useMemo(() => parseDotEnv(displayedEnvContent), [displayedEnvContent])
-  const selectedProvider =
-    SUPPORTED_PROVIDERS.find((provider) => provider.id === selectedProviderId) ||
-    SUPPORTED_PROVIDERS[0]
   const derivedSessionStatus =
     !envStatus && cachedSessionEnvContent !== null
-      ? `Auto-loaded ${effectiveSelectedEnvFile} from session memory (unencrypted).`
+      ? `Loaded from session`
       : null
 
   useEffect(() => {
@@ -642,145 +435,6 @@ export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
     setEnvError(null)
   }
 
-  const handleAddProvider = () => {
-    const entries: Array<[string, string]> = []
-
-    if (selectedProvider.id === 'custom-openai') {
-      const normalizedPrefix = (providerDraftValues.PREFIX || '')
-        .trim()
-        .replace(/[^A-Za-z0-9_]+/g, '_')
-        .replace(/^_+|_+$/g, '')
-        .toUpperCase()
-
-      if (!normalizedPrefix) {
-        setEnvError('Custom provider prefix is required (e.g. ZAI).')
-        return
-      }
-
-      const apiKey = (providerDraftValues.API_KEY || '').trim()
-      const apiBase = (providerDraftValues.API_BASE || '').trim()
-      const apiType = (providerDraftValues.API_TYPE || '').trim() || 'openai'
-      const apiName = (providerDraftValues.API_NAME || '').trim()
-
-      if (!apiKey || !apiBase || !apiType) {
-        setEnvError('Custom provider requires API key, API base URL, and API type.')
-        return
-      }
-
-      entries.push([`${normalizedPrefix}_API_KEY`, apiKey])
-      entries.push([`${normalizedPrefix}_API_BASE`, apiBase])
-      entries.push([`${normalizedPrefix}_API_TYPE`, apiType])
-      if (apiName) entries.push([`${normalizedPrefix}_API_NAME`, apiName])
-    } else {
-      for (const field of selectedProvider.requiredFields) {
-        const value = (providerDraftValues[field.key] || '').trim()
-        if (!value) {
-          setEnvError(`${field.label} is required.`)
-          return
-        }
-        entries.push([field.key, value])
-      }
-
-      selectedProvider.optionalFields?.forEach((field) => {
-        const value = (providerDraftValues[field.key] || '').trim()
-        if (value) entries.push([field.key, value])
-      })
-    }
-
-    const nextContent = upsertDotEnvEntries(displayedEnvContent, entries)
-    setEnvContent(nextContent)
-    setIsEnvLoaded(true)
-    setEnvError(null)
-    setEnvStatus(`${selectedProvider.label} variables added to ${effectiveSelectedEnvFile}.`)
-    applyEnvToWindowProcessEnv(parseDotEnv(nextContent))
-  }
-
-  const handleAddAlias = () => {
-    const normalizedAlias = normalizeAliasName(aliasDraftName)
-    const modelId = aliasDraftModel.trim()
-
-    if (!normalizedAlias) {
-      setEnvError('Alias name is required (example: FAST).')
-      return
-    }
-
-    if (!modelId) {
-      setEnvError('Alias model target is required (example: openai:gpt-4o-mini).')
-      return
-    }
-
-    const nextContent = upsertDotEnvEntries(displayedEnvContent, [[`LM_MODEL_${normalizedAlias}`, modelId]])
-    setEnvContent(nextContent)
-    setIsEnvLoaded(true)
-    setEnvError(null)
-    setEnvStatus(`LM_MODEL_${normalizedAlias} added to ${effectiveSelectedEnvFile}.`)
-    setAliasDraftName('')
-    setAliasDraftModel('')
-    applyEnvToWindowProcessEnv(parseDotEnv(nextContent))
-  }
-
-  const handleUpdateAliasValue = (aliasKey: string, value: string) => {
-    const nextValue = value.trim()
-
-    const nextContent = upsertDotEnvEntries(displayedEnvContent, [[aliasKey, nextValue]])
-    setEnvContent(nextContent)
-    setIsEnvLoaded(true)
-    setEnvError(null)
-    setEnvStatus(`${aliasKey} updated.`)
-    applyEnvToWindowProcessEnv(parseDotEnv(nextContent))
-  }
-
-  const handleDeleteAlias = (aliasKey: string) => {
-    const nextContent = removeDotEnvEntry(displayedEnvContent, aliasKey)
-    setEnvContent(nextContent)
-    setIsEnvLoaded(true)
-    setEnvError(null)
-    setEnvStatus(`${aliasKey} removed.`)
-    applyEnvToWindowProcessEnv(parseDotEnv(nextContent))
-  }
-
-  const detectedAliases = useMemo(() => {
-    return Object.keys(parsedEnvMap)
-      .filter((key) => key.startsWith('LM_MODEL_'))
-      .sort((a, b) => a.localeCompare(b))
-  }, [parsedEnvMap])
-
-  const aliasEntries = useMemo(
-    () => detectedAliases.map((key) => ({ key, value: parsedEnvMap[key] || '' })),
-    [detectedAliases, parsedEnvMap]
-  )
-
-  const availableProviders = useMemo(() => {
-    const builtIn = SUPPORTED_PROVIDERS
-      .filter((provider) => provider.id !== 'custom-openai')
-      .filter((provider) => isProviderConfigured(provider, parsedEnvMap))
-      .map((provider) => ({
-        id: provider.id,
-        label: provider.label,
-        description: provider.description,
-      }))
-
-    const customPrefixes = Object.entries(parsedEnvMap)
-      .filter(([key, value]) => key.endsWith('_API_TYPE') && value === 'openai')
-      .map(([key]) => key.replace(/_API_TYPE$/, ''))
-      .filter((prefix) => {
-        const keyValue = parsedEnvMap[`${prefix}_API_KEY`]
-        const baseValue = parsedEnvMap[`${prefix}_API_BASE`]
-        return Boolean(keyValue && baseValue)
-      })
-
-    const custom = customPrefixes.map((prefix) => {
-      const displayName = parsedEnvMap[`${prefix}_API_NAME`] || prefix.toLowerCase()
-      return {
-        id: `custom-${prefix}`,
-        label: `Custom: ${displayName}`,
-        description: 'OpenAI-compatible provider',
-      }
-    })
-
-    return [...builtIn, ...custom]
-  }, [parsedEnvMap])
-
   if (!isOpen) return null
 
   return (
@@ -1049,233 +703,107 @@ export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
 
         {activeTab === 'env' && (
         <div className="flex-1 overflow-y-auto">
-          <section className="flex min-h-0 flex-col p-5">
-            <div className="mb-3 flex items-center gap-2">
-              <Shield className="h-4 w-4 text-emerald-500" />
-              <h3 className="font-medium text-slate-900 dark:text-slate-100">Encrypted env files</h3>
-            </div>
-
-            <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
-              Env files are stored encrypted in workspace `env`, exported as `.env.*` files, and require a per-file password.
-            </p>
-
-            <div className="mb-3 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-900/40 dark:bg-blue-950/20">
-              <Info className="h-4 w-4 flex-shrink-0 text-blue-500" />
-              <p className="text-xs text-slate-600 dark:text-slate-300">
-                For configuration examples, see{' '}
-                <a
-                  href="#file:lib/core/.env.example"
-                  className="font-medium text-blue-600 hover:underline dark:text-blue-400"
+          <section className="flex min-h-0 flex-col p-5 space-y-4">
+            {/* Header with info */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-emerald-500" />
+                  <h3 className="font-medium text-slate-900 dark:text-slate-100">Environment Variables</h3>
+                </div>
+                <button
+                  onClick={() => setIsEnvExampleDialogOpen(true)}
+                  className="text-xs text-blue-600 hover:underline dark:text-blue-400 flex items-center gap-1"
                 >
-                  .env.example
-                </a>
+                  <Info className="h-3 w-3" />
+                  View examples
+                </button>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Environment files are encrypted and stored securely. Enter a password to decrypt/save.
               </p>
             </div>
 
-            <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
-              <input
-                value={newEnvFileName}
-                onChange={(event) => setNewEnvFileName(event.target.value)}
-                placeholder=".env.local"
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-              />
-              <button
-                onClick={handleUseEnvFileName}
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
-              >
-                Select file
-              </button>
-            </div>
+            {/* File selection and password */}
+            <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/60">
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1 block">
+                      File
+                    </label>
+                    <select
+                      value={effectiveSelectedEnvFile}
+                      onChange={(event) => {
+                        const nextFileName = event.target.value
+                        setSelectedEnvFile(nextFileName)
+                        setEnvStatus(null)
+                        setEnvError(null)
+                        setIsEnvLoaded(false)
 
-            <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <select
-                value={effectiveSelectedEnvFile}
-                onChange={(event) => {
-                  const nextFileName = event.target.value
-                  setSelectedEnvFile(nextFileName)
-                  setEnvStatus(null)
-                  setEnvError(null)
-                  setIsEnvLoaded(false)
-
-                  const cachedPlaintext = readSessionEnvPlaintext(workspaceId, nextFileName)
-                  if (cachedPlaintext !== null) {
-                    setEnvContent(cachedPlaintext)
-                    setIsEnvLoaded(true)
-                    setEnvStatus(`Loaded ${nextFileName} from session memory (unencrypted).`)
-                    applyEnvToWindowProcessEnv(parseDotEnv(cachedPlaintext))
-                  } else {
-                    setEnvContent('')
-                  }
-                }}
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-              >
-                <option value={effectiveSelectedEnvFile}>{effectiveSelectedEnvFile}</option>
-                {envFileNames
-                  .filter((name) => name !== effectiveSelectedEnvFile)
-                  .map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-              </select>
-              <input
-                type="password"
-                value={envPassword}
-                onChange={(event) => setEnvPassword(event.target.value)}
-                placeholder="Password for selected file"
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-              />
-            </div>
-
-            <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-              <KeyRound className="h-3.5 w-3.5" />
-              {selectedEncryptedEnv ? (
-                <>
-                  <span>Encrypted file selected.</span>
-                  {selectedEncryptedEnv.expiresAt && (
-                    <span>
-                      Expires at {new Date(selectedEncryptedEnv.expiresAt).toLocaleString()}
-                    </span>
-                  )}
-                </>
-              ) : (
-                <span>New file (not yet saved).</span>
-              )}
-            </div>
-
-            <div className="mb-4 rounded-2xl border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-sky-50 to-emerald-50 p-4 shadow-sm dark:border-fuchsia-900/40 dark:from-fuchsia-950/20 dark:via-slate-900 dark:to-emerald-950/20">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-fuchsia-500" />
-                <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Provider & alias studio</h4>
-              </div>
-              <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                Add providers and LM_MODEL aliases without exposing env values.
-              </p>
-
-              <div className="mt-3 rounded-xl border border-white/80 bg-white/75 p-3 backdrop-blur dark:border-slate-800 dark:bg-slate-900/70">
-                <p className="text-xs font-semibold text-slate-800 dark:text-slate-100">Add provider</p>
-
-                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
-                  <select
-                    value={selectedProvider.id}
-                    onChange={(event) => {
-                      const nextProvider =
-                        SUPPORTED_PROVIDERS.find((provider) => provider.id === event.target.value) ||
-                        SUPPORTED_PROVIDERS[0]
-                      setSelectedProviderId(nextProvider.id)
-                      setProviderDraftValues(getDefaultProviderInputValues(nextProvider))
-                    }}
-                    className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-fuchsia-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                  >
-                    {SUPPORTED_PROVIDERS.map((provider) => (
-                      <option key={provider.id} value={provider.id}>
-                        {provider.label}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={handleAddProvider}
-                    className="rounded-md bg-fuchsia-600 px-3 py-2 text-sm font-medium text-white hover:bg-fuchsia-700"
-                  >
-                    Add provider
-                  </button>
-                </div>
-
-                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{selectedProvider.instructions}</p>
-
-                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {[...selectedProvider.requiredFields, ...(selectedProvider.optionalFields || [])].map((field) => (
-                    <input
-                      key={`${selectedProvider.id}-${field.key}`}
-                      value={providerDraftValues[field.key] || ''}
-                      onChange={(event) =>
-                        setProviderDraftValues((previous) => ({
-                          ...previous,
-                          [field.key]: event.target.value,
-                        }))
-                      }
-                      placeholder={field.placeholder || field.label}
-                      className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-fuchsia-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {availableProviders.length > 0 ? (
-                  availableProviders.map((provider) => (
-                    <div
-                      key={provider.id}
-                      className={`rounded-xl border border-transparent px-3 py-2 text-left text-xs ${getProviderColorClass(provider.id.includes('custom-') ? 'custom-openai' : provider.id)}`}
+                        const cachedPlaintext = readSessionEnvPlaintext(workspaceId, nextFileName)
+                        if (cachedPlaintext !== null) {
+                          setEnvContent(cachedPlaintext)
+                          setIsEnvLoaded(true)
+                          applyEnvToWindowProcessEnv(parseDotEnv(cachedPlaintext))
+                        } else {
+                          setEnvContent('')
+                        }
+                      }}
+                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                     >
-                      <div className="font-semibold">{provider.label}</div>
-                      <div className="mt-1 text-white/85">{provider.description}</div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-white/70 p-3 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400 sm:col-span-2">
-                    No available providers found from current env vars.
+                      <option value={effectiveSelectedEnvFile}>{effectiveSelectedEnvFile}</option>
+                      {envFileNames
+                        .filter((name) => name !== effectiveSelectedEnvFile)
+                        .map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                    </select>
                   </div>
-                )}
-              </div>
-
-              <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 dark:border-indigo-900/40 dark:bg-indigo-950/20">
-                <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">LM_MODEL aliases</p>
-                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[180px_1fr_auto]">
-                  <input
-                    value={aliasDraftName}
-                    onChange={(event) => setAliasDraftName(event.target.value)}
-                    placeholder="FAST"
-                    className="rounded-md border border-indigo-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none dark:border-indigo-900/60 dark:bg-slate-950 dark:text-slate-100"
-                  />
-                  <input
-                    value={aliasDraftModel}
-                    onChange={(event) => setAliasDraftModel(event.target.value)}
-                    placeholder="openai:gpt-4o-mini"
-                    className="rounded-md border border-indigo-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none dark:border-indigo-900/60 dark:bg-slate-950 dark:text-slate-100"
-                  />
-                  <button
-                    onClick={handleAddAlias}
-                    className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-                  >
-                    Add alias
-                  </button>
+                  <div>
+                    <label className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1 block">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      value={envPassword}
+                      onChange={(event) => setEnvPassword(event.target.value)}
+                      placeholder="Enter password"
+                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                    />
+                  </div>
                 </div>
-                <div className="mt-2 max-h-40 space-y-2 overflow-y-auto">
-                  {aliasEntries.length > 0 ? (
-                    aliasEntries.map((alias) => (
-                      <div
-                        key={alias.key}
-                        className="grid grid-cols-1 gap-2 sm:grid-cols-[180px_1fr_auto]"
-                      >
-                        <div className="rounded-md border border-indigo-300 bg-white px-3 py-2 text-xs font-medium text-indigo-700 dark:border-indigo-900/60 dark:bg-slate-950 dark:text-indigo-300">
-                          {alias.key}
-                        </div>
-                        <input
-                          value={alias.value}
-                          onChange={(event) => handleUpdateAliasValue(alias.key, event.target.value)}
-                          placeholder="provider:model"
-                          className="rounded-md border border-indigo-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none dark:border-indigo-900/60 dark:bg-slate-950 dark:text-slate-100"
-                        />
-                        <button
-                          onClick={() => handleDeleteAlias(alias.key)}
-                          className="rounded-md border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/30"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-xs text-slate-600 dark:text-slate-300">No aliases detected.</div>
-                  )}
+
+                {/* Create new file */}
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1 block">
+                    Create new file
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      value={newEnvFileName}
+                      onChange={(event) => setNewEnvFileName(event.target.value)}
+                      placeholder=".env.local"
+                      className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                    />
+                    <button
+                      onClick={handleUseEnvFileName}
+                      className="rounded-md bg-slate-600 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700"
+                    >
+                      Create
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900/50">
-              <p className="mb-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Raw env file editor
-              </p>
+            {/* Environment editor */}
+            <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/60">
+              <label className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2 block">
+                Variables
+              </label>
               <textarea
                 value={displayedEnvContent}
                 onChange={(event) => {
@@ -1283,74 +811,185 @@ export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
                   setIsEnvLoaded(true)
                 }}
                 spellCheck={false}
-                placeholder="KEY=value\nANOTHER_KEY=another_value"
-                className="min-h-[200px] w-full rounded-lg border border-slate-200 bg-white p-3 font-mono text-xs text-slate-800 focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                placeholder="KEY=value&#10;ANOTHER_KEY=another_value"
+                className="w-full h-64 rounded-md border border-slate-200 bg-slate-50 p-3 font-mono text-xs text-slate-800 focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
               />
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <label className="text-xs text-slate-500 dark:text-slate-400">
-                Lock in days
-              </label>
-              <input
-                type="number"
-                min={1}
-                value={expiresInDays}
-                onChange={(event) => setExpiresInDays(event.target.value)}
-                className="w-24 rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-              />
-              <button
-                onClick={() => {
-                  void handleLoadEnvFile()
-                }}
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
-              >
-                Load / Decrypt
-              </button>
-              <button
-                onClick={() => {
-                  void handleSaveEnvFile()
-                }}
-                className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
-              >
-                Encrypt + Save
-              </button>
-              <button
-                onClick={() => {
-                  const normalized = stringifyDotEnv(parseDotEnv(displayedEnvContent))
-                  setEnvContent(normalized)
-                  setEnvStatus(`Normalized ${effectiveSelectedEnvFile} formatting.`)
-                  setEnvError(null)
-                }}
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
-              >
-                Normalize
-              </button>
-              <button
-                onClick={handleDeleteSelectedEnv}
-                disabled={!env[effectiveSelectedEnvFile]}
-                className="rounded-md border border-red-200 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/30"
-              >
-                Delete
-              </button>
+            {/* Actions */}
+            <div className="flex flex-wrap items-center gap-2 justify-between">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => {
+                    void handleLoadEnvFile()
+                  }}
+                  className="rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+                >
+                  Load
+                </button>
+                <button
+                  onClick={() => {
+                    void handleSaveEnvFile()
+                  }}
+                  className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={handleDeleteSelectedEnv}
+                  disabled={!env[effectiveSelectedEnvFile]}
+                  className="rounded-md border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/30"
+                >
+                  Delete
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-slate-500 dark:text-slate-400">
+                  Expires in
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={expiresInDays}
+                  onChange={(event) => setExpiresInDays(event.target.value)}
+                  className="w-16 rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                />
+                <span className="text-xs text-slate-500 dark:text-slate-400">days</span>
+              </div>
             </div>
 
-            <div className="mt-2 text-xs">
-              {envError ? (
-                <span className="text-red-500">{envError}</span>
-              ) : envStatus ? (
-                <span className="text-emerald-600 dark:text-emerald-400">{envStatus}</span>
-              ) : derivedSessionStatus ? (
-                <span className="text-emerald-600 dark:text-emerald-400">{derivedSessionStatus}</span>
-              ) : isEnvLoaded ? (
-                <span className="text-slate-500 dark:text-slate-400">Env file decrypted in editor.</span>
-              ) : (
-                <span className="text-slate-500 dark:text-slate-400">Choose a file and decrypt or create a new one.</span>
-              )}
-            </div>
+            {/* Status message */}
+            {(envError || envStatus || derivedSessionStatus || isEnvLoaded) && (
+              <div className="text-xs">
+                {envError ? (
+                  <span className="text-red-500">{envError}</span>
+                ) : envStatus ? (
+                  <span className="text-emerald-600 dark:text-emerald-400">{envStatus}</span>
+                ) : derivedSessionStatus ? (
+                  <span className="text-emerald-600 dark:text-emerald-400">{derivedSessionStatus}</span>
+                ) : (
+                  <span className="text-slate-500 dark:text-slate-400">Ready to edit</span>
+                )}
+              </div>
+            )}
           </section>
         </div>
+        )}
       </div>
+
+      {/* .env.example Dialog */}
+      <Dialog open={isEnvExampleDialogOpen} onOpenChange={setIsEnvExampleDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Configuration Examples</DialogTitle>
+            <DialogDescription>
+              Example environment variables for various providers and configurations
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-y-auto flex-1">
+            <pre className="text-xs bg-slate-100 dark:bg-slate-900 p-4 rounded-lg overflow-x-auto">
+              <code>{`# OpenAI Configuration
+OPENAI_API_KEY=your-openai-api-key-here
+
+# Anthropic Configuration
+ANTHROPIC_API_KEY=your-anthropic-api-key-here
+
+# Google AI Configuration (Generative AI)
+GOOGLE_GENERATIVE_AI_API_KEY=your-google-api-key-here
+
+# Google Vertex AI Configuration
+GOOGLE_VERTEX_PROJECT=your-gcp-project-id
+GOOGLE_VERTEX_LOCATION=us-central1
+
+# Mistral Configuration
+MISTRAL_API_KEY=your-mistral-api-key-here
+
+# Azure OpenAI Configuration
+AZURE_API_KEY=your-azure-api-key-here
+AZURE_RESOURCE_NAME=your-azure-resource-name
+
+# Groq Configuration
+GROQ_API_KEY=your-groq-api-key-here
+
+# Cohere Configuration
+COHERE_API_KEY=your-cohere-api-key-here
+
+# Amazon Bedrock Configuration
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your-aws-access-key-id
+AWS_SECRET_ACCESS_KEY=your-aws-secret-access-key
+# AWS_SESSION_TOKEN=your-aws-session-token  # Optional, for temporary credentials
+
+# Custom OpenAI-Compatible Providers
+# Format: {NAME}_API_KEY, {NAME}_API_BASE, {NAME}_API_TYPE=openai
+# These will be automatically detected and registered
+
+# Example: Z.AI
+ZAI_API_KEY=your-zai-api-key-here
+ZAI_API_BASE=https://api.z.ai/api/coding/paas/v4
+ZAI_API_TYPE=openai
+ZAI_API_NAME=zai  # Optional display name
+
+# Example: OpenRouter
+OPENROUTER_API_KEY=your-openrouter-api-key-here
+OPENROUTER_API_BASE=https://openrouter.ai/api/v1
+OPENROUTER_API_TYPE=openai
+OPENROUTER_API_NAME=openrouter  # Optional display name
+
+# Example: Together AI
+TOGETHER_API_KEY=your-together-api-key-here
+TOGETHER_API_BASE=https://api.together.xyz/v1
+TOGETHER_API_TYPE=openai
+TOGETHER_API_NAME=together  # Optional display name
+
+# Example: Perplexity
+PERPLEXITY_API_KEY=your-perplexity-api-key-here
+PERPLEXITY_API_BASE=https://api.perplexity.ai
+PERPLEXITY_API_TYPE=openai
+PERPLEXITY_API_NAME=perplexity  # Optional display name
+
+# Example: GitHub Models API (for use in CI with GitHub tokens)
+# Note: Use GitHub token (e.g., from secrets.GITHUB_TOKEN in Actions)
+# Available models: gpt-4o, gpt-4o-mini, o1-preview, o1-mini, Phi-3-*, etc.
+# See: https://github.com/marketplace/models
+#
+# For local development with integration tests:
+# 1. Create a GitHub Personal Access Token with appropriate permissions
+# 2. Or use your GitHub Copilot Pro token
+# 3. Run tests with: GITHUB_MODELS_API_KEY=... npm test -- --run llm-integration
+GITHUB_MODELS_API_KEY=your-github-token-here
+GITHUB_MODELS_API_BASE=https://models.inference.ai.azure.com
+GITHUB_MODELS_API_TYPE=openai
+GITHUB_MODELS_API_NAME=github  # Optional display name
+
+# Model Aliases
+# Define aliases for easier model reference using LM_MODEL_* prefix
+# Usage: model: "large" instead of model: "openai:gpt-4o"
+LM_MODEL_LARGE=anthropic:claude-3-5-sonnet-20241022
+LM_MODEL_FAST=openai:gpt-4o-mini
+LM_MODEL_SMART=anthropic:claude-3-opus-20240229
+
+# Testing Configuration
+MOCK_PROVIDER_ENABLED=true
+TEST_TIMEOUT=10000
+
+# Development Configuration
+NODE_ENV=development
+DEBUG=lmthing:*
+
+# Langfuse Observability (optional)
+# Get API keys from https://cloud.langfuse.com or your self-hosted instance.
+# See docker-compose.langfuse.yml for running Langfuse locally.
+LANGFUSE_SECRET_KEY=sk-lf-your-secret-key-here
+LANGFUSE_PUBLIC_KEY=pk-lf-your-public-key-here
+# For local self-hosting use http://localhost:3000; for Langfuse Cloud use https://cloud.langfuse.com
+# For US region Cloud: https://us.cloud.langfuse.com
+LANGFUSE_BASEURL=http://localhost:3000`}</code>
+            </pre>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { StudioShell } from './components'
 import { useWorkspaceData } from '@/lib/workspaceDataContext'
 import { FlowEditorModal } from '@/sections/agent-builder/components/FlowEditorModal'
@@ -64,6 +64,7 @@ function normalizeKnowledgeParentPath(path: string | null | undefined): string |
 export default function StudioLayout() {
   const { agentId, actionId, workspaceName } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const [state, setState] = useState<StudioState>(loadState)
   const {
     setCurrentWorkspace,
@@ -80,6 +81,13 @@ export default function StudioLayout() {
   const studioPath = workspaceName
     ? `/workspace/${toWorkspaceRouteParam(workspaceName)}/studio`
     : '/studio'
+
+  // Redirect /settings to /settings/env by default
+  useEffect(() => {
+    if (location.pathname.endsWith('/settings')) {
+      navigate(`${studioPath}/settings/env`, { replace: true })
+    }
+  }, [location.pathname, navigate, studioPath])
 
   // Sync URL workspace param into the data context
   useEffect(() => {
@@ -463,7 +471,7 @@ export default function StudioLayout() {
               : { ...prev, sidebarCollapsed: collapsed }
           )
         }
-        onOpenSettings={() => navigate(`${studioPath}/settings`)}
+        onOpenSettings={() => navigate(`${studioPath}/settings/env`)}
         onCreateDomain={() => setIsCreateDomainModalOpen(true)}
         onEditDomain={(id) => console.log('Edit domain:', id)}
         onDeleteDomain={(id) => console.log('Delete domain:', id)}

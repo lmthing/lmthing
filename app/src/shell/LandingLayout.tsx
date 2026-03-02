@@ -153,12 +153,9 @@ export default function LandingLayout() {
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden sm:inline-block text-sm text-muted-foreground mr-2">Your expertise, amplified by AI</span>
-            <GithubDeploymentStatus 
-              repo="lmthing/lmthing" 
-              workflowName="Deploy to GitHub Pages"
-              branch="main"
-            />
-            <GithubStars repo="lmthing/lmthing" />
+            <div className="hidden sm:block">
+              <GithubStars repo="lmthing/lmthing" />
+            </div>
             <GithubLoginButton />
           </div>
         </div>
@@ -659,13 +656,23 @@ export default function LandingLayout() {
           <div className="mt-12 pt-8 border-t">
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
               <p>© {new Date().getFullYear()} lmthing. Turn Knowledge into LLM Engineers.</p>
-              <div className="flex items-center gap-6">
-                <a href="https://github.com/lmthing/lmthing/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
-                  License
-                </a>
-                <a href="https://github.com/lmthing/lmthing" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
-                  Terms
-                </a>
+              <div className="flex items-center gap-4">
+                <div className="sm:hidden">
+                  <GithubStars repo="lmthing/lmthing" />
+                </div>
+                <GithubDeploymentStatus 
+                  repo="lmthing/lmthing" 
+                  workflowName="Deploy to GitHub Pages"
+                  branch="main"
+                />
+                <div className="flex items-center gap-6">
+                  <a href="https://github.com/lmthing/lmthing/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+                    License
+                  </a>
+                  <a href="https://github.com/lmthing/lmthing" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+                    Terms
+                  </a>
+                </div>
               </div>
             </div>
           </div>

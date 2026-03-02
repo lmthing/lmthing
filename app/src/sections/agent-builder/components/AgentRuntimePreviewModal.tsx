@@ -869,7 +869,7 @@ Start with the first task now.
       : []
 
     return (
-      <div className="h-full flex">
+      <div className="h-full flex relative">
         {/* Main Chat Area */}
         <div className="flex-1 min-w-0 flex flex-col">
           <div className="flex-1 min-h-0 flex">

@@ -408,6 +408,7 @@ export function ChatPanel({
   onSendMessage,
   onSaveConversation,
   canSaveConversation = false,
+  onViewSystemPrompt,
 }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messages = useMemo(() => activeConversation?.messages ?? [], [activeConversation?.messages])

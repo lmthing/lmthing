@@ -66,8 +66,13 @@ const THING_WELCOME_MESSAGE =
   'I am THING. I can execute workspace data actions directly via tools. Ask in plain language, send JSON, or type help.'
 
 const THING_CONVERSATIONS_STORAGE_KEY = 'lmthing-thing-conversations-v1'
+const THING_PANEL_WIDTH_STORAGE_KEY = 'lmthing-thing-panel-width-v1'
 const THING_TOOL_EVENT_OPEN = '[[THING_TOOL_EVENT]]'
 const THING_TOOL_EVENT_CLOSE = '[[/THING_TOOL_EVENT]]'
+
+const THING_PANEL_MIN_WIDTH = 320
+const THING_PANEL_MAX_WIDTH = 800
+const THING_PANEL_DEFAULT_WIDTH = 420
 
 const THING_HELP_MESSAGE = [
   `Available actions: ${THING_ACTION_NAMES.join(', ')}`,
@@ -483,8 +488,17 @@ export function ThingPanel({ isOpen, agentBuilderProps }: ThingPanelProps) {
   const [editingMessageContent, setEditingMessageContent] = useState('')
   const [editingConversationId, setEditingConversationId] = useState<string | null>(null)
   const [editingConversationTitle, setEditingConversationTitle] = useState('')
+  const [panelWidth, setPanelWidth] = useState<number>(() => {
+    if (typeof window === 'undefined') return THING_PANEL_DEFAULT_WIDTH
+    const stored = window.localStorage.getItem(THING_PANEL_WIDTH_STORAGE_KEY)
+    const parsed = stored ? Number.parseInt(stored, 10) : THING_PANEL_DEFAULT_WIDTH
+    return Number.isFinite(parsed) ? Math.max(THING_PANEL_MIN_WIDTH, Math.min(THING_PANEL_MAX_WIDTH, parsed)) : THING_PANEL_DEFAULT_WIDTH
+  })
+  const [isResizing, setIsResizing] = useState(false)
   const thingSnapshotsRef = useRef<Record<string, unknown>>({})
   const thingMessagesEndRef = useRef<HTMLDivElement | null>(null)
+  const resizeStartXRef = useRef<number>(0)
+  const resizeStartWidthRef = useRef<number>(0)
   const thingModel = useMemo(() => resolveThingModelId(), [])
 
   const currentConversation = useMemo(() => {
@@ -2245,6 +2259,43 @@ export function ThingPanel({ isOpen, agentBuilderProps }: ThingPanelProps) {
     updateConversationMessages,
   ])
 
+  const handleResizeStart = useCallback((event: React.MouseEvent) => {
+    event.preventDefault()
+    setIsResizing(true)
+    resizeStartXRef.current = event.clientX
+    resizeStartWidthRef.current = panelWidth
+  }, [panelWidth])
+
+  const handleResizeMove = useCallback((event: MouseEvent) => {
+    if (!isResizing) return
+    const deltaX = resizeStartXRef.current - event.clientX
+    const nextWidth = Math.max(
+      THING_PANEL_MIN_WIDTH,
+      Math.min(THING_PANEL_MAX_WIDTH, resizeStartWidthRef.current + deltaX)
+    )
+    setPanelWidth(nextWidth)
+  }, [isResizing])
+
+  const handleResizeEnd = useCallback(() => {
+    if (!isResizing) return
+    setIsResizing(false)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(THING_PANEL_WIDTH_STORAGE_KEY, String(panelWidth))
+    }
+  }, [isResizing, panelWidth])
+
+  useEffect(() => {
+    if (!isResizing) return
+
+    document.addEventListener('mousemove', handleResizeMove)
+    document.addEventListener('mouseup', handleResizeEnd)
+
+    return () => {
+      document.removeEventListener('mousemove', handleResizeMove)
+      document.removeEventListener('mouseup', handleResizeEnd)
+    }
+  }, [isResizing, handleResizeMove, handleResizeEnd])
+
   const handleThingSubmit = useCallback((event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
@@ -2282,19 +2333,27 @@ export function ThingPanel({ isOpen, agentBuilderProps }: ThingPanelProps) {
   if (!isOpen) return null
 
   return (
-    <aside className="w-[420px] border-l border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/80 flex min-w-0 flex-col">
-      <div className="h-14 border-b border-slate-200 px-4 flex items-center justify-between dark:border-slate-800">
+    <aside
+      style={{ width: `${panelWidth}px` }}
+      className="relative border-l border-stone-300 bg-gradient-to-b from-amber-50 to-stone-100 dark:border-stone-700 dark:bg-gradient-to-b dark:from-stone-900 dark:to-stone-950 flex min-w-0 flex-col"
+    >
+      <div
+        onMouseDown={handleResizeStart}
+        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-amber-600/30 active:bg-amber-600/50 transition-colors z-10"
+        style={{ marginLeft: '-2px' }}
+      />
+      <div className="h-14 border-b border-stone-300 px-4 flex items-center justify-between bg-amber-100/60 dark:border-stone-700 dark:bg-stone-900">
         <div className="flex items-center gap-2">
-          <Bot className="h-4 w-4 text-violet-500" />
-          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">thing</h2>
+          <Bot className="h-4 w-4 text-amber-700 dark:text-amber-500" />
+          <h2 className="text-sm font-semibold text-stone-800 dark:text-amber-100">thing</h2>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500 dark:text-slate-400">Workspace actions</span>
+          <span className="text-xs text-stone-600 dark:text-stone-400">Workspace actions</span>
           <button
             type="button"
             onClick={createNewChat}
             disabled={isThingWorking}
-            className="rounded-md border border-violet-300 px-2 py-1 text-xs font-medium text-violet-700 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-violet-700 dark:text-violet-200 dark:hover:bg-violet-950/30"
+            className="rounded-md border border-amber-600 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200 dark:hover:bg-amber-900/40"
           >
             New chat
           </button>
@@ -2302,8 +2361,8 @@ export function ThingPanel({ isOpen, agentBuilderProps }: ThingPanelProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        <div className="rounded-lg border border-slate-200 bg-white/70 p-2 dark:border-slate-700 dark:bg-slate-900/60">
-          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <div className="rounded-lg border border-stone-300 bg-white shadow-sm p-2 dark:border-stone-700 dark:bg-stone-900/50">
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-stone-600 dark:text-amber-500">
             History
           </div>
           <div className="max-h-36 space-y-1 overflow-y-auto pr-1">
@@ -2368,8 +2427,8 @@ export function ThingPanel({ isOpen, agentBuilderProps }: ThingPanelProps) {
             key={message.id}
             className={
               message.role === 'user'
-                ? 'ml-8 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-900 dark:border-violet-900/40 dark:bg-violet-900/20 dark:text-violet-100'
-                : 'mr-8 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
+                ? 'ml-8 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-stone-800 shadow-sm dark:border-amber-800/50 dark:bg-amber-950/20 dark:text-amber-100'
+                : 'mr-8 rounded-lg border border-stone-300 bg-stone-50/80 px-3 py-2 text-sm text-stone-800 shadow-sm dark:border-stone-700 dark:bg-stone-900/50 dark:text-stone-200'
             }
           >
             <div className="mb-1 flex items-center justify-between gap-2 text-[11px] font-medium uppercase tracking-wide opacity-70">
@@ -2430,7 +2489,7 @@ export function ThingPanel({ isOpen, agentBuilderProps }: ThingPanelProps) {
         ))}
 
         {isThingWorking && (
-          <div className="mr-8 rounded-lg border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
+          <div className="mr-8 rounded-lg border border-stone-300 bg-stone-50/80 px-3 py-2.5 shadow-sm dark:border-stone-700 dark:bg-stone-900/50">
             <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">Thing</div>
             <div className="flex items-center gap-2.5">
               <div className="relative flex h-5 w-5 items-center justify-center">
@@ -2445,20 +2504,20 @@ export function ThingPanel({ isOpen, agentBuilderProps }: ThingPanelProps) {
         <div ref={thingMessagesEndRef} />
       </div>
 
-      <form onSubmit={handleThingSubmit} className="border-t border-slate-200 p-3 space-y-2 dark:border-slate-800">
+      <form onSubmit={handleThingSubmit} className="border-t border-stone-300 p-3 space-y-2 bg-amber-50/40 dark:border-stone-700 dark:bg-stone-900/30">
         <textarea
           value={thingInput}
           onChange={(event) => setThingInput(event.target.value)}
           rows={5}
           placeholder="Type help or paste JSON action envelope..."
-          className="w-full resize-none rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-violet-500 focus:ring-2 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+          className="w-full resize-none rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 outline-none ring-amber-600 focus:ring-2 dark:border-stone-600 dark:bg-stone-950/80 dark:text-stone-200"
         />
         <div className="flex items-center justify-between gap-3">
-          <span className="text-xs text-slate-500 dark:text-slate-400">Try: help or status</span>
+          <span className="text-xs text-stone-600 dark:text-stone-400">Try: help or status</span>
           <button
             type="submit"
             disabled={isThingWorking || !thingInput.trim()}
-            className="inline-flex items-center rounded-md bg-violet-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center rounded-md bg-amber-700 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
           >
             Send
           </button>

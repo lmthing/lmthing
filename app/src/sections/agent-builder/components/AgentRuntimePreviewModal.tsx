@@ -48,6 +48,12 @@ interface AgentRuntimePreviewModalProps {
   enableFlowExecution?: boolean
   // Slash actions available for this agent
   slashActions?: Array<{ name: string; description: string; flowId: string; actionId: string }>
+  // Rendering mode: 'modal' (default) or 'inline' (for sidebar view)
+  mode?: 'modal' | 'inline'
+  // Previous conversations for this agent (for inline mode)
+  conversations?: Conversation[]
+  // Loaded agent ID (for inline mode)
+  loadedAgentId?: string | null
 }
 
 export function AgentRuntimePreviewModal({
@@ -63,6 +69,9 @@ export function AgentRuntimePreviewModal({
   flowTasks = [],
   enableFlowExecution = false,
   slashActions = [],
+  mode = 'modal',
+  conversations: previousConversations = [],
+  loadedAgentId = null,
 }: AgentRuntimePreviewModalProps) {
   const { knowledge } = useWorkspaceData()
   const { getFlow } = useFlows()
@@ -852,7 +861,122 @@ Start with the first task now.
 
   // Find runtime fields not associated with any enabled file path
 
-  // Replace modal content with AgentRuntimeView
+  // Inline mode - render directly without modal wrapper
+  if (mode === 'inline') {
+    // Filter conversations for this agent
+    const agentConversations = loadedAgentId 
+      ? previousConversations.filter(c => c.agentId === loadedAgentId)
+      : []
+
+    return (
+      <div className="h-full flex">
+        {/* Main Chat Area */}
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex-1 min-h-0 flex">
+            <AgentRuntimeView
+              agent={previewAgent}
+              conversations={[conversation]}
+              activeConversationId={conversation.id}
+              isLoading={isLoading}
+              onSendMessage={handleSendMessage}
+              onSaveConversation={handleSaveConversation}
+              canSaveConversation={canSaveConversation}
+              hideTopNav={true}
+              onBackToList={() => {}}
+              onRuntimeFieldChange={handleRuntimeFieldChange}
+              onViewSystemPrompt={() => setShowSystemPrompt(true)}
+            />
+          </div>
+        </div>
+
+        {/* Conversations Sidebar - Right Side */}
+        {agentConversations.length > 0 && (
+          <div className="w-64 flex-shrink-0 border-l border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex flex-col">
+            <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+              <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                Conversations
+              </h4>
+              <p className="text-[10px] text-slate-500 dark:text-slate-500 mt-0.5">
+                {agentConversations.length} total
+              </p>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              <button
+                onClick={handleReset}
+                className="w-full text-left px-3 py-2 rounded-lg text-xs transition-colors bg-violet-600 hover:bg-violet-700 text-white font-medium"
+              >
+                + New Conversation
+              </button>
+              {agentConversations.map((conv) => (
+                <button
+                  key={conv.id}
+                  onClick={() => {
+                    setConversation(conv)
+                  }}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
+                    conversation.id === conv.id
+                      ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-sm ring-1 ring-violet-500/20'
+                      : 'text-slate-700 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-800/50'
+                  }`}
+                >
+                  <div className="flex flex-col gap-1">
+                    <div className="font-medium truncate">
+                      {conv.messages[0]?.content.slice(0, 40) || 'New conversation'}...
+                    </div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-500">
+                      {new Date(conv.updatedAt).toLocaleDateString()} • {conv.messages.length} msgs
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* System Prompt Modal */}
+        {showSystemPrompt && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center p-4 bg-black/40">
+            <div className="relative w-full max-w-3xl max-h-[70vh] bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Full System Prompt</h3>
+                <button
+                  onClick={() => setShowSystemPrompt(false)}
+                  className="p-1.5 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="flex-1 overflow-auto p-4">
+                <pre className="text-xs font-mono text-slate-700 dark:text-slate-300 whitespace-pre-wrap break-words bg-slate-50 dark:bg-slate-950 rounded-lg p-3 border border-slate-200 dark:border-slate-800">
+                  {fullSystemPrompt}
+                </pre>
+              </div>
+              <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(fullSystemPrompt)
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  Copy
+                </button>
+                <button
+                  onClick={() => setShowSystemPrompt(false)}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Modal mode - existing modal wrapper
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div

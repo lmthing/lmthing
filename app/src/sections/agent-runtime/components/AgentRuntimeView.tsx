@@ -32,6 +32,8 @@ export interface AgentRuntimeViewProps {
   canSaveConversation?: boolean
   /** Whether to hide the top navigation bar */
   hideTopNav?: boolean
+  /** Callback to view system prompt */
+  onViewSystemPrompt?: () => void
 }
 
 export function AgentRuntimeView({
@@ -49,6 +51,7 @@ export function AgentRuntimeView({
   onSaveConversation,
   canSaveConversation = false,
   hideTopNav = false,
+  onViewSystemPrompt,
 }: AgentRuntimeViewProps) {
   const [runtimeFieldValues, setRuntimeFieldValues] = useState<Record<string, string | string[] | boolean>>({})
 
@@ -155,6 +158,7 @@ export function AgentRuntimeView({
           onDeleteConversation={handleDeleteConversation}
           onSaveConversation={onSaveConversation}
           canSaveConversation={canSaveConversation}
+          onViewSystemPrompt={onViewSystemPrompt}
         />
       </div>
     </div>

@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { StudioSidebar } from './StudioSidebar'
 import { ThingPanel } from './ThingPanel'
-import { Bot, Folder, Download, Github } from 'lucide-react'
+import { Bot, Folder } from 'lucide-react'
 import { PromptLibrary } from '@/sections/prompt-library/components/PromptLibrary'
 import { AgentFormBuilder } from '@/sections/agent-builder/components/AgentFormBuilder'
 import { AgentRuntimeView } from '@/sections/agent-runtime/components'
@@ -38,12 +38,7 @@ import { useWorkspaces } from '@/hooks/useWorkspaces'
 import { flattenEmptyFieldsForRuntime } from '@/lib/utils'
 import { downloadWorkspaceZip, exportWorkspaceToNewGithubRepo } from '@/lib/workspaceExport'
 import { fromWorkspaceRouteParam, toWorkspaceRouteParam } from '@/lib/workspaces'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+
 
 function toAgentId(name: string): string {
   const base = name
@@ -249,6 +244,7 @@ export function StudioShell({
   const { flows: flowsMap } = useFlows()
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(defaultSidebarCollapsed)
+  const [agentViewMode, setAgentViewMode] = useState<'edit' | 'view'>('edit')
 
   // Workspace - derived directly from URL
   const currentWorkspace = useWorkspace(workspaceName)
@@ -1257,7 +1253,10 @@ export function StudioShell({
   }
 
   // Build agent builder props using new data structure
-  const agentBuilderProps: AgentBuilderScreenProps = {
+  const agentBuilderProps: AgentBuilderScreenProps & { 
+    conversations?: RuntimeConversation[]
+    onViewModeChange?: (mode: 'edit' | 'view') => void
+  } = {
     domains,
     toolLibrary: [], // Empty for now - tool library not in extracted data
     savedAgentConfigs: agents,
@@ -1276,6 +1275,17 @@ export function StudioShell({
     toolLibraryOpen,
     flowBuilderOpen,
     loadedAgentId: agentId || null,
+    conversations: runtimeConversations,
+    onViewModeChange: (mode) => {
+      setAgentViewMode(mode)
+      // Collapse sidebar when entering view mode, restore when entering edit mode
+      if (mode === 'view') {
+        setIsSidebarCollapsed(true)
+      } else {
+        setIsSidebarCollapsed(defaultSidebarCollapsed)
+      }
+    },
+    agentViewMode,
     onDomainsChange: handleDomainsChange,
     onFieldValueChange: handleFieldValueChange,
     onEnableFieldForRuntime: handleEnableFieldForRuntime,
@@ -1317,6 +1327,14 @@ export function StudioShell({
         onCreateDomain={handleCreateDomain}
         onCreateAgent={handleCreateAgent}
         workspace={currentWorkspace}
+        onExportZip={handleExportWorkspace}
+        onExportGithub={handleExportWorkspaceToGithub}
+        isExporting={isExportingWorkspace || isExportingGithubRepo}
+        exportProgress={githubExportProgress ? {
+          uploadedFiles: githubExportProgress.uploadedFiles,
+          totalFiles: githubExportProgress.totalFiles,
+        } : undefined}
+        canExport={!!workspaceData}
       />
 
       {/* Main Content + Thing Panel */}
@@ -1339,6 +1357,36 @@ export function StudioShell({
             <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               {activeAgent ? activeAgent.name : activeDomain ? activeDomain.label : 'Studio'}
             </h1>
+            {activeAgent && (
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+                <button
+                  onClick={() => {
+                    setAgentViewMode('edit')
+                    setIsSidebarCollapsed(defaultSidebarCollapsed)
+                  }}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                    agentViewMode === 'edit'
+                      ? 'bg-white dark:bg-slate-900 text-violet-600 dark:text-violet-400 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => {
+                    setAgentViewMode('view')
+                    setIsSidebarCollapsed(true)
+                  }}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                    agentViewMode === 'view'
+                      ? 'bg-white dark:bg-slate-900 text-violet-600 dark:text-violet-400 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  }`}
+                >
+                  View
+                </button>
+              </div>
+            )}
             {(activeDomain || activeAgent) && (
               <span className="text-sm text-slate-500 dark:text-slate-400">
                 {activeAgent?.description || activeDomain?.description}
@@ -1353,60 +1401,6 @@ export function StudioShell({
               <Bot className="h-4 w-4" />
               {isThingOpen ? 'Hide Thing' : 'Thing'}
             </button>
-            {isAuthenticated ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    disabled={!workspaceData || isExportingWorkspace || isExportingGithubRepo}
-                    className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-                  >
-                    <Download className="h-4 w-4" />
-                    {isExportingWorkspace
-                      ? 'Downloading…'
-                      : isExportingGithubRepo
-                        ? `Creating repo… (${githubExportProgress?.uploadedFiles ?? 0}/${githubExportProgress?.totalFiles ?? 0})`
-                        : 'Export'}
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={() => {
-                      void handleExportWorkspace()
-                    }}
-                    disabled={!workspaceData || isExportingWorkspace || isExportingGithubRepo}
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Download ZIP
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      void handleExportWorkspaceToGithub()
-                    }}
-                    disabled={!workspaceData || isExportingWorkspace || isExportingGithubRepo}
-                  >
-                    <Github className="mr-2 h-4 w-4" />
-                    Create GitHub Repo
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <button
-                onClick={handleExportWorkspace}
-                disabled={!workspaceData || isExportingWorkspace}
-                className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-              >
-                <Download className="h-4 w-4" />
-                {isExportingWorkspace ? 'Exporting…' : 'Export'}
-              </button>
-            )}
-            {isExportingGithubRepo && githubExportProgress && (
-              <span
-                className="max-w-64 truncate text-xs text-slate-500 dark:text-slate-400"
-                title={githubExportProgress.currentPath}
-              >
-                Uploading: {githubExportProgress.currentPath}
-              </span>
-            )}
           </div>
         </header>
 

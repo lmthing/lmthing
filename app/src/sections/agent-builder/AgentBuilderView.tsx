@@ -474,6 +474,33 @@ function AgentBuilderPreviewContent({ data, flowBuilderData, firstAgent }: Agent
 
   const promptPreview = data.promptPreview
 
+  // Extract conversations from agents
+  const allConversations = useMemo(() => {
+    const result: Array<{
+      id: string
+      agentId: string
+      agentName: string
+      messages: Array<{ id: string; role: 'user' | 'assistant'; content: string; timestamp: string }>
+      createdAt: string
+      updatedAt: string
+    }> = []
+    
+    for (const agent of Object.values(agentsMap)) {
+      for (const conv of agent.conversations || []) {
+        result.push({
+          id: conv.id,
+          agentId: conv.agentId,
+          agentName: conv.agentName,
+          messages: conv.messages,
+          createdAt: conv.createdAt,
+          updatedAt: conv.updatedAt,
+        })
+      }
+    }
+    
+    return result
+  }, [agentsMap])
+
   const builderProps = {
     domains: data.domains,
     toolLibrary: data.toolLibrary,
@@ -490,6 +517,7 @@ function AgentBuilderPreviewContent({ data, flowBuilderData, firstAgent }: Agent
     toolLibraryOpen,
     flowBuilderOpen,
     loadedAgentId: 'preview-agent',
+    conversations: allConversations,
     onDomainsChange: handleDomainsChange,
     onFieldValueChange: handleFieldValueChange,
     onEnableFieldForRuntime: handleEnableFieldForRuntime,

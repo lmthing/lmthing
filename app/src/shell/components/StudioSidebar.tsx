@@ -88,6 +88,12 @@ export interface StudioSidebarProps {
   onCreateDomain?: () => void
   onCreateAgent?: () => void
   workspace?: Workspace
+  // Export functionality
+  onExportZip?: () => void
+  onExportGithub?: () => void
+  isExporting?: boolean
+  exportProgress?: { uploadedFiles?: number; totalFiles?: number }
+  canExport?: boolean
 }
 
 export function StudioSidebar({
@@ -99,6 +105,11 @@ export function StudioSidebar({
   onCreateDomain,
   onCreateAgent,
   workspace,
+  onExportZip,
+  onExportGithub,
+  isExporting = false,
+  exportProgress,
+  canExport = false,
 }: StudioSidebarProps) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -225,6 +236,11 @@ export function StudioSidebar({
               <WorkspaceSelector
                 currentWorkspace={workspace}
                 isCollapsed={false}
+                onExportZip={onExportZip}
+                onExportGithub={onExportGithub}
+                isExporting={isExporting}
+                exportProgress={exportProgress}
+                canExport={canExport}
               />
             </div>
           )}
@@ -245,6 +261,11 @@ export function StudioSidebar({
             <WorkspaceSelector
               currentWorkspace={workspace}
               isCollapsed={true}
+              onExportZip={onExportZip}
+              onExportGithub={onExportGithub}
+              isExporting={isExporting}
+              exportProgress={exportProgress}
+              canExport={canExport}
             />
             <button
               type="button"

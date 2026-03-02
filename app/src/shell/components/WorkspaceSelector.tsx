@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { Check, ChevronDown, Building2, Loader2, Plus } from 'lucide-react'
+import { Check, ChevronDown, Building2, Loader2, Plus, Download, Github } from 'lucide-react'
 import { useState, useCallback, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
@@ -53,6 +53,12 @@ export interface WorkspaceSelectorProps {
   currentWorkspace?: Workspace
   onWorkspaceChange?: (workspace: Workspace) => void
   isCollapsed?: boolean
+  // Export functionality
+  onExportZip?: () => void
+  onExportGithub?: () => void
+  isExporting?: boolean
+  exportProgress?: { uploadedFiles?: number; totalFiles?: number }
+  canExport?: boolean
 }
 
 function toLocalWorkspaceId(value: string): string {
@@ -80,6 +86,11 @@ export function WorkspaceSelector({
   currentWorkspace,
   onWorkspaceChange,
   isCollapsed = false,
+  onExportZip,
+  onExportGithub,
+  isExporting = false,
+  exportProgress,
+  canExport = false,
 }: WorkspaceSelectorProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isRepoModalOpen, setIsRepoModalOpen] = useState(false)
@@ -490,6 +501,34 @@ export function WorkspaceSelector({
           </div>
 
           <DropdownMenuSeparator />
+
+          {canExport && (
+            <>
+              <DropdownMenuItem
+                onClick={onExportZip}
+                disabled={isExporting}
+                className="flex items-center gap-3 cursor-pointer"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download ZIP</span>
+              </DropdownMenuItem>
+              {isAuthenticated && (
+                <DropdownMenuItem
+                  onClick={onExportGithub}
+                  disabled={isExporting}
+                  className="flex items-center gap-3 cursor-pointer"
+                >
+                  <Github className="w-4 h-4" />
+                  <span>
+                    {isExporting && exportProgress
+                      ? `Creating repo… (${exportProgress.uploadedFiles ?? 0}/${exportProgress.totalFiles ?? 0})`
+                      : 'Create GitHub Repo'}
+                  </span>
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+            </>
+          )}
 
           <DropdownMenuItem
             onClick={() => queryClient.invalidateQueries({ queryKey: ['github-workspaces'] })}

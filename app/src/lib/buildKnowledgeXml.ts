@@ -55,18 +55,37 @@ export function buildKnowledgeXml(
         return null
       }
 
-      // Use config.label or frontmatter.title or path as tag name
+      const content = node.content?.trim() || ''
+      if (!content) {
+        return null
+      }
+
+      // For .md files, use 'selection' tag instead of filename-based tag
+      const isMdFile = node.path.endsWith('.md')
+
+      if (isMdFile) {
+        // If content is an array, wrap each item in selection tags
+        try {
+          const parsed = JSON.parse(content)
+          if (Array.isArray(parsed)) {
+            return parsed
+              .map(item => `${indent}<selection>\n${escapeXmlContent(String(item).trim(), depth + 1)}\n${indent}</selection>`)
+              .join('\n')
+          }
+        } catch {
+          // Not valid JSON, treat as single value
+        }
+        // Single value - wrap in selection tag
+        return `${indent}<selection>\n${escapeXmlContent(content, depth + 1)}\n${indent}</selection>`
+      }
+
+      // Non-md files: use config.label or frontmatter.title or path as tag name
       const tagName = sanitizeTagName(
         node.config?.label ||
         (node.frontmatter?.title as string | undefined) ||
         node.path.split('/').pop()?.replace(/\.md$/, '') ||
         'content'
       )
-
-      const content = node.content?.trim() || ''
-      if (!content) {
-        return null
-      }
 
       return `${indent}<${tagName}>\n${escapeXmlContent(content, depth + 1)}\n${indent}</${tagName}>`
     }

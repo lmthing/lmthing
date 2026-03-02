@@ -7,6 +7,7 @@ import type {
   EnabledToolMapping,
 } from '@/../product/sections/agent-builder/types'
 import type { ToolConfigStatus } from '@/../product/sections/agent-builder/types'
+import type { Conversation } from '@/../product/sections/agent-runtime/types'
 import { useState, useCallback, useMemo } from 'react'
 import { DomainSelector } from './DomainSelector'
 import { FormField } from './FormField'
@@ -155,7 +156,7 @@ function SchemaNodeRenderer({ node, ...props }: SchemaNodeRendererProps) {
  *
  * @props AgentBuilderScreenProps - All data and callbacks passed as props
  */
-export function AgentFormBuilder(props: AgentBuilderScreenProps) {
+export function AgentFormBuilder(props: AgentBuilderScreenProps & { conversations?: Conversation[]; onViewModeChange?: (mode: 'edit' | 'view') => void; agentViewMode?: 'edit' | 'view' }) {
   const {
     domains,
     toolLibrary,
@@ -171,6 +172,9 @@ export function AgentFormBuilder(props: AgentBuilderScreenProps) {
     toolLibraryOpen = false,
     loadedAgentId = null,
     onSaveRuntimeConversation,
+    conversations = [],
+    onViewModeChange,
+    agentViewMode: viewModeProp,
     onDomainsChange,
     onFieldValueChange,
     onEnableFieldForRuntime,
@@ -191,10 +195,15 @@ export function AgentFormBuilder(props: AgentBuilderScreenProps) {
   } = props
 
   // UI State
+  const viewMode = viewModeProp || 'edit'
   const [activeTab, setActiveTab] = useState<'tools' | 'actions'>('actions')
   const [saveModalOpen, setSaveModalOpen] = useState(false)
   const [runtimePreviewOpen, setRuntimePreviewOpen] = useState(false)
   const [expandedDomains, setExpandedDomains] = useState<Set<string>>(new Set(selectedDomainIds))
+
+  const handleViewModeChange = useCallback((mode: 'edit' | 'view') => {
+    onViewModeChange?.(mode)
+  }, [onViewModeChange])
 
   // Expand newly selected domains
   useState(() => {
@@ -347,17 +356,55 @@ export function AgentFormBuilder(props: AgentBuilderScreenProps) {
 
   return (
     <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-950">
-      {/* Domain Selector - Top Bar */}
-      <DomainSelector
-        domains={domains}
-        selectedDomainIds={selectedDomainIds}
-        onDomainsChange={onDomainsChange}
-      />
+      {/* Domain Selector - Only show in Edit mode */}
+      {viewMode === 'edit' && (
+        <DomainSelector
+          domains={domains}
+          selectedDomainIds={selectedDomainIds}
+          onDomainsChange={onDomainsChange}
+        />
+      )}
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Center Panel - Agent Builder */}
-        <main className="flex-1 overflow-y-auto">
+        {/* View Mode - Runtime Preview in Main */}
+        {viewMode === 'view' ? (
+          <main className="flex-1 overflow-hidden">
+            <AgentRuntimePreviewModal
+              isOpen={true}
+              onClose={() => {}}
+              enabledFilePaths={enabledFilePaths}
+              generatedPrompt={promptPreview?.generatedPrompt || ''}
+              formValues={formValues}
+              selectedDomainFields={selectedDomainFields}
+              onSaveConversation={onSaveRuntimeConversation}
+              canSaveConversation={Boolean(loadedAgentId && onSaveRuntimeConversation)}
+              runtimeFields={runtimeFieldEntries.map(({ field, domainName }) => ({
+                id: field.id,
+                label: field.label,
+                domain: domainName,
+                fieldType: field.fieldType,
+                placeholder: field.placeholder,
+                options: field.options?.map((option) => option.label),
+              }))}
+              mode="inline"
+              conversations={conversations}
+              loadedAgentId={loadedAgentId}
+              slashActions={attachedFlows
+                .filter(af => af.slashAction.enabled)
+                .map(af => ({
+                  name: af.slashAction.actionId,
+                  description: af.slashAction.description,
+                  flowId: af.flowId,
+                  actionId: af.slashAction.actionId,
+                }))}
+            />
+          </main>
+        ) : (
+          /* Edit Mode - Agent Builder */
+          <>
+          {/* Center Panel - Agent Builder */}
+          <main className="flex-1 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-6 py-8">
             {/* Main Instruction Section */}
             <div className="mb-8">
@@ -571,6 +618,8 @@ These instructions will appear at the top of your agent's system prompt.`}
             </button>
           </div>
         </aside>
+        </>
+        )}
 
         {/* Save Agent Modal */}
         <SaveAgentModal
@@ -579,24 +628,36 @@ These instructions will appear at the top of your agent's system prompt.`}
           onSave={handleSaveAgent}
         />
 
-        <AgentRuntimePreviewModal
-          isOpen={runtimePreviewOpen}
-          onClose={() => setRuntimePreviewOpen(false)}
-          enabledFilePaths={enabledFilePaths}
-          generatedPrompt={promptPreview?.generatedPrompt || ''}
-          formValues={formValues}
-          selectedDomainFields={selectedDomainFields}
-          onSaveConversation={onSaveRuntimeConversation}
-          canSaveConversation={Boolean(loadedAgentId && onSaveRuntimeConversation)}
-          runtimeFields={runtimeFieldEntries.map(({ field, domainName }) => ({
-            id: field.id,
-            label: field.label,
-            domain: domainName,
-            fieldType: field.fieldType,
-            placeholder: field.placeholder,
-            options: field.options?.map((option) => option.label),
-          }))}
-        />
+        {/* Runtime Preview Modal - Only in Edit mode */}
+        {viewMode === 'edit' && (
+          <AgentRuntimePreviewModal
+            isOpen={runtimePreviewOpen}
+            onClose={() => setRuntimePreviewOpen(false)}
+            enabledFilePaths={enabledFilePaths}
+            generatedPrompt={promptPreview?.generatedPrompt || ''}
+            formValues={formValues}
+            selectedDomainFields={selectedDomainFields}
+            onSaveConversation={onSaveRuntimeConversation}
+            canSaveConversation={Boolean(loadedAgentId && onSaveRuntimeConversation)}
+            runtimeFields={runtimeFieldEntries.map(({ field, domainName }) => ({
+              id: field.id,
+              label: field.label,
+              domain: domainName,
+              fieldType: field.fieldType,
+              placeholder: field.placeholder,
+              options: field.options?.map((option) => option.label),
+            }))}
+            mode="modal"
+            slashActions={attachedFlows
+              .filter(af => af.slashAction.enabled)
+              .map(af => ({
+                name: af.slashAction.actionId,
+                description: af.slashAction.description,
+                flowId: af.flowId,
+                actionId: af.slashAction.actionId,
+              }))}
+          />
+        )}
       </div>
     </div>
   )

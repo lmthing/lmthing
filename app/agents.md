@@ -45,6 +45,7 @@ LMTHING is a no-code platform designed to help users build, configure, and deplo
 - Responsibility: execute workspace data mutations and updates through the same in-memory actions used by Studio.
 
 #### Supported workspace actions
+- `createWorkspace`
 - `setCurrentWorkspace`
 - `reload`
 - `upsertAgent`

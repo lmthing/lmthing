@@ -31,6 +31,7 @@ type ThingLmthingModelId = Extract<PromptConfig['model'], string>
 
 const THING_ACTION_NAMES = [
   'viewWorkspaceData',
+  'createWorkspace',
   'setCurrentWorkspace',
   'reload',
   'updatePackageJson',
@@ -234,6 +235,7 @@ export function ThingPanel({ isOpen }: ThingPanelProps) {
   const { agents: agentsMap } = useAgents()
   const { flows: flowsMap } = useFlows()
   const {
+    createWorkspace,
     setCurrentWorkspace,
     reload,
     workspaceData,
@@ -463,6 +465,7 @@ export function ThingPanel({ isOpen }: ThingPanelProps) {
             '• Accept both plain language ("create an agent for onboarding") and JSON envelopes ({"action":"upsertAgent","payload":{...}}).',
             '',
             'Quality defaults:',
+            '• When creating workspaces, initialize them with empty agents, flows, and knowledge, plus a sensible package.json.',
             '• Generate kebab-case IDs from the name the user provides (e.g. "Lesson Planner" → "lesson-planner").',
             '• When creating agents, include a sensible mainInstruction, empty slashActions, emptyFieldsForRuntime, formValues, and conversations arrays/objects unless the user specifies otherwise.',
             '• When creating flows, set status to "draft", generate ISO timestamps for createdAt/updatedAt, and default taskCount to the number of tasks.',
@@ -506,6 +509,43 @@ export function ThingPanel({ isOpen }: ThingPanelProps) {
               ok: true,
               path: resolvedPath,
               summary: summarizeWorkspaceValue(value, safeDepth),
+            }
+          }
+        )
+
+        prompt.defTool(
+          'createWorkspace',
+          'Create a new workspace by id. Optionally set as current and/or provide package.json overrides.',
+          z.object({
+            workspaceId: z.string().min(1),
+            setAsCurrent: z.boolean().optional(),
+            packageJson: unknownRecordSchema.optional(),
+          }),
+          async ({
+            workspaceId,
+            setAsCurrent,
+            packageJson,
+          }: {
+            workspaceId: string
+            setAsCurrent?: boolean
+            packageJson?: Record<string, unknown>
+          }) => {
+            const created = createWorkspace(workspaceId, {
+              setAsCurrent,
+              packageJson: packageJson as PackageJson | undefined,
+            })
+
+            if (created.created) {
+              return {
+                ok: true,
+                message: `Created workspace ${created.workspaceId}${(setAsCurrent ?? true) ? ' and switched to it' : ''}.`,
+              }
+            }
+
+            return {
+              ok: true,
+              message: `Workspace ${created.workspaceId} already exists${(setAsCurrent ?? true) ? '; switched to it' : ''}.`,
+              created: false,
             }
           }
         )
@@ -778,6 +818,7 @@ export function ThingPanel({ isOpen }: ThingPanelProps) {
     knowledge,
     totalKnowledgeNodeCount,
     thingModel,
+    createWorkspace,
     setCurrentWorkspace,
     reload,
     updatePackageJson,

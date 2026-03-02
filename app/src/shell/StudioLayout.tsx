@@ -7,7 +7,7 @@ import { CreateDomainModal } from './components/CreateDomainModal'
 import { CreateAgentModal } from './components/CreateAgentModal'
 import { SettingsView } from './components/SettingsView'
 import { useAgents, useFlows } from '@/lib/workspaceContext'
-import { toWorkspaceRouteParam } from '@/lib/workspaces'
+import { fromWorkspaceRouteParam, parseWorkspaceRepoRef, toWorkspaceRouteParam } from '@/lib/workspaces'
 import type {
   PromptFragment,
   NewFileForm,
@@ -68,6 +68,8 @@ export default function StudioLayout() {
   const [state, setState] = useState<StudioState>(loadState)
   const {
     setCurrentWorkspace,
+    createWorkspace,
+    workspaceData,
     upsertFlow,
     upsertAgent,
     addKnowledgeNode,
@@ -86,6 +88,16 @@ export default function StudioLayout() {
       setCurrentWorkspace(workspaceName)
     }
   }, [workspaceName, setCurrentWorkspace])
+
+  useEffect(() => {
+    if (!workspaceName || workspaceData) return
+
+    const decodedWorkspace = fromWorkspaceRouteParam(workspaceName)
+    const repoRef = parseWorkspaceRepoRef(decodedWorkspace)
+    if (repoRef?.owner !== 'local' || !repoRef.repo) return
+
+    createWorkspace(repoRef.repo, { setAsCurrent: false })
+  }, [workspaceName, workspaceData, createWorkspace])
 
   // Use the new state hooks
   const { agents: agentsMap } = useAgents()

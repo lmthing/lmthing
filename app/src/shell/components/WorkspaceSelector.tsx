@@ -22,6 +22,7 @@ import {
 import { useGithub } from '@/lib/github/GithubContext'
 import { useQueryClient } from '@tanstack/react-query'
 import { toWorkspaceName, toWorkspaceRouteParam } from '@/lib/workspaces'
+import { useWorkspaceData } from '@/lib/workspaceDataContext'
 
 export type Workspace = {
   id: string
@@ -41,7 +42,6 @@ export function workspaceToSlug(name: string): string {
 }
 
 const WORKSPACE_COLORS = ['#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ef4444', '#84cc16']
-const LOCAL_WORKSPACE_REPOS = ['education', 'plants', 'web-development']
 
 const FALLBACK_WORKSPACE: Workspace = {
   id: 'workspace-default',
@@ -53,6 +53,27 @@ export interface WorkspaceSelectorProps {
   currentWorkspace?: Workspace
   onWorkspaceChange?: (workspace: Workspace) => void
   isCollapsed?: boolean
+}
+
+function toLocalWorkspaceId(value: string): string {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+
+  const withoutLocalPrefix = trimmed.startsWith('local/')
+    ? trimmed.slice('local/'.length)
+    : trimmed
+
+  const rawName = withoutLocalPrefix.includes('%')
+    ? withoutLocalPrefix.split('%').slice(1).join('%').trim()
+    : withoutLocalPrefix.includes('/')
+      ? withoutLocalPrefix.split('/').slice(1).join('/').trim()
+      : withoutLocalPrefix
+
+  return rawName
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
 }
 
 export function WorkspaceSelector({
@@ -82,15 +103,18 @@ export function WorkspaceSelector({
   } = useGithub()
 
   const queryClient = useQueryClient()
+  const { workspaceIds, createWorkspace } = useWorkspaceData()
   const { data: githubWorkspaces, isLoading } = useWorkspaces()
 
   const localWorkspaces = useMemo<Workspace[]>(() => {
-    return LOCAL_WORKSPACE_REPOS.map((repo, idx) => ({
-      id: `local-${repo}`,
-      name: `local/${repo}`,
-      color: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length],
-    }))
-  }, [])
+    return workspaceIds
+      .filter((workspaceId) => !workspaceId.includes('/'))
+      .map((workspaceId, idx) => ({
+        id: `local-${workspaceId}`,
+        name: `local/${workspaceId}`,
+        color: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length],
+      }))
+  }, [workspaceIds])
 
   const mappedWorkspaces = useMemo<Workspace[]>(() => {
     if (!githubWorkspaces) return []
@@ -139,6 +163,11 @@ export function WorkspaceSelector({
 
     return trimmed
   }, [searchQuery])
+
+  const derivedLocalWorkspaceId = useMemo(
+    () => toLocalWorkspaceId(searchQuery),
+    [searchQuery]
+  )
 
   const loadAvailableGithubRepos = useCallback(async () => {
     if (!octokit || !isAuthenticated) {
@@ -206,6 +235,16 @@ export function WorkspaceSelector({
     return availableGithubRepos.filter((repo) => repo.fullName.toLowerCase().includes(query))
   }, [availableGithubRepos, repoSearchQuery])
 
+  const hasExactGithubWorkspaceMatch = useMemo(
+    () => filteredWorkspaces.github.some((w) => w.name.toLowerCase() === searchQuery.toLowerCase()),
+    [filteredWorkspaces.github, searchQuery]
+  )
+
+  const hasExactLocalWorkspaceMatch = useMemo(
+    () => localWorkspaces.some((w) => w.name.toLowerCase() === `local/${derivedLocalWorkspaceId}`),
+    [localWorkspaces, derivedLocalWorkspaceId]
+  )
+
   const handleCreateWorkspace = async () => {
     if (!octokit || !user || !derivedRepoName) return
 
@@ -227,6 +266,17 @@ export function WorkspaceSelector({
     } finally {
       setIsCreating(false)
     }
+  }
+
+  const handleCreateLocalWorkspace = () => {
+    if (!derivedLocalWorkspaceId) return
+
+    createWorkspace(derivedLocalWorkspaceId, { setAsCurrent: false })
+    handleSelect({
+      id: `local-${derivedLocalWorkspaceId}`,
+      name: `local/${derivedLocalWorkspaceId}`,
+      color: WORKSPACE_COLORS[localWorkspaces.length % WORKSPACE_COLORS.length],
+    })
   }
 
   const handleSelect = useCallback(
@@ -393,18 +443,31 @@ export function WorkspaceSelector({
             </p>
           )}
 
-          {searchQuery &&
-            !filteredWorkspaces.github.find((w) => w.name.toLowerCase() === searchQuery.toLowerCase()) && (
-              <div className="p-2 border-t">
+          {searchQuery && (!hasExactLocalWorkspaceMatch || (!hasExactGithubWorkspaceMatch && isAuthenticated)) && (
+            <div className="p-2 border-t space-y-2">
+              {!hasExactLocalWorkspaceMatch && (
+                <button
+                  onClick={handleCreateLocalWorkspace}
+                  disabled={!derivedLocalWorkspaceId}
+                  className="w-full px-2 py-1.5 text-sm rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {derivedLocalWorkspaceId
+                    ? `Create local/${derivedLocalWorkspaceId}`
+                    : 'Create local workspace'}
+                </button>
+              )}
+
+              {!hasExactGithubWorkspaceMatch && isAuthenticated && (
                 <button
                   onClick={handleCreateWorkspace}
                   disabled={isCreating || !derivedRepoName}
                   className="w-full px-2 py-1.5 text-sm bg-primary text-primary-foreground rounded-md disabled:bg-primary/50"
                 >
-                  {isCreating ? 'Creating...' : `Create "${derivedRepoName}"`}
+                  {isCreating ? 'Creating...' : `Create GitHub repo "${derivedRepoName}"`}
                 </button>
-              </div>
-            )}
+              )}
+            </div>
+          )}
 
           <DropdownMenuSeparator />
 

@@ -10,13 +10,22 @@ import {
   ChevronRight as ChevronRightSmall,
 } from 'lucide-react'
 import { useState, useMemo } from 'react'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useKnowledgeSections, useAgents } from '@/lib/workspaceContext'
+import { useWorkspaceData } from '@/lib/workspaceDataContext'
 import { toWorkspaceRouteParam } from '@/lib/workspaces'
 import logo from '@/assets/logo.png'
 import { WorkspaceSelector } from './WorkspaceSelector'
 import type { Workspace } from './WorkspaceSelector'
 import type { Agent } from '@/types/workspace-data'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 
 type Domain = {
   id: string
@@ -59,6 +68,17 @@ type Conversation = {
   updatedAt: string
 }
 
+function toLocalWorkspaceId(value: string): string {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+
+  return trimmed
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
 export interface StudioSidebarProps {
   isCollapsed?: boolean
   onToggleCollapse?: () => void
@@ -80,15 +100,19 @@ export function StudioSidebar({
   onCreateAgent,
   workspace,
 }: StudioSidebarProps) {
+  const navigate = useNavigate()
   const location = useLocation()
   const { workspaceName } = useParams<{ workspaceName: string }>()
   const [domainsExpanded, setDomainsExpanded] = useState(true)
   const [agentsExpanded, setAgentsExpanded] = useState(true)
   const [conversationsExpanded, setConversationsExpanded] = useState(true)
+  const [isCreateLocalWorkspaceOpen, setIsCreateLocalWorkspaceOpen] = useState(false)
+  const [newLocalWorkspaceName, setNewLocalWorkspaceName] = useState('')
 
   // Use the new state hooks
   const knowledgeSections = useKnowledgeSections()
   const { agents: agentsMap } = useAgents()
+  const { createWorkspace } = useWorkspaceData()
 
   // Build workspace-aware path helper
   const studioPath = workspaceName
@@ -163,6 +187,16 @@ export function StudioSidebar({
     setConversationsExpanded((prev) => !prev)
   }
 
+  const handleCreateLocalWorkspace = () => {
+    const localWorkspaceId = toLocalWorkspaceId(newLocalWorkspaceName)
+    if (!localWorkspaceId) return
+
+    createWorkspace(localWorkspaceId, { setAsCurrent: false })
+    setIsCreateLocalWorkspaceOpen(false)
+    setNewLocalWorkspaceName('')
+    navigate(`/workspace/${toWorkspaceRouteParam(`local/${localWorkspaceId}`)}/studio`)
+  }
+
   return (
     <aside
       className={`
@@ -194,16 +228,63 @@ export function StudioSidebar({
               />
             </div>
           )}
+          {!isCollapsed && (
+            <button
+              type="button"
+              onClick={() => setIsCreateLocalWorkspaceOpen(true)}
+              className="h-8 w-8 shrink-0 rounded-md border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800"
+              title="Create local workspace"
+              aria-label="Create local workspace"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          )}
         </div>
         {isCollapsed && (
-          <div className="flex justify-center mt-2">
+          <div className="flex flex-col items-center mt-2 gap-2">
             <WorkspaceSelector
               currentWorkspace={workspace}
               isCollapsed={true}
             />
+            <button
+              type="button"
+              onClick={() => setIsCreateLocalWorkspaceOpen(true)}
+              className="h-8 w-8 shrink-0 rounded-md border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800"
+              title="Create local workspace"
+              aria-label="Create local workspace"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
           </div>
         )}
       </div>
+
+      <Dialog open={isCreateLocalWorkspaceOpen} onOpenChange={setIsCreateLocalWorkspaceOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Local Workspace</DialogTitle>
+            <DialogDescription>
+              Create a new local workspace and open it in Studio.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              autoFocus
+              placeholder="Workspace name (e.g. customer-support)"
+              value={newLocalWorkspaceName}
+              onChange={(event) => setNewLocalWorkspaceName(event.target.value)}
+            />
+            <button
+              type="button"
+              onClick={handleCreateLocalWorkspace}
+              disabled={!toLocalWorkspaceId(newLocalWorkspaceName)}
+              className="w-full px-3 py-2 text-sm rounded-md bg-primary text-primary-foreground disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              Create Local Workspace
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-8">

@@ -73,6 +73,13 @@ const TOOL_META: Record<string, ToolMeta> = {
     label: 'Switch Workspace',
     category: 'workspace',
   },
+  createWorkspace: {
+    icon: <Plus className={iconSize} />,
+    gradient: 'from-amber-500 to-yellow-400',
+    glow: 'shadow-amber-500/20',
+    label: 'Create Workspace',
+    category: 'workspace',
+  },
   reload: {
     icon: <RefreshCw className={iconSize} />,
     gradient: 'from-amber-500 to-yellow-400',

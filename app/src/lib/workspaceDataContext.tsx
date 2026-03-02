@@ -31,6 +31,7 @@ import type {
 interface WorkspaceDataContextValue {
   // Current workspace info
   currentWorkspace: string | null
+  workspaceIds: string[]
   workspaceData: WorkspaceData | null
   isLoading: boolean
   error: string | null
@@ -49,6 +50,10 @@ interface WorkspaceDataContextValue {
   knowledgeTree: KnowledgeItem[]
 
   // Actions
+  createWorkspace: (workspaceId: string, options?: { setAsCurrent?: boolean; packageJson?: PackageJson }) => {
+    workspaceId: string
+    created: boolean
+  }
   setCurrentWorkspace: (workspaceId: string) => void
   updatePackageJson: (packageJson: PackageJson) => void
   upsertAgent: (agent: Agent) => void
@@ -325,6 +330,31 @@ function persistWorkspaceData(data: ExtractedDataStructure) {
   }
 }
 
+function toWorkspacePackageName(workspaceId: string): string {
+  const repoRef = parseWorkspaceRepoRef(workspaceId)
+  const base = repoRef?.repo || workspaceId
+  return base
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'workspace'
+}
+
+function createEmptyWorkspaceData(workspaceId: string, packageJson?: PackageJson): WorkspaceData {
+  return {
+    id: workspaceId,
+    agents: {},
+    flows: {},
+    knowledge: [],
+    packageJson: {
+      name: toWorkspacePackageName(workspaceId),
+      version: '1.0.0',
+      description: `${workspaceId} workspace`,
+      ...(packageJson || {}),
+    },
+    env: {},
+  }
+}
+
 export function WorkspaceDataProvider({
   children,
 }: WorkspaceDataProviderProps) {
@@ -339,6 +369,50 @@ export function WorkspaceDataProvider({
   const setCurrentWorkspaceSafe = useCallback((workspaceId: string) => {
     setCurrentWorkspace(fromWorkspaceRouteParam(workspaceId))
   }, [])
+
+  const createWorkspace = useCallback((workspaceId: string, options?: {
+    setAsCurrent?: boolean
+    packageJson?: PackageJson
+  }) => {
+    const decodedWorkspaceId = fromWorkspaceRouteParam(workspaceId).trim()
+    const repoRef = parseWorkspaceRepoRef(decodedWorkspaceId)
+    const normalizedWorkspaceId = repoRef?.owner === 'local'
+      ? repoRef.repo.trim()
+      : decodedWorkspaceId
+
+    if (!normalizedWorkspaceId) {
+      throw new Error('Workspace id is required')
+    }
+
+    const alreadyExists = Boolean(data?.workspaces?.[normalizedWorkspaceId])
+
+    if (!alreadyExists) {
+      setData((prev) => {
+        const base: ExtractedDataStructure = prev || { workspaces: {} }
+
+        if (base.workspaces[normalizedWorkspaceId]) {
+          return base
+        }
+
+        return {
+          ...base,
+          workspaces: {
+            ...base.workspaces,
+            [normalizedWorkspaceId]: createEmptyWorkspaceData(normalizedWorkspaceId, options?.packageJson),
+          },
+        }
+      })
+    }
+
+    if (options?.setAsCurrent ?? true) {
+      setCurrentWorkspace(normalizedWorkspaceId)
+    }
+
+    return {
+      workspaceId: normalizedWorkspaceId,
+      created: !alreadyExists,
+    }
+  }, [data])
 
   // Load data from JSON file
   const loadData = async () => {
@@ -649,6 +723,11 @@ export function WorkspaceDataProvider({
     [currentWorkspace, data]
   )
 
+  const workspaceIds = useMemo<string[]>(() => {
+    if (!data?.workspaces) return []
+    return Object.keys(data.workspaces)
+  }, [data])
+
   const agents = useMemo<Record<string, Agent>>(() => workspaceData?.agents || {}, [workspaceData])
   const flows = useMemo<Record<string, Flow>>(() => workspaceData?.flows || {}, [workspaceData])
   const knowledge = useMemo<KnowledgeNode[]>(() => workspaceData?.knowledge || [], [workspaceData])
@@ -661,6 +740,7 @@ export function WorkspaceDataProvider({
 
   const value: WorkspaceDataContextValue = {
     currentWorkspace,
+    workspaceIds,
     workspaceData,
     isLoading,
     error,
@@ -673,6 +753,7 @@ export function WorkspaceDataProvider({
     agentList,
     flowList,
     knowledgeTree,
+    createWorkspace,
     setCurrentWorkspace: setCurrentWorkspaceSafe,
     updatePackageJson,
     upsertAgent,

@@ -1,0 +1,8 @@
+{
+  "label": "Data Format",
+  "description": "Output formatting for cell data",
+  "fieldType": "select",
+  "required": false,
+  "variableName": "dataFormat",
+  "renderAs": "field"
+}

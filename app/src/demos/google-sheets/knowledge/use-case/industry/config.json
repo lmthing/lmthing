@@ -1,0 +1,8 @@
+{
+  "label": "Industry Focus",
+  "description": "Specific industry where the spreadsheet is used",
+  "fieldType": "select",
+  "required": false,
+  "variableName": "industry",
+  "renderAs": "field"
+}

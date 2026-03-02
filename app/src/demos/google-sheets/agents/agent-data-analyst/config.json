@@ -1,0 +1,6 @@
+{
+  "emptyFieldsForRuntime": {
+    "use-case": ["task"],
+    "data-type": ["categories"]
+  }
+}

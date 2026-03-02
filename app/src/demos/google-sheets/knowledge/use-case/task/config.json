@@ -1,0 +1,9 @@
+{
+  "label": "Task Purpose",
+  "description": "What the user wants to accomplish",
+  "fieldType": "select",
+  "required": true,
+  "default": "tracker",
+  "variableName": "taskPurpose",
+  "renderAs": "field"
+}

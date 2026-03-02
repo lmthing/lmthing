@@ -1,0 +1,9 @@
+{
+  "label": "Data Size",
+  "description": "Approximate number of rows/columns in the sheet",
+  "fieldType": "select",
+  "required": true,
+  "default": "small",
+  "variableName": "dataSize",
+  "renderAs": "field"
+}

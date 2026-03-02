@@ -1,0 +1,8 @@
+{
+  "label": "Sheet Structure",
+  "description": "How the sheet is organized",
+  "fieldType": "select",
+  "required": false,
+  "variableName": "sheetStructure",
+  "renderAs": "field"
+}

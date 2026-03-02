@@ -1,0 +1,8 @@
+{
+  "label": "Categories",
+  "description": "The kind of data available in the sheets",
+  "fieldType": "multiSelect",
+  "required": false,
+  "variableName": "dataCategories",
+  "renderAs": "field"
+}

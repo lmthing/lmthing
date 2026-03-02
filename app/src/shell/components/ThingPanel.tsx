@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { useAgents, useFlows } from '@/lib/workspaceContext'
 import { useWorkspaceData } from '@/lib/workspaceDataContext'
 import { ToolCallDisplay } from './ToolCallDisplay'
+import type { AgentBuilderScreenProps } from '@/../product/sections/agent-builder/types'
 import type {
   EncryptedEnvFile,
   PackageJson,
@@ -31,6 +32,17 @@ type ThingLmthingModelId = Extract<PromptConfig['model'], string>
 
 const THING_ACTION_NAMES = [
   'viewWorkspaceData',
+  'listWorkspaceRoots',
+  'listChildren',
+  'searchWorkspace',
+  'getEntity',
+  'resolveReference',
+  'findBacklinks',
+  'getBreadcrumbs',
+  'recentlyTouched',
+  'snapshotWorkspace',
+  'diffSnapshots',
+  'suggestNextNavigation',
   'createWorkspace',
   'setCurrentWorkspace',
   'reload',
@@ -51,7 +63,7 @@ const THING_ACTION_NAMES = [
 ] as const
 
 const THING_WELCOME_MESSAGE =
-  'I am thing. I can execute workspace data actions directly via tools. Ask in plain language, send JSON, or type help.'
+  'I am THING. I can execute workspace data actions directly via tools. Ask in plain language, send JSON, or type help.'
 
 const THING_CONVERSATIONS_STORAGE_KEY = 'lmthing-thing-conversations-v1'
 const THING_TOOL_EVENT_OPEN = '[[THING_TOOL_EVENT]]'
@@ -163,6 +175,212 @@ function summarizeWorkspaceValue(value: unknown, depth: number): unknown {
   return value
 }
 
+type KnowledgeFlatEntry = {
+  node: KnowledgeNode
+  parentPath: string | null
+  depth: number
+}
+
+type NavigationDomain = 'agents' | 'flows' | 'knowledge' | 'packageJson' | 'envFiles'
+
+type SnapshotScope = 'workspace' | 'agents' | 'flows' | 'knowledge' | 'packageJson' | 'envFiles'
+
+type SnapshotDiffEntry = {
+  path: string
+  kind: 'added' | 'removed' | 'changed'
+  before?: unknown
+  after?: unknown
+}
+
+function normalizeString(value: unknown): string {
+  return typeof value === 'string' ? value : ''
+}
+
+function normalizeKnowledgePath(path?: string | null): string | null {
+  if (!path) return null
+
+  const trimmed = path.trim().replace(/^\/+/, '').replace(/\/+$/, '')
+  if (!trimmed || trimmed === 'root' || trimmed === 'knowledge') {
+    return null
+  }
+
+  return trimmed.replace(/^knowledge\//, '')
+}
+
+function flattenKnowledgeNodes(
+  nodes: KnowledgeNode[],
+  parentPath: string | null = null,
+  depth = 0,
+  acc: KnowledgeFlatEntry[] = [],
+): KnowledgeFlatEntry[] {
+  nodes.forEach((node) => {
+    acc.push({ node, parentPath, depth })
+    if (node.type === 'directory' && Array.isArray(node.children) && node.children.length > 0) {
+      flattenKnowledgeNodes(node.children, node.path, depth + 1, acc)
+    }
+  })
+  return acc
+}
+
+function findKnowledgeEntryByPath(nodes: KnowledgeNode[], targetPath: string): KnowledgeFlatEntry | null {
+  const normalized = normalizeKnowledgePath(targetPath)
+  if (!normalized) return null
+
+  const flattened = flattenKnowledgeNodes(nodes)
+  return flattened.find((entry) => normalizeKnowledgePath(entry.node.path) === normalized) || null
+}
+
+function paginateItems<T>(items: T[], limit = 25, cursor?: string): {
+  items: T[]
+  nextCursor: string | null
+  hasMore: boolean
+  offset: number
+} {
+  const safeLimit = Math.min(Math.max(Math.trunc(limit) || 25, 1), 100)
+  const offset = Math.max(Number.parseInt(cursor || '0', 10) || 0, 0)
+  const nextOffset = offset + safeLimit
+  const paged = items.slice(offset, nextOffset)
+
+  return {
+    items: paged,
+    nextCursor: nextOffset < items.length ? String(nextOffset) : null,
+    hasMore: nextOffset < items.length,
+    offset,
+  }
+}
+
+function stringifyForSearch(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return ''
+  }
+}
+
+function toSearchSnippet(content: string, query: string, maxLength = 180): string {
+  const normalized = content.replace(/\s+/g, ' ').trim()
+  if (!normalized) return ''
+
+  const index = normalized.toLowerCase().indexOf(query.toLowerCase())
+  if (index === -1) {
+    return normalized.slice(0, maxLength)
+  }
+
+  const start = Math.max(index - 40, 0)
+  const end = Math.min(index + query.length + 80, normalized.length)
+  return normalized.slice(start, end)
+}
+
+function parseEntityReference(ref: string): {
+  kind: string
+  idOrPath: string
+  extra?: string
+} | null {
+  const [kindPart, rawRest] = ref.split(':', 2)
+  const kind = kindPart?.trim()
+  const rest = rawRest?.trim()
+
+  if (!kind || !rest) return null
+
+  if (kind === 'slashAction' || kind === 'task') {
+    const [idOrPath, extra] = rest.split('/', 2)
+    if (!idOrPath || !extra) return null
+    return { kind, idOrPath, extra }
+  }
+
+  return { kind, idOrPath: rest }
+}
+
+function cloneSnapshot<T>(value: T): T {
+  if (typeof globalThis.structuredClone === 'function') {
+    return globalThis.structuredClone(value)
+  }
+
+  return JSON.parse(JSON.stringify(value)) as T
+}
+
+function buildSnapshotDiff(
+  before: unknown,
+  after: unknown,
+  currentPath = '$',
+  depth = 0,
+  maxDepth = 4,
+  acc: SnapshotDiffEntry[] = [],
+): SnapshotDiffEntry[] {
+  if (acc.length >= 200) return acc
+
+  if (before === undefined && after !== undefined) {
+    acc.push({ path: currentPath, kind: 'added', after: summarizeWorkspaceValue(after, 1) })
+    return acc
+  }
+
+  if (before !== undefined && after === undefined) {
+    acc.push({ path: currentPath, kind: 'removed', before: summarizeWorkspaceValue(before, 1) })
+    return acc
+  }
+
+  if (Object.is(before, after)) {
+    return acc
+  }
+
+  if (depth >= maxDepth) {
+    acc.push({
+      path: currentPath,
+      kind: 'changed',
+      before: summarizeWorkspaceValue(before, 1),
+      after: summarizeWorkspaceValue(after, 1),
+    })
+    return acc
+  }
+
+  const beforeIsObject = Boolean(before && typeof before === 'object')
+  const afterIsObject = Boolean(after && typeof after === 'object')
+
+  if (!beforeIsObject || !afterIsObject) {
+    acc.push({
+      path: currentPath,
+      kind: 'changed',
+      before,
+      after,
+    })
+    return acc
+  }
+
+  if (Array.isArray(before) || Array.isArray(after)) {
+    if (!Array.isArray(before) || !Array.isArray(after)) {
+      acc.push({
+        path: currentPath,
+        kind: 'changed',
+        before: summarizeWorkspaceValue(before, 1),
+        after: summarizeWorkspaceValue(after, 1),
+      })
+      return acc
+    }
+
+    const maxLen = Math.max(before.length, after.length)
+    for (let i = 0; i < maxLen; i += 1) {
+      buildSnapshotDiff(before[i], after[i], `${currentPath}[${i}]`, depth + 1, maxDepth, acc)
+      if (acc.length >= 200) break
+    }
+    return acc
+  }
+
+  const beforeRecord = before as Record<string, unknown>
+  const afterRecord = after as Record<string, unknown>
+  const keySet = new Set([...Object.keys(beforeRecord), ...Object.keys(afterRecord)])
+
+  keySet.forEach((key) => {
+    if (acc.length >= 200) return
+    buildSnapshotDiff(beforeRecord[key], afterRecord[key], `${currentPath}.${key}`, depth + 1, maxDepth, acc)
+  })
+
+  return acc
+}
+
 function resolveThingModelId(): ThingLmthingModelId {
   const runtimeEnv =
     typeof window !== 'undefined'
@@ -179,7 +397,7 @@ function resolveThingModelId(): ThingLmthingModelId {
     return configuredModel
   }
 
-  return 'zai:glm-4.5'
+  return 'zai:glm-4.5-air'
 }
 
 function createThingWelcomeMessage(): ThingMessage {
@@ -229,9 +447,10 @@ function loadThingConversationsFromStorage(): ThingConversation[] {
 
 export interface ThingPanelProps {
   isOpen: boolean
+  agentBuilderProps?: AgentBuilderScreenProps
 }
 
-export function ThingPanel({ isOpen }: ThingPanelProps) {
+export function ThingPanel({ isOpen, agentBuilderProps }: ThingPanelProps) {
   const { agents: agentsMap } = useAgents()
   const { flows: flowsMap } = useFlows()
   const {
@@ -264,6 +483,7 @@ export function ThingPanel({ isOpen }: ThingPanelProps) {
   const [editingMessageContent, setEditingMessageContent] = useState('')
   const [editingConversationId, setEditingConversationId] = useState<string | null>(null)
   const [editingConversationTitle, setEditingConversationTitle] = useState('')
+  const thingSnapshotsRef = useRef<Record<string, unknown>>({})
   const thingMessagesEndRef = useRef<HTMLDivElement | null>(null)
   const thingModel = useMemo(() => resolveThingModelId(), [])
 
@@ -375,6 +595,8 @@ export function ThingPanel({ isOpen }: ThingPanelProps) {
     }
 
     const unknownRecordSchema = z.record(z.string(), z.unknown())
+    const navigationDomainSchema = z.enum(['agents', 'flows', 'knowledge', 'packageJson', 'envFiles'])
+    const snapshotScopeSchema = z.enum(['workspace', 'agents', 'flows', 'knowledge', 'packageJson', 'envFiles'])
     const knowledgeNodeSchema = z.object({
       path: z.string().min(1),
       type: z.enum(['directory', 'file']),
@@ -390,7 +612,15 @@ export function ThingPanel({ isOpen }: ThingPanelProps) {
         agentIds: Object.keys(agentsMap),
         flowIds: Object.keys(flowsMap),
         knowledgeNodeCount: totalKnowledgeNodeCount,
+        envFileNames: Object.keys(workspaceData?.env || {}),
         actionNames: THING_ACTION_NAMES,
+        agentBuilderState: agentBuilderProps
+          ? {
+            loadedAgentId: agentBuilderProps.loadedAgentId ?? null,
+            selectedDomainIds: agentBuilderProps.selectedDomainIds ?? [],
+            attachedFlowCount: agentBuilderProps.attachedFlows?.length ?? 0,
+          }
+          : null,
       }
 
       const { result } = await runPrompt(async (prompt) => {
@@ -455,7 +685,8 @@ export function ThingPanel({ isOpen }: ThingPanelProps) {
           [
             'Tool usage:',
             '• Always call tools for create, update, and delete operations — never just describe what you would do.',
-            '• For read-only inspection or navigation, call viewWorkspaceData with the appropriate dot-path (e.g. "agents", "flows.my-flow", "knowledge").',
+            '• Prefer navigation tools for inspection: listWorkspaceRoots, listChildren, searchWorkspace, getEntity, getBreadcrumbs, findBacklinks.',
+            '• Use viewWorkspaceData when you explicitly need dot-path access (e.g. "agents", "flows.my-flow", "knowledge").',
             '• Before creating or updating an entity, use viewWorkspaceData to check existing data so you don\'t overwrite things unintentionally.',
             '',
             'Interaction style:',
@@ -481,7 +712,7 @@ export function ThingPanel({ isOpen }: ThingPanelProps) {
           'Navigate and inspect workspace data by path. Use dot path, e.g. workspaceData.agents, workspaceData.flows.my-flow, workspaceData.knowledge[0].children.',
           z.object({
             path: z.string().optional(),
-            depth: z.number().int().min(0).max(5).optional(),
+            depth: z.number().int().min(0).max(2).optional(),
           }),
           async ({ path, depth }: { path?: string; depth?: number }) => {
             const workspaceSnapshot = {
@@ -490,6 +721,7 @@ export function ThingPanel({ isOpen }: ThingPanelProps) {
               agents: agentsMap,
               flows: flowsMap,
               knowledge,
+              envFiles: workspaceData?.env || {},
             }
 
             const resolvedPath = (path || 'workspaceData').trim()
@@ -509,6 +741,1061 @@ export function ThingPanel({ isOpen }: ThingPanelProps) {
               ok: true,
               path: resolvedPath,
               summary: summarizeWorkspaceValue(value, safeDepth),
+            }
+          }
+        )
+
+        prompt.defTool(
+          'listWorkspaceRoots',
+          'List top-level workspace domains with counts to quickly orient navigation.',
+          z.object({}),
+          async () => {
+            const envFileCount = Object.keys(workspaceData?.env || {}).length
+
+            return {
+              ok: true,
+              workspaceId: workspaceData?.id ?? null,
+              roots: [
+                {
+                  domain: 'agents' as const,
+                  count: Object.keys(agentsMap).length,
+                  description: 'Agent definitions and chat configurations',
+                },
+                {
+                  domain: 'flows' as const,
+                  count: Object.keys(flowsMap).length,
+                  description: 'Flow workflows and task steps',
+                },
+                {
+                  domain: 'knowledge' as const,
+                  count: countKnowledgeNodes(knowledge),
+                  description: 'Knowledge tree (directories and markdown files)',
+                },
+                {
+                  domain: 'packageJson' as const,
+                  count: workspaceData?.packageJson ? 1 : 0,
+                  description: 'Workspace package configuration',
+                },
+                {
+                  domain: 'envFiles' as const,
+                  count: envFileCount,
+                  description: 'Encrypted environment files',
+                },
+              ],
+            }
+          }
+        )
+
+        prompt.defTool(
+          'listChildren',
+          'Browse children for a domain or specific node with optional filtering and pagination.',
+          z.object({
+            domain: navigationDomainSchema.optional(),
+            nodePath: z.string().optional().describe('For knowledge, provide a directory path. Use "root" or omit for top level.'),
+            type: z.enum(['directory', 'file']).optional().describe('Knowledge-only type filter.'),
+            filter: z.string().optional().describe('Case-insensitive substring filter by id/name/path.'),
+            limit: z.number().int().min(1).max(100).optional(),
+            cursor: z.string().optional(),
+          }),
+          async ({
+            domain,
+            nodePath,
+            type,
+            filter,
+            limit,
+            cursor,
+          }: {
+            domain?: NavigationDomain
+            nodePath?: string
+            type?: 'directory' | 'file'
+            filter?: string
+            limit?: number
+            cursor?: string
+          }) => {
+            const resolvedDomain = domain || 'knowledge'
+            const normalizedFilter = filter?.trim().toLowerCase()
+
+            if (resolvedDomain === 'agents') {
+              const items = Object.values(agentsMap).map((agent) => ({
+                id: agent.id,
+                name: normalizeString(agent.frontmatter?.name) || agent.id,
+                description: normalizeString(agent.frontmatter?.description),
+                slashActionCount: Array.isArray(agent.slashActions) ? agent.slashActions.length : 0,
+              }))
+
+              const filtered = normalizedFilter
+                ? items.filter((item) => stringifyForSearch(item).toLowerCase().includes(normalizedFilter))
+                : items
+
+              const page = paginateItems(filtered, limit, cursor)
+              return {
+                ok: true,
+                domain: resolvedDomain,
+                total: filtered.length,
+                ...page,
+              }
+            }
+
+            if (resolvedDomain === 'flows') {
+              const items = Object.values(flowsMap).map((flow) => ({
+                id: flow.id,
+                name: normalizeString(flow.frontmatter?.name) || flow.id,
+                status: normalizeString(flow.frontmatter?.status),
+                taskCount: Array.isArray(flow.tasks) ? flow.tasks.length : 0,
+                tags: Array.isArray(flow.frontmatter?.tags) ? flow.frontmatter.tags : [],
+              }))
+
+              const filtered = normalizedFilter
+                ? items.filter((item) => stringifyForSearch(item).toLowerCase().includes(normalizedFilter))
+                : items
+
+              const page = paginateItems(filtered, limit, cursor)
+              return {
+                ok: true,
+                domain: resolvedDomain,
+                total: filtered.length,
+                ...page,
+              }
+            }
+
+            if (resolvedDomain === 'envFiles') {
+              const envEntries = Object.entries(workspaceData?.env || {}).map(([fileName, envFile]) => ({
+                fileName,
+                updatedAt: normalizeString(envFile?.updatedAt),
+                createdAt: normalizeString(envFile?.createdAt),
+                expiresAt: normalizeString(envFile?.expiresAt),
+              }))
+
+              const filtered = normalizedFilter
+                ? envEntries.filter((item) => stringifyForSearch(item).toLowerCase().includes(normalizedFilter))
+                : envEntries
+
+              const page = paginateItems(filtered, limit, cursor)
+              return {
+                ok: true,
+                domain: resolvedDomain,
+                total: filtered.length,
+                ...page,
+              }
+            }
+
+            if (resolvedDomain === 'packageJson') {
+              const entries = Object.entries(workspaceData?.packageJson || {}).map(([key, value]) => ({
+                key,
+                value: summarizeWorkspaceValue(value, 1),
+              }))
+
+              const filtered = normalizedFilter
+                ? entries.filter((item) => stringifyForSearch(item).toLowerCase().includes(normalizedFilter))
+                : entries
+
+              const page = paginateItems(filtered, limit, cursor)
+              return {
+                ok: true,
+                domain: resolvedDomain,
+                total: filtered.length,
+                ...page,
+              }
+            }
+
+            const normalizedPath = normalizeKnowledgePath(nodePath)
+            const parentEntry = normalizedPath ? findKnowledgeEntryByPath(knowledge, normalizedPath) : null
+
+            if (normalizedPath && !parentEntry) {
+              return {
+                ok: false,
+                message: `Knowledge node not found: ${normalizedPath}`,
+              }
+            }
+
+            if (parentEntry && parentEntry.node.type !== 'directory') {
+              return {
+                ok: false,
+                message: `Knowledge node is not a directory: ${parentEntry.node.path}`,
+              }
+            }
+
+            const rawChildren = parentEntry ? (parentEntry.node.children || []) : knowledge
+            const children = rawChildren.map((node) => ({
+              path: node.path,
+              type: node.type,
+              label: normalizeString(node.config?.label) || normalizeString(node.frontmatter?.title) || node.path,
+              childCount: node.type === 'directory' ? (node.children?.length || 0) : 0,
+            }))
+
+            const typed = type ? children.filter((child) => child.type === type) : children
+            const filtered = normalizedFilter
+              ? typed.filter((child) => stringifyForSearch(child).toLowerCase().includes(normalizedFilter))
+              : typed
+
+            const page = paginateItems(filtered, limit, cursor)
+
+            return {
+              ok: true,
+              domain: 'knowledge' as const,
+              nodePath: parentEntry?.node.path || 'root',
+              total: filtered.length,
+              ...page,
+            }
+          }
+        )
+
+        prompt.defTool(
+          'searchWorkspace',
+          'Search agents, flows, knowledge, package.json, and env files using text and optional filters.',
+          z.object({
+            query: z.string().min(1),
+            domain: navigationDomainSchema.optional(),
+            type: z.enum(['directory', 'file']).optional(),
+            tags: z.array(z.string()).optional(),
+            limit: z.number().int().min(1).max(100).optional(),
+          }),
+          async ({
+            query,
+            domain,
+            type,
+            tags,
+            limit,
+          }: {
+            query: string
+            domain?: NavigationDomain
+            type?: 'directory' | 'file'
+            tags?: string[]
+            limit?: number
+          }) => {
+            const needle = query.trim().toLowerCase()
+            const maxItems = Math.min(Math.max(limit || 30, 1), 100)
+            const requestedTags = (tags || []).map((tag) => tag.toLowerCase())
+            const includeDomain = (value: NavigationDomain): boolean => !domain || domain === value
+
+            const matches: Array<Record<string, unknown>> = []
+
+            if (includeDomain('agents')) {
+              Object.values(agentsMap).forEach((agent) => {
+                const haystack = [
+                  agent.id,
+                  normalizeString(agent.frontmatter?.name),
+                  normalizeString(agent.frontmatter?.description),
+                  normalizeString(agent.mainInstruction),
+                  ...(agent.frontmatter?.selectedDomains || []),
+                ].join(' \n ')
+
+                if (!haystack.toLowerCase().includes(needle)) return
+
+                matches.push({
+                  domain: 'agents',
+                  kind: 'agent',
+                  id: agent.id,
+                  name: normalizeString(agent.frontmatter?.name) || agent.id,
+                  snippet: toSearchSnippet(haystack, query),
+                })
+              })
+            }
+
+            if (includeDomain('flows')) {
+              Object.values(flowsMap).forEach((flow) => {
+                const flowTags = Array.isArray(flow.frontmatter?.tags) ? flow.frontmatter.tags : []
+                if (requestedTags.length > 0 && !requestedTags.every((tag) => flowTags.map((t) => t.toLowerCase()).includes(tag))) {
+                  return
+                }
+
+                const haystack = [
+                  flow.id,
+                  normalizeString(flow.frontmatter?.name),
+                  normalizeString(flow.description),
+                  flowTags.join(' '),
+                  ...flow.tasks.map((task) => `${task.name} ${task.instructions}`),
+                ].join(' \n ')
+
+                if (!haystack.toLowerCase().includes(needle)) return
+
+                matches.push({
+                  domain: 'flows',
+                  kind: 'flow',
+                  id: flow.id,
+                  name: normalizeString(flow.frontmatter?.name) || flow.id,
+                  tags: flowTags,
+                  snippet: toSearchSnippet(haystack, query),
+                })
+              })
+            }
+
+            if (includeDomain('knowledge')) {
+              const flattened = flattenKnowledgeNodes(knowledge)
+              flattened.forEach(({ node }) => {
+                if (type && node.type !== type) return
+
+                const haystack = [
+                  node.path,
+                  normalizeString(node.config?.label),
+                  normalizeString(node.config?.description),
+                  stringifyForSearch(node.frontmatter),
+                  normalizeString(node.content),
+                ].join(' \n ')
+
+                if (!haystack.toLowerCase().includes(needle)) return
+
+                matches.push({
+                  domain: 'knowledge',
+                  kind: node.type,
+                  path: node.path,
+                  label: normalizeString(node.config?.label) || normalizeString(node.frontmatter?.title) || node.path,
+                  snippet: toSearchSnippet(haystack, query),
+                })
+              })
+            }
+
+            if (includeDomain('packageJson')) {
+              const packageSource = stringifyForSearch(workspaceData?.packageJson || {})
+              if (packageSource.toLowerCase().includes(needle)) {
+                matches.push({
+                  domain: 'packageJson',
+                  kind: 'packageJson',
+                  id: 'package.json',
+                  snippet: toSearchSnippet(packageSource, query),
+                })
+              }
+            }
+
+            if (includeDomain('envFiles')) {
+              Object.entries(workspaceData?.env || {}).forEach(([fileName, envFile]) => {
+                const haystack = [fileName, normalizeString(envFile.updatedAt), normalizeString(envFile.expiresAt)].join(' ')
+                if (!haystack.toLowerCase().includes(needle)) return
+
+                matches.push({
+                  domain: 'envFiles',
+                  kind: 'envFile',
+                  fileName,
+                  snippet: toSearchSnippet(haystack, query),
+                })
+              })
+            }
+
+            return {
+              ok: true,
+              query,
+              total: matches.length,
+              results: matches.slice(0, maxItems),
+              truncated: matches.length > maxItems,
+            }
+          }
+        )
+
+        prompt.defTool(
+          'getEntity',
+          'Get a single canonical entity by kind and id/path.',
+          z.object({
+            kind: z.enum(['workspace', 'agent', 'flow', 'knowledgeNode', 'packageJson', 'envFile']),
+            idOrPath: z.string().optional(),
+            depth: z.number().int().min(0).max(3).optional(),
+          }),
+          async ({
+            kind,
+            idOrPath,
+            depth,
+          }: {
+            kind: 'workspace' | 'agent' | 'flow' | 'knowledgeNode' | 'packageJson' | 'envFile'
+            idOrPath?: string
+            depth?: number
+          }) => {
+            const safeDepth = depth ?? 2
+
+            if (kind === 'workspace') {
+              return {
+                ok: true,
+                kind,
+                id: workspaceData?.id ?? null,
+                entity: summarizeWorkspaceValue(workspaceData, safeDepth),
+              }
+            }
+
+            if (kind === 'packageJson') {
+              return {
+                ok: true,
+                kind,
+                id: 'package.json',
+                entity: summarizeWorkspaceValue(workspaceData?.packageJson || null, safeDepth),
+              }
+            }
+
+            if (!idOrPath) {
+              return { ok: false, message: `idOrPath is required for kind ${kind}.` }
+            }
+
+            if (kind === 'agent') {
+              const entity = agentsMap[idOrPath]
+              if (!entity) return { ok: false, message: `Agent not found: ${idOrPath}` }
+              return { ok: true, kind, id: idOrPath, entity: summarizeWorkspaceValue(entity, safeDepth) }
+            }
+
+            if (kind === 'flow') {
+              const entity = flowsMap[idOrPath]
+              if (!entity) return { ok: false, message: `Flow not found: ${idOrPath}` }
+              return { ok: true, kind, id: idOrPath, entity: summarizeWorkspaceValue(entity, safeDepth) }
+            }
+
+            if (kind === 'envFile') {
+              const entity = workspaceData?.env?.[idOrPath]
+              if (!entity) return { ok: false, message: `Env file not found: ${idOrPath}` }
+              return { ok: true, kind, id: idOrPath, entity: summarizeWorkspaceValue(entity, safeDepth) }
+            }
+
+            const entry = findKnowledgeEntryByPath(knowledge, idOrPath)
+            if (!entry) return { ok: false, message: `Knowledge node not found: ${idOrPath}` }
+
+            return {
+              ok: true,
+              kind,
+              id: entry.node.path,
+              entity: summarizeWorkspaceValue(entry.node, safeDepth),
+              parentPath: entry.parentPath,
+            }
+          }
+        )
+
+        prompt.defTool(
+          'resolveReference',
+          'Resolve linked entities. from format: kind:value (agent:id, flow:id, knowledge:path, slashAction:agentId/actionName, task:flowId/order).',
+          z.object({
+            from: z.string().min(1),
+            relation: z.enum([
+              'agent.flows',
+              'agent.selectedKnowledge',
+              'flow.agent',
+              'flow.slashActions',
+              'flow.tasks',
+              'knowledge.parent',
+              'knowledge.children',
+              'slashAction.flow',
+              'task.flow',
+              'task.agent',
+            ]),
+            depth: z.number().int().min(0).max(2).optional(),
+          }),
+          async ({
+            from,
+            relation,
+            depth,
+          }: {
+            from: string
+            relation:
+              | 'agent.flows'
+              | 'agent.selectedKnowledge'
+              | 'flow.agent'
+              | 'flow.slashActions'
+              | 'flow.tasks'
+              | 'knowledge.parent'
+              | 'knowledge.children'
+              | 'slashAction.flow'
+              | 'task.flow'
+              | 'task.agent'
+            depth?: number
+          }) => {
+            const parsed = parseEntityReference(from)
+            if (!parsed) {
+              return { ok: false, message: 'Invalid from reference. Example: flow:my-flow or slashAction:agent-id/my-action' }
+            }
+
+            const safeDepth = depth ?? 1
+
+            if (relation === 'agent.flows') {
+              if (parsed.kind !== 'agent') return { ok: false, message: 'agent.flows requires from=agent:<agentId>' }
+              const related = Object.values(flowsMap).filter((flow) => flow.frontmatter?.agentId === parsed.idOrPath)
+              return {
+                ok: true,
+                relation,
+                from,
+                items: related.map((flow) => ({
+                  id: flow.id,
+                  name: normalizeString(flow.frontmatter?.name) || flow.id,
+                  summary: summarizeWorkspaceValue(flow, safeDepth),
+                })),
+              }
+            }
+
+            if (relation === 'agent.selectedKnowledge') {
+              if (parsed.kind !== 'agent') return { ok: false, message: 'agent.selectedKnowledge requires from=agent:<agentId>' }
+              const agent = agentsMap[parsed.idOrPath]
+              if (!agent) return { ok: false, message: `Agent not found: ${parsed.idOrPath}` }
+
+              const selectedDomains = (agent.frontmatter?.selectedDomains || []).map((domainPath) => {
+                const entry = findKnowledgeEntryByPath(knowledge, domainPath)
+                return {
+                  path: domainPath,
+                  exists: Boolean(entry),
+                  type: entry?.node.type || null,
+                  label: normalizeString(entry?.node.config?.label) || normalizeString(entry?.node.frontmatter?.title) || null,
+                }
+              })
+
+              return {
+                ok: true,
+                relation,
+                from,
+                selectedDomains,
+              }
+            }
+
+            if (relation === 'flow.agent') {
+              if (parsed.kind !== 'flow') return { ok: false, message: 'flow.agent requires from=flow:<flowId>' }
+              const flow = flowsMap[parsed.idOrPath]
+              if (!flow) return { ok: false, message: `Flow not found: ${parsed.idOrPath}` }
+              const agentId = normalizeString(flow.frontmatter?.agentId)
+              const agent = agentId ? agentsMap[agentId] : undefined
+
+              return {
+                ok: true,
+                relation,
+                from,
+                agentId,
+                agent: agent ? summarizeWorkspaceValue(agent, safeDepth) : null,
+              }
+            }
+
+            if (relation === 'flow.slashActions') {
+              if (parsed.kind !== 'flow') return { ok: false, message: 'flow.slashActions requires from=flow:<flowId>' }
+
+              const linkedActions = Object.values(agentsMap).flatMap((agent) => (
+                (agent.slashActions || [])
+                  .filter((slashAction) => slashAction.flowId === parsed.idOrPath)
+                  .map((slashAction) => ({
+                    agentId: agent.id,
+                    agentName: normalizeString(agent.frontmatter?.name) || agent.id,
+                    name: slashAction.name,
+                    actionId: slashAction.actionId,
+                    description: slashAction.description,
+                  }))
+              ))
+
+              return { ok: true, relation, from, items: linkedActions }
+            }
+
+            if (relation === 'flow.tasks') {
+              if (parsed.kind !== 'flow') return { ok: false, message: 'flow.tasks requires from=flow:<flowId>' }
+              const flow = flowsMap[parsed.idOrPath]
+              if (!flow) return { ok: false, message: `Flow not found: ${parsed.idOrPath}` }
+              return {
+                ok: true,
+                relation,
+                from,
+                items: flow.tasks.map((task) => ({
+                  order: task.order,
+                  name: task.name,
+                  model: task.frontmatter?.model || null,
+                  targetFieldName: task.targetFieldName || null,
+                  summary: summarizeWorkspaceValue(task, safeDepth),
+                })),
+              }
+            }
+
+            if (relation === 'knowledge.parent') {
+              if (parsed.kind !== 'knowledge') return { ok: false, message: 'knowledge.parent requires from=knowledge:<path>' }
+              const entry = findKnowledgeEntryByPath(knowledge, parsed.idOrPath)
+              if (!entry) return { ok: false, message: `Knowledge node not found: ${parsed.idOrPath}` }
+              const parent = entry.parentPath ? findKnowledgeEntryByPath(knowledge, entry.parentPath) : null
+
+              return {
+                ok: true,
+                relation,
+                from,
+                parentPath: entry.parentPath,
+                parent: parent ? summarizeWorkspaceValue(parent.node, safeDepth) : null,
+              }
+            }
+
+            if (relation === 'knowledge.children') {
+              if (parsed.kind !== 'knowledge') return { ok: false, message: 'knowledge.children requires from=knowledge:<path>' }
+              const entry = findKnowledgeEntryByPath(knowledge, parsed.idOrPath)
+              if (!entry) return { ok: false, message: `Knowledge node not found: ${parsed.idOrPath}` }
+              if (entry.node.type !== 'directory') {
+                return { ok: true, relation, from, items: [], message: 'Node is a file and has no children.' }
+              }
+
+              return {
+                ok: true,
+                relation,
+                from,
+                items: (entry.node.children || []).map((child) => ({
+                  path: child.path,
+                  type: child.type,
+                  label: normalizeString(child.config?.label) || normalizeString(child.frontmatter?.title) || child.path,
+                })),
+              }
+            }
+
+            if (relation === 'slashAction.flow') {
+              if (parsed.kind !== 'slashAction') return { ok: false, message: 'slashAction.flow requires from=slashAction:<agentId>/<actionName>' }
+              const agent = agentsMap[parsed.idOrPath]
+              if (!agent) return { ok: false, message: `Agent not found: ${parsed.idOrPath}` }
+
+              const slashAction = (agent.slashActions || []).find((action) => action.name === parsed.extra)
+              if (!slashAction) return { ok: false, message: `Slash action not found: ${parsed.extra}` }
+              const flow = flowsMap[slashAction.flowId]
+
+              return {
+                ok: true,
+                relation,
+                from,
+                slashAction,
+                flow: flow ? summarizeWorkspaceValue(flow, safeDepth) : null,
+                flowExists: Boolean(flow),
+              }
+            }
+
+            if (relation === 'task.flow') {
+              if (parsed.kind !== 'task') return { ok: false, message: 'task.flow requires from=task:<flowId>/<order>' }
+              const flow = flowsMap[parsed.idOrPath]
+              if (!flow) return { ok: false, message: `Flow not found: ${parsed.idOrPath}` }
+              const order = Number.parseInt(parsed.extra || '', 10)
+              if (!Number.isInteger(order)) return { ok: false, message: 'Task order must be an integer.' }
+              const task = flow.tasks.find((item) => item.order === order)
+              if (!task) return { ok: false, message: `Task ${order} not found in flow ${flow.id}.` }
+
+              return {
+                ok: true,
+                relation,
+                from,
+                flow: summarizeWorkspaceValue(flow, safeDepth),
+                task: summarizeWorkspaceValue(task, safeDepth),
+              }
+            }
+
+            if (parsed.kind !== 'task') {
+              return { ok: false, message: 'task.agent requires from=task:<flowId>/<order>' }
+            }
+
+            const flow = flowsMap[parsed.idOrPath]
+            if (!flow) return { ok: false, message: `Flow not found: ${parsed.idOrPath}` }
+
+            const order = Number.parseInt(parsed.extra || '', 10)
+            if (!Number.isInteger(order)) return { ok: false, message: 'Task order must be an integer.' }
+            const task = flow.tasks.find((item) => item.order === order)
+            if (!task) return { ok: false, message: `Task ${order} not found in flow ${flow.id}.` }
+
+            const agentId = normalizeString(flow.frontmatter?.agentId)
+            const agent = agentId ? agentsMap[agentId] : undefined
+
+            return {
+              ok: true,
+              relation,
+              from,
+              task: summarizeWorkspaceValue(task, safeDepth),
+              agentId,
+              agent: agent ? summarizeWorkspaceValue(agent, safeDepth) : null,
+            }
+          }
+        )
+
+        prompt.defTool(
+          'findBacklinks',
+          'Find references pointing to a target entity. target format: kind:value (agent:id, flow:id, knowledge:path, envFile:name).',
+          z.object({
+            target: z.string().min(1),
+            limit: z.number().int().min(1).max(200).optional(),
+          }),
+          async ({ target, limit }: { target: string; limit?: number }) => {
+            const parsed = parseEntityReference(target)
+            if (!parsed) {
+              return { ok: false, message: 'Invalid target. Example: flow:my-flow or knowledge:education/section.md' }
+            }
+
+            const maxItems = Math.min(Math.max(limit || 100, 1), 200)
+            const backlinks: Array<Record<string, unknown>> = []
+
+            if (parsed.kind === 'flow') {
+              Object.values(agentsMap).forEach((agent) => {
+                ;(agent.slashActions || []).forEach((action) => {
+                  if (action.flowId !== parsed.idOrPath) return
+                  backlinks.push({
+                    sourceKind: 'agentSlashAction',
+                    sourceId: `${agent.id}/${action.name}`,
+                    sourceAgentId: agent.id,
+                    slashActionName: action.name,
+                    relation: 'references flowId',
+                  })
+                })
+              })
+            }
+
+            if (parsed.kind === 'agent') {
+              Object.values(flowsMap).forEach((flow) => {
+                if (flow.frontmatter?.agentId !== parsed.idOrPath) return
+                backlinks.push({
+                  sourceKind: 'flow',
+                  sourceId: flow.id,
+                  relation: 'frontmatter.agentId',
+                })
+              })
+            }
+
+            if (parsed.kind === 'knowledge') {
+              const normalizedTarget = normalizeKnowledgePath(parsed.idOrPath)
+              Object.values(agentsMap).forEach((agent) => {
+                const selectedDomains = agent.frontmatter?.selectedDomains || []
+                selectedDomains.forEach((domainPath) => {
+                  const normalizedDomain = normalizeKnowledgePath(domainPath)
+                  if (!normalizedTarget || !normalizedDomain) return
+
+                  const isDirect = normalizedDomain === normalizedTarget
+                  const isDescendant = normalizedDomain.startsWith(`${normalizedTarget}/`)
+                  const isAncestor = normalizedTarget.startsWith(`${normalizedDomain}/`)
+
+                  if (!isDirect && !isDescendant && !isAncestor) return
+
+                  backlinks.push({
+                    sourceKind: 'agent',
+                    sourceId: agent.id,
+                    relation: 'frontmatter.selectedDomains',
+                    selectedDomain: domainPath,
+                  })
+                })
+              })
+            }
+
+            if (parsed.kind === 'envFile') {
+              const exists = Boolean(workspaceData?.env?.[parsed.idOrPath])
+              if (exists) {
+                backlinks.push({
+                  sourceKind: 'workspace',
+                  sourceId: workspaceData?.id || 'unknown',
+                  relation: 'workspace.env',
+                })
+              }
+            }
+
+            return {
+              ok: true,
+              target,
+              total: backlinks.length,
+              items: backlinks.slice(0, maxItems),
+              truncated: backlinks.length > maxItems,
+            }
+          }
+        )
+
+        prompt.defTool(
+          'getBreadcrumbs',
+          'Get breadcrumb trail for navigation paths (knowledge/path, agents/id, flows/id, envFiles/name, packageJson).',
+          z.object({
+            path: z.string().min(1),
+            includeSiblings: z.boolean().optional(),
+          }),
+          async ({ path, includeSiblings }: { path: string; includeSiblings?: boolean }) => {
+            const trimmedPath = path.trim().replace(/^\/+/, '')
+            const [head, ...rest] = trimmedPath.split('/')
+
+            if (head === 'packageJson' || trimmedPath === 'package.json') {
+              return {
+                ok: true,
+                breadcrumbs: [
+                  { label: 'workspace', path: 'workspace' },
+                  { label: 'packageJson', path: 'packageJson' },
+                ],
+              }
+            }
+
+            if (head === 'agents') {
+              const agentId = rest.join('/')
+              const agent = agentId ? agentsMap[agentId] : undefined
+              return {
+                ok: true,
+                breadcrumbs: [
+                  { label: 'workspace', path: 'workspace' },
+                  { label: 'agents', path: 'agents' },
+                  ...(agentId
+                    ? [{ label: normalizeString(agent?.frontmatter?.name) || agentId, path: `agents/${agentId}` }]
+                    : []),
+                ],
+              }
+            }
+
+            if (head === 'flows') {
+              const flowId = rest.join('/')
+              const flow = flowId ? flowsMap[flowId] : undefined
+              return {
+                ok: true,
+                breadcrumbs: [
+                  { label: 'workspace', path: 'workspace' },
+                  { label: 'flows', path: 'flows' },
+                  ...(flowId
+                    ? [{ label: normalizeString(flow?.frontmatter?.name) || flowId, path: `flows/${flowId}` }]
+                    : []),
+                ],
+              }
+            }
+
+            if (head === 'envFiles') {
+              const fileName = rest.join('/')
+              return {
+                ok: true,
+                breadcrumbs: [
+                  { label: 'workspace', path: 'workspace' },
+                  { label: 'envFiles', path: 'envFiles' },
+                  ...(fileName ? [{ label: fileName, path: `envFiles/${fileName}` }] : []),
+                ],
+              }
+            }
+
+            const knowledgePath = head === 'knowledge' ? rest.join('/') : trimmedPath
+            const normalizedKnowledgePath = normalizeKnowledgePath(knowledgePath)
+
+            if (!normalizedKnowledgePath) {
+              return {
+                ok: true,
+                breadcrumbs: [
+                  { label: 'workspace', path: 'workspace' },
+                  { label: 'knowledge', path: 'knowledge' },
+                ],
+                siblings: includeSiblings
+                  ? knowledge.map((node) => ({ path: node.path, type: node.type }))
+                  : undefined,
+              }
+            }
+
+            const entry = findKnowledgeEntryByPath(knowledge, normalizedKnowledgePath)
+            if (!entry) {
+              return {
+                ok: false,
+                message: `Knowledge path not found: ${normalizedKnowledgePath}`,
+              }
+            }
+
+            const crumbs: Array<{ label: string; path: string }> = [
+              { label: 'workspace', path: 'workspace' },
+              { label: 'knowledge', path: 'knowledge' },
+            ]
+
+            const chain: KnowledgeFlatEntry[] = []
+            let cursor: KnowledgeFlatEntry | null = entry
+            while (cursor) {
+              chain.push(cursor)
+              cursor = cursor.parentPath ? findKnowledgeEntryByPath(knowledge, cursor.parentPath) : null
+            }
+
+            chain.reverse().forEach((item) => {
+              crumbs.push({
+                label: normalizeString(item.node.config?.label) || normalizeString(item.node.frontmatter?.title) || item.node.path,
+                path: `knowledge/${item.node.path}`,
+              })
+            })
+
+            const siblings = includeSiblings
+              ? (
+                entry.parentPath
+                  ? (findKnowledgeEntryByPath(knowledge, entry.parentPath)?.node.children || [])
+                  : knowledge
+              ).map((node) => ({
+                path: node.path,
+                type: node.type,
+                label: normalizeString(node.config?.label) || normalizeString(node.frontmatter?.title) || node.path,
+              }))
+              : undefined
+
+            return {
+              ok: true,
+              breadcrumbs: crumbs,
+              siblings,
+            }
+          }
+        )
+
+        prompt.defTool(
+          'recentlyTouched',
+          'List recently updated entities across flows, conversations, env files, and workspace metadata.',
+          z.object({
+            since: z.string().optional(),
+            actor: z.string().optional(),
+            limit: z.number().int().min(1).max(200).optional(),
+          }),
+          async ({ since, actor, limit }: { since?: string; actor?: string; limit?: number }) => {
+            const sinceEpoch = since ? Date.parse(since) : Number.NaN
+            const hasValidSince = Number.isFinite(sinceEpoch)
+            const requestedActor = actor?.trim().toLowerCase()
+            const maxItems = Math.min(Math.max(limit || 30, 1), 200)
+
+            const timeline: Array<{
+              kind: string
+              id: string
+              updatedAt: string
+              actor: string
+              details?: Record<string, unknown>
+            }> = []
+
+            Object.values(flowsMap).forEach((flow) => {
+              if (!flow.frontmatter?.updatedAt) return
+              timeline.push({
+                kind: 'flow',
+                id: flow.id,
+                updatedAt: flow.frontmatter.updatedAt,
+                actor: 'workspace',
+                details: { name: normalizeString(flow.frontmatter?.name) || flow.id },
+              })
+            })
+
+            Object.values(agentsMap).forEach((agent) => {
+              ;(agent.conversations || []).forEach((conversationItem) => {
+                if (!conversationItem.updatedAt) return
+                timeline.push({
+                  kind: 'agentConversation',
+                  id: `${agent.id}/${conversationItem.id}`,
+                  updatedAt: conversationItem.updatedAt,
+                  actor: 'chat',
+                  details: { agentId: agent.id, agentName: normalizeString(agent.frontmatter?.name) || agent.id },
+                })
+              })
+            })
+
+            Object.entries(workspaceData?.env || {}).forEach(([fileName, envFile]) => {
+              if (!envFile.updatedAt) return
+              timeline.push({
+                kind: 'envFile',
+                id: fileName,
+                updatedAt: envFile.updatedAt,
+                actor: 'workspace',
+              })
+            })
+
+            const sorted = timeline
+              .filter((entry) => {
+                if (hasValidSince && Date.parse(entry.updatedAt) < sinceEpoch) return false
+                if (requestedActor && entry.actor.toLowerCase() !== requestedActor) return false
+                return true
+              })
+              .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+
+            return {
+              ok: true,
+              total: sorted.length,
+              items: sorted.slice(0, maxItems),
+              truncated: sorted.length > maxItems,
+            }
+          }
+        )
+
+        prompt.defTool(
+          'snapshotWorkspace',
+          'Create and store a workspace snapshot for later diffing. Returns snapshot id and summary.',
+          z.object({
+            snapshotId: z.string().optional(),
+            scope: snapshotScopeSchema.optional(),
+          }),
+          async ({ snapshotId, scope }: { snapshotId?: string; scope?: SnapshotScope }) => {
+            const resolvedScope = scope || 'workspace'
+            const snapshotValue = (() => {
+              if (resolvedScope === 'agents') return agentsMap
+              if (resolvedScope === 'flows') return flowsMap
+              if (resolvedScope === 'knowledge') return knowledge
+              if (resolvedScope === 'packageJson') return workspaceData?.packageJson || null
+              if (resolvedScope === 'envFiles') return workspaceData?.env || {}
+              return {
+                id: workspaceData?.id ?? null,
+                agents: agentsMap,
+                flows: flowsMap,
+                knowledge,
+                packageJson: workspaceData?.packageJson || null,
+                envFiles: workspaceData?.env || {},
+              }
+            })()
+
+            const id = snapshotId?.trim() || `snap-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+            thingSnapshotsRef.current[id] = cloneSnapshot(snapshotValue)
+
+            return {
+              ok: true,
+              snapshotId: id,
+              scope: resolvedScope,
+              summary: summarizeWorkspaceValue(snapshotValue, 1),
+            }
+          }
+        )
+
+        prompt.defTool(
+          'diffSnapshots',
+          'Compare two stored snapshots and return structural differences.',
+          z.object({
+            a: z.string().min(1),
+            b: z.string().min(1),
+            maxDepth: z.number().int().min(1).max(8).optional(),
+          }),
+          async ({ a, b, maxDepth }: { a: string; b: string; maxDepth?: number }) => {
+            const snapshotA = thingSnapshotsRef.current[a]
+            const snapshotB = thingSnapshotsRef.current[b]
+
+            if (snapshotA === undefined) {
+              return { ok: false, message: `Snapshot not found: ${a}` }
+            }
+
+            if (snapshotB === undefined) {
+              return { ok: false, message: `Snapshot not found: ${b}` }
+            }
+
+            const changes = buildSnapshotDiff(snapshotA, snapshotB, '$', 0, maxDepth || 4)
+
+            return {
+              ok: true,
+              a,
+              b,
+              totalChanges: changes.length,
+              changes,
+            }
+          }
+        )
+
+        prompt.defTool(
+          'suggestNextNavigation',
+          'Suggest likely next navigation actions based on user intent and current context.',
+          z.object({
+            intent: z.string().min(1),
+            currentContext: z.string().optional(),
+          }),
+          async ({ intent, currentContext }: { intent: string; currentContext?: string }) => {
+            const text = `${intent} ${currentContext || ''}`.toLowerCase()
+            const suggestions: Array<{
+              tool: string
+              args: Record<string, unknown>
+              reason: string
+            }> = []
+
+            const push = (tool: string, args: Record<string, unknown>, reason: string) => {
+              suggestions.push({ tool, args, reason })
+            }
+
+            push('listWorkspaceRoots', {}, 'Get a quick workspace overview before drilling down.')
+
+            if (text.includes('agent')) {
+              push('listChildren', { domain: 'agents', limit: 25 }, 'Browse agents list.')
+              push('searchWorkspace', { domain: 'agents', query: intent, limit: 20 }, 'Find matching agents by name/description/instructions.')
+            }
+
+            if (text.includes('flow') || text.includes('workflow') || text.includes('task')) {
+              push('listChildren', { domain: 'flows', limit: 25 }, 'Browse flows and task counts.')
+              push('searchWorkspace', { domain: 'flows', query: intent, limit: 20 }, 'Find relevant flows and task content.')
+            }
+
+            if (text.includes('knowledge') || text.includes('domain') || text.includes('markdown') || text.includes('.md')) {
+              push('listChildren', { domain: 'knowledge', nodePath: 'root', limit: 30 }, 'Browse top-level knowledge directories/files.')
+              push('searchWorkspace', { domain: 'knowledge', query: intent, limit: 30 }, 'Search knowledge paths/content.')
+            }
+
+            if (text.includes('dependency') || text.includes('reference') || text.includes('used by') || text.includes('impact')) {
+              push('findBacklinks', { target: 'flow:<flowId>' }, 'Check dependencies before rename/delete.')
+            }
+
+            if (text.includes('change') || text.includes('diff') || text.includes('compare')) {
+              push('snapshotWorkspace', { scope: 'workspace' }, 'Capture current state for comparison.')
+              push('diffSnapshots', { a: '<snapA>', b: '<snapB>' }, 'Compare two captured snapshots.')
+            }
+
+            if (suggestions.length < 3) {
+              push('searchWorkspace', { query: intent, limit: 20 }, 'Fallback global search across workspace domains.')
+              push('listChildren', { domain: 'knowledge', nodePath: 'root', limit: 20 }, 'Fallback browse starting at knowledge root.')
+            }
+
+            return {
+              ok: true,
+              intent,
+              currentContext: currentContext || null,
+              suggestions: suggestions.slice(0, 8),
             }
           }
         )
@@ -704,7 +1991,7 @@ export function ThingPanel({ isOpen }: ThingPanelProps) {
           'addKnowledgeNode',
           'Add a knowledge node under a parent directory path, or root when parentNodePath is null.',
           z.object({
-            parentNodePath: z.string().min(1).nullable().optional(),
+            parentNodePath: z.string().min(1).nullable().optional().describe('Path of the parent directory node, or `root` for root level'),
             node: knowledgeNodeSchema,
           }),
           async ({ parentNodePath, node }: { parentNodePath?: string | null; node: KnowledgeNode }) => {
@@ -816,6 +2103,7 @@ export function ThingPanel({ isOpen }: ThingPanelProps) {
     agentsMap,
     flowsMap,
     knowledge,
+    agentBuilderProps,
     totalKnowledgeNodeCount,
     thingModel,
     createWorkspace,

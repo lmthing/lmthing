@@ -348,6 +348,7 @@ export function StudioShell({
     githubLoadProgress,
     knowledge: rawKnowledge,
     upsertAgent,
+    deleteAgent,
     updateKnowledgeFileContent,
     updateKnowledgeFileFrontmatter,
     updateKnowledgeDirectoryConfig,
@@ -544,7 +545,7 @@ export function StudioShell({
   }, [activeDomain, rawKnowledge])
 
   // Available flows (empty for now, would come from flow builder data)
-  const availableFlows: any[] = []
+  const availableFlows: NonNullable<AgentBuilderScreenProps['availableFlows']> = []
 
   // Prompt library callbacks
   const handleSelectFile = useCallback((file: PromptFragment) => {
@@ -1018,6 +1019,46 @@ export function StudioShell({
     handleSaveRuntimeConversation(targetConversation)
   }, [conversationId, runtimeConversations, handleSaveRuntimeConversation])
 
+  const handleLoadAgent = useCallback((targetAgentId: string) => {
+    navigate(`${studioPath}/agent/${targetAgentId}`)
+  }, [navigate, studioPath])
+
+  const handleDeleteSavedAgent = useCallback((targetAgentId: string) => {
+    deleteAgent(targetAgentId)
+
+    if (agentId === targetAgentId) {
+      navigate(studioPath)
+    }
+  }, [deleteAgent, agentId, navigate, studioPath])
+
+  const handleDuplicateAgent = useCallback((targetAgentId: string) => {
+    const sourceAgent = agentsMap[targetAgentId]
+    if (!sourceAgent) return
+
+    const baseId = `${targetAgentId}-copy`
+    let duplicateId = baseId
+    let suffix = 2
+
+    while (agentsMap[duplicateId]) {
+      duplicateId = `${baseId}-${suffix}`
+      suffix += 1
+    }
+
+    const sourceName = (sourceAgent.frontmatter.name as string) || targetAgentId
+
+    upsertAgent({
+      ...sourceAgent,
+      id: duplicateId,
+      frontmatter: {
+        ...sourceAgent.frontmatter,
+        name: `${sourceName} (copy)`,
+      },
+      conversations: [],
+    })
+
+    navigate(`${studioPath}/agent/${duplicateId}`)
+  }, [agentsMap, navigate, studioPath, upsertAgent])
+
   const handleNewAgent = useCallback(() => {
     setSelectedDomainIds([])
     setFormValues({})
@@ -1058,7 +1099,7 @@ export function StudioShell({
       },
     }
     setAttachedFlows(prev => [...prev, newAttachedFlow])
-  }, [])
+  }, [flowsMap])
 
   const handleDetachFlow = useCallback((slashActionId: string) => {
     setAttachedFlows(prev => prev.filter(af => af.slashAction?.id !== slashActionId))
@@ -1247,6 +1288,9 @@ export function StudioShell({
     onConfigureTool: handleConfigureTool,
     onGeneratePreview: handleGeneratePreview,
     onSaveAgent: handleSaveAgent,
+    onLoadAgent: handleLoadAgent,
+    onDeleteAgent: handleDeleteSavedAgent,
+    onDuplicateAgent: handleDuplicateAgent,
     onNewAgent: handleNewAgent,
     onOpenFlowBuilder: handleOpenFlowBuilder,
     onCloseFlowBuilder: handleCloseFlowBuilder,
@@ -1541,7 +1585,7 @@ export function StudioShell({
           </div>
         </div>
 
-        <ThingPanel isOpen={isThingOpen} />
+        <ThingPanel isOpen={isThingOpen} agentBuilderProps={agentBuilderProps} />
       </div>
     </div>
   )

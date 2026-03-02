@@ -15,6 +15,10 @@ export const router = createBrowserRouter([
     children: [
       // Default list view
       { index: true },
+      // Settings view with tabs
+      { path: 'settings' },
+      { path: 'settings/env' },
+      { path: 'settings/package-json' },
       // Domain detail view
       { path: 'domain/:domainId' },
       // Agent detail view

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { X, Shield, KeyRound, FileCode2, Sparkles, Search, PackagePlus, Trash2 } from 'lucide-react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Shield, KeyRound, FileCode2, Sparkles, Search, PackagePlus, Trash2, Info } from 'lucide-react'
 import { useWorkspaceData } from '@/lib/workspaceDataContext'
 import type { PackageJson } from '@/types/workspace-data'
 import {
@@ -11,6 +12,8 @@ import {
   parseDotEnv,
   stringifyDotEnv,
 } from '@/lib/envCrypto'
+import { ENV_EXAMPLE_CONTENT } from '@/data/env-example'
+import { toWorkspaceRouteParam } from '@/lib/workspaces'
 
 interface SettingsViewProps {
   isOpen: boolean
@@ -275,6 +278,10 @@ function removeSessionEnvPlaintext(workspaceId: string, fileName: string) {
 }
 
 export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { workspaceName } = useParams()
+  
   const {
     workspaceData,
     packageJson,
@@ -283,6 +290,18 @@ export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
     upsertEnvFile,
     deleteEnvFile,
   } = useWorkspaceData()
+
+  // Determine active tab from URL - default to env
+  const activeTab = useMemo(() => {
+    if (location.pathname.includes('/settings/package-json')) return 'package-json'
+    return 'env' // default to env tab
+  }, [location.pathname])
+
+  const handleTabChange = (tab: 'env' | 'package-json') => {
+    if (!workspaceName) return
+    const basePath = `/workspace/${workspaceName}/studio/settings`
+    navigate(`${basePath}/${tab}`)
+  }
 
   const envFileNames = useMemo(() => Object.keys(env).sort(), [env])
   const packageJsonSerialized = useMemo(
@@ -765,26 +784,48 @@ export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/65 p-4 md:p-8">
-      <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950">
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Workspace Settings</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              {workspaceData ? `Workspace: ${workspaceData.id}` : 'No workspace selected'}
-            </p>
+    <div className="h-full w-full flex items-start justify-center bg-slate-50 dark:bg-slate-900 p-4 md:p-8">
+      <div className="flex max-h-full w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-950">
+        <div className="border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-center justify-between px-5 py-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Workspace Settings</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                {workspaceData ? `Workspace: ${workspaceData.id}` : 'No workspace selected'}
+              </p>
+            </div>
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-            aria-label="Close settings"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          
+          {/* Tab Navigation */}
+          <div className="flex gap-1 px-5">
+            <button
+              onClick={() => handleTabChange('env')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'env'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'
+              }`}
+            >
+              <Shield className="inline-block h-4 w-4 mr-1.5" />
+              Environment
+            </button>
+            <button
+              onClick={() => handleTabChange('package-json')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'package-json'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'
+              }`}
+            >
+              <FileCode2 className="inline-block h-4 w-4 mr-1.5" />
+              package.json
+            </button>
+          </div>
         </div>
 
-        <div className="grid flex-1 grid-cols-1 gap-0 overflow-y-auto lg:overflow-hidden lg:grid-cols-2">
-          <section className="flex min-h-0 flex-col border-b border-slate-200 p-5 dark:border-slate-800 lg:border-b-0 lg:border-r lg:overflow-y-auto">
+        {activeTab === 'package-json' && (
+        <div className="flex-1 overflow-y-auto">
+          <section className="flex min-h-0 flex-col p-5">
             <div className="mb-3 flex items-center gap-2">
               <FileCode2 className="h-4 w-4 text-violet-500" />
               <h3 className="font-medium text-slate-900 dark:text-slate-100">package.json</h3>
@@ -972,17 +1013,17 @@ export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
                 </div>
               </div>
 
-              <details className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900/50">
-                <summary className="cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Advanced JSON editor
-                </summary>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900/50">
+                <p className="mb-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Raw JSON editor
+                </p>
                 <textarea
                   value={displayedPackageJsonDraft}
                   onChange={(event) => setPackageJsonDraft(event.target.value)}
                   spellCheck={false}
-                  className="mt-3 min-h-[180px] w-full rounded-lg border border-slate-200 bg-white p-3 font-mono text-xs text-slate-800 focus:border-violet-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                  className="min-h-[200px] w-full rounded-lg border border-slate-200 bg-white p-3 font-mono text-xs text-slate-800 focus:border-violet-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                 />
-              </details>
+              </div>
             </div>
 
             <div className="mt-3 flex items-center justify-between gap-3">
@@ -1003,8 +1044,12 @@ export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
               </button>
             </div>
           </section>
+        </div>
+        )}
 
-          <section className="flex min-h-0 flex-col p-5 lg:overflow-y-auto">
+        {activeTab === 'env' && (
+        <div className="flex-1 overflow-y-auto">
+          <section className="flex min-h-0 flex-col p-5">
             <div className="mb-3 flex items-center gap-2">
               <Shield className="h-4 w-4 text-emerald-500" />
               <h3 className="font-medium text-slate-900 dark:text-slate-100">Encrypted env files</h3>
@@ -1013,6 +1058,19 @@ export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
             <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
               Env files are stored encrypted in workspace `env`, exported as `.env.*` files, and require a per-file password.
             </p>
+
+            <div className="mb-3 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-900/40 dark:bg-blue-950/20">
+              <Info className="h-4 w-4 flex-shrink-0 text-blue-500" />
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                For configuration examples, see{' '}
+                <a
+                  href="#file:lib/core/.env.example"
+                  className="font-medium text-blue-600 hover:underline dark:text-blue-400"
+                >
+                  .env.example
+                </a>
+              </p>
+            </div>
 
             <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
               <input
@@ -1214,8 +1272,20 @@ export function SettingsView({ isOpen, onClose }: SettingsViewProps) {
               </div>
             </div>
 
-            <div className="mb-2 rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300">
-              Env values are hidden in this view.
+            <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900/50">
+              <p className="mb-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Raw env file editor
+              </p>
+              <textarea
+                value={displayedEnvContent}
+                onChange={(event) => {
+                  setEnvContent(event.target.value)
+                  setIsEnvLoaded(true)
+                }}
+                spellCheck={false}
+                placeholder="KEY=value\nANOTHER_KEY=another_value"
+                className="min-h-[200px] w-full rounded-lg border border-slate-200 bg-white p-3 font-mono text-xs text-slate-800 focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              />
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-2">

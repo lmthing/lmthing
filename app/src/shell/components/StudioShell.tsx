@@ -1,7 +1,8 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom'
 import { StudioSidebar } from './StudioSidebar'
 import { ThingPanel } from './ThingPanel'
+import { SettingsView } from './SettingsView'
 import { Bot, Folder } from 'lucide-react'
 import { PromptLibrary } from '@/sections/prompt-library/components/PromptLibrary'
 import { AgentFormBuilder } from '@/sections/agent-builder/components/AgentFormBuilder'
@@ -513,14 +514,19 @@ export function StudioShell({
     lastAutoSavedSnapshotRef.current = JSON.stringify(sourceAgent)
   }, [agentId, agentsMap, agents])
 
+  const location = useLocation()
+
   // Determine view mode from URL params
-  const viewMode: 'list' | 'domain-detail' | 'agent-detail' | 'agent-conversation' = conversationId
-    ? 'agent-conversation'
-    : agentId
-      ? 'agent-detail'
-      : domainId
-        ? 'domain-detail'
-        : 'list'
+  const viewMode: 'list' | 'domain-detail' | 'agent-detail' | 'agent-conversation' | 'settings' = 
+    location.pathname.endsWith('/settings')
+      ? 'settings'
+      : conversationId
+      ? 'agent-conversation'
+      : agentId
+        ? 'agent-detail'
+        : domainId
+          ? 'domain-detail'
+          : 'list'
 
   // Get filtered file system for the selected domain
   // knowledgeNodeToFileSystem is a module-level pure function – no useCallback needed
@@ -1347,7 +1353,7 @@ export function StudioShell({
         {/* Header */}
         <header className="h-14 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 bg-white dark:bg-slate-900">
           <div className="flex items-center gap-3">
-            {(activeDomain || activeAgent) && (
+            {(activeDomain || activeAgent || viewMode === 'settings') && (
               <button
                 onClick={handleBackToList}
                 className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
@@ -1358,7 +1364,13 @@ export function StudioShell({
               </button>
             )}
             <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-              {activeAgent ? activeAgent.name : activeDomain ? activeDomain.label : 'Studio'}
+              {viewMode === 'settings'
+                ? 'Settings'
+                : activeAgent
+                ? activeAgent.name
+                : activeDomain
+                ? activeDomain.label
+                : 'Studio'}
             </h1>
             {activeAgent && (
               <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
@@ -1569,6 +1581,13 @@ export function StudioShell({
               canSaveConversation={Boolean(agentId && conversationId)}
               hideTopNav
             />
+          )}
+
+          {/* Settings View */}
+          {viewMode === 'settings' && (
+            <div className="h-full">
+              <SettingsView isOpen={true} onClose={handleBackToList} />
+            </div>
           )}
           </div>
         </div>

@@ -388,6 +388,37 @@ function buildSnapshotDiff(
   return acc
 }
 
+function checkHasEnvConfigured(): boolean {
+  const runtimeEnv =
+    typeof window !== 'undefined'
+      ? (window as Window & { process?: { env?: Record<string, string | undefined> } }).process?.env
+      : undefined
+
+  if (!runtimeEnv) return false
+
+  // Check for any provider API keys
+  const providerKeys = [
+    'OPENAI_API_KEY',
+    'ANTHROPIC_API_KEY',
+    'GOOGLE_GENERATIVE_AI_API_KEY',
+    'MISTRAL_API_KEY',
+    'AZURE_API_KEY',
+    'GROQ_API_KEY',
+    'COHERE_API_KEY',
+    'AWS_ACCESS_KEY_ID',
+    'ZAI_API_KEY',
+    'OPENROUTER_API_KEY',
+    'TOGETHER_API_KEY',
+    'PERPLEXITY_API_KEY',
+    'GITHUB_MODELS_API_KEY',
+  ]
+
+  return providerKeys.some((key) => {
+    const value = runtimeEnv[key]
+    return typeof value === 'string' && value.trim().length > 0 && !value.includes('your-') && !value.includes('-here')
+  })
+}
+
 function resolveThingModelId(): ThingLmthingModelId {
   const runtimeEnv =
     typeof window !== 'undefined'
@@ -507,6 +538,7 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
   const thingMessagesEndRef = useRef<HTMLDivElement | null>(null)
   const resizeStartXRef = useRef<number>(0)
   const resizeStartWidthRef = useRef<number>(0)
+  const hasEnv = useMemo(() => checkHasEnvConfigured(), [])
   const thingModel = useMemo(() => resolveThingModelId(), [])
 
   const currentConversation = useMemo(() => {
@@ -2131,7 +2163,8 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
       return finalText
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
-      return `I could not complete that request: ${message}`
+      return `Set the required ENV variables in settings.
+       ${message}`
     }
   }, [
     workspaceData,
@@ -2378,16 +2411,18 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
           <button
             onClick={() => setIsCollapsed(false)}
             className="relative inline-flex items-center justify-center p-2 rounded-md hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
-            title="Expand Thing panel"
+            title={hasEnv ? "Expand Thing panel" : "Expand Thing panel (Environment not configured)"}
           >
             <Bot className="h-5 w-5 text-amber-700 dark:text-amber-500" />
             <span
               className={
-                hasThingError
-                  ? 'absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-500'
-                  : isThingWorking
-                    ? 'absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 animate-pulse'
-                    : 'absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500'
+                !hasEnv
+                  ? 'absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-orange-500 animate-pulse'
+                  : hasThingError
+                    ? 'absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-500'
+                    : isThingWorking
+                      ? 'absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 animate-pulse'
+                      : 'absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500'
               }
             />
           </button>
@@ -2400,11 +2435,13 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
                 <Bot className="h-4 w-4 text-amber-700 dark:text-amber-500" />
                 <span
                   className={
-                    hasThingError
-                      ? 'absolute -right-1 -top-1 h-2 w-2 rounded-full bg-red-500'
-                      : isThingWorking
-                        ? 'absolute -right-1 -top-1 h-2 w-2 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 animate-pulse'
-                        : 'absolute -right-1 -top-1 h-2 w-2 rounded-full bg-emerald-500'
+                    !hasEnv
+                      ? 'absolute -right-1 -top-1 h-2 w-2 rounded-full bg-orange-500 animate-pulse'
+                      : hasThingError
+                        ? 'absolute -right-1 -top-1 h-2 w-2 rounded-full bg-red-500'
+                        : isThingWorking
+                          ? 'absolute -right-1 -top-1 h-2 w-2 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 animate-pulse'
+                          : 'absolute -right-1 -top-1 h-2 w-2 rounded-full bg-emerald-500'
                   }
                 />
               </div>
@@ -2435,6 +2472,22 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
       {!isCollapsed && (
         <>
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {!hasEnv && (
+          <div className="rounded-lg border border-orange-300 bg-orange-50 p-3 shadow-sm dark:border-orange-700 dark:bg-orange-950/30">
+            <div className="mb-1.5 flex items-center gap-2">
+              <svg className="h-4 w-4 text-orange-600 dark:text-orange-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <div className="text-xs font-semibold text-orange-900 dark:text-orange-200">Environment Not Configured</div>
+            </div>
+            <p className="text-xs text-orange-800 dark:text-orange-300 leading-relaxed">
+              THING is disabled. Configure API keys in <span className="font-mono font-semibold">Settings</span> to enable workspace actions.
+            </p>
+            <p className="mt-2 text-xs text-orange-700 dark:text-orange-400">
+              See <code className="rounded bg-orange-100 px-1 py-0.5 font-mono text-[10px] dark:bg-orange-900/40">.env.example</code> in <code className="rounded bg-orange-100 px-1 py-0.5 font-mono text-[10px] dark:bg-orange-900/40">lib/core/</code> for provider configuration.
+            </p>
+          </div>
+        )}
         <div className="rounded-lg border border-stone-300 bg-white shadow-sm p-2 dark:border-stone-700 dark:bg-stone-900/50">
           <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-stone-600 dark:text-amber-500">
             History
@@ -2583,14 +2636,15 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
           value={thingInput}
           onChange={(event) => setThingInput(event.target.value)}
           rows={5}
-          placeholder="Type help or paste JSON action envelope..."
-          className="w-full resize-none rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 outline-none ring-amber-600 focus:ring-2 dark:border-stone-600 dark:bg-stone-950/80 dark:text-stone-200"
+          placeholder={hasEnv ? "Type help or paste JSON action envelope..." : "Configure environment variables to enable THING..."}
+          disabled={!hasEnv}
+          className="w-full resize-none rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 outline-none ring-amber-600 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-stone-100 dark:border-stone-600 dark:bg-stone-950/80 dark:text-stone-200 dark:disabled:bg-stone-900/50"
         />
         <div className="flex items-center justify-between gap-3">
-          <span className="text-xs text-stone-600 dark:text-stone-400">Try: help or status</span>
+          <span className="text-xs text-stone-600 dark:text-stone-400">{hasEnv ? 'Try: help or status' : 'Set up environment to enable'}</span>
           <button
             type="submit"
-            disabled={isThingWorking || !thingInput.trim()}
+            disabled={!hasEnv || isThingWorking || !thingInput.trim()}
             className="inline-flex items-center rounded-md bg-amber-700 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
           >
             Send

@@ -1,0 +1,98 @@
+export const ENV_EXAMPLE_CONTENT = `# OpenAI Configuration
+OPENAI_API_KEY=your-openai-api-key-here
+
+# Anthropic Configuration
+ANTHROPIC_API_KEY=your-anthropic-api-key-here
+
+# Google AI Configuration (Generative AI)
+GOOGLE_GENERATIVE_AI_API_KEY=your-google-api-key-here
+
+# Google Vertex AI Configuration
+GOOGLE_VERTEX_PROJECT=your-gcp-project-id
+GOOGLE_VERTEX_LOCATION=us-central1
+
+# Mistral Configuration
+MISTRAL_API_KEY=your-mistral-api-key-here
+
+# Azure OpenAI Configuration
+AZURE_API_KEY=your-azure-api-key-here
+AZURE_RESOURCE_NAME=your-azure-resource-name
+
+# Groq Configuration
+GROQ_API_KEY=your-groq-api-key-here
+
+# Cohere Configuration
+COHERE_API_KEY=your-cohere-api-key-here
+
+# Amazon Bedrock Configuration
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your-aws-access-key-id
+AWS_SECRET_ACCESS_KEY=your-aws-secret-access-key
+# AWS_SESSION_TOKEN=your-aws-session-token  # Optional, for temporary credentials
+
+# Custom OpenAI-Compatible Providers
+# Format: {NAME}_API_KEY, {NAME}_API_BASE, {NAME}_API_TYPE=openai
+# These will be automatically detected and registered
+
+# Example: Z.AI
+ZAI_API_KEY=your-zai-api-key-here
+ZAI_API_BASE=https://api.z.ai/api/coding/paas/v4
+ZAI_API_TYPE=openai
+ZAI_API_NAME=zai  # Optional display name
+
+# Example: OpenRouter
+OPENROUTER_API_KEY=your-openrouter-api-key-here
+OPENROUTER_API_BASE=https://openrouter.ai/api/v1
+OPENROUTER_API_TYPE=openai
+OPENROUTER_API_NAME=openrouter  # Optional display name
+
+# Example: Together AI
+TOGETHER_API_KEY=your-together-api-key-here
+TOGETHER_API_BASE=https://api.together.xyz/v1
+TOGETHER_API_TYPE=openai
+TOGETHER_API_NAME=together  # Optional display name
+
+# Example: Perplexity
+PERPLEXITY_API_KEY=your-perplexity-api-key-here
+PERPLEXITY_API_BASE=https://api.perplexity.ai
+PERPLEXITY_API_TYPE=openai
+PERPLEXITY_API_NAME=perplexity  # Optional display name
+
+# Example: GitHub Models API (for use in CI with GitHub tokens)
+# Note: Use GitHub token (e.g., from secrets.GITHUB_TOKEN in Actions)
+# Available models: gpt-4o, gpt-4o-mini, o1-preview, o1-mini, Phi-3-*, etc.
+# See: https://github.com/marketplace/models
+#
+# For local development with integration tests:
+# 1. Create a GitHub Personal Access Token with appropriate permissions
+# 2. Or use your GitHub Copilot Pro token
+# 3. Run tests with: GITHUB_MODELS_API_KEY=... npm test -- --run llm-integration
+GITHUB_MODELS_API_KEY=your-github-token-here
+GITHUB_MODELS_API_BASE=https://models.inference.ai.azure.com
+GITHUB_MODELS_API_TYPE=openai
+GITHUB_MODELS_API_NAME=github  # Optional display name
+
+# Model Aliases
+# Define aliases for easier model reference using LM_MODEL_* prefix
+# Usage: model: "large" instead of model: "openai:gpt-4o"
+LM_MODEL_LARGE=anthropic:claude-3-5-sonnet-20241022
+LM_MODEL_FAST=openai:gpt-4o-mini
+LM_MODEL_SMART=anthropic:claude-3-opus-20240229
+
+# Testing Configuration
+MOCK_PROVIDER_ENABLED=true
+TEST_TIMEOUT=10000
+
+# Development Configuration
+NODE_ENV=development
+DEBUG=lmthing:*
+
+# Langfuse Observability (optional)
+# Get API keys from https://cloud.langfuse.com or your self-hosted instance.
+# See docker-compose.langfuse.yml for running Langfuse locally.
+LANGFUSE_SECRET_KEY=sk-lf-your-secret-key-here
+LANGFUSE_PUBLIC_KEY=pk-lf-your-public-key-here
+# For local self-hosting use http://localhost:3000; for Langfuse Cloud use https://cloud.langfuse.com
+# For US region Cloud: https://us.cloud.langfuse.com
+LANGFUSE_BASEURL=http://localhost:3000
+`

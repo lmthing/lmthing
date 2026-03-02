@@ -158,49 +158,77 @@ export default function LandingLayout() {
       <main className="mx-auto max-w-7xl px-6 py-16">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
-            Turn Knowledge into AI Agents
+            Automated Knowledge & Agent Creation with THING
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            No code required. Transform your knowledge into powerful AI agents.
-            Organize them into knowledge areas, design workflows visually, and deploy
-            intelligent solutions — all without writing a single line of code.
+            Let THING automatically generate knowledge bases and AI agents from your instructions.
+            Simply describe what you want, and THING will create the complete workspace structure,
+            agents, and flows — all powered by AI. No manual setup required.
           </p>
         </div>
 
-        {/* Studio Launch Panel */}
-        <div className="mx-auto mt-14 max-w-4xl rounded-3xl border border-slate-200/80 bg-white/80 p-6 shadow-sm backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/70 sm:p-8">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                <Settings className="size-3.5" />
-                Studio
+        {/* THING Feature Panel */}
+        <div className="mx-auto mt-14 max-w-5xl rounded-3xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 via-white to-violet-50/50 p-8 shadow-xl backdrop-blur-sm dark:border-primary/40 dark:from-primary/10 dark:via-slate-900 dark:to-violet-950/30">
+          <div className="flex flex-col gap-6">
+            <div className="text-center">
+              <div className="inline-flex items-center gap-2 rounded-full border-2 border-primary/40 bg-primary/20 px-4 py-2 text-sm font-bold text-primary shadow-sm">
+                <Bot className="size-5" />
+                THING — Your AI Workspace Builder
               </div>
-              <h3 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
-                Build, test, and run everything in one place
+              <h3 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+                Describe it. THING builds it.
               </h3>
-              <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
-                Studio is now your full workflow: shape knowledge, configure agents, design flows,
-                and validate runtime behavior without leaving the workspace.
+              <p className="mt-3 max-w-3xl mx-auto text-base text-muted-foreground sm:text-lg">
+                THING is your AI assistant that creates complete knowledge bases and agents automatically.
+                Just tell THING what you need, and it will generate the workspace structure, knowledge files,
+                agents, and action flows — ready to use.
               </p>
             </div>
-            <Button size="lg" className="sm:self-start" onClick={openWorkspaceModal}>
-              Open Studio
-              <ArrowRight className="ml-2 size-4" />
-            </Button>
-          </div>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-300">
-              <span className="font-medium">Knowledge</span>
-              <span className="text-slate-500 dark:text-slate-400"> → markdown-driven context</span>
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/20 dark:to-slate-900">
+                <FileText className="size-8 text-emerald-600 mb-2" />
+                <h4 className="font-semibold text-slate-900 dark:text-slate-100">Auto-Generate Knowledge</h4>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                  THING creates structured knowledge bases with markdown files organized by topic
+                </p>
+              </div>
+              <div className="rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50 to-white p-4 shadow-sm dark:border-violet-900/40 dark:from-violet-950/20 dark:to-slate-900">
+                <Bot className="size-8 text-violet-600 mb-2" />
+                <h4 className="font-semibold text-slate-900 dark:text-slate-100">Build Smart Agents</h4>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                  THING generates agents with proper prompts, tools, and configurations automatically
+                </p>
+              </div>
+              <div className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm dark:border-blue-900/40 dark:from-blue-950/20 dark:to-slate-900">
+                <Workflow className="size-8 text-blue-600 mb-2" />
+                <h4 className="font-semibold text-slate-900 dark:text-slate-100">Create Action Flows</h4>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                  THING designs complete workflows and task sequences based on your needs
+                </p>
+              </div>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-300">
-              <span className="font-medium">Agents</span>
-              <span className="text-slate-500 dark:text-slate-400"> → forms, prompts, and tools</span>
+
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/50 p-4 dark:border-amber-900/40 dark:bg-amber-950/20">
+              <div className="flex items-start gap-3">
+                <Settings className="size-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-1">
+                    First Step: Configure Your AI Provider
+                  </h4>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    Before THING can work its magic, you need to add at least one AI provider (like OpenAI, Anthropic, or others) 
+                    in your environment settings. This gives THING the AI power it needs to generate everything for you.
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-300">
-              <span className="font-medium">Runtime</span>
-              <span className="text-slate-500 dark:text-slate-400"> → in-studio conversations</span>
+
+            <div className="mt-2 flex items-center justify-center">
+              <Button size="lg" className="shadow-lg" onClick={openWorkspaceModal}>
+                Get Started with THING
+                <ArrowRight className="ml-2 size-5" />
+              </Button>
             </div>
           </div>
         </div>

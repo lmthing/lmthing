@@ -5,7 +5,6 @@ import { useWorkspaceData } from '@/lib/workspaceDataContext'
 import { FlowEditorModal } from '@/sections/agent-builder/components/FlowEditorModal'
 import { CreateDomainModal } from './components/CreateDomainModal'
 import { CreateAgentModal } from './components/CreateAgentModal'
-import { SettingsView } from './components/SettingsView'
 import { useAgents, useFlows } from '@/lib/workspaceContext'
 import { fromWorkspaceRouteParam, parseWorkspaceRepoRef, toWorkspaceRouteParam } from '@/lib/workspaces'
 import type {
@@ -111,7 +110,6 @@ export default function StudioLayout() {
 
   const [isCreateDomainModalOpen, setIsCreateDomainModalOpen] = useState(false)
   const [isCreateAgentModalOpen, setIsCreateAgentModalOpen] = useState(false)
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
   useEffect(() => {
     currentEditingFlowRef.current = currentEditingFlow
@@ -465,7 +463,7 @@ export default function StudioLayout() {
               : { ...prev, sidebarCollapsed: collapsed }
           )
         }
-        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenSettings={() => navigate(`${studioPath}/settings`)}
         onCreateDomain={() => setIsCreateDomainModalOpen(true)}
         onEditDomain={(id) => console.log('Edit domain:', id)}
         onDeleteDomain={(id) => console.log('Delete domain:', id)}
@@ -485,11 +483,6 @@ export default function StudioLayout() {
         onDelete={handleDelete}
         onDuplicate={handleDuplicate}
         user={{ name: 'Alex Morgan' }}
-      />
-
-      <SettingsView
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
       />
 
       {/* Flow Editor Modal */}

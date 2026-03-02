@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Shield, FileCode2, Search, PackagePlus, Trash2, Info } from 'lucide-react'
+import { Shield, FileCode2, Search, PackagePlus, Trash2, Info, RotateCcw } from 'lucide-react'
 import { useWorkspaceData } from '@/lib/workspaceDataContext'
 import type { PackageJson } from '@/types/workspace-data'
 import { toWorkspaceRouteParam } from '@/lib/workspaces'
@@ -91,6 +91,7 @@ export function SettingsView({ isOpen }: SettingsViewProps) {
     updatePackageJson,
     upsertEnvFile,
     deleteEnvFile,
+    clearAllData,
   } = useWorkspaceData()
 
   // Determine active tab from URL - default to env
@@ -448,6 +449,21 @@ export function SettingsView({ isOpen }: SettingsViewProps) {
                 {workspaceData ? `Workspace: ${workspaceData.id}` : 'No workspace selected'}
               </p>
             </div>
+            <button
+              onClick={() => {
+                const confirmed = window.confirm(
+                  'This will clear ALL storage and session data and refresh the page. Continue?'
+                )
+                if (confirmed) {
+                  clearAllData()
+                }
+              }}
+              className="flex items-center gap-2 rounded-md border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:bg-slate-900 dark:text-red-400 dark:hover:bg-red-950/30"
+              title="Clear all storage and session data, then refresh"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Reset & Refresh
+            </button>
           </div>
           
           {/* Tab Navigation */}

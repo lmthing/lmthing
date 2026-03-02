@@ -7,6 +7,7 @@ import {
   type GithubWorkspaceLoadProgress,
 } from '@/lib/github/workspaceLoader'
 import { fromWorkspaceRouteParam, parseWorkspaceRepoRef } from '@/lib/workspaces'
+import { extractAllWorkspaces } from '@/lib/extractWorkspaceData'
 import type {
   ExtractedDataStructure,
   WorkspaceData,
@@ -24,7 +25,7 @@ import type {
 /**
  * WorkspaceDataContext
  *
- * Loads workspace state from extracted_data_structure.json
+ * Loads workspace state from import.meta.glob at build time
  * instead of fetching from GitHub API
  */
 
@@ -70,6 +71,7 @@ interface WorkspaceDataContextValue {
   deleteKnowledgeNode: (nodePath: string) => void
   duplicateKnowledgeNode: (nodePath: string) => void
   reload: () => Promise<void>
+  clearAllData: () => void
 }
 
 // Add helper functions for node manipulation
@@ -304,7 +306,18 @@ function toKnowledgeItem(node: KnowledgeNode): KnowledgeItem {
   return item
 }
 
-import staticData from '@/extracted_data_structure.json'
+// Load all workspace data using import.meta.glob
+const demoFiles = import.meta.glob('@/demos/**/*.{md,json}', {
+  eager: true,
+  as: 'raw',
+})
+
+// Normalize paths by removing the '@/demos/' prefix
+const normalizedDemoFiles: Record<string, string> = {}
+for (const [key, value] of Object.entries(demoFiles)) {
+  const normalizedKey = key.replace(/^\/src\/demos\//, '').replace(/^@\/demos\//, '')
+  normalizedDemoFiles[normalizedKey] = value as string
+}
 
 const WORKSPACE_DATA_STORAGE_KEY = 'lmthing-workspace-data'
 
@@ -414,15 +427,20 @@ export function WorkspaceDataProvider({
     }
   }, [data])
 
-  // Load data from JSON file
+  // Load data from import.meta.glob
   const loadData = async () => {
     try {
       setIsLoading(true)
       setError(null)
 
       const persistedData = loadPersistedWorkspaceData()
-      const jsonData = (persistedData || (staticData as unknown as ExtractedDataStructure))
-      setData(jsonData)
+      if (persistedData) {
+        setData(persistedData)
+      } else {
+        // Extract workspace data from glob result
+        const extractedData = extractAllWorkspaces(normalizedDemoFiles)
+        setData(extractedData)
+      }
       // Do NOT pick a default workspace here — let the consumer (layout) decide
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
@@ -710,6 +728,27 @@ export function WorkspaceDataProvider({
     [updateCurrentWorkspace]
   )
 
+  const clearAllData = useCallback(() => {
+    if (typeof window === 'undefined') return
+    
+    // Clear localStorage
+    try {
+      window.localStorage.clear()
+    } catch {
+      // Ignore errors
+    }
+    
+    // Clear sessionStorage
+    try {
+      window.sessionStorage.clear()
+    } catch {
+      // Ignore errors
+    }
+    
+    // Reload page
+    window.location.reload()
+  }, [])
+
   // Computed values
   const workspaceData: WorkspaceData | null = useMemo(
     () => {
@@ -770,6 +809,7 @@ export function WorkspaceDataProvider({
     deleteKnowledgeNode,
     duplicateKnowledgeNode,
     reload: loadData,
+    clearAllData,
   }
 
   return (

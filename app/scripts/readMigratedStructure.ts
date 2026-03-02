@@ -1,4 +1,3 @@
-import fs from 'fs/promises';
 import path from 'path';
 
 // ============================================================================
@@ -203,12 +202,15 @@ function parseOutputTag(content: string): { outputSchema?: any; targetFieldName?
 // ============================================================================
 
 /**
- * Reads a migrated workspace directory and returns the complete data structure
- * @param workspacePath Path to the workspace directory (e.g., './mock_data_new/education')
+ * Extracts workspace data from an import.meta.glob result
+ * @param workspaceId The workspace identifier
+ * @param globResult Result from import.meta.glob with { eager: true, as: 'raw' }
+ *        Example: { 'agents/agent1/instruct.md': 'content...', 'package.json': '...' }
  */
-async function extractWorkspaceData(workspacePath: string): Promise<WorkspaceData> {
-  const workspaceId = path.basename(workspacePath);
-
+function extractWorkspaceData(
+  workspaceId: string,
+  globResult: Record<string, string>
+): WorkspaceData {
   const result: WorkspaceData = {
     id: workspaceId,
     agents: {},
@@ -218,120 +220,107 @@ async function extractWorkspaceData(workspacePath: string): Promise<WorkspaceDat
   };
 
   // Read package.json if it exists
-  try {
-    const packageJsonPath = path.join(workspacePath, 'package.json');
-    const packageJsonContent = await fs.readFile(packageJsonPath, 'utf8');
-    result.packageJson = JSON.parse(packageJsonContent);
-  } catch {
-    // package.json is optional
+  const packageJsonContent = globResult['package.json'];
+  if (packageJsonContent) {
+    try {
+      result.packageJson = JSON.parse(packageJsonContent);
+    } catch {
+      // Invalid JSON
+    }
   }
 
   // Extract agents
-  const agentsPath = path.join(workspacePath, 'agents');
-  try {
-    const agentDirs = await fs.readdir(agentsPath);
+  const agentIds = new Set<string>();
+  for (const filePath of Object.keys(globResult)) {
+    const match = filePath.match(/^agents\/([^/]+)\//);  
+    if (match) agentIds.add(match[1]);
+  }
 
-    for (const agentId of agentDirs) {
-      const agentPath = path.join(agentsPath, agentId);
-      const stat = await fs.stat(agentPath);
-      if (!stat.isDirectory()) continue;
+  for (const agentId of agentIds) {
+    const agent: AgentData = {
+      id: agentId,
+      frontmatter: {},
+      mainInstruction: '',
+      slashActions: [],
+      config: { emptyFieldsForRuntime: [] },
+      formValues: {},
+      conversations: [],
+    };
 
-      const agent: AgentData = {
-        id: agentId,
-        frontmatter: {},
-        mainInstruction: '',
-        slashActions: [],
-        config: { emptyFieldsForRuntime: [] },
-        formValues: {},
-        conversations: [],
-      };
+    // Read instruct.md
+    const instructContent = globResult[`agents/${agentId}/instruct.md`];
+    if (instructContent) {
+      const { frontmatter, body } = parseFrontmatter<AgentInstructFrontmatter>(instructContent);
+      agent.frontmatter = frontmatter;
+      agent.slashActions = parseSlashActions(body);
+      agent.mainInstruction = body.replace(SLASH_ACTION_REGEX, '').trim();
+    }
 
-      // Read instruct.md
+    // Read config.json
+    const configContent = globResult[`agents/${agentId}/config.json`];
+    if (configContent) {
       try {
-        const instructPath = path.join(agentPath, 'instruct.md');
-        const instructContent = await fs.readFile(instructPath, 'utf8');
-        const { frontmatter, body } = parseFrontmatter<AgentInstructFrontmatter>(instructContent);
-        agent.frontmatter = frontmatter;
-        agent.slashActions = parseSlashActions(body);
-        agent.mainInstruction = body.replace(SLASH_ACTION_REGEX, '').trim();
-      } catch (err: any) {
-        console.warn(`Could not read instruct.md for agent ${agentId}: ${err.message}`);
-      }
-
-      // Read config.json
-      try {
-        const configPath = path.join(agentPath, 'config.json');
-        const configContent = await fs.readFile(configPath, 'utf8');
         agent.config = JSON.parse(configContent);
       } catch (err: any) {
-        console.warn(`Could not read config.json for agent ${agentId}: ${err.message}`);
+        console.warn(`Invalid config.json for agent ${agentId}: ${err.message}`);
       }
+    }
 
-      // Read values.json
+    // Read values.json
+    const valuesContent = globResult[`agents/${agentId}/values.json`];
+    if (valuesContent) {
       try {
-        const valuesPath = path.join(agentPath, 'values.json');
-        const valuesContent = await fs.readFile(valuesPath, 'utf8');
         agent.formValues = JSON.parse(valuesContent);
       } catch (err: any) {
-        console.warn(`Could not read values.json for agent ${agentId}: ${err.message}`);
+        console.warn(`Invalid values.json for agent ${agentId}: ${err.message}`);
       }
-
-      // Read conversations
-      const conversationsPath = path.join(agentPath, 'conversations');
-      try {
-        const conversationFiles = await fs.readdir(conversationsPath);
-        for (const convFile of conversationFiles) {
-          if (!convFile.endsWith('.json')) continue;
-          const convPath = path.join(conversationsPath, convFile);
-          const convContent = await fs.readFile(convPath, 'utf8');
-          const conversation = JSON.parse(convContent);
-          agent.conversations.push(conversation);
-        }
-      } catch {
-        // conversations directory may not exist
-      }
-
-      result.agents[agentId] = agent;
     }
-  } catch (err: any) {
-    console.warn(`Could not read agents directory: ${err.message}`);
+
+    // Read conversations
+    for (const filePath of Object.keys(globResult)) {
+      const convMatch = filePath.match(/^agents\/([^/]+)\/conversations\/(.+\.json)$/);
+      if (convMatch && convMatch[1] === agentId) {
+        try {
+          const conversation = JSON.parse(globResult[filePath]);
+          agent.conversations.push(conversation);
+        } catch (err: any) {
+          console.warn(`Invalid conversation file ${filePath}: ${err.message}`);
+        }
+      }
+    }
+
+    result.agents[agentId] = agent;
   }
 
   // Extract flows
-  const flowsPath = path.join(workspacePath, 'flows');
-  try {
-    const flowDirs = await fs.readdir(flowsPath);
+  const flowIds = new Set<string>();
+  for (const filePath of Object.keys(globResult)) {
+    const match = filePath.match(/^flows\/([^/]+)\//);  
+    if (match) flowIds.add(match[1]);
+  }
 
-    for (const flowId of flowDirs) {
-      const flowPath = path.join(flowsPath, flowId);
-      const stat = await fs.stat(flowPath);
-      if (!stat.isDirectory()) continue;
+  for (const flowId of flowIds) {
+    const flow: FlowData = {
+      id: flowId,
+      frontmatter: {},
+      description: '',
+      tasks: [],
+    };
 
-      const flow: FlowData = {
-        id: flowId,
-        frontmatter: {},
-        description: '',
-        tasks: [],
-      };
+    // Read index.md
+    const indexContent = globResult[`flows/${flowId}/index.md`];
+    if (indexContent) {
+      const { frontmatter, body } = parseFrontmatter<FlowFrontmatter>(indexContent);
+      flow.frontmatter = frontmatter;
+      flow.description = body;
+    }
 
-      // Read index.md
-      try {
-        const indexPath = path.join(flowPath, 'index.md');
-        const indexContent = await fs.readFile(indexPath, 'utf8');
-        const { frontmatter, body } = parseFrontmatter<FlowFrontmatter>(indexContent);
-        flow.frontmatter = frontmatter;
-        flow.description = body;
-      } catch (err: any) {
-        console.warn(`Could not read index.md for flow ${flowId}: ${err.message}`);
-      }
-
-      // Read task files
-      const flowFiles = await fs.readdir(flowPath);
-      const taskFiles = flowFiles.filter(f => f !== 'index.md' && f.endsWith('.md'));
-
-      for (const taskFile of taskFiles) {
-        const taskPath = path.join(flowPath, taskFile);
-        const taskContent = await fs.readFile(taskPath, 'utf8');
+    // Read task files
+    for (const filePath of Object.keys(globResult)) {
+      const taskMatch = filePath.match(/^flows\/([^/]+)\/([^/]+\.md)$/);
+      if (taskMatch && taskMatch[1] === flowId && taskMatch[2] !== 'index.md') {
+        const taskFile = taskMatch[2];
+        const taskContent = globResult[filePath];
         const { frontmatter, body } = parseFrontmatter<TaskFrontmatter>(taskContent);
 
         // Extract order and name from filename: {order}.{name}.md
@@ -356,90 +345,122 @@ async function extractWorkspaceData(workspacePath: string): Promise<WorkspaceDat
 
         flow.tasks.push(task);
       }
-
-      // Sort tasks by order
-      flow.tasks.sort((a, b) => a.order - b.order);
-
-      result.flows[flowId] = flow;
     }
-  } catch (err: any) {
-    console.warn(`Could not read flows directory: ${err.message}`);
+
+    // Sort tasks by order
+    flow.tasks.sort((a, b) => a.order - b.order);
+
+    result.flows[flowId] = flow;
   }
 
   // Extract knowledge
-  const knowledgePath = path.join(workspacePath, 'knowledge');
-  try {
-    async function processKnowledgeNode(dirPath: string, relativePath = ''): Promise<KnowledgeFileData[]> {
-      const entries = await fs.readdir(dirPath, { withFileTypes: true });
-      const results: KnowledgeFileData[] = [];
+  const knowledgeFiles = Object.keys(globResult)
+    .filter(p => p.startsWith('knowledge/'))
+    .sort();
 
-      for (const entry of entries) {
-        const entryPath = path.join(dirPath, entry.name);
-        const entryRelativePath = path.join(relativePath, entry.name);
+  function buildKnowledgeTree(files: string[]): KnowledgeFileData[] {
+    const tree: KnowledgeFileData[] = [];
+    const dirMap = new Map<string, KnowledgeFileData>();
 
-        if (entry.isDirectory()) {
+    for (const filePath of files) {
+      const relativePath = filePath.replace(/^knowledge\//, '');
+      const parts = relativePath.split('/');
+
+      // Build directory structure
+      let currentPath = '';
+      for (let i = 0; i < parts.length - 1; i++) {
+        const dirName = parts[i];
+        const parentPath = currentPath;
+        currentPath = currentPath ? `${currentPath}/${dirName}` : dirName;
+
+        if (!dirMap.has(currentPath)) {
+          const dirNode: KnowledgeFileData = {
+            path: currentPath,
+            type: 'directory',
+            children: [],
+          };
+
           // Check for config.json
-          let config: any;
-          try {
-            const configPath = path.join(entryPath, 'config.json');
-            const configContent = await fs.readFile(configPath, 'utf8');
-            config = JSON.parse(configContent);
-          } catch {
-            // No config.json
+          const configContent = globResult[`knowledge/${currentPath}/config.json`];
+          if (configContent) {
+            try {
+              dirNode.config = JSON.parse(configContent);
+            } catch {}
           }
 
-          const children = await processKnowledgeNode(entryPath, entryRelativePath);
+          dirMap.set(currentPath, dirNode);
 
-          results.push({
-            path: entryRelativePath,
-            type: 'directory',
-            config,
-            children,
-          });
-        } else if (entry.isFile() && entry.name.endsWith('.md')) {
-          const content = await fs.readFile(entryPath, 'utf8');
-          const { frontmatter, body } = parseFrontmatter(content);
-
-          results.push({
-            path: entryRelativePath,
-            type: 'file',
-            frontmatter,
-            content: body,
-          });
+          if (parentPath) {
+            dirMap.get(parentPath)?.children?.push(dirNode);
+          } else {
+            tree.push(dirNode);
+          }
         }
       }
 
-      return results;
+      // Add file if it's a markdown file
+      if (relativePath.endsWith('.md')) {
+        const content = globResult[filePath];
+        const { frontmatter, body } = parseFrontmatter(content);
+
+        const fileNode: KnowledgeFileData = {
+          path: relativePath,
+          type: 'file',
+          frontmatter,
+          content: body,
+        };
+
+        const parentPath = parts.slice(0, -1).join('/');
+        if (parentPath) {
+          dirMap.get(parentPath)?.children?.push(fileNode);
+        } else {
+          tree.push(fileNode);
+        }
+      }
     }
 
-    result.knowledge = await processKnowledgeNode(knowledgePath);
-  } catch (err: any) {
-    console.warn(`Could not read knowledge directory: ${err.message}`);
+    return tree;
   }
+
+  result.knowledge = buildKnowledgeTree(knowledgeFiles);
 
   return result;
 }
 
 /**
- * Reads all workspaces from a migrated data directory
- * @param rootPath Path to the root directory containing all workspaces (e.g., './mock_data_new')
+ * Extracts all workspaces from an import.meta.glob result
+ * @param globResult Result from import.meta.glob with { eager: true, as: 'raw' }
+ *        Example: { 'education/agents/...': '...', 'plants/flows/...': '...' }
  */
-async function extractAllWorkspaces(rootPath: string): Promise<MigratedDataStructure> {
+function extractAllWorkspaces(
+  globResult: Record<string, string>
+): MigratedDataStructure {
   const result: MigratedDataStructure = { workspaces: {} };
 
-  const entries = await fs.readdir(rootPath, { withFileTypes: true });
+  // Extract workspace IDs from paths
+  const workspaceIds = new Set<string>();
+  for (const filePath of Object.keys(globResult)) {
+    const match = filePath.match(/^([^/]+)\//);  
+    if (match) workspaceIds.add(match[1]);
+  }
 
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    if (entry.name === '.DS_Store') continue;
+  for (const workspaceId of workspaceIds) {
+    console.log(`Extracting workspace: ${workspaceId}...`);
 
-    const workspacePath = path.join(rootPath, entry.name);
-    console.log(`Extracting workspace: ${entry.name}...`);
+    // Filter glob result to only this workspace
+    const workspaceGlob: Record<string, string> = {};
+    const prefix = `${workspaceId}/`;
+    for (const [filePath, content] of Object.entries(globResult)) {
+      if (filePath.startsWith(prefix)) {
+        // Remove workspace prefix from path
+        workspaceGlob[filePath.slice(prefix.length)] = content;
+      }
+    }
 
     try {
-      result.workspaces[entry.name] = await extractWorkspaceData(workspacePath);
+      result.workspaces[workspaceId] = extractWorkspaceData(workspaceId, workspaceGlob);
     } catch (err: any) {
-      console.error(`Failed to extract workspace ${entry.name}:`, err);
+      console.error(`Failed to extract workspace ${workspaceId}:`, err);
     }
   }
 
@@ -447,14 +468,34 @@ async function extractAllWorkspaces(rootPath: string): Promise<MigratedDataStruc
 }
 
 // ============================================================================
-// CLI
+// CLI (for testing - uses dynamic import to simulate the glob)
 // ============================================================================
 
 async function main() {
+  const { default: fs } = await import('fs/promises');
   const rootPath = process.argv[2] || './src/demos';
 
   console.log(`Reading migrated data from: ${rootPath}`);
-  const data = await extractAllWorkspaces(rootPath);
+  
+  // Simulate import.meta.glob by reading files
+  const globResult: Record<string, string> = {};
+  
+  async function walkDir(dir: string, prefix = '') {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+      
+      if (entry.isDirectory()) {
+        await walkDir(fullPath, relativePath);
+      } else if (entry.isFile() && (entry.name.endsWith('.md') || entry.name.endsWith('.json'))) {
+        globResult[relativePath] = await fs.readFile(fullPath, 'utf8');
+      }
+    }
+  }
+  
+  await walkDir(rootPath);
+  const data = extractAllWorkspaces(globResult);
 
   // Output to stdout
   console.log('\n=== Extracted Data Structure ===\n');

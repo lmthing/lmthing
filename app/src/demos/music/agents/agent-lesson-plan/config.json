@@ -1,6 +1,0 @@
-{
-  "emptyFieldsForRuntime": {
-    "repertoire": ["genre"],
-    "musician-profile": ["instrument"]
-  }
-}

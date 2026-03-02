@@ -1,7 +1,0 @@
-{
-  "label": "Musician Profile",
-  "description": "Musician background, experience level, primary instruments, and music theory knowledge",
-  "icon": "🎼",
-  "color": "#8b5cf6",
-  "renderAs": "section"
-}

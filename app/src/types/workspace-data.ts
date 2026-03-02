@@ -204,7 +204,7 @@ export interface WorkspaceData {
   agents: Record<string, Agent>
   flows: Record<string, Flow>
   knowledge: KnowledgeNode[]
-  packageJson: PackageJson
+  packageJson: PackageJson | null
   env?: WorkspaceEnv
 }
 

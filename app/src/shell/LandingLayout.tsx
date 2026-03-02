@@ -36,8 +36,21 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Input } from '@/components/ui/input'
 import { toWorkspaceName } from '@/lib/workspaces'
 import { ThingPanel } from './components/ThingPanel'
+import { extractAllWorkspaces } from '@/lib/extractWorkspaceData'
 import logo from '@/assets/logo.png'
-import extractedDataStructure from '@/extracted_data_structure.json'
+
+// Load all workspace data using import.meta.glob
+const demoFiles = import.meta.glob('@/demos/**/*.{md,json}', {
+  eager: true,
+  as: 'raw',
+})
+
+// Normalize paths by removing the '@/demos/' prefix
+const normalizedDemoFiles: Record<string, string> = {}
+for (const [key, value] of Object.entries(demoFiles)) {
+  const normalizedKey = key.replace(/^\/src\/demos\//, '').replace(/^@\/demos\//, '')
+  normalizedDemoFiles[normalizedKey] = value as string
+}
 
 const WORKSPACE_COLORS = ['#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ef4444', '#84cc16']
 
@@ -169,7 +182,8 @@ export default function LandingLayout() {
     try {
       setIsUpdatingStorage(true)
       const WORKSPACE_DATA_STORAGE_KEY = 'lmthing-workspace-data'
-      window.localStorage.setItem(WORKSPACE_DATA_STORAGE_KEY, JSON.stringify(extractedDataStructure))
+      const extractedData = extractAllWorkspaces(normalizedDemoFiles)
+      window.localStorage.setItem(WORKSPACE_DATA_STORAGE_KEY, JSON.stringify(extractedData))
       setStorageUpdateStatus('success')
       setTimeout(() => setStorageUpdateStatus('idle'), 3000)
     } catch (error) {

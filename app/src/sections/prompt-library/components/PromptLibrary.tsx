@@ -934,7 +934,7 @@ function DirectoryMetadataPanel({ config, onChange, directoryName, directoryPath
               onChange={(e) => handleChange('renderAs', e.target.value || undefined)}
               className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 dark:text-white transition-all"
             >
-              <option value="">Default</option>
+              <option value="field">Default</option>
               <option value="section">section</option>
               <option value="field">field</option>
             </select>
@@ -946,7 +946,7 @@ function DirectoryMetadataPanel({ config, onChange, directoryName, directoryPath
               onChange={(e) => handleChange('fieldType', e.target.value || undefined)}
               className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 dark:text-white transition-all"
             >
-              <option value="">Default</option>
+              <option value="multiselect">Default</option>
               <option value="text">text</option>
               <option value="textarea">textarea</option>
               <option value="select">select</option>

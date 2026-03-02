@@ -38,6 +38,7 @@ import { toWorkspaceName } from '@/lib/workspaces'
 import { ThingPanel } from './components/ThingPanel'
 import { extractAllWorkspaces } from '@/lib/extractWorkspaceData'
 import logo from '@/assets/logo.png'
+import { version } from '../../package.json'
 
 // Load all workspace data using import.meta.glob
 const demoFiles = import.meta.glob('@/demos/**/*.{md,json}', {
@@ -204,6 +205,7 @@ export default function LandingLayout() {
           <div className="flex items-center gap-2">
             <img src={logo} alt="lmthing" className="size-12" />
             <h1 className="text-xl font-semibold">lmthing</h1>
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">v{version}</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden sm:inline-block text-sm text-muted-foreground mr-2">Your expertise, amplified by AI</span>

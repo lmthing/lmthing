@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up pnpm via Corepack
         run: |
@@ -34,6 +36,17 @@ jobs:
           node-version: 20
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
+
+      - name: Bump version
+        run: |
+          cd app
+          npm version patch --no-git-tag-version
+          cd ..
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add app/package.json
+          git commit -m "chore: bump app version [skip ci]" || echo "No changes to commit"
+          git push
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

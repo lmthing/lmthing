@@ -1,0 +1,9 @@
+{
+  "label": "Olive Oil Quality",
+  "description": "Grade of olive oil to use in cooking",
+  "fieldType": "select",
+  "required": false,
+  "default": "extra-virgin",
+  "variableName": "oliveOilQuality",
+  "renderAs": "field"
+}

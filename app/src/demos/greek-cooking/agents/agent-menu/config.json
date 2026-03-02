@@ -1,0 +1,6 @@
+{
+  "emptyFieldsForRuntime": {
+    "meal": ["occasion"],
+    "cuisine": ["region"]
+  }
+}

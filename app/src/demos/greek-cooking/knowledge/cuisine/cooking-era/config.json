@@ -1,0 +1,9 @@
+{
+  "label": "Cooking Era",
+  "description": "Traditional grandmother recipes or modern Greek cuisine",
+  "fieldType": "select",
+  "required": false,
+  "default": "traditional",
+  "variableName": "cookingEra",
+  "renderAs": "field"
+}

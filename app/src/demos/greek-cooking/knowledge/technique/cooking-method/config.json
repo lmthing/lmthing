@@ -1,0 +1,9 @@
+{
+  "label": "Cooking Method",
+  "description": "Primary technique for preparing the dish",
+  "fieldType": "select",
+  "required": true,
+  "default": "oven-roasted",
+  "variableName": "cookingMethod",
+  "renderAs": "field"
+}

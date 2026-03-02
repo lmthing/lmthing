@@ -1,0 +1,9 @@
+{
+  "label": "Skill Level",
+  "description": "Cooking experience required for the recipe",
+  "fieldType": "select",
+  "required": false,
+  "default": "intermediate",
+  "variableName": "skillLevel",
+  "renderAs": "field"
+}

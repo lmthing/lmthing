@@ -1,0 +1,9 @@
+{
+  "label": "Occasion",
+  "description": "Type of event or gathering for the meal",
+  "fieldType": "select",
+  "required": false,
+  "default": "everyday",
+  "variableName": "occasion",
+  "renderAs": "field"
+}

@@ -1,0 +1,9 @@
+{
+  "label": "Dish Type",
+  "description": "Category of dish to prepare",
+  "fieldType": "select",
+  "required": true,
+  "default": "main-course",
+  "variableName": "dishType",
+  "renderAs": "field"
+}

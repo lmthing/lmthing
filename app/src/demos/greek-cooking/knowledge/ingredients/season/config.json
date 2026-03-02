@@ -1,0 +1,9 @@
+{
+  "label": "Season",
+  "description": "Current season affecting ingredient availability",
+  "fieldType": "select",
+  "required": false,
+  "default": "summer",
+  "variableName": "season",
+  "renderAs": "field"
+}

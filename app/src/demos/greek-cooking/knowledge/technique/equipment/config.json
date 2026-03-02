@@ -1,0 +1,9 @@
+{
+  "label": "Equipment",
+  "description": "Kitchen equipment available for cooking",
+  "fieldType": "multiSelect",
+  "required": false,
+  "default": "standard-kitchen",
+  "variableName": "equipment",
+  "renderAs": "field"
+}

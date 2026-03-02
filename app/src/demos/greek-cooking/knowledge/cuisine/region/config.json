@@ -1,0 +1,9 @@
+{
+  "label": "Region",
+  "description": "The Greek region whose culinary traditions to follow",
+  "fieldType": "select",
+  "required": true,
+  "default": "mainland-general",
+  "variableName": "region",
+  "renderAs": "field"
+}

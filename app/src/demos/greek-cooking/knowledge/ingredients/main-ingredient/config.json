@@ -1,0 +1,9 @@
+{
+  "label": "Main Ingredient",
+  "description": "Primary protein or base ingredient for the dish",
+  "fieldType": "select",
+  "required": true,
+  "default": "lamb",
+  "variableName": "mainIngredient",
+  "renderAs": "field"
+}

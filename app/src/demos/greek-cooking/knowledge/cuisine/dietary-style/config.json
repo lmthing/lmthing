@@ -1,0 +1,9 @@
+{
+  "label": "Dietary Style",
+  "description": "Dietary preferences or restrictions for the cooking",
+  "fieldType": "select",
+  "required": false,
+  "default": "traditional",
+  "variableName": "dietaryStyle",
+  "renderAs": "field"
+}

@@ -1,0 +1,9 @@
+{
+  "label": "Serving Size",
+  "description": "Number of people to feed",
+  "fieldType": "select",
+  "required": false,
+  "default": "family",
+  "variableName": "servingSize",
+  "renderAs": "field"
+}

@@ -1,7 +1,0 @@
-{
-  "id": "treats",
-  "name": "Treats",
-  "description": "Treat frequency and preferences",
-  "type": "select",
-  "required": false
-}

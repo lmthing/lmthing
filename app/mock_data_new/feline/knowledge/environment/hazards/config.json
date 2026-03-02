@@ -1,7 +1,0 @@
-{
-  "id": "hazards",
-  "name": "Hazards",
-  "description": "Potential environmental hazards",
-  "type": "multiselect",
-  "required": false
-}

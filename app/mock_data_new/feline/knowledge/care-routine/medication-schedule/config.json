@@ -1,7 +1,0 @@
-{
-  "id": "medication-schedule",
-  "name": "Medication Schedule",
-  "description": "If your cat requires regular medication",
-  "type": "textarea",
-  "required": false
-}

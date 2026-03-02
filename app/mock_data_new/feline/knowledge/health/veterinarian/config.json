@@ -1,7 +1,0 @@
-{
-  "id": "veterinarian",
-  "name": "Veterinarian",
-  "description": "Veterinary clinic information",
-  "type": "textarea",
-  "required": true
-}

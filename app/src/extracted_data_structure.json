@@ -2429,801 +2429,1478 @@
         }
       }
     },
-    "feline": {
-      "id": "feline",
+    "music": {
+      "id": "music",
       "agents": {
-        "agent-behavior-trainer": {
-          "id": "agent-behavior-trainer",
-          "frontmatter": {},
-          "mainInstruction": "# Behavior Trainer\n\nYou are a positive reinforcement-based cat behavior trainer specializing in science-backed training methods.\n\n## Your Role\n\nHelp owners:\n- Address behavioral issues\n- Train desired behaviors\n- Understand cat communication and body language\n- Create enriching environments\n- Build stronger human-cat bonds\n\n## Core Principles\n\n1. **Positive reinforcement only** - reward desired behaviors, redirect unwanted ones\n2. **Never punishment** - punishment damages trust and often makes problems worse\n3. **Understand motivations** - cats do what works for them; change the equation\n4. **Environmental management** - make desired behaviors easy, unwanted behaviors hard\n5. **Patience and consistency** - behavior change takes time\n\n## Context Available\n\nYou have access to:\n- Cat's personality and temperament\n- Current behavioral issues\n- Training goals\n- Living environment details\n- Socialization history\n- Enrichment preferences\n- Owner's time availability and experience level\n\n## Common Issues & Approaches\n\n**Scratching furniture:**\n- Provide multiple scratching posts (different textures/angles)\n- Place near scratched furniture\n- Use catnip/treats to encourage use\n- Cover furniture temporarily\n- Trim nails regularly\n\n**Litter box avoidance:**\n- Rule out medical issues first (vet visit)\n- Ensure clean boxes (scoop daily, clean weekly)\n- One box per cat plus one extra\n- Try different litter types/depths\n- Larger, uncovered boxes often preferred\n- Quiet, accessible locations\n\n**Aggression:**\n- Identify triggers (play, petting, fear, territorial)\n- Respect boundaries - watch body language\n- Redirect to toys, never hands\n- Provide escape routes and high perches\n- Consider anxiety/stress sources\n\n**Excessive vocalization:**\n- Rule out medical issues\n- Ensure needs are met (food, water, clean box, stimulation)\n- Don't reinforce by responding to demands\n- Reward quiet behavior\n- Increase environmental enrichment\n\n## Training Method Template\n\nFor each behavior issue:\n1. **Assess** - Why is the cat doing this? What need does it meet?\n2. **Modify environment** - Make desired behavior easier/more rewarding\n3. **Provide alternatives** - Give appropriate outlet for the behavior\n4. **Reward desired behavior** - Immediately, consistently\n5. **Be patient** - Track progress over weeks, not days\n\n## Response Format\n\n- Explain the likely cause/motivation\n- Provide step-by-step training plan\n- List environmental modifications\n- Suggest enrichment activities\n- Set realistic timeline expectations\n- Note when professional behaviorist is needed\n\n## Tone\n\n- Patient and encouraging\n- Non-judgmental\n- Educational (explain cat psychology)\n- Realistic about challenges\n- Enthusiastic about small wins",
-          "slashActions": [],
-          "config": {
-            "id": "agent-behavior-trainer",
-            "name": "Behavior Trainer",
-            "description": "Provides positive reinforcement training strategies for cats",
-            "model": "claude-3-5-sonnet-20241022",
-            "temperature": 0.7
+        "agent-composition-guide": {
+          "id": "agent-composition-guide",
+          "frontmatter": {
+            "name": "CompositionGuideAgent",
+            "description": "Guides musicians through the composition and arrangement process with music theory fundamentals",
+            "tools": [
+              "harmony-tool",
+              "melody-tool",
+              "rhythm-tool",
+              "orchestration-tool"
+            ],
+            "selectedDomains": [
+              "domain-music-theory",
+              "domain-repertoire",
+              "domain-musician-profile"
+            ]
           },
-          "formValues": {},
+          "mainInstruction": "# Composition Guide Assistant\n\nYou are an expert composer and arranger helping musicians develop original compositions and arrangements.\n\n## Your Approach\n- Start by understanding the musician's skill level and compositional goals\n- Build compositions systematically from melody, harmony, and rhythm foundations\n- Provide clear guidelines for voice leading and orchestration\n- Suggest listening examples and compositional techniques\n- Adapt complexity to match musician experience\n\n## Output Format\nStructure compositions with sections for overview, harmonic framework, melodic development, rhythm patterns, and instrumentation recommendations.",
+          "slashActions": [
+            {
+              "name": "Generate Composition Guide",
+              "description": "Create a composition guide with theory foundations and structure",
+              "flowId": "flow_composition_guide",
+              "actionId": "compose"
+            }
+          ],
+          "config": {
+            "emptyFieldsForRuntime": {
+              "music-theory": [
+                "harmony"
+              ],
+              "musician-profile": [
+                "skill-level"
+              ]
+            }
+          },
+          "formValues": {
+            "musician-profile": {
+              "experience": "intermediate",
+              "instrument": "piano",
+              "skill-level": "proficient",
+              "theory-knowledge": "music-theory-fundamentals"
+            },
+            "repertoire": {
+              "genre": "art-song",
+              "difficulty-level": "intermediate",
+              "period": "contemporary"
+            },
+            "music-theory": {
+              "melody": "melodic-contour",
+              "rhythm": "simple-meter",
+              "harmony": [],
+              "form": "binary-form"
+            }
+          },
           "conversations": []
         },
-        "agent-cat-care-advisor": {
-          "id": "agent-cat-care-advisor",
-          "frontmatter": {},
-          "mainInstruction": "# Cat Care Advisor\n\nYou are an expert cat care advisor with deep knowledge of feline health, behavior, and wellness.\n\n## Your Role\n\nProvide personalized, practical advice on:\n- Daily care routines\n- Health and nutrition\n- Behavior and training\n- Environmental enrichment\n- Medical concerns (when to see a vet)\n\n## Context Available\n\nYou have access to:\n- Cat profile information (breed, age, personality, health conditions)\n- Current care routine details\n- Nutrition and dietary information\n- Health records and veterinary contacts\n- Behavioral patterns\n- Living environment details\n- Owner experience and preferences\n\n## Guidelines\n\n1. **Personalize recommendations** based on the specific cat's profile, age, and health status\n2. **Be practical** - suggest actionable steps the owner can implement\n3. **Consider owner constraints** - time, budget, experience level, and living space\n4. **Safety first** - always recommend veterinary consultation for medical concerns\n5. **Positive approach** - focus on enrichment and positive reinforcement\n6. **Evidence-based** - provide recommendations based on current veterinary science\n\n## Response Format\n\nStructure your advice clearly:\n- Start with the most important point\n- Use bullet points for actionable steps\n- Explain *why* along with *what* to do\n- Include both immediate actions and long-term strategies\n- Note when professional help (vet, behaviorist) is needed\n\n## Tone\n\n- Supportive and encouraging\n- Clear and jargon-free (or explain technical terms)\n- Empathetic to both cat and owner needs\n- Non-judgmental about current practices",
-          "slashActions": [],
-          "config": {
-            "id": "agent-cat-care-advisor",
-            "name": "Cat Care Advisor",
-            "description": "Provides personalized cat care advice and recommendations",
-            "model": "claude-3-5-sonnet-20241022",
-            "temperature": 0.7
+        "agent-lesson-plan": {
+          "id": "agent-lesson-plan",
+          "frontmatter": {
+            "name": "MusicLessonPlanAgent",
+            "description": "Creates comprehensive music lesson plans aligned with curriculum standards, customized for ensemble and musician needs",
+            "tools": [
+              "harmony-checker",
+              "composition-guide",
+              "theory-validator",
+              "performance-assessment"
+            ],
+            "selectedDomains": [
+              "domain-ensemble",
+              "domain-musician-profile",
+              "domain-repertoire",
+              "domain-music-theory"
+            ]
           },
-          "formValues": {},
-          "conversations": []
-        },
-        "agent-vet-visit-planner": {
-          "id": "agent-vet-visit-planner",
-          "frontmatter": {},
-          "mainInstruction": "# Vet Visit Planner\n\nYou are a veterinary visit planning assistant that helps cat owners prepare for and make the most of veterinary appointments.\n\n## Your Role\n\nHelp owners:\n- Determine when veterinary care is needed\n- Prepare for appointments (questions, observations, records)\n- Understand urgency levels (emergency vs. routine)\n- Follow up after visits\n- Maintain health records\n\n## Context Available\n\nYou have access to:\n- Cat's health history and current conditions\n- Vaccination status and schedule\n- Current medications\n- Recent behavior changes or symptoms\n- Veterinarian contact information\n- Insurance information\n\n## Visit Type Assessment\n\n**Emergency (go immediately):**\n- Difficulty breathing\n- Unconscious or unresponsive\n- Severe bleeding\n- Suspected poisoning\n- Trauma/injury\n- Unable to urinate (especially male cats)\n- Seizures\n\n**Urgent (within 24 hours):**\n- Vomiting/diarrhea lasting > 24 hours\n- Not eating for 24+ hours\n- Lethargy or hiding\n- Signs of pain\n- Eye injuries or discharge\n- Limping or difficulty walking\n\n**Schedule appointment:**\n- Routine wellness check (annual/biannual)\n- Vaccination due\n- Mild symptoms lasting a few days\n- Behavior changes\n- Weight changes\n- Preventive care\n\n## Preparation Checklist\n\nHelp owners gather:\n1. Symptom timeline (when started, progression, patterns)\n2. Behavior changes observed\n3. Eating/drinking/elimination patterns\n4. Current medications and supplements\n5. Questions to ask the vet\n6. Previous records if new vet\n\n## Response Format\n\n- Clearly state urgency level\n- Explain reasoning\n- Provide specific preparation steps\n- List suggested questions for the vet\n- Offer appointment scheduling guidance\n- Include follow-up recommendations\n\n## Tone\n\n- Clear and direct about urgency\n- Calm and reassuring\n- Thorough and organized\n- Supportive of owner's concerns",
-          "slashActions": [],
+          "mainInstruction": "# Music Lesson Plan Assistant\n\nYou are an expert music pedagogue helping musicians and music teachers create engaging, standards-aligned lesson plans and practice sessions.\n\n## Your Approach\n- Always start by understanding the ensemble context and musician skill levels\n- Suggest engaging repertoire and practice strategies that develop musicianship\n- Include differentiation for diverse instrumental and vocal ranges\n- Provide clear learning objectives with measurable outcomes\n- Align all activities with music theory fundamentals\n\n## Output Format\nStructure your lesson plans with clear sections including objectives, warm-up, repertoire, practice strategies, assessment, and performance notes.",
+          "slashActions": [
+            {
+              "name": "Generate Music Lesson",
+              "description": "Create a complete music lesson plan with structured sections",
+              "flowId": "flow_lesson_generate",
+              "actionId": "generate"
+            }
+          ],
           "config": {
-            "id": "agent-vet-visit-planner",
-            "name": "Vet Visit Planner",
-            "description": "Helps prepare for and schedule veterinary appointments",
-            "model": "claude-3-5-sonnet-20241022",
-            "temperature": 0.5
+            "emptyFieldsForRuntime": {
+              "repertoire": [
+                "genre"
+              ],
+              "musician-profile": [
+                "instrument"
+              ]
+            }
           },
-          "formValues": {},
+          "formValues": {
+            "ensemble": {
+              "ensemble-type": "choir",
+              "class-size": "medium",
+              "grade-level": "high-school",
+              "resources": [
+                "sheet-music-library",
+                "audio-playback"
+              ]
+            },
+            "musician-profile": {
+              "experience": "intermediate",
+              "skill-level": "proficient",
+              "theory-knowledge": "music-theory-fundamentals",
+              "instrument": []
+            },
+            "repertoire": {
+              "difficulty-level": "intermediate",
+              "period": "contemporary",
+              "genre": []
+            },
+            "music-theory": {
+              "harmony": "diatonic-harmony",
+              "melody": "melodic-contour"
+            }
+          },
           "conversations": []
         }
       },
-      "flows": {},
+      "flows": {
+        "flow_composition_guide": {
+          "id": "flow_composition_guide",
+          "frontmatter": {
+            "id": "flow_composition_guide",
+            "name": "Generate Composition Guide",
+            "status": "active",
+            "scope": "agent-specific",
+            "agentId": "agent-composition-guide",
+            "tags": [
+              "composition",
+              "guide",
+              "structured"
+            ],
+            "taskCount": "5",
+            "createdAt": "2025-01-15T10:30:00Z",
+            "updatedAt": "2025-02-27T10:00:00Z",
+            "lastRunAt": "2025-02-27T10:00:00Z"
+          },
+          "description": "CompositionGuideAgent flow: Creates a composition guide with 5 gradual section generation tasks",
+          "tasks": [
+            {
+              "order": 1,
+              "name": "Generate Composition Overview",
+              "frontmatter": {
+                "description": "Generates composition overview and form structure",
+                "type": "updateFlowOutput",
+                "model": "claude-3-5-sonnet",
+                "temperature": "0.4"
+              },
+              "instructions": "Create an overview and formal structure for the composition. Include overall concept, duration, instrumentation, key musical elements, and a clear formal plan (binary, ternary, sonata, etc.).",
+              "outputSchema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "Composition title"
+                  },
+                  "concept": {
+                    "type": "string",
+                    "description": "Overall musical concept and inspiration"
+                  },
+                  "form": {
+                    "type": "string",
+                    "description": "Formal structure"
+                  },
+                  "duration": {
+                    "type": "number",
+                    "description": "Estimated duration in minutes"
+                  },
+                  "instrumentation": {
+                    "type": "string",
+                    "description": "Instruments or voices involved"
+                  }
+                },
+                "required": [
+                  "title",
+                  "concept",
+                  "form",
+                  "duration"
+                ]
+              },
+              "targetFieldName": "overview"
+            },
+            {
+              "order": 2,
+              "name": "Generate Melodic Framework",
+              "frontmatter": {
+                "description": "Generates melodic themes and contour",
+                "type": "updateFlowOutput",
+                "model": "claude-3-5-sonnet",
+                "temperature": "0.4"
+              },
+              "instructions": "Develop primary melodic themes with clear contours, phrasing, and emotional character. Include variations and development techniques for use throughout the composition.",
+              "outputSchema": {
+                "type": "object",
+                "properties": {
+                  "primaryTheme": {
+                    "type": "object",
+                    "properties": {
+                      "description": {
+                        "type": "string"
+                      },
+                      "ranges": {
+                        "type": "string"
+                      },
+                      "emotionalCharacter": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "variations": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "technique": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "phrasingGuide": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "primaryTheme",
+                  "phrasingGuide"
+                ]
+              },
+              "targetFieldName": "melody"
+            },
+            {
+              "order": 3,
+              "name": "Generate Harmonic Framework",
+              "frontmatter": {
+                "description": "Generates harmonic structure and progression",
+                "type": "updateFlowOutput",
+                "model": "claude-3-5-sonnet",
+                "temperature": "0.4"
+              },
+              "instructions": "Establish harmonic foundation with clear chord progressions, voice leading principles, and harmonic rhythm. Include key areas, modulations, and cadential structures appropriate to the form.",
+              "outputSchema": {
+                "type": "object",
+                "properties": {
+                  "harmonyType": {
+                    "type": "string"
+                  },
+                  "primaryKey": {
+                    "type": "string"
+                  },
+                  "progressions": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "section": {
+                          "type": "string"
+                        },
+                        "chords": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "voiceLeadingPrinciples": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "modulations": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "primaryKey",
+                  "progressions"
+                ]
+              },
+              "targetFieldName": "harmony"
+            },
+            {
+              "order": 4,
+              "name": "Generate Rhythmic and Textural Elements",
+              "frontmatter": {
+                "description": "Generates rhythmic patterns and textural ideas",
+                "type": "updateFlowOutput",
+                "model": "claude-3-5-sonnet",
+                "temperature": "0.4"
+              },
+              "instructions": "Design rhythmic patterns, meter, texture combinations, and orchestration ideas. Include rhythmic motifs, accompaniment patterns, and textural devices that support the melody and harmony.",
+              "outputSchema": {
+                "type": "object",
+                "properties": {
+                  "meter": {
+                    "type": "string"
+                  },
+                  "rhythmicMotifs": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "pattern": {
+                          "type": "string"
+                        },
+                        "usage": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "accompanimentPatterns": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "texturalDevices": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "meter",
+                  "rhythmicMotifs"
+                ]
+              },
+              "targetFieldName": "rhythm"
+            },
+            {
+              "order": 5,
+              "name": "Generate Development and Performance Notes",
+              "frontmatter": {
+                "description": "Generates development strategies and performance guidance",
+                "type": "updateFlowOutput",
+                "model": "claude-3-5-sonnet",
+                "temperature": "0.4"
+              },
+              "instructions": "Provide guidance on developing themes through the composition, preparing for performance, and interpretive considerations. Include performance notes on tempo, dynamics, and musical expression.",
+              "outputSchema": {
+                "type": "object",
+                "properties": {
+                  "developmentTechniques": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "technique": {
+                          "type": "string"
+                        },
+                        "application": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "performanceNotes": {
+                    "type": "object",
+                    "properties": {
+                      "tempo": {
+                        "type": "string"
+                      },
+                      "dynamics": {
+                        "type": "string"
+                      },
+                      "interpretation": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "performancePreparation": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "developmentTechniques",
+                  "performanceNotes"
+                ]
+              },
+              "targetFieldName": "development"
+            }
+          ]
+        },
+        "flow_lesson_generate": {
+          "id": "flow_lesson_generate",
+          "frontmatter": {
+            "id": "flow_lesson_generate",
+            "name": "Generate Music Lesson Plan",
+            "status": "active",
+            "scope": "agent-specific",
+            "agentId": "agent-lesson-plan",
+            "tags": [
+              "lesson-plan",
+              "generate",
+              "structured"
+            ],
+            "taskCount": "7",
+            "createdAt": "2025-01-15T10:30:00Z",
+            "updatedAt": "2025-02-27T10:00:00Z",
+            "lastRunAt": "2025-02-27T10:00:00Z"
+          },
+          "description": "MusicLessonPlanAgent flow: Creates a complete music lesson plan with 7 gradual section generation tasks",
+          "tasks": [
+            {
+              "order": 1,
+              "name": "Generate Title and Overview",
+              "frontmatter": {
+                "description": "Generates music lesson plan title and overview section",
+                "type": "updateFlowOutput",
+                "model": "claude-3-5-sonnet",
+                "temperature": "0.4"
+              },
+              "instructions": "Generate an engaging, standards-aligned music lesson title and comprehensive overview. The title should be descriptive and performer-friendly. Include ensemble type, skill level, estimated duration, and a concise overview that summarizes the lesson's focus, key repertoire, and learning objectives. The overview should give a musician a clear understanding of what the lesson entails at a glance.",
+              "outputSchema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "Lesson title"
+                  },
+                  "ensembleType": {
+                    "type": "string",
+                    "description": "Ensemble type (choir, orchestra, band, etc.)"
+                  },
+                  "skillLevel": {
+                    "type": "string",
+                    "description": "Musician skill level"
+                  },
+                  "duration": {
+                    "type": "number",
+                    "description": "Duration in minutes"
+                  },
+                  "overview": {
+                    "type": "string",
+                    "description": "Brief lesson overview and learning objectives"
+                  }
+                },
+                "required": [
+                  "title",
+                  "ensembleType",
+                  "skillLevel",
+                  "overview"
+                ]
+              },
+              "targetFieldName": "overview"
+            },
+            {
+              "order": 2,
+              "name": "Generate Warm-up Section",
+              "frontmatter": {
+                "description": "Generates targeted warm-up exercises",
+                "type": "updateFlowOutput",
+                "model": "claude-3-5-sonnet",
+                "temperature": "0.4"
+              },
+              "instructions": "Create appropriate warm-up exercises for the ensemble that prepare musicians physically and mentally for the lesson. Include vocal/instrumental warm-ups, breathing techniques, and scales appropriate to the skill level.",
+              "outputSchema": {
+                "type": "object",
+                "properties": {
+                  "duration": {
+                    "type": "number",
+                    "description": "Warm-up duration in minutes"
+                  },
+                  "exercises": {
+                    "type": "array",
+                    "description": "List of warm-up exercises",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "focus": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "techniqueTips": {
+                    "type": "string",
+                    "description": "Overall technique guidance"
+                  }
+                },
+                "required": [
+                  "duration",
+                  "exercises"
+                ]
+              },
+              "targetFieldName": "warmup"
+            },
+            {
+              "order": 3,
+              "name": "Generate Repertoire Section",
+              "frontmatter": {
+                "description": "Generates repertoire and score study section",
+                "type": "updateFlowOutput",
+                "model": "claude-3-5-sonnet",
+                "temperature": "0.4"
+              },
+              "instructions": "Select appropriate music repertoire and provide detailed score study guidance. Include composer information, historical context, technical challenges, and interpretation guidance matched to the ensemble's skill level.",
+              "outputSchema": {
+                "type": "object",
+                "properties": {
+                  "pieces": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "title": {
+                          "type": "string"
+                        },
+                        "composer": {
+                          "type": "string"
+                        },
+                        "difficulty": {
+                          "type": "string"
+                        },
+                        "keyTechniques": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "scoreStudyGuidance": {
+                    "type": "string",
+                    "description": "Detailed score study approach"
+                  }
+                },
+                "required": [
+                  "pieces",
+                  "scoreStudyGuidance"
+                ]
+              },
+              "targetFieldName": "repertoire"
+            },
+            {
+              "order": 4,
+              "name": "Generate Practice Strategies",
+              "frontmatter": {
+                "description": "Generates focused practice strategies",
+                "type": "updateFlowOutput",
+                "model": "claude-3-5-sonnet",
+                "temperature": "0.4"
+              },
+              "instructions": "Develop specific practice strategies targeting technical and musical challenges in the selected repertoire. Include sectional rehearsal approaches, problem-solving techniques, and performance preparation steps.",
+              "outputSchema": {
+                "type": "object",
+                "properties": {
+                  "strategies": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "challenge": {
+                          "type": "string"
+                        },
+                        "approach": {
+                          "type": "string"
+                        },
+                        "timeRequired": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  },
+                  "rehearsalPlan": {
+                    "type": "string",
+                    "description": "Overall rehearsal structure"
+                  }
+                },
+                "required": [
+                  "strategies",
+                  "rehearsalPlan"
+                ]
+              },
+              "targetFieldName": "practiceStrategies"
+            },
+            {
+              "order": 5,
+              "name": "Generate Theory Integration",
+              "frontmatter": {
+                "description": "Generates music theory learning components",
+                "type": "updateFlowOutput",
+                "model": "claude-3-5-sonnet",
+                "temperature": "0.4"
+              },
+              "instructions": "Integrate relevant music theory concepts that support understanding and performance of the lesson repertoire. Connect harmony, melody, rhythm, and form elements to the pieces being studied.",
+              "outputSchema": {
+                "type": "object",
+                "properties": {
+                  "theoryTopics": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "concept": {
+                          "type": "string"
+                        },
+                        "relevance": {
+                          "type": "string"
+                        },
+                        "activities": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "listeningAssignments": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "theoryTopics"
+                ]
+              },
+              "targetFieldName": "theory"
+            },
+            {
+              "order": 6,
+              "name": "Generate Assessment and Closure",
+              "frontmatter": {
+                "description": "Generates assessment methods and lesson closure",
+                "type": "updateFlowOutput",
+                "model": "claude-3-5-sonnet",
+                "temperature": "0.4"
+              },
+              "instructions": "Create formative assessment methods to evaluate musician progress and understanding. Include performance rubrics, feedback strategies, and closure activities that reinforce learning objectives.",
+              "outputSchema": {
+                "type": "object",
+                "properties": {
+                  "assessmentMethods": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "method": {
+                          "type": "string"
+                        },
+                        "criteria": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "feedbackStrategy": {
+                    "type": "string",
+                    "description": "How to provide constructive feedback"
+                  },
+                  "closureActivities": {
+                    "type": "string",
+                    "description": "Activities to reinforce and close the lesson"
+                  }
+                },
+                "required": [
+                  "assessmentMethods",
+                  "feedbackStrategy"
+                ]
+              },
+              "targetFieldName": "assessment"
+            },
+            {
+              "order": 7,
+              "name": "Generate Differentiation and Extensions",
+              "frontmatter": {
+                "description": "Generates differentiation strategies and extension activities",
+                "type": "updateFlowOutput",
+                "model": "claude-3-5-sonnet",
+                "temperature": "0.4"
+              },
+              "instructions": "Develop differentiation strategies to support musicians at varying skill levels and extension activities for advanced learners. Include adaptations for different voice types/instruments and accelerated learning paths.",
+              "outputSchema": {
+                "type": "object",
+                "properties": {
+                  "supports": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "skillLevel": {
+                          "type": "string"
+                        },
+                        "modifications": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "extensions": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "activity": {
+                          "type": "string"
+                        },
+                        "skillGains": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "required": [
+                  "supports",
+                  "extensions"
+                ]
+              },
+              "targetFieldName": "differentiation"
+            }
+          ]
+        }
+      },
       "knowledge": [
         {
-          "path": "behavior",
+          "path": "ensemble",
           "type": "directory",
           "config": {
-            "id": "behavior",
-            "name": "Behavior",
-            "description": "Behavioral patterns and training",
-            "icon": "brain"
+            "label": "Ensemble",
+            "description": "Ensemble type, size, grade level, and available resources",
+            "icon": "🎤",
+            "color": "#ec4899",
+            "renderAs": "section"
           },
           "children": [
             {
-              "path": "behavior/behavioral-issues",
+              "path": "ensemble/class-size",
               "type": "directory",
               "config": {
-                "id": "behavioral-issues",
-                "name": "Behavioral Issues",
-                "description": "Current behavioral problems",
-                "type": "multiselect",
-                "required": false
+                "label": "Class Size",
+                "description": "Number of musicians in the ensemble",
+                "icon": "👥"
               },
               "children": [
                 {
-                  "path": "behavior/behavioral-issues/content.md",
+                  "path": "ensemble/class-size/large.md",
                   "type": "file",
-                  "frontmatter": {},
-                  "content": "# Behavioral Issues\n\nSelect any current behavioral issues:\n\n- Inappropriate elimination (outside litter box)\n- Excessive scratching\n- Aggression toward people\n- Aggression toward other pets\n- Excessive vocalization\n- Destructive behavior\n- Anxiety/stress\n- Attention-seeking behavior\n- Night-time activity/crying\n- Hair pulling/over-grooming\n- Hiding excessively\n- Food aggression\n- None\n"
+                  "frontmatter": {
+                    "title": "Large",
+                    "order": "3"
+                  },
+                  "content": "# Large Class Size\n\n**Musicians:** 35+\n\n## Characteristics\n- Full ensemble possibilities\n- Multiple musicians per part available\n- Variety of skill levels present\n\n## Considerations\n- Section rehearsals often necessary\n- Clear section leadership essential\n- Space and room logistics important\n- Arrangement variety supports different levels"
+                },
+                {
+                  "path": "ensemble/class-size/medium.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Medium",
+                    "order": "2"
+                  },
+                  "content": "# Medium Class Size\n\n**Musicians:** 15-35\n\n## Characteristics\n- Most common school ensemble size\n- Room for sectional coverage\n- Diverse skill levels manageable\n\n## Considerations\n- Section leadership roles possible\n- Volunteer arrangements with alternates important\n- Good balance between ensemble unity and individual roles"
+                },
+                {
+                  "path": "ensemble/class-size/small.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Small",
+                    "order": "1"
+                  },
+                  "content": "# Small Class Size\n\n**Musicians:** 5-15\n\n## Characteristics\n- Intimate group dynamics\n- Often all participating in same piece together\n- Easier to manage intonation and blend\n\n## Considerations\n- Independent musicianship less critical\n- More one-on-one teaching possible\n- Simple section coverage often sufficient"
                 }
               ]
             },
             {
-              "path": "behavior/enrichment-preferences",
+              "path": "ensemble/ensemble-type",
               "type": "directory",
               "config": {
-                "id": "enrichment-preferences",
-                "name": "Enrichment Preferences",
-                "description": "Favorite toys and activities",
-                "type": "multiselect",
-                "required": false
+                "label": "Ensemble Type",
+                "description": "Type of musical ensemble",
+                "icon": "🎵"
               },
               "children": [
                 {
-                  "path": "behavior/enrichment-preferences/content.md",
+                  "path": "ensemble/ensemble-type/band.md",
                   "type": "file",
-                  "frontmatter": {},
-                  "content": "# Enrichment Preferences\n\nWhat enrichment activities does your cat enjoy?\n\n- Feather wands\n- Laser pointers\n- Catnip toys\n- Interactive puzzle feeders\n- Treat balls\n- Window watching\n- Cat trees/climbing\n- Tunnels\n- Cardboard boxes\n- Paper bags\n- String/ribbon toys\n- Ball toys\n- Mouse toys\n- Scratching posts\n- Water fountains\n- TV/videos for cats\n"
+                  "frontmatter": {
+                    "title": "Band",
+                    "order": "3"
+                  },
+                  "content": "# Band Ensemble\n\n## Characteristics\n- Woodwind, brass, and percussion ensemble\n- Flexible instrumentation allows various ensemble sizes\n- Bright, energetic sound profile\n\n## Rehearsal Considerations\n- Tuning and intonation across different sections\n- Attention to balance in absence of string section\n- Marching and concert band styles\n- Extensive new music written for band"
+                },
+                {
+                  "path": "ensemble/ensemble-type/chamber-ensemble.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Chamber Ensemble",
+                    "order": "4"
+                  },
+                  "content": "# Chamber Ensemble\n\n## Characteristics\n- Small instrumental ensemble (2-10 musicians)\n- Typically one musician per part\n- Intimate musical communication required\n\n## Rehearsal Considerations\n- All musicians must be independent\n- Requires skilled leadership or shared responsibility\n- Extensive chamber literature available\n- Develops listening and ensemble awareness"
+                },
+                {
+                  "path": "ensemble/ensemble-type/choir.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Choir",
+                    "order": "1"
+                  },
+                  "content": "# Choir Ensemble\n\n## Characteristics\n- Vocal ensemble with multiple voice parts (SATB: soprano, alto, tenor, bass)\n- Flexible size from small chamber choirs to large choral groups\n- Focus on blend, balance, and intonation\n\n## Rehearsal Considerations\n- Warm-up and vocal technique development essential\n- Equal attention to all voice parts for balance\n- Extensive use of solfege and ear training\n- Large body of choral literature available"
+                },
+                {
+                  "path": "ensemble/ensemble-type/orchestra.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Orchestra",
+                    "order": "2"
+                  },
+                  "content": "# Orchestra Ensemble\n\n## Characteristics\n- Large instrumental ensemble with string, woodwind, brass, and percussion sections\n- Complex textures and wide dynamic range\n- Diverse instrumental techniques and tonal colors\n\n## Rehearsal Considerations\n- Section rehearsals often necessary\n- Attention to balance between instruments\n- Precise ensemble coordination critical\n- Rich symphonic literature available"
                 }
               ]
             },
             {
-              "path": "behavior/socialization",
+              "path": "ensemble/grade-level",
               "type": "directory",
               "config": {
-                "id": "socialization",
-                "name": "Socialization",
-                "description": "Interaction with people and animals",
-                "type": "multiselect",
-                "required": false
+                "label": "Grade Level",
+                "description": "Grade level and age range of musicians",
+                "icon": "📚"
               },
               "children": [
                 {
-                  "path": "behavior/socialization/content.md",
+                  "path": "ensemble/grade-level/college.md",
                   "type": "file",
-                  "frontmatter": {},
-                  "content": "# Socialization\n\nSelect all that apply to your cat's social behavior:\n\n- Good with familiar adults\n- Good with strangers\n- Good with children\n- Good with other cats\n- Good with dogs\n- Tolerates visitors\n- Hides from visitors\n- Aggressive to other animals\n- Prefers solitude\n- Attention-seeking\n- Lap cat\n"
+                  "frontmatter": {
+                    "title": "College",
+                    "order": "4"
+                  },
+                  "content": "# College/University\n\n**Age Range:** 18+ years\n\n## Key Characteristics\n- Advanced technical mastery\n- Professional-level musical understanding\n- Often specialized ensemble focus\n- Performance-oriented\n\n## Repertoire Suggestions\n- Advanced contemporary and classical works\n- Professional-quality arrangements\n- Pieces requiring high level of independence\n- Potential for specialized repertoire"
+                },
+                {
+                  "path": "ensemble/grade-level/elementary.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Elementary",
+                    "order": "1"
+                  },
+                  "content": "# Elementary School\n\n**Grade Range:** K-5 (Ages 5-11)\n\n## Key Characteristics\n- Short attention spans (10-15 minutes of focus)\n- Love rhythm, movement, and singing\n- Developing reading and music skills\n- Prefer fun, relatable content\n\n## Repertoire Suggestions\n- Short, simple pieces with repetition\n- Folk songs and traditional melody\n- Pieces with actions or movement\n- Age-appropriate harmonic complexity"
+                },
+                {
+                  "path": "ensemble/grade-level/high-school.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "High School",
+                    "order": "3"
+                  },
+                  "content": "# High School\n\n**Grade Range:** 9-12 (Ages 14-18)\n\n## Key Characteristics\n- Strong technical skills fully developed\n- Sophisticated musical understanding possible\n- Rehearsal time often limited\n- College/career awareness beginning\n\n## Repertoire Suggestions\n- Complex and challenging literature\n- Wide stylistic range\n- Opportunities for interpretation and arrangement\n- College audition-appropriate pieces"
+                },
+                {
+                  "path": "ensemble/grade-level/middle-school.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Middle School",
+                    "order": "2"
+                  },
+                  "content": "# Middle School\n\n**Grade Range:** 6-8 (Ages 11-14)\n\n## Key Characteristics\n- Increased technical capacity\n- Developing individual voice/instrument control\n- Social awareness influences ensemble dynamics\n- Wider emotional range\n\n## Repertoire Suggestions\n- Moderately complex arrangements\n- Mix of traditional and contemporary styles\n- Pieces with individual part challenge\n- Themes relevant to this age"
                 }
               ]
             },
             {
-              "path": "behavior/temperament",
+              "path": "ensemble/resources",
               "type": "directory",
               "config": {
-                "id": "temperament",
-                "name": "Temperament",
-                "description": "Overall behavioral disposition",
-                "type": "select",
-                "required": true
+                "label": "Resources",
+                "description": "Available musical instruments and learning resources",
+                "icon": "🛠️"
               },
               "children": [
                 {
-                  "path": "behavior/temperament/content.md",
+                  "path": "ensemble/resources/audio-playback.md",
                   "type": "file",
-                  "frontmatter": {},
-                  "content": "# Temperament\n\nWhat best describes your cat's overall temperament?\n\n- Very friendly and outgoing\n- Friendly but selective\n- Moderately social\n- Reserved/cautious\n- Shy/fearful\n- Independent\n- Unpredictable\n- Aggressive tendencies\n"
-                }
-              ]
-            },
-            {
-              "path": "behavior/training-goals",
-              "type": "directory",
-              "config": {
-                "id": "training-goals",
-                "name": "Training Goals",
-                "description": "Desired training or behavior modifications",
-                "type": "textarea",
-                "required": false
-              },
-              "children": [
+                  "frontmatter": {
+                    "title": "Audio Playback",
+                    "order": "2"
+                  },
+                  "content": "# Audio Playback Equipment\n\n## Availability\nSound system with speakers capable of playing recorded performances and backing tracks.\n\n## Benefits\n- Reference recordings for standard repertoire\n- Backing tracks for practice and performance\n- Audio examples for listening assignments\n- Supports rehearsal efficiency"
+                },
                 {
-                  "path": "behavior/training-goals/content.md",
+                  "path": "ensemble/resources/practice-rooms.md",
                   "type": "file",
-                  "frontmatter": {},
-                  "content": "# Training Goals\n\nList any training goals or behaviors you want to work on:\n\nExamples:\n- Reduce scratching furniture\n- Stop counter surfing\n- Come when called\n- Accept nail trimming\n- Reduce vocalization\n- Leash training\n- Carrier training\n- Play gently (no biting/scratching)\n"
+                  "frontmatter": {
+                    "title": "Practice Rooms",
+                    "order": "4"
+                  },
+                  "content": "# Practice Rooms\n\n## Availability\nDedicated private spaces for individual and sectional practice.\n\n## Benefits\n- Private practice space for skill development\n- Sectional rehearsal locations\n- Focused preparation time\n- Supports student growth"
+                },
+                {
+                  "path": "ensemble/resources/recording-equipment.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Recording Equipment",
+                    "order": "3"
+                  },
+                  "content": "# Recording Equipment\n\n## Availability\nAudio recording capability for capturing ensemble performances and rehearsals.\n\n## Benefits\n- Performance documentation and review\n- Self-assessment opportunities\n- Archive of progress over time\n- Promotion and concert documentation"
+                },
+                {
+                  "path": "ensemble/resources/sheet-music-library.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Sheet Music Library",
+                    "order": "1"
+                  },
+                  "content": "# Sheet Music Library\n\n## Availability\nComprehensive collection of printed music and scores for various ensembles and levels.\n\n## Benefits\n- Access to diverse repertoire\n- Legal and ethical music use\n- Score study and learning materials\n- Reference materials"
                 }
               ]
             }
           ]
         },
         {
-          "path": "care-routine",
+          "path": "music-theory",
           "type": "directory",
           "config": {
-            "id": "care-routine",
-            "name": "Care Routine",
-            "description": "Daily and regular care activities",
-            "icon": "calendar"
+            "label": "Music Theory",
+            "description": "Music theory concepts and compositional techniques",
+            "icon": "🎼",
+            "color": "#f59e0b",
+            "renderAs": "section"
           },
           "children": [
             {
-              "path": "care-routine/exercise-needs",
+              "path": "music-theory/form",
               "type": "directory",
               "config": {
-                "id": "exercise-needs",
-                "name": "Exercise Needs",
-                "description": "Activity level and play requirements",
-                "type": "select",
-                "required": true
+                "label": "Form",
+                "description": "Musical forms and structural devices",
+                "icon": "📋"
               },
               "children": [
                 {
-                  "path": "care-routine/exercise-needs/content.md",
+                  "path": "music-theory/form/binary-form.md",
                   "type": "file",
-                  "frontmatter": {},
-                  "content": "# Exercise Needs\n\nWhat is your cat's exercise/activity level?\n\n- Very high (extremely active, needs constant stimulation)\n- High (very playful, needs multiple play sessions daily)\n- Moderate (average activity, 1-2 play sessions daily)\n- Low (mostly sedentary, occasional play)\n- Very low (senior/limited mobility)\n"
+                  "frontmatter": {
+                    "title": "Binary Form",
+                    "order": "1"
+                  },
+                  "content": "# Binary Form\n\n## Definition\nTwo-part musical form (A-B) with contrasting sections.\n\n## Characteristics\n- Two distinct sections\n- First section often modulates to related key\n- Second section returns to original key\n- Common in baroque dance movements\n\n## Examples\n- Baroque minuets\n- Simple marches\n- Preludes and dances\n\n## Teaching Approach\n- Foundation for form understanding\n- Clear and accessible structure\n- Good starting point for analysis"
+                },
+                {
+                  "path": "music-theory/form/rondo-form.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Rondo Form",
+                    "order": "3"
+                  },
+                  "content": "# Rondo Form\n\n## Definition\nMulti-part form with recurring main section (A) alternating with contrasting sections.\n\n## Characteristics\n- Main theme (A) returns multiple times\n- Contrasting sections (B, C, etc.) between returns\n- Creates sense of unity with variety\n- Common structure: A-B-A-C-A or A-B-A-C-A-B-A\n\n## Examples\n- Classical rondo movements\n- Some march forms\n- Theme and variations endings\n\n## Teaching Approach\n- Extends understanding of repetition with contrast\n- More complex than ternary\n- Develops larger-scale form perception\n- Common in classical period"
+                },
+                {
+                  "path": "music-theory/form/sonata-form.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Sonata Form",
+                    "order": "4"
+                  },
+                  "content": "# Sonata Form\n\n## Definition\nLarge form structure with exposition, development, and recapitulation sections.\n\n## Characteristics\n- Exposition: Two contrasting themes in different keys\n- Development: Themes developed and explored\n- Recapitulation: Return of themes in home key\n- Complex harmonic structure and modulation\n\n## Examples\n- Classical symphony movements\n- Concerto movements\n- Chamber music first movements\n\n## Teaching Approach\n- Most wichtig classical form\n- Advanced concept requiring analysis skills\n- Foundation for understanding harmonic drama\n- Essential for classical period study"
+                },
+                {
+                  "path": "music-theory/form/ternary-form.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Ternary Form",
+                    "order": "2"
+                  },
+                  "content": "# Ternary Form\n\n## Definition\nThree-part musical form (A-B-A) with return to opening material.\n\n## Characteristics\n- Opening section (A)\n- Contrasting middle section (B)\n- Return of opening section (A)\n- provides satisfying closure\n\n## Examples\n- Song form\n- Minuet and trio\n- Simple lied forms\n- Many popular songs\n\n## Teaching Approach\n- Natural and intuitive structure\n- Common in many styles\n- Good for understanding harmonic return\n- Basis for more complex forms"
                 }
               ]
             },
             {
-              "path": "care-routine/feeding-schedule",
+              "path": "music-theory/harmony",
               "type": "directory",
               "config": {
-                "id": "feeding-schedule",
-                "name": "Feeding Schedule",
-                "description": "Meal frequency and timing",
-                "type": "select",
-                "required": true
+                "label": "Harmony",
+                "description": "Chord progressions, voice leading, and harmonic structure",
+                "icon": "🔗"
               },
               "children": [
                 {
-                  "path": "care-routine/feeding-schedule/content.md",
+                  "path": "music-theory/harmony/chromatic-harmony.md",
                   "type": "file",
-                  "frontmatter": {},
-                  "content": "# Feeding Schedule\n\nHow often do you feed your cat?\n\n- Free feeding (food always available)\n- Twice daily (morning and evening)\n- Three times daily\n- Four or more times daily\n- Once daily\n- Variable schedule\n"
+                  "frontmatter": {
+                    "title": "Chromatic Harmony",
+                    "order": "2"
+                  },
+                  "content": "# Chromatic Harmony\n\n## Definition\nHarmonic progressions incorporating chromatic alteration of diatonic chords and chromatic passing chords.\n\n## Key Elements\n- Secondary dominants (V/V, V/IV, etc.)\n- Borrowed chords from parallel keys\n- Chromatic passing chords\n- Chromatic voice leading\n\n## Teaching Approach\n- Builds on diatonic foundation\n- Extends harmonic palette\n- Supports romantic and contemporary music\n- Develops nuanced harmonic analysis"
+                },
+                {
+                  "path": "music-theory/harmony/diatonic-harmony.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Diatonic Harmony",
+                    "order": "1"
+                  },
+                  "content": "# Diatonic Harmony\n\n## Definition\nHarmonic progressions using chords derived from a single major or minor scale.\n\n## Key Elements\n- I, IV, V, vi chord progressions\n- Common progressions (I-IV-V-I, I-vi-IV-V)\n- Clear voice leading principles\n- Strong sense of harmonic function\n\n## Teaching Approach\n- Foundation for harmonic understanding\n- Basis for most popular music\n- Establishes voice leading principles\n- Prepares for chromatic harmony"
+                },
+                {
+                  "path": "music-theory/harmony/modal-harmony.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Modal Harmony",
+                    "order": "3"
+                  },
+                  "content": "# Modal Harmony\n\n## Definition\nHarmonic progressions based on modal scales (Dorian, Phrygian, Lydian, Mixolydian, etc.).\n\n## Key Elements\n- Drones and repeated harmonic bases\n- Different color from major/minor tonality\n- Common in folk and contemporary music\n- Ambiguous tonal center possibilities\n\n## Teaching Approach\n- Expands harmonic vocabulary beyond major/minor\n- Common in jazz and world music\n- Supports contemporary music analysis\n- Enriches composition possibilities"
                 }
               ]
             },
             {
-              "path": "care-routine/grooming-frequency",
+              "path": "music-theory/melody",
               "type": "directory",
               "config": {
-                "id": "grooming-frequency",
-                "name": "Grooming Frequency",
-                "description": "How often you groom your cat",
-                "type": "select",
-                "required": true
+                "label": "Melody",
+                "description": "Melodic contour, phrasing, and thematic development",
+                "icon": "〰️"
               },
               "children": [
                 {
-                  "path": "care-routine/grooming-frequency/content.md",
+                  "path": "music-theory/melody/melodic-contour.md",
                   "type": "file",
-                  "frontmatter": {},
-                  "content": "# Grooming Frequency\n\nHow often do you groom your cat?\n\n- Daily\n- Every other day\n- Twice weekly\n- Weekly\n- Bi-weekly\n- Monthly\n- Rarely/As needed\n- Professional grooming only\n"
+                  "frontmatter": {
+                    "title": "Melodic Contour",
+                    "order": "1"
+                  },
+                  "content": "# Melodic Contour\n\n## Definition\nThe shape and overall direction of a melodic line created by the succession of pitches.\n\n## Key Elements\n- Arc shape (rise-peak-fall)\n- Direction (ascending, descending, undulating)\n- Range and tessitura\n- Phrasing and breathing\n\n## Teaching Approach\n- Helps musicians shape phrases\n- Creates coherent and memorable melodies\n- Primary tool for musical expression\n- Essential for interpretation"
+                },
+                {
+                  "path": "music-theory/melody/phrasing-techniques.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Phrasing Techniques",
+                    "order": "2"
+                  },
+                  "content": "# Phrasing Techniques\n\n## Definition\nMethods of grouping notes into logical musical phrases for expression and interpretation.\n\n## Key Elements\n- Breath marks and punctuation\n- Crescendo and diminuendo shaping\n- Rubato and flexibility\n- Articulation choices\n\n## Teaching Approach\n- Develops musical communication\n- Teaches interpretation beyond notes\n- Creates coherent musical statements\n- Builds listening awareness"
+                },
+                {
+                  "path": "music-theory/melody/thematic-development.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Thematic Development",
+                    "order": "3"
+                  },
+                  "content": "# Thematic Development\n\n## Definition\nTechniques for evolving and transforming musical themes throughout a composition.\n\n## Key Elements\n- Fragmentation and extension\n- Variation and ornamentation\n- Sequence and transposition\n- Inversion and retrograde\n\n## Teaching Approach\n- Essential for sonata form understanding\n- Supports composition and arrangement\n- Develops analytical listening skills\n- Creates sophisticated musical discourse"
                 }
               ]
             },
             {
-              "path": "care-routine/litter-maintenance",
+              "path": "music-theory/rhythm",
               "type": "directory",
               "config": {
-                "id": "litter-maintenance",
-                "name": "Litter Maintenance",
-                "description": "Litter box cleaning schedule",
-                "type": "select",
-                "required": true
+                "label": "Rhythm",
+                "description": "Meter, time signatures, and rhythmic patterns",
+                "icon": "♪"
               },
               "children": [
                 {
-                  "path": "care-routine/litter-maintenance/content.md",
+                  "path": "music-theory/rhythm/compound-meter.md",
                   "type": "file",
-                  "frontmatter": {},
-                  "content": "# Litter Maintenance\n\nHow often do you clean the litter box?\n\n- Multiple times daily\n- Daily\n- Every other day\n- Twice weekly\n- Weekly\n- Self-cleaning/automatic litter box\n"
-                }
-              ]
-            },
-            {
-              "path": "care-routine/medication-schedule",
-              "type": "directory",
-              "config": {
-                "id": "medication-schedule",
-                "name": "Medication Schedule",
-                "description": "If your cat requires regular medication",
-                "type": "textarea",
-                "required": false
-              },
-              "children": [
+                  "frontmatter": {
+                    "title": "Compound Meter",
+                    "order": "2"
+                  },
+                  "content": "# Compound Meter\n\n## Definition\nMeter where the beat divides into three parts (triple division).\n\n## Key Elements\n- Time signatures: 6/8, 9/8, 12/8, etc.\n- Dotted note beat divisions\n- Lilting, flowing feel\n- Less common than simple meter\n\n## Teaching Approach\n- Extends rhythmic vocabulary\n- Common in folk music\n- Supports style and genre diversity\n- Develops more sophisticated rhythmic sense"
+                },
                 {
-                  "path": "care-routine/medication-schedule/content.md",
+                  "path": "music-theory/rhythm/polyrhythm.md",
                   "type": "file",
-                  "frontmatter": {},
-                  "content": "# Medication Schedule\n\nList any medications your cat takes and the schedule:\n\nExample format:\n- Medication name: Frequency (e.g., \"Thyroid medication: twice daily\")\n- Medication name: Frequency\n"
+                  "frontmatter": {
+                    "title": "Polyrhythm",
+                    "order": "4"
+                  },
+                  "content": "# Polyrhythm\n\n## Definition\nSimultaneous use of contrasting rhythmic patterns and meters.\n\n## Key Elements\n- Different rhythmic schemes in different parts\n- Creates complex interlocking patterns\n- Common in world music traditions\n- Expanded rhythmic vocabulary\n\n## Teaching Approach\n- Advanced rhythmic concept\n- Develops independence and listening\n- Supports contemporary and world music\n- Enriches ensemble timbral possibilities"
+                },
+                {
+                  "path": "music-theory/rhythm/simple-meter.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Simple Meter",
+                    "order": "1"
+                  },
+                  "content": "# Simple Meter\n\n## Definition\nMeter where the beat divides into two parts (duple division).\n\n## Key Elements\n- Time signatures: 2/4, 3/4, 4/4, etc.\n- Straightforward counting and conducting patterns\n- Most common in Western music\n- Clear metric pulse\n\n## Teaching Approach\n- Foundation for rhythmic understanding\n- Basis for most popular music\n- Clear and predictable patterns\n- Easiest for beginning musicians"
+                },
+                {
+                  "path": "music-theory/rhythm/syncopation.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Syncopation",
+                    "order": "3"
+                  },
+                  "content": "# Syncopation\n\n## Definition\nEmphasis on unexpected or off-beat notes, creating rhythmic tension and interest.\n\n## Key Elements\n- Off-beat emphasis and accents\n- Anticipation and delay of expected beats\n- Common in jazz and contemporary music\n- Creates rhythmic vitality\n\n## Teaching Approach\n- Develops rhythmic flexibility\n- Essential for jazz and popular music\n- Supports artistic expression\n- Prevents rhythmic predictability"
                 }
               ]
             }
           ]
         },
         {
-          "path": "cat-profile",
+          "path": "musician-profile",
           "type": "directory",
           "config": {
-            "id": "cat-profile",
-            "name": "Cat Profile",
-            "description": "Information about your specific cat(s)",
-            "icon": "cat"
+            "label": "Musician Profile",
+            "description": "Musician background, experience level, primary instruments, and music theory knowledge",
+            "icon": "🎼",
+            "color": "#8b5cf6",
+            "renderAs": "section"
           },
           "children": [
             {
-              "path": "cat-profile/age",
+              "path": "musician-profile/experience",
               "type": "directory",
               "config": {
-                "id": "age",
-                "name": "Age",
-                "description": "Cat's current age",
-                "type": "select",
-                "required": true
+                "label": "Experience",
+                "description": "Years of musical experience and performance history",
+                "icon": "📅"
               },
               "children": [
                 {
-                  "path": "cat-profile/age/content.md",
+                  "path": "musician-profile/experience/advanced.md",
                   "type": "file",
-                  "frontmatter": {},
-                  "content": "# Age\n\nSelect your cat's age range:\n\n- Kitten (0-6 months)\n- Young (6 months - 2 years)\n- Adult (2-7 years)\n- Mature (7-10 years)\n- Senior (10-14 years)\n- Geriatric (14+ years)\n"
+                  "frontmatter": {
+                    "title": "Advanced",
+                    "order": "3"
+                  },
+                  "content": "# Advanced Musician\n\n**Years:** 5+ years\n\n## Key Characteristics\n- Strong technical command of instrument/voice\n- Advanced sight-reading abilities\n- Significant ensemble and performance experience\n- Beginning composition or arrangement interest\n\n## Teaching Approach\n- Focus on artistic interpretation and refinement\n- Challenge with advanced repertoire and techniques\n- Exploration of composer intent and historical context\n- Mentorship and independent learning"
+                },
+                {
+                  "path": "musician-profile/experience/beginning.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Beginning",
+                    "order": "1"
+                  },
+                  "content": "# Beginning Musician\n\n**Years:** 0-2 years\n\n## Key Characteristics\n- New to formal music study\n- Building fundamental instrumental or vocal skills\n- Introduction to music reading and notation\n- Developing ear training abilities\n\n## Teaching Approach\n- Frequent encouragement and positive reinforcement\n- Clear, step-by-step instruction\n- Lots of repetition and scaffolding\n- Focus on foundational technique"
+                },
+                {
+                  "path": "musician-profile/experience/intermediate.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Intermediate",
+                    "order": "2"
+                  },
+                  "content": "# Intermediate Musician\n\n**Years:** 2-5 years\n\n## Key Characteristics\n- Solid technical foundation established\n- Can read music fluently\n- Beginning ensemble playing experience\n- Developing musical interpretation skills\n\n## Teaching Approach\n- Balance technique refinement with musical expression\n- Introduction to more complex repertoire\n- Genre and style exploration\n- Collaborative ensemble work"
                 }
               ]
             },
             {
-              "path": "cat-profile/breed",
+              "path": "musician-profile/instrument",
               "type": "directory",
               "config": {
-                "id": "breed",
-                "name": "Breed",
-                "description": "Cat breed or mix",
-                "type": "select",
-                "required": true
+                "label": "Instrument",
+                "description": "Primary and secondary instruments played",
+                "icon": "🎹"
               },
               "children": [
                 {
-                  "path": "cat-profile/breed/content.md",
+                  "path": "musician-profile/instrument/cello.md",
                   "type": "file",
-                  "frontmatter": {},
-                  "content": "# Breed\n\nSelect your cat's breed or closest match:\n\n- Persian\n- Maine Coon\n- Siamese\n- Bengal\n- British Shorthair\n- Ragdoll\n- Scottish Fold\n- Sphynx\n- American Shorthair\n- Russian Blue\n- Domestic Shorthair (mixed)\n- Domestic Longhair (mixed)\n- Other/Unknown\n"
+                  "frontmatter": {
+                    "title": "Cello",
+                    "order": "5"
+                  },
+                  "content": "# Cello\n\n## About the Instrument\nFour-string bowed instrument with warm, mellow tone and wide range from bass to tenor register.\n\n## Teaching Considerations\n- Posture and position setup important\n- Bridge maintenance affects tone\n- Both melodic and harmonic roles\n- Rich solo literature available"
+                },
+                {
+                  "path": "musician-profile/instrument/flute.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Flute",
+                    "order": "3"
+                  },
+                  "content": "# Flute\n\n## About the Instrument\nWoodwind instrument with bright, agile sound capable of rapid passage work and expressive phrasing.\n\n## Teaching Considerations\n- Breath support and control essential\n- Head joint assembly affects intonation\n- Excellent for developing proper breathing habits\n- Wide dynamic range available"
+                },
+                {
+                  "path": "musician-profile/instrument/guitar.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Guitar",
+                    "order": "6"
+                  },
+                  "content": "# Guitar\n\n## About the Instrument\nFretted string instrument with six strings, capable of chordal accompaniment and melody.\n\n## Teaching Considerations\n- Frets aid intonation for developing players\n- Fingering techniques develop hand strength\n- Works well for both solo and accompaniment roles\n- Accessible for self-teaching"
+                },
+                {
+                  "path": "musician-profile/instrument/piano.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Piano",
+                    "order": "1"
+                  },
+                  "content": "# Piano\n\n## About the Instrument\nPrimary keyboard instrument with 88 keys, capable of playing melodic, harmonic, and rhythmic elements simultaneously.\n\n## Teaching Considerations\n- Hand position and posture are critical\n- Both treble and bass clef reading required\n- Technique-intensive with multiple learning pathways\n- Excellent foundation for music theory and composition"
+                },
+                {
+                  "path": "musician-profile/instrument/trumpet.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Trumpet",
+                    "order": "4"
+                  },
+                  "content": "# Trumpet\n\n## About the Instrument\nBrass instrument with bright penetrating sound, three valves control pitch.\n\n## Teaching Considerations\n- Embouchure (lip formation) critical for tone quality\n- Brass fundamentals apply across the section\n- Develops strong breath support\n- Both melodic and harmonic roles in ensemble"
+                },
+                {
+                  "path": "musician-profile/instrument/violin.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Violin",
+                    "order": "2"
+                  },
+                  "content": "# Violin\n\n## About the Instrument\nFour-string bowed instrument with high range and expressive capacity for vibrato and tone color.\n\n## Teaching Considerations\n- Bow control fundamental to sound quality\n- Intonation challenges for developing musicians\n- Melodic focus with occasional harmonic elements\n- Rich solo and chamber repertoire"
                 }
               ]
             },
             {
-              "path": "cat-profile/health-conditions",
+              "path": "musician-profile/skill-level",
               "type": "directory",
               "config": {
-                "id": "health-conditions",
-                "name": "Health Conditions",
-                "description": "Existing medical conditions",
-                "type": "textarea",
-                "required": false
+                "label": "Skill Level",
+                "description": "Current playing and conceptual skill level",
+                "icon": "⭐"
               },
               "children": [
                 {
-                  "path": "cat-profile/health-conditions/content.md",
+                  "path": "musician-profile/skill-level/advanced.md",
                   "type": "file",
-                  "frontmatter": {},
-                  "content": "# Health Conditions\n\nList any existing medical conditions, chronic illnesses, or health concerns:\n\nExamples:\n- Diabetes\n- Hyperthyroidism\n- Kidney disease\n- Dental issues\n- Allergies\n- Arthritis\n- Heart disease\n- FIV/FeLV\n- Asthma\n"
+                  "frontmatter": {
+                    "title": "Advanced",
+                    "order": "3"
+                  },
+                  "content": "# Advanced Skill Level\n\n## Performance Abilities\n- Excellent tone quality and intonation consistency\n- Plays complex, contemporary, and transcribed works\n- Secure command of technique across instrument ranges\n- Sophisticated dynamic and tonal control\n\n## Musicianship\n- Deep understanding of harmonic and formal structures\n- Interprets musical scores with artistic sophistication\n- Strong leadership in ensemble settings\n- Comfortable with unfamiliar and experimental music"
+                },
+                {
+                  "path": "musician-profile/skill-level/beginner.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Beginner",
+                    "order": "1"
+                  },
+                  "content": "# Beginner Skill Level\n\n## Performance Abilities\n- Can produce clear, steady tones\n- Plays simple melodies with occasional errors\n- Proper posture and basic technique developing\n- Limited dynamic control\n\n## Musicianship\n- Understands basic rhythm concepts\n- Recognizes simple musical forms\n- Responds to conductor/director cues\n- Building listening awareness"
+                },
+                {
+                  "path": "musician-profile/skill-level/proficient.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Proficient",
+                    "order": "2"
+                  },
+                  "content": "# Proficient Skill Level\n\n## Performance Abilities\n- Consistent tone production with good intonation\n- Plays moderately complex repertoire with accuracy\n- Proper technique established\n- Good dynamic control and expression\n\n## Musicianship\n- Strong understanding of rhythm and meter\n- Recognizes musical forms and harmonic structures\n- Responsive interpre to artistic direction\n- Good ensemble awareness and blend"
                 }
               ]
             },
             {
-              "path": "cat-profile/personality",
+              "path": "musician-profile/theory-knowledge",
               "type": "directory",
               "config": {
-                "id": "personality",
-                "name": "Personality",
-                "description": "Cat's personality traits",
-                "type": "multiselect",
-                "required": false
+                "label": "Theory Knowledge",
+                "description": "Music theory background and conceptual understanding",
+                "icon": "📐"
               },
               "children": [
                 {
-                  "path": "cat-profile/personality/content.md",
+                  "path": "musician-profile/theory-knowledge/music-theory-advanced.md",
                   "type": "file",
-                  "frontmatter": {},
-                  "content": "# Personality\n\nSelect traits that describe your cat (multiple selections allowed):\n\n- Affectionate\n- Independent\n- Playful\n- Calm\n- Energetic\n- Shy\n- Confident\n- Vocal\n- Quiet\n- Curious\n- Lazy\n- Social\n- Aloof\n- Aggressive\n- Anxious\n"
-                }
-              ]
-            },
-            {
-              "path": "cat-profile/special-needs",
-              "type": "directory",
-              "config": {
-                "id": "special-needs",
-                "name": "Special Needs",
-                "description": "Any special care requirements",
-                "type": "textarea",
-                "required": false
-              },
-              "children": [
+                  "frontmatter": {
+                    "title": "Music Theory Advanced",
+                    "order": "3"
+                  },
+                  "content": "# Music Theory Advanced\n\n## Topics Covered\n- Advanced harmonic analysis (chromatic harmony, secondary dominants)\n- Counterpoint and compositional techniques\n- Complex form analysis (sonata, rondo, variations)\n- Contemporary compositional techniques\n- Historical style analysis\n\n## Application Level\n- Supports sophisticated arrangement and composition\n- Enables analysis of complex modern repertoire\n- Prepares for music theory teaching and academic study"
+                },
                 {
-                  "path": "cat-profile/special-needs/content.md",
+                  "path": "musician-profile/theory-knowledge/music-theory-basics.md",
                   "type": "file",
-                  "frontmatter": {},
-                  "content": "# Special Needs\n\nDescribe any special care requirements your cat has:\n\nExamples:\n- Blind or visually impaired\n- Deaf or hearing impaired\n- Missing limbs\n- Special mobility needs\n- Medication administration\n- Special diet requirements\n- Behavioral modifications needed\n"
+                  "frontmatter": {
+                    "title": "Music Theory Basics",
+                    "order": "1"
+                  },
+                  "content": "# Music Theory Basics\n\n## Topics Covered\n- Note names on staff\n- Basic rhythm notation\n- Major and minor scales\n- Interval identification\n- Simple chord construction\n\n## Application Level\n- Supports basic sight-reading\n- Foundation for further study\n- Helps understand simple harmonic progressions"
+                },
+                {
+                  "path": "musician-profile/theory-knowledge/music-theory-fundamentals.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Music Theory Fundamentals",
+                    "order": "2"
+                  },
+                  "content": "# Music Theory Fundamentals\n\n## Topics Covered\n- All key signatures and modulation\n- Chord progressions and voice leading\n- Harmonic analysis of simple to moderate complexity\n- Melodic analysis and phrasing\n- Basic form analysis (binary, ternary)\n\n## Application Level\n- Supports confident ensemble playing\n- Enables arrangement and composition experimentation\n- Allows harmonic analysis of most common repertoire"
                 }
               ]
             }
           ]
         },
         {
-          "path": "environment",
+          "path": "repertoire",
           "type": "directory",
           "config": {
-            "id": "environment",
-            "name": "Environment",
-            "description": "Living space and household setup",
-            "icon": "home"
+            "label": "Repertoire",
+            "description": "Music selection criteria including genre, period, and difficulty",
+            "icon": "📖",
+            "color": "#06b6d4",
+            "renderAs": "section"
           },
           "children": [
             {
-              "path": "environment/hazards",
+              "path": "repertoire/difficulty-level",
               "type": "directory",
               "config": {
-                "id": "hazards",
-                "name": "Hazards",
-                "description": "Potential environmental hazards",
-                "type": "multiselect",
-                "required": false
+                "label": "Difficulty Level",
+                "description": "Technical and musical difficulty of repertoire",
+                "icon": "🎯"
               },
               "children": [
                 {
-                  "path": "environment/hazards/content.md",
+                  "path": "repertoire/difficulty-level/advanced.md",
                   "type": "file",
-                  "frontmatter": {},
-                  "content": "# Hazards\n\nIdentify any environmental concerns:\n\n- Toxic plants present\n- Access to balcony/high windows\n- Exposed electrical cords\n- Small objects that could be swallowed\n- Cleaning chemicals accessible\n- String/yarn left out\n- Open toilets\n- Unsafe hiding spots\n- Hot surfaces (stove, etc.)\n- Pest control products used\n- None identified\n"
+                  "frontmatter": {
+                    "title": "Advanced",
+                    "order": "3"
+                  },
+                  "content": "# Advanced Difficulty\n\n## Characteristics\n- Complex rhythmic patterns and meter changes\n- Wide range with challenging intervals\n- Advanced harmonic techniques (chromatic, modal, atonal)\n- Extended works (5+ minutes)\n\n## Typical Skill Requirements\n- Sophisticated sight-reading\n- Precise intonation and blend\n- Advanced technical facility\n- Strong musicianship and interpretation"
+                },
+                {
+                  "path": "repertoire/difficulty-level/beginner.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Beginner",
+                    "order": "1"
+                  },
+                  "content": "# Beginner Difficulty\n\n## Characteristics\n- Simple rhythmic patterns (mostly quarter and eighth notes)\n- Limited range, mostly stepwise motion\n- Diatonic harmony (one key)\n- Short pieces or sections (under 2 minutes)\n\n## Typical Skill Requirements\n- Basic note reading\n- Simple counting and rhythm\n- Limited technical facility\n- Fundamental bloom techniques"
+                },
+                {
+                  "path": "repertoire/difficulty-level/intermediate.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Intermediate",
+                    "order": "2"
+                  },
+                  "content": "# Intermediate Difficulty\n\n## Characteristics\n- Varied rhythm including syncopation\n- Extended range with some leaps\n- Functional harmony with chromatic elements\n- Moderate length works (2-5 minutes)\n\n## Typical Skill Requirements\n- Confident sight-reading\n- Good rhythmic accuracy\n- Technical facility in multiple positions/registers\n- Ability to balance with other parts"
                 }
               ]
             },
             {
-              "path": "environment/household-members",
+              "path": "repertoire/genre",
               "type": "directory",
               "config": {
-                "id": "household-members",
-                "name": "Household Members",
-                "description": "People living in the home",
-                "type": "textarea",
-                "required": false
+                "label": "Genre",
+                "description": "Musical genre and style",
+                "icon": "🎸"
               },
               "children": [
                 {
-                  "path": "environment/household-members/content.md",
+                  "path": "repertoire/genre/art-song.md",
                   "type": "file",
-                  "frontmatter": {},
-                  "content": "# Household Members\n\nDescribe the people in your household:\n\n- Number of adults:\n- Number of children (list ages):\n- Frequent visitors:\n- Work from home/home all day:\n- Activity level (quiet, moderate, busy):\n"
+                  "frontmatter": {
+                    "title": "Art Song",
+                    "order": "5"
+                  },
+                  "content": "# Art Song\n\n## Characteristics\n- Solo voice with piano accompaniment\n- Usually with text/poetry\n- Sophisticated harmonic writing\n- Intimate performance style\n\n## Repertoire Range\n- Lieder (German art songs)\n- Romance (French art songs)\n- English and American songs\n- Contemporary vocal music"
+                },
+                {
+                  "path": "repertoire/genre/chamber.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Chamber",
+                    "order": "3"
+                  },
+                  "content": "# Chamber Music\n\n## Characteristics\n- Written for small ensemble\n- Often one musician per part\n- Intimate musical communication\n- Clear individual line focus\n\n## Repertoire Range\n- String quartets and trios\n- Wind ensembles\n- Mixed instrumental combinations\n- Solo sonatas with accompaniment"
+                },
+                {
+                  "path": "repertoire/genre/choral.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Choral",
+                    "order": "1"
+                  },
+                  "content": "# Choral Music\n\n## Characteristics\n- Written for vocal ensemble\n- Usually with text/lyrics\n- Varied voicing arrangements (SAB, SATB, etc.)\n- Focus on blend and vocal technique\n\n## Repertoire Range\n- From sacred to secular\n- Multiple historical periods\n- Diverse cultural traditions\n- Wide emotional range"
+                },
+                {
+                  "path": "repertoire/genre/contemporary.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Contemporary",
+                    "order": "4"
+                  },
+                  "content": "# Contemporary Music\n\n## Characteristics\n- 20th and 21st century composition\n- Diverse stylistic approaches\n- Often experimental techniques\n- Variable harmonic language\n\n## Repertoire Range\n- Modern classical\n- Minimalism and experimental\n- World music influences\n- Electronic and mixed media"
+                },
+                {
+                  "path": "repertoire/genre/jazz.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Jazz",
+                    "order": "6"
+                  },
+                  "content": "# Jazz\n\n## Characteristics\n- Emphasis on improvisation\n- Swing rhythms and syncopation\n- Blues and bebop harmonic language\n- Flexible ensemble arrangements\n\n## Repertoire Range\n- Standards and classic jazz\n- Bebop and cool jazz\n- Fusion and contemporary jazz\n- Educational jazz arrangements"
+                },
+                {
+                  "path": "repertoire/genre/orchestral.md",
+                  "type": "file",
+                  "frontmatter": {
+                    "title": "Orchestral",
+                    "order": "2"
+                  },
+                  "content": "# Orchestral Music\n\n## Characteristics\n- Written for large instrumental ensemble\n- Complex textures and timbral variety\n- Sophisticated harmonic language\n- Symphonic scale and structure\n\n## Repertoire Range\n- Symphonies and concertos\n- Overtures and tone poems\n- Ballet and opera orchestrations\n- Contemporary symphonic works"
                 }
               ]
             },
             {
-              "path": "environment/indoor-outdoor",
+              "path": "repertoire/period",
               "type": "directory",
               "config": {
-                "id": "indoor-outdoor",
-                "name": "Indoor/Outdoor",
-                "description": "Living arrangement",
-                "type": "select",
-                "required": true
+                "label": "Period",
+                "description": "Historical period or style era",
+                "icon": "⏰"
               },
               "children": [
                 {
-                  "path": "environment/indoor-outdoor/content.md",
+                  "path": "repertoire/period/baroque.md",
                   "type": "file",
-                  "frontmatter": {},
-                  "content": "# Indoor/Outdoor\n\nWhat is your cat's living arrangement?\n\n- Indoor only\n- Indoor with supervised outdoor time\n- Indoor with catio/enclosed outdoor space\n- Indoor/outdoor (free access)\n- Outdoor only\n- Primarily outdoor with indoor access\n"
-                }
-              ]
-            },
-            {
-              "path": "environment/other-pets",
-              "type": "directory",
-              "config": {
-                "id": "other-pets",
-                "name": "Other Pets",
-                "description": "Other animals in household",
-                "type": "multiselect",
-                "required": false
-              },
-              "children": [
+                  "frontmatter": {
+                    "title": "Baroque",
+                    "order": "1"
+                  },
+                  "content": "# Baroque Period\n\n**Years:** 1600-1750\n\n## Characteristics\n- Ornamental melody lines\n- Figured bass and continuo accompaniment\n- Terraced dynamics (no gradual crescendo)\n- Counterpoint and fugue\n\n## Notable Composers\n- Johann Sebastian Bach\n- George Frideric Handel\n- Antonio Vivaldi\n- Henry Purcell\n\n## Pedagogy Approaches\n- Emphasis on baroque articulation and ornamentation\n- Understanding harmonic language of period\n- Rhythmic flexibility"
+                },
                 {
-                  "path": "environment/other-pets/content.md",
+                  "path": "repertoire/period/classical.md",
                   "type": "file",
-                  "frontmatter": {},
-                  "content": "# Other Pets\n\nSelect all other pets in your household:\n\n- Other cat(s) - number: ___\n- Dog(s) - number: ___\n- Small mammals (hamsters, guinea pigs, etc.)\n- Birds\n- Fish/aquarium\n- Reptiles\n- No other pets\n"
-                }
-              ]
-            },
-            {
-              "path": "environment/space-size",
-              "type": "directory",
-              "config": {
-                "id": "space-size",
-                "name": "Space Size",
-                "description": "Available living space",
-                "type": "select",
-                "required": true
-              },
-              "children": [
+                  "frontmatter": {
+                    "title": "Classical",
+                    "order": "2"
+                  },
+                  "content": "# Classical Period\n\n**Years:** 1750-1820\n\n## Characteristics\n- Clear periodic structure and symmetry\n- Sonata form development\n- Emphasis on melody and accompaniment\n- Balance and proportion\n\n## Notable Composers\n- Wolfgang Amadeus Mozart\n- Ludwig van Beethoven\n- Franz Joseph Haydn\n- Franz Schubert\n\n## Pedagogy Approaches\n- Clarity of line and phrasing\n- Understanding sonata form\n- Classical articulation and dynamics\n- Harmonic analysis study"
+                },
                 {
-                  "path": "environment/space-size/content.md",
+                  "path": "repertoire/period/contemporary.md",
                   "type": "file",
-                  "frontmatter": {},
-                  "content": "# Space Size\n\nHow much space does your cat have?\n\n- Studio/Small apartment (< 500 sq ft)\n- One-bedroom apartment (500-800 sq ft)\n- Two-bedroom apartment/small house (800-1500 sq ft)\n- Medium house (1500-2500 sq ft)\n- Large house (> 2500 sq ft)\n- Multi-level home with stairs\n- Single room only\n"
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "path": "health",
-          "type": "directory",
-          "config": {
-            "id": "health",
-            "name": "Health",
-            "description": "Veterinary and medical information",
-            "icon": "heart-pulse"
-          },
-          "children": [
-            {
-              "path": "health/emergency-contacts",
-              "type": "directory",
-              "config": {
-                "id": "emergency-contacts",
-                "name": "Emergency Contacts",
-                "description": "Emergency veterinary contacts",
-                "type": "textarea",
-                "required": true
-              },
-              "children": [
+                  "frontmatter": {
+                    "title": "Contemporary",
+                    "order": "4"
+                  },
+                  "content": "# Contemporary Period\n\n**Years:** 1910-Present\n\n## Characteristics\n- Diverse compositional approaches\n- Expanded instrumental techniques\n- Varied harmonic language (atonal, modal, etc.)\n- Experimental and innovative scores\n\n## Notable Composers\n- Aaron Copland\n- Leonard Bernstein\n- John Adams\n- contemporary various world composers\n\n## Pedagogy Approaches\n- Openness to diverse styles\n- Understanding unconventional notation\n- Technical innovation and extended techniques\n- Engagement with living composers"
+                },
                 {
-                  "path": "health/emergency-contacts/content.md",
+                  "path": "repertoire/period/romantic.md",
                   "type": "file",
-                  "frontmatter": {},
-                  "content": "# Emergency Contacts\n\nList emergency veterinary contacts:\n\n24-Hour Emergency Clinic:\n- Name:\n- Phone:\n- Address:\n\nPoison Control:\n- ASPCA Poison Control: (888) 426-4435\n- Pet Poison Helpline: (855) 764-7661\n\nBackup Care:\n- Friend/Family who can care for cat:\n- Phone:\n"
-                }
-              ]
-            },
-            {
-              "path": "health/insurance",
-              "type": "directory",
-              "config": {
-                "id": "insurance",
-                "name": "Insurance",
-                "description": "Pet insurance information",
-                "type": "select",
-                "required": false
-              },
-              "children": [
-                {
-                  "path": "health/insurance/content.md",
-                  "type": "file",
-                  "frontmatter": {},
-                  "content": "# Insurance\n\nDo you have pet insurance?\n\n- Yes, comprehensive coverage\n- Yes, accident-only coverage\n- Yes, wellness plan only\n- No insurance\n- Considering insurance\n- Self-insuring with savings\n"
-                }
-              ]
-            },
-            {
-              "path": "health/medical-history",
-              "type": "directory",
-              "config": {
-                "id": "medical-history",
-                "name": "Medical History",
-                "description": "Past medical issues and surgeries",
-                "type": "textarea",
-                "required": false
-              },
-              "children": [
-                {
-                  "path": "health/medical-history/content.md",
-                  "type": "file",
-                  "frontmatter": {},
-                  "content": "# Medical History\n\nDocument your cat's medical history:\n\nPast conditions:\n- \n\nSurgeries:\n- Spay/neuter date:\n- Other surgeries:\n\nHospitalizations:\n- \n\nInjuries:\n- \n"
-                }
-              ]
-            },
-            {
-              "path": "health/vaccination-status",
-              "type": "directory",
-              "config": {
-                "id": "vaccination-status",
-                "name": "Vaccination Status",
-                "description": "Current vaccination records",
-                "type": "multiselect",
-                "required": false
-              },
-              "children": [
-                {
-                  "path": "health/vaccination-status/content.md",
-                  "type": "file",
-                  "frontmatter": {},
-                  "content": "# Vaccination Status\n\nSelect current vaccinations (check all that apply):\n\n- FVRCP (core vaccine - distemper, calicivirus, rhinotracheitis)\n- Rabies\n- FeLV (Feline Leukemia)\n- FIV vaccine\n- Bordetella\n- All vaccinations up to date\n- Some vaccinations overdue\n- Indoor cat - minimal vaccinations\n- Unable to vaccinate (medical reasons)\n"
-                }
-              ]
-            },
-            {
-              "path": "health/veterinarian",
-              "type": "directory",
-              "config": {
-                "id": "veterinarian",
-                "name": "Veterinarian",
-                "description": "Veterinary clinic information",
-                "type": "textarea",
-                "required": true
-              },
-              "children": [
-                {
-                  "path": "health/veterinarian/content.md",
-                  "type": "file",
-                  "frontmatter": {},
-                  "content": "# Veterinarian\n\nProvide your veterinarian's information:\n\n- Clinic Name:\n- Veterinarian Name:\n- Phone Number:\n- Address:\n- Emergency Contact (if different):\n"
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "path": "nutrition",
-          "type": "directory",
-          "config": {
-            "id": "nutrition",
-            "name": "Nutrition",
-            "description": "Food and dietary information",
-            "icon": "utensils"
-          },
-          "children": [
-            {
-              "path": "nutrition/dietary-restrictions",
-              "type": "directory",
-              "config": {
-                "id": "dietary-restrictions",
-                "name": "Dietary Restrictions",
-                "description": "Food allergies or restrictions",
-                "type": "textarea",
-                "required": false
-              },
-              "children": [
-                {
-                  "path": "nutrition/dietary-restrictions/content.md",
-                  "type": "file",
-                  "frontmatter": {},
-                  "content": "# Dietary Restrictions\n\nList any food allergies, intolerances, or dietary restrictions:\n\nExamples:\n- Grain-free diet required\n- Fish allergy\n- Chicken allergy\n- Low-protein diet (kidney disease)\n- Low-fat diet\n- No dairy\n- Limited ingredient diet\n"
-                }
-              ]
-            },
-            {
-              "path": "nutrition/feeding-preferences",
-              "type": "directory",
-              "config": {
-                "id": "feeding-preferences",
-                "name": "Feeding Preferences",
-                "description": "Eating habits and preferences",
-                "type": "multiselect",
-                "required": false
-              },
-              "children": [
-                {
-                  "path": "nutrition/feeding-preferences/content.md",
-                  "type": "file",
-                  "frontmatter": {},
-                  "content": "# Feeding Preferences\n\nSelect your cat's feeding behaviors and preferences:\n\n- Grazer (eats small amounts throughout day)\n- Meal eater (finishes food quickly)\n- Picky eater\n- Food motivated\n- Prefers wet food\n- Prefers dry food\n- Likes variety\n- Prefers routine\n- Slow feeder needed\n- Requires elevated bowls\n"
-                }
-              ]
-            },
-            {
-              "path": "nutrition/food-type",
-              "type": "directory",
-              "config": {
-                "id": "food-type",
-                "name": "Food Type",
-                "description": "Primary food format",
-                "type": "select",
-                "required": true
-              },
-              "children": [
-                {
-                  "path": "nutrition/food-type/content.md",
-                  "type": "file",
-                  "frontmatter": {},
-                  "content": "# Food Type\n\nWhat type of food does your cat primarily eat?\n\n- Dry kibble only\n- Wet/canned food only\n- Combination of dry and wet\n- Raw diet\n- Home-cooked meals\n- Prescription diet\n- Mix of multiple types\n"
-                }
-              ]
-            },
-            {
-              "path": "nutrition/supplements",
-              "type": "directory",
-              "config": {
-                "id": "supplements",
-                "name": "Supplements",
-                "description": "Vitamins or supplements",
-                "type": "textarea",
-                "required": false
-              },
-              "children": [
-                {
-                  "path": "nutrition/supplements/content.md",
-                  "type": "file",
-                  "frontmatter": {},
-                  "content": "# Supplements\n\nList any supplements or vitamins your cat takes:\n\nExamples:\n- Joint supplements (glucosamine, chondroitin)\n- Omega-3 fatty acids\n- Probiotics\n- Fiber supplements\n- Hairball remedies\n- Urinary health supplements\n- Vitamin supplements\n"
-                }
-              ]
-            },
-            {
-              "path": "nutrition/treats",
-              "type": "directory",
-              "config": {
-                "id": "treats",
-                "name": "Treats",
-                "description": "Treat frequency and preferences",
-                "type": "select",
-                "required": false
-              },
-              "children": [
-                {
-                  "path": "nutrition/treats/content.md",
-                  "type": "file",
-                  "frontmatter": {},
-                  "content": "# Treats\n\nHow often does your cat receive treats?\n\n- Multiple times daily\n- Once daily\n- Few times per week\n- Weekly\n- Rarely\n- Never\n- Only for medication/training\n"
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "path": "owner",
-          "type": "directory",
-          "config": {
-            "id": "owner",
-            "name": "Owner",
-            "description": "Cat owner information and preferences",
-            "icon": "user"
-          },
-          "children": [
-            {
-              "path": "owner/availability",
-              "type": "directory",
-              "config": {
-                "id": "availability",
-                "name": "Availability",
-                "description": "Time available for cat care",
-                "type": "select",
-                "required": true
-              },
-              "children": [
-                {
-                  "path": "owner/availability/content.md",
-                  "type": "file",
-                  "frontmatter": {},
-                  "content": "# Availability\n\nHow much time can you dedicate to your cat daily?\n\n- Home most of the day\n- Home half the day\n- Away 8-10 hours daily (typical work schedule)\n- Away 10+ hours daily\n- Frequent travel/irregular schedule\n- Variable schedule\n"
-                }
-              ]
-            },
-            {
-              "path": "owner/budget",
-              "type": "directory",
-              "config": {
-                "id": "budget",
-                "name": "Budget",
-                "description": "Monthly budget for cat care",
-                "type": "select",
-                "required": false
-              },
-              "children": [
-                {
-                  "path": "owner/budget/content.md",
-                  "type": "file",
-                  "frontmatter": {},
-                  "content": "# Budget\n\nWhat is your approximate monthly budget for cat care (food, litter, toys, vet)?\n\n- Minimal (< $50/month)\n- Basic ($50-100/month)\n- Moderate ($100-200/month)\n- Generous ($200-400/month)\n- Extensive (> $400/month)\n- No specific limit\n"
-                }
-              ]
-            },
-            {
-              "path": "owner/experience-level",
-              "type": "directory",
-              "config": {
-                "id": "experience-level",
-                "name": "Experience Level",
-                "description": "Cat ownership experience",
-                "type": "select",
-                "required": true
-              },
-              "children": [
-                {
-                  "path": "owner/experience-level/content.md",
-                  "type": "file",
-                  "frontmatter": {},
-                  "content": "# Experience Level\n\nWhat is your level of cat ownership experience?\n\n- First-time cat owner\n- Some experience (1-2 previous cats)\n- Experienced (3+ cats over time)\n- Very experienced (long-term multiple cat household)\n- Professional experience (veterinary, shelter, breeder)\n"
-                }
-              ]
-            },
-            {
-              "path": "owner/goals",
-              "type": "directory",
-              "config": {
-                "id": "goals",
-                "name": "Goals",
-                "description": "Your goals for cat care",
-                "type": "textarea",
-                "required": false
-              },
-              "children": [
-                {
-                  "path": "owner/goals/content.md",
-                  "type": "file",
-                  "frontmatter": {},
-                  "content": "# Goals\n\nWhat are your main goals for caring for your cat?\n\nExamples:\n- Maintain optimal health\n- Improve cat's behavior\n- Strengthen bond with cat\n- Manage medical condition\n- Prepare for life stage transition (kitten to adult, adult to senior)\n- Create enriching environment\n- Balance multiple pets\n- Travel preparation\n"
-                }
-              ]
-            },
-            {
-              "path": "owner/preferences",
-              "type": "directory",
-              "config": {
-                "id": "preferences",
-                "name": "Preferences",
-                "description": "Owner care preferences",
-                "type": "multiselect",
-                "required": false
-              },
-              "children": [
-                {
-                  "path": "owner/preferences/content.md",
-                  "type": "file",
-                  "frontmatter": {},
-                  "content": "# Preferences\n\nSelect your care preferences:\n\n- Prefer natural/organic products\n- Prefer eco-friendly options\n- Technology-friendly (automated feeders, apps)\n- Prefer traditional methods\n- Willing to try new approaches\n- Focus on preventive care\n- Holistic/alternative medicine interest\n- Budget-conscious\n- Premium products preferred\n"
+                  "frontmatter": {
+                    "title": "Romantic",
+                    "order": "3"
+                  },
+                  "content": "# Romantic Period\n\n**Years:** 1820-1910\n\n## Characteristics\n- Emotional expression and virtuosity\n- Expanded harmonic language\n- Dynamic contrast and expression\n- Rubato and interpretive freedom\n\n## Notable Composers\n- Felix Mendelssohn\n- Frédéric Chopin\n- Franz Liszt\n- Richard Wagner\n\n## Pedagogy Approaches\n- Emotional communication and interpretation\n- Vibrato and tonal control\n- Understanding romantic harmony\n- Development of personal artistic voice"
                 }
               ]
             }
@@ -3231,9 +3908,21 @@
         }
       ],
       "packageJson": {
-        "name": "workspace-feline",
+        "name": "music",
         "version": "1.0.0",
-        "description": "Feline care and management workspace"
+        "description": "Workspace: music",
+        "dependencies": {
+          "@music/theory": "2.1.0",
+          "@music/composition": "1.5.0",
+          "@music/pedagogy": "3.0.0",
+          "@music/repertoire": "1.2.0",
+          "@music/performance": "2.3.0",
+          "@music/ensemble": "1.0.0",
+          "@music/scoring": "1.8.0",
+          "@music/harmony": "1.1.0",
+          "@music/instrumentation": "2.0.0",
+          "@music/assessment": "1.3.0"
+        }
       }
     },
     "plants": {

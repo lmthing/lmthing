@@ -1,7 +1,0 @@
-{
-  "id": "vaccination-status",
-  "name": "Vaccination Status",
-  "description": "Current vaccination records",
-  "type": "multiselect",
-  "required": false
-}

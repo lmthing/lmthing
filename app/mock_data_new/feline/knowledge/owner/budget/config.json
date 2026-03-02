@@ -1,7 +1,0 @@
-{
-  "id": "budget",
-  "name": "Budget",
-  "description": "Monthly budget for cat care",
-  "type": "select",
-  "required": false
-}

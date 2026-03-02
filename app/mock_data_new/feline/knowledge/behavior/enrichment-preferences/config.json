@@ -1,7 +1,0 @@
-{
-  "id": "enrichment-preferences",
-  "name": "Enrichment Preferences",
-  "description": "Favorite toys and activities",
-  "type": "multiselect",
-  "required": false
-}

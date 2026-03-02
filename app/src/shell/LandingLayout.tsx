@@ -8,6 +8,8 @@ import {
   Workflow,
   Play,
   Building2,
+  Download,
+  Check,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -35,15 +37,35 @@ import { Input } from '@/components/ui/input'
 import { toWorkspaceName } from '@/lib/workspaces'
 import { ThingPanel } from './components/ThingPanel'
 import logo from '@/assets/logo.png'
+import extractedDataStructure from '@/extracted_data_structure.json'
 
 const WORKSPACE_COLORS = ['#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ef4444', '#84cc16']
 
-// Mock workspaces from extracted_data_structure.json
-const MOCK_WORKSPACES = [
-  { id: 'education', name: 'local/education', slug: 'education', description: 'Learning and tutoring agents' },
-  { id: 'plants', name: 'local/plants', slug: 'plants', description: 'Indoor plant care coaching' },
-  { id: 'web-development', name: 'local/web-development', slug: 'web-development', description: 'React and web component building' },
-]
+// Dynamically discover demo workspaces from filesystem
+const demoPackages = import.meta.glob<{ name: string; description: string }>('../demos/*/package.json', { eager: true, import: 'default' })
+
+// Friendly descriptions for demo workspaces
+const WORKSPACE_DESCRIPTIONS: Record<string, string> = {
+  education: 'Learning and tutoring agents',
+  plants: 'Indoor plant care coaching',
+  'web-development': 'React and web component building',
+  feline: 'Cat care and behavior guidance',
+}
+
+// Generate mock workspaces from discovered demos
+const MOCK_WORKSPACES = Object.keys(demoPackages)
+  .map(path => {
+    const match = path.match(/\.\.\/demos\/([^/]+)\/package\.json/)
+    if (!match) return null
+    const slug = match[1]
+    return {
+      id: slug,
+      name: `local/${slug}`,
+      slug,
+      description: WORKSPACE_DESCRIPTIONS[slug] || `${slug.charAt(0).toUpperCase() + slug.slice(1)} workspace`,
+    }
+  })
+  .filter(Boolean) as Array<{ id: string; name: string; slug: string; description: string }>
 
 export default function LandingLayout() {
   const navigate = useNavigate()
@@ -54,6 +76,8 @@ export default function LandingLayout() {
   const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState('')
   const [isCreating, setIsCreating] = useState(false)
+  const [isUpdatingStorage, setIsUpdatingStorage] = useState(false)
+  const [storageUpdateStatus, setStorageUpdateStatus] = useState<'idle' | 'success' | 'error'>('idle')
 
   // Combine mock workspaces and GitHub workspaces
   const availableWorkspaces = useMemo(() => {
@@ -139,6 +163,22 @@ export default function LandingLayout() {
   const handleWorkspaceSelect = (workspace: Workspace) => {
     setIsWorkspaceModalOpen(false)
     navigate(`/workspace/${workspaceToSlug(workspace.name)}/studio`)
+  }
+
+  const handleUpdateStorageWithExtractedData = async () => {
+    try {
+      setIsUpdatingStorage(true)
+      const WORKSPACE_DATA_STORAGE_KEY = 'domainsmith-workspace-data'
+      window.localStorage.setItem(WORKSPACE_DATA_STORAGE_KEY, JSON.stringify(extractedDataStructure))
+      setStorageUpdateStatus('success')
+      setTimeout(() => setStorageUpdateStatus('idle'), 3000)
+    } catch (error) {
+      console.error('Failed to update localStorage:', error)
+      setStorageUpdateStatus('error')
+      setTimeout(() => setStorageUpdateStatus('idle'), 3000)
+    } finally {
+      setIsUpdatingStorage(false)
+    }
   }
 
   return (
@@ -246,6 +286,27 @@ export default function LandingLayout() {
           <p className="mx-auto mt-2 max-w-2xl text-center text-muted-foreground">
             Explore pre-configured workspaces to see how AI agents work
           </p>
+          <div className="mt-6 flex justify-center">
+            <Button
+              size="sm"
+              variant={storageUpdateStatus === 'success' ? 'default' : 'outline'}
+              onClick={handleUpdateStorageWithExtractedData}
+              disabled={isUpdatingStorage}
+              className="gap-2"
+            >
+              {storageUpdateStatus === 'success' ? (
+                <>
+                  <Check className="size-4" />
+                  Data Loaded
+                </>
+              ) : (
+                <>
+                  <Download className="size-4" />
+                  Load Demo Data
+                </>
+              )}
+            </Button>
+          </div>
           <div className="mt-8 grid gap-6 sm:grid-cols-3">
             {MOCK_WORKSPACES.map((workspace, idx) => (
               <Card

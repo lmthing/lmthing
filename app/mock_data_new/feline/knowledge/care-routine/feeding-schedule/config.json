@@ -1,7 +1,0 @@
-{
-  "id": "feeding-schedule",
-  "name": "Feeding Schedule",
-  "description": "Meal frequency and timing",
-  "type": "select",
-  "required": true
-}

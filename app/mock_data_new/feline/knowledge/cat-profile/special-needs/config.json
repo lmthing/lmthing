@@ -1,7 +1,0 @@
-{
-  "id": "special-needs",
-  "name": "Special Needs",
-  "description": "Any special care requirements",
-  "type": "textarea",
-  "required": false
-}

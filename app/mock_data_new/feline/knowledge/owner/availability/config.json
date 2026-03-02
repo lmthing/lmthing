@@ -1,7 +1,0 @@
-{
-  "id": "availability",
-  "name": "Availability",
-  "description": "Time available for cat care",
-  "type": "select",
-  "required": true
-}

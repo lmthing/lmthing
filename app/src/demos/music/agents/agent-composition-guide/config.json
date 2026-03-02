@@ -1,0 +1,6 @@
+{
+  "emptyFieldsForRuntime": {
+    "music-theory": ["harmony"],
+    "musician-profile": ["skill-level"]
+  }
+}

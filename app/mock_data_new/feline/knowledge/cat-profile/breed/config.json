@@ -1,7 +1,0 @@
-{
-  "id": "breed",
-  "name": "Breed",
-  "description": "Cat breed or mix",
-  "type": "select",
-  "required": true
-}

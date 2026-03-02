@@ -1,7 +1,0 @@
-{
-  "id": "training-goals",
-  "name": "Training Goals",
-  "description": "Desired training or behavior modifications",
-  "type": "textarea",
-  "required": false
-}

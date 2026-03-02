@@ -1,7 +1,0 @@
-{
-  "id": "agent-behavior-trainer",
-  "name": "Behavior Trainer",
-  "description": "Provides positive reinforcement training strategies for cats",
-  "model": "claude-3-5-sonnet-20241022",
-  "temperature": 0.7
-}

@@ -1,7 +1,0 @@
-{
-  "id": "personality",
-  "name": "Personality",
-  "description": "Cat's personality traits",
-  "type": "multiselect",
-  "required": false
-}

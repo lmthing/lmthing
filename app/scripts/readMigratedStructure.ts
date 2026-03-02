@@ -451,7 +451,7 @@ async function extractAllWorkspaces(rootPath: string): Promise<MigratedDataStruc
 // ============================================================================
 
 async function main() {
-  const rootPath = process.argv[2] || './mock_data_new';
+  const rootPath = process.argv[2] || './src/demos';
 
   console.log(`Reading migrated data from: ${rootPath}`);
   const data = await extractAllWorkspaces(rootPath);

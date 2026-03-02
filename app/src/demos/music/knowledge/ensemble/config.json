@@ -1,0 +1,7 @@
+{
+  "label": "Ensemble",
+  "description": "Ensemble type, size, grade level, and available resources",
+  "icon": "🎤",
+  "color": "#ec4899",
+  "renderAs": "section"
+}

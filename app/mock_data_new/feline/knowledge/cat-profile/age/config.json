@@ -1,7 +1,0 @@
-{
-  "id": "age",
-  "name": "Age",
-  "description": "Cat's current age",
-  "type": "select",
-  "required": true
-}

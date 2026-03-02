@@ -1,7 +1,0 @@
-{
-  "id": "food-type",
-  "name": "Food Type",
-  "description": "Primary food format",
-  "type": "select",
-  "required": true
-}

@@ -1,7 +1,0 @@
-{
-  "id": "preferences",
-  "name": "Preferences",
-  "description": "Owner care preferences",
-  "type": "multiselect",
-  "required": false
-}

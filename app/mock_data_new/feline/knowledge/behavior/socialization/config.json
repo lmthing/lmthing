@@ -1,7 +1,0 @@
-{
-  "id": "socialization",
-  "name": "Socialization",
-  "description": "Interaction with people and animals",
-  "type": "multiselect",
-  "required": false
-}

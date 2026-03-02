@@ -1,7 +1,0 @@
-{
-  "id": "agent-vet-visit-planner",
-  "name": "Vet Visit Planner",
-  "description": "Helps prepare for and schedule veterinary appointments",
-  "model": "claude-3-5-sonnet-20241022",
-  "temperature": 0.5
-}

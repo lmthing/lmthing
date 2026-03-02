@@ -1,7 +1,0 @@
-{
-  "id": "space-size",
-  "name": "Space Size",
-  "description": "Available living space",
-  "type": "select",
-  "required": true
-}

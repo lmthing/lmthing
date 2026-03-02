@@ -1,7 +1,0 @@
-{
-  "id": "insurance",
-  "name": "Insurance",
-  "description": "Pet insurance information",
-  "type": "select",
-  "required": false
-}

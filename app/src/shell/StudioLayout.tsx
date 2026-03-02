@@ -3,8 +3,8 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { StudioShell } from './components'
 import { useWorkspaceData } from '@/lib/workspaceDataContext'
 import { FlowEditorModal } from '@/sections/agent-builder/components/FlowEditorModal'
-import { CreateDomainModal } from './components/CreateDomainModal'
-import { CreateAgentModal } from './components/CreateAgentModal'
+import { CreateDomainInline } from './components/CreateDomainInline'
+import { CreateAgentInline } from './components/CreateAgentInline'
 import { useAgents, useFlows } from '@/lib/workspaceContext'
 import { fromWorkspaceRouteParam, parseWorkspaceRepoRef, toWorkspaceRouteParam } from '@/lib/workspaces'
 import type {
@@ -116,8 +116,8 @@ export default function StudioLayout() {
   const currentEditingFlowRef = useRef<Flow | null>(null)
   const currentEditingTasksRef = useRef<Task[]>([])
 
-  const [isCreateDomainModalOpen, setIsCreateDomainModalOpen] = useState(false)
-  const [isCreateAgentModalOpen, setIsCreateAgentModalOpen] = useState(false)
+  const [showCreateDomainForm, setShowCreateDomainForm] = useState(false)
+  const [showCreateAgentForm, setShowCreateAgentForm] = useState(false)
 
   useEffect(() => {
     currentEditingFlowRef.current = currentEditingFlow
@@ -472,10 +472,10 @@ export default function StudioLayout() {
           )
         }
         onOpenSettings={() => navigate(`${studioPath}/settings/env`)}
-        onCreateDomain={() => setIsCreateDomainModalOpen(true)}
+        onCreateDomain={() => setShowCreateDomainForm(true)}
         onEditDomain={(id) => console.log('Edit domain:', id)}
         onDeleteDomain={(id) => console.log('Delete domain:', id)}
-        onCreateAgent={() => setIsCreateAgentModalOpen(true)}
+        onCreateAgent={() => setShowCreateAgentForm(true)}
         onEditAgent={(id) => console.log('Edit agent:', id)}
         onDeleteAgent={(id) => console.log('Delete agent:', id)}
         onSelectFile={handleSelectFile}
@@ -509,56 +509,64 @@ export default function StudioLayout() {
         />
       )}
 
-      <CreateDomainModal
-        isOpen={isCreateDomainModalOpen}
-        onClose={() => setIsCreateDomainModalOpen(false)}
-        onSubmit={(name: string, description: string) => {
-          const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
-          const newId = slug
-          const newNode: KnowledgeNode = {
-            path: newId,
-            type: 'directory',
-            config: {
-              label: name,
-              description: description,
-              color: '#10b981',
-              icon: 'folder',
-              renderAs: 'section'
-            },
-            children: []
-          }
-          addKnowledgeNode(null, newNode)
-          setIsCreateDomainModalOpen(false)
-          navigate(`${studioPath}/domain/${newId}`)
-        }}
-      />
+      {/* Inline Create Domain Form */}
+      {showCreateDomainForm && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-4">
+          <CreateDomainInline
+            onSubmit={(name: string, description: string) => {
+              const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+              const newId = slug
+              const newNode: KnowledgeNode = {
+                path: newId,
+                type: 'directory',
+                config: {
+                  label: name,
+                  description: description,
+                  color: '#10b981',
+                  icon: 'folder',
+                  renderAs: 'section'
+                },
+                children: []
+              }
+              addKnowledgeNode(null, newNode)
+              setShowCreateDomainForm(false)
+              navigate(`${studioPath}/domain/${newId}`)
+            }}
+            onCancel={() => setShowCreateDomainForm(false)}
+          />
+        </div>
+      )}
 
-      <CreateAgentModal
-        isOpen={isCreateAgentModalOpen}
-        onClose={() => setIsCreateAgentModalOpen(false)}
-        onSubmit={(name: string, description: string) => {
-          const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
-          const newId = `agent-${slug}-${Date.now()}` // optionally just use slug or slug + Date.now for uniqueness
-          const newAgent: Agent = {
-            id: newId,
-            frontmatter: {
-              name: name,
-              description: description,
-              selectedDomains: []
-            },
-            mainInstruction: '',
-            slashActions: [],
-            config: {
-              emptyFieldsForRuntime: []
-            },
-            formValues: {},
-            conversations: []
-          }
-          upsertAgent(newAgent)
-          setIsCreateAgentModalOpen(false)
-          navigate(`${studioPath}/agent/${newId}`)
-        }}
-      />
+      {/* Inline Create Agent Form */}
+      {showCreateAgentForm && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-4">
+          <CreateAgentInline
+            onSubmit={(name: string, description: string) => {
+              const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+              const newId = `agent-${slug}-${Date.now()}`
+              const newAgent: Agent = {
+                id: newId,
+                frontmatter: {
+                  name: name,
+                  description: description,
+                  selectedDomains: []
+                },
+                mainInstruction: '',
+                slashActions: [],
+                config: {
+                  emptyFieldsForRuntime: []
+                },
+                formValues: {},
+                conversations: []
+              }
+              upsertAgent(newAgent)
+              setShowCreateAgentForm(false)
+              navigate(`${studioPath}/agent/${newId}`)
+            }}
+            onCancel={() => setShowCreateAgentForm(false)}
+          />
+        </div>
+      )}
     </>
   )
 }

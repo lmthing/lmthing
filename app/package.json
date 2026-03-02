@@ -33,6 +33,7 @@
     "lmthing": "workspace:*",
     "lucide-react": "^0.575.0",
     "react": "^19.2.0",
+    "react-arborist": "^3.4.3",
     "react-dom": "^19.2.0",
     "react-json-view-lite": "^2.5.0",
     "react-router-dom": "^7.9.6",

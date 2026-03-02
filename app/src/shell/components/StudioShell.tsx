@@ -1265,6 +1265,7 @@ export function StudioShell({
   const agentBuilderProps: AgentBuilderScreenProps & { 
     conversations?: RuntimeConversation[]
     onViewModeChange?: (mode: 'edit' | 'view') => void
+    viewMode?: 'edit' | 'view'
   } = {
     domains,
     toolLibrary: [], // Empty for now - tool library not in extracted data
@@ -1285,6 +1286,7 @@ export function StudioShell({
     flowBuilderOpen,
     loadedAgentId: agentId || null,
     conversations: runtimeConversations,
+    viewMode: agentViewMode,
     onViewModeChange: (mode) => {
       setAgentViewMode(mode)
       // Collapse sidebar when entering view mode, restore when entering edit mode
@@ -1294,7 +1296,6 @@ export function StudioShell({
         setIsSidebarCollapsed(defaultSidebarCollapsed)
       }
     },
-    agentViewMode,
     onDomainsChange: handleDomainsChange,
     onFieldValueChange: handleFieldValueChange,
     onEnableFieldForRuntime: handleEnableFieldForRuntime,

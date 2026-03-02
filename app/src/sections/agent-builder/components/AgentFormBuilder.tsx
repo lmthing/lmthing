@@ -14,7 +14,7 @@ import { FormField } from './FormField'
 import { ToolsPanel } from './ToolsPanel'
 import { ActionsPanel } from './ActionsPanel'
 import { AgentRuntimePreviewModal } from './AgentRuntimePreviewModal'
-import { SaveAgentModal } from './SaveAgentModal'
+import { SaveAgentInline } from './SaveAgentInline'
 
 /**
  * Recursively extract all SchemaFields from a SchemaNode tree
@@ -156,7 +156,7 @@ function SchemaNodeRenderer({ node, ...props }: SchemaNodeRendererProps) {
  *
  * @props AgentBuilderScreenProps - All data and callbacks passed as props
  */
-export function AgentFormBuilder(props: AgentBuilderScreenProps & { conversations?: Conversation[]; onViewModeChange?: (mode: 'edit' | 'view') => void; agentViewMode?: 'edit' | 'view' }) {
+export function AgentFormBuilder(props: AgentBuilderScreenProps & { conversations?: Conversation[]; onViewModeChange?: (mode: 'edit' | 'view') => void; viewMode?: 'edit' | 'view' }) {
   const {
     domains,
     toolLibrary,
@@ -173,8 +173,7 @@ export function AgentFormBuilder(props: AgentBuilderScreenProps & { conversation
     loadedAgentId = null,
     onSaveRuntimeConversation,
     conversations = [],
-    onViewModeChange,
-    agentViewMode: viewModeProp,
+    viewMode: viewModeProp = 'edit',
     onDomainsChange,
     onFieldValueChange,
     onEnableFieldForRuntime,
@@ -195,15 +194,11 @@ export function AgentFormBuilder(props: AgentBuilderScreenProps & { conversation
   } = props
 
   // UI State
-  const viewMode = viewModeProp || 'edit'
+  const viewMode = viewModeProp
   const [activeTab, setActiveTab] = useState<'tools' | 'actions'>('actions')
-  const [saveModalOpen, setSaveModalOpen] = useState(false)
+  const [showSaveForm, setShowSaveForm] = useState(false)
   const [runtimePreviewOpen, setRuntimePreviewOpen] = useState(false)
   const [expandedDomains, setExpandedDomains] = useState<Set<string>>(new Set(selectedDomainIds))
-
-  const handleViewModeChange = useCallback((mode: 'edit' | 'view') => {
-    onViewModeChange?.(mode)
-  }, [onViewModeChange])
 
   // Expand newly selected domains
   useState(() => {
@@ -342,7 +337,7 @@ export function AgentFormBuilder(props: AgentBuilderScreenProps & { conversation
   const handleSaveAgent = useCallback(
     (name: string, description: string) => {
       onSaveAgent(name, description)
-      setSaveModalOpen(false)
+      setShowSaveForm(false)
     },
     [onSaveAgent]
   )
@@ -406,6 +401,26 @@ export function AgentFormBuilder(props: AgentBuilderScreenProps & { conversation
           {/* Center Panel - Agent Builder */}
           <main className="flex-1 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-6 py-8">
+            {/* Header with Save Button */}
+            {!loadedAgentId && (
+              <div className="mb-6 flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">New Agent</h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Configure your AI assistant</p>
+                </div>
+                <button
+                  onClick={() => setShowSaveForm(true)}
+                  disabled={selectedDomainIds.length === 0}
+                  className="px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold transition-colors shadow-lg shadow-violet-500/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                  </svg>
+                  Save Agent
+                </button>
+              </div>
+            )}
+
             {/* Main Instruction Section */}
             <div className="mb-8">
               <label className="block mb-3">
@@ -621,12 +636,17 @@ These instructions will appear at the top of your agent's system prompt.`}
         </>
         )}
 
-        {/* Save Agent Modal */}
-        <SaveAgentModal
-          isOpen={saveModalOpen}
-          onClose={() => setSaveModalOpen(false)}
-          onSave={handleSaveAgent}
-        />
+        {/* Inline Save Agent Form */}
+        {showSaveForm && (
+          <div className="fixed bottom-0 left-0 right-0 z-40 p-4 bg-gradient-to-t from-slate-50 to-transparent dark:from-slate-950 dark:to-transparent pointer-events-none">
+            <div className="max-w-3xl mx-auto pointer-events-auto">
+              <SaveAgentInline
+                onSave={handleSaveAgent}
+                onCancel={() => setShowSaveForm(false)}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Runtime Preview Modal - Only in Edit mode */}
         {viewMode === 'edit' && (

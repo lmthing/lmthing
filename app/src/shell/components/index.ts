@@ -5,3 +5,6 @@ export type { StudioShellProps } from './StudioShell'
 // Shell sub-components
 export { StudioSidebar } from './StudioSidebar'
 export type { StudioSidebarProps } from './StudioSidebar'
+
+export { KnowledgeTree } from './KnowledgeTree'
+export type { KnowledgeTreeProps } from './KnowledgeTree'

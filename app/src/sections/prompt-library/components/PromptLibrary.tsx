@@ -30,6 +30,8 @@ import {
   Quote,
   Minus,
 } from 'lucide-react'
+import { KnowledgeTree } from '@/shell/components/KnowledgeTree'
+import type { KnowledgeNode } from '@/types/workspace-data'
 import type {
   PromptLibraryProps,
   FileSystemNode,
@@ -41,6 +43,45 @@ import type {
   UnsavedChangesAction,
   PromptFrontmatter,
 } from '@/../product/sections/prompt-library/types'
+
+// ============================================================================
+// Helper: Convert FileSystemNode to KnowledgeNode
+// ============================================================================
+
+function fileSystemToKnowledgeNode(node: FileSystemNode): KnowledgeNode {
+  if (node.type === 'file') {
+    const fileNode = node as PromptFragment
+    return {
+      path: node.path,
+      type: 'file',
+      frontmatter: fileNode.frontmatter,
+      content: fileNode.content,
+    }
+  }
+  
+  const dirNode = node as Directory
+  return {
+    path: node.path,
+    type: 'directory',
+    config: dirNode.config,
+    children: dirNode.children?.map(fileSystemToKnowledgeNode) || [],
+  }
+}
+
+function findNodeByPath(root: FileSystemNode, targetPath: string): FileSystemNode | null {
+  if (root.path === targetPath) {
+    return root
+  }
+  
+  if (root.type === 'directory' && (root as Directory).children) {
+    for (const child of (root as Directory).children || []) {
+      const found = findNodeByPath(child, targetPath)
+      if (found) return found
+    }
+  }
+  
+  return null
+}
 
 // ============================================================================
 // SUB-COMPONENT: Context Menu
@@ -1506,45 +1547,45 @@ export function PromptLibrary({
         </div>
 
         {/* Tree */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 scroll-smooth min-h-0">
-          <style>{`
-            .tree-scroll::-webkit-scrollbar {
-              width: 6px;
-            }
-            .tree-scroll::-webkit-scrollbar-track {
-              background: transparent;
-            }
-            .tree-scroll::-webkit-scrollbar-thumb {
-              background: rgb(203 213 225);
-              border-radius: 3px;
-            }
-            .tree-scroll::-webkit-scrollbar-thumb:hover {
-              background: rgb(148 163 184);
-            }
-            .dark .tree-scroll::-webkit-scrollbar-thumb {
-              background: rgb(51 65 85);
-            }
-            .dark .tree-scroll::-webkit-scrollbar-thumb:hover {
-              background: rgb(71 85 105);
-            }
-          `}</style>
+        <div className="flex-1 overflow-hidden min-h-0">
           {filteredTree.children && filteredTree.children.length > 0 ? (
-            filteredTree.children.map((node) => (
-              <TreeNode
-                key={node.id}
-                node={node}
-                level={0}
-                isExpanded={(path) => expandedFolders.includes(path)}
-                isSelected={(id) => selectedDirectory?.id === id || selectedFile?.id === id}
-                hasUnsaved={isFileUnsaved}
-                onToggle={onToggleFolder}
-                onSelect={handleSelectFile}
-                onSelectDirectory={handleSelectDirectory}
-                onContextMenu={handleContextMenu}
-              />
-            ))
+            <KnowledgeTree
+              nodes={filteredTree.children.map(fileSystemToKnowledgeNode)}
+              selectedFilePath={selectedFile?.path || null}
+              onFileSelect={(path) => {
+                const file = findNodeByPath(fileSystem, path) as PromptFragment
+                if (file) {
+                  handleSelectFile(file)
+                }
+              }}
+              onDirectorySelect={(path) => {
+                const dir = findNodeByPath(fileSystem, path) as Directory
+                if (dir) {
+                  handleSelectDirectory(dir)
+                }
+                onToggleFolder(path)
+              }}
+              onRenameNode={(oldPath, newPath) => {
+                onRename(oldPath, newPath.split('/').pop() || newPath)
+              }}
+              onDeleteNode={(path) => {
+                onDelete(path)
+              }}
+              onDuplicateNode={(path) => {
+                onDuplicate?.(path)
+              }}
+              onCreateFile={(parentPath) => {
+                setShowNewFileModal(true)
+              }}
+              onCreateFolder={(parentPath) => {
+                setShowNewFolderModal(true)
+              }}
+              onMove={(dragPath, targetPath, index) => {
+                onMove(dragPath, targetPath)
+              }}
+            />
           ) : (
-            <div className="flex flex-col items-center justify-center h-48 text-slate-400">
+            <div className="flex flex-col items-center justify-center h-48 text-slate-400 p-2">
               <File className="w-10 h-10 mb-2 opacity-50" />
               <p className="text-sm">No files found</p>
             </div>

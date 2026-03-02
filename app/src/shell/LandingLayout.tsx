@@ -392,6 +392,107 @@ export default function LandingLayout() {
           </div>
         </div>
 
+        {/* Grounded AI Section */}
+        <div className="mt-20">
+          <div className="mx-auto max-w-4xl rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/50 p-8 shadow-lg dark:border-emerald-900/40 dark:from-emerald-950/20 dark:via-slate-900 dark:to-teal-950/20">
+            <div className="text-center">
+              <div className="inline-flex items-center gap-2 rounded-full border-2 border-emerald-500/40 bg-emerald-100/80 px-4 py-2 text-sm font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                <FileText className="size-5" />
+                Grounded AI
+              </div>
+              <h3 className="mt-4 text-3xl font-bold tracking-tight">
+                Human-Reviewable Prompts = Less Hallucination
+              </h3>
+              <p className="mt-4 text-lg text-muted-foreground">
+                When LLMs work with structured, human-reviewable knowledge fragments instead of 
+                generating everything from scratch, they stay grounded in verifiable facts. Your 
+                knowledge files become the source of truth, dramatically reducing hallucinations.
+              </p>
+            </div>
+
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl border border-emerald-200 bg-white/60 p-5 dark:border-emerald-900/30 dark:bg-slate-900/40">
+                <div className="flex items-start gap-3">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+                    <FileText className="size-5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                      Reviewable Knowledge Base
+                    </h4>
+                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                      Every fact, instruction, and response template lives in a markdown file 
+                      that you can read, verify, and update. No hidden "black box" generation.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-emerald-200 bg-white/60 p-5 dark:border-emerald-900/30 dark:bg-slate-900/40">
+                <div className="flex items-start gap-3">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-teal-100 dark:bg-teal-900/40">
+                    <Bot className="size-5 text-teal-600 dark:text-teal-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                      Constrained to Truth
+                    </h4>
+                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                      Agents reference your curated knowledge instead of making things up. 
+                      When uncertainty arises, they cite sources or admit limitations.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-emerald-200 bg-white/60 p-5 dark:border-emerald-900/30 dark:bg-slate-900/40">
+                <div className="flex items-start gap-3">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+                    <svg className="size-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                      Version-Controlled Expertise
+                    </h4>
+                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                      Track changes to your knowledge over time. Collaborate with teammates 
+                      using Git workflows. Every claim is auditable.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-emerald-200 bg-white/60 p-5 dark:border-emerald-900/30 dark:bg-slate-900/40">
+                <div className="flex items-start gap-3">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-teal-100 dark:bg-teal-900/40">
+                    <svg className="size-5 text-teal-600 dark:text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                      Rapid Iteration
+                    </h4>
+                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                      Spot an incorrect response? Update the knowledge file and the agent 
+                      immediately reflects the fix. No model retraining needed.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-900/30 dark:bg-amber-950/30">
+              <p className="text-center text-sm text-slate-700 dark:text-slate-300">
+                <strong>The Result:</strong> AI that's both powerful and trustworthy — combining the flexibility 
+                of LLMs with the reliability of human-curated knowledge.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Getting Started Section */}
         <div className="mt-20 rounded-2xl bg-muted/50 px-8 py-12 text-center">
           <h3 className="text-2xl font-semibold">Start Building Your AI Agents</h3>

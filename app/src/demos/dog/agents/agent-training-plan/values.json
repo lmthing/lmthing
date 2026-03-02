@@ -1,0 +1,14 @@
+{
+    "canine": {
+        "breed-type": "working",
+        "age": "puppy",
+        "health-status": "healthy"
+    },
+    "owner": {
+        "experience": "beginner",
+        "availability": "high"
+    },
+    "environment": {
+        "living-space": "apartment"
+    }
+}

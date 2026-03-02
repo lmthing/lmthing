@@ -1,0 +1,7 @@
+{
+  "label": "Canine Characteristics",
+  "description": "Information about the dog breed, age, and health status",
+  "icon": "🐕",
+  "color": "#3b82f6",
+  "renderAs": "section"
+}

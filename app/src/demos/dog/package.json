@@ -1,0 +1,10 @@
+{
+  "name": "dog",
+  "version": "1.0.0",
+  "description": "Workspace: Canine Companions",
+  "dependencies": {
+    "@dogtools/training": "1.0.0",
+    "@dogtools/nutrition": "1.0.0",
+    "@dogtools/health": "1.0.0"
+  }
+}

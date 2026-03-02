@@ -1,0 +1,7 @@
+{
+  "id": "indoor-outdoor",
+  "name": "Indoor/Outdoor",
+  "description": "Living arrangement",
+  "type": "select",
+  "required": true
+}

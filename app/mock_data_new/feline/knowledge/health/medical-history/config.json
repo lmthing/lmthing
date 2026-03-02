@@ -1,0 +1,7 @@
+{
+  "id": "medical-history",
+  "name": "Medical History",
+  "description": "Past medical issues and surgeries",
+  "type": "textarea",
+  "required": false
+}

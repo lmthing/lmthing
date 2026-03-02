@@ -1,0 +1,7 @@
+{
+  "id": "other-pets",
+  "name": "Other Pets",
+  "description": "Other animals in household",
+  "type": "multiselect",
+  "required": false
+}

@@ -1,0 +1,7 @@
+{
+  "id": "goals",
+  "name": "Goals",
+  "description": "Your goals for cat care",
+  "type": "textarea",
+  "required": false
+}

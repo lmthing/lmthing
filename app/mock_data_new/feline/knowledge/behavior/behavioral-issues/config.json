@@ -1,0 +1,7 @@
+{
+  "id": "behavioral-issues",
+  "name": "Behavioral Issues",
+  "description": "Current behavioral problems",
+  "type": "multiselect",
+  "required": false
+}

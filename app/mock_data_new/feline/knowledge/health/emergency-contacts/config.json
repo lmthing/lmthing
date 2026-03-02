@@ -1,0 +1,7 @@
+{
+  "id": "emergency-contacts",
+  "name": "Emergency Contacts",
+  "description": "Emergency veterinary contacts",
+  "type": "textarea",
+  "required": true
+}

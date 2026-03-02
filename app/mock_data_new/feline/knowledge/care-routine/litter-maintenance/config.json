@@ -1,0 +1,7 @@
+{
+  "id": "litter-maintenance",
+  "name": "Litter Maintenance",
+  "description": "Litter box cleaning schedule",
+  "type": "select",
+  "required": true
+}

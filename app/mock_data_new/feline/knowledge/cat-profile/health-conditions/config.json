@@ -1,0 +1,7 @@
+{
+  "id": "health-conditions",
+  "name": "Health Conditions",
+  "description": "Existing medical conditions",
+  "type": "textarea",
+  "required": false
+}

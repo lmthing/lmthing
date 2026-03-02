@@ -1,0 +1,7 @@
+{
+  "id": "agent-cat-care-advisor",
+  "name": "Cat Care Advisor",
+  "description": "Provides personalized cat care advice and recommendations",
+  "model": "claude-3-5-sonnet-20241022",
+  "temperature": 0.7
+}

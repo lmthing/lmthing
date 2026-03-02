@@ -1,0 +1,7 @@
+{
+  "id": "supplements",
+  "name": "Supplements",
+  "description": "Vitamins or supplements",
+  "type": "textarea",
+  "required": false
+}

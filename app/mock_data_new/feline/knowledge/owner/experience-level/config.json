@@ -1,0 +1,7 @@
+{
+  "id": "experience-level",
+  "name": "Experience Level",
+  "description": "Cat ownership experience",
+  "type": "select",
+  "required": true
+}

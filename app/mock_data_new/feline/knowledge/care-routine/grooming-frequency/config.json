@@ -1,0 +1,7 @@
+{
+  "id": "grooming-frequency",
+  "name": "Grooming Frequency",
+  "description": "How often you groom your cat",
+  "type": "select",
+  "required": true
+}

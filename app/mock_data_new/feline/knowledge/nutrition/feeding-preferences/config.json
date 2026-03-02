@@ -1,0 +1,7 @@
+{
+  "id": "feeding-preferences",
+  "name": "Feeding Preferences",
+  "description": "Eating habits and preferences",
+  "type": "multiselect",
+  "required": false
+}

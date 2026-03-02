@@ -1,0 +1,7 @@
+{
+  "id": "temperament",
+  "name": "Temperament",
+  "description": "Overall behavioral disposition",
+  "type": "select",
+  "required": true
+}

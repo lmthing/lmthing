@@ -1,0 +1,7 @@
+{
+  "id": "household-members",
+  "name": "Household Members",
+  "description": "People living in the home",
+  "type": "textarea",
+  "required": false
+}

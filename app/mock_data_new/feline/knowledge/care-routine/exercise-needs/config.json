@@ -1,0 +1,7 @@
+{
+  "id": "exercise-needs",
+  "name": "Exercise Needs",
+  "description": "Activity level and play requirements",
+  "type": "select",
+  "required": true
+}

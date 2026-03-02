@@ -1,0 +1,7 @@
+{
+  "id": "dietary-restrictions",
+  "name": "Dietary Restrictions",
+  "description": "Food allergies or restrictions",
+  "type": "textarea",
+  "required": false
+}

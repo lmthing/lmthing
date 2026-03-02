@@ -209,6 +209,14 @@ export default function LandingLayout() {
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden sm:inline-block text-sm text-muted-foreground mr-2">Your expertise, amplified by AI</span>
+            <div className="hidden lg:block">
+              <GithubDeploymentStatus
+                repo="lmthing/lmthing"
+                workflowName="Deploy to GitHub Pages"
+                branch="main"
+                hideWhenSuccess
+              />
+            </div>
             <div className="hidden sm:block">
               <GithubStars repo="lmthing/lmthing" />
             </div>

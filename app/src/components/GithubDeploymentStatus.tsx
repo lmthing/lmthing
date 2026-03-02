@@ -5,6 +5,7 @@ interface GithubDeploymentStatusProps {
   repo: string // Format: "owner/repo"
   workflowName: string // The workflow name or filename
   branch?: string // Default: "main"
+  hideWhenSuccess?: boolean
 }
 
 interface WorkflowRun {
@@ -22,7 +23,8 @@ interface WorkflowRunsResponse {
 export function GithubDeploymentStatus({ 
   repo, 
   workflowName, 
-  branch = 'main' 
+  branch = 'main',
+  hideWhenSuccess = false,
 }: GithubDeploymentStatusProps) {
   const { data, isLoading, error } = useQuery<WorkflowRun | null>({
     queryKey: ['github-deployment-status', repo, workflowName, branch],
@@ -109,6 +111,10 @@ export function GithubDeploymentStatus({
   }
 
   const statusInfo = getStatusInfo()
+
+  if (hideWhenSuccess && data.status === 'completed' && data.conclusion === 'success') {
+    return null
+  }
 
   return (
     <a

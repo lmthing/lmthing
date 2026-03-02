@@ -27,6 +27,7 @@ import {
 import { workspaceToSlug, type Workspace } from './components/WorkspaceSelector'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
 import { GithubLoginButton } from '@/components/GithubLoginButton'
+import { GithubStars } from '@/components/GithubStars'
 import { useGithub } from '@/lib/github/GithubContext'
 import { useQueryClient } from '@tanstack/react-query'
 import { Input } from '@/components/ui/input'
@@ -151,6 +152,7 @@ export default function LandingLayout() {
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden sm:inline-block text-sm text-muted-foreground mr-2">Your expertise, amplified by AI</span>
+            <GithubStars repo="lmthing/lmthing" />
             <GithubLoginButton />
           </div>
         </div>

@@ -1,9 +1,11 @@
 import { useState, useCallback, useEffect, useMemo, useRef, type FormEvent } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Bot } from 'lucide-react'
 import { runPrompt, type PromptConfig } from 'lmthing'
 import { z } from 'zod'
 import { useAgents, useFlows } from '@/lib/workspaceContext'
 import { useWorkspaceData } from '@/lib/workspaceDataContext'
+import { toWorkspaceRouteParam } from '@/lib/workspaces'
 import { ToolCallDisplay } from './ToolCallDisplay'
 import type { AgentBuilderScreenProps } from '@/../product/sections/agent-builder/types'
 import type {
@@ -489,6 +491,8 @@ export interface ThingPanelProps {
 }
 
 export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProps) {
+  const navigate = useNavigate()
+  const { workspaceName } = useParams()
   const { agents: agentsMap } = useAgents()
   const { flows: flowsMap } = useFlows()
   const {
@@ -530,9 +534,9 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
   })
   const [isResizing, setIsResizing] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false
+    if (typeof window === 'undefined') return true
     const stored = window.localStorage.getItem(THING_PANEL_COLLAPSED_STORAGE_KEY)
-    return stored === 'true'
+    return stored !== null ? stored === 'true' : true
   })
   const thingSnapshotsRef = useRef<Record<string, unknown>>({})
   const thingMessagesEndRef = useRef<HTMLDivElement | null>(null)
@@ -2391,12 +2395,17 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
     thingMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [thingMessages, isCollapsed])
 
+  const handleOpenSettings = useCallback(() => {
+    const studioPath = workspaceName ? `/workspace/${toWorkspaceRouteParam(workspaceName)}/studio` : '/studio'
+    navigate(`${studioPath}/settings/env`)
+  }, [navigate, workspaceName])
+
   const actualWidth = isCollapsed ? THING_PANEL_COLLAPSED_WIDTH : panelWidth
 
   return (
     <aside
       style={{ width: `${actualWidth}px` }}
-      className="relative h-screen border-l border-stone-300 bg-gradient-to-b from-amber-50 to-stone-100 dark:border-stone-700 dark:bg-gradient-to-b dark:from-stone-900 dark:to-stone-950 flex min-w-0 flex-col transition-all duration-200"
+      className="sticky top-0 h-screen border-l border-stone-300 bg-gradient-to-b from-amber-50 to-stone-100 dark:border-stone-700 dark:bg-gradient-to-b dark:from-stone-900 dark:to-stone-950 flex min-w-0 flex-col transition-all duration-200"
     >
       {!isCollapsed && (
         <div
@@ -2410,21 +2419,24 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
         <div className="flex flex-col items-center gap-3 py-3">
           <button
             onClick={() => setIsCollapsed(false)}
-            className="relative inline-flex items-center justify-center p-2 rounded-md hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
-            title={hasEnv ? "Expand Thing panel" : "Expand Thing panel (Environment not configured)"}
+            className="relative inline-flex flex-col items-center justify-center gap-1 p-2 rounded-md hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors group"
+            title={hasEnv ? "THING" : "THING (Environment not configured)"}
           >
-            <Bot className="h-5 w-5 text-amber-700 dark:text-amber-500" />
-            <span
-              className={
-                !hasEnv
-                  ? 'absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-orange-500 animate-pulse'
-                  : hasThingError
-                    ? 'absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-500'
-                    : isThingWorking
-                      ? 'absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 animate-pulse'
-                      : 'absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500'
-              }
-            />
+            <div className="relative">
+              <Bot className="h-5 w-5 text-amber-700 dark:text-amber-500" />
+              <span
+                className={
+                  !hasEnv
+                    ? 'absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-orange-500 animate-pulse'
+                    : hasThingError
+                      ? 'absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-500'
+                      : isThingWorking
+                        ? 'absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 animate-pulse'
+                        : 'absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500'
+                }
+              />
+            </div>
+            <span className="text-[10px] font-medium text-amber-800 dark:text-amber-400 whitespace-nowrap group-hover:text-amber-900 dark:group-hover:text-amber-300">THING</span>
           </button>
         </div>
       ) : (
@@ -2481,7 +2493,14 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
               <div className="text-xs font-semibold text-orange-900 dark:text-orange-200">Environment Not Configured</div>
             </div>
             <p className="text-xs text-orange-800 dark:text-orange-300 leading-relaxed">
-              THING is disabled. Configure API keys in <span className="font-mono font-semibold">Settings</span> to enable workspace actions.
+              THING is disabled. Configure API keys in{' '}
+              <button
+                onClick={handleOpenSettings}
+                className="font-mono font-semibold text-orange-900 dark:text-orange-100 underline hover:text-orange-950 dark:hover:text-white transition-colors"
+              >
+                Settings
+              </button>
+              {' '}to enable workspace actions.
             </p>
             <p className="mt-2 text-xs text-orange-700 dark:text-orange-400">
               See <code className="rounded bg-orange-100 px-1 py-0.5 font-mono text-[10px] dark:bg-orange-900/40">.env.example</code> in <code className="rounded bg-orange-100 px-1 py-0.5 font-mono text-[10px] dark:bg-orange-900/40">lib/core/</code> for provider configuration.

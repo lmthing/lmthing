@@ -4,6 +4,7 @@ import { runPrompt, type PromptConfig } from 'lmthing'
 import { z } from 'zod'
 import { useAgents, useFlows } from '@/lib/workspaceContext'
 import { useWorkspaceData } from '@/lib/workspaceDataContext'
+import { ToolCallDisplay } from './ToolCallDisplay'
 import type {
   EncryptedEnvFile,
   PackageJson,
@@ -52,6 +53,8 @@ const THING_WELCOME_MESSAGE =
   'I am thing. I can execute workspace data actions directly via tools. Ask in plain language, send JSON, or type help.'
 
 const THING_CONVERSATIONS_STORAGE_KEY = 'lmthing-thing-conversations-v1'
+const THING_TOOL_EVENT_OPEN = '[[THING_TOOL_EVENT]]'
+const THING_TOOL_EVENT_CLOSE = '[[/THING_TOOL_EVENT]]'
 
 const THING_HELP_MESSAGE = [
   `Available actions: ${THING_ACTION_NAMES.join(', ')}`,
@@ -72,6 +75,18 @@ function stripCodeFence(input: string): string {
 
 function countKnowledgeNodes(nodes: KnowledgeNode[]): number {
   return nodes.reduce((sum, node) => sum + 1 + countKnowledgeNodes(node.children || []), 0)
+}
+
+function stringifyJson(value: unknown): string {
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return String(value)
+  }
+}
+
+function toToolEventBlock(payload: string): string {
+  return `${THING_TOOL_EVENT_OPEN}\n${payload}\n${THING_TOOL_EVENT_CLOSE}`
 }
 
 function isThingLmthingModelId(value: unknown): value is ThingLmthingModelId {
@@ -699,23 +714,38 @@ export function ThingPanel({ isOpen }: ThingPanelProps) {
           onStepFinish: (stepResult) => {
             const resultAny = stepResult as {
               finishReason?: string
-              toolCalls?: Array<{ toolName?: string }>
+              toolCalls?: Array<{ toolName?: string; input?: unknown }>
+              toolResults?: Array<{ toolName?: string; input?: unknown; output?: unknown }>
             }
 
             if (resultAny.finishReason !== 'tool-calls') {
               return
             }
 
-            const toolNames = (resultAny.toolCalls || [])
+            const toolResults = resultAny.toolResults || []
+
+            if (toolResults.length > 0) {
+              const lines = toolResults.map((toolResult) => {
+                const name = toolResult.toolName || 'unknown'
+                const argsStr = stringifyJson(toolResult.input)
+                const outputStr = stringifyJson(toolResult.output)
+                return toToolEventBlock(`🔧 ${name}\n⤷ args: ${argsStr}\n⤷ result: ${outputStr}`)
+              })
+              onToolEvent?.(lines.join('\n\n'))
+              return
+            }
+
+            const toolCalls = resultAny.toolCalls || []
+            const toolNames = toolCalls
               .map((toolCall) => toolCall.toolName)
               .filter((toolName): toolName is string => Boolean(toolName))
 
             if (toolNames.length === 0) {
-              onToolEvent?.('🔧 Running tool...')
+              onToolEvent?.(toToolEventBlock('🔧 Running tool...'))
               return
             }
 
-            onToolEvent?.(`🔧 Running tool${toolNames.length > 1 ? 's' : ''}: ${toolNames.join(', ')}`)
+            onToolEvent?.(toToolEventBlock(`🔧 Running tool${toolNames.length > 1 ? 's' : ''}: ${toolNames.join(', ')}`))
           },
         },
       })
@@ -1062,6 +1092,8 @@ export function ThingPanel({ isOpen }: ThingPanelProps) {
                   </button>
                 </div>
               </div>
+            ) : message.role === 'assistant' ? (
+              <ToolCallDisplay content={message.content} />
             ) : (
               <p className="whitespace-pre-wrap break-words">{message.content}</p>
             )}
@@ -1069,8 +1101,15 @@ export function ThingPanel({ isOpen }: ThingPanelProps) {
         ))}
 
         {isThingWorking && (
-          <div className="mr-8 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-            thing is processing...
+          <div className="mr-8 rounded-lg border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
+            <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">Thing</div>
+            <div className="flex items-center gap-2.5">
+              <div className="relative flex h-5 w-5 items-center justify-center">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet-400 opacity-40" />
+                <span className="relative inline-flex h-3 w-3 rounded-full bg-gradient-to-br from-violet-500 to-purple-500" />
+              </div>
+              <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Processing…</span>
+            </div>
           </div>
         )}
 

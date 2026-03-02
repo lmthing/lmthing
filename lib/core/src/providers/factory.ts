@@ -35,6 +35,43 @@ export interface ProviderModule<
   models: TModels;
 }
 
+function sanitizeEnvValue(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+
+  let result = value.trim();
+  let quoteChar: '"' | "'" | null = null;
+
+  for (let i = 0; i < result.length; i += 1) {
+    const char = result[i];
+
+    if ((char === '"' || char === "'")) {
+      if (!quoteChar) {
+        quoteChar = char;
+      } else if (quoteChar === char) {
+        quoteChar = null;
+      }
+      continue;
+    }
+
+    if (char === '#' && !quoteChar) {
+      const prevChar = i > 0 ? result[i - 1] : '';
+      if (i === 0 || /\s/.test(prevChar)) {
+        result = result.slice(0, i).trim();
+        break;
+      }
+    }
+  }
+
+  if (
+    (result.startsWith('"') && result.endsWith('"')) ||
+    (result.startsWith("'") && result.endsWith("'"))
+  ) {
+    result = result.slice(1, -1).trim();
+  }
+
+  return result;
+}
+
 /**
  * Create a provider module with standard exports.
  *
@@ -65,7 +102,7 @@ export function defineProvider<
 
   const createProvider = (config?: TConfig) => {
     const baseConfig = {
-      apiKey: (config as any)?.apiKey || process.env[envKey],
+      apiKey: (config as any)?.apiKey || sanitizeEnvValue(process.env[envKey]),
       baseURL: (config as any)?.baseURL,
     };
 

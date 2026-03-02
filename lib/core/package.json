@@ -44,7 +44,7 @@
   ],
   "author": "",
   "license": "MIT",
-  "dependencies": {
+  "peerDependencies": {
     "@ai-sdk/amazon-bedrock": "^4.0.60",
     "@ai-sdk/anthropic": "^3.0.44",
     "@ai-sdk/azure": "^3.0.30",
@@ -53,7 +53,9 @@
     "@ai-sdk/google-vertex": "^4.0.58",
     "@ai-sdk/groq": "^3.0.24",
     "@ai-sdk/mistral": "^3.0.20",
-    "@ai-sdk/openai": "^3.0.29",
+    "@ai-sdk/openai": "^3.0.29"
+  },
+  "dependencies": {
     "@ai-sdk/openai-compatible": "^2.0.30",
     "@langfuse/otel": "^4.6.1",
     "@opentelemetry/sdk-trace-node": "^2.5.1",

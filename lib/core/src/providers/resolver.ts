@@ -1,7 +1,72 @@
 import { LanguageModelV3 } from '@ai-sdk/provider';
-import { providers } from './index';
 import { getCustomProvider, isCustomProvider, listCustomProviders } from './custom';
 import { ProviderError, ErrorCodes } from '../errors';
+
+type BuiltInProviderName =
+  | 'openai'
+  | 'anthropic'
+  | 'google'
+  | 'mistral'
+  | 'azure'
+  | 'groq'
+  | 'cohere'
+  | 'bedrock'
+  | 'vertex';
+
+const BUILT_IN_PROVIDER_NAMES: BuiltInProviderName[] = [
+  'openai',
+  'anthropic',
+  'google',
+  'mistral',
+  'azure',
+  'groq',
+  'cohere',
+  'bedrock',
+  'vertex',
+];
+
+type ProviderFactory = (modelId: string) => LanguageModelV3;
+const builtInProviderLoaders: Record<BuiltInProviderName, () => Promise<ProviderFactory>> = {
+  openai: async () => (await import('./openai')).openai,
+  anthropic: async () => (await import('./anthropic')).anthropic,
+  // google: async () => (await import('./google')).google,
+  mistral: async () => (await import('./mistral')).mistral,
+  azure: async () => (await import('./azure')).azure,
+  groq: async () => (await import('./groq')).groq,
+  cohere: async () => (await import('./cohere')).cohere,
+  bedrock: async () => (await import('./bedrock')).bedrock,
+  vertex: async () => (await import('./vertex')).vertex,
+};
+
+function isBuiltInProvider(name: string): name is BuiltInProviderName {
+  return Object.hasOwn(builtInProviderLoaders, name);
+}
+
+function createLazyBuiltInModel(providerName: BuiltInProviderName, modelId: string): LanguageModelV3 {
+  let modelPromise: Promise<LanguageModelV3> | undefined;
+
+  const getModel = async (): Promise<LanguageModelV3> => {
+    if (!modelPromise) {
+      modelPromise = builtInProviderLoaders[providerName]().then((provider) => provider(modelId));
+    }
+    return modelPromise;
+  };
+
+  return {
+    specificationVersion: 'v3',
+    provider: providerName,
+    modelId,
+    supportedUrls: getModel().then((model) => model.supportedUrls),
+    doGenerate: async (options) => {
+      const model = await getModel();
+      return model.doGenerate(options);
+    },
+    doStream: async (options) => {
+      const model = await getModel();
+      return model.doStream(options);
+    },
+  };
+}
 
 /**
  * Resolves a model identifier to a LanguageModelV3 instance
@@ -63,15 +128,12 @@ export function resolveModel(model: LanguageModelV3 | string): LanguageModelV3 {
 
   // Parse the string format "provider:modelId"
   // Use indexOf to handle model IDs that contain colons (e.g., bedrock models like "anthropic.claude-3-5-sonnet-20241022-v2:0")
-
   const providerName = model.slice(0, colonIndex);
   const modelId = model.slice(colonIndex + 1);
 
-  // Check built-in providers first
-  const provider = providers[providerName as keyof typeof providers];
-
-  if (provider) {
-    return provider(modelId);
+  // Check built-in providers first (lazy-loaded)
+  if (isBuiltInProvider(providerName)) {
+    return createLazyBuiltInModel(providerName, modelId);
   }
 
   // Check custom providers
@@ -83,7 +145,7 @@ export function resolveModel(model: LanguageModelV3 | string): LanguageModelV3 {
   }
 
   // Provider not found
-  const builtInProviders = Object.keys(providers);
+  const builtInProviders = BUILT_IN_PROVIDER_NAMES;
   const customProviders = listCustomProviders();
   const allProviders = [...builtInProviders, ...customProviders];
 

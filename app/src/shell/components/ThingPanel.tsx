@@ -2420,7 +2420,7 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
           <button
             onClick={() => setIsCollapsed(false)}
             className="relative inline-flex flex-col items-center justify-center gap-1 p-2 rounded-md hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors group"
-            title={hasEnv ? "THING" : "THING (Environment not configured)"}
+            title={hasEnv ? "THING" : "THING (Open a workspace and add an .env file to enable)"}
           >
             <div className="relative">
               <Bot className="h-5 w-5 text-amber-700 dark:text-amber-500" />
@@ -2493,18 +2493,23 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
               <div className="text-xs font-semibold text-orange-900 dark:text-orange-200">Environment Not Configured</div>
             </div>
             <p className="text-xs text-orange-800 dark:text-orange-300 leading-relaxed">
-              THING is disabled. Configure API keys in{' '}
-              <button
-                onClick={handleOpenSettings}
-                className="font-mono font-semibold text-orange-900 dark:text-orange-100 underline hover:text-orange-950 dark:hover:text-white transition-colors"
-              >
-                Settings
-              </button>
-              {' '}to enable workspace actions.
+              THING is disabled. To enable workspace actions:
             </p>
-            <p className="mt-2 text-xs text-orange-700 dark:text-orange-400">
-              See <code className="rounded bg-orange-100 px-1 py-0.5 font-mono text-[10px] dark:bg-orange-900/40">.env.example</code> in <code className="rounded bg-orange-100 px-1 py-0.5 font-mono text-[10px] dark:bg-orange-900/40">lib/core/</code> for provider configuration.
-            </p>
+            <ol className="mt-2 ml-4 text-xs text-orange-800 dark:text-orange-300 leading-relaxed list-decimal space-y-1">
+              <li>Open or create a workspace</li>
+              <li>
+                Add an <code className="rounded bg-orange-100 px-1 py-0.5 font-mono text-[10px] dark:bg-orange-900/40">.env</code> file {workspaceName && (
+                  <>in{' '}
+                  <button
+                    onClick={handleOpenSettings}
+                    className="font-mono font-semibold text-orange-900 dark:text-orange-100 underline hover:text-orange-950 dark:hover:text-white transition-colors"
+                  >
+                    Settings
+                  </button>
+                  </>
+                )} with API keys
+              </li>
+            </ol>
           </div>
         )}
         <div className="rounded-lg border border-stone-300 bg-white shadow-sm p-2 dark:border-stone-700 dark:bg-stone-900/50">
@@ -2655,7 +2660,7 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
           value={thingInput}
           onChange={(event) => setThingInput(event.target.value)}
           rows={5}
-          placeholder={hasEnv ? "Type help or paste JSON action envelope..." : "Configure environment variables to enable THING..."}
+          placeholder={hasEnv ? "Type help or paste JSON action envelope..." : "Open a workspace and add an .env file with API keys to enable THING..."}
           disabled={!hasEnv}
           className="w-full resize-none rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 outline-none ring-amber-600 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-stone-100 dark:border-stone-600 dark:bg-stone-950/80 dark:text-stone-200 dark:disabled:bg-stone-900/50"
         />

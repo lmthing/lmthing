@@ -143,7 +143,6 @@ function FormField({
   onToggleChange
 }: FormFieldProps) {
   const fieldId = field.id
-
   return (
     <div className={`
       ${error ? 'animate-pulse' : ''}

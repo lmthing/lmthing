@@ -168,7 +168,7 @@ export default function LandingLayout() {
   const handleUpdateStorageWithExtractedData = async () => {
     try {
       setIsUpdatingStorage(true)
-      const WORKSPACE_DATA_STORAGE_KEY = 'domainsmith-workspace-data'
+      const WORKSPACE_DATA_STORAGE_KEY = 'lmthing-workspace-data'
       window.localStorage.setItem(WORKSPACE_DATA_STORAGE_KEY, JSON.stringify(extractedDataStructure))
       setStorageUpdateStatus('success')
       setTimeout(() => setStorageUpdateStatus('idle'), 3000)

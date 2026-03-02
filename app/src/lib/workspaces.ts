@@ -1,4 +1,4 @@
-export const DEFAULT_WORKSPACE_SLUG = 'domainsmith-agents'
+export const DEFAULT_WORKSPACE_SLUG = 'lmthing-agents'
 
 export interface WorkspaceRepoRef {
   owner: string

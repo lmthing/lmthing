@@ -306,7 +306,7 @@ function toKnowledgeItem(node: KnowledgeNode): KnowledgeItem {
 
 import staticData from '@/extracted_data_structure.json'
 
-const WORKSPACE_DATA_STORAGE_KEY = 'domainsmith-workspace-data'
+const WORKSPACE_DATA_STORAGE_KEY = 'lmthing-workspace-data'
 
 function loadPersistedWorkspaceData(): ExtractedDataStructure | null {
   if (typeof window === 'undefined') return null

@@ -15,7 +15,9 @@ if (typeof window !== 'undefined') {
     ?? ((window as Window & { process?: { env?: Record<string, string | undefined> } }).process = { env: {} })
 
   const lmthingEnv =
-    typeof __LMTHING_ENV__ !== 'undefined' && __LMTHING_ENV__ ? __LMTHING_ENV__ : {}
+    typeof __LMTHING_ENV__ !== 'undefined' && __LMTHING_ENV__
+      ? __LMTHING_ENV__
+      : {}
 
   runtimeProcess.env = {
     ...(runtimeProcess.env || {}),

@@ -2404,8 +2404,8 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
 
   return (
     <aside
-      style={{ width: `${actualWidth}px` }}
-      className="sticky top-0 h-screen border-l border-stone-300 bg-gradient-to-b from-amber-50 to-stone-100 dark:border-stone-700 dark:bg-gradient-to-b dark:from-stone-900 dark:to-stone-950 flex min-w-0 flex-col transition-all duration-200"
+      style={isCollapsed ? undefined : { width: `${actualWidth}px` }}
+      className={`${isCollapsed ? 'fixed bottom-4 right-4 w-auto z-50 shadow-lg rounded-lg' : 'sticky top-0 h-screen border-l'} border-stone-300 bg-gradient-to-b from-amber-50 to-stone-100 dark:border-stone-700 dark:bg-gradient-to-b dark:from-stone-900 dark:to-stone-950 flex min-w-0 flex-col transition-all duration-200`}
     >
       {!isCollapsed && (
         <div

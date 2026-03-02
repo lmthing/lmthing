@@ -1,61 +1,141 @@
-# URL Analysis: http://localhost:3001/ (Home Page)
+# Home Page (`/`)
 
-## 1. Available Features
-- **Authentication**: Provides a mechanism to sign in using GitHub OAuth.
-- **Onboarding to Studio**: Serves as the gateway to the "Studio" workspace where users can build, test, and run AI agents in one place.
-- **Exploration of Demo Workspaces**: Provides quick access to pre-configured workspaces for specific domains (Education, Plants, Web Development) to demonstrate the capabilities of the platform.
-- **Value Proposition Communication**: Clearly states the "Turn Knowledge into AI Agents" mission, emphasizing a no-code approach.
+**Layout:** [L1: Single-Column Centered Layout](LAYOUT.md#l1-single-column-centered-layout)
 
-## 2. Detailed Mock of the Layout
-The page is structured as a vertical, single-column layout centered on the screen, surrounded by a soft, glowing, rounded border frame.
+## User Stories
 
-- **Header Layer (Top)**
-  - **Left**: Application Logo (an elephant icon) paired with the "lmthing" brand name.
-  - **Center-Right**: A subtle tagline "Your expertise, amplified by AI".
-  - **Far Right**: A prominent, dark-styled "Login with GitHub" button.
+### US-001: Understand the Platform Value Proposition
+**As a** first-time visitor  
+**I want to** see a clear description of what the platform does  
+**So that** I can quickly understand if it meets my needs
 
-- **Hero Section (Center)**
-  - A very large, bold main heading: "Turn Knowledge into AI Agents".
-  - Below it, a descriptive paragraph indicating "No code required" and explaining the workflow (organize knowledge, design workflows, deploy).
+**Acceptance Criteria:**
+- Hero section displays the main heading "Turn Knowledge into AI Agents"
+- Tagline "Your expertise, amplified by AI" is visible in the header
+- Description emphasizes "No code required" and explains the workflow (organize knowledge, design workflows, deploy)
+- Uses [C1: Application Header](LAYOUT.md#c1-application-header) for consistent branding
+- Typography follows Display and H1 scale from [Typography Scale](LAYOUT.md#typography-scale)
 
-- **Studio Call-to-Action Card**
-  - A large, slightly elevated card centered on the page.
-  - **Top-Left**: A subtle badge with a gear icon and the label "Studio".
-  - **Top-Right**: A dark action button "Open Studio →".
-  - **Center**: A prominent heading "Build, test, and run everything in one place" and a descriptive subtext.
-  - **Bottom**: Three horizontal, pill-like informative cards:
-    - `Knowledge → markdown-driven context`
-    - `Agents → forms, prompts, and tools`
-    - `Runtime → in-studio conversations`
+**Components:** Hero section with display heading, body text, and brand tagline
 
-- **Demo Workspaces Section (Bottom)**
-  - A section heading "Demo Workspaces" with a subtext "Explore pre-configured workspaces to see how AI agents work".
-  - A grid containing three distinct cards, each representing a workspace:
-    - **Card 1**: Leftmost, featuring a green square icon with a building symbol. Title: `local/education`, Subtitle: "Learning and tutoring agents", Action: A full-width "Open" button with a gear icon.
-    - **Card 2**: Center, featuring a purple square icon with a building symbol. Title: `local/plants`, Subtitle: "Indoor plant care coaching", Action: Full-width "Open" button.
-    - **Card 3**: Rightmost, featuring an orange square icon with a building symbol. Title: `local/web-development`, Subtitle: "React and web component building", Action: Full-width "Open" button.
-  - Each demo card also includes a small forward-pointing arrow (`→`) in the top right corner.
+---
 
-## 3. Description for Each Action
-- **"Login with GitHub" Button (Header)**: Clicking this initiates an OAuth login flow with GitHub to authenticate the user and probably grants access to their own customized workspaces.
-- **"Open Studio →" Button (Studio Card)**: Navigates the user to a workspace selection or directly into the main AI Agent Studio interface to start building.
-- **"Open" Button (local/education Card)**: Navigates the user straight into the pre-configured `local/education` workspace within the Studio.
-- **"Open" Button (local/plants Card)**: Navigates the user straight into the pre-configured `local/plants` workspace within the Studio.
-- **"Open" Button (local/web-development Card)**: Navigates the user straight into the pre-configured `local/web-development` workspace within the Studio.
+### US-002: Authenticate with GitHub
+**As a** user  
+**I want to** sign in using my GitHub account  
+**So that** I can access personalized workspaces and save my work
 
-## 4. Style of the Page
-- **Color Palette & Theme**: The page uses a light theme. The dominant background is an off-white/light gray with a very subtle blue gradient or glow forming a soft border around the entire main content area.
-- **Typography**: Uses a modern, clean, sans-serif font (likely Inter or similar). Headings are bold and dark slate/black, while descriptions use a lighter gray tone for contrast and hierarchy.
-- **Component Styling**:
-  - UI components make heavy use of rounded corners (border-radius) for a friendly, modern look.
-  - Cards have subtle drop shadows (`box-shadow`) to create an illusion of depth against the flatter background.
-  - The main Call-to-Action buttons (Login, Open Studio) use a very dark, near-black slate color, contrasting sharply with the light background.
-  - Accent colors are utilized purely for the icons within the demo workspace cards (Green, Purple, Orange) to visually differentiate them without overwhelming the page.
-- **Spacing**: There is ample whitespace (margin and padding) between sections, contributing to an uncluttered, focused, and premium "SaaS" feel.
+**Acceptance Criteria:**
+- "Login with GitHub" button is prominently displayed in the top-right header
+- Button uses dark slate color scheme (near-black) for high contrast
+- Clicking the button initiates GitHub OAuth authentication flow
+- Button follows [Interactive States](LAYOUT.md#interactive-states) for hover/focus
+- Uses [C1: Application Header](LAYOUT.md#c1-application-header) component
 
-## 5. Additional Interactive Elements & Modals
-- **"Open Studio" Modal**: Clicking the "Open Studio" button triggers the **"Select Demo Workspace" Modal** instead of a full page reload. This modal includes:
-  - A search input field titled "Search or create repository...".
-  - A categorized list of pre-configured demo workspaces (e.g., `local/education`, `local/plants`, `local/web-development`).
-  - A standard close button to dismiss the overlay.
-- **"Login with GitHub"**: Primary action button in the header that initiates the OAuth authentication process.
+**Components:** Primary action button (Login)
+
+---
+
+### US-003: Explore Studio Capabilities
+**As a** potential user  
+**I want to** learn about the Studio's core features  
+**So that** I can understand what I'll be able to build
+
+**Acceptance Criteria:**
+- Large, elevated card displays "Build, test, and run everything in one place" heading
+- Studio badge with gear icon appears in card top-left
+- Three horizontal pill-like info cards describe capabilities:
+  - "Knowledge → markdown-driven context"
+  - "Agents → forms, prompts, and tools"
+  - "Runtime → in-studio conversations"
+- Card follows [C3: Card Grid](LAYOUT.md#c3-card-grid) styling with medium shadow
+- Uses Large border radius (12px+) from [Border Radius Scale](LAYOUT.md#border-radius-scale)
+
+**Components:** Studio CTA card with badge, heading, description, and informative pills
+
+---
+
+### US-004: Access the Studio Workspace
+**As a** authenticated or anonymous user  
+**I want to** open the Studio interface  
+**So that** I can start building AI agents
+
+**Acceptance Criteria:**
+- "Open Studio →" button is prominently placed in the top-right of the Studio card
+- Clicking the button opens the "Select Demo Workspace" modal overlay
+- Modal includes:
+  - Search input "Search or create repository..."
+  - List of available local workspaces (local/education, local/plants, local/web-development)
+  - Close button to dismiss
+- Uses [C8: Modal Dialog](LAYOUT.md#c8-modal-dialog) with backdrop
+- Button uses dark slate color consistent with primary CTA styling
+
+**Components:** Primary button, [C8: Modal Dialog](LAYOUT.md#c8-modal-dialog) (Selection modal variant)
+
+---
+
+### US-005: Explore Pre-configured Demo Workspaces
+**As a** new user  
+**I want to** see and access example workspaces for specific domains  
+**So that** I can learn how AI agents work through practical examples
+
+**Acceptance Criteria:**
+- "Demo Workspaces" section displays below the Studio CTA
+- Section heading and descriptive subtext: "Explore pre-configured workspaces to see how AI agents work"
+- Three workspace cards arranged in a grid:
+  - **local/education:** Green icon, "Learning and tutoring agents"
+  - **local/plants:** Purple icon, "Indoor plant care coaching"
+  - **local/web-development:** Orange icon, "React and web component building"
+- Each card includes:
+  - Colored square icon with building symbol
+  - Title (workspace name)
+  - Descriptive subtitle
+  - Full-width "Open" button with gear icon
+  - Small forward arrow (`→`) in top-right corner
+- Uses [C3: Card Grid](LAYOUT.md#c3-card-grid) with 3-column layout
+- Hover states from [Interactive States](LAYOUT.md#hover) apply (shadow deepens)
+- Accent colors (Green, Purple, Orange) distinguish cards
+
+**Components:** Section heading, [C3: Card Grid](LAYOUT.md#c3-card-grid) with 3 cards
+
+---
+
+### US-006: Navigate to a Demo Workspace
+**As a** user exploring demos  
+**I want to** click on a demo workspace card  
+**So that** I can enter that specific workspace in the Studio
+
+**Acceptance Criteria:**
+- Clicking "Open" button on any demo card navigates to that workspace's Studio dashboard
+- Navigation target: `/workspace/{workspaceId}/studio`
+- Supported workspaces: local/education, local/plants, local/web-development
+- Button hover state shows visual feedback (scale, shadow)
+- Uses [Interactive States](LAYOUT.md#hover) for button interaction
+
+**Components:** Card action button with navigation
+
+---
+
+## Visual Design Reference
+
+**Color Scheme:**
+- Background: Off-white/light gray (slate-50) with subtle blue gradient glow
+- Text: Dark slate for headings (slate-900), lighter gray for body (slate-600)
+- Primary CTA: Dark near-black slate
+- Accent colors: Green, Purple, Orange (demo workspace icons only)
+- See [Color System](LAYOUT.md#color-system) for exact values
+
+**Typography:**
+- Font family: Modern sans-serif (Inter or similar)
+- Hierarchy: Bold headings, regular body text with good contrast
+- See [Typography Scale](LAYOUT.md#typography-scale)
+
+**Spacing:**
+- Ample whitespace between sections (8-16 units)
+- Soft, rounded border frame around main content
+- See [Spacing System](LAYOUT.md#spacing-system)
+
+**Component Styles:**
+- Heavy use of rounded corners (large border-radius)
+- Cards use subtle drop shadows for depth
+- See [Border Radius Scale](LAYOUT.md#border-radius-scale) and [Shadow Scale](LAYOUT.md#shadow-scale)

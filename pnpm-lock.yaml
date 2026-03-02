@@ -170,24 +170,12 @@ importers:
       '@ai-sdk/openai-compatible':
         specifier: ^2.0.30
         version: 2.0.31(zod@4.3.6)
-      '@langfuse/otel':
-        specifier: ^4.6.1
-        version: 4.6.1(@opentelemetry/api@1.9.0)(@opentelemetry/core@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/exporter-trace-otlp-http@0.212.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.5.1(@opentelemetry/api@1.9.0))
-      '@opentelemetry/sdk-trace-node':
-        specifier: ^2.5.1
-        version: 2.5.1(@opentelemetry/api@1.9.0)
       ai:
         specifier: ^6.0.86
         version: 6.0.105(zod@4.3.6)
-      dotenv:
-        specifier: ^16.4.5
-        version: 16.6.1
       js-yaml:
         specifier: ^4.1.1
         version: 4.1.1
-      langfuse:
-        specifier: ^3.38.6
-        version: 3.38.6
       vm2:
         specifier: ^3.9.19
         version: 3.10.5
@@ -198,6 +186,12 @@ importers:
         specifier: ^2.0.0
         version: 2.0.0(typescript@5.9.3)(zod@4.3.6)
     devDependencies:
+      '@langfuse/otel':
+        specifier: ^4.6.1
+        version: 4.6.1(@opentelemetry/api@1.9.0)(@opentelemetry/core@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/exporter-trace-otlp-http@0.212.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.5.1(@opentelemetry/api@1.9.0))
+      '@opentelemetry/sdk-trace-node':
+        specifier: ^2.5.1
+        version: 2.5.1(@opentelemetry/api@1.9.0)
       '@types/js-yaml':
         specifier: ^4.0.9
         version: 4.0.9
@@ -207,9 +201,15 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^4.0.0
         version: 4.0.18(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.13)(jiti@2.6.1)(lightningcss@1.31.1)(msw@2.12.10(@types/node@22.19.13)(typescript@5.9.3)))
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
       esbuild:
         specifier: ^0.27.1
         version: 0.27.3
+      langfuse:
+        specifier: ^3.38.6
+        version: 3.38.6
       msw:
         specifier: ^2.12.4
         version: 2.12.10(@types/node@22.19.13)(typescript@5.9.3)

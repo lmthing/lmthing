@@ -3,8 +3,25 @@ import type { Agent, Conversation, Message } from '@/../product/sections/agent-r
 import { AgentRuntimeView } from '../../agent-runtime/components'
 import { runPrompt } from 'lmthing'
 import { buildKnowledgeXml } from '@/lib/buildKnowledgeXml'
+import { executeFlow, type FlowTask } from '@/lib/flowExecution'
 import { useWorkspaceData } from '@/lib/workspaceDataContext'
+import { useFlows } from '@/hooks/useFlows'
 import type { FormFieldValue, SchemaField } from '@/../product/sections/agent-builder/types'
+
+const THING_TOOL_EVENT_OPEN = '[[THING_TOOL_EVENT]]'
+const THING_TOOL_EVENT_CLOSE = '[[/THING_TOOL_EVENT]]'
+
+function stringifyJson(value: unknown): string {
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return String(value)
+  }
+}
+
+function toToolEventBlock(payload: string): string {
+  return `${THING_TOOL_EVENT_OPEN}\n${payload}\n${THING_TOOL_EVENT_CLOSE}`
+}
 
 interface RuntimeFieldSummary {
   id: string
@@ -25,22 +42,42 @@ interface AgentRuntimePreviewModalProps {
   selectedDomainFields: Array<{ field: SchemaField; domainName: string }>
   onSaveConversation?: (conversation: Conversation) => void
   canSaveConversation?: boolean
+  // Optional flow tasks to execute
+  flowTasks?: FlowTask[]
+  // Whether to enable flow execution mode
+  enableFlowExecution?: boolean
+  // Slash actions available for this agent
+  slashActions?: Array<{ name: string; description: string; flowId: string; actionId: string }>
 }
 
 export function AgentRuntimePreviewModal({
   isOpen,
   onClose,
-  enabledFilePaths: _initialEnabledFilePaths,
+  enabledFilePaths: enabledFilePathsProp,
   generatedPrompt,
   runtimeFields,
   formValues,
   selectedDomainFields,
   onSaveConversation,
   canSaveConversation = false,
+  flowTasks = [],
+  enableFlowExecution = false,
+  slashActions = [],
 }: AgentRuntimePreviewModalProps) {
   const { knowledge } = useWorkspaceData()
+  const { getFlow } = useFlows()
   const [runtimeFieldValues, setRuntimeFieldValues] = useState<Record<string, FormFieldValue>>({})
-  
+  const [flowExecutionState, setFlowExecutionState] = useState<{
+    isExecuting: boolean
+    currentTaskId: string | null
+    taskStatuses: Record<string, 'pending' | 'in_progress' | 'completed' | 'failed'>
+    flowOutput: Record<string, unknown>
+  }>({
+    isExecuting: false,
+    currentTaskId: null,
+    taskStatuses: {},
+    flowOutput: {},
+  })
   // Helper to get form field value from nested or flat structure
   const getFormFieldValue = useCallback((values: Record<string, FormFieldValue>, id: string, variableName: string): FormFieldValue | undefined => {
     if (!values) return undefined
@@ -106,20 +143,26 @@ export function AgentRuntimePreviewModal({
   const timeoutRef = useRef<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [showSystemPrompt, setShowSystemPrompt] = useState(false)
-  const [conversation, setConversation] = useState<Conversation>({
-    id: 'preview-conversation',
-    agentId: 'preview-agent',
-    agentName: 'Runtime Preview Agent',
-    messages: [
-      {
-        id: 'msg-welcome',
-        role: 'assistant',
-        content: 'Runtime preview ready. Try sending a message to test how this agent would respond in chat.',
-        timestamp: new Date().toISOString(),
-      },
-    ],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+  const [conversation, setConversation] = useState<Conversation>(() => {
+    const welcomeContent = enableFlowExecution && flowTasks.length > 0
+      ? `🎯 **Flow Execution Mode Enabled**\n\n**Available Commands:**\n• \`/execute-flow\` - Execute the ${flowTasks.length}-task flow with structured output\n• \`/flow\` - Short alias for flow execution\n\n**Flow Tasks:**\n${flowTasks.map((t, i) => `${i + 1}. **${t.name}**${t.type === 'updateFlowOutput' && t.targetFieldName ? ` → \`flowOutput.${t.targetFieldName}\`` : ''}`).join('\n')}\n\n**How it works:**\nEach task uses defTaskList for progress tracking (\`startTask\`, \`completeTask\`, \`failTask\`). Tasks of type \`updateFlowOutput\` add structured data to the flow output object.\n\nType a command above to start, or chat normally.`
+      : 'Runtime preview ready. Try sending a message to test how this agent would respond in chat.'
+
+    return {
+      id: 'preview-conversation',
+      agentId: 'preview-agent',
+      agentName: 'Runtime Preview Agent',
+      messages: [
+        {
+          id: 'msg-welcome',
+          role: 'assistant',
+          content: welcomeContent,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
   })
 
   // Compute system prompt directly - no memoization to ensure it's always fresh
@@ -150,12 +193,20 @@ export function AgentRuntimePreviewModal({
       })),
       enabledTools: [],
       systemPrompt: generatedPrompt,
-      slashActions: [],
+      slashActions: slashActions.map((action, index) => ({
+        id: `slash-action-${index}`,
+        actionId: action.actionId,
+        name: action.name,
+        description: action.description,
+        flowId: action.flowId,
+        agentId: 'preview-agent',
+        enabled: true,
+      })),
       createdAt: new Date().toISOString(),
       lastUsedAt: null,
       status: 'ready',
     }),
-    [runtimeFields, generatedPrompt, toRuntimeValue]
+    [runtimeFields, generatedPrompt, toRuntimeValue, slashActions]
   )
 
   const handleRuntimeFieldChange = useCallback((fieldId: string, value: FormFieldValue) => {
@@ -170,6 +221,165 @@ export function AgentRuntimePreviewModal({
     setIsLoading(false)
     onClose()
   }, [onClose])
+
+  const handleSlashCommandExecution = useCallback(async (flowId: string) => {
+    // Load flow by ID
+    const flow = getFlow(flowId)
+    if (!flow) {
+      const errorMessage: Message = {
+        id: `msg-error-${Date.now()}`,
+        role: 'assistant',
+        content: `❌ Error: Flow "${flowId}" not found.`,
+        timestamp: new Date().toISOString(),
+      }
+      setConversation((prev) => ({
+        ...prev,
+        messages: [...prev.messages, errorMessage],
+        updatedAt: errorMessage.timestamp,
+      }))
+      setIsLoading(false)
+      return
+    }
+
+    // Convert flow tasks to FlowTask format
+    const tasks: FlowTask[] = flow.tasks.map(task => ({
+      id: String(task.frontmatter?.id || `task-${task.order}`),
+      name: task.name,
+      order: task.order,
+      instructions: task.instructions,
+      type: (task.frontmatter?.type as 'updateFlowOutput' | 'executeTask') || 'executeTask',
+      targetFieldName: task.targetFieldName,
+      outputSchema: task.outputSchema as Record<string, unknown> | undefined,
+    }))
+
+    // Execute flow with defTaskList
+    const startMessage: Message = {
+      id: `msg-flow-start-${Date.now()}`,
+      role: 'assistant',
+      content: `🎯 Executing flow: **${flow.frontmatter.name || flowId}**\n\nTasks: ${tasks.length}\n\n`,
+      timestamp: new Date().toISOString(),
+    }
+
+    setConversation((prev) => ({
+      ...prev,
+      messages: [...prev.messages, startMessage],
+      updatedAt: startMessage.timestamp,
+    }))
+
+    setFlowExecutionState({
+      isExecuting: true,
+      currentTaskId: null,
+      taskStatuses: Object.fromEntries(tasks.map(t => [t.id, 'pending' as const])),
+      flowOutput: {},
+    })
+
+    const flowMessageId = `msg-flow-${Date.now()}`
+    const flowMessage: Message = {
+      id: flowMessageId,
+      role: 'assistant',
+      content: '## Flow Execution Progress\n\n',
+      timestamp: new Date().toISOString(),
+    }
+
+    setConversation((prev) => ({
+      ...prev,
+      messages: [...prev.messages, flowMessage],
+      updatedAt: flowMessage.timestamp,
+    }))
+
+    try {
+      const result = await executeFlow({
+        tasks,
+        systemPrompt: generatedPrompt,
+        knowledge,
+        enabledFilePaths,
+        model: 'zai:glm-4.5-air',
+        temperature: 0.7,
+        onTaskProgress: (taskId, status) => {
+          setFlowExecutionState(prev => ({
+            ...prev,
+            currentTaskId: status === 'in_progress' ? taskId : prev.currentTaskId,
+            taskStatuses: {
+              ...prev.taskStatuses,
+              [taskId]: status,
+            },
+          }))
+
+          const taskName = tasks.find(t => t.id === taskId)?.name || taskId
+          const statusEmoji = status === 'in_progress' ? '⏳' : status === 'completed' ? '✅' : status === 'failed' ? '❌' : '⏸️'
+          const statusText = `${statusEmoji} **${taskName}** - ${status}\n`
+
+          setConversation((prev) => ({
+            ...prev,
+            messages: prev.messages.map((msg) =>
+              msg.id === flowMessageId
+                ? { ...msg, content: msg.content + statusText }
+                : msg
+            ),
+          }))
+        },
+        onStreamUpdate: (text) => {
+          setConversation((prev) => ({
+            ...prev,
+            messages: prev.messages.map((msg) =>
+              msg.id === flowMessageId
+                ? { ...msg, content: msg.content + text }
+                : msg
+            ),
+          }))
+        },
+      })
+
+      if (result.success) {
+        const summaryMessage: Message = {
+          id: `msg-flow-complete-${Date.now()}`,
+          role: 'assistant',
+          content: `\n\n✅ **Flow completed successfully!**\n\n**Output:**\n\`\`\`json\n${JSON.stringify(result.flowOutput, null, 2)}\n\`\`\``,
+          timestamp: new Date().toISOString(),
+        }
+
+        setConversation((prev) => ({
+          ...prev,
+          messages: [...prev.messages, summaryMessage],
+          updatedAt: summaryMessage.timestamp,
+        }))
+      } else {
+        const errorMessage: Message = {
+          id: `msg-flow-error-${Date.now()}`,
+          role: 'assistant',
+          content: `\n\n❌ **Flow execution failed:** ${result.error}`,
+          timestamp: new Date().toISOString(),
+        }
+
+        setConversation((prev) => ({
+          ...prev,
+          messages: [...prev.messages, errorMessage],
+          updatedAt: errorMessage.timestamp,
+        }))
+      }
+    } catch (error) {
+      console.error('Flow execution error:', error)
+
+      const errorMessage: Message = {
+        id: `msg-flow-error-${Date.now()}`,
+        role: 'assistant',
+        content: `\n\n❌ **Flow execution error:** ${error instanceof Error ? error.message : 'Unknown error'}`,
+        timestamp: new Date().toISOString(),
+      }
+
+      setConversation((prev) => ({
+        ...prev,
+        messages: [...prev.messages, errorMessage],
+        updatedAt: errorMessage.timestamp,
+      }))
+    } finally {
+      setIsLoading(false)
+      setFlowExecutionState(prev => ({
+        ...prev,
+        isExecuting: false,
+      }))
+    }
+  }, [getFlow, generatedPrompt, knowledge, enabledFilePaths])
 
   const handleSendMessage = useCallback(async (content: string) => {
     const now = new Date().toISOString()
@@ -187,6 +397,23 @@ export function AgentRuntimePreviewModal({
     }))
 
     setIsLoading(true)
+
+    // Check if this is a slash command from agent's slashActions
+    const trimmedContent = content.trim()
+    if (trimmedContent.startsWith('/')) {
+      const commandName = trimmedContent.substring(1).split(' ')[0]
+      const matchingAction = slashActions.find(action => action.name === commandName)
+      
+      if (matchingAction) {
+        // Execute the flow associated with this slash command
+        await handleSlashCommandExecution(matchingAction.flowId)
+        return
+      }
+    }
+
+    // Check if this is a flow execution command
+    const isFlowCommand = enableFlowExecution && flowTasks.length > 0 && 
+      (content.toLowerCase().includes('/execute-flow') || content.toLowerCase().startsWith('/flow'))
 
     // Build knowledge XML from enabled file paths
     const knowledgeXml = buildKnowledgeXml(knowledge, enabledFilePaths)
@@ -213,15 +440,86 @@ export function AgentRuntimePreviewModal({
         content: msg.content,
       }))
 
+      // Track accumulated content for streaming
+      let accumulatedContent = ''
+
       // Use runPrompt to generate response
       const { result } = await runPrompt(
-        async ({ defSystem, $ }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        async ({ defSystem, $, ...context }: any) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const defTaskList = context.defTaskList as any
           // Add the generated prompt as system instructions
           defSystem('instructions', generatedPrompt)
 
           // Add knowledge XML if available
           if (knowledgeXml) {
             defSystem('knowledge', knowledgeXml)
+          }
+
+          // If this is a flow execution command, set up defTaskList
+          if (isFlowCommand) {
+            const lmthingTasks = flowTasks
+              .sort((a, b) => a.order - b.order)
+              .map(task => ({
+                id: task.id,
+                name: task.name,
+                status: 'pending' as const,
+                metadata: {
+                  order: task.order,
+                  description: task.description,
+                  instructions: task.instructions,
+                  type: task.type,
+                },
+              }))
+
+            const [tasks] = defTaskList(lmthingTasks)
+
+            // Initialize flow execution state
+            setFlowExecutionState({
+              isExecuting: true,
+              currentTaskId: null,
+              taskStatuses: Object.fromEntries(tasks.map((t: { id: string; status: string }) => [t.id, t.status])),
+              flowOutput: {},
+            })
+
+            defSystem('flow-instructions', `
+## Flow Execution Mode
+
+You are now executing a multi-step flow with ${flowTasks.length} tasks.
+
+**Flow Tasks:**
+${flowTasks.map((t, i) => `${i + 1}. **${t.name}** (${t.id})
+   - Type: ${t.type}
+   - Description: ${t.description}
+   - Instructions: ${t.instructions}${t.type === 'updateFlowOutput' && t.targetFieldName ? `
+   - Output Target: flowOutput.${t.targetFieldName}${t.outputSchema ? `
+   - Output Schema: ${JSON.stringify(t.outputSchema)}` : ''}` : ''}`).join('\n\n')}
+
+**Flow Output Object:**
+As you complete tasks, structured outputs will be added to the flow output object:
+\`\`\`json
+{
+${flowTasks.filter(t => t.type === 'updateFlowOutput' && t.targetFieldName).map(t => `  "${t.targetFieldName}": { /* output from ${t.name} */ }`).join(',\n')}
+}
+\`\`\`
+
+**Execution Rules:**
+1. Use \`startTask(taskId)\` tool to begin each task
+2. Execute the task according to its instructions
+3. For \`updateFlowOutput\` tasks: generate structured output matching the schema and store it in the specified field
+4. Use \`completeTask(taskId)\` tool when finished
+5. If a task fails, use \`failTask(taskId, reason)\` with an explanation
+6. Tasks must be completed in order (task 1, then task 2, etc.)
+7. After completing all tasks, display the complete flow output
+
+**Available Tools:**
+- startTask(taskId) - Mark a task as in progress
+- completeTask(taskId) - Mark a task as completed  
+- failTask(taskId, reason) - Mark a task as failed
+
+Start with the first task now.
+`)
           }
 
           // Add conversation history
@@ -238,19 +536,69 @@ export function AgentRuntimePreviewModal({
           model: ('zai:glm-4.5-air') as string,
           options: {
             temperature: 0.7,
+            // Capture tool calls and format them
+            onStepFinish: (stepResult) => {
+              // Handle flow state updates
+              if (isFlowCommand) {
+                const toolResults = stepResult.toolResults || []
+                for (const toolResult of toolResults) {
+                  const toolName = toolResult.toolName
+                  if (toolName === 'startTask' || toolName === 'completeTask' || toolName === 'failTask') {
+                    setFlowExecutionState(prev => {
+                      const newStatuses = { ...prev.taskStatuses }
+                      return {
+                        ...prev,
+                        taskStatuses: newStatuses,
+                      }
+                    })
+                  }
+                }
+              }
+
+              // Format and append tool events
+              const toolCalls = stepResult.toolCalls || []
+              const toolResults = stepResult.toolResults || []
+
+              if (toolCalls.length > 0) {
+                toolCalls.forEach((toolCall, index) => {
+                  const toolResult = toolResults[index]
+                  const toolEventData = {
+                    tool: toolCall.toolName,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    args: (toolCall as any).args,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    result: (toolResult as any)?.result,
+                  }
+                  const toolEventJson = stringifyJson(toolEventData)
+                  const toolEventBlock = toToolEventBlock(toolEventJson)
+                  
+                  // Append tool event to accumulated content
+                  accumulatedContent += '\n\n' + toolEventBlock
+                  
+                  // Update the message with tool events
+                  setConversation((prev) => ({
+                    ...prev,
+                    messages: prev.messages.map((msg) =>
+                      msg.id === assistantMessageId
+                        ? { ...msg, content: accumulatedContent }
+                        : msg
+                    ),
+                  }))
+                })
+              }
+            },
           },
         }
       )
 
       // Stream the response
-      let fullContent = ''
       for await (const chunk of result.textStream) {
-        fullContent += chunk
+        accumulatedContent += chunk
         setConversation((prev) => ({
           ...prev,
           messages: prev.messages.map((msg) =>
             msg.id === assistantMessageId
-              ? { ...msg, content: fullContent }
+              ? { ...msg, content: accumulatedContent }
               : msg
           ),
         }))
@@ -275,7 +623,160 @@ export function AgentRuntimePreviewModal({
       
       setIsLoading(false)
     }
-  }, [knowledge, enabledFilePaths, generatedPrompt, conversation.messages])
+  }, [knowledge, enabledFilePaths, generatedPrompt, conversation.messages, enableFlowExecution, flowTasks, slashActions, handleSlashCommandExecution])
+
+  const handleExecuteFlow = useCallback(async () => {
+    if (!enableFlowExecution || flowTasks.length === 0) return
+
+    // Add flow execution start message
+    const startMessage: Message = {
+      id: `msg-flow-start-${Date.now()}`,
+      role: 'assistant',
+      content: `🔄 Starting flow execution with ${flowTasks.length} task${flowTasks.length !== 1 ? 's' : ''}...\n\n`,
+      timestamp: new Date().toISOString(),
+    }
+
+    setConversation((prev) => ({
+      ...prev,
+      messages: [...prev.messages, startMessage],
+      updatedAt: startMessage.timestamp,
+    }))
+
+    setIsLoading(true)
+    setFlowExecutionState({
+      isExecuting: true,
+      currentTaskId: null,
+      taskStatuses: Object.fromEntries(flowTasks.map(t => [t.id, 'pending' as const])),
+      flowOutput: {},
+    })
+
+    const flowMessageId = `msg-flow-${Date.now()}`
+    const flowMessage: Message = {
+      id: flowMessageId,
+      role: 'assistant',
+      content: '## Flow Execution Progress\n\n',
+      timestamp: new Date().toISOString(),
+    }
+
+    setConversation((prev) => ({
+      ...prev,
+      messages: [...prev.messages, flowMessage],
+      updatedAt: flowMessage.timestamp,
+    }))
+
+    try {
+      const result = await executeFlow({
+        tasks: flowTasks,
+        systemPrompt: generatedPrompt,
+        knowledge,
+        enabledFilePaths,
+        model: 'zai:glm-4.5-air',
+        temperature: 0.7,
+        onTaskProgress: (taskId, status) => {
+          setFlowExecutionState(prev => ({
+            ...prev,
+            currentTaskId: status === 'in_progress' ? taskId : prev.currentTaskId,
+            taskStatuses: { ...prev.taskStatuses, [taskId]: status },
+          }))
+
+          const task = flowTasks.find(t => t.id === taskId)
+          const taskName = task?.name || taskId
+          const statusEmoji = {
+            pending: '⏳',
+            in_progress: '▶️',
+            completed: '✅',
+            failed: '❌',
+          }[status]
+
+          setConversation((prev) => ({
+            ...prev,
+            messages: prev.messages.map((msg) =>
+              msg.id === flowMessageId
+                ? {
+                    ...msg,
+                    content: msg.content + `\n${statusEmoji} **${taskName}** - ${status}`,
+                  }
+                : msg
+            ),
+          }))
+        },
+        onStreamUpdate: (text) => {
+          setConversation((prev) => ({
+            ...prev,
+            messages: prev.messages.map((msg) =>
+              msg.id === flowMessageId
+                ? {
+                    ...msg,
+                    content: msg.content + '\n\n' + text.slice(0, 500),
+                  }
+                : msg
+            ),
+          }))
+        },
+      })
+
+      if (result.success) {
+        const summaryMessage: Message = {
+          id: `msg-flow-complete-${Date.now()}`,
+          role: 'assistant',
+          content: `\n\n✅ **Flow completed successfully!**\n\n**Flow Output:**\n\`\`\`json\n${JSON.stringify(result.flowOutput, null, 2)}\n\`\`\``,
+          timestamp: new Date().toISOString(),
+        }
+
+        setConversation((prev) => ({
+          ...prev,
+          messages: [...prev.messages, summaryMessage],
+          updatedAt: summaryMessage.timestamp,
+        }))
+
+        setFlowExecutionState(prev => ({
+          ...prev,
+          isExecuting: false,
+          flowOutput: result.flowOutput,
+        }))
+      } else {
+        const errorMessage: Message = {
+          id: `msg-flow-error-${Date.now()}`,
+          role: 'assistant',
+          content: `\n\n❌ **Flow execution failed:** ${result.error}`,
+          timestamp: new Date().toISOString(),
+        }
+
+        setConversation((prev) => ({
+          ...prev,
+          messages: [...prev.messages, errorMessage],
+          updatedAt: errorMessage.timestamp,
+        }))
+
+        setFlowExecutionState(prev => ({
+          ...prev,
+          isExecuting: false,
+        }))
+      }
+    } catch (error) {
+      console.error('Flow execution error:', error)
+
+      const errorMessage: Message = {
+        id: `msg-flow-error-${Date.now()}`,
+        role: 'assistant',
+        content: `\n\n❌ **Flow execution error:** ${error instanceof Error ? error.message : 'Unknown error'}`,
+        timestamp: new Date().toISOString(),
+      }
+
+      setConversation((prev) => ({
+        ...prev,
+        messages: [...prev.messages, errorMessage],
+        updatedAt: errorMessage.timestamp,
+      }))
+
+      setFlowExecutionState(prev => ({
+        ...prev,
+        isExecuting: false,
+      }))
+    } finally {
+      setIsLoading(false)
+    }
+  }, [enableFlowExecution, flowTasks, generatedPrompt, knowledge, enabledFilePaths])
 
   const handleSaveConversation = useCallback(() => {
     if (!onSaveConversation) return
@@ -283,6 +784,10 @@ export function AgentRuntimePreviewModal({
   }, [onSaveConversation, conversation])
 
   const handleReset = useCallback(() => {
+    const welcomeContent = enableFlowExecution && flowTasks.length > 0
+      ? `🎯 **Flow Execution Mode Enabled**\n\n**Available Commands:**\n• \`/execute-flow\` - Execute the ${flowTasks.length}-task flow with structured output\n• \`/flow\` - Short alias for flow execution\n\n**Flow Tasks:**\n${flowTasks.map((t, i) => `${i + 1}. **${t.name}**${t.type === 'updateFlowOutput' && t.targetFieldName ? ` → \`flowOutput.${t.targetFieldName}\`` : ''}`).join('\n')}\n\n**How it works:**\nEach task uses defTaskList for progress tracking (\`startTask\`, \`completeTask\`, \`failTask\`). Tasks of type \`updateFlowOutput\` add structured data to the flow output object.\n\nType a command above to start, or chat normally.`
+      : 'Runtime preview ready. Try sending a message to test how this agent would respond in chat.'
+
     setConversation({
       id: 'preview-conversation',
       agentId: 'preview-agent',
@@ -291,14 +796,20 @@ export function AgentRuntimePreviewModal({
         {
           id: 'msg-welcome',
           role: 'assistant',
-          content: 'Runtime preview ready. Try sending a message to test how this agent would respond in chat.',
+          content: welcomeContent,
           timestamp: new Date().toISOString(),
         },
       ],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     })
-  }, [])
+    setFlowExecutionState({
+      isExecuting: false,
+      currentTaskId: null,
+      taskStatuses: {},
+      flowOutput: {},
+    })
+  }, [enableFlowExecution, flowTasks])
 
   useEffect(() => {
     return () => {
@@ -357,6 +868,20 @@ export function AgentRuntimePreviewModal({
             <p className="text-xs text-slate-500 dark:text-slate-400">Inspect prompt inputs and test a simulated runtime chat.</p>
           </div>
           <div className="flex items-center gap-2">
+            {enableFlowExecution && flowTasks.length > 0 && (
+              <button
+                onClick={handleExecuteFlow}
+                disabled={flowExecutionState.isExecuting || isLoading}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-violet-600 hover:bg-violet-700 disabled:bg-slate-400 disabled:cursor-not-allowed border border-violet-700 dark:border-violet-500 transition-colors flex items-center gap-1.5"
+                title="Execute flow"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {flowExecutionState.isExecuting ? 'Executing...' : `Run Flow (${flowTasks.length})`}
+              </button>
+            )}
             <button
               onClick={handleReset}
               className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1.5"

@@ -1,5 +1,5 @@
 import type { Message, ChatPanelProps } from '@/../product/sections/agent-runtime/types'
-import { useState, useRef, useEffect, useMemo } from 'react'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
 
 // Format timestamp for display
 function formatTime(isoString: string): string {
@@ -249,12 +249,63 @@ interface MessageInputProps {
   agentName: string
   onSend: (content: string) => void
   isLoading?: boolean
+  slashActions?: Array<{ name: string; description: string; flowId: string; actionId: string }>
 }
 
-function MessageInput({ agentName, onSend, isLoading = false }: MessageInputProps) {
+function MessageInput({ agentName, onSend, isLoading = false, slashActions = [] }: MessageInputProps) {
   const [value, setValue] = useState('')
+  const [showAutocomplete, setShowAutocomplete] = useState(false)
+  const [selectedIndex, setSelectedIndex] = useState(0)
+  const inputRef = React.useRef<HTMLTextAreaElement>(null)
+
+  // Filter slash actions based on current input
+  const filteredActions = useMemo(() => {
+    if (!value.startsWith('/')) return []
+    const command = value.slice(1).toLowerCase()
+    if (command === '') return slashActions
+    return slashActions.filter(action => 
+      action.name.toLowerCase().includes(command) ||
+      action.description.toLowerCase().includes(command)
+    )
+  }, [value, slashActions])
+
+  // Show autocomplete when typing slash commands
+  useEffect(() => {
+    setShowAutocomplete(value.startsWith('/') && filteredActions.length > 0)
+    setSelectedIndex(0)
+  }, [value, filteredActions.length])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Handle autocomplete navigation
+    if (showAutocomplete) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setSelectedIndex(prev => (prev + 1) % filteredActions.length)
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setSelectedIndex(prev => (prev - 1 + filteredActions.length) % filteredActions.length)
+        return
+      }
+      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+        e.preventDefault()
+        const selected = filteredActions[selectedIndex]
+        if (selected) {
+          setValue(`/${selected.name}`)
+          setShowAutocomplete(false)
+          inputRef.current?.focus()
+        }
+        return
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setShowAutocomplete(false)
+        return
+      }
+    }
+
+    // Handle normal send
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       if (value.trim() && !isLoading) {
@@ -271,14 +322,52 @@ function MessageInput({ agentName, onSend, isLoading = false }: MessageInputProp
     }
   }
 
+  const handleSelectAction = (action: { name: string; description: string }) => {
+    setValue(`/${action.name}`)
+    setShowAutocomplete(false)
+    inputRef.current?.focus()
+  }
+
   return (
     <div className="flex-shrink-0 border-t border-slate-200 dark:border-slate-800 px-6 py-4 bg-white dark:bg-slate-950">
       <div className="flex items-end gap-3">
         <div className="flex-1 relative">
+          {/* Autocomplete dropdown */}
+          {showAutocomplete && (
+            <div className="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-lg max-h-60 overflow-y-auto z-10">
+              {filteredActions.map((action, index) => (
+                <button
+                  key={action.name}
+                  onClick={() => handleSelectAction(action)}
+                  className={`w-full text-left px-4 py-2.5 transition-colors border-b border-slate-100 dark:border-slate-700 last:border-b-0 ${
+                    index === selectedIndex
+                      ? 'bg-violet-50 dark:bg-violet-900/30'
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                  }`}
+                >
+                  <div className="flex items-start gap-2">
+                    <svg className="w-4 h-4 text-violet-500 dark:text-violet-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                        /{action.name}
+                      </div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        {action.description}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
           <textarea
+            ref={inputRef}
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder={`Message ${agentName}...`}
+            placeholder={`Message ${agentName}...${slashActions.length > 0 ? ' (Type / for commands)' : ''}`}
             rows={1}
             className="w-full resize-none rounded-xl border border-slate-200 dark:border-slate-700
               bg-slate-50 dark:bg-slate-900 px-4 py-3 pr-12
@@ -304,7 +393,7 @@ function MessageInput({ agentName, onSend, isLoading = false }: MessageInputProp
         </div>
       </div>
       <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
-        Press Enter to send, Shift+Enter for new line
+        Press Enter to send, Shift+Enter for new line{slashActions.length > 0 ? ', / for commands' : ''}
       </p>
     </div>
   )
@@ -376,6 +465,7 @@ export function ChatPanel({
         agentName={agent.name}
         onSend={handleSendMessage}
         isLoading={isLoading}
+        slashActions={agent.slashActions}
       />
     </div>
   )

@@ -6,4 +6,9 @@ import baseConfig from './vite.config'
 export default mergeConfig(baseConfig, {
   base: '/',
   plugins: [githubPagesSpa()],
+  build: {
+    rollupOptions: {
+      external: ['lmthing'],
+    },
+  },
 })

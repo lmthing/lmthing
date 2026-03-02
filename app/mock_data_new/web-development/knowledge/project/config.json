@@ -1,7 +1,7 @@
 {
   "label": "Project Context",
   "description": "Project type, tech stack, and development environment configuration",
-  "icon": "rocket",
+  "icon": "🚀",
   "color": "#3b82f6",
   "renderAs": "section"
 }

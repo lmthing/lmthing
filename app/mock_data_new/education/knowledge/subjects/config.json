@@ -1,7 +1,7 @@
 {
   "label": "Subject Topics",
   "description": "Topic breakdowns and content areas by subject",
-  "icon": "library",
+  "icon": "📖",
   "color": "#f59e0b",
   "renderAs": "section"
 }

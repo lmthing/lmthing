@@ -1,6 +1,6 @@
 {
   "label": "Project Type",
   "description": "The type of web project being developed",
-  "icon": "folder",
+  "icon": "📂",
   "renderAs": "field"
 }

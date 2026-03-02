@@ -1,6 +1,6 @@
 {
   "label": "Coding Preferences",
   "description": "Preferred coding style and patterns",
-  "icon": "sliders",
+  "icon": "🎚️",
   "renderAs": "field"
 }

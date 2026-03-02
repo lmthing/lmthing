@@ -1,6 +1,6 @@
 {
   "label": "State Management",
   "description": "State management library or approach",
-  "icon": "database",
+  "icon": "🗄️",
   "renderAs": "field"
 }

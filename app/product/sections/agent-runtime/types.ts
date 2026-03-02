@@ -284,6 +284,8 @@ export interface ChatPanelProps {
   canSaveConversation?: boolean;
   /** Called when clearing the conversation */
   onClearConversation?: () => void;
+  /** Called when viewing system prompt */
+  onViewSystemPrompt?: () => void;
 }
 
 /**

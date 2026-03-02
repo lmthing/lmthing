@@ -1,7 +1,7 @@
 {
   "label": "Care Routine",
   "description": "Environment and maintenance preferences",
-  "icon": "droplets",
+  "icon": "💧",
   "color": "#0ea5e9",
   "renderAs": "section"
 }

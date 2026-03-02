@@ -1175,7 +1175,7 @@
           "config": {
             "label": "Classroom Management",
             "description": "Classroom characteristics, student demographics, and learning environment configuration",
-            "icon": "users",
+            "icon": "👥",
             "color": "#3b82f6",
             "renderAs": "section"
           },
@@ -1592,7 +1592,7 @@
           "config": {
             "label": "Curriculum Standards",
             "description": "Curriculum frameworks, standards alignment, and learning objectives",
-            "icon": "book",
+            "icon": "📚",
             "color": "#10b981",
             "renderAs": "section"
           },
@@ -1798,7 +1798,7 @@
           "config": {
             "label": "Subject Topics",
             "description": "Topic breakdowns and content areas by subject",
-            "icon": "library",
+            "icon": "📖",
             "color": "#f59e0b",
             "renderAs": "section"
           },
@@ -2079,7 +2079,7 @@
           "config": {
             "label": "Teacher Profile",
             "description": "Teacher experience, specialization, and teaching preferences",
-            "icon": "person",
+            "icon": "👨‍🏫",
             "color": "#8b5cf6",
             "renderAs": "section"
           },
@@ -2599,7 +2599,7 @@
           "config": {
             "label": "Care Routine",
             "description": "Environment and maintenance preferences",
-            "icon": "droplets",
+            "icon": "💧",
             "color": "#0ea5e9",
             "renderAs": "section"
           },
@@ -2696,7 +2696,7 @@
           "config": {
             "label": "Plant Profile",
             "description": "Plant identity and growth context",
-            "icon": "leaf",
+            "icon": "🌱",
             "color": "#16a34a",
             "renderAs": "section"
           },
@@ -3505,7 +3505,7 @@
           "config": {
             "label": "Architecture & Patterns",
             "description": "Architectural patterns, design principles, and best practices",
-            "icon": "layers",
+            "icon": "🏗️",
             "color": "#10b981",
             "renderAs": "section"
           },
@@ -3516,7 +3516,7 @@
               "config": {
                 "label": "Design Patterns",
                 "description": "Design patterns to emphasize",
-                "icon": "box",
+                "icon": "📦",
                 "renderAs": "field"
               },
               "children": [
@@ -3546,7 +3546,7 @@
               "config": {
                 "label": "Architecture Pattern",
                 "description": "Primary architectural pattern",
-                "icon": "grid",
+                "icon": "⚙️",
                 "renderAs": "field"
               },
               "children": [
@@ -3572,7 +3572,7 @@
           "config": {
             "label": "Developer Profile",
             "description": "Developer experience level, specialization, and coding preferences",
-            "icon": "user",
+            "icon": "👤",
             "color": "#8b5cf6",
             "renderAs": "section"
           },
@@ -3583,7 +3583,7 @@
               "config": {
                 "label": "Coding Preferences",
                 "description": "Preferred coding style and patterns",
-                "icon": "sliders",
+                "icon": "🎚️",
                 "renderAs": "field"
               },
               "children": [
@@ -3613,7 +3613,7 @@
               "config": {
                 "label": "Experience Level",
                 "description": "Developer's experience level in web development",
-                "icon": "award",
+                "icon": "🏆",
                 "renderAs": "field"
               },
               "children": [
@@ -3643,7 +3643,7 @@
               "config": {
                 "label": "Specialization",
                 "description": "Areas of expertise",
-                "icon": "code",
+                "icon": "👨‍💻",
                 "renderAs": "field"
               },
               "children": [
@@ -3687,7 +3687,7 @@
           "config": {
             "label": "Feature Requirements",
             "description": "Specific feature requirements and functionality to implement",
-            "icon": "zap",
+            "icon": "⚡",
             "color": "#f59e0b",
             "renderAs": "section"
           },
@@ -3698,7 +3698,7 @@
               "config": {
                 "label": "Feature Type",
                 "description": "Type of feature being built",
-                "icon": "folder",
+                "icon": "📁",
                 "renderAs": "field"
               },
               "children": [
@@ -3736,7 +3736,7 @@
           "config": {
             "label": "Project Context",
             "description": "Project type, tech stack, and development environment configuration",
-            "icon": "rocket",
+            "icon": "🚀",
             "color": "#3b82f6",
             "renderAs": "section"
           },
@@ -3747,7 +3747,7 @@
               "config": {
                 "label": "CSS Approach",
                 "description": "Styling and CSS framework approach",
-                "icon": "palette",
+                "icon": "🎨",
                 "renderAs": "field"
               },
               "children": [
@@ -3777,7 +3777,7 @@
               "config": {
                 "label": "Frontend Framework",
                 "description": "Primary frontend framework/library",
-                "icon": "code",
+                "icon": "💻",
                 "renderAs": "field"
               },
               "children": [
@@ -3813,7 +3813,7 @@
               "config": {
                 "label": "Project Type",
                 "description": "The type of web project being developed",
-                "icon": "folder",
+                "icon": "📂",
                 "renderAs": "field"
               },
               "children": [
@@ -3843,7 +3843,7 @@
               "config": {
                 "label": "State Management",
                 "description": "State management library or approach",
-                "icon": "database",
+                "icon": "🗄️",
                 "renderAs": "field"
               },
               "children": [
@@ -3873,7 +3873,7 @@
               "config": {
                 "label": "Testing Tools",
                 "description": "Testing frameworks and utilities",
-                "icon": "check-circle",
+                "icon": "✅",
                 "renderAs": "field"
               },
               "children": [

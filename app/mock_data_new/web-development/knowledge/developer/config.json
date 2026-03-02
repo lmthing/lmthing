@@ -1,7 +1,7 @@
 {
   "label": "Developer Profile",
   "description": "Developer experience level, specialization, and coding preferences",
-  "icon": "user",
+  "icon": "👤",
   "color": "#8b5cf6",
   "renderAs": "section"
 }

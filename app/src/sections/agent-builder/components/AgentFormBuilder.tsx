@@ -252,7 +252,8 @@ export function AgentFormBuilder(props: AgentBuilderScreenProps) {
       resolveFieldOptionFilePaths(field, formValues)
     )
     return [...new Set(paths)].sort((a, b) => a.localeCompare(b))
-  }, [selectedDomainFields, formValues])
+    // Use JSON.stringify to ensure formValues changes are detected
+  }, [selectedDomainFields, JSON.stringify(formValues)])
 
   // Build enabled tool mappings with status
   const enabledToolMappings = useMemo(() => {
@@ -583,6 +584,8 @@ These instructions will appear at the top of your agent's system prompt.`}
           onClose={() => setRuntimePreviewOpen(false)}
           enabledFilePaths={enabledFilePaths}
           generatedPrompt={promptPreview?.generatedPrompt || ''}
+          formValues={formValues}
+          selectedDomainFields={selectedDomainFields}
           onSaveConversation={onSaveRuntimeConversation}
           canSaveConversation={Boolean(loadedAgentId && onSaveRuntimeConversation)}
           runtimeFields={runtimeFieldEntries.map(({ field, domainName }) => ({

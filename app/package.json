@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:pages": "vite build --config vite.config.pages.ts --base=/lmthing/",
+    "build:pages": "vite build --config vite.config.pages.ts --base=/",
     "lint": "eslint .",
     "preview": "vite preview"
   },

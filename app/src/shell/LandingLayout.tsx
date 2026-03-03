@@ -323,7 +323,7 @@ export default function LandingLayout() {
                   </div>
                   <h4 className="mt-2 text-lg font-semibold">Build Your Assistant</h4>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    THING instantly generates assistants with the perfect prompts, tools, and settings.
+                    THING instantly generates assistants with the appropriate prompts, tools, and settings.
                   </p>
                 </div>
               </div>
@@ -362,153 +362,11 @@ export default function LandingLayout() {
               </div>
             </div>
 
-            {/* Call to Action Button */}
-            <div className="mt-12 flex justify-center">
-              <Button size="lg" className="shadow-lg" onClick={openWorkspaceModal}>
-                Start Building Now
-                <ArrowRight className="ml-3 size-5" />
-              </Button>
-            </div>
+
 
           </div>
-
-          {/* Fact based AI Section */}
-          <div className="mt-20">
-            <div className="mx-auto max-w-4xl rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/50 p-8 shadow-lg dark:border-emerald-900/40 dark:from-emerald-950/20 dark:via-slate-900 dark:to-teal-950/20">
-              <div className="text-center">
-                <div className="inline-flex items-center gap-2 rounded-full border-2 border-emerald-500/40 bg-emerald-100/80 px-4 py-2 text-sm font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-                  <FileText className="size-5" />
-                  Fact based AI
-                </div>
-                <h3 className="mt-4 text-3xl font-bold tracking-tight">
-                  Your Expertise, Amplified
-                </h3>
-                <p className="mt-4 text-lg text-muted-foreground">
-                  Give your AI assistants exactly what they need to know. By using your own documents as the source of truth,
-                  you prevent hallucinations and ensure every response is grounded in facts you control.
-                </p>
-              </div>
-
-              <div className="mt-8 grid gap-4 sm:grid-cols-2">
-                <div className="rounded-xl border border-emerald-200 bg-white/60 p-5 dark:border-emerald-900/30 dark:bg-slate-900/40">
-                  <div className="flex items-start gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
-                      <FileText className="size-5 text-emerald-600 dark:text-emerald-400" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
-                        Transparent Knowledge
-                      </h4>
-                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                        Every instruction and fact lives in plain documents. Read, verify, and update them easily. No black boxes.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-emerald-200 bg-white/60 p-5 dark:border-emerald-900/30 dark:bg-slate-900/40">
-                  <div className="flex items-start gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-teal-100 dark:bg-teal-900/40">
-                      <Bot className="size-5 text-teal-600 dark:text-teal-400" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
-                        Grounded in Truth
-                      </h4>
-                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                        Assistants reference your curated files instead of making things up. They rely entirely on your verified information.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-emerald-200 bg-white/60 p-5 dark:border-emerald-900/30 dark:bg-slate-900/40">
-                  <div className="flex items-start gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
-                      <svg className="size-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
-                        Track Every Change
-                      </h4>
-                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                        Use Git to track knowledge updates over time. Collaborate seamlessly with teammates and audit every decision.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-emerald-200 bg-white/60 p-5 dark:border-emerald-900/30 dark:bg-slate-900/40">
-                  <div className="flex items-start gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-teal-100 dark:bg-teal-900/40">
-                      <svg className="size-5 text-teal-600 dark:text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
-                        Instant Fixes
-                      </h4>
-                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                        Spot a mistake? Just update the document. The assistant adapts immediately without requiring model retraining.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-emerald-200 bg-white/60 p-5 dark:border-emerald-900/30 dark:bg-slate-900/40">
-                  <div className="flex items-start gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
-                      <Brain className="size-5 text-emerald-600 dark:text-emerald-400" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
-                        Optimize Context Usage
-                      </h4>
-                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                        Prevent "context rot" by feeding assistants only relevant documents. Keep models focused and hallucination-free.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-indigo-200 bg-white/60 p-5 dark:border-indigo-900/30 dark:bg-slate-900/40">
-                  <div className="flex items-start gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/40">
-                      <Sparkles className="size-5 text-indigo-600 dark:text-indigo-400" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
-                        The Result
-                      </h4>
-                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                        Trustworthy AI that combines the power of LLMs with the reliability of your own curated knowledge.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Getting Started Section */}
-          <div className="mt-20 rounded-2xl bg-muted/50 px-8 py-12 text-center">
-            <h3 className="text-2xl font-semibold">Start Building Your AI Assistants</h3>
-            <p className="mt-2 text-muted-foreground">
-              Your knowledge is all you need — no coding required
-            </p>
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
-              <Button size="lg" onClick={openWorkspaceModal}>
-                <Settings className="mr-2 size-5" />
-                Build in Studio
-              </Button>
-            </div>
-          </div>
-        </main>
-                  {/* Marketplace Section */}
-          {/* <section id="marketplace" className="mx-auto mt-12 max-w-5xl rounded-2xl border bg-card p-8">
+          {/* Marketplace Section */}
+          <section id="marketplace" className="mx-auto mt-12 max-w-5xl rounded-2xl border bg-card p-8">
             <div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div className="w-full text-center">
@@ -575,7 +433,109 @@ export default function LandingLayout() {
                 </Button>
               </div>
             </div>
-          </section> */}
+          </section>
+
+          {/* Fact based AI Section */}
+          <div className="mt-20">
+            <div className="mx-auto max-w-4xl rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/50 p-8 shadow-lg dark:border-emerald-900/40 dark:from-emerald-950/20 dark:via-slate-900 dark:to-teal-950/20">
+              <div className="text-center">
+                <div className="inline-flex items-center gap-2 rounded-full border-2 border-emerald-500/40 bg-emerald-100/80 px-4 py-2 text-sm font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                  <FileText className="size-5" />
+                  Fact based AI
+                </div>
+                <h3 className="mt-4 text-3xl font-bold tracking-tight">
+                  Your Expertise, Amplified
+                </h3>
+                <p className="mt-4 text-lg text-muted-foreground">
+                  Give your AI assistants exactly what they need to know. By using your own documents as the source of truth,
+                  you prevent hallucinations and ensure every response is grounded in facts you control.
+                </p>
+              </div>
+
+              <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                <div className="rounded-xl border border-emerald-200 bg-white/60 p-5 dark:border-emerald-900/30 dark:bg-slate-900/40">
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+                      <FileText className="size-5 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                        Transparent Knowledge
+                      </h4>
+                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                        Every instruction and fact lives in revisioned plain documents. Read, verify, and update them easily. No black boxes.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-emerald-200 bg-white/60 p-5 dark:border-emerald-900/30 dark:bg-slate-900/40">
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-teal-100 dark:bg-teal-900/40">
+                      <Bot className="size-5 text-teal-600 dark:text-teal-400" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                        Grounded in Truth
+                      </h4>
+                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                        Assistants reference your curated files instead of making things up. They rely entirely on your verified information.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+
+
+                <div className="rounded-xl border border-emerald-200 bg-white/60 p-5 dark:border-emerald-900/30 dark:bg-slate-900/40">
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+                      <Brain className="size-5 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                        Optimize Context Usage
+                      </h4>
+                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                        Prevent "context rot" by feeding assistants only relevant documents. Keep models focused and hallucination-free.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-indigo-200 bg-white/60 p-5 dark:border-indigo-900/30 dark:bg-slate-900/40">
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/40">
+                      <Sparkles className="size-5 text-indigo-600 dark:text-indigo-400" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                        The Result
+                      </h4>
+                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                        Trustworthy AI that combines the power of LLMs with the reliability of your own curated knowledge.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Getting Started Section */}
+          <div className="mt-20 rounded-2xl bg-muted/50 px-8 py-12 text-center">
+            <h3 className="text-2xl font-semibold">Start Building Your AI Assistants</h3>
+            <p className="mt-2 text-muted-foreground">
+              Your knowledge is all you need — no coding required
+            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
+              <Button size="lg" onClick={openWorkspaceModal}>
+                <Settings className="mr-2 size-5" />
+                Build in Studio
+              </Button>
+            </div>
+          </div>
+        </main>
 
 
         <Dialog open={isWorkspaceModalOpen} onOpenChange={setIsWorkspaceModalOpen}>

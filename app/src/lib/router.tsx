@@ -1,5 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom'
 import LandingLayout from '@/shell/LandingLayout'
+import MarketplaceLayout from '@/shell/MarketplaceLayout'
 import StudioLayout from '@/shell/StudioLayout'
 
 export const router = createBrowserRouter([
@@ -7,6 +8,10 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <LandingLayout />,
+  },
+  {
+    path: '/marketplace',
+    element: <MarketplaceLayout />,
   },
   // Workspace-based Studio app with nested routes
   {

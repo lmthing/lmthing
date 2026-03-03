@@ -1,9 +1,0 @@
-{
-  "label": "Curriculum Framework",
-  "description": "The governing standards framework",
-  "fieldType": "select",
-  "required": true,
-  "default": "common-core",
-  "variableName": "curriculumFramework",
-  "renderAs": "field"
-}

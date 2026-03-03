@@ -11,13 +11,6 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -305,64 +298,8 @@ export default function LandingLayout() {
           </div>
         </div>
 
-        {/* Demo Workspaces Section */}
-        <div id="demo-workspaces" className="mt-16">
-          <h3 className="text-center text-2xl font-semibold">Demo Workspaces</h3>
-          <p className="mx-auto mt-2 max-w-2xl text-center text-muted-foreground">
-            Explore pre-configured workspaces to see how AI agents work
-          </p>
-          <div className="mt-8 grid gap-6 sm:grid-cols-3">
-            {demoWorkspaces.map((workspace, idx) => (
-              <Card
-                key={workspace.id}
-                className="group cursor-pointer border-2 transition-all hover:border-primary/50 hover:shadow-lg"
-                onClick={() => void handleWorkspaceSelect({
-                  id: workspace.id,
-                  name: workspace.name,
-                  color: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length],
-                } as Workspace)}
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div
-                      className="flex size-12 items-center justify-center rounded-xl text-white transition-colors"
-                      style={{ backgroundColor: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length] }}
-                    >
-                      <Building2 className="size-6" />
-                    </div>
-                    <ArrowRight className="size-5 text-muted-foreground transition-transform group-hover:translate-x-1" />
-                  </div>
-                  <CardTitle className="mt-4 text-xl">{workspace.name}</CardTitle>
-                  <CardDescription>{workspace.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex gap-2 flex-wrap">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        void handleWorkspaceSelect({
-                          id: workspace.id,
-                          name: workspace.name,
-                          color: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length],
-                        } as Workspace)
-                      }}
-                    >
-                      <Settings className="mr-2 size-4" />
-                      Open
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-
-
         {/* How It Works Section */}
-        <div className="mt-20">
+        <div className="mt-12">
           <h3 className="text-center text-2xl font-semibold">How It Works</h3>
           <p className="mx-auto mt-2 max-w-2xl text-center text-muted-foreground">
             Build AI agents in four simple steps — from knowledge to action
@@ -662,7 +599,7 @@ export default function LandingLayout() {
               <h4 className="font-semibold mb-3">Product</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li>
-                  <a href="#demo-workspaces" className="hover:text-foreground transition-colors">
+                  <a href="/marketplace" className="hover:text-foreground transition-colors">
                     Demo Workspaces
                   </a>
                 </li>

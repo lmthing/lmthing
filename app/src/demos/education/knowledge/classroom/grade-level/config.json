@@ -1,9 +1,0 @@
-{
-  "label": "Grade Level",
-  "description": "The grade level of the class",
-  "fieldType": "select",
-  "required": true,
-  "default": "5th-grade",
-  "variableName": "gradeLevel",
-  "renderAs": "field"
-}

@@ -1,9 +1,0 @@
-{
-  "label": "Target Skill Level",
-  "description": "Cognitive demand of the content",
-  "fieldType": "select",
-  "required": true,
-  "default": "developing",
-  "variableName": "skillLevel",
-  "renderAs": "field"
-}

@@ -1,9 +1,0 @@
-{
-  "label": "Learning Model",
-  "description": "Primary instructional delivery model",
-  "fieldType": "select",
-  "required": true,
-  "default": "in-person",
-  "variableName": "learningModel",
-  "renderAs": "field"
-}

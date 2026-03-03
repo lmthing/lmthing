@@ -1,9 +1,0 @@
-{
-  "label": "Primary Subject",
-  "description": "Main subject area focus",
-  "fieldType": "select",
-  "required": true,
-  "default": "mathematics",
-  "variableName": "primarySubject",
-  "renderAs": "field"
-}

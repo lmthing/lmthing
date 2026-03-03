@@ -1,9 +1,0 @@
-{
-  "label": "Certifications",
-  "description": "Teaching certifications and endorsements",
-  "fieldType": "multiselect",
-  "required": false,
-  "default": [],
-  "variableName": "certifications",
-  "renderAs": "field"
-}

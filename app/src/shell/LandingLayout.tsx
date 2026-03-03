@@ -304,21 +304,22 @@ From one prompt, THING creates a ready-to-use ecosystem of knowledge, assistants
                   Browse ready-to-use demo workspaces and open them instantly in Studio.
                 </p>
               </div>
-              <Link
-                to="/marketplace"
-                className="inline-flex items-center text-sm font-medium text-primary hover:underline"
-              >
-                See more
-                <ArrowRight className="ml-1 size-4" />
-              </Link>
             </div>
 
             <div className="mt-8 overflow-x-auto pb-2">
               <div className="flex min-w-max gap-4">
                 {demoWorkspaces.map((workspace, idx) => (
-                  <div
+                  <button
                     key={workspace.id}
-                    className="w-72 shrink-0 rounded-xl border bg-background p-4"
+                    type="button"
+                    onClick={() =>
+                      void handleWorkspaceSelect({
+                        id: workspace.id,
+                        name: workspace.name,
+                        color: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length],
+                      })
+                    }
+                    className="w-72 shrink-0 rounded-xl border bg-background p-4 text-left transition-colors hover:bg-muted/30"
                   >
                     <div className="mb-3 flex items-center gap-2">
                       <div
@@ -329,8 +330,11 @@ From one prompt, THING creates a ready-to-use ecosystem of knowledge, assistants
                       </div>
                       <p className="truncate text-sm font-semibold">{workspace.name}</p>
                     </div>
-                    <p className="line-clamp-2 text-sm text-muted-foreground">{workspace.description}</p>
-                  </div>
+                    <p className="line-clamp-2 min-h-10 text-sm text-muted-foreground">{workspace.description}</p>
+                    <div className="mt-3 flex items-center justify-end text-primary">
+                      <ArrowRight className="size-4" />
+                    </div>
+                  </button>
                 ))}
                 <div className="w-72 shrink-0 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 p-4">
                   <div className="flex h-full flex-col items-center justify-center text-center">

@@ -349,12 +349,12 @@ From one prompt, THING creates a ready-to-use ecosystem of knowledge, assistants
             </div>
 
             <div className="mt-6">
-              <Button asChild size="lg" className="shadow-sm">
-                <Link to="/marketplace">
-                  Explore all
-                  <ArrowRight className="ml-2 size-5" />
-                </Link>
-              </Button>
+                <Button asChild size="lg" className="shadow-sm">
+                  <Link to="/marketplace">
+                    Explore all
+                    <ArrowRight className="ml-2 size-5" />
+                  </Link>
+                </Button>
             </div>
           </div>
         </section>
@@ -377,7 +377,7 @@ From one prompt, THING creates a ready-to-use ecosystem of knowledge, assistants
                 </div>
                 <h4 className="mt-2 text-lg font-semibold">Organize Your Knowledge</h4>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    THING organizes your documents into a searchable, topic-driven database.
+                    THING organizes your documents into a searchable, topic-driven folders and files.
                   </p>
               </div>
             </div>
@@ -442,13 +442,13 @@ From one prompt, THING creates a ready-to-use ecosystem of knowledge, assistants
 
         </div>
 
-        {/* Grounded AI Section */}
+        {/* Fact based AI Section */}
         <div className="mt-20">
           <div className="mx-auto max-w-4xl rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/50 p-8 shadow-lg dark:border-emerald-900/40 dark:from-emerald-950/20 dark:via-slate-900 dark:to-teal-950/20">
             <div className="text-center">
               <div className="inline-flex items-center gap-2 rounded-full border-2 border-emerald-500/40 bg-emerald-100/80 px-4 py-2 text-sm font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
                 <FileText className="size-5" />
-                Grounded AI
+                Fact based AI
               </div>
               <h3 className="mt-4 text-3xl font-bold tracking-tight">
                 You're Always in Control

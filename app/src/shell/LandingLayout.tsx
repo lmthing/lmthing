@@ -36,8 +36,8 @@ import { useWorkspaceData } from '@/lib/workspaceDataContext'
 import { ThingPanel } from './components/ThingPanel'
 import logo from '@/assets/logo.png'
 
-
 const WORKSPACE_COLORS = ['#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ef4444', '#84cc16']
+const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? '0.0.0'
 
 type DemoWorkspace = {
   id: string
@@ -207,7 +207,11 @@ export default function LandingLayout() {
             <div className="flex items-center gap-2">
               <img src={logo} alt="lmthing" className="size-12" />
               <h1 className="text-xl font-semibold">lmthing</h1>
+              <span className="rounded-md border px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                v{APP_VERSION}
+              </span>
             </div>
+            
             <div className="flex items-center gap-3">
               <span className="hidden sm:inline-block text-sm text-muted-foreground mr-2">
                 Your expertise, amplified by AI
@@ -226,7 +230,7 @@ export default function LandingLayout() {
         <main className="mx-auto max-w-7xl px-6 py-16">
           <div className="mx-auto max-w-3xl text-center">
             <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
-              Build Your Own AI Assistants
+              Automated Knowledge & Agent Creation with THING
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
               Let THING automatically generate knowledge bases and AI agents from your instructions.
@@ -256,7 +260,7 @@ export default function LandingLayout() {
             <div className="mt-4 grid gap-4 sm:grid-cols-3">
               <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/20 dark:to-slate-900">
                 <FileText className="size-8 text-emerald-600 mb-2" />
-                <h4 className="font-semibold text-slate-900 dark:text-slate-100">Build Your Wisdom Hub</h4>
+                <h4 className="font-semibold text-slate-900 dark:text-slate-100">Auto-Generate Knowledge</h4>
                 <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                   THING creates structured knowledge bases with markdown files organized by topic
                 </p>
@@ -282,10 +286,10 @@ export default function LandingLayout() {
                 <Settings className="size-5 text-amber-600 mt-0.5 flex-shrink-0" />
                 <div>
                   <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-1">
-                    First Step: Link Your AI Helper
+                    First Step: Configure Your AI Provider
                   </h4>
                   <p className="text-sm text-slate-600 dark:text-slate-400">
-                    Before THING can work its magic, you need to add at least one AI provider (like OpenAI, Anthropic, or others)
+                    Before THING can work its magic, you need to add at least one AI provider (like OpenAI, Anthropic, or others) 
                     in your environment settings. This gives THING the AI power it needs to generate everything for you.
                   </p>
                 </div>
@@ -433,7 +437,7 @@ export default function LandingLayout() {
                 <div className="mt-4 flex items-center gap-2">
                   <span className="text-sm font-semibold text-primary-foreground">Step 4</span>
                 </div>
-                <h4 className="mt-2 text-lg font-semibold">Watch it Go to Work</h4>
+                <h4 className="mt-2 text-lg font-semibold">Run & Execute in Studio</h4>
                 <p className="mt-2 text-sm text-muted-foreground">
                   Test your agent directly inside Studio conversations. Watch it run actions,
                   perform tasks, and leverage your knowledge in real-time.
@@ -459,7 +463,7 @@ export default function LandingLayout() {
                 Grounded AI
               </div>
               <h3 className="mt-4 text-3xl font-bold tracking-tight">
-                You're Always in Control: Facts Over Fiction
+                Human-Reviewable Prompts = Less Hallucination
               </h3>
               <p className="mt-4 text-lg text-muted-foreground">
                 When LLMs work with structured, human-reviewable knowledge fragments instead of 

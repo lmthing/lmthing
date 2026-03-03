@@ -1,0 +1,64 @@
+build specialized assistants 
+specialized to your need
+
+THING should different font color or multiple colors per letter like google
+
+All the power that available AI has with your own choices embedded
+
+How it works -> from your knowledge to action
+
+THING should either be followed when it works or not give a choice.
+
+
+THING instantly generates configurable assistants with the appropriate prompts, tools, and settings.
+\
+
+
+APP:
+knowledge ==> Your knowledge
+
+
+LLM -> AI(LLM)
+
+
+fact based ai should have different color as background
+
+THING thinks for you 
+
+THIN(G/KS)
+
+Use "the THING" instead of THING 
+
+
+Trustworthy AI (assistants) that combines the power of LLMs (something else) with the reliability of your own curated knowledge.
+
+Have a section PROBLEM
+
+Why they are specialized? it combines ai models with your knowledge to produce trustworthu assistant that protects from hallucination and context rot.
+
+
+Build Your Own AI Assistants -> Build Your (personal) AI (THIS should come )
+
+
+Optimize Context Usage
+Prevent "context rot" by feeding assistants only (with) relevant documents. Keep models focused and hallucination-free.
+
+
+deal with "context rot" technical Term
+
+curated -> tailored
+
+prevent -> avoid 
+
+Create 3 use case scenarios in video
+
+Feeding assistants with relevant documents keeps them focused and hallucination-free.
+
+
+BUILD YOUR OWN THING 
+
+
+THING — Your AI Workspace Builder REMOVE
+
+
+Better CTA to open thingpanel in landing. Probably move GETStartedwiththing to the top right

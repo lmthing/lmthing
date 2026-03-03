@@ -229,9 +229,7 @@ export default function LandingLayout() {
               Build Your Own AI Assistants
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              Let THING automatically generate knowledge bases and AI agents from your instructions.
-              Simply describe what you want, and THING will create the complete workspace structure,
-              agents, and flows — all powered by AI. No manual setup required.
+     Your vision, automated. THING designs your entire workspace architecture, agents, and action steps so you can get to work immediately.
             </p>
           </div>
 
@@ -247,9 +245,7 @@ export default function LandingLayout() {
                 Describe it. THING builds it.
               </h3>
               <p className="mt-3 max-w-3xl mx-auto text-base text-muted-foreground sm:text-lg">
-                THING is your AI assistant that creates complete knowledge bases and agents automatically.
-                Just tell THING what you need, and it will generate the workspace structure, knowledge files,
-                agents, and action flows — ready to use.
+                From one prompt, THING creates a ready-to-use ecosystem of knowledge, assistants, and automated workflows.
               </p>
             </div>
 

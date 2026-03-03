@@ -36,6 +36,8 @@ import { toWorkspaceName } from '@/lib/workspaces'
 import { useWorkspaceData } from '@/lib/workspaceDataContext'
 import { ThingPanel } from './components/ThingPanel'
 import logo from '@/assets/logo.png'
+import { version } from '../../package.json'
+
 
 const WORKSPACE_COLORS = ['#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ef4444', '#84cc16']
 
@@ -210,6 +212,7 @@ export default function LandingLayout() {
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden sm:inline-block text-sm text-muted-foreground mr-2">Your expertise, amplified by AI</span>
+            <div className="hidden lg:block">
             <GithubDeploymentStatus 
               repo="lmthing/lmthing" 
               workflowName="Deploy to GitHub Pages"

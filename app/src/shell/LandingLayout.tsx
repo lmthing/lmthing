@@ -434,7 +434,7 @@ From one prompt, THING creates a ready-to-use ecosystem of knowledge, assistants
 
           {/* Call to Action Button */}
           <div className="mt-12 flex justify-center">
-            <Button size="xl" className="px-8 py-4 text-lg font-semibold shadow-lg" onClick={openWorkspaceModal}>
+            <Button size="lg" className="shadow-lg" onClick={openWorkspaceModal}>
               Start Building Now
               <ArrowRight className="ml-3 size-5" />
             </Button>

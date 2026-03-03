@@ -319,7 +319,7 @@ From one prompt, THING creates a ready-to-use ecosystem of knowledge, assistants
                         color: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length],
                       })
                     }
-                    className="w-72 shrink-0 rounded-xl border bg-background p-4 text-left transition-colors hover:bg-muted/30"
+                    className="w-72 shrink-0 rounded-xl border bg-background p-4 text-left cursor-pointer transition-all hover:-translate-y-0.5 hover:bg-muted/30 hover:shadow-md hover:border-primary/30"
                   >
                     <div className="mb-3 flex items-center gap-2">
                       <div
@@ -356,7 +356,7 @@ From one prompt, THING creates a ready-to-use ecosystem of knowledge, assistants
             <div className="mt-6">
               <Button asChild size="lg" className="shadow-sm">
                 <Link to="/marketplace">
-                  Explore all demo workspaces
+                  Explore all
                   <ArrowRight className="ml-2 size-5" />
                 </Link>
               </Button>

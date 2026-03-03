@@ -229,8 +229,8 @@ export default function LandingLayout() {
               Build Your Own AI Assistants
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-     Your vision, automated. THING designs your entire workspace architecture, agents, and action steps so you can get to work immediately.
-            </p>
+From one prompt, THING creates a ready-to-use ecosystem of knowledge, assistants, and automated workflows into organized workspaces.   
+         </p>
           </div>
 
         {/* THING Feature Panel */}
@@ -244,9 +244,6 @@ export default function LandingLayout() {
               <h3 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
                 Describe it. THING builds it.
               </h3>
-              <p className="mt-3 max-w-3xl mx-auto text-base text-muted-foreground sm:text-lg">
-                From one prompt, THING creates a ready-to-use ecosystem of knowledge, assistants, and automated workflows.
-              </p>
             </div>
 
             <div className="mt-4 grid gap-4 sm:grid-cols-3">
@@ -407,9 +404,10 @@ export default function LandingLayout() {
                 </div>
                 <h4 className="mt-2 text-lg font-semibold">Add Task Flows</h4>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Create actions as task flows that your agent can execute. Define step-by-step
+                  Create actions as workflows that your agent can execute. Define step-by-step
                   actions using the visual flow editor — no coding required.
                 </p>
+
               </div>
               <div className="hidden lg:block absolute right-0 top-8 -translate-y-1/2 translate-x-1/2 text-muted-foreground/30">
                 <ArrowRight className="size-6" />

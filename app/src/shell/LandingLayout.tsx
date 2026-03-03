@@ -194,20 +194,20 @@ export default function LandingLayout() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900">
-      <div className="flex-1 flex flex-col">
+    <div className="flex min-h-screen overflow-x-hidden bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <header className="border-b bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm">
-          <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-            <div className="flex items-center gap-2">
-              <img src={logo} alt="lmthing" className="size-12" />
-              <h1 className="text-xl font-semibold">lmthing</h1>
-              <span className="rounded-md border px-2 py-0.5 text-xs font-medium text-muted-foreground">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
+            <div className="flex items-center gap-2 min-w-0">
+              <img src={logo} alt="lmthing" className="size-10 sm:size-12 shrink-0" />
+              <h1 className="text-xl font-semibold truncate">lmthing</h1>
+              <span className="hidden sm:inline-flex rounded-md border px-2 py-0.5 text-xs font-medium text-muted-foreground shrink-0">
                 v{APP_VERSION}
               </span>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 shrink-0">
               <Button variant="outline" size="sm" asChild>
                 <Link to="/marketplace">Marketplace</Link>
               </Button>
@@ -217,7 +217,7 @@ export default function LandingLayout() {
         </header>
 
         {/* Hero Section */}
-        <main className="mx-auto max-w-7xl px-6 py-16">
+        <main className="w-full mx-auto max-w-7xl px-4 sm:px-6 py-12 sm:py-16">
           <div className="mx-auto max-w-3xl text-center">
             <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
               Build Your Own AI Assistants
@@ -366,7 +366,7 @@ export default function LandingLayout() {
 
           </div>
           {/* Marketplace Section */}
-          <section id="marketplace" className="mx-auto mt-12 max-w-5xl rounded-2xl border bg-card p-8">
+          <section id="marketplace" className="mx-auto mt-12 max-w-5xl rounded-2xl border bg-card p-4 sm:p-8 overflow-hidden">
             <div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div className="w-full text-center">

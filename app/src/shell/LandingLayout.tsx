@@ -9,6 +9,7 @@ import {
   Play,
   Building2,
   Sparkles,
+  Brain,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -452,7 +453,7 @@ export default function LandingLayout() {
                   Fact based AI
                 </div>
                 <h3 className="mt-4 text-3xl font-bold tracking-tight">
-                  Your Knowledge, Amplified
+                  Your Expertise, Amplified
                 </h3>
                 <p className="mt-4 text-lg text-muted-foreground">
                   Give your AI assistants exactly what they need to know. By using your own documents as the source of truth,
@@ -528,20 +529,36 @@ export default function LandingLayout() {
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="mt-4 rounded-xl border border-indigo-200 bg-white/60 p-5 dark:border-indigo-900/30 dark:bg-slate-900/40">
-                <div className="flex items-center gap-4">
-                  <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/40">
-                    <Sparkles className="size-6 text-indigo-600 dark:text-indigo-400" />
+                <div className="rounded-xl border border-emerald-200 bg-white/60 p-5 dark:border-emerald-900/30 dark:bg-slate-900/40">
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+                      <Brain className="size-5 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                        Optimize Context Usage
+                      </h4>
+                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                        Prevent "context rot" by feeding assistants only relevant documents. Keep models focused and hallucination-free.
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-semibold text-slate-900 dark:text-slate-100">
-                      The Result
-                    </h4>
-                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                      Trustworthy AI that combines the power of LLMs with the reliability of your own curated knowledge.
-                    </p>
+                </div>
+
+                <div className="rounded-xl border border-indigo-200 bg-white/60 p-5 dark:border-indigo-900/30 dark:bg-slate-900/40">
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/40">
+                      <Sparkles className="size-5 text-indigo-600 dark:text-indigo-400" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                        The Result
+                      </h4>
+                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                        Trustworthy AI that combines the power of LLMs with the reliability of your own curated knowledge.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>

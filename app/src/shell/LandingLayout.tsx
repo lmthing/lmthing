@@ -256,28 +256,28 @@ export default function LandingLayout() {
             <div className="mt-4 grid gap-4 sm:grid-cols-3">
               <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/20 dark:to-slate-900">
                 <FileText className="size-8 text-emerald-600 mb-2" />
-                <h4 className="font-semibold text-slate-900 dark:text-slate-100">Build Your Wisdom Hub</h4>
+                <h4 className="font-semibold text-slate-900 dark:text-slate-100">Build Your Knowledge Base</h4>
                 <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                  THING creates structured knowledge bases with markdown files organized by topic
+                  THING helps you create structured knowledge with documents organized by topic.
                 </p>
               </div>
               <div className="rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50 to-white p-4 shadow-sm dark:border-violet-900/40 dark:from-violet-950/20 dark:to-slate-900">
                 <Bot className="size-8 text-violet-600 mb-2" />
-                <h4 className="font-semibold text-slate-900 dark:text-slate-100">Build Smart Agents</h4>
+                <h4 className="font-semibold text-slate-900 dark:text-slate-100">Build Smart Assistants</h4>
                 <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                  THING generates agents with proper prompts, tools, and configurations automatically
+                  THING helps you generate assistants with proper prompts, tools, and configurations automatically.
                 </p>
               </div>
               <div className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm dark:border-blue-900/40 dark:from-blue-950/20 dark:to-slate-900">
                 <Workflow className="size-8 text-blue-600 mb-2" />
-                <h4 className="font-semibold text-slate-900 dark:text-slate-100">Create Action Flows</h4>
+                <h4 className="font-semibold text-slate-900 dark:text-slate-100">Create Workflows</h4>
                 <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                  THING designs complete workflows and task sequences based on your needs
+                  THING helps you design complete workflows with steps based on your needs.
                 </p>
               </div>
             </div>
 
-            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/50 p-4 dark:border-amber-900/40 dark:bg-amber-950/20">
+            {/* <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/50 p-4 dark:border-amber-900/40 dark:bg-amber-950/20">
               <div className="flex items-start gap-3">
                 <Settings className="size-5 text-amber-600 mt-0.5 flex-shrink-0" />
                 <div>
@@ -290,7 +290,7 @@ export default function LandingLayout() {
                   </p>
                 </div>
               </div>
-            </div>
+            </div> */}
 
             <div className="mt-2 flex items-center justify-center">
               <Button size="lg" className="shadow-lg" onClick={openWorkspaceModal}>
@@ -303,11 +303,45 @@ export default function LandingLayout() {
 
         {/* Marketplace Section */}
         <section id="marketplace" className="mx-auto mt-12 max-w-5xl rounded-2xl border bg-card p-8">
-          <div className="text-center">
-            <h3 className="text-2xl font-semibold">Marketplace</h3>
-            <p className="mx-auto mt-2 max-w-2xl text-muted-foreground">
-              Browse ready-to-use demo workspaces and open them instantly in Studio.
-            </p>
+          <div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h3 className="text-2xl font-semibold">Marketplace</h3>
+                <p className="mt-2 max-w-2xl text-muted-foreground">
+                  Browse ready-to-use demo workspaces and open them instantly in Studio.
+                </p>
+              </div>
+              <Link
+                to="/marketplace"
+                className="inline-flex items-center text-sm font-medium text-primary hover:underline"
+              >
+                See more
+                <ArrowRight className="ml-1 size-4" />
+              </Link>
+            </div>
+
+            <div className="mt-8 overflow-x-auto pb-2">
+              <div className="flex min-w-max gap-4">
+                {demoWorkspaces.map((workspace, idx) => (
+                  <div
+                    key={workspace.id}
+                    className="w-72 shrink-0 rounded-xl border bg-background p-4"
+                  >
+                    <div className="mb-3 flex items-center gap-2">
+                      <div
+                        className="flex size-8 items-center justify-center rounded-md text-white"
+                        style={{ backgroundColor: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length] }}
+                      >
+                        <Building2 className="size-4" />
+                      </div>
+                      <p className="truncate text-sm font-semibold">{workspace.name}</p>
+                    </div>
+                    <p className="line-clamp-2 text-sm text-muted-foreground">{workspace.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="mt-6">
               <Button asChild>
                 <Link to="/marketplace">

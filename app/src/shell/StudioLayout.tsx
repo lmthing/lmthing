@@ -70,6 +70,7 @@ export default function StudioLayout() {
     setCurrentWorkspace,
     createWorkspace,
     workspaceData,
+    isLoading,
     upsertFlow,
     upsertAgent,
     addKnowledgeNode,
@@ -97,14 +98,14 @@ export default function StudioLayout() {
   }, [workspaceName, setCurrentWorkspace])
 
   useEffect(() => {
-    if (!workspaceName || workspaceData) return
+    if (!workspaceName || workspaceData || isLoading) return
 
     const decodedWorkspace = fromWorkspaceRouteParam(workspaceName)
     const repoRef = parseWorkspaceRepoRef(decodedWorkspace)
     if (repoRef?.owner !== 'local' || !repoRef.repo) return
 
     createWorkspace(repoRef.repo, { setAsCurrent: false })
-  }, [workspaceName, workspaceData, createWorkspace])
+  }, [workspaceName, workspaceData, isLoading, createWorkspace])
 
   // Use the new state hooks
   const { agents: agentsMap } = useAgents()

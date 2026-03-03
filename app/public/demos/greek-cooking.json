@@ -1,0 +1,759 @@
+{
+  "id": "greek-cooking",
+  "agents": {
+    "agent-menu": {
+      "id": "agent-menu",
+      "frontmatter": {
+        "name": "GreekMenuPlanner",
+        "description": "Plans complete Greek menus for special occasions and everyday dining",
+        "tools": [
+          "seasonal-ingredient-finder",
+          "wine-pairing",
+          "timeline-generator"
+        ],
+        "selectedDomains": [
+          "domain-cuisine",
+          "domain-ingredients",
+          "domain-meal"
+        ]
+      },
+      "mainInstruction": "# Greek Menu Planner\n\nYou are an expert in Greek hospitality and cuisine, skilled at creating memorable dining experiences that honor Greek culinary traditions.\n\n## Your Approach\n- Design balanced menus with proper progression of flavors\n- Consider seasonal availability of ingredients\n- Incorporate regional specialties from across Greece\n- Account for dietary restrictions while maintaining authenticity\n- Include wine and beverage pairings when appropriate\n\n## Output Format\nPresent menus with courses clearly organized, including meze, main courses, and desserts. Provide a cooking timeline and preparation tips.",
+      "slashActions": [
+        {
+          "name": "Plan Menu",
+          "description": "Create a complete Greek menu for any occasion",
+          "flowId": "flow_menu_plan",
+          "actionId": "plan"
+        }
+      ],
+      "config": {
+        "emptyFieldsForRuntime": {
+          "meal": [
+            "occasion"
+          ],
+          "cuisine": [
+            "region"
+          ]
+        }
+      },
+      "formValues": {},
+      "conversations": []
+    },
+    "agent-recipe": {
+      "id": "agent-recipe",
+      "frontmatter": {
+        "name": "GreekRecipeChef",
+        "description": "Creates authentic Greek recipes with traditional techniques and regional variations",
+        "tools": [
+          "ingredient-substitution",
+          "nutrition-calculator",
+          "recipe-scaler"
+        ],
+        "selectedDomains": [
+          "domain-cuisine",
+          "domain-ingredients",
+          "domain-technique",
+          "domain-meal"
+        ]
+      },
+      "mainInstruction": "# Greek Recipe Chef\n\nYou are an expert Greek chef specializing in traditional and contemporary Greek cuisine. Your knowledge spans from ancient recipes to modern Greek gastronomy.\n\n## Your Approach\n- Honor traditional Greek cooking methods while adapting for modern kitchens\n- Emphasize fresh, seasonal Mediterranean ingredients\n- Share cultural context and regional origins of dishes\n- Provide clear, step-by-step instructions suitable for any skill level\n- Suggest authentic ingredient substitutions when needed\n\n## Output Format\nStructure recipes with clear sections including ingredients, preparation time, cooking method, and serving suggestions. Include tips for achieving authentic flavors.",
+      "slashActions": [
+        {
+          "name": "Create Recipe",
+          "description": "Generate a complete Greek recipe with traditional techniques",
+          "flowId": "flow_recipe_create",
+          "actionId": "create"
+        }
+      ],
+      "config": {
+        "emptyFieldsForRuntime": {
+          "meal": [
+            "dish-type"
+          ],
+          "ingredients": [
+            "main-ingredient"
+          ]
+        }
+      },
+      "formValues": {},
+      "conversations": []
+    }
+  },
+  "flows": {
+    "flow_menu_plan": {
+      "id": "flow_menu_plan",
+      "frontmatter": {},
+      "description": "# Plan Greek Menu\n\nThis flow guides you through creating a complete Greek menu for any occasion.\n\n1. [Define the Occasion](1.Define%20the%20Occasion.md)\n2. [Set Guest Parameters](2.Set%20Guest%20Parameters.md)\n3. [Select Meze Course](3.Select%20Meze%20Course.md)\n4. [Choose Main Dishes](4.Choose%20Main%20Dishes.md)\n5. [Add Accompaniments](5.Add%20Accompaniments.md)\n6. [Plan Desserts](6.Plan%20Desserts.md)\n7. [Create Cooking Timeline](7.Create%20Cooking%20Timeline.md)\n",
+      "tasks": [
+        {
+          "order": 1,
+          "name": "Define the Occasion",
+          "frontmatter": {},
+          "instructions": "# Define the Occasion\n\nThe occasion shapes every menu decision in Greek cooking:\n\n## Everyday Dining\n- Simple, nourishing meals\n- Focus on seasonal ingredients\n- One main dish with bread and salad\n- Quick preparation time\n\n## Sunday Family Lunch\n- The most important meal of the week\n- Multiple courses served simultaneously\n- Roasted meats or traditional stews\n- Extended leisurely dining\n\n## Name Day / Birthday\n- Celebratory dishes\n- Generous portions for guests\n- Traditional sweets required\n- Alcohol accompaniments\n\n## Easter (Πάσχα)\n- Most important holiday menu\n- Lamb is essential\n- Specific traditional dishes\n- Weekend-long preparation\n\n## Christmas / New Year\n- Roast pork or turkey\n- Melomakarona, kourabiedes required\n- Vasilopita for New Year\n- Abundant meze selection\n\n## Summer Gathering\n- Light, fresh dishes\n- Grilled seafood and meats\n- Cold meze and salads\n- Fruit-based desserts"
+        },
+        {
+          "order": 2,
+          "name": "Set Guest Parameters",
+          "frontmatter": {},
+          "instructions": "# Set Guest Parameters\n\nPlan around your guests' needs:\n\n## Number of Guests\n- **2-4 people**: Intimate, fewer dishes needed\n- **6-10 people**: Standard Greek gathering\n- **12+ people**: Large celebration, buffet-style\n\n## Dietary Considerations\n\n### Religious Fasting (Νηστεία)\nMany Greeks fast before major holidays:\n- No meat, dairy, or eggs\n- Seafood usually permitted\n- Olive oil always allowed\n\n### Vegetarian Guests\nGreek cuisine is naturally vegetarian-friendly:\n- Rich tradition of ladera dishes\n- Substantial cheese and egg courses\n- Beans and legumes as protein\n\n### Allergies/Restrictions\n- **Nut-free**: Modify baklava, skip walnut dishes\n- **Gluten-free**: Many naturally GF options\n- **Dairy-free**: Focus on ladera, seafood\n\n## Cooking Capacity\n- How many burners/oven space?\n- Can you prep ahead?\n- Do you need help?\n\n## Budget\n- Seafood and lamb are premium\n- Legume dishes are economical\n- Balance across courses"
+        },
+        {
+          "order": 3,
+          "name": "Select Meze Course",
+          "frontmatter": {},
+          "instructions": "# Select Meze Course\n\nMeze is essential — Greeks never serve main courses without appetizers first.\n\n## Cold Meze (prepare ahead)\n- **Tzatziki** — yogurt, cucumber, garlic\n- **Taramosalata** — fish roe dip (pink)\n- **Melitzanosalata** — smoky eggplant dip\n- **Fava** — yellow split pea purée (Santorini)\n- **Htipiti** — spicy feta dip\n- **Dolmades** — stuffed grape leaves\n\n## Hot Meze\n- **Saganaki** — fried cheese (pan or shrimp version)\n- **Kolokithokeftedes** — zucchini fritters\n- **Spanakopita** — spinach pie (individual portions)\n- **Keftedakia** — mini meatballs\n- **Grilled halloumi** — with lemon\n\n## Always Include\n- **Feta** — simple block with oregano and olive oil\n- **Olives** — Kalamata or throumbes\n- **Bread** — crusty loaf for dipping\n\n## Quantity Guide\n- 2-3 cold meze per gathering\n- 1-2 hot meze\n- Plan for people to fill up on meze (they will)\n\n## Timing\nServe meze immediately when guests arrive with ouzo, wine, or tsipouro."
+        },
+        {
+          "order": 4,
+          "name": "Choose Main Dishes",
+          "frontmatter": {},
+          "instructions": "# Choose Main Dishes\n\nSelect main courses based on occasion and season:\n\n## Meat Mains\n\n### Lamb (Αρνί)\n- **Kleftiko** — slow-roasted in parchment\n- **Lamb yiouvetsi** — with orzo pasta\n- **Lamb chops** — grilled with lemon-oregano\n- **Whole roasted lamb** — Easter tradition\n\n### Pork (Χοιρινό)\n- **Tigania** — pan-fried with wine\n- **Pork souvlaki** — skewered and grilled\n- **Roast pork** — with potatoes\n\n### Chicken (Κοτόπουλο)\n- **Lemon chicken** — with potatoes\n- **Chicken stifado** — with onions\n- **Kotopoulo kokkinisto** — in tomato sauce\n\n## Seafood Mains\n- **Grilled whole fish** — lavraki, tsipoura\n- **Octopus** — grilled or stewed with wine\n- **Shrimp saganaki** — in tomato-feta sauce\n- **Bakaliaros** — fried cod with skordalia\n\n## Vegetarian Mains\n- **Moussaka** (can make vegetarian)\n- **Yemista** — stuffed tomatoes and peppers\n- **Briam** — roasted vegetable medley\n- **Gigantes plaki** — giant beans in tomato\n\n## Balance Tips\n- One protein-heavy main\n- One vegetable or grain-based option\n- Consider offering both meat and seafood for larger groups"
+        },
+        {
+          "order": 5,
+          "name": "Add Accompaniments",
+          "frontmatter": {},
+          "instructions": "# Add Accompaniments\n\nNo Greek meal is complete without these accompaniments:\n\n## Salads\n\n### Greek Salad (Χωριάτικη)\nThe essential accompaniment:\n- Tomato, cucumber, onion, green pepper\n- Block of feta on top\n- Kalamata olives, oregano\n- Olive oil and red wine vinegar\n- NO LETTUCE (unless you want mockery)\n\n### Other Salads\n- **Maroulosalata** — lettuce with dill and spring onion\n- **Cabbage salad** — shredded, with lemon\n- **Beet salad** — with garlic and vinegar\n- **Politiki** — cabbage, carrot, peppers\n\n## Starches\n\n### Potatoes\n- Lemon potatoes (oven-roasted)\n- Fried potatoes\n- Mashed potatoes (less common but loved)\n\n### Rice/Pasta\n- Pilafi — rice pilaf\n- Orzo (kritharaki) — often baked with meat\n- Hilopites — egg noodles\n\n## Bread\n- **Crusty village bread** — always present\n- **Pita bread** — for souvlaki occasions\n- **Lagana** — for Clean Monday\n\n## Order More Than You Think\nGreeks always have leftovers — it's expected and welcomed."
+        },
+        {
+          "order": 6,
+          "name": "Plan Desserts",
+          "frontmatter": {},
+          "instructions": "# Plan Desserts\n\nGreek desserts are rich and meant to be shared:\n\n## Syrup-Soaked Sweets (Σιροπιαστά)\n- **Baklava** — phyllo, nuts, honey syrup\n- **Galaktoboureko** — custard in phyllo\n- **Ravani/Revani** — semolina cake\n- **Portokalopita** — orange phyllo cake\n- **Kataifi** — shredded phyllo with nuts\n\n## Cookies (Κουλουράκια)\n- **Kourabiedes** — butter cookies with powdered sugar\n- **Melomakarona** — honey-walnut cookies\n- **Koulourakia** — twisted butter cookies\n- **Paximadia** — twice-baked biscotti\n\n## Spoon Sweets (Γλυκά του Κουταλιού)\nTraditional preserved fruits served with coffee:\n- Cherry, quince, fig, grape, orange\n- Served in small portions with water\n\n## Fresh Options\n- **Greek yogurt** with honey and walnuts\n- **Fresh fruit** — watermelon, figs, grapes\n- **Karydopita** — walnut cake (less sweet)\n\n## Holiday-Specific\n- **Vasilopita** — New Year's cake with coin\n- **Tsoureki** — Easter sweet bread\n- **Diples** — fried honey pastry\n\n## Serving Tips\n- Serve with Greek coffee or espresso\n- Desserts come AFTER clearing main course\n- Smaller portions — these are rich\n- Always offer fruit as lighter option"
+        },
+        {
+          "order": 7,
+          "name": "Create Cooking Timeline",
+          "frontmatter": {},
+          "instructions": "# Create Cooking Timeline\n\nPlan backwards from serving time to ensure everything is ready:\n\n## Day Before\n- [ ] Shop for all ingredients\n- [ ] Make dips (tzatziki, melitzanosalata) — flavors improve overnight\n- [ ] Prepare dolmades\n- [ ] Marinate meat\n- [ ] Bake desserts (baklava, galaktoboureko)\n- [ ] Make syrup for desserts\n\n## Morning Of\n- [ ] Prep all vegetables (wash, chop)\n- [ ] Bring meat to room temperature\n- [ ] Start any slow-cooking dishes (stews, roasts)\n- [ ] Prepare stuffed vegetables\n- [ ] Set the table\n\n## 2 Hours Before\n- [ ] Start oven dishes (potatoes, yemista)\n- [ ] Prepare salad ingredients (don't dress yet)\n- [ ] Slice bread\n- [ ] Arrange cold meze on platters\n\n## 1 Hour Before\n- [ ] Start rice/pasta\n- [ ] Cook hot meze\n- [ ] Grill meats\n- [ ] Warm dips if needed\n\n## 30 Minutes Before\n- [ ] Dress salads\n- [ ] Final seasoning on dishes\n- [ ] Plate and arrange\n- [ ] Pour drinks for arrival\n\n## Key Principles\n- Don't stress about timing — Greek time is flexible\n- Better to have food waiting than guests waiting\n- Let guests snack on meze while you finish\n- Accept help in the kitchen — it's social"
+        }
+      ]
+    },
+    "flow_recipe_create": {
+      "id": "flow_recipe_create",
+      "frontmatter": {},
+      "description": "# Create Greek Recipe\n\nThis flow guides you through creating an authentic Greek recipe with proper techniques and cultural context.\n\n1. [Select Dish Category](1.Select%20Dish%20Category.md)\n2. [Choose Region and Style](2.Choose%20Region%20and%20Style.md)\n3. [Gather Ingredients](3.Gather%20Ingredients.md)\n4. [Prepare Mise en Place](4.Prepare%20Mise%20en%20Place.md)\n5. [Cook with Traditional Techniques](5.Cook%20with%20Traditional%20Techniques.md)\n6. [Season and Adjust](6.Season%20and%20Adjust.md)\n7. [Plate and Serve](7.Plate%20and%20Serve.md)\n",
+      "tasks": [
+        {
+          "order": 1,
+          "name": "Select Dish Category",
+          "frontmatter": {},
+          "instructions": "# Select Dish Category\n\nIdentify the type of dish you want to create. Greek cuisine offers diverse categories:\n\n- **Meze (Μεζέδες)**: Small plates for sharing - dips, cheese, olives\n- **Soups (Σούπες)**: Avgolemono, fasolada, trachanas\n- **Main Courses (Κύρια Πιάτα)**: Moussaka, pastitsio, grilled meats\n- **Seafood (Θαλασσινά)**: Fresh fish, octopus, shrimp saganaki\n- **Vegetarian (Λαδερά)**: Olive oil-based vegetable dishes\n- **Pies (Πίτες)**: Spanakopita, tiropita, regional variations\n- **Desserts (Γλυκά)**: Baklava, galaktoboureko, kourabiedes\n\nConsider the occasion and number of servings needed."
+        },
+        {
+          "order": 2,
+          "name": "Choose Region and Style",
+          "frontmatter": {},
+          "instructions": "# Choose Region and Style\n\nGreek cuisine varies significantly by region. Select the style that fits your dish:\n\n## Mainland Regions\n- **Athens/Attica**: Urban fusion, diverse influences\n- **Thessaloniki**: Ottoman influences, spicier flavors\n- **Peloponnese**: Rustic dishes, olive oil-centric\n- **Epirus**: Mountain cuisine, pies, dairy-rich\n\n## Island Regions  \n- **Crete**: Dakos, wild greens, distinct olive oil\n- **Cyclades**: Simple, fresh seafood, local cheeses\n- **Dodecanese**: Eastern Mediterranean influences\n- **Ionian Islands**: Italian influences, sofrito, pastitsada\n\n## Traditional vs Modern\n- **Παραδοσιακό (Traditional)**: Authentic grandmother recipes\n- **Σύγχρονο (Modern)**: Contemporary interpretations"
+        },
+        {
+          "order": 3,
+          "name": "Gather Ingredients",
+          "frontmatter": {},
+          "instructions": "# Gather Ingredients\n\nAssemble all ingredients, prioritizing authentic Greek products:\n\n## Essential Greek Pantry\n- **Olive Oil**: Extra virgin Greek olive oil (koroneiki variety)\n- **Feta**: P.D.O. Greek feta from sheep/goat milk\n- **Herbs**: Fresh oregano (rigani), dill, mint, parsley\n- **Spices**: Cinnamon, allspice, bay leaves, mastiha\n\n## Fresh Ingredients\n- **Produce**: Tomatoes, eggplant, zucchini, lemons\n- **Aromatics**: Garlic, onions, spring onions\n- **Proteins**: Quality meat, fresh fish, eggs\n\n## Substitution Notes\n- If Greek feta unavailable, use Bulgarian feta (not French)\n- Fresh oregano can be replaced with dried Greek oregano\n- Mastiha can be omitted or replaced with a drop of anise\n\nWeigh and measure everything before starting."
+        },
+        {
+          "order": 4,
+          "name": "Prepare Mise en Place",
+          "frontmatter": {},
+          "instructions": "# Prepare Mise en Place\n\nProper preparation is essential for Greek cooking success:\n\n## Cutting Techniques\n- **Dice onions fine** for sauces, larger for stews\n- **Slice eggplant** consistently for even cooking\n- **Mince garlic** at the last minute to preserve flavor\n- **Chop herbs roughly** — Greeks prefer rustic cuts\n\n## Pre-cooking Steps\n- Salt eggplant slices and let drain (30 minutes)\n- Soak dried beans overnight\n- Bring meat to room temperature\n- Drain and crumble feta as needed\n\n## Organize Your Station\n- Group ingredients by cooking stage\n- Pre-measure olive oil (you'll use plenty)\n- Prepare your cooking vessels\n- Have serving dishes ready\n\n## Equipment Check\n- Heavy-bottomed pans for even heat\n- Clay pots (γιουβέτσι) for traditional cooking\n- Phyllo brush for pies\n- Mortar and pestle for skordalia"
+        },
+        {
+          "order": 5,
+          "name": "Cook with Traditional Techniques",
+          "frontmatter": {},
+          "instructions": "# Cook with Traditional Techniques\n\nApply authentic Greek cooking methods:\n\n## Foundational Techniques\n\n### Yiahni (Γιαχνί)\nSlow-braised dishes in tomato sauce with olive oil. The base of many Greek stews.\n\n### Ladero (Λαδερό)\nVegetables cooked generously in olive oil until meltingly tender. Not stir-fried — slow-cooked.\n\n### Avgolemono (Αυγολέμονο)\nEgg-lemon sauce: temper eggs with hot liquid, never boil after adding.\n\n### Sto Fourno (Στο Φούρνο)\nOven-roasted with lemon, oregano, and olive oil. Low and slow.\n\n## Heat Management\n- Start aromatics in cold olive oil\n- Build layers of flavor — don't rush the sofrito\n- Add wine and let it evaporate\n- Tomatoes go in after onions are soft\n\n## The Greek \"Secret\"\n- More olive oil than you think\n- Fresh lemon at the end\n- Let dishes rest before serving"
+        },
+        {
+          "order": 6,
+          "name": "Season and Adjust",
+          "frontmatter": {},
+          "instructions": "# Season and Adjust\n\nFine-tune your dish with proper Greek seasoning:\n\n## Tasting Protocol\n- Taste throughout cooking, not just at the end\n- Check salt levels after adding feta (it's salty)\n- Balance acidity with sweetness if needed\n\n## Essential Seasonings\n\n### Salt\n- Season in layers during cooking\n- Coarse sea salt for finishing\n- Remember: olives and feta add salt\n\n### Acid\n- Fresh lemon juice is essential\n- Add at the very end for brightness\n- Red wine vinegar for specific dishes\n\n### Herbs (Fresh vs Dried)\n- **Fresh**: Dill, mint, parsley — add at end\n- **Dried**: Oregano — can cook with dish\n- **Bay leaves**: Remove before serving\n\n## Final Adjustments\n- Drizzle with fresh olive oil\n- Add cracked pepper\n- Taste and adjust salt/lemon balance\n- Let flavors meld for a few minutes"
+        },
+        {
+          "order": 7,
+          "name": "Plate and Serve",
+          "frontmatter": {},
+          "instructions": "# Plate and Serve\n\nPresent your dish in the Greek tradition:\n\n## Serving Style\nGreeks serve family-style from shared platters. Individual plating is more modern.\n\n## Traditional Presentation\n- Use simple white or terracotta dishes\n- Generous drizzle of olive oil on top\n- Fresh herbs as garnish (not decorative — to be eaten)\n- Lemon wedges on the side\n- Crusty bread always accompanies the meal\n\n## Temperature\n- Many Greek dishes are served at room temperature\n- Ladera are best not piping hot\n- Grilled items should be served immediately\n- Dips at cool room temperature\n\n## Accompaniments\n- Greek salad (no lettuce — tomato, cucumber, onion, feta)\n- Tzatziki or yogurt\n- Kalamata olives\n- Fresh bread for sopping up sauces\n\n## The Greek Table\n- Serve everything at once (except dessert)\n- Food goes in the center\n- Encourage sharing and conversation\n- No rushing — meals are for enjoying"
+        }
+      ]
+    }
+  },
+  "knowledge": [
+    {
+      "path": "cuisine",
+      "type": "directory",
+      "children": [
+        {
+          "path": "cuisine/cooking-era",
+          "type": "directory",
+          "children": [
+            {
+              "path": "cuisine/cooking-era/modern.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Modern Greek",
+                "description": "Contemporary interpretations of Greek cuisine",
+                "order": "2"
+              },
+              "content": "# Modern Greek Cuisine (Σύγχρονη)\n\nContemporary Greek cooking that honors tradition while embracing innovation and global techniques.\n\n## Characteristics\n- Traditional flavors, modern presentation\n- Lighter preparations\n- International techniques applied to Greek ingredients\n- Restaurant-style plating\n- Fusion elements thoughtfully incorporated\n\n## Modern Approaches\n- Deconstructed classics (moussaka reimagined)\n- Smaller, refined portions\n- Temperature contrasts\n- Texture play\n- Local ingredients showcased creatively\n\n## Notable Influences\n- Athens fine dining scene\n- Greek diaspora chefs returning home\n- Farm-to-table movement\n- Molecular gastronomy (subtle)\n\n## Balance Principle\nAlways maintain connection to Greek flavor profiles:\n- Olive oil remains central\n- Lemon brightness\n- Fresh herbs\n- Feta and yogurt\n- Mediterranean vegetables"
+            },
+            {
+              "path": "cuisine/cooking-era/traditional.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Traditional Era",
+                "description": "Classic grandmother recipes passed down through generations",
+                "order": "1"
+              },
+              "content": "# Traditional Greek Cooking (Παραδοσιακή)\n\nAuthentic recipes as prepared for generations by Greek grandmothers (yiayiades).\n\n## Characteristics\n- Time-honored techniques\n- No shortcuts or modern conveniences\n- Seasonal and local ingredients\n- Recipe by taste, not measurement\n- Stories and traditions attached\n\n## Cooking Style\n- Long, slow cooking times\n- Wood-fired ovens when possible\n- Handmade phyllo dough\n- Fresh herbs from the garden\n- Preserved foods for winter\n\n## Learning Approach\n- Respect the original recipe first\n- Understand why each step exists\n- Taste constantly as yiayia did\n- Accept variation between families\n\n## Common Phrases\n- \"Στο μάτι\" (by eye) — measuring by intuition\n- \"Μέχρι να ροδίσει\" — until it turns golden\n- \"Σιγά-σιγά\" — slowly, slowly"
+            }
+          ],
+          "config": {
+            "label": "Cooking Era",
+            "description": "Traditional grandmother recipes or modern Greek cuisine",
+            "fieldType": "select",
+            "required": false,
+            "default": "traditional",
+            "variableName": "cookingEra",
+            "renderAs": "field"
+          }
+        },
+        {
+          "path": "cuisine/dietary-style",
+          "type": "directory",
+          "children": [
+            {
+              "path": "cuisine/dietary-style/fasting.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Fasting (Nistisimo)",
+                "description": "Vegan Greek cooking for Orthodox fasting periods",
+                "order": "3"
+              },
+              "content": "# Nistisimo (Νηστίσιμο) - Greek Fasting\n\nGreek Orthodox fasting cuisine excludes meat, dairy, eggs, and sometimes oil and wine.\n\n## Fasting Levels\n- **Regular fasting**: No meat, dairy, eggs\n- **Strict fasting**: Also no olive oil or wine\n- **Shellfish allowed**: On most fasting days\n\n## Traditional Fasting Dishes\n- Fasolada (bean soup)\n- Fakes (lentil soup)\n- Revithia (chickpea stew)\n- Dolmades with rice (no meat)\n- Halvas semolina (no butter/eggs)\n- Taramosalata (fish roe is permitted)\n\n## Major Fasting Periods\n- Great Lent (40 days before Easter)\n- Advent (before Christmas)\n- Dormition Fast (August)\n- Apostles' Fast (after Pentecost)\n\n## Tips\n- These dishes are delicious year-round\n- Focus on umami from legumes and tomatoes\n- Tahini replaces dairy for creaminess"
+            },
+            {
+              "path": "cuisine/dietary-style/seafood.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Seafood Focus",
+                "description": "Mediterranean seafood-centric Greek cooking",
+                "order": "4"
+              },
+              "content": "# Seafood-Focused Greek Cooking\n\nIsland and coastal Greek cuisine centering on fresh fish and seafood.\n\n## Key Principles\n- Freshness is paramount\n- Simple preparations highlight quality\n- Olive oil and lemon are essential\n- Don't overcook fish\n\n## Classic Seafood Dishes\n- Grilled whole fish (lavraki, tsipoura)\n- Octopus (grilled, stewed, with pasta)\n- Calamari (fried or stuffed)\n- Shrimp saganaki\n- Kakavia (fisherman's soup)\n- Marinated anchovies\n- Mussels with ouzo\n\n## Cooking Methods\n- **Grilling**: Whole fish with olive oil and lemon\n- **Plaki**: Baked in tomato sauce with vegetables\n- **Saganaki**: Pan-cooked in tomato-feta sauce\n- **Psito**: Oven-roasted with potatoes\n\n## Sourcing Tips\n- Whole fish over fillets\n- Wild-caught when possible\n- Ask your fishmonger what's fresh today"
+            },
+            {
+              "path": "cuisine/dietary-style/traditional.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Traditional",
+                "description": "Classic Greek cooking with all ingredients",
+                "order": "1"
+              },
+              "content": "# Traditional Greek Cooking\n\nFull range of traditional Greek cuisine without dietary restrictions.\n\n## Includes\n- All meats (lamb, pork, chicken, beef)\n- Dairy products (feta, yogurt, cheese)\n- Eggs\n- Seafood\n- All vegetables and legumes\n\n## Typical Meals\nBalanced meals following traditional patterns with protein, vegetables, and starches served family-style.\n\n## Cooking Tips\n- Use generous olive oil\n- Don't rush the cooking process\n- Serve dishes at proper temperature (many are room temp)"
+            },
+            {
+              "path": "cuisine/dietary-style/vegetarian.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Vegetarian (Ladera)",
+                "description": "Greek vegetarian cooking centered on olive oil dishes",
+                "order": "2"
+              },
+              "content": "# Ladera (Λαδερά) - Vegetarian Greek\n\nGreek cuisine has a rich vegetarian tradition called \"ladera\" — dishes cooked in olive oil without meat.\n\n## Philosophy\n- Vegetables as main course, not side dish\n- Olive oil is the star ingredient\n- Slow cooking develops deep flavors\n- Religious fasting created these traditions\n\n## Core Dishes\n- Fasolakia (green beans in tomato)\n- Bamies (okra in tomato sauce)\n- Briam (mixed roasted vegetables)\n- Gigantes plaki (giant beans)\n- Gemista (stuffed vegetables - meatless version)\n- Spanakopita (spinach pie)\n\n## Cooking Tips\n- Don't skimp on olive oil — it's meant to be generous\n- Cook until vegetables are very tender\n- Serve at room temperature\n- Fresh bread is essential"
+            }
+          ],
+          "config": {
+            "label": "Dietary Style",
+            "description": "Dietary preferences or restrictions for the cooking",
+            "fieldType": "select",
+            "required": false,
+            "default": "traditional",
+            "variableName": "dietaryStyle",
+            "renderAs": "field"
+          }
+        },
+        {
+          "path": "cuisine/region",
+          "type": "directory",
+          "children": [
+            {
+              "path": "cuisine/region/crete.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Crete",
+                "description": "Cretan Mediterranean diet and unique ingredients",
+                "order": "2"
+              },
+              "content": "# Crete (Κρήτη)\n\nCretan cuisine is celebrated worldwide as the foundation of the Mediterranean diet, emphasizing wild greens, olive oil, and simple preparation.\n\n## Key Characteristics\n- Exceptionally high olive oil consumption\n- Wild greens (horta) as staple\n- Less meat, more legumes and vegetables\n- Distinctive Cretan cheeses\n- Ancient techniques preserved\n\n## Signature Dishes\n- Dakos (rusks with tomato)\n- Kalitsounia (cheese pies)\n- Antikristo (spit-roasted lamb)\n- Chochlioi boubouristi (snails)\n- Sfakiani pita (cheese pie with honey)\n\n## Pantry Essentials\n- Koroneiki olive oil (Cretan extra virgin)\n- Rusks (paximadia)\n- Mizithra and graviera cheese\n- Wild honey\n- Dried carob"
+            },
+            {
+              "path": "cuisine/region/cyclades.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Cyclades Islands",
+                "description": "Simple, fresh island cooking with seafood focus",
+                "order": "3"
+              },
+              "content": "# Cyclades (Κυκλάδες)\n\nThe Cycladic islands (Santorini, Mykonos, Paros, Naxos) feature simple, fresh cuisine shaped by the sea and volcanic soil.\n\n## Key Characteristics\n- Fresh seafood emphasis\n- Local cheeses (each island unique)\n- Volcanic soil ingredients (Santorini)\n- Simple preparations highlight quality\n- Wind-dried fish and meats\n\n## Signature Dishes\n- Fava Santorinis (split pea purée)\n- Amorgos pasteli (sesame bars)\n- Sun-dried octopus\n- Kopanisti (spicy cheese)\n- Tomatokeftedes (tomato fritters)\n\n## Pantry Essentials\n- Cherry tomatoes (Santorini PDO)\n- Capers\n- Local cheese varieties\n- White eggplant\n- Assyrtiko wine (for cooking and drinking)"
+            },
+            {
+              "path": "cuisine/region/ionian-islands.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Ionian Islands",
+                "description": "Western Greek cuisine with Italian influences",
+                "order": "5"
+              },
+              "content": "# Ionian Islands (Επτάνησα)\n\nCorfu, Zakynthos, Kefalonia and the Ionian islands show strong Venetian and Italian influences from centuries of rule.\n\n## Key Characteristics\n- Italian-influenced techniques\n- Garlic used more liberally\n- Wine-based sauces\n- Unique spice combinations\n- Less Ottoman, more Western European influence\n\n## Signature Dishes\n- Sofrito (veal in garlic-wine sauce)\n- Pastitsada (spiced meat stew with pasta)\n- Bourdeto (spicy fish stew)\n- Mandolato (nougat)\n- Bianco (white fish soup)\n\n## Pantry Essentials\n- White wine\n- Nutmeg and cloves\n- Fresh parsley (more than other regions)\n- Local olive oils\n- Graviera cheese"
+            },
+            {
+              "path": "cuisine/region/mainland-general.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Mainland Greece",
+                "description": "General mainland Greek cooking traditions",
+                "order": "1"
+              },
+              "content": "# Mainland Greece\n\nTraditional cooking from the Greek mainland, combining influences from various regions.\n\n## Key Characteristics\n- Generous use of olive oil\n- Fresh herbs: oregano, thyme, bay leaves\n- Lemon as essential flavoring\n- Slow-cooked meat and vegetable dishes\n\n## Signature Dishes\n- Moussaka\n- Pastitsio\n- Lamb kleftiko\n- Fassolada (bean soup)\n- Kokoretsi\n\n## Pantry Essentials\n- Extra virgin olive oil (Peloponnese or Kalamata)\n- Dried oregano (rigani)\n- Feta cheese (PDO)\n- Kalamata olives\n- Honey (thyme or pine)"
+            },
+            {
+              "path": "cuisine/region/northern-greece.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Northern Greece",
+                "description": "Thessaloniki and Macedonia's Ottoman-influenced cuisine",
+                "order": "4"
+              },
+              "content": "# Northern Greece (Βόρεια Ελλάδα)\n\nThessaloniki and the wider Macedonia region feature robust, hearty cuisine with distinct Ottoman and Balkan influences.\n\n## Key Characteristics\n- Richer, spicier flavors\n- More use of red pepper and paprika\n- Substantial meat dishes\n- Ottoman pastry influences\n- Dairy and cheese emphasis\n\n## Signature Dishes\n- Bougatsa (cream-filled phyllo)\n- Soutzoukakia (spiced meatballs)\n- Gyros (originated here)\n- Koulouri Thessalonikis\n- Kavourmas (cured meat)\n\n## Pantry Essentials\n- Red pepper flakes (bukovo)\n- Kasseri cheese\n- Phyllo dough\n- Smoked meats\n- Trahanas (fermented grain)"
+            }
+          ],
+          "config": {
+            "label": "Region",
+            "description": "The Greek region whose culinary traditions to follow",
+            "fieldType": "select",
+            "required": true,
+            "default": "mainland-general",
+            "variableName": "region",
+            "renderAs": "field"
+          }
+        }
+      ],
+      "config": {
+        "label": "Greek Cuisine",
+        "description": "Regional styles, culinary traditions, and dietary preferences in Greek cooking",
+        "icon": "🇬🇷",
+        "color": "#0D5EAF",
+        "renderAs": "section"
+      }
+    },
+    {
+      "path": "ingredients",
+      "type": "directory",
+      "children": [
+        {
+          "path": "ingredients/main-ingredient",
+          "type": "directory",
+          "children": [
+            {
+              "path": "ingredients/main-ingredient/chicken.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Chicken",
+                "description": "Versatile poultry for everyday Greek meals",
+                "order": "3"
+              },
+              "content": "# Chicken (Κοτόπουλο)\n\nChicken is a staple protein in Greek cooking, prepared simply with robust Mediterranean flavors.\n\n## Best Cuts\n- **Whole bird**: Roasting, traditional\n- **Thighs (Μπουτάκια)**: Braising, grilling\n- **Breast (Στήθος)**: Souvlaki, quick dishes\n- **Wings (Φτερούγες)**: Lemon-roasted\n\n## Classic Preparations\n- Kotopoulo lemonato (lemon chicken with potatoes)\n- Chicken stifado (with pearl onions)\n- Kotopoulo kokkinisto (in tomato sauce)\n- Chicken souvlaki\n- Kotosoupa avgolemono (chicken soup)\n\n## Cooking Tips\n- Dark meat holds up better to Greek slow-cooking\n- Marinate with yogurt for tenderness\n- Chicken with lemon and oregano is foolproof\n- Skin-on for roasting, skinless for stews\n\n## Avgolemono Soup\nThe classic Greek comfort dish:\n- Whole chicken simmered with rice\n- Finished with egg-lemon sauce\n- Perfect for cold weather and recovery"
+            },
+            {
+              "path": "ingredients/main-ingredient/fish.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Fish",
+                "description": "Fresh Mediterranean fish for Greek seafood dishes",
+                "order": "4"
+              },
+              "content": "# Fish (Ψάρι)\n\nFresh fish is the pride of coastal Greek cuisine, prepared simply to showcase quality.\n\n## Common Greek Fish\n- **Lavraki (Sea Bass)**: Most prized, grilled whole\n- **Tsipoura (Sea Bream)**: Sweet, delicate flesh\n- **Barbounia (Red Mullet)**: Small, pan-fried whole\n- **Bakaliaros (Cod)**: Salted/fresh, fried with skordalia\n- **Sardeles (Sardines)**: Grilled, fried, or marinated\n- **Marides (Whitebait)**: Dusted and fried crispy\n\n## Cooking Methods\n- **Grilling**: Whole fish, olive oil, lemon\n- **Plaki**: Baked with tomatoes and vegetables\n- **Fried**: Dusted in flour, fried crispy\n- **Marinated**: Raw or cured with lemon\n\n## Cooking Tips\n- Fresh fish should smell like the sea, not fishy\n- Score flesh for even cooking\n- Don't flip fish more than once\n- Let rest 2-3 minutes before serving\n- Always have lemon wedges available\n\n## The Greek Way\nWhole fish, simply grilled, is considered the finest meal. Don't complicate perfection."
+            },
+            {
+              "path": "ingredients/main-ingredient/lamb.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Lamb",
+                "description": "The quintessential Greek protein",
+                "order": "1"
+              },
+              "content": "# Lamb (Αρνί)\n\nLamb is the most celebrated meat in Greek cuisine, central to holidays and special occasions.\n\n## Best Cuts\n- **Leg (Μπούτι)**: Roasting, kleftiko\n- **Shoulder (Σπάλα)**: Braising, slow-cooking\n- **Chops (Παϊδάκια)**: Grilling\n- **Ground (Κιμάς)**: Moussaka, keftedes\n\n## Classic Preparations\n- Arni kleftiko (parchment-roasted)\n- Arni yiouvetsi (with orzo)\n- Lamb souvlaki\n- Whole roasted lamb (Easter)\n- Arnaki fricassee (with lettuce and dill)\n\n## Cooking Tips\n- Bring to room temperature before cooking\n- Greek lamb is smaller than American — adjust times\n- Pair with lemon, oregano, and garlic\n- Don't skip the fat — it's flavorful\n- Rest well before cutting\n\n## Sourcing\n- Young lamb preferred (milk-fed best)\n- Look for Greek or Mediterranean lamb if possible\n- Spring lamb is most prized"
+            },
+            {
+              "path": "ingredients/main-ingredient/legumes.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Legumes",
+                "description": "Beans, lentils, and chickpeas for hearty Greek dishes",
+                "order": "6"
+              },
+              "content": "# Legumes (Όσπρια)\n\nLegumes are the backbone of Greek home cooking — nutritious, economical, and delicious.\n\n## Essential Legumes\n- **Fasolia (White Beans)**: Fasolada, gigantes\n- **Fakes (Lentils)**: Lentil soup\n- **Revithia (Chickpeas)**: Stews, salads\n- **Koukia (Fava Beans)**: Fresh or dried\n- **Fava (Split Peas)**: Santorini specialty\n\n## Classic Preparations\n- Fasolada — the national dish (bean soup)\n- Gigantes plaki — giant beans in tomato\n- Fakes — lentil soup with vinegar\n- Fava — Santorini split pea purée\n- Revithada — chickpea stew (Sifnos)\n\n## Cooking Tips\n- Soak dried beans overnight (except lentils)\n- Add salt after cooking (prevents tough skins)\n- Dried beans need 1-2 hours cooking\n- Finish with olive oil and lemon\n- Better the next day\n\n## Fasting Food\nLegumes are central to Greek Orthodox fasting — satisfying, protein-rich, and meat-free."
+            },
+            {
+              "path": "ingredients/main-ingredient/pork.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Pork",
+                "description": "Everyday protein in Greek cooking",
+                "order": "2"
+              },
+              "content": "# Pork (Χοιρινό)\n\nPork is the most common everyday meat in Greek households, versatile and economical.\n\n## Best Cuts\n- **Tenderloin (Φιλέτο)**: Quick cooking, souvlaki\n- **Shoulder (Σπάλα)**: Braising, slow cooking\n- **Chops (Μπριζόλες)**: Grilling, pan-frying\n- **Belly (Λαρδί)**: Crispy roast pork\n\n## Classic Preparations\n- Tigania (pan-fried with wine and peppers)\n- Hirino me selino (pork with celery avgolemono)\n- Pork souvlaki\n- Christmas roast pork\n- Cured pork products (syglino, apaki)\n\n## Cooking Tips\n- Don't overcook — modern pork can be slightly pink\n- Wine deglazing is essential for pan dishes\n- Complement with dried herbs and citrus\n- Fat renders well for crispy results\n\n## Regional Notes\n- Apaki (smoked pork) from Crete\n- Syglino from Mani peninsula\n- Traditionally cured for winter months"
+            },
+            {
+              "path": "ingredients/main-ingredient/vegetables.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Vegetables",
+                "description": "Plant-based main ingredients for Greek dishes",
+                "order": "5"
+              },
+              "content": "# Vegetables (Λαχανικά)\n\nIn Greek cuisine, vegetables are often the main event, not just accompaniments.\n\n## Star Vegetables\n- **Eggplant (Μελιτζάνα)**: Moussaka, melitzanosalata, imam baildi\n- **Tomatoes (Ντομάτες)**: Base of many sauces, stuffed\n- **Zucchini (Κολοκύθια)**: Fritters, stuffed, in pies\n- **Green Beans (Φασολάκια)**: Ladera dishes\n- **Peppers (Πιπεριές)**: Stuffed, roasted, fried\n\n## Ladera Philosophy\nVegetables slow-cooked in generous olive oil until meltingly tender. Not stir-fried or crisp-tender.\n\n## Classic Preparations\n- Gemista (stuffed tomatoes and peppers)\n- Briam (roasted vegetable medley)\n- Imam baildi (stuffed eggplant)\n- Fasolakia (green beans in tomato)\n- Bamies (okra in tomato sauce)\n- Kolokithokeftedes (zucchini fritters)\n\n## Wild Greens (Horta)\nEssential to Greek diet:\n- Foraged dandelion, chicory, wild spinach\n- Boiled, dressed with olive oil and lemon\n- Serve at room temperature"
+            }
+          ],
+          "config": {
+            "label": "Main Ingredient",
+            "description": "Primary protein or base ingredient for the dish",
+            "fieldType": "select",
+            "required": true,
+            "default": "lamb",
+            "variableName": "mainIngredient",
+            "renderAs": "field"
+          }
+        },
+        {
+          "path": "ingredients/olive-oil",
+          "type": "directory",
+          "children": [
+            {
+              "path": "ingredients/olive-oil/extra-virgin.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Extra Virgin Olive Oil",
+                "description": "Premium Greek olive oil for finishing and light cooking",
+                "order": "1"
+              },
+              "content": "# Extra Virgin Olive Oil (Εξαιρετικό Παρθένο)\n\nThe gold standard for Greek cooking — use generously and proudly.\n\n## Characteristics\n- First cold pressing\n- Acidity below 0.8%\n- Distinct fruity/peppery notes\n- Green to golden color\n\n## Greek Varieties\n- **Koroneiki** (Peloponnese): Most common, balanced\n- **Kolovi** (Lesbos): Gentle, fruity\n- **Adramytini** (Northern Greece): Aromatic\n- **Tsounati** (Crete): Robust, peppery\n\n## Best Uses\n- Finishing dishes (drizzle to serve)\n- Salad dressings\n- Dips (tzatziki, fava)\n- Low-heat sautéing\n- Bread dipping\n\n## Quality Indicators\n- Harvest date on label (fresher = better)\n- Dark bottle (protects from light)\n- Peppery finish (polyphenols)\n- Single origin preferred\n\n## Greek Wisdom\n\"Λάδι στο λάδι\" — oil upon oil. In Greek cooking, there's no such thing as too much good olive oil."
+            },
+            {
+              "path": "ingredients/olive-oil/pure.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Pure/Light Olive Oil",
+                "description": "Refined olive oil for high-heat cooking and frying",
+                "order": "2"
+              },
+              "content": "# Pure/Light Olive Oil\n\nRefined olive oil suitable for high-heat cooking where extra virgin would burn.\n\n## Characteristics\n- Blend of refined and virgin olive oil\n- Higher smoke point (~465°F / 240°C)\n- Neutral flavor\n- Lighter color\n\n## Best Uses\n- Deep frying\n- High-heat sautéing  \n- Baking (when neutral flavor needed)\n- General cooking base\n\n## Greek Frying Tradition\nGreeks traditionally fry in olive oil (not vegetable oil):\n- Fried fish and seafood\n- Keftedes (meatballs)\n- Fried potatoes\n- Zucchini fritters\n\n## Tips\n- Can be reused 2-3 times if strained\n- Still healthier than seed oils\n- Combine with butter for flavor\n- Finish fried dishes with extra virgin drizzle\n\n## Note\nMany Greeks use extra virgin for everything, including frying. The oil degrades but remains usable. Budget accordingly."
+            }
+          ],
+          "config": {
+            "label": "Olive Oil Quality",
+            "description": "Grade of olive oil to use in cooking",
+            "fieldType": "select",
+            "required": false,
+            "default": "extra-virgin",
+            "variableName": "oliveOilQuality",
+            "renderAs": "field"
+          }
+        },
+        {
+          "path": "ingredients/season",
+          "type": "directory",
+          "children": [
+            {
+              "path": "ingredients/season/autumn.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Autumn",
+                "description": "Grape harvest, wild mushrooms, and transition ingredients",
+                "order": "3"
+              },
+              "content": "# Autumn (Φθινόπωρο)\n\nHarvest season brings grapes, mushrooms, and the transition to heartier dishes.\n\n## Peak Ingredients\n- Grapes (wine-making season)\n- Wild mushrooms\n- Quinces (kydonia)\n- Pomegranates\n- Chestnuts\n- Late figs\n- Squash and pumpkin\n- Fresh olive oil (new harvest!)\n\n## Seasonal Dishes\n- Stifado (beef or rabbit with onions)\n- Quince spoon sweet\n- Mushroom dishes\n- Pumpkin pie (kolokythopita)\n- Trahanas soup\n- Chestnut desserts\n\n## New Olive Oil (Agourelaio)\nThe first pressing of the season:\n- Vibrant green color\n- Peppery, intense flavor\n- Best drizzled fresh\n- Greeks celebrate this moment\n\n## Cooking Transition\n- Shift to oven-braised dishes\n- Start slow-cooking stews\n- Preserve summer's bounty\n- Prepare pantry for winter"
+            },
+            {
+              "path": "ingredients/season/spring.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Spring",
+                "description": "Fresh greens, Easter lamb, and rebirth ingredients",
+                "order": "1"
+              },
+              "content": "# Spring (Άνοιξη)\n\nSpring brings tender new ingredients and the most important Greek holiday — Easter.\n\n## Peak Ingredients\n- Young lamb (milk-fed)\n- Artichokes (aginares)\n- Fresh broad beans (koukia)\n- Wild greens at their best\n- Fresh dill and fennel\n- Spring onions\n- Green almonds\n- Fresh peas\n\n## Seasonal Dishes\n- Artichokes à la polita\n- Lamb fricassee with lettuce\n- Fresh fava beans with dill\n- Magiritsa (Easter soup)\n- Kokoretsi (Easter offal)\n- Tsoureki (Easter bread)\n\n## Easter (Πάσχα)\nThe biggest Greek celebration:\n- Lamb is mandatory\n- Red eggs (kokkina avga)\n- Magiritsa on Saturday midnight\n- Whole lamb on Sunday\n- Kourabiedes and tsoureki\n\n## Cooking Notes\n- Vegetables are tender — shorter cooking times\n- Fresh artichokes need lemon water to prevent browning\n- Take advantage of wild horta abundance"
+            },
+            {
+              "path": "ingredients/season/summer.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Summer",
+                "description": "Fresh tomatoes, seafood, and outdoor grilling season",
+                "order": "2"
+              },
+              "content": "# Summer (Καλοκαίρι)\n\nGreek summer means ripe tomatoes, fresh seafood, and long outdoor meals.\n\n## Peak Ingredients\n- Tomatoes at their best\n- Eggplant (melitzana)\n- Zucchini and its flowers\n- Fresh figs\n- Watermelon\n- Fresh fish and seafood\n- Peppers of all varieties\n- Cucumbers\n- Peaches and apricots\n\n## Seasonal Dishes\n- Greek salad (horiatiki) — peak season\n- Gemista (stuffed vegetables)\n- Briam (summer vegetable roast)\n- Grilled fresh fish\n- Melitzanosalata\n- Kolokithokeftedes (zucchini fritters)\n- Spoon sweets from summer fruit\n\n## Cooking Style\n- Lighter preparations\n- Room temperature dishes (ladera)\n- Grilling outdoors\n- Fresh over cooked\n- Stay hydrated!\n\n## Entertaining\nSummer evenings are made for:\n- Meze on the veranda\n- Ouzo and tsipouro\n- Grilled seafood\n- Fresh watermelon to finish"
+            },
+            {
+              "path": "ingredients/season/winter.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Winter",
+                "description": "Hearty stews, citrus, and Christmas celebrations",
+                "order": "4"
+              },
+              "content": "# Winter (Χειμώνας)\n\nGreek winter cooking is all about warmth, comfort, and holiday celebrations.\n\n## Peak Ingredients\n- Citrus (oranges, lemons, mandarins)\n- Cabbage and leafy greens\n- Root vegetables\n- Dried legumes\n- Preserved meats\n- Fresh pork (slaughter season)\n- Cauliflower\n- Celery root\n\n## Seasonal Dishes\n- Avgolemono soup\n- Fasolada (bean soup)\n- Pork with celery (hirino me selino)\n- Lahano dolmades (cabbage rolls)\n- Portokalopita (orange cake)\n- Karydopita (walnut cake)\n- Christmas cookies (melomakarona, kourabiedes)\n\n## Holiday Cooking\n**Christmas (Χριστούγεννα)**\n- Roast pork or turkey\n- Christopsomo (Christmas bread)\n- Melomakarona and kourabiedes mandatory\n\n**New Year (Πρωτοχρονιά)**\n- Vasilopita (coin cake)\n- Pork continues\n- Good luck foods\n\n## Cooking Style\n- Long braises and stews\n- Oven dishes\n- Warm soups\n- Hearty legumes\n- Preserved ingredients shine"
+            }
+          ],
+          "config": {
+            "label": "Season",
+            "description": "Current season affecting ingredient availability",
+            "fieldType": "select",
+            "required": false,
+            "default": "summer",
+            "variableName": "season",
+            "renderAs": "field"
+          }
+        }
+      ],
+      "config": {
+        "label": "Ingredients",
+        "description": "Core Greek ingredients, seasonal availability, and substitutions",
+        "icon": "🫒",
+        "color": "#84CC16",
+        "renderAs": "section"
+      }
+    },
+    {
+      "path": "meal",
+      "type": "directory",
+      "children": [
+        {
+          "path": "meal/dish-type",
+          "type": "directory",
+          "children": [],
+          "config": {
+            "label": "Dish Type",
+            "description": "Category of dish to prepare",
+            "fieldType": "select",
+            "required": true,
+            "default": "main-course",
+            "variableName": "dishType",
+            "renderAs": "field"
+          }
+        },
+        {
+          "path": "meal/occasion",
+          "type": "directory",
+          "children": [],
+          "config": {
+            "label": "Occasion",
+            "description": "Type of event or gathering for the meal",
+            "fieldType": "select",
+            "required": false,
+            "default": "everyday",
+            "variableName": "occasion",
+            "renderAs": "field"
+          }
+        },
+        {
+          "path": "meal/serving-size",
+          "type": "directory",
+          "children": [],
+          "config": {
+            "label": "Serving Size",
+            "description": "Number of people to feed",
+            "fieldType": "select",
+            "required": false,
+            "default": "family",
+            "variableName": "servingSize",
+            "renderAs": "field"
+          }
+        }
+      ],
+      "config": {
+        "label": "Meal Planning",
+        "description": "Meal types, occasions, courses, and serving configurations",
+        "icon": "🍽️",
+        "color": "#8B5CF6",
+        "renderAs": "section"
+      }
+    },
+    {
+      "path": "technique",
+      "type": "directory",
+      "children": [
+        {
+          "path": "technique/cooking-method",
+          "type": "directory",
+          "children": [
+            {
+              "path": "technique/cooking-method/braised.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Stovetop Braised",
+                "description": "Slow-cooked dishes in sauce (yiahni style)",
+                "order": "3"
+              },
+              "content": "# Stovetop Braised (Κατσαρόλα / Γιαχνί)\n\nSlow-simmered dishes in sauce — the heart of Greek home cooking.\n\n## Technique Basics\n- Start with softened aromatics\n- Build flavor in layers\n- Low heat, long time\n- Don't rush the process\n\n## Yiahni Method\nThe foundational technique:\n1. Sweat onions in olive oil until soft\n2. Add garlic briefly\n3. Add tomato paste, stir 1 minute\n4. Add tomatoes and liquid\n5. Add meat or vegetables\n6. Simmer until very tender\n\n## Classic Braised Dishes\n- Keftedes (meatballs in sauce)\n- Soutzoukakia (spiced meatballs)\n- Beef stifado (with pearl onions)\n- Fasolakia yiahni (green beans)\n- Octopus stifado\n- Moschari kokkinisto (beef in tomato)\n\n## Tips\n- Taste and adjust seasoning throughout\n- Add water if reducing too fast\n- Cinnamon and allspice are common\n- Finish with fresh parsley\n\n## Timing\nMost braised dishes need 1-2 hours minimum. Better the next day."
+            },
+            {
+              "path": "technique/cooking-method/fried.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Fried",
+                "description": "Pan-frying and deep-frying Greek specialties",
+                "order": "4"
+              },
+              "content": "# Fried (Τηγανητά)\n\nGreeks love fried food — from fish to cheese to vegetables.\n\n## Technique Basics\n- Use olive oil (traditional)\n- Moderate temperature (not smoking)\n- Don't overcrowd the pan\n- Drain on paper towels\n- Serve immediately\n\n## Pan-Fried Dishes\n- Small fish (marides, barbounia)\n- Saganaki (fried cheese)\n- Keftedakia (mini meatballs)\n- Tigania (pork pan-fried with wine)\n- Eggs (Greek-style with olive oil)\n\n## Deep-Fried Dishes\n- Kalamari (squid rings)\n- Bakaliaros (cod)\n- Kolokithokeftedes (zucchini fritters)\n- Tyropitakia (cheese triangles)\n- Loukoumades (honey puffs)\n\n## Flour Coating\nFor fish and vegetables:\n- Light flour dusting\n- No batter typically\n- Seasoned flour (salt, pepper)\n- Shake off excess\n\n## The Greek Touch\n- Serve with lemon wedges always\n- Skordalia (garlic dip) for fish\n- Tzatziki for fritters\n- Hot from the pan to plate"
+            },
+            {
+              "path": "technique/cooking-method/grilled.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Grilled",
+                "description": "Open flame cooking for meats and seafood",
+                "order": "2"
+              },
+              "content": "# Grilled (Στα Κάρβουνα)\n\nCharcoal grilling is beloved in Greece — for souvlaki, fish, and more.\n\n## Technique Basics\n- Charcoal preferred over gas\n- High heat for souvlaki, moderate for fish\n- Oil the food, not the grill\n- Let rest before serving\n\n## Classic Grilled Items\n- Souvlaki (pork, chicken, lamb)\n- Whole fish (lavraki, tsipoura)\n- Lamb chops (paidakia)\n- Biftekia (Greek burgers)\n- Octopus\n- Halloumi cheese\n- Vegetables (peppers, eggplant)\n\n## Greek Grilling Style\n- Marinate with olive oil, lemon, oregano\n- Don't over-flip — once is enough\n- Squeeze lemon at the table\n- Serve immediately\n\n## Souvlaki Specifics\n- Cut meat in 1-inch cubes\n- Alternate with onion/pepper optional\n- Grill hot and fast\n- Rest briefly, serve in pita\n\n## Equipment\n- Charcoal grill (foukou)\n- Metal skewers (souvles)\n- Grill basket for fish\n- Wire brush for cleaning"
+            },
+            {
+              "path": "technique/cooking-method/ladera.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Ladera (Olive Oil Stewed)",
+                "description": "Vegetable dishes cooked in generous olive oil",
+                "order": "5"
+              },
+              "content": "# Ladera (Λαδερά)\n\nUnique Greek technique: vegetables slow-cooked in olive oil until meltingly tender.\n\n## Philosophy\n- Olive oil is a primary ingredient, not a cooking fat\n- Vegetables cook until very soft (not crisp-tender)\n- Served at room temperature\n- Perfect for fasting periods\n- Improves overnight\n\n## Technique\n1. Sauté aromatics in generous olive oil\n2. Add vegetables\n3. Add tomatoes (usually)\n4. Add water to almost cover\n5. Simmer uncovered until oil rises\n6. Cool to room temperature\n\n## Classic Ladera Dishes\n- Fasolakia (green beans)\n- Bamies (okra)\n- Arakas (peas)\n- Gigantes plaki (giant beans)\n- Imam baildi (stuffed eggplant)\n- Briam (mixed vegetables)\n- Aginares ala polita (artichokes)\n\n## How Much Oil?\nMore than you think. Traditionally, the oil should \"swim\" on top when done. At least 1/2 cup for a pot.\n\n## Serving\n- Room temperature (not cold, not hot)\n- Fresh bread for sopping\n- Feta cheese on the side\n- Squeeze of lemon optional"
+            },
+            {
+              "path": "technique/cooking-method/oven-roasted.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Oven-Roasted",
+                "description": "Traditional Greek oven cooking (sto fourno)",
+                "order": "1"
+              },
+              "content": "# Oven-Roasted (Στο Φούρνο)\n\nThe most common method in Greek home cooking — set it and forget it.\n\n## Technique Basics\n- Low and slow is typical (150-180°C / 300-350°F)\n- Generous olive oil base\n- Lemon and oregano finish\n- Cover early, uncover to brown\n\n## Classic Oven Dishes\n- Whole roast lamb or chicken with potatoes\n- Moussaka and pastitsio\n- Yemista (stuffed vegetables)\n- Yiouvetsi (meat with orzo)\n- Briam (vegetable medley)\n- Fish plaki\n\n## Equipment\n- Heavy roasting pan (tapsi)\n- Clay pots for traditional cooking\n- Parchment for kleftiko-style\n\n## Greek Oven Wisdom\n- Potatoes absorb meat juices beautifully\n- Turn items midway for even cooking\n- Baste with pan juices\n- Rest meat before cutting\n- Everything is better next day\n\n## Temperature Guide\n- Quick roast: 200°C / 400°F (40-60 min)\n- Standard: 180°C / 350°F (1-2 hours)\n- Low and slow: 150°C / 300°F (3+ hours)"
+            }
+          ],
+          "config": {
+            "label": "Cooking Method",
+            "description": "Primary technique for preparing the dish",
+            "fieldType": "select",
+            "required": true,
+            "default": "oven-roasted",
+            "variableName": "cookingMethod",
+            "renderAs": "field"
+          }
+        },
+        {
+          "path": "technique/equipment",
+          "type": "directory",
+          "children": [
+            {
+              "path": "technique/equipment/outdoor-grill.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Outdoor Grill",
+                "description": "Charcoal or gas grill for Greek-style cooking",
+                "order": "2"
+              },
+              "content": "# Outdoor Grill (Ψησταριά)\n\nEssential for authentic Greek grilled dishes — preferably charcoal.\n\n## Ideal Setup\n- Charcoal grill (preferred)\n- Gas grill (acceptable)\n- Multiple heat zones\n- Lid for indirect cooking\n\n## Greek Grilling Equipment\n- Metal souvlaki skewers (flat, not round)\n- Long tongs\n- Fish grilling basket\n- Basting brush\n- Heat-resistant gloves\n\n## Best For\n- Souvlaki of all types\n- Paidakia (lamb chops)\n- Whole fish\n- Biftekia\n- Grilled halloumi\n- Grilled vegetables\n- Octopus\n\n## Charcoal Tips\n- Wait for white ash coating\n- Create hot and cool zones\n- Don't flip too often\n- Rest meat off the grill\n\n## Greek Tradition\nSunday grilling is a social event. The grill master (usually male, traditionally) tends the fire while others prepare sides and enjoy drinks."
+            },
+            {
+              "path": "technique/equipment/standard-kitchen.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Standard Kitchen",
+                "description": "Basic home kitchen equipment",
+                "order": "1"
+              },
+              "content": "# Standard Kitchen\n\nEssential equipment found in any home kitchen — sufficient for most Greek cooking.\n\n## Basic Equipment\n- Chef's knife and paring knife\n- Cutting boards\n- Large stock pot\n- Medium saucepan\n- Large skillet/frying pan\n- Baking sheets\n- 9x13 baking dish\n- Mixing bowls\n- Colander\n\n## Greek Essentials\n- Heavy roasting pan (tapsi)\n- Large deep skillet with lid\n- Wooden spoons\n- Kitchen towels (many!)\n- Lemon squeezer\n\n## What You Can Make\n- All soups and stews\n- Ladera dishes\n- Simple roasts\n- Pan-fried dishes\n- Salads and dips\n- Most baked dishes\n\n## Nice to Have\n- Food processor (for dips)\n- Immersion blender\n- Kitchen scale\n- Instant-read thermometer\n\n## Greek Kitchen Philosophy\nGreek cooking doesn't require fancy equipment. Simple tools, quality ingredients, and patience are the keys."
+            },
+            {
+              "path": "technique/equipment/traditional.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Traditional Equipment",
+                "description": "Authentic Greek cooking vessels and tools",
+                "order": "3"
+              },
+              "content": "# Traditional Equipment\n\nSpecialty items for authentic Greek cooking experiences.\n\n## Clay Cookware\n- **Giouvetsi pot**: Clay pot for oven-baked dishes with orzo\n- **Briki**: Small pot for Greek coffee\n- **Saganaki pan**: Two-handled small frying pan\n\n## Phyllo Tools\n- Rolling pin (long, thin style)\n- Pastry brush (for butter)\n- Clean tablecloth (for stretching)\n\n## Specialty Items\n- Mortar and pestle (for skordalia)\n- Cheese grater (for graviera, kefalotyri)\n- Mandoline (for even vegetable slices)\n- Meat grinder or attachment\n\n## Traditional Baking\n- Circular baking pans (for pies)\n- Tapsi (large rectangular roasting pan)\n- Clay bread dome (for village bread)\n\n## Where to Find\n- Greek specialty stores\n- Mediterranean markets\n- Online retailers\n- Bring back from Greece!\n\n## Worth the Investment\n- Quality clay pots last generations\n- Traditional briki makes better coffee\n- Heavy tapsi distributes heat evenly\n- Good mortar produces better texture"
+            }
+          ],
+          "config": {
+            "label": "Equipment",
+            "description": "Kitchen equipment available for cooking",
+            "fieldType": "multiSelect",
+            "required": false,
+            "default": "standard-kitchen",
+            "variableName": "equipment",
+            "renderAs": "field"
+          }
+        },
+        {
+          "path": "technique/skill-level",
+          "type": "directory",
+          "children": [
+            {
+              "path": "technique/skill-level/advanced.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Advanced",
+                "description": "Complex techniques for experienced cooks",
+                "order": "3"
+              },
+              "content": "# Advanced Level (Προχωρημένος)\n\nFor cooks ready to tackle complex Greek specialties.\n\n## Characteristics\n- Multi-day preparation\n- Precise technique required\n- Multiple advanced skills combined\n- High stakes (expensive ingredients)\n- Traditional mastery\n\n## Advanced Dishes\n- Handmade phyllo dough\n- Galaktoboureko (custard in phyllo)\n- Whole roasted lamb\n- Kokoretsi (Easter offal)\n- Handmade pasta (hilopites)\n- Complex baklava\n- Preserved foods (spoon sweets)\n- Magiritsa (Easter soup)\n\n## Skills Required\n- Phyllo rolling and stretching\n- Custard making\n- Syrup temperatures\n- Whole animal butchery\n- Preservation techniques\n- Perfect timing on proteins\n- Multi-course orchestration\n\n## Challenges\n- Phyllo tears easily\n- Custard can curdle\n- Syrup crystallization\n- Offal preparation\n- Holiday meal timing\n\n## The Yiayia Standard\nThese are dishes that take years to perfect. Expect to make them many times before mastery. Even grandmothers continue improving."
+            },
+            {
+              "path": "technique/skill-level/beginner.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Beginner",
+                "description": "Simple recipes for new cooks",
+                "order": "1"
+              },
+              "content": "# Beginner Level (Αρχάριος)\n\nPerfect Greek dishes for those just starting their cooking journey.\n\n## Characteristics\n- Few ingredients\n- Forgiving techniques\n- 30 minutes or less active time\n- Minimal knife work\n- Hard to mess up\n\n## Beginner-Friendly Dishes\n- Greek salad (no cooking!)\n- Tzatziki (mixing only)\n- Horta (boiled greens with olive oil)\n- Fakes (lentil soup)\n- Greek omelette\n- Grilled cheese (saganaki)\n- Simple grilled chicken\n\n## Skills to Learn\n- Properly dressing a salad\n- Salting eggplant\n- Boiling and draining\n- Basic knife cuts\n- Timing pasta/rice\n\n## Tips for Success\n- Read recipe fully before starting\n- Prep all ingredients first (mise en place)\n- Taste as you go\n- Use a timer\n- Don't be afraid of olive oil\n\n## Equipment Needed\n- Good chef's knife\n- Cutting board\n- Large pot\n- Skillet/frying pan\n- Colander"
+            },
+            {
+              "path": "technique/skill-level/intermediate.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Intermediate",
+                "description": "Most traditional Greek recipes",
+                "order": "2"
+              },
+              "content": "# Intermediate Level (Μέτριος)\n\nThe sweet spot for most authentic Greek home cooking.\n\n## Characteristics\n- Multiple components\n- 1-2 hours total time\n- Layered techniques\n- Some timing coordination\n- Building flavor profiles\n\n## Intermediate Dishes\n- Moussaka (layered casserole)\n- Pastitsio (pasta bake)\n- Gemista (stuffed vegetables)\n- Lamb kleftiko\n- Keftedes (meatballs)\n- Spanakopita (using store phyllo)\n- Most meat stews\n\n## Skills Required\n- Béchamel sauce\n- Proper meat browning\n- Sauce making\n- Multiple burner management\n- Vegetable prep techniques\n- Basic sauce emulsion (avgolemono)\n\n## Challenges to Master\n- Timing multiple dishes\n- Not overcooking proteins\n- Seasoning in layers\n- Proper resting\n- Temperature control\n\n## Growth Areas\nOnce comfortable, try:\n- Homemade phyllo\n- Complex layered dishes\n- Whole roasted meats\n- Multi-course meals"
+            }
+          ],
+          "config": {
+            "label": "Skill Level",
+            "description": "Cooking experience required for the recipe",
+            "fieldType": "select",
+            "required": false,
+            "default": "intermediate",
+            "variableName": "skillLevel",
+            "renderAs": "field"
+          }
+        }
+      ],
+      "config": {
+        "label": "Cooking Techniques",
+        "description": "Traditional Greek cooking methods, equipment, and skill levels",
+        "icon": "🍳",
+        "color": "#F97316",
+        "renderAs": "section"
+      }
+    }
+  ],
+  "packageJson": {
+    "name": "greek-cooking-demo",
+    "version": "1.0.0",
+    "private": true
+  },
+  "env": {}
+}

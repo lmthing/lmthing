@@ -1,0 +1,119 @@
+{
+  "id": "dog",
+  "agents": {
+    "agent-training-plan": {
+      "id": "agent-training-plan",
+      "frontmatter": {},
+      "mainInstruction": "# Dog Training Plan Generator\n\nThis agent helps create customized training plans for your dog based on their breed, age, and your living environment.\n\n## Capabilities\n- Generate weekly training schedules.\n- Suggest positive reinforcement techniques.\n- Provide solution for common behavioral issues.",
+      "slashActions": [],
+      "config": {
+        "emptyFieldsForRuntime": {
+          "canine": [
+            "breed-type"
+          ],
+          "owner": [
+            "experience"
+          ]
+        }
+      },
+      "formValues": {
+        "canine": {
+          "breed-type": "working",
+          "age": "puppy",
+          "health-status": "healthy"
+        },
+        "owner": {
+          "experience": "beginner",
+          "availability": "high"
+        },
+        "environment": {
+          "living-space": "apartment"
+        }
+      },
+      "conversations": []
+    }
+  },
+  "flows": {
+    "flow_training_generate": {
+      "id": "flow_training_generate",
+      "frontmatter": {},
+      "description": "# Dog Training Flow Index\n\n## Available Sections\n\n- [Generate Weekly Training Schedule](1.Generate%20Weekly%20Training%20Schedule.md)\n- [Generate Reward Recommendations](2.Generate%20Reward%20Recommendations.md)\n- [Generate Behavioral Support Guide](3.Generate%20Behavioral%20Support%20Guide.md)\n",
+      "tasks": [
+        {
+          "order": 1,
+          "name": "Generate Weekly Training Schedule",
+          "frontmatter": {},
+          "instructions": "# Weekly Training Schedule\n\n## Goal: Basic Obedience\n\n1. **Monday:** Sit and Stay.\n2. **Tuesday:** Lie Down and Come.\n3. **Wednesday:** Loose Lead Walking.\n4. **Thursday:** Socialization.\n5. **Friday:** Review Basics.\n6. **Saturday:** Mental Stimulation/Games.\n7. **Sunday:** Long Walk and Relaxation."
+        },
+        {
+          "order": 2,
+          "name": "Generate Reward Recommendations",
+          "frontmatter": {},
+          "instructions": "# Reward Recommendations\n\n## High-Value Treats\n- Freeze-dried liver.\n- Small pieces of plain boiled chicken.\n- Small amounts of cheese (if dog is cheese-tolerant).\n\n## Low-Value Treats\n- Regular kibble.\n- Commercial mini-treats.\n\n## Non-Food Rewards\n- Verbal praise (\"Good boy/girl!\").\n- Head scratches and petting.\n- Favorite toy or brief game of tug-of-war."
+        }
+      ]
+    }
+  },
+  "knowledge": [
+    {
+      "path": "canine",
+      "type": "directory",
+      "children": [
+        {
+          "path": "canine/breed-type",
+          "type": "directory",
+          "children": [
+            {
+              "path": "canine/breed-type/working.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Working Breeds",
+                "order": "0"
+              },
+              "content": "# Working Breeds\n\n## Characteristics\n- **Purpose:** Bred to perform tasks like guarding, pulling, or rescuing.\n- **Traits:** Strong, intelligent, alert, and protective.\n- **Needs:** High mental and physical stimulation.\n\n## Examples\n- Boxer, Doberman Pinscher, Rottweiler, Siberian Husky."
+            }
+          ],
+          "config": {
+            "label": "Breed Type",
+            "description": "The general category of the dog breed",
+            "fieldType": "select",
+            "required": true,
+            "default": "working",
+            "variableName": "breedType",
+            "renderAs": "field"
+          }
+        }
+      ],
+      "config": {
+        "label": "Canine Characteristics",
+        "description": "Information about the dog breed, age, and health status",
+        "icon": "🐕",
+        "color": "#3b82f6",
+        "renderAs": "section"
+      }
+    },
+    {
+      "path": "rewards",
+      "type": "directory",
+      "children": [],
+      "config": {
+        "label": "Reward Recommendations",
+        "description": "Recommended treats and praise based on dog traits",
+        "icon": "🍖",
+        "color": "#10b981",
+        "renderAs": "section"
+      }
+    }
+  ],
+  "packageJson": {
+    "name": "dog",
+    "version": "1.0.0",
+    "description": "Workspace: Canine Companions",
+    "dependencies": {
+      "@dogtools/training": "1.0.0",
+      "@dogtools/nutrition": "1.0.0",
+      "@dogtools/health": "1.0.0"
+    }
+  },
+  "env": {}
+}

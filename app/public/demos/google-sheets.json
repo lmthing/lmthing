@@ -1,0 +1,349 @@
+{
+  "id": "google-sheets",
+  "agents": {
+    "agent-data-analyst": {
+      "id": "agent-data-analyst",
+      "frontmatter": {
+        "name": "DataAnalyst",
+        "description": "Expert in data cleaning, visualization, and strategic insights using Google Sheets",
+        "tools": [
+          "chart-suggester",
+          "pivot-table-designer",
+          "data-cleaner",
+          "trend-analyst"
+        ],
+        "selectedDomains": [
+          "domain-spreadsheet",
+          "domain-data-type",
+          "domain-use-case"
+        ]
+      },
+      "mainInstruction": "",
+      "slashActions": [
+        {
+          "name": "Generate Analysis",
+          "description": "Perform data analysis and generate visualization recommendations",
+          "flowId": "flow_analysis_generate",
+          "actionId": "analyze"
+        }
+      ],
+      "config": {
+        "emptyFieldsForRuntime": {
+          "use-case": [
+            "task"
+          ],
+          "data-type": [
+            "categories"
+          ]
+        }
+      },
+      "formValues": {},
+      "conversations": []
+    },
+    "agent-formula-expert": {
+      "id": "agent-formula-expert",
+      "frontmatter": {
+        "name": "FormulaExpert",
+        "description": "Specialist in Google Sheets formulas, script writing, and computational logic",
+        "tools": [
+          "formula-builder",
+          "apps-script-generator",
+          "syntax-checker",
+          "logic-debugger"
+        ],
+        "selectedDomains": [
+          "domain-spreadsheet",
+          "domain-data-type",
+          "domain-use-case"
+        ]
+      },
+      "mainInstruction": "",
+      "slashActions": [
+        {
+          "name": "Generate Formula",
+          "description": "Create complex Google Sheets formulas based on requirements",
+          "flowId": "flow_formula_generate",
+          "actionId": "formula"
+        }
+      ],
+      "config": {
+        "emptyFieldsForRuntime": {
+          "spreadsheet": [
+            "structure"
+          ],
+          "data-type": [
+            "categories"
+          ]
+        }
+      },
+      "formValues": {},
+      "conversations": []
+    }
+  },
+  "flows": {
+    "flow_formula_generate": {
+      "id": "flow_formula_generate",
+      "frontmatter": {},
+      "description": "# Formula Generation Flow\n\nThis flow guides the generation of complex Google Sheets formulas.\n\n1. [Generate Formula Logic](1.Generate%20Formula%20Logic.md)\n2. [Generate Syntax and Implementation](2.Generate%20Syntax%20and%20Implementation.md)\n3. [Generate Error Handling](3.Generate%20Error%20Handling.md)\n4. [Generate Example Usage](4.Generate%20Example%20Usage.md)\n",
+      "tasks": [
+        {
+          "order": 1,
+          "name": "Generate Formula Logic",
+          "frontmatter": {},
+          "instructions": "# Formula Logic\n\nDefine the core logic required to solve the user's problem."
+        },
+        {
+          "order": 2,
+          "name": "Generate Syntax and Implementation",
+          "frontmatter": {},
+          "instructions": "# Syntax and Implementation\n\nProvide the exact Google Sheets formula syntax."
+        },
+        {
+          "order": 3,
+          "name": "Generate Error Handling",
+          "frontmatter": {},
+          "instructions": "# Error Handling\n\nSuggest ways to handle errors like #N/A or #VALUE!"
+        },
+        {
+          "order": 4,
+          "name": "Generate Example Usage",
+          "frontmatter": {},
+          "instructions": "# Example Usage\n\nShow how the formula works with sample data."
+        }
+      ]
+    }
+  },
+  "knowledge": [
+    {
+      "path": "data-type",
+      "type": "directory",
+      "children": [
+        {
+          "path": "data-type/categories",
+          "type": "directory",
+          "children": [
+            {
+              "path": "data-type/categories/numerical.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Numerical",
+                "description": "Decimals, currencies, and percentages",
+                "order": "1"
+              },
+              "content": "# Numerical Data\n\nBest for aggregations like SUM, AVERAGE, and descriptive statistics."
+            },
+            {
+              "path": "data-type/categories/strings.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Strings",
+                "description": "Text, keys, and identifiers",
+                "order": "2"
+              },
+              "content": "# String Data\n\nRequires functions like REGEXMATCH, LEFT, RIGHT, and data cleansing for standardization."
+            }
+          ],
+          "config": {
+            "label": "Categories",
+            "description": "The kind of data available in the sheets",
+            "fieldType": "multiSelect",
+            "required": false,
+            "variableName": "dataCategories",
+            "renderAs": "field"
+          }
+        },
+        {
+          "path": "data-type/format",
+          "type": "directory",
+          "children": [
+            {
+              "path": "data-type/format/currency.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Currency",
+                "description": "Formatted as monetary values",
+                "order": "1"
+              },
+              "content": "# Currency Format\n\nUse appropriate locale-based currency symbols and decimals."
+            }
+          ],
+          "config": {
+            "label": "Data Format",
+            "description": "Output formatting for cell data",
+            "fieldType": "select",
+            "required": false,
+            "variableName": "dataFormat",
+            "renderAs": "field"
+          }
+        }
+      ],
+      "config": {
+        "label": "Data Type Profile",
+        "description": "Identifying relevant categories of data in the spreadsheet",
+        "icon": "🔢",
+        "color": "#f59e0b",
+        "renderAs": "section"
+      }
+    },
+    {
+      "path": "spreadsheet",
+      "type": "directory",
+      "children": [
+        {
+          "path": "spreadsheet/data-size",
+          "type": "directory",
+          "children": [
+            {
+              "path": "spreadsheet/data-size/medium.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Medium (1,000-50,000 rows)",
+                "description": "Common for business reports",
+                "order": "2"
+              },
+              "content": "# Medium Data Size (1k-50k rows)\n\nRequires some attention to formula complexity to avoid sluggish performance."
+            },
+            {
+              "path": "spreadsheet/data-size/small.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Small (<1,000 rows)",
+                "description": "Efficient for standard calculations",
+                "order": "1"
+              },
+              "content": "# Small Data Size (<1,000 rows)\n\nIdeal for simple trackers or small data collections. Performance is fast and real-time."
+            }
+          ],
+          "config": {
+            "label": "Data Size",
+            "description": "Approximate number of rows/columns in the sheet",
+            "fieldType": "select",
+            "required": true,
+            "default": "small",
+            "variableName": "dataSize",
+            "renderAs": "field"
+          }
+        },
+        {
+          "path": "spreadsheet/structure",
+          "type": "directory",
+          "children": [
+            {
+              "path": "spreadsheet/structure/flat.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Flat List",
+                "description": "Single table overview",
+                "order": "1"
+              },
+              "content": "# Flat List Structure\n\nData is stored in a single sheet with header rows and consistent data columns."
+            }
+          ],
+          "config": {
+            "label": "Sheet Structure",
+            "description": "How the sheet is organized",
+            "fieldType": "select",
+            "required": false,
+            "variableName": "sheetStructure",
+            "renderAs": "field"
+          }
+        }
+      ],
+      "config": {
+        "label": "Spreadsheet Config",
+        "description": "Configuration and technical details of the Google Sheet",
+        "icon": "📊",
+        "color": "#10b981",
+        "renderAs": "section"
+      }
+    },
+    {
+      "path": "use-case",
+      "type": "directory",
+      "children": [
+        {
+          "path": "use-case/industry",
+          "type": "directory",
+          "children": [
+            {
+              "path": "use-case/industry/finance.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Finance & Accounting",
+                "description": "Specialized in budgets and ledgers",
+                "order": "1"
+              },
+              "content": "# Finance and Accounting\n\nFocus on auditing, accuracy, and standardized financial functions (NPV, IRR)."
+            },
+            {
+              "path": "use-case/industry/marketing.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Digital Marketing",
+                "description": "Analysis of SEO, PPC, and campaign data",
+                "order": "2"
+              },
+              "content": "# Digital Marketing Use Case\n\nIntegrate with tools like Google Ads or Search Console connectors for analysis."
+            }
+          ],
+          "config": {
+            "label": "Industry Focus",
+            "description": "Specific industry where the spreadsheet is used",
+            "fieldType": "select",
+            "required": false,
+            "variableName": "industry",
+            "renderAs": "field"
+          }
+        },
+        {
+          "path": "use-case/task",
+          "type": "directory",
+          "children": [
+            {
+              "path": "use-case/task/cleansing.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Data Cleansing",
+                "description": "Standardizing and cleaning input",
+                "order": "1"
+              },
+              "content": "# Data Cleansing Task\n\nFocus on TRIM, CLEAN, PROPER, and logic for deduplication and outlier removal."
+            },
+            {
+              "path": "use-case/task/tracker.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Tracking and Inventory",
+                "description": "Maintaining lists of items or events",
+                "order": "2"
+              },
+              "content": "# Tracking and Inventory Task\n\nPrioritize ease of entry and high-level dashboarding for current status."
+            }
+          ],
+          "config": {
+            "label": "Task Purpose",
+            "description": "What the user wants to accomplish",
+            "fieldType": "select",
+            "required": true,
+            "default": "tracker",
+            "variableName": "taskPurpose",
+            "renderAs": "field"
+          }
+        }
+      ],
+      "config": {
+        "label": "Use Case Context",
+        "description": "Defining the industry and specific task for the assistant",
+        "icon": "📂",
+        "color": "#3b82f6",
+        "renderAs": "section"
+      }
+    }
+  ],
+  "packageJson": {
+    "name": "google-sheets-demo",
+    "version": "1.0.0",
+    "private": true
+  },
+  "env": {}
+}

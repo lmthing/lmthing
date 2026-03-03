@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
@@ -8,8 +8,6 @@ import {
   Workflow,
   Play,
   Building2,
-  Download,
-  Check,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -35,51 +33,24 @@ import { useGithub } from '@/lib/github/GithubContext'
 import { useQueryClient } from '@tanstack/react-query'
 import { Input } from '@/components/ui/input'
 import { toWorkspaceName } from '@/lib/workspaces'
+import { useWorkspaceData } from '@/lib/workspaceDataContext'
 import { ThingPanel } from './components/ThingPanel'
-import { extractAllWorkspaces } from '@/lib/extractWorkspaceData'
 import logo from '@/assets/logo.png'
-import { version } from '../../package.json'
-
-// Load all workspace data using import.meta.glob
-const demoFiles = import.meta.glob('@/demos/**/*.{md,json}', {
-  eager: true,
-  as: 'raw',
-})
-
-// Normalize paths by removing the '@/demos/' prefix
-const normalizedDemoFiles: Record<string, string> = {}
-for (const [key, value] of Object.entries(demoFiles)) {
-  const normalizedKey = key.replace(/^\/src\/demos\//, '').replace(/^@\/demos\//, '')
-  normalizedDemoFiles[normalizedKey] = value as string
-}
 
 const WORKSPACE_COLORS = ['#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ef4444', '#84cc16']
 
-// Dynamically discover demo workspaces from filesystem
-const demoPackages = import.meta.glob<{ name: string; description: string }>('../demos/*/package.json', { eager: true, import: 'default' })
-
-// Friendly descriptions for demo workspaces
-const WORKSPACE_DESCRIPTIONS: Record<string, string> = {
-  education: 'Learning and tutoring agents',
-  plants: 'Indoor plant care coaching',
-  'web-development': 'React and web component building',
-  feline: 'Cat care and behavior guidance',
+type DemoWorkspace = {
+  id: string
+  name: string
+  slug: string
+  description: string
 }
 
-// Generate mock workspaces from discovered demos
-const MOCK_WORKSPACES = Object.keys(demoPackages)
-  .map(path => {
-    const match = path.match(/\.\.\/demos\/([^/]+)\/package\.json/)
-    if (!match) return null
-    const slug = match[1]
-    return {
-      id: slug,
-      name: `local/${slug}`,
-      slug,
-      description: WORKSPACE_DESCRIPTIONS[slug] || `${slug.charAt(0).toUpperCase() + slug.slice(1)} workspace`,
-    }
-  })
-  .filter(Boolean) as Array<{ id: string; name: string; slug: string; description: string }>
+type DemoWorkspaceIndexItem = {
+  name: string
+  description?: string
+  subject_id?: string
+}
 
 export default function LandingLayout() {
   const navigate = useNavigate()
@@ -90,15 +61,52 @@ export default function LandingLayout() {
   const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState('')
   const [isCreating, setIsCreating] = useState(false)
-  const [isUpdatingStorage, setIsUpdatingStorage] = useState(false)
-  const [storageUpdateStatus, setStorageUpdateStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  const [demoWorkspaces, setDemoWorkspaces] = useState<DemoWorkspace[]>([])
+  const { loadLocalDemoWorkspace } = useWorkspaceData()
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadDemoWorkspaces = async () => {
+      try {
+        const response = await fetch('/demos/index.json')
+        if (!response.ok) {
+          throw new Error(`Failed to load demos index: ${response.status}`)
+        }
+
+        const items = (await response.json()) as DemoWorkspaceIndexItem[]
+
+        if (!isMounted) return
+
+        const mapped = items.map((item) => {
+          const slug = item.subject_id || item.name
+          return {
+            id: slug,
+            slug,
+            name: `local/${slug}`,
+            description: item.description || `${item.name} workspace`,
+          }
+        })
+
+        setDemoWorkspaces(mapped)
+      } catch (error) {
+        console.error('Failed to load demo workspaces index:', error)
+      }
+    }
+
+    void loadDemoWorkspaces()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   // Combine mock workspaces and GitHub workspaces
   const availableWorkspaces = useMemo(() => {
     const workspaces: Workspace[] = []
 
     // Add mock workspaces first
-    MOCK_WORKSPACES.forEach((mock, idx) => {
+    demoWorkspaces.forEach((mock, idx) => {
       workspaces.push({
         id: mock.id,
         name: mock.name,
@@ -121,7 +129,7 @@ export default function LandingLayout() {
     }
 
     return workspaces
-  }, [githubWorkspaces])
+  }, [demoWorkspaces, githubWorkspaces])
 
   const filteredWorkspaces = useMemo(() => {
     if (!searchQuery) return availableWorkspaces.slice(0, 5)
@@ -157,7 +165,7 @@ export default function LandingLayout() {
       })
       await addSelectedWorkspaceRepo(toWorkspaceName(data.owner.login, data.name))
       await queryClient.invalidateQueries({ queryKey: ['github-workspaces'] })
-      handleWorkspaceSelect({
+      await handleWorkspaceSelect({
         id: data.id.toString(),
         name: toWorkspaceName(data.owner.login, data.name),
         color: WORKSPACE_COLORS[0],
@@ -174,26 +182,20 @@ export default function LandingLayout() {
     setIsWorkspaceModalOpen(true)
   }
 
-  const handleWorkspaceSelect = (workspace: Workspace) => {
+  const handleWorkspaceSelect = async (workspace: Workspace) => {
+    if (workspace.name.startsWith('local/')) {
+      const localWorkspaceId = workspace.name.slice('local/'.length)
+      if (localWorkspaceId) {
+        try {
+          await loadLocalDemoWorkspace(localWorkspaceId)
+        } catch {
+          return
+        }
+      }
+    }
+
     setIsWorkspaceModalOpen(false)
     navigate(`/workspace/${workspaceToSlug(workspace.name)}/studio`)
-  }
-
-  const handleUpdateStorageWithExtractedData = async () => {
-    try {
-      setIsUpdatingStorage(true)
-      const WORKSPACE_DATA_STORAGE_KEY = 'lmthing-workspace-data'
-      const extractedData = extractAllWorkspaces(normalizedDemoFiles)
-      window.localStorage.setItem(WORKSPACE_DATA_STORAGE_KEY, JSON.stringify(extractedData))
-      setStorageUpdateStatus('success')
-      setTimeout(() => setStorageUpdateStatus('idle'), 3000)
-    } catch (error) {
-      console.error('Failed to update localStorage:', error)
-      setStorageUpdateStatus('error')
-      setTimeout(() => setStorageUpdateStatus('idle'), 3000)
-    } finally {
-      setIsUpdatingStorage(false)
-    }
   }
 
   return (
@@ -205,21 +207,15 @@ export default function LandingLayout() {
           <div className="flex items-center gap-2">
             <img src={logo} alt="lmthing" className="size-12" />
             <h1 className="text-xl font-semibold">lmthing</h1>
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">v{version}</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden sm:inline-block text-sm text-muted-foreground mr-2">Your expertise, amplified by AI</span>
-            <div className="hidden lg:block">
-              <GithubDeploymentStatus
-                repo="lmthing/lmthing"
-                workflowName="Deploy to GitHub Pages"
-                branch="main"
-                hideWhenSuccess
-              />
-            </div>
-            <div className="hidden sm:block">
-              <GithubStars repo="lmthing/lmthing" />
-            </div>
+            <GithubDeploymentStatus 
+              repo="lmthing/lmthing" 
+              workflowName="Deploy to GitHub Pages"
+              branch="main"
+            />
+            <GithubStars repo="lmthing/lmthing" />
             <GithubLoginButton />
           </div>
         </div>
@@ -229,7 +225,7 @@ export default function LandingLayout() {
       <main className="mx-auto max-w-7xl px-6 py-16">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
-            Build Your Own AI Assistants
+            Automated Knowledge & Agent Creation with THING
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
             Let THING automatically generate knowledge bases and AI agents from your instructions.
@@ -259,7 +255,7 @@ export default function LandingLayout() {
             <div className="mt-4 grid gap-4 sm:grid-cols-3">
               <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/20 dark:to-slate-900">
                 <FileText className="size-8 text-emerald-600 mb-2" />
-                <h4 className="font-semibold text-slate-900 dark:text-slate-100">Build Your Wisdom Hub</h4>
+                <h4 className="font-semibold text-slate-900 dark:text-slate-100">Auto-Generate Knowledge</h4>
                 <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                   THING creates structured knowledge bases with markdown files organized by topic
                 </p>
@@ -285,7 +281,7 @@ export default function LandingLayout() {
                 <Settings className="size-5 text-amber-600 mt-0.5 flex-shrink-0" />
                 <div>
                   <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-1">
-                    First Step: Link Your AI Helper
+                    First Step: Configure Your AI Provider
                   </h4>
                   <p className="text-sm text-slate-600 dark:text-slate-400">
                     Before THING can work its magic, you need to add at least one AI provider (like OpenAI, Anthropic, or others) 
@@ -310,33 +306,12 @@ export default function LandingLayout() {
           <p className="mx-auto mt-2 max-w-2xl text-center text-muted-foreground">
             Explore pre-configured workspaces to see how AI agents work
           </p>
-          <div className="mt-6 flex justify-center">
-            <Button
-              size="sm"
-              variant={storageUpdateStatus === 'success' ? 'default' : 'outline'}
-              onClick={handleUpdateStorageWithExtractedData}
-              disabled={isUpdatingStorage}
-              className="gap-2"
-            >
-              {storageUpdateStatus === 'success' ? (
-                <>
-                  <Check className="size-4" />
-                  Data Loaded
-                </>
-              ) : (
-                <>
-                  <Download className="size-4" />
-                  Load Demo Data
-                </>
-              )}
-            </Button>
-          </div>
           <div className="mt-8 grid gap-6 sm:grid-cols-3">
-            {MOCK_WORKSPACES.map((workspace, idx) => (
+            {demoWorkspaces.map((workspace, idx) => (
               <Card
                 key={workspace.id}
                 className="group cursor-pointer border-2 transition-all hover:border-primary/50 hover:shadow-lg"
-                onClick={() => handleWorkspaceSelect({
+                onClick={() => void handleWorkspaceSelect({
                   id: workspace.id,
                   name: workspace.name,
                   color: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length],
@@ -363,7 +338,7 @@ export default function LandingLayout() {
                       className="w-full"
                       onClick={(e) => {
                         e.stopPropagation()
-                        handleWorkspaceSelect({
+                        void handleWorkspaceSelect({
                           id: workspace.id,
                           name: workspace.name,
                           color: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length],
@@ -457,7 +432,7 @@ export default function LandingLayout() {
                 <div className="mt-4 flex items-center gap-2">
                   <span className="text-sm font-semibold text-primary-foreground">Step 4</span>
                 </div>
-                <h4 className="mt-2 text-lg font-semibold">Watch it Go to Work</h4>
+                <h4 className="mt-2 text-lg font-semibold">Run & Execute in Studio</h4>
                 <p className="mt-2 text-sm text-muted-foreground">
                   Test your agent directly inside Studio conversations. Watch it run actions,
                   perform tasks, and leverage your knowledge in real-time.
@@ -483,12 +458,12 @@ export default function LandingLayout() {
                 Grounded AI
               </div>
               <h3 className="mt-4 text-3xl font-bold tracking-tight">
-                You're Always in Control
+                Human-Reviewable Prompts = Less Hallucination
               </h3>
               <p className="mt-4 text-lg text-muted-foreground">
                 When LLMs work with structured, human-reviewable knowledge fragments instead of 
                 generating everything from scratch, they stay grounded in verifiable facts. Your 
-                knowledge files become the source of truth — facts over fiction.
+                knowledge files become the source of truth, dramatically reducing hallucinations.
               </p>
             </div>
 
@@ -741,23 +716,13 @@ export default function LandingLayout() {
           <div className="mt-12 pt-8 border-t">
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
               <p>© {new Date().getFullYear()} lmthing. Turn Knowledge into LLM Engineers.</p>
-              <div className="flex items-center gap-4">
-                <div className="sm:hidden">
-                  <GithubStars repo="lmthing/lmthing" />
-                </div>
-                <GithubDeploymentStatus 
-                  repo="lmthing/lmthing" 
-                  workflowName="Deploy to GitHub Pages"
-                  branch="main"
-                />
-                <div className="flex items-center gap-6">
-                  <a href="https://github.com/lmthing/lmthing/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
-                    License
-                  </a>
-                  <a href="https://github.com/lmthing/lmthing" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
-                    Terms
-                  </a>
-                </div>
+              <div className="flex items-center gap-6">
+                <a href="https://github.com/lmthing/lmthing/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+                  License
+                </a>
+                <a href="https://github.com/lmthing/lmthing" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+                  Terms
+                </a>
               </div>
             </div>
           </div>

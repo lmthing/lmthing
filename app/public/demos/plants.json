@@ -1,0 +1,371 @@
+{
+  "id": "plants",
+  "agents": {
+    "agentcfg-plants-001": {
+      "id": "agentcfg-plants-001",
+      "frontmatter": {
+        "name": "Indoor Plant Coach",
+        "description": "Guides users on plant setup and weekly care adjustments",
+        "tools": [
+          "plant-care-scheduler",
+          "disease-symptom-checker"
+        ],
+        "selectedDomains": [
+          "domain-plant-profile",
+          "domain-care-routine"
+        ]
+      },
+      "mainInstruction": "Provide concise, safe, and practical plant care guidance for home growers.",
+      "slashActions": [
+        {
+          "name": "Generate Care Plan",
+          "description": "Create a customized care plan for the selected plant",
+          "flowId": "flow-generate-care-plan",
+          "actionId": "careplan"
+        }
+      ],
+      "config": {
+        "emptyFieldsForRuntime": {
+          "care-routine": [
+            "watering-frequency"
+          ]
+        }
+      },
+      "formValues": {
+        "plant-profile": {
+          "plant-type": "houseplant",
+          "growth-stage": "vegetative"
+        },
+        "care-routine": {
+          "light-exposure": "bright indirect",
+          "watering-frequency": "weekly"
+        }
+      },
+      "conversations": []
+    }
+  },
+  "flows": {
+    "flow-generate-care-plan": {
+      "id": "flow-generate-care-plan",
+      "frontmatter": {
+        "id": "flow-generate-care-plan",
+        "name": "Generate Care Plan",
+        "status": "active",
+        "scope": "agent-specific",
+        "agentId": "agent_plants_001",
+        "tags": [
+          "plants",
+          "care",
+          "schedule"
+        ],
+        "taskCount": "3",
+        "createdAt": "2026-02-18T09:00:00Z",
+        "updatedAt": "2026-02-27T17:55:00Z",
+        "lastRunAt": "2026-02-27T18:02:05Z"
+      },
+      "description": "Creates a personalized weekly care plan for an indoor plant",
+      "tasks": [
+        {
+          "order": 1,
+          "name": "Create Plant Snapshot",
+          "frontmatter": {
+            "description": "Summarize current plant context and risk signals",
+            "type": "updateFlowOutput",
+            "model": "claude-3-5-sonnet",
+            "temperature": "0.2"
+          },
+          "instructions": "Create a concise status snapshot from profile and symptom inputs.",
+          "outputSchema": {
+            "type": "object",
+            "properties": {
+              "plantType": {
+                "type": "string"
+              },
+              "growthStage": {
+                "type": "string"
+              },
+              "riskLevel": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              }
+            },
+            "required": [
+              "plantType",
+              "growthStage",
+              "riskLevel"
+            ]
+          },
+          "targetFieldName": "snapshot"
+        },
+        {
+          "order": 2,
+          "name": "Generate Weekly Actions",
+          "frontmatter": {
+            "description": "Create practical daily/weekly tasks",
+            "type": "updateFlowOutput",
+            "isPushable": "false",
+            "model": "claude-3-5-sonnet",
+            "temperature": "0.3"
+          },
+          "instructions": "Generate a safe, low-maintenance one-week action list.",
+          "outputSchema": {
+            "type": "object",
+            "properties": {
+              "actions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "day": {
+                      "type": "string"
+                    },
+                    "task": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "day",
+                    "task"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "actions"
+            ]
+          },
+          "targetFieldName": "weeklyActions"
+        },
+        {
+          "order": 3,
+          "name": "Recommend Follow-up Check",
+          "frontmatter": {
+            "description": "Provide a follow-up checkpoint for symptom re-evaluation",
+            "type": "executeTask",
+            "enabledTools": [
+              "plant-care-scheduler",
+              "disease-symptom-checker"
+            ],
+            "model": "claude-3-5-sonnet",
+            "temperature": "0.2"
+          },
+          "instructions": "Suggest when the user should reassess and what to observe."
+        }
+      ]
+    }
+  },
+  "knowledge": [
+    {
+      "path": "care-routine",
+      "type": "directory",
+      "children": [
+        {
+          "path": "care-routine/light-exposure",
+          "type": "directory",
+          "children": [
+            {
+              "path": "care-routine/light-exposure/bright-indirect.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Bright Indirect",
+                "order": "1"
+              },
+              "content": "# Bright Indirect\n\nStrong ambient light without prolonged direct midday rays."
+            },
+            {
+              "path": "care-routine/light-exposure/full-sun.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Full Sun",
+                "order": "0"
+              },
+              "content": "# Full Sun\n\n6+ hours of direct sun, typically near south or west windows."
+            },
+            {
+              "path": "care-routine/light-exposure/low-light.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Low Light",
+                "order": "2"
+              },
+              "content": "# Low Light\n\nLimited natural light requiring conservative watering and hardy species."
+            }
+          ],
+          "config": {
+            "label": "Light Exposure",
+            "description": "Typical light available",
+            "fieldType": "select",
+            "required": true,
+            "default": "bright-indirect",
+            "variableName": "lightExposure",
+            "renderAs": "field"
+          }
+        },
+        {
+          "path": "care-routine/watering-frequency",
+          "type": "directory",
+          "children": [
+            {
+              "path": "care-routine/watering-frequency/biweekly.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Biweekly",
+                "order": "2"
+              },
+              "content": "# Biweekly\n\nWorks for drought-tolerant plants in low-transpiration conditions."
+            },
+            {
+              "path": "care-routine/watering-frequency/every-2-3-days.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Every 2-3 Days",
+                "order": "0"
+              },
+              "content": "# Every 2-3 Days\n\nSuitable for thirsty plants in warm, bright conditions with draining soil."
+            },
+            {
+              "path": "care-routine/watering-frequency/weekly.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Weekly",
+                "order": "1"
+              },
+              "content": "# Weekly\n\nBalanced cadence for many common indoor plants."
+            }
+          ],
+          "config": {
+            "label": "Watering Frequency",
+            "description": "How often watering is feasible",
+            "fieldType": "select",
+            "required": true,
+            "default": "weekly",
+            "variableName": "wateringFrequency",
+            "renderAs": "field"
+          }
+        }
+      ],
+      "config": {
+        "label": "Care Routine",
+        "description": "Environment and maintenance preferences",
+        "icon": "💧",
+        "color": "#0ea5e9",
+        "renderAs": "section"
+      }
+    },
+    {
+      "path": "plant-profile",
+      "type": "directory",
+      "children": [
+        {
+          "path": "plant-profile/growth-stage",
+          "type": "directory",
+          "children": [
+            {
+              "path": "plant-profile/growth-stage/flowering.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Flowering",
+                "order": "2"
+              },
+              "content": "# Flowering\n\nBloom-focused stage with higher light and nutrient precision."
+            },
+            {
+              "path": "plant-profile/growth-stage/seedling.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Seedling",
+                "order": "0"
+              },
+              "content": "# Seedling\n\nEarly-stage plants needing stable moisture and gentle light exposure."
+            },
+            {
+              "path": "plant-profile/growth-stage/vegetative.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Vegetative",
+                "order": "1"
+              },
+              "content": "# Vegetative\n\nActive foliage growth stage requiring consistent water/light balance."
+            }
+          ],
+          "config": {
+            "label": "Growth Stage",
+            "description": "Current growth phase",
+            "fieldType": "select",
+            "required": true,
+            "default": "vegetative",
+            "variableName": "growthStage",
+            "renderAs": "field"
+          }
+        },
+        {
+          "path": "plant-profile/plant-type",
+          "type": "directory",
+          "children": [
+            {
+              "path": "plant-profile/plant-type/flowering.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Flowering Plant",
+                "order": "2"
+              },
+              "content": "# Flowering Plant\n\nPlants prioritized for bloom cycles, with attention to light and nutrient timing."
+            },
+            {
+              "path": "plant-profile/plant-type/herb.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Herb",
+                "order": "1"
+              },
+              "content": "# Herb\n\nEdible aromatic plants that typically prefer high light and regular harvesting."
+            },
+            {
+              "path": "plant-profile/plant-type/houseplant.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Houseplant",
+                "order": "0"
+              },
+              "content": "# Houseplant\n\nGeneral indoor plant profile focusing on home conditions and manageable care routines."
+            }
+          ],
+          "config": {
+            "label": "Plant Type",
+            "description": "Primary plant category",
+            "fieldType": "select",
+            "required": true,
+            "default": "houseplant",
+            "variableName": "plantType",
+            "renderAs": "field"
+          }
+        }
+      ],
+      "config": {
+        "label": "Plant Profile",
+        "description": "Plant identity and growth context",
+        "icon": "🌱",
+        "color": "#16a34a",
+        "renderAs": "section"
+      }
+    }
+  ],
+  "packageJson": {
+    "name": "plants",
+    "version": "1.0.0",
+    "description": "Workspace: plants",
+    "dependencies": {
+      "@growwise/scheduler": "1.2.0",
+      "@growwise/diagnostics": "2.0.1",
+      "@growwise/light": "0.9.3"
+    }
+  },
+  "env": {}
+}

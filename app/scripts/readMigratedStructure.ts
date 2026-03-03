@@ -473,7 +473,7 @@ function extractAllWorkspaces(
 
 async function main() {
   const { default: fs } = await import('fs/promises');
-  const rootPath = process.argv[2] || './src/demos';
+  const rootPath = process.argv[2] || './public/demos';
 
   console.log(`Reading migrated data from: ${rootPath}`);
   

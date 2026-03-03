@@ -1,0 +1,32 @@
+[
+  {
+    "name": "dog",
+    "description": "",
+    "workspace_id": "dog"
+  },
+  {
+    "name": "education",
+    "description": "",
+    "workspace_id": "education"
+  },
+  {
+    "name": "google-sheets",
+    "description": "",
+    "workspace_id": "google-sheets"
+  },
+  {
+    "name": "greek-cooking",
+    "description": "",
+    "workspace_id": "greek-cooking"
+  },
+  {
+    "name": "plants",
+    "description": "",
+    "workspace_id": "plants"
+  },
+  {
+    "name": "web-development",
+    "description": "",
+    "workspace_id": "web-development"
+  }
+]

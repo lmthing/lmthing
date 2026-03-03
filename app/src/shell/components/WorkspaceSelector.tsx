@@ -367,7 +367,7 @@ export function WorkspaceSelector({
           className="w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden flex flex-col max-h-[400px]"
           side="bottom"
         >
-          <DropdownMenuLabel>Repositories (Workspaces)</DropdownMenuLabel>
+          <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
 
           <div className="px-2 pb-2">
             <Input

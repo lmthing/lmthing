@@ -7,7 +7,6 @@ import {
   type GithubWorkspaceLoadProgress,
 } from '@/lib/github/workspaceLoader'
 import { fromWorkspaceRouteParam, parseWorkspaceRepoRef } from '@/lib/workspaces'
-import { extractAllWorkspaces } from '@/lib/extractWorkspaceData'
 import type {
   ExtractedDataStructure,
   WorkspaceData,
@@ -55,6 +54,7 @@ interface WorkspaceDataContextValue {
     workspaceId: string
     created: boolean
   }
+  loadLocalDemoWorkspace: (workspaceId: string) => Promise<void>
   setCurrentWorkspace: (workspaceId: string) => void
   updatePackageJson: (packageJson: PackageJson) => void
   upsertAgent: (agent: Agent) => void
@@ -306,22 +306,48 @@ function toKnowledgeItem(node: KnowledgeNode): KnowledgeItem {
   return item
 }
 
-// Load all workspace data using import.meta.glob
-const demoFiles = import.meta.glob('@/demos/**/*.{md,json}', {
-  eager: true,
-  as: 'raw',
-})
+/**
+ * Fetch one demo workspace JSON from public/demos
+ */
+async function fetchDemoWorkspace(workspaceName: string): Promise<WorkspaceData> {
+  const response = await fetch(`/demos/${workspaceName}.json`)
+  if (!response.ok) {
+    throw new Error(`Failed to fetch demo workspace ${workspaceName}: ${response.status}`)
+  }
 
-// Normalize paths by removing the '@/demos/' prefix
-const normalizedDemoFiles: Record<string, string> = {}
-for (const [key, value] of Object.entries(demoFiles)) {
-  const normalizedKey = key.replace(/^\/src\/demos\//, '').replace(/^@\/demos\//, '')
-  normalizedDemoFiles[normalizedKey] = value as string
+  const workspace = (await response.json()) as WorkspaceData
+
+  return {
+    ...workspace,
+    id: workspace.id || workspaceName,
+    agents: workspace.agents || {},
+    flows: workspace.flows || {},
+    knowledge: workspace.knowledge || [],
+    env: workspace.env || {},
+  }
 }
 
 const WORKSPACE_DATA_STORAGE_KEY = 'lmthing-workspace-data'
+const WORKSPACE_DATA_STORAGE_KEY_PREFIX = `${WORKSPACE_DATA_STORAGE_KEY}:`
 
-function loadPersistedWorkspaceData(): ExtractedDataStructure | null {
+function getWorkspaceStorageKey(workspaceId: string): string {
+  return `${WORKSPACE_DATA_STORAGE_KEY_PREFIX}${encodeURIComponent(workspaceId)}`
+}
+
+function getPersistedWorkspaceStorageKeys(storage: Storage): string[] {
+  const keys: string[] = []
+
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index)
+    if (key && key.startsWith(WORKSPACE_DATA_STORAGE_KEY_PREFIX)) {
+      keys.push(key)
+    }
+  }
+
+  return keys
+}
+
+function loadLegacyPersistedWorkspaceData(): ExtractedDataStructure | null {
   if (typeof window === 'undefined') return null
 
   try {
@@ -333,11 +359,73 @@ function loadPersistedWorkspaceData(): ExtractedDataStructure | null {
   }
 }
 
+function loadPersistedWorkspaceData(): ExtractedDataStructure | null {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const persistedKeys = getPersistedWorkspaceStorageKeys(window.localStorage)
+
+    if (persistedKeys.length > 0) {
+      const workspaces: Record<string, WorkspaceData> = {}
+
+      for (const key of persistedKeys) {
+        const raw = window.localStorage.getItem(key)
+        if (!raw) continue
+
+        try {
+          const workspace = JSON.parse(raw) as WorkspaceData
+          const workspaceId = workspace?.id || decodeURIComponent(key.slice(WORKSPACE_DATA_STORAGE_KEY_PREFIX.length))
+          if (!workspaceId) continue
+          workspaces[workspaceId] = workspace
+        } catch {
+          // Ignore invalid workspace payloads
+        }
+      }
+
+      if (Object.keys(workspaces).length > 0) {
+        return { workspaces }
+      }
+    }
+
+    const legacyData = loadLegacyPersistedWorkspaceData()
+    if (!legacyData) return null
+
+    persistWorkspaceData(legacyData)
+
+    try {
+      window.localStorage.removeItem(WORKSPACE_DATA_STORAGE_KEY)
+    } catch {
+      // Ignore storage errors
+    }
+
+    return legacyData
+  } catch {
+    return null
+  }
+}
+
 function persistWorkspaceData(data: ExtractedDataStructure) {
   if (typeof window === 'undefined') return
 
   try {
-    window.localStorage.setItem(WORKSPACE_DATA_STORAGE_KEY, JSON.stringify(data))
+    const storage = window.localStorage
+    const workspaces = data.workspaces || {}
+    const expectedKeys = new Set<string>()
+
+    for (const [workspaceId, workspaceData] of Object.entries(workspaces)) {
+      const key = getWorkspaceStorageKey(workspaceId)
+      expectedKeys.add(key)
+      storage.setItem(key, JSON.stringify(workspaceData))
+    }
+
+    const existingKeys = getPersistedWorkspaceStorageKeys(storage)
+    for (const key of existingKeys) {
+      if (!expectedKeys.has(key)) {
+        storage.removeItem(key)
+      }
+    }
+
+    storage.removeItem(WORKSPACE_DATA_STORAGE_KEY)
   } catch {
     // Ignore storage errors
   }
@@ -427,7 +515,40 @@ export function WorkspaceDataProvider({
     }
   }, [data])
 
-  // Load data from import.meta.glob
+  const loadLocalDemoWorkspace = useCallback(async (workspaceId: string) => {
+    const normalizedWorkspaceId = fromWorkspaceRouteParam(workspaceId).trim()
+    if (!normalizedWorkspaceId) return
+
+    const repoRef = parseWorkspaceRepoRef(normalizedWorkspaceId, user?.login)
+    const localWorkspaceId = repoRef?.owner === 'local' ? repoRef.repo : normalizedWorkspaceId
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const localWorkspace = await fetchDemoWorkspace(localWorkspaceId)
+
+      setData((prev) => {
+        const base: ExtractedDataStructure = prev || { workspaces: {} }
+        return {
+          ...base,
+          workspaces: {
+            ...base.workspaces,
+            [localWorkspaceId]: localWorkspace,
+          },
+        }
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      setError(message)
+      console.error('Failed to load local workspace data:', err)
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
+  }, [user?.login])
+
+  // Load data from public/demos directory via fetch
   const loadData = async () => {
     try {
       setIsLoading(true)
@@ -437,9 +558,7 @@ export function WorkspaceDataProvider({
       if (persistedData) {
         setData(persistedData)
       } else {
-        // Extract workspace data from glob result
-        const extractedData = extractAllWorkspaces(normalizedDemoFiles)
-        setData(extractedData)
+        setData({ workspaces: {} })
       }
       // Do NOT pick a default workspace here — let the consumer (layout) decide
     } catch (err) {
@@ -462,12 +581,44 @@ export function WorkspaceDataProvider({
   }, [data])
 
   useEffect(() => {
-    const loadGithubWorkspace = async () => {
-      if (!currentWorkspace || !octokit || !isAuthenticated) return
+    const loadSelectedWorkspace = async () => {
+      if (!currentWorkspace) return
 
       const repoRef = parseWorkspaceRepoRef(currentWorkspace, user?.login)
       if (!repoRef) return
-      if (repoRef.owner === 'local') return
+
+      const workspaceKey = repoRef.owner === 'local' ? repoRef.repo : currentWorkspace
+      if (data?.workspaces?.[workspaceKey]) return
+
+      if (repoRef.owner === 'local') {
+        try {
+          setIsLoading(true)
+          setError(null)
+
+          const localWorkspace = await fetchDemoWorkspace(repoRef.repo)
+
+          setData((prev) => {
+            const base: ExtractedDataStructure = prev || { workspaces: {} }
+            return {
+              ...base,
+              workspaces: {
+                ...base.workspaces,
+                [repoRef.repo]: localWorkspace,
+              },
+            }
+          })
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Unknown error'
+          setError(message)
+          console.error('Failed to load local workspace data:', err)
+        } finally {
+          setIsLoading(false)
+        }
+
+        return
+      }
+
+      if (!octokit || !isAuthenticated) return
 
       try {
         setIsLoading(true)
@@ -508,8 +659,8 @@ export function WorkspaceDataProvider({
       }
     }
 
-    void loadGithubWorkspace()
-  }, [currentWorkspace, octokit, isAuthenticated, user?.login])
+    void loadSelectedWorkspace()
+  }, [currentWorkspace, data, octokit, isAuthenticated, user?.login])
 
   const updateCurrentWorkspace = useCallback(
     (updater: (workspace: WorkspaceData) => WorkspaceData) => {
@@ -793,6 +944,7 @@ export function WorkspaceDataProvider({
     flowList,
     knowledgeTree,
     createWorkspace,
+    loadLocalDemoWorkspace,
     setCurrentWorkspace: setCurrentWorkspaceSafe,
     updatePackageJson,
     upsertAgent,

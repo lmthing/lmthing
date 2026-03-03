@@ -26,7 +26,6 @@ import {
 } from '@/components/ui/dialog'
 import { workspaceToSlug, type Workspace } from './components/WorkspaceSelector'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
-import { GithubLoginButton } from '@/components/GithubLoginButton'
 import { GithubStars } from '@/components/GithubStars'
 import { GithubDeploymentStatus } from '@/components/GithubDeploymentStatus'
 import { useGithub } from '@/lib/github/GithubContext'
@@ -36,7 +35,6 @@ import { toWorkspaceName } from '@/lib/workspaces'
 import { useWorkspaceData } from '@/lib/workspaceDataContext'
 import { ThingPanel } from './components/ThingPanel'
 import logo from '@/assets/logo.png'
-import { version } from '../../package.json'
 
 
 const WORKSPACE_COLORS = ['#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ef4444', '#84cc16']
@@ -203,39 +201,39 @@ export default function LandingLayout() {
   return (
     <div className="flex min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900">
       <div className="flex-1 flex flex-col">
-      {/* Header */}
-      <header className="border-b bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-2">
-            <img src={logo} alt="lmthing" className="size-12" />
-            <h1 className="text-xl font-semibold">lmthing</h1>
+        {/* Header */}
+        <header className="border-b bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm">
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+            <div className="flex items-center gap-2">
+              <img src={logo} alt="lmthing" className="size-12" />
+              <h1 className="text-xl font-semibold">lmthing</h1>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="hidden sm:inline-block text-sm text-muted-foreground mr-2">
+                Your expertise, amplified by AI
+              </span>
+              <GithubDeploymentStatus
+                repo="lmthing/lmthing"
+                workflowName="Deploy to GitHub Pages"
+                branch="main"
+              />
+              <GithubStars repo="lmthing/lmthing" />
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="hidden sm:inline-block text-sm text-muted-foreground mr-2">Your expertise, amplified by AI</span>
-            <div className="hidden lg:block">
-            <GithubDeploymentStatus 
-              repo="lmthing/lmthing" 
-              workflowName="Deploy to GitHub Pages"
-              branch="main"
-            />
-            <GithubStars repo="lmthing/lmthing" />
-            <GithubLoginButton />
-          </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Hero Section */}
-      <main className="mx-auto max-w-7xl px-6 py-16">
-        <div className="mx-auto max-w-3xl text-center">
-          <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
-            Automated Knowledge & Agent Creation with THING
-          </h2>
-          <p className="mt-4 text-lg text-muted-foreground">
-            Let THING automatically generate knowledge bases and AI agents from your instructions.
-            Simply describe what you want, and THING will create the complete workspace structure,
-            agents, and flows — all powered by AI. No manual setup required.
-          </p>
-        </div>
+        {/* Hero Section */}
+        <main className="mx-auto max-w-7xl px-6 py-16">
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
+              Automated Knowledge & Agent Creation with THING
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground">
+              Let THING automatically generate knowledge bases and AI agents from your instructions.
+              Simply describe what you want, and THING will create the complete workspace structure,
+              agents, and flows — all powered by AI. No manual setup required.
+            </p>
+          </div>
 
         {/* THING Feature Panel */}
         <div className="mx-auto mt-14 max-w-5xl rounded-3xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 via-white to-violet-50/50 p-8 shadow-xl backdrop-blur-sm dark:border-primary/40 dark:from-primary/10 dark:via-slate-900 dark:to-violet-950/30">

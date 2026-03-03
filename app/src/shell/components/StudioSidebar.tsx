@@ -1,6 +1,7 @@
 import {
   Plus,
   Settings,
+  Github,
   ChevronLeft,
   ChevronRight,
   Folder,
@@ -13,6 +14,7 @@ import { useState, useMemo } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useKnowledgeSections, useAgents } from '@/lib/workspaceContext'
 import { useWorkspaceData } from '@/lib/workspaceDataContext'
+import { useGithub } from '@/lib/github/GithubContext'
 import { toWorkspaceRouteParam } from '@/lib/workspaces'
 import logo from '@/assets/logo.png'
 import { WorkspaceSelector } from './WorkspaceSelector'
@@ -124,6 +126,7 @@ export function StudioSidebar({
   const knowledgeSections = useKnowledgeSections()
   const { agents: agentsMap } = useAgents()
   const { createWorkspace } = useWorkspaceData()
+  const { login, logout, isAuthenticated, isLoadingAuth, deviceCodePrompt } = useGithub()
 
   // Build workspace-aware path helper
   const studioPath = workspaceName
@@ -549,6 +552,63 @@ export function StudioSidebar({
               <span className="text-sm font-medium">Settings</span>
             )}
           </button>
+
+          <button
+            onClick={() => {
+              if (isLoadingAuth) return
+              if (isAuthenticated) {
+                logout()
+                return
+              }
+              void login().catch(console.error)
+            }}
+            disabled={isLoadingAuth}
+            className={`
+              flex items-center gap-3
+              text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200
+              hover:bg-slate-100 dark:hover:bg-slate-800
+              rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed
+              ${isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2'}
+            `}
+            title={
+              isCollapsed
+                ? isLoadingAuth
+                  ? 'GitHub auth loading'
+                  : isAuthenticated
+                    ? 'Logout GitHub'
+                    : 'Login with GitHub'
+                : ''
+            }
+          >
+            <Github className="w-5 h-5 flex-shrink-0" />
+            {!isCollapsed && (
+              <span className="text-sm font-medium">
+                {isLoadingAuth
+                  ? 'GitHub Auth Loading...'
+                  : isAuthenticated
+                    ? 'Logout GitHub'
+                    : 'Login with GitHub'}
+              </span>
+            )}
+          </button>
+
+          {!isCollapsed && deviceCodePrompt && (
+            <div className="mx-3 mt-1 rounded-md border border-violet-200 bg-violet-50 p-2.5 dark:border-violet-900/50 dark:bg-violet-950/30">
+              <p className="text-xs text-violet-800 dark:text-violet-200">Authorize GitHub:</p>
+              <a
+                href={deviceCodePrompt.verificationUri}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-semibold text-violet-700 dark:text-violet-300 underline"
+              >
+                {deviceCodePrompt.verificationUri}
+              </a>
+              <p className="mt-1 text-xs text-violet-800 dark:text-violet-200">Code:</p>
+              <div className="mt-1 rounded border border-violet-200 bg-white px-2 py-1 text-center font-mono text-sm tracking-widest dark:border-violet-800 dark:bg-slate-900 dark:text-violet-100">
+                {deviceCodePrompt.userCode}
+              </div>
+            </div>
+          )}
 
           {/* Collapse Toggle */}
           <button

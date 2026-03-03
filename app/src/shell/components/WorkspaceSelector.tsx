@@ -108,6 +108,8 @@ export function WorkspaceSelector({
     octokit,
     user,
     isAuthenticated,
+    isLoadingAuth,
+    login,
     addSelectedWorkspaceRepo,
     isLoadingRepoSelections,
     selectedWorkspaceRepos,
@@ -209,12 +211,19 @@ export function WorkspaceSelector({
   }, [octokit, isAuthenticated])
 
   const handleOpenAddRepoModal = useCallback(async () => {
-    if (!isAuthenticated) return
+    if (!isAuthenticated) {
+      try {
+        await login()
+      } catch (error) {
+        console.error(error)
+        return
+      }
+    }
 
     setRepoSearchQuery('')
     setIsRepoModalOpen(true)
     await loadAvailableGithubRepos()
-  }, [isAuthenticated, loadAvailableGithubRepos])
+  }, [isAuthenticated, loadAvailableGithubRepos, login])
 
   const handleAddRepoFromModal = useCallback(
     async (repoFullName: string) => {
@@ -488,7 +497,7 @@ export function WorkspaceSelector({
               onClick={() => {
                 void handleOpenAddRepoModal()
               }}
-              disabled={!isAuthenticated || isLoadingRepoSelections}
+              disabled={isLoadingRepoSelections || isLoadingAuth}
               className="w-full flex items-center justify-center gap-2 px-2 py-1.5 text-sm rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoadingRepoSelections ? (
@@ -496,7 +505,7 @@ export function WorkspaceSelector({
               ) : (
                 <Plus className="w-4 h-4" />
               )}
-              Add GitHub Repo
+              {isAuthenticated ? 'Add GitHub Repo' : 'Login to Add GitHub Repo'}
             </button>
           </div>
 

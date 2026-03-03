@@ -293,9 +293,9 @@ From one prompt, THING creates a ready-to-use ecosystem of knowledge, assistants
         <section id="marketplace" className="mx-auto mt-12 max-w-5xl rounded-2xl border bg-card p-8">
           <div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h3 className="text-2xl font-semibold">Marketplace</h3>
-                <p className="mt-2 max-w-2xl text-muted-foreground">
+              <div className="w-full text-center">
+                <h3 className="text-2xl font-semibold text-center">Marketplace</h3>
+                <p className="mt-2 max-w-2xl mx-auto text-muted-foreground text-center">
                   Browse ready-to-use demo workspaces and open them instantly in Studio.
                 </p>
               </div>
@@ -430,6 +430,14 @@ From one prompt, THING creates a ready-to-use ecosystem of knowledge, assistants
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* Call to Action Button */}
+          <div className="mt-12 flex justify-center">
+            <Button size="xl" className="px-8 py-4 text-lg font-semibold shadow-lg" onClick={openWorkspaceModal}>
+              Start Building Now
+              <ArrowRight className="ml-3 size-5" />
+            </Button>
           </div>
 
         </div>

@@ -301,7 +301,7 @@ From one prompt, THING creates a ready-to-use ecosystem of knowledge, assistants
               </div>
             </div>
 
-            <div className="mt-8 overflow-x-auto pb-2">
+            <div className="mt-8 overflow-x-auto pb-2 pt-2">
               <div className="flex min-w-max gap-4">
                 {demoWorkspaces.map((workspace, idx) => (
                   <button

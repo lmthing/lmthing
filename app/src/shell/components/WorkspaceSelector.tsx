@@ -511,6 +511,19 @@ export function WorkspaceSelector({
 
           <DropdownMenuSeparator />
 
+          <DropdownMenuItem
+            onClick={() => {
+              setIsOpen(false)
+              navigate('/marketplace')
+            }}
+            className="flex items-center gap-3 cursor-pointer"
+          >
+            <Building2 className="w-4 h-4" />
+            <span>Open Marketplace</span>
+          </DropdownMenuItem>
+
+          <DropdownMenuSeparator />
+
           {canExport && (
             <>
               <DropdownMenuItem

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
   Bot,
@@ -206,6 +206,9 @@ export default function LandingLayout() {
             </div>
             
             <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/marketplace">Marketplace</Link>
+              </Button>
               <span className="hidden sm:inline-block text-sm text-muted-foreground mr-2">
                 Your expertise, amplified by AI
               </span>
@@ -297,6 +300,24 @@ export default function LandingLayout() {
             </div>
           </div>
         </div>
+
+        {/* Marketplace Section */}
+        <section id="marketplace" className="mx-auto mt-12 max-w-5xl rounded-2xl border bg-card p-8">
+          <div className="text-center">
+            <h3 className="text-2xl font-semibold">Marketplace</h3>
+            <p className="mx-auto mt-2 max-w-2xl text-muted-foreground">
+              Browse ready-to-use demo workspaces and open them instantly in Studio.
+            </p>
+            <div className="mt-6">
+              <Button asChild>
+                <Link to="/marketplace">
+                  Open Marketplace
+                  <ArrowRight className="ml-2 size-4" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </section>
 
         {/* How It Works Section */}
         <div className="mt-12">

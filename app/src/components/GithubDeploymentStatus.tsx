@@ -147,9 +147,9 @@ export function GithubDeploymentStatus({
       title={`Last deployment: ${new Date(data.created_at).toLocaleString()}`}
     >
       {statusInfo.icon}
-      {/* <span className={`text-sm font-medium ${statusInfo.textColor}`}>
+      <span className={`text-sm font-medium ${statusInfo.textColor}`}>
         {statusInfo.label}
-      </span> */}
+      </span>
     </a>
   )
 }

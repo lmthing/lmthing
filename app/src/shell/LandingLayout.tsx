@@ -376,13 +376,9 @@ From one prompt, THING creates a ready-to-use ecosystem of knowledge, assistants
                   <span className="text-sm font-semibold text-primary">Step 1</span>
                 </div>
                 <h4 className="mt-2 text-lg font-semibold">Organize Your Knowledge</h4>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Structure your knowledge into markdown files in a file tree. Create
-                  folders, documents, and links that mirror your field's natural organization.
-                </p>
-              </div>
-              <div className="hidden lg:block absolute right-0 top-8 -translate-y-1/2 translate-x-1/2 text-muted-foreground/30">
-                <ArrowRight className="size-6" />
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    THING organizes your documents into a searchable, topic-driven database.
+                  </p>
               </div>
             </div>
 
@@ -396,13 +392,9 @@ From one prompt, THING creates a ready-to-use ecosystem of knowledge, assistants
                   <span className="text-sm font-semibold text-primary">Step 2</span>
                 </div>
                 <h4 className="mt-2 text-lg font-semibold">Build Your Agent</h4>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Use the Agent Builder to create a configurable AI agent. Connect it to your
-                  knowledge, set its personality, and define how it should respond.
-                </p>
-              </div>
-              <div className="hidden lg:block absolute right-0 top-8 -translate-y-1/2 translate-x-1/2 text-muted-foreground/30">
-                <ArrowRight className="size-6" />
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    THING instantly generates agents with the perfect prompts, tools, and settings.
+                  </p>
               </div>
             </div>
 
@@ -415,15 +407,11 @@ From one prompt, THING creates a ready-to-use ecosystem of knowledge, assistants
                 <div className="mt-4 flex items-center gap-2">
                   <span className="text-sm font-semibold text-primary">Step 3</span>
                 </div>
-                <h4 className="mt-2 text-lg font-semibold">Add Task Flows</h4>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Create actions as workflows that your agent can execute. Define step-by-step
-                  actions using the visual flow editor — no coding required.
-                </p>
+                  <h4 className="mt-2 text-lg font-semibold">Custom Workflows</h4>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    THING designs and connects multi-step processes tailored to your exact needs.
+                  </p>
 
-              </div>
-              <div className="hidden lg:block absolute right-0 top-8 -translate-y-1/2 translate-x-1/2 text-muted-foreground/30">
-                <ArrowRight className="size-6" />
               </div>
             </div>
 
@@ -436,21 +424,14 @@ From one prompt, THING creates a ready-to-use ecosystem of knowledge, assistants
                 <div className="mt-4 flex items-center gap-2">
                   <span className="text-sm font-semibold text-primary-foreground">Step 4</span>
                 </div>
-                <h4 className="mt-2 text-lg font-semibold">Watch it Go to Work</h4>
+                <h4 className="mt-2 text-lg font-semibold">Watch It Work</h4>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Test your agent directly inside Studio conversations. Watch it run actions,
-                  perform tasks, and leverage your knowledge in real-time.
+                  Sit back and monitor your assistants as they execute your tasks and workflows in real-time.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Mobile connector arrows */}
-          <div className="mt-8 flex justify-center lg:hidden">
-            <div className="flex flex-col items-center gap-2 text-muted-foreground/30">
-              <ArrowRight className="size-6 rotate-90" />
-            </div>
-          </div>
         </div>
 
         {/* Grounded AI Section */}

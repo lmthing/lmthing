@@ -291,75 +291,6 @@ export default function LandingLayout() {
             </div>
           </div>
 
-          {/* Marketplace Section */}
-          <section id="marketplace" className="mx-auto mt-12 max-w-5xl rounded-2xl border bg-card p-8">
-            <div>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div className="w-full text-center">
-                  <h3 className="text-2xl font-semibold text-center">Marketplace</h3>
-                  <p className="mt-2 max-w-2xl mx-auto text-muted-foreground text-center">
-                    Browse ready-to-use demo workspaces and open them instantly in Studio.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-8 overflow-x-auto pb-2 pt-2">
-                <div className="flex min-w-max gap-4">
-                  {demoWorkspaces.map((workspace, idx) => (
-                    <button
-                      key={workspace.id}
-                      type="button"
-                      onClick={() =>
-                        void handleWorkspaceSelect({
-                          id: workspace.id,
-                          name: workspace.name,
-                          color: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length],
-                        })
-                      }
-                      className="w-72 shrink-0 rounded-xl border bg-background p-4 text-left cursor-pointer transition-all hover:-translate-y-0.5 hover:bg-muted/30 hover:shadow-md hover:border-primary/30"
-                    >
-                      <div className="mb-3 flex items-center gap-2">
-                        <div
-                          className="flex size-8 items-center justify-center rounded-md text-white"
-                          style={{ backgroundColor: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length] }}
-                        >
-                          <Building2 className="size-4" />
-                        </div>
-                        <p className="truncate text-sm font-semibold">{workspace.name}</p>
-                      </div>
-                      <p className="line-clamp-2 min-h-10 text-sm text-muted-foreground">{workspace.description}</p>
-                      <div className="mt-3 flex items-center justify-end text-primary">
-                        <ArrowRight className="size-4" />
-                      </div>
-                    </button>
-                  ))}
-                  <div className="w-72 shrink-0 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 p-4">
-                    <div className="flex h-full flex-col items-center justify-center text-center">
-                      <p className="text-sm font-semibold">Want more workspaces?</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Discover the full catalog in Marketplace.
-                      </p>
-                      <Button asChild size="sm" className="mt-4">
-                        <Link to="/marketplace">
-                          Show more
-                          <ArrowRight className="ml-2 size-4" />
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <Button asChild size="lg" className="shadow-sm">
-                  <Link to="/marketplace">
-                    Explore all
-                    <ArrowRight className="ml-2 size-5" />
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          </section>
 
           {/* How It Works Section */}
           <div className="mt-12">
@@ -579,6 +510,76 @@ export default function LandingLayout() {
             </div>
           </div>
         </main>
+                  {/* Marketplace Section */}
+          {/* <section id="marketplace" className="mx-auto mt-12 max-w-5xl rounded-2xl border bg-card p-8">
+            <div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div className="w-full text-center">
+                  <h3 className="text-2xl font-semibold text-center">Marketplace</h3>
+                  <p className="mt-2 max-w-2xl mx-auto text-muted-foreground text-center">
+                    Browse ready-to-use demo workspaces and open them instantly in Studio.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-8 overflow-x-auto pb-2 pt-2">
+                <div className="flex min-w-max gap-4">
+                  {demoWorkspaces.map((workspace, idx) => (
+                    <button
+                      key={workspace.id}
+                      type="button"
+                      onClick={() =>
+                        void handleWorkspaceSelect({
+                          id: workspace.id,
+                          name: workspace.name,
+                          color: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length],
+                        })
+                      }
+                      className="w-72 shrink-0 rounded-xl border bg-background p-4 text-left cursor-pointer transition-all hover:-translate-y-0.5 hover:bg-muted/30 hover:shadow-md hover:border-primary/30"
+                    >
+                      <div className="mb-3 flex items-center gap-2">
+                        <div
+                          className="flex size-8 items-center justify-center rounded-md text-white"
+                          style={{ backgroundColor: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length] }}
+                        >
+                          <Building2 className="size-4" />
+                        </div>
+                        <p className="truncate text-sm font-semibold">{workspace.name}</p>
+                      </div>
+                      <p className="line-clamp-2 min-h-10 text-sm text-muted-foreground">{workspace.description}</p>
+                      <div className="mt-3 flex items-center justify-end text-primary">
+                        <ArrowRight className="size-4" />
+                      </div>
+                    </button>
+                  ))}
+                  <div className="w-72 shrink-0 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 p-4">
+                    <div className="flex h-full flex-col items-center justify-center text-center">
+                      <p className="text-sm font-semibold">Want more workspaces?</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Discover the full catalog in Marketplace.
+                      </p>
+                      <Button asChild size="sm" className="mt-4">
+                        <Link to="/marketplace">
+                          Show more
+                          <ArrowRight className="ml-2 size-4" />
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <Button asChild size="lg" className="shadow-sm">
+                  <Link to="/marketplace">
+                    Explore all
+                    <ArrowRight className="ml-2 size-5" />
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </section> */}
+
 
         <Dialog open={isWorkspaceModalOpen} onOpenChange={setIsWorkspaceModalOpen}>
           <DialogContent>
@@ -669,9 +670,6 @@ export default function LandingLayout() {
                   <img src={logo} alt="lmthing" className="size-8" />
                   <span className="text-lg font-semibold">lmthing</span>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Your expertise, amplified by AI. Build knowledge-driven assistants without coding.
-                </p>
               </div>
 
               {/* Product Column */}

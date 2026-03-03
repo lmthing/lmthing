@@ -5,11 +5,6 @@
     "workspace_id": "dog"
   },
   {
-    "name": "education",
-    "description": "",
-    "workspace_id": "education"
-  },
-  {
     "name": "google-sheets",
     "description": "",
     "workspace_id": "google-sheets"

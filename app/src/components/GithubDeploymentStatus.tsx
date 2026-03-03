@@ -20,12 +20,24 @@ interface WorkflowRunsResponse {
   workflow_runs: WorkflowRun[]
 }
 
+interface WorkflowDefinition {
+  id: number
+  name: string
+  path: string
+}
+
+interface WorkflowsResponse {
+  workflows?: WorkflowDefinition[]
+}
+
 export function GithubDeploymentStatus({ 
   repo, 
   workflowName, 
   branch = 'main',
   hideWhenSuccess = false,
 }: GithubDeploymentStatusProps) {
+  const workflowsUrl = `https://github.com/${repo}/actions/workflows`
+
   const { data, isLoading, error } = useQuery<WorkflowRun | null>({
     queryKey: ['github-deployment-status', repo, workflowName, branch],
     queryFn: async () => {
@@ -38,9 +50,9 @@ export function GithubDeploymentStatus({
         throw new Error('Failed to fetch workflows')
       }
       
-      const workflowsData = await workflowsResponse.json()
+      const workflowsData: WorkflowsResponse = await workflowsResponse.json()
       const workflow = workflowsData.workflows?.find(
-        (w: any) => w.name === workflowName || w.path.includes(workflowName)
+        (workflowItem) => workflowItem.name === workflowName || workflowItem.path.includes(workflowName)
       )
       
       if (!workflow) {
@@ -73,7 +85,17 @@ export function GithubDeploymentStatus({
   }
 
   if (error || !data) {
-    return null
+    return (
+      <a
+        href={workflowsUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/70 hover:shadow-md transition-all shadow-sm"
+        title="Deployment status unavailable. Open GitHub Actions workflows."
+      >
+        <AlertCircle className="size-4 text-slate-500" />
+      </a>
+    )
   }
 
   const getStatusInfo = () => {

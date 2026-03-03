@@ -332,14 +332,28 @@ From one prompt, THING creates a ready-to-use ecosystem of knowledge, assistants
                     <p className="line-clamp-2 text-sm text-muted-foreground">{workspace.description}</p>
                   </div>
                 ))}
+                <div className="w-72 shrink-0 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 p-4">
+                  <div className="flex h-full flex-col items-center justify-center text-center">
+                    <p className="text-sm font-semibold">Want more workspaces?</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Discover the full catalog in Marketplace.
+                    </p>
+                    <Button asChild size="sm" className="mt-4">
+                      <Link to="/marketplace">
+                        Show more
+                        <ArrowRight className="ml-2 size-4" />
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
 
             <div className="mt-6">
-              <Button asChild>
+              <Button asChild size="lg" className="shadow-sm">
                 <Link to="/marketplace">
-                  Open Marketplace
-                  <ArrowRight className="ml-2 size-4" />
+                  Explore all demo workspaces
+                  <ArrowRight className="ml-2 size-5" />
                 </Link>
               </Button>
             </div>

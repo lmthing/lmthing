@@ -211,9 +211,6 @@ export default function LandingLayout() {
               <Button variant="outline" size="sm" asChild>
                 <Link to="/marketplace">Marketplace</Link>
               </Button>
-              <span className="hidden sm:inline-block text-sm text-muted-foreground mr-2">
-                Your expertise, amplified by AI
-              </span>
               <GithubStars repo="lmthing/lmthing" />
             </div>
           </div>

@@ -36,7 +36,7 @@ export function GithubDeploymentStatus({
   branch = 'main',
   hideWhenSuccess = false,
 }: GithubDeploymentStatusProps) {
-  const workflowsUrl = `https://github.com/${repo}/actions/workflows`
+  const workflowsUrl = `https://github.com/${repo}/actions/`
 
   const { data, isLoading, error } = useQuery<WorkflowRun | null>({
     queryKey: ['github-deployment-status', repo, workflowName, branch],

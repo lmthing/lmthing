@@ -212,11 +212,6 @@ export default function LandingLayout() {
               <span className="hidden sm:inline-block text-sm text-muted-foreground mr-2">
                 Your expertise, amplified by AI
               </span>
-              <GithubDeploymentStatus
-                repo="lmthing/lmthing"
-                workflowName="Deploy to GitHub Pages"
-                branch="main"
-              />
               <GithubStars repo="lmthing/lmthing" />
             </div>
           </div>
@@ -646,9 +641,16 @@ From one prompt, THING creates a ready-to-use ecosystem of knowledge, assistants
         </DialogContent>
       </Dialog>
 
-      {/* Footer */}
-      <footer className="mt-20 border-t bg-slate-50/50 dark:bg-slate-900/50">
-        <div className="mx-auto max-w-7xl px-6 py-12">
+          {/* Footer */}
+          <footer className="mt-20 border-t bg-slate-50/50 dark:bg-slate-900/50">
+            <div className="mx-auto max-w-7xl px-6 py-12">
+              <div className="mb-8 flex justify-end">
+                <GithubDeploymentStatus
+                  repo="lmthing/lmthing"
+                  workflowName="Deploy to GitHub Pages"
+                  branch="main"
+                />
+              </div>
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             {/* Brand Column */}
             <div className="col-span-full sm:col-span-1 lg:col-span-1">

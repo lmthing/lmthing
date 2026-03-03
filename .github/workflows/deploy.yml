@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Deploy to lmthing.studio
 
 on:
   push:
@@ -70,6 +70,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy to GitHub Pages
+      - name: Deploy to lmthing.studio
         id: deployment
         uses: actions/deploy-pages@v4

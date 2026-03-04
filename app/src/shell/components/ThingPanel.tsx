@@ -7,6 +7,7 @@ import { useAgents, useFlows } from '@/lib/workspaceContext'
 import { useWorkspaceData } from '@/lib/workspaceDataContext'
 import { toWorkspaceRouteParam } from '@/lib/workspaces'
 import { ToolCallDisplay } from './ToolCallDisplay'
+import { CozyThingText } from '../../THING';
 import type { AgentBuilderScreenProps } from '@/../product/sections/agent-builder/types'
 import type {
   EncryptedEnvFile,
@@ -2436,7 +2437,7 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
                 }
               />
             </div>
-            <span className="text-[10px] font-medium text-amber-800 dark:text-amber-400 whitespace-nowrap group-hover:text-amber-900 dark:group-hover:text-amber-300">THING</span>
+            <span className="text-[10px] font-medium whitespace-nowrap group-hover:text-amber-900 dark:group-hover:text-amber-300"><CozyThingText text="THING" className="text-[10px] font-medium" /></span>
           </button>
         </div>
       ) : (
@@ -2457,7 +2458,7 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
                   }
                 />
               </div>
-              <h2 className="text-sm font-semibold text-stone-800 dark:text-amber-100">thing</h2>
+              <h2 className="text-sm font-semibold text-stone-800 dark:text-amber-100"><CozyThingText text="THING" className="text-sm font-semibold" /></h2>
               <button
                 onClick={() => setIsCollapsed(true)}
                 className="ml-1 text-xs text-amber-700 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-300 underline"

@@ -30,6 +30,7 @@ import { toWorkspaceName } from '@/lib/workspaces'
 import { useWorkspaceData } from '@/lib/workspaceDataContext'
 import { ThingPanel } from './components/ThingPanel'
 import logo from '@/assets/logo.png'
+import { CozyThingText } from '../THING';
 
 const WORKSPACE_COLORS = ['#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ef4444', '#84cc16']
 const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? '0.0.0'
@@ -201,7 +202,7 @@ export default function LandingLayout() {
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
             <div className="flex items-center gap-2 min-w-0">
               <img src={logo} alt="lmthing" className="size-10 sm:size-12 shrink-0" />
-              <h1 className="text-xl font-semibold truncate">lmthing</h1>
+              <h1 className="text-xl font-semibold truncate">lm<CozyThingText text="thing" /></h1>
               <span className="hidden sm:inline-flex rounded-md border px-2 py-0.5 text-xs font-medium text-muted-foreground shrink-0">
                 v{APP_VERSION}
               </span>
@@ -220,10 +221,10 @@ export default function LandingLayout() {
         <main className="w-full mx-auto max-w-7xl px-4 sm:px-6 py-12 sm:py-16">
           <div className="mx-auto max-w-3xl text-center">
             <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
-              Build Your Own AI Assistants
+              Build Your Own <CozyThingText text="THING" className="inline-block text-4xl font-bold tracking-tight sm:text-5xl" />
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              From one prompt, THING creates a ready-to-use ecosystem of knowledge, assistants, and automated workflows into organized workspaces.
+              From one prompt, <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" /> creates a ready-to-use ecosystem of knowledge, assistants, and automated workflows into organized workspaces.
             </p>
           </div>
 
@@ -233,10 +234,10 @@ export default function LandingLayout() {
               <div className="text-center">
                 <div className="inline-flex items-center gap-2 rounded-full border-2 border-primary/40 bg-primary/20 px-4 py-2 text-sm font-bold text-primary shadow-sm">
                   <Bot className="size-5" />
-                  THING — Your AI Workspace Builder
+                  <CozyThingText text="THING" className="text-sm font-bold" /> — Your AI Workspace Builder
                 </div>
                 <h3 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
-                  Describe it. THING builds it.
+                  Describe it. <CozyThingText text="THING" className="inline-block text-3xl font-bold tracking-tight sm:text-4xl" /> builds it.
                 </h3>
               </div>
 
@@ -245,21 +246,21 @@ export default function LandingLayout() {
                   <FileText className="size-8 text-emerald-600 mb-2" />
                   <h4 className="font-semibold text-slate-900 dark:text-slate-100">Build Your Knowledge Base</h4>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                    THING helps you create structured knowledge with documents organized by topic.
+                    <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> helps you create structured knowledge with documents organized by topic.
                   </p>
                 </div>
                 <div className="rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50 to-white p-4 shadow-sm dark:border-violet-900/40 dark:from-violet-950/20 dark:to-slate-900">
                   <Bot className="size-8 text-violet-600 mb-2" />
                   <h4 className="font-semibold text-slate-900 dark:text-slate-100">Build Smart Assistants</h4>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                    THING helps you generate assistants with proper prompts, tools, and configurations automatically.
+                    <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> helps you generate assistants with proper prompts, tools, and configurations automatically.
                   </p>
                 </div>
                 <div className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm dark:border-blue-900/40 dark:from-blue-950/20 dark:to-slate-900">
                   <Workflow className="size-8 text-blue-600 mb-2" />
                   <h4 className="font-semibold text-slate-900 dark:text-slate-100">Create Workflows</h4>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                    THING helps you design complete workflows with steps based on your needs.
+                    <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> helps you design complete workflows with steps based on your needs.
                   </p>
                 </div>
               </div>
@@ -281,7 +282,7 @@ export default function LandingLayout() {
 
               <div className="mt-2 flex items-center justify-center">
                 <Button size="lg" className="shadow-lg" onClick={openWorkspaceModal}>
-                  Get Started with THING
+                  Get Started with <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" />
                   <ArrowRight className="ml-2 size-5" />
                 </Button>
               </div>
@@ -307,7 +308,7 @@ export default function LandingLayout() {
                   </div>
                   <h4 className="mt-2 text-lg font-semibold">Organize Your Knowledge</h4>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    THING organizes your documents into a searchable, topic-driven folders and files.
+                    <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> organizes your documents into a searchable, topic-driven folders and files.
                   </p>
                 </div>
               </div>
@@ -323,7 +324,7 @@ export default function LandingLayout() {
                   </div>
                   <h4 className="mt-2 text-lg font-semibold">Build Your Assistant</h4>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    THING instantly generates assistants with the appropriate prompts, tools, and settings.
+                    <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> instantly generates assistants with the appropriate prompts, tools, and settings.
                   </p>
                 </div>
               </div>
@@ -339,7 +340,7 @@ export default function LandingLayout() {
                   </div>
                   <h4 className="mt-2 text-lg font-semibold">Custom Workflows</h4>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    THING designs and connects multi-step processes tailored to your exact needs.
+                    <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> designs and connects multi-step processes tailored to your exact needs.
                   </p>
 
                 </div>

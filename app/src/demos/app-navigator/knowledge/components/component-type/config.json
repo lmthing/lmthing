@@ -1,0 +1,9 @@
+{
+    "label": "Component Type",
+    "description": "The high-level category of component being discussed",
+    "fieldType": "select",
+    "required": false,
+    "default": "navigation",
+    "variableName": "componentType",
+    "renderAs": "field"
+}

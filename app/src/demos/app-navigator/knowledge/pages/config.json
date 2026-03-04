@@ -1,0 +1,7 @@
+{
+    "label": "App Pages",
+    "description": "The pages of the lmthing platform and their purpose, layout, and navigation paths",
+    "icon": "🗺️",
+    "color": "#6366f1",
+    "renderAs": "section"
+}

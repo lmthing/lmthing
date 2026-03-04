@@ -1,0 +1,10 @@
+{
+    "emptyFieldsForRuntime": {
+        "workspace-concepts": [
+            "component-type"
+        ],
+        "user-context": [
+            "role"
+        ]
+    }
+}

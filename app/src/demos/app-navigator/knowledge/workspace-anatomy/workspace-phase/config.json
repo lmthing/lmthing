@@ -1,0 +1,9 @@
+{
+    "label": "Workspace Phase",
+    "description": "Which phase of the workspace lifecycle to understand",
+    "fieldType": "select",
+    "required": false,
+    "default": "structure-overview",
+    "variableName": "workspacePhase",
+    "renderAs": "field"
+}

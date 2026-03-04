@@ -1,5 +1,10 @@
 [
   {
+    "name": "app-navigator",
+    "description": "",
+    "workspace_id": "app-navigator"
+  },
+  {
     "name": "dog",
     "description": "",
     "workspace_id": "dog"

@@ -1,0 +1,9 @@
+{
+    "label": "Component Code",
+    "description": "The component reference code (C1-C10) to understand",
+    "fieldType": "select",
+    "required": false,
+    "default": "c2-sidebar",
+    "variableName": "componentCode",
+    "renderAs": "field"
+}

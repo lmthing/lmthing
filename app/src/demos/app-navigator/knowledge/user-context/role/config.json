@@ -1,0 +1,9 @@
+{
+    "label": "User Role",
+    "description": "The role of the person using the workspace",
+    "fieldType": "select",
+    "required": true,
+    "default": "developer",
+    "variableName": "role",
+    "renderAs": "field"
+}

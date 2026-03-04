@@ -1,0 +1,9 @@
+{
+    "label": "Pattern Type",
+    "description": "Which type of design pattern to apply",
+    "fieldType": "select",
+    "required": false,
+    "default": "knowledge-architecture",
+    "variableName": "patternType",
+    "renderAs": "field"
+}

@@ -1,0 +1,9 @@
+{
+    "label": "Concept Type",
+    "description": "Which workspace building block to learn about",
+    "fieldType": "select",
+    "required": false,
+    "default": "agent",
+    "variableName": "conceptType",
+    "renderAs": "field"
+}

@@ -1,0 +1,547 @@
+{
+  "id": "app-navigator",
+  "agents": {
+    "agent-page-guide": {
+      "id": "agent-page-guide",
+      "frontmatter": {
+        "name": "PageGuide",
+        "description": "Expert navigator of the lmthing platform — explains each page, its layout, components, and user stories",
+        "tools": [
+          "read",
+          "search",
+          "vscode"
+        ],
+        "selectedDomains": [
+          "domain-pages",
+          "domain-components",
+          "domain-user-context"
+        ]
+      },
+      "mainInstruction": "",
+      "slashActions": [
+        {
+          "name": "Explain Page",
+          "description": "Get a full explanation of a specific page including layout, components, and user stories",
+          "flowId": "flow_explain_page",
+          "actionId": "explain"
+        }
+      ],
+      "config": {
+        "emptyFieldsForRuntime": {
+          "user-context": [
+            "role"
+          ]
+        }
+      },
+      "formValues": {},
+      "conversations": []
+    },
+    "agent-workspace-builder": {
+      "id": "agent-workspace-builder",
+      "frontmatter": {
+        "name": "WorkspaceBuilder",
+        "description": "Guides users through creating and structuring their first workspace — agents, flows, and knowledge bases",
+        "tools": [
+          "read",
+          "edit",
+          "execute",
+          "vscode"
+        ],
+        "selectedDomains": [
+          "domain-workspace-concepts",
+          "domain-components",
+          "domain-user-context"
+        ]
+      },
+      "mainInstruction": "",
+      "slashActions": [
+        {
+          "name": "Build Workspace",
+          "description": "Step-by-step guide to building a new workspace from scratch",
+          "flowId": "flow_build_workspace",
+          "actionId": "build"
+        }
+      ],
+      "config": {
+        "emptyFieldsForRuntime": {
+          "workspace-concepts": [
+            "component-type"
+          ],
+          "user-context": [
+            "role"
+          ]
+        }
+      },
+      "formValues": {},
+      "conversations": []
+    }
+  },
+  "flows": {
+    "flow_build_workspace": {
+      "id": "flow_build_workspace",
+      "frontmatter": {},
+      "description": "# Build Workspace\n\nThis flow walks you through creating a complete workspace from scratch — including knowledge domains, agents, and flows.\n\n1. [Define Your Domain](1.Define Your Domain.md)\n2. [Create Knowledge Domains](2.Create Knowledge Domains.md)\n3. [Design Your Agents](3.Design Your Agents.md)\n4. [Attach Flows to Agents](4.Attach Flows to Agents.md)\n5. [Configure Runtime Fields](5.Configure Runtime Fields.md)\n6. [Test with Thing Assistant](6.Test with Thing Assistant.md)\n",
+      "tasks": [
+        {
+          "order": 1,
+          "name": "Define Your Domain",
+          "frontmatter": {},
+          "instructions": "# Define Your Domain\n\nBefore building a workspace, you need a clear idea of its subject.\n\nAnswer these questions:\n\n1. **What is the domain?** (e.g., \"customer support\", \"recipe management\", \"code review\")\n2. **Who are the users?** (e.g., developers, marketers, teachers)\n3. **What problems does this workspace solve?** Identify 2-3 core use cases.\n4. **What knowledge does an expert in this domain carry?** Think about:\n   - Terminology and vocabulary\n   - Common decision trees\n   - Reference data (templates, standards, examples)\n   - User context (preferences, history)\n\nOnce you've defined your domain, you'll use it to structure the knowledge base and design agents that speak the domain's language."
+        },
+        {
+          "order": 2,
+          "name": "Create Knowledge Domains",
+          "frontmatter": {},
+          "instructions": "# Create Knowledge Domains\n\nIn the Studio Dashboard, go to the Knowledge section and create your top-level knowledge areas.\n\n**Guideline:** Create 3–4 domains that together cover your subject comprehensively.\n\nFor each domain, click **+ Create Knowledge** and provide:\n- **Name** — A concise label (e.g., \"Customer Profile\")\n- **Description** — What types of knowledge live here (e.g., \"Demographics, preferences, and support history\")\n\nAfter creation, click into each domain to open the Knowledge Area Details page. There you will:\n\n1. Create **folders** for each sub-field using the \"+ New Folder\" button\n2. Create **option files** (`.md`) inside each folder using \"+ New File\"\n3. Write content in each file using the markdown editor — include key characteristics, best practices, and decision guidance\n\n**Good domain examples:**\n- `user-profile` → preferences, experience-level, role\n- `platform-config` → environment, feature-flags, deployment-mode\n- `content-type` → format, tone, audience\n- `workflow-context` → trigger, goal, constraints"
+        },
+        {
+          "order": 3,
+          "name": "Design Your Agents",
+          "frontmatter": {},
+          "instructions": "# Design Your Agents\n\nIn the Studio Dashboard, go to the Agents section and click **+ Create Agent** for each agent you need.\n\n**Guideline:** Create 2–3 agents with distinct, complementary roles.\n\nFor each agent:\n1. **Name** — Use PascalCase (e.g., `ContentWriter`, `QAReviewer`)\n2. **Description** — One clear sentence describing its expertise\n3. **Main Instructions** — Write a system prompt that defines:\n   - The agent's role and personality\n   - Tone and communication style\n   - What it knows (from attached knowledge)\n   - What it should and shouldn't do\n\nAfter creating, use the **knowledge pills** (the bar below the header) to attach the relevant knowledge domains. Active pills appear in violet with a checkmark.\n\n**Tips:**\n- Agents inherit context from selected knowledge domains — attach only what's relevant\n- Keep instructions focused; avoid redundancy with knowledge content\n- Reference domain knowledge with natural language (e.g., \"Use the user's experience level to calibrate your response\")"
+        },
+        {
+          "order": 4,
+          "name": "Attach Flows to Agents",
+          "frontmatter": {},
+          "instructions": "# Attach Flows to Agents\n\nFlows give agents the ability to run multi-step processes via slash commands.\n\nOn the Agent Configuration page, open the **Actions** tab in the right panel and click **Attach Flow**.\n\nThis opens the \"Attach Workflow\" modal which lets you:\n- Browse available flows in the workspace\n- See each flow's name, description, and step count\n- Select and attach a flow\n\nOnce attached, the action card appears showing:\n- The slash command (e.g., `/generate`)\n- The flow name\n- Number of steps\n- Active status badge (green)\n\n**Managing attached flows:**\n- Hover over a card to reveal the **edit / disable / detach** menu\n- Click the status badge to toggle Active ↔ Inactive without losing the attachment\n- Detach removes the action from the agent\n\n**Note:** Flows must exist in the workspace before they can be attached. You create flows by adding markdown files to `flows/flow_*/` directories."
+        },
+        {
+          "order": 5,
+          "name": "Configure Runtime Fields",
+          "frontmatter": {},
+          "instructions": "# Configure Runtime Fields\n\nRuntime fields are knowledge fields whose values are not pre-filled — they prompt the user for input when starting a conversation.\n\nConfigure them in each agent's `config.json` under `emptyFieldsForRuntime`:\n\n```json\n{\n  \"emptyFieldsForRuntime\": {\n    \"domain-name\": [\"field-slug\", \"another-field-slug\"]\n  }\n}\n```\n\nUse runtime fields for:\n- **User-specific values** — name, company, role\n- **Session-specific choices** — task goal, target audience\n- **Dynamic configurations** — anything that changes per conversation\n\n**Examples:**\n- `\"user-context\": [\"name\", \"role\"]` — prompts for user's name and role before each chat\n- `\"content-type\": [\"tone\"]` — lets the user pick communication tone per session\n\n**Best practices:**\n- Mark frequently-changing values as runtime fields\n- Default values in `config.json` reduce friction for optional fields\n- Required fields (`required: true`) will block the conversation until filled"
+        },
+        {
+          "order": 6,
+          "name": "Test with Thing Assistant",
+          "frontmatter": {},
+          "instructions": "# Test with Thing Assistant\n\nThe **Thing** assistant is your built-in workspace automation AI. Use it to test and iterate on your workspace.\n\n## Open Thing\nClick the **Thing** button in the top-right header. A sliding panel (C10) opens from the right. The button text changes to \"Hide Thing\".\n\n## What to Test\n\n### Run workspace status check\nType `status` in the Thing input to get an overview of your workspace structure:\n- Number of agents, flows, knowledge areas\n- Configuration validity\n- Runtime field summary\n\n### Test agent actions via JSON\nYou can trigger agent actions using JSON envelopes in the Thing panel:\n```json\n{\n  \"action\": \"upsertAgent\",\n  \"name\": \"MyAgent\",\n  \"description\": \"What this agent does\"\n}\n```\n\n### Use the Chat sandbox\nOn the **Agent Configuration** page, click the violet **Chat** floating button (bottom-right) to open the Runtime Conversation Preview. Test your agent with real messages to verify:\n- Instructions are interpreted correctly\n- Knowledge context is injected as expected\n- Slash commands trigger the right flows\n\n## Iterate and Refine\nBased on test results, return to the Studio Dashboard and adjust:\n- Agent instructions (Main Instructions textarea)\n- Knowledge area content (edit files in the tree explorer)\n- Attached flows and their steps"
+        }
+      ]
+    },
+    "flow_explain_page": {
+      "id": "flow_explain_page",
+      "frontmatter": {},
+      "description": "# Explain Page\n\nThis flow helps you deeply understand any page in the lmthing platform — its layout, interactive components, and user stories.\n\n1. [Identify the Page](1.Identify the Page.md)\n2. [Describe Layout and Structure](2.Describe Layout and Structure.md)\n3. [Explain Components](3.Explain Components.md)\n4. [Walk Through User Stories](4.Walk Through User Stories.md)\n5. [Highlight Interactive Elements](5.Highlight Interactive Elements.md)\n",
+      "tasks": [
+        {
+          "order": 1,
+          "name": "Identify the Page",
+          "frontmatter": {},
+          "instructions": "# Identify the Page\n\nAsk the user which page they want to explore. The lmthing platform has three main page areas:\n\n- **Home Page** (`/`) — The public-facing landing page with workspace selection\n- **Studio Dashboard** (`/workspace/[workspaceId]/studio`) — The main workspace hub with Knowledge and Agents overviews\n- **Agent Configuration** (`/workspace/[workspaceId]/studio/agent/[agentId]`) — Configure a specific AI agent\n- **Knowledge Area Details** (`/workspace/[workspaceId]/studio/domain/[domainId]`) — Explore and edit knowledge files\n\nAsk: \"Which page would you like to understand? You can describe it by name or by the URL path.\""
+        },
+        {
+          "order": 2,
+          "name": "Describe Layout and Structure",
+          "frontmatter": {},
+          "instructions": "# Describe Layout and Structure\n\nBased on the page identified, describe its overall layout pattern:\n\n- **L1 – Single-Column Centered** (Home Page): Centered column, hero → CTA → grid. Framed with a soft glowing border.\n- **L2 – Three-Column Dashboard** (Studio Dashboard, Agent Config): Left sidebar (fixed) + center content (flexible) + optional right action panel.\n- **L3 – Two-Column Split** (Knowledge Area Details): Sidebar + tree file explorer (left half) + markdown editor (right half).\n\nExplain which layout is used and why it suits the content on the page. Reference the layout's purpose and how the columns interact."
+        },
+        {
+          "order": 3,
+          "name": "Explain Components",
+          "frontmatter": {},
+          "instructions": "# Explain Components\n\nList and describe the key UI components that appear on the selected page. Use the component library as reference:\n\n| Component | Code | What It Does |\n|-----------|------|--------------|\n| Application Header | C1 | Top bar with logo, workspace selector, action buttons (Thing, Export, Login) |\n| Sidebar Navigation | C2 | Fixed left panel with KNOWLEDGE, AGENTS, CONVERSATIONS sections + counts |\n| Card Grid | C3 | Responsive grid of cards for Knowledge Areas and Agents |\n| Empty State | C4 | Centered placeholder with icon + guidance when no content exists |\n| Pill/Tag Bar | C5 | Horizontal scrollable bar of toggle pills (e.g., knowledge area selector on agent page) |\n| Markdown Editor | C6 | Full textarea with monospace font for editing .md content |\n| Tree Explorer | C7 | Hierarchical file browser with expand/collapse, search, and context menus |\n| Modal Dialog | C8 | Overlay dialogs — simple form, tabbed settings, or selection list variants |\n| Floating Action Button | C9 | Fixed bottom-right button (e.g., \"Chat\" on agent config page) |\n| Sliding Side Panel | C10 | Right-side panel for Thing assistant interface |\n\nFor the current page, explain which components are present and their exact role on that page."
+        },
+        {
+          "order": 4,
+          "name": "Walk Through User Stories",
+          "frontmatter": {},
+          "instructions": "# Walk Through User Stories\n\nWalk through the key user stories for the page. Each story follows the format:\n\n**As a** [user type]\n**I want to** [do something]\n**So that** [benefit/goal]\n\nFor the selected page, cover these primary stories:\n\n### Home Page\n- US-001: Understand platform value proposition\n- US-002: Authenticate with GitHub\n- US-004: Access Studio via workspace modal\n- US-005/006: Explore and open demo workspaces\n\n### Studio Dashboard\n- US-101: See current workspace context\n- US-102: Switch between workspaces\n- US-104: Navigate via sidebar (Knowledge, Agents, Conversations)\n- US-105/106: View Knowledge Areas and Agents overview\n- US-107/108: Create new Knowledge Area or Agent\n- US-112: Open Thing assistant panel\n- US-113: Manage workspace settings\n\n### Agent Configuration\n- US-201: Navigate back and see agent identity\n- US-202: Toggle knowledge pill attachments\n- US-203: Edit main instructions\n- US-205–207: View, attach, and manage flows/actions\n- US-208: Test agent via Chat sandbox\n\n### Knowledge Area Details\n- US-301: Navigate back and see area context\n- US-302–304: Browse, search, expand/collapse file tree\n- US-305/306: Create new files and folders\n- US-307/308: Select and edit file content\n- US-310–313: Context menu: rename, duplicate, delete\n\nFor each story, briefly describe what the user sees and what happens when they interact."
+        },
+        {
+          "order": 5,
+          "name": "Highlight Interactive Elements",
+          "frontmatter": {},
+          "instructions": "# Highlight Interactive Elements\n\nFor the selected page, summarize all interactive elements and what they trigger:\n\n## Modal-triggering Actions\n- Workspace selector dropdown → opens workspace list modal\n- \"+ Create Knowledge\" / \"+ Create Agent\" → opens simple form modal\n- Settings link → opens tabbed settings modal (package.json / Env Files / Providers)\n- \"Attach Flow\" button (Agent page) → opens workflow selection modal\n- \"Open Studio →\" (Home page) → opens demo workspace selection modal\n\n## Navigation Actions\n- Knowledge area card click → navigates to `/workspace/.../studio/domain/[domainId]`\n- Agent card click → navigates to `/workspace/.../studio/agent/[agentId]`\n- Back arrow in header → returns to `/workspace/.../studio`\n- Sidebar list items → navigate between knowledge areas or agents\n\n## Toggle/Panel Actions\n- \"Thing\" button → slides in the right panel (C10), changes to \"Hide Thing\"\n- \"Collapse\" button in sidebar → collapses sidebar to icon-only view\n- Knowledge pills (Agent page) → toggles attach/detach state (gray ↔ violet)\n- File tree folders → expand / collapse nested contents\n- Action card status badge → toggles Active ↔ Inactive\n\n## Contextual Menus\n- Hover over file/folder in tree → reveals three-dot menu (rename, duplicate, delete)\n- Hover over action card (Agent page) → reveals edit/disable/detach menu\n\n## Editor & Chat\n- \"Chat\" FAB (Agent page) → opens Runtime Conversation Preview overlay\n- Clicking a file in tree (Knowledge page) → loads content in markdown editor\n\nExplain how each interaction is visually signalled (hover shadows, color changes, icon transitions)."
+        }
+      ]
+    }
+  },
+  "knowledge": [
+    {
+      "path": "components",
+      "type": "directory",
+      "children": [
+        {
+          "path": "components/component-code",
+          "type": "directory",
+          "children": [],
+          "config": {
+            "label": "Component Code",
+            "description": "The component reference code (C1-C10) to understand",
+            "fieldType": "select",
+            "required": false,
+            "default": "c2-sidebar",
+            "variableName": "componentCode",
+            "renderAs": "field"
+          }
+        },
+        {
+          "path": "components/component-type",
+          "type": "directory",
+          "children": [
+            {
+              "path": "components/component-type/content.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Content Components",
+                "description": "Editor, card grid, and empty state components for displaying and editing content",
+                "order": "2"
+              },
+              "content": "# Content Components\n\n## C3: Card Grid\nResponsive grid (typically 2-3 columns) used to display Knowledge Areas and Agents.\n\n**Card structure:**\n- Icon/Avatar (top-left)\n- Title and subtitle\n- Description text\n- Metadata badges\n- Action button (bottom or overlay)\n\n**Hover state:** Shadow deepens, border color intensifies using semantic color (Emerald for Knowledge, Violet for Agents).\n\n## C4: Empty State\nShown when a section has no content or no file is selected.\n\n**Contains:**\n- Large centered icon\n- Bold heading (e.g., \"No file selected\")\n- Descriptive subtitle with guidance\n- Optional CTA button\n\n## C5: Pill/Tag Selection Bar\nHorizontal scrollable bar of interactive pills on the Agent Configuration page.\n\n**Used for:** Attaching/detaching knowledge domains to an agent.\n**States:** Active (violet with checkmark) / Inactive (gray).\n**Controls:** Click to toggle, \"Clear all\" button to detach all.\n\n## C6: Markdown Editor\nLarge textarea with monospace font for editing `.md` files.\n\n**Features:**\n- Syntax highlighting support\n- Full markdown editing capability\n- Auto-save or explicit save\n- Used in both Knowledge Area Details and Agent Instructions"
+            },
+            {
+              "path": "components/component-type/navigation.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Navigation Components",
+                "description": "Header, sidebar, and tree explorer components used for app navigation",
+                "order": "1"
+              },
+              "content": "# Navigation Components\n\n## C1: Application Header\nThe top bar that appears on every page.\n\n**Contains:**\n- **Left:** Logo + workspace selector dropdown + quick add button\n- **Center:** Page title and subtitle (contextual to current page)\n- **Right:** \"Thing\" button, \"Export\" button, \"Login with GitHub\" button\n\n**Behavior:**\n- Workspace selector opens a searchable modal with workspace list\n- \"Thing\" button toggles the sliding right panel (C10), text changes to \"Hide Thing\"\n- \"Export\" button downloads the current workspace or entity configuration\n\n## C2: Sidebar Navigation\nFixed-width left panel present on Studio and detail pages.\n\n**Sections:**\n- KNOWLEDGE (with count badge) → list of knowledge areas + \"+ Create Knowledge\"\n- AGENTS (with count badge) → list of agents + \"+ Create Agent\"\n- CONVERSATIONS (with count badge) → context-dependent list\n- Settings link (bottom)\n- Collapse toggle (bottom)\n\n**Active state:** Highlighted with Emerald (Knowledge) or Violet (Agents) accent color.\n\n## C7: Tree Explorer\nHierarchical file browser used on the Knowledge Area Details page.\n\n**Controls:**\n- Search input (top) — real-time filter\n- \"Expand\" / \"Collapse\" buttons — open or close all folders\n- \"+ New File\" button — opens file creation modal\n- \"+ New Folder\" button — opens folder creation modal\n- Hover → reveals three-dot context menu per item"
+            },
+            {
+              "path": "components/component-type/overlay.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Overlay Components",
+                "description": "Modal dialogs, floating buttons, and sliding panels for contextual actions",
+                "order": "3"
+              },
+              "content": "# Overlay Components\n\n## C8: Modal Dialog\nCentered overlay with backdrop, used throughout the app for creation and selection tasks.\n\n**Variants:**\n- **Simple form modal** — name + description inputs with Create/Cancel\n- **Complex tabbed modal** — e.g., Workspace Settings (package.json / Env Files / Providers tabs)\n- **Selection modal** — searchable list of items (workspaces, flows) to choose from\n\n**Always includes:** Title, close button, footer with action buttons.\n\n## C9: Floating Action Button\nFixed position button (bottom-right) on the Agent Configuration page.\n\n**Used for:** Opening the Runtime Conversation Preview (sandbox chat).\n**Styling:** Large, violet background, icon + \"Chat\" label.\n**Behavior:** Clicking opens a chat overlay; conversations use the current agent configuration.\n\n## C10: Sliding Side Panel\nRight-side panel that slides in from the edge when \"Thing\" button is clicked.\n\n**Contains:**\n- \"Workspace actions\" section\n- \"New chat\" button\n- Conversation history list\n- Command input field (supports `help`, `status`, JSON action envelopes)\n\n**Behavior:** Clicking \"Thing\" again or the backdrop closes the panel.\n**Coexistence:** May replace or overlay the right action panel on the Agent Configuration page."
+            }
+          ],
+          "config": {
+            "label": "Component Type",
+            "description": "The high-level category of component being discussed",
+            "fieldType": "select",
+            "required": false,
+            "default": "navigation",
+            "variableName": "componentType",
+            "renderAs": "field"
+          }
+        }
+      ],
+      "config": {
+        "label": "UI Components",
+        "description": "The reusable UI components that make up the lmthing interface",
+        "icon": "🧩",
+        "color": "#0ea5e9",
+        "renderAs": "section"
+      }
+    },
+    {
+      "path": "design-patterns",
+      "type": "directory",
+      "children": [
+        {
+          "path": "design-patterns/pattern-type",
+          "type": "directory",
+          "children": [],
+          "config": {
+            "label": "Pattern Type",
+            "description": "Which type of design pattern to apply",
+            "fieldType": "select",
+            "required": false,
+            "default": "knowledge-architecture",
+            "variableName": "patternType",
+            "renderAs": "field"
+          }
+        }
+      ],
+      "config": {
+        "label": "Design Patterns",
+        "description": "Best practices and proven patterns for structuring workspaces, knowledge, and agent prompts",
+        "icon": "🏛️",
+        "color": "#ec4899",
+        "renderAs": "section"
+      }
+    },
+    {
+      "path": "file-formats",
+      "type": "directory",
+      "children": [
+        {
+          "path": "file-formats/file-type",
+          "type": "directory",
+          "children": [
+            {
+              "path": "file-formats/file-type/agent-config-json.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Agent config.json",
+                "description": "Declares which knowledge fields should be prompted at runtime",
+                "order": "3"
+              },
+              "content": "# Agent `config.json` — Runtime Field Declarations\n\nLocated at `agents/agent-{slug}/config.json`. This file tells the platform which knowledge fields should be left empty and prompted from the user at conversation start.\n\n## Full Schema\n\n```json\n{\n  \"emptyFieldsForRuntime\": {\n    \"{domain-folder-name}\": [\"{field-folder-name}\", \"{field-folder-name-2}\"],\n    \"{domain-folder-name-2}\": [\"{field-folder-name}\"]\n  }\n}\n```\n\n## Field Reference\n\n| Key | Type | Rules |\n|---|---|---|\n| `emptyFieldsForRuntime` | object | Top-level key. Map of domain → fields. |\n| Domain key | string | Must match the **folder name** inside `knowledge/` exactly |\n| Field array | string[] | Each string must match a **field folder name** inside that domain |\n\n## Behavior\n\nWhen a field is listed here:\n1. The agent starts without that field's value filled\n2. The platform prompts the user to fill it before the conversation begins\n3. The user's input is saved to `values.json` for the session\n\n## Examples\n\n**Minimal — prompt user for their role:**\n```json\n{\n  \"emptyFieldsForRuntime\": {\n    \"user-context\": [\"role\"]\n  }\n}\n```\n\n**Multiple domains and fields:**\n```json\n{\n  \"emptyFieldsForRuntime\": {\n    \"user-profile\": [\"name\", \"experience-level\"],\n    \"project\": [\"goal\", \"deadline\"],\n    \"content-preferences\": [\"tone\"]\n  }\n}\n```\n\n**No runtime fields (pre-filled defaults only):**\n```json\n{\n  \"emptyFieldsForRuntime\": {}\n}\n```\n\n## Validation\n\n- ✅ Valid JSON (no trailing commas, proper quoting)\n- ✅ All domain keys match existing `knowledge/{domain}` folder names\n- ✅ All field values match existing `knowledge/{domain}/{field}` folder names\n- ✅ Only fields with `fieldType: \"select\"` or `\"text\"` should be listed\n- ✅ Only list fields that genuinely need user input per session\n\n## When to Use Runtime Fields\n\nUse runtime fields when the value:\n- Changes per user (e.g., name, role, experience level)\n- Changes per session or task (e.g., current project, today's goal)\n- Cannot be meaningfully defaulted (e.g., specific user question)\n\n**Avoid** making every field a runtime field — it creates friction. Pre-fill stable defaults and only prompt for what truly varies."
+            },
+            {
+              "path": "file-formats/file-type/domain-config-json.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Domain config.json",
+                "description": "The metadata file for a top-level knowledge domain",
+                "order": "4"
+              },
+              "content": "# Domain `config.json` — Knowledge Domain Metadata\n\nLocated at `knowledge/{domain-name}/config.json`. Defines how the domain is presented in the Studio UI.\n\n## Full Schema\n\n```json\n{\n  \"label\": \"{Human-Readable Domain Name}\",\n  \"description\": \"{What this domain category covers}\",\n  \"icon\": \"{single emoji}\",\n  \"color\": \"{hex color code}\",\n  \"renderAs\": \"section\"\n}\n```\n\n## Field Reference\n\n| Field | Type | Rules |\n|---|---|---|\n| `label` | string | Human-readable, Title Case, max ~30 chars |\n| `description` | string | One sentence — what types of data live here |\n| `icon` | string | **Exactly one** emoji character. No text, no multi-char sequences |\n| `color` | string | Valid CSS hex: `#` + 6 hex chars (e.g., `#10b981`) |\n| `renderAs` | string | Always `\"section\"` for top-level domain folders |\n\n## Color Suggestions by Domain Type\n\n| Domain Type | Color | Hex |\n|---|---|---|\n| User/People | Emerald | `#10b981` |\n| Content/Media | Violet | `#7c3aed` |\n| Settings/Config | Amber | `#f59e0b` |\n| Technology/Code | Sky blue | `#0ea5e9` |\n| Business/Finance | Rose | `#f43f5e` |\n| Education | Orange | `#f97316` |\n| Health/Wellness | Teal | `#14b8a6` |\n| Data/Analytics | Indigo | `#6366f1` |\n\n## Icon Suggestions by Domain Type\n\n| Domain Type | Icon Examples |\n|---|---|\n| User profile | 👤 🧑‍💼 👩‍🏫 |\n| Content/Writing | ✍️ 📝 📄 |\n| Product/Project | 🏗️ 🚀 ⚙️ |\n| Knowledge/Learning | 📚 🎓 🧠 |\n| Data/Analytics | 📊 🔢 📈 |\n| Communication | 💬 📧 📣 |\n| Technology | 💻 🖥️ 🔧 |\n\n## Complete Examples\n\n```json\n{\n  \"label\": \"Student Profile\",\n  \"description\": \"Information about the student's background, learning style, and academic level\",\n  \"icon\": \"🎓\",\n  \"color\": \"#f97316\",\n  \"renderAs\": \"section\"\n}\n```\n\n```json\n{\n  \"label\": \"Project Context\",\n  \"description\": \"Details about the current project, its goals, constraints, and stakeholders\",\n  \"icon\": \"🚀\",\n  \"color\": \"#6366f1\",\n  \"renderAs\": \"section\"\n}\n```\n\n## Validation\n\n- ✅ `renderAs` is exactly `\"section\"` (string, lowercase)\n- ✅ `icon` is exactly one emoji (not a word, not multiple emojis)\n- ✅ `color` starts with `#` and is exactly 7 characters total\n- ✅ Valid JSON (no trailing commas)\n- ✅ `label` is not the same as the folder name (it's the human-readable version)"
+            },
+            {
+              "path": "file-formats/file-type/instruct-md.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "instruct.md (Agent)",
+                "description": "The agent identity file — frontmatter + slash action declarations",
+                "order": "2"
+              },
+              "content": "# `instruct.md` — Agent Identity File\n\nLocated at `agents/agent-{slug}/instruct.md`. This file defines the agent's name, capabilities, knowledge links, and available slash commands.\n\n## Full Schema\n\n```markdown\n---\nname: \"{AgentName}\"\ndescription: \"{One-sentence description of what this agent does}\"\ntools: [\"{tool-1}\", \"{tool-2}\", \"{tool-3}\"]\nselectedDomains: [\"domain-{domain1}\", \"domain-{domain2}\"]\n---\n\n<slash_action name=\"{Display Name}\" description=\"{What this action does}\" flowId=\"flow_{action_id}\">\n/{command}\n</slash_action>\n```\n\n## Frontmatter Field Reference\n\n| Field | Type | Format | Example |\n|---|---|---|---|\n| `name` | string | PascalCase, no spaces | `\"FormulaExpert\"` |\n| `description` | string | One sentence, max ~80 chars | `\"Analyzes spreadsheet formulas and suggests improvements\"` |\n| `tools` | array | kebab-case strings | `[\"formula-parser\", \"data-cleaner\"]` |\n| `selectedDomains` | array | `\"domain-\"` prefix + folder name | `[\"domain-spreadsheet\", \"domain-use-case\"]` |\n\n## `<slash_action>` Reference\n\n| Attribute | Required | Rules |\n|---|---|---|\n| `name` | ✅ | Display title shown in the Actions panel, Title Case |\n| `description` | ✅ | One sentence explaining what the action does |\n| `flowId` | ✅ | Must **exactly** match the folder name in `flows/` |\n| Body (inside tags) | ✅ | The slash command string, starts with `/` |\n\n## Validation Rules\n\n- ✅ YAML frontmatter is valid (proper indentation, no tabs)\n- ✅ `name` has no spaces or special characters\n- ✅ `selectedDomains` values start with `\"domain-\"` and match existing folders\n- ✅ `flowId` values match existing `flows/` folder names\n- ✅ Slash command body starts with `/`\n- ✅ No duplicate slash commands\n- ✅ Tools use kebab-case\n\n## Example — Complete\n\n```markdown\n---\nname: \"LessonPlanAgent\"\ndescription: \"Creates detailed lesson plans aligned to curriculum standards and student needs\"\ntools: [\"curriculum-search\", \"activity-designer\", \"assessment-builder\"]\nselectedDomains: [\"domain-classroom\", \"domain-curriculum\", \"domain-teacher\"]\n---\n\n<slash_action name=\"Create Lesson Plan\" description=\"Generates a complete lesson plan for a topic\" flowId=\"flow_create_lesson\">\n/plan\n</slash_action>\n\n<slash_action name=\"Quick Quiz\" description=\"Creates a short quiz for any topic\" flowId=\"flow_quick_quiz\">\n/quiz\n</slash_action>\n```\n\n## Main Instructions (System Prompt Body)\n\nThe text after the closing `---` of frontmatter (and before any `<slash_action>` tags) is the agent's main system prompt. Alternatively, the Main Instructions are saved separately in the Studio UI.\n\nBest practice: Keep the body as a clear, structured system prompt — not as a repeat of what's already in the knowledge base."
+            },
+            {
+              "path": "file-formats/file-type/package-json.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "package.json",
+                "description": "The workspace manifest file that identifies a demo workspace",
+                "order": "1"
+              },
+              "content": "# `package.json` — Workspace Manifest\n\nEvery workspace needs exactly one `package.json` at the root of the workspace folder.\n\n## Full Schema\n\n```json\n{\n  \"name\": \"{subject-slug}-demo\",\n  \"version\": \"1.0.0\",\n  \"private\": true\n}\n```\n\n## Field Reference\n\n| Field | Type | Rules |\n|---|---|---|\n| `name` | string | `{subject-slug}-demo` format. Subject slug must be `kebab-case`. |\n| `version` | string | Use `\"1.0.0\"` always for demo workspaces |\n| `private` | boolean | Always `true` — prevents accidental npm publish |\n\n## Example Variants\n\n```json\n{ \"name\": \"education-demo\", \"version\": \"1.0.0\", \"private\": true }\n{ \"name\": \"customer-support-demo\", \"version\": \"1.0.0\", \"private\": true }\n{ \"name\": \"recipe-manager-demo\", \"version\": \"1.0.0\", \"private\": true }\n```\n\n## Location\n\n```\napp/src/demos/{subject-slug}/package.json\n```\n\n## Validation\n\n- ✅ All three fields present\n- ✅ `name` ends with `-demo`\n- ✅ `name` uses only lowercase letters, numbers, and hyphens\n- ✅ `private` is boolean `true` (not string `\"true\"`)\n- ✅ No trailing commas anywhere in the JSON"
+            }
+          ],
+          "config": {
+            "label": "File Type",
+            "description": "Which workspace file format you want to reference",
+            "fieldType": "select",
+            "required": false,
+            "default": "instruct-md",
+            "variableName": "fileType",
+            "renderAs": "field"
+          }
+        }
+      ],
+      "config": {
+        "label": "File Formats",
+        "description": "Exact schemas and validation rules for every file in a workspace",
+        "icon": "📋",
+        "color": "#f59e0b",
+        "renderAs": "section"
+      }
+    },
+    {
+      "path": "pages",
+      "type": "directory",
+      "children": [
+        {
+          "path": "pages/page-name",
+          "type": "directory",
+          "children": [
+            {
+              "path": "pages/page-name/agent-configuration.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Agent Configuration",
+                "description": "Configure a specific AI agent at /workspace/[workspaceId]/studio/agent/[agentId]",
+                "order": "3"
+              },
+              "content": "# Agent Configuration (`/workspace/[workspaceId]/studio/agent/[agentId]`)\n\n**Layout:** L2 – Three-Column Dashboard (full: sidebar + center + right panel)\n\nThis page is where you configure a single agent's identity, knowledge attachments, instructions, and capabilities.\n\n## Key Sections\n- **Knowledge Pills Bar (C5)** — Horizontal scrollable pills to attach/detach knowledge domains (violet when active)\n- **Main Instructions (C6)** — Large monospace markdown textarea for the agent's system prompt\n- **Area Knowledge section** — Accordion cards showing attached knowledge domain content\n- **Right Panel** — Tabbed view: \"Actions\" (attached flows) and \"Tools\" tabs\n- **Chat FAB (C9)** — Fixed bottom-right violet button to open Runtime Conversation Preview\n\n## Navigation Paths\n- Back button in header → returns to `/workspace/{workspaceId}/studio`\n- Sidebar agent list → switch to another agent\n- \"Attach Flow\" button → opens flow selection modal\n\n## Primary Actions\n- Toggle knowledge pills → attach or detach knowledge domains\n- Edit main instructions textarea → define agent system prompt\n- Attach Flow → links slash commands to multi-step flows\n- Hover action card → edit / disable / detach flow\n- Click Chat FAB → opens sandbox chat overlay\n\n## Color Scheme\n- Primary: Violet purple (#7c3aed) for all agent-related elements\n- Active knowledge pills: Violet with checkmark\n- Action status \"Active\" badge: Emerald green"
+            },
+            {
+              "path": "pages/page-name/home-page.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Home Page",
+                "description": "The public landing page at /",
+                "order": "1"
+              },
+              "content": "# Home Page (`/`)\n\n**Layout:** L1 – Single-Column Centered\n\nThe home page is the first thing users see. It presents the platform's value proposition and gives access to demo workspaces.\n\n## Key Sections\n- **Hero** — Headline \"Turn Knowledge into AI Agents\", tagline, and login button\n- **Studio CTA Card** — \"Build, test, and run everything in one place\" with three feature pills\n- **Demo Workspace Grid** — Three cards: local/education, local/plants, local/web-development\n\n## Navigation Paths\n- Click \"Open Studio →\" → opens \"Select Demo Workspace\" modal\n- Click a demo workspace card \"Open\" button → navigates to `/workspace/{id}/studio`\n- Click \"Login with GitHub\" → initiates GitHub OAuth\n\n## Color Scheme\n- Background: Off-white / light gray (slate-50) with subtle blue glow\n- Primary CTA: Near-black slate\n- Accent colors: Green, Purple, Orange for demo workspace icons"
+            },
+            {
+              "path": "pages/page-name/knowledge-area-details.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Knowledge Area Details",
+                "description": "Explore and edit knowledge files at /workspace/[workspaceId]/studio/domain/[domainId]",
+                "order": "4"
+              },
+              "content": "# Knowledge Area Details (`/workspace/[workspaceId]/studio/domain/[domainId]`)\n\n**Layout:** L3 – Two-Column Split (sidebar + tree explorer + editor)\n\nThis page lets you browse, create, and edit the markdown files that make up a knowledge area. Files here provide the context injected into agent conversations.\n\n## Key Sections\n- **Tree Explorer (C7)** — Left-center pane with hierarchical file browser, search, expand/collapse controls\n- **Markdown Editor (C6)** — Right pane shows selected file content for editing\n- **Empty State (C4)** — Shown in editor when no file is selected (\"No file selected\")\n\n## Tree Explorer Controls\n- Search input → filters files by name in real time\n- \"Expand\" / \"Collapse\" buttons → open/close all folders\n- \"+ New File\" (doc icon) → opens \"New Prompt Fragment\" modal\n- \"+ New Folder\" (folder icon) → opens \"New Folder\" modal\n- Hover file/folder → reveals three-dot context menu (Rename, Duplicate, Delete)\n\n## Navigation Paths\n- Back button in header → returns to `/workspace/{workspaceId}/studio`\n- Sidebar knowledge area list → switch to another knowledge area\n- Click file in tree → loads content in markdown editor\n\n## Primary Actions\n- Create file or folder (modal dialogs with location selector)\n- Edit file content in monospace markdown editor\n- Rename / Duplicate / Delete via context menu\n- Export knowledge area via header \"Export\" button\n\n## Color Scheme\n- Primary: Emerald green (#10b981) for active tree items and buttons\n- Purple dot on \"Knowledge Base\" label for visual differentiation\n- Red text on hover for \"Delete\" option"
+            },
+            {
+              "path": "pages/page-name/studio-dashboard.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Studio Dashboard",
+                "description": "The main workspace hub at /workspace/[workspaceId]/studio",
+                "order": "2"
+              },
+              "content": "# Studio Dashboard (`/workspace/[workspaceId]/studio`)\n\n**Layout:** L2 – Three-Column Dashboard (sidebar + main, no right panel)\n\nThe studio dashboard is the control center for a workspace. It shows knowledge areas and agents in a grid and provides all workspace management actions.\n\n## Key Sections\n- **Sidebar (C2)** — Lists KNOWLEDGE areas, AGENTS, CONVERSATIONS with count badges\n- **Main Content** — Two grids: Knowledge Areas (emerald green) and Agents (violet)\n- **Header (C1)** — Workspace selector dropdown, Thing button, Export button\n\n## Navigation Paths\n- Click knowledge area card → `/workspace/{id}/studio/domain/{domainId}`\n- Click agent card → `/workspace/{id}/studio/agent/{agentId}`\n- Click workspace selector → opens workspace switcher modal\n- Click Settings in sidebar → opens tabbed settings modal\n\n## Primary Actions\n- \"+ Create Knowledge\" → simple form modal (name + description)\n- \"+ Create Agent\" → simple form modal (name + description)\n- \"Thing\" button → slides in C10 panel for workspace automation\n- \"Export\" → downloads workspace bundle\n\n## Color Scheme\n- Knowledge: Emerald green (#10b981)\n- Agents: Violet purple (#7c3aed)\n- Card hover: intensified border color + medium shadow"
+            }
+          ],
+          "config": {
+            "label": "Page Name",
+            "description": "Which page in the app you want to understand",
+            "fieldType": "select",
+            "required": true,
+            "default": "studio-dashboard",
+            "variableName": "pageName",
+            "renderAs": "field"
+          }
+        }
+      ],
+      "config": {
+        "label": "App Pages",
+        "description": "The pages of the lmthing platform and their purpose, layout, and navigation paths",
+        "icon": "🗺️",
+        "color": "#6366f1",
+        "renderAs": "section"
+      }
+    },
+    {
+      "path": "user-context",
+      "type": "directory",
+      "children": [
+        {
+          "path": "user-context/role",
+          "type": "directory",
+          "children": [
+            {
+              "path": "user-context/role/developer.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Developer",
+                "description": "A technical user building or extending the platform",
+                "order": "1"
+              },
+              "content": "# Developer\n\nA developer is a technical user who wants to understand the platform architecture, create workspaces programmatically, or extend the agent framework.\n\n## Characteristics\n- Comfortable reading and writing markdown and JSON\n- Likely creating workspaces by editing files directly rather than through the UI\n- Interested in understanding the file structure, field types, and data flow\n- May be building custom agents or integrating the platform into a larger system\n\n## What They Need From Agents\n- Precise technical explanations of how things work\n- File structure diagrams and example code snippets\n- Validation rules and edge cases\n- Performance and architectural considerations\n- Clear navigation paths and page relationships\n\n## Common Goals\n- Build a new workspace for a specific domain\n- Understand how knowledge context is injected into agent prompts\n- Explore the component library and design system\n- Debug unexpected agent behavior"
+            },
+            {
+              "path": "user-context/role/non-technical-user.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Non-technical User",
+                "description": "A user who builds workspaces through the Studio UI without touching files",
+                "order": "2"
+              },
+              "content": "# Non-technical User\n\nA non-technical user builds and manages workspaces entirely through the Studio interface — no file editing required.\n\n## Characteristics\n- Unfamiliar with JSON, YAML, or markdown syntax\n- Builds knowledge areas and agents through point-and-click UI\n- Relies heavily on modals, form inputs, and visual feedback\n- Benefits from clear step-by-step guidance and tooltips\n\n## What They Need From Agents\n- Plain-language explanations avoiding technical jargon\n- Step-by-step instructions that reference visible UI elements\n- Reassurance about what each action does before they do it\n- Guidance on when to click which buttons and what each modal is for\n\n## Common Goals\n- Create a new workspace for their team's use case\n- Configure an agent without writing code\n- Add and organize knowledge content\n- Run and test an agent in the sandbox chat"
+            },
+            {
+              "path": "user-context/role/product-evaluator.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Product Evaluator",
+                "description": "A user exploring the platform to decide if it fits their team's needs",
+                "order": "3"
+              },
+              "content": "# Product Evaluator\n\nA product evaluator is exploring the platform, often for the first time, to assess whether it meets their team's requirements.\n\n## Characteristics\n- Wants a quick overview before committing significant time\n- Focused on understanding the value proposition and use case fit\n- May be comparing with other tools\n- Interested in demo workspaces as concrete examples\n\n## What They Need From Agents\n- High-level summaries of each section before deep dives\n- Clear connections between features and real-world outcomes\n- Concrete examples using the existing demo workspaces (education, plants, web-development)\n- Honest assessment of what the platform does and doesn't do\n\n## Common Goals\n- Understand what kind of AI agents this platform enables\n- Explore a demo workspace end-to-end (home page → studio → agent → knowledge)\n- Evaluate the knowledge base structure for their use case\n- Assess the time-to-value for building first workspace"
+            }
+          ],
+          "config": {
+            "label": "User Role",
+            "description": "The role of the person using the workspace",
+            "fieldType": "select",
+            "required": true,
+            "default": "developer",
+            "variableName": "role",
+            "renderAs": "field"
+          }
+        }
+      ],
+      "config": {
+        "label": "User Context",
+        "description": "Information about who is using the workspace and their goals",
+        "icon": "👤",
+        "color": "#10b981",
+        "renderAs": "section"
+      }
+    },
+    {
+      "path": "workspace-anatomy",
+      "type": "directory",
+      "children": [
+        {
+          "path": "workspace-anatomy/workspace-phase",
+          "type": "directory",
+          "children": [],
+          "config": {
+            "label": "Workspace Phase",
+            "description": "Which phase of the workspace lifecycle to understand",
+            "fieldType": "select",
+            "required": false,
+            "default": "structure-overview",
+            "variableName": "workspacePhase",
+            "renderAs": "field"
+          }
+        }
+      ],
+      "config": {
+        "label": "Workspace Anatomy",
+        "description": "The complete structure, relationships, and lifecycle of a workspace from empty to production",
+        "icon": "🔬",
+        "color": "#14b8a6",
+        "renderAs": "section"
+      }
+    },
+    {
+      "path": "workspace-concepts",
+      "type": "directory",
+      "children": [
+        {
+          "path": "workspace-concepts/concept-type",
+          "type": "directory",
+          "children": [
+            {
+              "path": "workspace-concepts/concept-type/agent.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Agent — Complete Reference",
+                "description": "Everything about creating, configuring, and connecting agents in a workspace",
+                "order": "1"
+              },
+              "content": "# Agent — Complete Reference\n\nAn agent is a named AI assistant within a workspace. It has a persistent identity, system prompt, domain knowledge, and executable flows.\n\n---\n\n## Directory Structure\n\n```\nagents/agent-{slug}/\n├── config.json       ← runtime field declarations\n├── instruct.md       ← identity, tools, domain links, slash actions\n└── values.json       ← persisted runtime field values (usually starts as {})\n```\n\n**Slug naming:** `kebab-case`, prefixed with `agent-` (e.g., `agent-lesson-planner`, `agent-code-reviewer`).\n\n---\n\n## `instruct.md` — Complete Schema\n\n```markdown\n---\nname: \"{AgentName}\"\ndescription: \"{One-line what this agent does}\"\ntools: [\"{tool-1}\", \"{tool-2}\"]\nselectedDomains: [\"domain-{domain1}\", \"domain-{domain2}\"]\n---\n\n<slash_action name=\"{Action Display Name}\" description=\"{What it does}\" flowId=\"flow_{action_id}\">\n/{command}\n</slash_action>\n```\n\n### Frontmatter Fields\n\n| Field | Type | Rules |\n|---|---|---|\n| `name` | string | **PascalCase** (e.g., `DataAnalyst`, `ContentWriter`) |\n| `description` | string | One sentence, action-oriented |\n| `tools` | array | `kebab-case` strings (e.g., `\"chart-suggester\"`) |\n| `selectedDomains` | array | Must be prefixed with `\"domain-\"` and match folder name exactly |\n\n### `<slash_action>` Attributes\n\n| Attribute | Required | Description |\n|---|---|---|\n| `name` | yes | Display label shown in the UI |\n| `description` | yes | Short description of what the action triggers |\n| `flowId` | yes | Must exactly match the folder name in `flows/` |\n\n**Multiple slash actions** are fully supported — add one `<slash_action>` block per action:\n```markdown\n<slash_action name=\"Generate Report\" description=\"Builds a full report\" flowId=\"flow_generate_report\">\n/report\n</slash_action>\n\n<slash_action name=\"Summarize\" description=\"Summarizes current context\" flowId=\"flow_summarize\">\n/summary\n</slash_action>\n```\n\n---\n\n## `config.json` — Runtime Fields\n\nRuntime fields are knowledge fields whose value is prompted from the user at the start of each conversation instead of being pre-filled.\n\n```json\n{\n  \"emptyFieldsForRuntime\": {\n    \"{domain-folder-name}\": [\"{field-folder-name}\", \"{another-field}\"]\n  }\n}\n```\n\n**Example:**\n```json\n{\n  \"emptyFieldsForRuntime\": {\n    \"user-profile\": [\"name\", \"experience-level\"],\n    \"project-context\": [\"goal\"]\n  }\n}\n```\n\n- Domain keys must match the **folder name** inside `knowledge/` (not the label)\n- Field values must match **folder names** inside `knowledge/{domain}/`\n- Fields listed here will be shown as empty inputs when the agent starts\n\n---\n\n## `values.json`\n\nStores the current values for all runtime fields. When empty, use `{}`.\n\n```json\n{\n  \"user-profile\": {\n    \"name\": \"Alex\",\n    \"experience-level\": \"intermediate\"\n  }\n}\n```\n\nThis file is updated automatically by the platform when a user fills in runtime fields.\n\n---\n\n## System Prompt (Main Instructions)\n\nThe Main Instructions textarea on the Agent Configuration page is the agent's **system prompt**. Best practices:\n\n1. **Start with identity** — \"You are a [role] specializing in [domain].\"\n2. **Define tone** — Formal / casual / technical / educational\n3. **Reference knowledge** — \"Use the user's experience level from their profile to calibrate explanations.\"\n4. **Set constraints** — \"Only answer questions about [topic]. Politely redirect off-topic requests.\"\n5. **Define output format** — \"Always structure your responses with a heading, bullet points, and a recommended next step.\"\n\n**What NOT to put in instructions:**\n- Content that should be in knowledge files (put reference data in knowledge, not here)\n- Lengthy option lists (those belong in knowledge field options)\n\n---\n\n## Knowledge Attachment (Domain Selection)\n\nAgents access knowledge through the **pills bar** on the Agent Configuration page. Active pills (violet with checkmark) inject that domain's knowledge into the agent's context.\n\nThe `selectedDomains` array in `instruct.md` defines the **initial** selection. Users can toggle pills to override.\n\n**Key principle:** Attach only what's relevant. Irrelevant knowledge pollutes the agent's context and reduces accuracy.\n\n---\n\n## Tools\n\nTools are identifiers for domain-specific capabilities. They appear in the `tools` array in instruct.md:\n\n```markdown\ntools: [\"data-cleaner\", \"chart-suggester\", \"formula-builder\"]\n```\n\nThese are descriptive strings that help the platform and agent understand available capabilities. Use `kebab-case`, action-oriented names.\n\n**Common patterns:**\n- `{noun}-{verb}` → `formula-builder`, `data-cleaner`\n- `{domain}-{action}` → `sheet-formatter`, `grammar-checker`\n- `{verb}-{noun}` → `suggest-chart`, `analyze-trend`\n\n---\n\n## Design Guidelines\n\n- Create **2-3 agents** per workspace with **distinct, non-overlapping roles**\n- Each agent should have **at least one flow** for structured multi-step tasks\n- Agents sharing a workspace can reference the **same knowledge domains** — each brings a different perspective\n- Agent names should reflect expertise: `FormulaExpert` not `Agent1`"
+            },
+            {
+              "path": "workspace-concepts/concept-type/flow.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Flow — Complete Reference",
+                "description": "Everything about creating multi-step flows and linking them to agent slash commands",
+                "order": "2"
+              },
+              "content": "# Flow — Complete Reference\n\nA flow is a named sequence of markdown step files that an agent executes when its slash command is triggered. Each step is an instruction page guiding the agent (and optionally the user) through a structured process.\n\n---\n\n## Directory Structure\n\n```\nflows/\n└── flow_{action_id}/\n    ├── index.md             ← Required: title + numbered list of step links\n    ├── 1.Step Name.md       ← Step 1\n    ├── 2.Step Name.md       ← Step 2\n    ├── 3.Step Name.md       ← Step 3\n    └── ...\n```\n\n**Naming rules:**\n- Folder: `flow_` prefix + `snake_case` (e.g., `flow_generate_report`, `flow_analyze_data`)\n- Step files: Number prefix + `.` + descriptive name + `.md` (e.g., `1.Gather Context.md`)\n- Spaces are allowed in step filenames\n\n---\n\n## `index.md` — Complete Schema\n\n```markdown\n# {Flow Display Title}\n\n{One or two sentence description of what this flow accomplishes.}\n\n1. [{Step 1 Name}](1.{Step%20Name}.md)\n2. [{Step 2 Name}](2.{Step%20Name}.md)\n3. [{Step 3 Name}](3.{Step%20Name}.md)\n4. [{Step 4 Name}](4.{Step%20Name}.md)\n```\n\n- **Title:** Human-readable, title-case\n- **Links:** Use URL-encoded filenames (spaces become `%20`) in the URL portion\n- **Link text:** Human-readable step name (can have spaces)\n- The description explains the flow's purpose, not the steps\n\n**Example:**\n```markdown\n# Generate Assessment\n\nThis flow creates a custom student assessment based on the current lesson plan and learning objectives.\n\n1. [Identify Learning Goals](1.Identify%20Learning%20Goals.md)\n2. [Select Question Types](2.Select%20Question%20Types.md)\n3. [Draft Questions](3.Draft%20Questions.md)\n4. [Format the Assessment](4.Format%20the%20Assessment.md)\n5. [Review and Finalize](5.Review%20and%20Finalize.md)\n```\n\n---\n\n## Step Files — Content Patterns\n\nEach step file is a markdown document with instructions for that step. Common patterns:\n\n### Information-Gathering Step\nAsk the user for required context before moving to the next step:\n```markdown\n# Identify Learning Goals\n\nBefore generating the assessment, we need to know what students should learn.\n\nAsk the user:\n- What is the main topic of this assessment?\n- What grade level are the students?\n- What learning objectives should this assessment test?\n\nSummarize what you gather before moving to the next step.\n```\n\n### Decision Step\nPresent options and guide the user to make a choice:\n```markdown\n# Select Question Types\n\nBased on the learning goals, recommend the best question types:\n\n| Type | Best For |\n|---|---|\n| Multiple choice | Knowledge recall, concept recognition |\n| Short answer | Understanding, explanation |\n| Essay | Analysis, critical thinking |\n| True/False | Quick comprehension checks |\n\nAsk the user to confirm the types, or suggest a balanced mix.\n```\n\n### Execution Step\nPerform the core task of the flow:\n```markdown\n# Draft Questions\n\nUsing the learning goals and selected question types, draft the assessment questions now.\n\nGuidelines:\n- Write questions in clear, grade-appropriate language\n- Start with easier questions and increase difficulty\n- Include at least one question per learning objective\n- For multiple choice, provide 4 options with exactly one correct answer\n\nGenerate the full question set and present it for review.\n```\n\n### Review Step\nLet the user review and iterate:\n```markdown\n# Review and Finalize\n\nPresent the complete assessment to the user. Ask:\n- Are all learning objectives covered?\n- Is the difficulty appropriate?\n- Any questions to add, remove, or reword?\n\nMake requested edits, then provide the final version in a clean, copyable format.\n```\n\n---\n\n## Linking Flows to Agents\n\nIn `instruct.md`, use the `<slash_action>` tag:\n\n```markdown\n<slash_action name=\"Generate Assessment\" description=\"Creates a student assessment aligned to learning objectives\" flowId=\"flow_generate_assessment\">\n/gen\n</slash_action>\n```\n\nThe `flowId` must **exactly match** the folder name (including the `flow_` prefix).\n\nOnce attached via the UI (Actions tab → \"Attach Flow\"), the flow appears as an action card showing:\n- Slash command (e.g., `/gen`)\n- Flow name\n- Step count\n- Active/Inactive status badge\n\n---\n\n## Design Guidelines\n\n| Principle | Detail |\n|---|---|\n| **Step count** | 4–8 steps per flow. Fewer = too vague. More = overwhelming. |\n| **Step granularity** | Each step = one discrete action or decision |\n| **Step names** | Action-oriented verbs: \"Analyze Data\", \"Draft Report\" — not \"Step 2\" |\n| **Sequential dependency** | Each step should reference or build on the previous |\n| **Parallelism** | Multiple flows in a workspace should not have overlapping step names |\n| **One flow per task** | Don't combine unrelated tasks in one flow |\n\n---\n\n## Example Flows By Domain\n\n### Data / Analytics\n- `flow_analyze_data` → Understand Context → Identify Metrics → Run Analysis → Visualize → Recommend Actions\n- `flow_clean_data` → Preview Data → Identify Issues → Suggest Fixes → Apply Corrections → Validate\n\n### Writing / Content\n- `flow_draft_article` → Define Topic → Outline Structure → Write Draft → Edit for Clarity → Format for Publication\n- `flow_review_content` → Read Submission → Score Criteria → Write Feedback → Suggest Improvements\n\n### Education\n- `flow_create_lesson` → Set Objectives → Design Activities → Select Resources → Write Assessment → Review Plan\n- `flow_generate_quiz` → Identify Topics → Generate Questions → Balance Difficulty → Format Output\n\n### Development\n- `flow_code_review` → Understand Context → Check Correctness → Review Style → Assess Performance → Write Summary\n- `flow_write_tests` → Identify Functions → List Edge Cases → Write Unit Tests → Validate Coverage"
+            },
+            {
+              "path": "workspace-concepts/concept-type/knowledge-base.md",
+              "type": "file",
+              "frontmatter": {
+                "title": "Knowledge Base — Complete Reference",
+                "description": "Everything about structuring knowledge domains, fields, and option files",
+                "order": "3"
+              },
+              "content": "# Knowledge Base — Complete Reference\n\nThe knowledge base is a structured tree of markdown files that provides domain-specific context to agents. It is organized into **domains → fields → options**.\n\n---\n\n## Directory Structure\n\n```\nknowledge/\n├── {domain-a}/\n│   ├── config.json           ← Domain config (label, icon, color, renderAs)\n│   ├── {field-1}/\n│   │   ├── config.json       ← Field config (fieldType, variableName, etc.)\n│   │   ├── option-a.md       ← An option choice\n│   │   └── option-b.md\n│   └── {field-2}/\n│       ├── config.json\n│       └── ...\n└── {domain-b}/\n    └── ...\n```\n\n---\n\n## Domain `config.json` — Complete Schema\n\n```json\n{\n  \"label\": \"{Human-Readable Domain Name}\",\n  \"description\": \"{What this domain category covers}\",\n  \"icon\": \"{single emoji}\",\n  \"color\": \"{hex color code}\",\n  \"renderAs\": \"section\"\n}\n```\n\n| Field | Type | Rules |\n|---|---|---|\n| `label` | string | Human-readable, Title Case |\n| `description` | string | One sentence, what this domain contains |\n| `icon` | string | Exactly one emoji character |\n| `color` | string | Valid hex (e.g., `#10b981`) |\n| `renderAs` | string | Always `\"section\"` for top-level domains |\n\n**Example:**\n```json\n{\n  \"label\": \"Teacher Profile\",\n  \"description\": \"Information about the teacher's background, style, and preferences\",\n  \"icon\": \"🧑‍🏫\",\n  \"color\": \"#f59e0b\",\n  \"renderAs\": \"section\"\n}\n```\n\n---\n\n## Field `config.json` — Complete Schema\n\n```json\n{\n  \"label\": \"{Human-Readable Field Name}\",\n  \"description\": \"{What this field represents}\",\n  \"fieldType\": \"select\",\n  \"required\": true,\n  \"default\": \"{default-option-slug}\",\n  \"variableName\": \"{camelCaseVariable}\",\n  \"renderAs\": \"field\"\n}\n```\n\n| Field | Type | Values / Rules |\n|---|---|---|\n| `label` | string | Human-readable, Title Case |\n| `description` | string | One sentence describing the dimension |\n| `fieldType` | string | `\"select\"` \\| `\"multiSelect\"` \\| `\"text\"` |\n| `required` | boolean | `true` blocks conversation until filled |\n| `default` | string | **File slug** (filename without `.md`) |\n| `variableName` | string | `camelCase` (e.g., `gradeLevel`, `classSize`) |\n| `renderAs` | string | Always `\"field\"` for sub-folders |\n\n### `fieldType` Guide\n\n| Type | Use When |\n|---|---|\n| `\"select\"` | User picks exactly one option from a list |\n| `\"multiSelect\"` | User picks one or more options |\n| `\"text\"` | Free-form text input (no option files needed) |\n\n**When `fieldType` is `\"text\"`:** No option markdown files are needed. The field is a free-form input.\n\n---\n\n## Option Markdown Files — Complete Schema\n\n```markdown\n---\ntitle: {Display Title}\ndescription: {Short one-line description shown in the selector}\norder: {number for sort order, 1 = first}\n---\n\n# {Title}\n\n{Detailed content that gets injected into the agent context.}\n\n## Key Characteristics\n- ...\n\n## Best Practices\n- ...\n\n## When to Use\n- ...\n```\n\n### Frontmatter Fields\n\n| Field | Type | Rules |\n|---|---|---|\n| `title` | string | Human-readable display name |\n| `description` | string | Short description visible in selector UI |\n| `order` | number | Integer, lower = shown first |\n\n### File Naming\n- Use `kebab-case` (e.g., `small-class.md`, `advanced-level.md`)\n- The filename (without `.md`) is the **slug** — used as default value in field config\n- Avoid spaces or special characters\n\n---\n\n## Content Depth Guidelines\n\nThe **body content** of each option file is injected into the agent's context. Make it rich and actionable:\n\n### ✅ Good Option Content\n```markdown\n# Small Class (Under 15 Students)\n\n## Key Characteristics\n- High student-to-teacher ratio enables personalized attention\n- Easier to track individual progress\n- Group dynamics are intimate — students know each other well\n\n## Instructional Implications\n- More time for 1-on-1 guidance per lesson\n- Can use collaborative projects with clear role assignments\n- Assessment can include oral components effectively\n\n## Common Challenges\n- Less peer diversity for group discussions\n- Students may rely heavily on teacher rather than peers\n```\n\n### ❌ Weak Option Content\n```markdown\n# Small Class\n\nA class with fewer than 15 students.\n```\n\nThe richer the content, the better the agent's contextual responses.\n\n---\n\n## How Context Injection Works\n\nWhen an agent has a knowledge domain selected (via pills) and the user picks an option, the content of that option's `.md` file is injected into the agent's system prompt context window before the conversation starts.\n\nThis means:\n- **Agents \"know\" everything written in selected option files**\n- Option file content should be written as if briefing an expert\n- Use second-person (\"When working with this type of class, consider...\") or third-person (\"Small classes typically require...\")\n\n---\n\n## Design Guidelines\n\n| Principle | Guideline |\n|---|---|\n| **Domain count** | 3–4 domains per workspace |\n| **Field count** | 3–6 fields per domain |\n| **Option count** | 2–6 options per field |\n| **Option content** | 150–500 words per option for rich context |\n| **Domain naming** | `kebab-case`, noun phrases (e.g., `data-type`, `user-profile`) |\n| **Field naming** | `kebab-case`, noun phrases (e.g., `experience-level`, `class-size`) |\n| **Variable naming** | `camelCase` matching the field (e.g., `experienceLevel`, `classSize`) |\n| **Required fields** | Only make required what genuinely blocks good output |\n| **Defaults** | Always set a sensible default for `select` fields |"
+            }
+          ],
+          "config": {
+            "label": "Concept Type",
+            "description": "Which workspace building block to learn about",
+            "fieldType": "select",
+            "required": false,
+            "default": "agent",
+            "variableName": "conceptType",
+            "renderAs": "field"
+          }
+        }
+      ],
+      "config": {
+        "label": "Workspace Concepts",
+        "description": "Core building blocks of a workspace: agents, flows, knowledge bases, and their relationships",
+        "icon": "🏗️",
+        "color": "#8b5cf6",
+        "renderAs": "section"
+      }
+    }
+  ],
+  "packageJson": {
+    "name": "app-navigator-demo",
+    "version": "1.0.0",
+    "private": true
+  },
+  "env": {}
+}

@@ -1,0 +1,7 @@
+{
+    "label": "Design Patterns",
+    "description": "Best practices and proven patterns for structuring workspaces, knowledge, and agent prompts",
+    "icon": "🏛️",
+    "color": "#ec4899",
+    "renderAs": "section"
+}

@@ -1,0 +1,7 @@
+{
+    "emptyFieldsForRuntime": {
+        "user-context": [
+            "role"
+        ]
+    }
+}

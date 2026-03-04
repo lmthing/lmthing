@@ -1,0 +1,9 @@
+{
+    "label": "Page Name",
+    "description": "Which page in the app you want to understand",
+    "fieldType": "select",
+    "required": true,
+    "default": "studio-dashboard",
+    "variableName": "pageName",
+    "renderAs": "field"
+}

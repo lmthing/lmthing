@@ -1,0 +1,9 @@
+{
+    "label": "File Type",
+    "description": "Which workspace file format you want to reference",
+    "fieldType": "select",
+    "required": false,
+    "default": "instruct-md",
+    "variableName": "fileType",
+    "renderAs": "field"
+}

@@ -7,7 +7,7 @@ import { useAgents, useFlows } from '@/lib/workspaceContext'
 import { useWorkspaceData } from '@/lib/workspaceDataContext'
 import { toWorkspaceRouteParam } from '@/lib/workspaces'
 import { ToolCallDisplay } from './ToolCallDisplay'
-import { CozyThingText } from '../../THING';
+import { CozyThingText } from '../../CozyText';
 import type { AgentBuilderScreenProps } from '@/../product/sections/agent-builder/types'
 import type {
   EncryptedEnvFile,

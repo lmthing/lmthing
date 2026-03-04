@@ -37,7 +37,7 @@ const CozyChar: React.FC<{ char: string }> = ({ char }) => {
         const isBlack = Math.random() < 0.5;
         stops.push({
             base: isBlack ? [100, 100, 0] : basePalette[Math.floor(Math.random() * basePalette.length)],
-            phase: Math.random() * Math.PI * 2,
+            phase: Math.random() * Math.PI * Math.PI * 2,
             speed: 0.0005 + Math.random() * 0.001, // Slow, organic speed
             variation: isBlack ? 0 : (40 + Math.random() * 40)
         });

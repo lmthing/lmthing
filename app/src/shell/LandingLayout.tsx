@@ -30,7 +30,7 @@ import { toWorkspaceName } from '@/lib/workspaces'
 import { useWorkspaceData } from '@/lib/workspaceDataContext'
 import { ThingPanel } from './components/ThingPanel'
 import logo from '@/assets/logo.png'
-import { CozyThingText } from '../THING';
+import { CozyThingText } from '../CozyText';
 
 const WORKSPACE_COLORS = ['#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ef4444', '#84cc16']
 const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? '0.0.0'
@@ -224,10 +224,10 @@ export default function LandingLayout() {
         <main className="w-full mx-auto max-w-7xl px-4 sm:px-6 py-12 sm:py-16">
           <div className="mx-auto max-w-3xl text-center">
             <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
-              Build Your (personal) <CozyThingText text="THING" className="inline-block text-4xl font-bold tracking-tight sm:text-5xl" />
+              Your Personal <CozyThingText text="THING" className="inline-block text-4xl font-bold tracking-tight sm:text-5xl" />
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              From one prompt, the <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" /> creates a ready-to-use ecosystem of knowledge, assistants, and automated workflows into organized workspaces.
+              The <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" /> is an orchestrator that coordinates your specialized AI assistants across workspaces—each with their own knowledge, tools, and workflows. Tell it what you need, and it calls the right experts.
             </p>
           </div>
 
@@ -236,30 +236,33 @@ export default function LandingLayout() {
             <div className="flex flex-col gap-6">
               <div className="text-center">
                 <h3 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                  Describe it. The <CozyThingText text="THING" className="inline-block text-3xl font-bold tracking-tight sm:text-4xl" /> builds it.
+                  One <CozyThingText text="THING" className="inline-block text-3xl font-bold tracking-tight sm:text-4xl" />, Many Experts
                 </h3>
+                <p className="mt-3 text-lg text-muted-foreground">
+                  Think of the <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" /> as a project manager for your AI team. Each workspace holds specialists with their own knowledge and tools. The THING knows exactly who to call.
+                </p>
               </div>
 
               <div className="mt-4 grid gap-4 sm:grid-cols-3">
                 <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/20 dark:to-slate-900">
                   <FileText className="size-8 text-emerald-600 mb-2" />
-                  <h4 className="font-semibold text-slate-900 dark:text-slate-100">Build Your Knowledge Base</h4>
+                  <h4 className="font-semibold text-slate-900 dark:text-slate-100">Workspaces Hold Knowledge</h4>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                    The <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> helps you create structured knowledge with documents organized by topic.
+                    Each workspace stores domain knowledge as organized documents—the ground truth for its specialists.
                   </p>
                 </div>
                 <div className="rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50 to-white p-4 shadow-sm dark:border-violet-900/40 dark:from-violet-950/20 dark:to-slate-900">
                   <Bot className="size-8 text-violet-600 mb-2" />
-                  <h4 className="font-semibold text-slate-900 dark:text-slate-100">Build Smart Assistants</h4>
+                  <h4 className="font-semibold text-slate-900 dark:text-slate-100">Workspaces Hold Assistants</h4>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                    The <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> helps you generate assistants with proper prompts, tools, and configurations automatically.
+                    Each workspace contains specialized assistants with their own prompts, tools, and configurations.
                   </p>
                 </div>
                 <div className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm dark:border-blue-900/40 dark:from-blue-950/20 dark:to-slate-900">
                   <Workflow className="size-8 text-blue-600 mb-2" />
-                  <h4 className="font-semibold text-slate-900 dark:text-slate-100">Create Workflows</h4>
+                  <h4 className="font-semibold text-slate-900 dark:text-slate-100">THING Coordinates Them All</h4>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                    The <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> helps you design complete workflows with steps based on your needs.
+                    Ask the THING anything—it routes your request to the right assistants and synthesizes the results.
                   </p>
                 </div>
               </div>
@@ -291,9 +294,9 @@ export default function LandingLayout() {
 
           {/* How It Works Section */}
           <div className="mt-12">
-            <h3 className="text-center text-2xl font-semibold">From Your Knowledge To Action</h3>
+            <h3 className="text-center text-2xl font-semibold">How the <CozyThingText text="THING" className="inline-block text-2xl font-semibold" /> Works</h3>
             <p className="mx-auto mt-2 max-w-2xl text-center text-muted-foreground">
-              Build AI assistants in four simple steps
+              Build your team of AI specialists in four steps
             </p>
             <div className="mt-12 grid gap-8 lg:grid-cols-4">
               {/* Step 1 */}
@@ -305,9 +308,9 @@ export default function LandingLayout() {
                   <div className="mt-4 flex items-center gap-2">
                     <span className="text-sm font-semibold text-primary">Step 1</span>
                   </div>
-                  <h4 className="mt-2 text-lg font-semibold">Organize Your Knowledge</h4>
+                  <h4 className="mt-2 text-lg font-semibold">Create Workspaces</h4>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    The <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> organizes your documents into a searchable, topic-driven folders and files.
+                    Set up workspaces for each domain—teaching, research, coding, writing—and organize your knowledge into them.
                   </p>
                 </div>
               </div>
@@ -321,9 +324,9 @@ export default function LandingLayout() {
                   <div className="mt-4 flex items-center gap-2">
                     <span className="text-sm font-semibold text-primary">Step 2</span>
                   </div>
-                  <h4 className="mt-2 text-lg font-semibold">Build Your Assistant</h4>
+                  <h4 className="mt-2 text-lg font-semibold">Build Specialists</h4>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    The <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> instantly generates assistants with the appropriate prompts, tools, and settings.
+                    Each workspace gets specialized assistants with their own prompts, tools, and access to that workspace's knowledge.
                   </p>
                 </div>
               </div>
@@ -337,9 +340,9 @@ export default function LandingLayout() {
                   <div className="mt-4 flex items-center gap-2">
                     <span className="text-sm font-semibold text-primary">Step 3</span>
                   </div>
-                  <h4 className="mt-2 text-lg font-semibold">Custom Workflows</h4>
+                  <h4 className="mt-2 text-lg font-semibold">Design Workflows</h4>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    The <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> designs and connects multi-step processes tailored to your exact needs.
+                    Chain multiple steps into workflows that your assistants can execute autonomously.
                   </p>
 
                 </div>
@@ -354,9 +357,9 @@ export default function LandingLayout() {
                   <div className="mt-4 flex items-center gap-2">
                     <span className="text-sm font-semibold text-primary-foreground">Step 4</span>
                   </div>
-                  <h4 className="mt-2 text-lg font-semibold">Watch It Work</h4>
+                  <h4 className="mt-2 text-lg font-semibold">Ask the THING</h4>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Sit back and monitor your assistants as they execute your tasks and workflows in real-time.
+                    Tell the THING what you need—it routes to the right specialists and returns synthesized results.
                   </p>
                 </div>
               </div>
@@ -441,14 +444,13 @@ export default function LandingLayout() {
               <div className="text-center">
                 <div className="inline-flex items-center gap-2 rounded-full border-2 border-amber-500/40 bg-amber-100/80 px-4 py-2 text-sm font-bold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
                   <FileText className="size-5" />
-                  Fact based AI
+                  Grounded in Your Knowledge
                 </div>
                 <h3 className="mt-4 text-3xl font-bold tracking-tight">
-                  Your Expertise, Amplified
+                  Each Workspace Knows Its Domain
                 </h3>
                 <p className="mt-4 text-lg text-muted-foreground">
-                  Give your AI assistants exactly what they need to know. By using your own documents as the source of truth,
-                  you prevent hallucinations and ensure every response is grounded in facts you control.
+                  Your workspaces contain the ground truth. When the THING routes a task to a specialist, that assistant only sees relevant knowledge from its workspace—no hallucinations, no context rot.
                 </p>
               </div>
 
@@ -463,7 +465,7 @@ export default function LandingLayout() {
                         Transparent Knowledge
                       </h4>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                        Every instruction and fact lives in revisioned plain documents. Read, verify, and update them easily. No black boxes.
+                        Every fact lives in plain markdown documents within each workspace. Read, verify, and update them easily. No black boxes.
                       </p>
                     </div>
                   </div>
@@ -476,10 +478,10 @@ export default function LandingLayout() {
                     </div>
                     <div>
                       <h4 className="font-semibold text-slate-900 dark:text-slate-100">
-                        Grounded in Truth
+                        Specialists Use What They Know
                       </h4>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                        Assistants reference your tailored files instead of making things up. They rely entirely on your verified information.
+                        Assistants only reference documents from their workspace. The THING ensures each specialist gets only relevant context.
                       </p>
                     </div>
                   </div>
@@ -494,10 +496,10 @@ export default function LandingLayout() {
                     </div>
                     <div>
                       <h4 className="font-semibold text-slate-900 dark:text-slate-100">
-                        Optimize Context Usage
+                        No Context Rot
                       </h4>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                        Avoid "context rot" by feeding assistants only relevant documents. Keep models focused and hallucination-free.
+                        By isolating knowledge per workspace and routing intelligently, the THING keeps each assistant focused and hallucination-free.
                       </p>
                     </div>
                   </div>
@@ -510,10 +512,10 @@ export default function LandingLayout() {
                     </div>
                     <div>
                       <h4 className="font-semibold text-slate-900 dark:text-slate-100">
-                        The Result
+                        Trustworthy Results
                       </h4>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                        Trustworthy AI that combines the power of LLMs with the reliability of your own tailored knowledge.
+                        AI that combines the power of LLMs with the reliability of your own verified knowledge, orchestrated by the THING.
                       </p>
                     </div>
                   </div>
@@ -524,14 +526,14 @@ export default function LandingLayout() {
 
           {/* Getting Started Section */}
           <div className="mt-20 rounded-2xl bg-muted/50 px-8 py-12 text-center">
-            <h3 className="text-2xl font-semibold">Start Building Your (personal) AI</h3>
+            <h3 className="text-2xl font-semibold">Build Your AI Team</h3>
             <p className="mt-2 text-muted-foreground">
-              Your knowledge is all you need — no coding required
+              Create workspaces, add specialists, and let the THING coordinate them all
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
               <Button size="lg" onClick={openWorkspaceModal}>
                 <Settings className="mr-2 size-5" />
-                Build in Studio
+                Open Studio
               </Button>
             </div>
           </div>
@@ -608,10 +610,10 @@ export default function LandingLayout() {
                     </div>
                     <div>
                       <h4 className="font-semibold text-slate-900 dark:text-slate-100">
-                        One-Size-Fits-None
+                        Can't Coordinate Experts
                       </h4>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                        Generic prompts can't capture your unique expertise. Every domain has nuances that general AI misses.
+                        Complex tasks often require multiple perspectives. General AI can't delegate to specialists or combine their expertise effectively.
                       </p>
                     </div>
                   </div>
@@ -621,10 +623,10 @@ export default function LandingLayout() {
               <div className="mt-8 rounded-xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-6 dark:border-emerald-900/40 dark:from-emerald-950/20">
                 <div className="text-center">
                   <h4 className="text-lg font-semibold text-emerald-900 dark:text-emerald-100">
-                    The <CozyThingText text="THING" className="inline-block text-lg font-bold" /> Solution: Specialized Assistants
+                    The <CozyThingText text="THING" className="inline-block text-lg font-bold" /> Solution: Orchestrated Specialists
                   </h4>
                   <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                    The <CozyThingText text="THING" className="inline-block text-sm font-bold" /> combines powerful AI models with your tailored knowledge to create trustworthy assistants. By grounding every response in your verified documents and feeding only relevant context, it protects against hallucination and context rot—giving you AI that truly understands your domain.
+                    Instead of one AI trying to know everything, the <CozyThingText text="THING" className="inline-block text-sm font-bold" /> coordinates a team of specialists. Each workspace holds experts with deep knowledge of their domain. When you ask the THING something, it routes your request to the right specialists and synthesizes their expertise—grounded in facts you control.
                   </p>
                 </div>
               </div>
@@ -638,7 +640,7 @@ export default function LandingLayout() {
             <DialogHeader>
               <DialogTitle>Ask the <CozyThingText text="THING" /></DialogTitle>
               <DialogDescription>
-                Select a workspace or create a new one to get started.
+                The THING will coordinate your specialists. Select a workspace or create a new one.
               </DialogDescription>
             </DialogHeader>
 
@@ -735,7 +737,7 @@ export default function LandingLayout() {
                   </li>
                   <li>
                     <button onClick={openWorkspaceModal} className="hover:text-foreground transition-colors">
-                      Ask the THING
+                      Ask the <CozyThingText text="THING" />
                     </button>
                   </li>
                   <li>

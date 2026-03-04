@@ -102,7 +102,7 @@ export function SettingsView({ isOpen }: SettingsViewProps) {
 
   const handleTabChange = (tab: 'env' | 'package-json') => {
     if (!workspaceName) return
-    const basePath = `/workspace/${toWorkspaceRouteParam(workspaceName)}/studio/settings`
+    const basePath = `/studio/${toWorkspaceRouteParam(workspaceName)}/settings`
     navigate(`${basePath}/${tab}`)
   }
 

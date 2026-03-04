@@ -251,7 +251,7 @@ export function StudioShell({
   const currentWorkspace = useWorkspace(workspaceName)
 
   // Build workspace-aware path helper
-  const studioPath = workspaceName ? `/workspace/${toWorkspaceRouteParam(workspaceName)}/studio` : '/studio'
+  const studioPath = workspaceName ? `/studio/${toWorkspaceRouteParam(workspaceName)}` : '/studio'
 
   // Prompt Library state
   const [selectedFile, setSelectedFile] = useState<PromptFragment | null>(null)
@@ -853,7 +853,7 @@ export function StudioShell({
     upsertAgent(buildAgentPayload(nextAgentId, name, description))
 
     if (!agentId) {
-      navigate(`${studioPath}/agent/${nextAgentId}`, { replace: true })
+      navigate(`${studioPath}/assistant/${nextAgentId}`, { replace: true })
     }
   }, [
     agentId,
@@ -901,7 +901,7 @@ export function StudioShell({
 
   const handleSelectRuntimeConversation = useCallback((targetConversationId: string) => {
     if (!agentId) return
-    navigate(`${studioPath}/agent/${agentId}/conversation/${targetConversationId}`)
+    navigate(`${studioPath}/assistant/${agentId}/conversation/${targetConversationId}`)
   }, [agentId, navigate, studioPath])
 
   const handleCreateRuntimeConversation = useCallback(() => {
@@ -926,7 +926,7 @@ export function StudioShell({
       conversations: [...(existingAgent.conversations || []), nextConversation],
     })
 
-    navigate(`${studioPath}/agent/${agentId}/conversation/${nextConversationId}`)
+    navigate(`${studioPath}/assistant/${agentId}/conversation/${nextConversationId}`)
   }, [agentId, agentsMap, navigate, studioPath, upsertAgent])
 
   const handleDeleteRuntimeConversation = useCallback((targetConversationId: string) => {
@@ -944,9 +944,9 @@ export function StudioShell({
 
     if (conversationId === targetConversationId) {
       if (remaining.length > 0) {
-        navigate(`${studioPath}/agent/${agentId}/conversation/${remaining[0].id}`)
+        navigate(`${studioPath}/assistant/${agentId}/conversation/${remaining[0].id}`)
       } else {
-        navigate(`${studioPath}/agent/${agentId}`)
+        navigate(`${studioPath}/assistant/${agentId}`)
       }
     }
   }, [agentId, agentsMap, conversationId, navigate, studioPath, upsertAgent])
@@ -1025,7 +1025,7 @@ export function StudioShell({
   }, [conversationId, runtimeConversations, handleSaveRuntimeConversation])
 
   const handleLoadAgent = useCallback((targetAgentId: string) => {
-    navigate(`${studioPath}/agent/${targetAgentId}`)
+    navigate(`${studioPath}/assistant/${targetAgentId}`)
   }, [navigate, studioPath])
 
   const handleDeleteSavedAgent = useCallback((targetAgentId: string) => {
@@ -1061,7 +1061,7 @@ export function StudioShell({
       conversations: [],
     })
 
-    navigate(`${studioPath}/agent/${duplicateId}`)
+    navigate(`${studioPath}/assistant/${duplicateId}`)
   }, [agentsMap, navigate, studioPath, upsertAgent])
 
   const handleNewAgent = useCallback(() => {
@@ -1132,7 +1132,7 @@ export function StudioShell({
     }
 
     // Navigate to the agent flow editing route
-    navigate(`${studioPath}/agent/${agentId}/actions/${attachedFlow.slashAction.actionId}`)
+    navigate(`${studioPath}/assistant/${agentId}/actions/${attachedFlow.slashAction.actionId}`)
   }, [navigate, agentId, attachedFlows, studioPath])
 
   // Navigation helpers
@@ -1440,7 +1440,7 @@ export function StudioShell({
                   {domains.map((domain) => (
                     <Link
                       key={domain.id}
-                      to={`${studioPath}/domain/${domain.id}`}
+                      to={`${studioPath}/knowledge/${domain.id}`}
                       className="group p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:shadow-lg transition-all bg-white dark:bg-slate-900"
                     >
                       <div className="flex items-start justify-between mb-3">
@@ -1493,7 +1493,7 @@ export function StudioShell({
                     return (
                       <Link
                         key={agent.id}
-                        to={`${studioPath}/agent/${agent.id}`}
+                        to={`${studioPath}/assistant/${agent.id}`}
                         className="group p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-violet-500 dark:hover:border-violet-500 hover:shadow-lg transition-all bg-white dark:bg-slate-900"
                       >
                         <div className="flex items-start justify-between mb-3">

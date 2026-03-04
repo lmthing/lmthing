@@ -130,7 +130,7 @@ export function StudioSidebar({
 
   // Build workspace-aware path helper
   const studioPath = workspaceName
-    ? `/workspace/${toWorkspaceRouteParam(workspaceName)}/studio`
+    ? `/studio/${toWorkspaceRouteParam(workspaceName)}/`
     : '/studio'
 
   // Map knowledge sections to domain format
@@ -208,7 +208,7 @@ export function StudioSidebar({
     createWorkspace(localWorkspaceId, { setAsCurrent: false })
     setIsCreateLocalWorkspaceOpen(false)
     setNewLocalWorkspaceName('')
-    navigate(`/workspace/${toWorkspaceRouteParam(`local/${localWorkspaceId}`)}/studio`)
+    navigate(`/studio/${toWorkspaceRouteParam(`local/${localWorkspaceId}`)}`)
   }
 
   return (
@@ -334,7 +334,7 @@ export function StudioSidebar({
               {domainsExpanded && (
                 <div className="space-y-0.5">
                   {domains.map((domain) => {
-                    const href = `${studioPath}/domain/${domain.id}`
+                    const href = `${studioPath}/knowledge/${domain.id}`
                     const isActive = location.pathname === href || activeDomainId === domain.id
 
                     return (
@@ -395,7 +395,7 @@ export function StudioSidebar({
               {agentsExpanded && (
                 <div className="space-y-0.5">
                   {agents.map((agent) => {
-                    const href = `${studioPath}/agent/${agent.id}`
+                    const href = `${studioPath}/assistant/${agent.id}`
                     const isActive = location.pathname === href || activeAgentId === agent.id
                     const hasSlashAction = agent.attachedFlows?.some(
                       (f) => f.slashAction?.enabled
@@ -476,7 +476,7 @@ export function StudioSidebar({
                     )}
 
                     {activeAgentConversations.map((conv) => {
-                      const href = `${studioPath}/agent/${activeAgentId}/conversation/${conv.id}`
+                      const href = `${studioPath}/assistant/${activeAgentId}/conversation/${conv.id}`
                       const isActive = location.pathname === href
                       const lastMessage = conv.messages?.[conv.messages.length - 1]
 

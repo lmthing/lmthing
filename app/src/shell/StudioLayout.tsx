@@ -80,7 +80,7 @@ export default function StudioLayout() {
   } = useWorkspaceData()
 
   const studioPath = workspaceName
-    ? `/workspace/${toWorkspaceRouteParam(workspaceName)}/studio`
+    ? `/studio/${toWorkspaceRouteParam(workspaceName)}`
     : '/studio'
 
   // Redirect /settings to /settings/env by default
@@ -531,7 +531,7 @@ export default function StudioLayout() {
               }
               addKnowledgeNode(null, newNode)
               setShowCreateDomainForm(false)
-              navigate(`${studioPath}/domain/${newId}`)
+              navigate(`${studioPath}/knowledge/${newId}`)
             }}
             onCancel={() => setShowCreateDomainForm(false)}
           />
@@ -562,7 +562,7 @@ export default function StudioLayout() {
               }
               upsertAgent(newAgent)
               setShowCreateAgentForm(false)
-              navigate(`${studioPath}/agent/${newId}`)
+              navigate(`${studioPath}/assistant/${newId}`)
             }}
             onCancel={() => setShowCreateAgentForm(false)}
           />

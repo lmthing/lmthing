@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom'
 import LandingLayout from '@/shell/LandingLayout'
 import MarketplaceLayout from '@/shell/MarketplaceLayout'
 import StudioLayout from '@/shell/StudioLayout'
+import WorkspacesLayout from '@/shell/WorkspacesLayout'
 
 export const router = createBrowserRouter([
   // Landing page
@@ -13,9 +14,17 @@ export const router = createBrowserRouter([
     path: '/marketplace',
     element: <MarketplaceLayout />,
   },
+  // Workspaces overview
+  {
+
+  },
+  {
+    path: '/studio',
+    element: <WorkspacesLayout />,
+  },
   // Workspace-based Studio app with nested routes
   {
-    path: '/workspace/:workspaceName/studio',
+    path: '/studio/:workspaceName/',
     element: <StudioLayout />,
     children: [
       // Default list view
@@ -24,16 +33,17 @@ export const router = createBrowserRouter([
       { path: 'settings' },
       { path: 'settings/env' },
       { path: 'settings/package-json' },
-      // Domain detail view
-      { path: 'domain/:domainId' },
-      // Agent detail view
-      { path: 'agent/:agentId' },
-      // Agent conversation view in studio
-      { path: 'agent/:agentId/conversation/:conversationId' },
-      // Agent flow editing view (shows modal)
-      { path: 'agent/:agentId/actions/:actionId' },
+      // Knowledge detail view
+      { path: 'knowledge/:domainId' },
+      // Assistant detail view
+      { path: 'assistant/:agentId' },
+      // Assistant conversation view in studio
+      { path: 'assistant/:agentId/conversation/:conversationId' },
+      // Assistant flow editing view (shows modal)
+      { path: 'assistant/:agentId/actions/:actionId' },
     ],
   },
 ],
   { basename: import.meta.env.BASE_URL }
 )
+

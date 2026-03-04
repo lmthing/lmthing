@@ -20,7 +20,7 @@ test.describe('Flow Management', () => {
         await editActionBtn.click();
 
         // The URL should change to the agent flow editing view or modal should open
-        // From StudioLayout router we expect: /agent/:agentId/actions/:actionId
+        // From StudioLayout router we expect: /assistant/:agentId/actions/:actionId
         await page.waitForURL(/\/workspace\/.*\/studio\/agent\/.*\/actions\/.*/);
 
         // Check if the flow editor modal/view is open by looking for an element inside it

@@ -312,7 +312,7 @@ export function WorkspaceSelector({
         pathParts[workspaceIdx + 1] = workspaceToSlug(workspace.name)
         navigate(pathParts.join('/'))
       } else {
-        navigate(`/workspace/${workspaceToSlug(workspace.name)}/studio`)
+        navigate(`/studio/${workspaceToSlug(workspace.name)}/studio`)
       }
     },
     [navigate, location.pathname, onWorkspaceChange]

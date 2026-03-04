@@ -119,7 +119,7 @@ The app includes three pre-configured demo workspaces:
 - **Plants**: Indoor plant care coaching with care guides and diagnostics
 - **Web Development**: React and web component building assistants
 
-Access them from the landing page or navigate directly to `/workspace/{workspace-name}/studio`.
+Access them from the landing page or navigate directly to `/studio/{workspace-name}/studio`.
 
 ## Testing
 

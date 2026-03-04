@@ -2397,7 +2397,7 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
   }, [thingMessages, isCollapsed])
 
   const handleOpenSettings = useCallback(() => {
-    const studioPath = workspaceName ? `/workspace/${toWorkspaceRouteParam(workspaceName)}/studio` : '/studio'
+    const studioPath = workspaceName ? `/studio/${toWorkspaceRouteParam(workspaceName)}/studio` : '/studio'
     navigate(`${studioPath}/settings/env`)
   }, [navigate, workspaceName])
 

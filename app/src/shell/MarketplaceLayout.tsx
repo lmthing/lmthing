@@ -82,7 +82,7 @@ export default function MarketplaceLayout() {
       }
     }
 
-    navigate(`/workspace/${workspaceToSlug(workspace.name)}/studio`)
+    navigate(`/studio/${workspaceToSlug(workspace.name)}`)
   }
 
   return (

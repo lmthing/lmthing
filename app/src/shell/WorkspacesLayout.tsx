@@ -376,7 +376,7 @@ export default function WorkspacesLayout() {
                             className="flex h-12 w-12 shrink-0 items-center justify-center"
                             title="lmthing home"
                         >
-                            <img src={logo} alt="lmthing" className="h-12 w-12 rounded-md object-contain" />
+                            {/* <img src={logo} alt="lmthing" className="h-12 w-12 rounded-md object-contain" /> */}
                         </button>
                         {!isSidebarCollapsed && (
                             <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 truncate flex-1">

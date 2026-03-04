@@ -201,7 +201,7 @@ export default function LandingLayout() {
         <header className="border-b bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
             <div className="flex items-center gap-2 min-w-0">
-              <img src={logo} alt="lmthing" className="size-10 sm:size-12 shrink-0" />
+              {/* <img src={logo} alt="lmthing" className="size-10 sm:size-12 shrink-0" /> */}
               <h1 className="text-xl font-semibold truncate">lm<CozyThingText text="thing" /></h1>
               <span className="hidden sm:inline-flex rounded-md border px-2 py-0.5 text-xs font-medium text-muted-foreground shrink-0">
                 v{APP_VERSION}
@@ -224,7 +224,7 @@ export default function LandingLayout() {
         <main className="w-full mx-auto max-w-7xl px-4 sm:px-6 py-12 sm:py-16">
           <div className="mx-auto max-w-3xl text-center">
             <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
-              Your Personal <CozyThingText text="THING" className="inline-block text-4xl font-bold tracking-tight sm:text-5xl" />
+              Your personal <CozyThingText text="THING" className="inline-block text-4xl font-bold tracking-tight sm:text-5xl" />
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
               The <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" /> is an orchestrator that coordinates your specialized AI assistants across workspaces—each with their own knowledge, tools, and workflows. Tell it what you need, and it calls the right experts.
@@ -236,7 +236,7 @@ export default function LandingLayout() {
             <div className="flex flex-col gap-6">
               <div className="text-center">
                 <h3 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                  One <CozyThingText text="THING" className="inline-block text-3xl font-bold tracking-tight sm:text-4xl" />, Many Experts
+                  One <CozyThingText text="THING" className="inline-block text-3xl font-bold tracking-tight sm:text-4xl" />, many experts
                 </h3>
                 <p className="mt-3 text-lg text-muted-foreground">
                   Think of the <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" /> as a project manager for your AI team. Each workspace holds specialists with their own knowledge and tools. The THING knows exactly who to call.
@@ -284,7 +284,7 @@ export default function LandingLayout() {
 
               <div className="mt-2 flex items-center justify-center">
                 <Button size="lg" className="shadow-lg" onClick={openWorkspaceModal}>
-                  Get Started with <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" />
+                  Get started with <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" />
                   <ArrowRight className="ml-2 size-5" />
                 </Button>
               </div>
@@ -359,7 +359,7 @@ export default function LandingLayout() {
                   </div>
                   <h4 className="mt-2 text-lg font-semibold">Ask the THING</h4>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Tell the THING what you need—it routes to the right specialists and returns synthesized results.
+                    Tell the <CozyThingText text="THING" /> what you need—it routes to the right specialists and returns synthesized results.
                   </p>
                 </div>
               </div>

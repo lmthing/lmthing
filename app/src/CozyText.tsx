@@ -88,7 +88,7 @@ export const CozyThingText: React.FC<{ className?: string; text?: string }> = ({
   const [variant, setVariant] = React.useState(1);
   return (
     <span onClick={() => setVariant((v) => (v === 1 ? 2 : 1))} className={cn("font-serif font-black tracking-tighter inline-flex", className)}>
-      {text.split('').map((char, i) => 
+      {text.toLowerCase().split('').map((char, i) => 
           {
           return variant === 1 ? <CozyChar key={i} index={i} char={char} /> : <CozyChar3 key={i} index={i} char={char} />
         }

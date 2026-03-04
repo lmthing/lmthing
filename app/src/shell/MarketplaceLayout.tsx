@@ -90,7 +90,7 @@ export default function MarketplaceLayout() {
       <header className="border-b bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <Link to="/" className="flex items-center gap-2">
-            <img src={logo} alt="lmthing" className="size-10" />
+            {/* <img src={logo} alt="lmthing" className="size-10" /> */}
             <h1 className="text-xl font-semibold">lmthing</h1>
           </Link>
           <Button variant="outline" asChild>

@@ -232,7 +232,7 @@ export function StudioSidebar({
             className="flex h-12 w-12 shrink-0 items-center justify-center"
             title="lmthing"
           >
-            <img src={logo} alt="lmthing logo" className="h-12 w-12 rounded-md object-contain" />
+            {/* <img src={logo} alt="lmthing logo" className="h-12 w-12 rounded-md object-contain" /> */}
           </Link>
           {!isCollapsed && (
             <div className="min-w-0 flex-1">

@@ -212,6 +212,9 @@ export default function LandingLayout() {
               <Button variant="outline" size="sm" asChild>
                 <Link to="/marketplace">Marketplace</Link>
               </Button>
+              <Button size="sm" onClick={openWorkspaceModal}>
+                Ask the <CozyThingText text="THING" className="ml-1 text-sm font-bold" />
+              </Button>
               <GithubStars repo="lmthing/lmthing" />
             </div>
           </div>
@@ -221,10 +224,10 @@ export default function LandingLayout() {
         <main className="w-full mx-auto max-w-7xl px-4 sm:px-6 py-12 sm:py-16">
           <div className="mx-auto max-w-3xl text-center">
             <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
-              Build Your Own <CozyThingText text="THING" className="inline-block text-4xl font-bold tracking-tight sm:text-5xl" />
+              Build Your (personal) <CozyThingText text="THING" className="inline-block text-4xl font-bold tracking-tight sm:text-5xl" />
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              From one prompt, <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" /> creates a ready-to-use ecosystem of knowledge, assistants, and automated workflows into organized workspaces.
+              From one prompt, the <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" /> creates a ready-to-use ecosystem of knowledge, assistants, and automated workflows into organized workspaces.
             </p>
           </div>
 
@@ -232,12 +235,8 @@ export default function LandingLayout() {
           <div className="mx-auto mt-14 max-w-5xl rounded-3xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 via-white to-violet-50/50 p-8 shadow-xl backdrop-blur-sm dark:border-primary/40 dark:from-primary/10 dark:via-slate-900 dark:to-violet-950/30">
             <div className="flex flex-col gap-6">
               <div className="text-center">
-                <div className="inline-flex items-center gap-2 rounded-full border-2 border-primary/40 bg-primary/20 px-4 py-2 text-sm font-bold text-primary shadow-sm">
-                  <Bot className="size-5" />
-                  <CozyThingText text="THING" className="text-sm font-bold" /> — Your AI Workspace Builder
-                </div>
-                <h3 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
-                  Describe it. <CozyThingText text="THING" className="inline-block text-3xl font-bold tracking-tight sm:text-4xl" /> builds it.
+                <h3 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                  Describe it. The <CozyThingText text="THING" className="inline-block text-3xl font-bold tracking-tight sm:text-4xl" /> builds it.
                 </h3>
               </div>
 
@@ -246,21 +245,21 @@ export default function LandingLayout() {
                   <FileText className="size-8 text-emerald-600 mb-2" />
                   <h4 className="font-semibold text-slate-900 dark:text-slate-100">Build Your Knowledge Base</h4>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                    <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> helps you create structured knowledge with documents organized by topic.
+                    The <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> helps you create structured knowledge with documents organized by topic.
                   </p>
                 </div>
                 <div className="rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50 to-white p-4 shadow-sm dark:border-violet-900/40 dark:from-violet-950/20 dark:to-slate-900">
                   <Bot className="size-8 text-violet-600 mb-2" />
                   <h4 className="font-semibold text-slate-900 dark:text-slate-100">Build Smart Assistants</h4>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                    <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> helps you generate assistants with proper prompts, tools, and configurations automatically.
+                    The <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> helps you generate assistants with proper prompts, tools, and configurations automatically.
                   </p>
                 </div>
                 <div className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm dark:border-blue-900/40 dark:from-blue-950/20 dark:to-slate-900">
                   <Workflow className="size-8 text-blue-600 mb-2" />
                   <h4 className="font-semibold text-slate-900 dark:text-slate-100">Create Workflows</h4>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                    <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> helps you design complete workflows with steps based on your needs.
+                    The <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> helps you design complete workflows with steps based on your needs.
                   </p>
                 </div>
               </div>
@@ -273,7 +272,7 @@ export default function LandingLayout() {
                     First Step: Link Your AI Helper
                   </h4>
                   <p className="text-sm text-slate-600 dark:text-slate-400">
-                    Before THING can work its magic, you need to add at least one AI provider (like OpenAI, Anthropic, or others) 
+                    Before THING can work its magic, you need to add at least one AI provider (like OpenAI, Anthropic, or others)
                     in your environment settings. This gives THING the AI power it needs to generate everything for you.
                   </p>
                 </div>
@@ -292,9 +291,9 @@ export default function LandingLayout() {
 
           {/* How It Works Section */}
           <div className="mt-12">
-            <h3 className="text-center text-2xl font-semibold">How It Works</h3>
+            <h3 className="text-center text-2xl font-semibold">From Your Knowledge To Action</h3>
             <p className="mx-auto mt-2 max-w-2xl text-center text-muted-foreground">
-              Build AI assistants in four simple steps — from knowledge to action
+              Build AI assistants in four simple steps
             </p>
             <div className="mt-12 grid gap-8 lg:grid-cols-4">
               {/* Step 1 */}
@@ -308,7 +307,7 @@ export default function LandingLayout() {
                   </div>
                   <h4 className="mt-2 text-lg font-semibold">Organize Your Knowledge</h4>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> organizes your documents into a searchable, topic-driven folders and files.
+                    The <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> organizes your documents into a searchable, topic-driven folders and files.
                   </p>
                 </div>
               </div>
@@ -324,7 +323,7 @@ export default function LandingLayout() {
                   </div>
                   <h4 className="mt-2 text-lg font-semibold">Build Your Assistant</h4>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> instantly generates assistants with the appropriate prompts, tools, and settings.
+                    The <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> instantly generates assistants with the appropriate prompts, tools, and settings.
                   </p>
                 </div>
               </div>
@@ -340,7 +339,7 @@ export default function LandingLayout() {
                   </div>
                   <h4 className="mt-2 text-lg font-semibold">Custom Workflows</h4>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> designs and connects multi-step processes tailored to your exact needs.
+                    The <CozyThingText text="THING" className="inline-block text-sm font-bold align-baseline" /> designs and connects multi-step processes tailored to your exact needs.
                   </p>
 
                 </div>
@@ -438,9 +437,9 @@ export default function LandingLayout() {
 
           {/* Fact based AI Section */}
           <div className="mt-20">
-            <div className="mx-auto max-w-4xl rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/50 p-8 shadow-lg dark:border-emerald-900/40 dark:from-emerald-950/20 dark:via-slate-900 dark:to-teal-950/20">
+            <div className="mx-auto max-w-4xl rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50/80 via-white to-orange-50/50 p-8 shadow-lg dark:border-amber-900/40 dark:from-amber-950/20 dark:via-slate-900 dark:to-orange-950/20">
               <div className="text-center">
-                <div className="inline-flex items-center gap-2 rounded-full border-2 border-emerald-500/40 bg-emerald-100/80 px-4 py-2 text-sm font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                <div className="inline-flex items-center gap-2 rounded-full border-2 border-amber-500/40 bg-amber-100/80 px-4 py-2 text-sm font-bold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
                   <FileText className="size-5" />
                   Fact based AI
                 </div>
@@ -454,10 +453,10 @@ export default function LandingLayout() {
               </div>
 
               <div className="mt-8 grid gap-4 sm:grid-cols-2">
-                <div className="rounded-xl border border-emerald-200 bg-white/60 p-5 dark:border-emerald-900/30 dark:bg-slate-900/40">
+                <div className="rounded-xl border border-amber-200 bg-white/60 p-5 dark:border-amber-900/30 dark:bg-slate-900/40">
                   <div className="flex items-start gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
-                      <FileText className="size-5 text-emerald-600 dark:text-emerald-400" />
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/40">
+                      <FileText className="size-5 text-amber-600 dark:text-amber-400" />
                     </div>
                     <div>
                       <h4 className="font-semibold text-slate-900 dark:text-slate-100">
@@ -470,17 +469,17 @@ export default function LandingLayout() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-emerald-200 bg-white/60 p-5 dark:border-emerald-900/30 dark:bg-slate-900/40">
+                <div className="rounded-xl border border-orange-200 bg-white/60 p-5 dark:border-orange-900/30 dark:bg-slate-900/40">
                   <div className="flex items-start gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-teal-100 dark:bg-teal-900/40">
-                      <Bot className="size-5 text-teal-600 dark:text-teal-400" />
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/40">
+                      <Bot className="size-5 text-orange-600 dark:text-orange-400" />
                     </div>
                     <div>
                       <h4 className="font-semibold text-slate-900 dark:text-slate-100">
                         Grounded in Truth
                       </h4>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                        Assistants reference your curated files instead of making things up. They rely entirely on your verified information.
+                        Assistants reference your tailored files instead of making things up. They rely entirely on your verified information.
                       </p>
                     </div>
                   </div>
@@ -488,17 +487,17 @@ export default function LandingLayout() {
 
 
 
-                <div className="rounded-xl border border-emerald-200 bg-white/60 p-5 dark:border-emerald-900/30 dark:bg-slate-900/40">
+                <div className="rounded-xl border border-amber-200 bg-white/60 p-5 dark:border-amber-900/30 dark:bg-slate-900/40">
                   <div className="flex items-start gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
-                      <Brain className="size-5 text-emerald-600 dark:text-emerald-400" />
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/40">
+                      <Brain className="size-5 text-amber-600 dark:text-amber-400" />
                     </div>
                     <div>
                       <h4 className="font-semibold text-slate-900 dark:text-slate-100">
                         Optimize Context Usage
                       </h4>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                        Prevent "context rot" by feeding assistants only relevant documents. Keep models focused and hallucination-free.
+                        Avoid "context rot" by feeding assistants only relevant documents. Keep models focused and hallucination-free.
                       </p>
                     </div>
                   </div>
@@ -514,7 +513,7 @@ export default function LandingLayout() {
                         The Result
                       </h4>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                        Trustworthy AI that combines the power of LLMs with the reliability of your own curated knowledge.
+                        Trustworthy AI that combines the power of LLMs with the reliability of your own tailored knowledge.
                       </p>
                     </div>
                   </div>
@@ -525,7 +524,7 @@ export default function LandingLayout() {
 
           {/* Getting Started Section */}
           <div className="mt-20 rounded-2xl bg-muted/50 px-8 py-12 text-center">
-            <h3 className="text-2xl font-semibold">Start Building Your AI Assistants</h3>
+            <h3 className="text-2xl font-semibold">Start Building Your (personal) AI</h3>
             <p className="mt-2 text-muted-foreground">
               Your knowledge is all you need — no coding required
             </p>
@@ -536,15 +535,110 @@ export default function LandingLayout() {
               </Button>
             </div>
           </div>
+
+          {/* PROBLEM Section */}
+          <div className="mt-20">
+            <div className="mx-auto max-w-4xl rounded-2xl border-2 border-red-200 bg-gradient-to-br from-red-50/80 via-white to-rose-50/50 p-8 shadow-lg dark:border-red-900/40 dark:from-red-950/20 dark:via-slate-900 dark:to-rose-950/20">
+              <div className="text-center">
+                <div className="inline-flex items-center gap-2 rounded-full border-2 border-red-500/40 bg-red-100/80 px-4 py-2 text-sm font-bold text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                  <Brain className="size-5" />
+                  The Problem
+                </div>
+                <h3 className="mt-4 text-3xl font-bold tracking-tight">
+                  Why General AI Falls Short
+                </h3>
+                <p className="mt-4 text-lg text-muted-foreground">
+                  Generic AI assistants lack your specific expertise. They hallucinate, lose context, and can't be trusted with critical decisions.
+                </p>
+              </div>
+
+              <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                <div className="rounded-xl border border-red-200 bg-white/60 p-5 dark:border-red-900/30 dark:bg-slate-900/40">
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/40">
+                      <Bot className="size-5 text-red-600 dark:text-red-400" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                        Hallucination Risk
+                      </h4>
+                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                        General AI makes up facts confidently. Without your knowledge as ground truth, errors spread unchecked.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-rose-200 bg-white/60 p-5 dark:border-rose-900/30 dark:bg-slate-900/40">
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-rose-100 dark:bg-rose-900/40">
+                      <Workflow className="size-5 text-rose-600 dark:text-rose-400" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                        Context Rot
+                      </h4>
+                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                        As conversations grow, AI loses focus and forgets critical details. Relevant information gets buried in noise.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-orange-200 bg-white/60 p-5 dark:border-orange-900/30 dark:bg-slate-900/40">
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/40">
+                      <FileText className="size-5 text-orange-600 dark:text-orange-400" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                        No Transparency
+                      </h4>
+                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                        You can't inspect what the AI "knows." Black-box models make it impossible to verify or correct their understanding.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-amber-200 bg-white/60 p-5 dark:border-amber-900/30 dark:bg-slate-900/40">
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/40">
+                      <Sparkles className="size-5 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                        One-Size-Fits-None
+                      </h4>
+                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                        Generic prompts can't capture your unique expertise. Every domain has nuances that general AI misses.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 rounded-xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-6 dark:border-emerald-900/40 dark:from-emerald-950/20">
+                <div className="text-center">
+                  <h4 className="text-lg font-semibold text-emerald-900 dark:text-emerald-100">
+                    The <CozyThingText text="THING" className="inline-block text-lg font-bold" /> Solution: Specialized Assistants
+                  </h4>
+                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                    The <CozyThingText text="THING" className="inline-block text-sm font-bold" /> combines powerful AI models with your tailored knowledge to create trustworthy assistants. By grounding every response in your verified documents and feeding only relevant context, it protects against hallucination and context rot—giving you AI that truly understands your domain.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </main>
 
 
         <Dialog open={isWorkspaceModalOpen} onOpenChange={setIsWorkspaceModalOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Select Demo Workspace</DialogTitle>
+              <DialogTitle>Ask the <CozyThingText text="THING" /></DialogTitle>
               <DialogDescription>
-                Choose a workspace to open Studio.
+                Select a workspace or create a new one to get started.
               </DialogDescription>
             </DialogHeader>
 
@@ -641,7 +735,7 @@ export default function LandingLayout() {
                   </li>
                   <li>
                     <button onClick={openWorkspaceModal} className="hover:text-foreground transition-colors">
-                      Start My Free Helper
+                      Ask the THING
                     </button>
                   </li>
                   <li>

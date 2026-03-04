@@ -76,7 +76,7 @@ const CozyChar: React.FC<{ char: string; index: number }> = ({ char, index }) =>
       style={style}
       className="inline-block bg-clip-text text-transparent brightness-125 saturate-150 drop-shadow-[0_0_5px_rgba(255,255,255,0.2)]"
     >
-      {char}
+      {char.toLowerCase()}
     </span>
   );
 };

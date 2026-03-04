@@ -351,15 +351,6 @@ export function AgentFormBuilder(props: AgentBuilderScreenProps & { conversation
 
   return (
     <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-950">
-      {/* Domain Selector - Only show in Edit mode */}
-      {viewMode === 'edit' && (
-        <DomainSelector
-          domains={domains}
-          selectedDomainIds={selectedDomainIds}
-          onDomainsChange={onDomainsChange}
-        />
-      )}
-
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
         {/* View Mode - Runtime Preview in Main */}
@@ -449,6 +440,13 @@ These instructions will appear at the top of your agent's system prompt.`}
                 className="w-full px-4 py-3 text-sm text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl resize-y focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent placeholder:text-slate-400 dark:placeholder:text-slate-500 font-mono leading-relaxed"
               />
             </div>
+
+            {/* Domain Selector - Knowledge Selection */}
+            <DomainSelector
+              domains={domains}
+              selectedDomainIds={selectedDomainIds}
+              onDomainsChange={onDomainsChange}
+            />
 
             {/* Empty State */}
             {!hasSelection && (

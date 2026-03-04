@@ -191,7 +191,7 @@ export default function LandingLayout() {
     }
 
     setIsWorkspaceModalOpen(false)
-    navigate(`/workspace/${workspaceToSlug(workspace.name)}/studio`)
+    navigate(`/studio/${workspaceToSlug(workspace.name)}`)
   }
 
   return (
@@ -246,21 +246,21 @@ export default function LandingLayout() {
               <div className="mt-4 grid gap-4 sm:grid-cols-3">
                 <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/20 dark:to-slate-900">
                   <FileText className="size-8 text-emerald-600 mb-2" />
-                  <h4 className="font-semibold text-slate-900 dark:text-slate-100">Workspaces Hold Knowledge</h4>
+                  <h4 className="font-semibold text-slate-700 dark:text-slate-100">Workspaces Hold Knowledge</h4>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                     Each workspace stores domain knowledge as organized documents—the ground truth for its specialists.
                   </p>
                 </div>
                 <div className="rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50 to-white p-4 shadow-sm dark:border-violet-900/40 dark:from-violet-950/20 dark:to-slate-900">
                   <Bot className="size-8 text-violet-600 mb-2" />
-                  <h4 className="font-semibold text-slate-900 dark:text-slate-100">Workspaces Hold Assistants</h4>
+                  <h4 className="font-semibold text-slate-700 dark:text-slate-100">Workspaces Hold Assistants</h4>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                     Each workspace contains specialized assistants with their own prompts, tools, and configurations.
                   </p>
                 </div>
                 <div className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm dark:border-blue-900/40 dark:from-blue-950/20 dark:to-slate-900">
                   <Workflow className="size-8 text-blue-600 mb-2" />
-                  <h4 className="font-semibold text-slate-900 dark:text-slate-100">THING Coordinates Them All</h4>
+                  <h4 className="font-semibold text-slate-700 dark:text-slate-100">THING Coordinates Them All</h4>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                     Ask the THING anything—it routes your request to the right assistants and synthesizes the results.
                   </p>
@@ -271,7 +271,7 @@ export default function LandingLayout() {
               <div className="flex items-start gap-3">
                 <Settings className="size-5 text-amber-600 mt-0.5 flex-shrink-0" />
                 <div>
-                  <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-1">
+                  <h4 className="font-semibold text-slate-700 dark:text-slate-100 mb-1">
                     First Step: Link Your AI Helper
                   </h4>
                   <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -461,7 +461,7 @@ export default function LandingLayout() {
                       <FileText className="size-5 text-amber-600 dark:text-amber-400" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                      <h4 className="font-semibold text-slate-700 dark:text-slate-100">
                         Transparent Knowledge
                       </h4>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
@@ -477,7 +477,7 @@ export default function LandingLayout() {
                       <Bot className="size-5 text-orange-600 dark:text-orange-400" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                      <h4 className="font-semibold text-slate-700 dark:text-slate-100">
                         Specialists Use What They Know
                       </h4>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
@@ -495,7 +495,7 @@ export default function LandingLayout() {
                       <Brain className="size-5 text-amber-600 dark:text-amber-400" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                      <h4 className="font-semibold text-slate-700 dark:text-slate-100">
                         No Context Rot
                       </h4>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
@@ -511,7 +511,7 @@ export default function LandingLayout() {
                       <Sparkles className="size-5 text-indigo-600 dark:text-indigo-400" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                      <h4 className="font-semibold text-slate-700 dark:text-slate-100">
                         Trustworthy Results
                       </h4>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
@@ -561,7 +561,7 @@ export default function LandingLayout() {
                       <Bot className="size-5 text-red-600 dark:text-red-400" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                      <h4 className="font-semibold text-slate-700 dark:text-slate-100">
                         Hallucination Risk
                       </h4>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
@@ -577,7 +577,7 @@ export default function LandingLayout() {
                       <Workflow className="size-5 text-rose-600 dark:text-rose-400" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                      <h4 className="font-semibold text-slate-700 dark:text-slate-100">
                         Context Rot
                       </h4>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
@@ -593,7 +593,7 @@ export default function LandingLayout() {
                       <FileText className="size-5 text-orange-600 dark:text-orange-400" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                      <h4 className="font-semibold text-slate-700 dark:text-slate-100">
                         No Transparency
                       </h4>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
@@ -609,7 +609,7 @@ export default function LandingLayout() {
                       <Sparkles className="size-5 text-amber-600 dark:text-amber-400" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                      <h4 className="font-semibold text-slate-700 dark:text-slate-100">
                         Can't Coordinate Experts
                       </h4>
                       <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">

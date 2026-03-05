@@ -1,10 +1,12 @@
 // src/lib/fs/AppFS.ts
 
 import { FSEventBus } from './FSEventBus'
+import { FSInterface } from './FSInterface'
+import { globToRegex } from './glob'
 import type { FileTree, DirEntry, FileOp, Unsubscribe } from '../types/studio'
 import type { FSEvent, DirEvent, BatchEvent } from './events'
 
-export class AppFS {
+export class AppFS implements FSInterface {
   private store: Map<string, string>
   private bus: FSEventBus
 
@@ -53,12 +55,12 @@ export class AppFS {
   }
 
   glob(pattern: string): string[] {
-    const regex = this.globToRegex(pattern)
+    const regex = globToRegex(pattern)
     return Array.from(this.store.keys()).filter(path => regex.test(path))
   }
 
   globRead(pattern: string): FileTree {
-    const regex = this.globToRegex(pattern)
+    const regex = globToRegex(pattern)
     const result: FileTree = {}
     for (const [path, content] of this.store) {
       if (regex.test(path)) {
@@ -66,15 +68,6 @@ export class AppFS {
       }
     }
     return result
-  }
-
-  private globToRegex(pattern: string): RegExp {
-    let regexStr = pattern
-      .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
-      .replace(/\*\*/g, '.*')
-      .replace(/\*/g, '[^/]*')
-      .replace(/\?/g, '[^/]')
-    return new RegExp(`^${regexStr}$`)
   }
 
   // ── Write (sync) ──────────────────────────────────────────────────

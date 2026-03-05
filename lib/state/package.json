@@ -1,0 +1,67 @@
+{
+  "name": "@lmthing/state",
+  "version": "1.0.0",
+  "description": "LMThing File System Architecture - Layered, scoped file system with fine-grained event bus",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js"
+    },
+    "./fs": {
+      "types": "./dist/lib/fs/index.d.ts",
+      "import": "./dist/lib/fs/index.js"
+    },
+    "./contexts": {
+      "types": "./dist/lib/contexts/index.d.ts",
+      "import": "./dist/lib/contexts/index.js"
+    },
+    "./hooks": {
+      "types": "./dist/hooks/index.d.ts",
+      "import": "./dist/hooks/index.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "types": ["./dist/types/index.d.ts"],
+      "fs": ["./dist/lib/fs/index.d.ts"],
+      "contexts": ["./dist/lib/contexts/index.d.ts"],
+      "hooks": ["./dist/hooks/index.d.ts"]
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "file-system",
+    "event-bus",
+    "react-hooks",
+    "state-management",
+    "virtual-fs"
+  ],
+  "author": "LMThing",
+  "license": "MIT"
+}

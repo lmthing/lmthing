@@ -2,10 +2,12 @@
 
 export * from './events'
 export * from './FSEventBus'
+export * from './FSInterface'
 export * from './AppFS'
 export * from './ScopedFS'
 export * from './DraftStore'
 export * from './paths'
+export * from './glob'
 
 export * from './parsers/frontmatter'
 export * from './parsers/instruct'

@@ -1,6 +1,7 @@
 // src/lib/fs/ScopedFS.ts
 
 import { AppFS } from './AppFS'
+import { FSInterface } from './FSInterface'
 import type { FileTree, DirEntry, FileOp, Unsubscribe } from '../types/studio'
 import type { FSEvent, DirEvent, BatchEvent } from './events'
 
@@ -26,7 +27,7 @@ function stripPrefix(prefix: string, fullPath: string): string {
   return fullPath
 }
 
-export class ScopedFS {
+export class ScopedFS implements FSInterface {
   constructor(protected root: AppFS, protected prefix: string) {
     this.prefix = normalizePrefix(prefix)
   }

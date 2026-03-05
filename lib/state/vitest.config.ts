@@ -6,7 +6,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    include: ['**/*.test.ts', '**/*.test.tsx'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     exclude: ['node_modules', 'dist'],
     coverage: {
       provider: 'v8',
@@ -17,8 +17,7 @@ export default defineConfig({
         '**/*.test.ts',
         '**/*.test.tsx',
         '**/types/**',
-        'vitest.config.ts',
-        'tsup.config.ts'
+        'vitest.config.ts'
       ]
     },
     setupFiles: [],
@@ -26,7 +25,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': '/home/vasilis/GEANT/lmthing/lib/state'
+      '@': '/home/vasilis/GEANT/lmthing/lib/state/src'
     }
   }
 })

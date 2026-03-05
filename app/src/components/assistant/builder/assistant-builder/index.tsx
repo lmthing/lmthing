@@ -2,8 +2,8 @@
  * AssistantBuilder - Main assistant builder view with form, tools, actions.
  * Uses new composite hooks from Phase 3 and element components.
  */
-import { useState, useCallback, useMemo } from 'react'
-import { useParams } from 'react-router-dom'
+import { useState, useMemo } from 'react'
+import { useParams } from 'next/navigation'
 import '@/css/elements/layouts/page/index.css'
 import '@/css/elements/forms/button/index.css'
 import '@/css/elements/forms/input/index.css'
@@ -23,7 +23,6 @@ export function AssistantBuilder() {
   const { agentId } = useParams<{ agentId: string }>()
   const [view, setView] = useState<'builder' | 'agents'>('builder')
 
-  // New composite hooks from Phase 3
   const assistant = useAssistant(agentId || '')
   const assistantList = useAssistantList()
   const knowledgeFields = useKnowledgeFields()
@@ -37,7 +36,6 @@ export function AssistantBuilder() {
   const [draftDescription, setDraftDescription] = useState(assistantDescription)
   const [draftInstructions, setDraftInstructions] = useState(assistantInstructions)
 
-  // Sync draft when assistant changes
   useMemo(() => {
     setDraftName(assistantName)
     setDraftDescription(assistantDescription)
@@ -46,7 +44,6 @@ export function AssistantBuilder() {
 
   return (
     <Page full>
-      {/* View Toggle */}
       <div style={{ flexShrink: 0, borderBottom: '1px solid var(--color-border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0 1rem' }}>
           <button
@@ -83,7 +80,6 @@ export function AssistantBuilder() {
                 <Caption muted>{draftDescription || 'Configure your assistant below'}</Caption>
               </div>
 
-              {/* Name & Description */}
               <div className="panel">
                 <div className="panel__header">Identity</div>
                 <div className="panel__body">
@@ -100,7 +96,6 @@ export function AssistantBuilder() {
                 </div>
               </div>
 
-              {/* Instructions */}
               <div className="panel">
                 <div className="panel__header">Instructions</div>
                 <div className="panel__body">
@@ -114,7 +109,6 @@ export function AssistantBuilder() {
                 </div>
               </div>
 
-              {/* Knowledge & Workflows summary */}
               <Stack row gap="md">
                 <div className="panel" style={{ flex: 1 }}>
                   <div className="panel__header">Knowledge ({knowledgeFields.length})</div>

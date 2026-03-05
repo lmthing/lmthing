@@ -4,7 +4,7 @@
  * and element components instead of raw Tailwind.
  */
 import { useState, useCallback, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams } from 'next/navigation'
 import '@/css/elements/layouts/page/index.css'
 import '@/css/elements/content/panel/index.css'
 import '@/css/elements/forms/button/index.css'
@@ -52,7 +52,6 @@ export function TopicViewer({ domainId, topicPath }: TopicViewerProps) {
       <Page full>
         <PageBody>
           <Stack style={{ alignItems: 'center', justifyContent: 'center', padding: '3rem' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📝</div>
             <Heading level={3}>Select a Topic</Heading>
             <Caption muted style={{ maxWidth: '24rem', textAlign: 'center' }}>
               Choose a knowledge topic from the sidebar to view and edit its content.

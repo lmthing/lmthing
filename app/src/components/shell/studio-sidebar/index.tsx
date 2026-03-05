@@ -4,7 +4,8 @@
  * and CSS element classes instead of raw Tailwind.
  */
 import { useState, useMemo } from 'react'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import Link from 'next/link'
+import { usePathname, useParams } from 'next/navigation'
 import {
   Plus,
   Settings,
@@ -48,7 +49,7 @@ export function StudioSidebar({
   onCreateDomain,
   onCreateAgent,
 }: StudioSidebarProps) {
-  const location = useLocation()
+  const pathname = usePathname()
   const { workspaceName } = useParams<{ workspaceName: string }>()
   const [domainsExpanded, setDomainsExpanded] = useState(true)
   const [agentsExpanded, setAgentsExpanded] = useState(true)
@@ -56,13 +57,12 @@ export function StudioSidebar({
 
   const { login, logout, isAuthenticated, isLoadingAuth, deviceCodePrompt } = useGithub()
 
-  // New composite hooks from Phase 3
   const assistantList = useAssistantList()
   const knowledgeFields = useKnowledgeFields()
   const activeAssistant = useAssistant(activeAgentId || '')
 
   const studioPath = workspaceName
-    ? `/studio/${encodeURIComponent(workspaceName)}/`
+    ? `/studio/${encodeURIComponent(workspaceName as string)}/`
     : '/studio'
 
   const agents = useMemo(() => {
@@ -86,7 +86,7 @@ export function StudioSidebar({
       <div style={{ padding: 0, borderBottom: '1px solid var(--color-border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Link
-            to="/"
+            href="/"
             style={{ display: 'flex', width: '3rem', height: '3rem', flexShrink: 0, alignItems: 'center', justifyContent: 'center' }}
             title="lmthing"
           />
@@ -114,9 +114,9 @@ export function StudioSidebar({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                   {domains.map(domain => {
                     const href = `${studioPath}/knowledge/${domain.id}`
-                    const isActive = location.pathname === href || activeDomainId === domain.id
+                    const isActive = pathname === href || activeDomainId === domain.id
                     return (
-                      <Link key={domain.id} to={href} className={`sidebar__item ${isActive ? 'sidebar__item--active' : ''}`}>
+                      <Link key={domain.id} href={href} className={`sidebar__item ${isActive ? 'sidebar__item--active' : ''}`}>
                         <Folder style={{ width: 16, height: 16, flexShrink: 0, color: '#10b981' }} />
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{domain.label}</span>
                       </Link>
@@ -143,9 +143,9 @@ export function StudioSidebar({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                   {agents.map(agent => {
                     const href = `${studioPath}/assistant/${agent.id}`
-                    const isActive = location.pathname === href || activeAgentId === agent.id
+                    const isActive = pathname === href || activeAgentId === agent.id
                     return (
-                      <Link key={agent.id} to={href} className={`sidebar__item ${isActive ? 'sidebar__item--active' : ''}`}>
+                      <Link key={agent.id} href={href} className={`sidebar__item ${isActive ? 'sidebar__item--active' : ''}`}>
                         <Bot style={{ width: 16, height: 16, flexShrink: 0, color: '#8b5cf6' }} />
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.name}</span>
                       </Link>

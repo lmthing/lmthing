@@ -2,8 +2,8 @@
  * SpacesLayout - Layout for the spaces (workspaces) listing page.
  * Uses new composite hooks from Phase 3 and element components.
  */
-import { useState, useMemo, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Building2,
   Plus,
@@ -23,17 +23,7 @@ import { Card, CardBody } from '@/elements/content/card'
 import { Heading } from '@/elements/typography/heading'
 import { Caption } from '@/elements/typography/caption'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
-import { useWorkspaceData } from '@/lib/workspaceDataContext'
 import { useGithub } from '@/lib/github/GithubContext'
-import { toWorkspaceRouteParam, fromWorkspaceRouteParam } from '@/lib/workspaces'
-import { workspaceToSlug } from '@/shell/components/WorkspaceSelector'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 
 const WORKSPACE_COLORS = ['#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ef4444', '#84cc16']
 
@@ -45,59 +35,29 @@ function toLocalWorkspaceId(value: string): string {
   return trimmed.toLowerCase().replace(/[^a-z0-9-_]+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '')
 }
 
+function toWorkspaceSlug(name: string): string {
+  return encodeURIComponent(name)
+}
+
 export function SpacesLayout() {
-  const navigate = useNavigate()
-  const { data: githubWorkspaces, isLoading: isLoadingGithub } = useWorkspaces()
-  const { workspaceIds, createWorkspace, setCurrentWorkspace, loadLocalDemoWorkspace } = useWorkspaceData()
-  const { login, logout, isAuthenticated, isLoadingAuth, deviceCodePrompt } = useGithub()
+  const router = useRouter()
+  const { data: spaceData } = useWorkspaces()
+  const { login, logout, isAuthenticated, isLoadingAuth } = useGithub()
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [isCreateLocalOpen, setIsCreateLocalOpen] = useState(false)
   const [newLocalWorkspaceName, setNewLocalWorkspaceName] = useState('')
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null)
-  const [demoWorkspaces, setDemoWorkspaces] = useState<{ id: string; name: string; slug: string }[]>([])
-  const lastLoadedRef = useRef<string | null>(null)
-  const allWorkspacesRef = useRef<Workspace[]>([])
 
-  useEffect(() => {
-    let mounted = true
-    fetch('/demos/index.json')
-      .then(r => r.ok ? r.json() : [])
-      .then((items: Array<{ name: string; subject_id?: string }>) => {
-        if (!mounted) return
-        setDemoWorkspaces(items.map(item => {
-          const slug = item.subject_id || item.name
-          return { id: slug, name: `local/${slug}`, slug }
-        }))
-      })
-      .catch(() => {})
-    return () => { mounted = false }
-  }, [])
-
-  const localWorkspaces = useMemo<Workspace[]>(() => {
-    const fromIds = workspaceIds.filter(id => !id.includes('/')).map((id, idx) => ({
-      id: `local-${id}`, name: `local/${id}`, color: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length],
+  const allWorkspaces = useMemo<Workspace[]>(() => {
+    const agents = spaceData?.agents || []
+    return agents.map((a, idx) => ({
+      id: a.id,
+      name: a.id,
+      color: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length],
     }))
-    const names = new Set(fromIds.map(w => w.name))
-    demoWorkspaces.forEach((d, idx) => {
-      if (!names.has(d.name)) {
-        fromIds.push({ id: d.id, name: d.name, color: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length] })
-        names.add(d.name)
-      }
-    })
-    return fromIds
-  }, [workspaceIds, demoWorkspaces])
-
-  const githubWorkspaceList = useMemo<Workspace[]>(() => {
-    if (!githubWorkspaces) return []
-    return githubWorkspaces.map((repo, idx) => ({
-      id: repo.id.toString(), name: repo.name, color: WORKSPACE_COLORS[(localWorkspaces.length + idx) % WORKSPACE_COLORS.length],
-    }))
-  }, [githubWorkspaces, localWorkspaces.length])
-
-  const allWorkspaces = useMemo(() => [...localWorkspaces, ...githubWorkspaceList], [localWorkspaces, githubWorkspaceList])
-  allWorkspacesRef.current = allWorkspaces
+  }, [spaceData])
 
   const filteredWorkspaces = useMemo(() => {
     if (!searchQuery) return allWorkspaces
@@ -107,36 +67,20 @@ export function SpacesLayout() {
 
   const selectedWorkspace = useMemo(() => allWorkspaces.find(w => w.id === selectedWorkspaceId) ?? null, [allWorkspaces, selectedWorkspaceId])
 
-  useEffect(() => {
-    if (!selectedWorkspaceId || lastLoadedRef.current === selectedWorkspaceId) return
-    lastLoadedRef.current = selectedWorkspaceId
-    const ws = allWorkspacesRef.current.find(w => w.id === selectedWorkspaceId)
-    if (!ws) return
-    if (ws.name.startsWith('local/')) {
-      const localId = ws.name.slice('local/'.length)
-      void loadLocalDemoWorkspace(localId).catch(() => createWorkspace(localId, { setAsCurrent: false }))
-      setCurrentWorkspace(`local/${localId}`)
-    } else {
-      setCurrentWorkspace(fromWorkspaceRouteParam(workspaceToSlug(ws.name)))
-    }
-  }, [selectedWorkspaceId])
-
   const handleCreateLocalWorkspace = () => {
     const localId = toLocalWorkspaceId(newLocalWorkspaceName)
     if (!localId) return
-    createWorkspace(localId, { setAsCurrent: false })
     setIsCreateLocalOpen(false)
     setNewLocalWorkspaceName('')
-    navigate(`/studio/${toWorkspaceRouteParam(`local/${localId}`)}`)
+    router.push(`/studio/${encodeURIComponent(`local/${localId}`)}`)
   }
 
   return (
     <div className="split-pane" style={{ height: '100vh' }}>
-      {/* Sidebar */}
       <aside className={`sidebar ${isSidebarCollapsed ? 'sidebar--collapsed' : ''}`} style={{ width: isSidebarCollapsed ? '4rem' : '17.5rem' }}>
         <div style={{ padding: 0, borderBottom: '1px solid var(--color-border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <button onClick={() => navigate('/')} style={{ display: 'flex', width: '3rem', height: '3rem', flexShrink: 0, alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer' }} title="lmthing home" />
+            <button onClick={() => router.push('/')} style={{ display: 'flex', width: '3rem', height: '3rem', flexShrink: 0, alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer' }} title="lmthing home" />
             {!isSidebarCollapsed && <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>Workspaces</span>}
           </div>
         </div>
@@ -180,7 +124,6 @@ export function SpacesLayout() {
         </div>
       </aside>
 
-      {/* Main Content */}
       <div className="split-pane__primary">
         <PageHeader>
           <Heading level={2}>{selectedWorkspace ? selectedWorkspace.name : 'Workspaces'}</Heading>
@@ -196,7 +139,7 @@ export function SpacesLayout() {
                   <Heading level={2}>{selectedWorkspace.name}</Heading>
                   <Caption muted>{selectedWorkspace.name.startsWith('local/') ? 'Local workspace' : 'GitHub workspace'}</Caption>
                 </div>
-                <button className="btn btn--primary" onClick={() => navigate(`/studio/${workspaceToSlug(selectedWorkspace.name)}`)}>Open Studio</button>
+                <button className="btn btn--primary" onClick={() => router.push(`/studio/${toWorkspaceSlug(selectedWorkspace.name)}`)}>Open Studio</button>
               </div>
             </div>
           ) : (
@@ -234,18 +177,21 @@ export function SpacesLayout() {
         </PageBody>
       </div>
 
-      <Dialog open={isCreateLocalOpen} onOpenChange={setIsCreateLocalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Local Workspace</DialogTitle>
-            <DialogDescription>Create a new local workspace and open it in Studio.</DialogDescription>
-          </DialogHeader>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <input className="input" autoFocus placeholder="Workspace name (e.g. customer-support)" value={newLocalWorkspaceName} onChange={e => setNewLocalWorkspaceName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleCreateLocalWorkspace() }} />
-            <button className="btn btn--primary" style={{ width: '100%' }} onClick={handleCreateLocalWorkspace} disabled={!toLocalWorkspaceId(newLocalWorkspaceName)}>Create Workspace</button>
+      {isCreateLocalOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div style={{ background: 'var(--color-bg)', borderRadius: '0.5rem', padding: '1.5rem', maxWidth: '28rem', width: '100%', border: '1px solid var(--color-border)' }}>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.25rem' }}>Create Local Workspace</h3>
+            <p style={{ fontSize: '0.875rem', opacity: 0.7, marginBottom: '1rem' }}>Create a new local workspace and open it in Studio.</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <input className="input" autoFocus placeholder="Workspace name (e.g. customer-support)" value={newLocalWorkspaceName} onChange={e => setNewLocalWorkspaceName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleCreateLocalWorkspace() }} />
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                <button className="btn btn--ghost" onClick={() => setIsCreateLocalOpen(false)}>Cancel</button>
+                <button className="btn btn--primary" onClick={handleCreateLocalWorkspace} disabled={!toLocalWorkspaceId(newLocalWorkspaceName)}>Create Workspace</button>
+              </div>
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
     </div>
   )
 }

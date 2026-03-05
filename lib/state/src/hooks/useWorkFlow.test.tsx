@@ -2,25 +2,9 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
-import { AppProvider } from '../lib/contexts/AppContext'
-import { StudioProvider } from '../lib/contexts/StudioContext'
-import { SpaceProvider } from '../lib/contexts/SpaceContext'
-import { AppFS } from '../lib/fs/AppFS'
+import { AppFS } from '@/lib/fs/AppFS'
 import { useWorkFlow } from './useWorkFlow'
-
-function createWrapper(appFS: AppFS) {
-  return function Wrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <AppProvider>
-        <StudioProvider>
-          <SpaceProvider>
-            {children}
-          </SpaceProvider>
-        </StudioProvider>
-      </AppProvider>
-    )
-  }
-}
+import { createTestWrapper, testPath } from '@/test-utils'
 
 describe('useWorkFlow', () => {
   let appFS: AppFS
@@ -46,12 +30,12 @@ name: Task Two
 ---
 Task two content`
 
-    appFS.writeFile('alice/test/space1/flows/workflow/index.md', indexContent)
-    appFS.writeFile('alice/test/space1/flows/workflow/01.task-one.md', task1Content)
-    appFS.writeFile('alice/test/space1/flows/workflow/02.task-two.md', task2Content)
+    appFS.writeFile(testPath('flows/workflow/index.md'), indexContent)
+    appFS.writeFile(testPath('flows/workflow/01.task-one.md'), task1Content)
+    appFS.writeFile(testPath('flows/workflow/02.task-two.md'), task2Content)
 
     const { result } = renderHook(() => useWorkFlow('workflow'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current.id).toBe('workflow')
@@ -66,7 +50,7 @@ Task two content`
 
   it('should return nulls for non-existent workflow', () => {
     const { result } = renderHook(() => useWorkFlow('non-existent'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current.id).toBe('non-existent')
@@ -80,10 +64,10 @@ name: Empty Workflow
 ---
 `
 
-    appFS.writeFile('alice/test/space1/flows/empty/index.md', indexContent)
+    appFS.writeFile(testPath('flows/empty/index.md'), indexContent)
 
     const { result } = renderHook(() => useWorkFlow('empty'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current.index?.name).toBe('Empty Workflow')
@@ -96,11 +80,11 @@ name: Flow
 ---
 - [Task](01.task.md)`
 
-    appFS.writeFile('alice/test/space1/flows/flow/index.md', indexContent)
-    appFS.writeFile('alice/test/space1/flows/flow/01.task.md', 'content')
+    appFS.writeFile(testPath('flows/flow/index.md'), indexContent)
+    appFS.writeFile(testPath('flows/flow/01.task.md'), 'content')
 
     const { result } = renderHook(() => useWorkFlow('flow'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current.index?.name).toBe('Flow')
@@ -110,7 +94,7 @@ name: Updated Flow
 ---
 - [Task One](01.task-one.md)`
 
-    appFS.writeFile('alice/test/space1/flows/flow/index.md', updatedIndex)
+    appFS.writeFile(testPath('flows/flow/index.md'), updatedIndex)
 
     await waitFor(() => {
       expect(result.current.index?.name).toBe('Updated Flow')
@@ -123,16 +107,16 @@ name: Flow
 ---
 - [Task](01.task.md)`
 
-    appFS.writeFile('alice/test/space1/flows/flow/index.md', indexContent)
-    appFS.writeFile('alice/test/space1/flows/flow/01.task.md', 'content')
+    appFS.writeFile(testPath('flows/flow/index.md'), indexContent)
+    appFS.writeFile(testPath('flows/flow/01.task.md'), 'content')
 
     const { result } = renderHook(() => useWorkFlow('flow'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current.tasks).toHaveLength(1)
 
-    appFS.writeFile('alice/test/space1/flows/flow/02.new-task.md', 'new content')
+    appFS.writeFile(testPath('flows/flow/02.new-task.md'), 'new content')
 
     await waitFor(() => {
       expect(result.current.tasks).toHaveLength(2)
@@ -146,17 +130,17 @@ name: Flow
 - [Task One](01.task-one.md)
 - [Task Two](02.task-two.md)`
 
-    appFS.writeFile('alice/test/space1/flows/flow/index.md', indexContent)
-    appFS.writeFile('alice/test/space1/flows/flow/01.task-one.md', 'content1')
-    appFS.writeFile('alice/test/space1/flows/flow/02.task-two.md', 'content2')
+    appFS.writeFile(testPath('flows/flow/index.md'), indexContent)
+    appFS.writeFile(testPath('flows/flow/01.task-one.md'), 'content1')
+    appFS.writeFile(testPath('flows/flow/02.task-two.md'), 'content2')
 
     const { result } = renderHook(() => useWorkFlow('flow'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current.tasks).toHaveLength(2)
 
-    appFS.deleteFile('alice/test/space1/flows/flow/01.task-one.md')
+    appFS.deleteFile(testPath('flows/flow/01.task-one.md'))
 
     await waitFor(() => {
       expect(result.current.tasks).toHaveLength(1)
@@ -165,7 +149,7 @@ name: Flow
 
   it('should re-render when workflow is created', async () => {
     const { result } = renderHook(() => useWorkFlow('newflow'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current.index).toBeNull()
@@ -176,8 +160,8 @@ name: New Flow
 ---
 - [Task](01.task.md)`
 
-    appFS.writeFile('alice/test/space1/flows/newflow/index.md', indexContent)
-    appFS.writeFile('alice/test/space1/flows/newflow/01.task.md', 'content')
+    appFS.writeFile(testPath('flows/newflow/index.md'), indexContent)
+    appFS.writeFile(testPath('flows/newflow/01.task.md'), 'content')
 
     await waitFor(() => {
       expect(result.current.index?.name).toBe('New Flow')
@@ -191,15 +175,15 @@ name: Flow
 ---
 - [Task](01.task.md)`
 
-    appFS.writeFile('alice/test/space1/flows/flow/index.md', indexContent)
+    appFS.writeFile(testPath('flows/flow/index.md'), indexContent)
 
     const { result } = renderHook(() => useWorkFlow('flow'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current.index).not.toBeNull()
 
-    appFS.deletePath('alice/test/space1/flows/flow')
+    appFS.deletePath(testPath('flows/flow'))
 
     await waitFor(() => {
       expect(result.current.index).toBeNull()
@@ -209,19 +193,19 @@ name: Flow
   it('should not re-render when different workflow changes', async () => {
     let renderCount = 0
 
-    appFS.writeFile('alice/test/space1/flows/flow1/index.md', '---\nname: Flow1\n---')
-    appFS.writeFile('alice/test/space1/flows/flow2/index.md', '---\nname: Flow2\n---')
+    appFS.writeFile(testPath('flows/flow1/index.md'), '---\nname: Flow1\n---')
+    appFS.writeFile(testPath('flows/flow2/index.md'), '---\nname: Flow2\n---')
 
     const { result } = renderHook(() => {
       renderCount++
       return useWorkFlow('flow1')
     }, {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     const initialCount = renderCount
 
-    appFS.writeFile('alice/test/space1/flows/flow2/index.md', '---\nname: Updated\n---')
+    appFS.writeFile(testPath('flows/flow2/index.md'), '---\nname: Updated\n---')
 
     await waitFor(() => {
       expect(renderCount).toBe(initialCount)
@@ -238,14 +222,14 @@ name: Large Workflow
 ---
 ${tasks}`
 
-    appFS.writeFile('alice/test/space1/flows/large/index.md', indexContent)
+    appFS.writeFile(testPath('flows/large/index.md'), indexContent)
 
     for (let i = 0; i < 50; i++) {
-      appFS.writeFile(`alice/test/space1/flows/large/${String(i + 1).padStart(2, '0')}.task-${i}.md`, 'content')
+      appFS.writeFile(testPath(`flows/large/${String(i + 1).padStart(2, '0')}.task-${i}.md`), 'content')
     }
 
     const { result } = renderHook(() => useWorkFlow('large'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current.tasks).toHaveLength(50)

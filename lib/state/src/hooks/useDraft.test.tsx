@@ -1,23 +1,29 @@
 // src/hooks/useDraft.test.tsx
 
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
-import { AppProvider } from '../lib/contexts/AppContext'
-import { DraftStore } from '../lib/fs/DraftStore'
+import { describe, it, expect, beforeEach } from 'vitest'
+import { renderHook, waitFor, act } from '@testing-library/react'
+import { AppProvider } from '@/lib/contexts/AppContext'
+import { DraftStore } from '@/lib/fs/DraftStore'
+import { AppFS } from '@/lib/fs/AppFS'
 import { useDraft, useHasDraft, useDraftMutations, useUnsavedPaths } from './useDraft'
+import { createTestWrapper } from '@/test-utils'
 
-// Mock useApp hook
-vi.mock('./studio/useApp', () => ({
-  useApp: () => ({
-    drafts: null as any
-  })
-}))
+function createDraftWrapper(draftStore: DraftStore) {
+  const appFS = new AppFS()
+  // Set up basic structure
+  appFS.writeFile('alice/test/lmthing.json', JSON.stringify({
+    id: 'test',
+    name: 'Test',
+    version: '1.0.0',
+    spaces: { space1: { name: 'Space1' } },
+    settings: { defaultSpace: 'space1' }
+  }))
+  appFS.writeFile('alice/test/space1/package.json', JSON.stringify({ name: 'space1' }))
 
-function createWrapper(draftStore: DraftStore) {
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return (
-      <AppProvider>
-        {children}
+      <AppProvider appFS={appFS} initialStudioKey="alice/test" skipStorage={true}>
+        {children as any}
       </AppProvider>
     )
   }
@@ -33,19 +39,25 @@ describe('useDraft', () => {
   it('should return draft content when draft exists', () => {
     drafts.set('test.txt', 'draft content')
 
-    const { result } = renderHook(() => useDraft('test.txt'))
+    const { result } = renderHook(() => useDraft('test.txt'), {
+      wrapper: createDraftWrapper(drafts)
+    })
 
     expect(result.current).toBe('draft content')
   })
 
   it('should return undefined when no draft exists', () => {
-    const { result } = renderHook(() => useDraft('non-existent.txt'))
+    const { result } = renderHook(() => useDraft('non-existent.txt'), {
+      wrapper: createDraftWrapper(drafts)
+    })
 
     expect(result.current).toBeUndefined()
   })
 
   it('should re-render when draft is set', async () => {
-    const { result } = renderHook(() => useDraft('test.txt'))
+    const { result } = renderHook(() => useDraft('test.txt'), {
+      wrapper: createDraftWrapper(drafts)
+    })
 
     expect(result.current).toBeUndefined()
 
@@ -61,7 +73,9 @@ describe('useDraft', () => {
   it('should re-render when draft is deleted', async () => {
     drafts.set('test.txt', 'content')
 
-    const { result } = renderHook(() => useDraft('test.txt'))
+    const { result } = renderHook(() => useDraft('test.txt'), {
+      wrapper: createDraftWrapper(drafts)
+    })
 
     expect(result.current).toBe('content')
 
@@ -82,6 +96,8 @@ describe('useDraft', () => {
     const { result } = renderHook(() => {
       renderCount++
       return useDraft('file1.txt')
+    }, {
+      wrapper: createDraftWrapper(drafts)
     })
 
     const initialCount = renderCount
@@ -106,19 +122,25 @@ describe('useHasDraft', () => {
   it('should return true when draft exists', () => {
     drafts.set('test.txt', 'content')
 
-    const { result } = renderHook(() => useHasDraft('test.txt'))
+    const { result } = renderHook(() => useHasDraft('test.txt'), {
+      wrapper: createDraftWrapper(drafts)
+    })
 
     expect(result.current).toBe(true)
   })
 
   it('should return false when no draft exists', () => {
-    const { result } = renderHook(() => useHasDraft('test.txt'))
+    const { result } = renderHook(() => useHasDraft('test.txt'), {
+      wrapper: createDraftWrapper(drafts)
+    })
 
     expect(result.current).toBe(false)
   })
 
   it('should re-render when draft is created', async () => {
-    const { result } = renderHook(() => useHasDraft('test.txt'))
+    const { result } = renderHook(() => useHasDraft('test.txt'), {
+      wrapper: createDraftWrapper(drafts)
+    })
 
     expect(result.current).toBe(false)
 
@@ -134,7 +156,9 @@ describe('useHasDraft', () => {
   it('should re-render when draft is deleted', async () => {
     drafts.set('test.txt', 'content')
 
-    const { result } = renderHook(() => useHasDraft('test.txt'))
+    const { result } = renderHook(() => useHasDraft('test.txt'), {
+      wrapper: createDraftWrapper(drafts)
+    })
 
     expect(result.current).toBe(true)
 
@@ -156,7 +180,9 @@ describe('useDraftMutations', () => {
   })
 
   it('should provide set function', () => {
-    const { result } = renderHook(() => useDraftMutations())
+    const { result } = renderHook(() => useDraftMutations(), {
+      wrapper: createDraftWrapper(drafts)
+    })
 
     act(() => {
       result.current.set('test.txt', 'content')
@@ -168,7 +194,9 @@ describe('useDraftMutations', () => {
   it('should provide delete function', () => {
     drafts.set('test.txt', 'content')
 
-    const { result } = renderHook(() => useDraftMutations())
+    const { result } = renderHook(() => useDraftMutations(), {
+      wrapper: createDraftWrapper(drafts)
+    })
 
     act(() => {
       result.current.delete('test.txt')
@@ -181,7 +209,9 @@ describe('useDraftMutations', () => {
     drafts.set('a.txt', 'a')
     drafts.set('b.txt', 'b')
 
-    const { result } = renderHook(() => useDraftMutations())
+    const { result } = renderHook(() => useDraftMutations(), {
+      wrapper: createDraftWrapper(drafts)
+    })
 
     act(() => {
       result.current.clearAll()
@@ -203,7 +233,9 @@ describe('useUnsavedPaths', () => {
     drafts.set('b.txt', 'b')
     drafts.set('c.txt', 'c')
 
-    const { result } = renderHook(() => useUnsavedPaths())
+    const { result } = renderHook(() => useUnsavedPaths(), {
+      wrapper: createDraftWrapper(drafts)
+    })
 
     const paths = result.current.sort()
 
@@ -211,13 +243,17 @@ describe('useUnsavedPaths', () => {
   })
 
   it('should return empty array when no drafts', () => {
-    const { result } = renderHook(() => useUnsavedPaths())
+    const { result } = renderHook(() => useUnsavedPaths(), {
+      wrapper: createDraftWrapper(drafts)
+    })
 
     expect(result.current).toEqual([])
   })
 
   it('should re-render when draft is added', async () => {
-    const { result } = renderHook(() => useUnsavedPaths())
+    const { result } = renderHook(() => useUnsavedPaths(), {
+      wrapper: createDraftWrapper(drafts)
+    })
 
     expect(result.current).toEqual([])
 
@@ -234,7 +270,9 @@ describe('useUnsavedPaths', () => {
     drafts.set('a.txt', 'a')
     drafts.set('b.txt', 'b')
 
-    const { result } = renderHook(() => useUnsavedPaths())
+    const { result } = renderHook(() => useUnsavedPaths(), {
+      wrapper: createDraftWrapper(drafts)
+    })
 
     expect(result.current.length).toBe(2)
 
@@ -252,12 +290,14 @@ describe('useUnsavedPaths', () => {
     drafts.set('a.txt', 'a')
     drafts.set('b.txt', 'b')
 
-    const { result } = renderHook(() => useUnsavedPaths())
+    const { result } = renderHook(() => useUnsavedPaths(), {
+      wrapper: createDraftWrapper(drafts)
+    })
 
     expect(result.current.length).toBe(2)
 
     act(() => {
-      drafts.clear()
+      drafts.clearAll()
     })
 
     await waitFor(() => {
@@ -265,7 +305,3 @@ describe('useUnsavedPaths', () => {
     })
   })
 })
-
-function act(fn: () => void) {
-  fn()
-}

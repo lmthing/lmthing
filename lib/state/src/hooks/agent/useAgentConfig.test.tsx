@@ -2,25 +2,9 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
-import { AppProvider } from '../../lib/contexts/AppContext'
-import { StudioProvider } from '../../lib/contexts/StudioContext'
-import { SpaceProvider } from '../../lib/contexts/SpaceContext'
-import { AppFS } from '../../lib/fs/AppFS'
+import { AppFS } from '@/lib/fs/AppFS'
 import { useAgentConfig } from './useAgentConfig'
-
-function createWrapper(appFS: AppFS) {
-  return function Wrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <AppProvider>
-        <StudioProvider>
-          <SpaceProvider>
-            {children}
-          </SpaceProvider>
-        </StudioProvider>
-      </AppProvider>
-    )
-  }
-}
+import { createTestWrapper, testPath } from '@/test-utils'
 
 describe('useAgentConfig', () => {
   let appFS: AppFS
@@ -37,10 +21,10 @@ describe('useAgentConfig', () => {
       maxTokens: 2000
     }
 
-    appFS.writeFile('alice/test/space1/agents/bot/config.json', JSON.stringify(config))
+    appFS.writeFile(testPath('agents/bot/config.json'), JSON.stringify(config))
 
     const { result } = renderHook(() => useAgentConfig('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current).not.toBeNull()
@@ -52,17 +36,17 @@ describe('useAgentConfig', () => {
 
   it('should return null for non-existent agent', () => {
     const { result } = renderHook(() => useAgentConfig('non-existent'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current).toBeNull()
   })
 
   it('should handle invalid JSON gracefully', () => {
-    appFS.writeFile('alice/test/space1/agents/bot/config.json', 'not json')
+    appFS.writeFile(testPath('agents/bot/config.json'), 'not json')
 
     const { result } = renderHook(() => useAgentConfig('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current).toEqual({})
@@ -82,10 +66,10 @@ describe('useAgentConfig', () => {
       customField: 'custom'
     }
 
-    appFS.writeFile('alice/test/space1/agents/bot/config.json', JSON.stringify(config))
+    appFS.writeFile(testPath('agents/bot/config.json'), JSON.stringify(config))
 
     const { result } = renderHook(() => useAgentConfig('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current?.frequencyPenalty).toBe(0.5)
@@ -95,10 +79,10 @@ describe('useAgentConfig', () => {
   })
 
   it('should handle empty config', () => {
-    appFS.writeFile('alice/test/space1/agents/bot/config.json', '{}')
+    appFS.writeFile(testPath('agents/bot/config.json'), '{}')
 
     const { result } = renderHook(() => useAgentConfig('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current).toEqual({})
@@ -106,16 +90,16 @@ describe('useAgentConfig', () => {
 
   it('should re-render when config is updated', async () => {
     const initialConfig = { enabled: true }
-    appFS.writeFile('alice/test/space1/agents/bot/config.json', JSON.stringify(initialConfig))
+    appFS.writeFile(testPath('agents/bot/config.json'), JSON.stringify(initialConfig))
 
     const { result } = renderHook(() => useAgentConfig('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current?.enabled).toBe(true)
 
     const updatedConfig = { enabled: false, model: 'gpt-4' }
-    appFS.writeFile('alice/test/space1/agents/bot/config.json', JSON.stringify(updatedConfig))
+    appFS.writeFile(testPath('agents/bot/config.json'), JSON.stringify(updatedConfig))
 
     await waitFor(() => {
       expect(result.current?.enabled).toBe(false)
@@ -125,13 +109,13 @@ describe('useAgentConfig', () => {
 
   it('should re-render when config is created', async () => {
     const { result } = renderHook(() => useAgentConfig('newbot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current).toBeNull()
 
     const config = { enabled: true }
-    appFS.writeFile('alice/test/space1/agents/newbot/config.json', JSON.stringify(config))
+    appFS.writeFile(testPath('agents/newbot/config.json'), JSON.stringify(config))
 
     await waitFor(() => {
       expect(result.current?.enabled).toBe(true)
@@ -140,15 +124,15 @@ describe('useAgentConfig', () => {
 
   it('should re-render when config is deleted', async () => {
     const config = { enabled: true }
-    appFS.writeFile('alice/test/space1/agents/bot/config.json', JSON.stringify(config))
+    appFS.writeFile(testPath('agents/bot/config.json'), JSON.stringify(config))
 
     const { result } = renderHook(() => useAgentConfig('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current).not.toBeNull()
 
-    appFS.deleteFile('alice/test/space1/agents/bot/config.json')
+    appFS.deleteFile(testPath('agents/bot/config.json'))
 
     await waitFor(() => {
       expect(result.current).toBeNull()
@@ -158,19 +142,19 @@ describe('useAgentConfig', () => {
   it('should not re-render when different agent changes', async () => {
     let renderCount = 0
 
-    appFS.writeFile('alice/test/space1/agents/bot1/config.json', JSON.stringify({ enabled: true }))
-    appFS.writeFile('alice/test/space1/agents/bot2/config.json', JSON.stringify({ enabled: true }))
+    appFS.writeFile(testPath('agents/bot1/config.json'), JSON.stringify({ enabled: true }))
+    appFS.writeFile(testPath('agents/bot2/config.json'), JSON.stringify({ enabled: true }))
 
     const { result } = renderHook(() => {
       renderCount++
       return useAgentConfig('bot1')
     }, {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     const initialCount = renderCount
 
-    appFS.writeFile('alice/test/space1/agents/bot2/config.json', JSON.stringify({ enabled: false }))
+    appFS.writeFile(testPath('agents/bot2/config.json'), JSON.stringify({ enabled: false }))
 
     await waitFor(() => {
       expect(renderCount).toBe(initialCount)
@@ -183,10 +167,10 @@ describe('useAgentConfig', () => {
       model: 'gpt-4'
     }
 
-    appFS.writeFile('alice/test/space1/agents/bot/config.json', JSON.stringify(config))
+    appFS.writeFile(testPath('agents/bot/config.json'), JSON.stringify(config))
 
     const { result } = renderHook(() => useAgentConfig('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current?.enabled).toBe(null)
@@ -195,10 +179,10 @@ describe('useAgentConfig', () => {
 
   it('should handle agents with special characters in ID', () => {
     const config = { enabled: true }
-    appFS.writeFile('alice/test/space1/agents/my-bot-123/config.json', JSON.stringify(config))
+    appFS.writeFile(testPath('agents/my-bot-123/config.json'), JSON.stringify(config))
 
     const { result } = renderHook(() => useAgentConfig('my-bot-123'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current?.enabled).toBe(true)

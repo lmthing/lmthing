@@ -2,25 +2,9 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
-import { AppProvider } from '../../lib/contexts/AppContext'
-import { StudioProvider } from '../../lib/contexts/StudioContext'
-import { SpaceProvider } from '../../lib/contexts/SpaceContext'
-import { AppFS } from '../../lib/fs/AppFS'
+import { AppFS } from '@/lib/fs/AppFS'
 import { useGlob } from './useGlob'
-
-function createWrapper(appFS: AppFS) {
-  return function Wrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <AppProvider>
-        <StudioProvider>
-          <SpaceProvider>
-            {children}
-          </SpaceProvider>
-        </StudioProvider>
-      </AppProvider>
-    )
-  }
-}
+import { createTestWrapper, testPath } from '@/test-utils'
 
 describe('useGlob', () => {
   let appFS: AppFS
@@ -28,16 +12,16 @@ describe('useGlob', () => {
   beforeEach(() => {
     appFS = new AppFS()
     // Set up test files
-    appFS.writeFile('alice/test/space1/file1.txt', 'a')
-    appFS.writeFile('alice/test/space1/file2.md', 'b')
-    appFS.writeFile('alice/test/space1/src/file3.ts', 'c')
-    appFS.writeFile('alice/test/space1/src/components/file4.tsx', 'd')
-    appFS.writeFile('alice/test/space1/test/file5.test.ts', 'e')
+    appFS.writeFile(testPath('file1.txt'), 'a')
+    appFS.writeFile(testPath('file2.md'), 'b')
+    appFS.writeFile(testPath('src/file3.ts'), 'c')
+    appFS.writeFile(testPath('src/components/file4.tsx'), 'd')
+    appFS.writeFile(testPath('test/file5.test.ts'), 'e')
   })
 
   it('should match files with * pattern', () => {
     const { result } = renderHook(() => useGlob('*.txt'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current).toEqual(['file1.txt'])
@@ -45,7 +29,7 @@ describe('useGlob', () => {
 
   it('should match files with ** pattern', () => {
     const { result } = renderHook(() => useGlob('**/*.ts'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current).toContain('src/file3.ts')
@@ -54,7 +38,7 @@ describe('useGlob', () => {
 
   it('should match files with ? pattern', () => {
     const { result } = renderHook(() => useGlob('file?.*'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current).toContain('file1.txt')
@@ -64,7 +48,7 @@ describe('useGlob', () => {
 
   it('should match files with character classes', () => {
     const { result } = renderHook(() => useGlob('file[12].*'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current).toContain('file1.txt')
@@ -74,7 +58,7 @@ describe('useGlob', () => {
 
   it('should match files with extglob patterns', () => {
     const { result } = renderHook(() => useGlob('*.@(txt|md)'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current).toContain('file1.txt')
@@ -84,7 +68,7 @@ describe('useGlob', () => {
 
   it('should return paths relative to space scope', () => {
     const { result } = renderHook(() => useGlob('**/*.ts'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     // Paths should not include the full AppFS path
@@ -93,7 +77,7 @@ describe('useGlob', () => {
 
   it('should return empty array for no matches', () => {
     const { result } = renderHook(() => useGlob('*.xyz'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current).toEqual([])
@@ -101,13 +85,13 @@ describe('useGlob', () => {
 
   it('should re-render when matching file is created', async () => {
     const { result } = renderHook(() => useGlob('*.txt'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     const initialCount = result.current.length
 
     // Add a matching file
-    appFS.writeFile('alice/test/space1/new.txt', 'new')
+    appFS.writeFile(testPath('new.txt'), 'new')
 
     await waitFor(() => {
       expect(result.current.length).toBe(initialCount + 1)
@@ -117,13 +101,13 @@ describe('useGlob', () => {
 
   it('should re-render when matching file is deleted', async () => {
     const { result } = renderHook(() => useGlob('*.txt'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     const initialCount = result.current.length
 
     // Delete a matching file
-    appFS.deleteFile('alice/test/space1/file1.txt')
+    appFS.deleteFile(testPath('file1.txt'))
 
     await waitFor(() => {
       expect(result.current.length).toBe(initialCount - 1)
@@ -137,13 +121,13 @@ describe('useGlob', () => {
       renderCount++
       return useGlob('*.txt')
     }, {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     const initialCount = renderCount
 
     // Modify a matching file
-    appFS.writeFile('alice/test/space1/file1.txt', 'updated')
+    appFS.writeFile(testPath('file1.txt'), 'updated')
 
     await waitFor(() => {
       expect(renderCount).toBeGreaterThan(initialCount)
@@ -157,13 +141,13 @@ describe('useGlob', () => {
       renderCount++
       return useGlob('*.txt')
     }, {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     const initialCount = renderCount
 
     // Modify a non-matching file
-    appFS.writeFile('alice/test/space1/file2.md', 'updated')
+    appFS.writeFile(testPath('file2.md'), 'updated')
 
     await waitFor(() => {
       expect(renderCount).toBe(initialCount)
@@ -171,10 +155,10 @@ describe('useGlob', () => {
   })
 
   it('should handle negated patterns', () => {
-    appFS.writeFile('alice/test/space1/exclude.txt', 'x')
+    appFS.writeFile(testPath('exclude.txt'), 'x')
 
     const { result } = renderHook(() => useGlob('!*.md'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current).toContain('file1.txt')
@@ -183,7 +167,7 @@ describe('useGlob', () => {
 
   it('should match nested files with **', () => {
     const { result } = renderHook(() => useGlob('**/file*.ts'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current).toContain('src/file3.ts')
@@ -192,7 +176,7 @@ describe('useGlob', () => {
 
   it('should handle complex patterns', () => {
     const { result } = renderHook(() => useGlob('src/**/*.ts*'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current).toContain('src/file3.ts')
@@ -201,7 +185,7 @@ describe('useGlob', () => {
 
   it('should sort results alphabetically by default', () => {
     const { result } = renderHook(() => useGlob('**/*'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     const sorted = [...result.current].sort()
@@ -214,15 +198,7 @@ describe('useGlob with empty space', () => {
     const appFS = new AppFS()
 
     const { result } = renderHook(() => useGlob('**/*'), {
-      wrapper: ({ children }: { children: React.ReactNode }) => (
-        <AppProvider>
-          <StudioProvider>
-            <SpaceProvider>
-              {children}
-            </SpaceProvider>
-          </StudioProvider>
-        </AppProvider>
-      )
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current).toEqual([])

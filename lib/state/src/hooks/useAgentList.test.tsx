@@ -2,26 +2,9 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
-import { AppProvider } from '../lib/contexts/AppContext'
-import { StudioProvider } from '../lib/contexts/StudioContext'
-import { SpaceProvider } from '../lib/contexts/SpaceContext'
-import { AppFS } from '../lib/fs/AppFS'
-import { P } from '../lib/fs/paths'
+import { AppFS } from '@/lib/fs/AppFS'
 import { useAgentList } from './useAgentList'
-
-function createWrapper(appFS: AppFS) {
-  return function Wrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <AppProvider>
-        <StudioProvider>
-          <SpaceProvider>
-            {children}
-          </SpaceProvider>
-        </StudioProvider>
-      </AppProvider>
-    )
-  }
-}
+import { createTestWrapper, testPath } from '@/test-utils'
 
 describe('useAgentList', () => {
   let appFS: AppFS
@@ -32,19 +15,19 @@ describe('useAgentList', () => {
 
   it('should return empty array when no agents exist', () => {
     const { result } = renderHook(() => useAgentList(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current).toEqual([])
   })
 
   it('should list all agents by instruct.md files', () => {
-    appFS.writeFile('alice/test/space1/agents/bot1/instruct.md', '---\nname: Bot1\n---')
-    appFS.writeFile('alice/test/space1/agents/bot2/instruct.md', '---\nname: Bot2\n---')
-    appFS.writeFile('alice/test/space1/agents/bot3/instruct.md', '---\nname: Bot3\n---')
+    appFS.writeFile(testPath('agents/bot1/instruct.md'), '---\nname: Bot1\n---')
+    appFS.writeFile(testPath('agents/bot2/instruct.md'), '---\nname: Bot2\n---')
+    appFS.writeFile(testPath('agents/bot3/instruct.md'), '---\nname: Bot3\n---')
 
     const { result } = renderHook(() => useAgentList(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current).toHaveLength(3)
@@ -54,10 +37,10 @@ describe('useAgentList', () => {
   })
 
   it('should return agent IDs as path property', () => {
-    appFS.writeFile('alice/test/space1/agents/my-bot/instruct.md', '---\nname: My Bot\n---')
+    appFS.writeFile(testPath('agents/my-bot/instruct.md'), '---\nname: My Bot\n---')
 
     const { result } = renderHook(() => useAgentList(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current[0].id).toBe('my-bot')
@@ -65,12 +48,12 @@ describe('useAgentList', () => {
   })
 
   it('should not include directories without instruct.md', () => {
-    appFS.writeFile('alice/test/space1/agents/bot1/instruct.md', '---\nname: Bot1\n---')
-    appFS.writeFile('alice/test/space1/agents/bot2/config.json', '{}')
-    appFS.writeFile('alice/test/space1/agents/bot3/values.json', '{}')
+    appFS.writeFile(testPath('agents/bot1/instruct.md'), '---\nname: Bot1\n---')
+    appFS.writeFile(testPath('agents/bot2/config.json'), '{}')
+    appFS.writeFile(testPath('agents/bot3/values.json'), '{}')
 
     const { result } = renderHook(() => useAgentList(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current).toHaveLength(1)
@@ -78,15 +61,15 @@ describe('useAgentList', () => {
   })
 
   it('should re-render when new agent is created', async () => {
-    appFS.writeFile('alice/test/space1/agents/bot1/instruct.md', '---\nname: Bot1\n---')
+    appFS.writeFile(testPath('agents/bot1/instruct.md'), '---\nname: Bot1\n---')
 
     const { result } = renderHook(() => useAgentList(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current).toHaveLength(1)
 
-    appFS.writeFile('alice/test/space1/agents/bot2/instruct.md', '---\nname: Bot2\n---')
+    appFS.writeFile(testPath('agents/bot2/instruct.md'), '---\nname: Bot2\n---')
 
     await waitFor(() => {
       expect(result.current).toHaveLength(2)
@@ -95,16 +78,16 @@ describe('useAgentList', () => {
   })
 
   it('should re-render when agent is deleted', async () => {
-    appFS.writeFile('alice/test/space1/agents/bot1/instruct.md', '---\nname: Bot1\n---')
-    appFS.writeFile('alice/test/space1/agents/bot2/instruct.md', '---\nname: Bot2\n---')
+    appFS.writeFile(testPath('agents/bot1/instruct.md'), '---\nname: Bot1\n---')
+    appFS.writeFile(testPath('agents/bot2/instruct.md'), '---\nname: Bot2\n---')
 
     const { result } = renderHook(() => useAgentList(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current).toHaveLength(2)
 
-    appFS.deletePath('alice/test/space1/agents/bot1')
+    appFS.deletePath(testPath('agents/bot1'))
 
     await waitFor(() => {
       expect(result.current).toHaveLength(1)
@@ -113,14 +96,14 @@ describe('useAgentList', () => {
   })
 
   it('should re-render when agent is renamed', async () => {
-    appFS.writeFile('alice/test/space1/agents/bot1/instruct.md', '---\nname: Bot1\n---')
-    appFS.writeFile('alice/test/space1/agents/bot2/instruct.md', '---\nname: Bot2\n---')
+    appFS.writeFile(testPath('agents/bot1/instruct.md'), '---\nname: Bot1\n---')
+    appFS.writeFile(testPath('agents/bot2/instruct.md'), '---\nname: Bot2\n---')
 
     const { result } = renderHook(() => useAgentList(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
-    appFS.renamePath('alice/test/space1/agents/bot1', 'alice/test/space1/agents/bot1-renamed')
+    appFS.renamePath(testPath('agents/bot1'), testPath('agents/bot1-renamed'))
 
     await waitFor(() => {
       expect(result.current.map(a => a.id)).toContain('bot1-renamed')
@@ -131,19 +114,19 @@ describe('useAgentList', () => {
   it('should not re-render when unrelated files change', async () => {
     let renderCount = 0
 
-    appFS.writeFile('alice/test/space1/agents/bot1/instruct.md', '---\nname: Bot1\n---')
+    appFS.writeFile(testPath('agents/bot1/instruct.md'), '---\nname: Bot1\n---')
 
     const { result } = renderHook(() => {
       renderCount++
       return useAgentList()
     }, {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     const initialCount = renderCount
 
     // Change a file in agents directory that's not instruct.md
-    appFS.writeFile('alice/test/space1/agents/bot1/config.json', '{"updated": true}')
+    appFS.writeFile(testPath('agents/bot1/config.json'), '{"updated": true}')
 
     await waitFor(() => {
       // Should not have re-rendered (only watches instruct.md)
@@ -152,11 +135,11 @@ describe('useAgentList', () => {
   })
 
   it('should handle agents with special characters in ID', () => {
-    appFS.writeFile('alice/test/space1/agents/my-bot-123/instruct.md', '---\nname: Bot\n---')
-    appFS.writeFile('alice/test/space1/agents/agent_007/instruct.md', '---\nname: Agent\n---')
+    appFS.writeFile(testPath('agents/my-bot-123/instruct.md'), '---\nname: Bot\n---')
+    appFS.writeFile(testPath('agents/agent_007/instruct.md'), '---\nname: Agent\n---')
 
     const { result } = renderHook(() => useAgentList(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current.map(a => a.id)).toContain('my-bot-123')
@@ -165,12 +148,12 @@ describe('useAgentList', () => {
 
   it('should handle nested directories in agents', () => {
     // Create some nested directories that shouldn't be counted as agents
-    appFS.writeFile('alice/test/space1/agents/bot1/instruct.md', '---\nname: Bot1\n---')
-    appFS.writeFile('alice/test/space1/agents/bot1/conversations/chat1.json', '{}')
-    appFS.writeFile('alice/test/space1/agents/bot2/instruct.md', '---\nname: Bot2\n---')
+    appFS.writeFile(testPath('agents/bot1/instruct.md'), '---\nname: Bot1\n---')
+    appFS.writeFile(testPath('agents/bot1/conversations/chat1.json'), '{}')
+    appFS.writeFile(testPath('agents/bot2/instruct.md'), '---\nname: Bot2\n---')
 
     const { result } = renderHook(() => useAgentList(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     // Should only count bot1 and bot2, not conversations as agents
@@ -178,12 +161,12 @@ describe('useAgentList', () => {
   })
 
   it('should sort agents alphabetically', () => {
-    appFS.writeFile('alice/test/space1/agents/z-bot/instruct.md', '---\nname: Z\n---')
-    appFS.writeFile('alice/test/space1/agents/a-bot/instruct.md', '---\nname: A\n---')
-    appFS.writeFile('alice/test/space1/agents/m-bot/instruct.md', '---\nname: M\n---')
+    appFS.writeFile(testPath('agents/z-bot/instruct.md'), '---\nname: Z\n---')
+    appFS.writeFile(testPath('agents/a-bot/instruct.md'), '---\nname: A\n---')
+    appFS.writeFile(testPath('agents/m-bot/instruct.md'), '---\nname: M\n---')
 
     const { result } = renderHook(() => useAgentList(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current.map(a => a.id)).toEqual(['a-bot', 'm-bot', 'z-bot'])
@@ -192,11 +175,11 @@ describe('useAgentList', () => {
   it('should handle many agents efficiently', () => {
     // Create 100 agents
     for (let i = 0; i < 100; i++) {
-      appFS.writeFile(`alice/test/space1/agents/bot${i}/instruct.md`, `---\nname: Bot${i}\n---`)
+      appFS.writeFile(testPath(`agents/bot${i}/instruct.md`), `---\nname: Bot${i}\n---`)
     }
 
     const { result } = renderHook(() => useAgentList(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper({ appFS })
     })
 
     expect(result.current).toHaveLength(100)

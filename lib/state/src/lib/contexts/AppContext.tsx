@@ -25,16 +25,33 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | null>(null)
 
-export function AppProvider({ children }: { children: ReactNode }) {
-  const [appFS] = useState(() => new AppFS())
-  const [drafts] = useState(() => new DraftStore())
+interface AppProviderProps {
+  children: ReactNode
+  /** Optional AppFS instance for testing. If not provided, creates a new one. */
+  appFS?: AppFS
+  /** Optional DraftStore instance for testing. If not provided, creates a new one. */
+  draftStore?: DraftStore
+  /** Optional initial studio key for testing. */
+  initialStudioKey?: string | null
+  /** Skip loading from localStorage (useful for testing). */
+  skipStorage?: boolean
+}
+
+export function AppProvider({ children, appFS: providedAppFS, draftStore: providedDraftStore, initialStudioKey, skipStorage = false }: AppProviderProps) {
+  const [appFS] = useState(() => providedAppFS ?? new AppFS())
+  const [drafts] = useState(() => providedDraftStore ?? new DraftStore())
   const [studios, setStudios] = useState<Array<{ username: string; studioId: string; name: string }>>([])
-  const [currentStudioKey, setCurrentStudioKey] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [currentStudioKey, setCurrentStudioKey] = useState<string | null>(initialStudioKey ?? null)
+  const [isLoading, setIsLoading] = useState(skipStorage ? false : true)
   const [error, setError] = useState<string | null>(null)
 
-  // Load from localStorage on mount
+  // Load from localStorage on mount (skip if skipStorage is true)
   useEffect(() => {
+    if (skipStorage || providedAppFS) {
+      setIsLoading(false)
+      return
+    }
+
     try {
       const appDataJson = localStorage.getItem(APP_STORAGE_KEY)
       if (appDataJson) {
@@ -60,7 +77,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [skipStorage, providedAppFS])
 
   // Persist appFS changes to localStorage
   useEffect(() => {

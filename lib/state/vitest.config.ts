@@ -25,7 +25,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': '/home/vasilis/GEANT/lmthing/lib/state/src'
+      '@': '/home/user/lmthing/lib/state/src'
     }
   }
 })

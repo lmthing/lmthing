@@ -61,6 +61,22 @@ function parseYAMLValue(value: string): unknown {
     return value.slice(1, -1)
   }
 
+  // Handle inline objects: { key: value, ... }
+  if (value.startsWith('{') && value.endsWith('}')) {
+    const inner = value.slice(1, -1).trim()
+    if (!inner) return {}
+    const obj: Record<string, unknown> = {}
+    const pairs = splitTopLevel(inner, ',')
+    for (const pair of pairs) {
+      const colonIdx = pair.indexOf(':')
+      if (colonIdx === -1) continue
+      const k = pair.slice(0, colonIdx).trim()
+      const v = pair.slice(colonIdx + 1).trim()
+      obj[k] = parseYAMLValue(v)
+    }
+    return obj
+  }
+
   // Handle arrays (simple comma-separated values)
   if (value.startsWith('[') && value.endsWith(']')) {
     const inner = value.slice(1, -1)
@@ -75,10 +91,24 @@ function parseYAMLValue(value: string): unknown {
 
   // Handle numbers
   const num = Number(value)
-  if (!isNaN(num)) return num
+  if (!isNaN(num) && value !== '') return num
 
   // Default to string
   return value
+}
+
+function splitTopLevel(str: string, sep: string): string[] {
+  const parts: string[] = []
+  let depth = 0
+  let current = ''
+  for (const ch of str) {
+    if (ch === '{' || ch === '[') depth++
+    else if (ch === '}' || ch === ']') depth--
+    if (ch === sep && depth === 0) { parts.push(current.trim()); current = '' }
+    else { current += ch }
+  }
+  if (current.trim()) parts.push(current.trim())
+  return parts
 }
 
 function serializeYAML(obj: Record<string, unknown>): string {
@@ -97,8 +127,8 @@ function serializeYAMLValue(value: unknown): string {
   if (typeof value === 'boolean') return value ? 'true' : 'false'
   if (typeof value === 'number') return String(value)
   if (typeof value === 'string') {
-    // Quote strings if they contain special characters
-    if (/[:{}\[\],\n]/.test(value)) {
+    // Quote strings that require quoting (special chars, spaces, hyphens)
+    if (needsQuoting(value)) {
       return `"${value.replace(/"/g, '\\"')}"`
     }
     return value
@@ -116,4 +146,8 @@ function serializeYAMLValue(value: unknown): string {
     return `{${pairs.join(', ')}}`
   }
   return String(value)
+}
+
+function needsQuoting(value: string): boolean {
+  return /[:{}\[\],\n ]/.test(value) || value.includes('-')
 }

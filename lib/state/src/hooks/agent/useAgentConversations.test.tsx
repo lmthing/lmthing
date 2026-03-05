@@ -2,25 +2,9 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
-import { AppProvider } from '../../lib/contexts/AppContext'
-import { StudioProvider } from '../../lib/contexts/StudioContext'
-import { SpaceProvider } from '../../lib/contexts/SpaceContext'
 import { AppFS } from '../../lib/fs/AppFS'
+import { createTestWrapper, getTestPath } from '../../test-utils'
 import { useAgentConversations } from './useAgentConversations'
-
-function createWrapper(appFS: AppFS) {
-  return function Wrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <AppProvider>
-        <StudioProvider>
-          <SpaceProvider>
-            {children}
-          </SpaceProvider>
-        </StudioProvider>
-      </AppProvider>
-    )
-  }
-}
 
 describe('useAgentConversations', () => {
   let appFS: AppFS
@@ -56,7 +40,7 @@ describe('useAgentConversations', () => {
     appFS.writeFile('alice/test/space1/agents/bot/conversations/conv2.json', JSON.stringify(conv2))
 
     const { result } = renderHook(() => useAgentConversations('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toHaveLength(2)
@@ -66,7 +50,7 @@ describe('useAgentConversations', () => {
 
   it('should return empty array for agent with no conversations', () => {
     const { result } = renderHook(() => useAgentConversations('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toEqual([])
@@ -87,7 +71,7 @@ describe('useAgentConversations', () => {
     appFS.writeFile('alice/test/space1/agents/bot/conversations/chat-1.json', JSON.stringify(conv))
 
     const { result } = renderHook(() => useAgentConversations('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current[0].id).toBe('chat-1')
@@ -100,7 +84,7 @@ describe('useAgentConversations', () => {
     appFS.writeFile('alice/test/space1/agents/bot/conversations/readme.md', '# Readme')
 
     const { result } = renderHook(() => useAgentConversations('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toHaveLength(1)
@@ -116,7 +100,7 @@ describe('useAgentConversations', () => {
     appFS.writeFile('alice/test/space1/agents/bot/conversations/conv1.json', JSON.stringify(conv1))
 
     const { result } = renderHook(() => useAgentConversations('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toHaveLength(1)
@@ -142,7 +126,7 @@ describe('useAgentConversations', () => {
     appFS.writeFile('alice/test/space1/agents/bot/conversations/conv1.json', JSON.stringify(conv))
 
     const { result } = renderHook(() => useAgentConversations('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toHaveLength(1)
@@ -164,7 +148,7 @@ describe('useAgentConversations', () => {
       renderCount++
       return useAgentConversations('bot1')
     }, {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = renderCount
@@ -186,7 +170,7 @@ describe('useAgentConversations', () => {
     }
 
     const { result } = renderHook(() => useAgentConversations('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toHaveLength(50)

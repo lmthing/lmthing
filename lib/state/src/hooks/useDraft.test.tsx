@@ -1,12 +1,14 @@
 // src/hooks/useDraft.test.tsx
 
+import React from 'react'
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { AppProvider } from '@/lib/contexts/AppContext'
+import { StudioProvider } from '@/lib/contexts/StudioContext'
+import { SpaceProvider } from '@/lib/contexts/SpaceContext'
 import { DraftStore } from '@/lib/fs/DraftStore'
 import { AppFS } from '@/lib/fs/AppFS'
 import { useDraft, useHasDraft, useDraftMutations, useUnsavedPaths } from './useDraft'
-import { createTestWrapper } from '@/test-utils'
 
 function createDraftWrapper(draftStore: DraftStore) {
   const appFS = new AppFS()
@@ -22,8 +24,12 @@ function createDraftWrapper(draftStore: DraftStore) {
 
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return (
-      <AppProvider appFS={appFS} initialStudioKey="alice/test" skipStorage={true}>
-        {children as any}
+      <AppProvider appFS={appFS} draftStore={draftStore} initialStudioKey="alice/test" skipStorage={true}>
+        <StudioProvider>
+          <SpaceProvider>
+            {children}
+          </SpaceProvider>
+        </StudioProvider>
       </AppProvider>
     )
   }
@@ -297,7 +303,7 @@ describe('useUnsavedPaths', () => {
     expect(result.current.length).toBe(2)
 
     act(() => {
-      drafts.clearAll()
+      drafts.clear()
     })
 
     await waitFor(() => {

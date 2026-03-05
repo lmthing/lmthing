@@ -24,7 +24,7 @@ describe('useAgentConfig', () => {
     appFS.writeFile(getTestPath('agents/bot/config.json'), JSON.stringify(config))
 
     const { result } = renderHook(() => useAgentConfig('bot'), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).not.toBeNull()
@@ -36,7 +36,7 @@ describe('useAgentConfig', () => {
 
   it('should return null for non-existent agent', () => {
     const { result } = renderHook(() => useAgentConfig('non-existent'), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toBeNull()
@@ -46,7 +46,7 @@ describe('useAgentConfig', () => {
     appFS.writeFile(getTestPath('agents/bot/config.json'), 'not json')
 
     const { result } = renderHook(() => useAgentConfig('bot'), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toEqual({})
@@ -69,7 +69,7 @@ describe('useAgentConfig', () => {
     appFS.writeFile(getTestPath('agents/bot/config.json'), JSON.stringify(config))
 
     const { result } = renderHook(() => useAgentConfig('bot'), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.frequencyPenalty).toBe(0.5)
@@ -82,7 +82,7 @@ describe('useAgentConfig', () => {
     appFS.writeFile(getTestPath('agents/bot/config.json'), '{}')
 
     const { result } = renderHook(() => useAgentConfig('bot'), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toEqual({})
@@ -93,7 +93,7 @@ describe('useAgentConfig', () => {
     appFS.writeFile(getTestPath('agents/bot/config.json'), JSON.stringify(initialConfig))
 
     const { result } = renderHook(() => useAgentConfig('bot'), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.enabled).toBe(true)
@@ -109,7 +109,7 @@ describe('useAgentConfig', () => {
 
   it('should re-render when config is created', async () => {
     const { result } = renderHook(() => useAgentConfig('newbot'), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toBeNull()
@@ -127,7 +127,7 @@ describe('useAgentConfig', () => {
     appFS.writeFile(getTestPath('agents/bot/config.json'), JSON.stringify(config))
 
     const { result } = renderHook(() => useAgentConfig('bot'), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).not.toBeNull()
@@ -149,7 +149,7 @@ describe('useAgentConfig', () => {
       renderCount++
       return useAgentConfig('bot1')
     }, {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = renderCount
@@ -170,7 +170,7 @@ describe('useAgentConfig', () => {
     appFS.writeFile(getTestPath('agents/bot/config.json'), JSON.stringify(config))
 
     const { result } = renderHook(() => useAgentConfig('bot'), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.enabled).toBe(null)
@@ -182,7 +182,7 @@ describe('useAgentConfig', () => {
     appFS.writeFile(getTestPath('agents/my-bot-123/config.json'), JSON.stringify(config))
 
     const { result } = renderHook(() => useAgentConfig('my-bot-123'), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.enabled).toBe(true)

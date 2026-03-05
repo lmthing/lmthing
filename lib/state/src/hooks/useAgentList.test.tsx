@@ -15,7 +15,7 @@ describe('useAgentList', () => {
 
   it('should return empty array when no agents exist', () => {
     const { result } = renderHook(() => useAgentList(), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toEqual([])
@@ -27,7 +27,7 @@ describe('useAgentList', () => {
     appFS.writeFile(getTestPath('agents/bot3/instruct.md'), '---\nname: Bot3\n---')
 
     const { result } = renderHook(() => useAgentList(), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toHaveLength(3)
@@ -40,7 +40,7 @@ describe('useAgentList', () => {
     appFS.writeFile(getTestPath('agents/my-bot/instruct.md'), '---\nname: My Bot\n---')
 
     const { result } = renderHook(() => useAgentList(), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current[0].id).toBe('my-bot')
@@ -53,7 +53,7 @@ describe('useAgentList', () => {
     appFS.writeFile(getTestPath('agents/bot3/values.json'), '{}')
 
     const { result } = renderHook(() => useAgentList(), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toHaveLength(1)
@@ -64,7 +64,7 @@ describe('useAgentList', () => {
     appFS.writeFile(getTestPath('agents/bot1/instruct.md'), '---\nname: Bot1\n---')
 
     const { result } = renderHook(() => useAgentList(), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toHaveLength(1)
@@ -82,7 +82,7 @@ describe('useAgentList', () => {
     appFS.writeFile(getTestPath('agents/bot2/instruct.md'), '---\nname: Bot2\n---')
 
     const { result } = renderHook(() => useAgentList(), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toHaveLength(2)
@@ -100,7 +100,7 @@ describe('useAgentList', () => {
     appFS.writeFile(getTestPath('agents/bot2/instruct.md'), '---\nname: Bot2\n---')
 
     const { result } = renderHook(() => useAgentList(), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     appFS.renamePath(getTestPath('agents/bot1'), getTestPath('agents/bot1-renamed'))
@@ -120,7 +120,7 @@ describe('useAgentList', () => {
       renderCount++
       return useAgentList()
     }, {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = renderCount
@@ -139,7 +139,7 @@ describe('useAgentList', () => {
     appFS.writeFile(getTestPath('agents/agent_007/instruct.md'), '---\nname: Agent\n---')
 
     const { result } = renderHook(() => useAgentList(), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current.map(a => a.id)).toContain('my-bot-123')
@@ -153,7 +153,7 @@ describe('useAgentList', () => {
     appFS.writeFile(getTestPath('agents/bot2/instruct.md'), '---\nname: Bot2\n---')
 
     const { result } = renderHook(() => useAgentList(), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     // Should only count bot1 and bot2, not conversations as agents
@@ -166,7 +166,7 @@ describe('useAgentList', () => {
     appFS.writeFile(getTestPath('agents/m-bot/instruct.md'), '---\nname: M\n---')
 
     const { result } = renderHook(() => useAgentList(), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current.map(a => a.id)).toEqual(['a-bot', 'm-bot', 'z-bot'])
@@ -179,7 +179,7 @@ describe('useAgentList', () => {
     }
 
     const { result } = renderHook(() => useAgentList(), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toHaveLength(100)

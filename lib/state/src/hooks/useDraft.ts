@@ -1,6 +1,6 @@
 // src/hooks/useDraft.ts
 
-import { useSyncExternalStore } from 'react'
+import React, { useSyncExternalStore } from 'react'
 import { useApp } from './studio/useApp'
 import { useFile } from './fs/useFile'
 
@@ -36,11 +36,22 @@ export function useHasDraft(path: string): boolean {
 export function useDraftsByPattern(pattern: RegExp): string[] {
   const { drafts } = useApp()
 
+  const getSnapshot = React.useCallback(() => {
+    const paths = drafts.getPaths().filter(p => pattern.test(p))
+    const key = paths.join('\0')
+    if (key !== draftsByPatternCache.key) {
+      draftsByPatternCache = { key, value: paths }
+    }
+    return draftsByPatternCache.value
+  }, [drafts, pattern])
+
   return useSyncExternalStore(
     cb => drafts.subscribe(cb),
-    () => drafts.getPaths().filter(p => pattern.test(p)),
+    getSnapshot,
   )
 }
+
+let draftsByPatternCache: { key: string; value: string[] } = { key: '', value: [] }
 
 /**
  * Draft mutations hook
@@ -106,8 +117,19 @@ export function useFileWithDraft(path: string): string | null {
 export function useUnsavedPaths(): string[] {
   const { drafts } = useApp()
 
+  const getSnapshot = React.useCallback(() => {
+    const paths = drafts.getPaths()
+    const key = paths.join('\0')
+    if (key !== unsavedPathsCache.key) {
+      unsavedPathsCache = { key, value: paths }
+    }
+    return unsavedPathsCache.value
+  }, [drafts])
+
   return useSyncExternalStore(
     cb => drafts.subscribe(cb),
-    () => drafts.getPaths(),
+    getSnapshot,
   )
 }
+
+let unsavedPathsCache: { key: string; value: string[] } = { key: '', value: [] }

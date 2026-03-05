@@ -9,40 +9,34 @@ import { createTestWrapper } from '@/test-utils'
 describe('useStudio', () => {
   let appFS: AppFS
 
+  const studioConfigOptions = {
+    name: 'Test Studio',
+    version: '1.0.0',
+    spaces: {
+      space1: {
+        name: 'Space 1',
+        description: 'First space',
+        createdAt: '2024-01-01T00:00:00Z'
+      },
+      space2: {
+        name: 'Space 2',
+        description: 'Second space',
+        createdAt: '2024-01-02T00:00:00Z'
+      }
+    },
+    settings: {
+      defaultSpace: 'space1',
+      theme: 'dark' as const
+    }
+  }
+
   beforeEach(() => {
     appFS = new AppFS()
-
-    // Set up a studio with spaces
-    const studioConfig = {
-      id: 'test',
-      name: 'Test Studio',
-      version: '1.0.0',
-      spaces: {
-        space1: {
-          name: 'Space 1',
-          description: 'First space',
-          createdAt: '2024-01-01T00:00:00Z'
-        },
-        space2: {
-          name: 'Space 2',
-          description: 'Second space',
-          createdAt: '2024-01-02T00:00:00Z'
-        }
-      },
-      settings: {
-        defaultSpace: 'space1',
-        theme: 'dark' as const
-      }
-    }
-
-    appFS.writeFile('alice/test/lmthing.json', JSON.stringify(studioConfig, null, 2))
-    appFS.writeFile('alice/test/space1/package.json', '{"name": "space1"}')
-    appFS.writeFile('alice/test/space2/package.json', '{"name": "space2"}')
   })
 
   it('should return studio configuration', () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS, { studioConfig: studioConfigOptions })
     })
 
     expect(result.current.studioConfig).not.toBeNull()
@@ -52,7 +46,7 @@ describe('useStudio', () => {
 
   it('should return list of spaces', () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS, { studioConfig: studioConfigOptions })
     })
 
     expect(result.current.spaces).toHaveLength(2)
@@ -62,7 +56,7 @@ describe('useStudio', () => {
 
   it('should include space configs', () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS, { studioConfig: studioConfigOptions })
     })
 
     const space1 = result.current.spaces.find(s => s.id === 'space1')
@@ -72,7 +66,7 @@ describe('useStudio', () => {
 
   it('should return current space ID from settings', () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS, { studioConfig: studioConfigOptions })
     })
 
     expect(result.current.currentSpaceId).toBe('space1')
@@ -80,7 +74,7 @@ describe('useStudio', () => {
 
   it('should return studio FS', () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS, { studioConfig: studioConfigOptions })
     })
 
     expect(result.current.studioFS).not.toBeNull()
@@ -89,7 +83,7 @@ describe('useStudio', () => {
 
   it('should re-render when studio config changes', async () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS, { studioConfig: studioConfigOptions })
     })
 
     expect(result.current.studioConfig?.name).toBe('Test Studio')
@@ -110,7 +104,7 @@ describe('useStudio', () => {
 
   it('should allow creating a new space', async () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS, { studioConfig: studioConfigOptions })
     })
 
     const initialCount = result.current.spaces.length
@@ -130,7 +124,7 @@ describe('useStudio', () => {
 
   it('should allow deleting a space', async () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS, { studioConfig: studioConfigOptions })
     })
 
     const initialCount = result.current.spaces.length
@@ -147,7 +141,7 @@ describe('useStudio', () => {
 
   it('should allow renaming a space', async () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS, { studioConfig: studioConfigOptions })
     })
 
     act(() => {
@@ -162,7 +156,7 @@ describe('useStudio', () => {
 
   it('should allow setting current space', async () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
+      wrapper: createTestWrapper(appFS, { studioConfig: studioConfigOptions })
     })
 
     expect(result.current.currentSpaceId).toBe('space1')

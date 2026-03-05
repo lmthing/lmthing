@@ -3,8 +3,8 @@
 import { useCallback } from 'react'
 import { useMemo } from 'react'
 import { useStudio } from './useStudio'
-import { useFileFrontmatter } from '@/hooks/fs/useFileFrontmatter'
-import type { StudioConfig } from '@/types/studio'
+import { useFileFrontmatter } from '../fs/useFileFrontmatter'
+import type { StudioConfig } from '../../types/studio'
 
 export function useStudioConfig(): StudioConfig | null {
   const { studioConfig } = useStudio()

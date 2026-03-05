@@ -6,6 +6,7 @@ import './index.css'
 import { router } from '@/lib/router'
 import { GithubProvider } from '@/lib/github/GithubContext'
 import { WorkspaceDataProvider } from '@/lib/workspaceDataContext'
+import { AppProvider } from '@/lib/contexts/AppContext'
 import { hydrateWindowProcessEnvFromSessionCache } from '@/lib/envCrypto'
 
 hydrateWindowProcessEnvFromSessionCache()
@@ -31,12 +32,14 @@ const queryClient = new QueryClient()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <GithubProvider>
-        <WorkspaceDataProvider>
-          <RouterProvider router={router} />
-        </WorkspaceDataProvider>
-      </GithubProvider>
-    </QueryClientProvider>
+    <AppProvider>
+      <QueryClientProvider client={queryClient}>
+        <GithubProvider>
+          <WorkspaceDataProvider>
+            <RouterProvider router={router} />
+          </WorkspaceDataProvider>
+        </GithubProvider>
+      </QueryClientProvider>
+    </AppProvider>
   </StrictMode>,
 )

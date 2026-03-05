@@ -1,9 +1,9 @@
 // src/hooks/agent/useAgentConversation.ts
 
 import { useMemo } from 'react'
-import { useFile } from '@/hooks/fs/useFile'
-import { P } from '@/lib/fs/paths'
-import { parseConversation, serializeConversation, type Conversation } from '@/lib/fs/parsers/conversation'
+import { useFile } from '../fs/useFile'
+import { P } from '../../lib/fs/paths'
+import { parseConversation, serializeConversation, type Conversation } from '../../lib/fs/parsers/conversation'
 
 export function useAgentConversation(agentId: string, conversationId: string): Conversation | null {
   const content = useFile(P.conversation(agentId, conversationId))

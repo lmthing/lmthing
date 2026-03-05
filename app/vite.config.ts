@@ -18,6 +18,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
       'lmthing': path.resolve(__dirname, '../lib/core/src'),
+      '@lmthing/state': path.resolve(__dirname, '../lib/state/src'),
     },
   },
   server: {

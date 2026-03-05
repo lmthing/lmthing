@@ -1,9 +1,9 @@
 // src/hooks/fs/useSpaceFS.ts
 
 import { useSyncExternalStore } from 'react'
-import { useSpaceContext } from '@/lib/contexts/SpaceContext'
-import { useStudio } from '@/lib/contexts/StudioContext'
-import { SpaceFS } from '@/lib/fs/ScopedFS'
+import { useSpaceContext } from '../../lib/contexts/SpaceContext'
+import { useStudio } from '../../lib/contexts/StudioContext'
+import { SpaceFS } from '../../lib/fs/ScopedFS'
 
 export function useSpaceFS(spaceId?: string): SpaceFS {
   const { studioFS, currentSpaceId: studioCurrentSpaceId } = useStudio()

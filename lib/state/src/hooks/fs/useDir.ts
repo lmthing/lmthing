@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from 'react'
 import { useSpaceFS } from './useSpaceFS'
-import type { DirEntry } from '@/types/studio'
+import type { DirEntry } from '../../types/studio'
 
 export function useDir(dir: string): DirEntry[] {
   const fs = useSpaceFS()

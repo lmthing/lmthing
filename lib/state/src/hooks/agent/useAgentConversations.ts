@@ -1,8 +1,8 @@
 // src/hooks/agent/useAgentConversations.ts
 
 import { useMemo } from 'react'
-import { useDir } from '@/hooks/fs/useDir'
-import { P } from '@/lib/fs/paths'
+import { useDir } from '../fs/useDir'
+import { P } from '../../lib/fs/paths'
 
 export interface ConversationMeta {
   id: string

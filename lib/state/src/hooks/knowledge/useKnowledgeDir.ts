@@ -1,8 +1,8 @@
 // src/hooks/knowledge/useKnowledgeDir.ts
 
 import { useMemo } from 'react'
-import { useDir } from '@/hooks/fs/useDir'
-import { P } from '@/lib/fs/paths'
+import { useDir } from '../fs/useDir'
+import { P } from '../../lib/fs/paths'
 
 export interface KnowledgeEntry {
   name: string

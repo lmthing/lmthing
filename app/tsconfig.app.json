@@ -33,6 +33,12 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@lmthing/state": [
+        "../lib/state/src/index.ts"
+      ],
+      "@lmthing/state/*": [
+        "../lib/state/src/*"
       ]
     }
   },

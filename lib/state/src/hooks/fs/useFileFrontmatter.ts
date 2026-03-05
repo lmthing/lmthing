@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { useSyncExternalStore } from 'react'
 import { useSpaceFS } from './useSpaceFS'
-import { parseFrontmatter, type FrontmatterResult } from '@/lib/fs/parsers/frontmatter'
+import { parseFrontmatter, type FrontmatterResult } from '../../lib/fs/parsers/frontmatter'
 
 export function useFileFrontmatter<T = Record<string, unknown>>(
   path: string

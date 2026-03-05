@@ -1,7 +1,7 @@
 // src/hooks/studio/useApp.ts
 
-import { useApp as useAppContext } from '@/lib/contexts/AppContext'
-import type { AppData, FileTree } from '@/types/studio'
+import { useApp as useAppContext } from '../../lib/contexts/AppContext'
+import type { AppData, FileTree } from '../../types/studio'
 
 export function useApp() {
   const {

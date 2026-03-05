@@ -4,9 +4,9 @@ import { useMemo } from 'react'
 import { useAgentInstruct } from './agent/useAgentInstruct'
 import { useAgentConfig } from './agent/useAgentConfig'
 import { useAgentValues } from './agent/useAgentValues'
-import type { AgentInstruct } from '@/lib/fs/parsers/instruct'
-import type { AgentConfig } from '@/lib/fs/parsers/config'
-import type { AgentValues } from '@/lib/fs/parsers/config'
+import type { AgentInstruct } from '../lib/fs/parsers/instruct'
+import type { AgentConfig } from '../lib/fs/parsers/config'
+import type { AgentValues } from '../lib/fs/parsers/config'
 
 export interface Agent {
   id: string

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useMemo } from 'react'
 import type { ReactNode } from 'react'
-import { SpaceFS } from '@/lib/fs/ScopedFS'
+import { SpaceFS } from '../fs/ScopedFS'
 import { useStudio } from './StudioContext'
 
 interface SpaceContextValue {

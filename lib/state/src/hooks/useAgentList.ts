@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { useGlob } from './fs/useGlob'
-import { P } from '@/lib/fs/paths'
+import { P } from '../lib/fs/paths'
 
 export interface AgentListItem {
   id: string

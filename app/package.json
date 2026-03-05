@@ -1,7 +1,7 @@
 {
   "name": "@lmthing/app",
   "private": true,
-  "version": "0.0.50",
+  "version": "0.0.51",
   "packageManager": "pnpm@10.17.1",
   "type": "module",
   "scripts": {

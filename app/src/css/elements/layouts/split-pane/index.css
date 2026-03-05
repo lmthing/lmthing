@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+.split-pane {
+  @apply flex flex-row h-full overflow-hidden;
+}
+
+.split-pane__primary {
+  @apply flex-1 overflow-auto;
+}
+
+.split-pane__secondary {
+  @apply shrink-0 overflow-auto border-l border-border;
+}

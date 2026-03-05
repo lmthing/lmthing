@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+.breadcrumb {
+  @apply flex items-center gap-1 text-sm text-muted-foreground;
+}
+
+.breadcrumb__segment {
+  @apply hover:text-foreground transition-colors cursor-pointer;
+}
+
+.breadcrumb__segment:last-child {
+  @apply text-foreground cursor-default;
+}
+
+.breadcrumb__separator {
+  @apply text-muted-foreground select-none;
+}

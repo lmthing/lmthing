@@ -2,25 +2,9 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
-import { AppProvider } from '../../lib/contexts/AppContext'
-import { StudioProvider } from '../../lib/contexts/StudioContext'
-import { SpaceProvider } from '../../lib/contexts/SpaceContext'
-import { AppFS } from '../../lib/fs/AppFS'
+import { AppFS } from '@/lib/fs/AppFS'
+import { createTestWrapper, getTestPath } from '@/test-utils'
 import { useDir } from './useDir'
-
-function createWrapper(appFS: AppFS) {
-  return function Wrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <AppProvider>
-        <StudioProvider>
-          <SpaceProvider>
-            {children}
-          </SpaceProvider>
-        </StudioProvider>
-      </AppProvider>
-    )
-  }
-}
 
 describe('useDir', () => {
   let appFS: AppFS
@@ -28,15 +12,15 @@ describe('useDir', () => {
   beforeEach(() => {
     appFS = new AppFS()
     // Set up test directory structure
-    appFS.writeFile('alice/test/space1/dir/file1.txt', 'a')
-    appFS.writeFile('alice/test/space1/dir/file2.txt', 'b')
-    appFS.writeFile('alice/test/space1/dir/subdir/file3.txt', 'c')
-    appFS.writeFile('alice/test/space1/other/file4.txt', 'd')
+    appFS.writeFile(getTestPath('dir/file1.txt'), 'a')
+    appFS.writeFile(getTestPath('dir/file2.txt'), 'b')
+    appFS.writeFile(getTestPath('dir/subdir/file3.txt'), 'c')
+    appFS.writeFile(getTestPath('other/file4.txt'), 'd')
   })
 
   it('should list directory contents', () => {
     const { result } = renderHook(() => useDir('dir'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const names = result.current.map(e => e.name).sort()
@@ -46,7 +30,7 @@ describe('useDir', () => {
 
   it('should return correct entry types', () => {
     const { result } = renderHook(() => useDir('dir'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const files = result.current.filter(e => e.type === 'file')
@@ -59,7 +43,7 @@ describe('useDir', () => {
 
   it('should return paths relative to space scope', () => {
     const { result } = renderHook(() => useDir('dir'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const entry = result.current.find(e => e.name === 'file1.txt')
@@ -68,7 +52,7 @@ describe('useDir', () => {
 
   it('should return empty array for non-existent directory', () => {
     const { result } = renderHook(() => useDir('non-existent'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toEqual([])
@@ -76,7 +60,7 @@ describe('useDir', () => {
 
   it('should list root directory', () => {
     const { result } = renderHook(() => useDir(''), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const names = result.current.map(e => e.name).sort()
@@ -87,13 +71,13 @@ describe('useDir', () => {
 
   it('should re-render when file is added to directory', async () => {
     const { result } = renderHook(() => useDir('dir'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = result.current.length
 
     // Add a new file
-    appFS.writeFile('alice/test/space1/dir/newfile.txt', 'new')
+    appFS.writeFile(getTestPath('dir/newfile.txt'), 'new')
 
     await waitFor(() => {
       expect(result.current.length).toBe(initialCount + 1)
@@ -103,13 +87,13 @@ describe('useDir', () => {
 
   it('should re-render when file is deleted from directory', async () => {
     const { result } = renderHook(() => useDir('dir'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = result.current.length
 
     // Delete a file
-    appFS.deleteFile('alice/test/space1/dir/file1.txt')
+    appFS.deleteFile(getTestPath('dir/file1.txt'))
 
     await waitFor(() => {
       expect(result.current.length).toBe(initialCount - 1)
@@ -119,13 +103,13 @@ describe('useDir', () => {
 
   it('should re-render when subdirectory is added', async () => {
     const { result } = renderHook(() => useDir(''), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = result.current.length
 
     // Add a new directory
-    appFS.writeFile('alice/test/space1/newdir/file.txt', 'content')
+    appFS.writeFile(getTestPath('newdir/file.txt'), 'content')
 
     await waitFor(() => {
       expect(result.current.length).toBe(initialCount + 1)
@@ -135,11 +119,11 @@ describe('useDir', () => {
 
   it('should re-render when entry is renamed', async () => {
     const { result } = renderHook(() => useDir('dir'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     // Rename a file
-    appFS.renamePath('alice/test/space1/dir/file1.txt', 'alice/test/space1/dir/renamed.txt')
+    appFS.renamePath(getTestPath('dir/file1.txt'), getTestPath('dir/renamed.txt'))
 
     await waitFor(() => {
       expect(result.current.some(e => e.name === 'file1.txt')).toBe(false)
@@ -154,13 +138,13 @@ describe('useDir', () => {
       renderCount++
       return useDir('dir')
     }, {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = renderCount
 
     // Modify a different directory
-    appFS.writeFile('alice/test/space1/other/file5.txt', 'new')
+    appFS.writeFile(getTestPath('other/file5.txt'), 'new')
 
     await waitFor(() => {
       // Should not have re-rendered
@@ -170,7 +154,7 @@ describe('useDir', () => {
 
   it('should list nested directory', () => {
     const { result } = renderHook(() => useDir('dir/subdir'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const names = result.current.map(e => e.name)
@@ -181,11 +165,11 @@ describe('useDir', () => {
   it('should handle directories with many entries', () => {
     // Add many files
     for (let i = 0; i < 100; i++) {
-      appFS.writeFile(`alice/test/space1/dir/file${i}.txt`, `content${i}`)
+      appFS.writeFile(getTestPath(`dir/file${i}.txt`), `content${i}`)
     }
 
     const { result } = renderHook(() => useDir('dir'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current.length).toBeGreaterThan(100)

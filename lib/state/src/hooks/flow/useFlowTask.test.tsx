@@ -2,25 +2,9 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
-import { AppProvider } from '../../lib/contexts/AppContext'
-import { StudioProvider } from '../../lib/contexts/StudioContext'
-import { SpaceProvider } from '../../lib/contexts/SpaceContext'
-import { AppFS } from '../../lib/fs/AppFS'
+import { AppFS } from '@/lib/fs/AppFS'
+import { createTestWrapper, getTestPath } from '@/test-utils'
 import { useFlowTask } from './useFlowTask'
-
-function createWrapper(appFS: AppFS) {
-  return function Wrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <AppProvider>
-        <StudioProvider>
-          <SpaceProvider>
-            {children}
-          </SpaceProvider>
-        </StudioProvider>
-      </AppProvider>
-    )
-  }
-}
 
 describe('useFlowTask', () => {
   let appFS: AppFS
@@ -37,10 +21,10 @@ agent: bot-1
 ---
 Task instructions go here`
 
-    appFS.writeFile('alice/test/space1/flows/workflow/01.task-one.md', content)
+    appFS.writeFile(getTestPath('flows/workflow/01.task-one.md'), content)
 
     const { result } = renderHook(() => useFlowTask('workflow', 1, 'task-one'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).not.toBeNull()
@@ -52,7 +36,7 @@ Task instructions go here`
 
   it('should return null for non-existent task', () => {
     const { result } = renderHook(() => useFlowTask('workflow', 1, 'non-existent'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toBeNull()
@@ -61,10 +45,10 @@ Task instructions go here`
   it('should handle task without frontmatter', () => {
     const content = 'Just task content'
 
-    appFS.writeFile('alice/test/space1/flows/workflow/01.task.md', content)
+    appFS.writeFile(getTestPath('flows/workflow/01.task.md'), content)
 
     const { result } = renderHook(() => useFlowTask('workflow', 1, 'task'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.name).toBe('')
@@ -81,10 +65,10 @@ outputs: {result: "output"}
 ---
 Execute this task`
 
-    appFS.writeFile('alice/test/space1/flows/workflow/01.task.md', content)
+    appFS.writeFile(getTestPath('flows/workflow/01.task.md'), content)
 
     const { result } = renderHook(() => useFlowTask('workflow', 1, 'task'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.name).toBe('Complex Task')
@@ -99,10 +83,10 @@ name: Task
 ---
 Original content`
 
-    appFS.writeFile('alice/test/space1/flows/workflow/01.task.md', initialContent)
+    appFS.writeFile(getTestPath('flows/workflow/01.task.md'), initialContent)
 
     const { result } = renderHook(() => useFlowTask('workflow', 1, 'task'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.content).toBe('Original content')
@@ -121,7 +105,7 @@ Updated content`
 
   it('should re-render when task is created', async () => {
     const { result } = renderHook(() => useFlowTask('workflow', 1, 'newtask'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toBeNull()
@@ -131,7 +115,7 @@ name: New Task
 ---
 New content`
 
-    appFS.writeFile('alice/test/space1/flows/workflow/01.newtask.md', content)
+    appFS.writeFile(getTestPath('flows/workflow/01.newtask.md'), content)
 
     await waitFor(() => {
       expect(result.current?.name).toBe('New Task')
@@ -144,15 +128,15 @@ name: Task
 ---
 Content`
 
-    appFS.writeFile('alice/test/space1/flows/workflow/01.task.md', content)
+    appFS.writeFile(getTestPath('flows/workflow/01.task.md'), content)
 
     const { result } = renderHook(() => useFlowTask('workflow', 1, 'task'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).not.toBeNull()
 
-    appFS.deleteFile('alice/test/space1/flows/workflow/01.task.md')
+    appFS.deleteFile(getTestPath('flows/workflow/01.task.md'))
 
     await waitFor(() => {
       expect(result.current).toBeNull()
@@ -162,19 +146,19 @@ Content`
   it('should not re-render when different task changes', async () => {
     let renderCount = 0
 
-    appFS.writeFile('alice/test/space1/flows/workflow/01.task1.md', '---\nname: Task1\n---')
-    appFS.writeFile('alice/test/space1/flows/workflow/02.task2.md', '---\nname: Task2\n---')
+    appFS.writeFile(getTestPath('flows/workflow/01.task1.md'), '---\nname: Task1\n---')
+    appFS.writeFile(getTestPath('flows/workflow/02.task2.md'), '---\nname: Task2\n---')
 
     const { result } = renderHook(() => {
       renderCount++
       return useFlowTask('workflow', 1, 'task1')
     }, {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = renderCount
 
-    appFS.writeFile('alice/test/space1/flows/workflow/02.task2.md', '---\nname: Updated\n---')
+    appFS.writeFile(getTestPath('flows/workflow/02.task2.md'), '---\nname: Updated\n---')
 
     await waitFor(() => {
       expect(renderCount).toBe(initialCount)
@@ -189,10 +173,10 @@ Step 1
 Step 2
 Step 3`
 
-    appFS.writeFile('alice/test/space1/flows/workflow/01.task.md', content)
+    appFS.writeFile(getTestPath('flows/workflow/01.task.md'), content)
 
     const { result } = renderHook(() => useFlowTask('workflow', 1, 'task'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.content).toBe('Step 1\nStep 2\nStep 3')
@@ -201,10 +185,10 @@ Step 3`
   it('should handle tasks with special characters in name', () => {
     const content = '---\nname: Task\n---'
 
-    appFS.writeFile('alice/test/space1/flows/workflow/01.my-task-123.md', content)
+    appFS.writeFile(getTestPath('flows/workflow/01.my-task-123.md'), content)
 
     const { result } = renderHook(() => useFlowTask('workflow', 1, 'my-task-123'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.name).toBe('Task')

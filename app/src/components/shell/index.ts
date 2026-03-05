@@ -1,0 +1,7 @@
+export { StudioLayout } from './studio-layout'
+export { StudioShell } from './studio-shell'
+export type { StudioShellProps } from './studio-shell'
+export { StudioSidebar } from './studio-sidebar'
+export type { StudioSidebarProps } from './studio-sidebar'
+export { SettingsView } from './settings-view'
+export { SpacesLayout } from './spaces-layout'

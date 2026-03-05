@@ -35,7 +35,7 @@ Task two content`
     appFS.writeFile(getTestPath('flows/workflow/02.task-two.md'), task2Content)
 
     const { result } = renderHook(() => useWorkFlow('workflow'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current.id).toBe('workflow')
@@ -50,7 +50,7 @@ Task two content`
 
   it('should return nulls for non-existent workflow', () => {
     const { result } = renderHook(() => useWorkFlow('non-existent'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current.id).toBe('non-existent')
@@ -67,7 +67,7 @@ name: Empty Workflow
     appFS.writeFile(getTestPath('flows/empty/index.md'), indexContent)
 
     const { result } = renderHook(() => useWorkFlow('empty'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current.index?.name).toBe('Empty Workflow')
@@ -84,7 +84,7 @@ name: Flow
     appFS.writeFile(getTestPath('flows/flow/01.task.md'), 'content')
 
     const { result } = renderHook(() => useWorkFlow('flow'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current.index?.name).toBe('Flow')
@@ -111,7 +111,7 @@ name: Flow
     appFS.writeFile(getTestPath('flows/flow/01.task.md'), 'content')
 
     const { result } = renderHook(() => useWorkFlow('flow'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current.tasks).toHaveLength(1)
@@ -135,7 +135,7 @@ name: Flow
     appFS.writeFile(getTestPath('flows/flow/02.task-two.md'), 'content2')
 
     const { result } = renderHook(() => useWorkFlow('flow'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current.tasks).toHaveLength(2)
@@ -149,7 +149,7 @@ name: Flow
 
   it('should re-render when workflow is created', async () => {
     const { result } = renderHook(() => useWorkFlow('newflow'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current.index).toBeNull()
@@ -178,7 +178,7 @@ name: Flow
     appFS.writeFile(getTestPath('flows/flow/index.md'), indexContent)
 
     const { result } = renderHook(() => useWorkFlow('flow'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current.index).not.toBeNull()
@@ -200,7 +200,7 @@ name: Flow
       renderCount++
       return useWorkFlow('flow1')
     }, {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     const initialCount = renderCount
@@ -229,7 +229,7 @@ ${tasks}`
     }
 
     const { result } = renderHook(() => useWorkFlow('large'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current.tasks).toHaveLength(50)

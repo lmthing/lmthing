@@ -47,10 +47,10 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
-    "test": "vitest",
+    "test": "vitest run",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "test:run": "vitest --run",
+    "test:run": "vitest run",
     "lint": "eslint . --ext .ts,.tsx",
     "format": "prettier --write .",
     "clean": "rm -rf dist"

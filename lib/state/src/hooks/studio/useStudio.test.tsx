@@ -42,7 +42,7 @@ describe('useStudio', () => {
 
   it('should return studio configuration', () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current.studioConfig).not.toBeNull()
@@ -52,7 +52,7 @@ describe('useStudio', () => {
 
   it('should return list of spaces', () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current.spaces).toHaveLength(2)
@@ -62,7 +62,7 @@ describe('useStudio', () => {
 
   it('should include space configs', () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     const space1 = result.current.spaces.find(s => s.id === 'space1')
@@ -72,7 +72,7 @@ describe('useStudio', () => {
 
   it('should return current space ID from settings', () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current.currentSpaceId).toBe('space1')
@@ -80,7 +80,7 @@ describe('useStudio', () => {
 
   it('should return studio FS', () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current.studioFS).not.toBeNull()
@@ -89,7 +89,7 @@ describe('useStudio', () => {
 
   it('should re-render when studio config changes', async () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current.studioConfig?.name).toBe('Test Studio')
@@ -110,7 +110,7 @@ describe('useStudio', () => {
 
   it('should allow creating a new space', async () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     const initialCount = result.current.spaces.length
@@ -130,7 +130,7 @@ describe('useStudio', () => {
 
   it('should allow deleting a space', async () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     const initialCount = result.current.spaces.length
@@ -147,7 +147,7 @@ describe('useStudio', () => {
 
   it('should allow renaming a space', async () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     act(() => {
@@ -162,7 +162,7 @@ describe('useStudio', () => {
 
   it('should allow setting current space', async () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current.currentSpaceId).toBe('space1')
@@ -185,7 +185,7 @@ describe('useStudio', () => {
     }, null, 2))
 
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createTestWrapper({ appFS: emptyFS })
+      wrapper: createTestWrapper(emptyFS, { skipStudioSetup: true })
     })
 
     expect(result.current.spaces).toEqual([])

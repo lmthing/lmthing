@@ -23,7 +23,7 @@ describe('useAgentValues', () => {
     appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(values))
 
     const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current).not.toBeNull()
@@ -34,7 +34,7 @@ describe('useAgentValues', () => {
 
   it('should return null for non-existent agent', () => {
     const { result } = renderHook(() => useAgentValues('non-existent'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current).toBeNull()
@@ -44,7 +44,7 @@ describe('useAgentValues', () => {
     appFS.writeFile(getTestPath('agents/bot/values.json'), 'not json')
 
     const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current).toEqual({})
@@ -62,7 +62,7 @@ describe('useAgentValues', () => {
     appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(values))
 
     const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current?.string).toBe('value')
@@ -76,7 +76,7 @@ describe('useAgentValues', () => {
     appFS.writeFile(getTestPath('agents/bot/values.json'), '{}')
 
     const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current).toEqual({})
@@ -87,7 +87,7 @@ describe('useAgentValues', () => {
     appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(initialValues))
 
     const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current?.apiKey).toBe('sk-1234')
@@ -103,7 +103,7 @@ describe('useAgentValues', () => {
 
   it('should re-render when values are created', async () => {
     const { result } = renderHook(() => useAgentValues('newbot'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current).toBeNull()
@@ -121,7 +121,7 @@ describe('useAgentValues', () => {
     appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(values))
 
     const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current).not.toBeNull()
@@ -143,7 +143,7 @@ describe('useAgentValues', () => {
       renderCount++
       return useAgentValues('bot1')
     }, {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     const initialCount = renderCount
@@ -167,7 +167,7 @@ describe('useAgentValues', () => {
     appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(values))
 
     const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current?.config?.nested?.value).toBe('deep')
@@ -182,7 +182,7 @@ describe('useAgentValues', () => {
     appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(values))
 
     const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS, { skipStudioSetup: true })
     })
 
     expect(result.current?.tags).toEqual(['tag1', 'tag2', 'tag3'])

@@ -2,24 +2,21 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
-import { createTestAppFS, createTestWrapper, clearTestStorage } from '@/test-utils'
+import { createTestWrapper } from '@/test-utils'
 import { useFile } from './useFile'
+import { AppFS } from '../../lib/fs/AppFS'
 
 describe('useFile', () => {
-  let appFS: ReturnType<typeof createTestAppFS>
+  let appFS: AppFS
 
   beforeEach(() => {
-    appFS = createTestAppFS()
+    appFS = new AppFS()
     appFS.writeFile('alice/test/space1/file.txt', 'content')
-  })
-
-  afterEach(() => {
-    clearTestStorage()
   })
 
   it('should read file content', () => {
     const { result } = renderHook(() => useFile('file.txt'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toBe('content')
@@ -27,7 +24,7 @@ describe('useFile', () => {
 
   it('should return null for non-existent file', () => {
     const { result } = renderHook(() => useFile('non-existent.txt'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toBeNull()
@@ -35,7 +32,7 @@ describe('useFile', () => {
 
   it('should re-render when file content changes', async () => {
     const { result } = renderHook(() => useFile('file.txt'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toBe('content')
@@ -54,7 +51,7 @@ describe('useFile', () => {
       renderCount.count++
       return useFile('file.txt')
     }, {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = renderCount.count
@@ -70,7 +67,7 @@ describe('useFile', () => {
 
   it('should handle create events', async () => {
     const { result } = renderHook(() => useFile('new.txt'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toBeNull()
@@ -85,7 +82,7 @@ describe('useFile', () => {
 
   it('should handle delete events', async () => {
     const { result } = renderHook(() => useFile('file.txt'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toBe('content')
@@ -100,21 +97,19 @@ describe('useFile', () => {
 })
 
 describe('useFile with special characters in path', () => {
-  let appFS: ReturnType<typeof createTestAppFS>
+  let appFS: AppFS
 
   beforeEach(() => {
-    appFS = createTestAppFS()
+    appFS = new AppFS()
     appFS.writeFile('alice/test/space1/file with spaces.txt', 'content')
     appFS.writeFile('alice/test/space1/file/with/slashes.md', 'markdown')
   })
 
-  afterEach(() => {
-    clearTestStorage()
-  })
+
 
   it('should handle paths with spaces', () => {
     const { result } = renderHook(() => useFile('file with spaces.txt'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toBe('content')
@@ -122,7 +117,7 @@ describe('useFile with special characters in path', () => {
 
   it('should handle paths with slashes', () => {
     const { result } = renderHook(() => useFile('file/with/slashes.md'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toBe('markdown')

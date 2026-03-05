@@ -1,6 +1,6 @@
 // src/lib/contexts/StudioContext.tsx
 
-import { createContext, useContext, useMemo } from 'react'
+import { createContext, useContext, useMemo, useSyncExternalStore, useCallback, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { StudioFS } from '../fs/ScopedFS'
 import { useApp } from './AppContext'
@@ -40,16 +40,36 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     return new StudioFS(appFS, username, studioId)
   }, [appFS, username, studioId])
 
-  const studioConfig = useMemo(() => {
+  const configCacheRef = useRef<{ raw: string | null; parsed: StudioConfig | null }>({ raw: null, parsed: null })
+
+  const subscribeToConfig = useCallback(
+    (cb: () => void) => {
+      if (!studioFS) return () => {}
+      return studioFS.onFile('lmthing.json', cb)
+    },
+    [studioFS]
+  )
+
+  const getConfigSnapshot = useCallback(() => {
     if (!studioFS) return null
     const content = studioFS.readFile('lmthing.json')
-    if (!content) return null
+    if (content === configCacheRef.current.raw) return configCacheRef.current.parsed
+    configCacheRef.current.raw = content
+    if (!content) {
+      configCacheRef.current.parsed = null
+      return null
+    }
     try {
-      return JSON.parse(content) as StudioConfig
+      const parsed = JSON.parse(content) as StudioConfig
+      configCacheRef.current.parsed = parsed
+      return parsed
     } catch {
+      configCacheRef.current.parsed = null
       return null
     }
   }, [studioFS])
+
+  const studioConfig = useSyncExternalStore(subscribeToConfig, getConfigSnapshot)
 
   const spaces = useMemo(() => {
     if (!studioConfig) return []

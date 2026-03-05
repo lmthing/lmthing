@@ -25,7 +25,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': '/home/user/lmthing/lib/state/src'
+      '@': new URL('./src', import.meta.url).pathname
     }
   }
 })

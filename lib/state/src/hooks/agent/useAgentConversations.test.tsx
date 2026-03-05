@@ -169,7 +169,7 @@ describe('useAgentConversations', () => {
 
     const initialCount = renderCount
 
-    appFS.writeFile('alice/test/space1/agents/bot2/conversations/conv3.json', '{"metadata': {}}')
+    appFS.writeFile('alice/test/space1/agents/bot2/conversations/conv3.json', '{"metadata": {}}')
 
     await waitFor(() => {
       expect(renderCount).toBe(initialCount)

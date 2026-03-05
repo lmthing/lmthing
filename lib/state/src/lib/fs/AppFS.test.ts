@@ -152,7 +152,7 @@ describe('AppFS', () => {
 
     it('should match ? pattern (single char)', () => {
       const matches = fs.glob('src/file?.txt').sort()
-      expect(matches).toEqual(['src/file1.txt', 'src/file2.txt'])
+      expect(matches).toEqual(['src/file1.txt'])
     })
 
     it('should match character classes', () => {

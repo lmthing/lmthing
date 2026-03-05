@@ -1,6 +1,7 @@
 // src/lib/fs/FSEventBus.ts
 
 import type { FSEvent, DirEvent, BatchEvent, FSEventType, DirEventType } from './events'
+import { globToRegex as _globToRegex } from './glob'
 
 type EventCallback = (event: FSEvent) => void
 type BatchCallback = (event: BatchEvent) => void
@@ -144,19 +145,12 @@ export class FSEventBus {
     let node = this.prefixTrie
 
     for (const segment of segments) {
-      // Check for callbacks at current level (full prefix match)
-      for (const cb of node.callbacks) {
-        cb(event)
-      }
-
       const child = node.children.get(segment)
       if (!child) break
       node = child
-    }
-
-    // Check callbacks at the final node
-    for (const cb of node.callbacks) {
-      cb(event)
+      for (const cb of node.callbacks) {
+        cb(event)
+      }
     }
   }
 
@@ -363,15 +357,7 @@ export class FSEventBus {
   }
 
   private globToRegex(pattern: string): RegExp {
-    // Simple glob to regex conversion
-    // * matches any sequence except /
-    // ** matches any sequence including /
-    let regexStr = pattern
-      .replace(/[.+?^${}()|[\]\\]/g, '\\$&') // escape regex chars
-      .replace(/\*\*/g, '.*')
-      .replace(/\*/g, '[^/]*')
-      .replace(/\?/g, '[^/]')
-    return new RegExp(`^${regexStr}$`)
+    return _globToRegex(pattern)
   }
 
   // ── Subscribe: batch ──────────────────────────────────────────────

@@ -54,7 +54,7 @@ export function parseFlowIndex(content: string): FlowIndex {
   }>(content)
 
   // Tasks are listed as markdown links: - [Task Name](01.task-name.md)
-  const taskRegex = /^\-\s*\[([^\]]+)\]\]\(([^)]+)\)\s*$/gm
+  const taskRegex = /^-\s*\[([^\]]+)\]\(([^)]+)\)\s*$/gm
   const tasks: string[] = []
   let match
 
@@ -72,7 +72,7 @@ export function parseFlowIndex(content: string): FlowIndex {
 export function serializeFlowIndex(index: FlowIndex): string {
   const taskList = index.tasks
     .map(t => {
-      const name = t.replace(/^\d+\./, '').replace(/\.md$/, '').replace(/-/g, ' ')
+      const name = t.replace(/^\d+\./, '').replace(/\.md$/, '').replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
       return `- [${name}](${t})`
     })
     .join('\n')

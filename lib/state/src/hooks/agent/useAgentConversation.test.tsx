@@ -32,7 +32,7 @@ describe('useAgentConversation', () => {
     appFS.writeFile(getTestPath('agents/bot/conversations/chat1.json'), JSON.stringify(conv))
 
     const { result } = renderHook(() => useAgentConversation('bot', 'chat1'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).not.toBeNull()
@@ -45,7 +45,7 @@ describe('useAgentConversation', () => {
 
   it('should return null for non-existent conversation', () => {
     const { result } = renderHook(() => useAgentConversation('bot', 'non-existent'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toBeNull()
@@ -73,7 +73,7 @@ describe('useAgentConversation', () => {
     appFS.writeFile(getTestPath('agents/bot/conversations/chat1.json'), JSON.stringify(conv))
 
     const { result } = renderHook(() => useAgentConversation('bot', 'chat1'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.messages[0].timestamp).toBe('2024-01-01T00:00:00Z')
@@ -99,7 +99,7 @@ describe('useAgentConversation', () => {
     appFS.writeFile(getTestPath('agents/bot/conversations/chat1.json'), JSON.stringify(conv))
 
     const { result } = renderHook(() => useAgentConversation('bot', 'chat1'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.messages[0].role).toBe('system')
@@ -111,7 +111,7 @@ describe('useAgentConversation', () => {
     appFS.writeFile(getTestPath('agents/bot/conversations/chat1.json'), 'not json')
 
     const { result } = renderHook(() => useAgentConversation('bot', 'chat1'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).not.toBeNull()
@@ -136,7 +136,7 @@ describe('useAgentConversation', () => {
     appFS.writeFile(getTestPath('agents/bot/conversations/chat1.json'), JSON.stringify(conv))
 
     const { result } = renderHook(() => useAgentConversation('bot', 'chat1'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.messages).toHaveLength(1)
@@ -164,7 +164,7 @@ describe('useAgentConversation', () => {
 
   it('should re-render when conversation is created', async () => {
     const { result } = renderHook(() => useAgentConversation('bot', 'newchat'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toBeNull()
@@ -202,7 +202,7 @@ describe('useAgentConversation', () => {
     appFS.writeFile(getTestPath('agents/bot/conversations/chat1.json'), JSON.stringify(conv))
 
     const { result } = renderHook(() => useAgentConversation('bot', 'chat1'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).not.toBeNull()
@@ -234,7 +234,7 @@ describe('useAgentConversation', () => {
       renderCount++
       return useAgentConversation('bot', 'chat1')
     }, {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = renderCount

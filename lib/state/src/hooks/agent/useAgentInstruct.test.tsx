@@ -24,7 +24,7 @@ You are a helpful assistant.`
     appFS.writeFile(getTestPath('agents/bot/instruct.md'), content)
 
     const { result } = renderHook(() => useAgentInstruct('bot'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).not.toBeNull()
@@ -36,7 +36,7 @@ You are a helpful assistant.`
 
   it('should return null for non-existent agent', () => {
     const { result } = renderHook(() => useAgentInstruct('non-existent'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toBeNull()
@@ -48,7 +48,7 @@ You are a helpful assistant.`
     appFS.writeFile(getTestPath('agents/simple/instruct.md'), content)
 
     const { result } = renderHook(() => useAgentInstruct('simple'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).not.toBeNull()
@@ -70,7 +70,7 @@ Follow these instructions carefully.`
     appFS.writeFile(getTestPath('agents/advanced/instruct.md'), content)
 
     const { result } = renderHook(() => useAgentInstruct('advanced'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.name).toBe('Advanced Bot')
@@ -89,7 +89,7 @@ Original instructions`
     appFS.writeFile(getTestPath('agents/bot/instruct.md'), initialContent)
 
     const { result } = renderHook(() => useAgentInstruct('bot'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.instructions).toBe('Original instructions')
@@ -108,7 +108,7 @@ Updated instructions`
 
   it('should re-render when instruct is created', async () => {
     const { result } = renderHook(() => useAgentInstruct('newbot'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toBeNull()
@@ -135,7 +135,7 @@ Instructions`
     appFS.writeFile(getTestPath('agents/bot/instruct.md'), content)
 
     const { result } = renderHook(() => useAgentInstruct('bot'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).not.toBeNull()
@@ -157,7 +157,7 @@ Instructions`
       renderCount++
       return useAgentInstruct('bot1')
     }, {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = renderCount
@@ -181,7 +181,7 @@ Line 3`
     appFS.writeFile(getTestPath('agents/bot/instruct.md'), content)
 
     const { result } = renderHook(() => useAgentInstruct('bot'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.instructions).toBe('Line 1\nLine 2\nLine 3')
@@ -193,7 +193,7 @@ Line 3`
     appFS.writeFile(getTestPath('agents/my-bot-123/instruct.md'), content)
 
     const { result } = renderHook(() => useAgentInstruct('my-bot-123'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.name).toBe('Bot')
@@ -208,7 +208,7 @@ name: Bot
     appFS.writeFile(getTestPath('agents/bot/instruct.md'), content)
 
     const { result } = renderHook(() => useAgentInstruct('bot'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.instructions).toBe('')

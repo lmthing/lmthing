@@ -28,7 +28,7 @@ Be helpful`
     appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(values))
 
     const { result } = renderHook(() => useAgent('bot'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current.id).toBe('bot')
@@ -41,7 +41,7 @@ Be helpful`
 
   it('should return nulls for non-existent agent', () => {
     const { result } = renderHook(() => useAgent('non-existent'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current.id).toBe('non-existent')
@@ -57,7 +57,7 @@ Be helpful`
     // No config or values
 
     const { result } = renderHook(() => useAgent('bot'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current.instruct?.name).toBe('Bot')
@@ -70,7 +70,7 @@ Be helpful`
     appFS.writeFile(getTestPath('agents/bot/instruct.md'), instruct)
 
     const { result } = renderHook(() => useAgent('bot'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current.instruct?.name).toBe('Bot')
@@ -91,7 +91,7 @@ Be helpful`
     appFS.writeFile(getTestPath('agents/bot/config.json'), JSON.stringify(config))
 
     const { result } = renderHook(() => useAgent('bot'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current.config?.enabled).toBe(true)
@@ -112,7 +112,7 @@ Be helpful`
     appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(values))
 
     const { result } = renderHook(() => useAgent('bot'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current.values?.key).toBe('value1')
@@ -130,7 +130,7 @@ Be helpful`
     appFS.writeFile(getTestPath('agents/newbot/instruct.md'), instruct)
 
     const { result } = renderHook(() => useAgent('newbot'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current.config).toBeNull()
@@ -153,7 +153,7 @@ Be helpful`
     appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(values))
 
     const { result } = renderHook(() => useAgent('bot'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current.values).not.toBeNull()
@@ -175,7 +175,7 @@ Be helpful`
       renderCount++
       return useAgent('bot1')
     }, {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = renderCount

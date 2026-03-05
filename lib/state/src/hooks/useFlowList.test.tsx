@@ -19,7 +19,7 @@ describe('useFlowList', () => {
     appFS.writeFile(getTestPath('flows/workflow3/index.md'), '---\nname: Flow3\n---')
 
     const { result } = renderHook(() => useFlowList(), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toHaveLength(3)
@@ -30,7 +30,7 @@ describe('useFlowList', () => {
 
   it('should return empty array when no flows exist', () => {
     const { result } = renderHook(() => useFlowList(), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toEqual([])
@@ -40,7 +40,7 @@ describe('useFlowList', () => {
     appFS.writeFile(getTestPath('flows/myflow/index.md'), '---\nname: My Flow\n---')
 
     const { result } = renderHook(() => useFlowList(), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current[0].id).toBe('myflow')
@@ -52,7 +52,7 @@ describe('useFlowList', () => {
     appFS.writeFile(getTestPath('flows/invalid/other.md'), '# Not an index')
 
     const { result } = renderHook(() => useFlowList(), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toHaveLength(1)
@@ -61,7 +61,7 @@ describe('useFlowList', () => {
 
   it('should re-render when flow is created', async () => {
     const { result } = renderHook(() => useFlowList(), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toEqual([])
@@ -78,7 +78,7 @@ describe('useFlowList', () => {
     appFS.writeFile(getTestPath('flows/flow2/index.md'), '---\nname: Flow2\n---')
 
     const { result } = renderHook(() => useFlowList(), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toHaveLength(2)
@@ -95,7 +95,7 @@ describe('useFlowList', () => {
     appFS.writeFile(getTestPath('flows/flow/index.md'), '---\nname: Flow\n---')
 
     const { result } = renderHook(() => useFlowList(), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toHaveLength(1)
@@ -111,7 +111,7 @@ describe('useFlowList', () => {
     appFS.writeFile(getTestPath('flows/flow/other.md'), '# Not an index')
 
     const { result } = renderHook(() => useFlowList(), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toHaveLength(0)
@@ -133,7 +133,7 @@ describe('useFlowList', () => {
       renderCount++
       return useFlowList()
     }, {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = renderCount
@@ -151,7 +151,7 @@ describe('useFlowList', () => {
     appFS.writeFile(getTestPath('flows/flow_007/index.md'), '---\nname: Flow\n---')
 
     const { result } = renderHook(() => useFlowList(), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current.map(f => f.id)).toContain('my-flow-123')
@@ -164,7 +164,7 @@ describe('useFlowList', () => {
     appFS.writeFile(getTestPath('flows/m-flow/index.md'), '---\nname: M\n---')
 
     const { result } = renderHook(() => useFlowList(), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current.map(f => f.id)).toEqual(['a-flow', 'm-flow', 'z-flow'])
@@ -176,7 +176,7 @@ describe('useFlowList', () => {
     }
 
     const { result } = renderHook(() => useFlowList(), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toHaveLength(50)

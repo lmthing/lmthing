@@ -21,7 +21,7 @@ describe('useGlob', () => {
 
   it('should match files with * pattern', () => {
     const { result } = renderHook(() => useGlob('*.txt'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toEqual(['file1.txt'])
@@ -29,7 +29,7 @@ describe('useGlob', () => {
 
   it('should match files with ** pattern', () => {
     const { result } = renderHook(() => useGlob('**/*.ts'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toContain('src/file3.ts')
@@ -38,7 +38,7 @@ describe('useGlob', () => {
 
   it('should match files with ? pattern', () => {
     const { result } = renderHook(() => useGlob('file?.*'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toContain('file1.txt')
@@ -48,7 +48,7 @@ describe('useGlob', () => {
 
   it('should match files with character classes', () => {
     const { result } = renderHook(() => useGlob('file[12].*'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toContain('file1.txt')
@@ -58,7 +58,7 @@ describe('useGlob', () => {
 
   it('should match files with extglob patterns', () => {
     const { result } = renderHook(() => useGlob('*.@(txt|md)'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toContain('file1.txt')
@@ -68,7 +68,7 @@ describe('useGlob', () => {
 
   it('should return paths relative to space scope', () => {
     const { result } = renderHook(() => useGlob('**/*.ts'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     // Paths should not include the full AppFS path
@@ -77,7 +77,7 @@ describe('useGlob', () => {
 
   it('should return empty array for no matches', () => {
     const { result } = renderHook(() => useGlob('*.xyz'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toEqual([])
@@ -85,7 +85,7 @@ describe('useGlob', () => {
 
   it('should re-render when matching file is created', async () => {
     const { result } = renderHook(() => useGlob('*.txt'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = result.current.length
@@ -101,7 +101,7 @@ describe('useGlob', () => {
 
   it('should re-render when matching file is deleted', async () => {
     const { result } = renderHook(() => useGlob('*.txt'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = result.current.length
@@ -121,7 +121,7 @@ describe('useGlob', () => {
       renderCount++
       return useGlob('*.txt')
     }, {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = renderCount
@@ -141,7 +141,7 @@ describe('useGlob', () => {
       renderCount++
       return useGlob('*.txt')
     }, {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = renderCount
@@ -158,7 +158,7 @@ describe('useGlob', () => {
     appFS.writeFile(getTestPath('exclude.txt'), 'x')
 
     const { result } = renderHook(() => useGlob('!*.md'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toContain('file1.txt')
@@ -167,7 +167,7 @@ describe('useGlob', () => {
 
   it('should match nested files with **', () => {
     const { result } = renderHook(() => useGlob('**/file*.ts'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toContain('src/file3.ts')
@@ -176,7 +176,7 @@ describe('useGlob', () => {
 
   it('should handle complex patterns', () => {
     const { result } = renderHook(() => useGlob('src/**/*.ts*'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toContain('src/file3.ts')
@@ -185,7 +185,7 @@ describe('useGlob', () => {
 
   it('should sort results alphabetically by default', () => {
     const { result } = renderHook(() => useGlob('**/*'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     const sorted = [...result.current].sort()
@@ -198,7 +198,7 @@ describe('useGlob with empty space', () => {
     const appFS = new AppFS()
 
     const { result } = renderHook(() => useGlob('**/*'), {
-      wrapper: createTestWrapper({ appFS })
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toEqual([])

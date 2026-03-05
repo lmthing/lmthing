@@ -1,3 +1,12 @@
+import { Button } from '@/elements/forms/button'
+import { Card, CardBody, CardFooter } from '@/elements/content/card'
+import { Badge } from '@/elements/content/badge'
+import { Stack } from '@/elements/layouts/stack'
+import { PanelHeader } from '@/elements/content/panel'
+import { Label } from '@/elements/typography/label'
+import { Caption } from '@/elements/typography/caption'
+import { Code } from '@/elements/typography/code'
+
 export interface AttachedWorkflow {
   workflowId: string
   workflowName: string
@@ -28,32 +37,28 @@ export function ActionsPanel({
 }: ActionsPanelProps) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div className="panel__header">
-        <div className="stack stack--row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+      <PanelHeader>
+        <Stack row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h3 className="label label--sm">Slash Actions</h3>
-            <p className="caption caption--muted">Attach workflows with custom triggers</p>
+            <Label compact>Slash Actions</Label>
+            <Caption muted>Attach workflows with custom triggers</Caption>
           </div>
-          <button onClick={onOpenWorkflowBuilder} className="btn btn--primary btn--sm">
-            + Attach Workflow
-          </button>
-        </div>
-      </div>
+          <Button onClick={onOpenWorkflowBuilder} variant="primary" size="sm">+ Attach Workflow</Button>
+        </Stack>
+      </PanelHeader>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '1rem' }}>
         {attachedWorkflows.length === 0 ? (
-          <div className="stack" style={{ textAlign: 'center', padding: '3rem 0' }}>
+          <Stack style={{ textAlign: 'center', padding: '3rem 0' }}>
             <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⚡</div>
-            <h4 className="label">No actions attached</h4>
-            <p className="caption caption--muted" style={{ maxWidth: '200px', margin: '0 auto 1rem' }}>
+            <Label>No actions attached</Label>
+            <Caption muted style={{ maxWidth: '200px', margin: '0 auto 1rem' }}>
               Attach workflows to give users quick access to multi-step tasks
-            </p>
-            <button onClick={onOpenWorkflowBuilder} className="btn btn--ghost btn--sm">
-              Attach Your First Workflow
-            </button>
-          </div>
+            </Caption>
+            <Button onClick={onOpenWorkflowBuilder} variant="ghost" size="sm">Attach Your First Workflow</Button>
+          </Stack>
         ) : (
-          <div className="stack stack--gap-sm">
+          <Stack gap="sm">
             {attachedWorkflows.map(workflow => (
               <SlashActionCard
                 key={workflow.slashAction.id}
@@ -63,65 +68,58 @@ export function ActionsPanel({
                 onDetach={onDetachWorkflow}
               />
             ))}
-          </div>
+          </Stack>
         )}
       </div>
 
-      <div className="card__footer">
-        <p className="caption caption--muted" style={{ textAlign: 'center' }}>
-          Actions are invoked with <code className="code-inline">/action</code>
-        </p>
-      </div>
+      <CardFooter>
+        <Caption muted style={{ textAlign: 'center', display: 'block' }}>
+          Actions are invoked with <Code>/action</Code>
+        </Caption>
+      </CardFooter>
     </div>
   )
 }
 
-interface SlashActionCardProps {
+function SlashActionCard({ workflow, onToggleEnabled, onEdit, onDetach }: {
   workflow: AttachedWorkflow
   onToggleEnabled: (slashActionId: string, enabled: boolean) => void
   onEdit: (slashActionId: string) => void
   onDetach: (slashActionId: string) => void
-}
-
-function SlashActionCard({ workflow, onToggleEnabled, onEdit, onDetach }: SlashActionCardProps) {
+}) {
   return (
-    <div className="card card--interactive">
-      <div className="card__body">
-        <div className="stack stack--row stack--gap-sm" style={{ alignItems: 'flex-start' }}>
+    <Card interactive>
+      <CardBody>
+        <Stack row gap="sm" style={{ alignItems: 'flex-start' }}>
           <div style={{ fontSize: '1.25rem', flexShrink: 0 }}>⚡</div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="stack stack--row stack--gap-sm" style={{ alignItems: 'center', marginBottom: '0.25rem' }}>
-              <code className="code-inline">/{workflow.slashAction.actionId}</code>
-              <span className={`badge ${workflow.slashAction.enabled ? 'badge--success' : 'badge--muted'}`} style={{ fontSize: '0.625rem' }}>
+            <Stack row gap="sm" style={{ alignItems: 'center', marginBottom: '0.25rem' }}>
+              <Code>/{workflow.slashAction.actionId}</Code>
+              <Badge variant={workflow.slashAction.enabled ? 'success' : 'muted'} style={{ fontSize: '0.625rem' }}>
                 {workflow.slashAction.enabled ? 'Active' : 'Disabled'}
-              </span>
-            </div>
-            <h4 className="label" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {workflow.slashAction.name}
-            </h4>
-            <p className="caption caption--muted" style={{ marginTop: '0.125rem' }}>
-              {workflow.slashAction.description}
-            </p>
-            <div className="stack stack--row stack--gap-sm" style={{ marginTop: '0.5rem' }}>
-              <span className="badge badge--muted" style={{ fontSize: '0.625rem' }}>
-                {workflow.stepCount} step{workflow.stepCount > 1 ? 's' : ''}
-              </span>
-              <span className="caption caption--muted">{workflow.workflowName}</span>
-            </div>
+              </Badge>
+            </Stack>
+            <Label style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{workflow.slashAction.name}</Label>
+            <Caption muted style={{ marginTop: '0.125rem' }}>{workflow.slashAction.description}</Caption>
+            <Stack row gap="sm" style={{ marginTop: '0.5rem' }}>
+              <Badge variant="muted" style={{ fontSize: '0.625rem' }}>{workflow.stepCount} step{workflow.stepCount > 1 ? 's' : ''}</Badge>
+              <Caption muted>{workflow.workflowName}</Caption>
+            </Stack>
           </div>
-          <div className="stack stack--gap-sm">
-            <button
+          <Stack gap="sm">
+            <Button
               onClick={() => onToggleEnabled(workflow.slashAction.id, !workflow.slashAction.enabled)}
-              className="btn btn--ghost btn--sm"
+              variant="ghost"
+              size="sm"
               title={workflow.slashAction.enabled ? 'Disable' : 'Enable'}
             >
               {workflow.slashAction.enabled ? '✓' : '○'}
-            </button>
-            <button onClick={() => onEdit(workflow.slashAction.id)} className="btn btn--ghost btn--sm" title="Edit">✎</button>
-            <button onClick={() => onDetach(workflow.slashAction.id)} className="btn btn--ghost btn--sm" title="Detach">✕</button>
-          </div>
-        </div>
-      </div>
-    </div>
+            </Button>
+            <Button onClick={() => onEdit(workflow.slashAction.id)} variant="ghost" size="sm" title="Edit">✎</Button>
+            <Button onClick={() => onDetach(workflow.slashAction.id)} variant="ghost" size="sm" title="Detach">✕</Button>
+          </Stack>
+        </Stack>
+      </CardBody>
+    </Card>
   )
 }

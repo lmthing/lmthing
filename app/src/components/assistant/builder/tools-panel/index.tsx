@@ -1,3 +1,11 @@
+import { Button } from '@/elements/forms/button'
+import { Card, CardBody, CardFooter } from '@/elements/content/card'
+import { Badge } from '@/elements/content/badge'
+import { Stack } from '@/elements/layouts/stack'
+import { PanelHeader } from '@/elements/content/panel'
+import { Label } from '@/elements/typography/label'
+import { Caption } from '@/elements/typography/caption'
+
 export type ToolConfigStatus = 'installed' | 'needs-config' | 'ready'
 
 export interface Tool {
@@ -23,38 +31,36 @@ interface ToolsPanelProps {
   onConfigureTool: (toolId: string, config: Record<string, unknown>) => void
 }
 
-const statusLabels: Record<ToolConfigStatus, { label: string; badge: string; icon: string }> = {
-  installed: { label: 'Installed', badge: 'badge--success', icon: '\u2713' },
-  'needs-config': { label: 'Needs Config', badge: 'badge--primary', icon: '\u2699' },
-  ready: { label: 'Ready', badge: 'badge--muted', icon: '\u25CF' },
+const statusLabels: Record<ToolConfigStatus, { label: string; variant: 'success' | 'primary' | 'muted'; icon: string }> = {
+  installed: { label: 'Installed', variant: 'success', icon: '\u2713' },
+  'needs-config': { label: 'Needs Config', variant: 'primary', icon: '\u2699' },
+  ready: { label: 'Ready', variant: 'muted', icon: '\u25CF' },
 }
 
 export function ToolsPanel({ enabledTools, onOpenLibrary, onRemoveTool, onConfigureTool }: ToolsPanelProps) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div className="panel__header">
-        <div className="stack stack--row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 className="label label--sm">Enabled Tools</h3>
-          <button onClick={onOpenLibrary} className="btn btn--primary btn--sm">
-            + Add Tools
-          </button>
-        </div>
-      </div>
+      <PanelHeader>
+        <Stack row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <Label compact>Enabled Tools</Label>
+          <Button onClick={onOpenLibrary} variant="primary" size="sm">+ Add Tools</Button>
+        </Stack>
+      </PanelHeader>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '1rem' }}>
         {enabledTools.length === 0 ? (
-          <div className="stack" style={{ textAlign: 'center', padding: '3rem 0' }}>
+          <Stack style={{ textAlign: 'center', padding: '3rem 0' }}>
             <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🔧</div>
-            <h4 className="label">No tools enabled</h4>
-            <p className="caption caption--muted" style={{ maxWidth: '200px', margin: '0 auto' }}>
+            <Label>No tools enabled</Label>
+            <Caption muted style={{ maxWidth: '200px', margin: '0 auto' }}>
               Add tools from the library to extend your assistant's capabilities
-            </p>
-            <button onClick={onOpenLibrary} className="btn btn--ghost btn--sm" style={{ marginTop: '1rem' }}>
+            </Caption>
+            <Button onClick={onOpenLibrary} variant="ghost" size="sm" style={{ marginTop: '1rem' }}>
               Browse Tool Library
-            </button>
-          </div>
+            </Button>
+          </Stack>
         ) : (
-          <div className="stack stack--gap-sm">
+          <Stack gap="sm">
             {enabledTools.map(mapping => (
               <ToolCard
                 key={mapping.tool.id}
@@ -63,60 +69,49 @@ export function ToolsPanel({ enabledTools, onOpenLibrary, onRemoveTool, onConfig
                 onConfigure={() => onConfigureTool(mapping.tool.id, {})}
               />
             ))}
-          </div>
+          </Stack>
         )}
       </div>
 
-      <div className="card__footer">
-        <p className="caption caption--muted" style={{ textAlign: 'center' }}>
+      <CardFooter>
+        <Caption muted style={{ textAlign: 'center', display: 'block' }}>
           Tools are manually enabled from the library
-        </p>
-      </div>
+        </Caption>
+      </CardFooter>
     </div>
   )
 }
 
-interface ToolCardProps {
-  mapping: EnabledToolMapping
-  onRemove?: () => void
-  onConfigure?: () => void
-}
-
-function ToolCard({ mapping, onRemove, onConfigure }: ToolCardProps) {
+function ToolCard({ mapping, onRemove, onConfigure }: { mapping: EnabledToolMapping; onRemove?: () => void; onConfigure?: () => void }) {
   const status = statusLabels[mapping.status]
-
   return (
-    <div className="card card--interactive">
-      <div className="card__body">
-        <div className="stack stack--row stack--gap-sm" style={{ alignItems: 'flex-start' }}>
+    <Card interactive>
+      <CardBody>
+        <Stack row gap="sm" style={{ alignItems: 'flex-start' }}>
           <div style={{ fontSize: '1.25rem', flexShrink: 0 }}>📦</div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="stack stack--row stack--gap-sm" style={{ alignItems: 'center', marginBottom: '0.25rem' }}>
-              <h4 className="label" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {mapping.tool.name}
-              </h4>
-              <span className={`badge ${status.badge}`} style={{ fontSize: '0.625rem' }}>
-                {status.icon} {status.label}
-              </span>
-            </div>
-            <p className="caption caption--muted" style={{ WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            <Stack row gap="sm" style={{ alignItems: 'center', marginBottom: '0.25rem' }}>
+              <Label style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mapping.tool.name}</Label>
+              <Badge variant={status.variant} style={{ fontSize: '0.625rem' }}>{status.icon} {status.label}</Badge>
+            </Stack>
+            <Caption muted style={{ WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
               {mapping.tool.description}
-            </p>
-            <div className="stack stack--row stack--gap-sm" style={{ marginTop: '0.5rem' }}>
-              <span className="badge badge--muted" style={{ fontSize: '0.625rem' }}>{mapping.tool.category}</span>
-              <span className="caption caption--muted">v{mapping.tool.version}</span>
-            </div>
+            </Caption>
+            <Stack row gap="sm" style={{ marginTop: '0.5rem' }}>
+              <Badge variant="muted" style={{ fontSize: '0.625rem' }}>{mapping.tool.category}</Badge>
+              <Caption muted>v{mapping.tool.version}</Caption>
+            </Stack>
           </div>
-          <div className="stack stack--gap-sm" style={{ opacity: 0 }}>
+          <Stack gap="sm" style={{ opacity: 0 }}>
             {mapping.tool.configRequired && mapping.status !== 'ready' && (
-              <button onClick={onConfigure} className="btn btn--ghost btn--sm" title="Configure tool">⚙</button>
+              <Button onClick={onConfigure} variant="ghost" size="sm" title="Configure tool">⚙</Button>
             )}
             {mapping.source === 'manual' && onRemove && (
-              <button onClick={onRemove} className="btn btn--ghost btn--sm" title="Remove tool">✕</button>
+              <Button onClick={onRemove} variant="ghost" size="sm" title="Remove tool">✕</Button>
             )}
-          </div>
-        </div>
-      </div>
-    </div>
+          </Stack>
+        </Stack>
+      </CardBody>
+    </Card>
   )
 }

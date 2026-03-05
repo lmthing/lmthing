@@ -1,4 +1,12 @@
 import { useState, useCallback, useEffect } from 'react'
+import { Button } from '@/elements/forms/button'
+import { Input } from '@/elements/forms/input'
+import { Textarea } from '@/elements/forms/textarea'
+import { Stack } from '@/elements/layouts/stack'
+import { Heading } from '@/elements/typography/heading'
+import { Label } from '@/elements/typography/label'
+import { Caption } from '@/elements/typography/caption'
+import { CardFooter } from '@/elements/content/card'
 
 interface SaveAssistantModalProps {
   isOpen: boolean
@@ -10,28 +18,16 @@ export function SaveAssistantModal({ isOpen, onClose, onSave }: SaveAssistantMod
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
 
-  useEffect(() => {
-    if (isOpen) {
-      setName('')
-      setDescription('')
-    }
-  }, [isOpen])
+  useEffect(() => { if (isOpen) { setName(''); setDescription('') } }, [isOpen])
 
   const handleSave = useCallback(() => {
-    if (name.trim()) {
-      onSave(name.trim(), description.trim())
-      setName('')
-      setDescription('')
-    }
+    if (name.trim()) { onSave(name.trim(), description.trim()); setName(''); setDescription('') }
   }, [name, description, onSave])
 
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSave()
-    },
-    [onClose, handleSave]
-  )
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') onClose()
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSave()
+  }, [onClose, handleSave])
 
   useEffect(() => {
     if (isOpen) {
@@ -46,53 +42,36 @@ export function SaveAssistantModal({ isOpen, onClose, onSave }: SaveAssistantMod
     <div className="dialog__backdrop">
       <div className="dialog__content" style={{ maxWidth: '28rem' }}>
         <div className="dialog__header">
-          <div className="stack stack--row stack--gap-sm" style={{ alignItems: 'center' }}>
+          <Stack row gap="sm" style={{ alignItems: 'center' }}>
             <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: '0.75rem', background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <svg className="w-5 h-5" style={{ color: 'white' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
               </svg>
             </div>
             <div>
-              <h2 className="heading-3">Save Assistant</h2>
-              <p className="caption caption--muted">Save this assistant configuration for future reuse</p>
+              <Heading level={3}>Save Assistant</Heading>
+              <Caption muted>Save this assistant configuration for future reuse</Caption>
             </div>
-          </div>
-          <button onClick={onClose} className="btn btn--ghost btn--sm">✕</button>
+          </Stack>
+          <Button onClick={onClose} variant="ghost" size="sm">✕</Button>
         </div>
 
-        <div className="stack stack--gap-md" style={{ padding: '1.5rem' }}>
+        <Stack gap="md" style={{ padding: '1.5rem' }}>
           <div>
-            <label className="label label--sm label--required">Assistant Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="e.g., Security Auditor"
-              className="input"
-              autoFocus
-            />
+            <Label compact required>Assistant Name</Label>
+            <Input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g., Security Auditor" autoFocus />
           </div>
           <div>
-            <label className="label label--sm">Description</label>
-            <textarea
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="Briefly describe what this assistant does..."
-              rows={3}
-              className="textarea"
-            />
+            <Label compact>Description</Label>
+            <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Briefly describe what this assistant does..." rows={3} />
           </div>
-          <p className="caption caption--muted">
-            Saved assistants can be loaded from the Saved Assistants view
-          </p>
-        </div>
+          <Caption muted>Saved assistants can be loaded from the Saved Assistants view</Caption>
+        </Stack>
 
-        <div className="card__footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-          <button onClick={onClose} className="btn btn--ghost">Cancel</button>
-          <button onClick={handleSave} disabled={!name.trim()} className="btn btn--primary">
-            Save Assistant
-          </button>
-        </div>
+        <CardFooter style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+          <Button onClick={onClose} variant="ghost">Cancel</Button>
+          <Button onClick={handleSave} disabled={!name.trim()} variant="primary">Save Assistant</Button>
+        </CardFooter>
       </div>
     </div>
   )

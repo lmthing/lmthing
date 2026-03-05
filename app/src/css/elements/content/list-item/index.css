@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+.list-item {
+  @apply flex items-center gap-3 px-3 py-2 rounded-md text-sm
+         hover:bg-accent hover:text-accent-foreground
+         cursor-pointer transition-colors;
+}
+
+.list-item--selected {
+  @apply bg-accent text-accent-foreground font-medium;
+}
+
+.list-item__label {
+  @apply flex-1 truncate text-foreground;
+}
+
+.list-item__meta {
+  @apply text-xs text-muted-foreground shrink-0;
+}

@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+.tab-bar {
+  @apply flex items-center gap-1 border-b border-border;
+}
+
+.tab-bar__tab {
+  @apply inline-flex items-center gap-1.5 px-3 py-2 text-sm text-muted-foreground
+         border-b-2 border-transparent -mb-px
+         hover:text-foreground transition-colors cursor-pointer;
+}
+
+.tab-bar__tab--active {
+  @apply text-foreground border-primary font-medium;
+}

@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+.badge {
+  @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
+         border border-border bg-secondary text-secondary-foreground;
+}
+
+.badge--primary {
+  @apply bg-primary text-primary-foreground border-transparent;
+}
+
+.badge--muted {
+  @apply bg-muted text-muted-foreground border-transparent;
+}
+
+.badge--success {
+  @apply bg-chart-1/20 text-chart-1 border-chart-1/30;
+}

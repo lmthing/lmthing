@@ -2,9 +2,9 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { AppFS } from '@/lib/fs/AppFS'
-import { DraftStore } from '@/lib/fs/DraftStore'
-import type { AppData, StudioData, FileTree, Unsubscribe } from '@/types/studio'
+import { AppFS } from '../fs/AppFS'
+import { DraftStore } from '../fs/DraftStore'
+import type { AppData, StudioData, FileTree, Unsubscribe } from '../../types/studio'
 
 const APP_STORAGE_KEY = 'lmthing-app'
 const STUDIO_STORAGE_PREFIX = 'lmthing-studio:'

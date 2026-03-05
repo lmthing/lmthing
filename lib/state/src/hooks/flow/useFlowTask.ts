@@ -1,9 +1,9 @@
 // src/hooks/flow/useFlowTask.ts
 
 import { useMemo } from 'react'
-import { useFile } from '@/hooks/fs/useFile'
-import { P } from '@/lib/fs/paths'
-import { parseFlowTask, type FlowTask } from '@/lib/fs/parsers/task'
+import { useFile } from '../fs/useFile'
+import { P } from '../../lib/fs/paths'
+import { parseFlowTask, type FlowTask } from '../../lib/fs/parsers/task'
 
 export function useFlowTask(flowId: string, order: number, name: string): FlowTask | null {
   const content = useFile(P.flowTask(flowId, order, name))

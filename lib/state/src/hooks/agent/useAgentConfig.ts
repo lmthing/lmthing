@@ -1,9 +1,9 @@
 // src/hooks/agent/useAgentConfig.ts
 
 import { useMemo } from 'react'
-import { useFile } from '@/hooks/fs/useFile'
-import { P } from '@/lib/fs/paths'
-import { parseAgentConfig, serializeAgentConfig, type AgentConfig } from '@/lib/fs/parsers/config'
+import { useFile } from '../fs/useFile'
+import { P } from '../../lib/fs/paths'
+import { parseAgentConfig, serializeAgentConfig, type AgentConfig } from '../../lib/fs/parsers/config'
 
 export function useAgentConfig(id: string): AgentConfig | null {
   const content = useFile(P.agentConfig(id))

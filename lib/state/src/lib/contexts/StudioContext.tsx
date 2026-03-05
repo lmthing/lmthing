@@ -2,9 +2,9 @@
 
 import { createContext, useContext, useMemo } from 'react'
 import type { ReactNode } from 'react'
-import { StudioFS } from '@/lib/fs/ScopedFS'
+import { StudioFS } from '../fs/ScopedFS'
 import { useApp } from './AppContext'
-import type { StudioConfig, SpaceConfig, Unsubscribe } from '@/types/studio'
+import type { StudioConfig, SpaceConfig, Unsubscribe } from '../../types/studio'
 
 interface StudioContextValue {
   studioFS: StudioFS

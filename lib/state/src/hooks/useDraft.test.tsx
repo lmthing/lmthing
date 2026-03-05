@@ -2,12 +2,12 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
-import { AppProvider } from '@/lib/contexts/AppContext'
-import { DraftStore } from '@/lib/fs/DraftStore'
+import { AppProvider } from '../lib/contexts/AppContext'
+import { DraftStore } from '../lib/fs/DraftStore'
 import { useDraft, useHasDraft, useDraftMutations, useUnsavedPaths } from './useDraft'
 
 // Mock useApp hook
-vi.mock('@/hooks/studio/useApp', () => ({
+vi.mock('./studio/useApp', () => ({
   useApp: () => ({
     drafts: null as any
   })

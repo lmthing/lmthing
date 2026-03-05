@@ -2,7 +2,7 @@
 
 import { AppFS } from './AppFS'
 import type { FSInterface } from './FSInterface'
-import type { FileTree, DirEntry, FileOp, Unsubscribe } from '@/types/studio'
+import type { FileTree, DirEntry, FileOp, Unsubscribe } from '../../types/studio'
 import type { FSEvent, DirEvent, BatchEvent } from './events'
 
 function normalizePrefix(prefix: string): string {

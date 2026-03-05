@@ -1,9 +1,9 @@
 // src/hooks/flow/useFlowTaskList.ts
 
 import { useMemo } from 'react'
-import { useGlob } from '@/hooks/fs/useGlob'
-import { P } from '@/lib/fs/paths'
-import { parseFlowTask, type FlowTask } from '@/lib/fs/parsers/task'
+import { useGlob } from '../fs/useGlob'
+import { P } from '../../lib/fs/paths'
+import { parseFlowTask, type FlowTask } from '../../lib/fs/parsers/task'
 
 export interface FlowTaskItem {
   path: string

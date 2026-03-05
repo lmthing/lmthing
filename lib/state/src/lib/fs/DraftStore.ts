@@ -1,6 +1,6 @@
 // src/lib/fs/DraftStore.ts
 
-import type { Unsubscribe } from '@/types/studio'
+import type { Unsubscribe } from '../../types/studio'
 
 export interface DraftChangeEvent {
   path: string

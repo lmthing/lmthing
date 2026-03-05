@@ -2,11 +2,11 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
-import { AppProvider } from '@/lib/contexts/AppContext'
-import { StudioProvider } from '@/lib/contexts/StudioContext'
-import { SpaceProvider } from '@/lib/contexts/SpaceContext'
-import { AppFS } from '@/lib/fs/AppFS'
-import { P } from '@/lib/fs/paths'
+import { AppProvider } from '../../lib/contexts/AppContext'
+import { StudioProvider } from '../../lib/contexts/StudioContext'
+import { SpaceProvider } from '../../lib/contexts/SpaceContext'
+import { AppFS } from '../../lib/fs/AppFS'
+import { P } from '../../lib/fs/paths'
 import { useAgentInstruct } from './useAgentInstruct'
 
 function createWrapper(appFS: AppFS) {

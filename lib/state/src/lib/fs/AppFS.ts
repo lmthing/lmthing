@@ -3,7 +3,7 @@
 import { FSEventBus } from './FSEventBus'
 import type { FSInterface } from './FSInterface'
 import { globToRegex } from './glob'
-import type { FileTree, DirEntry, FileOp, Unsubscribe } from '@/types/studio'
+import type { FileTree, DirEntry, FileOp, Unsubscribe } from '../../types/studio'
 import type { FSEvent, DirEvent, BatchEvent } from './events'
 
 export class AppFS implements FSInterface {

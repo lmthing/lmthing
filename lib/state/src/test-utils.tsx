@@ -1,137 +1,106 @@
 // src/test-utils.tsx
-// Test utilities for setting up context providers with test data
+/**
+ * Test utilities for setting up the context providers with proper initial state.
+ * All tests should use createTestWrapper to ensure contexts are properly initialized.
+ */
 
-import { createElement, ReactElement, ReactNode } from 'react'
-import { renderHook, RenderHookOptions } from '@testing-library/react'
-import { AppProvider } from '@/lib/contexts/AppContext'
-import { StudioProvider } from '@/lib/contexts/StudioContext'
-import { SpaceProvider } from '@/lib/contexts/SpaceContext'
-import { AppFS } from '@/lib/fs/AppFS'
-import { DraftStore } from '@/lib/fs/DraftStore'
-import type { AppData } from '@/types/studio'
+import React, { ReactNode } from 'react'
+import { AppProvider } from './lib/contexts/AppContext'
+import { StudioProvider } from './lib/contexts/StudioContext'
+import { SpaceProvider } from './lib/contexts/SpaceContext'
+import { AppFS } from './lib/fs/AppFS'
+import type { StudioConfig } from './types/studio'
 
-interface TestContextOptions {
-  appFS?: AppFS
-  draftStore?: DraftStore
+const DEFAULT_USERNAME = 'alice'
+const DEFAULT_STUDIO_ID = 'test'
+const DEFAULT_SPACE_ID = 'space1'
+
+export interface TestWrapperOptions {
   username?: string
   studioId?: string
   spaceId?: string
-  studioConfig?: {
-    name?: string
-    spaces?: Record<string, { name: string; description?: string }>
-  }
-  /** If true, skip writing default config files (let tests set them up) */
-  skipDefaults?: boolean
+  studioConfig?: Partial<StudioConfig>
+  skipStudioSetup?: boolean
+  skipPackageJsonSetup?: boolean
 }
 
 /**
- * Creates a wrapper function that sets up all context providers with test data.
- * Uses the provided AppFS instance and sets up proper studio/space state.
+ * Create a wrapper component that sets up AppProvider, StudioProvider, and SpaceProvider
+ * with proper initial state for testing.
+ *
+ * Creates a studio and space in appFS automatically unless skipStudioSetup is true.
  */
-export function createTestWrapper({
-  appFS: providedAppFS,
-  draftStore: providedDraftStore,
-  username = 'alice',
-  studioId = 'test',
-  spaceId = 'space1',
-  studioConfig = { name: 'Test Studio', spaces: { [spaceId]: { name: 'Test Space' } } },
-  skipDefaults = false
-}: TestContextOptions = {}) {
+export function createTestWrapper(
+  appFS: AppFS,
+  options: TestWrapperOptions = {}
+): React.ComponentType<{ children: ReactNode }> {
+  const {
+    username = DEFAULT_USERNAME,
+    studioId = DEFAULT_STUDIO_ID,
+    spaceId = DEFAULT_SPACE_ID,
+    studioConfig: customConfig,
+    skipStudioSetup = false,
+    skipPackageJsonSetup = false
+  } = options
+
   const studioKey = `${username}/${studioId}`
 
-  // Set up studio config if using custom AppFS and not skipping defaults
-  if (providedAppFS && !skipDefaults) {
-    const config = {
+  // Set up initial studio and space if not skipping
+  if (!skipStudioSetup) {
+    const config: StudioConfig = {
       id: studioId,
-      name: studioConfig.name,
-      version: '1.0.0',
-      spaces: studioConfig.spaces ?? { [spaceId]: { name: 'Test Space' } },
-      settings: { defaultSpace: spaceId }
+      name: customConfig?.name ?? 'Test Studio',
+      version: customConfig?.version ?? '1.0.0',
+      spaces: {
+        [spaceId]: {
+          name: customConfig?.spaces?.[spaceId]?.name ?? 'Test Space',
+          description: customConfig?.spaces?.[spaceId]?.description ?? '',
+          createdAt: customConfig?.spaces?.[spaceId]?.createdAt ?? new Date().toISOString(),
+          updatedAt: customConfig?.spaces?.[spaceId]?.updatedAt ?? new Date().toISOString()
+        },
+        ...customConfig?.spaces
+      },
+      settings: customConfig?.settings ?? { defaultSpace: spaceId }
     }
-    providedAppFS.writeFile(`${username}/${studioId}/lmthing.json`, JSON.stringify(config, null, 2))
 
-    // Create package.json for the space
-    const packageJson = {
-      name: spaceId,
-      version: '1.0.0',
-      private: true
+    // Remove the default space from spaces if it's in customConfig
+    if (customConfig?.spaces && !(spaceId in customConfig.spaces)) {
+      delete config.spaces[spaceId]
     }
-    providedAppFS.writeFile(`${username}/${studioId}/${spaceId}/package.json`, JSON.stringify(packageJson, null, 2))
+
+    appFS.writeFile(`${studioKey}/lmthing.json`, JSON.stringify(config, null, 2))
+
+    if (!skipPackageJsonSetup) {
+      appFS.writeFile(`${studioKey}/${spaceId}/package.json`, JSON.stringify({ name: spaceId, version: '1.0.0' }))
+    }
   }
 
-  // Create TestProviders component that passes appFS and draftStore directly
-  function TestProviders({ children }: { children: ReactNode }) {
-    return createElement(
-      AppProvider,
-      { appFS: providedAppFS, draftStore: providedDraftStore, initialStudioKey: studioKey, skipStorage: true },
-      createElement(StudioProvider, undefined, createElement(SpaceProvider, undefined, children as any))
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <AppProvider appFS={appFS} skipStorage={true} initialStudioKey={studioKey}>
+        <StudioProvider>
+          <SpaceProvider>
+            {children}
+          </SpaceProvider>
+        </StudioProvider>
+      </AppProvider>
     )
   }
-
-  return TestProviders
 }
 
 /**
- * Renders a hook with properly configured test contexts.
+ * Helper to get the default path structure for a file in the test setup.
+ * E.g., getTestPath('agents/bot/instruct.md') -> 'alice/test/space1/agents/bot/instruct.md'
  */
-export function renderHookWithContext<T>(
-  hook: () => T,
-  options: Omit<RenderHookOptions<T>, 'wrapper'> & { context?: TestContextOptions } = {}
-) {
-  const { context = {}, ...renderOptions } = options
-  const wrapper = createTestWrapper(context)
+export function getTestPath(
+  relativePath: string,
+  options: TestWrapperOptions = {}
+): string {
+  const {
+    username = DEFAULT_USERNAME,
+    studioId = DEFAULT_STUDIO_ID,
+    spaceId = DEFAULT_SPACE_ID
+  } = options
 
-  return renderHook(hook, { ...renderOptions, wrapper })
-}
-
-/**
- * Creates a test AppFS instance pre-configured with studio/space structure.
- */
-export function createTestAppFS(
-  username = 'alice',
-  studioId = 'test',
-  spaceId = 'space1'
-): AppFS {
-  const appFS = new AppFS()
-
-  // Set up studio config
-  const config = {
-    id: studioId,
-    name: 'Test Studio',
-    version: '1.0.0',
-    spaces: {
-      [spaceId]: {
-        name: 'Test Space',
-        description: 'A test space',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }
-    },
-    settings: { defaultSpace: spaceId }
-  }
-  appFS.writeFile(`${username}/${studioId}/lmthing.json`, JSON.stringify(config, null, 2))
-
-  // Create package.json for the space
-  const packageJson = {
-    name: spaceId,
-    version: '1.0.0',
-    private: true
-  }
-  appFS.writeFile(`${username}/${studioId}/${spaceId}/package.json`, JSON.stringify(packageJson, null, 2))
-
-  return appFS
-}
-
-/**
- * Helper to get the full path for a space-relative path in tests.
- */
-export function testPath(path: string, username = 'alice', studioId = 'test', spaceId = 'space1'): string {
-  return `${username}/${studioId}/${spaceId}/${path}`
-}
-
-/**
- * Clears localStorage between tests.
- */
-export function clearTestStorage(): void {
-  localStorage.clear()
+  return `${username}/${studioId}/${spaceId}/${relativePath}`
 }

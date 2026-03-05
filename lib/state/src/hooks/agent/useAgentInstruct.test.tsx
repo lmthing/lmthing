@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { AppFS } from '@/lib/fs/AppFS'
 import { useAgentInstruct } from './useAgentInstruct'
-import { createTestWrapper, testPath } from '@/test-utils'
+import { createTestWrapper, getTestPath } from '@/test-utils'
 
 describe('useAgentInstruct', () => {
   let appFS: AppFS
@@ -21,7 +21,7 @@ model: gpt-4
 ---
 You are a helpful assistant.`
 
-    appFS.writeFile(testPath('agents/bot/instruct.md'), content)
+    appFS.writeFile(getTestPath('agents/bot/instruct.md'), content)
 
     const { result } = renderHook(() => useAgentInstruct('bot'), {
       wrapper: createTestWrapper({ appFS })
@@ -45,7 +45,7 @@ You are a helpful assistant.`
   it('should handle instruct without frontmatter', () => {
     const content = 'Just instructions, no frontmatter'
 
-    appFS.writeFile(testPath('agents/simple/instruct.md'), content)
+    appFS.writeFile(getTestPath('agents/simple/instruct.md'), content)
 
     const { result } = renderHook(() => useAgentInstruct('simple'), {
       wrapper: createTestWrapper({ appFS })
@@ -67,7 +67,7 @@ system-prompt: You are advanced.
 ---
 Follow these instructions carefully.`
 
-    appFS.writeFile(testPath('agents/advanced/instruct.md'), content)
+    appFS.writeFile(getTestPath('agents/advanced/instruct.md'), content)
 
     const { result } = renderHook(() => useAgentInstruct('advanced'), {
       wrapper: createTestWrapper({ appFS })
@@ -86,7 +86,7 @@ name: Bot
 ---
 Original instructions`
 
-    appFS.writeFile(testPath('agents/bot/instruct.md'), initialContent)
+    appFS.writeFile(getTestPath('agents/bot/instruct.md'), initialContent)
 
     const { result } = renderHook(() => useAgentInstruct('bot'), {
       wrapper: createTestWrapper({ appFS })
@@ -99,7 +99,7 @@ name: Bot
 ---
 Updated instructions`
 
-    appFS.writeFile(testPath('agents/bot/instruct.md'), updatedContent)
+    appFS.writeFile(getTestPath('agents/bot/instruct.md'), updatedContent)
 
     await waitFor(() => {
       expect(result.current?.instructions).toBe('Updated instructions')
@@ -118,7 +118,7 @@ name: New Bot
 ---
 New instructions`
 
-    appFS.writeFile(testPath('agents/newbot/instruct.md'), content)
+    appFS.writeFile(getTestPath('agents/newbot/instruct.md'), content)
 
     await waitFor(() => {
       expect(result.current).not.toBeNull()
@@ -132,7 +132,7 @@ name: Bot
 ---
 Instructions`
 
-    appFS.writeFile(testPath('agents/bot/instruct.md'), content)
+    appFS.writeFile(getTestPath('agents/bot/instruct.md'), content)
 
     const { result } = renderHook(() => useAgentInstruct('bot'), {
       wrapper: createTestWrapper({ appFS })
@@ -140,7 +140,7 @@ Instructions`
 
     expect(result.current).not.toBeNull()
 
-    appFS.deleteFile(testPath('agents/bot/instruct.md'))
+    appFS.deleteFile(getTestPath('agents/bot/instruct.md'))
 
     await waitFor(() => {
       expect(result.current).toBeNull()
@@ -150,8 +150,8 @@ Instructions`
   it('should not re-render when different agent is updated', async () => {
     let renderCount = 0
 
-    appFS.writeFile(testPath('agents/bot1/instruct.md'), '---\nname: Bot1\n---')
-    appFS.writeFile(testPath('agents/bot2/instruct.md'), '---\nname: Bot2\n---')
+    appFS.writeFile(getTestPath('agents/bot1/instruct.md'), '---\nname: Bot1\n---')
+    appFS.writeFile(getTestPath('agents/bot2/instruct.md'), '---\nname: Bot2\n---')
 
     const { result } = renderHook(() => {
       renderCount++
@@ -163,7 +163,7 @@ Instructions`
     const initialCount = renderCount
 
     // Update different agent
-    appFS.writeFile(testPath('agents/bot2/instruct.md'), '---\nname: Updated\n---')
+    appFS.writeFile(getTestPath('agents/bot2/instruct.md'), '---\nname: Updated\n---')
 
     await waitFor(() => {
       expect(renderCount).toBe(initialCount)
@@ -178,7 +178,7 @@ Line 1
 Line 2
 Line 3`
 
-    appFS.writeFile(testPath('agents/bot/instruct.md'), content)
+    appFS.writeFile(getTestPath('agents/bot/instruct.md'), content)
 
     const { result } = renderHook(() => useAgentInstruct('bot'), {
       wrapper: createTestWrapper({ appFS })
@@ -190,7 +190,7 @@ Line 3`
   it('should handle special characters in agent ID', () => {
     const content = '---\nname: Bot\n---'
 
-    appFS.writeFile(testPath('agents/my-bot-123/instruct.md'), content)
+    appFS.writeFile(getTestPath('agents/my-bot-123/instruct.md'), content)
 
     const { result } = renderHook(() => useAgentInstruct('my-bot-123'), {
       wrapper: createTestWrapper({ appFS })
@@ -205,7 +205,7 @@ name: Bot
 ---
 `
 
-    appFS.writeFile(testPath('agents/bot/instruct.md'), content)
+    appFS.writeFile(getTestPath('agents/bot/instruct.md'), content)
 
     const { result } = renderHook(() => useAgentInstruct('bot'), {
       wrapper: createTestWrapper({ appFS })

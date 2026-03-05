@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { AppFS } from '@/lib/fs/AppFS'
 import { useGlob } from './useGlob'
-import { createTestWrapper, testPath } from '@/test-utils'
+import { createTestWrapper, getTestPath } from '@/test-utils'
 
 describe('useGlob', () => {
   let appFS: AppFS
@@ -12,11 +12,11 @@ describe('useGlob', () => {
   beforeEach(() => {
     appFS = new AppFS()
     // Set up test files
-    appFS.writeFile(testPath('file1.txt'), 'a')
-    appFS.writeFile(testPath('file2.md'), 'b')
-    appFS.writeFile(testPath('src/file3.ts'), 'c')
-    appFS.writeFile(testPath('src/components/file4.tsx'), 'd')
-    appFS.writeFile(testPath('test/file5.test.ts'), 'e')
+    appFS.writeFile(getTestPath('file1.txt'), 'a')
+    appFS.writeFile(getTestPath('file2.md'), 'b')
+    appFS.writeFile(getTestPath('src/file3.ts'), 'c')
+    appFS.writeFile(getTestPath('src/components/file4.tsx'), 'd')
+    appFS.writeFile(getTestPath('test/file5.test.ts'), 'e')
   })
 
   it('should match files with * pattern', () => {
@@ -91,7 +91,7 @@ describe('useGlob', () => {
     const initialCount = result.current.length
 
     // Add a matching file
-    appFS.writeFile(testPath('new.txt'), 'new')
+    appFS.writeFile(getTestPath('new.txt'), 'new')
 
     await waitFor(() => {
       expect(result.current.length).toBe(initialCount + 1)
@@ -107,7 +107,7 @@ describe('useGlob', () => {
     const initialCount = result.current.length
 
     // Delete a matching file
-    appFS.deleteFile(testPath('file1.txt'))
+    appFS.deleteFile(getTestPath('file1.txt'))
 
     await waitFor(() => {
       expect(result.current.length).toBe(initialCount - 1)
@@ -127,7 +127,7 @@ describe('useGlob', () => {
     const initialCount = renderCount
 
     // Modify a matching file
-    appFS.writeFile(testPath('file1.txt'), 'updated')
+    appFS.writeFile(getTestPath('file1.txt'), 'updated')
 
     await waitFor(() => {
       expect(renderCount).toBeGreaterThan(initialCount)
@@ -147,7 +147,7 @@ describe('useGlob', () => {
     const initialCount = renderCount
 
     // Modify a non-matching file
-    appFS.writeFile(testPath('file2.md'), 'updated')
+    appFS.writeFile(getTestPath('file2.md'), 'updated')
 
     await waitFor(() => {
       expect(renderCount).toBe(initialCount)
@@ -155,7 +155,7 @@ describe('useGlob', () => {
   })
 
   it('should handle negated patterns', () => {
-    appFS.writeFile(testPath('exclude.txt'), 'x')
+    appFS.writeFile(getTestPath('exclude.txt'), 'x')
 
     const { result } = renderHook(() => useGlob('!*.md'), {
       wrapper: createTestWrapper({ appFS })

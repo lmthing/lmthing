@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { AppFS } from '@/lib/fs/AppFS'
 import { useAgentConversation } from './useAgentConversation'
-import { createTestWrapper, testPath } from '@/test-utils'
+import { createTestWrapper, getTestPath } from '@/test-utils'
 
 describe('useAgentConversation', () => {
   let appFS: AppFS
@@ -29,7 +29,7 @@ describe('useAgentConversation', () => {
       ]
     }
 
-    appFS.writeFile(testPath('agents/bot/conversations/chat1.json'), JSON.stringify(conv))
+    appFS.writeFile(getTestPath('agents/bot/conversations/chat1.json'), JSON.stringify(conv))
 
     const { result } = renderHook(() => useAgentConversation('bot', 'chat1'), {
       wrapper: createTestWrapper({ appFS })
@@ -70,7 +70,7 @@ describe('useAgentConversation', () => {
       ]
     }
 
-    appFS.writeFile(testPath('agents/bot/conversations/chat1.json'), JSON.stringify(conv))
+    appFS.writeFile(getTestPath('agents/bot/conversations/chat1.json'), JSON.stringify(conv))
 
     const { result } = renderHook(() => useAgentConversation('bot', 'chat1'), {
       wrapper: createTestWrapper({ appFS })
@@ -96,7 +96,7 @@ describe('useAgentConversation', () => {
       ]
     }
 
-    appFS.writeFile(testPath('agents/bot/conversations/chat1.json'), JSON.stringify(conv))
+    appFS.writeFile(getTestPath('agents/bot/conversations/chat1.json'), JSON.stringify(conv))
 
     const { result } = renderHook(() => useAgentConversation('bot', 'chat1'), {
       wrapper: createTestWrapper({ appFS })
@@ -108,7 +108,7 @@ describe('useAgentConversation', () => {
   })
 
   it('should handle invalid JSON gracefully', () => {
-    appFS.writeFile(testPath('agents/bot/conversations/chat1.json'), 'not json')
+    appFS.writeFile(getTestPath('agents/bot/conversations/chat1.json'), 'not json')
 
     const { result } = renderHook(() => useAgentConversation('bot', 'chat1'), {
       wrapper: createTestWrapper({ appFS })
@@ -133,7 +133,7 @@ describe('useAgentConversation', () => {
       ]
     }
 
-    appFS.writeFile(testPath('agents/bot/conversations/chat1.json'), JSON.stringify(conv))
+    appFS.writeFile(getTestPath('agents/bot/conversations/chat1.json'), JSON.stringify(conv))
 
     const { result } = renderHook(() => useAgentConversation('bot', 'chat1'), {
       wrapper: createTestWrapper({ appFS })
@@ -155,7 +155,7 @@ describe('useAgentConversation', () => {
       ]
     }
 
-    appFS.writeFile(testPath('agents/bot/conversations/chat1.json'), JSON.stringify(updatedConv))
+    appFS.writeFile(getTestPath('agents/bot/conversations/chat1.json'), JSON.stringify(updatedConv))
 
     await waitFor(() => {
       expect(result.current?.messages).toHaveLength(2)
@@ -180,7 +180,7 @@ describe('useAgentConversation', () => {
       messages: []
     }
 
-    appFS.writeFile(testPath('agents/bot/conversations/newchat.json'), JSON.stringify(conv))
+    appFS.writeFile(getTestPath('agents/bot/conversations/newchat.json'), JSON.stringify(conv))
 
     await waitFor(() => {
       expect(result.current?.metadata.id).toBe('newchat')
@@ -199,7 +199,7 @@ describe('useAgentConversation', () => {
       messages: []
     }
 
-    appFS.writeFile(testPath('agents/bot/conversations/chat1.json'), JSON.stringify(conv))
+    appFS.writeFile(getTestPath('agents/bot/conversations/chat1.json'), JSON.stringify(conv))
 
     const { result } = renderHook(() => useAgentConversation('bot', 'chat1'), {
       wrapper: createTestWrapper({ appFS })
@@ -207,7 +207,7 @@ describe('useAgentConversation', () => {
 
     expect(result.current).not.toBeNull()
 
-    appFS.deleteFile(testPath('agents/bot/conversations/chat1.json'))
+    appFS.deleteFile(getTestPath('agents/bot/conversations/chat1.json'))
 
     await waitFor(() => {
       expect(result.current).toBeNull()
@@ -227,8 +227,8 @@ describe('useAgentConversation', () => {
       messages: []
     }
 
-    appFS.writeFile(testPath('agents/bot/conversations/chat1.json'), JSON.stringify(conv1))
-    appFS.writeFile(testPath('agents/bot/conversations/chat2.json'), JSON.stringify(conv2))
+    appFS.writeFile(getTestPath('agents/bot/conversations/chat1.json'), JSON.stringify(conv1))
+    appFS.writeFile(getTestPath('agents/bot/conversations/chat2.json'), JSON.stringify(conv2))
 
     const { result } = renderHook(() => {
       renderCount++
@@ -244,7 +244,7 @@ describe('useAgentConversation', () => {
       ...conv2,
       metadata: { ...conv2.metadata, title: 'Updated' }
     }
-    appFS.writeFile(testPath('agents/bot/conversations/chat2.json'), JSON.stringify(updatedConv2))
+    appFS.writeFile(getTestPath('agents/bot/conversations/chat2.json'), JSON.stringify(updatedConv2))
 
     await waitFor(() => {
       expect(renderCount).toBe(initialCount)

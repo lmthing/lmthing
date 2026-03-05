@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { AppFS } from '@/lib/fs/AppFS'
 import { useWorkFlow } from './useWorkFlow'
-import { createTestWrapper, testPath } from '@/test-utils'
+import { createTestWrapper, getTestPath } from '@/test-utils'
 
 describe('useWorkFlow', () => {
   let appFS: AppFS
@@ -30,9 +30,9 @@ name: Task Two
 ---
 Task two content`
 
-    appFS.writeFile(testPath('flows/workflow/index.md'), indexContent)
-    appFS.writeFile(testPath('flows/workflow/01.task-one.md'), task1Content)
-    appFS.writeFile(testPath('flows/workflow/02.task-two.md'), task2Content)
+    appFS.writeFile(getTestPath('flows/workflow/index.md'), indexContent)
+    appFS.writeFile(getTestPath('flows/workflow/01.task-one.md'), task1Content)
+    appFS.writeFile(getTestPath('flows/workflow/02.task-two.md'), task2Content)
 
     const { result } = renderHook(() => useWorkFlow('workflow'), {
       wrapper: createTestWrapper({ appFS })
@@ -64,7 +64,7 @@ name: Empty Workflow
 ---
 `
 
-    appFS.writeFile(testPath('flows/empty/index.md'), indexContent)
+    appFS.writeFile(getTestPath('flows/empty/index.md'), indexContent)
 
     const { result } = renderHook(() => useWorkFlow('empty'), {
       wrapper: createTestWrapper({ appFS })
@@ -80,8 +80,8 @@ name: Flow
 ---
 - [Task](01.task.md)`
 
-    appFS.writeFile(testPath('flows/flow/index.md'), indexContent)
-    appFS.writeFile(testPath('flows/flow/01.task.md'), 'content')
+    appFS.writeFile(getTestPath('flows/flow/index.md'), indexContent)
+    appFS.writeFile(getTestPath('flows/flow/01.task.md'), 'content')
 
     const { result } = renderHook(() => useWorkFlow('flow'), {
       wrapper: createTestWrapper({ appFS })
@@ -94,7 +94,7 @@ name: Updated Flow
 ---
 - [Task One](01.task-one.md)`
 
-    appFS.writeFile(testPath('flows/flow/index.md'), updatedIndex)
+    appFS.writeFile(getTestPath('flows/flow/index.md'), updatedIndex)
 
     await waitFor(() => {
       expect(result.current.index?.name).toBe('Updated Flow')
@@ -107,8 +107,8 @@ name: Flow
 ---
 - [Task](01.task.md)`
 
-    appFS.writeFile(testPath('flows/flow/index.md'), indexContent)
-    appFS.writeFile(testPath('flows/flow/01.task.md'), 'content')
+    appFS.writeFile(getTestPath('flows/flow/index.md'), indexContent)
+    appFS.writeFile(getTestPath('flows/flow/01.task.md'), 'content')
 
     const { result } = renderHook(() => useWorkFlow('flow'), {
       wrapper: createTestWrapper({ appFS })
@@ -116,7 +116,7 @@ name: Flow
 
     expect(result.current.tasks).toHaveLength(1)
 
-    appFS.writeFile(testPath('flows/flow/02.new-task.md'), 'new content')
+    appFS.writeFile(getTestPath('flows/flow/02.new-task.md'), 'new content')
 
     await waitFor(() => {
       expect(result.current.tasks).toHaveLength(2)
@@ -130,9 +130,9 @@ name: Flow
 - [Task One](01.task-one.md)
 - [Task Two](02.task-two.md)`
 
-    appFS.writeFile(testPath('flows/flow/index.md'), indexContent)
-    appFS.writeFile(testPath('flows/flow/01.task-one.md'), 'content1')
-    appFS.writeFile(testPath('flows/flow/02.task-two.md'), 'content2')
+    appFS.writeFile(getTestPath('flows/flow/index.md'), indexContent)
+    appFS.writeFile(getTestPath('flows/flow/01.task-one.md'), 'content1')
+    appFS.writeFile(getTestPath('flows/flow/02.task-two.md'), 'content2')
 
     const { result } = renderHook(() => useWorkFlow('flow'), {
       wrapper: createTestWrapper({ appFS })
@@ -140,7 +140,7 @@ name: Flow
 
     expect(result.current.tasks).toHaveLength(2)
 
-    appFS.deleteFile(testPath('flows/flow/01.task-one.md'))
+    appFS.deleteFile(getTestPath('flows/flow/01.task-one.md'))
 
     await waitFor(() => {
       expect(result.current.tasks).toHaveLength(1)
@@ -160,8 +160,8 @@ name: New Flow
 ---
 - [Task](01.task.md)`
 
-    appFS.writeFile(testPath('flows/newflow/index.md'), indexContent)
-    appFS.writeFile(testPath('flows/newflow/01.task.md'), 'content')
+    appFS.writeFile(getTestPath('flows/newflow/index.md'), indexContent)
+    appFS.writeFile(getTestPath('flows/newflow/01.task.md'), 'content')
 
     await waitFor(() => {
       expect(result.current.index?.name).toBe('New Flow')
@@ -175,7 +175,7 @@ name: Flow
 ---
 - [Task](01.task.md)`
 
-    appFS.writeFile(testPath('flows/flow/index.md'), indexContent)
+    appFS.writeFile(getTestPath('flows/flow/index.md'), indexContent)
 
     const { result } = renderHook(() => useWorkFlow('flow'), {
       wrapper: createTestWrapper({ appFS })
@@ -183,7 +183,7 @@ name: Flow
 
     expect(result.current.index).not.toBeNull()
 
-    appFS.deletePath(testPath('flows/flow'))
+    appFS.deletePath(getTestPath('flows/flow'))
 
     await waitFor(() => {
       expect(result.current.index).toBeNull()
@@ -193,8 +193,8 @@ name: Flow
   it('should not re-render when different workflow changes', async () => {
     let renderCount = 0
 
-    appFS.writeFile(testPath('flows/flow1/index.md'), '---\nname: Flow1\n---')
-    appFS.writeFile(testPath('flows/flow2/index.md'), '---\nname: Flow2\n---')
+    appFS.writeFile(getTestPath('flows/flow1/index.md'), '---\nname: Flow1\n---')
+    appFS.writeFile(getTestPath('flows/flow2/index.md'), '---\nname: Flow2\n---')
 
     const { result } = renderHook(() => {
       renderCount++
@@ -205,7 +205,7 @@ name: Flow
 
     const initialCount = renderCount
 
-    appFS.writeFile(testPath('flows/flow2/index.md'), '---\nname: Updated\n---')
+    appFS.writeFile(getTestPath('flows/flow2/index.md'), '---\nname: Updated\n---')
 
     await waitFor(() => {
       expect(renderCount).toBe(initialCount)
@@ -222,10 +222,10 @@ name: Large Workflow
 ---
 ${tasks}`
 
-    appFS.writeFile(testPath('flows/large/index.md'), indexContent)
+    appFS.writeFile(getTestPath('flows/large/index.md'), indexContent)
 
     for (let i = 0; i < 50; i++) {
-      appFS.writeFile(testPath(`flows/large/${String(i + 1).padStart(2, '0')}.task-${i}.md`), 'content')
+      appFS.writeFile(getTestPath(`flows/large/${String(i + 1).padStart(2, '0')}.task-${i}.md`), 'content')
     }
 
     const { result } = renderHook(() => useWorkFlow('large'), {

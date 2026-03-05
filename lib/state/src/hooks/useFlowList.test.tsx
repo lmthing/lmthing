@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { AppFS } from '@/lib/fs/AppFS'
 import { useFlowList } from './useFlowList'
-import { createTestWrapper, testPath } from '@/test-utils'
+import { createTestWrapper, getTestPath } from '@/test-utils'
 
 describe('useFlowList', () => {
   let appFS: AppFS
@@ -14,9 +14,9 @@ describe('useFlowList', () => {
   })
 
   it('should list all flows', () => {
-    appFS.writeFile(testPath('flows/workflow1/index.md'), '---\nname: Flow1\n---')
-    appFS.writeFile(testPath('flows/workflow2/index.md'), '---\nname: Flow2\n---')
-    appFS.writeFile(testPath('flows/workflow3/index.md'), '---\nname: Flow3\n---')
+    appFS.writeFile(getTestPath('flows/workflow1/index.md'), '---\nname: Flow1\n---')
+    appFS.writeFile(getTestPath('flows/workflow2/index.md'), '---\nname: Flow2\n---')
+    appFS.writeFile(getTestPath('flows/workflow3/index.md'), '---\nname: Flow3\n---')
 
     const { result } = renderHook(() => useFlowList(), {
       wrapper: createTestWrapper({ appFS })
@@ -37,7 +37,7 @@ describe('useFlowList', () => {
   })
 
   it('should return flow IDs as path property', () => {
-    appFS.writeFile(testPath('flows/myflow/index.md'), '---\nname: My Flow\n---')
+    appFS.writeFile(getTestPath('flows/myflow/index.md'), '---\nname: My Flow\n---')
 
     const { result } = renderHook(() => useFlowList(), {
       wrapper: createTestWrapper({ appFS })
@@ -48,8 +48,8 @@ describe('useFlowList', () => {
   })
 
   it('should not include directories without index.md', () => {
-    appFS.writeFile(testPath('flows/valid/index.md'), '---\nname: Valid\n---')
-    appFS.writeFile(testPath('flows/invalid/other.md'), '# Not an index')
+    appFS.writeFile(getTestPath('flows/valid/index.md'), '---\nname: Valid\n---')
+    appFS.writeFile(getTestPath('flows/invalid/other.md'), '# Not an index')
 
     const { result } = renderHook(() => useFlowList(), {
       wrapper: createTestWrapper({ appFS })
@@ -66,7 +66,7 @@ describe('useFlowList', () => {
 
     expect(result.current).toEqual([])
 
-    appFS.writeFile(testPath('flows/newflow/index.md'), '---\nname: New Flow\n---')
+    appFS.writeFile(getTestPath('flows/newflow/index.md'), '---\nname: New Flow\n---')
 
     await waitFor(() => {
       expect(result.current.some(f => f.id === 'newflow')).toBe(true)
@@ -74,8 +74,8 @@ describe('useFlowList', () => {
   })
 
   it('should re-render when flow is deleted', async () => {
-    appFS.writeFile(testPath('flows/flow1/index.md'), '---\nname: Flow1\n---')
-    appFS.writeFile(testPath('flows/flow2/index.md'), '---\nname: Flow2\n---')
+    appFS.writeFile(getTestPath('flows/flow1/index.md'), '---\nname: Flow1\n---')
+    appFS.writeFile(getTestPath('flows/flow2/index.md'), '---\nname: Flow2\n---')
 
     const { result } = renderHook(() => useFlowList(), {
       wrapper: createTestWrapper({ appFS })
@@ -83,7 +83,7 @@ describe('useFlowList', () => {
 
     expect(result.current).toHaveLength(2)
 
-    appFS.deletePath(testPath('flows/flow1'))
+    appFS.deletePath(getTestPath('flows/flow1'))
 
     await waitFor(() => {
       expect(result.current).toHaveLength(1)
@@ -92,7 +92,7 @@ describe('useFlowList', () => {
   })
 
   it('should re-render when index.md is deleted', async () => {
-    appFS.writeFile(testPath('flows/flow/index.md'), '---\nname: Flow\n---')
+    appFS.writeFile(getTestPath('flows/flow/index.md'), '---\nname: Flow\n---')
 
     const { result } = renderHook(() => useFlowList(), {
       wrapper: createTestWrapper({ appFS })
@@ -100,7 +100,7 @@ describe('useFlowList', () => {
 
     expect(result.current).toHaveLength(1)
 
-    appFS.deleteFile(testPath('flows/flow/index.md'))
+    appFS.deleteFile(getTestPath('flows/flow/index.md'))
 
     await waitFor(() => {
       expect(result.current).toHaveLength(0)
@@ -108,7 +108,7 @@ describe('useFlowList', () => {
   })
 
   it('should re-render when index.md is created', async () => {
-    appFS.writeFile(testPath('flows/flow/other.md'), '# Not an index')
+    appFS.writeFile(getTestPath('flows/flow/other.md'), '# Not an index')
 
     const { result } = renderHook(() => useFlowList(), {
       wrapper: createTestWrapper({ appFS })
@@ -116,7 +116,7 @@ describe('useFlowList', () => {
 
     expect(result.current).toHaveLength(0)
 
-    appFS.writeFile(testPath('flows/flow/index.md'), '---\nname: Flow\n---')
+    appFS.writeFile(getTestPath('flows/flow/index.md'), '---\nname: Flow\n---')
 
     await waitFor(() => {
       expect(result.current).toHaveLength(1)
@@ -126,8 +126,8 @@ describe('useFlowList', () => {
   it('should not re-render when different files change', async () => {
     let renderCount = 0
 
-    appFS.writeFile(testPath('flows/flow1/index.md'), '---\nname: Flow1\n---')
-    appFS.writeFile(testPath('flows/flow1/01.task.md'), 'content')
+    appFS.writeFile(getTestPath('flows/flow1/index.md'), '---\nname: Flow1\n---')
+    appFS.writeFile(getTestPath('flows/flow1/01.task.md'), 'content')
 
     const { result } = renderHook(() => {
       renderCount++
@@ -139,7 +139,7 @@ describe('useFlowList', () => {
     const initialCount = renderCount
 
     // Modify a task file (not index.md)
-    appFS.writeFile(testPath('flows/flow1/01.task.md'), 'updated content')
+    appFS.writeFile(getTestPath('flows/flow1/01.task.md'), 'updated content')
 
     await waitFor(() => {
       expect(renderCount).toBe(initialCount)
@@ -147,8 +147,8 @@ describe('useFlowList', () => {
   })
 
   it('should handle flows with special characters in ID', () => {
-    appFS.writeFile(testPath('flows/my-flow-123/index.md'), '---\nname: Flow\n---')
-    appFS.writeFile(testPath('flows/flow_007/index.md'), '---\nname: Flow\n---')
+    appFS.writeFile(getTestPath('flows/my-flow-123/index.md'), '---\nname: Flow\n---')
+    appFS.writeFile(getTestPath('flows/flow_007/index.md'), '---\nname: Flow\n---')
 
     const { result } = renderHook(() => useFlowList(), {
       wrapper: createTestWrapper({ appFS })
@@ -159,9 +159,9 @@ describe('useFlowList', () => {
   })
 
   it('should sort flows alphabetically', () => {
-    appFS.writeFile(testPath('flows/z-flow/index.md'), '---\nname: Z\n---')
-    appFS.writeFile(testPath('flows/a-flow/index.md'), '---\nname: A\n---')
-    appFS.writeFile(testPath('flows/m-flow/index.md'), '---\nname: M\n---')
+    appFS.writeFile(getTestPath('flows/z-flow/index.md'), '---\nname: Z\n---')
+    appFS.writeFile(getTestPath('flows/a-flow/index.md'), '---\nname: A\n---')
+    appFS.writeFile(getTestPath('flows/m-flow/index.md'), '---\nname: M\n---')
 
     const { result } = renderHook(() => useFlowList(), {
       wrapper: createTestWrapper({ appFS })
@@ -172,7 +172,7 @@ describe('useFlowList', () => {
 
   it('should handle many flows efficiently', () => {
     for (let i = 0; i < 50; i++) {
-      appFS.writeFile(testPath(`flows/flow${i}/index.md`), `---\nname: Flow${i}\n---`)
+      appFS.writeFile(getTestPath(`flows/flow${i}/index.md`), `---\nname: Flow${i}\n---`)
     }
 
     const { result } = renderHook(() => useFlowList(), {

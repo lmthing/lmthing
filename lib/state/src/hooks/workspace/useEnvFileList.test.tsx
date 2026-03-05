@@ -2,25 +2,9 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
-import { AppProvider } from '../../lib/contexts/AppContext'
-import { StudioProvider } from '../../lib/contexts/StudioContext'
-import { SpaceProvider } from '../../lib/contexts/SpaceContext'
 import { AppFS } from '../../lib/fs/AppFS'
+import { createTestWrapper, getTestPath } from '../../test-utils'
 import { useEnvFileList } from './useEnvFileList'
-
-function createWrapper(appFS: AppFS) {
-  return function Wrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <AppProvider>
-        <StudioProvider>
-          <SpaceProvider>
-            {children}
-          </SpaceProvider>
-        </StudioProvider>
-      </AppProvider>
-    )
-  }
-}
 
 describe('useEnvFileList', () => {
   let appFS: AppFS
@@ -30,12 +14,12 @@ describe('useEnvFileList', () => {
   })
 
   it('should list env files', () => {
-    appFS.writeFile('alice/test/space1/.env', 'KEY=value')
-    appFS.writeFile('alice/test/space1/.env.local', 'LOCAL=true')
-    appFS.writeFile('alice/test/space1/.env.production', 'PROD=true')
+    appFS.writeFile(getTestPath('.env'), 'KEY=value')
+    appFS.writeFile(getTestPath('.env.local'), 'LOCAL=true')
+    appFS.writeFile(getTestPath('.env.production'), 'PROD=true')
 
     const { result } = renderHook(() => useEnvFileList(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toContain('.env')
@@ -45,19 +29,19 @@ describe('useEnvFileList', () => {
 
   it('should return empty array when no env files exist', () => {
     const { result } = renderHook(() => useEnvFileList(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toEqual([])
   })
 
   it('should filter out non-env files', () => {
-    appFS.writeFile('alice/test/space1/.env', 'KEY=value')
-    appFS.writeFile('alice/test/space1/.env.backup', 'BACKUP=true')
-    appFS.writeFile('alice/test/space1/.envfile.txt', 'not an env')
+    appFS.writeFile(getTestPath('.env'), 'KEY=value')
+    appFS.writeFile(getTestPath('.env.backup'), 'BACKUP=true')
+    appFS.writeFile(getTestPath('.envfile.txt'), 'not an env')
 
     const { result } = renderHook(() => useEnvFileList(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toContain('.env')
@@ -66,14 +50,14 @@ describe('useEnvFileList', () => {
   })
 
   it('should only match .env prefix files', () => {
-    appFS.writeFile('alice/test/space1/.env', 'a')
-    appFS.writeFile('alice/test/space1/.env.development', 'b')
-    appFS.writeFile('alice/test/space1/.env.test', 'c')
-    appFS.writeFile('alice/test/space1/.env.staging', 'd')
-    appFS.writeFile('alice/test/space1/other.txt', 'e')
+    appFS.writeFile(getTestPath('.env'), 'a')
+    appFS.writeFile(getTestPath('.env.development'), 'b')
+    appFS.writeFile(getTestPath('.env.test'), 'c')
+    appFS.writeFile(getTestPath('.env.staging'), 'd')
+    appFS.writeFile(getTestPath('other.txt'), 'e')
 
     const { result } = renderHook(() => useEnvFileList(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current.length).toBe(4)
@@ -81,15 +65,15 @@ describe('useEnvFileList', () => {
   })
 
   it('should re-render when env file is added', async () => {
-    appFS.writeFile('alice/test/space1/.env', 'a')
+    appFS.writeFile(getTestPath('.env'), 'a')
 
     const { result } = renderHook(() => useEnvFileList(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = result.current.length
 
-    appFS.writeFile('alice/test/space1/.env.new', 'b')
+    appFS.writeFile(getTestPath('.env.new'), 'b')
 
     await waitFor(() => {
       expect(result.current.length).toBe(initialCount + 1)
@@ -97,16 +81,16 @@ describe('useEnvFileList', () => {
   })
 
   it('should re-render when env file is deleted', async () => {
-    appFS.writeFile('alice/test/space1/.env', 'a')
-    appFS.writeFile('alice/test/space1/.env.local', 'b')
+    appFS.writeFile(getTestPath('.env'), 'a')
+    appFS.writeFile(getTestPath('.env.local'), 'b')
 
     const { result } = renderHook(() => useEnvFileList(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = result.current.length
 
-    appFS.deleteFile('alice/test/space1/.env')
+    appFS.deleteFile(getTestPath('.env'))
 
     await waitFor(() => {
       expect(result.current.length).toBe(initialCount - 1)
@@ -116,18 +100,18 @@ describe('useEnvFileList', () => {
   it('should not re-render when non-env file changes', async () => {
     let renderCount = 0
 
-    appFS.writeFile('alice/test/space1/.env', 'KEY=value')
+    appFS.writeFile(getTestPath('.env'), 'KEY=value')
 
     const { result } = renderHook(() => {
       renderCount++
       return useEnvFileList()
     }, {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = renderCount
 
-    appFS.writeFile('alice/test/space1/other.txt', 'content')
+    appFS.writeFile(getTestPath('other.txt'), 'content')
 
     await waitFor(() => {
       expect(renderCount).toBe(initialCount)

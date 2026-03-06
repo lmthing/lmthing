@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@reference "../../../../index.css";
 
 .separator {
   @apply block h-px w-full bg-border;

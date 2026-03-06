@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@reference "../../../../index.css";
 
 .stack {
   @apply flex flex-col;

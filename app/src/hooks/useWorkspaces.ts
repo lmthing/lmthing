@@ -1,14 +1,21 @@
-// useWorkspaces — thin re-export backed by useSpace from @lmthing/state
-import { useSpace } from '@lmthing/state'
-import type { Space } from '@lmthing/state'
+// useWorkspaces — returns studios list from AppContext (app-level, no StudioProvider needed)
+import { useApp } from '@lmthing/state'
 
 export function useWorkspaces() {
-  const space = useSpace()
+  const { studios, isLoading, error } = useApp()
+
+  // Map studios to a shape compatible with SpacesLayout (expects data.agents)
+  const data = {
+    agents: studios.map(s => ({ id: `${s.username}/${s.studioId}`, name: s.name })),
+    flows: [] as { id: string }[],
+    domains: [] as { id: string }[],
+    packageJson: null,
+  }
+
   return {
-    data: space,
-    isLoading: false,
-    error: null,
+    data,
+    isLoading,
+    error,
   }
 }
 
-export type { Space }

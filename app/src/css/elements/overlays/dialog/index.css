@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@reference "../../../../index.css";
 
 .dialog__backdrop {
   @apply fixed inset-0 z-50 bg-black/50

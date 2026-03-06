@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@reference "../../../../index.css";
 
 .code-inline {
   @apply font-mono text-sm bg-muted px-1.5 py-0.5 rounded text-foreground;

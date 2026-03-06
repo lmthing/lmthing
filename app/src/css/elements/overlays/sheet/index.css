@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@reference "../../../../index.css";
 
 .sheet {
   @apply fixed inset-y-0 z-50 h-full w-3/4 max-w-sm bg-background border-border shadow-xl

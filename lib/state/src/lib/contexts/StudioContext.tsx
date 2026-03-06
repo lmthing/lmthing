@@ -44,7 +44,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   const subscribeToConfig = useCallback(
     (cb: () => void) => {
-      if (!studioFS) return () => {}
+      if (!studioFS) return () => { }
       return studioFS.onFile('lmthing.json', cb)
     },
     [studioFS]
@@ -69,13 +69,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     }
   }, [studioFS])
 
-  const studioConfig = useSyncExternalStore(subscribeToConfig, getConfigSnapshot)
+  const studioConfig = useSyncExternalStore(subscribeToConfig, getConfigSnapshot, () => null)
 
   const spaces = useMemo(() => {
     if (!studioConfig) return []
     return Object.entries(studioConfig.spaces).map(([id, config]) => ({
       id,
-      ...config
+      ...(config as SpaceConfig)
     }))
   }, [studioConfig])
 
@@ -158,10 +158,22 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     studioFS.renamePath(spaceId, newId)
   }
 
-  // Handle null studioFS case (not yet loaded)
+  // Handle null studioFS case (not yet loaded) — provide safe empty value
   if (!studioFS) {
+    const emptyValue: StudioContextValue = {
+      studioFS: null as any,
+      username: '',
+      studioId: '',
+      studioConfig: null,
+      spaces: [],
+      currentSpaceId: null,
+      setCurrentSpace: () => { },
+      createSpace: () => { },
+      deleteSpace: () => { },
+      renameSpace: () => { },
+    }
     return (
-      <StudioContext.Provider value={null as any}>
+      <StudioContext.Provider value={emptyValue}>
         {children}
       </StudioContext.Provider>
     )

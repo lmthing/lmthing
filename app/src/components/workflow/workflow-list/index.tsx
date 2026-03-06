@@ -77,15 +77,15 @@ export function WorkflowList({
           {/* Stats bar */}
           <Stack row gap="lg" style={{ marginBottom: '1.5rem' }}>
             <Stack row gap="sm" style={{ alignItems: 'center' }}>
-              <span className="text-2xl font-bold text-slate-900 dark:text-slate-100">{workflowCount}</span>
+              <span className="text-2xl font-bold text-foreground">{workflowCount}</span>
               <Caption muted>total</Caption>
             </Stack>
             <Stack row gap="sm" style={{ alignItems: 'center' }}>
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="w-2 h-2 rounded-full bg-brand-2" />
               <Caption muted>{activeCount} active</Caption>
             </Stack>
             <Stack row gap="sm" style={{ alignItems: 'center' }}>
-              <span className="w-2 h-2 rounded-full bg-amber-500" />
+              <span className="w-2 h-2 rounded-full bg-brand-2" />
               <Caption muted>{draftCount} draft</Caption>
             </Stack>
           </Stack>
@@ -94,7 +94,7 @@ export function WorkflowList({
           <Stack row gap="md" style={{ flexWrap: 'wrap' }}>
             <div className="relative flex-1 max-w-md">
               <svg
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -119,8 +119,8 @@ export function WorkflowList({
                 className={`
                   px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all
                   ${!activeTagFilter
-                    ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 ring-1 ring-violet-500/30'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    ? 'bg-brand-3/15 text-brand-3 ring-1 ring-brand-3/30'
+                    : 'bg-muted text-muted-foreground hover:bg-muted'
                   }
                 `}
               >
@@ -133,8 +133,8 @@ export function WorkflowList({
                   className={`
                     px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all
                     ${activeTagFilter === tag
-                      ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 ring-1 ring-violet-500/30'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      ? 'bg-brand-3/15 text-brand-3 ring-1 ring-brand-3/30'
+                      : 'bg-muted text-muted-foreground hover:bg-muted'
                     }
                   `}
                 >
@@ -144,14 +144,14 @@ export function WorkflowList({
             </div>
 
             {/* View toggle */}
-            <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+            <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
               <button
                 onClick={() => setViewMode('grid')}
                 className={`
                   p-2 rounded-md transition-all
                   ${viewMode === 'grid'
-                    ? 'bg-white dark:bg-slate-700 text-violet-600 dark:text-violet-400 shadow-sm'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                    ? 'bg-card text-brand-3 shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
                   }
                 `}
                 title="Grid view"
@@ -168,8 +168,8 @@ export function WorkflowList({
                 className={`
                   p-2 rounded-md transition-all
                   ${viewMode === 'list'
-                    ? 'bg-white dark:bg-slate-700 text-violet-600 dark:text-violet-400 shadow-sm'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                    ? 'bg-card text-brand-3 shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
                   }
                 `}
                 title="List view"
@@ -187,8 +187,8 @@ export function WorkflowList({
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {filteredWorkflows.length === 0 ? (
             workflows.length === 0 ? (
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-800 p-16 text-center">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-violet-500/25">
+              <div className="bg-card rounded-2xl border-2 border-dashed border-border p-16 text-center">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-brand-3 to-brand-3 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-brand-3/25">
                   <svg className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M12 2L2 7l10 5 10-5-10-5z" />
                     <path d="M2 17l10 5 10-5" />
@@ -212,9 +212,9 @@ export function WorkflowList({
                 </Button>
               </div>
             ) : (
-              <div className="bg-white dark:bg-slate-900 rounded-xl p-12 text-center">
-                <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <div className="bg-card rounded-xl p-12 text-center">
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="11" cy="11" r="8" />
                     <path d="M21 21l-4.35-4.35" />
                   </svg>

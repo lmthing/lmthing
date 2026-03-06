@@ -46,7 +46,7 @@ knowledge/
 | `label` | string | Human-readable, Title Case |
 | `description` | string | One sentence, what this domain contains |
 | `icon` | string | Exactly one emoji character |
-| `color` | string | Valid hex (e.g., `#10b981`) |
+| `color` | string | Valid hex (e.g., `#ed92a1`) |
 | `renderAs` | string | Always `"section"` for top-level domains |
 
 **Example:**
@@ -55,7 +55,7 @@ knowledge/
   "label": "Teacher Profile",
   "description": "Information about the teacher's background, style, and preferences",
   "icon": "🧑‍🏫",
-  "color": "#f59e0b",
+  "color": "#d59ec8",
   "renderAs": "section"
 }
 ```

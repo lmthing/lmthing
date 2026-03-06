@@ -2,6 +2,6 @@
     "label": "User Context",
     "description": "Information about who is using the workspace and their goals",
     "icon": "👤",
-    "color": "#10b981",
+    "color": "#d59ec8",
     "renderAs": "section"
 }

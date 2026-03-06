@@ -48,19 +48,19 @@ interface InviteDialogProps {
 
 function getStatusColor(status: SpaceUser['status']) {
   switch (status) {
-    case 'active': return 'bg-emerald-500'
-    case 'invited': return 'bg-amber-500'
-    case 'pending': return 'bg-slate-400'
-    default: return 'bg-slate-400'
+    case 'active': return 'bg-brand-2'
+    case 'invited': return 'bg-brand-2'
+    case 'pending': return 'bg-neutral'
+    default: return 'bg-neutral'
   }
 }
 
 function getRoleBadgeColor(role: SpaceUserRole) {
   switch (role) {
-    case 'admin': return 'text-violet-700 bg-violet-50 dark:bg-violet-950/30 dark:text-violet-300 border-violet-200 dark:border-violet-800'
-    case 'editor': return 'text-amber-700 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-300 border-amber-200 dark:border-amber-800'
-    case 'viewer': return 'text-slate-600 bg-slate-100 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700'
-    default: return 'text-slate-600 bg-slate-100 border-slate-200'
+    case 'admin': return 'text-brand-3 bg-brand-3/10 border-brand-3/30'
+    case 'editor': return 'text-brand-2 bg-brand-2/10 border-brand-2/30'
+    case 'viewer': return 'text-muted-foreground bg-muted border-border'
+    default: return 'text-muted-foreground bg-muted border-border'
   }
 }
 

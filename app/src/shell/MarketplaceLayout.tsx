@@ -8,7 +8,9 @@ import { Card, CardHeader, CardBody } from '@/elements/content/card'
 import '@/css/elements/forms/button/index.css'
 import '@/css/elements/content/card/index.css'
 
-const WORKSPACE_COLORS = ['#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ef4444', '#84cc16']
+import themeData from '@/theme.json'
+
+const WORKSPACE_COLORS = themeData.colors.brand
 
 type DemoWorkspace = {
   id: string
@@ -74,8 +76,8 @@ export default function MarketplaceLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900">
-      <header className="border-b bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm">
+    <div className="min-h-screen bg-gradient-to-b from-muted to-background">
+      <header className="border-b bg-background/50 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <Link href="/" className="flex items-center gap-2">
             <h1 className="text-xl font-semibold">lmthing</h1>
@@ -89,7 +91,7 @@ export default function MarketplaceLayout() {
       <main className="mx-auto max-w-7xl px-6 py-16">
         <div>
           <h2 className="text-center text-3xl font-bold tracking-tight">Marketplace</h2>
-          <p className="mx-auto mt-2 max-w-2xl text-center text-slate-600 dark:text-slate-400">
+          <p className="mx-auto mt-2 max-w-2xl text-center text-muted-foreground">
             Explore pre-configured workspaces and open them directly in Studio.
           </p>
 

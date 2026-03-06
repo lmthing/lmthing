@@ -47,53 +47,53 @@ type ToolMeta = {
 }
 
 const CATEGORY_RING: Record<ToolMeta['category'], string> = {
-  inspect: 'ring-sky-400/30',
-  workspace: 'ring-amber-400/30',
-  agent: 'ring-violet-400/30',
-  flow: 'ring-emerald-400/30',
-  knowledge: 'ring-rose-400/30',
-  env: 'ring-yellow-400/30',
-  misc: 'ring-slate-400/30',
+  inspect: 'ring-brand-1/30',
+  workspace: 'ring-brand-2/30',
+  agent: 'ring-brand-3/30',
+  flow: 'ring-brand-2/30',
+  knowledge: 'ring-brand-4/30',
+  env: 'ring-brand-1/30',
+  misc: 'ring-neutral/30',
 }
 
 const iconSize = 'h-3.5 w-3.5'
 
 const TOOL_META: Record<string, ToolMeta> = {
-  viewWorkspaceData: { icon: <Eye className={iconSize} />, gradient: 'from-sky-500 to-cyan-400', glow: 'shadow-sky-500/20', label: 'View Data', category: 'inspect' },
-  listWorkspaceRoots: { icon: <FolderTree className={iconSize} />, gradient: 'from-sky-500 to-cyan-400', glow: 'shadow-sky-500/20', label: 'List Roots', category: 'inspect' },
-  listChildren: { icon: <FolderTree className={iconSize} />, gradient: 'from-sky-500 to-cyan-400', glow: 'shadow-sky-500/20', label: 'List Children', category: 'inspect' },
-  searchWorkspace: { icon: <Eye className={iconSize} />, gradient: 'from-sky-500 to-cyan-400', glow: 'shadow-sky-500/20', label: 'Search Workspace', category: 'inspect' },
-  getEntity: { icon: <Eye className={iconSize} />, gradient: 'from-sky-500 to-cyan-400', glow: 'shadow-sky-500/20', label: 'Get Entity', category: 'inspect' },
-  resolveReference: { icon: <ArrowRightLeft className={iconSize} />, gradient: 'from-sky-500 to-indigo-400', glow: 'shadow-sky-500/20', label: 'Resolve Ref', category: 'inspect' },
-  findBacklinks: { icon: <ArrowRightLeft className={iconSize} />, gradient: 'from-sky-500 to-indigo-400', glow: 'shadow-sky-500/20', label: 'Find Backlinks', category: 'inspect' },
-  getBreadcrumbs: { icon: <ChevronRight className={iconSize} />, gradient: 'from-sky-500 to-cyan-400', glow: 'shadow-sky-500/20', label: 'Breadcrumbs', category: 'inspect' },
-  recentlyTouched: { icon: <RefreshCw className={iconSize} />, gradient: 'from-sky-500 to-cyan-400', glow: 'shadow-sky-500/20', label: 'Recently Touched', category: 'inspect' },
-  snapshotWorkspace: { icon: <Copy className={iconSize} />, gradient: 'from-sky-500 to-indigo-400', glow: 'shadow-sky-500/20', label: 'Snapshot', category: 'inspect' },
-  diffSnapshots: { icon: <ArrowRightLeft className={iconSize} />, gradient: 'from-sky-500 to-indigo-400', glow: 'shadow-sky-500/20', label: 'Diff Snapshots', category: 'inspect' },
-  suggestNextNavigation: { icon: <Wrench className={iconSize} />, gradient: 'from-sky-500 to-indigo-400', glow: 'shadow-sky-500/20', label: 'Suggest Navigation', category: 'inspect' },
-  setCurrentWorkspace: { icon: <ArrowRightLeft className={iconSize} />, gradient: 'from-amber-500 to-orange-400', glow: 'shadow-amber-500/20', label: 'Switch Workspace', category: 'workspace' },
-  createWorkspace: { icon: <Plus className={iconSize} />, gradient: 'from-amber-500 to-yellow-400', glow: 'shadow-amber-500/20', label: 'Create Workspace', category: 'workspace' },
-  reload: { icon: <RefreshCw className={iconSize} />, gradient: 'from-amber-500 to-yellow-400', glow: 'shadow-amber-500/20', label: 'Reload', category: 'workspace' },
-  updatePackageJson: { icon: <Package className={iconSize} />, gradient: 'from-amber-500 to-orange-400', glow: 'shadow-amber-500/20', label: 'Update Package', category: 'workspace' },
-  upsertAgent: { icon: <Bot className={iconSize} />, gradient: 'from-violet-500 to-purple-400', glow: 'shadow-violet-500/20', label: 'Upsert Agent', category: 'agent' },
-  deleteAgent: { icon: <Trash2 className={iconSize} />, gradient: 'from-violet-500 to-rose-400', glow: 'shadow-violet-500/20', label: 'Delete Agent', category: 'agent' },
-  upsertFlow: { icon: <Workflow className={iconSize} />, gradient: 'from-emerald-500 to-teal-400', glow: 'shadow-emerald-500/20', label: 'Upsert Flow', category: 'flow' },
-  deleteFlow: { icon: <Trash2 className={iconSize} />, gradient: 'from-emerald-500 to-rose-400', glow: 'shadow-emerald-500/20', label: 'Delete Flow', category: 'flow' },
-  upsertEnvFile: { icon: <Lock className={iconSize} />, gradient: 'from-yellow-500 to-amber-400', glow: 'shadow-yellow-500/20', label: 'Upsert Env', category: 'env' },
-  deleteEnvFile: { icon: <Trash2 className={iconSize} />, gradient: 'from-yellow-500 to-rose-400', glow: 'shadow-yellow-500/20', label: 'Delete Env', category: 'env' },
-  updateKnowledgeFileContent: { icon: <FileText className={iconSize} />, gradient: 'from-rose-500 to-pink-400', glow: 'shadow-rose-500/20', label: 'Update File Content', category: 'knowledge' },
-  updateKnowledgeFileFrontmatter: { icon: <Pencil className={iconSize} />, gradient: 'from-rose-500 to-fuchsia-400', glow: 'shadow-rose-500/20', label: 'Update Frontmatter', category: 'knowledge' },
-  updateKnowledgeDirectoryConfig: { icon: <FolderTree className={iconSize} />, gradient: 'from-rose-500 to-orange-400', glow: 'shadow-rose-500/20', label: 'Update Dir Config', category: 'knowledge' },
-  addKnowledgeNode: { icon: <Plus className={iconSize} />, gradient: 'from-rose-500 to-pink-400', glow: 'shadow-rose-500/20', label: 'Add Node', category: 'knowledge' },
-  updateKnowledgeNodePath: { icon: <ArrowRightLeft className={iconSize} />, gradient: 'from-rose-500 to-amber-400', glow: 'shadow-rose-500/20', label: 'Move Node', category: 'knowledge' },
-  deleteKnowledgeNode: { icon: <Trash2 className={iconSize} />, gradient: 'from-rose-500 to-red-500', glow: 'shadow-rose-500/20', label: 'Delete Node', category: 'knowledge' },
-  duplicateKnowledgeNode: { icon: <Copy className={iconSize} />, gradient: 'from-rose-500 to-pink-400', glow: 'shadow-rose-500/20', label: 'Duplicate Node', category: 'knowledge' },
+  viewWorkspaceData: { icon: <Eye className={iconSize} />, gradient: 'from-brand-1 to-brand-2', glow: 'shadow-brand-1/20', label: 'View Data', category: 'inspect' },
+  listWorkspaceRoots: { icon: <FolderTree className={iconSize} />, gradient: 'from-brand-1 to-brand-2', glow: 'shadow-brand-1/20', label: 'List Roots', category: 'inspect' },
+  listChildren: { icon: <FolderTree className={iconSize} />, gradient: 'from-brand-1 to-brand-2', glow: 'shadow-brand-1/20', label: 'List Children', category: 'inspect' },
+  searchWorkspace: { icon: <Eye className={iconSize} />, gradient: 'from-brand-1 to-brand-2', glow: 'shadow-brand-1/20', label: 'Search Workspace', category: 'inspect' },
+  getEntity: { icon: <Eye className={iconSize} />, gradient: 'from-brand-1 to-brand-2', glow: 'shadow-brand-1/20', label: 'Get Entity', category: 'inspect' },
+  resolveReference: { icon: <ArrowRightLeft className={iconSize} />, gradient: 'from-brand-1 to-brand-3', glow: 'shadow-brand-1/20', label: 'Resolve Ref', category: 'inspect' },
+  findBacklinks: { icon: <ArrowRightLeft className={iconSize} />, gradient: 'from-brand-1 to-brand-3', glow: 'shadow-brand-1/20', label: 'Find Backlinks', category: 'inspect' },
+  getBreadcrumbs: { icon: <ChevronRight className={iconSize} />, gradient: 'from-brand-1 to-brand-2', glow: 'shadow-brand-1/20', label: 'Breadcrumbs', category: 'inspect' },
+  recentlyTouched: { icon: <RefreshCw className={iconSize} />, gradient: 'from-brand-1 to-brand-2', glow: 'shadow-brand-1/20', label: 'Recently Touched', category: 'inspect' },
+  snapshotWorkspace: { icon: <Copy className={iconSize} />, gradient: 'from-brand-1 to-brand-3', glow: 'shadow-brand-1/20', label: 'Snapshot', category: 'inspect' },
+  diffSnapshots: { icon: <ArrowRightLeft className={iconSize} />, gradient: 'from-brand-1 to-brand-3', glow: 'shadow-brand-1/20', label: 'Diff Snapshots', category: 'inspect' },
+  suggestNextNavigation: { icon: <Wrench className={iconSize} />, gradient: 'from-brand-1 to-brand-3', glow: 'shadow-brand-1/20', label: 'Suggest Navigation', category: 'inspect' },
+  setCurrentWorkspace: { icon: <ArrowRightLeft className={iconSize} />, gradient: 'from-brand-2 to-brand-3', glow: 'shadow-brand-2/20', label: 'Switch Workspace', category: 'workspace' },
+  createWorkspace: { icon: <Plus className={iconSize} />, gradient: 'from-brand-2 to-brand-1', glow: 'shadow-brand-2/20', label: 'Create Workspace', category: 'workspace' },
+  reload: { icon: <RefreshCw className={iconSize} />, gradient: 'from-brand-2 to-brand-1', glow: 'shadow-brand-2/20', label: 'Reload', category: 'workspace' },
+  updatePackageJson: { icon: <Package className={iconSize} />, gradient: 'from-brand-2 to-brand-3', glow: 'shadow-brand-2/20', label: 'Update Package', category: 'workspace' },
+  upsertAgent: { icon: <Bot className={iconSize} />, gradient: 'from-brand-3 to-brand-4', glow: 'shadow-brand-3/20', label: 'Upsert Agent', category: 'agent' },
+  deleteAgent: { icon: <Trash2 className={iconSize} />, gradient: 'from-brand-3 to-brand-4', glow: 'shadow-brand-3/20', label: 'Delete Agent', category: 'agent' },
+  upsertFlow: { icon: <Workflow className={iconSize} />, gradient: 'from-brand-2 to-brand-2', glow: 'shadow-brand-3/20', label: 'Upsert Flow', category: 'flow' },
+  deleteFlow: { icon: <Trash2 className={iconSize} />, gradient: 'from-brand-3 to-brand-4', glow: 'shadow-brand-3/20', label: 'Delete Flow', category: 'flow' },
+  upsertEnvFile: { icon: <Lock className={iconSize} />, gradient: 'from-brand-1 to-brand-2', glow: 'shadow-brand-1/20', label: 'Upsert Env', category: 'env' },
+  deleteEnvFile: { icon: <Trash2 className={iconSize} />, gradient: 'from-brand-1 to-brand-4', glow: 'shadow-brand-1/20', label: 'Delete Env', category: 'env' },
+  updateKnowledgeFileContent: { icon: <FileText className={iconSize} />, gradient: 'from-brand-4 to-brand-3', glow: 'shadow-brand-4/20', label: 'Update File Content', category: 'knowledge' },
+  updateKnowledgeFileFrontmatter: { icon: <Pencil className={iconSize} />, gradient: 'from-brand-4 to-brand-3', glow: 'shadow-brand-4/20', label: 'Update Frontmatter', category: 'knowledge' },
+  updateKnowledgeDirectoryConfig: { icon: <FolderTree className={iconSize} />, gradient: 'from-brand-4 to-brand-3', glow: 'shadow-brand-4/20', label: 'Update Dir Config', category: 'knowledge' },
+  addKnowledgeNode: { icon: <Plus className={iconSize} />, gradient: 'from-brand-4 to-brand-3', glow: 'shadow-brand-4/20', label: 'Add Node', category: 'knowledge' },
+  updateKnowledgeNodePath: { icon: <ArrowRightLeft className={iconSize} />, gradient: 'from-brand-4 to-brand-2', glow: 'shadow-brand-4/20', label: 'Move Node', category: 'knowledge' },
+  deleteKnowledgeNode: { icon: <Trash2 className={iconSize} />, gradient: 'from-brand-4 to-destructive', glow: 'shadow-brand-4/20', label: 'Delete Node', category: 'knowledge' },
+  duplicateKnowledgeNode: { icon: <Copy className={iconSize} />, gradient: 'from-brand-4 to-brand-3', glow: 'shadow-brand-4/20', label: 'Duplicate Node', category: 'knowledge' },
 }
 
 const DEFAULT_TOOL_META: ToolMeta = {
   icon: <Wrench className={iconSize} />,
-  gradient: 'from-slate-500 to-slate-400',
-  glow: 'shadow-slate-500/20',
+  gradient: 'from-neutral to-neutral',
+  glow: 'shadow-neutral/20',
   label: 'Tool',
   category: 'misc',
 }
@@ -183,14 +183,14 @@ function parseToolCalls(text: string): { toolCalls: ParsedToolCall[]; textParts:
 function JsonSyntax({ value }: { value: unknown }) {
   if (typeof value === 'string') {
     return (
-      <pre className="max-h-52 overflow-auto rounded-md bg-slate-950/80 p-2.5 text-[11px] leading-relaxed text-slate-300 scrollbar-thin font-mono whitespace-pre-wrap break-words">
+      <pre className="max-h-52 overflow-auto rounded-md bg-foreground/80 p-2.5 text-[11px] leading-relaxed text-muted-foreground scrollbar-thin font-mono whitespace-pre-wrap break-words">
         {value}
       </pre>
     )
   }
   const jsonData = (value !== null && typeof value === 'object') ? value as Record<string, unknown> | unknown[] : { value }
   return (
-    <div className="max-h-52 overflow-auto rounded-md border border-slate-200/70 bg-white p-2.5 text-[11px] dark:border-slate-700/60 dark:bg-slate-950/60">
+    <div className="max-h-52 overflow-auto rounded-md border border-border/70 bg-background p-2.5 text-[11px]">
       <JsonView data={jsonData} />
     </div>
   )
@@ -211,8 +211,7 @@ function CollapsibleSection({ label, children, defaultOpen = false, accentColor 
         onClick={() => setOpen((prev) => !prev)}
         className={cn(
           'flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors',
-          'text-slate-500 hover:text-slate-700 hover:bg-slate-100',
-          'dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800/60',
+          'text-muted-foreground hover:text-foreground hover:bg-muted',
         )}
       >
         {open ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
@@ -236,48 +235,48 @@ function ToolCallCard({ call, index, total }: { call: ParsedToolCall; index: num
     <div
       className={cn(
         'group relative overflow-hidden rounded-lg border transition-all duration-300',
-        'border-slate-200/80 dark:border-slate-700/60',
-        'hover:border-slate-300 dark:hover:border-slate-600',
-        'bg-white dark:bg-slate-900/70',
+        'border-border/80',
+        'hover:border-border',
+        'bg-card',
         'ring-1', categoryRing, 'animate-fade-in',
       )}
       style={{ animationDelay: `${index * 60}ms`, animationFillMode: 'backwards' }}
     >
       <div className={cn('absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r opacity-80 group-hover:opacity-100 transition-opacity', meta.gradient)} />
       <div className="flex items-center gap-2.5 px-3 pt-3 pb-1.5">
-        <div className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br text-white shadow-md', meta.gradient, meta.glow)}>
+        <div className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br text-primary-foreground shadow-md', meta.gradient, meta.glow)}>
           {meta.icon}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="truncate text-[12px] font-semibold text-slate-800 dark:text-slate-100">{meta.label}</span>
+            <span className="truncate text-[12px] font-semibold text-foreground">{meta.label}</span>
             {total > 1 && (
-              <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-px text-[10px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+              <span className="shrink-0 rounded-full bg-muted px-1.5 py-px text-[10px] font-medium text-muted-foreground">
                 {index + 1}/{total}
               </span>
             )}
           </div>
-          <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">{call.name}</span>
+          <span className="text-[10px] font-mono text-muted-foreground">{call.name}</span>
         </div>
         <div className="shrink-0">
           {call.isOk ? (
-            <div className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 dark:bg-emerald-950/40">
-              <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-              <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">OK</span>
+            <div className="flex items-center gap-1 rounded-full bg-brand-2/10 px-2 py-0.5">
+              <CheckCircle2 className="h-3 w-3 text-brand-2" />
+              <span className="text-[10px] font-semibold text-brand-2">OK</span>
             </div>
           ) : (
-            <div className="flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 dark:bg-rose-950/40">
-              <XCircle className="h-3 w-3 text-rose-500" />
-              <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400">ERR</span>
+            <div className="flex items-center gap-1 rounded-full bg-brand-4/10 px-2 py-0.5">
+              <XCircle className="h-3 w-3 text-brand-4" />
+              <span className="text-[10px] font-semibold text-brand-4">ERR</span>
             </div>
           )}
         </div>
       </div>
       <div className="px-3 pb-2.5">
-        <CollapsibleSection label="Arguments" accentColor="bg-violet-400">
+        <CollapsibleSection label="Arguments" accentColor="bg-brand-3">
           <JsonSyntax value={call.args} />
         </CollapsibleSection>
-        <CollapsibleSection label="Result" defaultOpen accentColor="bg-emerald-400">
+        <CollapsibleSection label="Result" defaultOpen accentColor="bg-brand-2">
           <JsonSyntax value={call.result} />
         </CollapsibleSection>
       </div>
@@ -298,13 +297,13 @@ export function ToolRunningPill({ text }: { text: string }) {
 
   if (toolNames.length === 0) {
     return (
-      <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100 px-3 py-1.5 dark:border-slate-700 dark:from-slate-800 dark:to-slate-900">
+      <div className="inline-flex items-center gap-2 rounded-full border border-border bg-gradient-to-r from-muted to-muted px-3 py-1.5">
         <div className="flex gap-0.5">
-          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-400" style={{ animationDelay: '0ms' }} />
-          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-500" style={{ animationDelay: '150ms' }} />
-          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-600" style={{ animationDelay: '300ms' }} />
+          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand-3" style={{ animationDelay: '0ms' }} />
+          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand-3" style={{ animationDelay: '150ms' }} />
+          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand-3" style={{ animationDelay: '300ms' }} />
         </div>
-        <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300">Running tool…</span>
+        <span className="text-[11px] font-medium text-muted-foreground">Running tool…</span>
       </div>
     )
   }
@@ -314,13 +313,13 @@ export function ToolRunningPill({ text }: { text: string }) {
       {toolNames.map((name) => {
         const meta = getToolMeta(name)
         return (
-          <div key={name} className={cn('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1', 'border-slate-200/80 bg-white dark:border-slate-700/60 dark:bg-slate-900/70', 'ring-1', CATEGORY_RING[meta.category])}>
-            <div className={cn('flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br text-white', meta.gradient)}>{meta.icon}</div>
-            <span className="text-[11px] font-medium text-slate-700 dark:text-slate-200">{meta.label}</span>
+          <div key={name} className={cn('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1', 'border-border/80 bg-card', 'ring-1', CATEGORY_RING[meta.category])}>
+            <div className={cn('flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br text-primary-foreground', meta.gradient)}>{meta.icon}</div>
+            <span className="text-[11px] font-medium text-foreground">{meta.label}</span>
             <div className="flex gap-0.5">
-              <span className="h-1 w-1 animate-bounce rounded-full bg-slate-400" style={{ animationDelay: '0ms' }} />
-              <span className="h-1 w-1 animate-bounce rounded-full bg-slate-400" style={{ animationDelay: '150ms' }} />
-              <span className="h-1 w-1 animate-bounce rounded-full bg-slate-400" style={{ animationDelay: '300ms' }} />
+              <span className="h-1 w-1 animate-bounce rounded-full bg-neutral" style={{ animationDelay: '0ms' }} />
+              <span className="h-1 w-1 animate-bounce rounded-full bg-neutral" style={{ animationDelay: '150ms' }} />
+              <span className="h-1 w-1 animate-bounce rounded-full bg-neutral" style={{ animationDelay: '300ms' }} />
             </div>
           </div>
         )

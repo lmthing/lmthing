@@ -99,9 +99,9 @@ function PropertyRow({
   const showTypeSpecific = property.type === 'string' || property.type === 'number'
 
   return (
-    <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-900">
+    <div className="border border-border rounded-xl overflow-hidden bg-card">
       {/* Main row */}
-      <div className={`flex items-center gap-3 p-3 ${hasNestedConfig ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50' : ''}`}
+      <div className={`flex items-center gap-3 p-3 ${hasNestedConfig ? 'cursor-pointer hover:bg-muted' : ''}`}
            onClick={() => hasNestedConfig && setIsExpanded(!isExpanded)}>
         {/* Move buttons */}
         <div className="flex flex-col gap-0.5" onClick={(e) => e.stopPropagation()}>
@@ -119,7 +119,7 @@ function PropertyRow({
 
         {/* Expand/collapse for nested types */}
         {hasNestedConfig && (
-          <button className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400" onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded) }}>
+          <button className="p-1 rounded hover:bg-muted text-muted-foreground" onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded) }}>
             <svg className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M9 18l6-6-6-6" />
             </svg>
@@ -149,11 +149,11 @@ function PropertyRow({
 
         {/* Type icon badge */}
         <span className={`p-1.5 rounded-lg ${
-          property.type === 'string' ? 'bg-sky-100 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400' :
-          property.type === 'number' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' :
-          property.type === 'boolean' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' :
-          property.type === 'object' ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400' :
-          'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400'
+          property.type === 'string' ? 'bg-brand-1/15 text-brand-1' :
+          property.type === 'number' ? 'bg-brand-2/15 text-brand-2' :
+          property.type === 'boolean' ? 'bg-brand-2/15 text-brand-2' :
+          property.type === 'object' ? 'bg-brand-3/15 text-brand-3' :
+          'bg-destructive/15 text-destructive'
         }`}>
           <TypeIcon type={property.type} />
         </span>
@@ -163,8 +163,8 @@ function PropertyRow({
           onClick={(e) => { e.stopPropagation(); onToggleRequired() }}
           className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
             property.required
-              ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 ring-1 ring-red-500/30'
-              : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+              ? 'bg-destructive/15 text-destructive ring-1 ring-destructive/30'
+              : 'bg-muted text-muted-foreground hover:bg-muted'
           }`}
         >
           {property.required ? 'required' : 'optional'}
@@ -180,7 +180,7 @@ function PropertyRow({
         {/* Actions */}
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(); }}>
-            <svg className="w-4 h-4 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="w-4 h-4 text-destructive" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
             </svg>
           </Button>
@@ -189,7 +189,7 @@ function PropertyRow({
 
       {/* Type-specific options panel */}
       {showTypeSpecific && (
-        <div className="px-3 pb-3 border-t border-slate-100 dark:border-slate-800">
+        <div className="px-3 pb-3 border-t border-border">
           <div className="flex items-center gap-4 pt-3">
             {property.type === 'string' && (
               <Select
@@ -227,7 +227,7 @@ function PropertyRow({
                   placeholder="Min"
                   style={{ width: '5rem' }}
                 />
-                <span className="text-slate-400">&rarr;</span>
+                <span className="text-muted-foreground">&rarr;</span>
                 <Input
                   type="number"
                   value={property.maximum ?? ''}
@@ -251,7 +251,7 @@ function PropertyRow({
 
       {/* Nested properties (object type) */}
       {property.type === 'object' && isExpanded && (
-        <div className="border-t border-slate-100 dark:border-slate-800 p-3 bg-slate-50/50 dark:bg-slate-800/30">
+        <div className="border-t border-border p-3 bg-muted/50">
           <NestedPropertiesEditor
             properties={property.properties || {}}
             onChange={(props) => onUpdate({ ...property, properties: props })}
@@ -261,10 +261,10 @@ function PropertyRow({
 
       {/* Array items */}
       {property.type === 'array' && isExpanded && (
-        <div className="border-t border-slate-100 dark:border-slate-800 p-3 bg-slate-50/50 dark:bg-slate-800/30">
+        <div className="border-t border-border p-3 bg-muted/50">
           <Label compact>Array Item Type</Label>
           {property.items ? (
-            <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-3 mt-2">
+            <div className="bg-card rounded-lg border border-border p-3 mt-2">
               <div className="flex items-center gap-3">
                 <Caption muted>Type</Caption>
                 <Select
@@ -280,11 +280,11 @@ function PropertyRow({
                 </Select>
 
                 <span className={`p-1.5 rounded-lg ${
-                  property.items.type === 'string' ? 'bg-sky-100 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400' :
-                  property.items.type === 'number' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' :
-                  property.items.type === 'boolean' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' :
-                  property.items.type === 'object' ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400' :
-                  'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400'
+                  property.items.type === 'string' ? 'bg-brand-1/15 text-brand-1' :
+                  property.items.type === 'number' ? 'bg-brand-2/15 text-brand-2' :
+                  property.items.type === 'boolean' ? 'bg-brand-2/15 text-brand-2' :
+                  property.items.type === 'object' ? 'bg-brand-3/15 text-brand-3' :
+                  'bg-destructive/15 text-destructive'
                 }`}>
                   <TypeIcon type={property.items.type} />
                 </span>
@@ -292,7 +292,7 @@ function PropertyRow({
                 <div className="flex-1" />
 
                 <Button variant="ghost" size="icon" onClick={() => onUpdate({ ...property, items: undefined })}>
-                  <svg className="w-4 h-4 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg className="w-4 h-4 text-destructive" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
                   </svg>
                 </Button>
@@ -301,7 +301,7 @@ function PropertyRow({
           ) : (
             <button
               onClick={() => onUpdate({ ...property, items: { type: 'string' } })}
-              className="w-full p-2 mt-2 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700 text-slate-500 hover:border-violet-500 hover:text-violet-500 transition-colors text-sm"
+              className="w-full p-2 mt-2 rounded-lg border-2 border-dashed border-border text-muted-foreground hover:border-brand-3 hover:text-brand-3 transition-colors text-sm"
             >
               + Define array item type
             </button>
@@ -540,17 +540,17 @@ export function StepSchemaEditor({ value, onChange }: StepSchemaEditorProps) {
   }
 
   return (
-    <div className="bg-slate-50 dark:bg-slate-950 rounded-xl overflow-hidden">
+    <div className="bg-muted rounded-xl overflow-hidden">
       {/* Header with mode toggle */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200 dark:border-slate-800">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border">
         <Label compact>Schema Properties</Label>
-        <div className="flex items-center gap-1 bg-slate-200 dark:bg-slate-800 rounded-lg p-1">
+        <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
           <button
             onClick={() => setViewMode('visual')}
             className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
               viewMode === 'visual'
-                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             Visual
@@ -559,8 +559,8 @@ export function StepSchemaEditor({ value, onChange }: StepSchemaEditorProps) {
             onClick={handleSwitchToCode}
             className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
               viewMode === 'code'
-                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             Code
@@ -573,8 +573,8 @@ export function StepSchemaEditor({ value, onChange }: StepSchemaEditorProps) {
         <div className="p-3">
           {properties.length === 0 ? (
             <div className="text-center py-8">
-              <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center mx-auto mb-3">
-                <svg className="w-6 h-6 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
+                <svg className="w-6 h-6 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M9 18V5l12 7-12 7z" />
                 </svg>
               </div>
@@ -626,7 +626,7 @@ export function StepSchemaEditor({ value, onChange }: StepSchemaEditorProps) {
               ))}
               <button
                 onClick={handleAddProperty}
-                className="w-full p-3 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-slate-500 hover:border-violet-500 hover:text-violet-500 transition-colors text-sm flex items-center justify-center gap-2"
+                className="w-full p-3 rounded-xl border-2 border-dashed border-border text-muted-foreground hover:border-brand-3 hover:text-brand-3 transition-colors text-sm flex items-center justify-center gap-2"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M12 5v14M5 12h14" />

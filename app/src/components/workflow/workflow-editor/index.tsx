@@ -52,9 +52,9 @@ export function WorkflowEditor({
   const allTags = Array.from(new Set([...workflow.tags, 'automation', 'analytics', 'processing', 'integration']))
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-screen bg-muted">
       {/* Header */}
-      <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-20">
+      <div className="bg-card border-b border-border sticky top-0 z-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <Stack row gap="md" style={{ alignItems: 'center', marginBottom: '1rem' }}>
             <Button variant="ghost" size="icon" onClick={onBack}>
@@ -64,7 +64,7 @@ export function WorkflowEditor({
             </Button>
             <div className="flex-1">
               <Stack row gap="md" style={{ alignItems: 'center' }}>
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center shadow-lg shadow-violet-500/25">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-5 to-brand-5 flex items-center justify-center shadow-lg shadow-brand-5/25">
                   <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M12 2L2 7l10 5 10-5-10-5z" />
                     <path d="M2 17l10 5 10-5" />
@@ -84,7 +84,7 @@ export function WorkflowEditor({
 
           {/* Editable metadata */}
           {isEditingMeta && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 dark:bg-slate-950 rounded-xl">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-muted rounded-xl">
               <div>
                 <Label compact required>Workflow Name</Label>
                 <Input
@@ -127,8 +127,8 @@ export function WorkflowEditor({
                       className={`
                         px-3 py-1 rounded-full text-sm font-medium transition-all
                         ${workflow.tags.includes(tag)
-                          ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 ring-1 ring-violet-500/30'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                          ? 'bg-brand-5/15 text-brand-5 ring-1 ring-brand-5/30'
+                          : 'bg-muted text-muted-foreground hover:bg-muted'
                         }
                       `}
                     >
@@ -186,9 +186,9 @@ export function WorkflowEditor({
           </Stack>
 
           {sortedSteps.length === 0 ? (
-            <div className="bg-white dark:bg-slate-900 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-800 p-12 text-center">
-              <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <div className="bg-card rounded-xl border-2 border-dashed border-border p-12 text-center">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M12 5v14M5 12h14" />
                 </svg>
               </div>
@@ -211,7 +211,7 @@ export function WorkflowEditor({
                     <div className="absolute -top-6 left-1/2 -translate-x-1/2 z-10">
                       <button
                         onClick={() => { setEditingStepId(null); setIsConfigPanelOpen(true); }}
-                        className="p-1.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 hover:bg-violet-200 dark:hover:bg-violet-900/50 transition-colors opacity-0 group-hover:opacity-100"
+                        className="p-1.5 rounded-full bg-brand-5/15 text-brand-5 hover:bg-brand-5/25 transition-colors opacity-0 group-hover:opacity-100"
                         title="Add step here"
                       >
                         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -240,27 +240,27 @@ export function WorkflowEditor({
 
         {/* Workflow output info */}
         {sortedSteps.length > 0 && (
-          <div className="bg-gradient-to-br from-violet-50 to-amber-50 dark:from-violet-950/30 dark:to-amber-950/30 rounded-xl p-6 border border-violet-200 dark:border-violet-900/50">
+          <div className="bg-gradient-to-br from-brand-5/10 to-brand-2/10 rounded-xl p-6 border border-brand-5/30">
             <Heading level={3}>Workflow Output State</Heading>
             <Caption muted style={{ marginBottom: '1rem' }}>
               All steps share a mutable workflow output object that accumulates data across execution.
             </Caption>
             <Code block>
-              <span className="text-slate-400">// Accumulated workflow state</span><br />
-              <span className="text-violet-600 dark:text-violet-400">{`{`}</span><br />
+              <span className="text-muted-foreground">// Accumulated workflow state</span><br />
+              <span className="text-brand-5">{`{`}</span><br />
               {sortedSteps
                 .filter(t => t.type === 'updateFlowOutput' && t.config?.targetFieldName)
                 .map((t, i) => (
                   <span key={t.id} className="ml-4">
-                    <span className="text-sky-600 dark:text-sky-400">{t.config?.targetFieldName}</span>
-                    {t.config?.isPushable && <span className="text-slate-500">[]</span>}
-                    <span className="text-slate-500">: </span>
-                    <span className="text-slate-400 italic">{`/* ${t.name} */`}</span>
-                    {i < sortedSteps.filter(x => x.type === 'updateFlowOutput' && x.config?.targetFieldName).length - 1 && <span className="text-slate-500">,</span>}
+                    <span className="text-brand-1">{t.config?.targetFieldName}</span>
+                    {t.config?.isPushable && <span className="text-muted-foreground">[]</span>}
+                    <span className="text-muted-foreground">: </span>
+                    <span className="text-muted-foreground italic">{`/* ${t.name} */`}</span>
+                    {i < sortedSteps.filter(x => x.type === 'updateFlowOutput' && x.config?.targetFieldName).length - 1 && <span className="text-muted-foreground">,</span>}
                     <br />
                   </span>
                 ))}
-              <span className="text-violet-600 dark:text-violet-400">{`}`}</span>
+              <span className="text-brand-5">{`}`}</span>
             </Code>
           </div>
         )}

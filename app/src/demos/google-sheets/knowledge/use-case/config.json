@@ -2,6 +2,6 @@
   "label": "Use Case Context",
   "description": "Defining the industry and specific task for the assistant",
   "icon": "📂",
-  "color": "#3b82f6",
+  "color": "#f5c815",
   "renderAs": "section"
 }

@@ -2,6 +2,6 @@
   "label": "Reward Recommendations",
   "description": "Recommended treats and praise based on dog traits",
   "icon": "🍖",
-  "color": "#10b981",
+  "color": "#f5c815",
   "renderAs": "section"
 }

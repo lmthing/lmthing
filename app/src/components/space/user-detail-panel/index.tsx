@@ -51,9 +51,9 @@ function getRoleIcon(role: SpaceUserRole) {
 
 function getRoleBadgeClass(role: SpaceUserRole) {
   switch (role) {
-    case 'admin': return 'bg-gradient-to-r from-violet-500 to-violet-600 text-white shadow-lg shadow-violet-500/25'
-    case 'editor': return 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/25'
-    case 'viewer': return 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
+    case 'admin': return 'bg-gradient-to-r from-brand-3 to-brand-3 text-primary-foreground shadow-lg shadow-brand-3/25'
+    case 'editor': return 'bg-gradient-to-r from-brand-2 to-brand-2 text-primary-foreground shadow-lg shadow-brand-2/25'
+    case 'viewer': return 'bg-muted text-muted-foreground border border-border'
   }
 }
 

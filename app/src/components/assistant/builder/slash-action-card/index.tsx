@@ -18,10 +18,10 @@ export function SlashActionCard({ attachedFlow, onToggleEnabled, onEdit, onDetac
 
   return (
     <div className={`
-      group p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border-2 transition-all
+      group p-3 bg-muted rounded-xl border-2 transition-all
       ${slashAction.enabled
-        ? 'border-violet-200 dark:border-violet-900/50 bg-violet-50/50 dark:bg-violet-950/20'
-        : 'border-slate-200 dark:border-slate-800 opacity-60'
+        ? 'border-brand-3/30 bg-brand-3/10'
+        : 'border-border opacity-60'
       }
     `}>
       <div className="flex items-start justify-between gap-3">
@@ -51,12 +51,12 @@ export function SlashActionCard({ attachedFlow, onToggleEnabled, onEdit, onDetac
             onClick={() => onToggleEnabled(slashAction.id, !slashAction.enabled)}
             className={`
               relative w-10 h-5 rounded-full transition-colors
-              ${slashAction.enabled ? 'bg-violet-500' : 'bg-slate-300 dark:bg-slate-700'}
+              ${slashAction.enabled ? 'bg-brand-3' : 'bg-neutral'}
             `}
             title={slashAction.enabled ? 'Disable action' : 'Enable action'}
           >
             <div className={`
-              absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform
+              absolute top-0.5 w-4 h-4 bg-background rounded-full shadow transition-transform
               ${slashAction.enabled ? 'left-5' : 'left-0.5'}
             `} />
           </button>
@@ -112,8 +112,8 @@ export function SlashActionsPanel({
 
       {attachedFlows.length === 0 ? (
         <div className="text-center py-6">
-          <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-            <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-muted flex items-center justify-center">
+            <svg className="w-5 h-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
@@ -136,8 +136,8 @@ export function SlashActionsPanel({
 
       {/* Help text */}
       {attachedFlows.length > 0 && (
-        <div className="flex items-start gap-2 p-2 bg-sky-50 dark:bg-sky-950/30 rounded-lg">
-          <svg className="w-4 h-4 text-sky-600 dark:text-sky-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="flex items-start gap-2 p-2 bg-brand-1/10 rounded-lg">
+          <svg className="w-4 h-4 text-brand-1 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <Caption muted>

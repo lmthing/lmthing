@@ -98,23 +98,23 @@ function ContextMenu({
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
       <div
-        className="fixed z-50 min-w-[180px] bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden"
+        className="fixed z-50 min-w-[180px] bg-card rounded-xl shadow-2xl border border-border overflow-hidden"
         style={{ left: position.x, top: position.y }}
       >
         {isDirectory && (
           <>
             <button
               onClick={() => { onCreateFile(); onClose(); }}
-              className="w-full px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-violet-50 dark:hover:bg-violet-950/30 flex items-center gap-3 transition-colors"
+              className="w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-brand-3/10 flex items-center gap-3 transition-colors"
             >
-              <Plus className="w-4 h-4 text-slate-400" />
+              <Plus className="w-4 h-4 text-muted-foreground" />
               New File
             </button>
             <button
               onClick={() => { onCreateFolder(); onClose(); }}
-              className="w-full px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-violet-50 dark:hover:bg-violet-950/30 flex items-center gap-3 transition-colors"
+              className="w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-brand-3/10 flex items-center gap-3 transition-colors"
             >
-              <FolderPlus className="w-4 h-4 text-slate-400" />
+              <FolderPlus className="w-4 h-4 text-muted-foreground" />
               New Folder
             </button>
             <Separator />
@@ -122,24 +122,24 @@ function ContextMenu({
         )}
         <button
           onClick={() => { onRename(); onClose(); }}
-          className="w-full px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-violet-50 dark:hover:bg-violet-950/30 flex items-center gap-3 transition-colors"
+          className="w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-brand-3/10 flex items-center gap-3 transition-colors"
         >
-          <Edit3 className="w-4 h-4 text-slate-400" />
+          <Edit3 className="w-4 h-4 text-muted-foreground" />
           Rename
         </button>
         {!isDirectory && (
           <button
             onClick={() => { onDuplicate(); onClose(); }}
-            className="w-full px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-violet-50 dark:hover:bg-violet-950/30 flex items-center gap-3 transition-colors"
+            className="w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-brand-3/10 flex items-center gap-3 transition-colors"
           >
-            <Copy className="w-4 h-4 text-slate-400" />
+            <Copy className="w-4 h-4 text-muted-foreground" />
             Duplicate
           </button>
         )}
         <Separator />
         <button
           onClick={() => { onDelete(); onClose(); }}
-          className="w-full px-4 py-2.5 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-3 transition-colors"
+          className="w-full px-4 py-2.5 text-left text-sm text-destructive hover:bg-destructive/10 flex items-center gap-3 transition-colors"
         >
           <Trash2 className="w-4 h-4" />
           Delete
@@ -199,11 +199,11 @@ function NodeRenderer({ node, style, dragHandle, onContextMenu, selectedPath }: 
         transition-all duration-150 relative
         ${
           isSelected
-            ? 'bg-gradient-to-r from-violet-500 to-violet-600 text-white shadow-md shadow-violet-500/25'
-            : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+            ? 'bg-gradient-to-r from-brand-3 to-brand-3 text-primary-foreground shadow-md shadow-brand-3/25'
+            : 'hover:bg-muted text-foreground'
         }
         ${node.state.isDragging ? 'opacity-50' : ''}
-        ${node.state.willReceiveDrop ? 'ring-2 ring-violet-500' : ''}
+        ${node.state.willReceiveDrop ? 'ring-2 ring-brand-3' : ''}
       `}
     >
       {isDirectory ? (
@@ -211,13 +211,13 @@ function NodeRenderer({ node, style, dragHandle, onContextMenu, selectedPath }: 
           {node.isOpen ? (
             <ChevronDown
               className={`w-3.5 h-3.5 flex-shrink-0 ${
-                isSelected ? 'text-white' : 'text-slate-400 group-hover:text-slate-500'
+                isSelected ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-foreground'
               }`}
             />
           ) : (
             <ChevronRight
               className={`w-3.5 h-3.5 flex-shrink-0 ${
-                isSelected ? 'text-white' : 'text-slate-400 group-hover:text-slate-500'
+                isSelected ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-foreground'
               }`}
             />
           )}
@@ -238,7 +238,7 @@ function NodeRenderer({ node, style, dragHandle, onContextMenu, selectedPath }: 
           <span className="w-6 flex-shrink-0" />
           <FileText
             className={`w-4 h-4 flex-shrink-0 ${
-              isSelected ? 'text-white' : 'text-slate-400 group-hover:text-slate-500'
+              isSelected ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-foreground'
             }`}
           />
         </>
@@ -259,7 +259,7 @@ function NodeRenderer({ node, style, dragHandle, onContextMenu, selectedPath }: 
         />
       ) : (
         <>
-          <span className={`text-sm font-medium truncate flex-1 ${isSelected ? 'text-white' : ''}`}>
+          <span className={`text-sm font-medium truncate flex-1 ${isSelected ? 'text-primary-foreground' : ''}`}>
             {node.data.name}
           </span>
 
@@ -276,7 +276,7 @@ function NodeRenderer({ node, style, dragHandle, onContextMenu, selectedPath }: 
               isSelected ? 'hover:bg-white/20' : ''
             }`}
           >
-            <MoreVertical className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-slate-400'}`} />
+            <MoreVertical className={`w-3.5 h-3.5 ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'}`} />
           </Button>
         </>
       )}

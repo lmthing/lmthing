@@ -101,6 +101,9 @@ importers:
         specifier: ^4.3.6
         version: 4.3.6
     devDependencies:
+      '@adobe/leonardo-contrast-colors':
+        specifier: ^1.1.0
+        version: 1.1.0
       '@eslint/js':
         specifier: ^9.39.1
         version: 9.39.3
@@ -296,6 +299,9 @@ packages:
 
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
+
+  '@adobe/leonardo-contrast-colors@1.1.0':
+    resolution: {integrity: sha512-URFR8vNgNsE/rnXqljVrx6OyZV3nQXTfbDDWZwTUYfOkmBr9hRB7ENK8f7pT7gHDjSuCf2bjJ227u4PUHUXHHg==}
 
   '@ai-sdk/amazon-bedrock@4.0.69':
     resolution: {integrity: sha512-XdsJnMa1DZAQJ4bRuy97JYF48fSJUZWUpjg4rrDrzKY6wUAOIKpHMHmnGF6bCpd3NcR6E2R7c/HhWyIQAHuuUg==}
@@ -2305,6 +2311,9 @@ packages:
     resolution: {integrity: sha512-4Dj6M28JB+oAH8kFkTLUo+a2jwOFkuqb3yucU0CANcRRUbxS0cP0nZYCGjcc3BNXwRIsUVmDGgzawme7zvJHvg==}
     engines: {node: '>=12'}
 
+  apca-w3@0.1.9:
+    resolution: {integrity: sha512-Zrf6AeBeQjNe/fxK7U1jCo5zfdjDl6T4/kdw5Xlky3G7u+EJTZkyItjMYQGtwf9pkftsINxcYyOpuLkzKf1ITQ==}
+
   argparse@2.0.1:
     resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
 
@@ -2401,6 +2410,15 @@ packages:
     resolution: {integrity: sha512-PAJdDJusoxnwm1VwW07VWwUN1sl7smmC3OKggvndJFadxxDRyFJBX/ggnu/KE4kQAB7a3Dp8f/YXC1FlUprWmA==}
     engines: {node: '>= 16'}
 
+  chroma-js@3.2.0:
+    resolution: {integrity: sha512-os/OippSlX1RlWWr+QDPcGUZs0uoqr32urfxESG9U93lhUfbnlyckte84Q8P1UQY/qth983AS1JONKmLS4T0nw==}
+
+  ciebase@0.1.1:
+    resolution: {integrity: sha512-KEnf/WVT5E+Gn+LsfMHGJFATltSOeW0qm7dpzQYL/Qe5PEpyTM+UI5bMoBo16FE81zMpu+U6032USTP6Cz1XNA==}
+
+  ciecam02@0.4.6:
+    resolution: {integrity: sha512-nh/Kl8s5lgtyEl7lA381JFinLhgUwDhJaAVgbVx2BaiiJIzJLumQvuFXwdS76tSch7jDjWejP+MtKYCCEk/brg==}
+
   class-variance-authority@0.7.1:
     resolution: {integrity: sha512-Ka+9Trutv7G8M6WT6SeiRWz792K5qEqIGEGzXKhAE6xOWAY6pPH8U+9IY3oCMv6kqTmLsv7Xh/2w2RigkePMsg==}
 
@@ -2425,6 +2443,9 @@ packages:
 
   color-name@1.1.4:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
+
+  colorparsley@0.1.8:
+    resolution: {integrity: sha512-rObESTTTE6G5qO5WFwFxWPggpw4KfpxnLC6Ssl8bITBnNVRhDsyCeTRAUxWQNVTx2pRknKlO2nddYTxjkdNFaw==}
 
   combined-stream@1.0.8:
     resolution: {integrity: sha512-FQN4MRfuJeHf7cBbBMJFXhKSDq+2kAArBlmRBvcvFE5BB1HZKXtSFASDhdlz9zOYwxh8lDdnvmMOe/+5cdoEdg==}
@@ -2807,6 +2828,9 @@ packages:
   hoist-non-react-statics@3.3.2:
     resolution: {integrity: sha512-/gGivxi8JPKWNm/W0jSmzcMPpfpPLc3dY/6GxhX2hQ9iGj3aDfklV4ET7NjKpSinLpJ5vafa9iiGIEZg10SfBw==}
 
+  hsluv@1.0.1:
+    resolution: {integrity: sha512-zCaFTiDqBLQjCCFBu0qg7z9ASYPd+Bxx2GDCVZJsnehjK80S+jByqhuFz0pCd2Aw3FSKr18AWbRlwnKR0YdizQ==}
+
   html-encoding-sniffer@4.0.0:
     resolution: {integrity: sha512-Y22oTqIU4uuPgEemfz7NDJz6OeKf12Lsu+QC+s3BVpda64lTiMYCyGwg5ki4vFxkMwQdeZDl2adZoqUgdFuTgQ==}
     engines: {node: '>=18'}
@@ -3117,6 +3141,9 @@ packages:
   minipass@7.1.3:
     resolution: {integrity: sha512-tEBHqDnIoM/1rXME1zgka9g6Q2lcoCkxHLuc7ODJ5BxbP5d4c2Z5cGgtXAku59200Cx7diuHTOYfSBD8n6mm8A==}
     engines: {node: '>=16 || 14 >=14.17'}
+
+  mout@0.11.1:
+    resolution: {integrity: sha512-pK9VNiLE3QgGBrC/3ICAscwOLU7oTNeK2l32uqNAioBYtB2tQAfSsGDNChUlk7CP23126mc5lUt6+na9FlN8JA==}
 
   mrmime@2.0.1:
     resolution: {integrity: sha512-Y3wQdFg2Va6etvQ5I82yUhGdsKrcYox6p7FfL1LbK2J4V01F9TGlepTIhnK24t7koZibmg82KGglhA1XK5IsLQ==}
@@ -3969,6 +3996,14 @@ packages:
 snapshots:
 
   '@adobe/css-tools@4.4.4': {}
+
+  '@adobe/leonardo-contrast-colors@1.1.0':
+    dependencies:
+      apca-w3: 0.1.9
+      chroma-js: 3.2.0
+      ciebase: 0.1.1
+      ciecam02: 0.4.6
+      hsluv: 1.0.1
 
   '@ai-sdk/amazon-bedrock@4.0.69(zod@4.3.6)':
     dependencies:
@@ -5842,6 +5877,10 @@ snapshots:
 
   ansi-styles@6.2.3: {}
 
+  apca-w3@0.1.9:
+    dependencies:
+      colorparsley: 0.1.8
+
   argparse@2.0.1: {}
 
   aria-hidden@1.2.6:
@@ -5929,6 +5968,17 @@ snapshots:
 
   check-error@2.1.3: {}
 
+  chroma-js@3.2.0: {}
+
+  ciebase@0.1.1:
+    dependencies:
+      mout: 0.11.1
+
+  ciecam02@0.4.6:
+    dependencies:
+      ciebase: 0.1.1
+      mout: 0.11.1
+
   class-variance-authority@0.7.1:
     dependencies:
       clsx: 2.1.1
@@ -5950,6 +6000,8 @@ snapshots:
       color-name: 1.1.4
 
   color-name@1.1.4: {}
+
+  colorparsley@0.1.8: {}
 
   combined-stream@1.0.8:
     dependencies:
@@ -6372,6 +6424,8 @@ snapshots:
     dependencies:
       react-is: 16.13.1
 
+  hsluv@1.0.1: {}
+
   html-encoding-sniffer@4.0.0:
     dependencies:
       whatwg-encoding: 3.1.1
@@ -6667,6 +6721,8 @@ snapshots:
       brace-expansion: 2.0.2
 
   minipass@7.1.3: {}
+
+  mout@0.11.1: {}
 
   mrmime@2.0.1: {}
 

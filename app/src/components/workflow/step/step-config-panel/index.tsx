@@ -126,9 +126,9 @@ export function StepConfigPanel({ step, availableTools, availablePromptFragments
       />
 
       {/* Panel */}
-      <div className="relative w-full max-w-2xl max-h-[90vh] bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col">
+      <div className="relative w-full max-w-2xl max-h-[90vh] bg-card rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div>
             <Heading level={2}>{isEditMode ? 'Edit Step' : 'Add Step'}</Heading>
             <Caption muted>Configure step settings and behavior</Caption>
@@ -154,8 +154,8 @@ export function StepConfigPanel({ step, availableTools, availablePromptFragments
                     className={`
                       p-4 rounded-xl border-2 text-left transition-all
                       ${selectedType === type
-                        ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20 ring-2 ring-violet-500/20'
-                        : 'border-slate-200 dark:border-slate-800 hover:border-violet-300 dark:hover:border-violet-700'
+                        ? 'border-brand-3 bg-brand-3/10 ring-2 ring-brand-3/20'
+                        : 'border-border hover:border-brand-3/50'
                       }
                     `}
                   >
@@ -202,7 +202,7 @@ export function StepConfigPanel({ step, availableTools, availablePromptFragments
           </Stack>
 
           {/* Step Configuration */}
-          <div className="border-t border-slate-200 dark:border-slate-800 pt-6 space-y-6">
+          <div className="border-t border-border pt-6 space-y-6">
             {/* updateFlowOutput specific fields */}
             {selectedType === 'updateFlowOutput' && (
               <>
@@ -221,12 +221,12 @@ export function StepConfigPanel({ step, availableTools, availablePromptFragments
                 </div>
 
                 {/* Is Pushable */}
-                <div className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-950 rounded-xl">
+                <div className="flex items-center gap-3 p-4 bg-muted rounded-xl">
                   <button
                     onClick={() => setIsPushable(!isPushable)}
                     className={`
                       relative w-12 h-6 rounded-full transition-colors
-                      ${isPushable ? 'bg-violet-500' : 'bg-slate-300 dark:bg-slate-700'}
+                      ${isPushable ? 'bg-brand-3' : 'bg-muted-foreground'}
                     `}
                   >
                     <span
@@ -264,10 +264,10 @@ export function StepConfigPanel({ step, availableTools, availablePromptFragments
                 <Label compact>Prompt Fragments</Label>
                 <div className="space-y-2">
                   {promptFragmentFields.map((pf, index) => (
-                    <div key={index} className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-950 rounded-lg">
+                    <div key={index} className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                       <Code>{pf.fragmentId}</Code>
                       <Button variant="ghost" size="icon" onClick={() => setPromptFragmentFields(prev => prev.filter((_, i) => i !== index))}>
-                        <svg className="w-4 h-4 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg className="w-4 h-4 text-destructive" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M18 6L6 18M6 6l12 12" />
                         </svg>
                       </Button>
@@ -284,7 +284,7 @@ export function StepConfigPanel({ step, availableTools, availablePromptFragments
                           ])
                         }
                       }}
-                      className="w-full p-2 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700 text-slate-500 hover:border-violet-500 hover:text-violet-500 transition-colors text-sm"
+                      className="w-full p-2 rounded-lg border-2 border-dashed border-border text-muted-foreground hover:border-brand-3 hover:text-brand-3 transition-colors text-sm"
                     >
                       + Add Prompt Fragment
                     </button>
@@ -311,8 +311,8 @@ export function StepConfigPanel({ step, availableTools, availablePromptFragments
                     className={`
                       p-3 rounded-lg text-left text-sm transition-all
                       ${enabledTools.includes(tool.id)
-                        ? 'bg-amber-100 dark:bg-amber-900/30 border-2 border-amber-500'
-                        : 'bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                        ? 'bg-brand-2/15 border-2 border-brand-2'
+                        : 'bg-muted border-2 border-border hover:border-border'
                       }
                     `}
                   >
@@ -326,7 +326,7 @@ export function StepConfigPanel({ step, availableTools, availablePromptFragments
             {/* Step Instructions */}
             <div>
               <Label compact>Step Instructions</Label>
-              <div className="bg-slate-50 dark:bg-slate-950 rounded-xl p-4">
+              <div className="bg-muted rounded-xl p-4">
                 <Textarea
                   value={stepInstructions}
                   onChange={(e) => setStepInstructions(e.target.value)}
@@ -334,7 +334,7 @@ export function StepConfigPanel({ step, availableTools, availablePromptFragments
                   compact
                 />
               </div>
-              <div className="mt-2 p-2 bg-violet-50 dark:bg-violet-950/30 rounded-lg">
+              <div className="mt-2 p-2 bg-brand-3/10 rounded-lg">
                 <Caption muted>
                   <span className="font-semibold">Template variables:</span>
                 </Caption>
@@ -367,7 +367,7 @@ export function StepConfigPanel({ step, availableTools, availablePromptFragments
                   step="0.1"
                   value={temperature}
                   onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                  className="w-full mt-3 accent-violet-500"
+                  className="w-full mt-3 accent-brand-3"
                 />
                 <div className="flex justify-between">
                   <Caption muted>Precise</Caption>
@@ -379,7 +379,7 @@ export function StepConfigPanel({ step, availableTools, availablePromptFragments
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 rounded-b-2xl">
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-muted rounded-b-2xl">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
           <Button variant="primary" onClick={handleSave}>
             {isEditMode ? 'Save Changes' : 'Add Step'}

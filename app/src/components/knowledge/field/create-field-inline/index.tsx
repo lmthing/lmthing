@@ -28,11 +28,11 @@ export function CreateFieldInline({ onSubmit, onCancel }: CreateFieldInlineProps
     }
 
     return (
-        <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 border-2 border-emerald-200 dark:border-emerald-800 rounded-xl p-5 mb-6 animate-in slide-in-from-top-2 duration-200">
+        <div className="bg-gradient-to-br from-brand-2/10 to-brand-2/10 border-2 border-brand-2/30 rounded-xl p-5 mb-6 animate-in slide-in-from-top-2 duration-200">
             <Stack row gap="md" style={{ justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                 <Stack row gap="md" style={{ alignItems: 'center' }}>
-                    <div className="p-2 bg-emerald-500 rounded-lg">
-                        <FolderPlus className="w-5 h-5 text-white" />
+                    <div className="p-2 bg-brand-2 rounded-lg">
+                        <FolderPlus className="w-5 h-5 text-primary-foreground" />
                     </div>
                     <div>
                         <Heading level={3}>Create Knowledge Field</Heading>

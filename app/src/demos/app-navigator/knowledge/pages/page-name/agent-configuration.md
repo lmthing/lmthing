@@ -30,6 +30,6 @@ This page is where you configure a single agent's identity, knowledge attachment
 - Click Chat FAB → opens sandbox chat overlay
 
 ## Color Scheme
-- Primary: Violet purple (#7c3aed) for all agent-related elements
+- Primary: Violet purple (#f38358) for all agent-related elements
 - Active knowledge pills: Violet with checkmark
 - Action status "Active" badge: Emerald green

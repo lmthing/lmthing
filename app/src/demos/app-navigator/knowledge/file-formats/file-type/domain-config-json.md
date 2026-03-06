@@ -27,21 +27,21 @@ Located at `knowledge/{domain-name}/config.json`. Defines how the domain is pres
 | `label` | string | Human-readable, Title Case, max ~30 chars |
 | `description` | string | One sentence — what types of data live here |
 | `icon` | string | **Exactly one** emoji character. No text, no multi-char sequences |
-| `color` | string | Valid CSS hex: `#` + 6 hex chars (e.g., `#10b981`) |
+| `color` | string | Valid CSS hex: `#` + 6 hex chars (e.g., `#ed92a1`) |
 | `renderAs` | string | Always `"section"` for top-level domain folders |
 
 ## Color Suggestions by Domain Type
 
 | Domain Type | Color | Hex |
 |---|---|---|
-| User/People | Emerald | `#10b981` |
-| Content/Media | Violet | `#7c3aed` |
-| Settings/Config | Amber | `#f59e0b` |
-| Technology/Code | Sky blue | `#0ea5e9` |
-| Business/Finance | Rose | `#f43f5e` |
-| Education | Orange | `#f97316` |
-| Health/Wellness | Teal | `#14b8a6` |
-| Data/Analytics | Indigo | `#6366f1` |
+| User/People | Emerald | `#d59ec8` |
+| Content/Media | Violet | `#f5c815` |
+| Settings/Config | Amber | `#ed92a1` |
+| Technology/Code | Sky blue | `#d59ec8` |
+| Business/Finance | Rose | `#f9a94a` |
+| Education | Orange | `#f5c815` |
+| Health/Wellness | Teal | `#f5c815` |
+| Data/Analytics | Indigo | `#f9a94a` |
 
 ## Icon Suggestions by Domain Type
 
@@ -62,7 +62,7 @@ Located at `knowledge/{domain-name}/config.json`. Defines how the domain is pres
   "label": "Student Profile",
   "description": "Information about the student's background, learning style, and academic level",
   "icon": "🎓",
-  "color": "#f97316",
+  "color": "#f38358",
   "renderAs": "section"
 }
 ```
@@ -72,7 +72,7 @@ Located at `knowledge/{domain-name}/config.json`. Defines how the domain is pres
   "label": "Project Context",
   "description": "Details about the current project, its goals, constraints, and stakeholders",
   "icon": "🚀",
-  "color": "#6366f1",
+  "color": "#ed92a1",
   "renderAs": "section"
 }
 ```

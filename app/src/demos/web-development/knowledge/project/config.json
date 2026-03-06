@@ -2,6 +2,6 @@
   "label": "Project Context",
   "description": "Project type, tech stack, and development environment configuration",
   "icon": "🚀",
-  "color": "#3b82f6",
+  "color": "#ed92a1",
   "renderAs": "section"
 }

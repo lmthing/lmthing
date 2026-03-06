@@ -3,6 +3,7 @@ import path from 'path'
 import webpack from 'next/dist/compiled/webpack/webpack-lib.js'
 
 const nextConfig: NextConfig = {
+  output: 'export',
   reactStrictMode: true,
   typescript: {
     ignoreBuildErrors: true,

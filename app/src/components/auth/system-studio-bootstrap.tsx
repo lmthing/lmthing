@@ -6,8 +6,8 @@ import { useApp } from '@lmthing/state'
 import { demoToFileTree } from '@/lib/demoToFileTree'
 import type { DemoWorkspaceData } from '@/lib/demoToFileTree'
 
-const SYSTEM_STUDIO_ID = 'system'
-const SYSTEM_STUDIO_NAME = 'System'
+const PERSONAL_STUDIO_ID = 'personal'
+const PERSONAL_STUDIO_NAME = 'Personal'
 const DEMO_URL = '/demos/app-navigator.json'
 
 export function SystemStudioBootstrap({ children }: { children: React.ReactNode }) {
@@ -18,11 +18,11 @@ export function SystemStudioBootstrap({ children }: { children: React.ReactNode 
   useEffect(() => {
     if (!isAuthenticated || !username || isLoading || bootstrappedRef.current) return
 
-    const hasSystemStudio = studios.some(
-      s => s.username === username && s.studioId === SYSTEM_STUDIO_ID
+    const hasPersonalStudio = studios.some(
+      s => s.username === username && s.studioId === PERSONAL_STUDIO_ID
     )
 
-    if (hasSystemStudio) {
+    if (hasPersonalStudio) {
       bootstrappedRef.current = true
       return
     }
@@ -39,36 +39,47 @@ export function SystemStudioBootstrap({ children }: { children: React.ReactNode 
 
         const data = (await response.json()) as DemoWorkspaceData
 
-        // Create the System studio
-        createStudio(username!, SYSTEM_STUDIO_ID, SYSTEM_STUDIO_NAME)
+        // Create the personal studio
+        createStudio(username!, PERSONAL_STUDIO_ID, PERSONAL_STUDIO_NAME)
 
-        // Convert demo JSON to flat file tree and import into the studio
-        const files = demoToFileTree(data)
+        // Convert demo JSON to flat file tree
+        const rawFiles = demoToFileTree(data)
 
-        // Also update lmthing.json to register the space
+        // Re-prefix files from {demoId}/... to system/{demoId}/...
+        const spaceId = `system/${data.id}`
+        const oldPrefix = `${data.id}/`
+        const files: Record<string, string> = {}
+        for (const [path, content] of Object.entries(rawFiles)) {
+          if (path.startsWith(oldPrefix)) {
+            files[`system/${path}`] = content
+          } else {
+            files[path] = content
+          }
+        }
+
+        // Update lmthing.json to register the system space
         const configRaw = JSON.stringify({
-          id: SYSTEM_STUDIO_ID,
-          name: SYSTEM_STUDIO_NAME,
+          id: PERSONAL_STUDIO_ID,
+          name: PERSONAL_STUDIO_NAME,
           version: '1.0.0',
           spaces: {
-            [data.id]: {
-              name: data.packageJson?.name ?? data.id,
-              description: `Demo space: ${data.id}`,
+            [spaceId]: {
+              name: spaceId,
+              description: `System space: ${data.id}`,
+              system: true,
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
             },
           },
-          settings: {
-            defaultSpace: data.id,
-          },
+          settings: {},
         }, null, 2)
 
-        importStudio(username!, SYSTEM_STUDIO_ID, {
+        importStudio(username!, PERSONAL_STUDIO_ID, {
           'lmthing.json': configRaw,
           ...files,
         })
       } catch (error) {
-        console.error('Failed to bootstrap System studio:', error)
+        console.error('Failed to bootstrap personal studio:', error)
       }
     }
 

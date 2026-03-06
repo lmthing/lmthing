@@ -22,7 +22,7 @@ import { PageHeader, PageBody } from '@/elements/layouts/page'
 import { Card, CardBody } from '@/elements/content/card'
 import { Heading } from '@/elements/typography/heading'
 import { Caption } from '@/elements/typography/caption'
-import { useWorkspaces } from '@/hooks/useWorkspaces'
+import { useStudio } from '@lmthing/state'
 import { useGithub } from '@/lib/github/GithubContext'
 
 const SPACE_COLORS = ['#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ef4444', '#84cc16']
@@ -38,7 +38,7 @@ function toLocalSpaceId(value: string): string {
 export function SpacesLayout() {
   const router = useRouter()
   const { username, studioId } = useParams<{ username: string; studioId: string }>()
-  const { data: spaceData } = useWorkspaces()
+  const { spaces, createSpace } = useStudio()
   const { login, logout, isAuthenticated, isLoadingAuth } = useGithub()
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
@@ -52,13 +52,12 @@ export function SpacesLayout() {
     : '/'
 
   const allSpaces = useMemo<Space[]>(() => {
-    const agents = spaceData?.agents || []
-    return agents.map((a, idx) => ({
-      id: a.id,
-      name: a.id,
+    return spaces.map((s, idx) => ({
+      id: s.id,
+      name: s.name || s.id,
       color: SPACE_COLORS[idx % SPACE_COLORS.length],
     }))
-  }, [spaceData])
+  }, [spaces])
 
   const filteredSpaces = useMemo(() => {
     if (!searchQuery) return allSpaces
@@ -69,8 +68,10 @@ export function SpacesLayout() {
   const selectedSpace = useMemo(() => allSpaces.find(s => s.id === selectedSpaceId) ?? null, [allSpaces, selectedSpaceId])
 
   const handleCreateLocalSpace = () => {
-    const localId = toLocalSpaceId(newLocalSpaceName)
-    if (!localId) return
+    const slug = toLocalSpaceId(newLocalSpaceName)
+    if (!slug) return
+    const localId = `local/${slug}`
+    createSpace(localId, { name: localId })
     setIsCreateLocalOpen(false)
     setNewLocalSpaceName('')
     router.push(`${studioPath}/${encodeURIComponent(localId)}`)
@@ -140,7 +141,7 @@ export function SpacesLayout() {
                   <Heading level={2}>{selectedSpace.name}</Heading>
                   <Caption muted>{selectedSpace.name.startsWith('local/') ? 'Local space' : 'GitHub space'}</Caption>
                 </div>
-                <button className="btn btn--primary" onClick={() => router.push(`${studioPath}/${encodeURIComponent(selectedSpace.name)}`)}>Open Space</button>
+                <button className="btn btn--primary" onClick={() => router.push(`${studioPath}/${encodeURIComponent(selectedSpace.id)}`)}>Open Space</button>
               </div>
             </div>
           ) : (

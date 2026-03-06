@@ -17,7 +17,7 @@ export default function SpaceLayout({
 }) {
   const { spaceId } = use(params)
   return (
-    <SpaceProvider>
+    <SpaceProvider spaceId={decodeURIComponent(spaceId)}>
       <StudioLayout>{children}</StudioLayout>
     </SpaceProvider>
   )

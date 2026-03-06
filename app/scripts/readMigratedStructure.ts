@@ -21,10 +21,10 @@ interface SlashAction {
 }
 
 interface AgentInstructFrontmatter {
-  name: string;
+  name?: string;
   description?: string;
-  tools: string[];
-  selectedDomains: string[];
+  tools?: string[];
+  selectedDomains?: string[];
 }
 
 interface AgentConfig {

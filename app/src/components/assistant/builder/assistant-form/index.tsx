@@ -43,11 +43,11 @@ export function AssistantForm({ assistantId, onSave }: AssistantFormProps) {
         <div className="panel__body">
           <Stack gap="md">
             <div>
-              <Label sm>Name</Label>
+              <Label compact>Name</Label>
               <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Assistant name" />
             </div>
             <div>
-              <Label sm>Description</Label>
+              <Label compact>Description</Label>
               <input className="input" value={description} onChange={e => setDescription(e.target.value)} placeholder="What does this assistant do?" />
             </div>
           </Stack>

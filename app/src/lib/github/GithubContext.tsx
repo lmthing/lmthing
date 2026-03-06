@@ -4,7 +4,9 @@ import { createOAuthDeviceAuth } from '@octokit/auth-oauth-device'
 import { request } from '@octokit/request'
 
 // Get Client ID from environment variables
-const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID
+const GITHUB_CLIENT_ID = typeof import.meta !== 'undefined' && import.meta.env
+  ? import.meta.env.VITE_GITHUB_CLIENT_ID
+  : process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
 const WORKSPACE_REPOS_GIST_FILENAME = 'lmthing-workspace-repos.json'
 const WORKSPACE_REPOS_GIST_DESCRIPTION = 'lmthing workspace repository selection state'
 

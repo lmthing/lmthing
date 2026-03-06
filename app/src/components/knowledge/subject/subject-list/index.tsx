@@ -14,7 +14,7 @@ export function SubjectList({ fieldId }: SubjectListProps) {
   const fields = useKnowledgeFields()
   const field = fields.find((f: { id: string }) => f.id === fieldId)
 
-  const subjects = field?.subjects ?? []
+  const subjects = (field as any)?.subjects ?? []
 
   return (
     <Stack gap="md">

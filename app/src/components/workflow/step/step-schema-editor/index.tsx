@@ -15,7 +15,7 @@ interface StepSchemaEditorProps {
 type PropertyType = 'string' | 'number' | 'boolean' | 'object' | 'array'
 
 interface Property {
-  id: string
+  id?: string
   name: string
   type: PropertyType
   required: boolean
@@ -25,7 +25,7 @@ interface Property {
   minimum?: number
   maximum?: number
   properties?: Record<string, Omit<Property, 'name' | 'required' | 'id'>>
-  items?: Omit<Property, 'name' | 'id'>
+  items?: Omit<Property, 'name' | 'id' | 'required'>
 }
 
 const TYPE_OPTIONS: { value: PropertyType; label: string }[] = [
@@ -316,8 +316,8 @@ function NestedPropertiesEditor({
   properties,
   onChange,
 }: {
-  properties: Record<string, Omit<Property, 'name' | 'required'>>
-  onChange: (properties: Record<string, Omit<Property, 'name' | 'required'>>) => void
+  properties: Record<string, Omit<Property, 'name' | 'required' | 'id'>>
+  onChange: (properties: Record<string, Omit<Property, 'name' | 'required' | 'id'>>) => void
 }) {
   const entries = Object.entries(properties)
 
@@ -335,7 +335,7 @@ function NestedPropertiesEditor({
 
   const handleRenameProperty = (oldKey: string, newKey: string) => {
     if (!newKey || newKey === oldKey) return
-    const newProps: Record<string, Omit<Property, 'name' | 'required'>> = {}
+    const newProps: Record<string, Omit<Property, 'name' | 'required' | 'id'>> = {}
     Object.entries(properties).forEach(([k, v]) => {
       newProps[k === oldKey ? newKey : k] = v
     })
@@ -350,7 +350,7 @@ function NestedPropertiesEditor({
     const [moved] = newKeys.splice(fromIndex, 1)
     newKeys.splice(toIndex, 0, moved)
 
-    const newProps: Record<string, Omit<Property, 'name' | 'required'>> = {}
+    const newProps: Record<string, Omit<Property, 'name' | 'required' | 'id'>> = {}
     newKeys.forEach(key => {
       newProps[key] = properties[key]
     })

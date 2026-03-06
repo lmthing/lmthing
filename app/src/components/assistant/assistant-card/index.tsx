@@ -13,18 +13,13 @@ interface AssistantCardProps {
 export function AssistantCard({ id, name }: AssistantCardProps) {
   const assistant = useAssistant(id)
 
-  const displayName = name || assistant?.name || 'Untitled Assistant'
+  const displayName = name || assistant?.instruct?.name || 'Untitled Assistant'
 
   return (
     <Card data-assistant-id={id}>
       <CardBody>
         <Heading level={4}>{displayName}</Heading>
-        {assistant?.description && <Caption muted>{assistant.description}</Caption>}
-        {assistant?.status && (
-          <Badge variant={assistant.status === 'active' ? 'success' : 'muted'}>
-            {assistant.status}
-          </Badge>
-        )}
+        {assistant?.instruct?.description && <Caption muted>{assistant.instruct.description}</Caption>}
       </CardBody>
     </Card>
   )

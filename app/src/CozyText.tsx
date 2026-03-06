@@ -102,7 +102,7 @@ export const CozyThingText: React.FC<{ className?: string; text?: string }> = ({
 
 
 
-const CozyChar3: React.FC<{ char: string }> = ({ char }) => {
+const CozyChar3: React.FC<{ char: string; index?: number }> = ({ char }) => {
   const spanRef = useRef<HTMLSpanElement>(null);
 
   // Static configuration for this character instance

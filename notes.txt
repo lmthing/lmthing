@@ -62,3 +62,7 @@ THING — Your AI Workspace Builder REMOVE
 
 
 Better CTA to open thingpanel in landing. Probably move GETStartedwiththing to the top right
+
+
+
+I am thing - lmthing

@@ -38,26 +38,30 @@ function saveState(state: StudioState) {
   }
 }
 
+function useSpacePath(): string {
+  const { username, studioId, spaceId } = useParams<{ username: string; studioId: string; spaceId: string }>()
+  if (username && studioId && spaceId) {
+    return `/${encodeURIComponent(username)}/${encodeURIComponent(studioId)}/${encodeURIComponent(spaceId)}`
+  }
+  return '/'
+}
+
 export function StudioLayout({ children }: { children?: React.ReactNode }) {
-  const { workspaceName } = useParams()
   const router = useRouter()
   const pathname = usePathname()
+  const spacePath = useSpacePath()
   const [state, setState] = useState<StudioState>(loadState)
-  const [showCreateDomainForm, setShowCreateDomainForm] = useState(false)
-  const [showCreateAgentForm, setShowCreateAgentForm] = useState(false)
+  const [showCreateFieldForm, setShowCreateFieldForm] = useState(false)
+  const [showCreateAssistantForm, setShowCreateAssistantForm] = useState(false)
 
   const assistantList = useAssistantList()
   const workflowList = useWorkflowList()
 
-  const studioPath = workspaceName
-    ? `/studio/${encodeURIComponent(workspaceName as string)}`
-    : '/studio'
-
   useEffect(() => {
     if (pathname.endsWith('/settings')) {
-      router.replace(`${studioPath}/settings/env`)
+      router.replace(`${spacePath}/settings/env`)
     }
-  }, [pathname, router, studioPath])
+  }, [pathname, router, spacePath])
 
   useEffect(() => {
     saveState(state)
@@ -71,9 +75,9 @@ export function StudioLayout({ children }: { children?: React.ReactNode }) {
           prev.sidebarCollapsed === collapsed ? prev : { ...prev, sidebarCollapsed: collapsed }
         )
       }
-      onOpenSettings={() => router.push(`${studioPath}/settings/env`)}
-      onCreateDomain={() => setShowCreateDomainForm(true)}
-      onCreateAgent={() => setShowCreateAgentForm(true)}
+      onOpenSettings={() => router.push(`${spacePath}/settings/env`)}
+      onCreateField={() => setShowCreateFieldForm(true)}
+      onCreateAssistant={() => setShowCreateAssistantForm(true)}
     >
       {children}
     </StudioShell>

@@ -1,5 +1,5 @@
 /**
- * StudioShell - Primary shell component managing workspace views and panels.
+ * StudioShell - Primary shell component managing space views and panels.
  * Uses new composite hooks and element CSS classes.
  * Orchestrates the sidebar, content area, and settings/knowledge views.
  */
@@ -17,12 +17,12 @@ export interface StudioShellProps {
   defaultSidebarCollapsed?: boolean
   onSidebarCollapsedChange?: (collapsed: boolean) => void
   onOpenSettings?: () => void
-  onCreateDomain?: () => void
-  onEditDomain?: (id: string) => void
-  onDeleteDomain?: (id: string) => void
-  onCreateAgent?: () => void
-  onEditAgent?: (id: string) => void
-  onDeleteAgent?: (id: string) => void
+  onCreateField?: () => void
+  onEditField?: (id: string) => void
+  onDeleteField?: (id: string) => void
+  onCreateAssistant?: () => void
+  onEditAssistant?: (id: string) => void
+  onDeleteAssistant?: (id: string) => void
   onSelectFile?: (file: unknown) => void
   onToggleFolder?: (path: string) => void
   onExpandAll?: () => void
@@ -39,17 +39,26 @@ export interface StudioShellProps {
   children?: React.ReactNode
 }
 
+function useSpacePath(): string {
+  const { username, studioId, spaceId } = useParams<{ username: string; studioId: string; spaceId: string }>()
+  if (username && studioId && spaceId) {
+    return `/${encodeURIComponent(username)}/${encodeURIComponent(studioId)}/${encodeURIComponent(spaceId)}`
+  }
+  return '/'
+}
+
 export function StudioShell({
   defaultSidebarCollapsed = false,
   onSidebarCollapsedChange,
   onOpenSettings,
-  onCreateDomain,
-  onCreateAgent,
+  onCreateField,
+  onCreateAssistant,
   children,
 }: StudioShellProps) {
-  const { agentId, workspaceName } = useParams()
+  const { assistantId } = useParams<{ assistantId: string }>()
   const router = useRouter()
   const pathname = usePathname()
+  const spacePath = useSpacePath()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(defaultSidebarCollapsed)
 
   const assistantList = useAssistantList()
@@ -62,27 +71,23 @@ export function StudioShell({
     onSidebarCollapsedChange?.(next)
   }, [sidebarCollapsed, onSidebarCollapsedChange])
 
-  const activeDomainId = useMemo(() => {
+  const activeFieldId = useMemo(() => {
     const match = pathname.match(/\/knowledge\/([^/]+)/)
     return match ? match[1] : undefined
   }, [pathname])
 
   const isSettingsOpen = pathname.includes('/settings')
 
-  const studioPath = workspaceName
-    ? `/studio/${encodeURIComponent(workspaceName as string)}`
-    : '/studio'
-
   return (
     <div className="split-pane" style={{ height: '100vh' }}>
       <StudioSidebar
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={handleToggleSidebar}
-        activeDomainId={activeDomainId}
-        activeAgentId={agentId as string}
-        onOpenSettings={onOpenSettings || (() => router.push(`${studioPath}/settings/env`))}
-        onCreateDomain={onCreateDomain}
-        onCreateAgent={onCreateAgent}
+        activeFieldId={activeFieldId}
+        activeAssistantId={assistantId as string}
+        onOpenSettings={onOpenSettings || (() => router.push(`${spacePath}/settings/env`))}
+        onCreateField={onCreateField}
+        onCreateAssistant={onCreateAssistant}
       />
 
       <div className="split-pane__primary">
@@ -93,10 +98,10 @@ export function StudioShell({
             <div className="page__body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ textAlign: 'center', opacity: 0.5 }}>
                 <p style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-                  Select a knowledge area or assistant
+                  Select a knowledge field or assistant
                 </p>
                 <p style={{ fontSize: '0.875rem' }}>
-                  {knowledgeFields.length} knowledge areas, {assistantList.length} assistants, {workflowList.length} workflows
+                  {knowledgeFields.length} knowledge fields, {assistantList.length} assistants, {workflowList.length} workflows
                 </p>
               </div>
             </div>

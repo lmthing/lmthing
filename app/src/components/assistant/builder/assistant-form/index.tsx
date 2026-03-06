@@ -27,11 +27,11 @@ export function AssistantForm({ assistantId, onSave }: AssistantFormProps) {
   const [name, setName] = useState(assistant?.instruct?.name || '')
   const [description, setDescription] = useState(assistant?.instruct?.description || '')
   const [instructions, setInstructions] = useState(assistant?.instruct?.instructions || '')
-  const [selectedDomains, setSelectedDomains] = useState<string[]>([])
+  const [selectedFields, setSelectedFields] = useState<string[]>([])
 
-  const toggleDomain = (domainId: string) => {
-    setSelectedDomains(prev =>
-      prev.includes(domainId) ? prev.filter(d => d !== domainId) : [...prev, domainId]
+  const toggleField = (fieldId: string) => {
+    setSelectedFields(prev =>
+      prev.includes(fieldId) ? prev.filter(d => d !== fieldId) : [...prev, fieldId]
     )
   }
 
@@ -70,15 +70,15 @@ export function AssistantForm({ assistantId, onSave }: AssistantFormProps) {
 
       {/* Knowledge Selection */}
       <div className="panel">
-        <div className="panel__header"><Label>Knowledge Areas ({knowledgeFields.length})</Label></div>
+        <div className="panel__header"><Label>Knowledge Fields ({knowledgeFields.length})</Label></div>
         <div className="panel__body">
           {knowledgeFields.length === 0 ? (
-            <Caption muted>No knowledge areas available.</Caption>
+            <Caption muted>No knowledge fields available.</Caption>
           ) : (
             <Stack row gap="sm" style={{ flexWrap: 'wrap' }}>
               {knowledgeFields.map(field => (
-                <button key={field.id} onClick={() => toggleDomain(field.id)} style={{ all: 'unset', cursor: 'pointer' }}>
-                  <Badge variant={selectedDomains.includes(field.id) ? 'primary' : 'muted'}>{field.id}</Badge>
+                <button key={field.id} onClick={() => toggleField(field.id)} style={{ all: 'unset', cursor: 'pointer' }}>
+                  <Badge variant={selectedFields.includes(field.id) ? 'primary' : 'muted'}>{field.id}</Badge>
                 </button>
               ))}
             </Stack>

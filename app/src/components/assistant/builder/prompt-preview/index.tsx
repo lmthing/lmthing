@@ -10,7 +10,7 @@ import { Code } from '@/elements/typography/code'
 interface PromptPreview {
   generatedPrompt: string
   tokenCount?: number
-  domains?: string[]
+  fields?: string[]
 }
 
 interface PromptPreviewPanelProps {
@@ -49,10 +49,10 @@ export function PromptPreviewPanel({ promptPreview, onGenerate }: PromptPreviewP
             <Code block style={{ maxHeight: '400px', overflowY: 'auto' }}>
               {promptPreview?.generatedPrompt || ''}
             </Code>
-            {promptPreview?.domains && promptPreview.domains.length > 0 && (
+            {promptPreview?.fields && promptPreview.fields.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginTop: '0.75rem' }}>
-                {promptPreview.domains.map((domain, idx) => (
-                  <Badge key={idx} variant="muted" style={{ fontSize: '0.625rem' }}>{domain}</Badge>
+                {promptPreview.fields.map((field, idx) => (
+                  <Badge key={idx} variant="muted" style={{ fontSize: '0.625rem' }}>{field}</Badge>
                 ))}
               </div>
             )}

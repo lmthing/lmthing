@@ -1,5 +1,5 @@
 /**
- * SettingsView - Workspace settings panel (env files, package.json).
+ * SettingsView - Space settings panel (env files, package.json).
  * Uses new hooks from Phase 3 and element components.
  */
 import { useEffect, useMemo, useState } from 'react'
@@ -19,10 +19,19 @@ interface SettingsViewProps {
   isOpen: boolean
 }
 
+function useSpacePath(): string {
+  const { username, studioId, spaceId } = useParams<{ username: string; studioId: string; spaceId: string }>()
+  if (username && studioId && spaceId) {
+    return `/${encodeURIComponent(username)}/${encodeURIComponent(studioId)}/${encodeURIComponent(spaceId)}`
+  }
+  return '/'
+}
+
 export function SettingsView({ isOpen }: SettingsViewProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const { workspaceName } = useParams()
+  const { spaceId } = useParams<{ spaceId: string }>()
+  const spacePath = useSpacePath()
 
   const packageJsonContent = useFile('package.json')
 
@@ -32,13 +41,12 @@ export function SettingsView({ isOpen }: SettingsViewProps) {
   }, [packageJsonContent])
 
   const activeTab = useMemo(() => {
-    if (pathname.includes('/settings/package-json')) return 'package-json'
+    if (pathname.includes('/settings/packages')) return 'packages'
     return 'env'
   }, [pathname])
 
-  const handleTabChange = (tab: 'env' | 'package-json') => {
-    if (!workspaceName) return
-    router.push(`/studio/${encodeURIComponent(workspaceName as string)}/settings/${tab}`)
+  const handleTabChange = (tab: 'env' | 'packages') => {
+    router.push(`${spacePath}/settings/${tab}`)
   }
 
   const packageJsonSerialized = useMemo(
@@ -67,8 +75,8 @@ export function SettingsView({ isOpen }: SettingsViewProps) {
       <PageHeader>
         <Stack row style={{ justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
           <div>
-            <Heading level={2}>Workspace Settings</Heading>
-            <Caption muted>{workspaceName || 'No workspace selected'}</Caption>
+            <Heading level={2}>Space Settings</Heading>
+            <Caption muted>{spaceId || 'No space selected'}</Caption>
           </div>
         </Stack>
       </PageHeader>
@@ -86,12 +94,12 @@ export function SettingsView({ isOpen }: SettingsViewProps) {
           <Shield style={{ width: 16, height: 16 }} /> Environment
         </button>
         <button
-          onClick={() => handleTabChange('package-json')}
+          onClick={() => handleTabChange('packages')}
           className="btn btn--ghost"
           style={{
-            borderBottom: activeTab === 'package-json' ? '2px solid var(--color-primary)' : '2px solid transparent',
+            borderBottom: activeTab === 'packages' ? '2px solid var(--color-primary)' : '2px solid transparent',
             borderRadius: 0,
-            color: activeTab === 'package-json' ? 'var(--color-primary)' : undefined,
+            color: activeTab === 'packages' ? 'var(--color-primary)' : undefined,
           }}
         >
           <FileCode2 style={{ width: 16, height: 16 }} /> package.json
@@ -135,7 +143,7 @@ export function SettingsView({ isOpen }: SettingsViewProps) {
           </div>
         )}
 
-        {activeTab === 'package-json' && (
+        {activeTab === 'packages' && (
           <div style={{ maxWidth: '64rem', margin: '0 auto' }}>
             <div className="panel">
               <div className="panel__header"><span>package.json</span></div>

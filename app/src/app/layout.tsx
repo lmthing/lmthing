@@ -1,11 +1,20 @@
 'use client'
 
 import { AppProvider } from '@/lib/contexts/AppContext'
+import { AuthProvider } from '@/lib/auth'
+import { useAuth } from '@/lib/auth/useAuth'
+import { LoginScreen } from '@/components/auth/login-screen'
 import { GithubProvider } from '@/lib/github/GithubContext'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '@/index.css'
 
 const queryClient = new QueryClient()
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuth()
+  if (!isAuthenticated) return <LoginScreen />
+  return <>{children}</>
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -20,12 +29,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <AppProvider>
-          {/* QueryClientProvider scoped to GitHub auxiliary calls only (stars, deployment status) */}
-          <QueryClientProvider client={queryClient}>
-            <GithubProvider>
-              {children}
-            </GithubProvider>
-          </QueryClientProvider>
+          <AuthProvider>
+            <QueryClientProvider client={queryClient}>
+              <GithubProvider>
+                <AuthGate>
+                  {children}
+                </AuthGate>
+              </GithubProvider>
+            </QueryClientProvider>
+          </AuthProvider>
         </AppProvider>
       </body>
     </html>

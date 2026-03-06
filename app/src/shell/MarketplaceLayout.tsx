@@ -4,47 +4,46 @@ import { useRouter } from 'next/navigation'
 import { ArrowRight, Building2, Settings } from 'lucide-react'
 import { Button } from '@/elements/forms/button'
 import { Card, CardHeader, CardBody } from '@/elements/content/card'
+import { useAuth } from '@/lib/auth/useAuth'
 
 import '@/css/elements/forms/button/index.css'
 import '@/css/elements/content/card/index.css'
 
 import themeData from '@/theme.json'
 
-const WORKSPACE_COLORS = themeData.colors.brand
+const SPACE_COLORS = themeData.colors.brand
 
-type DemoWorkspace = {
+type DemoSpace = {
   id: string
   name: string
   slug: string
   description: string
 }
 
-type DemoWorkspaceIndexItem = {
+type DemoSpaceIndexItem = {
   name: string
   description?: string
   subject_id?: string
   workspace_id?: string
 }
 
-function workspaceToSlug(name: string): string {
-  return encodeURIComponent(name)
-}
-
 export default function MarketplaceLayout() {
   const router = useRouter()
-  const [demoWorkspaces, setDemoWorkspaces] = useState<DemoWorkspace[]>([])
+  const { username } = useAuth()
+  const [demoSpaces, setDemoSpaces] = useState<DemoSpace[]>([])
+  const defaultStudioId = 'default'
 
   useEffect(() => {
     let isMounted = true
 
-    const loadDemoWorkspaces = async () => {
+    const loadDemoSpaces = async () => {
       try {
         const response = await fetch('/demos/index.json')
         if (!response.ok) {
           throw new Error(`Failed to load demos index: ${response.status}`)
         }
 
-        const items = (await response.json()) as DemoWorkspaceIndexItem[]
+        const items = (await response.json()) as DemoSpaceIndexItem[]
 
         if (!isMounted) return
 
@@ -54,25 +53,26 @@ export default function MarketplaceLayout() {
             id: slug,
             slug,
             name: `local/${slug}`,
-            description: item.description || `${item.name} workspace`,
+            description: item.description || `${item.name} space`,
           }
         })
 
-        setDemoWorkspaces(mapped)
+        setDemoSpaces(mapped)
       } catch (error) {
-        console.error('Failed to load demo workspaces index:', error)
+        console.error('Failed to load demo spaces index:', error)
       }
     }
 
-    void loadDemoWorkspaces()
+    void loadDemoSpaces()
 
     return () => {
       isMounted = false
     }
   }, [])
 
-  const handleWorkspaceSelect = (workspace: { id: string; name: string }) => {
-    router.push(`/workspace/${workspaceToSlug(workspace.name)}/studio`)
+  const handleSpaceSelect = (space: { id: string; name: string }) => {
+    const user = username || 'local'
+    router.push(`/${encodeURIComponent(user)}/${encodeURIComponent(defaultStudioId)}/${encodeURIComponent(space.name)}`)
   }
 
   return (
@@ -92,16 +92,16 @@ export default function MarketplaceLayout() {
         <div>
           <h2 className="text-center text-3xl font-bold tracking-tight">Marketplace</h2>
           <p className="mx-auto mt-2 max-w-2xl text-center text-muted-foreground">
-            Explore pre-configured workspaces and open them directly in Studio.
+            Explore pre-configured spaces and open them directly in Studio.
           </p>
 
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {demoWorkspaces.map((workspace, idx) => (
+            {demoSpaces.map((space, idx) => (
               <Card
-                key={workspace.id}
+                key={space.id}
                 interactive
                 className="cursor-pointer"
-                onClick={() => handleWorkspaceSelect(workspace)}
+                onClick={() => handleSpaceSelect(space)}
                 style={{ padding: 0 }}
               >
                 <CardHeader style={{ padding: '1.25rem' }}>
@@ -115,15 +115,15 @@ export default function MarketplaceLayout() {
                         justifyContent: 'center',
                         borderRadius: '0.75rem',
                         color: 'white',
-                        backgroundColor: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length],
+                        backgroundColor: SPACE_COLORS[idx % SPACE_COLORS.length],
                       }}
                     >
                       <Building2 style={{ width: 24, height: 24 }} />
                     </div>
                     <ArrowRight style={{ width: 20, height: 20, opacity: 0.4, transition: 'transform 0.2s' }} />
                   </div>
-                  <h3 style={{ marginTop: '1rem', fontSize: '1.25rem', fontWeight: 600 }}>{workspace.name}</h3>
-                  <p style={{ fontSize: '0.875rem', opacity: 0.6, marginTop: '0.25rem' }}>{workspace.description}</p>
+                  <h3 style={{ marginTop: '1rem', fontSize: '1.25rem', fontWeight: 600 }}>{space.name}</h3>
+                  <p style={{ fontSize: '0.875rem', opacity: 0.6, marginTop: '0.25rem' }}>{space.description}</p>
                 </CardHeader>
                 <CardBody style={{ padding: '0 1.25rem 1.25rem' }}>
                   <Button
@@ -132,7 +132,7 @@ export default function MarketplaceLayout() {
                     style={{ width: '100%' }}
                     onClick={(e) => {
                       e.stopPropagation()
-                      handleWorkspaceSelect(workspace)
+                      handleSpaceSelect(space)
                     }}
                   >
                     <Settings style={{ width: 16, height: 16, marginRight: '0.5rem' }} />

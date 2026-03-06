@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from '@/elements/overlays/dialog'
 import { useGithub } from '@/lib/github/GithubContext'
+import { useAuth } from '@/lib/auth/useAuth'
 import { CozyThingText } from '../CozyText'
 
 import '@/css/elements/forms/button/index.css'
@@ -30,51 +31,55 @@ import '@/css/elements/overlays/dialog/index.css'
 
 import themeData from '@/theme.json'
 
-const WORKSPACE_COLORS = themeData.colors.brand
+const SPACE_COLORS = themeData.colors.brand
 
-type DemoWorkspace = {
+type DemoSpace = {
   id: string
   name: string
   slug: string
   description: string
 }
 
-type DemoWorkspaceIndexItem = {
+type DemoSpaceIndexItem = {
   name: string
   description?: string
   subject_id?: string
   workspace_id?: string
 }
 
-type Workspace = {
+type Space = {
   id: string
   name: string
   color: string
 }
 
-function workspaceToSlug(name: string): string {
+function spaceToSlug(name: string): string {
   return encodeURIComponent(name)
 }
 
 export default function LandingLayout() {
   const router = useRouter()
-  const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false)
+  const { username } = useAuth()
+  const [isSpaceModalOpen, setIsSpaceModalOpen] = useState(false)
 
   const { login, logout, isAuthenticated, isLoadingAuth } = useGithub()
   const [searchQuery, setSearchQuery] = useState('')
-  const [demoWorkspaces, setDemoWorkspaces] = useState<DemoWorkspace[]>([])
+  const [demoSpaces, setDemoSpaces] = useState<DemoSpace[]>([])
+
+  // Default studio ID for the current user
+  const defaultStudioId = 'default'
 
   useEffect(() => {
     let isMounted = true
 
-    const loadDemoWorkspaces = async () => {
+    const loadDemoSpaces = async () => {
       try {
         const response = await fetch('/demos/index.json')
         if (!response.ok) {
           throw new Error(`Failed to load demos index: ${response.status}`)
         }
 
-        const items = (await response.json()) as DemoWorkspaceIndexItem[]
+        const items = (await response.json()) as DemoSpaceIndexItem[]
 
         if (!isMounted) return
 
@@ -84,50 +89,51 @@ export default function LandingLayout() {
             id: slug,
             slug,
             name: `local/${slug}`,
-            description: item.description || `${item.name} workspace`,
+            description: item.description || `${item.name} space`,
           }
         })
 
-        setDemoWorkspaces(mapped)
+        setDemoSpaces(mapped)
       } catch (error) {
-        console.error('Failed to load demo workspaces index:', error)
+        console.error('Failed to load demo spaces index:', error)
       }
     }
 
-    void loadDemoWorkspaces()
+    void loadDemoSpaces()
 
     return () => {
       isMounted = false
     }
   }, [])
 
-  const availableWorkspaces = useMemo(() => {
-    const workspaces: Workspace[] = []
+  const availableSpaces = useMemo(() => {
+    const spaces: Space[] = []
 
-    demoWorkspaces.forEach((mock, idx) => {
-      workspaces.push({
+    demoSpaces.forEach((mock, idx) => {
+      spaces.push({
         id: mock.id,
         name: mock.name,
-        color: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length],
+        color: SPACE_COLORS[idx % SPACE_COLORS.length],
       })
     })
 
-    return workspaces
-  }, [demoWorkspaces])
+    return spaces
+  }, [demoSpaces])
 
-  const filteredWorkspaces = useMemo(() => {
-    if (!searchQuery) return availableWorkspaces.slice(0, 5)
+  const filteredSpaces = useMemo(() => {
+    if (!searchQuery) return availableSpaces.slice(0, 5)
     const query = searchQuery.toLowerCase()
-    return availableWorkspaces.filter(w => w.name.toLowerCase().includes(query))
-  }, [availableWorkspaces, searchQuery])
+    return availableSpaces.filter(s => s.name.toLowerCase().includes(query))
+  }, [availableSpaces, searchQuery])
 
-  const openWorkspaceModal = () => {
-    setIsWorkspaceModalOpen(true)
+  const openSpaceModal = () => {
+    setIsSpaceModalOpen(true)
   }
 
-  const handleWorkspaceSelect = (workspace: Workspace) => {
-    setIsWorkspaceModalOpen(false)
-    router.push(`/workspace/${workspaceToSlug(workspace.name)}/studio`)
+  const handleSpaceSelect = (space: Space) => {
+    setIsSpaceModalOpen(false)
+    const user = username || 'local'
+    router.push(`/${encodeURIComponent(user)}/${encodeURIComponent(defaultStudioId)}/${spaceToSlug(space.name)}`)
   }
 
   return (
@@ -144,7 +150,7 @@ export default function LandingLayout() {
               <Button variant="outline" size="sm" asChild>
                 <Link href="/marketplace">Marketplace</Link>
               </Button>
-              <Button size="sm" onClick={openWorkspaceModal}>
+              <Button size="sm" onClick={openSpaceModal}>
                 Open Studio
               </Button>
               <button
@@ -165,7 +171,7 @@ export default function LandingLayout() {
               Your personal <CozyThingText text="THING" className="inline-block text-4xl font-bold tracking-tight sm:text-5xl" />
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              The <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" /> is an orchestrator that coordinates your specialized AI assistants across workspaces&mdash;each with their own knowledge, tools, and workflows.
+              The <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" /> is an orchestrator that coordinates your specialized AI assistants across spaces&mdash;each with their own knowledge, tools, and workflows.
             </p>
           </div>
 
@@ -177,23 +183,23 @@ export default function LandingLayout() {
                   One <CozyThingText text="THING" className="inline-block text-3xl font-bold tracking-tight sm:text-4xl" />, many experts
                 </h3>
                 <p className="mt-3 text-lg text-muted-foreground">
-                  Think of the <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" /> as a project manager for your AI team. Each workspace holds specialists with their own knowledge and tools.
+                  Think of the <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" /> as a project manager for your AI team. Each space holds specialists with their own knowledge and tools.
                 </p>
               </div>
 
               <div className="mt-4 grid gap-4 sm:grid-cols-3">
                 <div className="rounded-2xl border-2 border-brand-2/30 bg-gradient-to-br from-brand-2/10 to-background p-4 shadow-sm">
                   <FileText className="size-8 text-brand-2 mb-2" />
-                  <h4 className="font-semibold text-foreground">Workspaces Hold Knowledge</h4>
+                  <h4 className="font-semibold text-foreground">Spaces Hold Knowledge</h4>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Each workspace stores domain knowledge as organized documents&mdash;the ground truth for its specialists.
+                    Each space stores field knowledge as organized documents&mdash;the ground truth for its specialists.
                   </p>
                 </div>
                 <div className="rounded-2xl border-2 border-brand-3/30 bg-gradient-to-br from-brand-3/10 to-background p-4 shadow-sm">
                   <Bot className="size-8 text-brand-3 mb-2" />
-                  <h4 className="font-semibold text-foreground">Workspaces Hold Assistants</h4>
+                  <h4 className="font-semibold text-foreground">Spaces Hold Assistants</h4>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Each workspace contains specialized assistants with their own prompts, tools, and configurations.
+                    Each space contains specialized assistants with their own prompts, tools, and configurations.
                   </p>
                 </div>
                 <div className="rounded-2xl border-2 border-brand-4/30 bg-gradient-to-br from-brand-4/10 to-background p-4 shadow-sm">
@@ -206,7 +212,7 @@ export default function LandingLayout() {
               </div>
 
               <div className="mt-2 flex items-center justify-center">
-                <Button size="lg" className="shadow-lg" onClick={openWorkspaceModal}>
+                <Button size="lg" className="shadow-lg" onClick={openSpaceModal}>
                   Get started with <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" />
                   <ArrowRight className="ml-2 size-5" />
                 </Button>
@@ -227,9 +233,9 @@ export default function LandingLayout() {
                     <FileText className="size-8" />
                   </div>
                   <span className="mt-4 text-sm font-semibold text-brand-3">Step 1</span>
-                  <h4 className="mt-2 text-lg font-semibold">Create Workspaces</h4>
+                  <h4 className="mt-2 text-lg font-semibold">Create Spaces</h4>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Set up workspaces for each domain and organize your knowledge into them.
+                    Set up spaces for each field and organize your knowledge into them.
                   </p>
                 </div>
               </div>
@@ -241,7 +247,7 @@ export default function LandingLayout() {
                   <span className="mt-4 text-sm font-semibold text-brand-3">Step 2</span>
                   <h4 className="mt-2 text-lg font-semibold">Build Specialists</h4>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Each workspace gets specialized assistants with their own prompts, tools, and knowledge access.
+                    Each space gets specialized assistants with their own prompts, tools, and knowledge access.
                   </p>
                 </div>
               </div>
@@ -278,33 +284,33 @@ export default function LandingLayout() {
               <div className="w-full text-center">
                 <h3 className="text-2xl font-semibold text-center">Marketplace</h3>
                 <p className="mt-2 max-w-2xl mx-auto text-muted-foreground text-center">
-                  Browse ready-to-use demo workspaces and open them instantly in Studio.
+                  Browse ready-to-use demo spaces and open them instantly in Studio.
                 </p>
               </div>
 
               <div className="mt-8 overflow-x-auto pb-2 pt-2">
                 <div className="flex min-w-max gap-4">
-                  {demoWorkspaces.map((workspace, idx) => (
+                  {demoSpaces.map((space, idx) => (
                     <button
-                      key={workspace.id}
+                      key={space.id}
                       type="button"
-                      onClick={() => handleWorkspaceSelect({
-                        id: workspace.id,
-                        name: workspace.name,
-                        color: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length],
+                      onClick={() => handleSpaceSelect({
+                        id: space.id,
+                        name: space.name,
+                        color: SPACE_COLORS[idx % SPACE_COLORS.length],
                       })}
                       className="w-72 shrink-0 rounded-xl border bg-card p-4 text-left cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md hover:border-brand-3/30"
                     >
                       <div className="mb-3 flex items-center gap-2">
                         <div
                           className="flex size-8 items-center justify-center rounded-md text-white"
-                          style={{ backgroundColor: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length] }}
+                          style={{ backgroundColor: SPACE_COLORS[idx % SPACE_COLORS.length] }}
                         >
                           <Building2 className="size-4" />
                         </div>
-                        <p className="truncate text-sm font-semibold">{workspace.name}</p>
+                        <p className="truncate text-sm font-semibold">{space.name}</p>
                       </div>
-                      <p className="line-clamp-2 min-h-10 text-sm text-muted-foreground">{workspace.description}</p>
+                      <p className="line-clamp-2 min-h-10 text-sm text-muted-foreground">{space.description}</p>
                       <div className="mt-3 flex items-center justify-end text-brand-3">
                         <ArrowRight className="size-4" />
                       </div>
@@ -312,7 +318,7 @@ export default function LandingLayout() {
                   ))}
                   <div className="w-72 shrink-0 rounded-xl border-2 border-dashed border-brand-3/30 bg-brand-3/10 p-4">
                     <div className="flex h-full flex-col items-center justify-center text-center">
-                      <p className="text-sm font-semibold">Want more workspaces?</p>
+                      <p className="text-sm font-semibold">Want more spaces?</p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         Discover the full catalog in Marketplace.
                       </p>
@@ -338,10 +344,10 @@ export default function LandingLayout() {
                   Grounded in Your Knowledge
                 </div>
                 <h3 className="mt-4 text-3xl font-bold tracking-tight">
-                  Each Workspace Knows Its Domain
+                  Each Space Knows Its Field
                 </h3>
                 <p className="mt-4 text-lg text-muted-foreground">
-                  Your workspaces contain the ground truth. When the THING routes a task to a specialist, that assistant only sees relevant knowledge&mdash;no hallucinations, no context rot.
+                  Your spaces contain the ground truth. When the THING routes a task to a specialist, that assistant only sees relevant knowledge&mdash;no hallucinations, no context rot.
                 </p>
               </div>
 
@@ -367,7 +373,7 @@ export default function LandingLayout() {
                     <div>
                       <h4 className="font-semibold text-foreground">Specialists Use What They Know</h4>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Assistants only reference documents from their workspace. The THING ensures each specialist gets only relevant context.
+                        Assistants only reference documents from their space. The THING ensures each specialist gets only relevant context.
                       </p>
                     </div>
                   </div>
@@ -380,7 +386,7 @@ export default function LandingLayout() {
                     <div>
                       <h4 className="font-semibold text-foreground">No Context Rot</h4>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        By isolating knowledge per workspace and routing intelligently, the THING keeps each assistant focused.
+                        By isolating knowledge per space and routing intelligently, the THING keeps each assistant focused.
                       </p>
                     </div>
                   </div>
@@ -406,10 +412,10 @@ export default function LandingLayout() {
           <div className="mt-20 rounded-2xl bg-muted/50 px-8 py-12 text-center">
             <h3 className="text-2xl font-semibold">Build Your AI Team</h3>
             <p className="mt-2 text-muted-foreground">
-              Create workspaces, add specialists, and let the THING coordinate them all
+              Create spaces, add specialists, and let the THING coordinate them all
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
-              <Button size="lg" onClick={openWorkspaceModal}>
+              <Button size="lg" onClick={openSpaceModal}>
                 <Settings className="mr-2 size-5" />
                 Open Studio
               </Button>
@@ -417,29 +423,29 @@ export default function LandingLayout() {
           </div>
         </main>
 
-        <Dialog open={isWorkspaceModalOpen} onOpenChange={setIsWorkspaceModalOpen}>
+        <Dialog open={isSpaceModalOpen} onOpenChange={setIsSpaceModalOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Select a Workspace</DialogTitle>
+              <DialogTitle>Select a Space</DialogTitle>
               <DialogDescription>
-                Choose a workspace to open in Studio, or search for one.
+                Choose a space to open in Studio, or search for one.
               </DialogDescription>
             </DialogHeader>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <input
                 className="input"
-                placeholder="Search or create repository..."
+                placeholder="Search or create space..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
 
               <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {filteredWorkspaces.map((workspace) => (
+                {filteredSpaces.map((space) => (
                   <button
-                    key={workspace.id}
+                    key={space.id}
                     type="button"
-                    onClick={() => handleWorkspaceSelect(workspace)}
+                    onClick={() => handleSpaceSelect(space)}
                     style={{
                       display: 'flex',
                       width: '100%',
@@ -462,22 +468,22 @@ export default function LandingLayout() {
                           alignItems: 'center',
                           justifyContent: 'center',
                           borderRadius: '0.375rem',
-                          backgroundColor: `${workspace.color}20`,
+                          backgroundColor: `${space.color}20`,
                         }}
                       >
-                        <Building2 style={{ width: 16, height: 16, color: workspace.color }} />
+                        <Building2 style={{ width: 16, height: 16, color: space.color }} />
                       </div>
                       <div>
-                        <p style={{ fontWeight: 500 }}>{workspace.name}</p>
+                        <p style={{ fontWeight: 500 }}>{space.name}</p>
                       </div>
                     </div>
                     <ArrowRight style={{ width: 16, height: 16, opacity: 0.5 }} />
                   </button>
                 ))}
 
-                {filteredWorkspaces.length === 0 && (
+                {filteredSpaces.length === 0 && (
                   <div style={{ textAlign: 'center', padding: '1rem' }}>
-                    <p style={{ fontSize: '0.875rem', opacity: 0.6 }}>No workspaces found matching &quot;{searchQuery}&quot;</p>
+                    <p style={{ fontSize: '0.875rem', opacity: 0.6 }}>No spaces found matching &quot;{searchQuery}&quot;</p>
                   </div>
                 )}
               </div>

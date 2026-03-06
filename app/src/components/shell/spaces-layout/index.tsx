@@ -1,9 +1,9 @@
 /**
- * SpacesLayout - Layout for the spaces (workspaces) listing page.
+ * SpacesLayout - Layout for the spaces listing page within a studio.
  * Uses new composite hooks from Phase 3 and element components.
  */
 import { useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import {
   Building2,
   Plus,
@@ -25,54 +25,55 @@ import { Caption } from '@/elements/typography/caption'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
 import { useGithub } from '@/lib/github/GithubContext'
 
-const WORKSPACE_COLORS = ['#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ef4444', '#84cc16']
+const SPACE_COLORS = ['#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ef4444', '#84cc16']
 
-type Workspace = { id: string; name: string; color: string }
+type Space = { id: string; name: string; color: string }
 
-function toLocalWorkspaceId(value: string): string {
+function toLocalSpaceId(value: string): string {
   const trimmed = value.trim()
   if (!trimmed) return ''
   return trimmed.toLowerCase().replace(/[^a-z0-9-_]+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '')
 }
 
-function toWorkspaceSlug(name: string): string {
-  return encodeURIComponent(name)
-}
-
 export function SpacesLayout() {
   const router = useRouter()
+  const { username, studioId } = useParams<{ username: string; studioId: string }>()
   const { data: spaceData } = useWorkspaces()
   const { login, logout, isAuthenticated, isLoadingAuth } = useGithub()
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [isCreateLocalOpen, setIsCreateLocalOpen] = useState(false)
-  const [newLocalWorkspaceName, setNewLocalWorkspaceName] = useState('')
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null)
+  const [newLocalSpaceName, setNewLocalSpaceName] = useState('')
+  const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null)
 
-  const allWorkspaces = useMemo<Workspace[]>(() => {
+  const studioPath = username && studioId
+    ? `/${encodeURIComponent(username)}/${encodeURIComponent(studioId)}`
+    : '/'
+
+  const allSpaces = useMemo<Space[]>(() => {
     const agents = spaceData?.agents || []
     return agents.map((a, idx) => ({
       id: a.id,
       name: a.id,
-      color: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length],
+      color: SPACE_COLORS[idx % SPACE_COLORS.length],
     }))
   }, [spaceData])
 
-  const filteredWorkspaces = useMemo(() => {
-    if (!searchQuery) return allWorkspaces
+  const filteredSpaces = useMemo(() => {
+    if (!searchQuery) return allSpaces
     const q = searchQuery.toLowerCase()
-    return allWorkspaces.filter(w => w.name.toLowerCase().includes(q))
-  }, [allWorkspaces, searchQuery])
+    return allSpaces.filter(s => s.name.toLowerCase().includes(q))
+  }, [allSpaces, searchQuery])
 
-  const selectedWorkspace = useMemo(() => allWorkspaces.find(w => w.id === selectedWorkspaceId) ?? null, [allWorkspaces, selectedWorkspaceId])
+  const selectedSpace = useMemo(() => allSpaces.find(s => s.id === selectedSpaceId) ?? null, [allSpaces, selectedSpaceId])
 
-  const handleCreateLocalWorkspace = () => {
-    const localId = toLocalWorkspaceId(newLocalWorkspaceName)
+  const handleCreateLocalSpace = () => {
+    const localId = toLocalSpaceId(newLocalSpaceName)
     if (!localId) return
     setIsCreateLocalOpen(false)
-    setNewLocalWorkspaceName('')
-    router.push(`/studio/${encodeURIComponent(`local/${localId}`)}`)
+    setNewLocalSpaceName('')
+    router.push(`${studioPath}/${encodeURIComponent(localId)}`)
   }
 
   return (
@@ -81,7 +82,7 @@ export function SpacesLayout() {
         <div style={{ padding: 0, borderBottom: '1px solid var(--color-border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <button onClick={() => router.push('/')} style={{ display: 'flex', width: '3rem', height: '3rem', flexShrink: 0, alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer' }} title="lmthing home" />
-            {!isSidebarCollapsed && <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>Workspaces</span>}
+            {!isSidebarCollapsed && <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>Spaces</span>}
           </div>
         </div>
 
@@ -89,26 +90,26 @@ export function SpacesLayout() {
           <div style={{ padding: '0.75rem', borderBottom: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <div style={{ position: 'relative' }}>
               <Search style={{ position: 'absolute', left: '0.625rem', top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, opacity: 0.5 }} />
-              <input className="input" style={{ paddingLeft: '2rem' }} placeholder="Search workspaces..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+              <input className="input" style={{ paddingLeft: '2rem' }} placeholder="Search spaces..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
             </div>
             <button className="btn btn--ghost btn--sm" style={{ width: '100%', border: '1px dashed var(--color-border)' }} onClick={() => setIsCreateLocalOpen(true)}>
-              <Plus style={{ width: 14, height: 14 }} /> New workspace
+              <Plus style={{ width: 14, height: 14 }} /> New space
             </button>
           </div>
         )}
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '0.75rem' }}>
-          {filteredWorkspaces.map(workspace => (
+          {filteredSpaces.map(space => (
             <button
-              key={workspace.id}
-              onClick={() => setSelectedWorkspaceId(workspace.id)}
-              className={`sidebar__item ${selectedWorkspaceId === workspace.id ? 'sidebar__item--active' : ''}`}
+              key={space.id}
+              onClick={() => setSelectedSpaceId(space.id)}
+              className={`sidebar__item ${selectedSpaceId === space.id ? 'sidebar__item--active' : ''}`}
               style={{ width: '100%', textAlign: 'left' }}
             >
-              <div style={{ width: '1.5rem', height: '1.5rem', flexShrink: 0, borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: workspace.color + '20' }}>
-                <Building2 style={{ width: 14, height: 14, color: workspace.color }} />
+              <div style={{ width: '1.5rem', height: '1.5rem', flexShrink: 0, borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: space.color + '20' }}>
+                <Building2 style={{ width: 14, height: 14, color: space.color }} />
               </div>
-              {!isSidebarCollapsed && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{workspace.name}</span>}
+              {!isSidebarCollapsed && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{space.name}</span>}
             </button>
           ))}
         </div>
@@ -126,38 +127,38 @@ export function SpacesLayout() {
 
       <div className="split-pane__primary">
         <PageHeader>
-          <Heading level={2}>{selectedWorkspace ? selectedWorkspace.name : 'Workspaces'}</Heading>
+          <Heading level={2}>{selectedSpace ? selectedSpace.name : 'Spaces'}</Heading>
         </PageHeader>
         <PageBody>
-          {selectedWorkspace ? (
+          {selectedSpace ? (
             <div style={{ maxWidth: '56rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
-                <div style={{ width: '3.5rem', height: '3.5rem', borderRadius: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: selectedWorkspace.color + '20' }}>
-                  <Building2 style={{ width: '1.75rem', height: '1.75rem', color: selectedWorkspace.color }} />
+                <div style={{ width: '3.5rem', height: '3.5rem', borderRadius: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: selectedSpace.color + '20' }}>
+                  <Building2 style={{ width: '1.75rem', height: '1.75rem', color: selectedSpace.color }} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <Heading level={2}>{selectedWorkspace.name}</Heading>
-                  <Caption muted>{selectedWorkspace.name.startsWith('local/') ? 'Local workspace' : 'GitHub workspace'}</Caption>
+                  <Heading level={2}>{selectedSpace.name}</Heading>
+                  <Caption muted>{selectedSpace.name.startsWith('local/') ? 'Local space' : 'GitHub space'}</Caption>
                 </div>
-                <button className="btn btn--primary" onClick={() => router.push(`/studio/${toWorkspaceSlug(selectedWorkspace.name)}`)}>Open Studio</button>
+                <button className="btn btn--primary" onClick={() => router.push(`${studioPath}/${encodeURIComponent(selectedSpace.name)}`)}>Open Space</button>
               </div>
             </div>
           ) : (
             <div style={{ maxWidth: '42rem' }}>
-              <Heading level={2}>Your Workspaces</Heading>
-              <Caption muted style={{ marginBottom: '2rem' }}>Select a workspace from the sidebar to view its details.</Caption>
-              {allWorkspaces.length > 0 ? (
+              <Heading level={2}>Your Spaces</Heading>
+              <Caption muted style={{ marginBottom: '2rem' }}>Select a space from the sidebar to view its details.</Caption>
+              {allSpaces.length > 0 ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
-                  {allWorkspaces.map((workspace, idx) => (
-                    <button key={workspace.id} onClick={() => setSelectedWorkspaceId(workspace.id)} style={{ all: 'unset', cursor: 'pointer', display: 'block' }}>
+                  {allSpaces.map((space, idx) => (
+                    <button key={space.id} onClick={() => setSelectedSpaceId(space.id)} style={{ all: 'unset', cursor: 'pointer', display: 'block' }}>
                       <Card interactive style={{ padding: '1.25rem' }}>
                         <CardBody>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                            <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length] + '20' }}>
-                              <Building2 style={{ width: 20, height: 20, color: WORKSPACE_COLORS[idx % WORKSPACE_COLORS.length] }} />
+                            <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: SPACE_COLORS[idx % SPACE_COLORS.length] + '20' }}>
+                              <Building2 style={{ width: 20, height: 20, color: SPACE_COLORS[idx % SPACE_COLORS.length] }} />
                             </div>
                           </div>
-                          <Caption style={{ fontWeight: 600 }}>{workspace.name}</Caption>
+                          <Caption style={{ fontWeight: 600 }}>{space.name}</Caption>
                         </CardBody>
                       </Card>
                     </button>
@@ -166,9 +167,9 @@ export function SpacesLayout() {
               ) : (
                 <div style={{ textAlign: 'center', padding: '5rem 0' }}>
                   <Building2 style={{ width: 32, height: 32, opacity: 0.3, margin: '0 auto 1rem' }} />
-                  <Heading level={3}>No workspaces yet</Heading>
+                  <Heading level={3}>No spaces yet</Heading>
                   <button className="btn btn--primary" style={{ marginTop: '1.5rem' }} onClick={() => setIsCreateLocalOpen(true)}>
-                    <Plus style={{ width: 16, height: 16 }} /> Create workspace
+                    <Plus style={{ width: 16, height: 16 }} /> Create space
                   </button>
                 </div>
               )}
@@ -180,13 +181,13 @@ export function SpacesLayout() {
       {isCreateLocalOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div style={{ background: 'var(--color-bg)', borderRadius: '0.5rem', padding: '1.5rem', maxWidth: '28rem', width: '100%', border: '1px solid var(--color-border)' }}>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.25rem' }}>Create Local Workspace</h3>
-            <p style={{ fontSize: '0.875rem', opacity: 0.7, marginBottom: '1rem' }}>Create a new local workspace and open it in Studio.</p>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.25rem' }}>Create New Space</h3>
+            <p style={{ fontSize: '0.875rem', opacity: 0.7, marginBottom: '1rem' }}>Create a new space and open it in Studio.</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <input className="input" autoFocus placeholder="Workspace name (e.g. customer-support)" value={newLocalWorkspaceName} onChange={e => setNewLocalWorkspaceName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleCreateLocalWorkspace() }} />
+              <input className="input" autoFocus placeholder="Space name (e.g. customer-support)" value={newLocalSpaceName} onChange={e => setNewLocalSpaceName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleCreateLocalSpace() }} />
               <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                 <button className="btn btn--ghost" onClick={() => setIsCreateLocalOpen(false)}>Cancel</button>
-                <button className="btn btn--primary" onClick={handleCreateLocalWorkspace} disabled={!toLocalWorkspaceId(newLocalWorkspaceName)}>Create Workspace</button>
+                <button className="btn btn--primary" onClick={handleCreateLocalSpace} disabled={!toLocalSpaceId(newLocalSpaceName)}>Create Space</button>
               </div>
             </div>
           </div>

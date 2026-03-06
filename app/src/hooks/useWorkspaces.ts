@@ -8,7 +8,7 @@ export function useWorkspaces() {
   const data = {
     agents: studios.map(s => ({ id: `${s.username}/${s.studioId}`, name: s.name })),
     flows: [] as { id: string }[],
-    domains: [] as { id: string }[],
+    fields: [] as { id: string }[],
     packageJson: null,
   }
 
@@ -18,4 +18,3 @@ export function useWorkspaces() {
     error,
   }
 }
-

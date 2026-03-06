@@ -28,11 +28,11 @@ import { useGithub } from '@/lib/github/GithubContext'
 export interface StudioSidebarProps {
   isCollapsed?: boolean
   onToggleCollapse?: () => void
-  activeDomainId?: string
-  activeAgentId?: string
+  activeFieldId?: string
+  activeAssistantId?: string
   onOpenSettings?: () => void
-  onCreateDomain?: () => void
-  onCreateAgent?: () => void
+  onCreateField?: () => void
+  onCreateAssistant?: () => void
   onExportZip?: () => void
   onExportGithub?: () => void
   isExporting?: boolean
@@ -40,32 +40,37 @@ export interface StudioSidebarProps {
   canExport?: boolean
 }
 
+function useSpacePath(): string {
+  const { username, studioId, spaceId } = useParams<{ username: string; studioId: string; spaceId: string }>()
+  if (username && studioId && spaceId) {
+    return `/${encodeURIComponent(username)}/${encodeURIComponent(studioId)}/${encodeURIComponent(spaceId)}`
+  }
+  return '/'
+}
+
 export function StudioSidebar({
   isCollapsed = false,
   onToggleCollapse,
-  activeDomainId,
-  activeAgentId,
+  activeFieldId,
+  activeAssistantId,
   onOpenSettings,
-  onCreateDomain,
-  onCreateAgent,
+  onCreateField,
+  onCreateAssistant,
 }: StudioSidebarProps) {
   const pathname = usePathname()
-  const { workspaceName } = useParams<{ workspaceName: string }>()
-  const [domainsExpanded, setDomainsExpanded] = useState(true)
-  const [agentsExpanded, setAgentsExpanded] = useState(true)
+  const { spaceId } = useParams<{ spaceId: string }>()
+  const spacePath = useSpacePath()
+  const [fieldsExpanded, setFieldsExpanded] = useState(true)
+  const [assistantsExpanded, setAssistantsExpanded] = useState(true)
   const [conversationsExpanded, setConversationsExpanded] = useState(true)
 
   const { login, logout, isAuthenticated, isLoadingAuth, deviceCodePrompt } = useGithub()
 
   const assistantList = useAssistantList()
   const knowledgeFields = useKnowledgeFields()
-  const activeAssistant = useAssistant(activeAgentId || '')
+  const activeAssistant = useAssistant(activeAssistantId || '')
 
-  const studioPath = workspaceName
-    ? `/studio/${encodeURIComponent(workspaceName as string)}/`
-    : '/studio'
-
-  const agents = useMemo(() => {
+  const assistants = useMemo(() => {
     return assistantList.map((item: AssistantListItem) => ({
       id: item.id,
       name: item.id,
@@ -73,7 +78,7 @@ export function StudioSidebar({
     }))
   }, [assistantList])
 
-  const domains = useMemo(() => {
+  const fields = useMemo(() => {
     return knowledgeFields.map((field: DomainMeta) => ({
       id: field.id,
       label: field.id,
@@ -92,7 +97,7 @@ export function StudioSidebar({
           />
           {!isCollapsed && (
             <span style={{ fontSize: '0.875rem', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {workspaceName || 'Studio'}
+              {spaceId || 'Studio'}
             </span>
           )}
         </div>
@@ -103,28 +108,28 @@ export function StudioSidebar({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <section>
               <button
-                onClick={() => setDomainsExpanded(p => !p)}
+                onClick={() => setFieldsExpanded(p => !p)}
                 className="sidebar__item"
                 style={{ fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.7 }}
               >
-                {domainsExpanded ? <ChevronDown style={{ width: 12, height: 12 }} /> : <ChevronRightSmall style={{ width: 12, height: 12 }} />}
-                Knowledge ({domains.length})
+                {fieldsExpanded ? <ChevronDown style={{ width: 12, height: 12 }} /> : <ChevronRightSmall style={{ width: 12, height: 12 }} />}
+                Knowledge ({fields.length})
               </button>
-              {domainsExpanded && (
+              {fieldsExpanded && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  {domains.map(domain => {
-                    const href = `${studioPath}/knowledge/${domain.id}`
-                    const isActive = pathname === href || activeDomainId === domain.id
+                  {fields.map(field => {
+                    const href = `${spacePath}/knowledge/${field.id}`
+                    const isActive = pathname === href || activeFieldId === field.id
                     return (
-                      <Link key={domain.id} href={href} className={`sidebar__item ${isActive ? 'sidebar__item--active' : ''}`}>
+                      <Link key={field.id} href={href} className={`sidebar__item ${isActive ? 'sidebar__item--active' : ''}`}>
                         <Folder style={{ width: 16, height: 16, flexShrink: 0, color: '#10b981' }} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{domain.label}</span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{field.label}</span>
                       </Link>
                     )
                   })}
-                  <button onClick={onCreateDomain} className="sidebar__item" style={{ opacity: 0.6 }}>
+                  <button onClick={onCreateField} className="sidebar__item" style={{ opacity: 0.6 }}>
                     <Plus style={{ width: 16, height: 16, flexShrink: 0 }} />
-                    <span style={{ fontWeight: 500 }}>Create Knowledge</span>
+                    <span style={{ fontWeight: 500 }}>Create Field</span>
                   </button>
                 </div>
               )}
@@ -132,26 +137,26 @@ export function StudioSidebar({
 
             <section>
               <button
-                onClick={() => setAgentsExpanded(p => !p)}
+                onClick={() => setAssistantsExpanded(p => !p)}
                 className="sidebar__item"
                 style={{ fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.7 }}
               >
-                {agentsExpanded ? <ChevronDown style={{ width: 12, height: 12 }} /> : <ChevronRightSmall style={{ width: 12, height: 12 }} />}
-                Assistants ({agents.length})
+                {assistantsExpanded ? <ChevronDown style={{ width: 12, height: 12 }} /> : <ChevronRightSmall style={{ width: 12, height: 12 }} />}
+                Assistants ({assistants.length})
               </button>
-              {agentsExpanded && (
+              {assistantsExpanded && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  {agents.map(agent => {
-                    const href = `${studioPath}/assistant/${agent.id}`
-                    const isActive = pathname === href || activeAgentId === agent.id
+                  {assistants.map(assistant => {
+                    const href = `${spacePath}/assistant/${assistant.id}`
+                    const isActive = pathname === href || activeAssistantId === assistant.id
                     return (
-                      <Link key={agent.id} href={href} className={`sidebar__item ${isActive ? 'sidebar__item--active' : ''}`}>
+                      <Link key={assistant.id} href={href} className={`sidebar__item ${isActive ? 'sidebar__item--active' : ''}`}>
                         <Bot style={{ width: 16, height: 16, flexShrink: 0, color: '#8b5cf6' }} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.name}</span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{assistant.name}</span>
                       </Link>
                     )
                   })}
-                  <button onClick={onCreateAgent} className="sidebar__item" style={{ opacity: 0.6 }}>
+                  <button onClick={onCreateAssistant} className="sidebar__item" style={{ opacity: 0.6 }}>
                     <Plus style={{ width: 16, height: 16, flexShrink: 0 }} />
                     <span style={{ fontWeight: 500 }}>Create Assistant</span>
                   </button>
@@ -159,7 +164,7 @@ export function StudioSidebar({
               )}
             </section>
 
-            {activeAgentId && (
+            {activeAssistantId && (
               <section>
                 <button
                   onClick={() => setConversationsExpanded(p => !p)}
@@ -179,10 +184,10 @@ export function StudioSidebar({
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
-            <div className="sidebar__item" style={{ justifyContent: 'center' }} title={`${domains.length} knowledge areas`}>
+            <div className="sidebar__item" style={{ justifyContent: 'center' }} title={`${fields.length} knowledge fields`}>
               <Folder style={{ width: 20, height: 20 }} />
             </div>
-            <div className="sidebar__item" style={{ justifyContent: 'center' }} title={`${agents.length} assistants`}>
+            <div className="sidebar__item" style={{ justifyContent: 'center' }} title={`${assistants.length} assistants`}>
               <Bot style={{ width: 20, height: 20 }} />
             </div>
           </div>

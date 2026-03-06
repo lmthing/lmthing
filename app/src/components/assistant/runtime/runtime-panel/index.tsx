@@ -16,7 +16,7 @@ interface RuntimeField {
   label: string
   type: 'text' | 'textarea' | 'select' | 'multiselect' | 'toggle'
   value: string | string[] | boolean
-  domain?: string
+  field?: string
   placeholder?: string
   options?: string[]
 }

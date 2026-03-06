@@ -100,7 +100,7 @@ export function RuntimePanel({ assistant, runtimeFieldValues = {}, isToolsExpand
                   <div key={field.id} style={{ marginBottom: '1rem' }}>
                     <Stack row style={{ justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                       <Label compact>{field.label}</Label>
-                      {field.domain && <Badge variant="muted" style={{ fontSize: '0.625rem' }}>{field.domain}</Badge>}
+                      {field.field && <Badge variant="muted" style={{ fontSize: '0.625rem' }}>{field.field}</Badge>}
                     </Stack>
                     <RuntimeFieldInput field={field} value={runtimeFieldValues[field.id] ?? field.value} onChange={(v) => onRuntimeFieldChange?.(field.id, v)} />
                   </div>

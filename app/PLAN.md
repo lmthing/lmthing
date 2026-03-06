@@ -53,7 +53,7 @@ All data access in the refactored UI is built on the FS layer described in
 ### Knowledge Hierarchy
 
 Old: flat domain → files
-New: `knowledge → field → subject → topic-detail (md)`
+New: `knowledge(dir) → field(dir) → subject(dir) → topic(dir) → detail(md)`
 
 Component naming follows this hierarchy:
 - `FieldTree` (was `KnowledgeTree` / domain list)

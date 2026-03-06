@@ -12,5 +12,5 @@ export default function TopicDetailPage({
   params: Promise<{ fieldId: string; subjectId: string; topicId: string }>
 }) {
   const { fieldId, topicId } = use(params)
-  return <TopicViewer domainId={fieldId} topicPath={`knowledge/${fieldId}/${topicId}.md`} />
+  return <TopicViewer fieldId={fieldId} topicPath={`knowledge/${fieldId}/${topicId}.md`} />
 }

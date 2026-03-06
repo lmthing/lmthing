@@ -126,6 +126,11 @@ export default function LandingLayout() {
     return availableSpaces.filter(s => s.name.toLowerCase().includes(query))
   }, [availableSpaces, searchQuery])
 
+  const goToStudios = () => {
+    const user = username || 'local'
+    router.push(`/${encodeURIComponent(user)}`)
+  }
+
   const openSpaceModal = () => {
     setIsSpaceModalOpen(true)
   }
@@ -212,7 +217,7 @@ export default function LandingLayout() {
               </div>
 
               <div className="mt-2 flex items-center justify-center">
-                <Button size="lg" className="shadow-lg" onClick={openSpaceModal}>
+                <Button size="lg" className="shadow-lg" onClick={goToStudios}>
                   Get started with <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" />
                   <ArrowRight className="ml-2 size-5" />
                 </Button>
@@ -412,12 +417,12 @@ export default function LandingLayout() {
           <div className="mt-20 rounded-2xl bg-muted/50 px-8 py-12 text-center">
             <h3 className="text-2xl font-semibold">Build Your AI Team</h3>
             <p className="mt-2 text-muted-foreground">
-              Create spaces, add specialists, and let the THING coordinate them all
+              Create studios, add specialists, and let the THING coordinate them all
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
-              <Button size="lg" onClick={openSpaceModal}>
+              <Button size="lg" onClick={goToStudios}>
                 <Settings className="mr-2 size-5" />
-                Open Studio
+                My Studios
               </Button>
             </div>
           </div>

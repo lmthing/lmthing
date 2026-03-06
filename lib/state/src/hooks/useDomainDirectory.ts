@@ -10,7 +10,7 @@ export interface DomainMeta {
 }
 
 export function useDomainDirectory(): DomainMeta[] {
-  const matches = useGlob(P.globs.knowledgeDomains)
+  const matches = useGlob(P.globs.knowledgeFields)
 
   return useMemo(() => {
     return matches.map(path => {

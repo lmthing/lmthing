@@ -18,14 +18,14 @@ import { useFile } from '@/hooks/fs/useFile'
 import { useKnowledgeFields } from '@/hooks/useKnowledgeFields'
 
 export interface TopicViewerProps {
-  domainId?: string
+  fieldId?: string
   topicPath?: string
 }
 
-export function TopicViewer({ domainId, topicPath }: TopicViewerProps) {
+export function TopicViewer({ fieldId, topicPath }: TopicViewerProps) {
   const params = useParams<{ fieldId?: string; topicId?: string }>()
-  const effectiveDomainId = domainId || params.fieldId
-  const effectiveTopicPath = topicPath || (effectiveDomainId && params.topicId ? `knowledge/${effectiveDomainId}/${params.topicId}.md` : undefined)
+  const effectiveFieldId = fieldId || params.fieldId
+  const effectiveTopicPath = topicPath || (effectiveFieldId && params.topicId ? `knowledge/${effectiveFieldId}/${params.topicId}.md` : undefined)
 
   const knowledgeFields = useKnowledgeFields()
   const content = useFile(effectiveTopicPath || '')
@@ -74,7 +74,7 @@ export function TopicViewer({ domainId, topicPath }: TopicViewerProps) {
       <PageHeader style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <Heading level={3}>{effectiveTopicPath.split('/').pop()?.replace('.md', '') || 'Topic'}</Heading>
-          {effectiveDomainId && <Caption muted>Field: {effectiveDomainId}</Caption>}
+          {effectiveFieldId && <Caption muted>Field: {effectiveFieldId}</Caption>}
         </div>
         <Stack row gap="sm" style={{ alignItems: 'center' }}>
           {hasUnsavedChanges && <Badge variant="muted">Unsaved changes</Badge>}

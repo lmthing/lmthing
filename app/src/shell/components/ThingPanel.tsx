@@ -1,7 +1,4 @@
 /**
- * ThingPanel stub - placeholder for the original ThingPanel component
- * which was removed during the Next.js migration.
+ * ThingPanel shell wrapper — re-exports the real ThingPanel component.
  */
-export default function ThingPanel() {
-  return null
-}
+export { ThingPanel as default } from '@/components/thing/thing-panel'

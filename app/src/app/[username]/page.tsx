@@ -1,9 +1,9 @@
 'use client'
 
 import { use } from 'react'
-import { SpacesLayout } from '@/components/shell/spaces-layout'
+import { StudiosLayout } from '@/components/shell/studios-layout'
 
 export default function StudioListPage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = use(params)
-  return <SpacesLayout />
+  return <StudiosLayout />
 }

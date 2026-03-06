@@ -43,6 +43,9 @@ jobs:
       - name: Build
         run: pnpm build:pages
 
+      - name: SPA fallback
+        run: cp app/out/index.html app/out/404.html
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 

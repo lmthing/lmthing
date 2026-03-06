@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, Building2, Settings } from 'lucide-react'
+import { ArrowRight, Building2, Download, Check, Loader2 } from 'lucide-react'
 import { Button } from '@/elements/forms/button'
 import { Card, CardHeader, CardBody } from '@/elements/content/card'
 import { useAuth } from '@/lib/auth/useAuth'
+import { useApp } from '@lmthing/state'
+import { demoToFileTree } from '@/lib/demoToFileTree'
+import type { DemoWorkspaceData } from '@/lib/demoToFileTree'
 
 import '@/css/elements/forms/button/index.css'
 import '@/css/elements/content/card/index.css'
@@ -31,8 +34,15 @@ type DemoSpaceIndexItem = {
 export default function MarketplaceLayout() {
   const router = useRouter()
   const { username } = useAuth()
+  const { studios, appFS, createStudio, importStudio } = useApp()
   const [demoSpaces, setDemoSpaces] = useState<DemoSpace[]>([])
-  const defaultStudioId = 'default'
+  const [installedSpaces, setInstalledSpaces] = useState<Set<string>>(new Set())
+  const [installingSpace, setInstallingSpace] = useState<string | null>(null)
+  const [studioPickerSpace, setStudioPickerSpace] = useState<DemoSpace | null>(null)
+
+  const user = username || 'local'
+
+  const userStudios = studios.filter(s => s.username === user)
 
   useEffect(() => {
     let isMounted = true
@@ -71,9 +81,87 @@ export default function MarketplaceLayout() {
     }
   }, [])
 
-  const handleSpaceSelect = (space: { id: string; name: string }) => {
-    const user = username || 'local'
-    router.push(`/${encodeURIComponent(user)}/${encodeURIComponent(defaultStudioId)}/${encodeURIComponent(space.name)}`)
+  async function installSpaceToStudio(space: DemoSpace, studioId: string) {
+    const studioKey = `${user}/${studioId}`
+    const configContent = appFS.readFile(`${studioKey}/lmthing.json`)
+
+    if (!configContent) return
+
+    try {
+      const config = JSON.parse(configContent)
+      const spaceId = `local/${space.slug}`
+
+      // Check if space already exists
+      if (config.spaces[spaceId]) {
+        router.push(`/${encodeURIComponent(user)}/${encodeURIComponent(studioId)}/${encodeURIComponent(spaceId)}`)
+        return
+      }
+
+      setInstallingSpace(space.id)
+
+      // Fetch the demo JSON for this space
+      const response = await fetch(`/demos/${space.slug}.json`)
+      if (!response.ok) {
+        throw new Error(`Failed to fetch demo: ${response.status}`)
+      }
+      const data = (await response.json()) as DemoWorkspaceData
+
+      // Convert demo JSON to flat file tree
+      const rawFiles = demoToFileTree(data)
+
+      // Re-prefix files from {demoId}/... to local/{demoId}/...
+      const oldPrefix = `${data.id}/`
+      const files: Record<string, string> = {}
+      for (const [path, content] of Object.entries(rawFiles)) {
+        if (path.startsWith(oldPrefix)) {
+          files[`local/${path}`] = content
+        } else {
+          files[path] = content
+        }
+      }
+
+      // Register the space in lmthing.json
+      config.spaces[spaceId] = {
+        name: spaceId,
+        description: space.description || `Marketplace space: ${space.slug}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+
+      // Import files + updated config into the studio
+      importStudio(user, studioId, {
+        'lmthing.json': JSON.stringify(config, null, 2),
+        ...files,
+      })
+
+      setInstalledSpaces(prev => new Set(prev).add(space.id))
+      setInstallingSpace(null)
+
+      router.push(`/${encodeURIComponent(user)}/${encodeURIComponent(studioId)}/${encodeURIComponent(spaceId)}`)
+    } catch (e) {
+      console.error('Failed to install space:', e)
+      setInstallingSpace(null)
+    }
+  }
+
+  function handleInstall(space: DemoSpace) {
+    if (installingSpace) return
+    if (userStudios.length === 0) {
+      // No studios — create a default one and install there
+      createStudio(user, 'default', 'Default Studio')
+      void installSpaceToStudio(space, 'default')
+    } else if (userStudios.length === 1) {
+      void installSpaceToStudio(space, userStudios[0].studioId)
+    } else {
+      setStudioPickerSpace(space)
+    }
+  }
+
+  function handleStudioSelect(studioId: string) {
+    if (!studioPickerSpace) return
+    const space = studioPickerSpace
+    setStudioPickerSpace(null)
+    void installSpaceToStudio(space, studioId)
   }
 
   return (
@@ -93,58 +181,128 @@ export default function MarketplaceLayout() {
         <div>
           <h2 className="text-center text-3xl font-bold tracking-tight">Marketplace</h2>
           <p className="mx-auto mt-2 max-w-2xl text-center text-muted-foreground">
-            Explore pre-configured spaces and open them directly in Studio.
+            Explore pre-configured spaces and install them into your studio.
           </p>
 
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {demoSpaces.map((space, idx) => (
-              <Card
-                key={space.id}
-                interactive
-                className="cursor-pointer"
-                onClick={() => handleSpaceSelect(space)}
-                style={{ padding: 0 }}
-              >
-                <CardHeader style={{ padding: '1.25rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                    <div
-                      style={{
-                        width: '3rem',
-                        height: '3rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        borderRadius: '0.75rem',
-                        color: 'white',
-                        backgroundColor: SPACE_COLORS[idx % SPACE_COLORS.length],
+            {demoSpaces.map((space, idx) => {
+              const isInstalled = installedSpaces.has(space.id)
+              const isInstalling = installingSpace === space.id
+              return (
+                <Card
+                  key={space.id}
+                  interactive
+                  className="cursor-pointer"
+                  onClick={() => handleInstall(space)}
+                  style={{ padding: 0 }}
+                >
+                  <CardHeader style={{ padding: '1.25rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                      <div
+                        style={{
+                          width: '3rem',
+                          height: '3rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderRadius: '0.75rem',
+                          color: 'white',
+                          backgroundColor: SPACE_COLORS[idx % SPACE_COLORS.length],
+                        }}
+                      >
+                        <Building2 style={{ width: 24, height: 24 }} />
+                      </div>
+                      <ArrowRight style={{ width: 20, height: 20, opacity: 0.4, transition: 'transform 0.2s' }} />
+                    </div>
+                    <h3 style={{ marginTop: '1rem', fontSize: '1.25rem', fontWeight: 600 }}>{space.name}</h3>
+                    <p style={{ fontSize: '0.875rem', opacity: 0.6, marginTop: '0.25rem' }}>{space.description}</p>
+                  </CardHeader>
+                  <CardBody style={{ padding: '0 1.25rem 1.25rem' }}>
+                    <Button
+                      size="sm"
+                      variant={isInstalled ? 'outline' : 'primary'}
+                      style={{ width: '100%' }}
+                      disabled={isInstalling}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleInstall(space)
                       }}
                     >
-                      <Building2 style={{ width: 24, height: 24 }} />
-                    </div>
-                    <ArrowRight style={{ width: 20, height: 20, opacity: 0.4, transition: 'transform 0.2s' }} />
-                  </div>
-                  <h3 style={{ marginTop: '1rem', fontSize: '1.25rem', fontWeight: 600 }}>{space.name}</h3>
-                  <p style={{ fontSize: '0.875rem', opacity: 0.6, marginTop: '0.25rem' }}>{space.description}</p>
-                </CardHeader>
-                <CardBody style={{ padding: '0 1.25rem 1.25rem' }}>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    style={{ width: '100%' }}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleSpaceSelect(space)
-                    }}
-                  >
-                    <Settings style={{ width: 16, height: 16, marginRight: '0.5rem' }} />
-                    Open
-                  </Button>
-                </CardBody>
-              </Card>
-            ))}
+                      {isInstalling ? (
+                        <>
+                          <Loader2 style={{ width: 16, height: 16, marginRight: '0.5rem', animation: 'spin 1s linear infinite' }} />
+                          Installing...
+                        </>
+                      ) : isInstalled ? (
+                        <>
+                          <Check style={{ width: 16, height: 16, marginRight: '0.5rem' }} />
+                          Installed
+                        </>
+                      ) : (
+                        <>
+                          <Download style={{ width: 16, height: 16, marginRight: '0.5rem' }} />
+                          Install
+                        </>
+                      )}
+                    </Button>
+                  </CardBody>
+                </Card>
+              )
+            })}
           </div>
         </div>
       </main>
+
+      {/* Studio picker modal */}
+      {studioPickerSpace && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 50,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(0,0,0,0.5)',
+        }}>
+          <div style={{
+            background: 'var(--color-bg)',
+            borderRadius: '0.75rem',
+            padding: '1.5rem',
+            maxWidth: '28rem',
+            width: '100%',
+            border: '1px solid var(--color-border)',
+          }}>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+              Select Studio
+            </h3>
+            <p style={{ fontSize: '0.875rem', opacity: 0.7, marginBottom: '1rem' }}>
+              Choose which studio to install <strong>{studioPickerSpace.name}</strong> into.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {userStudios.map((studio) => (
+                <button
+                  key={studio.studioId}
+                  className="btn btn--ghost"
+                  style={{
+                    width: '100%',
+                    justifyContent: 'flex-start',
+                    textAlign: 'left',
+                    padding: '0.75rem 1rem',
+                  }}
+                  onClick={() => handleStudioSelect(studio.studioId)}
+                >
+                  {studio.name}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+              <button className="btn btn--ghost" onClick={() => setStudioPickerSpace(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

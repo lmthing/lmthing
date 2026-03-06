@@ -12,6 +12,7 @@ import {
   ArrowRight,
   Layers,
   MessageSquare,
+  Store,
 } from 'lucide-react'
 import '@/css/elements/layouts/page/index.css'
 import '@/css/elements/forms/button/index.css'
@@ -99,6 +100,10 @@ export function StudiosLayout() {
           <button className="btn btn--ghost btn--sm" onClick={handleOpenThing}>
             <MessageSquare style={{ width: 16, height: 16 }} />
             ThingPanel
+          </button>
+          <button className="btn btn--ghost btn--sm" onClick={() => router.push('/marketplace')}>
+            <Store style={{ width: 16, height: 16 }} />
+            Marketplace
           </button>
           <button className="btn btn--primary btn--sm" onClick={() => setIsCreateOpen(true)}>
             <Plus style={{ width: 16, height: 16 }} />

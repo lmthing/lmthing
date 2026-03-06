@@ -4,7 +4,7 @@
  * and element components instead of raw Tailwind.
  */
 import { useState, useCallback, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams } from '@tanstack/react-router'
 import '@/css/elements/layouts/page/index.css'
 import '@/css/elements/content/panel/index.css'
 import '@/css/elements/forms/button/index.css'
@@ -23,7 +23,7 @@ export interface TopicViewerProps {
 }
 
 export function TopicViewer({ fieldId, topicPath }: TopicViewerProps) {
-  const params = useParams<{ fieldId?: string; topicId?: string }>()
+  const params = useParams({ strict: false }) as { fieldId?: string; topicId?: string }
   const effectiveFieldId = fieldId || params.fieldId
   const effectiveTopicPath = topicPath || (effectiveFieldId && params.topicId ? `knowledge/${effectiveFieldId}/${params.topicId}.md` : undefined)
 

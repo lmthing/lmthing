@@ -4,7 +4,7 @@
  * Orchestrates the sidebar, content area, and settings/knowledge views.
  */
 import { useState, useCallback, useMemo } from 'react'
-import { useParams, usePathname, useRouter } from 'next/navigation'
+import { useParams, useLocation, useNavigate } from '@tanstack/react-router'
 import { buildSpacePathFromParams } from '@/lib/space-url'
 import '@/css/elements/layouts/split-pane/index.css'
 import '@/css/elements/layouts/page/index.css'
@@ -41,7 +41,7 @@ export interface StudioShellProps {
 }
 
 function useSpacePath(): string {
-  const { username, studioId, storageId, spaceId } = useParams<{ username: string; studioId: string; storageId: string; spaceId: string }>()
+  const { username, studioId, storageId, spaceId } = useParams({ strict: false }) as { username?: string; studioId?: string; storageId?: string; spaceId?: string }
   if (username && studioId && storageId && spaceId) {
     return buildSpacePathFromParams(username, studioId, storageId, spaceId)
   }
@@ -56,9 +56,9 @@ export function StudioShell({
   onCreateAssistant,
   children,
 }: StudioShellProps) {
-  const { assistantId } = useParams<{ assistantId: string }>()
-  const router = useRouter()
-  const pathname = usePathname()
+  const { assistantId } = useParams({ strict: false }) as { assistantId?: string }
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
   const spacePath = useSpacePath()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(defaultSidebarCollapsed)
 
@@ -86,7 +86,7 @@ export function StudioShell({
         onToggleCollapse={handleToggleSidebar}
         activeFieldId={activeFieldId}
         activeAssistantId={assistantId as string}
-        onOpenSettings={onOpenSettings || (() => router.push(`${spacePath}/settings/env`))}
+        onOpenSettings={onOpenSettings || (() => navigate({ to: `${spacePath}/settings/env` }))}
         onCreateField={onCreateField}
         onCreateAssistant={onCreateAssistant}
       />

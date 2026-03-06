@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowRight, Building2, Download, Check, Loader2 } from 'lucide-react'
 import { Button } from '@/elements/forms/button'
 import { Card, CardHeader, CardBody } from '@/elements/content/card'
@@ -33,7 +32,7 @@ type DemoSpaceIndexItem = {
 }
 
 export default function MarketplaceLayout() {
-  const router = useRouter()
+  const navigate = useNavigate()
   const { username } = useAuth()
   const { studios, appFS, createStudio, importStudio } = useApp()
   const [demoSpaces, setDemoSpaces] = useState<DemoSpace[]>([])
@@ -94,7 +93,7 @@ export default function MarketplaceLayout() {
 
       // Check if space already exists
       if (config.spaces[spaceId]) {
-        router.push(buildSpacePath(user, studioId, spaceId))
+        navigate({ to: buildSpacePath(user, studioId, spaceId) })
         return
       }
 
@@ -138,7 +137,7 @@ export default function MarketplaceLayout() {
       setInstalledSpaces(prev => new Set(prev).add(space.id))
       setInstallingSpace(null)
 
-      router.push(buildSpacePath(user, studioId, spaceId))
+      navigate({ to: buildSpacePath(user, studioId, spaceId) })
     } catch (e) {
       console.error('Failed to install space:', e)
       setInstallingSpace(null)
@@ -169,11 +168,11 @@ export default function MarketplaceLayout() {
     <div className="min-h-screen bg-gradient-to-b from-muted to-background">
       <header className="border-b bg-background/50 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <Link href="/" className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2">
             <h1 className="text-xl font-semibold"><CozyThingText text="lmthing" /></h1>
           </Link>
           <Button variant="outline" asChild>
-            <Link href="/">Back to Home</Link>
+            <Link to="/">Back to Home</Link>
           </Button>
         </div>
       </header>

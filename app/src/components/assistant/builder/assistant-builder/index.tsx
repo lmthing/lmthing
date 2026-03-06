@@ -3,7 +3,7 @@
  * Uses new composite hooks from Phase 3 and element components.
  */
 import { useState, useMemo } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams } from '@tanstack/react-router'
 import '@/css/elements/layouts/page/index.css'
 import '@/css/elements/forms/button/index.css'
 import '@/css/elements/forms/input/index.css'
@@ -20,7 +20,7 @@ import { useKnowledgeFields } from '@/hooks/useKnowledgeFields'
 import { useWorkflowList } from '@/hooks/useWorkflowList'
 
 export function AssistantBuilder() {
-  const { agentId } = useParams<{ agentId: string }>()
+  const { agentId } = useParams({ strict: false }) as { agentId?: string }
   const [view, setView] = useState<'builder' | 'agents'>('builder')
 
   const assistant = useAssistant(agentId || '')

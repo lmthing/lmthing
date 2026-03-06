@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { Link, useNavigate } from '@tanstack/react-router'
 import {
   ArrowRight,
   Bot,
@@ -56,7 +55,7 @@ type Space = {
 
 
 export default function LandingLayout() {
-  const router = useRouter()
+  const navigate = useNavigate()
   const { username } = useAuth()
   const [isSpaceModalOpen, setIsSpaceModalOpen] = useState(false)
 
@@ -126,7 +125,7 @@ export default function LandingLayout() {
 
   const goToStudios = () => {
     const user = username || 'local'
-    router.push(`/${encodeURIComponent(user)}`)
+    navigate({ to: `/${encodeURIComponent(user)}` })
   }
 
   const openSpaceModal = () => {
@@ -136,7 +135,7 @@ export default function LandingLayout() {
   const handleSpaceSelect = (space: Space) => {
     setIsSpaceModalOpen(false)
     const user = username || 'local'
-    router.push(buildSpacePath(user, defaultStudioId, space.name))
+    navigate({ to: buildSpacePath(user, defaultStudioId, space.name) })
   }
 
   return (
@@ -151,7 +150,7 @@ export default function LandingLayout() {
 
             <div className="flex items-center gap-2 shrink-0">
               <Button variant="outline" size="sm" asChild>
-                <Link href="/marketplace">Marketplace</Link>
+                <Link to="/marketplace">Marketplace</Link>
               </Button>
               <Button size="sm" onClick={openSpaceModal}>
                 Open Studio
@@ -326,7 +325,7 @@ export default function LandingLayout() {
                         Discover the full catalog in Marketplace.
                       </p>
                       <Button size="sm" className="mt-4" asChild>
-                        <Link href="/marketplace">
+                        <Link to="/marketplace">
                           Show more
                           <ArrowRight className="ml-2 size-4" />
                         </Link>

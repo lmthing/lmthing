@@ -3,7 +3,7 @@
  * Uses new composite hooks from Phase 3 and element components.
  */
 import { useState, useMemo } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { useNavigate, useParams } from '@tanstack/react-router'
 import {
   Building2,
   Plus,
@@ -37,8 +37,8 @@ function toLocalSpaceId(value: string): string {
 }
 
 export function SpacesLayout() {
-  const router = useRouter()
-  const { username, studioId } = useParams<{ username: string; studioId: string }>()
+  const navigate = useNavigate()
+  const { username, studioId } = useParams({ strict: false }) as { username: string; studioId: string }
   const { spaces, createSpace } = useStudio()
   const { login, logout, isAuthenticated, isLoadingAuth } = useGithub()
 
@@ -75,7 +75,7 @@ export function SpacesLayout() {
     createSpace(localId, { name: localId })
     setIsCreateLocalOpen(false)
     setNewLocalSpaceName('')
-    router.push(buildSpacePath(username, studioId, localId))
+    navigate({ to: buildSpacePath(username, studioId, localId) })
   }
 
   return (
@@ -83,7 +83,7 @@ export function SpacesLayout() {
       <aside className={`sidebar ${isSidebarCollapsed ? 'sidebar--collapsed' : ''}`} style={{ width: isSidebarCollapsed ? '4rem' : '17.5rem' }}>
         <div style={{ padding: 0, borderBottom: '1px solid var(--color-border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <button onClick={() => router.push('/')} style={{ display: 'flex', width: '3rem', height: '3rem', flexShrink: 0, alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer' }} title="lmthing home" />
+            <button onClick={() => navigate({ to: '/' })} style={{ display: 'flex', width: '3rem', height: '3rem', flexShrink: 0, alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer' }} title="lmthing home" />
             {!isSidebarCollapsed && <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>Spaces</span>}
           </div>
         </div>
@@ -142,7 +142,7 @@ export function SpacesLayout() {
                   <Heading level={2}>{selectedSpace.name}</Heading>
                   <Caption muted>{selectedSpace.name.startsWith('local/') ? 'Local space' : 'GitHub space'}</Caption>
                 </div>
-                <button className="btn btn--primary" onClick={() => router.push(buildSpacePath(username, studioId, selectedSpace.id))}>Open Space</button>
+                <button className="btn btn--primary" onClick={() => navigate({ to: buildSpacePath(username, studioId, selectedSpace.id) })}>Open Space</button>
               </div>
             </div>
           ) : (

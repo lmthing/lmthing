@@ -3,7 +3,7 @@
  * Uses new hooks from Phase 3 and element components.
  */
 import { useEffect, useMemo, useState } from 'react'
-import { usePathname, useRouter, useParams } from 'next/navigation'
+import { useLocation, useNavigate, useParams } from '@tanstack/react-router'
 import { Shield, FileCode2 } from 'lucide-react'
 import { buildSpacePathFromParams } from '@/lib/space-url'
 import '@/css/elements/forms/button/index.css'
@@ -21,7 +21,7 @@ interface SettingsViewProps {
 }
 
 function useSpacePath(): string {
-  const { username, studioId, storageId, spaceId } = useParams<{ username: string; studioId: string; storageId: string; spaceId: string }>()
+  const { username, studioId, storageId, spaceId } = useParams({ strict: false }) as { username?: string; studioId?: string; storageId?: string; spaceId?: string }
   if (username && studioId && storageId && spaceId) {
     return buildSpacePathFromParams(username, studioId, storageId, spaceId)
   }
@@ -29,9 +29,9 @@ function useSpacePath(): string {
 }
 
 export function SettingsView({ isOpen }: SettingsViewProps) {
-  const pathname = usePathname()
-  const router = useRouter()
-  const { spaceId } = useParams<{ spaceId: string }>()
+  const { pathname } = useLocation()
+  const navigate = useNavigate()
+  const { spaceId } = useParams({ strict: false }) as { spaceId?: string }
   const spacePath = useSpacePath()
 
   const packageJsonContent = useFile('package.json')
@@ -47,7 +47,7 @@ export function SettingsView({ isOpen }: SettingsViewProps) {
   }, [pathname])
 
   const handleTabChange = (tab: 'env' | 'packages') => {
-    router.push(`${spacePath}/settings/${tab}`)
+    navigate({ to: `${spacePath}/settings/${tab}` })
   }
 
   const packageJsonSerialized = useMemo(

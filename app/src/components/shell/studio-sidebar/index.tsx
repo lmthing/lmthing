@@ -4,8 +4,7 @@
  * and CSS element classes instead of raw Tailwind.
  */
 import { useState, useMemo } from 'react'
-import Link from 'next/link'
-import { usePathname, useParams } from 'next/navigation'
+import { Link, useLocation, useParams } from '@tanstack/react-router'
 import {
   Plus,
   Settings,
@@ -43,7 +42,7 @@ export interface StudioSidebarProps {
 }
 
 function useSpacePath(): string {
-  const { username, studioId, storageId, spaceId } = useParams<{ username: string; studioId: string; storageId: string; spaceId: string }>()
+  const { username, studioId, storageId, spaceId } = useParams({ strict: false }) as { username?: string; studioId?: string; storageId?: string; spaceId?: string }
   if (username && studioId && storageId && spaceId) {
     return buildSpacePathFromParams(username, studioId, storageId, spaceId)
   }
@@ -59,8 +58,8 @@ export function StudioSidebar({
   onCreateField,
   onCreateAssistant,
 }: StudioSidebarProps) {
-  const pathname = usePathname()
-  const { spaceId } = useParams<{ spaceId: string }>()
+  const { pathname } = useLocation()
+  const { spaceId } = useParams({ strict: false }) as { spaceId?: string }
   const spacePath = useSpacePath()
   const [fieldsExpanded, setFieldsExpanded] = useState(true)
   const [assistantsExpanded, setAssistantsExpanded] = useState(true)
@@ -93,7 +92,7 @@ export function StudioSidebar({
       <div style={{ padding: 0, borderBottom: '1px solid var(--color-border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Link
-            href="/"
+            to="/"
             style={{ display: 'flex', width: '3rem', height: '3rem', flexShrink: 0, alignItems: 'center', justifyContent: 'center' }}
             title="lmthing"
           >
@@ -125,7 +124,7 @@ export function StudioSidebar({
                     const href = `${spacePath}/knowledge/${field.id}`
                     const isActive = pathname === href || activeFieldId === field.id
                     return (
-                      <Link key={field.id} href={href} className={`sidebar__item ${isActive ? 'sidebar__item--active' : ''}`}>
+                      <Link key={field.id} to={href} className={`sidebar__item ${isActive ? 'sidebar__item--active' : ''}`}>
                         <Folder style={{ width: 16, height: 16, flexShrink: 0, color: '#10b981' }} />
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{field.label}</span>
                       </Link>
@@ -154,7 +153,7 @@ export function StudioSidebar({
                     const href = `${spacePath}/assistant/${assistant.id}`
                     const isActive = pathname === href || activeAssistantId === assistant.id
                     return (
-                      <Link key={assistant.id} href={href} className={`sidebar__item ${isActive ? 'sidebar__item--active' : ''}`}>
+                      <Link key={assistant.id} to={href} className={`sidebar__item ${isActive ? 'sidebar__item--active' : ''}`}>
                         <Bot style={{ width: 16, height: 16, flexShrink: 0, color: '#8b5cf6' }} />
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{assistant.name}</span>
                       </Link>
@@ -222,7 +221,7 @@ export function StudioSidebar({
           </button>
           {!isCollapsed && deviceCodePrompt && (
             <div style={{ margin: '0.25rem 0.75rem', padding: '0.625rem', borderRadius: '0.375rem', border: '1px solid var(--color-border)', fontSize: '0.75rem' }}>
-              <p>Authorize GitHub: <a href={deviceCodePrompt.verificationUri} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 600, textDecoration: 'underline' }}>{deviceCodePrompt.verificationUri}</a></p>
+              <p>Authorize GitHub: <a to={deviceCodePrompt.verificationUri} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 600, textDecoration: 'underline' }}>{deviceCodePrompt.verificationUri}</a></p>
               <p style={{ marginTop: '0.25rem' }}>Code: <code style={{ letterSpacing: '0.1em' }}>{deviceCodePrompt.userCode}</code></p>
             </div>
           )}

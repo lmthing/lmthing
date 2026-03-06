@@ -3,7 +3,7 @@
  * Uses new composite hooks from Phase 3 and element components.
  */
 import { useEffect, useState } from 'react'
-import { useParams, usePathname, useRouter } from 'next/navigation'
+import { useParams, useLocation, useNavigate } from '@tanstack/react-router'
 import { StudioShell } from '@/components/shell/studio-shell'
 import { useAssistantList } from '@/hooks/useAssistantList'
 import { useWorkflowList } from '@/hooks/useWorkflowList'
@@ -40,7 +40,7 @@ function saveState(state: StudioState) {
 }
 
 function useSpacePath(): string {
-  const { username, studioId, storageId, spaceId } = useParams<{ username: string; studioId: string; storageId: string; spaceId: string }>()
+  const { username, studioId, storageId, spaceId } = useParams({ strict: false }) as { username?: string; studioId?: string; storageId?: string; spaceId?: string }
   if (username && studioId && storageId && spaceId) {
     return buildSpacePathFromParams(username, studioId, storageId, spaceId)
   }
@@ -48,8 +48,8 @@ function useSpacePath(): string {
 }
 
 export function StudioLayout({ children }: { children?: React.ReactNode }) {
-  const router = useRouter()
-  const pathname = usePathname()
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
   const spacePath = useSpacePath()
   const [state, setState] = useState<StudioState>(loadState)
   const [showCreateFieldForm, setShowCreateFieldForm] = useState(false)
@@ -60,9 +60,9 @@ export function StudioLayout({ children }: { children?: React.ReactNode }) {
 
   useEffect(() => {
     if (pathname.endsWith('/settings')) {
-      router.replace(`${spacePath}/settings/env`)
+      navigate({ to: `${spacePath}/settings/env`, replace: true })
     }
-  }, [pathname, router, spacePath])
+  }, [pathname, navigate, spacePath])
 
   useEffect(() => {
     saveState(state)
@@ -76,7 +76,7 @@ export function StudioLayout({ children }: { children?: React.ReactNode }) {
           prev.sidebarCollapsed === collapsed ? prev : { ...prev, sidebarCollapsed: collapsed }
         )
       }
-      onOpenSettings={() => router.push(`${spacePath}/settings/env`)}
+      onOpenSettings={() => navigate({ to: `${spacePath}/settings/env` })}
       onCreateField={() => setShowCreateFieldForm(true)}
       onCreateAssistant={() => setShowCreateAssistantForm(true)}
     >

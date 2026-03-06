@@ -4,7 +4,7 @@
  * with ability to create new studios and access ThingPanel.
  */
 import { useState, useMemo } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { useNavigate, useParams } from '@tanstack/react-router'
 import {
   Building2,
   Plus,
@@ -38,8 +38,8 @@ function toStudioId(value: string): string {
 }
 
 export function StudiosLayout() {
-  const router = useRouter()
-  const { username } = useParams<{ username: string }>()
+  const navigate = useNavigate()
+  const { username } = useParams({ strict: false }) as { username: string }
   const { studios, createStudio, deleteStudio } = useApp()
 
   const [isCreateOpen, setIsCreateOpen] = useState(false)
@@ -57,7 +57,7 @@ export function StudiosLayout() {
     createStudio(username, id, newStudioName.trim())
     setIsCreateOpen(false)
     setNewStudioName('')
-    router.push(`/${encodeURIComponent(username)}/${encodeURIComponent(id)}`)
+    navigate({ to: `/${encodeURIComponent(username)}/${encodeURIComponent(id)}` })
   }
 
   const handleDelete = (studioId: string) => {
@@ -68,12 +68,12 @@ export function StudiosLayout() {
 
   const handleOpenStudio = (studioId: string) => {
     if (!username) return
-    router.push(`/${encodeURIComponent(username)}/${encodeURIComponent(studioId)}`)
+    navigate({ to: `/${encodeURIComponent(username)}/${encodeURIComponent(studioId)}` })
   }
 
   const handleOpenThing = () => {
     if (!username) return
-    router.push(`/${encodeURIComponent(username)}/thing`)
+    navigate({ to: `/${encodeURIComponent(username)}/thing` })
   }
 
   return (
@@ -88,7 +88,7 @@ export function StudiosLayout() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <button
-            onClick={() => router.push('/')}
+            onClick={() => navigate({ to: '/' })}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.125rem', fontWeight: 600 }}
           >
             <CozyThingText text="lmthing" />
@@ -101,7 +101,7 @@ export function StudiosLayout() {
             <MessageSquare style={{ width: 16, height: 16 }} />
             ThingPanel
           </button>
-          <button className="btn btn--ghost btn--sm" onClick={() => router.push('/marketplace')}>
+          <button className="btn btn--ghost btn--sm" onClick={() => navigate({ to: '/marketplace' })}>
             <Store style={{ width: 16, height: 16 }} />
             Marketplace
           </button>

@@ -44,7 +44,7 @@ jobs:
         run: pnpm build:pages
 
       - name: SPA fallback
-        run: cp app/out/index.html app/out/404.html
+        run: cp app/dist/index.html app/dist/404.html
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -52,7 +52,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: app/out
+          path: app/dist
 
       - name: Bump version
         run: |

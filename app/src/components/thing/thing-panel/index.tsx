@@ -4,7 +4,7 @@
  * Provides a conversational interface with tool-calling for workspace operations.
  */
 import { useState, useCallback, useEffect, useMemo, useRef, type FormEvent } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { useNavigate, useParams } from '@tanstack/react-router'
 import { Bot, Plus, ArrowLeft } from 'lucide-react'
 import { runPrompt, type PromptConfig } from 'lmthing'
 import { z } from 'zod'
@@ -187,8 +187,8 @@ export interface ThingPanelProps {
 }
 
 export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
-  const router = useRouter()
-  const { username } = useParams<{ username: string }>()
+  const navigate = useNavigate()
+  const { username } = useParams({ strict: false }) as { username?: string }
   const { studios, appFS, createStudio, deleteStudio } = useApp()
 
   const [input, setInput] = useState('')
@@ -541,7 +541,7 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
             {fullPage && (
               <button
                 className="btn btn--ghost btn--sm"
-                onClick={() => router.push(username ? `/${encodeURIComponent(username)}` : '/')}
+                onClick={() => navigate({ to: username ? `/${encodeURIComponent(username)}` : '/' })}
                 style={{ padding: '0.25rem' }}
               >
                 <ArrowLeft style={{ width: 16, height: 16 }} />

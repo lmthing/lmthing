@@ -4,10 +4,13 @@ import { useSyncExternalStore } from 'react'
 import { useSpaceFS } from './useSpaceFS'
 import type { FileTree } from '../../types/studio'
 
+const EMPTY: FileTree = {}
+const NOOP = () => () => {}
+
 export function useGlobRead(pattern: string): FileTree {
   const fs = useSpaceFS()
   return useSyncExternalStore(
-    cb => fs.onGlob(pattern, cb),
-    () => fs.globRead(pattern),
+    fs ? cb => fs.onGlob(pattern, cb) : NOOP,
+    () => fs ? fs.globRead(pattern) : EMPTY,
   )
 }

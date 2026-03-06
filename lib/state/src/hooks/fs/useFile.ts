@@ -3,18 +3,20 @@
 import { useSyncExternalStore } from 'react'
 import { useSpaceFS } from './useSpaceFS'
 
+const NOOP = () => () => {}
+
 export function useFile(path: string): string | null {
   const fs = useSpaceFS()
   return useSyncExternalStore(
-    cb => fs.onFile(path, cb),
-    () => fs.readFile(path),
+    fs ? cb => fs.onFile(path, cb) : NOOP,
+    () => fs ? fs.readFile(path) : null,
   )
 }
 
 export function useFileWatch(path: string, cb: (content: string | null) => void): void {
   const fs = useSpaceFS()
   useSyncExternalStore(
-    () => fs.onFile(path, () => cb(fs.readFile(path))),
-    () => fs.readFile(path),
+    fs ? () => fs.onFile(path, () => cb(fs.readFile(path))) : NOOP,
+    () => fs ? fs.readFile(path) : null,
   )
 }

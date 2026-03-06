@@ -4,12 +4,14 @@ import { useMemo } from 'react'
 import { useSyncExternalStore } from 'react'
 import { useSpaceFS } from './useSpaceFS'
 
+const NOOP = () => () => {}
+
 export function useFileConfig<T = Record<string, unknown>>(path: string): T | null {
   const fs = useSpaceFS()
 
   const content = useSyncExternalStore(
-    cb => fs.onFileUpdate(path, cb),
-    () => fs.readFile(path),
+    fs ? cb => fs.onFileUpdate(path, cb) : NOOP,
+    () => fs ? fs.readFile(path) : null,
   )
 
   return useMemo(() => {

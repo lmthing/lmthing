@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth/useAuth'
 import { useApp } from '@lmthing/state'
 import { demoToFileTree } from '@/lib/demoToFileTree'
 import type { DemoWorkspaceData } from '@/lib/demoToFileTree'
+import { buildSpacePath } from '@/lib/space-url'
 
 import '@/css/elements/forms/button/index.css'
 import '@/css/elements/content/card/index.css'
@@ -93,7 +94,7 @@ export default function MarketplaceLayout() {
 
       // Check if space already exists
       if (config.spaces[spaceId]) {
-        router.push(`/${encodeURIComponent(user)}/${encodeURIComponent(studioId)}/${encodeURIComponent(spaceId)}`)
+        router.push(buildSpacePath(user, studioId, spaceId))
         return
       }
 
@@ -137,7 +138,7 @@ export default function MarketplaceLayout() {
       setInstalledSpaces(prev => new Set(prev).add(space.id))
       setInstallingSpace(null)
 
-      router.push(`/${encodeURIComponent(user)}/${encodeURIComponent(studioId)}/${encodeURIComponent(spaceId)}`)
+      router.push(buildSpacePath(user, studioId, spaceId))
     } catch (e) {
       console.error('Failed to install space:', e)
       setInstallingSpace(null)

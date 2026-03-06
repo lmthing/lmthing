@@ -7,6 +7,7 @@ import { useParams, usePathname, useRouter } from 'next/navigation'
 import { StudioShell } from '@/components/shell/studio-shell'
 import { useAssistantList } from '@/hooks/useAssistantList'
 import { useWorkflowList } from '@/hooks/useWorkflowList'
+import { buildSpacePathFromParams } from '@/lib/space-url'
 
 type StudioState = {
   sidebarCollapsed: boolean
@@ -39,9 +40,9 @@ function saveState(state: StudioState) {
 }
 
 function useSpacePath(): string {
-  const { username, studioId, spaceId } = useParams<{ username: string; studioId: string; spaceId: string }>()
-  if (username && studioId && spaceId) {
-    return `/${encodeURIComponent(username)}/${encodeURIComponent(studioId)}/${encodeURIComponent(spaceId)}`
+  const { username, studioId, storageId, spaceId } = useParams<{ username: string; studioId: string; storageId: string; spaceId: string }>()
+  if (username && studioId && storageId && spaceId) {
+    return buildSpacePathFromParams(username, studioId, storageId, spaceId)
   }
   return '/'
 }

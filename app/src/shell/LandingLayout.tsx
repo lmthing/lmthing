@@ -22,6 +22,7 @@ import {
 } from '@/elements/overlays/dialog'
 import { useGithub } from '@/lib/github/GithubContext'
 import { useAuth } from '@/lib/auth/useAuth'
+import { buildSpacePath } from '@/lib/space-url'
 import { CozyThingText } from '../CozyText'
 
 import '@/css/elements/forms/button/index.css'
@@ -53,9 +54,6 @@ type Space = {
   color: string
 }
 
-function spaceToSlug(name: string): string {
-  return encodeURIComponent(name)
-}
 
 export default function LandingLayout() {
   const router = useRouter()
@@ -138,7 +136,7 @@ export default function LandingLayout() {
   const handleSpaceSelect = (space: Space) => {
     setIsSpaceModalOpen(false)
     const user = username || 'local'
-    router.push(`/${encodeURIComponent(user)}/${encodeURIComponent(defaultStudioId)}/${spaceToSlug(space.name)}`)
+    router.push(buildSpacePath(user, defaultStudioId, space.name))
   }
 
   return (

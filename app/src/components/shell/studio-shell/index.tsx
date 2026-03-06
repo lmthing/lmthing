@@ -5,6 +5,7 @@
  */
 import { useState, useCallback, useMemo } from 'react'
 import { useParams, usePathname, useRouter } from 'next/navigation'
+import { buildSpacePathFromParams } from '@/lib/space-url'
 import '@/css/elements/layouts/split-pane/index.css'
 import '@/css/elements/layouts/page/index.css'
 import { StudioSidebar } from '@/components/shell/studio-sidebar'
@@ -40,9 +41,9 @@ export interface StudioShellProps {
 }
 
 function useSpacePath(): string {
-  const { username, studioId, spaceId } = useParams<{ username: string; studioId: string; spaceId: string }>()
-  if (username && studioId && spaceId) {
-    return `/${encodeURIComponent(username)}/${encodeURIComponent(studioId)}/${encodeURIComponent(spaceId)}`
+  const { username, studioId, storageId, spaceId } = useParams<{ username: string; studioId: string; storageId: string; spaceId: string }>()
+  if (username && studioId && storageId && spaceId) {
+    return buildSpacePathFromParams(username, studioId, storageId, spaceId)
   }
   return '/'
 }

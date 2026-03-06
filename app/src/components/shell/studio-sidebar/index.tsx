@@ -18,6 +18,7 @@ import {
   ChevronRight as ChevronRightSmall,
 } from 'lucide-react'
 import '@/css/elements/nav/sidebar/index.css'
+import { buildSpacePathFromParams } from '@/lib/space-url'
 import { useAssistantList } from '@/hooks/useAssistantList'
 import type { AssistantListItem } from '@/hooks/useAssistantList'
 import { useKnowledgeFields } from '@/hooks/useKnowledgeFields'
@@ -42,9 +43,9 @@ export interface StudioSidebarProps {
 }
 
 function useSpacePath(): string {
-  const { username, studioId, spaceId } = useParams<{ username: string; studioId: string; spaceId: string }>()
-  if (username && studioId && spaceId) {
-    return `/${encodeURIComponent(username)}/${encodeURIComponent(studioId)}/${encodeURIComponent(spaceId)}`
+  const { username, studioId, storageId, spaceId } = useParams<{ username: string; studioId: string; storageId: string; spaceId: string }>()
+  if (username && studioId && storageId && spaceId) {
+    return buildSpacePathFromParams(username, studioId, storageId, spaceId)
   }
   return '/'
 }

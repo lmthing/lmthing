@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useParams } from 'next/navigation'
 import { Shield, FileCode2 } from 'lucide-react'
+import { buildSpacePathFromParams } from '@/lib/space-url'
 import '@/css/elements/forms/button/index.css'
 import '@/css/elements/forms/input/index.css'
 import '@/css/elements/content/panel/index.css'
@@ -20,9 +21,9 @@ interface SettingsViewProps {
 }
 
 function useSpacePath(): string {
-  const { username, studioId, spaceId } = useParams<{ username: string; studioId: string; spaceId: string }>()
-  if (username && studioId && spaceId) {
-    return `/${encodeURIComponent(username)}/${encodeURIComponent(studioId)}/${encodeURIComponent(spaceId)}`
+  const { username, studioId, storageId, spaceId } = useParams<{ username: string; studioId: string; storageId: string; spaceId: string }>()
+  if (username && studioId && storageId && spaceId) {
+    return buildSpacePathFromParams(username, studioId, storageId, spaceId)
   }
   return '/'
 }

@@ -24,6 +24,7 @@ import { Heading } from '@/elements/typography/heading'
 import { Caption } from '@/elements/typography/caption'
 import { useStudio } from '@lmthing/state'
 import { useGithub } from '@/lib/github/GithubContext'
+import { buildSpacePath } from '@/lib/space-url'
 
 const SPACE_COLORS = ['#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ef4444', '#84cc16']
 
@@ -74,7 +75,7 @@ export function SpacesLayout() {
     createSpace(localId, { name: localId })
     setIsCreateLocalOpen(false)
     setNewLocalSpaceName('')
-    router.push(`${studioPath}/${encodeURIComponent(localId)}`)
+    router.push(buildSpacePath(username, studioId, localId))
   }
 
   return (
@@ -141,7 +142,7 @@ export function SpacesLayout() {
                   <Heading level={2}>{selectedSpace.name}</Heading>
                   <Caption muted>{selectedSpace.name.startsWith('local/') ? 'Local space' : 'GitHub space'}</Caption>
                 </div>
-                <button className="btn btn--primary" onClick={() => router.push(`${studioPath}/${encodeURIComponent(selectedSpace.id)}`)}>Open Space</button>
+                <button className="btn btn--primary" onClick={() => router.push(buildSpacePath(username, studioId, selectedSpace.id))}>Open Space</button>
               </div>
             </div>
           ) : (

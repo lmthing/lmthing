@@ -3,6 +3,7 @@
 import { use } from 'react'
 import { SpaceProvider } from '@/lib/contexts/SpaceContext'
 import { StudioLayout } from '@/components/shell/studio-layout'
+import { buildFullSpaceId } from '@/lib/space-url'
 
 /**
  * Space layout - mounts SpaceContext (SpaceFS scope).
@@ -13,11 +14,12 @@ export default function SpaceLayout({
   params,
 }: {
   children: React.ReactNode
-  params: Promise<{ username: string; studioId: string; spaceId: string }>
+  params: Promise<{ username: string; studioId: string; storageId: string; spaceId: string }>
 }) {
-  const { spaceId } = use(params)
+  const { storageId, spaceId } = use(params)
+  const fullSpaceId = buildFullSpaceId(storageId, spaceId)
   return (
-    <SpaceProvider spaceId={decodeURIComponent(spaceId)}>
+    <SpaceProvider spaceId={fullSpaceId}>
       <StudioLayout>{children}</StudioLayout>
     </SpaceProvider>
   )

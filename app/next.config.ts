@@ -18,6 +18,8 @@ const nextConfig: NextConfig = {
       '@': path.resolve(__dirname, './src'),
       'lmthing': path.resolve(__dirname, '../lib/core/src'),
       '@lmthing/state': path.resolve(__dirname, '../lib/state/src'),
+      'vm2': false,
+      'coffee-script': false,
     }
 
     // Stub Node.js built-ins that are pulled in by server-only provider SDKs
@@ -34,7 +36,6 @@ const nextConfig: NextConfig = {
         http2: false,
         async_hooks: false,
         module: false,
-        vm2: false,
       }
 
       // Rewrite `node:*` scheme imports to their bare equivalents so

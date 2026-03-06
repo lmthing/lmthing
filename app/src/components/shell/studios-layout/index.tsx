@@ -22,6 +22,7 @@ import { Card, CardBody } from '@/elements/content/card'
 import { Heading } from '@/elements/typography/heading'
 import { Caption } from '@/elements/typography/caption'
 import { useApp } from '@lmthing/state'
+import CozyThingText from '@/CozyText'
 
 const STUDIO_COLORS = ['#8b5cf6', '#10b981', '#f59e0b', '#06b6d4', '#ef4444', '#ec4899']
 
@@ -89,7 +90,7 @@ export function StudiosLayout() {
             onClick={() => router.push('/')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.125rem', fontWeight: 600 }}
           >
-            lmthing
+            <CozyThingText text="lmthing" />
           </button>
           <span style={{ opacity: 0.3 }}>/</span>
           <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{username}</span>

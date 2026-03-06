@@ -148,7 +148,7 @@ export default function LandingLayout() {
         <header className="border-b bg-background/50 backdrop-blur-sm">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
             <div className="flex items-center gap-2 min-w-0">
-              <h1 className="text-xl font-semibold truncate">lm<CozyThingText text="thing" /></h1>
+              <h1 className="text-xl font-semibold truncate"><CozyThingText text="lmthing" /></h1>
             </div>
 
             <div className="flex items-center gap-2 shrink-0">

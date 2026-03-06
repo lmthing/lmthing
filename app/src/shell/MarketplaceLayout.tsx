@@ -10,6 +10,7 @@ import '@/css/elements/forms/button/index.css'
 import '@/css/elements/content/card/index.css'
 
 import themeData from '@/theme.json'
+import { CozyThingText } from '@/CozyText'
 
 const SPACE_COLORS = themeData.colors.brand
 
@@ -80,7 +81,7 @@ export default function MarketplaceLayout() {
       <header className="border-b bg-background/50 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <Link href="/" className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold">lmthing</h1>
+            <h1 className="text-xl font-semibold"><CozyThingText text="lmthing" /></h1>
           </Link>
           <Button variant="outline" asChild>
             <Link href="/">Back to Home</Link>

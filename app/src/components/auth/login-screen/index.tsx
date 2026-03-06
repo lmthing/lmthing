@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth'
 
 import '@/css/elements/forms/button/index.css'
 import '@/css/elements/forms/input/index.css'
+import CozyThingText from '@/CozyText'
 
 export function LoginScreen() {
   const { login } = useAuth()
@@ -77,7 +78,7 @@ export function LoginScreen() {
               margin: 0,
             }}
           >
-            lmthing
+            <CozyThingText text="lmthing" />
           </h1>
           <p
             style={{

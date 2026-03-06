@@ -4,6 +4,7 @@ import { AppProvider } from '@/lib/contexts/AppContext'
 import { AuthProvider } from '@/lib/auth'
 import { useAuth } from '@/lib/auth/useAuth'
 import { LoginScreen } from '@/components/auth/login-screen'
+import { SystemStudioBootstrap } from '@/components/auth/system-studio-bootstrap'
 import { GithubProvider } from '@/lib/github/GithubContext'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '@/index.css'
@@ -34,7 +35,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <QueryClientProvider client={queryClient}>
               <GithubProvider>
                 <AuthGate>
-                  {children}
+                  <SystemStudioBootstrap>
+                    {children}
+                  </SystemStudioBootstrap>
                 </AuthGate>
               </GithubProvider>
             </QueryClientProvider>

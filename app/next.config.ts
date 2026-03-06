@@ -33,6 +33,7 @@ const nextConfig: NextConfig = {
         http2: false,
         async_hooks: false,
         module: false,
+        vm2: false,
       }
 
       // Rewrite `node:*` scheme imports to their bare equivalents so

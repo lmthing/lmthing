@@ -24,6 +24,7 @@ import { useKnowledgeFields } from '@/hooks/useKnowledgeFields'
 import type { DomainMeta } from '@/hooks/useKnowledgeFields'
 import { useAssistant } from '@/hooks/useAssistant'
 import { useGithub } from '@/lib/github/GithubContext'
+import { CozyThingText } from '@/CozyText'
 
 export interface StudioSidebarProps {
   isCollapsed?: boolean
@@ -94,7 +95,9 @@ export function StudioSidebar({
             href="/"
             style={{ display: 'flex', width: '3rem', height: '3rem', flexShrink: 0, alignItems: 'center', justifyContent: 'center' }}
             title="lmthing"
-          />
+          >
+            <CozyThingText text="lmthing" />
+          </Link>
           {!isCollapsed && (
             <span style={{ fontSize: '0.875rem', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {spaceId || 'Studio'}

@@ -37,17 +37,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Bump version
-        run: |
-          cd app
-          npm version patch --no-git-tag-version
-          cd ..
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add app/package.json
-          git commit -m "chore: bump app version [skip ci]" || echo "No changes to commit"
-          git push
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -61,6 +50,17 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: app/out
+
+      - name: Bump version
+        run: |
+          cd app
+          npm version patch --no-git-tag-version
+          cd ..
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add app/package.json
+          git commit -m "chore: bump app version [skip ci]" || echo "No changes to commit"
+          git push
 
   deploy:
     name: Deploy

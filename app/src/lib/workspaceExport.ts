@@ -6,7 +6,7 @@ import type {
   FlowTask,
   KnowledgeNode,
   WorkspaceData,
-} from '@/types/workspace-data'
+} from '@/types/space-data'
 
 export interface FileTreeFileNode {
   type: 'file'

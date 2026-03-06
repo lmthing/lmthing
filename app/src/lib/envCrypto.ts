@@ -1,4 +1,4 @@
-import type { EncryptedEnvFile } from '@/types/workspace-data'
+import type { EncryptedEnvFile } from '@/types/space-data'
 
 const TEXT_ENCODER = new TextEncoder()
 const TEXT_DECODER = new TextDecoder()

@@ -1,14 +1,11 @@
-// useWorkspaces — thin re-export backed by useSpace from @lmthing/state
-import { useSpace } from '@lmthing/state'
-import type { Space } from '@lmthing/state'
+// useWorkspaces — thin re-export backed by useStudio from @lmthing/state
+import { useStudio } from '@lmthing/state'
 
 export function useWorkspaces() {
-  const space = useSpace()
+  const { spaces } = useStudio()
   return {
-    data: space,
+    data: spaces,
     isLoading: false,
     error: null,
   }
 }
-
-export type { Space }

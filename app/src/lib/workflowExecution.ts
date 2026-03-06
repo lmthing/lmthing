@@ -8,7 +8,7 @@
 import { runPrompt } from 'lmthing'
 import type { Task as LmthingTask } from 'lmthing/plugins'
 import { buildKnowledgeXml } from './buildKnowledgeXml'
-import type { KnowledgeNode } from '@/types/workspace-data'
+import type { KnowledgeNode } from '@/types/space-data'
 
 /**
  * Flow task from the flow-builder section

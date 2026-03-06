@@ -13,7 +13,7 @@ import type {
   AgentConfig,
   FormValues,
   TaskOutputSchema,
-} from '@/types/workspace-data'
+} from '@/types/space-data'
 
 // ============================================================================
 // Frontmatter Parser

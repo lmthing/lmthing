@@ -13,7 +13,7 @@ import type {
   TaskFrontmatter,
   WorkspaceEnv,
   WorkspaceData,
-} from '@/types/workspace-data'
+} from '@/types/space-data'
 import { parseEncryptedEnvFileContent } from '@/lib/envCrypto'
 
 const FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/

@@ -1,4 +1,4 @@
-import type { KnowledgeNode } from '@/types/workspace-data'
+import type { KnowledgeNode } from '@/types/space-data'
 
 /**
  * Build XML structure for knowledge nodes based on enabled file paths

@@ -6,12 +6,12 @@ export interface SpaceConfig {
   name: string
   description?: string
   tags?: string[]
+  system?: boolean
   createdAt?: string
   updatedAt?: string
 }
 
 export interface StudioSettings {
-  defaultSpace?: string
   theme?: 'light' | 'dark' | 'system'
   [key: string]: unknown
 }
@@ -27,7 +27,7 @@ export interface StudioConfig {
 export interface StudioData {
   id: string
   username: string
-  files: FileTree // all paths relative to AppFS root: {spaceId}/agents/... + lmthing.json + .env*
+  config: StudioConfig
 }
 
 export interface AppData {

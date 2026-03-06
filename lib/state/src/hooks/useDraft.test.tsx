@@ -18,7 +18,7 @@ function createDraftWrapper(draftStore: DraftStore) {
     name: 'Test',
     version: '1.0.0',
     spaces: { space1: { name: 'Space1' } },
-    settings: { defaultSpace: 'space1' }
+    settings: {}
   }))
   appFS.writeFile('alice/test/space1/package.json', JSON.stringify({ name: 'space1' }))
 
@@ -26,7 +26,7 @@ function createDraftWrapper(draftStore: DraftStore) {
     return (
       <AppProvider appFS={appFS} draftStore={draftStore} initialStudioKey="alice/test" skipStorage={true}>
         <StudioProvider>
-          <SpaceProvider>
+          <SpaceProvider spaceId="space1">
             {children}
           </SpaceProvider>
         </StudioProvider>

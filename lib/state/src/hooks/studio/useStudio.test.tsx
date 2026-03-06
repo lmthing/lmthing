@@ -25,7 +25,6 @@ describe('useStudio', () => {
       }
     },
     settings: {
-      defaultSpace: 'space1',
       theme: 'dark' as const
     }
   }
@@ -64,7 +63,7 @@ describe('useStudio', () => {
     expect(space1?.description).toBe('First space')
   })
 
-  it('should return current space ID from settings', () => {
+  it('should return current space ID from SpaceProvider prop', () => {
     const { result } = renderHook(() => useStudio(), {
       wrapper: createTestWrapper(appFS, { studioConfig: studioConfigOptions })
     })

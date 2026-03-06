@@ -1,6 +1,6 @@
 // src/lib/contexts/StudioContext.tsx
 
-import { createContext, useContext, useMemo, useSyncExternalStore, useCallback, useRef } from 'react'
+import { createContext, useContext, useMemo, useState, useSyncExternalStore, useCallback, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { StudioFS } from '../fs/ScopedFS'
 import { useApp } from './AppContext'
@@ -79,20 +79,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     }))
   }, [studioConfig])
 
-  const currentSpaceId = studioConfig?.settings?.defaultSpace ?? null
+  const [currentSpaceId, setCurrentSpaceId] = useState<string | null>(null)
 
   function setCurrentSpace(spaceId: string): void {
-    if (!studioFS || !studioConfig) return
-
-    const updated = {
-      ...studioConfig,
-      settings: {
-        ...studioConfig.settings,
-        defaultSpace: spaceId
-      }
-    }
-
-    studioFS.writeFile('lmthing.json', JSON.stringify(updated, null, 2))
+    setCurrentSpaceId(spaceId)
   }
 
   function createSpace(spaceId: string, config: SpaceConfig): void {

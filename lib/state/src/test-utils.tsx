@@ -60,7 +60,7 @@ export function createTestWrapper(
         },
         ...customConfig?.spaces
       },
-      settings: customConfig?.settings ?? { defaultSpace: spaceId }
+      settings: customConfig?.settings ?? {}
     }
 
     // Remove the default space from spaces if it's in customConfig
@@ -79,7 +79,7 @@ export function createTestWrapper(
     return (
       <AppProvider appFS={appFS} skipStorage={true} initialStudioKey={studioKey}>
         <StudioProvider>
-          <SpaceProvider>
+          <SpaceProvider spaceId={skipStudioSetup ? undefined : spaceId}>
             {children}
           </SpaceProvider>
         </StudioProvider>

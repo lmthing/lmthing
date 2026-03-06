@@ -11,7 +11,8 @@ import '@/index.css'
 const queryClient = new QueryClient()
 
 function AuthGate({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, isLoading } = useAuth()
+  if (isLoading) return null
   if (!isAuthenticated) return <LoginScreen />
   return <>{children}</>
 }

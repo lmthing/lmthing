@@ -6,10 +6,12 @@ const TEXT_ENCODER = new TextEncoder()
 const TEXT_DECODER = new TextDecoder()
 const VERIFICATION_STRING = 'lmthing-auth-verification-token-v1'
 const DEFAULT_ITERATIONS = 250_000
+const SESSION_KEY = 'lmthing-session'
 
 export interface AuthContextValue {
   username: string | null
   isAuthenticated: boolean
+  isLoading: boolean
   login(username: string, password: string): Promise<{ success: boolean; error?: string }>
   logout(): void
   getEncryptionKey(): CryptoKey | null
@@ -56,7 +58,7 @@ async function deriveAesKey(password: string, salt: Uint8Array, iterations = DEF
     },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
-    false,
+    true,
     ['encrypt', 'decrypt']
   )
 }
@@ -128,10 +130,59 @@ async function verifyPassword(
   }
 }
 
+async function saveSession(name: string, key: CryptoKey): Promise<void> {
+  try {
+    const raw = await crypto.subtle.exportKey('raw', key)
+    const encoded = toBase64(new Uint8Array(raw))
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ username: name, key: encoded }))
+  } catch {
+    // Silently fail — session just won't persist
+  }
+}
+
+async function restoreSession(): Promise<{ username: string; key: CryptoKey } | null> {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY)
+    if (!raw) return null
+    const { username, key: encoded } = JSON.parse(raw) as { username: string; key: string }
+    if (!username || !encoded) return null
+    // Verify the user still has a stored verification token
+    if (!getStoredVerification(username)) {
+      sessionStorage.removeItem(SESSION_KEY)
+      return null
+    }
+    const keyBytes = fromBase64(encoded)
+    const key = await crypto.subtle.importKey(
+      'raw',
+      toArrayBuffer(keyBytes),
+      { name: 'AES-GCM', length: 256 },
+      true,
+      ['encrypt', 'decrypt']
+    )
+    return { username, key }
+  } catch {
+    sessionStorage.removeItem(SESSION_KEY)
+    return null
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [username, setUsername] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [encryptionKey, setEncryptionKey] = useState<CryptoKey | null>(null)
+
+  // Restore session on mount
+  useEffect(() => {
+    restoreSession().then((session) => {
+      if (session) {
+        setUsername(session.username)
+        setEncryptionKey(session.key)
+        setIsAuthenticated(true)
+      }
+      setIsLoading(false)
+    })
+  }, [])
 
   const login = useCallback(
     async (
@@ -157,6 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUsername(trimmedUsername)
         setEncryptionKey(key)
         setIsAuthenticated(true)
+        await saveSession(trimmedUsername, key)
         return { success: true }
       }
 
@@ -166,6 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUsername(trimmedUsername)
       setEncryptionKey(key)
       setIsAuthenticated(true)
+      await saveSession(trimmedUsername, key)
       return { success: true }
     },
     []
@@ -175,6 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUsername(null)
     setEncryptionKey(null)
     setIsAuthenticated(false)
+    sessionStorage.removeItem(SESSION_KEY)
   }, [])
 
   const getEncryptionKey = useCallback(() => encryptionKey, [encryptionKey])
@@ -187,7 +241,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [username])
 
   return (
-    <AuthContext.Provider value={{ username, isAuthenticated, login, logout, getEncryptionKey }}>
+    <AuthContext.Provider value={{ username, isAuthenticated, isLoading, login, logout, getEncryptionKey }}>
       {children}
     </AuthContext.Provider>
   )

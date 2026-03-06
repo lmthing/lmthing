@@ -20,6 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <AppProvider>
+          {/* QueryClientProvider scoped to GitHub auxiliary calls only (stars, deployment status) */}
           <QueryClientProvider client={queryClient}>
             <GithubProvider>
               {children}

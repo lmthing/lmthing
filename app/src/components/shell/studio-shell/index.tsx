@@ -4,7 +4,7 @@
  * Orchestrates the sidebar, content area, and settings/knowledge views.
  */
 import { useState, useCallback, useMemo } from 'react'
-import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { useParams, usePathname, useRouter } from 'next/navigation'
 import '@/css/elements/layouts/split-pane/index.css'
 import '@/css/elements/layouts/page/index.css'
 import { StudioSidebar } from '@/components/shell/studio-sidebar'
@@ -48,11 +48,10 @@ export function StudioShell({
   children,
 }: StudioShellProps) {
   const { agentId, workspaceName } = useParams()
-  const navigate = useNavigate()
-  const location = useLocation()
+  const router = useRouter()
+  const pathname = usePathname()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(defaultSidebarCollapsed)
 
-  // New composite hooks from Phase 3
   const assistantList = useAssistantList()
   const knowledgeFields = useKnowledgeFields()
   const workflowList = useWorkflowList()
@@ -64,14 +63,14 @@ export function StudioShell({
   }, [sidebarCollapsed, onSidebarCollapsedChange])
 
   const activeDomainId = useMemo(() => {
-    const match = location.pathname.match(/\/knowledge\/([^/]+)/)
+    const match = pathname.match(/\/knowledge\/([^/]+)/)
     return match ? match[1] : undefined
-  }, [location.pathname])
+  }, [pathname])
 
-  const isSettingsOpen = location.pathname.includes('/settings')
+  const isSettingsOpen = pathname.includes('/settings')
 
   const studioPath = workspaceName
-    ? `/studio/${encodeURIComponent(workspaceName)}`
+    ? `/studio/${encodeURIComponent(workspaceName as string)}`
     : '/studio'
 
   return (
@@ -80,8 +79,8 @@ export function StudioShell({
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={handleToggleSidebar}
         activeDomainId={activeDomainId}
-        activeAgentId={agentId}
-        onOpenSettings={onOpenSettings || (() => navigate(`${studioPath}/settings/env`))}
+        activeAgentId={agentId as string}
+        onOpenSettings={onOpenSettings || (() => router.push(`${studioPath}/settings/env`))}
         onCreateDomain={onCreateDomain}
         onCreateAgent={onCreateAgent}
       />

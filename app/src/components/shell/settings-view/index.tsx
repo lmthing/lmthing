@@ -3,7 +3,7 @@
  * Uses new hooks from Phase 3 and element components.
  */
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { usePathname, useRouter, useParams } from 'next/navigation'
 import { Shield, FileCode2 } from 'lucide-react'
 import '@/css/elements/forms/button/index.css'
 import '@/css/elements/forms/input/index.css'
@@ -14,39 +14,16 @@ import { Heading } from '@/elements/typography/heading'
 import { Caption } from '@/elements/typography/caption'
 import { Stack } from '@/elements/layouts/stack'
 import { useFile } from '@/hooks/fs/useFile'
-import {
-  applyEnvToWindowProcessEnv,
-  decryptEnvContent,
-  encryptEnvContent,
-  isValidEnvFileName,
-  normalizeEnvFileName,
-  parseDotEnv,
-} from '@/lib/envCrypto'
 
 interface SettingsViewProps {
   isOpen: boolean
 }
 
-const ENV_SESSION_CACHE_PREFIX = 'lmthing-session-env'
-
-function getEnvSessionCacheKey(workspaceId: string, fileName: string): string {
-  return `${ENV_SESSION_CACHE_PREFIX}:${workspaceId}:${fileName}`
-}
-
-function readSessionEnvPlaintext(workspaceId: string, fileName: string): string | null {
-  try {
-    return window.sessionStorage.getItem(getEnvSessionCacheKey(workspaceId, fileName))
-  } catch {
-    return null
-  }
-}
-
 export function SettingsView({ isOpen }: SettingsViewProps) {
-  const location = useLocation()
-  const navigate = useNavigate()
+  const pathname = usePathname()
+  const router = useRouter()
   const { workspaceName } = useParams()
 
-  // Use new FS hooks from Phase 3
   const packageJsonContent = useFile('package.json')
 
   const packageJson = useMemo(() => {
@@ -55,13 +32,13 @@ export function SettingsView({ isOpen }: SettingsViewProps) {
   }, [packageJsonContent])
 
   const activeTab = useMemo(() => {
-    if (location.pathname.includes('/settings/package-json')) return 'package-json'
+    if (pathname.includes('/settings/package-json')) return 'package-json'
     return 'env'
-  }, [location.pathname])
+  }, [pathname])
 
   const handleTabChange = (tab: 'env' | 'package-json') => {
     if (!workspaceName) return
-    navigate(`/studio/${encodeURIComponent(workspaceName)}/settings/${tab}`)
+    router.push(`/studio/${encodeURIComponent(workspaceName as string)}/settings/${tab}`)
   }
 
   const packageJsonSerialized = useMemo(
@@ -73,7 +50,6 @@ export function SettingsView({ isOpen }: SettingsViewProps) {
   const [packageJsonError, setPackageJsonError] = useState<string | null>(null)
   const [packageJsonSavedAt, setPackageJsonSavedAt] = useState<string | null>(null)
 
-  // Env state
   const [selectedEnvFile, setSelectedEnvFile] = useState('.env.local')
   const [envPassword, setEnvPassword] = useState('')
   const [envContent, setEnvContent] = useState('')
@@ -97,7 +73,6 @@ export function SettingsView({ isOpen }: SettingsViewProps) {
         </Stack>
       </PageHeader>
 
-      {/* Tab Navigation */}
       <div style={{ display: 'flex', gap: '0.25rem', padding: '0 1.5rem', borderBottom: '1px solid var(--color-border)' }}>
         <button
           onClick={() => handleTabChange('env')}

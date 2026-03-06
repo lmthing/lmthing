@@ -6,15 +6,12 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "dev:vite": "vite",
     "build": "next build",
-    "build:vite": "node scripts/generateWorkspaceIndex.mjs && tsc -b && vite build",
-    "build:pages": "vite build --config vite.config.pages.ts --base=/",
+    "build:pages": "node scripts/generateWorkspaceIndex.mjs && next build ",
     "start": "next start",
     "test": "vitest",
     "test:run": "vitest run",
-    "lint": "next lint",
-    "preview": "vite preview"
+    "lint": "next lint"
   },
   "dependencies": {
     "@lmthing/state": "workspace:*",

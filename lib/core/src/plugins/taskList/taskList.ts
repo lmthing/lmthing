@@ -215,7 +215,10 @@ export function defTaskList(
   );
 
   // Define effect to update system prompt with task list status
-  this.defEffect((_ctx, stepModifier) => {
+  // Note: We don't use stepModifier because it sets activeSystems which filters
+  // existing systems rather than adding new ones. Instead, we directly add the
+  // system part using addSystemPart() which will be included in the system prompt.
+  this.defEffect(() => {
     const currentTasks = getCurrentTasks();
 
     // Format task list for display
@@ -243,10 +246,7 @@ ${failedTasks.length > 0 ? `### Failed (${failedTasks.length})\n${formatTasks(fa
 `.trim();
 
     // Add as system part (will be included in system prompt)
-    stepModifier('systems', [{
-      name: 'taskList',
-      value: taskListContent
-    }]);
+    this.addSystemPart('taskList', taskListContent);
   }, [taskList]);
 
   return [taskList, setTaskList];

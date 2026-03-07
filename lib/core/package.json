@@ -52,25 +52,26 @@
     "@ai-sdk/google": "^3.0.29",
     "@ai-sdk/groq": "^3.0.24",
     "@ai-sdk/mistral": "^3.0.20",
-    "vm2": "^3.9.19",
-    "@ai-sdk/openai": "^3.0.29"
+    "@ai-sdk/openai": "^3.0.29",
+    "vm2": "^3.9.19"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^2.0.30",
+    "@ai-sdk/provider": "^3.0.8",
     "ai": "^6.0.86",
     "js-yaml": "^4.1.1",
     "zod": "^4.1.13",
     "zod-to-ts": "^2.0.0"
   },
   "devDependencies": {
-    "dotenv": "^16.4.5",
-    "langfuse": "^3.38.6",
     "@langfuse/otel": "^4.6.1",
-    "@types/js-yaml": "^4.0.9",
     "@opentelemetry/sdk-trace-node": "^2.5.1",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^4.0.0",
+    "dotenv": "^16.4.5",
     "esbuild": "^0.27.1",
+    "langfuse": "^3.38.6",
     "msw": "^2.12.4",
     "typescript": "^5.5.4",
     "vitest": "^4.0.15"

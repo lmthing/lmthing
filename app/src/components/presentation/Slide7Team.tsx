@@ -15,7 +15,7 @@ export default function Slide7Team() {
       className="flex h-full w-full flex-col items-center justify-center"
       style={{ background: colors.bg }}
     >
-      <h2 className="mb-16 text-5xl font-bold" style={{ color: colors.white }}>
+      <h2 className="mb-16 text-5xl font-bold" style={{ color: colors.text }}>
         Team Behind the Build
       </h2>
 
@@ -23,15 +23,15 @@ export default function Slide7Team() {
         {members.map((m) => (
           <div key={m.name} className="flex flex-col items-center">
             <div
-              className="flex size-24 items-center justify-center rounded-full"
+              className="flex size-24 items-center justify-center rounded-full border-2"
               style={{
-                background: colors.card,
-                border: `2px solid ${colors.teal}`,
+                background: colors.bgCard,
+                borderColor: colors.brand,
               }}
             >
-              <User size={36} style={{ color: colors.teal }} />
+              <User size={36} style={{ color: colors.brand }} />
             </div>
-            <p className="mt-4 text-sm font-bold" style={{ color: colors.white }}>
+            <p className="mt-4 text-sm font-bold" style={{ color: colors.text }}>
               {m.name}
             </p>
             <p className="mt-1 text-xs" style={{ color: colors.muted }}>

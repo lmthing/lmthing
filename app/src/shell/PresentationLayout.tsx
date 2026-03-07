@@ -52,7 +52,7 @@ export default function PresentationLayout() {
   return (
     <div
       className="relative h-screen w-screen overflow-hidden"
-      style={{ background: '#141414' }}
+      style={{ background: '#FFFFFF' }}
       onClick={next}
     >
       {/* Exit button */}
@@ -61,8 +61,8 @@ export default function PresentationLayout() {
           e.stopPropagation()
           navigate('/')
         }}
-        className="absolute right-6 top-6 z-50 flex size-10 items-center justify-center rounded-full transition-colors hover:bg-white/10"
-        style={{ color: 'rgba(255,255,255,0.4)' }}
+        className="absolute right-6 top-6 z-50 flex size-10 items-center justify-center rounded-full transition-colors hover:bg-black/5"
+        style={{ color: 'rgba(0,0,0,0.3)' }}
       >
         <X size={20} />
       </button>
@@ -75,7 +75,7 @@ export default function PresentationLayout() {
       {/* Slide counter */}
       <div
         className="absolute bottom-6 right-6 z-50 text-sm font-medium"
-        style={{ color: 'rgba(255,255,255,0.3)' }}
+        style={{ color: 'rgba(0,0,0,0.3)' }}
       >
         {currentSlide + 1} / {slides.length}
       </div>

@@ -23,9 +23,9 @@ export default function Slide2Problem() {
   return (
     <div
       className="flex h-full w-full flex-col justify-center px-16 py-12"
-      style={{ background: colors.bg }}
+      style={{ background: colors.bgSection }}
     >
-      <h2 className="mb-12 text-5xl font-bold" style={{ color: colors.white }}>
+      <h2 className="mb-12 text-5xl font-bold" style={{ color: colors.text }}>
         The Problem
       </h2>
 
@@ -33,16 +33,16 @@ export default function Slide2Problem() {
         {problems.map((p) => (
           <div
             key={p.label}
-            className="rounded-xl p-6"
-            style={{ background: colors.tealMuted }}
+            className="rounded-xl border p-6"
+            style={{ background: colors.white, borderColor: colors.cardBorder }}
           >
             <div
               className="mb-3 text-xs font-bold tracking-widest"
-              style={{ color: colors.teal }}
+              style={{ color: colors.brand }}
             >
               {p.label}
             </div>
-            <p className="text-base leading-relaxed" style={{ color: colors.white }}>
+            <p className="text-base leading-relaxed" style={{ color: colors.textSecondary }}>
               {p.text}
             </p>
           </div>

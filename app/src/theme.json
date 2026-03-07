@@ -29,7 +29,11 @@
             "destructiveForeground": "#ffffff",
             "border": "#e7e5e4",
             "input": "#e7e5e4",
-            "ring": "#cbcac8"
+            "ring": "#cbcac8",
+            "knowledge": "#10b981",
+            "knowledgeForeground": "#ffffff",
+            "agent": "#7c3aed",
+            "agentForeground": "#ffffff"
         },
         "states": {
             "hover": "rgba(28, 25, 23, 0.05)",

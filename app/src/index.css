@@ -45,12 +45,15 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-knowledge: var(--knowledge);
+  --color-knowledge-foreground: var(--knowledge-foreground);
+  --color-agent: var(--agent);
+  --color-agent-foreground: var(--agent-foreground);
   --color-hover: var(--hover);
   --color-active: var(--active);
   --color-focus: var(--focus);
   --color-disabled: var(--disabled);
   --color-disabled-foreground: var(--disabled-foreground);
-  --color-sidebar: var(--sidebar-background);
   --color-sidebar-background: var(--sidebar-background);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -59,6 +62,7 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar: var(--sidebar);
   --color-spectrum-1: var(--spectrum-1);
   --color-spectrum-2: var(--spectrum-2);
   --color-spectrum-3: var(--spectrum-3);
@@ -140,6 +144,10 @@
   --border: #e7e5e4;
   --input: #e7e5e4;
   --ring: #cbcac8;
+  --knowledge: #10b981;
+  --knowledge-foreground: #ffffff;
+  --agent: #7c3aed;
+  --agent-foreground: #ffffff;
   --hover: rgba(28, 25, 23, 0.05);
   --active: rgba(28, 25, 23, 0.1);
   --focus: rgba(203, 202, 200, 0.5);
@@ -153,6 +161,7 @@
   --sidebar-accent-foreground: #1c1917;
   --sidebar-border: #e7e5e4;
   --sidebar-ring: #a8a29e;
+  --sidebar: #fafaf9;
   --spectrum-1: #f5c815;
   --spectrum-2: #f5c619;
   --spectrum-3: #f6c31d;

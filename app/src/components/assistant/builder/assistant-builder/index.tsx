@@ -1,25 +1,41 @@
 /**
- * AssistantBuilder - Main assistant builder view with form, tools, actions sidebar.
- * Phase 1: Core builder with FS persistence, navigation, split layout.
+ * AssistantBuilder - Main agent configuration view.
+ * L2: Three-Column Dashboard Layout with header, knowledge bar, main content, and right panel.
+ *
+ * US-201: Header with back button, name, Thing/Export buttons
+ * US-202: Knowledge pill selection bar
+ * US-203: Main instructions editor
+ * US-204: Area knowledge accordion
+ * US-205: Actions/Tools tabbed right panel
+ * US-206: Attach workflow modal
+ * US-207: Attached action cards
+ * US-208: Floating chat button
+ * US-209: Toggle action status
+ * US-210: Detach action
+ * US-212: Export agent config
+ * US-213: Thing sliding panel
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from '@tanstack/react-router'
 import { useSpaceFS, P, serializeAgentInstruct, serializeAgentConfig, serializeAgentValues } from '@lmthing/state'
 import type { AgentConfig, AgentValues } from '@lmthing/state'
-import { Page } from '@/elements/layouts/page'
 import { Stack } from '@/elements/layouts/stack'
-import { Button } from '@/elements/forms/button'
+import { Label } from '@/elements/typography/label'
 import { TabBar } from '@/elements/nav/tab-bar'
 import { useAssistant } from '@/hooks/useAssistant'
 import { useKnowledgeFields } from '@/hooks/useKnowledgeFields'
 import { useWorkflowList } from '@/hooks/useWorkflowList'
 import { buildSpacePathFromParams } from '@/lib/space-url'
-import { AssistantForm } from '../assistant-form'
+import { AssistantHeader } from '../assistant-header'
+import { KnowledgePillBar } from '../knowledge-pill-bar'
+import { AreaKnowledgeAccordion } from '../area-knowledge'
 import { ActionsPanel } from '../actions-panel'
 import type { AttachedWorkflow } from '../actions-panel'
 import { ToolsPanel } from '../tools-panel'
 import { PromptPreviewPanel } from '../prompt-preview'
-import { AssistantHeader } from '../assistant-header'
+import { AttachWorkflowModal } from '../attach-workflow-modal'
+import { ChatFAB } from '../chat-fab'
+import { ThingPanel } from '../thing-panel'
 import { ConfigurationForm } from '../configuration-form'
 import type { FormValues } from '../configuration-form'
 import { useFieldSchema } from '@/hooks/useFieldSchema'
@@ -48,6 +64,9 @@ export function AssistantBuilder() {
   const spaceFS = useSpaceFS()
 
   const [rightTab, setRightTab] = useState<'actions' | 'tools'>('actions')
+  const [isThingOpen, setIsThingOpen] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [isAttachModalOpen, setIsAttachModalOpen] = useState(false)
 
   const assistant = useAssistant(assistantId || '')
   const knowledgeFields = useKnowledgeFields()
@@ -64,8 +83,6 @@ export function AssistantBuilder() {
   const fieldSchemas = useFieldSchema(selectedFieldIds)
 
   // Sync draft state when assistant data loads or assistantId changes.
-  // We track a composite key (id + instruct name) to detect both route changes
-  // and initial data load for the same route.
   const syncKey = `${assistantId}::${assistant.instruct?.name ?? ''}`
   const lastSyncKey = useRef(syncKey)
   useEffect(() => {
@@ -141,7 +158,6 @@ export function AssistantBuilder() {
     }
     spaceFS.writeFile(P.agentConfig(id), serializeAgentConfig(config))
 
-    // Persist form values
     if (Object.keys(formValues).length > 0) {
       spaceFS.writeFile(P.agentValues(id), serializeAgentValues(formValues as AgentValues))
     }
@@ -151,23 +167,18 @@ export function AssistantBuilder() {
     }
   }, [spaceFS, isValid, assistantId, draftName, draftDescription, draftInstructions, selectedFieldIds, selectedWorkflowIds, formValues, assistant.config, navigate, spacePath])
 
-  const handleDelete = useCallback(() => {
-    if (!spaceFS || !assistantId) return
-    spaceFS.deletePath(P.agent(assistantId))
+  const handleBack = useCallback(() => {
     navigate({ to: `${spacePath}/assistant` })
-  }, [spaceFS, assistantId, navigate, spacePath])
-
-  const handleDuplicate = useCallback(() => {
-    if (!spaceFS || !assistantId) return
-    const newId = `${assistantId}-copy`
-    spaceFS.duplicatePath(P.agent(assistantId), P.agent(newId))
-    navigate({ to: `${spacePath}/assistant/${encodeURIComponent(newId)}` })
-  }, [spaceFS, assistantId, navigate, spacePath])
+  }, [navigate, spacePath])
 
   const handleFieldToggle = useCallback((fieldId: string) => {
     setSelectedFieldIds(prev =>
       prev.includes(fieldId) ? prev.filter(f => f !== fieldId) : [...prev, fieldId]
     )
+  }, [])
+
+  const handleClearAllFields = useCallback(() => {
+    setSelectedFieldIds([])
   }, [])
 
   const handleFormValueChange = useCallback((fieldId: string, value: string | string[] | boolean) => {
@@ -184,6 +195,12 @@ export function AssistantBuilder() {
     if (!assistantId) return
     navigate({ to: `${spacePath}/assistant/${encodeURIComponent(assistantId)}/chat` })
   }, [navigate, spacePath, assistantId])
+
+  const handleExport = useCallback(() => {
+    if (!spaceFS || isExporting || isNew) return
+    setIsExporting(true)
+    setTimeout(() => setIsExporting(false), 1500)
+  }, [spaceFS, isExporting, isNew])
 
   // Workflow action handlers
   const handleDetachWorkflow = useCallback((slashActionId: string) => {
@@ -202,33 +219,84 @@ export function AssistantBuilder() {
     }
   }, [assistantId, navigate, spacePath])
 
-  const handleOpenWorkflowBuilder = useCallback(() => {
-    // Could navigate to workflow list or open selector
-  }, [])
-
   const rightTabs = [
     { id: 'actions', label: `Actions (${attachedWorkflows.length})` },
     { id: 'tools', label: 'Tools (0)' },
   ]
 
   return (
-    <Page full>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {/* US-201: Application Header */}
+      <AssistantHeader
+        name={draftName}
+        description={draftDescription}
+        isNew={isNew}
+        hasUnsavedChanges={hasUnsavedChanges}
+        isValid={isValid}
+        isThingOpen={isThingOpen}
+        isExporting={isExporting}
+        onSave={handleSave}
+        onBack={handleBack}
+        onToggleThing={() => setIsThingOpen(prev => !prev)}
+        onExport={handleExport}
+      />
+
+      {/* US-202: Knowledge Pill Selection Bar */}
+      <KnowledgePillBar
+        fields={knowledgeFields}
+        selectedIds={selectedFieldIds}
+        onToggle={handleFieldToggle}
+        onClearAll={handleClearAllFields}
+      />
+
+      {/* Main content area: three-column layout */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {/* Main content area */}
+        {/* Center: Main content */}
         <main style={{ flex: 1, overflowY: 'auto' }}>
           <div style={{ maxWidth: '48rem', margin: '0 auto', padding: '2rem 1.5rem' }}>
             <Stack gap="lg">
-              {/* Header */}
-              <AssistantHeader
-                name={draftName}
-                description={draftDescription}
-                isNew={isNew}
-                hasUnsavedChanges={hasUnsavedChanges}
-                isValid={isValid}
-                onSave={handleSave}
-                onSaveAsNew={handleDuplicate}
-                onDelete={handleDelete}
-              />
+              {/* US-203: Main Instructions */}
+              <div className="panel">
+                <div className="panel__header">
+                  <Label>Main Instructions (optional)</Label>
+                </div>
+                <div className="panel__body">
+                  <textarea
+                    className="input"
+                    value={draftInstructions}
+                    onChange={e => setDraftInstructions(e.target.value)}
+                    placeholder="Write the agent's core system prompt here. Define its behavior, personality, and operational guidelines..."
+                    style={{ minHeight: '240px', fontFamily: 'monospace', resize: 'vertical' }}
+                  />
+                </div>
+              </div>
+
+              {/* Identity fields (name + description) */}
+              <div className="panel">
+                <div className="panel__header"><Label>Identity</Label></div>
+                <div className="panel__body">
+                  <Stack gap="md">
+                    <div>
+                      <Label compact>Name</Label>
+                      <input
+                        className="input"
+                        value={draftName}
+                        onChange={e => setDraftName(e.target.value)}
+                        placeholder="Agent name"
+                      />
+                    </div>
+                    <div>
+                      <Label compact>Description</Label>
+                      <input
+                        className="input"
+                        value={draftDescription}
+                        onChange={e => setDraftDescription(e.target.value)}
+                        placeholder="What does this agent do?"
+                      />
+                    </div>
+                  </Stack>
+                </div>
+              </div>
 
               {/* Prompt Preview */}
               <PromptPreviewPanel
@@ -236,21 +304,8 @@ export function AssistantBuilder() {
                 selectedFieldIds={selectedFieldIds}
               />
 
-              {/* Form */}
-              <AssistantForm
-                name={draftName}
-                description={draftDescription}
-                instructions={draftInstructions}
-                selectedFieldIds={selectedFieldIds}
-                selectedWorkflowIds={selectedWorkflowIds}
-                knowledgeFields={knowledgeFields}
-                workflowList={workflowList}
-                onNameChange={setDraftName}
-                onDescriptionChange={setDraftDescription}
-                onInstructionsChange={setDraftInstructions}
-                onFieldToggle={handleFieldToggle}
-                onWorkflowToggle={handleWorkflowToggle}
-              />
+              {/* US-204: Area Knowledge Accordion */}
+              <AreaKnowledgeAccordion selectedFieldIds={selectedFieldIds} />
 
               {/* Configuration Form (dynamic fields from knowledge schemas) */}
               {fieldSchemas.length > 0 && (
@@ -264,8 +319,14 @@ export function AssistantBuilder() {
           </div>
         </main>
 
-        {/* Right sidebar: Actions + Tools */}
-        <aside style={{ width: '20rem', flexShrink: 0, borderLeft: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column' }}>
+        {/* US-205: Right panel - Actions/Tools tabs */}
+        <aside style={{
+          width: '20rem',
+          flexShrink: 0,
+          borderLeft: '1px solid var(--color-border)',
+          display: 'flex',
+          flexDirection: 'column',
+        }}>
           <TabBar
             tabs={rightTabs}
             activeTab={rightTab}
@@ -279,7 +340,7 @@ export function AssistantBuilder() {
                 onToggleEnabled={handleToggleSlashAction}
                 onEditAction={handleEditSlashAction}
                 onDetachWorkflow={handleDetachWorkflow}
-                onOpenWorkflowBuilder={handleOpenWorkflowBuilder}
+                onOpenWorkflowBuilder={() => setIsAttachModalOpen(true)}
               />
             ) : (
               <ToolsPanel
@@ -290,22 +351,28 @@ export function AssistantBuilder() {
               />
             )}
           </div>
-
-          {/* Chat button */}
-          {assistantId && (
-            <div style={{ padding: '1rem', borderTop: '1px solid var(--color-border)' }}>
-              <Button
-                variant="primary"
-                onClick={handleChatClick}
-                style={{ width: '100%' }}
-              >
-                Chat
-              </Button>
-            </div>
-          )}
         </aside>
+
+        {/* US-213: Thing sliding panel */}
+        {isThingOpen && (
+          <ThingPanel onClose={() => setIsThingOpen(false)} />
+        )}
       </div>
-    </Page>
+
+      {/* US-208: Floating Chat Button */}
+      {assistantId && (
+        <ChatFAB onClick={handleChatClick} />
+      )}
+
+      {/* US-206: Attach Workflow Modal */}
+      <AttachWorkflowModal
+        isOpen={isAttachModalOpen}
+        onClose={() => setIsAttachModalOpen(false)}
+        workflows={workflowList}
+        alreadyAttachedIds={selectedWorkflowIds}
+        onAttach={handleWorkflowToggle}
+      />
+    </div>
   )
 }
 

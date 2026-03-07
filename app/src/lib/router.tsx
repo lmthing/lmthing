@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom'
 import LandingLayout from '@/shell/LandingLayout'
 import MarketplaceLayout from '@/shell/MarketplaceLayout'
+import PresentationLayout from '@/shell/PresentationLayout'
 import StudioLayout from '@/shell/StudioLayout'
 import WorkspacesLayout from '@/shell/WorkspacesLayout'
 
@@ -13,6 +14,10 @@ export const router = createBrowserRouter([
   {
     path: '/marketplace',
     element: <MarketplaceLayout />,
+  },
+  {
+    path: '/presentation',
+    element: <PresentationLayout />,
   },
   // Workspaces overview
   {

@@ -210,6 +210,9 @@ export default function LandingLayout() {
 
             <div className="flex items-center gap-2 shrink-0">
               <Button variant="outline" size="sm" asChild>
+                <Link to="/presentation">Presentation</Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
                 <Link to="/marketplace">Marketplace</Link>
               </Button>
               <Button size="sm" onClick={openWorkspaceModal}>

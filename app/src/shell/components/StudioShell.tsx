@@ -1422,59 +1422,8 @@ export function StudioShell({
                 </h2>
               </div>
 
-              {/* Domains Section */}
-              <div className="mb-8">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                    <Folder className="w-5 h-5 text-emerald-500" />
-                    Knowledge
-                  </h3>
-                  <button
-                    onClick={handleCreateDomain}
-                    className="text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-medium"
-                  >
-                    + Create Knowledge Area
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {domains.map((domain) => (
-                    <Link
-                      key={domain.id}
-                      to={`${studioPath}/knowledge/${domain.id}`}
-                      className="group p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:shadow-lg transition-all bg-white dark:bg-slate-900"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div
-                          className="w-10 h-10 rounded-lg flex items-center justify-center"
-                          style={{ backgroundColor: `${domain.color}20` }}
-                        >
-                          <div
-                            className="w-5 h-5 rounded"
-                            style={{ backgroundColor: domain.color }}
-                          />
-                        </div>
-                        <svg
-                          className="w-5 h-5 text-slate-400 group-hover:text-emerald-500 transition-colors"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </div>
-                      <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-1">
-                        {domain.label}
-                      </h4>
-                      <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2">
-                        {domain.description}
-                      </p>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-
               {/* Agents Section */}
-              <div>
+              <div className="mb-8">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                     <Bot className="w-5 h-5 text-violet-500" />
@@ -1532,6 +1481,59 @@ export function StudioShell({
                   })}
                 </div>
               </div>
+
+              {/* Domains Section */}
+              <div className="mb-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <Folder className="w-5 h-5 text-emerald-500" />
+                    Knowledge
+                  </h3>
+                  <button
+                    onClick={handleCreateDomain}
+                    className="text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-medium"
+                  >
+                    + Create Knowledge Area
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {domains.map((domain) => (
+                    <Link
+                      key={domain.id}
+                      to={`${studioPath}/knowledge/${domain.id}`}
+                      className="group p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:shadow-lg transition-all bg-white dark:bg-slate-900"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div
+                          className="w-10 h-10 rounded-lg flex items-center justify-center"
+                          style={{ backgroundColor: `${domain.color}20` }}
+                        >
+                          <div
+                            className="w-5 h-5 rounded"
+                            style={{ backgroundColor: domain.color }}
+                          />
+                        </div>
+                        <svg
+                          className="w-5 h-5 text-slate-400 group-hover:text-emerald-500 transition-colors"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                      <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-1">
+                        {domain.label}
+                      </h4>
+                      <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2">
+                        {domain.description}
+                      </p>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+
             </div>
           )}
 

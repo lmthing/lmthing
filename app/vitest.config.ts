@@ -18,6 +18,14 @@ export default defineConfig({
         replacement: path.resolve(__dirname, './src/test-mocks/style-stub.ts'),
       },
       {
+        find: '@lmthing/state',
+        replacement: path.resolve(__dirname, '../lib/state/src'),
+      },
+      {
+        find: 'lmthing',
+        replacement: path.resolve(__dirname, '../lib/core/src'),
+      },
+      {
         find: '@',
         replacement: path.resolve(__dirname, './src'),
       },

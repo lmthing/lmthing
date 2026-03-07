@@ -5,15 +5,13 @@
  */
 import { useState, useCallback, useEffect } from 'react'
 import { useParams } from '@tanstack/react-router'
-import '@/css/elements/layouts/page/index.css'
-import '@/css/elements/content/panel/index.css'
-import '@/css/elements/forms/button/index.css'
-import '@/css/elements/forms/input/index.css'
+import { useSpaceFS } from '@lmthing/state'
 import { Page, PageHeader, PageBody } from '@/elements/layouts/page'
 import { Heading } from '@/elements/typography/heading'
 import { Caption } from '@/elements/typography/caption'
 import { Stack } from '@/elements/layouts/stack'
 import { Badge } from '@/elements/content/badge'
+import { Button } from '@/elements/forms/button'
 import { useFile } from '@/hooks/fs/useFile'
 import { useKnowledgeFields } from '@/hooks/useKnowledgeFields'
 
@@ -27,6 +25,7 @@ export function TopicViewer({ fieldId, topicPath }: TopicViewerProps) {
   const effectiveFieldId = fieldId || params.fieldId
   const effectiveTopicPath = topicPath || (effectiveFieldId && params.topicId ? `knowledge/${effectiveFieldId}/${params.topicId}.md` : undefined)
 
+  const spaceFS = useSpaceFS()
   const knowledgeFields = useKnowledgeFields()
   const content = useFile(effectiveTopicPath || '')
 
@@ -46,6 +45,13 @@ export function TopicViewer({ fieldId, topicPath }: TopicViewerProps) {
     setHasUnsavedChanges(true)
     setSavedAt(null)
   }, [])
+
+  const handleSave = useCallback(() => {
+    if (!spaceFS || !effectiveTopicPath || !hasUnsavedChanges) return
+    spaceFS.writeFile(effectiveTopicPath, draft)
+    setHasUnsavedChanges(false)
+    setSavedAt(new Date().toLocaleTimeString())
+  }, [spaceFS, effectiveTopicPath, draft, hasUnsavedChanges])
 
   if (!effectiveTopicPath) {
     return (
@@ -79,7 +85,9 @@ export function TopicViewer({ fieldId, topicPath }: TopicViewerProps) {
         <Stack row gap="sm" style={{ alignItems: 'center' }}>
           {hasUnsavedChanges && <Badge variant="muted">Unsaved changes</Badge>}
           {savedAt && <Caption muted>Saved at {savedAt}</Caption>}
-          <button className="btn btn--primary btn--sm" disabled={!hasUnsavedChanges}>Save</button>
+          <Button variant="primary" size="sm" disabled={!hasUnsavedChanges} onClick={handleSave}>
+            Save
+          </Button>
         </Stack>
       </PageHeader>
 

@@ -1,3 +1,7 @@
+/**
+ * FieldTree - React-arborist file tree for knowledge management.
+ * Phase 6: CRUD, drag-and-drop, context menu, rename. No Tailwind.
+ */
 import { useRef, useCallback, useMemo, useState, type CSSProperties } from 'react'
 import { Tree, type NodeApi, type TreeApi } from 'react-arborist'
 import {
@@ -11,17 +15,14 @@ import {
   Copy,
   Trash2,
   Plus,
-  FolderPlus
+  FolderPlus,
 } from 'lucide-react'
 import type { KnowledgeNode } from '@/types/space-data'
 import { Button } from '@/elements/forms/button'
 import { Input } from '@/elements/forms/input'
 import { Separator } from '@/elements/content/separator'
+import { cn } from '@/lib/utils'
 import './FieldTree.css'
-
-// ============================================================================
-// Types
-// ============================================================================
 
 export interface FieldTreeProps {
   nodes: KnowledgeNode[]
@@ -51,10 +52,6 @@ interface ContextMenuState {
   position: { x: number; y: number } | null
 }
 
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
 function convertToTreeData(nodes: KnowledgeNode[]): TreeNode[] {
   return nodes.map(node => ({
     id: node.path,
@@ -67,21 +64,6 @@ function convertToTreeData(nodes: KnowledgeNode[]): TreeNode[] {
   }))
 }
 
-// ============================================================================
-// Context Menu Component
-// ============================================================================
-
-interface ContextMenuProps {
-  node: NodeApi<TreeNode>
-  position: { x: number; y: number }
-  onClose: () => void
-  onRename: () => void
-  onDelete: () => void
-  onDuplicate: () => void
-  onCreateFile: () => void
-  onCreateFolder: () => void
-}
-
 function ContextMenu({
   node,
   position,
@@ -91,57 +73,66 @@ function ContextMenu({
   onDuplicate,
   onCreateFile,
   onCreateFolder,
-}: ContextMenuProps) {
+}: {
+  node: NodeApi<TreeNode>
+  position: { x: number; y: number }
+  onClose: () => void
+  onRename: () => void
+  onDelete: () => void
+  onDuplicate: () => void
+  onCreateFile: () => void
+  onCreateFolder: () => void
+}) {
   const isDirectory = node.data.type === 'directory'
 
   return (
     <>
-      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div className="field-tree-context-menu__backdrop" onClick={onClose} />
       <div
-        className="fixed z-50 min-w-[180px] bg-card rounded-xl shadow-2xl border border-border overflow-hidden"
+        className="field-tree-context-menu"
         style={{ left: position.x, top: position.y }}
       >
         {isDirectory && (
           <>
             <button
-              onClick={() => { onCreateFile(); onClose(); }}
-              className="w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-brand-3/10 flex items-center gap-3 transition-colors"
+              onClick={() => { onCreateFile(); onClose() }}
+              className="field-tree-context-menu__item"
             >
-              <Plus className="w-4 h-4 text-muted-foreground" />
+              <Plus className="field-tree-context-menu__item-icon" />
               New File
             </button>
             <button
-              onClick={() => { onCreateFolder(); onClose(); }}
-              className="w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-brand-3/10 flex items-center gap-3 transition-colors"
+              onClick={() => { onCreateFolder(); onClose() }}
+              className="field-tree-context-menu__item"
             >
-              <FolderPlus className="w-4 h-4 text-muted-foreground" />
+              <FolderPlus className="field-tree-context-menu__item-icon" />
               New Folder
             </button>
             <Separator />
           </>
         )}
         <button
-          onClick={() => { onRename(); onClose(); }}
-          className="w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-brand-3/10 flex items-center gap-3 transition-colors"
+          onClick={() => { onRename(); onClose() }}
+          className="field-tree-context-menu__item"
         >
-          <Edit3 className="w-4 h-4 text-muted-foreground" />
+          <Edit3 className="field-tree-context-menu__item-icon" />
           Rename
         </button>
         {!isDirectory && (
           <button
-            onClick={() => { onDuplicate(); onClose(); }}
-            className="w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-brand-3/10 flex items-center gap-3 transition-colors"
+            onClick={() => { onDuplicate(); onClose() }}
+            className="field-tree-context-menu__item"
           >
-            <Copy className="w-4 h-4 text-muted-foreground" />
+            <Copy className="field-tree-context-menu__item-icon" />
             Duplicate
           </button>
         )}
         <Separator />
         <button
-          onClick={() => { onDelete(); onClose(); }}
-          className="w-full px-4 py-2.5 text-left text-sm text-destructive hover:bg-destructive/10 flex items-center gap-3 transition-colors"
+          onClick={() => { onDelete(); onClose() }}
+          className="field-tree-context-menu__item field-tree-context-menu__item--destructive"
         >
-          <Trash2 className="w-4 h-4" />
+          <Trash2 className="field-tree-context-menu__item-icon" />
           Delete
         </button>
       </div>
@@ -149,19 +140,19 @@ function ContextMenu({
   )
 }
 
-// ============================================================================
-// Tree Node Component
-// ============================================================================
-
-interface NodeRendererProps {
+function NodeRenderer({
+  node,
+  style,
+  dragHandle,
+  onContextMenu,
+  selectedPath,
+}: {
   node: NodeApi<TreeNode>
   style: CSSProperties
   dragHandle?: (el: HTMLDivElement | null) => void
   onContextMenu: (node: NodeApi<TreeNode>, position: { x: number; y: number }) => void
   selectedPath: string | null
-}
-
-function NodeRenderer({ node, style, dragHandle, onContextMenu, selectedPath }: NodeRendererProps) {
+}) {
   const isDirectory = node.data.type === 'directory'
   const isSelected = node.data.path === selectedPath
 
@@ -179,14 +170,9 @@ function NodeRenderer({ node, style, dragHandle, onContextMenu, selectedPath }: 
     onContextMenu(node, { x: e.clientX, y: e.clientY })
   }
 
-  const getNodeColor = () => {
-    if (isDirectory && node.data.config?.color) {
-      return node.data.config.color
-    }
-    return undefined
-  }
-
-  const nodeColor = getNodeColor()
+  const nodeColor = isDirectory && node.data.config?.color
+    ? node.data.config.color
+    : undefined
 
   return (
     <div
@@ -194,53 +180,36 @@ function NodeRenderer({ node, style, dragHandle, onContextMenu, selectedPath }: 
       style={style}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
-      className={`
-        group flex items-center gap-2 py-2 px-2.5 mx-1.5 rounded-lg cursor-pointer
-        transition-all duration-150 relative
-        ${
-          isSelected
-            ? 'bg-gradient-to-r from-brand-3 to-brand-3 text-primary-foreground shadow-md shadow-brand-3/25'
-            : 'hover:bg-muted text-foreground'
-        }
-        ${node.state.isDragging ? 'opacity-50' : ''}
-        ${node.state.willReceiveDrop ? 'ring-2 ring-brand-3' : ''}
-      `}
+      className={cn(
+        'field-tree-node',
+        isSelected && 'field-tree-node--selected',
+        node.state.isDragging && 'field-tree-node--dragging',
+        node.state.willReceiveDrop && 'field-tree-node--drop-target',
+      )}
     >
       {isDirectory ? (
         <>
           {node.isOpen ? (
-            <ChevronDown
-              className={`w-3.5 h-3.5 flex-shrink-0 ${
-                isSelected ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-foreground'
-              }`}
-            />
+            <ChevronDown className="field-tree-node__icon--chevron" />
           ) : (
-            <ChevronRight
-              className={`w-3.5 h-3.5 flex-shrink-0 ${
-                isSelected ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-foreground'
-              }`}
-            />
+            <ChevronRight className="field-tree-node__icon--chevron" />
           )}
           {node.isOpen ? (
             <FolderOpen
-              className="w-4 h-4 flex-shrink-0"
-              style={{ color: isSelected ? '#fff' : nodeColor || '#8b5cf6' }}
+              className="field-tree-node__icon field-tree-node__icon--folder"
+              style={nodeColor && !isSelected ? { color: nodeColor } : undefined}
             />
           ) : (
             <Folder
-              className="w-4 h-4 flex-shrink-0"
-              style={{ color: isSelected ? '#fff' : nodeColor || '#8b5cf6' }}
+              className="field-tree-node__icon field-tree-node__icon--folder"
+              style={nodeColor && !isSelected ? { color: nodeColor } : undefined}
             />
           )}
         </>
       ) : (
         <>
-          <span className="w-6 flex-shrink-0" />
-          <FileText
-            className={`w-4 h-4 flex-shrink-0 ${
-              isSelected ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-foreground'
-            }`}
-          />
+          <span className="field-tree-node__spacer" />
+          <FileText className="field-tree-node__icon field-tree-node__icon--file" />
         </>
       )}
 
@@ -259,34 +228,25 @@ function NodeRenderer({ node, style, dragHandle, onContextMenu, selectedPath }: 
         />
       ) : (
         <>
-          <span className={`text-sm font-medium truncate flex-1 ${isSelected ? 'text-primary-foreground' : ''}`}>
-            {node.data.name}
-          </span>
-
-          {/* More options button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => {
-              e.stopPropagation()
-              const rect = (e.target as HTMLElement).getBoundingClientRect()
-              onContextMenu(node, { x: rect.left, y: rect.bottom + 4 })
-            }}
-            className={`opacity-0 group-hover:opacity-100 ${
-              isSelected ? 'hover:bg-white/20' : ''
-            }`}
-          >
-            <MoreVertical className={`w-3.5 h-3.5 ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'}`} />
-          </Button>
+          <span className="field-tree-node__label">{node.data.name}</span>
+          <div className="field-tree-node__actions">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation()
+                const rect = (e.target as HTMLElement).getBoundingClientRect()
+                onContextMenu(node, { x: rect.left, y: rect.bottom + 4 })
+              }}
+            >
+              <MoreVertical className="field-tree-node__icon" />
+            </Button>
+          </div>
         </>
       )}
     </div>
   )
 }
-
-// ============================================================================
-// Main Component
-// ============================================================================
 
 export function FieldTree({
   nodes,
@@ -310,56 +270,41 @@ export function FieldTree({
   }, [])
 
   const handleRename = useCallback(() => {
-    if (contextMenu.node) {
-      contextMenu.node.edit()
-    }
+    if (contextMenu.node) contextMenu.node.edit()
   }, [contextMenu.node])
 
   const handleRenameSubmit = useCallback(
     (args: { id: string; name: string }) => {
       const node = treeRef.current?.get(args.id)
       if (!node) return
-
       const oldPath = node.data.path
       const pathParts = oldPath.split('/')
       pathParts[pathParts.length - 1] = args.name
-      const newPath = pathParts.join('/')
-
-      onRenameNode(oldPath, newPath)
+      onRenameNode(oldPath, pathParts.join('/'))
     },
     [onRenameNode]
   )
 
   const handleDelete = useCallback(() => {
-    if (contextMenu.node) {
-      onDeleteNode(contextMenu.node.data.path)
-    }
+    if (contextMenu.node) onDeleteNode(contextMenu.node.data.path)
   }, [contextMenu.node, onDeleteNode])
 
   const handleDuplicate = useCallback(() => {
-    if (contextMenu.node) {
-      onDuplicateNode(contextMenu.node.data.path)
-    }
+    if (contextMenu.node) onDuplicateNode(contextMenu.node.data.path)
   }, [contextMenu.node, onDuplicateNode])
 
   const handleCreateFile = useCallback(() => {
-    if (contextMenu.node) {
-      onCreateFile(contextMenu.node.data.path)
-    }
+    if (contextMenu.node) onCreateFile(contextMenu.node.data.path)
   }, [contextMenu.node, onCreateFile])
 
   const handleCreateFolder = useCallback(() => {
-    if (contextMenu.node) {
-      onCreateFolder(contextMenu.node.data.path)
-    }
+    if (contextMenu.node) onCreateFolder(contextMenu.node.data.path)
   }, [contextMenu.node, onCreateFolder])
 
   const handleMove = useCallback(
     (args: { dragIds: string[]; parentId: string | null; index: number }) => {
       if (args.dragIds.length === 0) return
-      const dragPath = args.dragIds[0]
-      const targetPath = args.parentId || ''
-      onMove(dragPath, targetPath, args.index)
+      onMove(args.dragIds[0], args.parentId || '', args.index)
     },
     [onMove]
   )
@@ -379,7 +324,7 @@ export function FieldTree({
   )
 
   return (
-    <div className="relative h-full w-full">
+    <div style={{ position: 'relative', height: '100%', width: '100%' }}>
       <Tree
         ref={treeRef}
         data={treeData}

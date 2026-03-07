@@ -3,7 +3,6 @@ import { FolderPlus, X } from 'lucide-react'
 import { Button } from '@/elements/forms/button'
 import { Input } from '@/elements/forms/input'
 import { Textarea } from '@/elements/forms/textarea'
-import { Card, CardHeader, CardBody } from '@/elements/content/card'
 import { Stack } from '@/elements/layouts/stack'
 import { Label } from '@/elements/typography/label'
 import { Caption } from '@/elements/typography/caption'
@@ -28,51 +27,55 @@ export function CreateFieldInline({ onSubmit, onCancel }: CreateFieldInlineProps
     }
 
     return (
-        <div className="bg-gradient-to-br from-brand-2/10 to-brand-2/10 border-2 border-brand-2/30 rounded-xl p-5 mb-6 animate-in slide-in-from-top-2 duration-200">
-            <Stack row gap="md" style={{ justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                <Stack row gap="md" style={{ alignItems: 'center' }}>
-                    <div className="p-2 bg-brand-2 rounded-lg">
-                        <FolderPlus className="w-5 h-5 text-primary-foreground" />
-                    </div>
-                    <div>
-                        <Heading level={3}>Create Knowledge Field</Heading>
-                        <Caption muted>Define a new field of knowledge</Caption>
-                    </div>
-                </Stack>
-                <Button variant="ghost" size="icon" onClick={onCancel}>
-                    <X className="w-4 h-4" />
-                </Button>
-            </Stack>
-            <form onSubmit={handleSubmit} className="space-y-3">
-                <div>
-                    <Label compact required>Name</Label>
-                    <Input
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="e.g. Project Documentation"
-                        autoFocus
-                        required
-                    />
-                </div>
-                <div>
-                    <Label compact>Description (Optional)</Label>
-                    <Textarea
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder="Brief description of this knowledge field"
-                        compact
-                    />
-                </div>
-                <Stack row gap="sm">
-                    <Button variant="outline" onClick={onCancel} style={{ flex: 1 }}>
-                        Cancel
-                    </Button>
-                    <Button variant="primary" type="submit" disabled={!name.trim()} style={{ flex: 1 }}>
-                        Create Field
+        <div className="panel" style={{ marginBottom: '1.5rem' }}>
+            <div className="panel__header">
+                <Stack row gap="md" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Stack row gap="md" style={{ alignItems: 'center' }}>
+                        <FolderPlus style={{ width: '1.25rem', height: '1.25rem' }} />
+                        <div>
+                            <Heading level={3}>Create Knowledge Field</Heading>
+                            <Caption muted>Define a new field of knowledge</Caption>
+                        </div>
+                    </Stack>
+                    <Button variant="ghost" size="icon" onClick={onCancel}>
+                        <X style={{ width: '1rem', height: '1rem' }} />
                     </Button>
                 </Stack>
-            </form>
+            </div>
+            <div className="panel__body">
+                <form onSubmit={handleSubmit}>
+                    <Stack gap="md">
+                        <div>
+                            <Label compact required>Name</Label>
+                            <Input
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                placeholder="e.g. Project Documentation"
+                                autoFocus
+                                required
+                            />
+                        </div>
+                        <div>
+                            <Label compact>Description (Optional)</Label>
+                            <Textarea
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                placeholder="Brief description of this knowledge field"
+                                compact
+                            />
+                        </div>
+                        <Stack row gap="sm">
+                            <Button variant="outline" onClick={onCancel} style={{ flex: 1 }}>
+                                Cancel
+                            </Button>
+                            <Button variant="primary" type="submit" disabled={!name.trim()} style={{ flex: 1 }}>
+                                Create Field
+                            </Button>
+                        </Stack>
+                    </Stack>
+                </form>
+            </div>
         </div>
     )
 }

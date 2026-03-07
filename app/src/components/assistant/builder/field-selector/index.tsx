@@ -1,69 +1,72 @@
+/**
+ * FieldSelector - Rich knowledge field selector with metadata.
+ * Phase 5: Shows each field as a toggleable card with title, description, entry count.
+ */
 import { Badge } from '@/elements/content/badge'
+import { Card, CardBody } from '@/elements/content/card'
 import { Stack } from '@/elements/layouts/stack'
 import { Label } from '@/elements/typography/label'
 import { Caption } from '@/elements/typography/caption'
+import { useKnowledgeField } from '@/hooks/useKnowledgeField'
+import type { DomainMeta } from '@/hooks/useKnowledgeFields'
 
-interface KnowledgeField {
-  id: string
-  name: string
-  icon?: string
-  description?: string
+export interface FieldSelectorProps {
+  fields: DomainMeta[]
+  selectedIds: string[]
+  onToggle: (fieldId: string) => void
 }
 
-interface FieldSelectorProps {
-  fields: KnowledgeField[]
-  selectedFieldIds: string[]
-  onFieldsChange: (fieldIds: string[]) => void
+function FieldCard({ field, selected, onToggle }: {
+  field: DomainMeta
+  selected: boolean
+  onToggle: () => void
+}) {
+  const knowledge = useKnowledgeField(field.id)
+  const title = knowledge.config?.title || field.id
+  const description = knowledge.config?.description
+  const entryCount = knowledge.entries.length
+
+  return (
+    <Card
+      interactive
+      onClick={onToggle}
+      style={{ cursor: 'pointer' }}
+    >
+      <CardBody>
+        <Stack row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Label>{title}</Label>
+            {description && (
+              <Caption muted style={{ marginTop: '0.125rem' }}>{description}</Caption>
+            )}
+            <Caption muted style={{ marginTop: '0.125rem' }}>
+              {entryCount} {entryCount === 1 ? 'entry' : 'entries'}
+            </Caption>
+          </div>
+          <Badge variant={selected ? 'primary' : 'muted'}>
+            {selected ? 'Selected' : 'Add'}
+          </Badge>
+        </Stack>
+      </CardBody>
+    </Card>
+  )
 }
 
-export function FieldSelector({ fields, selectedFieldIds, onFieldsChange }: FieldSelectorProps) {
-  const toggleField = (fieldId: string) => {
-    const isSelected = selectedFieldIds.includes(fieldId)
-    const newSelection = isSelected
-      ? selectedFieldIds.filter(id => id !== fieldId)
-      : [...selectedFieldIds, fieldId]
-    onFieldsChange(newSelection)
+export function FieldSelector({ fields, selectedIds, onToggle }: FieldSelectorProps) {
+  if (fields.length === 0) {
+    return <Caption muted>No knowledge fields available.</Caption>
   }
 
   return (
-    <div style={{ margin: '2rem 0' }}>
-      <Stack row style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <Label compact>Knowledge Areas</Label>
-        {selectedFieldIds.length > 0 && (
-          <button onClick={() => onFieldsChange([])} style={{ cursor: 'pointer', border: 'none', background: 'none' }}>
-            <Caption muted>Clear all</Caption>
-          </button>
-        )}
-      </Stack>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-        {fields.map(field => {
-          const isSelected = selectedFieldIds.includes(field.id)
-          return (
-            <button
-              key={field.id}
-              onClick={() => toggleField(field.id)}
-              aria-selected={isSelected}
-              style={{ cursor: 'pointer', border: 'none', background: 'none', padding: 0 }}
-              title={field.description}
-            >
-              <Badge variant={isSelected ? 'primary' : 'muted'}>
-                {field.icon && <span>{field.icon}</span>}
-                <span>{field.name}</span>
-                {isSelected && (
-                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                )}
-              </Badge>
-            </button>
-          )
-        })}
-      </div>
-      {selectedFieldIds.length === 0 && (
-        <Caption muted style={{ marginTop: '0.5rem', display: 'block' }}>
-          Select knowledge areas to configure your assistant
-        </Caption>
-      )}
-    </div>
+    <Stack gap="sm">
+      {fields.map(field => (
+        <FieldCard
+          key={field.id}
+          field={field}
+          selected={selectedIds.includes(field.id)}
+          onToggle={() => onToggle(field.id)}
+        />
+      ))}
+    </Stack>
   )
 }

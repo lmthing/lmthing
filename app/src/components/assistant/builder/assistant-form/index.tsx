@@ -7,7 +7,7 @@ import { Caption } from '@/elements/typography/caption'
 import { Label } from '@/elements/typography/label'
 import { Badge } from '@/elements/content/badge'
 import { Card, CardBody } from '@/elements/content/card'
-import { useKnowledgeField } from '@/hooks/useKnowledgeField'
+import { FieldSelector } from '../field-selector'
 import type { DomainMeta } from '@/hooks/useKnowledgeFields'
 import type { WorkflowListItem } from '@/hooks/useWorkflowList'
 
@@ -24,38 +24,6 @@ export interface AssistantFormProps {
   onInstructionsChange: (text: string) => void
   onFieldToggle: (fieldId: string) => void
   onWorkflowToggle: (workflowId: string) => void
-}
-
-function FieldCard({ field, selected, onToggle }: {
-  field: DomainMeta
-  selected: boolean
-  onToggle: () => void
-}) {
-  const knowledge = useKnowledgeField(field.id)
-  const title = knowledge.config?.title || field.id
-  const description = knowledge.config?.description
-  const entryCount = knowledge.entries.length
-
-  return (
-    <Card
-      interactive
-      onClick={onToggle}
-      style={{ cursor: 'pointer' }}
-    >
-      <CardBody>
-        <Stack row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <Label>{title}</Label>
-            {description && <Caption muted>{description}</Caption>}
-            <Caption muted>{entryCount} {entryCount === 1 ? 'entry' : 'entries'}</Caption>
-          </div>
-          <Badge variant={selected ? 'primary' : 'muted'}>
-            {selected ? 'Selected' : 'Add'}
-          </Badge>
-        </Stack>
-      </CardBody>
-    </Card>
-  )
 }
 
 function WorkflowCard({ workflow, selected, onToggle }: {
@@ -144,20 +112,11 @@ export function AssistantForm({
           <Label>Knowledge Fields ({selectedFieldIds.length}/{knowledgeFields.length})</Label>
         </div>
         <div className="panel__body">
-          {knowledgeFields.length === 0 ? (
-            <Caption muted>No knowledge fields available.</Caption>
-          ) : (
-            <Stack gap="sm">
-              {knowledgeFields.map(field => (
-                <FieldCard
-                  key={field.id}
-                  field={field}
-                  selected={selectedFieldIds.includes(field.id)}
-                  onToggle={() => onFieldToggle(field.id)}
-                />
-              ))}
-            </Stack>
-          )}
+          <FieldSelector
+            fields={knowledgeFields}
+            selectedIds={selectedFieldIds}
+            onToggle={onFieldToggle}
+          />
         </div>
       </div>
 

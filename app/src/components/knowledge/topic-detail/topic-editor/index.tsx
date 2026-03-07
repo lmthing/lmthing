@@ -1,18 +1,18 @@
 import { useState, useCallback, useEffect } from 'react'
+import { useSpaceFS } from '@lmthing/state'
 import { Stack } from '@/elements/layouts/stack'
 import { Heading } from '@/elements/typography/heading'
 import { Caption } from '@/elements/typography/caption'
 import { Badge } from '@/elements/content/badge'
+import { Button } from '@/elements/forms/button'
 import { useFile } from '@/hooks/fs/useFile'
-import '@/css/elements/forms/input/index.css'
-import '@/css/elements/forms/button/index.css'
-import '@/css/elements/layouts/stack/index.css'
 
 interface TopicEditorProps {
   topicPath: string
 }
 
 export function TopicEditor({ topicPath }: TopicEditorProps) {
+  const spaceFS = useSpaceFS()
   const content = useFile(topicPath)
 
   const [draft, setDraft] = useState(content || '')
@@ -30,6 +30,12 @@ export function TopicEditor({ topicPath }: TopicEditorProps) {
     setHasUnsavedChanges(true)
   }, [])
 
+  const handleSave = useCallback(() => {
+    if (!spaceFS || !hasUnsavedChanges) return
+    spaceFS.writeFile(topicPath, draft)
+    setHasUnsavedChanges(false)
+  }, [spaceFS, topicPath, draft, hasUnsavedChanges])
+
   const topicName = topicPath.split('/').pop()?.replace('.md', '') || 'Topic'
 
   return (
@@ -41,7 +47,9 @@ export function TopicEditor({ topicPath }: TopicEditorProps) {
         </div>
         <Stack row gap="sm" style={{ alignItems: 'center' }}>
           {hasUnsavedChanges && <Badge variant="muted">Unsaved changes</Badge>}
-          <button className="btn btn--primary btn--sm" disabled={!hasUnsavedChanges}>Save</button>
+          <Button variant="primary" size="sm" disabled={!hasUnsavedChanges} onClick={handleSave}>
+            Save
+          </Button>
         </Stack>
       </Stack>
 

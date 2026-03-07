@@ -510,14 +510,17 @@ describe('taskListPlugin', () => {
       expect(prompt.getState<Task[]>('taskList')?.[0].status).toBe('completed');
     });
 
-    it('should render updated task status into system step modifications via defEffect', async () => {
+    it('should render updated task status into system prompt via defEffect', async () => {
+      // This test verifies that the defEffect adds taskList content to this.systems
+      // which is included in the system prompt that the LLM receives.
       const prompt = createTestPrompt();
       prompt.defTaskList([{ id: 't1', name: 'Render status', status: 'pending' }]);
       await prompt.getTools().startTask!.execute({ taskId: 't1' });
 
       (prompt as any)._processEffects({ messages: [], stepNumber: 2 });
-      const taskListSystem = (prompt as any)._stepModifications.systems?.[0]?.value as string;
+      const taskListSystem = (prompt as any).systems.taskList as string;
 
+      expect(taskListSystem).toBeDefined();
       expect(taskListSystem).toContain('## Current Task Status');
       expect(taskListSystem).toContain('### In Progress (1)');
       expect(taskListSystem).toContain('- [t1] Render status');
@@ -577,6 +580,63 @@ describe('taskListPlugin', () => {
       expect(prompt.getState<Task[]>('taskList')?.[0].status).toBe('in_progress');
       expect(prompt.variables.PROJECT?.value).toBe('Apollo');
       expect((prompt as any).systems.role).toContain('<PROJECT>');
+    });
+
+    it('should add taskList system part to systems object (not just step modifications)', async () => {
+      // This test verifies that the taskList effect adds content to this.systems
+      // rather than just to step modifications, ensuring the LLM receives it.
+      const { result, prompt } = await runPrompt(async ({ defTaskList, $ }) => {
+        defTaskList([
+          { id: 't1', name: 'Task one', status: 'pending' },
+          { id: 't2', name: 'Task two', status: 'in_progress' },
+          { id: 't3', name: 'Task three', status: 'completed' }
+        ]);
+
+        $`Show me the tasks`;
+      }, { model: createMockModel([{ type: 'text', text: 'Done' }]), plugins: [taskListPlugin] });
+
+      await result.text;
+
+      // The taskList system part should be in this.systems
+      const taskListContent = (prompt as any).systems.taskList as string;
+
+      // Verify the task list was added to systems (not just step modifications)
+      expect(taskListContent).toBeDefined();
+      expect(typeof taskListContent).toBe('string');
+
+      // Verify the content contains expected task status information
+      expect(taskListContent).toContain('## Current Task Status');
+      expect(taskListContent).toContain('### In Progress (1)');
+      expect(taskListContent).toContain('- [t1] Task one');
+      expect(taskListContent).toContain('### Pending (1)');
+      expect(taskListContent).toContain('### Completed (1)');
+      expect(taskListContent).toContain('startTask');
+      expect(taskListContent).toContain('completeTask');
+      expect(taskListContent).toContain('failTask');
+    });
+
+    it('should update taskList system part when task status changes', async () => {
+      const { result, prompt } = await runPrompt(async ({ defTaskList, $ }) => {
+        defTaskList([{ id: 't1', name: 'Dynamic task', status: 'pending' }]);
+        $`Start and complete the task`;
+      }, {
+        model: createMockModel([
+          { type: 'tool-call', toolCallId: 'c1', toolName: 'startTask', args: { taskId: 't1' } },
+          { type: 'tool-call', toolCallId: 'c2', toolName: 'completeTask', args: { taskId: 't1' } },
+          { type: 'text', text: 'Done' }
+        ]),
+        plugins: [taskListPlugin]
+      });
+
+      await result.text;
+
+      const taskListContent = (prompt as any).systems.taskList as string;
+
+      // After startTask and completeTask, task should be completed
+      expect(taskListContent).toContain('### Completed (1)');
+      expect(taskListContent).toContain('- [t1] Dynamic task');
+      expect(taskListContent).toContain('### In Progress (0)');
+      expect(taskListContent).toContain('### Pending (0)');
     });
   });
 });

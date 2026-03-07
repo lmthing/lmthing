@@ -2,7 +2,7 @@
  * FieldTree - React-arborist file tree for knowledge management.
  * Phase 6: CRUD, drag-and-drop, context menu, rename. No Tailwind.
  */
-import { useRef, useCallback, useMemo, useState, type CSSProperties } from 'react'
+import { useRef, useCallback, useMemo, useState, useImperativeHandle, forwardRef, type CSSProperties } from 'react'
 import { Tree, type NodeApi, type TreeApi } from 'react-arborist'
 import {
   ChevronRight,
@@ -24,9 +24,15 @@ import { Separator } from '@/elements/content/separator'
 import { cn } from '@/lib/utils'
 import './FieldTree.css'
 
+export interface FieldTreeHandle {
+  expandAll: () => void
+  collapseAll: () => void
+}
+
 export interface FieldTreeProps {
   nodes: KnowledgeNode[]
   selectedFilePath: string | null
+  searchQuery?: string
   onFileSelect: (path: string) => void
   onDirectorySelect: (path: string) => void
   onRenameNode: (oldPath: string, newPath: string) => void
@@ -62,6 +68,22 @@ function convertToTreeData(nodes: KnowledgeNode[]): TreeNode[] {
     frontmatter: node.frontmatter,
     children: node.children ? convertToTreeData(node.children) : undefined,
   }))
+}
+
+function filterTreeNodes(nodes: TreeNode[], query: string): TreeNode[] {
+  if (!query) return nodes
+  const lower = query.toLowerCase()
+  return nodes.reduce<TreeNode[]>((acc, node) => {
+    const nameMatches = node.name.toLowerCase().includes(lower)
+    const filteredChildren = node.children ? filterTreeNodes(node.children, query) : undefined
+    if (nameMatches || (filteredChildren && filteredChildren.length > 0)) {
+      acc.push({
+        ...node,
+        children: filteredChildren,
+      })
+    }
+    return acc
+  }, [])
 }
 
 function ContextMenu({
@@ -248,9 +270,10 @@ function NodeRenderer({
   )
 }
 
-export function FieldTree({
+export const FieldTree = forwardRef<FieldTreeHandle, FieldTreeProps>(function FieldTree({
   nodes,
   selectedFilePath,
+  searchQuery,
   onFileSelect,
   onDirectorySelect,
   onRenameNode,
@@ -259,11 +282,19 @@ export function FieldTree({
   onCreateFile,
   onCreateFolder,
   onMove,
-}: FieldTreeProps) {
+}, ref) {
   const treeRef = useRef<TreeApi<TreeNode>>(null)
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({ node: null, position: null })
 
-  const treeData = useMemo(() => convertToTreeData(nodes), [nodes])
+  useImperativeHandle(ref, () => ({
+    expandAll: () => treeRef.current?.openAll(),
+    collapseAll: () => treeRef.current?.closeAll(),
+  }), [])
+
+  const treeData = useMemo(() => {
+    const converted = convertToTreeData(nodes)
+    return searchQuery ? filterTreeNodes(converted, searchQuery) : converted
+  }, [nodes, searchQuery])
 
   const handleContextMenu = useCallback((node: NodeApi<TreeNode>, position: { x: number; y: number }) => {
     setContextMenu({ node, position })
@@ -364,4 +395,4 @@ export function FieldTree({
       )}
     </div>
   )
-}
+})

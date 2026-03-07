@@ -19,6 +19,8 @@ export interface ConfigurationFormProps {
   schemas: FieldSchema[]
   values: FormValues
   onValueChange: (fieldId: string, value: string | string[] | boolean) => void
+  askAtRuntimeIds?: string[]
+  onToggleAskAtRuntime?: (fieldId: string) => void
 }
 
 function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -80,10 +82,12 @@ function MultiSelectPills({ options, selected, onToggle }: {
   )
 }
 
-function FormField({ field, value, onValueChange }: {
+function FormField({ field, value, onValueChange, isAskAtRuntime, onToggleAskAtRuntime }: {
   field: SchemaField
   value: string | string[] | boolean | undefined
   onValueChange: (fieldId: string, value: string | string[] | boolean) => void
+  isAskAtRuntime?: boolean
+  onToggleAskAtRuntime?: () => void
 }) {
   const effectiveValue = value ?? field.default
 
@@ -97,15 +101,33 @@ function FormField({ field, value, onValueChange }: {
 
   return (
     <div>
-      <Stack row gap="sm" style={{ alignItems: 'center', marginBottom: '0.25rem' }}>
-        <Label compact>{field.label}</Label>
-        {field.required && <span style={{ color: 'var(--color-warning)', fontSize: '0.75rem' }}>*</span>}
+      <Stack row gap="sm" style={{ alignItems: 'center', marginBottom: '0.25rem', justifyContent: 'space-between' }}>
+        <Stack row gap="sm" style={{ alignItems: 'center' }}>
+          <Label compact>{field.label}</Label>
+          {field.required && <span style={{ color: 'var(--color-warning)', fontSize: '0.75rem' }}>*</span>}
+        </Stack>
+        {onToggleAskAtRuntime && (
+          <button
+            type="button"
+            onClick={onToggleAskAtRuntime}
+            className={`badge ${isAskAtRuntime ? 'badge--primary' : 'badge--muted'}`}
+            style={{ cursor: 'pointer', border: 'none', fontSize: '0.625rem' }}
+          >
+            {isAskAtRuntime ? 'Asked at runtime' : 'Ask at runtime'}
+          </button>
+        )}
       </Stack>
       {field.description && (
         <Caption muted style={{ marginBottom: '0.5rem' }}>{field.description}</Caption>
       )}
 
-      {field.fieldType === 'text' && (
+      {isAskAtRuntime && (
+        <Caption muted style={{ fontStyle: 'italic', padding: '0.5rem 0' }}>
+          This field will be shown to the user in the chat sidebar at runtime.
+        </Caption>
+      )}
+
+      {!isAskAtRuntime && field.fieldType === 'text' && (
         <Input
           type="text"
           value={(effectiveValue as string) || ''}
@@ -114,7 +136,7 @@ function FormField({ field, value, onValueChange }: {
         />
       )}
 
-      {field.fieldType === 'textarea' && (
+      {!isAskAtRuntime && field.fieldType === 'textarea' && (
         <Textarea
           value={(effectiveValue as string) || ''}
           onChange={e => onValueChange(field.id, e.target.value)}
@@ -123,7 +145,7 @@ function FormField({ field, value, onValueChange }: {
         />
       )}
 
-      {field.fieldType === 'select' && (
+      {!isAskAtRuntime && field.fieldType === 'select' && (
         <Select
           value={(effectiveValue as string) || ''}
           onChange={e => onValueChange(field.id, e.target.value)}
@@ -137,7 +159,7 @@ function FormField({ field, value, onValueChange }: {
         </Select>
       )}
 
-      {field.fieldType === 'multiselect' && (
+      {!isAskAtRuntime && field.fieldType === 'multiselect' && (
         <MultiSelectPills
           options={field.options}
           selected={Array.isArray(effectiveValue) ? effectiveValue : []}
@@ -145,7 +167,7 @@ function FormField({ field, value, onValueChange }: {
         />
       )}
 
-      {field.fieldType === 'toggle' && (
+      {!isAskAtRuntime && field.fieldType === 'toggle' && (
         <ToggleSwitch
           checked={Boolean(effectiveValue)}
           onChange={v => onValueChange(field.id, v)}
@@ -155,7 +177,7 @@ function FormField({ field, value, onValueChange }: {
   )
 }
 
-export function ConfigurationForm({ schemas, values, onValueChange }: ConfigurationFormProps) {
+export function ConfigurationForm({ schemas, values, onValueChange, askAtRuntimeIds = [], onToggleAskAtRuntime }: ConfigurationFormProps) {
   if (schemas.length === 0) {
     return (
       <Caption muted>
@@ -205,6 +227,8 @@ export function ConfigurationForm({ schemas, values, onValueChange }: Configurat
                         field={field}
                         value={values[field.id]}
                         onValueChange={onValueChange}
+                        isAskAtRuntime={askAtRuntimeIds.includes(field.id)}
+                        onToggleAskAtRuntime={onToggleAskAtRuntime ? () => onToggleAskAtRuntime(field.id) : undefined}
                       />
                     ))}
                   </Stack>
@@ -221,6 +245,8 @@ export function ConfigurationForm({ schemas, values, onValueChange }: Configurat
                           field={field}
                           value={values[field.id]}
                           onValueChange={onValueChange}
+                          isAskAtRuntime={askAtRuntimeIds.includes(field.id)}
+                          onToggleAskAtRuntime={onToggleAskAtRuntime ? () => onToggleAskAtRuntime(field.id) : undefined}
                         />
                       ))}
                     </Stack>

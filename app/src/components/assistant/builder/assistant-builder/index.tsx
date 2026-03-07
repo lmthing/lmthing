@@ -79,6 +79,7 @@ export function AssistantBuilder() {
   const [selectedFieldIds, setSelectedFieldIds] = useState<string[]>([])
   const [selectedWorkflowIds, setSelectedWorkflowIds] = useState<string[]>([])
   const [formValues, setFormValues] = useState<FormValues>({})
+  const [askAtRuntimeIds, setAskAtRuntimeIds] = useState<string[]>([])
 
   const fieldSchemas = useFieldSchema(selectedFieldIds)
 
@@ -97,6 +98,7 @@ export function AssistantBuilder() {
       setSelectedFieldIds(cfg?.domains || [])
       setSelectedWorkflowIds(cfg?.flows || [])
       setFormValues((assistant.values as FormValues) || {})
+      setAskAtRuntimeIds((cfg?.askAtRuntime as string[]) || [])
     } else if (!assistantId) {
       setDraftName('')
       setDraftDescription('')
@@ -104,6 +106,7 @@ export function AssistantBuilder() {
       setSelectedFieldIds([])
       setSelectedWorkflowIds([])
       setFormValues({})
+      setAskAtRuntimeIds([])
     }
   }) // intentionally no deps — we use the ref to control when sync happens
 
@@ -155,6 +158,7 @@ export function AssistantBuilder() {
       ...existingConfig,
       domains: selectedFieldIds,
       flows: selectedWorkflowIds,
+      askAtRuntime: askAtRuntimeIds,
     }
     spaceFS.writeFile(P.agentConfig(id), serializeAgentConfig(config))
 
@@ -165,7 +169,7 @@ export function AssistantBuilder() {
     if (!assistantId) {
       navigate({ to: `${spacePath}/assistant/${encodeURIComponent(id)}` })
     }
-  }, [spaceFS, isValid, assistantId, draftName, draftDescription, draftInstructions, selectedFieldIds, selectedWorkflowIds, formValues, assistant.config, navigate, spacePath])
+  }, [spaceFS, isValid, assistantId, draftName, draftDescription, draftInstructions, selectedFieldIds, selectedWorkflowIds, formValues, askAtRuntimeIds, assistant.config, navigate, spacePath])
 
   const handleBack = useCallback(() => {
     navigate({ to: `${spacePath}/assistant` })
@@ -183,6 +187,12 @@ export function AssistantBuilder() {
 
   const handleFormValueChange = useCallback((fieldId: string, value: string | string[] | boolean) => {
     setFormValues(prev => ({ ...prev, [fieldId]: value }))
+  }, [])
+
+  const handleToggleAskAtRuntime = useCallback((fieldId: string) => {
+    setAskAtRuntimeIds(prev =>
+      prev.includes(fieldId) ? prev.filter(id => id !== fieldId) : [...prev, fieldId]
+    )
   }, [])
 
   const handleWorkflowToggle = useCallback((workflowId: string) => {
@@ -313,6 +323,8 @@ export function AssistantBuilder() {
                   schemas={fieldSchemas}
                   values={formValues}
                   onValueChange={handleFormValueChange}
+                  askAtRuntimeIds={askAtRuntimeIds}
+                  onToggleAskAtRuntime={handleToggleAskAtRuntime}
                 />
               )}
             </Stack>

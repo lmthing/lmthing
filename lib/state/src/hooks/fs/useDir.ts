@@ -31,8 +31,18 @@ export function useDir(dir: string): DirEntry[] {
 
 export function useDirWatch(dir: string, cb: (entries: DirEntry[]) => void): void {
   const fs = useSpaceFS()
+  const watchCached = useRef<{ dir: string; results: DirEntry[]; key: string }>({ dir: '', results: [], key: '' })
   useSyncExternalStore(
     fs ? () => fs.onDir(dir, () => cb(fs.readDir(dir))) : NOOP,
-    () => fs ? fs.readDir(dir) : EMPTY,
+    () => {
+      if (!fs) return EMPTY
+      const entries = fs.readDir(dir)
+      const cacheKey = entries.map(e => `${e.name}:${e.type}:${e.path}`).join('|')
+      if (watchCached.current.dir === dir && watchCached.current.key === cacheKey) {
+        return watchCached.current.results
+      }
+      watchCached.current = { dir, results: entries, key: cacheKey }
+      return entries
+    },
   )
 }

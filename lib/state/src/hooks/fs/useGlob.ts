@@ -40,8 +40,19 @@ export function useGlob(pattern: string): string[] {
 
 export function useGlobWatch(pattern: string, cb: (paths: string[]) => void): void {
   const fs = useSpaceFS()
+  const watchCached = useRef<{ pattern: string; results: string[]; key: string }>({ pattern: '', results: [], key: '' })
   useSyncExternalStore(
     fs ? () => fs.onGlob(pattern, () => cb(fs.glob(pattern))) : NOOP,
-    () => fs ? fs.glob(pattern) : EMPTY,
+    () => {
+      if (!fs) return EMPTY
+      const results = fs.glob(pattern)
+      results.sort()
+      const cacheKey = results.join('|')
+      if (watchCached.current.pattern === pattern && watchCached.current.key === cacheKey) {
+        return watchCached.current.results
+      }
+      watchCached.current = { pattern, results, key: cacheKey }
+      return results
+    },
   )
 }

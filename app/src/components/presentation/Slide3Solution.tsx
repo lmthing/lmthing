@@ -1,92 +1,63 @@
 import { colors } from './constants'
+import { CozyThingText } from '@/CozyText'
+import screenshotUrl from '../../../../docs/presentation/localhost_3000_studio_local%2Fgreek-cooking.png'
 
-const rows = [
-  { feature: 'No-code for domain experts', lmthing: true, claude: false, openclaw: false },
-  { feature: 'Transparent knowledge', lmthing: true, claude: false, openclaw: false },
-  { feature: 'Model agnostic', lmthing: true, claude: false, openclaw: true },
-  { feature: 'On-premises deploy', lmthing: true, claude: false, openclaw: true },
-  { feature: 'Open source', lmthing: true, claude: false, openclaw: true },
-]
-
-function Check() {
-  return <span style={{ color: colors.green, fontSize: 18 }}>&#10003;</span>
-}
-function Cross() {
-  return <span style={{ color: colors.muted, fontSize: 18 }}>&#10005;</span>
-}
+const pills = ['No code', 'Any domain', 'Your knowledge', 'Any AI model']
 
 export default function Slide3Solution() {
   return (
     <div
-      className="flex h-full w-full items-center px-16 py-12"
+      className="relative flex h-full w-full items-center px-16 py-12"
       style={{ background: colors.bg }}
     >
-      {/* Left 45% */}
-      <div className="flex w-[45%] flex-col gap-10 pr-12">
-        <div>
-          <div className="mb-3 text-xs font-bold tracking-widest" style={{ color: colors.brand }}>
-            WHAT WE BUILT
-          </div>
-          <p className="text-base leading-relaxed" style={{ color: colors.textSecondary }}>
-            Two layers. A knowledge organizer that turns expertise into structured, verified, AI-ready documents &mdash; and an agent builder that puts specialized AI on top. No prompt engineering. No code.
-          </p>
+      {/* Left column */}
+      <div className="flex w-1/2 flex-col gap-6 pr-12">
+        <div className="text-2xl font-bold tracking-widest" style={{ color: colors.brand }}>
+          THE SOLUTION
         </div>
-        <div>
-          <div className="mb-3 text-xs font-bold tracking-widest" style={{ color: colors.brand }}>
-            CORE INNOVATION
-          </div>
-          <p className="text-base leading-relaxed" style={{ color: colors.textSecondary }}>
-            Pure control over your Things. Knowledge in plain files you can read, edit, and verify. Agents run on any model. Data never leaves your infrastructure.
-          </p>
+
+        <div className="text-4xl font-bold">
+          lm<CozyThingText text="thing" className="text-4xl font-bold" />
+        </div>
+
+        <h2 className="text-6xl font-bold leading-tight" style={{ color: colors.text }}>
+          The no-code studio for
+          <br />
+          <span style={{ color: colors.brand }}>domain experts.</span>
+        </h2>
+
+        <p className="text-2xl leading-relaxed" style={{ color: colors.textSecondary }}>
+          lmthing lets Dimitris &mdash; and anyone like him &mdash; build a specialized AI agent
+          with just their knowledge. No engineers required.
+        </p>
+
+        <div className="flex flex-wrap gap-4">
+          {pills.map((pill) => (
+            <span
+              key={pill}
+              className="rounded-full border-2 px-6 py-3 text-lg font-medium"
+              style={{ borderColor: colors.brand, color: colors.brand }}
+            >
+              {pill}
+            </span>
+          ))}
         </div>
       </div>
 
-      {/* Right 55% */}
-      <div className="w-[55%]">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr>
-              <th className="p-3 text-left" style={{ color: colors.muted }} />
-              <th
-                className="rounded-t-lg p-3 text-center font-bold"
-                style={{ background: `${colors.brand}15`, color: colors.brand }}
-              >
-                lmthing
-              </th>
-              <th className="p-3 text-center font-medium" style={{ color: colors.muted }}>
-                Claude Cowork
-              </th>
-              <th className="p-3 text-center font-medium" style={{ color: colors.muted }}>
-                OpenClaw
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, i) => (
-              <tr
-                key={row.feature}
-                style={{
-                  borderTop: `1px solid ${colors.cardBorder}`,
-                  background: i % 2 === 0 ? 'transparent' : colors.bgCard,
-                }}
-              >
-                <td className="p-3 text-left" style={{ color: colors.text }}>
-                  {row.feature}
-                </td>
-                <td className="p-3 text-center" style={{ background: `${colors.brand}08` }}>
-                  {row.lmthing ? <Check /> : <Cross />}
-                </td>
-                <td className="p-3 text-center">
-                  {row.claude ? <Check /> : <Cross />}
-                </td>
-                <td className="p-3 text-center">
-                  {row.openclaw ? <Check /> : <Cross />}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Right column */}
+      <div className="flex w-1/2 items-center justify-center">
+        <div
+          className="rounded-2xl border p-2"
+          style={{
+            background: colors.white,
+            borderColor: colors.cardBorder,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
+          }}
+        >
+          <img src={screenshotUrl} alt="lmthing studio screenshot" className="w-full rounded-2xl" />
+        </div>
       </div>
+
     </div>
   )
 }

@@ -27,7 +27,7 @@ type ProviderFactory = (modelId: string) => LanguageModelV3;
 const builtInProviderLoaders: Record<BuiltInProviderName, () => Promise<ProviderFactory>> = {
   openai: async () => (await import('./openai')).openai,
   anthropic: async () => (await import('./anthropic')).anthropic,
-  // google: async () => (await import('./google')).google,
+  google: async () => (await import('./google')).google,
   mistral: async () => (await import('./mistral')).mistral,
   azure: async () => (await import('./azure')).azure,
   groq: async () => (await import('./groq')).groq,

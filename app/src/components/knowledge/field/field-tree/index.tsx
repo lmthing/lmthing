@@ -41,6 +41,7 @@ export interface FieldTreeProps {
   onCreateFile: (parentPath: string | null) => void
   onCreateFolder: (parentPath: string | null) => void
   onMove: (dragPath: string, targetPath: string, index: number) => void
+  onRenameRequest?: (path: string, name: string, isDirectory: boolean) => void
 }
 
 interface TreeNode {
@@ -200,72 +201,76 @@ function NodeRenderer({
     <div
       ref={dragHandle}
       style={style}
-      onClick={handleClick}
-      onContextMenu={handleContextMenu}
-      className={cn(
-        'field-tree-node',
-        isSelected && 'field-tree-node--selected',
-        node.state.isDragging && 'field-tree-node--dragging',
-        node.state.willReceiveDrop && 'field-tree-node--drop-target',
-      )}
+      className="field-tree-node__row"
     >
-      {isDirectory ? (
-        <>
-          {node.isOpen ? (
-            <ChevronDown className="field-tree-node__icon--chevron" />
-          ) : (
-            <ChevronRight className="field-tree-node__icon--chevron" />
-          )}
-          {node.isOpen ? (
-            <FolderOpen
-              className="field-tree-node__icon field-tree-node__icon--folder"
-              style={nodeColor && !isSelected ? { color: nodeColor } : undefined}
-            />
-          ) : (
-            <Folder
-              className="field-tree-node__icon field-tree-node__icon--folder"
-              style={nodeColor && !isSelected ? { color: nodeColor } : undefined}
-            />
-          )}
-        </>
-      ) : (
-        <>
-          <span className="field-tree-node__spacer" />
-          <FileText className="field-tree-node__icon field-tree-node__icon--file" />
-        </>
-      )}
+      <div
+        onClick={handleClick}
+        onContextMenu={handleContextMenu}
+        className={cn(
+          'field-tree-node',
+          isSelected && 'field-tree-node--selected',
+          node.state.isDragging && 'field-tree-node--dragging',
+          node.state.willReceiveDrop && 'field-tree-node--drop-target',
+        )}
+      >
+        {isDirectory ? (
+          <>
+            {node.isOpen ? (
+              <ChevronDown className="field-tree-node__icon--chevron" />
+            ) : (
+              <ChevronRight className="field-tree-node__icon--chevron" />
+            )}
+            {node.isOpen ? (
+              <FolderOpen
+                className="field-tree-node__icon field-tree-node__icon--folder"
+                style={nodeColor && !isSelected ? { color: nodeColor } : undefined}
+              />
+            ) : (
+              <Folder
+                className="field-tree-node__icon field-tree-node__icon--folder"
+                style={nodeColor && !isSelected ? { color: nodeColor } : undefined}
+              />
+            )}
+          </>
+        ) : (
+          <>
+            <span className="field-tree-node__spacer" />
+            <FileText className="field-tree-node__icon field-tree-node__icon--file" />
+          </>
+        )}
 
-      {node.isEditing ? (
-        <Input
-          type="text"
-          defaultValue={node.data.name}
-          autoFocus
-          onBlur={() => node.reset()}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') node.reset()
-            else if (e.key === 'Enter') node.submit(e.currentTarget.value)
-          }}
-          onClick={(e) => e.stopPropagation()}
-          style={{ flex: 1 }}
-        />
-      ) : (
-        <>
-          <span className="field-tree-node__label">{node.data.name}</span>
-          <div className="field-tree-node__actions">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={(e) => {
-                e.stopPropagation()
-                const rect = (e.target as HTMLElement).getBoundingClientRect()
-                onContextMenu(node, { x: rect.left, y: rect.bottom + 4 })
-              }}
-            >
-              <MoreVertical className="field-tree-node__icon" />
-            </Button>
-          </div>
-        </>
-      )}
+        {node.isEditing ? (
+          <Input
+            type="text"
+            defaultValue={node.data.name}
+            autoFocus
+            onBlur={() => node.reset()}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') node.reset()
+              else if (e.key === 'Enter') node.submit(e.currentTarget.value)
+            }}
+            onClick={(e) => e.stopPropagation()}
+            style={{ flex: 1 }}
+          />
+        ) : (
+          <>
+            <span className="field-tree-node__label">{node.data.name}</span>
+            <div className="field-tree-node__actions">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  const rect = (e.target as HTMLElement).getBoundingClientRect()
+                  onContextMenu(node, { x: rect.left, y: rect.bottom + 4 })
+                }}
+              >
+                <MoreVertical className="field-tree-node__icon" />
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }
@@ -282,6 +287,7 @@ export const FieldTree = forwardRef<FieldTreeHandle, FieldTreeProps>(function Fi
   onCreateFile,
   onCreateFolder,
   onMove,
+  onRenameRequest,
 }, ref) {
   const treeRef = useRef<TreeApi<TreeNode>>(null)
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({ node: null, position: null })
@@ -301,8 +307,17 @@ export const FieldTree = forwardRef<FieldTreeHandle, FieldTreeProps>(function Fi
   }, [])
 
   const handleRename = useCallback(() => {
-    if (contextMenu.node) contextMenu.node.edit()
-  }, [contextMenu.node])
+    if (!contextMenu.node) return
+    if (onRenameRequest) {
+      onRenameRequest(
+        contextMenu.node.data.path,
+        contextMenu.node.data.name,
+        contextMenu.node.data.type === 'directory'
+      )
+    } else {
+      contextMenu.node.edit()
+    }
+  }, [contextMenu.node, onRenameRequest])
 
   const handleRenameSubmit = useCallback(
     (args: { id: string; name: string }) => {

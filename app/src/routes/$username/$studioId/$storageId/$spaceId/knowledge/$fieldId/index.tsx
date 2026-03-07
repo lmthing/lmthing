@@ -9,8 +9,13 @@ import { Input } from '@/elements/forms/input'
 import { FieldTree } from '@/components/knowledge/field/field-tree'
 import type { FieldTreeHandle } from '@/components/knowledge/field/field-tree'
 import { TopicEditor } from '@/components/knowledge/topic-detail/topic-editor'
+import type { TopicEditorHandle } from '@/components/knowledge/topic-detail/topic-editor'
 import { NewFileModal, collectFolders } from '@/components/knowledge/field/new-file-modal'
 import { NewFolderModal } from '@/components/knowledge/field/new-folder-modal'
+import { UnsavedChangesModal } from '@/components/knowledge/field/unsaved-changes-modal'
+import { DeleteModal } from '@/components/knowledge/field/delete-modal'
+import { RenameModal } from '@/components/knowledge/field/rename-modal'
+import { DirectoryMetadataPanel } from '@/components/knowledge/field/directory-metadata-panel'
 import { useKnowledgeTree } from '@/hooks/useKnowledgeTree'
 import { useKnowledgeField } from '@/hooks/useKnowledgeField'
 import { buildSpacePathFromParams } from '@/lib/space-url'
@@ -41,38 +46,116 @@ function FieldDetailPage() {
   const spacePath = buildSpacePathFromParams(username, studioId, storageId, spaceId)
 
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null)
+  const [selectedNodeType, setSelectedNodeType] = useState<'file' | 'directory' | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [isNewFileModalOpen, setIsNewFileModalOpen] = useState(false)
   const [isNewFolderModalOpen, setIsNewFolderModalOpen] = useState(false)
   const [isThingOpen, setIsThingOpen] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
 
+  // Phase 2: Unsaved changes tracking
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [pendingFilePath, setPendingFilePath] = useState<string | null>(null)
+  const [pendingNodeType, setPendingNodeType] = useState<'file' | 'directory' | null>(null)
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false)
+
+  // Phase 5: Delete confirmation
+  const [deleteTarget, setDeleteTarget] = useState<{ path: string; isDirectory: boolean } | null>(null)
+
+  // Phase 6: Rename modal
+  const [renameTarget, setRenameTarget] = useState<{ path: string; name: string; isDirectory: boolean } | null>(null)
+
   const treeRef = useRef<FieldTreeHandle>(null)
+  const topicEditorRef = useRef<TopicEditorHandle>(null)
 
   const folders = useMemo(() => collectFolders(treeNodes), [treeNodes])
   const defaultLocation = `knowledge/${fieldId}`
 
-  const handleFileSelect = useCallback((path: string) => {
+  // Switch to a new file/directory, with unsaved changes check
+  const switchTo = useCallback((path: string, type: 'file' | 'directory') => {
     setSelectedFilePath(path)
+    setSelectedNodeType(type)
+    if (type === 'file') {
+      setHasUnsavedChanges(false)
+    }
   }, [])
 
-  const handleDirectorySelect = useCallback((_path: string) => {
-    // Selecting a directory doesn't change the editor
+  const handleFileSelect = useCallback((path: string) => {
+    if (hasUnsavedChanges && selectedFilePath && path !== selectedFilePath) {
+      setPendingFilePath(path)
+      setPendingNodeType('file')
+      setShowUnsavedModal(true)
+      return
+    }
+    switchTo(path, 'file')
+  }, [hasUnsavedChanges, selectedFilePath, switchTo])
+
+  const handleDirectorySelect = useCallback((path: string) => {
+    if (hasUnsavedChanges && selectedFilePath) {
+      setPendingFilePath(path)
+      setPendingNodeType('directory')
+      setShowUnsavedModal(true)
+      return
+    }
+    switchTo(path, 'directory')
+  }, [hasUnsavedChanges, selectedFilePath, switchTo])
+
+  // Unsaved changes modal handlers
+  const handleUnsavedDiscard = useCallback(() => {
+    setShowUnsavedModal(false)
+    setHasUnsavedChanges(false)
+    if (pendingFilePath && pendingNodeType) {
+      switchTo(pendingFilePath, pendingNodeType)
+    }
+    setPendingFilePath(null)
+    setPendingNodeType(null)
+  }, [pendingFilePath, pendingNodeType, switchTo])
+
+  const handleUnsavedCancel = useCallback(() => {
+    setShowUnsavedModal(false)
+    setPendingFilePath(null)
+    setPendingNodeType(null)
   }, [])
+
+  const handleUnsavedSave = useCallback(() => {
+    topicEditorRef.current?.save()
+    setShowUnsavedModal(false)
+    setHasUnsavedChanges(false)
+    if (pendingFilePath && pendingNodeType) {
+      switchTo(pendingFilePath, pendingNodeType)
+    }
+    setPendingFilePath(null)
+    setPendingNodeType(null)
+  }, [pendingFilePath, pendingNodeType, switchTo])
 
   const handleRenameNode = useCallback((oldPath: string, newPath: string) => {
     if (!spaceFS) return
     spaceFS.duplicatePath(oldPath, newPath)
     spaceFS.deletePath(oldPath)
-  }, [spaceFS])
-
-  const handleDeleteNode = useCallback((path: string) => {
-    if (!spaceFS) return
-    spaceFS.deletePath(path)
-    if (selectedFilePath === path) {
-      setSelectedFilePath(null)
+    if (selectedFilePath === oldPath) {
+      setSelectedFilePath(newPath)
     }
   }, [spaceFS, selectedFilePath])
+
+  // Phase 5: Delete goes through modal
+  const handleDeleteNode = useCallback((path: string) => {
+    // Determine if directory by checking if it's in the tree
+    const isDir = path.endsWith('/') || !path.includes('.') || treeNodes.some(function findDir(n): boolean {
+      if (n.path === path) return n.type === 'directory'
+      return n.children?.some(findDir) || false
+    })
+    setDeleteTarget({ path, isDirectory: isDir })
+  }, [treeNodes])
+
+  const handleConfirmDelete = useCallback(() => {
+    if (!spaceFS || !deleteTarget) return
+    spaceFS.deletePath(deleteTarget.path)
+    if (selectedFilePath === deleteTarget.path) {
+      setSelectedFilePath(null)
+      setSelectedNodeType(null)
+    }
+    setDeleteTarget(null)
+  }, [spaceFS, deleteTarget, selectedFilePath])
 
   const handleDuplicateNode = useCallback((path: string) => {
     if (!spaceFS) return
@@ -99,6 +182,7 @@ function FieldDetailPage() {
     if (!spaceFS) return
     spaceFS.writeFile(`${location}/${filename}`, '')
     setSelectedFilePath(`${location}/${filename}`)
+    setSelectedNodeType('file')
   }, [spaceFS])
 
   const handleCreateFolderModal = useCallback((folderName: string, parentLocation: string) => {
@@ -119,13 +203,26 @@ function FieldDetailPage() {
   const handleExport = useCallback(() => {
     if (!spaceFS || isExporting) return
     setIsExporting(true)
-    // Simulate export - in production this would bundle files
     setTimeout(() => setIsExporting(false), 1500)
   }, [spaceFS, isExporting])
 
+  // Phase 6: Rename modal handler
+  const handleRenameRequest = useCallback((path: string, name: string, isDirectory: boolean) => {
+    setRenameTarget({ path, name, isDirectory })
+  }, [])
+
+  const handleRenameConfirm = useCallback((newName: string) => {
+    if (!renameTarget || !spaceFS) return
+    const pathParts = renameTarget.path.split('/')
+    pathParts[pathParts.length - 1] = newName
+    const newPath = pathParts.join('/')
+    handleRenameNode(renameTarget.path, newPath)
+    setRenameTarget(null)
+  }, [renameTarget, spaceFS, handleRenameNode])
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      {/* US-301: Application Header */}
+      {/* Header */}
       <header style={{
         padding: '0.75rem 1rem',
         borderBottom: '1px solid var(--color-border)',
@@ -184,7 +281,6 @@ function FieldDetailPage() {
           flexDirection: 'column',
           overflow: 'hidden',
         }}>
-          {/* Tree header with Knowledge Base label */}
           <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)' }}>
             <Stack row style={{ alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
               <Stack row style={{ alignItems: 'center', gap: '0.5rem' }}>
@@ -206,7 +302,6 @@ function FieldDetailPage() {
                 </span>
               </Stack>
               <Stack row style={{ gap: '0.125rem' }}>
-                {/* US-304: Expand/Collapse all */}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -225,7 +320,6 @@ function FieldDetailPage() {
                 >
                   <ChevronsDownUp style={{ width: '0.75rem', height: '0.75rem' }} />
                 </Button>
-                {/* US-305/306: New File/Folder buttons */}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -247,7 +341,6 @@ function FieldDetailPage() {
               </Stack>
             </Stack>
 
-            {/* US-303: Search input */}
             <div style={{ position: 'relative' }}>
               <Search style={{
                 position: 'absolute',
@@ -288,7 +381,6 @@ function FieldDetailPage() {
             </div>
           </div>
 
-          {/* Tree content */}
           <div style={{ flex: 1, overflow: 'auto' }}>
             <FieldTree
               ref={treeRef}
@@ -303,18 +395,26 @@ function FieldDetailPage() {
               onCreateFile={handleCreateFile}
               onCreateFolder={handleCreateFolder}
               onMove={handleMove}
+              onRenameRequest={handleRenameRequest}
             />
           </div>
         </aside>
 
-        {/* Right pane: Editor or Empty State */}
+        {/* Main content area */}
         <main style={{ flex: 1, overflow: 'auto', display: 'flex' }}>
-          {selectedFilePath ? (
+          {selectedFilePath && selectedNodeType === 'file' ? (
             <div style={{ padding: '1.5rem', flex: 1 }}>
-              <TopicEditor topicPath={selectedFilePath} />
+              <TopicEditor
+                ref={topicEditorRef}
+                topicPath={selectedFilePath}
+                onUnsavedChange={setHasUnsavedChanges}
+              />
+            </div>
+          ) : selectedFilePath && selectedNodeType === 'directory' ? (
+            <div style={{ flex: 1 }}>
+              <DirectoryMetadataPanel directoryPath={selectedFilePath} />
             </div>
           ) : (
-            /* US-309: Empty state with document icon */
             <Stack style={{
               alignItems: 'center',
               justifyContent: 'center',
@@ -335,7 +435,7 @@ function FieldDetailPage() {
             </Stack>
           )}
 
-          {/* US-316: Thing sliding panel */}
+          {/* Thing sliding panel */}
           {isThingOpen && (
             <aside style={{
               width: '22rem',
@@ -380,7 +480,7 @@ function FieldDetailPage() {
         </main>
       </div>
 
-      {/* US-305: New File Modal */}
+      {/* Modals */}
       <NewFileModal
         isOpen={isNewFileModalOpen}
         onClose={() => setIsNewFileModalOpen(false)}
@@ -389,13 +489,35 @@ function FieldDetailPage() {
         defaultLocation={defaultLocation}
       />
 
-      {/* US-306: New Folder Modal */}
       <NewFolderModal
         isOpen={isNewFolderModalOpen}
         onClose={() => setIsNewFolderModalOpen(false)}
         onCreate={handleCreateFolderModal}
         folders={folders}
         defaultLocation={defaultLocation}
+      />
+
+      <UnsavedChangesModal
+        isOpen={showUnsavedModal}
+        onDiscard={handleUnsavedDiscard}
+        onCancel={handleUnsavedCancel}
+        onSave={handleUnsavedSave}
+      />
+
+      <DeleteModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        nodePath={deleteTarget?.path || ''}
+        isDirectory={deleteTarget?.isDirectory || false}
+      />
+
+      <RenameModal
+        isOpen={!!renameTarget}
+        onClose={() => setRenameTarget(null)}
+        onRename={handleRenameConfirm}
+        currentName={renameTarget?.name || ''}
+        isDirectory={renameTarget?.isDirectory || false}
       />
     </div>
   )

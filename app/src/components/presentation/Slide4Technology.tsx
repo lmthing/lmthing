@@ -12,7 +12,7 @@ const techniques = ['RAG', 'Structured Prompt Engineering', 'Multi-Agent Orchest
 
 function Arrow() {
   return (
-    <div className="flex items-center px-5" style={{ paddingBottom: 28 }}>
+    <div className="flex items-center px-5" style={{ height: 76 }}>
       <svg
         width="38"
         height="38"
@@ -55,12 +55,12 @@ export default function Slide4Technology() {
       </div>
 
       {/* MIDDLE: flow strip */}
-      <div className="mb-16 flex w-full items-center justify-center">
+      <div className="mb-16 flex w-full items-start justify-center">
         {flowNodes.map((node, i) => (
-          <div key={node.label} className="flex items-center">
+          <div key={node.label} className="flex items-start">
             <div className="flex flex-col items-center gap-2.5">
               <div
-                className="whitespace-nowrap rounded-2xl border-2 px-8 py-5 text-xl font-semibold"
+                className="flex items-center justify-center whitespace-nowrap rounded-2xl border-2 text-xl font-semibold"
                 style={
                   node.hero
                     ? {
@@ -73,11 +73,14 @@ export default function Slide4Technology() {
                         borderRadius: 20,
                         boxShadow: '0 12px 40px rgba(245,166,35,0.35)',
                         letterSpacing: '0.02em',
+                        height: 76,
                       }
                     : {
                         background: colors.bgCard,
                         borderColor: colors.cardBorder,
                         color: colors.text,
+                        padding: '0 32px',
+                        height: 76,
                       }
                 }
               >

@@ -336,7 +336,7 @@ interface FieldSelectorProps {
 
 ---
 
-## Phase 6: Knowledge Tree (file management) — DEFERRED
+## Phase 6: Knowledge Tree (file management)
 
 **Old ref:** `shell/components/KnowledgeTree.tsx` (~400 lines)
 
@@ -347,7 +347,7 @@ proper tree rendering respecting all 4 levels.
 
 ---
 
-## Phase 7: ConfigurationForm (dynamic schema forms) — DEFERRED
+## Phase 7: ConfigurationForm (dynamic schema forms) 
 
 **File:** `app/src/components/assistant/builder/configuration-form/index.tsx` (NEW)
 **Old ref:** `sections/agent-builder/components/ConfigurationForm.tsx` (275 lines)

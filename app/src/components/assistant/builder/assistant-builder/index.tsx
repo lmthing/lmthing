@@ -4,8 +4,8 @@
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from '@tanstack/react-router'
-import { useSpaceFS, P, serializeAgentInstruct, serializeAgentConfig } from '@lmthing/state'
-import type { AgentConfig } from '@lmthing/state'
+import { useSpaceFS, P, serializeAgentInstruct, serializeAgentConfig, serializeAgentValues } from '@lmthing/state'
+import type { AgentConfig, AgentValues } from '@lmthing/state'
 import { Page } from '@/elements/layouts/page'
 import { Stack } from '@/elements/layouts/stack'
 import { Button } from '@/elements/forms/button'
@@ -20,6 +20,9 @@ import type { AttachedWorkflow } from '../actions-panel'
 import { ToolsPanel } from '../tools-panel'
 import { PromptPreviewPanel } from '../prompt-preview'
 import { AssistantHeader } from '../assistant-header'
+import { ConfigurationForm } from '../configuration-form'
+import type { FormValues } from '../configuration-form'
+import { useFieldSchema } from '@/hooks/useFieldSchema'
 
 function slugify(text: string): string {
   return text
@@ -56,6 +59,9 @@ export function AssistantBuilder() {
   const [draftInstructions, setDraftInstructions] = useState('')
   const [selectedFieldIds, setSelectedFieldIds] = useState<string[]>([])
   const [selectedWorkflowIds, setSelectedWorkflowIds] = useState<string[]>([])
+  const [formValues, setFormValues] = useState<FormValues>({})
+
+  const fieldSchemas = useFieldSchema(selectedFieldIds)
 
   // Sync draft state when assistant data loads or assistantId changes.
   // We track a composite key (id + instruct name) to detect both route changes
@@ -73,12 +79,14 @@ export function AssistantBuilder() {
       setDraftInstructions(instruct.instructions || '')
       setSelectedFieldIds(cfg?.domains || [])
       setSelectedWorkflowIds(cfg?.flows || [])
+      setFormValues((assistant.values as FormValues) || {})
     } else if (!assistantId) {
       setDraftName('')
       setDraftDescription('')
       setDraftInstructions('')
       setSelectedFieldIds([])
       setSelectedWorkflowIds([])
+      setFormValues({})
     }
   }) // intentionally no deps — we use the ref to control when sync happens
 
@@ -133,10 +141,15 @@ export function AssistantBuilder() {
     }
     spaceFS.writeFile(P.agentConfig(id), serializeAgentConfig(config))
 
+    // Persist form values
+    if (Object.keys(formValues).length > 0) {
+      spaceFS.writeFile(P.agentValues(id), serializeAgentValues(formValues as AgentValues))
+    }
+
     if (!assistantId) {
       navigate({ to: `${spacePath}/assistant/${encodeURIComponent(id)}` })
     }
-  }, [spaceFS, isValid, assistantId, draftName, draftDescription, draftInstructions, selectedFieldIds, selectedWorkflowIds, assistant.config, navigate, spacePath])
+  }, [spaceFS, isValid, assistantId, draftName, draftDescription, draftInstructions, selectedFieldIds, selectedWorkflowIds, formValues, assistant.config, navigate, spacePath])
 
   const handleDelete = useCallback(() => {
     if (!spaceFS || !assistantId) return
@@ -155,6 +168,10 @@ export function AssistantBuilder() {
     setSelectedFieldIds(prev =>
       prev.includes(fieldId) ? prev.filter(f => f !== fieldId) : [...prev, fieldId]
     )
+  }, [])
+
+  const handleFormValueChange = useCallback((fieldId: string, value: string | string[] | boolean) => {
+    setFormValues(prev => ({ ...prev, [fieldId]: value }))
   }, [])
 
   const handleWorkflowToggle = useCallback((workflowId: string) => {
@@ -234,6 +251,15 @@ export function AssistantBuilder() {
                 onFieldToggle={handleFieldToggle}
                 onWorkflowToggle={handleWorkflowToggle}
               />
+
+              {/* Configuration Form (dynamic fields from knowledge schemas) */}
+              {fieldSchemas.length > 0 && (
+                <ConfigurationForm
+                  schemas={fieldSchemas}
+                  values={formValues}
+                  onValueChange={handleFormValueChange}
+                />
+              )}
             </Stack>
           </div>
         </main>

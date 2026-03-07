@@ -21,6 +21,7 @@ export interface ConfigurationFormProps {
   onValueChange: (fieldId: string, value: string | string[] | boolean) => void
   askAtRuntimeIds?: string[]
   onToggleAskAtRuntime?: (fieldId: string) => void
+  onBulkToggleAskAtRuntime?: (fieldIds: string[], enable: boolean) => void
 }
 
 function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -122,9 +123,24 @@ function FormField({ field, value, onValueChange, isAskAtRuntime, onToggleAskAtR
       )}
 
       {isAskAtRuntime && (
-        <Caption muted style={{ fontStyle: 'italic', padding: '0.5rem 0' }}>
-          This field will be shown to the user in the chat sidebar at runtime.
-        </Caption>
+        <div style={{
+          border: '2px dashed var(--color-warning, #f59e0b)',
+          borderRadius: 'var(--radius-md, 6px)',
+          padding: '0.75rem',
+          backgroundColor: 'color-mix(in srgb, var(--color-warning, #f59e0b) 5%, transparent)',
+        }}>
+          <Stack row gap="sm" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
+            <Caption muted style={{ fontStyle: 'italic' }}>
+              Shown to the user at runtime in the chat sidebar.
+            </Caption>
+            {onToggleAskAtRuntime && (
+              <button type="button" onClick={onToggleAskAtRuntime}
+                className="badge badge--primary" style={{ cursor: 'pointer', border: 'none', fontSize: '0.625rem' }}>
+                Edit Now
+              </button>
+            )}
+          </Stack>
+        </div>
       )}
 
       {!isAskAtRuntime && field.fieldType === 'text' && (
@@ -177,7 +193,7 @@ function FormField({ field, value, onValueChange, isAskAtRuntime, onToggleAskAtR
   )
 }
 
-export function ConfigurationForm({ schemas, values, onValueChange, askAtRuntimeIds = [], onToggleAskAtRuntime }: ConfigurationFormProps) {
+export function ConfigurationForm({ schemas, values, onValueChange, askAtRuntimeIds = [], onToggleAskAtRuntime, onBulkToggleAskAtRuntime }: ConfigurationFormProps) {
   if (schemas.length === 0) {
     return (
       <Caption muted>
@@ -186,77 +202,126 @@ export function ConfigurationForm({ schemas, values, onValueChange, askAtRuntime
     )
   }
 
-  return (
-    <Stack gap="lg">
-      {schemas.map(schema => {
-        // Group fields by section
-        const sections = new Map<string, { label: string; fields: SchemaField[] }>()
-        const ungrouped: SchemaField[] = []
+  // Group schemas by category
+  const categoryGroups = new Map<string, FieldSchema[]>()
+  const uncategorized: FieldSchema[] = []
+  for (const schema of schemas) {
+    if (schema.category) {
+      const group = categoryGroups.get(schema.category)
+      if (group) group.push(schema)
+      else categoryGroups.set(schema.category, [schema])
+    } else {
+      uncategorized.push(schema)
+    }
+  }
 
-        for (const field of schema.sections) {
-          if (field.sectionId && field.sectionLabel) {
-            const existing = sections.get(field.sectionId)
-            if (existing) {
-              existing.fields.push(field)
-            } else {
-              sections.set(field.sectionId, { label: field.sectionLabel, fields: [field] })
-            }
-          } else {
-            ungrouped.push(field)
-          }
+  function renderSchema(schema: FieldSchema) {
+    // Group fields by section
+    const sections = new Map<string, { label: string; fields: SchemaField[] }>()
+    const ungrouped: SchemaField[] = []
+
+    for (const field of schema.sections) {
+      if (field.sectionId && field.sectionLabel) {
+        const existing = sections.get(field.sectionId)
+        if (existing) {
+          existing.fields.push(field)
+        } else {
+          sections.set(field.sectionId, { label: field.sectionLabel, fields: [field] })
         }
+      } else {
+        ungrouped.push(field)
+      }
+    }
 
-        return (
-          <div key={schema.fieldId} className="panel">
-            <div className="panel__header">
-              <Stack row gap="sm" style={{ alignItems: 'center' }}>
-                <Label>{schema.fieldLabel}</Label>
-                <Badge variant="muted">
-                  {schema.sections.length} field{schema.sections.length !== 1 ? 's' : ''}
-                </Badge>
-              </Stack>
-            </div>
-            <div className="panel__body">
-              <Stack gap="lg">
-                {/* Ungrouped fields */}
-                {ungrouped.length > 0 && (
-                  <Stack gap="md">
-                    {ungrouped.map(field => (
-                      <FormField
-                        key={field.id}
-                        field={field}
-                        value={values[field.id]}
-                        onValueChange={onValueChange}
-                        isAskAtRuntime={askAtRuntimeIds.includes(field.id)}
-                        onToggleAskAtRuntime={onToggleAskAtRuntime ? () => onToggleAskAtRuntime(field.id) : undefined}
-                      />
-                    ))}
-                  </Stack>
-                )}
+    const allFieldIds = schema.sections.map(f => f.id)
+    const allAreRuntime = allFieldIds.length > 0 && allFieldIds.every(id => askAtRuntimeIds.includes(id))
 
-                {/* Grouped by section */}
-                {[...sections.entries()].map(([sectionId, { label, fields }]) => (
-                  <div key={sectionId}>
-                    <Caption style={{ fontWeight: 600, marginBottom: '0.5rem' }}>{label}</Caption>
-                    <Stack gap="md">
-                      {fields.map(field => (
-                        <FormField
-                          key={field.id}
-                          field={field}
-                          value={values[field.id]}
-                          onValueChange={onValueChange}
-                          isAskAtRuntime={askAtRuntimeIds.includes(field.id)}
-                          onToggleAskAtRuntime={onToggleAskAtRuntime ? () => onToggleAskAtRuntime(field.id) : undefined}
-                        />
-                      ))}
-                    </Stack>
-                  </div>
+    return (
+      <div key={schema.fieldId} className="panel">
+        <div className="panel__header">
+          <Stack row gap="sm" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
+            <Stack row gap="sm" style={{ alignItems: 'center' }}>
+              <Label>{schema.fieldLabel}</Label>
+              <Badge variant="muted">
+                {schema.sections.length} field{schema.sections.length !== 1 ? 's' : ''}
+              </Badge>
+            </Stack>
+            {onBulkToggleAskAtRuntime && allFieldIds.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onBulkToggleAskAtRuntime(allFieldIds, !allAreRuntime)}
+                className={`badge ${allAreRuntime ? 'badge--primary' : 'badge--muted'}`}
+                style={{ cursor: 'pointer', border: 'none', fontSize: '0.625rem' }}
+              >
+                {allAreRuntime ? 'Disable All Runtime' : 'Enable All For Runtime'}
+              </button>
+            )}
+          </Stack>
+        </div>
+        <div className="panel__body">
+          <Stack gap="lg">
+            {/* Ungrouped fields */}
+            {ungrouped.length > 0 && (
+              <Stack gap="md">
+                {ungrouped.map(field => (
+                  <FormField
+                    key={field.id}
+                    field={field}
+                    value={values[field.id]}
+                    onValueChange={onValueChange}
+                    isAskAtRuntime={askAtRuntimeIds.includes(field.id)}
+                    onToggleAskAtRuntime={onToggleAskAtRuntime ? () => onToggleAskAtRuntime(field.id) : undefined}
+                  />
                 ))}
               </Stack>
-            </div>
-          </div>
-        )
-      })}
+            )}
+
+            {/* Grouped by section */}
+            {[...sections.entries()].map(([sectionId, { label, fields }]) => (
+              <div key={sectionId}>
+                <Caption style={{ fontWeight: 600, marginBottom: '0.5rem' }}>{label}</Caption>
+                <Stack gap="md">
+                  {fields.map(field => (
+                    <FormField
+                      key={field.id}
+                      field={field}
+                      value={values[field.id]}
+                      onValueChange={onValueChange}
+                      isAskAtRuntime={askAtRuntimeIds.includes(field.id)}
+                      onToggleAskAtRuntime={onToggleAskAtRuntime ? () => onToggleAskAtRuntime(field.id) : undefined}
+                    />
+                  ))}
+                </Stack>
+              </div>
+            ))}
+          </Stack>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <Stack gap="lg">
+      {/* Categorized schemas */}
+      {[...categoryGroups.entries()].map(([category, groupSchemas]) => (
+        <div key={category}>
+          <Label style={{
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            fontSize: '0.6875rem',
+            marginBottom: '0.75rem',
+            display: 'block',
+            opacity: 0.7,
+          }}>
+            {category}
+          </Label>
+          <Stack gap="lg">
+            {groupSchemas.map(renderSchema)}
+          </Stack>
+        </div>
+      ))}
+      {/* Uncategorized schemas */}
+      {uncategorized.map(renderSchema)}
     </Stack>
   )
 }

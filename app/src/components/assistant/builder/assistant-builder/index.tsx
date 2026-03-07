@@ -40,6 +40,16 @@ import { ConfigurationForm } from '../configuration-form'
 import type { FormValues } from '../configuration-form'
 import { useFieldSchema } from '@/hooks/useFieldSchema'
 
+function getFormFieldValue(
+  values: FormValues, fieldId: string, variableName?: string
+): string | string[] | boolean | undefined {
+  if (values[fieldId] !== undefined) return values[fieldId]
+  if (variableName && values[variableName] !== undefined) return values[variableName]
+  const lastSegment = fieldId.split('/').pop()
+  if (lastSegment && values[lastSegment] !== undefined) return values[lastSegment]
+  return undefined
+}
+
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -82,6 +92,42 @@ export function AssistantBuilder() {
   const [askAtRuntimeIds, setAskAtRuntimeIds] = useState<string[]>([])
 
   const fieldSchemas = useFieldSchema(selectedFieldIds)
+
+  const runtimeFieldEntries = useMemo(() => {
+    return fieldSchemas.flatMap(schema =>
+      schema.sections.filter(field => askAtRuntimeIds.includes(field.id))
+        .map(field => ({ fieldId: schema.fieldId, field }))
+    )
+  }, [fieldSchemas, askAtRuntimeIds])
+
+  const resolvedFormValues = useMemo(() => {
+    const resolved: FormValues = { ...formValues }
+    for (const schema of fieldSchemas) {
+      for (const field of schema.sections) {
+        if (resolved[field.id] === undefined) {
+          const found = getFormFieldValue(formValues, field.id, field.variableName)
+          if (found !== undefined) resolved[field.id] = found
+        }
+      }
+    }
+    return resolved
+  }, [formValues, fieldSchemas])
+
+  const enabledFilePaths = useMemo(() => {
+    const paths: string[] = []
+    for (const schema of fieldSchemas) {
+      for (const field of schema.sections) {
+        if (askAtRuntimeIds.includes(field.id)) continue
+        const value = formValues[field.id] ?? field.default
+        if (!value) continue
+        if (field.fieldType === 'select' && typeof value === 'string' && value)
+          paths.push(`knowledge/${field.id}/${value}.md`)
+        else if (field.fieldType === 'multiselect' && Array.isArray(value))
+          value.forEach(v => paths.push(`knowledge/${field.id}/${v}.md`))
+      }
+    }
+    return paths
+  }, [fieldSchemas, formValues, askAtRuntimeIds])
 
   // Sync draft state when assistant data loads or assistantId changes.
   const syncKey = `${assistantId}::${assistant.instruct?.name ?? ''}`
@@ -159,6 +205,8 @@ export function AssistantBuilder() {
       domains: selectedFieldIds,
       flows: selectedWorkflowIds,
       askAtRuntime: askAtRuntimeIds,
+      enabledFilePaths,
+      runtimeFieldIds: runtimeFieldEntries.map(e => e.field.id),
     }
     spaceFS.writeFile(P.agentConfig(id), serializeAgentConfig(config))
 
@@ -193,6 +241,14 @@ export function AssistantBuilder() {
     setAskAtRuntimeIds(prev =>
       prev.includes(fieldId) ? prev.filter(id => id !== fieldId) : [...prev, fieldId]
     )
+  }, [])
+
+  const handleBulkToggleAskAtRuntime = useCallback((fieldIds: string[], enable: boolean) => {
+    setAskAtRuntimeIds(prev => {
+      if (enable) return [...new Set([...prev, ...fieldIds])]
+      const removeSet = new Set(fieldIds)
+      return prev.filter(id => !removeSet.has(id))
+    })
   }, [])
 
   const handleWorkflowToggle = useCallback((workflowId: string) => {
@@ -321,10 +377,11 @@ export function AssistantBuilder() {
               {fieldSchemas.length > 0 && (
                 <ConfigurationForm
                   schemas={fieldSchemas}
-                  values={formValues}
+                  values={resolvedFormValues}
                   onValueChange={handleFormValueChange}
                   askAtRuntimeIds={askAtRuntimeIds}
                   onToggleAskAtRuntime={handleToggleAskAtRuntime}
+                  onBulkToggleAskAtRuntime={handleBulkToggleAskAtRuntime}
                 />
               )}
             </Stack>

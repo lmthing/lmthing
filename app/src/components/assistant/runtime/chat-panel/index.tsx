@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { Button } from '@/elements/forms/button'
 import { Textarea } from '@/elements/forms/textarea'
-import { Badge } from '@/elements/content/badge'
 import { Panel, PanelHeader, PanelBody } from '@/elements/content/panel'
 import { CardFooter } from '@/elements/content/card'
 import { Stack } from '@/elements/layouts/stack'
 import { Heading } from '@/elements/typography/heading'
 import { Caption } from '@/elements/typography/caption'
 import { Label } from '@/elements/typography/label'
+import { StructuredOutputDisplay } from '@/components/assistant/runtime/structured-output-display'
 
 export interface ChatMessage {
   id: string
@@ -59,7 +59,25 @@ function MessageBubble({ message, isStreaming = false }: { message: ChatMessage;
         color: isUser ? 'white' : undefined,
       }}>
         {isUser && message.slashAction && (
-          <Badge variant="primary" style={{ marginBottom: '0.5rem' }}>/{message.slashAction.action}</Badge>
+          <div style={{ marginBottom: '0.5rem' }}>
+            <span style={{
+              display: 'inline-block',
+              padding: '0.25rem 0.5rem',
+              borderRadius: '0.25rem',
+              backgroundColor: 'color-mix(in srgb, var(--color-warning, #f59e0b) 15%, transparent)',
+              color: 'var(--color-warning, #f59e0b)',
+              fontFamily: 'monospace',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+            }}>
+              /{message.slashAction.action}
+              {message.slashAction.parameters && Object.keys(message.slashAction.parameters).length > 0 && (
+                <span style={{ fontWeight: 400, marginLeft: '0.5rem', opacity: 0.8 }}>
+                  {Object.entries(message.slashAction.parameters).map(([k, v]) => `${k}=${v}`).join(' ')}
+                </span>
+              )}
+            </span>
+          </div>
         )}
         {(!isUser || !message.slashAction) && (
           <p style={{ fontSize: '0.875rem', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
@@ -68,8 +86,8 @@ function MessageBubble({ message, isStreaming = false }: { message: ChatMessage;
           </p>
         )}
         {!isUser && message.structuredOutput && (
-          <div className="code-block" style={{ marginTop: '0.75rem', maxHeight: '24rem', overflow: 'auto' }}>
-            <pre style={{ fontSize: '0.75rem' }}>{JSON.stringify(message.structuredOutput, null, 2)}</pre>
+          <div style={{ marginTop: '0.75rem' }}>
+            <StructuredOutputDisplay data={message.structuredOutput} />
           </div>
         )}
         {!isStreaming && (

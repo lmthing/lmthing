@@ -34,6 +34,7 @@ export interface SchemaField {
 export interface FieldSchema {
   fieldId: string
   fieldLabel: string
+  category?: string
   sections: SchemaField[]
 }
 
@@ -53,10 +54,12 @@ export function useFieldSchema(selectedFieldIds: string[]): FieldSchema[] {
       // Find the top-level config for the field label
       const topConfig = allFiles[`${prefix}config.json`]
       let fieldLabel = fieldId
+      let category: string | undefined
       if (topConfig) {
         try {
           const parsed = JSON.parse(topConfig)
           fieldLabel = parsed.label || parsed.title || fieldId
+          if (parsed.category) category = parsed.category as string
         } catch { /* ignore */ }
       }
 
@@ -149,7 +152,7 @@ export function useFieldSchema(selectedFieldIds: string[]): FieldSchema[] {
       }
 
       if (fields.length > 0) {
-        schemas.push({ fieldId, fieldLabel, sections: fields })
+        schemas.push({ fieldId, fieldLabel, category, sections: fields })
       }
     }
 

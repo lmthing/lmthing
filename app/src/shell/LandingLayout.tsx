@@ -212,11 +212,19 @@ export default function LandingLayout() {
               <Button variant="outline" size="sm" asChild>
                 <Link to="/presentation">Presentation</Link>
               </Button>
-              <Button variant="outline" size="sm" asChild>
+              {/* <Button variant="outline" size="sm" asChild>
                 <Link to="/marketplace">Marketplace</Link>
+              </Button> */}
+              <Button variant="outline" size="sm" asChild>
+                <a href="https://docs.google.com/forms/d/e/1FAIpQLSfT7ssEvPumUTlo9PmDZZMncxPBpNJLDc8Sjz_PafmmCO2lpw/viewform?usp=dialog" target="_blank" rel="noopener noreferrer">Feedback</a>
               </Button>
-              <Button size="sm" onClick={openWorkspaceModal}>
+              {/* <Button size="sm" onClick={openWorkspaceModal}>
                 Ask the <CozyThingText text="THING" className="ml-1 text-sm font-bold" />
+              </Button> */}
+              <Button variant="default" size="sm" asChild>
+                <a href="https://docs.google.com/forms/d/e/1FAIpQLSfT7ssEvPumUTlo9PmDZZMncxPBpNJLDc8Sjz_PafmmCO2lpw/viewform?usp=dialog" target="_blank" rel="noopener noreferrer">
+                  Ask the <CozyThingText text="THING" className="ml-1 text-sm font-bold" />
+                </a>
               </Button>
               <GithubStars repo="lmthing/lmthing" />
             </div>
@@ -286,9 +294,15 @@ export default function LandingLayout() {
             </div> */}
 
               <div className="mt-2 flex items-center justify-center">
-                <Button size="lg" className="shadow-lg" onClick={openWorkspaceModal}>
+                {/* <Button size="lg" className="shadow-lg" onClick={openWorkspaceModal}>
                   Get started with <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" />
                   <ArrowRight className="ml-2 size-5" />
+                </Button> */}
+                <Button size="lg" className="shadow-lg" asChild>
+                  <a href="https://docs.google.com/forms/d/e/1FAIpQLSfT7ssEvPumUTlo9PmDZZMncxPBpNJLDc8Sjz_PafmmCO2lpw/viewform?usp=dialog" target="_blank" rel="noopener noreferrer">
+                  Get started with <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" />
+                  <ArrowRight className="ml-2 size-5" />
+                </a>
                 </Button>
               </div>
             </div>
@@ -385,7 +399,7 @@ export default function LandingLayout() {
 
               <div className="mt-8 overflow-x-auto pb-2 pt-2">
                 <div className="flex min-w-max gap-4">
-                  {demoWorkspaces.map((workspace, idx) => (
+                  {/* {demoWorkspaces.map((workspace, idx) => (
                     <button
                       key={workspace.id}
                       type="button"
@@ -412,18 +426,40 @@ export default function LandingLayout() {
                         <ArrowRight className="size-4" />
                       </div>
                     </button>
-                  ))}
+                  ))} */}
+                  <a
+                    href="https://docs.google.com/forms/d/e/1FAIpQLSfT7ssEvPumUTlo9PmDZZMncxPBpNJLDc8Sjz_PafmmCO2lpw/viewform?usp=dialog"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-72 shrink-0 rounded-xl border bg-background p-4 text-left cursor-pointer transition-all hover:-translate-y-0.5 hover:bg-muted/30 hover:shadow-md hover:border-primary/30"
+                  >
+                    <div className="mb-3 flex items-center gap-2">
+                      <div className="flex size-8 items-center justify-center rounded-md bg-primary text-white">
+                        <Building2 className="size-4" />
+                      </div>
+                      <p className="truncate text-sm font-semibold">Give feedback</p>
+                    </div>
+                    <p className="line-clamp-2 min-h-10 text-sm text-muted-foreground">Tell us what you think about lmthing</p>
+                    <div className="mt-3 flex items-center justify-end text-primary">
+                      <ArrowRight className="size-4" />
+                    </div>
+                  </a>
                   <div className="w-72 shrink-0 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 p-4">
                     <div className="flex h-full flex-col items-center justify-center text-center">
                       <p className="text-sm font-semibold">Want more workspaces?</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Discover the full catalog in Marketplace.
+                        {/* Discover the full catalog in Marketplace. */}
+                        Share your feedback with us.
                       </p>
                       <Button asChild size="sm" className="mt-4">
-                        <Link to="/marketplace">
-                          Show more
+                        {/* <a href="https://docs.google.com/forms/d/e/1FAIpQLSfT7ssEvPumUTlo9PmDZZMncxPBpNJLDc8Sjz_PafmmCO2lpw/viewform?usp=dialog" target="_blank" rel="noopener noreferrer">
+                          Give feedback
                           <ArrowRight className="ml-2 size-4" />
-                        </Link>
+                        </a> */}
+                        <a href="https://docs.google.com/forms/d/e/1FAIpQLSfT7ssEvPumUTlo9PmDZZMncxPBpNJLDc8Sjz_PafmmCO2lpw/viewform?usp=dialog" target="_blank" rel="noopener noreferrer">
+                          Give feedback
+                          <ArrowRight className="ml-2 size-4" />
+                        </a>
                       </Button>
                     </div>
                   </div>
@@ -431,11 +467,17 @@ export default function LandingLayout() {
               </div>
 
               <div className="mt-6">
-                <Button asChild size="lg" className="shadow-sm">
+                {/* <Button asChild size="lg" className="shadow-sm">
                   <Link to="/marketplace">
                     Explore all
                     <ArrowRight className="ml-2 size-5" />
                   </Link>
+                </Button> */}
+                <Button asChild size="lg" className="shadow-sm">
+                  <a href="https://docs.google.com/forms/d/e/1FAIpQLSfT7ssEvPumUTlo9PmDZZMncxPBpNJLDc8Sjz_PafmmCO2lpw/viewform?usp=dialog" target="_blank" rel="noopener noreferrer">
+                    Give feedback
+                    <ArrowRight className="ml-2 size-5" />
+                  </a>
                 </Button>
               </div>
             </div>
@@ -534,9 +576,15 @@ export default function LandingLayout() {
               Create workspaces, add specialists, and let the THING coordinate them all
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
-              <Button size="lg" onClick={openWorkspaceModal}>
+              {/* <Button size="lg" onClick={openWorkspaceModal}>
                 <Settings className="mr-2 size-5" />
                 Open Studio
+              </Button> */}
+              <Button size="lg" asChild>
+                <a href="https://docs.google.com/forms/d/e/1FAIpQLSfT7ssEvPumUTlo9PmDZZMncxPBpNJLDc8Sjz_PafmmCO2lpw/viewform?usp=dialog" target="_blank" rel="noopener noreferrer">
+                  <Settings className="mr-2 size-5" />
+                  Give feedback
+                </a>
               </Button>
             </div>
           </div>
@@ -733,15 +781,25 @@ export default function LandingLayout() {
               <div>
                 <h4 className="font-semibold mb-3">Product</h4>
                 <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li>
+                  {/* <li>
                     <a href="/marketplace" className="hover:text-foreground transition-colors">
                       Demo Workspaces
                     </a>
-                  </li>
+                  </li> */}
                   <li>
+                    <a href="https://docs.google.com/forms/d/e/1FAIpQLSfT7ssEvPumUTlo9PmDZZMncxPBpNJLDc8Sjz_PafmmCO2lpw/viewform?usp=dialog" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+                      Feedback
+                    </a>
+                  </li>
+                  {/* <li>
                     <button onClick={openWorkspaceModal} className="hover:text-foreground transition-colors">
                       Ask the <CozyThingText text="THING" />
                     </button>
+                  </li> */}
+                  <li>
+                    <a href="https://docs.google.com/forms/d/e/1FAIpQLSfT7ssEvPumUTlo9PmDZZMncxPBpNJLDc8Sjz_PafmmCO2lpw/viewform?usp=dialog" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+                      Ask the <CozyThingText text="THING" />
+                    </a>
                   </li>
                   <li>
                     <a href="https://github.com/lmthing/lmthing#readme" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">

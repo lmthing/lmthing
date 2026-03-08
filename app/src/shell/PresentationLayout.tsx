@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { X } from 'lucide-react'
+import { CozyThingText } from '@/CozyText'
 import Slide1Cover from '@/components/presentation/Slide1Cover'
 import Slide2Problem from '@/components/presentation/Slide2Problem'
 import Slide3Solution from '@/components/presentation/Slide3Solution'
@@ -91,6 +92,14 @@ export default function PresentationLayout() {
         style={{ color: 'rgba(0,0,0,0.3)', textShadow: 'none', filter: 'none', WebkitTextStroke: '0px' }}
       >
         {currentSlide + 1} / {slides.length}
+      </div>
+
+      {/* Footer */}
+      <div
+        className="absolute bottom-5 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap text-sm"
+        style={{ color: '#ccc' }}
+      >
+        Matilda &nbsp;&middot;&nbsp; powered by lm<CozyThingText text="thing" className="text-sm font-semibold" />
       </div>
     </div>
   )

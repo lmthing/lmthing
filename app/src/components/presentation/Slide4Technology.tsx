@@ -124,14 +124,6 @@ export default function Slide4Technology() {
           </span>
         ))}
       </div>
-
-      {/* Footer */}
-      <div
-        className="absolute bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-sm"
-        style={{ color: '#ccc' }}
-      >
-        Matilda &nbsp;&middot;&nbsp; powered by lm<CozyThingText text="thing" className="text-sm font-semibold" />
-      </div>
     </div>
   )
 }

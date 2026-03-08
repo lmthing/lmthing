@@ -142,15 +142,6 @@ export default function Slide5BuiltIn3Days() {
         </div>
         <div className="h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ background: colors.brand }} />
       </div>
-
-      {/* Footer */}
-      <div
-        className="absolute bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-sm"
-        style={{ color: '#ccc' }}
-      >
-        Matilda &nbsp;&middot;&nbsp; powered by lm
-        <CozyThingText text="thing" className="text-sm" />
-      </div>
     </div>
   )
 }

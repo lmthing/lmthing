@@ -138,7 +138,7 @@ export default function Slide5BuiltIn3Days() {
           <em className="not-italic font-bold" style={{ color: colors.brand }}>
             One use case shipped.
           </em>{' '}
-          Six experts convinced.
+          Five experts convinced.
         </div>
         <div className="h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ background: colors.brand }} />
       </div>

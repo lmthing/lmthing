@@ -81,18 +81,19 @@ export default function Slide2Problem() {
           </div>
 
           {/* Chips */}
-          <div className="flex" style={{ gap: '0.85rem' }}>
+          <div className="flex" style={{ gap: '1rem' }}>
             {chips.map((chip) => (
               <div
                 key={chip}
-                className="rounded-full border"
+                className="rounded-lg"
                 style={{
-                  borderColor: colors.brand,
-                  color: colors.brand,
-                  background: 'transparent',
-                  fontSize: '1rem',
-                  fontWeight: 500,
-                  padding: '0.4rem 1.1rem',
+                  background: `linear-gradient(135deg, ${colors.brand}15, ${colors.brand}25)`,
+                  color: colors.brandDark,
+                  fontSize: '1.25rem',
+                  fontWeight: 700,
+                  padding: '0.65rem 1.4rem',
+                  borderLeft: `4px solid ${colors.brand}`,
+                  letterSpacing: '0.02em',
                 }}
               >
                 {chip}
@@ -122,7 +123,7 @@ export default function Slide2Problem() {
               <div
                 key={ri}
                 className="flex"
-                style={{ gap: '1.1rem', paddingLeft: ri === 1 ? '2.5rem' : 0 }}
+                style={{ gap: '1.1rem' }}
               >
                 {row.map((label) => (
                   <div

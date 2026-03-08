@@ -53,7 +53,6 @@ export default function PresentationLayout() {
     <div
       className="relative h-screen w-screen overflow-hidden"
       style={{ background: '#FFFFFF' }}
-      onClick={next}
     >
       {/* Exit button */}
       <button
@@ -72,10 +71,24 @@ export default function PresentationLayout() {
         <SlideComponent />
       </div>
 
+      {/* Clickable navigation overlays */}
+      <div
+        className="absolute inset-0 z-40"
+        style={{ left: '0', right: '50%' }}
+        onClick={prev}
+        title="Previous slide"
+      />
+      <div
+        className="absolute inset-0 z-40"
+        style={{ left: '50%', right: '0' }}
+        onClick={next}
+        title="Next slide"
+      />
+
       {/* Slide counter */}
       <div
         className="absolute bottom-6 right-6 z-50 text-sm font-medium"
-        style={{ color: 'rgba(0,0,0,0.3)' }}
+        style={{ color: 'rgba(0,0,0,0.3)', textShadow: 'none', filter: 'none', WebkitTextStroke: '0px' }}
       >
         {currentSlide + 1} / {slides.length}
       </div>

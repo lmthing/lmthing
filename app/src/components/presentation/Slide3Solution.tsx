@@ -27,7 +27,7 @@ export default function Slide3Solution() {
         </h2>
 
         <p className="text-2xl leading-relaxed" style={{ color: colors.textSecondary }}>
-          lmthing lets Dimitris &mdash; and anyone like him &mdash; build a specialized AI agent
+          lm<CozyThingText text="thing" className="text-2xl font-semibold" /> lets Dimitris &mdash; and anyone like him &mdash; build a specialized AI agent
           with just their knowledge. No engineers required.
         </p>
 

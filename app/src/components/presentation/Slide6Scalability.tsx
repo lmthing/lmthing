@@ -159,9 +159,6 @@ export default function Slide6Scalability() {
         Matilda &nbsp;&middot;&nbsp; powered by lm
         <CozyThingText text="thing" className="text-sm" />
       </div>
-      <div className="absolute bottom-5 right-6 text-sm" style={{ color: '#ccc' }}>
-        6 / 7
-      </div>
     </div>
   )
 }

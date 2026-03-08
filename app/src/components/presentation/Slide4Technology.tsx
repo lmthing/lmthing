@@ -1,8 +1,9 @@
 import { colors } from './constants'
+import { CozyThingText } from '@/CozyText'
 
 const flowNodes = [
   { label: 'You', sub: 'Domain expert' },
-  { label: 'THING', sub: 'Organises \u00b7 Routes \u00b7 Controls', hero: true },
+  { label: 'THING', sub: 'Organises \u00b7 Routes \u00b7 Controls', hero: true, isThing: true },
   { label: 'Structured Knowledge', sub: 'Fields \u00b7 Topics \u00b7 Verified files' },
   { label: 'Specialist Agent', sub: 'Grounded in your domain' },
   { label: 'Grounded Response', sub: 'No hallucinations' },
@@ -45,10 +46,10 @@ export default function Slide4Technology() {
           How it works
         </div>
         <h1
-          className="text-center text-6xl font-extrabold leading-[1.15]"
+          className="text-center text-6xl font-extrabold leading-[1.3]"
           style={{ color: colors.text, letterSpacing: '-0.025em' }}
         >
-          THING turns your knowledge into agents
+          <CozyThingText text="THING" className="text-6xl font-extrabold leading-[1.3]" /> turns your knowledge into agents
           <br />
           that <em className="not-italic" style={{ color: colors.brand }}>actually know your domain.</em>
         </h1>
@@ -64,14 +65,14 @@ export default function Slide4Technology() {
                 style={
                   node.hero
                     ? {
-                        background: colors.brand,
-                        borderColor: colors.brand,
+                        background: '#E8E8E8',
+                        borderColor: '#D0D0D0',
                         color: '#fff',
                         fontSize: 26,
                         fontWeight: 800,
                         padding: '24px 40px',
                         borderRadius: 20,
-                        boxShadow: '0 12px 40px rgba(245,166,35,0.35)',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
                         letterSpacing: '0.02em',
                         height: 76,
                       }
@@ -84,7 +85,7 @@ export default function Slide4Technology() {
                       }
                 }
               >
-                {node.label}
+                {node.isThing ? <CozyThingText text={node.label} className="font-extrabold text-4xl" /> : node.label}
               </div>
               <div
                 className="max-w-[160px] text-center text-base leading-snug"
@@ -129,13 +130,7 @@ export default function Slide4Technology() {
         className="absolute bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-sm"
         style={{ color: '#ccc' }}
       >
-        Matilda &nbsp;&middot;&nbsp; powered by lmthing
-      </div>
-      <div
-        className="absolute bottom-5 right-6 text-sm"
-        style={{ color: '#ccc' }}
-      >
-        4 / 7
+        Matilda &nbsp;&middot;&nbsp; powered by lm<CozyThingText text="thing" className="text-sm font-semibold" />
       </div>
     </div>
   )

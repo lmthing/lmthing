@@ -21,11 +21,11 @@ const cards = [
   },
   {
     icon: '🎯',
-    stat: '6',
+    stat: '5',
     title: 'Mentors validated',
     body: (
       <>
-        Pitched and stress-tested the idea with <strong>6 domain experts and mentors</strong> during
+        Pitched and stress-tested the idea with <strong>5 domain experts and mentors</strong> during
         the hackathon.
         <br />
         <br />
@@ -43,7 +43,7 @@ const cards = [
         Built the complete pitch deck — architecture, positioning, narrative — as a{' '}
         <strong>
           working proof of lm
-          <CozyThingText text="thing" className="text-xs font-semibold" />
+          <CozyThingText text="thing" className="text-lg font-semibold" />
           's value.
         </strong>
         <br />
@@ -97,10 +97,10 @@ export default function Slide5BuiltIn3Days() {
               }}
             />
 
-            <div className="mb-3 text-4xl">{card.icon}</div>
+            <div className="mb-3 text-5xl">{card.icon}</div>
 
             <div
-              className="mb-1 text-5xl font-extrabold leading-none"
+              className="mb-1 text-6xl font-extrabold leading-none"
               style={{
                 color: card.highlight ? colors.brand : colors.text,
                 letterSpacing: '-0.03em',
@@ -109,7 +109,7 @@ export default function Slide5BuiltIn3Days() {
               {card.stat}
             </div>
 
-            <div className="mb-3 text-xl font-bold" style={{ color: colors.text }}>
+            <div className="mb-3 text-2xl font-bold" style={{ color: colors.text }}>
               {card.title}
             </div>
 
@@ -120,7 +120,7 @@ export default function Slide5BuiltIn3Days() {
               }}
             />
 
-            <div className="text-base leading-[1.65]" style={{ color: '#777' }}>
+            <div className="text-lg leading-[1.65]" style={{ color: '#777' }}>
               {card.body}
             </div>
           </div>
@@ -150,9 +150,6 @@ export default function Slide5BuiltIn3Days() {
       >
         Matilda &nbsp;&middot;&nbsp; powered by lm
         <CozyThingText text="thing" className="text-sm" />
-      </div>
-      <div className="absolute bottom-5 right-6 text-sm" style={{ color: '#ccc' }}>
-        5 / 7
       </div>
     </div>
   )

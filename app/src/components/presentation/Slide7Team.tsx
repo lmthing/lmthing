@@ -35,7 +35,7 @@ export default function Slide7Team() {
       style={{ background: colors.bg }}
     >
       <h2 className="mb-16 flex items-center justify-center gap-3 text-7xl font-bold" style={{ color: colors.text }}>
-        Team behind the <CozyThingText text="thing" className="text-7xl" />
+        Team behind the <CozyThingText text="thing" className="text-7xl leading-loose" />
       </h2>
 
       <div className="flex gap-16">

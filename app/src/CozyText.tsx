@@ -34,9 +34,9 @@ const CozyChar2: React.FC<{ char: string; index: number }> = ({ char, index }) =
   }, [index]);
 
   return (
-    <span 
+    <span
       style={style}
-      className="inline-block bg-clip-text text-transparent brightness-125 saturate-150 drop-shadow-[0_0_5px_rgba(255,255,255,0.2)]"
+      className="inline-block bg-clip-text text-transparent brightness-125 saturate-150 drop-shadow-[0_0_5px_rgba(255,255,255,0.2)] pb-2"
     >
       {char}
     </span>
@@ -167,8 +167,9 @@ const CozyChar3: React.FC<{ char: string }> = ({ char }) => {
   }, [config]);
 
   return (
-    <span 
+    <span
       ref={spanRef}
+      className="pb-2"
       style={{
         WebkitBackgroundClip: 'text',
         WebkitTextFillColor: 'transparent',

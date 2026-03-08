@@ -9,6 +9,7 @@ import Slide4Technology from '@/components/presentation/Slide4Technology'
 import Slide5BuiltIn3Days from '@/components/presentation/Slide5BuiltIn3Days'
 import Slide6Scalability from '@/components/presentation/Slide6Scalability'
 import Slide7Team from '@/components/presentation/Slide7Team'
+import Slide8Partnership from '@/components/presentation/Slide8Partnership'
 
 const slides = [
   Slide1Cover,
@@ -18,6 +19,7 @@ const slides = [
   Slide5BuiltIn3Days,
   Slide6Scalability,
   Slide7Team,
+  Slide8Partnership,
 ]
 
 export default function PresentationLayout() {
@@ -93,12 +95,14 @@ export default function PresentationLayout() {
       </div>
 
       {/* Footer */}
-      <div
-        className="absolute bottom-5 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap text-sm"
-        style={{ color: '#ccc' }}
-      >
-        Matilda &nbsp;&middot;&nbsp; powered by lm<CozyThingText text="thing" className="text-sm font-semibold" />
-      </div>
+      {currentSlide !== 7 && (
+        <div
+          className="absolute bottom-5 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap text-sm"
+          style={{ color: '#ccc' }}
+        >
+          Matilda &nbsp;&middot;&nbsp; powered by lm<CozyThingText text="thing" className="text-sm font-semibold" />
+        </div>
+      )}
     </div>
   )
 }

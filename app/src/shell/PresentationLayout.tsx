@@ -77,13 +77,11 @@ export default function PresentationLayout() {
         className="absolute inset-0 z-40"
         style={{ left: '0', right: '50%' }}
         onClick={prev}
-        title="Previous slide"
       />
       <div
         className="absolute inset-0 z-40"
         style={{ left: '50%', right: '0' }}
         onClick={next}
-        title="Next slide"
       />
 
       {/* Slide counter */}

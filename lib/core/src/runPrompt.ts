@@ -4,6 +4,7 @@ import { StreamTextOptions } from "./StreamText";
 import { type ModelInput } from "./providers/resolver";
 import type { Plugin, MergePlugins, PromptWithPlugins } from "./types";
 import { builtInPlugins } from "./plugins";
+import { getDebugLogger, type DebugConfig, type LogOutput } from "./logger";
 
 /**
  * Helper function to create a plugin array without requiring 'as const'.
@@ -58,6 +59,35 @@ export interface PromptConfig<P extends readonly Plugin[] = []> {
    * }, { model: 'openai:gpt-4o', plugins: [customPlugin] });
    */
   plugins?: P;
+  /**
+   * Debug/logging configuration.
+   * Can be a boolean to enable/disable, or a configuration object.
+   *
+   * When enabled via boolean `true`, uses default settings.
+   * Environment variables (LM_DEBUG, LM_DEBUG_OUTPUT, LM_DEBUG_DIR, LM_DEBUG_LEVEL)
+   * take precedence over config object settings.
+   *
+   * @example
+   * // Enable with defaults
+   * runPrompt(promptFn, { model: 'openai:gpt-4o', debug: true });
+   *
+   * @example
+   * // Custom configuration
+   * runPrompt(promptFn, {
+   *   model: 'openai:gpt-4o',
+   *   debug: {
+   *     enabled: true,
+   *     output: 'file',
+   *     logDir: 'logs',
+   *     level: 'prompts'
+   *   }
+   * });
+   *
+   * @example
+   * // Enable via environment variable
+   * LM_DEBUG=true LM_DEBUG_OUTPUT=both npm test
+   */
+  debug?: boolean | Partial<Omit<DebugConfig, 'enabled'>> & { enabled?: boolean };
 }
 
 interface RunPromptResult {
@@ -154,8 +184,34 @@ export const runPrompt = async <
   promptFn: (prompt: PromptWithPlugins<P>) => Promise<void>,
   config: PromptConfig<P>
 ): Promise<RunPromptResult> => {
+  // Initialize debug logger if enabled
+  const debugLogger = getDebugLogger();
+
+  // Handle debug configuration
+  if (config.debug !== undefined) {
+    if (typeof config.debug === 'boolean') {
+      if (config.debug) {
+        debugLogger.updateConfig({ enabled: true });
+      }
+    } else {
+      // It's a config object - merge with existing config
+      const { enabled, ...debugConfig } = config.debug;
+      if (enabled !== undefined) {
+        debugLogger.updateConfig({ enabled, ...debugConfig });
+      } else {
+        debugLogger.updateConfig(debugConfig);
+      }
+    }
+  }
+
+  // Start a new debug run
+  const runId = await debugLogger.startRun();
+
   // Always create a StatefulPrompt
   const prompt = new StatefulPrompt(config.model);
+
+  // Pass debug context to the prompt
+  prompt.setDebugContext(runId);
 
   // Apply any additional options if provided
   if (config.options) {
@@ -191,6 +247,9 @@ export const runPrompt = async <
 
   // Run with stateful re-execution (will re-execute promptFn on subsequent steps)
   const result = prompt.run();
+
+  // Clean up debug run when result completes (using the text promise)
+  Promise.resolve(result.text).then(() => debugLogger.endRun()).catch(() => debugLogger.endRun());
 
   return { result, prompt };
 };

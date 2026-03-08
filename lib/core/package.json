@@ -18,6 +18,10 @@
       "types": "./dist/plugins/index.d.ts",
       "default": "./dist/plugins/index.js"
     },
+    "./logger": {
+      "types": "./dist/logger/index.d.ts",
+      "default": "./dist/logger/index.js"
+    },
     "./observability": {
       "types": "./dist/observability/index.d.ts",
       "default": "./dist/observability/index.js"

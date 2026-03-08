@@ -7,9 +7,10 @@ import Slide2Problem from '@/components/presentation/Slide2Problem'
 import Slide3Solution from '@/components/presentation/Slide3Solution'
 import Slide4Technology from '@/components/presentation/Slide4Technology'
 import Slide5BuiltIn3Days from '@/components/presentation/Slide5BuiltIn3Days'
-import Slide6Scalability from '@/components/presentation/Slide6Scalability'
-import Slide7Team from '@/components/presentation/Slide7Team'
-import Slide8Partnership from '@/components/presentation/Slide8Partnership'
+import Slide6DemoVideo from '@/components/presentation/Slide6DemoVideo'
+import Slide7Scalability from '@/components/presentation/Slide7Scalability'
+import Slide8Team from '@/components/presentation/Slide8Team'
+import Slide9Partnership from '@/components/presentation/Slide9Partnership'
 
 const slides = [
   Slide1Cover,
@@ -17,9 +18,10 @@ const slides = [
   Slide3Solution,
   Slide4Technology,
   Slide5BuiltIn3Days,
-  Slide6Scalability,
-  Slide7Team,
-  Slide8Partnership,
+  Slide6DemoVideo,
+  Slide7Scalability,
+  Slide8Team,
+  Slide9Partnership,
 ]
 
 export default function PresentationLayout() {
@@ -77,12 +79,12 @@ export default function PresentationLayout() {
       {/* Clickable navigation overlays */}
       <div
         className="absolute inset-0 z-40"
-        style={{ left: '0', right: '50%' }}
+        style={{ left: '0', right: '50%', pointerEvents: currentSlide === 5 ? 'none' : 'auto' }}
         onClick={prev}
       />
       <div
         className="absolute inset-0 z-40"
-        style={{ left: '50%', right: '0' }}
+        style={{ left: '50%', right: '0', pointerEvents: currentSlide === 5 ? 'none' : 'auto' }}
         onClick={next}
       />
 
@@ -95,7 +97,7 @@ export default function PresentationLayout() {
       </div>
 
       {/* Footer */}
-      {currentSlide !== 7 && (
+      {currentSlide !== 8 && (
         <div
           className="absolute bottom-5 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap text-sm"
           style={{ color: '#ccc' }}

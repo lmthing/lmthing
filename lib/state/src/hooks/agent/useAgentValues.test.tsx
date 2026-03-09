@@ -2,25 +2,9 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
-import { AppProvider } from '@/lib/contexts/AppContext'
-import { StudioProvider } from '@/lib/contexts/StudioContext'
-import { SpaceProvider } from '@/lib/contexts/SpaceContext'
 import { AppFS } from '@/lib/fs/AppFS'
 import { useAgentValues } from './useAgentValues'
-
-function createWrapper(appFS: AppFS) {
-  return function Wrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <AppProvider>
-        <StudioProvider>
-          <SpaceProvider>
-            {children}
-          </SpaceProvider>
-        </StudioProvider>
-      </AppProvider>
-    )
-  }
-}
+import { createTestWrapper, getTestPath } from '@/test-utils'
 
 describe('useAgentValues', () => {
   let appFS: AppFS
@@ -36,10 +20,10 @@ describe('useAgentValues', () => {
       maxRetries: 3
     }
 
-    appFS.writeFile('alice/test/space1/agents/bot/values.json', JSON.stringify(values))
+    appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(values))
 
     const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).not.toBeNull()
@@ -50,17 +34,17 @@ describe('useAgentValues', () => {
 
   it('should return null for non-existent agent', () => {
     const { result } = renderHook(() => useAgentValues('non-existent'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toBeNull()
   })
 
   it('should handle invalid JSON gracefully', () => {
-    appFS.writeFile('alice/test/space1/agents/bot/values.json', 'not json')
+    appFS.writeFile(getTestPath('agents/bot/values.json'), 'not json')
 
     const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toEqual({})
@@ -75,10 +59,10 @@ describe('useAgentValues', () => {
       nullValue: null
     }
 
-    appFS.writeFile('alice/test/space1/agents/bot/values.json', JSON.stringify(values))
+    appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(values))
 
     const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.string).toBe('value')
@@ -89,10 +73,10 @@ describe('useAgentValues', () => {
   })
 
   it('should handle empty values', () => {
-    appFS.writeFile('alice/test/space1/agents/bot/values.json', '{}')
+    appFS.writeFile(getTestPath('agents/bot/values.json'), '{}')
 
     const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toEqual({})
@@ -100,16 +84,16 @@ describe('useAgentValues', () => {
 
   it('should re-render when values are updated', async () => {
     const initialValues = { apiKey: 'sk-1234' }
-    appFS.writeFile('alice/test/space1/agents/bot/values.json', JSON.stringify(initialValues))
+    appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(initialValues))
 
     const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.apiKey).toBe('sk-1234')
 
     const updatedValues = { apiKey: 'sk-5678', endpoint: 'https://api.example.com' }
-    appFS.writeFile('alice/test/space1/agents/bot/values.json', JSON.stringify(updatedValues))
+    appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(updatedValues))
 
     await waitFor(() => {
       expect(result.current?.apiKey).toBe('sk-5678')
@@ -119,13 +103,13 @@ describe('useAgentValues', () => {
 
   it('should re-render when values are created', async () => {
     const { result } = renderHook(() => useAgentValues('newbot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toBeNull()
 
     const values = { apiKey: 'sk-1234' }
-    appFS.writeFile('alice/test/space1/agents/newbot/values.json', JSON.stringify(values))
+    appFS.writeFile(getTestPath('agents/newbot/values.json'), JSON.stringify(values))
 
     await waitFor(() => {
       expect(result.current?.apiKey).toBe('sk-1234')
@@ -134,15 +118,15 @@ describe('useAgentValues', () => {
 
   it('should re-render when values are deleted', async () => {
     const values = { apiKey: 'sk-1234' }
-    appFS.writeFile('alice/test/space1/agents/bot/values.json', JSON.stringify(values))
+    appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(values))
 
     const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).not.toBeNull()
 
-    appFS.deleteFile('alice/test/space1/agents/bot/values.json')
+    appFS.deleteFile(getTestPath('agents/bot/values.json'))
 
     await waitFor(() => {
       expect(result.current).toBeNull()
@@ -152,19 +136,19 @@ describe('useAgentValues', () => {
   it('should not re-render when different agent changes', async () => {
     let renderCount = 0
 
-    appFS.writeFile('alice/test/space1/agents/bot1/values.json', JSON.stringify({ key: '1' }))
-    appFS.writeFile('alice/test/space1/agents/bot2/values.json', JSON.stringify({ key: '2' }))
+    appFS.writeFile(getTestPath('agents/bot1/values.json'), JSON.stringify({ key: '1' }))
+    appFS.writeFile(getTestPath('agents/bot2/values.json'), JSON.stringify({ key: '2' }))
 
     const { result } = renderHook(() => {
       renderCount++
       return useAgentValues('bot1')
     }, {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = renderCount
 
-    appFS.writeFile('alice/test/space1/agents/bot2/values.json', JSON.stringify({ key: 'updated' }))
+    appFS.writeFile(getTestPath('agents/bot2/values.json'), JSON.stringify({ key: 'updated' }))
 
     await waitFor(() => {
       expect(renderCount).toBe(initialCount)
@@ -180,10 +164,10 @@ describe('useAgentValues', () => {
       }
     }
 
-    appFS.writeFile('alice/test/space1/agents/bot/values.json', JSON.stringify(values))
+    appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(values))
 
     const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.config?.nested?.value).toBe('deep')
@@ -195,10 +179,10 @@ describe('useAgentValues', () => {
       numbers: [1, 2, 3]
     }
 
-    appFS.writeFile('alice/test/space1/agents/bot/values.json', JSON.stringify(values))
+    appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(values))
 
     const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.tags).toEqual(['tag1', 'tag2', 'tag3'])

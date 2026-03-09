@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { useGlob } from './fs/useGlob'
-import { P } from '@/lib/fs/paths'
+import { P } from '../lib/fs/paths'
 
 export interface DomainMeta {
   id: string
@@ -10,7 +10,7 @@ export interface DomainMeta {
 }
 
 export function useDomainDirectory(): DomainMeta[] {
-  const matches = useGlob(P.globs.knowledgeDomains)
+  const matches = useGlob(P.globs.knowledgeFields)
 
   return useMemo(() => {
     return matches.map(path => {

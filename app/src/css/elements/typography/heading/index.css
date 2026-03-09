@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@reference "../../../../index.css";
 
 .heading-1 {
   @apply text-3xl font-semibold tracking-tight text-foreground;

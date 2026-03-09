@@ -37,6 +37,30 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build:pages
+
+      - name: SPA fallback
+        run: cp app/dist/index.html app/dist/404.html
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: app/dist
+
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build:pages
+
       - name: Bump version
         run: |
           cd app
@@ -47,12 +71,6 @@ jobs:
           git add app/package.json
           git commit -m "chore: bump app version [skip ci]" || echo "No changes to commit"
           git push
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build
-        run: pnpm build:pages
 
       - name: SPA fallback
         run: cp app/dist/index.html app/dist/404.html

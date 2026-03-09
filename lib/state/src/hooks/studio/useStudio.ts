@@ -1,7 +1,7 @@
 // src/hooks/studio/useStudio.ts
 
-import { useStudio as useStudioContext } from '@/lib/contexts/StudioContext'
-import type { StudioConfig, SpaceConfig } from '@/types/studio'
+import { useStudio as useStudioContext } from '../../lib/contexts/StudioContext'
+import type { StudioConfig, SpaceConfig } from '../../types/studio'
 
 export function useStudio() {
   const {

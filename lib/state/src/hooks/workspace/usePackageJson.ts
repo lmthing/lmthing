@@ -1,8 +1,8 @@
 // src/hooks/workspace/usePackageJson.ts
 
 import { useMemo } from 'react'
-import { useFile } from '@/hooks/fs/useFile'
-import { P } from '@/lib/fs/paths'
+import { useFile } from '../fs/useFile'
+import { P } from '../../lib/fs/paths'
 
 export interface PackageJson {
   name: string

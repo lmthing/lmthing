@@ -65,7 +65,7 @@ export const P = {
     allFlows: 'flows/*/index.md',
     flowTasks: (id: string): string => `flows/${id}/[0-9]*.*.md`,
     allConversations: (id: string): string => `agents/${id}/conversations/*.json`,
-    knowledgeDomains: 'knowledge/*/config.json',
+    knowledgeFields: 'knowledge/*/config.json',
     allKnowledge: 'knowledge/**',
   } as const,
 } as const

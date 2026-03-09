@@ -25,7 +25,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': '/home/vasilis/GEANT/lmthing/lib/state/src'
+      '@': new URL('./src', import.meta.url).pathname
     }
   }
 })

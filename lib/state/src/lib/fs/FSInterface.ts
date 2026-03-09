@@ -1,6 +1,6 @@
 // src/lib/fs/FSInterface.ts
 
-import type { FileTree, DirEntry, FileOp, Unsubscribe } from '@/types/studio'
+import type { FileTree, DirEntry, FileOp, Unsubscribe } from '../../types/studio'
 import type { FSEvent, DirEvent, BatchEvent } from './events'
 
 /**

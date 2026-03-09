@@ -2,7 +2,7 @@
 
 import { AppFS } from './AppFS'
 import type { FSInterface } from './FSInterface'
-import type { FileTree, DirEntry, FileOp, Unsubscribe } from '@/types/studio'
+import type { FileTree, DirEntry, FileOp, Unsubscribe } from '../../types/studio'
 import type { FSEvent, DirEvent, BatchEvent } from './events'
 
 function normalizePrefix(prefix: string): string {
@@ -76,14 +76,14 @@ export class ScopedFS implements FSInterface {
   }
 
   glob(pattern: string): string[] {
-    const results = this.root.glob(pattern)
-    return results
-      .map(p => stripPrefix(this.prefix, p))
-      .filter(p => p !== pattern) // Only return paths within our scope
+    const fullPattern = joinPath(this.prefix, pattern)
+    const results = this.root.glob(fullPattern)
+    return results.map(p => stripPrefix(this.prefix, p))
   }
 
   globRead(pattern: string): FileTree {
-    const fullResults = this.root.globRead(pattern)
+    const fullPattern = joinPath(this.prefix, pattern)
+    const fullResults = this.root.globRead(fullPattern)
     const scopedResults: FileTree = {}
 
     for (const [fullPath, content] of Object.entries(fullResults)) {

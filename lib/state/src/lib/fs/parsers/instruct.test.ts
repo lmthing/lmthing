@@ -126,7 +126,7 @@ Line 3`
 
       const result = serializeAgentInstruct(instruct)
 
-      expect(result).toContain('name: "Bot"')
+      expect(result).toContain('name: Bot')
       expect(result).toContain('description: "A bot"')
       expect(result).toContain('model: "gpt-4"')
       expect(result).toContain('temperature: 0.7')

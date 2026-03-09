@@ -109,7 +109,7 @@ describe('ScopedFS', () => {
         capturedDir = e.dir
       })
 
-      appFS.writeFile('alice/studio1/space1/agents/bot2/instruct.md', 'content')
+      appFS.writeFile('alice/studio1/space1/agents/new-agent.md', 'content')
 
       expect(capturedDir).toBe('agents')
     })

@@ -2,25 +2,9 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
-import { AppProvider } from '@/lib/contexts/AppContext'
-import { StudioProvider } from '@/lib/contexts/StudioContext'
-import { SpaceProvider } from '@/lib/contexts/SpaceContext'
-import { AppFS } from '@/lib/fs/AppFS'
+import { AppFS } from '../../lib/fs/AppFS'
 import { useDir } from './useDir'
-
-function createWrapper(appFS: AppFS) {
-  return function Wrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <AppProvider>
-        <StudioProvider>
-          <SpaceProvider>
-            {children}
-          </SpaceProvider>
-        </StudioProvider>
-      </AppProvider>
-    )
-  }
-}
+import { createTestWrapper, getTestPath } from '../../test-utils'
 
 describe('useDir', () => {
   let appFS: AppFS
@@ -36,7 +20,7 @@ describe('useDir', () => {
 
   it('should list directory contents', () => {
     const { result } = renderHook(() => useDir('dir'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const names = result.current.map(e => e.name).sort()
@@ -46,7 +30,7 @@ describe('useDir', () => {
 
   it('should return correct entry types', () => {
     const { result } = renderHook(() => useDir('dir'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const files = result.current.filter(e => e.type === 'file')
@@ -59,7 +43,7 @@ describe('useDir', () => {
 
   it('should return paths relative to space scope', () => {
     const { result } = renderHook(() => useDir('dir'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const entry = result.current.find(e => e.name === 'file1.txt')
@@ -68,7 +52,7 @@ describe('useDir', () => {
 
   it('should return empty array for non-existent directory', () => {
     const { result } = renderHook(() => useDir('non-existent'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toEqual([])
@@ -76,7 +60,7 @@ describe('useDir', () => {
 
   it('should list root directory', () => {
     const { result } = renderHook(() => useDir(''), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const names = result.current.map(e => e.name).sort()
@@ -87,7 +71,7 @@ describe('useDir', () => {
 
   it('should re-render when file is added to directory', async () => {
     const { result } = renderHook(() => useDir('dir'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = result.current.length
@@ -103,7 +87,7 @@ describe('useDir', () => {
 
   it('should re-render when file is deleted from directory', async () => {
     const { result } = renderHook(() => useDir('dir'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = result.current.length
@@ -119,7 +103,7 @@ describe('useDir', () => {
 
   it('should re-render when subdirectory is added', async () => {
     const { result } = renderHook(() => useDir(''), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = result.current.length
@@ -135,7 +119,7 @@ describe('useDir', () => {
 
   it('should re-render when entry is renamed', async () => {
     const { result } = renderHook(() => useDir('dir'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     // Rename a file
@@ -154,7 +138,7 @@ describe('useDir', () => {
       renderCount++
       return useDir('dir')
     }, {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = renderCount
@@ -170,7 +154,7 @@ describe('useDir', () => {
 
   it('should list nested directory', () => {
     const { result } = renderHook(() => useDir('dir/subdir'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const names = result.current.map(e => e.name)
@@ -185,7 +169,7 @@ describe('useDir', () => {
     }
 
     const { result } = renderHook(() => useDir('dir'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current.length).toBeGreaterThan(100)

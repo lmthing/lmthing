@@ -1,10 +1,10 @@
 // src/lib/contexts/StudioContext.tsx
 
-import { createContext, useContext, useMemo } from 'react'
+import { createContext, useContext, useMemo, useState, useSyncExternalStore, useCallback, useRef } from 'react'
 import type { ReactNode } from 'react'
-import { StudioFS } from '@/lib/fs/ScopedFS'
+import { StudioFS } from '../fs/ScopedFS'
 import { useApp } from './AppContext'
-import type { StudioConfig, SpaceConfig, Unsubscribe } from '@/types/studio'
+import type { StudioConfig, SpaceConfig, Unsubscribe } from '../../types/studio'
 
 interface StudioContextValue {
   studioFS: StudioFS
@@ -40,39 +40,49 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     return new StudioFS(appFS, username, studioId)
   }, [appFS, username, studioId])
 
-  const studioConfig = useMemo(() => {
+  const configCacheRef = useRef<{ raw: string | null; parsed: StudioConfig | null }>({ raw: null, parsed: null })
+
+  const subscribeToConfig = useCallback(
+    (cb: () => void) => {
+      if (!studioFS) return () => { }
+      return studioFS.onFile('lmthing.json', cb)
+    },
+    [studioFS]
+  )
+
+  const getConfigSnapshot = useCallback(() => {
     if (!studioFS) return null
     const content = studioFS.readFile('lmthing.json')
-    if (!content) return null
+    if (content === configCacheRef.current.raw) return configCacheRef.current.parsed
+    configCacheRef.current.raw = content
+    if (!content) {
+      configCacheRef.current.parsed = null
+      return null
+    }
     try {
-      return JSON.parse(content) as StudioConfig
+      const parsed = JSON.parse(content) as StudioConfig
+      configCacheRef.current.parsed = parsed
+      return parsed
     } catch {
+      configCacheRef.current.parsed = null
       return null
     }
   }, [studioFS])
+
+  const studioConfig = useSyncExternalStore(subscribeToConfig, getConfigSnapshot, () => null)
 
   const spaces = useMemo(() => {
     if (!studioConfig) return []
     return Object.entries(studioConfig.spaces).map(([id, config]) => ({
       id,
-      ...config
+      ...(config as SpaceConfig)
     }))
   }, [studioConfig])
 
-  const currentSpaceId = studioConfig?.settings?.defaultSpace ?? null
+  const [currentSpaceId, setCurrentSpaceId] = useState<string | null>(null)
 
   function setCurrentSpace(spaceId: string): void {
-    if (!studioFS || !studioConfig) return
-
-    const updated = {
-      ...studioConfig,
-      settings: {
-        ...studioConfig.settings,
-        defaultSpace: spaceId
-      }
-    }
-
-    studioFS.writeFile('lmthing.json', JSON.stringify(updated, null, 2))
+    setCurrentSpaceId(spaceId)
   }
 
   function createSpace(spaceId: string, config: SpaceConfig): void {
@@ -138,10 +148,22 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     studioFS.renamePath(spaceId, newId)
   }
 
-  // Handle null studioFS case (not yet loaded)
+  // Handle null studioFS case (not yet loaded) — provide safe empty value
   if (!studioFS) {
+    const emptyValue: StudioContextValue = {
+      studioFS: null as any,
+      username: '',
+      studioId: '',
+      studioConfig: null,
+      spaces: [],
+      currentSpaceId: null,
+      setCurrentSpace: () => { },
+      createSpace: () => { },
+      deleteSpace: () => { },
+      renameSpace: () => { },
+    }
     return (
-      <StudioContext.Provider value={null as any}>
+      <StudioContext.Provider value={emptyValue}>
         {children}
       </StudioContext.Provider>
     )

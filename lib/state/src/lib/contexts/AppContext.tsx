@@ -2,9 +2,9 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { AppFS } from '@/lib/fs/AppFS'
-import { DraftStore } from '@/lib/fs/DraftStore'
-import type { AppData, StudioData, FileTree, Unsubscribe } from '@/types/studio'
+import { AppFS } from '../fs/AppFS'
+import { DraftStore } from '../fs/DraftStore'
+import type { AppData, StudioData, StudioConfig, FileTree, Unsubscribe } from '../../types/studio'
 
 const APP_STORAGE_KEY = 'lmthing-app'
 const STUDIO_STORAGE_PREFIX = 'lmthing-studio:'
@@ -25,32 +25,62 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | null>(null)
 
-export function AppProvider({ children }: { children: ReactNode }) {
-  const [appFS] = useState(() => new AppFS())
-  const [drafts] = useState(() => new DraftStore())
+interface AppProviderProps {
+  children: ReactNode
+  /** Optional AppFS instance for testing. If not provided, creates a new one. */
+  appFS?: AppFS
+  /** Optional DraftStore instance for testing. If not provided, creates a new one. */
+  draftStore?: DraftStore
+  /** Optional initial studio key for testing. */
+  initialStudioKey?: string | null
+  /** Skip loading from localStorage (useful for testing). */
+  skipStorage?: boolean
+}
+
+export function AppProvider({ children, appFS: providedAppFS, draftStore: providedDraftStore, initialStudioKey, skipStorage = false }: AppProviderProps) {
+  const [appFS] = useState(() => providedAppFS ?? new AppFS())
+  const [drafts] = useState(() => providedDraftStore ?? new DraftStore())
   const [studios, setStudios] = useState<Array<{ username: string; studioId: string; name: string }>>([])
-  const [currentStudioKey, setCurrentStudioKey] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [currentStudioKey, setCurrentStudioKey] = useState<string | null>(initialStudioKey ?? null)
+  const [isLoading, setIsLoading] = useState(skipStorage ? false : true)
   const [error, setError] = useState<string | null>(null)
 
-  // Load from localStorage on mount
+  // Load from localStorage on mount (skip if skipStorage is true)
   useEffect(() => {
+    if (skipStorage || providedAppFS) {
+      setIsLoading(false)
+      return
+    }
+
     try {
       const appDataJson = localStorage.getItem(APP_STORAGE_KEY)
       if (appDataJson) {
         const appData: AppData = JSON.parse(appDataJson)
         setCurrentStudioKey(appData.currentStudioKey)
 
-        // Load each studio
-        for (const [key, studioData] of Object.entries(appData.studios)) {
-          loadStudio(key, studioData.files)
+        // Load each studio's spaces from individual storage keys
+        for (const [studioKey, studioData] of Object.entries(appData.studios)) {
+          // Write studio-level config into AppFS
+          appFS.writeFile(`${studioKey}/lmthing.json`, JSON.stringify(studioData.config, null, 2))
+
+          // Load each space's files
+          for (const spaceId of Object.keys(studioData.config.spaces)) {
+            const spaceStorageKey = `${STUDIO_STORAGE_PREFIX}${studioKey}/${spaceId}`
+            const spaceJson = localStorage.getItem(spaceStorageKey)
+            if (spaceJson) {
+              const spaceFiles: FileTree = JSON.parse(spaceJson)
+              for (const [relativePath, content] of Object.entries(spaceFiles)) {
+                appFS.writeFile(`${studioKey}/${spaceId}/${relativePath}`, content)
+              }
+            }
+          }
         }
 
         // Build studio list
-        const studioList = Object.entries(appData.studios).map(([key, data]) => ({
+        const studioList = Object.entries(appData.studios).map(([_key, data]) => ({
           username: data.username,
           studioId: data.id,
-          name: getStudioName(data.files)
+          name: data.config.name || 'Untitled Studio'
         }))
         setStudios(studioList)
       }
@@ -60,7 +90,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [skipStorage, providedAppFS])
 
   // Persist appFS changes to localStorage
   useEffect(() => {
@@ -70,80 +100,75 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return unsubscribe
   }, [appFS])
 
-  function getStudioName(files: FileTree): string {
+  function parseStudioConfig(files: FileTree): StudioConfig | null {
     const configContent = files['lmthing.json']
-    if (configContent) {
-      try {
-        const config = JSON.parse(configContent)
-        return config.name || 'Untitled Studio'
-      } catch {
-        return 'Untitled Studio'
-      }
-    }
-    return 'Untitled Studio'
-  }
-
-  function loadStudio(key: string, files: FileTree): void {
-    for (const [path, content] of Object.entries(files)) {
-      appFS.writeFile(path, content)
+    if (!configContent) return null
+    try {
+      return JSON.parse(configContent) as StudioConfig
+    } catch {
+      return null
     }
   }
 
   function saveAppData(): void {
     try {
-      // Build current app data
       const currentFiles = appFS.export()
-      const studioGroups = groupByStudio(currentFiles)
+
+      // Group files by studio (username/studioId)
+      const studioFiles: Record<string, FileTree> = {}
+      for (const [path, content] of Object.entries(currentFiles)) {
+        const segments = path.split('/')
+        if (segments.length < 2) continue
+        const studioKey = `${segments[0]}/${segments[1]}`
+        if (!studioFiles[studioKey]) studioFiles[studioKey] = {}
+        const relativePath = segments.slice(2).join('/')
+        studioFiles[studioKey][relativePath] = content
+      }
+
+      // Build AppData (metadata only) and persist space files separately
+      const studioDataMap: Record<string, StudioData> = {}
+
+      for (const [studioKey, files] of Object.entries(studioFiles)) {
+        const [username, studioId] = studioKey.split('/')
+        const config = parseStudioConfig(files)
+        if (!config) continue
+
+        studioDataMap[studioKey] = { id: studioId, username, config }
+
+        // Save each space's files under its own localStorage key
+        for (const spaceId of Object.keys(config.spaces)) {
+          const spacePrefix = `${spaceId}/`
+          const spaceFiles: FileTree = {}
+          for (const [relativePath, content] of Object.entries(files)) {
+            if (relativePath.startsWith(spacePrefix)) {
+              spaceFiles[relativePath.slice(spacePrefix.length)] = content
+            }
+          }
+          localStorage.setItem(
+            `${STUDIO_STORAGE_PREFIX}${studioKey}/${spaceId}`,
+            JSON.stringify(spaceFiles)
+          )
+        }
+      }
 
       const appData: AppData = {
-        studios: studioGroups,
+        studios: studioDataMap,
         currentStudioKey,
-        currentSpaceId: null // TODO: track current space
+        currentSpaceId: null
       }
 
       localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(appData))
 
-      // Save each studio individually for easy import/export
-      for (const [key, studioData] of Object.entries(studioGroups)) {
-        localStorage.setItem(`${STUDIO_STORAGE_PREFIX}${key}`, JSON.stringify(studioData.files))
-      }
-
       // Update studios list
-      const studioList = Object.entries(studioGroups).map(([key, data]) => ({
+      const studioList = Object.entries(studioDataMap).map(([_key, data]) => ({
         username: data.username,
         studioId: data.id,
-        name: getStudioName(data.files)
+        name: data.config.name || 'Untitled Studio'
       }))
       setStudios(studioList)
     } catch (e) {
       console.error('Failed to save app data:', e)
     }
-  }
-
-  function groupByStudio(files: FileTree): Record<string, StudioData> {
-    const result: Record<string, StudioData> = {}
-
-    for (const [path, content] of Object.entries(files)) {
-      const segments = path.split('/')
-      if (segments.length < 2) continue
-
-      const [username, studioId] = segments
-      const key = `${username}/${studioId}`
-
-      if (!result[key]) {
-        result[key] = {
-          id: studioId,
-          username,
-          files: {}
-        }
-      }
-
-      // Store path without username/studioId prefix
-      const relativePath = segments.slice(2).join('/')
-      result[key].files[relativePath] = content
-    }
-
-    return result
   }
 
   function setCurrentStudio(username: string, studioId: string): void {
@@ -170,10 +195,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   function deleteStudio(username: string, studioId: string): void {
     const key = `${username}/${studioId}`
-    appFS.deletePath(key)
 
-    // Clear from localStorage
-    localStorage.removeItem(`${STUDIO_STORAGE_PREFIX}${key}`)
+    // Read config to find space keys to clean up
+    const configContent = appFS.readFile(`${key}/lmthing.json`)
+    if (configContent) {
+      try {
+        const config = JSON.parse(configContent) as StudioConfig
+        for (const spaceId of Object.keys(config.spaces)) {
+          localStorage.removeItem(`${STUDIO_STORAGE_PREFIX}${key}/${spaceId}`)
+        }
+      } catch { /* ignore parse errors during cleanup */ }
+    }
+
+    appFS.deletePath(key)
 
     if (currentStudioKey === key) {
       setCurrentStudioKey(null)

@@ -28,6 +28,6 @@ The studio dashboard is the control center for a workspace. It shows knowledge a
 - "Export" → downloads workspace bundle
 
 ## Color Scheme
-- Knowledge: Emerald green (#10b981)
-- Agents: Violet purple (#7c3aed)
+- Knowledge: Emerald green (#ed92a1)
+- Agents: Violet purple (#f38358)
 - Card hover: intensified border color + medium shadow

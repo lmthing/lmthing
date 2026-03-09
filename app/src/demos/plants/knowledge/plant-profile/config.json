@@ -2,6 +2,6 @@
   "label": "Plant Profile",
   "description": "Plant identity and growth context",
   "icon": "🌱",
-  "color": "#16a34a",
+  "color": "#f5c815",
   "renderAs": "section"
 }

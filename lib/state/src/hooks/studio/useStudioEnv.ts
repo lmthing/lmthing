@@ -3,8 +3,8 @@
 import { useCallback } from 'react'
 import { useMemo } from 'react'
 import { useStudio } from './useStudio'
-import { useFile } from '@/hooks/fs/useFile'
-import { parseEnvFile, serializeEnvFile, decryptEnvFile, encryptEnvFile, isEncrypted } from '@/lib/fs/crypto/env'
+import { useFile } from '../fs/useFile'
+import { parseEnvFile, serializeEnvFile, decryptEnvFile, encryptEnvFile, isEncrypted } from '../../lib/fs/crypto/env'
 
 export function useStudioEnv(name: string = '.env'): Record<string, string> | null {
   const { studioFS } = useStudio()

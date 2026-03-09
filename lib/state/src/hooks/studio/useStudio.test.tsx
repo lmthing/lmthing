@@ -1,74 +1,51 @@
 // src/hooks/studio/useStudio.test.tsx
 
 import { describe, it, expect, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
-import { AppProvider } from '@/lib/contexts/AppContext'
-import { StudioProvider } from '@/lib/contexts/StudioContext'
-import { SpaceProvider } from '@/lib/contexts/SpaceContext'
+import { renderHook, waitFor, act } from '@testing-library/react'
 import { AppFS } from '@/lib/fs/AppFS'
 import { useStudio } from './useStudio'
-
-function createWrapper(appFS: AppFS) {
-  return function Wrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <AppProvider>
-        <StudioProvider>
-          <SpaceProvider>
-            {children}
-          </SpaceProvider>
-        </StudioProvider>
-      </AppProvider>
-    )
-  }
-}
+import { createTestWrapper } from '@/test-utils'
 
 describe('useStudio', () => {
   let appFS: AppFS
 
+  const studioConfigOptions = {
+    name: 'Test Studio',
+    version: '1.0.0',
+    spaces: {
+      space1: {
+        name: 'Space 1',
+        description: 'First space',
+        createdAt: '2024-01-01T00:00:00Z'
+      },
+      space2: {
+        name: 'Space 2',
+        description: 'Second space',
+        createdAt: '2024-01-02T00:00:00Z'
+      }
+    },
+    settings: {
+      theme: 'dark' as const
+    }
+  }
+
   beforeEach(() => {
     appFS = new AppFS()
-
-    // Set up a studio with spaces
-    const studioConfig = {
-      id: 'test-studio',
-      name: 'Test Studio',
-      version: '1.0.0',
-      spaces: {
-        space1: {
-          name: 'Space 1',
-          description: 'First space',
-          createdAt: '2024-01-01T00:00:00Z'
-        },
-        space2: {
-          name: 'Space 2',
-          description: 'Second space',
-          createdAt: '2024-01-02T00:00:00Z'
-        }
-      },
-      settings: {
-        defaultSpace: 'space1',
-        theme: 'dark' as const
-      }
-    }
-
-    appFS.writeFile('alice/test-studio/lmthing.json', JSON.stringify(studioConfig, null, 2))
-    appFS.writeFile('alice/test-studio/space1/package.json', '{"name": "space1"}')
-    appFS.writeFile('alice/test-studio/space2/package.json', '{"name": "space2"}')
   })
 
   it('should return studio configuration', () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS, { studioConfig: studioConfigOptions })
     })
 
     expect(result.current.studioConfig).not.toBeNull()
-    expect(result.current.studioConfig?.id).toBe('test-studio')
+    expect(result.current.studioConfig?.id).toBe('test')
     expect(result.current.studioConfig?.name).toBe('Test Studio')
   })
 
   it('should return list of spaces', () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS, { studioConfig: studioConfigOptions })
     })
 
     expect(result.current.spaces).toHaveLength(2)
@@ -78,7 +55,7 @@ describe('useStudio', () => {
 
   it('should include space configs', () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS, { studioConfig: studioConfigOptions })
     })
 
     const space1 = result.current.spaces.find(s => s.id === 'space1')
@@ -86,9 +63,9 @@ describe('useStudio', () => {
     expect(space1?.description).toBe('First space')
   })
 
-  it('should return current space ID from settings', () => {
+  it('should return current space ID from SpaceProvider prop', () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS, { studioConfig: studioConfigOptions })
     })
 
     expect(result.current.currentSpaceId).toBe('space1')
@@ -96,7 +73,7 @@ describe('useStudio', () => {
 
   it('should return studio FS', () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS, { studioConfig: studioConfigOptions })
     })
 
     expect(result.current.studioFS).not.toBeNull()
@@ -105,19 +82,19 @@ describe('useStudio', () => {
 
   it('should re-render when studio config changes', async () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS, { studioConfig: studioConfigOptions })
     })
 
     expect(result.current.studioConfig?.name).toBe('Test Studio')
 
     const updatedConfig = {
-      id: 'test-studio',
+      id: 'test',
       name: 'Updated Studio',
       version: '1.0.0',
       spaces: {}
     }
 
-    appFS.writeFile('alice/test-studio/lmthing.json', JSON.stringify(updatedConfig, null, 2))
+    appFS.writeFile('alice/test/lmthing.json', JSON.stringify(updatedConfig, null, 2))
 
     await waitFor(() => {
       expect(result.current.studioConfig?.name).toBe('Updated Studio')
@@ -126,7 +103,7 @@ describe('useStudio', () => {
 
   it('should allow creating a new space', async () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS, { studioConfig: studioConfigOptions })
     })
 
     const initialCount = result.current.spaces.length
@@ -146,7 +123,7 @@ describe('useStudio', () => {
 
   it('should allow deleting a space', async () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS, { studioConfig: studioConfigOptions })
     })
 
     const initialCount = result.current.spaces.length
@@ -163,7 +140,7 @@ describe('useStudio', () => {
 
   it('should allow renaming a space', async () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS, { studioConfig: studioConfigOptions })
     })
 
     act(() => {
@@ -178,7 +155,7 @@ describe('useStudio', () => {
 
   it('should allow setting current space', async () => {
     const { result } = renderHook(() => useStudio(), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS, { studioConfig: studioConfigOptions })
     })
 
     expect(result.current.currentSpaceId).toBe('space1')
@@ -194,30 +171,17 @@ describe('useStudio', () => {
 
   it('should handle studio without spaces', () => {
     const emptyFS = new AppFS()
-    emptyFS.writeFile('alice/test-studio/lmthing.json', JSON.stringify({
-      id: 'test-studio',
+    emptyFS.writeFile('alice/test/lmthing.json', JSON.stringify({
+      id: 'test',
       name: 'Empty Studio',
       spaces: {}
     }, null, 2))
 
     const { result } = renderHook(() => useStudio(), {
-      wrapper: ({ children }) => (
-        <AppProvider>
-          <StudioProvider>
-            <SpaceProvider>
-              {children}
-            </SpaceProvider>
-          </StudioProvider>
-        </AppProvider>
-      )
+      wrapper: createTestWrapper(emptyFS, { skipStudioSetup: true })
     })
 
     expect(result.current.spaces).toEqual([])
     expect(result.current.currentSpaceId).toBeNull()
   })
 })
-
-// Helper for act
-function act(fn: () => void) {
-  fn()
-}

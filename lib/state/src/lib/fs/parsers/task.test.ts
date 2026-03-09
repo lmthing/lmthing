@@ -93,9 +93,9 @@ Step 3`
 
       const result = serializeFlowTask(task)
 
-      expect(result).toContain('name: "Task"')
-      expect(result).toContain('description: "Description"')
-      expect(result).toContain('agent: "bot"')
+      expect(result).toContain('name: Task')
+      expect(result).toContain('description: Description')
+      expect(result).toContain('agent: bot')
     })
 
     it('should round-trip correctly', () => {

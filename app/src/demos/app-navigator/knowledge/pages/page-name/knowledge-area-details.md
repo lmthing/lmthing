@@ -34,6 +34,6 @@ This page lets you browse, create, and edit the markdown files that make up a kn
 - Export knowledge area via header "Export" button
 
 ## Color Scheme
-- Primary: Emerald green (#10b981) for active tree items and buttons
+- Primary: Emerald green (#ed92a1) for active tree items and buttons
 - Purple dot on "Knowledge Base" label for visual differentiation
 - Red text on hover for "Delete" option

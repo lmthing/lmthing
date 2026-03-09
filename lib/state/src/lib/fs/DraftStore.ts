@@ -1,6 +1,6 @@
 // src/lib/fs/DraftStore.ts
 
-import type { Unsubscribe } from '@/types/studio'
+import type { Unsubscribe } from '../../types/studio'
 
 export interface DraftChangeEvent {
   path: string
@@ -17,12 +17,8 @@ export class DraftStore {
 
   // ── Draft operations ───────────────────────────────────────────────
   set(path: string, content: string): void {
-    const hadDraft = this.drafts.has(path)
     this.drafts.set(path, content)
-
-    if (!hadDraft) {
-      this.notifyChange({ path, hasDraft: true })
-    }
+    this.notifyChange({ path, hasDraft: true })
     this.notify()
   }
 

@@ -9,6 +9,7 @@ export function useStreamWrite(path: string) {
   const [error, setError] = useState<Error | null>(null)
 
   const write = useCallback(async (stream: AsyncIterable<string>) => {
+    if (!fs) return
     setIsStreaming(true)
     setError(null)
     try {
@@ -29,6 +30,7 @@ export function useStreamAppend(path: string) {
   const [error, setError] = useState<Error | null>(null)
 
   const append = useCallback(async (stream: AsyncIterable<string>) => {
+    if (!fs) return
     setIsStreaming(true)
     setError(null)
     try {

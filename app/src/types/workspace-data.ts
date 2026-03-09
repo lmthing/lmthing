@@ -56,12 +56,12 @@ export interface AgentFrontmatter {
   name?: string
   description?: string
   tools?: string[]
-  selectedDomains?: string[]
+  selectedFields?: string[]
   [key: string]: unknown
 }
 
 export interface AgentConfig {
-  emptyFieldsForRuntime: (string | { id: string; label: string; domain: string })[]
+  emptyFieldsForRuntime: (string | { id: string; label: string; field: string })[]
   [key: string]: unknown
 }
 

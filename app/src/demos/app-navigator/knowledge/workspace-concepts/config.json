@@ -2,6 +2,6 @@
     "label": "Workspace Concepts",
     "description": "Core building blocks of a workspace: agents, flows, knowledge bases, and their relationships",
     "icon": "🏗️",
-    "color": "#8b5cf6",
+    "color": "#f9a94a",
     "renderAs": "section"
 }

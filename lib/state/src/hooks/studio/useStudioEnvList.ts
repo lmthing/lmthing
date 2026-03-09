@@ -1,7 +1,7 @@
 // src/hooks/studio/useStudioEnvList.ts
 
 import { useStudio } from './useStudio'
-import { useGlob } from '@/hooks/fs/useGlob'
+import { useGlob } from '../fs/useGlob'
 
 export function useStudioEnvList(): string[] {
   const { studioFS } = useStudio()

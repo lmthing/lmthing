@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { useFlowIndex } from './flow/useFlowIndex'
 import { useFlowTaskList } from './flow/useFlowTaskList'
-import type { FlowIndex } from '@/lib/fs/parsers/task'
+import type { FlowIndex } from '../lib/fs/parsers/task'
 import type { FlowTaskItem } from './flow/useFlowTaskList'
 
 export interface WorkFlow {

@@ -2,6 +2,6 @@
   "label": "Developer Profile",
   "description": "Developer experience level, specialization, and coding preferences",
   "icon": "👤",
-  "color": "#8b5cf6",
+  "color": "#d59ec8",
   "renderAs": "section"
 }

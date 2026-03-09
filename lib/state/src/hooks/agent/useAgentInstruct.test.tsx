@@ -2,26 +2,9 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
-import { AppProvider } from '@/lib/contexts/AppContext'
-import { StudioProvider } from '@/lib/contexts/StudioContext'
-import { SpaceProvider } from '@/lib/contexts/SpaceContext'
 import { AppFS } from '@/lib/fs/AppFS'
-import { P } from '@/lib/fs/paths'
 import { useAgentInstruct } from './useAgentInstruct'
-
-function createWrapper(appFS: AppFS) {
-  return function Wrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <AppProvider>
-        <StudioProvider>
-          <SpaceProvider>
-            {children}
-          </SpaceProvider>
-        </StudioProvider>
-      </AppProvider>
-    )
-  }
-}
+import { createTestWrapper, getTestPath } from '@/test-utils'
 
 describe('useAgentInstruct', () => {
   let appFS: AppFS
@@ -38,10 +21,10 @@ model: gpt-4
 ---
 You are a helpful assistant.`
 
-    appFS.writeFile('alice/test/space1/agents/bot/instruct.md', content)
+    appFS.writeFile(getTestPath('agents/bot/instruct.md'), content)
 
     const { result } = renderHook(() => useAgentInstruct('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).not.toBeNull()
@@ -53,7 +36,7 @@ You are a helpful assistant.`
 
   it('should return null for non-existent agent', () => {
     const { result } = renderHook(() => useAgentInstruct('non-existent'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toBeNull()
@@ -62,10 +45,10 @@ You are a helpful assistant.`
   it('should handle instruct without frontmatter', () => {
     const content = 'Just instructions, no frontmatter'
 
-    appFS.writeFile('alice/test/space1/agents/simple/instruct.md', content)
+    appFS.writeFile(getTestPath('agents/simple/instruct.md'), content)
 
     const { result } = renderHook(() => useAgentInstruct('simple'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).not.toBeNull()
@@ -84,10 +67,10 @@ system-prompt: You are advanced.
 ---
 Follow these instructions carefully.`
 
-    appFS.writeFile('alice/test/space1/agents/advanced/instruct.md', content)
+    appFS.writeFile(getTestPath('agents/advanced/instruct.md'), content)
 
     const { result } = renderHook(() => useAgentInstruct('advanced'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.name).toBe('Advanced Bot')
@@ -103,10 +86,10 @@ name: Bot
 ---
 Original instructions`
 
-    appFS.writeFile('alice/test/space1/agents/bot/instruct.md', initialContent)
+    appFS.writeFile(getTestPath('agents/bot/instruct.md'), initialContent)
 
     const { result } = renderHook(() => useAgentInstruct('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.instructions).toBe('Original instructions')
@@ -116,7 +99,7 @@ name: Bot
 ---
 Updated instructions`
 
-    appFS.writeFile('alice/test/space1/agents/bot/instruct.md', updatedContent)
+    appFS.writeFile(getTestPath('agents/bot/instruct.md'), updatedContent)
 
     await waitFor(() => {
       expect(result.current?.instructions).toBe('Updated instructions')
@@ -125,7 +108,7 @@ Updated instructions`
 
   it('should re-render when instruct is created', async () => {
     const { result } = renderHook(() => useAgentInstruct('newbot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).toBeNull()
@@ -135,7 +118,7 @@ name: New Bot
 ---
 New instructions`
 
-    appFS.writeFile('alice/test/space1/agents/newbot/instruct.md', content)
+    appFS.writeFile(getTestPath('agents/newbot/instruct.md'), content)
 
     await waitFor(() => {
       expect(result.current).not.toBeNull()
@@ -149,15 +132,15 @@ name: Bot
 ---
 Instructions`
 
-    appFS.writeFile('alice/test/space1/agents/bot/instruct.md', content)
+    appFS.writeFile(getTestPath('agents/bot/instruct.md'), content)
 
     const { result } = renderHook(() => useAgentInstruct('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current).not.toBeNull()
 
-    appFS.deleteFile('alice/test/space1/agents/bot/instruct.md')
+    appFS.deleteFile(getTestPath('agents/bot/instruct.md'))
 
     await waitFor(() => {
       expect(result.current).toBeNull()
@@ -167,20 +150,20 @@ Instructions`
   it('should not re-render when different agent is updated', async () => {
     let renderCount = 0
 
-    appFS.writeFile('alice/test/space1/agents/bot1/instruct.md', '---\nname: Bot1\n---')
-    appFS.writeFile('alice/test/space1/agents/bot2/instruct.md', '---\nname: Bot2\n---')
+    appFS.writeFile(getTestPath('agents/bot1/instruct.md'), '---\nname: Bot1\n---')
+    appFS.writeFile(getTestPath('agents/bot2/instruct.md'), '---\nname: Bot2\n---')
 
     const { result } = renderHook(() => {
       renderCount++
       return useAgentInstruct('bot1')
     }, {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     const initialCount = renderCount
 
     // Update different agent
-    appFS.writeFile('alice/test/space1/agents/bot2/instruct.md', '---\nname: Updated\n---')
+    appFS.writeFile(getTestPath('agents/bot2/instruct.md'), '---\nname: Updated\n---')
 
     await waitFor(() => {
       expect(renderCount).toBe(initialCount)
@@ -195,22 +178,22 @@ Line 1
 Line 2
 Line 3`
 
-    appFS.writeFile('alice/test/space1/agents/bot/instruct.md', content)
+    appFS.writeFile(getTestPath('agents/bot/instruct.md'), content)
 
     const { result } = renderHook(() => useAgentInstruct('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.instructions).toBe('Line 1\nLine 2\nLine 3')
   })
 
   it('should handle special characters in agent ID', () => {
-    const content = '---\nname: Bot\n---'
+    const content = '---\nname: Bot\n---\n'
 
-    appFS.writeFile('alice/test/space1/agents/my-bot-123/instruct.md', content)
+    appFS.writeFile(getTestPath('agents/my-bot-123/instruct.md'), content)
 
     const { result } = renderHook(() => useAgentInstruct('my-bot-123'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.name).toBe('Bot')
@@ -222,10 +205,10 @@ name: Bot
 ---
 `
 
-    appFS.writeFile('alice/test/space1/agents/bot/instruct.md', content)
+    appFS.writeFile(getTestPath('agents/bot/instruct.md'), content)
 
     const { result } = renderHook(() => useAgentInstruct('bot'), {
-      wrapper: createWrapper(appFS)
+      wrapper: createTestWrapper(appFS)
     })
 
     expect(result.current?.instructions).toBe('')

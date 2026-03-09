@@ -10,8 +10,7 @@ type BuiltInProviderName =
   | 'azure'
   | 'groq'
   | 'cohere'
-  | 'bedrock'
-  | 'vertex';
+  | 'bedrock';
 
 const BUILT_IN_PROVIDER_NAMES: BuiltInProviderName[] = [
   'openai',
@@ -22,20 +21,18 @@ const BUILT_IN_PROVIDER_NAMES: BuiltInProviderName[] = [
   'groq',
   'cohere',
   'bedrock',
-  'vertex',
 ];
 
 type ProviderFactory = (modelId: string) => LanguageModelV3;
 const builtInProviderLoaders: Record<BuiltInProviderName, () => Promise<ProviderFactory>> = {
   openai: async () => (await import('./openai')).openai,
   anthropic: async () => (await import('./anthropic')).anthropic,
-  // google: async () => (await import('./google')).google,
+  google: async () => (await import('./google')).google,
   mistral: async () => (await import('./mistral')).mistral,
   azure: async () => (await import('./azure')).azure,
   groq: async () => (await import('./groq')).groq,
   cohere: async () => (await import('./cohere')).cohere,
   bedrock: async () => (await import('./bedrock')).bedrock,
-  vertex: async () => (await import('./vertex')).vertex,
 };
 
 function isBuiltInProvider(name: string): name is BuiltInProviderName {

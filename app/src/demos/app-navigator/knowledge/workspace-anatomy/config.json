@@ -2,6 +2,6 @@
     "label": "Workspace Anatomy",
     "description": "The complete structure, relationships, and lifecycle of a workspace from empty to production",
     "icon": "🔬",
-    "color": "#14b8a6",
+    "color": "#d59ec8",
     "renderAs": "section"
 }

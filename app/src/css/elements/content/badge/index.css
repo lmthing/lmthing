@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@reference "../../../../index.css";
 
 .badge {
   @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
@@ -14,5 +14,5 @@
 }
 
 .badge--success {
-  @apply bg-chart-1/20 text-chart-1 border-chart-1/30;
+  @apply bg-brand-1/20 text-brand-1 border-brand-1/30;
 }

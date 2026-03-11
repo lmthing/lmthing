@@ -1,0 +1,16 @@
+{
+  "name": "@lmthing/cloud",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "db:migrate": "supabase db push",
+    "db:reset": "supabase db reset",
+    "functions:serve": "supabase functions serve",
+    "functions:deploy": "supabase functions deploy",
+    "start": "supabase start",
+    "stop": "supabase stop"
+  },
+  "devDependencies": {
+    "supabase": "^2.78.1"
+  }
+}

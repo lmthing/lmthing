@@ -1,6 +1,7 @@
 'use client'
 
-import { createContext, useState, useCallback, useEffect, type ReactNode } from 'react'
+import { createContext, useCallback, useEffect, type ReactNode } from 'react'
+import { useUIState, useToggle } from '@lmthing/state'
 
 const TEXT_ENCODER = new TextEncoder()
 const TEXT_DECODER = new TextDecoder()
@@ -167,10 +168,10 @@ async function restoreSession(): Promise<{ username: string; key: CryptoKey } | 
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [username, setUsername] = useState<string | null>(null)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [encryptionKey, setEncryptionKey] = useState<CryptoKey | null>(null)
+  const [username, setUsername] = useUIState<string | null>('auth.username', null)
+  const [isAuthenticated, , setIsAuthenticated] = useToggle('auth.isAuthenticated', false)
+  const [isLoading, , setIsLoading] = useToggle('auth.isLoading', true)
+  const [encryptionKey, setEncryptionKey] = useUIState<CryptoKey | null>('auth.encryptionKey', null)
 
   // Restore session on mount
   useEffect(() => {

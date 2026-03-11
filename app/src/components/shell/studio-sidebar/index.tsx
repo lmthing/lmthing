@@ -3,7 +3,8 @@
  * Uses new composite hooks (useAssistantList, useKnowledgeFields)
  * and CSS element classes instead of raw Tailwind.
  */
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
+import { useToggle } from '@lmthing/state'
 import { Link, useLocation, useParams } from '@tanstack/react-router'
 import {
   Plus,
@@ -61,9 +62,9 @@ export function StudioSidebar({
   const { pathname } = useLocation()
   const { spaceId } = useParams({ strict: false }) as { spaceId?: string }
   const spacePath = useSpacePath()
-  const [fieldsExpanded, setFieldsExpanded] = useState(true)
-  const [assistantsExpanded, setAssistantsExpanded] = useState(true)
-  const [conversationsExpanded, setConversationsExpanded] = useState(true)
+  const [fieldsExpanded, toggleFieldsExpanded] = useToggle('sidebar.fields.expanded', true)
+  const [assistantsExpanded, toggleAssistantsExpanded] = useToggle('sidebar.assistants.expanded', true)
+  const [conversationsExpanded, toggleConversationsExpanded] = useToggle('sidebar.conversations.expanded', true)
 
   const { login, logout, isAuthenticated, isLoadingAuth, deviceCodePrompt } = useGithub()
 
@@ -90,7 +91,7 @@ export function StudioSidebar({
   return (
     <aside className={`sidebar ${isCollapsed ? 'sidebar--collapsed' : ''}`}>
       <div style={{ padding: 0, borderBottom: '1px solid var(--color-border)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'left', gap: '2rem', paddingLeft: '0.75rem',  }}>
           <Link
             to="/"
             style={{ display: 'flex', width: '3rem', height: '3rem', flexShrink: 0, alignItems: 'center', justifyContent: 'center' }}
@@ -111,7 +112,7 @@ export function StudioSidebar({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <section>
               <button
-                onClick={() => setFieldsExpanded(p => !p)}
+                onClick={toggleFieldsExpanded}
                 className="sidebar__item"
                 style={{ fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.7 }}
               >
@@ -140,7 +141,7 @@ export function StudioSidebar({
 
             <section>
               <button
-                onClick={() => setAssistantsExpanded(p => !p)}
+                onClick={toggleAssistantsExpanded}
                 className="sidebar__item"
                 style={{ fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.7 }}
               >
@@ -170,7 +171,7 @@ export function StudioSidebar({
             {activeAssistantId && (
               <section>
                 <button
-                  onClick={() => setConversationsExpanded(p => !p)}
+                  onClick={toggleConversationsExpanded}
                   className="sidebar__item"
                   style={{ fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.7 }}
                 >

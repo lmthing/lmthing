@@ -2,7 +2,8 @@
  * FieldTree - React-arborist file tree for knowledge management.
  * Phase 6: CRUD, drag-and-drop, context menu, rename. No Tailwind.
  */
-import { useRef, useCallback, useMemo, useState, useImperativeHandle, forwardRef, type CSSProperties } from 'react'
+import { useRef, useCallback, useMemo, useImperativeHandle, forwardRef, type CSSProperties } from 'react'
+import { useUIState } from '@lmthing/state'
 import { Tree, type NodeApi, type TreeApi } from 'react-arborist'
 import {
   ChevronRight,
@@ -290,7 +291,7 @@ export const FieldTree = forwardRef<FieldTreeHandle, FieldTreeProps>(function Fi
   onRenameRequest,
 }, ref) {
   const treeRef = useRef<TreeApi<TreeNode>>(null)
-  const [contextMenu, setContextMenu] = useState<ContextMenuState>({ node: null, position: null })
+  const [contextMenu, setContextMenu] = useUIState<ContextMenuState>('field-tree.context-menu', { node: null, position: null })
 
   useImperativeHandle(ref, () => ({
     expandAll: () => treeRef.current?.openAll(),

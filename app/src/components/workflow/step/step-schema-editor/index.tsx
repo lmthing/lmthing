@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
+import { useUIState, useToggle } from '@lmthing/state'
 import type { JSONSchema } from '@/../product/sections/flow-builder/types'
 import { Button } from '@/elements/forms/button'
 import { Input } from '@/elements/forms/input'
@@ -92,8 +93,8 @@ function PropertyRow({
   onMoveUp: () => void
   onMoveDown: () => void
 }) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [enumInput, setEnumInput] = useState(property.enum?.join(', ') || '')
+  const [isExpanded, toggleIsExpanded] = useToggle(`schema-editor.property-expanded.${property.id || property.name}`, false)
+  const [enumInput, setEnumInput] = useUIState(`schema-editor.property-enum.${property.id || property.name}`, property.enum?.join(', ') || '')
 
   const hasNestedConfig = property.type === 'object' || property.type === 'array'
   const showTypeSpecific = property.type === 'string' || property.type === 'number'
@@ -102,7 +103,7 @@ function PropertyRow({
     <div className="border border-border rounded-xl overflow-hidden bg-card">
       {/* Main row */}
       <div className={`flex items-center gap-3 p-3 ${hasNestedConfig ? 'cursor-pointer hover:bg-muted' : ''}`}
-           onClick={() => hasNestedConfig && setIsExpanded(!isExpanded)}>
+           onClick={() => hasNestedConfig && toggleIsExpanded()}>
         {/* Move buttons */}
         <div className="flex flex-col gap-0.5" onClick={(e) => e.stopPropagation()}>
           <Button variant="ghost" size="icon" onClick={onMoveUp} disabled={isFirst}>
@@ -119,7 +120,7 @@ function PropertyRow({
 
         {/* Expand/collapse for nested types */}
         {hasNestedConfig && (
-          <button className="p-1 rounded hover:bg-muted text-muted-foreground" onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded) }}>
+          <button className="p-1 rounded hover:bg-muted text-muted-foreground" onClick={(e) => { e.stopPropagation(); toggleIsExpanded() }}>
             <svg className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M9 18l6-6-6-6" />
             </svg>
@@ -496,9 +497,9 @@ function jsonSchemaToProperties(schema: JSONSchema | null): Property[] {
 }
 
 export function StepSchemaEditor({ value, onChange }: StepSchemaEditorProps) {
-  const [properties, setProperties] = useState<Property[]>(() => jsonSchemaToProperties(value))
-  const [viewMode, setViewMode] = useState<'visual' | 'code'>('visual')
-  const [codeValue, setCodeValue] = useState(() => value ? JSON.stringify(value, null, 2) : '')
+  const [properties, setProperties] = useUIState<Property[]>('schema-editor.properties', jsonSchemaToProperties(value))
+  const [viewMode, setViewMode] = useUIState<'visual' | 'code'>('schema-editor.view-mode', 'visual')
+  const [codeValue, setCodeValue] = useUIState('schema-editor.code-value', value ? JSON.stringify(value, null, 2) : '')
 
   useEffect(() => {
     const converted = jsonSchemaToProperties(value)

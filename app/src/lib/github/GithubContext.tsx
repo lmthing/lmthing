@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, type ReactNode } from 'react'
+import { useUIState, useToggle } from '@lmthing/state'
 import { Octokit } from '@octokit/rest'
 import { createOAuthDeviceAuth } from '@octokit/auth-oauth-device'
 import { request } from '@octokit/request'
@@ -39,13 +40,13 @@ interface GithubContextType {
 const GithubContext = createContext<GithubContextType | undefined>(undefined)
 
 export function GithubProvider({ children }: { children: ReactNode }) {
-    const [octokit, setOctokit] = useState<Octokit | null>(null)
-    const [user, setUser] = useState<GithubUser | null>(null)
-    const [isLoadingAuth, setIsLoadingAuth] = useState(true)
-    const [isLoadingRepoSelections, setIsLoadingRepoSelections] = useState(false)
-    const [selectedWorkspaceRepos, setSelectedWorkspaceRepos] = useState<string[]>([])
-    const [workspaceReposGistId, setWorkspaceReposGistId] = useState<string | null>(null)
-    const [deviceCodePrompt, setDeviceCodePrompt] = useState<{ userCode: string; verificationUri: string } | null>(null)
+    const [octokit, setOctokit] = useUIState<Octokit | null>('github.octokit', null)
+    const [user, setUser] = useUIState<GithubUser | null>('github.user', null)
+    const [isLoadingAuth, , setIsLoadingAuth] = useToggle('github.isLoadingAuth', true)
+    const [isLoadingRepoSelections, , setIsLoadingRepoSelections] = useToggle('github.isLoadingRepoSelections', false)
+    const [selectedWorkspaceRepos, setSelectedWorkspaceRepos] = useUIState<string[]>('github.selectedWorkspaceRepos', [])
+    const [workspaceReposGistId, setWorkspaceReposGistId] = useUIState<string | null>('github.workspaceReposGistId', null)
+    const [deviceCodePrompt, setDeviceCodePrompt] = useUIState<{ userCode: string; verificationUri: string } | null>('github.deviceCodePrompt', null)
 
     const normalizeRepoFullName = (value: string): string | null => {
         const trimmed = value.trim()

@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useMemo, useEffect } from 'react'
+import { useUIState, useToggle } from '@lmthing/state'
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
   ArrowRight,
@@ -57,11 +58,11 @@ type Space = {
 export default function LandingLayout() {
   const navigate = useNavigate()
   const { username } = useAuth()
-  const [isSpaceModalOpen, setIsSpaceModalOpen] = useState(false)
+  const [isSpaceModalOpen, toggleSpaceModal, setIsSpaceModalOpen] = useToggle('landing.space-modal-open', false)
 
   const { login, logout, isAuthenticated, isLoadingAuth } = useGithub()
-  const [searchQuery, setSearchQuery] = useState('')
-  const [demoSpaces, setDemoSpaces] = useState<DemoSpace[]>([])
+  const [searchQuery, setSearchQuery] = useUIState('landing.search-query', '')
+  const [demoSpaces, setDemoSpaces] = useUIState<DemoSpace[]>('landing.demo-spaces', [])
 
   // Default studio ID for the current user
   const defaultStudioId = 'default'
@@ -214,10 +215,6 @@ export default function LandingLayout() {
               </div>
 
               <div className="mt-2 flex items-center justify-center">
-                <Button size="lg" className="shadow-lg" onClick={goToStudios}>
-                  Get started with <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" />
-                  <ArrowRight className="ml-2 size-5" />
-                </Button> */}
                 <Button size="lg" className="shadow-lg" asChild>
                   <a href="https://docs.google.com/forms/d/e/1FAIpQLSfT7ssEvPumUTlo9PmDZZMncxPBpNJLDc8Sjz_PafmmCO2lpw/viewform?usp=dialog" target="_blank" rel="noopener noreferrer">
                   Get started with <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" />
@@ -332,10 +329,6 @@ export default function LandingLayout() {
                         Share your feedback with us.
                       </p>
                       <Button size="sm" className="mt-4" asChild>
-                        <Link to="/marketplace">
-                          Show more
-                          <ArrowRight className="ml-2 size-4" />
-                        </a> */}
                         <a href="https://docs.google.com/forms/d/e/1FAIpQLSfT7ssEvPumUTlo9PmDZZMncxPBpNJLDc8Sjz_PafmmCO2lpw/viewform?usp=dialog" target="_blank" rel="noopener noreferrer">
                           Give feedback
                           <ArrowRight className="ml-2 size-4" />

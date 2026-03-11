@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useCallback } from 'react'
+import { useToggle, useSpaceFS } from '@lmthing/state'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useSpaceFS } from '@lmthing/state'
 import { Heading } from '@/elements/typography/heading'
 import { Caption } from '@/elements/typography/caption'
 import { Label } from '@/elements/typography/label'
@@ -51,7 +51,7 @@ function KnowledgePage() {
   const { username, studioId, storageId, spaceId } = params
   const fields = useKnowledgeFields()
   const spaceFS = useSpaceFS()
-  const [showCreate, setShowCreate] = useState(false)
+  const [showCreate, toggleShowCreate, setShowCreate] = useToggle('knowledge-page.show-create', false)
 
   const spacePath = buildSpacePathFromParams(username, studioId, storageId, spaceId)
 

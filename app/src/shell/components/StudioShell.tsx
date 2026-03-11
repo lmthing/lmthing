@@ -1,4 +1,5 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { useCallback, useMemo, useEffect, useRef } from 'react'
+import { useUIState, useToggle } from '@lmthing/state'
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom'
 import { StudioSidebar } from './StudioSidebar'
 import { ThingPanel } from './ThingPanel'
@@ -244,8 +245,8 @@ export function StudioShell({
   const runtimeAgents = useRuntimeAgents()
   const { flows: flowsMap } = useFlows()
 
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(defaultSidebarCollapsed)
-  const [agentViewMode, setAgentViewMode] = useState<'edit' | 'view'>('edit')
+  const [isSidebarCollapsed, toggleSidebarCollapsed, setSidebarCollapsed] = useToggle('studio-shell.sidebar-collapsed', defaultSidebarCollapsed)
+  const [agentViewMode, setAgentViewMode] = useUIState<'edit' | 'view'>('studio-shell.agent-view-mode', 'edit')
 
   // Workspace - derived directly from URL
   const currentWorkspace = useWorkspace(workspaceName)
@@ -254,20 +255,20 @@ export function StudioShell({
   const studioPath = workspaceName ? `/studio/${toWorkspaceRouteParam(workspaceName)}` : '/studio'
 
   // Prompt Library state
-  const [selectedFile, setSelectedFile] = useState<PromptFragment | null>(null)
-  const [expandedFolders, setExpandedFolders] = useState<string[]>([])
-  const [unsavedChanges, setUnsavedChanges] = useState(false)
+  const [selectedFile, setSelectedFile] = useUIState('studio-shell.selected-file', null as PromptFragment | null)
+  const [expandedFolders, setExpandedFolders] = useUIState('studio-shell.expanded-folders', [] as string[])
+  const [unsavedChanges, , setUnsavedChanges] = useToggle('studio-shell.unsaved-changes', false)
 
   // Agent Builder state
-  const [selectedDomainIds, setSelectedDomainIds] = useState<string[]>([])
-  const [formValues, setFormValues] = useState<Record<string, FormFieldValue>>({})
-  const [mainInstruction, setMainInstruction] = useState<string>('')
-  const [enabledTools, setEnabledTools] = useState<Array<{ toolId: string; source: string; config?: Record<string, unknown> }>>([])
-  const [emptyFieldsForRuntime, setEmptyFieldsForRuntime] = useState<string[]>([])
-  const [toolLibraryOpen, setToolLibraryOpen] = useState(false)
-  const [flowBuilderOpen, setFlowBuilderOpen] = useState(false)
-  const [attachedFlows, setAttachedFlows] = useState<AttachedFlow[]>([])
-  const [runtimeChatLoading, setRuntimeChatLoading] = useState(false)
+  const [selectedDomainIds, setSelectedDomainIds] = useUIState('studio-shell.selected-domain-ids', [] as string[])
+  const [formValues, setFormValues] = useUIState('studio-shell.form-values', {} as Record<string, FormFieldValue>)
+  const [mainInstruction, setMainInstruction] = useUIState('studio-shell.main-instruction', '')
+  const [enabledTools, setEnabledTools] = useUIState('studio-shell.enabled-tools', [] as Array<{ toolId: string; source: string; config?: Record<string, unknown> }>)
+  const [emptyFieldsForRuntime, setEmptyFieldsForRuntime] = useUIState('studio-shell.empty-fields-runtime', [] as string[])
+  const [toolLibraryOpen, , setToolLibraryOpen] = useToggle('studio-shell.tool-library-open')
+  const [flowBuilderOpen, , setFlowBuilderOpen] = useToggle('studio-shell.flow-builder-open')
+  const [attachedFlows, setAttachedFlows] = useUIState('studio-shell.attached-flows', [] as AttachedFlow[])
+  const [runtimeChatLoading, , setRuntimeChatLoading] = useToggle('studio-shell.runtime-chat-loading')
   const hydratedAgentIdRef = useRef<string | null>(null)
   const lastAutoSavedSnapshotRef = useRef<string>('')
   const contentEditDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -275,17 +276,14 @@ export function StudioShell({
   const pendingContentEditRef = useRef<{ path: string; content: string } | null>(null)
   const pendingFrontmatterEditRef = useRef<{ path: string; frontmatter: Record<string, unknown> } | null>(null)
   const runtimeResponseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [isExportingWorkspace, setIsExportingWorkspace] = useState(false)
-  const [isExportingGithubRepo, setIsExportingGithubRepo] = useState(false)
-  const [thingStatus, setThingStatus] = useState<{ isStreaming: boolean; hasError: boolean }>({
-    isStreaming: false,
-    hasError: false,
-  })
-  const [githubExportProgress, setGithubExportProgress] = useState<{
+  const [isExportingWorkspace, , setIsExportingWorkspace] = useToggle('studio-shell.exporting-workspace')
+  const [isExportingGithubRepo, , setIsExportingGithubRepo] = useToggle('studio-shell.exporting-github')
+  const [thingStatus, setThingStatus] = useUIState('studio-shell.thing-status', { isStreaming: false, hasError: false })
+  const [githubExportProgress, setGithubExportProgress] = useUIState<{
     uploadedFiles: number
     totalFiles: number
     currentPath: string
-  } | null>(null)
+  } | null>('studio-shell.github-export-progress', null)
 
   // Extract domains from knowledge sections
   const domains = useMemo(() => {
@@ -1291,9 +1289,9 @@ export function StudioShell({
       setAgentViewMode(mode)
       // Collapse sidebar when entering view mode, restore when entering edit mode
       if (mode === 'view') {
-        setIsSidebarCollapsed(true)
+        setSidebarCollapsed(true)
       } else {
-        setIsSidebarCollapsed(defaultSidebarCollapsed)
+        setSidebarCollapsed(defaultSidebarCollapsed)
       }
     },
     onDomainsChange: handleDomainsChange,
@@ -1328,7 +1326,7 @@ export function StudioShell({
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => {
           const newState = !isSidebarCollapsed
-          setIsSidebarCollapsed(newState)
+          setSidebarCollapsed(newState)
           onSidebarCollapsedChange?.(newState)
         }}
         activeDomainId={domainId}
@@ -1378,7 +1376,7 @@ export function StudioShell({
                 <button
                   onClick={() => {
                     setAgentViewMode('edit')
-                    setIsSidebarCollapsed(defaultSidebarCollapsed)
+                    setSidebarCollapsed(defaultSidebarCollapsed)
                   }}
                   className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
                     agentViewMode === 'edit'
@@ -1391,7 +1389,7 @@ export function StudioShell({
                 <button
                   onClick={() => {
                     setAgentViewMode('view')
-                    setIsSidebarCollapsed(true)
+                    setSidebarCollapsed(true)
                   }}
                   className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
                     agentViewMode === 'view'

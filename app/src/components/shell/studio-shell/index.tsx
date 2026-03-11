@@ -3,7 +3,8 @@
  * Uses new composite hooks and element CSS classes.
  * Orchestrates the sidebar, content area, and settings/knowledge views.
  */
-import { useState, useCallback, useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
+import { useToggle } from '@lmthing/state'
 import { useParams, useLocation, useNavigate } from '@tanstack/react-router'
 import { buildSpacePathFromParams } from '@/lib/space-url'
 import '@/css/elements/layouts/split-pane/index.css'
@@ -60,7 +61,7 @@ export function StudioShell({
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const spacePath = useSpacePath()
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(defaultSidebarCollapsed)
+  const [sidebarCollapsed, , setSidebarCollapsed] = useToggle('studio-shell.sidebar.collapsed', defaultSidebarCollapsed)
 
   const assistantList = useAssistantList()
   const knowledgeFields = useKnowledgeFields()

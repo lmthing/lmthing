@@ -3,12 +3,12 @@
  * Adapted from the old ThingPanel to use the new FS state layer.
  * Provides a conversational interface with tool-calling for workspace operations.
  */
-import { useState, useCallback, useEffect, useMemo, useRef, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, type FormEvent } from 'react'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { Bot, Plus, ArrowLeft } from 'lucide-react'
 import { runPrompt, type PromptConfig } from 'lmthing'
 import { z } from 'zod'
-import { useApp } from '@lmthing/state'
+import { useApp, useUIState, useToggle } from '@lmthing/state'
 import { CozyThingText } from '@/CozyText'
 
 import '@/css/elements/forms/button/index.css'
@@ -191,11 +191,11 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
   const { username } = useParams({ strict: false }) as { username?: string }
   const { studios, appFS, createStudio, deleteStudio } = useApp()
 
-  const [input, setInput] = useState('')
-  const [conversations, setConversations] = useState<ThingConversation[]>(() => loadConversations())
-  const [currentId, setCurrentId] = useState<string | null>(null)
-  const [isWorking, setIsWorking] = useState(false)
-  const [hasError, setHasError] = useState(false)
+  const [input, setInput] = useUIState<string>('thing-panel.input', '')
+  const [conversations, setConversations] = useUIState<ThingConversation[]>('thing-panel.conversations', loadConversations())
+  const [currentId, setCurrentId] = useUIState<string | null>('thing-panel.currentId', null)
+  const [isWorking, , setIsWorking] = useToggle('thing-panel.isWorking', false)
+  const [hasError, , setHasError] = useToggle('thing-panel.hasError', false)
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const hasEnv = useMemo(() => checkHasEnv(), [])

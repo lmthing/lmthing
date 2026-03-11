@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useCallback } from 'react'
+import { useUIState } from '@lmthing/state'
 import { useSpaceFS } from '@lmthing/state'
 import { useFile } from '@/hooks/fs/useFile'
 import { Stack } from '@/elements/layouts/stack'
@@ -29,8 +30,8 @@ export function DirectoryMetadataPanel({ directoryPath }: DirectoryMetadataPanel
   const configPath = `${directoryPath}/config.json`
   const rawConfig = useFile(configPath)
 
-  const [config, setConfig] = useState<DirectoryConfig>({})
-  const [isDirty, setIsDirty] = useState(false)
+  const [config, setConfig] = useUIState<DirectoryConfig>('directory-metadata-panel.config', {})
+  const [isDirty, setIsDirty] = useUIState<boolean>('directory-metadata-panel.is-dirty', false)
 
   useEffect(() => {
     if (rawConfig === null || rawConfig === undefined) {

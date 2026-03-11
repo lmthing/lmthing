@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useUIState } from '@lmthing/state'
 import { Bot, X } from 'lucide-react'
 import { Button } from '@/elements/forms/button'
 import { Input } from '@/elements/forms/input'
@@ -14,8 +14,8 @@ interface CreateAssistantInlineProps {
 }
 
 export function CreateAssistantInline({ onSubmit, onCancel }: CreateAssistantInlineProps) {
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
+  const [name, setName] = useUIState('create-assistant-inline.name', '')
+  const [description, setDescription] = useUIState('create-assistant-inline.description', '')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

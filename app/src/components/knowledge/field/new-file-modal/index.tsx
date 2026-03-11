@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react'
+import { useCallback } from 'react'
+import { useUIState } from '@lmthing/state'
 import { Stack } from '@/elements/layouts/stack'
 import { Heading } from '@/elements/typography/heading'
 import { Label } from '@/elements/typography/label'
@@ -16,8 +17,8 @@ interface NewFileModalProps {
 }
 
 export function NewFileModal({ isOpen, onClose, onCreate, folders, defaultLocation }: NewFileModalProps) {
-  const [filename, setFilename] = useState('')
-  const [location, setLocation] = useState(defaultLocation)
+  const [filename, setFilename] = useUIState<string>('new-file-modal.filename', '')
+  const [location, setLocation] = useUIState<string>('new-file-modal.location', defaultLocation)
 
   const handleCreate = useCallback(() => {
     if (!filename.trim()) return

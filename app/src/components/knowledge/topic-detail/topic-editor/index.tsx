@@ -1,6 +1,7 @@
-import { useState, useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
+import { useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { useSpaceFS } from '@lmthing/state'
 import { parseFrontmatter, serializeFrontmatter } from '@lmthing/state'
+import { useUIState, useToggle } from '@lmthing/state'
 import { Stack } from '@/elements/layouts/stack'
 import { Heading } from '@/elements/typography/heading'
 import { Caption } from '@/elements/typography/caption'
@@ -35,10 +36,10 @@ export const TopicEditor = forwardRef<TopicEditorHandle, TopicEditorProps>(
     const spaceFS = useSpaceFS()
     const rawContent = useFile(topicPath)
 
-    const [draftBody, setDraftBody] = useState('')
-    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
-    const [mode, setMode] = useState<EditorMode>('edit')
-    const [showMetadata, setShowMetadata] = useState(false)
+    const [draftBody, setDraftBody] = useUIState<string>('topic-editor.draft-body', '')
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useUIState<boolean>('topic-editor.has-unsaved-changes', false)
+    const [mode, setMode] = useUIState<EditorMode>('topic-editor.mode', 'edit')
+    const [showMetadata, toggleShowMetadata] = useToggle('topic-editor.show-metadata', false)
     const textareaRef = useRef<HTMLTextAreaElement>(null)
 
     // Parse frontmatter on load, show only body in editor
@@ -169,7 +170,7 @@ export const TopicEditor = forwardRef<TopicEditorHandle, TopicEditorProps>(
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setShowMetadata(prev => !prev)}
+              onClick={() => toggleShowMetadata()}
               title="Toggle metadata"
               style={showMetadata ? { backgroundColor: 'var(--color-muted)' } : undefined}
             >

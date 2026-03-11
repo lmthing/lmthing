@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
+import { useUIState } from '@lmthing/state'
 import { Button } from '@/elements/forms/button'
 import { Input } from '@/elements/forms/input'
 import { Textarea } from '@/elements/forms/textarea'
@@ -15,8 +16,8 @@ interface SaveAssistantModalProps {
 }
 
 export function SaveAssistantModal({ isOpen, onClose, onSave }: SaveAssistantModalProps) {
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
+  const [name, setName] = useUIState('save-modal.name', '')
+  const [description, setDescription] = useUIState('save-modal.description', '')
 
   useEffect(() => { if (isOpen) { setName(''); setDescription('') } }, [isOpen])
 

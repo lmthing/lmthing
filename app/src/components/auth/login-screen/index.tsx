@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, type FormEvent } from 'react'
+import { useEffect, type FormEvent } from 'react'
+import { useUIState, useToggle } from '@lmthing/state'
 import { useAuth } from '@/lib/auth'
 
 import '@/css/elements/forms/button/index.css'
@@ -9,11 +10,11 @@ import CozyThingText from '@/CozyText'
 
 export function LoginScreen() {
   const { login } = useAuth()
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [isExistingUser, setIsExistingUser] = useState(false)
+  const [username, setUsername] = useUIState<string>('login.username', '')
+  const [password, setPassword] = useUIState<string>('login.password', '')
+  const [error, setError] = useUIState<string | null>('login.error', null)
+  const [loading, , setLoading] = useToggle('login.loading', false)
+  const [isExistingUser, , setIsExistingUser] = useToggle('login.isExistingUser', false)
 
   useEffect(() => {
     const lastUsername = localStorage.getItem('lmthing-auth:last-username')

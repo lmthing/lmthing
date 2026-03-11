@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react'
+import { useCallback } from 'react'
+import { useUIState } from '@lmthing/state'
 import { Stack } from '@/elements/layouts/stack'
 import { Heading } from '@/elements/typography/heading'
 import { Label } from '@/elements/typography/label'
@@ -16,8 +17,8 @@ interface NewFolderModalProps {
 }
 
 export function NewFolderModal({ isOpen, onClose, onCreate, folders, defaultLocation }: NewFolderModalProps) {
-  const [folderName, setFolderName] = useState('')
-  const [parentLocation, setParentLocation] = useState(defaultLocation)
+  const [folderName, setFolderName] = useUIState<string>('new-folder-modal.folder-name', '')
+  const [parentLocation, setParentLocation] = useUIState<string>('new-folder-modal.parent-location', defaultLocation)
 
   const handleCreate = useCallback(() => {
     if (!folderName.trim()) return

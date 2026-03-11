@@ -3,7 +3,7 @@
  * Shows all studios belonging to the authenticated user,
  * with ability to create new studios and access ThingPanel.
  */
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import {
   Building2,
@@ -22,7 +22,7 @@ import { PageHeader, PageBody } from '@/elements/layouts/page'
 import { Card, CardBody } from '@/elements/content/card'
 import { Heading } from '@/elements/typography/heading'
 import { Caption } from '@/elements/typography/caption'
-import { useApp } from '@lmthing/state'
+import { useApp, useToggle, useUIState } from '@lmthing/state'
 import CozyThingText from '@/CozyText'
 
 const STUDIO_COLORS = ['#8b5cf6', '#10b981', '#f59e0b', '#06b6d4', '#ef4444', '#ec4899']
@@ -42,9 +42,9 @@ export function StudiosLayout() {
   const { username } = useParams({ strict: false }) as { username: string }
   const { studios, createStudio, deleteStudio } = useApp()
 
-  const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [newStudioName, setNewStudioName] = useState('')
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [isCreateOpen, , setIsCreateOpen] = useToggle('studios-layout.create-open', false)
+  const [newStudioName, setNewStudioName] = useUIState('studios-layout.new-studio-name', '')
+  const [confirmDelete, setConfirmDelete] = useUIState<string | null>('studios-layout.confirm-delete', null)
 
   const userStudios = useMemo(
     () => studios.filter(s => s.username === username),

@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useCallback } from 'react'
+import { useUIState } from '@lmthing/state'
 import { useNavigate } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { CozyThingText } from '@/CozyText'
@@ -25,7 +26,7 @@ const slides = [
 ]
 
 export default function PresentationLayout() {
-  const [currentSlide, setCurrentSlide] = useState(0)
+  const [currentSlide, setCurrentSlide] = useUIState('presentation.current-slide', 0)
   const navigate = useNavigate()
 
   const next = useCallback(() => {

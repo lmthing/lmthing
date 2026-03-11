@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useToggle } from '@lmthing/state'
 import { Button } from '@/elements/forms/button'
 import { Input } from '@/elements/forms/input'
 import { Textarea } from '@/elements/forms/textarea'
@@ -73,7 +73,7 @@ function RuntimeFieldInput({ field, value, onChange }: { field: RuntimeField; va
 }
 
 export function RuntimePanel({ assistant, runtimeFieldValues = {}, isToolsExpanded = false, onRuntimeFieldChange }: RuntimePanelProps) {
-  const [toolsExpanded, setToolsExpanded] = useState(isToolsExpanded)
+  const [toolsExpanded, toggleToolsExpanded] = useToggle(`runtime-panel.${assistant.id}.tools-expanded`, isToolsExpanded)
 
   const fieldTools = assistant.enabledTools.filter(t => t.source === 'field')
   const manualTools = assistant.enabledTools.filter(t => t.source === 'manual')
@@ -113,7 +113,7 @@ export function RuntimePanel({ assistant, runtimeFieldValues = {}, isToolsExpand
 
         {assistant.enabledTools.length > 0 && (
           <section>
-            <Button onClick={() => setToolsExpanded(!toolsExpanded)} variant="ghost" style={{ width: '100%', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+            <Button onClick={toggleToolsExpanded} variant="ghost" style={{ width: '100%', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
               <Label compact>Enabled Tools ({assistant.enabledTools.length})</Label>
               <span>{toolsExpanded ? '▲' : '▼'}</span>
             </Button>

@@ -1,4 +1,5 @@
-import { useState, useMemo, type ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
+import { useToggle } from '@lmthing/state'
 import { JsonView } from 'react-json-view-lite'
 import 'react-json-view-lite/dist/index.css'
 import {
@@ -203,12 +204,12 @@ function JsonSyntax({ value }: { value: unknown }) {
 function CollapsibleSection({ label, children, defaultOpen = false, accentColor }: {
   label: string; children: ReactNode; defaultOpen?: boolean; accentColor?: string
 }) {
-  const [open, setOpen] = useState(defaultOpen)
+  const [open, toggle] = useToggle(`tool-call-display.collapsible-${label}`, defaultOpen)
   return (
     <div className="mt-1.5">
       <button
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => toggle()}
         className={cn(
           'flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors',
           'text-muted-foreground hover:text-foreground hover:bg-muted',

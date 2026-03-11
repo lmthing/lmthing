@@ -1,5 +1,5 @@
 import { Mail, Calendar, Clock, Shield, Check, X, Trash2, User as UserIcon, Crown, Edit3, Eye } from 'lucide-react'
-import { useState } from 'react'
+import { useUIState, useToggle } from '@lmthing/state'
 import type { SpaceUser, SpaceUserRole, RoleDefinition } from '../space-list'
 import { Button } from '@/elements/forms/button'
 import { Stack } from '@/elements/layouts/stack'
@@ -58,9 +58,9 @@ function getRoleBadgeClass(role: SpaceUserRole) {
 }
 
 export function UserDetailPanel({ user, roles, onUpdateRole, onRemoveUser, onCancel }: UserDetailPanelProps) {
-  const [isEditing, setIsEditing] = useState(false)
-  const [selectedRole, setSelectedRole] = useState<SpaceUserRole | null>(null)
-  const [showConfirm, setShowConfirm] = useState(false)
+  const [isEditing, , setIsEditing] = useToggle('user-detail-panel.is-editing', false)
+  const [selectedRole, setSelectedRole] = useUIState<SpaceUserRole | null>('user-detail-panel.selected-role', null)
+  const [showConfirm, , setShowConfirm] = useToggle('user-detail-panel.show-confirm', false)
 
   if (!user) {
     return (

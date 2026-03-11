@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useUIState } from '@lmthing/state'
 import { FolderPlus, X } from 'lucide-react'
 import { Button } from '@/elements/forms/button'
 import { Input } from '@/elements/forms/input'
@@ -14,8 +14,8 @@ interface CreateFieldInlineProps {
 }
 
 export function CreateFieldInline({ onSubmit, onCancel }: CreateFieldInlineProps) {
-    const [name, setName] = useState('')
-    const [description, setDescription] = useState('')
+    const [name, setName] = useUIState<string>('create-field-inline.name', '')
+    const [description, setDescription] = useUIState<string>('create-field-inline.description', '')
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()

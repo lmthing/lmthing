@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useCallback } from 'react'
 import { useSpaceFS } from '@lmthing/state'
 import { parseFrontmatter, serializeFrontmatter } from '@lmthing/state'
+import { useUIState } from '@lmthing/state'
 import { useFile } from '@/hooks/fs/useFile'
 import { Stack } from '@/elements/layouts/stack'
 import { Label } from '@/elements/typography/label'
@@ -24,11 +25,11 @@ export function FileMetadataPanel({ topicPath }: FileMetadataPanelProps) {
   const spaceFS = useSpaceFS()
   const rawContent = useFile(topicPath)
 
-  const [title, setTitle] = useState('')
-  const [category, setCategory] = useState('')
-  const [tags, setTags] = useState('')
-  const [author, setAuthor] = useState('')
-  const [isDirty, setIsDirty] = useState(false)
+  const [title, setTitle] = useUIState<string>('file-metadata-panel.title', '')
+  const [category, setCategory] = useUIState<string>('file-metadata-panel.category', '')
+  const [tags, setTags] = useUIState<string>('file-metadata-panel.tags', '')
+  const [author, setAuthor] = useUIState<string>('file-metadata-panel.author', '')
+  const [isDirty, setIsDirty] = useUIState<boolean>('file-metadata-panel.is-dirty', false)
 
   useEffect(() => {
     if (rawContent === null || rawContent === undefined) return

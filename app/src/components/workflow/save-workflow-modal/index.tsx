@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
+import { useUIState } from '@lmthing/state'
 import { Button } from '@/elements/forms/button'
 import { Input } from '@/elements/forms/input'
 import { Stack } from '@/elements/layouts/stack'
@@ -16,7 +17,7 @@ interface SaveWorkflowModalProps {
 }
 
 export function SaveWorkflowModal({ isOpen, onClose, workflowId }: SaveWorkflowModalProps) {
-  const [name, setName] = useState('')
+  const [name, setName] = useUIState('save-workflow-modal.name', '')
 
   useEffect(() => {
     if (isOpen) {

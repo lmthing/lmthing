@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
+import { useUIState } from '@lmthing/state'
 import type { Flow } from '@/../product/sections/flow-builder/types'
 import { WorkflowCard, WorkflowListItem } from '../workflow-card'
 import { Button } from '@/elements/forms/button'
@@ -32,8 +33,8 @@ export function WorkflowList({
   activeTagFilter,
   onTagFilterChange,
 }: WorkflowListProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>('grid')
-  const [searchQuery, setSearchQuery] = useState('')
+  const [viewMode, setViewMode] = useUIState<ViewMode>('workflow-list.view-mode', 'grid')
+  const [searchQuery, setSearchQuery] = useUIState('workflow-list.search-query', '')
 
   // Extract all unique tags from workflows
   const allTags = useMemo(() => {

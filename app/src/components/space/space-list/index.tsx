@@ -1,5 +1,5 @@
 import { Search, UserPlus, Clock, Mail } from 'lucide-react'
-import { useState } from 'react'
+import { useUIState, useToggle } from '@lmthing/state'
 import { Button } from '@/elements/forms/button'
 import { Input } from '@/elements/forms/input'
 import { Stack } from '@/elements/layouts/stack'
@@ -65,8 +65,8 @@ function getRoleBadgeColor(role: SpaceUserRole) {
 }
 
 function InviteDialog({ isOpen, onClose, onInvite }: InviteDialogProps) {
-  const [email, setEmail] = useState('')
-  const [role, setRole] = useState<SpaceUserRole>('viewer')
+  const [email, setEmail] = useUIState('space-list.invite-email', '')
+  const [role, setRole] = useUIState<SpaceUserRole>('space-list.invite-role', 'viewer')
 
   if (!isOpen) return null
 
@@ -145,7 +145,7 @@ export function SpaceList({
   onSearchChange,
   onInviteUser
 }: SpaceListProps) {
-  const [showInvite, setShowInvite] = useState(false)
+  const [showInvite, , setShowInvite] = useToggle('space-list.show-invite', false)
 
   const filteredUsers = users.filter(user =>
     user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

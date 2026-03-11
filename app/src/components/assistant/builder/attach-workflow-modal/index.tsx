@@ -2,7 +2,8 @@
  * AttachWorkflowModal - Modal for searching and attaching workflows to an agent.
  * US-206: Searchable workflow selection modal.
  */
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
+import { useUIState } from '@lmthing/state'
 import {
   Dialog,
   DialogContent,
@@ -36,7 +37,7 @@ export function AttachWorkflowModal({
   alreadyAttachedIds,
   onAttach,
 }: AttachWorkflowModalProps) {
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useUIState('attach-workflow-modal.search', '')
 
   const filtered = useMemo(() => {
     if (!search.trim()) return workflows

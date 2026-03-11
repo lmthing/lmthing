@@ -3,8 +3,8 @@
  * Phase 3: Auto-generates from instructions + selected knowledge content,
  * shows token count, copy to clipboard, collapsible.
  */
-import { useState, useMemo, useCallback } from 'react'
-import { useGlobRead } from '@lmthing/state'
+import { useMemo, useCallback } from 'react'
+import { useToggle, useUIState, useGlobRead } from '@lmthing/state'
 import { Button } from '@/elements/forms/button'
 import { Badge } from '@/elements/content/badge'
 import { CardFooter } from '@/elements/content/card'
@@ -20,8 +20,8 @@ interface PromptPreviewPanelProps {
 }
 
 export function PromptPreviewPanel({ instructions, selectedFieldIds }: PromptPreviewPanelProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [isExpanded, toggleExpanded] = useToggle('prompt-preview.expanded', false)
+  const [copied, setCopied] = useUIState('prompt-preview.copied', false)
 
   // Read all knowledge files for all fields at once
   const allKnowledgeFiles = useGlobRead('knowledge/**/*.md')
@@ -65,7 +65,7 @@ export function PromptPreviewPanel({ instructions, selectedFieldIds }: PromptPre
   return (
     <div className="panel" style={{ overflow: 'hidden' }}>
       <PanelHeader
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={toggleExpanded}
         style={{ cursor: 'pointer', userSelect: 'none' }}
       >
         <Stack row style={{ justifyContent: 'space-between', alignItems: 'center' }}>

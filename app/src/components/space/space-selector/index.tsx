@@ -1,4 +1,5 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
+import { useUIState, useToggle } from '@lmthing/state'
 import { ChevronDown, Plus, Search, FolderOpen, Github } from 'lucide-react'
 import { Button } from '@/elements/forms/button'
 import { Input } from '@/elements/forms/input'
@@ -22,10 +23,10 @@ interface SpaceSelectorProps {
 }
 
 export function SpaceSelector({ spaces, currentSpaceId, onSelectSpace, onCreateSpace }: SpaceSelectorProps) {
-  const [isOpen, setIsOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showCreate, setShowCreate] = useState(false)
-  const [newSpaceName, setNewSpaceName] = useState('')
+  const [isOpen, toggleIsOpen, setIsOpen] = useToggle('space-selector.is-open', false)
+  const [searchQuery, setSearchQuery] = useUIState('space-selector.search-query', '')
+  const [showCreate, , setShowCreate] = useToggle('space-selector.show-create', false)
+  const [newSpaceName, setNewSpaceName] = useUIState('space-selector.new-space-name', '')
 
   const currentSpace = useMemo(() => spaces.find(s => s.id === currentSpaceId), [spaces, currentSpaceId])
   const filteredSpaces = useMemo(() => spaces.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase())), [spaces, searchQuery])
@@ -38,7 +39,7 @@ export function SpaceSelector({ spaces, currentSpaceId, onSelectSpace, onCreateS
 
   return (
     <div style={{ position: 'relative' }}>
-      <Button onClick={() => setIsOpen(!isOpen)} variant="ghost" style={{ width: '100%', justifyContent: 'space-between' }}>
+      <Button onClick={toggleIsOpen} variant="ghost" style={{ width: '100%', justifyContent: 'space-between' }}>
         <Label style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {currentSpace ? currentSpace.name : 'Select Space'}
         </Label>

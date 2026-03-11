@@ -15,9 +15,9 @@
  * US-212: Export agent config
  * US-213: Thing sliding panel
  */
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useEffect, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from '@tanstack/react-router'
-import { useSpaceFS, P, serializeAgentInstruct, serializeAgentConfig, serializeAgentValues } from '@lmthing/state'
+import { useSpaceFS, P, serializeAgentInstruct, serializeAgentConfig, serializeAgentValues, useUIState, useToggle } from '@lmthing/state'
 import type { AgentConfig, AgentValues } from '@lmthing/state'
 import { Stack } from '@/elements/layouts/stack'
 import { Label } from '@/elements/typography/label'
@@ -73,23 +73,23 @@ export function AssistantBuilder() {
   const navigate = useNavigate()
   const spaceFS = useSpaceFS()
 
-  const [rightTab, setRightTab] = useState<'actions' | 'tools'>('actions')
-  const [isThingOpen, setIsThingOpen] = useState(false)
-  const [isExporting, setIsExporting] = useState(false)
-  const [isAttachModalOpen, setIsAttachModalOpen] = useState(false)
+  const [rightTab, setRightTab] = useUIState<'actions' | 'tools'>('assistant-builder.right-tab', 'actions')
+  const [isThingOpen, toggleThing, setIsThingOpen] = useToggle('assistant-builder.thing-open', false)
+  const [isExporting, , setIsExporting] = useToggle('assistant-builder.exporting', false)
+  const [isAttachModalOpen, , setIsAttachModalOpen] = useToggle('assistant-builder.attach-modal-open', false)
 
   const assistant = useAssistant(assistantId || '')
   const knowledgeFields = useKnowledgeFields()
   const workflowList = useWorkflowList()
 
   // Draft state
-  const [draftName, setDraftName] = useState('')
-  const [draftDescription, setDraftDescription] = useState('')
-  const [draftInstructions, setDraftInstructions] = useState('')
-  const [selectedFieldIds, setSelectedFieldIds] = useState<string[]>([])
-  const [selectedWorkflowIds, setSelectedWorkflowIds] = useState<string[]>([])
-  const [formValues, setFormValues] = useState<FormValues>({})
-  const [askAtRuntimeIds, setAskAtRuntimeIds] = useState<string[]>([])
+  const [draftName, setDraftName] = useUIState('assistant-builder.draft-name', '')
+  const [draftDescription, setDraftDescription] = useUIState('assistant-builder.draft-description', '')
+  const [draftInstructions, setDraftInstructions] = useUIState('assistant-builder.draft-instructions', '')
+  const [selectedFieldIds, setSelectedFieldIds] = useUIState<string[]>('assistant-builder.selected-field-ids', [])
+  const [selectedWorkflowIds, setSelectedWorkflowIds] = useUIState<string[]>('assistant-builder.selected-workflow-ids', [])
+  const [formValues, setFormValues] = useUIState<FormValues>('assistant-builder.form-values', {})
+  const [askAtRuntimeIds, setAskAtRuntimeIds] = useUIState<string[]>('assistant-builder.ask-at-runtime-ids', [])
 
   const fieldSchemas = useFieldSchema(selectedFieldIds)
 
@@ -303,7 +303,7 @@ export function AssistantBuilder() {
         isExporting={isExporting}
         onSave={handleSave}
         onBack={handleBack}
-        onToggleThing={() => setIsThingOpen(prev => !prev)}
+        onToggleThing={toggleThing}
         onExport={handleExport}
       />
 

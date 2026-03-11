@@ -3,7 +3,8 @@
  * Uses new hooks from Phase 3 (useFile, useKnowledgeFields)
  * and element components instead of raw Tailwind.
  */
-import { useState, useCallback, useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
+import { useUIState } from '@lmthing/state'
 import { useParams } from '@tanstack/react-router'
 import { useSpaceFS } from '@lmthing/state'
 import { Page, PageHeader, PageBody } from '@/elements/layouts/page'
@@ -29,9 +30,9 @@ export function TopicViewer({ fieldId, topicPath }: TopicViewerProps) {
   const knowledgeFields = useKnowledgeFields()
   const content = useFile(effectiveTopicPath || '')
 
-  const [draft, setDraft] = useState(content || '')
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
-  const [savedAt, setSavedAt] = useState<string | null>(null)
+  const [draft, setDraft] = useUIState<string>('topic-viewer.draft', content || '')
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useUIState<boolean>('topic-viewer.has-unsaved-changes', false)
+  const [savedAt, setSavedAt] = useUIState<string | null>('topic-viewer.saved-at', null)
 
   useEffect(() => {
     if (content !== null && content !== undefined) {

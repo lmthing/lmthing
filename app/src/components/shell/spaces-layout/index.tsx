@@ -2,7 +2,7 @@
  * SpacesLayout - Layout for the spaces listing page within a studio.
  * Uses new composite hooks from Phase 3 and element components.
  */
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import {
   Building2,
@@ -22,7 +22,7 @@ import { PageHeader, PageBody } from '@/elements/layouts/page'
 import { Card, CardBody } from '@/elements/content/card'
 import { Heading } from '@/elements/typography/heading'
 import { Caption } from '@/elements/typography/caption'
-import { useStudio } from '@lmthing/state'
+import { useStudio, useToggle, useUIState } from '@lmthing/state'
 import { useGithub } from '@/lib/github/GithubContext'
 import { buildSpacePath } from '@/lib/space-url'
 
@@ -42,11 +42,11 @@ export function SpacesLayout() {
   const { spaces, createSpace } = useStudio()
   const { login, logout, isAuthenticated, isLoadingAuth } = useGithub()
 
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [isCreateLocalOpen, setIsCreateLocalOpen] = useState(false)
-  const [newLocalSpaceName, setNewLocalSpaceName] = useState('')
-  const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null)
+  const [isSidebarCollapsed, toggleSidebarCollapsed] = useToggle('spaces-layout.sidebar-collapsed', false)
+  const [searchQuery, setSearchQuery] = useUIState('spaces-layout.search-query', '')
+  const [isCreateLocalOpen, , setIsCreateLocalOpen] = useToggle('spaces-layout.create-local-open', false)
+  const [newLocalSpaceName, setNewLocalSpaceName] = useUIState('spaces-layout.new-local-space-name', '')
+  const [selectedSpaceId, setSelectedSpaceId] = useUIState<string | null>('spaces-layout.selected-space-id', null)
 
   const studioPath = username && studioId
     ? `/${encodeURIComponent(username)}/${encodeURIComponent(studioId)}`
@@ -121,7 +121,7 @@ export function SpacesLayout() {
             <Github style={{ width: 20, height: 20, flexShrink: 0 }} />
             {!isSidebarCollapsed && <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{isLoadingAuth ? 'Loading...' : isAuthenticated ? 'Logout GitHub' : 'Login with GitHub'}</span>}
           </button>
-          <button onClick={() => setIsSidebarCollapsed(p => !p)} className="sidebar__item" style={{ width: '100%' }}>
+          <button onClick={() => toggleSidebarCollapsed()} className="sidebar__item" style={{ width: '100%' }}>
             {isSidebarCollapsed ? <ChevronRight style={{ width: 20, height: 20 }} /> : <><ChevronLeft style={{ width: 20, height: 20 }} /><span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Collapse</span></>}
           </button>
         </div>

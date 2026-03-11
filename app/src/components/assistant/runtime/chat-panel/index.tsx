@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react'
+import React, { useRef, useEffect, useMemo } from 'react'
+import { useUIState, useToggle } from '@lmthing/state'
 import { Button } from '@/elements/forms/button'
 import { Textarea } from '@/elements/forms/textarea'
 import { Panel, PanelHeader, PanelBody } from '@/elements/content/panel'
@@ -106,9 +107,9 @@ function MessageInput({ assistantName, onSend, isLoading = false, slashActions =
   isLoading?: boolean
   slashActions?: Array<{ name: string; description: string; actionId: string }>
 }) {
-  const [value, setValue] = useState('')
-  const [showAutocomplete, setShowAutocomplete] = useState(false)
-  const [selectedIndex, setSelectedIndex] = useState(0)
+  const [value, setValue] = useUIState('chat-panel.value', '')
+  const [showAutocomplete, , setShowAutocomplete] = useToggle('chat-panel.show-autocomplete', false)
+  const [selectedIndex, setSelectedIndex] = useUIState('chat-panel.selected-index', 0)
   const inputRef = React.useRef<HTMLTextAreaElement>(null)
 
   const filteredActions = useMemo(() => {

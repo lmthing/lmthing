@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { useUIState, useApp } from '@lmthing/state'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowRight, Building2, Download, Check, Loader2 } from 'lucide-react'
 import { Button } from '@/elements/forms/button'
 import { Card, CardHeader, CardBody } from '@/elements/content/card'
 import { useAuth } from '@/lib/auth/useAuth'
-import { useApp } from '@lmthing/state'
 import { demoToFileTree } from '@/lib/demoToFileTree'
 import type { DemoWorkspaceData } from '@/lib/demoToFileTree'
 import { buildSpacePath } from '@/lib/space-url'
@@ -35,10 +35,10 @@ export default function MarketplaceLayout() {
   const navigate = useNavigate()
   const { username } = useAuth()
   const { studios, appFS, createStudio, importStudio } = useApp()
-  const [demoSpaces, setDemoSpaces] = useState<DemoSpace[]>([])
-  const [installedSpaces, setInstalledSpaces] = useState<Set<string>>(new Set())
-  const [installingSpace, setInstallingSpace] = useState<string | null>(null)
-  const [studioPickerSpace, setStudioPickerSpace] = useState<DemoSpace | null>(null)
+  const [demoSpaces, setDemoSpaces] = useUIState<DemoSpace[]>('marketplace.demo-spaces', [])
+  const [installedSpaces, setInstalledSpaces] = useUIState<Set<string>>('marketplace.installed-spaces', new Set())
+  const [installingSpace, setInstallingSpace] = useUIState<string | null>('marketplace.installing-space', null)
+  const [studioPickerSpace, setStudioPickerSpace] = useUIState<DemoSpace | null>('marketplace.studio-picker-space', null)
 
   const user = username || 'local'
 

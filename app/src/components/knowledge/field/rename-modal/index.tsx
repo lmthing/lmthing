@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useEffect, useCallback, useRef } from 'react'
+import { useUIState } from '@lmthing/state'
 import { Heading } from '@/elements/typography/heading'
 import { Label } from '@/elements/typography/label'
 import { Caption } from '@/elements/typography/caption'
@@ -15,8 +16,8 @@ interface RenameModalProps {
 }
 
 export function RenameModal({ isOpen, onClose, onRename, currentName, isDirectory }: RenameModalProps) {
-  const [name, setName] = useState(currentName)
-  const [error, setError] = useState('')
+  const [name, setName] = useUIState<string>('rename-modal.name', currentName)
+  const [error, setError] = useUIState<string>('rename-modal.error', '')
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {

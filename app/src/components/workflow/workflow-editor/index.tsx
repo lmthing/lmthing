@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useToggle, useUIState } from '@lmthing/state'
 import type { Flow, Task } from '@/../product/sections/flow-builder/types'
 import { StepCard } from '../step/step-card'
 import { StepConfigPanel } from '../step/step-config-panel'
@@ -41,10 +41,10 @@ export function WorkflowEditor({
   onReorderSteps: _onReorderSteps,
   onBack,
 }: WorkflowEditorProps) {
-  const [isEditingMeta, setIsEditingMeta] = useState(false)
-  const [expandedStepId, setExpandedStepId] = useState<string | null>(null)
-  const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false)
-  const [editingStepId, setEditingStepId] = useState<string | null>(null)
+  const [isEditingMeta, toggleIsEditingMeta, setIsEditingMeta] = useToggle('workflow-editor.is-editing-meta', false)
+  const [expandedStepId, setExpandedStepId] = useUIState<string | null>('workflow-editor.expanded-step', null)
+  const [isConfigPanelOpen, , setIsConfigPanelOpen] = useToggle('workflow-editor.is-config-panel-open', false)
+  const [editingStepId, setEditingStepId] = useUIState<string | null>('workflow-editor.editing-step', null)
 
   // Sort steps by order
   const sortedSteps = [...steps].sort((a, b) => a.order - b.order)
@@ -77,7 +77,7 @@ export function WorkflowEditor({
                 </div>
               </Stack>
             </div>
-            <Button variant="outline" onClick={() => setIsEditingMeta(!isEditingMeta)}>
+            <Button variant="outline" onClick={toggleIsEditingMeta}>
               {isEditingMeta ? 'Done' : 'Edit'}
             </Button>
           </Stack>

@@ -2,7 +2,7 @@
  * SettingsView - Space settings panel (env files, package.json).
  * Uses new hooks from Phase 3 and element components.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useLocation, useNavigate, useParams } from '@tanstack/react-router'
 import { Shield, FileCode2 } from 'lucide-react'
 import { buildSpacePathFromParams } from '@/lib/space-url'
@@ -14,6 +14,7 @@ import { Page, PageHeader, PageBody } from '@/elements/layouts/page'
 import { Heading } from '@/elements/typography/heading'
 import { Caption } from '@/elements/typography/caption'
 import { Stack } from '@/elements/layouts/stack'
+import { useUIState } from '@lmthing/state'
 import { useFile } from '@/hooks/fs/useFile'
 
 interface SettingsViewProps {
@@ -55,15 +56,15 @@ export function SettingsView({ isOpen }: SettingsViewProps) {
     [packageJson]
   )
 
-  const [packageJsonDraft, setPackageJsonDraft] = useState(packageJsonSerialized)
-  const [packageJsonError, setPackageJsonError] = useState<string | null>(null)
-  const [packageJsonSavedAt, setPackageJsonSavedAt] = useState<string | null>(null)
+  const [packageJsonDraft, setPackageJsonDraft] = useUIState('settings-view.package-json-draft', packageJsonSerialized)
+  const [packageJsonError, setPackageJsonError] = useUIState<string | null>('settings-view.package-json-error', null)
+  const [packageJsonSavedAt, setPackageJsonSavedAt] = useUIState<string | null>('settings-view.package-json-saved-at', null)
 
-  const [selectedEnvFile, setSelectedEnvFile] = useState('.env.local')
-  const [envPassword, setEnvPassword] = useState('')
-  const [envContent, setEnvContent] = useState('')
-  const [envStatus, setEnvStatus] = useState<string | null>(null)
-  const [envError, setEnvError] = useState<string | null>(null)
+  const [selectedEnvFile, setSelectedEnvFile] = useUIState('settings-view.selected-env-file', '.env.local')
+  const [envPassword, setEnvPassword] = useUIState('settings-view.env-password', '')
+  const [envContent, setEnvContent] = useUIState('settings-view.env-content', '')
+  const [envStatus, setEnvStatus] = useUIState<string | null>('settings-view.env-status', null)
+  const [envError, _setEnvError] = useUIState<string | null>('settings-view.env-error', null)
 
   useEffect(() => {
     setPackageJsonDraft(packageJsonSerialized)

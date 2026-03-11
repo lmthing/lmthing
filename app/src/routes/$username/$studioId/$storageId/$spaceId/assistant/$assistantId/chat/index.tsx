@@ -1,7 +1,7 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
+import { useUIState, useToggle, useGlobRead, useSpaceFS, P, parseFrontmatter } from '@lmthing/state'
 import { createFileRoute } from '@tanstack/react-router'
 import { runPrompt } from 'lmthing'
-import { useGlobRead, useSpaceFS, P, parseFrontmatter } from '@lmthing/state'
 import { useAssistant } from '@/hooks/useAssistant'
 import { useFieldSchema } from '@/hooks/useFieldSchema'
 import { buildKnowledgeXml } from '@/lib/buildKnowledgeXml'
@@ -128,7 +128,7 @@ function AssistantChatPage() {
   const allKnowledgeFiles = useGlobRead(P.globs.allKnowledge)
 
   // Runtime field values — initialized from saved agent values, overridden by user at runtime
-  const [runtimeValues, setRuntimeValues] = useState<RuntimeValues>(() => {
+  const [runtimeValues, setRuntimeValues] = useUIState<RuntimeValues>('chat-page.runtime-values', () => {
     const saved = (assistant.values || {}) as RuntimeValues
     const initial: RuntimeValues = {}
     for (const id of askAtRuntimeIds) {
@@ -141,9 +141,9 @@ function AssistantChatPage() {
     setRuntimeValues(prev => ({ ...prev, [fieldId]: value }))
   }, [])
 
-  const [conversation, setConversation] = useState<ChatConversation | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isStreaming, setIsStreaming] = useState(false)
+  const [conversation, setConversation] = useUIState<ChatConversation | null>('chat-page.conversation', null)
+  const [isLoading, , setIsLoading] = useToggle('chat-page.is-loading', false)
+  const [isStreaming, , setIsStreaming] = useToggle('chat-page.is-streaming', false)
 
   // Merge static values with runtime values
   const mergedValues = useMemo(() => {

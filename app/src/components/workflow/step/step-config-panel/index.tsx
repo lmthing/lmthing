@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { useUIState, useToggle } from '@lmthing/state'
 import type { Task, TaskType, TaskConfig, PromptFragmentField, JSONSchema } from '@/../product/sections/flow-builder/types'
 import { StepSchemaEditor } from '../step-schema-editor'
 import { Button } from '@/elements/forms/button'
@@ -37,27 +38,27 @@ const STEP_TYPES: { type: TaskType; label: string; description: string; passesDa
 ]
 
 export function StepConfigPanel({ step, availableTools, availablePromptFragments = [], isOpen, onClose, onSave }: StepConfigPanelProps) {
-  const [selectedType, setSelectedType] = useState<TaskType>(step?.type || 'updateFlowOutput')
-  const [stepName, setStepName] = useState(step?.name || '')
-  const [stepDescription, setStepDescription] = useState(step?.description || '')
+  const [selectedType, setSelectedType] = useUIState<TaskType>('step-config-panel.selected-type', step?.type || 'updateFlowOutput')
+  const [stepName, setStepName] = useUIState('step-config-panel.step-name', step?.name || '')
+  const [stepDescription, setStepDescription] = useUIState('step-config-panel.step-description', step?.description || '')
 
   // Config states for updateFlowOutput
-  const [outputSchema, setOutputSchema] = useState<JSONSchema | null>(
-    step?.config?.outputSchema || null
+  const [outputSchema, setOutputSchema] = useUIState<JSONSchema | null>(
+    'step-config-panel.output-schema', step?.config?.outputSchema || null
   )
-  const [targetFieldName, setTargetFieldName] = useState(step?.config?.targetFieldName || '')
-  const [isPushable, setIsPushable] = useState(step?.config?.isPushable ?? false)
+  const [targetFieldName, setTargetFieldName] = useUIState('step-config-panel.target-field-name', step?.config?.targetFieldName || '')
+  const [isPushable, toggleIsPushable, setIsPushable] = useToggle('step-config-panel.is-pushable', step?.config?.isPushable ?? false)
 
   // Prompt fragment fields
-  const [promptFragmentFields, setPromptFragmentFields] = useState<PromptFragmentField[]>(
-    step?.config?.promptFragmentFields || []
+  const [promptFragmentFields, setPromptFragmentFields] = useUIState<PromptFragmentField[]>(
+    'step-config-panel.prompt-fragment-fields', step?.config?.promptFragmentFields || []
   )
 
   // Shared config states
-  const [enabledTools, setEnabledTools] = useState<string[]>(step?.config?.enabledTools || [])
-  const [stepInstructions, setStepInstructions] = useState(step?.config?.taskInstructions || '')
-  const [model, setModel] = useState(step?.config?.model || 'claude-3-5-sonnet')
-  const [temperature, setTemperature] = useState(step?.config?.temperature ?? 0.7)
+  const [enabledTools, setEnabledTools] = useUIState<string[]>('step-config-panel.enabled-tools', step?.config?.enabledTools || [])
+  const [stepInstructions, setStepInstructions] = useUIState('step-config-panel.step-instructions', step?.config?.taskInstructions || '')
+  const [model, setModel] = useUIState('step-config-panel.model', step?.config?.model || 'claude-3-5-sonnet')
+  const [temperature, setTemperature] = useUIState('step-config-panel.temperature', step?.config?.temperature ?? 0.7)
 
   // Sync form state with step prop when it changes
   useEffect(() => {
@@ -223,7 +224,7 @@ export function StepConfigPanel({ step, availableTools, availablePromptFragments
                 {/* Is Pushable */}
                 <div className="flex items-center gap-3 p-4 bg-muted rounded-xl">
                   <button
-                    onClick={() => setIsPushable(!isPushable)}
+                    onClick={toggleIsPushable}
                     className={`
                       relative w-12 h-6 rounded-full transition-colors
                       ${isPushable ? 'bg-brand-3' : 'bg-muted-foreground'}

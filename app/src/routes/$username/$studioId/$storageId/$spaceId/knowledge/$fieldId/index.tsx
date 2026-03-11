@@ -1,6 +1,6 @@
-import { useState, useCallback, useRef, useMemo } from 'react'
+import { useCallback, useRef, useMemo } from 'react'
+import { useUIState, useToggle, useSpaceFS } from '@lmthing/state'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useSpaceFS } from '@lmthing/state'
 import { Heading } from '@/elements/typography/heading'
 import { Caption } from '@/elements/typography/caption'
 import { Stack } from '@/elements/layouts/stack'
@@ -45,25 +45,25 @@ function FieldDetailPage() {
 
   const spacePath = buildSpacePathFromParams(username, studioId, storageId, spaceId)
 
-  const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null)
-  const [selectedNodeType, setSelectedNodeType] = useState<'file' | 'directory' | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [isNewFileModalOpen, setIsNewFileModalOpen] = useState(false)
-  const [isNewFolderModalOpen, setIsNewFolderModalOpen] = useState(false)
-  const [isThingOpen, setIsThingOpen] = useState(false)
-  const [isExporting, setIsExporting] = useState(false)
+  const [selectedFilePath, setSelectedFilePath] = useUIState<string | null>('field-page.selected-file', null)
+  const [selectedNodeType, setSelectedNodeType] = useUIState<'file' | 'directory' | null>('field-page.selected-node-type', null)
+  const [searchQuery, setSearchQuery] = useUIState('field-page.search-query', '')
+  const [isNewFileModalOpen, , setIsNewFileModalOpen] = useToggle('field-page.new-file-modal-open', false)
+  const [isNewFolderModalOpen, , setIsNewFolderModalOpen] = useToggle('field-page.new-folder-modal-open', false)
+  const [isThingOpen, toggleThingOpen, setIsThingOpen] = useToggle('field-page.thing-open', false)
+  const [isExporting, , setIsExporting] = useToggle('field-page.exporting', false)
 
   // Phase 2: Unsaved changes tracking
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
-  const [pendingFilePath, setPendingFilePath] = useState<string | null>(null)
-  const [pendingNodeType, setPendingNodeType] = useState<'file' | 'directory' | null>(null)
-  const [showUnsavedModal, setShowUnsavedModal] = useState(false)
+  const [hasUnsavedChanges, , setHasUnsavedChanges] = useToggle('field-page.has-unsaved-changes', false)
+  const [pendingFilePath, setPendingFilePath] = useUIState<string | null>('field-page.pending-file-path', null)
+  const [pendingNodeType, setPendingNodeType] = useUIState<'file' | 'directory' | null>('field-page.pending-node-type', null)
+  const [showUnsavedModal, , setShowUnsavedModal] = useToggle('field-page.show-unsaved-modal', false)
 
   // Phase 5: Delete confirmation
-  const [deleteTarget, setDeleteTarget] = useState<{ path: string; isDirectory: boolean } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useUIState<{ path: string; isDirectory: boolean } | null>('field-page.delete-target', null)
 
   // Phase 6: Rename modal
-  const [renameTarget, setRenameTarget] = useState<{ path: string; name: string; isDirectory: boolean } | null>(null)
+  const [renameTarget, setRenameTarget] = useUIState<{ path: string; name: string; isDirectory: boolean } | null>('field-page.rename-target', null)
 
   const treeRef = useRef<FieldTreeHandle>(null)
   const topicEditorRef = useRef<TopicEditorHandle>(null)
@@ -254,7 +254,7 @@ function FieldDetailPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setIsThingOpen(prev => !prev)}
+            onClick={() => toggleThingOpen()}
           >
             <Bot style={{ width: '1rem', height: '1rem', marginRight: '0.375rem' }} />
             {isThingOpen ? 'Hide Thing' : 'Thing'}

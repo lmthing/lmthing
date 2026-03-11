@@ -3,7 +3,7 @@
  * US-204: Accordion cards styled with Semantic Colors - Knowledge (Emerald accents).
  * Uses Border Radius Medium (8px), subtle shadow at rest, deeper on hover.
  */
-import { useState } from 'react'
+import { useToggle, useUIState } from '@lmthing/state'
 import { useKnowledgeField } from '@/hooks/useKnowledgeField'
 import { Caption } from '@/elements/typography/caption'
 import { Label } from '@/elements/typography/label'
@@ -14,8 +14,8 @@ interface KnowledgeAccordionCardProps {
 }
 
 function KnowledgeAccordionCard({ fieldId }: KnowledgeAccordionCardProps) {
-  const [expanded, setExpanded] = useState(false)
-  const [hovered, setHovered] = useState(false)
+  const [expanded, toggleExpanded] = useToggle(`area-knowledge.${fieldId}.expanded`, false)
+  const [hovered, setHovered] = useUIState(`area-knowledge.${fieldId}.hovered`, false)
   const knowledge = useKnowledgeField(fieldId)
   const title = knowledge.config?.title || fieldId
   const description = knowledge.config?.description
@@ -37,7 +37,7 @@ function KnowledgeAccordionCard({ fieldId }: KnowledgeAccordionCardProps) {
       }}
     >
       <button
-        onClick={() => setExpanded(prev => !prev)}
+        onClick={toggleExpanded}
         style={{
           width: '100%',
           display: 'flex',

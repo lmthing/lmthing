@@ -1,7 +1,7 @@
 // src/lib/fs/FSEventBus.ts
 
 import type { FSEvent, DirEvent, BatchEvent, FSEventType, DirEventType } from './events'
-import { globToRegex as _globToRegex } from './glob'
+import { globToRegex as _globToRegex, expandBraces } from './glob'
 
 type EventCallback = (event: FSEvent) => void
 type BatchCallback = (event: BatchEvent) => void
@@ -357,7 +357,10 @@ export class FSEventBus {
   }
 
   private globToRegex(pattern: string): RegExp {
-    return _globToRegex(pattern)
+    const expanded = expandBraces(pattern)
+    if (expanded.length === 1) return _globToRegex(expanded[0])
+    const parts = expanded.map(p => _globToRegex(p).source)
+    return new RegExp(parts.join('|'))
   }
 
   // ── Subscribe: batch ──────────────────────────────────────────────

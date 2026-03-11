@@ -2,7 +2,7 @@
 
 import { FSEventBus } from './FSEventBus'
 import type { FSInterface } from './FSInterface'
-import { globToRegex } from './glob'
+import { globToRegex, expandBraces } from './glob'
 import type { FileTree, DirEntry, FileOp, Unsubscribe } from '../../types/studio'
 import type { FSEvent, DirEvent, BatchEvent } from './events'
 
@@ -55,15 +55,17 @@ export class AppFS implements FSInterface {
   }
 
   glob(pattern: string): string[] {
-    const regex = globToRegex(pattern)
-    return Array.from(this.store.keys()).filter(path => regex.test(path))
+    const expanded = expandBraces(pattern)
+    const regexes = expanded.map(p => globToRegex(p))
+    return Array.from(this.store.keys()).filter(path => regexes.some(r => r.test(path)))
   }
 
   globRead(pattern: string): FileTree {
-    const regex = globToRegex(pattern)
+    const expanded = expandBraces(pattern)
+    const regexes = expanded.map(p => globToRegex(p))
     const result: FileTree = {}
     for (const [path, content] of this.store) {
-      if (regex.test(path)) {
+      if (regexes.some(r => r.test(path))) {
         result[path] = content
       }
     }

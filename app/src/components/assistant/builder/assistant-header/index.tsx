@@ -4,10 +4,9 @@
  * US-212: Export button for agent-specific export.
  * US-213: Thing toggle button.
  */
-import { Heading } from '@/elements/typography/heading'
-import { Caption } from '@/elements/typography/caption'
 import { Stack } from '@/elements/layouts/stack'
 import { Button } from '@/elements/forms/button'
+import { Input } from '@/elements/forms/input'
 import { ArrowLeft, Bot, Download } from 'lucide-react'
 
 export interface AssistantHeaderProps {
@@ -18,6 +17,8 @@ export interface AssistantHeaderProps {
   isValid: boolean
   isThingOpen: boolean
   isExporting: boolean
+  onNameChange: (name: string) => void
+  onDescriptionChange: (description: string) => void
   onSave: () => void
   onBack: () => void
   onToggleThing: () => void
@@ -32,6 +33,8 @@ export function AssistantHeader({
   isValid,
   isThingOpen,
   isExporting,
+  onNameChange,
+  onDescriptionChange,
   onSave,
   onBack,
   onToggleThing,
@@ -50,15 +53,37 @@ export function AssistantHeader({
         <Button variant="ghost" size="icon" onClick={onBack}>
           <ArrowLeft style={{ width: '1rem', height: '1rem' }} />
         </Button>
-        <div style={{ minWidth: 0 }}>
-          <Heading level={3} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {name || 'New Agent'}
-          </Heading>
-          {description && (
-            <Caption muted style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {description}
-            </Caption>
-          )}
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <Input
+            value={name}
+            onChange={e => onNameChange(e.target.value)}
+            placeholder="Agent name"
+            className="input--sm"
+            style={{
+              fontWeight: 600,
+              fontSize: '1.125rem',
+              border: 'none',
+              background: 'transparent',
+              boxShadow: 'none',
+              paddingLeft: 0,
+              height: 'auto',
+            }}
+          />
+          <Input
+            value={description}
+            onChange={e => onDescriptionChange(e.target.value)}
+            placeholder="What does this agent do?"
+            className="input--sm"
+            style={{
+              fontSize: '0.8125rem',
+              border: 'none',
+              background: 'transparent',
+              boxShadow: 'none',
+              paddingLeft: 0,
+              height: 'auto',
+              color: 'var(--color-text-muted, hsl(var(--muted-foreground)))',
+            }}
+          />
         </div>
       </Stack>
 

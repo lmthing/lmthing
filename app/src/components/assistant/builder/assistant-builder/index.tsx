@@ -28,7 +28,6 @@ import { useWorkflowList } from '@/hooks/useWorkflowList'
 import { buildSpacePathFromParams } from '@/lib/space-url'
 import { AssistantHeader } from '../assistant-header'
 import { KnowledgePillBar } from '../knowledge-pill-bar'
-import { AreaKnowledgeAccordion } from '../area-knowledge'
 import { ActionsPanel } from '../actions-panel'
 import type { AttachedWorkflow } from '../actions-panel'
 import { ToolsPanel } from '../tools-panel'
@@ -301,6 +300,8 @@ export function AssistantBuilder() {
         isValid={isValid}
         isThingOpen={isThingOpen}
         isExporting={isExporting}
+        onNameChange={setDraftName}
+        onDescriptionChange={setDraftDescription}
         onSave={handleSave}
         onBack={handleBack}
         onToggleThing={toggleThing}
@@ -337,41 +338,11 @@ export function AssistantBuilder() {
                 </div>
               </div>
 
-              {/* Identity fields (name + description) */}
-              <div className="panel">
-                <div className="panel__header"><Label>Identity</Label></div>
-                <div className="panel__body">
-                  <Stack gap="md">
-                    <div>
-                      <Label compact>Name</Label>
-                      <input
-                        className="input"
-                        value={draftName}
-                        onChange={e => setDraftName(e.target.value)}
-                        placeholder="Agent name"
-                      />
-                    </div>
-                    <div>
-                      <Label compact>Description</Label>
-                      <input
-                        className="input"
-                        value={draftDescription}
-                        onChange={e => setDraftDescription(e.target.value)}
-                        placeholder="What does this agent do?"
-                      />
-                    </div>
-                  </Stack>
-                </div>
-              </div>
-
               {/* Prompt Preview */}
               <PromptPreviewPanel
                 instructions={draftInstructions}
                 selectedFieldIds={selectedFieldIds}
               />
-
-              {/* US-204: Area Knowledge Accordion */}
-              <AreaKnowledgeAccordion selectedFieldIds={selectedFieldIds} />
 
               {/* Configuration Form (dynamic fields from knowledge schemas) */}
               {fieldSchemas.length > 0 && (

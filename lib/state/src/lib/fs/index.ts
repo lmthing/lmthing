@@ -6,6 +6,7 @@ export * from './FSInterface'
 export * from './AppFS'
 export * from './ScopedFS'
 export * from './DraftStore'
+export * from './UIStore'
 export * from './paths'
 export * from './glob'
 

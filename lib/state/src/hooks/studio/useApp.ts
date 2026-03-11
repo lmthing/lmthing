@@ -7,6 +7,7 @@ export function useApp() {
   const {
     appFS,
     drafts,
+    ui,
     studios,
     currentStudioKey,
     isLoading,
@@ -20,6 +21,7 @@ export function useApp() {
   return {
     appFS,
     drafts,
+    ui,
     studios,
     currentStudioKey,
     isLoading,

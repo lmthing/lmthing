@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { AppFS } from '../fs/AppFS'
 import { DraftStore } from '../fs/DraftStore'
+import { UIStore } from '../fs/UIStore'
 import type { AppData, StudioData, StudioConfig, FileTree, Unsubscribe } from '../../types/studio'
 
 const APP_STORAGE_KEY = 'lmthing-app'
@@ -12,6 +13,7 @@ const STUDIO_STORAGE_PREFIX = 'lmthing-studio:'
 interface AppContextValue {
   appFS: AppFS
   drafts: DraftStore
+  ui: UIStore
   studios: Array<{ username: string; studioId: string; name: string }>
   currentStudioKey: string | null
   isLoading: boolean
@@ -31,15 +33,18 @@ interface AppProviderProps {
   appFS?: AppFS
   /** Optional DraftStore instance for testing. If not provided, creates a new one. */
   draftStore?: DraftStore
+  /** Optional UIStore instance for testing. If not provided, creates a new one. */
+  uiStore?: UIStore
   /** Optional initial studio key for testing. */
   initialStudioKey?: string | null
   /** Skip loading from localStorage (useful for testing). */
   skipStorage?: boolean
 }
 
-export function AppProvider({ children, appFS: providedAppFS, draftStore: providedDraftStore, initialStudioKey, skipStorage = false }: AppProviderProps) {
+export function AppProvider({ children, appFS: providedAppFS, draftStore: providedDraftStore, uiStore: providedUIStore, initialStudioKey, skipStorage = false }: AppProviderProps) {
   const [appFS] = useState(() => providedAppFS ?? new AppFS())
   const [drafts] = useState(() => providedDraftStore ?? new DraftStore())
+  const [ui] = useState(() => providedUIStore ?? new UIStore())
   const [studios, setStudios] = useState<Array<{ username: string; studioId: string; name: string }>>([])
   const [currentStudioKey, setCurrentStudioKey] = useState<string | null>(initialStudioKey ?? null)
   const [isLoading, setIsLoading] = useState(skipStorage ? false : true)
@@ -229,6 +234,7 @@ export function AppProvider({ children, appFS: providedAppFS, draftStore: provid
   const value: AppContextValue = {
     appFS,
     drafts,
+    ui,
     studios,
     currentStudioKey,
     isLoading,

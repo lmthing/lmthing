@@ -6,7 +6,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 const rootDir = join(__dirname, '..')
-const demosDir = join(rootDir, 'src', 'demos')
+const demosDir = join(rootDir, '..', 'store', 'spaces')
 const publicDir = join(rootDir, 'public', 'demos')
 
 // Create output directory

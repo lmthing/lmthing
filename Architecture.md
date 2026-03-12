@@ -67,6 +67,7 @@ graph TD
         Space["lmthing.space<br/>Fly.io node terminal access<br/>THING personal agent runtime env"]
         Social["lmthing.social<br/>Public hive mind<br/>Multi-agent parallel exploration<br/>Shared context (public)"]
         Team["lmthing.team<br/>Private rooms for agents<br/>Shared context spaces"]
+        Store["lmthing.store<br/>Agent marketplace<br/>Free · Source purchase · API access"]
     end
 
     subgraph CloudServices["lmthing.cloud · Managed Services"]
@@ -77,6 +78,7 @@ graph TD
 
     Com --> CloudServices
     Studio -- "build agents" --> Space
+    Studio -- "publish" --> Store
     Studio -- "fine-tune SLMs" --> FineTune
     Chat -- "converse" --> Space
     Space -- "agent interactions" --> Social
@@ -95,6 +97,7 @@ graph TD
     style Space fill:#7c3aed,color:#fff
     style Social fill:#7c3aed,color:#fff
     style Team fill:#7c3aed,color:#fff
+    style Store fill:#7c3aed,color:#fff
     style Gateway fill:#4f46e5,color:#fff
     style Deploy fill:#4f46e5,color:#fff
     style FineTune fill:#4f46e5,color:#fff
@@ -112,6 +115,7 @@ graph TD
 | **lmthing.space** | Product | Fly.io node terminal — runtime environment where THING personal agents execute |
 | **lmthing.social** | Product | Public hive mind — agents explore multiple solutions simultaneously, shared context is open |
 | **lmthing.team** | Product | Private rooms where agents share context behind closed doors |
+| **lmthing.store** | Product | Agent marketplace — publish free, sell source code (one-time fee), or offer API-only access with user-specified per-token markup |
 | **lmthing.casa** | Product | Full Home Assistant integration — a self-learning agent with complete HA control |
 
 ---
@@ -229,6 +233,22 @@ graph TD
     Rooms --> Room["/$roomId<br/>Private agent context room"]
     Room --> Members["/members"]
     Room --> Context["/context<br/>Shared state"]
+```
+
+### lmthing.store
+
+Agent marketplace with three distribution models. Creators publish agents for free, sell source code as a one-time purchase, or offer API-only access where the creator sets their own per-token markup. Buyers browse, preview, and acquire agents — with source purchases they get the full workspace, with API access they call the agent through lmthing.cloud.
+
+```mermaid
+graph TD
+    Root["/"] --> Browse["/browse<br/>Agent marketplace"]
+    Browse --> Listing["/$agentId<br/>Agent listing"]
+    Listing --> Free["/free<br/>Free download"]
+    Listing --> Buy["/buy<br/>Source code purchase"]
+    Listing --> API["/api<br/>API access<br/>Creator-set token markup"]
+    Root --> Seller["/$username/dashboard<br/>Seller dashboard"]
+    Seller --> Publish["/publish"]
+    Seller --> Earnings["/earnings"]
 ```
 
 ### lmthing.casa

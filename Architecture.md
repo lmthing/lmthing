@@ -4,7 +4,7 @@ LMThing is a complete platform for building, running, and deploying AI agents. A
 
 The ecosystem spans a non-profit (lmthing.org), a commercial entity (lmthing.com), and product domains that each serve a distinct role: Studio for building, Chat for conversing, Space for deploying, Social for collective intelligence, Team for private collaboration, and Casa for smart home control. 
 
-All powered by lmthing.cloud.
+**All powered by lmthing.cloud.**
 
 ---
 

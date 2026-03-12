@@ -206,7 +206,7 @@ graph TD
 
 ### lmthing.blog
 
-Personalized AI-generated news. Users subscribe to RSS feeds and web search queries. A THING agent continuously fetches, synthesizes, and presents news tailored to each user. Users can ask for deeper research on any topic, and the agent will investigate further. 
+Personalized AI-generated news. Users subscribe to RSS feeds and web search queries. A THING agent running on a shared serverless worker (not the user's Space) continuously fetches, synthesizes, and presents news tailored to each user. Users can ask for deeper research on any topic, and the agent will investigate further.
 
 Users can also write and publish news stories to their public profile. Free tier with RSS feed limits; $5/month for full access using a cheap model.
 
@@ -274,7 +274,7 @@ graph TD
 
 ### lmthing.casa
 
-Smart home control center. A self-learning THING instance with full Home Assistant integration. The dashboard shows device state, automations, and learning progress. The HA bridge provides direct communication with the Home Assistant instance. Over time, the agent learns household patterns and adapts automations through the SLM fine-tuning service.
+Smart home control center. A self-learning THING instance that runs on a Space node and connects to Home Assistant remotely. The dashboard shows device state, automations, and learning progress. The HA bridge provides remote communication with the user's Home Assistant instance. Over time, the agent learns household patterns and adapts automations through the SLM fine-tuning service.
 
 ```mermaid
 graph TD
@@ -282,7 +282,92 @@ graph TD
     Dashboard --> Devices["/devices"]
     Dashboard --> Automations["/automations"]
     Dashboard --> Learning["/learning<br/>Self-learning status"]
-    Root --> HA["/ha<br/>Home Assistant bridge"]
+    Root --> HA["/ha<br/>Home Assistant bridge<br/>(remote connection)"]
 ```
+
+---
+
+## Monorepo Structure
+
+The monorepo is organized by TLD — each lmthing domain gets its own top-level directory. Shared libraries live under `org/` (non-profit / open-source), and the cloud backend lives under `cloud/`. Product domains (`blog/`, `casa/`, `chat/`, `com/`, `social/`, `space/`, `store/`, `studio/`, `team/`) each contain the codebase for their respective lmthing.* surface.
+
+```mermaid
+graph LR
+    Root["pnpm workspace"]
+
+    subgraph Org["org/ · Non-Profit"]
+        Core["org/core/<br/>lmthing"]
+        State["org/state/<br/>@lmthing/state"]
+        Docs["org/docs/"]
+    end
+
+    subgraph Cloud["cloud/ · Backend"]
+        CloudPkg["cloud/<br/>@lmthing/cloud"]
+    end
+
+    subgraph Products["Product Domains"]
+        StudioDir["studio/<br/>lmthing.studio"]
+        ChatDir["chat/<br/>lmthing.chat"]
+        BlogDir["blog/<br/>lmthing.blog"]
+        SpaceDir["space/<br/>lmthing.space"]
+        SocialDir["social/<br/>lmthing.social"]
+        TeamDir["team/<br/>lmthing.team"]
+        StoreDir["store/<br/>lmthing.store"]
+        CasaDir["casa/<br/>lmthing.casa"]
+        ComDir["com/<br/>lmthing.com"]
+    end
+
+    Root --> Org
+    Root --> Cloud
+    Root --> Products
+    StudioDir --> State
+    StudioDir -- "HTTP" --> CloudPkg
+    Core -. "shared types" .-> StudioDir
+```
+
+| Directory | Name | Stack | Role |
+|-----------|------|-------|------|
+| `org/core/` | lmthing | TypeScript, Vercel AI SDK v6, Zod, vm2 | Agentic framework — stateful prompts, plugins, tool execution, multi-provider support |
+| `org/state/` | @lmthing/state | React hooks, Map-based VFS, FSEventBus | Virtual file system with scoped contexts, event subscriptions, and glob matching |
+| `org/docs/` | — | Documentation | Project documentation |
+| `cloud/` | @lmthing/cloud | Deno, Supabase Edge Functions, @stripe/ai-sdk | Serverless backend — auth, billing, LLM proxy, API key management |
+| `studio/` | @lmthing/studio | React 19, Vite 7, TanStack Router, Tailwind 4, Radix UI | Visual studio for building and testing AI agents |
+| `chat/` | — | TBD | Personal THING interface |
+| `blog/` | — | TBD | Personalized AI news (shared serverless worker) |
+| `space/` | — | TBD | Fly.io agent runtime environment |
+| `social/` | — | TBD | Public hive mind |
+| `team/` | — | TBD | Private agent collaboration rooms |
+| `store/` | — | TBD | Agent marketplace |
+| `casa/` | — | TBD | Smart home control (runs on Space node, connects to HA remotely) |
+| `com/` | — | TBD | Commercial landing page |
+
+---
+
+## Authentication — Cross-Domain SSO
+
+All lmthing.* domains share authentication through an SSO / OAuth redirect flow. When a user authenticates on any product domain, they are redirected through a central auth service that issues tokens valid across all lmthing.* surfaces. This ensures a seamless experience when moving between Studio, Chat, Blog, Space, Social, Team, Store, and Casa.
+
+---
+
+## Shared Context Model (Social & Team)
+
+Social and Team provide shared context through two mechanisms:
+
+- **Shared VFS** — agents in the same Social exploration or Team room read and write to the same virtual file system instance, enabling real-time collaboration on workspace files
+- **Shared conversation log** — all agent messages and interactions are stored in a shared message log visible to all participants
+
+In Social, both layers are public. In Team, both are private to room members. Agents can selectively publish from Team to Social when findings are ready.
+
+---
+
+## Fine-Tuning Pipeline
+
+THING generates evaluation datasets by creating multiple inputs and running them through Space agents using a large model. The resulting input/output pairs are stored in GitHub/VFS as versioned dataset files. When the user is satisfied with dataset quality, they manually trigger a fine-tune job from Studio, which submits the dataset to the Azure-hosted SLM fine-tuning service (NVIDIA H100 via Azure CycleCloud). The free tier allowance ($1/week) is funded by lmthing's $100,000 Azure credits.
+
+---
+
+## Git-Based Sync & Conflict Resolution
+
+All workspace data is stored in GitHub repositories. Sync between the in-memory VFS and GitHub uses standard git operations (push/pull). Conflict resolution follows standard git merge workflows — since everything is git, merge conflicts are resolved the same way they are in any git-based project.
 
 ---

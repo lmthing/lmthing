@@ -1,4 +1,11 @@
 packages:
-  - app
+  - blog
+  - studio
+  - casa
+  - chat
+  - space
+  - social
+  - store
+  - team
   - cloud
-  - lib/*
+  - org/*

@@ -4,7 +4,7 @@ set -e
 # --- Configuration ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-CONFIG_FILE="$REPO_ROOT/proxy-services.txt"
+CONFIG_FILE="$REPO_ROOT/services.yaml"
 HOSTS_FILE="/etc/hosts"
 CERTS_DIR="$REPO_ROOT/.etc/certs"
 
@@ -24,18 +24,41 @@ err()  { echo -e "  ${RED}✗${NC} $1"; }
 # --- Validate Config ---
 if [[ ! -f "$CONFIG_FILE" ]]; then
     err "Missing $CONFIG_FILE"
-    echo "  Create it with lines like:  studio.local	3000"
     exit 1
 fi
 
-# Read services
+# Read services from YAML
+NAMES=()
 DOMAINS=()
 PORTS=()
-while read -r DOMAIN PORT || [[ -n "$DOMAIN" ]]; do
-    [[ -z "$DOMAIN" || "$DOMAIN" =~ ^# ]] && continue
-    DOMAINS+=("$DOMAIN")
-    PORTS+=("$PORT")
+PROD_DOMAINS=()
+current_name="" current_domain="" current_local="" current_port=""
+while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" =~ ^[[:space:]]*#|^$ ]] && continue
+    if [[ "$line" =~ ^[[:space:]]*-[[:space:]]*name:[[:space:]]*(.+) ]]; then
+        # Flush previous entry
+        if [[ -n "$current_local" && -n "$current_port" ]]; then
+            NAMES+=("$current_name")
+            DOMAINS+=("$current_local")
+            PORTS+=("$current_port")
+            PROD_DOMAINS+=("$current_domain")
+        fi
+        current_name="${BASH_REMATCH[1]}" current_domain="" current_local="" current_port=""
+    elif [[ "$line" =~ ^[[:space:]]*domain:[[:space:]]*(.+) ]]; then
+        current_domain="${BASH_REMATCH[1]}"
+    elif [[ "$line" =~ ^[[:space:]]*local:[[:space:]]*(.+) ]]; then
+        current_local="${BASH_REMATCH[1]}"
+    elif [[ "$line" =~ ^[[:space:]]*port:[[:space:]]*(.+) ]]; then
+        current_port="${BASH_REMATCH[1]}"
+    fi
 done < "$CONFIG_FILE"
+# Flush last entry
+if [[ -n "$current_local" && -n "$current_port" ]]; then
+    NAMES+=("$current_name")
+    DOMAINS+=("$current_local")
+    PORTS+=("$current_port")
+    PROD_DOMAINS+=("$current_domain")
+fi
 
 if [[ ${#DOMAINS[@]} -eq 0 ]]; then
     err "No services found in $CONFIG_FILE"
@@ -106,7 +129,7 @@ fi
 
 # --- Setup ---
 echo -e "\n${BOLD}Local Proxy Setup${NC}"
-echo -e "Found ${#DOMAINS[@]} services in proxy-services.txt\n"
+echo -e "Found ${#DOMAINS[@]} services in services.yaml\n"
 
 # Step 1: Install nginx
 echo -e "${BOLD}[1/5] nginx${NC}"

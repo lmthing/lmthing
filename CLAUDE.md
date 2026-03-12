@@ -402,7 +402,7 @@ Each app runs on its own Vite dev server. The local proxy maps `*.local` domains
 | Casa | 3008 | [casa.local](http://casa.local) |
 | Cloud | 3009 | [cloud.local](http://cloud.local) |
 
-Port assignments and domain mappings are defined in `proxy-services.txt`.
+Port assignments and domain mappings are defined in `services.yaml`.
 
 ### Make Targets
 

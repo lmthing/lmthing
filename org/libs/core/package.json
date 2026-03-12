@@ -68,12 +68,12 @@
     "@opentelemetry/sdk-trace-node": "^2.5.1",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.0.0",
-    "@vitest/coverage-v8": "^4.0.0",
+    "@vitest/coverage-v8": "^4.1.0",
     "dotenv": "^16.4.5",
     "esbuild": "^0.27.1",
     "langfuse": "^3.38.6",
     "msw": "^2.12.4",
     "typescript": "^5.5.4",
-    "vitest": "^4.0.15"
+    "vitest": "^4.1.0"
   }
 }

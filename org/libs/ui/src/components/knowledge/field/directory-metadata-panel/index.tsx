@@ -1,7 +1,7 @@
 import { useEffect, useCallback } from 'react'
 import { useUIState } from '@lmthing/state'
 import { useSpaceFS } from '@lmthing/state'
-import { useFile } from '@/hooks/fs/useFile'
+import { useFile } from '@lmthing/ui/hooks/fs/useFile'
 import { Stack } from '@lmthing/ui/elements/layouts/stack'
 import { Heading } from '@lmthing/ui/elements/typography/heading'
 import { Label } from '@lmthing/ui/elements/typography/label'

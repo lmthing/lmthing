@@ -8,8 +8,8 @@ import { Label } from '@lmthing/ui/elements/typography/label'
 import { Badge } from '@lmthing/ui/elements/content/badge'
 import { Card, CardBody } from '@lmthing/ui/elements/content/card'
 import { FieldSelector } from '../field-selector'
-import type { DomainMeta } from '@/hooks/useKnowledgeFields'
-import type { WorkflowListItem } from '@/hooks/useWorkflowList'
+import type { DomainMeta } from '@lmthing/ui/hooks/useKnowledgeFields'
+import type { WorkflowListItem } from '@lmthing/ui/hooks/useWorkflowList'
 
 export interface AssistantFormProps {
   name: string

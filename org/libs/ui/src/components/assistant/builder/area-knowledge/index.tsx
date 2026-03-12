@@ -4,7 +4,7 @@
  * Uses Border Radius Medium (8px), subtle shadow at rest, deeper on hover.
  */
 import { useToggle, useUIState } from '@lmthing/state'
-import { useKnowledgeField } from '@/hooks/useKnowledgeField'
+import { useKnowledgeField } from '@lmthing/ui/hooks/useKnowledgeField'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
 import { Label } from '@lmthing/ui/elements/typography/label'
 import { ChevronDown, ChevronRight, Folder } from 'lucide-react'

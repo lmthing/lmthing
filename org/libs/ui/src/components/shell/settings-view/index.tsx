@@ -15,7 +15,7 @@ import { Heading } from '@lmthing/ui/elements/typography/heading'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
 import { Stack } from '@lmthing/ui/elements/layouts/stack'
 import { useUIState } from '@lmthing/state'
-import { useFile } from '@/hooks/fs/useFile'
+import { useFile } from '@lmthing/ui/hooks/fs/useFile'
 
 interface SettingsViewProps {
   isOpen: boolean

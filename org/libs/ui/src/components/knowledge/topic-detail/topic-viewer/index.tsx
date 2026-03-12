@@ -13,8 +13,8 @@ import { Caption } from '@lmthing/ui/elements/typography/caption'
 import { Stack } from '@lmthing/ui/elements/layouts/stack'
 import { Badge } from '@lmthing/ui/elements/content/badge'
 import { Button } from '@lmthing/ui/elements/forms/button'
-import { useFile } from '@/hooks/fs/useFile'
-import { useKnowledgeFields } from '@/hooks/useKnowledgeFields'
+import { useFile } from '@lmthing/ui/hooks/fs/useFile'
+import { useKnowledgeFields } from '@lmthing/ui/hooks/useKnowledgeFields'
 
 export interface TopicViewerProps {
   fieldId?: string

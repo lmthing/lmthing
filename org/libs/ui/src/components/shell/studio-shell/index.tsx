@@ -11,9 +11,9 @@ import '@lmthing/css/elements/layouts/split-pane/index.css'
 import '@lmthing/css/elements/layouts/page/index.css'
 import { StudioSidebar } from '@lmthing/ui/components/shell/studio-sidebar'
 import { SettingsView } from '@lmthing/ui/components/shell/settings-view'
-import { useAssistantList } from '@/hooks/useAssistantList'
-import { useKnowledgeFields } from '@/hooks/useKnowledgeFields'
-import { useWorkflowList } from '@/hooks/useWorkflowList'
+import { useAssistantList } from '@lmthing/ui/hooks/useAssistantList'
+import { useKnowledgeFields } from '@lmthing/ui/hooks/useKnowledgeFields'
+import { useWorkflowList } from '@lmthing/ui/hooks/useWorkflowList'
 
 export interface StudioShellProps {
   defaultSidebarCollapsed?: boolean

@@ -5,8 +5,8 @@
 import { useEffect } from 'react'
 import { useParams, useLocation, useNavigate } from '@tanstack/react-router'
 import { StudioShell } from '@lmthing/ui/components/shell/studio-shell'
-import { useAssistantList } from '@/hooks/useAssistantList'
-import { useWorkflowList } from '@/hooks/useWorkflowList'
+import { useAssistantList } from '@lmthing/ui/hooks/useAssistantList'
+import { useWorkflowList } from '@lmthing/ui/hooks/useWorkflowList'
 import { useToggle, useUIState } from '@lmthing/state'
 import { buildSpacePathFromParams } from '@/lib/space-url'
 

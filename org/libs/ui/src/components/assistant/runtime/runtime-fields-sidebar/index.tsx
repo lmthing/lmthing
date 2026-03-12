@@ -12,7 +12,7 @@ import { Input } from '@lmthing/ui/elements/forms/input'
 import { Textarea } from '@lmthing/ui/elements/forms/textarea'
 import { Select, SelectOption } from '@lmthing/ui/elements/forms/select'
 import { Panel, PanelHeader, PanelBody } from '@lmthing/ui/elements/content/panel'
-import type { SchemaField, FieldSchema } from '@/hooks/useFieldSchema'
+import type { SchemaField, FieldSchema } from '@lmthing/ui/hooks/useFieldSchema'
 
 export type RuntimeValues = Record<string, string | string[] | boolean>
 

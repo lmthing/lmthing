@@ -20,7 +20,7 @@ import { Caption } from '@lmthing/ui/elements/typography/caption'
 import { Badge } from '@lmthing/ui/elements/content/badge'
 import { Card, CardBody } from '@lmthing/ui/elements/content/card'
 import { Search, Zap } from 'lucide-react'
-import type { WorkflowListItem } from '@/hooks/useWorkflowList'
+import type { WorkflowListItem } from '@lmthing/ui/hooks/useWorkflowList'
 
 export interface AttachWorkflowModalProps {
   isOpen: boolean

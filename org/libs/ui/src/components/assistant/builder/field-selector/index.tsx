@@ -7,8 +7,8 @@ import { Card, CardBody } from '@lmthing/ui/elements/content/card'
 import { Stack } from '@lmthing/ui/elements/layouts/stack'
 import { Label } from '@lmthing/ui/elements/typography/label'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
-import { useKnowledgeField } from '@/hooks/useKnowledgeField'
-import type { DomainMeta } from '@/hooks/useKnowledgeFields'
+import { useKnowledgeField } from '@lmthing/ui/hooks/useKnowledgeField'
+import type { DomainMeta } from '@lmthing/ui/hooks/useKnowledgeFields'
 
 export interface FieldSelectorProps {
   fields: DomainMeta[]

@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": false,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "baseUrl": ".",
+    "paths": {
+      "@lmthing/ui/*": ["./src/*"],
+      "@lmthing/css/*": ["../css/src/*"],
+      "@lmthing/state": ["../state/src"],
+      "@lmthing/state/*": ["../state/src/*"],
+      "lmthing": ["../core/src"],
+      "@/*": ["../../studio/src/*"]
+    }
+  },
+  "include": ["src"]
+}

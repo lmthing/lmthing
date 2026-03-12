@@ -2,7 +2,7 @@ import { Stack } from '@lmthing/ui/elements/layouts/stack'
 import { Heading } from '@lmthing/ui/elements/typography/heading'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
 import { Card, CardBody } from '@lmthing/ui/elements/content/card'
-import { useKnowledgeFields } from '@/hooks/useKnowledgeFields'
+import { useKnowledgeFields } from '@lmthing/ui/hooks/useKnowledgeFields'
 import '@lmthing/css/elements/content/card/index.css'
 import '@lmthing/css/elements/layouts/stack/index.css'
 

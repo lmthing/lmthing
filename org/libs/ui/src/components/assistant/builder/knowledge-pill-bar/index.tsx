@@ -2,8 +2,8 @@
  * KnowledgePillBar - Horizontal pill/tag selection bar for knowledge areas.
  * US-202 / C5: Horizontal scrollable row, active (violet) / inactive (gray), clear all.
  */
-import { useKnowledgeField } from '@/hooks/useKnowledgeField'
-import type { DomainMeta } from '@/hooks/useKnowledgeFields'
+import { useKnowledgeField } from '@lmthing/ui/hooks/useKnowledgeField'
+import type { DomainMeta } from '@lmthing/ui/hooks/useKnowledgeFields'
 import { Check, Folder } from 'lucide-react'
 
 interface KnowledgePillProps {

@@ -375,6 +375,76 @@ Different products run agents in different environments:
 
 ---
 
+## Local Development
+
+### Quick Start
+
+```bash
+pnpm install       # install all workspace dependencies
+make proxy         # set up nginx reverse proxy (requires sudo)
+make up            # start all services
+```
+
+### Service Ports & Domains
+
+Each app runs on its own Vite dev server. The local proxy maps `*.local` domains via nginx.
+
+| App | Port | Local Domain |
+|-----|------|--------------|
+| Studio | 3000 | [studio.local](http://studio.local) |
+| Chat | 3001 | [chat.local](http://chat.local) |
+| Com | 3002 | [com.local](http://com.local) |
+| Social | 3003 | [social.local](http://social.local) |
+| Store | 3004 | [store.local](http://store.local) |
+| Space | 3005 | [space.local](http://space.local) |
+| Team | 3006 | [team.local](http://team.local) |
+| Blog | 3007 | [blog.local](http://blog.local) |
+| Casa | 3008 | [casa.local](http://casa.local) |
+| Cloud | 3009 | [cloud.local](http://cloud.local) |
+
+Port assignments and domain mappings are defined in `proxy-services.txt`.
+
+### Make Targets
+
+| Command | Description |
+|---------|-------------|
+| `make up` | Start all frontend dev servers in parallel |
+| `make down` | Stop all running dev servers |
+| `make proxy` | Set up nginx + `/etc/hosts` for `*.local` domains (interactive, prompts for sudo) |
+| `make proxy-clean` | Remove nginx configs and `/etc/hosts` entries |
+| `make install` | Run `pnpm install` |
+
+### Proxy Setup
+
+`make proxy` runs `.etc/scripts/local-proxy.sh`, which:
+
+1. Installs nginx if missing (apt/brew)
+2. Adds `127.0.0.1 <app>.local` entries to `/etc/hosts`
+3. Creates nginx server blocks that reverse-proxy each domain to its Vite port (including WebSocket upgrade for HMR)
+4. Validates the config and restarts nginx
+
+The script is idempotent — re-running it skips already-configured services. Use `make proxy-clean` to tear everything down.
+
+### Running Individual Apps
+
+To run a single app without `make up`:
+
+```bash
+cd studio && pnpm dev          # starts on default port
+cd chat && pnpm vite --port 3001  # starts on assigned port
+```
+
+### Stack
+
+All frontend apps share the same stack:
+
+- **React 19** + **Vite 7** + **TanStack Router** (file-based routing)
+- **Tailwind CSS v4** via `@tailwindcss/vite`
+- Shared workspace libs: `@lmthing/ui`, `@lmthing/css`, `@lmthing/state`, `lmthing` (core)
+- Path aliases: `@/` → `./src`, workspace libs resolved via Vite `resolve.alias`
+
+---
+
 ## Useful Links
 
 - [Architecture.md](./Architecture.md) — full product & domain architecture

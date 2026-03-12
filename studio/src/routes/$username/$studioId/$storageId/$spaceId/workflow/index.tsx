@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Heading } from '@lmthing/ui/elements/typography/heading'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
-import { useWorkflowList } from '@/hooks/useWorkflowList'
+import { useWorkflowList } from '@lmthing/ui/hooks/useWorkflowList'
 import { Badge } from '@lmthing/ui/elements/content/badge'
 import { Stack } from '@lmthing/ui/elements/layouts/stack'
 

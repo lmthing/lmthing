@@ -36,7 +36,7 @@ import type {
   RuntimeFieldType,
 } from '@/../product/sections/agent-runtime/types'
 import { workspaceToSlug, type Workspace } from './WorkspaceSelector'
-import { useWorkspaces } from '@/hooks/useWorkspaces'
+import { useWorkspaces } from '@lmthing/ui/hooks/useWorkspaces'
 import { flattenEmptyFieldsForRuntime } from '@/lib/utils'
 import { downloadWorkspaceZip, exportWorkspaceToNewGithubRepo } from '@/lib/workspaceExport'
 import { fromWorkspaceRouteParam, toWorkspaceRouteParam } from '@/lib/workspaces'

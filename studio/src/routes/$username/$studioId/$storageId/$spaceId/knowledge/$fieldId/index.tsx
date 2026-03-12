@@ -16,8 +16,8 @@ import { UnsavedChangesModal } from '@lmthing/ui/components/knowledge/field/unsa
 import { DeleteModal } from '@lmthing/ui/components/knowledge/field/delete-modal'
 import { RenameModal } from '@lmthing/ui/components/knowledge/field/rename-modal'
 import { DirectoryMetadataPanel } from '@lmthing/ui/components/knowledge/field/directory-metadata-panel'
-import { useKnowledgeTree } from '@/hooks/useKnowledgeTree'
-import { useKnowledgeField } from '@/hooks/useKnowledgeField'
+import { useKnowledgeTree } from '@lmthing/ui/hooks/useKnowledgeTree'
+import { useKnowledgeField } from '@lmthing/ui/hooks/useKnowledgeField'
 import { buildSpacePathFromParams } from '@/lib/space-url'
 import {
   ArrowLeft,

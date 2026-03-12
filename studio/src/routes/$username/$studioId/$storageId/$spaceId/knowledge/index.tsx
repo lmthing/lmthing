@@ -8,12 +8,12 @@ import { Badge } from '@lmthing/ui/elements/content/badge'
 import { Card, CardBody } from '@lmthing/ui/elements/content/card'
 import { Stack } from '@lmthing/ui/elements/layouts/stack'
 import { Button } from '@lmthing/ui/elements/forms/button'
-import { useKnowledgeFields } from '@/hooks/useKnowledgeFields'
-import { useKnowledgeField } from '@/hooks/useKnowledgeField'
+import { useKnowledgeFields } from '@lmthing/ui/hooks/useKnowledgeFields'
+import { useKnowledgeField } from '@lmthing/ui/hooks/useKnowledgeField'
 import { CreateFieldInline } from '@lmthing/ui/components/knowledge/field/create-field-inline'
 import { buildSpacePathFromParams } from '@/lib/space-url'
 import { Plus } from 'lucide-react'
-import type { DomainMeta } from '@/hooks/useKnowledgeFields'
+import type { DomainMeta } from '@lmthing/ui/hooks/useKnowledgeFields'
 
 function FieldCard({ field, spacePath }: { field: DomainMeta; spacePath: string }) {
   const navigate = useNavigate()

@@ -4,6 +4,8 @@ import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import path from 'path'
 
+const libsDir = path.resolve(__dirname, '../org/libs')
+
 export default defineConfig({
   plugins: [
     tanstackRouter({
@@ -12,6 +14,16 @@ export default defineConfig({
     }),
     react(),
     tailwindcss(),
+    {
+      name: 'resolve-workspace-deps',
+      enforce: 'pre',
+      async resolveId(source, importer, options) {
+        if (!importer || source.startsWith('.') || source.startsWith('/') || source.startsWith('@lmthing/') || source.startsWith('@/')) return null
+        if (!importer.startsWith(libsDir)) return null
+        const resolved = await this.resolve(source, path.resolve(__dirname, 'src/main.tsx'), { ...options, skipSelf: true })
+        return resolved
+      },
+    },
   ],
   resolve: {
     alias: {

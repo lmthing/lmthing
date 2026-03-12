@@ -1,1 +1,1 @@
-export { useStreamAppend } from '../../../../org/state/src'
+export { useStreamAppend } from '@lmthing/state'

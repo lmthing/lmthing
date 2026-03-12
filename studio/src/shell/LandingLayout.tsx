@@ -1,5 +1,5 @@
 import { useMemo, useEffect } from 'react'
-import { useUIState, useToggle } from '../../../org/state/src'
+import { useUIState, useToggle } from '@lmthing/state'
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
   ArrowRight,

@@ -22,7 +22,7 @@ import { PageHeader, PageBody } from '@/elements/layouts/page'
 import { Card, CardBody } from '@/elements/content/card'
 import { Heading } from '@/elements/typography/heading'
 import { Caption } from '@/elements/typography/caption'
-import { useApp, useToggle, useUIState } from '../../../../../org/state/src'
+import { useApp, useToggle, useUIState } from '@lmthing/state'
 import CozyThingText from '@/CozyText'
 
 const STUDIO_COLORS = ['#8b5cf6', '#10b981', '#f59e0b', '#06b6d4', '#ef4444', '#ec4899']

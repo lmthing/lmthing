@@ -1,1 +1,1 @@
-export { useFileConfig } from '../../../../org/state/src'
+export { useFileConfig } from '@lmthing/state'

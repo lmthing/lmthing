@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useRef } from 'react'
-import { useUIState } from '../../../../../../org/state/src'
+import { useUIState } from '@lmthing/state'
 import { Heading } from '@/elements/typography/heading'
 import { Label } from '@/elements/typography/label'
 import { Caption } from '@/elements/typography/caption'

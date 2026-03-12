@@ -5,8 +5,8 @@
  * renderAs: "field" and builds SchemaField[] with options from .md files.
  */
 import { useMemo } from 'react'
-import { useGlobRead } from '../../../org/state/src'
-import { parseFrontmatter } from '../../../org/state/src'
+import { useGlobRead } from '@lmthing/state'
+import { parseFrontmatter } from '@lmthing/state'
 
 export type SchemaFieldType = 'text' | 'textarea' | 'select' | 'multiselect' | 'toggle'
 

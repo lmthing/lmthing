@@ -1,4 +1,4 @@
-import { useToggle } from '../../../../../../org/state/src'
+import { useToggle } from '@lmthing/state'
 import { Button } from '@/elements/forms/button'
 import { Input } from '@/elements/forms/input'
 import { Textarea } from '@/elements/forms/textarea'

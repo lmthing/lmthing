@@ -3,7 +3,7 @@
  * Used by FieldTree to render the file tree for a knowledge field.
  */
 import { useMemo } from 'react'
-import { useGlob } from '../../../org/state/src'
+import { useGlob } from '@lmthing/state'
 import type { KnowledgeNode } from '@/types/space-data'
 
 export function useKnowledgeTree(fieldId: string): KnowledgeNode[] {

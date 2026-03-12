@@ -1,1 +1,1 @@
-export { useKnowledgeFile } from '../../../../org/state/src'
+export { useKnowledgeFile } from '@lmthing/state'

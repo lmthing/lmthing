@@ -4,7 +4,7 @@
  * and CSS element classes instead of raw Tailwind.
  */
 import { useMemo } from 'react'
-import { useToggle } from '../../../../../org/state/src'
+import { useToggle } from '@lmthing/state'
 import { Link, useLocation, useParams } from '@tanstack/react-router'
 import {
   Plus,

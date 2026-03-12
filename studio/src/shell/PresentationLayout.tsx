@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from 'react'
-import { useUIState } from '../../../org/state/src'
+import { useUIState } from '@lmthing/state'
 import { useNavigate } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { CozyThingText } from '@/CozyText'

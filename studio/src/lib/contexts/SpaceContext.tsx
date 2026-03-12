@@ -1,2 +1,2 @@
 // Re-export SpaceContext from @lmthing/state
-export { SpaceProvider, useSpaceContext } from '../../../../org/state/src'
+export { SpaceProvider, useSpaceContext } from '@lmthing/state'

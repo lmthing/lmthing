@@ -1,1 +1,1 @@
-export { useGlob } from '../../../../org/state/src'
+export { useGlob } from '@lmthing/state'

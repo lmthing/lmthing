@@ -1,1 +1,1 @@
-export { useGlobRead } from '../../../../org/state/src'
+export { useGlobRead } from '@lmthing/state'

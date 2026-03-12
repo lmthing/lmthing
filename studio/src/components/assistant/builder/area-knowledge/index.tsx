@@ -3,7 +3,7 @@
  * US-204: Accordion cards styled with Semantic Colors - Knowledge (Emerald accents).
  * Uses Border Radius Medium (8px), subtle shadow at rest, deeper on hover.
  */
-import { useToggle, useUIState } from '../../../../../../org/state/src'
+import { useToggle, useUIState } from '@lmthing/state'
 import { useKnowledgeField } from '@/hooks/useKnowledgeField'
 import { Caption } from '@/elements/typography/caption'
 import { Label } from '@/elements/typography/label'

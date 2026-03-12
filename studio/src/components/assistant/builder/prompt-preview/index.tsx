@@ -4,7 +4,7 @@
  * shows token count, copy to clipboard, collapsible.
  */
 import { useMemo, useCallback } from 'react'
-import { useToggle, useUIState, useGlobRead } from '../../../../../../org/state/src'
+import { useToggle, useUIState, useGlobRead } from '@lmthing/state'
 import { Button } from '@/elements/forms/button'
 import { Badge } from '@/elements/content/badge'
 import { CardFooter } from '@/elements/content/card'

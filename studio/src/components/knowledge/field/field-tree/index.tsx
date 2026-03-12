@@ -3,7 +3,7 @@
  * Phase 6: CRUD, drag-and-drop, context menu, rename. No Tailwind.
  */
 import { useRef, useCallback, useMemo, useImperativeHandle, forwardRef, type CSSProperties } from 'react'
-import { useUIState } from '../../../../../../org/state/src'
+import { useUIState } from '@lmthing/state'
 import { Tree, type NodeApi, type TreeApi } from 'react-arborist'
 import {
   ChevronRight,

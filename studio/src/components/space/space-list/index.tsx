@@ -1,5 +1,5 @@
 import { Search, UserPlus, Clock, Mail } from 'lucide-react'
-import { useUIState, useToggle } from '../../../../../org/state/src'
+import { useUIState, useToggle } from '@lmthing/state'
 import { Button } from '@/elements/forms/button'
 import { Input } from '@/elements/forms/input'
 import { Stack } from '@/elements/layouts/stack'

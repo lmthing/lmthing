@@ -1,1 +1,1 @@
-export { useStudioEnvList } from '../../../../org/state/src'
+export { useStudioEnvList } from '@lmthing/state'

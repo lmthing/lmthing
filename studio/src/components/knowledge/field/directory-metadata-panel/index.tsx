@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from 'react'
-import { useUIState } from '../../../../../../org/state/src'
-import { useSpaceFS } from '../../../../../../org/state/src'
+import { useUIState } from '@lmthing/state'
+import { useSpaceFS } from '@lmthing/state'
 import { useFile } from '@/hooks/fs/useFile'
 import { Stack } from '@/elements/layouts/stack'
 import { Heading } from '@/elements/typography/heading'

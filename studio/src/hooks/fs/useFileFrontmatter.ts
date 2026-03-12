@@ -1,1 +1,1 @@
-export { useFileFrontmatter } from '../../../../org/state/src'
+export { useFileFrontmatter } from '@lmthing/state'

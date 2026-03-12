@@ -15,10 +15,10 @@
         "./src/*"
       ],
       "@lmthing/state": [
-        "../org/state/src"
+        "../org/libs/state/src"
       ],
       "lmthing": [
-        "../org/core/src"
+        "../org/libs/core/src"
       ]
     },
     "target": "ES2022",

@@ -17,8 +17,8 @@
  */
 import { useEffect, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from '@tanstack/react-router'
-import { useSpaceFS, P, serializeAgentInstruct, serializeAgentConfig, serializeAgentValues, useUIState, useToggle } from '../../../../../../org/state/src'
-import type { AgentConfig, AgentValues } from '../../../../../../org/state/src'
+import { useSpaceFS, P, serializeAgentInstruct, serializeAgentConfig, serializeAgentValues, useUIState, useToggle } from '@lmthing/state'
+import type { AgentConfig, AgentValues } from '@lmthing/state'
 import { Stack } from '@/elements/layouts/stack'
 import { Label } from '@/elements/typography/label'
 import { TabBar } from '@/elements/nav/tab-bar'

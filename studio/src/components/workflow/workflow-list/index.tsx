@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useUIState } from '../../../../../org/state/src'
+import { useUIState } from '@lmthing/state'
 import type { Flow } from '@/../product/sections/flow-builder/types'
 import { WorkflowCard, WorkflowListItem } from '../workflow-card'
 import { Button } from '@/elements/forms/button'

@@ -1,1 +1,1 @@
-export { useSpaceFS } from '../../../../org/state/src'
+export { useSpaceFS } from '@lmthing/state'

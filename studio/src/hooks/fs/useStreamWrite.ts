@@ -1,1 +1,1 @@
-export { useStreamWrite } from '../../../../org/state/src'
+export { useStreamWrite } from '@lmthing/state'

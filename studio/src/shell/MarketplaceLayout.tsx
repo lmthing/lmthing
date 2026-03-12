@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useUIState, useApp } from '../../../org/state/src'
+import { useUIState, useApp } from '@lmthing/state'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowRight, Building2, Download, Check, Loader2 } from 'lucide-react'
 import { Button } from '@/elements/forms/button'

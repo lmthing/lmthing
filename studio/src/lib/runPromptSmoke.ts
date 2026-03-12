@@ -1,4 +1,4 @@
-import { runPrompt } from '../../../org/core/dist'
+import { runPrompt } from 'lmthing'
 
 type RunPromptSmokeResult = {
   ok: boolean

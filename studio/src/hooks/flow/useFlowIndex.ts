@@ -1,1 +1,1 @@
-export { useFlowIndex } from '../../../../org/state/src'
+export { useFlowIndex } from '@lmthing/state'

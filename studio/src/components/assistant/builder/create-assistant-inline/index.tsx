@@ -1,4 +1,4 @@
-import { useUIState } from '../../../../../../org/state/src'
+import { useUIState } from '@lmthing/state'
 import { Bot, X } from 'lucide-react'
 import { Button } from '@/elements/forms/button'
 import { Input } from '@/elements/forms/input'

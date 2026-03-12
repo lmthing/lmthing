@@ -1,4 +1,4 @@
-import { useToggle, useUIState } from '../../../../../org/state/src'
+import { useToggle, useUIState } from '@lmthing/state'
 import type { Flow, Task } from '@/../product/sections/flow-builder/types'
 import { StepCard } from '../step/step-card'
 import { StepConfigPanel } from '../step/step-config-panel'

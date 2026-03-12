@@ -1,1 +1,1 @@
-export { useFile } from '../../../../org/state/src'
+export { useFile } from '@lmthing/state'

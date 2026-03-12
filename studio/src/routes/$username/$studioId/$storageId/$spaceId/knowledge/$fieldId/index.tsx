@@ -1,5 +1,5 @@
 import { useCallback, useRef, useMemo } from 'react'
-import { useUIState, useToggle, useSpaceFS } from '../../../../../../../../../org/state/src'
+import { useUIState, useToggle, useSpaceFS } from '@lmthing/state'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Heading } from '@/elements/typography/heading'
 import { Caption } from '@/elements/typography/caption'

@@ -22,7 +22,7 @@ import { PageHeader, PageBody } from '@/elements/layouts/page'
 import { Card, CardBody } from '@/elements/content/card'
 import { Heading } from '@/elements/typography/heading'
 import { Caption } from '@/elements/typography/caption'
-import { useStudio, useToggle, useUIState } from '../../../../../org/state/src'
+import { useStudio, useToggle, useUIState } from '@lmthing/state'
 import { useGithub } from '@/lib/github/GithubContext'
 import { buildSpacePath } from '@/lib/space-url'
 

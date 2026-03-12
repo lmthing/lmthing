@@ -5,7 +5,7 @@
  * Converts flow tasks into lmthing tasks and executes them sequentially.
  */
 
-import { runPrompt } from '../../../org/core/dist'
+import { runPrompt } from 'lmthing'
 import type { Task as LmthingTask } from '../../../org/core/dist/plugins'
 import { buildKnowledgeXml } from './buildKnowledgeXml'
 import type { KnowledgeNode } from '@/types/workspace-data'

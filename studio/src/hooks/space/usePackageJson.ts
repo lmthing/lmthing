@@ -1,1 +1,1 @@
-export { usePackageJson } from '../../../../org/state/src'
+export { usePackageJson } from '@lmthing/state'

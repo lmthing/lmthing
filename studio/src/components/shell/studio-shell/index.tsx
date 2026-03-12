@@ -4,7 +4,7 @@
  * Orchestrates the sidebar, content area, and settings/knowledge views.
  */
 import { useCallback, useMemo } from 'react'
-import { useToggle } from '../../../../../org/state/src'
+import { useToggle } from '@lmthing/state'
 import { useParams, useLocation, useNavigate } from '@tanstack/react-router'
 import { buildSpacePathFromParams } from '@/lib/space-url'
 import '@/css/elements/layouts/split-pane/index.css'

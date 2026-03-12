@@ -16,8 +16,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      'lmthing': path.resolve(__dirname, '../lib/core/src'),
-      '@lmthing/state': path.resolve(__dirname, '../lib/state/src'),
+      'lmthing': path.resolve(__dirname, '../org/libs/core/src'),
+      '@lmthing/state': path.resolve(__dirname, '../org/libs/state/src'),
       'vm2': path.resolve(__dirname, './src/stubs/empty.ts'),
       'coffee-script': path.resolve(__dirname, './src/stubs/empty.ts'),
     },

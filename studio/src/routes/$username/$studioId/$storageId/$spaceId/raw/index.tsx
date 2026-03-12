@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { useGlobRead } from '../../../../../../../../org/state/src'
+import { useGlobRead } from '@lmthing/state'
 import {
   ChevronRight,
   ChevronDown,

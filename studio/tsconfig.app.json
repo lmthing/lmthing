@@ -35,10 +35,10 @@
         "./src/*"
       ],
       "@lmthing/state": [
-        "../org/state/src/index.ts"
+        "../org/libs/state/src/index.ts"
       ],
       "@lmthing/state/*": [
-        "../org/state/src/*"
+        "../org/libs/state/src/*"
       ]
     }
   },

@@ -1,5 +1,5 @@
 // useWorkspaces — returns studios list from AppContext (app-level, no StudioProvider needed)
-import { useApp } from '../../../org/state/src'
+import { useApp } from '@lmthing/state'
 
 export function useWorkspaces() {
   const { studios, isLoading, error } = useApp()

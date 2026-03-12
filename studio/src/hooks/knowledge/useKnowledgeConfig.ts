@@ -1,1 +1,1 @@
-export { useKnowledgeConfig } from '../../../../org/state/src'
+export { useKnowledgeConfig } from '@lmthing/state'

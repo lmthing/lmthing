@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useUIState, useToggle } from '../../../../../../org/state/src'
+import { useUIState, useToggle } from '@lmthing/state'
 import type { JSONSchema } from '@/../product/sections/flow-builder/types'
 import { Button } from '@/elements/forms/button'
 import { Input } from '@/elements/forms/input'

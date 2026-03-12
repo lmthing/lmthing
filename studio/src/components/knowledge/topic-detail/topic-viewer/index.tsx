@@ -4,9 +4,9 @@
  * and element components instead of raw Tailwind.
  */
 import { useCallback, useEffect } from 'react'
-import { useUIState } from '../../../../../../org/state/src'
+import { useUIState } from '@lmthing/state'
 import { useParams } from '@tanstack/react-router'
-import { useSpaceFS } from '../../../../../../org/state/src'
+import { useSpaceFS } from '@lmthing/state'
 import { Page, PageHeader, PageBody } from '@/elements/layouts/page'
 import { Heading } from '@/elements/typography/heading'
 import { Caption } from '@/elements/typography/caption'

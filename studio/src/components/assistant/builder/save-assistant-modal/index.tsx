@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react'
-import { useUIState } from '../../../../../../org/state/src'
+import { useUIState } from '@lmthing/state'
 import { Button } from '@/elements/forms/button'
 import { Input } from '@/elements/forms/input'
 import { Textarea } from '@/elements/forms/textarea'

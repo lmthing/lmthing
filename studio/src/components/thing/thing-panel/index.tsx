@@ -6,9 +6,9 @@
 import { useCallback, useEffect, useMemo, useRef, type FormEvent } from 'react'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { Bot, Plus, ArrowLeft } from 'lucide-react'
-import { runPrompt, type PromptConfig } from '../../../../../org/core/dist'
+import { runPrompt, type PromptConfig } from 'lmthing'
 import { z } from 'zod'
-import { useApp, useUIState, useToggle } from '../../../../../org/state/src'
+import { useApp, useUIState, useToggle } from '@lmthing/state'
 import { CozyThingText } from '@/CozyText'
 
 import '@/css/elements/forms/button/index.css'

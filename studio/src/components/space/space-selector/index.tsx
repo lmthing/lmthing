@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import { useUIState, useToggle } from '../../../../../org/state/src'
+import { useUIState, useToggle } from '@lmthing/state'
 import { ChevronDown, Plus, Search, FolderOpen, Github } from 'lucide-react'
 import { Button } from '@/elements/forms/button'
 import { Input } from '@/elements/forms/input'

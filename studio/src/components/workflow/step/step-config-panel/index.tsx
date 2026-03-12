@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useUIState, useToggle } from '../../../../../../org/state/src'
+import { useUIState, useToggle } from '@lmthing/state'
 import type { Task, TaskType, TaskConfig, PromptFragmentField, JSONSchema } from '@/../product/sections/flow-builder/types'
 import { StepSchemaEditor } from '../step-schema-editor'
 import { Button } from '@/elements/forms/button'

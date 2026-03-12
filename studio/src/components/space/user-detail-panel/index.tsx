@@ -1,5 +1,5 @@
 import { Mail, Calendar, Clock, Shield, Check, X, Trash2, User as UserIcon, Crown, Edit3, Eye } from 'lucide-react'
-import { useUIState, useToggle } from '../../../../../org/state/src'
+import { useUIState, useToggle } from '@lmthing/state'
 import type { SpaceUser, SpaceUserRole, RoleDefinition } from '../space-list'
 import { Button } from '@/elements/forms/button'
 import { Stack } from '@/elements/layouts/stack'

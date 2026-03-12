@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 import { useEffect } from 'react'
-import { useApp } from '../../../../../org/state/src'
+import { useApp } from '@lmthing/state'
 import { StudioProvider } from '@/lib/contexts/StudioContext'
 
 function StudioLayout() {

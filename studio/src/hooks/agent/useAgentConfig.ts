@@ -1,1 +1,1 @@
-export { useAgentConfig } from '../../../../org/state/src'
+export { useAgentConfig } from '@lmthing/state'

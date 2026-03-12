@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, type FormEvent } from 'react'
-import { useUIState, useToggle } from '../../../../../org/state/src'
+import { useUIState, useToggle } from '@lmthing/state'
 import { useAuth } from '@/lib/auth'
 
 import '@/css/elements/forms/button/index.css'

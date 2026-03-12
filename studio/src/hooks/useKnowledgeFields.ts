@@ -1,3 +1,3 @@
 // useKnowledgeFields — UI name for useDomainDirectory
-export { useDomainDirectory as useKnowledgeFields } from '../../../org/state/src'
-export type { DomainMeta } from '../../../org/state/src'
+export { useDomainDirectory as useKnowledgeFields } from '@lmthing/state'
+export type { DomainMeta } from '@lmthing/state'

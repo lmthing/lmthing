@@ -3,7 +3,7 @@
  * This defines the state structure for workspace data loaded from JSON
  */
 
-import type { PromptConfig } from '../../../org/core/dist'
+import type { PromptConfig } from 'lmthing'
 
 export type LmthingModelId = Extract<PromptConfig['model'], string>
 

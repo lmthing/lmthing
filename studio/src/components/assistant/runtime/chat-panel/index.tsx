@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useMemo } from 'react'
-import { useUIState, useToggle } from '../../../../../../org/state/src'
+import { useUIState, useToggle } from '@lmthing/state'
 import { Button } from '@/elements/forms/button'
 import { Textarea } from '@/elements/forms/textarea'
 import { Panel, PanelHeader, PanelBody } from '@/elements/content/panel'

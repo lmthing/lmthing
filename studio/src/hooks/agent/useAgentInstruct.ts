@@ -1,1 +1,1 @@
-export { useAgentInstruct } from '../../../../org/state/src'
+export { useAgentInstruct } from '@lmthing/state'

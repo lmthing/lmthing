@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, type ReactNode } from 'react'
-import { useUIState, useToggle } from '../../../../org/state/src'
+import { useUIState, useToggle } from '@lmthing/state'
 import { Octokit } from '@octokit/rest'
 import { createOAuthDeviceAuth } from '@octokit/auth-oauth-device'
 import { request } from '@octokit/request'

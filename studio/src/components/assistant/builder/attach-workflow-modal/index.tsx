@@ -3,7 +3,7 @@
  * US-206: Searchable workflow selection modal.
  */
 import { useMemo } from 'react'
-import { useUIState } from '../../../../../../org/state/src'
+import { useUIState } from '@lmthing/state'
 import {
   Dialog,
   DialogContent,

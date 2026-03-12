@@ -1,1 +1,1 @@
-export { useStudioFS } from '../../../../org/state/src'
+export { useStudioFS } from '@lmthing/state'

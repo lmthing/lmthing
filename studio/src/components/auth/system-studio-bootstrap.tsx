@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { useAuth } from '@/lib/auth/useAuth'
-import { useApp } from '../../../../org/state/src'
+import { useApp } from '@lmthing/state'
 import { demoToFileTree } from '@/lib/demoToFileTree'
 import type { DemoWorkspaceData } from '@/lib/demoToFileTree'
 

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useEffect, useRef } from 'react'
-import { useUIState, useToggle } from '../../../../org/state/src'
+import { useUIState, useToggle } from '@lmthing/state'
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom'
 import { StudioSidebar } from './StudioSidebar'
 import { ThingPanel } from './ThingPanel'

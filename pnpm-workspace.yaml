@@ -8,4 +8,4 @@ packages:
   - store
   - team
   - cloud
-  - org/*
+  - org/libs/*

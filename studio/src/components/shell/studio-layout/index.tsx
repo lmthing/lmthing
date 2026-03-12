@@ -7,7 +7,7 @@ import { useParams, useLocation, useNavigate } from '@tanstack/react-router'
 import { StudioShell } from '@/components/shell/studio-shell'
 import { useAssistantList } from '@/hooks/useAssistantList'
 import { useWorkflowList } from '@/hooks/useWorkflowList'
-import { useToggle, useUIState } from '../../../../../org/state/src'
+import { useToggle, useUIState } from '@lmthing/state'
 import { buildSpacePathFromParams } from '@/lib/space-url'
 
 type StudioState = {

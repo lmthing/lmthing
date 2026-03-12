@@ -11,10 +11,10 @@
  * FS paths stay unchanged (agents/, flows/) — only UI types are renamed.
  */
 
-import type { PromptConfig } from '../../../org/core/dist'
+import type { PromptConfig } from 'lmthing'
 
 // Re-export hierarchy types from lib/state
-export type { StudioConfig, SpaceConfig, AppData, FileTree, StudioData } from '../../../org/state/src'
+export type { StudioConfig, SpaceConfig, AppData, FileTree, StudioData } from '@lmthing/state'
 
 export type LmthingModelId = Extract<PromptConfig['model'], string>
 

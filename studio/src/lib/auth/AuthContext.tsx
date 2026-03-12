@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useCallback, useEffect, type ReactNode } from 'react'
-import { useUIState, useToggle } from '../../../../org/state/src'
+import { useUIState, useToggle } from '@lmthing/state'
 
 const TEXT_ENCODER = new TextEncoder()
 const TEXT_DECODER = new TextDecoder()

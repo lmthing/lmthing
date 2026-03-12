@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Bot } from 'lucide-react'
-import { runPrompt, type PromptConfig } from '../../../../../org/core/dist'
+import { runPrompt, type PromptConfig } from 'lmthing'
 import { z } from 'zod'
 import { useAgents, useFlows } from '@/lib/workspaceContext'
 import { useWorkspaceData } from '@/lib/workspaceDataContext'

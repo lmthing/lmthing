@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
-import { useToggle } from '../../../../../../org/state/src'
+import { useToggle } from '@lmthing/state'
 import { JsonView } from 'react-json-view-lite'
 import 'react-json-view-lite/dist/index.css'
 import {

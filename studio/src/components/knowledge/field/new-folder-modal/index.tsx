@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import { useUIState } from '../../../../../../org/state/src'
+import { useUIState } from '@lmthing/state'
 import { Stack } from '@/elements/layouts/stack'
 import { Heading } from '@/elements/typography/heading'
 import { Label } from '@/elements/typography/label'

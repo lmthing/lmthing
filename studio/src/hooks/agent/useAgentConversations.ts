@@ -1,1 +1,1 @@
-export { useAgentConversations } from '../../../../org/state/src'
+export { useAgentConversations } from '@lmthing/state'

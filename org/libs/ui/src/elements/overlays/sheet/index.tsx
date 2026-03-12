@@ -1,7 +1,7 @@
-import '@/css/elements/overlays/sheet/index.css'
+import '@lmthing/css/elements/overlays/sheet/index.css'
 import * as React from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
-import { cn } from '@/lib/utils'
+import { cn } from '../../../lib/utils'
 
 function Sheet(props: React.ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root {...props} />

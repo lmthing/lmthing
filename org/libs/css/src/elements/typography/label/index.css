@@ -1,4 +1,4 @@
-@reference "../../../../index.css";
+@reference "../../../theme.css";
 
 .label {
   @apply text-sm font-medium leading-none text-foreground;

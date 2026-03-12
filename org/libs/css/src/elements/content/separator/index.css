@@ -1,4 +1,4 @@
-@reference "../../../../index.css";
+@reference "../../../theme.css";
 
 .separator {
   @apply block h-px w-full bg-border;

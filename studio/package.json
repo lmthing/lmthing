@@ -14,7 +14,9 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@lmthing/css": "workspace:*",
     "@lmthing/state": "workspace:*",
+    "@lmthing/ui": "workspace:*",
     "@octokit/auth-oauth-device": "^8.0.3",
     "@octokit/request": "^10.0.8",
     "@octokit/rest": "^22.0.1",

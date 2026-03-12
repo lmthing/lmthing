@@ -1,7 +1,7 @@
-import '@/css/elements/content/separator/index.css'
+import '@lmthing/css/elements/content/separator/index.css'
 import * as React from 'react'
 import * as SeparatorPrimitive from '@radix-ui/react-separator'
-import { cn } from '@/lib/utils'
+import { cn } from '../../../lib/utils'
 
 export interface SeparatorProps extends React.ComponentProps<typeof SeparatorPrimitive.Root> {
   vertical?: boolean

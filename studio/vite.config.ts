@@ -16,6 +16,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@lmthing/ui': path.resolve(__dirname, '../org/libs/ui/src'),
+      '@lmthing/css': path.resolve(__dirname, '../org/libs/css/src'),
       'lmthing': path.resolve(__dirname, '../org/libs/core/src'),
       '@lmthing/state': path.resolve(__dirname, '../org/libs/state/src'),
       'vm2': path.resolve(__dirname, './src/stubs/empty.ts'),

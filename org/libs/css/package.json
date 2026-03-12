@@ -1,0 +1,18 @@
+{
+  "name": "@lmthing/css",
+  "version": "1.0.0",
+  "description": "LMThing shared CSS - design tokens and element styles",
+  "type": "module",
+  "exports": {
+    "./theme": "./src/theme.css",
+    "./elements/*": "./src/elements/*"
+  },
+  "files": [
+    "src"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "author": "LMThing",
+  "license": "MIT"
+}

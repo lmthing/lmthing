@@ -1,4 +1,4 @@
-@reference "../../../../index.css";
+@reference "../../../theme.css";
 
 .split-pane {
   @apply flex flex-row h-full overflow-hidden;

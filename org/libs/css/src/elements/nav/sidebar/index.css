@@ -1,4 +1,4 @@
-@reference "../../../../index.css";
+@reference "../../../theme.css";
 
 .sidebar {
   @apply flex flex-col h-full w-64 bg-sidebar border-r border-sidebar-border transition-all duration-200;

@@ -1,6 +1,6 @@
-import '@/css/elements/typography/heading/index.css'
+import '@lmthing/css/elements/typography/heading/index.css'
 import * as React from 'react'
-import { cn } from '@/lib/utils'
+import { cn } from '../../../lib/utils'
 
 export type HeadingLevel = 1 | 2 | 3 | 4
 

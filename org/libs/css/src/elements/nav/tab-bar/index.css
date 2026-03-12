@@ -1,4 +1,4 @@
-@reference "../../../../index.css";
+@reference "../../../theme.css";
 
 .tab-bar {
   @apply flex items-center gap-1 border-b border-border;

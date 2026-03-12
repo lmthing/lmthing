@@ -1,7 +1,7 @@
-import '@/css/elements/forms/button/index.css'
+import '@lmthing/css/elements/forms/button/index.css'
 import * as React from 'react'
 import { Slot } from '@radix-ui/react-slot'
-import { cn } from '@/lib/utils'
+import { cn } from '../../../lib/utils'
 
 export type ButtonVariant = 'primary' | 'ghost' | 'outline' | 'destructive'
 export type ButtonSize = 'default' | 'sm' | 'lg' | 'icon'

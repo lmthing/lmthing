@@ -1,4 +1,4 @@
-@reference "../../../../index.css";
+@reference "../../../theme.css";
 
 .top-bar {
   @apply flex items-center justify-between h-12 px-4 border-b border-border bg-background;

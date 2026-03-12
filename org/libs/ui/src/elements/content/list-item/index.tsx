@@ -1,6 +1,6 @@
-import '@/css/elements/content/list-item/index.css'
+import '@lmthing/css/elements/content/list-item/index.css'
 import * as React from 'react'
-import { cn } from '@/lib/utils'
+import { cn } from '../../../lib/utils'
 
 export interface ListItemProps extends React.ComponentProps<'div'> {
   selected?: boolean

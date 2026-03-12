@@ -1,6 +1,6 @@
-import '@/css/elements/nav/top-bar/index.css'
+import '@lmthing/css/elements/nav/top-bar/index.css'
 import * as React from 'react'
-import { cn } from '@/lib/utils'
+import { cn } from '../../../lib/utils'
 
 export interface TopBarProps extends Omit<React.ComponentProps<'header'>, 'title'> {
   title?: React.ReactNode

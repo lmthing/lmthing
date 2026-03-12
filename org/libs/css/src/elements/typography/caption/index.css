@@ -1,4 +1,4 @@
-@reference "../../../../index.css";
+@reference "../../../theme.css";
 
 .caption {
   @apply text-xs text-muted-foreground leading-snug;

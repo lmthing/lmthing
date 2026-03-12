@@ -1,6 +1,6 @@
-import '@/css/elements/nav/breadcrumb/index.css'
+import '@lmthing/css/elements/nav/breadcrumb/index.css'
 import * as React from 'react'
-import { cn } from '@/lib/utils'
+import { cn } from '../../../lib/utils'
 
 export interface BreadcrumbSegment {
   label: string

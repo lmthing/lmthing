@@ -1,4 +1,4 @@
-@reference "../../../../index.css";
+@reference "../../../theme.css";
 
 .page {
   @apply flex flex-col min-h-screen bg-background;

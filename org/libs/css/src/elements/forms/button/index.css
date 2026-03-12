@@ -1,4 +1,4 @@
-@reference "../../../../index.css";
+@reference "../../../theme.css";
 
 .btn {
   @apply inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium

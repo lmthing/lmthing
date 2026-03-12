@@ -1,4 +1,4 @@
-@reference "../../../../index.css";
+@reference "../../../theme.css";
 
 .panel {
   @apply flex flex-col bg-background border border-border rounded-md overflow-hidden;

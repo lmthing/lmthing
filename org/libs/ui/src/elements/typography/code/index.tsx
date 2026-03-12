@@ -1,6 +1,6 @@
-import '@/css/elements/typography/code/index.css'
+import '@lmthing/css/elements/typography/code/index.css'
 import * as React from 'react'
-import { cn } from '@/lib/utils'
+import { cn } from '../../../lib/utils'
 
 export interface CodeProps extends React.ComponentProps<'code'> {
   block?: boolean

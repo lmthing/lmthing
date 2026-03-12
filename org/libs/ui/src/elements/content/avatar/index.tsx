@@ -1,7 +1,7 @@
-import '@/css/elements/content/avatar/index.css'
+import '@lmthing/css/elements/content/avatar/index.css'
 import * as React from 'react'
 import * as AvatarPrimitive from '@radix-ui/react-avatar'
-import { cn } from '@/lib/utils'
+import { cn } from '../../../lib/utils'
 
 export type AvatarSize = 'default' | 'sm' | 'lg'
 

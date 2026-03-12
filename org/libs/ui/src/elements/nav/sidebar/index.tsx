@@ -1,6 +1,6 @@
-import '@/css/elements/nav/sidebar/index.css'
+import '@lmthing/css/elements/nav/sidebar/index.css'
 import * as React from 'react'
-import { cn } from '@/lib/utils'
+import { cn } from '../../../lib/utils'
 
 export interface SidebarProps extends React.ComponentProps<'nav'> {
   collapsed?: boolean

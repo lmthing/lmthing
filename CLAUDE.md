@@ -453,3 +453,94 @@ All frontend apps share the same stack:
 - [org/libs/state/](./org/libs/state/) — VFS library source
 - [org/libs/css/](./org/libs/css/) — shared styles
 - [org/libs/ui/](./org/libs/ui/) — shared UI components
+
+
+# Agent Notes
+
+This repository is a monorepo organized by TLD — each lmthing.* domain has its own top-level directory.
+
+## Shared Libraries
+
+- `org/libs/core/` — Agentic framework (TypeScript, Vercel AI SDK v6). StatefulPrompt system with React-like hooks, plugins, multi-provider support, CLI (`lmthing run`).
+- `org/libs/state/` — Virtual file system (`@lmthing/state`). In-memory Map-based VFS with FSEventBus, React context hierarchy, and hooks (`useFile`, `useDir`, `useGlob`, `useDraft`).
+- `org/libs/css/` — Shared styles used across all product domains.
+- `org/libs/ui/` — Shared React UI components used across all product domains.
+
+## Cloud Backend
+
+- `cloud/` — Supabase Edge Functions (Deno). Nine functions: `generate-ai`, `list-models`, `create-api-key`, `list-api-keys`, `revoke-api-key`, `create-checkout`, `billing-portal`, `get-usage`, `stripe-webhook`. Shared modules in `_shared/`.
+
+## Product Domains
+
+- `studio/` — Agent builder UI (React 19, Vite 7, TanStack Router, Tailwind 4, Radix UI). Primary development surface.
+- `chat/` — Personal THING interface.
+- `blog/` — Personalized AI news.
+- `space/` — Fly.io agent runtime.
+- `social/` — Public hive mind.
+- `team/` — Private agent rooms.
+- `store/` — Agent marketplace.
+- `casa/` — Smart home (Home Assistant integration).
+- `com/` — Commercial landing page.
+
+
+## Spaces Architecture
+
+A **Space** is a self-contained workspace with three pillars: **Agents**, **Flows**, and **Knowledge**.
+
+```
+{space-slug}/
+├── package.json              # metadata (name, version)
+├── agents/                   # AI specialists
+│   └── agent-{role}/
+│       ├── config.json       # runtime field requirements
+│       ├── instruct.md       # personality, tools, slash actions
+│       ├── values.json       # runtime state (starts empty)
+│       └── conversations/
+├── flows/                    # step-by-step workflows
+│   └── flow_{action}/
+│       ├── index.md          # overview + step links
+│       └── {N}.Step Name.md  # numbered steps
+└── knowledge/                # structured domain data
+    └── {domain}/
+        ├── config.json       # section: label, icon, color
+        └── {field}/
+            ├── config.json   # field: type, default, variableName
+            └── option-a.md   # selectable option with frontmatter
+```
+
+### Agents
+
+Each agent is a specialist with a distinct role (e.g., `FormulaExpert`, `DataAnalyst`). An agent's `instruct.md` defines:
+
+- **Name** (PascalCase), **description**, **tools** (kebab-case)
+- **selectedDomains** — which knowledge domains the agent can access (prefixed `domain-`)
+- **slash_actions** — commands that trigger linked flows (`flowId → flow_{action}`)
+
+The `config.json` declares **emptyFieldsForRuntime** — knowledge fields that need user input before the agent can run (mapping domain → field names).
+
+### Flows
+
+Flows are sequential, numbered step guides (4–8 steps) that an agent executes when a slash action is invoked. Each step is a discrete markdown file (`1.Step Name.md`, `2.Step Name.md`, etc.) linked from `index.md`.
+
+### Knowledge Base
+
+A hierarchical, structured context system injected into agent prompts:
+
+- **Domains** — top-level categories with `renderAs: "section"`, each with a label, emoji icon, and hex color
+- **Fields** — typed inputs (`select`, `multiSelect`, `text`, `number`) with a `variableName` for template injection
+- **Options** — markdown files with YAML frontmatter (`title`, `description`, `order`) containing detailed guidance
+
+This structure lets agents pull rich, user-configured context at runtime — the knowledge base acts as a declarative configuration layer that shapes agent behavior without modifying prompts directly.
+
+### Naming Conventions
+
+| Thing | Convention | Example |
+|-------|-----------|---------|
+| Folders | `kebab-case` | `agent-formula-expert` |
+| Variables | `camelCase` | `gradeLevel` |
+| Agent names | `PascalCase` | `FormulaExpert` |
+| Flow IDs | `snake_case` + `flow_` prefix | `flow_generate_report` |
+
+## Key Documentation
+
+- [Architecture.md](./Architecture.md) — full product & domain architecture

@@ -1,0 +1,11 @@
+# Domain	Port
+studio.local	3000
+chat.local	3001
+com.local	3002
+social.local	3003
+store.local	3004
+space.local	3005
+team.local	3006
+blog.local	3007
+casa.local	3008
+cloud.local	3009

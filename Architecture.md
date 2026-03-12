@@ -58,11 +58,11 @@ graph TD
 
     subgraph ForProfit["lmthing.com · For-Profit"]
         Com["lmthing.com<br/>Commercial entity<br/>Owns lmthing.cloud"]
-        Blog["lmthing.blog<br/>Personalized AI news<br/>Custom feeds · Deep research<br/>Public profile publishing"]
     end
 
     subgraph Products["Product Domains"]
         Studio["lmthing.studio<br/>Agent builder UI"]
+        Blog["lmthing.blog<br/>Personalized AI news<br/>Custom feeds · Deep research<br/>Public profile publishing"]
         Chat["lmthing.chat<br/>Personal THING instance<br/>Free tier (limited tokens, select models)<br/>Premium (paid models, token usage)"]
         Space["lmthing.space<br/>Fly.io node terminal access<br/>THING personal agent runtime env"]
         Social["lmthing.social<br/>Public hive mind<br/>Multi-agent parallel exploration<br/>Shared context (public)"]
@@ -89,6 +89,7 @@ graph TD
     style Casa fill:#f59e0b,color:#fff
     style Com fill:#4f46e5,color:#fff
     style Org fill:#059669,color:#fff
+    style Blog fill:#7c3aed,color:#fff
     style Studio fill:#7c3aed,color:#fff
     style Chat fill:#7c3aed,color:#fff
     style Space fill:#7c3aed,color:#fff
@@ -102,15 +103,15 @@ graph TD
 | Domain | Owner | Purpose |
 |--------|-------|---------|
 | **lmthing.org** | Non-profit | Open organization, community governance. Owns the github.com/lmthing repo & org, Twitter, and Instagram accounts |
-| **lmthing.blog** | For-profit | Personalized AI news — subscribe to RSS feeds and web searches, agent synthesizes and presents, deep research on demand, publish stories. Free tier ($1/week allowance, limited RSS), $5/month full access |
 | **lmth.ink** | Non-profit | URL shortener for sharing links across the ecosystem |
 | **lmthing.com** | For-profit | Commercial entity, owns and operates lmthing.cloud |
-| **lmthing.cloud** | For-profit | Managed services: AI gateway (Stripe-metered), Fly.io deploy agent, SLM fine-tuning |
-| **lmthing.studio** | Product | Visual agent builder — design agents with prompts, tools, knowledge, and workflows |
+| **lmthing.cloud** | For-profit | Managed services: AI gateway (Stripe-metered), Fly.io deploy agent, SLM fine-tuning. The money maker. |
+| **lmthing.studio** | Product | Visual agent builder — design agents with prompts, tools, knowledge, and workflows with the help of THING |
 | **lmthing.chat** | Product | Personal THING instance — free tier with limited tokens/models, premium for paid model access |
+| **lmthing.blog** | Product | Personalized AI news — subscribe to RSS feeds and web searches, agent synthesizes and presents, deep research on demand, publish stories. Free tier ($1/week allowance, limited RSS), $5/month full access |
 | **lmthing.space** | Product | Fly.io node terminal — runtime environment where THING personal agents execute |
 | **lmthing.social** | Product | Public hive mind — agents explore multiple solutions simultaneously, shared context is open |
-| **lmthing.team** | For-profit | Private rooms where agents share context behind closed doors |
+| **lmthing.team** | Product | Private rooms where agents share context behind closed doors |
 | **lmthing.casa** | Product | Full Home Assistant integration — a self-learning agent with complete HA control |
 
 ---
@@ -124,7 +125,7 @@ Four offers spanning free access to GPU compute. The free tier runs entirely in 
 | **Free** | $1/week allowance | WebContainer (browser) | Small models (Azure) + BYOK | Try lmthing, build agents locally |
 | **Blog Free** | $1/week allowance | — | Cheap model | Limited RSS feeds, personalized news |
 | **Blog** | $5/month | — | Cheap model | Unlimited RSS + web search subscriptions, deep research, publishing |
-| **Pay As You Go** | Per-token + 10% markup | Stripe AI Gateway | Gemini, GPT, Claude, DeepSeek, Kimi | Production agent usage, premium models |
+| **Pay As You Go** | Per-token + 10% markup | Stripe AI Gateway | Gemini, GPT, Claude, DeepSeek, Kimi | Production agent usage, premium models, user-configurable stop limits |
 | **Space** | $8/month (Fly.io cost $5) | Fly.io node (1 core, 1 GB) | Via gateway | Always-on personal THING agent |
 | **Fine-Tuning** | $10/GPU-hour ($7 Azure cost) | NVIDIA H100 (Azure CycleCloud) | Custom SLMs | Train specialized small language models |
 

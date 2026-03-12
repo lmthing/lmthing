@@ -44,7 +44,7 @@ jobs:
         run: pnpm build:pages
 
       - name: SPA fallback
-        run: cp app/dist/index.html app/dist/404.html
+        run: cp studio/dist/index.html studio/dist/404.html
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -52,7 +52,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: app/dist
+          path: studio/dist
 
 
       - name: Install dependencies
@@ -68,12 +68,12 @@ jobs:
           cd ..
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add app/package.json
+          git add studio/package.json
           git commit -m "chore: bump app version [skip ci]" || echo "No changes to commit"
           git push
 
       - name: SPA fallback
-        run: cp app/dist/index.html app/dist/404.html
+        run: cp studio/dist/index.html studio/dist/404.html
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -81,7 +81,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: app/dist
+          path: studio/dist
 
   deploy:
     name: Deploy

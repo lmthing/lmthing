@@ -25,6 +25,8 @@ graph TB
         T --> CreateKnowledge["Creates knowledge fields"]
         T --> CreateAgents["Spawns custom agents"]
         T --> Orchestrate["Orchestrates background processes"]
+        T --> Evaluate["Evaluates agents<br/>LLM-as-judge · Human eval"]
+        T --> GenDataset["Generates datasets<br/>Large model → SLM fine-tune"]
     end
 
     subgraph Agents["Spawned Agents"]
@@ -40,6 +42,9 @@ graph TB
 
     T --> A1 & A2 & A3
     A1 & A2 & A3 -. "async responses" .-> T
+    Evaluate -. "test until metrics pass" .-> A1 & A2 & A3
+    GenDataset -- "inputs" --> A1 & A2 & A3
+    GenDataset -- "fine-tune" --> SLM["SLM Fine-Tuning<br/>lmthing.cloud"]
     ChatUI --> T
     StudioUI -. "review · update" .-> CreateKnowledge
     StudioUI -. "review · update" .-> CreateAgents
@@ -153,6 +158,8 @@ Each product domain has its own routing structure, reflecting its distinct user 
 The agent builder. Each studio contains spaces (workspaces) where agents, workflows, and knowledge domains are created and edited. Studio can run without an account — users set a local password to encrypt API keys in localStorage env files (BYOK). 
 
 The THING assistant provides AI-powered workspace generation from natural language. THING can also spawn agents as background processes — these agents run independently and can trigger responses back to THING asynchronously, enabling parallel agentic workflows within the studio.
+
+Studio supports agent evaluation through metrics — using LLM-as-a-judge or human evaluation of results. THING can iteratively test an agent until all metrics pass. THING can also autonomously generate datasets by creating multiple inputs into Space agents using a large model, then use those datasets to fine-tune an SLM — closing the loop from evaluation to training.
 
 ```mermaid
 graph TD

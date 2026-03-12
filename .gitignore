@@ -8,3 +8,6 @@ dist/
 *.log
 .worktrees/
 **/*/tsconfig.tsbuildinfo
+
+# Local TLS certs
+.etc/certs/

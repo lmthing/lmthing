@@ -1,0 +1,41 @@
+@import "@lmthing/css/theme.css";
+
+@font-face {
+  font-family: 'TypeMates Cera Round Pro Bold';
+  src: url('/TypeMates  Cera Round Pro Bold.otf') format('opentype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Base layer styles */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    @apply font-semibold tracking-tight;
+  }
+  code, pre, kbd {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Subtle page fade-in animation */
+@layer utilities {
+  .animate-fade-in { animation: fade-in 200ms ease-out; }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+  .animate-collapse-down { animation: collapse-down 200ms ease-out; }
+  .animate-collapse-up { animation: collapse-up 200ms ease-out; }
+  @keyframes collapse-down { from { height: 0; } to { height: var(--radix-collapsible-content-height); } }
+  @keyframes collapse-up { from { height: var(--radix-collapsible-content-height); } to { height: 0; } }
+}
+
+@keyframes cozy-stream {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 0% 100%; }
+}

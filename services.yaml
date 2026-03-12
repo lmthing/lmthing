@@ -1,0 +1,50 @@
+services:
+  - name: studio
+    domain: lmthing.studio
+    local: studio.local
+    port: 3000
+
+  - name: chat
+    domain: lmthing.chat
+    local: chat.local
+    port: 3001
+
+  - name: com
+    domain: lmthing.com
+    local: com.local
+    port: 3002
+
+  - name: social
+    domain: lmthing.social
+    local: social.local
+    port: 3003
+
+  - name: store
+    domain: lmthing.store
+    local: store.local
+    port: 3004
+
+  - name: space
+    domain: lmthing.space
+    local: space.local
+    port: 3005
+
+  - name: team
+    domain: lmthing.team
+    local: team.local
+    port: 3006
+
+  - name: blog
+    domain: lmthing.blog
+    local: blog.local
+    port: 3007
+
+  - name: casa
+    domain: lmthing.casa
+    local: casa.local
+    port: 3008
+
+  - name: cloud
+    domain: lmthing.cloud
+    local: cloud.local
+    port: 3009

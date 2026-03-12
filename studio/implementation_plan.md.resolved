@@ -1,0 +1,99 @@
+# Refactor Colors and Fonts to Custom Theme
+
+## Proposed Changes
+
+### The JSON Source of Truth
+- **[NEW]** `src/theme.json`
+  - A comprehensive JSON file that acts as the absolute single source of truth for the entire design system.
+  - The structure will exhaustively define the required tokens for the app's Shadcn UI-based Tailwind environment:
+    ```json
+    {
+      "colors": {
+        "brand": ["#f5c815", "#f9a94a", "#f38358", "#ed92a1", "#d59ec8"],
+        "neutral": ["#cbcac8"],
+        "semantic": {
+          "background": "#ffffff",
+          "foreground": "#1c1917",
+          "card": "#ffffff",
+          "cardForeground": "#1c1917",
+          "popover": "#ffffff",
+          "popoverForeground": "#1c1917",
+          "primary": "#1c1917",
+          "primaryForeground": "#ffffff",
+          "secondary": "#f5f5f4",
+          "secondaryForeground": "#1c1917",
+          "muted": "#f5f5f4",
+          "mutedForeground": "#57534e",
+          "accent": "#f5f5f4",
+          "accentForeground": "#1c1917",
+          "destructive": "#e11d48",
+          "destructiveForeground": "#ffffff",
+          "border": "#e7e5e4",
+          "input": "#e7e5e4",
+          "ring": "#cbcac8"
+        },
+        "states": {
+          "hover": "rgba(28, 25, 23, 0.05)",
+          "active": "rgba(28, 25, 23, 0.1)",
+          "focus": "rgba(203, 202, 200, 0.5)",
+          "disabled": "#d6d3d1",
+          "disabledForeground": "#a8a29e"
+        },
+        "sidebar": {
+          "background": "#fafaf9",
+          "foreground": "#1c1917",
+          "primary": "#1c1917",
+          "primaryForeground": "#fafaf9",
+          "accent": "#f5f5f4",
+          "accentForeground": "#1c1917",
+          "border": "#e7e5e4",
+          "ring": "#a8a29e"
+        }
+      },
+      "radii": {
+        "sm": "0.125rem",
+        "md": "0.375rem",
+        "lg": "0.5rem",
+        "xl": "0.75rem",
+        "full": "9999px"
+      },
+      "typography": {
+        "fonts": {
+          "sans": "TypeMates Cera Round Pro Bold, system-ui, sans-serif",
+          "display": "TypeMates Cera Round Pro Bold, system-ui, sans-serif",
+          "mono": "ui-monospace, monospace"
+        }
+      }
+    }
+    ```
+
+### Build-Time Interpolation Script using Adobe Leonardo
+- **[NEW]** `scripts/generate-palette.mjs`
+  - A build script that executes before Vite/Next.js (`node scripts/generate-palette.mjs`).
+  - Uses the `@adobe/leonardo-contrast-colors` npm package to read `"brand": [...]` from `src/theme.json` and generate an accessibility-friendly interpolated color scale (e.g., generating an array of 50 colors, or a gradient map of keys from `brand-50` to `brand-900` along with abstract chart indexes).
+  - It writes this generated spectrum data to **[NEW]** `src/spectrum-palette.json`.
+- **[MODIFY]** [package.json](file:///home/vasilis/GEANT/lmthing/app/package.json)
+  - Install `@adobe/leonardo-contrast-colors` as a dev dependency.
+  - Add execution of `scripts/generate-palette.mjs` to `build`, `build:vite`, `dev`, and `dev:vite` scripts.
+
+### Tailwind Configuration Integration
+- **[NEW]** `src/utils/tailwind-theme-plugin.js` (or inline inside CSS using Tailwind v4 native vars)
+  - A Tailwind plugin script that requires both `src/theme.json` and `src/spectrum-palette.json`.
+  - Maps every extensive key (e.g., `semantic.background`, `states.hover`, `radii.md`, and the entire `spectrum-palette` array) into Tailwind's v4 `:root` CSS variables and config overrides.
+- **[MODIFY]** [src/index.css](file:///home/vasilis/GEANT/lmthing/app/src/index.css)
+  - Strip existing structural variables (`--background`, `--border`, `--radius`, etc.) as they are now injected by the plugin.
+  - Add `@font-face` pointing to `TypeMates Cera Round Pro Bold.otf` in the public directory and ensure `--font-sans` maps to it natively or via the plugin.
+
+### App Components & Usage
+- **[MODIFY]** [MarketplaceLayout.tsx](file:///home/vasilis/GEANT/lmthing/app/src/shell/MarketplaceLayout.tsx), [LandingLayout.tsx](file:///home/vasilis/GEANT/lmthing/app/src/shell/LandingLayout.tsx), and [CozyText.tsx](file:///home/vasilis/GEANT/lmthing/app/src/CozyText.tsx):
+  - Import the dynamic color array from `src/spectrum-palette.json` directly where explicit hex array iteration is needed.
+  - Standardize hardcoded CSS strings in React components to use Tailwind semantic variables (e.g., `bg-background`, `border-border`, `text-brand-300`).
+- **[MODIFY]** Demo config files and Markdown tables `app/src/demos/**/config.json`:
+  - Find refs to `color: "#XXXXX"` and align them to the established theme or Leonardo scale.
+
+## Verification Plan
+1. Check [package.json](file:///home/vasilis/GEANT/lmthing/app/package.json) for the new dependency `@adobe/leonardo-contrast-colors` and run `pnpm install`.
+2. Run `node scripts/generate-palette.mjs` directly to ensure `src/spectrum-palette.json` is accurately calculated and structured.
+3. Validate that `theme.json` accurately covers all existing Shadcn CSS variables previously found in [index.css](file:///home/vasilis/GEANT/lmthing/app/src/index.css).
+4. `pnpm run build` to verify Tailwind v4 successfully resolves the JSON configurations and maps CSS classes.
+5. Visually confirm UI components successfully render custom fonts, specific `radii` tokens, semantic state backgrounds, and Leonardo spectrum colors.

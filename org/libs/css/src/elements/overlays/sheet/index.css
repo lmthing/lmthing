@@ -1,0 +1,20 @@
+@reference "../../../theme.css";
+
+.sheet {
+  @apply fixed inset-y-0 z-50 h-full w-3/4 max-w-sm bg-background border-border shadow-xl
+         transition ease-in-out
+         data-[state=open]:animate-in data-[state=closed]:animate-out duration-300;
+}
+
+.sheet--right {
+  @apply right-0 border-l
+         data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right;
+}
+
+.sheet__content {
+  @apply flex flex-col h-full;
+}
+
+.sheet__header {
+  @apply flex items-center justify-between px-4 py-3 border-b border-border;
+}

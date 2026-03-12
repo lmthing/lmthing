@@ -1,0 +1,18 @@
+@reference "../../../theme.css";
+
+.panel {
+  @apply flex flex-col bg-background border border-border rounded-md overflow-hidden;
+}
+
+.panel--split {
+  @apply flex-row;
+}
+
+.panel__header {
+  @apply flex items-center justify-between px-4 py-2 border-b border-border
+         text-sm font-medium text-foreground;
+}
+
+.panel__body {
+  @apply flex-1 overflow-auto p-4;
+}

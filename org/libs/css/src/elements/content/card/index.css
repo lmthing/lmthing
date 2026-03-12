@@ -1,0 +1,21 @@
+@reference "../../../theme.css";
+
+.card {
+  @apply rounded-lg border border-border bg-card text-card-foreground shadow-sm;
+}
+
+.card--interactive {
+  @apply hover:shadow-md transition-shadow cursor-pointer;
+}
+
+.card__header {
+  @apply flex flex-col gap-1.5 p-4 pb-0;
+}
+
+.card__body {
+  @apply p-4;
+}
+
+.card__footer {
+  @apply flex items-center p-4 pt-0;
+}

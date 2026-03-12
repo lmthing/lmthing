@@ -1,7 +1,0 @@
-{
-    "label": "File Formats",
-    "description": "Exact schemas and validation rules for every file in a workspace",
-    "icon": "📋",
-    "color": "#f59e0b",
-    "renderAs": "section"
-}

@@ -1,0 +1,7 @@
+{
+  "label": "Meal Planning",
+  "description": "Meal types, occasions, courses, and serving configurations",
+  "icon": "🍽️",
+  "color": "#ed92a1",
+  "renderAs": "section"
+}

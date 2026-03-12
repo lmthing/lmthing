@@ -1,0 +1,10 @@
+@reference "../../../theme.css";
+
+.code-inline {
+  @apply font-mono text-sm bg-muted px-1.5 py-0.5 rounded text-foreground;
+}
+
+.code-block {
+  @apply font-mono text-sm bg-muted p-4 rounded-md overflow-x-auto
+         text-foreground leading-relaxed;
+}

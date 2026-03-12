@@ -1,0 +1,14 @@
+@reference "../../../theme.css";
+
+.label {
+  @apply text-sm font-medium leading-none text-foreground;
+}
+
+.label--sm {
+  @apply text-xs font-medium;
+}
+
+.label--required::after {
+  content: " *";
+  @apply text-destructive;
+}

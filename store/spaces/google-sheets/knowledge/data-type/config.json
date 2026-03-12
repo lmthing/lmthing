@@ -1,0 +1,7 @@
+{
+  "label": "Data Type Profile",
+  "description": "Identifying relevant categories of data in the spreadsheet",
+  "icon": "🔢",
+  "color": "#d59ec8",
+  "renderAs": "section"
+}

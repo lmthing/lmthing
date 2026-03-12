@@ -1,0 +1,91 @@
+{
+  "name": "@lmthing/state",
+  "version": "1.0.0",
+  "description": "LMThing File System Architecture - Layered, scoped file system with fine-grained event bus",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js"
+    },
+    "./fs": {
+      "types": "./dist/lib/fs/index.d.ts",
+      "import": "./dist/lib/fs/index.js"
+    },
+    "./contexts": {
+      "types": "./dist/lib/contexts/index.d.ts",
+      "import": "./dist/lib/contexts/index.js"
+    },
+    "./hooks": {
+      "types": "./dist/hooks/index.d.ts",
+      "import": "./dist/hooks/index.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "types": ["./dist/types/index.d.ts"],
+      "fs": ["./dist/lib/fs/index.d.ts"],
+      "contexts": ["./dist/lib/contexts/index.d.ts"],
+      "hooks": ["./dist/hooks/index.d.ts"]
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.test.ts",
+    "!**/*.test.tsx"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "test:run": "vitest run",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write .",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/react-hooks": "^8.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "@vitest/coverage-v8": "^2.1.0",
+    "@vitest/ui": "^2.1.0",
+    "eslint": "^9.0.0",
+    "jsdom": "^25.0.0",
+    "prettier": "^3.3.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "keywords": [
+    "file-system",
+    "event-bus",
+    "react-hooks",
+    "state-management",
+    "virtual-fs",
+    "typescript"
+  ],
+  "author": "LMThing",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lmthing/state"
+  }
+}

@@ -1,7 +1,0 @@
-{
-  "label": "Spreadsheet Config",
-  "description": "Configuration and technical details of the Google Sheet",
-  "icon": "📊",
-  "color": "#10b981",
-  "renderAs": "section"
-}

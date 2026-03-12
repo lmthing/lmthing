@@ -1,0 +1,21 @@
+@reference "../../../theme.css";
+
+.heading-1 {
+  @apply text-3xl font-semibold tracking-tight text-foreground;
+}
+
+.heading-2 {
+  @apply text-2xl font-semibold tracking-tight text-foreground;
+}
+
+.heading-3 {
+  @apply text-xl font-semibold tracking-tight text-foreground;
+}
+
+.heading-4 {
+  @apply text-base font-semibold tracking-tight text-foreground;
+}
+
+.heading--muted {
+  @apply text-muted-foreground;
+}

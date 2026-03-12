@@ -1,0 +1,9 @@
+@reference "../../../theme.css";
+
+.caption {
+  @apply text-xs text-muted-foreground leading-snug;
+}
+
+.caption--muted {
+  @apply text-muted-foreground/70;
+}

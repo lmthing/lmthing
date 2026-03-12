@@ -1,0 +1,7 @@
+{
+  "label": "Care Routine",
+  "description": "Environment and maintenance preferences",
+  "icon": "💧",
+  "color": "#f9a94a",
+  "renderAs": "section"
+}

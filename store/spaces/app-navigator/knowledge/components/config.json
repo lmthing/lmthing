@@ -1,0 +1,7 @@
+{
+    "label": "UI Components",
+    "description": "The reusable UI components that make up the lmthing interface",
+    "icon": "🧩",
+    "color": "#d59ec8",
+    "renderAs": "section"
+}

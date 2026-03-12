@@ -1,0 +1,9 @@
+@reference "../../../theme.css";
+
+.separator {
+  @apply block h-px w-full bg-border;
+}
+
+.separator--vertical {
+  @apply h-full w-px;
+}

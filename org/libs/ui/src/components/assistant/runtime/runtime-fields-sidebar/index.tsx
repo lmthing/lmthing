@@ -4,14 +4,14 @@
  * Values changed here dynamically update the system prompt.
  */
 import { useCallback } from 'react'
-import { Stack } from '@/elements/layouts/stack'
-import { Label } from '@/elements/typography/label'
-import { Caption } from '@/elements/typography/caption'
-import { Badge } from '@/elements/content/badge'
-import { Input } from '@/elements/forms/input'
-import { Textarea } from '@/elements/forms/textarea'
-import { Select, SelectOption } from '@/elements/forms/select'
-import { Panel, PanelHeader, PanelBody } from '@/elements/content/panel'
+import { Stack } from '@lmthing/ui/elements/layouts/stack'
+import { Label } from '@lmthing/ui/elements/typography/label'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
+import { Badge } from '@lmthing/ui/elements/content/badge'
+import { Input } from '@lmthing/ui/elements/forms/input'
+import { Textarea } from '@lmthing/ui/elements/forms/textarea'
+import { Select, SelectOption } from '@lmthing/ui/elements/forms/select'
+import { Panel, PanelHeader, PanelBody } from '@lmthing/ui/elements/content/panel'
 import type { SchemaField, FieldSchema } from '@/hooks/useFieldSchema'
 
 export type RuntimeValues = Record<string, string | string[] | boolean>

@@ -1,12 +1,12 @@
 import { useUIState } from '@lmthing/state'
 import { FolderPlus, X } from 'lucide-react'
-import { Button } from '@/elements/forms/button'
-import { Input } from '@/elements/forms/input'
-import { Textarea } from '@/elements/forms/textarea'
-import { Stack } from '@/elements/layouts/stack'
-import { Label } from '@/elements/typography/label'
-import { Caption } from '@/elements/typography/caption'
-import { Heading } from '@/elements/typography/heading'
+import { Button } from '@lmthing/ui/elements/forms/button'
+import { Input } from '@lmthing/ui/elements/forms/input'
+import { Textarea } from '@lmthing/ui/elements/forms/textarea'
+import { Stack } from '@lmthing/ui/elements/layouts/stack'
+import { Label } from '@lmthing/ui/elements/typography/label'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
+import { Heading } from '@lmthing/ui/elements/typography/heading'
 
 interface CreateFieldInlineProps {
     onSubmit: (name: string, description: string) => void

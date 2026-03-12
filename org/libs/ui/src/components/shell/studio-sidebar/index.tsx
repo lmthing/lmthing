@@ -18,7 +18,7 @@ import {
   ChevronRight as ChevronRightSmall,
   FileCode,
 } from 'lucide-react'
-import '@/css/elements/nav/sidebar/index.css'
+import '@lmthing/css/elements/nav/sidebar/index.css'
 import { buildSpacePathFromParams } from '@/lib/space-url'
 import { useAssistantList } from '@/hooks/useAssistantList'
 import type { AssistantListItem } from '@/hooks/useAssistantList'

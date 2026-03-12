@@ -13,6 +13,10 @@
   "sideEffects": [
     "**/*.css"
   ],
+  "peerDependencies": {
+    "tailwindcss": "^4.0.0",
+    "tw-animate-css": "*"
+  },
   "author": "LMThing",
   "license": "MIT"
 }

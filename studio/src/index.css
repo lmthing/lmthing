@@ -1,5 +1,4 @@
-@import "@lmthing/css/theme";
-@import "tw-animate-css";
+@import "@lmthing/css/theme.css";
 
 @font-face {
   font-family: 'TypeMates Cera Round Pro Bold';

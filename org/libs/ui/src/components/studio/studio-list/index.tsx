@@ -1,13 +1,13 @@
-import { Card, CardBody } from '@/elements/content/card'
-import { Stack } from '@/elements/layouts/stack'
-import { Page, PageHeader, PageBody } from '@/elements/layouts/page'
-import { Heading } from '@/elements/typography/heading'
-import { Caption } from '@/elements/typography/caption'
-import { Badge } from '@/elements/content/badge'
+import { Card, CardBody } from '@lmthing/ui/elements/content/card'
+import { Stack } from '@lmthing/ui/elements/layouts/stack'
+import { Page, PageHeader, PageBody } from '@lmthing/ui/elements/layouts/page'
+import { Heading } from '@lmthing/ui/elements/typography/heading'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
+import { Badge } from '@lmthing/ui/elements/content/badge'
 import { useSpace } from '@/hooks/useSpace'
-import '@/css/elements/content/card/index.css'
-import '@/css/elements/layouts/page/index.css'
-import '@/css/elements/layouts/stack/index.css'
+import '@lmthing/css/elements/content/card/index.css'
+import '@lmthing/css/elements/layouts/page/index.css'
+import '@lmthing/css/elements/layouts/stack/index.css'
 
 export function StudioList() {
   const space = useSpace()

@@ -1,8 +1,8 @@
 import type { Flow } from '@/../product/sections/flow-builder/types'
-import { Badge } from '@/elements/content/badge'
-import { Button } from '@/elements/forms/button'
-import { Label } from '@/elements/typography/label'
-import { Caption } from '@/elements/typography/caption'
+import { Badge } from '@lmthing/ui/elements/content/badge'
+import { Button } from '@lmthing/ui/elements/forms/button'
+import { Label } from '@lmthing/ui/elements/typography/label'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
 
 interface WorkflowCardProps {
   workflow: Flow

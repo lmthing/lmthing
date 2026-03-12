@@ -1,5 +1,5 @@
-import { Caption } from '@/elements/typography/caption'
-import '@/css/elements/content/card/index.css'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
+import '@lmthing/css/elements/content/card/index.css'
 
 interface ThingMessageProps {
   role: 'user' | 'assistant'

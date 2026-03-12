@@ -34,15 +34,29 @@
       "@/*": [
         "./src/*"
       ],
+      "@lmthing/ui": [
+        "../org/libs/ui/src"
+      ],
+      "@lmthing/ui/*": [
+        "../org/libs/ui/src/*"
+      ],
+      "@lmthing/css/*": [
+        "../org/libs/css/src/*"
+      ],
       "@lmthing/state": [
         "../org/libs/state/src/index.ts"
       ],
       "@lmthing/state/*": [
         "../org/libs/state/src/*"
+      ],
+      "lmthing": [
+        "../org/libs/core/src"
       ]
     }
   },
   "include": [
-    "src"
+    "src",
+    "../org/libs/ui/src",
+    "../org/libs/css/src"
   ]
 }

@@ -5,14 +5,14 @@
  */
 import { useMemo, useCallback } from 'react'
 import { useToggle, useUIState, useGlobRead } from '@lmthing/state'
-import { Button } from '@/elements/forms/button'
-import { Badge } from '@/elements/content/badge'
-import { CardFooter } from '@/elements/content/card'
-import { Stack } from '@/elements/layouts/stack'
-import { PanelHeader } from '@/elements/content/panel'
-import { Label } from '@/elements/typography/label'
-import { Caption } from '@/elements/typography/caption'
-import { Code } from '@/elements/typography/code'
+import { Button } from '@lmthing/ui/elements/forms/button'
+import { Badge } from '@lmthing/ui/elements/content/badge'
+import { CardFooter } from '@lmthing/ui/elements/content/card'
+import { Stack } from '@lmthing/ui/elements/layouts/stack'
+import { PanelHeader } from '@lmthing/ui/elements/content/panel'
+import { Label } from '@lmthing/ui/elements/typography/label'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
+import { Code } from '@lmthing/ui/elements/typography/code'
 
 interface PromptPreviewPanelProps {
   instructions: string

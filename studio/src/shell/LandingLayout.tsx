@@ -12,23 +12,23 @@ import {
   Sparkles,
   Brain,
 } from 'lucide-react'
-import { Button } from '@/elements/forms/button'
+import { Button } from '@lmthing/ui/elements/forms/button'
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/elements/overlays/dialog'
+} from '@lmthing/ui/elements/overlays/dialog'
 import { useGithub } from '@/lib/github/GithubContext'
 import { useAuth } from '@/lib/auth/useAuth'
 import { buildSpacePath } from '@/lib/space-url'
 import { CozyThingText } from '../CozyText'
 
-import '@/css/elements/forms/button/index.css'
-import '@/css/elements/forms/input/index.css'
-import '@/css/elements/content/card/index.css'
-import '@/css/elements/overlays/dialog/index.css'
+import '@lmthing/css/elements/forms/button/index.css'
+import '@lmthing/css/elements/forms/input/index.css'
+import '@lmthing/css/elements/content/card/index.css'
+import '@lmthing/css/elements/overlays/dialog/index.css'
 
 import themeData from '@/theme.json'
 

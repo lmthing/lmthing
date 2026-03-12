@@ -4,9 +4,9 @@
  * US-212: Export button for agent-specific export.
  * US-213: Thing toggle button.
  */
-import { Stack } from '@/elements/layouts/stack'
-import { Button } from '@/elements/forms/button'
-import { Input } from '@/elements/forms/input'
+import { Stack } from '@lmthing/ui/elements/layouts/stack'
+import { Button } from '@lmthing/ui/elements/forms/button'
+import { Input } from '@lmthing/ui/elements/forms/input'
 import { ArrowLeft, Bot, Download } from 'lucide-react'
 
 export interface AssistantHeaderProps {

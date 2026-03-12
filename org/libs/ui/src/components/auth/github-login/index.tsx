@@ -1,11 +1,11 @@
 import { useGithub } from '@/lib/github/GithubContext'
-import { Button } from '@/elements/forms/button'
-import { Stack } from '@/elements/layouts/stack'
-import { Label } from '@/elements/typography/label'
-import { Caption } from '@/elements/typography/caption'
-import { Card, CardBody } from '@/elements/content/card'
-import { Code } from '@/elements/typography/code'
-import { Avatar, AvatarImage, AvatarFallback } from '@/elements/content/avatar'
+import { Button } from '@lmthing/ui/elements/forms/button'
+import { Stack } from '@lmthing/ui/elements/layouts/stack'
+import { Label } from '@lmthing/ui/elements/typography/label'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
+import { Card, CardBody } from '@lmthing/ui/elements/content/card'
+import { Code } from '@lmthing/ui/elements/typography/code'
+import { Avatar, AvatarImage, AvatarFallback } from '@lmthing/ui/elements/content/avatar'
 
 export function GithubLogin() {
   const { login, logout, isAuthenticated, isLoadingAuth, user, deviceCodePrompt } = useGithub()

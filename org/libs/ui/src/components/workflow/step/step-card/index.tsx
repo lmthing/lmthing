@@ -1,9 +1,9 @@
 import type { Task, TaskType, TaskConfig } from '@/../product/sections/flow-builder/types'
-import { Badge } from '@/elements/content/badge'
-import { Button } from '@/elements/forms/button'
-import { Label } from '@/elements/typography/label'
-import { Caption } from '@/elements/typography/caption'
-import { Code } from '@/elements/typography/code'
+import { Badge } from '@lmthing/ui/elements/content/badge'
+import { Button } from '@lmthing/ui/elements/forms/button'
+import { Label } from '@lmthing/ui/elements/typography/label'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
+import { Code } from '@lmthing/ui/elements/typography/code'
 
 interface StepCardProps {
   step: Task

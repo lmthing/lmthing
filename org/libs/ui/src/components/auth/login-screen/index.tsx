@@ -4,8 +4,8 @@ import { useEffect, type FormEvent } from 'react'
 import { useUIState, useToggle } from '@lmthing/state'
 import { useAuth } from '@/lib/auth'
 
-import '@/css/elements/forms/button/index.css'
-import '@/css/elements/forms/input/index.css'
+import '@lmthing/css/elements/forms/button/index.css'
+import '@lmthing/css/elements/forms/input/index.css'
 import CozyThingText from '@/CozyText'
 
 export function LoginScreen() {

@@ -2,11 +2,11 @@
  * AssistantForm - Controlled form for assistant configuration.
  * Phase 2: Receives all state as props, no internal state for form values.
  */
-import { Stack } from '@/elements/layouts/stack'
-import { Caption } from '@/elements/typography/caption'
-import { Label } from '@/elements/typography/label'
-import { Badge } from '@/elements/content/badge'
-import { Card, CardBody } from '@/elements/content/card'
+import { Stack } from '@lmthing/ui/elements/layouts/stack'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
+import { Label } from '@lmthing/ui/elements/typography/label'
+import { Badge } from '@lmthing/ui/elements/content/badge'
+import { Card, CardBody } from '@lmthing/ui/elements/content/card'
 import { FieldSelector } from '../field-selector'
 import type { DomainMeta } from '@/hooks/useKnowledgeFields'
 import type { WorkflowListItem } from '@/hooks/useWorkflowList'

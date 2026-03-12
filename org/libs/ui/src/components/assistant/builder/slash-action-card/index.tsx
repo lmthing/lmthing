@@ -1,10 +1,10 @@
 import type { AttachedFlow } from '@/../product/sections/agent-builder/types'
-import { Button } from '@/elements/forms/button'
-import { Badge } from '@/elements/content/badge'
-import { Stack } from '@/elements/layouts/stack'
-import { Label } from '@/elements/typography/label'
-import { Caption } from '@/elements/typography/caption'
-import { Heading } from '@/elements/typography/heading'
+import { Button } from '@lmthing/ui/elements/forms/button'
+import { Badge } from '@lmthing/ui/elements/content/badge'
+import { Stack } from '@lmthing/ui/elements/layouts/stack'
+import { Label } from '@lmthing/ui/elements/typography/label'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
+import { Heading } from '@lmthing/ui/elements/typography/heading'
 
 interface SlashActionCardProps {
   attachedFlow: AttachedFlow

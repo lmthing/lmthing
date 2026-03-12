@@ -2,11 +2,11 @@
  * FieldSelector - Rich knowledge field selector with metadata.
  * Phase 5: Shows each field as a toggleable card with title, description, entry count.
  */
-import { Badge } from '@/elements/content/badge'
-import { Card, CardBody } from '@/elements/content/card'
-import { Stack } from '@/elements/layouts/stack'
-import { Label } from '@/elements/typography/label'
-import { Caption } from '@/elements/typography/caption'
+import { Badge } from '@lmthing/ui/elements/content/badge'
+import { Card, CardBody } from '@lmthing/ui/elements/content/card'
+import { Stack } from '@lmthing/ui/elements/layouts/stack'
+import { Label } from '@lmthing/ui/elements/typography/label'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
 import { useKnowledgeField } from '@/hooks/useKnowledgeField'
 import type { DomainMeta } from '@/hooks/useKnowledgeFields'
 

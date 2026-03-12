@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { TopicViewer } from '@/components/knowledge/topic-detail/topic-viewer'
+import { TopicViewer } from '@lmthing/ui/components/knowledge/topic-detail/topic-viewer'
 
 function TopicDetailPage() {
   const { fieldId, topicId } = Route.useParams()

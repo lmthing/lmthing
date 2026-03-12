@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Heading } from '@/elements/typography/heading'
-import { Caption } from '@/elements/typography/caption'
+import { Heading } from '@lmthing/ui/elements/typography/heading'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
 import { useWorkflowList } from '@/hooks/useWorkflowList'
-import { Badge } from '@/elements/content/badge'
-import { Stack } from '@/elements/layouts/stack'
+import { Badge } from '@lmthing/ui/elements/content/badge'
+import { Stack } from '@lmthing/ui/elements/layouts/stack'
 
 function WorkflowListPage() {
   const workflows = useWorkflowList()

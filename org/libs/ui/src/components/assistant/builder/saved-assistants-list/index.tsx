@@ -1,11 +1,11 @@
-import { Button } from '@/elements/forms/button'
-import { Card, CardBody, CardFooter } from '@/elements/content/card'
-import { Badge } from '@/elements/content/badge'
-import { Stack } from '@/elements/layouts/stack'
-import { PageBody } from '@/elements/layouts/page'
-import { Heading } from '@/elements/typography/heading'
-import { Label } from '@/elements/typography/label'
-import { Caption } from '@/elements/typography/caption'
+import { Button } from '@lmthing/ui/elements/forms/button'
+import { Card, CardBody, CardFooter } from '@lmthing/ui/elements/content/card'
+import { Badge } from '@lmthing/ui/elements/content/badge'
+import { Stack } from '@lmthing/ui/elements/layouts/stack'
+import { PageBody } from '@lmthing/ui/elements/layouts/page'
+import { Heading } from '@lmthing/ui/elements/typography/heading'
+import { Label } from '@lmthing/ui/elements/typography/label'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
 
 interface KnowledgeField {
   id: string

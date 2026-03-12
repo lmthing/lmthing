@@ -19,10 +19,10 @@ import {
   FolderPlus,
 } from 'lucide-react'
 import type { KnowledgeNode } from '@/types/space-data'
-import { Button } from '@/elements/forms/button'
-import { Input } from '@/elements/forms/input'
-import { Separator } from '@/elements/content/separator'
-import { cn } from '@/lib/utils'
+import { Button } from '@lmthing/ui/elements/forms/button'
+import { Input } from '@lmthing/ui/elements/forms/input'
+import { Separator } from '@lmthing/ui/elements/content/separator'
+import { cn } from '@lmthing/ui/lib/utils'
 import './FieldTree.css'
 
 export interface FieldTreeHandle {

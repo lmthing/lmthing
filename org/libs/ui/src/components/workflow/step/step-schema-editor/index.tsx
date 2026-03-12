@@ -1,12 +1,12 @@
 import { useEffect } from 'react'
 import { useUIState, useToggle } from '@lmthing/state'
 import type { JSONSchema } from '@/../product/sections/flow-builder/types'
-import { Button } from '@/elements/forms/button'
-import { Input } from '@/elements/forms/input'
-import { Textarea } from '@/elements/forms/textarea'
-import { Select, SelectOption } from '@/elements/forms/select'
-import { Label } from '@/elements/typography/label'
-import { Caption } from '@/elements/typography/caption'
+import { Button } from '@lmthing/ui/elements/forms/button'
+import { Input } from '@lmthing/ui/elements/forms/input'
+import { Textarea } from '@lmthing/ui/elements/forms/textarea'
+import { Select, SelectOption } from '@lmthing/ui/elements/forms/select'
+import { Label } from '@lmthing/ui/elements/typography/label'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
 
 interface StepSchemaEditorProps {
   value: JSONSchema | null

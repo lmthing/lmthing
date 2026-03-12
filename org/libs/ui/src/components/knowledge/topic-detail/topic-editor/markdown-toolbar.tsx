@@ -1,4 +1,4 @@
-import { Button } from '@/elements/forms/button'
+import { Button } from '@lmthing/ui/elements/forms/button'
 import {
   Bold,
   Italic,

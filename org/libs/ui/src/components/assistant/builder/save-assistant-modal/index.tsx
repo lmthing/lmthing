@@ -1,13 +1,13 @@
 import { useCallback, useEffect } from 'react'
 import { useUIState } from '@lmthing/state'
-import { Button } from '@/elements/forms/button'
-import { Input } from '@/elements/forms/input'
-import { Textarea } from '@/elements/forms/textarea'
-import { Stack } from '@/elements/layouts/stack'
-import { Heading } from '@/elements/typography/heading'
-import { Label } from '@/elements/typography/label'
-import { Caption } from '@/elements/typography/caption'
-import { CardFooter } from '@/elements/content/card'
+import { Button } from '@lmthing/ui/elements/forms/button'
+import { Input } from '@lmthing/ui/elements/forms/input'
+import { Textarea } from '@lmthing/ui/elements/forms/textarea'
+import { Stack } from '@lmthing/ui/elements/layouts/stack'
+import { Heading } from '@lmthing/ui/elements/typography/heading'
+import { Label } from '@lmthing/ui/elements/typography/label'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
+import { CardFooter } from '@lmthing/ui/elements/content/card'
 
 interface SaveAssistantModalProps {
   isOpen: boolean

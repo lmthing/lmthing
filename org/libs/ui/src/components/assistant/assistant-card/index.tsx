@@ -1,9 +1,9 @@
-import { Card, CardBody } from '@/elements/content/card'
-import { Heading } from '@/elements/typography/heading'
-import { Caption } from '@/elements/typography/caption'
-import { Badge } from '@/elements/content/badge'
+import { Card, CardBody } from '@lmthing/ui/elements/content/card'
+import { Heading } from '@lmthing/ui/elements/typography/heading'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
+import { Badge } from '@lmthing/ui/elements/content/badge'
 import { useAssistant } from '@/hooks/useAssistant'
-import '@/css/elements/content/card/index.css'
+import '@lmthing/css/elements/content/card/index.css'
 
 interface AssistantCardProps {
   id: string

@@ -1,14 +1,14 @@
 import React, { useRef, useEffect, useMemo } from 'react'
 import { useUIState, useToggle } from '@lmthing/state'
-import { Button } from '@/elements/forms/button'
-import { Textarea } from '@/elements/forms/textarea'
-import { Panel, PanelHeader, PanelBody } from '@/elements/content/panel'
-import { CardFooter } from '@/elements/content/card'
-import { Stack } from '@/elements/layouts/stack'
-import { Heading } from '@/elements/typography/heading'
-import { Caption } from '@/elements/typography/caption'
-import { Label } from '@/elements/typography/label'
-import { StructuredOutputDisplay } from '@/components/assistant/runtime/structured-output-display'
+import { Button } from '@lmthing/ui/elements/forms/button'
+import { Textarea } from '@lmthing/ui/elements/forms/textarea'
+import { Panel, PanelHeader, PanelBody } from '@lmthing/ui/elements/content/panel'
+import { CardFooter } from '@lmthing/ui/elements/content/card'
+import { Stack } from '@lmthing/ui/elements/layouts/stack'
+import { Heading } from '@lmthing/ui/elements/typography/heading'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
+import { Label } from '@lmthing/ui/elements/typography/label'
+import { StructuredOutputDisplay } from '@lmthing/ui/components/assistant/runtime/structured-output-display'
 
 export interface ChatMessage {
   id: string

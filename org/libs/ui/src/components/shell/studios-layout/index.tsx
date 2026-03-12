@@ -14,14 +14,14 @@ import {
   MessageSquare,
   Store,
 } from 'lucide-react'
-import '@/css/elements/layouts/page/index.css'
-import '@/css/elements/forms/button/index.css'
-import '@/css/elements/forms/input/index.css'
-import '@/css/elements/content/card/index.css'
-import { PageHeader, PageBody } from '@/elements/layouts/page'
-import { Card, CardBody } from '@/elements/content/card'
-import { Heading } from '@/elements/typography/heading'
-import { Caption } from '@/elements/typography/caption'
+import '@lmthing/css/elements/layouts/page/index.css'
+import '@lmthing/css/elements/forms/button/index.css'
+import '@lmthing/css/elements/forms/input/index.css'
+import '@lmthing/css/elements/content/card/index.css'
+import { PageHeader, PageBody } from '@lmthing/ui/elements/layouts/page'
+import { Card, CardBody } from '@lmthing/ui/elements/content/card'
+import { Heading } from '@lmthing/ui/elements/typography/heading'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
 import { useApp, useToggle, useUIState } from '@lmthing/state'
 import CozyThingText from '@/CozyText'
 

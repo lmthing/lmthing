@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { CheckCircle2, XCircle, Clock, AlertCircle } from 'lucide-react'
-import { Badge } from '@/elements/content/badge'
+import { Badge } from '@lmthing/ui/elements/content/badge'
 
 interface GithubDeploymentStatusProps {
   repo: string

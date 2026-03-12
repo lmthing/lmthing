@@ -1,10 +1,10 @@
-import { Button } from '@/elements/forms/button'
-import { Card, CardBody, CardFooter } from '@/elements/content/card'
-import { Badge } from '@/elements/content/badge'
-import { Stack } from '@/elements/layouts/stack'
-import { PanelHeader } from '@/elements/content/panel'
-import { Label } from '@/elements/typography/label'
-import { Caption } from '@/elements/typography/caption'
+import { Button } from '@lmthing/ui/elements/forms/button'
+import { Card, CardBody, CardFooter } from '@lmthing/ui/elements/content/card'
+import { Badge } from '@lmthing/ui/elements/content/badge'
+import { Stack } from '@lmthing/ui/elements/layouts/stack'
+import { PanelHeader } from '@lmthing/ui/elements/content/panel'
+import { Label } from '@lmthing/ui/elements/typography/label'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
 
 export type ToolConfigStatus = 'installed' | 'needs-config' | 'ready'
 

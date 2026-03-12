@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Heading } from '@/elements/typography/heading'
-import { Caption } from '@/elements/typography/caption'
-import '@/css/elements/layouts/page/index.css'
-import '@/css/elements/forms/button/index.css'
-import '@/css/elements/forms/input/index.css'
+import { Heading } from '@lmthing/ui/elements/typography/heading'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
+import '@lmthing/css/elements/layouts/page/index.css'
+import '@lmthing/css/elements/forms/button/index.css'
+import '@lmthing/css/elements/forms/input/index.css'
 
 function NewWorkflowPage() {
   return (

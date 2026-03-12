@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Star } from 'lucide-react'
-import { Caption } from '@/elements/typography/caption'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
 
 interface GithubStarsProps {
   repo: string

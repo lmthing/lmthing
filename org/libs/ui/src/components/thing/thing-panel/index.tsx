@@ -11,8 +11,8 @@ import { z } from 'zod'
 import { useApp, useUIState, useToggle } from '@lmthing/state'
 import { CozyThingText } from '@/CozyText'
 
-import '@/css/elements/forms/button/index.css'
-import '@/css/elements/forms/input/index.css'
+import '@lmthing/css/elements/forms/button/index.css'
+import '@lmthing/css/elements/forms/input/index.css'
 
 // ── Types ──────────────────────────────────────────────────────────────
 

@@ -1,11 +1,11 @@
-import { Card, CardBody } from '@/elements/content/card'
-import { Badge } from '@/elements/content/badge'
-import { Stack } from '@/elements/layouts/stack'
-import { Page, PageHeader, PageBody } from '@/elements/layouts/page'
-import { Separator } from '@/elements/content/separator'
-import { Heading } from '@/elements/typography/heading'
-import { Label } from '@/elements/typography/label'
-import { Caption } from '@/elements/typography/caption'
+import { Card, CardBody } from '@lmthing/ui/elements/content/card'
+import { Badge } from '@lmthing/ui/elements/content/badge'
+import { Stack } from '@lmthing/ui/elements/layouts/stack'
+import { Page, PageHeader, PageBody } from '@lmthing/ui/elements/layouts/page'
+import { Separator } from '@lmthing/ui/elements/content/separator'
+import { Heading } from '@lmthing/ui/elements/typography/heading'
+import { Label } from '@lmthing/ui/elements/typography/label'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
 
 export interface RuntimeAssistant {
   id: string

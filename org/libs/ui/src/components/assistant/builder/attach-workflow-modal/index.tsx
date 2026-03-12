@@ -11,14 +11,14 @@ import {
   DialogTitle,
   DialogDescription,
   DialogClose,
-} from '@/elements/overlays/dialog'
-import { Button } from '@/elements/forms/button'
-import { Input } from '@/elements/forms/input'
-import { Stack } from '@/elements/layouts/stack'
-import { Label } from '@/elements/typography/label'
-import { Caption } from '@/elements/typography/caption'
-import { Badge } from '@/elements/content/badge'
-import { Card, CardBody } from '@/elements/content/card'
+} from '@lmthing/ui/elements/overlays/dialog'
+import { Button } from '@lmthing/ui/elements/forms/button'
+import { Input } from '@lmthing/ui/elements/forms/input'
+import { Stack } from '@lmthing/ui/elements/layouts/stack'
+import { Label } from '@lmthing/ui/elements/typography/label'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
+import { Badge } from '@lmthing/ui/elements/content/badge'
+import { Card, CardBody } from '@lmthing/ui/elements/content/card'
 import { Search, Zap } from 'lucide-react'
 import type { WorkflowListItem } from '@/hooks/useWorkflowList'
 

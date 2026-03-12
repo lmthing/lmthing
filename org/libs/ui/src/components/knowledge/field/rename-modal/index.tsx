@@ -1,10 +1,10 @@
 import { useEffect, useCallback, useRef } from 'react'
 import { useUIState } from '@lmthing/state'
-import { Heading } from '@/elements/typography/heading'
-import { Label } from '@/elements/typography/label'
-import { Caption } from '@/elements/typography/caption'
-import { Button } from '@/elements/forms/button'
-import { Input } from '@/elements/forms/input'
+import { Heading } from '@lmthing/ui/elements/typography/heading'
+import { Label } from '@lmthing/ui/elements/typography/label'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
+import { Button } from '@lmthing/ui/elements/forms/button'
+import { Input } from '@lmthing/ui/elements/forms/input'
 import { X } from 'lucide-react'
 
 interface RenameModalProps {

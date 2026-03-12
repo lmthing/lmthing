@@ -5,8 +5,8 @@
  */
 import { useToggle, useUIState } from '@lmthing/state'
 import { useKnowledgeField } from '@/hooks/useKnowledgeField'
-import { Caption } from '@/elements/typography/caption'
-import { Label } from '@/elements/typography/label'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
+import { Label } from '@lmthing/ui/elements/typography/label'
 import { ChevronDown, ChevronRight, Folder } from 'lucide-react'
 
 interface KnowledgeAccordionCardProps {

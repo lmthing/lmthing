@@ -3,9 +3,9 @@
  * US-213 / C10: Slides in from right, full height, close button.
  */
 import { useEffect, useRef } from 'react'
-import { Heading } from '@/elements/typography/heading'
-import { Caption } from '@/elements/typography/caption'
-import { Button } from '@/elements/forms/button'
+import { Heading } from '@lmthing/ui/elements/typography/heading'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
+import { Button } from '@lmthing/ui/elements/forms/button'
 import { Bot, X } from 'lucide-react'
 
 export interface ThingPanelProps {

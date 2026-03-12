@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Heading } from '@/elements/typography/heading'
-import { Caption } from '@/elements/typography/caption'
+import { Heading } from '@lmthing/ui/elements/typography/heading'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
 
 function StepDetailPage() {
   const { workflowId, stepId } = Route.useParams()

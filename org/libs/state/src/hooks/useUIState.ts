@@ -16,11 +16,6 @@ import { useApp } from './studio/useApp'
 export function useUIState<T>(key: string, initial: T): [T, (value: T | ((prev: T) => T)) => void] {
   const { ui } = useApp()
 
-  // Initialize on first access
-  if (!ui.has(key)) {
-    ui.set(key, initial)
-  }
-
   const value = useSyncExternalStore(
     cb => ui.subscribe(cb),
     () => {

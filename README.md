@@ -1,68 +1,68 @@
 # lmthing
 
-lmthing is a complete platform for building, managing, and deploying AI agents with structured knowledge. It combines a powerful TypeScript agent framework with an intuitive visual studio.
+A complete platform for building, running, and deploying AI agents. At its center is **THING** — a super agent that creates knowledge fields, spawns custom agents on demand, and orchestrates them to solve complex tasks.
 
-## Components
-
-### 🎨 Lmthing Studio (`app/`)
-
-A visual interface for building AI agents without code. Studio provides:
-
-- **Agent Builder**: Configure AI agents with custom prompts, tools, and behaviors
-- **Knowledge Management**: Organize markdown-based knowledge into searchable domains
-- **Flow Builder**: Design multi-step workflows with a visual editor
-- **Agent Runtime**: Test and interact with agents in real-time conversations
-- **THING Assistant**: AI-powered workspace generation that creates complete agent setups from natural language descriptions
-
-Built with React, TypeScript, and Vite. Perfect for domain experts who want to create AI agents using their expertise without writing code.
-
-### ⚙️ Lmthing Agent Framework (`lib/core/`)
-
-A TypeScript/JavaScript library for building sophisticated AI agents with stateful prompts and tool execution.
-
-**Key Features:**
-- **StatefulPrompt**: React-like hooks (`defState`, `defEffect`) for managing agent state across conversation steps
-- **Tool System**: Define and execute custom tools with built-in validation and error handling
-- **Multi-Provider Support**: Works with OpenAI, Anthropic, Google, and other LLM providers
-- **Streaming**: Native support for streaming responses and tool execution
-- **CLI & Runtime**: Run agents from the command line or embed in your applications
-
-The framework powers the Studio runtime and can be used independently to build custom AI applications.
+The ecosystem spans a non-profit (lmthing.org), a commercial entity (lmthing.com), and product domains: Studio for building, Chat for conversing, Space for deploying, Blog for personalized AI news, Social for collective intelligence, Team for private collaboration, Store for the agent marketplace, and Casa for smart home control.
 
 ## Getting Started
 
 ```bash
-# Install dependencies
+# Clone and install
+git clone git@github.com:lmthing/lmthing.git
+cd lmthing
 pnpm install
 
-# Run Studio in development mode
-pnpm --filter app dev
-
-# Build the agent framework
-pnpm --filter @lmthing/core build
-
-# Run agent framework examples
-cd lib/core && pnpm run example:basic
+# Run Studio (the main development surface)
+cd studio
+pnpm dev
 ```
 
-## Documentation
-
-- [Studio Documentation](./app/README.md)
-- [Agent Framework Documentation](./lib/core/README.md)
-- [Getting Started Guide](./docs/getting-started.md)
-- [Product Overview](./docs/product-planning.md)
+**Prerequisites:** Node.js >= 20, pnpm >= 9, Deno (for cloud/edge functions), Git
 
 ## Repository Structure
 
+The monorepo is organized by TLD — each lmthing.* domain has its own top-level directory.
+
 ```
 lmthing/
-├── app/              # Lmthing Studio (React application)
-├── lib/
-│   └── core/        # Agent framework (TypeScript library)
-├── docs/            # Documentation
-└── page-descriptions/ # UI specifications
+├── org/                    # Non-profit / open-source
+│   ├── libs/               # Shared libraries used across all domains
+│   │   ├── core/           # lmthing — agentic framework (TypeScript, Vercel AI SDK v6)
+│   │   ├── state/          # @lmthing/state — virtual file system (React hooks, Map-based VFS)
+│   │   ├── css/            # Shared styles
+│   │   └── ui/             # Shared UI components
+│   └── docs/               # Documentation
+├── cloud/                  # @lmthing/cloud — Supabase Edge Functions (Deno)
+├── studio/                 # lmthing.studio — agent builder UI (React 19, Vite 7, TanStack Router)
+├── chat/                   # lmthing.chat — personal THING interface
+├── blog/                   # lmthing.blog — personalized AI news
+├── space/                  # lmthing.space — Fly.io agent runtime
+├── social/                 # lmthing.social — public hive mind
+├── team/                   # lmthing.team — private agent rooms
+├── store/                  # lmthing.store — agent marketplace
+├── casa/                   # lmthing.casa — smart home (Home Assistant)
+├── com/                    # lmthing.com — commercial landing page
+├── pnpm-workspace.yaml
+└── package.json
 ```
+
+## Key Packages
+
+| Directory | Package | Stack |
+|-----------|---------|-------|
+| `org/libs/core/` | lmthing | TypeScript, Vercel AI SDK v6, Zod, vm2 |
+| `org/libs/state/` | @lmthing/state | React hooks, Map-based VFS, FSEventBus |
+| `org/libs/css/` | — | Shared CSS |
+| `org/libs/ui/` | — | Shared React components |
+| `cloud/` | @lmthing/cloud | Deno, Supabase Edge Functions, @stripe/ai-sdk |
+| `studio/` | @lmthing/studio | React 19, Vite 7, TanStack Router, Tailwind 4, Radix UI |
+
+## Documentation
+
+- [Architecture](./Architecture.md) — full product & domain architecture
+- [Tech Architecture](./TechArchitecture.md) — developer onboarding & system overview
+- [Cloud Backend](./cloud/README.md) — cloud setup & deployment
 
 ## License
 
-See [LICENSE](./app/LICENSE) for details.
+See [LICENSE](./LICENSE) for details.

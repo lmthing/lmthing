@@ -1,0 +1,39 @@
+{
+  "name": "@lmthing/social",
+  "private": true,
+  "version": "0.0.1",
+  "packageManager": "pnpm@10.17.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "dependencies": {
+    "@lmthing/css": "workspace:*",
+    "@lmthing/state": "workspace:*",
+    "@lmthing/ui": "workspace:*",
+    "lmthing": "workspace:*",
+    "@tailwindcss/vite": "^4.1.17",
+    "@tanstack/react-router": "^1.166.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.575.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwind-merge": "^3.4.0",
+    "tailwindcss": "^4.1.17"
+  },
+  "devDependencies": {
+    "@tanstack/router-plugin": "^1.166.2",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
+    "typescript": "~5.9.3",
+    "vite": "^7.2.4",
+    "vitest": "^4.0.18"
+  }
+}

@@ -8,5 +8,12 @@
     "build:pages": "pnpm --filter ./studio build:pages",
     "lint": "pnpm --filter ./studio lint",
     "preview": "pnpm --filter ./studio preview"
+  },
+  "pnpm": {
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "@tailwindcss/vite>vite": "^8.0.0"
+      }
+    }
   }
 }

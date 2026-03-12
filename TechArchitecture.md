@@ -21,8 +21,11 @@ The monorepo is organized by TLD — each lmthing.* domain has its own top-level
 ```
 lmthing/
 ├── org/                    # Non-profit / open-source
-│   ├── core/               # lmthing — agentic framework (TypeScript, Vercel AI SDK v6)
-│   ├── state/              # @lmthing/state — virtual file system (React hooks, Map-based VFS)
+│   ├── libs/               # Shared libraries used across all domains
+│   │   ├── core/           # lmthing — agentic framework (TypeScript, Vercel AI SDK v6)
+│   │   ├── state/          # @lmthing/state — virtual file system (React hooks, Map-based VFS)
+│   │   ├── css/            # Shared styles
+│   │   └── ui/             # Shared UI components
 │   └── docs/               # Documentation
 ├── cloud/                  # @lmthing/cloud — Supabase Edge Functions (Deno)
 ├── studio/                 # lmthing.studio — agent builder UI (React 19, Vite 7, TanStack Router)
@@ -78,7 +81,7 @@ graph TB
         Stripe --> Providers
     end
 
-    subgraph Library["org/core"]
+    subgraph Library["org/libs/core"]
         Core["lmthing Framework<br/>Vercel AI SDK · Plugins · CLI"]
     end
 
@@ -92,7 +95,7 @@ graph TB
 
 ## Key Packages
 
-### org/core — Agent Framework
+### org/libs/core — Agent Framework
 
 The agentic framework powering all of lmthing. Two modes of operation:
 
@@ -158,7 +161,7 @@ graph TB
     SDK --> Providers
 ```
 
-### org/state — Virtual File System
+### org/libs/state — Virtual File System
 
 In-memory VFS for browser-based workspace management:
 - `Map<string, string>` storage with `FSEventBus` for fine-grained subscriptions (file, dir, glob, prefix)
@@ -376,5 +379,7 @@ Different products run agents in different environments:
 
 - [Architecture.md](./Architecture.md) — full product & domain architecture
 - [cloud/README.md](./cloud/README.md) — cloud backend setup & deployment
-- [org/core/](./org/core/) — agent framework source
-- [org/state/](./org/state/) — VFS library source
+- [org/libs/core/](./org/libs/core/) — agent framework source
+- [org/libs/state/](./org/libs/state/) — VFS library source
+- [org/libs/css/](./org/libs/css/) — shared styles
+- [org/libs/ui/](./org/libs/ui/) — shared UI components

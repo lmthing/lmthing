@@ -289,15 +289,19 @@ graph TD
 
 ## Monorepo Structure
 
-The monorepo is organized by TLD — each lmthing domain gets its own top-level directory. Shared libraries live under `org/` (non-profit / open-source), and the cloud backend lives under `cloud/`. Product domains (`blog/`, `casa/`, `chat/`, `com/`, `social/`, `space/`, `store/`, `studio/`, `team/`) each contain the codebase for their respective lmthing.* surface.
+The monorepo is organized by TLD — each lmthing domain gets its own top-level directory. Shared libraries live under `org/libs/` (non-profit / open-source), including the core framework, VFS state library, shared CSS, and UI components used across all domains. The cloud backend lives under `cloud/`. Product domains (`blog/`, `casa/`, `chat/`, `com/`, `social/`, `space/`, `store/`, `studio/`, `team/`) each contain the codebase for their respective lmthing.* surface.
 
 ```mermaid
 graph LR
     Root["pnpm workspace"]
 
     subgraph Org["org/ · Non-Profit"]
-        Core["org/core/<br/>lmthing"]
-        State["org/state/<br/>@lmthing/state"]
+        subgraph Libs["org/libs/"]
+            Core["core/<br/>lmthing"]
+            State["state/<br/>@lmthing/state"]
+            CSS["css/<br/>Shared styles"]
+            UI["ui/<br/>Shared components"]
+        end
         Docs["org/docs/"]
     end
 
@@ -320,15 +324,17 @@ graph LR
     Root --> Org
     Root --> Cloud
     Root --> Products
-    StudioDir --> State
-    StudioDir -- "HTTP" --> CloudPkg
-    Core -. "shared types" .-> StudioDir
+    Products --> State & CSS & UI
+    Products -- "HTTP" --> CloudPkg
+    Core -. "shared types" .-> Products
 ```
 
 | Directory | Name | Stack | Role |
 |-----------|------|-------|------|
-| `org/core/` | lmthing | TypeScript, Vercel AI SDK v6, Zod, vm2 | Agentic framework — stateful prompts, plugins, tool execution, multi-provider support |
-| `org/state/` | @lmthing/state | React hooks, Map-based VFS, FSEventBus | Virtual file system with scoped contexts, event subscriptions, and glob matching |
+| `org/libs/core/` | lmthing | TypeScript, Vercel AI SDK v6, Zod, vm2 | Agentic framework — stateful prompts, plugins, tool execution, multi-provider support |
+| `org/libs/state/` | @lmthing/state | React hooks, Map-based VFS, FSEventBus | Virtual file system with scoped contexts, event subscriptions, and glob matching |
+| `org/libs/css/` | — | CSS | Shared styles used across all product domains |
+| `org/libs/ui/` | — | React components | Shared UI components used across all product domains |
 | `org/docs/` | — | Documentation | Project documentation |
 | `cloud/` | @lmthing/cloud | Deno, Supabase Edge Functions, @stripe/ai-sdk | Serverless backend — auth, billing, LLM proxy, API key management |
 | `studio/` | @lmthing/studio | React 19, Vite 7, TanStack Router, Tailwind 4, Radix UI | Visual studio for building and testing AI agents |

@@ -1,12 +1,22 @@
 # LMThing Architecture
 
-LMThing is a complete platform for building, running, and deploying AI agents. At its center is **THING** — a super agent that creates knowledge fields, spawns custom agents on demand, and orchestrates them to solve complex tasks. Everything THING produces is reviewable and updatable through Studio. The ecosystem spans a non-profit (lmthing.org), a commercial entity (lmthing.com), and product domains that each serve a distinct role: Studio for building, Chat for conversing, Space for deploying, Social for collective intelligence, Team for private collaboration, and Casa for smart home control. All powered by lmthing.cloud.
+LMThing is a complete platform for building, running, and deploying AI agents. At its center is **THING** — a super agent that creates knowledge fields, spawns custom agents on demand, and orchestrates them to solve complex tasks. Everything THING produces is reviewable and updatable through Studio. 
+
+The ecosystem spans a non-profit (lmthing.org), a commercial entity (lmthing.com), and product domains that each serve a distinct role: Studio for building, Chat for conversing, Space for deploying, Social for collective intelligence, Team for private collaboration, and Casa for smart home control. 
+
+All powered by lmthing.cloud.
 
 ---
 
 ## THING — The Super Agent
 
-THING is the core product of lmthing. It is a super agent that understands user needs and autonomously builds the infrastructure to address them. THING creates knowledge fields (structured domains of expertise), designs custom agents tailored to specific tasks, and defines the parameters those agents accept. When invoked, THING can spawn these agents as background processes that run independently and report back asynchronously. Users interact with THING directly through Chat (lmthing.chat), while everything THING creates — knowledge, agents, workflows — is fully visible, reviewable, and editable through Studio (lmthing.studio).
+THING is the core product of lmthing. It is a super agent that understands user needs and autonomously builds the infrastructure to address them. 
+
+THING creates knowledge fields (structured domains of expertise), designs custom agents tailored to specific tasks, and defines the parameters those agents accept. 
+
+When invoked, THING can spawn these agents as background processes that run independently and report back asynchronously. 
+
+Users interact with THING directly through Chat (lmthing.chat), while everything THING creates — knowledge, agents, workflows — is fully visible, reviewable, and editable through Studio (lmthing.studio).
 
 ```mermaid
 graph TB
@@ -124,23 +134,25 @@ graph TD
 
 Four offers spanning free access to GPU compute. The free tier runs entirely in the browser via WebContainers — no server needed. Paid tiers scale from token-based usage through dedicated infrastructure to GPU fine-tuning hours.
 
-| Tier | Price | Runtime | Models | Use Case |
-|------|-------|---------|--------|----------|
-| **Free** | $1/week allowance | WebContainer (browser) | Small models (Azure) + BYOK | Try lmthing, build agents locally |
-| **Blog Free** | $1/week allowance | — | Cheap model | Limited RSS feeds, personalized news |
-| **Blog** | $5/month | — | Cheap model | Unlimited RSS + web search subscriptions, deep research, publishing |
-| **Pay As You Go** | Per-token + 10% markup | Stripe AI Gateway | Gemini, GPT, Claude, DeepSeek, Kimi | Production agent usage, premium models, user-configurable stop limits |
-| **Space** | $8/month (Fly.io cost $5) | Fly.io node (1 core, 1 GB) | Via gateway | Always-on personal THING agent |
-| **Fine-Tuning** | $10/GPU-hour ($7 Azure cost) | NVIDIA H100 (Azure CycleCloud) | Custom SLMs | Train specialized small language models |
+| Tier | Price | Runtime | Use Case |
+|------|-------|---------|----------|
+| **Free** | $1/week allowance | WebContainer (browser) | Try lmthing, build agents locally (BYOK) |
+| **Blog Free** | $1/week allowance | — | Limited RSS feeds, personalized news |
+| **Blog** | $5/month | — | Unlimited RSS + web search subscriptions, deep research, publishing |
+| **Pay As You Go** | Per-token + 10% markup | Stripe AI Gateway | Production agent usage, premium models, user-configurable stop limits |
+| **Space** | $8/month (Fly.io cost $5) | Fly.io node (1 core, 1 GB) | Always-on personal THING agent |
+| **Fine-Tuning** | $10/GPU-hour ($7 Azure cost) | NVIDIA H100 (Azure CycleCloud) | Train specialized small language models |
 
 ---
-## Routing per Domain
+## Products
 
-Each product domain has its own routing structure, reflecting its distinct user experience.
+Each product domain has its own routing structure, reflecting its distinct user experience and complexity.
 
 ### lmthing.studio
 
-The agent builder. Users browse a marketplace or navigate into their own studios. Each studio contains spaces (workspaces) where agents, workflows, and knowledge domains are created and edited. Studio can run without an account — users set a local password to encrypt API keys in localStorage env files (BYOK). The THING assistant provides AI-powered workspace generation from natural language. THING can also spawn agents as background processes — these agents run independently and can trigger responses back to THING asynchronously, enabling parallel agentic workflows within the studio.
+The agent builder. Each studio contains spaces (workspaces) where agents, workflows, and knowledge domains are created and edited. Studio can run without an account — users set a local password to encrypt API keys in localStorage env files (BYOK). 
+
+The THING assistant provides AI-powered workspace generation from natural language. THING can also spawn agents as background processes — these agents run independently and can trigger responses back to THING asynchronously, enabling parallel agentic workflows within the studio.
 
 ```mermaid
 graph TD
@@ -187,7 +199,9 @@ graph TD
 
 ### lmthing.blog
 
-Personalized AI-generated news. Users subscribe to RSS feeds and web search queries. A THING agent continuously fetches, synthesizes, and presents news tailored to each user. Users can ask for deeper research on any topic, and the agent will investigate further. Users can also write and publish news stories to their public profile. Free tier with RSS feed limits; $5/month for full access using a cheap model.
+Personalized AI-generated news. Users subscribe to RSS feeds and web search queries. A THING agent continuously fetches, synthesizes, and presents news tailored to each user. Users can ask for deeper research on any topic, and the agent will investigate further. 
+
+Users can also write and publish news stories to their public profile. Free tier with RSS feed limits; $5/month for full access using a cheap model.
 
 ```mermaid
 graph TD

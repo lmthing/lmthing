@@ -65,4 +65,4 @@ Better CTA to open thingpanel in landing. Probably move GETStartedwiththing to t
 
 
 
-I am thing - lmthing
+I'mthing - lmthing

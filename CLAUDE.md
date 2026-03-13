@@ -31,7 +31,8 @@ lmthing/
 ├── studio/                 # lmthing.studio — agent builder UI (React 19, Vite 7, TanStack Router)
 ├── chat/                   # lmthing.chat — personal THING interface
 ├── blog/                   # lmthing.blog — personalized AI news
-├── space/                  # lmthing.space — Fly.io agent runtime
+├── computer/               # lmthing.computer — THING agent runtime (Fly.io node, terminal access)
+├── space/                  # lmthing.space — deploy spaces & publish agents
 ├── social/                 # lmthing.social — public hive mind
 ├── team/                   # lmthing.team — private agent rooms
 ├── store/                  # lmthing.store — agent marketplace
@@ -359,9 +360,10 @@ Different products run agents in different environments:
 | Product | Runtime |
 |---------|---------|
 | Studio | Browser (WebContainer for free tier) |
-| Space | Fly.io node (1 core, 1 GB) |
+| Computer | Fly.io node (1 core, 1 GB) — THING agent + studio spaces |
+| Space | Fly.io container — deployed spaces + published agents |
 | Blog | Shared serverless worker |
-| Casa | Space node → remote Home Assistant connection |
+| Casa | Computer node → remote Home Assistant connection |
 | Social/Team | Shared VFS + conversation log |
 
 ---
@@ -398,6 +400,7 @@ Each app runs on its own Vite dev server. The local proxy maps `*.local` domains
 | Store | 3004 | [store.local](http://store.local) |
 | Space | 3005 | [space.local](http://space.local) |
 | Team | 3006 | [team.local](http://team.local) |
+| Computer | 3010 | [computer.local](http://computer.local) |
 | Blog | 3007 | [blog.local](http://blog.local) |
 | Casa | 3008 | [casa.local](http://casa.local) |
 | Cloud | 3009 | [cloud.local](http://cloud.local) |
@@ -475,7 +478,8 @@ This repository is a monorepo organized by TLD — each lmthing.* domain has its
 - `studio/` — Agent builder UI (React 19, Vite 7, TanStack Router, Tailwind 4, Radix UI). Primary development surface.
 - `chat/` — Personal THING interface.
 - `blog/` — Personalized AI news.
-- `space/` — Fly.io agent runtime.
+- `computer/` — THING agent runtime. Where the THING agent and its studio spaces live and run on a Fly.io node. Visiting directly gives terminal access.
+- `space/` — Deploy spaces to containers with running agents, or publish agents for API access via the store.
 - `social/` — Public hive mind.
 - `team/` — Private agent rooms.
 - `store/` — Agent marketplace.

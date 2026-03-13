@@ -407,16 +407,15 @@
 
 .tool-call-display__collapsible-body {
   margin-top: 0.25rem;
-  @apply animate-fade-in;
+  @apply animate-in fade-in;
 }
 
 /* ── ToolCallCard ─────────────────────────────────────────────────── */
 
 .tool-call-card {
-  @apply group relative overflow-hidden rounded-lg border transition-all duration-300;
+  @apply relative overflow-hidden rounded-lg border transition-all duration-300 animate-in fade-in;
   border-color: color-mix(in srgb, var(--border) 80%, transparent);
   background: var(--card);
-  @apply animate-fade-in;
 }
 
 .tool-call-card:hover {

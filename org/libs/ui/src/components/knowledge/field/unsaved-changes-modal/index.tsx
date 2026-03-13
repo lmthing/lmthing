@@ -2,6 +2,7 @@ import { Heading } from '@lmthing/ui/elements/typography/heading'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
 import { Button } from '@lmthing/ui/elements/forms/button'
 import { X, AlertTriangle } from 'lucide-react'
+import '@lmthing/css/components/knowledge/index.css'
 
 interface UnsavedChangesModalProps {
   isOpen: boolean
@@ -16,36 +17,28 @@ export function UnsavedChangesModal({ isOpen, onDiscard, onCancel, onSave }: Uns
   return (
     <div className="dialog__backdrop" onClick={onCancel}>
       <div
-        className="dialog"
-        style={{ maxWidth: '24rem' }}
+        className="dialog unsaved-modal"
         onClick={e => e.stopPropagation()}
         onKeyDown={e => { if (e.key === 'Escape') onCancel() }}
       >
         <div className="dialog__header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <AlertTriangle style={{ width: '1.125rem', height: '1.125rem', color: '#f59e0b' }} />
+          <div className="unsaved-modal__header-content">
+            <AlertTriangle className="unsaved-modal__warning-icon" />
             <Heading level={3}>Unsaved Changes</Heading>
           </div>
           <Button variant="ghost" size="icon" onClick={onCancel}>
-            <X style={{ width: '1rem', height: '1rem' }} />
+            <X className="unsaved-modal__close-icon" />
           </Button>
         </div>
 
         <div className="dialog__content">
-          <div style={{ padding: '0 1.5rem' }}>
+          <div className="unsaved-modal__body">
             <Caption muted>
               You have unsaved changes. Do you want to save them before switching files?
             </Caption>
           </div>
 
-          <div style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: '0.75rem',
-            padding: '1rem 1.5rem',
-            borderTop: '1px solid var(--color-border)',
-            marginTop: '1rem',
-          }}>
+          <div className="unsaved-modal__footer">
             <Button variant="destructive" onClick={onDiscard}>Discard</Button>
             <Button variant="ghost" onClick={onCancel}>Cancel</Button>
             <Button variant="primary" onClick={onSave}>Save</Button>

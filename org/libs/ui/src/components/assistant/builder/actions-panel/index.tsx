@@ -1,3 +1,4 @@
+import '@lmthing/css/components/assistant/builder/index.css'
 import { Button } from '@lmthing/ui/elements/forms/button'
 import { Card, CardBody, CardFooter } from '@lmthing/ui/elements/content/card'
 import { Badge } from '@lmthing/ui/elements/content/badge'
@@ -36,9 +37,9 @@ export function ActionsPanel({
   onOpenWorkflowBuilder,
 }: ActionsPanelProps) {
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div className="actions-panel">
       <PanelHeader>
-        <Stack row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <Stack row className="actions-panel__header-row">
           <div>
             <Label compact>Slash Actions</Label>
             <Caption muted>Attach workflows with custom triggers</Caption>
@@ -47,12 +48,12 @@ export function ActionsPanel({
         </Stack>
       </PanelHeader>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '1rem' }}>
+      <div className="actions-panel__body">
         {attachedWorkflows.length === 0 ? (
-          <Stack style={{ textAlign: 'center', padding: '3rem 0' }}>
-            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⚡</div>
+          <Stack className="actions-panel__empty">
+            <div className="actions-panel__empty-icon">⚡</div>
             <Label>No actions attached</Label>
-            <Caption muted style={{ maxWidth: '200px', margin: '0 auto 1rem' }}>
+            <Caption muted className="actions-panel__empty-caption">
               Attach workflows to give users quick access to multi-step tasks
             </Caption>
             <Button onClick={onOpenWorkflowBuilder} variant="ghost" size="sm">Attach Your First Workflow</Button>
@@ -73,7 +74,7 @@ export function ActionsPanel({
       </div>
 
       <CardFooter>
-        <Caption muted style={{ textAlign: 'center', display: 'block' }}>
+        <Caption muted className="actions-panel__footer-caption">
           Actions are invoked with <Code>/action</Code>
         </Caption>
       </CardFooter>
@@ -90,19 +91,19 @@ function SlashActionCard({ workflow, onToggleEnabled, onEdit, onDetach }: {
   return (
     <Card interactive>
       <CardBody>
-        <Stack row gap="sm" style={{ alignItems: 'flex-start' }}>
-          <div style={{ fontSize: '1.25rem', flexShrink: 0 }}>⚡</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <Stack row gap="sm" style={{ alignItems: 'center', marginBottom: '0.25rem' }}>
+        <Stack row gap="sm" className="actions-panel__card-row">
+          <div className="actions-panel__card-icon">⚡</div>
+          <div className="actions-panel__card-content">
+            <Stack row gap="sm" className="actions-panel__card-title-row">
               <Code>/{workflow.slashAction.actionId}</Code>
-              <Badge variant={workflow.slashAction.enabled ? 'success' : 'muted'} style={{ fontSize: '0.625rem' }}>
+              <Badge variant={workflow.slashAction.enabled ? 'success' : 'muted'} className="actions-panel__badge-sm">
                 {workflow.slashAction.enabled ? 'Active' : 'Disabled'}
               </Badge>
             </Stack>
-            <Label style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{workflow.slashAction.name}</Label>
-            <Caption muted style={{ marginTop: '0.125rem' }}>{workflow.slashAction.description}</Caption>
-            <Stack row gap="sm" style={{ marginTop: '0.5rem' }}>
-              <Badge variant="muted" style={{ fontSize: '0.625rem' }}>{workflow.stepCount} step{workflow.stepCount > 1 ? 's' : ''}</Badge>
+            <Label className="actions-panel__card-label">{workflow.slashAction.name}</Label>
+            <Caption muted className="actions-panel__card-description">{workflow.slashAction.description}</Caption>
+            <Stack row gap="sm" className="actions-panel__card-meta-row">
+              <Badge variant="muted" className="actions-panel__badge-sm">{workflow.stepCount} step{workflow.stepCount > 1 ? 's' : ''}</Badge>
               <Caption muted>{workflow.workflowName}</Caption>
             </Stack>
           </div>

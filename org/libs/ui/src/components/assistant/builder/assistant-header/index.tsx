@@ -4,6 +4,7 @@
  * US-212: Export button for agent-specific export.
  * US-213: Thing toggle button.
  */
+import '@lmthing/css/components/assistant/builder/index.css'
 import { Stack } from '@lmthing/ui/elements/layouts/stack'
 import { Button } from '@lmthing/ui/elements/forms/button'
 import { Input } from '@lmthing/ui/elements/forms/input'
@@ -41,53 +42,28 @@ export function AssistantHeader({
   onExport,
 }: AssistantHeaderProps) {
   return (
-    <header style={{
-      padding: '0.75rem 1rem',
-      borderBottom: '1px solid var(--color-border)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      flexShrink: 0,
-    }}>
-      <Stack row style={{ alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
+    <header className="assistant-header">
+      <Stack row className="assistant-header__left">
         <Button variant="ghost" size="icon" onClick={onBack}>
-          <ArrowLeft style={{ width: '1rem', height: '1rem' }} />
+          <ArrowLeft className="assistant-header__icon" />
         </Button>
-        <div style={{ minWidth: 0, flex: 1 }}>
+        <div className="assistant-header__name-wrap">
           <Input
             value={name}
             onChange={e => onNameChange(e.target.value)}
             placeholder="Agent name"
-            className="input--sm"
-            style={{
-              fontWeight: 600,
-              fontSize: '1.125rem',
-              border: 'none',
-              background: 'transparent',
-              boxShadow: 'none',
-              paddingLeft: 0,
-              height: 'auto',
-            }}
+            className="input--sm assistant-header__name-input"
           />
           <Input
             value={description}
             onChange={e => onDescriptionChange(e.target.value)}
             placeholder="What does this agent do?"
-            className="input--sm"
-            style={{
-              fontSize: '0.8125rem',
-              border: 'none',
-              background: 'transparent',
-              boxShadow: 'none',
-              paddingLeft: 0,
-              height: 'auto',
-              color: 'var(--color-text-muted, hsl(var(--muted-foreground)))',
-            }}
+            className="input--sm assistant-header__desc-input"
           />
         </div>
       </Stack>
 
-      <Stack row gap="sm" style={{ alignItems: 'center', flexShrink: 0 }}>
+      <Stack row gap="sm" className="assistant-header__right">
         {hasUnsavedChanges && (
           <Button
             variant="primary"
@@ -99,11 +75,11 @@ export function AssistantHeader({
           </Button>
         )}
         <Button variant="ghost" size="sm" onClick={onToggleThing}>
-          <Bot style={{ width: '1rem', height: '1rem', marginRight: '0.375rem' }} />
+          <Bot className="assistant-header__btn-icon" />
           {isThingOpen ? 'Hide Thing' : 'Thing'}
         </Button>
         <Button variant="ghost" size="sm" onClick={onExport} disabled={isExporting || isNew}>
-          <Download style={{ width: '1rem', height: '1rem', marginRight: '0.375rem' }} />
+          <Download className="assistant-header__btn-icon" />
           {isExporting ? 'Exporting...' : 'Export'}
         </Button>
       </Stack>

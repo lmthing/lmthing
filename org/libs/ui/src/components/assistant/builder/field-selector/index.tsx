@@ -2,6 +2,7 @@
  * FieldSelector - Rich knowledge field selector with metadata.
  * Phase 5: Shows each field as a toggleable card with title, description, entry count.
  */
+import '@lmthing/css/components/assistant/builder/index.css'
 import { Badge } from '@lmthing/ui/elements/content/badge'
 import { Card, CardBody } from '@lmthing/ui/elements/content/card'
 import { Stack } from '@lmthing/ui/elements/layouts/stack'
@@ -30,16 +31,16 @@ function FieldCard({ field, selected, onToggle }: {
     <Card
       interactive
       onClick={onToggle}
-      style={{ cursor: 'pointer' }}
+      className="field-selector__card"
     >
       <CardBody>
-        <Stack row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
+        <Stack row className="field-selector__card-row">
+          <div className="field-selector__card-content">
             <Label>{title}</Label>
             {description && (
-              <Caption muted style={{ marginTop: '0.125rem' }}>{description}</Caption>
+              <Caption muted className="field-selector__card-description">{description}</Caption>
             )}
-            <Caption muted style={{ marginTop: '0.125rem' }}>
+            <Caption muted className="field-selector__card-count">
               {entryCount} {entryCount === 1 ? 'entry' : 'entries'}
             </Caption>
           </div>

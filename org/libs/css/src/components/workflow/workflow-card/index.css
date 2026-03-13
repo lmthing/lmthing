@@ -1,0 +1,132 @@
+@reference "../../../theme.css";
+
+/* ── WorkflowCard ──────────────────────────────────────────────────── */
+
+.workflow-card {
+  @apply relative rounded-xl border-2 transition-all duration-200 cursor-pointer;
+  background: var(--card);
+  border-color: var(--border);
+}
+
+.workflow-card:hover {
+  border-color: color-mix(in srgb, var(--brand-3) 50%, transparent);
+  @apply shadow-md;
+}
+
+.workflow-card--selected {
+  border-color: var(--brand-3);
+  @apply ring-2 shadow-lg;
+  --tw-ring-color: color-mix(in srgb, var(--brand-3) 20%, transparent);
+  --tw-shadow-color: color-mix(in srgb, var(--brand-3) 10%, transparent);
+}
+
+.workflow-card__body {
+  @apply p-5;
+}
+
+.workflow-card__header {
+  @apply flex items-start justify-between gap-4 mb-3;
+}
+
+.workflow-card__header-content {
+  @apply flex-1 min-w-0;
+}
+
+.workflow-card__title-row {
+  @apply flex items-center gap-2 mb-1;
+}
+
+.workflow-card__tags {
+  @apply flex flex-wrap gap-1.5 mb-4;
+}
+
+.workflow-card__footer {
+  @apply flex items-center justify-between pt-3;
+  border-top: 1px solid var(--border);
+}
+
+.workflow-card__footer-stats {
+  @apply flex items-center gap-4;
+}
+
+.workflow-card__stat {
+  @apply flex items-center gap-1.5;
+}
+
+.workflow-card__icon {
+  @apply w-4 h-4;
+}
+
+.workflow-card__dot {
+  @apply w-2 h-2 rounded-full;
+  background: var(--brand-2);
+}
+
+.workflow-card__check {
+  @apply absolute top-4 right-4 w-5 h-5 rounded-full flex items-center justify-center;
+  background: var(--brand-3);
+}
+
+.workflow-card__check-icon {
+  @apply w-3 h-3 text-white;
+}
+
+/* ── WorkflowListItem ──────────────────────────────────────────────── */
+
+.workflow-list-item {
+  @apply flex items-center gap-4 p-4 rounded-lg border transition-all duration-150 cursor-pointer;
+  background: var(--card);
+  border-color: var(--border);
+}
+
+.workflow-list-item:hover {
+  border-color: color-mix(in srgb, var(--brand-3) 50%, transparent);
+  background: var(--muted);
+}
+
+.workflow-list-item--selected {
+  background: color-mix(in srgb, var(--brand-3) 10%, transparent);
+  border-color: var(--brand-3);
+}
+
+.workflow-list-item__status-dot {
+  @apply flex-shrink-0 w-2 h-2 rounded-full;
+}
+
+.workflow-list-item__status-dot--active {
+  background: var(--brand-2);
+}
+
+.workflow-list-item__status-dot--draft {
+  background: var(--brand-2);
+}
+
+.workflow-list-item__status-dot--archived {
+  color: var(--muted-foreground);
+  background: currentColor;
+}
+
+.workflow-list-item__content {
+  @apply flex-1 min-w-0;
+}
+
+.workflow-list-item__title-row {
+  @apply flex items-center gap-2;
+}
+
+.workflow-list-item__tags {
+  @apply flex flex-wrap gap-1;
+}
+
+.workflow-list-item__tags--responsive {
+  @apply hidden sm:flex;
+}
+
+.workflow-list-item__chevron {
+  @apply w-5 h-5 transition-transform;
+  color: var(--muted-foreground);
+}
+
+.workflow-list-item__chevron--open {
+  @apply rotate-90;
+}

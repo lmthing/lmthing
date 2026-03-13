@@ -1,3 +1,5 @@
+import '@lmthing/css/components/knowledge/index.css'
+
 interface MarkdownPreviewProps {
   markdown: string
 }
@@ -60,16 +62,7 @@ export function MarkdownPreview({ markdown }: MarkdownPreviewProps) {
   return (
     <div
       dangerouslySetInnerHTML={{ __html: html }}
-      style={{
-        padding: '1rem',
-        lineHeight: '1.7',
-        fontSize: '0.875rem',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        color: 'var(--color-foreground)',
-        height: 'calc(100vh - 14rem)',
-        overflow: 'auto',
-        wordWrap: 'break-word',
-      }}
+      className="markdown-preview"
     />
   )
 }

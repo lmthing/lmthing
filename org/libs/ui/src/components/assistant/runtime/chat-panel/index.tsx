@@ -9,6 +9,9 @@ import { Heading } from '@lmthing/ui/elements/typography/heading'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
 import { Label } from '@lmthing/ui/elements/typography/label'
 import { StructuredOutputDisplay } from '@lmthing/ui/components/assistant/runtime/structured-output-display'
+import { cn } from '../../../../lib/utils'
+
+import '@lmthing/css/components/chat/chat-panel/index.css'
 
 export interface ChatMessage {
   id: string
@@ -51,29 +54,14 @@ function formatTime(isoString: string): string {
 function MessageBubble({ message, isStreaming = false }: { message: ChatMessage; isStreaming?: boolean }) {
   const isUser = message.role === 'user'
   return (
-    <div style={{ display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start' }}>
-      <div className="card" style={{
-        maxWidth: '85%',
-        borderRadius: '1rem',
-        padding: '0.75rem 1rem',
-        background: isUser ? '#7c3aed' : undefined,
-        color: isUser ? 'white' : undefined,
-      }}>
+    <div className={cn('chat-bubble', isUser ? 'chat-bubble--user' : 'chat-bubble--assistant')}>
+      <div className={cn('card chat-bubble__content', isUser && 'chat-bubble__content--user')}>
         {isUser && message.slashAction && (
-          <div style={{ marginBottom: '0.5rem' }}>
-            <span style={{
-              display: 'inline-block',
-              padding: '0.25rem 0.5rem',
-              borderRadius: '0.25rem',
-              backgroundColor: 'color-mix(in srgb, var(--color-warning, #f59e0b) 15%, transparent)',
-              color: 'var(--color-warning, #f59e0b)',
-              fontFamily: 'monospace',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-            }}>
+          <div className="chat-bubble__slash-action">
+            <span className="chat-bubble__slash-tag">
               /{message.slashAction.action}
               {message.slashAction.parameters && Object.keys(message.slashAction.parameters).length > 0 && (
-                <span style={{ fontWeight: 400, marginLeft: '0.5rem', opacity: 0.8 }}>
+                <span className="chat-bubble__slash-params">
                   {Object.entries(message.slashAction.parameters).map(([k, v]) => `${k}=${v}`).join(' ')}
                 </span>
               )}
@@ -81,18 +69,18 @@ function MessageBubble({ message, isStreaming = false }: { message: ChatMessage;
           </div>
         )}
         {(!isUser || !message.slashAction) && (
-          <p style={{ fontSize: '0.875rem', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+          <p className="chat-bubble__text">
             {message.content}
-            {isStreaming && <span style={{ display: 'inline-block', width: '4px', height: '1rem', background: '#a78bfa', marginLeft: '4px', animation: 'pulse 1s infinite' }} />}
+            {isStreaming && <span className="chat-bubble__cursor" />}
           </p>
         )}
         {!isUser && message.structuredOutput && (
-          <div style={{ marginTop: '0.75rem' }}>
+          <div className="chat-bubble__structured-output">
             <StructuredOutputDisplay data={message.structuredOutput} />
           </div>
         )}
         {!isStreaming && (
-          <Caption style={{ marginTop: '0.25rem', display: 'block', opacity: 0.6, fontSize: '0.625rem' }}>
+          <Caption className="chat-bubble__timestamp">
             {formatTime(message.timestamp)}
           </Caption>
         )}
@@ -146,16 +134,15 @@ function MessageInput({ assistantName, onSend, isLoading = false, slashActions =
 
   return (
     <CardFooter>
-      <Stack row gap="sm" style={{ alignItems: 'flex-end' }}>
-        <div style={{ flex: 1, position: 'relative' }}>
+      <Stack row gap="sm">
+        <div className="chat-input__wrapper">
           {showAutocomplete && (
-            <div className="dropdown__content" style={{ position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: '0.5rem', maxHeight: '15rem', overflowY: 'auto' }}>
+            <div className="dropdown__content chat-input__autocomplete">
               {filteredActions.map((action, index) => (
                 <button
                   key={action.name}
                   onClick={() => { setValue(`/${action.name}`); setShowAutocomplete(false); inputRef.current?.focus() }}
-                  className={`dropdown__item ${index === selectedIndex ? 'list-item--selected' : ''}`}
-                  style={{ width: '100%', textAlign: 'left' }}
+                  className={cn('dropdown__item chat-input__autocomplete-item', index === selectedIndex && 'list-item--selected')}
                 >
                   <Label>/{action.name}</Label>
                   <Caption muted>{action.description}</Caption>
@@ -183,7 +170,7 @@ function MessageInput({ assistantName, onSend, isLoading = false, slashActions =
           Send
         </Button>
       </Stack>
-      <Caption muted style={{ marginTop: '0.5rem' }}>
+      <Caption muted className="chat-input__hint">
         Press Enter to send, Shift+Enter for new line{slashActions.length > 0 ? ', / for commands' : ''}
       </Caption>
     </CardFooter>
@@ -208,31 +195,31 @@ export function ChatPanel({
   }, [messages, isLoading])
 
   return (
-    <Panel style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <Panel className="chat-panel">
       <PanelHeader>
-        <Stack row gap="sm" style={{ justifyContent: 'flex-end' }}>
+        <Stack row gap="sm" className="chat-panel__header">
           <Button onClick={() => onViewSystemPrompt?.()} variant="ghost" size="sm">System Prompt</Button>
           <Button onClick={() => onSaveConversation?.()} disabled={!canSaveConversation} variant="ghost" size="sm">Save</Button>
         </Stack>
       </PanelHeader>
 
-      <PanelBody style={{ flex: 1, overflowY: 'auto', padding: '1rem 1.5rem' }}>
+      <PanelBody className="chat-panel__messages">
         {messages.length === 0 ? (
-          <Stack style={{ alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
-            <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>💬</div>
+          <div className="chat-panel__empty">
+            <div className="chat-panel__empty-icon">💬</div>
             <Heading level={3}>Start a conversation</Heading>
             <Caption muted>Send a message to <strong>{assistant.name}</strong> to begin testing.</Caption>
-          </Stack>
+          </div>
         ) : (
           <Stack gap="md">
             {messages.map((message, idx) => (
               <MessageBubble key={message.id} message={message} isStreaming={isStreaming && idx === messages.length - 1} />
             ))}
             {isLoading && !isStreaming && (
-              <div style={{ display: 'flex', gap: '0.25rem' }}>
-                <span style={{ width: '0.5rem', height: '0.5rem', borderRadius: '9999px', background: '#94a3b8', animation: 'bounce 1s infinite' }} />
-                <span style={{ width: '0.5rem', height: '0.5rem', borderRadius: '9999px', background: '#94a3b8', animation: 'bounce 1s infinite 150ms' }} />
-                <span style={{ width: '0.5rem', height: '0.5rem', borderRadius: '9999px', background: '#94a3b8', animation: 'bounce 1s infinite 300ms' }} />
+              <div className="chat-loading-dots">
+                <span className="chat-loading-dot" />
+                <span className="chat-loading-dot" />
+                <span className="chat-loading-dot" />
               </div>
             )}
             <div ref={messagesEndRef} />

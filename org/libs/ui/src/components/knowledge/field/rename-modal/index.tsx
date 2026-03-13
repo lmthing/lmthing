@@ -6,6 +6,7 @@ import { Caption } from '@lmthing/ui/elements/typography/caption'
 import { Button } from '@lmthing/ui/elements/forms/button'
 import { Input } from '@lmthing/ui/elements/forms/input'
 import { X } from 'lucide-react'
+import '@lmthing/css/components/knowledge/index.css'
 
 interface RenameModalProps {
   isOpen: boolean
@@ -66,19 +67,18 @@ export function RenameModal({ isOpen, onClose, onRename, currentName, isDirector
   return (
     <div className="dialog__backdrop" onClick={onClose}>
       <div
-        className="dialog"
-        style={{ maxWidth: '24rem' }}
+        className="dialog rename-modal"
         onClick={e => e.stopPropagation()}
       >
         <div className="dialog__header">
           <Heading level={3}>Rename {isDirectory ? 'Folder' : 'File'}</Heading>
           <Button variant="ghost" size="icon" onClick={onClose}>
-            <X style={{ width: '1rem', height: '1rem' }} />
+            <X className="rename-modal__close-icon" />
           </Button>
         </div>
 
         <div className="dialog__content">
-          <div style={{ padding: '0 1.5rem' }}>
+          <div className="rename-modal__body">
             <Label>New name</Label>
             <Input
               ref={inputRef}
@@ -90,20 +90,13 @@ export function RenameModal({ isOpen, onClose, onRename, currentName, isDirector
               autoFocus
             />
             {error && (
-              <Caption style={{ color: '#ef4444', marginTop: '0.25rem', display: 'block' }}>
+              <Caption className="rename-modal__error">
                 {error}
               </Caption>
             )}
           </div>
 
-          <div style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: '0.75rem',
-            padding: '1rem 1.5rem',
-            borderTop: '1px solid var(--color-border)',
-            marginTop: '1rem',
-          }}>
+          <div className="rename-modal__footer">
             <Button variant="ghost" onClick={onClose}>Cancel</Button>
             <Button variant="primary" onClick={handleSubmit} disabled={!name.trim()}>Rename</Button>
           </div>

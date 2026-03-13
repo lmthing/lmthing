@@ -12,6 +12,8 @@ import { Heading } from '@lmthing/ui/elements/typography/heading'
 import { Label } from '@lmthing/ui/elements/typography/label'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
 import { Code } from '@lmthing/ui/elements/typography/code'
+import { cn } from '@lmthing/ui/lib/utils'
+import '@lmthing/css/components/workflow/step-config-panel/index.css'
 
 interface StepConfigPanelProps {
   step: Task | null
@@ -119,260 +121,256 @@ export function StepConfigPanel({ step, availableTools, availablePromptFragments
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+    <div className="step-config-panel__overlay">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+        className="step-config-panel__backdrop"
         onClick={onClose}
       />
 
       {/* Panel */}
-      <div className="relative w-full max-w-2xl max-h-[90vh] bg-card rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col">
+      <div className="step-config-panel__panel">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+        <div className="step-config-panel__header">
           <div>
             <Heading level={2}>{isEditMode ? 'Edit Step' : 'Add Step'}</Heading>
             <Caption muted>Configure step settings and behavior</Caption>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="step-config-panel__close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </Button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
-          {/* Step Type Selector */}
-          {!isEditMode && (
-            <div>
-              <Label compact>Step Type</Label>
-              <div className="grid grid-cols-1 gap-3 mt-2">
-                {STEP_TYPES.map(({ type, label, description, passesData }) => (
-                  <button
-                    key={type}
-                    onClick={() => setSelectedType(type)}
-                    className={`
-                      p-4 rounded-xl border-2 text-left transition-all
-                      ${selectedType === type
-                        ? 'border-brand-3 bg-brand-3/10 ring-2 ring-brand-3/20'
-                        : 'border-border hover:border-brand-3/50'
-                      }
-                    `}
-                  >
-                    <Stack row gap="md" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <Label>{label}</Label>
-                        <Caption muted>{description}</Caption>
-                      </div>
-                      {passesData && (
-                        <Badge variant="success">
-                          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M7 17L17 7M7 7h10v10" />
-                          </svg>
-                          Passes Data
-                        </Badge>
-                      )}
-                    </Stack>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Name & Description */}
-          <Stack gap="md">
-            <div>
-              <Label compact>Step Name</Label>
-              <Input
-                type="text"
-                value={stepName}
-                onChange={(e) => setStepName(e.target.value)}
-                placeholder="e.g., Extract Customer Data"
-              />
-            </div>
-            <div>
-              <Label compact>Description</Label>
-              <Textarea
-                value={stepDescription}
-                onChange={(e) => setStepDescription(e.target.value)}
-                placeholder="Briefly describe what this step does..."
-                compact
-              />
-            </div>
-          </Stack>
-
-          {/* Step Configuration */}
-          <div className="border-t border-border pt-6 space-y-6">
-            {/* updateFlowOutput specific fields */}
-            {selectedType === 'updateFlowOutput' && (
-              <>
-                {/* Target Field Name */}
-                <div>
-                  <Label compact required>Target Field Name</Label>
-                  <Input
-                    type="text"
-                    value={targetFieldName}
-                    onChange={(e) => setTargetFieldName(e.target.value)}
-                    placeholder="e.g., customerAnalysis, extractedData"
-                  />
-                  <Caption muted>
-                    The key in the workflow output object where this step's LLM output will be stored
-                  </Caption>
-                </div>
-
-                {/* Is Pushable */}
-                <div className="flex items-center gap-3 p-4 bg-muted rounded-xl">
-                  <button
-                    onClick={toggleIsPushable}
-                    className={`
-                      relative w-12 h-6 rounded-full transition-colors
-                      ${isPushable ? 'bg-brand-3' : 'bg-muted-foreground'}
-                    `}
-                  >
-                    <span
-                      className={`
-                        absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform
-                        ${isPushable ? 'translate-x-7' : 'translate-x-1'}
-                      `}
-                    />
-                  </button>
-                  <div>
-                    <Label>Add to Existing List</Label>
-                    <Caption muted>
-                      Turn this on if you want the AI to add new items to a list you started in a previous step, rather than replacing it.
-                    </Caption>
-                  </div>
-                </div>
-
-                {/* Output Schema */}
-                <div>
-                  <Label compact>Expected Output Format</Label>
-                  <StepSchemaEditor
-                    value={outputSchema}
-                    onChange={setOutputSchema}
-                  />
-                  <Caption muted>
-                    Tell the AI exactly how to format its answer so you can use it in the next step.
-                  </Caption>
-                </div>
-              </>
-            )}
-
-            {/* Prompt Fragment Fields */}
-            {(availablePromptFragments.length > 0 || promptFragmentFields.length > 0) && (
+        <div className="step-config-panel__content">
+          <div className="step-config-panel__content-sections">
+            {/* Step Type Selector */}
+            {!isEditMode && (
               <div>
-                <Label compact>Prompt Fragments</Label>
-                <div className="space-y-2">
-                  {promptFragmentFields.map((pf, index) => (
-                    <div key={index} className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-                      <Code>{pf.fragmentId}</Code>
-                      <Button variant="ghost" size="icon" onClick={() => setPromptFragmentFields(prev => prev.filter((_, i) => i !== index))}>
-                        <svg className="w-4 h-4 text-destructive" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M18 6L6 18M6 6l12 12" />
-                        </svg>
-                      </Button>
-                    </div>
-                  ))}
-                  {availablePromptFragments.length > 0 && (
+                <Label compact>Step Type</Label>
+                <div className="step-config-panel__type-grid">
+                  {STEP_TYPES.map(({ type, label, description, passesData }) => (
                     <button
-                      onClick={() => {
-                        const fragment = availablePromptFragments[0]
-                        if (fragment) {
-                          setPromptFragmentFields(prev => [
-                            ...prev,
-                            { fragmentId: fragment.id, fieldValues: {} }
-                          ])
-                        }
-                      }}
-                      className="w-full p-2 rounded-lg border-2 border-dashed border-border text-muted-foreground hover:border-brand-3 hover:text-brand-3 transition-colors text-sm"
+                      key={type}
+                      onClick={() => setSelectedType(type)}
+                      className={cn(
+                        'step-config-panel__type-btn',
+                        selectedType === type && 'step-config-panel__type-btn--selected'
+                      )}
                     >
-                      + Add Prompt Fragment
+                      <div className="step-config-panel__type-btn-content">
+                        <div>
+                          <Label>{label}</Label>
+                          <Caption muted>{description}</Caption>
+                        </div>
+                        {passesData && (
+                          <Badge variant="success">
+                            <svg className="step-config-panel__passes-data-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M7 17L17 7M7 7h10v10" />
+                            </svg>
+                            Passes Data
+                          </Badge>
+                        )}
+                      </div>
                     </button>
-                  )}
+                  ))}
                 </div>
-                <Caption muted>Enable specific prompt fragments based on field values</Caption>
               </div>
             )}
 
-            {/* Enabled Tools */}
-            <div>
-              <Label compact>Enabled Tools</Label>
-              <div className="grid grid-cols-2 gap-2 mt-2">
-                {availableTools.map((tool) => (
-                  <button
-                    key={tool.id}
-                    onClick={() => {
-                      setEnabledTools(prev =>
-                        prev.includes(tool.id)
-                          ? prev.filter(id => id !== tool.id)
-                          : [...prev, tool.id]
-                      )
-                    }}
-                    className={`
-                      p-3 rounded-lg text-left text-sm transition-all
-                      ${enabledTools.includes(tool.id)
-                        ? 'bg-brand-2/15 border-2 border-brand-2'
-                        : 'bg-muted border-2 border-border hover:border-border'
-                      }
-                    `}
-                  >
-                    <Label compact>{tool.name}</Label>
-                    <Caption muted>{tool.description}</Caption>
-                  </button>
-                ))}
+            {/* Name & Description */}
+            <Stack gap="md">
+              <div>
+                <Label compact>Step Name</Label>
+                <Input
+                  type="text"
+                  value={stepName}
+                  onChange={(e) => setStepName(e.target.value)}
+                  placeholder="e.g., Extract Customer Data"
+                />
               </div>
-            </div>
-
-            {/* Step Instructions */}
-            <div>
-              <Label compact>Step Instructions</Label>
-              <div className="bg-muted rounded-xl p-4">
+              <div>
+                <Label compact>Description</Label>
                 <Textarea
-                  value={stepInstructions}
-                  onChange={(e) => setStepInstructions(e.target.value)}
-                  placeholder="Describe what this step should do..."
+                  value={stepDescription}
+                  onChange={(e) => setStepDescription(e.target.value)}
+                  placeholder="Briefly describe what this step does..."
                   compact
                 />
               </div>
-              <div className="mt-2 p-2 bg-brand-3/10 rounded-lg">
-                <Caption muted>
-                  <span className="font-semibold">Template variables:</span>
-                </Caption>
-                <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
-                  <Code>{`{{input}}`}</Code>
-                  <Code>{`{{previousStep.stepId.field}}`}</Code>
-                  <Code>{`{{workflow.output.field}}`}</Code>
-                  <Code>{`{{now}}`}</Code>
-                  <Code>{`{{assistant.name}}`}</Code>
+            </Stack>
+
+            {/* Step Configuration */}
+            <div className="step-config-panel__config-section">
+              {/* updateFlowOutput specific fields */}
+              {selectedType === 'updateFlowOutput' && (
+                <>
+                  {/* Target Field Name */}
+                  <div>
+                    <Label compact required>Target Field Name</Label>
+                    <Input
+                      type="text"
+                      value={targetFieldName}
+                      onChange={(e) => setTargetFieldName(e.target.value)}
+                      placeholder="e.g., customerAnalysis, extractedData"
+                    />
+                    <Caption muted>
+                      The key in the workflow output object where this step's LLM output will be stored
+                    </Caption>
+                  </div>
+
+                  {/* Is Pushable */}
+                  <div className="step-config-panel__pushable-row">
+                    <button
+                      onClick={toggleIsPushable}
+                      className={cn(
+                        'step-config-panel__toggle',
+                        isPushable ? 'step-config-panel__toggle--on' : 'step-config-panel__toggle--off'
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          'step-config-panel__toggle-knob',
+                          isPushable ? 'step-config-panel__toggle-knob--on' : 'step-config-panel__toggle-knob--off'
+                        )}
+                      />
+                    </button>
+                    <div>
+                      <Label>Add to Existing List</Label>
+                      <Caption muted>
+                        Turn this on if you want the AI to add new items to a list you started in a previous step, rather than replacing it.
+                      </Caption>
+                    </div>
+                  </div>
+
+                  {/* Output Schema */}
+                  <div>
+                    <Label compact>Expected Output Format</Label>
+                    <StepSchemaEditor
+                      value={outputSchema}
+                      onChange={setOutputSchema}
+                    />
+                    <Caption muted>
+                      Tell the AI exactly how to format its answer so you can use it in the next step.
+                    </Caption>
+                  </div>
+                </>
+              )}
+
+              {/* Prompt Fragment Fields */}
+              {(availablePromptFragments.length > 0 || promptFragmentFields.length > 0) && (
+                <div>
+                  <Label compact>Prompt Fragments</Label>
+                  <div className="step-config-panel__fragment-list">
+                    {promptFragmentFields.map((pf, index) => (
+                      <div key={index} className="step-config-panel__fragment-item">
+                        <Code>{pf.fragmentId}</Code>
+                        <Button variant="ghost" size="icon" onClick={() => setPromptFragmentFields(prev => prev.filter((_, i) => i !== index))}>
+                          <svg className="step-config-panel__fragment-remove-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M18 6L6 18M6 6l12 12" />
+                          </svg>
+                        </Button>
+                      </div>
+                    ))}
+                    {availablePromptFragments.length > 0 && (
+                      <button
+                        onClick={() => {
+                          const fragment = availablePromptFragments[0]
+                          if (fragment) {
+                            setPromptFragmentFields(prev => [
+                              ...prev,
+                              { fragmentId: fragment.id, fieldValues: {} }
+                            ])
+                          }
+                        }}
+                        className="step-config-panel__add-fragment-btn"
+                      >
+                        + Add Prompt Fragment
+                      </button>
+                    )}
+                  </div>
+                  <Caption muted>Enable specific prompt fragments based on field values</Caption>
+                </div>
+              )}
+
+              {/* Enabled Tools */}
+              <div>
+                <Label compact>Enabled Tools</Label>
+                <div className="step-config-panel__tools-grid">
+                  {availableTools.map((tool) => (
+                    <button
+                      key={tool.id}
+                      onClick={() => {
+                        setEnabledTools(prev =>
+                          prev.includes(tool.id)
+                            ? prev.filter(id => id !== tool.id)
+                            : [...prev, tool.id]
+                        )
+                      }}
+                      className={cn(
+                        'step-config-panel__tool-btn',
+                        enabledTools.includes(tool.id) && 'step-config-panel__tool-btn--selected'
+                      )}
+                    >
+                      <Label compact>{tool.name}</Label>
+                      <Caption muted>{tool.description}</Caption>
+                    </button>
+                  ))}
                 </div>
               </div>
-            </div>
 
-            {/* Model Settings */}
-            <div className="grid grid-cols-2 gap-4">
+              {/* Step Instructions */}
               <div>
-                <Label compact>Model</Label>
-                <Select value={model} onChange={(e) => setModel(e.target.value)}>
-                  <SelectOption value="claude-3-5-sonnet">Claude 3.5 Sonnet</SelectOption>
-                  <SelectOption value="claude-3-opus">Claude 3 Opus</SelectOption>
-                  <SelectOption value="claude-3-haiku">Claude 3 Haiku</SelectOption>
-                </Select>
+                <Label compact>Step Instructions</Label>
+                <div className="step-config-panel__instructions-wrapper">
+                  <Textarea
+                    value={stepInstructions}
+                    onChange={(e) => setStepInstructions(e.target.value)}
+                    placeholder="Describe what this step should do..."
+                    compact
+                  />
+                </div>
+                <div className="step-config-panel__template-vars">
+                  <Caption muted>
+                    <strong>Template variables:</strong>
+                  </Caption>
+                  <div className="step-config-panel__template-vars-list">
+                    <Code>{`{{input}}`}</Code>
+                    <Code>{`{{previousStep.stepId.field}}`}</Code>
+                    <Code>{`{{workflow.output.field}}`}</Code>
+                    <Code>{`{{now}}`}</Code>
+                    <Code>{`{{assistant.name}}`}</Code>
+                  </div>
+                </div>
               </div>
-              <div>
-                <Label compact>Temperature: {temperature}</Label>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={temperature}
-                  onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                  className="w-full mt-3 accent-brand-3"
-                />
-                <div className="flex justify-between">
-                  <Caption muted>Precise</Caption>
-                  <Caption muted>Creative</Caption>
+
+              {/* Model Settings */}
+              <div className="step-config-panel__model-grid">
+                <div>
+                  <Label compact>Model</Label>
+                  <Select value={model} onChange={(e) => setModel(e.target.value)}>
+                    <SelectOption value="claude-3-5-sonnet">Claude 3.5 Sonnet</SelectOption>
+                    <SelectOption value="claude-3-opus">Claude 3 Opus</SelectOption>
+                    <SelectOption value="claude-3-haiku">Claude 3 Haiku</SelectOption>
+                  </Select>
+                </div>
+                <div>
+                  <Label compact>Temperature: {temperature}</Label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={temperature}
+                    onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                    className="step-config-panel__range-input"
+                  />
+                  <div className="step-config-panel__range-labels">
+                    <Caption muted>Precise</Caption>
+                    <Caption muted>Creative</Caption>
+                  </div>
                 </div>
               </div>
             </div>
@@ -380,7 +378,7 @@ export function StepConfigPanel({ step, availableTools, availablePromptFragments
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-muted rounded-b-2xl">
+        <div className="step-config-panel__footer">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
           <Button variant="primary" onClick={handleSave}>
             {isEditMode ? 'Save Changes' : 'Add Step'}

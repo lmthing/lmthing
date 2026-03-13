@@ -3,6 +3,7 @@
  * Renders the same field types as ConfigurationForm but in a compact sidebar layout.
  * Values changed here dynamically update the system prompt.
  */
+import '@lmthing/css/components/assistant/runtime/index.css'
 import { useCallback } from 'react'
 import { Stack } from '@lmthing/ui/elements/layouts/stack'
 import { Label } from '@lmthing/ui/elements/typography/label'
@@ -29,7 +30,7 @@ function MultiSelectPills({ options, selected, onToggle }: {
   onToggle: (id: string) => void
 }) {
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+    <div className="runtime-fields__pills">
       {options.map(opt => {
         const isSelected = selected.includes(opt.id)
         return (
@@ -37,8 +38,7 @@ function MultiSelectPills({ options, selected, onToggle }: {
             key={opt.id}
             type="button"
             onClick={() => onToggle(opt.id)}
-            className={`badge ${isSelected ? 'badge--primary' : 'badge--muted'}`}
-            style={{ cursor: 'pointer', border: 'none', fontSize: '0.6875rem' }}
+            className={`runtime-fields__pill badge ${isSelected ? 'badge--primary' : 'badge--muted'}`}
             title={opt.description}
           >
             {opt.label}
@@ -56,28 +56,9 @@ function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: b
       onClick={() => onChange(!checked)}
       role="switch"
       aria-checked={checked}
-      style={{
-        position: 'relative',
-        width: '2.5rem',
-        height: '1.375rem',
-        borderRadius: '9999px',
-        border: 'none',
-        cursor: 'pointer',
-        transition: 'background-color 0.2s',
-        backgroundColor: checked ? 'var(--color-primary)' : 'var(--color-muted)',
-      }}
+      className={`runtime-fields__toggle ${checked ? 'runtime-fields__toggle--on' : 'runtime-fields__toggle--off'}`}
     >
-      <span style={{
-        position: 'absolute',
-        top: '0.125rem',
-        left: '0.125rem',
-        width: '1.125rem',
-        height: '1.125rem',
-        borderRadius: '9999px',
-        backgroundColor: 'white',
-        transition: 'transform 0.2s',
-        transform: checked ? 'translateX(1.125rem)' : 'translateX(0)',
-      }} />
+      <span className={`runtime-fields__toggle-thumb ${checked ? 'runtime-fields__toggle-thumb--on' : 'runtime-fields__toggle-thumb--off'}`} />
     </button>
   )
 }
@@ -99,12 +80,12 @@ function RuntimeField({ field, value, onValueChange }: {
 
   return (
     <div>
-      <Stack row gap="sm" style={{ alignItems: 'center', marginBottom: '0.25rem' }}>
-        <Label compact style={{ fontSize: '0.8125rem' }}>{field.label}</Label>
-        {field.required && <span style={{ color: 'var(--color-warning)', fontSize: '0.6875rem' }}>*</span>}
+      <Stack row gap="sm" className="runtime-fields__field-header">
+        <Label compact className="runtime-fields__field-label">{field.label}</Label>
+        {field.required && <span className="runtime-fields__field-required">*</span>}
       </Stack>
       {field.description && (
-        <Caption muted style={{ marginBottom: '0.375rem', fontSize: '0.6875rem' }}>{field.description}</Caption>
+        <Caption muted className="runtime-fields__field-description">{field.description}</Caption>
       )}
 
       {field.fieldType === 'text' && (
@@ -171,31 +152,24 @@ export function RuntimeFieldsSidebar({ schemas, askAtRuntimeIds, values, onValue
   if (runtimeFields.length === 0) return null
 
   return (
-    <aside style={{
-      width: '18rem',
-      flexShrink: 0,
-      borderLeft: '1px solid var(--color-border)',
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-    }}>
-      <Panel style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <aside className="runtime-fields">
+      <Panel className="runtime-fields__panel">
         <PanelHeader>
-          <Stack row gap="sm" style={{ alignItems: 'center' }}>
-            <Label compact style={{ fontSize: '0.8125rem' }}>Configuration</Label>
+          <Stack row gap="sm" className="runtime-fields__header-row">
+            <Label compact className="runtime-fields__header-label">Configuration</Label>
             <Badge variant="muted">
               {runtimeFields.reduce((sum, rf) => sum + rf.fields.length, 0)} field{runtimeFields.reduce((sum, rf) => sum + rf.fields.length, 0) !== 1 ? 's' : ''}
             </Badge>
           </Stack>
         </PanelHeader>
-        <PanelBody style={{ flex: 1, overflowY: 'auto', padding: '0.75rem 1rem' }}>
-          <Caption muted style={{ marginBottom: '0.75rem', fontSize: '0.6875rem' }}>
+        <PanelBody className="runtime-fields__body">
+          <Caption muted className="runtime-fields__hint">
             Adjust these options to customize the agent for this conversation.
           </Caption>
           <Stack gap="lg">
             {runtimeFields.map(({ schema, fields }) => (
               <div key={schema.fieldId}>
-                <Caption style={{ fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.6875rem' }}>
+                <Caption className="runtime-fields__group-label">
                   {schema.fieldLabel}
                 </Caption>
                 <Stack gap="md">

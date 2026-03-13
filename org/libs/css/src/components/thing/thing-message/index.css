@@ -1,0 +1,32 @@
+@reference "../../../theme.css";
+
+/* ── ThingMessage ─────────────────────────────────────────────────── */
+
+.thing-message {
+  max-width: 80%;
+}
+
+.thing-message--user {
+  margin-left: auto;
+  background: var(--color-primary, #8b5cf6);
+  color: white;
+}
+
+.thing-message--assistant {
+  margin-right: auto;
+}
+
+.thing-message__role {
+  font-size: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.thing-message__role--user {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.thing-message__content {
+  @apply whitespace-pre-wrap;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}

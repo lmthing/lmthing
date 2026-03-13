@@ -9,6 +9,7 @@ import { Caption } from '@lmthing/ui/elements/typography/caption'
 import { Input } from '@lmthing/ui/elements/forms/input'
 import { Button } from '@lmthing/ui/elements/forms/button'
 import { FolderOpen } from 'lucide-react'
+import '@lmthing/css/components/knowledge/index.css'
 
 interface DirectoryMetadataPanelProps {
   directoryPath: string
@@ -64,10 +65,10 @@ export function DirectoryMetadataPanel({ directoryPath }: DirectoryMetadataPanel
   const dirName = directoryPath.split('/').pop() || directoryPath
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: '32rem' }}>
+    <div className="dir-metadata">
       <Stack gap="md">
-        <Stack row style={{ alignItems: 'center', gap: '0.75rem' }}>
-          <FolderOpen style={{ width: '1.5rem', height: '1.5rem', color: 'var(--color-muted-foreground)' }} />
+        <Stack row className="dir-metadata__header">
+          <FolderOpen className="dir-metadata__icon" />
           <div>
             <Heading level={3}>{config.label || dirName}</Heading>
             <Caption muted>{directoryPath}</Caption>
@@ -106,23 +107,16 @@ export function DirectoryMetadataPanel({ directoryPath }: DirectoryMetadataPanel
 
         <div>
           <Label compact>Color</Label>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <div className="dir-metadata__color-row">
             <Input
               type="text"
               value={config.color || ''}
               onChange={e => updateField('color', e.target.value)}
               placeholder="#10b981"
-              style={{ flex: 1 }}
+              className="dir-metadata__color-input"
             />
             {config.color && (
-              <div style={{
-                width: '2rem',
-                height: '2rem',
-                borderRadius: '0.25rem',
-                backgroundColor: config.color,
-                border: '1px solid var(--color-border)',
-                flexShrink: 0,
-              }} />
+              <div className="dir-metadata__color-swatch" style={{ backgroundColor: config.color }} />
             )}
           </div>
         </div>
@@ -147,17 +141,17 @@ export function DirectoryMetadataPanel({ directoryPath }: DirectoryMetadataPanel
           />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div className="dir-metadata__checkbox-row">
           <input
             type="checkbox"
             id="dir-required"
             checked={config.required || false}
             onChange={e => updateField('required', e.target.checked)}
           />
-          <Label compact htmlFor="dir-required" style={{ margin: 0 }}>Required</Label>
+          <Label compact htmlFor="dir-required" className="dir-metadata__checkbox-label">Required</Label>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '0.5rem' }}>
+        <div className="dir-metadata__footer">
           <Button variant="primary" size="sm" disabled={!isDirty} onClick={handleSave}>
             Save Configuration
           </Button>

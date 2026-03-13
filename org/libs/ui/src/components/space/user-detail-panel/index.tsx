@@ -11,6 +11,7 @@ import { Heading } from '@lmthing/ui/elements/typography/heading'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
 import { Label } from '@lmthing/ui/elements/typography/label'
 import { Avatar, AvatarImage, AvatarFallback } from '@lmthing/ui/elements/content/avatar'
+import '@lmthing/css/components/space/index.css'
 
 interface UserDetailPanelProps {
   user?: SpaceUser | null
@@ -24,16 +25,16 @@ function ConfirmDialog({ isOpen, userName, onConfirm, onClose }: { isOpen: boole
   if (!isOpen) return null
   return (
     <div className="dialog__backdrop">
-      <div className="dialog__content" style={{ maxWidth: '24rem' }}>
-        <Stack gap="md" style={{ padding: '1.5rem', textAlign: 'center' }}>
-          <div style={{ width: '3rem', height: '3rem', borderRadius: '9999px', background: 'var(--color-destructive-bg, #fef2f2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
-            <Trash2 className="w-6 h-6" style={{ color: 'var(--color-destructive, #dc2626)' }} />
+      <div className="dialog__content space-list__invite-dialog">
+        <Stack gap="md" className="confirm-dialog__content">
+          <div className="confirm-dialog__icon-wrapper">
+            <Trash2 className="confirm-dialog__icon" />
           </div>
           <Heading level={3}>Remove User</Heading>
           <Caption muted>Are you sure you want to remove <strong>{userName}</strong> from the space? This action cannot be undone.</Caption>
           <Stack row gap="sm">
-            <Button onClick={onClose} variant="ghost" style={{ flex: 1 }}>Cancel</Button>
-            <Button onClick={onConfirm} variant="destructive" style={{ flex: 1 }}>Remove</Button>
+            <Button onClick={onClose} variant="ghost" className="confirm-dialog__action-btn">Cancel</Button>
+            <Button onClick={onConfirm} variant="destructive" className="confirm-dialog__action-btn">Remove</Button>
           </Stack>
         </Stack>
       </div>
@@ -43,17 +44,17 @@ function ConfirmDialog({ isOpen, userName, onConfirm, onClose }: { isOpen: boole
 
 function getRoleIcon(role: SpaceUserRole) {
   switch (role) {
-    case 'admin': return <Crown className="w-4 h-4" />
-    case 'editor': return <Edit3 className="w-4 h-4" />
-    case 'viewer': return <Eye className="w-4 h-4" />
+    case 'admin': return <Crown className="user-detail__icon-sm" />
+    case 'editor': return <Edit3 className="user-detail__icon-sm" />
+    case 'viewer': return <Eye className="user-detail__icon-sm" />
   }
 }
 
 function getRoleBadgeClass(role: SpaceUserRole) {
   switch (role) {
-    case 'admin': return 'bg-gradient-to-r from-brand-3 to-brand-3 text-primary-foreground shadow-lg shadow-brand-3/25'
-    case 'editor': return 'bg-gradient-to-r from-brand-2 to-brand-2 text-primary-foreground shadow-lg shadow-brand-2/25'
-    case 'viewer': return 'bg-muted text-muted-foreground border border-border'
+    case 'admin': return 'user-detail__role-badge--admin'
+    case 'editor': return 'user-detail__role-badge--editor'
+    case 'viewer': return 'user-detail__role-badge--viewer'
   }
 }
 
@@ -64,13 +65,13 @@ export function UserDetailPanel({ user, roles, onUpdateRole, onRemoveUser, onCan
 
   if (!user) {
     return (
-      <Panel style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-        <div style={{ textAlign: 'center' }}>
-          <Avatar size="lg" style={{ margin: '0 auto 1rem', background: 'var(--color-muted-bg)' }}>
-            <AvatarFallback><UserIcon className="w-7 h-7" style={{ opacity: 0.5 }} /></AvatarFallback>
+      <Panel className="user-detail__empty">
+        <div className="user-detail__empty-inner">
+          <Avatar size="lg" className="user-detail__empty-avatar">
+            <AvatarFallback><UserIcon className="user-detail__empty-icon" /></AvatarFallback>
           </Avatar>
           <Heading level={3}>No User Selected</Heading>
-          <Caption muted style={{ maxWidth: '20rem' }}>Select a user from the sidebar to view and edit their profile and permissions</Caption>
+          <Caption muted className="user-detail__empty-caption">Select a user from the sidebar to view and edit their profile and permissions</Caption>
         </div>
       </Panel>
     )
@@ -107,21 +108,21 @@ export function UserDetailPanel({ user, roles, onUpdateRole, onRemoveUser, onCan
 
   return (
     <>
-      <Panel style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <Panel className="user-detail__panel">
         <PanelHeader>
-          <Stack row gap="md" style={{ alignItems: 'flex-start' }}>
-            <div style={{ flexShrink: 0 }}>
+          <Stack row gap="md" className="user-detail__header-row">
+            <div className="user-detail__avatar-col">
               <Avatar size="lg">
                 {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
-                <AvatarFallback style={{ background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', color: 'white', fontWeight: 700, fontSize: '1.5rem' }}>
+                <AvatarFallback className="user-detail__avatar-fallback">
                   {user.name.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <Heading level={2} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name}</Heading>
+            <div className="user-detail__header-info">
+              <Heading level={2} className="user-detail__name">{user.name}</Heading>
               {!isEditing && (
-                <Badge className={getRoleBadgeClass(user.role)} style={{ marginTop: '0.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.75rem' }}>
+                <Badge className={`${getRoleBadgeClass(user.role)} user-detail__role-badge`}>
                   {getRoleIcon(user.role)}
                   {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                 </Badge>
@@ -130,31 +131,31 @@ export function UserDetailPanel({ user, roles, onUpdateRole, onRemoveUser, onCan
           </Stack>
         </PanelHeader>
 
-        <PanelBody style={{ flex: 1, overflowY: 'auto', padding: '1.5rem 2rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+        <PanelBody className="user-detail__body">
+          <div className="user-detail__info-grid">
             <CardBody>
-              <Stack row gap="sm" style={{ alignItems: 'center' }}>
-                <Mail className="w-4 h-4" style={{ opacity: 0.6 }} />
+              <Stack row gap="sm" className="user-detail__info-card-row">
+                <Mail className="user-detail__info-icon" />
                 <div><Caption muted>Email</Caption><Label>{user.email}</Label></div>
               </Stack>
             </CardBody>
             <CardBody>
-              <Stack row gap="sm" style={{ alignItems: 'center' }}>
-                <Calendar className="w-4 h-4" style={{ opacity: 0.6 }} />
+              <Stack row gap="sm" className="user-detail__info-card-row">
+                <Calendar className="user-detail__info-icon" />
                 <div><Caption muted>Joined</Caption><Label>{formatDate(user.joinedAt)}</Label></div>
               </Stack>
             </CardBody>
             <CardBody>
-              <Stack row gap="sm" style={{ alignItems: 'center' }}>
-                <Clock className="w-4 h-4" style={{ opacity: 0.6 }} />
+              <Stack row gap="sm" className="user-detail__info-card-row">
+                <Clock className="user-detail__info-icon" />
                 <div><Caption muted>Last Active</Caption><Label>{formatLastActive(user.lastActive)}</Label></div>
               </Stack>
             </CardBody>
           </div>
 
-          <div style={{ marginBottom: '2rem' }}>
-            <Heading level={4} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-              <Shield className="w-4 h-4" /> Permissions & Role
+          <div className="user-detail__section">
+            <Heading level={4} className="user-detail__permissions-heading">
+              <Shield className="user-detail__icon-sm" /> Permissions & Role
             </Heading>
             {isEditing ? (
               <Stack gap="sm">
@@ -162,13 +163,13 @@ export function UserDetailPanel({ user, roles, onUpdateRole, onRemoveUser, onCan
                   const Icon = role.value === 'admin' ? Crown : role.value === 'editor' ? Edit3 : Eye
                   const isSelected = selectedRole === role.value
                   return (
-                    <button key={role.value} onClick={() => setSelectedRole(role.value as SpaceUserRole)} style={{ all: 'unset', cursor: 'pointer', display: 'block', width: '100%' }}>
+                    <button key={role.value} onClick={() => setSelectedRole(role.value as SpaceUserRole)} className="user-detail__role-btn">
                       <ListItem selected={isSelected}>
-                        <Icon className="w-5 h-5" style={{ flexShrink: 0 }} />
-                        <div style={{ flex: 1 }}><Label>{role.label}</Label><Caption muted>{role.description}</Caption></div>
+                        <Icon className="user-detail__role-icon" />
+                        <div className="user-detail__role-info"><Label>{role.label}</Label><Caption muted>{role.description}</Caption></div>
                         {isSelected && (
-                          <div style={{ width: '1.5rem', height: '1.5rem', borderRadius: '9999px', background: '#7c3aed', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            <Check className="w-4 h-4" />
+                          <div className="user-detail__role-check">
+                            <Check className="user-detail__role-check-icon" />
                           </div>
                         )}
                       </ListItem>
@@ -178,7 +179,7 @@ export function UserDetailPanel({ user, roles, onUpdateRole, onRemoveUser, onCan
               </Stack>
             ) : (
               <CardBody>
-                <Stack row gap="sm" style={{ alignItems: 'center' }}>
+                <Stack row gap="sm" className="user-detail__info-card-row">
                   {getRoleIcon(user.role)}
                   <div>
                     <Label>{roles.find(r => r.value === user.role)?.label || user.role}</Label>
@@ -190,7 +191,7 @@ export function UserDetailPanel({ user, roles, onUpdateRole, onRemoveUser, onCan
           </div>
 
           <div>
-            <Heading level={4} style={{ marginBottom: '1rem' }}>Account Status</Heading>
+            <Heading level={4} className="user-detail__status-heading">Account Status</Heading>
             <Badge variant={user.status === 'active' ? 'success' : user.status === 'invited' ? 'primary' : 'muted'}>
               {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
             </Badge>
@@ -201,13 +202,13 @@ export function UserDetailPanel({ user, roles, onUpdateRole, onRemoveUser, onCan
           <Stack row gap="sm">
             {isEditing ? (
               <>
-                <Button onClick={handleSaveRole} variant="primary"><Check className="w-4 h-4" /> Save Changes</Button>
-                <Button onClick={handleCancelEdit} variant="ghost"><X className="w-4 h-4" /> Cancel</Button>
+                <Button onClick={handleSaveRole} variant="primary"><Check className="user-detail__icon-sm" /> Save Changes</Button>
+                <Button onClick={handleCancelEdit} variant="ghost"><X className="user-detail__icon-sm" /> Cancel</Button>
               </>
             ) : (
               <>
-                <Button onClick={() => { setIsEditing(true); setSelectedRole(user.role) }} variant="primary"><Shield className="w-4 h-4" /> Edit Role</Button>
-                <Button onClick={() => setShowConfirm(true)} variant="destructive"><Trash2 className="w-4 h-4" /> Remove</Button>
+                <Button onClick={() => { setIsEditing(true); setSelectedRole(user.role) }} variant="primary"><Shield className="user-detail__icon-sm" /> Edit Role</Button>
+                <Button onClick={() => setShowConfirm(true)} variant="destructive"><Trash2 className="user-detail__icon-sm" /> Remove</Button>
               </>
             )}
           </Stack>

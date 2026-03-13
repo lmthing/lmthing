@@ -2,6 +2,7 @@
  * AssistantForm - Controlled form for assistant configuration.
  * Phase 2: Receives all state as props, no internal state for form values.
  */
+import '@lmthing/css/components/assistant/builder/index.css'
 import { Stack } from '@lmthing/ui/elements/layouts/stack'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
 import { Label } from '@lmthing/ui/elements/typography/label'
@@ -35,10 +36,10 @@ function WorkflowCard({ workflow, selected, onToggle }: {
     <Card
       interactive
       onClick={onToggle}
-      style={{ cursor: 'pointer' }}
+      className="assistant-form__workflow-card"
     >
       <CardBody>
-        <Stack row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <Stack row className="assistant-form__workflow-row">
           <Label>{workflow.id}</Label>
           <Badge variant={selected ? 'primary' : 'muted'}>
             {selected ? 'Attached' : 'Add'}
@@ -97,11 +98,10 @@ export function AssistantForm({
         <div className="panel__header"><Label>Instructions</Label></div>
         <div className="panel__body">
           <textarea
-            className="input"
+            className="input assistant-form__instructions-textarea"
             value={instructions}
             onChange={e => onInstructionsChange(e.target.value)}
             placeholder="Main instructions for this assistant..."
-            style={{ minHeight: '200px', fontFamily: 'monospace', resize: 'vertical' }}
           />
         </div>
       </div>

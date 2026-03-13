@@ -21,6 +21,7 @@ import {
   type TextState,
 } from './markdown-utils'
 import { Settings } from 'lucide-react'
+import '@lmthing/css/components/knowledge/index.css'
 
 export interface TopicEditorHandle {
   save: () => void
@@ -160,21 +161,21 @@ export const TopicEditor = forwardRef<TopicEditorHandle, TopicEditorProps>(
 
     return (
       <Stack gap="sm">
-        <Stack row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <Stack row className="topic-editor__header">
           <div>
             <Heading level={3}>{topicName}</Heading>
             <Caption muted>{topicPath}</Caption>
           </div>
-          <Stack row gap="sm" style={{ alignItems: 'center' }}>
+          <Stack row gap="sm" className="topic-editor__header-actions">
             {hasUnsavedChanges && <Badge variant="muted">Unsaved changes</Badge>}
             <Button
               variant="ghost"
               size="icon"
               onClick={() => toggleShowMetadata()}
               title="Toggle metadata"
-              style={showMetadata ? { backgroundColor: 'var(--color-muted)' } : undefined}
+              className={showMetadata ? 'topic-editor__metadata-btn--active' : undefined}
             >
-              <Settings style={{ width: '0.875rem', height: '0.875rem' }} />
+              <Settings className="topic-editor__settings-icon" />
             </Button>
             <Button variant="primary" size="sm" disabled={!hasUnsavedChanges} onClick={handleSave}>
               Save
@@ -184,29 +185,17 @@ export const TopicEditor = forwardRef<TopicEditorHandle, TopicEditorProps>(
 
         {showMetadata && <FileMetadataPanel topicPath={topicPath} />}
 
-        <div style={{ border: '1px solid var(--color-border)', borderRadius: '0.375rem', overflow: 'hidden' }}>
+        <div className="topic-editor__container">
           <MarkdownToolbar mode={mode} onFormat={applyFormat} onModeChange={setMode} />
 
           {mode === 'edit' ? (
             <textarea
               ref={textareaRef}
-              className="input"
+              className="input topic-editor__textarea"
               value={draftBody}
               onChange={e => handleChange(e.target.value)}
               onKeyDown={handleKeyDown}
               spellCheck={false}
-              style={{
-                width: '100%',
-                height: 'calc(100vh - 14rem)',
-                fontFamily: 'monospace',
-                fontSize: '0.875rem',
-                lineHeight: '1.6',
-                resize: 'none',
-                border: 'none',
-                outline: 'none',
-                padding: '1rem',
-                borderRadius: 0,
-              }}
               placeholder="Write content in Markdown..."
             />
           ) : (

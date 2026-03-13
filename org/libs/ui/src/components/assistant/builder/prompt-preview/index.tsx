@@ -3,6 +3,7 @@
  * Phase 3: Auto-generates from instructions + selected knowledge content,
  * shows token count, copy to clipboard, collapsible.
  */
+import '@lmthing/css/components/assistant/builder/index.css'
 import { useMemo, useCallback } from 'react'
 import { useToggle, useUIState, useGlobRead } from '@lmthing/state'
 import { Button } from '@lmthing/ui/elements/forms/button'
@@ -63,19 +64,19 @@ export function PromptPreviewPanel({ instructions, selectedFieldIds }: PromptPre
   }, [generatedPrompt])
 
   return (
-    <div className="panel" style={{ overflow: 'hidden' }}>
+    <div className="panel prompt-preview">
       <PanelHeader
         onClick={toggleExpanded}
-        style={{ cursor: 'pointer', userSelect: 'none' }}
+        className="prompt-preview__header"
       >
-        <Stack row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <Stack row gap="sm" style={{ alignItems: 'center' }}>
+        <Stack row className="prompt-preview__header-row">
+          <Stack row gap="sm" className="prompt-preview__header-left">
             <Label compact>System Prompt Preview</Label>
             {hasContent && (
               <Badge variant="muted">~{tokenCount} tokens</Badge>
             )}
           </Stack>
-          <span style={{ fontSize: '0.75rem', color: 'var(--color-muted-foreground)', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : undefined }}>
+          <span className={`prompt-preview__chevron ${isExpanded ? 'prompt-preview__chevron--expanded' : ''}`}>
             ▼
           </span>
         </Stack>
@@ -85,7 +86,7 @@ export function PromptPreviewPanel({ instructions, selectedFieldIds }: PromptPre
         <>
           <div className="panel__body">
             {!hasContent ? (
-              <Stack style={{ textAlign: 'center', padding: '2rem 0' }}>
+              <Stack className="prompt-preview__empty">
                 <Caption muted>
                   Add instructions or select knowledge fields to preview the generated prompt.
                 </Caption>
@@ -93,13 +94,13 @@ export function PromptPreviewPanel({ instructions, selectedFieldIds }: PromptPre
             ) : (
               <div>
                 {selectedFieldIds.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginBottom: '0.75rem' }}>
+                  <div className="prompt-preview__badges">
                     {selectedFieldIds.map(fieldId => (
-                      <Badge key={fieldId} variant="muted" style={{ fontSize: '0.625rem' }}>{fieldId}</Badge>
+                      <Badge key={fieldId} variant="muted" className="prompt-preview__badge">{fieldId}</Badge>
                     ))}
                   </div>
                 )}
-                <Code block style={{ maxHeight: '400px', overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                <Code block className="prompt-preview__code">
                   {generatedPrompt}
                 </Code>
               </div>
@@ -108,7 +109,7 @@ export function PromptPreviewPanel({ instructions, selectedFieldIds }: PromptPre
 
           {hasContent && (
             <CardFooter>
-              <Stack row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              <Stack row className="prompt-preview__footer-row">
                 <Caption muted>Preview updates as you edit</Caption>
                 <Button onClick={handleCopy} variant="ghost" size="sm">
                   {copied ? 'Copied!' : 'Copy'}

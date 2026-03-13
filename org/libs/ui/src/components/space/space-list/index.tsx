@@ -11,6 +11,7 @@ import { Heading } from '@lmthing/ui/elements/typography/heading'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
 import { Label } from '@lmthing/ui/elements/typography/label'
 import { Avatar, AvatarImage, AvatarFallback } from '@lmthing/ui/elements/content/avatar'
+import '@lmthing/css/components/space/index.css'
 
 export interface SpaceUser {
   id: string
@@ -48,19 +49,19 @@ interface InviteDialogProps {
 
 function getStatusColor(status: SpaceUser['status']) {
   switch (status) {
-    case 'active': return 'bg-brand-2'
-    case 'invited': return 'bg-brand-2'
-    case 'pending': return 'bg-neutral'
-    default: return 'bg-neutral'
+    case 'active': return 'space-list__status-dot--active'
+    case 'invited': return 'space-list__status-dot--invited'
+    case 'pending': return 'space-list__status-dot--pending'
+    default: return 'space-list__status-dot--pending'
   }
 }
 
 function getRoleBadgeColor(role: SpaceUserRole) {
   switch (role) {
-    case 'admin': return 'text-brand-3 bg-brand-3/10 border-brand-3/30'
-    case 'editor': return 'text-brand-2 bg-brand-2/10 border-brand-2/30'
-    case 'viewer': return 'text-muted-foreground bg-muted border-border'
-    default: return 'text-muted-foreground bg-muted border-border'
+    case 'admin': return 'space-list__role-badge--admin'
+    case 'editor': return 'space-list__role-badge--editor'
+    case 'viewer': return 'space-list__role-badge--viewer'
+    default: return 'space-list__role-badge--viewer'
   }
 }
 
@@ -82,13 +83,13 @@ function InviteDialog({ isOpen, onClose, onInvite }: InviteDialogProps) {
 
   return (
     <div className="dialog__backdrop">
-      <div className="dialog__content" style={{ maxWidth: '28rem' }}>
+      <div className="dialog__content space-list__invite-dialog">
         <div className="dialog__header">
           <Heading level={3}>Invite User</Heading>
           <Caption muted>Add a new member to your space</Caption>
         </div>
         <form onSubmit={handleSubmit}>
-          <Stack gap="md" style={{ padding: '1.5rem' }}>
+          <Stack gap="md" className="space-list__invite-form-body">
             <div>
               <Label compact>Email Address</Label>
               <Input
@@ -108,14 +109,14 @@ function InviteDialog({ isOpen, onClose, onInvite }: InviteDialogProps) {
                   { value: 'admin' as const, label: 'Admin', desc: 'Full access including users' }
                 ].map((r) => (
                   <label key={r.value}>
-                    <ListItem selected={role === r.value} style={{ cursor: 'pointer' }}>
+                    <ListItem selected={role === r.value} className="space-list__invite-role-item">
                       <input
                         type="radio"
                         name="role"
                         value={r.value}
                         checked={role === r.value}
                         onChange={(e) => setRole(e.target.value as SpaceUserRole)}
-                        style={{ marginRight: '0.75rem' }}
+                        className="space-list__invite-role-radio"
                       />
                       <div>
                         <Label>{r.label}</Label>
@@ -126,9 +127,9 @@ function InviteDialog({ isOpen, onClose, onInvite }: InviteDialogProps) {
                 ))}
               </Stack>
             </div>
-            <Stack row gap="sm" style={{ paddingTop: '0.5rem' }}>
-              <Button type="button" onClick={onClose} variant="ghost" style={{ flex: 1 }}>Cancel</Button>
-              <Button type="submit" variant="primary" style={{ flex: 1 }}>Send Invite</Button>
+            <Stack row gap="sm" className="space-list__invite-actions">
+              <Button type="button" onClick={onClose} variant="ghost" className="space-list__invite-action-btn">Cancel</Button>
+              <Button type="submit" variant="primary" className="space-list__invite-action-btn">Send Invite</Button>
             </Stack>
           </Stack>
         </form>
@@ -170,71 +171,70 @@ export function SpaceList({
     <>
       <Sidebar>
         <PanelHeader>
-          <Stack row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <Stack row className="space-list__header">
             <div>
               <Heading level={3}>Members</Heading>
               <Caption muted>{users.length} {users.length === 1 ? 'member' : 'members'}</Caption>
             </div>
             <Button onClick={() => setShowInvite(true)} variant="primary" size="sm" aria-label="Add user">
-              <UserPlus className="w-4 h-4" />
+              <UserPlus className="space-list__invite-icon" />
             </Button>
           </Stack>
-          <div style={{ position: 'relative', marginTop: '1rem' }}>
-            <Search className="w-4 h-4" style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-muted)' }} />
+          <div className="space-list__search-wrapper">
+            <Search className="space-list__search-icon" />
             <Input
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange?.(e.target.value)}
               placeholder="Search by name or email..."
-              className="input--sm"
-              style={{ paddingLeft: '2.25rem' }}
+              className="input--sm space-list__search-input"
             />
           </div>
         </PanelHeader>
 
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div className="space-list__body">
           {filteredUsers.length === 0 ? (
-            <Stack style={{ alignItems: 'center', justifyContent: 'center', height: '12rem' }}>
-              <Search className="w-10 h-10" style={{ opacity: 0.5 }} />
+            <Stack className="space-list__empty">
+              <Search className="space-list__empty-icon" />
               <Caption muted>No users found</Caption>
             </Stack>
           ) : (
-            <Stack gap="sm" style={{ padding: '0.5rem' }}>
+            <Stack gap="sm" className="space-list__user-list">
               {filteredUsers.map((user) => (
                 <button
                   key={user.id}
                   onClick={() => onSelectUser?.(user.id)}
-                  style={{ all: 'unset', cursor: 'pointer', display: 'block', width: '100%' }}
+                  className="space-list__user-btn"
                 >
                   <ListItem selected={selectedUserId === user.id}>
-                    <div style={{ position: 'relative', flexShrink: 0 }}>
+                    <div className="space-list__avatar-wrapper">
                       <Avatar>
                         {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
-                        <AvatarFallback style={{ background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', color: 'white', fontWeight: 600 }}>
+                        <AvatarFallback className="space-list__avatar-fallback">
                           {user.name.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <div className={getStatusColor(user.status)} style={{ position: 'absolute', bottom: '-2px', right: '-2px', width: '0.875rem', height: '0.875rem', borderRadius: '9999px', border: '2px solid white' }} />
+                      <div className={`${getStatusColor(user.status)} space-list__status-dot`} />
                     </div>
-                    <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                      <Stack row gap="sm" style={{ alignItems: 'center' }}>
-                        <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name}</span>
-                        <Badge className={getRoleBadgeColor(user.role)} style={{ fontSize: '0.625rem', padding: '0.125rem 0.375rem' }}>
+                    <div className="space-list__user-info">
+                      <Stack row gap="sm" className="space-list__user-name-row">
+                        <span className="space-list__user-name">{user.name}</span>
+                        <Badge className={`${getRoleBadgeColor(user.role)} space-list__role-badge`}>
                           {user.role.charAt(0).toUpperCase()}
                         </Badge>
                       </Stack>
-                      <Stack row gap="sm" style={{ alignItems: 'center', marginTop: '0.125rem' }}>
-                        <Mail className="w-3 h-3" style={{ flexShrink: 0, opacity: 0.5 }} />
-                        <Caption muted style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</Caption>
+                      <Stack row gap="sm" className="space-list__email-row">
+                        <Mail className="space-list__email-icon" />
+                        <Caption muted className="space-list__email">{user.email}</Caption>
                       </Stack>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
-                      <Badge variant={user.status === 'active' ? 'success' : user.status === 'invited' ? 'primary' : 'muted'} style={{ fontSize: '0.625rem' }}>
+                    <div className="space-list__status-col">
+                      <Badge variant={user.status === 'active' ? 'success' : user.status === 'invited' ? 'primary' : 'muted'} className="space-list__status-badge">
                         {user.status}
                       </Badge>
                       {user.lastActive && (
-                        <Caption muted style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.6875rem' }}>
-                          <Clock className="w-3 h-3" />
+                        <Caption muted className="space-list__last-active">
+                          <Clock className="space-list__last-active-icon" />
                           {formatDate(user.lastActive)}
                         </Caption>
                       )}

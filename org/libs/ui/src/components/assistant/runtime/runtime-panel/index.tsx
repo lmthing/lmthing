@@ -1,3 +1,4 @@
+import '@lmthing/css/components/assistant/runtime/index.css'
 import { useToggle } from '@lmthing/state'
 import { Button } from '@lmthing/ui/elements/forms/button'
 import { Input } from '@lmthing/ui/elements/forms/input'
@@ -79,41 +80,41 @@ export function RuntimePanel({ assistant, runtimeFieldValues = {}, isToolsExpand
   const manualTools = assistant.enabledTools.filter(t => t.source === 'manual')
 
   return (
-    <Sidebar style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <Sidebar className="runtime-panel">
       <PanelHeader>
-        <Label style={{ fontWeight: 600 }}>{assistant.name}</Label>
-        <Caption muted style={{ marginTop: '0.25rem' }}>{assistant.description}</Caption>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginTop: '0.75rem' }}>
+        <Label className="runtime-panel__name">{assistant.name}</Label>
+        <Caption muted className="runtime-panel__description">{assistant.description}</Caption>
+        <div className="runtime-panel__tags">
           {assistant.fields.map(field => (
-            <Badge key={field} variant="muted" style={{ fontSize: '0.625rem' }}>{field}</Badge>
+            <Badge key={field} variant="muted" className="runtime-panel__badge">{field}</Badge>
           ))}
         </div>
       </PanelHeader>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '1rem' }}>
+      <div className="runtime-panel__scroll-area">
         {assistant.runtimeFields.length > 0 && (
-          <section style={{ marginBottom: '1.5rem' }}>
-            <Label compact style={{ marginBottom: '0.75rem' }}>Runtime Fields ({assistant.runtimeFields.length})</Label>
+          <section className="runtime-panel__fields-section">
+            <Label compact className="runtime-panel__fields-label">Runtime Fields ({assistant.runtimeFields.length})</Label>
             <Card>
               <CardBody>
                 {assistant.runtimeFields.map(field => (
-                  <div key={field.id} style={{ marginBottom: '1rem' }}>
-                    <Stack row style={{ justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                  <div key={field.id} className="runtime-panel__field-item">
+                    <Stack row className="runtime-panel__field-header">
                       <Label compact>{field.label}</Label>
-                      {field.field && <Badge variant="muted" style={{ fontSize: '0.625rem' }}>{field.field}</Badge>}
+                      {field.field && <Badge variant="muted" className="runtime-panel__badge">{field.field}</Badge>}
                     </Stack>
                     <RuntimeFieldInput field={field} value={runtimeFieldValues[field.id] ?? field.value} onChange={(v) => onRuntimeFieldChange?.(field.id, v)} />
                   </div>
                 ))}
               </CardBody>
             </Card>
-            <Caption muted style={{ marginTop: '0.5rem' }}>Changes take effect immediately</Caption>
+            <Caption muted className="runtime-panel__field-hint">Changes take effect immediately</Caption>
           </section>
         )}
 
         {assistant.enabledTools.length > 0 && (
           <section>
-            <Button onClick={toggleToolsExpanded} variant="ghost" style={{ width: '100%', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+            <Button onClick={toggleToolsExpanded} variant="ghost" className="runtime-panel__tools-toggle">
               <Label compact>Enabled Tools ({assistant.enabledTools.length})</Label>
               <span>{toolsExpanded ? '▲' : '▼'}</span>
             </Button>
@@ -121,15 +122,15 @@ export function RuntimePanel({ assistant, runtimeFieldValues = {}, isToolsExpand
               <Stack gap="sm">
                 {fieldTools.length > 0 && (
                   <div>
-                    <Caption muted style={{ marginBottom: '0.5rem' }}>Auto-enabled from fields</Caption>
+                    <Caption muted className="runtime-panel__tool-section-label">Auto-enabled from fields</Caption>
                     {fieldTools.map(tool => (
                       <div key={tool.toolId} className="list-item">
                         <span>{tool.icon}</span>
-                        <div style={{ flex: 1 }}>
+                        <div className="runtime-panel__tool-info">
                           <Label>{tool.name}</Label>
-                          <Caption muted style={{ display: 'block' }}>{tool.package}@{tool.version}</Caption>
+                          <Caption muted className="runtime-panel__tool-package">{tool.package}@{tool.version}</Caption>
                         </div>
-                        <Badge variant={tool.installed ? 'success' : 'primary'} style={{ fontSize: '0.625rem' }}>
+                        <Badge variant={tool.installed ? 'success' : 'primary'} className="runtime-panel__badge">
                           {tool.installed ? 'Installed' : 'Not Installed'}
                         </Badge>
                       </div>
@@ -138,13 +139,13 @@ export function RuntimePanel({ assistant, runtimeFieldValues = {}, isToolsExpand
                 )}
                 {manualTools.length > 0 && (
                   <div>
-                    <Caption muted style={{ marginBottom: '0.5rem' }}>Manually added</Caption>
+                    <Caption muted className="runtime-panel__tool-section-label">Manually added</Caption>
                     {manualTools.map(tool => (
                       <div key={tool.toolId} className="list-item">
                         <span>{tool.icon}</span>
-                        <div style={{ flex: 1 }}>
+                        <div className="runtime-panel__tool-info">
                           <Label>{tool.name}</Label>
-                          <Caption muted style={{ display: 'block' }}>{tool.package}@{tool.version}</Caption>
+                          <Caption muted className="runtime-panel__tool-package">{tool.package}@{tool.version}</Caption>
                         </div>
                       </div>
                     ))}
@@ -156,8 +157,8 @@ export function RuntimePanel({ assistant, runtimeFieldValues = {}, isToolsExpand
         )}
 
         {assistant.runtimeFields.length === 0 && assistant.enabledTools.length === 0 && (
-          <Stack style={{ textAlign: 'center', padding: '3rem 0' }}>
-            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>✓</div>
+          <Stack className="runtime-panel__empty-state">
+            <div className="runtime-panel__empty-icon">✓</div>
             <Caption muted>This assistant has no runtime configuration. Ready to chat!</Caption>
           </Stack>
         )}

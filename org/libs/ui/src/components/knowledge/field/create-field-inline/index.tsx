@@ -7,6 +7,7 @@ import { Stack } from '@lmthing/ui/elements/layouts/stack'
 import { Label } from '@lmthing/ui/elements/typography/label'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
 import { Heading } from '@lmthing/ui/elements/typography/heading'
+import '@lmthing/css/components/knowledge/index.css'
 
 interface CreateFieldInlineProps {
     onSubmit: (name: string, description: string) => void
@@ -27,18 +28,18 @@ export function CreateFieldInline({ onSubmit, onCancel }: CreateFieldInlineProps
     }
 
     return (
-        <div className="panel" style={{ marginBottom: '1.5rem' }}>
+        <div className="panel create-field-inline">
             <div className="panel__header">
-                <Stack row gap="md" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Stack row gap="md" style={{ alignItems: 'center' }}>
-                        <FolderPlus style={{ width: '1.25rem', height: '1.25rem' }} />
+                <Stack row gap="md" className="create-field-inline__header-row">
+                    <Stack row gap="md" className="create-field-inline__title-row">
+                        <FolderPlus className="create-field-inline__icon" />
                         <div>
                             <Heading level={3}>Create Knowledge Field</Heading>
                             <Caption muted>Define a new field of knowledge</Caption>
                         </div>
                     </Stack>
                     <Button variant="ghost" size="icon" onClick={onCancel}>
-                        <X style={{ width: '1rem', height: '1rem' }} />
+                        <X className="create-field-inline__close-icon" />
                     </Button>
                 </Stack>
             </div>
@@ -65,11 +66,11 @@ export function CreateFieldInline({ onSubmit, onCancel }: CreateFieldInlineProps
                                 compact
                             />
                         </div>
-                        <Stack row gap="sm">
-                            <Button variant="outline" onClick={onCancel} style={{ flex: 1 }}>
+                        <Stack row gap="sm" className="create-field-inline__actions">
+                            <Button variant="outline" onClick={onCancel} className="create-field-inline__action-btn">
                                 Cancel
                             </Button>
-                            <Button variant="primary" type="submit" disabled={!name.trim()} style={{ flex: 1 }}>
+                            <Button variant="primary" type="submit" disabled={!name.trim()} className="create-field-inline__action-btn">
                                 Create Field
                             </Button>
                         </Stack>

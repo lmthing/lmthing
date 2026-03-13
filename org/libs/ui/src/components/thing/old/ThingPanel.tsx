@@ -3,11 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Bot } from 'lucide-react'
 import { runPrompt, type PromptConfig } from 'lmthing'
 import { z } from 'zod'
+import { cn } from '@lmthing/ui/lib/utils'
 import { useAgents, useFlows } from '@/lib/workspaceContext'
 import { useWorkspaceData } from '@/lib/workspaceDataContext'
 import { toWorkspaceRouteParam } from '@/lib/workspaces'
 import { ToolCallDisplay } from './ToolCallDisplay'
-import { CozyThingText } from '../../CozyText';
+import { CozyThingText } from '@lmthing/ui/elements/branding/cozy-text'
+import '@lmthing/css/components/thing/thing-panel/index.css'
 import type { AgentBuilderScreenProps } from '@/../product/sections/agent-builder/types'
 import type {
   EncryptedEnvFile,
@@ -2406,74 +2408,75 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
   return (
     <aside
       style={isCollapsed ? undefined : { width: `${actualWidth}px` }}
-      className={`${isCollapsed ? 'fixed bottom-4 right-4 w-auto z-50 shadow-lg rounded-lg' : 'sticky top-0 h-screen border-l'} border-stone-300 bg-gradient-to-b from-amber-50 to-stone-100 dark:border-stone-700 dark:bg-gradient-to-b dark:from-stone-900 dark:to-stone-950 flex min-w-0 flex-col transition-all duration-200`}
+      className={cn('old-thing-panel', isCollapsed ? 'old-thing-panel--collapsed' : 'old-thing-panel--expanded')}
     >
       {!isCollapsed && (
         <div
           onMouseDown={handleResizeStart}
-          className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-amber-600/30 active:bg-amber-600/50 transition-colors z-10"
-          style={{ marginLeft: '-2px' }}
+          className="old-thing-panel__resize-handle"
         />
       )}
 
       {isCollapsed ? (
-        <div className="flex flex-col items-center gap-3 py-3">
+        <div className="old-thing-panel__collapsed-inner">
           <button
             onClick={() => setIsCollapsed(false)}
-            className="relative inline-flex flex-col items-center justify-center gap-1 p-2 rounded-md hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors group"
+            className="old-thing-panel__collapsed-btn"
             title={hasEnv ? "THING" : "THING (Open a workspace and add an .env file to enable)"}
           >
-            <div className="relative">
-              <Bot className="h-5 w-5 text-amber-700 dark:text-amber-500" />
+            <div className="old-thing-panel__icon-wrap">
+              <Bot className="old-thing-panel__bot-icon" />
               <span
-                className={
+                className={cn(
+                  'old-thing-panel__status-indicator',
                   !hasEnv
-                    ? 'absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-orange-500 animate-pulse'
+                    ? 'old-thing-panel__status-indicator--warn'
                     : hasThingError
-                      ? 'absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-500'
+                      ? 'old-thing-panel__status-indicator--error'
                       : isThingWorking
-                        ? 'absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 animate-pulse'
-                        : 'absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500'
-                }
+                        ? 'old-thing-panel__status-indicator--working'
+                        : 'old-thing-panel__status-indicator--ready',
+                )}
               />
             </div>
-            <span className="text-[10px] font-medium whitespace-nowrap group-hover:text-amber-900 dark:group-hover:text-amber-300"><CozyThingText text="THING" className="text-[10px] font-medium" /></span>
+            <span className="old-thing-panel__collapsed-label"><CozyThingText text="THING" className="old-thing-panel__collapsed-label" /></span>
           </button>
         </div>
       ) : (
         <>
-          <div className="h-14 border-b border-stone-300 px-4 flex items-center justify-between bg-amber-100/60 dark:border-stone-700 dark:bg-stone-900">
-            <div className="flex items-center gap-2">
-              <div className="relative inline-flex items-center">
-                <Bot className="h-4 w-4 text-amber-700 dark:text-amber-500" />
+          <div className="old-thing-panel__header">
+            <div className="old-thing-panel__header-left">
+              <div className="old-thing-panel__header-icon-wrap">
+                <Bot className="old-thing-panel__bot-icon--sm" />
                 <span
-                  className={
+                  className={cn(
+                    'old-thing-panel__status-indicator--sm',
                     !hasEnv
-                      ? 'absolute -right-1 -top-1 h-2 w-2 rounded-full bg-orange-500 animate-pulse'
+                      ? 'old-thing-panel__status-indicator--warn'
                       : hasThingError
-                        ? 'absolute -right-1 -top-1 h-2 w-2 rounded-full bg-red-500'
+                        ? 'old-thing-panel__status-indicator--error'
                         : isThingWorking
-                          ? 'absolute -right-1 -top-1 h-2 w-2 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 animate-pulse'
-                          : 'absolute -right-1 -top-1 h-2 w-2 rounded-full bg-emerald-500'
-                  }
+                          ? 'old-thing-panel__status-indicator--working'
+                          : 'old-thing-panel__status-indicator--ready',
+                  )}
                 />
               </div>
-              <h2 className="text-sm font-semibold text-stone-800 dark:text-amber-100"><CozyThingText text="THING" className="text-sm font-semibold" /></h2>
+              <h2 className="old-thing-panel__header-title"><CozyThingText text="THING" className="old-thing-panel__header-title" /></h2>
               <button
                 onClick={() => setIsCollapsed(true)}
-                className="ml-1 text-xs text-amber-700 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-300 underline"
+                className="old-thing-panel__collapse-link"
                 title="Collapse Thing panel"
               >
                 collapse
               </button>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-stone-600 dark:text-stone-400">Workspace actions</span>
+            <div className="old-thing-panel__header-right">
+              <span className="old-thing-panel__header-caption">Workspace actions</span>
               <button
                 type="button"
                 onClick={createNewChat}
                 disabled={isThingWorking}
-                className="rounded-md border border-amber-600 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200 dark:hover:bg-amber-900/40"
+                className="old-thing-panel__new-chat-btn"
               >
                 New chat
               </button>
@@ -2484,26 +2487,26 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
 
       {!isCollapsed && (
         <>
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="old-thing-panel__body">
         {!hasEnv && (
-          <div className="rounded-lg border border-orange-300 bg-orange-50 p-3 shadow-sm dark:border-orange-700 dark:bg-orange-950/30">
-            <div className="mb-1.5 flex items-center gap-2">
-              <svg className="h-4 w-4 text-orange-600 dark:text-orange-400" fill="currentColor" viewBox="0 0 20 20">
+          <div className="old-thing-panel__env-warning">
+            <div className="old-thing-panel__env-warning-header">
+              <svg className="old-thing-panel__env-warning-icon" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
-              <div className="text-xs font-semibold text-orange-900 dark:text-orange-200">Environment Not Configured</div>
+              <div className="old-thing-panel__env-warning-title">Environment Not Configured</div>
             </div>
-            <p className="text-xs text-orange-800 dark:text-orange-300 leading-relaxed">
+            <p className="old-thing-panel__env-warning-text">
               THING is disabled. To enable workspace actions:
             </p>
-            <ol className="mt-2 ml-4 text-xs text-orange-800 dark:text-orange-300 leading-relaxed list-decimal space-y-1">
+            <ol className="old-thing-panel__env-warning-list">
               <li>Open or create a workspace</li>
               <li>
-                Add an <code className="rounded bg-orange-100 px-1 py-0.5 font-mono text-[10px] dark:bg-orange-900/40">.env</code> file {workspaceName && (
+                Add an <code className="old-thing-panel__env-code">.env</code> file {workspaceName && (
                   <>in{' '}
                   <button
                     onClick={handleOpenSettings}
-                    className="font-mono font-semibold text-orange-900 dark:text-orange-100 underline hover:text-orange-950 dark:hover:text-white transition-colors"
+                    className="old-thing-panel__env-settings-link"
                   >
                     Settings
                   </button>
@@ -2513,48 +2516,48 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
             </ol>
           </div>
         )}
-        <div className="rounded-lg border border-stone-300 bg-white shadow-sm p-2 dark:border-stone-700 dark:bg-stone-900/50">
-          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-stone-600 dark:text-amber-500">
+        <div className="old-thing-panel__history">
+          <div className="old-thing-panel__history-title">
             History
           </div>
-          <div className="max-h-36 space-y-1 overflow-y-auto pr-1">
+          <div className="old-thing-panel__history-list">
             {thingConversations.map((conversation) => {
               const isCurrent = conversation.id === currentConversation?.id
               const isEditingTitle = editingConversationId === conversation.id
 
               return (
-                <div key={conversation.id} className="rounded-md border border-transparent px-2 py-1.5 hover:border-slate-200 hover:bg-slate-50 dark:hover:border-slate-700 dark:hover:bg-slate-950/40">
+                <div key={conversation.id} className="old-thing-panel__history-item">
                   {isEditingTitle ? (
-                    <div className="space-y-1">
+                    <div className="old-thing-panel__history-edit">
                       <input
                         value={editingConversationTitle}
                         onChange={(event) => setEditingConversationTitle(event.target.value)}
-                        className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 outline-none ring-violet-500 focus:ring-2 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                        className="old-thing-panel__history-edit-input"
                       />
-                      <div className="flex gap-1">
+                      <div className="old-thing-panel__history-edit-actions">
                         <button
                           type="button"
                           onClick={saveConversationTitle}
                           disabled={!editingConversationTitle.trim()}
-                          className="rounded bg-violet-600 px-2 py-0.5 text-[11px] font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                          className="old-thing-panel__history-save-btn"
                         >
                           Save
                         </button>
                         <button
                           type="button"
                           onClick={cancelEditingConversationTitle}
-                          className="rounded border border-slate-300 px-2 py-0.5 text-[11px] font-medium text-slate-700 dark:border-slate-700 dark:text-slate-200"
+                          className="old-thing-panel__history-cancel-btn"
                         >
                           Cancel
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="old-thing-panel__history-row">
                       <button
                         type="button"
                         onClick={() => setCurrentConversationId(conversation.id)}
-                        className={`min-w-0 flex-1 truncate text-left text-xs ${isCurrent ? 'font-semibold text-violet-700 dark:text-violet-200' : 'text-slate-700 dark:text-slate-200'}`}
+                        className={cn('old-thing-panel__history-conv-btn', isCurrent ? 'old-thing-panel__history-conv-btn--active' : 'old-thing-panel__history-conv-btn--inactive')}
                         title={conversation.title}
                       >
                         {conversation.title}
@@ -2562,7 +2565,7 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
                       <button
                         type="button"
                         onClick={() => startEditingConversationTitle(conversation)}
-                        className="rounded px-1.5 py-0.5 text-[10px] text-slate-500 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-800"
+                        className="old-thing-panel__history-rename-btn"
                       >
                         Rename
                       </button>
@@ -2577,19 +2580,15 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
         {thingMessages.map((message) => (
           <div
             key={message.id}
-            className={
-              message.role === 'user'
-                ? 'ml-8 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-stone-800 shadow-sm dark:border-amber-800/50 dark:bg-amber-950/20 dark:text-amber-100'
-                : 'mr-8 rounded-lg border border-stone-300 bg-stone-50/80 px-3 py-2 text-sm text-stone-800 shadow-sm dark:border-stone-700 dark:bg-stone-900/50 dark:text-stone-200'
-            }
+            className={message.role === 'user' ? 'old-thing-panel__msg--user' : 'old-thing-panel__msg--assistant'}
           >
-            <div className="mb-1 flex items-center justify-between gap-2 text-[11px] font-medium uppercase tracking-wide opacity-70">
+            <div className="old-thing-panel__msg-header">
               <span>{message.role === 'user' ? 'You' : 'Thing'}</span>
               {message.id !== 'thing-welcome' && !isThingWorking && (
                 <button
                   type="button"
                   onClick={() => startEditingMessage(message)}
-                  className="rounded px-1.5 py-0.5 text-[10px] normal-case tracking-normal hover:bg-slate-200 dark:hover:bg-slate-800"
+                  className="old-thing-panel__msg-edit-btn"
                 >
                   Edit
                 </button>
@@ -2597,19 +2596,19 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
             </div>
 
             {editingMessageId === message.id ? (
-              <div className="space-y-2">
+              <div className="old-thing-panel__msg-edit">
                 <textarea
                   value={editingMessageContent}
                   onChange={(event) => setEditingMessageContent(event.target.value)}
                   rows={4}
-                  className="w-full resize-none rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none ring-violet-500 focus:ring-2 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                  className="old-thing-panel__msg-edit-textarea"
                 />
-                <div className="flex flex-wrap gap-2">
+                <div className="old-thing-panel__msg-edit-actions">
                   <button
                     type="button"
                     onClick={() => saveEditedMessage()}
                     disabled={!editingMessageContent.trim()}
-                    className="rounded-md bg-violet-600 px-2 py-1 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    className="old-thing-panel__msg-save-btn"
                   >
                     Save
                   </button>
@@ -2618,7 +2617,7 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
                       type="button"
                       onClick={() => saveEditedMessage({ rerunFromUserMessage: true })}
                       disabled={!editingMessageContent.trim()}
-                      className="rounded-md border border-violet-300 px-2 py-1 text-xs font-medium text-violet-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-violet-700 dark:text-violet-200"
+                      className="old-thing-panel__msg-rerun-btn"
                     >
                       Save & rerun
                     </button>
@@ -2626,7 +2625,7 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
                   <button
                     type="button"
                     onClick={cancelEditingMessage}
-                    className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:text-slate-200"
+                    className="old-thing-panel__msg-cancel-btn"
                   >
                     Cancel
                   </button>
@@ -2635,20 +2634,20 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
             ) : message.role === 'assistant' ? (
               <ToolCallDisplay content={message.content} />
             ) : (
-              <p className="whitespace-pre-wrap break-words">{message.content}</p>
+              <p className="old-thing-panel__msg-text">{message.content}</p>
             )}
           </div>
         ))}
 
         {isThingWorking && (
-          <div className="mr-8 rounded-lg border border-stone-300 bg-stone-50/80 px-3 py-2.5 shadow-sm dark:border-stone-700 dark:bg-stone-900/50">
-            <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">Thing</div>
-            <div className="flex items-center gap-2.5">
-              <div className="relative flex h-5 w-5 items-center justify-center">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet-400 opacity-40" />
-                <span className="relative inline-flex h-3 w-3 rounded-full bg-gradient-to-br from-violet-500 to-purple-500" />
+          <div className="old-thing-panel__processing">
+            <div className="old-thing-panel__processing-label">Thing</div>
+            <div className="old-thing-panel__processing-row">
+              <div className="old-thing-panel__processing-dot-wrap">
+                <span className="old-thing-panel__processing-ping" />
+                <span className="old-thing-panel__processing-dot" />
               </div>
-              <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Processing…</span>
+              <span className="old-thing-panel__processing-text">Processing…</span>
             </div>
           </div>
         )}
@@ -2656,21 +2655,21 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
         <div ref={thingMessagesEndRef} />
       </div>
 
-      <form onSubmit={handleThingSubmit} className="border-t border-stone-300 p-3 space-y-2 bg-amber-50/40 dark:border-stone-700 dark:bg-stone-900/30">
+      <form onSubmit={handleThingSubmit} className="old-thing-panel__input-form">
         <textarea
           value={thingInput}
           onChange={(event) => setThingInput(event.target.value)}
           rows={5}
           placeholder={hasEnv ? "Type help or paste JSON action envelope..." : "Open a workspace and add an .env file with API keys to enable THING..."}
           disabled={!hasEnv}
-          className="w-full resize-none rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 outline-none ring-amber-600 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-stone-100 dark:border-stone-600 dark:bg-stone-950/80 dark:text-stone-200 dark:disabled:bg-stone-900/50"
+          className="old-thing-panel__input-textarea"
         />
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-xs text-stone-600 dark:text-stone-400">{hasEnv ? 'Try: help or status' : 'Set up environment to enable'}</span>
+        <div className="old-thing-panel__input-footer">
+          <span className="old-thing-panel__input-hint">{hasEnv ? 'Try: help or status' : 'Set up environment to enable'}</span>
           <button
             type="submit"
             disabled={!hasEnv || isThingWorking || !thingInput.trim()}
-            className="inline-flex items-center rounded-md bg-amber-700 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
+            className="old-thing-panel__send-btn"
           >
             Send
           </button>

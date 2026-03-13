@@ -8,6 +8,7 @@ import { useSpace } from '@lmthing/ui/hooks/useSpace'
 import '@lmthing/css/elements/content/card/index.css'
 import '@lmthing/css/elements/layouts/page/index.css'
 import '@lmthing/css/elements/layouts/stack/index.css'
+import '@lmthing/css/components/studio/index.css'
 
 export function StudioList() {
   const space = useSpace()
@@ -17,7 +18,7 @@ export function StudioList() {
   return (
     <Page full>
       <PageHeader>
-        <Stack row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <Stack row className="studio-list__header">
           <div>
             <Heading level={2}>Studios</Heading>
             <Caption muted>Browse and manage your studios</Caption>
@@ -28,7 +29,7 @@ export function StudioList() {
 
       <PageBody>
         {studios.length === 0 ? (
-          <Stack style={{ alignItems: 'center', justifyContent: 'center', padding: '3rem' }}>
+          <Stack className="studio-list__empty">
             <Heading level={3}>No Studios</Heading>
             <Caption muted>Create a studio to get started.</Caption>
           </Stack>

@@ -7,6 +7,7 @@ import { Button } from '@lmthing/ui/elements/forms/button'
 import { Input } from '@lmthing/ui/elements/forms/input'
 import { X } from 'lucide-react'
 import { collectFolders } from '../new-file-modal'
+import '@lmthing/css/components/knowledge/index.css'
 
 interface NewFolderModalProps {
   isOpen: boolean
@@ -38,19 +39,18 @@ export function NewFolderModal({ isOpen, onClose, onCreate, folders, defaultLoca
   return (
     <div className="dialog__backdrop" onClick={onClose} onKeyDown={handleKeyDown}>
       <div
-        className="dialog"
-        style={{ maxWidth: '28rem' }}
+        className="dialog new-file-modal"
         onClick={e => e.stopPropagation()}
       >
         <div className="dialog__header">
-          <Heading level={3} style={{ color: '#10b981' }}>New Folder</Heading>
+          <Heading level={3} className="new-file-modal__title">New Folder</Heading>
           <Button variant="ghost" size="icon" onClick={onClose}>
-            <X style={{ width: '1rem', height: '1rem' }} />
+            <X className="new-file-modal__close-icon" />
           </Button>
         </div>
 
         <div className="dialog__content">
-          <Stack gap="md" style={{ padding: '0 1.5rem' }}>
+          <Stack gap="md" className="new-file-modal__fields">
             <div>
               <Label>Folder Name</Label>
               <Input
@@ -68,10 +68,9 @@ export function NewFolderModal({ isOpen, onClose, onCreate, folders, defaultLoca
             <div>
               <Label>Parent Location</Label>
               <select
-                className="input"
+                className="input new-file-modal__select"
                 value={parentLocation}
                 onChange={e => setParentLocation(e.target.value)}
-                style={{ width: '100%' }}
               >
                 <option value={defaultLocation}>/  (root)</option>
                 {folders.map(f => (
@@ -83,13 +82,13 @@ export function NewFolderModal({ isOpen, onClose, onCreate, folders, defaultLoca
             </div>
           </Stack>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', padding: '1rem 1.5rem', borderTop: '1px solid var(--color-border)', marginTop: '1rem' }}>
+          <div className="new-file-modal__footer">
             <Button variant="ghost" onClick={onClose}>Cancel</Button>
             <Button
               variant="primary"
               onClick={handleCreate}
               disabled={!folderName.trim()}
-              style={{ backgroundColor: '#10b981' }}
+              className="new-file-modal__create-btn"
             >
               Create
             </Button>

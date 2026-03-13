@@ -1,0 +1,305 @@
+@reference "../../../../theme.css";
+
+/* ── StepSchemaEditor ─────────────────────────────────────────────── */
+
+.schema-editor {
+  background: var(--muted);
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.schema-editor__header {
+  @apply flex items-center justify-between;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.schema-editor__mode-toggle {
+  @apply flex items-center;
+  gap: 0.25rem;
+  background: var(--muted);
+  border-radius: 0.5rem;
+  padding: 0.25rem;
+}
+
+.schema-editor__mode-btn {
+  @apply text-sm font-medium transition-all;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.375rem;
+  color: var(--muted-foreground);
+}
+
+.schema-editor__mode-btn:hover {
+  color: var(--foreground);
+}
+
+.schema-editor__mode-btn--active {
+  background: var(--card);
+  color: var(--foreground);
+  @apply shadow-sm;
+}
+
+.schema-editor__body {
+  padding: 0.75rem;
+}
+
+.schema-editor__empty {
+  @apply text-center;
+  padding: 2rem 0;
+}
+
+.schema-editor__empty-icon-wrapper {
+  @apply w-12 h-12 rounded-full flex items-center justify-center mx-auto;
+  background: var(--muted);
+  margin-bottom: 0.75rem;
+}
+
+.schema-editor__empty-icon {
+  @apply w-6 h-6;
+  color: var(--muted-foreground);
+}
+
+.schema-editor__empty-caption {
+  margin-bottom: 1rem;
+}
+
+.schema-editor__property-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.schema-editor__add-btn {
+  @apply w-full text-sm transition-colors flex items-center justify-center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  border: 2px dashed var(--border);
+  color: var(--muted-foreground);
+}
+
+.schema-editor__add-btn:hover {
+  border-color: var(--brand-3);
+  color: var(--brand-3);
+}
+
+.schema-editor__add-icon {
+  @apply w-4 h-4;
+}
+
+.schema-editor__code-textarea {
+  font-family: monospace;
+  min-height: 15rem;
+}
+
+.schema-editor__code-error {
+  color: var(--color-red-500);
+  margin-top: 0.5rem;
+}
+
+/* ── PropertyRow ──────────────────────────────────────────────────── */
+
+.property-row {
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: var(--card);
+}
+
+.property-row__main {
+  @apply flex items-center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.property-row__main--clickable {
+  cursor: pointer;
+}
+
+.property-row__main--clickable:hover {
+  background: var(--muted);
+}
+
+.property-row__move-buttons {
+  @apply flex flex-col;
+  gap: 0.125rem;
+}
+
+.property-row__move-icon {
+  @apply w-3.5 h-3.5;
+}
+
+.property-row__expand-btn {
+  @apply p-1 rounded;
+  color: var(--muted-foreground);
+}
+
+.property-row__expand-btn:hover {
+  background: var(--muted);
+}
+
+.property-row__expand-icon {
+  @apply w-4 h-4 transition-transform;
+}
+
+.property-row__expand-icon--open {
+  @apply rotate-90;
+}
+
+.property-row__name-input {
+  flex: 1 1 120px;
+  font-family: monospace;
+}
+
+.property-row__type-icon {
+  @apply p-1.5 rounded-lg;
+}
+
+.property-row__type-icon--string {
+  background: color-mix(in srgb, var(--brand-1) 15%, transparent);
+  color: var(--brand-1);
+}
+
+.property-row__type-icon--number,
+.property-row__type-icon--boolean {
+  background: color-mix(in srgb, var(--brand-2) 15%, transparent);
+  color: var(--brand-2);
+}
+
+.property-row__type-icon--object {
+  background: color-mix(in srgb, var(--brand-3) 15%, transparent);
+  color: var(--brand-3);
+}
+
+.property-row__type-icon--array {
+  background: color-mix(in srgb, var(--destructive) 15%, transparent);
+  color: var(--destructive);
+}
+
+.property-row__icon {
+  @apply w-4 h-4;
+}
+
+.property-row__required-btn {
+  @apply text-xs font-medium transition-all;
+  padding: 0.375rem 0.625rem;
+  border-radius: 0.5rem;
+}
+
+.property-row__required-btn--required {
+  background: color-mix(in srgb, var(--destructive) 15%, transparent);
+  color: var(--destructive);
+  @apply ring-1;
+  --tw-ring-color: color-mix(in srgb, var(--destructive) 30%, transparent);
+}
+
+.property-row__required-btn--optional {
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.property-row__required-btn--optional:hover {
+  background: var(--muted);
+}
+
+.property-row__description-hint {
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.property-row__actions {
+  @apply flex items-center;
+  gap: 0.25rem;
+}
+
+.property-row__delete-icon {
+  @apply w-4 h-4;
+  color: var(--destructive);
+}
+
+.property-row__type-options {
+  padding: 0 0.75rem 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.property-row__type-options-inner {
+  @apply flex items-center;
+  gap: 1rem;
+  padding-top: 0.75rem;
+}
+
+.property-row__enum-input {
+  flex: 1;
+}
+
+.property-row__range-inputs {
+  @apply flex items-center;
+  gap: 0.5rem;
+}
+
+.property-row__range-input {
+  width: 5rem;
+}
+
+.property-row__range-arrow {
+  color: var(--muted-foreground);
+}
+
+.property-row__description-input {
+  flex: 1;
+}
+
+.property-row__nested {
+  border-top: 1px solid var(--border);
+  padding: 0.75rem;
+  background: color-mix(in srgb, var(--muted) 50%, transparent);
+}
+
+.property-row__array-item {
+  background: var(--card);
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.property-row__array-item-inner {
+  @apply flex items-center;
+  gap: 0.75rem;
+}
+
+.property-row__array-spacer {
+  flex: 1;
+}
+
+.property-row__add-item-btn {
+  @apply w-full text-sm transition-colors;
+  padding: 0.5rem;
+  margin-top: 0.5rem;
+  border-radius: 0.5rem;
+  border: 2px dashed var(--border);
+  color: var(--muted-foreground);
+}
+
+.property-row__add-item-btn:hover {
+  border-color: var(--brand-3);
+  color: var(--brand-3);
+}
+
+/* ── NestedPropertiesEditor ───────────────────────────────────────── */
+
+.nested-properties {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.nested-properties__add-btn {
+  width: 100%;
+}
+
+.nested-properties__add-icon {
+  @apply w-4 h-4;
+}

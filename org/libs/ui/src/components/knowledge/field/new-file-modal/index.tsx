@@ -7,6 +7,7 @@ import { Button } from '@lmthing/ui/elements/forms/button'
 import { Input } from '@lmthing/ui/elements/forms/input'
 import { X } from 'lucide-react'
 import type { KnowledgeNode } from '@/types/space-data'
+import '@lmthing/css/components/knowledge/index.css'
 
 interface NewFileModalProps {
   isOpen: boolean
@@ -39,19 +40,18 @@ export function NewFileModal({ isOpen, onClose, onCreate, folders, defaultLocati
   return (
     <div className="dialog__backdrop" onClick={onClose} onKeyDown={handleKeyDown}>
       <div
-        className="dialog"
-        style={{ maxWidth: '28rem' }}
+        className="dialog new-file-modal"
         onClick={e => e.stopPropagation()}
       >
         <div className="dialog__header">
-          <Heading level={3} style={{ color: '#10b981' }}>New Prompt Fragment</Heading>
+          <Heading level={3} className="new-file-modal__title">New Prompt Fragment</Heading>
           <Button variant="ghost" size="icon" onClick={onClose}>
-            <X style={{ width: '1rem', height: '1rem' }} />
+            <X className="new-file-modal__close-icon" />
           </Button>
         </div>
 
         <div className="dialog__content">
-          <Stack gap="md" style={{ padding: '0 1.5rem' }}>
+          <Stack gap="md" className="new-file-modal__fields">
             <div>
               <Label>Filename</Label>
               <Input
@@ -64,7 +64,7 @@ export function NewFileModal({ isOpen, onClose, onCreate, folders, defaultLocati
                   if (e.key === 'Enter') handleCreate()
                 }}
               />
-              <span style={{ fontSize: '0.75rem', color: 'var(--color-muted-foreground)', marginTop: '0.25rem', display: 'block' }}>
+              <span className="new-file-modal__hint">
                 .md extension will be added automatically
               </span>
             </div>
@@ -72,10 +72,9 @@ export function NewFileModal({ isOpen, onClose, onCreate, folders, defaultLocati
             <div>
               <Label>Location</Label>
               <select
-                className="input"
+                className="input new-file-modal__select"
                 value={location}
                 onChange={e => setLocation(e.target.value)}
-                style={{ width: '100%' }}
               >
                 <option value={defaultLocation}>/  (root)</option>
                 {folders.map(f => (
@@ -87,13 +86,13 @@ export function NewFileModal({ isOpen, onClose, onCreate, folders, defaultLocati
             </div>
           </Stack>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', padding: '1rem 1.5rem', borderTop: '1px solid var(--color-border)', marginTop: '1rem' }}>
+          <div className="new-file-modal__footer">
             <Button variant="ghost" onClick={onClose}>Cancel</Button>
             <Button
               variant="primary"
               onClick={handleCreate}
               disabled={!filename.trim()}
-              style={{ backgroundColor: '#10b981' }}
+              className="new-file-modal__create-btn"
             >
               Create
             </Button>

@@ -12,3 +12,11 @@
 .avatar--lg {
   @apply size-12 text-base;
 }
+
+.avatar__image {
+  @apply h-full w-full object-cover;
+}
+
+.avatar__fallback {
+  @apply flex h-full w-full items-center justify-center text-sm font-medium;
+}

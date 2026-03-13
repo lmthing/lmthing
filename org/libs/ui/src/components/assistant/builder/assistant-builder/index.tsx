@@ -15,6 +15,7 @@
  * US-212: Export agent config
  * US-213: Thing sliding panel
  */
+import '@lmthing/css/components/assistant/builder/index.css'
 import { useEffect, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from '@tanstack/react-router'
 import { useSpaceFS, P, serializeAgentInstruct, serializeAgentConfig, serializeAgentValues, useUIState, useToggle } from '@lmthing/state'
@@ -290,7 +291,7 @@ export function AssistantBuilder() {
   ]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div className="assistant-builder">
       {/* US-201: Application Header */}
       <AssistantHeader
         name={draftName}
@@ -317,10 +318,10 @@ export function AssistantBuilder() {
       />
 
       {/* Main content area: three-column layout */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div className="assistant-builder__content">
         {/* Center: Main content */}
-        <main style={{ flex: 1, overflowY: 'auto' }}>
-          <div style={{ maxWidth: '48rem', margin: '0 auto', padding: '2rem 1.5rem' }}>
+        <main className="assistant-builder__main">
+          <div className="assistant-builder__main-inner">
             <Stack gap="lg">
               {/* US-203: Main Instructions */}
               <div className="panel">
@@ -329,11 +330,10 @@ export function AssistantBuilder() {
                 </div>
                 <div className="panel__body">
                   <textarea
-                    className="input"
+                    className="input assistant-builder__textarea"
                     value={draftInstructions}
                     onChange={e => setDraftInstructions(e.target.value)}
                     placeholder="Write the agent's core system prompt here. Define its behavior, personality, and operational guidelines..."
-                    style={{ minHeight: '240px', fontFamily: 'monospace', resize: 'vertical' }}
                   />
                 </div>
               </div>
@@ -360,20 +360,14 @@ export function AssistantBuilder() {
         </main>
 
         {/* US-205: Right panel - Actions/Tools tabs */}
-        <aside style={{
-          width: '20rem',
-          flexShrink: 0,
-          borderLeft: '1px solid var(--color-border)',
-          display: 'flex',
-          flexDirection: 'column',
-        }}>
+        <aside className="assistant-builder__aside">
           <TabBar
             tabs={rightTabs}
             activeTab={rightTab}
             onTabChange={(id) => setRightTab(id as 'actions' | 'tools')}
           />
 
-          <div style={{ flex: 1, overflow: 'hidden' }}>
+          <div className="assistant-builder__aside-body">
             {rightTab === 'actions' ? (
               <ActionsPanel
                 attachedWorkflows={attachedWorkflows}

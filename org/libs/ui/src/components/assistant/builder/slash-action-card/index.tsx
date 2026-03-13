@@ -1,3 +1,4 @@
+import '@lmthing/css/components/assistant/builder/index.css'
 import type { AttachedFlow } from '@/../product/sections/agent-builder/types'
 import { Button } from '@lmthing/ui/elements/forms/button'
 import { Badge } from '@lmthing/ui/elements/content/badge'
@@ -17,17 +18,11 @@ export function SlashActionCard({ attachedFlow, onToggleEnabled, onEdit, onDetac
   const { slashAction, flowName, flowDescription, taskCount } = attachedFlow
 
   return (
-    <div className={`
-      group p-3 bg-muted rounded-xl border-2 transition-all
-      ${slashAction.enabled
-        ? 'border-brand-3/30 bg-brand-3/10'
-        : 'border-border opacity-60'
-      }
-    `}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
+    <div className={`slash-action-card ${slashAction.enabled ? 'slash-action-card--enabled' : 'slash-action-card--disabled'}`}>
+      <div className="slash-action-card__row">
+        <div className="slash-action-card__content">
           {/* Action trigger */}
-          <Stack row gap="sm" style={{ marginBottom: '0.5rem', alignItems: 'center' }}>
+          <Stack row gap="sm" className="slash-action-card__trigger-row">
             <Badge variant={slashAction.enabled ? 'primary' : 'muted'}>
               /{slashAction.actionId}
             </Badge>
@@ -39,38 +34,32 @@ export function SlashActionCard({ attachedFlow, onToggleEnabled, onEdit, onDetac
           <Caption muted>{slashAction.description}</Caption>
 
           {/* Workflow metadata */}
-          <Caption muted style={{ marginTop: '0.5rem' }}>
+          <Caption muted className="slash-action-card__meta">
             {taskCount} step{taskCount !== 1 ? 's' : ''} &middot; {flowDescription}
           </Caption>
         </div>
 
         {/* Actions */}
-        <Stack row gap="sm" style={{ alignItems: 'center' }}>
+        <Stack row gap="sm" className="slash-action-card__actions">
           {/* Enable/disable toggle */}
           <button
             onClick={() => onToggleEnabled(slashAction.id, !slashAction.enabled)}
-            className={`
-              relative w-10 h-5 rounded-full transition-colors
-              ${slashAction.enabled ? 'bg-brand-3' : 'bg-neutral'}
-            `}
+            className={`slash-action-card__toggle ${slashAction.enabled ? 'slash-action-card__toggle--on' : 'slash-action-card__toggle--off'}`}
             title={slashAction.enabled ? 'Disable action' : 'Enable action'}
           >
-            <div className={`
-              absolute top-0.5 w-4 h-4 bg-background rounded-full shadow transition-transform
-              ${slashAction.enabled ? 'left-5' : 'left-0.5'}
-            `} />
+            <div className={`slash-action-card__toggle-knob ${slashAction.enabled ? 'slash-action-card__toggle-knob--on' : 'slash-action-card__toggle-knob--off'}`} />
           </button>
 
           {/* Edit button */}
           <Button variant="ghost" size="icon" onClick={() => onEdit(slashAction.id)}>
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="slash-action-card__btn-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
           </Button>
 
           {/* Detach button */}
           <Button variant="ghost" size="icon" onClick={() => onDetach(slashAction.id)}>
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="slash-action-card__btn-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </Button>
@@ -99,11 +88,11 @@ export function SlashActionsPanel({
   const enabledCount = attachedFlows.filter(f => f.slashAction.enabled).length
 
   return (
-    <div className="space-y-3">
-      <Stack row gap="md" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="slash-actions-panel">
+      <Stack row gap="md" className="slash-actions-panel__header">
         <Heading level={4}>Slash Actions ({enabledCount}/{attachedFlows.length})</Heading>
         <Button variant="ghost" size="sm" onClick={onAttachNewFlow}>
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="slash-actions-panel__add-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           Add Action
@@ -111,9 +100,9 @@ export function SlashActionsPanel({
       </Stack>
 
       {attachedFlows.length === 0 ? (
-        <div className="text-center py-6">
-          <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-muted flex items-center justify-center">
-            <svg className="w-5 h-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="slash-actions-panel__empty">
+          <div className="slash-actions-panel__empty-icon-wrap">
+            <svg className="slash-actions-panel__empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
@@ -121,7 +110,7 @@ export function SlashActionsPanel({
           <Caption muted>Attach workflows to create custom actions</Caption>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="slash-actions-panel__list">
           {attachedFlows.map((attachedFlow) => (
             <SlashActionCard
               key={attachedFlow.slashAction.id}
@@ -136,12 +125,12 @@ export function SlashActionsPanel({
 
       {/* Help text */}
       {attachedFlows.length > 0 && (
-        <div className="flex items-start gap-2 p-2 bg-brand-1/10 rounded-lg">
-          <svg className="w-4 h-4 text-brand-1 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="slash-actions-panel__help">
+          <svg className="slash-actions-panel__help-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <Caption muted>
-            Type <span className="font-mono font-semibold">/action</span> in chat to trigger a workflow
+            Type <span className="slash-actions-panel__help-code">/action</span> in chat to trigger a workflow
           </Caption>
         </div>
       )}

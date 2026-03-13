@@ -26,7 +26,7 @@ function Avatar({ className, size = 'default', ...props }: AvatarProps) {
 function AvatarImage({ className, ...props }: React.ComponentProps<typeof AvatarPrimitive.Image>) {
   return (
     <AvatarPrimitive.Image
-      className={cn('h-full w-full object-cover', className)}
+      className={cn('avatar__image', className)}
       {...props}
     />
   )
@@ -35,7 +35,7 @@ function AvatarImage({ className, ...props }: React.ComponentProps<typeof Avatar
 function AvatarFallback({ className, ...props }: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
   return (
     <AvatarPrimitive.Fallback
-      className={cn('flex h-full w-full items-center justify-center text-sm font-medium', className)}
+      className={cn('avatar__fallback', className)}
       {...props}
     />
   )

@@ -1,4 +1,5 @@
 import { Button } from '@lmthing/ui/elements/forms/button'
+import '@lmthing/css/components/knowledge/index.css'
 import {
   Bold,
   Italic,
@@ -34,74 +35,65 @@ interface MarkdownToolbarProps {
   onModeChange: (mode: EditorMode) => void
 }
 
-const iconStyle = { width: '0.875rem', height: '0.875rem' }
-
 export function MarkdownToolbar({ mode, onFormat, onModeChange }: MarkdownToolbarProps) {
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '0.125rem',
-      padding: '0.25rem 0.5rem',
-      borderBottom: '1px solid var(--color-border)',
-      flexWrap: 'wrap',
-    }}>
+    <div className="markdown-toolbar">
       <Button variant="ghost" size="icon" onClick={() => onFormat('bold')} title="Bold (Ctrl+B)" disabled={mode === 'preview'}>
-        <Bold style={iconStyle} />
+        <Bold className="markdown-toolbar__icon" />
       </Button>
       <Button variant="ghost" size="icon" onClick={() => onFormat('italic')} title="Italic (Ctrl+I)" disabled={mode === 'preview'}>
-        <Italic style={iconStyle} />
+        <Italic className="markdown-toolbar__icon" />
       </Button>
       <Button variant="ghost" size="icon" onClick={() => onFormat('heading')} title="Heading" disabled={mode === 'preview'}>
-        <Heading1 style={iconStyle} />
+        <Heading1 className="markdown-toolbar__icon" />
       </Button>
 
-      <span style={{ width: '1px', height: '1.25rem', backgroundColor: 'var(--color-border)', margin: '0 0.25rem' }} />
+      <span className="markdown-toolbar__separator" />
 
       <Button variant="ghost" size="icon" onClick={() => onFormat('bullet-list')} title="Bullet list" disabled={mode === 'preview'}>
-        <List style={iconStyle} />
+        <List className="markdown-toolbar__icon" />
       </Button>
       <Button variant="ghost" size="icon" onClick={() => onFormat('numbered-list')} title="Numbered list" disabled={mode === 'preview'}>
-        <ListOrdered style={iconStyle} />
+        <ListOrdered className="markdown-toolbar__icon" />
       </Button>
       <Button variant="ghost" size="icon" onClick={() => onFormat('blockquote')} title="Blockquote" disabled={mode === 'preview'}>
-        <Quote style={iconStyle} />
+        <Quote className="markdown-toolbar__icon" />
       </Button>
 
-      <span style={{ width: '1px', height: '1.25rem', backgroundColor: 'var(--color-border)', margin: '0 0.25rem' }} />
+      <span className="markdown-toolbar__separator" />
 
       <Button variant="ghost" size="icon" onClick={() => onFormat('inline-code')} title="Inline code" disabled={mode === 'preview'}>
-        <Code style={iconStyle} />
+        <Code className="markdown-toolbar__icon" />
       </Button>
       <Button variant="ghost" size="icon" onClick={() => onFormat('code-block')} title="Code block" disabled={mode === 'preview'}>
-        <Code2 style={iconStyle} />
+        <Code2 className="markdown-toolbar__icon" />
       </Button>
       <Button variant="ghost" size="icon" onClick={() => onFormat('link')} title="Link" disabled={mode === 'preview'}>
-        <Link style={iconStyle} />
+        <Link className="markdown-toolbar__icon" />
       </Button>
       <Button variant="ghost" size="icon" onClick={() => onFormat('hr')} title="Horizontal rule" disabled={mode === 'preview'}>
-        <Minus style={iconStyle} />
+        <Minus className="markdown-toolbar__icon" />
       </Button>
 
-      <div style={{ flex: 1 }} />
+      <div className="markdown-toolbar__spacer" />
 
-      <div style={{ display: 'flex', gap: '0.125rem' }}>
+      <div className="markdown-toolbar__modes">
         <Button
           variant={mode === 'edit' ? 'outline' : 'ghost'}
           size="sm"
           onClick={() => onModeChange('edit')}
-          style={{ gap: '0.25rem' }}
+          className="markdown-toolbar__mode-btn"
         >
-          <Pencil style={{ width: '0.75rem', height: '0.75rem' }} />
+          <Pencil className="markdown-toolbar__mode-icon" />
           Edit
         </Button>
         <Button
           variant={mode === 'preview' ? 'outline' : 'ghost'}
           size="sm"
           onClick={() => onModeChange('preview')}
-          style={{ gap: '0.25rem' }}
+          className="markdown-toolbar__mode-btn"
         >
-          <Eye style={{ width: '0.75rem', height: '0.75rem' }} />
+          <Eye className="markdown-toolbar__mode-icon" />
           Preview
         </Button>
       </div>

@@ -251,7 +251,7 @@ function NodeRenderer({
               else if (e.key === 'Enter') node.submit(e.currentTarget.value)
             }}
             onClick={(e) => e.stopPropagation()}
-            style={{ flex: 1 }}
+            className="field-tree__edit-input"
           />
         ) : (
           <>
@@ -371,7 +371,7 @@ export const FieldTree = forwardRef<FieldTreeHandle, FieldTreeProps>(function Fi
   )
 
   return (
-    <div style={{ position: 'relative', height: '100%', width: '100%' }}>
+    <div className="field-tree">
       <Tree
         ref={treeRef}
         data={treeData}

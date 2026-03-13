@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     "./theme": "./src/theme.css",
-    "./elements/*": "./src/elements/*"
+    "./elements/*": "./src/elements/*",
+    "./components/*": "./src/components/*"
   },
   "files": [
     "src"

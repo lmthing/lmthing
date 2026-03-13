@@ -11,3 +11,4 @@ dist/
 
 # Local TLS certs
 .etc/certs/
+routeTree.gen.ts

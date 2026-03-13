@@ -44,6 +44,17 @@ lmthing/
 
 ---
 
+## Backend Architecture — Important
+
+**There is no separate backend service.** The `cloud/` directory is the **sole backend** for the entire project. It contains Supabase Edge Functions (Deno runtime) that serve as the API layer for all product domains (studio, chat, blog, space, etc.).
+
+- **Users and all server-side data are stored in Supabase PostgreSQL** (profiles, API keys, etc.), protected by Row-Level Security.
+- **Billing and usage metering** are handled by Stripe, orchestrated through edge functions in `cloud/`.
+- **Whenever any service needs backend functionality** (new API endpoint, database operation, webhook handler, etc.), it **must be implemented as a Supabase Edge Function in `cloud/`**. Do not create backend services elsewhere.
+- All frontend apps are static SPAs — they call `cloud/` edge functions for any server-side logic.
+
+---
+
 ## Getting Started
 
 ```bash
@@ -196,9 +207,9 @@ graph TB
     Hooks --> SpaceCtx
 ```
 
-### cloud/ — Supabase Edge Functions
+### cloud/ — Supabase Edge Functions (The Only Backend)
 
-Serverless backend (Deno runtime). Nine edge functions:
+The **sole backend** for all lmthing products. All server-side logic lives here as Supabase Edge Functions (Deno runtime). Any new backend functionality must be added here. Nine edge functions:
 
 | Function | Method | Purpose |
 |----------|--------|---------|

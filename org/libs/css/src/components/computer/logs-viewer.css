@@ -1,0 +1,41 @@
+@reference "../../theme.css";
+
+.computer-logs-viewer {
+  @apply flex flex-col h-full;
+}
+
+.computer-logs-viewer__toolbar {
+  @apply flex items-center gap-2 px-3 py-2 border-b border-border;
+}
+
+.computer-logs-viewer__list {
+  @apply flex-1 overflow-auto font-mono text-xs p-3 space-y-0.5;
+}
+
+.computer-logs-viewer__entry {
+  @apply flex gap-2;
+}
+
+.computer-logs-viewer__timestamp {
+  @apply text-muted-foreground shrink-0;
+}
+
+.computer-logs-viewer__source {
+  @apply text-primary shrink-0;
+}
+
+.computer-logs-viewer__message {
+  @apply break-all;
+}
+
+.computer-logs-viewer__message--warn {
+  @apply text-yellow-500;
+}
+
+.computer-logs-viewer__message--error {
+  @apply text-destructive;
+}
+
+.computer-logs-viewer__empty {
+  @apply text-sm text-muted-foreground py-4 text-center;
+}

@@ -1,0 +1,25 @@
+@reference "../../theme.css";
+
+.ide-preview {
+  @apply h-full flex flex-col bg-background;
+}
+
+.ide-preview__header {
+  @apply flex items-center justify-between px-3 py-2 bg-card border-b border-border shrink-0;
+}
+
+.ide-preview__title {
+  @apply text-xs font-semibold text-muted-foreground uppercase tracking-wider;
+}
+
+.ide-preview__refresh {
+  @apply p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors;
+}
+
+.ide-preview__iframe {
+  @apply flex-1 w-full border-0 bg-white;
+}
+
+.ide-preview__loading {
+  @apply flex-1 flex items-center justify-center text-muted-foreground text-sm;
+}

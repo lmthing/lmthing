@@ -1,0 +1,17 @@
+@reference "../../theme.css";
+
+.computer-metrics-card {
+  @apply flex flex-col gap-3;
+}
+
+.computer-metrics-card__row {
+  @apply flex items-center justify-between;
+}
+
+.computer-metrics-card__bar {
+  @apply h-2 w-full rounded-full bg-muted overflow-hidden;
+}
+
+.computer-metrics-card__bar-fill {
+  @apply h-full rounded-full bg-primary transition-all duration-300;
+}

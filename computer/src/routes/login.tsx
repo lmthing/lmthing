@@ -1,13 +1,13 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Navigate } from '@tanstack/react-router'
+import { useAuth } from '@/lib/auth/AuthContext'
 
 export const Route = createFileRoute('/login')({
   component: Login,
 })
 
 function Login() {
-  return (
-    <div className="flex h-screen items-center justify-center">
-      <h1 className="text-2xl font-bold">Login</h1>
-    </div>
-  )
+  const { isAuthenticated } = useAuth()
+  if (isAuthenticated) return <Navigate to="/" />
+  // LoginScreen is rendered by AuthGate in __root.tsx when not authenticated
+  return null
 }

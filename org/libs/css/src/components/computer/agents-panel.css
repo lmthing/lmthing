@@ -1,0 +1,9 @@
+@reference "../../theme.css";
+
+.computer-agents-panel {
+  @apply flex flex-col gap-1;
+}
+
+.computer-agents-panel__empty {
+  @apply text-sm text-muted-foreground py-4 text-center;
+}

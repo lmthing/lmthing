@@ -1,0 +1,29 @@
+@reference "../../theme.css";
+
+.ide-editor {
+  @apply h-full flex flex-col bg-background;
+}
+
+.ide-editor__tabs {
+  @apply flex items-center bg-card border-b border-border overflow-x-auto shrink-0;
+}
+
+.ide-editor__tab {
+  @apply flex items-center gap-2 px-3 py-1.5 border-r border-border cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors;
+}
+
+.ide-editor__tab--active {
+  @apply bg-background text-foreground;
+}
+
+.ide-editor__tab-close {
+  @apply p-0.5 rounded hover:bg-accent transition-colors;
+}
+
+.ide-editor__empty {
+  @apply flex-1 flex items-center justify-center text-muted-foreground text-sm;
+}
+
+.ide-editor__content {
+  @apply flex-1 min-h-0;
+}

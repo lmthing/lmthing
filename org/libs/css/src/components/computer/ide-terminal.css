@@ -1,0 +1,17 @@
+@reference "../../theme.css";
+
+.ide-terminal {
+  @apply h-full flex flex-col bg-background;
+}
+
+.ide-terminal__header {
+  @apply flex items-center justify-between px-3 py-1.5 bg-card border-b border-border shrink-0;
+}
+
+.ide-terminal__title {
+  @apply text-xs font-semibold text-muted-foreground uppercase tracking-wider;
+}
+
+.ide-terminal__body {
+  @apply flex-1 min-h-0;
+}

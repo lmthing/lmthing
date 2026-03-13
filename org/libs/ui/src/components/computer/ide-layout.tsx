@@ -1,0 +1,102 @@
+import '@lmthing/css/components/computer/ide-layout.css'
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
+import { Badge } from '../../elements/content/badge'
+import { Loader2 } from 'lucide-react'
+import type { TerminalSession } from '../../elements/content/terminal'
+import { IdeFileTree, type FileTreeNode } from './ide-file-tree'
+import { IdeEditor } from './ide-editor'
+import { IdePreview } from './ide-preview'
+import { IdeTerminal } from './ide-terminal'
+
+export interface IdeLayoutProps {
+  // Status
+  status: string
+  isBooting: boolean
+  isInstalling: boolean
+
+  // File tree
+  fileTree: FileTreeNode[]
+  activeFile: string | null
+  onFileSelect: (path: string) => void
+  onCreateFile: (parentPath: string, name: string) => void
+  onCreateDirectory: (parentPath: string, name: string) => void
+  onDelete: (path: string) => void
+
+  // Editor
+  openFiles: string[]
+  fileContents: Record<string, string>
+  onEditorFileSelect: (path: string) => void
+  onFileClose: (path: string) => void
+  onContentChange: (path: string, content: string) => void
+
+  // Terminal
+  terminalSession: TerminalSession | null
+
+  // Preview
+  previewUrl: string | null
+}
+
+function IdeLayout(props: IdeLayoutProps) {
+  const { status, isBooting, isInstalling } = props
+
+  return (
+    <div className="ide-layout">
+      <div className="ide-layout__header">
+        <span className="ide-layout__title">lmthing.computer</span>
+        <div className="ide-layout__status">
+          {(isBooting || isInstalling) && <Loader2 size={14} className="animate-spin" />}
+          {isBooting && 'Booting...'}
+          {isInstalling && 'Installing dependencies...'}
+          {!isBooting && !isInstalling && (
+            <Badge variant={status === 'running' ? 'success' : 'muted'}>{status}</Badge>
+          )}
+        </div>
+      </div>
+      <div className="ide-layout__body">
+        <PanelGroup direction="horizontal">
+          <Panel defaultSize={15} minSize={10} maxSize={30}>
+            <IdeFileTree
+              fileTree={props.fileTree}
+              activeFile={props.activeFile}
+              onFileSelect={props.onFileSelect}
+              onCreateFile={props.onCreateFile}
+              onCreateDirectory={props.onCreateDirectory}
+              onDelete={props.onDelete}
+            />
+          </Panel>
+
+          <PanelResizeHandle className="ide-layout__resize-handle--horizontal" />
+
+          <Panel defaultSize={50} minSize={30}>
+            <PanelGroup direction="vertical">
+              <Panel defaultSize={70} minSize={30}>
+                <IdeEditor
+                  openFiles={props.openFiles}
+                  activeFile={props.activeFile}
+                  fileContents={props.fileContents}
+                  onFileSelect={props.onEditorFileSelect}
+                  onFileClose={props.onFileClose}
+                  onContentChange={props.onContentChange}
+                />
+              </Panel>
+
+              <PanelResizeHandle className="ide-layout__resize-handle--vertical" />
+
+              <Panel defaultSize={30} minSize={15}>
+                <IdeTerminal session={props.terminalSession} />
+              </Panel>
+            </PanelGroup>
+          </Panel>
+
+          <PanelResizeHandle className="ide-layout__resize-handle--horizontal" />
+
+          <Panel defaultSize={35} minSize={20}>
+            <IdePreview url={props.previewUrl} />
+          </Panel>
+        </PanelGroup>
+      </div>
+    </div>
+  )
+}
+
+export { IdeLayout }

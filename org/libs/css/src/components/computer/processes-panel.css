@@ -1,0 +1,9 @@
+@reference "../../theme.css";
+
+.computer-processes-panel {
+  @apply flex flex-col gap-1;
+}
+
+.computer-processes-panel__empty {
+  @apply text-sm text-muted-foreground py-4 text-center;
+}

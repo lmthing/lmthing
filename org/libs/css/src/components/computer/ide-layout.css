@@ -1,0 +1,29 @@
+@reference "../../theme.css";
+
+.ide-layout {
+  @apply flex flex-col h-screen overflow-hidden bg-background text-foreground;
+}
+
+.ide-layout__header {
+  @apply h-10 flex items-center gap-3 px-4 border-b border-border bg-card shrink-0;
+}
+
+.ide-layout__title {
+  @apply text-sm font-semibold;
+}
+
+.ide-layout__status {
+  @apply flex items-center gap-2 ml-auto text-sm text-muted-foreground;
+}
+
+.ide-layout__body {
+  @apply flex-1 overflow-hidden;
+}
+
+.ide-layout__resize-handle--horizontal {
+  @apply w-1 bg-border hover:bg-primary transition-colors;
+}
+
+.ide-layout__resize-handle--vertical {
+  @apply h-1 bg-border hover:bg-primary transition-colors;
+}

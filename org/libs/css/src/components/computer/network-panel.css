@@ -1,0 +1,29 @@
+@reference "../../theme.css";
+
+.computer-network-panel {
+  @apply flex flex-col gap-1;
+}
+
+.computer-network-panel__entry {
+  @apply flex items-center gap-3 text-sm;
+}
+
+.computer-network-panel__method {
+  @apply font-mono text-xs font-medium shrink-0 w-12;
+}
+
+.computer-network-panel__url {
+  @apply truncate flex-1;
+}
+
+.computer-network-panel__status--ok {
+  @apply text-green-500;
+}
+
+.computer-network-panel__status--error {
+  @apply text-destructive;
+}
+
+.computer-network-panel__empty {
+  @apply text-sm text-muted-foreground py-4 text-center;
+}

@@ -1,0 +1,73 @@
+@reference "../../theme.css";
+
+.ide-file-tree {
+  @apply h-full bg-card overflow-auto;
+}
+
+.ide-file-tree__header {
+  @apply flex items-center justify-between px-3 py-2 border-b border-border;
+}
+
+.ide-file-tree__header-title {
+  @apply text-xs font-semibold text-muted-foreground uppercase tracking-wider;
+}
+
+.ide-file-tree__header-actions {
+  @apply flex gap-1;
+}
+
+.ide-file-tree__action-btn {
+  @apply p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors;
+}
+
+.ide-file-tree__item {
+  @apply flex items-center gap-1 px-2 py-1 cursor-pointer hover:bg-accent text-sm;
+}
+
+.ide-file-tree__item--active {
+  @apply bg-primary/20 text-primary;
+}
+
+.ide-file-tree__icon {
+  @apply shrink-0 text-muted-foreground;
+}
+
+.ide-file-tree__icon--folder {
+  @apply text-primary;
+}
+
+.ide-file-tree__name {
+  @apply truncate;
+}
+
+.ide-file-tree__context-menu {
+  @apply min-w-[160px] bg-popover rounded-md overflow-hidden p-1 shadow-lg border border-border;
+}
+
+.ide-file-tree__context-item {
+  @apply flex items-center gap-2 px-2 py-1.5 text-sm cursor-pointer hover:bg-accent rounded outline-none;
+}
+
+.ide-file-tree__context-item--danger {
+  @apply text-destructive;
+}
+
+.ide-file-tree__dialog-overlay {
+  @apply fixed inset-0 bg-black/50;
+}
+
+.ide-file-tree__dialog-content {
+  @apply fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card rounded-lg p-6 w-96 shadow-xl border border-border;
+}
+
+.ide-file-tree__dialog-title {
+  @apply text-lg font-semibold mb-4;
+}
+
+.ide-file-tree__dialog-input {
+  @apply w-full px-3 py-2 bg-background rounded border border-border focus:border-primary outline-none text-sm;
+}
+
+.ide-file-tree__dialog-actions {
+  @apply flex justify-end gap-2 mt-4;
+}

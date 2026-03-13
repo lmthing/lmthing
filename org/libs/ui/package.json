@@ -27,7 +27,13 @@
     "clsx": "*",
     "tailwind-merge": "*",
     "class-variance-authority": "*",
-    "lucide-react": "*"
+    "lucide-react": "*",
+    "@xterm/xterm": "*",
+    "@xterm/addon-fit": "*",
+    "@xterm/addon-web-links": "*",
+    "@monaco-editor/react": "*",
+    "react-resizable-panels": "*",
+    "@radix-ui/react-context-menu": "*"
   },
   "author": "LMThing",
   "license": "MIT"

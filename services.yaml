@@ -48,3 +48,8 @@ services:
     domain: lmthing.cloud
     local: cloud.local
     port: 3009
+
+  - name: computer
+    domain: lmthing.computer
+    local: computer.local
+    port: 3010

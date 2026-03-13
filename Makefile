@@ -9,9 +9,10 @@ STORE_PORT  := 3004
 SPACE_PORT  := 3005
 TEAM_PORT   := 3006
 BLOG_PORT   := 3007
-CASA_PORT   := 3008
+CASA_PORT     := 3008
+COMPUTER_PORT := 3010
 
-APPS := studio chat com social store space team blog casa
+APPS := studio chat com social store space team blog casa computer
 
 # Start all services in parallel, each on its own port
 up:
@@ -25,13 +26,14 @@ up:
 	cd space  && pnpm vite --port $(SPACE_PORT) & \
 	cd team   && pnpm vite --port $(TEAM_PORT) & \
 	cd blog   && pnpm vite --port $(BLOG_PORT) & \
-	cd casa   && pnpm vite --port $(CASA_PORT) & \
+	cd casa     && pnpm vite --port $(CASA_PORT) & \
+	cd computer && pnpm vite --port $(COMPUTER_PORT) & \
 	wait
 
 # Stop any running dev servers
 down:
 	@echo "Stopping all dev servers..."
-	@-pkill -f "vite --port 300" 2>/dev/null || true
+	@-pkill -f "vite --port 30[01]" 2>/dev/null || true
 	@echo "Done."
 
 # Set up nginx proxy: *.local -> localhost ports

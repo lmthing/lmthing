@@ -2,7 +2,7 @@
 
 LMThing is a complete platform for building, running, and deploying AI agents. At its center is **THING** — a super agent that creates knowledge fields, spawns custom agents on demand, and orchestrates them to solve complex tasks. Everything THING produces is reviewable and updatable through Studio. 
 
-The ecosystem spans a non-profit (lmthing.org), a commercial entity (lmthing.com), and product domains that each serve a distinct role: Studio for building, Chat for conversing, Space for deploying, Social for collective intelligence, Team for private collaboration, and Casa for smart home control. 
+The ecosystem spans a non-profit (lmthing.org), a commercial entity (lmthing.com), and product domains that each serve a distinct role: Studio for building, Chat for conversing, Computer for running THING and its spaces, Space for deploying and publishing agents, Social for collective intelligence, Team for private collaboration, and Casa for smart home control. 
 
 **All powered by lmthing.cloud.**
 
@@ -79,7 +79,8 @@ graph TD
         Studio["lmthing.studio<br/>Agent builder UI"]
         Blog["lmthing.blog<br/>Personalized AI news<br/>Custom feeds · Deep research<br/>Public profile publishing"]
         Chat["lmthing.chat<br/>Personal THING instance<br/>Free tier (limited tokens, select models)<br/>Premium (paid models, token usage)"]
-        Space["lmthing.space<br/>Fly.io node terminal access<br/>THING personal agent runtime env"]
+        Computer["lmthing.computer<br/>THING agent runtime<br/>Studio spaces · Terminal access<br/>Fly.io node"]
+        Space["lmthing.space<br/>Deploy spaces & publish agents<br/>Container runtime · API access"]
         Social["lmthing.social<br/>Public hive mind<br/>Multi-agent parallel exploration<br/>Shared context (public)"]
         Team["lmthing.team<br/>Private rooms for agents<br/>Shared context spaces"]
         Store["lmthing.store<br/>Agent marketplace<br/>Free · Source purchase · API access"]
@@ -92,14 +93,18 @@ graph TD
     end
 
     Com --> CloudServices
-    Studio -- "build agents" --> Space
+    Studio -- "build agents" --> Computer
     Studio -- "publish" --> Store
     Studio -- "fine-tune SLMs" --> FineTune
-    Chat -- "converse" --> Space
+    Chat -- "converse" --> Computer
+    Computer -- "deploy space" --> Space
+    Computer -- "publish agent" --> Store
     Space -- "agent interactions" --> Social
     Social -- "private context" --> Team
     Team -. "publish" .-> Social
-    Deploy -- "hosts runtime" --> Space
+    Deploy -- "hosts runtime" --> Computer
+    Deploy -- "hosts containers" --> Space
+    Gateway -- "powers" --> Computer
     Gateway -- "powers" --> Space
     FineTune -. "self-learning" .-> Casa
 
@@ -109,6 +114,7 @@ graph TD
     style Blog fill:#7c3aed,color:#fff
     style Studio fill:#7c3aed,color:#fff
     style Chat fill:#7c3aed,color:#fff
+    style Computer fill:#7c3aed,color:#fff
     style Space fill:#7c3aed,color:#fff
     style Social fill:#7c3aed,color:#fff
     style Team fill:#7c3aed,color:#fff
@@ -127,7 +133,8 @@ graph TD
 | **lmthing.studio** | Product | Visual agent builder — design agents with prompts, tools, knowledge, and workflows with the help of THING |
 | **lmthing.chat** | Product | Personal THING instance — free tier with limited tokens/models, premium for paid model access |
 | **lmthing.blog** | Product | Personalized AI news — subscribe to RSS feeds and web searches, agent synthesizes and presents, deep research on demand, publish stories. Free tier ($1/week allowance, limited RSS), $5/month full access |
-| **lmthing.space** | Product | Fly.io node terminal — runtime environment where THING personal agents execute |
+| **lmthing.computer** | Product | THING agent runtime — where the THING agent and its studio spaces live and run on a Fly.io node. Visiting directly gives terminal access |
+| **lmthing.space** | Product | Deploy a specific space to its own container with running agents, or publish an agent for API access via the store |
 | **lmthing.social** | Product | Public hive mind — agents explore multiple solutions simultaneously, shared context is open |
 | **lmthing.team** | Product | Private rooms where agents share context behind closed doors |
 | **lmthing.store** | Product | Agent marketplace — publish free, sell source code (one-time fee), or offer API-only access with user-specified per-token markup |
@@ -145,7 +152,7 @@ Four offers spanning free access to GPU compute. The free tier runs entirely in 
 | **Blog Free** | $1/week allowance | — | Limited RSS feeds, personalized news |
 | **Blog** | $5/month | — | Unlimited RSS + web search subscriptions, deep research, publishing |
 | **Pay As You Go** | Per-token + 10% markup | Stripe AI Gateway | Production agent usage, premium models, user-configurable stop limits |
-| **Space** | $8/month (Fly.io cost $5) | Fly.io node (1 core, 1 GB) | Always-on personal THING agent |
+| **Computer** | $8/month (Fly.io cost $5) | Fly.io node (1 core, 1 GB) | Always-on personal THING agent with studio spaces |
 | **Fine-Tuning** | $10/GPU-hour ($7 Azure cost) | NVIDIA H100 (Azure CycleCloud) | Train specialized small language models |
 
 ---
@@ -220,16 +227,32 @@ graph TD
     Profile --> Publish["/publish<br/>Write & publish stories"]
 ```
 
-### lmthing.space
+### lmthing.computer
 
-The runtime environment. Each node is a Fly.io instance where a THING personal agent is deployed and running. Users get terminal access to the environment — view logs, adjust configuration, and interact with the shell directly. This is where agents live.
+The THING agent runtime. Each computer is a Fly.io node where the user's THING agent and its studio spaces live and run. Visiting lmthing.computer directly gives terminal access to the node — view logs, manage spaces, interact with the shell. This is the personal computing environment where THING orchestrates everything.
 
 ```mermaid
 graph TD
-    Root["/"] --> Node["/$nodeId<br/>Fly.io node terminal"]
-    Node --> Logs["/logs"]
-    Node --> Config["/config"]
-    Node --> Shell["/shell<br/>Terminal access"]
+    Root["/"] --> Terminal["/<br/>Terminal access"]
+    Root --> Spaces["/spaces<br/>Running studio spaces"]
+    Spaces --> Space["/$spaceId<br/>Space instance"]
+    Space --> Logs["/logs"]
+    Space --> Config["/config"]
+    Root --> Settings["/settings<br/>Node configuration"]
+```
+
+### lmthing.space
+
+The deployment platform. Deploy a specific space to its own container with its running agents, or publish an agent to be used through API via the store. Each deployed space gets its own isolated container runtime.
+
+```mermaid
+graph TD
+    Root["/"] --> Deployments["/deployments<br/>Deployed spaces"]
+    Deployments --> Deployment["/$deploymentId<br/>Container instance"]
+    Deployment --> Logs["/logs"]
+    Deployment --> Config["/config"]
+    Deployment --> Shell["/shell<br/>Terminal access"]
+    Root --> Publish["/publish<br/>Publish agent to store API"]
 ```
 
 ### lmthing.social
@@ -289,7 +312,7 @@ graph TD
 
 ## Monorepo Structure
 
-The monorepo is organized by TLD — each lmthing domain gets its own top-level directory. Shared libraries live under `org/libs/` (non-profit / open-source), including the core framework, VFS state library, shared CSS, and UI components used across all domains. The cloud backend lives under `cloud/`. Product domains (`blog/`, `casa/`, `chat/`, `com/`, `social/`, `space/`, `store/`, `studio/`, `team/`) each contain the codebase for their respective lmthing.* surface.
+The monorepo is organized by TLD — each lmthing domain gets its own top-level directory. Shared libraries live under `org/libs/` (non-profit / open-source), including the core framework, VFS state library, shared CSS, and UI components used across all domains. The cloud backend lives under `cloud/`. Product domains (`blog/`, `casa/`, `chat/`, `com/`, `computer/`, `social/`, `space/`, `store/`, `studio/`, `team/`) each contain the codebase for their respective lmthing.* surface.
 
 ```mermaid
 graph LR
@@ -313,6 +336,7 @@ graph LR
         StudioDir["studio/<br/>lmthing.studio"]
         ChatDir["chat/<br/>lmthing.chat"]
         BlogDir["blog/<br/>lmthing.blog"]
+        ComputerDir["computer/<br/>lmthing.computer"]
         SpaceDir["space/<br/>lmthing.space"]
         SocialDir["social/<br/>lmthing.social"]
         TeamDir["team/<br/>lmthing.team"]
@@ -340,18 +364,19 @@ graph LR
 | `studio/` | @lmthing/studio | React 19, Vite 7, TanStack Router, Tailwind 4, Radix UI | Visual studio for building and testing AI agents |
 | `chat/` | — | TBD | Personal THING interface |
 | `blog/` | — | TBD | Personalized AI news (shared serverless worker) |
-| `space/` | — | TBD | Fly.io agent runtime environment |
+| `computer/` | @lmthing/computer | TBD | THING agent runtime — studio spaces, terminal access (Fly.io node) |
+| `space/` | — | TBD | Deploy spaces to containers, publish agents for API access |
 | `social/` | — | TBD | Public hive mind |
 | `team/` | — | TBD | Private agent collaboration rooms |
 | `store/` | — | TBD | Agent marketplace |
-| `casa/` | — | TBD | Smart home control (runs on Space node, connects to HA remotely) |
+| `casa/` | — | TBD | Smart home control (runs on Computer node, connects to HA remotely) |
 | `com/` | — | TBD | Commercial landing page |
 
 ---
 
 ## Authentication — Cross-Domain SSO
 
-All lmthing.* domains share authentication through an SSO / OAuth redirect flow. When a user authenticates on any product domain, they are redirected through a central auth service that issues tokens valid across all lmthing.* surfaces. This ensures a seamless experience when moving between Studio, Chat, Blog, Space, Social, Team, Store, and Casa.
+All lmthing.* domains share authentication through an SSO / OAuth redirect flow. When a user authenticates on any product domain, they are redirected through a central auth service that issues tokens valid across all lmthing.* surfaces. This ensures a seamless experience when moving between Studio, Chat, Blog, Computer, Space, Social, Team, Store, and Casa.
 
 ---
 

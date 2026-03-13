@@ -5,12 +5,12 @@
   "packageManager": "pnpm@10.17.1",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "build:pages": "vite build",
-    "preview": "vite preview",
-    "test": "vitest",
-    "test:run": "vitest run",
+    "dev": "vp dev",
+    "build": "vp build",
+    "build:pages": "vp build",
+    "preview": "vp preview",
+    "test": "vp test",
+    "test:run": "vp test run",
     "lint": "eslint ."
   },
   "dependencies": {
@@ -68,6 +68,7 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "^8.0.0",
+    "vite-plus": "latest",
     "vitest": "^4.1.0"
   }
 }

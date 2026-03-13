@@ -31,9 +31,9 @@
     "build:cli": "esbuild src/cli.ts --bundle --platform=node --format=esm --outfile=dist/cli.js --packages=external",
     "dev": "tsc --watch",
     "script": "node ./scripts/run-cli.mjs",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test": "vp test run",
+    "test:watch": "vp test",
+    "test:coverage": "vp test run --coverage"
   },
   "keywords": [
     "ai",

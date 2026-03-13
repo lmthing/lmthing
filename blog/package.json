@@ -5,11 +5,11 @@
   "packageManager": "pnpm@10.17.1",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test": "vitest",
-    "test:run": "vitest run"
+    "dev": "vp dev",
+    "build": "vp build",
+    "preview": "vp preview",
+    "test": "vp test",
+    "test:run": "vp test run"
   },
   "dependencies": {
     "@lmthing/css": "workspace:*",
@@ -34,6 +34,7 @@
     "@vitejs/plugin-react": "^6.0.0",
     "typescript": "~5.9.3",
     "vite": "^8.0.0",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.0",
+    "vite-plus": "latest"
   }
 }

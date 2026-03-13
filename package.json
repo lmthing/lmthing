@@ -18,6 +18,12 @@
         "vite",
         "vitest"
       ]
-    }
+    },
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "msw",
+      "protobufjs",
+      "supabase"
+    ]
   }
 }

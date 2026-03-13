@@ -18,22 +18,22 @@ APPS := studio chat com social store space team blog casa computer
 up:
 	@echo "Starting all services..."
 	@trap 'kill 0' INT TERM; \
-	cd studio && pnpm vite --port $(STUDIO_PORT) & \
-	cd chat   && pnpm vite --port $(CHAT_PORT) & \
-	cd com    && pnpm vite --port $(COM_PORT) & \
-	cd social && pnpm vite --port $(SOCIAL_PORT) & \
-	cd store  && pnpm vite --port $(STORE_PORT) & \
-	cd space  && pnpm vite --port $(SPACE_PORT) & \
-	cd team   && pnpm vite --port $(TEAM_PORT) & \
-	cd blog   && pnpm vite --port $(BLOG_PORT) & \
-	cd casa     && pnpm vite --port $(CASA_PORT) & \
-	cd computer && pnpm vite --port $(COMPUTER_PORT) & \
+	cd studio && pnpm vp dev --port $(STUDIO_PORT) & \
+	cd chat   && pnpm vp dev --port $(CHAT_PORT) & \
+	cd com    && pnpm vp dev --port $(COM_PORT) & \
+	cd social && pnpm vp dev --port $(SOCIAL_PORT) & \
+	cd store  && pnpm vp dev --port $(STORE_PORT) & \
+	cd space  && pnpm vp dev --port $(SPACE_PORT) & \
+	cd team   && pnpm vp dev --port $(TEAM_PORT) & \
+	cd blog   && pnpm vp dev --port $(BLOG_PORT) & \
+	cd casa     && pnpm vp dev --port $(CASA_PORT) & \
+	cd computer && pnpm vp dev --port $(COMPUTER_PORT) & \
 	wait
 
 # Stop any running dev servers
 down:
 	@echo "Stopping all dev servers..."
-	@-pkill -f "vite --port 30[01]" 2>/dev/null || true
+	@-pkill -f "vp dev --port 30[01]" 2>/dev/null || true
 	@echo "Done."
 
 # Set up nginx proxy: *.local -> localhost ports

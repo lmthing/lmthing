@@ -11,6 +11,6 @@
     "stop": "supabase stop"
   },
   "devDependencies": {
-    "supabase": "^2.78.1"
+    "supabase": "catalog:"
   }
 }

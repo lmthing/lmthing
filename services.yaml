@@ -75,3 +75,6 @@ services:
     port: 3010
     emoji: 🖥️
     color: "35"  # magenta
+    headers:
+      Cross-Origin-Embedder-Policy: require-corp
+      Cross-Origin-Opener-Policy: same-origin

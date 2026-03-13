@@ -32,7 +32,8 @@ NAMES=()
 DOMAINS=()
 PORTS=()
 PROD_DOMAINS=()
-current_name="" current_domain="" current_local="" current_port=""
+HEADERS=()  # per-service extra headers (newline-separated "add_header" directives)
+current_name="" current_domain="" current_local="" current_port="" current_headers="" in_headers=false
 while IFS= read -r line || [[ -n "$line" ]]; do
     [[ "$line" =~ ^[[:space:]]*#|^$ ]] && continue
     if [[ "$line" =~ ^[[:space:]]*-[[:space:]]*name:[[:space:]]*(.+) ]]; then
@@ -42,14 +43,24 @@ while IFS= read -r line || [[ -n "$line" ]]; do
             DOMAINS+=("$current_local")
             PORTS+=("$current_port")
             PROD_DOMAINS+=("$current_domain")
+            HEADERS+=("$current_headers")
         fi
-        current_name="${BASH_REMATCH[1]}" current_domain="" current_local="" current_port=""
-    elif [[ "$line" =~ ^[[:space:]]*domain:[[:space:]]*(.+) ]]; then
-        current_domain="${BASH_REMATCH[1]}"
-    elif [[ "$line" =~ ^[[:space:]]*local:[[:space:]]*(.+) ]]; then
-        current_local="${BASH_REMATCH[1]}"
-    elif [[ "$line" =~ ^[[:space:]]*port:[[:space:]]*(.+) ]]; then
-        current_port="${BASH_REMATCH[1]}"
+        current_name="${BASH_REMATCH[1]}" current_domain="" current_local="" current_port="" current_headers="" in_headers=false
+    elif [[ "$line" =~ ^[[:space:]]*headers:[[:space:]]*$ ]]; then
+        in_headers=true
+    elif $in_headers && [[ "$line" =~ ^[[:space:]]{6,}([A-Za-z-]+):[[:space:]]*(.+) ]]; then
+        hdr_name="${BASH_REMATCH[1]}"
+        hdr_value="${BASH_REMATCH[2]}"
+        current_headers+="        add_header $hdr_name \"$hdr_value\" always;"$'\n'
+    elif [[ "$line" =~ ^[[:space:]]*[a-z] ]]; then
+        in_headers=false
+        if [[ "$line" =~ ^[[:space:]]*domain:[[:space:]]*(.+) ]]; then
+            current_domain="${BASH_REMATCH[1]}"
+        elif [[ "$line" =~ ^[[:space:]]*local:[[:space:]]*(.+) ]]; then
+            current_local="${BASH_REMATCH[1]}"
+        elif [[ "$line" =~ ^[[:space:]]*port:[[:space:]]*(.+) ]]; then
+            current_port="${BASH_REMATCH[1]}"
+        fi
     fi
 done < "$CONFIG_FILE"
 # Flush last entry
@@ -58,6 +69,7 @@ if [[ -n "$current_local" && -n "$current_port" ]]; then
     DOMAINS+=("$current_local")
     PORTS+=("$current_port")
     PROD_DOMAINS+=("$current_domain")
+    HEADERS+=("$current_headers")
 fi
 
 if [[ ${#DOMAINS[@]} -eq 0 ]]; then
@@ -234,6 +246,7 @@ CONFS_CHANGED=false
 for i in "${!DOMAINS[@]}"; do
     DOMAIN="${DOMAINS[$i]}"
     PORT="${PORTS[$i]}"
+    EXTRA_HEADERS="${HEADERS[$i]}"
     CONF_FILE="$NGINX_CONF_DIR/$DOMAIN.conf"
 
     if [[ "$OS" == "Linux" ]]; then
@@ -269,7 +282,7 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection \"upgrade\";
-    }
+${EXTRA_HEADERS}    }
 }"
     if [[ "$OS" == "Darwin" ]]; then
         echo "$NGINX_BLOCK" > "$CONF_FILE"

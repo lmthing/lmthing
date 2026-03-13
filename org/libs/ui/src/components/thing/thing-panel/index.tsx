@@ -9,10 +9,11 @@ import { Bot, Plus, ArrowLeft } from 'lucide-react'
 import { runPrompt, type PromptConfig } from 'lmthing'
 import { z } from 'zod'
 import { useApp, useUIState, useToggle } from '@lmthing/state'
-import { CozyThingText } from '@/CozyText'
+import { CozyThingText } from '@lmthing/ui/elements/branding/cozy-text'
 
 import '@lmthing/css/elements/forms/button/index.css'
 import '@lmthing/css/elements/forms/input/index.css'
+import '@lmthing/css/components/thing/thing-panel/index.css'
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -150,7 +151,7 @@ function stringifyJson(value: unknown): string {
 function ToolCallDisplay({ content }: { content: string }) {
   const parts = content.split(TOOL_EVENT_OPEN)
   return (
-    <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+    <div className="thing-msg__text">
       {parts.map((part, i) => {
         const closeIdx = part.indexOf(TOOL_EVENT_CLOSE)
         if (closeIdx === -1) return <span key={i}>{part}</span>
@@ -158,16 +159,7 @@ function ToolCallDisplay({ content }: { content: string }) {
         const rest = part.slice(closeIdx + TOOL_EVENT_CLOSE.length)
         return (
           <span key={i}>
-            <div style={{
-              margin: '0.5rem 0',
-              padding: '0.5rem',
-              borderRadius: '0.375rem',
-              fontSize: '0.75rem',
-              fontFamily: 'monospace',
-              backgroundColor: 'var(--color-muted, #f1f5f9)',
-              border: '1px solid var(--color-border)',
-              opacity: 0.8,
-            }}>
+            <div className="thing-tool-event">
               {toolContent}
             </div>
             {rest}
@@ -515,74 +507,49 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
 
   // ── Render ────────────────────────────────────────────────────────
 
-  const containerStyle: React.CSSProperties = fullPage
-    ? { display: 'flex', height: '100vh', background: 'var(--color-bg)' }
-    : { display: 'flex', height: '100%', background: 'var(--color-bg)' }
+  const statusDotClass = `thing-panel__status-dot ${
+    hasError ? 'thing-panel__status-dot--error'
+    : isWorking ? 'thing-panel__status-dot--working'
+    : hasEnv ? 'thing-panel__status-dot--ready'
+    : 'thing-panel__status-dot--warn'
+  }`
 
   return (
-    <div style={containerStyle}>
+    <div className={`thing-panel ${fullPage ? 'thing-panel--full' : 'thing-panel--embedded'}`}>
       {/* Sidebar */}
-      <div style={{
-        width: '16rem',
-        borderRight: '1px solid var(--color-border)',
-        display: 'flex',
-        flexDirection: 'column',
-        flexShrink: 0,
-      }}>
+      <div className="thing-panel__sidebar">
         {/* Sidebar header */}
-        <div style={{
-          padding: '1rem',
-          borderBottom: '1px solid var(--color-border)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div className="thing-panel__sidebar-header">
+          <div className="thing-panel__sidebar-title">
             {fullPage && (
               <button
                 className="btn btn--ghost btn--sm"
                 onClick={() => navigate({ to: username ? `/${encodeURIComponent(username)}` : '/' })}
-                style={{ padding: '0.25rem' }}
               >
-                <ArrowLeft style={{ width: 16, height: 16 }} />
+                <ArrowLeft size={16} />
               </button>
             )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-              <Bot style={{ width: 18, height: 18 }} />
-              <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>
-                <CozyThingText text="THING" className="text-sm font-semibold" />
+            <div className="thing-panel__sidebar-brand">
+              <Bot size={18} />
+              <span className="thing-panel__sidebar-brand-name">
+                <CozyThingText text="THING" />
               </span>
             </div>
           </div>
           <button className="btn btn--ghost btn--sm" onClick={createNewChat} disabled={isWorking}>
-            <Plus style={{ width: 14, height: 14 }} />
+            <Plus size={14} />
           </button>
         </div>
 
         {/* Conversation list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem' }}>
+        <div className="thing-panel__sidebar-list">
           {conversations.map(conv => {
             const isCurrent = conv.id === currentConversation?.id
             return (
               <button
                 key={conv.id}
                 onClick={() => setCurrentId(conv.id)}
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  textAlign: 'left',
-                  padding: '0.5rem 0.75rem',
-                  borderRadius: '0.375rem',
-                  border: 'none',
-                  background: isCurrent ? 'var(--color-muted, #f1f5f9)' : 'none',
-                  cursor: 'pointer',
-                  fontSize: '0.8125rem',
-                  fontWeight: isCurrent ? 600 : 400,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  marginBottom: '0.125rem',
-                }}
+                className={`thing-panel__conv-btn ${isCurrent ? 'thing-panel__conv-btn--active' : ''}`}
               >
                 {conv.title}
               </button>
@@ -592,49 +559,24 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
       </div>
 
       {/* Main chat area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div className="thing-panel__main">
         {/* Chat header */}
-        <div style={{
-          padding: '0.75rem 1rem',
-          borderBottom: '1px solid var(--color-border)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
-          <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>
+        <div className="thing-panel__chat-header">
+          <span className="thing-panel__chat-title">
             {currentConversation?.title || 'Chat'}
           </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div className="thing-panel__chat-status">
             {isWorking && (
-              <span style={{ fontSize: '0.75rem', opacity: 0.6 }}>Processing...</span>
+              <span className="thing-panel__chat-status-text">Processing...</span>
             )}
-            <span style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              display: 'inline-block',
-              backgroundColor: hasError ? '#ef4444' : isWorking ? '#8b5cf6' : hasEnv ? '#10b981' : '#f59e0b',
-            }} />
+            <span className={statusDotClass} />
           </div>
         </div>
 
         {/* Messages */}
-        <div style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '1rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.75rem',
-        }}>
+        <div className="thing-panel__messages">
           {!hasEnv && (
-            <div style={{
-              padding: '0.75rem 1rem',
-              borderRadius: '0.5rem',
-              border: '1px solid var(--color-border)',
-              backgroundColor: 'var(--color-muted, #fef3c7)',
-              fontSize: '0.8125rem',
-            }}>
+            <div className="thing-panel__env-warning">
               <strong>Environment not configured.</strong> THING needs API keys to call LLMs.
               Add environment variables (e.g., <code>OPENAI_API_KEY</code>) to enable AI features.
             </div>
@@ -643,34 +585,15 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
           {messages.map(msg => (
             <div
               key={msg.id}
-              style={{
-                maxWidth: '80%',
-                alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                padding: '0.625rem 0.875rem',
-                borderRadius: '0.75rem',
-                fontSize: '0.875rem',
-                lineHeight: '1.5',
-                border: '1px solid var(--color-border)',
-                backgroundColor: msg.role === 'user'
-                  ? 'var(--color-primary, #8b5cf6)'
-                  : 'var(--color-bg-elevated, white)',
-                color: msg.role === 'user' ? 'white' : undefined,
-              }}
+              className={`thing-msg ${msg.role === 'user' ? 'thing-msg--user' : 'thing-msg--assistant'}`}
             >
-              <div style={{
-                fontSize: '0.6875rem',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                opacity: 0.6,
-                marginBottom: '0.25rem',
-              }}>
+              <div className="thing-msg__role">
                 {msg.role === 'user' ? 'You' : 'Thing'}
               </div>
               {msg.role === 'assistant' ? (
                 <ToolCallDisplay content={msg.content} />
               ) : (
-                <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                <div className="thing-msg__text">
                   {msg.content}
                 </div>
               )}
@@ -678,14 +601,7 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
           ))}
 
           {isWorking && !messages.some(m => m.role === 'assistant' && m.content === '') && (
-            <div style={{
-              alignSelf: 'flex-start',
-              padding: '0.625rem 0.875rem',
-              borderRadius: '0.75rem',
-              border: '1px solid var(--color-border)',
-              fontSize: '0.8125rem',
-              opacity: 0.7,
-            }}>
+            <div className="thing-msg__processing">
               Processing...
             </div>
           )}
@@ -694,18 +610,9 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
         </div>
 
         {/* Input */}
-        <form
-          onSubmit={handleSubmit}
-          style={{
-            padding: '0.75rem 1rem',
-            borderTop: '1px solid var(--color-border)',
-            display: 'flex',
-            gap: '0.5rem',
-            alignItems: 'flex-end',
-          }}
-        >
+        <form onSubmit={handleSubmit} className="thing-panel__input-form">
           <textarea
-            className="input"
+            className="input thing-panel__textarea"
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => {
@@ -717,11 +624,6 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
             rows={2}
             placeholder={hasEnv ? 'Ask THING anything... (Enter to send, Shift+Enter for newline)' : 'Configure API keys to enable THING...'}
             disabled={!hasEnv}
-            style={{
-              flex: 1,
-              resize: 'none',
-              fontSize: '0.875rem',
-            }}
           />
           <button
             type="submit"

@@ -1,0 +1,1017 @@
+@reference "../../../theme.css";
+
+/* ── ThingPanel container ──────────────────────────────────────────── */
+
+.thing-panel {
+  @apply flex;
+  background: var(--background);
+}
+
+.thing-panel--full {
+  height: 100vh;
+}
+
+.thing-panel--embedded {
+  height: 100%;
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────────── */
+
+.thing-panel__sidebar {
+  width: 16rem;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.thing-panel__sidebar-header {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.thing-panel__sidebar-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.thing-panel__sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.thing-panel__sidebar-brand-name {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.thing-panel__sidebar-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.thing-panel__conv-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 0.125rem;
+}
+
+.thing-panel__conv-btn--active {
+  background: var(--muted);
+  font-weight: 600;
+}
+
+/* ── Main chat area ────────────────────────────────────────────────── */
+
+.thing-panel__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.thing-panel__chat-header {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.thing-panel__chat-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.thing-panel__chat-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.thing-panel__chat-status-text {
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+.thing-panel__status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.thing-panel__status-dot--error {
+  background-color: var(--destructive);
+}
+
+.thing-panel__status-dot--working {
+  background-color: var(--agent);
+}
+
+.thing-panel__status-dot--ready {
+  background-color: var(--knowledge);
+}
+
+.thing-panel__status-dot--warn {
+  background-color: var(--brand-2);
+}
+
+/* ── Messages area ─────────────────────────────────────────────────── */
+
+.thing-panel__messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.thing-panel__env-warning {
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background-color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+/* ── Message bubbles ───────────────────────────────────────────────── */
+
+.thing-msg {
+  max-width: 80%;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  border: 1px solid var(--border);
+}
+
+.thing-msg--user {
+  align-self: flex-end;
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.thing-msg--assistant {
+  align-self: flex-start;
+  background-color: var(--card);
+}
+
+.thing-msg__role {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.6;
+  margin-bottom: 0.25rem;
+}
+
+.thing-msg__text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.thing-msg__processing {
+  align-self: flex-start;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  font-size: 0.8125rem;
+  opacity: 0.7;
+}
+
+/* ── Tool call display ─────────────────────────────────────────────── */
+
+.thing-tool-event {
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-family: monospace;
+  background-color: var(--muted);
+  border: 1px solid var(--border);
+  opacity: 0.8;
+}
+
+/* ── Input area ────────────────────────────────────────────────────── */
+
+.thing-panel__input-form {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.thing-panel__textarea {
+  flex: 1;
+  resize: none;
+  font-size: 0.875rem;
+}
+
+/* ── Old ThingPanel (thing/old/ThingPanel.tsx) ────────────────────── */
+
+.old-thing-panel {
+  @apply flex min-w-0 flex-col;
+  border-color: var(--stone-300, #d6d3d1);
+  background: linear-gradient(to bottom, var(--amber-50, #fffbeb), var(--stone-100, #f5f5f4));
+  transition: all 0.2s;
+}
+
+:is(.dark) .old-thing-panel {
+  border-color: var(--stone-700, #44403c);
+  background: linear-gradient(to bottom, var(--stone-900, #1c1917), var(--stone-950, #0c0a09));
+}
+
+.old-thing-panel--expanded {
+  @apply sticky top-0 border-l;
+  height: 100vh;
+}
+
+.old-thing-panel--collapsed {
+  @apply fixed bottom-4 right-4 z-50 rounded-lg shadow-lg;
+  width: auto;
+}
+
+/* ── Resize handle ────────────────────────────────────────────────── */
+
+.old-thing-panel__resize-handle {
+  @apply absolute left-0 top-0 bottom-0 z-10;
+  width: 0.25rem;
+  cursor: col-resize;
+  margin-left: -2px;
+  transition: background-color 0.15s;
+}
+
+.old-thing-panel__resize-handle:hover {
+  background-color: rgb(217 119 6 / 0.3);
+}
+
+.old-thing-panel__resize-handle:active {
+  background-color: rgb(217 119 6 / 0.5);
+}
+
+/* ── Collapsed state ──────────────────────────────────────────────── */
+
+.old-thing-panel__collapsed-inner {
+  @apply flex flex-col items-center;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+}
+
+.old-thing-panel__collapsed-btn {
+  @apply relative inline-flex flex-col items-center justify-center rounded-md;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  transition: background-color 0.15s;
+}
+
+.old-thing-panel__collapsed-btn:hover {
+  background-color: var(--amber-100, #fef3c7);
+}
+
+:is(.dark) .old-thing-panel__collapsed-btn:hover {
+  background-color: rgb(120 53 15 / 0.3);
+}
+
+.old-thing-panel__icon-wrap {
+  position: relative;
+}
+
+.old-thing-panel__bot-icon {
+  @apply h-5 w-5;
+  color: var(--amber-700, #b45309);
+}
+
+:is(.dark) .old-thing-panel__bot-icon {
+  color: var(--amber-500, #f59e0b);
+}
+
+.old-thing-panel__bot-icon--sm {
+  @apply h-4 w-4;
+  color: var(--amber-700, #b45309);
+}
+
+:is(.dark) .old-thing-panel__bot-icon--sm {
+  color: var(--amber-500, #f59e0b);
+}
+
+.old-thing-panel__status-indicator {
+  @apply absolute rounded-full;
+  right: -0.125rem;
+  top: -0.125rem;
+  width: 0.625rem;
+  height: 0.625rem;
+}
+
+.old-thing-panel__status-indicator--sm {
+  @apply absolute rounded-full;
+  right: -0.25rem;
+  top: -0.25rem;
+  width: 0.5rem;
+  height: 0.5rem;
+}
+
+.old-thing-panel__status-indicator--warn {
+  background-color: var(--orange-500, #f97316);
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.old-thing-panel__status-indicator--error {
+  background-color: var(--red-500, #ef4444);
+}
+
+.old-thing-panel__status-indicator--working {
+  background: linear-gradient(to bottom right, var(--blue-500, #3b82f6), var(--purple-500, #a855f7), var(--pink-500, #ec4899));
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.old-thing-panel__status-indicator--ready {
+  background-color: var(--emerald-500, #10b981);
+}
+
+.old-thing-panel__collapsed-label {
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.old-thing-panel__collapsed-btn:hover .old-thing-panel__collapsed-label {
+  color: var(--amber-900, #78350f);
+}
+
+:is(.dark) .old-thing-panel__collapsed-btn:hover .old-thing-panel__collapsed-label {
+  color: var(--amber-300, #fcd34d);
+}
+
+/* ── Header ───────────────────────────────────────────────────────── */
+
+.old-thing-panel__header {
+  @apply flex items-center justify-between;
+  height: 3.5rem;
+  padding: 0 1rem;
+  border-bottom: 1px solid var(--stone-300, #d6d3d1);
+  background-color: rgb(254 243 199 / 0.6);
+}
+
+:is(.dark) .old-thing-panel__header {
+  border-bottom-color: var(--stone-700, #44403c);
+  background-color: var(--stone-900, #1c1917);
+}
+
+.old-thing-panel__header-left {
+  @apply flex items-center;
+  gap: 0.5rem;
+}
+
+.old-thing-panel__header-icon-wrap {
+  @apply relative inline-flex items-center;
+}
+
+.old-thing-panel__header-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--stone-800, #292524);
+}
+
+:is(.dark) .old-thing-panel__header-title {
+  color: var(--amber-100, #fef3c7);
+}
+
+.old-thing-panel__collapse-link {
+  margin-left: 0.25rem;
+  font-size: 0.75rem;
+  text-decoration: underline;
+  color: var(--amber-700, #b45309);
+}
+
+.old-thing-panel__collapse-link:hover {
+  color: var(--amber-900, #78350f);
+}
+
+:is(.dark) .old-thing-panel__collapse-link {
+  color: var(--amber-400, #fbbf24);
+}
+
+:is(.dark) .old-thing-panel__collapse-link:hover {
+  color: var(--amber-300, #fcd34d);
+}
+
+.old-thing-panel__header-right {
+  @apply flex items-center;
+  gap: 0.5rem;
+}
+
+.old-thing-panel__header-caption {
+  font-size: 0.75rem;
+  color: var(--stone-600, #57534e);
+}
+
+:is(.dark) .old-thing-panel__header-caption {
+  color: var(--stone-400, #a8a29e);
+}
+
+.old-thing-panel__new-chat-btn {
+  @apply rounded-md;
+  border: 1px solid var(--amber-600, #d97706);
+  background-color: var(--amber-50, #fffbeb);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--amber-900, #78350f);
+}
+
+.old-thing-panel__new-chat-btn:hover {
+  background-color: var(--amber-100, #fef3c7);
+}
+
+.old-thing-panel__new-chat-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+:is(.dark) .old-thing-panel__new-chat-btn {
+  border-color: var(--amber-700, #b45309);
+  background-color: rgb(120 53 15 / 0.3);
+  color: var(--amber-200, #fde68a);
+}
+
+:is(.dark) .old-thing-panel__new-chat-btn:hover {
+  background-color: rgb(120 53 15 / 0.4);
+}
+
+/* ── Body / messages area ─────────────────────────────────────────── */
+
+.old-thing-panel__body {
+  @apply flex-1 overflow-y-auto;
+  padding: 1rem;
+}
+
+.old-thing-panel__body > * + * {
+  margin-top: 0.75rem;
+}
+
+/* ── Environment warning ──────────────────────────────────────────── */
+
+.old-thing-panel__env-warning {
+  @apply rounded-lg shadow-sm;
+  border: 1px solid var(--orange-300, #fdba74);
+  background-color: var(--orange-50, #fff7ed);
+  padding: 0.75rem;
+}
+
+:is(.dark) .old-thing-panel__env-warning {
+  border-color: var(--orange-700, #c2410c);
+  background-color: rgb(124 45 18 / 0.3);
+}
+
+.old-thing-panel__env-warning-header {
+  @apply flex items-center;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+}
+
+.old-thing-panel__env-warning-icon {
+  @apply h-4 w-4;
+  color: var(--orange-600, #ea580c);
+}
+
+:is(.dark) .old-thing-panel__env-warning-icon {
+  color: var(--orange-400, #fb923c);
+}
+
+.old-thing-panel__env-warning-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--orange-900, #7c2d12);
+}
+
+:is(.dark) .old-thing-panel__env-warning-title {
+  color: var(--orange-200, #fed7aa);
+}
+
+.old-thing-panel__env-warning-text {
+  font-size: 0.75rem;
+  line-height: 1.625;
+  color: var(--orange-800, #9a3412);
+}
+
+:is(.dark) .old-thing-panel__env-warning-text {
+  color: var(--orange-300, #fdba74);
+}
+
+.old-thing-panel__env-warning-list {
+  margin-top: 0.5rem;
+  margin-left: 1rem;
+  font-size: 0.75rem;
+  line-height: 1.625;
+  list-style-type: decimal;
+  color: var(--orange-800, #9a3412);
+}
+
+:is(.dark) .old-thing-panel__env-warning-list {
+  color: var(--orange-300, #fdba74);
+}
+
+.old-thing-panel__env-warning-list > * + * {
+  margin-top: 0.25rem;
+}
+
+.old-thing-panel__env-code {
+  @apply rounded font-mono;
+  background-color: var(--orange-100, #ffedd5);
+  padding: 0.125rem 0.25rem;
+  font-size: 10px;
+}
+
+:is(.dark) .old-thing-panel__env-code {
+  background-color: rgb(124 45 18 / 0.4);
+}
+
+.old-thing-panel__env-settings-link {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-decoration: underline;
+  color: var(--orange-900, #7c2d12);
+  transition: color 0.15s;
+}
+
+.old-thing-panel__env-settings-link:hover {
+  color: var(--orange-950, #431407);
+}
+
+:is(.dark) .old-thing-panel__env-settings-link {
+  color: var(--orange-100, #ffedd5);
+}
+
+:is(.dark) .old-thing-panel__env-settings-link:hover {
+  color: white;
+}
+
+/* ── History panel ────────────────────────────────────────────────── */
+
+.old-thing-panel__history {
+  @apply rounded-lg shadow-sm;
+  border: 1px solid var(--stone-300, #d6d3d1);
+  background-color: white;
+  padding: 0.5rem;
+}
+
+:is(.dark) .old-thing-panel__history {
+  border-color: var(--stone-700, #44403c);
+  background-color: rgb(28 25 23 / 0.5);
+}
+
+.old-thing-panel__history-title {
+  margin-bottom: 0.5rem;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--stone-600, #57534e);
+}
+
+:is(.dark) .old-thing-panel__history-title {
+  color: var(--amber-500, #f59e0b);
+}
+
+.old-thing-panel__history-list {
+  max-height: 9rem;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.old-thing-panel__history-list > * + * {
+  margin-top: 0.25rem;
+}
+
+.old-thing-panel__history-item {
+  @apply rounded-md;
+  border: 1px solid transparent;
+  padding: 0.5rem;
+  padding-top: 0.375rem;
+}
+
+.old-thing-panel__history-item:hover {
+  border-color: var(--slate-200, #e2e8f0);
+  background-color: var(--slate-50, #f8fafc);
+}
+
+:is(.dark) .old-thing-panel__history-item:hover {
+  border-color: var(--slate-700, #334155);
+  background-color: rgb(2 6 23 / 0.4);
+}
+
+/* ── History editing ──────────────────────────────────────────────── */
+
+.old-thing-panel__history-edit {
+  /* space-y-1 equivalent */
+}
+
+.old-thing-panel__history-edit > * + * {
+  margin-top: 0.25rem;
+}
+
+.old-thing-panel__history-edit-input {
+  @apply w-full rounded outline-none;
+  border: 1px solid var(--slate-300, #cbd5e1);
+  background-color: white;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--slate-900, #0f172a);
+}
+
+.old-thing-panel__history-edit-input:focus {
+  @apply ring-2;
+  --tw-ring-color: var(--violet-500, #8b5cf6);
+}
+
+:is(.dark) .old-thing-panel__history-edit-input {
+  border-color: var(--slate-700, #334155);
+  background-color: var(--slate-950, #020617);
+  color: var(--slate-100, #f1f5f9);
+}
+
+.old-thing-panel__history-edit-actions {
+  @apply flex;
+  gap: 0.25rem;
+}
+
+.old-thing-panel__history-save-btn {
+  @apply rounded;
+  background-color: var(--violet-600, #7c3aed);
+  padding: 0.125rem 0.5rem;
+  font-size: 11px;
+  font-weight: 500;
+  color: white;
+}
+
+.old-thing-panel__history-save-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.old-thing-panel__history-cancel-btn {
+  @apply rounded;
+  border: 1px solid var(--slate-300, #cbd5e1);
+  padding: 0.125rem 0.5rem;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--slate-700, #334155);
+}
+
+:is(.dark) .old-thing-panel__history-cancel-btn {
+  border-color: var(--slate-700, #334155);
+  color: var(--slate-200, #e2e8f0);
+}
+
+/* ── History item row ─────────────────────────────────────────────── */
+
+.old-thing-panel__history-row {
+  @apply flex items-center justify-between;
+  gap: 0.5rem;
+}
+
+.old-thing-panel__history-conv-btn {
+  @apply min-w-0 flex-1 truncate text-left;
+  font-size: 0.75rem;
+}
+
+.old-thing-panel__history-conv-btn--active {
+  font-weight: 600;
+  color: var(--violet-700, #6d28d9);
+}
+
+:is(.dark) .old-thing-panel__history-conv-btn--active {
+  color: var(--violet-200, #ddd6fe);
+}
+
+.old-thing-panel__history-conv-btn--inactive {
+  color: var(--slate-700, #334155);
+}
+
+:is(.dark) .old-thing-panel__history-conv-btn--inactive {
+  color: var(--slate-200, #e2e8f0);
+}
+
+.old-thing-panel__history-rename-btn {
+  @apply rounded;
+  padding: 0.125rem 0.375rem;
+  font-size: 10px;
+  color: var(--slate-500, #64748b);
+}
+
+.old-thing-panel__history-rename-btn:hover {
+  background-color: var(--slate-200, #e2e8f0);
+}
+
+:is(.dark) .old-thing-panel__history-rename-btn {
+  color: var(--slate-400, #94a3b8);
+}
+
+:is(.dark) .old-thing-panel__history-rename-btn:hover {
+  background-color: var(--slate-800, #1e293b);
+}
+
+/* ── Message bubbles ──────────────────────────────────────────────── */
+
+.old-thing-panel__msg--user {
+  @apply rounded-lg shadow-sm;
+  margin-left: 2rem;
+  border: 1px solid var(--amber-300, #fcd34d);
+  background-color: var(--amber-50, #fffbeb);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--stone-800, #292524);
+}
+
+:is(.dark) .old-thing-panel__msg--user {
+  border-color: rgb(146 64 14 / 0.5);
+  background-color: rgb(120 53 15 / 0.2);
+  color: var(--amber-100, #fef3c7);
+}
+
+.old-thing-panel__msg--assistant {
+  @apply rounded-lg shadow-sm;
+  margin-right: 2rem;
+  border: 1px solid var(--stone-300, #d6d3d1);
+  background-color: rgb(250 250 249 / 0.8);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--stone-800, #292524);
+}
+
+:is(.dark) .old-thing-panel__msg--assistant {
+  border-color: var(--stone-700, #44403c);
+  background-color: rgb(28 25 23 / 0.5);
+  color: var(--stone-200, #e7e5e4);
+}
+
+.old-thing-panel__msg-header {
+  @apply flex items-center justify-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+}
+
+.old-thing-panel__msg-edit-btn {
+  @apply rounded;
+  padding: 0.125rem 0.375rem;
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.old-thing-panel__msg-edit-btn:hover {
+  background-color: var(--slate-200, #e2e8f0);
+}
+
+:is(.dark) .old-thing-panel__msg-edit-btn:hover {
+  background-color: var(--slate-800, #1e293b);
+}
+
+/* ── Message editing ──────────────────────────────────────────────── */
+
+.old-thing-panel__msg-edit {
+  /* space-y-2 equivalent */
+}
+
+.old-thing-panel__msg-edit > * + * {
+  margin-top: 0.5rem;
+}
+
+.old-thing-panel__msg-edit-textarea {
+  @apply w-full resize-none rounded-md outline-none;
+  border: 1px solid var(--slate-300, #cbd5e1);
+  background-color: white;
+  padding: 0.375rem 0.5rem;
+  font-size: 0.875rem;
+  color: var(--slate-900, #0f172a);
+}
+
+.old-thing-panel__msg-edit-textarea:focus {
+  @apply ring-2;
+  --tw-ring-color: var(--violet-500, #8b5cf6);
+}
+
+:is(.dark) .old-thing-panel__msg-edit-textarea {
+  border-color: var(--slate-700, #334155);
+  background-color: var(--slate-950, #020617);
+  color: var(--slate-100, #f1f5f9);
+}
+
+.old-thing-panel__msg-edit-actions {
+  @apply flex flex-wrap;
+  gap: 0.5rem;
+}
+
+.old-thing-panel__msg-save-btn {
+  @apply rounded-md;
+  background-color: var(--violet-600, #7c3aed);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: white;
+}
+
+.old-thing-panel__msg-save-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.old-thing-panel__msg-rerun-btn {
+  @apply rounded-md;
+  border: 1px solid var(--violet-300, #c4b5fd);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--violet-700, #6d28d9);
+}
+
+.old-thing-panel__msg-rerun-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+:is(.dark) .old-thing-panel__msg-rerun-btn {
+  border-color: var(--violet-700, #6d28d9);
+  color: var(--violet-200, #ddd6fe);
+}
+
+.old-thing-panel__msg-cancel-btn {
+  @apply rounded-md;
+  border: 1px solid var(--slate-300, #cbd5e1);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--slate-700, #334155);
+}
+
+:is(.dark) .old-thing-panel__msg-cancel-btn {
+  border-color: var(--slate-700, #334155);
+  color: var(--slate-200, #e2e8f0);
+}
+
+.old-thing-panel__msg-text {
+  @apply whitespace-pre-wrap break-words;
+}
+
+/* ── Processing indicator ─────────────────────────────────────────── */
+
+.old-thing-panel__processing {
+  @apply rounded-lg shadow-sm;
+  margin-right: 2rem;
+  border: 1px solid var(--stone-300, #d6d3d1);
+  background-color: rgb(250 250 249 / 0.8);
+  padding: 0.625rem 0.75rem;
+}
+
+:is(.dark) .old-thing-panel__processing {
+  border-color: var(--stone-700, #44403c);
+  background-color: rgb(28 25 23 / 0.5);
+}
+
+.old-thing-panel__processing-label {
+  margin-bottom: 0.375rem;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--slate-400, #94a3b8);
+}
+
+.old-thing-panel__processing-row {
+  @apply flex items-center;
+  gap: 0.625rem;
+}
+
+.old-thing-panel__processing-dot-wrap {
+  @apply relative flex items-center justify-center;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.old-thing-panel__processing-ping {
+  @apply absolute inline-flex h-full w-full animate-ping rounded-full;
+  background-color: var(--violet-400, #a78bfa);
+  opacity: 0.4;
+}
+
+.old-thing-panel__processing-dot {
+  @apply relative inline-flex rounded-full;
+  width: 0.75rem;
+  height: 0.75rem;
+  background: linear-gradient(to bottom right, var(--violet-500, #8b5cf6), var(--purple-500, #a855f7));
+}
+
+.old-thing-panel__processing-text {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--slate-600, #475569);
+}
+
+:is(.dark) .old-thing-panel__processing-text {
+  color: var(--slate-300, #cbd5e1);
+}
+
+/* ── Input form ───────────────────────────────────────────────────── */
+
+.old-thing-panel__input-form {
+  border-top: 1px solid var(--stone-300, #d6d3d1);
+  padding: 0.75rem;
+  background-color: rgb(255 251 235 / 0.4);
+}
+
+:is(.dark) .old-thing-panel__input-form {
+  border-top-color: var(--stone-700, #44403c);
+  background-color: rgb(28 25 23 / 0.3);
+}
+
+.old-thing-panel__input-form > * + * {
+  margin-top: 0.5rem;
+}
+
+.old-thing-panel__input-textarea {
+  @apply w-full resize-none rounded-md outline-none;
+  border: 1px solid var(--stone-300, #d6d3d1);
+  background-color: white;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--stone-800, #292524);
+}
+
+.old-thing-panel__input-textarea:focus {
+  @apply ring-2;
+  --tw-ring-color: var(--amber-600, #d97706);
+}
+
+.old-thing-panel__input-textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  background-color: var(--stone-100, #f5f5f4);
+}
+
+:is(.dark) .old-thing-panel__input-textarea {
+  border-color: var(--stone-600, #57534e);
+  background-color: rgb(12 10 9 / 0.8);
+  color: var(--stone-200, #e7e5e4);
+}
+
+:is(.dark) .old-thing-panel__input-textarea:disabled {
+  background-color: rgb(28 25 23 / 0.5);
+}
+
+.old-thing-panel__input-footer {
+  @apply flex items-center justify-between;
+  gap: 0.75rem;
+}
+
+.old-thing-panel__input-hint {
+  font-size: 0.75rem;
+  color: var(--stone-600, #57534e);
+}
+
+:is(.dark) .old-thing-panel__input-hint {
+  color: var(--stone-400, #a8a29e);
+}
+
+.old-thing-panel__send-btn {
+  @apply inline-flex items-center rounded-md shadow-sm;
+  background-color: var(--amber-700, #b45309);
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: white;
+  transition: background-color 0.15s;
+}
+
+.old-thing-panel__send-btn:hover {
+  background-color: var(--amber-800, #92400e);
+}
+
+.old-thing-panel__send-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}

@@ -1,0 +1,303 @@
+@reference "../../theme.css";
+
+/* ── Shared slide layout ──────────────────────────────────────────── */
+
+.slide {
+  @apply flex h-full w-full flex-col;
+}
+
+.slide--centered {
+  @apply items-center justify-center;
+}
+
+.slide--padded {
+  padding: 3rem 4rem 3rem;
+}
+
+.slide--padded-lg {
+  padding: 48px 72px 52px;
+}
+
+.slide--padded-xl {
+  padding: 60px 80px 56px;
+}
+
+.slide--row {
+  @apply flex-row items-center;
+  padding: 0 4rem;
+}
+
+/* ── Section header ──────────────────────────────────────────────── */
+
+.slide__section-label {
+  @apply font-bold uppercase tracking-[0.16em];
+}
+
+.slide__section-label--sm {
+  @apply text-lg;
+}
+
+.slide__section-label--md {
+  @apply text-xl;
+}
+
+.slide__section-label--lg {
+  @apply text-2xl;
+}
+
+/* ── Headlines ───────────────────────────────────────────────────── */
+
+.slide__headline {
+  @apply font-bold leading-tight tracking-tight;
+}
+
+.slide__headline--xl {
+  @apply text-6xl sm:text-7xl;
+}
+
+.slide__headline--lg {
+  @apply text-6xl font-extrabold leading-[1.15];
+  letter-spacing: -0.025em;
+}
+
+.slide__headline--md {
+  @apply text-5xl;
+}
+
+.slide__headline--sm {
+  @apply text-4xl;
+}
+
+/* ── Subtitle ────────────────────────────────────────────────────── */
+
+.slide__subtitle {
+  @apply text-xl;
+}
+
+.slide__subtitle--lg {
+  @apply text-2xl leading-relaxed;
+}
+
+/* ── Badge / pill ────────────────────────────────────────────────── */
+
+.slide__badge {
+  @apply rounded-full border-2 px-5 py-1.5 text-sm font-semibold tracking-wide;
+}
+
+.slide__pill {
+  @apply rounded-full border-2 px-6 py-3 text-lg font-medium;
+}
+
+.slide__pill--sm {
+  @apply px-3 py-1 text-xs font-semibold;
+}
+
+.slide__pill--lg {
+  @apply px-7 py-3.5 text-lg font-semibold;
+}
+
+/* ── Flow diagram elements ───────────────────────────────────────── */
+
+.slide__flow-row {
+  @apply flex items-center;
+  gap: 1.5rem;
+}
+
+.slide__flow-node {
+  @apply rounded-full border;
+  font-size: 1.4rem;
+  padding: 0.85rem 1.75rem;
+}
+
+.slide__flow-node--hero {
+  @apply border-2;
+  font-size: 1.625rem;
+  font-weight: 800;
+  padding: 24px 40px;
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  letter-spacing: 0.02em;
+  height: 76px;
+}
+
+.slide__flow-node--regular {
+  padding: 0 32px;
+  height: 76px;
+  @apply flex items-center justify-center whitespace-nowrap rounded-2xl border-2 text-xl font-semibold;
+}
+
+.slide__flow-sub {
+  @apply max-w-[160px] text-center text-base leading-snug;
+}
+
+.slide__flow-sub--hero {
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ── Chip ────────────────────────────────────────────────────────── */
+
+.slide__chip {
+  @apply rounded-lg;
+  font-size: 1.25rem;
+  font-weight: 700;
+  padding: 0.65rem 1.4rem;
+  border-left-width: 4px;
+  border-left-style: solid;
+  letter-spacing: 0.02em;
+}
+
+/* ── Cards ───────────────────────────────────────────────────────── */
+
+.slide__card {
+  @apply relative flex flex-col overflow-hidden rounded-2xl border;
+  padding: 1.75rem 1.75rem 2rem;
+}
+
+.slide__card-accent {
+  @apply absolute left-0 right-0 top-0;
+  height: 3px;
+  border-radius: 16px 16px 0 0;
+}
+
+/* ── Bottom strip ────────────────────────────────────────────────── */
+
+.slide__strip {
+  @apply flex items-center gap-2.5 rounded-full px-8 py-3.5;
+}
+
+.slide__strip-dot {
+  @apply h-1.5 w-1.5 flex-shrink-0 rounded-full;
+}
+
+.slide__strip-text {
+  @apply text-base font-medium tracking-wide;
+}
+
+/* ── Divider ─────────────────────────────────────────────────────── */
+
+.slide__divider {
+  @apply h-px w-full;
+}
+
+/* ── Grid layouts ────────────────────────────────────────────────── */
+
+.slide__grid-3 {
+  @apply grid w-full grid-cols-3 gap-5;
+}
+
+.slide__grid-split {
+  @apply grid w-full gap-x-9;
+  grid-template-columns: 1fr 1px 1fr;
+}
+
+/* ── Screenshot container ────────────────────────────────────────── */
+
+.slide__screenshot {
+  @apply rounded-2xl border p-2;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+.slide__screenshot-img {
+  @apply w-full rounded-2xl;
+}
+
+/* ── Video container ─────────────────────────────────────────────── */
+
+.slide__video-container {
+  @apply flex w-full max-w-6xl items-center justify-center;
+}
+
+.slide__video {
+  @apply w-full rounded-2xl shadow-2xl;
+  max-height: 65vh;
+}
+
+/* ── Team ────────────────────────────────────────────────────────── */
+
+.slide__team-grid {
+  @apply flex gap-16;
+}
+
+.slide__team-member {
+  @apply flex flex-col items-center;
+}
+
+.slide__team-photo {
+  @apply size-40 rounded-full border-4 object-cover;
+}
+
+/* ── QR code ─────────────────────────────────────────────────────── */
+
+.slide__qr {
+  @apply h-80 w-80 rounded-3xl shadow-xl;
+}
+
+/* ── Tier list (scalability) ─────────────────────────────────────── */
+
+.slide__tier-item {
+  @apply flex items-center gap-3 rounded-xl border px-4 py-3;
+}
+
+.slide__tier-dot {
+  @apply h-2.5 w-2.5 flex-shrink-0 rounded-full;
+}
+
+.slide__tier-name {
+  @apply w-28 flex-shrink-0 text-base font-bold;
+}
+
+.slide__tier-desc {
+  @apply flex-1 text-sm leading-snug;
+}
+
+.slide__tier-tag {
+  @apply flex-shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold;
+}
+
+/* ── Point list (scalability) ────────────────────────────────────── */
+
+.slide__point {
+  @apply flex items-start gap-3;
+}
+
+.slide__point-icon {
+  @apply flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[9px] border text-xl;
+}
+
+/* ── Presentation layout (shell) ─────────────────────────────────── */
+
+.presentation {
+  @apply relative h-screen w-screen overflow-hidden;
+  background: #ffffff;
+}
+
+.presentation__exit-btn {
+  @apply absolute right-6 top-6 z-50 flex size-10 items-center justify-center rounded-full transition-colors;
+  color: rgba(0, 0, 0, 0.3);
+}
+
+.presentation__exit-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.presentation__slide {
+  @apply h-full w-full;
+  animation: fade-in 0.3s ease-out;
+}
+
+.presentation__nav-overlay {
+  @apply absolute inset-0 z-40;
+}
+
+.presentation__counter {
+  @apply absolute bottom-6 right-6 z-50 text-sm font-medium;
+  color: rgba(0, 0, 0, 0.3);
+}
+
+.presentation__footer {
+  @apply absolute bottom-5 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap text-sm;
+  color: #ccc;
+}

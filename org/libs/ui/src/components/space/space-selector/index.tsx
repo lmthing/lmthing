@@ -6,6 +6,7 @@ import { Input } from '@lmthing/ui/elements/forms/input'
 import { Stack } from '@lmthing/ui/elements/layouts/stack'
 import { Label } from '@lmthing/ui/elements/typography/label'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
+import '@lmthing/css/components/space/index.css'
 
 export interface SpaceEntry {
   id: string
@@ -38,69 +39,67 @@ export function SpaceSelector({ spaces, currentSpaceId, onSelectSpace, onCreateS
   }, [newSpaceName, onCreateSpace])
 
   return (
-    <div style={{ position: 'relative' }}>
-      <Button onClick={toggleIsOpen} variant="ghost" style={{ width: '100%', justifyContent: 'space-between' }}>
-        <Label style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+    <div className="space-selector">
+      <Button onClick={toggleIsOpen} variant="ghost" className="space-selector__trigger">
+        <Label className="space-selector__trigger-label">
           {currentSpace ? currentSpace.name : 'Select Space'}
         </Label>
-        <ChevronDown className="w-4 h-4" style={{ flexShrink: 0, opacity: 0.5 }} />
+        <ChevronDown className="space-selector__chevron" />
       </Button>
 
       {isOpen && (
-        <div className="dropdown__content" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, marginTop: '0.25rem' }}>
-          <div style={{ padding: '0.5rem', borderBottom: '1px solid var(--color-border)' }}>
-            <div style={{ position: 'relative' }}>
-              <Search className="w-4 h-4" style={{ position: 'absolute', left: '0.5rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
+        <div className="dropdown__content space-selector__dropdown">
+          <div className="space-selector__search-section">
+            <div className="space-selector__search-wrapper">
+              <Search className="space-selector__search-icon" />
               <Input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search spaces..."
-                className="input--sm"
-                style={{ paddingLeft: '2rem' }}
+                className="input--sm space-selector__search-input"
                 autoFocus
               />
             </div>
           </div>
 
-          <div style={{ maxHeight: '16rem', overflowY: 'auto' }}>
+          <div className="space-selector__list">
             {filteredSpaces.length === 0 ? (
-              <Caption muted style={{ padding: '1rem', textAlign: 'center', display: 'block' }}>No spaces found</Caption>
+              <Caption muted className="space-selector__empty">No spaces found</Caption>
             ) : (
               filteredSpaces.map((space) => (
                 <button
                   key={space.id}
                   onClick={() => handleSelect(space.id)}
-                  className={`dropdown__item ${space.id === currentSpaceId ? 'list-item--selected' : ''}`}
-                  style={{ width: '100%', textAlign: 'left' }}
+                  className={`dropdown__item space-selector__item ${space.id === currentSpaceId ? 'list-item--selected' : ''}`}
                 >
                   {space.isLocal ? (
-                    <FolderOpen className="w-4 h-4" style={{ flexShrink: 0, opacity: 0.6 }} />
+                    <FolderOpen className="space-selector__item-icon" />
                   ) : space.ownerAvatarUrl ? (
-                    <img src={space.ownerAvatarUrl} alt="" style={{ width: '1rem', height: '1rem', borderRadius: '9999px', flexShrink: 0 }} />
+                    <img src={space.ownerAvatarUrl} alt="" className="space-selector__avatar" />
                   ) : (
-                    <Github className="w-4 h-4" style={{ flexShrink: 0, opacity: 0.6 }} />
+                    <Github className="space-selector__item-icon" />
                   )}
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{space.name}</span>
+                  <span className="space-selector__item-name">{space.name}</span>
                 </button>
               ))
             )}
           </div>
 
-          <div style={{ borderTop: '1px solid var(--color-border)', padding: '0.5rem' }}>
+          <div className="space-selector__footer">
             {showCreate ? (
               <form onSubmit={handleCreate}>
-                <Stack gap="sm" style={{ padding: '0.25rem' }}>
+                <Stack gap="sm" className="space-selector__create-form">
                   <Input type="text" value={newSpaceName} onChange={(e) => setNewSpaceName(e.target.value)} placeholder="Space name..." className="input--sm" autoFocus />
                   <Stack row gap="sm">
-                    <Button type="submit" variant="primary" size="sm" style={{ flex: 1 }}>Create</Button>
-                    <Button type="button" onClick={() => setShowCreate(false)} variant="ghost" size="sm" style={{ flex: 1 }}>Cancel</Button>
+                    <Button type="submit" variant="primary" size="sm" className="space-selector__create-btn">Create</Button>
+                    <Button type="button" onClick={() => setShowCreate(false)} variant="ghost" size="sm" className="space-selector__create-btn">Cancel</Button>
                   </Stack>
                 </Stack>
               </form>
             ) : (
-              <button onClick={() => setShowCreate(true)} className="dropdown__item" style={{ width: '100%' }}>
-                <Plus className="w-4 h-4" /><span>New Space</span>
+              <button onClick={() => setShowCreate(true)} className="dropdown__item space-selector__new-btn">
+                <Plus className="space-selector__new-icon" /><span>New Space</span>
               </button>
             )}
           </div>

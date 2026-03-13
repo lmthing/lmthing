@@ -18,6 +18,7 @@ import '@lmthing/css/elements/layouts/page/index.css'
 import '@lmthing/css/elements/forms/button/index.css'
 import '@lmthing/css/elements/forms/input/index.css'
 import '@lmthing/css/elements/content/card/index.css'
+import '@lmthing/css/components/shell/index.css'
 import { PageHeader, PageBody } from '@lmthing/ui/elements/layouts/page'
 import { Card, CardBody } from '@lmthing/ui/elements/content/card'
 import { Heading } from '@lmthing/ui/elements/typography/heading'
@@ -79,50 +80,49 @@ export function SpacesLayout() {
   }
 
   return (
-    <div className="split-pane" style={{ height: '100vh' }}>
+    <div className="split-pane spaces-layout">
       <aside className={`sidebar ${isSidebarCollapsed ? 'sidebar--collapsed' : ''}`} style={{ width: isSidebarCollapsed ? '4rem' : '17.5rem' }}>
-        <div style={{ padding: 0, borderBottom: '1px solid var(--color-border)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <button onClick={() => navigate({ to: '/' })} style={{ display: 'flex', width: '3rem', height: '3rem', flexShrink: 0, alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer' }} title="lmthing home" />
-            {!isSidebarCollapsed && <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>Spaces</span>}
+        <div className="spaces-layout__sidebar-header">
+          <div className="spaces-layout__sidebar-header-inner">
+            <button onClick={() => navigate({ to: '/' })} className="spaces-layout__home-btn" title="lmthing home" />
+            {!isSidebarCollapsed && <span className="spaces-layout__sidebar-title">Spaces</span>}
           </div>
         </div>
 
         {!isSidebarCollapsed && (
-          <div style={{ padding: '0.75rem', borderBottom: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <div style={{ position: 'relative' }}>
-              <Search style={{ position: 'absolute', left: '0.625rem', top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, opacity: 0.5 }} />
-              <input className="input" style={{ paddingLeft: '2rem' }} placeholder="Search spaces..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+          <div className="spaces-layout__sidebar-search-section">
+            <div className="spaces-layout__search-wrapper">
+              <Search className="spaces-layout__search-icon" />
+              <input className="input spaces-layout__search-input" placeholder="Search spaces..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
             </div>
-            <button className="btn btn--ghost btn--sm" style={{ width: '100%', border: '1px dashed var(--color-border)' }} onClick={() => setIsCreateLocalOpen(true)}>
-              <Plus style={{ width: 14, height: 14 }} /> New space
+            <button className="btn btn--ghost btn--sm spaces-layout__new-space-btn" onClick={() => setIsCreateLocalOpen(true)}>
+              <Plus className="spaces-layout__icon-sm" /> New space
             </button>
           </div>
         )}
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0.75rem' }}>
+        <div className="spaces-layout__sidebar-list">
           {filteredSpaces.map(space => (
             <button
               key={space.id}
               onClick={() => setSelectedSpaceId(space.id)}
-              className={`sidebar__item ${selectedSpaceId === space.id ? 'sidebar__item--active' : ''}`}
-              style={{ width: '100%', textAlign: 'left' }}
+              className={`sidebar__item ${selectedSpaceId === space.id ? 'sidebar__item--active' : ''} spaces-layout__space-btn`}
             >
-              <div style={{ width: '1.5rem', height: '1.5rem', flexShrink: 0, borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: space.color + '20' }}>
-                <Building2 style={{ width: 14, height: 14, color: space.color }} />
+              <div className="spaces-layout__space-icon-wrapper" style={{ backgroundColor: space.color + '20' }}>
+                <Building2 className="spaces-layout__icon-sm" style={{ color: space.color }} />
               </div>
-              {!isSidebarCollapsed && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{space.name}</span>}
+              {!isSidebarCollapsed && <span className="spaces-layout__space-name">{space.name}</span>}
             </button>
           ))}
         </div>
 
-        <div style={{ padding: '0.75rem', borderTop: '1px solid var(--color-border)' }}>
-          <button onClick={() => { if (isLoadingAuth) return; if (isAuthenticated) { logout(); return; } void login().catch(console.error) }} disabled={isLoadingAuth} className="sidebar__item" style={{ width: '100%' }}>
-            <Github style={{ width: 20, height: 20, flexShrink: 0 }} />
-            {!isSidebarCollapsed && <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{isLoadingAuth ? 'Loading...' : isAuthenticated ? 'Logout GitHub' : 'Login with GitHub'}</span>}
+        <div className="spaces-layout__sidebar-footer">
+          <button onClick={() => { if (isLoadingAuth) return; if (isAuthenticated) { logout(); return; } void login().catch(console.error) }} disabled={isLoadingAuth} className="sidebar__item spaces-layout__footer-btn">
+            <Github className="spaces-layout__github-icon" />
+            {!isSidebarCollapsed && <span className="spaces-layout__footer-label">{isLoadingAuth ? 'Loading...' : isAuthenticated ? 'Logout GitHub' : 'Login with GitHub'}</span>}
           </button>
-          <button onClick={() => toggleSidebarCollapsed()} className="sidebar__item" style={{ width: '100%' }}>
-            {isSidebarCollapsed ? <ChevronRight style={{ width: 20, height: 20 }} /> : <><ChevronLeft style={{ width: 20, height: 20 }} /><span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Collapse</span></>}
+          <button onClick={() => toggleSidebarCollapsed()} className="sidebar__item spaces-layout__footer-btn">
+            {isSidebarCollapsed ? <ChevronRight className="spaces-layout__collapse-icon" /> : <><ChevronLeft className="spaces-layout__collapse-icon" /><span className="spaces-layout__footer-label">Collapse</span></>}
           </button>
         </div>
       </aside>
@@ -133,12 +133,12 @@ export function SpacesLayout() {
         </PageHeader>
         <PageBody>
           {selectedSpace ? (
-            <div style={{ maxWidth: '56rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
-                <div style={{ width: '3.5rem', height: '3.5rem', borderRadius: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: selectedSpace.color + '20' }}>
-                  <Building2 style={{ width: '1.75rem', height: '1.75rem', color: selectedSpace.color }} />
+            <div className="spaces-layout__detail">
+              <div className="spaces-layout__detail-header">
+                <div className="spaces-layout__detail-icon-wrapper" style={{ backgroundColor: selectedSpace.color + '20' }}>
+                  <Building2 className="spaces-layout__detail-icon" style={{ color: selectedSpace.color }} />
                 </div>
-                <div style={{ flex: 1 }}>
+                <div className="spaces-layout__detail-info">
                   <Heading level={2}>{selectedSpace.name}</Heading>
                   <Caption muted>{selectedSpace.name.startsWith('local/') ? 'Local space' : 'GitHub space'}</Caption>
                 </div>
@@ -146,32 +146,32 @@ export function SpacesLayout() {
               </div>
             </div>
           ) : (
-            <div style={{ maxWidth: '42rem' }}>
+            <div className="spaces-layout__grid-container">
               <Heading level={2}>Your Spaces</Heading>
-              <Caption muted style={{ marginBottom: '2rem' }}>Select a space from the sidebar to view its details.</Caption>
+              <Caption muted className="spaces-layout__grid-caption">Select a space from the sidebar to view its details.</Caption>
               {allSpaces.length > 0 ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
+                <div className="spaces-layout__grid">
                   {allSpaces.map((space, idx) => (
-                    <button key={space.id} onClick={() => setSelectedSpaceId(space.id)} style={{ all: 'unset', cursor: 'pointer', display: 'block' }}>
-                      <Card interactive style={{ padding: '1.25rem' }}>
+                    <button key={space.id} onClick={() => setSelectedSpaceId(space.id)} className="spaces-layout__grid-btn">
+                      <Card interactive className="spaces-layout__grid-card">
                         <CardBody>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                            <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: SPACE_COLORS[idx % SPACE_COLORS.length] + '20' }}>
-                              <Building2 style={{ width: 20, height: 20, color: SPACE_COLORS[idx % SPACE_COLORS.length] }} />
+                          <div className="spaces-layout__grid-card-header">
+                            <div className="spaces-layout__grid-icon-wrapper" style={{ backgroundColor: SPACE_COLORS[idx % SPACE_COLORS.length] + '20' }}>
+                              <Building2 className="spaces-layout__grid-icon" style={{ color: SPACE_COLORS[idx % SPACE_COLORS.length] }} />
                             </div>
                           </div>
-                          <Caption style={{ fontWeight: 600 }}>{space.name}</Caption>
+                          <Caption className="spaces-layout__grid-name">{space.name}</Caption>
                         </CardBody>
                       </Card>
                     </button>
                   ))}
                 </div>
               ) : (
-                <div style={{ textAlign: 'center', padding: '5rem 0' }}>
-                  <Building2 style={{ width: 32, height: 32, opacity: 0.3, margin: '0 auto 1rem' }} />
+                <div className="spaces-layout__empty">
+                  <Building2 className="spaces-layout__empty-icon" />
                   <Heading level={3}>No spaces yet</Heading>
-                  <button className="btn btn--primary" style={{ marginTop: '1.5rem' }} onClick={() => setIsCreateLocalOpen(true)}>
-                    <Plus style={{ width: 16, height: 16 }} /> Create space
+                  <button className="btn btn--primary spaces-layout__empty-create-btn" onClick={() => setIsCreateLocalOpen(true)}>
+                    <Plus className="spaces-layout__empty-create-icon" /> Create space
                   </button>
                 </div>
               )}
@@ -181,13 +181,13 @@ export function SpacesLayout() {
       </div>
 
       {isCreateLocalOpen && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div style={{ background: 'var(--color-bg)', borderRadius: '0.5rem', padding: '1.5rem', maxWidth: '28rem', width: '100%', border: '1px solid var(--color-border)' }}>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.25rem' }}>Create New Space</h3>
-            <p style={{ fontSize: '0.875rem', opacity: 0.7, marginBottom: '1rem' }}>Create a new space and open it in Studio.</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div className="spaces-layout__modal-backdrop">
+          <div className="spaces-layout__modal">
+            <h3 className="spaces-layout__modal-title">Create New Space</h3>
+            <p className="spaces-layout__modal-desc">Create a new space and open it in Studio.</p>
+            <div className="spaces-layout__modal-fields">
               <input className="input" autoFocus placeholder="Space name (e.g. customer-support)" value={newLocalSpaceName} onChange={e => setNewLocalSpaceName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleCreateLocalSpace() }} />
-              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <div className="spaces-layout__modal-actions">
                 <button className="btn btn--ghost" onClick={() => setIsCreateLocalOpen(false)}>Cancel</button>
                 <button className="btn btn--primary" onClick={handleCreateLocalSpace} disabled={!toLocalSpaceId(newLocalSpaceName)}>Create Space</button>
               </div>

@@ -1,3 +1,4 @@
+import '@lmthing/css/components/assistant/builder/index.css'
 import { Button } from '@lmthing/ui/elements/forms/button'
 import { Card, CardBody, CardFooter } from '@lmthing/ui/elements/content/card'
 import { Badge } from '@lmthing/ui/elements/content/badge'
@@ -49,10 +50,10 @@ function AssistantCard({ assistant, fields, onLoad, onDuplicate, onDelete }: {
   return (
     <Card interactive>
       <CardBody>
-        <Stack row style={{ justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <Label style={{ fontWeight: 600 }}>{assistant.name}</Label>
-            <Caption muted style={{ marginTop: '0.25rem', WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+        <Stack row className="saved-assistants-list__card-header">
+          <div className="saved-assistants-list__card-content">
+            <Label className="saved-assistants-list__card-name">{assistant.name}</Label>
+            <Caption muted className="saved-assistants-list__card-description">
               {assistant.description}
             </Caption>
           </div>
@@ -61,15 +62,15 @@ function AssistantCard({ assistant, fields, onLoad, onDuplicate, onDelete }: {
             <Button onClick={onDelete} variant="ghost" size="sm" title="Delete">🗑</Button>
           </Stack>
         </Stack>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginBottom: '1rem' }}>
+        <div className="saved-assistants-list__card-badges">
           {assistantFields.slice(0, 3).map(field => (
-            <Badge key={field.id} variant="muted" style={{ fontSize: '0.625rem' }}>{field.name}</Badge>
+            <Badge key={field.id} variant="muted" className="saved-assistants-list__badge-sm">{field.name}</Badge>
           ))}
           {assistantFields.length > 3 && (
-            <Badge variant="muted" style={{ fontSize: '0.625rem' }}>+{assistantFields.length - 3} more</Badge>
+            <Badge variant="muted" className="saved-assistants-list__badge-sm">+{assistantFields.length - 3} more</Badge>
           )}
         </div>
-        <CardFooter style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <CardFooter className="saved-assistants-list__card-footer">
           <Stack row gap="sm">
             <Caption muted>🔧 {assistant.enabledTools.length} tools</Caption>
             <Caption muted>🕐 {formatDate(assistant.updatedAt)}</Caption>
@@ -85,25 +86,25 @@ export function SavedAssistantsList({ fields, savedAssistants, onLoadAssistant, 
   const sortedAssistants = [...savedAssistants].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
 
   return (
-    <PageBody style={{ maxWidth: '64rem', margin: '0 auto', padding: '1.5rem' }}>
-      <Stack row style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+    <PageBody className="saved-assistants-list">
+      <Stack row className="saved-assistants-list__header">
         <div>
           <Heading level={2}>Saved Assistants</Heading>
-          <Caption muted style={{ marginTop: '0.25rem' }}>{savedAssistants.length} saved assistant{savedAssistants.length !== 1 ? 's' : ''}</Caption>
+          <Caption muted className="saved-assistants-list__subtitle">{savedAssistants.length} saved assistant{savedAssistants.length !== 1 ? 's' : ''}</Caption>
         </div>
         <Button onClick={onNewAssistant} variant="primary">+ New Assistant</Button>
       </Stack>
 
       {savedAssistants.length === 0 ? (
-        <Stack style={{ textAlign: 'center', padding: '4rem 0' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📦</div>
+        <Stack className="saved-assistants-list__empty">
+          <div className="saved-assistants-list__empty-icon">📦</div>
           <Heading level={3}>No saved assistants yet</Heading>
-          <Caption muted style={{ maxWidth: '28rem', margin: '0.5rem auto 0' }}>
+          <Caption muted className="saved-assistants-list__empty-caption">
             Create your first assistant and save it for quick access later.
           </Caption>
         </Stack>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+        <div className="saved-assistants-list__grid">
           {sortedAssistants.map(assistant => (
             <AssistantCard
               key={assistant.id}

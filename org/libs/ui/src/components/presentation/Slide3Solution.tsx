@@ -1,5 +1,5 @@
 import { colors } from './constants'
-import { CozyThingText } from '@/CozyText'
+import { CozyThingText } from '@lmthing/ui/elements/branding/cozy-text'
 import screenshotUrl from '../../../../docs/presentation/localhost_3000_studio_local%2Fgreek-cooking.png'
 
 const pills = ['No code', 'Any domain', 'Your knowledge', 'Any AI model']

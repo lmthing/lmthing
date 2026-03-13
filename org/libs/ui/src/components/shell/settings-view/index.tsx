@@ -10,12 +10,13 @@ import '@lmthing/css/elements/forms/button/index.css'
 import '@lmthing/css/elements/forms/input/index.css'
 import '@lmthing/css/elements/content/panel/index.css'
 import '@lmthing/css/elements/layouts/page/index.css'
+import '@lmthing/css/components/shell/index.css'
 import { Page, PageHeader, PageBody } from '@lmthing/ui/elements/layouts/page'
 import { Heading } from '@lmthing/ui/elements/typography/heading'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
-import { Stack } from '@lmthing/ui/elements/layouts/stack'
 import { useUIState } from '@lmthing/state'
 import { useFile } from '@lmthing/ui/hooks/fs/useFile'
+import { cn } from '@lmthing/ui/lib/utils'
 
 interface SettingsViewProps {
   isOpen: boolean
@@ -75,7 +76,7 @@ export function SettingsView({ isOpen }: SettingsViewProps) {
   return (
     <Page full>
       <PageHeader>
-        <Stack row style={{ justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+        <Stack row className="settings-view__header">
           <div>
             <Heading level={2}>Space Settings</Heading>
             <Caption muted>{spaceId || 'No space selected'}</Caption>
@@ -83,86 +84,74 @@ export function SettingsView({ isOpen }: SettingsViewProps) {
         </Stack>
       </PageHeader>
 
-      <div style={{ display: 'flex', gap: '0.25rem', padding: '0 1.5rem', borderBottom: '1px solid var(--color-border)' }}>
+      <div className="settings-view__tabs">
         <button
           onClick={() => handleTabChange('env')}
-          className="btn btn--ghost"
-          style={{
-            borderBottom: activeTab === 'env' ? '2px solid var(--color-primary)' : '2px solid transparent',
-            borderRadius: 0,
-            color: activeTab === 'env' ? 'var(--color-primary)' : undefined,
-          }}
+          className={`btn btn--ghost settings-view__tab ${activeTab === 'env' ? 'settings-view__tab--active' : 'settings-view__tab--inactive'}`}
         >
-          <Shield style={{ width: 16, height: 16 }} /> Environment
+          <Shield className="settings-view__tab-icon" /> Environment
         </button>
         <button
           onClick={() => handleTabChange('packages')}
-          className="btn btn--ghost"
-          style={{
-            borderBottom: activeTab === 'packages' ? '2px solid var(--color-primary)' : '2px solid transparent',
-            borderRadius: 0,
-            color: activeTab === 'packages' ? 'var(--color-primary)' : undefined,
-          }}
+          className={`btn btn--ghost settings-view__tab ${activeTab === 'packages' ? 'settings-view__tab--active' : 'settings-view__tab--inactive'}`}
         >
-          <FileCode2 style={{ width: 16, height: 16 }} /> package.json
+          <FileCode2 className="settings-view__tab-icon" /> package.json
         </button>
       </div>
 
       <PageBody>
         {activeTab === 'env' && (
-          <div style={{ maxWidth: '64rem', margin: '0 auto' }}>
-            <div className="panel" style={{ marginBottom: '1rem' }}>
+          <div className="settings-view__panel-container">
+            <div className={cn('panel', 'settings-view__panel-container--env')}>
               <div className="panel__header"><span>Environment Variables</span></div>
               <div className="panel__body">
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div className="settings-view__env-grid">
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>File</label>
+                    <label className="settings-view__env-label">File</label>
                     <input className="input" value={selectedEnvFile} onChange={e => setSelectedEnvFile(e.target.value)} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Password</label>
+                    <label className="settings-view__env-label">Password</label>
                     <input className="input" type="password" value={envPassword} onChange={e => setEnvPassword(e.target.value)} placeholder="Enter password" />
                   </div>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Variables</label>
+                  <label className="settings-view__env-label">Variables</label>
                   <textarea
-                    className="input"
+                    className={cn('input', 'settings-view__env-textarea')}
                     value={envContent}
                     onChange={e => setEnvContent(e.target.value)}
                     placeholder="KEY=value"
-                    style={{ height: '16rem', fontFamily: 'monospace', resize: 'vertical' }}
                   />
                 </div>
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+                <div className="settings-view__env-actions">
                   <button className="btn btn--outline" onClick={() => setEnvStatus('Loaded from session')}>Load</button>
                   <button className="btn btn--primary" onClick={() => setEnvStatus('Saved')}>Save</button>
                 </div>
-                {envError && <Caption style={{ color: 'var(--color-destructive)', marginTop: '0.5rem' }}>{envError}</Caption>}
-                {envStatus && <Caption style={{ color: '#10b981', marginTop: '0.5rem' }}>{envStatus}</Caption>}
+                {envError && <Caption className="settings-view__status--error">{envError}</Caption>}
+                {envStatus && <Caption className="settings-view__status--success">{envStatus}</Caption>}
               </div>
             </div>
           </div>
         )}
 
         {activeTab === 'packages' && (
-          <div style={{ maxWidth: '64rem', margin: '0 auto' }}>
+          <div className="settings-view__panel-container">
             <div className="panel">
               <div className="panel__header"><span>package.json</span></div>
               <div className="panel__body">
-                <Caption muted style={{ marginBottom: '0.75rem' }}>
+                <Caption muted className="settings-view__pkg-caption">
                   Inline metadata and dependency editor. Save when ready.
                 </Caption>
                 <textarea
-                  className="input"
+                  className={cn('input', 'settings-view__pkg-textarea')}
                   value={packageJsonDraft || packageJsonSerialized}
                   onChange={e => { setPackageJsonDraft(e.target.value); setPackageJsonError(null); setPackageJsonSavedAt(null) }}
                   spellCheck={false}
-                  style={{ minHeight: '200px', fontFamily: 'monospace', resize: 'vertical' }}
                 />
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem' }}>
+                <div className="settings-view__pkg-footer">
                   <Caption muted>
-                    {packageJsonError ? <span style={{ color: 'var(--color-destructive)' }}>{packageJsonError}</span>
+                    {packageJsonError ? <span className="settings-view__pkg-error">{packageJsonError}</span>
                     : packageJsonSavedAt ? `Saved at ${packageJsonSavedAt}` : 'Ready to save'}
                   </Caption>
                   <button className="btn btn--primary" onClick={() => {

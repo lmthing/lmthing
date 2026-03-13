@@ -1,5 +1,5 @@
 import { colors } from './constants'
-import { CozyThingText } from '@/CozyText'
+import { CozyThingText } from '@lmthing/ui/elements/branding/cozy-text'
 import qrCode from '@/assets/qr-code.png'
 
 export default function Slide8Partnership() {

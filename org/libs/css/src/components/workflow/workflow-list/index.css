@@ -1,0 +1,228 @@
+@reference "../../../../theme.css";
+
+/* ── WorkflowList ─────────────────────────────────────────────────── */
+
+.workflow-list__header-inner {
+  @apply max-w-6xl mx-auto py-6;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .workflow-list__header-inner {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .workflow-list__header-inner {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+.workflow-list__title-row {
+  @apply flex justify-between items-center;
+  margin-bottom: 1.5rem;
+}
+
+.workflow-list__create-icon {
+  @apply w-5 h-5;
+}
+
+.workflow-list__stats {
+  @apply flex items-center;
+  margin-bottom: 1.5rem;
+}
+
+.workflow-list__stat-row {
+  @apply flex items-center;
+}
+
+.workflow-list__stat-count {
+  @apply text-2xl font-bold;
+  color: var(--foreground);
+}
+
+.workflow-list__stat-dot {
+  @apply w-2 h-2 rounded-full;
+  background: var(--brand-2);
+}
+
+.workflow-list__filters {
+  @apply flex flex-wrap;
+}
+
+.workflow-list__search-wrapper {
+  @apply relative flex-1;
+  max-width: 28rem;
+}
+
+.workflow-list__search-icon {
+  @apply absolute w-5 h-5;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted-foreground);
+}
+
+.workflow-list__search-input {
+  padding-left: 2.5rem;
+}
+
+.workflow-list__tag-filters {
+  @apply flex items-center overflow-x-auto;
+  gap: 0.5rem;
+  padding-bottom: 0.25rem;
+}
+
+@media (min-width: 640px) {
+  .workflow-list__tag-filters {
+    padding-bottom: 0;
+  }
+}
+
+.workflow-list__tag-btn {
+  @apply text-sm font-medium whitespace-nowrap transition-all;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.5rem;
+}
+
+.workflow-list__tag-btn--active {
+  background: color-mix(in srgb, var(--brand-3) 15%, transparent);
+  color: var(--brand-3);
+  @apply ring-1;
+  --tw-ring-color: color-mix(in srgb, var(--brand-3) 30%, transparent);
+}
+
+.workflow-list__tag-btn--inactive {
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.workflow-list__tag-btn--inactive:hover {
+  background: var(--muted);
+}
+
+.workflow-list__view-toggle {
+  @apply flex items-center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background: var(--muted);
+  border-radius: 0.5rem;
+}
+
+.workflow-list__view-btn {
+  @apply p-2 rounded-md transition-all;
+}
+
+.workflow-list__view-btn--active {
+  background: var(--card);
+  color: var(--brand-3);
+  @apply shadow-sm;
+}
+
+.workflow-list__view-btn--inactive {
+  color: var(--muted-foreground);
+}
+
+.workflow-list__view-btn--inactive:hover {
+  color: var(--foreground);
+}
+
+.workflow-list__view-icon {
+  @apply w-4 h-4;
+}
+
+.workflow-list__body-inner {
+  @apply max-w-6xl mx-auto py-8;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .workflow-list__body-inner {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .workflow-list__body-inner {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+.workflow-list__grid {
+  @apply grid grid-cols-1 gap-4;
+}
+
+@media (min-width: 768px) {
+  .workflow-list__grid {
+    @apply grid-cols-2;
+  }
+}
+
+@media (min-width: 1024px) {
+  .workflow-list__grid {
+    @apply grid-cols-3;
+  }
+}
+
+.workflow-list__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.workflow-list__empty-first {
+  @apply text-center;
+  background: var(--card);
+  border-radius: 1rem;
+  border: 2px dashed var(--border);
+  padding: 4rem;
+}
+
+.workflow-list__empty-first-icon-wrapper {
+  @apply w-20 h-20 flex items-center justify-center mx-auto;
+  border-radius: 1rem;
+  background: linear-gradient(to bottom right, var(--brand-3), var(--brand-3));
+  margin-bottom: 1.5rem;
+  box-shadow: 0 20px 25px -5px color-mix(in srgb, var(--brand-3) 25%, transparent);
+}
+
+.workflow-list__empty-first-icon {
+  @apply w-10 h-10 text-white;
+}
+
+.workflow-list__empty-first-caption {
+  margin-bottom: 2rem;
+  max-width: 28rem;
+  margin-inline: auto;
+}
+
+.workflow-list__empty-first-tags {
+  @apply flex flex-wrap justify-center;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.workflow-list__empty-no-match {
+  @apply text-center;
+  background: var(--card);
+  border-radius: 0.75rem;
+  padding: 3rem;
+}
+
+.workflow-list__empty-no-match-icon-wrapper {
+  @apply w-16 h-16 rounded-full flex items-center justify-center mx-auto;
+  background: var(--muted);
+  margin-bottom: 1rem;
+}
+
+.workflow-list__empty-no-match-icon {
+  @apply w-8 h-8;
+  color: var(--muted-foreground);
+}

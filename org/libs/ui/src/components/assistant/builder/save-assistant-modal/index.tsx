@@ -1,3 +1,4 @@
+import '@lmthing/css/components/assistant/builder/index.css'
 import { useCallback, useEffect } from 'react'
 import { useUIState } from '@lmthing/state'
 import { Button } from '@lmthing/ui/elements/forms/button'
@@ -41,11 +42,11 @@ export function SaveAssistantModal({ isOpen, onClose, onSave }: SaveAssistantMod
 
   return (
     <div className="dialog__backdrop">
-      <div className="dialog__content" style={{ maxWidth: '28rem' }}>
+      <div className="dialog__content save-assistant-modal__content">
         <div className="dialog__header">
-          <Stack row gap="sm" style={{ alignItems: 'center' }}>
-            <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: '0.75rem', background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg className="w-5 h-5" style={{ color: 'white' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <Stack row gap="sm" className="save-assistant-modal__header-row">
+            <div className="save-assistant-modal__icon-wrap">
+              <svg className="save-assistant-modal__icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
               </svg>
             </div>
@@ -57,7 +58,7 @@ export function SaveAssistantModal({ isOpen, onClose, onSave }: SaveAssistantMod
           <Button onClick={onClose} variant="ghost" size="sm">✕</Button>
         </div>
 
-        <Stack gap="md" style={{ padding: '1.5rem' }}>
+        <Stack gap="md" className="save-assistant-modal__form">
           <div>
             <Label compact required>Assistant Name</Label>
             <Input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g., Security Auditor" autoFocus />
@@ -69,7 +70,7 @@ export function SaveAssistantModal({ isOpen, onClose, onSave }: SaveAssistantMod
           <Caption muted>Saved assistants can be loaded from the Saved Assistants view</Caption>
         </Stack>
 
-        <CardFooter style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+        <CardFooter className="save-assistant-modal__footer">
           <Button onClick={onClose} variant="ghost">Cancel</Button>
           <Button onClick={handleSave} disabled={!name.trim()} variant="primary">Save Assistant</Button>
         </CardFooter>

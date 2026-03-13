@@ -1,0 +1,485 @@
+@reference "../../theme.css";
+
+/* ── SpaceList ────────────────────────────────────────────────────── */
+
+.space-list__search-wrapper {
+  position: relative;
+  margin-top: 1rem;
+}
+
+.space-list__header {
+  @apply flex justify-between items-center;
+}
+
+.space-list__invite-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.space-list__search-icon {
+  width: 1rem;
+  height: 1rem;
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+}
+
+.space-list__search-input {
+  padding-left: 2.25rem;
+}
+
+.space-list__body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.space-list__empty {
+  @apply flex flex-col items-center justify-center;
+  height: 12rem;
+}
+
+.space-list__empty-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  opacity: 0.5;
+}
+
+.space-list__user-list {
+  padding: 0.5rem;
+}
+
+.space-list__user-btn {
+  all: unset;
+  cursor: pointer;
+  display: block;
+  width: 100%;
+}
+
+.space-list__avatar-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.space-list__avatar-fallback {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: white;
+  font-weight: 600;
+}
+
+.space-list__status-dot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 9999px;
+  border: 2px solid white;
+}
+
+.space-list__status-dot--active {
+  @apply bg-brand-2;
+}
+
+.space-list__status-dot--invited {
+  @apply bg-brand-2;
+}
+
+.space-list__status-dot--pending {
+  @apply bg-neutral;
+}
+
+.space-list__role-badge--admin {
+  @apply text-brand-3 bg-brand-3/10 border-brand-3/30;
+}
+
+.space-list__role-badge--editor {
+  @apply text-brand-2 bg-brand-2/10 border-brand-2/30;
+}
+
+.space-list__role-badge--viewer {
+  @apply text-muted-foreground bg-muted border-border;
+}
+
+.space-list__user-info {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.space-list__user-name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.space-list__role-badge {
+  font-size: 0.625rem;
+  padding: 0.125rem 0.375rem;
+}
+
+.space-list__user-name-row {
+  @apply flex items-center;
+  gap: 0.25rem;
+}
+
+.space-list__email-row {
+  @apply flex items-center;
+  gap: 0.25rem;
+  margin-top: 0.125rem;
+}
+
+.space-list__email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.space-list__email-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+
+.space-list__last-active-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.space-list__status-col {
+  @apply flex flex-col items-end;
+  gap: 0.25rem;
+}
+
+.space-list__status-badge {
+  font-size: 0.625rem;
+}
+
+.space-list__last-active {
+  @apply flex items-center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+}
+
+/* ── InviteDialog ────────────────────────────────────────────────── */
+
+.space-list__invite-dialog {
+  max-width: 28rem;
+}
+
+.space-list__invite-form-body {
+  padding: 1.5rem;
+}
+
+.space-list__invite-role-item {
+  cursor: pointer;
+}
+
+.space-list__invite-role-radio {
+  margin-right: 0.75rem;
+}
+
+.space-list__invite-actions {
+  padding-top: 0.5rem;
+}
+
+.space-list__invite-action-btn {
+  flex: 1;
+}
+
+/* ── SpaceSelector ────────────────────────────────────────────────── */
+
+.space-selector {
+  position: relative;
+}
+
+.space-selector__trigger {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.space-selector__trigger-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.space-selector__chevron {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+
+.space-selector__dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  margin-top: 0.25rem;
+}
+
+.space-selector__search-section {
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.space-selector__search-wrapper {
+  position: relative;
+}
+
+.space-selector__search-icon {
+  width: 1rem;
+  height: 1rem;
+  position: absolute;
+  left: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.5;
+}
+
+.space-selector__search-input {
+  padding-left: 2rem;
+}
+
+.space-selector__list {
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.space-selector__empty {
+  padding: 1rem;
+  text-align: center;
+  display: block;
+}
+
+.space-selector__item {
+  width: 100%;
+  text-align: left;
+}
+
+.space-selector__item-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.space-selector__new-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.space-selector__avatar {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.space-selector__item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.space-selector__footer {
+  border-top: 1px solid var(--border);
+  padding: 0.5rem;
+}
+
+.space-selector__create-form {
+  padding: 0.25rem;
+}
+
+.space-selector__create-btn {
+  flex: 1;
+}
+
+.space-selector__new-btn {
+  width: 100%;
+}
+
+/* ── UserDetailPanel ──────────────────────────────────────────────── */
+
+.user-detail__empty {
+  @apply flex items-center justify-center;
+  height: 100%;
+}
+
+.user-detail__empty-inner {
+  text-align: center;
+}
+
+.user-detail__empty-avatar {
+  margin: 0 auto 1rem;
+  background: var(--muted);
+}
+
+.user-detail__empty-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  opacity: 0.5;
+}
+
+.user-detail__empty-caption {
+  max-width: 20rem;
+}
+
+.user-detail__panel {
+  height: 100%;
+  @apply flex flex-col;
+  overflow: hidden;
+}
+
+.user-detail__header-row {
+  @apply flex items-start;
+  gap: 1rem;
+}
+
+.user-detail__avatar-col {
+  flex-shrink: 0;
+}
+
+.user-detail__avatar-fallback {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: white;
+  font-weight: 700;
+  font-size: 1.5rem;
+}
+
+.user-detail__header-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-detail__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-detail__role-badge {
+  margin-top: 0.5rem;
+  display: inline-flex;
+  @apply items-center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+}
+
+.user-detail__role-badge--admin {
+  @apply bg-gradient-to-r from-brand-3 to-brand-3 text-primary-foreground shadow-lg shadow-brand-3/25;
+}
+
+.user-detail__role-badge--editor {
+  @apply bg-gradient-to-r from-brand-2 to-brand-2 text-primary-foreground shadow-lg shadow-brand-2/25;
+}
+
+.user-detail__role-badge--viewer {
+  @apply bg-muted text-muted-foreground border border-border;
+}
+
+.user-detail__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem 2rem;
+}
+
+.user-detail__info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.user-detail__info-icon {
+  width: 1rem;
+  height: 1rem;
+  opacity: 0.6;
+}
+
+.user-detail__info-card-row {
+  @apply flex items-center;
+  gap: 0.25rem;
+}
+
+.user-detail__section {
+  margin-bottom: 2rem;
+}
+
+.user-detail__permissions-heading {
+  @apply flex items-center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.user-detail__role-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+}
+
+.user-detail__role-btn {
+  all: unset;
+  cursor: pointer;
+  display: block;
+  width: 100%;
+}
+
+.user-detail__role-info {
+  flex: 1;
+}
+
+.user-detail__role-check {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  background: #7c3aed;
+  color: white;
+  @apply flex items-center justify-center;
+  flex-shrink: 0;
+}
+
+.user-detail__status-heading {
+  margin-bottom: 1rem;
+}
+
+/* ── ConfirmDialog ────────────────────────────────────────────────── */
+
+.confirm-dialog__content {
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.confirm-dialog__icon-wrapper {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 9999px;
+  background: var(--destructive-bg, #fef2f2);
+  @apply flex items-center justify-center;
+  margin: 0 auto;
+}
+
+.confirm-dialog__icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--destructive, #dc2626);
+}
+
+.user-detail__role-check-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.user-detail__icon-sm {
+  width: 1rem;
+  height: 1rem;
+}
+
+.confirm-dialog__action-btn {
+  flex: 1;
+}

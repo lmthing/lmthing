@@ -3,6 +3,7 @@
  * Phase 7: Reads schema from selected knowledge fields, renders form controls,
  * stores values in values.json via useSpaceFS.
  */
+import '@lmthing/css/components/assistant/builder/index.css'
 import { useCallback } from 'react'
 import { Stack } from '@lmthing/ui/elements/layouts/stack'
 import { Label } from '@lmthing/ui/elements/typography/label'
@@ -31,28 +32,9 @@ function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: b
       onClick={() => onChange(!checked)}
       role="switch"
       aria-checked={checked}
-      style={{
-        position: 'relative',
-        width: '2.75rem',
-        height: '1.5rem',
-        borderRadius: '9999px',
-        border: 'none',
-        cursor: 'pointer',
-        transition: 'background-color 0.2s',
-        backgroundColor: checked ? 'var(--color-primary)' : 'var(--color-muted)',
-      }}
+      className={`configuration-form__toggle-switch ${checked ? 'configuration-form__toggle-switch--on' : 'configuration-form__toggle-switch--off'}`}
     >
-      <span style={{
-        position: 'absolute',
-        top: '0.125rem',
-        left: '0.125rem',
-        width: '1.25rem',
-        height: '1.25rem',
-        borderRadius: '9999px',
-        backgroundColor: 'white',
-        transition: 'transform 0.2s',
-        transform: checked ? 'translateX(1.25rem)' : 'translateX(0)',
-      }} />
+      <span className={`configuration-form__toggle-knob ${checked ? 'configuration-form__toggle-knob--on' : 'configuration-form__toggle-knob--off'}`} />
     </button>
   )
 }
@@ -63,7 +45,7 @@ function MultiSelectPills({ options, selected, onToggle }: {
   onToggle: (id: string) => void
 }) {
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+    <div className="configuration-form__multiselect-pills">
       {options.map(opt => {
         const isSelected = selected.includes(opt.id)
         return (
@@ -71,8 +53,7 @@ function MultiSelectPills({ options, selected, onToggle }: {
             key={opt.id}
             type="button"
             onClick={() => onToggle(opt.id)}
-            className={`badge ${isSelected ? 'badge--primary' : 'badge--muted'}`}
-            style={{ cursor: 'pointer', border: 'none' }}
+            className={`badge configuration-form__pill-btn ${isSelected ? 'badge--primary' : 'badge--muted'}`}
             title={opt.description}
           >
             {opt.label}
@@ -102,40 +83,34 @@ function FormField({ field, value, onValueChange, isAskAtRuntime, onToggleAskAtR
 
   return (
     <div>
-      <Stack row gap="sm" style={{ alignItems: 'center', marginBottom: '0.25rem', justifyContent: 'space-between' }}>
-        <Stack row gap="sm" style={{ alignItems: 'center' }}>
+      <Stack row gap="sm" className="configuration-form__field-header">
+        <Stack row gap="sm" className="configuration-form__field-label-row">
           <Label compact>{field.label}</Label>
-          {field.required && <span style={{ color: 'var(--color-warning)', fontSize: '0.75rem' }}>*</span>}
+          {field.required && <span className="configuration-form__required-mark">*</span>}
         </Stack>
         {onToggleAskAtRuntime && (
           <button
             type="button"
             onClick={onToggleAskAtRuntime}
-            className={`badge ${isAskAtRuntime ? 'badge--primary' : 'badge--muted'}`}
-            style={{ cursor: 'pointer', border: 'none', fontSize: '0.625rem' }}
+            className={`badge configuration-form__runtime-badge ${isAskAtRuntime ? 'badge--primary' : 'badge--muted'}`}
           >
             {isAskAtRuntime ? 'Asked at runtime' : 'Ask at runtime'}
           </button>
         )}
       </Stack>
       {field.description && (
-        <Caption muted style={{ marginBottom: '0.5rem' }}>{field.description}</Caption>
+        <Caption muted className="configuration-form__field-description">{field.description}</Caption>
       )}
 
       {isAskAtRuntime && (
-        <div style={{
-          border: '2px dashed var(--color-warning, #f59e0b)',
-          borderRadius: 'var(--radius-md, 6px)',
-          padding: '0.75rem',
-          backgroundColor: 'color-mix(in srgb, var(--color-warning, #f59e0b) 5%, transparent)',
-        }}>
-          <Stack row gap="sm" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
-            <Caption muted style={{ fontStyle: 'italic' }}>
+        <div className="configuration-form__runtime-box">
+          <Stack row gap="sm" className="configuration-form__runtime-inner">
+            <Caption muted className="configuration-form__runtime-hint">
               Shown to the user at runtime in the chat sidebar.
             </Caption>
             {onToggleAskAtRuntime && (
               <button type="button" onClick={onToggleAskAtRuntime}
-                className="badge badge--primary" style={{ cursor: 'pointer', border: 'none', fontSize: '0.625rem' }}>
+                className="badge badge--primary configuration-form__runtime-badge">
                 Edit Now
               </button>
             )}
@@ -239,8 +214,8 @@ export function ConfigurationForm({ schemas, values, onValueChange, askAtRuntime
     return (
       <div key={schema.fieldId} className="panel">
         <div className="panel__header">
-          <Stack row gap="sm" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
-            <Stack row gap="sm" style={{ alignItems: 'center' }}>
+          <Stack row gap="sm" className="configuration-form__schema-header">
+            <Stack row gap="sm" className="configuration-form__schema-label-row">
               <Label>{schema.fieldLabel}</Label>
               <Badge variant="muted">
                 {schema.sections.length} field{schema.sections.length !== 1 ? 's' : ''}
@@ -250,8 +225,7 @@ export function ConfigurationForm({ schemas, values, onValueChange, askAtRuntime
               <button
                 type="button"
                 onClick={() => onBulkToggleAskAtRuntime(allFieldIds, !allAreRuntime)}
-                className={`badge ${allAreRuntime ? 'badge--primary' : 'badge--muted'}`}
-                style={{ cursor: 'pointer', border: 'none', fontSize: '0.625rem' }}
+                className={`badge configuration-form__bulk-runtime-badge ${allAreRuntime ? 'badge--primary' : 'badge--muted'}`}
               >
                 {allAreRuntime ? 'Disable All Runtime' : 'Enable All For Runtime'}
               </button>
@@ -279,7 +253,7 @@ export function ConfigurationForm({ schemas, values, onValueChange, askAtRuntime
             {/* Grouped by section */}
             {[...sections.entries()].map(([sectionId, { label, fields }]) => (
               <div key={sectionId}>
-                <Caption style={{ fontWeight: 600, marginBottom: '0.5rem' }}>{label}</Caption>
+                <Caption className="configuration-form__section-label">{label}</Caption>
                 <Stack gap="md">
                   {fields.map(field => (
                     <FormField
@@ -305,14 +279,7 @@ export function ConfigurationForm({ schemas, values, onValueChange, askAtRuntime
       {/* Categorized schemas */}
       {[...categoryGroups.entries()].map(([category, groupSchemas]) => (
         <div key={category}>
-          <Label style={{
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            fontSize: '0.6875rem',
-            marginBottom: '0.75rem',
-            display: 'block',
-            opacity: 0.7,
-          }}>
+          <Label className="configuration-form__category-label">
             {category}
           </Label>
           <Stack gap="lg">

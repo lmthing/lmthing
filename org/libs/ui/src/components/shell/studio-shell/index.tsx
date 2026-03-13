@@ -9,6 +9,7 @@ import { useParams, useLocation, useNavigate } from '@tanstack/react-router'
 import { buildSpacePathFromParams } from '@/lib/space-url'
 import '@lmthing/css/elements/layouts/split-pane/index.css'
 import '@lmthing/css/elements/layouts/page/index.css'
+import '@lmthing/css/components/shell/studio-shell/index.css'
 import { StudioSidebar } from '@lmthing/ui/components/shell/studio-sidebar'
 import { SettingsView } from '@lmthing/ui/components/shell/settings-view'
 import { useAssistantList } from '@lmthing/ui/hooks/useAssistantList'
@@ -81,7 +82,7 @@ export function StudioShell({
   const isSettingsOpen = pathname.includes('/settings')
 
   return (
-    <div className="split-pane" style={{ height: '100vh' }}>
+    <div className="split-pane studio-shell">
       <StudioSidebar
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={handleToggleSidebar}
@@ -97,12 +98,12 @@ export function StudioShell({
           <SettingsView isOpen={true} />
         ) : (
           children || (
-            <div className="page__body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ textAlign: 'center', opacity: 0.5 }}>
-                <p style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+            <div className="page__body studio-shell__empty">
+              <div className="studio-shell__empty-content">
+                <p className="studio-shell__empty-title">
                   Select a knowledge field or assistant
                 </p>
-                <p style={{ fontSize: '0.875rem' }}>
+                <p className="studio-shell__empty-subtitle">
                   {knowledgeFields.length} knowledge fields, {assistantList.length} assistants, {workflowList.length} workflows
                 </p>
               </div>

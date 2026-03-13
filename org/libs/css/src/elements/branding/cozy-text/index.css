@@ -1,0 +1,29 @@
+@reference "../../../theme.css";
+
+.cozy-text {
+  @apply font-semibold;
+}
+
+.cozy-text--neutral {
+  color: var(--neutral-1);
+}
+
+.cozy-text--brand-1 {
+  color: var(--brand-1);
+}
+
+.cozy-text--brand-2 {
+  color: var(--brand-2);
+}
+
+.cozy-text--brand-3 {
+  color: var(--brand-3);
+}
+
+.cozy-text--brand-4 {
+  color: var(--brand-4);
+}
+
+.cozy-text--brand-5 {
+  color: var(--brand-5);
+}

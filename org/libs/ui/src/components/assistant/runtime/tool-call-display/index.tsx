@@ -1,3 +1,4 @@
+import '@lmthing/css/components/assistant/runtime/index.css'
 import { useMemo, type ReactNode } from 'react'
 import { useToggle } from '@lmthing/state'
 import { JsonView } from 'react-json-view-lite'
@@ -22,7 +23,6 @@ import {
   CheckCircle2,
   XCircle,
 } from 'lucide-react'
-import { cn } from '@lmthing/ui/lib/utils'
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -41,60 +41,60 @@ interface ParsedToolCall {
 
 type ToolMeta = {
   icon: ReactNode
-  gradient: string
-  glow: string
+  gradientClass: string
+  glowClass: string
   label: string
   category: 'inspect' | 'workspace' | 'agent' | 'flow' | 'knowledge' | 'env' | 'misc'
 }
 
-const CATEGORY_RING: Record<ToolMeta['category'], string> = {
-  inspect: 'ring-brand-1/30',
-  workspace: 'ring-brand-2/30',
-  agent: 'ring-brand-3/30',
-  flow: 'ring-brand-2/30',
-  knowledge: 'ring-brand-4/30',
-  env: 'ring-brand-1/30',
-  misc: 'ring-neutral/30',
+const CATEGORY_RING_CLASS: Record<ToolMeta['category'], string> = {
+  inspect: 'tool-call-card--ring-inspect',
+  workspace: 'tool-call-card--ring-workspace',
+  agent: 'tool-call-card--ring-agent',
+  flow: 'tool-call-card--ring-flow',
+  knowledge: 'tool-call-card--ring-knowledge',
+  env: 'tool-call-card--ring-env',
+  misc: 'tool-call-card--ring-misc',
 }
 
-const iconSize = 'h-3.5 w-3.5'
+const iconClass = 'tool-call-card__icon-inner'
 
 const TOOL_META: Record<string, ToolMeta> = {
-  viewWorkspaceData: { icon: <Eye className={iconSize} />, gradient: 'from-brand-1 to-brand-2', glow: 'shadow-brand-1/20', label: 'View Data', category: 'inspect' },
-  listWorkspaceRoots: { icon: <FolderTree className={iconSize} />, gradient: 'from-brand-1 to-brand-2', glow: 'shadow-brand-1/20', label: 'List Roots', category: 'inspect' },
-  listChildren: { icon: <FolderTree className={iconSize} />, gradient: 'from-brand-1 to-brand-2', glow: 'shadow-brand-1/20', label: 'List Children', category: 'inspect' },
-  searchWorkspace: { icon: <Eye className={iconSize} />, gradient: 'from-brand-1 to-brand-2', glow: 'shadow-brand-1/20', label: 'Search Workspace', category: 'inspect' },
-  getEntity: { icon: <Eye className={iconSize} />, gradient: 'from-brand-1 to-brand-2', glow: 'shadow-brand-1/20', label: 'Get Entity', category: 'inspect' },
-  resolveReference: { icon: <ArrowRightLeft className={iconSize} />, gradient: 'from-brand-1 to-brand-3', glow: 'shadow-brand-1/20', label: 'Resolve Ref', category: 'inspect' },
-  findBacklinks: { icon: <ArrowRightLeft className={iconSize} />, gradient: 'from-brand-1 to-brand-3', glow: 'shadow-brand-1/20', label: 'Find Backlinks', category: 'inspect' },
-  getBreadcrumbs: { icon: <ChevronRight className={iconSize} />, gradient: 'from-brand-1 to-brand-2', glow: 'shadow-brand-1/20', label: 'Breadcrumbs', category: 'inspect' },
-  recentlyTouched: { icon: <RefreshCw className={iconSize} />, gradient: 'from-brand-1 to-brand-2', glow: 'shadow-brand-1/20', label: 'Recently Touched', category: 'inspect' },
-  snapshotWorkspace: { icon: <Copy className={iconSize} />, gradient: 'from-brand-1 to-brand-3', glow: 'shadow-brand-1/20', label: 'Snapshot', category: 'inspect' },
-  diffSnapshots: { icon: <ArrowRightLeft className={iconSize} />, gradient: 'from-brand-1 to-brand-3', glow: 'shadow-brand-1/20', label: 'Diff Snapshots', category: 'inspect' },
-  suggestNextNavigation: { icon: <Wrench className={iconSize} />, gradient: 'from-brand-1 to-brand-3', glow: 'shadow-brand-1/20', label: 'Suggest Navigation', category: 'inspect' },
-  setCurrentWorkspace: { icon: <ArrowRightLeft className={iconSize} />, gradient: 'from-brand-2 to-brand-3', glow: 'shadow-brand-2/20', label: 'Switch Workspace', category: 'workspace' },
-  createWorkspace: { icon: <Plus className={iconSize} />, gradient: 'from-brand-2 to-brand-1', glow: 'shadow-brand-2/20', label: 'Create Workspace', category: 'workspace' },
-  reload: { icon: <RefreshCw className={iconSize} />, gradient: 'from-brand-2 to-brand-1', glow: 'shadow-brand-2/20', label: 'Reload', category: 'workspace' },
-  updatePackageJson: { icon: <Package className={iconSize} />, gradient: 'from-brand-2 to-brand-3', glow: 'shadow-brand-2/20', label: 'Update Package', category: 'workspace' },
-  upsertAgent: { icon: <Bot className={iconSize} />, gradient: 'from-brand-3 to-brand-4', glow: 'shadow-brand-3/20', label: 'Upsert Agent', category: 'agent' },
-  deleteAgent: { icon: <Trash2 className={iconSize} />, gradient: 'from-brand-3 to-brand-4', glow: 'shadow-brand-3/20', label: 'Delete Agent', category: 'agent' },
-  upsertFlow: { icon: <Workflow className={iconSize} />, gradient: 'from-brand-2 to-brand-2', glow: 'shadow-brand-3/20', label: 'Upsert Flow', category: 'flow' },
-  deleteFlow: { icon: <Trash2 className={iconSize} />, gradient: 'from-brand-3 to-brand-4', glow: 'shadow-brand-3/20', label: 'Delete Flow', category: 'flow' },
-  upsertEnvFile: { icon: <Lock className={iconSize} />, gradient: 'from-brand-1 to-brand-2', glow: 'shadow-brand-1/20', label: 'Upsert Env', category: 'env' },
-  deleteEnvFile: { icon: <Trash2 className={iconSize} />, gradient: 'from-brand-1 to-brand-4', glow: 'shadow-brand-1/20', label: 'Delete Env', category: 'env' },
-  updateKnowledgeFileContent: { icon: <FileText className={iconSize} />, gradient: 'from-brand-4 to-brand-3', glow: 'shadow-brand-4/20', label: 'Update File Content', category: 'knowledge' },
-  updateKnowledgeFileFrontmatter: { icon: <Pencil className={iconSize} />, gradient: 'from-brand-4 to-brand-3', glow: 'shadow-brand-4/20', label: 'Update Frontmatter', category: 'knowledge' },
-  updateKnowledgeDirectoryConfig: { icon: <FolderTree className={iconSize} />, gradient: 'from-brand-4 to-brand-3', glow: 'shadow-brand-4/20', label: 'Update Dir Config', category: 'knowledge' },
-  addKnowledgeNode: { icon: <Plus className={iconSize} />, gradient: 'from-brand-4 to-brand-3', glow: 'shadow-brand-4/20', label: 'Add Node', category: 'knowledge' },
-  updateKnowledgeNodePath: { icon: <ArrowRightLeft className={iconSize} />, gradient: 'from-brand-4 to-brand-2', glow: 'shadow-brand-4/20', label: 'Move Node', category: 'knowledge' },
-  deleteKnowledgeNode: { icon: <Trash2 className={iconSize} />, gradient: 'from-brand-4 to-destructive', glow: 'shadow-brand-4/20', label: 'Delete Node', category: 'knowledge' },
-  duplicateKnowledgeNode: { icon: <Copy className={iconSize} />, gradient: 'from-brand-4 to-brand-3', glow: 'shadow-brand-4/20', label: 'Duplicate Node', category: 'knowledge' },
+  viewWorkspaceData: { icon: <Eye className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-1-2', glowClass: 'tool-call-card__glow--brand-1', label: 'View Data', category: 'inspect' },
+  listWorkspaceRoots: { icon: <FolderTree className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-1-2', glowClass: 'tool-call-card__glow--brand-1', label: 'List Roots', category: 'inspect' },
+  listChildren: { icon: <FolderTree className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-1-2', glowClass: 'tool-call-card__glow--brand-1', label: 'List Children', category: 'inspect' },
+  searchWorkspace: { icon: <Eye className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-1-2', glowClass: 'tool-call-card__glow--brand-1', label: 'Search Workspace', category: 'inspect' },
+  getEntity: { icon: <Eye className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-1-2', glowClass: 'tool-call-card__glow--brand-1', label: 'Get Entity', category: 'inspect' },
+  resolveReference: { icon: <ArrowRightLeft className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-1-3', glowClass: 'tool-call-card__glow--brand-1', label: 'Resolve Ref', category: 'inspect' },
+  findBacklinks: { icon: <ArrowRightLeft className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-1-3', glowClass: 'tool-call-card__glow--brand-1', label: 'Find Backlinks', category: 'inspect' },
+  getBreadcrumbs: { icon: <ChevronRight className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-1-2', glowClass: 'tool-call-card__glow--brand-1', label: 'Breadcrumbs', category: 'inspect' },
+  recentlyTouched: { icon: <RefreshCw className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-1-2', glowClass: 'tool-call-card__glow--brand-1', label: 'Recently Touched', category: 'inspect' },
+  snapshotWorkspace: { icon: <Copy className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-1-3', glowClass: 'tool-call-card__glow--brand-1', label: 'Snapshot', category: 'inspect' },
+  diffSnapshots: { icon: <ArrowRightLeft className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-1-3', glowClass: 'tool-call-card__glow--brand-1', label: 'Diff Snapshots', category: 'inspect' },
+  suggestNextNavigation: { icon: <Wrench className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-1-3', glowClass: 'tool-call-card__glow--brand-1', label: 'Suggest Navigation', category: 'inspect' },
+  setCurrentWorkspace: { icon: <ArrowRightLeft className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-2-3', glowClass: 'tool-call-card__glow--brand-2', label: 'Switch Workspace', category: 'workspace' },
+  createWorkspace: { icon: <Plus className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-2-1', glowClass: 'tool-call-card__glow--brand-2', label: 'Create Workspace', category: 'workspace' },
+  reload: { icon: <RefreshCw className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-2-1', glowClass: 'tool-call-card__glow--brand-2', label: 'Reload', category: 'workspace' },
+  updatePackageJson: { icon: <Package className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-2-3', glowClass: 'tool-call-card__glow--brand-2', label: 'Update Package', category: 'workspace' },
+  upsertAgent: { icon: <Bot className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-3-4', glowClass: 'tool-call-card__glow--brand-3', label: 'Upsert Agent', category: 'agent' },
+  deleteAgent: { icon: <Trash2 className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-3-4', glowClass: 'tool-call-card__glow--brand-3', label: 'Delete Agent', category: 'agent' },
+  upsertFlow: { icon: <Workflow className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-2-2', glowClass: 'tool-call-card__glow--brand-3', label: 'Upsert Flow', category: 'flow' },
+  deleteFlow: { icon: <Trash2 className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-3-4', glowClass: 'tool-call-card__glow--brand-3', label: 'Delete Flow', category: 'flow' },
+  upsertEnvFile: { icon: <Lock className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-1-2', glowClass: 'tool-call-card__glow--brand-1', label: 'Upsert Env', category: 'env' },
+  deleteEnvFile: { icon: <Trash2 className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-1-3', glowClass: 'tool-call-card__glow--brand-1', label: 'Delete Env', category: 'env' },
+  updateKnowledgeFileContent: { icon: <FileText className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-4-3', glowClass: 'tool-call-card__glow--brand-4', label: 'Update File Content', category: 'knowledge' },
+  updateKnowledgeFileFrontmatter: { icon: <Pencil className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-4-3', glowClass: 'tool-call-card__glow--brand-4', label: 'Update Frontmatter', category: 'knowledge' },
+  updateKnowledgeDirectoryConfig: { icon: <FolderTree className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-4-3', glowClass: 'tool-call-card__glow--brand-4', label: 'Update Dir Config', category: 'knowledge' },
+  addKnowledgeNode: { icon: <Plus className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-4-3', glowClass: 'tool-call-card__glow--brand-4', label: 'Add Node', category: 'knowledge' },
+  updateKnowledgeNodePath: { icon: <ArrowRightLeft className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-4-2', glowClass: 'tool-call-card__glow--brand-4', label: 'Move Node', category: 'knowledge' },
+  deleteKnowledgeNode: { icon: <Trash2 className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-4-destructive', glowClass: 'tool-call-card__glow--brand-4', label: 'Delete Node', category: 'knowledge' },
+  duplicateKnowledgeNode: { icon: <Copy className={iconClass} />, gradientClass: 'tool-call-card__gradient--brand-4-3', glowClass: 'tool-call-card__glow--brand-4', label: 'Duplicate Node', category: 'knowledge' },
 }
 
 const DEFAULT_TOOL_META: ToolMeta = {
-  icon: <Wrench className={iconSize} />,
-  gradient: 'from-neutral to-neutral',
-  glow: 'shadow-neutral/20',
+  icon: <Wrench className={iconClass} />,
+  gradientClass: 'tool-call-card__gradient--neutral',
+  glowClass: 'tool-call-card__glow--neutral',
   label: 'Tool',
   category: 'misc',
 }
@@ -184,14 +184,14 @@ function parseToolCalls(text: string): { toolCalls: ParsedToolCall[]; textParts:
 function JsonSyntax({ value }: { value: unknown }) {
   if (typeof value === 'string') {
     return (
-      <pre className="max-h-52 overflow-auto rounded-md bg-foreground/80 p-2.5 text-[11px] leading-relaxed text-muted-foreground scrollbar-thin font-mono whitespace-pre-wrap break-words">
+      <pre className="tool-call-display__json-text">
         {value}
       </pre>
     )
   }
   const jsonData = (value !== null && typeof value === 'object') ? value as Record<string, unknown> | unknown[] : { value }
   return (
-    <div className="max-h-52 overflow-auto rounded-md border border-border/70 bg-background p-2.5 text-[11px]">
+    <div className="tool-call-display__json-tree">
       <JsonView data={jsonData} />
     </div>
   )
@@ -201,25 +201,22 @@ function JsonSyntax({ value }: { value: unknown }) {
 /*  Collapsible section                                                */
 /* ------------------------------------------------------------------ */
 
-function CollapsibleSection({ label, children, defaultOpen = false, accentColor }: {
-  label: string; children: ReactNode; defaultOpen?: boolean; accentColor?: string
+function CollapsibleSection({ label, children, defaultOpen = false, dotVariant }: {
+  label: string; children: ReactNode; defaultOpen?: boolean; dotVariant?: 'args' | 'result'
 }) {
   const [open, toggle] = useToggle(`tool-call-display.collapsible-${label}`, defaultOpen)
   return (
-    <div className="mt-1.5">
+    <div className="tool-call-display__collapsible">
       <button
         type="button"
         onClick={() => toggle()}
-        className={cn(
-          'flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors',
-          'text-muted-foreground hover:text-foreground hover:bg-muted',
-        )}
+        className="tool-call-display__collapsible-btn"
       >
-        {open ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
+        {open ? <ChevronDown className="tool-call-display__collapsible-icon" /> : <ChevronRight className="tool-call-display__collapsible-icon" />}
         <span>{label}</span>
-        {accentColor && <span className={cn('ml-auto h-1.5 w-1.5 rounded-full', accentColor)} />}
+        {dotVariant && <span className={`tool-call-display__collapsible-dot tool-call-display__collapsible-dot--${dotVariant}`} />}
       </button>
-      {open && <div className="mt-1 animate-fade-in">{children}</div>}
+      {open && <div className="tool-call-display__collapsible-body">{children}</div>}
     </div>
   )
 }
@@ -230,54 +227,48 @@ function CollapsibleSection({ label, children, defaultOpen = false, accentColor 
 
 function ToolCallCard({ call, index, total }: { call: ParsedToolCall; index: number; total: number }) {
   const meta = getToolMeta(call.name)
-  const categoryRing = CATEGORY_RING[meta.category]
+  const categoryRingClass = CATEGORY_RING_CLASS[meta.category]
 
   return (
     <div
-      className={cn(
-        'group relative overflow-hidden rounded-lg border transition-all duration-300',
-        'border-border/80',
-        'hover:border-border',
-        'bg-card',
-        'ring-1', categoryRing, 'animate-fade-in',
-      )}
+      className={`tool-call-card ${categoryRingClass}`}
       style={{ animationDelay: `${index * 60}ms`, animationFillMode: 'backwards' }}
     >
-      <div className={cn('absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r opacity-80 group-hover:opacity-100 transition-opacity', meta.gradient)} />
-      <div className="flex items-center gap-2.5 px-3 pt-3 pb-1.5">
-        <div className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br text-primary-foreground shadow-md', meta.gradient, meta.glow)}>
+      <div className={`tool-call-card__accent-bar ${meta.gradientClass}`} />
+      <div className="tool-call-card__header">
+        <div className={`tool-call-card__icon ${meta.gradientClass} ${meta.glowClass}`}>
           {meta.icon}
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="truncate text-[12px] font-semibold text-foreground">{meta.label}</span>
+        <div className="tool-call-card__info">
+          <div className="tool-call-card__title-row">
+            <span className="tool-call-card__label">{meta.label}</span>
             {total > 1 && (
-              <span className="shrink-0 rounded-full bg-muted px-1.5 py-px text-[10px] font-medium text-muted-foreground">
+              <span className="tool-call-card__counter">
                 {index + 1}/{total}
               </span>
             )}
           </div>
-          <span className="text-[10px] font-mono text-muted-foreground">{call.name}</span>
+          <span className="tool-call-card__name">{call.name}</span>
         </div>
-        <div className="shrink-0">
+        <div className="tool-call-card__status">
           {call.isOk ? (
-            <div className="flex items-center gap-1 rounded-full bg-brand-2/10 px-2 py-0.5">
-              <CheckCircle2 className="h-3 w-3 text-brand-2" />
-              <span className="text-[10px] font-semibold text-brand-2">OK</span>
+            <div className="tool-call-card__status-badge tool-call-card__status-badge--ok">
+              <CheckCircle2 className="tool-call-card__status-icon tool-call-card__status-icon--ok" />
+              <span className="tool-call-card__status-text tool-call-card__status-text--ok">OK</span>
             </div>
           ) : (
-            <div className="flex items-center gap-1 rounded-full bg-brand-4/10 px-2 py-0.5">
-              <XCircle className="h-3 w-3 text-brand-4" />
-              <span className="text-[10px] font-semibold text-brand-4">ERR</span>
+            <div className="tool-call-card__status-badge tool-call-card__status-badge--err">
+              <XCircle className="tool-call-card__status-icon tool-call-card__status-icon--err" />
+              <span className="tool-call-card__status-text tool-call-card__status-text--err">ERR</span>
             </div>
           )}
         </div>
       </div>
-      <div className="px-3 pb-2.5">
-        <CollapsibleSection label="Arguments" accentColor="bg-brand-3">
+      <div className="tool-call-card__body">
+        <CollapsibleSection label="Arguments" dotVariant="args">
           <JsonSyntax value={call.args} />
         </CollapsibleSection>
-        <CollapsibleSection label="Result" defaultOpen accentColor="bg-brand-2">
+        <CollapsibleSection label="Result" defaultOpen dotVariant="result">
           <JsonSyntax value={call.result} />
         </CollapsibleSection>
       </div>
@@ -298,29 +289,29 @@ export function ToolRunningPill({ text }: { text: string }) {
 
   if (toolNames.length === 0) {
     return (
-      <div className="inline-flex items-center gap-2 rounded-full border border-border bg-gradient-to-r from-muted to-muted px-3 py-1.5">
-        <div className="flex gap-0.5">
-          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand-3" style={{ animationDelay: '0ms' }} />
-          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand-3" style={{ animationDelay: '150ms' }} />
-          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand-3" style={{ animationDelay: '300ms' }} />
+      <div className="tool-running-pill">
+        <div className="tool-running-pill__dots">
+          <span className="tool-running-pill__dot" />
+          <span className="tool-running-pill__dot" />
+          <span className="tool-running-pill__dot" />
         </div>
-        <span className="text-[11px] font-medium text-muted-foreground">Running tool…</span>
+        <span className="tool-running-pill__text">Running tool…</span>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="tool-running-pill__list">
       {toolNames.map((name) => {
         const meta = getToolMeta(name)
         return (
-          <div key={name} className={cn('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1', 'border-border/80 bg-card', 'ring-1', CATEGORY_RING[meta.category])}>
-            <div className={cn('flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br text-primary-foreground', meta.gradient)}>{meta.icon}</div>
-            <span className="text-[11px] font-medium text-foreground">{meta.label}</span>
-            <div className="flex gap-0.5">
-              <span className="h-1 w-1 animate-bounce rounded-full bg-neutral" style={{ animationDelay: '0ms' }} />
-              <span className="h-1 w-1 animate-bounce rounded-full bg-neutral" style={{ animationDelay: '150ms' }} />
-              <span className="h-1 w-1 animate-bounce rounded-full bg-neutral" style={{ animationDelay: '300ms' }} />
+          <div key={name} className={`tool-running-pill__item ${CATEGORY_RING_CLASS[meta.category]}`}>
+            <div className={`tool-running-pill__item-icon ${meta.gradientClass}`}>{meta.icon}</div>
+            <span className="tool-running-pill__item-label">{meta.label}</span>
+            <div className="tool-running-pill__item-dots">
+              <span className="tool-running-pill__item-dot" />
+              <span className="tool-running-pill__item-dot" />
+              <span className="tool-running-pill__item-dot" />
             </div>
           </div>
         )
@@ -337,11 +328,11 @@ export function ToolCallDisplay({ content }: { content: string }) {
   const { toolCalls, textParts } = useMemo(() => parseToolCalls(content), [content])
 
   if (toolCalls.length === 0) {
-    return <p className="whitespace-pre-wrap break-words">{content}</p>
+    return <p className="tool-call-display__text">{content}</p>
   }
 
   return (
-    <div className="space-y-2">
+    <div className="tool-call-display">
       {textParts.map((part, index) => {
         const toolMatch = part.match(/^__TOOL_CALL_(\d+)__$/)
         if (toolMatch) {
@@ -353,7 +344,7 @@ export function ToolCallDisplay({ content }: { content: string }) {
         if (/^🔧\s*Running tool/i.test(part)) {
           return <ToolRunningPill key={`running-${index}`} text={part} />
         }
-        return <p key={`text-${index}`} className="whitespace-pre-wrap break-words">{part}</p>
+        return <p key={`text-${index}`} className="tool-call-display__text">{part}</p>
       })}
     </div>
   )

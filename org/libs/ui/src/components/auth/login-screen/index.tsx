@@ -4,9 +4,10 @@ import { useEffect, type FormEvent } from 'react'
 import { useUIState, useToggle } from '@lmthing/state'
 import { useAuth } from '@/lib/auth'
 
+import '@lmthing/css/components/auth/index.css'
 import '@lmthing/css/elements/forms/button/index.css'
 import '@lmthing/css/elements/forms/input/index.css'
-import CozyThingText from '@/CozyText'
+import { CozyThingText } from '@lmthing/ui/elements/branding/cozy-text'
 
 export function LoginScreen() {
   const { login } = useAuth()
@@ -51,51 +52,22 @@ export function LoginScreen() {
   }
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        padding: '1rem',
-      }}
-    >
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '360px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '2rem',
-        }}
-      >
+    <div className="login-screen">
+      <div className="login-screen__container">
         {/* Branding */}
-        <div style={{ textAlign: 'center' }}>
-          <h1
-            style={{
-              fontSize: '1.75rem',
-              fontWeight: 700,
-              letterSpacing: '-0.02em',
-              margin: 0,
-            }}
-          >
+        <div className="login-screen__branding">
+          <h1 className="login-screen__title">
             <CozyThingText text="lmthing" />
           </h1>
-          <p
-            style={{
-              fontSize: '0.875rem',
-              opacity: 0.6,
-              marginTop: '0.25rem',
-            }}
-          >
+          <p className="login-screen__subtitle">
             {isExistingUser ? 'Sign in to your account' : 'Create a new account'}
           </p>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-            <label htmlFor="login-username" style={{ fontSize: '0.875rem', fontWeight: 500 }}>
+        <form onSubmit={handleSubmit} className="login-screen__form">
+          <div className="login-screen__field">
+            <label htmlFor="login-username" className="login-screen__label">
               Username
             </label>
             <input
@@ -111,8 +83,8 @@ export function LoginScreen() {
             />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-            <label htmlFor="login-password" style={{ fontSize: '0.875rem', fontWeight: 500 }}>
+          <div className="login-screen__field">
+            <label htmlFor="login-password" className="login-screen__label">
               Password
             </label>
             <input
@@ -131,36 +103,22 @@ export function LoginScreen() {
           </div>
 
           {error && (
-            <p
-              style={{
-                fontSize: '0.8125rem',
-                color: 'hsl(var(--destructive))',
-                margin: 0,
-              }}
-            >
+            <p className="login-screen__error">
               {error}
             </p>
           )}
 
           <button
             type="submit"
-            className="btn btn--primary"
+            className="btn btn--primary login-screen__submit"
             disabled={loading || !username.trim() || !password}
-            style={{ width: '100%', marginTop: '0.25rem' }}
           >
             {loading ? 'Please wait...' : isExistingUser ? 'Sign In' : 'Create Account'}
           </button>
         </form>
 
         {!isExistingUser && username.trim() && (
-          <p
-            style={{
-              fontSize: '0.75rem',
-              opacity: 0.5,
-              textAlign: 'center',
-              margin: 0,
-            }}
-          >
+          <p className="login-screen__new-account-hint">
             No account found for this username. Submitting will create a new one.
           </p>
         )}

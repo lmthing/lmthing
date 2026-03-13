@@ -1,0 +1,26 @@
+@reference "../../../theme.css";
+
+/* ── StudioShell ───────────────────────────────────────────────────── */
+
+.studio-shell {
+  height: 100vh;
+}
+
+.studio-shell__empty {
+  @apply flex items-center justify-center;
+}
+
+.studio-shell__empty-content {
+  text-align: center;
+  opacity: 0.5;
+}
+
+.studio-shell__empty-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.studio-shell__empty-subtitle {
+  font-size: 0.875rem;
+}

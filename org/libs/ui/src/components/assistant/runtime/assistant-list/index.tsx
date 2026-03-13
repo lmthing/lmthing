@@ -1,3 +1,4 @@
+import '@lmthing/css/components/assistant/runtime/index.css'
 import { Card, CardBody } from '@lmthing/ui/elements/content/card'
 import { Badge } from '@lmthing/ui/elements/content/badge'
 import { Stack } from '@lmthing/ui/elements/layouts/stack'
@@ -41,36 +42,36 @@ function formatTimestamp(isoString: string | null): string {
 
 function AssistantCard({ assistant, onClick }: { assistant: RuntimeAssistant; onClick: () => void }) {
   return (
-    <button onClick={onClick} style={{ all: 'unset', cursor: 'pointer', display: 'block', width: '100%' }}>
-      <Card interactive style={{ width: '100%', textAlign: 'left' }}>
+    <button onClick={onClick} className="assistant-card__button">
+      <Card interactive className="assistant-card">
         <CardBody>
-          <Label style={{ fontWeight: 600, marginBottom: '0.75rem' }}>{assistant.name}</Label>
-          <Caption muted style={{ WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: '1rem' }}>
+          <Label className="assistant-card__name">{assistant.name}</Label>
+          <Caption muted className="assistant-card__description">
             {assistant.description}
           </Caption>
 
-          <Stack row style={{ justifyContent: 'space-between', fontSize: '0.75rem' }}>
+          <Stack row className="assistant-card__meta-row">
             <Stack row gap="sm">
               <Caption muted>Knowledge:</Caption>
               {assistant.fields.slice(0, 2).map(field => (
-                <Badge key={field} variant="muted" style={{ fontSize: '0.625rem' }}>{field}</Badge>
+                <Badge key={field} variant="muted" className="assistant-card__badge">{field}</Badge>
               ))}
               {assistant.fields.length > 2 && <Caption muted>+{assistant.fields.length - 2}</Caption>}
             </Stack>
             <Caption muted>{formatTimestamp(assistant.lastUsedAt)}</Caption>
           </Stack>
 
-          {assistant.runtimeFields.length > 0 && <Separator style={{ margin: '0.75rem 0' }} />}
+          {assistant.runtimeFields.length > 0 && <Separator className="assistant-card__separator" />}
           {assistant.runtimeFields.length > 0 && (
-            <Caption style={{ color: 'var(--color-warning)' }}>
+            <Caption className="assistant-card__fields-warning">
               {assistant.runtimeFields.length} field{assistant.runtimeFields.length > 1 ? 's' : ''} to configure
             </Caption>
           )}
 
           {assistant.enabledTools.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginTop: '0.5rem' }}>
+            <div className="assistant-card__tools">
               {assistant.enabledTools.slice(0, 4).map(tool => (
-                <Badge key={tool.toolId} variant="muted" style={{ fontSize: '0.625rem' }} title={tool.name}>
+                <Badge key={tool.toolId} variant="muted" className="assistant-card__badge" title={tool.name}>
                   {tool.icon} {tool.name}
                 </Badge>
               ))}
@@ -86,8 +87,8 @@ function AssistantCard({ assistant, onClick }: { assistant: RuntimeAssistant; on
 export function AssistantList({ assistants, isLoading = false, onSelectAssistant }: AssistantListProps) {
   return (
     <Page full>
-      <PageHeader style={{ maxWidth: '72rem', margin: '0 auto' }}>
-        <Stack row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+      <PageHeader className="assistant-list__header">
+        <Stack row className="assistant-list__header-row">
           <div>
             <Heading level={2}>Assistant Runtime</Heading>
             <Caption muted>Select an assistant to configure and run conversations</Caption>
@@ -96,21 +97,21 @@ export function AssistantList({ assistants, isLoading = false, onSelectAssistant
         </Stack>
       </PageHeader>
 
-      <PageBody style={{ maxWidth: '72rem', margin: '0 auto' }}>
+      <PageBody className="assistant-list__body">
         {isLoading ? (
-          <Stack style={{ alignItems: 'center', justifyContent: 'center', padding: '3rem' }}>
+          <Stack className="assistant-list__loading">
             <Caption muted>Loading assistants...</Caption>
           </Stack>
         ) : assistants.length === 0 ? (
-          <Stack style={{ textAlign: 'center', padding: '3rem' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🤖</div>
+          <Stack className="assistant-list__empty">
+            <div className="assistant-list__empty-icon">🤖</div>
             <Heading level={3}>No Assistants Yet</Heading>
-            <Caption muted style={{ maxWidth: '24rem', margin: '0 auto' }}>
+            <Caption muted className="assistant-list__empty-caption">
               Create and deploy assistants from the Assistant Builder to see them here.
             </Caption>
           </Stack>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+          <div className="assistant-list__grid">
             {assistants.map(assistant => (
               <AssistantCard key={assistant.id} assistant={assistant} onClick={() => onSelectAssistant?.(assistant.id)} />
             ))}

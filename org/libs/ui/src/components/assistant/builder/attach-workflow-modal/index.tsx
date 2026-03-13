@@ -2,6 +2,7 @@
  * AttachWorkflowModal - Modal for searching and attaching workflows to an agent.
  * US-206: Searchable workflow selection modal.
  */
+import '@lmthing/css/components/assistant/builder/index.css'
 import { useMemo } from 'react'
 import { useUIState } from '@lmthing/state'
 import {
@@ -60,35 +61,20 @@ export function AttachWorkflowModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div style={{ marginTop: '1rem' }}>
-          <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
-            <Search style={{
-              position: 'absolute',
-              left: '0.625rem',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              width: '0.875rem',
-              height: '0.875rem',
-              color: 'var(--color-muted-foreground)',
-              pointerEvents: 'none',
-            }} />
+        <div className="attach-workflow-modal__body">
+          <div className="attach-workflow-modal__search-wrap">
+            <Search className="attach-workflow-modal__search-icon" />
             <Input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search workflows..."
-              style={{ paddingLeft: '2rem' }}
+              className="attach-workflow-modal__search-input"
             />
           </div>
 
-          <div style={{
-            maxHeight: '20rem',
-            overflowY: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.375rem',
-          }}>
+          <div className="attach-workflow-modal__list">
             {filtered.length === 0 ? (
-              <div style={{ padding: '2rem', textAlign: 'center' }}>
+              <div className="attach-workflow-modal__empty">
                 <Caption muted>
                   {workflows.length === 0 ? 'No workflows available. Create a workflow first.' : 'No workflows match your search.'}
                 </Caption>
@@ -99,11 +85,11 @@ export function AttachWorkflowModal({
                 return (
                   <Card key={wf.id} interactive={!isAttached}>
                     <CardBody>
-                      <Stack row style={{ alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Stack row gap="sm" style={{ alignItems: 'center', flex: 1, minWidth: 0 }}>
-                          <Zap style={{ width: '1rem', height: '1rem', color: 'var(--color-agent)', flexShrink: 0 }} />
-                          <div style={{ minWidth: 0 }}>
-                            <Label style={{ display: 'block' }}>{wf.id}</Label>
+                      <Stack row className="attach-workflow-modal__card-row">
+                        <Stack row gap="sm" className="attach-workflow-modal__card-left">
+                          <Zap className="attach-workflow-modal__card-icon" />
+                          <div className="attach-workflow-modal__card-name-wrap">
+                            <Label className="attach-workflow-modal__card-name">{wf.id}</Label>
                           </div>
                         </Stack>
                         {isAttached ? (
@@ -126,7 +112,7 @@ export function AttachWorkflowModal({
           </div>
         </div>
 
-        <Stack row gap="sm" style={{ justifyContent: 'flex-end', marginTop: '1rem' }}>
+        <Stack row gap="sm" className="attach-workflow-modal__footer">
           <DialogClose asChild>
             <Button variant="ghost">Cancel</Button>
           </DialogClose>

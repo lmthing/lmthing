@@ -15,6 +15,7 @@ import { Badge } from '@lmthing/ui/elements/content/badge'
 import { Button } from '@lmthing/ui/elements/forms/button'
 import { useFile } from '@lmthing/ui/hooks/fs/useFile'
 import { useKnowledgeFields } from '@lmthing/ui/hooks/useKnowledgeFields'
+import '@lmthing/css/components/knowledge/index.css'
 
 export interface TopicViewerProps {
   fieldId?: string
@@ -58,13 +59,13 @@ export function TopicViewer({ fieldId, topicPath }: TopicViewerProps) {
     return (
       <Page full>
         <PageBody>
-          <Stack style={{ alignItems: 'center', justifyContent: 'center', padding: '3rem' }}>
+          <Stack className="topic-viewer__empty">
             <Heading level={3}>Select a Topic</Heading>
-            <Caption muted style={{ maxWidth: '24rem', textAlign: 'center' }}>
+            <Caption muted className="topic-viewer__empty-caption">
               Choose a knowledge topic from the sidebar to view and edit its content.
             </Caption>
             {knowledgeFields.length > 0 && (
-              <Stack row gap="sm" style={{ marginTop: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <Stack row gap="sm" className="topic-viewer__empty-fields">
                 {knowledgeFields.map(f => (
                   <Badge key={f.id} variant="muted">{f.id}</Badge>
                 ))}
@@ -78,12 +79,12 @@ export function TopicViewer({ fieldId, topicPath }: TopicViewerProps) {
 
   return (
     <Page full>
-      <PageHeader style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <PageHeader className="topic-viewer__header">
         <div>
           <Heading level={3}>{effectiveTopicPath.split('/').pop()?.replace('.md', '') || 'Topic'}</Heading>
           {effectiveFieldId && <Caption muted>Field: {effectiveFieldId}</Caption>}
         </div>
-        <Stack row gap="sm" style={{ alignItems: 'center' }}>
+        <Stack row gap="sm" className="topic-viewer__header-actions">
           {hasUnsavedChanges && <Badge variant="muted">Unsaved changes</Badge>}
           {savedAt && <Caption muted>Saved at {savedAt}</Caption>}
           <Button variant="primary" size="sm" disabled={!hasUnsavedChanges} onClick={handleSave}>
@@ -94,21 +95,10 @@ export function TopicViewer({ fieldId, topicPath }: TopicViewerProps) {
 
       <PageBody>
         <textarea
-          className="input"
+          className="input topic-viewer__textarea"
           value={draft}
           onChange={e => handleChange(e.target.value)}
           spellCheck={false}
-          style={{
-            width: '100%',
-            height: 'calc(100vh - 10rem)',
-            fontFamily: 'monospace',
-            fontSize: '0.875rem',
-            lineHeight: '1.6',
-            resize: 'none',
-            border: 'none',
-            outline: 'none',
-            padding: '1rem',
-          }}
           placeholder="Write knowledge content in Markdown..."
         />
       </PageBody>

@@ -3,6 +3,9 @@ import { Badge } from '@lmthing/ui/elements/content/badge'
 import { Button } from '@lmthing/ui/elements/forms/button'
 import { Label } from '@lmthing/ui/elements/typography/label'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
+import { cn } from '../../../lib/utils'
+
+import '@lmthing/css/components/workflow/workflow-card/index.css'
 
 interface WorkflowCardProps {
   workflow: Flow
@@ -38,19 +41,13 @@ export function WorkflowCard({ workflow, isSelected, onSelect, onDelete }: Workf
   return (
     <div
       onClick={onSelect}
-      className={`
-        relative group bg-card rounded-xl border-2 transition-all duration-200 cursor-pointer
-        ${isSelected
-          ? 'border-brand-3 ring-2 ring-brand-3/20 shadow-lg shadow-brand-3/10'
-          : 'border-border hover:border-brand-3/50 hover:shadow-md'
-        }
-      `}
+      className={cn('workflow-card', isSelected && 'workflow-card--selected')}
     >
-      <div className="p-5">
+      <div className="workflow-card__body">
         {/* Header row */}
-        <div className="flex items-start justify-between gap-4 mb-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
+        <div className="workflow-card__header">
+          <div className="workflow-card__header-content">
+            <div className="workflow-card__title-row">
               <Label>{workflow.name}</Label>
               <Badge variant={status.variant}>{status.label}</Badge>
             </div>
@@ -63,7 +60,7 @@ export function WorkflowCard({ workflow, isSelected, onSelect, onDelete }: Workf
             size="icon"
             onClick={(e) => { e.stopPropagation(); onDelete(); }}
           >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="workflow-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M3 6h18" />
               <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
               <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
@@ -73,7 +70,7 @@ export function WorkflowCard({ workflow, isSelected, onSelect, onDelete }: Workf
 
         {/* Tags */}
         {workflow.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-4">
+          <div className="workflow-card__tags">
             {workflow.tags.slice(0, 3).map((tag) => (
               <Badge key={tag} variant="primary">{tag}</Badge>
             ))}
@@ -84,11 +81,11 @@ export function WorkflowCard({ workflow, isSelected, onSelect, onDelete }: Workf
         )}
 
         {/* Footer row */}
-        <div className="flex items-center justify-between pt-3 border-t border-border">
-          <div className="flex items-center gap-4">
+        <div className="workflow-card__footer">
+          <div className="workflow-card__footer-stats">
             <Caption muted>
-              <span className="flex items-center gap-1.5">
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <span className="workflow-card__stat">
+                <svg className="workflow-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                   <path d="M9 3v18" />
                   <path d="M15 3v18" />
@@ -99,8 +96,8 @@ export function WorkflowCard({ workflow, isSelected, onSelect, onDelete }: Workf
               </span>
             </Caption>
             <Caption muted>
-              <span className="flex items-center gap-1.5">
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <span className="workflow-card__stat">
+                <svg className="workflow-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="10" />
                   <path d="M12 6v6l4 2" />
                 </svg>
@@ -112,8 +109,8 @@ export function WorkflowCard({ workflow, isSelected, onSelect, onDelete }: Workf
           {/* Last run indicator */}
           {workflow.lastRunAt && (
             <Caption muted>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-brand-2" />
+              <span className="workflow-card__stat">
+                <span className="workflow-card__dot" />
                 Ran {formatDate(workflow.lastRunAt)}
               </span>
             </Caption>
@@ -123,8 +120,8 @@ export function WorkflowCard({ workflow, isSelected, onSelect, onDelete }: Workf
 
       {/* Selection indicator */}
       {isSelected && (
-        <div className="absolute top-4 right-4 w-5 h-5 rounded-full bg-brand-3 flex items-center justify-center">
-          <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+        <div className="workflow-card__check">
+          <svg className="workflow-card__check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
             <path d="M5 13l4 4L19 7" />
           </svg>
         </div>
@@ -143,27 +140,19 @@ interface WorkflowListItemProps {
 
 export function WorkflowListItem({ workflow, isSelected, onSelect, onDelete }: WorkflowListItemProps) {
   const status = STATUS_CONFIG[workflow.status]
+  const statusDotClass = `workflow-list-item__status-dot workflow-list-item__status-dot--${workflow.status}`
 
   return (
     <div
       onClick={onSelect}
-      className={`
-        group flex items-center gap-4 p-4 rounded-lg border transition-all duration-150 cursor-pointer
-        ${isSelected
-          ? 'bg-brand-3/10 border-brand-3'
-          : 'bg-card border-border hover:border-brand-3/50 hover:bg-muted'
-        }
-      `}
+      className={cn('workflow-list-item', isSelected && 'workflow-list-item--selected')}
     >
       {/* Status indicator */}
-      <div className={`
-        flex-shrink-0 w-2 h-2 rounded-full
-        ${workflow.status === 'active' ? 'bg-brand-2' : workflow.status === 'draft' ? 'bg-brand-2' : 'bg-muted-foreground'}
-      `} />
+      <div className={statusDotClass} />
 
       {/* Workflow info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
+      <div className="workflow-list-item__content">
+        <div className="workflow-list-item__title-row">
           <Label>{workflow.name}</Label>
           <Badge variant={status.variant}>{status.label}</Badge>
         </div>
@@ -173,7 +162,7 @@ export function WorkflowListItem({ workflow, isSelected, onSelect, onDelete }: W
       </div>
 
       {/* Tags preview */}
-      <div className="hidden sm:flex flex-wrap gap-1">
+      <div className="workflow-list-item__tags workflow-list-item__tags--responsive">
         {workflow.tags.slice(0, 2).map((tag) => (
           <Badge key={tag} variant="muted">{tag}</Badge>
         ))}
@@ -185,7 +174,7 @@ export function WorkflowListItem({ workflow, isSelected, onSelect, onDelete }: W
         size="icon"
         onClick={(e) => { e.stopPropagation(); onDelete(); }}
       >
-        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <svg className="workflow-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M3 6h18" />
           <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
           <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
@@ -193,7 +182,7 @@ export function WorkflowListItem({ workflow, isSelected, onSelect, onDelete }: W
       </Button>
 
       {/* Chevron */}
-      <svg className={`w-5 h-5 text-muted-foreground transition-transform ${isSelected ? 'rotate-90' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg className={cn('workflow-list-item__chevron', isSelected && 'workflow-list-item__chevron--open')} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M9 18l6-6-6-6" />
       </svg>
     </div>

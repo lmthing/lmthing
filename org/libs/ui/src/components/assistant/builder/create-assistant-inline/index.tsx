@@ -1,3 +1,4 @@
+import '@lmthing/css/components/assistant/builder/index.css'
 import { useUIState } from '@lmthing/state'
 import { Bot, X } from 'lucide-react'
 import { Button } from '@lmthing/ui/elements/forms/button'
@@ -23,19 +24,19 @@ export function CreateAssistantInline({ onSubmit, onCancel }: CreateAssistantInl
   }
 
   return (
-    <Card style={{ marginBottom: '1.5rem' }}>
+    <Card className="create-assistant-inline">
       <CardHeader>
-        <Stack row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Stack row gap="sm" style={{ alignItems: 'center' }}>
-            <div style={{ padding: '0.5rem', background: '#8b5cf6', borderRadius: '0.5rem' }}>
-              <Bot className="w-5 h-5" style={{ color: 'white' }} />
+        <Stack row className="create-assistant-inline__header-row">
+          <Stack row gap="sm" className="create-assistant-inline__header-left">
+            <div className="create-assistant-inline__avatar">
+              <Bot className="create-assistant-inline__avatar-icon" />
             </div>
             <div>
               <Label>Create New Assistant</Label>
               <Caption muted>Define a new AI assistant</Caption>
             </div>
           </Stack>
-          <Button onClick={onCancel} variant="ghost" size="sm"><X className="w-4 h-4" /></Button>
+          <Button onClick={onCancel} variant="ghost" size="sm"><X className="create-assistant-inline__close-icon" /></Button>
         </Stack>
       </CardHeader>
       <CardBody>
@@ -49,9 +50,9 @@ export function CreateAssistantInline({ onSubmit, onCancel }: CreateAssistantInl
               <Label compact>Description (Optional)</Label>
               <Textarea compact value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Brief description of what this assistant does" />
             </div>
-            <Stack row gap="sm" style={{ paddingTop: '0.25rem' }}>
-              <Button type="button" onClick={onCancel} variant="ghost" style={{ flex: 1 }}>Cancel</Button>
-              <Button type="submit" disabled={!name.trim()} variant="primary" style={{ flex: 1 }}>Create Assistant</Button>
+            <Stack row gap="sm" className="create-assistant-inline__actions">
+              <Button type="button" onClick={onCancel} variant="ghost" className="create-assistant-inline__btn">Cancel</Button>
+              <Button type="submit" disabled={!name.trim()} variant="primary" className="create-assistant-inline__btn">Create Assistant</Button>
             </Stack>
           </Stack>
         </form>

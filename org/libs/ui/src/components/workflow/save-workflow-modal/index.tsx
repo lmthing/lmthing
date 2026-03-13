@@ -9,6 +9,7 @@ import { CardFooter } from '@lmthing/ui/elements/content/card'
 import '@lmthing/css/elements/forms/button/index.css'
 import '@lmthing/css/elements/forms/input/index.css'
 import '@lmthing/css/elements/layouts/stack/index.css'
+import '@lmthing/css/components/workflow/save-workflow-modal/index.css'
 
 interface SaveWorkflowModalProps {
   isOpen: boolean
@@ -48,7 +49,7 @@ export function SaveWorkflowModal({ isOpen, onClose, workflowId }: SaveWorkflowM
 
   return (
     <div className="dialog__backdrop">
-      <div className="dialog__content" style={{ maxWidth: '28rem' }}>
+      <div className="dialog__content save-workflow-modal__dialog">
         <div className="dialog__header">
           <div>
             <Heading level={3}>{workflowId ? 'Update Workflow' : 'Save Workflow'}</Heading>
@@ -59,7 +60,7 @@ export function SaveWorkflowModal({ isOpen, onClose, workflowId }: SaveWorkflowM
           <Button onClick={onClose} variant="ghost" size="sm">✕</Button>
         </div>
 
-        <Stack gap="md" style={{ padding: '1.5rem' }}>
+        <Stack gap="md" className="save-workflow-modal__body">
           <div>
             <label className="label">Workflow Name</label>
             <Input
@@ -72,7 +73,7 @@ export function SaveWorkflowModal({ isOpen, onClose, workflowId }: SaveWorkflowM
           </div>
         </Stack>
 
-        <CardFooter style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+        <CardFooter className="save-workflow-modal__footer">
           <Button onClick={onClose} variant="ghost">Cancel</Button>
           <Button onClick={handleSave} disabled={!name.trim()} variant="primary">
             {workflowId ? 'Update' : 'Save'}

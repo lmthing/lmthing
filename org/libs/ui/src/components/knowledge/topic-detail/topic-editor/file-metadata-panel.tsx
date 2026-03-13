@@ -8,6 +8,7 @@ import { Label } from '@lmthing/ui/elements/typography/label'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
 import { Input } from '@lmthing/ui/elements/forms/input'
 import { Button } from '@lmthing/ui/elements/forms/button'
+import '@lmthing/css/components/knowledge/index.css'
 
 interface FileMetadataPanelProps {
   topicPath: string
@@ -76,11 +77,7 @@ export function FileMetadataPanel({ topicPath }: FileMetadataPanelProps) {
   const filename = topicPath.split('/').pop() || ''
 
   return (
-    <div style={{
-      borderBottom: '1px solid var(--color-border)',
-      padding: '0.75rem 1rem',
-      backgroundColor: 'var(--color-muted)',
-    }}>
+    <div className="file-metadata">
       <Stack gap="sm">
         <div>
           <Label compact>Filename</Label>
@@ -107,7 +104,7 @@ export function FileMetadataPanel({ topicPath }: FileMetadataPanelProps) {
           <Input type="text" value={author} onChange={handleChange(setAuthor)} placeholder="Author name" />
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <div className="file-metadata__footer">
           <Button variant="primary" size="sm" disabled={!isDirty} onClick={handleSave}>
             Save Metadata
           </Button>

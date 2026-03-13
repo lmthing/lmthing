@@ -18,12 +18,13 @@ import '@lmthing/css/elements/layouts/page/index.css'
 import '@lmthing/css/elements/forms/button/index.css'
 import '@lmthing/css/elements/forms/input/index.css'
 import '@lmthing/css/elements/content/card/index.css'
+import '@lmthing/css/components/shell/index.css'
 import { PageHeader, PageBody } from '@lmthing/ui/elements/layouts/page'
 import { Card, CardBody } from '@lmthing/ui/elements/content/card'
 import { Heading } from '@lmthing/ui/elements/typography/heading'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
 import { useApp, useToggle, useUIState } from '@lmthing/state'
-import CozyThingText from '@/CozyText'
+import { CozyThingText } from '@lmthing/ui/elements/branding/cozy-text'
 
 const STUDIO_COLORS = ['#8b5cf6', '#10b981', '#f59e0b', '#06b6d4', '#ef4444', '#ec4899']
 
@@ -77,45 +78,39 @@ export function StudiosLayout() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>
+    <div className="studios-layout">
       {/* Top bar */}
-      <div style={{
-        borderBottom: '1px solid var(--color-border)',
-        padding: '1rem 2rem',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      <div className="studios-layout__topbar">
+        <div className="studios-layout__topbar-left">
           <button
             onClick={() => navigate({ to: '/' })}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.125rem', fontWeight: 600 }}
+            className="studios-layout__home-btn"
           >
             <CozyThingText text="lmthing" />
           </button>
-          <span style={{ opacity: 0.3 }}>/</span>
-          <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{username}</span>
+          <span className="studios-layout__breadcrumb-sep">/</span>
+          <span className="studios-layout__username">{username}</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div className="studios-layout__topbar-right">
           <button className="btn btn--ghost btn--sm" onClick={handleOpenThing}>
-            <MessageSquare style={{ width: 16, height: 16 }} />
+            <MessageSquare className="studios-layout__topbar-icon" />
             ThingPanel
           </button>
           <button className="btn btn--ghost btn--sm" onClick={() => navigate({ to: '/marketplace' })}>
-            <Store style={{ width: 16, height: 16 }} />
+            <Store className="studios-layout__topbar-icon" />
             Marketplace
           </button>
           <button className="btn btn--primary btn--sm" onClick={() => setIsCreateOpen(true)}>
-            <Plus style={{ width: 16, height: 16 }} />
+            <Plus className="studios-layout__topbar-icon" />
             New Studio
           </button>
         </div>
       </div>
 
       {/* Main content */}
-      <div style={{ maxWidth: '64rem', margin: '0 auto', padding: '2rem' }}>
+      <div className="studios-layout__content">
         <PageHeader>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="studios-layout__header-row">
             <div>
               <Heading level={2}>Studios</Heading>
               <Caption muted>Manage your studios and their spaces.</Caption>
@@ -125,55 +120,34 @@ export function StudiosLayout() {
 
         <PageBody>
           {userStudios.length > 0 ? (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-              gap: '1rem',
-              marginTop: '1.5rem',
-            }}>
+            <div className="studios-layout__grid">
               {userStudios.map((studio, idx) => (
                 <Card
                   key={`${studio.username}/${studio.studioId}`}
                   interactive
-                  style={{ padding: '1.5rem', cursor: 'pointer', position: 'relative' }}
+                  className="studios-layout__card"
                   onClick={() => handleOpenStudio(studio.studioId)}
                 >
                   <CardBody>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                      <div style={{
-                        width: '3rem',
-                        height: '3rem',
-                        borderRadius: '0.75rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: STUDIO_COLORS[idx % STUDIO_COLORS.length] + '20',
-                        marginBottom: '1rem',
-                      }}>
-                        <Layers style={{ width: 24, height: 24, color: STUDIO_COLORS[idx % STUDIO_COLORS.length] }} />
+                    <div className="studios-layout__card-header">
+                      <div className="studios-layout__card-icon-wrapper" style={{ backgroundColor: STUDIO_COLORS[idx % STUDIO_COLORS.length] + '20' }}>
+                        <Layers className="studios-layout__card-icon" style={{ color: STUDIO_COLORS[idx % STUDIO_COLORS.length] }} />
                       </div>
                       <button
-                        className="btn btn--ghost btn--sm"
+                        className="btn btn--ghost btn--sm studios-layout__card-delete-btn"
                         onClick={(e) => {
                           e.stopPropagation()
                           setConfirmDelete(studio.studioId)
                         }}
-                        style={{ opacity: 0.5 }}
                         title="Delete studio"
                       >
-                        <Trash2 style={{ width: 14, height: 14 }} />
+                        <Trash2 className="studios-layout__card-delete-icon" />
                       </button>
                     </div>
                     <Heading level={4}>{studio.name}</Heading>
-                    <Caption muted style={{ marginTop: '0.25rem' }}>{studio.studioId}</Caption>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'flex-end',
-                      marginTop: '1rem',
-                      opacity: 0.5,
-                    }}>
-                      <ArrowRight style={{ width: 16, height: 16 }} />
+                    <Caption muted className="studios-layout__card-id">{studio.studioId}</Caption>
+                    <div className="studios-layout__card-arrow">
+                      <ArrowRight className="studios-layout__card-arrow-icon" />
                     </div>
                   </CardBody>
                 </Card>
@@ -182,40 +156,26 @@ export function StudiosLayout() {
               {/* Create new card */}
               <button
                 onClick={() => setIsCreateOpen(true)}
-                style={{
-                  all: 'unset',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minHeight: '10rem',
-                  borderRadius: '0.75rem',
-                  border: '2px dashed var(--color-border)',
-                  opacity: 0.6,
-                  transition: 'opacity 0.15s',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-                onMouseLeave={e => (e.currentTarget.style.opacity = '0.6')}
+                className="studios-layout__create-card"
               >
-                <div style={{ textAlign: 'center' }}>
-                  <Plus style={{ width: 24, height: 24, margin: '0 auto 0.5rem' }} />
+                <div className="studios-layout__create-card-inner">
+                  <Plus className="studios-layout__create-card-icon" />
                   <Caption>New Studio</Caption>
                 </div>
               </button>
             </div>
           ) : (
-            <div style={{ textAlign: 'center', padding: '5rem 0' }}>
-              <Layers style={{ width: 48, height: 48, opacity: 0.2, margin: '0 auto 1.5rem' }} />
+            <div className="studios-layout__empty">
+              <Layers className="studios-layout__empty-icon" />
               <Heading level={3}>No studios yet</Heading>
-              <Caption muted style={{ marginTop: '0.5rem', maxWidth: '24rem', margin: '0.5rem auto 0' }}>
+              <Caption muted className="studios-layout__empty-caption">
                 Studios group your spaces together. Create your first studio to get started.
               </Caption>
               <button
-                className="btn btn--primary"
-                style={{ marginTop: '1.5rem' }}
+                className="btn btn--primary studios-layout__empty-create-btn"
                 onClick={() => setIsCreateOpen(true)}
               >
-                <Plus style={{ width: 16, height: 16 }} /> Create Studio
+                <Plus className="studios-layout__empty-create-icon" /> Create Studio
               </button>
             </div>
           )}
@@ -224,28 +184,13 @@ export function StudiosLayout() {
 
       {/* Create studio modal */}
       {isCreateOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 50,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: 'rgba(0,0,0,0.5)',
-        }}>
-          <div style={{
-            background: 'var(--color-bg)',
-            borderRadius: '0.75rem',
-            padding: '1.5rem',
-            maxWidth: '28rem',
-            width: '100%',
-            border: '1px solid var(--color-border)',
-          }}>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.25rem' }}>Create New Studio</h3>
-            <p style={{ fontSize: '0.875rem', opacity: 0.7, marginBottom: '1rem' }}>
+        <div className="studios-layout__modal-backdrop">
+          <div className="studios-layout__modal">
+            <h3 className="studios-layout__modal-title">Create New Studio</h3>
+            <p className="studios-layout__modal-desc">
               A studio groups related spaces together.
             </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div className="studios-layout__modal-fields">
               <input
                 className="input"
                 autoFocus
@@ -257,7 +202,7 @@ export function StudiosLayout() {
               {newStudioName.trim() && (
                 <Caption muted>ID: {toStudioId(newStudioName)}</Caption>
               )}
-              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <div className="studios-layout__modal-actions">
                 <button className="btn btn--ghost" onClick={() => { setIsCreateOpen(false); setNewStudioName('') }}>Cancel</button>
                 <button className="btn btn--primary" onClick={handleCreate} disabled={!toStudioId(newStudioName)}>Create Studio</button>
               </div>
@@ -268,32 +213,16 @@ export function StudiosLayout() {
 
       {/* Delete confirmation modal */}
       {confirmDelete && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 50,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: 'rgba(0,0,0,0.5)',
-        }}>
-          <div style={{
-            background: 'var(--color-bg)',
-            borderRadius: '0.75rem',
-            padding: '1.5rem',
-            maxWidth: '24rem',
-            width: '100%',
-            border: '1px solid var(--color-border)',
-          }}>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.5rem' }}>Delete Studio</h3>
-            <p style={{ fontSize: '0.875rem', opacity: 0.7, marginBottom: '1.5rem' }}>
+        <div className="studios-layout__modal-backdrop">
+          <div className="studios-layout__modal studios-layout__modal--sm">
+            <h3 className="studios-layout__modal-title">Delete Studio</h3>
+            <p className="studios-layout__modal-desc studios-layout__modal-desc--lg">
               Are you sure you want to delete <strong>{confirmDelete}</strong>? This will remove all spaces and data within it.
             </p>
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+            <div className="studios-layout__modal-actions">
               <button className="btn btn--ghost" onClick={() => setConfirmDelete(null)}>Cancel</button>
               <button
-                className="btn"
-                style={{ backgroundColor: '#ef4444', color: 'white' }}
+                className="btn studios-layout__delete-btn"
                 onClick={() => handleDelete(confirmDelete)}
               >
                 Delete

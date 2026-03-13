@@ -1,4 +1,6 @@
+import { cn } from '@lmthing/ui/lib/utils'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
+import '@lmthing/css/components/thing/thing-message/index.css'
 import '@lmthing/css/elements/content/card/index.css'
 
 interface ThingMessageProps {
@@ -11,27 +13,20 @@ export function ThingMessage({ role, content }: ThingMessageProps) {
 
   return (
     <div
-      className="card"
-      style={{
-        maxWidth: '80%',
-        marginLeft: isUser ? 'auto' : undefined,
-        marginRight: isUser ? undefined : 'auto',
-        background: isUser ? 'var(--color-primary, #8b5cf6)' : undefined,
-        color: isUser ? 'white' : undefined,
-      }}
+      className={cn(
+        'card',
+        'thing-message',
+        isUser ? 'thing-message--user' : 'thing-message--assistant',
+      )}
     >
       <div className="card__body">
         <Caption
           muted={!isUser}
-          style={{
-            fontSize: '0.75rem',
-            marginBottom: '0.25rem',
-            color: isUser ? 'rgba(255,255,255,0.7)' : undefined,
-          }}
+          className={cn('thing-message__role', isUser && 'thing-message__role--user')}
         >
           {isUser ? 'You' : 'Assistant'}
         </Caption>
-        <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.875rem', lineHeight: '1.5' }}>
+        <div className="thing-message__content">
           {content}
         </div>
       </div>

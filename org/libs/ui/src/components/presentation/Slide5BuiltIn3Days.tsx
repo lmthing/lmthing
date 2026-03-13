@@ -1,5 +1,5 @@
 import { colors } from './constants'
-import { CozyThingText } from '@/CozyText'
+import { CozyThingText } from '@lmthing/ui/elements/branding/cozy-text'
 
 const cards = [
   {

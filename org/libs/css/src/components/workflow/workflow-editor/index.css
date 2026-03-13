@@ -1,0 +1,226 @@
+@reference "../../../../theme.css";
+
+/* ── WorkflowEditor ───────────────────────────────────────────────── */
+
+.workflow-editor {
+  @apply min-h-screen;
+  background: var(--muted);
+}
+
+.workflow-editor__header {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  @apply sticky top-0 z-20;
+}
+
+.workflow-editor__header-inner {
+  @apply max-w-4xl mx-auto py-4;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .workflow-editor__header-inner {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .workflow-editor__header-inner {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+.workflow-editor__header-top {
+  @apply flex items-center gap-4;
+  margin-bottom: 1rem;
+}
+
+.workflow-editor__back-icon {
+  @apply w-5 h-5;
+}
+
+.workflow-editor__title-area {
+  flex: 1;
+}
+
+.workflow-editor__title-row {
+  @apply flex items-center gap-4;
+}
+
+.workflow-editor__icon-box {
+  @apply w-10 h-10 flex items-center justify-center;
+  border-radius: 0.75rem;
+  background: linear-gradient(to bottom right, var(--brand-5), var(--brand-5));
+  box-shadow: 0 10px 15px -3px color-mix(in srgb, var(--brand-5) 25%, transparent);
+}
+
+.workflow-editor__icon-box-svg {
+  @apply w-5 h-5 text-white;
+}
+
+.workflow-editor__meta-form {
+  @apply grid grid-cols-1 gap-4 p-4;
+  background: var(--muted);
+  border-radius: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .workflow-editor__meta-form {
+    @apply grid-cols-2;
+  }
+}
+
+.workflow-editor__meta-full {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 640px) {
+  .workflow-editor__meta-full {
+    grid-column: span 2;
+  }
+}
+
+.workflow-editor__tag-list {
+  @apply flex flex-wrap;
+  gap: 0.5rem;
+}
+
+.workflow-editor__tag-btn {
+  @apply text-sm font-medium transition-all;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+}
+
+.workflow-editor__tag-btn--active {
+  background: color-mix(in srgb, var(--brand-5) 15%, transparent);
+  color: var(--brand-5);
+  @apply ring-1;
+  --tw-ring-color: color-mix(in srgb, var(--brand-5) 30%, transparent);
+}
+
+.workflow-editor__tag-btn--inactive {
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.workflow-editor__tag-btn--inactive:hover {
+  background: var(--muted);
+}
+
+.workflow-editor__main {
+  @apply max-w-4xl mx-auto py-8;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .workflow-editor__main {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .workflow-editor__main {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+.workflow-editor__stats {
+  @apply grid grid-cols-3 gap-4;
+  margin-bottom: 2rem;
+}
+
+.workflow-editor__steps-section {
+  margin-bottom: 1.5rem;
+}
+
+.workflow-editor__steps-header {
+  @apply flex justify-between items-center;
+  margin-bottom: 1rem;
+}
+
+.workflow-editor__add-icon {
+  @apply w-4 h-4;
+}
+
+.workflow-editor__empty {
+  @apply text-center;
+  background: var(--card);
+  border-radius: 0.75rem;
+  border: 2px dashed var(--border);
+  padding: 3rem;
+}
+
+.workflow-editor__empty-icon-wrapper {
+  @apply w-16 h-16 rounded-full flex items-center justify-center mx-auto;
+  background: var(--muted);
+  margin-bottom: 1rem;
+}
+
+.workflow-editor__empty-icon {
+  @apply w-8 h-8;
+  color: var(--muted-foreground);
+}
+
+.workflow-editor__empty-caption {
+  margin-bottom: 1.5rem;
+}
+
+.workflow-editor__steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.workflow-editor__step-wrapper {
+  position: relative;
+}
+
+.workflow-editor__insert-btn-wrapper {
+  @apply absolute z-10;
+  top: -1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.workflow-editor__insert-btn {
+  @apply p-1.5 rounded-full transition-colors;
+  background: color-mix(in srgb, var(--brand-5) 15%, transparent);
+  color: var(--brand-5);
+  opacity: 0;
+}
+
+.workflow-editor__insert-btn:hover {
+  background: color-mix(in srgb, var(--brand-5) 25%, transparent);
+}
+
+.group:hover .workflow-editor__insert-btn {
+  opacity: 1;
+}
+
+.workflow-editor__insert-btn-icon {
+  @apply w-4 h-4;
+}
+
+.workflow-editor__output-panel {
+  @apply p-6;
+  background: linear-gradient(to bottom right,
+    color-mix(in srgb, var(--brand-5) 10%, transparent),
+    color-mix(in srgb, var(--brand-2) 10%, transparent)
+  );
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--brand-5) 30%, transparent);
+}
+
+.workflow-editor__output-caption {
+  margin-bottom: 1rem;
+}
+
+.workflow-editor__output-field {
+  margin-left: 1rem;
+}

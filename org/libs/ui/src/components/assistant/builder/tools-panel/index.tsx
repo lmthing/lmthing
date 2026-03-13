@@ -1,3 +1,4 @@
+import '@lmthing/css/components/assistant/builder/index.css'
 import { Button } from '@lmthing/ui/elements/forms/button'
 import { Card, CardBody, CardFooter } from '@lmthing/ui/elements/content/card'
 import { Badge } from '@lmthing/ui/elements/content/badge'
@@ -39,23 +40,23 @@ const statusLabels: Record<ToolConfigStatus, { label: string; variant: 'success'
 
 export function ToolsPanel({ enabledTools, onOpenLibrary, onRemoveTool, onConfigureTool }: ToolsPanelProps) {
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div className="tools-panel">
       <PanelHeader>
-        <Stack row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <Stack row className="tools-panel__header-row">
           <Label compact>Enabled Tools</Label>
           <Button onClick={onOpenLibrary} variant="primary" size="sm">+ Add Tools</Button>
         </Stack>
       </PanelHeader>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '1rem' }}>
+      <div className="tools-panel__body">
         {enabledTools.length === 0 ? (
-          <Stack style={{ textAlign: 'center', padding: '3rem 0' }}>
-            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🔧</div>
+          <Stack className="tools-panel__empty">
+            <div className="tools-panel__empty-icon">🔧</div>
             <Label>No tools enabled</Label>
-            <Caption muted style={{ maxWidth: '200px', margin: '0 auto' }}>
+            <Caption muted className="tools-panel__empty-caption">
               Add tools from the library to extend your assistant's capabilities
             </Caption>
-            <Button onClick={onOpenLibrary} variant="ghost" size="sm" style={{ marginTop: '1rem' }}>
+            <Button onClick={onOpenLibrary} variant="ghost" size="sm" className="tools-panel__empty-btn">
               Browse Tool Library
             </Button>
           </Stack>
@@ -74,7 +75,7 @@ export function ToolsPanel({ enabledTools, onOpenLibrary, onRemoveTool, onConfig
       </div>
 
       <CardFooter>
-        <Caption muted style={{ textAlign: 'center', display: 'block' }}>
+        <Caption muted className="tools-panel__footer-caption">
           Tools are manually enabled from the library
         </Caption>
       </CardFooter>
@@ -87,22 +88,22 @@ function ToolCard({ mapping, onRemove, onConfigure }: { mapping: EnabledToolMapp
   return (
     <Card interactive>
       <CardBody>
-        <Stack row gap="sm" style={{ alignItems: 'flex-start' }}>
-          <div style={{ fontSize: '1.25rem', flexShrink: 0 }}>📦</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <Stack row gap="sm" style={{ alignItems: 'center', marginBottom: '0.25rem' }}>
-              <Label style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mapping.tool.name}</Label>
-              <Badge variant={status.variant} style={{ fontSize: '0.625rem' }}>{status.icon} {status.label}</Badge>
+        <Stack row gap="sm" className="tools-panel__card-row">
+          <div className="tools-panel__card-icon">📦</div>
+          <div className="tools-panel__card-content">
+            <Stack row gap="sm" className="tools-panel__card-title-row">
+              <Label className="tools-panel__card-label">{mapping.tool.name}</Label>
+              <Badge variant={status.variant} className="tools-panel__badge-sm">{status.icon} {status.label}</Badge>
             </Stack>
-            <Caption muted style={{ WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            <Caption muted className="tools-panel__card-description">
               {mapping.tool.description}
             </Caption>
-            <Stack row gap="sm" style={{ marginTop: '0.5rem' }}>
-              <Badge variant="muted" style={{ fontSize: '0.625rem' }}>{mapping.tool.category}</Badge>
+            <Stack row gap="sm" className="tools-panel__card-meta-row">
+              <Badge variant="muted" className="tools-panel__badge-sm">{mapping.tool.category}</Badge>
               <Caption muted>v{mapping.tool.version}</Caption>
             </Stack>
           </div>
-          <Stack gap="sm" style={{ opacity: 0 }}>
+          <Stack gap="sm" className="tools-panel__card-actions">
             {mapping.tool.configRequired && mapping.status !== 'ready' && (
               <Button onClick={onConfigure} variant="ghost" size="sm" title="Configure tool">⚙</Button>
             )}

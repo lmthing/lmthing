@@ -4,13 +4,16 @@ import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import type { UserConfig } from 'vite-plus'
 
 const __utilsDir = path.dirname(fileURLToPath(import.meta.url))
 const emptyStub = path.resolve(__utilsDir, 'stubs/empty.ts')
 const aiSdkStub = path.resolve(__utilsDir, 'stubs/ai-sdk-provider.ts')
 
-export function createViteConfig(dirname: string, overrides?: UserConfig) {
+/**
+ * @param {string} dirname
+ * @param {import('vite-plus').UserConfig} [overrides]
+ */
+export function createViteConfig(dirname, overrides) {
   const libsDir = path.resolve(dirname, '../org/libs')
 
   return defineConfig({
@@ -23,7 +26,7 @@ export function createViteConfig(dirname: string, overrides?: UserConfig) {
       tailwindcss(),
       {
         name: 'resolve-workspace-deps',
-        enforce: 'pre' as const,
+        enforce: 'pre',
         async resolveId(source, importer, options) {
           if (!importer || source.startsWith('.') || source.startsWith('/') || source.startsWith('@lmthing/') || source.startsWith('@/')) return null
           if (!importer.startsWith(libsDir)) return null

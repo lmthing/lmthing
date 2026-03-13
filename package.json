@@ -9,11 +9,15 @@
     "lint": "pnpm --filter ./studio lint",
     "preview": "pnpm --filter ./studio preview"
   },
+  "devDependencies": {
+    "vite-plus": "latest"
+  },
   "pnpm": {
     "peerDependencyRules": {
-      "allowedVersions": {
-        "@tailwindcss/vite>vite": "^8.0.0"
-      }
+      "allowAny": [
+        "vite",
+        "vitest"
+      ]
     }
   }
 }

@@ -233,7 +233,8 @@ The THING agent runtime. Each computer is a Fly.io node where the user's THING a
 
 ```mermaid
 graph TD
-    Root["/"] --> Terminal["/<br/>Terminal access"]
+    Root["/"] --> Login["/login"]
+    Root --> Terminal["/<br/>Terminal access"]
     Root --> Spaces["/spaces<br/>Running studio spaces"]
     Spaces --> Space["/$spaceId<br/>Space instance"]
     Space --> Logs["/logs"]

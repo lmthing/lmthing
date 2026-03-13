@@ -149,5 +149,5 @@ function serializeYAMLValue(value: unknown): string {
 }
 
 function needsQuoting(value: string): boolean {
-  return /[:{}\[\],\n ]/.test(value) || value.includes('-')
+  return /[:{}[\],\n ]/.test(value) || value.includes('-')
 }

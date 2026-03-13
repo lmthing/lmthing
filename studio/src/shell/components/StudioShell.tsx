@@ -791,7 +791,7 @@ export function StudioShell({
       return {
         id: targetAgentId,
         frontmatter: {
-          ...(existingAgent?.frontmatter || {}),
+          ...existingAgent?.frontmatter,
           name,
           description,
           selectedDomains: selectedDomainIds,
@@ -800,7 +800,7 @@ export function StudioShell({
         mainInstruction,
         slashActions,
         config: {
-          ...(existingAgent?.config || {}),
+          ...existingAgent?.config,
           emptyFieldsForRuntime,
         },
         formValues,

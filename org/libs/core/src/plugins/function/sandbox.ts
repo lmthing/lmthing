@@ -246,7 +246,7 @@ async function executeSandboxInBrowser(code: string, sandboxObject: Record<strin
     iframe.setAttribute('sandbox', 'allow-scripts');
     iframe.setAttribute('style', 'display:none;');
     iframe.setAttribute('aria-hidden', 'true');
-    iframe.srcdoc = `<script>${escapeScriptCloseTag(iframeScript)}<\/script>`;
+    iframe.srcdoc = `<script>${escapeScriptCloseTag(iframeScript)}</script>`;
     documentRef.body.appendChild(iframe);
   });
 }

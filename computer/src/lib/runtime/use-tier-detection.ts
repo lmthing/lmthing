@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { RuntimeTier } from './types'
 
-const CLOUD_BASE_URL = import.meta.env.VITE_CLOUD_BASE_URL ?? 'https://cloud.lmthing.org'
-const FLYIO_APP_HOST_KEY = 'lmthing-computer:flyio-app-host'
+const CLOUD_BASE_URL = import.meta.env.VITE_CLOUD_BASE_URL
+  ?? (import.meta.env.DEV ? `${window.location.protocol}//cloud.local` : 'https://lmthing.cloud')
 const CLOUD_AUTH_KEY = 'lmthing-cloud-auth'
 
 interface CloudAuth {
   accessToken: string
-  appHost?: string
 }
 
 interface TierDetectionResult {
@@ -32,6 +31,9 @@ function getCloudAuth(): CloudAuth | null {
 /**
  * Detects the user's runtime tier by checking for a cloud auth session
  * with a Computer tier subscription. Falls back to webcontainer (free tier).
+ *
+ * Calls issue-computer-token which verifies the subscription and returns
+ * the appHost for the user's provisioned Fly.io machine.
  */
 export function useTierDetection(): TierDetectionResult {
   const [tier, setTier] = useState<RuntimeTier>('webcontainer')
@@ -46,9 +48,8 @@ export function useTierDetection(): TierDetectionResult {
     }
 
     const header = `Bearer ${cloudAuth.accessToken}`
-    const storedHost = cloudAuth.appHost ?? localStorage.getItem(FLYIO_APP_HOST_KEY)
 
-    // Try to issue a computer token — if it succeeds, user has Computer tier
+    // issue-computer-token verifies subscription and returns appHost
     fetch(`${CLOUD_BASE_URL}/functions/v1/issue-computer-token`, {
       method: 'POST',
       headers: {
@@ -57,9 +58,14 @@ export function useTierDetection(): TierDetectionResult {
       },
     })
       .then(async (res) => {
-        if (res.ok && storedHost) {
+        if (!res.ok) {
+          setTier('webcontainer')
+          return
+        }
+        const data = await res.json()
+        if (data.appHost) {
           setTier('flyio')
-          setAppHost(storedHost)
+          setAppHost(data.appHost)
           setAuthHeader(header)
         } else {
           setTier('webcontainer')

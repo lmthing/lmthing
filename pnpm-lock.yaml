@@ -6,9 +6,15 @@ settings:
 
 catalogs:
   default:
+    '@types/node':
+      specifier: ^24
+      version: 24.11.0
     supabase:
       specifier: ^2.78.1
       version: 2.78.1
+    typescript:
+      specifier: ^5
+      version: 5.9.3
 
 overrides:
   vite: npm:@voidzero-dev/vite-plus-core@latest
@@ -93,7 +99,7 @@ importers:
         version: 0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(@voidzero-dev/vite-plus-core@0.1.11(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@latest
-        version: '@voidzero-dev/vite-plus-test@0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(@voidzero-dev/vite-plus-core@0.1.11(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)(vite@8.0.0(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0))'
 
   casa:
     dependencies:
@@ -166,7 +172,7 @@ importers:
         version: 0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(@voidzero-dev/vite-plus-core@0.1.11(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@latest
-        version: '@voidzero-dev/vite-plus-test@0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(@voidzero-dev/vite-plus-core@0.1.11(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)(vite@8.0.0(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0))'
 
   chat:
     dependencies:
@@ -239,7 +245,7 @@ importers:
         version: 0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(@voidzero-dev/vite-plus-core@0.1.11(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@latest
-        version: '@voidzero-dev/vite-plus-test@0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(@voidzero-dev/vite-plus-core@0.1.11(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)(vite@8.0.0(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0))'
 
   cloud:
     devDependencies:
@@ -321,7 +327,7 @@ importers:
         version: 0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(@voidzero-dev/vite-plus-core@0.1.11(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@latest
-        version: '@voidzero-dev/vite-plus-test@0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(@voidzero-dev/vite-plus-core@0.1.11(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)(vite@8.0.0(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0))'
 
   computer:
     dependencies:
@@ -421,7 +427,7 @@ importers:
         version: 0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(@voidzero-dev/vite-plus-core@0.1.11(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@latest
-        version: '@voidzero-dev/vite-plus-test@0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(@voidzero-dev/vite-plus-core@0.1.11(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)(vite@8.0.0(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0))'
 
   org/libs/auth:
     dependencies:
@@ -432,6 +438,12 @@ importers:
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.14
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
+  org/libs/container:
+    devDependencies:
       typescript:
         specifier: ^5.6.0
         version: 5.9.3
@@ -526,6 +538,28 @@ importers:
       tw-animate-css:
         specifier: '*'
         version: 1.4.0
+
+  org/libs/server:
+    dependencies:
+      node-pty:
+        specifier: ^1.0.0
+        version: 1.1.0
+      ws:
+        specifier: ^8.18.0
+        version: 8.19.0
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.11.0
+      '@types/ws':
+        specifier: ^8.5.0
+        version: 8.18.1
+      tsx:
+        specifier: ^4.0.0
+        version: 4.21.0
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
 
   org/libs/state:
     devDependencies:
@@ -715,7 +749,7 @@ importers:
         version: 0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(@voidzero-dev/vite-plus-core@0.1.11(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@latest
-        version: '@voidzero-dev/vite-plus-test@0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(@voidzero-dev/vite-plus-core@0.1.11(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)(vite@8.0.0(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0))'
 
   space:
     dependencies:
@@ -800,7 +834,7 @@ importers:
         version: 0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(@voidzero-dev/vite-plus-core@0.1.11(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@latest
-        version: '@voidzero-dev/vite-plus-test@0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(@voidzero-dev/vite-plus-core@0.1.11(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)(vite@8.0.0(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0))'
 
   store:
     dependencies:
@@ -873,7 +907,7 @@ importers:
         version: 0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(@voidzero-dev/vite-plus-core@0.1.11(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@latest
-        version: '@voidzero-dev/vite-plus-test@0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(@voidzero-dev/vite-plus-core@0.1.11(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)(vite@8.0.0(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0))'
 
   studio:
     dependencies:
@@ -1045,7 +1079,7 @@ importers:
         version: 0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(@voidzero-dev/vite-plus-core@0.1.11(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@latest
-        version: '@voidzero-dev/vite-plus-test@0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(@voidzero-dev/vite-plus-core@0.1.11(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)(vite@8.0.0(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0))'
 
   team:
     dependencies:
@@ -1118,7 +1152,7 @@ importers:
         version: 0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(@voidzero-dev/vite-plus-core@0.1.11(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@latest
-        version: '@voidzero-dev/vite-plus-test@0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(@voidzero-dev/vite-plus-core@0.1.11(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.11(@opentelemetry/api@1.9.0)(@types/node@24.11.0)(@vitest/ui@4.1.0)(esbuild@0.27.3)(jiti@2.6.1)(jsdom@25.0.1)(tsx@4.21.0)(typescript@5.9.3)(vite@8.0.0(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0))'
 
 packages:
 
@@ -4142,6 +4176,9 @@ packages:
   natural-compare@1.4.0:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
 
+  node-addon-api@7.1.1:
+    resolution: {integrity: sha512-5m3bsyrjFWE1xf7nz7YXdN4udnVtXK6/Yfgn5qnahL6bCkf2yKt4k3nuTKAtT4r3IG8JNR2ncsIMdZuAzJjHQQ==}
+
   node-domexception@1.0.0:
     resolution: {integrity: sha512-/jKZoMpw0F8GRwl4/eLROPA3cfcXtLApP0QzLmUT/HuPCZWyB7IY9ZrMeKw2O/nFIqPQB3PVM9aYm0F312AXDQ==}
     engines: {node: '>=10.5.0'}
@@ -4150,6 +4187,9 @@ packages:
   node-fetch@3.3.2:
     resolution: {integrity: sha512-dRB78srN/l6gqWulah9SrxeYnxeddIG30+GOqK/9OlLVyLg3HPnr6SqOWTWOXKRwC2eGYCkZ59NNuSgvSrpgOA==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
+
+  node-pty@1.1.0:
+    resolution: {integrity: sha512-20JqtutY6JPXTUnL0ij1uad7Qe1baT46lyolh2sSENDd4sTzKZ4nmAFkeAARDKwmlLjPx6XKRlwRUxwjOy+lUg==}
 
   node-releases@2.0.27:
     resolution: {integrity: sha512-nmh3lCkYZ3grZvqcCH+fjmQ7X+H0OeZgP40OierEaAptX4XofMh5kwNbWh7lBduUzCcV/8kZ+NDLCwm2iorIlA==}
@@ -7771,6 +7811,8 @@ snapshots:
 
   natural-compare@1.4.0: {}
 
+  node-addon-api@7.1.1: {}
+
   node-domexception@1.0.0: {}
 
   node-fetch@3.3.2:
@@ -7778,6 +7820,10 @@ snapshots:
       data-uri-to-buffer: 4.0.1
       fetch-blob: 3.2.0
       formdata-polyfill: 4.0.10
+
+  node-pty@1.1.0:
+    dependencies:
+      node-addon-api: 7.1.1
 
   node-releases@2.0.27: {}
 

@@ -60,3 +60,17 @@ export async function deleteSpace(id: string): Promise<void> {
     body: JSON.stringify({ id }),
   })
 }
+
+export async function startSpace(id: string): Promise<void> {
+  await fetchJSON<{ success: boolean }>(`${CLOUD_URL}/start-space`, {
+    method: 'POST',
+    body: JSON.stringify({ id }),
+  })
+}
+
+export async function stopSpace(id: string): Promise<void> {
+  await fetchJSON<{ success: boolean }>(`${CLOUD_URL}/stop-space`, {
+    method: 'POST',
+    body: JSON.stringify({ id }),
+  })
+}

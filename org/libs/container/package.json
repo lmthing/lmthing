@@ -1,0 +1,20 @@
+{
+  "name": "@lmthing/container",
+  "version": "1.0.0",
+  "description": "Container orchestration abstraction for lmthing runtimes",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./flyio": "./src/flyio/index.ts"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  },
+  "author": "LMThing",
+  "license": "MIT"
+}

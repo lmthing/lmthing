@@ -196,16 +196,16 @@ export default function LandingLayout() {
                 </div>
                 <div className="rounded-2xl border-2 border-brand-3/30 bg-gradient-to-br from-brand-3/10 to-background p-4 shadow-sm">
                   <Bot className="size-8 text-brand-3 mb-2" />
-                  <h4 className="font-semibold text-foreground">Spaces Hold Assistants</h4>
+                  <h4 className="font-semibold text-foreground">Spaces Hold Agents</h4>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Each space contains specialized assistants with their own prompts, tools, and configurations.
+                    Each space contains specialized agents with their own prompts, tools, and configurations.
                   </p>
                 </div>
                 <div className="rounded-2xl border-2 border-brand-4/30 bg-gradient-to-br from-brand-4/10 to-background p-4 shadow-sm">
                   <Workflow className="size-8 text-brand-4 mb-2" />
                   <h4 className="font-semibold text-foreground">THING Coordinates Them All</h4>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Ask the THING anything&mdash;it routes your request to the right assistants and synthesizes the results.
+                    Ask the THING anything&mdash;it routes your request to the right agents and synthesizes the results.
                   </p>
                 </div>
               </div>
@@ -248,7 +248,7 @@ export default function LandingLayout() {
                   <span className="mt-4 text-sm font-semibold text-brand-3">Step 2</span>
                   <h4 className="mt-2 text-lg font-semibold">Build Specialists</h4>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Each space gets specialized assistants with their own prompts, tools, and knowledge access.
+                    Each space gets specialized agents with their own prompts, tools, and knowledge access.
                   </p>
                 </div>
               </div>
@@ -260,7 +260,7 @@ export default function LandingLayout() {
                   <span className="mt-4 text-sm font-semibold text-brand-3">Step 3</span>
                   <h4 className="mt-2 text-lg font-semibold">Design Workflows</h4>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Chain multiple steps into workflows that your assistants can execute autonomously.
+                    Chain multiple steps into workflows that your agents can execute autonomously.
                   </p>
                 </div>
               </div>
@@ -375,7 +375,7 @@ export default function LandingLayout() {
                     <div>
                       <h4 className="font-semibold text-foreground">Specialists Use What They Know</h4>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Assistants only reference documents from their space. The THING ensures each specialist gets only relevant context.
+                        Agents only reference documents from their space. The THING ensures each specialist gets only relevant context.
                       </p>
                     </div>
                   </div>
@@ -388,7 +388,7 @@ export default function LandingLayout() {
                     <div>
                       <h4 className="font-semibold text-foreground">No Context Rot</h4>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        By isolating knowledge per space and routing intelligently, the THING keeps each assistant focused.
+                        By isolating knowledge per space and routing intelligently, the THING keeps each agent focused.
                       </p>
                     </div>
                   </div>

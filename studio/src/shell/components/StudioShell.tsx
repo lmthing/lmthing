@@ -851,7 +851,7 @@ export function StudioShell({
     upsertAgent(buildAgentPayload(nextAgentId, name, description))
 
     if (!agentId) {
-      navigate(`${studioPath}/assistant/${nextAgentId}`, { replace: true })
+      navigate(`${studioPath}/agent/${nextAgentId}`, { replace: true })
     }
   }, [
     agentId,
@@ -899,7 +899,7 @@ export function StudioShell({
 
   const handleSelectRuntimeConversation = useCallback((targetConversationId: string) => {
     if (!agentId) return
-    navigate(`${studioPath}/assistant/${agentId}/conversation/${targetConversationId}`)
+    navigate(`${studioPath}/agent/${agentId}/conversation/${targetConversationId}`)
   }, [agentId, navigate, studioPath])
 
   const handleCreateRuntimeConversation = useCallback(() => {
@@ -924,7 +924,7 @@ export function StudioShell({
       conversations: [...(existingAgent.conversations || []), nextConversation],
     })
 
-    navigate(`${studioPath}/assistant/${agentId}/conversation/${nextConversationId}`)
+    navigate(`${studioPath}/agent/${agentId}/conversation/${nextConversationId}`)
   }, [agentId, agentsMap, navigate, studioPath, upsertAgent])
 
   const handleDeleteRuntimeConversation = useCallback((targetConversationId: string) => {
@@ -942,9 +942,9 @@ export function StudioShell({
 
     if (conversationId === targetConversationId) {
       if (remaining.length > 0) {
-        navigate(`${studioPath}/assistant/${agentId}/conversation/${remaining[0].id}`)
+        navigate(`${studioPath}/agent/${agentId}/conversation/${remaining[0].id}`)
       } else {
-        navigate(`${studioPath}/assistant/${agentId}`)
+        navigate(`${studioPath}/agent/${agentId}`)
       }
     }
   }, [agentId, agentsMap, conversationId, navigate, studioPath, upsertAgent])
@@ -1023,7 +1023,7 @@ export function StudioShell({
   }, [conversationId, runtimeConversations, handleSaveRuntimeConversation])
 
   const handleLoadAgent = useCallback((targetAgentId: string) => {
-    navigate(`${studioPath}/assistant/${targetAgentId}`)
+    navigate(`${studioPath}/agent/${targetAgentId}`)
   }, [navigate, studioPath])
 
   const handleDeleteSavedAgent = useCallback((targetAgentId: string) => {
@@ -1059,7 +1059,7 @@ export function StudioShell({
       conversations: [],
     })
 
-    navigate(`${studioPath}/assistant/${duplicateId}`)
+    navigate(`${studioPath}/agent/${duplicateId}`)
   }, [agentsMap, navigate, studioPath, upsertAgent])
 
   const handleNewAgent = useCallback(() => {
@@ -1130,7 +1130,7 @@ export function StudioShell({
     }
 
     // Navigate to the agent flow editing route
-    navigate(`${studioPath}/assistant/${agentId}/actions/${attachedFlow.slashAction.actionId}`)
+    navigate(`${studioPath}/agent/${agentId}/actions/${attachedFlow.slashAction.actionId}`)
   }, [navigate, agentId, attachedFlows, studioPath])
 
   // Navigation helpers
@@ -1440,7 +1440,7 @@ export function StudioShell({
                     return (
                       <Link
                         key={agent.id}
-                        to={`${studioPath}/assistant/${agent.id}`}
+                        to={`${studioPath}/agent/${agent.id}`}
                         className="group p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-violet-500 dark:hover:border-violet-500 hover:shadow-lg transition-all bg-white dark:bg-slate-900"
                       >
                         <div className="flex items-start justify-between mb-3">

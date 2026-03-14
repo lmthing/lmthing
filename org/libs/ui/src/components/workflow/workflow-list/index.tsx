@@ -67,7 +67,7 @@ export function WorkflowList({
           <div className="workflow-list__title-row">
             <div>
               <Heading level={1}>Workflow Builder</Heading>
-              <Caption muted>Create sequential step flows for automated assistant workflows</Caption>
+              <Caption muted>Create sequential step flows for automated agent workflows</Caption>
             </div>
             <Button variant="primary" onClick={onCreateWorkflow}>
               <svg className="workflow-list__create-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -188,7 +188,7 @@ export function WorkflowList({
                 </div>
                 <Heading level={2}>Create your first workflow</Heading>
                 <Caption muted className="workflow-list__empty-first-caption">
-                  Build sequential step flows to automate complex assistant workflows. Start with a simple workflow and add steps as you go.
+                  Build sequential step flows to automate complex agent workflows. Start with a simple workflow and add steps as you go.
                 </Caption>
                 <div className="workflow-list__empty-first-tags">
                   {EMPTY_STATE_TAGS.map((tag) => (

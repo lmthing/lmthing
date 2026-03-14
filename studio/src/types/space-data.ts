@@ -1,14 +1,13 @@
 /**
- * Phase 4: Domain Type Renames
+ * Phase 4: Domain Type Renames — standardized on "Agent" terminology.
  *
- * New canonical types for the UI layer. Maps old entity names to new ones:
- *   WorkspaceData → SpaceData
- *   Agent → Assistant
- *   Flow → Workflow
- *   FlowTask → WorkflowStep
- *   KnowledgeDomain → KnowledgeField
+ * Canonical type mappings:
+ *   WorkspaceData -> SpaceData
+ *   Flow -> Workflow
+ *   FlowTask -> WorkflowStep
+ *   KnowledgeDomain -> KnowledgeField
  *
- * FS paths stay unchanged (agents/, flows/) — only UI types are renamed.
+ * FS paths stay unchanged (agents/, flows/) — types now consistently use "Agent".
  */
 
 import type { PromptConfig } from 'lmthing'
@@ -27,7 +26,7 @@ export interface SlashActionParameter {
 
 export interface MessageSlashAction {
   action: string
-  assistantId: string
+  agentId: string
   workflowId: string
   parameters: SlashActionParameter
 }
@@ -38,7 +37,7 @@ export interface StructuredOutput {
   metadata: {
     generatedAt: string
     generatedBy: string
-    assistantId: string
+    agentId: string
   }
   [key: string]: unknown
 }
@@ -55,15 +54,15 @@ export interface Message {
 // ============== Conversation Types ==============
 export interface Conversation {
   id: string
-  assistantId: string
-  assistantName: string
+  agentId: string
+  agentName: string
   messages: Message[]
   createdAt: string
   updatedAt: string
 }
 
-// ============== Assistant Types (was Agent) ==============
-export interface AssistantFrontmatter {
+// ============== Agent Types ==============
+export interface AgentFrontmatter {
   name?: string
   description?: string
   tools?: string[]
@@ -71,12 +70,12 @@ export interface AssistantFrontmatter {
   [key: string]: unknown
 }
 
-export interface AssistantConfig {
+export interface AgentConfig {
   emptyFieldsForRuntime: (string | { id: string; label: string; field: string })[]
   [key: string]: unknown
 }
 
-export interface AssistantSlashAction {
+export interface AgentSlashAction {
   name: string
   description: string
   workflowId: string
@@ -89,17 +88,17 @@ export interface FormValues {
 
 export type FormFieldValue = string | string[] | boolean | number | undefined
 
-export interface Assistant {
+export interface Agent {
   id: string
-  frontmatter: AssistantFrontmatter
+  frontmatter: AgentFrontmatter
   mainInstruction: string
-  slashActions: AssistantSlashAction[]
-  config: AssistantConfig
+  slashActions: AgentSlashAction[]
+  config: AgentConfig
   formValues: FormValues
   conversations: Conversation[]
 }
 
-// ============== Workflow Step Types (was FlowTask) ==============
+// ============== Workflow Step Types ==============
 export interface StepOutputSchema {
   type: string
   properties: Record<string, unknown>
@@ -125,13 +124,13 @@ export interface WorkflowStep {
   targetFieldName?: string
 }
 
-// ============== Workflow Types (was Flow) ==============
+// ============== Workflow Types ==============
 export interface WorkflowFrontmatter {
   id: string
   name: string
   status: string
   scope: string
-  assistantId: string
+  agentId: string
   tags: string[]
   stepCount: string
   createdAt: string
@@ -209,10 +208,10 @@ export interface EncryptedEnvFile {
 
 export type SpaceEnv = Record<string, EncryptedEnvFile>
 
-// ============== Space Types (was Workspace) ==============
+// ============== Space Types ==============
 export interface SpaceData {
   id: string
-  assistants: Record<string, Assistant>
+  agents: Record<string, Agent>
   workflows: Record<string, Workflow>
   knowledge: KnowledgeNode[]
   packageJson: PackageJson | null
@@ -230,7 +229,7 @@ export interface ExtractedDataStructure {
 }
 
 // ============== Helper Types for Components ==============
-export interface AssistantListItem {
+export interface AgentListItem {
   id: string
   name: string
   description: string
@@ -260,18 +259,8 @@ export interface KnowledgeFieldItem {
 }
 
 // ============== Backward Compatibility Aliases ==============
-// These aliases allow gradual migration from old type names
+// Workflow-related aliases (keeping these as they refer to Flow -> Workflow rename, not assistant/agent)
 
-/** @deprecated Use Assistant */
-export type Agent = Assistant
-/** @deprecated Use AssistantFrontmatter */
-export type AgentFrontmatter = AssistantFrontmatter
-/** @deprecated Use AssistantConfig */
-export type AgentConfig = AssistantConfig
-/** @deprecated Use AssistantSlashAction */
-export type AgentSlashAction = AssistantSlashAction
-/** @deprecated Use AssistantListItem */
-export type AgentListItem = AssistantListItem
 /** @deprecated Use Workflow */
 export type Flow = Workflow
 /** @deprecated Use WorkflowFrontmatter */

@@ -701,7 +701,7 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
         prompt.defSystem(
           'role',
           [
-            'You are thing, the built-in AI assistant for lmthing studio — a no-code platform for building, configuring, and deploying custom AI agents.',
+            'You are thing, the built-in AI agent for lmthing studio — a no-code platform for building, configuring, and deploying custom AI agents.',
             '',
             'lmthing studio lets users:',
             '• Organize domain knowledge as markdown files in a tree structure (the Knowledge section).',
@@ -2201,12 +2201,12 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
   ])
 
   const runThingConversation = useCallback((conversationId: string, conversation: ThingMessage[]) => {
-    const assistantMessageId = `thing-assistant-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const responseMessageId = `thing-response-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
     updateConversationMessages(conversationId, [
       ...conversation,
       {
-        id: assistantMessageId,
+        id: responseMessageId,
         role: 'assistant',
         content: '',
       },
@@ -2218,7 +2218,7 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
     void (async () => {
       let streamedContent = ''
 
-      const appendToAssistantMessage = (text: string) => {
+      const appendToResponseMessage = (text: string) => {
         if (!text) return
         streamedContent += text
 
@@ -2228,7 +2228,7 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
             ...item,
             updatedAt: new Date().toISOString(),
             messages: item.messages.map((message) => (
-              message.id === assistantMessageId
+              message.id === responseMessageId
                 ? { ...message, content: (message.content || '') + text }
                 : message
             )),
@@ -2238,14 +2238,14 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
 
       const appendToolEvent = (eventText: string) => {
         const chunk = `${streamedContent ? '\n\n' : ''}${eventText}\n`
-        appendToAssistantMessage(chunk)
+        appendToResponseMessage(chunk)
       }
 
       let response: string
       try {
         response = await handleThingMessage(
           conversation,
-          (delta) => appendToAssistantMessage(delta),
+          (delta) => appendToResponseMessage(delta),
           (eventMessage) => appendToolEvent(eventMessage),
         )
       } catch (error) {
@@ -2259,7 +2259,7 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
           ...item,
           updatedAt: new Date().toISOString(),
           messages: item.messages.map((message) => (
-            message.id === assistantMessageId
+            message.id === responseMessageId
               ? {
                 ...message,
                 content: message.content?.trim() ? message.content : response,

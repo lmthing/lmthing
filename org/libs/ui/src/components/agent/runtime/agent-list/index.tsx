@@ -84,7 +84,7 @@ function AgentCard({ agent, onClick }: { agent: RuntimeAgent; onClick: () => voi
   )
 }
 
-export function AgentList({ assistants, isLoading = false, onSelectAgent }: AgentListProps) {
+export function AgentList({ agents, isLoading = false, onSelectAgent }: AgentListProps) {
   return (
     <Page full>
       <PageHeader className="agent-list__header">

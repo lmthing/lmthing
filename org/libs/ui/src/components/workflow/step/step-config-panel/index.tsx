@@ -341,7 +341,7 @@ export function StepConfigPanel({ step, availableTools, availablePromptFragments
                     <Code>{`{{previousStep.stepId.field}}`}</Code>
                     <Code>{`{{workflow.output.field}}`}</Code>
                     <Code>{`{{now}}`}</Code>
-                    <Code>{`{{assistant.name}}`}</Code>
+                    <Code>{`{{agent.name}}`}</Code>
                   </div>
                 </div>
               </div>

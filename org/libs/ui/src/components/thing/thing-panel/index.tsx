@@ -1,5 +1,5 @@
 /**
- * ThingPanel - AI assistant chat interface.
+ * ThingPanel - AI agent chat interface.
  * Adapted from the old ThingPanel to use the new FS state layer.
  * Provides a conversational interface with tool-calling for workspace operations.
  */
@@ -422,11 +422,11 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
   // ── Run conversation ──────────────────────────────────────────────
 
   const runConversation = useCallback((conversationId: string, conversation: ThingMessage[]) => {
-    const assistantId = `thing-assistant-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const responseId = `thing-response-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
     updateMessages(conversationId, [
       ...conversation,
-      { id: assistantId, role: 'assistant', content: '' },
+      { id: responseId, role: 'assistant', content: '' },
     ])
 
     setIsWorking(true)
@@ -441,7 +441,7 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
             ...c,
             updatedAt: new Date().toISOString(),
             messages: c.messages.map(m =>
-              m.id === assistantId ? { ...m, content: (m.content || '') + text } : m
+              m.id === responseId ? { ...m, content: (m.content || '') + text } : m
             ),
           }
         }))
@@ -465,7 +465,7 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
           ...c,
           updatedAt: new Date().toISOString(),
           messages: c.messages.map(m =>
-            m.id === assistantId
+            m.id === responseId
               ? { ...m, content: m.content?.trim() ? m.content : response }
               : m
           ),

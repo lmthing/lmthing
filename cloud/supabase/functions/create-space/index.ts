@@ -8,6 +8,7 @@ import {
   SPACE_IMAGE,
   SPACE_SPEC,
   SPACE_TOKEN_SECRET,
+  HEALTH_CHECK,
 } from "../_shared/container.ts";
 
 Deno.serve(async (req) => {
@@ -147,6 +148,7 @@ async function provisionMachine(
           ],
         },
       ],
+      checks: HEALTH_CHECK,
       metadata: {
         space_id: opts.spaceId,
         user_id: opts.userId,

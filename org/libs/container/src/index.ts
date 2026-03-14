@@ -6,6 +6,7 @@ export type {
   CreateMachineConfig,
   MountConfig,
   ServiceConfig,
+  HealthCheck,
   Machine,
   CreateVolumeConfig,
   Volume,

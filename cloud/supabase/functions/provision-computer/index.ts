@@ -6,6 +6,7 @@ import {
   FLY_ORG,
   SPACE_SPEC,
   COMPUTER_TOKEN_SECRET,
+  HEALTH_CHECK,
 } from "../_shared/container.ts";
 
 const COMPUTER_IMAGE =
@@ -121,6 +122,7 @@ async function provisionComputer(
           ],
         },
       ],
+      checks: HEALTH_CHECK,
       metadata: {
         user_id: opts.userId,
         mode: "computer",

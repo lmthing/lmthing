@@ -39,8 +39,26 @@ export interface CreateMachineConfig {
   services?: ServiceConfig[]
   /** Auto-destroy on exit */
   autoDestroy?: boolean
+  /** Health checks */
+  checks?: Record<string, HealthCheck>
   /** Metadata */
   metadata?: Record<string, string>
+}
+
+/** Machine health check configuration */
+export interface HealthCheck {
+  /** Check type */
+  type: 'http' | 'tcp'
+  /** Port to check */
+  port: number
+  /** HTTP path (for http type) */
+  path?: string
+  /** Interval between checks in milliseconds */
+  intervalMs?: number
+  /** Timeout for each check in milliseconds */
+  timeoutMs?: number
+  /** HTTP method (for http type) */
+  method?: string
 }
 
 /** Volume mount configuration */

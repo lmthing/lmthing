@@ -40,6 +40,18 @@ export const SPACE_TOKEN_SECRET = Deno.env.get("SPACE_TOKEN_SECRET") ?? "";
 /** Token secret injected into computer containers for WebSocket auth */
 export const COMPUTER_TOKEN_SECRET = Deno.env.get("COMPUTER_TOKEN_SECRET") ?? "";
 
+/** Default health check for all containers */
+export const HEALTH_CHECK = {
+  httpget: {
+    type: "http" as const,
+    port: 8080,
+    path: "/health",
+    intervalMs: 10_000,
+    timeoutMs: 5_000,
+    method: "GET",
+  },
+};
+
 /** Generate a unique Fly app name for a space */
 export function spaceAppName(slug: string, userId: string): string {
   const short = userId.replace(/-/g, "").slice(0, 8);

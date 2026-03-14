@@ -32,6 +32,14 @@ export interface FlyMachineConfig {
     }>
   }>
   auto_destroy?: boolean
+  checks?: Record<string, {
+    type: 'http' | 'tcp'
+    port: number
+    path?: string
+    interval?: number
+    timeout?: number
+    method?: string
+  }>
   metadata?: Record<string, string>
 }
 

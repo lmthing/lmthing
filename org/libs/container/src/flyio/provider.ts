@@ -68,6 +68,21 @@ export class FlyioProvider implements ContainerProvider {
           })),
         })),
         auto_destroy: config.autoDestroy,
+        checks: config.checks
+          ? Object.fromEntries(
+              Object.entries(config.checks).map(([name, c]) => [
+                name,
+                {
+                  type: c.type,
+                  port: c.port,
+                  path: c.path,
+                  interval: c.intervalMs,
+                  timeout: c.timeoutMs,
+                  method: c.method,
+                },
+              ]),
+            )
+          : undefined,
         metadata: config.metadata,
       },
     })

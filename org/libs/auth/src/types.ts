@@ -10,3 +10,12 @@ export interface AuthConfig {
   appName: string
   callbackPath: string
 }
+
+export interface AuthContextValue {
+  session: AuthSession | null
+  username: string | null
+  isAuthenticated: boolean
+  isLoading: boolean
+  login: () => void
+  logout: () => void
+}

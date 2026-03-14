@@ -16,7 +16,7 @@ Welcome to lmthing. This guide will get you set up and oriented in the codebase.
 
 ## Repository Structure
 
-The monorepo is organized by TLD — each lmthing.* domain has its own top-level directory.
+The monorepo is organized by TLD — each lmthing.\* domain has its own top-level directory.
 
 ```
 lmthing/
@@ -115,6 +115,7 @@ The agentic framework powering all of lmthing. Two modes of operation:
 - **Autonomous Agents** — self-directed task execution without human input
 
 Key concepts:
+
 - **StatefulPrompt** — React-like hooks (`useState`, `useEffect`, `useMemo`, `useCallback`) for managing agent state
 - **Plugins** — `defTaskList` (task management), `defTaskGraph` (DAG dependencies), `defFunction` (vm2 sandbox), `defMethod` (inline code)
 - **Provider resolution** — `openai/*`, `anthropic/*`, `google/*`, `mistral/*`, `azure/*`, `groq/*`, or any OpenAI-compatible endpoint
@@ -176,6 +177,7 @@ graph TB
 ### org/libs/state — Virtual File System
 
 In-memory VFS for browser-based workspace management:
+
 - `Map<string, string>` storage with `FSEventBus` for fine-grained subscriptions (file, dir, glob, prefix)
 - React context hierarchy: `AppProvider` → `StudioProvider` → `SpaceProvider`
 - Hooks: `useFile()`, `useDir()`, `useGlob()`, `useDraft()`
@@ -211,17 +213,17 @@ graph TB
 
 The **sole backend** for all lmthing products. All server-side logic lives here as Supabase Edge Functions (Deno runtime). Any new backend functionality must be added here. Nine edge functions:
 
-| Function | Method | Purpose |
-|----------|--------|---------|
-| `generate-ai` | POST | Streaming LLM proxy via Stripe |
-| `list-models` | GET | Available models |
-| `create-api-key` | POST | Generate `lmt_` prefixed key |
-| `list-api-keys` | GET | Key prefixes |
-| `revoke-api-key` | POST | Soft-delete key |
-| `create-checkout` | POST | Stripe checkout session |
-| `billing-portal` | POST | Stripe customer portal |
-| `get-usage` | GET | Stripe balance/usage |
-| `stripe-webhook` | POST | Stripe webhooks (no auth) |
+| Function          | Method | Purpose                        |
+| ----------------- | ------ | ------------------------------ |
+| `generate-ai`     | POST   | Streaming LLM proxy via Stripe |
+| `list-models`     | GET    | Available models               |
+| `create-api-key`  | POST   | Generate `lmt_` prefixed key   |
+| `list-api-keys`   | GET    | Key prefixes                   |
+| `revoke-api-key`  | POST   | Soft-delete key                |
+| `create-checkout` | POST   | Stripe checkout session        |
+| `billing-portal`  | POST   | Stripe customer portal         |
+| `get-usage`       | GET    | Stripe balance/usage           |
+| `stripe-webhook`  | POST   | Stripe webhooks (no auth)      |
 
 Shared modules in `_shared/`: `auth.ts` (JWT + API key), `cors.ts`, `stripe.ts`, `supabase.ts`.
 
@@ -264,24 +266,37 @@ graph TB
 
 ## Authentication
 
-Three auth modes:
+All frontend apps authenticate via **Supabase Auth through com/** (the central auth hub). No app has its own login UI or Supabase client — they all redirect to com/ for login.
 
-1. **No account (BYOK)** — local password encrypts API keys in localStorage (PBKDF2 250k iterations + AES-256-GCM). No server needed.
-2. **GitHub OAuth** — device flow for cloud features + workspace syncing
-3. **Backend auth** — Supabase JWT (browser) or `lmt_` API key (SDK/scripts), both resolve to `user_id` + `stripe_customer_id`
+**Auth providers** (configured in Supabase dashboard): GitHub OAuth, Google OAuth, email/password.
 
-Cross-domain: SSO/OAuth redirect flow between all lmthing.* domains.
+**Frontend auth** uses the shared `@lmthing/auth` library, which implements cross-domain SSO:
+
+1. App detects no session → redirects to `com/auth/sso`
+2. com/ authenticates the user (Supabase Auth with GitHub/Google/email)
+3. com/ issues a single-use SSO code (60s TTL) via `cloud/create-sso-code`
+4. Redirects back to the app with `?code=...&state=...`
+5. App exchanges the code for a session via `cloud/exchange-sso-code`
+
+**Backend auth** — Supabase JWT (browser) or `lmt_` API key (SDK/scripts), both resolve to `user_id` + `stripe_customer_id` via `cloud/_shared/auth.ts`.
 
 ```mermaid
 flowchart TD
-    subgraph Frontend["Frontend Auth"]
-        NoAccount["No Account (BYOK)"]
-        NoAccount --> LP["Local Password"]
-        LP --> PBKDF2["PBKDF2 (250k iter)<br/>+ AES-256-GCM"]
-        PBKDF2 --> LS["localStorage<br/>Encrypted API keys"]
-        GH["GitHub OAuth"]
-        GH --> DeviceFlow["Device Flow"]
-        DeviceFlow --> Token["OAuth Token"]
+    subgraph Apps["Frontend Apps"]
+        Studio["studio"]
+        Computer["computer"]
+        Chat["chat"]
+        Other["other apps"]
+    end
+
+    subgraph Com["com/ (Central Auth Hub)"]
+        Supabase["Supabase Auth"]
+        GitHub["GitHub OAuth"]
+        Google["Google OAuth"]
+        Email["Email/Password"]
+        Supabase --> GitHub
+        Supabase --> Google
+        Supabase --> Email
     end
 
     subgraph Backend["Backend Auth"]
@@ -293,7 +308,71 @@ flowchart TD
         Hash --> UserID
     end
 
-    Frontend -- "Authorization header" --> Backend
+    Apps -- "SSO redirect" --> Com
+    Com -- "SSO code" --> Apps
+    Apps -- "Authorization header" --> Backend
+```
+
+### Integrating Auth in a New Service
+
+To add authentication to a new lmthing.\* app:
+
+**1. Add the dependency:**
+
+```bash
+cd your-app/
+pnpm add "@lmthing/auth@workspace:*"
+```
+
+**2. Wrap your app with `AuthProvider`:**
+
+```tsx
+// src/routes/__root.tsx (or equivalent entry point)
+import { AuthProvider, useAuth } from "@lmthing/auth";
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) return null;
+  if (!isAuthenticated) {
+    // Redirect to com/ for login, or show a login button
+    return <LoginScreen />;
+  }
+  return <>{children}</>;
+}
+
+function RootComponent() {
+  return (
+    <AuthProvider appName="your-app-name">
+      <AuthGate>
+        <Outlet />
+      </AuthGate>
+    </AuthProvider>
+  );
+}
+```
+
+**3. Use `useAuth()` anywhere in your app:**
+
+```tsx
+const { username, isAuthenticated, isLoading, login, logout } = useAuth();
+```
+
+- `login()` — redirects to com/ for SSO login
+- `logout()` — clears the local session
+- `username` — the user's email
+- `session.accessToken` — JWT for calling cloud functions
+
+**4. Ensure the Vite alias is registered** in `org/libs/utils/src/vite.mjs`:
+
+```js
+'@lmthing/auth': path.resolve(dirname, '../org/libs/auth/src'),
+```
+
+**5. Environment variables** (optional overrides — defaults are auto-resolved):
+
+```
+VITE_COM_URL=https://com.local       # defaults: com.local (dev) / lmthing.com (prod)
+VITE_CLOUD_URL=https://cloud.local/functions/v1  # defaults: cloud.local (dev) / lmthing.cloud (prod)
 ```
 
 ---
@@ -334,13 +413,13 @@ sequenceDiagram
 
 ## Data Storage
 
-| Layer | What | Where |
-|-------|------|-------|
-| Client (ephemeral) | Auth tokens, encrypted sessions | localStorage |
-| Client (ephemeral) | Workspace files | In-memory VFS |
-| Server | User profiles, API keys (RLS) | Supabase PostgreSQL |
-| Server | Billing, meters, subscriptions | Stripe |
-| Sync | Workspace persistence | GitHub repositories |
+| Layer              | What                            | Where               |
+| ------------------ | ------------------------------- | ------------------- |
+| Client (ephemeral) | Auth tokens, encrypted sessions | localStorage        |
+| Client (ephemeral) | Workspace files                 | In-memory VFS       |
+| Server             | User profiles, API keys (RLS)   | Supabase PostgreSQL |
+| Server             | Billing, meters, subscriptions  | Stripe              |
+| Sync               | Workspace persistence           | GitHub repositories |
 
 ```mermaid
 graph LR
@@ -368,14 +447,14 @@ graph LR
 
 Different products run agents in different environments:
 
-| Product | Runtime |
-|---------|---------|
-| Studio | Browser (WebContainer for free tier) |
-| Computer | Fly.io node (1 core, 1 GB) — THING agent + studio spaces |
-| Space | Fly.io container — deployed spaces + published agents |
-| Blog | Shared serverless worker |
-| Casa | Computer node → remote Home Assistant connection |
-| Social/Team | Shared VFS + conversation log |
+| Product     | Runtime                                                  |
+| ----------- | -------------------------------------------------------- |
+| Studio      | Browser (WebContainer for free tier)                     |
+| Computer    | Fly.io node (1 core, 1 GB) — THING agent + studio spaces |
+| Space       | Fly.io container — deployed spaces + published agents    |
+| Blog        | Shared serverless worker                                 |
+| Casa        | Computer node → remote Home Assistant connection         |
+| Social/Team | Shared VFS + conversation log                            |
 
 ---
 
@@ -402,31 +481,31 @@ make up            # start all services
 
 Each app runs on its own Vite dev server. The local proxy maps `*.local` domains via nginx.
 
-| App | Port | Local Domain |
-|-----|------|--------------|
-| Studio | 3000 | [studio.local](http://studio.local) |
-| Chat | 3001 | [chat.local](http://chat.local) |
-| Com | 3002 | [com.local](http://com.local) |
-| Social | 3003 | [social.local](http://social.local) |
-| Store | 3004 | [store.local](http://store.local) |
-| Space | 3005 | [space.local](http://space.local) |
-| Team | 3006 | [team.local](http://team.local) |
+| App      | Port | Local Domain                            |
+| -------- | ---- | --------------------------------------- |
+| Studio   | 3000 | [studio.local](http://studio.local)     |
+| Chat     | 3001 | [chat.local](http://chat.local)         |
+| Com      | 3002 | [com.local](http://com.local)           |
+| Social   | 3003 | [social.local](http://social.local)     |
+| Store    | 3004 | [store.local](http://store.local)       |
+| Space    | 3005 | [space.local](http://space.local)       |
+| Team     | 3006 | [team.local](http://team.local)         |
 | Computer | 3010 | [computer.local](http://computer.local) |
-| Blog | 3007 | [blog.local](http://blog.local) |
-| Casa | 3008 | [casa.local](http://casa.local) |
-| Cloud | 3009 | [cloud.local](http://cloud.local) |
+| Blog     | 3007 | [blog.local](http://blog.local)         |
+| Casa     | 3008 | [casa.local](http://casa.local)         |
+| Cloud    | 3009 | [cloud.local](http://cloud.local)       |
 
 Port assignments and domain mappings are defined in `services.yaml`.
 
 ### Make Targets
 
-| Command | Description |
-|---------|-------------|
-| `make up` | Start all frontend dev servers in parallel |
-| `make down` | Stop all running dev servers |
-| `make proxy` | Set up nginx + `/etc/hosts` for `*.local` domains (interactive, prompts for sudo) |
-| `make proxy-clean` | Remove nginx configs and `/etc/hosts` entries |
-| `make install` | Run `pnpm install` |
+| Command            | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `make up`          | Start all frontend dev servers in parallel                                        |
+| `make down`        | Stop all running dev servers                                                      |
+| `make proxy`       | Set up nginx + `/etc/hosts` for `*.local` domains (interactive, prompts for sudo) |
+| `make proxy-clean` | Remove nginx configs and `/etc/hosts` entries                                     |
+| `make install`     | Run `pnpm install`                                                                |
 
 ### Proxy Setup
 
@@ -468,10 +547,9 @@ All frontend apps share the same stack:
 - [org/libs/css/](./org/libs/css/) — shared styles
 - [org/libs/ui/](./org/libs/ui/) — shared UI components
 
-
 # Agent Notes
 
-This repository is a monorepo organized by TLD — each lmthing.* domain has its own top-level directory.
+This repository is a monorepo organized by TLD — each lmthing.\* domain has its own top-level directory.
 
 ## Shared Libraries
 
@@ -496,7 +574,6 @@ This repository is a monorepo organized by TLD — each lmthing.* domain has its
 - `store/` — Agent marketplace.
 - `casa/` — Smart home (Home Assistant integration).
 - `com/` — Commercial landing page.
-
 
 ## Spaces Architecture
 
@@ -549,12 +626,12 @@ This structure lets agents pull rich, user-configured context at runtime — the
 
 ### Naming Conventions
 
-| Thing | Convention | Example |
-|-------|-----------|---------|
-| Folders | `kebab-case` | `agent-formula-expert` |
-| Variables | `camelCase` | `gradeLevel` |
-| Agent names | `PascalCase` | `FormulaExpert` |
-| Flow IDs | `snake_case` + `flow_` prefix | `flow_generate_report` |
+| Thing       | Convention                    | Example                |
+| ----------- | ----------------------------- | ---------------------- |
+| Folders     | `kebab-case`                  | `agent-formula-expert` |
+| Variables   | `camelCase`                   | `gradeLevel`           |
+| Agent names | `PascalCase`                  | `FormulaExpert`        |
+| Flow IDs    | `snake_case` + `flow_` prefix | `flow_generate_report` |
 
 ## Key Documentation
 

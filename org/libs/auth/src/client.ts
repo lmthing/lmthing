@@ -30,11 +30,15 @@ export async function handleAuthCallback(config: AuthConfig): Promise<AuthSessio
   if (!code) return null
 
   // Verify state to prevent CSRF
+  // Note: don't remove from sessionStorage until exchange succeeds,
+  // because React StrictMode double-invokes effects in dev
   const savedState = sessionStorage.getItem('sso_state')
   if (state !== savedState) {
+    // If state is missing entirely, this is likely a StrictMode re-run after
+    // a successful exchange already cleared it — treat as no-op
+    if (!savedState) return getSession()
     throw new Error('Invalid state parameter — possible CSRF attack')
   }
-  sessionStorage.removeItem('sso_state')
 
   const callbackUrl = `${window.location.origin}${config.callbackPath}`
 
@@ -48,6 +52,9 @@ export async function handleAuthCallback(config: AuthConfig): Promise<AuthSessio
     const body = await res.json().catch(() => ({ error: { message: 'SSO exchange failed' } }))
     throw new Error(body.error?.message || 'SSO exchange failed')
   }
+
+  // Exchange succeeded — now safe to clear the state
+  sessionStorage.removeItem('sso_state')
 
   const data = await res.json()
   const session: AuthSession = {

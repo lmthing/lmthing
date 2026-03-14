@@ -20,7 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@lmthing/ui/elements/overlays/dialog'
-import { useGithub } from '@/lib/github/GithubContext'
 import { useAuth } from '@/lib/auth/useAuth'
 import { buildSpacePath } from '@/lib/space-url'
 import { CozyThingText } from '../CozyText'
@@ -57,10 +56,8 @@ type Space = {
 
 export default function LandingLayout() {
   const navigate = useNavigate()
-  const { username } = useAuth()
+  const { username, logout } = useAuth()
   const [isSpaceModalOpen, toggleSpaceModal, setIsSpaceModalOpen] = useToggle('landing.space-modal-open', false)
-
-  const { login, logout, isAuthenticated, isLoadingAuth } = useGithub()
   const [searchQuery, setSearchQuery] = useUIState('landing.search-query', '')
   const [demoSpaces, setDemoSpaces] = useUIState<DemoSpace[]>('landing.demo-spaces', [])
 
@@ -157,11 +154,10 @@ export default function LandingLayout() {
                 Open Studio
               </Button>
               <button
-                onClick={() => { if (isLoadingAuth) return; if (isAuthenticated) { logout(); return; } void login().catch(console.error) }}
-                disabled={isLoadingAuth}
+                onClick={() => logout()}
                 className="btn btn--ghost btn--sm"
               >
-                {isLoadingAuth ? 'Loading...' : isAuthenticated ? 'Logout' : 'Login with GitHub'}
+                Sign Out
               </button>
             </div>
           </div>

@@ -1,7 +1,6 @@
 import { createRootRoute, Outlet } from '@tanstack/react-router'
 import { AppProvider } from '@/lib/contexts/AppContext'
-import { AuthProvider } from '@/lib/auth'
-import { useAuth } from '@/lib/auth/useAuth'
+import { AuthProvider, useAuth } from '@lmthing/auth'
 import { LoginScreen } from '@lmthing/ui/components/auth/login-screen'
 import { SystemStudioBootstrap } from '@lmthing/ui/components/auth/system-studio-bootstrap'
 import { GithubProvider } from '@/lib/github/GithubContext'
@@ -20,15 +19,15 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   return (
     <AppProvider>
-      <AuthProvider>
+      <AuthProvider appName="studio">
         <QueryClientProvider client={queryClient}>
-          <GithubProvider>
-            <AuthGate>
+          <AuthGate>
+            <GithubProvider>
               <SystemStudioBootstrap>
                 <Outlet />
               </SystemStudioBootstrap>
-            </AuthGate>
-          </GithubProvider>
+            </GithubProvider>
+          </AuthGate>
         </QueryClientProvider>
       </AuthProvider>
     </AppProvider>

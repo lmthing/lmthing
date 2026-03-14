@@ -68,7 +68,7 @@ export function StudioSidebar({
   const [assistantsExpanded, toggleAssistantsExpanded] = useToggle('sidebar.assistants.expanded', true)
   const [conversationsExpanded, toggleConversationsExpanded] = useToggle('sidebar.conversations.expanded', true)
 
-  const { login, logout, isAuthenticated, isLoadingAuth, deviceCodePrompt } = useGithub()
+  const { isAuthenticated: isGithubConnected, isLoadingAuth: isGithubLoading, login: connectGithub, logout: disconnectGithub, deviceCodePrompt } = useGithub()
 
   const assistantList = useAssistantList()
   const knowledgeFields = useKnowledgeFields()
@@ -209,23 +209,23 @@ export function StudioSidebar({
           </button>
           <button
             onClick={() => {
-              if (isLoadingAuth) return
-              if (isAuthenticated) { logout(); return }
-              void login().catch(console.error)
+              if (isGithubLoading) return
+              if (isGithubConnected) { disconnectGithub(); return }
+              void connectGithub().catch(console.error)
             }}
-            disabled={isLoadingAuth}
+            disabled={isGithubLoading}
             className="sidebar__item"
           >
             <Github className="studio-sidebar__footer-icon" />
             {!isCollapsed && (
               <span className="studio-sidebar__footer-label">
-                {isLoadingAuth ? 'Loading...' : isAuthenticated ? 'Logout GitHub' : 'Login with GitHub'}
+                {isGithubLoading ? 'Loading...' : isGithubConnected ? 'Disconnect GitHub' : 'Connect GitHub'}
               </span>
             )}
           </button>
           {!isCollapsed && deviceCodePrompt && (
             <div className="studio-sidebar__device-code">
-              <p>Authorize GitHub: <a to={deviceCodePrompt.verificationUri} target="_blank" rel="noopener noreferrer">{deviceCodePrompt.verificationUri}</a></p>
+              <p>Authorize GitHub: <a href={deviceCodePrompt.verificationUri} target="_blank" rel="noopener noreferrer">{deviceCodePrompt.verificationUri}</a></p>
               <p>Code: <code>{deviceCodePrompt.userCode}</code></p>
             </div>
           )}

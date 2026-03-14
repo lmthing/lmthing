@@ -1,3 +1,2 @@
-export { AuthProvider } from './AuthContext'
-export type { AuthContextValue } from './AuthContext'
-export { useAuth } from './useAuth'
+export { AuthProvider, useAuth } from '@lmthing/auth'
+export type { AuthContextValue } from '@lmthing/auth'

@@ -38,3 +38,4 @@ dist-ssr
 *.sln
 *.sw?
 **/.env
+**/.env.local

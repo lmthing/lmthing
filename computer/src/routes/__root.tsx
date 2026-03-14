@@ -1,6 +1,6 @@
 import { createRootRoute, Outlet, useRouter, useRouterState } from '@tanstack/react-router'
 import { AppProvider } from '@lmthing/state'
-import { AuthProvider, useAuth } from '@/lib/auth/AuthContext'
+import { AuthProvider, useAuth } from '@lmthing/auth'
 import { ComputerProvider, useComputer } from '@/lib/runtime/ComputerContext'
 import { useTierDetection } from '@/lib/runtime/use-tier-detection'
 import { ComputerLayout } from '@lmthing/ui/components/computer/computer-layout'
@@ -51,7 +51,7 @@ function TierAwareProvider({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   return (
     <AppProvider>
-      <AuthProvider>
+      <AuthProvider appName="computer">
         <AuthGate>
           <TierAwareProvider>
             <ComputerShell />

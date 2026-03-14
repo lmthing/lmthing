@@ -41,7 +41,7 @@ export function SpacesLayout() {
   const navigate = useNavigate()
   const { username, studioId } = useParams({ strict: false }) as { username: string; studioId: string }
   const { spaces, createSpace } = useStudio()
-  const { login, logout, isAuthenticated, isLoadingAuth } = useGithub()
+  const { login: connectGithub, logout: disconnectGithub, isAuthenticated: isGithubConnected, isLoadingAuth: isGithubLoading } = useGithub()
 
   const [isSidebarCollapsed, toggleSidebarCollapsed] = useToggle('spaces-layout.sidebar-collapsed', false)
   const [searchQuery, setSearchQuery] = useUIState('spaces-layout.search-query', '')
@@ -117,9 +117,9 @@ export function SpacesLayout() {
         </div>
 
         <div className="spaces-layout__sidebar-footer">
-          <button onClick={() => { if (isLoadingAuth) return; if (isAuthenticated) { logout(); return; } void login().catch(console.error) }} disabled={isLoadingAuth} className="sidebar__item spaces-layout__footer-btn">
+          <button onClick={() => { if (isGithubLoading) return; if (isGithubConnected) { disconnectGithub(); return; } void connectGithub().catch(console.error) }} disabled={isGithubLoading} className="sidebar__item spaces-layout__footer-btn">
             <Github className="spaces-layout__github-icon" />
-            {!isSidebarCollapsed && <span className="spaces-layout__footer-label">{isLoadingAuth ? 'Loading...' : isAuthenticated ? 'Logout GitHub' : 'Login with GitHub'}</span>}
+            {!isSidebarCollapsed && <span className="spaces-layout__footer-label">{isGithubLoading ? 'Loading...' : isGithubConnected ? 'Disconnect GitHub' : 'Connect GitHub'}</span>}
           </button>
           <button onClick={() => toggleSidebarCollapsed()} className="sidebar__item spaces-layout__footer-btn">
             {isSidebarCollapsed ? <ChevronRight className="spaces-layout__collapse-icon" /> : <><ChevronLeft className="spaces-layout__collapse-icon" /><span className="spaces-layout__footer-label">Collapse</span></>}

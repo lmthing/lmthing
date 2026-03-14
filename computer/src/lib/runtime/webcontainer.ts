@@ -16,6 +16,12 @@ type Listener<T> = (value: T) => void
 let bootPromise: Promise<WebContainer> | null = null
 
 function getOrBootInstance(): Promise<WebContainer> {
+  if (!crossOriginIsolated) {
+    // WebContainer requires SharedArrayBuffer, which needs cross-origin isolation.
+    // On first visit the service worker isn't active yet — reload once to activate it.
+    location.reload()
+    return new Promise(() => {}) // never resolves; page is reloading
+  }
   if (!bootPromise) {
     bootPromise = WebContainer.boot()
   }

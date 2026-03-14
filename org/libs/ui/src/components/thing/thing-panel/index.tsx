@@ -40,7 +40,7 @@ const TOOL_EVENT_OPEN = '[[THING_TOOL_EVENT]]'
 const TOOL_EVENT_CLOSE = '[[/THING_TOOL_EVENT]]'
 
 const WELCOME_MESSAGE =
-  'I am THING. I can help you manage your studios, spaces, assistants, workflows, and knowledge. Ask me anything or type help.'
+  'I am THING. I can help you manage your studios, spaces, agents, workflows, and knowledge. Ask me anything or type help.'
 
 const HELP_MESSAGE = [
   'Available commands:',
@@ -50,7 +50,7 @@ const HELP_MESSAGE = [
   'You can also ask naturally, e.g.:',
   '  "Create a new studio called my-project"',
   '  "List all my studios"',
-  '  "What assistants are in this space?"',
+  '  "What agents are in this space?"',
 ].join('\n')
 
 const ACTION_NAMES = [
@@ -278,10 +278,10 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
 
       const { result } = await runPrompt(async (prompt) => {
         prompt.defSystem('role', [
-          'You are THING, the built-in AI assistant for lmthing — a platform for building and managing AI agent studios.',
+          'You are THING, the built-in AI agent for lmthing — a platform for building and managing AI agent studios.',
           '',
           'lmthing organizes work into: Users → Studios → Spaces.',
-          'Each space contains: assistants, workflows, knowledge fields, and configuration.',
+          'Each space contains: agents, workflows, knowledge fields, and configuration.',
           '',
           'You can create studios, manage files, and help users navigate their data.',
           'Be concise, precise, and helpful.',

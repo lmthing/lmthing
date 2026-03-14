@@ -1,7 +1,9 @@
 .PHONY: up down proxy proxy-clean install
 
-# Parse services from services.yaml (exclude cloud — it uses supabase functions serve)
-SERVICES := $(shell grep '^\s*- name:' services.yaml | awk '{print $$3}' | grep -v cloud)
+# Parse services by type from services.yaml
+VITE_SERVICES := $(shell awk '/- name:/{name=$$3} /type: vite/{print name}' services.yaml)
+SUPABASE_SERVICES := $(shell awk '/- name:/{name=$$3} /type: supabase/{print name}' services.yaml)
+SERVICES := $(VITE_SERVICES) $(SUPABASE_SERVICES)
 
 # Extract field for a given service name (usage: $(call field,SERVICE,FIELD))
 field = $(shell awk '/- name: $(1)/{found=1} found && /$(2):/{gsub(/["\x27]/, ""); print $$2; exit}' services.yaml)
@@ -17,7 +19,8 @@ up:
 	@$(foreach svc,$(SERVICES),fuser -k $(call port,$(svc))/tcp 2>/dev/null || true;)
 	@echo "Starting all services..."
 	@trap 'kill 0' INT TERM; \
-	$(foreach svc,$(SERVICES),(cd $(svc) && pnpm dev --port $(call port,$(svc)) --strictPort) 2>&1 | sed -u "s/^/\x1b[$(call color,$(svc))m$(call emoji,$(svc)) $(svc)\x1b[0m | /" & ) \
+	$(foreach svc,$(VITE_SERVICES),(cd $(svc) && pnpm dev --port $(call port,$(svc)) --strictPort) 2>&1 | sed -u "s/^/\x1b[$(call color,$(svc))m$(call emoji,$(svc)) $(svc)\x1b[0m | /" & ) \
+	$(foreach svc,$(SUPABASE_SERVICES),(cd $(svc) && pnpm dev) 2>&1 | sed -u "s/^/\x1b[$(call color,$(svc))m$(call emoji,$(svc)) $(svc)\x1b[0m | /" & ) \
 	wait
 
 # Stop any running dev servers

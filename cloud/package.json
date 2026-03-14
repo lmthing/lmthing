@@ -7,8 +7,10 @@
     "db:reset": "supabase db reset",
     "functions:serve": "supabase functions serve",
     "functions:deploy": "supabase functions deploy",
-    "start": "supabase start",
-    "stop": "supabase stop"
+    "dev": "supabase start",
+    "stop": "supabase stop",
+    "status": "supabase status",
+    "link": "supabase link"
   },
   "devDependencies": {
     "supabase": "catalog:"

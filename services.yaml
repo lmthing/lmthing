@@ -1,80 +1,91 @@
 services:
   - name: studio
+    type: vite
     domain: lmthing.studio
     local: studio.local
     port: 3000
     emoji: 🎨
-    color: "35"  # magenta
+    color: "35" # magenta
 
   - name: chat
+    type: vite
     domain: lmthing.chat
     local: chat.local
     port: 3001
     emoji: 💬
-    color: "36"  # cyan
+    color: "36" # cyan
 
   - name: com
+    type: vite
     domain: lmthing.com
     local: com.local
     port: 3002
     emoji: 🌐
-    color: "34"  # blue
+    color: "34" # blue
 
   - name: social
+    type: vite
     domain: lmthing.social
     local: social.local
     port: 3003
     emoji: 👥
-    color: "33"  # yellow
+    color: "33" # yellow
 
   - name: store
+    type: vite
     domain: lmthing.store
     local: store.local
     port: 3004
     emoji: 🏪
-    color: "32"  # green
+    color: "32" # green
 
   - name: space
+    type: vite
     domain: lmthing.space
     local: space.local
     port: 3005
     emoji: 🚀
-    color: "34"  # blue
+    color: "34" # blue
 
   - name: team
+    type: vite
     domain: lmthing.team
     local: team.local
     port: 3006
     emoji: 👔
-    color: "36"  # cyan
+    color: "36" # cyan
 
   - name: blog
+    type: vite
     domain: lmthing.blog
     local: blog.local
     port: 3007
     emoji: 📝
-    color: "33"  # yellow
+    color: "33" # yellow
 
   - name: casa
+    type: vite
     domain: lmthing.casa
     local: casa.local
     port: 3008
     emoji: 🏠
-    color: "32"  # green
+    color: "32" # green
 
   - name: cloud
+    type: supabase
     domain: lmthing.cloud
     local: cloud.local
-    port: 3009
+    port: 54321
     emoji: ☁️
-    color: "37"  # white
+    color: "37" # white
 
   - name: computer
+    type: vite
     domain: lmthing.computer
     local: computer.local
     port: 3010
     emoji: 🖥️
-    color: "35"  # magenta
+    color: "35" # magenta
     headers:
       Cross-Origin-Embedder-Policy: credentialless
       Cross-Origin-Opener-Policy: same-origin

@@ -1,6 +1,6 @@
 /**
  * StudioSidebar - Navigation sidebar for studio sections.
- * Uses new composite hooks (useAssistantList, useKnowledgeFields)
+ * Uses composite hooks (useAgentList, useKnowledgeFields)
  * and CSS element classes instead of raw Tailwind.
  */
 import { useMemo } from 'react'
@@ -21,11 +21,11 @@ import {
 import '@lmthing/css/elements/nav/sidebar/index.css'
 import '@lmthing/css/components/shell/index.css'
 import { buildSpacePathFromParams } from '@/lib/space-url'
-import { useAssistantList } from '@lmthing/ui/hooks/useAssistantList'
-import type { AssistantListItem } from '@lmthing/ui/hooks/useAssistantList'
+import { useAgentList } from '@lmthing/ui/hooks/useAgentList'
+import type { AgentListItem } from '@lmthing/ui/hooks/useAgentList'
 import { useKnowledgeFields } from '@lmthing/ui/hooks/useKnowledgeFields'
 import type { DomainMeta } from '@lmthing/ui/hooks/useKnowledgeFields'
-import { useAssistant } from '@lmthing/ui/hooks/useAssistant'
+import { useAgent } from '@lmthing/ui/hooks/useAgent'
 import { useGithub } from '@/lib/github/GithubContext'
 import { CozyThingText } from '@lmthing/ui/elements/branding/cozy-text'
 
@@ -33,10 +33,10 @@ export interface StudioSidebarProps {
   isCollapsed?: boolean
   onToggleCollapse?: () => void
   activeFieldId?: string
-  activeAssistantId?: string
+  activeAgentId?: string
   onOpenSettings?: () => void
   onCreateField?: () => void
-  onCreateAssistant?: () => void
+  onCreateAgent?: () => void
   onExportZip?: () => void
   onExportGithub?: () => void
   isExporting?: boolean
@@ -56,31 +56,31 @@ export function StudioSidebar({
   isCollapsed = false,
   onToggleCollapse,
   activeFieldId,
-  activeAssistantId,
+  activeAgentId,
   onOpenSettings,
   onCreateField,
-  onCreateAssistant,
+  onCreateAgent,
 }: StudioSidebarProps) {
   const { pathname } = useLocation()
   const { spaceId } = useParams({ strict: false }) as { spaceId?: string }
   const spacePath = useSpacePath()
   const [fieldsExpanded, toggleFieldsExpanded] = useToggle('sidebar.fields.expanded', true)
-  const [assistantsExpanded, toggleAssistantsExpanded] = useToggle('sidebar.assistants.expanded', true)
+  const [agentsExpanded, toggleAgentsExpanded] = useToggle('sidebar.agents.expanded', true)
   const [conversationsExpanded, toggleConversationsExpanded] = useToggle('sidebar.conversations.expanded', true)
 
   const { isAuthenticated: isGithubConnected, isLoadingAuth: isGithubLoading, login: connectGithub, logout: disconnectGithub, deviceCodePrompt } = useGithub()
 
-  const assistantList = useAssistantList()
+  const agentList = useAgentList()
   const knowledgeFields = useKnowledgeFields()
-  const activeAssistant = useAssistant(activeAssistantId || '')
+  const activeAgent = useAgent(activeAgentId || '')
 
-  const assistants = useMemo(() => {
-    return assistantList.map((item: AssistantListItem) => ({
+  const agents = useMemo(() => {
+    return agentList.map((item: AgentListItem) => ({
       id: item.id,
       name: item.id,
       path: item.path,
     }))
-  }, [assistantList])
+  }, [agentList])
 
   const fields = useMemo(() => {
     return knowledgeFields.map((field: DomainMeta) => ({
@@ -142,33 +142,33 @@ export function StudioSidebar({
 
             <section>
               <button
-                onClick={toggleAssistantsExpanded}
+                onClick={toggleAgentsExpanded}
                 className="sidebar__item studio-sidebar__section-header"
               >
-                {assistantsExpanded ? <ChevronDown className="studio-sidebar__section-chevron" /> : <ChevronRightSmall className="studio-sidebar__section-chevron" />}
-                Assistants ({assistants.length})
+                {agentsExpanded ? <ChevronDown className="studio-sidebar__section-chevron" /> : <ChevronRightSmall className="studio-sidebar__section-chevron" />}
+                Agents ({agents.length})
               </button>
-              {assistantsExpanded && (
+              {agentsExpanded && (
                 <div className="studio-sidebar__section-items">
-                  {assistants.map(assistant => {
-                    const href = `${spacePath}/assistant/${assistant.id}`
-                    const isActive = pathname === href || activeAssistantId === assistant.id
+                  {agents.map(agent => {
+                    const href = `${spacePath}/agent/${agent.id}`
+                    const isActive = pathname === href || activeAgentId === agent.id
                     return (
-                      <Link key={assistant.id} to={href} className={`sidebar__item ${isActive ? 'sidebar__item--active' : ''}`}>
-                        <Bot className="studio-sidebar__item-icon--assistant" />
-                        <span className="studio-sidebar__item-label">{assistant.name}</span>
+                      <Link key={agent.id} to={href} className={`sidebar__item ${isActive ? 'sidebar__item--active' : ''}`}>
+                        <Bot className="studio-sidebar__item-icon--agent" />
+                        <span className="studio-sidebar__item-label">{agent.name}</span>
                       </Link>
                     )
                   })}
-                  <button onClick={onCreateAssistant} className="sidebar__item studio-sidebar__create-btn">
+                  <button onClick={onCreateAgent} className="sidebar__item studio-sidebar__create-btn">
                     <Plus className="studio-sidebar__create-icon" />
-                    <span className="studio-sidebar__create-label">Create Assistant</span>
+                    <span className="studio-sidebar__create-label">Create Agent</span>
                   </button>
                 </div>
               )}
             </section>
 
-            {activeAssistantId && (
+            {activeAgentId && (
               <section>
                 <button
                   onClick={toggleConversationsExpanded}
@@ -190,7 +190,7 @@ export function StudioSidebar({
             <div className="sidebar__item studio-sidebar__collapsed-icon" title={`${fields.length} knowledge fields`}>
               <Folder className="studio-sidebar__collapsed-icon-inner" />
             </div>
-            <div className="sidebar__item studio-sidebar__collapsed-icon" title={`${assistants.length} assistants`}>
+            <div className="sidebar__item studio-sidebar__collapsed-icon" title={`${agents.length} agents`}>
               <Bot className="studio-sidebar__collapsed-icon-inner" />
             </div>
           </div>

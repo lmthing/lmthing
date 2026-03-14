@@ -1,6 +1,6 @@
 /**
  * StudioShell - Primary shell component managing space views and panels.
- * Uses new composite hooks and element CSS classes.
+ * Uses composite hooks and element CSS classes.
  * Orchestrates the sidebar, content area, and settings/knowledge views.
  */
 import { useCallback, useMemo } from 'react'
@@ -12,7 +12,7 @@ import '@lmthing/css/elements/layouts/page/index.css'
 import '@lmthing/css/components/shell/studio-shell/index.css'
 import { StudioSidebar } from '@lmthing/ui/components/shell/studio-sidebar'
 import { SettingsView } from '@lmthing/ui/components/shell/settings-view'
-import { useAssistantList } from '@lmthing/ui/hooks/useAssistantList'
+import { useAgentList } from '@lmthing/ui/hooks/useAgentList'
 import { useKnowledgeFields } from '@lmthing/ui/hooks/useKnowledgeFields'
 import { useWorkflowList } from '@lmthing/ui/hooks/useWorkflowList'
 
@@ -23,9 +23,9 @@ export interface StudioShellProps {
   onCreateField?: () => void
   onEditField?: (id: string) => void
   onDeleteField?: (id: string) => void
-  onCreateAssistant?: () => void
-  onEditAssistant?: (id: string) => void
-  onDeleteAssistant?: (id: string) => void
+  onCreateAgent?: () => void
+  onEditAgent?: (id: string) => void
+  onDeleteAgent?: (id: string) => void
   onSelectFile?: (file: unknown) => void
   onToggleFolder?: (path: string) => void
   onExpandAll?: () => void
@@ -55,16 +55,16 @@ export function StudioShell({
   onSidebarCollapsedChange,
   onOpenSettings,
   onCreateField,
-  onCreateAssistant,
+  onCreateAgent,
   children,
 }: StudioShellProps) {
-  const { assistantId } = useParams({ strict: false }) as { assistantId?: string }
+  const { agentId } = useParams({ strict: false }) as { agentId?: string }
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const spacePath = useSpacePath()
   const [sidebarCollapsed, , setSidebarCollapsed] = useToggle('studio-shell.sidebar.collapsed', defaultSidebarCollapsed)
 
-  const assistantList = useAssistantList()
+  const agentList = useAgentList()
   const knowledgeFields = useKnowledgeFields()
   const workflowList = useWorkflowList()
 
@@ -87,10 +87,10 @@ export function StudioShell({
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={handleToggleSidebar}
         activeFieldId={activeFieldId}
-        activeAssistantId={assistantId as string}
+        activeAgentId={agentId as string}
         onOpenSettings={onOpenSettings || (() => navigate({ to: `${spacePath}/settings/env` }))}
         onCreateField={onCreateField}
-        onCreateAssistant={onCreateAssistant}
+        onCreateAgent={onCreateAgent}
       />
 
       <div className="split-pane__primary">
@@ -101,10 +101,10 @@ export function StudioShell({
             <div className="page__body studio-shell__empty">
               <div className="studio-shell__empty-content">
                 <p className="studio-shell__empty-title">
-                  Select a knowledge field or assistant
+                  Select a knowledge field or agent
                 </p>
                 <p className="studio-shell__empty-subtitle">
-                  {knowledgeFields.length} knowledge fields, {assistantList.length} assistants, {workflowList.length} workflows
+                  {knowledgeFields.length} knowledge fields, {agentList.length} agents, {workflowList.length} workflows
                 </p>
               </div>
             </div>

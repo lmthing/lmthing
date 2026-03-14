@@ -1,17 +1,9 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { getStripe, isLocalDev } from "../_shared/stripe.ts";
 import { createServiceClient } from "../_shared/supabase.ts";
-import {
-  getContainer,
-  FLY_ORG,
-  SPACE_SPEC,
-  COMPUTER_TOKEN_SECRET,
-  HEALTH_CHECK,
-} from "../_shared/container.ts";
+import { getContainer } from "../_shared/container.ts";
 
 const COMPUTER_PRICE_ID = Deno.env.get("COMPUTER_PRICE_ID") ?? "";
-const COMPUTER_IMAGE =
-  Deno.env.get("COMPUTER_IMAGE") ?? Deno.env.get("SPACE_IMAGE") ?? "registry.fly.io/lmthing-space:latest";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -85,14 +77,20 @@ Deno.serve(async (req) => {
       if (profile) {
         console.log(`Subscription ${status} for user ${profile.id}`);
 
-        // Auto-provision computer if this is a new active Computer tier subscription
+        // Auto-provision computer if this is a new active Computer tier subscription.
+        // Dispatched asynchronously — sets status to "provisioning" in the DB and
+        // performs the Fly.io orchestration in the background so we can respond
+        // to Stripe quickly.
         if (status === "active") {
           const hasComputerItem = subscription.items.data.some(
             (item: any) => item.price.id === COMPUTER_PRICE_ID
           );
 
           if (hasComputerItem) {
-            await provisionComputerForUser(supabase, profile.id);
+            // Fire-and-forget: mark as provisioning and do Fly.io work async
+            scheduleProvision(supabase, profile.id).catch((err) =>
+              console.error(`Failed to schedule computer provision for ${profile.id}:`, err)
+            );
           }
         }
       }
@@ -118,7 +116,10 @@ Deno.serve(async (req) => {
         );
 
         if (hadComputerItem) {
-          await destroyComputerForUser(supabase, profile.id);
+          // Fire-and-forget: destroy in background so we respond quickly
+          destroyComputerForUser(supabase, profile.id).catch((err) =>
+            console.error(`Failed to destroy computer for ${profile.id}:`, err)
+          );
         }
       }
       break;
@@ -128,6 +129,7 @@ Deno.serve(async (req) => {
       console.log(`Unhandled event: ${event.type}`);
   }
 
+  // Respond to Stripe immediately — provisioning/teardown happens in background
   return new Response(
     JSON.stringify({ received: true }),
     { headers: { "Content-Type": "application/json" } }
@@ -135,10 +137,12 @@ Deno.serve(async (req) => {
 });
 
 /**
- * Provision a Fly.io computer machine for a user who just subscribed.
- * Skips if the user already has an active computer.
+ * Schedule async computer provisioning.
+ * Marks the computer as "provisioning" in the DB immediately, then performs
+ * the Fly.io orchestration in the background (fire-and-forget from the
+ * webhook's perspective).
  */
-async function provisionComputerForUser(
+async function scheduleProvision(
   supabase: ReturnType<typeof createServiceClient>,
   userId: string,
 ) {
@@ -176,59 +180,27 @@ async function provisionComputerForUser(
     return;
   }
 
-  const container = getContainer();
+  // Call provision-computer edge function to handle the actual Fly.io work.
+  // This runs as a separate invocation with its own timeout.
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
   try {
-    await container.createApp({ name: flyAppName, org: FLY_ORG });
-
-    const volume = await container.createVolume({
-      appName: flyAppName,
-      name: "computer_data",
-      region: "iad",
-      sizeGb: 1,
-    });
-
-    const machine = await container.createMachine({
-      appName: flyAppName,
-      name: `${flyAppName}-main`,
-      region: "iad",
-      image: COMPUTER_IMAGE,
-      spec: SPACE_SPEC,
-      env: {
-        USER_ID: userId,
-        RUNTIME_MODE: "computer",
-        TOKEN_SECRET: COMPUTER_TOKEN_SECRET,
+    const res = await fetch(`${supabaseUrl}/functions/v1/provision-computer`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${serviceKey}`,
+        "Content-Type": "application/json",
+        "x-webhook-provision": "true",
       },
-      volumes: [{ volumeId: volume.id, path: "/data" }],
-      services: [
-        {
-          internalPort: 8080,
-          protocol: "tcp",
-          ports: [
-            { port: 80, handlers: ["http"], forceHttps: true },
-            { port: 443, handlers: ["tls", "http"] },
-          ],
-        },
-      ],
-      checks: HEALTH_CHECK,
-      metadata: { user_id: userId, mode: "computer" },
+      body: JSON.stringify({ user_id: userId, region: "iad" }),
     });
 
-    await container.waitForState(flyAppName, machine.id, "started", 60_000);
-
-    await supabase
-      .from("computers")
-      .update({
-        fly_machine_id: machine.id,
-        fly_volume_id: volume.id,
-        status: "running",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", computer.id);
-
-    console.log(`Computer provisioned for user ${userId}: ${flyAppName}`);
+    if (!res.ok) {
+      console.error(`provision-computer returned ${res.status} for ${userId}`);
+    }
   } catch (err) {
-    console.error(`Failed to provision computer for ${userId}:`, err);
+    console.error(`Failed to call provision-computer for ${userId}:`, err);
     await supabase
       .from("computers")
       .update({

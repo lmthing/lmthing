@@ -2,6 +2,7 @@ import '@lmthing/css/components/computer/computer-layout.css'
 import { Sidebar, SidebarItem } from '../../elements/nav/sidebar'
 import { TopBar } from '../../elements/nav/top-bar'
 import { Badge } from '../../elements/content/badge'
+import { ConnectionBanner } from './connection-banner'
 import type { RuntimeStatus, RuntimeTier } from './status-card'
 
 export interface ComputerLayoutProps {
@@ -9,6 +10,8 @@ export interface ComputerLayoutProps {
   tier: RuntimeTier
   currentPath: string
   onNavigate: (path: string) => void
+  error?: string | null
+  onRetry?: () => void
   children: React.ReactNode
 }
 
@@ -19,7 +22,11 @@ const navItems = [
   { path: '/settings', label: 'Settings' },
 ]
 
-function ComputerLayout({ status, tier, currentPath, onNavigate, children }: ComputerLayoutProps) {
+function ComputerLayout({ status, tier, currentPath, onNavigate, error, onRetry, children }: ComputerLayoutProps) {
+  const connectionState = status === 'error' ? 'error' as const
+    : status === 'booting' ? 'booting' as const
+    : 'connected' as const
+
   return (
     <div className="computer-layout">
       <Sidebar>
@@ -45,6 +52,11 @@ function ComputerLayout({ status, tier, currentPath, onNavigate, children }: Com
               </Badge>
             </>
           }
+        />
+        <ConnectionBanner
+          state={connectionState}
+          error={error}
+          onRetry={onRetry}
         />
         <div className="computer-layout__main">
           {children}

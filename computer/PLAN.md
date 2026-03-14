@@ -208,9 +208,9 @@ Routes import components from `@lmthing/ui` and wire them to the `ComputerContex
 
 ---
 
-## Phase 3 — Fly.io (Paid Tier)
+## Phase 3 — Fly.io (Paid Tier) — **DONE**
 
-### 3.1 Token issuance edge function (`cloud/supabase/functions/issue-computer-token/index.ts`)
+### 3.1 Token issuance edge function (`cloud/supabase/functions/issue-computer-token/index.ts`) — **Done**
 
 - CORS + `getUser(req)` (reuse `_shared/auth.ts`)
 - Verify user has Computer tier subscription (check Stripe or profiles flag)
@@ -218,14 +218,14 @@ Routes import components from `@lmthing/ui` and wire them to the `ComputerContex
 - Shared secret: `COMPUTER_TOKEN_SECRET` env var (on cloud + Fly.io)
 - Returns `{ token, expiresAt }`
 
-### 3.2 WebSocket protocol (`computer/src/lib/runtime/flyio-protocol.ts`)
+### 3.2 WebSocket protocol (`computer/src/lib/runtime/flyio-protocol.ts`) — **Done**
 
 Connection: `wss://<user-app>.fly.dev/ws?token=<short-lived-token>`
 
 Client → Server: `terminal.input`, `terminal.resize`, `terminal.open`, `terminal.close`, `subscribe`
 Server → Client: `terminal.data`, `terminal.opened`, `metrics`, `processes`, `agents`, `log`, `network`, `auth.ok`, `auth.fail`, `error`
 
-### 3.3 Fly.io backend (`computer/src/lib/runtime/flyio.ts`)
+### 3.3 Fly.io backend (`computer/src/lib/runtime/flyio.ts`) — **Done**
 
 - `boot()` → fetch token from `issue-computer-token`, open WebSocket, send `subscribe` for all channels
 - `createTerminalSession()` → send `terminal.open`, wire messages through `TerminalSession`
@@ -233,18 +233,20 @@ Server → Client: `terminal.data`, `terminal.opened`, `metrics`, `processes`, `
 - Reconnection: exponential backoff, re-fetch token before each retry (token may have expired)
 - `shutdown()` → close WebSocket gracefully
 
-### 3.4 Tier detection in `ComputerContext`
+### 3.4 Tier detection in `ComputerContext` — **Done**
 
 Check user's subscription state → instantiate `WebContainerRuntime` or `FlyioRuntime`.
 
+Implemented via `useTierDetection()` hook (`computer/src/lib/runtime/use-tier-detection.ts`) + `TierAwareProvider` in `__root.tsx`. Probes `issue-computer-token` endpoint on mount — if successful and `appHost` is configured, uses `FlyioRuntime`; otherwise falls back to `WebContainerRuntime`.
+
 ---
 
-## Phase 4 — Polish
+## Phase 4 — Polish — **DONE**
 
-- Wire up `space/$spaceId/terminal.tsx` using the shared `Terminal` element from `@lmthing/ui`
-- Settings route: tier management, links to billing portal via existing `billing-portal` edge function
-- Error recovery UI: connection lost banner, retry button (using existing `Card`, `Button` elements)
-- Loading states: WebContainer boot progress, Fly.io connection status
+- Wire up `space/$spaceId/terminal.tsx` using the shared `Terminal` element from `@lmthing/ui` — **Done**
+- Settings route: tier management, links to billing portal via existing `billing-portal` edge function — **Done**
+- Error recovery UI: connection lost banner, retry button (using existing `Card`, `Button` elements) — **Done**
+- Loading states: WebContainer boot progress, Fly.io connection status — **Done**
 
 ---
 
@@ -263,6 +265,8 @@ Check user's subscription state → instantiate `WebContainerRuntime` or `FlyioR
 | `components/computer/logs-viewer.tsx` | Component | Filterable log output |
 | `components/computer/network-panel.tsx` | Component | HTTP request table |
 | `components/computer/computer-dashboard.tsx` | Component | Dashboard grid layout |
+| `components/computer/connection-banner.tsx` | Component | Error/boot connection banner |
+| `components/computer/boot-progress.tsx` | Component | Boot stage progress indicator |
 | `components/computer/computer-layout.tsx` | Component | App shell (sidebar + topbar + content) |
 
 ### New files in `org/libs/css/src/`
@@ -277,6 +281,8 @@ Check user's subscription state → instantiate `WebContainerRuntime` or `FlyioR
 | `components/computer/logs-viewer.css` | Log viewer styles |
 | `components/computer/network-panel.css` | Network panel styles |
 | `components/computer/computer-dashboard.css` | Dashboard grid layout |
+| `components/computer/connection-banner.css` | Connection banner styles |
+| `components/computer/boot-progress.css` | Boot progress styles |
 | `components/computer/computer-layout.css` | App shell layout |
 
 ### New/modified files in `computer/`
@@ -285,20 +291,23 @@ Check user's subscription state → instantiate `WebContainerRuntime` or `FlyioR
 |------|--------|
 | `src/lib/runtime/types.ts` | Create — runtime interface (logic, not UI) |
 | `src/lib/runtime/webcontainer.ts` | Create — WebContainer backend |
-| `src/lib/runtime/flyio.ts` | Create — Fly.io backend |
-| `src/lib/runtime/flyio-protocol.ts` | Create — WS message types |
-| `src/lib/runtime/ComputerContext.tsx` | Create — React context/provider |
-| `src/routes/__root.tsx` | Modify — wrap with providers + layout |
-| `src/routes/index.tsx` | Modify — render `ComputerDashboard` |
-| `src/routes/terminal.tsx` | Create — render `Terminal` element |
+| `src/lib/runtime/flyio.ts` | **Done** — Fly.io backend |
+| `src/lib/runtime/flyio-protocol.ts` | **Done** — WS message types |
+| `src/lib/runtime/use-tier-detection.ts` | **Done** — Tier detection hook |
+| `src/lib/runtime/ComputerContext.tsx` | **Done** — React context/provider (updated with tier support) |
+| `src/routes/__root.tsx` | **Done** — wrap with providers + layout + error/retry |
+| `src/routes/index.tsx` | **Done** — render `ComputerDashboard` |
+| `src/routes/terminal.tsx` | **Done** — render `Terminal` element with boot progress |
+| `src/routes/dashboard.tsx` | **Done** — dashboard with boot progress loading state |
+| `src/routes/settings.tsx` | **Done** — tier management + billing portal links |
 | `package.json` | Modify — add deps |
 
 ### Other
 
 | File | Action |
 |------|--------|
-| `cloud/supabase/functions/issue-computer-token/index.ts` | Create — token endpoint |
-| `space/src/routes/$spaceId/terminal.tsx` | Modify — use shared Terminal element |
+| `cloud/supabase/functions/issue-computer-token/index.ts` | **Done** — token endpoint |
+| `space/src/routes/$spaceId/terminal.tsx` | **Done** — use shared Terminal element with WS session |
 | `space/package.json` | Modify — add xterm deps |
 | `org/libs/ui/package.json` | Modify — add xterm peer deps |
 

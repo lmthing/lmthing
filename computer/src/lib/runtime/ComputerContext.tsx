@@ -12,6 +12,7 @@ import type {
   TerminalSession,
 } from './types'
 import { WebContainerRuntime } from './webcontainer'
+import { FlyioRuntime } from './flyio'
 import { defaultTemplate } from './template'
 import { buildFileTree, watchFileSystem } from './file-watcher'
 import { useIdeStore } from '../store'
@@ -90,19 +91,28 @@ const initialState: State = {
   error: null,
 }
 
+interface FlyioConfig {
+  appHost: string
+  cloudBaseUrl: string
+  authHeader: string
+}
+
 interface ComputerProviderProps {
   children: React.ReactNode
   tier?: RuntimeTier
+  flyioConfig?: FlyioConfig
 }
 
-export function ComputerProvider({ children, tier = 'webcontainer' }: ComputerProviderProps) {
+export function ComputerProvider({ children, tier = 'webcontainer', flyioConfig }: ComputerProviderProps) {
   const [state, dispatch] = useReducer(reducer, initialState)
-  const runtimeRef = useRef<WebContainerRuntime | null>(null)
+  const runtimeRef = useRef<ComputerRuntime | null>(null)
   const ideInitRef = useRef(false)
 
   useEffect(() => {
     if (tier === 'webcontainer') {
       runtimeRef.current = new WebContainerRuntime()
+    } else if (tier === 'flyio' && flyioConfig) {
+      runtimeRef.current = new FlyioRuntime(flyioConfig)
     }
 
     const rt = runtimeRef.current
@@ -117,18 +127,21 @@ export function ComputerProvider({ children, tier = 'webcontainer' }: ComputerPr
       rt.onNetwork((entry) => dispatch({ type: 'network', entry })),
     ]
 
-    return () => { unsubs.forEach((fn) => fn()) }
-  }, [tier])
+    return () => {
+      unsubs.forEach((fn) => fn())
+      rt.shutdown()
+    }
+  }, [tier, flyioConfig])
 
   // Auto-boot
   useEffect(() => {
     const rt = runtimeRef.current
-    if (rt && tier === 'webcontainer') {
+    if (rt) {
       rt.boot().catch((err) => {
         dispatch({ type: 'error', error: String(err) })
       })
     }
-  }, [tier])
+  }, [tier, flyioConfig])
 
   const boot = useCallback(async () => {
     const rt = runtimeRef.current
@@ -153,7 +166,7 @@ export function ComputerProvider({ children, tier = 'webcontainer' }: ComputerPr
     if (!rt || ideInitRef.current) return
     ideInitRef.current = true
 
-    const wc = rt.container
+    const wc = rt instanceof WebContainerRuntime ? rt.container : null
     if (!wc) throw new Error('WebContainer not booted')
 
     const store = useIdeStore.getState()
@@ -196,7 +209,7 @@ export function ComputerProvider({ children, tier = 'webcontainer' }: ComputerPr
 
   const value: ComputerContextValue = {
     runtime: runtimeRef.current,
-    container: runtimeRef.current?.container ?? null,
+    container: runtimeRef.current instanceof WebContainerRuntime ? runtimeRef.current.container : null,
     tier,
     ...state,
     boot,

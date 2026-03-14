@@ -15,7 +15,13 @@ export { IdePreview } from './ide-preview'
 export { IdeTerminal } from './ide-terminal'
 export { IdeLayout } from './ide-layout'
 
+// Connection
+export { ConnectionBanner } from './connection-banner'
+export { BootProgress } from './boot-progress'
+
 // Types
+export type { ConnectionBannerProps, ConnectionState } from './connection-banner'
+export type { BootProgressProps, BootStage } from './boot-progress'
 export type { StatusCardProps, RuntimeStatus, RuntimeTier } from './status-card'
 export type { MetricsCardProps } from './metrics-card'
 export type { ProcessesPanelProps, RuntimeProcess } from './processes-panel'

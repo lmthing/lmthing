@@ -1,0 +1,29 @@
+@reference "../../theme.css";
+
+.computer-connection-banner {
+  @apply flex items-center justify-between gap-3 px-4 py-2 text-sm;
+}
+
+.computer-connection-banner--error {
+  @apply bg-destructive/10 text-destructive border-b border-destructive/20;
+}
+
+.computer-connection-banner--booting {
+  @apply bg-yellow-500/10 text-yellow-700 border-b border-yellow-500/20;
+}
+
+.computer-connection-banner__message {
+  @apply flex items-center gap-2 flex-1;
+}
+
+.computer-connection-banner__dot {
+  @apply w-2 h-2 rounded-full shrink-0;
+}
+
+.computer-connection-banner__dot--error {
+  @apply bg-destructive animate-pulse;
+}
+
+.computer-connection-banner__dot--booting {
+  @apply bg-yellow-500 animate-pulse;
+}

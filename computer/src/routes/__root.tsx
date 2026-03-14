@@ -1,8 +1,8 @@
 import { createRootRoute, Outlet, useRouter, useRouterState } from '@tanstack/react-router'
 import { AppProvider } from '@lmthing/state'
 import { AuthProvider, useAuth } from '@/lib/auth/AuthContext'
-import { ComputerProvider } from '@/lib/runtime/ComputerContext'
-import { useComputer } from '@/lib/runtime/ComputerContext'
+import { ComputerProvider, useComputer } from '@/lib/runtime/ComputerContext'
+import { useTierDetection } from '@/lib/runtime/use-tier-detection'
 import { ComputerLayout } from '@lmthing/ui/components/computer/computer-layout'
 import { LoginScreen } from '@lmthing/ui/components/auth/login-screen'
 import '@/index.css'
@@ -15,7 +15,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 function ComputerShell() {
-  const { status, tier } = useComputer()
+  const { status, tier, error, boot } = useComputer()
   const router = useRouter()
   const routerState = useRouterState()
   const currentPath = routerState.location.pathname
@@ -31,9 +31,20 @@ function ComputerShell() {
       tier={tier}
       currentPath={currentPath}
       onNavigate={(path) => router.navigate({ to: path })}
+      error={error}
+      onRetry={boot}
     >
       <Outlet />
     </ComputerLayout>
+  )
+}
+
+function TierAwareProvider({ children }: { children: React.ReactNode }) {
+  const { tier, flyioConfig } = useTierDetection()
+  return (
+    <ComputerProvider tier={tier} flyioConfig={flyioConfig}>
+      {children}
+    </ComputerProvider>
   )
 }
 
@@ -42,9 +53,9 @@ function RootComponent() {
     <AppProvider>
       <AuthProvider>
         <AuthGate>
-          <ComputerProvider>
+          <TierAwareProvider>
             <ComputerShell />
-          </ComputerProvider>
+          </TierAwareProvider>
         </AuthGate>
       </AuthProvider>
     </AppProvider>

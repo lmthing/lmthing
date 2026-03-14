@@ -15,7 +15,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 function ComputerShell() {
-  const { status, tier } = useComputer()
+  const { status, tier, error, boot } = useComputer()
   const router = useRouter()
   const routerState = useRouterState()
   const currentPath = routerState.location.pathname
@@ -31,6 +31,8 @@ function ComputerShell() {
       tier={tier}
       currentPath={currentPath}
       onNavigate={(path) => router.navigate({ to: path })}
+      error={error}
+      onRetry={boot}
     >
       <Outlet />
     </ComputerLayout>

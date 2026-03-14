@@ -1,0 +1,29 @@
+@reference "../../theme.css";
+
+.computer-boot-progress {
+  @apply flex flex-col items-center justify-center gap-4 p-8 h-full min-h-[300px];
+}
+
+.computer-boot-progress__spinner {
+  @apply w-8 h-8 border-2 border-muted-foreground/30 border-t-primary rounded-full animate-spin;
+}
+
+.computer-boot-progress__label {
+  @apply text-sm font-medium text-muted-foreground;
+}
+
+.computer-boot-progress__steps {
+  @apply flex flex-col gap-1 text-xs text-muted-foreground/60;
+}
+
+.computer-boot-progress__step {
+  @apply flex items-center gap-2;
+}
+
+.computer-boot-progress__step--done {
+  @apply text-green-500;
+}
+
+.computer-boot-progress__step--active {
+  @apply text-foreground;
+}

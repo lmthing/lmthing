@@ -236,18 +236,19 @@ This is a fundamental limitation for an **agent platform**. Agents need tools �
 
 **Recommendation:** The `_shared/provider.ts` already has the multi-provider abstraction. For tool-calling agents, use `meteredModel` (wrapping direct provider SDKs with Stripe metering) instead of `createStripe()`. This is mentioned in CLAUDE.md but not implemented.
 
-### 4. In-Memory VFS Without Persistence is Fragile
+### 4. VFS Relies on localStorage — No Real Sync
 
-The entire workspace system stores all files in a `Map<string, string>` in browser memory. With GitHub sync not implemented, there is **no persistence layer**:
+The workspace stores files in a `Map<string, string>` in memory, with `AppContext` auto-saving to localStorage (`lmthing-app` key + per-space keys). This means workspaces **do survive page refreshes** on the same browser, but:
 
-- Refreshing the page loses all work
-- Closing the tab loses all work
-- Multi-device access is impossible
-- There's no way to share workspaces
+- **No cross-device access** — localStorage is browser-local
+- **No sharing/collaboration** — workspaces are trapped in one browser
+- **localStorage size limits** (~5-10MB) — large workspaces will fail silently
+- **No version history** — one accidental overwrite loses everything
+- **Clearing browser data loses all work**
 
-This is the single biggest architectural gap. The system was designed around GitHub sync (the documentation assumes it), but it doesn't exist. Until it does, the workspace is essentially a sophisticated scratch pad.
+GitHub sync is documented as the persistence mechanism but isn't implemented. The codebase has `@octokit/rest` as a dependency and `GithubContext.tsx` handles OAuth + workspace loading from repos, but there's no **write-back** (push) implementation.
 
-**Recommendation:** Implement GitHub sync as the highest priority, or add an intermediate persistence layer (e.g., IndexedDB for local persistence, with GitHub as the sync target).
+**Recommendation:** Implement GitHub sync (push) as the highest priority. The read path (workspace loading from GitHub) already works — the write path is the missing piece.
 
 ### 5. Deploy Workflow Only Deploys Studio to GitHub Pages
 

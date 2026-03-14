@@ -201,17 +201,30 @@ The webhook handler documentation says it just "logs" events. In reality, it:
 
 ## 5. Wrong Implementation Directions
 
-### 1. StudioShell.tsx is a 1603-Line God Component
+### 1. Studio Chat Runs Client-Side, Bypassing Billing
 
-`studio/src/shell/components/StudioShell.tsx` at **1603 lines** is the single largest file in the entire codebase. It appears to contain the entire Studio layout, sidebar, file explorer, editor panes, chat interface, and toolbar in one monolithic component. This is:
+The Studio chat interface (`studio/src/routes/$assistantId/chat/index.tsx`) calls `runPrompt()` from `@lmthing/core` **directly in the browser** with a hardcoded model (`anthropic:claude-sonnet-4-20250514`). This means:
 
-- **Hard to maintain** — changes to one section risk breaking others
-- **Hard to test** — can't unit test individual features
-- **Performance risk** — re-renders of any part re-render the whole shell
+- LLM calls go **directly to Anthropic**, not through `cloud/generate-ai`
+- Token usage is **not metered by Stripe** — users consume tokens for free
+- The entire billing architecture is bypassed for the primary product surface
+- Requires the user's own API key (or one injected via env), not the platform's Stripe-proxied key
 
-**Recommendation:** Break into focused components: `<Sidebar>`, `<FileExplorer>`, `<EditorPane>`, `<ChatPanel>`, `<Toolbar>`, each managing their own state.
+This is the core revenue leak. The cloud backend's `generate-ai` function exists to meter and bill token usage via Stripe, but the main chat UI doesn't use it.
 
-### 2. @stripe/ai-sdk Provider Doesn't Support Tool Calling
+**Recommendation:** Route Studio chat through `cloud/generate-ai` instead of calling providers directly. The core framework's `runPrompt()` should be used server-side (in edge functions or the container runtime), not in the browser.
+
+### 2. StudioShell.tsx is a 1603-Line Legacy Component
+
+`studio/src/shell/components/StudioShell.tsx` at **1603 lines** is the single largest file in the entire codebase. It appears to be a **legacy component** — the actual Studio shell is now delegated to `@lmthing/ui`'s `StudioLayout` component via routes. However, this file still exists and may cause confusion:
+
+- It's unclear if it's still imported anywhere or truly dead code
+- At 1603 lines, it's a maintenance burden even as dead code
+- New developers may modify it thinking it's active
+
+**Recommendation:** Verify if StudioShell.tsx is still referenced. If not, remove it. If parts are still used, extract them into focused components.
+
+### 3. @stripe/ai-sdk Provider Doesn't Support Tool Calling
 
 The `cloud/CLAUDE.md` explicitly states: *"`@stripe/ai-sdk` provider does NOT support tool calling."*
 
@@ -223,7 +236,7 @@ This is a fundamental limitation for an **agent platform**. Agents need tools �
 
 **Recommendation:** The `_shared/provider.ts` already has the multi-provider abstraction. For tool-calling agents, use `meteredModel` (wrapping direct provider SDKs with Stripe metering) instead of `createStripe()`. This is mentioned in CLAUDE.md but not implemented.
 
-### 3. In-Memory VFS Without Persistence is Fragile
+### 4. In-Memory VFS Without Persistence is Fragile
 
 The entire workspace system stores all files in a `Map<string, string>` in browser memory. With GitHub sync not implemented, there is **no persistence layer**:
 
@@ -236,7 +249,7 @@ This is the single biggest architectural gap. The system was designed around Git
 
 **Recommendation:** Implement GitHub sync as the highest priority, or add an intermediate persistence layer (e.g., IndexedDB for local persistence, with GitHub as the sync target).
 
-### 4. Deploy Workflow Only Deploys Studio to GitHub Pages
+### 5. Deploy Workflow Only Deploys Studio to GitHub Pages
 
 `.github/workflows/deploy.yml` only deploys `studio/` to GitHub Pages. This means:
 
@@ -249,7 +262,7 @@ For a multi-domain product suite, each domain needs its own deployment. GitHub P
 
 **Recommendation:** Set up deployments for each product (Vercel/Cloudflare Pages per domain, or a unified platform). Add Supabase function deployment to CI.
 
-### 5. SSO Code Table Has No Automatic Cleanup
+### 6. SSO Code Table Has No Automatic Cleanup
 
 `sso_codes` table stores authorization codes with a 60-second TTL (`expires_at`) but there's no cleanup mechanism:
 
@@ -259,7 +272,7 @@ For a multi-domain product suite, each domain needs its own deployment. GitHub P
 
 **Recommendation:** Add a Supabase cron extension or a cleanup edge function, or use `pg_cron` to periodically delete expired codes.
 
-### 6. Webhook Handler Has Implicit Container Provisioning
+### 7. Webhook Handler Has Implicit Container Provisioning
 
 `stripe-webhook/index.ts` contains ~80 lines of Fly.io container provisioning logic embedded directly in the webhook handler. If provisioning fails:
 
@@ -271,13 +284,13 @@ This should be an async job, not synchronous webhook processing (Stripe expects 
 
 **Recommendation:** Move provisioning to a separate queue/function triggered by the webhook, with retries and status tracking.
 
-### 7. `org/libs/core` Has Its Own `.github` Directory
+### 8. `org/libs/core` Has Its Own `.github` Directory
 
 The core framework at `org/libs/core/.github/` contains its own CI workflows (`ci.yml`, `llm-tests.yml`) and copilot instructions. This suggests it may have been an independent repository before being absorbed into the monorepo. Having nested `.github` directories in a monorepo is confusing — only the root `.github` is used by GitHub Actions.
 
 **Recommendation:** Consolidate CI into the root `.github/workflows/` directory and remove the nested one.
 
-### 8. Excessive Product App Scaffolding
+### 9. Excessive Product App Scaffolding
 
 7 out of 10 product apps (chat, blog, social, team, store, casa, space) are essentially empty scaffolds with route files that render placeholder text. Each app has its own `package.json`, dependencies, Vite config, and TanStack Router setup — but no real functionality.
 
@@ -322,22 +335,23 @@ These two files document the same system but are significantly out of sync:
 
 ### Must Fix (Blocking)
 
-1. **Implement GitHub workspace sync** — without persistence, the product is unusable
-2. **Fix tool-calling limitation** — agents without tools aren't useful agents
-3. **Implement Studio file operations** — can't build agents if CRUD doesn't work
-4. **Fix deploy.yml duplicate steps** and `cd app` bug
+1. **Route Studio chat through cloud/generate-ai** — currently bypasses Stripe billing entirely (revenue leak)
+2. **Implement GitHub workspace sync** — without persistence, the product is unusable
+3. **Fix tool-calling limitation** — agents without tools aren't useful agents
+4. **Implement Studio file operations** — can't build agents if CRUD doesn't work
+5. **Fix deploy.yml duplicate steps** and `cd app` bug
 
 ### Should Fix (Quality)
 
-5. **Update all documentation** — 13 undocumented cloud functions, 2 undocumented libraries, 2 undocumented migrations
-6. **Break apart StudioShell.tsx** — 1603-line component is unmaintainable
-7. **Add async provisioning** — webhook shouldn't do synchronous Fly.io calls
-8. **Add SSO code cleanup**
-9. **Add cloud function tests**
+6. **Update all documentation** — 13 undocumented cloud functions, 2 undocumented libraries, 2 undocumented migrations
+7. **Remove or repurpose StudioShell.tsx** — 1603-line legacy component, likely dead code
+8. **Add async provisioning** — webhook shouldn't do synchronous Fly.io calls
+9. **Add SSO code cleanup**
+10. **Add cloud function tests**
 
 ### Consider (Strategic)
 
-10. **Remove empty scaffolds** — focus on Studio/Computer/Cloud first
-11. **Add deployment pipelines** for all active products
-12. **Consolidate naming** — pick "agent" or "assistant", not both
-13. **Remove nested `.github`** from core lib
+11. **Remove empty scaffolds** — focus on Studio/Computer/Cloud first
+12. **Add deployment pipelines** for all active products
+13. **Consolidate naming** — pick "agent" or "assistant", not both
+14. **Remove nested `.github`** from core lib

@@ -1,12 +1,24 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { getUser } from "../_shared/auth.ts";
-import { ensureStripeCustomer } from "../_shared/stripe.ts";
+import { ensureStripeCustomer, isLocalDev } from "../_shared/stripe.ts";
 import { createServiceClient } from "../_shared/supabase.ts";
 import Stripe from "npm:stripe@17";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  if (isLocalDev) {
+    return new Response(
+      JSON.stringify({
+        balance_cents: 0,
+        balance_display: "$0.00",
+        has_credit: true,
+        local_dev: true,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 
   try {

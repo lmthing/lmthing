@@ -5,7 +5,7 @@
   "scripts": {
     "db:migrate": "supabase db push",
     "db:reset": "supabase db reset",
-    "functions:serve": "supabase functions serve",
+    "functions:serve": "supabase functions serve --env-file .env",
     "functions:deploy": "supabase functions deploy",
     "dev": "supabase start",
     "stop": "supabase stop",

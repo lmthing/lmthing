@@ -1,9 +1,9 @@
-import { createStripe } from "npm:@stripe/ai-sdk@0.1/provider";
 import { streamText } from "npm:ai@5";
 import { corsHeaders } from "../_shared/cors.ts";
 import { getUser } from "../_shared/auth.ts";
 import { ensureStripeCustomer } from "../_shared/stripe.ts";
 import { createServiceClient } from "../_shared/supabase.ts";
+import { resolveModel } from "../_shared/provider.ts";
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
     // 1. Verify the user
     const user = await getUser(req);
 
-    // 2. Ensure user has a Stripe customer ID
+    // 2. Ensure user has a Stripe customer ID (returns placeholder in local dev)
     const supabase = createServiceClient();
     const stripeCustomerId = await ensureStripeCustomer(
       supabase,
@@ -41,16 +41,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 4. Initialize Stripe AI provider — this handles billing automatically
-    const stripeLLM = createStripe({
-      apiKey: Deno.env.get("STRIPE_SECRET_KEY")!,
-      customerId: stripeCustomerId,
-    });
+    // 4. Resolve the model via the provider abstraction
+    const resolvedModel = await resolveModel(model, { stripeCustomerId });
 
-    // 5. Call the model through Stripe's proxy
+    // 5. Call the model
     if (stream) {
       const result = streamText({
-        model: stripeLLM(model),
+        model: resolvedModel,
         messages,
         temperature,
         maxTokens: max_tokens,
@@ -65,7 +62,7 @@ Deno.serve(async (req) => {
     // Non-streaming
     const { generateText } = await import("npm:ai@5");
     const result = await generateText({
-      model: stripeLLM(model),
+      model: resolvedModel,
       messages,
       temperature,
       maxTokens: max_tokens,

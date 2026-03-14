@@ -1,10 +1,17 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { getUser } from "../_shared/auth.ts";
-import { getStripe } from "../_shared/stripe.ts";
+import { getStripe, isLocalDev } from "../_shared/stripe.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  if (isLocalDev) {
+    return new Response(
+      JSON.stringify({ portal_url: "http://localhost:54323/#local-dev-no-billing" }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 
   try {

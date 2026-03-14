@@ -1,10 +1,17 @@
 import { corsHeaders } from "../_shared/cors.ts";
-import { getStripe } from "../_shared/stripe.ts";
+import { getStripe, isLocalDev } from "../_shared/stripe.ts";
 import { createServiceClient } from "../_shared/supabase.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  if (isLocalDev) {
+    return new Response(
+      JSON.stringify({ received: true, local_dev: true }),
+      { headers: { "Content-Type": "application/json" } }
+    );
   }
 
   const stripe = getStripe();

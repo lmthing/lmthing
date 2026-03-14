@@ -54,7 +54,7 @@ export function ToolsPanel({ enabledTools, onOpenLibrary, onRemoveTool, onConfig
             <div className="tools-panel__empty-icon">🔧</div>
             <Label>No tools enabled</Label>
             <Caption muted className="tools-panel__empty-caption">
-              Add tools from the library to extend your assistant's capabilities
+              Add tools from the library to extend your agent's capabilities
             </Caption>
             <Button onClick={onOpenLibrary} variant="ghost" size="sm" className="tools-panel__empty-btn">
               Browse Tool Library

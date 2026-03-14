@@ -26,9 +26,9 @@ interface AgentConfigItem {
 interface SavedAgentsListProps {
   fields: KnowledgeField[]
   savedAgents: AgentConfigItem[]
-  onLoadAgent?: (assistantId: string) => void
-  onDuplicateAgent?: (assistantId: string) => void
-  onDeleteAgent?: (assistantId: string) => void
+  onLoadAgent?: (agentId: string) => void
+  onDuplicateAgent?: (agentId: string) => void
+  onDeleteAgent?: (agentId: string) => void
   onNewAgent?: () => void
 }
 
@@ -43,18 +43,18 @@ function formatDate(dateStr: string) {
   return date.toLocaleDateString()
 }
 
-function AgentCard({ assistant, fields, onLoad, onDuplicate, onDelete }: {
-  assistant: AgentConfigItem; fields: KnowledgeField[]; onLoad?: () => void; onDuplicate?: () => void; onDelete?: () => void
+function AgentCard({ agent, fields, onLoad, onDuplicate, onDelete }: {
+  agent: AgentConfigItem; fields: KnowledgeField[]; onLoad?: () => void; onDuplicate?: () => void; onDelete?: () => void
 }) {
-  const agentFields = fields.filter(f => assistant.selectedFields.includes(f.id))
+  const agentFields = fields.filter(f => agent.selectedFields.includes(f.id))
   return (
     <Card interactive>
       <CardBody>
-        <Stack row className="saved-assistants-list__card-header">
-          <div className="saved-assistants-list__card-content">
-            <Label className="saved-assistants-list__card-name">{assistant.name}</Label>
-            <Caption muted className="saved-assistants-list__card-description">
-              {assistant.description}
+        <Stack row className="saved-agents-list__card-header">
+          <div className="saved-agents-list__card-content">
+            <Label className="saved-agents-list__card-name">{agent.name}</Label>
+            <Caption muted className="saved-agents-list__card-description">
+              {agent.description}
             </Caption>
           </div>
           <Stack row gap="sm">
@@ -62,18 +62,18 @@ function AgentCard({ assistant, fields, onLoad, onDuplicate, onDelete }: {
             <Button onClick={onDelete} variant="ghost" size="sm" title="Delete">🗑</Button>
           </Stack>
         </Stack>
-        <div className="saved-assistants-list__card-badges">
+        <div className="saved-agents-list__card-badges">
           {agentFields.slice(0, 3).map(field => (
-            <Badge key={field.id} variant="muted" className="saved-assistants-list__badge-sm">{field.name}</Badge>
+            <Badge key={field.id} variant="muted" className="saved-agents-list__badge-sm">{field.name}</Badge>
           ))}
           {agentFields.length > 3 && (
-            <Badge variant="muted" className="saved-assistants-list__badge-sm">+{agentFields.length - 3} more</Badge>
+            <Badge variant="muted" className="saved-agents-list__badge-sm">+{agentFields.length - 3} more</Badge>
           )}
         </div>
-        <CardFooter className="saved-assistants-list__card-footer">
+        <CardFooter className="saved-agents-list__card-footer">
           <Stack row gap="sm">
-            <Caption muted>🔧 {assistant.enabledTools.length} tools</Caption>
-            <Caption muted>🕐 {formatDate(assistant.updatedAt)}</Caption>
+            <Caption muted>🔧 {agent.enabledTools.length} tools</Caption>
+            <Caption muted>🕐 {formatDate(agent.updatedAt)}</Caption>
           </Stack>
           <Button onClick={onLoad} variant="ghost" size="sm">Load →</Button>
         </CardFooter>
@@ -86,33 +86,33 @@ export function SavedAgentsList({ fields, savedAgents, onLoadAgent, onDuplicateA
   const sortedAgents = [...savedAgents].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
 
   return (
-    <PageBody className="saved-assistants-list">
-      <Stack row className="saved-assistants-list__header">
+    <PageBody className="saved-agents-list">
+      <Stack row className="saved-agents-list__header">
         <div>
           <Heading level={2}>Saved Agents</Heading>
-          <Caption muted className="saved-assistants-list__subtitle">{savedAgents.length} saved agent{savedAgents.length !== 1 ? 's' : ''}</Caption>
+          <Caption muted className="saved-agents-list__subtitle">{savedAgents.length} saved agent{savedAgents.length !== 1 ? 's' : ''}</Caption>
         </div>
         <Button onClick={onNewAgent} variant="primary">+ New Agent</Button>
       </Stack>
 
       {savedAgents.length === 0 ? (
-        <Stack className="saved-assistants-list__empty">
-          <div className="saved-assistants-list__empty-icon">📦</div>
+        <Stack className="saved-agents-list__empty">
+          <div className="saved-agents-list__empty-icon">📦</div>
           <Heading level={3}>No saved agents yet</Heading>
-          <Caption muted className="saved-assistants-list__empty-caption">
-            Create your first assistant and save it for quick access later.
+          <Caption muted className="saved-agents-list__empty-caption">
+            Create your first agent and save it for quick access later.
           </Caption>
         </Stack>
       ) : (
-        <div className="saved-assistants-list__grid">
-          {sortedAgents.map(assistant => (
+        <div className="saved-agents-list__grid">
+          {sortedAgents.map(agent => (
             <AgentCard
-              key={assistant.id}
-              assistant={assistant}
+              key={agent.id}
+              agent={agent}
               fields={fields}
-              onLoad={() => onLoadAgent?.(assistant.id)}
-              onDuplicate={() => onDuplicateAgent?.(assistant.id)}
-              onDelete={() => onDeleteAgent?.(assistant.id)}
+              onLoad={() => onLoadAgent?.(agent.id)}
+              onDuplicate={() => onDuplicateAgent?.(agent.id)}
+              onDelete={() => onDeleteAgent?.(agent.id)}
             />
           ))}
         </div>

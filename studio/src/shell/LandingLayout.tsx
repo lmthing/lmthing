@@ -170,7 +170,7 @@ export default function LandingLayout() {
               Your personal <CozyThingText text="THING" className="inline-block text-4xl font-bold tracking-tight sm:text-5xl" />
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              The <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" /> is an orchestrator that coordinates your specialized AI assistants across spaces&mdash;each with their own knowledge, tools, and workflows.
+              The <CozyThingText text="THING" className="inline-block text-lg font-bold align-baseline" /> is an orchestrator that coordinates your specialized AI agents across spaces&mdash;each with their own knowledge, tools, and workflows.
             </p>
           </div>
 
@@ -349,7 +349,7 @@ export default function LandingLayout() {
                   Each Space Knows Its Field
                 </h3>
                 <p className="mt-4 text-lg text-muted-foreground">
-                  Your spaces contain the ground truth. When the THING routes a task to a specialist, that assistant only sees relevant knowledge&mdash;no hallucinations, no context rot.
+                  Your spaces contain the ground truth. When the THING routes a task to a specialist, that agent only sees relevant knowledge&mdash;no hallucinations, no context rot.
                 </p>
               </div>
 

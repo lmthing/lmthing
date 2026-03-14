@@ -1,5 +1,5 @@
 /**
- * ThingPanel - Sliding side panel for Thing AI assistant.
+ * ThingPanel - Sliding side panel for Thing AI agent.
  * US-213 / C10: Slides in from right, full height, close button.
  */
 import '@lmthing/css/components/agent/builder/index.css'

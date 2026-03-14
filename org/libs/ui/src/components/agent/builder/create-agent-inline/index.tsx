@@ -15,8 +15,8 @@ interface CreateAgentInlineProps {
 }
 
 export function CreateAgentInline({ onSubmit, onCancel }: CreateAgentInlineProps) {
-  const [name, setName] = useUIState('create-assistant-inline.name', '')
-  const [description, setDescription] = useUIState('create-assistant-inline.description', '')
+  const [name, setName] = useUIState('create-agent-inline.name', '')
+  const [description, setDescription] = useUIState('create-agent-inline.description', '')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -24,19 +24,19 @@ export function CreateAgentInline({ onSubmit, onCancel }: CreateAgentInlineProps
   }
 
   return (
-    <Card className="create-assistant-inline">
+    <Card className="create-agent-inline">
       <CardHeader>
-        <Stack row className="create-assistant-inline__header-row">
-          <Stack row gap="sm" className="create-assistant-inline__header-left">
-            <div className="create-assistant-inline__avatar">
-              <Bot className="create-assistant-inline__avatar-icon" />
+        <Stack row className="create-agent-inline__header-row">
+          <Stack row gap="sm" className="create-agent-inline__header-left">
+            <div className="create-agent-inline__avatar">
+              <Bot className="create-agent-inline__avatar-icon" />
             </div>
             <div>
               <Label>Create New Agent</Label>
               <Caption muted>Define a new AI agent</Caption>
             </div>
           </Stack>
-          <Button onClick={onCancel} variant="ghost" size="sm"><X className="create-assistant-inline__close-icon" /></Button>
+          <Button onClick={onCancel} variant="ghost" size="sm"><X className="create-agent-inline__close-icon" /></Button>
         </Stack>
       </CardHeader>
       <CardBody>
@@ -50,9 +50,9 @@ export function CreateAgentInline({ onSubmit, onCancel }: CreateAgentInlineProps
               <Label compact>Description (Optional)</Label>
               <Textarea compact value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Brief description of what this agent does" />
             </div>
-            <Stack row gap="sm" className="create-assistant-inline__actions">
-              <Button type="button" onClick={onCancel} variant="ghost" className="create-assistant-inline__btn">Cancel</Button>
-              <Button type="submit" disabled={!name.trim()} variant="primary" className="create-assistant-inline__btn">Create Agent</Button>
+            <Stack row gap="sm" className="create-agent-inline__actions">
+              <Button type="button" onClick={onCancel} variant="ghost" className="create-agent-inline__btn">Cancel</Button>
+              <Button type="submit" disabled={!name.trim()} variant="primary" className="create-agent-inline__btn">Create Agent</Button>
             </Stack>
           </Stack>
         </form>

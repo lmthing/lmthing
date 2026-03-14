@@ -71,36 +71,36 @@
    ASSISTANT BUILDER
    ========================================================================== */
 
-.assistant-builder {
+.agent-builder {
   @apply flex flex-col h-full overflow-hidden;
 }
 
-.assistant-builder__content {
+.agent-builder__content {
   @apply flex-1 flex overflow-hidden;
 }
 
-.assistant-builder__main {
+.agent-builder__main {
   @apply flex-1 overflow-y-auto;
 }
 
-.assistant-builder__main-inner {
+.agent-builder__main-inner {
   @apply mx-auto;
   max-width: 48rem;
   padding: 2rem 1.5rem;
 }
 
-.assistant-builder__textarea {
+.agent-builder__textarea {
   @apply font-mono resize-y;
   min-height: 240px;
 }
 
-.assistant-builder__aside {
+.agent-builder__aside {
   @apply flex-shrink-0 flex flex-col;
   width: 20rem;
   border-left: 1px solid var(--color-border);
 }
 
-.assistant-builder__aside-body {
+.agent-builder__aside-body {
   @apply flex-1 overflow-hidden;
 }
 
@@ -108,26 +108,26 @@
    ASSISTANT HEADER
    ========================================================================== */
 
-.assistant-header {
+.agent-header {
   @apply flex items-center justify-between flex-shrink-0;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--color-border);
 }
 
-.assistant-header__left {
+.agent-header__left {
   @apply flex items-center flex-1 min-w-0;
   gap: 0.75rem;
 }
 
-.assistant-header__icon {
+.agent-header__icon {
   @apply w-4 h-4;
 }
 
-.assistant-header__name-wrap {
+.agent-header__name-wrap {
   @apply min-w-0 flex-1;
 }
 
-.assistant-header__name-input {
+.agent-header__name-input {
   @apply border-none bg-transparent shadow-none;
   font-weight: 600;
   font-size: 1.125rem;
@@ -135,7 +135,7 @@
   height: auto;
 }
 
-.assistant-header__desc-input {
+.agent-header__desc-input {
   @apply border-none bg-transparent shadow-none;
   font-size: 0.8125rem;
   padding-left: 0;
@@ -143,11 +143,11 @@
   color: var(--color-muted-foreground);
 }
 
-.assistant-header__right {
+.agent-header__right {
   @apply flex items-center flex-shrink-0;
 }
 
-.assistant-header__btn-icon {
+.agent-header__btn-icon {
   @apply w-4 h-4;
   margin-right: 0.375rem;
 }
@@ -368,39 +368,39 @@
    CREATE ASSISTANT INLINE
    ========================================================================== */
 
-.create-assistant-inline {
+.create-agent-inline {
   margin-bottom: 1.5rem;
 }
 
-.create-assistant-inline__header-row {
+.create-agent-inline__header-row {
   @apply flex justify-between items-start;
 }
 
-.create-assistant-inline__header-left {
+.create-agent-inline__header-left {
   @apply flex items-center;
 }
 
-.create-assistant-inline__avatar {
+.create-agent-inline__avatar {
   @apply flex items-center justify-center;
   padding: 0.5rem;
   background: #8b5cf6;
   border-radius: 0.5rem;
 }
 
-.create-assistant-inline__avatar-icon {
+.create-agent-inline__avatar-icon {
   @apply w-5 h-5;
   color: white;
 }
 
-.create-assistant-inline__close-icon {
+.create-agent-inline__close-icon {
   @apply w-4 h-4;
 }
 
-.create-assistant-inline__actions {
+.create-agent-inline__actions {
   padding-top: 0.25rem;
 }
 
-.create-assistant-inline__btn {
+.create-agent-inline__btn {
   @apply flex-1;
 }
 
@@ -565,15 +565,15 @@
    SAVE ASSISTANT MODAL
    ========================================================================== */
 
-.save-assistant-modal__content {
+.save-agent-modal__content {
   max-width: 28rem;
 }
 
-.save-assistant-modal__header-row {
+.save-agent-modal__header-row {
   @apply flex items-center;
 }
 
-.save-assistant-modal__icon-wrap {
+.save-agent-modal__icon-wrap {
   @apply flex items-center justify-center;
   width: 2.5rem;
   height: 2.5rem;
@@ -581,16 +581,16 @@
   background: linear-gradient(135deg, #8b5cf6, #7c3aed);
 }
 
-.save-assistant-modal__icon {
+.save-agent-modal__icon {
   @apply w-5 h-5;
   color: white;
 }
 
-.save-assistant-modal__form {
+.save-agent-modal__form {
   padding: 1.5rem;
 }
 
-.save-assistant-modal__footer {
+.save-agent-modal__footer {
   @apply flex justify-end;
   gap: 0.75rem;
 }
@@ -599,57 +599,57 @@
    SAVED ASSISTANTS LIST
    ========================================================================== */
 
-.saved-assistants-list {
+.saved-agents-list {
   @apply mx-auto;
   max-width: 64rem;
   padding: 1.5rem;
 }
 
-.saved-assistants-list__header {
+.saved-agents-list__header {
   @apply flex justify-between items-center;
   margin-bottom: 2rem;
 }
 
-.saved-assistants-list__subtitle {
+.saved-agents-list__subtitle {
   margin-top: 0.25rem;
 }
 
-.saved-assistants-list__empty {
+.saved-agents-list__empty {
   @apply text-center;
   padding: 4rem 0;
 }
 
-.saved-assistants-list__empty-icon {
+.saved-agents-list__empty-icon {
   @apply mb-4;
   font-size: 2.5rem;
 }
 
-.saved-assistants-list__empty-caption {
+.saved-agents-list__empty-caption {
   @apply mx-auto;
   max-width: 28rem;
   margin-top: 0.5rem;
 }
 
-.saved-assistants-list__grid {
+.saved-agents-list__grid {
   @apply grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1rem;
 }
 
-.saved-assistants-list__card-header {
+.saved-agents-list__card-header {
   @apply flex justify-between items-start;
   margin-bottom: 0.75rem;
 }
 
-.saved-assistants-list__card-content {
+.saved-agents-list__card-content {
   @apply flex-1 min-w-0;
 }
 
-.saved-assistants-list__card-name {
+.saved-agents-list__card-name {
   @apply font-semibold;
 }
 
-.saved-assistants-list__card-description {
+.saved-agents-list__card-description {
   @apply overflow-hidden;
   margin-top: 0.25rem;
   -webkit-line-clamp: 2;
@@ -657,17 +657,17 @@
   -webkit-box-orient: vertical;
 }
 
-.saved-assistants-list__card-badges {
+.saved-agents-list__card-badges {
   @apply flex flex-wrap;
   gap: 0.375rem;
   margin-bottom: 1rem;
 }
 
-.saved-assistants-list__badge-sm {
+.saved-agents-list__badge-sm {
   font-size: 0.625rem;
 }
 
-.saved-assistants-list__card-footer {
+.saved-agents-list__card-footer {
   @apply flex justify-between items-center;
 }
 
@@ -1031,15 +1031,15 @@
    ASSISTANT FORM
    ========================================================================== */
 
-.assistant-form__instructions-textarea {
+.agent-form__instructions-textarea {
   @apply font-mono resize-y;
   min-height: 200px;
 }
 
-.assistant-form__workflow-card {
+.agent-form__workflow-card {
   @apply cursor-pointer;
 }
 
-.assistant-form__workflow-row {
+.agent-form__workflow-row {
   @apply flex justify-between items-center;
 }

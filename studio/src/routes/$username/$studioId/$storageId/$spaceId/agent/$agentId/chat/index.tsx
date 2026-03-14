@@ -394,7 +394,7 @@ function AgentChatPage() {
 }
 
 export const Route = createFileRoute(
-  '/$username/$studioId/$storageId/$spaceId/assistant/$agentId/chat/',
+  '/$username/$studioId/$storageId/$spaceId/agent/$agentId/chat/',
 )({
   component: AgentChatPage,
 })

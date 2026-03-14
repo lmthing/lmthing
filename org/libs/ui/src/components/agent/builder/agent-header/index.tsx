@@ -42,28 +42,28 @@ export function AgentHeader({
   onExport,
 }: AgentHeaderProps) {
   return (
-    <header className="assistant-header">
-      <Stack row className="assistant-header__left">
+    <header className="agent-header">
+      <Stack row className="agent-header__left">
         <Button variant="ghost" size="icon" onClick={onBack}>
-          <ArrowLeft className="assistant-header__icon" />
+          <ArrowLeft className="agent-header__icon" />
         </Button>
-        <div className="assistant-header__name-wrap">
+        <div className="agent-header__name-wrap">
           <Input
             value={name}
             onChange={e => onNameChange(e.target.value)}
             placeholder="Agent name"
-            className="input--sm assistant-header__name-input"
+            className="input--sm agent-header__name-input"
           />
           <Input
             value={description}
             onChange={e => onDescriptionChange(e.target.value)}
             placeholder="What does this agent do?"
-            className="input--sm assistant-header__desc-input"
+            className="input--sm agent-header__desc-input"
           />
         </div>
       </Stack>
 
-      <Stack row gap="sm" className="assistant-header__right">
+      <Stack row gap="sm" className="agent-header__right">
         {hasUnsavedChanges && (
           <Button
             variant="primary"
@@ -75,11 +75,11 @@ export function AgentHeader({
           </Button>
         )}
         <Button variant="ghost" size="sm" onClick={onToggleThing}>
-          <Bot className="assistant-header__btn-icon" />
+          <Bot className="agent-header__btn-icon" />
           {isThingOpen ? 'Hide Thing' : 'Thing'}
         </Button>
         <Button variant="ghost" size="sm" onClick={onExport} disabled={isExporting || isNew}>
-          <Download className="assistant-header__btn-icon" />
+          <Download className="agent-header__btn-icon" />
           {isExporting ? 'Exporting...' : 'Export'}
         </Button>
       </Stack>

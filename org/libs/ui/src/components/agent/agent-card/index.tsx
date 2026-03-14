@@ -11,15 +11,15 @@ interface AgentCardProps {
 }
 
 export function AgentCard({ id, name }: AgentCardProps) {
-  const assistant = useAgent(id)
+  const agent = useAgent(id)
 
-  const displayName = name || assistant?.instruct?.name || 'Untitled Agent'
+  const displayName = name || agent?.instruct?.name || 'Untitled Agent'
 
   return (
     <Card data-agent-id={id}>
       <CardBody>
         <Heading level={4}>{displayName}</Heading>
-        {assistant?.instruct?.description && <Caption muted>{assistant.instruct.description}</Caption>}
+        {agent?.instruct?.description && <Caption muted>{agent.instruct.description}</Caption>}
       </CardBody>
     </Card>
   )

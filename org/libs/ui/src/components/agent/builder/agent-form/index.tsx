@@ -36,10 +36,10 @@ function WorkflowCard({ workflow, selected, onToggle }: {
     <Card
       interactive
       onClick={onToggle}
-      className="assistant-form__workflow-card"
+      className="agent-form__workflow-card"
     >
       <CardBody>
-        <Stack row className="assistant-form__workflow-row">
+        <Stack row className="agent-form__workflow-row">
           <Label>{workflow.id}</Label>
           <Badge variant={selected ? 'primary' : 'muted'}>
             {selected ? 'Attached' : 'Add'}
@@ -77,7 +77,7 @@ export function AgentForm({
                 className="input"
                 value={name}
                 onChange={e => onNameChange(e.target.value)}
-                placeholder="Assistant name"
+                placeholder="Agent name"
               />
             </div>
             <div>
@@ -98,7 +98,7 @@ export function AgentForm({
         <div className="panel__header"><Label>Instructions</Label></div>
         <div className="panel__body">
           <textarea
-            className="input assistant-form__instructions-textarea"
+            className="input agent-form__instructions-textarea"
             value={instructions}
             onChange={e => onInstructionsChange(e.target.value)}
             placeholder="Main instructions for this agent..."

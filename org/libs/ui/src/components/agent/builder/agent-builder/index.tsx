@@ -129,7 +129,7 @@ export function AgentBuilder() {
     return paths
   }, [fieldSchemas, formValues, askAtRuntimeIds])
 
-  // Sync draft state when assistant data loads or agentId changes.
+  // Sync draft state when agent data loads or agentId changes.
   const syncKey = `${agentId}::${agent.instruct?.name ?? ''}`
   const lastSyncKey = useRef(syncKey)
   useEffect(() => {
@@ -220,7 +220,7 @@ export function AgentBuilder() {
   }, [spaceFS, isValid, agentId, draftName, draftDescription, draftInstructions, selectedFieldIds, selectedWorkflowIds, formValues, askAtRuntimeIds, agent.config, navigate, spacePath])
 
   const handleBack = useCallback(() => {
-    navigate({ to: `${spacePath}/assistant` })
+    navigate({ to: `${spacePath}/agent` })
   }, [navigate, spacePath])
 
   const handleFieldToggle = useCallback((fieldId: string) => {

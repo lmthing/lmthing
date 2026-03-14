@@ -987,12 +987,12 @@ export function StudioShell({
     }
 
     runtimeResponseTimeoutRef.current = setTimeout(() => {
-      const assistantNow = new Date().toISOString()
-      const assistantMessage = {
-        id: `msg-assistant-${Date.now()}`,
+      const responseNow = new Date().toISOString()
+      const responseMessage = {
+        id: `msg-agent-${Date.now()}`,
         role: 'assistant' as const,
         content: 'Preview response: I would use your assembled prompt and enabled files to answer this request.',
-        timestamp: assistantNow,
+        timestamp: responseNow,
       }
 
       upsertAgent({
@@ -1001,8 +1001,8 @@ export function StudioShell({
           c.id === conversationId
             ? {
               ...updatedConversation,
-              messages: [...(updatedConversation.messages || []), assistantMessage],
-              updatedAt: assistantNow,
+              messages: [...(updatedConversation.messages || []), responseMessage],
+              updatedAt: responseNow,
             }
             : c
         ),

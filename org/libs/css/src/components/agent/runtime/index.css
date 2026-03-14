@@ -2,42 +2,42 @@
 
 /* ── AssistantList ─────────────────────────────────────────────────── */
 
-.assistant-list__header {
+.agent-list__header {
   max-width: 72rem;
   margin: 0 auto;
 }
 
-.assistant-list__header-row {
+.agent-list__header-row {
   @apply flex justify-between items-center;
 }
 
-.assistant-list__body {
+.agent-list__body {
   max-width: 72rem;
   margin: 0 auto;
 }
 
-.assistant-list__loading {
+.agent-list__loading {
   @apply flex items-center justify-center;
   padding: 3rem;
 }
 
-.assistant-list__empty {
+.agent-list__empty {
   @apply flex flex-col;
   text-align: center;
   padding: 3rem;
 }
 
-.assistant-list__empty-icon {
+.agent-list__empty-icon {
   font-size: 2.5rem;
   margin-bottom: 1rem;
 }
 
-.assistant-list__empty-caption {
+.agent-list__empty-caption {
   max-width: 24rem;
   margin: 0 auto;
 }
 
-.assistant-list__grid {
+.agent-list__grid {
   @apply grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1rem;
@@ -45,24 +45,24 @@
 
 /* ── AssistantCard ────────────────────────────────────────────────── */
 
-.assistant-card__button {
+.agent-card__button {
   all: unset;
   cursor: pointer;
   display: block;
   width: 100%;
 }
 
-.assistant-card {
+.agent-card {
   width: 100%;
   text-align: left;
 }
 
-.assistant-card__name {
+.agent-card__name {
   font-weight: 600;
   margin-bottom: 0.75rem;
 }
 
-.assistant-card__description {
+.agent-card__description {
   -webkit-line-clamp: 2;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -70,24 +70,24 @@
   margin-bottom: 1rem;
 }
 
-.assistant-card__meta-row {
+.agent-card__meta-row {
   @apply flex justify-between;
   font-size: 0.75rem;
 }
 
-.assistant-card__badge {
+.agent-card__badge {
   font-size: 0.625rem;
 }
 
-.assistant-card__separator {
+.agent-card__separator {
   margin: 0.75rem 0;
 }
 
-.assistant-card__fields-warning {
+.agent-card__fields-warning {
   color: var(--color-warning);
 }
 
-.assistant-card__tools {
+.agent-card__tools {
   @apply flex flex-wrap;
   gap: 0.375rem;
   margin-top: 0.5rem;

@@ -19,10 +19,10 @@ export interface RuntimeAgent {
 }
 
 interface AgentListProps {
-  assistants: RuntimeAgent[]
+  agents: RuntimeAgent[]
   selectedAgentId?: string | null
   isLoading?: boolean
-  onSelectAgent?: (assistantId: string) => void
+  onSelectAgent?: (agentId: string) => void
 }
 
 function formatTimestamp(isoString: string | null): string {
@@ -40,42 +40,42 @@ function formatTimestamp(isoString: string | null): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-function AgentCard({ assistant, onClick }: { assistant: RuntimeAgent; onClick: () => void }) {
+function AgentCard({ agent, onClick }: { agent: RuntimeAgent; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="assistant-card__button">
-      <Card interactive className="assistant-card">
+    <button onClick={onClick} className="agent-card__button">
+      <Card interactive className="agent-card">
         <CardBody>
-          <Label className="assistant-card__name">{assistant.name}</Label>
-          <Caption muted className="assistant-card__description">
-            {assistant.description}
+          <Label className="agent-card__name">{agent.name}</Label>
+          <Caption muted className="agent-card__description">
+            {agent.description}
           </Caption>
 
-          <Stack row className="assistant-card__meta-row">
+          <Stack row className="agent-card__meta-row">
             <Stack row gap="sm">
               <Caption muted>Knowledge:</Caption>
-              {assistant.fields.slice(0, 2).map(field => (
-                <Badge key={field} variant="muted" className="assistant-card__badge">{field}</Badge>
+              {agent.fields.slice(0, 2).map(field => (
+                <Badge key={field} variant="muted" className="agent-card__badge">{field}</Badge>
               ))}
-              {assistant.fields.length > 2 && <Caption muted>+{assistant.fields.length - 2}</Caption>}
+              {agent.fields.length > 2 && <Caption muted>+{agent.fields.length - 2}</Caption>}
             </Stack>
-            <Caption muted>{formatTimestamp(assistant.lastUsedAt)}</Caption>
+            <Caption muted>{formatTimestamp(agent.lastUsedAt)}</Caption>
           </Stack>
 
-          {assistant.runtimeFields.length > 0 && <Separator className="assistant-card__separator" />}
-          {assistant.runtimeFields.length > 0 && (
-            <Caption className="assistant-card__fields-warning">
-              {assistant.runtimeFields.length} field{assistant.runtimeFields.length > 1 ? 's' : ''} to configure
+          {agent.runtimeFields.length > 0 && <Separator className="agent-card__separator" />}
+          {agent.runtimeFields.length > 0 && (
+            <Caption className="agent-card__fields-warning">
+              {agent.runtimeFields.length} field{agent.runtimeFields.length > 1 ? 's' : ''} to configure
             </Caption>
           )}
 
-          {assistant.enabledTools.length > 0 && (
-            <div className="assistant-card__tools">
-              {assistant.enabledTools.slice(0, 4).map(tool => (
-                <Badge key={tool.toolId} variant="muted" className="assistant-card__badge" title={tool.name}>
+          {agent.enabledTools.length > 0 && (
+            <div className="agent-card__tools">
+              {agent.enabledTools.slice(0, 4).map(tool => (
+                <Badge key={tool.toolId} variant="muted" className="agent-card__badge" title={tool.name}>
                   {tool.icon} {tool.name}
                 </Badge>
               ))}
-              {assistant.enabledTools.length > 4 && <Caption muted>+{assistant.enabledTools.length - 4} more</Caption>}
+              {agent.enabledTools.length > 4 && <Caption muted>+{agent.enabledTools.length - 4} more</Caption>}
             </div>
           )}
         </CardBody>
@@ -87,8 +87,8 @@ function AgentCard({ assistant, onClick }: { assistant: RuntimeAgent; onClick: (
 export function AgentList({ assistants, isLoading = false, onSelectAgent }: AgentListProps) {
   return (
     <Page full>
-      <PageHeader className="assistant-list__header">
-        <Stack row className="assistant-list__header-row">
+      <PageHeader className="agent-list__header">
+        <Stack row className="agent-list__header-row">
           <div>
             <Heading level={2}>Agent Runtime</Heading>
             <Caption muted>Select an agent to configure and run conversations</Caption>
@@ -97,23 +97,23 @@ export function AgentList({ assistants, isLoading = false, onSelectAgent }: Agen
         </Stack>
       </PageHeader>
 
-      <PageBody className="assistant-list__body">
+      <PageBody className="agent-list__body">
         {isLoading ? (
-          <Stack className="assistant-list__loading">
+          <Stack className="agent-list__loading">
             <Caption muted>Loading agents...</Caption>
           </Stack>
         ) : agents.length === 0 ? (
-          <Stack className="assistant-list__empty">
-            <div className="assistant-list__empty-icon">🤖</div>
+          <Stack className="agent-list__empty">
+            <div className="agent-list__empty-icon">🤖</div>
             <Heading level={3}>No Agents Yet</Heading>
-            <Caption muted className="assistant-list__empty-caption">
-              Create and deploy agents from the Assistant Builder to see them here.
+            <Caption muted className="agent-list__empty-caption">
+              Create and deploy agents from the Agent Builder to see them here.
             </Caption>
           </Stack>
         ) : (
-          <div className="assistant-list__grid">
-            {assistants.map(assistant => (
-              <AgentCard key={assistant.id} assistant={assistant} onClick={() => onSelectAgent?.(assistant.id)} />
+          <div className="agent-list__grid">
+            {agents.map(agent => (
+              <AgentCard key={agent.id} agent={agent} onClick={() => onSelectAgent?.(agent.id)} />
             ))}
           </div>
         )}

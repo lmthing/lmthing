@@ -719,6 +719,9 @@ importers:
 
   space:
     dependencies:
+      '@lmthing/auth':
+        specifier: workspace:*
+        version: link:../org/libs/auth
       '@lmthing/css':
         specifier: workspace:*
         version: link:../org/libs/css

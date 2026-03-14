@@ -54,9 +54,7 @@ Deno.serve(async (req) => {
       .update({ used_at: new Date().toISOString() })
       .eq("id", ssoCode.id);
 
-    // Generate a session for the user using admin API
-    // We use the service role to create a magic link token, then exchange it
-    // This effectively creates a new session for the user
+    // Get user info
     const { data: userData, error: userError } = await supabase.auth.admin.getUserById(ssoCode.user_id);
     if (userError || !userData.user) {
       return new Response(
@@ -65,23 +63,35 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Generate a session token pair
-    const { data: sessionData, error: sessionError } = await supabase.auth.admin.generateLink({
+    // Generate a magic link to get the OTP
+    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: "magiclink",
       email: userData.user.email!,
     });
 
-    if (sessionError) throw sessionError;
+    if (linkError) throw linkError;
+
+    // Verify the OTP server-side to create a proper Supabase session with a real JWT
+    const { data: sessionData, error: sessionError } = await supabase.auth.verifyOtp({
+      email: userData.user.email!,
+      token: linkData.properties?.email_otp!,
+      type: "email",
+    });
+
+    if (sessionError || !sessionData.session) {
+      throw new Error(sessionError?.message || "Failed to create session");
+    }
 
     return new Response(
       JSON.stringify({
-        access_token: sessionData.properties?.hashed_token,
+        access_token: sessionData.session.access_token,
+        refresh_token: sessionData.session.refresh_token,
         token_type: "bearer",
+        expires_in: sessionData.session.expires_in,
         user: {
-          id: userData.user.id,
-          email: userData.user.email,
+          id: sessionData.user?.id ?? userData.user.id,
+          email: sessionData.user?.email ?? userData.user.email,
         },
-        verification_url: sessionData.properties?.action_link,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

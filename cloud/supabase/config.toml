@@ -360,6 +360,24 @@ verify_jwt = false
 [functions.stripe-webhook]
 verify_jwt = false
 
+[functions.create-space]
+verify_jwt = false
+
+[functions.list-spaces]
+verify_jwt = false
+
+[functions.get-space]
+verify_jwt = false
+
+[functions.update-space]
+verify_jwt = false
+
+[functions.delete-space]
+verify_jwt = false
+
+[functions.issue-space-token]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

@@ -2,24 +2,15 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { Terminal } from '@lmthing/ui/elements/content/terminal'
 import type { TerminalSession } from '@lmthing/ui/elements/content/terminal'
+import { getAuthHeaders } from '@lmthing/auth'
+import { useSpace } from '@/lib/SpaceContext'
 
-const CLOUD_BASE_URL = import.meta.env.VITE_CLOUD_BASE_URL ?? 'https://cloud.lmthing.org'
-const CLOUD_AUTH_KEY = 'lmthing-cloud-auth'
+const CLOUD_URL = import.meta.env.VITE_CLOUD_URL
+  || (import.meta.env.DEV ? `${window.location.protocol}//cloud.local/functions/v1` : 'https://lmthing.cloud/functions/v1')
 
-export const Route = createFileRoute('/$spaceId/terminal')({
+export const Route = createFileRoute('/$spaceSlug/admin/terminal')({
   component: SpaceTerminal,
 })
-
-function getAuthHeader(): string | null {
-  try {
-    const raw = localStorage.getItem(CLOUD_AUTH_KEY)
-    if (!raw) return null
-    const { accessToken } = JSON.parse(raw)
-    return accessToken ? `Bearer ${accessToken}` : null
-  } catch {
-    return null
-  }
-}
 
 function createSpaceTerminalSession(spaceId: string, ws: WebSocket): TerminalSession {
   const dataListeners = new Set<(data: string) => void>()
@@ -31,7 +22,6 @@ function createSpaceTerminalSession(spaceId: string, ws: WebSocket): TerminalSes
         for (const cb of dataListeners) cb(msg.data)
       }
     } catch {
-      // Raw data fallback
       for (const cb of dataListeners) cb(event.data as string)
     }
   }
@@ -60,48 +50,47 @@ function createSpaceTerminalSession(spaceId: string, ws: WebSocket): TerminalSes
 }
 
 function SpaceTerminal() {
-  const { spaceId } = Route.useParams()
+  const { space } = useSpace()
   const [session, setSession] = useState<TerminalSession | null>(null)
   const [error, setError] = useState<string | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
-    const authHeader = getAuthHeader()
-    if (!authHeader) {
-      setError('Not authenticated. Please log in to access the terminal.')
+    const headers = getAuthHeaders()
+    if (!headers.Authorization) {
+      setError('Not authenticated.')
       return
     }
 
     let disposed = false
 
-    // Fetch the space's host, then connect via WebSocket
-    fetch(`${CLOUD_BASE_URL}/functions/v1/issue-computer-token`, {
+    fetch(`${CLOUD_URL}/issue-space-token`, {
       method: 'POST',
       headers: {
-        'Authorization': authHeader,
+        ...headers,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ spaceId }),
+      body: JSON.stringify({ spaceId: space.id }),
     })
       .then(async (res) => {
         if (disposed) return
         if (!res.ok) {
-          setError('Failed to authenticate for terminal access.')
+          const data = await res.json().catch(() => ({ error: { message: 'Failed to get token' } }))
+          setError(data.error?.message || 'Failed to authenticate for terminal access.')
           return
         }
         const { token, appHost } = await res.json()
-        if (disposed || !appHost) return
+        if (disposed || !appHost) {
+          if (!appHost && !disposed) setError('Space has no running node.')
+          return
+        }
 
-        const ws = new WebSocket(`wss://${appHost}/ws?token=${encodeURIComponent(token)}&spaceId=${encodeURIComponent(spaceId)}`)
+        const ws = new WebSocket(`wss://${appHost}/ws?token=${encodeURIComponent(token)}&spaceId=${encodeURIComponent(space.id)}`)
         wsRef.current = ws
 
         ws.onopen = () => {
-          if (disposed) {
-            ws.close()
-            return
-          }
-          const termSession = createSpaceTerminalSession(spaceId, ws)
-          setSession(termSession)
+          if (disposed) { ws.close(); return }
+          setSession(createSpaceTerminalSession(space.id, ws))
         }
 
         ws.onerror = () => {
@@ -124,7 +113,7 @@ function SpaceTerminal() {
       }
       setSession(null)
     }
-  }, [spaceId])
+  }, [space.id])
 
   if (error) {
     return (

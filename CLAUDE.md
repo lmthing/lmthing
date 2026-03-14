@@ -27,7 +27,7 @@ lmthing/
 │   │   ├── css/            # Shared styles
 │   │   └── ui/             # Shared UI components
 │   └── docs/               # Documentation
-├── cloud/                  # @lmthing/cloud — Supabase Edge Functions (Deno)
+├── cloud/                  # lmthing.cloud — Supabase Edge Functions (Deno)
 ├── studio/                 # lmthing.studio — agent builder UI (React 19, Vite 7, TanStack Router)
 ├── chat/                   # lmthing.chat — personal THING interface
 ├── blog/                   # lmthing.blog — personalized AI news

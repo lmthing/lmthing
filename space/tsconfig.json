@@ -8,6 +8,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
+      "@lmthing/auth": ["../org/libs/auth/src"],
       "@lmthing/ui": ["../org/libs/ui/src"],
       "@lmthing/ui/*": ["../org/libs/ui/src/*"],
       "@lmthing/css/*": ["../org/libs/css/src/*"],

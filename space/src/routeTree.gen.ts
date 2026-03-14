@@ -9,94 +9,224 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SpaceSlugRouteRouteImport } from './routes/$spaceSlug/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as SpaceIdIndexRouteImport } from './routes/$spaceId/index'
-import { Route as SpaceIdTerminalRouteImport } from './routes/$spaceId/terminal'
-import { Route as SpaceIdSettingsRouteImport } from './routes/$spaceId/settings'
-import { Route as SpaceIdLogsRouteImport } from './routes/$spaceId/logs'
+import { Route as SpaceSlugIndexRouteImport } from './routes/$spaceSlug/index'
+import { Route as SpaceSlugAppRouteRouteImport } from './routes/$spaceSlug/app/route'
+import { Route as SpaceSlugAdminRouteRouteImport } from './routes/$spaceSlug/admin/route'
+import { Route as SpaceSlugAppIndexRouteImport } from './routes/$spaceSlug/app/index'
+import { Route as SpaceSlugAdminIndexRouteImport } from './routes/$spaceSlug/admin/index'
+import { Route as SpaceSlugAppPageRouteImport } from './routes/$spaceSlug/app/$page'
+import { Route as SpaceSlugAdminUsersRouteImport } from './routes/$spaceSlug/admin/users'
+import { Route as SpaceSlugAdminTerminalRouteImport } from './routes/$spaceSlug/admin/terminal'
+import { Route as SpaceSlugAdminSettingsRouteImport } from './routes/$spaceSlug/admin/settings'
+import { Route as SpaceSlugAdminPagesRouteImport } from './routes/$spaceSlug/admin/pages'
+import { Route as SpaceSlugAdminLogsRouteImport } from './routes/$spaceSlug/admin/logs'
+import { Route as SpaceSlugAdminDatabaseRouteImport } from './routes/$spaceSlug/admin/database'
+import { Route as SpaceSlugAdminBuilderRouteImport } from './routes/$spaceSlug/admin/builder'
+import { Route as SpaceSlugAdminAgentsRouteImport } from './routes/$spaceSlug/admin/agents'
 
+const SpaceSlugRouteRoute = SpaceSlugRouteRouteImport.update({
+  id: '/$spaceSlug',
+  path: '/$spaceSlug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SpaceIdIndexRoute = SpaceIdIndexRouteImport.update({
-  id: '/$spaceId/',
-  path: '/$spaceId/',
-  getParentRoute: () => rootRouteImport,
+const SpaceSlugIndexRoute = SpaceSlugIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SpaceSlugRouteRoute,
 } as any)
-const SpaceIdTerminalRoute = SpaceIdTerminalRouteImport.update({
-  id: '/$spaceId/terminal',
-  path: '/$spaceId/terminal',
-  getParentRoute: () => rootRouteImport,
+const SpaceSlugAppRouteRoute = SpaceSlugAppRouteRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => SpaceSlugRouteRoute,
 } as any)
-const SpaceIdSettingsRoute = SpaceIdSettingsRouteImport.update({
-  id: '/$spaceId/settings',
-  path: '/$spaceId/settings',
-  getParentRoute: () => rootRouteImport,
+const SpaceSlugAdminRouteRoute = SpaceSlugAdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => SpaceSlugRouteRoute,
 } as any)
-const SpaceIdLogsRoute = SpaceIdLogsRouteImport.update({
-  id: '/$spaceId/logs',
-  path: '/$spaceId/logs',
-  getParentRoute: () => rootRouteImport,
+const SpaceSlugAppIndexRoute = SpaceSlugAppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SpaceSlugAppRouteRoute,
+} as any)
+const SpaceSlugAdminIndexRoute = SpaceSlugAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SpaceSlugAdminRouteRoute,
+} as any)
+const SpaceSlugAppPageRoute = SpaceSlugAppPageRouteImport.update({
+  id: '/$page',
+  path: '/$page',
+  getParentRoute: () => SpaceSlugAppRouteRoute,
+} as any)
+const SpaceSlugAdminUsersRoute = SpaceSlugAdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => SpaceSlugAdminRouteRoute,
+} as any)
+const SpaceSlugAdminTerminalRoute = SpaceSlugAdminTerminalRouteImport.update({
+  id: '/terminal',
+  path: '/terminal',
+  getParentRoute: () => SpaceSlugAdminRouteRoute,
+} as any)
+const SpaceSlugAdminSettingsRoute = SpaceSlugAdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => SpaceSlugAdminRouteRoute,
+} as any)
+const SpaceSlugAdminPagesRoute = SpaceSlugAdminPagesRouteImport.update({
+  id: '/pages',
+  path: '/pages',
+  getParentRoute: () => SpaceSlugAdminRouteRoute,
+} as any)
+const SpaceSlugAdminLogsRoute = SpaceSlugAdminLogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
+  getParentRoute: () => SpaceSlugAdminRouteRoute,
+} as any)
+const SpaceSlugAdminDatabaseRoute = SpaceSlugAdminDatabaseRouteImport.update({
+  id: '/database',
+  path: '/database',
+  getParentRoute: () => SpaceSlugAdminRouteRoute,
+} as any)
+const SpaceSlugAdminBuilderRoute = SpaceSlugAdminBuilderRouteImport.update({
+  id: '/builder',
+  path: '/builder',
+  getParentRoute: () => SpaceSlugAdminRouteRoute,
+} as any)
+const SpaceSlugAdminAgentsRoute = SpaceSlugAdminAgentsRouteImport.update({
+  id: '/agents',
+  path: '/agents',
+  getParentRoute: () => SpaceSlugAdminRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/$spaceId/logs': typeof SpaceIdLogsRoute
-  '/$spaceId/settings': typeof SpaceIdSettingsRoute
-  '/$spaceId/terminal': typeof SpaceIdTerminalRoute
-  '/$spaceId/': typeof SpaceIdIndexRoute
+  '/$spaceSlug': typeof SpaceSlugRouteRouteWithChildren
+  '/$spaceSlug/admin': typeof SpaceSlugAdminRouteRouteWithChildren
+  '/$spaceSlug/app': typeof SpaceSlugAppRouteRouteWithChildren
+  '/$spaceSlug/': typeof SpaceSlugIndexRoute
+  '/$spaceSlug/admin/agents': typeof SpaceSlugAdminAgentsRoute
+  '/$spaceSlug/admin/builder': typeof SpaceSlugAdminBuilderRoute
+  '/$spaceSlug/admin/database': typeof SpaceSlugAdminDatabaseRoute
+  '/$spaceSlug/admin/logs': typeof SpaceSlugAdminLogsRoute
+  '/$spaceSlug/admin/pages': typeof SpaceSlugAdminPagesRoute
+  '/$spaceSlug/admin/settings': typeof SpaceSlugAdminSettingsRoute
+  '/$spaceSlug/admin/terminal': typeof SpaceSlugAdminTerminalRoute
+  '/$spaceSlug/admin/users': typeof SpaceSlugAdminUsersRoute
+  '/$spaceSlug/app/$page': typeof SpaceSlugAppPageRoute
+  '/$spaceSlug/admin/': typeof SpaceSlugAdminIndexRoute
+  '/$spaceSlug/app/': typeof SpaceSlugAppIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/$spaceId/logs': typeof SpaceIdLogsRoute
-  '/$spaceId/settings': typeof SpaceIdSettingsRoute
-  '/$spaceId/terminal': typeof SpaceIdTerminalRoute
-  '/$spaceId': typeof SpaceIdIndexRoute
+  '/$spaceSlug': typeof SpaceSlugIndexRoute
+  '/$spaceSlug/admin/agents': typeof SpaceSlugAdminAgentsRoute
+  '/$spaceSlug/admin/builder': typeof SpaceSlugAdminBuilderRoute
+  '/$spaceSlug/admin/database': typeof SpaceSlugAdminDatabaseRoute
+  '/$spaceSlug/admin/logs': typeof SpaceSlugAdminLogsRoute
+  '/$spaceSlug/admin/pages': typeof SpaceSlugAdminPagesRoute
+  '/$spaceSlug/admin/settings': typeof SpaceSlugAdminSettingsRoute
+  '/$spaceSlug/admin/terminal': typeof SpaceSlugAdminTerminalRoute
+  '/$spaceSlug/admin/users': typeof SpaceSlugAdminUsersRoute
+  '/$spaceSlug/app/$page': typeof SpaceSlugAppPageRoute
+  '/$spaceSlug/admin': typeof SpaceSlugAdminIndexRoute
+  '/$spaceSlug/app': typeof SpaceSlugAppIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/$spaceId/logs': typeof SpaceIdLogsRoute
-  '/$spaceId/settings': typeof SpaceIdSettingsRoute
-  '/$spaceId/terminal': typeof SpaceIdTerminalRoute
-  '/$spaceId/': typeof SpaceIdIndexRoute
+  '/$spaceSlug': typeof SpaceSlugRouteRouteWithChildren
+  '/$spaceSlug/admin': typeof SpaceSlugAdminRouteRouteWithChildren
+  '/$spaceSlug/app': typeof SpaceSlugAppRouteRouteWithChildren
+  '/$spaceSlug/': typeof SpaceSlugIndexRoute
+  '/$spaceSlug/admin/agents': typeof SpaceSlugAdminAgentsRoute
+  '/$spaceSlug/admin/builder': typeof SpaceSlugAdminBuilderRoute
+  '/$spaceSlug/admin/database': typeof SpaceSlugAdminDatabaseRoute
+  '/$spaceSlug/admin/logs': typeof SpaceSlugAdminLogsRoute
+  '/$spaceSlug/admin/pages': typeof SpaceSlugAdminPagesRoute
+  '/$spaceSlug/admin/settings': typeof SpaceSlugAdminSettingsRoute
+  '/$spaceSlug/admin/terminal': typeof SpaceSlugAdminTerminalRoute
+  '/$spaceSlug/admin/users': typeof SpaceSlugAdminUsersRoute
+  '/$spaceSlug/app/$page': typeof SpaceSlugAppPageRoute
+  '/$spaceSlug/admin/': typeof SpaceSlugAdminIndexRoute
+  '/$spaceSlug/app/': typeof SpaceSlugAppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/$spaceId/logs'
-    | '/$spaceId/settings'
-    | '/$spaceId/terminal'
-    | '/$spaceId/'
+    | '/$spaceSlug'
+    | '/$spaceSlug/admin'
+    | '/$spaceSlug/app'
+    | '/$spaceSlug/'
+    | '/$spaceSlug/admin/agents'
+    | '/$spaceSlug/admin/builder'
+    | '/$spaceSlug/admin/database'
+    | '/$spaceSlug/admin/logs'
+    | '/$spaceSlug/admin/pages'
+    | '/$spaceSlug/admin/settings'
+    | '/$spaceSlug/admin/terminal'
+    | '/$spaceSlug/admin/users'
+    | '/$spaceSlug/app/$page'
+    | '/$spaceSlug/admin/'
+    | '/$spaceSlug/app/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/$spaceId/logs'
-    | '/$spaceId/settings'
-    | '/$spaceId/terminal'
-    | '/$spaceId'
+    | '/$spaceSlug'
+    | '/$spaceSlug/admin/agents'
+    | '/$spaceSlug/admin/builder'
+    | '/$spaceSlug/admin/database'
+    | '/$spaceSlug/admin/logs'
+    | '/$spaceSlug/admin/pages'
+    | '/$spaceSlug/admin/settings'
+    | '/$spaceSlug/admin/terminal'
+    | '/$spaceSlug/admin/users'
+    | '/$spaceSlug/app/$page'
+    | '/$spaceSlug/admin'
+    | '/$spaceSlug/app'
   id:
     | '__root__'
     | '/'
-    | '/$spaceId/logs'
-    | '/$spaceId/settings'
-    | '/$spaceId/terminal'
-    | '/$spaceId/'
+    | '/$spaceSlug'
+    | '/$spaceSlug/admin'
+    | '/$spaceSlug/app'
+    | '/$spaceSlug/'
+    | '/$spaceSlug/admin/agents'
+    | '/$spaceSlug/admin/builder'
+    | '/$spaceSlug/admin/database'
+    | '/$spaceSlug/admin/logs'
+    | '/$spaceSlug/admin/pages'
+    | '/$spaceSlug/admin/settings'
+    | '/$spaceSlug/admin/terminal'
+    | '/$spaceSlug/admin/users'
+    | '/$spaceSlug/app/$page'
+    | '/$spaceSlug/admin/'
+    | '/$spaceSlug/app/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  SpaceIdLogsRoute: typeof SpaceIdLogsRoute
-  SpaceIdSettingsRoute: typeof SpaceIdSettingsRoute
-  SpaceIdTerminalRoute: typeof SpaceIdTerminalRoute
-  SpaceIdIndexRoute: typeof SpaceIdIndexRoute
+  SpaceSlugRouteRoute: typeof SpaceSlugRouteRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/$spaceSlug': {
+      id: '/$spaceSlug'
+      path: '/$spaceSlug'
+      fullPath: '/$spaceSlug'
+      preLoaderRoute: typeof SpaceSlugRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -104,43 +234,166 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/$spaceId/': {
-      id: '/$spaceId/'
-      path: '/$spaceId'
-      fullPath: '/$spaceId/'
-      preLoaderRoute: typeof SpaceIdIndexRouteImport
-      parentRoute: typeof rootRouteImport
+    '/$spaceSlug/': {
+      id: '/$spaceSlug/'
+      path: '/'
+      fullPath: '/$spaceSlug/'
+      preLoaderRoute: typeof SpaceSlugIndexRouteImport
+      parentRoute: typeof SpaceSlugRouteRoute
     }
-    '/$spaceId/terminal': {
-      id: '/$spaceId/terminal'
-      path: '/$spaceId/terminal'
-      fullPath: '/$spaceId/terminal'
-      preLoaderRoute: typeof SpaceIdTerminalRouteImport
-      parentRoute: typeof rootRouteImport
+    '/$spaceSlug/app': {
+      id: '/$spaceSlug/app'
+      path: '/app'
+      fullPath: '/$spaceSlug/app'
+      preLoaderRoute: typeof SpaceSlugAppRouteRouteImport
+      parentRoute: typeof SpaceSlugRouteRoute
     }
-    '/$spaceId/settings': {
-      id: '/$spaceId/settings'
-      path: '/$spaceId/settings'
-      fullPath: '/$spaceId/settings'
-      preLoaderRoute: typeof SpaceIdSettingsRouteImport
-      parentRoute: typeof rootRouteImport
+    '/$spaceSlug/admin': {
+      id: '/$spaceSlug/admin'
+      path: '/admin'
+      fullPath: '/$spaceSlug/admin'
+      preLoaderRoute: typeof SpaceSlugAdminRouteRouteImport
+      parentRoute: typeof SpaceSlugRouteRoute
     }
-    '/$spaceId/logs': {
-      id: '/$spaceId/logs'
-      path: '/$spaceId/logs'
-      fullPath: '/$spaceId/logs'
-      preLoaderRoute: typeof SpaceIdLogsRouteImport
-      parentRoute: typeof rootRouteImport
+    '/$spaceSlug/app/': {
+      id: '/$spaceSlug/app/'
+      path: '/'
+      fullPath: '/$spaceSlug/app/'
+      preLoaderRoute: typeof SpaceSlugAppIndexRouteImport
+      parentRoute: typeof SpaceSlugAppRouteRoute
+    }
+    '/$spaceSlug/admin/': {
+      id: '/$spaceSlug/admin/'
+      path: '/'
+      fullPath: '/$spaceSlug/admin/'
+      preLoaderRoute: typeof SpaceSlugAdminIndexRouteImport
+      parentRoute: typeof SpaceSlugAdminRouteRoute
+    }
+    '/$spaceSlug/app/$page': {
+      id: '/$spaceSlug/app/$page'
+      path: '/$page'
+      fullPath: '/$spaceSlug/app/$page'
+      preLoaderRoute: typeof SpaceSlugAppPageRouteImport
+      parentRoute: typeof SpaceSlugAppRouteRoute
+    }
+    '/$spaceSlug/admin/users': {
+      id: '/$spaceSlug/admin/users'
+      path: '/users'
+      fullPath: '/$spaceSlug/admin/users'
+      preLoaderRoute: typeof SpaceSlugAdminUsersRouteImport
+      parentRoute: typeof SpaceSlugAdminRouteRoute
+    }
+    '/$spaceSlug/admin/terminal': {
+      id: '/$spaceSlug/admin/terminal'
+      path: '/terminal'
+      fullPath: '/$spaceSlug/admin/terminal'
+      preLoaderRoute: typeof SpaceSlugAdminTerminalRouteImport
+      parentRoute: typeof SpaceSlugAdminRouteRoute
+    }
+    '/$spaceSlug/admin/settings': {
+      id: '/$spaceSlug/admin/settings'
+      path: '/settings'
+      fullPath: '/$spaceSlug/admin/settings'
+      preLoaderRoute: typeof SpaceSlugAdminSettingsRouteImport
+      parentRoute: typeof SpaceSlugAdminRouteRoute
+    }
+    '/$spaceSlug/admin/pages': {
+      id: '/$spaceSlug/admin/pages'
+      path: '/pages'
+      fullPath: '/$spaceSlug/admin/pages'
+      preLoaderRoute: typeof SpaceSlugAdminPagesRouteImport
+      parentRoute: typeof SpaceSlugAdminRouteRoute
+    }
+    '/$spaceSlug/admin/logs': {
+      id: '/$spaceSlug/admin/logs'
+      path: '/logs'
+      fullPath: '/$spaceSlug/admin/logs'
+      preLoaderRoute: typeof SpaceSlugAdminLogsRouteImport
+      parentRoute: typeof SpaceSlugAdminRouteRoute
+    }
+    '/$spaceSlug/admin/database': {
+      id: '/$spaceSlug/admin/database'
+      path: '/database'
+      fullPath: '/$spaceSlug/admin/database'
+      preLoaderRoute: typeof SpaceSlugAdminDatabaseRouteImport
+      parentRoute: typeof SpaceSlugAdminRouteRoute
+    }
+    '/$spaceSlug/admin/builder': {
+      id: '/$spaceSlug/admin/builder'
+      path: '/builder'
+      fullPath: '/$spaceSlug/admin/builder'
+      preLoaderRoute: typeof SpaceSlugAdminBuilderRouteImport
+      parentRoute: typeof SpaceSlugAdminRouteRoute
+    }
+    '/$spaceSlug/admin/agents': {
+      id: '/$spaceSlug/admin/agents'
+      path: '/agents'
+      fullPath: '/$spaceSlug/admin/agents'
+      preLoaderRoute: typeof SpaceSlugAdminAgentsRouteImport
+      parentRoute: typeof SpaceSlugAdminRouteRoute
     }
   }
 }
 
+interface SpaceSlugAdminRouteRouteChildren {
+  SpaceSlugAdminAgentsRoute: typeof SpaceSlugAdminAgentsRoute
+  SpaceSlugAdminBuilderRoute: typeof SpaceSlugAdminBuilderRoute
+  SpaceSlugAdminDatabaseRoute: typeof SpaceSlugAdminDatabaseRoute
+  SpaceSlugAdminLogsRoute: typeof SpaceSlugAdminLogsRoute
+  SpaceSlugAdminPagesRoute: typeof SpaceSlugAdminPagesRoute
+  SpaceSlugAdminSettingsRoute: typeof SpaceSlugAdminSettingsRoute
+  SpaceSlugAdminTerminalRoute: typeof SpaceSlugAdminTerminalRoute
+  SpaceSlugAdminUsersRoute: typeof SpaceSlugAdminUsersRoute
+  SpaceSlugAdminIndexRoute: typeof SpaceSlugAdminIndexRoute
+}
+
+const SpaceSlugAdminRouteRouteChildren: SpaceSlugAdminRouteRouteChildren = {
+  SpaceSlugAdminAgentsRoute: SpaceSlugAdminAgentsRoute,
+  SpaceSlugAdminBuilderRoute: SpaceSlugAdminBuilderRoute,
+  SpaceSlugAdminDatabaseRoute: SpaceSlugAdminDatabaseRoute,
+  SpaceSlugAdminLogsRoute: SpaceSlugAdminLogsRoute,
+  SpaceSlugAdminPagesRoute: SpaceSlugAdminPagesRoute,
+  SpaceSlugAdminSettingsRoute: SpaceSlugAdminSettingsRoute,
+  SpaceSlugAdminTerminalRoute: SpaceSlugAdminTerminalRoute,
+  SpaceSlugAdminUsersRoute: SpaceSlugAdminUsersRoute,
+  SpaceSlugAdminIndexRoute: SpaceSlugAdminIndexRoute,
+}
+
+const SpaceSlugAdminRouteRouteWithChildren =
+  SpaceSlugAdminRouteRoute._addFileChildren(SpaceSlugAdminRouteRouteChildren)
+
+interface SpaceSlugAppRouteRouteChildren {
+  SpaceSlugAppPageRoute: typeof SpaceSlugAppPageRoute
+  SpaceSlugAppIndexRoute: typeof SpaceSlugAppIndexRoute
+}
+
+const SpaceSlugAppRouteRouteChildren: SpaceSlugAppRouteRouteChildren = {
+  SpaceSlugAppPageRoute: SpaceSlugAppPageRoute,
+  SpaceSlugAppIndexRoute: SpaceSlugAppIndexRoute,
+}
+
+const SpaceSlugAppRouteRouteWithChildren =
+  SpaceSlugAppRouteRoute._addFileChildren(SpaceSlugAppRouteRouteChildren)
+
+interface SpaceSlugRouteRouteChildren {
+  SpaceSlugAdminRouteRoute: typeof SpaceSlugAdminRouteRouteWithChildren
+  SpaceSlugAppRouteRoute: typeof SpaceSlugAppRouteRouteWithChildren
+  SpaceSlugIndexRoute: typeof SpaceSlugIndexRoute
+}
+
+const SpaceSlugRouteRouteChildren: SpaceSlugRouteRouteChildren = {
+  SpaceSlugAdminRouteRoute: SpaceSlugAdminRouteRouteWithChildren,
+  SpaceSlugAppRouteRoute: SpaceSlugAppRouteRouteWithChildren,
+  SpaceSlugIndexRoute: SpaceSlugIndexRoute,
+}
+
+const SpaceSlugRouteRouteWithChildren = SpaceSlugRouteRoute._addFileChildren(
+  SpaceSlugRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  SpaceIdLogsRoute: SpaceIdLogsRoute,
-  SpaceIdSettingsRoute: SpaceIdSettingsRoute,
-  SpaceIdTerminalRoute: SpaceIdTerminalRoute,
-  SpaceIdIndexRoute: SpaceIdIndexRoute,
+  SpaceSlugRouteRoute: SpaceSlugRouteRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

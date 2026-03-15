@@ -1,0 +1,7 @@
+{
+  "label": "Distribution Models",
+  "description": "Ways to distribute agents on the lmthing store — free, source purchase, or API access",
+  "icon": "🏪",
+  "color": "#e74c3c",
+  "renderAs": "section"
+}

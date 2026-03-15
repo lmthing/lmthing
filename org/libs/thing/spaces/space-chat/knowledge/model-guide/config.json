@@ -1,0 +1,7 @@
+{
+  "label": "Model Guide",
+  "description": "Understanding available LLM models and tier-based access in lmthing.chat",
+  "icon": "🧠",
+  "color": "#7b61ff",
+  "renderAs": "section"
+}

@@ -1,0 +1,9 @@
+{
+  "label": "Platform Familiarity",
+  "description": "How familiar the user is with the lmthing ecosystem",
+  "fieldType": "select",
+  "required": true,
+  "default": "new-user",
+  "variableName": "familiarity",
+  "renderAs": "field"
+}

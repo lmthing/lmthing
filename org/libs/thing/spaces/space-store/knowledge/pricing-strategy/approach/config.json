@@ -1,0 +1,9 @@
+{
+  "label": "Approach",
+  "description": "Which pricing approach to use for your agent listing",
+  "fieldType": "select",
+  "required": false,
+  "default": "free-tier",
+  "variableName": "pricingApproach",
+  "renderAs": "field"
+}

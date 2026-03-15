@@ -1,0 +1,7 @@
+{
+  "label": "Listing Quality",
+  "description": "Elements that make a compelling agent listing on the lmthing store",
+  "icon": "⭐",
+  "color": "#2ecc71",
+  "renderAs": "section"
+}

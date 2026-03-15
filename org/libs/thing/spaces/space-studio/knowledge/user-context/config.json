@@ -1,0 +1,7 @@
+{
+  "label": "User Context",
+  "description": "Information about the user's experience level with agent building",
+  "icon": "👤",
+  "color": "#d59ec8",
+  "renderAs": "section"
+}

@@ -1,0 +1,9 @@
+{
+  "label": "Region",
+  "description": "Which Fly.io region to deploy the space in",
+  "fieldType": "select",
+  "required": false,
+  "default": "iad",
+  "variableName": "region",
+  "renderAs": "field"
+}

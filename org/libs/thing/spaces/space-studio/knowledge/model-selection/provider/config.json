@@ -1,0 +1,9 @@
+{
+  "label": "Provider",
+  "description": "Which LLM provider to use for agent conversations",
+  "fieldType": "select",
+  "required": false,
+  "default": "openai",
+  "variableName": "provider",
+  "renderAs": "field"
+}

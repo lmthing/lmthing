@@ -1,0 +1,9 @@
+{
+  "label": "Skill Level",
+  "description": "How experienced the user is with building AI agents",
+  "fieldType": "select",
+  "required": true,
+  "default": "beginner",
+  "variableName": "skillLevel",
+  "renderAs": "field"
+}

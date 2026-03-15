@@ -1,0 +1,7 @@
+{
+  "label": "Platform Map",
+  "description": "The lmthing ecosystem — what each service does and how they connect",
+  "icon": "🗺️",
+  "color": "#4a90d9",
+  "renderAs": "section"
+}

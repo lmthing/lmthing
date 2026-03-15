@@ -1,0 +1,9 @@
+{
+  "label": "Element",
+  "description": "Which listing quality elements to focus on",
+  "fieldType": "multiSelect",
+  "required": false,
+  "default": "description",
+  "variableName": "listingElement",
+  "renderAs": "field"
+}

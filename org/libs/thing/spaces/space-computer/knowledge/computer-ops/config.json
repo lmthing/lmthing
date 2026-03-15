@@ -1,0 +1,7 @@
+{
+  "label": "Computer Operations",
+  "description": "Operations available for managing your personal lmthing computer node",
+  "icon": "🖥️",
+  "color": "#2ecc71",
+  "renderAs": "section"
+}

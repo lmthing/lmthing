@@ -1,0 +1,7 @@
+{
+  "label": "Model Selection",
+  "description": "LLM providers and models available through the lmthing platform",
+  "icon": "🧠",
+  "color": "#7b61ff",
+  "renderAs": "section"
+}

@@ -1,0 +1,9 @@
+{
+  "label": "Model",
+  "description": "Which distribution model to use for publishing your agent",
+  "fieldType": "select",
+  "required": false,
+  "default": "free",
+  "variableName": "distributionModel",
+  "renderAs": "field"
+}

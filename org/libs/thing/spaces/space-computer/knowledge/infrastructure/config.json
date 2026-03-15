@@ -1,0 +1,7 @@
+{
+  "label": "Infrastructure",
+  "description": "Fly.io infrastructure components that power lmthing computers — machines, volumes, and networking",
+  "icon": "🏗️",
+  "color": "#3498db",
+  "renderAs": "section"
+}

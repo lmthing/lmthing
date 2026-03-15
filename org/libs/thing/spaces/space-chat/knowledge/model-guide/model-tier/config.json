@@ -1,0 +1,9 @@
+{
+  "label": "Model Tier",
+  "description": "Which tier of models to learn about or use",
+  "fieldType": "select",
+  "required": false,
+  "default": "free-models",
+  "variableName": "modelTier",
+  "renderAs": "field"
+}

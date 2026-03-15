@@ -1,0 +1,9 @@
+{
+  "label": "Plan Tier",
+  "description": "Which subscription tier the user is on or considering",
+  "fieldType": "select",
+  "required": false,
+  "default": "free",
+  "variableName": "planTier",
+  "renderAs": "field"
+}

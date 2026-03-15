@@ -1,0 +1,7 @@
+{
+  "label": "Workspace Operations",
+  "description": "File management, GitHub sync, and environment configuration for your lmthing workspace",
+  "icon": "📂",
+  "color": "#4a90d9",
+  "renderAs": "section"
+}

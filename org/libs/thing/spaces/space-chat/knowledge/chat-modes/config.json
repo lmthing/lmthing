@@ -1,0 +1,7 @@
+{
+  "label": "Chat Modes",
+  "description": "Different conversation styles and interaction modes for the THING chat interface",
+  "icon": "💬",
+  "color": "#3498db",
+  "renderAs": "section"
+}

@@ -1,0 +1,9 @@
+{
+  "label": "Technique",
+  "description": "Which prompt engineering techniques to apply",
+  "fieldType": "multiSelect",
+  "required": false,
+  "default": "identity-framing",
+  "variableName": "technique",
+  "renderAs": "field"
+}

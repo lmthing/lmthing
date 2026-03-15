@@ -1,0 +1,9 @@
+{
+  "label": "Setting",
+  "description": "Which deployment settings to configure",
+  "fieldType": "multiSelect",
+  "required": false,
+  "default": "auth-enabled",
+  "variableName": "deploySetting",
+  "renderAs": "field"
+}

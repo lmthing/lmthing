@@ -1,0 +1,7 @@
+{
+  "label": "Regions",
+  "description": "Available Fly.io regions for deploying spaces",
+  "icon": "🌍",
+  "color": "#e67e22",
+  "renderAs": "section"
+}

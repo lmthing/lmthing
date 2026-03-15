@@ -1,0 +1,9 @@
+{
+  "label": "Operation",
+  "description": "Which computer operation to perform or learn about",
+  "fieldType": "select",
+  "required": false,
+  "default": "provision",
+  "variableName": "computerOp",
+  "renderAs": "field"
+}

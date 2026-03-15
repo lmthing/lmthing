@@ -1,0 +1,9 @@
+{
+  "label": "Resource Type",
+  "description": "Which infrastructure component to learn about",
+  "fieldType": "select",
+  "required": false,
+  "default": "fly-machines",
+  "variableName": "resourceType",
+  "renderAs": "field"
+}

@@ -1,0 +1,7 @@
+{
+  "label": "Billing",
+  "description": "Subscription tiers, pricing, and usage tracking for the lmthing platform",
+  "icon": "💳",
+  "color": "#2ecc71",
+  "renderAs": "section"
+}

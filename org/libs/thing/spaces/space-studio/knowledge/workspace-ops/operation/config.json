@@ -1,0 +1,9 @@
+{
+  "label": "Operation",
+  "description": "Which workspace operation to learn about or perform",
+  "fieldType": "select",
+  "required": false,
+  "default": "file-management",
+  "variableName": "operation",
+  "renderAs": "field"
+}

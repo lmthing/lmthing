@@ -1,6 +1,6 @@
-import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import type { AuthSession, AuthConfig, AuthContextValue } from './types'
-import { getSession, clearSession, redirectToLogin, handleAuthCallback } from './client'
+import { getSession, clearSession, redirectToLogin, handleAuthCallback, isPinSet, verifyPin, derivePinKey } from './client'
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
@@ -28,6 +28,8 @@ export function AuthProvider({ appName, callbackPath = '/', children }: AuthProv
   const config = useMemo(() => resolveConfig(appName, callbackPath), [appName, callbackPath])
   const [session, setSession] = useState<AuthSession | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [pinUnlocked, setPinUnlocked] = useState(false)
+  const pinKeyRef = useRef<CryptoKey | null>(null)
 
   useEffect(() => {
     const url = new URL(window.location.href)
@@ -56,13 +58,44 @@ export function AuthProvider({ appName, callbackPath = '/', children }: AuthProv
   const logout = useCallback(() => {
     clearSession()
     setSession(null)
+    setPinUnlocked(false)
+    pinKeyRef.current = null
+  }, [])
+
+  const unlockPin = useCallback(async (pin: string): Promise<boolean> => {
+    const valid = await verifyPin(pin)
+    if (valid && session) {
+      pinKeyRef.current = await derivePinKey(pin, session.userId)
+      setPinUnlocked(true)
+    }
+    return valid
+  }, [session])
+
+  const getPinKey = useCallback(async (): Promise<CryptoKey | null> => {
+    return pinKeyRef.current
   }, [])
 
   const username = session?.email ?? null
   const isAuthenticated = !!session
+  const needsPin = isPinSet() && !pinUnlocked
+  const githubRepo = session?.githubRepo ?? null
+  const githubUsername = session?.githubUsername ?? null
 
   return (
-    <AuthContext.Provider value={{ session, username, isAuthenticated, isLoading, login, logout }}>
+    <AuthContext.Provider value={{
+      session,
+      username,
+      isAuthenticated,
+      isLoading,
+      githubRepo,
+      githubUsername,
+      needsPin,
+      pinUnlocked,
+      login,
+      logout,
+      unlockPin,
+      getPinKey,
+    }}>
       {children}
     </AuthContext.Provider>
   )

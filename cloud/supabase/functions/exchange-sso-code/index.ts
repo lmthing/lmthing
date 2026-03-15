@@ -82,6 +82,15 @@ Deno.serve(async (req) => {
       throw new Error(sessionError?.message || "Failed to create session");
     }
 
+    const userId = sessionData.user?.id ?? userData.user.id;
+
+    // Fetch profile to include github_repo and onboarding status
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("github_repo, github_username")
+      .eq("id", userId)
+      .single();
+
     return new Response(
       JSON.stringify({
         access_token: sessionData.session.access_token,
@@ -89,8 +98,10 @@ Deno.serve(async (req) => {
         token_type: "bearer",
         expires_in: sessionData.session.expires_in,
         user: {
-          id: sessionData.user?.id ?? userData.user.id,
+          id: userId,
           email: sessionData.user?.email ?? userData.user.email,
+          github_repo: profile?.github_repo ?? null,
+          github_username: profile?.github_username ?? null,
         },
       }),
       {

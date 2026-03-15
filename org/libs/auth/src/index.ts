@@ -1,3 +1,5 @@
 export { AuthProvider, useAuth } from './AuthProvider'
-export { redirectToLogin, handleAuthCallback, getAuthHeaders, clearSession } from './client'
+export { redirectToLogin, handleAuthCallback, getAuthHeaders, clearSession, isPinSet, verifyPin, derivePinKey, hashPin } from './client'
+export { useRepoSync } from './useRepoSync'
 export type { AuthSession, AuthConfig, AuthContextValue } from './types'
+export type { RepoSyncState, RepoSyncOptions } from './useRepoSync'

@@ -1,6 +1,8 @@
 import type { AuthConfig, AuthSession } from './types'
 
 const SESSION_KEY = 'lmthing_session'
+const PIN_HASH_KEY = 'lmthing_pin_hash'
+const PIN_SET_KEY = 'lmthing_pin_set'
 
 function generateState(): string {
   const bytes = new Uint8Array(16)
@@ -61,6 +63,8 @@ export async function handleAuthCallback(config: AuthConfig): Promise<AuthSessio
     accessToken: data.access_token,
     userId: data.user.id,
     email: data.user.email,
+    githubRepo: data.user.github_repo ?? null,
+    githubUsername: data.user.github_username ?? null,
   }
 
   localStorage.setItem(SESSION_KEY, JSON.stringify(session))
@@ -92,4 +96,57 @@ export function getSession(): AuthSession | null {
 
 export function clearSession(): void {
   localStorage.removeItem(SESSION_KEY)
+}
+
+// PIN utilities for client-side encryption
+
+export function isPinSet(): boolean {
+  return localStorage.getItem(PIN_SET_KEY) === 'true'
+}
+
+export function getPinHash(): string | null {
+  return localStorage.getItem(PIN_HASH_KEY)
+}
+
+export async function hashPin(pin: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(pin)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+export async function verifyPin(pin: string): Promise<boolean> {
+  const storedHash = getPinHash()
+  if (!storedHash) return false
+  const inputHash = await hashPin(pin)
+  return inputHash === storedHash
+}
+
+/**
+ * Derive a CryptoKey from the PIN for encrypting/decrypting sensitive data.
+ * Uses PBKDF2 with a fixed salt derived from the user ID.
+ */
+export async function derivePinKey(pin: string, userId: string): Promise<CryptoKey> {
+  const encoder = new TextEncoder()
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(pin),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  )
+
+  return crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: encoder.encode(`lmthing_${userId}`),
+      iterations: 100000,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  )
 }

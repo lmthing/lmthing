@@ -29,8 +29,7 @@ function Nav() {
             </>
           ) : (
             <>
-              <Link to="/login" className="text-sm text-muted-foreground hover:text-foreground">Log in</Link>
-              <Link to="/signup" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">Sign up</Link>
+              <Link to="/login" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">Sign in with GitHub</Link>
             </>
           )}
         </div>

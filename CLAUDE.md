@@ -29,6 +29,7 @@ lmthing/
 │   │   ├── auth/           # @lmthing/auth — cross-domain SSO client
 │   │   ├── container/      # @lmthing/container — Fly.io Machines API client
 │   │   ├── server/         # Container runtime server (WebSocket, PTY, metrics)
+│   │   ├── thing/          # @lmthing/thing — THING agent system studio (built-in spaces)
 │   │   └── utils/          # Shared build utilities (Vite config)
 │   └── docs/               # Documentation
 ├── cloud/                  # lmthing.cloud — Supabase Edge Functions (Deno)
@@ -211,6 +212,33 @@ graph TB
 
     SpaceCtx --> FS
     Hooks --> SpaceCtx
+```
+
+### org/libs/thing — THING Agent System Studio
+
+Built-in spaces that ship with the THING agent. These are system-level spaces providing meta-capabilities — the first space, `space-creator`, teaches users how to create their own spaces.
+
+Structure follows the standard space architecture:
+
+```
+org/libs/thing/
+├── package.json                          # @lmthing/thing
+└── spaces/
+    └── space-creator/                    # Meta-space for creating spaces
+        ├── package.json
+        ├── agents/
+        │   ├── agent-space-architect/    # Coordinator — plans & scaffolds complete spaces
+        │   ├── agent-knowledge-designer/ # Specialist — designs knowledge base structure
+        │   └── agent-flow-author/        # Specialist — crafts multi-step flows
+        ├── flows/
+        │   ├── flow_create_space/        # 6-step end-to-end space creation
+        │   └── flow_design_knowledge/    # 5-step focused knowledge design
+        └── knowledge/
+            ├── space-structure/          # Folder hierarchy and file roles
+            ├── knowledge-design/         # Domain patterns and field types
+            ├── agent-design/             # Agent patterns and prompt strategies
+            ├── naming-rules/             # Naming conventions for all elements
+            └── creator-context/          # User experience level (runtime field)
 ```
 
 ### cloud/ — Supabase Edge Functions (The Only Backend)
@@ -586,6 +614,7 @@ All frontend apps share the same stack:
 - [org/libs/state/](./org/libs/state/) — VFS library source
 - [org/libs/css/](./org/libs/css/) — shared styles
 - [org/libs/ui/](./org/libs/ui/) — shared UI components
+- [org/libs/thing/](./org/libs/thing/) — THING agent system studio (built-in spaces)
 
 # Agent Notes
 
@@ -597,6 +626,7 @@ This repository is a monorepo organized by TLD — each lmthing.\* domain has it
 - `org/libs/state/` — Virtual file system (`@lmthing/state`). In-memory Map-based VFS with FSEventBus, React context hierarchy, and hooks (`useFile`, `useDir`, `useGlob`, `useDraft`).
 - `org/libs/css/` — Shared styles used across all product domains.
 - `org/libs/ui/` — Shared React UI components used across all product domains.
+- `org/libs/thing/` — THING agent system studio (`@lmthing/thing`). Built-in spaces that ship with the THING agent. First space: `space-creator` — a meta-space with 3 agents (SpaceArchitect, KnowledgeDesigner, FlowAuthor), 2 flows, and 5 knowledge domains that teach users how to create spaces.
 
 ## Cloud Backend
 

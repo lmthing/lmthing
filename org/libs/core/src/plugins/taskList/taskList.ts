@@ -45,12 +45,18 @@ export function defTaskList(
     return this.getState<Task[]>(TASK_LIST_STATE_KEY) || taskList;
   };
 
+  // Build enum of valid task IDs so the LLM doesn't guess
+  const taskIds = tasks.map(t => t.id);
+  const taskIdSchema = taskIds.length > 0
+    ? z.enum(taskIds as [string, ...string[]]).describe('The ID of the task')
+    : z.string().describe('The ID of the task');
+
   // Define tool to start a task
   this.defTool(
     'startTask',
     'Mark a task as started/in-progress. Call this before beginning work on a task.',
     z.object({
-      taskId: z.string().describe('The ID of the task to start')
+      taskId: taskIdSchema
     }),
     async ({ taskId }: { taskId: string }): Promise<StartTaskResult> => {
       const currentTasks = getCurrentTasks();
@@ -114,7 +120,7 @@ export function defTaskList(
     'completeTask',
     'Mark a task as completed. Call this when you have finished work on a task.',
     z.object({
-      taskId: z.string().describe('The ID of the task to complete')
+      taskId: taskIdSchema
     }),
     async ({ taskId }: { taskId: string }): Promise<CompleteTaskResult> => {
       const currentTasks = getCurrentTasks();
@@ -165,7 +171,7 @@ export function defTaskList(
     'failTask',
     'Mark a task as failed. Call this when a task cannot be completed due to an error or blocker.',
     z.object({
-      taskId: z.string().describe('The ID of the task to fail'),
+      taskId: taskIdSchema,
       reason: z.string().optional().describe('The reason why the task failed')
     }),
     async ({ taskId, reason }: { taskId: string; reason?: string }): Promise<FailTaskResult> => {

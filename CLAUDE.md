@@ -25,7 +25,11 @@ lmthing/
 │   │   ├── core/           # lmthing — agentic framework (TypeScript, Vercel AI SDK v6)
 │   │   ├── state/          # @lmthing/state — virtual file system (React hooks, Map-based VFS)
 │   │   ├── css/            # Shared styles
-│   │   └── ui/             # Shared UI components
+│   │   ├── ui/             # Shared UI components
+│   │   ├── auth/           # @lmthing/auth — cross-domain SSO client
+│   │   ├── container/      # @lmthing/container — Fly.io Machines API client
+│   │   ├── server/         # Container runtime server (WebSocket, PTY, metrics)
+│   │   └── utils/          # Shared build utilities (Vite config)
 │   └── docs/               # Documentation
 ├── cloud/                  # lmthing.cloud — Supabase Edge Functions (Deno)
 ├── studio/                 # lmthing.studio — agent builder UI (React 19, Vite 7, TanStack Router)
@@ -211,34 +215,67 @@ graph TB
 
 ### cloud/ — Supabase Edge Functions (The Only Backend)
 
-The **sole backend** for all lmthing products. All server-side logic lives here as Supabase Edge Functions (Deno runtime). Any new backend functionality must be added here. Nine edge functions:
+The **sole backend** for all lmthing products. All server-side logic lives here as Supabase Edge Functions (Deno runtime). Any new backend functionality must be added here. 22 edge functions across 5 categories:
 
-| Function          | Method | Purpose                        |
-| ----------------- | ------ | ------------------------------ |
-| `generate-ai`     | POST   | Streaming LLM proxy via Stripe |
-| `list-models`     | GET    | Available models               |
-| `create-api-key`  | POST   | Generate `lmt_` prefixed key   |
-| `list-api-keys`   | GET    | Key prefixes                   |
-| `revoke-api-key`  | POST   | Soft-delete key                |
-| `create-checkout` | POST   | Stripe checkout session        |
-| `billing-portal`  | POST   | Stripe customer portal         |
-| `get-usage`       | GET    | Stripe balance/usage           |
-| `stripe-webhook`  | POST   | Stripe webhooks (no auth)      |
+| Function              | Method | Purpose                                      |
+| --------------------- | ------ | -------------------------------------------- |
+| `generate-ai`         | POST   | Streaming LLM proxy via Stripe               |
+| `list-models`         | GET    | Available models                             |
+| `create-api-key`      | POST   | Generate `lmt_` prefixed key                 |
+| `list-api-keys`       | GET    | Key prefixes                                 |
+| `revoke-api-key`      | POST   | Soft-delete key                              |
+| `create-checkout`     | POST   | Stripe checkout session                      |
+| `billing-portal`      | POST   | Stripe customer portal                       |
+| `get-usage`           | GET    | Stripe balance/usage                         |
+| `stripe-webhook`      | POST   | Stripe webhooks + computer provisioning      |
+| `create-sso-code`     | POST   | Generate SSO authorization code              |
+| `exchange-sso-code`   | POST   | Exchange SSO code for session (no auth)      |
+| `list-spaces`         | GET    | List user's spaces                           |
+| `create-space`        | POST   | Create + provision Fly.io space              |
+| `get-space`           | GET    | Get space by slug (public)                   |
+| `update-space`        | PATCH  | Update space metadata                        |
+| `start-space`         | POST   | Start space's Fly.io machine                 |
+| `stop-space`          | POST   | Stop space's Fly.io machine                  |
+| `delete-space`        | POST   | Destroy space resources                      |
+| `issue-space-token`   | POST   | Issue short-lived space access token         |
+| `provision-computer`  | POST   | Provision Fly.io computer machine            |
+| `issue-computer-token`| POST   | Issue short-lived computer access token       |
 
-Shared modules in `_shared/`: `auth.ts` (JWT + API key), `cors.ts`, `stripe.ts`, `supabase.ts`.
+Shared modules in `_shared/`: `auth.ts` (JWT + API key), `cors.ts`, `stripe.ts`, `supabase.ts`, `provider.ts` (multi-backend LLM resolution), `container.ts` (Fly.io management).
 
 ```mermaid
 graph TB
-    subgraph Functions["Edge Functions"]
+    subgraph AI["AI & Models"]
         GenAI["generate-ai<br/>POST · Streaming LLM"]
         Models["list-models<br/>GET · Available models"]
+    end
+
+    subgraph APIKeys["API Keys"]
         CreateKey["create-api-key<br/>POST · Generate lmt_ key"]
         ListKeys["list-api-keys<br/>GET · Key prefixes"]
         RevokeKey["revoke-api-key<br/>POST · Soft-delete"]
+    end
+
+    subgraph Billing["Billing"]
         Checkout["create-checkout<br/>POST · Stripe session"]
         Portal["billing-portal<br/>POST · Customer portal"]
         Usage["get-usage<br/>GET · Stripe balance"]
         Webhook["stripe-webhook<br/>POST · No auth"]
+    end
+
+    subgraph SSO["SSO"]
+        CreateSSO["create-sso-code<br/>POST · Auth code"]
+        ExchangeSSO["exchange-sso-code<br/>POST · Code → session"]
+    end
+
+    subgraph Spaces["Spaces"]
+        ListSpaces["list-spaces · create-space<br/>get-space · update-space"]
+        SpaceOps["start-space · stop-space<br/>delete-space · issue-space-token"]
+    end
+
+    subgraph Computer["Computer"]
+        Provision["provision-computer<br/>POST · Fly.io machine"]
+        ComputerToken["issue-computer-token<br/>POST · Access token"]
     end
 
     subgraph Shared["_shared/"]
@@ -246,18 +283,21 @@ graph TB
         CORS["cors.ts"]
         StripeClient["stripe.ts"]
         Supa["supabase.ts"]
+        Provider["provider.ts<br/>LLM multi-backend"]
+        Container["container.ts<br/>Fly.io management"]
     end
 
     subgraph Storage["PostgreSQL"]
-        Profiles["profiles<br/>id · email · stripe_customer_id"]
-        Keys["api_keys<br/>key_hash · prefix · revoked_at"]
+        Profiles["profiles · api_keys<br/>sso_codes · spaces · computers"]
     end
 
     GenAI --> Auth
+    GenAI --> Provider
     CreateKey --> Auth
-    ListKeys --> Auth
-    GenAI --> StripeClient
-    Checkout --> StripeClient
+    Spaces --> Auth
+    Spaces --> Container
+    Computer --> Container
+    Webhook --> StripeClient
     Auth --> Supa
     Supa --> Storage
 ```

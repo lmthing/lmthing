@@ -41,6 +41,18 @@ Users authenticate, get API keys, and consume LLM tokens through OpenAI-compatib
   - [billing-portal](#billing-portal)
   - [get-usage](#get-usage)
   - [stripe-webhook](#stripe-webhook)
+  - [create-sso-code](#create-sso-code)
+  - [exchange-sso-code](#exchange-sso-code)
+  - [list-spaces](#list-spaces)
+  - [create-space](#create-space)
+  - [get-space](#get-space)
+  - [update-space](#update-space)
+  - [start-space](#start-space)
+  - [stop-space](#stop-space)
+  - [delete-space](#delete-space)
+  - [issue-space-token](#issue-space-token)
+  - [provision-computer](#provision-computer)
+  - [issue-computer-token](#issue-computer-token)
 - [Authentication](#authentication)
 - [Database Schema](#database-schema)
 - [Project Structure](#project-structure)
@@ -178,21 +190,23 @@ Update `supabase/config.toml` with your project ID (top-level field, not a secti
 project_id = "your-project-ref"
 ```
 
-### 2.4 Run the Database Migration
+### 2.4 Run the Database Migrations
 
-The migration creates two tables: `profiles` (auto-created on user signup) and `api_keys`.
+The migrations create all required tables: `profiles`, `api_keys`, `sso_codes`, `spaces`, and `computers`.
 
 ```bash
-# Push the migration to your remote database
+# Push all migrations to your remote database
 pnpx supabase db push
 ```
 
-Or run it manually in the SQL Editor (**Dashboard > SQL Editor**) by pasting the contents of `supabase/migrations/001_initial.sql`.
+Or run them manually in the SQL Editor (**Dashboard > SQL Editor**) by pasting the contents of each migration file.
 
-**What the migration does:**
+**What the migrations do:**
 
-- **`profiles`** table: Linked to `auth.users` via a trigger that auto-creates a profile row on signup. Stores the `stripe_customer_id` for billing.
-- **`api_keys`** table: Stores SHA-256 hashed API keys with a display prefix (`lmt_xxxx...`). Row Level Security ensures users can only access their own keys.
+- **`001_initial.sql`** — `profiles` + `api_keys` tables. Profiles are linked to `auth.users` via a trigger that auto-creates a row on signup. Stores `stripe_customer_id` for billing. API keys use SHA-256 hashes with `lmt_` display prefix.
+- **`002_sso_codes.sql`** — `sso_codes` table for cross-domain SSO authorization codes (60s TTL, single-use).
+- **`003_spaces.sql`** — `spaces` table for Fly.io container metadata, config, custom domains, and per-space DB schema isolation. Includes RLS policies for owner management and public read of running spaces.
+- **`004_computers.sql`** — `computers` table for per-user Fly.io computer machines (one per user, paid tier).
 
 ### 2.5 Set Edge Function Secrets
 
@@ -217,15 +231,38 @@ pnpx supabase functions deploy
 Or deploy individually:
 
 ```bash
+# AI & Models
 pnpx supabase functions deploy generate-ai
-pnpx supabase functions deploy stripe-webhook
+pnpx supabase functions deploy list-models
+
+# API Keys
 pnpx supabase functions deploy create-api-key
 pnpx supabase functions deploy list-api-keys
 pnpx supabase functions deploy revoke-api-key
+
+# Billing
 pnpx supabase functions deploy create-checkout
 pnpx supabase functions deploy billing-portal
 pnpx supabase functions deploy get-usage
-pnpx supabase functions deploy list-models
+pnpx supabase functions deploy stripe-webhook
+
+# SSO
+pnpx supabase functions deploy create-sso-code
+pnpx supabase functions deploy exchange-sso-code
+
+# Spaces
+pnpx supabase functions deploy list-spaces
+pnpx supabase functions deploy create-space
+pnpx supabase functions deploy get-space
+pnpx supabase functions deploy update-space
+pnpx supabase functions deploy start-space
+pnpx supabase functions deploy stop-space
+pnpx supabase functions deploy delete-space
+pnpx supabase functions deploy issue-space-token
+
+# Computer
+pnpx supabase functions deploy provision-computer
+pnpx supabase functions deploy issue-computer-token
 ```
 
 After deployment, your functions are available at:
@@ -748,9 +785,237 @@ stripe-signature: <signature>
 |-------|--------|
 | `billing.alert.triggered` | Logs when customer credit is exhausted |
 | `checkout.session.completed` | Logs successful purchase |
-| `customer.subscription.created` | Logs new subscription |
-| `customer.subscription.updated` | Logs subscription change |
-| `customer.subscription.deleted` | Logs cancellation |
+| `customer.subscription.created` | Auto-provisions Fly.io computer for Computer tier subscriptions |
+| `customer.subscription.updated` | Auto-provisions Fly.io computer for Computer tier subscriptions |
+| `customer.subscription.deleted` | Auto-destroys Fly.io computer for canceled Computer tier subscriptions |
+
+---
+
+### create-sso-code
+
+Generate a single-use SSO authorization code for cross-domain authentication.
+
+```
+POST /functions/v1/create-sso-code
+Authorization: Bearer <jwt>
+```
+
+**Request body:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `redirect_uri` | string | URL to redirect back to after code exchange |
+| `app` | string | Name of the requesting app (e.g. "studio") |
+
+**Response** (`201`):
+
+```json
+{ "code": "random-code-string" }
+```
+
+---
+
+### exchange-sso-code
+
+Exchange a valid SSO code for a Supabase session. **No auth required.**
+
+```
+POST /functions/v1/exchange-sso-code
+```
+
+**Request body:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `code` | string | The SSO code received from `create-sso-code` |
+| `redirect_uri` | string | Must match the original redirect URI |
+
+**Response:**
+
+```json
+{
+  "access_token": "eyJhbG...",
+  "refresh_token": "...",
+  "token_type": "bearer",
+  "expires_in": 3600,
+  "user": { "id": "uuid", "email": "user@example.com" }
+}
+```
+
+---
+
+### list-spaces
+
+List all non-destroyed spaces for the authenticated user.
+
+```
+GET /functions/v1/list-spaces
+Authorization: Bearer <jwt>
+```
+
+**Response:**
+
+```json
+{ "spaces": [{ "id": "uuid", "slug": "my-space", "name": "My Space", "status": "running", ... }] }
+```
+
+---
+
+### create-space
+
+Create a new space and provision a Fly.io container.
+
+```
+POST /functions/v1/create-space
+Authorization: Bearer <jwt>
+```
+
+**Request body:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Display name |
+| `slug` | string | URL-safe identifier (unique) |
+| `description` | string | Optional description |
+| `region` | string | Fly.io region (default: `iad`) |
+
+**Response** (`201`): Space object with `status: "provisioning"`.
+
+---
+
+### get-space
+
+Get a single space by slug. **No auth required** (public for running spaces).
+
+```
+GET /functions/v1/get-space?slug=my-space
+```
+
+**Response:** Space object.
+
+---
+
+### update-space
+
+Update space metadata.
+
+```
+PATCH /functions/v1/update-space
+Authorization: Bearer <jwt>
+```
+
+**Request body:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Space UUID |
+| `name` | string | Optional new name |
+| `description` | string | Optional new description |
+| `app_config` | object | Optional app configuration |
+| `auth_enabled` | boolean | Optional auth toggle |
+| `custom_domain` | string | Optional custom domain |
+
+**Response:** Updated space object.
+
+---
+
+### start-space
+
+Start a stopped space's Fly.io machine.
+
+```
+POST /functions/v1/start-space
+Authorization: Bearer <jwt>
+```
+
+**Request body:** `{ "id": "space-uuid" }`
+
+**Response:** `{ "success": true, "status": "running" }`
+
+---
+
+### stop-space
+
+Stop a running space's Fly.io machine.
+
+```
+POST /functions/v1/stop-space
+Authorization: Bearer <jwt>
+```
+
+**Request body:** `{ "id": "space-uuid" }`
+
+**Response:** `{ "success": true, "status": "stopped" }`
+
+---
+
+### delete-space
+
+Destroy a space's Fly.io resources and mark as destroyed.
+
+```
+POST /functions/v1/delete-space
+Authorization: Bearer <jwt>
+```
+
+**Request body:** `{ "id": "space-uuid" }`
+
+**Response:** `{ "success": true }`
+
+---
+
+### issue-space-token
+
+Issue a short-lived access token (5-minute TTL) for an authenticated space connection.
+
+```
+POST /functions/v1/issue-space-token
+Authorization: Bearer <jwt>
+```
+
+**Request body:** `{ "spaceId": "space-uuid" }`
+
+**Response:**
+
+```json
+{ "token": "hmac-signed-token", "appHost": "lmt-space-slug-abc12345.fly.dev", "expiresAt": 1710000300 }
+```
+
+---
+
+### provision-computer
+
+Provision a personal THING agent runtime on Fly.io (one per user).
+
+```
+POST /functions/v1/provision-computer
+Authorization: Bearer <jwt>
+```
+
+**Request body:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `region` | string | Fly.io region (default: `iad`) |
+
+**Response** (`201`): Computer object with `status: "provisioning"`.
+
+---
+
+### issue-computer-token
+
+Issue a short-lived access token (5-minute TTL) for computer access. Requires active Computer tier subscription.
+
+```
+POST /functions/v1/issue-computer-token
+Authorization: Bearer <jwt>
+```
+
+**Response:**
+
+```json
+{ "token": "hmac-signed-token", "appHost": "lmt-computer-abc123456789.fly.dev", "expiresAt": 1710000300 }
+```
 
 ---
 
@@ -780,9 +1045,9 @@ Both methods resolve to the same user and `stripe_customer_id`.
 
 ## Database Schema
 
-Only two tables are needed. Stripe handles all usage/billing data.
+Five tables across four migrations. Stripe handles all usage/billing data.
 
-### `profiles`
+### `profiles` (001_initial.sql)
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -795,7 +1060,7 @@ Only two tables are needed. Stripe handles all usage/billing data.
 
 Auto-created via a Postgres trigger when a user signs up through Supabase Auth.
 
-### `api_keys`
+### `api_keys` (001_initial.sql)
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -807,7 +1072,60 @@ Auto-created via a Postgres trigger when a user signs up through Supabase Auth.
 | `created_at` | timestamptz | Auto-set |
 | `revoked_at` | timestamptz | Set when key is revoked (soft delete) |
 
-Both tables have Row Level Security enabled. Users can only access their own rows.
+### `sso_codes` (002_sso_codes.sql)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid (PK) | Auto-generated |
+| `user_id` | uuid (FK) | References `auth.users(id)` |
+| `code` | text (unique) | Single-use authorization code |
+| `redirect_uri` | text | Target app redirect URL |
+| `app` | text | Requesting app name |
+| `expires_at` | timestamptz | Code expiry (60s from creation) |
+| `used_at` | timestamptz | Set when code is exchanged |
+| `created_at` | timestamptz | Auto-set |
+
+No direct user access — only service role can read/write.
+
+### `spaces` (003_spaces.sql)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid (PK) | Auto-generated |
+| `user_id` | uuid (FK) | References `auth.users(id)` |
+| `slug` | text (unique) | URL-safe identifier |
+| `name` | text | Display name |
+| `description` | text | Optional |
+| `fly_machine_id` | text (unique) | Fly.io machine ID |
+| `fly_app_name` | text | Fly.io app name |
+| `fly_volume_id` | text | Fly.io volume ID |
+| `region` | text | Fly.io region (default: `iad`) |
+| `status` | text | `created\|provisioning\|running\|stopped\|failed\|destroyed` |
+| `app_config` | jsonb | Space app configuration |
+| `auth_enabled` | boolean | Per-space auth toggle |
+| `custom_domain` | text (unique) | Optional custom domain |
+| `db_schema` | text | Per-space PostgreSQL schema name |
+| `internal_key_id` | uuid (FK) | References `api_keys(id)` |
+| `created_at` | timestamptz | Auto-set |
+| `updated_at` | timestamptz | Auto-set |
+
+RLS: owners can manage their own spaces; public can read running spaces.
+
+### `computers` (004_computers.sql)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid (PK) | Auto-generated |
+| `user_id` | uuid (unique FK) | References `auth.users(id)` — one per user |
+| `fly_machine_id` | text (unique) | Fly.io machine ID |
+| `fly_app_name` | text | Fly.io app name |
+| `fly_volume_id` | text | Fly.io volume ID |
+| `region` | text | Fly.io region (default: `iad`) |
+| `status` | text | `created\|provisioning\|running\|stopped\|failed\|destroyed` |
+| `created_at` | timestamptz | Auto-set |
+| `updated_at` | timestamptz | Auto-set |
+
+All tables have Row Level Security enabled. Users can only access their own rows.
 
 ---
 
@@ -823,12 +1141,17 @@ cloud/
     config.toml                             # Supabase project configuration
     migrations/
       001_initial.sql                       # profiles + api_keys tables, RLS, triggers
+      002_sso_codes.sql                     # SSO authorization codes table
+      003_spaces.sql                        # Spaces table (Fly.io metadata, config, RLS)
+      004_computers.sql                     # Computers table (per-user Fly.io machines)
     functions/
       _shared/                              # Shared utilities (imported by all functions)
         auth.ts                             # JWT + API key verification
         cors.ts                             # CORS headers
         stripe.ts                           # Stripe client + customer helper
         supabase.ts                         # Supabase client factories
+        provider.ts                         # LLM provider abstraction (Stripe/Ollama/OpenAI)
+        container.ts                        # Fly.io container management (specs, tokens, app naming)
       generate-ai/index.ts                  # Core AI endpoint (streaming + non-streaming)
       list-models/index.ts                  # Available models list
       create-api-key/index.ts               # Generate new API key
@@ -837,7 +1160,19 @@ cloud/
       create-checkout/index.ts              # Stripe Checkout session
       billing-portal/index.ts               # Stripe Customer Portal
       get-usage/index.ts                    # Query Stripe balance
-      stripe-webhook/index.ts               # Stripe webhook handler
+      stripe-webhook/index.ts               # Stripe webhook handler (+ computer provisioning)
+      create-sso-code/index.ts              # Generate SSO authorization code
+      exchange-sso-code/index.ts            # Exchange SSO code for session
+      list-spaces/index.ts                  # List user's spaces
+      create-space/index.ts                 # Create + provision Fly.io space
+      get-space/index.ts                    # Get space by slug (public)
+      update-space/index.ts                 # Update space metadata
+      start-space/index.ts                  # Start space's Fly.io machine
+      stop-space/index.ts                   # Stop space's Fly.io machine
+      delete-space/index.ts                 # Destroy space resources
+      issue-space-token/index.ts            # Issue short-lived space access token
+      provision-computer/index.ts           # Provision Fly.io computer machine
+      issue-computer-token/index.ts         # Issue short-lived computer access token
 ```
 
 ---

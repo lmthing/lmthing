@@ -15,9 +15,9 @@ describe('ThingMessage', () => {
     expect(screen.getByText('You')).toBeDefined()
   })
 
-  it('renders assistant message', () => {
+  it('renders agent message', () => {
     render(<ThingMessage role="assistant" content="Hi there" />)
     expect(screen.getByText('Hi there')).toBeDefined()
-    expect(screen.getByText('Assistant')).toBeDefined()
+    expect(screen.getByText('Agent')).toBeDefined()
   })
 })

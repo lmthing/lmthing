@@ -1,5 +1,5 @@
 /**
- * ThingPanel - AI assistant chat interface.
+ * ThingPanel - AI agent chat interface.
  * Adapted from the old ThingPanel to use the new FS state layer.
  * Provides a conversational interface with tool-calling for workspace operations.
  */
@@ -40,7 +40,7 @@ const TOOL_EVENT_OPEN = '[[THING_TOOL_EVENT]]'
 const TOOL_EVENT_CLOSE = '[[/THING_TOOL_EVENT]]'
 
 const WELCOME_MESSAGE =
-  'I am THING. I can help you manage your studios, spaces, assistants, workflows, and knowledge. Ask me anything or type help.'
+  'I am THING. I can help you manage your studios, spaces, agents, workflows, and knowledge. Ask me anything or type help.'
 
 const HELP_MESSAGE = [
   'Available commands:',
@@ -50,7 +50,7 @@ const HELP_MESSAGE = [
   'You can also ask naturally, e.g.:',
   '  "Create a new studio called my-project"',
   '  "List all my studios"',
-  '  "What assistants are in this space?"',
+  '  "What agents are in this space?"',
 ].join('\n')
 
 const ACTION_NAMES = [
@@ -278,10 +278,10 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
 
       const { result } = await runPrompt(async (prompt) => {
         prompt.defSystem('role', [
-          'You are THING, the built-in AI assistant for lmthing — a platform for building and managing AI agent studios.',
+          'You are THING, the built-in AI agent for lmthing — a platform for building and managing AI agent studios.',
           '',
           'lmthing organizes work into: Users → Studios → Spaces.',
-          'Each space contains: assistants, workflows, knowledge fields, and configuration.',
+          'Each space contains: agents, workflows, knowledge fields, and configuration.',
           '',
           'You can create studios, manage files, and help users navigate their data.',
           'Be concise, precise, and helpful.',
@@ -422,11 +422,11 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
   // ── Run conversation ──────────────────────────────────────────────
 
   const runConversation = useCallback((conversationId: string, conversation: ThingMessage[]) => {
-    const assistantId = `thing-assistant-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const responseId = `thing-response-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
     updateMessages(conversationId, [
       ...conversation,
-      { id: assistantId, role: 'assistant', content: '' },
+      { id: responseId, role: 'assistant', content: '' },
     ])
 
     setIsWorking(true)
@@ -441,7 +441,7 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
             ...c,
             updatedAt: new Date().toISOString(),
             messages: c.messages.map(m =>
-              m.id === assistantId ? { ...m, content: (m.content || '') + text } : m
+              m.id === responseId ? { ...m, content: (m.content || '') + text } : m
             ),
           }
         }))
@@ -465,7 +465,7 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
           ...c,
           updatedAt: new Date().toISOString(),
           messages: c.messages.map(m =>
-            m.id === assistantId
+            m.id === responseId
               ? { ...m, content: m.content?.trim() ? m.content : response }
               : m
           ),

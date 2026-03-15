@@ -24,7 +24,7 @@ export function ThingMessage({ role, content }: ThingMessageProps) {
           muted={!isUser}
           className={cn('thing-message__role', isUser && 'thing-message__role--user')}
         >
-          {isUser ? 'You' : 'Assistant'}
+          {isUser ? 'You' : 'Agent'}
         </Caption>
         <div className="thing-message__content">
           {content}

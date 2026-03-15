@@ -9,7 +9,7 @@ export const Route = createFileRoute(
     <div style={{ padding: '2rem' }}>
       <Heading level={2}>Space Overview</Heading>
       <Caption muted>
-        Select an assistant, workflow, or knowledge area from the sidebar.
+        Select an agent, workflow, or knowledge area from the sidebar.
       </Caption>
     </div>
   ),

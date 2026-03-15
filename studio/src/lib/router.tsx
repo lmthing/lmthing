@@ -40,12 +40,12 @@ export const router = createBrowserRouter([
       { path: 'settings/package-json' },
       // Knowledge detail view
       { path: 'knowledge/:domainId' },
-      // Assistant detail view
-      { path: 'assistant/:agentId' },
-      // Assistant conversation view in studio
-      { path: 'assistant/:agentId/conversation/:conversationId' },
-      // Assistant flow editing view (shows modal)
-      { path: 'assistant/:agentId/actions/:actionId' },
+      // Agent detail view
+      { path: 'agent/:agentId' },
+      // Agent conversation view in studio
+      { path: 'agent/:agentId/conversation/:conversationId' },
+      // Agent flow editing view (shows modal)
+      { path: 'agent/:agentId/actions/:actionId' },
     ],
   },
 ],

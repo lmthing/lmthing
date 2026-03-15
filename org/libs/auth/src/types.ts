@@ -2,6 +2,8 @@ export interface AuthSession {
   accessToken: string
   userId: string
   email: string
+  githubRepo: string | null
+  githubUsername: string | null
 }
 
 export interface AuthConfig {
@@ -16,6 +18,12 @@ export interface AuthContextValue {
   username: string | null
   isAuthenticated: boolean
   isLoading: boolean
+  githubRepo: string | null
+  githubUsername: string | null
+  needsPin: boolean
+  pinUnlocked: boolean
   login: () => void
   logout: () => void
+  unlockPin: (pin: string) => Promise<boolean>
+  getPinKey: () => Promise<CryptoKey | null>
 }

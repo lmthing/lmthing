@@ -69,3 +69,14 @@ export function createSsoCode(redirectUri: string, app: string) {
     body: JSON.stringify({ redirect_uri: redirectUri, app }),
   })
 }
+
+export function getProfile() {
+  return cloudFetch('get-profile')
+}
+
+export function updateProfile(updates: { github_repo?: string; github_username?: string; display_name?: string }) {
+  return cloudFetch('update-profile', {
+    method: 'POST',
+    body: JSON.stringify(updates),
+  })
+}

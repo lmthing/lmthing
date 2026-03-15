@@ -12,6 +12,7 @@
     "test:run": "vp test run"
   },
   "dependencies": {
+    "@lmthing/auth": "workspace:*",
     "@lmthing/css": "workspace:*",
     "@lmthing/state": "workspace:*",
     "@lmthing/ui": "workspace:*",

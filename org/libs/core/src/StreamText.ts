@@ -11,6 +11,7 @@ import type {
 } from 'ai';
 import { resolveModel, type ModelInput } from './providers/resolver';
 import { PromptError, ErrorCodes } from './errors';
+import { getDebugLogger, type RequestData, type ResponseData } from './logger';
 
 // Helper type for the options object
 export type StreamTextOptions = Parameters<typeof streamText>[0];
@@ -40,6 +41,10 @@ export class StreamTextBuilder {
     private _systemParts: Array<string> = [];
     private _messages: ModelMessage[] = [];
     protected _tools: ToolSet = {};
+
+    // Debug context for logging
+    protected _debugRunId: string | null = null;
+    protected _debugStepNumber: number = 0;
 
     // Store simple options (temperature, maxTokens, etc.)
     private _options: Partial<Omit<StreamTextOptions, 'model' | 'system' | 'messages' | 'tools' | 'onFinish' | 'onStepFinish' | 'prepareStep'>> = {};
@@ -91,11 +96,17 @@ export class StreamTextBuilder {
               return params;
             },
             wrapStream: async ({ doStream, params }) => {
+              // Log the request for this step (for multi-step executions)
+              if (this._debugRunId) {
+                this._debugStepNumber++;
+                await this._logRequestFromParams(params);
+              }
+
               const result = await doStream();
-              
+
               // Tee the stream so we can observe it without consuming it
               const [observerStream, consumerStream] = result.stream.tee();
-              
+
               // Collect chunks in the background without blocking
               (async () => {
                 const outputChunks: any[] = [];
@@ -106,6 +117,11 @@ export class StreamTextBuilder {
                     outputChunks.push(chunk);
                   }
                   this._steps.push({input: params, output: outputChunks, activeTools});
+
+                  // Log the response after all chunks are collected
+                  if (this._debugRunId) {
+                    await this._logResponseFromChunks(outputChunks);
+                  }
                 } catch (error) {
                   // Silently ignore errors in the observer stream
                   console.error('Error collecting chunks in middleware:', error);
@@ -309,6 +325,38 @@ export class StreamTextBuilder {
     public getModel() {
         return this._model;
     }
+
+    /**
+     * Set debug context for logging
+     * @param runId - Unique identifier for this prompt run
+     */
+    setDebugContext(runId: string | null): void {
+        this._debugRunId = runId;
+        this._debugStepNumber = 0;
+    }
+
+    /**
+     * Get the debug run ID
+     */
+    getDebugRunId(): string | null {
+        return this._debugRunId;
+    }
+
+    /**
+     * Get model string representation for logging
+     */
+    protected _getModelString(): string {
+        if (!this._model) {
+            return 'unknown';
+        }
+
+        const model = this._model as any;
+        if (model.modelId) {
+            return model.provider ? `${model.provider}:${model.modelId}` : model.modelId;
+        }
+        return 'unknown';
+    }
+
     setLastPrepareStep(callback: any) {
         this._lastPrepareStep = callback;
     }
@@ -387,5 +435,111 @@ export class StreamTextBuilder {
         }
 
         return streamText(finalOptions);
+    }
+
+    /**
+     * Log the response to the debug logger
+     */
+    protected async _logResponse(response: {
+        text?: string;
+        finishReason?: string;
+        toolCalls?: Array<{ toolName: string; toolCallId: string; args: any }>;
+        toolResults?: Array<{ toolName: string; toolCallId: string; output: any }>;
+    }): Promise<void> {
+        const logger = getDebugLogger();
+        if (!logger.enabled || !this._debugRunId) {
+            return;
+        }
+
+        const responseData: ResponseData = {
+            stepNumber: this._debugStepNumber,
+            timestamp: new Date(),
+            text: response.text,
+            finishReason: response.finishReason,
+            toolCalls: response.toolCalls?.map(call => ({
+                name: call.toolName,
+                toolCallId: call.toolCallId,
+                args: call.args,
+            })),
+            toolResults: response.toolResults?.map(result => ({
+                name: result.toolName,
+                toolCallId: result.toolCallId,
+                result: result.output,
+            })),
+        };
+
+        await logger.logResponse(responseData);
+    }
+
+    /**
+     * Log the request from middleware params (for multi-step executions)
+     */
+    protected async _logRequestFromParams(params: any): Promise<void> {
+        const logger = getDebugLogger();
+        if (!logger.enabled || !this._debugRunId) {
+            return;
+        }
+
+        const systemPrompt = params.system;
+        const messages = params.prompt || [];
+
+        const tools = Object.fromEntries(
+            Object.entries(this._tools).map(([name, tool]: [string, any]) => [
+                name,
+                {
+                    description: tool.description || '',
+                    inputSchema: tool.inputSchema,
+                },
+            ])
+        );
+
+        const requestData: RequestData = {
+            runId: this._debugRunId,
+            stepNumber: this._debugStepNumber,
+            timestamp: new Date(),
+            model: this._getModelString(),
+            systemPrompt: systemPrompt as string | undefined,
+            messages: messages.map((msg: any) => ({
+                role: msg.role,
+                content: msg.content as any,
+            })),
+            tools,
+        };
+
+        await logger.logRequest(requestData);
+    }
+
+    /**
+     * Extract response data from collected chunks and log it
+     */
+    protected async _logResponseFromChunks(chunks: any[]): Promise<void> {
+        const logger = getDebugLogger();
+        if (!logger.enabled || !this._debugRunId) {
+            return;
+        }
+
+        let text = '';
+        let finishReason: string | undefined;
+        const toolCalls: Array<{ toolName: string; toolCallId: string; args: any }> = [];
+
+        for (const chunk of chunks) {
+            if (chunk.type === 'text-delta') {
+                text += chunk.delta || '';
+            } else if (chunk.type === 'tool-call') {
+                toolCalls.push({
+                    toolName: chunk.toolName,
+                    toolCallId: chunk.toolCallId,
+                    args: chunk.input ? JSON.parse(chunk.input) : {},
+                });
+            } else if (chunk.type === 'finish') {
+                finishReason = chunk.finishReason;
+            }
+        }
+
+        await this._logResponse({
+            text: text || undefined,
+            finishReason,
+            toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+        });
     }
 }

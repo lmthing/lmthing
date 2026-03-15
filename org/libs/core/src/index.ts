@@ -64,5 +64,18 @@ export type { DefinitionType } from './definitions';
 // Export PromptConfig from runPrompt
 export type { PromptConfig } from './runPrompt';
 
+// Export logger utilities for advanced usage
+export {
+  DebugLogger,
+  getDebugLogger,
+  createDebugLogger,
+  type DebugConfig,
+  type LogOutput,
+  type LogLevel,
+  type RequestData,
+  type ResponseData,
+  type LogEntry
+} from './logger';
+
 // Export all provider-related functionality
 export * from './providers';

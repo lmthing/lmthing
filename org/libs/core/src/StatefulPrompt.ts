@@ -198,6 +198,14 @@ export class StatefulPrompt extends StreamTextBuilder {
   }
 
   /**
+   * Set debug context for logging.
+   * Called by runPrompt to pass the debug run ID to the builder.
+   */
+  setDebugContext(runId: string | null): void {
+    super.setDebugContext(runId);
+  }
+
+  /**
    * Define state that persists across prompt re-executions
    *
    * @category Hooks

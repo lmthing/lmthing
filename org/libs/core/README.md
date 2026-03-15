@@ -808,7 +808,17 @@ If response schema validation fails, a `validationError` field is included:
 
 ## Plugin System
 
-The plugin system allows extending `StatefulPrompt` with additional methods. Plugins must be imported from `lmthing/plugins` and passed to `runPrompt` via the `plugins` option.
+The plugin system allows extending `StatefulPrompt` with additional methods. Built-in plugins are **automatically loaded** on every `runPrompt()` call — no imports or configuration needed. Custom plugins can be passed via the `plugins` option.
+
+**Built-in plugins (auto-loaded):**
+
+| Plugin | Method(s) | Purpose |
+|--------|----------|---------|
+| `taskListPlugin` | `defTaskList` | Simple flat task management |
+| `taskGraphPlugin` | `defTaskGraph` | DAG-based task management with dependencies |
+| `functionPlugin` | `defFunction`, `defFunctionAgent` | TypeScript-validated function execution in vm2 sandbox |
+| `zeroStepPlugin` | `defMethod` | Inline `<run_code>` zero-step execution in text stream |
+| `knowledgeAgentPlugin` | `defKnowledgeAgent` | THING space agent with knowledge injection and flow execution |
 
 ### Using the Task List Plugin
 
@@ -816,10 +826,8 @@ The built-in task list plugin provides `defTaskList` for managing tasks:
 
 ```typescript
 import { runPrompt } from 'lmthing';
-import { taskListPlugin } from 'lmthing/plugins';
 
 const { result } = await runPrompt(async ({ defTaskList, $ }) => {
-  // defTaskList is available because we passed taskListPlugin
   const [tasks, setTasks] = defTaskList([
     { id: '1', name: 'Research the topic', status: 'pending' },
     { id: '2', name: 'Write implementation', status: 'pending' },
@@ -828,8 +836,8 @@ const { result } = await runPrompt(async ({ defTaskList, $ }) => {
 
   $`Complete all tasks. Use startTask when beginning and completeTask when finished.`;
 }, {
-  model: 'openai:gpt-4o',
-  plugins: [taskListPlugin]
+  model: 'openai:gpt-4o'
+  // No plugins array needed — built-in plugins are auto-loaded!
 });
 ```
 
@@ -854,6 +862,12 @@ interface Task {
 - **`completeTask`**: Mark a task as completed
   ```typescript
   { taskId: string }
+  // Returns: { success: boolean, taskId: string, message: string }
+  ```
+
+- **`failTask`**: Mark a task as failed with optional reason
+  ```typescript
+  { taskId: string, reason?: string }
   // Returns: { success: boolean, taskId: string, message: string }
   ```
 
@@ -883,7 +897,6 @@ The built-in task graph plugin provides `defTaskGraph` for dependency-aware task
 
 ```typescript
 import { runPrompt } from 'lmthing';
-import { taskGraphPlugin } from 'lmthing/plugins';
 
 const { result } = await runPrompt(async ({ defTaskGraph, $ }) => {
   const [graph, setGraph] = defTaskGraph([
@@ -900,8 +913,7 @@ const { result } = await runPrompt(async ({ defTaskGraph, $ }) => {
 
   $`Execute the task graph. Use getUnblockedTasks to find ready tasks and updateTaskStatus to track progress.`;
 }, {
-  model: 'openai:gpt-4o',
-  plugins: [taskGraphPlugin]
+  model: 'openai:gpt-4o'
 });
 ```
 
@@ -974,7 +986,7 @@ The built-in function plugin provides `defFunction` and `defFunctionAgent` for d
 
 ```typescript
 import { runPrompt } from 'lmthing';
-import { functionPlugin, func } from 'lmthing/plugins';
+import { func } from 'lmthing/plugins'; // Only need to import `func` helper for composite functions
 
 const { result } = await runPrompt(async ({ defFunction, $ }) => {
   // Single function
@@ -1014,8 +1026,7 @@ const { result } = await runPrompt(async ({ defFunction, $ }) => {
 
   $`Calculate: 15 + 27, then multiply the result by 2`;
 }, {
-  model: 'openai:gpt-4o',
-  plugins: [functionPlugin]
+  model: 'openai:gpt-4o'
 });
 ```
 
@@ -1087,6 +1098,69 @@ The plugin automatically registers a `runToolCode` tool that:
 - No file system, network, or Node.js API access unless explicitly provided
 - TypeScript validation catches errors before execution
 
+### Using the Zero-Step Plugin (defMethod)
+
+The built-in zero-step plugin provides `defMethod()` for Zero-Step Tool Calling — the LLM calls registered functions **inline in its text stream** via `<run_code>` blocks, with no tool-call round-trip.
+
+```typescript
+import { runPrompt } from 'lmthing';
+import { z } from 'zod';
+
+const { result } = await runPrompt(async ({ defMethod, $ }) => {
+  defMethod(
+    'fetchUser',
+    'Fetch a user record by ID',
+    z.object({ id: z.string() }),
+    async ({ id }) => ({ name: 'Jane', role: 'Admin' }),
+    z.object({ name: z.string(), role: z.string() })
+  );
+
+  $`Who is user 42? Call fetchUser to find out.`;
+}, { model: 'openai:gpt-4o' });
+
+// LLM response might contain:
+// <run_code>
+//   const user = await fetchUser({ id: "42" });
+//   return user.name;
+// </run_code>
+// Stream transformer replaces with: <code_response>Jane</code_response>
+```
+
+**Execution scenarios:**
+
+| Scenario | Trigger | Stream output |
+|---|---|---|
+| **return** | `return` statement reached | `<code_response>value</code_response>` |
+| **no return** | `</run_code>` closing tag | Nothing emitted; streaming continues |
+| **error** | TypeScript type error or runtime exception | `<code_error>message</code_error>` |
+
+Code is TypeScript type-checked against auto-generated declarations before vm2 sandbox execution.
+
+### Using the Knowledge Agent Plugin (defKnowledgeAgent)
+
+The built-in knowledge agent plugin registers a THING space agent as a callable tool. It reads the agent's config, knowledge structure, and instruction files to build a Zod input schema and inject knowledge context at runtime.
+
+```typescript
+import { runPrompt } from 'lmthing';
+
+const { result } = await runPrompt(async ({ defKnowledgeAgent, $ }) => {
+  defKnowledgeAgent(
+    './spaces/education',
+    './spaces/education/agents/agent-lesson-plan'
+  );
+  $`Call the LessonPlanAgent with message "/generate"`;
+}, { model: 'openai:gpt-4o' });
+```
+
+**How it works:**
+1. Reads agent `config.json` to discover `runtimeFields` (knowledge domains/fields)
+2. Reads knowledge structure from the space's `knowledge/` directory
+3. Reads `instruct.md` for agent name, description, and slash actions
+4. Builds Zod input schema from knowledge fields (select, multiSelect, text, number)
+5. Registers as `defAgent` with the constructed schema
+
+If the agent's `instruct.md` contains `<slash_action>` tags, sending the slash command triggers a flow — creating a task list from flow steps with structured output propagation between steps.
+
 ### Creating Custom Plugins
 
 ```typescript
@@ -1133,6 +1207,33 @@ prompt.$`
 // Note: This returns void and cannot be assigned to a variable
 // It directly modifies the message history
 ```
+
+## Observability
+
+lmthing provides Langfuse OpenTelemetry integration for tracing executions.
+
+```typescript
+import { setupLangfuse, createLangfuseTrace, buildTelemetry } from 'lmthing/observability';
+
+// Initialize once at startup
+setupLangfuse();
+
+// Group multiple executions under a single trace
+const { traceId, flushAsync } = createLangfuseTrace('my-workflow');
+
+await runPrompt(async ({ $ }) => {
+  $`Step 1`;
+}, {
+  model: 'openai:gpt-4o',
+  options: {
+    experimental_telemetry: buildTelemetry('step-1', traceId),
+  },
+});
+
+await flushAsync();
+```
+
+Credentials via environment variables: `LANGFUSE_SECRET_KEY`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_BASEURL`.
 
 ## Integration with AI SDK
 

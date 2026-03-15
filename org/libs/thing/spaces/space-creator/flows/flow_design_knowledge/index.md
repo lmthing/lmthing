@@ -1,9 +1,7 @@
-# Design Knowledge
+---
+name: "Design Knowledge"
+description: "Focused guide to designing a comprehensive knowledge base for a space — from domain categories to option content and defaults"
+tags: ["knowledge", "design", "architecture"]
+---
 
-This flow guides you through designing a comprehensive knowledge base for your space — from identifying domains to writing rich option content.
-
-1. [Identify Domain Categories](1.Identify Domain Categories.md)
-2. [Define Fields Per Domain](2.Define Fields Per Domain.md)
-3. [Choose Field Types](3.Choose Field Types.md)
-4. [Write Option Files](4.Write Option Files.md)
-5. [Set Defaults and Requirements](5.Set Defaults and Requirements.md)
+Walks through designing a complete knowledge base: identifying domain categories, defining fields, choosing types, writing option content, and setting defaults and requirements.

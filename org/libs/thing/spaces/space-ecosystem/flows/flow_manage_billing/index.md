@@ -1,8 +1,7 @@
-# Manage Billing
+---
+name: "Manage Billing"
+description: "Review usage, compare plans, update subscriptions, and manage API keys"
+tags: ["billing", "subscription", "api-keys", "usage"]
+---
 
-This flow helps you review your current usage, understand plan options, update your subscription, and manage API keys.
-
-1. [Check Current Usage](1.Check Current Usage.md)
-2. [Review Plan Options](2.Review Plan Options.md)
-3. [Update Subscription](3.Update Subscription.md)
-4. [Create API Keys](4.Create API Keys.md)
+Guides the user through checking their current token usage, comparing subscription tiers, updating their plan, and creating or managing API keys for SDK and CLI access.

@@ -1,8 +1,7 @@
-# Start Conversation
+---
+name: "Start Conversation"
+description: "Set up a new conversation with the right model, context, and preferences"
+tags: ["chat", "conversation", "setup"]
+---
 
-This flow helps you set up a new conversation with the right model, context, and preferences.
-
-1. [Choose Model](1.Choose Model.md)
-2. [Set Context](2.Set Context.md)
-3. [Configure Preferences](3.Configure Preferences.md)
-4. [Begin Conversation](4.Begin Conversation.md)
+Walks through selecting a model, establishing context, configuring interaction preferences, and crafting an effective opening message for a new chat conversation.

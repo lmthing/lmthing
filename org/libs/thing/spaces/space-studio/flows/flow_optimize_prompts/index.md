@@ -1,8 +1,7 @@
-# Optimize Prompts
+---
+name: "Optimize Prompts"
+description: "Diagnose and improve agent prompt quality and conversation behavior"
+tags: ["prompt", "optimization", "quality"]
+---
 
-This flow helps you diagnose and improve your agent's prompt quality and conversation behavior.
-
-1. [Identify Problem](1.Identify Problem.md)
-2. [Analyze Current Prompt](2.Analyze Current Prompt.md)
-3. [Apply Techniques](3.Apply Techniques.md)
-4. [Test and Iterate](4.Test and Iterate.md)
+Guides the PromptCoach agent through diagnosing conversation issues, analyzing current prompt structure, applying targeted techniques, and testing improvements iteratively.

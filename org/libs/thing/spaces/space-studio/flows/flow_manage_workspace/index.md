@@ -1,8 +1,7 @@
-# Manage Workspace
+---
+name: "Manage Workspace"
+description: "Review, sync, organize, and validate your lmthing workspace"
+tags: ["workspace", "sync", "organization"]
+---
 
-This flow helps you review, sync, and organize your lmthing workspace.
-
-1. [Review Workspace Structure](1.Review Workspace Structure.md)
-2. [Sync With GitHub](2.Sync With GitHub.md)
-3. [Organize Files](3.Organize Files.md)
-4. [Validate Configuration](4.Validate Configuration.md)
+Guides the WorkspaceManager agent through reviewing workspace structure, syncing with GitHub, organizing files to follow conventions, and validating all configuration references.

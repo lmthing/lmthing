@@ -1,8 +1,7 @@
-# Optimize Listing
+---
+name: "Optimize Listing"
+description: "Analyze and improve an existing agent listing on the lmthing store"
+tags: ["store", "optimization", "marketplace"]
+---
 
-This flow helps you analyze and improve an existing agent listing on the lmthing store.
-
-1. [Review Current Listing](1.Review Current Listing.md)
-2. [Analyze Competitors](2.Analyze Competitors.md)
-3. [Improve Description](3.Improve Description.md)
-4. [Update Pricing Strategy](4.Update Pricing Strategy.md)
+Walks through analyzing an existing listing: reviewing its current state, comparing against competitors, improving the description, and updating pricing strategy.

@@ -1,7 +1,7 @@
-# Dog Training Flow Index
+---
+name: "Generate Training Plan"
+description: "Creates a customized dog training plan with weekly schedule, rewards, and behavioral support"
+tags: ["training", "generate", "dog"]
+---
 
-## Available Sections
-
-- [Generate Weekly Training Schedule](1.Generate%20Weekly%20Training%20Schedule.md)
-- [Generate Reward Recommendations](2.Generate%20Reward%20Recommendations.md)
-- [Generate Behavioral Support Guide](3.Generate%20Behavioral%20Support%20Guide.md)
+TrainingPlanGenerator agent flow: Produces a personalized dog training plan across 3 steps covering weekly schedule, reward strategy, and behavioral support.

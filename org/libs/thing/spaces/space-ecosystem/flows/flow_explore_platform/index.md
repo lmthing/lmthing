@@ -1,8 +1,7 @@
-# Explore Platform
+---
+name: "Explore Platform"
+description: "Guided discovery of the lmthing ecosystem — maps services to user goals and recommends a starting path"
+tags: ["platform", "onboarding", "services", "navigation"]
+---
 
-This flow walks you through understanding the lmthing ecosystem — what each service does, how they connect, and which ones are right for your goals.
-
-1. [Identify Your Goal](1.Identify Your Goal.md)
-2. [Map Available Services](2.Map Available Services.md)
-3. [Choose Your Starting Point](3.Choose Your Starting Point.md)
-4. [Connect Services Together](4.Connect Services Together.md)
+Walks the user through the lmthing ecosystem by identifying their goals, mapping relevant services, recommending a starting point, and showing how services connect together.

@@ -22,20 +22,19 @@
  * }, { model: 'openai:gpt-4o', plugins: [knowledgeAgentPlugin] });
  */
 
-import { z } from 'zod';
-import { readFileSync, readdirSync, existsSync } from 'fs';
-import { join, resolve } from 'path';
-import yaml from 'js-yaml';
-import type { StatefulPrompt } from '../../StatefulPrompt';
-import { defTaskList } from '../taskList';
-import type { Task } from '../types';
+import { z } from "zod";
+import { readFileSync, readdirSync, existsSync } from "fs";
+import { join, resolve } from "path";
+import yaml from "js-yaml";
+import type { StatefulPrompt } from "../../StatefulPrompt";
+import type { Task } from "../types";
 
 // --- Types ---
 
 interface FieldConfig {
   label: string;
   description: string;
-  fieldType: 'select' | 'multiSelect' | 'text' | 'number';
+  fieldType: "select" | "multiSelect" | "text" | "number";
   required: boolean;
   default?: string;
   variableName: string;
@@ -102,7 +101,7 @@ function parseFrontmatter(raw: string): { meta: Record<string, any>; body: strin
 }
 
 function readJson<T>(filePath: string): T {
-  return JSON.parse(readFileSync(filePath, 'utf-8'));
+  return JSON.parse(readFileSync(filePath, "utf-8"));
 }
 
 // --- Slash action parsing ---
@@ -114,16 +113,16 @@ function parseSlashActions(body: string): SlashAction[] {
   while ((match = regex.exec(body)) !== null) {
     const attrs = match[1];
     const command = match[2];
-    const name = attrs.match(/name="([^"]+)"/)?.[1] || '';
-    const description = attrs.match(/description="([^"]+)"/)?.[1] || '';
-    const flowId = attrs.match(/flowId="([^"]+)"/)?.[1] || '';
+    const name = attrs.match(/name="([^"]+)"/)?.[1] || "";
+    const description = attrs.match(/description="([^"]+)"/)?.[1] || "";
+    const flowId = attrs.match(/flowId="([^"]+)"/)?.[1] || "";
     actions.push({ name, description, flowId, command });
   }
   return actions;
 }
 
 function stripSlashActionTags(body: string): string {
-  return body.replace(/<slash_action\s+[^>]+>\s*\n\s*\S+\s*\n\s*<\/slash_action>/g, '').trim();
+  return body.replace(/<slash_action\s+[^>]+>\s*\n\s*\S+\s*\n\s*<\/slash_action>/g, "").trim();
 }
 
 // --- Output tag parsing ---
@@ -134,15 +133,17 @@ function parseOutputTag(body: string): { cleanBody: string; output: OutputSpec |
   if (!match) return { cleanBody: body, output: null };
 
   const attrs = match[1];
-  const target = attrs.match(/target="([^"]+)"/)?.[1] || '';
+  const target = attrs.match(/target="([^"]+)"/)?.[1] || "";
   const isArray = /type=["']array["']/.test(attrs);
   let schema: Record<string, any> = {};
   try {
     schema = JSON.parse(match[2].trim());
-  } catch { /* invalid schema, leave empty */ }
+  } catch {
+    /* invalid schema, leave empty */
+  }
 
   return {
-    cleanBody: body.replace(regex, '').trim(),
+    cleanBody: body.replace(regex, "").trim(),
     output: { target, isArray, schema },
   };
 }
@@ -150,23 +151,23 @@ function parseOutputTag(body: string): { cleanBody: string; output: OutputSpec |
 // --- Flow reading ---
 
 function readFlowSteps(spacePath: string, flowId: string): FlowStep[] {
-  const flowDir = join(spacePath, 'flows', flowId);
+  const flowDir = join(spacePath, "flows", flowId);
   if (!existsSync(flowDir)) return [];
 
   const files = readdirSync(flowDir)
-    .filter(f => /^\d+\./.test(f) && f.endsWith('.md'))
+    .filter((f) => /^\d+\./.test(f) && f.endsWith(".md"))
     .sort((a, b) => parseInt(a) - parseInt(b));
 
   return files.map((file, i) => {
-    const raw = readFileSync(join(flowDir, file), 'utf-8');
+    const raw = readFileSync(join(flowDir, file), "utf-8");
     const { meta, body } = parseFrontmatter(raw);
     const { cleanBody, output } = parseOutputTag(body);
-    const name = file.replace(/^\d+\./, '').replace(/\.md$/, '');
+    const name = file.replace(/^\d+\./, "").replace(/\.md$/, "");
 
     return {
       index: i,
       name,
-      description: (meta.description as string) || '',
+      description: (meta.description as string) || "",
       prompt: cleanBody,
       output,
       model: meta.model as string | undefined,
@@ -177,28 +178,31 @@ function readFlowSteps(spacePath: string, flowId: string): FlowStep[] {
 
 // --- Knowledge reading ---
 
-function readKnowledgeFields(spacePath: string, runtimeFields: Record<string, string[]>): KnowledgeField[] {
+function readKnowledgeFields(
+  spacePath: string,
+  runtimeFields: Record<string, string[]>,
+): KnowledgeField[] {
   const fields: KnowledgeField[] = [];
-  const knowledgePath = join(spacePath, 'knowledge');
+  const knowledgePath = join(spacePath, "knowledge");
 
   for (const [domain, fieldSlugs] of Object.entries(runtimeFields)) {
     for (const fieldSlug of fieldSlugs) {
       const fieldPath = join(knowledgePath, domain, fieldSlug);
-      const fieldConfigPath = join(fieldPath, 'config.json');
+      const fieldConfigPath = join(fieldPath, "config.json");
       if (!existsSync(fieldConfigPath)) continue;
 
       const config = readJson<FieldConfig>(fieldConfigPath);
 
       const options: OptionMeta[] = [];
       for (const entry of readdirSync(fieldPath)) {
-        if (!entry.endsWith('.md')) continue;
-        const { meta, body } = parseFrontmatter(readFileSync(join(fieldPath, entry), 'utf-8'));
+        if (!entry.endsWith(".md")) continue;
+        const { meta, body } = parseFrontmatter(readFileSync(join(fieldPath, entry), "utf-8"));
         options.push({
-          title: (meta.title as string) || entry.replace('.md', ''),
-          description: (meta.description as string) || '',
+          title: (meta.title as string) || entry.replace(".md", ""),
+          description: (meta.description as string) || "",
           order: (meta.order as number) || 0,
           content: body,
-          slug: entry.replace('.md', ''),
+          slug: entry.replace(".md", ""),
         });
       }
 
@@ -211,13 +215,13 @@ function readKnowledgeFields(spacePath: string, runtimeFields: Record<string, st
 }
 
 function readInstruct(agentPath: string): InstructMeta {
-  const raw = readFileSync(join(agentPath, 'instruct.md'), 'utf-8');
+  const raw = readFileSync(join(agentPath, "instruct.md"), "utf-8");
   const { meta, body } = parseFrontmatter(raw);
   const slashActions = parseSlashActions(body);
   const cleanBody = stripSlashActionTags(body);
   return {
-    name: (meta.name as string) || 'Agent',
-    description: (meta.description as string) || '',
+    name: (meta.name as string) || "Agent",
+    description: (meta.description as string) || "",
     body: cleanBody,
     slashActions,
   };
@@ -227,11 +231,13 @@ function readInstruct(agentPath: string): InstructMeta {
 
 function buildInputSchema(fields: KnowledgeField[], slashActions: SlashAction[]): z.ZodObject<any> {
   const shape: Record<string, z.ZodTypeAny> = {
-    message: z.string().describe(
-      slashActions.length > 0
-        ? `The message or task to send to the agent. Slash commands: ${slashActions.map(a => `"${a.command}" — ${a.description}`).join(', ')}`
-        : 'The message or task to send to the agent'
-    ),
+    message: z
+      .string()
+      .describe(
+        slashActions.length > 0
+          ? `The message or task to send to the agent. Slash commands: ${slashActions.map((a) => `"${a.command}" — ${a.description}`).join(", ")}`
+          : "The message or task to send to the agent",
+      ),
   };
 
   for (const field of fields) {
@@ -239,24 +245,26 @@ function buildInputSchema(fields: KnowledgeField[], slashActions: SlashAction[])
     let fieldSchema: z.ZodTypeAny;
 
     switch (config.fieldType) {
-      case 'select': {
-        const values = options.map(o => o.slug);
-        fieldSchema = values.length > 0
-          ? z.enum(values as [string, ...string[]]).describe(config.description)
-          : z.string().describe(config.description);
+      case "select": {
+        const values = options.map((o) => o.slug);
+        fieldSchema =
+          values.length > 0
+            ? z.enum(values as [string, ...string[]]).describe(config.description)
+            : z.string().describe(config.description);
         break;
       }
-      case 'multiSelect': {
-        const values = options.map(o => o.slug);
-        fieldSchema = values.length > 0
-          ? z.array(z.enum(values as [string, ...string[]])).describe(config.description)
-          : z.array(z.string()).describe(config.description);
+      case "multiSelect": {
+        const values = options.map((o) => o.slug);
+        fieldSchema =
+          values.length > 0
+            ? z.array(z.enum(values as [string, ...string[]])).describe(config.description)
+            : z.array(z.string()).describe(config.description);
         break;
       }
-      case 'text':
+      case "text":
         fieldSchema = z.string().describe(config.description);
         break;
-      case 'number':
+      case "number":
         fieldSchema = z.number().describe(config.description);
         break;
       default:
@@ -282,18 +290,18 @@ function buildKnowledgeContext(fields: KnowledgeField[], values: Record<string, 
     const selected = values[field.config.variableName] ?? field.config.default;
     if (selected == null) continue;
 
-    if (field.config.fieldType === 'multiSelect' && Array.isArray(selected)) {
+    if (field.config.fieldType === "multiSelect" && Array.isArray(selected)) {
       for (const v of selected) {
-        const option = field.options.find(o => o.slug === v);
+        const option = field.options.find((o) => o.slug === v);
         if (option) sections.push(`## ${field.config.label}: ${option.title}\n\n${option.content}`);
       }
     } else {
-      const option = field.options.find(o => o.slug === selected);
+      const option = field.options.find((o) => o.slug === selected);
       if (option) sections.push(`## ${field.config.label}: ${option.title}\n\n${option.content}`);
     }
   }
 
-  return sections.join('\n\n');
+  return sections.join("\n\n");
 }
 
 // --- JSON Schema → Zod conversion ---
@@ -304,8 +312,8 @@ function jsonSchemaToZod(schema: Record<string, any>): z.ZodTypeAny {
 
 // --- Flow execution on child prompt ---
 
-const FLOW_OUTPUT_KEY = 'knowledgeAgent_flowOutput';
-const ACTIVE_FLOW_KEY = 'knowledgeAgent_activeFlow';
+const FLOW_OUTPUT_KEY = "knowledgeAgent_flowOutput";
+const ACTIVE_FLOW_KEY = "knowledgeAgent_activeFlow";
 
 function setupFlowOnPrompt(
   prompt: StatefulPrompt,
@@ -316,11 +324,11 @@ function setupFlowOnPrompt(
   const tasks: Task[] = flowSteps.map((step, i) => ({
     id: String(i + 1),
     name: step.name,
-    status: 'pending' as const,
+    status: "pending" as const,
   }));
 
   // Initialize task list on the child prompt
-  defTaskList.call(prompt, tasks);
+  prompt.defTaskList(tasks);
 
   // Flow output accumulator
   const [, setFlowOutput] = prompt.defState<Record<string, any>>(FLOW_OUTPUT_KEY, {});
@@ -340,10 +348,10 @@ function setupFlowOnPrompt(
 
     prompt.defTool(
       toolName,
-      `Submit output for flow step "${step.name}". Stores result at "${target}"${isArray ? ' (appends to array)' : ''}.`,
+      `Submit output for flow step "${step.name}". Stores result at "${target}"${isArray ? " (appends to array)" : ""}.`,
       zodSchema,
       async (args: Record<string, any>) => {
-        setFlowOutput(prev => {
+        setFlowOutput((prev) => {
           const updated = { ...prev };
           if (isArray) {
             updated[target] = [...(updated[target] || []), args];
@@ -364,16 +372,18 @@ function setupFlowOnPrompt(
 
   // Effect to inject current step context into the system prompt
   prompt.defEffect(() => {
-    const currentTasks = prompt.getState<Task[]>('taskList') || [];
-    const currentTask = currentTasks.find(t => t.status === 'in_progress');
+    const currentTasks = prompt.getState<Task[]>("taskList") || [];
+    const currentTask = currentTasks.find((t) => t.status === "in_progress");
     const flowOutput = prompt.getState<Record<string, any>>(FLOW_OUTPUT_KEY) || {};
     const steps = prompt.getState<FlowStep[]>(ACTIVE_FLOW_KEY) || [];
 
     if (!currentTask) {
-      const allDone = currentTasks.length > 0 && currentTasks.every(t => t.status === 'completed');
+      const allDone =
+        currentTasks.length > 0 && currentTasks.every((t) => t.status === "completed");
       if (allDone) {
-        prompt.defSystem('flowContext',
-          `# Flow Complete\n\nAll ${steps.length} steps completed.\n\n## Final Output\n\n\`\`\`json\n${JSON.stringify(flowOutput, null, 2)}\n\`\`\``
+        prompt.defSystem(
+          "flowContext",
+          `# Flow Complete\n\nAll ${steps.length} steps completed.\n\n## Final Output\n\n\`\`\`json\n${JSON.stringify(flowOutput, null, 2)}\n\`\`\``,
         );
       }
       return;
@@ -400,12 +410,12 @@ function setupFlowOnPrompt(
       ctx += `## Knowledge Context\n\n${knowledgeContext}\n`;
     }
 
-    prompt.defSystem('flowContext', ctx);
+    prompt.defSystem("flowContext", ctx);
   });
 
   // User message to kick off the flow
   prompt.addMessage({
-    role: 'user',
+    role: "user",
     content: [
       `Execute this flow with ${flowSteps.length} steps. For each step:`,
       `1. Call \`startTask\` to begin the step`,
@@ -414,7 +424,7 @@ function setupFlowOnPrompt(
       `4. Call \`completeTask\` to finish the step`,
       ``,
       `Work through all steps in order. Start with step 1.`,
-    ].join('\n'),
+    ].join("\n"),
   });
 }
 
@@ -436,16 +446,12 @@ function setupFlowOnPrompt(
  * @param spacePath  - Path to the space directory (e.g. `./spaces/education`)
  * @param agentPath  - Path to the specific agent directory (e.g. `./spaces/education/agents/agent-lesson-plan`)
  */
-export function defKnowledgeAgent(
-  this: StatefulPrompt,
-  spacePath: string,
-  agentPath: string,
-) {
+export function defKnowledgeAgent(this: StatefulPrompt, spacePath: string, agentPath: string) {
   const resolvedSpace = resolve(spacePath);
   const resolvedAgent = resolve(agentPath);
 
   // Read agent config & instruct
-  const agentConfig = readJson<AgentRuntimeConfig>(join(resolvedAgent, 'config.json'));
+  const agentConfig = readJson<AgentRuntimeConfig>(join(resolvedAgent, "config.json"));
   const instruct = readInstruct(resolvedAgent);
 
   // Read knowledge fields from the space based on runtimeFields
@@ -473,7 +479,7 @@ export function defKnowledgeAgent(
 
       // Check if message is a slash command
       const matchedAction = instruct.slashActions.find(
-        a => message === a.command || message.startsWith(a.command + ' '),
+        (a) => message === a.command || message.startsWith(a.command + " "),
       );
 
       if (matchedAction) {
@@ -486,9 +492,9 @@ export function defKnowledgeAgent(
 
       // Regular message — inject knowledge and forward
       if (knowledgeContext) {
-        prompt.defSystem('knowledge', `# Knowledge Context\n\n${knowledgeContext}`);
+        prompt.defSystem("knowledge", `# Knowledge Context\n\n${knowledgeContext}`);
       }
-      prompt.addMessage({ role: 'user', content: message });
+      prompt.addMessage({ role: "user", content: message });
     },
     { system: instruct.body },
   );

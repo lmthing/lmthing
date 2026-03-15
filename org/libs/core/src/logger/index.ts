@@ -2,13 +2,15 @@
  * Debug logger for lmthing.
  *
  * Provides comprehensive logging of prompts, responses, and tool calls.
- * Logs to console and/or markdown files for later review.
+ * Each run produces a single XML file with all steps, tool calls,
+ * tool results, and agent logs in structured XML format.
  */
 
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import type { DebugConfig, LogOutput, RequestData, ResponseData, LogEntry } from './types';
 import { formatLogEntry, formatConsoleLog } from './formatter';
+import { formatStepXml, formatRunHeader, formatRunFooter } from './xmlFormatter';
 
 /**
  * Generate a unique run ID with timestamp
@@ -50,13 +52,17 @@ function getConfigFromEnv(): Partial<DebugConfig> {
  * Debug logger class for capturing and storing lmthing execution logs.
  *
  * Implements singleton pattern to share state across all prompts.
- * Logs are stored as markdown files in a run-specific directory.
+ * Logs are stored as a single XML file per run with all steps.
  */
 export class DebugLogger {
   private _config: DebugConfig;
   private _runId: string | null = null;
-  private _currentRunDir: string | null = null;
+  private _logFilePath: string | null = null;
   private _pendingRequests = new Map<number, RequestData>();
+  private _headerWritten = false;
+  private _model: string | null = null;
+  // Serialize file writes to prevent interleaving from concurrent async observers
+  private _writeQueue: Promise<void> = Promise.resolve();
 
   constructor(config?: Partial<DebugConfig>) {
     const envConfig = getConfigFromEnv();
@@ -104,6 +110,13 @@ export class DebugLogger {
   }
 
   /**
+   * Get the current log file path (null if not logging to file)
+   */
+  get logFilePath(): string | null {
+    return this._logFilePath;
+  }
+
+  /**
    * Start a new run with a unique ID
    */
   async startRun(): Promise<string> {
@@ -114,15 +127,42 @@ export class DebugLogger {
 
     this._runId = generateRunId();
     this._pendingRequests.clear();
+    this._headerWritten = false;
+    this._model = null;
+    this._writeQueue = Promise.resolve();
 
-    // Create run directory if logging to file or both
+    // Create log directory and file path if logging to file or both
     if (this._config.output === 'file' || this._config.output === 'both') {
-      const runDir = join(process.cwd(), this._config.logDir, `run-${this._runId}`);
-      await fs.mkdir(runDir, { recursive: true });
-      this._currentRunDir = runDir;
+      const logDir = join(process.cwd(), this._config.logDir);
+      await fs.mkdir(logDir, { recursive: true });
+      this._logFilePath = join(logDir, `run-${this._runId}.xml`);
     }
 
     return this._runId;
+  }
+
+  /**
+   * Append XML content to the log file (serialized to prevent interleaving).
+   * Captures filePath/runId/model at call time so late-arriving writes
+   * (from async observers) still go to the correct file.
+   */
+  private _appendToFile(content: string): Promise<void> {
+    const filePath = this._logFilePath;
+    const runId = this._runId;
+    const model = this._model;
+    if (!filePath || !runId) {
+      return Promise.resolve();
+    }
+    this._writeQueue = this._writeQueue.then(async () => {
+      // Write header lazily on first append
+      if (!this._headerWritten) {
+        const header = formatRunHeader(runId, model || undefined);
+        await fs.writeFile(filePath, header + '\n', 'utf-8');
+        this._headerWritten = true;
+      }
+      await fs.appendFile(filePath, content + '\n', 'utf-8');
+    });
+    return this._writeQueue;
   }
 
   /**
@@ -131,6 +171,11 @@ export class DebugLogger {
   async logRequest(request: RequestData): Promise<void> {
     if (!this._config.enabled || !this._runId) {
       return;
+    }
+
+    // Capture the model name from the first request
+    if (!this._model) {
+      this._model = request.model;
     }
 
     // Store the request for later pairing with response
@@ -142,16 +187,6 @@ export class DebugLogger {
       console.log(`[LM_DEBUG] Model: ${request.model}`);
       console.log(`[LM_DEBUG] Messages: ${request.messages.length} messages`);
       console.log(`[LM_DEBUG] Tools: ${Object.keys(request.tools).length} tools`);
-    }
-
-    // For minimal level, don't write file yet (wait for response)
-    if (this._config.level === 'minimal') {
-      return;
-    }
-
-    // Write prompts-only log immediately if at prompts level
-    if (this._config.level === 'prompts' && (this._config.output === 'file' || this._config.output === 'both')) {
-      await this._writeStepFile(request.stepNumber, { runId: this._runId, stepNumber: request.stepNumber, request });
     }
   }
 
@@ -195,9 +230,10 @@ export class DebugLogger {
       console.log('');
     }
 
-    // Write to file if enabled
+    // Write step XML to single file if file output enabled
     if (this._config.output === 'file' || this._config.output === 'both') {
-      await this._writeStepFile(response.stepNumber, entry);
+      const stepXml = formatStepXml(entry);
+      await this._appendToFile(stepXml);
     }
 
     // Clean up pending request
@@ -205,22 +241,7 @@ export class DebugLogger {
   }
 
   /**
-   * Write a step log file
-   */
-  private async _writeStepFile(stepNumber: number, entry: LogEntry): Promise<void> {
-    if (!this._currentRunDir) {
-      return;
-    }
-
-    const filename = `step-${stepNumber}.md`;
-    const filepath = join(this._currentRunDir, filename);
-    const content = formatLogEntry(entry);
-
-    await fs.writeFile(filepath, content, 'utf-8');
-  }
-
-  /**
-   * End the current run and clean up
+   * End the current run and close the XML file
    */
   async endRun(): Promise<void> {
     if (!this._config.enabled) {
@@ -238,13 +259,26 @@ export class DebugLogger {
           request,
           response: undefined,
         };
-        await this._writeStepFile(stepNumber, entry);
+        const stepXml = formatStepXml(entry);
+        await this._appendToFile(stepXml);
       }
     }
 
+    // Write closing XML tag through the queue so it serializes after any late observer writes
+    const filePath = this._logFilePath;
+    if (filePath && (this._config.output === 'file' || this._config.output === 'both')) {
+      this._writeQueue = this._writeQueue.then(async () => {
+        await fs.appendFile(filePath, formatRunFooter(), 'utf-8');
+      });
+      await this._writeQueue;
+    }
+
     this._runId = null;
-    this._currentRunDir = null;
+    this._logFilePath = null;
     this._pendingRequests.clear();
+    this._headerWritten = false;
+    this._model = null;
+    this._writeQueue = Promise.resolve();
   }
 
   /**

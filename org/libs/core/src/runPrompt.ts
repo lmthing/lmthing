@@ -84,6 +84,8 @@ export interface PromptConfig<P extends readonly Plugin[] = []> {
 interface RunPromptResult {
   prompt: StatefulPrompt;
   result: StreamTextResult<any, any>;
+  /** Resolves when all debug logging (including async stream observers) has been flushed to disk. */
+  cleanup: Promise<void>;
 }
 
 /**
@@ -237,8 +239,14 @@ export const runPrompt = async <
   // Run with stateful re-execution (will re-execute promptFn on subsequent steps)
   const result = prompt.run();
 
-  // Clean up debug run when result completes
-  Promise.resolve(result.text).then(() => debugLogger.endRun()).catch(() => debugLogger.endRun());
+  // Clean up debug run when result completes — flush observers first to ensure all responses are logged
+  const cleanupDebug = async () => {
+    try {
+      await prompt.flushObservers();
+    } catch {}
+    await debugLogger.endRun();
+  };
+  const cleanup = Promise.resolve(result.text).then(cleanupDebug, cleanupDebug);
 
-  return { result, prompt };
+  return { result, prompt, cleanup };
 };

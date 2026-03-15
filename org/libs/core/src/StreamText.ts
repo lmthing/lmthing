@@ -65,6 +65,8 @@ export class StreamTextBuilder {
     private _steps: Array<any> = [];
     private _agentStepsMap: Map<string, any[]> = new Map();
     private _currentActiveTools?: string[];
+    // Track pending observer promises so endRun can await them
+    private _pendingObservers: Promise<void>[] = [];
     private _getMiddleware(): LanguageModelV3Middleware {
         return {
             specificationVersion: 'v3',
@@ -96,10 +98,13 @@ export class StreamTextBuilder {
               return params;
             },
             wrapStream: async ({ doStream, params }) => {
+              // Capture step number before any async work (prevents race with next step)
+              this._debugStepNumber++;
+              const stepNumber = this._debugStepNumber;
+
               // Log the request for this step (for multi-step executions)
               if (this._debugRunId) {
-                this._debugStepNumber++;
-                await this._logRequestFromParams(params);
+                await this._logRequestFromParams(params, stepNumber);
               }
 
               const result = await doStream();
@@ -108,7 +113,7 @@ export class StreamTextBuilder {
               const [observerStream, consumerStream] = result.stream.tee();
 
               // Collect chunks in the background without blocking
-              (async () => {
+              const observerPromise = (async () => {
                 const outputChunks: any[] = [];
                 // Capture activeTools at the time of this step
                 const activeTools = this._currentActiveTools;
@@ -120,13 +125,14 @@ export class StreamTextBuilder {
 
                   // Log the response after all chunks are collected
                   if (this._debugRunId) {
-                    await this._logResponseFromChunks(outputChunks);
+                    await this._logResponseFromChunks(outputChunks, stepNumber);
                   }
                 } catch (error) {
                   // Silently ignore errors in the observer stream
                   console.error('Error collecting chunks in middleware:', error);
                 }
               })();
+              this._pendingObservers.push(observerPromise);
               
               // Apply any registered stream transformers to the consumer stream
               let transformedStream: ReadableStream<any> = consumerStream;
@@ -333,6 +339,16 @@ export class StreamTextBuilder {
     setDebugContext(runId: string | null): void {
         this._debugRunId = runId;
         this._debugStepNumber = 0;
+        this._pendingObservers = [];
+    }
+
+    /**
+     * Wait for all pending stream observers to finish collecting chunks.
+     * Call this before endRun to ensure all responses are logged.
+     */
+    async flushObservers(): Promise<void> {
+        await Promise.allSettled(this._pendingObservers);
+        this._pendingObservers = [];
     }
 
     /**
@@ -445,14 +461,16 @@ export class StreamTextBuilder {
         finishReason?: string;
         toolCalls?: Array<{ toolName: string; toolCallId: string; args: any }>;
         toolResults?: Array<{ toolName: string; toolCallId: string; output: any }>;
-    }): Promise<void> {
+    }, stepNumber?: number): Promise<void> {
         const logger = getDebugLogger();
         if (!logger.enabled || !this._debugRunId) {
             return;
         }
 
+        const step = stepNumber ?? this._debugStepNumber;
+
         const responseData: ResponseData = {
-            stepNumber: this._debugStepNumber,
+            stepNumber: step,
             timestamp: new Date(),
             text: response.text,
             finishReason: response.finishReason,
@@ -474,12 +492,13 @@ export class StreamTextBuilder {
     /**
      * Log the request from middleware params (for multi-step executions)
      */
-    protected async _logRequestFromParams(params: any): Promise<void> {
+    protected async _logRequestFromParams(params: any, stepNumber?: number): Promise<void> {
         const logger = getDebugLogger();
         if (!logger.enabled || !this._debugRunId) {
             return;
         }
 
+        const step = stepNumber ?? this._debugStepNumber;
         const systemPrompt = params.system;
         const messages = params.prompt || [];
 
@@ -495,7 +514,7 @@ export class StreamTextBuilder {
 
         const requestData: RequestData = {
             runId: this._debugRunId,
-            stepNumber: this._debugStepNumber,
+            stepNumber: step,
             timestamp: new Date(),
             model: this._getModelString(),
             systemPrompt: systemPrompt as string | undefined,
@@ -512,12 +531,13 @@ export class StreamTextBuilder {
     /**
      * Extract response data from collected chunks and log it
      */
-    protected async _logResponseFromChunks(chunks: any[]): Promise<void> {
+    protected async _logResponseFromChunks(chunks: any[], stepNumber?: number): Promise<void> {
         const logger = getDebugLogger();
         if (!logger.enabled || !this._debugRunId) {
             return;
         }
 
+        const step = stepNumber ?? this._debugStepNumber;
         let text = '';
         let finishReason: string | undefined;
         const toolCalls: Array<{ toolName: string; toolCallId: string; args: any }> = [];
@@ -532,7 +552,9 @@ export class StreamTextBuilder {
                     args: chunk.input ? JSON.parse(chunk.input) : {},
                 });
             } else if (chunk.type === 'finish') {
-                finishReason = chunk.finishReason;
+                // finishReason can be a string or an object like {unified: "stop", raw: "stop"}
+                const fr = chunk.finishReason;
+                finishReason = typeof fr === 'string' ? fr : (fr?.unified ?? fr?.raw ?? String(fr));
             }
         }
 
@@ -540,6 +562,6 @@ export class StreamTextBuilder {
             text: text || undefined,
             finishReason,
             toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-        });
+        }, step);
     }
 }

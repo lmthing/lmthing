@@ -1,0 +1,7 @@
+{
+  "label": "Quiz Settings",
+  "description": "Configuration for quiz generation",
+  "icon": "🎯",
+  "color": "#3b82f6",
+  "renderAs": "section"
+}

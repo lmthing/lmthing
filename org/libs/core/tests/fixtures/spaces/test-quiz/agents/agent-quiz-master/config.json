@@ -1,0 +1,5 @@
+{
+  "runtimeFields": {
+    "quiz-settings": ["difficulty"]
+  }
+}

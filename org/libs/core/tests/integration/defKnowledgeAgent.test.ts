@@ -3,7 +3,7 @@
  *
  * Tests the knowledge agent plugin with real LLMs against:
  * - space-chat (simple agent with knowledge fields, no flows)
- * - education (agent with slash actions and multi-step flows)
+ * - test-quiz (agent with slash actions and multi-step flows)
  *
  * Running:
  * LM_TEST_MODEL=openai:gpt-4o-mini npm test -- --run tests/integration/defKnowledgeAgent
@@ -24,9 +24,9 @@ import {
 const CHAT_SPACE = resolve(__dirname, '../../..', 'thing/spaces/space-chat');
 const CHAT_AGENT = resolve(__dirname, '../../..', 'thing/spaces/space-chat/agents/agent-chat-assistant');
 
-// Education space lives under store/spaces/ (from tests/integration/ up to monorepo root)
-const EDU_SPACE = resolve(__dirname, '../../../../..', 'store/spaces/education');
-const EDU_AGENT = resolve(__dirname, '../../../../..', 'store/spaces/education/agents/agent-assessment');
+// Test quiz space lives under tests/fixtures/
+const QUIZ_SPACE = resolve(__dirname, '../fixtures/spaces/test-quiz');
+const QUIZ_AGENT = resolve(__dirname, '../fixtures/spaces/test-quiz/agents/agent-quiz-master');
 
 describe('defKnowledgeAgent Integration Tests', () => {
   const modelDisplay = getModelDisplayName(TEST_MODEL);
@@ -36,7 +36,7 @@ describe('defKnowledgeAgent Integration Tests', () => {
   it.skipIf(!hasTestModel)(`registers ChatAssistant from space-chat (${modelDisplay})`, { timeout: TEST_TIMEOUT }, async () => {
     console.log(`\n=== Testing defKnowledgeAgent with ${modelDisplay} ===`);
 
-    const { result } = await runPrompt(async ({ defKnowledgeAgent, $ }) => {
+    const { result, cleanup } = await runPrompt(async ({ defKnowledgeAgent, $ }) => {
       defKnowledgeAgent(CHAT_SPACE, CHAT_AGENT);
       $`Use the ChatAssistant agent with chatMode set to "focused" and message "What models are best for coding tasks?"`;
     }, {
@@ -48,13 +48,14 @@ describe('defKnowledgeAgent Integration Tests', () => {
     console.log(`  > LLM Response: ${text}`);
 
     expect(text.length).toBeGreaterThan(0);
+    await cleanup;
     console.log(`  > Test passed!\n`);
   });
 
   it.skipIf(!hasTestModel)(`injects knowledge context for selected mode (${modelDisplay})`, { timeout: TEST_TIMEOUT }, async () => {
     console.log(`\n=== Testing knowledge injection with ${modelDisplay} ===`);
 
-    const { result } = await runPrompt(async ({ defKnowledgeAgent, $ }) => {
+    const { result, cleanup } = await runPrompt(async ({ defKnowledgeAgent, $ }) => {
       defKnowledgeAgent(CHAT_SPACE, CHAT_AGENT);
       $`Use the ChatAssistant agent. Set chatMode to "creative" and ask: "How should I approach a brainstorming session?"`;
     }, {
@@ -66,13 +67,14 @@ describe('defKnowledgeAgent Integration Tests', () => {
     console.log(`  > LLM Response: ${text}`);
 
     expect(text.length).toBeGreaterThan(0);
+    await cleanup;
     console.log(`  > Test passed!\n`);
   });
 
   it.skipIf(!hasTestModel)(`uses default values when no runtime fields specified (${modelDisplay})`, { timeout: TEST_TIMEOUT }, async () => {
     console.log(`\n=== Testing default values with ${modelDisplay} ===`);
 
-    const { result } = await runPrompt(async ({ defKnowledgeAgent, $ }) => {
+    const { result, cleanup } = await runPrompt(async ({ defKnowledgeAgent, $ }) => {
       defKnowledgeAgent(CHAT_SPACE, CHAT_AGENT);
       $`Use the ChatAssistant agent with the message "Give me a quick overview of what you can help with."`;
     }, {
@@ -84,17 +86,18 @@ describe('defKnowledgeAgent Integration Tests', () => {
     console.log(`  > LLM Response: ${text}`);
 
     expect(text.length).toBeGreaterThan(0);
+    await cleanup;
     console.log(`  > Test passed!\n`);
   });
 
   // --- Slash action / flow execution ---
 
-  it.skipIf(!hasTestModel)(`triggers assessment flow via /generate slash command (${modelDisplay})`, { timeout: 300_000 }, async () => {
+  it.skipIf(!hasTestModel)(`triggers quiz generation flow via /generate slash command (${modelDisplay})`, { timeout: 300_000 }, async () => {
     console.log(`\n=== Testing slash action flow with ${modelDisplay} ===`);
 
-    const { result, prompt } = await runPrompt(async ({ defKnowledgeAgent, $ }) => {
-      defKnowledgeAgent(EDU_SPACE, EDU_AGENT);
-      $`Use the AssessmentAgent with message "/generate" to generate a short 5th-grade science quiz about photosynthesis.`;
+    const { result, prompt, cleanup } = await runPrompt(async ({ defKnowledgeAgent, $ }) => {
+      defKnowledgeAgent(QUIZ_SPACE, QUIZ_AGENT);
+      $`Use the QuizMaster agent with message "/generate" and difficulty set to "beginner".`;
     }, {
       model: TEST_MODEL,
       plugins: [knowledgeAgentPlugin]
@@ -107,7 +110,7 @@ describe('defKnowledgeAgent Integration Tests', () => {
     const steps = prompt.steps;
     console.log(`  > Total LLM steps: ${steps.length}`);
 
-    // Flow has 6 steps — expect multiple tool calls (startTask, output_*, completeTask)
+    // Flow has 2 steps — expect tool calls (startTask, output_*, completeTask)
     const toolCalls = steps.flatMap((step: any) =>
       step.output?.content?.filter((c: any) => c.type === 'tool-call') || []
     );
@@ -118,6 +121,7 @@ describe('defKnowledgeAgent Integration Tests', () => {
     const outputToolCalls = toolNames.filter((n: string) => n.startsWith('output_'));
     expect(outputToolCalls.length).toBeGreaterThan(0);
     console.log(`  > Output tool calls: ${outputToolCalls.join(', ')}`);
+    await cleanup;
     console.log(`  > Test passed!\n`);
   });
 });

@@ -1,5 +1,7 @@
 {
-  "emptyFieldsForRuntime": {
-    "care-routine": ["watering-frequency"]
+  "runtimeFields": {
+    "care-routine": [
+      "watering-frequency"
+    ]
   }
 }

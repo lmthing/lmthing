@@ -1,0 +1,6 @@
+{
+  "name": "@lmthing/thing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "System studio for the THING agent — built-in spaces that ship with every installation"
+}

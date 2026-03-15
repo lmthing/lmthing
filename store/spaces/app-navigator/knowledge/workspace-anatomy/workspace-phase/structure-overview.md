@@ -49,15 +49,15 @@ Every workspace is a self-contained folder at `app/src/demos/{subject-slug}/` wi
 
 ## File Count Baseline
 
-| Component | Minimum | Recommended |
-|---|---|---|
-| Agents | 1 | 2–3 |
-| Flows | 1 (one per agent action) | 2–4 |
-| Flow steps per flow | 3 | 4–8 |
-| Knowledge domains | 2 | 3–4 |
-| Fields per domain | 2 | 3–5 |
-| Options per field | 2 | 3–5 |
-| **Total files** | ~20 | ~50–80 |
+| Component           | Minimum                  | Recommended |
+| ------------------- | ------------------------ | ----------- |
+| Agents              | 1                        | 2–3         |
+| Flows               | 1 (one per agent action) | 2–4         |
+| Flow steps per flow | 3                        | 4–8         |
+| Knowledge domains   | 2                        | 3–4         |
+| Fields per domain   | 2                        | 3–5         |
+| Options per field   | 2                        | 3–5         |
+| **Total files**     | ~20                      | ~50–80      |
 
 ---
 
@@ -65,7 +65,7 @@ Every workspace is a self-contained folder at `app/src/demos/{subject-slug}/` wi
 
 ```
 Agent (instruct.md)
-  ├── selectedDomains ──→ Knowledge Domain (folder)
+  ├── enabledKnowledgeFields ──→ Knowledge Domain (folder)
   │                          └── Field (folder)
   │                               └── Option (markdown file) ──→ context injected
   │
@@ -74,10 +74,11 @@ Agent (instruct.md)
 ```
 
 **Critical references that must match:**
-- `selectedDomains: ["domain-{name}"]` → must match `knowledge/{name}/` folder
+
+- `enabledKnowledgeFields: ["domain-{name}"]` → must match `knowledge/{name}/` folder
 - `flowId="flow_{id}"` → must match `flows/flow_{id}/` folder
 - `default: "{slug}"` in field config → must match `{slug}.md` option file
-- `emptyFieldsForRuntime: { "{domain}": ["{field}"] }` → must match folder paths
+- `runtimeFields: { "{domain}": ["{field}"] }` → must match folder paths
 
 ---
 
@@ -88,10 +89,11 @@ When a user opens an agent conversation:
 1. **Loads `instruct.md`** → reads agent identity and slash actions
 2. **Loads selected knowledge option content** → injects into system context
 3. **Reads `values.json`** → pre-fills any previously saved field values
-4. **Reads `config.json`** → prompts user for any `emptyFieldsForRuntime` fields
+4. **Reads `config.json`** → prompts user for any `runtimeFields` fields
 5. **Starts conversation** with full context assembled
 
 When a slash command is triggered:
+
 1. **Finds the matching flow folder** (from `flowId`)
 2. **Reads `index.md`** → presents the flow overview
 3. **Steps through numbered files** → agent executes each step in sequence

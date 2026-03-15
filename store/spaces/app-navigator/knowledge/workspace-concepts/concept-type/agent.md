@@ -30,32 +30,33 @@ agents/agent-{slug}/
 name: "{AgentName}"
 description: "{One-line what this agent does}"
 tools: ["{tool-1}", "{tool-2}"]
-selectedDomains: ["domain-{domain1}", "domain-{domain2}"]
+enabledKnowledgeFields: ["domain-{domain1}", "domain-{domain2}"]
 ---
 
-<slash_action name="{Action Display Name}" description="{What it does}" flowId="flow_{action_id}">
+<slash*action name="{Action Display Name}" description="{What it does}" flowId="flow*{action_id}">
 /{command}
 </slash_action>
 ```
 
 ### Frontmatter Fields
 
-| Field | Type | Rules |
-|---|---|---|
-| `name` | string | **PascalCase** (e.g., `DataAnalyst`, `ContentWriter`) |
-| `description` | string | One sentence, action-oriented |
-| `tools` | array | `kebab-case` strings (e.g., `"chart-suggester"`) |
-| `selectedDomains` | array | Must be prefixed with `"domain-"` and match folder name exactly |
+| Field                    | Type   | Rules                                                           |
+| ------------------------ | ------ | --------------------------------------------------------------- |
+| `name`                   | string | **PascalCase** (e.g., `DataAnalyst`, `ContentWriter`)           |
+| `description`            | string | One sentence, action-oriented                                   |
+| `tools`                  | array  | `kebab-case` strings (e.g., `"chart-suggester"`)                |
+| `enabledKnowledgeFields` | array  | Must be prefixed with `"domain-"` and match folder name exactly |
 
 ### `<slash_action>` Attributes
 
-| Attribute | Required | Description |
-|---|---|---|
-| `name` | yes | Display label shown in the UI |
-| `description` | yes | Short description of what the action triggers |
-| `flowId` | yes | Must exactly match the folder name in `flows/` |
+| Attribute     | Required | Description                                    |
+| ------------- | -------- | ---------------------------------------------- |
+| `name`        | yes      | Display label shown in the UI                  |
+| `description` | yes      | Short description of what the action triggers  |
+| `flowId`      | yes      | Must exactly match the folder name in `flows/` |
 
 **Multiple slash actions** are fully supported — add one `<slash_action>` block per action:
+
 ```markdown
 <slash_action name="Generate Report" description="Builds a full report" flowId="flow_generate_report">
 /report
@@ -74,16 +75,17 @@ Runtime fields are knowledge fields whose value is prompted from the user at the
 
 ```json
 {
-  "emptyFieldsForRuntime": {
+  "runtimeFields": {
     "{domain-folder-name}": ["{field-folder-name}", "{another-field}"]
   }
 }
 ```
 
 **Example:**
+
 ```json
 {
-  "emptyFieldsForRuntime": {
+  "runtimeFields": {
     "user-profile": ["name", "experience-level"],
     "project-context": ["goal"]
   }
@@ -124,6 +126,7 @@ The Main Instructions textarea on the Agent Configuration page is the agent's **
 5. **Define output format** — "Always structure your responses with a heading, bullet points, and a recommended next step."
 
 **What NOT to put in instructions:**
+
 - Content that should be in knowledge files (put reference data in knowledge, not here)
 - Lengthy option lists (those belong in knowledge field options)
 
@@ -133,7 +136,7 @@ The Main Instructions textarea on the Agent Configuration page is the agent's **
 
 Agents access knowledge through the **pills bar** on the Agent Configuration page. Active pills (violet with checkmark) inject that domain's knowledge into the agent's context.
 
-The `selectedDomains` array in `instruct.md` defines the **initial** selection. Users can toggle pills to override.
+The `enabledKnowledgeFields` array in `instruct.md` defines the **initial** selection. Users can toggle pills to override.
 
 **Key principle:** Attach only what's relevant. Irrelevant knowledge pollutes the agent's context and reduces accuracy.
 
@@ -150,6 +153,7 @@ tools: ["data-cleaner", "chart-suggester", "formula-builder"]
 These are descriptive strings that help the platform and agent understand available capabilities. Use `kebab-case`, action-oriented names.
 
 **Common patterns:**
+
 - `{noun}-{verb}` → `formula-builder`, `data-cleaner`
 - `{domain}-{action}` → `sheet-formatter`, `grammar-checker`
 - `{verb}-{noun}` → `suggest-chart`, `analyze-trend`

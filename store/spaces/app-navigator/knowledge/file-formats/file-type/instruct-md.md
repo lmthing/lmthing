@@ -15,37 +15,37 @@ Located at `agents/agent-{slug}/instruct.md`. This file defines the agent's name
 name: "{AgentName}"
 description: "{One-sentence description of what this agent does}"
 tools: ["{tool-1}", "{tool-2}", "{tool-3}"]
-selectedDomains: ["domain-{domain1}", "domain-{domain2}"]
+enabledKnowledgeFields: ["domain-{domain1}", "domain-{domain2}"]
 ---
 
-<slash_action name="{Display Name}" description="{What this action does}" flowId="flow_{action_id}">
+<slash*action name="{Display Name}" description="{What this action does}" flowId="flow*{action_id}">
 /{command}
 </slash_action>
 ```
 
 ## Frontmatter Field Reference
 
-| Field | Type | Format | Example |
-|---|---|---|---|
-| `name` | string | PascalCase, no spaces | `"FormulaExpert"` |
-| `description` | string | One sentence, max ~80 chars | `"Analyzes spreadsheet formulas and suggests improvements"` |
-| `tools` | array | kebab-case strings | `["formula-parser", "data-cleaner"]` |
-| `selectedDomains` | array | `"domain-"` prefix + folder name | `["domain-spreadsheet", "domain-use-case"]` |
+| Field                    | Type   | Format                           | Example                                                     |
+| ------------------------ | ------ | -------------------------------- | ----------------------------------------------------------- |
+| `name`                   | string | PascalCase, no spaces            | `"FormulaExpert"`                                           |
+| `description`            | string | One sentence, max ~80 chars      | `"Analyzes spreadsheet formulas and suggests improvements"` |
+| `tools`                  | array  | kebab-case strings               | `["formula-parser", "data-cleaner"]`                        |
+| `enabledKnowledgeFields` | array  | `"domain-"` prefix + folder name | `["domain-spreadsheet", "domain-use-case"]`                 |
 
 ## `<slash_action>` Reference
 
-| Attribute | Required | Rules |
-|---|---|---|
-| `name` | ✅ | Display title shown in the Actions panel, Title Case |
-| `description` | ✅ | One sentence explaining what the action does |
-| `flowId` | ✅ | Must **exactly** match the folder name in `flows/` |
-| Body (inside tags) | ✅ | The slash command string, starts with `/` |
+| Attribute          | Required | Rules                                                |
+| ------------------ | -------- | ---------------------------------------------------- |
+| `name`             | ✅       | Display title shown in the Actions panel, Title Case |
+| `description`      | ✅       | One sentence explaining what the action does         |
+| `flowId`           | ✅       | Must **exactly** match the folder name in `flows/`   |
+| Body (inside tags) | ✅       | The slash command string, starts with `/`            |
 
 ## Validation Rules
 
 - ✅ YAML frontmatter is valid (proper indentation, no tabs)
 - ✅ `name` has no spaces or special characters
-- ✅ `selectedDomains` values start with `"domain-"` and match existing folders
+- ✅ `enabledKnowledgeFields` values start with `"domain-"` and match existing folders
 - ✅ `flowId` values match existing `flows/` folder names
 - ✅ Slash command body starts with `/`
 - ✅ No duplicate slash commands
@@ -58,7 +58,7 @@ selectedDomains: ["domain-{domain1}", "domain-{domain2}"]
 name: "LessonPlanAgent"
 description: "Creates detailed lesson plans aligned to curriculum standards and student needs"
 tools: ["curriculum-search", "activity-designer", "assessment-builder"]
-selectedDomains: ["domain-classroom", "domain-curriculum", "domain-teacher"]
+enabledKnowledgeFields: ["domain-classroom", "domain-curriculum", "domain-teacher"]
 ---
 
 <slash_action name="Create Lesson Plan" description="Generates a complete lesson plan for a topic" flowId="flow_create_lesson">

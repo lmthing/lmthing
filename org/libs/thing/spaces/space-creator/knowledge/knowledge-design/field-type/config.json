@@ -1,0 +1,9 @@
+{
+  "label": "Field Type",
+  "description": "The available field types for knowledge fields and when to use each",
+  "fieldType": "select",
+  "required": false,
+  "default": "select",
+  "variableName": "fieldType",
+  "renderAs": "field"
+}

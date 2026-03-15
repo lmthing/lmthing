@@ -12,7 +12,7 @@
           "data-cleaner",
           "trend-analyst"
         ],
-        "selectedDomains": [
+        "enabledKnowledgeFields": [
           "domain-spreadsheet",
           "domain-data-type",
           "domain-use-case"
@@ -28,7 +28,7 @@
         }
       ],
       "config": {
-        "emptyFieldsForRuntime": {
+        "runtimeFields": {
           "use-case": [
             "task"
           ],
@@ -51,7 +51,7 @@
           "syntax-checker",
           "logic-debugger"
         ],
-        "selectedDomains": [
+        "enabledKnowledgeFields": [
           "domain-spreadsheet",
           "domain-data-type",
           "domain-use-case"
@@ -67,7 +67,7 @@
         }
       ],
       "config": {
-        "emptyFieldsForRuntime": {
+        "runtimeFields": {
           "spreadsheet": [
             "structure"
           ],

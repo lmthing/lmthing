@@ -48,19 +48,20 @@ Phase 4: Agents (build LAST — references everything above)
 
 ## Why This Order?
 
-| Phase | Must exist before you write... |
-|---|---|
-| Knowledge domain folders | `selectedDomains` in `instruct.md` |
-| Knowledge field folders | `emptyFieldsForRuntime` in `config.json` |
-| Option files | `default` in field `config.json` |
-| Flow folders + steps | `index.md` links + `flowId` in `instruct.md` |
-| All of the above | `instruct.md` (validates against everything) |
+| Phase                    | Must exist before you write...               |
+| ------------------------ | -------------------------------------------- |
+| Knowledge domain folders | `enabledKnowledgeFields` in `instruct.md`    |
+| Knowledge field folders  | `runtimeFields` in `config.json`             |
+| Option files             | `default` in field `config.json`             |
+| Flow folders + steps     | `index.md` links + `flowId` in `instruct.md` |
+| All of the above         | `instruct.md` (validates against everything) |
 
 ---
 
 ## Studio UI vs. File System Build Approaches
 
 ### Via Studio UI (Recommended for non-technical users)
+
 1. Open the Studio Dashboard
 2. Click "+ Create Knowledge" → fill name and description → opens Knowledge Area Details
 3. In the tree, click "+ New Folder" for each field, then "+ New File" for each option
@@ -68,31 +69,32 @@ Phase 4: Agents (build LAST — references everything above)
 5. Attach knowledge via pills, write Main Instructions, click "Attach Flow"
 
 ### Via File System (Recommended for technical users / AI generation)
+
 Follow the build order above, writing files directly. Use the `status` command in the Thing panel to verify.
 
 ---
 
 ## Iterating on an Existing Workspace
 
-| Change Type | What to Update |
-|---|---|
-| Add a new knowledge option | Add `.md` file in the field folder; optional: update `default` |
-| Add a new field | Add folder + `config.json` + options; reference in agent's `emptyFieldsForRuntime` |
-| Add a new domain | Add folder + `config.json` + fields; add to agent's `selectedDomains` |
-| Add a new flow | Add flow folder + steps + `index.md`; add `<slash_action>` to agent's `instruct.md` |
-| Add a new agent | Add agent folder + all 3 files; reference existing domains and flows |
-| Rename a flow | Update folder name AND all `flowId` references in agents |
-| Rename a domain | Update folder name AND all `selectedDomains` references in agents |
+| Change Type                | What to Update                                                                      |
+| -------------------------- | ----------------------------------------------------------------------------------- |
+| Add a new knowledge option | Add `.md` file in the field folder; optional: update `default`                      |
+| Add a new field            | Add folder + `config.json` + options; reference in agent's `runtimeFields`          |
+| Add a new domain           | Add folder + `config.json` + fields; add to agent's `enabledKnowledgeFields`        |
+| Add a new flow             | Add flow folder + steps + `index.md`; add `<slash_action>` to agent's `instruct.md` |
+| Add a new agent            | Add agent folder + all 3 files; reference existing domains and flows                |
+| Rename a flow              | Update folder name AND all `flowId` references in agents                            |
+| Rename a domain            | Update folder name AND all `enabledKnowledgeFields` references in agents            |
 
 ---
 
 ## Time Estimates
 
-| Task | Estimated Time |
-|---|---|
-| package.json | 1 minute |
-| One knowledge domain (3 fields, 3 options each) | 30–60 minutes |
-| One complete flow (5 steps) | 20–30 minutes |
-| One complete agent | 15–20 minutes |
-| Full workspace (3 domains, 2 flows, 2 agents) | 2–4 hours |
-| AI-generated workspace | 10–30 minutes |
+| Task                                            | Estimated Time |
+| ----------------------------------------------- | -------------- |
+| package.json                                    | 1 minute       |
+| One knowledge domain (3 fields, 3 options each) | 30–60 minutes  |
+| One complete flow (5 steps)                     | 20–30 minutes  |
+| One complete agent                              | 15–20 minutes  |
+| Full workspace (3 domains, 2 flows, 2 agents)   | 2–4 hours      |
+| AI-generated workspace                          | 10–30 minutes  |

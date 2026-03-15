@@ -51,8 +51,8 @@ export function StudioLayout({ children }: { children?: React.ReactNode }) {
     const name = window.prompt('Agent name:')
     if (!name) return
     const slug = `agent-${toSlug(name)}`
-    spaceFS.writeFile(`agents/${slug}/instruct.md`, `---\nname: ${name}\ndescription: ""\ntools: []\nselectedDomains: []\n---\n`)
-    spaceFS.writeFile(`agents/${slug}/config.json`, JSON.stringify({ emptyFieldsForRuntime: {} }, null, 2))
+    spaceFS.writeFile(`agents/${slug}/instruct.md`, `---\nname: ${name}\ndescription: ""\ntools: []\nenabledKnowledgeFields: []\n---\n`)
+    spaceFS.writeFile(`agents/${slug}/config.json`, JSON.stringify({ runtimeFields: {} }, null, 2))
     spaceFS.writeFile(`agents/${slug}/values.json`, '{}')
     navigate({ to: `${spacePath}/agent/${slug}` })
   }, [spaceFS, navigate, spacePath])

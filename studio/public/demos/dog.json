@@ -7,7 +7,7 @@
       "mainInstruction": "# Dog Training Plan Generator\n\nThis agent helps create customized training plans for your dog based on their breed, age, and your living environment.\n\n## Capabilities\n- Generate weekly training schedules.\n- Suggest positive reinforcement techniques.\n- Provide solution for common behavioral issues.",
       "slashActions": [],
       "config": {
-        "emptyFieldsForRuntime": {
+        "runtimeFields": {
           "canine": [
             "breed-type"
           ],

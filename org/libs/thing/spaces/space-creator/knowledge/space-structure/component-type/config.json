@@ -1,0 +1,9 @@
+{
+  "label": "Component Type",
+  "description": "Which structural component of a space to learn about",
+  "fieldType": "select",
+  "required": false,
+  "default": "knowledge-base",
+  "variableName": "componentType",
+  "renderAs": "field"
+}

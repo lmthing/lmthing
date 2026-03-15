@@ -721,10 +721,10 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
             '--- Agent shape ---',
             'An Agent requires:',
             '  id: string (kebab-case, e.g. "lesson-planner")',
-            '  frontmatter: { name, description, tools?: string[], selectedDomains?: string[] }',
+            '  frontmatter: { name, description, tools?: string[], enabledKnowledgeFields?: string[] }',
             '  mainInstruction: string (the agent\'s core system prompt, can be multi-line markdown)',
             '  slashActions: Array<{ name, description, flowId, actionId }> (commands the agent exposes)',
-            '  config: { emptyFieldsForRuntime: Array<string | { id, label, domain }> } (fields the user fills at chat time)',
+            '  config: { runtimeFields: Array<string | { id, label, domain }> } (fields the user fills at chat time)',
             '  formValues: Record<string, string | string[] | boolean | number> (default/saved field values)',
             '  conversations: Array<{ id, agentId, agentName, messages, createdAt, updatedAt }> (chat history)',
             '',
@@ -772,7 +772,7 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
             'Quality defaults:',
             '• When creating workspaces, initialize them with empty agents, flows, and knowledge, plus a sensible package.json.',
             '• Generate kebab-case IDs from the name the user provides (e.g. "Lesson Planner" → "lesson-planner").',
-            '• When creating agents, include a sensible mainInstruction, empty slashActions, emptyFieldsForRuntime, formValues, and conversations arrays/objects unless the user specifies otherwise.',
+            '• When creating agents, include a sensible mainInstruction, empty slashActions, runtimeFields, formValues, and conversations arrays/objects unless the user specifies otherwise.',
             '• When creating flows, set status to "draft", generate ISO timestamps for createdAt/updatedAt, and default taskCount to the number of tasks.',
             '• For knowledge nodes, infer the type from context — use "directory" for categories/sections and "file" for content documents.',
             '• Keep responses concise — prefer short confirmations over lengthy explanations.',
@@ -1051,7 +1051,7 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
                   normalizeString(agent.frontmatter?.name),
                   normalizeString(agent.frontmatter?.description),
                   normalizeString(agent.mainInstruction),
-                  ...(agent.frontmatter?.selectedDomains || []),
+                  ...(agent.frontmatter?.enabledKnowledgeFields || []),
                 ].join(' \n ')
 
                 if (!haystack.toLowerCase().includes(needle)) return
@@ -1292,7 +1292,7 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
               const agent = agentsMap[parsed.idOrPath]
               if (!agent) return { ok: false, message: `Agent not found: ${parsed.idOrPath}` }
 
-              const selectedDomains = (agent.frontmatter?.selectedDomains || []).map((domainPath) => {
+              const enabledKnowledgeFields = (agent.frontmatter?.enabledKnowledgeFields || []).map((domainPath) => {
                 const entry = findKnowledgeEntryByPath(knowledge, domainPath)
                 return {
                   path: domainPath,
@@ -1306,7 +1306,7 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
                 ok: true,
                 relation,
                 from,
-                selectedDomains,
+                enabledKnowledgeFields,
               }
             }
 
@@ -1505,8 +1505,8 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
             if (parsed.kind === 'knowledge') {
               const normalizedTarget = normalizeKnowledgePath(parsed.idOrPath)
               Object.values(agentsMap).forEach((agent) => {
-                const selectedDomains = agent.frontmatter?.selectedDomains || []
-                selectedDomains.forEach((domainPath) => {
+                const enabledKnowledgeFields = agent.frontmatter?.enabledKnowledgeFields || []
+                enabledKnowledgeFields.forEach((domainPath) => {
                   const normalizedDomain = normalizeKnowledgePath(domainPath)
                   if (!normalizedTarget || !normalizedDomain) return
 
@@ -1519,7 +1519,7 @@ export function ThingPanel({ agentBuilderProps, onStatusChange }: ThingPanelProp
                   backlinks.push({
                     sourceKind: 'agent',
                     sourceId: agent.id,
-                    relation: 'frontmatter.selectedDomains',
+                    relation: 'frontmatter.enabledKnowledgeFields',
                     selectedDomain: domainPath,
                   })
                 })

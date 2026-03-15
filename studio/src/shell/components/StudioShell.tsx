@@ -37,7 +37,7 @@ import type {
 } from '@/../product/sections/agent-runtime/types'
 import { workspaceToSlug, type Workspace } from './WorkspaceSelector'
 import { useWorkspaces } from '@lmthing/ui/hooks/useWorkspaces'
-import { flattenEmptyFieldsForRuntime } from '@/lib/utils'
+import { flattenruntimeFields } from '@/lib/utils'
 import { downloadWorkspaceZip, exportWorkspaceToNewGithubRepo } from '@/lib/workspaceExport'
 import { fromWorkspaceRouteParam, toWorkspaceRouteParam } from '@/lib/workspaces'
 
@@ -200,10 +200,10 @@ type AgentConfig = {
   id: string
   name: string
   description: string
-  selectedDomains: string[]
+  enabledKnowledgeFields: string[]
   formValues: Record<string, FormFieldValue>
   enabledTools: Array<{ toolId: string; source: 'manual'; config?: Record<string, unknown> }>
-  emptyFieldsForRuntime: string[]
+  runtimeFields: string[]
   attachedFlows: AttachedFlow[]
   mainInstruction?: string
   createdAt: string
@@ -264,7 +264,7 @@ export function StudioShell({
   const [formValues, setFormValues] = useUIState('studio-shell.form-values', {} as Record<string, FormFieldValue>)
   const [mainInstruction, setMainInstruction] = useUIState('studio-shell.main-instruction', '')
   const [enabledTools, setEnabledTools] = useUIState('studio-shell.enabled-tools', [] as Array<{ toolId: string; source: string; config?: Record<string, unknown> }>)
-  const [emptyFieldsForRuntime, setEmptyFieldsForRuntime] = useUIState('studio-shell.empty-fields-runtime', [] as string[])
+  const [runtimeFields, setruntimeFields] = useUIState('studio-shell.empty-fields-runtime', [] as string[])
   const [toolLibraryOpen, , setToolLibraryOpen] = useToggle('studio-shell.tool-library-open')
   const [flowBuilderOpen, , setFlowBuilderOpen] = useToggle('studio-shell.flow-builder-open')
   const [attachedFlows, setAttachedFlows] = useUIState('studio-shell.attached-flows', [] as AttachedFlow[])
@@ -359,13 +359,13 @@ export function StudioShell({
       id: agent.id,
       name: agent.frontmatter.name || agent.id,
       description: agent.frontmatter.description || '',
-      selectedDomains: (agent.frontmatter.selectedDomains || []).map(id =>
+      enabledKnowledgeFields: (agent.frontmatter.enabledKnowledgeFields || []).map(id =>
         // Normalize: 'domain-plant-profile' → 'plant-profile' to match knowledge section paths
         id.startsWith('domain-') ? id.slice('domain-'.length) : id
       ),
       formValues: agent.formValues,
       enabledTools: [],
-      emptyFieldsForRuntime: flattenEmptyFieldsForRuntime(agent.config.emptyFieldsForRuntime) || [],
+      runtimeFields: flattenruntimeFields(agent.config.runtimeFields) || [],
       attachedFlows: (agent.slashActions || []).map(sa => ({
         flowId: sa.flowId,
         flowName: sa.name,
@@ -402,13 +402,13 @@ export function StudioShell({
     [agentId, runtimeAgents]
   )
 
-  const selectedDomainsForRuntime = useMemo(
+  const enabledKnowledgeFieldsForRuntime = useMemo(
     () => domains.filter((domain) => selectedDomainIds.includes(domain.id)),
     [domains, selectedDomainIds]
   )
 
   const runtimeFieldsForConversation = useMemo(() => {
-    const runtimeFieldIds = new Set(emptyFieldsForRuntime)
+    const runtimeFieldIds = new Set(runtimeFields)
 
     // Helper to extract fields from a domain schema
     const extractFields = (node: import('@/../product/sections/agent-builder/types').SchemaNode): import('@/../product/sections/agent-builder/types').SchemaField[] => {
@@ -421,7 +421,7 @@ export function StudioShell({
       return []
     }
 
-    const selectedFieldEntries = selectedDomainsForRuntime.flatMap((domain) =>
+    const selectedFieldEntries = enabledKnowledgeFieldsForRuntime.flatMap((domain) =>
       extractFields(domain.schema.root).map((field) => ({ field, domainName: domain.name }))
     )
 
@@ -437,17 +437,17 @@ export function StudioShell({
         value: toRuntimeDefaultValue(field.fieldType),
         domain: domainName,
       }))
-  }, [emptyFieldsForRuntime, selectedDomainsForRuntime])
+  }, [runtimeFields, enabledKnowledgeFieldsForRuntime])
 
   const studioRuntimeAgent = useMemo<RuntimeAgent | null>(() => {
     if (!activeRuntimeAgent) return null
 
     return {
       ...activeRuntimeAgent,
-      domains: selectedDomainsForRuntime.map((domain) => domain.name),
+      domains: enabledKnowledgeFieldsForRuntime.map((domain) => domain.name),
       runtimeFields: runtimeFieldsForConversation,
     }
-  }, [activeRuntimeAgent, selectedDomainsForRuntime, runtimeFieldsForConversation])
+  }, [activeRuntimeAgent, enabledKnowledgeFieldsForRuntime, runtimeFieldsForConversation])
 
   const runtimeConversations = useMemo<RuntimeConversation[]>(() => {
     if (!agentId) return []
@@ -485,7 +485,7 @@ export function StudioShell({
       setFormValues({})
       setMainInstruction('')
       setEnabledTools([])
-      setEmptyFieldsForRuntime([])
+      setruntimeFields([])
       setAttachedFlows([])
       return
     }
@@ -501,11 +501,11 @@ export function StudioShell({
 
     const mappedAgent = agents.find((a) => a.id === agentId) || null
 
-    setSelectedDomainIds(mappedAgent?.selectedDomains || [])
+    setSelectedDomainIds(mappedAgent?.enabledKnowledgeFields || [])
     setFormValues((sourceAgent.formValues || {}) as Record<string, FormFieldValue>)
     setMainInstruction(sourceAgent.mainInstruction || '')
     setEnabledTools([])
-    setEmptyFieldsForRuntime(flattenEmptyFieldsForRuntime(sourceAgent.config?.emptyFieldsForRuntime))
+    setruntimeFields(flattenruntimeFields(sourceAgent.config?.runtimeFields))
     setAttachedFlows(mappedAgent?.attachedFlows || [])
 
     hydratedAgentIdRef.current = agentId
@@ -730,7 +730,7 @@ export function StudioShell({
   // Agent Builder callbacks
   const handleDomainsChange = useCallback((domainIds: string[]) => {
     setSelectedDomainIds(domainIds)
-    setEmptyFieldsForRuntime([])
+    setruntimeFields([])
   }, [])
 
   const handleFieldValueChange = useCallback((fieldId: string, value: FormFieldValue) => {
@@ -738,11 +738,11 @@ export function StudioShell({
   }, [])
 
   const handleEnableFieldForRuntime = useCallback((fieldId: string) => {
-    setEmptyFieldsForRuntime(prev => [...prev, fieldId])
+    setruntimeFields(prev => [...prev, fieldId])
   }, [])
 
   const handleDisableFieldForRuntime = useCallback((fieldId: string) => {
-    setEmptyFieldsForRuntime(prev => prev.filter(id => id !== fieldId))
+    setruntimeFields(prev => prev.filter(id => id !== fieldId))
   }, [])
 
   const handleMainInstructionChange = useCallback((instruction: string) => {
@@ -794,20 +794,20 @@ export function StudioShell({
           ...existingAgent?.frontmatter,
           name,
           description,
-          selectedDomains: selectedDomainIds,
+          enabledKnowledgeFields: selectedDomainIds,
           tools: enabledTools.map((tool) => tool.toolId),
         },
         mainInstruction,
         slashActions,
         config: {
           ...existingAgent?.config,
-          emptyFieldsForRuntime,
+          runtimeFields,
         },
         formValues,
         conversations: existingAgent?.conversations || [],
       }
     },
-    [agentsMap, attachedFlows, selectedDomainIds, enabledTools, mainInstruction, emptyFieldsForRuntime, formValues]
+    [agentsMap, attachedFlows, selectedDomainIds, enabledTools, mainInstruction, runtimeFields, formValues]
   )
 
   // Auto-save draft in memory for existing agents whenever form state changes
@@ -840,7 +840,7 @@ export function StudioShell({
     formValues,
     mainInstruction,
     enabledTools,
-    emptyFieldsForRuntime,
+    runtimeFields,
     attachedFlows,
     buildAgentPayload,
     upsertAgent,
@@ -1067,7 +1067,7 @@ export function StudioShell({
     setFormValues({})
     setMainInstruction('')
     setEnabledTools([])
-    setEmptyFieldsForRuntime([])
+    setruntimeFields([])
     setAttachedFlows([])
     navigate(studioPath)
   }, [navigate, studioPath])
@@ -1271,7 +1271,7 @@ export function StudioShell({
     selectedDomainIds,
     formValues,
     enabledTools: enabledTools.map(t => ({ ...t, source: 'manual' as const })),
-    emptyFieldsForRuntime,
+    runtimeFields,
     attachedFlows: attachedFlows.map(af => ({
       ...af,
       taskCount: af.taskCount || flowsMap[af.flowId]?.tasks?.length || 0
@@ -1470,7 +1470,7 @@ export function StudioShell({
                           {agent.description}
                         </p>
                         <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-500">
-                          <span>{agent.selectedDomains.length} knowledge areas</span>
+                          <span>{agent.enabledKnowledgeFields.length} knowledge areas</span>
                           <span>{agent.enabledTools?.length || 0} tools</span>
                           <span>{agent.attachedFlows?.length || 0} flows</span>
                         </div>

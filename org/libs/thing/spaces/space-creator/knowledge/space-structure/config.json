@@ -1,0 +1,7 @@
+{
+  "label": "Space Structure",
+  "description": "The folder hierarchy, file roles, and relationships that make up a complete space",
+  "icon": "📐",
+  "color": "#4a90d9",
+  "renderAs": "section"
+}

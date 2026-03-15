@@ -1,6 +1,10 @@
 {
-  "emptyFieldsForRuntime": {
-    "spreadsheet": ["structure"],
-    "data-type": ["categories"]
+  "runtimeFields": {
+    "spreadsheet": [
+      "structure"
+    ],
+    "data-type": [
+      "categories"
+    ]
   }
 }

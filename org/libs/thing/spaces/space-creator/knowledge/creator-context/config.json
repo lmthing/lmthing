@@ -1,0 +1,7 @@
+{
+  "label": "Creator Context",
+  "description": "Information about who is creating the space and their experience level",
+  "icon": "👤",
+  "color": "#d59ec8",
+  "renderAs": "section"
+}

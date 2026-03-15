@@ -29,14 +29,14 @@ For each `agents/agent-{name}/`:
 - [ ] `instruct.md` exists with valid YAML frontmatter
 - [ ] `values.json` exists (can be `{}`)
 - [ ] `name` in frontmatter is `PascalCase`
-- [ ] All `selectedDomains` values start with `"domain-"`
-- [ ] All `selectedDomains` reference existing `knowledge/` folder names
+- [ ] All `enabledKnowledgeFields` values start with `"domain-"`
+- [ ] All `enabledKnowledgeFields` reference existing `knowledge/` folder names
 - [ ] All `flowId` values in `<slash_action>` reference existing `flows/` folder names
 - [ ] All slash command strings start with `/`
 - [ ] No duplicate slash commands across actions
 - [ ] All tools use `kebab-case`
-- [ ] `emptyFieldsForRuntime` domain keys match existing `knowledge/` folder names
-- [ ] `emptyFieldsForRuntime` field arrays match existing `knowledge/{domain}/` folder names
+- [ ] `runtimeFields` domain keys match existing `knowledge/` folder names
+- [ ] `runtimeFields` field arrays match existing `knowledge/{domain}/` folder names
 
 ---
 
@@ -89,17 +89,18 @@ For each option `.md` file:
 
 These must be checked across files:
 
-- [ ] Every `selectedDomains` entry → has a matching `knowledge/{domain}/` folder
+- [ ] Every `enabledKnowledgeFields` entry → has a matching `knowledge/{domain}/` folder
 - [ ] Every `flowId` → has a matching `flows/flow_{id}/index.md`
 - [ ] Every `default` in field config → has a matching `{slug}.md` in the field folder
-- [ ] Every `emptyFieldsForRuntime` → domain + field path exists
+- [ ] Every `runtimeFields` → domain + field path exists
 
 ---
 
 ## Quick Consistency Test (via Thing Panel)
 
 In the Thing panel, type `status` to get an automated workspace overview. This shows:
+
 - Agent count and listing
-- Flow count and listing  
+- Flow count and listing
 - Knowledge domain count
 - Any detected configuration issues

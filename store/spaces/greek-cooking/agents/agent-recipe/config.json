@@ -1,6 +1,10 @@
 {
-  "emptyFieldsForRuntime": {
-    "meal": ["dish-type"],
-    "ingredients": ["main-ingredient"]
+  "runtimeFields": {
+    "meal": [
+      "dish-type"
+    ],
+    "ingredients": [
+      "main-ingredient"
+    ]
   }
 }

@@ -1,0 +1,9 @@
+{
+  "label": "Experience Level",
+  "description": "The creator's familiarity with building spaces and AI agents",
+  "fieldType": "select",
+  "required": true,
+  "default": "beginner",
+  "variableName": "experienceLevel",
+  "renderAs": "field"
+}

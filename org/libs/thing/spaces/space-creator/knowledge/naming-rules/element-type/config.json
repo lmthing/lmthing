@@ -1,0 +1,9 @@
+{
+  "label": "Element Type",
+  "description": "Which type of element's naming rules to reference",
+  "fieldType": "select",
+  "required": false,
+  "default": "folders-and-slugs",
+  "variableName": "elementType",
+  "renderAs": "field"
+}

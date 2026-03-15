@@ -10,7 +10,7 @@
           "plant-care-scheduler",
           "disease-symptom-checker"
         ],
-        "selectedDomains": [
+        "enabledKnowledgeFields": [
           "domain-plant-profile",
           "domain-care-routine"
         ]
@@ -25,7 +25,7 @@
         }
       ],
       "config": {
-        "emptyFieldsForRuntime": {
+        "runtimeFields": {
           "care-routine": [
             "watering-frequency"
           ]

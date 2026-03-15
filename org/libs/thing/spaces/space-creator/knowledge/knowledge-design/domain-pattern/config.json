@@ -1,0 +1,9 @@
+{
+  "label": "Domain Pattern",
+  "description": "Proven patterns for organizing knowledge domains",
+  "fieldType": "select",
+  "required": false,
+  "default": "who-what-how",
+  "variableName": "domainPattern",
+  "renderAs": "field"
+}

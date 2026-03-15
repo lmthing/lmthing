@@ -1,6 +1,10 @@
 {
-  "emptyFieldsForRuntime": {
-    "canine": ["breed-type"],
-    "owner": ["experience"]
+  "runtimeFields": {
+    "canine": [
+      "breed-type"
+    ],
+    "owner": [
+      "experience"
+    ]
   }
 }

@@ -1,4 +1,4 @@
-import path from 'path';
+import path from "path";
 
 // ============================================================================
 // JSON Representation of the Migrated File Structure
@@ -24,11 +24,11 @@ interface AgentInstructFrontmatter {
   name?: string;
   description?: string;
   tools?: string[];
-  selectedDomains?: string[];
+  enabledKnowledgeFields?: string[];
 }
 
 interface AgentConfig {
-  emptyFieldsForRuntime: string[] | Record<string, string[]>;
+  runtimeFields: string[] | Record<string, string[]>;
 }
 
 interface AgentFormValues {
@@ -83,7 +83,7 @@ interface KnowledgeFileFrontmatter {
 
 interface KnowledgeFileData {
   path: string;
-  type: 'file' | 'directory';
+  type: "file" | "directory";
   frontmatter?: KnowledgeFileFrontmatter;
   content?: string;
   config?: any;
@@ -115,30 +115,34 @@ interface MigratedDataStructure {
 
 const FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
 
-function parseFrontmatter<T = Record<string, any>>(content: string): { frontmatter: T; body: string } {
+function parseFrontmatter<T = Record<string, any>>(
+  content: string,
+): { frontmatter: T; body: string } {
   const match = content.match(FRONTMATTER_REGEX);
   if (!match) {
     return { frontmatter: {} as T, body: content };
   }
 
-  const frontmatterLines = match[1].split('\n');
+  const frontmatterLines = match[1].split("\n");
   const frontmatter: any = {};
 
   for (const line of frontmatterLines) {
-    const colonIndex = line.indexOf(':');
+    const colonIndex = line.indexOf(":");
     if (colonIndex === -1) continue;
 
     const key = line.slice(0, colonIndex).trim();
     let value = line.slice(colonIndex + 1).trim();
 
     // Remove quotes if present
-    if ((value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))) {
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
       value = value.slice(1, -1);
     }
 
     // Try to parse as JSON for arrays and objects
-    if (value.startsWith('[') || value.startsWith('{')) {
+    if (value.startsWith("[") || value.startsWith("{")) {
       try {
         value = JSON.parse(value);
       } catch {
@@ -179,8 +183,7 @@ function parseSlashActions(content: string): SlashAction[] {
 // Output Tag Parser
 // ============================================================================
 
-const OUTPUT_TAG_REGEX =
-  /<output(?:\s+target="([^"]+)")?>\n([\s\S]*?)\n<\/output>/;
+const OUTPUT_TAG_REGEX = /<output(?:\s+target="([^"]+)")?>\n([\s\S]*?)\n<\/output>/;
 
 function parseOutputTag(content: string): { outputSchema?: any; targetFieldName?: string } {
   const match = content.match(OUTPUT_TAG_REGEX);
@@ -209,7 +212,7 @@ function parseOutputTag(content: string): { outputSchema?: any; targetFieldName?
  */
 function extractWorkspaceData(
   workspaceId: string,
-  globResult: Record<string, string>
+  globResult: Record<string, string>,
 ): WorkspaceData {
   const result: WorkspaceData = {
     id: workspaceId,
@@ -220,7 +223,7 @@ function extractWorkspaceData(
   };
 
   // Read package.json if it exists
-  const packageJsonContent = globResult['package.json'];
+  const packageJsonContent = globResult["package.json"];
   if (packageJsonContent) {
     try {
       result.packageJson = JSON.parse(packageJsonContent);
@@ -232,7 +235,7 @@ function extractWorkspaceData(
   // Extract agents
   const agentIds = new Set<string>();
   for (const filePath of Object.keys(globResult)) {
-    const match = filePath.match(/^agents\/([^/]+)\//);  
+    const match = filePath.match(/^agents\/([^/]+)\//);
     if (match) agentIds.add(match[1]);
   }
 
@@ -240,9 +243,9 @@ function extractWorkspaceData(
     const agent: AgentData = {
       id: agentId,
       frontmatter: {},
-      mainInstruction: '',
+      mainInstruction: "",
       slashActions: [],
-      config: { emptyFieldsForRuntime: [] },
+      config: { runtimeFields: [] },
       formValues: {},
       conversations: [],
     };
@@ -253,7 +256,7 @@ function extractWorkspaceData(
       const { frontmatter, body } = parseFrontmatter<AgentInstructFrontmatter>(instructContent);
       agent.frontmatter = frontmatter;
       agent.slashActions = parseSlashActions(body);
-      agent.mainInstruction = body.replace(SLASH_ACTION_REGEX, '').trim();
+      agent.mainInstruction = body.replace(SLASH_ACTION_REGEX, "").trim();
     }
 
     // Read config.json
@@ -295,7 +298,7 @@ function extractWorkspaceData(
   // Extract flows
   const flowIds = new Set<string>();
   for (const filePath of Object.keys(globResult)) {
-    const match = filePath.match(/^flows\/([^/]+)\//);  
+    const match = filePath.match(/^flows\/([^/]+)\//);
     if (match) flowIds.add(match[1]);
   }
 
@@ -303,7 +306,7 @@ function extractWorkspaceData(
     const flow: FlowData = {
       id: flowId,
       frontmatter: {},
-      description: '',
+      description: "",
       tasks: [],
     };
 
@@ -318,21 +321,21 @@ function extractWorkspaceData(
     // Read task files
     for (const filePath of Object.keys(globResult)) {
       const taskMatch = filePath.match(/^flows\/([^/]+)\/([^/]+\.md)$/);
-      if (taskMatch && taskMatch[1] === flowId && taskMatch[2] !== 'index.md') {
+      if (taskMatch && taskMatch[1] === flowId && taskMatch[2] !== "index.md") {
         const taskFile = taskMatch[2];
         const taskContent = globResult[filePath];
         const { frontmatter, body } = parseFrontmatter<TaskFrontmatter>(taskContent);
 
         // Extract order and name from filename: {order}.{name}.md
-        const parts = taskFile.replace('.md', '').split('.');
+        const parts = taskFile.replace(".md", "").split(".");
         const order = parseInt(parts[0], 10);
-        const name = parts.slice(1).join('.');
+        const name = parts.slice(1).join(".");
 
         // Parse output tag if present
         const { outputSchema, targetFieldName } = parseOutputTag(body);
 
         // Remove output tag from instructions
-        const instructions = body.replace(OUTPUT_TAG_REGEX, '').trim();
+        const instructions = body.replace(OUTPUT_TAG_REGEX, "").trim();
 
         const task: TaskData = {
           order,
@@ -355,7 +358,7 @@ function extractWorkspaceData(
 
   // Extract knowledge
   const knowledgeFiles = Object.keys(globResult)
-    .filter(p => p.startsWith('knowledge/'))
+    .filter((p) => p.startsWith("knowledge/"))
     .sort();
 
   function buildKnowledgeTree(files: string[]): KnowledgeFileData[] {
@@ -363,11 +366,11 @@ function extractWorkspaceData(
     const dirMap = new Map<string, KnowledgeFileData>();
 
     for (const filePath of files) {
-      const relativePath = filePath.replace(/^knowledge\//, '');
-      const parts = relativePath.split('/');
+      const relativePath = filePath.replace(/^knowledge\//, "");
+      const parts = relativePath.split("/");
 
       // Build directory structure
-      let currentPath = '';
+      let currentPath = "";
       for (let i = 0; i < parts.length - 1; i++) {
         const dirName = parts[i];
         const parentPath = currentPath;
@@ -376,7 +379,7 @@ function extractWorkspaceData(
         if (!dirMap.has(currentPath)) {
           const dirNode: KnowledgeFileData = {
             path: currentPath,
-            type: 'directory',
+            type: "directory",
             children: [],
           };
 
@@ -399,18 +402,18 @@ function extractWorkspaceData(
       }
 
       // Add file if it's a markdown file
-      if (relativePath.endsWith('.md')) {
+      if (relativePath.endsWith(".md")) {
         const content = globResult[filePath];
         const { frontmatter, body } = parseFrontmatter(content);
 
         const fileNode: KnowledgeFileData = {
           path: relativePath,
-          type: 'file',
+          type: "file",
           frontmatter,
           content: body,
         };
 
-        const parentPath = parts.slice(0, -1).join('/');
+        const parentPath = parts.slice(0, -1).join("/");
         if (parentPath) {
           dirMap.get(parentPath)?.children?.push(fileNode);
         } else {
@@ -432,15 +435,13 @@ function extractWorkspaceData(
  * @param globResult Result from import.meta.glob with { eager: true, as: 'raw' }
  *        Example: { 'education/agents/...': '...', 'plants/flows/...': '...' }
  */
-function extractAllWorkspaces(
-  globResult: Record<string, string>
-): MigratedDataStructure {
+function extractAllWorkspaces(globResult: Record<string, string>): MigratedDataStructure {
   const result: MigratedDataStructure = { workspaces: {} };
 
   // Extract workspace IDs from paths
   const workspaceIds = new Set<string>();
   for (const filePath of Object.keys(globResult)) {
-    const match = filePath.match(/^([^/]+)\//);  
+    const match = filePath.match(/^([^/]+)\//);
     if (match) workspaceIds.add(match[1]);
   }
 
@@ -472,46 +473,49 @@ function extractAllWorkspaces(
 // ============================================================================
 
 async function main() {
-  const { default: fs } = await import('fs/promises');
-  const rootPath = process.argv[2] || './public/demos';
+  const { default: fs } = await import("fs/promises");
+  const rootPath = process.argv[2] || "./public/demos";
 
   console.log(`Reading migrated data from: ${rootPath}`);
-  
+
   // Simulate import.meta.glob by reading files
   const globResult: Record<string, string> = {};
-  
-  async function walkDir(dir: string, prefix = '') {
+
+  async function walkDir(dir: string, prefix = "") {
     const entries = await fs.readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
       const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
-      
+
       if (entry.isDirectory()) {
         await walkDir(fullPath, relativePath);
-      } else if (entry.isFile() && (entry.name.endsWith('.md') || entry.name.endsWith('.json'))) {
-        globResult[relativePath] = await fs.readFile(fullPath, 'utf8');
+      } else if (entry.isFile() && (entry.name.endsWith(".md") || entry.name.endsWith(".json"))) {
+        globResult[relativePath] = await fs.readFile(fullPath, "utf8");
       }
     }
   }
-  
+
   await walkDir(rootPath);
   const data = extractAllWorkspaces(globResult);
 
   // Output to stdout
-  console.log('\n=== Extracted Data Structure ===\n');
+  console.log("\n=== Extracted Data Structure ===\n");
   console.log(JSON.stringify(data, null, 2));
 
   // Also write to file
-  const outputPath = path.resolve('./src/extracted_data_structure.json');
+  const outputPath = path.resolve("./src/extracted_data_structure.json");
   await fs.writeFile(outputPath, JSON.stringify(data, null, 2));
   console.log(`\nData written to: ${outputPath}`);
 }
 
-const isMain = process.argv[1] && (process.argv[1].endsWith('readMigratedStructure.ts') || process.argv[1].endsWith('readMigratedStructure'));
+const isMain =
+  process.argv[1] &&
+  (process.argv[1].endsWith("readMigratedStructure.ts") ||
+    process.argv[1].endsWith("readMigratedStructure"));
 
 if (isMain) {
-  main().catch(err => {
-    console.error('Error:', err);
+  main().catch((err) => {
+    console.error("Error:", err);
     process.exit(1);
   });
 }

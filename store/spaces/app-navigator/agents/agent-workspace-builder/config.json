@@ -1,5 +1,5 @@
 {
-    "emptyFieldsForRuntime": {
+    "runtimeFields": {
         "workspace-concepts": [
             "component-type"
         ],

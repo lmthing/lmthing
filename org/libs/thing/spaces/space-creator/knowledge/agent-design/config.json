@@ -1,0 +1,7 @@
+{
+  "label": "Agent Design",
+  "description": "Patterns for designing specialist agents with clear roles, tools, and prompt strategies",
+  "icon": "🤖",
+  "color": "#f38358",
+  "renderAs": "section"
+}

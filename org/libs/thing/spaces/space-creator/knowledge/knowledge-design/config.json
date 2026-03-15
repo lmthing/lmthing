@@ -1,0 +1,7 @@
+{
+  "label": "Knowledge Design",
+  "description": "Patterns and field types for structuring rich, agent-consumable knowledge bases",
+  "icon": "🧠",
+  "color": "#7b61ff",
+  "renderAs": "section"
+}

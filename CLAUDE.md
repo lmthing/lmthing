@@ -217,29 +217,29 @@ graph TB
 
 The **sole backend** for all lmthing products. All server-side logic lives here as Supabase Edge Functions (Deno runtime). Any new backend functionality must be added here. 22 edge functions across 5 categories:
 
-| Function              | Method | Purpose                                      |
-| --------------------- | ------ | -------------------------------------------- |
-| `generate-ai`         | POST   | Streaming LLM proxy via Stripe               |
-| `list-models`         | GET    | Available models                             |
-| `create-api-key`      | POST   | Generate `lmt_` prefixed key                 |
-| `list-api-keys`       | GET    | Key prefixes                                 |
-| `revoke-api-key`      | POST   | Soft-delete key                              |
-| `create-checkout`     | POST   | Stripe checkout session                      |
-| `billing-portal`      | POST   | Stripe customer portal                       |
-| `get-usage`           | GET    | Stripe balance/usage                         |
-| `stripe-webhook`      | POST   | Stripe webhooks + computer provisioning      |
-| `create-sso-code`     | POST   | Generate SSO authorization code              |
-| `exchange-sso-code`   | POST   | Exchange SSO code for session (no auth)      |
-| `list-spaces`         | GET    | List user's spaces                           |
-| `create-space`        | POST   | Create + provision Fly.io space              |
-| `get-space`           | GET    | Get space by slug (public)                   |
-| `update-space`        | PATCH  | Update space metadata                        |
-| `start-space`         | POST   | Start space's Fly.io machine                 |
-| `stop-space`          | POST   | Stop space's Fly.io machine                  |
-| `delete-space`        | POST   | Destroy space resources                      |
-| `issue-space-token`   | POST   | Issue short-lived space access token         |
-| `provision-computer`  | POST   | Provision Fly.io computer machine            |
-| `issue-computer-token`| POST   | Issue short-lived computer access token       |
+| Function               | Method | Purpose                                 |
+| ---------------------- | ------ | --------------------------------------- |
+| `generate-ai`          | POST   | Streaming LLM proxy via Stripe          |
+| `list-models`          | GET    | Available models                        |
+| `create-api-key`       | POST   | Generate `lmt_` prefixed key            |
+| `list-api-keys`        | GET    | Key prefixes                            |
+| `revoke-api-key`       | POST   | Soft-delete key                         |
+| `create-checkout`      | POST   | Stripe checkout session                 |
+| `billing-portal`       | POST   | Stripe customer portal                  |
+| `get-usage`            | GET    | Stripe balance/usage                    |
+| `stripe-webhook`       | POST   | Stripe webhooks + computer provisioning |
+| `create-sso-code`      | POST   | Generate SSO authorization code         |
+| `exchange-sso-code`    | POST   | Exchange SSO code for session (no auth) |
+| `list-spaces`          | GET    | List user's spaces                      |
+| `create-space`         | POST   | Create + provision Fly.io space         |
+| `get-space`            | GET    | Get space by slug (public)              |
+| `update-space`         | PATCH  | Update space metadata                   |
+| `start-space`          | POST   | Start space's Fly.io machine            |
+| `stop-space`           | POST   | Stop space's Fly.io machine             |
+| `delete-space`         | POST   | Destroy space resources                 |
+| `issue-space-token`    | POST   | Issue short-lived space access token    |
+| `provision-computer`   | POST   | Provision Fly.io computer machine       |
+| `issue-computer-token` | POST   | Issue short-lived computer access token |
 
 Shared modules in `_shared/`: `auth.ts` (JWT + API key), `cors.ts`, `stripe.ts`, `supabase.ts`, `provider.ts` (multi-backend LLM resolution), `container.ts` (Fly.io management).
 
@@ -645,10 +645,10 @@ A **Space** is a self-contained workspace with three pillars: **Agents**, **Flow
 Each agent is a specialist with a distinct role (e.g., `FormulaExpert`, `DataAnalyst`). An agent's `instruct.md` defines:
 
 - **Name** (PascalCase), **description**, **tools** (kebab-case)
-- **selectedDomains** — which knowledge domains the agent can access (prefixed `domain-`)
+- **enabledKnowledgeFields** — which knowledge domains the agent can access (prefixed `domain-`)
 - **slash_actions** — commands that trigger linked flows (`flowId → flow_{action}`)
 
-The `config.json` declares **emptyFieldsForRuntime** — knowledge fields that need user input before the agent can run (mapping domain → field names).
+The `config.json` declares **runtimeFields** — knowledge fields that need user input before the agent can run (mapping domain → field names).
 
 ### Flows
 

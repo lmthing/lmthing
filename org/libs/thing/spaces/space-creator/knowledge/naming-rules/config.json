@@ -1,0 +1,7 @@
+{
+  "label": "Naming Rules",
+  "description": "Naming conventions for every element in a space — folders, agents, flows, and variables",
+  "icon": "🏷️",
+  "color": "#f5c815",
+  "renderAs": "section"
+}

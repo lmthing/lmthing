@@ -1,6 +1,10 @@
 {
-  "emptyFieldsForRuntime": {
-    "use-case": ["task"],
-    "data-type": ["categories"]
+  "runtimeFields": {
+    "use-case": [
+      "task"
+    ],
+    "data-type": [
+      "categories"
+    ]
   }
 }

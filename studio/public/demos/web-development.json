@@ -10,7 +10,7 @@
           "api-client-generator",
           "type-generator"
         ],
-        "selectedDomains": [
+        "enabledKnowledgeFields": [
           "domain-project",
           "domain-developer",
           "domain-architecture"
@@ -19,7 +19,7 @@
       "mainInstruction": "",
       "slashActions": [],
       "config": {
-        "emptyFieldsForRuntime": {}
+        "runtimeFields": {}
       },
       "formValues": {
         "project": {
@@ -59,7 +59,7 @@
           "component-generator",
           "hook-generator"
         ],
-        "selectedDomains": [
+        "enabledKnowledgeFields": [
           "domain-project",
           "domain-developer",
           "domain-architecture",
@@ -76,7 +76,7 @@
         }
       ],
       "config": {
-        "emptyFieldsForRuntime": {
+        "runtimeFields": {
           "feature": [
             "feature-description"
           ]

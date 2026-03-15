@@ -1,3 +1,10 @@
 {
-  "runtimeFields": {}
+  "runtimeFields": {
+    "chat-modes": [
+      "mode"
+    ],
+    "model-guide": [
+      "model-tier"
+    ]
+  }
 }

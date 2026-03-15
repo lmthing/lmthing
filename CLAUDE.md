@@ -216,29 +216,42 @@ graph TB
 
 ### org/libs/thing — THING Agent System Studio
 
-Built-in spaces that ship with the THING agent. These are system-level spaces providing meta-capabilities — the first space, `space-creator`, teaches users how to create their own spaces.
+Built-in spaces that ship with the THING agent. These are system-level spaces providing meta-capabilities for the entire lmthing ecosystem — from teaching users how to create spaces, to controlling each service on behalf of the user.
 
-Structure follows the standard space architecture:
+7 built-in spaces (12 agents, 12 flows, 17 knowledge domains):
 
 ```
 org/libs/thing/
 ├── package.json                          # @lmthing/thing
 └── spaces/
-    └── space-creator/                    # Meta-space for creating spaces
-        ├── package.json
-        ├── agents/
-        │   ├── agent-space-architect/    # Coordinator — plans & scaffolds complete spaces
-        │   ├── agent-knowledge-designer/ # Specialist — designs knowledge base structure
-        │   └── agent-flow-author/        # Specialist — crafts multi-step flows
-        ├── flows/
-        │   ├── flow_create_space/        # 6-step end-to-end space creation
-        │   └── flow_design_knowledge/    # 5-step focused knowledge design
-        └── knowledge/
-            ├── space-structure/          # Folder hierarchy and file roles
-            ├── knowledge-design/         # Domain patterns and field types
-            ├── agent-design/             # Agent patterns and prompt strategies
-            ├── naming-rules/             # Naming conventions for all elements
-            └── creator-context/          # User experience level (runtime field)
+    ├── space-creator/                    # Meta-space for creating spaces
+    │   ├── agents/                       # SpaceArchitect, KnowledgeDesigner, FlowAuthor
+    │   ├── flows/                        # flow_create_space (6 steps), flow_design_knowledge (5 steps)
+    │   └── knowledge/                    # space-structure, knowledge-design, agent-design, naming-rules, creator-context
+    ├── space-ecosystem/                  # Platform overview, account & billing management
+    │   ├── agents/                       # PlatformGuide, AccountManager
+    │   ├── flows/                        # flow_explore_platform, flow_manage_billing
+    │   └── knowledge/                    # platform-map (10 services), billing-context, user-context
+    ├── space-studio/                     # Agent building, workspace management, prompt optimization
+    │   ├── agents/                       # WorkspaceManager, AgentBuilder, PromptCoach
+    │   ├── flows/                        # flow_create_agent, flow_manage_workspace, flow_optimize_prompts
+    │   └── knowledge/                    # workspace-ops, model-selection, prompt-patterns, user-context
+    ├── space-chat/                       # Personal THING chat interface
+    │   ├── agents/                       # ChatAssistant
+    │   ├── flows/                        # flow_start_conversation
+    │   └── knowledge/                    # chat-modes, model-guide
+    ├── space-computer/                   # Fly.io computer node management & troubleshooting
+    │   ├── agents/                       # ComputerAdmin, Troubleshooter
+    │   ├── flows/                        # flow_setup_computer, flow_troubleshoot
+    │   └── knowledge/                    # infrastructure, computer-ops, regions
+    ├── space-deploy/                     # Space deployment lifecycle on Fly.io
+    │   ├── agents/                       # DeployManager, SpaceMonitor
+    │   ├── flows/                        # flow_deploy_space, flow_check_status
+    │   └── knowledge/                    # space-lifecycle, deploy-config, regions
+    └── space-store/                      # Agent marketplace publishing & optimization
+        ├── agents/                       # StoreCurator, ListingOptimizer
+        ├── flows/                        # flow_publish_agent, flow_optimize_listing
+        └── knowledge/                    # distribution-models, pricing-strategy, listing-quality
 ```
 
 ### cloud/ — Supabase Edge Functions (The Only Backend)
@@ -626,7 +639,7 @@ This repository is a monorepo organized by TLD — each lmthing.\* domain has it
 - `org/libs/state/` — Virtual file system (`@lmthing/state`). In-memory Map-based VFS with FSEventBus, React context hierarchy, and hooks (`useFile`, `useDir`, `useGlob`, `useDraft`).
 - `org/libs/css/` — Shared styles used across all product domains.
 - `org/libs/ui/` — Shared React UI components used across all product domains.
-- `org/libs/thing/` — THING agent system studio (`@lmthing/thing`). Built-in spaces that ship with the THING agent. First space: `space-creator` — a meta-space with 3 agents (SpaceArchitect, KnowledgeDesigner, FlowAuthor), 2 flows, and 5 knowledge domains that teach users how to create spaces.
+- `org/libs/thing/` — THING agent system studio (`@lmthing/thing`). 7 built-in spaces that ship with the THING agent: `space-creator` (meta-space for creating spaces), `space-ecosystem` (platform navigation, account/billing), `space-studio` (agent building, workspace management, prompt optimization), `space-chat` (personal chat interface), `space-computer` (Fly.io node management, troubleshooting), `space-deploy` (space deployment lifecycle), `space-store` (marketplace publishing, listing optimization). Total: 12 agents, 12 flows, 17 knowledge domains across all spaces.
 
 ## Cloud Backend
 

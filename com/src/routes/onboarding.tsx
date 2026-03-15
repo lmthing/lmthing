@@ -41,6 +41,31 @@ function Onboarding() {
     try {
       const fullRepo = githubUsername ? `${githubUsername}/${repoName.trim()}` : repoName.trim()
 
+      // Create the private GitHub repo using the provider token from OAuth
+      const githubToken = sessionStorage.getItem('github_provider_token')
+      if (githubToken) {
+        const createRes = await fetch('https://api.github.com/user/repos', {
+          method: 'POST',
+          headers: {
+            Authorization: `token ${githubToken}`,
+            Accept: 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: repoName.trim(),
+            private: true,
+            description: 'lmthing workspace — agents, flows, and knowledge',
+            auto_init: true,
+          }),
+        })
+        // 422 means repo already exists, which is fine
+        if (!createRes.ok && createRes.status !== 422) {
+          const errBody = await createRes.json().catch(() => ({}))
+          throw new Error(errBody.message || `Failed to create GitHub repo (${createRes.status})`)
+        }
+        sessionStorage.removeItem('github_provider_token')
+      }
+
       await updateProfile({
         github_repo: fullRepo,
         github_username: githubUsername,

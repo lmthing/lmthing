@@ -23,6 +23,10 @@ function Callback() {
         const storedRedirect = sessionStorage.getItem('login_redirect')
 
         if (!profile?.github_repo) {
+          // Store GitHub provider token so onboarding can create the repo
+          if (session.provider_token) {
+            sessionStorage.setItem('github_provider_token', session.provider_token)
+          }
           // Store redirect for after onboarding
           if (storedRedirect) {
             sessionStorage.setItem('post_onboarding_redirect', storedRedirect)

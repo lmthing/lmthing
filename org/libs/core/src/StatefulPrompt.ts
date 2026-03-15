@@ -18,6 +18,8 @@ import { createToolCollection, createSystemCollection, createVariableCollection 
 import { createDefinitionProxy, type DefType } from './proxy';
 import { executeWithCallbacks } from './callbacks';
 import { createCompositeSchema, buildEnhancedDescription } from './composite';
+import type { Task, TaskNode } from './plugins/types';
+import type { FunctionOptions, CompositeFunctionDefinition, FunctionAgentOptions, CompositeFunctionAgentDefinition } from './plugins/function/types';
 
 /**
  * Definition for a sub-tool used within a composite tool.
@@ -557,10 +559,8 @@ Return only the JSON object in your response, without any additional text or exp
         const prompt = StatefulPrompt.create(model || this.getModel() as ModelInput);
         prompt.withOptions(otherOptions || this.getOptions());
 
-        // Set plugins if provided
-        if (plugins) {
-          prompt.setPlugins(plugins);
-        }
+        // Inherit parent's plugins; explicit plugins override
+        prompt.setPlugins(plugins || this._plugins || []);
 
         // Add response schema instruction to system prompt if provided
         if (responseSchema) {
@@ -624,10 +624,8 @@ Return only the JSON object in your response, without any additional text or exp
           const prompt = StatefulPrompt.create(agentModel || this.getModel() as ModelInput);
           prompt.withOptions(agentOptions || this.getOptions());
 
-          // Set plugins if provided
-          if (plugins) {
-            prompt.setPlugins(plugins);
-          }
+          // Always inherit parent's plugins; explicit plugins override
+          prompt.setPlugins(plugins || this._plugins || []);
 
           // Add response schema instruction to system prompt if provided
           if (responseSchema) {
@@ -823,6 +821,92 @@ Return only the JSON object in your response, without any additional text or exp
     this._definitionTracker.reconcile(this.variables, this.systems, this._tools);
   }
 
+  // ============================================================
+  // Built-in plugin methods
+  // These delegate to the plugin functions loaded via setPlugins().
+  // ============================================================
+
+  /**
+   * Define a task list for tracking sequential task progress.
+   * @category Plugins
+   */
+  defTaskList(tasks?: Task[]): [Task[], (newValue: Task[] | ((prev: Task[]) => Task[])) => void] {
+    return this._callPluginMethod('defTaskList', tasks);
+  }
+
+  /**
+   * Define a task graph (DAG) for dependency-aware task management.
+   * @category Plugins
+   */
+  defTaskGraph(tasks?: TaskNode[]): [TaskNode[], (newValue: TaskNode[] | ((prev: TaskNode[]) => TaskNode[])) => void] {
+    return this._callPluginMethod('defTaskGraph', tasks);
+  }
+
+  /**
+   * Define a TypeScript-validated function the LLM can call via code execution.
+   * @category Plugins
+   */
+  defFunction(
+    name: string,
+    description: string,
+    inputSchemaOrSubFunctions: z.ZodType<any> | CompositeFunctionDefinition[],
+    execute?: (args: any) => any | Promise<any>,
+    options?: FunctionOptions
+  ): any {
+    return this._callPluginMethod('defFunction', name, description, inputSchemaOrSubFunctions, execute, options);
+  }
+
+  /**
+   * Define a function agent the LLM can call via TypeScript code execution.
+   * @category Plugins
+   */
+  defFunctionAgent(
+    name: string,
+    description: string,
+    inputSchemaOrSubAgents: z.ZodType<any> | CompositeFunctionAgentDefinition[],
+    execute?: (args: any, prompt: any) => any | Promise<any>,
+    options?: FunctionAgentOptions
+  ): any {
+    return this._callPluginMethod('defFunctionAgent', name, description, inputSchemaOrSubAgents, execute, options);
+  }
+
+  /**
+   * Define a zero-step method the LLM can call inline via <run_code> blocks.
+   * @category Plugins
+   */
+  defMethod<TInput = any, TOutput = any>(
+    name: string,
+    description: string,
+    parameterSchema: z.ZodType<TInput>,
+    handler: (args: TInput) => TOutput | Promise<TOutput>,
+    responseSchema: z.ZodType<TOutput>
+  ): void {
+    return this._callPluginMethod('defMethod', name, description, parameterSchema, handler, responseSchema);
+  }
+
+  /**
+   * Register a THING space agent as a callable tool from its knowledge structure.
+   * @category Plugins
+   */
+  defKnowledgeAgent(spacePath: string, agentPath: string): void {
+    return this._callPluginMethod('defKnowledgeAgent', spacePath, agentPath);
+  }
+
+  /**
+   * Call a bound plugin method by name.
+   * @throws Error if the plugin method is not registered
+   */
+  private _callPluginMethod(name: string, ...args: any[]): any {
+    const method = this._boundPluginMethods[name];
+    if (!method) {
+      throw new Error(
+        `Plugin method "${name}" is not available. ` +
+        `Ensure the corresponding plugin is loaded via setPlugins() or runPrompt().`
+      );
+    }
+    return method(...args);
+  }
+
   /**
    * Get prompt methods for passing to promptFn.
    * Includes both core StatefulPrompt methods and bound plugin methods.
@@ -840,7 +924,14 @@ Return only the JSON object in your response, without any additional text or exp
       getState: this.getState.bind(this),
       defEffect: this.defEffect.bind(this),
       defMessage: this.defMessage.bind(this),
-      // Plugin methods (already bound in setPlugins)
+      // Built-in plugin methods
+      defTaskList: this.defTaskList.bind(this),
+      defTaskGraph: this.defTaskGraph.bind(this),
+      defFunction: this.defFunction.bind(this),
+      defFunctionAgent: this.defFunctionAgent.bind(this),
+      defMethod: this.defMethod.bind(this),
+      defKnowledgeAgent: this.defKnowledgeAgent.bind(this),
+      // Additional custom plugin methods (already bound in setPlugins)
       ...this._boundPluginMethods,
     };
   }

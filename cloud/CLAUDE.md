@@ -131,6 +131,8 @@ create table public.profiles (
   email text not null,
   display_name text,
   stripe_customer_id text unique,
+  github_repo text,
+  github_username text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -138,6 +140,8 @@ create table public.profiles (
 
 - Auto-created via `on_auth_user_created` trigger
 - `stripe_customer_id` is set lazily on first AI call or checkout
+- `github_repo` and `github_username` are set during onboarding (first login)
+- On onboarding, a private GitHub repo is created to store the user's workspace (agents, flows, knowledge)
 - RLS: users can only SELECT/UPDATE their own row
 
 ### `api_keys`

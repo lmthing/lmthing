@@ -308,15 +308,17 @@ graph TB
 
 All frontend apps authenticate via **Supabase Auth through com/** (the central auth hub). No app has its own login UI or Supabase client — they all redirect to com/ for login.
 
-**Auth providers** (configured in Supabase dashboard): GitHub OAuth, Google OAuth, email/password.
+**Auth provider**: GitHub OAuth only (configured in Supabase dashboard with `repo` scope for workspace repo access).
 
 **Frontend auth** uses the shared `@lmthing/auth` library, which implements cross-domain SSO:
 
 1. App detects no session → redirects to `com/auth/sso`
-2. com/ authenticates the user (Supabase Auth with GitHub/Google/email)
-3. com/ issues a single-use SSO code (60s TTL) via `cloud/create-sso-code`
-4. Redirects back to the app with `?code=...&state=...`
-5. App exchanges the code for a session via `cloud/exchange-sso-code`
+2. com/ authenticates the user via GitHub OAuth (Supabase Auth)
+3. com/ checks if the user has completed onboarding (has `github_repo` set in profile)
+4. If not onboarded → redirects to `/onboarding` where a private GitHub repo is created to store the user's workspace (agents, flows, knowledge)
+5. com/ issues a single-use SSO code (60s TTL) via `cloud/create-sso-code`
+6. Redirects back to the app with `?code=...&state=...`
+7. App exchanges the code for a session via `cloud/exchange-sso-code`
 
 **Backend auth** — Supabase JWT (browser) or `lmt_` API key (SDK/scripts), both resolve to `user_id` + `stripe_customer_id` via `cloud/_shared/auth.ts`.
 
@@ -332,11 +334,9 @@ flowchart TD
     subgraph Com["com/ (Central Auth Hub)"]
         Supabase["Supabase Auth"]
         GitHub["GitHub OAuth"]
-        Google["Google OAuth"]
-        Email["Email/Password"]
         Supabase --> GitHub
-        Supabase --> Google
-        Supabase --> Email
+        Onboarding["Onboarding<br/>Creates private GitHub repo"]
+        GitHub --> Onboarding
     end
 
     subgraph Backend["Backend Auth"]

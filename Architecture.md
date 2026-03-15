@@ -377,7 +377,7 @@ graph LR
 
 ## Authentication — Cross-Domain SSO
 
-All lmthing.* domains share authentication through an SSO / OAuth redirect flow. When a user authenticates on any product domain, they are redirected through a central auth service that issues tokens valid across all lmthing.* surfaces. This ensures a seamless experience when moving between Studio, Chat, Blog, Computer, Space, Social, Team, Store, and Casa.
+All lmthing.* domains share authentication through an SSO / OAuth redirect flow using **GitHub OAuth** as the sole auth provider. When a user authenticates on any product domain, they are redirected to com/ which handles GitHub login via Supabase Auth. On first login, users go through onboarding where a **private GitHub repository** is automatically created to store their workspace data (agents, flows, knowledge). After authentication, com/ issues tokens valid across all lmthing.* surfaces, ensuring a seamless experience when moving between Studio, Chat, Blog, Computer, Space, Social, Team, Store, and Casa.
 
 ---
 

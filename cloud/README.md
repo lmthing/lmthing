@@ -1025,7 +1025,7 @@ Every Edge Function (except `stripe-webhook`) accepts one of two auth methods:
 
 ### JWT (Supabase Auth)
 
-For browser/frontend clients. Obtained via `supabase.auth.signInWithPassword()`.
+For browser/frontend clients. Obtained via Supabase Auth (GitHub OAuth through com/).
 
 ```
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
@@ -1055,10 +1055,12 @@ Five tables across four migrations. Stripe handles all usage/billing data.
 | `email` | text | User's email |
 | `display_name` | text | Optional display name |
 | `stripe_customer_id` | text (unique) | Auto-created on first AI call |
+| `github_repo` | text | User's private workspace repo (`owner/repo`), created during onboarding |
+| `github_username` | text | GitHub username, set during onboarding |
 | `created_at` | timestamptz | Auto-set |
 | `updated_at` | timestamptz | Auto-set |
 
-Auto-created via a Postgres trigger when a user signs up through Supabase Auth.
+Auto-created via a Postgres trigger when a user signs up through Supabase Auth (GitHub OAuth). On first login, users complete onboarding which creates a private GitHub repo and stores it in `github_repo`.
 
 ### `api_keys` (001_initial.sql)
 

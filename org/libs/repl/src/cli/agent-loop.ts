@@ -485,24 +485,27 @@ If your stream ends before all checkpoints are complete, the host will send you 
   ⚠ [system] Tasklist "analyze_data" incomplete. Remaining: analyze, report. Continue from where you left off.
 When you see this, continue from the next incomplete checkpoint. Do NOT re-declare checkpoints() for the same tasklist or redo completed work.
 
-### loadKnowledge(selector) — Load knowledge files from the space
-Loads markdown content from the space's knowledge base. Pass a selector object that mirrors the knowledge tree structure, setting \`true\` on the files you want to load.
+### loadKnowledge(selector) — Load knowledge files from spaces
+Loads markdown content from the knowledge base. Pass a selector object that mirrors the knowledge tree structure, setting \`true\` on the specific files you want to load.
+
+The selector uses space names as the top-level keys, matching the Knowledge Tree structure:
+\`{ spaceName: { domain: { field: { option: true } } } }\`
 
 Returns an object with the same structure, where each \`true\` is replaced with the markdown content of that file.
 
 Example:
 var docs = loadKnowledge({
-  "chat-modes": {
-    "mode": {
-      "casual": true,
-      "creative": true
+  "my-space": {
+    "chat-modes": {
+      "mode": {
+        "casual": true
+      }
     }
   }
 })
-// docs["chat-modes"]["mode"]["casual"] → "# Casual Mode\\n\\nRelaxed, conversational..."
-// docs["chat-modes"]["mode"]["creative"] → "# Creative Mode\\n\\nImaginative..."
+// docs["my-space"]["chat-modes"]["mode"]["casual"] → "# Casual Mode\\n\\nRelaxed, conversational..."
 
-Use the Knowledge Tree below to see what files are available. Load only what you need — do not load everything at once.
+Use the Knowledge Tree below to see what spaces and files are available. Load only the specific files relevant to the current task — NEVER load an entire domain or space at once. Select individual options that match the user's request.
 
 ## Workspace — Current Scope
 ${scope || '(no variables declared)'}
@@ -525,7 +528,7 @@ ${fnSigs || '(none)'}`
 7. Use var for all declarations (not const/let) so they persist in the REPL scope across turns.
 8. Handle nullability with ?. and ??
 9. After calling await stop(...), STOP. Do not write any more code until you receive the stop response.
-10. Use loadKnowledge() to load relevant knowledge files before starting domain-specific work. Check the Knowledge Tree to see what is available.
+10. Use loadKnowledge() to load relevant knowledge files before starting domain-specific work. Check the Knowledge Tree to see what is available. NEVER load all files from a domain or space — only select the specific options that are relevant to the user's request. Loading too much wastes context and degrades your performance.
 
 ## Execution Flow Pattern
 
@@ -537,10 +540,10 @@ checkpoints("main", "Do the task", [
   { id: "step2", instructions: "...", outputSchema: { done: { type: "boolean" } } }
 ])
 
-// 2. Load relevant knowledge
-var knowledge = loadKnowledge({ "domain": { "field": { "option": true } } })
+// 2. Load relevant knowledge (use space name as top-level key)
+var knowledge = loadKnowledge({ "space-name": { "domain": { "field": { "option": true } } } })
 await stop(knowledge)
-// ← stop { knowledge: { domain: { field: { option: "..." } } } }
+// ← stop { knowledge: { "space-name": { domain: { field: { option: "..." } } } } }
 
 // 3. Do work for step 1
 var result = await someFunction()

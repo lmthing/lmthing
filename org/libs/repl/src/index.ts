@@ -77,8 +77,8 @@ export type { CatalogFunction, CatalogModule } from './catalog/types'
 export { loadCatalog, mergeCatalogs, getCatalogModule, formatCatalogForPrompt } from './catalog/index'
 
 // Knowledge
-export type { KnowledgeTree, KnowledgeDomain, KnowledgeField, KnowledgeOption, KnowledgeSelector, KnowledgeContent } from './knowledge/types'
-export { buildKnowledgeTree, loadKnowledgeFiles, formatKnowledgeTreeForPrompt } from './knowledge/index'
+export type { KnowledgeTree, KnowledgeDomain, KnowledgeField, KnowledgeOption, KnowledgeSelector, KnowledgeContent, FlatKnowledgeSelector, FlatKnowledgeContent } from './knowledge/types'
+export { buildKnowledgeTree, mergeKnowledgeTrees, loadKnowledgeFiles, formatKnowledgeTreeForPrompt } from './knowledge/index'
 
 // RPC
 export type { ReplSession } from './rpc/interface'

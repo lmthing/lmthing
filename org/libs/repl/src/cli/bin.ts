@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { resolve, dirname } from 'node:path'
+import { resolve, dirname, basename } from 'node:path'
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { config } from 'dotenv'
@@ -74,14 +74,26 @@ async function main() {
     }
   }
 
-  // ── Load space knowledge ──
+  // ── Load space knowledge (multiple spaces supported) ──
   let knowledgeTreePrompt = ''
-  let knowledgeDir = ''
-  if (args.space) {
-    const spacePath = resolve(args.space)
-    knowledgeDir = resolve(spacePath, 'knowledge')
-    const tree = buildKnowledgeTree(knowledgeDir)
-    knowledgeTreePrompt = formatKnowledgeTreeForPrompt(tree)
+  const spaceMap = new Map<string, string>() // spaceName → knowledgeDir
+
+  // Collect space paths from CLI args and replConfig
+  const spacePaths = [
+    ...(args.spaces ?? []),
+    ...(Array.isArray(replConfig.spaces) ? replConfig.spaces : []),
+  ].map(s => resolve(s))
+
+  if (spacePaths.length > 0) {
+    const trees = spacePaths.map(spacePath => {
+      const name = basename(spacePath)
+      const kDir = resolve(spacePath, 'knowledge')
+      spaceMap.set(name, kDir)
+      const tree = buildKnowledgeTree(kDir)
+      tree.name = name
+      return tree
+    })
+    knowledgeTreePrompt = formatKnowledgeTreeForPrompt(trees)
   }
 
   // ── Merge config ──
@@ -96,12 +108,21 @@ async function main() {
   const maxCheckpointReminders = replConfig.maxCheckpointReminders ?? 3
 
   // ── Create session ──
-  const resolvedKnowledgeDir = knowledgeDir
   const session = new Session({
     config: { sessionTimeout: args.timeout * 1000 },
     globals: { ...catalogGlobals, ...userGlobals },
-    knowledgeLoader: resolvedKnowledgeDir
-      ? (selector) => loadKnowledgeFiles(resolvedKnowledgeDir, selector)
+    knowledgeLoader: spaceMap.size > 0
+      ? (selector) => {
+          // Selector uses space names as top-level keys:
+          // { spaceName: { domain: { field: { option: true } } } }
+          const result: Record<string, any> = {}
+          for (const [spaceName, domains] of Object.entries(selector)) {
+            const kDir = spaceMap.get(spaceName)
+            if (!kDir || typeof domains !== 'object' || domains === null) continue
+            result[spaceName] = loadKnowledgeFiles(kDir, domains)
+          }
+          return result
+        }
       : undefined,
   })
 
@@ -145,7 +166,7 @@ async function main() {
   console.log('\x1b[36m━━━ @lmthing/repl ━━━\x1b[0m')
   console.log(`\x1b[90mModel:   ${args.model}\x1b[0m`)
   if (args.file) console.log(`\x1b[90mFile:    ${args.file}\x1b[0m`)
-  if (args.space) console.log(`\x1b[90mSpace:   ${args.space}\x1b[0m`)
+  if (spacePaths.length > 0) console.log(`\x1b[90mSpaces:  ${spacePaths.join(', ')}\x1b[0m`)
   if (args.catalog) console.log(`\x1b[90mCatalog: ${args.catalog}\x1b[0m`)
   if (debugFile) console.log(`\x1b[90mDebug:   ${debugFile}\x1b[0m`)
   if (staticDir) {

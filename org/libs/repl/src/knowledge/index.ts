@@ -12,9 +12,36 @@ import type {
   KnowledgeDomain,
   KnowledgeField,
   KnowledgeOption,
-  KnowledgeSelector,
-  KnowledgeContent,
+  FlatKnowledgeSelector,
+  FlatKnowledgeContent,
 } from './types'
+
+/**
+ * Merge multiple KnowledgeTrees into one. Domains with the same slug are
+ * combined (fields are merged); distinct domains are concatenated.
+ */
+export function mergeKnowledgeTrees(trees: KnowledgeTree[]): KnowledgeTree {
+  const domainMap = new Map<string, KnowledgeDomain>()
+
+  for (const tree of trees) {
+    for (const domain of tree.domains) {
+      const existing = domainMap.get(domain.slug)
+      if (!existing) {
+        domainMap.set(domain.slug, { ...domain, fields: [...domain.fields] })
+      } else {
+        // Merge fields — same-slug fields are replaced, new ones appended
+        const fieldSlugs = new Set(existing.fields.map(f => f.slug))
+        for (const field of domain.fields) {
+          if (!fieldSlugs.has(field.slug)) {
+            existing.fields.push(field)
+          }
+        }
+      }
+    }
+  }
+
+  return { domains: [...domainMap.values()] }
+}
 
 /**
  * Build a KnowledgeTree from a space's knowledge/ directory.
@@ -149,9 +176,9 @@ function parseFrontmatter(content: string): Record<string, any> {
  */
 export function loadKnowledgeFiles(
   knowledgeDir: string,
-  selector: KnowledgeSelector,
-): KnowledgeContent {
-  const result: KnowledgeContent = {}
+  selector: FlatKnowledgeSelector,
+): FlatKnowledgeContent {
+  const result: FlatKnowledgeContent = {}
 
   for (const [domainSlug, fields] of Object.entries(selector)) {
     if (typeof fields !== 'object' || fields === null) continue
@@ -182,55 +209,102 @@ export function loadKnowledgeFiles(
 }
 
 /**
- * Format the knowledge tree as a compact text representation for the system prompt.
+ * Format knowledge trees as a compact text representation for the system prompt.
  *
- * Output example:
+ * Accepts a single tree or an array of named trees. When multiple trees are
+ * provided, they are grouped under their space name:
+ *
  * ```
  * knowledge/
- * ├── chat-modes/          💬 Chat Modes — Different conversation styles
- * │   └── mode             [select] chatMode — Which conversation style
- * │       ├── casual       Casual — Relaxed, conversational interaction
- * │       ├── creative     Creative — Imaginative, free-form exploration
- * │       └── focused      Focused — Structured, goal-oriented dialogue
- * └── model-guide/         🤖 Model Guide — Model selection guidance
- *     └── model-tier       [select] modelTier — Which model tier to use
- *         ├── free-models   Free Models — Open-source and free-tier models
- *         └── premium-models Premium Models — Commercial high-capability models
+ * ├── cooking/
+ * │   ├── cuisine/          🌍 Cuisine — World cuisine traditions
+ * │   │   └── type          [select] cuisineType — Which cuisine
+ * │   │       ├── italian   Italian — Mediterranean cooking
+ * │   │       └── japanese  Japanese — East Asian cuisine
+ * │   └── technique/        🔥 Technique — Cooking methods
+ * │       └── method        [select] cookMethod — Which method
+ * └── nutrition/
+ *     ├── macronutrients/   💪 Macronutrients — Protein, carbs, fats
+ *     │   └── type          [select] macroType — Which macro
+ *     └── vitamins/         🧬 Vitamins & Minerals
+ *         └── nutrient      [select] nutrient — Which nutrient
  * ```
  */
-export function formatKnowledgeTreeForPrompt(tree: KnowledgeTree): string {
-  if (tree.domains.length === 0) return '(no knowledge loaded)'
+export function formatKnowledgeTreeForPrompt(treeOrTrees: KnowledgeTree | KnowledgeTree[]): string {
+  const trees = Array.isArray(treeOrTrees) ? treeOrTrees : [treeOrTrees]
+  const allDomains = trees.flatMap(t => t.domains)
+  if (allDomains.length === 0) return '(no knowledge loaded)'
 
+  // If any tree has a name, group domains by space
+  const hasNames = trees.some(t => t.name)
+  if (!hasNames || trees.length === 1 && !trees[0].name) {
+    return formatFlatTree(allDomains)
+  }
+
+  return formatGroupedTree(trees)
+}
+
+function formatFlatTree(domains: KnowledgeDomain[]): string {
   const lines: string[] = ['knowledge/']
-  const domainCount = tree.domains.length
+  const domainCount = domains.length
 
   for (let di = 0; di < domainCount; di++) {
-    const domain = tree.domains[di]
-    const isLastDomain = di === domainCount - 1
-    const domainPrefix = isLastDomain ? '└── ' : '├── '
-    const childPrefix = isLastDomain ? '    ' : '│   '
+    const domain = domains[di]
+    const isLast = di === domainCount - 1
+    formatDomain(lines, domain, isLast ? '└── ' : '├── ', isLast ? '    ' : '│   ')
+  }
 
-    lines.push(`${domainPrefix}${domain.slug}/          ${domain.icon} ${domain.label} — ${domain.description}`)
+  return lines.join('\n')
+}
 
-    const fieldCount = domain.fields.length
-    for (let fi = 0; fi < fieldCount; fi++) {
-      const field = domain.fields[fi]
-      const isLastField = fi === fieldCount - 1
-      const fieldPrefix = isLastField ? '└── ' : '├── '
-      const optionChildPrefix = isLastField ? '    ' : '│   '
+function formatGroupedTree(trees: KnowledgeTree[]): string {
+  const lines: string[] = ['knowledge/']
+  // Filter out empty trees
+  const nonEmpty = trees.filter(t => t.domains.length > 0)
 
-      lines.push(`${childPrefix}${fieldPrefix}${field.slug}             [${field.fieldType}] ${field.variableName} — ${field.description}`)
+  for (let ti = 0; ti < nonEmpty.length; ti++) {
+    const tree = nonEmpty[ti]
+    const isLastTree = ti === nonEmpty.length - 1
+    const treePrefix = isLastTree ? '└── ' : '├── '
+    const treeChildPrefix = isLastTree ? '    ' : '│   '
 
-      const optionCount = field.options.length
-      for (let oi = 0; oi < optionCount; oi++) {
-        const option = field.options[oi]
-        const isLastOption = oi === optionCount - 1
-        const optionPrefix = isLastOption ? '└── ' : '├── '
+    lines.push(`${treePrefix}${tree.name ?? 'unknown'}/`)
 
-        lines.push(`${childPrefix}${optionChildPrefix}${optionPrefix}${option.slug}       ${option.title} — ${option.description}`)
-      }
+    const domainCount = tree.domains.length
+    for (let di = 0; di < domainCount; di++) {
+      const domain = tree.domains[di]
+      const isLastDomain = di === domainCount - 1
+      formatDomain(
+        lines,
+        domain,
+        treeChildPrefix + (isLastDomain ? '└── ' : '├── '),
+        treeChildPrefix + (isLastDomain ? '    ' : '│   '),
+      )
     }
   }
 
   return lines.join('\n')
+}
+
+function formatDomain(lines: string[], domain: KnowledgeDomain, prefix: string, childPrefix: string): void {
+  lines.push(`${prefix}${domain.slug}/          ${domain.icon} ${domain.label} — ${domain.description}`)
+
+  const fieldCount = domain.fields.length
+  for (let fi = 0; fi < fieldCount; fi++) {
+    const field = domain.fields[fi]
+    const isLastField = fi === fieldCount - 1
+    const fieldPrefix = isLastField ? '└── ' : '├── '
+    const optionChildPrefix = isLastField ? '    ' : '│   '
+
+    lines.push(`${childPrefix}${fieldPrefix}${field.slug}             [${field.fieldType}] ${field.variableName} — ${field.description}`)
+
+    const optionCount = field.options.length
+    for (let oi = 0; oi < optionCount; oi++) {
+      const option = field.options[oi]
+      const isLastOption = oi === optionCount - 1
+      const optionPrefix = isLastOption ? '└── ' : '├── '
+
+      lines.push(`${childPrefix}${optionChildPrefix}${optionPrefix}${option.slug}       ${option.title} — ${option.description}`)
+    }
+  }
 }

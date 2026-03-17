@@ -242,7 +242,7 @@ export function createGlobals(config: GlobalsConfig) {
    */
   function loadKnowledgeFn(selector: KnowledgeSelector): KnowledgeContent {
     if (!selector || typeof selector !== 'object') {
-      throw new Error('loadKnowledge() requires a selector object: { domain: { field: { option: true } } }')
+      throw new Error('loadKnowledge() requires a selector object: { spaceName: { domain: { field: { option: true } } } }')
     }
     if (!config.onLoadKnowledge) {
       throw new Error('loadKnowledge() is not available — no space loaded')

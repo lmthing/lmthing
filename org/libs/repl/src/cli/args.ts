@@ -5,8 +5,8 @@ export interface CLIArgs {
   instruct?: string[]
   /** Built-in catalog modules to enable (comma-separated or "all") */
   catalog?: string
-  /** Path to a space directory containing agents/, flows/, knowledge/ */
-  space?: string
+  /** Paths to space directories containing agents/, flows/, knowledge/ */
+  spaces?: string[]
   /** Port for WebSocket server + web UI (default: 3100) */
   port: number
   /** LLM model identifier */
@@ -49,7 +49,8 @@ export function parseArgs(argv: string[]): CLIArgs {
     } else if (arg === '--debug' || arg === '-d') {
       args.debugFile = argv[++i]
     } else if (arg === '--space' || arg === '-s') {
-      args.space = argv[++i]
+      if (!args.spaces) args.spaces = []
+      args.spaces.push(argv[++i])
     } else if (arg === '--no-ui') {
       args.noUi = true
     } else if (!arg.startsWith('-') && !args.file) {
@@ -64,7 +65,7 @@ export function parseArgs(argv: string[]): CLIArgs {
   }
 
   // Validate: either file, catalog, or space must be specified
-  if (!args.file && !args.catalog && !args.space) {
+  if (!args.file && !args.catalog && !args.spaces) {
     throw new Error('Either a file path, --catalog, or --space must be specified')
   }
 

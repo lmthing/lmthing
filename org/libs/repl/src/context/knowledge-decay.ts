@@ -121,33 +121,37 @@ function formatHeaders(content: KnowledgeContent): string {
 
 function formatNames(content: KnowledgeContent): string {
   const paths: string[] = []
-  for (const [domain, fields] of Object.entries(content)) {
-    for (const [field, options] of Object.entries(fields)) {
-      for (const option of Object.keys(options)) {
-        paths.push(`${domain}/${field}/${option}`)
-      }
-    }
-  }
+  collectPaths(content, [], paths)
   return `[knowledge: ${paths.join(', ')}]`
 }
 
-// ── Helper: serialize the 3-level nested structure with a leaf formatter ──
+function collectPaths(obj: Record<string, any>, prefix: string[], out: string[]): void {
+  for (const [key, value] of Object.entries(obj)) {
+    if (typeof value === 'string') {
+      out.push([...prefix, key].join('/'))
+    } else if (typeof value === 'object' && value !== null) {
+      collectPaths(value, [...prefix, key], out)
+    }
+  }
+}
+
+// ── Helper: recursively serialize nested structure, applying formatter to string leaves ──
 
 function serializeNested(
   content: KnowledgeContent,
   formatLeaf: (md: string) => string,
 ): string {
-  const domainEntries: string[] = []
-  for (const [domain, fields] of Object.entries(content)) {
-    const fieldEntries: string[] = []
-    for (const [field, options] of Object.entries(fields)) {
-      const optionEntries: string[] = []
-      for (const [option, md] of Object.entries(options)) {
-        optionEntries.push(`${JSON.stringify(option)}: ${formatLeaf(md)}`)
-      }
-      fieldEntries.push(`${JSON.stringify(field)}: { ${optionEntries.join(', ')} }`)
+  return serializeLevel(content, formatLeaf)
+}
+
+function serializeLevel(obj: Record<string, any>, formatLeaf: (md: string) => string): string {
+  const entries: string[] = []
+  for (const [key, value] of Object.entries(obj)) {
+    if (typeof value === 'string') {
+      entries.push(`${JSON.stringify(key)}: ${formatLeaf(value)}`)
+    } else if (typeof value === 'object' && value !== null) {
+      entries.push(`${JSON.stringify(key)}: ${serializeLevel(value, formatLeaf)}`)
     }
-    domainEntries.push(`${JSON.stringify(domain)}: { ${fieldEntries.join(', ')} }`)
   }
-  return `{ ${domainEntries.join(', ')} }`
+  return `{ ${entries.join(', ')} }`
 }

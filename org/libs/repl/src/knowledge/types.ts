@@ -38,17 +38,33 @@ export interface KnowledgeOption {
  * The full knowledge tree for a space — used to show the agent what's available.
  */
 export interface KnowledgeTree {
+  /** Space name (directory basename), used for grouping in the prompt */
+  name?: string
   domains: KnowledgeDomain[]
 }
 
 /**
- * Selector object the agent passes to loadKnowledge().
- * Mirrors the file tree: { domainSlug: { fieldSlug: { optionSlug: true } } }
+ * Flat selector (no space names): { domainSlug: { fieldSlug: { optionSlug: true } } }
  */
-export type KnowledgeSelector = Record<string, Record<string, Record<string, true>>>
+export type FlatKnowledgeSelector = Record<string, Record<string, Record<string, true>>>
+
+/**
+ * Selector object the agent passes to loadKnowledge().
+ *
+ * With named spaces: { spaceName: { domainSlug: { fieldSlug: { optionSlug: true } } } }
+ * Without spaces:    { domainSlug: { fieldSlug: { optionSlug: true } } }
+ *
+ * The loader auto-detects the format based on whether space names are configured.
+ */
+export type KnowledgeSelector = Record<string, any>
+
+/**
+ * Flat content (no space names): { domainSlug: { fieldSlug: { optionSlug: markdownString } } }
+ */
+export type FlatKnowledgeContent = Record<string, Record<string, Record<string, string>>>
 
 /**
  * Loaded knowledge content returned to the agent.
  * Same shape as the selector but with markdown content instead of `true`.
  */
-export type KnowledgeContent = Record<string, Record<string, Record<string, string>>>
+export type KnowledgeContent = Record<string, any>

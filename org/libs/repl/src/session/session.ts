@@ -87,7 +87,7 @@ export class Session extends EventEmitter {
         },
         renderForm: async (formId, element) => {
           this.activeFormId = formId
-          this.emitEvent({ type: 'ask_start', formId, jsx: { component: 'Form', props: {} } })
+          this.emitEvent({ type: 'ask_start', formId, jsx: serializeReactElement(element) })
           return new Promise((resolve) => {
             this.once(`form:${formId}`, (data: Record<string, unknown>) => {
               this.activeFormId = null

@@ -145,4 +145,231 @@ describe('sandbox/globals', () => {
       expect(config.pauseController.pause).not.toHaveBeenCalled()
     })
   })
+
+  describe('checkpoints', () => {
+    const validPlan = {
+      description: 'Test task',
+      tasks: [
+        { id: 'step1', instructions: 'Do step 1', outputSchema: { result: { type: 'string' } } },
+        { id: 'step2', instructions: 'Do step 2', outputSchema: { count: { type: 'number' } } },
+      ],
+    }
+
+    it('registers a plan', () => {
+      const config = createMockConfig()
+      let capturedPlan: any
+      const globals = createGlobals({
+        ...config,
+        onCheckpointPlan: (plan) => { capturedPlan = plan },
+      })
+
+      globals.checkpoints(validPlan)
+      expect(capturedPlan).toBeDefined()
+      expect(capturedPlan.tasks).toHaveLength(2)
+    })
+
+    it('can only be called once', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.checkpoints(validPlan)
+      expect(() => globals.checkpoints(validPlan)).toThrow('can only be called once')
+    })
+
+    it('rejects empty tasks', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      expect(() => globals.checkpoints({ description: 'empty', tasks: [] })).toThrow(
+        'requires a description and at least one task',
+      )
+    })
+
+    it('rejects missing description', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      expect(() => globals.checkpoints({ description: '', tasks: validPlan.tasks })).toThrow(
+        'requires a description and at least one task',
+      )
+    })
+
+    it('rejects duplicate task ids', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      expect(() => globals.checkpoints({
+        description: 'dup',
+        tasks: [
+          { id: 'a', instructions: 'do a', outputSchema: { x: { type: 'string' } } },
+          { id: 'a', instructions: 'do a again', outputSchema: { x: { type: 'string' } } },
+        ],
+      })).toThrow('Duplicate checkpoint id: a')
+    })
+
+    it('rejects tasks missing required fields', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      expect(() => globals.checkpoints({
+        description: 'bad',
+        tasks: [{ id: 'a', instructions: '', outputSchema: {} } as any],
+      })).toThrow('must have id, instructions, and outputSchema')
+    })
+
+    it('does not pause the stream', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.checkpoints(validPlan)
+      expect(config.pauseController.pause).not.toHaveBeenCalled()
+    })
+
+    it('calls appendCheckpointProgress on render surface', () => {
+      const config = createMockConfig()
+      config.renderSurface.appendCheckpointProgress = vi.fn()
+      const globals = createGlobals(config)
+
+      globals.checkpoints(validPlan)
+      expect(config.renderSurface.appendCheckpointProgress).toHaveBeenCalled()
+    })
+  })
+
+  describe('checkpoint', () => {
+    const validPlan = {
+      description: 'Test task',
+      tasks: [
+        { id: 'step1', instructions: 'Do step 1', outputSchema: { result: { type: 'string' } } },
+        { id: 'step2', instructions: 'Do step 2', outputSchema: { count: { type: 'number' } } },
+      ],
+    }
+
+    it('marks a checkpoint as complete', () => {
+      const config = createMockConfig()
+      let completedId: string | undefined
+      let completedOutput: any
+      const globals = createGlobals({
+        ...config,
+        onCheckpointComplete: (id, output) => { completedId = id; completedOutput = output },
+      })
+
+      globals.checkpoints(validPlan)
+      globals.checkpoint('step1', { result: 'done' })
+
+      expect(completedId).toBe('step1')
+      expect(completedOutput).toEqual({ result: 'done' })
+    })
+
+    it('throws if called before checkpoints()', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      expect(() => globals.checkpoint('step1', {})).toThrow('declare a plan first')
+    })
+
+    it('throws for unknown checkpoint id', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.checkpoints(validPlan)
+      expect(() => globals.checkpoint('nonexistent', {})).toThrow('Unknown checkpoint id')
+    })
+
+    it('throws for duplicate completion', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.checkpoints(validPlan)
+      globals.checkpoint('step1', { result: 'done' })
+      expect(() => globals.checkpoint('step1', { result: 'again' })).toThrow('already completed')
+    })
+
+    it('enforces sequential ordering', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.checkpoints(validPlan)
+      expect(() => globals.checkpoint('step2', { count: 5 })).toThrow('out of order. Expected: "step1"')
+    })
+
+    it('validates output against schema — missing key', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.checkpoints(validPlan)
+      expect(() => globals.checkpoint('step1', {})).toThrow('missing required key: result')
+    })
+
+    it('validates output against schema — wrong type', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.checkpoints(validPlan)
+      expect(() => globals.checkpoint('step1', { result: 42 })).toThrow('expected string, got number')
+    })
+
+    it('validates array type correctly', () => {
+      const config = createMockConfig()
+      const globals = createGlobals({
+        ...config,
+      })
+
+      globals.checkpoints({
+        description: 'array test',
+        tasks: [
+          { id: 's1', instructions: 'do it', outputSchema: { items: { type: 'array' } } },
+        ],
+      })
+
+      // Array should pass
+      globals.checkpoint('s1', { items: [1, 2, 3] })
+      expect(globals.getCheckpointState().completed.size).toBe(1)
+    })
+
+    it('rejects object when array expected', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.checkpoints({
+        description: 'array test',
+        tasks: [
+          { id: 's1', instructions: 'do it', outputSchema: { items: { type: 'array' } } },
+        ],
+      })
+
+      expect(() => globals.checkpoint('s1', { items: { key: 'val' } })).toThrow('expected array, got object')
+    })
+
+    it('allows completing all checkpoints in order', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.checkpoints(validPlan)
+      globals.checkpoint('step1', { result: 'done' })
+      globals.checkpoint('step2', { count: 10 })
+
+      const state = globals.getCheckpointState()
+      expect(state.completed.size).toBe(2)
+      expect(state.currentIndex).toBe(2)
+    })
+
+    it('does not pause the stream', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.checkpoints(validPlan)
+      globals.checkpoint('step1', { result: 'done' })
+      expect(config.pauseController.pause).not.toHaveBeenCalled()
+    })
+
+    it('calls updateCheckpointProgress on render surface', () => {
+      const config = createMockConfig()
+      config.renderSurface.updateCheckpointProgress = vi.fn()
+      const globals = createGlobals(config)
+
+      globals.checkpoints(validPlan)
+      globals.checkpoint('step1', { result: 'done' })
+      expect(config.renderSurface.updateCheckpointProgress).toHaveBeenCalled()
+    })
+  })
 })

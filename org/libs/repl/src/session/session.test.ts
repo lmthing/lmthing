@@ -54,6 +54,8 @@ describe('session/session', () => {
     expect(snap.scope).toEqual([])
     expect(snap.asyncTasks).toEqual([])
     expect(snap.activeFormId).toBeNull()
+    expect(snap.checkpointState).toBeDefined()
+    expect(snap.checkpointState.plan).toBeNull()
     session.destroy()
   })
 
@@ -115,6 +117,77 @@ describe('session/session', () => {
 
     session.handleIntervention('Please try differently')
     expect(events.some(e => e.type === 'scope')).toBe(true)
+    session.destroy()
+  })
+
+  it('executes checkpoints() and checkpoint() globals', async () => {
+    const session = new Session()
+    const events: SessionEvent[] = []
+    session.on('event', (e) => events.push(e))
+
+    await session.feedToken('checkpoints({ description: "test", tasks: [{ id: "s1", instructions: "do s1", outputSchema: { x: { type: "number" } } }] })\n')
+    await session.feedToken('checkpoint("s1", { x: 42 })\n')
+
+    expect(events.some(e => e.type === 'checkpoint_plan')).toBe(true)
+    expect(events.some(e => e.type === 'checkpoint_complete')).toBe(true)
+    session.destroy()
+  })
+
+  it('finalize returns checkpoint_incomplete when checkpoints remain', async () => {
+    const session = new Session()
+    const events: SessionEvent[] = []
+    session.on('event', (e) => events.push(e))
+
+    await session.feedToken('checkpoints({ description: "test", tasks: [{ id: "s1", instructions: "do s1", outputSchema: { x: { type: "number" } } }, { id: "s2", instructions: "do s2", outputSchema: { y: { type: "string" } } }] })\n')
+    await session.feedToken('checkpoint("s1", { x: 42 })\n')
+
+    const result = await session.finalize()
+    expect(result).toBe('checkpoint_incomplete')
+    expect(events.some(e => e.type === 'checkpoint_reminder')).toBe(true)
+    session.destroy()
+  })
+
+  it('finalize returns complete when all checkpoints done', async () => {
+    const session = new Session()
+
+    await session.feedToken('checkpoints({ description: "test", tasks: [{ id: "s1", instructions: "do s1", outputSchema: { x: { type: "number" } } }] })\n')
+    await session.feedToken('checkpoint("s1", { x: 42 })\n')
+
+    const result = await session.finalize()
+    expect(result).toBe('complete')
+    session.destroy()
+  })
+
+  it('finalize returns complete when no checkpoint plan', async () => {
+    const session = new Session()
+    await session.feedToken('var x = 1\n')
+    const result = await session.finalize()
+    expect(result).toBe('complete')
+    session.destroy()
+  })
+
+  it('limits checkpoint reminders to maxCheckpointReminders', async () => {
+    const session = new Session({ config: { maxCheckpointReminders: 2 } })
+    const reminders: string[][] = []
+    session.on('event', (e: SessionEvent) => {
+      if (e.type === 'checkpoint_reminder') reminders.push(e.remaining)
+    })
+
+    await session.feedToken('checkpoints({ description: "test", tasks: [{ id: "s1", instructions: "do s1", outputSchema: { x: { type: "number" } } }] })\n')
+
+    // First finalize — should return incomplete
+    const r1 = await session.finalize()
+    expect(r1).toBe('checkpoint_incomplete')
+
+    // Second finalize — should return incomplete
+    const r2 = await session.finalize()
+    expect(r2).toBe('checkpoint_incomplete')
+
+    // Third finalize — max reached, should complete
+    const r3 = await session.finalize()
+    expect(r3).toBe('complete')
+
+    expect(reminders).toHaveLength(2)
     session.destroy()
   })
 

@@ -4,6 +4,7 @@ import {
   buildErrorMessage,
   buildInterventionMessage,
   buildHookInterruptMessage,
+  buildCheckpointReminderMessage,
 } from './message-builder'
 import type { StopPayload, ErrorPayload } from '../session/types'
 
@@ -48,6 +49,18 @@ describe('context/message-builder', () => {
     it('formats hook interrupt', () => {
       const msg = buildHookInterruptMessage('await-guard', 'Missing await on async call')
       expect(msg).toBe('⚠ [hook:await-guard] Missing await on async call')
+    })
+  })
+
+  describe('buildCheckpointReminderMessage', () => {
+    it('formats checkpoint reminder with remaining ids', () => {
+      const msg = buildCheckpointReminderMessage(['search', 'present'])
+      expect(msg).toBe('⚠ [system] Checkpoint plan incomplete. Remaining: search, present. Continue from where you left off.')
+    })
+
+    it('formats single remaining checkpoint', () => {
+      const msg = buildCheckpointReminderMessage(['final'])
+      expect(msg).toBe('⚠ [system] Checkpoint plan incomplete. Remaining: final. Continue from where you left off.')
     })
   })
 })

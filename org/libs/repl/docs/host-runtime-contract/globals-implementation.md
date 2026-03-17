@@ -162,3 +162,151 @@ globalThis.async = (fn: () => Promise<void>) => {
 **Note on scoped `stop`:** Replacing the global `stop` is unsafe with concurrent tasks. Preferred approach: at transpile time, rewrite `stop` calls inside `async(() => { ... })` blocks to reference the task-scoped version. Alternatively, use `AsyncLocalStorage` (Node.js) to route `stop` calls to the correct task.
 
 Results accumulate in `asyncResults` and are drained into the next `stop()` call's payload. If an async task hasn't finished when `stop` is called, its slot shows `"pending"`.
+
+---
+
+## 6. `checkpoints` Implementation
+
+`checkpoints` registers a task plan with the host runtime. The agent must call it once, before writing implementation code, to declare the milestones it intends to reach.
+
+```ts
+interface CheckpointTask {
+  id: string
+  instructions: string
+  outputSchema: Record<string, { type: string }>
+}
+
+interface CheckpointPlan {
+  description: string
+  tasks: CheckpointTask[]
+}
+
+interface CheckpointState {
+  plan: CheckpointPlan | null
+  completed: Map<string, { output: Record<string, any>; timestamp: number }>
+  currentIndex: number  // index of next incomplete checkpoint
+}
+
+const checkpointState: CheckpointState = {
+  plan: null,
+  completed: new Map(),
+  currentIndex: 0,
+}
+
+globalThis.checkpoints = (plan: CheckpointPlan) => {
+  if (checkpointState.plan !== null) {
+    throw new Error('checkpoints() can only be called once per session')
+  }
+
+  // Validate plan structure
+  if (!plan.description || !Array.isArray(plan.tasks) || plan.tasks.length === 0) {
+    throw new Error('checkpoints() requires a description and at least one task')
+  }
+
+  const ids = new Set<string>()
+  for (const task of plan.tasks) {
+    if (!task.id || !task.instructions || !task.outputSchema) {
+      throw new Error(`Each checkpoint task must have id, instructions, and outputSchema`)
+    }
+    if (ids.has(task.id)) {
+      throw new Error(`Duplicate checkpoint id: ${task.id}`)
+    }
+    ids.add(task.id)
+  }
+
+  checkpointState.plan = plan
+
+  // Render progress UI to the user
+  renderSurface.appendCheckpointProgress(checkpointState)
+
+  // Does NOT block execution — returns synchronously like display()
+}
+```
+
+### Progress Rendering
+
+The host renders a persistent progress indicator (e.g., a stepper or checklist) that updates as checkpoints are completed. This is separate from the `display()` render queue — it persists at the top or side of the viewport.
+
+---
+
+## 7. `checkpoint` Implementation
+
+`checkpoint` marks a milestone as complete and validates its output against the declared schema.
+
+```ts
+globalThis.checkpoint = (id: string, output: Record<string, any>) => {
+  if (!checkpointState.plan) {
+    throw new Error('checkpoint() called before checkpoints() — declare a plan first')
+  }
+
+  const taskIndex = checkpointState.plan.tasks.findIndex(t => t.id === id)
+  if (taskIndex === -1) {
+    throw new Error(`Unknown checkpoint id: ${id}`)
+  }
+
+  if (checkpointState.completed.has(id)) {
+    throw new Error(`Checkpoint "${id}" already completed`)
+  }
+
+  // Enforce ordering — checkpoints must be completed sequentially
+  if (taskIndex !== checkpointState.currentIndex) {
+    const expected = checkpointState.plan.tasks[checkpointState.currentIndex]
+    throw new Error(
+      `Checkpoint "${id}" called out of order. Expected: "${expected.id}"`
+    )
+  }
+
+  // Validate output against schema (lightweight type check)
+  const task = checkpointState.plan.tasks[taskIndex]
+  for (const [key, schema] of Object.entries(task.outputSchema)) {
+    if (!(key in output)) {
+      throw new Error(`Checkpoint "${id}" output missing required key: ${key}`)
+    }
+    const actual = typeof output[key]
+    if (actual !== (schema as any).type) {
+      throw new Error(
+        `Checkpoint "${id}" output key "${key}": expected ${(schema as any).type}, got ${actual}`
+      )
+    }
+  }
+
+  // Record completion
+  checkpointState.completed.set(id, {
+    output,
+    timestamp: Date.now(),
+  })
+  checkpointState.currentIndex++
+
+  // Update progress UI
+  renderSurface.updateCheckpointProgress(checkpointState)
+
+  // Does NOT block execution — returns synchronously like display()
+}
+```
+
+### Incomplete Checkpoint Reminder
+
+When the LLM emits a stop token (stream completion) and there are still incomplete checkpoints, the host **does not** end the session. Instead:
+
+1. Identify remaining checkpoints: `plan.tasks.slice(checkpointState.currentIndex)`
+2. Build a reminder message listing the incomplete checkpoint IDs
+3. Inject as a user message with `⚠ [system]` prefix
+4. Resume LLM generation
+
+```ts
+function onStreamComplete() {
+  if (!checkpointState.plan) return  // no plan — normal completion
+
+  const remaining = checkpointState.plan.tasks.slice(checkpointState.currentIndex)
+  if (remaining.length === 0) return  // all checkpoints done — normal completion
+
+  const ids = remaining.map(t => t.id).join(', ')
+  streamController.pause()
+  streamController.injectUserMessage(
+    `⚠ [system] Checkpoint plan incomplete. Remaining: ${ids}. Continue from where you left off.`
+  )
+  streamController.resume()
+}
+```
+
+The host should limit the number of reminder cycles (default: 3) to avoid infinite loops. If the agent fails to complete after max retries, the session ends with a warning to the user.

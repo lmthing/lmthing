@@ -100,3 +100,59 @@ await stop(summary)
 ```
 
 The host assigns each background result a key like `async_0`, `async_1`, etc. If the background task hasn't finished yet when you call `stop`, its slot will show `pending`.
+
+### `checkpoints(plan)` — Declare a task plan with milestones
+
+Before starting any implementation work, you **must** declare a plan using `checkpoints`. This registers a series of milestones with the host runtime. Each checkpoint has an `id`, `instructions` describing what will be accomplished, and an `outputSchema` describing the shape of the result you will produce when that checkpoint is reached.
+
+The last checkpoint in the list should always represent the final completion of the task.
+
+```ts
+checkpoints({
+  description: "Find and analyze Italian restaurants",
+  tasks: [
+    {
+      id: "gather_input",
+      instructions: "Ask the user for their location and preferences",
+      outputSchema: { zipcode: { type: "string" }, cuisine: { type: "string" } }
+    },
+    {
+      id: "search_restaurants",
+      instructions: "Search for matching restaurants and count results",
+      outputSchema: { count: { type: "number" } }
+    },
+    {
+      id: "present_results",
+      instructions: "Display results and help user pick one",
+      outputSchema: { chosen: { type: "string" } }
+    }
+  ]
+})
+```
+
+You can call `checkpoints` only **once** per task. Call it before writing any implementation code. It does not block execution — the host registers the plan and renders a progress indicator to the user.
+
+### `checkpoint(id, output)` — Mark a milestone as complete
+
+When you reach a milestone from your plan, call `checkpoint` with the checkpoint's `id` and an output object matching the declared `outputSchema`.
+
+```ts
+// After gathering input...
+checkpoint("gather_input", { zipcode: "94107", cuisine: "Italian" })
+
+// After searching...
+checkpoint("search_restaurants", { count: 8 })
+
+// After user picks a restaurant...
+checkpoint("present_results", { chosen: "Flour + Water" })
+```
+
+`checkpoint` is non-blocking (like `display`). It updates the host's progress UI and records the output. You must call `checkpoint` for every milestone in order — do not skip checkpoints.
+
+**If your stream ends before all checkpoints are complete**, the host will inject a reminder message and resume your generation so you can finish the remaining work. You will see:
+
+```
+[user] ⚠ [system] Checkpoint plan incomplete. Remaining: search_restaurants, present_results. Continue from where you left off.
+```
+
+When you see this, continue working on the next incomplete checkpoint. Do not re-declare `checkpoints` or redo completed work.

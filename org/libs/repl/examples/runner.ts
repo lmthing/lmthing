@@ -50,6 +50,31 @@ IMPORTANT: After calling await stop(), STOP writing code. The runtime will pause
 ### display(element) — Show output to user
 Non-blocking. Appends a rendered component to the user's view.
 
+### checkpoints(plan) — Declare a task plan with milestones
+Before starting any implementation work, you MUST declare a plan using checkpoints(). This registers milestones with the host. Each checkpoint has an id, instructions, and outputSchema describing the result shape.
+
+Call checkpoints() exactly ONCE, before writing any implementation code. It does not block execution.
+
+Example:
+checkpoints({
+  description: "Analyze employee data",
+  tasks: [
+    { id: "load", instructions: "Load the dataset", outputSchema: { count: { type: "number" } } },
+    { id: "analyze", instructions: "Compute statistics", outputSchema: { done: { type: "boolean" } } },
+    { id: "report", instructions: "Present results", outputSchema: { done: { type: "boolean" } } }
+  ]
+})
+
+### checkpoint(id, output) — Mark a milestone as complete
+When you reach a milestone, call checkpoint() with its id and an output object matching the declared outputSchema. Non-blocking. Must be called in declaration order — do not skip checkpoints.
+
+Example:
+checkpoint("load", { count: 10 })
+
+If your stream ends before all checkpoints are complete, the host will send you a reminder:
+  ⚠ [system] Checkpoint plan incomplete. Remaining: analyze, report. Continue from where you left off.
+When you see this, continue from the next incomplete checkpoint. Do NOT re-declare checkpoints() or redo completed work.
+
 ## Workspace — Current Scope
 ${scope || '(no variables declared)'}
 
@@ -58,13 +83,39 @@ ${fnSigs || '(none)'}
 
 ## Rules
 1. Output ONLY valid TypeScript. No markdown. No prose outside // comments.
-2. Await every async call: var x = await fn()
-3. Use stop() to read runtime values before branching.
-4. Do not use console.log — use stop() to inspect values.
-5. Do not import modules. Do not use export.
-6. Use var for all declarations (not const/let) so they persist in the REPL scope across turns.
-7. Handle nullability with ?. and ??
-8. After calling await stop(...), STOP. Do not write any more code until you receive the stop response.
+2. Plan before you build — call checkpoints() first to declare milestones, then call checkpoint(id, output) as you complete each one.
+3. Await every async call: var x = await fn()
+4. Use stop() to read runtime values before branching.
+5. Do not use console.log — use stop() to inspect values.
+6. Do not import modules. Do not use export.
+7. Use var for all declarations (not const/let) so they persist in the REPL scope across turns.
+8. Handle nullability with ?. and ??
+9. After calling await stop(...), STOP. Do not write any more code until you receive the stop response.
+
+## Execution Flow Pattern
+
+A typical interaction follows this pattern:
+
+// 1. Plan — always start with checkpoints
+checkpoints({
+  description: "...",
+  tasks: [
+    { id: "step1", instructions: "...", outputSchema: { key: { type: "string" } } },
+    { id: "step2", instructions: "...", outputSchema: { done: { type: "boolean" } } }
+  ]
+})
+
+// 2. Do work for step 1
+var result = await someFunction()
+await stop(result)
+// ← stop { result: ... }
+
+// 3. Mark step 1 complete
+checkpoint("step1", { key: result.key })
+
+// 4. Do work for step 2
+var final = await anotherFunction()
+checkpoint("step2", { done: true })
 `
   if (instruct) prompt += `\n## Special Instructions\n${instruct}\n`
   return prompt
@@ -83,6 +134,8 @@ export interface RunnerOptions {
   functionSignatures?: string
   /** Max LLM turns (stop/resume cycles). Default: 10 */
   maxTurns?: number
+  /** Max checkpoint reminder cycles before giving up. Default: 3 */
+  maxCheckpointReminders?: number
   /** Custom instructions appended to system prompt */
   instruct?: string
 }
@@ -99,6 +152,7 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
     globals = {},
     functionSignatures = '',
     maxTurns = 10,
+    maxCheckpointReminders = 3,
     instruct,
   } = options
 
@@ -108,7 +162,7 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
   console.log(`\x1b[90mModel: ${modelId}\x1b[0m`)
   console.log(`\x1b[33m[user]\x1b[0m ${userMessage}\n`)
 
-  const session = new Session({ globals })
+  const session = new Session({ globals, config: { maxCheckpointReminders } })
 
   // Track events from sandbox execution
   let stopPayload: StopPayload | null = null
@@ -132,6 +186,15 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
         break
       case 'async_start':
         console.log(`\x1b[34m  [async]\x1b[0m started: ${event.label}`)
+        break
+      case 'checkpoint_plan':
+        console.log(`\x1b[36m  [checkpoints]\x1b[0m plan registered: ${event.plan.description} (${event.plan.tasks.length} tasks)`)
+        break
+      case 'checkpoint_complete':
+        console.log(`\x1b[32m  [checkpoint]\x1b[0m ✓ ${event.id}`)
+        break
+      case 'checkpoint_reminder':
+        console.log(`\x1b[33m  [system]\x1b[0m checkpoint reminder — remaining: ${event.remaining.join(', ')}`)
         break
     }
   })
@@ -191,8 +254,28 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
     }
 
     // Flush remaining buffer if no interruption
+    let checkpointIncomplete = false
     if (!stopPayload && !errorPayload) {
-      try { await session.finalize() } catch { /* ignore */ }
+      try {
+        const result = await session.finalize()
+        if (result === 'checkpoint_incomplete') {
+          checkpointIncomplete = true
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Handle checkpoint incomplete → inject reminder and loop
+    if (checkpointIncomplete) {
+      // The session already injected the reminder message internally.
+      // Refresh scope and continue the loop so the LLM gets another turn.
+      const freshScope = generateScopeTable(session.snapshot().scope)
+      messages[0] = { role: 'system', content: buildSystemPrompt(functionSignatures, freshScope, instruct) }
+      // Get the last two messages from session (assistant code + reminder)
+      const sessionMsgs = session.getMessages()
+      const reminderMsg = sessionMsgs[sessionMsgs.length - 1]
+      messages.push({ role: 'assistant', content: code })
+      messages.push({ role: 'user' as const, content: reminderMsg.content })
+      continue
     }
 
     // Handle stop → inject as user message and loop
@@ -234,6 +317,23 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
 
   if (turn >= maxTurns) {
     console.log(`\x1b[33m[limit]\x1b[0m Reached max turns (${maxTurns})`)
+  }
+
+  // Print checkpoint summary
+  const cpState = session.snapshot().checkpointState
+  if (cpState.plan) {
+    const total = cpState.plan.tasks.length
+    const done = cpState.completed.size
+    console.log(`\n\x1b[36m━━━ Checkpoints ━━━\x1b[0m`)
+    console.log(`${cpState.plan.description} — ${done}/${total} complete`)
+    for (const task of cpState.plan.tasks) {
+      const completion = cpState.completed.get(task.id)
+      if (completion) {
+        console.log(`  \x1b[32m✓\x1b[0m ${task.id}: ${JSON.stringify(completion.output)}`)
+      } else {
+        console.log(`  \x1b[31m✗\x1b[0m ${task.id}: incomplete`)
+      }
+    }
   }
 
   // Print final scope

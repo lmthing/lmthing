@@ -59,6 +59,8 @@ declare function stop(...values: any[]): Promise<void>
 declare function display(element: React.ReactElement): void
 declare function ask(formElement: React.ReactElement): Promise<Record<string, any>>
 declare function async(fn: () => Promise<void>): void
+declare function checkpoints(plan: CheckpointPlan): void
+declare function checkpoint(id: string, output: Record<string, any>): void
 
 // Injection payloads (only stop and error inject user messages)
 interface StopPayload {
@@ -101,6 +103,7 @@ interface SessionConfig {
   sessionTimeout: number        // default: 600_000
   maxStopCalls: number          // default: 50
   maxAsyncTasks: number         // default: 10
+  maxCheckpointReminders: number // default: 3 — max times host re-prompts agent to finish checkpoints
   maxContextTokens: number      // default: 100_000
   serializationLimits: {
     maxStringLength: number     // default: 2_000
@@ -130,6 +133,29 @@ interface ScopeEntry {
   name: string
   type: string
   value: string   // truncated serialized value
+}
+
+// Checkpoint types
+interface CheckpointTask {
+  id: string
+  instructions: string
+  outputSchema: Record<string, { type: string }>
+}
+
+interface CheckpointPlan {
+  description: string
+  tasks: CheckpointTask[]
+}
+
+interface CheckpointCompletion {
+  output: Record<string, any>
+  timestamp: number
+}
+
+interface CheckpointState {
+  plan: CheckpointPlan | null
+  completed: Map<string, CheckpointCompletion>
+  currentIndex: number
 }
 
 // Developer hooks (§8)

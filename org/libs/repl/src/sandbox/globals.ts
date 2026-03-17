@@ -1,4 +1,4 @@
-import type { StreamPauseController, RenderSurface, StopPayload, SerializedValue } from '../session/types'
+import type { StreamPauseController, RenderSurface, StopPayload, SerializedValue, CheckpointPlan, CheckpointState } from '../session/types'
 import { serialize } from '../stream/serializer'
 import { recoverArgumentNames } from '../parser/ast-utils'
 import { AsyncManager } from './async-manager'
@@ -17,10 +17,12 @@ export interface GlobalsConfig {
   onStop?: (payload: StopPayload, source: string) => void
   onDisplay?: (id: string) => void
   onAsyncStart?: (taskId: string, label: string) => void
+  onCheckpointPlan?: (plan: CheckpointPlan) => void
+  onCheckpointComplete?: (id: string, output: Record<string, any>) => void
 }
 
 /**
- * Create the four global functions: stop, display, ask, async.
+ * Create the six global functions: stop, display, ask, async, checkpoints, checkpoint.
  * These use callback interfaces, never importing stream-controller or session directly.
  */
 export function createGlobals(config: GlobalsConfig) {
@@ -30,6 +32,13 @@ export function createGlobals(config: GlobalsConfig) {
     asyncManager,
     askTimeout = 300_000,
   } = config
+
+  // ── Checkpoint state ──
+  const checkpointState: CheckpointState = {
+    plan: null,
+    completed: new Map(),
+    currentIndex: 0,
+  }
 
   let currentSource = ''
 
@@ -135,13 +144,94 @@ export function createGlobals(config: GlobalsConfig) {
     config.onAsyncStart?.(taskId, derivedLabel)
   }
 
+  /**
+   * checkpoints(plan) — Declare a task plan with milestones.
+   */
+  function checkpointsFn(plan: CheckpointPlan): void {
+    if (checkpointState.plan !== null) {
+      throw new Error('checkpoints() can only be called once per session')
+    }
+
+    if (!plan.description || !Array.isArray(plan.tasks) || plan.tasks.length === 0) {
+      throw new Error('checkpoints() requires a description and at least one task')
+    }
+
+    const ids = new Set<string>()
+    for (const task of plan.tasks) {
+      if (!task.id || !task.instructions || !task.outputSchema) {
+        throw new Error('Each checkpoint task must have id, instructions, and outputSchema')
+      }
+      if (ids.has(task.id)) {
+        throw new Error(`Duplicate checkpoint id: ${task.id}`)
+      }
+      ids.add(task.id)
+    }
+
+    checkpointState.plan = plan
+    renderSurface.appendCheckpointProgress?.(checkpointState)
+    config.onCheckpointPlan?.(plan)
+  }
+
+  /**
+   * checkpoint(id, output) — Mark a milestone as complete.
+   */
+  function checkpointFn(id: string, output: Record<string, any>): void {
+    if (!checkpointState.plan) {
+      throw new Error('checkpoint() called before checkpoints() — declare a plan first')
+    }
+
+    const taskIndex = checkpointState.plan.tasks.findIndex(t => t.id === id)
+    if (taskIndex === -1) {
+      throw new Error(`Unknown checkpoint id: ${id}`)
+    }
+
+    if (checkpointState.completed.has(id)) {
+      throw new Error(`Checkpoint "${id}" already completed`)
+    }
+
+    if (taskIndex !== checkpointState.currentIndex) {
+      const expected = checkpointState.plan.tasks[checkpointState.currentIndex]
+      throw new Error(
+        `Checkpoint "${id}" called out of order. Expected: "${expected.id}"`
+      )
+    }
+
+    // Validate output against schema
+    const task = checkpointState.plan.tasks[taskIndex]
+    for (const [key, schema] of Object.entries(task.outputSchema)) {
+      if (!(key in output)) {
+        throw new Error(`Checkpoint "${id}" output missing required key: ${key}`)
+      }
+      const expectedType = (schema as any).type
+      const value = output[key]
+      const actual = Array.isArray(value) ? 'array' : typeof value
+      if (actual !== expectedType) {
+        throw new Error(
+          `Checkpoint "${id}" output key "${key}": expected ${expectedType}, got ${actual}`
+        )
+      }
+    }
+
+    checkpointState.completed.set(id, {
+      output,
+      timestamp: Date.now(),
+    })
+    checkpointState.currentIndex++
+
+    renderSurface.updateCheckpointProgress?.(checkpointState)
+    config.onCheckpointComplete?.(id, output)
+  }
+
   return {
     stop: stopFn,
     display: displayFn,
     ask: askFn,
     async: asyncFn,
+    checkpoints: checkpointsFn,
+    checkpoint: checkpointFn,
     setCurrentSource,
     resolveStop,
+    getCheckpointState: () => checkpointState,
   }
 }
 

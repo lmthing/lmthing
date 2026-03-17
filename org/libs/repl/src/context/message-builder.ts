@@ -34,3 +34,11 @@ export function buildInterventionMessage(text: string): string {
 export function buildHookInterruptMessage(hookId: string, message: string): string {
   return `⚠ [hook:${hookId}] ${message}`
 }
+
+/**
+ * Build a user message for an incomplete checkpoint reminder.
+ * Format: ⚠ [system] Checkpoint plan incomplete. Remaining: id1, id2. Continue from where you left off.
+ */
+export function buildCheckpointReminderMessage(remainingIds: string[]): string {
+  return `⚠ [system] Checkpoint plan incomplete. Remaining: ${remainingIds.join(', ')}. Continue from where you left off.`
+}

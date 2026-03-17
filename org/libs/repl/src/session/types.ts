@@ -29,6 +29,30 @@ export interface AskCancellation {
   _cancelled: true
 }
 
+// ── Checkpoints ──
+
+export interface CheckpointTask {
+  id: string
+  instructions: string
+  outputSchema: Record<string, { type: string }>
+}
+
+export interface CheckpointPlan {
+  description: string
+  tasks: CheckpointTask[]
+}
+
+export interface CheckpointCompletion {
+  output: Record<string, any>
+  timestamp: number
+}
+
+export interface CheckpointState {
+  plan: CheckpointPlan | null
+  completed: Map<string, CheckpointCompletion>
+  currentIndex: number
+}
+
 // ── Scope ──
 
 export interface ScopeEntry {
@@ -105,6 +129,8 @@ export interface RenderSurface {
   append(id: string, element: ReactElement): void
   renderForm(id: string, element: ReactElement): Promise<Record<string, unknown>>
   cancelForm(id: string): void
+  appendCheckpointProgress?(state: CheckpointState): void
+  updateCheckpointProgress?(state: CheckpointState): void
 }
 
 // ── Session Events ──
@@ -123,6 +149,9 @@ export type SessionEvent =
   | { type: 'async_complete'; taskId: string; elapsed: number }
   | { type: 'async_failed'; taskId: string; error: string }
   | { type: 'async_cancelled'; taskId: string }
+  | { type: 'checkpoint_plan'; plan: CheckpointPlan }
+  | { type: 'checkpoint_complete'; id: string; output: Record<string, any> }
+  | { type: 'checkpoint_reminder'; remaining: string[] }
   | { type: 'status'; status: SessionStatus }
   | { type: 'scope'; entries: ScopeEntry[] }
 
@@ -138,4 +167,5 @@ export interface SessionSnapshot {
   scope: ScopeEntry[]
   asyncTasks: Array<{ id: string; label: string; status: string; elapsed: number }>
   activeFormId: string | null
+  checkpointState: CheckpointState
 }

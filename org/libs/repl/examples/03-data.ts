@@ -109,5 +109,7 @@ await runRepl({
   findSkill(employees: Employee[], skill: string): Employee[] — Find employees with a skill
   topN(employees: Employee[], field: string, n: number): Employee[] — Top N by field (descending)
   `,
+  maxTurns: 15,
+  maxCheckpointReminders: 6,
   instruct: 'Work through each question one at a time. Use stop() after each computation to inspect the result before moving to the next question.',
 })

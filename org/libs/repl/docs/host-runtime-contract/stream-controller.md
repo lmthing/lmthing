@@ -99,3 +99,19 @@ await stop(getX())       // ← stop { "arg_0": <value> }  (can't recover name)
 ```
 
 Use AST analysis on the `stop(...)` call to extract argument source text as keys. Fall back to `arg_0`, `arg_1`, etc. for complex expressions.
+
+### Incomplete Checkpoint Reminder
+
+When the LLM stream completes (stop token emitted) and a checkpoint plan exists with incomplete checkpoints, the stream controller must **not** finalize the session. Instead:
+
+1. Identify remaining checkpoints from `checkpointState.plan.tasks` that have not been completed.
+2. Inject a `⚠ [system]` prefixed user message listing the incomplete checkpoint IDs.
+3. Resume LLM generation so the agent can continue working.
+
+```
+← ⚠ [system] Checkpoint plan incomplete. Remaining: search_restaurants, present_results. Continue from where you left off.
+```
+
+This follows the same injection pattern as `stop`/`error`: pause → update `{{SCOPE}}` → append assistant code → append user message → resume.
+
+The host limits reminder cycles to a configurable maximum (default: 3). After exceeding the limit, the session ends with a warning displayed to the user.

@@ -51,4 +51,21 @@ describe('parser/global-detector', () => {
     expect(detectGlobalCall('  stop(x)  ')).toBe('stop')
     expect(detectGlobalCall('  await stop(x)  ')).toBe('stop')
   })
+
+  it('detects checkpoints call', () => {
+    expect(detectGlobalCall('checkpoints({ description: "test", tasks: [] })')).toBe('checkpoints')
+  })
+
+  it('detects checkpoint call', () => {
+    expect(detectGlobalCall('checkpoint("step1", { result: "done" })')).toBe('checkpoint')
+  })
+
+  it('detects checkpoints with leading whitespace', () => {
+    expect(detectGlobalCall('  checkpoints({})  ')).toBe('checkpoints')
+  })
+
+  it('does not confuse checkpoint with checkpoints', () => {
+    expect(detectGlobalCall('checkpoint("id", {})')).toBe('checkpoint')
+    expect(detectGlobalCall('checkpoints({})')).toBe('checkpoints')
+  })
 })

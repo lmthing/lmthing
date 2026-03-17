@@ -8,6 +8,8 @@ import type {
   ScopeEntry,
   Hook,
   LineResult,
+  CheckpointPlan,
+  CheckpointState,
 } from './types'
 import type { SessionConfig } from './config'
 import { createDefaultConfig, mergeConfig } from './config'
@@ -17,7 +19,7 @@ import { AsyncManager } from '../sandbox/async-manager'
 import { StreamController } from '../stream/stream-controller'
 import { HookRegistry } from '../hooks/hook-registry'
 import { generateScopeTable } from '../context/scope-generator'
-import { buildStopMessage, buildErrorMessage, buildInterventionMessage } from '../context/message-builder'
+import { buildStopMessage, buildErrorMessage, buildInterventionMessage, buildCheckpointReminderMessage } from '../context/message-builder'
 
 export interface SessionOptions {
   config?: Partial<SessionConfig>
@@ -38,6 +40,7 @@ export class Session extends EventEmitter {
   private messages: Array<{ role: string; content: string }> = []
   private activeFormId: string | null = null
   private stopCount = 0
+  private checkpointReminderCount = 0
 
   constructor(options: SessionOptions = {}) {
     super()
@@ -105,6 +108,12 @@ export class Session extends EventEmitter {
       onAsyncStart: (taskId, label) => {
         this.emitEvent({ type: 'async_start', taskId, label })
       },
+      onCheckpointPlan: (plan) => {
+        this.emitEvent({ type: 'checkpoint_plan', plan })
+      },
+      onCheckpointComplete: (id, output) => {
+        this.emitEvent({ type: 'checkpoint_complete', id, output })
+      },
     })
 
     // Inject globals into sandbox
@@ -112,6 +121,8 @@ export class Session extends EventEmitter {
     this.sandbox.inject('display', this.globalsApi.display)
     this.sandbox.inject('ask', this.globalsApi.ask)
     this.sandbox.inject('async', this.globalsApi.async)
+    this.sandbox.inject('checkpoints', this.globalsApi.checkpoints)
+    this.sandbox.inject('checkpoint', this.globalsApi.checkpoint)
   }
 
   private async executeStatement(source: string): Promise<LineResult> {
@@ -158,11 +169,30 @@ export class Session extends EventEmitter {
 
   /**
    * Finalize the LLM stream.
+   * Returns 'complete' if done, or 'checkpoint_incomplete' if checkpoints remain.
    */
-  async finalize(): Promise<void> {
+  async finalize(): Promise<'complete' | 'checkpoint_incomplete'> {
     await this.streamController.finalize()
+
+    // Check for incomplete checkpoints
+    const cpState = this.globalsApi.getCheckpointState()
+    if (cpState.plan && cpState.currentIndex < cpState.plan.tasks.length) {
+      if (this.checkpointReminderCount < this.config.maxCheckpointReminders) {
+        this.checkpointReminderCount++
+        const remaining = cpState.plan.tasks.slice(cpState.currentIndex).map(t => t.id)
+        const msg = buildCheckpointReminderMessage(remaining)
+        this.messages.push({ role: 'assistant', content: this.codeLines.join('\n') })
+        this.messages.push({ role: 'user', content: msg })
+        this.codeLines = []
+        this.emitEvent({ type: 'checkpoint_reminder', remaining })
+        this.emitEvent({ type: 'scope', entries: this.sandbox.getScope() })
+        return 'checkpoint_incomplete'
+      }
+    }
+
     await this.asyncManager.drain(5000)
     this.setStatus('complete')
+    return 'complete'
   }
 
   /**
@@ -240,6 +270,7 @@ export class Session extends EventEmitter {
         elapsed: Date.now() - t.startTime,
       })),
       activeFormId: this.activeFormId,
+      checkpointState: this.globalsApi.getCheckpointState(),
     }
   }
 

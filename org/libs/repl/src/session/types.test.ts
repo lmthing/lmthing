@@ -19,6 +19,10 @@ import type {
   SerializedJSX,
   SessionSnapshot,
   SerializedValue,
+  CheckpointTask,
+  CheckpointPlan,
+  CheckpointCompletion,
+  CheckpointState,
 } from './types'
 
 describe('session/types', () => {
@@ -146,6 +150,79 @@ describe('session/types', () => {
     }
     expect(match.captures.name).toBe('x')
     expect(ctx.lineNumber).toBe(1)
+  })
+
+  it('CheckpointTask has required fields', () => {
+    const task: CheckpointTask = {
+      id: 'gather_input',
+      instructions: 'Ask the user for location',
+      outputSchema: { zipcode: { type: 'string' } },
+    }
+    expect(task.id).toBe('gather_input')
+    expect(task.outputSchema.zipcode.type).toBe('string')
+  })
+
+  it('CheckpointPlan has description and tasks', () => {
+    const plan: CheckpointPlan = {
+      description: 'Find restaurants',
+      tasks: [
+        { id: 'search', instructions: 'Search for restaurants', outputSchema: { count: { type: 'number' } } },
+      ],
+    }
+    expect(plan.description).toBe('Find restaurants')
+    expect(plan.tasks).toHaveLength(1)
+  })
+
+  it('CheckpointCompletion has output and timestamp', () => {
+    const completion: CheckpointCompletion = {
+      output: { count: 5 },
+      timestamp: Date.now(),
+    }
+    expect(completion.output.count).toBe(5)
+    expect(completion.timestamp).toBeGreaterThan(0)
+  })
+
+  it('CheckpointState tracks plan, completed, and currentIndex', () => {
+    const state: CheckpointState = {
+      plan: null,
+      completed: new Map(),
+      currentIndex: 0,
+    }
+    expect(state.plan).toBeNull()
+    expect(state.completed.size).toBe(0)
+    expect(state.currentIndex).toBe(0)
+  })
+
+  it('SessionEvent covers checkpoint events', () => {
+    const planEvent: SessionEvent = {
+      type: 'checkpoint_plan',
+      plan: { description: 'test', tasks: [] },
+    }
+    const completeEvent: SessionEvent = {
+      type: 'checkpoint_complete',
+      id: 'step1',
+      output: { done: true },
+    }
+    const reminderEvent: SessionEvent = {
+      type: 'checkpoint_reminder',
+      remaining: ['step2', 'step3'],
+    }
+    expect(planEvent.type).toBe('checkpoint_plan')
+    expect(completeEvent.type).toBe('checkpoint_complete')
+    expect(reminderEvent.type).toBe('checkpoint_reminder')
+  })
+
+  it('SessionSnapshot includes checkpointState', () => {
+    const snap: SessionSnapshot = {
+      status: 'executing',
+      blocks: [],
+      scope: [],
+      asyncTasks: [],
+      activeFormId: null,
+      checkpointState: { plan: null, completed: new Map(), currentIndex: 0 },
+    }
+    expect(snap.checkpointState).toBeDefined()
+    expect(snap.checkpointState.plan).toBeNull()
   })
 
   it('callback interfaces can be implemented', () => {

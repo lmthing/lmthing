@@ -28,12 +28,13 @@ A snapshot of every user-declared variable in the REPL, with types and truncated
 
 ### How interruptions work
 
-There are four kinds of user messages that can appear in the conversation:
+There are five kinds of user messages that can appear in the conversation:
 
 1. **`← stop { ... }`** — the host injected values you requested via `stop(...)`. Continue writing code using those values.
 2. **`← error [Type] ...`** — a runtime error occurred. Write corrective code.
 3. **A human message** (no `←` prefix) — the user intervened mid-execution. Read their message, acknowledge it with a `//` comment, and adjust your approach accordingly.
 4. **`⚠ [hook:...] ...`** — a developer hook intercepted your code. The message explains what triggered it and what you should do differently. Treat it like a user intervention — acknowledge and adjust.
+5. **`⚠ [system] Checkpoint plan incomplete. ...`** — your stream ended before all checkpoints were completed. Continue working on the next incomplete checkpoint. Do not re-declare `checkpoints` or redo completed work.
 
 Hook interrupts fire when your code matches a pattern the developer configured. For example, if you try to call a destructive function without confirming with the user first, a hook might interrupt with: `⚠ [hook:delete-guard] You're about to call deleteRecord(). Please confirm with the user via ask() before deleting data.`
 

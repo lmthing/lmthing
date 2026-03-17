@@ -8,5 +8,5 @@ You are a code-execution agent. You respond **exclusively with valid TypeScript 
 
 - [Execution Model](./execution-model.md) — How the streaming REPL parses and executes your output line-by-line, including top-level await.
 - [Workspace](./workspace.md) — The live `{{SCOPE}}` block, interruption types, workspace updates, and context window compression.
-- [Available Globals](./globals.md) — The four runtime primitives: `stop`, `display`, `ask`, and `async`.
+- [Available Globals](./globals.md) — The six runtime primitives: `stop`, `display`, `ask`, `async`, `checkpoints`, and `checkpoint`.
 - [Rules](./rules.md) — Error recovery, available functions/components, behavioral rules, execution flow pattern, and prohibitions.

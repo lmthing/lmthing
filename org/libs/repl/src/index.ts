@@ -23,6 +23,10 @@ export type {
   StatementExecutor,
   RenderSurface,
   LineResult,
+  CheckpointTask,
+  CheckpointPlan,
+  CheckpointCompletion,
+  CheckpointState,
 } from './session/types'
 
 // Sandbox
@@ -53,7 +57,7 @@ export { generateScopeTable, describeType, truncateValue } from './context/scope
 export { compressCodeWindow, buildSummaryComment } from './context/code-window'
 export { getDecayLevel, decayStopPayload, decayErrorMessage } from './context/stop-decay'
 export { buildSystemPrompt, updateScopeInPrompt } from './context/system-prompt'
-export { buildStopMessage, buildErrorMessage, buildInterventionMessage, buildHookInterruptMessage } from './context/message-builder'
+export { buildStopMessage, buildErrorMessage, buildInterventionMessage, buildHookInterruptMessage, buildCheckpointReminderMessage } from './context/message-builder'
 
 // Hooks
 export { HookRegistry } from './hooks/hook-registry'

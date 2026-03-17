@@ -2,7 +2,7 @@
 
 ## Overview
 
-Four globals are injected into the REPL sandbox: `stop`, `display`, `ask`, and `async`. These are the agent's only control-flow primitives beyond raw TypeScript.
+Six globals are injected into the REPL sandbox: `stop`, `display`, `ask`, `async`, `checkpoints`, and `checkpoint`. These are the agent's only control-flow primitives beyond raw TypeScript.
 
 **Full specification:** [docs/host-runtime-contract/globals-implementation.md](../../docs/host-runtime-contract/globals-implementation.md)
 
@@ -80,3 +80,33 @@ Spawns an async task that runs concurrently. Returns synchronously — does NOT 
 Replacing the global `stop` is unsafe with concurrent tasks. Options:
 - At transpile time, rewrite `stop` calls inside `async(() => { ... })` blocks to reference the task-scoped version
 - Use `AsyncLocalStorage` (Node.js) to route `stop` calls to the correct task
+
+## `checkpoints(plan)` — Declare Task Plan
+
+Synchronous — registers a checkpoint plan with the host and renders a progress UI. Does NOT block execution.
+
+### Key implementation details:
+1. Can only be called **once** per session — throws if called again
+2. Validates plan structure: requires `description`, non-empty `tasks` array
+3. Each task must have unique `id`, `instructions`, and `outputSchema`
+4. Stores plan in `CheckpointState` — tracks `plan`, `completed` map, and `currentIndex`
+5. Renders persistent progress indicator (stepper/checklist) via render surface
+
+## `checkpoint(id, output)` — Mark Milestone Complete
+
+Synchronous — marks a checkpoint as done and validates output against the declared schema. Does NOT block execution.
+
+### Key implementation details:
+1. Throws if called before `checkpoints()` — plan must be declared first
+2. Validates `id` exists in plan and hasn't already been completed
+3. Enforces **sequential ordering** — checkpoints must be completed in declaration order
+4. Validates output keys and types against the task's `outputSchema`
+5. Records completion with output and timestamp
+6. Updates persistent progress UI
+
+### Incomplete Checkpoint Reminder
+When LLM emits stop token with incomplete checkpoints:
+1. Build list of remaining checkpoint IDs
+2. Inject `⚠ [system] Checkpoint plan incomplete. Remaining: <ids>. Continue from where you left off.`
+3. Resume LLM generation
+4. Limit reminder cycles to `maxCheckpointReminders` (default: 3) to prevent infinite loops

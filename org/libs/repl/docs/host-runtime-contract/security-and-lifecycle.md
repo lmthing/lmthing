@@ -35,6 +35,8 @@ STREAM LOOP
     → ask()?             → pause, render form, wait for submit, assign to sandbox, resume silently
     → display()          → render component, continue
     → async()            → register task (+ abort controller), continue
+    → checkpoints()      → register plan, render progress UI, continue
+    → checkpoint()       → validate output, record completion, update progress UI, continue
   → On user intervention (message sent mid-execution):
     → pause, update {{SCOPE}}, finalize assistant turn, append user message, resume
   → On user pause:
@@ -44,6 +46,9 @@ STREAM LOOP
 
 COMPLETION
   → LLM emits stop token
+  → If checkpoint plan exists with incomplete tasks:
+    → inject ⚠ [system] reminder as user message, resume generation
+    → repeat up to maxCheckpointReminders (default: 3) times
   → Drain remaining async tasks (with timeout)
   → Final render pass
   → Session complete

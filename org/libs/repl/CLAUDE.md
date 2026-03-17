@@ -56,15 +56,15 @@ Four subsystems:
 - **`display(jsx)`** — Non-blocking render of React components to the user's viewport.
 - **`ask(jsx)`** — Blocking form render. Resumes silently — agent must call `stop` to see values.
 - **`async(fn)`** — Fire-and-forget background task. Results delivered via next `stop` call.
-- **`checkpoints(plan)`** — Declare a task plan with milestones before starting work. Each task has `id`, `instructions`, and `outputSchema`. Called once per session.
-- **`checkpoint(id, output)`** — Mark a milestone as complete with validated output. Must be called in declaration order. If the agent's stream ends with incomplete checkpoints, the host injects a reminder and resumes generation.
+- **`checkpoints(tasklistId, description, tasks)`** — Declare a task plan with milestones before starting work. Each task has `id`, `instructions`, and `outputSchema`. Can be called multiple times per session with different `tasklistId` values.
+- **`checkpoint(tasklistId, checkpointId, output)`** — Mark a milestone as complete with validated output. Must include the `tasklistId` and be called in declaration order within each tasklist. If the agent's stream ends with incomplete checkpoints, the host injects a reminder and resumes generation.
 
 ### Conversation Protocol
 - `stop` and `error` create turn boundaries (inject `role: 'user'` messages with `←` prefix)
 - `ask` resumes silently — no message injected, assistant turn continues
 - User interventions inject raw text (no prefix) — agent adjusts via `//` comments
 - Hook interrupts inject `⚠ [hook:id]` prefixed messages
-- Incomplete checkpoint reminders inject `⚠ [system]` prefixed messages when the agent's stream ends before all checkpoints are complete
+- Incomplete checkpoint reminders inject `⚠ [system] Tasklist "<tasklistId>" incomplete.` prefixed messages when the agent's stream ends before all checkpoints are complete
 
 ### Context Management
 - **`{{SCOPE}}`** — Live variable table in system prompt, replaced on every injection. Never compressed. Agent's source of truth.

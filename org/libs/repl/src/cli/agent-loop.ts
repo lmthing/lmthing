@@ -153,13 +153,13 @@ export class AgentLoop {
             console.log(`\x1b[33m  [async]\x1b[0m cancelled: ${event.taskId}`)
             break
           case 'checkpoint_plan':
-            console.log(`\x1b[36m  [checkpoints]\x1b[0m plan registered: ${event.plan.description} (${event.plan.tasks.length} tasks)`)
+            console.log(`\x1b[36m  [checkpoints]\x1b[0m plan registered: [${event.tasklistId}] ${event.plan.description} (${event.plan.tasks.length} tasks)`)
             break
           case 'checkpoint_complete':
-            console.log(`\x1b[32m  [checkpoint]\x1b[0m ✓ ${event.id}`)
+            console.log(`\x1b[32m  [checkpoint]\x1b[0m ✓ ${event.tasklistId}/${event.id}`)
             break
           case 'checkpoint_reminder':
-            console.log(`\x1b[33m  [system]\x1b[0m checkpoint reminder — remaining: ${event.remaining.join(', ')}`)
+            console.log(`\x1b[33m  [system]\x1b[0m tasklist "${event.tasklistId}" reminder — remaining: ${event.remaining.join(', ')}`)
             break
           case 'hook':
             console.log(`\x1b[35m  [hook]\x1b[0m ${event.hookId} → ${event.action}: ${event.detail}`)
@@ -309,17 +309,19 @@ export class AgentLoop {
 
     // Print checkpoint summary
     const cpState = this.session.snapshot().checkpointState
-    if (cpState.plan) {
-      const total = cpState.plan.tasks.length
-      const done = cpState.completed.size
+    if (cpState.tasklists.size > 0) {
       console.log(`\n\x1b[36m━━━ Checkpoints ━━━\x1b[0m`)
-      console.log(`${cpState.plan.description} — ${done}/${total} complete`)
-      for (const task of cpState.plan.tasks) {
-        const completion = cpState.completed.get(task.id)
-        if (completion) {
-          console.log(`  \x1b[32m✓\x1b[0m ${task.id}: ${JSON.stringify(completion.output)}`)
-        } else {
-          console.log(`  \x1b[31m✗\x1b[0m ${task.id}: incomplete`)
+      for (const [tasklistId, tasklist] of cpState.tasklists) {
+        const total = tasklist.plan.tasks.length
+        const done = tasklist.completed.size
+        console.log(`\x1b[36m[${tasklistId}]\x1b[0m ${tasklist.plan.description} — ${done}/${total} complete`)
+        for (const task of tasklist.plan.tasks) {
+          const completion = tasklist.completed.get(task.id)
+          if (completion) {
+            console.log(`  \x1b[32m✓\x1b[0m ${task.id}: ${JSON.stringify(completion.output)}`)
+          } else {
+            console.log(`  \x1b[31m✗\x1b[0m ${task.id}: incomplete`)
+          }
         }
       }
     }

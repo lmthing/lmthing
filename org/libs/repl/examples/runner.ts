@@ -51,29 +51,26 @@ IMPORTANT: After calling await stop(), STOP writing code. The runtime will pause
 ### display(element) — Show output to user
 Non-blocking. Appends a rendered component to the user's view.
 
-### checkpoints(plan) — Declare a task plan with milestones
-Before starting any implementation work, you MUST declare a plan using checkpoints(). This registers milestones with the host. Each checkpoint has an id, instructions, and outputSchema describing the result shape.
+### checkpoints(tasklistId, description, tasks) — Declare a task plan with milestones
+Before starting any implementation work, declare a plan using checkpoints(). This registers milestones with the host. Each checkpoint has an id, instructions, and outputSchema describing the result shape.
 
-Call checkpoints() exactly ONCE, before writing any implementation code. It does not block execution.
-
-Example:
-checkpoints({
-  description: "Analyze employee data",
-  tasks: [
-    { id: "load", instructions: "Load the dataset", outputSchema: { count: { type: "number" } } },
-    { id: "analyze", instructions: "Compute statistics", outputSchema: { done: { type: "boolean" } } },
-    { id: "report", instructions: "Present results", outputSchema: { done: { type: "boolean" } } }
-  ]
-})
-
-### checkpoint(id, output) — Mark a milestone as complete
-When you reach a milestone, call checkpoint() with its id and an output object matching the declared outputSchema. Non-blocking. Must be called in declaration order — do not skip checkpoints.
+You can call checkpoints() multiple times per session with different tasklist IDs. It does not block execution.
 
 Example:
-checkpoint("load", { count: 10 })
+checkpoints("analyze_data", "Analyze employee data", [
+  { id: "load", instructions: "Load the dataset", outputSchema: { count: { type: "number" } } },
+  { id: "analyze", instructions: "Compute statistics", outputSchema: { done: { type: "boolean" } } },
+  { id: "report", instructions: "Present results", outputSchema: { done: { type: "boolean" } } }
+])
+
+### checkpoint(tasklistId, checkpointId, output) — Mark a milestone as complete
+When you reach a milestone, call checkpoint() with the tasklist ID, checkpoint ID, and an output object matching the declared outputSchema. Non-blocking. Must be called in declaration order within each tasklist — do not skip checkpoints.
+
+Example:
+checkpoint("analyze_data", "load", { count: 10 })
 
 If your stream ends before all checkpoints are complete, the host will send you a reminder:
-  ⚠ [system] Checkpoint plan incomplete. Remaining: analyze, report. Continue from where you left off.
+  ⚠ [system] Tasklist "analyze_data" incomplete. Remaining: analyze, report. Continue from where you left off.
 When you see this, continue from the next incomplete checkpoint. Do NOT re-declare checkpoints() or redo completed work.
 
 ## Workspace — Current Scope
@@ -84,7 +81,7 @@ ${fnSigs || '(none)'}
 
 ## Rules
 1. Output ONLY valid TypeScript. No markdown. No prose outside // comments.
-2. Plan before you build — call checkpoints() first to declare milestones, then call checkpoint(id, output) as you complete each one.
+2. Plan before you build — call checkpoints(tasklistId, description, tasks) to declare milestones, then call checkpoint(tasklistId, checkpointId, output) as you complete each one. You can declare multiple tasklists.
 3. Await every async call: var x = await fn()
 4. Use stop() to read runtime values before branching.
 5. Do not use console.log — use stop() to inspect values.
@@ -98,13 +95,10 @@ ${fnSigs || '(none)'}
 A typical interaction follows this pattern:
 
 // 1. Plan — always start with checkpoints
-checkpoints({
-  description: "...",
-  tasks: [
-    { id: "step1", instructions: "...", outputSchema: { key: { type: "string" } } },
-    { id: "step2", instructions: "...", outputSchema: { done: { type: "boolean" } } }
-  ]
-})
+checkpoints("main", "Do the task", [
+  { id: "step1", instructions: "...", outputSchema: { key: { type: "string" } } },
+  { id: "step2", instructions: "...", outputSchema: { done: { type: "boolean" } } }
+])
 
 // 2. Do work for step 1
 var result = await someFunction()
@@ -112,11 +106,11 @@ await stop(result)
 // ← stop { result: ... }
 
 // 3. Mark step 1 complete
-checkpoint("step1", { key: result.key })
+checkpoint("main", "step1", { key: result.key })
 
 // 4. Do work for step 2
 var final = await anotherFunction()
-checkpoint("step2", { done: true })
+checkpoint("main", "step2", { done: true })
 `
   if (instruct) prompt += `\n## Special Instructions\n${instruct}\n`
   return prompt
@@ -210,13 +204,13 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
         console.log(`\x1b[34m  [async]\x1b[0m started: ${event.label}`)
         break
       case 'checkpoint_plan':
-        console.log(`\x1b[36m  [checkpoints]\x1b[0m plan registered: ${event.plan.description} (${event.plan.tasks.length} tasks)`)
+        console.log(`\x1b[36m  [checkpoints]\x1b[0m plan registered: [${event.tasklistId}] ${event.plan.description} (${event.plan.tasks.length} tasks)`)
         break
       case 'checkpoint_complete':
-        console.log(`\x1b[32m  [checkpoint]\x1b[0m ✓ ${event.id}`)
+        console.log(`\x1b[32m  [checkpoint]\x1b[0m ✓ ${event.tasklistId}/${event.id}`)
         break
       case 'checkpoint_reminder':
-        console.log(`\x1b[33m  [system]\x1b[0m checkpoint reminder — remaining: ${event.remaining.join(', ')}`)
+        console.log(`\x1b[33m  [system]\x1b[0m tasklist "${event.tasklistId}" reminder — remaining: ${event.remaining.join(', ')}`)
         break
     }
   })
@@ -387,17 +381,19 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
 
   // Print checkpoint summary
   const cpState = session.snapshot().checkpointState
-  if (cpState.plan) {
-    const total = cpState.plan.tasks.length
-    const done = cpState.completed.size
+  if (cpState.tasklists.size > 0) {
     console.log(`\n\x1b[36m━━━ Checkpoints ━━━\x1b[0m`)
-    console.log(`${cpState.plan.description} — ${done}/${total} complete`)
-    for (const task of cpState.plan.tasks) {
-      const completion = cpState.completed.get(task.id)
-      if (completion) {
-        console.log(`  \x1b[32m✓\x1b[0m ${task.id}: ${JSON.stringify(completion.output)}`)
-      } else {
-        console.log(`  \x1b[31m✗\x1b[0m ${task.id}: incomplete`)
+    for (const [tasklistId, tasklist] of cpState.tasklists) {
+      const total = tasklist.plan.tasks.length
+      const done = tasklist.completed.size
+      console.log(`\x1b[36m[${tasklistId}]\x1b[0m ${tasklist.plan.description} — ${done}/${total} complete`)
+      for (const task of tasklist.plan.tasks) {
+        const completion = tasklist.completed.get(task.id)
+        if (completion) {
+          console.log(`  \x1b[32m✓\x1b[0m ${task.id}: ${JSON.stringify(completion.output)}`)
+        } else {
+          console.log(`  \x1b[31m✗\x1b[0m ${task.id}: incomplete`)
+        }
       }
     }
   }
@@ -419,12 +415,14 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
       status: snapshot.status,
       tokenTotals,
       scope: snapshot.scope,
-      checkpointState: snapshot.checkpointState.plan ? {
-        description: snapshot.checkpointState.plan.description,
-        tasks: snapshot.checkpointState.plan.tasks,
-        completed: Object.fromEntries(snapshot.checkpointState.completed),
-        currentIndex: snapshot.checkpointState.currentIndex,
-      } : null,
+      checkpointState: snapshot.checkpointState.tasklists.size > 0 ? Object.fromEntries(
+        [...snapshot.checkpointState.tasklists].map(([id, tl]) => [id, {
+          description: tl.plan.description,
+          tasks: tl.plan.tasks,
+          completed: Object.fromEntries(tl.completed),
+          currentIndex: tl.currentIndex,
+        }])
+      ) : null,
       messages: messages.map(m => ({ role: m.role, content: m.content })),
     })
 

@@ -82,9 +82,9 @@ Use AST analysis on `stop(...)` call to extract argument source text as keys:
 
 ## Incomplete Checkpoint Reminder
 
-When LLM stream completes (stop token) with an active checkpoint plan that has incomplete tasks:
+When LLM stream completes (stop token) with any tasklist that has incomplete checkpoints:
 1. Do **not** finalize the session
-2. Identify remaining checkpoint IDs from `checkpointState`
-3. Inject `⚠ [system] Checkpoint plan incomplete. Remaining: <ids>. Continue from where you left off.` as user message
+2. Find the first tasklist with remaining checkpoints from `checkpointState.tasklists`
+3. Inject `⚠ [system] Tasklist "<tasklistId>" incomplete. Remaining: <ids>. Continue from where you left off.` as user message
 4. Resume LLM generation (same injection pattern as stop/error)
 5. Limit to `maxCheckpointReminders` (default: 3) cycles to prevent infinite loops

@@ -59,8 +59,8 @@ declare function stop(...values: any[]): Promise<void>
 declare function display(element: React.ReactElement): void
 declare function ask(formElement: React.ReactElement): Promise<Record<string, any>>
 declare function async(fn: () => Promise<void>): void
-declare function checkpoints(plan: CheckpointPlan): void
-declare function checkpoint(id: string, output: Record<string, any>): void
+declare function checkpoints(tasklistId: string, description: string, tasks: CheckpointTask[]): void
+declare function checkpoint(tasklistId: string, id: string, output: Record<string, any>): void
 
 // Injection payloads (only stop and error inject user messages)
 interface StopPayload {
@@ -143,6 +143,7 @@ interface CheckpointTask {
 }
 
 interface CheckpointPlan {
+  tasklistId: string
   description: string
   tasks: CheckpointTask[]
 }
@@ -152,10 +153,14 @@ interface CheckpointCompletion {
   timestamp: number
 }
 
-interface CheckpointState {
-  plan: CheckpointPlan | null
+interface TasklistState {
+  plan: CheckpointPlan
   completed: Map<string, CheckpointCompletion>
   currentIndex: number
+}
+
+interface CheckpointState {
+  tasklists: Map<string, TasklistState>
 }
 
 // Developer hooks (§8)

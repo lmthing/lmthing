@@ -55,7 +55,7 @@ describe('session/session', () => {
     expect(snap.asyncTasks).toEqual([])
     expect(snap.activeFormId).toBeNull()
     expect(snap.checkpointState).toBeDefined()
-    expect(snap.checkpointState.plan).toBeNull()
+    expect(snap.checkpointState.tasklists.size).toBe(0)
     session.destroy()
   })
 
@@ -125,8 +125,8 @@ describe('session/session', () => {
     const events: SessionEvent[] = []
     session.on('event', (e) => events.push(e))
 
-    await session.feedToken('checkpoints({ description: "test", tasks: [{ id: "s1", instructions: "do s1", outputSchema: { x: { type: "number" } } }] })\n')
-    await session.feedToken('checkpoint("s1", { x: 42 })\n')
+    await session.feedToken('checkpoints("tl1", "test", [{ id: "s1", instructions: "do s1", outputSchema: { x: { type: "number" } } }])\n')
+    await session.feedToken('checkpoint("tl1", "s1", { x: 42 })\n')
 
     expect(events.some(e => e.type === 'checkpoint_plan')).toBe(true)
     expect(events.some(e => e.type === 'checkpoint_complete')).toBe(true)
@@ -138,8 +138,8 @@ describe('session/session', () => {
     const events: SessionEvent[] = []
     session.on('event', (e) => events.push(e))
 
-    await session.feedToken('checkpoints({ description: "test", tasks: [{ id: "s1", instructions: "do s1", outputSchema: { x: { type: "number" } } }, { id: "s2", instructions: "do s2", outputSchema: { y: { type: "string" } } }] })\n')
-    await session.feedToken('checkpoint("s1", { x: 42 })\n')
+    await session.feedToken('checkpoints("tl1", "test", [{ id: "s1", instructions: "do s1", outputSchema: { x: { type: "number" } } }, { id: "s2", instructions: "do s2", outputSchema: { y: { type: "string" } } }])\n')
+    await session.feedToken('checkpoint("tl1", "s1", { x: 42 })\n')
 
     const result = await session.finalize()
     expect(result).toBe('checkpoint_incomplete')
@@ -150,8 +150,8 @@ describe('session/session', () => {
   it('finalize returns complete when all checkpoints done', async () => {
     const session = new Session()
 
-    await session.feedToken('checkpoints({ description: "test", tasks: [{ id: "s1", instructions: "do s1", outputSchema: { x: { type: "number" } } }] })\n')
-    await session.feedToken('checkpoint("s1", { x: 42 })\n')
+    await session.feedToken('checkpoints("tl1", "test", [{ id: "s1", instructions: "do s1", outputSchema: { x: { type: "number" } } }])\n')
+    await session.feedToken('checkpoint("tl1", "s1", { x: 42 })\n')
 
     const result = await session.finalize()
     expect(result).toBe('complete')
@@ -173,7 +173,7 @@ describe('session/session', () => {
       if (e.type === 'checkpoint_reminder') reminders.push(e.remaining)
     })
 
-    await session.feedToken('checkpoints({ description: "test", tasks: [{ id: "s1", instructions: "do s1", outputSchema: { x: { type: "number" } } }] })\n')
+    await session.feedToken('checkpoints("tl1", "test", [{ id: "s1", instructions: "do s1", outputSchema: { x: { type: "number" } } }])\n')
 
     // First finalize — should return incomplete
     const r1 = await session.finalize()

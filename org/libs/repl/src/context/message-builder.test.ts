@@ -53,14 +53,14 @@ describe('context/message-builder', () => {
   })
 
   describe('buildCheckpointReminderMessage', () => {
-    it('formats checkpoint reminder with remaining ids', () => {
-      const msg = buildCheckpointReminderMessage(['search', 'present'])
-      expect(msg).toBe('⚠ [system] Checkpoint plan incomplete. Remaining: search, present. Continue from where you left off.')
+    it('formats checkpoint reminder with tasklist id and remaining ids', () => {
+      const msg = buildCheckpointReminderMessage('find_restaurants', ['search', 'present'])
+      expect(msg).toBe('⚠ [system] Tasklist "find_restaurants" incomplete. Remaining: search, present. Continue from where you left off.')
     })
 
     it('formats single remaining checkpoint', () => {
-      const msg = buildCheckpointReminderMessage(['final'])
-      expect(msg).toBe('⚠ [system] Checkpoint plan incomplete. Remaining: final. Continue from where you left off.')
+      const msg = buildCheckpointReminderMessage('main', ['final'])
+      expect(msg).toBe('⚠ [system] Tasklist "main" incomplete. Remaining: final. Continue from where you left off.')
     })
   })
 })

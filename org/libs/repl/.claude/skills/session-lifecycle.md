@@ -22,8 +22,8 @@ STREAM LOOP
     → ask()?      → pause, render form, wait for submit, assign to sandbox, resume silently
     → display()   → render component, continue
     → async()     → register task (+ abort controller), continue
-    → checkpoints() → register plan, render progress UI, continue
-    → checkpoint()  → validate output, record completion, update progress UI, continue
+    → checkpoints(tasklistId, description, tasks) → register plan in tasklists map, render progress UI, continue
+    → checkpoint(tasklistId, id, output)  → validate output, record completion, update progress UI, continue
   → On user intervention:
     → pause, update {{SCOPE}}, finalize assistant turn, inject user message, resume
   → On user pause:
@@ -33,8 +33,8 @@ STREAM LOOP
 
 COMPLETION
   → LLM emits stop token
-  → If checkpoint plan exists with incomplete tasks:
-    → inject ⚠ [system] reminder as user message, resume generation
+  → If any tasklist has incomplete checkpoints:
+    → inject ⚠ [system] tasklist reminder as user message, resume generation
     → repeat up to maxCheckpointReminders (default: 3) times
   → Drain remaining async tasks (with timeout)
   → Final render pass
@@ -108,6 +108,6 @@ declare function stop(...values: any[]): Promise<void>
 declare function display(element: React.ReactElement): void
 declare function ask(formElement: React.ReactElement): Promise<Record<string, any>>
 declare function async(fn: () => Promise<void>): void
-declare function checkpoints(plan: CheckpointPlan): void
-declare function checkpoint(id: string, output: Record<string, any>): void
+declare function checkpoints(tasklistId: string, description: string, tasks: CheckpointTask[]): void
+declare function checkpoint(tasklistId: string, id: string, output: Record<string, any>): void
 ```

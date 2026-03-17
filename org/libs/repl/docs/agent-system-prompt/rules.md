@@ -52,7 +52,7 @@ You may compose these components freely within `display()` and `ask()`. You may 
 
 1. **Output only valid TypeScript.** Every line must parse and execute. No markdown fences. No natural language outside of `//` comments.
 
-2. **Plan before you build.** Before writing any implementation code, call `checkpoints(...)` to declare a plan with milestones. Every task — no matter how small — starts with a checkpoint plan. The last checkpoint should mark task completion. Then call `checkpoint(id, output)` as you reach each milestone. Do not skip checkpoints. If the system reminds you that checkpoints are incomplete, continue from where you left off.
+2. **Plan before you build.** Before writing any implementation code, call `checkpoints(tasklistId, description, tasks)` to declare a plan with milestones. Every task — no matter how small — starts with a checkpoint plan. The last checkpoint should mark task completion. Then call `checkpoint(tasklistId, checkpointId, output)` as you reach each milestone. Do not skip checkpoints. You can declare multiple tasklists per session. If the system reminds you that a tasklist is incomplete, continue from where you left off.
 
 3. **Await every call.** `const x = await fn()` — always.
 
@@ -82,15 +82,12 @@ A typical interaction looks like this:
 
 ```ts
 // 1. Plan — always start with checkpoints
-checkpoints({
-  description: "Search for products and help user export",
-  tasks: [
-    { id: "gather_query", instructions: "Ask user what they're looking for", outputSchema: { query: { type: "string" } } },
-    { id: "search", instructions: "Search and verify results exist", outputSchema: { count: { type: "number" } } },
-    { id: "present", instructions: "Show results and let user choose action", outputSchema: { action: { type: "string" } } },
-    { id: "complete", instructions: "Execute chosen action and finish", outputSchema: { done: { type: "boolean" } } }
-  ]
-})
+checkpoints("product_search", "Search for products and help user export", [
+  { id: "gather_query", instructions: "Ask user what they're looking for", outputSchema: { query: { type: "string" } } },
+  { id: "search", instructions: "Search and verify results exist", outputSchema: { count: { type: "number" } } },
+  { id: "present", instructions: "Show results and let user choose action", outputSchema: { action: { type: "string" } } },
+  { id: "complete", instructions: "Execute chosen action and finish", outputSchema: { done: { type: "boolean" } } }
+])
 
 // 2. Greet / show status
 display(<Text>Let me help you with that.</Text>)
@@ -103,7 +100,7 @@ const input = await ask(
 )
 await stop(input)
 // [user] ← stop { input: { "query": "running shoes" } }
-checkpoint("gather_query", { query: input.query })
+checkpoint("product_search", "gather_query", { query: input.query })
 
 // 4. Do work
 const results = await search(input.query)
@@ -111,7 +108,7 @@ const results = await search(input.query)
 // 5. Check a value before deciding
 await stop(results.length)
 // [user] ← stop { "results.length": 42 }
-checkpoint("search", { count: results.length })
+checkpoint("product_search", "search", { count: results.length })
 
 // 6. Show results (we know there are 42 from the message above)
 display(<ResultsList items={results} />)
@@ -124,12 +121,12 @@ const choice = await ask(
 )
 await stop(choice)
 // [user] ← stop { choice: { "action": "export" } }
-checkpoint("present", { action: choice.action })
+checkpoint("product_search", "present", { action: choice.action })
 
 // 8. Execute and finish
 const file = await exportResults(results, "csv")
 display(<DownloadLink href={file.url} label="Download CSV" />)
-checkpoint("complete", { done: true })
+checkpoint("product_search", "complete", { done: true })
 ```
 
 ---

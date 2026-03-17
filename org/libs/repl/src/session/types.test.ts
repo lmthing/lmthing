@@ -182,29 +182,28 @@ describe('session/types', () => {
     expect(completion.timestamp).toBeGreaterThan(0)
   })
 
-  it('CheckpointState tracks plan, completed, and currentIndex', () => {
+  it('CheckpointState tracks tasklists', () => {
     const state: CheckpointState = {
-      plan: null,
-      completed: new Map(),
-      currentIndex: 0,
+      tasklists: new Map(),
     }
-    expect(state.plan).toBeNull()
-    expect(state.completed.size).toBe(0)
-    expect(state.currentIndex).toBe(0)
+    expect(state.tasklists.size).toBe(0)
   })
 
   it('SessionEvent covers checkpoint events', () => {
     const planEvent: SessionEvent = {
       type: 'checkpoint_plan',
-      plan: { description: 'test', tasks: [] },
+      tasklistId: 'tl1',
+      plan: { tasklistId: 'tl1', description: 'test', tasks: [] },
     }
     const completeEvent: SessionEvent = {
       type: 'checkpoint_complete',
+      tasklistId: 'tl1',
       id: 'step1',
       output: { done: true },
     }
     const reminderEvent: SessionEvent = {
       type: 'checkpoint_reminder',
+      tasklistId: 'tl1',
       remaining: ['step2', 'step3'],
     }
     expect(planEvent.type).toBe('checkpoint_plan')
@@ -219,10 +218,10 @@ describe('session/types', () => {
       scope: [],
       asyncTasks: [],
       activeFormId: null,
-      checkpointState: { plan: null, completed: new Map(), currentIndex: 0 },
+      checkpointState: { tasklists: new Map() },
     }
     expect(snap.checkpointState).toBeDefined()
-    expect(snap.checkpointState.plan).toBeNull()
+    expect(snap.checkpointState.tasklists.size).toBe(0)
   })
 
   it('callback interfaces can be implemented', () => {

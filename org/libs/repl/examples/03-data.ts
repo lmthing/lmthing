@@ -5,17 +5,9 @@
  * Demonstrates: working with arrays/objects, multi-step analysis, stop() for inspection.
  *
  * Run:
- *   npx tsx examples/03-data.ts openai:gpt-4o-mini
- *   npx tsx examples/03-data.ts zai:glm-4.5
+ *   npx tsx src/cli/bin.ts examples/03-data.ts -m openai:gpt-4o-mini
+ *   npx tsx src/cli/bin.ts examples/03-data.ts -m zai:glm-4.5
  */
-
-import { runRepl } from "./runner";
-
-const model = process.argv[2];
-if (!model) {
-  console.error("Usage: npx tsx examples/03-data.ts <provider:model>");
-  process.exit(1);
-}
 
 // ── Sample dataset ──
 
@@ -29,99 +21,29 @@ interface Employee {
 }
 
 const EMPLOYEES: Employee[] = [
-  {
-    id: 1,
-    name: "Alice Chen",
-    department: "Engineering",
-    salary: 125000,
-    startYear: 2019,
-    skills: ["TypeScript", "React", "Node.js"],
-  },
-  {
-    id: 2,
-    name: "Bob Martinez",
-    department: "Engineering",
-    salary: 115000,
-    startYear: 2020,
-    skills: ["Python", "Django", "PostgreSQL"],
-  },
-  {
-    id: 3,
-    name: "Carol Williams",
-    department: "Design",
-    salary: 105000,
-    startYear: 2021,
-    skills: ["Figma", "CSS", "React"],
-  },
-  {
-    id: 4,
-    name: "David Kim",
-    department: "Engineering",
-    salary: 140000,
-    startYear: 2018,
-    skills: ["Go", "Kubernetes", "AWS"],
-  },
-  {
-    id: 5,
-    name: "Eva Novak",
-    department: "Marketing",
-    salary: 95000,
-    startYear: 2022,
-    skills: ["SEO", "Analytics", "Content"],
-  },
-  {
-    id: 6,
-    name: "Frank Park",
-    department: "Engineering",
-    salary: 130000,
-    startYear: 2019,
-    skills: ["Rust", "C++", "Linux"],
-  },
-  {
-    id: 7,
-    name: "Grace Liu",
-    department: "Design",
-    salary: 110000,
-    startYear: 2020,
-    skills: ["Figma", "Illustration", "Motion"],
-  },
-  {
-    id: 8,
-    name: "Hiro Tanaka",
-    department: "Engineering",
-    salary: 145000,
-    startYear: 2017,
-    skills: ["TypeScript", "AWS", "Terraform"],
-  },
-  {
-    id: 9,
-    name: "Iris Johnson",
-    department: "Marketing",
-    salary: 90000,
-    startYear: 2023,
-    skills: ["Social Media", "Content", "Analytics"],
-  },
-  {
-    id: 10,
-    name: "Jack Brown",
-    department: "Design",
-    salary: 100000,
-    startYear: 2022,
-    skills: ["UX Research", "Figma", "Prototyping"],
-  },
+  { id: 1, name: "Alice Chen", department: "Engineering", salary: 125000, startYear: 2019, skills: ["TypeScript", "React", "Node.js"] },
+  { id: 2, name: "Bob Martinez", department: "Engineering", salary: 115000, startYear: 2020, skills: ["Python", "Django", "PostgreSQL"] },
+  { id: 3, name: "Carol Williams", department: "Design", salary: 105000, startYear: 2021, skills: ["Figma", "CSS", "React"] },
+  { id: 4, name: "David Kim", department: "Engineering", salary: 140000, startYear: 2018, skills: ["Go", "Kubernetes", "AWS"] },
+  { id: 5, name: "Eva Novak", department: "Marketing", salary: 95000, startYear: 2022, skills: ["SEO", "Analytics", "Content"] },
+  { id: 6, name: "Frank Park", department: "Engineering", salary: 130000, startYear: 2019, skills: ["Rust", "C++", "Linux"] },
+  { id: 7, name: "Grace Liu", department: "Design", salary: 110000, startYear: 2020, skills: ["Figma", "Illustration", "Motion"] },
+  { id: 8, name: "Hiro Tanaka", department: "Engineering", salary: 145000, startYear: 2017, skills: ["TypeScript", "AWS", "Terraform"] },
+  { id: 9, name: "Iris Johnson", department: "Marketing", salary: 90000, startYear: 2023, skills: ["Social Media", "Content", "Analytics"] },
+  { id: 10, name: "Jack Brown", department: "Design", salary: 100000, startYear: 2022, skills: ["UX Research", "Figma", "Prototyping"] },
 ];
 
 // ── Functions the agent can call ──
 
-function getEmployees(): Employee[] {
+export function getEmployees(): Employee[] {
   return [...EMPLOYEES];
 }
 
-function filterBy(employees: Employee[], field: string, value: unknown): Employee[] {
+export function filterBy(employees: Employee[], field: string, value: unknown): Employee[] {
   return employees.filter((e) => (e as any)[field] === value);
 }
 
-function sortBy(employees: Employee[], field: string, order: "asc" | "desc" = "asc"): Employee[] {
+export function sortBy(employees: Employee[], field: string, order: "asc" | "desc" = "asc"): Employee[] {
   const sorted = [...employees].sort((a, b) => {
     const va = (a as any)[field];
     const vb = (b as any)[field];
@@ -133,12 +55,12 @@ function sortBy(employees: Employee[], field: string, order: "asc" | "desc" = "a
   return sorted;
 }
 
-function average(employees: Employee[], field: string): number {
+export function average(employees: Employee[], field: string): number {
   const values = employees.map((e) => (e as any)[field] as number);
   return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
 }
 
-function groupBy(employees: Employee[], field: string): Record<string, Employee[]> {
+export function groupBy(employees: Employee[], field: string): Record<string, Employee[]> {
   const groups: Record<string, Employee[]> = {};
   for (const e of employees) {
     const key = String((e as any)[field]);
@@ -148,7 +70,7 @@ function groupBy(employees: Employee[], field: string): Record<string, Employee[
   return groups;
 }
 
-function countByField(employees: Employee[], field: string): Record<string, number> {
+export function countByField(employees: Employee[], field: string): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const e of employees) {
     const key = String((e as any)[field]);
@@ -157,23 +79,19 @@ function countByField(employees: Employee[], field: string): Record<string, numb
   return counts;
 }
 
-function findSkill(employees: Employee[], skill: string): Employee[] {
+export function findSkill(employees: Employee[], skill: string): Employee[] {
   return employees.filter((e) =>
     e.skills.some((s) => s.toLowerCase().includes(skill.toLowerCase())),
   );
 }
 
-function topN(employees: Employee[], field: string, n: number): Employee[] {
+export function topN(employees: Employee[], field: string, n: number): Employee[] {
   return sortBy(employees, field, "desc").slice(0, n);
 }
 
-// ── Run ──
+// ── CLI config ──
 
-await runRepl({
-  model,
-  userMessage:
-    "Analyze the employee dataset. I want to know: (1) How many employees per department? (2) What is the average salary by department? (3) Who are the top 3 highest paid? (4) Which employees know TypeScript?",
-  globals: { getEmployees, filterBy, sortBy, average, groupBy, countByField, findSkill, topN },
+export const replConfig = {
   functionSignatures: `
   getEmployees(): Employee[] — Get all employees. Employee has: id, name, department, salary, startYear, skills[]
   filterBy(employees: Employee[], field: string, value: any): Employee[] — Filter by field value
@@ -189,4 +107,4 @@ await runRepl({
   debugFile: "./debug-run.xml",
   instruct:
     "Work through each question one at a time. Use stop() after each computation to inspect the result before moving to the next question.",
-});
+};

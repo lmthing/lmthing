@@ -1,0 +1,7 @@
+{
+  "label": "Macronutrients",
+  "description": "Protein, carbohydrates, and fats — roles, sources, and daily targets",
+  "icon": "💪",
+  "color": "#2ecc71",
+  "renderAs": "section"
+}

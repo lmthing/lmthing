@@ -1,0 +1,9 @@
+{
+  "label": "Planning Strategy",
+  "description": "Which meal planning approach to use",
+  "fieldType": "select",
+  "required": false,
+  "default": "plate-method",
+  "variableName": "planStrategy",
+  "renderAs": "field"
+}

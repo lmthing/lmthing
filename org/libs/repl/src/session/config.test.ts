@@ -11,7 +11,7 @@ describe('session/config', () => {
       expect(config.sessionTimeout).toBe(600_000)
       expect(config.maxStopCalls).toBe(50)
       expect(config.maxAsyncTasks).toBe(10)
-      expect(config.maxCheckpointReminders).toBe(3)
+      expect(config.maxTasklistReminders).toBe(3)
       expect(config.maxContextTokens).toBe(100_000)
     })
 

@@ -32,8 +32,8 @@ export interface RunAgentOptions {
   timeout?: number
   /** Max agent turns per message (default from replConfig or 10) */
   maxTurns?: number
-  /** Max checkpoint reminders (default from replConfig or 3) */
-  maxCheckpointReminders?: number
+  /** Max tasklist reminders (default from replConfig or 3) */
+  maxTasklistReminders?: number
   /** Path to write a debug log file (JSON or XML) */
   debugFile?: string
   /** Port to start WebSocket server on. If omitted, no server is started. */
@@ -245,7 +245,7 @@ export async function runAgent(
   ].filter(Boolean).join('\n\n')
 
   const maxTurns = opts.maxTurns ?? replConfig.maxTurns ?? 10
-  const maxCheckpointReminders = opts.maxCheckpointReminders ?? replConfig.maxCheckpointReminders ?? 3
+  const maxTasklistReminders = opts.maxTasklistReminders ?? replConfig.maxTasklistReminders ?? 3
   const timeout = opts.timeout ?? 600
 
   // ── Create session ──
@@ -312,7 +312,7 @@ export async function runAgent(
     classExports: userClassExports.length > 0 ? userClassExports : undefined,
     knowledgeTree: knowledgeTreePrompt || undefined,
     maxTurns,
-    maxCheckpointReminders,
+    maxTasklistReminders,
     debugFile,
   })
 

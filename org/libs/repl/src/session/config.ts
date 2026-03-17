@@ -6,7 +6,7 @@ export interface SessionConfig {
   sessionTimeout: number
   maxStopCalls: number
   maxAsyncTasks: number
-  maxCheckpointReminders: number
+  maxTasklistReminders: number
   maxContextTokens: number
   serializationLimits: {
     maxStringLength: number
@@ -36,7 +36,7 @@ const DEFAULT_CONFIG: SessionConfig = {
   sessionTimeout: 600_000,
   maxStopCalls: 50,
   maxAsyncTasks: 10,
-  maxCheckpointReminders: 3,
+  maxTasklistReminders: 3,
   maxContextTokens: 100_000,
   serializationLimits: {
     maxStringLength: 2_000,
@@ -70,7 +70,7 @@ const sessionConfigSchema = z.object({
   sessionTimeout: z.number().positive().optional(),
   maxStopCalls: z.number().int().positive().optional(),
   maxAsyncTasks: z.number().int().positive().optional(),
-  maxCheckpointReminders: z.number().int().positive().optional(),
+  maxTasklistReminders: z.number().int().positive().optional(),
   maxContextTokens: z.number().int().positive().optional(),
   serializationLimits: z.object({
     maxStringLength: z.number().int().positive().optional(),
@@ -115,7 +115,7 @@ export function mergeConfig(overrides: PartialSessionConfig): SessionConfig {
     sessionTimeout: overrides.sessionTimeout ?? base.sessionTimeout,
     maxStopCalls: overrides.maxStopCalls ?? base.maxStopCalls,
     maxAsyncTasks: overrides.maxAsyncTasks ?? base.maxAsyncTasks,
-    maxCheckpointReminders: overrides.maxCheckpointReminders ?? base.maxCheckpointReminders,
+    maxTasklistReminders: overrides.maxTasklistReminders ?? base.maxTasklistReminders,
     maxContextTokens: overrides.maxContextTokens ?? base.maxContextTokens,
     serializationLimits: {
       maxStringLength: overrides.serializationLimits?.maxStringLength ?? base.serializationLimits.maxStringLength,

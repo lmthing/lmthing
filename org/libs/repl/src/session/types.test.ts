@@ -19,10 +19,10 @@ import type {
   SerializedJSX,
   SessionSnapshot,
   SerializedValue,
-  CheckpointTask,
-  CheckpointPlan,
-  CheckpointCompletion,
-  CheckpointState,
+  TaskDefinition,
+  Tasklist,
+  TaskCompletion,
+  TasklistsState,
 } from './types'
 
 describe('session/types', () => {
@@ -152,8 +152,8 @@ describe('session/types', () => {
     expect(ctx.lineNumber).toBe(1)
   })
 
-  it('CheckpointTask has required fields', () => {
-    const task: CheckpointTask = {
+  it('TaskDefinition has required fields', () => {
+    const task: TaskDefinition = {
       id: 'gather_input',
       instructions: 'Ask the user for location',
       outputSchema: { zipcode: { type: 'string' } },
@@ -162,8 +162,9 @@ describe('session/types', () => {
     expect(task.outputSchema.zipcode.type).toBe('string')
   })
 
-  it('CheckpointPlan has description and tasks', () => {
-    const plan: CheckpointPlan = {
+  it('Tasklist has description and tasks', () => {
+    const plan: Tasklist = {
+      tasklistId: 'tl1',
       description: 'Find restaurants',
       tasks: [
         { id: 'search', instructions: 'Search for restaurants', outputSchema: { count: { type: 'number' } } },
@@ -173,8 +174,8 @@ describe('session/types', () => {
     expect(plan.tasks).toHaveLength(1)
   })
 
-  it('CheckpointCompletion has output and timestamp', () => {
-    const completion: CheckpointCompletion = {
+  it('TaskCompletion has output and timestamp', () => {
+    const completion: TaskCompletion = {
       output: { count: 5 },
       timestamp: Date.now(),
     }
@@ -182,33 +183,33 @@ describe('session/types', () => {
     expect(completion.timestamp).toBeGreaterThan(0)
   })
 
-  it('CheckpointState tracks tasklists', () => {
-    const state: CheckpointState = {
+  it('TasklistsState tracks tasklists', () => {
+    const state: TasklistsState = {
       tasklists: new Map(),
     }
     expect(state.tasklists.size).toBe(0)
   })
 
-  it('SessionEvent covers checkpoint events', () => {
+  it('SessionEvent covers tasklist events', () => {
     const planEvent: SessionEvent = {
-      type: 'checkpoint_plan',
+      type: 'tasklist_declared',
       tasklistId: 'tl1',
       plan: { tasklistId: 'tl1', description: 'test', tasks: [] },
     }
     const completeEvent: SessionEvent = {
-      type: 'checkpoint_complete',
+      type: 'task_complete',
       tasklistId: 'tl1',
       id: 'step1',
       output: { done: true },
     }
     const reminderEvent: SessionEvent = {
-      type: 'checkpoint_reminder',
+      type: 'tasklist_reminder',
       tasklistId: 'tl1',
       remaining: ['step2', 'step3'],
     }
-    expect(planEvent.type).toBe('checkpoint_plan')
-    expect(completeEvent.type).toBe('checkpoint_complete')
-    expect(reminderEvent.type).toBe('checkpoint_reminder')
+    expect(planEvent.type).toBe('tasklist_declared')
+    expect(completeEvent.type).toBe('task_complete')
+    expect(reminderEvent.type).toBe('tasklist_reminder')
   })
 
   it('SessionSnapshot includes checkpointState', () => {

@@ -60,8 +60,8 @@ describe('index (barrel export)', () => {
     expect(repl.connectToRepl).toBeDefined()
   })
 
-  it('exports checkpoint reminder message builder', () => {
-    expect(repl.buildCheckpointReminderMessage).toBeDefined()
+  it('exports tasklist reminder message builder', () => {
+    expect(repl.buildTasklistReminderMessage).toBeDefined()
   })
 
   it('exports stream utilities', () => {

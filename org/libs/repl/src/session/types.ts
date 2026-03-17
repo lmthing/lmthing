@@ -37,32 +37,32 @@ export interface ClassMethodInfo {
   signature: string
 }
 
-// ── Checkpoints ──
+// ── Tasklists ──
 
-export interface CheckpointTask {
+export interface TaskDefinition {
   id: string
   instructions: string
   outputSchema: Record<string, { type: string }>
 }
 
-export interface CheckpointPlan {
+export interface Tasklist {
   tasklistId: string
   description: string
-  tasks: CheckpointTask[]
+  tasks: TaskDefinition[]
 }
 
-export interface CheckpointCompletion {
+export interface TaskCompletion {
   output: Record<string, any>
   timestamp: number
 }
 
 export interface TasklistState {
-  plan: CheckpointPlan
-  completed: Map<string, CheckpointCompletion>
+  plan: Tasklist
+  completed: Map<string, TaskCompletion>
   currentIndex: number
 }
 
-export interface CheckpointState {
+export interface TasklistsState {
   tasklists: Map<string, TasklistState>
 }
 
@@ -142,8 +142,8 @@ export interface RenderSurface {
   append(id: string, element: ReactElement): void
   renderForm(id: string, element: ReactElement): Promise<Record<string, unknown>>
   cancelForm(id: string): void
-  appendCheckpointProgress?(tasklistId: string, state: TasklistState): void
-  updateCheckpointProgress?(tasklistId: string, state: TasklistState): void
+  appendTasklistProgress?(tasklistId: string, state: TasklistState): void
+  updateTasklistProgress?(tasklistId: string, state: TasklistState): void
 }
 
 // ── Session Events ──
@@ -162,9 +162,9 @@ export type SessionEvent =
   | { type: 'async_complete'; taskId: string; elapsed: number }
   | { type: 'async_failed'; taskId: string; error: string }
   | { type: 'async_cancelled'; taskId: string }
-  | { type: 'checkpoint_plan'; tasklistId: string; plan: CheckpointPlan }
-  | { type: 'checkpoint_complete'; tasklistId: string; id: string; output: Record<string, any> }
-  | { type: 'checkpoint_reminder'; tasklistId: string; remaining: string[] }
+  | { type: 'tasklist_declared'; tasklistId: string; plan: Tasklist }
+  | { type: 'task_complete'; tasklistId: string; id: string; output: Record<string, any> }
+  | { type: 'tasklist_reminder'; tasklistId: string; remaining: string[] }
   | { type: 'knowledge_loaded'; domains: string[] }
   | { type: 'class_loaded'; className: string; methods: string[] }
   | { type: 'status'; status: SessionStatus }
@@ -182,5 +182,5 @@ export interface SessionSnapshot {
   scope: ScopeEntry[]
   asyncTasks: Array<{ id: string; label: string; status: string; elapsed: number }>
   activeFormId: string | null
-  checkpointState: CheckpointState
+  checkpointState: TasklistsState
 }

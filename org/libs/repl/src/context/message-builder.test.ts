@@ -4,7 +4,7 @@ import {
   buildErrorMessage,
   buildInterventionMessage,
   buildHookInterruptMessage,
-  buildCheckpointReminderMessage,
+  buildTasklistReminderMessage,
 } from './message-builder'
 import type { StopPayload, ErrorPayload } from '../session/types'
 
@@ -52,14 +52,14 @@ describe('context/message-builder', () => {
     })
   })
 
-  describe('buildCheckpointReminderMessage', () => {
-    it('formats checkpoint reminder with tasklist id and remaining ids', () => {
-      const msg = buildCheckpointReminderMessage('find_restaurants', ['search', 'present'])
+  describe('buildTasklistReminderMessage', () => {
+    it('formats tasklist reminder with tasklist id and remaining ids', () => {
+      const msg = buildTasklistReminderMessage('find_restaurants', ['search', 'present'])
       expect(msg).toBe('⚠ [system] Tasklist "find_restaurants" incomplete. Remaining: search, present. Continue from where you left off.')
     })
 
-    it('formats single remaining checkpoint', () => {
-      const msg = buildCheckpointReminderMessage('main', ['final'])
+    it('formats single remaining task', () => {
+      const msg = buildTasklistReminderMessage('main', ['final'])
       expect(msg).toBe('⚠ [system] Tasklist "main" incomplete. Remaining: final. Continue from where you left off.')
     })
   })

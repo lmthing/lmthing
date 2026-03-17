@@ -30,7 +30,7 @@ export interface AgentLoopOptions {
   classExports?: ClassifiedExport[];
   knowledgeTree?: string;
   maxTurns?: number;
-  maxCheckpointReminders?: number;
+  maxTasklistReminders?: number;
   debugFile?: string;
 }
 
@@ -66,7 +66,7 @@ export class AgentLoop {
   private loadedClasses = new Set<string>();
   private knowledgeTree: string;
   private maxTurns: number;
-  private maxCheckpointReminders: number;
+  private maxTasklistReminders: number;
   private debugFile?: string;
   private messages: ChatMessage[] = [];
   private running = false;
@@ -94,7 +94,7 @@ export class AgentLoop {
     this.classExports = options.classExports ?? [];
     this.knowledgeTree = options.knowledgeTree ?? "";
     this.maxTurns = options.maxTurns ?? 10;
-    this.maxCheckpointReminders = options.maxCheckpointReminders ?? 3;
+    this.maxTasklistReminders = options.maxTasklistReminders ?? 3;
     this.debugFile = options.debugFile;
   }
 
@@ -198,13 +198,13 @@ export class AgentLoop {
         case "error":
           state.error = event.error;
           break;
-        case "checkpoint_plan":
+        case "tasklist_declared":
           console.log(
-            `\x1b[36m  [checkpoints]\x1b[0m plan registered: [${event.tasklistId}] ${event.plan.description} (${event.plan.tasks.length} tasks)`,
+            `\x1b[36m  [tasklist]\x1b[0m plan registered: [${event.tasklistId}] ${event.plan.description} (${event.plan.tasks.length} tasks)`,
           );
           break;
-        case "checkpoint_complete":
-          console.log(`\x1b[32m  [checkpoint]\x1b[0m \u2713 ${event.tasklistId}/${event.id}`);
+        case "task_complete":
+          console.log(`\x1b[32m  [completeTask]\x1b[0m \u2713 ${event.tasklistId}/${event.id}`);
           break;
         case "display":
           console.log(`\x1b[35m  [display]\x1b[0m component rendered`);
@@ -323,15 +323,15 @@ export class AgentLoop {
           case "async_cancelled":
             console.log(`\x1b[33m  [async]\x1b[0m cancelled: ${event.taskId}`);
             break;
-          case "checkpoint_plan":
+          case "tasklist_declared":
             console.log(
-              `\x1b[36m  [checkpoints]\x1b[0m plan registered: [${event.tasklistId}] ${event.plan.description} (${event.plan.tasks.length} tasks)`,
+              `\x1b[36m  [tasklist]\x1b[0m plan registered: [${event.tasklistId}] ${event.plan.description} (${event.plan.tasks.length} tasks)`,
             );
             break;
-          case "checkpoint_complete":
-            console.log(`\x1b[32m  [checkpoint]\x1b[0m ✓ ${event.tasklistId}/${event.id}`);
+          case "task_complete":
+            console.log(`\x1b[32m  [completeTask]\x1b[0m ✓ ${event.tasklistId}/${event.id}`);
             break;
-          case "checkpoint_reminder":
+          case "tasklist_reminder":
             console.log(
               `\x1b[33m  [system]\x1b[0m tasklist "${event.tasklistId}" reminder — remaining: ${event.remaining.join(", ")}`,
             );
@@ -431,20 +431,20 @@ export class AgentLoop {
       this.session.off("event", listener);
 
       // Step 4: Flush remaining buffer if no interruption
-      let checkpointIncomplete = false;
+      let tasklistIncomplete = false;
       if (!state.stop && !state.error) {
         try {
           const result = await this.session.finalize();
-          if (result === "checkpoint_incomplete") {
-            checkpointIncomplete = true;
+          if (result === "tasklist_incomplete") {
+            tasklistIncomplete = true;
           }
         } catch {
           /* ignore */
         }
       }
 
-      // Handle checkpoint incomplete → inject reminder and loop
-      if (checkpointIncomplete) {
+      // Handle tasklist incomplete → inject reminder and loop
+      if (tasklistIncomplete) {
         this.refreshSystemPrompt();
         const sessionMsgs = this.session.getMessages();
         const reminderMsg = sessionMsgs[sessionMsgs.length - 1];
@@ -517,10 +517,10 @@ export class AgentLoop {
       console.log(`\x1b[33m[limit]\x1b[0m Reached max turns (${this.maxTurns})`);
     }
 
-    // Print checkpoint summary
+    // Print tasklist summary
     const cpState = this.session.snapshot().checkpointState;
     if (cpState.tasklists.size > 0) {
-      console.log(`\n\x1b[36m━━━ Checkpoints ━━━\x1b[0m`);
+      console.log(`\n\x1b[36m━━━ Tasklists ━━━\x1b[0m`);
       for (const [tasklistId, tasklist] of cpState.tasklists) {
         const total = tasklist.plan.tasks.length;
         const done = tasklist.completed.size;

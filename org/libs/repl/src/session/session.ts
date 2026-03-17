@@ -8,8 +8,8 @@ import type {
   ScopeEntry,
   Hook,
   LineResult,
-  CheckpointPlan,
-  CheckpointState,
+  Tasklist,
+  TasklistsState,
   SerializedJSX,
 } from './types'
 import type { KnowledgeSelector, KnowledgeContent } from '../knowledge/types'
@@ -21,7 +21,7 @@ import { AsyncManager } from '../sandbox/async-manager'
 import { StreamController } from '../stream/stream-controller'
 import { HookRegistry } from '../hooks/hook-registry'
 import { generateScopeTable } from '../context/scope-generator'
-import { buildStopMessage, buildErrorMessage, buildInterventionMessage, buildCheckpointReminderMessage } from '../context/message-builder'
+import { buildStopMessage, buildErrorMessage, buildInterventionMessage, buildTasklistReminderMessage } from '../context/message-builder'
 
 export interface SessionOptions {
   config?: Partial<SessionConfig>
@@ -47,7 +47,7 @@ export class Session extends EventEmitter {
   private messages: Array<{ role: string; content: string }> = []
   private activeFormId: string | null = null
   private stopCount = 0
-  private checkpointReminderCount = 0
+  private tasklistReminderCount = 0
 
   constructor(options: SessionOptions = {}) {
     super()
@@ -115,11 +115,11 @@ export class Session extends EventEmitter {
       onAsyncStart: (taskId, label) => {
         this.emitEvent({ type: 'async_start', taskId, label })
       },
-      onCheckpointPlan: (tasklistId, plan) => {
-        this.emitEvent({ type: 'checkpoint_plan', tasklistId, plan })
+      onTasklistDeclared: (tasklistId, plan) => {
+        this.emitEvent({ type: 'tasklist_declared', tasklistId, plan })
       },
-      onCheckpointComplete: (tasklistId, id, output) => {
-        this.emitEvent({ type: 'checkpoint_complete', tasklistId, id, output })
+      onTaskComplete: (tasklistId, id, output) => {
+        this.emitEvent({ type: 'task_complete', tasklistId, id, output })
       },
       onLoadKnowledge: options.knowledgeLoader
         ? (selector) => {
@@ -145,8 +145,8 @@ export class Session extends EventEmitter {
     this.sandbox.inject('display', this.globalsApi.display)
     this.sandbox.inject('ask', this.globalsApi.ask)
     this.sandbox.inject('async', this.globalsApi.async)
-    this.sandbox.inject('checkpoints', this.globalsApi.checkpoints)
-    this.sandbox.inject('checkpoint', this.globalsApi.checkpoint)
+    this.sandbox.inject('tasklist', this.globalsApi.tasklist)
+    this.sandbox.inject('completeTask', this.globalsApi.completeTask)
     this.sandbox.inject('loadKnowledge', this.globalsApi.loadKnowledge)
     this.sandbox.inject('loadClass', this.globalsApi.loadClass)
   }
@@ -195,25 +195,25 @@ export class Session extends EventEmitter {
 
   /**
    * Finalize the LLM stream.
-   * Returns 'complete' if done, or 'checkpoint_incomplete' if checkpoints remain.
+   * Returns 'complete' if done, or 'tasklist_incomplete' if tasks remain.
    */
-  async finalize(): Promise<'complete' | 'checkpoint_incomplete'> {
+  async finalize(): Promise<'complete' | 'tasklist_incomplete'> {
     await this.streamController.finalize()
 
-    // Check for incomplete checkpoints across all tasklists
-    const cpState = this.globalsApi.getCheckpointState()
+    // Check for incomplete tasks across all tasklists
+    const cpState = this.globalsApi.getTasklistsState()
     for (const [tasklistId, tasklist] of cpState.tasklists) {
       if (tasklist.currentIndex < tasklist.plan.tasks.length) {
-        if (this.checkpointReminderCount < this.config.maxCheckpointReminders) {
-          this.checkpointReminderCount++
+        if (this.tasklistReminderCount < this.config.maxTasklistReminders) {
+          this.tasklistReminderCount++
           const remaining = tasklist.plan.tasks.slice(tasklist.currentIndex).map(t => t.id)
-          const msg = buildCheckpointReminderMessage(tasklistId, remaining)
+          const msg = buildTasklistReminderMessage(tasklistId, remaining)
           this.messages.push({ role: 'assistant', content: this.codeLines.join('\n') })
           this.messages.push({ role: 'user', content: msg })
           this.codeLines = []
-          this.emitEvent({ type: 'checkpoint_reminder', tasklistId, remaining })
+          this.emitEvent({ type: 'tasklist_reminder', tasklistId, remaining })
           this.emitEvent({ type: 'scope', entries: this.sandbox.getScope() })
-          return 'checkpoint_incomplete'
+          return 'tasklist_incomplete'
         }
       }
     }
@@ -306,7 +306,7 @@ export class Session extends EventEmitter {
         elapsed: Date.now() - t.startTime,
       })),
       activeFormId: this.activeFormId,
-      checkpointState: this.globalsApi.getCheckpointState(),
+      checkpointState: this.globalsApi.getTasklistsState(),
     }
   }
 
@@ -333,8 +333,8 @@ export class Session extends EventEmitter {
       display: this.globalsApi.display,
       ask: this.globalsApi.ask,
       async: this.globalsApi.async,
-      checkpoints: this.globalsApi.checkpoints,
-      checkpoint: this.globalsApi.checkpoint,
+      tasklist: this.globalsApi.tasklist,
+      completeTask: this.globalsApi.completeTask,
       loadKnowledge: this.globalsApi.loadKnowledge,
       loadClass: this.globalsApi.loadClass,
     }

@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { config } from 'dotenv'
 import { parseArgs } from './args'
-import { classifyExports, formatExportsForPrompt } from './loader'
+import { classifyExports, formatExportsForPrompt, type ClassifiedExport } from './loader'
 import { Session } from '../session/session'
 import { AgentLoop } from './agent-loop'
 import { createReplServer } from './server'
@@ -42,14 +42,18 @@ async function main() {
   let userFnSigs = ''
   let userFormSigs = ''
   let userViewSigs = ''
+  let userClassSigs = ''
+  let userClassExports: ClassifiedExport[] = []
+  const classConstructors = new Map<string, new () => any>()
   let replConfig: Record<string, any> = {}
 
   if (args.file) {
     const filePath = resolve(args.file)
 
     // Import the file first to get replConfig and runtime values
+    let userModule: Record<string, unknown> = {}
     try {
-      const userModule = await import(filePath)
+      userModule = await import(filePath) as Record<string, unknown>
       for (const [name, value] of Object.entries(userModule)) {
         if (name === 'replConfig' && typeof value === 'object' && value !== null) {
           replConfig = value as Record<string, any>
@@ -65,7 +69,7 @@ async function main() {
       process.exit(1)
     }
 
-    // Classify exports for function/component signatures
+    // Classify exports for function/component/class signatures
     // Run after import so .form markers on the runtime module can be cross-referenced
     try {
       const exports = classifyExports(filePath)
@@ -78,10 +82,23 @@ async function main() {
         }
       }
 
+      // Separate class exports
+      userClassExports = exports.filter(e => e.kind === 'class')
+      const nonClassExports = exports.filter(e => e.kind !== 'class')
+
+      // Store class constructors for later instantiation
+      for (const cls of userClassExports) {
+        const ctor = userModule[cls.name]
+        if (typeof ctor === 'function') {
+          classConstructors.set(cls.name, ctor as new () => any)
+        }
+      }
+
       const formatted = formatExportsForPrompt(exports, args.file)
       userFnSigs = formatted.functions
       userFormSigs = formatted.formComponents
       userViewSigs = formatted.viewComponents
+      userClassSigs = formatted.classes
     } catch {
       // Fall back to manual signatures if classification fails
     }
@@ -218,6 +235,31 @@ async function main() {
           return result
         }
       : undefined,
+    getClassInfo: classConstructors.size > 0
+      ? (className) => {
+          const classExport = userClassExports.find(c => c.name === className)
+          if (!classExport?.methods || !classConstructors.has(className)) return null
+          return { methods: classExport.methods }
+        }
+      : undefined,
+    loadClass: classConstructors.size > 0
+      ? (className, sess) => {
+          const Ctor = classConstructors.get(className)!
+          const classExport = userClassExports.find(c => c.name === className)!
+
+          // Instantiate and bind methods
+          const instance = new Ctor() as any
+          const bindings: Record<string, Function> = {}
+          for (const m of classExport.methods!) {
+            if (typeof instance[m.name] === 'function') {
+              bindings[m.name] = (instance[m.name] as Function).bind(instance)
+            }
+          }
+
+          // Inject namespace object into sandbox
+          sess.injectGlobal(className, bindings)
+        }
+      : undefined,
   })
 
   // ── Resolve model ──
@@ -236,6 +278,8 @@ async function main() {
     functionSignatures: functionSignatures || undefined,
     formSignatures: formSignatures || undefined,
     viewSignatures: viewSignatures || undefined,
+    classSignatures: userClassSigs || undefined,
+    classExports: userClassExports.length > 0 ? userClassExports : undefined,
     knowledgeTree: knowledgeTreePrompt || undefined,
     maxTurns,
     maxCheckpointReminders,

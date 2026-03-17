@@ -1,5 +1,6 @@
 import ts from 'typescript'
 import { resolve } from 'node:path'
+import type { ClassMethodInfo } from '../session/types'
 
 // ── Types ──
 
@@ -19,7 +20,7 @@ export interface PropInfo {
 
 export interface ClassifiedExport {
   name: string
-  kind: 'function' | 'component'
+  kind: 'function' | 'component' | 'class'
   /** Whether this component is a form component (used with ask()) */
   form: boolean
   description: string
@@ -31,6 +32,8 @@ export interface ClassifiedExport {
   props: PropInfo[]
   /** Raw full signature string (fallback) */
   signature: string
+  /** Methods info (for classes) */
+  methods?: ClassMethodInfo[]
 }
 
 // ── Export classification ──
@@ -71,7 +74,29 @@ export function classifyExports(filePath: string): ClassifiedExport[] {
   for (const sym of exports) {
     const type = checker.getTypeOfSymbol(sym)
     const callSignatures = type.getCallSignatures()
-    if (callSignatures.length === 0) continue
+    if (callSignatures.length === 0) {
+      // Check for class (construct signatures)
+      const constructSigs = type.getConstructSignatures()
+      if (constructSigs.length > 0) {
+        const name = sym.getName()
+        const description = ts.displayPartsToString(sym.getDocumentationComment(checker))
+        const methods = extractClassMethods(type, checker)
+        if (methods.length > 0) {
+          results.push({
+            name,
+            kind: 'class',
+            form: false,
+            description,
+            params: [],
+            returnType: '',
+            props: [],
+            signature: checker.typeToString(type),
+            methods,
+          })
+        }
+      }
+      continue
+    }
 
     const sig = callSignatures[0]
     const kind = classifySignature(sig, type, checker)
@@ -151,6 +176,49 @@ function classifySignature(
   return 'function'
 }
 
+// ── Class method extraction ──
+
+function extractClassMethods(classType: ts.Type, checker: ts.TypeChecker): ClassMethodInfo[] {
+  const constructSigs = classType.getConstructSignatures()
+  if (constructSigs.length === 0) return []
+
+  const instanceType = constructSigs[0].getReturnType()
+  const methods: ClassMethodInfo[] = []
+
+  for (const prop of instanceType.getProperties()) {
+    const propType = checker.getTypeOfSymbol(prop)
+    const propCallSigs = propType.getCallSignatures()
+    if (propCallSigs.length === 0) continue
+
+    // Skip private/protected members
+    const decl = prop.declarations?.[0]
+    if (decl) {
+      const modifiers = ts.canHaveModifiers(decl) ? ts.getModifiers(decl) : undefined
+      if (modifiers?.some(m =>
+        m.kind === ts.SyntaxKind.PrivateKeyword ||
+        m.kind === ts.SyntaxKind.ProtectedKeyword
+      )) continue
+    }
+
+    const sig = propCallSigs[0]
+    const params = extractParams(sig, checker)
+    const returnType = checker.typeToString(checker.getReturnTypeOfSignature(sig))
+    const description = ts.displayPartsToString(prop.getDocumentationComment(checker))
+    const paramList = params.map(p => {
+      const opt = p.optional ? '?' : ''
+      return `${p.name}${opt}: ${p.type}`
+    }).join(', ')
+
+    methods.push({
+      name: prop.getName(),
+      description,
+      signature: `(${paramList}): ${returnType}`,
+    })
+  }
+
+  return methods
+}
+
 // ── Type extraction ──
 
 function extractParams(sig: ts.Signature, checker: ts.TypeChecker): ParamInfo[] {
@@ -203,6 +271,7 @@ export interface FormattedExports {
   functions: string
   formComponents: string
   viewComponents: string
+  classes: string
 }
 
 /**
@@ -216,6 +285,7 @@ export function formatExportsForPrompt(
   const functions = exports.filter(e => e.kind === 'function')
   const formComponents = exports.filter(e => e.kind === 'component' && e.form)
   const viewComponents = exports.filter(e => e.kind === 'component' && !e.form)
+  const classes = exports.filter(e => e.kind === 'class')
 
   const heading = label ?? 'User-defined'
   const sourceLabel = source ? ` (${source})` : ''
@@ -232,10 +302,15 @@ export function formatExportsForPrompt(
     ? viewComponents.map(formatComponent).join('\n')
     : ''
 
+  const classBlock = classes.length > 0
+    ? classes.map(formatCollapsedClass).join('\n')
+    : ''
+
   return {
     functions: fnBlock ? `  # ${heading}${sourceLabel}\n${fnBlock}` : '',
     formComponents: formBlock ? `  # ${heading}${sourceLabel}\n${formBlock}` : '',
     viewComponents: viewBlock ? `  # ${heading}${sourceLabel}\n${viewBlock}` : '',
+    classes: classBlock ? `  # ${heading}${sourceLabel}\n${classBlock}` : '',
   }
 }
 
@@ -286,5 +361,25 @@ function formatComponent(c: ClassifiedExport): string {
     lines.push(`    @${p.name} — ${p.description}`)
   }
 
+  return lines.join('\n')
+}
+
+// ── Class formatting ──
+
+export function formatCollapsedClass(c: ClassifiedExport): string {
+  const lines = [`  ${c.name} — ${c.description || '(no description)'}`]
+  const methodCount = c.methods?.length ?? 0
+  lines.push(`    → ${methodCount} method${methodCount !== 1 ? 's' : ''} — use \`await loadClass("${c.name}")\` to expand`)
+  return lines.join('\n')
+}
+
+export function formatExpandedClass(c: ClassifiedExport): string {
+  const lines = [`  ${c.name} — ${c.description || '(no description)'}`]
+  for (const m of c.methods ?? []) {
+    lines.push(`    .${m.name}${m.signature}`)
+    if (m.description) {
+      lines.push(`      — ${m.description}`)
+    }
+  }
   return lines.join('\n')
 }

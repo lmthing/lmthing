@@ -14,6 +14,8 @@ import { serialize } from '../stream/serializer'
 import { isKnowledgeContent, decayKnowledgeValue } from '../context/knowledge-decay'
 import type { KnowledgeContent } from '../knowledge/types'
 import type { SessionEvent, StopPayload, ErrorPayload } from '../session/types'
+import type { ClassifiedExport } from './loader'
+import { formatCollapsedClass, formatExpandedClass } from './loader'
 
 export interface AgentLoopOptions {
   session: Session
@@ -23,6 +25,8 @@ export interface AgentLoopOptions {
   functionSignatures?: string
   formSignatures?: string
   viewSignatures?: string
+  classSignatures?: string
+  classExports?: ClassifiedExport[]
   knowledgeTree?: string
   maxTurns?: number
   maxCheckpointReminders?: number
@@ -48,6 +52,9 @@ export class AgentLoop {
   private functionSignatures: string
   private formSignatures: string
   private viewSignatures: string
+  private classSignatures: string
+  private classExports: ClassifiedExport[]
+  private loadedClasses = new Set<string>()
   private knowledgeTree: string
   private maxTurns: number
   private maxCheckpointReminders: number
@@ -74,6 +81,8 @@ export class AgentLoop {
     this.functionSignatures = options.functionSignatures ?? ''
     this.formSignatures = options.formSignatures ?? ''
     this.viewSignatures = options.viewSignatures ?? ''
+    this.classSignatures = options.classSignatures ?? ''
+    this.classExports = options.classExports ?? []
     this.knowledgeTree = options.knowledgeTree ?? ''
     this.maxTurns = options.maxTurns ?? 10
     this.maxCheckpointReminders = options.maxCheckpointReminders ?? 3
@@ -110,7 +119,8 @@ export class AgentLoop {
 
     // Build initial system prompt
     const scope = this.session.getScopeTable()
-    const systemPrompt = buildSystemPrompt(this.functionSignatures, this.formSignatures, this.viewSignatures, scope, this.instruct, this.knowledgeTree)
+    const classBlock = this.buildClassBlock()
+    const systemPrompt = buildSystemPrompt(this.functionSignatures, this.formSignatures, this.viewSignatures, classBlock, scope, this.instruct, this.knowledgeTree)
 
     // Initialize or update messages
     if (this.messages.length === 0) {
@@ -182,6 +192,10 @@ export class AgentLoop {
             break
           case 'knowledge_loaded':
             console.log(`\x1b[36m  [knowledge]\x1b[0m loaded: ${event.domains.join(', ')}`)
+            break
+          case 'class_loaded':
+            this.loadedClasses.add(event.className)
+            console.log(`\x1b[36m  [loadClass]\x1b[0m ${event.className} — ${event.methods.length} method${event.methods.length !== 1 ? 's' : ''} loaded`)
             break
           case 'hook':
             console.log(`\x1b[35m  [hook]\x1b[0m ${event.hookId} → ${event.action}: ${event.detail}`)
@@ -379,9 +393,23 @@ export class AgentLoop {
     this.writeDebugLog()
   }
 
+  private buildClassBlock(): string {
+    if (this.classExports.length === 0) return this.classSignatures
+    const blocks: string[] = []
+    for (const cls of this.classExports) {
+      if (this.loadedClasses.has(cls.name)) {
+        blocks.push(formatExpandedClass(cls))
+      } else {
+        blocks.push(formatCollapsedClass(cls))
+      }
+    }
+    return blocks.filter(Boolean).join('\n')
+  }
+
   private refreshSystemPrompt(): void {
     const scope = this.session.getScopeTable()
-    const systemPrompt = buildSystemPrompt(this.functionSignatures, this.formSignatures, this.viewSignatures, scope, this.instruct, this.knowledgeTree)
+    const classBlock = this.buildClassBlock()
+    const systemPrompt = buildSystemPrompt(this.functionSignatures, this.formSignatures, this.viewSignatures, classBlock, scope, this.instruct, this.knowledgeTree)
     this.messages[0] = { role: 'system', content: systemPrompt }
     this.logDebug('system_prompt', systemPrompt)
 
@@ -445,7 +473,7 @@ export class AgentLoop {
 
 // ── System Prompt ──
 
-function buildSystemPrompt(fnSigs: string, formSigs: string, viewSigs: string, scope: string, instruct?: string, knowledgeTree?: string): string {
+function buildSystemPrompt(fnSigs: string, formSigs: string, viewSigs: string, classSigs: string, scope: string, instruct?: string, knowledgeTree?: string): string {
   let prompt = `You are a code-execution agent. You respond EXCLUSIVELY with valid TypeScript code. No markdown. No prose. No explanations outside of code comments. Every character you emit is fed line-by-line into a live TypeScript REPL that executes as you stream.
 
 ## Execution Model
@@ -539,11 +567,31 @@ var docs = loadKnowledge({
 
 Use the Knowledge Tree below to see what spaces and files are available. Load only the specific files relevant to the current task — NEVER load an entire domain or space at once. Select individual options that match the user's request.
 
+### loadClass(className) — Load a class's methods
+Non-blocking. Loads all methods of a class, making them callable as ClassName.methodName().
+Before calling loadClass, you can only see the class name and description in "Available Classes".
+You can load multiple classes in one turn. Call stop() afterwards to see the expanded methods.
+
+If a class is already loaded, loadClass() is a no-op.
+
+Example:
+loadClass("DataProcessor")
+loadClass("TextUtils")
+await stop()
+// ← stop { }
+
+// (new turn — both classes are now expanded in the prompt)
+var parsed = DataProcessor.parse(rawData)
+var title = TextUtils.titleCase(parsed.name)
+
 ## Workspace — Current Scope
 ${scope || '(no variables declared)'}
 
 ## Available Functions
 ${fnSigs || '(none)'}
+
+## Available Classes
+${classSigs || '(none)'}
 
 ## Form Components — use ONLY inside ask()
 Render these inside \`var data = await ask(<Component />)\`. Always follow with \`await stop(data)\` to read the values.
@@ -646,6 +694,7 @@ function truncateAtStop(code: string): string {
   }
   return code
 }
+
 
 // ── XML Debug Serializer ──
 

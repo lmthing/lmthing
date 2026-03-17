@@ -1,4 +1,4 @@
-import type { StreamPauseController, RenderSurface, StopPayload, SerializedValue, CheckpointPlan, CheckpointState, TasklistState } from '../session/types'
+import type { StreamPauseController, RenderSurface, StopPayload, SerializedValue, CheckpointPlan, CheckpointState, TasklistState, ClassMethodInfo } from '../session/types'
 import { serialize } from '../stream/serializer'
 import { recoverArgumentNames } from '../parser/ast-utils'
 import { AsyncManager } from './async-manager'
@@ -22,6 +22,10 @@ export interface GlobalsConfig {
   onCheckpointPlan?: (tasklistId: string, plan: CheckpointPlan) => void
   onCheckpointComplete?: (tasklistId: string, id: string, output: Record<string, any>) => void
   onLoadKnowledge?: (selector: KnowledgeSelector) => KnowledgeContent
+  /** Validate a class name and return its methods (no side effects). */
+  getClassInfo?: (className: string) => { methods: ClassMethodInfo[] } | null
+  /** Signal that loadClass was called — emits events, injects bindings. Called after pause. */
+  onLoadClass?: (className: string) => void
 }
 
 /**
@@ -250,6 +254,38 @@ export function createGlobals(config: GlobalsConfig) {
     return tagAsKnowledge(config.onLoadKnowledge(selector))
   }
 
+  // ── loadClass state ──
+  const loadedClasses = new Set<string>()
+
+  /**
+   * loadClass(className) — Synchronously load a class's methods into the sandbox.
+   * Non-blocking. Call stop() afterwards to see the expanded methods in the prompt.
+   * No-op if the class is already loaded.
+   */
+  function loadClassFn(className: string): void {
+    if (typeof className !== 'string' || !className) {
+      throw new Error('loadClass() requires a class name string')
+    }
+
+    // Already loaded — no-op
+    if (loadedClasses.has(className)) return
+
+    if (!config.getClassInfo) {
+      throw new Error('loadClass() is not available — no classes exported')
+    }
+
+    // Validate class exists
+    const result = config.getClassInfo(className)
+    if (!result) {
+      throw new Error(`Unknown class: "${className}"`)
+    }
+
+    loadedClasses.add(className)
+
+    // Instantiate, bind, inject into sandbox
+    config.onLoadClass?.(className)
+  }
+
   return {
     stop: stopFn,
     display: displayFn,
@@ -258,6 +294,7 @@ export function createGlobals(config: GlobalsConfig) {
     checkpoints: checkpointsFn,
     checkpoint: checkpointFn,
     loadKnowledge: loadKnowledgeFn,
+    loadClass: loadClassFn,
     setCurrentSource,
     resolveStop,
     getCheckpointState: () => checkpointState,

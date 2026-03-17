@@ -28,6 +28,10 @@ export interface SessionOptions {
   hooks?: Hook[]
   globals?: Record<string, unknown>
   knowledgeLoader?: (selector: KnowledgeSelector) => KnowledgeContent
+  /** Return class info without side effects (validation only). */
+  getClassInfo?: (className: string) => { methods: import('./types').ClassMethodInfo[] } | null
+  /** Load a class: instantiate, bind methods, inject into sandbox. */
+  loadClass?: (className: string, session: Session) => void
 }
 
 export class Session extends EventEmitter {
@@ -125,6 +129,15 @@ export class Session extends EventEmitter {
             return content
           }
         : undefined,
+      getClassInfo: options.getClassInfo ?? undefined,
+      onLoadClass: options.loadClass
+        ? (className) => {
+            const info = options.getClassInfo?.(className)
+            const methodNames = info?.methods.map(m => m.name) ?? []
+            options.loadClass!(className, this)
+            this.emitEvent({ type: 'class_loaded', className, methods: methodNames })
+          }
+        : undefined,
     })
 
     // Inject globals into sandbox
@@ -135,6 +148,7 @@ export class Session extends EventEmitter {
     this.sandbox.inject('checkpoints', this.globalsApi.checkpoints)
     this.sandbox.inject('checkpoint', this.globalsApi.checkpoint)
     this.sandbox.inject('loadKnowledge', this.globalsApi.loadKnowledge)
+    this.sandbox.inject('loadClass', this.globalsApi.loadClass)
   }
 
   private async executeStatement(source: string): Promise<LineResult> {
@@ -216,6 +230,14 @@ export class Session extends EventEmitter {
   resolveStop(): void {
     this.globalsApi.resolveStop()
     this.streamController.resume()
+  }
+
+  /**
+   * Inject a value into the sandbox as a global.
+   * Used to inject class namespace objects after loadClass().
+   */
+  injectGlobal(name: string, value: unknown): void {
+    this.sandbox.inject(name, value)
   }
 
   /**

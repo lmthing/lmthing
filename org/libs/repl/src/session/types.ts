@@ -29,6 +29,14 @@ export interface AskCancellation {
   _cancelled: true
 }
 
+// ── Class Discovery ──
+
+export interface ClassMethodInfo {
+  name: string
+  description: string
+  signature: string
+}
+
 // ── Checkpoints ──
 
 export interface CheckpointTask {
@@ -158,6 +166,7 @@ export type SessionEvent =
   | { type: 'checkpoint_complete'; tasklistId: string; id: string; output: Record<string, any> }
   | { type: 'checkpoint_reminder'; tasklistId: string; remaining: string[] }
   | { type: 'knowledge_loaded'; domains: string[] }
+  | { type: 'class_loaded'; className: string; methods: string[] }
   | { type: 'status'; status: SessionStatus }
   | { type: 'scope'; entries: ScopeEntry[] }
 

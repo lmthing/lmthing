@@ -42,3 +42,11 @@ export function buildHookInterruptMessage(hookId: string, message: string): stri
 export function buildCheckpointReminderMessage(tasklistId: string, remainingIds: string[]): string {
   return `⚠ [system] Tasklist "${tasklistId}" incomplete. Remaining: ${remainingIds.join(', ')}. Continue from where you left off.`
 }
+
+/**
+ * Build a user message for a loadClass() injection.
+ * Format: ← loadClass { class: "Name", methods: ["m1", "m2"] }
+ */
+export function buildLoadClassMessage(className: string, methods: string[]): string {
+  return `← loadClass { class: "${className}", methods: [${methods.map(m => `"${m}"`).join(', ')}] }`
+}

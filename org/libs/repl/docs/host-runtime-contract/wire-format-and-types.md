@@ -59,8 +59,8 @@ declare function stop(...values: any[]): Promise<void>
 declare function display(element: React.ReactElement): void
 declare function ask(formElement: React.ReactElement): Promise<Record<string, any>>
 declare function async(fn: () => Promise<void>): void
-declare function checkpoints(tasklistId: string, description: string, tasks: CheckpointTask[]): void
-declare function checkpoint(tasklistId: string, id: string, output: Record<string, any>): void
+declare function tasklist(tasklistId: string, description: string, tasks: TaskDefinition[]): void
+declare function completeTask(tasklistId: string, id: string, output: Record<string, any>): void
 
 // Injection payloads (only stop and error inject user messages)
 interface StopPayload {
@@ -103,7 +103,7 @@ interface SessionConfig {
   sessionTimeout: number        // default: 600_000
   maxStopCalls: number          // default: 50
   maxAsyncTasks: number         // default: 10
-  maxCheckpointReminders: number // default: 3 — max times host re-prompts agent to finish checkpoints
+  maxTasklistReminders: number   // default: 3 — max times host re-prompts agent to finish incomplete tasks
   maxContextTokens: number      // default: 100_000
   serializationLimits: {
     maxStringLength: number     // default: 2_000
@@ -135,31 +135,31 @@ interface ScopeEntry {
   value: string   // truncated serialized value
 }
 
-// Checkpoint types
-interface CheckpointTask {
+// Tasklist types
+interface TaskDefinition {
   id: string
   instructions: string
   outputSchema: Record<string, { type: string }>
 }
 
-interface CheckpointPlan {
+interface Tasklist {
   tasklistId: string
   description: string
-  tasks: CheckpointTask[]
+  tasks: TaskDefinition[]
 }
 
-interface CheckpointCompletion {
+interface TaskCompletion {
   output: Record<string, any>
   timestamp: number
 }
 
 interface TasklistState {
-  plan: CheckpointPlan
-  completed: Map<string, CheckpointCompletion>
+  plan: Tasklist
+  completed: Map<string, TaskCompletion>
   currentIndex: number
 }
 
-interface CheckpointState {
+interface TasklistsState {
   tasklists: Map<string, TasklistState>
 }
 

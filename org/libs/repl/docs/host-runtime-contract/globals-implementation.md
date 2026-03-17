@@ -165,72 +165,72 @@ Results accumulate in `asyncResults` and are drained into the next `stop()` call
 
 ---
 
-## 6. `checkpoints` Implementation
+## 6. `tasklist` Implementation
 
-`checkpoints` registers a task plan with the host runtime. The agent calls it before writing implementation code, to declare the milestones it intends to reach. Multiple tasklists can be declared per session, each identified by a unique `tasklistId`.
+`tasklist` registers a task plan with the host runtime. The agent calls it before writing implementation code, to declare the milestones it intends to reach. Multiple tasklists can be declared per session, each identified by a unique `tasklistId`.
 
 ```ts
-interface CheckpointTask {
+interface TaskDefinition {
   id: string
   instructions: string
   outputSchema: Record<string, { type: string }>
 }
 
-interface CheckpointPlan {
+interface Tasklist {
   tasklistId: string
   description: string
-  tasks: CheckpointTask[]
+  tasks: TaskDefinition[]
 }
 
 interface TasklistState {
-  plan: CheckpointPlan
+  plan: Tasklist
   completed: Map<string, { output: Record<string, any>; timestamp: number }>
-  currentIndex: number  // index of next incomplete checkpoint
+  currentIndex: number  // index of next incomplete task
 }
 
-interface CheckpointState {
+interface TasklistsState {
   tasklists: Map<string, TasklistState>
 }
 
-const checkpointState: CheckpointState = {
+const tasklistsState: TasklistsState = {
   tasklists: new Map(),
 }
 
-globalThis.checkpoints = (tasklistId: string, description: string, tasks: CheckpointTask[]) => {
-  if (checkpointState.tasklists.has(tasklistId)) {
-    throw new Error(`checkpoints() tasklist "${tasklistId}" already declared`)
+globalThis.tasklist = (tasklistId: string, description: string, tasks: TaskDefinition[]) => {
+  if (tasklistsState.tasklists.has(tasklistId)) {
+    throw new Error(`tasklist() tasklist "${tasklistId}" already declared`)
   }
 
   if (!tasklistId) {
-    throw new Error('checkpoints() requires a tasklistId')
+    throw new Error('tasklist() requires a tasklistId')
   }
 
   // Validate plan structure
   if (!description || !Array.isArray(tasks) || tasks.length === 0) {
-    throw new Error('checkpoints() requires a description and at least one task')
+    throw new Error('tasklist() requires a description and at least one task')
   }
 
   const ids = new Set<string>()
   for (const task of tasks) {
     if (!task.id || !task.instructions || !task.outputSchema) {
-      throw new Error(`Each checkpoint task must have id, instructions, and outputSchema`)
+      throw new Error(`Each task must have id, instructions, and outputSchema`)
     }
     if (ids.has(task.id)) {
-      throw new Error(`Duplicate checkpoint id: ${task.id}`)
+      throw new Error(`Duplicate task id: ${task.id}`)
     }
     ids.add(task.id)
   }
 
-  const plan: CheckpointPlan = { tasklistId, description, tasks }
+  const plan: Tasklist = { tasklistId, description, tasks }
   const tasklistState: TasklistState = {
     plan,
     completed: new Map(),
     currentIndex: 0,
   }
-  checkpointState.tasklists.set(tasklistId, tasklistState)
+  tasklistsState.tasklists.set(tasklistId, tasklistState)
 
   // Render progress UI to the user
-  renderSurface.appendCheckpointProgress(tasklistId, tasklistState)
+  renderSurface.appendTasklistProgress(tasklistId, tasklistState)
 
   // Does NOT block execution — returns synchronously like display()
 }
@@ -238,35 +238,35 @@ globalThis.checkpoints = (tasklistId: string, description: string, tasks: Checkp
 
 ### Progress Rendering
 
-The host renders a persistent progress indicator (e.g., a stepper or checklist) for each tasklist that updates as checkpoints are completed. This is separate from the `display()` render queue — it persists at the top or side of the viewport.
+The host renders a persistent progress indicator (e.g., a stepper or checklist) for each tasklist that updates as tasks are completed. This is separate from the `display()` render queue — it persists at the top or side of the viewport.
 
 ---
 
-## 7. `checkpoint` Implementation
+## 7. `completeTask` Implementation
 
-`checkpoint` marks a milestone as complete and validates its output against the declared schema. The `tasklistId` identifies which tasklist the checkpoint belongs to.
+`completeTask` marks a milestone as complete and validates its output against the declared schema. The `tasklistId` identifies which tasklist the task belongs to.
 
 ```ts
-globalThis.checkpoint = (tasklistId: string, id: string, output: Record<string, any>) => {
-  const tasklist = checkpointState.tasklists.get(tasklistId)
+globalThis.completeTask = (tasklistId: string, id: string, output: Record<string, any>) => {
+  const tasklist = tasklistsState.tasklists.get(tasklistId)
   if (!tasklist) {
-    throw new Error(`checkpoint() called with unknown tasklist "${tasklistId}" — declare it with checkpoints() first`)
+    throw new Error(`completeTask() called with unknown tasklist "${tasklistId}" — declare it with tasklist() first`)
   }
 
   const taskIndex = tasklist.plan.tasks.findIndex(t => t.id === id)
   if (taskIndex === -1) {
-    throw new Error(`Unknown checkpoint id: ${id} in tasklist "${tasklistId}"`)
+    throw new Error(`Unknown task id: ${id} in tasklist "${tasklistId}"`)
   }
 
   if (tasklist.completed.has(id)) {
-    throw new Error(`Checkpoint "${id}" in tasklist "${tasklistId}" already completed`)
+    throw new Error(`Task "${id}" in tasklist "${tasklistId}" already completed`)
   }
 
-  // Enforce ordering — checkpoints must be completed sequentially within a tasklist
+  // Enforce ordering — tasks must be completed sequentially within a tasklist
   if (taskIndex !== tasklist.currentIndex) {
     const expected = tasklist.plan.tasks[tasklist.currentIndex]
     throw new Error(
-      `Checkpoint "${id}" in tasklist "${tasklistId}" called out of order. Expected: "${expected.id}"`
+      `Task "${id}" in tasklist "${tasklistId}" called out of order. Expected: "${expected.id}"`
     )
   }
 
@@ -274,12 +274,12 @@ globalThis.checkpoint = (tasklistId: string, id: string, output: Record<string, 
   const task = tasklist.plan.tasks[taskIndex]
   for (const [key, schema] of Object.entries(task.outputSchema)) {
     if (!(key in output)) {
-      throw new Error(`Checkpoint "${id}" output missing required key: ${key}`)
+      throw new Error(`Task "${id}" output missing required key: ${key}`)
     }
     const actual = Array.isArray(output[key]) ? 'array' : typeof output[key]
     if (actual !== (schema as any).type) {
       throw new Error(
-        `Checkpoint "${id}" output key "${key}": expected ${(schema as any).type}, got ${actual}`
+        `Task "${id}" output key "${key}": expected ${(schema as any).type}, got ${actual}`
       )
     }
   }
@@ -292,25 +292,25 @@ globalThis.checkpoint = (tasklistId: string, id: string, output: Record<string, 
   tasklist.currentIndex++
 
   // Update progress UI
-  renderSurface.updateCheckpointProgress(tasklistId, tasklist)
+  renderSurface.updateTasklistProgress(tasklistId, tasklist)
 
   // Does NOT block execution — returns synchronously like display()
 }
 ```
 
-### Incomplete Checkpoint Reminder
+### Incomplete Tasklist Reminder
 
-When the LLM emits a stop token (stream completion) and there are still incomplete checkpoints in any tasklist, the host **does not** end the session. Instead:
+When the LLM emits a stop token (stream completion) and there are still incomplete tasks in any tasklist, the host **does not** end the session. Instead:
 
-1. Iterate all tasklists and find the first with incomplete checkpoints
-2. Identify remaining checkpoints: `tasklist.plan.tasks.slice(tasklist.currentIndex)`
-3. Build a reminder message listing the tasklist ID and incomplete checkpoint IDs
+1. Iterate all tasklists and find the first with incomplete tasks
+2. Identify remaining tasks: `tasklist.plan.tasks.slice(tasklist.currentIndex)`
+3. Build a reminder message listing the tasklist ID and incomplete task IDs
 4. Inject as a user message with `⚠ [system]` prefix
 5. Resume LLM generation
 
 ```ts
 function onStreamComplete() {
-  for (const [tasklistId, tasklist] of checkpointState.tasklists) {
+  for (const [tasklistId, tasklist] of tasklistsState.tasklists) {
     const remaining = tasklist.plan.tasks.slice(tasklist.currentIndex)
     if (remaining.length === 0) continue  // this tasklist is complete
 

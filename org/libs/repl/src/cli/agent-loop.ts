@@ -2,7 +2,7 @@
  * Agent loop — drives the LLM streaming cycle in response to user messages.
  *
  * Manages the turn loop: stream LLM output → feed to session → handle
- * stop/error/checkpoint events → inject messages → loop until complete.
+ * stop/error/tasklist events → inject messages → loop until complete.
  */
 
 import { streamText, type LanguageModel } from "ai";

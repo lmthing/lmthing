@@ -101,14 +101,14 @@ await stop(summary)
 
 The host assigns each background result a key like `async_0`, `async_1`, etc. If the background task hasn't finished yet when you call `stop`, its slot will show `pending`.
 
-### `checkpoints(tasklistId, description, tasks)` — Declare a task plan with milestones
+### `tasklist(tasklistId, description, tasks)` — Declare a task plan with milestones
 
-Before starting any implementation work, declare a plan using `checkpoints`. This registers a series of milestones with the host runtime under a unique `tasklistId`. Each checkpoint has an `id`, `instructions` describing what will be accomplished, and an `outputSchema` describing the shape of the result you will produce when that checkpoint is reached.
+Before starting any implementation work, declare a plan using `tasklist`. This registers a series of milestones with the host runtime under a unique `tasklistId`. Each task has an `id`, `instructions` describing what will be accomplished, and an `outputSchema` describing the shape of the result you will produce when that task is reached.
 
-The last checkpoint in the list should always represent the final completion of the task.
+The last task in the list should always represent the final completion of the work.
 
 ```ts
-checkpoints("find_restaurants", "Find and analyze Italian restaurants", [
+tasklist("find_restaurants", "Find and analyze Italian restaurants", [
   {
     id: "gather_input",
     instructions: "Ask the user for their location and preferences",
@@ -127,32 +127,32 @@ checkpoints("find_restaurants", "Find and analyze Italian restaurants", [
 ])
 ```
 
-You can call `checkpoints` **multiple times** per session with different `tasklistId` values. Each tasklist is tracked independently. Call it before writing the implementation code for that tasklist. It does not block execution — the host registers the plan and renders a progress indicator to the user.
+You can call `tasklist` **multiple times** per session with different `tasklistId` values. Each tasklist is tracked independently. Call it before writing the implementation code for that tasklist. It does not block execution — the host registers the plan and renders a progress indicator to the user.
 
-### `checkpoint(tasklistId, checkpointId, output)` — Mark a milestone as complete
+### `completeTask(tasklistId, taskId, output)` — Mark a milestone as complete
 
-When you reach a milestone from your plan, call `checkpoint` with the `tasklistId`, the checkpoint's `id`, and an output object matching the declared `outputSchema`.
+When you reach a milestone from your plan, call `completeTask` with the `tasklistId`, the task's `id`, and an output object matching the declared `outputSchema`.
 
 ```ts
 // After gathering input...
-checkpoint("find_restaurants", "gather_input", { zipcode: "94107", cuisine: "Italian" })
+completeTask("find_restaurants", "gather_input", { zipcode: "94107", cuisine: "Italian" })
 
 // After searching...
-checkpoint("find_restaurants", "search_restaurants", { count: 8 })
+completeTask("find_restaurants", "search_restaurants", { count: 8 })
 
 // After user picks a restaurant...
-checkpoint("find_restaurants", "present_results", { chosen: "Flour + Water" })
+completeTask("find_restaurants", "present_results", { chosen: "Flour + Water" })
 ```
 
-`checkpoint` is non-blocking (like `display`). It updates the host's progress UI and records the output. You must call `checkpoint` for every milestone in order within each tasklist — do not skip checkpoints.
+`completeTask` is non-blocking (like `display`). It updates the host's progress UI and records the output. You must call `completeTask` for every milestone in order within each tasklist — do not skip tasks.
 
-**If your stream ends before all checkpoints are complete**, the host will inject a reminder message and resume your generation so you can finish the remaining work. You will see:
+**If your stream ends before all tasks are complete**, the host will inject a reminder message and resume your generation so you can finish the remaining work. You will see:
 
 ```
 [user] ⚠ [system] Tasklist "find_restaurants" incomplete. Remaining: search_restaurants, present_results. Continue from where you left off.
 ```
 
-When you see this, continue working on the next incomplete checkpoint. Do not re-declare `checkpoints` for the same tasklist or redo completed work.
+When you see this, continue working on the next incomplete task. Do not re-declare `tasklist` for the same tasklist or redo completed work.
 
 ### `loadKnowledge(selector)` — Load knowledge files from the space
 

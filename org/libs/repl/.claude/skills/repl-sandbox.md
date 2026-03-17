@@ -48,8 +48,8 @@ globalThis.stop = async (...args: any[]) => { /* see globals skill */ }
 globalThis.display = (jsx: React.ReactElement) => { /* see globals skill */ }
 globalThis.ask = async (jsx: React.ReactElement) => { /* see globals skill */ }
 globalThis.async = (fn: () => Promise<void>) => { /* see globals skill */ }
-globalThis.checkpoints = (tasklistId: string, description: string, tasks: CheckpointTask[]) => { /* see globals skill */ }
-globalThis.checkpoint = (tasklistId: string, id: string, output: Record<string, any>) => { /* see globals skill */ }
+globalThis.tasklist = (tasklistId: string, description: string, tasks: TaskDefinition[]) => { /* see globals skill */ }
+globalThis.completeTask = (tasklistId: string, id: string, output: Record<string, any>) => { /* see globals skill */ }
 globalThis.loadKnowledge = (selector: KnowledgeSelector) => { /* see globals skill */ }
 
 // React (required for transpiled JSX)

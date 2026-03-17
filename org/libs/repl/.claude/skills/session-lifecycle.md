@@ -22,8 +22,8 @@ STREAM LOOP
     → ask()?      → pause, render form, wait for submit, assign to sandbox, resume silently
     → display()   → render component, continue
     → async()     → register task (+ abort controller), continue
-    → checkpoints(tasklistId, description, tasks) → register plan in tasklists map, render progress UI, continue
-    → checkpoint(tasklistId, id, output)  → validate output, record completion, update progress UI, continue
+    → tasklist(tasklistId, description, tasks) → register plan in tasklists map, render progress UI, continue
+    → completeTask(tasklistId, id, output)  → validate output, record completion, update progress UI, continue
     → loadKnowledge(selector) → read files from knowledge dir, emit knowledge_loaded event, return content, continue
   → On user intervention:
     → pause, update {{SCOPE}}, finalize assistant turn, inject user message, resume
@@ -34,9 +34,9 @@ STREAM LOOP
 
 COMPLETION
   → LLM emits stop token
-  → If any tasklist has incomplete checkpoints:
+  → If any tasklist has incomplete tasks:
     → inject ⚠ [system] tasklist reminder as user message, resume generation
-    → repeat up to maxCheckpointReminders (default: 3) times
+    → repeat up to maxTasklistReminders (default: 3) times
   → Drain remaining async tasks (with timeout)
   → Final render pass
   → Session complete
@@ -54,7 +54,7 @@ interface SessionConfig {
   sessionTimeout: number        // default: 600_000
   maxStopCalls: number          // default: 50
   maxAsyncTasks: number         // default: 10
-  maxCheckpointReminders: number // default: 3
+  maxTasklistReminders: number  // default: 3
   maxContextTokens: number      // default: 100_000
   serializationLimits: {
     maxStringLength: number     // default: 2_000
@@ -109,7 +109,7 @@ declare function stop(...values: any[]): Promise<void>
 declare function display(element: React.ReactElement): void
 declare function ask(formElement: React.ReactElement): Promise<Record<string, any>>
 declare function async(fn: () => Promise<void>): void
-declare function checkpoints(tasklistId: string, description: string, tasks: CheckpointTask[]): void
-declare function checkpoint(tasklistId: string, id: string, output: Record<string, any>): void
+declare function tasklist(tasklistId: string, description: string, tasks: TaskDefinition[]): void
+declare function completeTask(tasklistId: string, id: string, output: Record<string, any>): void
 declare function loadKnowledge(selector: KnowledgeSelector): KnowledgeContent
 ```

@@ -220,7 +220,7 @@ async function main() {
   ].filter(Boolean).join('\n\n')
 
   const maxTurns = replConfig.maxTurns ?? 10
-  const maxCheckpointReminders = replConfig.maxCheckpointReminders ?? 3
+  const maxTasklistReminders = replConfig.maxTasklistReminders ?? 3
 
   // ── Create session ──
   const session = new Session({
@@ -284,7 +284,7 @@ async function main() {
     classExports: userClassExports.length > 0 ? userClassExports : undefined,
     knowledgeTree: knowledgeTreePrompt || undefined,
     maxTurns,
-    maxCheckpointReminders,
+    maxTasklistReminders,
     debugFile,
   })
 

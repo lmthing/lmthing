@@ -5,11 +5,17 @@
  * Demonstrates: working with arrays/objects, multi-step analysis, stop() for inspection.
  *
  * Run:
- *   OPENAI_BASE_URL=http://localhost:11434/v1 OPENAI_MODEL=qwen2.5-coder npx tsx examples/03-data.ts
- *   OPENAI_API_KEY=sk-... npx tsx examples/03-data.ts
+ *   npx tsx examples/03-data.ts openai:gpt-4o-mini
+ *   npx tsx examples/03-data.ts zai:glm-4.5
  */
 
 import { runRepl } from './runner'
+
+const model = process.argv[2]
+if (!model) {
+  console.error('Usage: npx tsx examples/03-data.ts <provider:model>')
+  process.exit(1)
+}
 
 // ── Sample dataset ──
 
@@ -90,6 +96,7 @@ function topN(employees: Employee[], field: string, n: number): Employee[] {
 // ── Run ──
 
 await runRepl({
+  model,
   userMessage: 'Analyze the employee dataset. I want to know: (1) How many employees per department? (2) What is the average salary by department? (3) Who are the top 3 highest paid? (4) Which employees know TypeScript?',
   globals: { getEmployees, filterBy, sortBy, average, groupBy, countByField, findSkill, topN },
   functionSignatures: `

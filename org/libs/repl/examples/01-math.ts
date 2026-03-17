@@ -5,12 +5,19 @@
  * Demonstrates: stop() for reading values, multiple turns, function calls.
  *
  * Run:
- *   OPENAI_BASE_URL=http://localhost:11434/v1 OPENAI_MODEL=qwen2.5-coder npx tsx examples/01-math.ts
- *   OPENAI_API_KEY=sk-... npx tsx examples/01-math.ts
- *   OPENAI_BASE_URL=http://localhost:1234/v1 OPENAI_MODEL=local-model npx tsx examples/01-math.ts
+ *   npx tsx examples/01-math.ts openai:gpt-4o-mini
+ *   npx tsx examples/01-math.ts zai:glm-4.5
+ *   npx tsx examples/01-math.ts anthropic:claude-sonnet-4-20250514
  */
 
 import { runRepl } from './runner'
+
+const model = process.argv[2]
+if (!model) {
+  console.error('Usage: npx tsx examples/01-math.ts <provider:model>')
+  console.error('  e.g. npx tsx examples/01-math.ts openai:gpt-4o-mini')
+  process.exit(1)
+}
 
 // ── Functions the agent can call ──
 
@@ -46,6 +53,7 @@ function fibonacci(n: number): number[] {
 // ── Run ──
 
 await runRepl({
+  model,
   userMessage: 'Calculate the first 10 Fibonacci numbers, then find the sum of all even ones. Also compute 7! (factorial of 7).',
   globals: { add, multiply, power, sqrt, factorial, fibonacci },
   functionSignatures: `

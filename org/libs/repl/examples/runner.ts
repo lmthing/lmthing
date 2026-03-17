@@ -1,22 +1,28 @@
 /**
- * Shared REPL runner — connects to an OpenAI-compatible endpoint
- * and drives the Session through the streaming REPL loop.
+ * Shared REPL runner — uses Vercel AI SDK streamText with the core provider resolver.
  *
- * Usage:
- *   OPENAI_BASE_URL=http://localhost:11434/v1 OPENAI_MODEL=qwen2.5-coder npx tsx examples/01-math.ts
- *   OPENAI_API_KEY=sk-... npx tsx examples/01-math.ts
+ * The model string follows the "provider:modelId" format from lmthing core:
+ *   "openai:gpt-4o-mini", "anthropic:claude-sonnet-4-20250514", "zai:glm-4.5", etc.
+ *
+ * Custom providers are configured via environment variables:
+ *   ZAI_API_KEY, ZAI_API_BASE, ZAI_API_TYPE=openai
+ *
+ * Run:
+ *   npx tsx examples/01-math.ts zai:glm-4.5
  */
 
+import { config } from 'dotenv'
+import { resolve } from 'node:path'
+
+// Load .env from the repl package root
+config({ path: resolve(import.meta.dirname, '../.env') })
+
+import { streamText } from 'ai'
+import { resolveModel } from '../../core/src/providers/resolver'
 import { Session } from '../src/session/session'
 import type { SessionEvent, StopPayload, ErrorPayload } from '../src/session/types'
 import { generateScopeTable } from '../src/context/scope-generator'
 import { serialize } from '../src/stream/serializer'
-
-// ── Config ──
-
-const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1'
-const OPENAI_API_KEY  = process.env.OPENAI_API_KEY  ?? ''
-const OPENAI_MODEL    = process.env.OPENAI_MODEL    ?? 'gpt-4o-mini'
 
 // ── System Prompt ──
 
@@ -29,7 +35,7 @@ Your output is NOT a script that runs after you finish. Each line is parsed and 
 
 The REPL supports top-level await. Every async function call must be awaited.
 
-CRITICAL: Do NOT wrap code in markdown fences (\`\`\`). Output raw TypeScript only.
+CRITICAL: Do NOT wrap code in markdown fences (\`\`\`). Output raw TypeScript only. Do NOT use <think> tags or any XML tags.
 
 ## Available Globals
 
@@ -38,6 +44,8 @@ Suspends your execution. The runtime evaluates each argument, serializes the res
 
 Use stop when you need to inspect a runtime value before deciding what to write next.
 Example: await stop(x, y) → you will see: ← stop { x: <value>, y: <value> }
+
+IMPORTANT: After calling await stop(), STOP writing code. The runtime will pause your stream, read the values, and resume you in a new turn. Do NOT predict or simulate the stop response yourself.
 
 ### display(element) — Show output to user
 Non-blocking. Appends a rendered component to the user's view.
@@ -56,83 +64,37 @@ ${fnSigs || '(none)'}
 5. Do not import modules. Do not use export.
 6. Use var for all declarations (not const/let) so they persist in the REPL scope across turns.
 7. Handle nullability with ?. and ??
+8. After calling await stop(...), STOP. Do not write any more code until you receive the stop response.
 `
   if (instruct) prompt += `\n## Special Instructions\n${instruct}\n`
   return prompt
 }
 
-// ── OpenAI-compatible streaming (collect full response) ──
+// ── REPL Runner ──
+
+export interface RunnerOptions {
+  /** Model string, e.g. "openai:gpt-4o-mini", "zai:glm-4.5", "anthropic:claude-sonnet-4-20250514" */
+  model: string
+  /** User message to start the conversation */
+  userMessage: string
+  /** Functions to inject into the sandbox */
+  globals?: Record<string, unknown>
+  /** Function signatures for the system prompt */
+  functionSignatures?: string
+  /** Max LLM turns (stop/resume cycles). Default: 10 */
+  maxTurns?: number
+  /** Custom instructions appended to system prompt */
+  instruct?: string
+}
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant'
   content: string
 }
 
-async function chatCompletion(messages: ChatMessage[]): Promise<string> {
-  const response = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(OPENAI_API_KEY ? { 'Authorization': `Bearer ${OPENAI_API_KEY}` } : {}),
-    },
-    body: JSON.stringify({
-      model: OPENAI_MODEL,
-      messages,
-      stream: true,
-      temperature: 0.2,
-      max_tokens: 2048,
-    }),
-  })
-
-  if (!response.ok) {
-    const text = await response.text()
-    throw new Error(`API error ${response.status}: ${text}`)
-  }
-
-  // Stream and collect
-  const reader = response.body!.getReader()
-  const decoder = new TextDecoder()
-  let sseBuffer = ''
-  let result = ''
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-
-    sseBuffer += decoder.decode(value, { stream: true })
-    const lines = sseBuffer.split('\n')
-    sseBuffer = lines.pop() ?? ''
-
-    for (const line of lines) {
-      const trimmed = line.trim()
-      if (!trimmed || trimmed === 'data: [DONE]') continue
-      if (!trimmed.startsWith('data: ')) continue
-      try {
-        const json = JSON.parse(trimmed.slice(6))
-        const delta = json.choices?.[0]?.delta?.content
-        if (delta) {
-          process.stdout.write(`\x1b[32m${delta}\x1b[0m`)
-          result += delta
-        }
-      } catch { /* skip */ }
-    }
-  }
-
-  return result
-}
-
-// ── REPL Runner ──
-
-export interface RunnerOptions {
-  userMessage: string
-  globals?: Record<string, unknown>
-  functionSignatures?: string
-  maxTurns?: number
-  instruct?: string
-}
-
 export async function runRepl(options: RunnerOptions): Promise<void> {
   const {
+    model: modelId,
     userMessage,
     globals = {},
     functionSignatures = '',
@@ -140,14 +102,15 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
     instruct,
   } = options
 
+  const model = resolveModel(modelId)
+
   console.log('\x1b[36m━━━ @lmthing/repl ━━━\x1b[0m')
-  console.log(`\x1b[90mEndpoint: ${OPENAI_BASE_URL}\x1b[0m`)
-  console.log(`\x1b[90mModel:    ${OPENAI_MODEL}\x1b[0m`)
+  console.log(`\x1b[90mModel: ${modelId}\x1b[0m`)
   console.log(`\x1b[33m[user]\x1b[0m ${userMessage}\n`)
 
   const session = new Session({ globals })
 
-  // Track events
+  // Track events from sandbox execution
   let stopPayload: StopPayload | null = null
   let errorPayload: ErrorPayload | null = null
 
@@ -158,6 +121,8 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
         for (const [k, v] of Object.entries(event.payload)) {
           stopPayload[k] = { value: v, display: serialize(v) }
         }
+        // Immediately resolve so the sandbox unblocks and feedToken returns
+        session.resolveStop()
         break
       case 'error':
         errorPayload = event.error
@@ -171,6 +136,7 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
     }
   })
 
+  // Build conversation
   const messages: ChatMessage[] = []
   const scope = generateScopeTable(session.snapshot().scope)
   messages.push({ role: 'system', content: buildSystemPrompt(functionSignatures, scope, instruct) })
@@ -185,38 +151,51 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
 
     console.log(`\x1b[90m--- turn ${turn} ---\x1b[0m`)
 
-    // Get full LLM response
-    let code: string
+    // Stream LLM response using AI SDK streamText
+    let code = ''
     try {
-      code = await chatCompletion(messages)
+      const result = streamText({
+        model,
+        messages: messages.map(m => ({ role: m.role, content: m.content })),
+        temperature: 0.2,
+        maxTokens: 2048,
+      })
+
+      for await (const chunk of result.textStream) {
+        process.stdout.write(`\x1b[32m${chunk}\x1b[0m`)
+        code += chunk
+      }
       console.log() // newline after streamed code
     } catch (err: any) {
       console.error(`\n\x1b[31m  [api error]\x1b[0m ${err.message}`)
       break
     }
 
-    // Strip markdown fences if LLM wrapped output
-    code = stripFences(code)
+    // Clean up model output
+    code = cleanCode(code)
 
     // Feed code to session line by line
-    // When stop() is called in the sandbox, it blocks. We process line by line
-    // and break when stop/error is detected.
+    // stop()/error events fire synchronously during feedToken via the sandbox.
+    // The event handler calls resolveStop() so feedToken returns immediately.
     const lines = code.split('\n')
     for (const line of lines) {
       if (stopPayload || errorPayload) break
+      // Skip empty lines and comment-only lines early
+      const trimmed = line.trim()
+      if (!trimmed) continue
       try {
         await session.feedToken(line + '\n')
       } catch {
-        // execution error — will be captured via event
+        // execution errors captured via event
       }
     }
 
-    // Flush remaining if no interruption
+    // Flush remaining buffer if no interruption
     if (!stopPayload && !errorPayload) {
       try { await session.finalize() } catch { /* ignore */ }
     }
 
-    // Handle stop
+    // Handle stop → inject as user message and loop
     if (stopPayload) {
       const entries = Object.entries(stopPayload)
         .map(([k, v]) => `${k}: ${v.display}`)
@@ -224,17 +203,18 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
       const stopMsg = `← stop { ${entries} }`
       console.log(`\x1b[33m  [stop]\x1b[0m ${stopMsg}`)
 
-      session.resolveStop()
-
-      messages.push({ role: 'assistant', content: code })
+      // Only include code up to the stop call in the assistant message
+      const codeUpToStop = truncateAtStop(code)
+      messages.push({ role: 'assistant', content: codeUpToStop })
       messages.push({ role: 'user', content: stopMsg })
 
+      // Refresh scope in system prompt
       const freshScope = generateScopeTable(session.snapshot().scope)
       messages[0] = { role: 'system', content: buildSystemPrompt(functionSignatures, freshScope, instruct) }
       continue
     }
 
-    // Handle error
+    // Handle error → inject as user message and loop
     if (errorPayload) {
       const errMsg = `← error [${errorPayload.type}] ${errorPayload.message} (line ${errorPayload.line})`
       console.log(`\x1b[31m  [error]\x1b[0m ${errMsg}`)
@@ -247,7 +227,7 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
       continue
     }
 
-    // No stop/error — done
+    // No stop/error — LLM finished naturally
     console.log(`\x1b[36m[done]\x1b[0m Completed after ${turn} turn(s)`)
     break
   }
@@ -256,7 +236,7 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
     console.log(`\x1b[33m[limit]\x1b[0m Reached max turns (${maxTurns})`)
   }
 
-  // Final scope
+  // Print final scope
   const finalScope = generateScopeTable(session.snapshot().scope)
   if (finalScope !== '(no variables declared)') {
     console.log(`\n\x1b[36m━━━ Final Scope ━━━\x1b[0m`)
@@ -266,9 +246,53 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
   session.destroy()
 }
 
-function stripFences(code: string): string {
-  let s = code.trim()
+/**
+ * Clean model output: strip markdown fences, <think> tags, and prose lines.
+ */
+function cleanCode(raw: string): string {
+  let s = raw.trim()
+  // Strip markdown fences
   s = s.replace(/^```(?:typescript|ts|tsx|javascript|js)?\s*\n?/, '')
   s = s.replace(/\n?```\s*$/, '')
-  return s
+  // Strip <think>...</think> blocks (some models use these)
+  s = s.replace(/<think>[\s\S]*?<\/think>/g, '')
+  // Strip leftover </think> tags
+  s = s.replace(/<\/?think>/g, '')
+  // Remove lines that are clearly prose (don't start with valid TS tokens)
+  const lines = s.split('\n')
+  const cleaned = lines.filter(line => {
+    const t = line.trim()
+    if (!t) return true // keep blank lines
+    if (t.startsWith('//')) return true // keep comments
+    // Heuristic: reject lines that start with a capital letter followed by lowercase
+    // and don't look like variable declarations or function calls
+    if (/^[A-Z][a-z]/.test(t) && !t.startsWith('React') && !t.startsWith('Promise') &&
+        !t.startsWith('Array') && !t.startsWith('Object') && !t.startsWith('Map') &&
+        !t.startsWith('Set') && !t.startsWith('Date') && !t.startsWith('Error') &&
+        !t.startsWith('String') && !t.startsWith('Number') && !t.startsWith('Boolean')) {
+      return false
+    }
+    // Reject lines starting with "← " (model simulating stop response)
+    if (t.startsWith('←')) return false
+    // Reject lines starting with common prose markers
+    if (/^(Now |Let me |I |Good|Great|Here|The |This |Next|From |Total|Summary)/.test(t)) return false
+    // Reject numbered list items like "1. ...", "- ..."
+    if (/^\d+\.\s+[A-Z]/.test(t) || /^-\s+[A-Z]/.test(t)) return false
+    return true
+  })
+  return cleaned.join('\n')
+}
+
+/**
+ * Truncate code at the last stop() call — discard anything the model
+ * hallucinated after stop (it shouldn't write more, but some models do).
+ */
+function truncateAtStop(code: string): string {
+  const lines = code.split('\n')
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (lines[i].includes('await stop(') || lines[i].includes('stop(')) {
+      return lines.slice(0, i + 1).join('\n')
+    }
+  }
+  return code
 }

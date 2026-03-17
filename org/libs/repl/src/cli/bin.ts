@@ -45,6 +45,7 @@ async function main() {
   let userClassSigs = ''
   let userClassExports: ClassifiedExport[] = []
   const classConstructors = new Map<string, new () => any>()
+  let setupFn: Function | null = null
   let replConfig: Record<string, any> = {}
 
   if (args.file) {
@@ -59,7 +60,10 @@ async function main() {
           replConfig = value as Record<string, any>
           continue
         }
-        if (name === 'default') continue
+        if (name === 'default') {
+          if (typeof value === 'function') setupFn = value as Function
+          continue
+        }
         if (typeof value === 'function') {
           userGlobals[name] = value
         }
@@ -285,6 +289,30 @@ async function main() {
     maxCheckpointReminders,
     debugFile,
   })
+
+  // ── Run default export setup function ──
+  if (setupFn) {
+    const fnSource = setupFn.toString()
+    let setupCode = ''
+
+    // Extract function body
+    const openBrace = fnSource.indexOf('{')
+    const closeBrace = fnSource.lastIndexOf('}')
+    if (openBrace !== -1 && closeBrace > openBrace) {
+      // Regular function or arrow with braces
+      setupCode = fnSource.slice(openBrace + 1, closeBrace).trim()
+    } else {
+      // Arrow function without braces: (...) => expression
+      const arrowIdx = fnSource.indexOf('=>')
+      if (arrowIdx !== -1) {
+        setupCode = fnSource.slice(arrowIdx + 2).trim()
+      }
+    }
+
+    if (setupCode) {
+      await agentLoop.runSetupCode(setupCode)
+    }
+  }
 
   // ── Resolve static dir for web UI ──
   let staticDir: string | undefined

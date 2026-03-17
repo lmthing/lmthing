@@ -325,6 +325,22 @@ export class Session extends EventEmitter {
   }
 
   /**
+   * Get the public globals object (for passing to setup functions).
+   */
+  getGlobals(): Record<string, Function> {
+    return {
+      stop: this.globalsApi.stop,
+      display: this.globalsApi.display,
+      ask: this.globalsApi.ask,
+      async: this.globalsApi.async,
+      checkpoints: this.globalsApi.checkpoints,
+      checkpoint: this.globalsApi.checkpoint,
+      loadKnowledge: this.globalsApi.loadKnowledge,
+      loadClass: this.globalsApi.loadClass,
+    }
+  }
+
+  /**
    * Get scope table as string.
    */
   getScopeTable(): string {

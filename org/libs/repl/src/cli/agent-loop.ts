@@ -140,6 +140,109 @@ export class AgentLoop {
     }
   }
 
+  /**
+   * Run setup code before the first agent turn.
+   * Feeds lines through the session as if the agent wrote them.
+   */
+  async runSetupCode(code: string): Promise<void> {
+    // Initialize system prompt if needed
+    if (this.messages.length === 0) {
+      const scope = this.session.getScopeTable()
+      const classBlock = this.buildClassBlock()
+      const systemPrompt = buildSystemPrompt(this.functionSignatures, this.formSignatures, this.viewSignatures, classBlock, scope, this.instruct, this.knowledgeTree)
+      this.messages.push({ role: 'system', content: systemPrompt })
+    }
+
+    console.log(`\x1b[90m--- setup ---\x1b[0m`)
+
+    // Track stop/error from session events
+    const state: { stop: StopPayload | null; error: ErrorPayload | null } = { stop: null, error: null }
+    const listener = (event: SessionEvent) => {
+      this.logDebug('event', event)
+      switch (event.type) {
+        case 'read':
+          state.stop = {}
+          for (const [k, v] of Object.entries(event.payload)) {
+            state.stop[k] = { value: v, display: serialize(v as any) }
+          }
+          this.session.resolveStop()
+          break
+        case 'error':
+          state.error = event.error
+          break
+        case 'checkpoint_plan':
+          console.log(`\x1b[36m  [checkpoints]\x1b[0m plan registered: [${event.tasklistId}] ${event.plan.description} (${event.plan.tasks.length} tasks)`)
+          break
+        case 'checkpoint_complete':
+          console.log(`\x1b[32m  [checkpoint]\x1b[0m \u2713 ${event.tasklistId}/${event.id}`)
+          break
+        case 'display':
+          console.log(`\x1b[35m  [display]\x1b[0m component rendered`)
+          break
+        case 'knowledge_loaded':
+          console.log(`\x1b[36m  [knowledge]\x1b[0m loaded: ${event.domains.join(', ')}`)
+          break
+        case 'class_loaded':
+          this.loadedClasses.add(event.className)
+          console.log(`\x1b[36m  [loadClass]\x1b[0m ${event.className} \u2014 ${event.methods.length} method${event.methods.length !== 1 ? 's' : ''} loaded`)
+          break
+      }
+    }
+    this.session.on('event', listener)
+
+    // Set session to executing state
+    this.session.handleUserMessage('[setup]')
+
+    // Feed code line by line
+    const lines = code.split('\n')
+    for (const line of lines) {
+      if (state.stop || state.error) break
+      const trimmed = line.trim()
+      if (!trimmed) continue
+      try {
+        process.stdout.write(`\x1b[32m${line}\x1b[0m\n`)
+        await this.session.feedToken(line + '\n')
+      } catch {
+        // execution errors captured via event
+      }
+    }
+
+    this.session.off('event', listener)
+
+    // Finalize if no interruption
+    if (!state.stop && !state.error) {
+      try {
+        await this.session.finalize()
+      } catch { /* ignore */ }
+    }
+
+    // Record as assistant message
+    this.messages.push({ role: 'assistant', content: code })
+    this.logDebug('message', { role: 'assistant', content: `[setup] ${code}` })
+
+    // If stop occurred, record the stop message
+    if (state.stop) {
+      const entries = Object.entries(state.stop)
+        .map(([k, v]) => `${k}: ${v.display}`)
+        .join(', ')
+      const stopMsg = `\u2190 stop { ${entries} }`
+      console.log(`\x1b[33m  [stop]\x1b[0m ${stopMsg}`)
+      this.messages.push({ role: 'user', content: stopMsg })
+      this.logDebug('message', { role: 'user', content: stopMsg })
+    }
+
+    if (state.error) {
+      const errMsg = `\u2190 error [${state.error.type}] ${state.error.message} (line ${state.error.line})`
+      console.log(`\x1b[31m  [error]\x1b[0m ${errMsg}`)
+      this.messages.push({ role: 'user', content: errMsg })
+      this.logDebug('message', { role: 'user', content: errMsg })
+    }
+
+    // Refresh system prompt to reflect setup effects
+    this.refreshSystemPrompt()
+    console.log(`\x1b[90m--- setup complete ---\x1b[0m\n`)
+  }
+
   private async runTurnLoop(): Promise<void> {
     let turn = 0
 
@@ -698,67 +801,134 @@ function truncateAtStop(code: string): string {
 
 // ── XML Debug Serializer ──
 
-function xmlEscape(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;')
+function xmlAttr(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
 }
 
-function debugLogToXml(entries: DebugEntry[]): string {
-  const lines: string[] = []
-  lines.push('<?xml version="1.0" encoding="UTF-8"?>')
-  lines.push('<debug-log>')
-
-  for (const entry of entries) {
-    lines.push(`  <entry type="${xmlEscape(entry.type)}" timestamp="${entry.timestamp}">`)
-    lines.push(valueToXml(entry.data, 4))
-    lines.push('  </entry>')
-  }
-
-  lines.push('</debug-log>')
-  return lines.join('\n')
-}
-
-function valueToXml(value: unknown, indent: number): string {
-  const pad = ' '.repeat(indent)
-
-  if (value === null || value === undefined) {
-    return `${pad}<value null="true" />`
-  }
-
-  if (typeof value === 'string') {
-    if (value.includes('\n') || value.includes('<') || value.includes('&')) {
-      return `${pad}<text><![CDATA[\n${value}\n${pad}]]></text>`
-    }
-    return `${pad}<text>${xmlEscape(value)}</text>`
-  }
-
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return `${pad}<value type="${typeof value}">${String(value)}</value>`
-  }
-
+function toYaml(value: unknown, indent = 0): string {
+  const pad = '  '.repeat(indent)
+  if (value === null || value === undefined) return `${pad}null`
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return `${pad}${value}`
   if (Array.isArray(value)) {
-    if (value.length === 0) return `${pad}<list />`
-    const items = value.map(item => {
-      const inner = valueToXml(item, indent + 4)
-      return `${pad}  <item>\n${inner}\n${pad}  </item>`
-    })
-    return `${pad}<list count="${value.length}">\n${items.join('\n')}\n${pad}</list>`
+    if (value.length === 0) return `${pad}[]`
+    return value.map(item => {
+      const inner = toYaml(item, indent + 1).trimStart()
+      return `${pad}- ${inner}`
+    }).join('\n')
   }
-
   if (typeof value === 'object') {
     const obj = value as Record<string, unknown>
     const keys = Object.keys(obj)
-    if (keys.length === 0) return `${pad}<object />`
-    const fields = keys.map(key => {
-      const inner = valueToXml(obj[key], indent + 4)
-      return `${pad}  <field name="${xmlEscape(key)}">\n${inner}\n${pad}  </field>`
-    })
-    return `${pad}<object>\n${fields.join('\n')}\n${pad}</object>`
+    if (keys.length === 0) return `${pad}{}`
+    return keys.map(key => {
+      const v = obj[key]
+      if (v && typeof v === 'object') return `${pad}${key}:\n${toYaml(v, indent + 1)}`
+      return `${pad}${key}: ${String(v ?? 'null')}`
+    }).join('\n')
+  }
+  return `${pad}${String(value)}`
+}
+
+function formatMessage(d: any): string {
+  const content = String(d.content ?? '')
+  // Convert stop payloads from JSON to YAML
+  const stopMatch = content.match(/^← stop ([\s\S]+)$/)
+  if (stopMatch) {
+    try {
+      const parsed = JSON.parse(stopMatch[1])
+      return `  <message role="${xmlAttr(d.role)}">\n${toYaml(parsed)}\n  </message>`
+    } catch { /* fall through */ }
+  }
+  return `  <message role="${xmlAttr(d.role)}">\n${content}\n  </message>`
+}
+
+function formatScope(d: any): string | null {
+  const entries = Array.isArray(d) ? d : []
+  if (entries.length === 0) return null
+  const vars = entries.map((e: any) => `    ${e.name}: ${e.type} ${e.value}`).join('\n')
+  return `  <scope>\n${vars}\n  </scope>`
+}
+
+function formatUsage(d: any): string {
+  const u = d.usage ?? {}
+  const cacheRead = u.inputTokenDetails?.cacheReadTokens ?? 0
+  const reasoning = u.outputTokenDetails?.reasoningTokens ?? 0
+  return `  <usage input="${u.inputTokens ?? 0}" output="${u.outputTokens ?? 0}" total="${u.totalTokens ?? 0}" reasoning="${reasoning}" cache-read="${cacheRead}" />`
+}
+
+function debugLogToXml(entries: DebugEntry[]): string {
+  const out: string[] = ['<?xml version="1.0" encoding="UTF-8"?>', '<debug-log>', '']
+
+  // Group entries into turns. Pre-turn entries (system_prompt, setup messages) go
+  // into a "setup" section. Each 'turn' marker starts a new group that collects
+  // its messages, scope, turn_result, and errors until the next turn marker.
+
+  let inTurn = false
+  let turnAttrs = ''
+
+  for (const entry of entries) {
+    const d = entry.data as any
+
+    switch (entry.type) {
+      case 'system_prompt':
+        out.push(`<system-prompt>\n${d}\n</system-prompt>`, '')
+        break
+
+      case 'turn':
+        // Close previous turn if open
+        if (inTurn) out.push('</turn>', '')
+        turnAttrs = `n="${d.turn}" messages="${d.messageCount}"`
+        inTurn = true
+        // Don't emit opening tag yet — wait for turn_result to add finish/model attrs
+        break
+
+      case 'turn_result': {
+        const model = d.response?.modelId ?? ''
+        const finish = xmlAttr(String(d.finishReason ?? ''))
+        out.push(`<turn ${turnAttrs} finish="${finish}" model="${xmlAttr(model)}">`)
+        out.push(formatUsage(d))
+        break
+      }
+
+      case 'message':
+        if (!inTurn) {
+          // Pre-turn setup messages — emit at root level
+          out.push(formatMessage(d).replace(/^  /gm, ''), '')
+        } else {
+          out.push(formatMessage(d))
+        }
+        break
+
+      case 'scope': {
+        const s = formatScope(d)
+        if (s) out.push(s)
+        break
+      }
+
+      case 'event':
+        break
+
+      case 'api_error':
+        out.push(`${inTurn ? '  ' : ''}<api-error>${d.message ?? ''}</api-error>`)
+        break
+
+      case 'finalize': {
+        if (inTurn) { out.push('</turn>', ''); inTurn = false }
+        const t = d.tokenTotals ?? {}
+        out.push(
+          `<finalize model="${xmlAttr(d.model ?? '')}" turns="${d.turns}" status="${xmlAttr(d.status ?? '')}">`,
+          `  <tokens input="${t.inputTokens ?? 0}" output="${t.outputTokens ?? 0}" total="${t.totalTokens ?? 0}" />`,
+          `</finalize>`, ''
+        )
+        break
+      }
+
+      default:
+        break
+    }
   }
 
-  return `${pad}<value>${xmlEscape(String(value))}</value>`
+  if (inTurn) out.push('</turn>', '')
+  out.push('</debug-log>')
+  return out.join('\n')
 }

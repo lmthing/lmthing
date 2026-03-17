@@ -2,7 +2,8 @@
  * Example 9: Multi-space knowledge base
  *
  * A cooking & nutrition assistant that loads knowledge from multiple spaces.
- * Demonstrates: loadKnowledge() global, multiple spaces via replConfig.spaces and --space flag.
+ * Demonstrates: loadKnowledge() global, multiple spaces via replConfig.spaces and --space flag,
+ * catalog tools via replConfig.catalog, built-in form components via replConfig.components.
  *
  * Bundled spaces:
  *   examples/spaces/cooking/    — cuisine/type, technique/method, dietary/restriction
@@ -16,6 +17,64 @@
  */
 
 import React from 'react'
+
+// ── Utility Functions ──
+
+/** Scale a recipe's ingredient quantities by a multiplier */
+export function scaleIngredients(ingredients: string[], multiplier: number): string[] {
+  return ingredients.map(item => {
+    return item.replace(/^([\d./]+)/, (_, n) => {
+      const val = n.includes('/') ? n.split('/').reduce((a: number, b: string) => a / Number(b), Number(n.split('/')[0]) * Number(n.split('/')[0])) : Number(n)
+      return String(Math.round(val * multiplier * 100) / 100)
+    })
+  })
+}
+
+/** Calculate estimated calories from macronutrient grams */
+export function estimateCalories(proteinG: number, carbsG: number, fatG: number): {
+  protein: number
+  carbs: number
+  fat: number
+  total: number
+} {
+  const protein = Math.round(proteinG * 4)
+  const carbs = Math.round(carbsG * 4)
+  const fat = Math.round(fatG * 9)
+  return { protein, carbs, fat, total: protein + carbs + fat }
+}
+
+/**
+ * Build a grocery list from multiple recipe ingredient arrays.
+ * Deduplicates items by lowercased name.
+ */
+export function buildGroceryList(recipes: Array<{ name: string; ingredients: string[] }>): Array<{
+  item: string
+  recipes: string[]
+}> {
+  const map = new Map<string, Set<string>>()
+  for (const recipe of recipes) {
+    for (const ingredient of recipe.ingredients) {
+      const key = ingredient.replace(/^[\d./\s]+/, '').toLowerCase().trim()
+      if (!map.has(key)) map.set(key, new Set())
+      map.get(key)!.add(recipe.name)
+    }
+  }
+  return [...map.entries()].map(([item, sources]) => ({
+    item,
+    recipes: [...sources],
+  }))
+}
+
+/**
+ * Format a duration in minutes to a human-readable string.
+ * @param minutes Total time in minutes
+ */
+export function formatTime(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  return m > 0 ? `${h}h ${m}min` : `${h}h`
+}
 
 // ── React Components ──
 
@@ -31,7 +90,7 @@ export function RecipeCard({ name, cuisine, method, servings, time, ingredients,
 }) {
   return (
     <div style={{ border: '1px solid #ccc', borderRadius: 8, padding: 16, maxWidth: 520, fontFamily: 'sans-serif' }}>
-      <div style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 4 }}>🍽️ {name}</div>
+      <div style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 4 }}>{name}</div>
       <div style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>
         {cuisine} · {method} · {servings} servings · {time}
       </div>
@@ -62,7 +121,7 @@ export function NutritionCard({ title, category, highlights, sources }: {
 }) {
   return (
     <div style={{ border: '1px solid #b8e6c1', background: '#f0faf3', borderRadius: 8, padding: 16, maxWidth: 520, fontFamily: 'sans-serif' }}>
-      <div style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 4 }}>🧬 {title}</div>
+      <div style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 4 }}>{title}</div>
       <div style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>{category}</div>
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontWeight: 'bold', marginBottom: 4 }}>Key Points</div>
@@ -84,7 +143,7 @@ export function NutritionCard({ title, category, highlights, sources }: {
 export function TipCard({ title, content }: { title: string; content: string }) {
   return (
     <div style={{ border: '1px solid #b8daff', background: '#f0f7ff', borderRadius: 8, padding: 16, maxWidth: 520, fontFamily: 'sans-serif' }}>
-      <div style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8 }}>💡 {title}</div>
+      <div style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8 }}>{title}</div>
       <div style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{content}</div>
     </div>
   )
@@ -98,7 +157,7 @@ export function MealPlanCard({ title, strategy, meals }: {
 }) {
   return (
     <div style={{ border: '1px solid #d4c5f9', background: '#f8f5ff', borderRadius: 8, padding: 16, maxWidth: 520, fontFamily: 'sans-serif' }}>
-      <div style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 4 }}>📋 {title}</div>
+      <div style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 4 }}>{title}</div>
       <div style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>Strategy: {strategy}</div>
       {meals.map((meal, i) => (
         <div key={i} style={{ padding: '6px 0', borderBottom: i < meals.length - 1 ? '1px solid #e8e0f7' : 'none' }}>
@@ -110,26 +169,13 @@ export function MealPlanCard({ title, strategy, meals }: {
   )
 }
 
-/** Form to ask user what they want help with */
-export function RequestForm() {
-  return (
-    <div>
-      <div style={{ marginBottom: 12, fontWeight: 'bold' }}>🍳 What can I help with?</div>
-      <div style={{ marginBottom: 8 }}>
-        <label style={{ display: 'block', marginBottom: 4, fontSize: 13 }}>Describe your request</label>
-        <input name="request" type="text" placeholder="e.g., A high-protein Italian dinner with meal prep tips" style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc', width: '100%' }} />
-      </div>
-      <div style={{ marginBottom: 8 }}>
-        <label style={{ display: 'block', marginBottom: 4, fontSize: 13 }}>Dietary needs (optional)</label>
-        <input name="dietary" type="text" placeholder="e.g., vegetarian, gluten-free" style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc', width: '100%' }} />
-      </div>
-    </div>
-  )
-}
+
 
 // ── CLI config ──
 
 export const replConfig = {
+  functions: ['json', 'fetch'],
+  components: { form: ['form'] },
   spaces: ['examples/spaces/cooking', 'examples/spaces/nutrition'],
   instruct: `You are a cooking and nutrition assistant powered by a multi-space knowledge base. Your knowledge tree spans two spaces:
 
@@ -137,32 +183,13 @@ export const replConfig = {
 - **Nutrition** — macronutrients (protein, carbs, fats), vitamins & minerals (D, iron, B12), and meal planning strategies (plate method, batch prep, calorie tracking)
 
 When the user asks for help:
-1. Use loadKnowledge() to load relevant knowledge from BOTH spaces as needed
-2. Read the loaded content with await stop() to understand it
-3. Combine cooking and nutrition knowledge to give well-rounded advice
-4. Display results using the React components
+1. Start with \`ask()\` using a form component to gather their request
+2. Use \`loadKnowledge()\` to load relevant knowledge from BOTH spaces as needed
+3. Read the loaded content with \`await stop()\` to understand it
+4. Use the utility functions (estimateCalories, scaleIngredients, buildGroceryList, formatTime) to compute values
+5. Display results using the display components (RecipeCard, NutritionCard, TipCard, MealPlanCard)
 
-Available components:
-- display(<RecipeCard name="..." cuisine="..." method="..." servings={4} time="30 min" ingredients={[...]} steps={[...]} />) — show a recipe
-- display(<NutritionCard title="..." category="..." highlights={[...]} sources={[...]} />) — show nutrition info
-- display(<TipCard title="..." content="..." />) — show a cooking or nutrition tip
-- display(<MealPlanCard title="..." strategy="..." meals={[{ label: "Breakfast", description: "..." }, ...]} />) — show a meal plan
-- var input = await ask(<RequestForm />) — ask what the user wants help with
-
-Example flow — loading from both spaces at once:
-var docs = loadKnowledge({
-  "cooking": {
-    "cuisine": { "type": { "italian": true } },
-    "technique": { "method": { "saute": true } }
-  },
-  "nutrition": {
-    "macronutrients": { "type": { "protein": true } },
-    "meal-planning": { "strategy": { "plate-method": true } }
-  }
-})
-await stop(docs)
-// Now combine cooking + nutrition knowledge in your response
-
+Make sure to add checkpoints for using all the available functions. 
 Always load knowledge BEFORE giving advice — don't make things up when the knowledge base has the answer.
 Never load all files from a space — only load the specific options relevant to the user's question.`,
   maxTurns: 12,

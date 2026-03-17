@@ -16,6 +16,19 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 // Load .env from the repl package root
 config({ path: resolve(__dirname, '../../.env') })
 
+/** Resolve built-in component paths from component group names. */
+function resolveComponentPaths(groups: string[]): string[] {
+  const componentsDir = resolve(__dirname, '../components')
+  const paths: string[] = []
+  for (const group of groups) {
+    const indexPath = resolve(componentsDir, group, 'index.ts')
+    if (existsSync(indexPath)) {
+      paths.push(indexPath)
+    }
+  }
+  return paths
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2))
 
@@ -24,38 +37,17 @@ async function main() {
     process.exit(1)
   }
 
-  // ── Load catalog modules ──
-  let catalogGlobals: Record<string, unknown> = {}
-  let catalogSigs = ''
-  if (args.catalog) {
-    const moduleIds = args.catalog === 'all' ? 'all' : args.catalog.split(',')
-    const modules = await loadCatalog(moduleIds)
-    const fns = mergeCatalogs(modules)
-    for (const fn of fns) {
-      catalogGlobals[fn.name] = fn.fn
-    }
-    catalogSigs = formatCatalogForPrompt(modules)
-  }
-
-  // ── Load user file ──
+  // ── Load user file (first, to read replConfig before catalog/components) ──
   let userGlobals: Record<string, unknown> = {}
-  let userSigs = ''
-  let userInstruct = ''
+  let userFnSigs = ''
+  let userFormSigs = ''
+  let userViewSigs = ''
   let replConfig: Record<string, any> = {}
 
   if (args.file) {
     const filePath = resolve(args.file)
 
-    // Classify exports for function signatures
-    try {
-      const exports = classifyExports(filePath)
-      const formatted = formatExportsForPrompt(exports, args.file)
-      userSigs = formatted.functions
-    } catch {
-      // Fall back to manual signatures if classification fails
-    }
-
-    // Import the file to get actual functions
+    // Import the file first to get replConfig and runtime values
     try {
       const userModule = await import(filePath)
       for (const [name, value] of Object.entries(userModule)) {
@@ -71,6 +63,106 @@ async function main() {
     } catch (err) {
       console.error(`Failed to load ${args.file}:`, err)
       process.exit(1)
+    }
+
+    // Classify exports for function/component signatures
+    // Run after import so .form markers on the runtime module can be cross-referenced
+    try {
+      const exports = classifyExports(filePath)
+
+      // Mark components as form if the runtime value has .form = true
+      for (const exp of exports) {
+        if (exp.kind === 'component' && !exp.form) {
+          const fn = userGlobals[exp.name] as any
+          if (fn && fn.form === true) exp.form = true
+        }
+      }
+
+      const formatted = formatExportsForPrompt(exports, args.file)
+      userFnSigs = formatted.functions
+      userFormSigs = formatted.formComponents
+      userViewSigs = formatted.viewComponents
+    } catch {
+      // Fall back to manual signatures if classification fails
+    }
+  }
+
+  // ── Load catalog modules (CLI --catalog merged with replConfig.functions) ──
+  let catalogGlobals: Record<string, unknown> = {}
+  let catalogSigs = ''
+  const catalogSpec = args.catalog
+    ? (args.catalog === 'all' ? 'all' : args.catalog.split(','))
+    : (Array.isArray(replConfig.functions) ? replConfig.functions : null)
+  if (catalogSpec) {
+    const moduleIds = catalogSpec === 'all' ? 'all' : catalogSpec as string[]
+    const modules = await loadCatalog(moduleIds)
+    const fns = mergeCatalogs(modules)
+    for (const fn of fns) {
+      catalogGlobals[fn.name] = fn.fn
+    }
+    catalogSigs = formatCatalogForPrompt(modules)
+  }
+
+  // ── Load built-in components (replConfig.components: { form: [...], view: [...] }) ──
+  let builtinCompGlobals: Record<string, unknown> = {}
+  let builtinFormSigs = ''
+  let builtinViewSigs = ''
+  const compConfig = replConfig.components as { form?: string[]; view?: string[] } | undefined
+  if (compConfig) {
+    // Load form component groups
+    if (Array.isArray(compConfig.form) && compConfig.form.length > 0) {
+      const paths = resolveComponentPaths(compConfig.form)
+      for (const compPath of paths) {
+        try {
+          const exports = classifyExports(compPath)
+          // All built-in form group components are form components
+          for (const e of exports) { if (e.kind === 'component') e.form = true }
+          const formatted = formatExportsForPrompt(
+            exports.filter(e => e.kind === 'component'),
+            compConfig.form.join(', '),
+            'Built-in',
+          )
+          if (formatted.formComponents) {
+            builtinFormSigs += (builtinFormSigs ? '\n' : '') + formatted.formComponents
+          }
+        } catch { /* skip on failure */ }
+
+        try {
+          const mod = await import(compPath)
+          for (const [name, value] of Object.entries(mod)) {
+            if (typeof value === 'function' && /^[A-Z]/.test(name)) {
+              builtinCompGlobals[name] = value
+            }
+          }
+        } catch { /* skip on failure */ }
+      }
+    }
+
+    // Load view component groups
+    if (Array.isArray(compConfig.view) && compConfig.view.length > 0) {
+      const paths = resolveComponentPaths(compConfig.view)
+      for (const compPath of paths) {
+        try {
+          const exports = classifyExports(compPath)
+          const formatted = formatExportsForPrompt(
+            exports.filter(e => e.kind === 'component'),
+            compConfig.view.join(', '),
+            'Built-in',
+          )
+          if (formatted.viewComponents) {
+            builtinViewSigs += (builtinViewSigs ? '\n' : '') + formatted.viewComponents
+          }
+        } catch { /* skip on failure */ }
+
+        try {
+          const mod = await import(compPath)
+          for (const [name, value] of Object.entries(mod)) {
+            if (typeof value === 'function' && /^[A-Z]/.test(name)) {
+              builtinCompGlobals[name] = value
+            }
+          }
+        } catch { /* skip on failure */ }
+      }
     }
   }
 
@@ -97,7 +189,9 @@ async function main() {
   }
 
   // ── Merge config ──
-  const functionSignatures = [catalogSigs, userSigs, replConfig.functionSignatures].filter(Boolean).join('\n')
+  const functionSignatures = [catalogSigs, userFnSigs, replConfig.functionSignatures].filter(Boolean).join('\n')
+  const formSignatures = [builtinFormSigs, userFormSigs].filter(Boolean).join('\n')
+  const viewSignatures = [builtinViewSigs, userViewSigs].filter(Boolean).join('\n')
 
   const instructs = [
     ...(args.instruct ?? []),
@@ -110,7 +204,7 @@ async function main() {
   // ── Create session ──
   const session = new Session({
     config: { sessionTimeout: args.timeout * 1000 },
-    globals: { ...catalogGlobals, ...userGlobals },
+    globals: { ...catalogGlobals, ...builtinCompGlobals, ...userGlobals },
     knowledgeLoader: spaceMap.size > 0
       ? (selector) => {
           // Selector uses space names as top-level keys:
@@ -140,6 +234,8 @@ async function main() {
     modelId: args.model,
     instruct: instructs || undefined,
     functionSignatures: functionSignatures || undefined,
+    formSignatures: formSignatures || undefined,
+    viewSignatures: viewSignatures || undefined,
     knowledgeTree: knowledgeTreePrompt || undefined,
     maxTurns,
     maxCheckpointReminders,

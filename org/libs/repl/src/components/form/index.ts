@@ -7,4 +7,3 @@ export { Select, type SelectProps } from './Select';
 export { MultiSelect, type MultiSelectProps } from './MultiSelect';
 export { DatePicker, type DatePickerProps } from './DatePicker';
 export { FileUpload, type FileUploadProps } from './FileUpload';
-export { Form, type FormProps } from './Form';

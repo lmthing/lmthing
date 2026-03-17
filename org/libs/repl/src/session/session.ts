@@ -336,6 +336,13 @@ export class Session extends EventEmitter {
  * Convert a React element (from the sandbox) into a SerializedJSX tree
  * that can be sent over the wire and reconstructed by the web UI.
  */
+// Components that should be serialized by name (not expanded server-side)
+// because the web UI renders them with client-side state (hooks).
+const CLIENT_COMPONENTS = new Set([
+  'TextInput', 'TextArea', 'NumberInput', 'Slider',
+  'Checkbox', 'Select', 'MultiSelect', 'DatePicker', 'FileUpload',
+])
+
 function serializeReactElement(element: unknown, depth = 0): SerializedJSX {
   if (depth > 20) return { component: 'div', props: {}, children: ['[max depth]'] }
 
@@ -352,12 +359,24 @@ function serializeReactElement(element: unknown, depth = 0): SerializedJSX {
   if (typeof el.type === 'string') {
     component = el.type
   } else if (typeof el.type === 'function') {
-    // Custom component — call it to get the rendered output
-    try {
-      const rendered = (el.type as Function)(el.props)
-      return serializeReactElement(rendered, depth + 1)
-    } catch {
-      component = (el.type as Function).name || 'div'
+    const name = (el.type as Function).name || ''
+
+    // Client-rendered components — serialize by name so the web UI handles them
+    if (CLIENT_COMPONENTS.has(name)) {
+      component = name
+    } else {
+      // Try to expand pure (hook-free) components server-side.
+      // Components using hooks will throw — fall back to name + props.
+      const _consoleError = console.error
+      try {
+        console.error = () => {} // suppress React hook warnings during probe
+        const rendered = (el.type as Function)(el.props)
+        return serializeReactElement(rendered, depth + 1)
+      } catch {
+        component = name || 'div'
+      } finally {
+        console.error = _consoleError
+      }
     }
   } else {
     component = 'div'

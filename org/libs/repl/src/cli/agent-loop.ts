@@ -21,6 +21,8 @@ export interface AgentLoopOptions {
   modelId: string
   instruct?: string
   functionSignatures?: string
+  formSignatures?: string
+  viewSignatures?: string
   knowledgeTree?: string
   maxTurns?: number
   maxCheckpointReminders?: number
@@ -44,6 +46,8 @@ export class AgentLoop {
   private modelId: string
   private instruct?: string
   private functionSignatures: string
+  private formSignatures: string
+  private viewSignatures: string
   private knowledgeTree: string
   private maxTurns: number
   private maxCheckpointReminders: number
@@ -68,6 +72,8 @@ export class AgentLoop {
     this.modelId = options.modelId
     this.instruct = options.instruct
     this.functionSignatures = options.functionSignatures ?? ''
+    this.formSignatures = options.formSignatures ?? ''
+    this.viewSignatures = options.viewSignatures ?? ''
     this.knowledgeTree = options.knowledgeTree ?? ''
     this.maxTurns = options.maxTurns ?? 10
     this.maxCheckpointReminders = options.maxCheckpointReminders ?? 3
@@ -104,7 +110,7 @@ export class AgentLoop {
 
     // Build initial system prompt
     const scope = this.session.getScopeTable()
-    const systemPrompt = buildSystemPrompt(this.functionSignatures, scope, this.instruct, this.knowledgeTree)
+    const systemPrompt = buildSystemPrompt(this.functionSignatures, this.formSignatures, this.viewSignatures, scope, this.instruct, this.knowledgeTree)
 
     // Initialize or update messages
     if (this.messages.length === 0) {
@@ -375,7 +381,7 @@ export class AgentLoop {
 
   private refreshSystemPrompt(): void {
     const scope = this.session.getScopeTable()
-    const systemPrompt = buildSystemPrompt(this.functionSignatures, scope, this.instruct, this.knowledgeTree)
+    const systemPrompt = buildSystemPrompt(this.functionSignatures, this.formSignatures, this.viewSignatures, scope, this.instruct, this.knowledgeTree)
     this.messages[0] = { role: 'system', content: systemPrompt }
     this.logDebug('system_prompt', systemPrompt)
 
@@ -439,7 +445,7 @@ export class AgentLoop {
 
 // ── System Prompt ──
 
-function buildSystemPrompt(fnSigs: string, scope: string, instruct?: string, knowledgeTree?: string): string {
+function buildSystemPrompt(fnSigs: string, formSigs: string, viewSigs: string, scope: string, instruct?: string, knowledgeTree?: string): string {
   let prompt = `You are a code-execution agent. You respond EXCLUSIVELY with valid TypeScript code. No markdown. No prose. No explanations outside of code comments. Every character you emit is fed line-by-line into a live TypeScript REPL that executes as you stream.
 
 ## Execution Model
@@ -461,7 +467,33 @@ Example: await stop(x, y) → you will see: ← stop { x: <value>, y: <value> }
 IMPORTANT: After calling await stop(), STOP writing code. The runtime will pause your stream, read the values, and resume you in a new turn. Do NOT predict or simulate the stop response yourself.
 
 ### display(element) — Show output to user
-Non-blocking. Appends a rendered component to the user's view.
+Non-blocking. Appends a rendered component to the user's view. Use with display components only.
+Example: display(<RecipeCard name="Pasta" cuisine="Italian" ... />)
+
+### var data = await ask(element) — Collect user input
+Blocking. Renders a form to the user and waits for submission. The host wraps your element in a \`<form>\` with Submit/Cancel buttons — do NOT add your own \`<form>\` tag.
+Each input component must have a \`name\` attribute. The returned object maps name → submitted value.
+
+ask() resumes silently — no message is injected into the conversation. You MUST call stop() after ask() to read the submitted values.
+
+Pattern:
+var input = await ask(<RequestForm />)
+await stop(input)
+// ← stop { input: { request: "...", dietary: "..." } }
+// Now you can see the values and decide what to do next
+
+Multiple inputs:
+var prefs = await ask(<div>
+  <Select name="cuisine" label="Pick cuisine" options={["italian", "japanese"]} />
+  <TextInput name="notes" label="Any notes?" />
+</div>)
+await stop(prefs)
+// ← stop { prefs: { cuisine: "italian", notes: "extra spicy" } }
+
+IMPORTANT:
+- Do NOT wrap ask() content in \`<form>\`. The host provides the form wrapper and submit button.
+- Always call await stop() right after ask() to see the values. Do NOT use the values before calling stop().
+- After stop(), you resume in a new turn with the form data visible.
 
 ### checkpoints(tasklistId, description, tasks) — Declare a task plan with milestones
 Before starting any implementation work, declare a plan using checkpoints(). This registers milestones with the host under a unique tasklistId. Each checkpoint has an id, instructions, and outputSchema describing the result shape.
@@ -511,7 +543,17 @@ Use the Knowledge Tree below to see what spaces and files are available. Load on
 ${scope || '(no variables declared)'}
 
 ## Available Functions
-${fnSigs || '(none)'}`
+${fnSigs || '(none)'}
+
+## Form Components — use ONLY inside ask()
+Render these inside \`var data = await ask(<Component />)\`. Always follow with \`await stop(data)\` to read the values.
+Each input must have a \`name\` attribute — the returned object maps name → submitted value.
+Do NOT add a \`<form>\` tag — the host wraps automatically with Submit/Cancel buttons.
+${formSigs || '(none)'}
+
+## Display Components — use with display()
+These components show output to the user. Use them with \`display(<Component ... />)\`. Non-blocking.
+${viewSigs || '(none)'}`
 
   if (knowledgeTree) {
     prompt += `\n\n## Knowledge Tree\n${knowledgeTree}\n`
@@ -536,26 +578,33 @@ A typical interaction follows this pattern:
 
 // 1. Plan — always start with checkpoints
 checkpoints("main", "Do the task", [
-  { id: "step1", instructions: "...", outputSchema: { key: { type: "string" } } },
-  { id: "step2", instructions: "...", outputSchema: { done: { type: "boolean" } } }
+  { id: "gather", instructions: "Collect user input", outputSchema: { done: { type: "boolean" } } },
+  { id: "work", instructions: "Do the work", outputSchema: { key: { type: "string" } } },
+  { id: "present", instructions: "Show results", outputSchema: { done: { type: "boolean" } } }
 ])
 
-// 2. Load relevant knowledge (use space name as top-level key)
+// 2. Gather user input with ask() → stop()
+var input = await ask(<RequestForm />)
+await stop(input)
+// ← stop { input: { request: "...", dietary: "..." } }
+
+// (new turn — now you can see the form values)
+checkpoint("main", "gather", { done: true })
+
+// 3. Load relevant knowledge
 var knowledge = loadKnowledge({ "space-name": { "domain": { "field": { "option": true } } } })
 await stop(knowledge)
 // ← stop { knowledge: { "space-name": { domain: { field: { option: "..." } } } } }
 
-// 3. Do work for step 1
+// 4. Do work
 var result = await someFunction()
 await stop(result)
 // ← stop { result: ... }
+checkpoint("main", "work", { key: result.key })
 
-// 4. Mark step 1 complete
-checkpoint("main", "step1", { key: result.key })
-
-// 5. Do work for step 2
-var final = await anotherFunction()
-checkpoint("main", "step2", { done: true })`
+// 5. Show results with display()
+display(<ResultCard data={result} />)
+checkpoint("main", "present", { done: true })`
 
   if (instruct) prompt += `\n\n## Special Instructions\n${instruct}\n`
   return prompt

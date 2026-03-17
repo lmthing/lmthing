@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useReducer } from 'react'
-import type { SessionEvent, SessionSnapshot, SessionStatus, SerializedJSX, ErrorPayload, CheckpointPlan } from '../session/types'
+import type { SessionEvent, SessionSnapshot, SessionStatus, SerializedJSX, ErrorPayload, Tasklist } from '../session/types'
 
 // ── UI Block Model ──
 
@@ -11,8 +11,8 @@ export type UIBlock =
   | { type: 'hook'; id: string; hookId: string; action: string; detail: string }
   | { type: 'display'; id: string; jsx: SerializedJSX }
   | { type: 'form'; id: string; jsx: SerializedJSX; status: 'active' | 'submitted' | 'timeout' }
-  | { type: 'checkpoint_plan'; id: string; tasklistId: string; plan: CheckpointPlan }
-  | { type: 'checkpoint_complete'; id: string; tasklistId: string; checkpointId: string; output: Record<string, any> }
+  | { type: 'tasklist_declared'; id: string; tasklistId: string; plan: Tasklist }
+  | { type: 'task_complete'; id: string; tasklistId: string; taskId: string; output: Record<string, any> }
 
 type BlockAction =
   | { type: 'event'; event: SessionEvent }
@@ -63,10 +63,10 @@ function blocksReducer(blocks: UIBlock[], action: BlockAction): UIBlock[] {
       return blocks.map(b =>
         b.type === 'form' && b.id === event.formId ? { ...b, status: 'submitted' as const } : b,
       )
-    case 'checkpoint_plan':
-      return [...blocks, { type: 'checkpoint_plan', id: `cp_plan_${event.tasklistId}_${Date.now()}`, tasklistId: event.tasklistId, plan: event.plan }]
-    case 'checkpoint_complete':
-      return [...blocks, { type: 'checkpoint_complete', id: `cp_${event.tasklistId}_${event.id}`, tasklistId: event.tasklistId, checkpointId: event.id, output: event.output }]
+    case 'tasklist_declared':
+      return [...blocks, { type: 'tasklist_declared', id: `tl_plan_${event.tasklistId}_${Date.now()}`, tasklistId: event.tasklistId, plan: event.plan }]
+    case 'task_complete':
+      return [...blocks, { type: 'task_complete', id: `tl_${event.tasklistId}_${event.id}`, tasklistId: event.tasklistId, taskId: event.id, output: event.output }]
     default:
       return blocks
   }
@@ -132,7 +132,7 @@ const EMPTY_SNAPSHOT: SessionSnapshot = {
   scope: [],
   asyncTasks: [],
   activeFormId: null,
-  checkpointState: { tasklists: new Map() },
+  tasklistsState: { tasklists: new Map() },
 }
 
 // ── Hook ──

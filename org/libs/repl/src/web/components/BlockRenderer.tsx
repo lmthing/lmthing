@@ -40,23 +40,23 @@ export function BlockRenderer({ block, activeFormId, onSubmitForm, onCancelAsk }
           onCancel={onCancelAsk}
         />
       )
-    case 'checkpoint_plan':
+    case 'tasklist_declared':
       return (
-        <div className="agent-block checkpoint-plan">
+        <div className="agent-block tasklist">
           <h4>{block.plan.description} <span style={{ opacity: 0.5, fontSize: '0.85em' }}>({block.tasklistId})</span></h4>
           {block.plan.tasks.map(task => (
-            <div key={task.id} className="checkpoint-task">
+            <div key={task.id} className="tasklist-task">
               <span style={{ opacity: 0.5 }}>&#x25CB;</span>
               <span>{task.instructions}</span>
             </div>
           ))}
         </div>
       )
-    case 'checkpoint_complete':
+    case 'task_complete':
       return (
-        <div className="agent-block checkpoint-complete-block">
+        <div className="agent-block task-complete-block">
           <span>&#x2713;</span>
-          <span>Checkpoint <strong>{block.tasklistId}/{block.checkpointId}</strong> complete</span>
+          <span>Task <strong>{block.tasklistId}/{block.taskId}</strong> complete</span>
         </div>
       )
     default:

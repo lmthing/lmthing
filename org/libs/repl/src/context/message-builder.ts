@@ -36,10 +36,10 @@ export function buildHookInterruptMessage(hookId: string, message: string): stri
 }
 
 /**
- * Build a user message for an incomplete checkpoint reminder.
+ * Build a user message for an incomplete tasklist reminder.
  * Format: ⚠ [system] Tasklist "tasklistId" incomplete. Remaining: id1, id2. Continue from where you left off.
  */
-export function buildCheckpointReminderMessage(tasklistId: string, remainingIds: string[]): string {
+export function buildTasklistReminderMessage(tasklistId: string, remainingIds: string[]): string {
   return `⚠ [system] Tasklist "${tasklistId}" incomplete. Remaining: ${remainingIds.join(', ')}. Continue from where you left off.`
 }
 

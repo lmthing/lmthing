@@ -57,27 +57,27 @@ IMPORTANT:
 - Always call await stop() right after ask() to see the values. Do NOT use the values before calling stop().
 - After stop(), you resume in a new turn with the form data visible.
 
-### checkpoints(tasklistId, description, tasks) — Declare a task plan with milestones
-Before starting any implementation work, declare a plan using checkpoints(). This registers milestones with the host under a unique tasklistId. Each checkpoint has an id, instructions, and outputSchema describing the result shape.
+### tasklist(tasklistId, description, tasks) — Declare a task plan with milestones
+Before starting any implementation work, declare a plan using tasklist(). This registers milestones with the host under a unique tasklistId. Each task has an id, instructions, and outputSchema describing the result shape.
 
-You can call checkpoints() multiple times per session with different tasklist IDs. It does not block execution.
+You can call tasklist() multiple times per session with different tasklist IDs. It does not block execution.
 
 Example:
-checkpoints("analyze_data", "Analyze employee data", [
+tasklist("analyze_data", "Analyze employee data", [
   { id: "load", instructions: "Load the dataset", outputSchema: { count: { type: "number" } } },
   { id: "analyze", instructions: "Compute statistics", outputSchema: { done: { type: "boolean" } } },
   { id: "report", instructions: "Present results", outputSchema: { done: { type: "boolean" } } }
 ])
 
-### checkpoint(tasklistId, checkpointId, output) — Mark a milestone as complete
-When you reach a milestone, call checkpoint() with the tasklist ID, checkpoint ID, and an output object matching the declared outputSchema. Non-blocking. Must be called in declaration order within each tasklist — do not skip checkpoints.
+### completeTask(tasklistId, taskId, output) — Mark a milestone as complete
+When you reach a milestone, call completeTask() with the tasklist ID, task ID, and an output object matching the declared outputSchema. Non-blocking. Must be called in declaration order within each tasklist — do not skip tasks.
 
 Example:
-checkpoint("analyze_data", "load", { count: 10 })
+completeTask("analyze_data", "load", { count: 10 })
 
-If your stream ends before all checkpoints are complete, the host will send you a reminder:
+If your stream ends before all tasks are complete, the host will send you a reminder:
   ⚠ [system] Tasklist "analyze_data" incomplete. Remaining: analyze, report. Continue from where you left off.
-When you see this, continue from the next incomplete checkpoint. Do NOT re-declare checkpoints() for the same tasklist or redo completed work.
+When you see this, continue from the next incomplete task. Do NOT re-declare tasklist() for the same tasklist or redo completed work.
 
 ### loadKnowledge(selector) — Load knowledge files from spaces
 Loads markdown content from the knowledge base. Pass a selector object that mirrors the knowledge tree structure, setting \`true\` on the specific files you want to load.
@@ -144,7 +144,7 @@ ${viewSigs || "(none)"}`;
   prompt += `
 ## Rules
 1. Output ONLY valid TypeScript. No markdown. No prose outside // comments.
-2. Plan before you build — call checkpoints(tasklistId, description, tasks) to declare milestones, then call checkpoint(tasklistId, checkpointId, output) as you complete each one.
+2. Plan before you build — call tasklist(tasklistId, description, tasks) to declare milestones, then call completeTask(tasklistId, taskId, output) as you complete each one.
 3. Await every async call: var x = await fn()
 4. Use stop() to read runtime values before branching.
 5. Do not use console.log — use stop() to inspect values.
@@ -158,8 +158,8 @@ ${viewSigs || "(none)"}`;
 
 A typical interaction follows this pattern:
 
-// 1. Plan — always start with checkpoints
-checkpoints("main", "Do the task", [
+// 1. Plan — always start with tasklist
+tasklist("main", "Do the task", [
   { id: "gather", instructions: "Collect user input", outputSchema: { done: { type: "boolean" } } },
   { id: "work", instructions: "Do the work", outputSchema: { key: { type: "string" } } },
   { id: "present", instructions: "Show results", outputSchema: { done: { type: "boolean" } } }
@@ -171,7 +171,7 @@ await stop(input)
 // ← stop { input: { request: "...", dietary: "..." } }
 
 // (new turn — now you can see the form values)
-checkpoint("main", "gather", { done: true })
+completeTask("main", "gather", { done: true })
 
 // 3. Load relevant knowledge
 var knowledge = loadKnowledge({ "space-name": { "domain": { "field": { "option": true } } } })
@@ -182,11 +182,11 @@ await stop(knowledge)
 var result = await someFunction()
 await stop(result)
 // ← stop { result: ... }
-checkpoint("main", "work", { key: result.key })
+completeTask("main", "work", { key: result.key })
 
 // 5. Show results with display()
 display(<ResultCard data={result} />)
-checkpoint("main", "present", { done: true })`;
+completeTask("main", "present", { done: true })`;
 
   if (instruct) prompt += `\n\n## Special Instructions\n${instruct}\n`;
   return prompt;

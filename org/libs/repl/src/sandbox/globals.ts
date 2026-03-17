@@ -1,4 +1,4 @@
-import type { StreamPauseController, RenderSurface, StopPayload, SerializedValue, CheckpointPlan, CheckpointState, TasklistState, ClassMethodInfo } from '../session/types'
+import type { StreamPauseController, RenderSurface, StopPayload, SerializedValue, Tasklist, TasklistsState, TasklistState, ClassMethodInfo } from '../session/types'
 import { serialize } from '../stream/serializer'
 import { recoverArgumentNames } from '../parser/ast-utils'
 import { AsyncManager } from './async-manager'
@@ -19,8 +19,8 @@ export interface GlobalsConfig {
   onStop?: (payload: StopPayload, source: string) => void
   onDisplay?: (id: string) => void
   onAsyncStart?: (taskId: string, label: string) => void
-  onCheckpointPlan?: (tasklistId: string, plan: CheckpointPlan) => void
-  onCheckpointComplete?: (tasklistId: string, id: string, output: Record<string, any>) => void
+  onTasklistDeclared?: (tasklistId: string, plan: Tasklist) => void
+  onTaskComplete?: (tasklistId: string, id: string, output: Record<string, any>) => void
   onLoadKnowledge?: (selector: KnowledgeSelector) => KnowledgeContent
   /** Validate a class name and return its methods (no side effects). */
   getClassInfo?: (className: string) => { methods: ClassMethodInfo[] } | null
@@ -29,7 +29,7 @@ export interface GlobalsConfig {
 }
 
 /**
- * Create the six global functions: stop, display, ask, async, checkpoints, checkpoint.
+ * Create the six global functions: stop, display, ask, async, tasklist, completeTask.
  * These use callback interfaces, never importing stream-controller or session directly.
  */
 export function createGlobals(config: GlobalsConfig) {
@@ -40,8 +40,8 @@ export function createGlobals(config: GlobalsConfig) {
     askTimeout = 300_000,
   } = config
 
-  // ── Checkpoint state ──
-  const checkpointState: CheckpointState = {
+  // ── Tasklist state ──
+  const tasklistsState: TasklistsState = {
     tasklists: new Map(),
   }
 
@@ -150,66 +150,66 @@ export function createGlobals(config: GlobalsConfig) {
   }
 
   /**
-   * checkpoints(tasklistId, description, tasks) — Declare a task plan with milestones.
+   * tasklist(tasklistId, description, tasks) — Declare a task plan with milestones.
    * Can be called multiple times per session with different tasklist IDs.
    */
-  function checkpointsFn(tasklistId: string, description: string, tasks: CheckpointPlan['tasks']): void {
-    if (checkpointState.tasklists.has(tasklistId)) {
-      throw new Error(`checkpoints() tasklist "${tasklistId}" already declared`)
+  function tasklistFn(tasklistId: string, description: string, tasks: Tasklist['tasks']): void {
+    if (tasklistsState.tasklists.has(tasklistId)) {
+      throw new Error(`tasklist() tasklist "${tasklistId}" already declared`)
     }
 
     if (!tasklistId) {
-      throw new Error('checkpoints() requires a tasklistId')
+      throw new Error('tasklist() requires a tasklistId')
     }
 
     if (!description || !Array.isArray(tasks) || tasks.length === 0) {
-      throw new Error('checkpoints() requires a description and at least one task')
+      throw new Error('tasklist() requires a description and at least one task')
     }
 
     const ids = new Set<string>()
     for (const task of tasks) {
       if (!task.id || !task.instructions || !task.outputSchema) {
-        throw new Error('Each checkpoint task must have id, instructions, and outputSchema')
+        throw new Error('Each task must have id, instructions, and outputSchema')
       }
       if (ids.has(task.id)) {
-        throw new Error(`Duplicate checkpoint id: ${task.id}`)
+        throw new Error(`Duplicate task id: ${task.id}`)
       }
       ids.add(task.id)
     }
 
-    const plan: CheckpointPlan = { tasklistId, description, tasks }
+    const plan: Tasklist = { tasklistId, description, tasks }
     const tasklistState: TasklistState = {
       plan,
       completed: new Map(),
       currentIndex: 0,
     }
-    checkpointState.tasklists.set(tasklistId, tasklistState)
-    renderSurface.appendCheckpointProgress?.(tasklistId, tasklistState)
-    config.onCheckpointPlan?.(tasklistId, plan)
+    tasklistsState.tasklists.set(tasklistId, tasklistState)
+    renderSurface.appendTasklistProgress?.(tasklistId, tasklistState)
+    config.onTasklistDeclared?.(tasklistId, plan)
   }
 
   /**
-   * checkpoint(tasklistId, id, output) — Mark a milestone as complete.
+   * completeTask(tasklistId, id, output) — Mark a milestone as complete.
    */
-  function checkpointFn(tasklistId: string, id: string, output: Record<string, any>): void {
-    const tasklist = checkpointState.tasklists.get(tasklistId)
+  function completeTaskFn(tasklistId: string, id: string, output: Record<string, any>): void {
+    const tasklist = tasklistsState.tasklists.get(tasklistId)
     if (!tasklist) {
-      throw new Error(`checkpoint() called with unknown tasklist "${tasklistId}" — declare it with checkpoints() first`)
+      throw new Error(`completeTask() called with unknown tasklist "${tasklistId}" — declare it with tasklist() first`)
     }
 
     const taskIndex = tasklist.plan.tasks.findIndex(t => t.id === id)
     if (taskIndex === -1) {
-      throw new Error(`Unknown checkpoint id: ${id} in tasklist "${tasklistId}"`)
+      throw new Error(`Unknown task id: ${id} in tasklist "${tasklistId}"`)
     }
 
     if (tasklist.completed.has(id)) {
-      throw new Error(`Checkpoint "${id}" in tasklist "${tasklistId}" already completed`)
+      throw new Error(`Task "${id}" in tasklist "${tasklistId}" already completed`)
     }
 
     if (taskIndex !== tasklist.currentIndex) {
       const expected = tasklist.plan.tasks[tasklist.currentIndex]
       throw new Error(
-        `Checkpoint "${id}" in tasklist "${tasklistId}" called out of order. Expected: "${expected.id}"`
+        `Task "${id}" in tasklist "${tasklistId}" called out of order. Expected: "${expected.id}"`
       )
     }
 
@@ -217,14 +217,14 @@ export function createGlobals(config: GlobalsConfig) {
     const task = tasklist.plan.tasks[taskIndex]
     for (const [key, schema] of Object.entries(task.outputSchema)) {
       if (!(key in output)) {
-        throw new Error(`Checkpoint "${id}" output missing required key: ${key}`)
+        throw new Error(`Task "${id}" output missing required key: ${key}`)
       }
       const expectedType = (schema as any).type
       const value = output[key]
       const actual = Array.isArray(value) ? 'array' : typeof value
       if (actual !== expectedType) {
         throw new Error(
-          `Checkpoint "${id}" output key "${key}": expected ${expectedType}, got ${actual}`
+          `Task "${id}" output key "${key}": expected ${expectedType}, got ${actual}`
         )
       }
     }
@@ -235,8 +235,8 @@ export function createGlobals(config: GlobalsConfig) {
     })
     tasklist.currentIndex++
 
-    renderSurface.updateCheckpointProgress?.(tasklistId, tasklist)
-    config.onCheckpointComplete?.(tasklistId, id, output)
+    renderSurface.updateTasklistProgress?.(tasklistId, tasklist)
+    config.onTaskComplete?.(tasklistId, id, output)
   }
 
   /**
@@ -291,13 +291,13 @@ export function createGlobals(config: GlobalsConfig) {
     display: displayFn,
     ask: askFn,
     async: asyncFn,
-    checkpoints: checkpointsFn,
-    checkpoint: checkpointFn,
+    tasklist: tasklistFn,
+    completeTask: completeTaskFn,
     loadKnowledge: loadKnowledgeFn,
     loadClass: loadClassFn,
     setCurrentSource,
     resolveStop,
-    getCheckpointState: () => checkpointState,
+    getTasklistsState: () => tasklistsState,
   }
 }
 

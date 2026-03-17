@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-A streaming TypeScript REPL agent system that executes LLM-generated code line-by-line with control primitives (`stop`, `display`, `ask`, `async`, `checkpoints`, `checkpoint`, `loadKnowledge`) and a React render surface. The agent writes only TypeScript — no prose — and the host runtime parses, executes, and renders in real time.
+A streaming TypeScript REPL agent system that executes LLM-generated code line-by-line with control primitives (`stop`, `display`, `ask`, `async`, `tasklist`, `completeTask`, `loadKnowledge`) and a React render surface. The agent writes only TypeScript — no prose — and the host runtime parses, executes, and renders in real time.
 
 No code exists yet. This package contains specifications only.
 
@@ -35,7 +35,7 @@ Four subsystems:
 |-------|-----------|
 | Token accumulation, pause/resume, context injection, serialization | [.claude/skills/stream-controller.md](.claude/skills/stream-controller.md) |
 | Sandbox setup, scope persistence, TS compilation, error capture | [.claude/skills/repl-sandbox.md](.claude/skills/repl-sandbox.md) |
-| stop, display, ask, async, checkpoints, checkpoint, loadKnowledge — implementation details | [.claude/skills/globals.md](.claude/skills/globals.md) |
+| stop, display, ask, async, tasklist, completeTask, loadKnowledge — implementation details | [.claude/skills/globals.md](.claude/skills/globals.md) |
 | AST pattern matching, hook actions, execution pipeline | [.claude/skills/hooks.md](.claude/skills/hooks.md) |
 | SCOPE generation, knowledge tree, code window, stop payload decay | [.claude/skills/context-management.md](.claude/skills/context-management.md) |
 | State machine, wire format, SessionConfig, type definitions | [.claude/skills/session-lifecycle.md](.claude/skills/session-lifecycle.md) |
@@ -56,8 +56,8 @@ Four subsystems:
 - **`display(jsx)`** — Non-blocking render of React components to the user's viewport.
 - **`ask(jsx)`** — Blocking form render. Resumes silently — agent must call `stop` to see values.
 - **`async(fn)`** — Fire-and-forget background task. Results delivered via next `stop` call.
-- **`checkpoints(tasklistId, description, tasks)`** — Declare a task plan with milestones before starting work. Each task has `id`, `instructions`, and `outputSchema`. Can be called multiple times per session with different `tasklistId` values.
-- **`checkpoint(tasklistId, checkpointId, output)`** — Mark a milestone as complete with validated output. Must include the `tasklistId` and be called in declaration order within each tasklist. If the agent's stream ends with incomplete checkpoints, the host injects a reminder and resumes generation.
+- **`tasklist(tasklistId, description, tasks)`** — Declare a task plan with milestones before starting work. Each task has `id`, `instructions`, and `outputSchema`. Can be called multiple times per session with different `tasklistId` values.
+- **`completeTask(tasklistId, taskId, output)`** — Mark a task as complete with validated output. Must include the `tasklistId` and be called in declaration order within each tasklist. If the agent's stream ends with incomplete tasks, the host injects a reminder and resumes generation.
 - **`loadKnowledge(selector)`** — Synchronously load markdown files from the space's knowledge base. The selector mirrors the knowledge tree: `{ domain: { field: { option: true } } }`. Returns the same structure with markdown content as values.
 
 ### Conversation Protocol
@@ -65,7 +65,7 @@ Four subsystems:
 - `ask` resumes silently — no message injected, assistant turn continues
 - User interventions inject raw text (no prefix) — agent adjusts via `//` comments
 - Hook interrupts inject `⚠ [hook:id]` prefixed messages
-- Incomplete checkpoint reminders inject `⚠ [system] Tasklist "<tasklistId>" incomplete.` prefixed messages when the agent's stream ends before all checkpoints are complete
+- Incomplete task reminders inject `⚠ [system] Tasklist "<tasklistId>" incomplete.` prefixed messages when the agent's stream ends before all tasks are complete
 
 ### Context Management
 - **`{{SCOPE}}`** — Live variable table in system prompt, replaced on every injection. Never compressed. Agent's source of truth.
@@ -82,7 +82,7 @@ Suggested build sequence:
 
 1. **REPL Sandbox** — vm.Context, scope persistence, TS transpilation, error capture
 2. **Stream Controller** — LineAccumulator, bracket depth tracking, statement completeness
-3. **Globals** — `stop` (with argument name recovery), `display`, `ask`, `async`, `checkpoints`, `checkpoint`
+3. **Globals** — `stop` (with argument name recovery), `display`, `ask`, `async`, `tasklist`, `completeTask`
 4. **Workspace State** — SCOPE table generation, system prompt mutation
 5. **Context Management** — Code window compression, stop payload decay
 6. **Developer Hooks** — AST pattern matching, hook actions, execution pipeline

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Seven globals are injected into the REPL sandbox: `stop`, `display`, `ask`, `async`, `checkpoints`, `checkpoint`, and `loadKnowledge`. These are the agent's only control-flow primitives beyond raw TypeScript.
+Seven globals are injected into the REPL sandbox: `stop`, `display`, `ask`, `async`, `tasklist`, `completeTask`, and `loadKnowledge`. These are the agent's only control-flow primitives beyond raw TypeScript.
 
 **Full specification:** [docs/host-runtime-contract/globals-implementation.md](../../docs/host-runtime-contract/globals-implementation.md)
 
@@ -81,36 +81,36 @@ Replacing the global `stop` is unsafe with concurrent tasks. Options:
 - At transpile time, rewrite `stop` calls inside `async(() => { ... })` blocks to reference the task-scoped version
 - Use `AsyncLocalStorage` (Node.js) to route `stop` calls to the correct task
 
-## `checkpoints(tasklistId, description, tasks)` — Declare Task Plan
+## `tasklist(tasklistId, description, tasks)` — Declare Task Plan
 
-Synchronous — registers a checkpoint plan with the host under a unique `tasklistId` and renders a progress UI. Does NOT block execution.
+Synchronous — registers a tasklist with the host under a unique `tasklistId` and renders a progress UI. Does NOT block execution.
 
 ### Key implementation details:
 1. Can be called **multiple times** per session with different `tasklistId` values — throws if same `tasklistId` is reused
 2. Validates plan structure: requires `tasklistId`, `description`, non-empty `tasks` array
 3. Each task must have unique `id`, `instructions`, and `outputSchema`
-4. Stores each tasklist as a `TasklistState` in `CheckpointState.tasklists` map — tracks `plan`, `completed` map, and `currentIndex`
+4. Stores each tasklist as a `TasklistState` in `TasklistsState.tasklists` map — tracks `plan`, `completed` map, and `currentIndex`
 5. Renders persistent progress indicator (stepper/checklist) per tasklist via render surface
 
-## `checkpoint(tasklistId, checkpointId, output)` — Mark Milestone Complete
+## `completeTask(tasklistId, taskId, output)` — Mark Task Complete
 
-Synchronous — marks a checkpoint as done and validates output against the declared schema. Does NOT block execution. The `tasklistId` identifies which tasklist the checkpoint belongs to.
+Synchronous — marks a task as done and validates output against the declared schema. Does NOT block execution. The `tasklistId` identifies which tasklist the task belongs to.
 
 ### Key implementation details:
-1. Throws if `tasklistId` is not found in `CheckpointState.tasklists` — tasklist must be declared first
-2. Validates `checkpointId` exists in the tasklist's plan and hasn't already been completed
-3. Enforces **sequential ordering** within each tasklist — checkpoints must be completed in declaration order
+1. Throws if `tasklistId` is not found in `TasklistsState.tasklists` — tasklist must be declared first
+2. Validates `taskId` exists in the tasklist's plan and hasn't already been completed
+3. Enforces **sequential ordering** within each tasklist — tasks must be completed in declaration order
 4. Validates output keys and types against the task's `outputSchema`
 5. Records completion with output and timestamp
 6. Updates persistent progress UI for the tasklist
 
-### Incomplete Checkpoint Reminder
-When LLM emits stop token with incomplete checkpoints in any tasklist:
-1. Find the first tasklist with remaining checkpoints
-2. Build list of remaining checkpoint IDs
+### Incomplete Task Reminder
+When LLM emits stop token with incomplete tasks in any tasklist:
+1. Find the first tasklist with remaining tasks
+2. Build list of remaining task IDs
 3. Inject `⚠ [system] Tasklist "<tasklistId>" incomplete. Remaining: <ids>. Continue from where you left off.`
 4. Resume LLM generation
-5. Limit reminder cycles to `maxCheckpointReminders` (default: 3) to prevent infinite loops
+5. Limit reminder cycles to `maxTasklistReminders` (default: 3) to prevent infinite loops
 
 ## `loadKnowledge(selector)` — Load Knowledge Files
 

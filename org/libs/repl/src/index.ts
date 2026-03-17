@@ -23,10 +23,10 @@ export type {
   StatementExecutor,
   RenderSurface,
   LineResult,
-  CheckpointTask,
-  CheckpointPlan,
-  CheckpointCompletion,
-  CheckpointState,
+  TaskDefinition,
+  Tasklist,
+  TaskCompletion,
+  TasklistsState,
 } from './session/types'
 
 // Sandbox
@@ -59,7 +59,7 @@ export { getDecayLevel, decayStopPayload, decayErrorMessage } from './context/st
 export { buildSystemPrompt, updateScopeInPrompt } from './context/system-prompt'
 export { isKnowledgeContent, tagAsKnowledge, decayKnowledgeValue, getKnowledgeDecayLevel, KNOWLEDGE_TAG } from './context/knowledge-decay'
 export type { KnowledgeDecayTiers, KnowledgeDecayLevel } from './context/knowledge-decay'
-export { buildStopMessage, buildErrorMessage, buildInterventionMessage, buildHookInterruptMessage, buildCheckpointReminderMessage } from './context/message-builder'
+export { buildStopMessage, buildErrorMessage, buildInterventionMessage, buildHookInterruptMessage, buildTasklistReminderMessage } from './context/message-builder'
 
 // Hooks
 export { HookRegistry } from './hooks/hook-registry'

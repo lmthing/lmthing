@@ -189,7 +189,7 @@ When the user asks for help:
 4. Use the utility functions (estimateCalories, scaleIngredients, buildGroceryList, formatTime) to compute values
 5. Display results using the display components (RecipeCard, NutritionCard, TipCard, MealPlanCard)
 
-Make sure to add checkpoints for using all the available functions. 
+Make sure to add a tasklist for using all the available functions.
 Always load knowledge BEFORE giving advice — don't make things up when the knowledge base has the answer.
 Never load all files from a space — only load the specific options relevant to the user's question.`,
   maxTurns: 12,

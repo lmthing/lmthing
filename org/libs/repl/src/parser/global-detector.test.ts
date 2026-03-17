@@ -52,20 +52,20 @@ describe('parser/global-detector', () => {
     expect(detectGlobalCall('  await stop(x)  ')).toBe('stop')
   })
 
-  it('detects checkpoints call', () => {
-    expect(detectGlobalCall('checkpoints({ description: "test", tasks: [] })')).toBe('checkpoints')
+  it('detects tasklist call', () => {
+    expect(detectGlobalCall('tasklist("tl1", "test", [])')).toBe('tasklist')
   })
 
-  it('detects checkpoint call', () => {
-    expect(detectGlobalCall('checkpoint("step1", { result: "done" })')).toBe('checkpoint')
+  it('detects completeTask call', () => {
+    expect(detectGlobalCall('completeTask("tl1", "step1", { result: "done" })')).toBe('completeTask')
   })
 
-  it('detects checkpoints with leading whitespace', () => {
-    expect(detectGlobalCall('  checkpoints({})  ')).toBe('checkpoints')
+  it('detects tasklist with leading whitespace', () => {
+    expect(detectGlobalCall('  tasklist("tl1", "test", [])  ')).toBe('tasklist')
   })
 
-  it('does not confuse checkpoint with checkpoints', () => {
-    expect(detectGlobalCall('checkpoint("id", {})')).toBe('checkpoint')
-    expect(detectGlobalCall('checkpoints({})')).toBe('checkpoints')
+  it('does not confuse completeTask with tasklist', () => {
+    expect(detectGlobalCall('completeTask("tl1", "id", {})')).toBe('completeTask')
+    expect(detectGlobalCall('tasklist("tl1", "test", [])')).toBe('tasklist')
   })
 })

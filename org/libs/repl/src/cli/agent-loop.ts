@@ -1,8 +1,8 @@
 /**
  * Agent loop — drives the LLM streaming cycle in response to user messages.
  *
- * Mirrors the console output and debug logging of examples/runner.ts,
- * but runs as a long-lived server loop instead of a one-shot script.
+ * Manages the turn loop: stream LLM output → feed to session → handle
+ * stop/error/checkpoint events → inject messages → loop until complete.
  */
 
 import { streamText, type LanguageModel } from 'ai'
@@ -227,7 +227,7 @@ export class AgentLoop {
       // Step 2: Clean model output
       code = cleanCode(code)
 
-      // Step 3: Feed cleaned code to session line by line (same as runner.ts)
+      // Step 3: Feed cleaned code to session line by line
       const lines = code.split('\n')
       for (const line of lines) {
         if (state.stop || state.error) break
@@ -355,12 +355,14 @@ export class AgentLoop {
       status: snapshot.status,
       tokenTotals: this.tokenTotals,
       scope: snapshot.scope,
-      checkpointState: snapshot.checkpointState.plan ? {
-        description: snapshot.checkpointState.plan.description,
-        tasks: snapshot.checkpointState.plan.tasks,
-        completed: Object.fromEntries(snapshot.checkpointState.completed),
-        currentIndex: snapshot.checkpointState.currentIndex,
-      } : null,
+      checkpointState: snapshot.checkpointState.tasklists.size > 0 ? Object.fromEntries(
+        [...snapshot.checkpointState.tasklists].map(([id, tl]) => [id, {
+          description: tl.plan.description,
+          tasks: tl.plan.tasks,
+          completed: Object.fromEntries(tl.completed),
+          currentIndex: tl.currentIndex,
+        }])
+      ) : null,
       messages: this.messages.map(m => ({ role: m.role, content: m.content })),
     })
 
@@ -397,30 +399,27 @@ IMPORTANT: After calling await stop(), STOP writing code. The runtime will pause
 ### display(element) — Show output to user
 Non-blocking. Appends a rendered component to the user's view.
 
-### checkpoints(plan) — Declare a task plan with milestones
-Before starting any implementation work, you MUST declare a plan using checkpoints(). This registers milestones with the host. Each checkpoint has an id, instructions, and outputSchema describing the result shape.
+### checkpoints(tasklistId, description, tasks) — Declare a task plan with milestones
+Before starting any implementation work, declare a plan using checkpoints(). This registers milestones with the host under a unique tasklistId. Each checkpoint has an id, instructions, and outputSchema describing the result shape.
 
-Call checkpoints() exactly ONCE, before writing any implementation code. It does not block execution.
-
-Example:
-checkpoints({
-  description: "Analyze employee data",
-  tasks: [
-    { id: "load", instructions: "Load the dataset", outputSchema: { count: { type: "number" } } },
-    { id: "analyze", instructions: "Compute statistics", outputSchema: { done: { type: "boolean" } } },
-    { id: "report", instructions: "Present results", outputSchema: { done: { type: "boolean" } } }
-  ]
-})
-
-### checkpoint(id, output) — Mark a milestone as complete
-When you reach a milestone, call checkpoint() with its id and an output object matching the declared outputSchema. Non-blocking. Must be called in declaration order — do not skip checkpoints.
+You can call checkpoints() multiple times per session with different tasklist IDs. It does not block execution.
 
 Example:
-checkpoint("load", { count: 10 })
+checkpoints("analyze_data", "Analyze employee data", [
+  { id: "load", instructions: "Load the dataset", outputSchema: { count: { type: "number" } } },
+  { id: "analyze", instructions: "Compute statistics", outputSchema: { done: { type: "boolean" } } },
+  { id: "report", instructions: "Present results", outputSchema: { done: { type: "boolean" } } }
+])
+
+### checkpoint(tasklistId, checkpointId, output) — Mark a milestone as complete
+When you reach a milestone, call checkpoint() with the tasklist ID, checkpoint ID, and an output object matching the declared outputSchema. Non-blocking. Must be called in declaration order within each tasklist — do not skip checkpoints.
+
+Example:
+checkpoint("analyze_data", "load", { count: 10 })
 
 If your stream ends before all checkpoints are complete, the host will send you a reminder:
-  ⚠ [system] Checkpoint plan incomplete. Remaining: analyze, report. Continue from where you left off.
-When you see this, continue from the next incomplete checkpoint. Do NOT re-declare checkpoints() or redo completed work.
+  ⚠ [system] Tasklist "analyze_data" incomplete. Remaining: analyze, report. Continue from where you left off.
+When you see this, continue from the next incomplete checkpoint. Do NOT re-declare checkpoints() for the same tasklist or redo completed work.
 
 ## Workspace — Current Scope
 ${scope || '(no variables declared)'}
@@ -430,7 +429,7 @@ ${fnSigs || '(none)'}
 
 ## Rules
 1. Output ONLY valid TypeScript. No markdown. No prose outside // comments.
-2. Plan before you build — call checkpoints() first to declare milestones, then call checkpoint(id, output) as you complete each one.
+2. Plan before you build — call checkpoints(tasklistId, description, tasks) to declare milestones, then call checkpoint(tasklistId, checkpointId, output) as you complete each one.
 3. Await every async call: var x = await fn()
 4. Use stop() to read runtime values before branching.
 5. Do not use console.log — use stop() to inspect values.
@@ -444,13 +443,10 @@ ${fnSigs || '(none)'}
 A typical interaction follows this pattern:
 
 // 1. Plan — always start with checkpoints
-checkpoints({
-  description: "...",
-  tasks: [
-    { id: "step1", instructions: "...", outputSchema: { key: { type: "string" } } },
-    { id: "step2", instructions: "...", outputSchema: { done: { type: "boolean" } } }
-  ]
-})
+checkpoints("main", "Do the task", [
+  { id: "step1", instructions: "...", outputSchema: { key: { type: "string" } } },
+  { id: "step2", instructions: "...", outputSchema: { done: { type: "boolean" } } }
+])
 
 // 2. Do work for step 1
 var result = await someFunction()
@@ -458,11 +454,11 @@ await stop(result)
 // ← stop { result: ... }
 
 // 3. Mark step 1 complete
-checkpoint("step1", { key: result.key })
+checkpoint("main", "step1", { key: result.key })
 
 // 4. Do work for step 2
 var final = await anotherFunction()
-checkpoint("step2", { done: true })`
+checkpoint("main", "step2", { done: true })`
 
   if (instruct) prompt += `\n\n## Special Instructions\n${instruct}\n`
   return prompt

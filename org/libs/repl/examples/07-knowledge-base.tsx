@@ -1,13 +1,15 @@
 /**
  * Example 7: Knowledge base Q&A
  *
- * A searchable knowledge base with semantic-ish search.
- * Demonstrates: text search, multi-step retrieval, checkpoints for structured output.
+ * A searchable knowledge base with React display components.
+ * Demonstrates: text search, multi-step retrieval, display() for articles, ask() for queries.
  *
  * Run:
- *   npx tsx src/cli/bin.ts examples/07-knowledge-base.ts -m openai:gpt-4o-mini
- *   npx tsx src/cli/bin.ts examples/07-knowledge-base.ts -m openai:gpt-4o-mini -d debug-run.xml
+ *   npx tsx src/cli/bin.ts examples/07-knowledge-base.tsx -m openai:gpt-4o-mini
+ *   npx tsx src/cli/bin.ts examples/07-knowledge-base.tsx -m openai:gpt-4o-mini -d debug-run.xml
  */
+
+import React from 'react'
 
 // ── Knowledge base ──
 
@@ -78,6 +80,102 @@ const ARTICLES: Article[] = [
   },
 ]
 
+const CATEGORY_COLORS: Record<string, string> = {
+  TypeScript: '#3178c6', React: '#61dafb', 'Node.js': '#68a063',
+  CSS: '#264de4', Git: '#f05032', DevOps: '#326ce5',
+  Database: '#336791', Networking: '#ff6600',
+}
+
+// ── React Components ──
+
+/** Display search results as a list */
+export function SearchResults({ results, query }: { results: Array<{ id: string; title: string; category: string; relevance: number }>; query: string }) {
+  if (results.length === 0) {
+    return (
+      <div style={{ padding: 16, textAlign: 'center', color: '#888', fontFamily: 'sans-serif' }}>
+        🔍 No results for "{query}"
+      </div>
+    )
+  }
+  return (
+    <div style={{ border: '1px solid #ccc', borderRadius: 8, padding: 16, maxWidth: 480, fontFamily: 'sans-serif' }}>
+      <div style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 12 }}>🔍 Results for "{query}" ({results.length})</div>
+      {results.map(r => (
+        <div key={r.id} style={{ padding: '8px 0', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{
+            padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 'bold', color: '#fff',
+            background: CATEGORY_COLORS[r.category] ?? '#888',
+          }}>{r.category}</span>
+          <span style={{ flex: 1 }}>{r.title}</span>
+          <span style={{ fontSize: 12, color: '#888' }}>{Math.round(r.relevance * 100)}%</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Display a full article */
+export function ArticleCard({ article }: { article: Article }) {
+  const color = CATEGORY_COLORS[article.category] ?? '#888'
+  return (
+    <div style={{ border: '1px solid #ccc', borderRadius: 8, padding: 16, maxWidth: 520, fontFamily: 'sans-serif' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 'bold', color: '#fff', background: color }}>
+          {article.category}
+        </span>
+        <span style={{ fontSize: 12, color: '#aaa' }}>{article.id}</span>
+      </div>
+      <div style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 8 }}>📄 {article.title}</div>
+      <div style={{ lineHeight: 1.6, color: '#333', marginBottom: 12 }}>{article.content}</div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {article.tags.map(tag => (
+          <span key={tag} style={{ padding: '2px 10px', background: '#f0f0f0', borderRadius: 12, fontSize: 12 }}>#{tag}</span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** Display categories as a navigation grid */
+export function CategoryNav({ categories }: { categories: string[] }) {
+  return (
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontFamily: 'sans-serif' }}>
+      {categories.map(cat => {
+        const color = CATEGORY_COLORS[cat] ?? '#888'
+        return (
+          <div key={cat} style={{ border: `2px solid ${color}`, borderRadius: 8, padding: '8px 16px', textAlign: 'center' }}>
+            <div style={{ fontSize: 14, fontWeight: 'bold', color }}>{cat}</div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Display a tag cloud */
+export function TagCloud({ tags }: { tags: string[] }) {
+  return (
+    <div style={{ border: '1px solid #ccc', borderRadius: 8, padding: 16, maxWidth: 480, fontFamily: 'sans-serif' }}>
+      <div style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 10 }}>🏷️ All Tags</div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {tags.map(tag => (
+          <span key={tag} style={{ padding: '4px 12px', background: '#e8f4fd', borderRadius: 12, fontSize: 13, color: '#1a73e8' }}>#{tag}</span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** Form to ask the user for a search query */
+export function SearchForm() {
+  return (
+    <div>
+      <div style={{ marginBottom: 8, fontWeight: 'bold' }}>🔍 Search the knowledge base</div>
+      <input name="query" type="text" placeholder="What would you like to know about?" style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc', width: '100%' }} />
+    </div>
+  )
+}
+
 // ── Exported functions ──
 
 /** Search articles by keyword (matches title, content, and tags) */
@@ -125,9 +223,15 @@ export function findByTag(tag: string): Array<{ id: string; title: string; categ
 // ── CLI config ──
 
 export const replConfig = {
-  instruct: `You are a knowledge base assistant. Help users find and understand technical articles. When answering a question:
+  instruct: `You are a knowledge base assistant with rich React display components. Help users find and understand technical articles. Use the display components to present results visually:
+- display(<SearchResults results={searchHits} query="..." />) to show search results
+- display(<ArticleCard article={fullArticle} />) to show a full article
+- display(<CategoryNav categories={cats} />) to show category navigation
+- display(<TagCloud tags={allTags} />) to show all tags
+- var input = await ask(<SearchForm />) to ask the user what to search for (returns { query })
+When answering a question:
 1. Search for relevant articles
-2. Read the full content of the most relevant ones
+2. Read the full content and display it with ArticleCard
 3. Synthesize an answer using the article content
 Always cite which articles you used.`,
   functionSignatures: `
@@ -137,6 +241,13 @@ Always cite which articles you used.`,
   listByCategory(category: string): Array<{ id, title, tags }> — List articles in a category
   listTags(): string[] — Get all unique tags
   findByTag(tag: string): Array<{ id, title, category }> — Find articles by tag
+
+  ## React Components (use with display() and ask())
+  <SearchResults results={Array<{ id, title, category, relevance }>} query={string} /> — Shows search results with relevance scores and category badges
+  <ArticleCard article={Article} /> — Displays full article with content, category badge, and tag chips
+  <CategoryNav categories={string[]} /> — Shows categories as colored navigation buttons
+  <TagCloud tags={string[]} /> — Shows all tags as a cloud of clickable chips
+  <SearchForm /> — Form to capture a search query (use with ask(), returns { query })
   `,
   maxTurns: 10,
 }

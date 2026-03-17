@@ -11,6 +11,8 @@ import { resolve } from 'node:path'
 import { Session } from '../session/session'
 import { generateScopeTable } from '../context/scope-generator'
 import { serialize } from '../stream/serializer'
+import { isKnowledgeContent, decayKnowledgeValue } from '../context/knowledge-decay'
+import type { KnowledgeContent } from '../knowledge/types'
 import type { SessionEvent, StopPayload, ErrorPayload } from '../session/types'
 
 export interface AgentLoopOptions {
@@ -51,6 +53,14 @@ export class AgentLoop {
   private debugLog: DebugEntry[] = []
   private tokenTotals = { inputTokens: 0, outputTokens: 0, totalTokens: 0 }
   private totalTurns = 0
+  /** Tracks stop messages that contain knowledge content, for progressive decay. */
+  private knowledgeStops: Array<{
+    messageIndex: number
+    turn: number
+    payload: StopPayload
+    knowledgeKeys: Set<string>
+    knowledgeContent: Map<string, KnowledgeContent>
+  }> = []
 
   constructor(options: AgentLoopOptions) {
     this.session = options.session
@@ -283,6 +293,26 @@ export class AgentLoop {
         const codeUpToStop = truncateAtStop(code)
         this.messages.push({ role: 'assistant', content: codeUpToStop })
         this.messages.push({ role: 'user', content: stopMsg })
+
+        // Track knowledge-containing stops for progressive decay
+        const knowledgeKeys = new Set<string>()
+        const knowledgeContent = new Map<string, KnowledgeContent>()
+        for (const [k, v] of Object.entries(state.stop)) {
+          if (isKnowledgeContent(v.value)) {
+            knowledgeKeys.add(k)
+            knowledgeContent.set(k, v.value as KnowledgeContent)
+          }
+        }
+        if (knowledgeKeys.size > 0) {
+          this.knowledgeStops.push({
+            messageIndex: this.messages.length - 1,
+            turn: this.totalTurns,
+            payload: state.stop,
+            knowledgeKeys,
+            knowledgeContent,
+          })
+        }
+
         this.refreshSystemPrompt()
         this.logDebug('message', { role: 'assistant', content: codeUpToStop })
         this.logDebug('message', { role: 'user', content: stopMsg })
@@ -348,6 +378,34 @@ export class AgentLoop {
     const systemPrompt = buildSystemPrompt(this.functionSignatures, scope, this.instruct, this.knowledgeTree)
     this.messages[0] = { role: 'system', content: systemPrompt }
     this.logDebug('system_prompt', systemPrompt)
+
+    // Apply progressive decay to knowledge-containing stop messages
+    this.decayKnowledgeMessages()
+  }
+
+  /**
+   * Rebuild older knowledge-containing stop messages with progressively
+   * truncated content to conserve context window space.
+   */
+  private decayKnowledgeMessages(): void {
+    for (const ks of this.knowledgeStops) {
+      const distance = this.totalTurns - ks.turn
+      if (distance <= 0) continue
+
+      // Rebuild the stop message with decayed knowledge values
+      const entries = Object.entries(ks.payload).map(([k, v]) => {
+        if (ks.knowledgeKeys.has(k)) {
+          const content = ks.knowledgeContent.get(k)!
+          const decayed = decayKnowledgeValue(content, distance)
+          return `${k}: ${decayed}`
+        }
+        return `${k}: ${v.display}`
+      })
+      this.messages[ks.messageIndex] = {
+        role: 'user',
+        content: `← stop { ${entries.join(', ')} }`,
+      }
+    }
   }
 
   private writeDebugLog(): void {

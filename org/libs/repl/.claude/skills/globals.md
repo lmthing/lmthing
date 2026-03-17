@@ -2,7 +2,7 @@
 
 ## Overview
 
-Six globals are injected into the REPL sandbox: `stop`, `display`, `ask`, `async`, `checkpoints`, and `checkpoint`. These are the agent's only control-flow primitives beyond raw TypeScript.
+Seven globals are injected into the REPL sandbox: `stop`, `display`, `ask`, `async`, `checkpoints`, `checkpoint`, and `loadKnowledge`. These are the agent's only control-flow primitives beyond raw TypeScript.
 
 **Full specification:** [docs/host-runtime-contract/globals-implementation.md](../../docs/host-runtime-contract/globals-implementation.md)
 
@@ -111,3 +111,59 @@ When LLM emits stop token with incomplete checkpoints in any tasklist:
 3. Inject `⚠ [system] Tasklist "<tasklistId>" incomplete. Remaining: <ids>. Continue from where you left off.`
 4. Resume LLM generation
 5. Limit reminder cycles to `maxCheckpointReminders` (default: 3) to prevent infinite loops
+
+## `loadKnowledge(selector)` — Load Knowledge Files
+
+Synchronous — reads markdown files from the space's knowledge base and returns their content. Does NOT block execution (no `await` needed).
+
+### Key implementation details:
+1. Only available when a space is loaded (via `--space` CLI flag or `knowledgeLoader` session option)
+2. Throws `"loadKnowledge() is not available — no space loaded"` if no space is configured
+3. Validates that `selector` is a non-null object
+4. Delegates to the `onLoadKnowledge` callback configured during globals creation
+5. Emits a `knowledge_loaded` session event with the loaded domain names
+
+### Selector format:
+The selector mirrors the knowledge tree structure: `{ domain: { field: { option: true } } }`.
+Only entries with value `true` are loaded. Non-`true` values are skipped.
+
+```ts
+// Load specific knowledge files
+var docs = loadKnowledge({
+  "cuisine": {
+    "type": {
+      "italian": true,
+      "japanese": true
+    }
+  },
+  "dietary": {
+    "restriction": {
+      "vegetarian": true
+    }
+  }
+})
+// Returns: { cuisine: { type: { italian: "# Italian Cuisine\n...", japanese: "# Japanese Cuisine\n..." } }, dietary: { restriction: { vegetarian: "# Vegetarian Cooking\n..." } } }
+```
+
+### File loading:
+- Reads from `{knowledgeDir}/{domain}/{field}/{option}.md`
+- Strips YAML frontmatter (everything between `---` delimiters)
+- Returns the markdown body only
+- Missing files are silently skipped (no error thrown)
+
+### Knowledge content decay:
+The returned object is tagged with `KNOWLEDGE_TAG` (a Symbol). When the agent calls `stop()` with this value, the agent-loop detects the tag and tracks the message for progressive decay. As turns progress, the markdown content in older stop messages is truncated:
+- Turn 0: full content
+- Turns 1–2: first ~300 chars per file
+- Turns 3–4: just markdown headings
+- Turn 5+: just file paths
+
+See `context/knowledge-decay.ts` for the decay implementation.
+
+### Knowledge tree in system prompt:
+When a space is loaded, the system prompt includes a `## Knowledge Tree` section showing all available domains, fields, and options in ASCII tree format. The agent uses this to decide what to load.
+
+### Integration:
+- **Session** accepts a `knowledgeLoader` option: `(selector: KnowledgeSelector) => KnowledgeContent`
+- **CLI** builds this from the space path via `buildKnowledgeTree()` and `loadKnowledgeFiles()`
+- **AgentLoop** passes the formatted knowledge tree to `buildSystemPrompt()`

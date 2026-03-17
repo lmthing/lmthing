@@ -35,9 +35,9 @@ Four subsystems:
 |-------|-----------|
 | Token accumulation, pause/resume, context injection, serialization | [.claude/skills/stream-controller.md](.claude/skills/stream-controller.md) |
 | Sandbox setup, scope persistence, TS compilation, error capture | [.claude/skills/repl-sandbox.md](.claude/skills/repl-sandbox.md) |
-| stop, display, ask, async, checkpoints, checkpoint — implementation details | [.claude/skills/globals.md](.claude/skills/globals.md) |
+| stop, display, ask, async, checkpoints, checkpoint, loadKnowledge — implementation details | [.claude/skills/globals.md](.claude/skills/globals.md) |
 | AST pattern matching, hook actions, execution pipeline | [.claude/skills/hooks.md](.claude/skills/hooks.md) |
-| SCOPE generation, code window, stop payload decay | [.claude/skills/context-management.md](.claude/skills/context-management.md) |
+| SCOPE generation, knowledge tree, code window, stop payload decay | [.claude/skills/context-management.md](.claude/skills/context-management.md) |
 | State machine, wire format, SessionConfig, type definitions | [.claude/skills/session-lifecycle.md](.claude/skills/session-lifecycle.md) |
 | Sandbox isolation, function registry, JSX sanitization | [.claude/skills/security.md](.claude/skills/security.md) |
 

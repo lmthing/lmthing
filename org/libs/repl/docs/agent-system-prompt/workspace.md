@@ -102,8 +102,18 @@ Your most recent code is always kept verbatim. If you see a summary comment wher
 - **Old (6–10 turns back):** Just a count. E.g., `← stop (2 values read)`
 - **Very old (11+ turns back):** Removed entirely.
 
+**Knowledge content decays faster.** When you load knowledge files via `loadKnowledge()` and read them with `stop()`, the markdown content is progressively truncated more aggressively than regular stop values because it is large:
+
+- **Same turn:** Full markdown content.
+- **1–2 turns back:** Truncated to first ~300 characters per file.
+- **3–4 turns back:** Just the markdown headings from each file.
+- **5+ turns back:** Just the file paths that were loaded (e.g., `[knowledge: cuisine/type/italian]`).
+
+If you need knowledge content from several turns back, call `loadKnowledge()` again to reload it — it is always available from the Knowledge Tree.
+
 **What this means for you:**
 - **`{{SCOPE}}` is your reliable source of truth** for current variable values. It is never compressed. Always check scope before re-reading a value.
 - **Don't rely on scrolling far back** to find old stop payloads — they may be truncated. If you need a value from far back and it's not in `{{SCOPE}}`, just call `await stop(variable)` again.
+- **Knowledge content fades quickly** from your conversation history. If you loaded knowledge several turns ago and need to reference it again, reload it with `loadKnowledge()`.
 - **User messages are never compressed.** The user's original request and any intervention messages are always kept verbatim, no matter how far back they are.
 - **Your recent code is always intact.** You can always see what you just wrote. Only older blocks get summarized.

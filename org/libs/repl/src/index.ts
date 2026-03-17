@@ -57,6 +57,8 @@ export { generateScopeTable, describeType, truncateValue } from './context/scope
 export { compressCodeWindow, buildSummaryComment } from './context/code-window'
 export { getDecayLevel, decayStopPayload, decayErrorMessage } from './context/stop-decay'
 export { buildSystemPrompt, updateScopeInPrompt } from './context/system-prompt'
+export { isKnowledgeContent, tagAsKnowledge, decayKnowledgeValue, getKnowledgeDecayLevel, KNOWLEDGE_TAG } from './context/knowledge-decay'
+export type { KnowledgeDecayTiers, KnowledgeDecayLevel } from './context/knowledge-decay'
 export { buildStopMessage, buildErrorMessage, buildInterventionMessage, buildHookInterruptMessage, buildCheckpointReminderMessage } from './context/message-builder'
 
 // Hooks

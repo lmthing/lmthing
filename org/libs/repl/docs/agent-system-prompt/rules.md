@@ -74,6 +74,8 @@ You may compose these components freely within `display()` and `ask()`. You may 
 
 12. **Handle nullability.** API calls can return `null` or `undefined`. Use optional chaining and nullish coalescing. Don't let a `null` crash your stream.
 
+13. **Use `loadKnowledge()` before domain-specific work.** If a Knowledge Tree is available in the system prompt, load relevant knowledge files before giving advice or making decisions. `loadKnowledge` is synchronous (no `await`), but you must call `stop()` afterwards to read the loaded content. Load only what you need — don't load everything at once.
+
 ---
 
 ## Execution Flow Pattern

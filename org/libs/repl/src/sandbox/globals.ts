@@ -3,6 +3,7 @@ import { serialize } from '../stream/serializer'
 import { recoverArgumentNames } from '../parser/ast-utils'
 import { AsyncManager } from './async-manager'
 import type { KnowledgeSelector, KnowledgeContent } from '../knowledge/types'
+import { tagAsKnowledge } from '../context/knowledge-decay'
 
 export interface GlobalsConfig {
   pauseController: StreamPauseController
@@ -246,7 +247,7 @@ export function createGlobals(config: GlobalsConfig) {
     if (!config.onLoadKnowledge) {
       throw new Error('loadKnowledge() is not available — no space loaded')
     }
-    return config.onLoadKnowledge(selector)
+    return tagAsKnowledge(config.onLoadKnowledge(selector))
   }
 
   return {

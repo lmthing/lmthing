@@ -24,6 +24,7 @@ STREAM LOOP
     → async()     → register task (+ abort controller), continue
     → checkpoints(tasklistId, description, tasks) → register plan in tasklists map, render progress UI, continue
     → checkpoint(tasklistId, id, output)  → validate output, record completion, update progress UI, continue
+    → loadKnowledge(selector) → read files from knowledge dir, emit knowledge_loaded event, return content, continue
   → On user intervention:
     → pause, update {{SCOPE}}, finalize assistant turn, inject user message, resume
   → On user pause:
@@ -110,4 +111,5 @@ declare function ask(formElement: React.ReactElement): Promise<Record<string, an
 declare function async(fn: () => Promise<void>): void
 declare function checkpoints(tasklistId: string, description: string, tasks: CheckpointTask[]): void
 declare function checkpoint(tasklistId: string, id: string, output: Record<string, any>): void
+declare function loadKnowledge(selector: KnowledgeSelector): KnowledgeContent
 ```

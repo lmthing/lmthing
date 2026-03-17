@@ -88,3 +88,7 @@ export { connectToRepl } from './rpc/client'
 // Web
 export { useReplSession } from './web/rpc-client'
 export type { UseReplSessionResult, UIBlock } from './web/rpc-client'
+
+// Agent runner
+export { runAgent } from './cli/run-agent'
+export type { RunAgentOptions, RunAgentResult } from './cli/run-agent'

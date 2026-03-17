@@ -5,100 +5,109 @@
  * stop/error/checkpoint events → inject messages → loop until complete.
  */
 
-import { streamText, type LanguageModel } from 'ai'
-import { writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import { Session } from '../session/session'
-import { generateScopeTable } from '../context/scope-generator'
-import { serialize } from '../stream/serializer'
-import { isKnowledgeContent, decayKnowledgeValue } from '../context/knowledge-decay'
-import type { KnowledgeContent } from '../knowledge/types'
-import type { SessionEvent, StopPayload, ErrorPayload } from '../session/types'
-import type { ClassifiedExport } from './loader'
-import { formatCollapsedClass, formatExpandedClass } from './loader'
+import { streamText, type LanguageModel } from "ai";
+import { writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { Session } from "../session/session";
+import { generateScopeTable } from "../context/scope-generator";
+import { serialize } from "../stream/serializer";
+import { isKnowledgeContent, decayKnowledgeValue } from "../context/knowledge-decay";
+import type { KnowledgeContent } from "../knowledge/types";
+import type { SessionEvent, StopPayload, ErrorPayload } from "../session/types";
+import type { ClassifiedExport } from "./loader";
+import { formatCollapsedClass, formatExpandedClass } from "./loader";
+import { buildSystemPrompt } from "./buildSystemPrompt";
 
 export interface AgentLoopOptions {
-  session: Session
-  model: LanguageModel
-  modelId: string
-  instruct?: string
-  functionSignatures?: string
-  formSignatures?: string
-  viewSignatures?: string
-  classSignatures?: string
-  classExports?: ClassifiedExport[]
-  knowledgeTree?: string
-  maxTurns?: number
-  maxCheckpointReminders?: number
-  debugFile?: string
+  session: Session;
+  model: LanguageModel;
+  modelId: string;
+  instruct?: string;
+  functionSignatures?: string;
+  formSignatures?: string;
+  viewSignatures?: string;
+  classSignatures?: string;
+  classExports?: ClassifiedExport[];
+  knowledgeTree?: string;
+  maxTurns?: number;
+  maxCheckpointReminders?: number;
+  debugFile?: string;
 }
 
 interface ChatMessage {
-  role: 'system' | 'user' | 'assistant'
-  content: string
+  role: "system" | "user" | "assistant";
+  content: string;
 }
 
 interface DebugEntry {
-  timestamp: number
-  type: 'system_prompt' | 'message' | 'event' | 'scope' | 'api_error' | 'turn' | 'turn_result' | 'finalize'
-  data: unknown
+  timestamp: number;
+  type:
+    | "system_prompt"
+    | "message"
+    | "event"
+    | "scope"
+    | "api_error"
+    | "turn"
+    | "turn_result"
+    | "finalize";
+  data: unknown;
 }
 
 export class AgentLoop {
-  private session: Session
-  private model: LanguageModel
-  private modelId: string
-  private instruct?: string
-  private functionSignatures: string
-  private formSignatures: string
-  private viewSignatures: string
-  private classSignatures: string
-  private classExports: ClassifiedExport[]
-  private loadedClasses = new Set<string>()
-  private knowledgeTree: string
-  private maxTurns: number
-  private maxCheckpointReminders: number
-  private debugFile?: string
-  private messages: ChatMessage[] = []
-  private running = false
-  private debugLog: DebugEntry[] = []
-  private tokenTotals = { inputTokens: 0, outputTokens: 0, totalTokens: 0 }
-  private totalTurns = 0
+  private session: Session;
+  private model: LanguageModel;
+  private modelId: string;
+  private instruct?: string;
+  private functionSignatures: string;
+  private formSignatures: string;
+  private viewSignatures: string;
+  private classSignatures: string;
+  private classExports: ClassifiedExport[];
+  private loadedClasses = new Set<string>();
+  private knowledgeTree: string;
+  private maxTurns: number;
+  private maxCheckpointReminders: number;
+  private debugFile?: string;
+  private messages: ChatMessage[] = [];
+  private running = false;
+  private debugLog: DebugEntry[] = [];
+  private tokenTotals = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+  private totalTurns = 0;
   /** Tracks stop messages that contain knowledge content, for progressive decay. */
   private knowledgeStops: Array<{
-    messageIndex: number
-    turn: number
-    payload: StopPayload
-    knowledgeKeys: Set<string>
-    knowledgeContent: Map<string, KnowledgeContent>
-  }> = []
+    messageIndex: number;
+    turn: number;
+    payload: StopPayload;
+    knowledgeKeys: Set<string>;
+    knowledgeContent: Map<string, KnowledgeContent>;
+  }> = [];
 
   constructor(options: AgentLoopOptions) {
-    this.session = options.session
-    this.model = options.model
-    this.modelId = options.modelId
-    this.instruct = options.instruct
-    this.functionSignatures = options.functionSignatures ?? ''
-    this.formSignatures = options.formSignatures ?? ''
-    this.viewSignatures = options.viewSignatures ?? ''
-    this.classSignatures = options.classSignatures ?? ''
-    this.classExports = options.classExports ?? []
-    this.knowledgeTree = options.knowledgeTree ?? ''
-    this.maxTurns = options.maxTurns ?? 10
-    this.maxCheckpointReminders = options.maxCheckpointReminders ?? 3
-    this.debugFile = options.debugFile
+    this.session = options.session;
+    this.model = options.model;
+    this.modelId = options.modelId;
+    this.instruct = options.instruct;
+    this.functionSignatures = options.functionSignatures ?? "";
+    this.formSignatures = options.formSignatures ?? "";
+    this.viewSignatures = options.viewSignatures ?? "";
+    this.classSignatures = options.classSignatures ?? "";
+    this.classExports = options.classExports ?? [];
+    this.knowledgeTree = options.knowledgeTree ?? "";
+    this.maxTurns = options.maxTurns ?? 10;
+    this.maxCheckpointReminders = options.maxCheckpointReminders ?? 3;
+    this.debugFile = options.debugFile;
   }
 
   get debug(): boolean {
-    return !!this.debugFile
+    return !!this.debugFile;
   }
 
   isRunning(): boolean {
-    return this.running
+    return this.running;
   }
 
-  private logDebug(type: DebugEntry['type'], data: unknown): void {
-    if (this.debug) this.debugLog.push({ timestamp: Date.now(), type, data })
+  private logDebug(type: DebugEntry["type"], data: unknown): void {
+    if (this.debug) this.debugLog.push({ timestamp: Date.now(), type, data });
   }
 
   /**
@@ -107,36 +116,44 @@ export class AgentLoop {
   async handleMessage(text: string): Promise<void> {
     if (this.running) {
       // User intervention while running — handled by session
-      console.log(`\n\x1b[33m[intervention]\x1b[0m ${text}`)
-      this.session.handleIntervention(text)
-      return
+      console.log(`\n\x1b[33m[intervention]\x1b[0m ${text}`);
+      this.session.handleIntervention(text);
+      return;
     }
 
-    this.running = true
-    this.session.handleUserMessage(text)
+    this.running = true;
+    this.session.handleUserMessage(text);
 
-    console.log(`\n\x1b[33m[user]\x1b[0m ${text}\n`)
+    console.log(`\n\x1b[33m[user]\x1b[0m ${text}\n`);
 
     // Build initial system prompt
-    const scope = this.session.getScopeTable()
-    const classBlock = this.buildClassBlock()
-    const systemPrompt = buildSystemPrompt(this.functionSignatures, this.formSignatures, this.viewSignatures, classBlock, scope, this.instruct, this.knowledgeTree)
+    const scope = this.session.getScopeTable();
+    const classBlock = this.buildClassBlock();
+    const systemPrompt = buildSystemPrompt(
+      this.functionSignatures,
+      this.formSignatures,
+      this.viewSignatures,
+      classBlock,
+      scope,
+      this.instruct,
+      this.knowledgeTree,
+    );
 
     // Initialize or update messages
     if (this.messages.length === 0) {
-      this.messages.push({ role: 'system', content: systemPrompt })
+      this.messages.push({ role: "system", content: systemPrompt });
     } else {
-      this.messages[0] = { role: 'system', content: systemPrompt }
+      this.messages[0] = { role: "system", content: systemPrompt };
     }
-    this.messages.push({ role: 'user', content: text })
+    this.messages.push({ role: "user", content: text });
 
-    this.logDebug('system_prompt', systemPrompt)
-    this.logDebug('message', { role: 'user', content: text })
+    this.logDebug("system_prompt", systemPrompt);
+    this.logDebug("message", { role: "user", content: text });
 
     try {
-      await this.runTurnLoop()
+      await this.runTurnLoop();
     } finally {
-      this.running = false
+      this.running = false;
     }
   }
 
@@ -147,185 +164,215 @@ export class AgentLoop {
   async runSetupCode(code: string): Promise<void> {
     // Initialize system prompt if needed
     if (this.messages.length === 0) {
-      const scope = this.session.getScopeTable()
-      const classBlock = this.buildClassBlock()
-      const systemPrompt = buildSystemPrompt(this.functionSignatures, this.formSignatures, this.viewSignatures, classBlock, scope, this.instruct, this.knowledgeTree)
-      this.messages.push({ role: 'system', content: systemPrompt })
+      const scope = this.session.getScopeTable();
+      const classBlock = this.buildClassBlock();
+      const systemPrompt = buildSystemPrompt(
+        this.functionSignatures,
+        this.formSignatures,
+        this.viewSignatures,
+        classBlock,
+        scope,
+        this.instruct,
+        this.knowledgeTree,
+      );
+      this.messages.push({ role: "system", content: systemPrompt });
     }
 
-    console.log(`\x1b[90m--- setup ---\x1b[0m`)
+    console.log(`\x1b[90m--- setup ---\x1b[0m`);
 
     // Track stop/error from session events
-    const state: { stop: StopPayload | null; error: ErrorPayload | null } = { stop: null, error: null }
+    const state: { stop: StopPayload | null; error: ErrorPayload | null } = {
+      stop: null,
+      error: null,
+    };
     const listener = (event: SessionEvent) => {
-      this.logDebug('event', event)
+      this.logDebug("event", event);
       switch (event.type) {
-        case 'read':
-          state.stop = {}
+        case "read":
+          state.stop = {};
           for (const [k, v] of Object.entries(event.payload)) {
-            state.stop[k] = { value: v, display: serialize(v as any) }
+            state.stop[k] = { value: v, display: serialize(v as any) };
           }
-          this.session.resolveStop()
-          break
-        case 'error':
-          state.error = event.error
-          break
-        case 'checkpoint_plan':
-          console.log(`\x1b[36m  [checkpoints]\x1b[0m plan registered: [${event.tasklistId}] ${event.plan.description} (${event.plan.tasks.length} tasks)`)
-          break
-        case 'checkpoint_complete':
-          console.log(`\x1b[32m  [checkpoint]\x1b[0m \u2713 ${event.tasklistId}/${event.id}`)
-          break
-        case 'display':
-          console.log(`\x1b[35m  [display]\x1b[0m component rendered`)
-          break
-        case 'knowledge_loaded':
-          console.log(`\x1b[36m  [knowledge]\x1b[0m loaded: ${event.domains.join(', ')}`)
-          break
-        case 'class_loaded':
-          this.loadedClasses.add(event.className)
-          console.log(`\x1b[36m  [loadClass]\x1b[0m ${event.className} \u2014 ${event.methods.length} method${event.methods.length !== 1 ? 's' : ''} loaded`)
-          break
+          this.session.resolveStop();
+          break;
+        case "error":
+          state.error = event.error;
+          break;
+        case "checkpoint_plan":
+          console.log(
+            `\x1b[36m  [checkpoints]\x1b[0m plan registered: [${event.tasklistId}] ${event.plan.description} (${event.plan.tasks.length} tasks)`,
+          );
+          break;
+        case "checkpoint_complete":
+          console.log(`\x1b[32m  [checkpoint]\x1b[0m \u2713 ${event.tasklistId}/${event.id}`);
+          break;
+        case "display":
+          console.log(`\x1b[35m  [display]\x1b[0m component rendered`);
+          break;
+        case "knowledge_loaded":
+          console.log(`\x1b[36m  [knowledge]\x1b[0m loaded: ${event.domains.join(", ")}`);
+          break;
+        case "class_loaded":
+          this.loadedClasses.add(event.className);
+          console.log(
+            `\x1b[36m  [loadClass]\x1b[0m ${event.className} \u2014 ${event.methods.length} method${event.methods.length !== 1 ? "s" : ""} loaded`,
+          );
+          break;
       }
-    }
-    this.session.on('event', listener)
+    };
+    this.session.on("event", listener);
 
     // Set session to executing state
-    this.session.handleUserMessage('[setup]')
+    this.session.handleUserMessage("[setup]");
 
     // Feed code line by line
-    const lines = code.split('\n')
+    const lines = code.split("\n");
     for (const line of lines) {
-      if (state.stop || state.error) break
-      const trimmed = line.trim()
-      if (!trimmed) continue
+      if (state.stop || state.error) break;
+      const trimmed = line.trim();
+      if (!trimmed) continue;
       try {
-        process.stdout.write(`\x1b[32m${line}\x1b[0m\n`)
-        await this.session.feedToken(line + '\n')
+        process.stdout.write(`\x1b[32m${line}\x1b[0m\n`);
+        await this.session.feedToken(line + "\n");
       } catch {
         // execution errors captured via event
       }
     }
 
-    this.session.off('event', listener)
+    this.session.off("event", listener);
 
     // Finalize if no interruption
     if (!state.stop && !state.error) {
       try {
-        await this.session.finalize()
-      } catch { /* ignore */ }
+        await this.session.finalize();
+      } catch {
+        /* ignore */
+      }
     }
 
     // Record as assistant message
-    this.messages.push({ role: 'assistant', content: code })
-    this.logDebug('message', { role: 'assistant', content: `[setup] ${code}` })
+    this.messages.push({ role: "assistant", content: code });
+    this.logDebug("message", { role: "assistant", content: `[setup] ${code}` });
 
     // If stop occurred, record the stop message
     if (state.stop) {
       const entries = Object.entries(state.stop)
         .map(([k, v]) => `${k}: ${v.display}`)
-        .join(', ')
-      const stopMsg = `\u2190 stop { ${entries} }`
-      console.log(`\x1b[33m  [stop]\x1b[0m ${stopMsg}`)
-      this.messages.push({ role: 'user', content: stopMsg })
-      this.logDebug('message', { role: 'user', content: stopMsg })
+        .join(", ");
+      const stopMsg = `\u2190 stop { ${entries} }`;
+      console.log(`\x1b[33m  [stop]\x1b[0m ${stopMsg}`);
+      this.messages.push({ role: "user", content: stopMsg });
+      this.logDebug("message", { role: "user", content: stopMsg });
     }
 
     if (state.error) {
-      const errMsg = `\u2190 error [${state.error.type}] ${state.error.message} (line ${state.error.line})`
-      console.log(`\x1b[31m  [error]\x1b[0m ${errMsg}`)
-      this.messages.push({ role: 'user', content: errMsg })
-      this.logDebug('message', { role: 'user', content: errMsg })
+      const errMsg = `\u2190 error [${state.error.type}] ${state.error.message} (line ${state.error.line})`;
+      console.log(`\x1b[31m  [error]\x1b[0m ${errMsg}`);
+      this.messages.push({ role: "user", content: errMsg });
+      this.logDebug("message", { role: "user", content: errMsg });
     }
 
     // Refresh system prompt to reflect setup effects
-    this.refreshSystemPrompt()
-    console.log(`\x1b[90m--- setup complete ---\x1b[0m\n`)
+    this.refreshSystemPrompt();
+    console.log(`\x1b[90m--- setup complete ---\x1b[0m\n`);
   }
 
   private async runTurnLoop(): Promise<void> {
-    let turn = 0
+    let turn = 0;
 
     while (turn < this.maxTurns) {
-      turn++
-      this.totalTurns++
+      turn++;
+      this.totalTurns++;
 
-      console.log(`\x1b[90m--- turn ${turn} ---\x1b[0m`)
-      this.logDebug('turn', { turn, messageCount: this.messages.length })
+      console.log(`\x1b[90m--- turn ${turn} ---\x1b[0m`);
+      this.logDebug("turn", { turn, messageCount: this.messages.length });
 
       // Track stop/error from session events via mutable ref
-      const state: { stop: StopPayload | null; error: ErrorPayload | null } = { stop: null, error: null }
+      const state: { stop: StopPayload | null; error: ErrorPayload | null } = {
+        stop: null,
+        error: null,
+      };
 
       const listener = (event: SessionEvent) => {
-        this.logDebug('event', event)
+        this.logDebug("event", event);
         switch (event.type) {
-          case 'read':
-            state.stop = {}
+          case "read":
+            state.stop = {};
             for (const [k, v] of Object.entries(event.payload)) {
-              state.stop[k] = { value: v, display: serialize(v as any) }
+              state.stop[k] = { value: v, display: serialize(v as any) };
             }
-            this.session.resolveStop()
-            break
-          case 'error':
-            state.error = event.error
-            break
-          case 'display':
-            console.log(`\x1b[35m  [display]\x1b[0m component rendered`)
-            break
-          case 'async_start':
-            console.log(`\x1b[34m  [async]\x1b[0m started: ${event.label}`)
-            break
-          case 'async_complete':
-            console.log(`\x1b[34m  [async]\x1b[0m completed: ${event.taskId} (${(event.elapsed / 1000).toFixed(1)}s)`)
-            break
-          case 'async_failed':
-            console.log(`\x1b[31m  [async]\x1b[0m failed: ${event.taskId} — ${event.error}`)
-            break
-          case 'async_cancelled':
-            console.log(`\x1b[33m  [async]\x1b[0m cancelled: ${event.taskId}`)
-            break
-          case 'checkpoint_plan':
-            console.log(`\x1b[36m  [checkpoints]\x1b[0m plan registered: [${event.tasklistId}] ${event.plan.description} (${event.plan.tasks.length} tasks)`)
-            break
-          case 'checkpoint_complete':
-            console.log(`\x1b[32m  [checkpoint]\x1b[0m ✓ ${event.tasklistId}/${event.id}`)
-            break
-          case 'checkpoint_reminder':
-            console.log(`\x1b[33m  [system]\x1b[0m tasklist "${event.tasklistId}" reminder — remaining: ${event.remaining.join(', ')}`)
-            break
-          case 'knowledge_loaded':
-            console.log(`\x1b[36m  [knowledge]\x1b[0m loaded: ${event.domains.join(', ')}`)
-            break
-          case 'class_loaded':
-            this.loadedClasses.add(event.className)
-            console.log(`\x1b[36m  [loadClass]\x1b[0m ${event.className} — ${event.methods.length} method${event.methods.length !== 1 ? 's' : ''} loaded`)
-            break
-          case 'hook':
-            console.log(`\x1b[35m  [hook]\x1b[0m ${event.hookId} → ${event.action}: ${event.detail}`)
-            break
-          case 'status':
+            this.session.resolveStop();
+            break;
+          case "error":
+            state.error = event.error;
+            break;
+          case "display":
+            console.log(`\x1b[35m  [display]\x1b[0m component rendered`);
+            break;
+          case "async_start":
+            console.log(`\x1b[34m  [async]\x1b[0m started: ${event.label}`);
+            break;
+          case "async_complete":
+            console.log(
+              `\x1b[34m  [async]\x1b[0m completed: ${event.taskId} (${(event.elapsed / 1000).toFixed(1)}s)`,
+            );
+            break;
+          case "async_failed":
+            console.log(`\x1b[31m  [async]\x1b[0m failed: ${event.taskId} — ${event.error}`);
+            break;
+          case "async_cancelled":
+            console.log(`\x1b[33m  [async]\x1b[0m cancelled: ${event.taskId}`);
+            break;
+          case "checkpoint_plan":
+            console.log(
+              `\x1b[36m  [checkpoints]\x1b[0m plan registered: [${event.tasklistId}] ${event.plan.description} (${event.plan.tasks.length} tasks)`,
+            );
+            break;
+          case "checkpoint_complete":
+            console.log(`\x1b[32m  [checkpoint]\x1b[0m ✓ ${event.tasklistId}/${event.id}`);
+            break;
+          case "checkpoint_reminder":
+            console.log(
+              `\x1b[33m  [system]\x1b[0m tasklist "${event.tasklistId}" reminder — remaining: ${event.remaining.join(", ")}`,
+            );
+            break;
+          case "knowledge_loaded":
+            console.log(`\x1b[36m  [knowledge]\x1b[0m loaded: ${event.domains.join(", ")}`);
+            break;
+          case "class_loaded":
+            this.loadedClasses.add(event.className);
+            console.log(
+              `\x1b[36m  [loadClass]\x1b[0m ${event.className} — ${event.methods.length} method${event.methods.length !== 1 ? "s" : ""} loaded`,
+            );
+            break;
+          case "hook":
+            console.log(
+              `\x1b[35m  [hook]\x1b[0m ${event.hookId} → ${event.action}: ${event.detail}`,
+            );
+            break;
+          case "status":
             // don't log status changes to console, they're noisy
-            break
+            break;
         }
-      }
-      this.session.on('event', listener)
+      };
+      this.session.on("event", listener);
 
       // Step 1: Stream entire LLM response, printing as it arrives
-      let code = ''
-      let streamResult: ReturnType<typeof streamText> | null = null
+      let code = "";
+      let streamResult: ReturnType<typeof streamText> | null = null;
       try {
         streamResult = streamText({
           model: this.model,
-          messages: this.messages.map(m => ({ role: m.role, content: m.content })),
+          messages: this.messages.map((m) => ({ role: m.role, content: m.content })),
           temperature: 0.2,
           maxOutputTokens: 4096,
-        })
+        });
 
         for await (const chunk of streamResult.textStream) {
-          process.stdout.write(`\x1b[32m${chunk}\x1b[0m`)
-          code += chunk
+          process.stdout.write(`\x1b[32m${chunk}\x1b[0m`);
+          code += chunk;
         }
-        console.log() // newline after streamed code
+        console.log(); // newline after streamed code
 
         // Collect usage metadata for debug
         if (this.debug) {
@@ -334,11 +381,11 @@ export class AgentLoop {
               streamResult.usage,
               streamResult.finishReason,
               streamResult.response,
-            ])
-            this.tokenTotals.inputTokens += usage.inputTokens ?? 0
-            this.tokenTotals.outputTokens += usage.outputTokens ?? 0
-            this.tokenTotals.totalTokens += usage.totalTokens ?? 0
-            this.logDebug('turn_result', {
+            ]);
+            this.tokenTotals.inputTokens += usage.inputTokens ?? 0;
+            this.tokenTotals.outputTokens += usage.outputTokens ?? 0;
+            this.tokenTotals.totalTokens += usage.totalTokens ?? 0;
+            this.logDebug("turn_result", {
               turn,
               finishReason,
               usage: {
@@ -353,77 +400,81 @@ export class AgentLoop {
                 modelId: response.modelId,
                 timestamp: response.timestamp,
               },
-            })
-          } catch { /* usage metadata optional */ }
+            });
+          } catch {
+            /* usage metadata optional */
+          }
         }
       } catch (err: any) {
-        console.error(`\n\x1b[31m  [api error]\x1b[0m ${err.message}`)
-        this.logDebug('api_error', { message: err.message, stack: err.stack })
-        this.session.off('event', listener)
-        break
+        console.error(`\n\x1b[31m  [api error]\x1b[0m ${err.message}`);
+        this.logDebug("api_error", { message: err.message, stack: err.stack });
+        this.session.off("event", listener);
+        break;
       }
 
       // Step 2: Clean model output
-      code = cleanCode(code)
+      code = cleanCode(code);
 
       // Step 3: Feed cleaned code to session line by line
-      const lines = code.split('\n')
+      const lines = code.split("\n");
       for (const line of lines) {
-        if (state.stop || state.error) break
-        const trimmed = line.trim()
-        if (!trimmed) continue
+        if (state.stop || state.error) break;
+        const trimmed = line.trim();
+        if (!trimmed) continue;
         try {
-          await this.session.feedToken(line + '\n')
+          await this.session.feedToken(line + "\n");
         } catch {
           // execution errors captured via event
         }
       }
 
-      this.session.off('event', listener)
+      this.session.off("event", listener);
 
       // Step 4: Flush remaining buffer if no interruption
-      let checkpointIncomplete = false
+      let checkpointIncomplete = false;
       if (!state.stop && !state.error) {
         try {
-          const result = await this.session.finalize()
-          if (result === 'checkpoint_incomplete') {
-            checkpointIncomplete = true
+          const result = await this.session.finalize();
+          if (result === "checkpoint_incomplete") {
+            checkpointIncomplete = true;
           }
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
 
       // Handle checkpoint incomplete → inject reminder and loop
       if (checkpointIncomplete) {
-        this.refreshSystemPrompt()
-        const sessionMsgs = this.session.getMessages()
-        const reminderMsg = sessionMsgs[sessionMsgs.length - 1]
-        this.messages.push({ role: 'assistant', content: code })
-        this.messages.push({ role: 'user', content: reminderMsg.content })
-        this.logDebug('message', { role: 'assistant', content: code })
-        this.logDebug('message', { role: 'user', content: reminderMsg.content })
-        this.logDebug('scope', this.session.snapshot().scope)
-        continue
+        this.refreshSystemPrompt();
+        const sessionMsgs = this.session.getMessages();
+        const reminderMsg = sessionMsgs[sessionMsgs.length - 1];
+        this.messages.push({ role: "assistant", content: code });
+        this.messages.push({ role: "user", content: reminderMsg.content });
+        this.logDebug("message", { role: "assistant", content: code });
+        this.logDebug("message", { role: "user", content: reminderMsg.content });
+        this.logDebug("scope", this.session.snapshot().scope);
+        continue;
       }
 
       // Handle stop → inject as user message and loop
       if (state.stop) {
         const entries = Object.entries(state.stop)
           .map(([k, v]) => `${k}: ${v.display}`)
-          .join(', ')
-        const stopMsg = `← stop { ${entries} }`
-        console.log(`\x1b[33m  [stop]\x1b[0m ${stopMsg}`)
+          .join(", ");
+        const stopMsg = `← stop { ${entries} }`;
+        console.log(`\x1b[33m  [stop]\x1b[0m ${stopMsg}`);
 
-        const codeUpToStop = truncateAtStop(code)
-        this.messages.push({ role: 'assistant', content: codeUpToStop })
-        this.messages.push({ role: 'user', content: stopMsg })
+        const codeUpToStop = truncateAtStop(code);
+        this.messages.push({ role: "assistant", content: codeUpToStop });
+        this.messages.push({ role: "user", content: stopMsg });
 
         // Track knowledge-containing stops for progressive decay
-        const knowledgeKeys = new Set<string>()
-        const knowledgeContent = new Map<string, KnowledgeContent>()
+        const knowledgeKeys = new Set<string>();
+        const knowledgeContent = new Map<string, KnowledgeContent>();
         for (const [k, v] of Object.entries(state.stop)) {
           if (isKnowledgeContent(v.value)) {
-            knowledgeKeys.add(k)
-            knowledgeContent.set(k, v.value as KnowledgeContent)
+            knowledgeKeys.add(k);
+            knowledgeContent.set(k, v.value as KnowledgeContent);
           }
         }
         if (knowledgeKeys.size > 0) {
@@ -433,91 +484,101 @@ export class AgentLoop {
             payload: state.stop,
             knowledgeKeys,
             knowledgeContent,
-          })
+          });
         }
 
-        this.refreshSystemPrompt()
-        this.logDebug('message', { role: 'assistant', content: codeUpToStop })
-        this.logDebug('message', { role: 'user', content: stopMsg })
-        this.logDebug('scope', this.session.snapshot().scope)
-        continue
+        this.refreshSystemPrompt();
+        this.logDebug("message", { role: "assistant", content: codeUpToStop });
+        this.logDebug("message", { role: "user", content: stopMsg });
+        this.logDebug("scope", this.session.snapshot().scope);
+        continue;
       }
 
       // Handle error → inject as user message and loop
       if (state.error) {
-        const errMsg = `← error [${state.error.type}] ${state.error.message} (line ${state.error.line})`
-        console.log(`\x1b[31m  [error]\x1b[0m ${errMsg}`)
+        const errMsg = `← error [${state.error.type}] ${state.error.message} (line ${state.error.line})`;
+        console.log(`\x1b[31m  [error]\x1b[0m ${errMsg}`);
 
-        this.messages.push({ role: 'assistant', content: code })
-        this.messages.push({ role: 'user', content: errMsg })
-        this.refreshSystemPrompt()
-        this.logDebug('message', { role: 'assistant', content: code })
-        this.logDebug('message', { role: 'user', content: errMsg })
-        this.logDebug('scope', this.session.snapshot().scope)
-        continue
+        this.messages.push({ role: "assistant", content: code });
+        this.messages.push({ role: "user", content: errMsg });
+        this.refreshSystemPrompt();
+        this.logDebug("message", { role: "assistant", content: code });
+        this.logDebug("message", { role: "user", content: errMsg });
+        this.logDebug("scope", this.session.snapshot().scope);
+        continue;
       }
 
       // No stop/error — LLM finished naturally
-      console.log(`\x1b[36m[done]\x1b[0m Completed after ${turn} turn(s)`)
-      break
+      console.log(`\x1b[36m[done]\x1b[0m Completed after ${turn} turn(s)`);
+      break;
     }
 
     if (turn >= this.maxTurns) {
-      console.log(`\x1b[33m[limit]\x1b[0m Reached max turns (${this.maxTurns})`)
+      console.log(`\x1b[33m[limit]\x1b[0m Reached max turns (${this.maxTurns})`);
     }
 
     // Print checkpoint summary
-    const cpState = this.session.snapshot().checkpointState
+    const cpState = this.session.snapshot().checkpointState;
     if (cpState.tasklists.size > 0) {
-      console.log(`\n\x1b[36m━━━ Checkpoints ━━━\x1b[0m`)
+      console.log(`\n\x1b[36m━━━ Checkpoints ━━━\x1b[0m`);
       for (const [tasklistId, tasklist] of cpState.tasklists) {
-        const total = tasklist.plan.tasks.length
-        const done = tasklist.completed.size
-        console.log(`\x1b[36m[${tasklistId}]\x1b[0m ${tasklist.plan.description} — ${done}/${total} complete`)
+        const total = tasklist.plan.tasks.length;
+        const done = tasklist.completed.size;
+        console.log(
+          `\x1b[36m[${tasklistId}]\x1b[0m ${tasklist.plan.description} — ${done}/${total} complete`,
+        );
         for (const task of tasklist.plan.tasks) {
-          const completion = tasklist.completed.get(task.id)
+          const completion = tasklist.completed.get(task.id);
           if (completion) {
-            console.log(`  \x1b[32m✓\x1b[0m ${task.id}: ${JSON.stringify(completion.output)}`)
+            console.log(`  \x1b[32m✓\x1b[0m ${task.id}: ${JSON.stringify(completion.output)}`);
           } else {
-            console.log(`  \x1b[31m✗\x1b[0m ${task.id}: incomplete`)
+            console.log(`  \x1b[31m✗\x1b[0m ${task.id}: incomplete`);
           }
         }
       }
     }
 
     // Print final scope
-    const finalScope = generateScopeTable(this.session.snapshot().scope)
-    if (finalScope !== '(no variables declared)') {
-      console.log(`\n\x1b[36m━━━ Final Scope ━━━\x1b[0m`)
-      console.log(finalScope)
+    const finalScope = generateScopeTable(this.session.snapshot().scope);
+    if (finalScope !== "(no variables declared)") {
+      console.log(`\n\x1b[36m━━━ Final Scope ━━━\x1b[0m`);
+      console.log(finalScope);
     }
 
     // Write debug log
-    this.writeDebugLog()
+    this.writeDebugLog();
   }
 
   private buildClassBlock(): string {
-    if (this.classExports.length === 0) return this.classSignatures
-    const blocks: string[] = []
+    if (this.classExports.length === 0) return this.classSignatures;
+    const blocks: string[] = [];
     for (const cls of this.classExports) {
       if (this.loadedClasses.has(cls.name)) {
-        blocks.push(formatExpandedClass(cls))
+        blocks.push(formatExpandedClass(cls));
       } else {
-        blocks.push(formatCollapsedClass(cls))
+        blocks.push(formatCollapsedClass(cls));
       }
     }
-    return blocks.filter(Boolean).join('\n')
+    return blocks.filter(Boolean).join("\n");
   }
 
   private refreshSystemPrompt(): void {
-    const scope = this.session.getScopeTable()
-    const classBlock = this.buildClassBlock()
-    const systemPrompt = buildSystemPrompt(this.functionSignatures, this.formSignatures, this.viewSignatures, classBlock, scope, this.instruct, this.knowledgeTree)
-    this.messages[0] = { role: 'system', content: systemPrompt }
-    this.logDebug('system_prompt', systemPrompt)
+    const scope = this.session.getScopeTable();
+    const classBlock = this.buildClassBlock();
+    const systemPrompt = buildSystemPrompt(
+      this.functionSignatures,
+      this.formSignatures,
+      this.viewSignatures,
+      classBlock,
+      scope,
+      this.instruct,
+      this.knowledgeTree,
+    );
+    this.messages[0] = { role: "system", content: systemPrompt };
+    this.logDebug("system_prompt", systemPrompt);
 
     // Apply progressive decay to knowledge-containing stop messages
-    this.decayKnowledgeMessages()
+    this.decayKnowledgeMessages();
   }
 
   /**
@@ -526,409 +587,249 @@ export class AgentLoop {
    */
   private decayKnowledgeMessages(): void {
     for (const ks of this.knowledgeStops) {
-      const distance = this.totalTurns - ks.turn
-      if (distance <= 0) continue
+      const distance = this.totalTurns - ks.turn;
+      if (distance <= 0) continue;
 
       // Rebuild the stop message with decayed knowledge values
       const entries = Object.entries(ks.payload).map(([k, v]) => {
         if (ks.knowledgeKeys.has(k)) {
-          const content = ks.knowledgeContent.get(k)!
-          const decayed = decayKnowledgeValue(content, distance)
-          return `${k}: ${decayed}`
+          const content = ks.knowledgeContent.get(k)!;
+          const decayed = decayKnowledgeValue(content, distance);
+          return `${k}: ${decayed}`;
         }
-        return `${k}: ${v.display}`
-      })
+        return `${k}: ${v.display}`;
+      });
       this.messages[ks.messageIndex] = {
-        role: 'user',
-        content: `← stop { ${entries.join(', ')} }`,
-      }
+        role: "user",
+        content: `← stop { ${entries.join(", ")} }`,
+      };
     }
   }
 
   private writeDebugLog(): void {
-    if (!this.debug || !this.debugFile) return
+    if (!this.debug || !this.debugFile) return;
 
-    const snapshot = this.session.snapshot()
-    this.logDebug('finalize', {
+    const snapshot = this.session.snapshot();
+    this.logDebug("finalize", {
       model: this.modelId,
       turns: this.totalTurns,
       maxTurns: this.maxTurns,
       status: snapshot.status,
       tokenTotals: this.tokenTotals,
       scope: snapshot.scope,
-      checkpointState: snapshot.checkpointState.tasklists.size > 0 ? Object.fromEntries(
-        [...snapshot.checkpointState.tasklists].map(([id, tl]) => [id, {
-          description: tl.plan.description,
-          tasks: tl.plan.tasks,
-          completed: Object.fromEntries(tl.completed),
-          currentIndex: tl.currentIndex,
-        }])
-      ) : null,
-      messages: this.messages.map(m => ({ role: m.role, content: m.content })),
-    })
+      checkpointState:
+        snapshot.checkpointState.tasklists.size > 0
+          ? Object.fromEntries(
+              [...snapshot.checkpointState.tasklists].map(([id, tl]) => [
+                id,
+                {
+                  description: tl.plan.description,
+                  tasks: tl.plan.tasks,
+                  completed: Object.fromEntries(tl.completed),
+                  currentIndex: tl.currentIndex,
+                },
+              ]),
+            )
+          : null,
+      messages: this.messages.map((m) => ({ role: m.role, content: m.content })),
+    });
 
-    const isXml = /\.xml$/i.test(this.debugFile)
-    const output = isXml ? debugLogToXml(this.debugLog) : JSON.stringify(this.debugLog, null, 2)
-    writeFileSync(resolve(this.debugFile), output, 'utf-8')
-    console.log(`\x1b[90m[debug] Written to ${this.debugFile}\x1b[0m`)
+    const isXml = /\.xml$/i.test(this.debugFile);
+    const output = isXml ? debugLogToXml(this.debugLog) : JSON.stringify(this.debugLog, null, 2);
+    writeFileSync(resolve(this.debugFile), output, "utf-8");
+    console.log(`\x1b[90m[debug] Written to ${this.debugFile}\x1b[0m`);
   }
-}
-
-// ── System Prompt ──
-
-function buildSystemPrompt(fnSigs: string, formSigs: string, viewSigs: string, classSigs: string, scope: string, instruct?: string, knowledgeTree?: string): string {
-  let prompt = `You are a code-execution agent. You respond EXCLUSIVELY with valid TypeScript code. No markdown. No prose. No explanations outside of code comments. Every character you emit is fed line-by-line into a live TypeScript REPL that executes as you stream.
-
-## Execution Model
-
-Your output is NOT a script that runs after you finish. Each line is parsed and executed as it arrives. Think of yourself as typing into a live terminal.
-
-The REPL supports top-level await. Every async function call must be awaited.
-
-CRITICAL: Do NOT wrap code in markdown fences (\`\`\`). Output raw TypeScript only. Do NOT use <think> tags or any XML tags.
-
-## Available Globals
-
-### await stop(...values) — Pause and read
-Suspends your execution. The runtime evaluates each argument, serializes the results, and injects them as a user message prefixed with "← stop". You resume with knowledge of those values.
-
-Use stop when you need to inspect a runtime value before deciding what to write next.
-Example: await stop(x, y) → you will see: ← stop { x: <value>, y: <value> }
-
-IMPORTANT: After calling await stop(), STOP writing code. The runtime will pause your stream, read the values, and resume you in a new turn. Do NOT predict or simulate the stop response yourself.
-
-### display(element) — Show output to user
-Non-blocking. Appends a rendered component to the user's view. Use with display components only.
-Example: display(<RecipeCard name="Pasta" cuisine="Italian" ... />)
-
-### var data = await ask(element) — Collect user input
-Blocking. Renders a form to the user and waits for submission. The host wraps your element in a \`<form>\` with Submit/Cancel buttons — do NOT add your own \`<form>\` tag.
-Each input component must have a \`name\` attribute. The returned object maps name → submitted value.
-
-ask() resumes silently — no message is injected into the conversation. You MUST call stop() after ask() to read the submitted values.
-
-Pattern:
-var input = await ask(<RequestForm />)
-await stop(input)
-// ← stop { input: { request: "...", dietary: "..." } }
-// Now you can see the values and decide what to do next
-
-Multiple inputs:
-var prefs = await ask(<div>
-  <Select name="cuisine" label="Pick cuisine" options={["italian", "japanese"]} />
-  <TextInput name="notes" label="Any notes?" />
-</div>)
-await stop(prefs)
-// ← stop { prefs: { cuisine: "italian", notes: "extra spicy" } }
-
-IMPORTANT:
-- Do NOT wrap ask() content in \`<form>\`. The host provides the form wrapper and submit button.
-- Always call await stop() right after ask() to see the values. Do NOT use the values before calling stop().
-- After stop(), you resume in a new turn with the form data visible.
-
-### checkpoints(tasklistId, description, tasks) — Declare a task plan with milestones
-Before starting any implementation work, declare a plan using checkpoints(). This registers milestones with the host under a unique tasklistId. Each checkpoint has an id, instructions, and outputSchema describing the result shape.
-
-You can call checkpoints() multiple times per session with different tasklist IDs. It does not block execution.
-
-Example:
-checkpoints("analyze_data", "Analyze employee data", [
-  { id: "load", instructions: "Load the dataset", outputSchema: { count: { type: "number" } } },
-  { id: "analyze", instructions: "Compute statistics", outputSchema: { done: { type: "boolean" } } },
-  { id: "report", instructions: "Present results", outputSchema: { done: { type: "boolean" } } }
-])
-
-### checkpoint(tasklistId, checkpointId, output) — Mark a milestone as complete
-When you reach a milestone, call checkpoint() with the tasklist ID, checkpoint ID, and an output object matching the declared outputSchema. Non-blocking. Must be called in declaration order within each tasklist — do not skip checkpoints.
-
-Example:
-checkpoint("analyze_data", "load", { count: 10 })
-
-If your stream ends before all checkpoints are complete, the host will send you a reminder:
-  ⚠ [system] Tasklist "analyze_data" incomplete. Remaining: analyze, report. Continue from where you left off.
-When you see this, continue from the next incomplete checkpoint. Do NOT re-declare checkpoints() for the same tasklist or redo completed work.
-
-### loadKnowledge(selector) — Load knowledge files from spaces
-Loads markdown content from the knowledge base. Pass a selector object that mirrors the knowledge tree structure, setting \`true\` on the specific files you want to load.
-
-The selector uses space names as the top-level keys, matching the Knowledge Tree structure:
-\`{ spaceName: { domain: { field: { option: true } } } }\`
-
-Returns an object with the same structure, where each \`true\` is replaced with the markdown content of that file.
-
-Example:
-var docs = loadKnowledge({
-  "my-space": {
-    "chat-modes": {
-      "mode": {
-        "casual": true
-      }
-    }
-  }
-})
-// docs["my-space"]["chat-modes"]["mode"]["casual"] → "# Casual Mode\\n\\nRelaxed, conversational..."
-
-Use the Knowledge Tree below to see what spaces and files are available. Load only the specific files relevant to the current task — NEVER load an entire domain or space at once. Select individual options that match the user's request.
-
-### loadClass(className) — Load a class's methods
-Non-blocking. Loads all methods of a class, making them callable as ClassName.methodName().
-Before calling loadClass, you can only see the class name and description in "Available Classes".
-You can load multiple classes in one turn. Call stop() afterwards to see the expanded methods.
-
-If a class is already loaded, loadClass() is a no-op.
-
-Example:
-loadClass("DataProcessor")
-loadClass("TextUtils")
-await stop()
-// ← stop { }
-
-// (new turn — both classes are now expanded in the prompt)
-var parsed = DataProcessor.parse(rawData)
-var title = TextUtils.titleCase(parsed.name)
-
-## Workspace — Current Scope
-${scope || '(no variables declared)'}
-
-## Available Functions
-${fnSigs || '(none)'}
-
-## Available Classes
-${classSigs || '(none)'}
-
-## Form Components — use ONLY inside ask()
-Render these inside \`var data = await ask(<Component />)\`. Always follow with \`await stop(data)\` to read the values.
-Each input must have a \`name\` attribute — the returned object maps name → submitted value.
-Do NOT add a \`<form>\` tag — the host wraps automatically with Submit/Cancel buttons.
-${formSigs || '(none)'}
-
-## Display Components — use with display()
-These components show output to the user. Use them with \`display(<Component ... />)\`. Non-blocking.
-${viewSigs || '(none)'}`
-
-  if (knowledgeTree) {
-    prompt += `\n\n## Knowledge Tree\n${knowledgeTree}\n`
-  }
-
-  prompt += `
-## Rules
-1. Output ONLY valid TypeScript. No markdown. No prose outside // comments.
-2. Plan before you build — call checkpoints(tasklistId, description, tasks) to declare milestones, then call checkpoint(tasklistId, checkpointId, output) as you complete each one.
-3. Await every async call: var x = await fn()
-4. Use stop() to read runtime values before branching.
-5. Do not use console.log — use stop() to inspect values.
-6. Do not import modules. Do not use export.
-7. Use var for all declarations (not const/let) so they persist in the REPL scope across turns.
-8. Handle nullability with ?. and ??
-9. After calling await stop(...), STOP. Do not write any more code until you receive the stop response.
-10. Use loadKnowledge() to load relevant knowledge files before starting domain-specific work. Check the Knowledge Tree to see what is available. NEVER load all files from a domain or space — only select the specific options that are relevant to the user's request. Loading too much wastes context and degrades your performance.
-
-## Execution Flow Pattern
-
-A typical interaction follows this pattern:
-
-// 1. Plan — always start with checkpoints
-checkpoints("main", "Do the task", [
-  { id: "gather", instructions: "Collect user input", outputSchema: { done: { type: "boolean" } } },
-  { id: "work", instructions: "Do the work", outputSchema: { key: { type: "string" } } },
-  { id: "present", instructions: "Show results", outputSchema: { done: { type: "boolean" } } }
-])
-
-// 2. Gather user input with ask() → stop()
-var input = await ask(<RequestForm />)
-await stop(input)
-// ← stop { input: { request: "...", dietary: "..." } }
-
-// (new turn — now you can see the form values)
-checkpoint("main", "gather", { done: true })
-
-// 3. Load relevant knowledge
-var knowledge = loadKnowledge({ "space-name": { "domain": { "field": { "option": true } } } })
-await stop(knowledge)
-// ← stop { knowledge: { "space-name": { domain: { field: { option: "..." } } } } }
-
-// 4. Do work
-var result = await someFunction()
-await stop(result)
-// ← stop { result: ... }
-checkpoint("main", "work", { key: result.key })
-
-// 5. Show results with display()
-display(<ResultCard data={result} />)
-checkpoint("main", "present", { done: true })`
-
-  if (instruct) prompt += `\n\n## Special Instructions\n${instruct}\n`
-  return prompt
 }
 
 // ── Utilities ──
 
 function cleanCode(raw: string): string {
-  let s = raw.trim()
-  s = s.replace(/^```(?:typescript|ts|tsx|javascript|js)?\s*\n?/, '')
-  s = s.replace(/\n?```\s*$/, '')
-  s = s.replace(/<think>[\s\S]*?<\/think>/g, '')
-  s = s.replace(/<\/?think>/g, '')
-  const lines = s.split('\n')
-  const cleaned = lines.filter(line => {
-    const t = line.trim()
-    if (!t) return true
-    if (t.startsWith('//')) return true
-    if (/^[A-Z][a-z]/.test(t) && !t.startsWith('React') && !t.startsWith('Promise') &&
-        !t.startsWith('Array') && !t.startsWith('Object') && !t.startsWith('Map') &&
-        !t.startsWith('Set') && !t.startsWith('Date') && !t.startsWith('Error') &&
-        !t.startsWith('String') && !t.startsWith('Number') && !t.startsWith('Boolean')) {
-      return false
+  let s = raw.trim();
+  s = s.replace(/^```(?:typescript|ts|tsx|javascript|js)?\s*\n?/, "");
+  s = s.replace(/\n?```\s*$/, "");
+  s = s.replace(/<think>[\s\S]*?<\/think>/g, "");
+  s = s.replace(/<\/?think>/g, "");
+  const lines = s.split("\n");
+  const cleaned = lines.filter((line) => {
+    const t = line.trim();
+    if (!t) return true;
+    if (t.startsWith("//")) return true;
+    if (
+      /^[A-Z][a-z]/.test(t) &&
+      !t.startsWith("React") &&
+      !t.startsWith("Promise") &&
+      !t.startsWith("Array") &&
+      !t.startsWith("Object") &&
+      !t.startsWith("Map") &&
+      !t.startsWith("Set") &&
+      !t.startsWith("Date") &&
+      !t.startsWith("Error") &&
+      !t.startsWith("String") &&
+      !t.startsWith("Number") &&
+      !t.startsWith("Boolean")
+    ) {
+      return false;
     }
-    if (t.startsWith('←')) return false
-    if (/^(Now |Let me |I |Good|Great|Here|The |This |Next|From |Total|Summary)/.test(t)) return false
-    if (/^\d+\.\s+[A-Z]/.test(t) || /^-\s+[A-Z]/.test(t)) return false
-    return true
-  })
-  return cleaned.join('\n')
+    if (t.startsWith("←")) return false;
+    if (/^(Now |Let me |I |Good|Great|Here|The |This |Next|From |Total|Summary)/.test(t))
+      return false;
+    if (/^\d+\.\s+[A-Z]/.test(t) || /^-\s+[A-Z]/.test(t)) return false;
+    return true;
+  });
+  return cleaned.join("\n");
 }
 
 function truncateAtStop(code: string): string {
-  const lines = code.split('\n')
+  const lines = code.split("\n");
   for (let i = lines.length - 1; i >= 0; i--) {
-    if (lines[i].includes('await stop(') || lines[i].includes('stop(')) {
-      return lines.slice(0, i + 1).join('\n')
+    if (lines[i].includes("await stop(") || lines[i].includes("stop(")) {
+      return lines.slice(0, i + 1).join("\n");
     }
   }
-  return code
+  return code;
 }
-
 
 // ── XML Debug Serializer ──
 
 function xmlAttr(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
+  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 }
 
 function toYaml(value: unknown, indent = 0): string {
-  const pad = '  '.repeat(indent)
-  if (value === null || value === undefined) return `${pad}null`
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return `${pad}${value}`
+  const pad = "  ".repeat(indent);
+  if (value === null || value === undefined) return `${pad}null`;
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean")
+    return `${pad}${value}`;
   if (Array.isArray(value)) {
-    if (value.length === 0) return `${pad}[]`
-    return value.map(item => {
-      const inner = toYaml(item, indent + 1).trimStart()
-      return `${pad}- ${inner}`
-    }).join('\n')
+    if (value.length === 0) return `${pad}[]`;
+    return value
+      .map((item) => {
+        const inner = toYaml(item, indent + 1).trimStart();
+        return `${pad}- ${inner}`;
+      })
+      .join("\n");
   }
-  if (typeof value === 'object') {
-    const obj = value as Record<string, unknown>
-    const keys = Object.keys(obj)
-    if (keys.length === 0) return `${pad}{}`
-    return keys.map(key => {
-      const v = obj[key]
-      if (v && typeof v === 'object') return `${pad}${key}:\n${toYaml(v, indent + 1)}`
-      return `${pad}${key}: ${String(v ?? 'null')}`
-    }).join('\n')
+  if (typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    const keys = Object.keys(obj);
+    if (keys.length === 0) return `${pad}{}`;
+    return keys
+      .map((key) => {
+        const v = obj[key];
+        if (v && typeof v === "object") return `${pad}${key}:\n${toYaml(v, indent + 1)}`;
+        return `${pad}${key}: ${String(v ?? "null")}`;
+      })
+      .join("\n");
   }
-  return `${pad}${String(value)}`
+  return `${pad}${String(value)}`;
 }
 
 function formatMessage(d: any): string {
-  const content = String(d.content ?? '')
+  const content = String(d.content ?? "");
   // Convert stop payloads from JSON to YAML
-  const stopMatch = content.match(/^← stop ([\s\S]+)$/)
+  const stopMatch = content.match(/^← stop ([\s\S]+)$/);
   if (stopMatch) {
     try {
-      const parsed = JSON.parse(stopMatch[1])
-      return `  <message role="${xmlAttr(d.role)}">\n${toYaml(parsed)}\n  </message>`
-    } catch { /* fall through */ }
+      const parsed = JSON.parse(stopMatch[1]);
+      return `  <message role="${xmlAttr(d.role)}">\n${toYaml(parsed)}\n  </message>`;
+    } catch {
+      /* fall through */
+    }
   }
-  return `  <message role="${xmlAttr(d.role)}">\n${content}\n  </message>`
+  return `  <message role="${xmlAttr(d.role)}">\n${content}\n  </message>`;
 }
 
 function formatScope(d: any): string | null {
-  const entries = Array.isArray(d) ? d : []
-  if (entries.length === 0) return null
-  const vars = entries.map((e: any) => `    ${e.name}: ${e.type} ${e.value}`).join('\n')
-  return `  <scope>\n${vars}\n  </scope>`
+  const entries = Array.isArray(d) ? d : [];
+  if (entries.length === 0) return null;
+  const vars = entries.map((e: any) => `    ${e.name}: ${e.type} ${e.value}`).join("\n");
+  return `  <scope>\n${vars}\n  </scope>`;
 }
 
 function formatUsage(d: any): string {
-  const u = d.usage ?? {}
-  const cacheRead = u.inputTokenDetails?.cacheReadTokens ?? 0
-  const reasoning = u.outputTokenDetails?.reasoningTokens ?? 0
-  return `  <usage input="${u.inputTokens ?? 0}" output="${u.outputTokens ?? 0}" total="${u.totalTokens ?? 0}" reasoning="${reasoning}" cache-read="${cacheRead}" />`
+  const u = d.usage ?? {};
+  const cacheRead = u.inputTokenDetails?.cacheReadTokens ?? 0;
+  const reasoning = u.outputTokenDetails?.reasoningTokens ?? 0;
+  return `  <usage input="${u.inputTokens ?? 0}" output="${u.outputTokens ?? 0}" total="${u.totalTokens ?? 0}" reasoning="${reasoning}" cache-read="${cacheRead}" />`;
 }
 
 function debugLogToXml(entries: DebugEntry[]): string {
-  const out: string[] = ['<?xml version="1.0" encoding="UTF-8"?>', '<debug-log>', '']
+  const out: string[] = ['<?xml version="1.0" encoding="UTF-8"?>', "<debug-log>", ""];
 
   // Group entries into turns. Pre-turn entries (system_prompt, setup messages) go
   // into a "setup" section. Each 'turn' marker starts a new group that collects
   // its messages, scope, turn_result, and errors until the next turn marker.
 
-  let inTurn = false
-  let turnAttrs = ''
+  let inTurn = false;
+  let turnAttrs = "";
 
   for (const entry of entries) {
-    const d = entry.data as any
+    const d = entry.data as any;
 
     switch (entry.type) {
-      case 'system_prompt':
-        out.push(`<system-prompt>\n${d}\n</system-prompt>`, '')
-        break
+      case "system_prompt":
+        out.push(`<system-prompt>\n${d}\n</system-prompt>`, "");
+        break;
 
-      case 'turn':
+      case "turn":
         // Close previous turn if open
-        if (inTurn) out.push('</turn>', '')
-        turnAttrs = `n="${d.turn}" messages="${d.messageCount}"`
-        inTurn = true
+        if (inTurn) out.push("</turn>", "");
+        turnAttrs = `n="${d.turn}" messages="${d.messageCount}"`;
+        inTurn = true;
         // Don't emit opening tag yet — wait for turn_result to add finish/model attrs
-        break
+        break;
 
-      case 'turn_result': {
-        const model = d.response?.modelId ?? ''
-        const finish = xmlAttr(String(d.finishReason ?? ''))
-        out.push(`<turn ${turnAttrs} finish="${finish}" model="${xmlAttr(model)}">`)
-        out.push(formatUsage(d))
-        break
+      case "turn_result": {
+        const model = d.response?.modelId ?? "";
+        const finish = xmlAttr(String(d.finishReason ?? ""));
+        out.push(`<turn ${turnAttrs} finish="${finish}" model="${xmlAttr(model)}">`);
+        out.push(formatUsage(d));
+        break;
       }
 
-      case 'message':
+      case "message":
         if (!inTurn) {
           // Pre-turn setup messages — emit at root level
-          out.push(formatMessage(d).replace(/^  /gm, ''), '')
+          out.push(formatMessage(d).replace(/^  /gm, ""), "");
         } else {
-          out.push(formatMessage(d))
+          out.push(formatMessage(d));
         }
-        break
+        break;
 
-      case 'scope': {
-        const s = formatScope(d)
-        if (s) out.push(s)
-        break
+      case "scope": {
+        const s = formatScope(d);
+        if (s) out.push(s);
+        break;
       }
 
-      case 'event':
-        break
+      case "event":
+        break;
 
-      case 'api_error':
-        out.push(`${inTurn ? '  ' : ''}<api-error>${d.message ?? ''}</api-error>`)
-        break
+      case "api_error":
+        out.push(`${inTurn ? "  " : ""}<api-error>${d.message ?? ""}</api-error>`);
+        break;
 
-      case 'finalize': {
-        if (inTurn) { out.push('</turn>', ''); inTurn = false }
-        const t = d.tokenTotals ?? {}
+      case "finalize": {
+        if (inTurn) {
+          out.push("</turn>", "");
+          inTurn = false;
+        }
+        const t = d.tokenTotals ?? {};
         out.push(
-          `<finalize model="${xmlAttr(d.model ?? '')}" turns="${d.turns}" status="${xmlAttr(d.status ?? '')}">`,
+          `<finalize model="${xmlAttr(d.model ?? "")}" turns="${d.turns}" status="${xmlAttr(d.status ?? "")}">`,
           `  <tokens input="${t.inputTokens ?? 0}" output="${t.outputTokens ?? 0}" total="${t.totalTokens ?? 0}" />`,
-          `</finalize>`, ''
-        )
-        break
+          `</finalize>`,
+          "",
+        );
+        break;
       }
 
       default:
-        break
+        break;
     }
   }
 
-  if (inTurn) out.push('</turn>', '')
-  out.push('</debug-log>')
-  return out.join('\n')
+  if (inTurn) out.push("</turn>", "");
+  out.push("</debug-log>");
+  return out.join("\n");
 }

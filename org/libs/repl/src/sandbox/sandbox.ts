@@ -1,4 +1,5 @@
 import vm from 'node:vm'
+import React from 'react'
 import type { ScopeEntry, LineResult } from '../session/types'
 import { executeLine } from './executor'
 import { extractDeclarations } from '../parser/ast-utils'
@@ -27,6 +28,7 @@ export class Sandbox {
 
     // Create context with safe globals
     const contextGlobals: Record<string, unknown> = {
+      React,
       console,
       setTimeout,
       clearTimeout,

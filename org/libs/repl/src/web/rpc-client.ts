@@ -1,70 +1,82 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import type { SessionEvent, SessionSnapshot } from '../session/types'
+import { useState, useEffect, useCallback, useRef, useReducer } from 'react'
+import type { SessionEvent, SessionSnapshot, SessionStatus, SerializedJSX, ErrorPayload, CheckpointPlan } from '../session/types'
 
-export interface UseReplSessionResult {
-  snapshot: SessionSnapshot | null
-  connected: boolean
-  sendMessage: (text: string) => void
-  submitForm: (formId: string, data: Record<string, unknown>) => void
-  cancelAsk: (formId: string) => void
-  cancelTask: (taskId: string, message?: string) => void
-  pause: () => void
-  resume: () => void
-  intervene: (text: string) => void
-}
+// ── UI Block Model ──
 
-/**
- * React hook for connecting to the REPL backend via WebSocket.
- */
-export function useReplSession(url = 'ws://localhost:3100'): UseReplSessionResult {
-  const [snapshot, setSnapshot] = useState<SessionSnapshot | null>(null)
-  const [connected, setConnected] = useState(false)
-  const wsRef = useRef<WebSocket | null>(null)
+export type UIBlock =
+  | { type: 'user'; id: string; text: string }
+  | { type: 'code'; id: string; code: string; streaming: boolean; lineCount: number }
+  | { type: 'read'; id: string; payload: Record<string, unknown> }
+  | { type: 'error'; id: string; error: ErrorPayload }
+  | { type: 'hook'; id: string; hookId: string; action: string; detail: string }
+  | { type: 'display'; id: string; jsx: SerializedJSX }
+  | { type: 'form'; id: string; jsx: SerializedJSX; status: 'active' | 'submitted' | 'timeout' }
+  | { type: 'checkpoint_plan'; id: string; tasklistId: string; plan: CheckpointPlan }
+  | { type: 'checkpoint_complete'; id: string; tasklistId: string; checkpointId: string; output: Record<string, any> }
 
-  useEffect(() => {
-    const ws = new WebSocket(url)
-    wsRef.current = ws
+type BlockAction =
+  | { type: 'event'; event: SessionEvent }
+  | { type: 'add_user_message'; id: string; text: string }
+  | { type: 'reset' }
 
-    ws.onopen = () => {
-      setConnected(true)
-      ws.send(JSON.stringify({ type: 'getSnapshot' }))
-    }
+function blocksReducer(blocks: UIBlock[], action: BlockAction): UIBlock[] {
+  if (action.type === 'reset') return []
+  if (action.type === 'add_user_message') {
+    return [...blocks, { type: 'user', id: action.id, text: action.text }]
+  }
 
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data)
-      if (data.type === 'snapshot') {
-        setSnapshot(data.data)
-      } else {
-        setSnapshot(prev => prev ? applyEvent(prev, data) : prev)
+  const event = action.event
+  switch (event.type) {
+    case 'code': {
+      const idx = blocks.findIndex(b => b.id === event.blockId)
+      if (idx >= 0) {
+        const block = blocks[idx] as Extract<UIBlock, { type: 'code' }>
+        const newCode = block.code + event.lines
+        const newBlocks = [...blocks]
+        newBlocks[idx] = { ...block, code: newCode, lineCount: countLines(newCode) }
+        return newBlocks
       }
+      return [...blocks, {
+        type: 'code',
+        id: event.blockId,
+        code: event.lines,
+        streaming: true,
+        lineCount: countLines(event.lines),
+      }]
     }
-
-    ws.onclose = () => setConnected(false)
-    ws.onerror = () => setConnected(false)
-
-    return () => {
-      ws.close()
+    case 'code_complete': {
+      return blocks.map(b =>
+        b.id === event.blockId && b.type === 'code' ? { ...b, streaming: false } : b,
+      )
     }
-  }, [url])
-
-  const send = useCallback((msg: Record<string, unknown>) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(msg))
-    }
-  }, [])
-
-  return {
-    snapshot,
-    connected,
-    sendMessage: (text: string) => send({ type: 'sendMessage', text }),
-    submitForm: (formId: string, data: Record<string, unknown>) => send({ type: 'submitForm', formId, data }),
-    cancelAsk: (formId: string) => send({ type: 'cancelAsk', formId }),
-    cancelTask: (taskId: string, message?: string) => send({ type: 'cancelTask', taskId, message }),
-    pause: () => send({ type: 'pause' }),
-    resume: () => send({ type: 'resume' }),
-    intervene: (text: string) => send({ type: 'intervene', text }),
+    case 'read':
+      return [...blocks, { type: 'read', id: event.blockId, payload: event.payload }]
+    case 'error':
+      return [...blocks, { type: 'error', id: event.blockId, error: event.error }]
+    case 'hook':
+      return [...blocks, { type: 'hook', id: event.blockId, hookId: event.hookId, action: event.action, detail: event.detail }]
+    case 'display':
+      return [...blocks, { type: 'display', id: event.componentId, jsx: event.jsx }]
+    case 'ask_start':
+      return [...blocks, { type: 'form', id: event.formId, jsx: event.jsx, status: 'active' as const }]
+    case 'ask_end':
+      return blocks.map(b =>
+        b.type === 'form' && b.id === event.formId ? { ...b, status: 'submitted' as const } : b,
+      )
+    case 'checkpoint_plan':
+      return [...blocks, { type: 'checkpoint_plan', id: `cp_plan_${event.tasklistId}_${Date.now()}`, tasklistId: event.tasklistId, plan: event.plan }]
+    case 'checkpoint_complete':
+      return [...blocks, { type: 'checkpoint_complete', id: `cp_${event.tasklistId}_${event.id}`, tasklistId: event.tasklistId, checkpointId: event.id, output: event.output }]
+    default:
+      return blocks
   }
 }
+
+function countLines(code: string): number {
+  return code.split('\n').filter(l => l.trim().length > 0).length
+}
+
+// ── Snapshot State ──
 
 function applyEvent(prev: SessionSnapshot, event: SessionEvent): SessionSnapshot {
   switch (event.type) {
@@ -76,6 +88,13 @@ function applyEvent(prev: SessionSnapshot, event: SessionEvent): SessionSnapshot
       return {
         ...prev,
         asyncTasks: [...prev.asyncTasks, { id: event.taskId, label: event.label, status: 'running', elapsed: 0 }],
+      }
+    case 'async_progress':
+      return {
+        ...prev,
+        asyncTasks: prev.asyncTasks.map(t =>
+          t.id === event.taskId ? { ...t, elapsed: event.elapsed } : t,
+        ),
       }
     case 'async_complete':
       return {
@@ -104,5 +123,103 @@ function applyEvent(prev: SessionSnapshot, event: SessionEvent): SessionSnapshot
       return { ...prev, activeFormId: null }
     default:
       return prev
+  }
+}
+
+const EMPTY_SNAPSHOT: SessionSnapshot = {
+  status: 'idle',
+  blocks: [],
+  scope: [],
+  asyncTasks: [],
+  activeFormId: null,
+  checkpointState: { tasklists: new Map() },
+}
+
+// ── Hook ──
+
+export interface UseReplSessionResult {
+  /** Current session snapshot (status, scope, async tasks, etc.) */
+  snapshot: SessionSnapshot
+  /** Accumulated UI blocks for rendering */
+  blocks: UIBlock[]
+  /** Whether the WebSocket is connected */
+  connected: boolean
+  /** Send a user message */
+  sendMessage: (text: string) => void
+  /** Submit a form */
+  submitForm: (formId: string, data: Record<string, unknown>) => void
+  /** Cancel a pending ask */
+  cancelAsk: (formId: string) => void
+  /** Cancel a background task */
+  cancelTask: (taskId: string, message?: string) => void
+  /** Pause the agent */
+  pause: () => void
+  /** Resume the agent */
+  resume: () => void
+  /** User intervention — inject a message while agent is running */
+  intervene: (text: string) => void
+}
+
+export function useReplSession(url = 'ws://localhost:3100'): UseReplSessionResult {
+  const [snapshot, setSnapshot] = useState<SessionSnapshot>(EMPTY_SNAPSHOT)
+  const [connected, setConnected] = useState(false)
+  const [blocks, dispatchBlock] = useReducer(blocksReducer, [])
+  const wsRef = useRef<WebSocket | null>(null)
+  const msgCounterRef = useRef(0)
+
+  useEffect(() => {
+    const ws = new WebSocket(url)
+    wsRef.current = ws
+
+    ws.onopen = () => {
+      setConnected(true)
+      ws.send(JSON.stringify({ type: 'getSnapshot' }))
+    }
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data)
+      if (data.type === 'snapshot') {
+        setSnapshot(data.data)
+      } else {
+        setSnapshot(prev => applyEvent(prev, data))
+        dispatchBlock({ type: 'event', event: data })
+      }
+    }
+
+    ws.onclose = () => setConnected(false)
+    ws.onerror = () => setConnected(false)
+
+    return () => { ws.close() }
+  }, [url])
+
+  const send = useCallback((msg: Record<string, unknown>) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(msg))
+    }
+  }, [])
+
+  const sendMessage = useCallback((text: string) => {
+    const id = `user_${++msgCounterRef.current}`
+    dispatchBlock({ type: 'add_user_message', id, text })
+    send({ type: 'sendMessage', text })
+  }, [send])
+
+  const intervene = useCallback((text: string) => {
+    const id = `user_${++msgCounterRef.current}`
+    dispatchBlock({ type: 'add_user_message', id, text })
+    send({ type: 'intervene', text })
+  }, [send])
+
+  return {
+    snapshot,
+    blocks,
+    connected,
+    sendMessage,
+    submitForm: (formId, data) => send({ type: 'submitForm', formId, data }),
+    cancelAsk: (formId) => send({ type: 'cancelAsk', formId }),
+    cancelTask: (taskId, message) => send({ type: 'cancelTask', taskId, message }),
+    pause: () => send({ type: 'pause' }),
+    resume: () => send({ type: 'resume' }),
+    intervene,
   }
 }

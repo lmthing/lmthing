@@ -11,6 +11,10 @@ export interface CLIArgs {
   model?: string
   /** Session timeout in seconds (default: 600) */
   timeout: number
+  /** Disable serving the web UI (WebSocket-only mode) */
+  noUi: boolean
+  /** Path to write a debug log file (JSON or XML based on extension) */
+  debugFile?: string
 }
 
 /**
@@ -20,6 +24,7 @@ export function parseArgs(argv: string[]): CLIArgs {
   const args: CLIArgs = {
     port: 3100,
     timeout: 600,
+    noUi: false,
   }
 
   const instructs: string[] = []
@@ -39,6 +44,10 @@ export function parseArgs(argv: string[]): CLIArgs {
       args.model = argv[++i]
     } else if (arg === '--timeout' || arg === '-t') {
       args.timeout = parseInt(argv[++i], 10)
+    } else if (arg === '--debug' || arg === '-d') {
+      args.debugFile = argv[++i]
+    } else if (arg === '--no-ui') {
+      args.noUi = true
     } else if (!arg.startsWith('-') && !args.file) {
       args.file = arg
     }

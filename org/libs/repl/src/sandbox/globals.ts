@@ -1,4 +1,4 @@
-import type { StreamPauseController, RenderSurface, StopPayload, SerializedValue, CheckpointPlan, CheckpointState } from '../session/types'
+import type { StreamPauseController, RenderSurface, StopPayload, SerializedValue, CheckpointPlan, CheckpointState, TasklistState } from '../session/types'
 import { serialize } from '../stream/serializer'
 import { recoverArgumentNames } from '../parser/ast-utils'
 import { AsyncManager } from './async-manager'
@@ -17,8 +17,8 @@ export interface GlobalsConfig {
   onStop?: (payload: StopPayload, source: string) => void
   onDisplay?: (id: string) => void
   onAsyncStart?: (taskId: string, label: string) => void
-  onCheckpointPlan?: (plan: CheckpointPlan) => void
-  onCheckpointComplete?: (id: string, output: Record<string, any>) => void
+  onCheckpointPlan?: (tasklistId: string, plan: CheckpointPlan) => void
+  onCheckpointComplete?: (tasklistId: string, id: string, output: Record<string, any>) => void
 }
 
 /**
@@ -35,9 +35,7 @@ export function createGlobals(config: GlobalsConfig) {
 
   // ── Checkpoint state ──
   const checkpointState: CheckpointState = {
-    plan: null,
-    completed: new Map(),
-    currentIndex: 0,
+    tasklists: new Map(),
   }
 
   let currentSource = ''
@@ -145,19 +143,24 @@ export function createGlobals(config: GlobalsConfig) {
   }
 
   /**
-   * checkpoints(plan) — Declare a task plan with milestones.
+   * checkpoints(tasklistId, description, tasks) — Declare a task plan with milestones.
+   * Can be called multiple times per session with different tasklist IDs.
    */
-  function checkpointsFn(plan: CheckpointPlan): void {
-    if (checkpointState.plan !== null) {
-      throw new Error('checkpoints() can only be called once per session')
+  function checkpointsFn(tasklistId: string, description: string, tasks: CheckpointPlan['tasks']): void {
+    if (checkpointState.tasklists.has(tasklistId)) {
+      throw new Error(`checkpoints() tasklist "${tasklistId}" already declared`)
     }
 
-    if (!plan.description || !Array.isArray(plan.tasks) || plan.tasks.length === 0) {
+    if (!tasklistId) {
+      throw new Error('checkpoints() requires a tasklistId')
+    }
+
+    if (!description || !Array.isArray(tasks) || tasks.length === 0) {
       throw new Error('checkpoints() requires a description and at least one task')
     }
 
     const ids = new Set<string>()
-    for (const task of plan.tasks) {
+    for (const task of tasks) {
       if (!task.id || !task.instructions || !task.outputSchema) {
         throw new Error('Each checkpoint task must have id, instructions, and outputSchema')
       }
@@ -167,37 +170,44 @@ export function createGlobals(config: GlobalsConfig) {
       ids.add(task.id)
     }
 
-    checkpointState.plan = plan
-    renderSurface.appendCheckpointProgress?.(checkpointState)
-    config.onCheckpointPlan?.(plan)
+    const plan: CheckpointPlan = { tasklistId, description, tasks }
+    const tasklistState: TasklistState = {
+      plan,
+      completed: new Map(),
+      currentIndex: 0,
+    }
+    checkpointState.tasklists.set(tasklistId, tasklistState)
+    renderSurface.appendCheckpointProgress?.(tasklistId, tasklistState)
+    config.onCheckpointPlan?.(tasklistId, plan)
   }
 
   /**
-   * checkpoint(id, output) — Mark a milestone as complete.
+   * checkpoint(tasklistId, id, output) — Mark a milestone as complete.
    */
-  function checkpointFn(id: string, output: Record<string, any>): void {
-    if (!checkpointState.plan) {
-      throw new Error('checkpoint() called before checkpoints() — declare a plan first')
+  function checkpointFn(tasklistId: string, id: string, output: Record<string, any>): void {
+    const tasklist = checkpointState.tasklists.get(tasklistId)
+    if (!tasklist) {
+      throw new Error(`checkpoint() called with unknown tasklist "${tasklistId}" — declare it with checkpoints() first`)
     }
 
-    const taskIndex = checkpointState.plan.tasks.findIndex(t => t.id === id)
+    const taskIndex = tasklist.plan.tasks.findIndex(t => t.id === id)
     if (taskIndex === -1) {
-      throw new Error(`Unknown checkpoint id: ${id}`)
+      throw new Error(`Unknown checkpoint id: ${id} in tasklist "${tasklistId}"`)
     }
 
-    if (checkpointState.completed.has(id)) {
-      throw new Error(`Checkpoint "${id}" already completed`)
+    if (tasklist.completed.has(id)) {
+      throw new Error(`Checkpoint "${id}" in tasklist "${tasklistId}" already completed`)
     }
 
-    if (taskIndex !== checkpointState.currentIndex) {
-      const expected = checkpointState.plan.tasks[checkpointState.currentIndex]
+    if (taskIndex !== tasklist.currentIndex) {
+      const expected = tasklist.plan.tasks[tasklist.currentIndex]
       throw new Error(
-        `Checkpoint "${id}" called out of order. Expected: "${expected.id}"`
+        `Checkpoint "${id}" in tasklist "${tasklistId}" called out of order. Expected: "${expected.id}"`
       )
     }
 
     // Validate output against schema
-    const task = checkpointState.plan.tasks[taskIndex]
+    const task = tasklist.plan.tasks[taskIndex]
     for (const [key, schema] of Object.entries(task.outputSchema)) {
       if (!(key in output)) {
         throw new Error(`Checkpoint "${id}" output missing required key: ${key}`)
@@ -212,14 +222,14 @@ export function createGlobals(config: GlobalsConfig) {
       }
     }
 
-    checkpointState.completed.set(id, {
+    tasklist.completed.set(id, {
       output,
       timestamp: Date.now(),
     })
-    checkpointState.currentIndex++
+    tasklist.currentIndex++
 
-    renderSurface.updateCheckpointProgress?.(checkpointState)
-    config.onCheckpointComplete?.(id, output)
+    renderSurface.updateCheckpointProgress?.(tasklistId, tasklist)
+    config.onCheckpointComplete?.(tasklistId, id, output)
   }
 
   return {

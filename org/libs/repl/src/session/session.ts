@@ -108,11 +108,11 @@ export class Session extends EventEmitter {
       onAsyncStart: (taskId, label) => {
         this.emitEvent({ type: 'async_start', taskId, label })
       },
-      onCheckpointPlan: (plan) => {
-        this.emitEvent({ type: 'checkpoint_plan', plan })
+      onCheckpointPlan: (tasklistId, plan) => {
+        this.emitEvent({ type: 'checkpoint_plan', tasklistId, plan })
       },
-      onCheckpointComplete: (id, output) => {
-        this.emitEvent({ type: 'checkpoint_complete', id, output })
+      onCheckpointComplete: (tasklistId, id, output) => {
+        this.emitEvent({ type: 'checkpoint_complete', tasklistId, id, output })
       },
     })
 
@@ -174,19 +174,21 @@ export class Session extends EventEmitter {
   async finalize(): Promise<'complete' | 'checkpoint_incomplete'> {
     await this.streamController.finalize()
 
-    // Check for incomplete checkpoints
+    // Check for incomplete checkpoints across all tasklists
     const cpState = this.globalsApi.getCheckpointState()
-    if (cpState.plan && cpState.currentIndex < cpState.plan.tasks.length) {
-      if (this.checkpointReminderCount < this.config.maxCheckpointReminders) {
-        this.checkpointReminderCount++
-        const remaining = cpState.plan.tasks.slice(cpState.currentIndex).map(t => t.id)
-        const msg = buildCheckpointReminderMessage(remaining)
-        this.messages.push({ role: 'assistant', content: this.codeLines.join('\n') })
-        this.messages.push({ role: 'user', content: msg })
-        this.codeLines = []
-        this.emitEvent({ type: 'checkpoint_reminder', remaining })
-        this.emitEvent({ type: 'scope', entries: this.sandbox.getScope() })
-        return 'checkpoint_incomplete'
+    for (const [tasklistId, tasklist] of cpState.tasklists) {
+      if (tasklist.currentIndex < tasklist.plan.tasks.length) {
+        if (this.checkpointReminderCount < this.config.maxCheckpointReminders) {
+          this.checkpointReminderCount++
+          const remaining = tasklist.plan.tasks.slice(tasklist.currentIndex).map(t => t.id)
+          const msg = buildCheckpointReminderMessage(tasklistId, remaining)
+          this.messages.push({ role: 'assistant', content: this.codeLines.join('\n') })
+          this.messages.push({ role: 'user', content: msg })
+          this.codeLines = []
+          this.emitEvent({ type: 'checkpoint_reminder', tasklistId, remaining })
+          this.emitEvent({ type: 'scope', entries: this.sandbox.getScope() })
+          return 'checkpoint_incomplete'
+        }
       }
     }
 

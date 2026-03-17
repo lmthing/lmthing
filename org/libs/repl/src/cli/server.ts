@@ -4,11 +4,13 @@ import { resolve, join, extname } from 'node:path'
 import { WebSocketServer, type WebSocket } from 'ws'
 import { Session } from '../session/session'
 import { ReplSessionServer } from '../rpc/server'
+import { AgentLoop } from './agent-loop'
 import type { SessionEvent } from '../session/types'
 
 export interface ServerOptions {
   port: number
   session: Session
+  agentLoop?: AgentLoop
   staticDir?: string
 }
 
@@ -19,13 +21,16 @@ const MIME_TYPES: Record<string, string> = {
   '.json': 'application/json',
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
 }
 
 /**
  * Create and start the WebSocket server for the REPL.
  */
 export function createReplServer(options: ServerOptions): { server: Server; close: () => void } {
-  const { port, session, staticDir } = options
+  const { port, session, agentLoop, staticDir } = options
   const rpcServer = new ReplSessionServer(session)
 
   const httpServer = createServer((req, res) => {
@@ -36,7 +41,7 @@ export function createReplServer(options: ServerOptions): { server: Server; clos
     }
 
     // Serve static files
-    const urlPath = req.url === '/' ? '/index.html' : req.url!
+    const urlPath = req.url === '/' ? '/index.html' : req.url!.split('?')[0]
     const filePath = join(staticDir, urlPath)
 
     if (!existsSync(filePath)) {
@@ -75,7 +80,14 @@ export function createReplServer(options: ServerOptions): { server: Server; clos
         const msg = JSON.parse(data.toString())
         switch (msg.type) {
           case 'sendMessage':
-            await rpcServer.sendMessage(msg.text)
+            if (agentLoop) {
+              // Agent loop drives the LLM — fire and forget
+              agentLoop.handleMessage(msg.text).catch(err => {
+                console.error('[server] agent loop error:', err)
+              })
+            } else {
+              await rpcServer.sendMessage(msg.text)
+            }
             break
           case 'submitForm':
             await rpcServer.submitForm(msg.formId, msg.data)
@@ -93,7 +105,13 @@ export function createReplServer(options: ServerOptions): { server: Server; clos
             await rpcServer.resume()
             break
           case 'intervene':
-            await rpcServer.intervene(msg.text)
+            if (agentLoop) {
+              agentLoop.handleMessage(msg.text).catch(err => {
+                console.error('[server] agent loop error:', err)
+              })
+            } else {
+              await rpcServer.intervene(msg.text)
+            }
             break
           case 'getSnapshot':
             const snapshot = await rpcServer.getSnapshot()

@@ -13,6 +13,7 @@
 
 import { config } from 'dotenv'
 import { resolve } from 'node:path'
+import { writeFileSync } from 'node:fs'
 
 // Load .env from the repl package root
 config({ path: resolve(import.meta.dirname, '../.env') })
@@ -138,6 +139,8 @@ export interface RunnerOptions {
   maxCheckpointReminders?: number
   /** Custom instructions appended to system prompt */
   instruct?: string
+  /** Path to write a debug log of the entire run (messages, events, scope) */
+  debugFile?: string
 }
 
 interface ChatMessage {
@@ -154,12 +157,30 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
     maxTurns = 10,
     maxCheckpointReminders = 3,
     instruct,
+    debugFile,
   } = options
 
   const model = resolveModel(modelId)
 
+  // Debug history collector
+  interface DebugEntry {
+    timestamp: number
+    type: 'system_prompt' | 'message' | 'event' | 'scope' | 'api_error' | 'turn' | 'turn_result' | 'finalize'
+    data: unknown
+  }
+  const debugLog: DebugEntry[] = []
+  const debug = !!debugFile
+
+  // Accumulated token totals across all turns
+  const tokenTotals = { inputTokens: 0, outputTokens: 0, totalTokens: 0 }
+
+  function logDebug(type: DebugEntry['type'], data: unknown) {
+    if (debug) debugLog.push({ timestamp: Date.now(), type, data })
+  }
+
   console.log('\x1b[36m━━━ @lmthing/repl ━━━\x1b[0m')
   console.log(`\x1b[90mModel: ${modelId}\x1b[0m`)
+  if (debug) console.log(`\x1b[90mDebug: ${debugFile}\x1b[0m`)
   console.log(`\x1b[33m[user]\x1b[0m ${userMessage}\n`)
 
   const session = new Session({ globals, config: { maxCheckpointReminders } })
@@ -169,6 +190,7 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
   let errorPayload: ErrorPayload | null = null
 
   session.on('event', (event: SessionEvent) => {
+    logDebug('event', event)
     switch (event.type) {
       case 'read':
         stopPayload = {}
@@ -202,8 +224,12 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
   // Build conversation
   const messages: ChatMessage[] = []
   const scope = generateScopeTable(session.snapshot().scope)
-  messages.push({ role: 'system', content: buildSystemPrompt(functionSignatures, scope, instruct) })
+  const systemPrompt = buildSystemPrompt(functionSignatures, scope, instruct)
+  messages.push({ role: 'system', content: systemPrompt })
   messages.push({ role: 'user', content: userMessage })
+
+  logDebug('system_prompt', systemPrompt)
+  logDebug('message', { role: 'user', content: userMessage })
 
   let turn = 0
 
@@ -213,6 +239,7 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
     errorPayload = null
 
     console.log(`\x1b[90m--- turn ${turn} ---\x1b[0m`)
+    logDebug('turn', { turn, messageCount: messages.length })
 
     // Stream LLM response using AI SDK streamText
     let code = ''
@@ -229,8 +256,37 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
         code += chunk
       }
       console.log() // newline after streamed code
+
+      // Collect turn metadata (usage, finish reason, response info)
+      if (debug) {
+        const [usage, finishReason, response] = await Promise.all([
+          result.usage,
+          result.finishReason,
+          result.response,
+        ])
+        tokenTotals.inputTokens += usage.inputTokens ?? 0
+        tokenTotals.outputTokens += usage.outputTokens ?? 0
+        tokenTotals.totalTokens += usage.totalTokens ?? 0
+        logDebug('turn_result', {
+          turn,
+          finishReason,
+          usage: {
+            inputTokens: usage.inputTokens,
+            outputTokens: usage.outputTokens,
+            totalTokens: usage.totalTokens,
+            inputTokenDetails: usage.inputTokenDetails,
+            outputTokenDetails: usage.outputTokenDetails,
+          },
+          response: {
+            id: response.id,
+            modelId: response.modelId,
+            timestamp: response.timestamp,
+          },
+        })
+      }
     } catch (err: any) {
       console.error(`\n\x1b[31m  [api error]\x1b[0m ${err.message}`)
+      logDebug('api_error', { message: err.message, stack: err.stack })
       break
     }
 
@@ -266,15 +322,17 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
 
     // Handle checkpoint incomplete → inject reminder and loop
     if (checkpointIncomplete) {
-      // The session already injected the reminder message internally.
-      // Refresh scope and continue the loop so the LLM gets another turn.
       const freshScope = generateScopeTable(session.snapshot().scope)
-      messages[0] = { role: 'system', content: buildSystemPrompt(functionSignatures, freshScope, instruct) }
-      // Get the last two messages from session (assistant code + reminder)
+      const updatedSystemPrompt = buildSystemPrompt(functionSignatures, freshScope, instruct)
+      messages[0] = { role: 'system', content: updatedSystemPrompt }
       const sessionMsgs = session.getMessages()
       const reminderMsg = sessionMsgs[sessionMsgs.length - 1]
       messages.push({ role: 'assistant', content: code })
       messages.push({ role: 'user' as const, content: reminderMsg.content })
+      logDebug('message', { role: 'assistant', content: code })
+      logDebug('message', { role: 'user', content: reminderMsg.content })
+      logDebug('system_prompt', updatedSystemPrompt)
+      logDebug('scope', session.snapshot().scope)
       continue
     }
 
@@ -286,14 +344,17 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
       const stopMsg = `← stop { ${entries} }`
       console.log(`\x1b[33m  [stop]\x1b[0m ${stopMsg}`)
 
-      // Only include code up to the stop call in the assistant message
       const codeUpToStop = truncateAtStop(code)
       messages.push({ role: 'assistant', content: codeUpToStop })
       messages.push({ role: 'user', content: stopMsg })
 
-      // Refresh scope in system prompt
       const freshScope = generateScopeTable(session.snapshot().scope)
-      messages[0] = { role: 'system', content: buildSystemPrompt(functionSignatures, freshScope, instruct) }
+      const updatedSystemPrompt = buildSystemPrompt(functionSignatures, freshScope, instruct)
+      messages[0] = { role: 'system', content: updatedSystemPrompt }
+      logDebug('message', { role: 'assistant', content: codeUpToStop })
+      logDebug('message', { role: 'user', content: stopMsg })
+      logDebug('system_prompt', updatedSystemPrompt)
+      logDebug('scope', session.snapshot().scope)
       continue
     }
 
@@ -306,7 +367,12 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
       messages.push({ role: 'user', content: errMsg })
 
       const freshScope = generateScopeTable(session.snapshot().scope)
-      messages[0] = { role: 'system', content: buildSystemPrompt(functionSignatures, freshScope, instruct) }
+      const updatedSystemPrompt = buildSystemPrompt(functionSignatures, freshScope, instruct)
+      messages[0] = { role: 'system', content: updatedSystemPrompt }
+      logDebug('message', { role: 'assistant', content: code })
+      logDebug('message', { role: 'user', content: errMsg })
+      logDebug('system_prompt', updatedSystemPrompt)
+      logDebug('scope', session.snapshot().scope)
       continue
     }
 
@@ -341,6 +407,31 @@ export async function runRepl(options: RunnerOptions): Promise<void> {
   if (finalScope !== '(no variables declared)') {
     console.log(`\n\x1b[36m━━━ Final Scope ━━━\x1b[0m`)
     console.log(finalScope)
+  }
+
+  // Write debug log
+  if (debug && debugFile) {
+    const snapshot = session.snapshot()
+    logDebug('finalize', {
+      model: modelId,
+      turns: turn,
+      maxTurns,
+      status: snapshot.status,
+      tokenTotals,
+      scope: snapshot.scope,
+      checkpointState: snapshot.checkpointState.plan ? {
+        description: snapshot.checkpointState.plan.description,
+        tasks: snapshot.checkpointState.plan.tasks,
+        completed: Object.fromEntries(snapshot.checkpointState.completed),
+        currentIndex: snapshot.checkpointState.currentIndex,
+      } : null,
+      messages: messages.map(m => ({ role: m.role, content: m.content })),
+    })
+
+    const isXml = /\.xml$/i.test(debugFile)
+    const output = isXml ? debugLogToXml(debugLog) : JSON.stringify(debugLog, null, 2)
+    writeFileSync(resolve(debugFile), output, 'utf-8')
+    console.log(`\x1b[90m[debug] Written to ${debugFile}\x1b[0m`)
   }
 
   session.destroy()
@@ -395,4 +486,72 @@ function truncateAtStop(code: string): string {
     }
   }
   return code
+}
+
+// ── XML Debug Serializer ──
+
+function xmlEscape(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
+function debugLogToXml(entries: Array<{ timestamp: number; type: string; data: unknown }>): string {
+  const lines: string[] = []
+  lines.push('<?xml version="1.0" encoding="UTF-8"?>')
+  lines.push('<debug-log>')
+
+  for (const entry of entries) {
+    lines.push(`  <entry type="${xmlEscape(entry.type)}" timestamp="${entry.timestamp}">`)
+    lines.push(valueToXml(entry.data, 4))
+    lines.push('  </entry>')
+  }
+
+  lines.push('</debug-log>')
+  return lines.join('\n')
+}
+
+function valueToXml(value: unknown, indent: number): string {
+  const pad = ' '.repeat(indent)
+
+  if (value === null || value === undefined) {
+    return `${pad}<value null="true" />`
+  }
+
+  if (typeof value === 'string') {
+    // Use CDATA for multiline strings to preserve formatting
+    if (value.includes('\n') || value.includes('<') || value.includes('&')) {
+      return `${pad}<text><![CDATA[\n${value}\n${pad}]]></text>`
+    }
+    return `${pad}<text>${xmlEscape(value)}</text>`
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return `${pad}<value type="${typeof value}">${String(value)}</value>`
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) return `${pad}<list />`
+    const items = value.map(item => {
+      const inner = valueToXml(item, indent + 4)
+      return `${pad}  <item>\n${inner}\n${pad}  </item>`
+    })
+    return `${pad}<list count="${value.length}">\n${items.join('\n')}\n${pad}</list>`
+  }
+
+  if (typeof value === 'object') {
+    const obj = value as Record<string, unknown>
+    const keys = Object.keys(obj)
+    if (keys.length === 0) return `${pad}<object />`
+    const fields = keys.map(key => {
+      const inner = valueToXml(obj[key], indent + 4)
+      return `${pad}  <field name="${xmlEscape(key)}">\n${inner}\n${pad}  </field>`
+    })
+    return `${pad}<object>\n${fields.join('\n')}\n${pad}</object>`
+  }
+
+  return `${pad}<value>${xmlEscape(String(value))}</value>`
 }

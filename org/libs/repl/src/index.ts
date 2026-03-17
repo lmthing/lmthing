@@ -78,3 +78,7 @@ export { loadCatalog, mergeCatalogs, getCatalogModule, formatCatalogForPrompt } 
 export type { ReplSession } from './rpc/interface'
 export { ReplSessionServer } from './rpc/server'
 export { connectToRepl } from './rpc/client'
+
+// Web
+export { useReplSession } from './web/rpc-client'
+export type { UseReplSessionResult, UIBlock } from './web/rpc-client'

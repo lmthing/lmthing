@@ -1,0 +1,36 @@
+import type { StopPayload, ErrorPayload } from '../session/types'
+
+/**
+ * Build a user message for a stop() injection.
+ * Format: ← stop { key: value, ... }
+ */
+export function buildStopMessage(payload: StopPayload): string {
+  const entries = Object.entries(payload)
+    .map(([key, sv]) => `${key}: ${sv.display}`)
+    .join(', ')
+  return `← stop { ${entries} }`
+}
+
+/**
+ * Build a user message for an error injection.
+ * Format: ← error [Type] message (line N)
+ */
+export function buildErrorMessage(error: ErrorPayload): string {
+  return `← error [${error.type}] ${error.message} (line ${error.line})`
+}
+
+/**
+ * Build a user message for a human intervention.
+ * No prefix — raw text.
+ */
+export function buildInterventionMessage(text: string): string {
+  return text
+}
+
+/**
+ * Build a user message for a hook interrupt.
+ * Format: ⚠ [hook:id] message
+ */
+export function buildHookInterruptMessage(hookId: string, message: string): string {
+  return `⚠ [hook:${hookId}] ${message}`
+}

@@ -31,6 +31,16 @@
     "ws": "^8.18.0",
     "zod": "^4.1.13"
   },
+  "peerDependencies": {
+    "@ai-sdk/amazon-bedrock": "^4.0.60",
+    "@ai-sdk/anthropic": "^3.0.44",
+    "@ai-sdk/azure": "^3.0.30",
+    "@ai-sdk/cohere": "^3.0.21",
+    "@ai-sdk/google": "^3.0.29",
+    "@ai-sdk/groq": "^3.0.24",
+    "@ai-sdk/mistral": "^3.0.20",
+    "@ai-sdk/openai": "^3.0.29"
+  },
   "optionalDependencies": {
     "better-sqlite3": "^11.0.0",
     "sharp": "^0.33.0"

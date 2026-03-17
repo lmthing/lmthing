@@ -267,9 +267,7 @@ async function main() {
   })
 
   // ── Resolve model ──
-  // Dynamic import to avoid rootDir issues with tsc (core is a sibling package)
-  const resolverPath = new URL('../../../core/src/providers/resolver.ts', import.meta.url).pathname
-  const { resolveModel } = await (Function('p', 'return import(p)')(resolverPath)) as { resolveModel: (id: string) => import('ai').LanguageModel }
+  const { resolveModel } = await import('../providers/resolver')
   const model = resolveModel(args.model)
 
   // ── Create agent loop ──

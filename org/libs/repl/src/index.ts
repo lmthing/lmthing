@@ -89,6 +89,21 @@ export { connectToRepl } from './rpc/client'
 export { useReplSession } from './web/rpc-client'
 export type { UseReplSessionResult, UIBlock } from './web/rpc-client'
 
+// Providers
+export { resolveModel, type ModelInput } from './providers/resolver'
+export { ProviderError, ErrorCodes } from './providers/errors'
+export type { ProviderName } from './providers/index'
+export { getProvider, listProviders } from './providers/index'
+export {
+  scanCustomProviders,
+  createCustomProvider,
+  getCustomProviders,
+  getCustomProvider,
+  isCustomProvider,
+  listCustomProviders,
+  type CustomProviderConfig,
+} from './providers/custom'
+
 // Agent runner
 export { runAgent } from './cli/run-agent'
 export type { RunAgentOptions, RunAgentResult } from './cli/run-agent'

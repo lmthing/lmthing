@@ -291,9 +291,8 @@ export async function runAgent(
   let modelId: string
   if (typeof opts.model === 'string') {
     modelId = opts.model
-    const resolverPath = new URL('../../../core/src/providers/resolver.ts', import.meta.url).pathname
-    const { resolveModel } = await (Function('p', 'return import(p)')(resolverPath)) as { resolveModel: (id: string) => LanguageModel }
-    model = resolveModel(opts.model)
+    const { resolveModel } = await import('../providers/resolver')
+    model = resolveModel(opts.model) as LanguageModel
   } else {
     model = opts.model
     modelId = (model as any).modelId ?? 'unknown'

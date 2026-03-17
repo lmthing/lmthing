@@ -10,6 +10,7 @@ import type {
   LineResult,
   CheckpointPlan,
   CheckpointState,
+  SerializedJSX,
 } from './types'
 import type { SessionConfig } from './config'
 import { createDefaultConfig, mergeConfig } from './config'
@@ -82,7 +83,7 @@ export class Session extends EventEmitter {
       pauseController: this.streamController,
       renderSurface: {
         append: (id, element) => {
-          this.emitEvent({ type: 'display', componentId: id, jsx: { component: 'Unknown', props: {} } })
+          this.emitEvent({ type: 'display', componentId: id, jsx: serializeReactElement(element) })
         },
         renderForm: async (formId, element) => {
           this.activeFormId = formId
@@ -318,4 +319,62 @@ export class Session extends EventEmitter {
     this.hookRegistry.clear()
     this.removeAllListeners()
   }
+}
+
+/**
+ * Convert a React element (from the sandbox) into a SerializedJSX tree
+ * that can be sent over the wire and reconstructed by the web UI.
+ */
+function serializeReactElement(element: unknown, depth = 0): SerializedJSX {
+  if (depth > 20) return { component: 'div', props: {}, children: ['[max depth]'] }
+
+  // Not a React element — wrap as text
+  if (!element || typeof element !== 'object' || !('type' in element)) {
+    return { component: 'span', props: {}, children: [String(element ?? '')] }
+  }
+
+  const el = element as { type: unknown; props: Record<string, unknown> }
+  const { children, ...restProps } = el.props ?? {}
+
+  // Resolve component type to a string tag name
+  let component: string
+  if (typeof el.type === 'string') {
+    component = el.type
+  } else if (typeof el.type === 'function') {
+    // Custom component — call it to get the rendered output
+    try {
+      const rendered = (el.type as Function)(el.props)
+      return serializeReactElement(rendered, depth + 1)
+    } catch {
+      component = (el.type as Function).name || 'div'
+    }
+  } else {
+    component = 'div'
+  }
+
+  // Serialize props — only keep JSON-serializable values
+  const safeProps: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(restProps)) {
+    if (typeof value === 'function') continue
+    if (typeof value === 'symbol') continue
+    safeProps[key] = value
+  }
+
+  // Serialize children
+  const serializedChildren = serializeChildren(children, depth)
+
+  return { component, props: safeProps, children: serializedChildren.length > 0 ? serializedChildren : undefined }
+}
+
+function serializeChildren(children: unknown, depth: number): (SerializedJSX | string)[] {
+  if (children == null) return []
+  if (typeof children === 'string') return [children]
+  if (typeof children === 'number' || typeof children === 'boolean') return [String(children)]
+  if (Array.isArray(children)) {
+    return children.flatMap(child => serializeChildren(child, depth))
+  }
+  if (typeof children === 'object' && 'type' in children) {
+    return [serializeReactElement(children, depth + 1)]
+  }
+  return [String(children)]
 }

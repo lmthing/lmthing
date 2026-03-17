@@ -163,7 +163,7 @@ export type SessionEvent =
 export interface SerializedJSX {
   component: string
   props: Record<string, unknown>
-  children?: SerializedJSX[]
+  children?: (SerializedJSX | string)[]
 }
 
 export interface SessionSnapshot {

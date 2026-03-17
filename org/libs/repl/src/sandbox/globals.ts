@@ -2,6 +2,7 @@ import type { StreamPauseController, RenderSurface, StopPayload, SerializedValue
 import { serialize } from '../stream/serializer'
 import { recoverArgumentNames } from '../parser/ast-utils'
 import { AsyncManager } from './async-manager'
+import type { KnowledgeSelector, KnowledgeContent } from '../knowledge/types'
 
 export interface GlobalsConfig {
   pauseController: StreamPauseController
@@ -19,6 +20,7 @@ export interface GlobalsConfig {
   onAsyncStart?: (taskId: string, label: string) => void
   onCheckpointPlan?: (tasklistId: string, plan: CheckpointPlan) => void
   onCheckpointComplete?: (tasklistId: string, id: string, output: Record<string, any>) => void
+  onLoadKnowledge?: (selector: KnowledgeSelector) => KnowledgeContent
 }
 
 /**
@@ -232,6 +234,21 @@ export function createGlobals(config: GlobalsConfig) {
     config.onCheckpointComplete?.(tasklistId, id, output)
   }
 
+  /**
+   * loadKnowledge(selector) — Load knowledge files from the space's knowledge base.
+   * The selector mirrors the file tree: { domain: { field: { option: true } } }
+   * Returns the same structure with markdown content as values.
+   */
+  function loadKnowledgeFn(selector: KnowledgeSelector): KnowledgeContent {
+    if (!selector || typeof selector !== 'object') {
+      throw new Error('loadKnowledge() requires a selector object: { domain: { field: { option: true } } }')
+    }
+    if (!config.onLoadKnowledge) {
+      throw new Error('loadKnowledge() is not available — no space loaded')
+    }
+    return config.onLoadKnowledge(selector)
+  }
+
   return {
     stop: stopFn,
     display: displayFn,
@@ -239,6 +256,7 @@ export function createGlobals(config: GlobalsConfig) {
     async: asyncFn,
     checkpoints: checkpointsFn,
     checkpoint: checkpointFn,
+    loadKnowledge: loadKnowledgeFn,
     setCurrentSource,
     resolveStop,
     getCheckpointState: () => checkpointState,

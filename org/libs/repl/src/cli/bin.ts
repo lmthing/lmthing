@@ -9,6 +9,7 @@ import { Session } from '../session/session'
 import { AgentLoop } from './agent-loop'
 import { createReplServer } from './server'
 import { loadCatalog, mergeCatalogs, formatCatalogForPrompt } from '../catalog/index'
+import { buildKnowledgeTree, loadKnowledgeFiles, formatKnowledgeTreeForPrompt } from '../knowledge/index'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -73,6 +74,16 @@ async function main() {
     }
   }
 
+  // ── Load space knowledge ──
+  let knowledgeTreePrompt = ''
+  let knowledgeDir = ''
+  if (args.space) {
+    const spacePath = resolve(args.space)
+    knowledgeDir = resolve(spacePath, 'knowledge')
+    const tree = buildKnowledgeTree(knowledgeDir)
+    knowledgeTreePrompt = formatKnowledgeTreeForPrompt(tree)
+  }
+
   // ── Merge config ──
   const functionSignatures = [catalogSigs, userSigs, replConfig.functionSignatures].filter(Boolean).join('\n')
 
@@ -85,9 +96,13 @@ async function main() {
   const maxCheckpointReminders = replConfig.maxCheckpointReminders ?? 3
 
   // ── Create session ──
+  const resolvedKnowledgeDir = knowledgeDir
   const session = new Session({
     config: { sessionTimeout: args.timeout * 1000 },
     globals: { ...catalogGlobals, ...userGlobals },
+    knowledgeLoader: resolvedKnowledgeDir
+      ? (selector) => loadKnowledgeFiles(resolvedKnowledgeDir, selector)
+      : undefined,
   })
 
   // ── Resolve model ──
@@ -104,6 +119,7 @@ async function main() {
     modelId: args.model,
     instruct: instructs || undefined,
     functionSignatures: functionSignatures || undefined,
+    knowledgeTree: knowledgeTreePrompt || undefined,
     maxTurns,
     maxCheckpointReminders,
     debugFile,
@@ -129,6 +145,7 @@ async function main() {
   console.log('\x1b[36m━━━ @lmthing/repl ━━━\x1b[0m')
   console.log(`\x1b[90mModel:   ${args.model}\x1b[0m`)
   if (args.file) console.log(`\x1b[90mFile:    ${args.file}\x1b[0m`)
+  if (args.space) console.log(`\x1b[90mSpace:   ${args.space}\x1b[0m`)
   if (args.catalog) console.log(`\x1b[90mCatalog: ${args.catalog}\x1b[0m`)
   if (debugFile) console.log(`\x1b[90mDebug:   ${debugFile}\x1b[0m`)
   if (staticDir) {

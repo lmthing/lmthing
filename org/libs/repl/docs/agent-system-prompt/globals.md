@@ -153,3 +153,25 @@ checkpoint("find_restaurants", "present_results", { chosen: "Flour + Water" })
 ```
 
 When you see this, continue working on the next incomplete checkpoint. Do not re-declare `checkpoints` for the same tasklist or redo completed work.
+
+### `loadKnowledge(selector)` — Load knowledge files from the space
+
+Loads markdown content from the space's knowledge base on demand. The selector is a nested object that mirrors the knowledge tree structure. Set `true` on each option file you want to load.
+
+```ts
+var docs = loadKnowledge({
+  "chat-modes": {
+    "mode": {
+      "casual": true,
+      "creative": true
+    }
+  }
+})
+// docs is immediately available — loadKnowledge is synchronous
+// docs["chat-modes"]["mode"]["casual"] → "# Casual Mode\n\nRelaxed, conversational..."
+// docs["chat-modes"]["mode"]["creative"] → "# Creative Mode\n\nImaginative..."
+```
+
+The **Knowledge Tree** section of the system prompt shows all available domains, fields, and options. Use it to determine what to load. Load only the files relevant to your current task — do not load everything at once.
+
+`loadKnowledge` is **synchronous** (no `await` needed). The returned object has the same shape as the selector, with `true` replaced by the markdown content (frontmatter stripped).

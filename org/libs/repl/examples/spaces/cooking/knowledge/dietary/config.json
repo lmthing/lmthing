@@ -1,0 +1,7 @@
+{
+  "label": "Dietary Needs",
+  "description": "Dietary restrictions and how to adapt recipes for them",
+  "icon": "🥗",
+  "color": "#27ae60",
+  "renderAs": "section"
+}

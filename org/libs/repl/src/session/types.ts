@@ -157,6 +157,7 @@ export type SessionEvent =
   | { type: 'checkpoint_plan'; tasklistId: string; plan: CheckpointPlan }
   | { type: 'checkpoint_complete'; tasklistId: string; id: string; output: Record<string, any> }
   | { type: 'checkpoint_reminder'; tasklistId: string; remaining: string[] }
+  | { type: 'knowledge_loaded'; domains: string[] }
   | { type: 'status'; status: SessionStatus }
   | { type: 'scope'; entries: ScopeEntry[] }
 

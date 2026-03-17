@@ -19,6 +19,7 @@ export interface AgentLoopOptions {
   modelId: string
   instruct?: string
   functionSignatures?: string
+  knowledgeTree?: string
   maxTurns?: number
   maxCheckpointReminders?: number
   debugFile?: string
@@ -41,6 +42,7 @@ export class AgentLoop {
   private modelId: string
   private instruct?: string
   private functionSignatures: string
+  private knowledgeTree: string
   private maxTurns: number
   private maxCheckpointReminders: number
   private debugFile?: string
@@ -56,6 +58,7 @@ export class AgentLoop {
     this.modelId = options.modelId
     this.instruct = options.instruct
     this.functionSignatures = options.functionSignatures ?? ''
+    this.knowledgeTree = options.knowledgeTree ?? ''
     this.maxTurns = options.maxTurns ?? 10
     this.maxCheckpointReminders = options.maxCheckpointReminders ?? 3
     this.debugFile = options.debugFile
@@ -91,7 +94,7 @@ export class AgentLoop {
 
     // Build initial system prompt
     const scope = this.session.getScopeTable()
-    const systemPrompt = buildSystemPrompt(this.functionSignatures, scope, this.instruct)
+    const systemPrompt = buildSystemPrompt(this.functionSignatures, scope, this.instruct, this.knowledgeTree)
 
     // Initialize or update messages
     if (this.messages.length === 0) {
@@ -160,6 +163,9 @@ export class AgentLoop {
             break
           case 'checkpoint_reminder':
             console.log(`\x1b[33m  [system]\x1b[0m tasklist "${event.tasklistId}" reminder — remaining: ${event.remaining.join(', ')}`)
+            break
+          case 'knowledge_loaded':
+            console.log(`\x1b[36m  [knowledge]\x1b[0m loaded: ${event.domains.join(', ')}`)
             break
           case 'hook':
             console.log(`\x1b[35m  [hook]\x1b[0m ${event.hookId} → ${event.action}: ${event.detail}`)
@@ -339,7 +345,7 @@ export class AgentLoop {
 
   private refreshSystemPrompt(): void {
     const scope = this.session.getScopeTable()
-    const systemPrompt = buildSystemPrompt(this.functionSignatures, scope, this.instruct)
+    const systemPrompt = buildSystemPrompt(this.functionSignatures, scope, this.instruct, this.knowledgeTree)
     this.messages[0] = { role: 'system', content: systemPrompt }
     this.logDebug('system_prompt', systemPrompt)
   }
@@ -375,7 +381,7 @@ export class AgentLoop {
 
 // ── System Prompt ──
 
-function buildSystemPrompt(fnSigs: string, scope: string, instruct?: string): string {
+function buildSystemPrompt(fnSigs: string, scope: string, instruct?: string, knowledgeTree?: string): string {
   let prompt = `You are a code-execution agent. You respond EXCLUSIVELY with valid TypeScript code. No markdown. No prose. No explanations outside of code comments. Every character you emit is fed line-by-line into a live TypeScript REPL that executes as you stream.
 
 ## Execution Model
@@ -421,12 +427,36 @@ If your stream ends before all checkpoints are complete, the host will send you 
   ⚠ [system] Tasklist "analyze_data" incomplete. Remaining: analyze, report. Continue from where you left off.
 When you see this, continue from the next incomplete checkpoint. Do NOT re-declare checkpoints() for the same tasklist or redo completed work.
 
+### loadKnowledge(selector) — Load knowledge files from the space
+Loads markdown content from the space's knowledge base. Pass a selector object that mirrors the knowledge tree structure, setting \`true\` on the files you want to load.
+
+Returns an object with the same structure, where each \`true\` is replaced with the markdown content of that file.
+
+Example:
+var docs = loadKnowledge({
+  "chat-modes": {
+    "mode": {
+      "casual": true,
+      "creative": true
+    }
+  }
+})
+// docs["chat-modes"]["mode"]["casual"] → "# Casual Mode\\n\\nRelaxed, conversational..."
+// docs["chat-modes"]["mode"]["creative"] → "# Creative Mode\\n\\nImaginative..."
+
+Use the Knowledge Tree below to see what files are available. Load only what you need — do not load everything at once.
+
 ## Workspace — Current Scope
 ${scope || '(no variables declared)'}
 
 ## Available Functions
-${fnSigs || '(none)'}
+${fnSigs || '(none)'}`
 
+  if (knowledgeTree) {
+    prompt += `\n\n## Knowledge Tree\n${knowledgeTree}\n`
+  }
+
+  prompt += `
 ## Rules
 1. Output ONLY valid TypeScript. No markdown. No prose outside // comments.
 2. Plan before you build — call checkpoints(tasklistId, description, tasks) to declare milestones, then call checkpoint(tasklistId, checkpointId, output) as you complete each one.
@@ -437,6 +467,7 @@ ${fnSigs || '(none)'}
 7. Use var for all declarations (not const/let) so they persist in the REPL scope across turns.
 8. Handle nullability with ?. and ??
 9. After calling await stop(...), STOP. Do not write any more code until you receive the stop response.
+10. Use loadKnowledge() to load relevant knowledge files before starting domain-specific work. Check the Knowledge Tree to see what is available.
 
 ## Execution Flow Pattern
 
@@ -448,15 +479,20 @@ checkpoints("main", "Do the task", [
   { id: "step2", instructions: "...", outputSchema: { done: { type: "boolean" } } }
 ])
 
-// 2. Do work for step 1
+// 2. Load relevant knowledge
+var knowledge = loadKnowledge({ "domain": { "field": { "option": true } } })
+await stop(knowledge)
+// ← stop { knowledge: { domain: { field: { option: "..." } } } }
+
+// 3. Do work for step 1
 var result = await someFunction()
 await stop(result)
 // ← stop { result: ... }
 
-// 3. Mark step 1 complete
+// 4. Mark step 1 complete
 checkpoint("main", "step1", { key: result.key })
 
-// 4. Do work for step 2
+// 5. Do work for step 2
 var final = await anotherFunction()
 checkpoint("main", "step2", { done: true })`
 

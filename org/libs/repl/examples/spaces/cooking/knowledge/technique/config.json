@@ -1,0 +1,7 @@
+{
+  "label": "Cooking Techniques",
+  "description": "Core cooking methods and when to use them",
+  "icon": "🔥",
+  "color": "#e74c3c",
+  "renderAs": "section"
+}

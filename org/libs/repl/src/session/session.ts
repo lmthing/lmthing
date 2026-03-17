@@ -12,6 +12,7 @@ import type {
   CheckpointState,
   SerializedJSX,
 } from './types'
+import type { KnowledgeSelector, KnowledgeContent } from '../knowledge/types'
 import type { SessionConfig } from './config'
 import { createDefaultConfig, mergeConfig } from './config'
 import { Sandbox } from '../sandbox/sandbox'
@@ -26,6 +27,7 @@ export interface SessionOptions {
   config?: Partial<SessionConfig>
   hooks?: Hook[]
   globals?: Record<string, unknown>
+  knowledgeLoader?: (selector: KnowledgeSelector) => KnowledgeContent
 }
 
 export class Session extends EventEmitter {
@@ -115,6 +117,14 @@ export class Session extends EventEmitter {
       onCheckpointComplete: (tasklistId, id, output) => {
         this.emitEvent({ type: 'checkpoint_complete', tasklistId, id, output })
       },
+      onLoadKnowledge: options.knowledgeLoader
+        ? (selector) => {
+            const content = options.knowledgeLoader!(selector)
+            const domains = Object.keys(content)
+            this.emitEvent({ type: 'knowledge_loaded', domains })
+            return content
+          }
+        : undefined,
     })
 
     // Inject globals into sandbox
@@ -124,6 +134,7 @@ export class Session extends EventEmitter {
     this.sandbox.inject('async', this.globalsApi.async)
     this.sandbox.inject('checkpoints', this.globalsApi.checkpoints)
     this.sandbox.inject('checkpoint', this.globalsApi.checkpoint)
+    this.sandbox.inject('loadKnowledge', this.globalsApi.loadKnowledge)
   }
 
   private async executeStatement(source: string): Promise<LineResult> {

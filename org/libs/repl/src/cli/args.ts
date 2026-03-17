@@ -1,10 +1,12 @@
 export interface CLIArgs {
-  /** Path to user's .ts/.tsx file (positional, optional if --catalog is set) */
+  /** Path to user's .ts/.tsx file (positional, optional if --catalog or --space is set) */
   file?: string
   /** Special instructions appended to system prompt */
   instruct?: string[]
   /** Built-in catalog modules to enable (comma-separated or "all") */
   catalog?: string
+  /** Path to a space directory containing agents/, flows/, knowledge/ */
+  space?: string
   /** Port for WebSocket server + web UI (default: 3100) */
   port: number
   /** LLM model identifier */
@@ -46,6 +48,8 @@ export function parseArgs(argv: string[]): CLIArgs {
       args.timeout = parseInt(argv[++i], 10)
     } else if (arg === '--debug' || arg === '-d') {
       args.debugFile = argv[++i]
+    } else if (arg === '--space' || arg === '-s') {
+      args.space = argv[++i]
     } else if (arg === '--no-ui') {
       args.noUi = true
     } else if (!arg.startsWith('-') && !args.file) {
@@ -59,9 +63,9 @@ export function parseArgs(argv: string[]): CLIArgs {
     args.instruct = instructs
   }
 
-  // Validate: either file or catalog must be specified
-  if (!args.file && !args.catalog) {
-    throw new Error('Either a file path or --catalog must be specified')
+  // Validate: either file, catalog, or space must be specified
+  if (!args.file && !args.catalog && !args.space) {
+    throw new Error('Either a file path, --catalog, or --space must be specified')
   }
 
   return args

@@ -1,0 +1,8 @@
+{
+  "label": "Restriction",
+  "description": "Which dietary restrictions to accommodate",
+  "fieldType": "multiSelect",
+  "required": false,
+  "variableName": "dietaryRestriction",
+  "renderAs": "field"
+}

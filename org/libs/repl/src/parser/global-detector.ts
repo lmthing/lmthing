@@ -2,9 +2,9 @@
  * Detects if a source line is a call to one of the six globals.
  * Handles both `stop(...)` and `await stop(...)` patterns.
  */
-export type GlobalName = 'stop' | 'display' | 'ask' | 'async' | 'checkpoints' | 'checkpoint'
+export type GlobalName = 'stop' | 'display' | 'ask' | 'async' | 'checkpoints' | 'checkpoint' | 'loadKnowledge'
 
-const GLOBALS: GlobalName[] = ['stop', 'display', 'ask', 'async', 'checkpoints', 'checkpoint']
+const GLOBALS: GlobalName[] = ['stop', 'display', 'ask', 'async', 'checkpoints', 'checkpoint', 'loadKnowledge']
 
 export function detectGlobalCall(source: string): GlobalName | null {
   const trimmed = source.trim()

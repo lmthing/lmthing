@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-A streaming TypeScript REPL agent system that executes LLM-generated code line-by-line with control primitives (`stop`, `display`, `ask`, `async`, `checkpoints`, `checkpoint`) and a React render surface. The agent writes only TypeScript — no prose — and the host runtime parses, executes, and renders in real time.
+A streaming TypeScript REPL agent system that executes LLM-generated code line-by-line with control primitives (`stop`, `display`, `ask`, `async`, `checkpoints`, `checkpoint`, `loadKnowledge`) and a React render surface. The agent writes only TypeScript — no prose — and the host runtime parses, executes, and renders in real time.
 
 No code exists yet. This package contains specifications only.
 
@@ -51,13 +51,14 @@ Four subsystems:
 
 ## Key Concepts
 
-### 6 Globals
+### 7 Globals
 - **`stop(...values)`** — Pause execution, serialize args, inject as user message. The agent's only way to read runtime values.
 - **`display(jsx)`** — Non-blocking render of React components to the user's viewport.
 - **`ask(jsx)`** — Blocking form render. Resumes silently — agent must call `stop` to see values.
 - **`async(fn)`** — Fire-and-forget background task. Results delivered via next `stop` call.
 - **`checkpoints(tasklistId, description, tasks)`** — Declare a task plan with milestones before starting work. Each task has `id`, `instructions`, and `outputSchema`. Can be called multiple times per session with different `tasklistId` values.
 - **`checkpoint(tasklistId, checkpointId, output)`** — Mark a milestone as complete with validated output. Must include the `tasklistId` and be called in declaration order within each tasklist. If the agent's stream ends with incomplete checkpoints, the host injects a reminder and resumes generation.
+- **`loadKnowledge(selector)`** — Synchronously load markdown files from the space's knowledge base. The selector mirrors the knowledge tree: `{ domain: { field: { option: true } } }`. Returns the same structure with markdown content as values.
 
 ### Conversation Protocol
 - `stop` and `error` create turn boundaries (inject `role: 'user'` messages with `←` prefix)

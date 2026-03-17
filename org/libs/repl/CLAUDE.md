@@ -57,7 +57,7 @@ Four subsystems:
 - **`ask(jsx)`** — Blocking form render. Resumes silently — agent must call `stop` to see values.
 - **`async(fn)`** — Fire-and-forget background task. Results delivered via next `stop` call.
 - **`tasklist(tasklistId, description, tasks)`** — Declare a task plan with milestones before starting work. Each task has `id`, `instructions`, and `outputSchema`. Can be called multiple times per session with different `tasklistId` values.
-- **`completeTask(tasklistId, taskId, output)`** — Mark a milestone as complete with validated output. Must include the `tasklistId` and be called in declaration order within each tasklist. If the agent's stream ends with incomplete tasks, the host injects a reminder and resumes generation.
+- **`completeTask(tasklistId, taskId, output)`** — Mark a task as complete with validated output. Must include the `tasklistId` and be called in declaration order within each tasklist. If the agent's stream ends with incomplete tasks, the host injects a reminder and resumes generation.
 - **`loadKnowledge(selector)`** — Synchronously load markdown files from the space's knowledge base. The selector mirrors the knowledge tree: `{ domain: { field: { option: true } } }`. Returns the same structure with markdown content as values.
 
 ### Conversation Protocol
@@ -65,7 +65,7 @@ Four subsystems:
 - `ask` resumes silently — no message injected, assistant turn continues
 - User interventions inject raw text (no prefix) — agent adjusts via `//` comments
 - Hook interrupts inject `⚠ [hook:id]` prefixed messages
-- Incomplete tasklist reminders inject `⚠ [system] Tasklist "<tasklistId>" incomplete.` prefixed messages when the agent's stream ends before all tasks are complete
+- Incomplete task reminders inject `⚠ [system] Tasklist "<tasklistId>" incomplete.` prefixed messages when the agent's stream ends before all tasks are complete
 
 ### Context Management
 - **`{{SCOPE}}`** — Live variable table in system prompt, replaced on every injection. Never compressed. Agent's source of truth.

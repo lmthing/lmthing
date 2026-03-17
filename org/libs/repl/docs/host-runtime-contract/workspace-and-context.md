@@ -313,6 +313,99 @@ function describeTypeBrief(val: any): string {
 }
 ```
 
+### `{{TASKS}}` Block — Task State Injection
+
+On every `stop()` call, the host appends a `{{TASKS}}` section to the injected user message showing the current state of all active tasklists. This gives the agent visibility into which tasks are ready, running, completed, failed, or skipped — essential for navigating a DAG.
+
+#### `generateTasksBlock` Implementation
+
+```ts
+function generateTasksBlock(tasklistsState: TasklistsState): string | null {
+  if (tasklistsState.tasklists.size === 0) return null
+
+  const lines: string[] = ['{{TASKS}}']
+
+  for (const [tasklistId, state] of tasklistsState.tasklists) {
+    const headerLine = `┌ ${tasklistId} ${'─'.repeat(Math.max(1, 60 - tasklistId.length - 3))}┐`
+    lines.push(headerLine)
+
+    for (const task of state.plan.tasks) {
+      const completion = state.completed.get(task.id)
+      let symbol: string, detail: string
+
+      if (completion?.status === 'completed') {
+        const outputStr = JSON.stringify(completion.output)
+        const truncated = outputStr.length > 40 ? outputStr.slice(0, 37) + '...' : outputStr
+        symbol = '✓'; detail = `→ ${truncated}`
+      } else if (completion?.status === 'failed') {
+        symbol = '✗'; detail = `— ${completion.error}`
+      } else if (completion?.status === 'skipped') {
+        symbol = '⊘'; detail = `(skipped — condition was falsy)`
+      } else if (state.runningTasks.has(task.id)) {
+        const progress = state.progressMessages?.get(task.id)
+        symbol = '◉'; detail = progress ? `(running — ${progress.percent ?? ''}% ${progress.message})` : '(running)'
+      } else if (state.readyTasks.has(task.id)) {
+        symbol = '◎'; detail = '(ready — deps satisfied)'
+      } else {
+        const deps = task.dependsOn?.join(', ') ?? ''
+        symbol = '○'; detail = `(blocked — waiting on: ${deps})`
+      }
+
+      lines.push(`│ ${symbol} ${task.id.padEnd(18)} ${detail.padEnd(40)}│`)
+    }
+
+    lines.push(`└${'─'.repeat(63)}┘`)
+  }
+
+  return lines.join('\n')
+}
+```
+
+#### Integration with `stop()`
+
+The `{{TASKS}}` block is appended after the stop payload in the `← stop` user message:
+
+```ts
+// In stop() implementation, after building payload:
+const tasksBlock = generateTasksBlock(tasklistsState)
+const message = tasksBlock
+  ? `← stop ${JSON.stringify(payload, null, 2)}\n\n${tasksBlock}`
+  : `← stop ${JSON.stringify(payload, null, 2)}`
+streamController.injectUserMessage(message)
+```
+
+#### `{{TASKS}}` Decay Tiers
+
+The `{{TASKS}}` block follows its own decay schedule, separate from stop payload decay:
+
+| Distance from current turn | Treatment |
+|---------------------------|-----------|
+| 0–2 turns | **Full** — complete table with outputs |
+| 3–5 turns | **Compact** — status symbols + task names only (no outputs) |
+| 6+ turns | **Removed** — task state is always fresh in latest stop |
+
+Implementation:
+
+```ts
+function decayTasksBlock(tasksBlock: string, distance: number): string | null {
+  if (distance <= 2) return tasksBlock  // full
+  if (distance <= 5) {
+    // Strip output details, keep just symbols and task names
+    return tasksBlock.split('\n').map(line => {
+      const match = line.match(/^│ ([✓✗⊘◉◎○]) (\S+)/)
+      if (match) return `│ ${match[1]} ${match[2]}`
+      return line
+    }).join('\n')
+  }
+  return null  // removed
+}
+```
+
+#### When no stop is called
+- Task state also appears in the incomplete task reminder message (same format)
+- Task state is NOT in `{{SCOPE}}` — it's a separate concern (variables vs. plan progress)
+- Only shown when at least one tasklist exists
+
 #### Error turns
 
 Error injections (`← error [Type] ...`) follow the same decay as stop payloads:

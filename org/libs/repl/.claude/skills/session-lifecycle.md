@@ -23,7 +23,12 @@ STREAM LOOP
     → display()   → render component, continue
     → async()     → register task (+ abort controller), continue
     → tasklist(tasklistId, description, tasks) → register plan in tasklists map, render progress UI, continue
-    → completeTask(tasklistId, id, output)  → validate output, record completion, update progress UI, continue
+    → completeTask(tasklistId, id, output)  → check readyTasks, record completion, recompute readyTasks, update progress UI, continue
+    → completeTaskAsync(tasklistId, taskId, fn) → check readyTasks, mark running, spawn via AsyncManager, continue
+    → taskProgress(tasklistId, taskId, message, percent?) → validate task exists & is ready/running, update progress UI, continue
+    → failTask(tasklistId, taskId, error) → record failure, unblock dependents if optional, update UI, continue
+    → retryTask(tasklistId, taskId) → reset failed task to ready (if retries remain), update UI, continue
+    → sleep(seconds) → pause sandbox execution (not stream), async tasks continue, resume after delay
     → loadKnowledge(selector) → read files from knowledge dir, emit knowledge_loaded event, return content, continue
   → On user intervention:
     → pause, update {{SCOPE}}, finalize assistant turn, inject user message, resume
@@ -35,6 +40,8 @@ STREAM LOOP
 COMPLETION
   → LLM emits stop token
   → If any tasklist has incomplete tasks:
+    → Wait for any runningTasks (async completions) to finish or timeout before nudging
+    → Build DAG-aware reminder with ready/blocked/failed task info and {{TASKS}} block
     → inject ⚠ [system] tasklist reminder as user message, resume generation
     → repeat up to maxTasklistReminders (default: 3) times
   → Drain remaining async tasks (with timeout)
@@ -76,6 +83,10 @@ interface SessionConfig {
     }
     neverTruncateInterventions: boolean  // default: true
   }
+  maxTaskRetries: number         // default: 3
+  maxTasksPerTasklist: number    // default: 20
+  taskAsyncTimeout: number       // default: 60_000
+  sleepMaxSeconds: number        // default: 30
 }
 ```
 
@@ -111,5 +122,38 @@ declare function ask(formElement: React.ReactElement): Promise<Record<string, an
 declare function async(fn: () => Promise<void>): void
 declare function tasklist(tasklistId: string, description: string, tasks: TaskDefinition[]): void
 declare function completeTask(tasklistId: string, id: string, output: Record<string, any>): void
+declare function completeTaskAsync(tasklistId: string, taskId: string, fn: () => Promise<Record<string, any>>): void
+declare function taskProgress(tasklistId: string, taskId: string, message: string, percent?: number): void
+declare function failTask(tasklistId: string, taskId: string, error: string): void
+declare function retryTask(tasklistId: string, taskId: string): void
+declare function sleep(seconds: number): Promise<void>
 declare function loadKnowledge(selector: KnowledgeSelector): KnowledgeContent
+
+// Task definitions
+interface TaskDefinition {
+  id: string
+  instructions: string
+  outputSchema: Record<string, { type: string }>
+  dependsOn?: string[]         // task IDs this task depends on (DAG)
+  condition?: string           // JS expression; if falsy, auto-skip
+  optional?: boolean           // default: false — optional tasks can be skipped without blocking dependents
+}
+
+// Task completion record
+interface TaskCompletion {
+  output: Record<string, any>
+  timestamp: number
+  status: 'completed' | 'failed' | 'skipped'
+  error?: string
+  duration?: number
+}
+
+// Tasklist state tracking
+interface TasklistState {
+  plan: Tasklist
+  completed: Map<string, TaskCompletion>
+  readyTasks: Set<string>
+  runningTasks: Set<string>
+  outputs: Map<string, Record<string, any>>
+}
 ```

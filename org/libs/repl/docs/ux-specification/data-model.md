@@ -18,7 +18,21 @@ type Block =
   | { type: 'display'; id: string; component: React.ReactElement; timestamp: number }
   | { type: 'form'; id: string; component: React.ReactElement; status: 'active' | 'submitted' | 'timeout'; values?: Record<string, any>; timestamp: number }
   | { type: 'user_intervention'; id: string; message: string; timestamp: number }
+  | { type: 'tasklist'; id: string; tasklistId: string; description: string; tasks: TaskUIState[]; layout: 'stepper' | 'dag'; timestamp: number }
   | { type: 'status'; id: string; text: string; timestamp: number }
+
+interface TaskUIState {
+  id: string
+  instructions: string
+  status: 'pending' | 'ready' | 'running' | 'completed' | 'failed' | 'skipped'
+  dependsOn?: string[]
+  optional?: boolean
+  output?: Record<string, any>
+  error?: string
+  progress?: { message: string; percent?: number }
+  duration?: number
+  retryCount?: number
+}
 
 interface AsyncTask {
   id: string               // e.g., "async_0"
@@ -29,6 +43,7 @@ interface AsyncTask {
   result?: any             // truncated result on completion
   error?: string           // error message on failure
   cancelMessage?: string   // user's cancel message
+  // Note: async task completions for completeTaskAsync use "task:<taskId>" keys in stop payloads
 }
 
 interface ContextBudget {

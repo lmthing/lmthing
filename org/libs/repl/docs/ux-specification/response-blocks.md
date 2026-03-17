@@ -165,3 +165,51 @@ Components fade in with a 150ms ease-out transition. They stack vertically in th
 ### 6. Form card — `ask()`
 
 Inline form for user input. Visually distinct from display components — elevated card with border, shadow, and a submit button. Full details in the Forms section below.
+
+### 7. Task progress block — `tasklist()`
+
+When the agent calls `tasklist(...)`, a persistent task progress block appears in the flow. For linear tasklists (no `dependsOn`), it renders as a **vertical stepper**. For DAG tasklists, it renders as a **lane diagram** showing parallel tracks.
+
+**Linear stepper (backward compatible):**
+```
+┌── find_restaurants ─── Find and analyze Italian restaurants ──┐
+│  ✓  gather_input          Ask the user for their location     │
+│  ◉  search_restaurants    Search for matching restaurants     │
+│  ○  present_results       Display results and help pick       │
+└───────────────────────────────────────────────────────────────┘
+```
+
+**DAG lane diagram:**
+```
+┌── build_report ─── Research and build a comparison report ────┐
+│                                                               │
+│  ◉ fetch_sources ──┐                                          │
+│                     ├──▶ ◎ analyze ──▶ ○ write_report          │
+│  ◉ fetch_benchmarks┘                                          │
+│                                                               │
+│  Legend: ✓ done  ◉ running  ◎ ready  ○ pending  ✗ failed     │
+└───────────────────────────────────────────────────────────────┘
+```
+
+**Task states in the progress block:**
+
+| Status | Symbol | Appearance |
+|--------|--------|------------|
+| `pending` | `○` | Dimmed, shows blocking deps |
+| `ready` | `◎` | Highlighted, pulsing border — agent should work on this |
+| `running` | `◉` | Spinner, progress bar if `taskProgress` called, elapsed time |
+| `completed` | `✓` | Green check, truncated output preview |
+| `failed` | `✗` | Red X, error message, retry indicator if retries remain |
+| `skipped` | `⊘` | Dimmed with strikethrough, shows "condition was falsy" |
+
+**Async task dual representation:** When `completeTaskAsync` is called, the task appears both in the task progress block (as `◉ running`) and in the async sidebar (as a running async task card). The sidebar card shows elapsed time and cancel; the progress block shows the task's position in the DAG. Both update simultaneously when the task completes.
+
+**Progress within a task:** When `taskProgress(tasklistId, taskId, message, percent)` is called, the running task's row in the progress block updates to show the progress:
+```
+│  ◉  build_assets     ━━━━━━━━━━╺━━━ 75%  Building CSS...     │
+```
+
+The progress block persists at the point in the flow where `tasklist()` was called. It updates in place as tasks complete. It does NOT scroll out of view — if the user scrolls past it, a floating summary badge appears in the header:
+```
+[build_report: 2/4 ✓]
+```

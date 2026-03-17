@@ -61,6 +61,12 @@ declare function ask(formElement: React.ReactElement): Promise<Record<string, an
 declare function async(fn: () => Promise<void>): void
 declare function tasklist(tasklistId: string, description: string, tasks: TaskDefinition[]): void
 declare function completeTask(tasklistId: string, id: string, output: Record<string, any>): void
+declare function completeTaskAsync(tasklistId: string, taskId: string, fn: () => Promise<Record<string, any>>): void
+declare function taskProgress(tasklistId: string, taskId: string, message: string, percent?: number): void
+declare function failTask(tasklistId: string, taskId: string, error: string): void
+declare function retryTask(tasklistId: string, taskId: string): void
+declare function sleep(seconds: number): Promise<void>
+declare function loadKnowledge(selector: KnowledgeSelector): KnowledgeContent
 
 // Injection payloads (only stop and error inject user messages)
 interface StopPayload {
@@ -105,6 +111,10 @@ interface SessionConfig {
   maxAsyncTasks: number         // default: 10
   maxTasklistReminders: number   // default: 3 — max times host re-prompts agent to finish incomplete tasks
   maxContextTokens: number      // default: 100_000
+  maxTaskRetries: number        // default: 3
+  maxTasksPerTasklist: number   // default: 20
+  taskAsyncTimeout: number      // default: 60_000
+  sleepMaxSeconds: number       // default: 30
   serializationLimits: {
     maxStringLength: number     // default: 2_000
     maxArrayElements: number    // default: 50
@@ -136,10 +146,15 @@ interface ScopeEntry {
 }
 
 // Tasklist types
+type TaskStatus = 'pending' | 'ready' | 'running' | 'completed' | 'failed' | 'skipped'
+
 interface TaskDefinition {
   id: string
   instructions: string
   outputSchema: Record<string, { type: string }>
+  dependsOn?: string[]         // task IDs that must complete first
+  condition?: string           // JS expression; if falsy, auto-skip
+  optional?: boolean           // if true, failure doesn't block dependents
 }
 
 interface Tasklist {
@@ -151,12 +166,17 @@ interface Tasklist {
 interface TaskCompletion {
   output: Record<string, any>
   timestamp: number
+  status: 'completed' | 'failed' | 'skipped'  // outcome of this task
+  error?: string               // present when status is 'failed'
+  duration?: number            // ms from running → completion
 }
 
 interface TasklistState {
   plan: Tasklist
   completed: Map<string, TaskCompletion>
-  currentIndex: number
+  readyTasks: Set<string>      // tasks whose deps are all satisfied
+  runningTasks: Set<string>    // async tasks currently executing
+  outputs: Map<string, Record<string, any>>  // completed task outputs for condition eval
 }
 
 interface TasklistsState {
@@ -203,13 +223,13 @@ type HookAction =
 
 ## 15. Worked Example — Full Trace
 
-User: *"Find me Italian restaurants nearby and help me pick one."*
+User: *"Research AI frameworks and build a comparison report."*
 
 ### Message log as it builds up
 
 ```
-[system]  <system prompt with {{SCOPE}}: (no variables yet)>
-[user]    Find me Italian restaurants nearby and help me pick one.
+[system]  <system prompt with {{SCOPE}}: (no variables yet), {{TASKS}}: (none)>
+[user]    Research AI frameworks and build a comparison report.
 ```
 
 ### Execution trace
@@ -217,100 +237,206 @@ User: *"Find me Italian restaurants nearby and help me pick one."*
 ```
 AGENT OUTPUT                              HOST ACTION
 ──────────────────────────────────────────────────────────────
-// Let's find Italian restaurants        [noop — comment]
+// Plan the research pipeline            [noop — comment]
 
-const input = await ask(                 [accumulate multi-line...]
-  <form>
-    <TextInput name="zipcode"
-      label="What's your zip code?" />
-  </form>
-)                                        [execute ask() → render form, PAUSE]
+tasklist("research", "AI framework       [execute tasklist() → register DAG]
+  comparison report", [                  [readyTasks: {fetch_sources, fetch_benchmarks}]
+  {                                      [runningTasks: {}]
+    id: "fetch_sources",
+    instructions: "Fetch docs and
+      GitHub stats for top frameworks",
+    outputSchema: {
+      frameworks: { type: "array" }
+    }
+  },
+  {
+    id: "fetch_benchmarks",
+    instructions: "Fetch latest
+      benchmark results",
+    outputSchema: {
+      benchmarks: { type: "array" }
+    }
+  },
+  {
+    id: "analyze",
+    instructions: "Compare frameworks
+      across dimensions",
+    outputSchema: {
+      comparison: { type: "object" }
+    },
+    dependsOn: ["fetch_sources",
+      "fetch_benchmarks"]
+  },
+  {
+    id: "write_report",
+    instructions: "Write the full
+      comparison report",
+    outputSchema: {
+      report: { type: "string" },
+      words: { type: "number" }
+    },
+    dependsOn: ["analyze"]
+  },
+  {
+    id: "publish",
+    instructions: "Publish report to
+      the knowledge base",
+    outputSchema: {
+      url: { type: "string" }
+    },
+    dependsOn: ["write_report"],
+    condition: "write_report.words > 100",
+    optional: true
+  }
+])
 
-                                         [User types "94107", submits]
-                                         [assign: input = { zipcode: "94107" }]
-                                         [RESUME silently — no message appended]
+// Kick off both fetch tasks             [noop]
+// concurrently
 
-await stop(input)                        [execute stop() → PAUSE]
-                                         [UPDATE {{SCOPE}}:]
-                                         │  input │ Object │ { zipcode: "94107" }
+completeTaskAsync("research",            [execute completeTaskAsync()]
+  "fetch_sources", async () => {         [status: fetch_sources → running]
+  const r = await fetchDocs([            [runningTasks: {fetch_sources}]
+    "pytorch", "tensorflow",
+    "jax", "keras"
+  ])
+  return { frameworks: r }
+})
+
+completeTaskAsync("research",            [execute completeTaskAsync()]
+  "fetch_benchmarks", async () => {      [status: fetch_benchmarks → running]
+  const b = await fetchBenchmarks(       [runningTasks: {fetch_sources,
+    "2025-mlperf"                            fetch_benchmarks}]
+  )
+  return { benchmarks: b }
+})
+
+// Wait for both fetches to finish       [noop]
+await sleep(5)                           [execute sleep(5) → PAUSE 5s, RESUME]
+
+await stop()                             [execute stop() → PAUSE]
+                                         [async results resolved by now:]
+                                         [  fetch_sources → completed]
+                                         [  fetch_benchmarks → completed]
+                                         [readyTasks: {analyze}]
+                                         [UPDATE {{SCOPE}}: (no user-declared vars)]
                                          [APPEND messages:]
                                          │  { role: 'assistant', content: '<code so far>' }
-                                         │  { role: 'user', content: '← stop { input: { "zipcode": "94107" } }' }
+                                         │  { role: 'user', content:
+                                         │    '← stop {}\n\n{{TASKS}}\n
+                                         │    ## Tasklist: research
+                                         │    AI framework comparison report
+                                         │
+                                         │    - [x] fetch_sources ✓
+                                         │      output: { frameworks: [{name:"PyTorch",...}, ...] (4) }
+                                         │    - [x] fetch_benchmarks ✓
+                                         │      output: { benchmarks: [{suite:"MLPerf",...}, ...] (3) }
+                                         │    - [ ] analyze (ready)
+                                         │      depends on: fetch_sources, fetch_benchmarks
+                                         │    - [ ] write_report (pending)
+                                         │      depends on: analyze
+                                         │    - [ ] publish (pending, optional)
+                                         │      depends on: write_report
+                                         │      condition: write_report.words > 100' }
                                          [RESUME generation]
 
-// User wants zipcode 94107              [noop]
-const restaurants = await search(        [execute search()]
-  "Italian restaurants",
-  { near: input.zipcode, limit: 10 }
+// Both fetches complete, analyze next   [noop]
+
+const comparison = {                     [execute — build comparison object]
+  dimensions: ["performance",
+    "ecosystem", "ease_of_use",
+    "production_ready"],
+  rankings: analyzeFrameworks(
+    fetch_sources.output.frameworks,
+    fetch_benchmarks.output.benchmarks
+  )
+}
+
+completeTask("research", "analyze",      [execute completeTask()]
+  { comparison })                        [status: analyze → completed]
+                                         [readyTasks: {write_report}]
+
+// Now write the report                  [noop]
+
+const report = generateReport(           [execute]
+  comparison
 )
 
-await stop(restaurants.length)           [execute stop() → PAUSE]
-                                         [UPDATE {{SCOPE}}:]
-                                         │  input       │ Object        │ { zipcode: "94107" }
-                                         │  restaurants │ Array<Object> │ [{name:"Flour+W...}] (8)
-                                         [APPEND messages:]
-                                         │  { role: 'assistant', content: '<code since last pause>' }
-                                         │  { role: 'user', content: '← stop { "restaurants.length": 8 }' }
-                                         [RESUME]
+completeTask("research",                 [execute completeTask()]
+  "write_report", {                      [status: write_report → completed]
+  report: report.text,                   [readyTasks: {publish}]
+  words: report.wordCount                [evaluate condition:
+})                                           write_report.words (850) > 100 → true]
+                                         [publish remains ready]
 
-// Found 8 options                       [noop]
-display(                                 [accumulate...]
-  <RestaurantList
-    items={restaurants.slice(0, 5)}
-  />
-)                                        [execute display() → render, continue]
+// Condition met, publish the report     [noop]
 
-const choice = await ask(                [accumulate...]
-  <form>
-    <Select name="pick"
-      label="Which one?"
-      options={restaurants
-        .slice(0, 5)
-        .map(r => r.name)} />
-  </form>
-)                                        [execute ask() → render form, PAUSE]
-
-                                         [User selects "Flour + Water", submits]
-                                         [assign: choice = { pick: "Flour + Water" }]
-                                         [RESUME silently — no message appended]
-
-await stop(choice)                       [execute stop() → PAUSE]
-                                         [UPDATE {{SCOPE}}:]
-                                         │  input       │ Object        │ { zipcode: "94107" }
-                                         │  restaurants │ Array<Object> │ [{name:"Flour+W...}] (8)
-                                         │  choice      │ Object        │ { pick: "Flour + Water" }
-                                         [APPEND messages:]
-                                         │  { role: 'assistant', content: '<code since last pause>' }
-                                         │  { role: 'user', content: '← stop { choice: { "pick": "Flour + Water" } }' }
-                                         [RESUME]
-
-// User picked Flour + Water             [noop]
-const chosen = restaurants.find(         [execute]
-  r => r.name === choice.pick
+const url = await publishToKB(           [execute]
+  report.text,
+  "ai-framework-comparison"
 )
 
+completeTask("research", "publish",      [execute completeTask()]
+  { url })                               [status: publish → completed]
+                                         [all tasks completed]
+
 display(                                 [accumulate...]
-  <RestaurantCard
-    restaurant={chosen}
-    showBooking={true}
+  <ReportCard
+    title="AI Framework Comparison"
+    url={url}
+    wordCount={report.wordCount}
+    frameworks={comparison.rankings
+      .map(r => r.name)}
   />
 )                                        [execute display() → render]
 
 // Done!                                 [LLM stop token → session complete]
 ```
 
+### Alternate path: condition not met
+
+If `write_report.words` had been `80` (below the threshold of `100`), the host would have auto-skipped `publish`:
+
+```
+completeTask("research",                 [execute completeTask()]
+  "write_report", {                      [status: write_report → completed]
+  report: report.text,                   [evaluate condition:
+  words: 80                                  write_report.words (80) > 100 → false]
+})                                       [status: publish → skipped (condition falsy)]
+                                         [all tasks completed — publish was optional]
+```
+
 ### Final message log
 
 ```
-[system]     <system prompt with {{SCOPE}} showing input, restaurants, choice, chosen>
-[user]       Find me Italian restaurants nearby and help me pick one.
-[assistant]  // Let's find...\nconst input = await ask(...)\nawait stop(input)
-[user]       ← stop { input: { "zipcode": "94107" } }
-[assistant]  // User wants zipcode 94107\nconst restaurants = await search(...)\nawait stop(restaurants.length)
-[user]       ← stop { "restaurants.length": 8 }
-[assistant]  // Found 8...\ndisplay(...)\nconst choice = await ask(...)\nawait stop(choice)
-[user]       ← stop { choice: { "pick": "Flour + Water" } }
-[assistant]  // User picked...\nconst chosen = ...\ndisplay(...)\n// Done!
+[system]     <system prompt with {{SCOPE}} showing comparison, report, url;
+              {{TASKS}}: research — all 5 tasks completed>
+[user]       Research AI frameworks and build a comparison report.
+[assistant]  // Plan the research pipeline\ntasklist("research", ...)\n
+             completeTaskAsync("research", "fetch_sources", ...)\n
+             completeTaskAsync("research", "fetch_benchmarks", ...)\n
+             await sleep(5)\nawait stop()
+[user]       ← stop {}
+
+             {{TASKS}}
+             ## Tasklist: research
+             AI framework comparison report
+
+             - [x] fetch_sources ✓
+               output: { frameworks: [{name:"PyTorch",...}, ...] (4) }
+             - [x] fetch_benchmarks ✓
+               output: { benchmarks: [{suite:"MLPerf",...}, ...] (3) }
+             - [ ] analyze (ready)
+               depends on: fetch_sources, fetch_benchmarks
+             - [ ] write_report (pending)
+               depends on: analyze
+             - [ ] publish (pending, optional)
+               depends on: write_report
+               condition: write_report.words > 100
+[assistant]  // Both fetches complete...\nconst comparison = ...\n
+             completeTask("research", "analyze", ...)\n
+             const report = ...\ncompleteTask("research", "write_report", ...)\n
+             completeTask("research", "publish", ...)\n
+             display(...)\n// Done!
 ```
 
-Note how the `ask` calls do **not** produce turn boundaries — the agent's assistant turn continues unbroken through `ask` into the subsequent `stop`. The only `[user]` messages are `← stop` injections. This keeps `stop` as the single, uniform mechanism for the agent to read any value.
+Note how `completeTaskAsync` runs tasks concurrently without creating turn boundaries. The agent calls `sleep` to wait, then `stop()` to read results — only `stop` creates the turn boundary and injects the `{{TASKS}}` block. The DAG dependency graph ensures `analyze` cannot become ready until both `fetch_sources` and `fetch_benchmarks` complete, and `publish` is conditionally evaluated only after `write_report` finishes.

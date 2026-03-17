@@ -2,7 +2,7 @@
 
 ## Overview
 
-Seven globals are injected into the REPL sandbox: `stop`, `display`, `ask`, `async`, `tasklist`, `completeTask`, and `loadKnowledge`. These are the agent's only control-flow primitives beyond raw TypeScript.
+Twelve globals are injected into the REPL sandbox: `stop`, `display`, `ask`, `async`, `tasklist`, `completeTask`, `completeTaskAsync`, `taskProgress`, `failTask`, `retryTask`, `sleep`, and `loadKnowledge`. These are the agent's only control-flow primitives beyond raw TypeScript.
 
 **Full specification:** [docs/host-runtime-contract/globals-implementation.md](../../docs/host-runtime-contract/globals-implementation.md)
 
@@ -89,8 +89,11 @@ Synchronous — registers a tasklist with the host under a unique `tasklistId` a
 1. Can be called **multiple times** per session with different `tasklistId` values — throws if same `tasklistId` is reused
 2. Validates plan structure: requires `tasklistId`, `description`, non-empty `tasks` array
 3. Each task must have unique `id`, `instructions`, and `outputSchema`
-4. Stores each tasklist as a `TasklistState` in `TasklistsState.tasklists` map — tracks `plan`, `completed` map, and `currentIndex`
-5. Renders persistent progress indicator (stepper/checklist) per tasklist via render surface
+4. Tasks support **DAG dependencies** via an optional `dependsOn` array of task IDs within the same tasklist. Tasks with no `dependsOn` are immediately ready. Circular dependencies are detected and throw at declaration time. **Backward compatibility:** when no task declares `dependsOn`, the host synthesizes implicit sequential dependencies (task N depends on task N-1). Behavior is identical to the old sequential system.
+5. Tasks support an optional `condition` field (a predicate string evaluated at readiness time) and an `optional` boolean (defaults to `false`) — optional tasks can be skipped without blocking dependents
+6. Stores each tasklist as a `TasklistState` in `TasklistsState.tasklists` map — tracks `plan`, `completed` (Map<string, TaskCompletion>), `readyTasks`, `runningTasks`, and `outputs`. There is no explicit `failedTasks` or `blockedTasks` set — failed tasks are stored in the `completed` map with `status: 'failed'`, and tasks not in `completed`, `readyTasks`, or `runningTasks` are implicitly blocked.
+7. Computes initial `readyTasks` (tasks with no `dependsOn`) at declaration time
+8. Renders persistent progress indicator (stepper/checklist) per tasklist via render surface
 
 ## `completeTask(tasklistId, taskId, output)` — Mark Task Complete
 
@@ -99,18 +102,90 @@ Synchronous — marks a task as done and validates output against the declared s
 ### Key implementation details:
 1. Throws if `tasklistId` is not found in `TasklistsState.tasklists` — tasklist must be declared first
 2. Validates `taskId` exists in the tasklist's plan and hasn't already been completed
-3. Enforces **sequential ordering** within each tasklist — tasks must be completed in declaration order
+3. Task must be in the tasklist's `readyTasks` set — DAG dependencies must be satisfied before completion
 4. Validates output keys and types against the task's `outputSchema`
 5. Records completion with output and timestamp
-6. Updates persistent progress UI for the tasklist
+6. Recomputes `readyTasks` — any tasks whose `dependsOn` are now fully satisfied are added to `readyTasks` (tasks not in any set are implicitly blocked)
+7. Updates persistent progress UI for the tasklist
 
 ### Incomplete Task Reminder
 When LLM emits stop token with incomplete tasks in any tasklist:
-1. Find the first tasklist with remaining tasks
-2. Build list of remaining task IDs
-3. Inject `⚠ [system] Tasklist "<tasklistId>" incomplete. Remaining: <ids>. Continue from where you left off.`
-4. Resume LLM generation
-5. Limit reminder cycles to `maxTasklistReminders` (default: 3) to prevent infinite loops
+1. Wait for any `runningTasks` (async completions) to finish or timeout before nudging
+2. Find all tasklists with remaining tasks
+3. For each incomplete tasklist, build a status summary including ready, blocked, and failed tasks
+4. Inject reminder as a single status line followed by the `{{TASKS}}` block:
+   ```
+   ⚠ [system] Tasklist "<tasklistId>" incomplete. Ready: X. Blocked: Y. Failed: Z. Continue with a ready task.
+
+   {{TASKS}}
+   ┌ <tasklistId> ──────────────────────────────────────────┐
+   │ ✓ task_a       → { ... }                               │
+   │ ✗ task_b       (failed — <error>)                      │
+   │ ◎ task_c       (ready — dependsOn satisfied)           │
+   │ ○ task_d       (blocked — waiting on: task_c)          │
+   └────────────────────────────────────────────────────────┘
+   ```
+5. Resume LLM generation
+6. Limit reminder cycles to `maxTasklistReminders` (default: 3) to prevent infinite loops
+
+## `completeTaskAsync(tasklistId, taskId, fn)` — Async Task Completion
+
+Launches task work in the background via AsyncManager. Non-blocking — returns immediately after spawning.
+
+### Key implementation details:
+1. Task must be in the tasklist's `readyTasks` set — throws if not found or `dependsOn` not satisfied
+2. Moves task from `readyTasks` to `runningTasks`
+3. Spawns `fn` via AsyncManager with an AbortController and `taskAsyncTimeout` (default: 60,000ms)
+4. On `fn` return: validates output against the task's `outputSchema`, records completion with output and timestamp, recomputes `readyTasks`
+5. On `fn` error: records task as failed with the error message
+6. Results are delivered via the next `stop()` call with `task:<taskId>` keys in the payload
+7. If `stop()` is called before the async task finishes, its slot shows `"running"`
+8. Updates persistent progress UI as task transitions through states
+
+## `taskProgress(tasklistId, taskId, message, percent?)` — Report Task Progress
+
+Synchronous — reports progress on an active task. Does NOT block execution.
+
+### Key implementation details:
+1. Validates that `tasklistId` exists and `taskId` is in the `readyTasks` or `runningTasks` set — throws otherwise
+2. `message` is a short human-readable string describing current progress
+3. `percent` is an optional number (0-100) for determinate progress display
+4. Updates the persistent progress UI for the task (progress bar or status text)
+5. Does NOT inject any user message or affect the LLM conversation
+
+## `failTask(tasklistId, taskId, error)` — Mark Task Failed
+
+Synchronous — marks a task as permanently failed. Does NOT block execution.
+
+### Key implementation details:
+1. Validates that `tasklistId` exists and `taskId` is in the `readyTasks` or `runningTasks` set — throws otherwise
+2. Removes task from `readyTasks`/`runningTasks`
+3. Records task in `completed` map with `status: 'failed'`, the error message, and timestamp
+4. If the task is marked `optional: true`: dependents are unblocked (treated as if completed, but with no output)
+5. If the task is NOT optional: dependents remain implicitly blocked — they cannot proceed
+6. Updates persistent progress UI to show failed state
+
+## `retryTask(tasklistId, taskId)` — Retry Failed Task
+
+Synchronous — resets a failed task back to ready state. Does NOT block execution.
+
+### Key implementation details:
+1. Only works on tasks in the `completed` map with `status: 'failed'` — throws if task is not failed
+2. Each task tracks a retry count; throws if `maxTaskRetries` (default: 3) has been reached
+3. Increments the task's retry count
+4. Removes the failure record from `completed` and adds task back to `readyTasks`
+5. Updates persistent progress UI to show ready state
+
+## `sleep(seconds)` — Pause Sandbox Execution
+
+Pauses sandbox execution for the specified duration. Does NOT pause the LLM stream or inject a user message.
+
+### Key implementation details:
+1. Duration is capped at `sleepMaxSeconds` (default: 30) — values above the cap are silently clamped
+2. Returns a Promise that resolves after the delay — agent must `await` it
+3. Async tasks continue running during sleep — this is the primary use case (wait for background work)
+4. Does NOT create a turn boundary — no user message is injected
+5. The agent must call `stop()` after sleeping to read async task results into context
 
 ## `loadKnowledge(selector)` — Load Knowledge Files
 

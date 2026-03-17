@@ -306,7 +306,7 @@ export class Session extends EventEmitter {
         elapsed: Date.now() - t.startTime,
       })),
       activeFormId: this.activeFormId,
-      checkpointState: this.globalsApi.getTasklistsState(),
+      tasklistsState: this.globalsApi.getTasklistsState(),
     }
   }
 

@@ -212,17 +212,17 @@ describe('session/types', () => {
     expect(reminderEvent.type).toBe('tasklist_reminder')
   })
 
-  it('SessionSnapshot includes checkpointState', () => {
+  it('SessionSnapshot includes tasklistsState', () => {
     const snap: SessionSnapshot = {
       status: 'executing',
       blocks: [],
       scope: [],
       asyncTasks: [],
       activeFormId: null,
-      checkpointState: { tasklists: new Map() },
+      tasklistsState: { tasklists: new Map() },
     }
-    expect(snap.checkpointState).toBeDefined()
-    expect(snap.checkpointState.tasklists.size).toBe(0)
+    expect(snap.tasklistsState).toBeDefined()
+    expect(snap.tasklistsState.tasklists.size).toBe(0)
   })
 
   it('callback interfaces can be implemented', () => {

@@ -54,8 +54,8 @@ describe('session/session', () => {
     expect(snap.scope).toEqual([])
     expect(snap.asyncTasks).toEqual([])
     expect(snap.activeFormId).toBeNull()
-    expect(snap.checkpointState).toBeDefined()
-    expect(snap.checkpointState.tasklists.size).toBe(0)
+    expect(snap.tasklistsState).toBeDefined()
+    expect(snap.tasklistsState.tasklists.size).toBe(0)
     session.destroy()
   })
 

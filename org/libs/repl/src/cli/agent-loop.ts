@@ -518,7 +518,7 @@ export class AgentLoop {
     }
 
     // Print tasklist summary
-    const cpState = this.session.snapshot().checkpointState;
+    const cpState = this.session.snapshot().tasklistsState;
     if (cpState.tasklists.size > 0) {
       console.log(`\n\x1b[36m━━━ Tasklists ━━━\x1b[0m`);
       for (const [tasklistId, tasklist] of cpState.tasklists) {
@@ -617,10 +617,10 @@ export class AgentLoop {
       status: snapshot.status,
       tokenTotals: this.tokenTotals,
       scope: snapshot.scope,
-      checkpointState:
-        snapshot.checkpointState.tasklists.size > 0
+      tasklistsState:
+        snapshot.tasklistsState.tasklists.size > 0
           ? Object.fromEntries(
-              [...snapshot.checkpointState.tasklists].map(([id, tl]) => [
+              [...snapshot.tasklistsState.tasklists].map(([id, tl]) => [
                 id,
                 {
                   description: tl.plan.description,

@@ -182,5 +182,5 @@ export interface SessionSnapshot {
   scope: ScopeEntry[]
   asyncTasks: Array<{ id: string; label: string; status: string; elapsed: number }>
   activeFormId: string | null
-  checkpointState: TasklistsState
+  tasklistsState: TasklistsState
 }

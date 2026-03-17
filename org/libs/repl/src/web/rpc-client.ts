@@ -132,7 +132,7 @@ const EMPTY_SNAPSHOT: SessionSnapshot = {
   scope: [],
   asyncTasks: [],
   activeFormId: null,
-  checkpointState: { tasklists: new Map() },
+  tasklistsState: { tasklists: new Map() },
 }
 
 // ── Hook ──

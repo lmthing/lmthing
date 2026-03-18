@@ -288,6 +288,8 @@ export class AgentLoop {
 
   private async runTurnLoop(): Promise<void> {
     let turn = 0;
+    let proseNudges = 0;
+    const maxProseNudges = 2;
 
     while (turn < this.maxTurns) {
       turn++;
@@ -443,7 +445,32 @@ export class AgentLoop {
       }
 
       // Step 2: Clean model output
+      const rawCode = code;
       code = cleanCode(code);
+
+      // Step 2b: Detect prose-only output (agent forgot it's a REPL)
+      const hasExecutableCode = code.split("\n").some((l) => {
+        const t = l.trim();
+        return t && !t.startsWith("//");
+      });
+      if (!hasExecutableCode) {
+        proseNudges++;
+        if (proseNudges > maxProseNudges) {
+          console.log(`\x1b[31m  [abort]\x1b[0m agent wrote prose ${proseNudges} times — giving up`);
+          this.messages.push({ role: "assistant", content: rawCode });
+          break;
+        }
+        const nudge =
+          "⚠ [system] You are a code-execution agent in a live TypeScript REPL. " +
+          "Do NOT write prose or natural language. Output ONLY valid TypeScript code. " +
+          "Every character you emit is executed. Re-read the system prompt and try again.";
+        console.log(`\x1b[33m  [nudge]\x1b[0m prose detected — reminding agent to write TypeScript`);
+        this.messages.push({ role: "assistant", content: rawCode });
+        this.messages.push({ role: "user", content: nudge });
+        this.logDebug("message", { role: "assistant", content: rawCode });
+        this.logDebug("message", { role: "user", content: nudge });
+        continue;
+      }
 
       // Step 3: Feed cleaned code to session line by line
       const lines = code.split("\n");

@@ -131,8 +131,9 @@ var docs = loadKnowledge({
 // docs["my-space"]["chat-modes"]["mode"]["casual"] → "# Casual Mode\\n\\nRelaxed, conversational..."
 
 Use the Knowledge Tree below to see what spaces and files are available. Load only the specific files relevant to the current task — NEVER load an entire domain or space at once. Select individual options that match the user's request.
-
-### loadClass(className) — Load a class's methods
+${
+  classSigs
+    ? `### loadClass(className) — Load a class's methods
 Non-blocking. Loads all methods of a class, making them callable as ClassName.methodName().
 Before calling loadClass, you can only see the class name and description in "Available Classes".
 You can load multiple classes in one turn. Call stop() afterwards to see the expanded methods.
@@ -149,6 +150,9 @@ await stop()
 var parsed = DataProcessor.parse(rawData)
 var title = TextUtils.titleCase(parsed.name)
 
+`
+    : ""
+}
 ## Workspace — Current Scope
 ${scope || "(no variables declared)"}
 
@@ -161,6 +165,7 @@ ${classSigs || "(none)"}
 ## Form Components — use ONLY inside ask()
 Render these inside \`var data = await ask(<Component />)\`. Always follow with \`await stop(data)\` to read the values.
 Each input must have a \`name\` attribute — the returned object maps name → submitted value.
+Prefer to use MultiSelect, Select for better user experience.
 Do NOT add a \`<form>\` tag — the host wraps automatically with Submit/Cancel buttons.
 ${formSigs || "(none)"}
 

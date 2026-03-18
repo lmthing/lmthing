@@ -8,6 +8,11 @@
     },
     "technique": true
   },
+  "components": [
+    "MealPlanCard",
+    "RecipeCard",
+    "catalog/component/form/*"
+  ],
   "functions": [
     "buildGroceryList",
     "scaleIngredients",

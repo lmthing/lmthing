@@ -53,14 +53,19 @@ describe('context/message-builder', () => {
   })
 
   describe('buildTasklistReminderMessage', () => {
-    it('formats tasklist reminder with tasklist id and remaining ids', () => {
-      const msg = buildTasklistReminderMessage('find_restaurants', ['search', 'present'])
-      expect(msg).toBe('⚠ [system] Tasklist "find_restaurants" incomplete. Remaining: search, present. Continue from where you left off.')
+    it('formats tasklist reminder with ready, blocked, and failed', () => {
+      const msg = buildTasklistReminderMessage('find_restaurants', ['search'], ['present (waiting on search)'], [])
+      expect(msg).toBe('⚠ [system] Tasklist "find_restaurants" incomplete. Ready: search. Blocked: present (waiting on search). Continue with a ready task.')
     })
 
-    it('formats single remaining task', () => {
-      const msg = buildTasklistReminderMessage('main', ['final'])
-      expect(msg).toBe('⚠ [system] Tasklist "main" incomplete. Remaining: final. Continue from where you left off.')
+    it('formats with failed tasks', () => {
+      const msg = buildTasklistReminderMessage('main', ['retry_step'], [], ['failed_step'])
+      expect(msg).toBe('⚠ [system] Tasklist "main" incomplete. Ready: retry_step. Failed: failed_step. Continue with a ready task.')
+    })
+
+    it('formats with only ready tasks', () => {
+      const msg = buildTasklistReminderMessage('main', ['final'], [], [])
+      expect(msg).toBe('⚠ [system] Tasklist "main" incomplete. Ready: final. Continue with a ready task.')
     })
   })
 })

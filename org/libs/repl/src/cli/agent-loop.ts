@@ -206,6 +206,15 @@ export class AgentLoop {
         case "task_complete":
           console.log(`\x1b[32m  [completeTask]\x1b[0m \u2713 ${event.tasklistId}/${event.id}`);
           break;
+        case "task_failed":
+          console.log(`\x1b[31m  [failTask]\x1b[0m ✗ ${event.tasklistId}/${event.id}: ${event.error}`);
+          break;
+        case "task_skipped":
+          console.log(`\x1b[90m  [skipped]\x1b[0m ⊘ ${event.tasklistId}/${event.id}: ${event.reason}`);
+          break;
+        case "task_progress":
+          console.log(`\x1b[36m  [progress]\x1b[0m ${event.tasklistId}/${event.id}: ${event.message}`);
+          break;
         case "display":
           console.log(`\x1b[35m  [display]\x1b[0m component rendered`);
           break;
@@ -331,9 +340,30 @@ export class AgentLoop {
           case "task_complete":
             console.log(`\x1b[32m  [completeTask]\x1b[0m ✓ ${event.tasklistId}/${event.id}`);
             break;
+          case "task_failed":
+            console.log(`\x1b[31m  [failTask]\x1b[0m ✗ ${event.tasklistId}/${event.id}: ${event.error}`);
+            break;
+          case "task_retried":
+            console.log(`\x1b[33m  [retryTask]\x1b[0m ↻ ${event.tasklistId}/${event.id}`);
+            break;
+          case "task_skipped":
+            console.log(`\x1b[90m  [skipped]\x1b[0m ⊘ ${event.tasklistId}/${event.id}: ${event.reason}`);
+            break;
+          case "task_progress":
+            console.log(`\x1b[36m  [progress]\x1b[0m ${event.tasklistId}/${event.id}: ${event.message}${event.percent != null ? ` (${event.percent}%)` : ''}`);
+            break;
+          case "task_async_start":
+            console.log(`\x1b[34m  [taskAsync]\x1b[0m started: ${event.tasklistId}/${event.id}`);
+            break;
+          case "task_async_complete":
+            console.log(`\x1b[32m  [taskAsync]\x1b[0m completed: ${event.tasklistId}/${event.id}`);
+            break;
+          case "task_async_failed":
+            console.log(`\x1b[31m  [taskAsync]\x1b[0m failed: ${event.tasklistId}/${event.id}: ${event.error}`);
+            break;
           case "tasklist_reminder":
             console.log(
-              `\x1b[33m  [system]\x1b[0m tasklist "${event.tasklistId}" reminder — remaining: ${event.remaining.join(", ")}`,
+              `\x1b[33m  [system]\x1b[0m tasklist "${event.tasklistId}" reminder — ready: ${event.ready.join(", ")}${event.failed.length > 0 ? `, failed: ${event.failed.join(", ")}` : ''}`,
             );
             break;
           case "knowledge_loaded":
@@ -523,16 +553,26 @@ export class AgentLoop {
       console.log(`\n\x1b[36m━━━ Tasklists ━━━\x1b[0m`);
       for (const [tasklistId, tasklist] of cpState.tasklists) {
         const total = tasklist.plan.tasks.length;
-        const done = tasklist.completed.size;
+        const done = [...tasklist.completed.values()].filter(c => c.status === 'completed').length;
+        const failed = [...tasklist.completed.values()].filter(c => c.status === 'failed').length;
+        const skipped = [...tasklist.completed.values()].filter(c => c.status === 'skipped').length;
         console.log(
-          `\x1b[36m[${tasklistId}]\x1b[0m ${tasklist.plan.description} — ${done}/${total} complete`,
+          `\x1b[36m[${tasklistId}]\x1b[0m ${tasklist.plan.description} — ${done}/${total} complete${failed ? `, ${failed} failed` : ''}${skipped ? `, ${skipped} skipped` : ''}`,
         );
         for (const task of tasklist.plan.tasks) {
           const completion = tasklist.completed.get(task.id);
-          if (completion) {
+          if (completion?.status === 'completed') {
             console.log(`  \x1b[32m✓\x1b[0m ${task.id}: ${JSON.stringify(completion.output)}`);
+          } else if (completion?.status === 'failed') {
+            console.log(`  \x1b[31m✗\x1b[0m ${task.id}: failed — ${completion.error}`);
+          } else if (completion?.status === 'skipped') {
+            console.log(`  \x1b[90m⊘\x1b[0m ${task.id}: skipped`);
+          } else if (tasklist.runningTasks.has(task.id)) {
+            console.log(`  \x1b[34m◉\x1b[0m ${task.id}: running`);
+          } else if (tasklist.readyTasks.has(task.id)) {
+            console.log(`  \x1b[33m◎\x1b[0m ${task.id}: ready`);
           } else {
-            console.log(`  \x1b[31m✗\x1b[0m ${task.id}: incomplete`);
+            console.log(`  \x1b[90m○\x1b[0m ${task.id}: pending`);
           }
         }
       }
@@ -626,7 +666,8 @@ export class AgentLoop {
                   description: tl.plan.description,
                   tasks: tl.plan.tasks,
                   completed: Object.fromEntries(tl.completed),
-                  currentIndex: tl.currentIndex,
+                  readyTasks: [...tl.readyTasks],
+                  runningTasks: [...tl.runningTasks],
                 },
               ]),
             )

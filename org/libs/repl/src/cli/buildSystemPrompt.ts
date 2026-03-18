@@ -58,26 +58,57 @@ IMPORTANT:
 - After stop(), you resume in a new turn with the form data visible.
 
 ### tasklist(tasklistId, description, tasks) — Declare a task plan with milestones
-Before starting any implementation work, declare a plan using tasklist(). This registers milestones with the host under a unique tasklistId. Each task has an id, instructions, and outputSchema describing the result shape.
+Before starting any implementation work, declare a plan using tasklist(). This registers milestones with the host under a unique tasklistId. Each task has an id, instructions, and outputSchema describing the result shape. Tasks can optionally declare dependsOn (array of task IDs) for DAG dependencies, condition (JS expression for conditional execution), and optional (boolean, if true failure doesn't block dependents).
+
+When no task has dependsOn, the tasklist behaves sequentially (backward compatible).
 
 You can call tasklist() multiple times per session with different tasklist IDs. It does not block execution.
 
 Example:
 tasklist("analyze_data", "Analyze employee data", [
   { id: "load", instructions: "Load the dataset", outputSchema: { count: { type: "number" } } },
-  { id: "analyze", instructions: "Compute statistics", outputSchema: { done: { type: "boolean" } } },
-  { id: "report", instructions: "Present results", outputSchema: { done: { type: "boolean" } } }
+  { id: "analyze", instructions: "Compute statistics", outputSchema: { done: { type: "boolean" } }, dependsOn: ["load"] },
+  { id: "report", instructions: "Present results", outputSchema: { done: { type: "boolean" } }, dependsOn: ["analyze"] }
 ])
 
 ### completeTask(tasklistId, taskId, output) — Mark a milestone as complete
-When you reach a milestone, call completeTask() with the tasklist ID, task ID, and an output object matching the declared outputSchema. Non-blocking. Must be called in declaration order within each tasklist — do not skip tasks.
+When you reach a milestone, call completeTask() with the tasklist ID, task ID, and an output object matching the declared outputSchema. Non-blocking. Task must be in the readyTasks set (all dependencies satisfied).
 
 Example:
 completeTask("analyze_data", "load", { count: 10 })
 
-If your stream ends before all tasks are complete, the host will send you a reminder:
-  ⚠ [system] Tasklist "analyze_data" incomplete. Remaining: analyze, report. Continue from where you left off.
-When you see this, continue from the next incomplete task. Do NOT re-declare tasklist() for the same tasklist or redo completed work.
+### completeTaskAsync(tasklistId, taskId, fn) — Complete a task in the background
+Launches task work as a background async function. The function's return value becomes the task output. Results are delivered via the next stop() call with task:<taskId> keys. Non-blocking.
+
+Example:
+completeTaskAsync("data", "fetch_api", async () => {
+  var res = await fetchFromAPI()
+  return { count: res.length }
+})
+// Continue other work, then call stop() to read results
+
+### taskProgress(tasklistId, taskId, message, percent?) — Report task progress
+Reports incremental progress within a running task. Non-blocking, synchronous.
+
+Example:
+taskProgress("data", "fetch_api", "Downloading...", 50)
+
+### failTask(tasklistId, taskId, error) — Mark a task as failed
+Marks a task as failed with an error message. If the task is optional, dependents are unblocked.
+
+### retryTask(tasklistId, taskId) — Retry a failed task
+Resets a failed task back to ready. Limited to 3 retries.
+
+### await sleep(seconds) — Pause execution
+Pauses sandbox execution (not the LLM stream). Async tasks continue during sleep. Use to wait for completeTaskAsync results, then call stop() to read them.
+
+Example:
+await sleep(5)
+await stop()
+
+If your stream ends before all non-optional tasks are complete, the host will send you a reminder:
+  ⚠ [system] Tasklist "analyze_data" incomplete. Ready: analyze. Blocked: report (waiting on analyze). Continue with a ready task.
+When you see this, continue with a ready task. Do NOT re-declare tasklist() for the same tasklist or redo completed work.
 
 ### loadKnowledge(selector) — Load knowledge files from spaces
 Loads markdown content from the knowledge base. Pass a selector object that mirrors the knowledge tree structure, setting \`true\` on the specific files you want to load.
@@ -144,7 +175,7 @@ ${viewSigs || "(none)"}`;
   prompt += `
 ## Rules
 1. Output ONLY valid TypeScript. No markdown. No prose outside // comments.
-2. Plan before you build — call tasklist(tasklistId, description, tasks) to declare milestones, then call completeTask(tasklistId, taskId, output) as you complete each one.
+2. Plan before you build — call tasklist(tasklistId, description, tasks) to declare milestones with optional dependsOn for DAG dependencies, then call completeTask(tasklistId, taskId, output) or completeTaskAsync(tasklistId, taskId, fn) as you complete each one.
 3. Await every async call: var x = await fn()
 4. Use stop() to read runtime values before branching.
 5. Do not use console.log — use stop() to inspect values.

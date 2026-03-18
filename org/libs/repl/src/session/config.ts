@@ -7,6 +7,10 @@ export interface SessionConfig {
   maxStopCalls: number
   maxAsyncTasks: number
   maxTasklistReminders: number
+  maxTaskRetries: number
+  maxTasksPerTasklist: number
+  taskAsyncTimeout: number
+  sleepMaxSeconds: number
   maxContextTokens: number
   serializationLimits: {
     maxStringLength: number
@@ -37,6 +41,10 @@ const DEFAULT_CONFIG: SessionConfig = {
   maxStopCalls: 50,
   maxAsyncTasks: 10,
   maxTasklistReminders: 3,
+  maxTaskRetries: 3,
+  maxTasksPerTasklist: 20,
+  taskAsyncTimeout: 60_000,
+  sleepMaxSeconds: 30,
   maxContextTokens: 100_000,
   serializationLimits: {
     maxStringLength: 2_000,
@@ -71,6 +79,10 @@ const sessionConfigSchema = z.object({
   maxStopCalls: z.number().int().positive().optional(),
   maxAsyncTasks: z.number().int().positive().optional(),
   maxTasklistReminders: z.number().int().positive().optional(),
+  maxTaskRetries: z.number().int().positive().optional(),
+  maxTasksPerTasklist: z.number().int().positive().optional(),
+  taskAsyncTimeout: z.number().int().positive().optional(),
+  sleepMaxSeconds: z.number().int().positive().optional(),
   maxContextTokens: z.number().int().positive().optional(),
   serializationLimits: z.object({
     maxStringLength: z.number().int().positive().optional(),
@@ -116,6 +128,10 @@ export function mergeConfig(overrides: PartialSessionConfig): SessionConfig {
     maxStopCalls: overrides.maxStopCalls ?? base.maxStopCalls,
     maxAsyncTasks: overrides.maxAsyncTasks ?? base.maxAsyncTasks,
     maxTasklistReminders: overrides.maxTasklistReminders ?? base.maxTasklistReminders,
+    maxTaskRetries: overrides.maxTaskRetries ?? base.maxTaskRetries,
+    maxTasksPerTasklist: overrides.maxTasksPerTasklist ?? base.maxTasksPerTasklist,
+    taskAsyncTimeout: overrides.taskAsyncTimeout ?? base.taskAsyncTimeout,
+    sleepMaxSeconds: overrides.sleepMaxSeconds ?? base.sleepMaxSeconds,
     maxContextTokens: overrides.maxContextTokens ?? base.maxContextTokens,
     serializationLimits: {
       maxStringLength: overrides.serializationLimits?.maxStringLength ?? base.serializationLimits.maxStringLength,

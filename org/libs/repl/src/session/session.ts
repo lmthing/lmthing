@@ -21,7 +21,7 @@ import { AsyncManager } from '../sandbox/async-manager'
 import { StreamController } from '../stream/stream-controller'
 import { HookRegistry } from '../hooks/hook-registry'
 import { generateScopeTable } from '../context/scope-generator'
-import { buildStopMessage, buildErrorMessage, buildInterventionMessage, buildTasklistReminderMessage } from '../context/message-builder'
+import { buildStopMessage, buildErrorMessage, buildInterventionMessage, buildTasklistReminderMessage, generateTasksBlock } from '../context/message-builder'
 
 export interface SessionOptions {
   config?: Partial<SessionConfig>
@@ -121,6 +121,30 @@ export class Session extends EventEmitter {
       onTaskComplete: (tasklistId, id, output) => {
         this.emitEvent({ type: 'task_complete', tasklistId, id, output })
       },
+      onTaskFailed: (tasklistId, id, error) => {
+        this.emitEvent({ type: 'task_failed', tasklistId, id, error })
+      },
+      onTaskRetried: (tasklistId, id) => {
+        this.emitEvent({ type: 'task_retried', tasklistId, id })
+      },
+      onTaskSkipped: (tasklistId, id, reason) => {
+        this.emitEvent({ type: 'task_skipped', tasklistId, id, reason })
+      },
+      onTaskProgress: (tasklistId, id, message, percent) => {
+        this.emitEvent({ type: 'task_progress', tasklistId, id, message, percent })
+      },
+      onTaskAsyncStart: (tasklistId, id) => {
+        this.emitEvent({ type: 'task_async_start', tasklistId, id })
+      },
+      onTaskAsyncComplete: (tasklistId, id, output) => {
+        this.emitEvent({ type: 'task_async_complete', tasklistId, id, output })
+      },
+      onTaskAsyncFailed: (tasklistId, id, error) => {
+        this.emitEvent({ type: 'task_async_failed', tasklistId, id, error })
+      },
+      maxTaskRetries: this.config.maxTaskRetries,
+      maxTasksPerTasklist: this.config.maxTasksPerTasklist,
+      sleepMaxSeconds: this.config.sleepMaxSeconds,
       onLoadKnowledge: options.knowledgeLoader
         ? (selector) => {
             const content = options.knowledgeLoader!(selector)
@@ -147,6 +171,11 @@ export class Session extends EventEmitter {
     this.sandbox.inject('async', this.globalsApi.async)
     this.sandbox.inject('tasklist', this.globalsApi.tasklist)
     this.sandbox.inject('completeTask', this.globalsApi.completeTask)
+    this.sandbox.inject('completeTaskAsync', this.globalsApi.completeTaskAsync)
+    this.sandbox.inject('taskProgress', this.globalsApi.taskProgress)
+    this.sandbox.inject('failTask', this.globalsApi.failTask)
+    this.sandbox.inject('retryTask', this.globalsApi.retryTask)
+    this.sandbox.inject('sleep', this.globalsApi.sleep)
     this.sandbox.inject('loadKnowledge', this.globalsApi.loadKnowledge)
     this.sandbox.inject('loadClass', this.globalsApi.loadClass)
   }
@@ -158,7 +187,10 @@ export class Session extends EventEmitter {
 
   private handleStop(payload: StopPayload, source: string): void {
     this.stopCount++
-    const msg = buildStopMessage(payload)
+    const cpState = this.globalsApi.getTasklistsState()
+    const tasksBlock = generateTasksBlock(cpState)
+    const baseMsg = buildStopMessage(payload)
+    const msg = tasksBlock ? `${baseMsg}\n\n${tasksBlock}` : baseMsg
     this.messages.push({ role: 'assistant', content: this.codeLines.join('\n') })
     this.messages.push({ role: 'user', content: msg })
     this.emitEvent({
@@ -203,18 +235,53 @@ export class Session extends EventEmitter {
     // Check for incomplete tasks across all tasklists
     const cpState = this.globalsApi.getTasklistsState()
     for (const [tasklistId, tasklist] of cpState.tasklists) {
-      if (tasklist.currentIndex < tasklist.plan.tasks.length) {
-        if (this.tasklistReminderCount < this.config.maxTasklistReminders) {
-          this.tasklistReminderCount++
-          const remaining = tasklist.plan.tasks.slice(tasklist.currentIndex).map(t => t.id)
-          const msg = buildTasklistReminderMessage(tasklistId, remaining)
-          this.messages.push({ role: 'assistant', content: this.codeLines.join('\n') })
-          this.messages.push({ role: 'user', content: msg })
-          this.codeLines = []
-          this.emitEvent({ type: 'tasklist_reminder', tasklistId, remaining })
-          this.emitEvent({ type: 'scope', entries: this.sandbox.getScope() })
-          return 'tasklist_incomplete'
-        }
+      // Check if there are incomplete non-optional tasks
+      const hasRequiredIncomplete = tasklist.plan.tasks.some(t => {
+        const completion = tasklist.completed.get(t.id)
+        const isIncomplete = !completion || (completion.status !== 'completed' && completion.status !== 'skipped')
+        return isIncomplete && !t.optional
+      })
+      if (!hasRequiredIncomplete) continue
+
+      // Wait for running async tasks before nudging
+      if (tasklist.runningTasks.size > 0) {
+        await Promise.race([
+          Promise.allSettled(
+            [...tasklist.runningTasks].map(id =>
+              new Promise<void>(resolve => {
+                const check = () => {
+                  if (!tasklist.runningTasks.has(id)) { resolve(); return }
+                  setTimeout(check, 100)
+                }
+                check()
+              })
+            )
+          ),
+          new Promise(resolve => setTimeout(resolve, this.config.taskAsyncTimeout)),
+        ])
+      }
+
+      if (this.tasklistReminderCount < this.config.maxTasklistReminders) {
+        this.tasklistReminderCount++
+
+        const ready = [...tasklist.readyTasks]
+        const blocked = tasklist.plan.tasks
+          .filter(t => !tasklist.readyTasks.has(t.id) && !tasklist.completed.has(t.id) && !tasklist.runningTasks.has(t.id))
+          .map(t => `${t.id} (waiting on ${(t.dependsOn ?? []).join(', ')})`)
+        const failed = [...tasklist.completed.entries()]
+          .filter(([_, c]) => c.status === 'failed')
+          .map(([id]) => id)
+
+        const msg = buildTasklistReminderMessage(tasklistId, ready, blocked, failed)
+        const tasksBlock = generateTasksBlock(cpState)
+        const fullMsg = tasksBlock ? `${msg}\n\n${tasksBlock}` : msg
+
+        this.messages.push({ role: 'assistant', content: this.codeLines.join('\n') })
+        this.messages.push({ role: 'user', content: fullMsg })
+        this.codeLines = []
+        this.emitEvent({ type: 'tasklist_reminder', tasklistId, ready, blocked: blocked.map(b => b.split(' ')[0]), failed })
+        this.emitEvent({ type: 'scope', entries: this.sandbox.getScope() })
+        return 'tasklist_incomplete'
       }
     }
 
@@ -335,6 +402,11 @@ export class Session extends EventEmitter {
       async: this.globalsApi.async,
       tasklist: this.globalsApi.tasklist,
       completeTask: this.globalsApi.completeTask,
+      completeTaskAsync: this.globalsApi.completeTaskAsync,
+      taskProgress: this.globalsApi.taskProgress,
+      failTask: this.globalsApi.failTask,
+      retryTask: this.globalsApi.retryTask,
+      sleep: this.globalsApi.sleep,
       loadKnowledge: this.globalsApi.loadKnowledge,
       loadClass: this.globalsApi.loadClass,
     }

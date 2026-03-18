@@ -299,12 +299,12 @@ describe('sandbox/globals', () => {
       expect(() => globals.completeTask('tl1', 'step1', { result: 'again' })).toThrow('already completed')
     })
 
-    it('enforces sequential ordering', () => {
+    it('enforces dependency ordering (sequential backward compat)', () => {
       const config = createMockConfig()
       const globals = createGlobals(config)
 
       globals.tasklist('tl1', 'Test task', validTasks)
-      expect(() => globals.completeTask('tl1', 'step2', { count: 5 })).toThrow('out of order. Expected: "step1"')
+      expect(() => globals.completeTask('tl1', 'step2', { count: 5 })).toThrow('is not ready. Waiting on: step1')
     })
 
     it('validates output against schema — missing key', () => {
@@ -357,7 +357,7 @@ describe('sandbox/globals', () => {
 
       const tl = globals.getTasklistsState().tasklists.get('tl1')!
       expect(tl.completed.size).toBe(2)
-      expect(tl.currentIndex).toBe(2)
+      expect(tl.readyTasks.size).toBe(0)
     })
 
     it('works across multiple tasklists', () => {
@@ -396,6 +396,323 @@ describe('sandbox/globals', () => {
       globals.tasklist('tl1', 'Test task', validTasks)
       globals.completeTask('tl1', 'step1', { result: 'done' })
       expect(config.renderSurface.updateTasklistProgress).toHaveBeenCalledWith('tl1', expect.any(Object))
+    })
+  })
+
+  describe('DAG tasklists', () => {
+    const dagTasks = [
+      { id: 'fetch_a', instructions: 'Fetch A', outputSchema: { data: { type: 'string' } } },
+      { id: 'fetch_b', instructions: 'Fetch B', outputSchema: { data: { type: 'string' } } },
+      { id: 'merge', instructions: 'Merge', outputSchema: { result: { type: 'string' } }, dependsOn: ['fetch_a', 'fetch_b'] },
+    ]
+
+    it('computes initial readyTasks for tasks with no deps', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.tasklist('dag1', 'DAG test', dagTasks)
+      const tl = globals.getTasklistsState().tasklists.get('dag1')!
+      expect(tl.readyTasks.has('fetch_a')).toBe(true)
+      expect(tl.readyTasks.has('fetch_b')).toBe(true)
+      expect(tl.readyTasks.has('merge')).toBe(false)
+    })
+
+    it('allows completing tasks in any valid DAG order', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.tasklist('dag1', 'DAG test', dagTasks)
+
+      // Complete fetch_b first (before fetch_a) — valid because no dependency between them
+      globals.completeTask('dag1', 'fetch_b', { data: 'B' })
+      globals.completeTask('dag1', 'fetch_a', { data: 'A' })
+
+      // Now merge should be ready
+      const tl = globals.getTasklistsState().tasklists.get('dag1')!
+      expect(tl.readyTasks.has('merge')).toBe(true)
+
+      globals.completeTask('dag1', 'merge', { result: 'merged' })
+      expect(tl.completed.size).toBe(3)
+    })
+
+    it('rejects completing a blocked task', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.tasklist('dag1', 'DAG test', dagTasks)
+      expect(() => globals.completeTask('dag1', 'merge', { result: 'x' })).toThrow('is not ready')
+    })
+
+    it('detects cycles', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      expect(() => globals.tasklist('cycle', 'Cycle test', [
+        { id: 'a', instructions: 'A', outputSchema: { x: { type: 'string' } }, dependsOn: ['b'] },
+        { id: 'b', instructions: 'B', outputSchema: { x: { type: 'string' } }, dependsOn: ['a'] },
+      ])).toThrow('Cycle detected')
+    })
+
+    it('validates dependsOn references exist', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      expect(() => globals.tasklist('bad', 'Bad deps', [
+        { id: 'a', instructions: 'A', outputSchema: { x: { type: 'string' } }, dependsOn: ['nonexistent'] },
+      ])).toThrow('depends on unknown task "nonexistent"')
+    })
+
+    it('synthesizes sequential deps when no dependsOn present', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.tasklist('seq', 'Sequential', [
+        { id: 'a', instructions: 'A', outputSchema: { x: { type: 'string' } } },
+        { id: 'b', instructions: 'B', outputSchema: { y: { type: 'number' } } },
+      ])
+
+      const tl = globals.getTasklistsState().tasklists.get('seq')!
+      // Only 'a' should be ready (b depends on a)
+      expect(tl.readyTasks.has('a')).toBe(true)
+      expect(tl.readyTasks.has('b')).toBe(false)
+    })
+  })
+
+  describe('conditional tasks', () => {
+    it('auto-skips tasks with falsy conditions', () => {
+      const config = createMockConfig()
+      let skippedId: string | undefined
+      const globals = createGlobals({
+        ...config,
+        onTaskSkipped: (_tl, id) => { skippedId = id },
+      })
+
+      globals.tasklist('cond', 'Conditional', [
+        { id: 'check', instructions: 'Check', outputSchema: { exists: { type: 'boolean' } } },
+        { id: 'create', instructions: 'Create', outputSchema: { url: { type: 'string' } },
+          dependsOn: ['check'], condition: '!check.exists' },
+      ])
+
+      globals.completeTask('cond', 'check', { exists: true })
+
+      // 'create' should be auto-skipped because !true === false
+      expect(skippedId).toBe('create')
+      const tl = globals.getTasklistsState().tasklists.get('cond')!
+      expect(tl.completed.get('create')?.status).toBe('skipped')
+    })
+
+    it('runs tasks with truthy conditions', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.tasklist('cond', 'Conditional', [
+        { id: 'check', instructions: 'Check', outputSchema: { count: { type: 'number' } } },
+        { id: 'process', instructions: 'Process', outputSchema: { done: { type: 'boolean' } },
+          dependsOn: ['check'], condition: 'check.count > 0' },
+      ])
+
+      globals.completeTask('cond', 'check', { count: 5 })
+
+      const tl = globals.getTasklistsState().tasklists.get('cond')!
+      expect(tl.readyTasks.has('process')).toBe(true)
+    })
+  })
+
+  describe('failTask', () => {
+    it('marks a task as failed', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.tasklist('tl', 'Test', [
+        { id: 'a', instructions: 'A', outputSchema: { x: { type: 'string' } } },
+      ])
+
+      globals.failTask('tl', 'a', 'network error')
+
+      const tl = globals.getTasklistsState().tasklists.get('tl')!
+      expect(tl.completed.get('a')?.status).toBe('failed')
+      expect(tl.completed.get('a')?.error).toBe('network error')
+    })
+
+    it('unblocks dependents when optional task fails', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.tasklist('tl', 'Test', [
+        { id: 'a', instructions: 'A', outputSchema: { x: { type: 'string' } }, optional: true },
+        { id: 'b', instructions: 'B', outputSchema: { y: { type: 'string' } }, dependsOn: ['a'] },
+      ])
+
+      globals.failTask('tl', 'a', 'optional failure')
+
+      const tl = globals.getTasklistsState().tasklists.get('tl')!
+      expect(tl.readyTasks.has('b')).toBe(true)
+    })
+
+    it('blocks dependents when non-optional task fails', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.tasklist('tl', 'Test', [
+        { id: 'a', instructions: 'A', outputSchema: { x: { type: 'string' } } },
+        { id: 'b', instructions: 'B', outputSchema: { y: { type: 'string' } }, dependsOn: ['a'] },
+      ])
+
+      globals.failTask('tl', 'a', 'required failure')
+
+      const tl = globals.getTasklistsState().tasklists.get('tl')!
+      expect(tl.readyTasks.has('b')).toBe(false)
+    })
+  })
+
+  describe('retryTask', () => {
+    it('resets a failed task to ready', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.tasklist('tl', 'Test', [
+        { id: 'a', instructions: 'A', outputSchema: { x: { type: 'string' } } },
+      ])
+
+      globals.failTask('tl', 'a', 'error')
+      globals.retryTask('tl', 'a')
+
+      const tl = globals.getTasklistsState().tasklists.get('tl')!
+      expect(tl.readyTasks.has('a')).toBe(true)
+      expect(tl.completed.has('a')).toBe(false)
+    })
+
+    it('throws when max retries exceeded', () => {
+      const config = createMockConfig()
+      const globals = createGlobals({ ...config, maxTaskRetries: 1 })
+
+      globals.tasklist('tl', 'Test', [
+        { id: 'a', instructions: 'A', outputSchema: { x: { type: 'string' } } },
+      ])
+
+      globals.failTask('tl', 'a', 'error')
+      globals.retryTask('tl', 'a')
+      globals.failTask('tl', 'a', 'error again')
+      expect(() => globals.retryTask('tl', 'a')).toThrow('exceeded maximum retries')
+    })
+
+    it('throws on non-failed task', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.tasklist('tl', 'Test', [
+        { id: 'a', instructions: 'A', outputSchema: { x: { type: 'string' } } },
+      ])
+
+      expect(() => globals.retryTask('tl', 'a')).toThrow('can only retry failed tasks')
+    })
+  })
+
+  describe('taskProgress', () => {
+    it('updates progress on a ready task', () => {
+      const config = createMockConfig()
+      let progressMsg: string | undefined
+      const globals = createGlobals({
+        ...config,
+        onTaskProgress: (_tl, _id, msg) => { progressMsg = msg },
+      })
+
+      globals.tasklist('tl', 'Test', [
+        { id: 'a', instructions: 'A', outputSchema: { x: { type: 'string' } } },
+      ])
+
+      globals.taskProgress('tl', 'a', 'Loading...', 50)
+      expect(progressMsg).toBe('Loading...')
+    })
+
+    it('throws for completed task', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.tasklist('tl', 'Test', [
+        { id: 'a', instructions: 'A', outputSchema: { x: { type: 'string' } } },
+      ])
+
+      globals.completeTask('tl', 'a', { x: 'done' })
+      expect(() => globals.taskProgress('tl', 'a', 'late update')).toThrow('not in ready or running state')
+    })
+  })
+
+  describe('sleep', () => {
+    it('resolves after delay', async () => {
+      const config = createMockConfig()
+      const globals = createGlobals({ ...config, sleepMaxSeconds: 1 })
+
+      const start = Date.now()
+      await globals.sleep(0.1)
+      const elapsed = Date.now() - start
+      expect(elapsed).toBeGreaterThanOrEqual(80)
+    })
+
+    it('caps at sleepMaxSeconds', async () => {
+      const config = createMockConfig()
+      const globals = createGlobals({ ...config, sleepMaxSeconds: 0.1 })
+
+      const start = Date.now()
+      await globals.sleep(999)
+      const elapsed = Date.now() - start
+      expect(elapsed).toBeLessThan(500)
+    })
+  })
+
+  describe('completeTaskAsync', () => {
+    it('moves task from ready to running', () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.tasklist('tl', 'Test', [
+        { id: 'a', instructions: 'A', outputSchema: { x: { type: 'string' } } },
+      ])
+
+      globals.completeTaskAsync('tl', 'a', async () => ({ x: 'done' }))
+
+      const tl = globals.getTasklistsState().tasklists.get('tl')!
+      expect(tl.runningTasks.has('a')).toBe(true)
+      expect(tl.readyTasks.has('a')).toBe(false)
+    })
+
+    it('records completion after async fn resolves', async () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.tasklist('tl', 'Test', [
+        { id: 'a', instructions: 'A', outputSchema: { x: { type: 'string' } } },
+      ])
+
+      globals.completeTaskAsync('tl', 'a', async () => {
+        return { x: 'async result' }
+      })
+
+      // Wait for the async fn to complete
+      await new Promise(resolve => setTimeout(resolve, 50))
+
+      const tl = globals.getTasklistsState().tasklists.get('tl')!
+      expect(tl.completed.get('a')?.status).toBe('completed')
+      expect(tl.completed.get('a')?.output).toEqual({ x: 'async result' })
+    })
+
+    it('records failure when async fn throws', async () => {
+      const config = createMockConfig()
+      const globals = createGlobals(config)
+
+      globals.tasklist('tl', 'Test', [
+        { id: 'a', instructions: 'A', outputSchema: { x: { type: 'string' } } },
+      ])
+
+      globals.completeTaskAsync('tl', 'a', async () => {
+        throw new Error('async failure')
+      })
+
+      await new Promise(resolve => setTimeout(resolve, 50))
+
+      const tl = globals.getTasklistsState().tasklists.get('tl')!
+      expect(tl.completed.get('a')?.status).toBe('failed')
+      expect(tl.completed.get('a')?.error).toBe('async failure')
     })
   })
 })

@@ -1,4 +1,4 @@
-import type { StopPayload, ErrorPayload } from '../session/types'
+import type { StopPayload, ErrorPayload, TasklistsState } from '../session/types'
 
 /**
  * Build a user message for a stop() injection.
@@ -39,8 +39,18 @@ export function buildHookInterruptMessage(hookId: string, message: string): stri
  * Build a user message for an incomplete tasklist reminder.
  * Format: ⚠ [system] Tasklist "tasklistId" incomplete. Remaining: id1, id2. Continue from where you left off.
  */
-export function buildTasklistReminderMessage(tasklistId: string, remainingIds: string[]): string {
-  return `⚠ [system] Tasklist "${tasklistId}" incomplete. Remaining: ${remainingIds.join(', ')}. Continue from where you left off.`
+export function buildTasklistReminderMessage(
+  tasklistId: string,
+  ready: string[],
+  blocked: string[],
+  failed: string[],
+): string {
+  let msg = `⚠ [system] Tasklist "${tasklistId}" incomplete.`
+  if (ready.length > 0) msg += ` Ready: ${ready.join(', ')}.`
+  if (blocked.length > 0) msg += ` Blocked: ${blocked.join(', ')}.`
+  if (failed.length > 0) msg += ` Failed: ${failed.join(', ')}.`
+  msg += ' Continue with a ready task.'
+  return msg
 }
 
 /**
@@ -49,4 +59,57 @@ export function buildTasklistReminderMessage(tasklistId: string, remainingIds: s
  */
 export function buildLoadClassMessage(className: string, methods: string[]): string {
   return `← loadClass { class: "${className}", methods: [${methods.map(m => `"${m}"`).join(', ')}] }`
+}
+
+/**
+ * Generate the {{TASKS}} block showing current state of all active tasklists.
+ * Appended to stop messages when tasklists are active.
+ */
+export function generateTasksBlock(tasklistsState: TasklistsState): string | null {
+  if (tasklistsState.tasklists.size === 0) return null
+
+  const lines: string[] = ['{{TASKS}}']
+
+  for (const [tasklistId, state] of tasklistsState.tasklists) {
+    const width = Math.max(1, 60 - tasklistId.length - 3)
+    lines.push(`┌ ${tasklistId} ${'─'.repeat(width)}┐`)
+
+    for (const task of state.plan.tasks) {
+      const completion = state.completed.get(task.id)
+      let symbol: string
+      let detail: string
+
+      if (completion?.status === 'completed') {
+        const outputStr = JSON.stringify(completion.output)
+        const truncated = outputStr.length > 40 ? outputStr.slice(0, 37) + '...' : outputStr
+        symbol = '✓'
+        detail = `→ ${truncated}`
+      } else if (completion?.status === 'failed') {
+        symbol = '✗'
+        detail = `— ${completion.error ?? 'unknown error'}`
+      } else if (completion?.status === 'skipped') {
+        symbol = '⊘'
+        detail = '(skipped — condition was falsy)'
+      } else if (state.runningTasks.has(task.id)) {
+        const progress = state.progressMessages?.get(task.id)
+        symbol = '◉'
+        detail = progress
+          ? `(running — ${progress.percent != null ? progress.percent + '% ' : ''}${progress.message})`
+          : '(running)'
+      } else if (state.readyTasks.has(task.id)) {
+        symbol = '◎'
+        detail = '(ready — deps satisfied)'
+      } else {
+        const deps = task.dependsOn?.join(', ') ?? ''
+        symbol = '○'
+        detail = deps ? `(blocked — waiting on: ${deps})` : '(pending)'
+      }
+
+      lines.push(`│ ${symbol} ${task.id.padEnd(18)} ${detail.padEnd(40)}│`)
+    }
+
+    lines.push(`└${'─'.repeat(63)}┘`)
+  }
+
+  return lines.join('\n')
 }

@@ -43,7 +43,12 @@ export interface TaskDefinition {
   id: string
   instructions: string
   outputSchema: Record<string, { type: string }>
+  dependsOn?: string[]
+  condition?: string
+  optional?: boolean
 }
+
+export type TaskStatus = 'pending' | 'ready' | 'running' | 'completed' | 'failed' | 'skipped'
 
 export interface Tasklist {
   tasklistId: string
@@ -54,12 +59,19 @@ export interface Tasklist {
 export interface TaskCompletion {
   output: Record<string, any>
   timestamp: number
+  status: 'completed' | 'failed' | 'skipped'
+  error?: string
+  duration?: number
 }
 
 export interface TasklistState {
   plan: Tasklist
   completed: Map<string, TaskCompletion>
-  currentIndex: number
+  readyTasks: Set<string>
+  runningTasks: Set<string>
+  outputs: Map<string, Record<string, any>>
+  progressMessages: Map<string, { message: string; percent?: number }>
+  retryCount: Map<string, number>
 }
 
 export interface TasklistsState {
@@ -144,6 +156,7 @@ export interface RenderSurface {
   cancelForm(id: string): void
   appendTasklistProgress?(tasklistId: string, state: TasklistState): void
   updateTasklistProgress?(tasklistId: string, state: TasklistState): void
+  updateTaskProgress?(tasklistId: string, taskId: string, message: string, percent?: number): void
 }
 
 // ── Session Events ──
@@ -164,7 +177,14 @@ export type SessionEvent =
   | { type: 'async_cancelled'; taskId: string }
   | { type: 'tasklist_declared'; tasklistId: string; plan: Tasklist }
   | { type: 'task_complete'; tasklistId: string; id: string; output: Record<string, any> }
-  | { type: 'tasklist_reminder'; tasklistId: string; remaining: string[] }
+  | { type: 'tasklist_reminder'; tasklistId: string; ready: string[]; blocked: string[]; failed: string[] }
+  | { type: 'task_failed'; tasklistId: string; id: string; error: string }
+  | { type: 'task_retried'; tasklistId: string; id: string }
+  | { type: 'task_skipped'; tasklistId: string; id: string; reason: string }
+  | { type: 'task_progress'; tasklistId: string; id: string; message: string; percent?: number }
+  | { type: 'task_async_start'; tasklistId: string; id: string }
+  | { type: 'task_async_complete'; tasklistId: string; id: string; output: Record<string, any> }
+  | { type: 'task_async_failed'; tasklistId: string; id: string; error: string }
   | { type: 'knowledge_loaded'; domains: string[] }
   | { type: 'class_loaded'; className: string; methods: string[] }
   | { type: 'status'; status: SessionStatus }

@@ -21,6 +21,16 @@ export interface GlobalsConfig {
   onAsyncStart?: (taskId: string, label: string) => void
   onTasklistDeclared?: (tasklistId: string, plan: Tasklist) => void
   onTaskComplete?: (tasklistId: string, id: string, output: Record<string, any>) => void
+  onTaskFailed?: (tasklistId: string, id: string, error: string) => void
+  onTaskRetried?: (tasklistId: string, id: string) => void
+  onTaskSkipped?: (tasklistId: string, id: string, reason: string) => void
+  onTaskProgress?: (tasklistId: string, id: string, message: string, percent?: number) => void
+  onTaskAsyncStart?: (tasklistId: string, id: string) => void
+  onTaskAsyncComplete?: (tasklistId: string, id: string, output: Record<string, any>) => void
+  onTaskAsyncFailed?: (tasklistId: string, id: string, error: string) => void
+  maxTaskRetries?: number
+  maxTasksPerTasklist?: number
+  sleepMaxSeconds?: number
   onLoadKnowledge?: (selector: KnowledgeSelector) => KnowledgeContent
   /** Validate a class name and return its methods (no side effects). */
   getClassInfo?: (className: string) => { methods: ClassMethodInfo[] } | null
@@ -29,7 +39,7 @@ export interface GlobalsConfig {
 }
 
 /**
- * Create the six global functions: stop, display, ask, async, tasklist, completeTask.
+ * Create the twelve global functions: stop, display, ask, async, tasklist, completeTask, completeTaskAsync, taskProgress, failTask, retryTask, sleep, loadKnowledge.
  * These use callback interfaces, never importing stream-controller or session directly.
  */
 export function createGlobals(config: GlobalsConfig) {
@@ -157,13 +167,16 @@ export function createGlobals(config: GlobalsConfig) {
     if (tasklistsState.tasklists.has(tasklistId)) {
       throw new Error(`tasklist() tasklist "${tasklistId}" already declared`)
     }
-
     if (!tasklistId) {
       throw new Error('tasklist() requires a tasklistId')
     }
-
     if (!description || !Array.isArray(tasks) || tasks.length === 0) {
       throw new Error('tasklist() requires a description and at least one task')
+    }
+
+    const maxTasks = config.maxTasksPerTasklist ?? 20
+    if (tasks.length > maxTasks) {
+      throw new Error(`tasklist() exceeds maximum of ${maxTasks} tasks per tasklist`)
     }
 
     const ids = new Set<string>()
@@ -177,11 +190,71 @@ export function createGlobals(config: GlobalsConfig) {
       ids.add(task.id)
     }
 
+    // Validate dependsOn references
+    for (const task of tasks) {
+      if (task.dependsOn) {
+        for (const dep of task.dependsOn) {
+          if (!ids.has(dep)) {
+            throw new Error(`Task "${task.id}" depends on unknown task "${dep}" in tasklist "${tasklistId}"`)
+          }
+          if (dep === task.id) {
+            throw new Error(`Task "${task.id}" cannot depend on itself`)
+          }
+        }
+      }
+    }
+
+    // Check if any task has dependsOn
+    const hasDependsOn = tasks.some(t => t.dependsOn && t.dependsOn.length > 0)
+
+    // If no task has dependsOn, synthesize implicit sequential deps
+    if (!hasDependsOn) {
+      for (let i = 1; i < tasks.length; i++) {
+        tasks[i] = { ...tasks[i], dependsOn: [tasks[i - 1].id] }
+      }
+    }
+
+    // Validate DAG — topological sort with cycle detection
+    const visited = new Set<string>()
+    const visiting = new Set<string>()
+    const taskMap = new Map(tasks.map(t => [t.id, t]))
+
+    function visit(id: string): void {
+      if (visited.has(id)) return
+      if (visiting.has(id)) {
+        throw new Error(`Cycle detected in tasklist "${tasklistId}" involving task "${id}"`)
+      }
+      visiting.add(id)
+      const task = taskMap.get(id)!
+      if (task.dependsOn) {
+        for (const dep of task.dependsOn) {
+          visit(dep)
+        }
+      }
+      visiting.delete(id)
+      visited.add(id)
+    }
+    for (const task of tasks) {
+      visit(task.id)
+    }
+
+    // Compute initial readyTasks — tasks with no dependencies
+    const readyTasks = new Set<string>()
+    for (const task of tasks) {
+      if (!task.dependsOn || task.dependsOn.length === 0) {
+        readyTasks.add(task.id)
+      }
+    }
+
     const plan: Tasklist = { tasklistId, description, tasks }
     const tasklistState: TasklistState = {
       plan,
       completed: new Map(),
-      currentIndex: 0,
+      readyTasks,
+      runningTasks: new Set(),
+      outputs: new Map(),
+      progressMessages: new Map(),
+      retryCount: new Map(),
     }
     tasklistsState.tasklists.set(tasklistId, tasklistState)
     renderSurface.appendTasklistProgress?.(tasklistId, tasklistState)
@@ -197,8 +270,8 @@ export function createGlobals(config: GlobalsConfig) {
       throw new Error(`completeTask() called with unknown tasklist "${tasklistId}" — declare it with tasklist() first`)
     }
 
-    const taskIndex = tasklist.plan.tasks.findIndex(t => t.id === id)
-    if (taskIndex === -1) {
+    const task = tasklist.plan.tasks.find(t => t.id === id)
+    if (!task) {
       throw new Error(`Unknown task id: ${id} in tasklist "${tasklistId}"`)
     }
 
@@ -206,15 +279,23 @@ export function createGlobals(config: GlobalsConfig) {
       throw new Error(`Task "${id}" in tasklist "${tasklistId}" already completed`)
     }
 
-    if (taskIndex !== tasklist.currentIndex) {
-      const expected = tasklist.plan.tasks[tasklist.currentIndex]
+    // Must be in readyTasks (not running via completeTaskAsync)
+    if (!tasklist.readyTasks.has(id)) {
+      const isRunning = tasklist.runningTasks.has(id)
+      if (isRunning) {
+        throw new Error(`Task "${id}" in tasklist "${tasklistId}" is already running via completeTaskAsync()`)
+      }
+      // Find which deps are missing
+      const pendingDeps = (task.dependsOn ?? []).filter(dep => {
+        const c = tasklist.completed.get(dep)
+        return !c || c.status !== 'completed'
+      })
       throw new Error(
-        `Task "${id}" in tasklist "${tasklistId}" called out of order. Expected: "${expected.id}"`
+        `Task "${id}" in tasklist "${tasklistId}" is not ready. Waiting on: ${pendingDeps.join(', ')}`
       )
     }
 
     // Validate output against schema
-    const task = tasklist.plan.tasks[taskIndex]
     for (const [key, schema] of Object.entries(task.outputSchema)) {
       if (!(key in output)) {
         throw new Error(`Task "${id}" output missing required key: ${key}`)
@@ -229,14 +310,272 @@ export function createGlobals(config: GlobalsConfig) {
       }
     }
 
+    // Record completion
     tasklist.completed.set(id, {
       output,
       timestamp: Date.now(),
+      status: 'completed',
     })
-    tasklist.currentIndex++
+    tasklist.readyTasks.delete(id)
+    tasklist.outputs.set(id, output)
+
+    // Recompute readyTasks and evaluate conditions
+    recomputeReadyTasks(tasklist)
 
     renderSurface.updateTasklistProgress?.(tasklistId, tasklist)
     config.onTaskComplete?.(tasklistId, id, output)
+  }
+
+  function recomputeReadyTasks(tasklist: TasklistState): void {
+    for (const task of tasklist.plan.tasks) {
+      // Skip already processed tasks
+      if (tasklist.completed.has(task.id) || tasklist.readyTasks.has(task.id) || tasklist.runningTasks.has(task.id)) {
+        continue
+      }
+
+      // Check if all deps are satisfied (completed or skipped)
+      const deps = task.dependsOn ?? []
+      const allDepsSatisfied = deps.every(dep => {
+        const c = tasklist.completed.get(dep)
+        return c && (c.status === 'completed' || c.status === 'skipped' || (c.status === 'failed' && tasklist.plan.tasks.find(t => t.id === dep)?.optional))
+      })
+
+      if (allDepsSatisfied) {
+        // Evaluate condition if present
+        if (task.condition) {
+          const conditionMet = evaluateCondition(task.condition, tasklist.outputs)
+          if (!conditionMet) {
+            // Auto-skip
+            tasklist.completed.set(task.id, {
+              output: {},
+              timestamp: Date.now(),
+              status: 'skipped',
+            })
+            config.onTaskSkipped?.(tasklist.plan.tasklistId, task.id, 'condition was falsy')
+            // Recurse to check dependents of this skipped task
+            recomputeReadyTasks(tasklist)
+            return
+          }
+        }
+        tasklist.readyTasks.add(task.id)
+      }
+    }
+  }
+
+  function evaluateCondition(condition: string, outputs: Map<string, Record<string, any>>): boolean {
+    try {
+      const ctx = Object.fromEntries(outputs)
+      const paramNames = Object.keys(ctx)
+      const paramValues = Object.values(ctx)
+      const fn = new Function(...paramNames, `return !!(${condition})`)
+      return fn(...paramValues)
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * completeTaskAsync(tasklistId, taskId, fn) — Start async task completion.
+   * Moves task from ready to running, executes fn in background.
+   */
+  function completeTaskAsyncFn(
+    tasklistId: string,
+    taskId: string,
+    fn: () => Promise<Record<string, any>>,
+  ): void {
+    const tasklist = tasklistsState.tasklists.get(tasklistId)
+    if (!tasklist) {
+      throw new Error(`completeTaskAsync() called with unknown tasklist "${tasklistId}"`)
+    }
+
+    const task = tasklist.plan.tasks.find(t => t.id === taskId)
+    if (!task) {
+      throw new Error(`Unknown task id: ${taskId} in tasklist "${tasklistId}"`)
+    }
+
+    if (tasklist.completed.has(taskId)) {
+      throw new Error(`Task "${taskId}" in tasklist "${tasklistId}" already completed`)
+    }
+
+    if (!tasklist.readyTasks.has(taskId)) {
+      throw new Error(`Task "${taskId}" in tasklist "${tasklistId}" is not ready`)
+    }
+
+    // Move from ready to running
+    tasklist.readyTasks.delete(taskId)
+    tasklist.runningTasks.add(taskId)
+    config.onTaskAsyncStart?.(tasklistId, taskId)
+
+    const startTime = Date.now()
+
+    // Spawn async work
+    const promise = fn()
+      .then((output) => {
+        // Validate output against schema
+        for (const [key, schema] of Object.entries(task.outputSchema)) {
+          if (!(key in output)) {
+            throw new Error(`Task "${taskId}" output missing required key: ${key}`)
+          }
+          const expectedType = (schema as any).type
+          const value = output[key]
+          const actual = Array.isArray(value) ? 'array' : typeof value
+          if (actual !== expectedType) {
+            throw new Error(
+              `Task "${taskId}" output key "${key}": expected ${expectedType}, got ${actual}`
+            )
+          }
+        }
+
+        // Record completion
+        tasklist.runningTasks.delete(taskId)
+        tasklist.completed.set(taskId, {
+          output,
+          timestamp: Date.now(),
+          status: 'completed',
+          duration: Date.now() - startTime,
+        })
+        tasklist.outputs.set(taskId, output)
+
+        // Store result for delivery via stop()
+        asyncManager.setResult(`task:${taskId}`, output)
+
+        recomputeReadyTasks(tasklist)
+        renderSurface.updateTasklistProgress?.(tasklistId, tasklist)
+        config.onTaskAsyncComplete?.(tasklistId, taskId, output)
+      })
+      .catch((err) => {
+        const error = err instanceof Error ? err.message : String(err)
+        tasklist.runningTasks.delete(taskId)
+        tasklist.completed.set(taskId, {
+          output: {},
+          timestamp: Date.now(),
+          status: 'failed',
+          error,
+          duration: Date.now() - startTime,
+        })
+
+        // Store error for delivery via stop()
+        asyncManager.setResult(`task:${taskId}`, { error })
+
+        // If optional, unblock dependents
+        if (task.optional) {
+          recomputeReadyTasks(tasklist)
+        }
+
+        renderSurface.updateTasklistProgress?.(tasklistId, tasklist)
+        config.onTaskAsyncFailed?.(tasklistId, taskId, error)
+      })
+
+    // Don't block — fire and forget
+  }
+
+  /**
+   * taskProgress(tasklistId, taskId, message, percent?) — Report progress on a task.
+   */
+  function taskProgressFn(
+    tasklistId: string,
+    taskId: string,
+    message: string,
+    percent?: number,
+  ): void {
+    const tasklist = tasklistsState.tasklists.get(tasklistId)
+    if (!tasklist) {
+      throw new Error(`taskProgress() called with unknown tasklist "${tasklistId}"`)
+    }
+
+    const task = tasklist.plan.tasks.find(t => t.id === taskId)
+    if (!task) {
+      throw new Error(`Unknown task id: ${taskId} in tasklist "${tasklistId}"`)
+    }
+
+    if (!tasklist.readyTasks.has(taskId) && !tasklist.runningTasks.has(taskId)) {
+      throw new Error(`Task "${taskId}" in tasklist "${tasklistId}" is not in ready or running state`)
+    }
+
+    tasklist.progressMessages.set(taskId, { message, percent })
+    renderSurface.updateTaskProgress?.(tasklistId, taskId, message, percent)
+    config.onTaskProgress?.(tasklistId, taskId, message, percent)
+  }
+
+  /**
+   * failTask(tasklistId, taskId, error) — Explicitly fail a task.
+   */
+  function failTaskFn(tasklistId: string, taskId: string, error: string): void {
+    const tasklist = tasklistsState.tasklists.get(tasklistId)
+    if (!tasklist) {
+      throw new Error(`failTask() called with unknown tasklist "${tasklistId}"`)
+    }
+
+    const task = tasklist.plan.tasks.find(t => t.id === taskId)
+    if (!task) {
+      throw new Error(`Unknown task id: ${taskId} in tasklist "${tasklistId}"`)
+    }
+
+    // Can only fail tasks that are ready or running
+    if (!tasklist.readyTasks.has(taskId) && !tasklist.runningTasks.has(taskId)) {
+      throw new Error(`Task "${taskId}" in tasklist "${tasklistId}" is not in ready or running state`)
+    }
+
+    tasklist.readyTasks.delete(taskId)
+    tasklist.runningTasks.delete(taskId)
+    tasklist.completed.set(taskId, {
+      output: {},
+      timestamp: Date.now(),
+      status: 'failed',
+      error,
+    })
+
+    // If optional, unblock dependents
+    if (task.optional) {
+      recomputeReadyTasks(tasklist)
+    }
+
+    renderSurface.updateTasklistProgress?.(tasklistId, tasklist)
+    config.onTaskFailed?.(tasklistId, taskId, error)
+  }
+
+  /**
+   * retryTask(tasklistId, taskId) — Retry a failed task.
+   */
+  function retryTaskFn(tasklistId: string, taskId: string): void {
+    const tasklist = tasklistsState.tasklists.get(tasklistId)
+    if (!tasklist) {
+      throw new Error(`retryTask() called with unknown tasklist "${tasklistId}"`)
+    }
+
+    const task = tasklist.plan.tasks.find(t => t.id === taskId)
+    if (!task) {
+      throw new Error(`Unknown task id: ${taskId} in tasklist "${tasklistId}"`)
+    }
+
+    const completion = tasklist.completed.get(taskId)
+    if (!completion || completion.status !== 'failed') {
+      throw new Error(`retryTask() can only retry failed tasks. Task "${taskId}" status: ${completion?.status ?? 'not completed'}`)
+    }
+
+    const maxRetries = config.maxTaskRetries ?? 3
+    const currentRetries = tasklist.retryCount.get(taskId) ?? 0
+    if (currentRetries >= maxRetries) {
+      throw new Error(`Task "${taskId}" has exceeded maximum retries (${maxRetries})`)
+    }
+
+    tasklist.retryCount.set(taskId, currentRetries + 1)
+    tasklist.completed.delete(taskId)
+    tasklist.outputs.delete(taskId)
+    tasklist.readyTasks.add(taskId)
+    tasklist.progressMessages.delete(taskId)
+
+    renderSurface.updateTasklistProgress?.(tasklistId, tasklist)
+    config.onTaskRetried?.(tasklistId, taskId)
+  }
+
+  /**
+   * sleep(seconds) — Pause execution for a duration (capped).
+   */
+  async function sleepFn(seconds: number): Promise<void> {
+    const maxSeconds = config.sleepMaxSeconds ?? 30
+    const capped = Math.min(Math.max(0, seconds), maxSeconds)
+    await new Promise<void>(resolve => setTimeout(resolve, capped * 1000))
   }
 
   /**
@@ -293,6 +632,11 @@ export function createGlobals(config: GlobalsConfig) {
     async: asyncFn,
     tasklist: tasklistFn,
     completeTask: completeTaskFn,
+    completeTaskAsync: completeTaskAsyncFn,
+    taskProgress: taskProgressFn,
+    failTask: failTaskFn,
+    retryTask: retryTaskFn,
+    sleep: sleepFn,
     loadKnowledge: loadKnowledgeFn,
     loadClass: loadClassFn,
     setCurrentSource,

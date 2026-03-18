@@ -1,0 +1,40 @@
+{
+  "knowledge": {
+    "cuisine": {
+      "type": "italian"
+    },
+    "dietary": {
+      "restrictions": false
+    },
+    "technique": true
+  },
+  "functions": [
+    "buildGroceryList",
+    "scaleIngredients",
+    "catalog/fs",
+    [
+      "catalog/fetch",
+      {
+        "allowedURLs": [
+          "https://google.com"
+        ]
+      }
+    ],
+    [
+      "catalog/shell",
+      {
+        "allowedCommands": [
+          "ls",
+          "cat",
+          "echo",
+          "grep",
+          "head",
+          "tail",
+          "cd",
+          "pwd",
+          "mkdir"
+        ]
+      }
+    ]
+  ]
+}

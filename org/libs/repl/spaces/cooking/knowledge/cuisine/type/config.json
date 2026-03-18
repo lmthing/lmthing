@@ -1,0 +1,9 @@
+{
+  "label": "Cuisine Type",
+  "description": "Which cuisine tradition to draw from",
+  "fieldType": "select",
+  "required": false,
+  "default": "italian",
+  "variableName": "cuisineType",
+  "renderAs": "field"
+}

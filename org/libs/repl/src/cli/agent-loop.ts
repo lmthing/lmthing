@@ -16,6 +16,7 @@ import type { SessionEvent, StopPayload, ErrorPayload } from "../session/types";
 import type { ClassifiedExport } from "./loader";
 import { formatCollapsedClass, formatExpandedClass } from "./loader";
 import { buildSystemPrompt } from "./buildSystemPrompt";
+import { generateTasklistCode, type ParsedFlow } from "./agent-loader";
 
 export interface AgentLoopOptions {
   session: Session;
@@ -31,6 +32,7 @@ export interface AgentLoopOptions {
   maxTurns?: number;
   maxTasklistReminders?: number;
   debugFile?: string;
+  actions?: Array<{ id: string; flow: ParsedFlow }>;
 }
 
 interface ChatMessage {
@@ -67,6 +69,7 @@ export class AgentLoop {
   private maxTurns: number;
   private maxTasklistReminders: number;
   private debugFile?: string;
+  private actions: Map<string, ParsedFlow>;
   private messages: ChatMessage[] = [];
   private running = false;
   private debugLog: DebugEntry[] = [];
@@ -95,6 +98,10 @@ export class AgentLoop {
     this.maxTurns = options.maxTurns ?? 10;
     this.maxTasklistReminders = options.maxTasklistReminders ?? 3;
     this.debugFile = options.debugFile;
+    this.actions = new Map<string, ParsedFlow>();
+    if (options.actions) {
+      for (const a of options.actions) this.actions.set(a.id, a.flow);
+    }
   }
 
   get debug(): boolean {
@@ -103,6 +110,14 @@ export class AgentLoop {
 
   isRunning(): boolean {
     return this.running;
+  }
+
+  getActions(): Array<{ id: string; label: string; description: string }> {
+    return [...this.actions.entries()].map(([id, flow]) => ({
+      id,
+      label: flow.name,
+      description: flow.description,
+    }));
   }
 
   private logDebug(type: DebugEntry["type"], data: unknown): void {
@@ -118,6 +133,21 @@ export class AgentLoop {
       console.log(`\n\x1b[33m[intervention]\x1b[0m ${text}`);
       this.session.handleIntervention(text);
       return;
+    }
+
+    // Check for slash action
+    const slashMatch = text.match(/^\/(\S+)\s*(.*)$/);
+    if (slashMatch) {
+      const [, actionId, remaining] = slashMatch;
+      const flow = this.actions.get(actionId);
+      if (flow) {
+        console.log(`\n\x1b[36m[action]\x1b[0m /${actionId} — ${flow.name}`);
+        const tasklistCode = generateTasklistCode(flow, actionId);
+        await this.runSetupCode(tasklistCode);
+        // Continue with remaining text or a default message
+        const message = remaining.trim() || `Execute the "${flow.name}" flow`;
+        text = message;
+      }
     }
 
     this.running = true;

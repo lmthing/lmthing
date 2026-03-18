@@ -116,6 +116,13 @@ export function createReplServer(options: ServerOptions): { server: Server; clos
           case 'getSnapshot':
             const snapshot = await rpcServer.getSnapshot()
             ws.send(JSON.stringify({ type: 'snapshot', data: snapshot }))
+            // Send available actions if agent loop has them
+            if (agentLoop) {
+              const actions = agentLoop.getActions()
+              if (actions.length > 0) {
+                ws.send(JSON.stringify({ type: 'actions', data: actions }))
+              }
+            }
             break
         }
       } catch (err) {

@@ -7,6 +7,8 @@ export interface CLIArgs {
   catalog?: string
   /** Paths to space directories containing agents/, flows/, knowledge/ */
   spaces?: string[]
+  /** Agent slug within a space (requires --space) */
+  agent?: string
   /** Port for WebSocket server + web UI (default: 3100) */
   port: number
   /** LLM model identifier */
@@ -51,6 +53,8 @@ export function parseArgs(argv: string[]): CLIArgs {
     } else if (arg === '--space' || arg === '-s') {
       if (!args.spaces) args.spaces = []
       args.spaces.push(argv[++i])
+    } else if (arg === '--agent' || arg === '-a') {
+      args.agent = argv[++i]
     } else if (arg === '--no-ui') {
       args.noUi = true
     } else if (!arg.startsWith('-') && !args.file) {
@@ -64,9 +68,14 @@ export function parseArgs(argv: string[]): CLIArgs {
     args.instruct = instructs
   }
 
-  // Validate: either file, catalog, or space must be specified
-  if (!args.file && !args.catalog && !args.spaces) {
-    throw new Error('Either a file path, --catalog, or --space must be specified')
+  // Validate: --agent requires --space
+  if (args.agent && !args.spaces) {
+    throw new Error('--agent requires --space')
+  }
+
+  // Validate: either file, catalog, space, or agent must be specified
+  if (!args.file && !args.catalog && !args.spaces && !args.agent) {
+    throw new Error('Either a file path, --catalog, --space, or --agent must be specified')
   }
 
   return args

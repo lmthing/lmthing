@@ -137,6 +137,12 @@ const EMPTY_SNAPSHOT: SessionSnapshot = {
 
 // ── Hook ──
 
+export interface AgentAction {
+  id: string
+  label: string
+  description: string
+}
+
 export interface UseReplSessionResult {
   /** Current session snapshot (status, scope, async tasks, etc.) */
   snapshot: SessionSnapshot
@@ -144,6 +150,8 @@ export interface UseReplSessionResult {
   blocks: UIBlock[]
   /** Whether the WebSocket is connected */
   connected: boolean
+  /** Available slash actions from the agent */
+  actions: AgentAction[]
   /** Send a user message */
   sendMessage: (text: string) => void
   /** Submit a form */
@@ -163,6 +171,7 @@ export interface UseReplSessionResult {
 export function useReplSession(url = 'ws://localhost:3100'): UseReplSessionResult {
   const [snapshot, setSnapshot] = useState<SessionSnapshot>(EMPTY_SNAPSHOT)
   const [connected, setConnected] = useState(false)
+  const [actions, setActions] = useState<AgentAction[]>([])
   const [blocks, dispatchBlock] = useReducer(blocksReducer, [])
   const wsRef = useRef<WebSocket | null>(null)
   const msgCounterRef = useRef(0)
@@ -180,6 +189,8 @@ export function useReplSession(url = 'ws://localhost:3100'): UseReplSessionResul
       const data = JSON.parse(event.data)
       if (data.type === 'snapshot') {
         setSnapshot(data.data)
+      } else if (data.type === 'actions') {
+        setActions(data.data)
       } else {
         setSnapshot(prev => applyEvent(prev, data))
         dispatchBlock({ type: 'event', event: data })
@@ -214,6 +225,7 @@ export function useReplSession(url = 'ws://localhost:3100'): UseReplSessionResul
     snapshot,
     blocks,
     connected,
+    actions,
     sendMessage,
     submitForm: (formId, data) => send({ type: 'submitForm', formId, data }),
     cancelAsk: (formId) => send({ type: 'cancelAsk', formId }),

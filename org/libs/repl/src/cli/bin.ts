@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { resolve, dirname, basename } from 'node:path'
-import { existsSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { config } from 'dotenv'
 import { parseArgs } from './args'
@@ -10,6 +10,15 @@ import { AgentLoop } from './agent-loop'
 import { createReplServer } from './server'
 import { loadCatalog, mergeCatalogs, formatCatalogForPrompt } from '../catalog/index'
 import { buildKnowledgeTree, loadKnowledgeFiles, formatKnowledgeTreeForPrompt } from '../knowledge/index'
+import {
+  loadAgent,
+  resolveLocalFunctions,
+  resolveAgentComponents,
+  resolveKnowledgeConfig,
+  parseFlow,
+  formatActionsForPrompt,
+  type ParsedFlow,
+} from './agent-loader'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -31,6 +40,311 @@ function resolveComponentPaths(groups: string[]): string[] {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2))
+
+  // ── Agent mode ──
+  if (args.agent) {
+    const spacePath = resolve(args.spaces![0])
+    const agent = loadAgent(spacePath, args.agent)
+
+    // Resolve model: CLI --model > agent instruct frontmatter > error
+    const modelId = args.model ?? agent.model
+    if (!modelId) {
+      console.error('Error: --model is required (or specify model in agent instruct frontmatter)')
+      process.exit(1)
+    }
+
+    // Load local functions & classes
+    let agentGlobals: Record<string, unknown> = {}
+    let agentFnSigs = ''
+    let agentFormSigs = ''
+    let agentViewSigs = ''
+    let agentClassSigs = ''
+    let agentClassExports: ClassifiedExport[] = []
+    const classConstructors = new Map<string, new () => any>()
+
+    const localFnPaths = resolveLocalFunctions(spacePath, agent.localFunctions)
+    for (const fnPath of localFnPaths) {
+      let mod: Record<string, unknown> = {}
+      try {
+        mod = await import(fnPath) as Record<string, unknown>
+        for (const [name, value] of Object.entries(mod)) {
+          if (name === 'default') continue
+          if (typeof value === 'function') agentGlobals[name] = value
+        }
+      } catch (err) {
+        console.error(`Failed to load function ${fnPath}:`, err)
+        continue
+      }
+
+      try {
+        const exports = classifyExports(fnPath)
+        for (const exp of exports) {
+          if (exp.kind === 'component' && !exp.form) {
+            const fn = agentGlobals[exp.name] as any
+            if (fn && fn.form === true) exp.form = true
+          }
+        }
+
+        const classExports = exports.filter(e => e.kind === 'class')
+        agentClassExports.push(...classExports)
+        for (const cls of classExports) {
+          const ctor = mod[cls.name]
+          if (typeof ctor === 'function') classConstructors.set(cls.name, ctor as new () => any)
+        }
+
+        const formatted = formatExportsForPrompt(exports, fnPath)
+        if (formatted.functions) agentFnSigs += (agentFnSigs ? '\n' : '') + formatted.functions
+        if (formatted.classes) agentClassSigs += (agentClassSigs ? '\n' : '') + formatted.classes
+      } catch { /* skip */ }
+    }
+
+    // Load catalog modules
+    let catalogGlobals: Record<string, unknown> = {}
+    let catalogSigs = ''
+    if (agent.catalogModules.length > 0) {
+      const modules = await loadCatalog(agent.catalogModules)
+      const fns = mergeCatalogs(modules)
+      for (const fn of fns) catalogGlobals[fn.name] = fn.fn
+      catalogSigs = formatCatalogForPrompt(modules)
+    }
+
+    // Load components
+    let compGlobals: Record<string, unknown> = {}
+    const resolved = resolveAgentComponents(spacePath, agent.componentRefs)
+
+    // Local component paths
+    for (const compPath of resolved.localPaths) {
+      try {
+        const mod = await import(compPath)
+        for (const [name, value] of Object.entries(mod)) {
+          if (typeof value === 'function' && /^[A-Z]/.test(name)) compGlobals[name] = value
+        }
+      } catch { /* skip */ }
+
+      try {
+        const exports = classifyExports(compPath)
+        // Cross-reference .form from runtime
+        for (const e of exports) {
+          if (e.kind === 'component' && !e.form) {
+            const fn = compGlobals[e.name] as any
+            if (fn && fn.form === true) e.form = true
+          }
+        }
+        const formatted = formatExportsForPrompt(exports.filter(e => e.kind === 'component'), compPath)
+        if (formatted.formComponents) agentFormSigs += (agentFormSigs ? '\n' : '') + formatted.formComponents
+        if (formatted.viewComponents) agentViewSigs += (agentViewSigs ? '\n' : '') + formatted.viewComponents
+      } catch { /* skip */ }
+    }
+
+    // Catalog component groups
+    if (resolved.catalogGroups.length > 0) {
+      const builtinPaths = resolveComponentPaths(resolved.catalogGroups)
+      for (const compPath of builtinPaths) {
+        try {
+          const exports = classifyExports(compPath)
+          for (const e of exports) { if (e.kind === 'component') e.form = true }
+          const formatted = formatExportsForPrompt(
+            exports.filter(e => e.kind === 'component'),
+            resolved.catalogGroups.join(', '),
+            'Built-in',
+          )
+          if (formatted.formComponents) agentFormSigs += (agentFormSigs ? '\n' : '') + formatted.formComponents
+        } catch { /* skip */ }
+
+        try {
+          const mod = await import(compPath)
+          for (const [name, value] of Object.entries(mod)) {
+            if (typeof value === 'function' && /^[A-Z]/.test(name)) compGlobals[name] = value
+          }
+        } catch { /* skip */ }
+      }
+    }
+
+    // Load knowledge tree and apply agent knowledge config
+    const spaceMap = new Map<string, string>()
+    let knowledgeTreePrompt = ''
+
+    // Build trees for all spaces
+    const spacePaths = (args.spaces ?? []).map(s => resolve(s))
+    const trees = spacePaths.map(sp => {
+      const name = basename(sp)
+      const kDir = resolve(sp, 'knowledge')
+      spaceMap.set(name, kDir)
+      const tree = buildKnowledgeTree(kDir)
+      tree.name = name
+      return tree
+    })
+
+    // Apply knowledge config: filter hidden fields, pre-load options
+    const kConfig = resolveKnowledgeConfig(agent.knowledgeDefaults)
+
+    // Filter out hidden fields from trees
+    for (const tree of trees) {
+      for (const domain of tree.domains) {
+        const hiddenSet = kConfig.hiddenFields.get(domain.slug)
+        if (hiddenSet) {
+          domain.fields = domain.fields.filter(f => !hiddenSet.has(f.slug))
+        }
+      }
+      // Remove empty domains
+      tree.domains = tree.domains.filter(d => d.fields.length > 0)
+    }
+
+    if (trees.some(t => t.domains.length > 0)) {
+      knowledgeTreePrompt = formatKnowledgeTreeForPrompt(trees)
+    }
+
+    // Pre-load knowledge markdown
+    let preloadedKnowledge = ''
+    if (kConfig.preloadOptions.length > 0) {
+      const kDir = spaceMap.get(basename(spacePath))
+      if (kDir) {
+        const sections: string[] = []
+        for (const { domain, field, option } of kConfig.preloadOptions) {
+          const filePath = resolve(kDir, domain, field, `${option}.md`)
+          if (existsSync(filePath)) {
+            const content = readFileSync(filePath, 'utf-8')
+            const body = content.replace(/^---\n[\s\S]*?\n---\n*/, '').trim()
+            sections.push(`#### ${domain}/${field}/${option}\n${body}`)
+          }
+        }
+        if (sections.length > 0) {
+          preloadedKnowledge = `## Pre-loaded Knowledge\n\n${sections.join('\n\n')}`
+        }
+      }
+    }
+
+    // Parse flows for each action
+    const actionFlows: Array<{ action: typeof agent.actions[0]; flow: ParsedFlow | null }> = []
+    for (const action of agent.actions) {
+      const flowDir = resolve(spacePath, 'flows', action.flow)
+      const flow = existsSync(flowDir) ? parseFlow(flowDir) : null
+      actionFlows.push({ action, flow })
+    }
+
+    // Build instruct
+    const actionsPrompt = actionFlows.length > 0 ? formatActionsForPrompt(actionFlows) : ''
+    const instruct = [
+      agent.instruct,
+      preloadedKnowledge,
+      actionsPrompt ? `## Slash Actions\n\n${actionsPrompt}` : '',
+      ...(args.instruct ?? []),
+    ].filter(Boolean).join('\n\n')
+
+    // Merge signatures
+    const functionSignatures = [catalogSigs, agentFnSigs].filter(Boolean).join('\n')
+    const formSignatures = agentFormSigs
+    const viewSignatures = agentViewSigs
+
+    // Create session
+    const session = new Session({
+      config: { sessionTimeout: args.timeout * 1000 },
+      globals: { ...catalogGlobals, ...compGlobals, ...agentGlobals },
+      knowledgeLoader: spaceMap.size > 0
+        ? (selector) => {
+            const result: Record<string, any> = {}
+            for (const [spaceName, domains] of Object.entries(selector)) {
+              const kDir = spaceMap.get(spaceName)
+              if (!kDir || typeof domains !== 'object' || domains === null) continue
+              result[spaceName] = loadKnowledgeFiles(kDir, domains)
+            }
+            return result
+          }
+        : undefined,
+      getClassInfo: classConstructors.size > 0
+        ? (className) => {
+            const classExport = agentClassExports.find(c => c.name === className)
+            if (!classExport?.methods || !classConstructors.has(className)) return null
+            return { methods: classExport.methods }
+          }
+        : undefined,
+      loadClass: classConstructors.size > 0
+        ? (className, sess) => {
+            const Ctor = classConstructors.get(className)!
+            const classExport = agentClassExports.find(c => c.name === className)!
+            const instance = new Ctor() as any
+            const bindings: Record<string, Function> = {}
+            for (const m of classExport.methods!) {
+              if (typeof instance[m.name] === 'function') {
+                bindings[m.name] = (instance[m.name] as Function).bind(instance)
+              }
+            }
+            sess.injectGlobal(className, bindings)
+          }
+        : undefined,
+    })
+
+    // Resolve model
+    const { resolveModel } = await import('../providers/resolver')
+    const model = resolveModel(modelId)
+
+    // Create agent loop with actions
+    const debugFile = args.debugFile
+    const agentActions = actionFlows
+      .filter((af): af is { action: typeof af.action; flow: ParsedFlow } => af.flow !== null)
+      .map(af => ({ id: af.action.id, flow: af.flow }))
+
+    const agentLoop = new AgentLoop({
+      session,
+      model,
+      modelId,
+      instruct: instruct || undefined,
+      functionSignatures: functionSignatures || undefined,
+      formSignatures: formSignatures || undefined,
+      viewSignatures: viewSignatures || undefined,
+      classSignatures: agentClassSigs || undefined,
+      classExports: agentClassExports.length > 0 ? agentClassExports : undefined,
+      knowledgeTree: knowledgeTreePrompt || undefined,
+      maxTurns: 10,
+      maxTasklistReminders: 3,
+      debugFile,
+      actions: agentActions.length > 0 ? agentActions : undefined,
+    })
+
+    // Resolve static dir for web UI
+    let staticDir: string | undefined
+    if (!args.noUi) {
+      const distWeb = resolve(__dirname, '../../dist/web')
+      if (existsSync(resolve(distWeb, 'index.html'))) staticDir = distWeb
+    }
+
+    // Start server
+    const { close } = createReplServer({
+      port: args.port,
+      session,
+      agentLoop,
+      staticDir,
+    })
+
+    // Banner
+    console.log('\x1b[36m━━━ @lmthing/repl ━━━\x1b[0m')
+    console.log(`\x1b[90mAgent:   ${agent.title} (${args.agent})\x1b[0m`)
+    console.log(`\x1b[90mModel:   ${modelId}\x1b[0m`)
+    console.log(`\x1b[90mSpace:   ${spacePath}\x1b[0m`)
+    if (agent.catalogModules.length > 0) console.log(`\x1b[90mCatalog: ${agent.catalogModules.join(', ')}\x1b[0m`)
+    if (agent.localFunctions.length > 0) console.log(`\x1b[90mFuncs:   ${agent.localFunctions.join(', ')}\x1b[0m`)
+    if (agent.componentRefs.length > 0) console.log(`\x1b[90mComps:   ${agent.componentRefs.join(', ')}\x1b[0m`)
+    if (agent.actions.length > 0) console.log(`\x1b[90mActions: ${agent.actions.map(a => '/' + a.id).join(', ')}\x1b[0m`)
+    if (debugFile) console.log(`\x1b[90mDebug:   ${debugFile}\x1b[0m`)
+    if (staticDir) {
+      console.log(`\x1b[90mUI:      http://localhost:${args.port}\x1b[0m`)
+    } else {
+      console.log(`\x1b[90mUI:      not built (run \`pnpm build:web\` or \`pnpm dev:web\` on port 3101)\x1b[0m`)
+    }
+    console.log(`\x1b[90mWS:      ws://localhost:${args.port}\x1b[0m`)
+    console.log()
+
+    process.on('SIGINT', () => {
+      console.log('\nShutting down...')
+      close()
+      session.destroy()
+      process.exit(0)
+    })
+
+    return
+  }
+
+  // ── File-based mode ──
 
   if (!args.model) {
     console.error('Error: --model is required (e.g. --model openai:gpt-4o-mini)')

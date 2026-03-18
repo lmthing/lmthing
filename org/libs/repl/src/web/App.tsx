@@ -35,6 +35,7 @@ export function App() {
           onResume={session.resume}
           status={snapshot.status}
           disabled={!connected}
+          actions={session.actions}
         />
       </div>
       <Sidebar

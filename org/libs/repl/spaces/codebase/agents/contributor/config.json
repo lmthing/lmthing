@@ -1,0 +1,28 @@
+{
+  "knowledge": {
+    "packages": { "area": true },
+    "stack": { "layer": true },
+    "patterns": true
+  },
+  "components": [
+    "PackageCard",
+    "FileTreeCard",
+    "ArchitectureCard",
+    "catalog/component/form/*"
+  ],
+  "functions": [
+    "findPackage",
+    "resolveImport",
+    "formatDependencyTree",
+    "catalog/fs",
+    [
+      "catalog/shell",
+      {
+        "allowedCommands": [
+          "ls", "cat", "head", "tail", "grep", "find", "tree", "wc", "pwd",
+          "pnpm", "git", "make"
+        ]
+      }
+    ]
+  ]
+}

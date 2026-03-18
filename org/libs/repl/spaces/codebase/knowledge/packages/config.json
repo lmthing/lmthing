@@ -1,0 +1,7 @@
+{
+  "label": "Packages",
+  "description": "Monorepo packages organized by area — shared libs, cloud backend, and product apps",
+  "icon": "📦",
+  "color": "#3498db",
+  "renderAs": "section"
+}

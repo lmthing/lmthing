@@ -1,0 +1,9 @@
+{
+  "label": "Codebase Area",
+  "description": "Which area of the monorepo to explore",
+  "fieldType": "select",
+  "required": false,
+  "default": "shared-libs",
+  "variableName": "codebaseArea",
+  "renderAs": "field"
+}

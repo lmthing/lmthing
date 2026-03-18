@@ -9,7 +9,6 @@ import { streamText, type LanguageModel } from "ai";
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { Session } from "../session/session";
-import { generateScopeTable } from "../context/scope-generator";
 import { serialize } from "../stream/serializer";
 import { isKnowledgeContent, decayKnowledgeValue } from "../context/knowledge-decay";
 import type { KnowledgeContent } from "../knowledge/types";
@@ -566,7 +565,7 @@ export class AgentLoop {
       }
 
       // No stop/error — LLM finished naturally
-      console.log(`\x1b[36m[done]\x1b[0m Completed after ${turn} turn(s)`);
+      console.log(`\x1b[36m[done]\x1b[0m Turn loop finished (${turn} turn(s))`);
       break;
     }
 
@@ -605,15 +604,10 @@ export class AgentLoop {
       }
     }
 
-    // Print final scope
-    const finalScope = generateScopeTable(this.session.snapshot().scope);
-    if (finalScope !== "(no variables declared)") {
-      console.log(`\n\x1b[36m━━━ Final Scope ━━━\x1b[0m`);
-      console.log(finalScope);
-    }
-
     // Write debug log
     this.writeDebugLog();
+
+    console.log(`\n\x1b[90m[waiting] Ready for follow-up messages via chat UI\x1b[0m`);
   }
 
   private buildClassBlock(): string {

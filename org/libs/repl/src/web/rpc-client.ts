@@ -143,6 +143,7 @@ const EMPTY_SNAPSHOT: SessionSnapshot = {
   asyncTasks: [],
   activeFormId: null,
   tasklistsState: { tasklists: new Map() },
+  agentEntries: [],
 }
 
 // ── Hook ──

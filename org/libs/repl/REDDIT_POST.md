@@ -1,4 +1,4 @@
-# What if LLMs never needed tool calling? Introducing REPL — a code-first agent architecture that changes everything.
+# Tickle your LLM by making it only speak code
 
 **TL;DR:** We built an agent system where the LLM writes and executes TypeScript line-by-line in a live REPL instead of calling tools. Zero tool definitions. Zero JSON schemas for function calling. The agent just... writes code. And it runs. In real time. As tokens stream in.
 

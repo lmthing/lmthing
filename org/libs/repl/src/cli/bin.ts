@@ -309,11 +309,13 @@ async function main() {
     }
 
     // Start server
+    const conversationsDir = resolve(spacePath, '.conversations')
     const { close } = createReplServer({
       port: args.port,
       session,
       agentLoop,
       staticDir,
+      conversationsDir,
     })
 
     // Banner
@@ -636,11 +638,15 @@ async function main() {
   }
 
   // ── Start server ──
+  const conversationsDir = args.file
+    ? resolve(dirname(resolve(args.file)), '.conversations')
+    : resolve('.conversations')
   const { close } = createReplServer({
     port: args.port,
     session,
     agentLoop,
     staticDir,
+    conversationsDir,
   })
 
   console.log('\x1b[36m━━━ @lmthing/repl ━━━\x1b[0m')

@@ -478,11 +478,11 @@ export class AgentLoop {
       code = cleanCode(code);
 
       // Step 2b: Detect prose-only output (agent forgot it's a REPL)
-      const hasExecutableCode = code.split("\n").some((l) => {
-        const t = l.trim();
-        return t && !t.startsWith("//");
-      });
-      if (!hasExecutableCode) {
+      // Comments (//) are the agent's speech — valid TypeScript, not prose.
+      // Only nudge when cleanCode stripped everything (actual natural language).
+      const nonEmptyLines = code.split("\n").filter((l) => l.trim());
+      const hasAnyContent = nonEmptyLines.length > 0;
+      if (!hasAnyContent) {
         proseNudges++;
         if (proseNudges > maxProseNudges) {
           console.log(`\x1b[31m  [abort]\x1b[0m agent wrote prose ${proseNudges} times — giving up`);

@@ -348,11 +348,14 @@ export async function runAgent(
       }
     }
 
+    const conversationsDir = resolve(dirname(absolutePath), '.conversations')
+
     const server = createReplServer({
       port: opts.port,
       session,
       agentLoop,
       staticDir,
+      conversationsDir,
     })
     close = server.close
   }

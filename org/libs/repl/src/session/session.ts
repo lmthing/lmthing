@@ -341,6 +341,8 @@ export class Session extends EventEmitter {
    * Resolve a pending ask() form.
    */
   resolveAsk(formId: string, data: Record<string, unknown>): void {
+    const hasListener = this.listenerCount(`form:${formId}`) > 0
+    console.log(`\x1b[90m  [session] resolveAsk ${formId} hasListener=${hasListener} activeFormId=${this.activeFormId}\x1b[0m`)
     this.emit(`form:${formId}`, data)
   }
 
@@ -379,6 +381,11 @@ export class Session extends EventEmitter {
    * Handle user intervention (message while agent is running).
    */
   handleIntervention(text: string): void {
+    // If a form is pending, cancel it so the sandbox unblocks
+    if (this.activeFormId) {
+      this.cancelAsk(this.activeFormId)
+    }
+
     this.streamController.pause()
     const msg = buildInterventionMessage(text)
     this.messages.push({ role: 'assistant', content: this.codeLines.join('\n') })

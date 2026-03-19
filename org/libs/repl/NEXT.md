@@ -33,7 +33,41 @@ Claude Code has ~110 system prompt pieces implementing 8 feature categories. The
 
 ---
 
-## Phase 1: Agent Spawning via Namespace Chaining
+## Phase 1a: Spawn Infrastructure
+
+**Why:** Foundation for all agent spawning — child session creation, role-based catalog restrictions, and context branching.
+
+### New files
+
+- **`src/sandbox/roles.ts`** — Role definitions with catalog restrictions:
+
+  ```
+  explore: fs[readFile, glob, stat, listDir, exists], shell[exec: read-only cmds]
+  plan:    fs[readFile, glob, stat, listDir, exists] (no write, no exec)
+  worker:  full catalog (inherits parent)
+  verify:  shell[exec], fs[read-only]
+  ```
+
+- **`src/sandbox/spawn.ts`** — `SpawnConfig` interface + child session factory:
+  - Creates a child `Session` with role-restricted catalog
+  - Creates a child `AgentLoop` with parent's `model` reference
+  - Handles `.options({ context })`: `"empty"` (default) creates a fresh session with only SCOPE injected; `"branch"` clones the parent's message history as the child's starting context
+  - Enforces structured output: `{ scope, result, keyFiles, issues? }`
+  - Returns `SpawnResult` when child completes
+
+### Modified files
+
+- **`src/session/session.ts`** — Add `onSpawn` to `SessionOptions`, wire into globals config.
+- **`src/session/types.ts`** — Add `SpawnConfig`, `SpawnOptions` (with `context: 'empty' | 'branch'`), `SpawnResult`, `spawn_start`/`spawn_complete` events.
+- **`src/cli/agent-loop.ts`** — Add `handleSpawn()` method that creates child `AgentLoop`, runs directive, returns structured result. Child shares parent's `model`.
+
+---
+
+## Phase 1b: Agent Namespaces
+
+**Why:** Expose space agents as callable namespace globals — the user-facing API for spawning agents.
+
+**Depends on:** Phase 1a (spawn infrastructure)
 
 Accessible space agents are available the same way as the knowledge tree. The space tree can be fully expanded. Each agent can accept specific parameters computed from `config.json` based on field values, field/subdomain settings, and enabled domains. A specific JSON schema is extracted from field configs and markdown file names. Agents are injected as namespace globals — no explicit `spawn()` function.
 
@@ -59,13 +93,6 @@ var steakInstructions = cooking
   })
   .mealplan("How to cook a steak?");
 
-// do other work while steak agent runs...
-var ingredients = await fetchIngredients("spaghetti");
-
-// stop() detects steakInstructions is a pending agent promise → waits for it
-stop(steakInstructions, ingredients);
-// ← stop { steakInstructions: { result: "Sear 2min per side..." }, ingredients: [...] }
-
 // blocking — await to wait for result inline
 var spaghettiInstruction = await cooking
   .general_advisor({
@@ -76,24 +103,11 @@ var spaghettiInstruction = await cooking
 // FIRE AND FORGET — no variable, not tracked, cannot ask parent anything
 cooking.general_advisor({ technique: "saute" }).mealplan("Generate a side dish suggestion");
 
-// knowledge agents — fire and forget is the common pattern
-knowledge
-  .writer({ field: "cuisine" })
-  .addOptions(
-    "This has information about additional options. Store them appropriately",
-    some_data,
-    someOtherData,
-  );
-
 // CONTEXT OPTIONS — .options() at the end of the chain
-// Default: "empty" — child starts with a fresh conversation
 var research = cooking
   .general_advisor({ technique: "saute" })
   .mealplan("Based on what we discussed, suggest improvements")
   .options({ context: "branch" }); // child gets a copy of parent's conversation history
-
-// "empty" (default) — no .options() needed
-var fresh = cooking.general_advisor({ technique: "grill" }).mealplan("How to grill salmon?");
 ```
 
 ### Context options for spawned agents
@@ -107,96 +121,27 @@ Every agent action returns a chainable object with an `.options()` method that c
 - **`"empty"`** — Child starts with a fresh conversation — only its system prompt, injected SCOPE, and the directive. Best for independent tasks.
 - **`"branch"`** — Child gets a snapshot of the parent's conversation history (messages, scope, knowledge loaded) at the time of spawning. The child can reference prior context. Parent and child diverge from that point — the child's subsequent turns don't affect the parent's history.
 
-### Enhanced `async()` with `.options()` chaining
+### New files
 
-The existing `async()` global is extended with `.options()` chaining. The first argument is always a **description** of what the async work will do. The second argument is the function.
+- **`src/sandbox/agent-namespaces.ts`** — Builds namespace globals from the space agent tree:
+  - Reads all loaded spaces + agent configs to build a tree of callable objects
+  - Each leaf method (e.g., `.mealplan(request)`) creates a `SpawnConfig` from the chained parameters and calls the internal spawn handler
+  - Returns a `Promise` — non-blocking unless the agent `await`s it
+  - Namespace objects are injected as sandbox globals (one per space)
 
-When the stream parser encounters the opening bracket of an `async()` call, the current LLM stream is **branched**: the child takes over the current stream (executing the function body), and a new parallel stream is forked for the parent continuing after the `async()` call.
+### Modified files
 
-The async function receives globals as arguments — `stop`, `display`, `ask`, `tasklist`, etc. — scoped to the child's own session. The child uses `stop()` to read values just like the parent does, and `return` to deliver the final result.
+- **`src/sandbox/globals.ts`** — Add `onSpawn` callback to `GlobalsConfig`. No `spawnFn` global — agent namespaces are injected separately.
+- **`src/session/session.ts`** — Inject agent namespace globals into sandbox via `agent-namespaces.ts`.
+- **`src/cli/buildSystemPrompt.ts`** — Show `AVAILABLE agents` tree in system prompt with namespace signatures.
 
-**`async()` must always be saved to a variable.** The variable name is how it appears in `{{AGENTS}}` and how the parent references it.
+---
 
-**Signature:** `async(description: string, fn: (stop, display, ask, ...) => Promise<T>): ChainablePromise<T>`
+## Phase 1c: `stop()` Promise-Awaiting
 
-```ts
-// Plain async — runs a JS function in the background
-var fetchResult = async("Fetch restaurant data", () => fetchData());
+**Why:** `stop()` should transparently await any Promise argument — not just agent promises, but any async work.
 
-// Branched async — the stream forks here:
-//   - child: takes the current stream, executes the function body
-//   - parent: a new stream starts, continuing after this line
-var analysis = async("Analyze index.ts for code quality issues",
-  async (stop, display, ask, tasklist) => {
-    // stop() works just like in the parent — pause, read values, resume
-    var data = await readFile("/src/index.ts");
-    await stop(data);
-    // ← stop { data: "file contents..." }
-
-    // tasklist() returns an object — task operations are methods on it
-    var tasks = tasklist("Analyze the code", [
-      { id: "parse", instructions: "Parse the AST", outputSchema: { nodes: { type: "number" } } },
-      { id: "report", instructions: "Summarize findings", outputSchema: { done: { type: "boolean" } }, dependsOn: ["parse"] },
-    ]);
-
-    var ast = await parseCode(data);
-    await stop(ast);
-    tasks.completeTask("parse", { nodes: ast.length });
-
-    display(<AnalysisCard results={ast} />);
-    tasks.completeTask("report", { done: true });
-
-    return { nodeCount: ast.length, issues: [] }; // resolves the async promise
-  },
-).options({ context: "empty" });
-// ↑ Parent's new stream starts here — two LLM streams running in parallel
-stop(analysis);
-
-// Branched async with parent's conversation history
-var continuation = async("Continue investigating the auth flow we discussed",
-  async (stop, display) => {
-    var deeper = await investigateFurther();
-    await stop(deeper);
-    display(<ResultCard data={deeper} />);
-    return deeper;
-  },
-).options({ context: "branch" });
-stop(continuation);
-```
-
-| Call                                                                                 | Behavior                                                                                        |
-| ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| `var x = async("desc", () => fn())`                                                  | **Plain** — runs `fn` as a background JS function, no agent session                             |
-| `var x = async("desc", async (stop, ...) => { ... }).options({ context: "empty" })`  | **Branched** — child takes current stream, parent gets a new fork, child starts with no history |
-| `var x = async("desc", async (stop, ...) => { ... }).options({ context: "branch" })` | **Branched** — same fork, but child starts with a copy of parent's conversation history         |
-
-**Stream forking:** When the parser detects the `async(` opening bracket, it branches the current LLM stream. The child inherits the current stream and executes the function body. The parent gets a new forked stream that starts executing from the line after the `async()` call. This means the child doesn't "start cold" — it continues from where the parent was, while the parent spins up fresh.
-
-**Parent's code history after fork:** The forked parent stream sees the async call collapsed to just the description — the function body is stripped:
-
-```
-// What the parent's code window shows:
-var analysis = async("Analyze index.ts for code quality issues")
-// ↑ inner function body omitted — running in background
-// parent code continues from here...
-```
-
-This keeps the parent's context clean — it knows an async agent named `analysis` was spawned with that description, but doesn't waste tokens on the child's implementation. The full function body only exists in the child's stream.
-
-**Function arguments** (in order): `stop`, `display`, `ask`, `tasklist`, `sleep`, `loadKnowledge`. Each is scoped to the child's session — the child's `stop()` pauses the child's stream, not the parent's. Task operations (`completeTask`, `completeTaskAsync`, `taskProgress`, `failTask`, `retryTask`) are methods on the object returned by `tasklist()`.
-
-When `.options({ context })` is used:
-
-- The current stream is handed to the child, a **new parallel LLM stream** forks for the parent
-- Both agents run concurrently from that point
-- Globals are passed as function arguments, scoped to the child's session
-- The child's `stop()` pauses and resumes the child's own stream — the parent is unaffected
-- `return` resolves the async promise — delivered via the parent's next `stop()`
-- Always tracked in `{{AGENTS}}` (must be saved to a variable)
-
-### `stop()` awaits any Promise
-
-`stop()` inspects every argument — if any value is a `Promise` (pending or resolved), `stop()` awaits it before building the payload. This applies universally: agent promises, `fetch()` calls, any async work.
+**Depends on:** Nothing (can be done in parallel with 1a/1b)
 
 ```ts
 // All of these work — stop() awaits the promises automatically
@@ -207,7 +152,17 @@ stop(data, steak, file);
 // ← stop { data: { ... }, steak: { result: "..." }, file: "contents..." }
 ```
 
-### Agent promise registry and `{{AGENTS}}` block
+### Modified files
+
+- **`src/sandbox/globals.ts`** — Modify `stopFn` to detect any `Promise` in arguments and `await` them before building the stop payload.
+
+---
+
+## Phase 1d: Agent Registry & `{{AGENTS}}` Block
+
+**Why:** The parent agent needs visibility into spawned agent state — running, resolved, failed, tasklist progress.
+
+**Depends on:** Phase 1a, Phase 1b
 
 Only agent calls **saved to a variable** are tracked in the registry. The variable name is the agent's identity — it's how the agent appears in `{{AGENTS}}` and how the parent references it in `respond()`. Calls without a variable assignment are **fire and forget** — they run to completion but are not tracked, cannot ask the parent questions, and don't appear in `{{AGENTS}}`.
 
@@ -240,7 +195,30 @@ On every `stop()` call, the response includes a `{{AGENTS}}` block showing all t
 
 Each running agent shows its **tasklist state** (if it declared one) — the parent agent can see which tasks the child has completed, which are running, and which are still pending. This uses the same `✓ ◉ ○ ✗ ◎ ⊘` symbols as the parent's own `{{TASKS}}` block. Agents without a tasklist just show their running/resolved status.
 
-### Child-to-parent questions
+### New files
+
+- **`src/sandbox/agent-registry.ts`** — Tracks all outstanding agent promises, child state, and pending questions:
+  - `register(varName, promise, label, childSession)` — Add a promise + child session reference to the registry
+  - `resolve(varName)` — Mark as resolved when child completes
+  - `getPending()` → `AgentPromiseEntry[]` — All currently unresolved promises
+  - `getSnapshot(varName)` → `AgentSnapshot` — Current state of a child agent: status, tasklist progress (tasks with states), pending question (if any), latest scope summary
+  - `awaitIfPending(value)` — If value is a registered promise, await it and return the resolved value
+
+- **`src/context/agents-block.ts`** — Generates the `{{AGENTS}}` block from `AgentRegistry.getPending()` + `getSnapshot()`. For each running agent, queries the child session's tasklist state and renders it inline. Appended to every `stop()` message when there are or were recent agent promises. Same decay strategy as `{{TASKS}}`.
+
+### Modified files
+
+- **`src/session/session.ts`** — Create `AgentRegistry` instance.
+- **`src/session/types.ts`** — Add `AgentPromiseEntry`.
+- **`src/cli/agent-loop.ts`** — On `stop()`, query `AgentRegistry.getPending()` and append `{{AGENTS}}` block to the stop message.
+
+---
+
+## Phase 1e: Child-to-Parent Questions (`respond`)
+
+**Why:** Spawned agents need a way to ask the parent for structured input.
+
+**Depends on:** Phase 1d (agent registry)
 
 A **tracked** spawned agent (saved to a variable) can ask the parent agent for input by calling `ask()` with a JSON schema. Instead of rendering a form to the user, the child's `ask()` pauses the child and surfaces the question in the `{{AGENTS}}` block on the parent's next `stop()`. Fire-and-forget agents (no variable) cannot ask questions — their `ask()` calls resolve with `{ _noParent: true }`.
 
@@ -266,8 +244,6 @@ A **tracked** spawned agent (saved to a variable) can ask the parent agent for i
 The parent answers by calling `respond(varName, data)`:
 
 ```ts
-// Parent sees the question in {{AGENTS}} after stop()
-// Parent responds with structured data matching the schema
 respond(steakInstructions, {
   doneness: "medium-rare",
   thickness_cm: 3,
@@ -279,7 +255,15 @@ respond(steakInstructions, {
 - If the parent ignores the question, the child stays paused — shown as `?` in `{{AGENTS}}` on every subsequent `stop()`
 - Multiple children can have pending questions simultaneously — each shown in `{{AGENTS}}`
 
-**Rules:**
+### Modified files
+
+- **`src/sandbox/agent-registry.ts`** — Add `setPendingQuestion(varName, question, schema)` and `respond(varName, data)` methods.
+- **`src/sandbox/globals.ts`** — Add `respondFn` global.
+- **`src/cli/buildSystemPrompt.ts`** — Document `respond()` global and question format in `{{AGENTS}}`.
+
+---
+
+### Agent spawning rules (apply across all Phase 1 sub-phases)
 
 - `stop()` awaits **any** Promise argument (agent or otherwise) before returning the payload
 - Only agent calls **saved to a variable** are tracked in `{{AGENTS}}` — the variable name is the identifier
@@ -289,56 +273,6 @@ respond(steakInstructions, {
 - When an agent promise resolves while no `stop()` is pending, the result is held until the next `stop()` that references it (or until the agent reads it via `await`)
 - `await` on any promise always blocks — standard Promise semantics
 - Child tasklist state is a read-only view — the parent cannot complete or modify child tasks
-
-### New files
-
-- **`src/sandbox/roles.ts`** — Role definitions with catalog restrictions:
-
-  ```
-  explore: fs[readFile, glob, stat, listDir, exists], shell[exec: read-only cmds]
-  plan:    fs[readFile, glob, stat, listDir, exists] (no write, no exec)
-  worker:  full catalog (inherits parent)
-  verify:  shell[exec], fs[read-only]
-  ```
-
-- **`src/sandbox/spawn.ts`** — `SpawnConfig` interface + child session factory:
-  - Creates a child `Session` with role-restricted catalog
-  - Creates a child `AgentLoop` with parent's `model` reference
-  - Handles `.options({ context })`: `"empty"` (default) creates a fresh session with only SCOPE injected; `"branch"` clones the parent's message history as the child's starting context
-  - Enforces structured output: `{ scope, result, keyFiles, issues? }`
-  - Returns `SpawnResult` when child completes
-
-- **`src/sandbox/agent-namespaces.ts`** — Builds namespace globals from the space agent tree:
-  - Reads all loaded spaces + agent configs to build a tree of callable objects
-  - Each leaf method (e.g., `.mealplan(request)`) creates a `SpawnConfig` from the chained parameters and calls the internal spawn handler
-  - Returns a `Promise` — non-blocking unless the agent `await`s it
-  - Namespace objects are injected as sandbox globals (one per space)
-
-- **`src/sandbox/agent-registry.ts`** — Tracks all outstanding agent promises, child state, and pending questions:
-  - `register(varName, promise, label, childSession)` — Add a promise + child session reference to the registry
-  - `resolve(varName)` — Mark as resolved when child completes
-  - `getPending()` → `AgentPromiseEntry[]` — All currently unresolved promises
-  - `getSnapshot(varName)` → `AgentSnapshot` — Current state of a child agent: status, tasklist progress (tasks with states), pending question (if any), latest scope summary
-  - `awaitIfPending(value)` — If value is a registered promise, await it and return the resolved value
-  - `setPendingQuestion(varName, question, schema)` — Record that a child agent is waiting for parent input
-  - `respond(varName, data)` — Deliver parent's answer to the child's pending `ask()`, resume the child
-  - Used by `stop()` to detect promises in arguments, by `agents-block.ts` to generate `{{AGENTS}}` with questions, and by `respondFn` to deliver answers
-
-### Modified files
-
-- **`src/sandbox/globals.ts`** — Modify `stopFn` to detect any `Promise` in arguments and `await` them before building the stop payload. Modify `asyncFn` to return a chainable object with `.options()` — when `context` is set, delegate to spawn instead of `AsyncManager`. Add `onSpawn` callback to `GlobalsConfig`. No `spawnFn` global — agent namespaces are injected separately.
-
-- **`src/sandbox/async-manager.ts`** — No changes for plain `async()` calls. Branched `async()` calls bypass `AsyncManager` and go through `spawn.ts` instead.
-
-- **`src/session/session.ts`** — Add `onSpawn` to `SessionOptions`, wire into globals config. Inject agent namespace globals into sandbox via `agent-namespaces.ts`. Create `AgentRegistry` instance.
-
-- **`src/session/types.ts`** — Add `SpawnConfig`, `SpawnOptions` (with `context: 'empty' | 'branch'`), `SpawnResult`, `AgentPromiseEntry`, `spawn_start`/`spawn_complete` events.
-
-- **`src/cli/agent-loop.ts`** — Add `handleSpawn()` method that creates child `AgentLoop`, runs directive, returns structured result. Child shares parent's `model`. On `stop()`, query `AgentRegistry.getPending()` and append `{{AGENTS}}` block to the stop message (similar to `{{TASKS}}`).
-
-- **`src/cli/buildSystemPrompt.ts`** — Show `AVAILABLE agents` tree in system prompt with namespace signatures. Document that `stop()` awaits agent promises passed as arguments. Document the `{{AGENTS}}` block format.
-
-- **`src/context/agents-block.ts`** — **New** — Generates the `{{AGENTS}}` block from `AgentRegistry.getPending()` + `getSnapshot()`. For each running agent, queries the child session's tasklist state and renders it inline. Appended to every `stop()` message when there are or were recent agent promises. Same decay strategy as `{{TASKS}}`.
 
 ---
 
@@ -455,83 +389,242 @@ Since knowledge writes are fire-and-forget, the parent agent doesn't wait for th
 
 ---
 
-## Phase 3: Security Monitor Hook
+## Phase 3: Tasklist Refactor (variable-based TasklistHandle)
 
-**Why:** Claude Code has layered security: command classification, block/allow rules, scope limitation.
+**Why:** The current tasklist API uses a string `tasklistId` passed to 6 separate globals (`tasklist`, `completeTask`, `completeTaskAsync`, `taskProgress`, `failTask`, `retryTask`). This is verbose and error-prone. Refactoring to a variable-based handle is more natural for the REPL — the agent saves the tasklist to a variable and calls methods on it.
 
-### New hook: `src/hooks/security-monitor.ts`
+### New API
 
-1. **Classifies operations** by risk:
-   - **Safe:** `readFile`, `glob`, `stat`, `httpGet` → always allow
-   - **Low-risk writes:** `writeFile` (existing paths), `gitAdd` → allow + log
-   - **Destructive:** `remove`, `exec('rm ...')`, `gitCommit` → interrupt in auto-mode
+```ts
+// tasklist() returns a TasklistHandle — saved to a variable
+var tasks = tasklist("Analyze the dataset", [
+  { id: "load", instructions: "Load the CSV", outputSchema: { count: { type: "number" } } },
+  { id: "analyze", instructions: "Compute stats", outputSchema: { done: { type: "boolean" } }, dependsOn: ["load"] },
+  { id: "report", instructions: "Present results", outputSchema: { done: { type: "boolean" } }, dependsOn: ["analyze"] },
+]);
 
-2. **Detects secrets** in arguments: strings matching `/(api[_-]?key|password|secret|token)\s*[:=]/i`
+// Task operations are methods on the handle — no tasklistId needed
+var data = await loadCSV("/data/employees.csv");
+await stop(data);
+tasks.completeTask("load", { count: data.length });
 
-3. **Enforces scope boundaries** from config: `allowedPaths`, `blockedCommands`
+var stats = await computeStats(data);
+tasks.taskProgress("analyze", "Computing correlations...", 75);
+await stop(stats);
+tasks.completeTask("analyze", { done: true });
+
+// Async task completion
+tasks.completeTaskAsync("report", async () => {
+  var report = await generateReport(stats);
+  return { done: true };
+});
+
+// Fail and retry
+tasks.failTask("report", "API rate limited");
+tasks.retryTask("report");
+```
+
+### TasklistHandle methods
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `completeTask` | `(taskId, output)` | Mark task done with validated output |
+| `completeTaskAsync` | `(taskId, fn)` | Launch task work in background |
+| `taskProgress` | `(taskId, message, percent?)` | Report progress on running task |
+| `failTask` | `(taskId, error)` | Mark task as failed |
+| `retryTask` | `(taskId)` | Reset failed task to ready (max 3 retries) |
+
+Internally, each `TasklistHandle` gets a UUID as its `tasklistId` — the existing tasklist machinery (`TasklistsState`, `{{TASKS}}` block, reminders, events) works unchanged. The agent never sees or passes the ID directly.
+
+### Slash action injection
+
+When a slash action from the chat interface injects a tasklist (via `generateTasklistCode` → `runSetupCode`), the variable name is derived deterministically from the flow's `actionId` using camelCase conversion:
+
+```
+/mealplan       → var mealplanTasks_a3f = tasklist("Make a meal plan", [...])
+/mealplan       → var mealplanTasks_x7k = tasklist("Make a meal plan", [...])  // second invocation
+/create_agent   → var createAgentTasks_b2m = tasklist("Create a new agent", [...])
+```
+
+The pattern is `${camelCase(actionId)}Tasks_${randomAlphanumeric(3)}` — this ensures:
+- Unique per invocation: the same slash action can run multiple times without variable collisions
+- The agent sees the variable in `{{SCOPE}}` and can call `mealplanTasks_a3f.completeTask(...)` immediately
 
 ### Modified files
 
-- **`src/session/config.ts`** — Add `allowedPaths`, `blockedCommands`, `autoMode`, `confirmDestructive`
-- **`src/catalog/shell.ts`** — Add command safety classifier to `exec()`
+- **`src/sandbox/globals.ts`** — `tasklistFn` returns a `TasklistHandle` object with bound methods instead of `void`. Remove `completeTaskFn`, `completeTaskAsyncFn`, `taskProgressFn`, `failTaskFn`, `retryTaskFn` as separate globals — they become methods on the handle. UUID generation for tasklistId.
+
+- **`src/session/types.ts`** — Add `TasklistHandle` type.
+
+- **`src/cli/buildSystemPrompt.ts`** — Update tasklist documentation in system prompt to show variable-based API. Remove separate `completeTask`/`failTask`/`retryTask` global docs.
+
+- **`src/cli/agent-loader.ts`** — Update `generateTasklistCode()` to emit `var ${camelCase(actionId)}Tasks_${randomAlphanumeric(3)} = tasklist(...)` instead of `tasklist("${tasklistId}", ...)`.
+
+---
+
+## Phase 4: Async Branching (stream forking with `.options()`)
+
+**Why:** The current `async()` global only runs plain JS functions in the background. With agent spawning in Phase 1, the agent needs a way to fork its own stream — branching the current conversation into a parallel child agent that has full LLM capabilities.
+
+### Enhanced `async()` with `.options()` chaining
+
+The first argument is always a **description** of what the async work will do. The second argument is the function.
+
+When the stream parser encounters the opening bracket of an `async()` call, the current LLM stream is **branched**: the child takes over the current stream (executing the function body), and a new parallel stream is forked for the parent continuing after the `async()` call.
+
+The async function receives globals as arguments — `stop`, `display`, `ask`, `tasklist`, etc. — scoped to the child's own session. The child uses `stop()` to read values just like the parent does, and `return` to deliver the final result.
+
+**`async()` must always be saved to a variable.** The variable name is how it appears in `{{AGENTS}}` and how the parent references it.
+
+**Signature:** `async(description: string, fn: (stop, display, ask, ...) => Promise<T>): ChainablePromise<T>`
+
+```ts
+// Plain async — runs a JS function in the background
+var fetchResult = async("Fetch restaurant data", () => fetchData());
+
+// Branched async — the stream forks here:
+//   - child: takes the current stream, executes the function body
+//   - parent: a new stream starts, continuing after this line
+var analysis = async("Analyze index.ts for code quality issues",
+  async (stop, display, ask, tasklist) => {
+    // stop() works just like in the parent — pause, read values, resume
+    var data = await readFile("/src/index.ts");
+    await stop(data);
+    // ← stop { data: "file contents..." }
+
+    // tasklist() returns an object — task operations are methods on it
+    var tasks = tasklist("Analyze the code", [
+      { id: "parse", instructions: "Parse the AST", outputSchema: { nodes: { type: "number" } } },
+      { id: "report", instructions: "Summarize findings", outputSchema: { done: { type: "boolean" } }, dependsOn: ["parse"] },
+    ]);
+
+    var ast = await parseCode(data);
+    await stop(ast);
+    tasks.completeTask("parse", { nodes: ast.length });
+
+    display(<AnalysisCard results={ast} />);
+    tasks.completeTask("report", { done: true });
+
+    return { nodeCount: ast.length, issues: [] }; // resolves the async promise
+  },
+).options({ context: "empty" });
+// ↑ Parent's new stream starts here — two LLM streams running in parallel
+stop(analysis);
+
+// Branched async with parent's conversation history
+var continuation = async("Continue investigating the auth flow we discussed",
+  async (stop, display) => {
+    var deeper = await investigateFurther();
+    await stop(deeper);
+    display(<ResultCard data={deeper} />);
+    return deeper;
+  },
+).options({ context: "branch" });
+stop(continuation);
+```
+
+| Call                                                                                 | Behavior                                                                                        |
+| ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `var x = async("desc", () => fn())`                                                  | **Plain** — runs `fn` as a background JS function, no agent session                             |
+| `var x = async("desc", async (stop, ...) => { ... }).options({ context: "empty" })`  | **Branched** — child takes current stream, parent gets a new fork, child starts with no history |
+| `var x = async("desc", async (stop, ...) => { ... }).options({ context: "branch" })` | **Branched** — same fork, but child starts with a copy of parent's conversation history         |
+
+**Stream forking:** When the parser detects the `async(` opening bracket, it branches the current LLM stream. The child inherits the current stream and executes the function body. The parent gets a new forked stream that starts executing from the line after the `async()` call. This means the child doesn't "start cold" — it continues from where the parent was, while the parent spins up fresh.
+
+**Parent's code history after fork:** The forked parent stream sees the async call collapsed to just the description — the function body is stripped:
+
+```
+// What the parent's code window shows:
+var analysis = async("Analyze index.ts for code quality issues")
+// ↑ inner function body omitted — running in background
+// parent code continues from here...
+```
+
+This keeps the parent's context clean — it knows an async agent named `analysis` was spawned with that description, but doesn't waste tokens on the child's implementation. The full function body only exists in the child's stream.
+
+**Function arguments** (in order): `stop`, `display`, `ask`, `tasklist`, `sleep`, `loadKnowledge`. Each is scoped to the child's session — the child's `stop()` pauses the child's stream, not the parent's. Task operations (`completeTask`, `completeTaskAsync`, `taskProgress`, `failTask`, `retryTask`) are methods on the object returned by `tasklist()`.
+
+When `.options({ context })` is used:
+
+- The current stream is handed to the child, a **new parallel LLM stream** forks for the parent
+- Both agents run concurrently from that point
+- Globals are passed as function arguments, scoped to the child's session
+- The child's `stop()` pauses and resumes the child's own stream — the parent is unaffected
+- `return` resolves the async promise — delivered via the parent's next `stop()`
+- Always tracked in `{{AGENTS}}` (must be saved to a variable)
+
+### Modified files
+
+- **`src/sandbox/globals.ts`** — Modify `asyncFn` to accept `(description, fn)` signature, return a chainable object with `.options()`. When `context` is set, delegate to spawn instead of `AsyncManager`.
+
+- **`src/sandbox/async-manager.ts`** — No changes for plain `async()` calls. Branched `async()` calls bypass `AsyncManager` and go through `spawn.ts` instead.
+
+- **`src/stream/line-accumulator.ts`** — Detect `async(` bracket open to trigger stream fork. Strip function body from parent's code window.
+
+- **`src/cli/agent-loop.ts`** — Handle stream forking: when async branching is detected, hand current stream to child, create new forked stream for parent.
+
+- **`src/cli/buildSystemPrompt.ts`** — Update `async()` documentation to show `(description, fn)` signature, `.options()` chaining, and branching behavior.
 
 ---
 
 ## Build Order
 
 ```
-Phase 1: Sub-agent Spawning                   [foundational — spawn global]
+Phase 1a: Spawn Infrastructure               [foundational — child sessions, roles]
   └── No dependencies
 
-Phase 2: Knowledge-based Memory               [foundational — write to knowledge]
+Phase 1b: Agent Namespaces                    [namespace chaining API]
+  └── Requires Phase 1a
+
+Phase 1c: stop() Promise-Awaiting            [independent — await any Promise in stop]
   └── No dependencies
 
-Phase 3: Message History Search               [foundational — search global]
+Phase 1d: Agent Registry & {{AGENTS}}        [tracking, visibility]
+  └── Requires Phase 1a, 1b
+
+Phase 1e: Child-to-Parent Questions          [respond() global]
+  └── Requires Phase 1d
+
+Phase 2:  Knowledge-based Memory              [write to knowledge via agent]
+  └── Requires Phase 1b (uses agent namespaces)
+
+Phase 3:  Tasklist Refactor                   [variable-based TasklistHandle]
   └── No dependencies
 
-Phase 4: Git Operations                       [independent]
-  └── No dependencies
-
-Phase 5: Security Monitor                     [better after Phase 4]
-  └── Soft dependency on Phase 4 (git op classification)
-
-Phase 6: Auto Mode                            [depends on Phase 5]
-  └── Requires Phase 5 (security must exist for safe auto)
-
-Phase 7: Compaction & Verification Sugar      [depends on Phase 1]
-  └── Requires Phase 1 (uses spawn)
+Phase 4:  Async Branching                     [stream forking with .options()]
+  └── Requires Phase 1a, 1d
 ```
 
 **Parallel tracks:**
 
-- Track A: Phase 1 → Phase 7
-- Track B: Phase 2 (independent)
-- Track C: Phase 3 (independent)
-- Track D: Phase 4 → Phase 5 → Phase 6
+- Track A: 1a → 1b → 1d → 1e
+- Track B: 1c (independent)
+- Track C: 3 (independent)
+- Track D: 1b → 2
+- Track E: 1a + 1d → 4
 
-Phases 1–4 can all start in parallel.
+Phases 1a, 1c, and 3 can all start in parallel.
 
 ---
 
-## New Globals Summary
+## Globals Summary
 
 After implementation, the REPL has **9+ globals** (down from 12, up with new additions):
 
-| #   | Global                                          | Type                | Phase   |
-| --- | ----------------------------------------------- | ------------------- | ------- |
-| 1   | `stop(...values)`                               | Existing            | —       |
-| 2   | `display(jsx)`                                  | Existing            | —       |
-| 3   | `ask(jsx)`                                      | Existing            | —       |
-| 4   | `async(description, fn)`                        | Existing (enhanced) | Phase 1 |
-| 5   | `tasklist(description, tasks)` → TasklistHandle | Existing (changed)  | —       |
-| 6   | `sleep(seconds)`                                | Existing            | —       |
-| 7   | `loadKnowledge(selector)`                       | Existing            | —       |
-| 8   | `loadClass(className)`                          | Existing            | —       |
-| 9   | `searchHistory(query, options?)`                | New, sync           | Phase 3 |
-| 10  | `respond(agentPromise, data)`                   | New, sync           | Phase 1 |
-| +N  | Agent namespaces (e.g., `cooking`, `knowledge`) | New, non-blocking   | Phase 1 |
+| #   | Global                                          | Type                | Phase    |
+| --- | ----------------------------------------------- | ------------------- | -------- |
+| 1   | `stop(...values)`                               | Existing (enhanced) | Phase 1c |
+| 2   | `display(jsx)`                                  | Existing            | —        |
+| 3   | `ask(jsx)`                                      | Existing            | —        |
+| 4   | `async(description, fn)`                        | Existing (enhanced) | Phase 4  |
+| 5   | `tasklist(description, tasks)` → TasklistHandle | Existing (changed)  | Phase 3  |
+| 6   | `sleep(seconds)`                                | Existing            | —        |
+| 7   | `loadKnowledge(selector)`                       | Existing            | —        |
+| 8   | `loadClass(className)`                          | Existing            | —        |
+| 9   | `respond(agentPromise, data)`                   | New, sync           | Phase 1e |
+| +N  | Agent namespaces (e.g., `cooking`, `knowledge`) | New, non-blocking   | Phase 1b |
 
-**`tasklist()` returns a `TasklistHandle`** with methods: `.completeTask(taskId, output)`, `.completeTaskAsync(taskId, fn)`, `.taskProgress(taskId, message, percent?)`, `.failTask(taskId, error)`, `.retryTask(taskId)`. The separate `completeTask`, `completeTaskAsync`, `taskProgress`, `failTask`, `retryTask` globals are removed — all task operations go through the returned object. Internally, each `TasklistHandle` gets a UUID as its `tasklistId` — the existing tasklist machinery (`TasklistsState`, `{{TASKS}}` block, reminders, events) works the same way, but the agent never sees or passes the ID directly.
+**`tasklist()` returns a `TasklistHandle`** with methods: `.completeTask(taskId, output)`, `.completeTaskAsync(taskId, fn)`, `.taskProgress(taskId, message, percent?)`, `.failTask(taskId, error)`, `.retryTask(taskId)`. The separate `completeTask`, `completeTaskAsync`, `taskProgress`, `failTask`, `retryTask` globals are removed — all task operations go through the returned object. Internally, each `TasklistHandle` gets a UUID as its `tasklistId`.
 
 **Agent namespaces** are injected as globals per loaded space — not a single `spawn()` function. Each namespace is a chainable object tree reflecting the space's agents and their actions. Calls return a `Promise` (non-blocking by default, blocking with `await`). The `knowledge` namespace is always available as a built-in (Phase 2) — it replaces direct `saveKnowledge`/`forgetKnowledge` globals with fire-and-forget agent calls.
 
@@ -541,43 +634,34 @@ After implementation, the REPL has **9+ globals** (down from 12, up with new add
 
 ## Critical Files Summary
 
-| File                                | Phases  | Changes                                                                       |
-| ----------------------------------- | ------- | ----------------------------------------------------------------------------- |
-| `src/sandbox/globals.ts`            | 1, 3    | Add onSpawn callback, respondFn, searchHistory                                |
-| `src/sandbox/spawn.ts`              | 1       | **New** — SpawnConfig, child session factory                                  |
-| `src/sandbox/roles.ts`              | 1       | **New** — Role definitions + catalog restrictions                             |
-| `src/sandbox/agent-namespaces.ts`   | 1       | **New** — Build namespace globals from space agent tree                       |
-| `src/sandbox/agent-registry.ts`     | 1       | **New** — Track agent promises, pending questions, detect in stop()           |
-| `src/context/agents-block.ts`       | 1       | **New** — Generate `{{AGENTS}}` block for stop messages                       |
-| `src/knowledge/writer.ts`           | 2       | **New** — Write/delete knowledge files, ensure memory domain                  |
-| `src/knowledge/index.ts`            | 2       | Add rebuild after write                                                       |
-| `src/knowledge/types.ts`            | 2       | Add SaveKnowledgeSelector type                                                |
-| `src/session/session.ts`            | 1, 2, 3 | Wire spawn, knowledgeWriter, searchHistory; create HistoryLog; record entries |
-| `src/session/history-log.ts`        | 3       | **New** — HistoryLog class, HistoryEntry type, search + record methods        |
-| `src/session/config.ts`             | 5, 6    | Add autoMode, allowedPaths, blockedCommands                                   |
-| `src/session/types.ts`              | 1, 2, 3 | Add SpawnConfig, SpawnResult, HistoryEntry, new events                        |
-| `src/security/function-registry.ts` | 3       | Add optional `onCall` hook for logging function calls to history              |
-| `src/cli/agent-loop.ts`             | 1, 6, 7 | handleSpawn, auto-resolve, compaction                                         |
-| `src/cli/buildSystemPrompt.ts`      | 1, 2, 3 | Document new globals                                                          |
-| `src/cli/bin.ts`                    | 2       | Wire knowledge writer, ensure memory domain at startup                        |
-| `src/catalog/index.ts`              | 4       | Register git module                                                           |
-| `src/catalog/git.ts`                | 4       | **New** — Git operations                                                      |
-| `src/catalog/plan.ts`               | 7       | **New** — compactContext, planTasks, verify                                   |
-| `src/catalog/shell.ts`              | 5       | Add command safety classifier                                                 |
-| `src/hooks/security-monitor.ts`     | 5       | **New** — Risk classification, secret detection                               |
-| `src/hooks/git-safety.ts`           | 4       | **New** — Destructive git op interception                                     |
+| File                              | Phases            | Changes                                                     |
+| --------------------------------- | ----------------- | ----------------------------------------------------------- |
+| `src/sandbox/globals.ts`          | 1b,1c,1e, 3, 4   | onSpawn, stop Promise-awaiting, respondFn, tasklist, async  |
+| `src/sandbox/spawn.ts`            | 1a                | **New** — SpawnConfig, child session factory                |
+| `src/sandbox/roles.ts`            | 1a                | **New** — Role definitions + catalog restrictions           |
+| `src/sandbox/agent-namespaces.ts` | 1b                | **New** — Build namespace globals from space agent tree     |
+| `src/sandbox/agent-registry.ts`   | 1d, 1e            | **New** — Track agent promises, questions, respond          |
+| `src/sandbox/async-manager.ts`    | 4                 | Branched calls bypass to spawn.ts                           |
+| `src/context/agents-block.ts`     | 1d                | **New** — Generate `{{AGENTS}}` block for stop messages     |
+| `src/knowledge/writer.ts`         | 2                 | **New** — Write/delete knowledge files, ensure memory domain|
+| `src/knowledge/index.ts`          | 2                 | Add rebuild after write                                     |
+| `src/knowledge/types.ts`          | 2                 | Add SaveKnowledgeSelector type                              |
+| `src/session/session.ts`          | 1a, 1b, 1d, 2    | Wire spawn, namespaces, registry, knowledgeWriter           |
+| `src/session/types.ts`            | 1a, 1d, 3         | SpawnConfig, SpawnResult, AgentPromiseEntry, TasklistHandle |
+| `src/stream/line-accumulator.ts`  | 4                 | Detect `async(` bracket to trigger stream fork              |
+| `src/cli/agent-loop.ts`           | 1a, 1d, 4         | handleSpawn, {{AGENTS}} block, stream forking               |
+| `src/cli/buildSystemPrompt.ts`    | 1b, 1e, 2, 3, 4  | Agents tree, respond, knowledge, tasklist, async docs       |
+| `src/cli/bin.ts`                  | 2                 | Wire knowledge writer, ensure memory domain at startup      |
 
 ---
 
 ## Verification
 
 1. **Unit tests** — Each new file gets `.test.ts` sibling (vitest, following existing patterns)
-2. **Knowledge write test** — Save a memory via `knowledge.writer().save()`, verify it appears in knowledge tree, load it back via `loadKnowledge()`, delete via `knowledge.writer().remove()`
-3. **Spawn test** — Spawn an explore sub-agent, verify it returns structured findings, verify its catalog is restricted to read-only
-4. **History search test** — Build a session with multiple turns, call `searchHistory()`, verify matches include correct turns and snippets
-5. **Integration test** — Run `lmthing-repl` CLI with a real LLM:
-   - "Search the codebase for auth patterns" → triggers spawn
+2. **Tasklist refactor test** — Declare tasklist via `var tasks = tasklist(...)`, complete/fail/retry tasks via handle methods, verify `{{TASKS}}` block renders correctly
+3. **Knowledge write test** — Save a memory via `knowledge.writer().save()`, verify it appears in knowledge tree, load it back via `loadKnowledge()`, delete via `knowledge.writer().remove()`
+4. **Spawn test** — Spawn an explore sub-agent, verify it returns structured findings, verify its catalog is restricted to read-only
+5. **Async branching test** — Fork via `async("desc", (stop, ...) => { ... }).options({ context: "empty" })`, verify two parallel streams, verify parent code window shows collapsed call
+6. **Integration test** — Run `lmthing-repl` CLI with a real LLM:
+   - "Search the codebase for auth patterns" → triggers agent namespace spawn
    - "Remember that auth uses SSO codes" → triggers fire-and-forget `knowledge.writer().save()` call
-   - "What did we discuss about auth?" → triggers searchHistory
-   - "Commit the changes" → triggers git + security hook
-6. **Security test** — Verify explore role cannot write files, auto mode blocks destructive ops

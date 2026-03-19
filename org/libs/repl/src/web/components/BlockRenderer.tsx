@@ -16,7 +16,7 @@ export function BlockRenderer({ block, activeFormId, onSubmitForm, onCancelAsk }
     case 'user':
       return <UserBubble text={block.text} />
     case 'code':
-      return <CodeBlockUI code={block.code} lineCount={block.lineCount} streaming={block.streaming} />
+      return <CodeWithComments code={block.code} id={block.id} lineCount={block.lineCount} streaming={block.streaming} />
     case 'read':
       return <ReadBlockUI payload={block.payload} />
     case 'error':
@@ -169,6 +169,104 @@ function HookBlockUI({ hookId, action, detail }: { hookId: string; action: strin
           {detail}
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Comment / code splitting ──
+
+interface Segment {
+  type: 'comment' | 'code'
+  content: string
+}
+
+function splitCodeAndComments(code: string, streaming: boolean): Segment[] {
+  const rawLines = code.split('\n')
+  // If streaming, the last line might be incomplete — keep it as code
+  const lastIncomplete = streaming ? rawLines.pop() ?? '' : null
+
+  const segments: Segment[] = []
+  let buf: string[] = []
+  let bufType: 'comment' | 'code' | null = null
+
+  for (const line of rawLines) {
+    const trimmed = line.trim()
+    if (trimmed === '') {
+      buf.push(line)
+      continue
+    }
+
+    const isCommentOnly = trimmed.startsWith('//') && !trimmed.startsWith('///')
+    const lineType: 'comment' | 'code' = isCommentOnly ? 'comment' : 'code'
+
+    if (lineType !== bufType) {
+      if (bufType && buf.length > 0) flushSegment(segments, bufType, buf)
+      bufType = lineType
+      buf = [line]
+    } else {
+      buf.push(line)
+    }
+  }
+
+  if (bufType && buf.length > 0) flushSegment(segments, bufType, buf)
+
+  // Append incomplete last line as code (might be a partial comment — we don't know yet)
+  if (lastIncomplete !== null && lastIncomplete.trim()) {
+    segments.push({ type: 'code', content: lastIncomplete })
+  }
+
+  return segments
+}
+
+function flushSegment(segments: Segment[], type: 'comment' | 'code', lines: string[]) {
+  if (type === 'comment') {
+    const text = lines
+      .map(l => l.trim().replace(/^\/\/\s?/, ''))
+      .join('\n')
+      .trim()
+    if (text) segments.push({ type: 'comment', content: text })
+  } else {
+    const content = lines.join('\n').trim()
+    if (content) segments.push({ type: 'code', content })
+  }
+}
+
+function CodeWithComments({ code, id, lineCount, streaming }: { code: string; id: string; lineCount: number; streaming: boolean }) {
+  const segments = splitCodeAndComments(code, streaming)
+
+  // Single code-only segment — use original rendering
+  if (segments.length === 1 && segments[0].type === 'code') {
+    return <CodeBlockUI code={segments[0].content} lineCount={lineCount} streaming={streaming} />
+  }
+
+  // No segments (e.g. empty or whitespace-only) — nothing to render
+  if (segments.length === 0) return null
+
+  return (
+    <>
+      {segments.map((seg, i) => {
+        const isLast = i === segments.length - 1
+        if (seg.type === 'comment') {
+          return <AgentComment key={`${id}_seg_${i}`} text={seg.content} />
+        }
+        const segLineCount = seg.content.split('\n').filter(l => l.trim().length > 0).length
+        return (
+          <CodeBlockUI
+            key={`${id}_seg_${i}`}
+            code={seg.content}
+            lineCount={segLineCount}
+            streaming={streaming && isLast}
+          />
+        )
+      })}
+    </>
+  )
+}
+
+function AgentComment({ text }: { text: string }) {
+  return (
+    <div className="agent-comment">
+      <div className="agent-comment-inner">{text}</div>
     </div>
   )
 }

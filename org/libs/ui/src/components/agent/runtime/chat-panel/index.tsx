@@ -199,7 +199,7 @@ export function ChatPanel({
       <PanelHeader>
         <Stack row gap="sm" className="chat-panel__header">
           <Button onClick={() => onViewSystemPrompt?.()} variant="ghost" size="sm">System Prompt</Button>
-          <Button onClick={() => onSaveConversation?.()} disabled={!canSaveConversation} variant="ghost" size="sm">Save</Button>
+          {onSaveConversation && <Button onClick={() => onSaveConversation()} disabled={!canSaveConversation} variant="ghost" size="sm">Save</Button>}
         </Stack>
       </PanelHeader>
 

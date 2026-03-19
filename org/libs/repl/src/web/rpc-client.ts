@@ -2,6 +2,15 @@ import { useState, useEffect, useCallback, useRef, useReducer } from 'react'
 import type { SessionEvent, SessionSnapshot, SessionStatus, SerializedJSX, ErrorPayload, Tasklist } from '../session/types'
 import type { ConversationState } from '../session/conversation-state'
 
+// ── Conversation Summary ──
+
+export interface ConversationSummary {
+  id: string
+  title: string
+  updatedAt: string
+  turnCount: number
+}
+
 // ── UI Block Model ──
 
 export type UIBlock =
@@ -155,6 +164,10 @@ export interface UseReplSessionResult {
   actions: AgentAction[]
   /** Full serializable conversation state (null until requested) */
   conversationState: ConversationState | null
+  /** List of saved conversations */
+  conversations: ConversationSummary[]
+  /** Loaded conversation state for history view */
+  loadedConversation: { id: string; state: ConversationState } | null
   /** Send a user message */
   sendMessage: (text: string) => void
   /** Submit a form */
@@ -171,6 +184,12 @@ export interface UseReplSessionResult {
   intervene: (text: string) => void
   /** Request the full conversation state */
   getConversationState: () => void
+  /** Save the current session under a conversation ID */
+  saveConversation: (id: string) => void
+  /** Request the list of saved conversations */
+  requestConversations: () => void
+  /** Load a saved conversation for viewing */
+  loadConversation: (id: string) => void
 }
 
 export function useReplSession(url = 'ws://localhost:3100'): UseReplSessionResult {
@@ -178,6 +197,8 @@ export function useReplSession(url = 'ws://localhost:3100'): UseReplSessionResul
   const [connected, setConnected] = useState(false)
   const [actions, setActions] = useState<AgentAction[]>([])
   const [conversationState, setConversationState] = useState<ConversationState | null>(null)
+  const [conversations, setConversations] = useState<ConversationSummary[]>([])
+  const [loadedConversation, setLoadedConversation] = useState<{ id: string; state: ConversationState } | null>(null)
   const [blocks, dispatchBlock] = useReducer(blocksReducer, [])
   const wsRef = useRef<WebSocket | null>(null)
   const msgCounterRef = useRef(0)
@@ -199,6 +220,13 @@ export function useReplSession(url = 'ws://localhost:3100'): UseReplSessionResul
         setActions(data.data)
       } else if (data.type === 'conversationState') {
         setConversationState(data.data)
+      } else if (data.type === 'conversations') {
+        setConversations(data.data)
+      } else if (data.type === 'conversationLoaded') {
+        setLoadedConversation({ id: data.id, state: data.data })
+      } else if (data.type === 'conversationSaved') {
+        // Refresh the list after saving
+        ws.send(JSON.stringify({ type: 'listConversations' }))
       } else {
         setSnapshot(prev => applyEvent(prev, data))
         dispatchBlock({ type: 'event', event: data })
@@ -239,6 +267,8 @@ export function useReplSession(url = 'ws://localhost:3100'): UseReplSessionResul
     connected,
     actions,
     conversationState,
+    conversations,
+    loadedConversation,
     sendMessage,
     submitForm: (formId, data) => send({ type: 'submitForm', formId, data }),
     cancelAsk: (formId) => send({ type: 'cancelAsk', formId }),
@@ -247,5 +277,8 @@ export function useReplSession(url = 'ws://localhost:3100'): UseReplSessionResul
     resume: () => send({ type: 'resume' }),
     intervene,
     getConversationState,
+    saveConversation: (id: string) => send({ type: 'saveConversation', id }),
+    requestConversations: () => send({ type: 'listConversations' }),
+    loadConversation: (id: string) => { setLoadedConversation(null); send({ type: 'loadConversation', id }) },
   }
 }

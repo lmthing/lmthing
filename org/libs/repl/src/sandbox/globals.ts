@@ -75,11 +75,25 @@ export function createGlobals(config: GlobalsConfig) {
     // Recover argument names from the source
     const argNames = recoverArgumentNames(currentSource)
 
-    // Build payload
+    // Await any Promise values concurrently
+    const resolved = await Promise.allSettled(
+      values.map((v) => (v instanceof Promise ? v : Promise.resolve(v))),
+    )
+
+    // Build payload from resolved values
     const payload: StopPayload = {}
-    for (let i = 0; i < values.length; i++) {
+    for (let i = 0; i < resolved.length; i++) {
       const key = argNames[i] ?? `arg_${i}`
-      const value = values[i]
+      const settlement = resolved[i]
+      const value =
+        settlement.status === 'fulfilled'
+          ? settlement.value
+          : {
+              _error:
+                settlement.reason instanceof Error
+                  ? settlement.reason.message
+                  : String(settlement.reason),
+            }
       payload[key] = {
         value,
         display: serialize(value, config.serializationLimits),

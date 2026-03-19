@@ -61,6 +61,123 @@ describe('sandbox/globals', () => {
       expect(capturedPayload!['arg_0'].value).toBe(99)
     })
 
+    it('resolves Promise arguments before building payload', async () => {
+      const config = createMockConfig()
+      let capturedPayload: StopPayload | undefined
+      const globals = createGlobals({
+        ...config,
+        onStop: (payload) => {
+          capturedPayload = payload
+          globals.resolveStop()
+        },
+      })
+
+      globals.setCurrentSource('await stop(data)')
+      await globals.stop(Promise.resolve(42))
+
+      expect(capturedPayload).toBeDefined()
+      expect(capturedPayload!['data'].value).toBe(42)
+    })
+
+    it('resolves multiple mixed values (promises and plain)', async () => {
+      const config = createMockConfig()
+      let capturedPayload: StopPayload | undefined
+      const globals = createGlobals({
+        ...config,
+        onStop: (payload) => {
+          capturedPayload = payload
+          globals.resolveStop()
+        },
+      })
+
+      globals.setCurrentSource('await stop(a, b, c)')
+      await globals.stop(1, Promise.resolve('hello'), true)
+
+      expect(capturedPayload!['a'].value).toBe(1)
+      expect(capturedPayload!['b'].value).toBe('hello')
+      expect(capturedPayload!['c'].value).toBe(true)
+    })
+
+    it('handles rejected Promises with _error', async () => {
+      const config = createMockConfig()
+      let capturedPayload: StopPayload | undefined
+      const globals = createGlobals({
+        ...config,
+        onStop: (payload) => {
+          capturedPayload = payload
+          globals.resolveStop()
+        },
+      })
+
+      globals.setCurrentSource('await stop(result)')
+      await globals.stop(Promise.reject(new Error('network failure')))
+
+      expect(capturedPayload).toBeDefined()
+      expect(capturedPayload!['result'].value).toEqual({ _error: 'network failure' })
+    })
+
+    it('handles rejected Promises with non-Error reason', async () => {
+      const config = createMockConfig()
+      let capturedPayload: StopPayload | undefined
+      const globals = createGlobals({
+        ...config,
+        onStop: (payload) => {
+          capturedPayload = payload
+          globals.resolveStop()
+        },
+      })
+
+      globals.setCurrentSource('await stop(result)')
+      await globals.stop(Promise.reject('string rejection'))
+
+      expect(capturedPayload!['result'].value).toEqual({ _error: 'string rejection' })
+    })
+
+    it('resolves all Promises concurrently', async () => {
+      const config = createMockConfig()
+      let capturedPayload: StopPayload | undefined
+      const globals = createGlobals({
+        ...config,
+        onStop: (payload) => {
+          capturedPayload = payload
+          globals.resolveStop()
+        },
+      })
+
+      const order: string[] = []
+      const slow = new Promise(resolve => setTimeout(() => { order.push('slow'); resolve('slow-val') }, 50))
+      const fast = new Promise(resolve => setTimeout(() => { order.push('fast'); resolve('fast-val') }, 10))
+
+      globals.setCurrentSource('await stop(slow, fast)')
+      await globals.stop(slow, fast)
+
+      // Both resolved
+      expect(capturedPayload!['slow'].value).toBe('slow-val')
+      expect(capturedPayload!['fast'].value).toBe('fast-val')
+      // Fast resolved before slow (concurrent, not sequential)
+      expect(order[0]).toBe('fast')
+    })
+
+    it('leaves non-Promise values unchanged', async () => {
+      const config = createMockConfig()
+      let capturedPayload: StopPayload | undefined
+      const globals = createGlobals({
+        ...config,
+        onStop: (payload) => {
+          capturedPayload = payload
+          globals.resolveStop()
+        },
+      })
+
+      globals.setCurrentSource('await stop(num, str, obj)')
+      const obj = { key: 'value' }
+      await globals.stop(42, 'hello', obj)
+
+      expect(capturedPayload!['num'].value).toBe(42)
+      expect(capturedPayload!['str'].value).toBe('hello')
+      expect(capturedPayload!['obj'].value).toBe(obj)
+    })
+
     it('pauses the stream controller', async () => {
       const config = createMockConfig()
       const globals = createGlobals({

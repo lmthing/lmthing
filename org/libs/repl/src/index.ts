@@ -41,6 +41,9 @@ export type {
   Tasklist,
   TaskCompletion,
   TasklistsState,
+  AgentStatus,
+  AgentPromiseEntry,
+  AgentSnapshot,
 } from './session/types'
 
 // Sandbox
@@ -51,6 +54,8 @@ export { executeLine } from './sandbox/executor'
 export { AsyncManager } from './sandbox/async-manager'
 export { createGlobals } from './sandbox/globals'
 export type { GlobalsConfig } from './sandbox/globals'
+export { AgentRegistry } from './sandbox/agent-registry'
+export type { AgentRegistryConfig } from './sandbox/agent-registry'
 
 // Stream
 export { StreamController } from './stream/stream-controller'
@@ -73,7 +78,8 @@ export { getDecayLevel, decayStopPayload, decayErrorMessage } from './context/st
 export { buildSystemPrompt, updateScopeInPrompt } from './context/system-prompt'
 export { isKnowledgeContent, tagAsKnowledge, decayKnowledgeValue, getKnowledgeDecayLevel, KNOWLEDGE_TAG } from './context/knowledge-decay'
 export type { KnowledgeDecayTiers, KnowledgeDecayLevel } from './context/knowledge-decay'
-export { buildStopMessage, buildErrorMessage, buildInterventionMessage, buildHookInterruptMessage, buildTasklistReminderMessage } from './context/message-builder'
+export { buildStopMessage, buildErrorMessage, buildInterventionMessage, buildHookInterruptMessage, buildTasklistReminderMessage, renderTaskLine } from './context/message-builder'
+export { generateAgentsBlock } from './context/agents-block'
 
 // Hooks
 export { HookRegistry } from './hooks/hook-registry'

@@ -14,6 +14,8 @@ export interface AgentSpawnConfig {
   request: string;
   params: Record<string, any>;
   options: AgentSpawnOptions;
+  /** Internal: links spawn to registry entry for Phase 1e child-to-parent questions. */
+  _originPromise?: unknown;
 }
 
 export interface AgentSpawnResult {
@@ -99,6 +101,34 @@ export interface TasklistState {
 
 export interface TasklistsState {
   tasklists: Map<string, TasklistState>
+}
+
+// ── Agent Registry ──
+
+export type AgentStatus = 'running' | 'waiting' | 'resolved' | 'failed'
+
+export interface AgentPromiseEntry {
+  varName: string
+  label: string
+  status: AgentStatus
+  promise: Promise<unknown>
+  childSession: import('../session/session').Session | null
+  resolvedValue?: unknown
+  error?: string
+  registeredAt: number
+  completedAt?: number
+  registeredTurn: number
+  pendingQuestion?: { message: string; schema: Record<string, unknown> } | null
+}
+
+export interface AgentSnapshot {
+  varName: string
+  label: string
+  status: AgentStatus
+  tasklistsState: TasklistsState | null
+  pendingQuestion: { message: string; schema: Record<string, unknown> } | null
+  error?: string
+  valueIncluded?: boolean
 }
 
 // ── Scope ──
@@ -216,6 +246,11 @@ export type SessionEvent =
   | { type: 'agent_spawn_start'; spaceName: string; agentSlug: string; actionId: string }
   | { type: 'agent_spawn_complete'; spaceName: string; agentSlug: string; actionId: string; result: AgentSpawnResult }
   | { type: 'agent_spawn_failed'; spaceName: string; agentSlug: string; actionId: string; error: string }
+  | { type: 'agent_registered'; varName: string; label: string }
+  | { type: 'agent_resolved'; varName: string }
+  | { type: 'agent_failed'; varName: string; error: string }
+  | { type: 'agent_question_asked'; varName: string; question: { message: string; schema: Record<string, unknown> } }
+  | { type: 'agent_question_answered'; varName: string }
   | { type: 'status'; status: SessionStatus }
   | { type: 'scope'; entries: ScopeEntry[] }
 
@@ -232,4 +267,5 @@ export interface SessionSnapshot {
   asyncTasks: Array<{ id: string; label: string; status: string; elapsed: number }>
   activeFormId: string | null
   tasklistsState: TasklistsState
+  agentEntries: Array<{ varName: string; label: string; status: AgentStatus; error?: string }>
 }

@@ -38,6 +38,12 @@ export interface GlobalsConfig {
   onLoadClass?: (className: string) => void
   /** Spawn a child agent session. Used by agent namespace globals. */
   onSpawn?: (config: AgentSpawnConfig) => Promise<AgentSpawnResult>
+  /** Route child agent's askParent() to parent. Set only for tracked child sessions. */
+  onAskParent?: (question: { message: string; schema: Record<string, unknown> }) => Promise<Record<string, unknown>>
+  /** Whether this is a fire-and-forget child (untracked). askParent resolves immediately. */
+  isFireAndForget?: boolean
+  /** Deliver structured input to a child agent's pending askParent(). */
+  onRespond?: (promise: unknown, data: Record<string, unknown>) => void
 }
 
 /**
@@ -641,6 +647,47 @@ export function createGlobals(config: GlobalsConfig) {
     config.onLoadClass?.(className)
   }
 
+  /**
+   * askParent(message, schema) — Ask the parent agent for structured input.
+   * Only available to child agents spawned via agent namespaces.
+   * Fire-and-forget agents (not tracked) get { _noParent: true }.
+   */
+  async function askParentFn(
+    message: string,
+    schema: Record<string, unknown> = {},
+  ): Promise<Record<string, unknown>> {
+    if (typeof message !== 'string' || !message) {
+      throw new Error('askParent() requires a message string as first argument')
+    }
+    if (config.isFireAndForget || !config.onAskParent) {
+      return { _noParent: true }
+    }
+    pauseController.pause()
+    try {
+      const result = await Promise.race([
+        config.onAskParent({ message, schema }),
+        new Promise<Record<string, unknown>>((resolve) =>
+          setTimeout(() => resolve({ _timeout: true }), askTimeout),
+        ),
+      ])
+      return result
+    } finally {
+      pauseController.resume()
+    }
+  }
+
+  /**
+   * respond(agentPromise, data) — Answer a child agent's pending askParent() call.
+   * The first argument is the variable holding the agent promise.
+   */
+  function respondFn(promise: unknown, data: Record<string, unknown>): void {
+    if (!config.onRespond) throw new Error('respond() is not available')
+    if (!data || typeof data !== 'object') {
+      throw new Error('respond() requires a data object as second argument')
+    }
+    config.onRespond(promise, data)
+  }
+
   return {
     stop: stopFn,
     display: displayFn,
@@ -655,6 +702,8 @@ export function createGlobals(config: GlobalsConfig) {
     sleep: sleepFn,
     loadKnowledge: loadKnowledgeFn,
     loadClass: loadClassFn,
+    askParent: askParentFn,
+    respond: respondFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,

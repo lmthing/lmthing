@@ -20,6 +20,8 @@ export interface SpawnConfig {
   context: "empty" | "branch";
   maxTurns?: number;
   instruct?: string;
+  /** Internal: links spawn to registry entry for child-to-parent questions. */
+  _originPromise?: unknown;
 }
 
 export interface SpawnResult {
@@ -68,13 +70,42 @@ export async function executeSpawn(
   let childSession: Session | null = null;
 
   try {
+    // Link to parent's registry entry via origin promise to enable child-to-parent questions
+    let parentVarName: string | null = null;
+    if (config._originPromise) {
+      const registry = ctx.parentSession.getAgentRegistry();
+      const entry = registry.findByPromise(config._originPromise);
+      if (entry) {
+        parentVarName = entry.varName;
+      }
+    }
+
+    // Create onAskParent callback for tracked children
+    const onAskParent = parentVarName
+      ? async (question: { message: string; schema: Record<string, unknown> }) => {
+          const registry = ctx.parentSession.getAgentRegistry();
+          return registry.askQuestion(parentVarName!, question);
+        }
+      : undefined;
+
     // Create child session with parent's globals and callbacks
     childSession = new Session({
       globals: { ...ctx.catalogGlobals },
       knowledgeLoader: ctx.knowledgeLoader,
       getClassInfo: ctx.getClassInfo,
       loadClass: ctx.loadClass,
+      onAskParent,
+      isFireAndForget: parentVarName === null,
     });
+
+    // Now that childSession exists, link it to the registry entry
+    if (parentVarName && config._originPromise) {
+      const registry = ctx.parentSession.getAgentRegistry();
+      const entry = registry.findByPromise(config._originPromise);
+      if (entry) {
+        entry.childSession = childSession;
+      }
+    }
 
     // Build child instruct with structured output requirement
     const childInstruct = buildChildInstruct(
@@ -166,7 +197,12 @@ function buildChildInstruct(
 Parent's current scope:
 ${scopeTable}
 
-Your final stop() call MUST include: await stop({ scope: <summary>, result: <findings>, keyFiles: [<paths>], issues: [<problems>] })`;
+Your final stop() call MUST include: await stop({ scope: <summary>, result: <findings>, keyFiles: [<paths>], issues: [<problems>] })
+
+You can ask the parent agent for structured input by calling askParent(message, schema).
+Example: var answer = await askParent("What doneness level?", { doneness: { type: "string" } })
+Then call await stop(answer) to read the response.
+If you are a fire-and-forget agent (not tracked by parent), askParent() returns { _noParent: true }.`;
 
   if (extraInstruct) {
     instruct += `\n\n${extraInstruct}`;

@@ -20,6 +20,7 @@ import { buildSystemPrompt } from "./buildSystemPrompt";
 import { generateTasklistCode, type ParsedFlow } from "./agent-loader";
 import { executeSpawn } from "../sandbox/spawn";
 import type { SpawnConfig, SpawnResult, SpawnContext } from "../sandbox/spawn";
+import { generateAgentsBlock } from "../context/agents-block";
 
 export interface AgentLoopOptions {
   session: Session;
@@ -308,6 +309,21 @@ export class AgentLoop {
             `\x1b[36m  [loadClass]\x1b[0m ${event.className} \u2014 ${event.methods.length} method${event.methods.length !== 1 ? "s" : ""} loaded`,
           );
           break;
+        case "agent_registered":
+          console.log(`\x1b[36m  [agent]\x1b[0m registered: ${event.varName} — ${event.label}`);
+          break;
+        case "agent_resolved":
+          console.log(`\x1b[32m  [agent]\x1b[0m resolved: ${event.varName}`);
+          break;
+        case "agent_failed":
+          console.log(`\x1b[31m  [agent]\x1b[0m failed: ${event.varName} — ${event.error}`);
+          break;
+        case "agent_question_asked":
+          console.log(`\x1b[33m  [agent]\x1b[0m ${event.varName} asks: "${event.question.message}"`);
+          break;
+        case "agent_question_answered":
+          console.log(`\x1b[32m  [agent]\x1b[0m ${event.varName} question answered`);
+          break;
       }
     };
     this.session.on("event", listener);
@@ -463,6 +479,21 @@ export class AgentLoop {
               `\x1b[35m  [hook]\x1b[0m ${event.hookId} → ${event.action}: ${event.detail}`,
             );
             break;
+          case "agent_registered":
+            console.log(`\x1b[36m  [agent]\x1b[0m registered: ${event.varName} — ${event.label}`);
+            break;
+          case "agent_resolved":
+            console.log(`\x1b[32m  [agent]\x1b[0m resolved: ${event.varName}`);
+            break;
+          case "agent_failed":
+            console.log(`\x1b[31m  [agent]\x1b[0m failed: ${event.varName} — ${event.error}`);
+            break;
+          case "agent_question_asked":
+            console.log(`\x1b[33m  [agent]\x1b[0m ${event.varName} asks: "${event.question.message}"`);
+            break;
+          case "agent_question_answered":
+            console.log(`\x1b[32m  [agent]\x1b[0m ${event.varName} question answered`);
+            break;
           case "status":
             // don't log status changes to console, they're noisy
             break;
@@ -599,7 +630,20 @@ export class AgentLoop {
         const entries = Object.entries(state.stop)
           .map(([k, v]) => `${k}: ${v.display}`)
           .join(", ");
-        const stopMsg = `← stop { ${entries} }`;
+        let stopMsg = `← stop { ${entries} }`;
+
+        // Append {{AGENTS}} block if there are visible agent entries
+        const agentRegistry = this.session.getAgentRegistry();
+        if (agentRegistry.hasVisibleEntries()) {
+          const resolvedInThisStop = new Set<string>();
+          for (const [, sv] of Object.entries(state.stop)) {
+            const entry = agentRegistry.findByPromise(sv.value);
+            if (entry?.status === "resolved") resolvedInThisStop.add(entry.varName);
+          }
+          const agentsBlock = generateAgentsBlock(agentRegistry, resolvedInThisStop);
+          if (agentsBlock) stopMsg += `\n\n${agentsBlock}`;
+        }
+
         console.log(`\x1b[33m  [stop]\x1b[0m ${stopMsg}`);
 
         const codeUpToStop = truncateAtStop(code);
@@ -683,6 +727,26 @@ export class AgentLoop {
             console.log(`  \x1b[90m○\x1b[0m ${task.id}: pending`);
           }
         }
+      }
+    }
+
+    // Print agent summary
+    const agentEntries = this.session.snapshot().agentEntries;
+    if (agentEntries.length > 0) {
+      console.log(`\n\x1b[36m━━━ Agents ━━━\x1b[0m`);
+      for (const e of agentEntries) {
+        const symbol =
+          e.status === "resolved"
+            ? "✓"
+            : e.status === "failed"
+              ? "✗"
+              : e.status === "waiting"
+                ? "?"
+                : "◉";
+        const color = e.status === "resolved" ? "32" : e.status === "failed" ? "31" : "36";
+        console.log(
+          `  \x1b[${color}m${symbol}\x1b[0m ${e.varName}: ${e.label} — ${e.status}${e.error ? ` — ${e.error}` : ""}`,
+        );
       }
     }
 

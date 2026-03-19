@@ -47,6 +47,9 @@ export type TurnEvent =
   | { type: 'knowledge_loaded'; domains: string[] }
   | { type: 'class_loaded'; className: string; methods: string[] }
   | { type: 'hook'; hookId: string; action: string }
+  | { type: 'agent_registered'; varName: string; label: string }
+  | { type: 'agent_resolved'; varName: string }
+  | { type: 'agent_failed'; varName: string; error: string }
 
 // ── Conversation Turn ──
 
@@ -409,6 +412,12 @@ function toTurnEvent(event: SessionEvent): TurnEvent | null {
       return { type: 'class_loaded', className: event.className, methods: event.methods }
     case 'hook':
       return { type: 'hook', hookId: event.hookId, action: event.action }
+    case 'agent_registered':
+      return { type: 'agent_registered', varName: event.varName, label: event.label }
+    case 'agent_resolved':
+      return { type: 'agent_resolved', varName: event.varName }
+    case 'agent_failed':
+      return { type: 'agent_failed', varName: event.varName, error: event.error }
     default:
       return null
   }

@@ -13,6 +13,7 @@ import type {
   SerializedJSX,
   AgentSpawnConfig,
   AgentSpawnResult,
+  AgentStatus,
 } from './types'
 import type { KnowledgeSelector, KnowledgeContent } from '../knowledge/types'
 import type { SessionConfig } from './config'
@@ -24,6 +25,8 @@ import { StreamController } from '../stream/stream-controller'
 import { HookRegistry } from '../hooks/hook-registry'
 import { generateScopeTable } from '../context/scope-generator'
 import { buildStopMessage, buildErrorMessage, buildInterventionMessage, buildTasklistReminderMessage, generateTasksBlock } from '../context/message-builder'
+import { AgentRegistry } from '../sandbox/agent-registry'
+import { generateAgentsBlock } from '../context/agents-block'
 import { ConversationRecorder } from './conversation-state'
 import type { ConversationState } from './conversation-state'
 
@@ -40,6 +43,10 @@ export interface SessionOptions {
   agentNamespaces?: Record<string, unknown>
   /** Spawn a child agent session. Used by agent namespace globals. */
   onSpawn?: (config: AgentSpawnConfig) => Promise<AgentSpawnResult>
+  /** Route child agent's askParent() to parent. Set for tracked child sessions. */
+  onAskParent?: (question: { message: string; schema: Record<string, unknown> }) => Promise<Record<string, unknown>>
+  /** Whether this is a fire-and-forget child (untracked). askParent resolves immediately. */
+  isFireAndForget?: boolean
 }
 
 export class Session extends EventEmitter {
@@ -56,6 +63,7 @@ export class Session extends EventEmitter {
   private activeFormId: string | null = null
   private stopCount = 0
   private tasklistReminderCount = 0
+  private agentRegistry: AgentRegistry
   private recorder: ConversationRecorder
   private turnCodeStart = 0
   private onSpawn?: (config: any) => Promise<any>
@@ -68,6 +76,23 @@ export class Session extends EventEmitter {
 
     this.asyncManager = new AsyncManager(this.config.maxAsyncTasks)
     this.hookRegistry = new HookRegistry()
+    this.agentRegistry = new AgentRegistry({
+      onRegistered: (varName, label) => {
+        this.emitEvent({ type: 'agent_registered', varName, label })
+      },
+      onResolved: (varName) => {
+        this.emitEvent({ type: 'agent_resolved', varName })
+      },
+      onFailed: (varName, error) => {
+        this.emitEvent({ type: 'agent_failed', varName, error })
+      },
+      onQuestionAsked: (varName, question) => {
+        this.emitEvent({ type: 'agent_question_asked', varName, question })
+      },
+      onQuestionAnswered: (varName) => {
+        this.emitEvent({ type: 'agent_question_answered', varName })
+      },
+    })
     if (options.hooks) {
       for (const hook of options.hooks) {
         this.hookRegistry.register(hook)
@@ -173,6 +198,13 @@ export class Session extends EventEmitter {
             this.emitEvent({ type: 'class_loaded', className, methods: methodNames })
           }
         : undefined,
+      onAskParent: options.onAskParent,
+      isFireAndForget: options.isFireAndForget,
+      onRespond: (promise, data) => {
+        const entry = this.agentRegistry.findByPromise(promise)
+        if (!entry) throw new Error('respond: unknown agent — pass the agent variable as the first argument')
+        this.agentRegistry.respond(entry.varName, data)
+      },
     })
 
     // Inject globals into sandbox
@@ -189,6 +221,8 @@ export class Session extends EventEmitter {
     this.sandbox.inject('sleep', this.globalsApi.sleep)
     this.sandbox.inject('loadKnowledge', this.globalsApi.loadKnowledge)
     this.sandbox.inject('loadClass', this.globalsApi.loadClass)
+    this.sandbox.inject('askParent', this.globalsApi.askParent)
+    this.sandbox.inject('respond', this.globalsApi.respond)
 
     // Inject agent namespace globals
     if (options.agentNamespaces) {
@@ -241,10 +275,23 @@ export class Session extends EventEmitter {
 
   private handleStop(payload: StopPayload, source: string): void {
     this.stopCount++
+    this.agentRegistry.advanceTurn()
+
     const cpState = this.globalsApi.getTasklistsState()
     const tasksBlock = generateTasksBlock(cpState)
+
+    // Determine which agents resolved in this stop
+    const resolvedInThisStop = new Set<string>()
+    for (const [, sv] of Object.entries(payload)) {
+      const entry = this.agentRegistry.findByPromise(sv.value)
+      if (entry?.status === 'resolved') resolvedInThisStop.add(entry.varName)
+    }
+    const agentsBlock = generateAgentsBlock(this.agentRegistry, resolvedInThisStop)
+
     const baseMsg = buildStopMessage(payload)
-    const msg = tasksBlock ? `${baseMsg}\n\n${tasksBlock}` : baseMsg
+    let msg = baseMsg
+    if (tasksBlock) msg += `\n\n${tasksBlock}`
+    if (agentsBlock) msg += `\n\n${agentsBlock}`
     this.messages.push({ role: 'assistant', content: this.codeLines.join('\n') })
     this.messages.push({ role: 'user', content: msg })
     this.emitEvent({
@@ -461,6 +508,12 @@ export class Session extends EventEmitter {
       })),
       activeFormId: this.activeFormId,
       tasklistsState: this.globalsApi.getTasklistsState(),
+      agentEntries: this.agentRegistry.getAll().map(e => ({
+        varName: e.varName,
+        label: e.label,
+        status: e.status,
+        error: e.error,
+      })),
     }
   }
 
@@ -503,7 +556,16 @@ export class Session extends EventEmitter {
       sleep: this.globalsApi.sleep,
       loadKnowledge: this.globalsApi.loadKnowledge,
       loadClass: this.globalsApi.loadClass,
+      askParent: this.globalsApi.askParent,
+      respond: this.globalsApi.respond,
     }
+  }
+
+  /**
+   * Get the agent registry.
+   */
+  getAgentRegistry(): AgentRegistry {
+    return this.agentRegistry
   }
 
   /**
@@ -529,6 +591,7 @@ export class Session extends EventEmitter {
    * Destroy the session and clean up resources.
    */
   destroy(): void {
+    this.agentRegistry.destroy()
     this.asyncManager.cancelAll()
     this.sandbox.destroy()
     this.hookRegistry.clear()

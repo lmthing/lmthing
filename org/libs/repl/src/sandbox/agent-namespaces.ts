@@ -418,7 +418,9 @@ export class ChainableSpawnPromise implements PromiseLike<AgentSpawnResult> {
   private start(): void {
     if (this.started) return
     this.started = true
-    this.onSpawn(this.config).then(this.resolveFn, this.rejectFn)
+    // Pass self as _originPromise so executeSpawn can link childSession to registry entry
+    const configWithRef = { ...this.config, _originPromise: this }
+    this.onSpawn(configWithRef).then(this.resolveFn, this.rejectFn)
   }
 }
 

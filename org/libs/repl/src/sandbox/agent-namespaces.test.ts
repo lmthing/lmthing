@@ -391,7 +391,9 @@ describe('agent-namespaces', () => {
       const result = await promise
 
       expect(result).toEqual(expected)
-      expect(onSpawn).toHaveBeenCalledWith(config)
+      expect(onSpawn).toHaveBeenCalledWith(expect.objectContaining(config))
+      // _originPromise should be the ChainableSpawnPromise itself
+      expect(onSpawn.mock.calls[0][0]._originPromise).toBe(promise)
     })
 
     it('.options() modifies context before start', async () => {

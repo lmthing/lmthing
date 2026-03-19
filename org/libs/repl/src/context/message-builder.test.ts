@@ -5,8 +5,10 @@ import {
   buildInterventionMessage,
   buildHookInterruptMessage,
   buildTasklistReminderMessage,
+  renderTaskLine,
+  generateTasksBlock,
 } from './message-builder'
-import type { StopPayload, ErrorPayload } from '../session/types'
+import type { StopPayload, ErrorPayload, TaskDefinition, TasklistState, TasklistsState } from '../session/types'
 
 describe('context/message-builder', () => {
   describe('buildStopMessage', () => {
@@ -66,6 +68,125 @@ describe('context/message-builder', () => {
     it('formats with only ready tasks', () => {
       const msg = buildTasklistReminderMessage('main', ['final'], [], [])
       expect(msg).toBe('⚠ [system] Tasklist "main" incomplete. Ready: final. Continue with a ready task.')
+    })
+  })
+
+  describe('renderTaskLine', () => {
+    function makeState(overrides: Partial<TasklistState> = {}): TasklistState {
+      return {
+        plan: { tasklistId: 'tl', description: 'test', tasks: [] },
+        completed: new Map(),
+        readyTasks: new Set(),
+        runningTasks: new Set(),
+        outputs: new Map(),
+        progressMessages: new Map(),
+        retryCount: new Map(),
+        ...overrides,
+      }
+    }
+
+    const task: TaskDefinition = {
+      id: 'fetch',
+      instructions: 'Fetch data',
+      outputSchema: { data: { type: 'string' } },
+      dependsOn: ['setup'],
+    }
+
+    it('returns ✓ for completed task', () => {
+      const state = makeState({
+        completed: new Map([['fetch', { output: { data: 'ok' }, timestamp: Date.now(), status: 'completed' }]]),
+      })
+      const { symbol, detail } = renderTaskLine(task, state)
+      expect(symbol).toBe('✓')
+      expect(detail).toContain('→')
+    })
+
+    it('returns ✗ for failed task', () => {
+      const state = makeState({
+        completed: new Map([['fetch', { output: {}, timestamp: Date.now(), status: 'failed', error: 'timeout' }]]),
+      })
+      const { symbol, detail } = renderTaskLine(task, state)
+      expect(symbol).toBe('✗')
+      expect(detail).toContain('timeout')
+    })
+
+    it('returns ⊘ for skipped task', () => {
+      const state = makeState({
+        completed: new Map([['fetch', { output: {}, timestamp: Date.now(), status: 'skipped' }]]),
+      })
+      const { symbol, detail } = renderTaskLine(task, state)
+      expect(symbol).toBe('⊘')
+      expect(detail).toContain('skipped')
+    })
+
+    it('returns ◉ for running task', () => {
+      const state = makeState({ runningTasks: new Set(['fetch']) })
+      const { symbol, detail } = renderTaskLine(task, state)
+      expect(symbol).toBe('◉')
+      expect(detail).toContain('running')
+    })
+
+    it('returns ◉ with progress', () => {
+      const state = makeState({
+        runningTasks: new Set(['fetch']),
+        progressMessages: new Map([['fetch', { message: 'Loading...', percent: 50 }]]),
+      })
+      const { symbol, detail } = renderTaskLine(task, state)
+      expect(symbol).toBe('◉')
+      expect(detail).toContain('50%')
+      expect(detail).toContain('Loading...')
+    })
+
+    it('returns ◎ for ready task', () => {
+      const state = makeState({ readyTasks: new Set(['fetch']) })
+      const { symbol, detail } = renderTaskLine(task, state)
+      expect(symbol).toBe('◎')
+      expect(detail).toContain('ready')
+    })
+
+    it('returns ○ for blocked task', () => {
+      const state = makeState()
+      const { symbol, detail } = renderTaskLine(task, state)
+      expect(symbol).toBe('○')
+      expect(detail).toContain('blocked')
+      expect(detail).toContain('setup')
+    })
+  })
+
+  describe('generateTasksBlock with renderTaskLine extraction', () => {
+    it('generates correct block with multiple tasks', () => {
+      const tasklistsState: TasklistsState = {
+        tasklists: new Map([
+          ['tl1', {
+            plan: {
+              tasklistId: 'tl1',
+              description: 'Test',
+              tasks: [
+                { id: 'a', instructions: 'Do A', outputSchema: { x: { type: 'string' } } },
+                { id: 'b', instructions: 'Do B', outputSchema: { y: { type: 'number' } }, dependsOn: ['a'] },
+              ],
+            },
+            completed: new Map([['a', { output: { x: 'done' }, timestamp: Date.now(), status: 'completed' }]]),
+            readyTasks: new Set(['b']),
+            runningTasks: new Set(),
+            outputs: new Map(),
+            progressMessages: new Map(),
+            retryCount: new Map(),
+          }],
+        ]),
+      }
+
+      const result = generateTasksBlock(tasklistsState)
+      expect(result).not.toBeNull()
+      expect(result).toContain('{{TASKS}}')
+      expect(result).toContain('✓')
+      expect(result).toContain('a')
+      expect(result).toContain('◎')
+      expect(result).toContain('b')
+    })
+
+    it('returns null for empty tasklists', () => {
+      expect(generateTasksBlock({ tasklists: new Map() })).toBeNull()
     })
   })
 })

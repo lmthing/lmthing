@@ -180,6 +180,23 @@ Spawn child agents from loaded spaces. Each call returns a Promise.
 Use \`var result = space.agent(params).action(request)\` to track, or omit \`var\` for fire-and-forget.
 Chain \`.options({ context: "branch" })\` to give the child your conversation history (default: "empty").
 
+Tracked agents (saved to a variable) can call \`askParent(message, schema)\` to pause and ask you for input.
+Their question appears as "? waiting" in {{AGENTS}} with the message and expected schema.
+Answer with: \`respond(agentVariable, { key: value, ... })\`
+Fire-and-forget agents (no variable) cannot ask questions.
+
+### respond(agentPromise, data) — Answer a child agent's question
+When a tracked spawned agent calls askParent(), it pauses and surfaces a question in {{AGENTS}}.
+Call respond() with the agent's variable and a data object matching the question's schema.
+
+Example:
+respond(steakInstructions, {
+  doneness: "medium-rare",
+  thickness_cm: 3,
+})
+
+The child resumes execution with the data as the return value of its askParent() call.
+
 \`\`\`
 ${agentTree}
 \`\`\`\n`;

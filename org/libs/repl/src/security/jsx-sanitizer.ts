@@ -59,7 +59,9 @@ export function sanitizeJSX(jsx: SerializedJSX, path = 'root'): SanitizationErro
   // Recursively validate children
   if (jsx.children) {
     for (let i = 0; i < jsx.children.length; i++) {
-      const childErrors = sanitizeJSX(jsx.children[i], `${path}.children[${i}]`)
+      const child = jsx.children[i]
+      if (typeof child === 'string') continue
+      const childErrors = sanitizeJSX(child, `${path}.children[${i}]`)
       errors.push(...childErrors)
     }
   }
@@ -96,6 +98,7 @@ export function validateFormComponents(
   if (jsx.children) {
     for (let i = 0; i < jsx.children.length; i++) {
       const child = jsx.children[i]
+      if (typeof child === 'string') continue
       if (!allowedComponents.has(child.component) && child.component !== 'Form' && child.component !== 'form') {
         errors.push({
           path: `${path}.children[${i}]`,

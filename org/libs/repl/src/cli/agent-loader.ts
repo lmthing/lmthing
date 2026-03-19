@@ -24,6 +24,7 @@ export interface LoadedAgent {
   catalogModules: string[]
   localFunctions: string[]
   componentRefs: string[]
+  enabledAgents: Record<string, string[] | true>
 }
 
 export interface FlowStep {
@@ -104,6 +105,7 @@ export function loadAgent(spaceDir: string, agentSlug: string): LoadedAgent {
     catalogModules,
     localFunctions,
     componentRefs: config.components ?? [],
+    enabledAgents: config.agents ?? {},
   }
 }
 

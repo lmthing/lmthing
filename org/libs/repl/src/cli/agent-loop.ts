@@ -40,6 +40,7 @@ export interface AgentLoopOptions {
   knowledgeLoader?: SessionOptions["knowledgeLoader"];
   getClassInfo?: SessionOptions["getClassInfo"];
   loadClass?: SessionOptions["loadClass"];
+  agentTree?: string;
 }
 
 export interface ChatMessage {
@@ -86,6 +87,7 @@ export class AgentLoop {
   private knowledgeLoader?: SessionOptions["knowledgeLoader"];
   private getClassInfo?: SessionOptions["getClassInfo"];
   private loadClass?: SessionOptions["loadClass"];
+  private agentTree: string;
   /** Tracks stop messages that contain knowledge content, for progressive decay. */
   private knowledgeStops: Array<{
     messageIndex: number;
@@ -117,6 +119,7 @@ export class AgentLoop {
     this.knowledgeLoader = options.knowledgeLoader;
     this.getClassInfo = options.getClassInfo;
     this.loadClass = options.loadClass;
+    this.agentTree = options.agentTree ?? "";
   }
 
   get debug(): boolean {
@@ -214,6 +217,7 @@ export class AgentLoop {
       scope,
       this.instruct,
       this.knowledgeTree,
+      this.agentTree,
     );
 
     // Initialize or update messages
@@ -712,6 +716,7 @@ export class AgentLoop {
       scope,
       this.instruct,
       this.knowledgeTree,
+      this.agentTree,
     );
     this.messages[0] = { role: "system", content: systemPrompt };
     this.logDebug("system_prompt", systemPrompt);

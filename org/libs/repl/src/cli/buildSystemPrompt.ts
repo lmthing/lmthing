@@ -7,6 +7,7 @@ export function buildSystemPrompt(
   scope: string,
   instruct?: string,
   knowledgeTree?: string,
+  agentTree?: string,
 ): string {
   let prompt = `You are a code-execution agent. You respond EXCLUSIVELY with valid TypeScript code. No markdown. No prose. No explanations outside of code comments. Every character you emit is fed line-by-line into a live TypeScript REPL that executes as you stream.
 
@@ -172,6 +173,17 @@ ${formSigs || "(none)"}
 ## Display Components — use with display()
 These components show output to the user. Use them with \`display(<Component ... />)\`. Non-blocking.
 ${viewSigs || "(none)"}`;
+
+  if (agentTree) {
+    prompt += `\n\n## Available Agents
+Spawn child agents from loaded spaces. Each call returns a Promise.
+Use \`var result = space.agent(params).action(request)\` to track, or omit \`var\` for fire-and-forget.
+Chain \`.options({ context: "branch" })\` to give the child your conversation history (default: "empty").
+
+\`\`\`
+${agentTree}
+\`\`\`\n`;
+  }
 
   if (knowledgeTree) {
     prompt += `\n\n## Knowledge Tree\n${knowledgeTree}\n`;

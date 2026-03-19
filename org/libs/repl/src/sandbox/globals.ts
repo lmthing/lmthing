@@ -1,4 +1,4 @@
-import type { StreamPauseController, RenderSurface, StopPayload, SerializedValue, Tasklist, TasklistsState, TasklistState, ClassMethodInfo } from '../session/types'
+import type { StreamPauseController, RenderSurface, StopPayload, SerializedValue, Tasklist, TasklistsState, TasklistState, ClassMethodInfo, AgentSpawnConfig, AgentSpawnResult } from '../session/types'
 import { serialize } from '../stream/serializer'
 import { recoverArgumentNames } from '../parser/ast-utils'
 import { AsyncManager } from './async-manager'
@@ -36,6 +36,8 @@ export interface GlobalsConfig {
   getClassInfo?: (className: string) => { methods: ClassMethodInfo[] } | null
   /** Signal that loadClass was called — emits events, injects bindings. Called after pause. */
   onLoadClass?: (className: string) => void
+  /** Spawn a child agent session. Used by agent namespace globals. */
+  onSpawn?: (config: AgentSpawnConfig) => Promise<AgentSpawnResult>
 }
 
 /**

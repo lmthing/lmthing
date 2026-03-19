@@ -1,5 +1,28 @@
 import type { ReactElement } from 'react'
 
+// ── Agent Spawn ──
+
+export interface AgentSpawnOptions {
+  context: "empty" | "branch";
+}
+
+export interface AgentSpawnConfig {
+  spaceDir: string;
+  spaceName: string;
+  agentSlug: string;
+  actionId: string;
+  request: string;
+  params: Record<string, any>;
+  options: AgentSpawnOptions;
+}
+
+export interface AgentSpawnResult {
+  scope: Record<string, any>;
+  result: any;
+  keyFiles?: string[];
+  issues?: string[];
+}
+
 // ── Serialization ──
 
 export interface SerializedValue {
@@ -190,6 +213,9 @@ export type SessionEvent =
   | { type: 'spawn_start'; childId: string; context: string; directive: string }
   | { type: 'spawn_complete'; childId: string; turns: number; duration: number }
   | { type: 'spawn_error'; childId: string; error: string }
+  | { type: 'agent_spawn_start'; spaceName: string; agentSlug: string; actionId: string }
+  | { type: 'agent_spawn_complete'; spaceName: string; agentSlug: string; actionId: string; result: AgentSpawnResult }
+  | { type: 'agent_spawn_failed'; spaceName: string; agentSlug: string; actionId: string; error: string }
   | { type: 'status'; status: SessionStatus }
   | { type: 'scope'; entries: ScopeEntry[] }
 

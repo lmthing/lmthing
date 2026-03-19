@@ -15,6 +15,8 @@ import { AgentLoop } from './agent-loop'
 import { createReplServer } from './server'
 import { loadCatalog, mergeCatalogs, formatCatalogForPrompt } from '../catalog/index'
 import { buildKnowledgeTree, loadKnowledgeFiles, formatKnowledgeTreeForPrompt } from '../knowledge/index'
+import type { KnowledgeTree } from '../knowledge/types'
+import { buildSpaceAgentTrees, createNamespaceGlobals, formatAgentTreeForPrompt } from '../sandbox/agent-namespaces'
 import type { LanguageModel } from 'ai'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -216,6 +218,7 @@ export async function runAgent(
   // ── Load space knowledge ──
   let knowledgeTreePrompt = ''
   const spaceMap = new Map<string, string>()
+  let knowledgeTrees: KnowledgeTree[] = []
 
   const spacePaths = [
     ...(opts.spaces ?? []),
@@ -223,7 +226,7 @@ export async function runAgent(
   ].map(s => resolve(s))
 
   if (spacePaths.length > 0) {
-    const trees = spacePaths.map(spacePath => {
+    knowledgeTrees = spacePaths.map(spacePath => {
       const name = basename(spacePath)
       const kDir = resolve(spacePath, 'knowledge')
       spaceMap.set(name, kDir)
@@ -231,7 +234,20 @@ export async function runAgent(
       tree.name = name
       return tree
     })
-    knowledgeTreePrompt = formatKnowledgeTreeForPrompt(trees)
+    knowledgeTreePrompt = formatKnowledgeTreeForPrompt(knowledgeTrees)
+  }
+
+  // ── Build agent namespace trees ──
+  let agentNamespaces: Record<string, unknown> = {}
+  let agentTreePrompt = ''
+
+  if (spacePaths.length > 0) {
+    const agentTrees = buildSpaceAgentTrees(spacePaths, knowledgeTrees)
+    const onSpawnStub = async () => {
+      throw new Error('Agent spawning not yet implemented — Phase 1a required')
+    }
+    agentNamespaces = createNamespaceGlobals(agentTrees, onSpawnStub)
+    agentTreePrompt = formatAgentTreeForPrompt(agentTrees)
   }
 
   // ── Merge config ──
@@ -293,6 +309,7 @@ export async function runAgent(
     knowledgeLoader,
     getClassInfo,
     loadClass: loadClassFn,
+    agentNamespaces: Object.keys(agentNamespaces).length > 0 ? agentNamespaces : undefined,
   })
 
   // ── Resolve model ──
@@ -328,6 +345,7 @@ export async function runAgent(
     knowledgeLoader,
     getClassInfo,
     loadClass: loadClassFn,
+    agentTree: agentTreePrompt || undefined,
   })
 
   // ── Run default export setup function ──

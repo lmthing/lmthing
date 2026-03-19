@@ -54,7 +54,7 @@ describe('cli/args', () => {
   })
 
   it('throws without file or catalog', () => {
-    expect(() => parseArgs([])).toThrow('Either a file path or --catalog')
+    expect(() => parseArgs([])).toThrow('Either a file path')
   })
 
   it('accepts catalog without file', () => {

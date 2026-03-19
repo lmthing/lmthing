@@ -11,6 +11,8 @@ import type {
   Tasklist,
   TasklistsState,
   SerializedJSX,
+  AgentSpawnConfig,
+  AgentSpawnResult,
 } from './types'
 import type { KnowledgeSelector, KnowledgeContent } from '../knowledge/types'
 import type { SessionConfig } from './config'
@@ -34,8 +36,10 @@ export interface SessionOptions {
   getClassInfo?: (className: string) => { methods: import('./types').ClassMethodInfo[] } | null
   /** Load a class: instantiate, bind methods, inject into sandbox. */
   loadClass?: (className: string, session: Session) => void
-  /** Hook point for Phase 1b agent namespace wiring. */
-  onSpawn?: (config: any) => Promise<any>
+  /** Agent namespace globals to inject into the sandbox. */
+  agentNamespaces?: Record<string, unknown>
+  /** Spawn a child agent session. Used by agent namespace globals. */
+  onSpawn?: (config: AgentSpawnConfig) => Promise<AgentSpawnResult>
 }
 
 export class Session extends EventEmitter {
@@ -186,12 +190,48 @@ export class Session extends EventEmitter {
     this.sandbox.inject('loadKnowledge', this.globalsApi.loadKnowledge)
     this.sandbox.inject('loadClass', this.globalsApi.loadClass)
 
+    // Inject agent namespace globals
+    if (options.agentNamespaces) {
+      for (const [name, ns] of Object.entries(options.agentNamespaces)) {
+        this.sandbox.inject(name, ns)
+      }
+    }
+
     // Conversation state recorder
     this.recorder = new ConversationRecorder()
     this.on('event', (event: SessionEvent) => this.recorder.recordEvent(event))
 
-    // Spawn hook for Phase 1b
+    // Spawn callback with event emission
     this.onSpawn = options.onSpawn
+      ? async (config: AgentSpawnConfig) => {
+          this.emitEvent({
+            type: 'agent_spawn_start',
+            spaceName: config.spaceName,
+            agentSlug: config.agentSlug,
+            actionId: config.actionId,
+          })
+          try {
+            const result = await options.onSpawn!(config)
+            this.emitEvent({
+              type: 'agent_spawn_complete',
+              spaceName: config.spaceName,
+              agentSlug: config.agentSlug,
+              actionId: config.actionId,
+              result,
+            })
+            return result
+          } catch (err: any) {
+            this.emitEvent({
+              type: 'agent_spawn_failed',
+              spaceName: config.spaceName,
+              agentSlug: config.agentSlug,
+              actionId: config.actionId,
+              error: err?.message ?? String(err),
+            })
+            throw err
+          }
+        }
+      : undefined
   }
 
   private async executeStatement(source: string): Promise<LineResult> {

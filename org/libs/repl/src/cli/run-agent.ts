@@ -248,42 +248,51 @@ export async function runAgent(
   const maxTasklistReminders = opts.maxTasklistReminders ?? replConfig.maxTasklistReminders ?? 3
   const timeout = opts.timeout ?? 600
 
+  // ── Shared refs (used by both Session and AgentLoop for spawn context) ──
+  const allGlobals = { ...catalogGlobals, ...builtinCompGlobals, ...userGlobals }
+
+  const knowledgeLoader = spaceMap.size > 0
+    ? (selector: Record<string, any>) => {
+        const result: Record<string, any> = {}
+        for (const [spaceName, domains] of Object.entries(selector)) {
+          const kDir = spaceMap.get(spaceName)
+          if (!kDir || typeof domains !== 'object' || domains === null) continue
+          result[spaceName] = loadKnowledgeFiles(kDir, domains as any)
+        }
+        return result
+      }
+    : undefined
+
+  const getClassInfo = classConstructors.size > 0
+    ? (className: string) => {
+        const classExport = userClassExports.find(c => c.name === className)
+        if (!classExport?.methods || !classConstructors.has(className)) return null
+        return { methods: classExport.methods }
+      }
+    : undefined
+
+  const loadClassFn = classConstructors.size > 0
+    ? (className: string, sess: Session) => {
+        const Ctor = classConstructors.get(className)!
+        const classExport = userClassExports.find(c => c.name === className)!
+        const instance = new Ctor() as any
+        const bindings: Record<string, Function> = {}
+        for (const m of classExport.methods!) {
+          if (typeof instance[m.name] === 'function') {
+            bindings[m.name] = (instance[m.name] as Function).bind(instance)
+          }
+        }
+        sess.injectGlobal(className, bindings)
+      }
+    : undefined
+
   // ── Create session ──
   const session = new Session({
     config: { sessionTimeout: timeout * 1000 },
-    globals: { ...catalogGlobals, ...builtinCompGlobals, ...userGlobals },
-    knowledgeLoader: spaceMap.size > 0
-      ? (selector) => {
-          const result: Record<string, any> = {}
-          for (const [spaceName, domains] of Object.entries(selector)) {
-            const kDir = spaceMap.get(spaceName)
-            if (!kDir || typeof domains !== 'object' || domains === null) continue
-            result[spaceName] = loadKnowledgeFiles(kDir, domains)
-          }
-          return result
-        }
-      : undefined,
-    getClassInfo: classConstructors.size > 0
-      ? (className) => {
-          const classExport = userClassExports.find(c => c.name === className)
-          if (!classExport?.methods || !classConstructors.has(className)) return null
-          return { methods: classExport.methods }
-        }
-      : undefined,
-    loadClass: classConstructors.size > 0
-      ? (className, sess) => {
-          const Ctor = classConstructors.get(className)!
-          const classExport = userClassExports.find(c => c.name === className)!
-          const instance = new Ctor() as any
-          const bindings: Record<string, Function> = {}
-          for (const m of classExport.methods!) {
-            if (typeof instance[m.name] === 'function') {
-              bindings[m.name] = (instance[m.name] as Function).bind(instance)
-            }
-          }
-          sess.injectGlobal(className, bindings)
-        }
-      : undefined,
+    globals: allGlobals,
+    knowledgeLoader,
+    getClassInfo,
+    loadClass: loadClassFn,
   })
 
   // ── Resolve model ──
@@ -300,6 +309,7 @@ export async function runAgent(
 
   // ── Create agent loop ──
   const debugFile = opts.debugFile ?? replConfig.debugFile
+
   const agentLoop = new AgentLoop({
     session,
     model,
@@ -314,6 +324,10 @@ export async function runAgent(
     maxTurns,
     maxTasklistReminders,
     debugFile,
+    catalogGlobals: allGlobals,
+    knowledgeLoader,
+    getClassInfo,
+    loadClass: loadClassFn,
   })
 
   // ── Run default export setup function ──

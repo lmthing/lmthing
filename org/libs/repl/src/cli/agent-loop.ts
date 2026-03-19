@@ -9,6 +9,7 @@ import { streamText, type LanguageModel } from "ai";
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { Session } from "../session/session";
+import type { SessionOptions } from "../session/session";
 import { serialize } from "../stream/serializer";
 import { isKnowledgeContent, decayKnowledgeValue } from "../context/knowledge-decay";
 import type { KnowledgeContent } from "../knowledge/types";
@@ -17,6 +18,8 @@ import type { ClassifiedExport } from "./loader";
 import { formatCollapsedClass, formatExpandedClass } from "./loader";
 import { buildSystemPrompt } from "./buildSystemPrompt";
 import { generateTasklistCode, type ParsedFlow } from "./agent-loader";
+import { executeSpawn } from "../sandbox/spawn";
+import type { SpawnConfig, SpawnResult, SpawnContext } from "../sandbox/spawn";
 
 export interface AgentLoopOptions {
   session: Session;
@@ -33,9 +36,13 @@ export interface AgentLoopOptions {
   maxTasklistReminders?: number;
   debugFile?: string;
   actions?: Array<{ id: string; flow: ParsedFlow }>;
+  catalogGlobals?: Record<string, unknown>;
+  knowledgeLoader?: SessionOptions["knowledgeLoader"];
+  getClassInfo?: SessionOptions["getClassInfo"];
+  loadClass?: SessionOptions["loadClass"];
 }
 
-interface ChatMessage {
+export interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
 }
@@ -75,6 +82,10 @@ export class AgentLoop {
   private debugLog: DebugEntry[] = [];
   private tokenTotals = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
   private totalTurns = 0;
+  private catalogGlobals: Record<string, unknown>;
+  private knowledgeLoader?: SessionOptions["knowledgeLoader"];
+  private getClassInfo?: SessionOptions["getClassInfo"];
+  private loadClass?: SessionOptions["loadClass"];
   /** Tracks stop messages that contain knowledge content, for progressive decay. */
   private knowledgeStops: Array<{
     messageIndex: number;
@@ -102,6 +113,10 @@ export class AgentLoop {
     if (options.actions) {
       for (const a of options.actions) this.actions.set(a.id, a.flow);
     }
+    this.catalogGlobals = options.catalogGlobals ?? {};
+    this.knowledgeLoader = options.knowledgeLoader;
+    this.getClassInfo = options.getClassInfo;
+    this.loadClass = options.loadClass;
   }
 
   get debug(): boolean {
@@ -118,6 +133,39 @@ export class AgentLoop {
       label: flow.name,
       description: flow.description,
     }));
+  }
+
+  /**
+   * Replace the internal messages array.
+   * Used by executeSpawn() to inject cloned parent messages into a child AgentLoop.
+   * Only call before the first handleMessage().
+   */
+  setMessages(messages: ChatMessage[]): void {
+    this.messages = messages;
+  }
+
+  /**
+   * Spawn a child agent. Builds SpawnContext from stored references
+   * and delegates to executeSpawn().
+   */
+  async handleSpawn(config: SpawnConfig): Promise<SpawnResult> {
+    const ctx: SpawnContext = {
+      model: this.model,
+      modelId: this.modelId,
+      messages: this.messages,
+      scopeTable: this.session.getScopeTable(),
+      catalogGlobals: this.catalogGlobals,
+      functionSignatures: this.functionSignatures,
+      formSignatures: this.formSignatures,
+      viewSignatures: this.viewSignatures,
+      classSignatures: this.classSignatures,
+      knowledgeTree: this.knowledgeTree,
+      knowledgeLoader: this.knowledgeLoader,
+      getClassInfo: this.getClassInfo,
+      loadClass: this.loadClass,
+      parentSession: this.session,
+    };
+    return executeSpawn(config, ctx);
   }
 
   private logDebug(type: DebugEntry["type"], data: unknown): void {

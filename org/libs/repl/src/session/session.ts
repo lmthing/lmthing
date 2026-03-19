@@ -34,6 +34,8 @@ export interface SessionOptions {
   getClassInfo?: (className: string) => { methods: import('./types').ClassMethodInfo[] } | null
   /** Load a class: instantiate, bind methods, inject into sandbox. */
   loadClass?: (className: string, session: Session) => void
+  /** Hook point for Phase 1b agent namespace wiring. */
+  onSpawn?: (config: any) => Promise<any>
 }
 
 export class Session extends EventEmitter {
@@ -52,6 +54,7 @@ export class Session extends EventEmitter {
   private tasklistReminderCount = 0
   private recorder: ConversationRecorder
   private turnCodeStart = 0
+  private onSpawn?: (config: any) => Promise<any>
 
   constructor(options: SessionOptions = {}) {
     super()
@@ -186,6 +189,9 @@ export class Session extends EventEmitter {
     // Conversation state recorder
     this.recorder = new ConversationRecorder()
     this.on('event', (event: SessionEvent) => this.recorder.recordEvent(event))
+
+    // Spawn hook for Phase 1b
+    this.onSpawn = options.onSpawn
   }
 
   private async executeStatement(source: string): Promise<LineResult> {

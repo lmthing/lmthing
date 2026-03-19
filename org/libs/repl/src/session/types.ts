@@ -187,6 +187,9 @@ export type SessionEvent =
   | { type: 'task_async_failed'; tasklistId: string; id: string; error: string }
   | { type: 'knowledge_loaded'; domains: string[] }
   | { type: 'class_loaded'; className: string; methods: string[] }
+  | { type: 'spawn_start'; childId: string; context: string; directive: string }
+  | { type: 'spawn_complete'; childId: string; turns: number; duration: number }
+  | { type: 'spawn_error'; childId: string; error: string }
   | { type: 'status'; status: SessionStatus }
   | { type: 'scope'; entries: ScopeEntry[] }
 

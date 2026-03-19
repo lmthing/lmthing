@@ -1,5 +1,10 @@
 {
   "name": "cooking-demo",
   "version": "1.0.0",
-  "private": true
+  "private": true,
+  "spaces": {
+    "npm:@lmthing/space/french-cooking": "latest",
+    "github:lmthing/space/italian-cooking": "latest",
+    "../../packages/space/space": "latest"
+  }
 }

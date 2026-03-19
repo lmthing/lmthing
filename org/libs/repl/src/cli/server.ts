@@ -124,6 +124,10 @@ export function createReplServer(options: ServerOptions): { server: Server; clos
               }
             }
             break
+          case 'getConversationState':
+            const convState = await rpcServer.getConversationState()
+            ws.send(JSON.stringify({ type: 'conversationState', data: convState }))
+            break
         }
       } catch (err) {
         ws.send(JSON.stringify({

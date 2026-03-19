@@ -22,6 +22,8 @@ import { StreamController } from '../stream/stream-controller'
 import { HookRegistry } from '../hooks/hook-registry'
 import { generateScopeTable } from '../context/scope-generator'
 import { buildStopMessage, buildErrorMessage, buildInterventionMessage, buildTasklistReminderMessage, generateTasksBlock } from '../context/message-builder'
+import { ConversationRecorder } from './conversation-state'
+import type { ConversationState } from './conversation-state'
 
 export interface SessionOptions {
   config?: Partial<SessionConfig>
@@ -48,6 +50,8 @@ export class Session extends EventEmitter {
   private activeFormId: string | null = null
   private stopCount = 0
   private tasklistReminderCount = 0
+  private recorder: ConversationRecorder
+  private turnCodeStart = 0
 
   constructor(options: SessionOptions = {}) {
     super()
@@ -178,6 +182,10 @@ export class Session extends EventEmitter {
     this.sandbox.inject('sleep', this.globalsApi.sleep)
     this.sandbox.inject('loadKnowledge', this.globalsApi.loadKnowledge)
     this.sandbox.inject('loadClass', this.globalsApi.loadClass)
+
+    // Conversation state recorder
+    this.recorder = new ConversationRecorder()
+    this.on('event', (event: SessionEvent) => this.recorder.recordEvent(event))
   }
 
   private async executeStatement(source: string): Promise<LineResult> {
@@ -201,6 +209,10 @@ export class Session extends EventEmitter {
       blockId: `stop_${this.stopCount}`,
     })
     this.emitEvent({ type: 'scope', entries: this.sandbox.getScope() })
+
+    const turnCode = this.codeLines.slice(this.turnCodeStart)
+    this.recorder.recordStop(turnCode, payload, this.sandbox.getScope(), cpState)
+    this.turnCodeStart = this.codeLines.length
   }
 
   private handleError(error: ErrorPayload): void {
@@ -208,6 +220,10 @@ export class Session extends EventEmitter {
     this.messages.push({ role: 'assistant', content: this.codeLines.join('\n') })
     this.messages.push({ role: 'user', content: msg })
     this.emitEvent({ type: 'scope', entries: this.sandbox.getScope() })
+
+    const turnCode = this.codeLines.slice(this.turnCodeStart)
+    this.recorder.recordError(turnCode, error, this.sandbox.getScope())
+    this.turnCodeStart = this.codeLines.length
   }
 
   /**
@@ -216,6 +232,7 @@ export class Session extends EventEmitter {
   async handleUserMessage(text: string): Promise<void> {
     this.setStatus('executing')
     this.messages.push({ role: 'user', content: text })
+    this.recorder.recordUserMessage(text, this.sandbox.getScope())
   }
 
   /**
@@ -278,14 +295,27 @@ export class Session extends EventEmitter {
 
         this.messages.push({ role: 'assistant', content: this.codeLines.join('\n') })
         this.messages.push({ role: 'user', content: fullMsg })
+
+        const blockedIds = blocked.map(b => b.split(' ')[0])
+        this.recorder.recordTasklistReminder(
+          [...this.codeLines], tasklistId, ready, blockedIds, failed,
+          this.sandbox.getScope(), cpState,
+        )
+
         this.codeLines = []
-        this.emitEvent({ type: 'tasklist_reminder', tasklistId, ready, blocked: blocked.map(b => b.split(' ')[0]), failed })
+        this.turnCodeStart = 0
+        this.emitEvent({ type: 'tasklist_reminder', tasklistId, ready, blocked: blockedIds, failed })
         this.emitEvent({ type: 'scope', entries: this.sandbox.getScope() })
         return 'tasklist_incomplete'
       }
     }
 
     await this.asyncManager.drain(5000)
+
+    const turnCode = this.codeLines.slice(this.turnCodeStart)
+    this.recorder.recordCompletion(turnCode, this.sandbox.getScope(), this.globalsApi.getTasklistsState(), 'complete')
+    this.turnCodeStart = this.codeLines.length
+
     this.setStatus('complete')
     return 'complete'
   }
@@ -353,7 +383,11 @@ export class Session extends EventEmitter {
     const msg = buildInterventionMessage(text)
     this.messages.push({ role: 'assistant', content: this.codeLines.join('\n') })
     this.messages.push({ role: 'user', content: msg })
+
+    this.recorder.recordIntervention([...this.codeLines], text, this.sandbox.getScope())
+
     this.codeLines = []
+    this.turnCodeStart = 0
     this.emitEvent({ type: 'scope', entries: this.sandbox.getScope() })
     this.streamController.resume()
   }
@@ -375,6 +409,13 @@ export class Session extends EventEmitter {
       activeFormId: this.activeFormId,
       tasklistsState: this.globalsApi.getTasklistsState(),
     }
+  }
+
+  /**
+   * Get the full serializable conversation state.
+   */
+  getConversationState(): ConversationState {
+    return this.recorder.getState()
   }
 
   /**

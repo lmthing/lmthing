@@ -1,5 +1,6 @@
 import type { ReplSession } from './interface'
 import type { SessionEvent, SessionSnapshot } from '../session/types'
+import type { ConversationState } from '../session/conversation-state'
 import { Session } from '../session/session'
 
 /**
@@ -47,6 +48,10 @@ export class ReplSessionServer implements ReplSession {
 
   async getSnapshot(): Promise<SessionSnapshot> {
     return this.session.snapshot()
+  }
+
+  async getConversationState(): Promise<ConversationState> {
+    return this.session.getConversationState()
   }
 
   async *subscribe(): AsyncIterable<SessionEvent> {

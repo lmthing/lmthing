@@ -3,6 +3,20 @@ export { Session } from './session/session'
 export type { SessionOptions } from './session/session'
 export type { SessionConfig, PartialSessionConfig } from './session/config'
 export { createDefaultConfig, validateConfig, mergeConfig } from './session/config'
+
+// Conversation State
+export { ConversationRecorder, computeScopeDelta, serializeTasklistsState } from './session/conversation-state'
+export type {
+  ConversationState,
+  ConversationTurn,
+  TurnBoundary,
+  TurnEvent,
+  ScopeDelta,
+  SerializedTasklistsState,
+  SerializedTasklistState,
+  SerializedTaskCompletion,
+} from './session/conversation-state'
+
 export type {
   SessionStatus,
   SessionEvent,

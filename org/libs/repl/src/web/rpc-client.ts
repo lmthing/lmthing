@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useReducer } from 'react'
 import type { SessionEvent, SessionSnapshot, SessionStatus, SerializedJSX, ErrorPayload, Tasklist } from '../session/types'
+import type { ConversationState } from '../session/conversation-state'
 
 // ── UI Block Model ──
 
@@ -152,6 +153,8 @@ export interface UseReplSessionResult {
   connected: boolean
   /** Available slash actions from the agent */
   actions: AgentAction[]
+  /** Full serializable conversation state (null until requested) */
+  conversationState: ConversationState | null
   /** Send a user message */
   sendMessage: (text: string) => void
   /** Submit a form */
@@ -166,12 +169,15 @@ export interface UseReplSessionResult {
   resume: () => void
   /** User intervention — inject a message while agent is running */
   intervene: (text: string) => void
+  /** Request the full conversation state */
+  getConversationState: () => void
 }
 
 export function useReplSession(url = 'ws://localhost:3100'): UseReplSessionResult {
   const [snapshot, setSnapshot] = useState<SessionSnapshot>(EMPTY_SNAPSHOT)
   const [connected, setConnected] = useState(false)
   const [actions, setActions] = useState<AgentAction[]>([])
+  const [conversationState, setConversationState] = useState<ConversationState | null>(null)
   const [blocks, dispatchBlock] = useReducer(blocksReducer, [])
   const wsRef = useRef<WebSocket | null>(null)
   const msgCounterRef = useRef(0)
@@ -191,6 +197,8 @@ export function useReplSession(url = 'ws://localhost:3100'): UseReplSessionResul
         setSnapshot(data.data)
       } else if (data.type === 'actions') {
         setActions(data.data)
+      } else if (data.type === 'conversationState') {
+        setConversationState(data.data)
       } else {
         setSnapshot(prev => applyEvent(prev, data))
         dispatchBlock({ type: 'event', event: data })
@@ -221,11 +229,16 @@ export function useReplSession(url = 'ws://localhost:3100'): UseReplSessionResul
     send({ type: 'intervene', text })
   }, [send])
 
+  const getConversationState = useCallback(() => {
+    send({ type: 'getConversationState' })
+  }, [send])
+
   return {
     snapshot,
     blocks,
     connected,
     actions,
+    conversationState,
     sendMessage,
     submitForm: (formId, data) => send({ type: 'submitForm', formId, data }),
     cancelAsk: (formId) => send({ type: 'cancelAsk', formId }),
@@ -233,5 +246,6 @@ export function useReplSession(url = 'ws://localhost:3100'): UseReplSessionResul
     pause: () => send({ type: 'pause' }),
     resume: () => send({ type: 'resume' }),
     intervene,
+    getConversationState,
   }
 }

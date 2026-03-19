@@ -1,4 +1,5 @@
 import type { SessionEvent, SessionSnapshot, ScopeEntry, SerializedJSX } from '../session/types'
+import type { ConversationState } from '../session/conversation-state'
 
 /** Exposed by CLI (backend) → consumed by browser (frontend) */
 export interface ReplSession {
@@ -26,9 +27,12 @@ export interface ReplSession {
   /** Get current session snapshot (for reconnection) */
   getSnapshot(): Promise<SessionSnapshot>
 
+  /** Get full serializable conversation state */
+  getConversationState(): Promise<ConversationState>
+
   /** Subscribe to session events */
   subscribe(): AsyncIterable<SessionEvent>
 }
 
 // Re-export types for consumer convenience
-export type { SessionEvent, SessionSnapshot, ScopeEntry, SerializedJSX }
+export type { SessionEvent, SessionSnapshot, ScopeEntry, SerializedJSX, ConversationState }

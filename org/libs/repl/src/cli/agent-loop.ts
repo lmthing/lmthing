@@ -718,6 +718,9 @@ export class AgentLoop {
       }
 
       // No stop/error — LLM finished naturally
+      this.messages.push({ role: "assistant", content: code });
+      this.logDebug("message", { role: "assistant", content: code });
+      this.logDebug("scope", this.session.snapshot().scope);
       console.log(`\x1b[36m[done]\x1b[0m Turn loop finished (${turn} turn(s))`);
       break;
     }

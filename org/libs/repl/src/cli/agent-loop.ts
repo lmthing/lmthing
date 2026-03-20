@@ -961,37 +961,150 @@ function toYaml(value: unknown, indent = 0): string {
   return `${pad}${String(value)}`;
 }
 
-function formatMessage(d: any): string {
+/** Indent every non-empty line of `text` with `prefix`. Empty lines stay empty. */
+function indentBlock(text: string, prefix: string): string {
+  return text
+    .split("\n")
+    .map((l) => (l.trim() ? `${prefix}${l}` : ""))
+    .join("\n");
+}
+
+function formatMessage(d: any, prefix: string): string {
   const content = String(d.content ?? "");
+  const inner = prefix + "  ";
   // Convert stop payloads from JSON to YAML
   const stopMatch = content.match(/^← stop ([\s\S]+)$/);
   if (stopMatch) {
     try {
       const parsed = JSON.parse(stopMatch[1]);
-      return `  <message role="${xmlAttr(d.role)}">\n${toYaml(parsed)}\n  </message>`;
+      return `${prefix}<message role="${xmlAttr(d.role)}">\n${indentBlock(toYaml(parsed), inner)}\n${prefix}</message>`;
     } catch {
       /* fall through */
     }
   }
-  return `  <message role="${xmlAttr(d.role)}">\n${content}\n  </message>`;
+  return `${prefix}<message role="${xmlAttr(d.role)}">\n${indentBlock(content, inner)}\n${prefix}</message>`;
 }
 
-function formatScope(d: any): string | null {
+function formatScope(d: any, prefix: string): string | null {
   const entries = Array.isArray(d) ? d : [];
   if (entries.length === 0) return null;
-  const vars = entries.map((e: any) => `    ${e.name}: ${e.type} ${e.value}`).join("\n");
-  return `  <scope>\n${vars}\n  </scope>`;
+  const inner = prefix + "  ";
+  const vars = entries.map((e: any) => `${inner}${e.name}: ${e.type} ${e.value}`).join("\n");
+  return `${prefix}<scope>\n${vars}\n${prefix}</scope>`;
 }
 
-function formatUsage(d: any): string {
+function formatUsage(d: any, prefix: string): string {
   const u = d.usage ?? {};
   const cacheRead = u.inputTokenDetails?.cacheReadTokens ?? 0;
   const reasoning = u.outputTokenDetails?.reasoningTokens ?? 0;
-  return `  <usage input="${u.inputTokens ?? 0}" output="${u.outputTokens ?? 0}" total="${u.totalTokens ?? 0}" reasoning="${reasoning}" cache-read="${cacheRead}" />`;
+  return `${prefix}<usage input="${u.inputTokens ?? 0}" output="${u.outputTokens ?? 0}" total="${u.totalTokens ?? 0}" reasoning="${reasoning}" cache-read="${cacheRead}" />`;
+}
+
+/**
+ * Compute a line-level diff between two multi-line strings.
+ * Returns XML using <del>/<ins> elements for removed/added lines,
+ * with unchanged context lines shown around each changed hunk.
+ */
+function lineDiff(oldText: string, newText: string, ctx = 3): string {
+  if (oldText === newText) return "(no changes)";
+
+  const a = oldText.split("\n");
+  const b = newText.split("\n");
+  const m = a.length;
+  const n = b.length;
+
+  // Normalize whitespace for comparison: collapse runs of spaces/tabs to single space, trim.
+  // This prevents table re-alignment (e.g. SCOPE column widths) from showing as changes.
+  const norm = (s: string) => s.replace(/[\t ]+/g, " ").trim();
+  const aN = a.map(norm);
+  const bN = b.map(norm);
+
+  // O(mn) LCS table using normalized lines
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array.from({ length: n + 1 }, () => 0));
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = aN[i - 1] === bN[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+
+  // Backtrack to build edit script (output uses new version's line for equal matches)
+  type Op = "equal" | "delete" | "insert";
+  const ops: { type: Op; line: string }[] = [];
+  let i = m;
+  let j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && aN[i - 1] === bN[j - 1]) {
+      ops.unshift({ type: "equal", line: b[j - 1] });
+      i--;
+      j--;
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      ops.unshift({ type: "insert", line: b[j - 1] });
+      j--;
+    } else {
+      ops.unshift({ type: "delete", line: a[i - 1] });
+      i--;
+    }
+  }
+
+  // Collect indices of changed ops
+  const changes: number[] = [];
+  for (let k = 0; k < ops.length; k++) {
+    if (ops[k].type !== "equal") changes.push(k);
+  }
+  if (changes.length === 0) return "(no changes)";
+
+  // Group nearby changes into hunks
+  const hunks: { start: number; end: number }[] = [];
+  let hStart = changes[0];
+  let hEnd = changes[0];
+  for (let k = 1; k < changes.length; k++) {
+    if (changes[k] - hEnd <= ctx * 2 + 1) {
+      hEnd = changes[k];
+    } else {
+      hunks.push({ start: hStart, end: hEnd });
+      hStart = changes[k];
+      hEnd = changes[k];
+    }
+  }
+  hunks.push({ start: hStart, end: hEnd });
+
+  // Format hunks with <del>/<ins> elements and context lines
+  const out: string[] = [];
+  for (let h = 0; h < hunks.length; h++) {
+    const hunk = hunks[h];
+    const start = Math.max(0, hunk.start - ctx);
+    const end = Math.min(ops.length - 1, hunk.end + ctx);
+
+    if (h === 0 && start > 0) out.push(`... (${start} unchanged lines)`);
+    for (let k = start; k <= end; k++) {
+      const op = ops[k];
+      switch (op.type) {
+        case "equal":
+          out.push(op.line);
+          break;
+        case "delete":
+          out.push(`<del>${op.line}</del>`);
+          break;
+        case "insert":
+          out.push(`<ins>${op.line}</ins>`);
+          break;
+      }
+    }
+    // Separator between hunks or trailing ellipsis
+    const nextStart = h + 1 < hunks.length ? Math.max(0, hunks[h + 1].start - ctx) : ops.length;
+    const gap = nextStart - end - 1;
+    if (gap > 0) out.push(`... (${gap} unchanged lines)`);
+  }
+
+  return out.join("\n");
 }
 
 function debugLogToXml(entries: DebugEntry[]): string {
   const out: string[] = ['<?xml version="1.0" encoding="UTF-8"?>', "<debug-log>", ""];
+
+  // Indentation prefixes: L1 = child of <debug-log>, L2 = child of <turn>
+  const L1 = "  ";
+  const L2 = "    ";
 
   // Group entries into turns. Pre-turn entries (system_prompt, setup messages) go
   // into a "setup" section. Each 'turn' marker starts a new group that collects
@@ -999,18 +1112,34 @@ function debugLogToXml(entries: DebugEntry[]): string {
 
   let inTurn = false;
   let turnAttrs = "";
+  let firstTurnPrompt: string | null = null; // baseline for diffing
 
   for (const entry of entries) {
     const d = entry.data as any;
 
     switch (entry.type) {
-      case "system_prompt":
-        out.push(`<system-prompt>\n${d}\n</system-prompt>`, "");
+      case "system_prompt": {
+        const tag = inTurn ? L2 : L1;
+        const contentPrefix = inTurn ? L2 + "  " : L1 + "  ";
+
+        if (!inTurn) {
+          // Pre-turn system prompts — always show in full
+          out.push(`${tag}<system-prompt>`, indentBlock(d, contentPrefix), `${tag}</system-prompt>`, "");
+        } else if (firstTurnPrompt === null) {
+          // First turn — show full and save as baseline
+          firstTurnPrompt = d;
+          out.push(`${tag}<system-prompt>`, indentBlock(d, contentPrefix), `${tag}</system-prompt>`, "");
+        } else {
+          // Subsequent turns — show diff from first turn's prompt
+          const diff = lineDiff(firstTurnPrompt, d);
+          out.push(`${tag}<system-prompt diff="true">`, indentBlock(diff, contentPrefix), `${tag}</system-prompt>`, "");
+        }
         break;
+      }
 
       case "turn":
         // Close previous turn if open
-        if (inTurn) out.push("</turn>", "");
+        if (inTurn) out.push(`${L1}</turn>`, "");
         turnAttrs = `n="${d.turn}" messages="${d.messageCount}"`;
         inTurn = true;
         // Don't emit opening tag yet — wait for turn_result to add finish/model attrs
@@ -1019,22 +1148,21 @@ function debugLogToXml(entries: DebugEntry[]): string {
       case "turn_result": {
         const model = d.response?.modelId ?? "";
         const finish = xmlAttr(String(d.finishReason ?? ""));
-        out.push(`<turn ${turnAttrs} finish="${finish}" model="${xmlAttr(model)}">`);
-        out.push(formatUsage(d));
+        out.push(`${L1}<turn ${turnAttrs} finish="${finish}" model="${xmlAttr(model)}">`);
+        out.push(formatUsage(d, L2));
         break;
       }
 
       case "message":
         if (!inTurn) {
-          // Pre-turn setup messages — emit at root level
-          out.push(formatMessage(d).replace(/^  /gm, ""), "");
+          out.push(formatMessage(d, L1), "");
         } else {
-          out.push(formatMessage(d));
+          out.push(formatMessage(d, L2));
         }
         break;
 
       case "scope": {
-        const s = formatScope(d);
+        const s = formatScope(d, inTurn ? L2 : L1);
         if (s) out.push(s);
         break;
       }
@@ -1043,19 +1171,19 @@ function debugLogToXml(entries: DebugEntry[]): string {
         break;
 
       case "api_error":
-        out.push(`${inTurn ? "  " : ""}<api-error>${d.message ?? ""}</api-error>`);
+        out.push(`${inTurn ? L2 : L1}<api-error>${d.message ?? ""}</api-error>`);
         break;
 
       case "finalize": {
         if (inTurn) {
-          out.push("</turn>", "");
+          out.push(`${L1}</turn>`, "");
           inTurn = false;
         }
         const t = d.tokenTotals ?? {};
         out.push(
-          `<finalize model="${xmlAttr(d.model ?? "")}" turns="${d.turns}" status="${xmlAttr(d.status ?? "")}">`,
-          `  <tokens input="${t.inputTokens ?? 0}" output="${t.outputTokens ?? 0}" total="${t.totalTokens ?? 0}" />`,
-          `</finalize>`,
+          `${L1}<finalize model="${xmlAttr(d.model ?? "")}" turns="${d.turns}" status="${xmlAttr(d.status ?? "")}">`,
+          `${L2}<tokens input="${t.inputTokens ?? 0}" output="${t.outputTokens ?? 0}" total="${t.totalTokens ?? 0}" />`,
+          `${L1}</finalize>`,
           "",
         );
         break;
@@ -1066,7 +1194,7 @@ function debugLogToXml(entries: DebugEntry[]): string {
     }
   }
 
-  if (inTurn) out.push("</turn>", "");
+  if (inTurn) out.push(`${L1}</turn>`, "");
   out.push("</debug-log>");
   return out.join("\n");
 }

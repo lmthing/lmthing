@@ -1,0 +1,5 @@
+{
+  "fieldType": "select",
+  "default": "usda",
+  "variableName": "dailyTargets"
+}

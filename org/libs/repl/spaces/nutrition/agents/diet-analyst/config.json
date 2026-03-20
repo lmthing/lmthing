@@ -1,0 +1,12 @@
+{
+  "knowledge": {
+    "guidelines": true,
+    "food-database": true
+  },
+  "components": ["NutritionReport", "MacroBreakdown"],
+  "functions": [
+    "scoreMeal",
+    "calculateBMR",
+    "lookupFood"
+  ]
+}

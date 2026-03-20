@@ -1,6 +1,6 @@
 /**
  * Determines if a buffered string is a complete TypeScript statement.
- * Uses bracket depth and string context tracking as a heuristic.
+ * Uses bracket depth, JSX depth, and string context tracking as a heuristic.
  */
 export function isCompleteStatement(buffer: string): boolean {
   const trimmed = buffer.trim()
@@ -9,6 +9,8 @@ export function isCompleteStatement(buffer: string): boolean {
   let roundDepth = 0
   let curlyDepth = 0
   let squareDepth = 0
+  let jsxDepth = 0
+  let jsxTagState: 'none' | 'open' | 'close' = 'none'
   let inString: false | "'" | '"' | '`' = false
   let inLineComment = false
   let inBlockComment = false
@@ -78,6 +80,53 @@ export function isCompleteStatement(buffer: string): boolean {
       continue
     }
 
+    // --- JSX tracking (uses lookahead since full buffer is available) ---
+
+    // Self-closing /> in open tag
+    if (jsxTagState === 'open' && ch === '/' && next === '>') {
+      jsxDepth = Math.max(0, jsxDepth - 1)
+      jsxTagState = 'none'
+      i += 2
+      continue
+    }
+
+    // Opening tag close > (only when not inside {expressions})
+    if (jsxTagState === 'open' && ch === '>' && curlyDepth === 0 && roundDepth === 0 && squareDepth === 0) {
+      jsxTagState = 'none'
+      i++
+      continue
+    }
+
+    // Closing tag close >
+    if (jsxTagState === 'close' && ch === '>') {
+      jsxDepth = Math.max(0, jsxDepth - 1)
+      jsxTagState = 'none'
+      i++
+      continue
+    }
+
+    // JSX opening tag: <Letter
+    if (ch === '<' && jsxTagState === 'none' && next && /[a-zA-Z]/.test(next)) {
+      jsxDepth++
+      jsxTagState = 'open'
+      i += 2 // skip '<' and first letter
+      continue
+    }
+
+    // JSX closing tag: </
+    if (ch === '<' && jsxTagState === 'none' && next === '/') {
+      jsxTagState = 'close'
+      i += 2
+      continue
+    }
+
+    // JSX fragment: <>
+    if (ch === '<' && jsxTagState === 'none' && next === '>') {
+      jsxDepth++
+      i += 2
+      continue
+    }
+
     // Track brackets
     if (ch === '(') roundDepth++
     else if (ch === ')') roundDepth = Math.max(0, roundDepth - 1)
@@ -89,9 +138,10 @@ export function isCompleteStatement(buffer: string): boolean {
     i++
   }
 
-  // Complete if all brackets balanced and not inside string/comment
+  // Complete if all brackets balanced and not inside string/comment/JSX
   if (inString !== false || inBlockComment) return false
   if (roundDepth !== 0 || curlyDepth !== 0 || squareDepth !== 0) return false
+  if (jsxDepth !== 0 || jsxTagState !== 'none') return false
 
   return true
 }

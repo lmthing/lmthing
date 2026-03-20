@@ -114,4 +114,119 @@ describe('stream/bracket-tracker', () => {
     feedChunk(state, '))')
     expect(state.round).toBe(0)
   })
+
+  // --- JSX tracking ---
+
+  it('tracks self-closing JSX element', () => {
+    const state = createBracketState()
+    feedChunk(state, '<Component />')
+    expect(state.jsxDepth).toBe(0)
+    expect(isBalanced(state)).toBe(true)
+  })
+
+  it('tracks incomplete self-closing JSX element', () => {
+    const state = createBracketState()
+    feedChunk(state, '<Component name="test"')
+    expect(state.jsxDepth).toBe(1)
+    expect(state.jsxTagState).toBe('open')
+    expect(isBalanced(state)).toBe(false)
+  })
+
+  it('tracks JSX with open and close tags', () => {
+    const state = createBracketState()
+    feedChunk(state, '<div>hello</div>')
+    expect(state.jsxDepth).toBe(0)
+    expect(isBalanced(state)).toBe(true)
+  })
+
+  it('tracks nested JSX elements', () => {
+    const state = createBracketState()
+    feedChunk(state, '<Parent><Child /></Parent>')
+    expect(state.jsxDepth).toBe(0)
+    expect(isBalanced(state)).toBe(true)
+  })
+
+  it('tracks JSX variable assignment', () => {
+    const state = createBracketState()
+    feedChunk(state, 'var x = <Component name="test" />')
+    expect(state.jsxDepth).toBe(0)
+    expect(isBalanced(state)).toBe(true)
+  })
+
+  it('detects incomplete multi-line JSX', () => {
+    const state = createBracketState()
+    feedChunk(state, 'var x = <Component\n')
+    expect(isBalanced(state)).toBe(false)
+    feedChunk(state, '  name="test"\n')
+    expect(isBalanced(state)).toBe(false)
+    feedChunk(state, '/>')
+    expect(isBalanced(state)).toBe(true)
+  })
+
+  it('tracks JSX with expression attributes', () => {
+    const state = createBracketState()
+    feedChunk(state, '<Component count={42} items={[1, 2]} />')
+    expect(state.jsxDepth).toBe(0)
+    expect(state.curly).toBe(0)
+    expect(state.square).toBe(0)
+    expect(isBalanced(state)).toBe(true)
+  })
+
+  it('handles > inside JSX expression attributes', () => {
+    const state = createBracketState()
+    feedChunk(state, '<Component show={a > b} />')
+    expect(state.jsxDepth).toBe(0)
+    expect(isBalanced(state)).toBe(true)
+  })
+
+  it('tracks JSX fragments', () => {
+    const state = createBracketState()
+    feedChunk(state, '<>hello</>')
+    expect(state.jsxDepth).toBe(0)
+    expect(isBalanced(state)).toBe(true)
+  })
+
+  it('does not treat comparison as JSX', () => {
+    const state = createBracketState()
+    feedChunk(state, 'a < 3')
+    expect(state.jsxDepth).toBe(0)
+    expect(isBalanced(state)).toBe(true)
+  })
+
+  it('handles JSX with string attributes containing >', () => {
+    const state = createBracketState()
+    feedChunk(state, '<Component label="a > b" />')
+    expect(state.jsxDepth).toBe(0)
+    expect(isBalanced(state)).toBe(true)
+  })
+
+  it('tracks JSX fed character by character', () => {
+    const state = createBracketState()
+    const code = '<Component name="test" />'
+    for (const ch of code) {
+      feedChunk(state, ch)
+    }
+    expect(state.jsxDepth).toBe(0)
+    expect(isBalanced(state)).toBe(true)
+  })
+
+  it('tracks incomplete JSX fed character by character', () => {
+    const state = createBracketState()
+    const code = 'var x = <RecipeCard\n  name="test"\n'
+    for (const ch of code) {
+      feedChunk(state, ch)
+    }
+    expect(state.jsxDepth).toBe(1)
+    expect(isBalanced(state)).toBe(false)
+  })
+
+  it('resets JSX state', () => {
+    const state = createBracketState()
+    feedChunk(state, '<Component')
+    expect(isBalanced(state)).toBe(false)
+    resetBracketState(state)
+    expect(isBalanced(state)).toBe(true)
+    expect(state.jsxDepth).toBe(0)
+    expect(state.jsxTagState).toBe('none')
+  })
 })

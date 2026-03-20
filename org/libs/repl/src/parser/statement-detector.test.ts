@@ -79,4 +79,63 @@ describe('parser/statement-detector', () => {
     expect(isCompleteStatement('foo(bar(baz([1, 2])))')).toBe(true)
     expect(isCompleteStatement('foo(bar(baz([1, 2]))')).toBe(false)
   })
+
+  // --- JSX ---
+
+  it('self-closing JSX is complete', () => {
+    expect(isCompleteStatement('var x = <Component />')).toBe(true)
+  })
+
+  it('incomplete JSX opening tag', () => {
+    expect(isCompleteStatement('var x = <Component')).toBe(false)
+    expect(isCompleteStatement('var x = <Component name="test"')).toBe(false)
+  })
+
+  it('multi-line self-closing JSX is complete', () => {
+    expect(isCompleteStatement('var x = <Component\n  name="test"\n/>')).toBe(true)
+  })
+
+  it('JSX with open and close tags is complete', () => {
+    expect(isCompleteStatement('<div>hello</div>')).toBe(true)
+  })
+
+  it('incomplete JSX with children', () => {
+    expect(isCompleteStatement('<div>hello')).toBe(false)
+  })
+
+  it('nested JSX is complete', () => {
+    expect(isCompleteStatement('<Parent><Child /></Parent>')).toBe(true)
+  })
+
+  it('JSX with expression attributes is complete', () => {
+    expect(isCompleteStatement('<Component count={42} items={[1, 2]} />')).toBe(true)
+  })
+
+  it('JSX with > in expression attributes is complete', () => {
+    expect(isCompleteStatement('<Component show={a > b} />')).toBe(true)
+  })
+
+  it('JSX fragment is complete', () => {
+    expect(isCompleteStatement('<>hello</>')).toBe(true)
+  })
+
+  it('comparison is not treated as JSX', () => {
+    expect(isCompleteStatement('const x = a < 3')).toBe(true)
+  })
+
+  it('JSX variable assignment with props is complete', () => {
+    const jsx = `var card = <RecipeCard
+  name="Japanese-Style Pasta"
+  servings={2}
+  ingredients={["noodles", "tofu"]}
+/>`
+    expect(isCompleteStatement(jsx)).toBe(true)
+  })
+
+  it('incomplete JSX variable assignment', () => {
+    const jsx = `var card = <RecipeCard
+  name="Japanese-Style Pasta"
+  servings={2}`
+    expect(isCompleteStatement(jsx)).toBe(false)
+  })
 })

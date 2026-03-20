@@ -8,6 +8,7 @@ export function buildSystemPrompt(
   instruct?: string,
   knowledgeTree?: string,
   agentTree?: string,
+  knowledgeNamespacePrompt?: string,
 ): string {
   let prompt = `You are a code-execution agent. You respond EXCLUSIVELY with valid TypeScript code. No markdown. No prose. No explanations outside of code comments. Every character you emit is fed line-by-line into a live TypeScript REPL that executes as you stream.
 
@@ -174,7 +175,7 @@ ${formSigs || "(none)"}
 These components show output to the user. Use them with \`display(<Component ... />)\`. Non-blocking.
 ${viewSigs || "(none)"}`;
 
-  if (agentTree) {
+  if (agentTree || knowledgeNamespacePrompt) {
     prompt += `\n\n## Available Agents
 Spawn child agents from loaded spaces. Each call returns a Promise.
 Use \`var result = space.agent(params).action(request)\` to track, or omit \`var\` for fire-and-forget.
@@ -197,8 +198,32 @@ respond(steakInstructions, {
 
 The child resumes execution with the data as the return value of its askParent() call.
 
+### knowledge.writer({ field }) — Persist knowledge and memories
+The \`knowledge\` namespace is always available. Use it to save, update, or delete knowledge entries on disk. Writes are fire-and-forget — they complete in the background and the updated entries appear in the Knowledge Tree on subsequent turns.
+
+The \`field\` parameter uses "domain/field" notation (e.g., \`"memory/project"\`, \`"cuisine/type"\`). If only one segment is given, it defaults to the \`memory\` domain.
+
+Examples:
+\`\`\`ts
+// Save a project memory (fire-and-forget, no variable needed)
+knowledge.writer({ field: "memory/project" }).save("auth-flow", "Authentication uses SSO codes with 60s TTL.")
+
+// Save feedback
+knowledge.writer({ field: "memory/feedback" }).save("testing-approach", "Use integration tests, not mocks.")
+
+// Delete a memory
+knowledge.writer({ field: "memory/feedback" }).remove("old-approach")
+
+// Add multiple options from data
+knowledge.writer({ field: "cuisine/type" }).addOptions("Store these recipes", recipeData, moreData)
+
+// Load a saved memory (existing loadKnowledge global)
+var mem = loadKnowledge({ "knowledge": { memory: { project: { "auth-flow": true } } } })
+await stop(mem)
 \`\`\`
-${agentTree}
+
+\`\`\`
+${[knowledgeNamespacePrompt, agentTree].filter(Boolean).join('\n')}
 \`\`\`\n`;
   }
 

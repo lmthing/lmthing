@@ -1,0 +1,8 @@
+{
+  "label": "Project",
+  "description": "Project-specific knowledge",
+  "fieldType": "text",
+  "variableName": "projectMemory",
+  "required": false,
+  "renderAs": "field"
+}

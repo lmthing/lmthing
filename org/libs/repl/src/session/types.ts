@@ -251,6 +251,8 @@ export type SessionEvent =
   | { type: 'agent_failed'; varName: string; error: string }
   | { type: 'agent_question_asked'; varName: string; question: { message: string; schema: Record<string, unknown> } }
   | { type: 'agent_question_answered'; varName: string }
+  | { type: 'knowledge_saved'; domain: string; field: string; option: string }
+  | { type: 'knowledge_removed'; domain: string; field: string; option: string }
   | { type: 'status'; status: SessionStatus }
   | { type: 'scope'; entries: ScopeEntry[] }
 

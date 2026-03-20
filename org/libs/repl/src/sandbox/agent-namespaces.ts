@@ -14,6 +14,7 @@ import { loadAgent } from '../cli/agent-loader'
 import type { AgentAction, LoadedAgent } from '../cli/agent-loader'
 import type { KnowledgeTree, KnowledgeDomain, KnowledgeField } from '../knowledge/types'
 import type { AgentSpawnConfig, AgentSpawnResult } from '../session/types'
+import { saveKnowledgeFile, deleteKnowledgeFile, parseFieldPath } from '../knowledge/writer'
 
 // ── Types ──
 
@@ -422,6 +423,102 @@ export class ChainableSpawnPromise implements PromiseLike<AgentSpawnResult> {
     const configWithRef = { ...this.config, _originPromise: this }
     this.onSpawn(configWithRef).then(this.resolveFn, this.rejectFn)
   }
+}
+
+// ── Knowledge Namespace ──
+
+export interface KnowledgeNamespaceConfig {
+  /** Path to the knowledge space's knowledge/ directory. */
+  knowledgeDir: string
+  /** Called after a save or remove operation. */
+  onKnowledgeSaved?: (domain: string, field: string, option: string) => void
+  /** Called after a remove operation. */
+  onKnowledgeRemoved?: (domain: string, field: string, option: string) => void
+}
+
+/**
+ * Build the built-in `knowledge` namespace.
+ *
+ * Unlike space-derived namespaces that spawn child agent sessions,
+ * the knowledge namespace performs direct file I/O via writer.ts.
+ * Actions resolve immediately without an LLM round-trip.
+ */
+export function createKnowledgeNamespace(config: KnowledgeNamespaceConfig): Record<string, unknown> {
+  return {
+    writer: (params: { field: string }) => {
+      const { domain, field } = parseFieldPath(params.field)
+
+      return {
+        save: (option: string, content: string): Promise<void> => {
+          return Promise.resolve().then(() => {
+            saveKnowledgeFile(config.knowledgeDir, domain, field, option, content)
+            config.onKnowledgeSaved?.(domain, field, option)
+          })
+        },
+
+        remove: (option: string): Promise<boolean> => {
+          return Promise.resolve().then(() => {
+            const deleted = deleteKnowledgeFile(config.knowledgeDir, domain, field, option)
+            if (deleted) {
+              config.onKnowledgeRemoved?.(domain, field, option)
+            }
+            return deleted
+          })
+        },
+
+        addOptions: (description: string, ...data: any[]): Promise<void> => {
+          return Promise.resolve().then(() => {
+            for (let i = 0; i < data.length; i++) {
+              const item = data[i]
+              let optionSlug: string
+              let content: string
+
+              if (typeof item === 'string') {
+                // Derive slug from first line or index
+                const firstLine = item.split('\n')[0].trim()
+                optionSlug = firstLine
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]+/g, '-')
+                  .replace(/^-|-$/g, '')
+                  .slice(0, 50) || `option-${i}`
+                content = item
+              } else if (item && typeof item === 'object') {
+                // Use name/title/id as slug, JSON-stringify the rest
+                optionSlug = (item.name ?? item.title ?? item.id ?? `option-${i}`)
+                  .toString()
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]+/g, '-')
+                  .replace(/^-|-$/g, '')
+                  .slice(0, 50)
+                content = typeof item.content === 'string'
+                  ? item.content
+                  : JSON.stringify(item, null, 2)
+              } else {
+                optionSlug = `option-${i}`
+                content = String(item)
+              }
+
+              saveKnowledgeFile(config.knowledgeDir, domain, field, optionSlug, content)
+            }
+            config.onKnowledgeSaved?.(domain, field, `${data.length} options`)
+          })
+        },
+      }
+    },
+  }
+}
+
+/**
+ * Format the knowledge namespace for the system prompt's agent tree.
+ */
+export function formatKnowledgeNamespaceForPrompt(): string {
+  return `knowledge {
+  writer({ field: string }): {
+    save(option: string, content: string): Promise<void>;
+    remove(option: string): Promise<boolean>;
+    addOptions(description: string, ...data: any[]): Promise<void>;
+  }
+}`
 }
 
 // ── Prompt Formatting ──

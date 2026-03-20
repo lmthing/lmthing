@@ -1,0 +1,8 @@
+{
+  "label": "Feedback",
+  "description": "Behavioral guidance",
+  "fieldType": "text",
+  "variableName": "feedbackMemory",
+  "required": false,
+  "renderAs": "field"
+}

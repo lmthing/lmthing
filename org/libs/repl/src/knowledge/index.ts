@@ -209,25 +209,21 @@ export function loadKnowledgeFiles(
 }
 
 /**
- * Format knowledge trees as a compact text representation for the system prompt.
+ * Format knowledge trees as an XML representation for the system prompt.
  *
- * Accepts a single tree or an array of named trees. When multiple trees are
- * provided, they are grouped under their space name:
+ * Accepts a single tree or an array of named trees.
  *
- * ```
- * knowledge/
- * ├── cooking/
- * │   ├── cuisine/          🌍 Cuisine — World cuisine traditions
- * │   │   └── type          [select] cuisineType — Which cuisine
- * │   │       ├── italian   Italian — Mediterranean cooking
- * │   │       └── japanese  Japanese — East Asian cuisine
- * │   └── technique/        🔥 Technique — Cooking methods
- * │       └── method        [select] cookMethod — Which method
- * └── nutrition/
- *     ├── macronutrients/   💪 Macronutrients — Protein, carbs, fats
- *     │   └── type          [select] macroType — Which macro
- *     └── vitamins/         🧬 Vitamins & Minerals
- *         └── nutrient      [select] nutrient — Which nutrient
+ * ```xml
+ * <knowledge>
+ *   <space name="cooking">
+ *     <domain name="cuisine" icon="🌍" label="Cuisine">
+ *       <field name="type" type="select" var="cuisineType">
+ *         <option name="italian">Italian — Mediterranean cooking</option>
+ *         <option name="japanese">Japanese — East Asian cuisine</option>
+ *       </field>
+ *     </domain>
+ *   </space>
+ * </knowledge>
  * ```
  */
 export function formatKnowledgeTreeForPrompt(treeOrTrees: KnowledgeTree | KnowledgeTree[]): string {
@@ -235,76 +231,47 @@ export function formatKnowledgeTreeForPrompt(treeOrTrees: KnowledgeTree | Knowle
   const allDomains = trees.flatMap(t => t.domains)
   if (allDomains.length === 0) return '(no knowledge loaded)'
 
+  const lines: string[] = ['<knowledge>']
+
   // If any tree has a name, group domains by space
   const hasNames = trees.some(t => t.name)
-  if (!hasNames || trees.length === 1 && !trees[0].name) {
-    return formatFlatTree(allDomains)
-  }
 
-  return formatGroupedTree(trees)
-}
-
-function formatFlatTree(domains: KnowledgeDomain[]): string {
-  const lines: string[] = ['knowledge/']
-  const domainCount = domains.length
-
-  for (let di = 0; di < domainCount; di++) {
-    const domain = domains[di]
-    const isLast = di === domainCount - 1
-    formatDomain(lines, domain, isLast ? '└── ' : '├── ', isLast ? '    ' : '│   ')
-  }
-
-  return lines.join('\n')
-}
-
-function formatGroupedTree(trees: KnowledgeTree[]): string {
-  const lines: string[] = ['knowledge/']
-  // Filter out empty trees
-  const nonEmpty = trees.filter(t => t.domains.length > 0)
-
-  for (let ti = 0; ti < nonEmpty.length; ti++) {
-    const tree = nonEmpty[ti]
-    const isLastTree = ti === nonEmpty.length - 1
-    const treePrefix = isLastTree ? '└── ' : '├── '
-    const treeChildPrefix = isLastTree ? '    ' : '│   '
-
-    lines.push(`${treePrefix}${tree.name ?? 'unknown'}/`)
-
-    const domainCount = tree.domains.length
-    for (let di = 0; di < domainCount; di++) {
-      const domain = tree.domains[di]
-      const isLastDomain = di === domainCount - 1
-      formatDomain(
-        lines,
-        domain,
-        treeChildPrefix + (isLastDomain ? '└── ' : '├── '),
-        treeChildPrefix + (isLastDomain ? '    ' : '│   '),
-      )
+  if (hasNames) {
+    const nonEmpty = trees.filter(t => t.domains.length > 0)
+    for (const tree of nonEmpty) {
+      lines.push(`  <space name="${xmlEsc(tree.name ?? 'unknown')}">`)
+      for (const domain of tree.domains) {
+        formatDomainXml(lines, domain, '    ')
+      }
+      lines.push('  </space>')
+    }
+  } else {
+    for (const domain of allDomains) {
+      formatDomainXml(lines, domain, '  ')
     }
   }
 
+  lines.push('</knowledge>')
   return lines.join('\n')
 }
 
-function formatDomain(lines: string[], domain: KnowledgeDomain, prefix: string, childPrefix: string): void {
-  lines.push(`${prefix}${domain.slug}/          ${domain.icon} ${domain.label} — ${domain.description}`)
+function formatDomainXml(lines: string[], domain: KnowledgeDomain, indent: string): void {
+  lines.push(`${indent}<domain name="${xmlEsc(domain.slug)}" icon="${xmlEsc(domain.icon)}" label="${xmlEsc(domain.label)}">`)
 
-  const fieldCount = domain.fields.length
-  for (let fi = 0; fi < fieldCount; fi++) {
-    const field = domain.fields[fi]
-    const isLastField = fi === fieldCount - 1
-    const fieldPrefix = isLastField ? '└── ' : '├── '
-    const optionChildPrefix = isLastField ? '    ' : '│   '
+  for (const field of domain.fields) {
+    lines.push(`${indent}  <field name="${xmlEsc(field.slug)}" type="${xmlEsc(field.fieldType)}" var="${xmlEsc(field.variableName)}">`)
 
-    lines.push(`${childPrefix}${fieldPrefix}${field.slug}             [${field.fieldType}] ${field.variableName} — ${field.description}`)
-
-    const optionCount = field.options.length
-    for (let oi = 0; oi < optionCount; oi++) {
-      const option = field.options[oi]
-      const isLastOption = oi === optionCount - 1
-      const optionPrefix = isLastOption ? '└── ' : '├── '
-
-      lines.push(`${childPrefix}${optionChildPrefix}${optionPrefix}${option.slug}       ${option.title} — ${option.description}`)
+    for (const option of field.options) {
+      const desc = option.description ? ` — ${xmlEsc(option.description)}` : ''
+      lines.push(`${indent}    <option name="${xmlEsc(option.slug)}">${xmlEsc(option.title)}${desc}</option>`)
     }
+
+    lines.push(`${indent}  </field>`)
   }
+
+  lines.push(`${indent}</domain>`)
+}
+
+function xmlEsc(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }

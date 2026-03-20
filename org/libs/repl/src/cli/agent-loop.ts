@@ -42,6 +42,10 @@ export interface AgentLoopOptions {
   getClassInfo?: SessionOptions["getClassInfo"];
   loadClass?: SessionOptions["loadClass"];
   agentTree?: string;
+  /** Formatted knowledge namespace prompt (always available). */
+  knowledgeNamespacePrompt?: string;
+  /** Callback to rebuild the knowledge tree after a write. Returns updated prompt string. */
+  rebuildKnowledgeTree?: () => string;
 }
 
 export interface ChatMessage {
@@ -89,6 +93,8 @@ export class AgentLoop {
   private getClassInfo?: SessionOptions["getClassInfo"];
   private loadClass?: SessionOptions["loadClass"];
   private agentTree: string;
+  private knowledgeNamespacePrompt: string;
+  private rebuildKnowledgeTree?: () => string;
   /** Tracks stop messages that contain knowledge content, for progressive decay. */
   private knowledgeStops: Array<{
     messageIndex: number;
@@ -121,6 +127,8 @@ export class AgentLoop {
     this.getClassInfo = options.getClassInfo;
     this.loadClass = options.loadClass;
     this.agentTree = options.agentTree ?? "";
+    this.knowledgeNamespacePrompt = options.knowledgeNamespacePrompt ?? "";
+    this.rebuildKnowledgeTree = options.rebuildKnowledgeTree;
   }
 
   get debug(): boolean {
@@ -219,6 +227,7 @@ export class AgentLoop {
       this.instruct,
       this.knowledgeTree,
       this.agentTree,
+      this.knowledgeNamespacePrompt,
     );
 
     // Initialize or update messages
@@ -256,6 +265,8 @@ export class AgentLoop {
         scope,
         this.instruct,
         this.knowledgeTree,
+        this.agentTree,
+        this.knowledgeNamespacePrompt,
       );
       this.messages.push({ role: "system", content: systemPrompt });
     }
@@ -323,6 +334,14 @@ export class AgentLoop {
           break;
         case "agent_question_answered":
           console.log(`\x1b[32m  [agent]\x1b[0m ${event.varName} question answered`);
+          break;
+        case "knowledge_saved":
+          console.log(`\x1b[36m  [knowledge]\x1b[0m saved: ${event.domain}/${event.field}/${event.option}`);
+          if (this.rebuildKnowledgeTree) this.knowledgeTree = this.rebuildKnowledgeTree();
+          break;
+        case "knowledge_removed":
+          console.log(`\x1b[36m  [knowledge]\x1b[0m removed: ${event.domain}/${event.field}/${event.option}`);
+          if (this.rebuildKnowledgeTree) this.knowledgeTree = this.rebuildKnowledgeTree();
           break;
       }
     };
@@ -493,6 +512,14 @@ export class AgentLoop {
             break;
           case "agent_question_answered":
             console.log(`\x1b[32m  [agent]\x1b[0m ${event.varName} question answered`);
+            break;
+          case "knowledge_saved":
+            console.log(`\x1b[36m  [knowledge]\x1b[0m saved: ${event.domain}/${event.field}/${event.option}`);
+            if (this.rebuildKnowledgeTree) this.knowledgeTree = this.rebuildKnowledgeTree();
+            break;
+          case "knowledge_removed":
+            console.log(`\x1b[36m  [knowledge]\x1b[0m removed: ${event.domain}/${event.field}/${event.option}`);
+            if (this.rebuildKnowledgeTree) this.knowledgeTree = this.rebuildKnowledgeTree();
             break;
           case "status":
             // don't log status changes to console, they're noisy
@@ -781,6 +808,7 @@ export class AgentLoop {
       this.instruct,
       this.knowledgeTree,
       this.agentTree,
+      this.knowledgeNamespacePrompt,
     );
     this.messages[0] = { role: "system", content: systemPrompt };
     this.logDebug("system_prompt", systemPrompt);

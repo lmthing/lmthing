@@ -84,10 +84,11 @@ describe('agent-namespaces', () => {
     it('parses package.json spaces field from real cooking space', () => {
       const deps = readSpaceDependencies(FIXTURES_DIR)
 
-      expect(deps.size).toBe(3)
+      expect(deps.size).toBe(4)
       expect(deps.has('npm:@lmthing/space/french-cooking')).toBe(true)
       expect(deps.has('github:lmthing/space/italian-cooking')).toBe(true)
       expect(deps.has('../../packages/space/space')).toBe(true)
+      expect(deps.has('../nutrition')).toBe(true)
     })
 
     it('extracts correct namespace names from npm URIs', () => {
@@ -214,8 +215,10 @@ describe('agent-namespaces', () => {
       expect(advisor).toBeDefined()
       expect(advisor!.slug).toBe('general_advisor')
       expect(advisor!.title).toBe('Food Assistant')
-      expect(advisor!.actions).toHaveLength(1)
-      expect(advisor!.actions[0].id).toBe('mealplan')
+      expect(advisor!.actions).toHaveLength(3)
+      expect(advisor!.actions.map(a => a.id)).toContain('mealplan')
+      expect(advisor!.actions.map(a => a.id)).toContain('recipe')
+      expect(advisor!.actions.map(a => a.id)).toContain('technique')
     })
 
     it('reads dependencies from package.json even when no agent enables them', () => {

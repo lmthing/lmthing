@@ -47,6 +47,8 @@ export interface SessionOptions {
   onAskParent?: (question: { message: string; schema: Record<string, unknown> }) => Promise<Record<string, unknown>>
   /** Whether this is a fire-and-forget child (untracked). askParent resolves immediately. */
   isFireAndForget?: boolean
+  /** Knowledge namespace global (built-in, always available if configured). */
+  knowledgeNamespace?: Record<string, unknown>
 }
 
 export class Session extends EventEmitter {
@@ -229,6 +231,11 @@ export class Session extends EventEmitter {
       for (const [name, ns] of Object.entries(options.agentNamespaces)) {
         this.sandbox.inject(name, ns)
       }
+    }
+
+    // Inject built-in knowledge namespace
+    if (options.knowledgeNamespace) {
+      this.sandbox.inject('knowledge', options.knowledgeNamespace)
     }
 
     // Conversation state recorder

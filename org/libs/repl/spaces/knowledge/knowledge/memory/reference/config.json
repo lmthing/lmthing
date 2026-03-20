@@ -1,0 +1,8 @@
+{
+  "label": "Reference",
+  "description": "External resource pointers",
+  "fieldType": "text",
+  "variableName": "referenceMemory",
+  "required": false,
+  "renderAs": "field"
+}

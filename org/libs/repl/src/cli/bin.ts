@@ -10,6 +10,8 @@ import { AgentLoop } from './agent-loop'
 import { createReplServer } from './server'
 import { loadCatalog, mergeCatalogs, formatCatalogForPrompt } from '../catalog/index'
 import { buildKnowledgeTree, loadKnowledgeFiles, formatKnowledgeTreeForPrompt } from '../knowledge/index'
+import { ensureMemoryDomain } from '../knowledge/writer'
+import { createKnowledgeNamespace, formatKnowledgeNamespaceForPrompt } from '../sandbox/agent-namespaces'
 import {
   loadAgent,
   resolveLocalFunctions,
@@ -236,6 +238,52 @@ async function main() {
     const formSignatures = agentFormSigs
     const viewSignatures = agentViewSigs
 
+    // Set up knowledge namespace (always available)
+    // Use the knowledge space's knowledge dir, falling back to the primary space
+    const knowledgeSpaceDir = resolve(__dirname, '../../spaces/knowledge')
+    const knowledgeWriteDir = resolve(knowledgeSpaceDir, 'knowledge')
+    ensureMemoryDomain(knowledgeWriteDir)
+
+    // Add knowledge space to the spaceMap so loadKnowledge can read from it
+    if (!spaceMap.has('knowledge')) {
+      spaceMap.set('knowledge', knowledgeWriteDir)
+      const kTree = buildKnowledgeTree(knowledgeWriteDir)
+      kTree.name = 'knowledge'
+      trees.push(kTree)
+      // Rebuild prompt with knowledge space included
+      if (trees.some(t => t.domains.length > 0)) {
+        knowledgeTreePrompt = formatKnowledgeTreeForPrompt(trees)
+      }
+    }
+
+    // Mutable ref for session event emission
+    let sessionRef: Session | null = null
+
+    const knowledgeNamespace = createKnowledgeNamespace({
+      knowledgeDir: knowledgeWriteDir,
+      onKnowledgeSaved: (domain, field, option) => {
+        sessionRef?.emit('event', { type: 'knowledge_saved', domain, field, option })
+      },
+      onKnowledgeRemoved: (domain, field, option) => {
+        sessionRef?.emit('event', { type: 'knowledge_removed', domain, field, option })
+      },
+    })
+    const knowledgeNamespacePrompt = formatKnowledgeNamespaceForPrompt()
+
+    // Rebuild knowledge tree callback (after writes)
+    const rebuildKnowledgeTree = () => {
+      // Rebuild all trees from disk
+      for (let i = 0; i < trees.length; i++) {
+        const name = trees[i].name
+        const kDir = spaceMap.get(name!)
+        if (!kDir) continue
+        const rebuilt = buildKnowledgeTree(kDir)
+        rebuilt.name = name
+        trees[i] = rebuilt
+      }
+      return formatKnowledgeTreeForPrompt(trees)
+    }
+
     // Create session
     const session = new Session({
       config: { sessionTimeout: args.timeout * 1000 },
@@ -272,7 +320,9 @@ async function main() {
             sess.injectGlobal(className, bindings)
           }
         : undefined,
+      knowledgeNamespace,
     })
+    sessionRef = session
 
     // Resolve model
     const { resolveModel } = await import('../providers/resolver')
@@ -299,6 +349,8 @@ async function main() {
       maxTasklistReminders: 3,
       debugFile,
       actions: agentActions.length > 0 ? agentActions : undefined,
+      knowledgeNamespacePrompt,
+      rebuildKnowledgeTree,
     })
 
     // Resolve static dir for web UI
@@ -513,16 +565,57 @@ async function main() {
     ...(Array.isArray(replConfig.spaces) ? replConfig.spaces : []),
   ].map(s => resolve(s))
 
-  if (spacePaths.length > 0) {
-    const trees = spacePaths.map(spacePath => {
-      const name = basename(spacePath)
-      const kDir = resolve(spacePath, 'knowledge')
-      spaceMap.set(name, kDir)
-      const tree = buildKnowledgeTree(kDir)
-      tree.name = name
-      return tree
-    })
+  const trees = spacePaths.length > 0
+    ? spacePaths.map(spacePath => {
+        const name = basename(spacePath)
+        const kDir = resolve(spacePath, 'knowledge')
+        spaceMap.set(name, kDir)
+        const tree = buildKnowledgeTree(kDir)
+        tree.name = name
+        return tree
+      })
+    : []
+
+  // Set up knowledge namespace (always available)
+  const knowledgeSpaceDir = resolve(__dirname, '../../spaces/knowledge')
+  const knowledgeWriteDir = resolve(knowledgeSpaceDir, 'knowledge')
+  ensureMemoryDomain(knowledgeWriteDir)
+
+  // Add knowledge space to spaceMap so loadKnowledge can read from it
+  if (!spaceMap.has('knowledge')) {
+    spaceMap.set('knowledge', knowledgeWriteDir)
+    const kTree = buildKnowledgeTree(knowledgeWriteDir)
+    kTree.name = 'knowledge'
+    trees.push(kTree)
+  }
+
+  if (trees.some(t => t.domains.length > 0)) {
     knowledgeTreePrompt = formatKnowledgeTreeForPrompt(trees)
+  }
+
+  let fileSessionRef: Session | null = null
+
+  const knowledgeNamespace = createKnowledgeNamespace({
+    knowledgeDir: knowledgeWriteDir,
+    onKnowledgeSaved: (domain, field, option) => {
+      fileSessionRef?.emit('event', { type: 'knowledge_saved', domain, field, option })
+    },
+    onKnowledgeRemoved: (domain, field, option) => {
+      fileSessionRef?.emit('event', { type: 'knowledge_removed', domain, field, option })
+    },
+  })
+  const knowledgeNamespacePrompt = formatKnowledgeNamespaceForPrompt()
+
+  const rebuildKnowledgeTree = () => {
+    for (let i = 0; i < trees.length; i++) {
+      const name = trees[i].name
+      const kDir = spaceMap.get(name!)
+      if (!kDir) continue
+      const rebuilt = buildKnowledgeTree(kDir)
+      rebuilt.name = name
+      trees[i] = rebuilt
+    }
+    return formatKnowledgeTreeForPrompt(trees)
   }
 
   // ── Merge config ──
@@ -544,8 +637,6 @@ async function main() {
     globals: { ...catalogGlobals, ...builtinCompGlobals, ...userGlobals },
     knowledgeLoader: spaceMap.size > 0
       ? (selector) => {
-          // Selector uses space names as top-level keys:
-          // { spaceName: { domain: { field: { option: true } } } }
           const result: Record<string, any> = {}
           for (const [spaceName, domains] of Object.entries(selector)) {
             const kDir = spaceMap.get(spaceName)
@@ -580,7 +671,9 @@ async function main() {
           sess.injectGlobal(className, bindings)
         }
       : undefined,
+    knowledgeNamespace,
   })
+  fileSessionRef = session
 
   // ── Resolve model ──
   const { resolveModel } = await import('../providers/resolver')
@@ -602,6 +695,8 @@ async function main() {
     maxTurns,
     maxTasklistReminders,
     debugFile,
+    knowledgeNamespacePrompt,
+    rebuildKnowledgeTree,
   })
 
   // ── Run default export setup function ──

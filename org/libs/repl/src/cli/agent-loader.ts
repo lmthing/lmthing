@@ -337,20 +337,12 @@ export function formatActionsForPrompt(
   const lines: string[] = []
 
   for (const { action, flow } of actions) {
-    lines.push(`### /${action.id} — ${action.label}`)
-    if (action.description) lines.push(action.description)
-    lines.push('')
+    lines.push(`/${action.id} — ${action.label}`)
+    if (action.description) lines.push(`  ${action.description}`)
 
-    if (flow) {
-      for (const step of flow.steps) {
-        lines.push(`**Step ${step.number}: ${step.name}**`)
-        if (step.description) lines.push(step.description)
-        if (step.instructions) lines.push(step.instructions)
-        if (step.outputTarget && step.outputSchema) {
-          lines.push(`Output → \`${step.outputTarget}\`: ${JSON.stringify(step.outputSchema)}`)
-        }
-        lines.push('')
-      }
+    if (flow && flow.steps.length > 0) {
+      const stepNames = flow.steps.map(s => s.name).join(' → ')
+      lines.push(`  Steps: ${stepNames}`)
     }
   }
 
@@ -361,13 +353,20 @@ export function generateTasklistCode(flow: ParsedFlow, tasklistId: string): stri
   const tasks = flow.steps.map((step, i) => {
     const task: Record<string, any> = {
       id: step.id,
-      instructions: step.instructions,
+      instructions: step.name,
     }
     if (step.outputSchema) {
       // The flow step's outputSchema is a full JSON Schema ({ type: "object", properties: {...} }).
       // The tasklist validator iterates outputSchema keys and checks each exists in the output,
       // so we need to use `properties` (the actual field definitions), not the wrapper.
-      task.outputSchema = step.outputSchema.properties ?? step.outputSchema
+      // Simplify to just key → { type } for the tasklist declaration.
+      const props = step.outputSchema.properties ?? step.outputSchema
+      const simple: Record<string, { type: string }> = {}
+      for (const [key, val] of Object.entries(props)) {
+        const v = val as any
+        simple[key] = { type: v?.type ?? 'string' }
+      }
+      task.outputSchema = simple
     }
     if (i > 0) {
       task.dependsOn = [flow.steps[i - 1].id]

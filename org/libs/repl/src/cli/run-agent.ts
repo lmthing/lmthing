@@ -15,8 +15,9 @@ import { AgentLoop } from './agent-loop'
 import { createReplServer } from './server'
 import { loadCatalog, mergeCatalogs, formatCatalogForPrompt } from '../catalog/index'
 import { buildKnowledgeTree, loadKnowledgeFiles, formatKnowledgeTreeForPrompt } from '../knowledge/index'
+import { ensureMemoryDomain } from '../knowledge/writer'
 import type { KnowledgeTree } from '../knowledge/types'
-import { buildSpaceAgentTrees, createNamespaceGlobals, formatAgentTreeForPrompt } from '../sandbox/agent-namespaces'
+import { buildSpaceAgentTrees, createNamespaceGlobals, formatAgentTreeForPrompt, createKnowledgeNamespace, formatKnowledgeNamespaceForPrompt } from '../sandbox/agent-namespaces'
 import type { LanguageModel } from 'ai'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -250,6 +251,45 @@ export async function runAgent(
     agentTreePrompt = formatAgentTreeForPrompt(agentTrees)
   }
 
+  // ── Set up knowledge namespace (always available) ──
+  const knowledgeSpaceDir = resolve(__dirname, '../../spaces/knowledge')
+  const knowledgeWriteDir = resolve(knowledgeSpaceDir, 'knowledge')
+  ensureMemoryDomain(knowledgeWriteDir)
+
+  // Add knowledge space to spaceMap so loadKnowledge can read from it
+  if (!spaceMap.has('knowledge')) {
+    spaceMap.set('knowledge', knowledgeWriteDir)
+    const kTree = buildKnowledgeTree(knowledgeWriteDir)
+    kTree.name = 'knowledge'
+    knowledgeTrees.push(kTree)
+    knowledgeTreePrompt = formatKnowledgeTreeForPrompt(knowledgeTrees)
+  }
+
+  let runAgentSessionRef: Session | null = null
+
+  const knowledgeNamespace = createKnowledgeNamespace({
+    knowledgeDir: knowledgeWriteDir,
+    onKnowledgeSaved: (domain, field, option) => {
+      runAgentSessionRef?.emit('event', { type: 'knowledge_saved', domain, field, option })
+    },
+    onKnowledgeRemoved: (domain, field, option) => {
+      runAgentSessionRef?.emit('event', { type: 'knowledge_removed', domain, field, option })
+    },
+  })
+  const knowledgeNamespacePrompt = formatKnowledgeNamespaceForPrompt()
+
+  const rebuildKnowledgeTree = () => {
+    for (let i = 0; i < knowledgeTrees.length; i++) {
+      const name = knowledgeTrees[i].name
+      const kDir = spaceMap.get(name!)
+      if (!kDir) continue
+      const rebuilt = buildKnowledgeTree(kDir)
+      rebuilt.name = name
+      knowledgeTrees[i] = rebuilt
+    }
+    return formatKnowledgeTreeForPrompt(knowledgeTrees)
+  }
+
   // ── Merge config ──
   const functionSignatures = [catalogSigs, userFnSigs, replConfig.functionSignatures].filter(Boolean).join('\n')
   const formSignatures = [builtinFormSigs, userFormSigs].filter(Boolean).join('\n')
@@ -310,7 +350,9 @@ export async function runAgent(
     getClassInfo,
     loadClass: loadClassFn,
     agentNamespaces: Object.keys(agentNamespaces).length > 0 ? agentNamespaces : undefined,
+    knowledgeNamespace,
   })
+  runAgentSessionRef = session
 
   // ── Resolve model ──
   let model: LanguageModel
@@ -346,6 +388,8 @@ export async function runAgent(
     getClassInfo,
     loadClass: loadClassFn,
     agentTree: agentTreePrompt || undefined,
+    knowledgeNamespacePrompt,
+    rebuildKnowledgeTree,
   })
 
   // ── Run default export setup function ──

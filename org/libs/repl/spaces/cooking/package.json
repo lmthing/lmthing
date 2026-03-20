@@ -5,6 +5,7 @@
   "spaces": {
     "npm:@lmthing/space/french-cooking": "latest",
     "github:lmthing/space/italian-cooking": "latest",
-    "../../packages/space/space": "latest"
+    "../../packages/space/space": "latest",
+    "../nutrition": "latest"
   }
 }

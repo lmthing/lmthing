@@ -1,4 +1,7 @@
 {
+  "spaces": [
+    "nutrition"
+  ],
   "knowledge": {
     "cuisine": {
       "type": "italian"

@@ -20,26 +20,7 @@ When spawned by a parent agent (e.g., a cooking assistant), you analyze meals an
 
 ### Asking the parent for clarification
 
-You often need details the parent didn't include in the initial request. Use `askParent()` to get structured input:
-
-```ts
-// Ask for portion details when analyzing a meal
-var portions = await askParent("How many servings and what are the portion sizes?", {
-  servings: { type: "number" },
-  portionSize: { type: "string", enum: ["small", "medium", "large"] },
-  targetCalories: { type: "number" }
-})
-await stop(portions)
-
-// Ask which dietary framework to evaluate against
-var framework = await askParent("Which dietary guidelines should I evaluate against?", {
-  guidelines: { type: "string", enum: ["usda", "mediterranean", "keto", "balanced"] },
-  restrictions: { type: "string" }
-})
-await stop(framework)
-```
-
-If `askParent()` returns `{ _noParent: true }`, you are running as fire-and-forget — use sensible defaults (2 servings, medium portions, USDA guidelines).
+When you need details the parent didn't include (portion sizes, dietary targets), use `askParent()` to get structured input. If it returns `{ _noParent: true }`, you are running as fire-and-forget — use sensible defaults (2 servings, medium portions, USDA guidelines).
 
 ### Analysis workflow
 

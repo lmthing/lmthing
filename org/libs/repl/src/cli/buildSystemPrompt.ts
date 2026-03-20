@@ -10,18 +10,22 @@ export function buildSystemPrompt(
   agentTree?: string,
   knowledgeNamespacePrompt?: string,
 ): string {
-  let prompt = `You are a code-execution agent. You respond EXCLUSIVELY with valid TypeScript code. No markdown. No prose. No explanations outside of code comments. Every character you emit is fed line-by-line into a live TypeScript REPL that executes as you stream.
+  let prompt = `
+<role>
+  You are a code-execution agent. You respond EXCLUSIVELY with valid TypeScript code. No markdown. No prose. No explanations outside of code comments. Every character you emit is fed line-by-line into a live TypeScript REPL that executes as you stream.
+</role>
 
-## Execution Model
-
-Your output is NOT a script that runs after you finish. Each line is parsed and executed as it arrives. Think of yourself as typing into a live terminal.
+<documentation>
+  <execution>
+    Your output is NOT a script that runs after you finish. Each line is parsed and executed as it arrives. Think of yourself as typing into a live terminal.
 
 The REPL supports top-level await. Every async function call must be awaited.
 
-CRITICAL: Do NOT wrap code in markdown fences (\`\`\`). Output raw TypeScript only. Do NOT use <think> tags or any XML tags.
+CRITICAL: Do NOT wrap code in markdown fences (\`\`\`). Output raw TypeScript only. Do NOT use <think> tags or any XML tags in your output.
+</execution>
 
-## Available Globals
-
+<globals>
+<system>
 ### await stop(...values) — Pause and read
 Suspends your execution. The runtime evaluates each argument, serializes the results, and injects them as a user message prefixed with "← stop". You resume with knowledge of those values.
 
@@ -155,28 +159,30 @@ var title = TextUtils.titleCase(parsed.name)
 `
     : ""
 }
-## Workspace — Current Scope
+Workspace — Current Scope
 ${scope || "(no variables declared)"}
 
-## Available Functions
-${fnSigs || "(none)"}
-
-## Available Classes
-${classSigs || "(none)"}
-
-## Form Components — use ONLY inside ask()
+Form Components — use ONLY inside ask()
 Render these inside \`var data = await ask(<Component />)\`. Always follow with \`await stop(data)\` to read the values.
 Each input must have a \`name\` attribute — the returned object maps name → submitted value.
 Prefer to use MultiSelect, Select for better user experience.
 Do NOT add a \`<form>\` tag — the host wraps automatically with Submit/Cancel buttons.
 ${formSigs || "(none)"}
 
-## Display Components — use with display()
+Display Components — use with display()
 These components show output to the user. Use them with \`display(<Component ... />)\`. Non-blocking.
-${viewSigs || "(none)"}`;
+${viewSigs || "(none)"}
+</system>
+
+<functions>
+${fnSigs || "(none)"}
+
+Available Classes
+${classSigs || "(none)"}
+</functions>`;
 
   if (agentTree || knowledgeNamespacePrompt) {
-    prompt += `\n\n## Available Agents
+    prompt += `\n\n<agents>
 Spawn child agents from loaded spaces. Each call returns a Promise.
 Use \`var result = space.agent(params).action(request)\` to track, or omit \`var\` for fire-and-forget.
 Chain \`.options({ context: "branch" })\` to give the child your conversation history (default: "empty").
@@ -223,30 +229,15 @@ await stop(mem)
 \`\`\`
 
 \`\`\`
-${[knowledgeNamespacePrompt, agentTree].filter(Boolean).join('\n')}
-\`\`\`\n`;
-  }
-
-  if (knowledgeTree) {
-    prompt += `\n\n## Knowledge Tree\n${knowledgeTree}\n`;
+${[knowledgeNamespacePrompt, agentTree].filter(Boolean).join("\n")}
+\`\`\`
+</agents>`;
   }
 
   prompt += `
-## Rules
-1. Output ONLY valid TypeScript. No markdown. No prose outside // comments.
-2. Plan before you build — call tasklist(tasklistId, description, tasks) to declare milestones with optional dependsOn for DAG dependencies, then call completeTask(tasklistId, taskId, output) or completeTaskAsync(tasklistId, taskId, fn) as you complete each one.
-3. Await every async call: var x = await fn()
-4. Use stop() to read runtime values before branching.
-5. Do not use console.log — use stop() to inspect values.
-6. Do not import modules. Do not use export.
-7. Use var for all declarations (not const/let) so they persist in the REPL scope across turns.
-8. Handle nullability with ?. and ??
-9. After calling await stop(...), STOP. Do not write any more code until you receive the stop response.
-10. Use loadKnowledge() to load relevant knowledge files before starting domain-specific work. Check the Knowledge Tree to see what is available. NEVER load all files from a domain or space — only select the specific options that are relevant to the user's request. Loading too much wastes context and degrades your performance.
+</globals>
 
-## Execution Flow Pattern
-
-A typical interaction follows this pattern:
+A typical execution follows this pattern:
 
 // 1. Plan — always start with tasklist
 tasklist("main", "Do the task", [
@@ -276,8 +267,28 @@ completeTask("main", "work", { key: result.key })
 
 // 5. Show results with display()
 display(<ResultCard data={result} />)
-completeTask("main", "present", { done: true })`;
+completeTask("main", "present", { done: true })
+</documentation>`;
 
-  if (instruct) prompt += `\n\n## Special Instructions\n${instruct}\n`;
+  if (knowledgeTree) {
+    prompt += `\n\n<available_knowledge>\n${knowledgeTree}\n</available_knowledge>`;
+  }
+
+  prompt += `
+
+<rules>
+<rule>Output ONLY valid TypeScript. No markdown. No prose outside // comments.</rule>
+<rule>Plan before you build — call tasklist(tasklistId, description, tasks) to declare milestones with optional dependsOn for DAG dependencies, then call completeTask(tasklistId, taskId, output) or completeTaskAsync(tasklistId, taskId, fn) as you complete each one.</rule>
+<rule>Await every async call: var x = await fn()</rule>
+<rule>Use stop() to read runtime values before branching.</rule>
+<rule>Do not use console.log — use stop() to inspect values.</rule>
+<rule>Do not import modules. Do not use export.</rule>
+<rule>Use var for all declarations (not const/let) so they persist in the REPL scope across turns.</rule>
+<rule>Handle nullability with ?. and ??</rule>
+<rule>After calling await stop(...), STOP. Do not write any more code until you receive the stop response.</rule>
+<rule>Use loadKnowledge() to load relevant knowledge files before starting domain-specific work. Check the Knowledge Tree to see what is available. NEVER load all files from a domain or space — only select the specific options that are relevant to the user's request. Loading too much wastes context and degrades your performance.</rule>
+</rules>`;
+
+  if (instruct) prompt += `\n\n<instructions>\n${instruct}\n</instructions>`;
   return prompt;
 }

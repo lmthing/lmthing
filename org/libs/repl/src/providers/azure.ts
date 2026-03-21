@@ -1,13 +1,13 @@
-import { createAzure } from '@ai-sdk/azure';
-import { defineProvider, BaseProviderConfig } from './factory';
+import { createAzure } from "@ai-sdk/azure";
+import { defineProvider, BaseProviderConfig } from "./factory";
 
 export interface AzureConfig extends BaseProviderConfig {
   resourceName?: string;
 }
 
 const module = defineProvider<AzureConfig, {}>({
-  name: 'azure',
-  envKey: 'AZURE_API_KEY',
+  name: "azure",
+  envKey: "AZURE_API_KEY",
   sdkFactory: createAzure,
   mapConfig: (config) => ({
     apiKey: config.apiKey,
@@ -18,4 +18,4 @@ const module = defineProvider<AzureConfig, {}>({
 });
 
 export const createAzureProvider = module.createProvider;
-export const azure = module.provider;
+export const azure = (deploymentId: string) => module.provider.chat(deploymentId);

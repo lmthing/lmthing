@@ -1,5 +1,6 @@
 ---
 title: Food Assistant
+model: nano
 actions:
   - id: mealplan
     label: Make a meal plan

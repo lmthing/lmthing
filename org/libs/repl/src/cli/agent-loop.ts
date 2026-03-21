@@ -300,13 +300,19 @@ export class AgentLoop {
           console.log(`\x1b[32m  [completeTask]\x1b[0m \u2713 ${event.tasklistId}/${event.id}`);
           break;
         case "task_failed":
-          console.log(`\x1b[31m  [failTask]\x1b[0m ✗ ${event.tasklistId}/${event.id}: ${event.error}`);
+          console.log(
+            `\x1b[31m  [failTask]\x1b[0m ✗ ${event.tasklistId}/${event.id}: ${event.error}`,
+          );
           break;
         case "task_skipped":
-          console.log(`\x1b[90m  [skipped]\x1b[0m ⊘ ${event.tasklistId}/${event.id}: ${event.reason}`);
+          console.log(
+            `\x1b[90m  [skipped]\x1b[0m ⊘ ${event.tasklistId}/${event.id}: ${event.reason}`,
+          );
           break;
         case "task_progress":
-          console.log(`\x1b[36m  [progress]\x1b[0m ${event.tasklistId}/${event.id}: ${event.message}`);
+          console.log(
+            `\x1b[36m  [progress]\x1b[0m ${event.tasklistId}/${event.id}: ${event.message}`,
+          );
           break;
         case "display":
           console.log(`\x1b[35m  [display]\x1b[0m component rendered`);
@@ -330,17 +336,23 @@ export class AgentLoop {
           console.log(`\x1b[31m  [agent]\x1b[0m failed: ${event.varName} — ${event.error}`);
           break;
         case "agent_question_asked":
-          console.log(`\x1b[33m  [agent]\x1b[0m ${event.varName} asks: "${event.question.message}"`);
+          console.log(
+            `\x1b[33m  [agent]\x1b[0m ${event.varName} asks: "${event.question.message}"`,
+          );
           break;
         case "agent_question_answered":
           console.log(`\x1b[32m  [agent]\x1b[0m ${event.varName} question answered`);
           break;
         case "knowledge_saved":
-          console.log(`\x1b[36m  [knowledge]\x1b[0m saved: ${event.domain}/${event.field}/${event.option}`);
+          console.log(
+            `\x1b[36m  [knowledge]\x1b[0m saved: ${event.domain}/${event.field}/${event.option}`,
+          );
           if (this.rebuildKnowledgeTree) this.knowledgeTree = this.rebuildKnowledgeTree();
           break;
         case "knowledge_removed":
-          console.log(`\x1b[36m  [knowledge]\x1b[0m removed: ${event.domain}/${event.field}/${event.option}`);
+          console.log(
+            `\x1b[36m  [knowledge]\x1b[0m removed: ${event.domain}/${event.field}/${event.option}`,
+          );
           if (this.rebuildKnowledgeTree) this.knowledgeTree = this.rebuildKnowledgeTree();
           break;
       }
@@ -459,16 +471,22 @@ export class AgentLoop {
             console.log(`\x1b[32m  [completeTask]\x1b[0m ✓ ${event.tasklistId}/${event.id}`);
             break;
           case "task_failed":
-            console.log(`\x1b[31m  [failTask]\x1b[0m ✗ ${event.tasklistId}/${event.id}: ${event.error}`);
+            console.log(
+              `\x1b[31m  [failTask]\x1b[0m ✗ ${event.tasklistId}/${event.id}: ${event.error}`,
+            );
             break;
           case "task_retried":
             console.log(`\x1b[33m  [retryTask]\x1b[0m ↻ ${event.tasklistId}/${event.id}`);
             break;
           case "task_skipped":
-            console.log(`\x1b[90m  [skipped]\x1b[0m ⊘ ${event.tasklistId}/${event.id}: ${event.reason}`);
+            console.log(
+              `\x1b[90m  [skipped]\x1b[0m ⊘ ${event.tasklistId}/${event.id}: ${event.reason}`,
+            );
             break;
           case "task_progress":
-            console.log(`\x1b[36m  [progress]\x1b[0m ${event.tasklistId}/${event.id}: ${event.message}${event.percent != null ? ` (${event.percent}%)` : ''}`);
+            console.log(
+              `\x1b[36m  [progress]\x1b[0m ${event.tasklistId}/${event.id}: ${event.message}${event.percent != null ? ` (${event.percent}%)` : ""}`,
+            );
             break;
           case "task_async_start":
             console.log(`\x1b[34m  [taskAsync]\x1b[0m started: ${event.tasklistId}/${event.id}`);
@@ -477,11 +495,13 @@ export class AgentLoop {
             console.log(`\x1b[32m  [taskAsync]\x1b[0m completed: ${event.tasklistId}/${event.id}`);
             break;
           case "task_async_failed":
-            console.log(`\x1b[31m  [taskAsync]\x1b[0m failed: ${event.tasklistId}/${event.id}: ${event.error}`);
+            console.log(
+              `\x1b[31m  [taskAsync]\x1b[0m failed: ${event.tasklistId}/${event.id}: ${event.error}`,
+            );
             break;
           case "tasklist_reminder":
             console.log(
-              `\x1b[33m  [system]\x1b[0m tasklist "${event.tasklistId}" reminder — ready: ${event.ready.join(", ")}${event.failed.length > 0 ? `, failed: ${event.failed.join(", ")}` : ''}`,
+              `\x1b[33m  [system]\x1b[0m tasklist "${event.tasklistId}" reminder — ready: ${event.ready.join(", ")}${event.failed.length > 0 ? `, failed: ${event.failed.join(", ")}` : ""}`,
             );
             break;
           case "knowledge_loaded":
@@ -508,17 +528,23 @@ export class AgentLoop {
             console.log(`\x1b[31m  [agent]\x1b[0m failed: ${event.varName} — ${event.error}`);
             break;
           case "agent_question_asked":
-            console.log(`\x1b[33m  [agent]\x1b[0m ${event.varName} asks: "${event.question.message}"`);
+            console.log(
+              `\x1b[33m  [agent]\x1b[0m ${event.varName} asks: "${event.question.message}"`,
+            );
             break;
           case "agent_question_answered":
             console.log(`\x1b[32m  [agent]\x1b[0m ${event.varName} question answered`);
             break;
           case "knowledge_saved":
-            console.log(`\x1b[36m  [knowledge]\x1b[0m saved: ${event.domain}/${event.field}/${event.option}`);
+            console.log(
+              `\x1b[36m  [knowledge]\x1b[0m saved: ${event.domain}/${event.field}/${event.option}`,
+            );
             if (this.rebuildKnowledgeTree) this.knowledgeTree = this.rebuildKnowledgeTree();
             break;
           case "knowledge_removed":
-            console.log(`\x1b[36m  [knowledge]\x1b[0m removed: ${event.domain}/${event.field}/${event.option}`);
+            console.log(
+              `\x1b[36m  [knowledge]\x1b[0m removed: ${event.domain}/${event.field}/${event.option}`,
+            );
             if (this.rebuildKnowledgeTree) this.knowledgeTree = this.rebuildKnowledgeTree();
             break;
           case "status":
@@ -532,6 +558,7 @@ export class AgentLoop {
       let code = "";
       let streamResult: ReturnType<typeof streamText> | null = null;
       try {
+        console.log(this.messages.map((m) => ({ role: m.role, content: m.content })));
         streamResult = streamText({
           model: this.model,
           messages: this.messages.map((m) => ({ role: m.role, content: m.content })),
@@ -595,7 +622,9 @@ export class AgentLoop {
       if (!hasAnyContent) {
         proseNudges++;
         if (proseNudges > maxProseNudges) {
-          console.log(`\x1b[31m  [abort]\x1b[0m agent wrote prose ${proseNudges} times — giving up`);
+          console.log(
+            `\x1b[31m  [abort]\x1b[0m agent wrote prose ${proseNudges} times — giving up`,
+          );
           this.messages.push({ role: "assistant", content: rawCode });
           break;
         }
@@ -603,7 +632,9 @@ export class AgentLoop {
           "⚠ [system] You are a code-execution agent in a live TypeScript REPL. " +
           "Do NOT write prose or natural language. Output ONLY valid TypeScript code. " +
           "Every character you emit is executed. Re-read the system prompt and try again.";
-        console.log(`\x1b[33m  [nudge]\x1b[0m prose detected — reminding agent to write TypeScript`);
+        console.log(
+          `\x1b[33m  [nudge]\x1b[0m prose detected — reminding agent to write TypeScript`,
+        );
         this.messages.push({ role: "assistant", content: rawCode });
         this.messages.push({ role: "user", content: nudge });
         this.logDebug("message", { role: "assistant", content: rawCode });
@@ -735,19 +766,23 @@ export class AgentLoop {
       console.log(`\n\x1b[36m━━━ Tasklists ━━━\x1b[0m`);
       for (const [tasklistId, tasklist] of cpState.tasklists) {
         const total = tasklist.plan.tasks.length;
-        const done = [...tasklist.completed.values()].filter(c => c.status === 'completed').length;
-        const failed = [...tasklist.completed.values()].filter(c => c.status === 'failed').length;
-        const skipped = [...tasklist.completed.values()].filter(c => c.status === 'skipped').length;
+        const done = [...tasklist.completed.values()].filter(
+          (c) => c.status === "completed",
+        ).length;
+        const failed = [...tasklist.completed.values()].filter((c) => c.status === "failed").length;
+        const skipped = [...tasklist.completed.values()].filter(
+          (c) => c.status === "skipped",
+        ).length;
         console.log(
-          `\x1b[36m[${tasklistId}]\x1b[0m ${tasklist.plan.description} — ${done}/${total} complete${failed ? `, ${failed} failed` : ''}${skipped ? `, ${skipped} skipped` : ''}`,
+          `\x1b[36m[${tasklistId}]\x1b[0m ${tasklist.plan.description} — ${done}/${total} complete${failed ? `, ${failed} failed` : ""}${skipped ? `, ${skipped} skipped` : ""}`,
         );
         for (const task of tasklist.plan.tasks) {
           const completion = tasklist.completed.get(task.id);
-          if (completion?.status === 'completed') {
+          if (completion?.status === "completed") {
             console.log(`  \x1b[32m✓\x1b[0m ${task.id}: ${JSON.stringify(completion.output)}`);
-          } else if (completion?.status === 'failed') {
+          } else if (completion?.status === "failed") {
             console.log(`  \x1b[31m✗\x1b[0m ${task.id}: failed — ${completion.error}`);
-          } else if (completion?.status === 'skipped') {
+          } else if (completion?.status === "skipped") {
             console.log(`  \x1b[90m⊘\x1b[0m ${task.id}: skipped`);
           } else if (tasklist.runningTasks.has(task.id)) {
             console.log(`  \x1b[34m◉\x1b[0m ${task.id}: running`);
@@ -1023,10 +1058,13 @@ function lineDiff(oldText: string, newText: string, ctx = 3): string {
   const bN = b.map(norm);
 
   // O(mn) LCS table using normalized lines
-  const dp: number[][] = Array.from({ length: m + 1 }, () => Array.from({ length: n + 1 }, () => 0));
+  const dp: number[][] = Array.from({ length: m + 1 }, () =>
+    Array.from({ length: n + 1 }, () => 0),
+  );
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
-      dp[i][j] = aN[i - 1] === bN[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
+      dp[i][j] =
+        aN[i - 1] === bN[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
     }
   }
 
@@ -1127,15 +1165,30 @@ function debugLogToXml(entries: DebugEntry[]): string {
 
         if (!inTurn) {
           // Pre-turn system prompts — always show in full
-          out.push(`${tag}<system-prompt>`, indentBlock(d, contentPrefix), `${tag}</system-prompt>`, "");
+          out.push(
+            `${tag}<system-prompt>`,
+            indentBlock(d, contentPrefix),
+            `${tag}</system-prompt>`,
+            "",
+          );
         } else if (firstTurnPrompt === null) {
           // First turn — show full and save as baseline
           firstTurnPrompt = d;
-          out.push(`${tag}<system-prompt>`, indentBlock(d, contentPrefix), `${tag}</system-prompt>`, "");
+          out.push(
+            `${tag}<system-prompt>`,
+            indentBlock(d, contentPrefix),
+            `${tag}</system-prompt>`,
+            "",
+          );
         } else {
           // Subsequent turns — show diff from first turn's prompt
           const diff = lineDiff(firstTurnPrompt, d);
-          out.push(`${tag}<system-prompt diff="true">`, indentBlock(diff, contentPrefix), `${tag}</system-prompt>`, "");
+          out.push(
+            `${tag}<system-prompt diff="true">`,
+            indentBlock(diff, contentPrefix),
+            `${tag}</system-prompt>`,
+            "",
+          );
         }
         break;
       }

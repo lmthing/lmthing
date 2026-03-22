@@ -1,31 +1,45 @@
 ---
 title: Authentication
-description: Cross-domain SSO flow, GitHub OAuth, JWT and API key auth, session management
+description: Cross-domain SSO flow, GitHub/Google OAuth, JWT and API key auth, session management
 order: 3
 ---
 
 # Authentication Patterns
 
-Authentication in lmthing uses a centralized SSO model — all apps authenticate through `com/` (the auth hub), and backend calls use either JWT or API key auth.
+Authentication in lmthing uses a centralized model — `com/` is the auth hub with its own login/signup UI, while other apps use cross-domain SSO via `com/`. All auth goes through the cloud gateway API (which proxies Supabase Auth).
 
-## SSO Flow
+## com/ Direct Auth Flow
 
-No app has its own login UI. All authentication redirects through `com/`:
+`com/` has its own login/signup UI and talks directly to the cloud gateway:
 
 ```
-1. App detects no session → redirect to com/auth/sso?app=studio&redirect=...
-2. com/ authenticates via GitHub OAuth (Supabase Auth, repo scope)
-3. com/ checks onboarding status (has github_repo in profile?)
-   → If not onboarded: redirect to /onboarding (creates private GitHub repo)
-4. com/ calls cloud/create-sso-code → gets single-use code (60s TTL)
-5. com/ redirects back: app.local/auth/callback?code=<code>&state=<state>
-6. App calls cloud/exchange-sso-code → gets Supabase session
-7. App stores session in localStorage (encrypted)
+1. User signs up: POST /api/auth/register → returns user_id + API key
+2. User logs in: POST /api/auth/login → returns JWT + refresh token
+3. OAuth: GET /api/auth/oauth/url → Supabase OAuth URL → user authenticates
+   → Supabase redirects to com/callback with tokens in hash fragment
+   → com/callback stores tokens, calls POST /api/auth/provision
+   → provision creates LiteLLM user + Stripe customer + API key (idempotent)
+4. Token refresh: POST /api/auth/refresh (automatic via cloudFetch)
+```
+
+Auth state is managed by `com/src/lib/cloud.ts` (token storage, refresh) and `com/src/lib/auth/AuthProvider.tsx` (React context).
+
+## Cross-Domain SSO Flow
+
+Other lmthing.* apps redirect to `com/` for authentication:
+
+```
+1. App detects no session → redirect to com/auth/sso?app=studio&redirect_uri=...&state=...
+2. com/ checks for active session (redirects to /login if none)
+3. com/ calls /api/auth/sso/create → gets single-use code (60s TTL)
+4. com/ redirects back: app.local/?code=<code>&state=<state>
+5. App calls /api/auth/sso/exchange → gets session (accessToken, user info)
+6. App stores session in localStorage
 ```
 
 ## Frontend Auth Integration
 
-### Setup
+### Setup (for apps other than com/)
 
 ```tsx
 // src/routes/__root.tsx
@@ -56,16 +70,27 @@ const { username, isAuthenticated, isLoading, login, logout, session } = useAuth
 
 // login() → redirects to com/ for SSO
 // logout() → clears local session
-// session.accessToken → JWT for cloud function calls
+// session.accessToken → JWT for cloud API calls
 ```
 
-### Calling Cloud Functions
+### Calling Cloud API
 
 ```typescript
-const response = await fetch('https://cloud.local/functions/v1/generate-ai', {
-  method: 'POST',
+const response = await fetch('https://lmthing.cloud/api/auth/me', {
   headers: {
     'Authorization': `Bearer ${session.accessToken}`,
+    'Content-Type': 'application/json',
+  },
+})
+```
+
+### Calling LLM API
+
+```typescript
+const response = await fetch('https://lmthing.cloud/v1/chat/completions', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${apiKey}`,  // LiteLLM API key (sk-...)
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({ model, messages, tools }),
@@ -74,44 +99,45 @@ const response = await fetch('https://cloud.local/functions/v1/generate-ai', {
 
 ## Backend Auth
 
-Every edge function (except public endpoints) uses `_shared/auth.ts`:
+The gateway middleware (`cloud/gateway/src/middleware/auth.ts`) verifies Supabase JWTs:
 
 ```typescript
-import { authenticate } from '../_shared/auth.ts'
+import { authMiddleware } from '../middleware/auth.js'
 
-const { userId, stripeCustomerId } = await authenticate(req)
+app.use('/*', authMiddleware)
+// c.get('user') → { id, email }
 ```
 
 ### Two Auth Methods
 
 1. **JWT (Browser sessions)**: `Authorization: Bearer <supabase-jwt>`
-   - Verified against Supabase's JWT secret
-   - Contains `sub` (user ID) and custom claims
+   - Verified via `supabase.auth.getUser()` in gateway middleware
+   - Used for gateway API calls (`/api/*`)
 
-2. **API Key (SDK/CLI)**: `Authorization: Bearer lmt_<key>`
-   - SHA-256 hashed and looked up in `api_keys` table
-   - Returns associated `user_id` and `stripe_customer_id`
-
-Both resolve to the same `{ userId, stripeCustomerId }` shape.
+2. **API Key (SDK/CLI)**: `Authorization: Bearer sk-<key>`
+   - LiteLLM API key, verified by LiteLLM directly
+   - Used for LLM API calls (`/v1/*`)
 
 ### Public Endpoints (No Auth)
 
-Two endpoints skip authentication:
-- `stripe-webhook` — uses Stripe signature verification instead
-- `exchange-sso-code` — the SSO code itself is the credential
+- `POST /api/auth/register` — registration
+- `POST /api/auth/login` — login
+- `GET /api/auth/oauth/url` — OAuth URL
+- `POST /api/auth/refresh` — token refresh
+- `POST /api/auth/sso/exchange` — SSO code exchange
+- `POST /api/stripe/webhook` — uses Stripe signature verification
 
 ## Session Storage
 
-- **localStorage**: Encrypted Supabase session (access token, refresh token, expiry)
+- **com/**: JWT + refresh token + expiry in localStorage (via `cloud.ts`)
+- **Other apps**: Session object in localStorage (via `@lmthing/auth` client)
 - **No cookies**: All auth is token-based via `Authorization` header
-- **Refresh**: Supabase client auto-refreshes expired tokens using the refresh token
+- **Refresh**: com/ handles automatic token refresh; other apps get long-lived SSO sessions
 
-## GitHub OAuth Scope
+## OAuth Providers
 
-The OAuth app requests `repo` scope because:
-- Users need to read/write their private workspace repo
-- The onboarding flow creates a new private repo via GitHub API
-- Workspace sync (push/pull) requires repo access
+- **GitHub OAuth**: Configured in Supabase dashboard with `repo` scope for workspace repo access
+- **Google OAuth**: Configured in Supabase dashboard
 
 ## Adding Auth to a New App
 

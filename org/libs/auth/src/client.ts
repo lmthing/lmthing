@@ -44,7 +44,7 @@ export async function handleAuthCallback(config: AuthConfig): Promise<AuthSessio
 
   const callbackUrl = `${window.location.origin}${config.callbackPath}`
 
-  const res = await fetch(`${config.cloudUrl}/exchange-sso-code`, {
+  const res = await fetch(`${config.cloudUrl}/api/auth/sso/exchange`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code, redirect_uri: callbackUrl }),

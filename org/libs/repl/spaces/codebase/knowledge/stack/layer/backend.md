@@ -1,122 +1,117 @@
 ---
 title: Backend Stack
-description: Supabase Edge Functions (Deno), PostgreSQL with RLS, Stripe billing integration
+description: K3s API gateway (Hono/Node.js) + LiteLLM proxy, Supabase PostgreSQL, Stripe billing
 order: 2
 ---
 
 # Backend Stack
 
-All server-side logic runs as Supabase Edge Functions in `cloud/`. There is no separate backend service.
+All server-side logic runs in `cloud/` on a K3s (lightweight Kubernetes) cluster on an Azure VM. There is no separate backend service.
 
 ## Core Technologies
 
-### Supabase Edge Functions (Deno Runtime)
+### Gateway (Hono/Node.js)
 
-- **Language**: TypeScript running on Deno (not Node.js — no `node_modules`, uses URL imports)
-- **Deployment**: Hosted on Supabase infrastructure, auto-scaled
-- **Pattern**: Each function is a standalone HTTP handler in `cloud/supabase/functions/<name>/index.ts`
-- **Shared code**: Modules in `cloud/supabase/functions/_shared/` imported by all functions
+- **Language**: TypeScript running on Node.js
+- **Framework**: Hono — lightweight HTTP framework
+- **Routes**: `cloud/gateway/src/routes/` — `auth.ts`, `keys.ts`, `billing.ts`, `webhook.ts`
+- **Middleware**: `cloud/gateway/src/middleware/auth.ts` — Supabase JWT verification
+- **Libraries**: `cloud/gateway/src/lib/` — `litellm.ts`, `stripe.ts`, `tiers.ts`
 
 ```typescript
-// Typical edge function structure
-import { serve } from 'https://deno.land/std/http/server.ts'
-import { authenticate } from '../_shared/auth.ts'
-import { corsHeaders, corsResponse } from '../_shared/cors.ts'
+// Typical gateway route structure (Hono)
+import { Hono } from 'hono'
+import { authMiddleware } from '../middleware/auth.js'
 
-serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') return corsResponse()
+const app = new Hono()
 
-  const { userId, stripeCustomerId } = await authenticate(req)
+app.use('/*', authMiddleware)
 
-  // Business logic here
-
-  return new Response(JSON.stringify(result), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  })
+app.get('/me', async (c) => {
+  const user = c.get('user')
+  return c.json({ user_id: user.id, email: user.email })
 })
 ```
 
+### LiteLLM (OpenAI-Compatible Proxy)
+
+- **Purpose**: Routes LLM requests to Azure AI Foundry with per-user budgets and rate limits
+- **API**: OpenAI-compatible at `/v1/chat/completions` and `/v1/models`
+- **Config**: Model list defined in `k8s/litellm.yaml` ConfigMap with 10% markup pricing
+- **Auth**: API keys managed through LiteLLM admin API (not Supabase)
+
 ### Supabase PostgreSQL
 
-- **Primary database** for all server-side data
-- **Row-Level Security (RLS)** — every table has policies ensuring users can only access their own data
-- **Tables**: `profiles`, `api_keys`, `sso_codes`, `spaces`, `computers`
-- **Admin client**: Edge functions use `supabase.ts` shared module (service role key, bypasses RLS for server operations)
+- **Primary database** for user profiles and LiteLLM tables
+- **Tables**: `profiles` (user tier, stripe customer ID), plus ~60 LiteLLM auto-created tables
+- **Auth**: Supabase Auth for email/password + GitHub/Google OAuth
 
 ### Stripe Integration
 
-- **Billing**: Checkout sessions, customer portal, webhook handling
-- **LLM Proxy**: `llm.stripe.com` — all LLM requests are proxied through Stripe for automatic token metering and billing
-- **Pattern**: Edge functions use `@stripe/ai-sdk` to create streaming LLM requests via Stripe's meter proxy
-- **Webhooks**: `stripe-webhook` function handles payment events and triggers provisioning
+- **Billing**: Subscription-based tiers (Free/Basic/Pro/Max)
+- **Webhooks**: `webhook.ts` handles subscription created/updated/deleted → updates LiteLLM user tier
+- **No LLM proxy**: LLM metering is handled by LiteLLM budgets, not Stripe meter proxy
+
+### Tiers
+
+| Tier  | Price      | Budget  | Reset   | Rate Limits          |
+|-------|------------|---------|---------|----------------------|
+| Free  | $0         | $1      | 7 days  | 10K tpm / 60 rpm     |
+| Basic | $10/month  | $10     | 30 days | 50K tpm / 300 rpm    |
+| Pro   | $20/month  | $20     | 30 days | 100K tpm / 1K rpm    |
+| Max   | $100/month | $100    | 30 days | 1M tpm / 5K rpm      |
 
 ### Authentication Flow
 
-Two auth methods, both resolved by `_shared/auth.ts`:
+Two auth methods:
 
-1. **JWT (Browser)**: Supabase Auth JWT in `Authorization: Bearer <token>` header. Verified against Supabase's JWT secret.
-2. **API Key (SDK/CLI)**: `lmt_` prefixed key in `Authorization: Bearer lmt_<key>` header. SHA-256 hashed and looked up in `api_keys` table.
-
-Both resolve to `{ userId, stripeCustomerId }` for downstream use.
+1. **JWT (Browser)**: Supabase Auth JWT in `Authorization: Bearer <token>` header. Verified by gateway middleware via `supabase.auth.getUser()`.
+2. **API Key (SDK/CLI)**: LiteLLM API key (`sk-...`) in `Authorization: Bearer sk-<key>` header. Verified by LiteLLM directly.
 
 ### LLM Provider Resolution
 
-`_shared/provider.ts` maps model prefixes to provider SDKs:
+LiteLLM routes all requests to Azure AI Foundry. Model names are mapped in `k8s/litellm.yaml` ConfigMap. Each tier has access to different model sets, defined in `gateway/src/lib/tiers.ts`.
 
-| Prefix | Provider | SDK |
-|--------|----------|-----|
-| `openai/*` | OpenAI | `@ai-sdk/openai` |
-| `anthropic/*` | Anthropic | `@ai-sdk/anthropic` |
-| `google/*` | Google | `@ai-sdk/google` |
-| `mistral/*` | Mistral | `@ai-sdk/mistral` |
-| `azure/*` | Azure OpenAI | `@ai-sdk/azure` |
-| `groq/*` | Groq | `@ai-sdk/groq` |
-| Custom | OpenAI-compatible | `@ai-sdk/openai` with custom `baseURL` |
-
-All requests go through Stripe's LLM meter proxy for unified billing.
-
-## Local Development
+## Deployment
 
 ```bash
-# Start Supabase locally (includes PostgreSQL, Auth, Storage)
-supabase start
-
-# Serve edge functions with hot reload
-supabase functions serve
-
-# Access at http://localhost:54321/functions/v1/<function-name>
-# Or via proxy at http://cloud.local/functions/v1/<function-name>
+# Deploy to Azure VM
+rsync -avz --exclude='node_modules' -e "ssh -i KEY" cloud/ user@VM:~/cloud/
+ssh user@VM "cd ~/cloud && bash scripts/deploy.sh"
 ```
 
-## Adding a New Edge Function
+`deploy.sh` handles: migration → template rendering → Docker build → K8s apply → rollout wait.
 
-1. Create the function directory and entry file:
-   ```
-   cloud/supabase/functions/my-function/index.ts
-   ```
+## Adding a New API Route
 
-2. Import shared modules:
+1. Create or edit route file in `cloud/gateway/src/routes/`:
    ```typescript
-   import { authenticate } from '../_shared/auth.ts'
-   import { corsHeaders, corsResponse } from '../_shared/cors.ts'
-   import { supabaseAdmin } from '../_shared/supabase.ts'
+   import { Hono } from 'hono'
+   import type { Env } from '../types.js'
+
+   const myRoute = new Hono<Env>()
+   myRoute.get('/', async (c) => {
+     const user = c.get('user')
+     // Business logic here
+     return c.json(result)
+   })
+   export default myRoute
    ```
 
-3. Handle CORS preflight + authentication:
+2. Mount in `cloud/gateway/src/index.ts`:
    ```typescript
-   if (req.method === 'OPTIONS') return corsResponse()
-   const { userId } = await authenticate(req)
+   app.route('/api/my-route', myRoute)
    ```
 
-4. Implement business logic using `supabaseAdmin` for database operations
-
-5. Test: `supabase functions serve` then `curl http://localhost:54321/functions/v1/my-function`
-
-6. Deploy: `supabase functions deploy my-function`
+3. Redeploy gateway:
+   ```bash
+   ssh user@VM "cd ~/cloud/gateway && sudo docker build -t lmthing/gateway:latest . \
+     && sudo docker save lmthing/gateway:latest | sudo k3s ctr images import - \
+     && sudo k3s kubectl -n lmthing rollout restart deployment/gateway"
+   ```
 
 ## Database Migrations
 
-- Managed via Supabase CLI: `supabase migration new <name>`
-- Migration files in `cloud/supabase/migrations/`
-- Always include RLS policies for new tables
-- Apply locally: `supabase db reset` (destructive) or `supabase migration up`
+- Migration files in `cloud/migrations/`
+- Applied by `scripts/deploy.sh` before K8s deployment
+- No FK from `profiles` to `auth.users` — cross-schema FKs break LiteLLM's Prisma introspection

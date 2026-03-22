@@ -1,0 +1,12 @@
+---
+- name: Apply Kubespray cluster playbook
+  ansible.builtin.import_playbook: ../.cache/kubespray/cluster.yml
+
+- name: Run lmthing Kubernetes post-install checks
+  hosts: kube_control_plane
+  become: true
+  gather_facts: false
+  tags:
+    - postinstall
+  roles:
+    - k8s_postinstall

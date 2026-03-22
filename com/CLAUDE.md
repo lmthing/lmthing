@@ -1,16 +1,16 @@
 # com/ — lmthing.com
 
-Central OAuth provider and billing hub for all lmthing.* domains.
+Central auth hub and billing surface for all lmthing.* domains.
 
 ## What This Is
 
-`com/` is the commercial landing page and the centralized authentication + billing surface. All lmthing.* apps redirect here for login/signup and cross-domain SSO. It is a static SPA — all server-side logic lives in `cloud/` edge functions.
+`com/` is the commercial landing page and the centralized authentication + billing surface. All lmthing.* apps redirect here for login/signup and cross-domain SSO. It is a static SPA — all server-side logic lives in the `cloud/` gateway API.
 
 ## Stack
 
 - React 19 + Vite 7 + TanStack Router (file-based routing)
 - Tailwind CSS v4 via `@tailwindcss/vite`
-- Supabase Auth (email/password + GitHub OAuth)
+- Cloud gateway API for auth (Supabase Auth proxied through gateway — email/password + GitHub + Google OAuth)
 - Shared libs: `@lmthing/ui`, `@lmthing/css`, `@lmthing/state`, `lmthing`
 - Vite config uses shared `createViteConfig` from `@lmthing/utils/vite`
 
@@ -20,7 +20,7 @@ Central OAuth provider and billing hub for all lmthing.* domains.
 cd com && pnpm dev    # http://localhost:3002 / com.local
 ```
 
-Requires `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` env vars. Cloud URL defaults to `http://localhost:54321/functions/v1`.
+Requires `VITE_CLOUD_URL` env var (defaults to `https://lmthing.cloud`).
 
 ## Route Structure
 
@@ -30,12 +30,12 @@ src/routes/
 ├── index.tsx               # Landing page
 ├── about.tsx               # About page
 ├── docs.tsx                # Documentation
-├── pricing.tsx             # Plan comparison + subscribe CTAs
-├── login.tsx               # Email/password + GitHub OAuth
+├── pricing.tsx             # Plan comparison + subscribe CTAs (4 tiers: Free/Basic/Pro/Max)
+├── login.tsx               # Email/password + GitHub/Google OAuth
 ├── signup.tsx              # Registration
 ├── forgot-password.tsx     # Password reset request
 ├── reset-password.tsx      # Set new password (from email link)
-├── callback.tsx            # OAuth callback (Supabase redirect)
+├── callback.tsx            # OAuth callback (extracts tokens from Supabase hash redirect)
 ├── auth/
 │   └── sso.tsx             # Cross-domain SSO handler
 ├── account.tsx             # Profile settings (protected)
@@ -48,29 +48,42 @@ src/routes/
 
 ## Key Modules
 
-- **`src/lib/supabase.ts`** — Singleton Supabase client
-- **`src/lib/auth/AuthProvider.tsx`** — React context with `useAuth()` hook. Exposes `user`, `session`, `signIn`, `signUp`, `signOut`, `signInWithGitHub`, `resetPassword`, `updatePassword`
-- **`src/lib/cloud.ts`** — Typed wrappers for cloud edge function calls (`createCheckout`, `billingPortal`, `getUsage`, `listApiKeys`, `createApiKey`, `revokeApiKey`, `createSsoCode`). All calls attach the Supabase JWT automatically
-- **`src/config/plans.ts`** — Plan metadata (Free / Pro / Team) with Stripe price IDs
+- **`src/lib/cloud.ts`** — API client for the cloud gateway. Handles JWT storage, automatic token refresh, and typed wrappers for all API calls (`login`, `register`, `getOAuthUrl`, `provision`, `getMe`, `createSsoCode`, `exchangeSsoCode`, `listApiKeys`, `createApiKey`, `revokeApiKey`, `createCheckout`, `billingPortal`, `getUsage`). Uses `cloudFetch()` (authenticated) and `cloudFetchPublic()` (unauthenticated).
+- **`src/lib/auth/AuthProvider.tsx`** — React context with `useAuth()` hook. Exposes `user`, `loading`, `signIn`, `signUp`, `signOut`, `signInWithGitHub`, `signInWithGoogle`, `setSessionFromOAuth`. Uses cloud.ts for all API calls (no direct Supabase client).
+- **`src/config/plans.ts`** — Plan metadata for 4 tiers (Free / Basic / Pro / Max) with pricing, budget, and rate limit info.
 
-## Cross-Domain SSO Flow
+## Auth Flow
 
-Other lmthing.* apps redirect to `/auth/sso?redirect_uri=...&app=...&state=...`. The handler:
-1. Checks for active Supabase session (redirects to `/login` if none)
-2. Calls `cloud/create-sso-code` to generate a single-use auth code (60s TTL)
-3. Redirects back to the requesting app with `?code=...&state=...`
+**Direct login/signup** (on com/ itself):
+1. User registers via `/api/auth/register` or logs in via `/api/auth/login` → receives JWT + refresh token
+2. OAuth: gateway returns Supabase OAuth URL → user authenticates on GitHub/Google → Supabase redirects to `/callback` with tokens in URL hash
+3. `/callback` stores tokens, calls `/api/auth/provision` to create LiteLLM user + Stripe customer + API key (idempotent)
+4. Token refresh handled automatically by `cloudFetch()` when JWT expires
 
-## Cloud Endpoints Used
+**Cross-domain SSO** (other apps redirecting to com/):
+1. Other apps redirect to `/auth/sso?redirect_uri=...&app=...&state=...`
+2. Checks for active session (redirects to `/login` if none)
+3. Calls `/api/auth/sso/create` to generate a single-use auth code (60s TTL)
+4. Redirects back to the requesting app with `?code=...&state=...`
+
+## Cloud API Endpoints Used
 
 | Endpoint | Used By |
 |----------|---------|
-| `create-checkout` | `/pricing` — Stripe checkout session |
-| `billing-portal` | `/billing` — Stripe customer portal |
-| `get-usage` | `/billing/usage` — Token usage |
-| `list-api-keys` | `/account/keys` — List keys |
-| `create-api-key` | `/account/keys` — Generate key |
-| `revoke-api-key` | `/account/keys` — Revoke key |
-| `create-sso-code` | `/auth/sso` — Cross-domain SSO |
+| `POST /api/auth/register` | `/signup` — User registration |
+| `POST /api/auth/login` | `/login` — Email/password login |
+| `GET /api/auth/oauth/url` | `/login`, `/signup` — OAuth redirect URL |
+| `POST /api/auth/provision` | `/callback` — Provision LiteLLM + Stripe |
+| `POST /api/auth/refresh` | `cloudFetch()` — Automatic token refresh |
+| `GET /api/auth/me` | `AuthProvider` — Get current user info |
+| `POST /api/auth/sso/create` | `/auth/sso` — Generate SSO code |
+| `POST /api/auth/sso/exchange` | Used by other apps via `@lmthing/auth` |
+| `POST /api/billing/checkout` | `/pricing` — Stripe checkout session |
+| `POST /api/billing/portal` | `/billing` — Stripe billing portal |
+| `GET /api/billing/usage` | `/billing/usage` — Token budget usage |
+| `GET /api/keys` | `/account/keys` — List API keys |
+| `POST /api/keys` | `/account/keys` — Create API key |
+| `DELETE /api/keys/:token` | `/account/keys` — Revoke API key |
 
 ## Protected Routes
 
@@ -79,4 +92,5 @@ Other lmthing.* apps redirect to `/auth/sso?redirect_uri=...&app=...&state=...`.
 ## Notes
 
 - The login page supports a `?redirect=` query param for post-login navigation (used by SSO and pricing flows)
-- Plan price IDs in `plans.ts` are placeholders (`price_pro`, `price_team`) — replace with real Stripe price IDs for production
+- No direct Supabase client — all auth goes through the cloud gateway API (`src/lib/cloud.ts`)
+- OAuth callback extracts tokens from Supabase implicit grant hash fragment (`#access_token=...&refresh_token=...&expires_at=...`)

@@ -8,7 +8,6 @@ Welcome to lmthing. This guide will get you set up and oriented in the codebase.
 
 - **Node.js** ≥ 20
 - **pnpm** ≥ 9
-- **Deno** (for cloud/edge functions)
 - **Git** (all workspace sync is git-based)
 - A GitHub account (for OAuth and workspace persistence)
 
@@ -32,7 +31,7 @@ lmthing/
 │   │   ├── thing/          # @lmthing/thing — THING agent system studio (built-in spaces)
 │   │   └── utils/          # Shared build utilities (Vite config)
 │   └── docs/               # Documentation
-├── cloud/                  # lmthing.cloud — Supabase Edge Functions (Deno)
+├── cloud/                  # lmthing.cloud — K3s API gateway (Hono/Node.js) + LiteLLM proxy
 ├── studio/                 # lmthing.studio — agent builder UI (React 19, Vite 7, TanStack Router)
 ├── chat/                   # lmthing.chat — personal THING interface
 ├── blog/                   # lmthing.blog — personalized AI news
@@ -51,12 +50,17 @@ lmthing/
 
 ## Backend Architecture — Important
 
-**There is no separate backend service.** The `cloud/` directory is the **sole backend** for the entire project. It contains Supabase Edge Functions (Deno runtime) that serve as the API layer for all product domains (studio, chat, blog, space, etc.).
+**There is no separate backend service.** The `cloud/` directory is the **sole backend** for the entire project. It runs on **K3s** (lightweight Kubernetes) on an Azure VM, with two services:
 
-- **Users and all server-side data are stored in Supabase PostgreSQL** (profiles, API keys, etc.), protected by Row-Level Security.
-- **Billing and usage metering** are handled by Stripe, orchestrated through edge functions in `cloud/`.
-- **Whenever any service needs backend functionality** (new API endpoint, database operation, webhook handler, etc.), it **must be implemented as a Supabase Edge Function in `cloud/`**. Do not create backend services elsewhere.
-- All frontend apps are static SPAs — they call `cloud/` edge functions for any server-side logic.
+- **LiteLLM** — OpenAI-compatible LLM proxy that routes to Azure AI Foundry models, with budget enforcement, rate limiting, and token usage tracking (10% markup over Azure pricing).
+- **Gateway** — Hono/Node.js service handling auth, API key management, billing (Stripe subscriptions), and webhooks.
+
+Key details:
+- **Users and all server-side data are stored in Supabase PostgreSQL** (profiles, LiteLLM tables), with Supabase Auth for user management.
+- **Billing and usage metering** are handled by Stripe subscriptions, orchestrated through the gateway.
+- **LLM requests** go through LiteLLM (`/v1/*`), which enforces per-user budgets and rate limits based on their tier (Free/Basic/Pro/Max).
+- **Whenever any service needs backend functionality** (new API endpoint, database operation, webhook handler, etc.), it **must be implemented in the gateway (`cloud/gateway/`) or as K8s configuration**. Do not create backend services elsewhere.
+- All frontend apps are static SPAs — they call `cloud/` API endpoints for any server-side logic.
 
 ---
 
@@ -85,27 +89,34 @@ graph TB
         App --> State
     end
 
-    subgraph Cloud["Supabase Cloud"]
-        Edge["Edge Functions (Deno)"]
-        DB[("PostgreSQL<br/>profiles · api_keys")]
-        Edge --> DB
+    subgraph Cloud["K3s on Azure VM"]
+        Traefik["Traefik<br/>TLS + Routing"]
+        LiteLLM["LiteLLM<br/>OpenAI-compatible proxy"]
+        Gateway["Gateway (Hono/Node.js)<br/>Auth · Keys · Billing · Webhooks"]
+        DB[("Supabase PostgreSQL<br/>profiles · LiteLLM tables")]
+        Traefik -- "/v1/*" --> LiteLLM
+        Traefik -- "/api/*" --> Gateway
+        LiteLLM --> DB
+        Gateway --> DB
     end
 
     subgraph External["External Services"]
-        Stripe["Stripe LLM Proxy<br/>llm.stripe.com"]
-        Providers["LLM Providers<br/>OpenAI · Anthropic · Google<br/>Mistral · Groq · Cohere"]
+        Azure["Azure AI Foundry<br/>LLM Models"]
+        Stripe["Stripe<br/>Subscriptions + Billing"]
+        SupaAuth["Supabase Auth<br/>Email/Password + OAuth"]
         GitHub["GitHub API<br/>OAuth + Repo Sync"]
-        Stripe --> Providers
     end
 
     subgraph Library["org/libs/core"]
         Core["lmthing Framework<br/>Vercel AI SDK · Plugins · CLI"]
     end
 
-    App -- "REST + Streaming" --> Edge
-    Edge -- "@stripe/ai-sdk" --> Stripe
+    App -- "REST + Streaming" --> Traefik
+    LiteLLM --> Azure
+    Gateway --> Stripe
+    Gateway --> SupaAuth
     App -- "OAuth + Octokit" --> GitHub
-    Core -. "Standalone CLI<br/>lmthing run" .-> Providers
+    Core -. "Standalone CLI<br/>lmthing run" .-> Azure
 ```
 
 ---
@@ -254,114 +265,113 @@ org/libs/thing/
         └── knowledge/                    # distribution-models, pricing-strategy, listing-quality
 ```
 
-### cloud/ — Supabase Edge Functions (The Only Backend)
+### cloud/ — K3s API Gateway + LiteLLM (The Only Backend)
 
-The **sole backend** for all lmthing products. All server-side logic lives here as Supabase Edge Functions (Deno runtime). Any new backend functionality must be added here. 22 edge functions across 5 categories:
+The **sole backend** for all lmthing products. Runs on K3s (lightweight Kubernetes) on an Azure VM with two services:
 
-| Function               | Method | Purpose                                 |
-| ---------------------- | ------ | --------------------------------------- |
-| `generate-ai`          | POST   | Streaming LLM proxy via Stripe          |
-| `list-models`          | GET    | Available models                        |
-| `create-api-key`       | POST   | Generate `lmt_` prefixed key            |
-| `list-api-keys`        | GET    | Key prefixes                            |
-| `revoke-api-key`       | POST   | Soft-delete key                         |
-| `create-checkout`      | POST   | Stripe checkout session                 |
-| `billing-portal`       | POST   | Stripe customer portal                  |
-| `get-usage`            | GET    | Stripe balance/usage                    |
-| `stripe-webhook`       | POST   | Stripe webhooks + computer provisioning |
-| `create-sso-code`      | POST   | Generate SSO authorization code         |
-| `exchange-sso-code`    | POST   | Exchange SSO code for session (no auth) |
-| `list-spaces`          | GET    | List user's spaces                      |
-| `create-space`         | POST   | Create + provision Fly.io space         |
-| `get-space`            | GET    | Get space by slug (public)              |
-| `update-space`         | PATCH  | Update space metadata                   |
-| `start-space`          | POST   | Start space's Fly.io machine            |
-| `stop-space`           | POST   | Stop space's Fly.io machine             |
-| `delete-space`         | POST   | Destroy space resources                 |
-| `issue-space-token`    | POST   | Issue short-lived space access token    |
-| `provision-computer`   | POST   | Provision Fly.io computer machine       |
-| `issue-computer-token` | POST   | Issue short-lived computer access token |
+- **LiteLLM** (`/v1/*`) — OpenAI-compatible LLM proxy routing to Azure AI Foundry, with per-user budgets, rate limits, and 10% token markup.
+- **Gateway** (`/api/*`) — Hono/Node.js service for auth, API keys, billing, and Stripe webhooks.
 
-Shared modules in `_shared/`: `auth.ts` (JWT + API key), `cors.ts`, `stripe.ts`, `supabase.ts`, `provider.ts` (multi-backend LLM resolution), `container.ts` (Fly.io management).
+**Tiers:**
+
+| Tier  | Price      | Budget  | Reset   | Rate Limits          |
+|-------|------------|---------|---------|----------------------|
+| Free  | $0         | $1      | 7 days  | 10K tpm / 60 rpm     |
+| Basic | $10/month  | $10     | 30 days | 50K tpm / 300 rpm    |
+| Pro   | $20/month  | $20     | 30 days | 100K tpm / 1K rpm    |
+| Max   | $100/month | $100    | 30 days | 1M tpm / 5K rpm      |
+
+**Gateway API routes:**
+
+| Route                          | Method | Auth       | Purpose                                      |
+| ------------------------------ | ------ | ---------- | -------------------------------------------- |
+| `/api/auth/register`           | POST   | Public     | Register → returns API key                   |
+| `/api/auth/login`              | POST   | Public     | Login → returns JWT + refresh token          |
+| `/api/auth/oauth/url`          | GET    | Public     | Get Supabase OAuth URL (GitHub/Google)       |
+| `/api/auth/oauth/callback`     | GET    | Public     | OAuth callback (Supabase redirect)           |
+| `/api/auth/provision`          | POST   | JWT        | Provision LiteLLM user + Stripe customer     |
+| `/api/auth/refresh`            | POST   | Public     | Refresh access token                         |
+| `/api/auth/me`                 | GET    | JWT        | User info + tier                             |
+| `/api/auth/sso/create`         | POST   | JWT        | Generate SSO authorization code              |
+| `/api/auth/sso/exchange`       | POST   | Public     | Exchange SSO code for session                |
+| `/api/keys`                    | GET    | JWT        | List API keys                                |
+| `/api/keys`                    | POST   | JWT        | Create API key                               |
+| `/api/keys/:token`             | DELETE | JWT        | Revoke API key                               |
+| `/api/billing/checkout`        | POST   | JWT        | Stripe checkout session                      |
+| `/api/billing/portal`          | POST   | JWT        | Stripe billing portal                        |
+| `/api/billing/usage`           | GET    | JWT        | Budget usage info                            |
+| `/api/stripe/webhook`          | POST   | Stripe sig | Subscription events → tier changes           |
+| `/v1/chat/completions`         | POST   | API key    | OpenAI-compatible chat (via LiteLLM)         |
+| `/v1/models`                   | GET    | API key    | Available models (via LiteLLM)               |
+
+**Gateway libraries** in `gateway/src/lib/`: `litellm.ts` (LiteLLM admin API client), `stripe.ts` (Stripe client), `tiers.ts` (tier definitions + model lists).
+
+**K8s manifests** in `k8s/`: `litellm.yaml` (LiteLLM + model config), `gateway.yaml` (gateway service), `ingress.yaml.tpl` (Traefik routing), `traefik-config.yaml.tpl` (TLS).
 
 ```mermaid
 graph TB
-    subgraph AI["AI & Models"]
-        GenAI["generate-ai<br/>POST · Streaming LLM"]
-        Models["list-models<br/>GET · Available models"]
+    subgraph Traefik["Traefik (TLS + Routing)"]
+        V1["/v1/* → LiteLLM"]
+        API["/api/* → Gateway"]
     end
 
-    subgraph APIKeys["API Keys"]
-        CreateKey["create-api-key<br/>POST · Generate lmt_ key"]
-        ListKeys["list-api-keys<br/>GET · Key prefixes"]
-        RevokeKey["revoke-api-key<br/>POST · Soft-delete"]
+    subgraph LiteLLMSvc["LiteLLM"]
+        Chat["/v1/chat/completions<br/>OpenAI-compatible"]
+        Models["/v1/models<br/>Available models"]
     end
 
-    subgraph Billing["Billing"]
-        Checkout["create-checkout<br/>POST · Stripe session"]
-        Portal["billing-portal<br/>POST · Customer portal"]
-        Usage["get-usage<br/>GET · Stripe balance"]
-        Webhook["stripe-webhook<br/>POST · No auth"]
+    subgraph GatewaySvc["Gateway (Hono/Node.js)"]
+        AuthRoutes["routes/auth.ts<br/>Register · Login · OAuth · SSO · Provision"]
+        KeyRoutes["routes/keys.ts<br/>List · Create · Revoke"]
+        BillingRoutes["routes/billing.ts<br/>Checkout · Portal · Usage"]
+        WebhookRoutes["routes/webhook.ts<br/>Stripe tier changes"]
     end
 
-    subgraph SSO["SSO"]
-        CreateSSO["create-sso-code<br/>POST · Auth code"]
-        ExchangeSSO["exchange-sso-code<br/>POST · Code → session"]
+    subgraph Libs["gateway/src/lib/"]
+        LiteLLMLib["litellm.ts<br/>Admin API client"]
+        StripLib["stripe.ts<br/>Stripe client"]
+        TiersLib["tiers.ts<br/>Tier definitions"]
     end
 
-    subgraph Spaces["Spaces"]
-        ListSpaces["list-spaces · create-space<br/>get-space · update-space"]
-        SpaceOps["start-space · stop-space<br/>delete-space · issue-space-token"]
+    subgraph External["External"]
+        Azure["Azure AI Foundry"]
+        SupaAuth["Supabase Auth"]
+        Stripe["Stripe"]
+        DB[("Supabase PostgreSQL<br/>profiles · LiteLLM tables")]
     end
 
-    subgraph Computer["Computer"]
-        Provision["provision-computer<br/>POST · Fly.io machine"]
-        ComputerToken["issue-computer-token<br/>POST · Access token"]
-    end
-
-    subgraph Shared["_shared/"]
-        Auth["auth.ts<br/>JWT + API key verify"]
-        CORS["cors.ts"]
-        StripeClient["stripe.ts"]
-        Supa["supabase.ts"]
-        Provider["provider.ts<br/>LLM multi-backend"]
-        Container["container.ts<br/>Fly.io management"]
-    end
-
-    subgraph Storage["PostgreSQL"]
-        Profiles["profiles · api_keys<br/>sso_codes · spaces · computers"]
-    end
-
-    GenAI --> Auth
-    GenAI --> Provider
-    CreateKey --> Auth
-    Spaces --> Auth
-    Spaces --> Container
-    Computer --> Container
-    Webhook --> StripeClient
-    Auth --> Supa
-    Supa --> Storage
+    V1 --> LiteLLMSvc
+    API --> GatewaySvc
+    LiteLLMSvc --> Azure
+    LiteLLMSvc --> DB
+    GatewaySvc --> LiteLLMLib
+    GatewaySvc --> SupaAuth
+    GatewaySvc --> Stripe
+    GatewaySvc --> DB
 ```
 
 ---
 
 ## Authentication
 
-All frontend apps authenticate via **Supabase Auth through com/** (the central auth hub). No app has its own login UI or Supabase client — they all redirect to com/ for login.
+Authentication is handled through **com/** (the central auth hub) which talks to the **cloud gateway API**. com/ has its own login/signup UI and uses the cloud gateway's auth routes (which proxy Supabase Auth). Other lmthing.* apps use cross-domain SSO via com/.
 
-**Auth provider**: GitHub OAuth only (configured in Supabase dashboard with `repo` scope for workspace repo access).
+**Auth providers**: Email/password, GitHub OAuth, and Google OAuth (all via Supabase Auth, proxied through the gateway).
 
-**Frontend auth** uses the shared `@lmthing/auth` library, which implements cross-domain SSO:
+**com/ auth flow** (direct):
+1. User visits com/ → signs up or logs in via `/api/auth/register`, `/api/auth/login`, or OAuth
+2. OAuth flow: gateway returns Supabase OAuth URL → user authenticates → Supabase redirects to com/callback with tokens in hash fragment
+3. com/callback stores JWT + refresh token, calls `/api/auth/provision` to create LiteLLM user + Stripe customer + API key
+4. Token refresh handled automatically via `cloudFetch()` in `com/src/lib/cloud.ts`
 
+**Cross-domain SSO flow** (other apps via `@lmthing/auth` library):
 1. App detects no session → redirects to `com/auth/sso`
-2. com/ authenticates the user via GitHub OAuth (Supabase Auth)
-3. com/ checks if the user has completed onboarding (has `github_repo` set in profile)
-4. If not onboarded → redirects to `/onboarding` where a private GitHub repo is created to store the user's workspace (agents, flows, knowledge)
-5. com/ issues a single-use SSO code (60s TTL) via `cloud/create-sso-code`
-6. Redirects back to the app with `?code=...&state=...`
-7. App exchanges the code for a session via `cloud/exchange-sso-code`
+2. com/ checks for active session (redirects to `/login` if none)
+3. com/ calls `/api/auth/sso/create` to generate a single-use auth code (60s TTL)
+4. Redirects back to the app with `?code=...&state=...`
+5. App exchanges the code for a session via `/api/auth/sso/exchange`
 
-**Backend auth** — Supabase JWT (browser) or `lmt_` API key (SDK/scripts), both resolve to `user_id` + `stripe_customer_id` via `cloud/_shared/auth.ts`.
+**Backend auth** — Supabase JWT (browser) or LiteLLM API key (SDK/scripts), verified by the gateway's auth middleware (`gateway/src/middleware/auth.ts`).
 
 ```mermaid
 flowchart TD
@@ -373,24 +383,27 @@ flowchart TD
     end
 
     subgraph Com["com/ (Central Auth Hub)"]
-        Supabase["Supabase Auth"]
-        GitHub["GitHub OAuth"]
-        Supabase --> GitHub
-        Onboarding["Onboarding<br/>Creates private GitHub repo"]
-        GitHub --> Onboarding
+        CloudTS["cloud.ts<br/>JWT + refresh tokens"]
+        AuthProv["AuthProvider<br/>signIn · signUp · OAuth"]
+        CloudTS --> AuthProv
+    end
+
+    subgraph Gateway["Cloud Gateway"]
+        AuthRoutes["/api/auth/*<br/>Register · Login · OAuth · SSO"]
+        SupaAuth["Supabase Auth<br/>Email + GitHub + Google"]
+        AuthRoutes --> SupaAuth
     end
 
     subgraph Backend["Backend Auth"]
         JWT["Bearer JWT<br/>(Supabase Auth)"]
-        APIKey["Bearer lmt_*<br/>(API Key)"]
-        JWT --> Verify["Verify JWT"]
-        APIKey --> Hash["SHA-256 lookup"]
-        Verify --> UserID["user_id +<br/>stripe_customer_id"]
-        Hash --> UserID
+        APIKey["Bearer sk-*<br/>(LiteLLM API Key)"]
+        JWT --> Verify["gateway middleware"]
+        APIKey --> LiteLLM["LiteLLM verification"]
     end
 
     Apps -- "SSO redirect" --> Com
     Com -- "SSO code" --> Apps
+    Com -- "REST" --> Gateway
     Apps -- "Authorization header" --> Backend
 ```
 
@@ -453,7 +466,7 @@ const { username, isAuthenticated, isLoading, login, logout } = useAuth();
 
 ```
 VITE_COM_URL=https://com.local       # defaults: com.local (dev) / lmthing.com (prod)
-VITE_CLOUD_URL=https://cloud.local/functions/v1  # defaults: cloud.local (dev) / lmthing.cloud (prod)
+VITE_CLOUD_URL=https://cloud.local   # defaults: cloud.local (dev) / lmthing.cloud (prod)
 ```
 
 ---
@@ -462,31 +475,28 @@ VITE_CLOUD_URL=https://cloud.local/functions/v1  # defaults: cloud.local (dev) /
 
 1. User configures agent + sends message in Studio
 2. Studio reads agent config from VFS (`@lmthing/state`)
-3. Studio POSTs to `generate-ai` edge function with `{model, messages, tools, temperature}`
-4. Edge function authenticates (JWT or `lmt_` key), resolves Stripe customer ID
-5. Request proxied through Stripe LLM gateway (automatic token metering)
-6. Response streams back via SSE to browser
+3. Studio POSTs to `/v1/chat/completions` (OpenAI-compatible) with the user's LiteLLM API key
+4. LiteLLM authenticates the API key, checks budget + rate limits for the user's tier
+5. Request routed to Azure AI Foundry model endpoint
+6. Response streams back to browser; LiteLLM tracks token usage against user's budget
 
 ```mermaid
 sequenceDiagram
     participant User
     participant Studio as App (Studio)
     participant VFS as @lmthing/state
-    participant Edge as Edge Function
-    participant Stripe as Stripe LLM Proxy
-    participant LLM as LLM Provider
+    participant LiteLLM as LiteLLM Proxy
+    participant Azure as Azure AI Foundry
 
     User->>Studio: Configure agent + send message
     Studio->>VFS: Read agent config, knowledge, tools
     VFS-->>Studio: Workspace files
-    Studio->>Edge: POST /generate-ai<br/>{model, messages, tools, temperature}
-    Edge->>Edge: Authenticate (JWT or lmt_ API key)
-    Edge->>Edge: Resolve Stripe customer ID
-    Edge->>Stripe: stripeLLM(model) streaming request
-    Stripe->>LLM: Forward to provider
-    LLM-->>Stripe: Token stream
-    Stripe-->>Edge: Stream + meter tokens
-    Edge-->>Studio: SSE stream
+    Studio->>LiteLLM: POST /v1/chat/completions<br/>{model, messages, tools}
+    LiteLLM->>LiteLLM: Verify API key + check budget/rate limits
+    LiteLLM->>Azure: Forward to model endpoint
+    Azure-->>LiteLLM: Token stream
+    LiteLLM->>LiteLLM: Track usage (10% markup)
+    LiteLLM-->>Studio: SSE stream
     Studio-->>User: Real-time response
 ```
 
@@ -542,7 +552,7 @@ Different products run agents in different environments:
 ## Development Workflow
 
 - **Studio** is the primary development surface — most features are built and tested here
-- **Cloud functions** are developed locally with `supabase functions serve`
+- **Cloud gateway** is developed locally — build and run the Hono server, or deploy to the K3s VM via `scripts/deploy.sh`
 - **Core framework** changes can be tested via `lmthing run` CLI or within Studio
 - All workspace data syncs through git — standard merge/conflict resolution applies
 
@@ -643,7 +653,7 @@ This repository is a monorepo organized by TLD — each lmthing.\* domain has it
 
 ## Cloud Backend
 
-- `cloud/` — Supabase Edge Functions (Deno). Nine functions: `generate-ai`, `list-models`, `create-api-key`, `list-api-keys`, `revoke-api-key`, `create-checkout`, `billing-portal`, `get-usage`, `stripe-webhook`. Shared modules in `_shared/`.
+- `cloud/` — K3s API gateway (Hono/Node.js) + LiteLLM proxy on Azure VM. Gateway handles auth (Supabase Auth), API key management (LiteLLM), billing (Stripe subscriptions), and webhooks. LiteLLM provides OpenAI-compatible LLM proxy routing to Azure AI Foundry with tier-based budgets and rate limits. K8s manifests in `k8s/`, gateway source in `gateway/`.
 
 ## Product Domains
 

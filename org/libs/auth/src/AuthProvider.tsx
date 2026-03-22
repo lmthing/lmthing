@@ -12,7 +12,7 @@ function resolveConfig(appName: string, callbackPath: string): AuthConfig {
     comUrl: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_COM_URL)
       || (isDev ? `${protocol}//com.local` : 'https://lmthing.com'),
     cloudUrl: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_CLOUD_URL)
-      || (isDev ? `${protocol}//cloud.local/functions/v1` : 'https://lmthing.cloud/functions/v1'),
+      || (isDev ? `${protocol}//cloud.local` : 'https://lmthing.cloud'),
     appName,
     callbackPath,
   }

@@ -1,18 +1,17 @@
 {
   "name": "@lmthing/cloud",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
-    "db:migrate": "supabase db push",
-    "db:reset": "supabase db reset",
-    "functions:serve": "supabase functions serve --env-file .env",
-    "functions:deploy": "supabase functions deploy",
-    "dev": "supabase start",
-    "stop": "supabase stop",
-    "status": "supabase status",
-    "link": "supabase link"
+    "setup": "source k8s/.env.secrets && ssh -i \"$SSH_KEY_PATH\" \"$VM_USER@$VM_HOST\" 'bash -s' < scripts/setup-vm.sh",
+    "deploy": "scripts/deploy.sh",
+    "stripe:create-products": "tsx scripts/create-stripe-products.ts",
+    "gateway:dev": "cd gateway && npm run dev",
+    "gateway:build": "cd gateway && npm run build"
   },
   "devDependencies": {
-    "supabase": "catalog:"
+    "typescript": "^5.7.0",
+    "tsx": "^4.19.0",
+    "stripe": "^17.5.0"
   }
 }

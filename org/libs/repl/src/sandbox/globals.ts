@@ -28,6 +28,8 @@ export interface GlobalsConfig {
   onTaskAsyncStart?: (tasklistId: string, id: string) => void
   onTaskAsyncComplete?: (tasklistId: string, id: string, output: Record<string, any>) => void
   onTaskAsyncFailed?: (tasklistId: string, id: string, error: string) => void
+  onTaskOrderViolation?: (tasklistId: string, attemptedTaskId: string, readyTasks: Array<{ id: string; instructions: string; outputSchema: Record<string, { type: string }> }>) => void
+  onTaskCompleteContinue?: (tasklistId: string, completedTaskId: string, readyTasks: Array<{ id: string; instructions: string; outputSchema: Record<string, { type: string }> }>) => void
   maxTaskRetries?: number
   maxTasksPerTasklist?: number
   sleepMaxSeconds?: number
@@ -312,6 +314,12 @@ export function createGlobals(config: GlobalsConfig) {
         const c = tasklist.completed.get(dep)
         return !c || c.status !== 'completed'
       })
+      // Notify the host about the order violation with ready task details
+      const readyTaskDetails = [...tasklist.readyTasks].map(readyId => {
+        const readyTask = tasklist.plan.tasks.find(t => t.id === readyId)!
+        return { id: readyId, instructions: readyTask.instructions, outputSchema: readyTask.outputSchema }
+      })
+      config.onTaskOrderViolation?.(tasklistId, id, readyTaskDetails)
       throw new Error(
         `Task "${id}" in tasklist "${tasklistId}" is not ready. Waiting on: ${pendingDeps.join(', ')}`
       )
@@ -346,6 +354,19 @@ export function createGlobals(config: GlobalsConfig) {
 
     renderSurface.updateTasklistProgress?.(tasklistId, tasklist)
     config.onTaskComplete?.(tasklistId, id, output)
+
+    // If there are remaining incomplete tasks, notify the host to guide the agent
+    const hasRemainingTasks = tasklist.plan.tasks.some(t => {
+      const c = tasklist.completed.get(t.id)
+      return (!c || (c.status !== 'completed' && c.status !== 'skipped')) && !t.optional
+    })
+    if (hasRemainingTasks && tasklist.readyTasks.size > 0) {
+      const readyTaskDetails = [...tasklist.readyTasks].map(readyId => {
+        const readyTask = tasklist.plan.tasks.find(t => t.id === readyId)!
+        return { id: readyId, instructions: readyTask.instructions, outputSchema: readyTask.outputSchema }
+      })
+      config.onTaskCompleteContinue?.(tasklistId, id, readyTaskDetails)
+    }
   }
 
   function recomputeReadyTasks(tasklist: TasklistState): void {
@@ -420,6 +441,12 @@ export function createGlobals(config: GlobalsConfig) {
     }
 
     if (!tasklist.readyTasks.has(taskId)) {
+      // Notify the host about the order violation with ready task details
+      const readyTaskDetails = [...tasklist.readyTasks].map(readyId => {
+        const readyTask = tasklist.plan.tasks.find(t => t.id === readyId)!
+        return { id: readyId, instructions: readyTask.instructions, outputSchema: readyTask.outputSchema }
+      })
+      config.onTaskOrderViolation?.(tasklistId, taskId, readyTaskDetails)
       throw new Error(`Task "${taskId}" in tasklist "${tasklistId}" is not ready`)
     }
 

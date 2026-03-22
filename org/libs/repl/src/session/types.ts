@@ -230,6 +230,7 @@ export type SessionEvent =
   | { type: 'async_cancelled'; taskId: string }
   | { type: 'tasklist_declared'; tasklistId: string; plan: Tasklist }
   | { type: 'task_complete'; tasklistId: string; id: string; output: Record<string, any> }
+  | { type: 'task_complete_continue'; tasklistId: string; completedTaskId: string; readyTasks: Array<{ id: string; instructions: string; outputSchema: Record<string, { type: string }> }> }
   | { type: 'tasklist_reminder'; tasklistId: string; ready: string[]; blocked: string[]; failed: string[] }
   | { type: 'task_failed'; tasklistId: string; id: string; error: string }
   | { type: 'task_retried'; tasklistId: string; id: string }
@@ -238,6 +239,7 @@ export type SessionEvent =
   | { type: 'task_async_start'; tasklistId: string; id: string }
   | { type: 'task_async_complete'; tasklistId: string; id: string; output: Record<string, any> }
   | { type: 'task_async_failed'; tasklistId: string; id: string; error: string }
+  | { type: 'task_order_violation'; tasklistId: string; attemptedTaskId: string; readyTasks: Array<{ id: string; instructions: string; outputSchema: Record<string, { type: string }> }> }
   | { type: 'knowledge_loaded'; domains: string[] }
   | { type: 'class_loaded'; className: string; methods: string[] }
   | { type: 'spawn_start'; childId: string; context: string; directive: string }

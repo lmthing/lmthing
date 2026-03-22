@@ -8,7 +8,7 @@ import { Sidebar } from './components/Sidebar'
 import { ConversationSidebar } from './components/ConversationSidebar'
 import './App.css'
 
-const WS_URL = (import.meta as any).env?.VITE_WS_URL ?? 'ws://localhost:3100'
+const WS_URL = (import.meta as any).env?.VITE_WS_URL ?? 'ws://localhost:3010'
 
 function useConversationId(defaultId: string): string {
   const [id, setId] = useState(() => {

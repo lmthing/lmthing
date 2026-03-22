@@ -180,6 +180,12 @@ export class Session extends EventEmitter {
       onTaskAsyncFailed: (tasklistId, id, error) => {
         this.emitEvent({ type: 'task_async_failed', tasklistId, id, error })
       },
+      onTaskOrderViolation: (tasklistId, attemptedTaskId, readyTasks) => {
+        this.emitEvent({ type: 'task_order_violation', tasklistId, attemptedTaskId, readyTasks })
+      },
+      onTaskCompleteContinue: (tasklistId, completedTaskId, readyTasks) => {
+        this.emitEvent({ type: 'task_complete_continue', tasklistId, completedTaskId, readyTasks })
+      },
       maxTaskRetries: this.config.maxTaskRetries,
       maxTasksPerTasklist: this.config.maxTasksPerTasklist,
       sleepMaxSeconds: this.config.sleepMaxSeconds,

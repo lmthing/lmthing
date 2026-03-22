@@ -18,6 +18,12 @@ import type { ClassifiedExport } from "./loader";
 import { formatCollapsedClass, formatExpandedClass } from "./loader";
 import { buildSystemPrompt } from "./buildSystemPrompt";
 import { generateTasklistCode, type ParsedFlow } from "./agent-loader";
+import {
+  buildTaskOrderViolationMessage,
+  buildTaskContinueMessage,
+  generateTasksBlock,
+  generateCurrentTaskBlock,
+} from "../context/message-builder";
 import { executeSpawn } from "../sandbox/spawn";
 import type { SpawnConfig, SpawnResult, SpawnContext } from "../sandbox/spawn";
 import { generateAgentsBlock } from "../context/agents-block";
@@ -426,10 +432,25 @@ export class AgentLoop {
       console.log(`\x1b[90m--- turn ${turn} ---\x1b[0m`);
       this.logDebug("turn", { turn, messageCount: this.messages.length });
 
-      // Track stop/error from session events via mutable ref
-      const state: { stop: StopPayload | null; error: ErrorPayload | null } = {
+      // Track stop/error/violation/continuation from session events via mutable ref
+      type TaskInfo = {
+        tasklistId: string;
+        readyTasks: Array<{
+          id: string;
+          instructions: string;
+          outputSchema: Record<string, { type: string }>;
+        }>;
+      };
+      const state: {
+        stop: StopPayload | null;
+        error: ErrorPayload | null;
+        taskViolation: (TaskInfo & { attemptedTaskId: string }) | null;
+        taskContinue: (TaskInfo & { completedTaskId: string }) | null;
+      } = {
         stop: null,
         error: null,
+        taskViolation: null,
+        taskContinue: null,
       };
 
       const listener = (event: SessionEvent) => {
@@ -444,6 +465,20 @@ export class AgentLoop {
             break;
           case "error":
             state.error = event.error;
+            break;
+          case "task_order_violation":
+            state.taskViolation = {
+              tasklistId: event.tasklistId,
+              attemptedTaskId: event.attemptedTaskId,
+              readyTasks: event.readyTasks,
+            };
+            break;
+          case "task_complete_continue":
+            state.taskContinue = {
+              tasklistId: event.tasklistId,
+              completedTaskId: event.completedTaskId,
+              readyTasks: event.readyTasks,
+            };
             break;
           case "display":
             console.log(`\x1b[35m  [display]\x1b[0m component rendered`);
@@ -497,6 +532,16 @@ export class AgentLoop {
           case "task_async_failed":
             console.log(
               `\x1b[31m  [taskAsync]\x1b[0m failed: ${event.tasklistId}/${event.id}: ${event.error}`,
+            );
+            break;
+          case "task_order_violation":
+            console.log(
+              `\x1b[31m  [task_order_violation]\x1b[0m tried "${event.attemptedTaskId}" in "${event.tasklistId}" — ready: ${event.readyTasks.map((t) => t.id).join(", ")}`,
+            );
+            break;
+          case "task_complete_continue":
+            console.log(
+              `\x1b[36m  [continue]\x1b[0m ${event.tasklistId}/${event.completedTaskId} done — next: ${event.readyTasks.map((t) => t.id).join(", ")}`,
             );
             break;
           case "tasklist_reminder":
@@ -558,7 +603,6 @@ export class AgentLoop {
       let code = "";
       let streamResult: ReturnType<typeof streamText> | null = null;
       try {
-        console.log(this.messages.map((m) => ({ role: m.role, content: m.content })));
         streamResult = streamText({
           model: this.model,
           messages: this.messages.map((m) => ({ role: m.role, content: m.content })),
@@ -645,7 +689,7 @@ export class AgentLoop {
       // Step 3: Feed cleaned code to session line by line
       const lines = code.split("\n");
       for (const line of lines) {
-        if (state.stop || state.error) break;
+        if (state.stop || state.error || state.taskViolation || state.taskContinue) break;
         const trimmed = line.trim();
         if (!trimmed) continue;
         try {
@@ -659,7 +703,7 @@ export class AgentLoop {
 
       // Step 4: Flush remaining buffer if no interruption
       let tasklistIncomplete = false;
-      if (!state.stop && !state.error) {
+      if (!state.stop && !state.error && !state.taskViolation && !state.taskContinue) {
         try {
           const result = await this.session.finalize();
           if (result === "tasklist_incomplete") {
@@ -683,12 +727,38 @@ export class AgentLoop {
         continue;
       }
 
+      // Handle task complete with remaining tasks → inject next task guidance and loop
+      if (state.taskContinue) {
+        const cpState = this.session.snapshot().tasklistsState;
+        const continueMsg = buildTaskContinueMessage(
+          state.taskContinue.tasklistId,
+          state.taskContinue.completedTaskId,
+          state.taskContinue.readyTasks,
+          cpState,
+        );
+
+        this.messages.push({ role: "assistant", content: code });
+        this.messages.push({ role: "user", content: continueMsg });
+        this.refreshSystemPrompt();
+        this.logDebug("message", { role: "assistant", content: code });
+        this.logDebug("message", { role: "user", content: continueMsg });
+        this.logDebug("scope", this.session.snapshot().scope);
+        continue;
+      }
+
       // Handle stop → inject as user message and loop
       if (state.stop) {
         const entries = Object.entries(state.stop)
           .map(([k, v]) => `${k}: ${v.display}`)
           .join(", ");
         let stopMsg = `← stop { ${entries} }`;
+
+        // Append {{TASKS}} block and current task instructions when tasklists are active
+        const cpState = this.session.snapshot().tasklistsState;
+        const tasksBlock = generateTasksBlock(cpState);
+        if (tasksBlock) stopMsg += `\n\n${tasksBlock}`;
+        const currentTaskBlock = generateCurrentTaskBlock(cpState);
+        if (currentTaskBlock) stopMsg += `\n\n${currentTaskBlock}`;
 
         // Append {{AGENTS}} block if there are visible agent entries
         const agentRegistry = this.session.getAgentRegistry();
@@ -730,6 +800,26 @@ export class AgentLoop {
         this.refreshSystemPrompt();
         this.logDebug("message", { role: "assistant", content: codeUpToStop });
         this.logDebug("message", { role: "user", content: stopMsg });
+        this.logDebug("scope", this.session.snapshot().scope);
+        continue;
+      }
+
+      // Handle task order violation → inject guidance and loop (takes priority over generic error)
+      if (state.taskViolation) {
+        const cpState = this.session.snapshot().tasklistsState;
+        const violationMsg = buildTaskOrderViolationMessage(
+          state.taskViolation.tasklistId,
+          state.taskViolation.attemptedTaskId,
+          state.taskViolation.readyTasks,
+          cpState,
+        );
+        console.log(`\x1b[31m  [violation]\x1b[0m ${violationMsg.split("\n")[0]}`);
+
+        this.messages.push({ role: "assistant", content: code });
+        this.messages.push({ role: "user", content: violationMsg });
+        this.refreshSystemPrompt();
+        this.logDebug("message", { role: "assistant", content: code });
+        this.logDebug("message", { role: "user", content: violationMsg });
         this.logDebug("scope", this.session.snapshot().scope);
         continue;
       }

@@ -1,0 +1,29 @@
+---
+- name: Create kubeconfig directory for the remote SSH user
+  ansible.builtin.file:
+    path: "/home/{{ ansible_user }}/.kube"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0700"
+
+- name: Copy admin kubeconfig for the remote SSH user
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "/home/{{ ansible_user }}/.kube/config"
+    remote_src: true
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+
+- name: Verify cluster is reachable from the first control-plane node
+  ansible.builtin.command:
+    cmd: kubectl --kubeconfig /etc/kubernetes/admin.conf get nodes -o wide
+  register: kubectl_nodes
+  changed_when: false
+  run_once: true
+
+- name: Print node summary
+  ansible.builtin.debug:
+    var: kubectl_nodes.stdout_lines
+  run_once: true

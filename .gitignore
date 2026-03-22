@@ -39,3 +39,10 @@ dist-ssr
 *.sw?
 **/.env
 **/.env.local
+
+# DevOps local artifacts
+devops/ansible/.ansible/
+devops/ansible/.cache/
+devops/ansible/.venv/
+devops/ansible/inventory/*/artifacts/
+*.retry

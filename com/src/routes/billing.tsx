@@ -22,8 +22,8 @@ function Billing() {
     setError('')
     setOpening(true)
     try {
-      const { portal_url } = await billingPortal()
-      window.location.href = portal_url
+      const { url } = await billingPortal()
+      window.location.href = url
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to open billing portal')
     } finally {

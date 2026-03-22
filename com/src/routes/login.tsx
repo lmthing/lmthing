@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth/AuthProvider'
 
@@ -8,7 +8,6 @@ export const Route = createFileRoute('/login')({
 
 function Login() {
   const { signInWithGitHub } = useAuth()
-  const navigate = useNavigate()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 

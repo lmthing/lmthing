@@ -1,14 +1,13 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth/AuthProvider'
-import { updateProfile } from '@/lib/cloud'
 
 export const Route = createFileRoute('/onboarding')({
   component: Onboarding,
 })
 
 function Onboarding() {
-  const { user } = useAuth()
+  useAuth()
   const navigate = useNavigate()
   const [repoName, setRepoName] = useState('')
   const [pin, setPin] = useState('')
@@ -16,7 +15,7 @@ function Onboarding() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const githubUsername = user?.user_metadata?.user_name || user?.user_metadata?.preferred_username || ''
+  const [githubUsername] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,8 +38,6 @@ function Onboarding() {
 
     setLoading(true)
     try {
-      const fullRepo = githubUsername ? `${githubUsername}/${repoName.trim()}` : repoName.trim()
-
       // Create the private GitHub repo using the provider token from OAuth
       const githubToken = sessionStorage.getItem('github_provider_token')
       if (githubToken) {
@@ -66,10 +63,7 @@ function Onboarding() {
         sessionStorage.removeItem('github_provider_token')
       }
 
-      await updateProfile({
-        github_repo: fullRepo,
-        github_username: githubUsername,
-      })
+      // Profile update is a no-op for now — workspace setup is client-side
 
       // Store the PIN hash in localStorage for client-side encryption
       const pinHash = await hashPin(pin)

@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth/AuthProvider'
+import { provision, storeTokens } from '@/lib/cloud'
 
 export const Route = createFileRoute('/callback')({
   component: Callback,
@@ -8,40 +9,45 @@ export const Route = createFileRoute('/callback')({
 
 function Callback() {
   const navigate = useNavigate()
+  const { setSessionFromOAuth } = useAuth()
 
   useEffect(() => {
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        // Check if user needs onboarding (no github_repo set)
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('github_repo')
-          .eq('id', session.user.id)
-          .single()
+    // Extract tokens from Supabase implicit OAuth redirect (#access_token=...)
+    const hash = window.location.hash.substring(1)
+    const params = new URLSearchParams(hash)
+    const accessToken = params.get('access_token')
+    const refreshToken = params.get('refresh_token')
+    const expiresAt = params.get('expires_at')
 
-        // Preserve the original redirect from the login page
+    if (!accessToken || !refreshToken || !expiresAt) {
+      navigate({ to: '/login' })
+      return
+    }
+
+    // Store tokens and update auth state
+    storeTokens({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      expires_at: Number(expiresAt),
+    })
+    setSessionFromOAuth(accessToken, refreshToken, Number(expiresAt))
+
+    // Provision LiteLLM user + API key (idempotent)
+    provision()
+      .then(() => {
         const storedRedirect = sessionStorage.getItem('login_redirect')
-
-        if (!profile?.github_repo) {
-          // Store GitHub provider token so onboarding can create the repo
-          if (session.provider_token) {
-            sessionStorage.setItem('github_provider_token', session.provider_token)
-          }
-          // Store redirect for after onboarding
-          if (storedRedirect) {
-            sessionStorage.setItem('post_onboarding_redirect', storedRedirect)
-          }
-          sessionStorage.removeItem('login_redirect')
-          navigate({ to: '/onboarding' })
-        } else if (storedRedirect) {
+        if (storedRedirect) {
           sessionStorage.removeItem('login_redirect')
           window.location.href = storedRedirect
         } else {
           navigate({ to: '/' })
         }
-      }
-    })
-  }, [navigate])
+      })
+      .catch(() => {
+        // Provision failed but auth succeeded — navigate anyway
+        navigate({ to: '/' })
+      })
+  }, [navigate, setSessionFromOAuth])
 
   return (
     <div className="flex min-h-[80vh] items-center justify-center">

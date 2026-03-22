@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/auth/AuthProvider'
-import { createSsoCode, getProfile } from '@/lib/cloud'
+import { createSsoCode } from '@/lib/cloud'
 
 export const Route = createFileRoute('/auth/sso')({
   component: SsoHandler,
@@ -30,25 +30,12 @@ function SsoHandler() {
       return
     }
 
-    // Check if user needs onboarding before issuing SSO code
-    getProfile()
-      .then(profile => {
-        if (profile.needs_onboarding) {
-          // Store SSO params so we can resume after onboarding
-          const ssoParams = new URLSearchParams({ redirect_uri, app, ...(state ? { state } : {}) })
-          sessionStorage.setItem('post_onboarding_redirect', `/auth/sso?${ssoParams.toString()}`)
-          window.location.href = '/onboarding'
-          return
-        }
-
-        // User is onboarded, issue SSO code
-        return createSsoCode(redirect_uri, app)
-          .then(({ code }) => {
-            const url = new URL(redirect_uri)
-            url.searchParams.set('code', code)
-            if (state) url.searchParams.set('state', state)
-            window.location.href = url.toString()
-          })
+    createSsoCode(redirect_uri, app)
+      .then(({ code }) => {
+        const url = new URL(redirect_uri)
+        url.searchParams.set('code', code)
+        if (state) url.searchParams.set('state', state)
+        window.location.href = url.toString()
       })
       .catch(err => {
         setError(err instanceof Error ? err.message : 'Failed to generate SSO code')

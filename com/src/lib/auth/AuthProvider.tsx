@@ -1,91 +1,98 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import type { User, Session } from '@supabase/supabase-js'
-import { supabase } from '../supabase'
+import {
+  getStoredToken,
+  storeTokens,
+  clearTokens,
+  login as apiLogin,
+  register as apiRegister,
+  getOAuthUrl,
+  getMe,
+} from '../cloud'
+
+interface User {
+  id: string
+  email: string
+}
 
 interface AuthContextValue {
   user: User | null
-  session: Session | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string) => Promise<void>
+  signUp: (email: string, password: string) => Promise<any>
   signOut: () => Promise<void>
   signInWithGitHub: () => Promise<void>
   signInWithGoogle: () => Promise<void>
-  resetPassword: (email: string) => Promise<void>
-  updatePassword: (password: string) => Promise<void>
+  setSessionFromOAuth: (accessToken: string, refreshToken: string, expiresAt: number) => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // Check for existing session on mount
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
+    const token = getStoredToken()
+    if (!token) {
       setLoading(false)
-    })
+      return
+    }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
-
-    return () => subscription.unsubscribe()
+    getMe()
+      .then(data => {
+        setUser({ id: data.user_id, email: data.email })
+      })
+      .catch(() => {
+        clearTokens()
+      })
+      .finally(() => setLoading(false))
   }, [])
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) throw error
+    const data = await apiLogin(email, password)
+    setUser(data.user)
   }, [])
 
   const signUp = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password })
-    if (error) throw error
+    const data = await apiRegister(email, password)
+    // Register returns user_id + api_key but no session — log them in
+    const loginData = await apiLogin(email, password)
+    setUser(loginData.user)
+    return data
   }, [])
 
   const signOut = useCallback(async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
+    clearTokens()
+    setUser(null)
   }, [])
 
   const signInWithGitHub = useCallback(async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'github',
-      options: {
-        redirectTo: `${window.location.origin}/callback`,
-        scopes: 'repo',
-      },
-    })
-    if (error) throw error
+    const { url } = await getOAuthUrl('github', `${window.location.origin}/callback`)
+    window.location.href = url
   }, [])
 
   const signInWithGoogle = useCallback(async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/callback` },
-    })
-    if (error) throw error
+    const { url } = await getOAuthUrl('google', `${window.location.origin}/callback`)
+    window.location.href = url
   }, [])
 
-  const resetPassword = useCallback(async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    })
-    if (error) throw error
-  }, [])
-
-  const updatePassword = useCallback(async (password: string) => {
-    const { error } = await supabase.auth.updateUser({ password })
-    if (error) throw error
+  // Called by the OAuth callback page after extracting tokens from hash
+  const setSessionFromOAuth = useCallback((accessToken: string, refreshToken: string, expiresAt: number) => {
+    storeTokens({ access_token: accessToken, refresh_token: refreshToken, expires_at: expiresAt })
+    // Fetch user info with the new token
+    getMe()
+      .then(data => setUser({ id: data.user_id, email: data.email }))
+      .catch(() => clearTokens())
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut, signInWithGitHub, signInWithGoogle, resetPassword, updatePassword }}>
+    <AuthContext.Provider value={{
+      user, loading,
+      signIn, signUp, signOut,
+      signInWithGitHub, signInWithGoogle,
+      setSessionFromOAuth,
+    }}>
       {children}
     </AuthContext.Provider>
   )

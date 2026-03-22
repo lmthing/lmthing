@@ -4,11 +4,14 @@ import { useAuth } from '@/lib/auth/AuthProvider'
 import { listApiKeys, createApiKey, revokeApiKey } from '@/lib/cloud'
 
 interface ApiKey {
-  id: string
-  prefix: string
-  name: string
+  token: string
+  key_alias: string
+  key_name: string
+  spend: number
+  max_budget: number
+  tier: string
   created_at: string
-  revoked_at: string | null
+  expires: string | null
 }
 
 export const Route = createFileRoute('/account/keys')({
@@ -27,7 +30,7 @@ function ApiKeys() {
   const fetchKeys = useCallback(async () => {
     try {
       const data = await listApiKeys()
-      setKeys(data)
+      setKeys(data.keys || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load keys')
     } finally {
@@ -59,10 +62,10 @@ function ApiKeys() {
     }
   }
 
-  const handleRevoke = async (keyId: string) => {
+  const handleRevoke = async (token: string) => {
     setError('')
     try {
-      await revokeApiKey(keyId)
+      await revokeApiKey(token)
       fetchKeys()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to revoke key')
@@ -70,9 +73,6 @@ function ApiKeys() {
   }
 
   if (authLoading || loading) return null
-
-  const activeKeys = keys.filter(k => !k.revoked_at)
-  const revokedKeys = keys.filter(k => k.revoked_at)
 
   return (
     <div className="mx-auto max-w-xl px-6 py-12">
@@ -102,38 +102,24 @@ function ApiKeys() {
 
       <section>
         <h2 className="mb-4 text-lg font-semibold">Active keys</h2>
-        {activeKeys.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No active API keys.</p>
+        {keys.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No API keys.</p>
         ) : (
           <div className="flex flex-col gap-2">
-            {activeKeys.map(key => (
-              <div key={key.id} className="flex items-center justify-between rounded-md border border-border p-3">
+            {keys.map(key => (
+              <div key={key.token} className="flex items-center justify-between rounded-md border border-border p-3">
                 <div>
-                  <p className="text-sm font-medium">{key.name}</p>
-                  <p className="text-xs text-muted-foreground"><code>{key.prefix}...</code> &middot; Created {new Date(key.created_at).toLocaleDateString()}</p>
+                  <p className="text-sm font-medium">{key.key_alias || key.key_name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    <code>{key.token.slice(0, 12)}...</code> &middot; {key.tier} &middot; ${key.spend?.toFixed(2) || '0.00'} / ${key.max_budget}
+                  </p>
                 </div>
-                <button onClick={() => handleRevoke(key.id)} className="text-sm text-destructive hover:underline">Revoke</button>
+                <button onClick={() => handleRevoke(key.token)} className="text-sm text-destructive hover:underline">Revoke</button>
               </div>
             ))}
           </div>
         )}
       </section>
-
-      {revokedKeys.length > 0 && (
-        <section className="mt-8">
-          <h2 className="mb-4 text-lg font-semibold text-muted-foreground">Revoked keys</h2>
-          <div className="flex flex-col gap-2">
-            {revokedKeys.map(key => (
-              <div key={key.id} className="flex items-center justify-between rounded-md border border-border bg-muted/50 p-3 opacity-60">
-                <div>
-                  <p className="text-sm font-medium">{key.name}</p>
-                  <p className="text-xs text-muted-foreground"><code>{key.prefix}...</code> &middot; Revoked {new Date(key.revoked_at!).toLocaleDateString()}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
     </div>
   )
 }

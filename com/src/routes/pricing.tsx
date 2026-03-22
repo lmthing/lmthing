@@ -12,16 +12,16 @@ function Pricing() {
   const { user } = useAuth()
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
 
-  const handleSubscribe = async (priceId: string, planId: string) => {
+  const handleSubscribe = async (planId: string) => {
     if (!user) {
-      window.location.href = `/signup?redirect=/pricing&plan=${planId}`
+      window.location.href = `/signup?redirect=/pricing`
       return
     }
 
     setLoadingPlan(planId)
     try {
-      const { checkout_url } = await createCheckout(priceId)
-      window.location.href = checkout_url
+      const { url } = await createCheckout(planId)
+      window.location.href = url
     } catch (err) {
       console.error('Checkout error:', err)
     } finally {
@@ -30,13 +30,13 @@ function Pricing() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-16">
+    <div className="mx-auto max-w-6xl px-6 py-16">
       <div className="mb-12 text-center">
         <h1 className="mb-3 text-3xl font-bold">Simple, transparent pricing</h1>
-        <p className="text-muted-foreground">Start free, scale as you grow</p>
+        <p className="text-muted-foreground">Start free, scale as you grow. All plans include 10% token markup over provider costs.</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-4">
         {plans.map(plan => (
           <div key={plan.id} className={`flex flex-col rounded-lg border p-6 ${plan.highlighted ? 'border-primary ring-1 ring-primary' : 'border-border'}`}>
             <h2 className="text-lg font-bold">{plan.name}</h2>
@@ -54,9 +54,9 @@ function Pricing() {
               ))}
             </ul>
             <div className="mt-6">
-              {plan.priceId ? (
+              {plan.id !== 'free' ? (
                 <button
-                  onClick={() => handleSubscribe(plan.priceId, plan.id)}
+                  onClick={() => handleSubscribe(plan.id)}
                   disabled={loadingPlan === plan.id}
                   className={`w-full rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50 ${plan.highlighted ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'border border-input bg-background hover:bg-accent'}`}
                 >

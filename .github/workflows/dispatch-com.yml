@@ -1,0 +1,18 @@
+name: Trigger com deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  dispatch:
+    name: Dispatch to lmthing/com
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger deploy
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.DISPATCH_TOKEN }}
+          repository: lmthing/com
+          event-type: deploy-com

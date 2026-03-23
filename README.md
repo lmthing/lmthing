@@ -42,6 +42,7 @@ lmthing/
 ├── store/                  # lmthing.store — agent marketplace
 ├── casa/                   # lmthing.casa — smart home (Home Assistant)
 ├── com/                    # lmthing.com — commercial landing page
+├── devops/                 # Infrastructure automation (Ansible, Kubespray, ops docs)
 ├── pnpm-workspace.yaml
 └── package.json
 ```
@@ -62,6 +63,7 @@ lmthing/
 - [Architecture](./Architecture.md) — full product & domain architecture
 - [Tech Architecture](./TechArchitecture.md) — developer onboarding & system overview
 - [Cloud Backend](./cloud/README.md) — cloud setup & deployment
+- [DevOps](./devops/README.md) — Kubernetes bootstrap and infrastructure docs
 
 ## License
 

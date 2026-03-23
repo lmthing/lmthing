@@ -1,7 +1,7 @@
 ---
 title: Computer Tier
 description: Everything in Pro plus a dedicated Fly.io compute node
-order: 3
+order: 4
 ---
 
 # Computer Tier

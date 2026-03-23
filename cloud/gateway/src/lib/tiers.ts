@@ -1,3 +1,6 @@
+// Adding a new tier? See CLAUDE.md § "Adding a New Tier" for the full checklist.
+// This file is one of ~10 places that need updating across the monorepo.
+
 export interface Tier {
   name: string;
   stripePriceId: string | null;
@@ -17,6 +20,15 @@ export const TIERS: Record<string, Tier> = {
     models: ["gpt-5.4-nano"],
     tpmLimit: 10_000,
     rpmLimit: 60,
+  },
+  starter: {
+    name: "Starter",
+    stripePriceId: process.env.STRIPE_PRICE_STARTER || "",
+    budget: 5.0,
+    budgetDuration: "30d",
+    models: ["gpt-5.4-nano"],
+    tpmLimit: 25_000,
+    rpmLimit: 150,
   },
   basic: {
     name: "Basic",

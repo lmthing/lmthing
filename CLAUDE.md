@@ -58,7 +58,7 @@ lmthing/
 Key details:
 - **Users and all server-side data are stored in Supabase PostgreSQL** (profiles, LiteLLM tables), with Supabase Auth for user management.
 - **Billing and usage metering** are handled by Stripe subscriptions, orchestrated through the gateway.
-- **LLM requests** go through LiteLLM (`/v1/*`), which enforces per-user budgets and rate limits based on their tier (Free/Basic/Pro/Max).
+- **LLM requests** go through LiteLLM (`/v1/*`), which enforces per-user budgets and rate limits based on their tier (Free/Starter/Basic/Pro/Max).
 - **Whenever any service needs backend functionality** (new API endpoint, database operation, webhook handler, etc.), it **must be implemented in the gateway (`cloud/gateway/`) or as K8s configuration**. Do not create backend services elsewhere.
 - All frontend apps are static SPAs — they call `cloud/` API endpoints for any server-side logic.
 
@@ -274,12 +274,15 @@ The **sole backend** for all lmthing products. Runs on K3s (lightweight Kubernet
 
 **Tiers:**
 
-| Tier  | Price      | Budget  | Reset   | Rate Limits          |
-|-------|------------|---------|---------|----------------------|
-| Free  | $0         | $1      | 7 days  | 10K tpm / 60 rpm     |
-| Basic | $10/month  | $10     | 30 days | 50K tpm / 300 rpm    |
-| Pro   | $20/month  | $20     | 30 days | 100K tpm / 1K rpm    |
-| Max   | $100/month | $100    | 30 days | 1M tpm / 5K rpm      |
+| Tier    | Price      | Budget  | Reset   | Rate Limits          |
+|---------|------------|---------|---------|----------------------|
+| Free    | $0         | $1      | 7 days  | 10K tpm / 60 rpm     |
+| Starter | $5/month   | $5      | 30 days | 25K tpm / 150 rpm    |
+| Basic   | $10/month  | $10     | 30 days | 50K tpm / 300 rpm    |
+| Pro     | $20/month  | $20     | 30 days | 100K tpm / 1K rpm    |
+| Max     | $100/month | $100    | 30 days | 1M tpm / 5K rpm      |
+
+Adding a new tier touches files across the monorepo — see [Adding a New Tier](#adding-a-new-tier) below.
 
 **Gateway API routes:**
 
@@ -626,6 +629,49 @@ All frontend apps share the same stack:
 - **Tailwind CSS v4** via `@tailwindcss/vite`
 - Shared workspace libs: `@lmthing/ui`, `@lmthing/css`, `@lmthing/state`, `lmthing` (core)
 - Path aliases: `@/` → `./src`, workspace libs resolved via Vite `resolve.alias`
+
+---
+
+## Adding a New Tier
+
+Tiers are a cross-cutting concern spanning backend, frontend, infra, knowledge base, and documentation. Here is every file that must be updated, grouped by area.
+
+### Backend (`cloud/`)
+
+1. **`cloud/gateway/src/lib/tiers.ts`** — Add the tier to the `TIERS` object in order. Define `name`, `stripePriceId` (env var), `budget`, `budgetDuration`, `models`, `tpmLimit`, `rpmLimit`. No other backend code changes needed — routes and helpers iterate `TIERS` dynamically.
+
+2. **`cloud/scripts/create-stripe-products.ts`** — Add to the `TIERS` array with `lookupKey`, `amount` (cents), `label`. Add the `console.log` line for the env var output. Run the script to create the Stripe price.
+
+3. **`cloud/.env.example`** + **`cloud/k8s/.env.secrets.example`** — Add `STRIPE_PRICE_YOURTIER=price_xxx` placeholder.
+
+4. **`cloud/k8s/gateway.yaml`** — Add `STRIPE_PRICE_YOURTIER` env var entry referencing the `lmthing-secrets` secret.
+
+### Frontend (`com/`)
+
+5. **`com/src/config/plans.ts`** — Add the plan to the `plans` array (renders left to right on the pricing page). Set `highlighted: true` on the recommended plan.
+
+### THING Knowledge Base (`org/libs/thing/`)
+
+6. **`org/libs/thing/spaces/space-ecosystem/knowledge/billing-context/plan-tier/yourtier.md`** — Create a knowledge file with frontmatter (`title`, `description`, `order`) describing the tier.
+
+7. **`org/libs/thing/spaces/space-ecosystem/knowledge/billing-context/plan-tier/config.json`** — Add the tier slug to the `options` array.
+
+8. Bump `order` in any existing tier `.md` files that come after the new one. Update adjacent tiers' upgrade/downgrade text if needed.
+
+### Documentation
+
+9. Update tier tables and `(Free/Starter/Basic/Pro/Max)` references in:
+   - `CLAUDE.md` (root)
+   - `cloud/CLAUDE.md` — tier table + env var table
+   - `cloud/README.md`
+   - `com/CLAUDE.md` — tier count
+   - `org/libs/repl/spaces/codebase/knowledge/stack/layer/backend.md`
+
+### Deploy
+
+10. Run `create-stripe-products.ts` → add price ID to `.env.secrets` → sync secrets to VM → redeploy gateway.
+
+For detailed code examples and deploy commands, see `cloud/CLAUDE.md` § "Adding a New Tier".
 
 ---
 

@@ -30,7 +30,7 @@ src/routes/
 ├── index.tsx               # Landing page
 ├── about.tsx               # About page
 ├── docs.tsx                # Documentation
-├── pricing.tsx             # Plan comparison + subscribe CTAs (4 tiers: Free/Basic/Pro/Max)
+├── pricing.tsx             # Plan comparison + subscribe CTAs (5 tiers: Free/Starter/Basic/Pro/Max)
 ├── login.tsx               # Email/password + GitHub/Google OAuth
 ├── signup.tsx              # Registration
 ├── forgot-password.tsx     # Password reset request
@@ -50,7 +50,7 @@ src/routes/
 
 - **`src/lib/cloud.ts`** — API client for the cloud gateway. Handles JWT storage, automatic token refresh, and typed wrappers for all API calls (`login`, `register`, `getOAuthUrl`, `provision`, `getMe`, `createSsoCode`, `exchangeSsoCode`, `listApiKeys`, `createApiKey`, `revokeApiKey`, `createCheckout`, `billingPortal`, `getUsage`). Uses `cloudFetch()` (authenticated) and `cloudFetchPublic()` (unauthenticated).
 - **`src/lib/auth/AuthProvider.tsx`** — React context with `useAuth()` hook. Exposes `user`, `loading`, `signIn`, `signUp`, `signOut`, `signInWithGitHub`, `signInWithGoogle`, `setSessionFromOAuth`. Uses cloud.ts for all API calls (no direct Supabase client).
-- **`src/config/plans.ts`** — Plan metadata for 4 tiers (Free / Basic / Pro / Max) with pricing, budget, and rate limit info.
+- **`src/config/plans.ts`** — Plan metadata for 5 tiers (Free / Starter / Basic / Pro / Max) with pricing, budget, and rate limit info.
 
 ## Auth Flow
 
@@ -88,6 +88,10 @@ src/routes/
 ## Protected Routes
 
 `/account/*` and `/billing/*` require authentication. Unauthenticated users are redirected to `/login`.
+
+## Adding or Modifying Tiers
+
+The pricing page (`/pricing`) renders plans from `src/config/plans.ts`. This is only the frontend display — the actual tier logic lives in `cloud/gateway/src/lib/tiers.ts`. When adding a new tier, both files must be updated along with ~8 other files across the monorepo. See root `CLAUDE.md` § "Adding a New Tier" for the full checklist.
 
 ## Notes
 

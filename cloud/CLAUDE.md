@@ -41,12 +41,13 @@ Gateway ↔ Stripe (subscriptions) + Supabase Auth + LiteLLM Admin API
 
 All token costs include a 10% markup over Azure pricing.
 
-| Tier  | Price     | Budget  | Reset   | Rate Limits          |
-|-------|-----------|---------|---------|----------------------|
-| Free  | $0        | $1      | 7 days  | 10K tpm / 60 rpm     |
-| Basic | $10/month | $10     | 30 days | 50K tpm / 300 rpm    |
-| Pro   | $20/month | $20     | 30 days | 100K tpm / 1K rpm    |
-| Max   | $100/month| $100    | 30 days | 1M tpm / 5K rpm      |
+| Tier    | Price      | Budget  | Reset   | Rate Limits          |
+|---------|------------|---------|---------|----------------------|
+| Free    | $0         | $1      | 7 days  | 10K tpm / 60 rpm     |
+| Starter | $5/month   | $5      | 30 days | 25K tpm / 150 rpm    |
+| Basic   | $10/month  | $10     | 30 days | 50K tpm / 300 rpm    |
+| Pro     | $20/month  | $20     | 30 days | 100K tpm / 1K rpm    |
+| Max     | $100/month | $100    | 30 days | 1M tpm / 5K rpm      |
 
 Tier definitions: `gateway/src/lib/tiers.ts`
 
@@ -261,6 +262,91 @@ ssh user@VM "sudo k3s kubectl -n kube-system logs deployment/traefik --tail=50"
 
 3. Redeploy both LiteLLM (config change) and gateway (code change).
 
+## Adding a New Tier
+
+All files that need updating when adding a billing tier (use the Starter tier as a reference):
+
+### 1. Backend tier definition
+
+Add the tier to `gateway/src/lib/tiers.ts` in the `TIERS` object. Insert it in order (Free → Starter → Basic → Pro → Max). Each tier needs: `name`, `stripePriceId` (from env var), `budget`, `budgetDuration`, `models` array (empty = all models), `tpmLimit`, `rpmLimit`.
+
+```ts
+// gateway/src/lib/tiers.ts
+yourTier: {
+  name: "YourTier",
+  stripePriceId: process.env.STRIPE_PRICE_YOURTIER || "",
+  budget: 15.0,
+  budgetDuration: "30d",
+  models: ["gpt-5.4-nano"],
+  tpmLimit: 75_000,
+  rpmLimit: 500,
+},
+```
+
+No other backend code changes needed — `getTierByPriceId()` and `getTierByName()` dynamically iterate `TIERS`, and all routes (auth, billing, keys, webhook) reference tiers by key lookup.
+
+### 2. Stripe product + price
+
+Add the tier to `scripts/create-stripe-products.ts` in the `TIERS` array with `lookupKey`, `amount` (in cents), and `label`. Also add the `console.log` line for the env var output at the bottom.
+
+```ts
+// scripts/create-stripe-products.ts
+{ lookupKey: "lmthing_yourtier", amount: 1500, label: "YourTier $15/month" },
+```
+
+Run the script to create the Stripe price:
+```bash
+STRIPE_SECRET_KEY=sk_live_xxx npx tsx scripts/create-stripe-products.ts
+```
+
+### 3. Environment variables
+
+Add `STRIPE_PRICE_YOURTIER` to three places:
+- `cloud/.env.example`
+- `cloud/k8s/.env.secrets.example`
+- `cloud/k8s/.env.secrets` (actual value from Stripe)
+
+### 4. K8s gateway manifest
+
+Add the env var to `k8s/gateway.yaml` under the gateway container's `env` list:
+```yaml
+- name: STRIPE_PRICE_YOURTIER
+  valueFrom:
+    secretKeyRef:
+      name: lmthing-secrets
+      key: STRIPE_PRICE_YOURTIER
+```
+
+### 5. Frontend pricing UI
+
+Add the plan to `com/src/config/plans.ts` in the `plans` array (order matters — it renders left to right). Set `highlighted: true` on whichever plan should be visually emphasized.
+
+### 6. THING knowledge base
+
+In `org/libs/thing/spaces/space-ecosystem/knowledge/billing-context/plan-tier/`:
+- Create `yourtier.md` with frontmatter (`title`, `description`, `order`) and content describing the tier
+- Update `config.json` — add the tier slug to the `options` array
+- Bump `order` in any existing tier files that come after the new one
+
+### 7. Documentation
+
+Update tier tables in all of these files:
+- `CLAUDE.md` (root) — tier table + any `(Free/Starter/Basic/Pro/Max)` references
+- `cloud/CLAUDE.md` — tier table + env var table
+- `cloud/README.md` — tier table
+- `com/CLAUDE.md` — tier count references
+- `org/libs/repl/spaces/codebase/knowledge/stack/layer/backend.md` — tier table + reference
+
+### 8. Deploy
+
+```bash
+# Update secrets on VM
+rsync k8s/.env.secrets → VM, recreate k8s secret
+
+# Redeploy gateway (code + env change)
+rsync gateway/src/ → VM, docker build, rollout restart gateway
+```
+
 ## Gotchas
 
 - **No quotes in `.env.secrets`** — Kustomize reads values literally, quotes become part of the value.
@@ -290,7 +376,7 @@ All stored in `k8s/.env.secrets` (gitignored), loaded via Kustomize `secretGener
 | `DATABASE_URL` | litellm | PostgreSQL connection (session pooler, port 5432) |
 | `STRIPE_SECRET_KEY` | gateway | Stripe API access |
 | `STRIPE_WEBHOOK_SECRET` | gateway | Stripe webhook signature verification |
-| `STRIPE_PRICE_BASIC/PRO/MAX` | gateway | Stripe price IDs for tier lookup |
+| `STRIPE_PRICE_STARTER/BASIC/PRO/MAX` | gateway | Stripe price IDs for tier lookup |
 | `LITELLM_MASTER_KEY` | both | LiteLLM admin API authentication |
 
 ## VM Operations

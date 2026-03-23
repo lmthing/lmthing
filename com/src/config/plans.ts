@@ -1,3 +1,6 @@
+// Adding a new tier? Update this file AND cloud/gateway/src/lib/tiers.ts + others.
+// See root CLAUDE.md § "Adding a New Tier" for the full checklist.
+
 export interface Plan {
   id: string
   name: string
@@ -20,6 +23,19 @@ export const plans: Plan[] = [
       'gpt-5.4-nano',
       '10K tokens/min, 60 req/min',
       'OpenAI-compatible API',
+    ],
+  },
+  {
+    id: 'starter',
+    name: 'Starter',
+    description: 'For personal projects and experimentation',
+    price: '$5',
+    period: 'per month',
+    features: [
+      '$5/month token budget',
+      'All free models',
+      '25K tokens/min, 150 req/min',
+      'Email support',
     ],
   },
   {

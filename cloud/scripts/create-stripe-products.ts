@@ -2,6 +2,10 @@
  * Create Stripe products and prices for LMThing tiers.
  * Idempotent — skips creation if prices with matching lookup_keys already exist.
  *
+ * Adding a new tier? Add it to the TIERS array below, then add the console.log
+ * for the env var output at the bottom. See root CLAUDE.md § "Adding a New Tier"
+ * for all other files that need updating.
+ *
  * Usage:
  *   STRIPE_SECRET_KEY=sk_live_xxx npx tsx scripts/create-stripe-products.ts
  */
@@ -17,6 +21,7 @@ interface TierConfig {
 }
 
 const TIERS: TierConfig[] = [
+  { lookupKey: "lmthing_starter", amount: 500, label: "Starter $5/month" },
   { lookupKey: "lmthing_basic", amount: 1000, label: "Basic $10/month" },
   { lookupKey: "lmthing_pro", amount: 2000, label: "Pro $20/month" },
   { lookupKey: "lmthing_max", amount: 10000, label: "Max $100/month" },
@@ -80,6 +85,7 @@ async function main() {
   }
 
   console.log("\n── Add these to your .env.secrets ──\n");
+  console.log(`STRIPE_PRICE_STARTER=${priceIds.lmthing_starter}`);
   console.log(`STRIPE_PRICE_BASIC=${priceIds.lmthing_basic}`);
   console.log(`STRIPE_PRICE_PRO=${priceIds.lmthing_pro}`);
   console.log(`STRIPE_PRICE_MAX=${priceIds.lmthing_max}`);

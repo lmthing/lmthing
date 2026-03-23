@@ -1,7 +1,7 @@
 ---
 title: Pro
 description: Full model access with higher token limits
-order: 2
+order: 3
 ---
 
 # Pro Tier

@@ -42,6 +42,11 @@ spec:
                 secretKeyRef:
                   name: lmthing-secrets
                   key: STRIPE_WEBHOOK_SECRET
+            - name: STRIPE_PRICE_STARTER
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: STRIPE_PRICE_STARTER
             - name: STRIPE_PRICE_BASIC
               valueFrom:
                 secretKeyRef:

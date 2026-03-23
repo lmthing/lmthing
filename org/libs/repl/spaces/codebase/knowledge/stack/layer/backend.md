@@ -48,18 +48,19 @@ app.get('/me', async (c) => {
 
 ### Stripe Integration
 
-- **Billing**: Subscription-based tiers (Free/Basic/Pro/Max)
+- **Billing**: Subscription-based tiers (Free/Starter/Basic/Pro/Max)
 - **Webhooks**: `webhook.ts` handles subscription created/updated/deleted → updates LiteLLM user tier
 - **No LLM proxy**: LLM metering is handled by LiteLLM budgets, not Stripe meter proxy
 
 ### Tiers
 
-| Tier  | Price      | Budget  | Reset   | Rate Limits          |
-|-------|------------|---------|---------|----------------------|
-| Free  | $0         | $1      | 7 days  | 10K tpm / 60 rpm     |
-| Basic | $10/month  | $10     | 30 days | 50K tpm / 300 rpm    |
-| Pro   | $20/month  | $20     | 30 days | 100K tpm / 1K rpm    |
-| Max   | $100/month | $100    | 30 days | 1M tpm / 5K rpm      |
+| Tier    | Price      | Budget  | Reset   | Rate Limits          |
+|---------|------------|---------|---------|----------------------|
+| Free    | $0         | $1      | 7 days  | 10K tpm / 60 rpm     |
+| Starter | $5/month   | $5      | 30 days | 25K tpm / 150 rpm    |
+| Basic   | $10/month  | $10     | 30 days | 50K tpm / 300 rpm    |
+| Pro     | $20/month  | $20     | 30 days | 100K tpm / 1K rpm    |
+| Max     | $100/month | $100    | 30 days | 1M tpm / 5K rpm      |
 
 ### Authentication Flow
 

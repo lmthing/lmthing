@@ -30,4 +30,4 @@ The free tier is ideal for exploring the platform, learning to build agents, and
 
 ## Upgrading
 
-When you need more tokens, premium models, or a Computer node, upgrade through the billing portal in com/ or via the create-checkout cloud endpoint.
+When you need more tokens, consider the Starter tier ($5/month) for a modest budget increase, or upgrade to higher tiers for premium models and a Computer node. Upgrade through the billing portal in com/ or via the create-checkout cloud endpoint.

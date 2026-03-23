@@ -17,12 +17,13 @@ Gateway ↔ Stripe (subscriptions) + Supabase Auth + LiteLLM Admin API
 
 All token costs include a 10% markup over Azure pricing.
 
-| Tier  | Price     | Budget  | Reset   | Rate Limits          |
-|-------|-----------|---------|---------|----------------------|
-| Free  | $0        | $1      | 7 days  | 10K tpm / 60 rpm     |
-| Basic | $10/month | $10     | 30 days | 50K tpm / 300 rpm    |
-| Pro   | $20/month | $20     | 30 days | 100K tpm / 1K rpm    |
-| Max   | $100/month| $100    | 30 days | 1M tpm / 5K rpm      |
+| Tier    | Price      | Budget  | Reset   | Rate Limits          |
+|---------|------------|---------|---------|----------------------|
+| Free    | $0         | $1      | 7 days  | 10K tpm / 60 rpm     |
+| Starter | $5/month   | $5      | 30 days | 25K tpm / 150 rpm    |
+| Basic   | $10/month  | $10     | 30 days | 50K tpm / 300 rpm    |
+| Pro     | $20/month  | $20     | 30 days | 100K tpm / 1K rpm    |
+| Max     | $100/month | $100    | 30 days | 1M tpm / 5K rpm      |
 
 ## Prerequisites
 

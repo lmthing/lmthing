@@ -17,7 +17,7 @@ data:
           # 10% markup — set these to (azure_cost * 1.1)
           # Example: if Azure charges $0.15/1M input, set 0.000000165
           input_cost_per_token: 0.000000165
-          output_cost_per_token: 0.00000066
+          output_cost_per_token: 0.00000165
 
       # ── Add more models as they become available ───────────
       # - model_name: grok-fast

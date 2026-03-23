@@ -14,10 +14,9 @@ billing.use("*", authMiddleware);
 // Create a Stripe Checkout session for tier upgrade
 billing.post("/checkout", async (c) => {
   const user = c.get("user");
-  const { tier, success_url, cancel_url } = await c.req.json<{
+  const { tier, return_url } = await c.req.json<{
     tier: string;
-    success_url?: string;
-    cancel_url?: string;
+    return_url?: string;
   }>();
 
   const targetTier = TIERS[tier];
@@ -41,15 +40,15 @@ billing.post("/checkout", async (c) => {
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     mode: "subscription",
+    ui_mode: "embedded",
     line_items: [{ price: targetTier.stripePriceId, quantity: 1 }],
-    success_url: success_url || `${BASE_URL}/api/billing/success`,
-    cancel_url: cancel_url || `${BASE_URL}/api/billing/cancel`,
+    return_url: return_url || `${BASE_URL}/checkout?session_id={CHECKOUT_SESSION_ID}`,
     subscription_data: {
       metadata: { user_id: user.id, tier },
     },
   });
 
-  return c.json({ url: session.url });
+  return c.json({ client_secret: session.client_secret });
 });
 
 // Create a Stripe Customer Portal session
@@ -103,17 +102,18 @@ billing.get("/usage", async (c) => {
   }
 });
 
-// Simple success/cancel pages
-billing.get("/success", (c) =>
-  c.html(
-    "<html><body><h1>Subscription activated!</h1><p>Your API keys have been upgraded. You can close this page.</p></body></html>",
-  ),
-);
+// GET /checkout/status — check checkout session result
+billing.get("/checkout/status", async (c) => {
+  const sessionId = c.req.query("session_id");
+  if (!sessionId) {
+    return c.json({ error: "session_id required" }, 400);
+  }
 
-billing.get("/cancel", (c) =>
-  c.html(
-    "<html><body><h1>Checkout cancelled</h1><p>No changes were made.</p></body></html>",
-  ),
-);
+  const session = await stripe.checkout.sessions.retrieve(sessionId);
+  return c.json({
+    status: session.status,
+    payment_status: session.payment_status,
+  });
+});
 
 export default billing;

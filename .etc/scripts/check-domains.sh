@@ -162,8 +162,9 @@ for entry in "${VM_DOMAINS[@]}"; do
   check_dns_tls_https "$domain" "$VM_IP"
 
   # Check cross-origin isolation headers (required for WebContainer)
-  coep=$(curl -sI --max-time 10 "https://$domain" 2>/dev/null | grep -i 'cross-origin-embedder-policy' | tr -d '\r')
-  coop=$(curl -sI --max-time 10 "https://$domain" 2>/dev/null | grep -i 'cross-origin-opener-policy' | tr -d '\r')
+  headers=$(curl -sI --max-time 10 "https://$domain" 2>/dev/null || true)
+  coep=$(echo "$headers" | grep -i 'cross-origin-embedder-policy' | tr -d '\r' || true)
+  coop=$(echo "$headers" | grep -i 'cross-origin-opener-policy' | tr -d '\r' || true)
   if echo "$coep" | grep -qi 'credentialless\|require-corp'; then
     pass "Cross-Origin-Embedder-Policy header present"
   else

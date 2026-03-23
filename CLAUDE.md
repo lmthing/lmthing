@@ -56,6 +56,7 @@ lmthing/
 - **Gateway** — Hono/Node.js service handling auth, API key management, billing (Stripe subscriptions), and webhooks.
 
 Key details:
+
 - **Users and all server-side data are stored in Supabase PostgreSQL** (profiles, LiteLLM tables), with Supabase Auth for user management.
 - **Billing and usage metering** are handled by Stripe subscriptions, orchestrated through the gateway.
 - **LLM requests** go through LiteLLM (`/v1/*`), which enforces per-user budgets and rate limits based on their tier (Free/Starter/Basic/Pro/Max).
@@ -274,38 +275,38 @@ The **sole backend** for all lmthing products. Runs on K3s (lightweight Kubernet
 
 **Tiers:**
 
-| Tier    | Price      | Budget  | Reset   | Rate Limits          |
-|---------|------------|---------|---------|----------------------|
-| Free    | $0         | $1      | 7 days  | 10K tpm / 60 rpm     |
-| Starter | $5/month   | $5      | 30 days | 25K tpm / 150 rpm    |
-| Basic   | $10/month  | $10     | 30 days | 50K tpm / 300 rpm    |
-| Pro     | $20/month  | $20     | 30 days | 100K tpm / 1K rpm    |
-| Max     | $100/month | $100    | 30 days | 1M tpm / 5K rpm      |
+| Tier    | Price      | Budget | Reset   | Rate Limits       |
+| ------- | ---------- | ------ | ------- | ----------------- |
+| Free    | $0         | $1     | 7 days  | 10K tpm / 60 rpm  |
+| Starter | $5/month   | $5     | 30 days | 25K tpm / 150 rpm |
+| Basic   | $10/month  | $10    | 30 days | 50K tpm / 300 rpm |
+| Pro     | $20/month  | $20    | 30 days | 100K tpm / 1K rpm |
+| Max     | $100/month | $100   | 30 days | 1M tpm / 5K rpm   |
 
 Adding a new tier touches files across the monorepo — see [Adding a New Tier](#adding-a-new-tier) below.
 
 **Gateway API routes:**
 
-| Route                          | Method | Auth       | Purpose                                      |
-| ------------------------------ | ------ | ---------- | -------------------------------------------- |
-| `/api/auth/register`           | POST   | Public     | Register → returns API key                   |
-| `/api/auth/login`              | POST   | Public     | Login → returns JWT + refresh token          |
-| `/api/auth/oauth/url`          | GET    | Public     | Get Supabase OAuth URL (GitHub/Google)       |
-| `/api/auth/oauth/callback`     | GET    | Public     | OAuth callback (Supabase redirect)           |
-| `/api/auth/provision`          | POST   | JWT        | Provision LiteLLM user + Stripe customer     |
-| `/api/auth/refresh`            | POST   | Public     | Refresh access token                         |
-| `/api/auth/me`                 | GET    | JWT        | User info + tier                             |
-| `/api/auth/sso/create`         | POST   | JWT        | Generate SSO authorization code              |
-| `/api/auth/sso/exchange`       | POST   | Public     | Exchange SSO code for session                |
-| `/api/keys`                    | GET    | JWT        | List API keys                                |
-| `/api/keys`                    | POST   | JWT        | Create API key                               |
-| `/api/keys/:token`             | DELETE | JWT        | Revoke API key                               |
-| `/api/billing/checkout`        | POST   | JWT        | Stripe checkout session                      |
-| `/api/billing/portal`          | POST   | JWT        | Stripe billing portal                        |
-| `/api/billing/usage`           | GET    | JWT        | Budget usage info                            |
-| `/api/stripe/webhook`          | POST   | Stripe sig | Subscription events → tier changes           |
-| `/v1/chat/completions`         | POST   | API key    | OpenAI-compatible chat (via LiteLLM)         |
-| `/v1/models`                   | GET    | API key    | Available models (via LiteLLM)               |
+| Route                      | Method | Auth       | Purpose                                  |
+| -------------------------- | ------ | ---------- | ---------------------------------------- |
+| `/api/auth/register`       | POST   | Public     | Register → returns API key               |
+| `/api/auth/login`          | POST   | Public     | Login → returns JWT + refresh token      |
+| `/api/auth/oauth/url`      | GET    | Public     | Get Supabase OAuth URL (GitHub/Google)   |
+| `/api/auth/oauth/callback` | GET    | Public     | OAuth callback (Supabase redirect)       |
+| `/api/auth/provision`      | POST   | JWT        | Provision LiteLLM user + Stripe customer |
+| `/api/auth/refresh`        | POST   | Public     | Refresh access token                     |
+| `/api/auth/me`             | GET    | JWT        | User info + tier                         |
+| `/api/auth/sso/create`     | POST   | JWT        | Generate SSO authorization code          |
+| `/api/auth/sso/exchange`   | POST   | Public     | Exchange SSO code for session            |
+| `/api/keys`                | GET    | JWT        | List API keys                            |
+| `/api/keys`                | POST   | JWT        | Create API key                           |
+| `/api/keys/:token`         | DELETE | JWT        | Revoke API key                           |
+| `/api/billing/checkout`    | POST   | JWT        | Stripe checkout session                  |
+| `/api/billing/portal`      | POST   | JWT        | Stripe billing portal                    |
+| `/api/billing/usage`       | GET    | JWT        | Budget usage info                        |
+| `/api/stripe/webhook`      | POST   | Stripe sig | Subscription events → tier changes       |
+| `/v1/chat/completions`     | POST   | API key    | OpenAI-compatible chat (via LiteLLM)     |
+| `/v1/models`               | GET    | API key    | Available models (via LiteLLM)           |
 
 **Gateway libraries** in `gateway/src/lib/`: `litellm.ts` (LiteLLM admin API client), `stripe.ts` (Stripe client), `tiers.ts` (tier definitions + model lists).
 
@@ -351,125 +352,6 @@ graph TB
     GatewaySvc --> SupaAuth
     GatewaySvc --> Stripe
     GatewaySvc --> DB
-```
-
----
-
-## Authentication
-
-Authentication is handled through **com/** (the central auth hub) which talks to the **cloud gateway API**. com/ has its own login/signup UI and uses the cloud gateway's auth routes (which proxy Supabase Auth). Other lmthing.* apps use cross-domain SSO via com/.
-
-**Auth providers**: Email/password, GitHub OAuth, and Google OAuth (all via Supabase Auth, proxied through the gateway).
-
-**com/ auth flow** (direct):
-1. User visits com/ → signs up or logs in via `/api/auth/register`, `/api/auth/login`, or OAuth
-2. OAuth flow: gateway returns Supabase OAuth URL → user authenticates → Supabase redirects to com/callback with tokens in hash fragment
-3. com/callback stores JWT + refresh token, calls `/api/auth/provision` to create LiteLLM user + Stripe customer + API key
-4. Token refresh handled automatically via `cloudFetch()` in `com/src/lib/cloud.ts`
-
-**Cross-domain SSO flow** (other apps via `@lmthing/auth` library):
-1. App detects no session → redirects to `com/auth/sso`
-2. com/ checks for active session (redirects to `/login` if none)
-3. com/ calls `/api/auth/sso/create` to generate a single-use auth code (60s TTL)
-4. Redirects back to the app with `?code=...&state=...`
-5. App exchanges the code for a session via `/api/auth/sso/exchange`
-
-**Backend auth** — Supabase JWT (browser) or LiteLLM API key (SDK/scripts), verified by the gateway's auth middleware (`gateway/src/middleware/auth.ts`).
-
-```mermaid
-flowchart TD
-    subgraph Apps["Frontend Apps"]
-        Studio["studio"]
-        Computer["computer"]
-        Chat["chat"]
-        Other["other apps"]
-    end
-
-    subgraph Com["com/ (Central Auth Hub)"]
-        CloudTS["cloud.ts<br/>JWT + refresh tokens"]
-        AuthProv["AuthProvider<br/>signIn · signUp · OAuth"]
-        CloudTS --> AuthProv
-    end
-
-    subgraph Gateway["Cloud Gateway"]
-        AuthRoutes["/api/auth/*<br/>Register · Login · OAuth · SSO"]
-        SupaAuth["Supabase Auth<br/>Email + GitHub + Google"]
-        AuthRoutes --> SupaAuth
-    end
-
-    subgraph Backend["Backend Auth"]
-        JWT["Bearer JWT<br/>(Supabase Auth)"]
-        APIKey["Bearer sk-*<br/>(LiteLLM API Key)"]
-        JWT --> Verify["gateway middleware"]
-        APIKey --> LiteLLM["LiteLLM verification"]
-    end
-
-    Apps -- "SSO redirect" --> Com
-    Com -- "SSO code" --> Apps
-    Com -- "REST" --> Gateway
-    Apps -- "Authorization header" --> Backend
-```
-
-### Integrating Auth in a New Service
-
-To add authentication to a new lmthing.\* app:
-
-**1. Add the dependency:**
-
-```bash
-cd your-app/
-pnpm add "@lmthing/auth@workspace:*"
-```
-
-**2. Wrap your app with `AuthProvider`:**
-
-```tsx
-// src/routes/__root.tsx (or equivalent entry point)
-import { AuthProvider, useAuth } from "@lmthing/auth";
-
-function AuthGate({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
-  if (isLoading) return null;
-  if (!isAuthenticated) {
-    // Redirect to com/ for login, or show a login button
-    return <LoginScreen />;
-  }
-  return <>{children}</>;
-}
-
-function RootComponent() {
-  return (
-    <AuthProvider appName="your-app-name">
-      <AuthGate>
-        <Outlet />
-      </AuthGate>
-    </AuthProvider>
-  );
-}
-```
-
-**3. Use `useAuth()` anywhere in your app:**
-
-```tsx
-const { username, isAuthenticated, isLoading, login, logout } = useAuth();
-```
-
-- `login()` — redirects to com/ for SSO login
-- `logout()` — clears the local session
-- `username` — the user's email
-- `session.accessToken` — JWT for calling cloud functions
-
-**4. Ensure the Vite alias is registered** in `org/libs/utils/src/vite.mjs`:
-
-```js
-'@lmthing/auth': path.resolve(dirname, '../org/libs/auth/src'),
-```
-
-**5. Environment variables** (optional overrides — defaults are auto-resolved):
-
-```
-VITE_COM_URL=https://com.local       # defaults: com.local (dev) / lmthing.com (prod)
-VITE_CLOUD_URL=https://cloud.local   # defaults: cloud.local (dev) / lmthing.cloud (prod)
 ```
 
 ---
@@ -632,209 +514,6 @@ All frontend apps share the same stack:
 
 ---
 
-## Deploying SPA Services
-
-All frontend apps are static SPAs deployed to **GitHub Pages** via separate repos. Each SPA gets its own GitHub repo (e.g., `lmthing/studio`, `lmthing/chat`, `lmthing/com`) that exists solely to host a GitHub Pages site. The repo contains only a `.github/workflows/deploy.yml` — no source code.
-
-**How it works:**
-
-1. Push to `main` in the monorepo triggers a **dispatch workflow** (e.g., `.github/workflows/dispatch-studio.yml`)
-2. The dispatch workflow fires a `repository_dispatch` event to the target repo (e.g., `lmthing/studio`)
-3. The target repo's `deploy.yml` checks out the **monorepo**, builds the specific app, and deploys to its own GitHub Pages
-
-**SPA fallback (404.html):** GitHub Pages doesn't natively support client-side routing. When a user navigates to a deep link like `/dashboard`, GitHub returns a 404. By copying `index.html` to `404.html`, GitHub Pages serves the app shell on any route, and the client-side router (TanStack Router) handles the path.
-
-### Workflow Files
-
-| File (monorepo) | Purpose |
-|---|---|
-| `.github/workflows/dispatch-studio.yml` | Trigger `lmthing/studio` deploy on push to main |
-| `.github/workflows/dispatch-chat.yml` | Trigger `lmthing/chat` deploy on push to main |
-| `.github/workflows/dispatch-com.yml` | Trigger `lmthing/com` deploy on push to main |
-| `.github/workflows/dispatch-store.yml` | Trigger `lmthing/store` deploy on push to main |
-| `.github/workflows/dispatch-team.yml` | Trigger `lmthing/team` deploy on push to main |
-| `.github/workflows/dispatch-social.yml` | Trigger `lmthing/social` deploy on push to main |
-| `.github/workflows/dispatch-space.yml` | Trigger `lmthing/space` deploy on push to main |
-| `.github/workflows/dispatch-computer.yml` | Trigger `lmthing/computer` deploy on push to main |
-
-| File (target repo) | Purpose |
-|---|---|
-| `lmthing/studio:.github/workflows/deploy.yml` | Build studio from monorepo, deploy to `lmthing/studio` Pages |
-| `lmthing/chat:.github/workflows/deploy.yml` | Build chat from monorepo, deploy to `lmthing/chat` Pages |
-| `lmthing/com:.github/workflows/deploy.yml` | Build com from monorepo, deploy to `lmthing/com` Pages |
-| `lmthing/store:.github/workflows/deploy.yml` | Build store from monorepo, deploy to `lmthing/store` Pages |
-| `lmthing/team:.github/workflows/deploy.yml` | Build team from monorepo, deploy to `lmthing/team` Pages |
-| `lmthing/social:.github/workflows/deploy.yml` | Build social from monorepo, deploy to `lmthing/social` Pages |
-| `lmthing/space:.github/workflows/deploy.yml` | Build space from monorepo, deploy to `lmthing/space` Pages |
-| `lmthing/computer:.github/workflows/deploy.yml` | Build computer from monorepo, deploy to `lmthing/computer` Pages |
-
-### Domain Health Check
-
-Run `.etc/scripts/check-domains.sh` to verify all lmthing.\* domains are correctly configured. It checks:
-
-- **DNS** — A records point to GitHub Pages IPs (185.199.{108–111}.153)
-- **TLS** — Let's Encrypt certificate is provisioned for the domain (not the generic `*.github.io` wildcard)
-- **HTTPS** — site responds (200 = deployed, 404 = not yet deployed)
-- **GitHub Pages config** — custom domain set, build source is Actions workflow, HTTPS enforcement enabled
-- **Dispatch workflow** — `dispatch-{app}.yml` exists in the monorepo
-
-```bash
-.etc/scripts/check-domains.sh
-```
-
-### Adding a New SPA Deployment
-
-To deploy a new app (e.g., `blog` at lmthing.blog):
-
-**1. Create the target repo** on GitHub: `lmthing/blog` (empty, with Pages enabled).
-
-**2. Add the deploy workflow** to the target repo at `.github/workflows/deploy.yml`:
-
-```yaml
-name: Deploy to lmthing.blog
-
-on:
-  repository_dispatch:
-    types: [deploy-blog]
-  workflow_dispatch:
-
-permissions:
-  contents: write
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: false
-
-jobs:
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          repository: lmthing/lmthing
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up pnpm via Corepack
-        run: |
-          corepack enable
-          corepack prepare pnpm@10.17.1 --activate
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build blog
-        run: pnpm --filter @lmthing/blog build
-
-      - name: SPA fallback
-        run: cp blog/dist/index.html blog/dist/404.html
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: blog/dist
-
-  deploy:
-    name: Deploy
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to lmthing.blog
-        id: deployment
-        uses: actions/deploy-pages@v4
-```
-
-If the app needs build-time env vars (like com needs `VITE_STRIPE_PUBLISHABLE_KEY`), add them to the build step via `env:` and configure them as repo secrets.
-
-**3. Add the dispatch workflow** to the monorepo at `.github/workflows/dispatch-blog.yml`:
-
-```yaml
-name: Trigger blog deploy
-
-on:
-  push:
-    branches:
-      - main
-
-jobs:
-  dispatch:
-    name: Dispatch to lmthing/blog
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger deploy
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.DISPATCH_TOKEN }}
-          repository: lmthing/blog
-          event-type: deploy-blog
-```
-
-**4. Configure the target repo:**
-- Enable GitHub Pages (Settings → Pages → Source: GitHub Actions)
-- Add custom domain `lmthing.blog` (Settings → Pages → Custom domain)
-- Add `DISPATCH_TOKEN` as a monorepo secret if not already present (a PAT with `repo` scope)
-
----
-
-## Adding a New Tier
-
-Tiers are a cross-cutting concern spanning backend, frontend, infra, knowledge base, and documentation. Here is every file that must be updated, grouped by area.
-
-### Backend (`cloud/`)
-
-1. **`cloud/gateway/src/lib/tiers.ts`** — Add the tier to the `TIERS` object in order. Define `name`, `stripePriceId` (env var), `budget`, `budgetDuration`, `models`, `tpmLimit`, `rpmLimit`. No other backend code changes needed — routes and helpers iterate `TIERS` dynamically.
-
-2. **`cloud/scripts/create-stripe-products.ts`** — Add to the `TIERS` array with `lookupKey`, `amount` (cents), `label`. Add the `console.log` line for the env var output. Run the script to create the Stripe price.
-
-3. **`cloud/.env.example`** + **`cloud/k8s/.env.secrets.example`** — Add `STRIPE_PRICE_YOURTIER=price_xxx` placeholder.
-
-4. **`cloud/k8s/gateway.yaml`** — Add `STRIPE_PRICE_YOURTIER` env var entry referencing the `lmthing-secrets` secret.
-
-### Frontend (`com/`)
-
-5. **`com/src/config/plans.ts`** — Add the plan to the `plans` array (renders left to right on the pricing page). Set `highlighted: true` on the recommended plan.
-
-### THING Knowledge Base (`org/libs/thing/`)
-
-6. **`org/libs/thing/spaces/space-ecosystem/knowledge/billing-context/plan-tier/yourtier.md`** — Create a knowledge file with frontmatter (`title`, `description`, `order`) describing the tier.
-
-7. **`org/libs/thing/spaces/space-ecosystem/knowledge/billing-context/plan-tier/config.json`** — Add the tier slug to the `options` array.
-
-8. Bump `order` in any existing tier `.md` files that come after the new one. Update adjacent tiers' upgrade/downgrade text if needed.
-
-### Documentation
-
-9. Update tier tables and `(Free/Starter/Basic/Pro/Max)` references in:
-   - `CLAUDE.md` (root)
-   - `cloud/CLAUDE.md` — tier table + env var table
-   - `cloud/README.md`
-   - `com/CLAUDE.md` — tier count
-   - `org/libs/repl/spaces/codebase/knowledge/stack/layer/backend.md`
-
-### Deploy
-
-10. Run `create-stripe-products.ts` → add price ID to `.env.secrets` → sync secrets, `gateway.yaml`, and gateway code to VM → `kubectl apply` the manifest → rebuild and restart gateway. You must apply the updated `gateway.yaml`, not just restart — a restart won't pick up new env var entries in the manifest.
-
-For detailed code examples and deploy commands, see `cloud/CLAUDE.md` § "Adding a New Tier".
-
----
-
 ## Useful Links
 
 - [Architecture.md](./Architecture.md) — full product & domain architecture
@@ -844,6 +523,16 @@ For detailed code examples and deploy commands, see `cloud/CLAUDE.md` § "Adding
 - [org/libs/css/](./org/libs/css/) — shared styles
 - [org/libs/ui/](./org/libs/ui/) — shared UI components
 - [org/libs/thing/](./org/libs/thing/) — THING agent system studio (built-in spaces)
+
+---
+
+## Skills Reference
+
+| Topic | Skill File |
+|-------|-----------|
+| SPA deployment to GitHub Pages, adding new deployments, domain health checks | [deploy-spa.md](.claude/skills/deploy-spa.md) |
+| Adding a new pricing tier (cross-cutting checklist) | [add-tier.md](.claude/skills/add-tier.md) |
+| Auth flows, SSO, gateway routes, integrating auth in new services | [authentication.md](.claude/skills/authentication.md) |
 
 # Agent Notes
 

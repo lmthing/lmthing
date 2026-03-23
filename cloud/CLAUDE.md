@@ -339,13 +339,28 @@ Update tier tables in all of these files:
 
 ### 8. Deploy
 
-```bash
-# Update secrets on VM
-rsync k8s/.env.secrets → VM, recreate k8s secret
+Adding a new tier changes secrets (`.env.secrets`), K8s manifests (`gateway.yaml`), and gateway code (`tiers.ts`). All three must be synced to the VM.
 
-# Redeploy gateway (code + env change)
-rsync gateway/src/ → VM, docker build, rollout restart gateway
+```bash
+# 1. Sync secrets, K8s manifests, and gateway code to VM
+rsync -avz --include='.env.secrets' --exclude='*' \
+  -e "ssh -i ~/LMTHING/litellm_key.pem" cloud/k8s/ azureuser@135.116.57.95:~/cloud/k8s/
+scp -i ~/LMTHING/litellm_key.pem cloud/k8s/gateway.yaml azureuser@135.116.57.95:~/cloud/k8s/
+rsync -avz --exclude='node_modules' \
+  -e "ssh -i ~/LMTHING/litellm_key.pem" cloud/gateway/src/ azureuser@135.116.57.95:~/cloud/gateway/src/
+
+# 2. On VM: recreate secret, apply manifest, rebuild + restart gateway
+ssh -i ~/LMTHING/litellm_key.pem azureuser@135.116.57.95 "cd ~/cloud && \
+  sudo k3s kubectl create secret generic lmthing-secrets \
+    --from-env-file=k8s/.env.secrets --namespace=lmthing \
+    --dry-run=client -o yaml | sudo k3s kubectl apply -f - && \
+  sudo k3s kubectl apply -f k8s/gateway.yaml && \
+  cd gateway && sudo docker build -t lmthing/gateway:latest . && \
+  sudo docker save lmthing/gateway:latest | sudo k3s ctr images import - && \
+  sudo k3s kubectl -n lmthing rollout restart deployment/gateway"
 ```
+
+**Important:** You must `kubectl apply` the updated `gateway.yaml` — not just restart the deployment. Restarting only re-reads secrets; it does not pick up new env var entries added to the manifest. If you skip this step, the new `STRIPE_PRICE_*` env var will exist in the secret but won't be injected into the container.
 
 ## Gotchas
 

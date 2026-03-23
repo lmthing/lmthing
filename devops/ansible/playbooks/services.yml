@@ -1,0 +1,16 @@
+---
+- name: Deploy lmthing cloud services
+  hosts: kube_control_plane[0]
+  become: true
+  gather_facts: true
+  vars_files:
+    - ../vault.yml
+  roles:
+    - role: envoy_gateway
+      tags: [infra, envoy]
+    - role: cloud_build_images
+      tags: [images]
+    - role: cloud_apply_manifests
+      tags: [manifests]
+    - role: cloud_compute
+      tags: [compute]

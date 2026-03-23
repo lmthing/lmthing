@@ -1,0 +1,24 @@
+---
+# The RBAC resources (ServiceAccount, ClusterRole, ClusterRoleBinding) are already
+# applied as part of gateway.yaml in cloud_apply_manifests. This role handles
+# the compute-specific setup: pod template ConfigMap for the gateway app.
+
+- name: Create compute pod template ConfigMap
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: compute-pod-template
+        namespace: lmthing
+      data:
+        user-pod-template.yaml: |
+          {{ lookup('file', playbook_dir + '/../k8s/compute/user-pod-template.yaml') | indent(10) }}
+
+- name: Verify compute image is available
+  ansible.builtin.command:
+    cmd: ctr -n k8s.io images check name==docker.io/lmthing/compute:latest
+  register: compute_image_check
+  failed_when: compute_image_check.rc != 0
+  changed_when: false

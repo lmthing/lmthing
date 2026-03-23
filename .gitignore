@@ -46,3 +46,19 @@ devops/ansible/.cache/
 devops/ansible/.venv/
 devops/ansible/inventory/*/artifacts/
 *.retry
+
+# Terraform
+devops/terraform/.terraform/
+devops/terraform/*.tfstate
+devops/terraform/*.tfstate.backup
+devops/terraform/.terraform.lock.hcl
+devops/terraform/terraform.tfvars
+devops/terraform/generated/
+
+# DevOps secrets and rendered templates
+devops/ansible/k8s/.env.secrets
+devops/ansible/k8s/envoy/cloud-gateway.yaml
+devops/ansible/k8s/envoy/cloud-routes.yaml
+devops/ansible/k8s/envoy/computer-gateway.yaml
+devops/ansible/k8s/envoy/computer-routes.yaml
+devops/ansible/k8s/envoy/tls-certificates.yaml

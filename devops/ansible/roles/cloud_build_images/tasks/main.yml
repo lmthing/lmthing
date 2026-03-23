@@ -1,0 +1,73 @@
+---
+- name: Create build directory on node
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - /tmp/lmthing-build/gateway
+    - /tmp/lmthing-build/computer
+    - /tmp/lmthing-build/compute
+
+# ── Gateway image ──────────────────────────────────────────────
+- name: Sync gateway source to node
+  ansible.builtin.copy:
+    src: "{{ gateway_src | default(playbook_dir + '/../../../cloud/gateway/') }}"
+    dest: /tmp/lmthing-build/gateway/
+    mode: "0644"
+
+- name: Build gateway Docker image
+  ansible.builtin.command:
+    cmd: docker build -t lmthing/gateway:latest .
+    chdir: /tmp/lmthing-build/gateway
+
+- name: Export and import gateway image into containerd
+  ansible.builtin.shell: |
+    docker save lmthing/gateway:latest | ctr -n k8s.io images import -
+  changed_when: true
+
+# ── Computer SPA image ─────────────────────────────────────────
+- name: Sync computer source to node
+  ansible.builtin.copy:
+    src: "{{ computer_src | default(playbook_dir + '/../../../computer/') }}"
+    dest: /tmp/lmthing-build/computer/
+    mode: "0644"
+
+- name: Build computer Docker image
+  ansible.builtin.command:
+    cmd: docker build -t lmthing/computer:latest .
+    chdir: /tmp/lmthing-build/computer
+
+- name: Export and import computer image into containerd
+  ansible.builtin.shell: |
+    docker save lmthing/computer:latest | ctr -n k8s.io images import -
+  changed_when: true
+
+# ── Compute runtime image (Bun + @lmthing/repl) ───────────────
+- name: Sync compute Dockerfile to node
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../k8s/compute/Dockerfile"
+    dest: /tmp/lmthing-build/compute/Dockerfile
+    mode: "0644"
+
+- name: Sync repl source to node
+  ansible.builtin.copy:
+    src: "{{ repl_src | default(playbook_dir + '/../../../org/libs/repl/') }}"
+    dest: /tmp/lmthing-build/compute/org/libs/repl/
+    mode: "0644"
+
+- name: Build compute runtime Docker image
+  ansible.builtin.command:
+    cmd: docker build -t lmthing/compute:latest -f Dockerfile .
+    chdir: /tmp/lmthing-build/compute
+
+- name: Export and import compute image into containerd
+  ansible.builtin.shell: |
+    docker save lmthing/compute:latest | ctr -n k8s.io images import -
+  changed_when: true
+
+# ── Cleanup ────────────────────────────────────────────────────
+- name: Clean up build directory
+  ansible.builtin.file:
+    path: /tmp/lmthing-build
+    state: absent

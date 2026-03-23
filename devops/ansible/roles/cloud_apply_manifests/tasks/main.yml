@@ -1,0 +1,115 @@
+---
+- name: Create manifest directory on node
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - /tmp/lmthing-manifests/k8s
+    - /tmp/lmthing-manifests/k8s/envoy
+    - /tmp/lmthing-manifests/migrations
+
+# ── Sync files to node ─────────────────────────────────────────
+- name: Sync core K8s manifests
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../k8s/{{ item }}"
+    dest: "/tmp/lmthing-manifests/k8s/{{ item }}"
+    mode: "0644"
+  loop:
+    - namespace.yaml
+    - litellm.yaml
+    - gateway.yaml
+    - computer.yaml
+    - kustomization.yaml
+
+- name: Sync Envoy Gateway manifests (static)
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../k8s/envoy/{{ item }}"
+    dest: "/tmp/lmthing-manifests/k8s/envoy/{{ item }}"
+    mode: "0644"
+  loop:
+    - computer-policies.yaml
+    - reference-grants.yaml
+
+- name: Sync Envoy Gateway templates
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../k8s/envoy/{{ item }}"
+    dest: "/tmp/lmthing-manifests/k8s/envoy/{{ item }}"
+    mode: "0644"
+  loop:
+    - cloud-gateway.yaml.tpl
+    - cloud-routes.yaml.tpl
+    - computer-gateway.yaml.tpl
+    - computer-routes.yaml.tpl
+    - tls-certificates.yaml.tpl
+
+- name: Sync database migrations
+  ansible.builtin.copy:
+    src: "{{ migrations_src | default(playbook_dir + '/../../../cloud/migrations/') }}"
+    dest: /tmp/lmthing-manifests/migrations/
+    mode: "0644"
+
+# ── Create secrets from Ansible Vault ──────────────────────────
+- name: Create .env.secrets from vault variables
+  ansible.builtin.template:
+    src: env-secrets.j2
+    dest: /tmp/lmthing-manifests/k8s/.env.secrets
+    mode: "0600"
+
+# ── Database migrations ────────────────────────────────────────
+- name: Run database migrations
+  ansible.builtin.shell: |
+    for f in /tmp/lmthing-manifests/migrations/*.sql; do
+      [ -f "$f" ] && PGPASSWORD="{{ vault_db_password }}" psql "{{ vault_database_url }}" -f "$f" 2>&1 || true
+    done
+  changed_when: true
+  no_log: true
+
+# ── Render templates ───────────────────────────────────────────
+- name: Render .yaml.tpl templates with envsubst
+  ansible.builtin.shell: |
+    export DOMAIN="{{ vault_domain }}"
+    export COMPUTER_DOMAIN="{{ vault_computer_domain }}"
+    export ACME_EMAIL="{{ vault_acme_email }}"
+    envsubst < "/tmp/lmthing-manifests/k8s/envoy/{{ item }}.tpl" \
+             > "/tmp/lmthing-manifests/k8s/envoy/{{ item }}"
+  loop:
+    - cloud-gateway.yaml
+    - cloud-routes.yaml
+    - computer-gateway.yaml
+    - computer-routes.yaml
+    - tls-certificates.yaml
+  changed_when: true
+
+# ── Apply core services ────────────────────────────────────────
+- name: Apply core services via kustomize
+  ansible.builtin.command:
+    cmd: kubectl apply -k /tmp/lmthing-manifests/k8s/
+
+# ── Apply Envoy Gateway resources ──────────────────────────────
+- name: Apply Envoy Gateway resources
+  ansible.builtin.command:
+    cmd: "kubectl apply -f /tmp/lmthing-manifests/k8s/envoy/{{ item }}"
+  loop:
+    - reference-grants.yaml
+    - tls-certificates.yaml
+    - cloud-gateway.yaml
+    - cloud-routes.yaml
+    - computer-gateway.yaml
+    - computer-routes.yaml
+    - computer-policies.yaml
+
+# ── Wait for rollouts ──────────────────────────────────────────
+- name: Wait for core service rollouts
+  ansible.builtin.command:
+    cmd: "kubectl -n lmthing rollout status deployment/{{ item }} --timeout=120s"
+  loop:
+    - litellm
+    - gateway
+    - computer
+
+# ── Cleanup ────────────────────────────────────────────────────
+- name: Clean up manifests directory
+  ansible.builtin.file:
+    path: /tmp/lmthing-manifests
+    state: absent

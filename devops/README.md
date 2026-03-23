@@ -1,40 +1,395 @@
-# DevOps
+# DevOps — lmthing Infrastructure
 
-Infrastructure automation for `lmthing` lives here. The initial setup focuses on bringing up a Kubernetes cluster with Kubespray while keeping the node inventory static and versioned in this repository.
+Full infrastructure lifecycle for the lmthing platform: Azure VM provisioning (Terraform), Kubernetes cluster setup (Kubespray), and cloud service deployment (Ansible) with Envoy Gateway ingress, cert-manager TLS, and per-user compute pods.
+
+## Full Pipeline
+
+```mermaid
+graph LR
+    subgraph TF["1. Terraform"]
+        VM["Azure VM<br/>Ubuntu 24.04<br/>VNet · NSG · Public IP"]
+    end
+    subgraph KS["2. Kubespray"]
+        K8s["Kubernetes Cluster<br/>containerd · MetalLB<br/>cert-manager · Helm"]
+    end
+    subgraph AN["3. Ansible"]
+        SVC["Cloud Services<br/>Envoy Gateway · LiteLLM<br/>Gateway · Compute Pods"]
+    end
+    TF -->|"generate-inventory.sh"| KS
+    KS -->|"make cluster"| AN
+    AN -->|"make deploy"| Done["Ready"]
+```
+
+## Infrastructure Overview
+
+```mermaid
+graph TB
+    subgraph Internet["Internet"]
+        Users["Users / Clients"]
+    end
+
+    subgraph Azure["Azure VM — 135.225.105.98"]
+        subgraph K8s["Kubernetes (Kubespray)"]
+            subgraph MetalLB["MetalLB Layer 2"]
+                LB["LoadBalancer<br/>:80 / :443"]
+            end
+
+            subgraph EGSystem["envoy-gateway-system"]
+                EGCtrl["Envoy Gateway<br/>Controller"]
+            end
+
+            subgraph GatewayNS["gateway namespace"]
+                CloudGW["cloud-gw<br/>Gateway"]
+                ComputerGW["computer-gw<br/>Gateway"]
+                CloudRoutes["HTTPRoutes<br/>/v1/* · /api/*"]
+                ComputerRoutes["HTTPRoutes<br/>/api/* · /*"]
+                Policies["Lua Routing<br/>+ JWT Validation"]
+                Certs["cert-manager<br/>Certificates"]
+            end
+
+            subgraph LmthingNS["lmthing namespace"]
+                LiteLLM["LiteLLM<br/>:4000"]
+                Gateway["Gateway/Hono<br/>:3000"]
+                Computer["Computer SPA<br/>:80"]
+                Secrets["K8s Secret<br/>lmthing-secrets"]
+            end
+
+            subgraph UserNS["user-{id} namespaces"]
+                Pod1["user-abc123<br/>Bun + REPL :8080"]
+                Pod2["user-def456<br/>Bun + REPL :8080"]
+                PodN["..."]
+            end
+        end
+    end
+
+    subgraph External["External Services"]
+        AzureAI["Azure AI Foundry"]
+        Supabase["Supabase<br/>Auth + PostgreSQL"]
+        Stripe["Stripe<br/>Billing"]
+        LE["Let's Encrypt<br/>ACME"]
+    end
+
+    Users --> LB
+    LB --> CloudGW
+    LB --> ComputerGW
+    EGCtrl -.-> CloudGW
+    EGCtrl -.-> ComputerGW
+    CloudGW --> CloudRoutes
+    ComputerGW --> ComputerRoutes
+    CloudRoutes --> LiteLLM
+    CloudRoutes --> Gateway
+    ComputerRoutes --> Computer
+    ComputerRoutes --> Policies
+    Policies --> Pod1
+    Policies --> Pod2
+    Certs --> LE
+    LiteLLM --> AzureAI
+    LiteLLM --> Supabase
+    Gateway --> Supabase
+    Gateway --> Stripe
+```
+
+## Routing
+
+```mermaid
+graph LR
+    subgraph CloudDomain["lmthing.cloud"]
+        direction TB
+        C80["HTTP :80"] -->|301 redirect| C443["HTTPS :443"]
+        C443 -->|"/v1/*"| LiteLLM["LiteLLM :4000<br/>OpenAI-compatible proxy"]
+        C443 -->|"/api/*"| GW["Gateway :3000<br/>Auth · Keys · Billing"]
+    end
+
+    subgraph ComputerDomain["lmthing.computer"]
+        direction TB
+        D80["HTTP :80"] -->|301 redirect| D443["HTTPS :443"]
+        D443 -->|"/api/*"| JWT{"JWT Validation<br/>(Supabase)"}
+        JWT -->|"sub → x-user-id"| Lua{"Lua Script"}
+        Lua -->|"user-{id}.svc:8080"| UserPod["Per-User Pod<br/>Bun + REPL"]
+        D443 -->|"/*"| SPA["Computer SPA<br/>Static Frontend"]
+    end
+```
+
+## Per-User Compute
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Stripe
+    participant Gateway as Gateway/Hono
+    participant K8sAPI as K8s API
+    participant Pod as user-{id} Pod
+
+    Note over User,Pod: Provisioning (Pro tier subscription)
+    User->>Stripe: Subscribe to Pro tier
+    Stripe->>Gateway: Webhook: subscription.created
+    Gateway->>K8sAPI: Create Namespace user-{id}
+    Gateway->>K8sAPI: Create Deployment + Service
+    K8sAPI-->>Pod: Pod starts (Bun + @lmthing/repl)
+
+    Note over User,Pod: Runtime (authenticated requests)
+    User->>Gateway: GET lmthing.computer/api/...
+    Note right of Gateway: Envoy validates JWT,<br/>Lua routes to user pod
+    Gateway->>Pod: Proxied request
+    Pod-->>User: Response (WebSocket / HTTP)
+
+    Note over User,Pod: Teardown (subscription cancelled)
+    Stripe->>Gateway: Webhook: subscription.deleted
+    Gateway->>K8sAPI: Delete Namespace user-{id}
+    K8sAPI-->>Pod: Pod terminated
+```
+
+## Deployment Pipeline
+
+```mermaid
+graph TD
+    subgraph Local["Local Machine"]
+        Code["Source Code<br/>cloud/ · computer/ · org/libs/repl/"]
+        Vault["vault.yml<br/>(Ansible Vault)"]
+    end
+
+    subgraph Ansible["make deploy"]
+        R1["1. envoy_gateway<br/>Helm install Envoy Gateway"]
+        R2["2. cloud_build_images<br/>Build 3 Docker images"]
+        R3["3. cloud_apply_manifests<br/>Migrations + templates + kubectl apply"]
+        R4["4. cloud_compute<br/>Pod template ConfigMap"]
+        R1 --> R2 --> R3 --> R4
+    end
+
+    subgraph Node["Kubespray Node"]
+        Containerd["containerd<br/>gateway · computer · compute images"]
+        KubeApply["kubectl apply<br/>Core services + Envoy resources"]
+    end
+
+    Code --> R2
+    Vault --> R3
+    R2 --> Containerd
+    R3 --> KubeApply
+```
+
+## Namespace Layout
+
+```mermaid
+graph TB
+    subgraph Cluster["Kubernetes Cluster"]
+        subgraph NS1["envoy-gateway-system"]
+            EG["Envoy Gateway Controller"]
+        end
+        subgraph NS2["gateway"]
+            GW1["cloud-gw<br/>(Gateway)"]
+            GW2["computer-gw<br/>(Gateway)"]
+            HR["HTTPRoutes"]
+            POL["Policies<br/>Lua + JWT"]
+            CERT["Certificates"]
+            RG["→ ReferenceGrant"]
+        end
+        subgraph NS3["lmthing"]
+            LL["LiteLLM"]
+            HG["Gateway/Hono"]
+            CS["Computer SPA"]
+            SA["ServiceAccount<br/>+ ClusterRole"]
+            SEC["lmthing-secrets"]
+        end
+        subgraph NS4["user-abc123"]
+            UP1["Deployment: lmthing<br/>Bun + REPL"]
+            US1["Service: lmthing<br/>:8080"]
+        end
+        subgraph NS5["user-def456"]
+            UP2["Deployment: lmthing<br/>Bun + REPL"]
+            US2["Service: lmthing<br/>:8080"]
+        end
+    end
+
+    EG -.->|manages| GW1
+    EG -.->|manages| GW2
+    HR -->|cross-ns via ReferenceGrant| LL
+    HR -->|cross-ns via ReferenceGrant| HG
+    HR -->|cross-ns via ReferenceGrant| CS
+    POL -->|dynamic routing| UP1
+    POL -->|dynamic routing| UP2
+    SA -->|creates/deletes| NS4
+    SA -->|creates/deletes| NS5
+```
 
 ## Layout
 
-```text
+```
 devops/
-├── README.md
+├── Makefile                          # Top-level: terraform + pipeline targets
+├── README.md                         # This file
+├── CLAUDE.md                         # AI assistant context
+├── terraform/                        # Azure VM provisioning
+│   ├── versions.tf                   # Provider config (azurerm ~> 4.0)
+│   ├── variables.tf                  # All input variables
+│   ├── main.tf                       # RG, VNet, NSG, NIC, VM
+│   ├── outputs.tf                    # VM IP, SSH, Ansible integration
+│   ├── terraform.tfvars.example      # Variable template
+│   └── generate-inventory.sh         # TF outputs → Ansible hosts.yml
 ├── ansible/
-│   ├── README.md
-│   ├── Makefile
-│   ├── ansible.cfg
-│   ├── requirements.yml
+│   ├── Makefile                      # All targets (cluster + services)
+│   ├── ansible.cfg                   # Ansible configuration
+│   ├── requirements.yml              # Ansible collections
+│   ├── vault.yml                     # Secrets (Ansible Vault)
 │   ├── playbooks/
-│   │   └── kubespray.yml
+│   │   ├── kubespray.yml             # K8s cluster provisioning
+│   │   └── services.yml              # Cloud service deployment
 │   ├── roles/
-│   │   └── k8s_postinstall/
-│   ├── inventory/
-│   │   └── test/
-│   │       ├── hosts.yml
-│   │       └── group_vars/
-│   │           └── all.yml
-│   └── scripts/
-│       └── setup/
-│           └── bootstrap.sh
-└── docs/
-    └── getting-started/
-        └── kubespray-test.md
+│   │   ├── k8s_postinstall/          # Kubeconfig setup
+│   │   ├── envoy_gateway/            # Install Envoy Gateway
+│   │   ├── cloud_build_images/       # Build Docker images
+│   │   ├── cloud_apply_manifests/    # Apply K8s manifests
+│   │   └── cloud_compute/            # Compute pod template
+│   ├── inventory/test/
+│   │   ├── hosts.yml                 # Node inventory (auto-generated from TF)
+│   │   └── group_vars/all.yml        # Cluster addons
+│   ├── k8s/                          # Kubernetes manifests
+│   │   ├── namespace.yaml
+│   │   ├── litellm.yaml
+│   │   ├── gateway.yaml
+│   │   ├── computer.yaml
+│   │   ├── kustomization.yaml
+│   │   ├── envoy/                    # Envoy Gateway resources
+│   │   └── compute/                  # Per-user pod Dockerfile + template
+│   └── scripts/setup/
+│       └── bootstrap.sh              # Kubespray + venv setup
+└── docs/getting-started/
+    └── kubespray-test.md             # Cluster setup guide
 ```
 
 ## Quick Start
 
-1. Edit `ansible/inventory/test/hosts.yml` with the real SSH user, key, and node IPs.
-2. Review `ansible/inventory/test/group_vars/all.yml` and adjust cluster options.
-3. Run `cd devops/ansible && make bootstrap`.
-4. Validate connectivity with `make inventory` and `make ping`.
-5. Deploy the cluster with `make cluster`.
+### 1. Provision Azure VM
 
-More detail lives in [docs/getting-started/kubespray-test.md](/home/dkats/lmthing/devops/docs/getting-started/kubespray-test.md).
+```bash
+cd devops/terraform
+cp terraform.tfvars.example terraform.tfvars
+vim terraform.tfvars          # Set subscription_id, region, VM size
+
+az login                      # Authenticate to Azure
+make -C .. tf-apply           # Or: terraform init && terraform apply
+
+# Generate Ansible inventory from Terraform outputs
+./generate-inventory.sh
+```
+
+### 2. Provision the Cluster
+
+```bash
+cd devops/ansible
+
+# Bootstrap (clone Kubespray v2.30.0, create Python venv)
+make bootstrap
+
+# Verify SSH connectivity
+make ping
+
+# Deploy K8s cluster
+make cluster
+```
+
+### 3. Deploy Services
+
+```bash
+# Fill in secrets and encrypt
+vim vault.yml
+ansible-vault encrypt vault.yml
+
+# Deploy everything (prompts for vault password)
+make deploy
+```
+
+### 4. Verify
+
+```bash
+# Check pod status
+make status
+
+# Check routing and TLS
+make routes
+
+# Test endpoints
+curl https://lmthing.cloud/api/health
+curl https://lmthing.cloud/v1/models -H "Authorization: Bearer sk-..."
+```
+
+## Scaling
+
+```mermaid
+graph LR
+    subgraph Before["Single Node"]
+        N1["node1<br/>control_plane<br/>Standard_D4s_v3"]
+    end
+
+    subgraph After["Multi-Node Cluster"]
+        N1b["node1<br/>control_plane"]
+        N2["node2<br/>worker"]
+        N3["node3<br/>worker"]
+    end
+
+    Before -->|"1. Add to tfvars<br/>2. make scale-up"| After
+```
+
+### Adding a Node
+
+```bash
+# 1. Add entry to terraform/terraform.tfvars
+nodes = {
+  node1 = { role = "control_plane" }
+  node2 = { role = "worker" }         # add this
+}
+
+# 2. Provision VM + update inventory + join cluster
+cd devops
+make scale-up
+
+# 3. Build images on new node
+cd ansible && make deploy-images
+```
+
+### Removing a Node
+
+```bash
+# 1. Drain and remove from K8s
+kubectl drain node2 --ignore-daemonsets --delete-emptydir-data
+kubectl delete node node2
+
+# 2. Remove entry from terraform/terraform.tfvars
+# 3. Destroy VM + update inventory
+cd devops
+make scale-down
+```
+
+## Common Operations
+
+All Ansible commands run from `devops/ansible/`. Terraform and scaling from `devops/`.
+
+| Task | Command |
+|------|---------|
+| **Infrastructure** | |
+| Provision VMs | `make tf-apply` |
+| Destroy all VMs | `make tf-destroy` |
+| Update inventory from TF | `make tf-inventory` |
+| Full setup (VMs + inventory) | `make up` |
+| Add worker nodes | `make scale-up` |
+| Remove worker nodes | `make scale-down` |
+| **Cluster** | |
+| Bootstrap Ansible | `cd ansible && make bootstrap` |
+| Create cluster | `cd ansible && make cluster` |
+| Upgrade cluster | `cd ansible && make upgrade` |
+| **Services** | |
+| Full deploy | `cd ansible && make deploy` |
+| Rebuild images only | `cd ansible && make deploy-images` |
+| Apply manifests only | `cd ansible && make deploy-manifests` |
+| **Observability** | |
+| Check pod status | `cd ansible && make status` |
+| Check routes & certs | `cd ansible && make routes` |
+| View gateway logs | `cd ansible && make logs-gateway` |
+| View litellm logs | `cd ansible && make logs-litellm` |
+| **Secrets** | |
+| Edit vault | `ansible-vault edit ansible/vault.yml` |
+
+## Further Reading
+
+- [Cluster Setup Guide](docs/getting-started/kubespray-test.md) — step-by-step first cluster walkthrough
+- [CLAUDE.md](CLAUDE.md) — full technical reference (gotchas, RBAC, template rendering, secrets)
+- [cloud/README.md](../cloud/README.md) — original K3s backend (being replaced)

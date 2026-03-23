@@ -1,0 +1,27 @@
+# Ansible Vault encrypted secrets.
+# Encrypt this file with: ansible-vault encrypt vault.yml
+# Edit with: ansible-vault edit vault.yml
+#
+# All values below are placeholders — replace with real values before encrypting.
+
+vault_domain: lmthing.cloud
+vault_computer_domain: lmthing.computer
+vault_base_url: https://lmthing.cloud
+vault_acme_email: admin@lmthing.cloud
+
+vault_azure_api_key: your-azure-api-key
+vault_azure_api_base: https://your-resource.openai.azure.com
+
+vault_supabase_url: https://your-project.supabase.co
+vault_supabase_service_role_key: your-service-role-key
+vault_database_url: "postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres"
+vault_db_password: your-db-password
+
+vault_stripe_secret_key: sk_live_xxx
+vault_stripe_webhook_secret: whsec_xxx
+vault_stripe_price_starter: price_xxx
+vault_stripe_price_basic: price_xxx
+vault_stripe_price_pro: price_xxx
+vault_stripe_price_max: price_xxx
+
+vault_litellm_master_key: sk-lmt-xxx

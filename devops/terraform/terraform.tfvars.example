@@ -1,0 +1,50 @@
+# Azure authentication
+# Authenticate via: az login (interactive) or set ARM_CLIENT_ID/ARM_CLIENT_SECRET/ARM_TENANT_ID env vars
+subscription_id = "your-subscription-id"
+
+# Resource naming
+project     = "lmthing"
+environment = "test"
+
+# Azure region
+location = "germanywestcentral"
+
+# ── Cluster Nodes ──────────────────────────────────────────────
+# Add entries to scale. Key = node name, role = "control_plane" or "worker".
+# Control plane nodes also run workloads + etcd.
+nodes = {
+  node1 = {
+    role    = "control_plane"
+    # vm_size         = "Standard_D4s_v3"   # default
+    # os_disk_size_gb = 64                   # default
+  }
+
+  # ── Scale: uncomment to add worker nodes ─────────────────────
+  # node2 = {
+  #   role    = "worker"
+  #   vm_size = "Standard_D4s_v3"
+  # }
+  # node3 = {
+  #   role    = "worker"
+  #   vm_size = "Standard_D8s_v3"    # larger for compute-heavy workloads
+  #   data_disk_size_gb = 128
+  # }
+}
+
+# VM defaults
+vm_admin_username = "azureuser"
+
+# SSH key — leave empty to auto-generate a key pair in generated/
+ssh_public_key_path = ""
+# ssh_public_key_path = "~/.ssh/lmthing-vm_key.pub"
+
+# Restrict SSH access (empty = open to all)
+ssh_allowed_ips = []
+# ssh_allowed_ips = ["203.0.113.0/24"]
+
+# Network
+vnet_address_space    = "10.0.0.0/16"
+subnet_address_prefix = "10.0.0.0/24"
+
+# Extra tags
+extra_tags = {}

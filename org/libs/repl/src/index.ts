@@ -127,3 +127,50 @@ export {
 // Agent runner
 export { runAgent } from './cli/run-agent'
 export type { RunAgentOptions, RunAgentResult } from './cli/run-agent'
+
+// Delegation Framework (Intelligent AI Delegation — Tomasev et al., 2026)
+export {
+  CognitiveFrictionEngine,
+  LiabilityFirebreak,
+  DelegateeRouter,
+  GraduatedAuthority,
+  EscrowBondManager,
+  OutcomeVerifier,
+  ConsensusVerifier,
+  ReputationStore,
+  DelegationManager,
+} from './delegation/index'
+export type {
+  DelegationManagerConfig,
+  Criticality,
+  Reversibility,
+  Verifiability,
+  TaskProfile,
+  PeerInfo,
+  FrictionLevel,
+  CognitiveFrictionResult,
+  CognitiveFrictionConfig,
+  FirebreakAction,
+  FirebreakResult,
+  FirebreakConfig,
+  RoutingTarget,
+  RoutingDecision,
+  AuthorityLevel,
+  SLORequirements,
+  AuthorityGrant,
+  GraduatedAuthorityConfig,
+  EscrowBond,
+  EscrowConfig,
+  OutcomeVerification,
+  OutcomeViolation,
+  DelegationResult,
+  ConsensusResult,
+  ConsensusConfig,
+  ReputationRecord,
+  ReputationEvent,
+  ReputationConfig,
+  DelegationRequest,
+  DelegationPlan,
+  DelegationOutcome,
+  JournalEntry,
+} from './delegation/index'

@@ -292,3 +292,141 @@ All stored in `k8s/.env.secrets` (gitignored), loaded via Kustomize `secretGener
 | `STRIPE_WEBHOOK_SECRET` | gateway | Stripe webhook signature verification |
 | `STRIPE_PRICE_BASIC/PRO/MAX` | gateway | Stripe price IDs for tier lookup |
 | `LITELLM_MASTER_KEY` | both | LiteLLM admin API authentication |
+
+## VM Operations
+
+### SSH Access
+
+All VM access uses the SSH key at `~/LMTHING/litellm_key.pem`. The VM host and user are in `.env.secrets`.
+
+```bash
+# Interactive shell
+ssh -i ~/LMTHING/litellm_key.pem azureuser@135.116.57.95
+
+# Run a single command
+ssh -i ~/LMTHING/litellm_key.pem azureuser@135.116.57.95 "command here"
+```
+
+Cloud files are at `~/cloud/` on the VM.
+
+### Common Operations
+
+```bash
+# ── Status ────────────────────────────────────────────────────
+kubectl get pods -n lmthing                    # Pod status
+kubectl get svc -n lmthing                     # Services
+kubectl top pods -n lmthing                    # Resource usage
+kubectl -n kube-system get pods                # Traefik + K3s system pods
+
+# ── Logs ──────────────────────────────────────────────────────
+kubectl logs deployment/gateway -n lmthing --tail=50
+kubectl logs deployment/litellm -n lmthing --tail=50
+kubectl logs deployment/traefik -n kube-system --tail=50
+
+# Follow logs in real time
+kubectl logs -f deployment/gateway -n lmthing
+kubectl logs -f deployment/litellm -n lmthing
+
+# ── Restart Services ──────────────────────────────────────────
+kubectl rollout restart deployment/gateway -n lmthing    # Gateway only
+kubectl rollout restart deployment/litellm -n lmthing    # LiteLLM only
+kubectl rollout restart deployment/traefik -n kube-system # Traefik
+
+# ── Deploy (on VM) ────────────────────────────────────────────
+cd ~/cloud && bash scripts/deploy.sh           # Full redeploy (migration + build + apply)
+
+# Gateway-only quick redeploy (after syncing code)
+cd ~/cloud/gateway && \
+  sudo docker build -t lmthing/gateway:latest . && \
+  sudo docker save lmthing/gateway:latest | sudo k3s ctr images import - && \
+  sudo k3s kubectl -n lmthing rollout restart deployment/gateway
+
+# LiteLLM config-only redeploy (after editing litellm.yaml)
+sudo k3s kubectl apply -f ~/cloud/k8s/litellm.yaml && \
+  sudo k3s kubectl -n lmthing rollout restart deployment/litellm
+
+# ── Sync files from local to VM ──────────────────────────────
+# All cloud files
+rsync -avz --exclude='node_modules' --exclude='.env' \
+  -e "ssh -i ~/LMTHING/litellm_key.pem" \
+  cloud/ azureuser@135.116.57.95:~/cloud/
+
+# Gateway code only
+rsync -avz --exclude='node_modules' \
+  -e "ssh -i ~/LMTHING/litellm_key.pem" \
+  cloud/gateway/src/ azureuser@135.116.57.95:~/cloud/gateway/src/
+
+# Secrets only
+rsync -avz --include='.env.secrets' --exclude='*' \
+  -e "ssh -i ~/LMTHING/litellm_key.pem" \
+  cloud/k8s/ azureuser@135.116.57.95:~/cloud/k8s/
+
+# ── Update secrets (after editing .env.secrets) ───────────────
+# Sync the file first, then:
+sudo k3s kubectl create secret generic lmthing-secrets \
+  --from-env-file=~/cloud/k8s/.env.secrets \
+  --namespace=lmthing \
+  --dry-run=client -o yaml | sudo k3s kubectl apply -f -
+# Then restart the affected deployment(s)
+
+# ── Database ──────────────────────────────────────────────────
+source ~/cloud/k8s/.env.secrets
+psql "$DATABASE_URL"                           # Interactive SQL shell
+psql "$DATABASE_URL" -c "SELECT * FROM public.profiles;"
+psql "$DATABASE_URL" -f ~/cloud/migrations/001_profiles.sql
+
+# ── LiteLLM Admin UI ─────────────────────────────────────────
+# From your LOCAL machine (not the VM):
+ssh -i ~/LMTHING/litellm_key.pem -L 4001:localhost:4001 azureuser@135.116.57.95 \
+  "sudo k3s kubectl -n lmthing port-forward deployment/litellm 4001:4000"
+# Then open http://localhost:4001/ui — login with LITELLM_MASTER_KEY
+
+# ── Debug ─────────────────────────────────────────────────────
+kubectl describe pod -l app=gateway -n lmthing   # Events, crash reasons
+kubectl describe pod -l app=litellm -n lmthing
+kubectl exec -it deployment/gateway -n lmthing -- sh  # Shell into container
+
+# ── TLS / Traefik ────────────────────────────────────────────
+kubectl logs deployment/traefik -n kube-system | grep -i 'acme\|cert\|error'
+kubectl get ingressroute -n lmthing            # Routing rules
+```
+
+### Typical Workflows
+
+**"I changed gateway code"**
+```bash
+rsync -avz --exclude='node_modules' -e "ssh -i ~/LMTHING/litellm_key.pem" \
+  cloud/gateway/src/ azureuser@135.116.57.95:~/cloud/gateway/src/
+ssh -i ~/LMTHING/litellm_key.pem azureuser@135.116.57.95 \
+  "cd ~/cloud/gateway && sudo docker build -t lmthing/gateway:latest . && \
+   sudo docker save lmthing/gateway:latest | sudo k3s ctr images import - && \
+   sudo k3s kubectl -n lmthing rollout restart deployment/gateway"
+```
+
+**"I added a new model to litellm.yaml"**
+```bash
+scp -i ~/LMTHING/litellm_key.pem cloud/k8s/litellm.yaml azureuser@135.116.57.95:~/cloud/k8s/
+ssh -i ~/LMTHING/litellm_key.pem azureuser@135.116.57.95 \
+  "sudo k3s kubectl apply -f ~/cloud/k8s/litellm.yaml && \
+   sudo k3s kubectl -n lmthing rollout restart deployment/litellm"
+```
+
+**"I changed .env.secrets"**
+```bash
+rsync -avz --include='.env.secrets' --exclude='*' \
+  -e "ssh -i ~/LMTHING/litellm_key.pem" cloud/k8s/ azureuser@135.116.57.95:~/cloud/k8s/
+ssh -i ~/LMTHING/litellm_key.pem azureuser@135.116.57.95 \
+  "cd ~/cloud/k8s && sudo k3s kubectl create secret generic lmthing-secrets \
+   --from-env-file=.env.secrets --namespace=lmthing \
+   --dry-run=client -o yaml | sudo k3s kubectl apply -f - && \
+   sudo k3s kubectl -n lmthing rollout restart deployment/gateway && \
+   sudo k3s kubectl -n lmthing rollout restart deployment/litellm"
+```
+
+**"Something is broken, show me everything"**
+```bash
+ssh -i ~/LMTHING/litellm_key.pem azureuser@135.116.57.95 \
+  "sudo k3s kubectl get pods -n lmthing && echo '---' && \
+   sudo k3s kubectl logs deployment/gateway -n lmthing --tail=20 && echo '---' && \
+   sudo k3s kubectl logs deployment/litellm -n lmthing --tail=20"
+```

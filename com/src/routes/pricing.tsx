@@ -1,8 +1,6 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useAuth } from '@/lib/auth/AuthProvider'
-import { createCheckout } from '@/lib/cloud'
 import { plans } from '@/config/plans'
-import { useState } from 'react'
 
 export const Route = createFileRoute('/pricing')({
   component: Pricing,
@@ -10,23 +8,14 @@ export const Route = createFileRoute('/pricing')({
 
 function Pricing() {
   const { user } = useAuth()
-  const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
+  const navigate = useNavigate()
 
-  const handleSubscribe = async (planId: string) => {
+  const handleSubscribe = (planId: string) => {
     if (!user) {
-      window.location.href = `/signup?redirect=/pricing`
+      window.location.href = `/login?redirect=/checkout?tier=${planId}`
       return
     }
-
-    setLoadingPlan(planId)
-    try {
-      const { url } = await createCheckout(planId)
-      window.location.href = url
-    } catch (err) {
-      console.error('Checkout error:', err)
-    } finally {
-      setLoadingPlan(null)
-    }
+    navigate({ to: '/checkout', search: { tier: planId } })
   }
 
   return (
@@ -57,10 +46,9 @@ function Pricing() {
               {plan.id !== 'free' ? (
                 <button
                   onClick={() => handleSubscribe(plan.id)}
-                  disabled={loadingPlan === plan.id}
-                  className={`w-full rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50 ${plan.highlighted ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'border border-input bg-background hover:bg-accent'}`}
+                  className={`w-full rounded-md px-4 py-2 text-sm font-medium ${plan.highlighted ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'border border-input bg-background hover:bg-accent'}`}
                 >
-                  {loadingPlan === plan.id ? 'Redirecting...' : 'Subscribe'}
+                  Subscribe
                 </button>
               ) : (
                 <button disabled className="w-full rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-muted-foreground">

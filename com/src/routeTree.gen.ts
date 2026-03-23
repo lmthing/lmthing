@@ -16,6 +16,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as DocsRouteImport } from './routes/docs'
+import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as CallbackRouteImport } from './routes/callback'
 import { Route as BillingRouteImport } from './routes/billing'
 import { Route as AccountRouteImport } from './routes/account'
@@ -58,6 +59,11 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
 const DocsRoute = DocsRouteImport.update({
   id: '/docs',
   path: '/docs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutRoute = CheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CallbackRoute = CallbackRouteImport.update({
@@ -107,6 +113,7 @@ export interface FileRoutesByFullPath {
   '/account': typeof AccountRouteWithChildren
   '/billing': typeof BillingRouteWithChildren
   '/callback': typeof CallbackRoute
+  '/checkout': typeof CheckoutRoute
   '/docs': typeof DocsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -124,6 +131,7 @@ export interface FileRoutesByTo {
   '/account': typeof AccountRouteWithChildren
   '/billing': typeof BillingRouteWithChildren
   '/callback': typeof CallbackRoute
+  '/checkout': typeof CheckoutRoute
   '/docs': typeof DocsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -142,6 +150,7 @@ export interface FileRoutesById {
   '/account': typeof AccountRouteWithChildren
   '/billing': typeof BillingRouteWithChildren
   '/callback': typeof CallbackRoute
+  '/checkout': typeof CheckoutRoute
   '/docs': typeof DocsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -161,6 +170,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/billing'
     | '/callback'
+    | '/checkout'
     | '/docs'
     | '/forgot-password'
     | '/login'
@@ -178,6 +188,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/billing'
     | '/callback'
+    | '/checkout'
     | '/docs'
     | '/forgot-password'
     | '/login'
@@ -195,6 +206,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/billing'
     | '/callback'
+    | '/checkout'
     | '/docs'
     | '/forgot-password'
     | '/login'
@@ -213,6 +225,7 @@ export interface RootRouteChildren {
   AccountRoute: typeof AccountRouteWithChildren
   BillingRoute: typeof BillingRouteWithChildren
   CallbackRoute: typeof CallbackRoute
+  CheckoutRoute: typeof CheckoutRoute
   DocsRoute: typeof DocsRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
@@ -272,6 +285,13 @@ declare module '@tanstack/react-router' {
       path: '/docs'
       fullPath: '/docs'
       preLoaderRoute: typeof DocsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/callback': {
@@ -361,6 +381,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccountRoute: AccountRouteWithChildren,
   BillingRoute: BillingRouteWithChildren,
   CallbackRoute: CallbackRoute,
+  CheckoutRoute: CheckoutRoute,
   DocsRoute: DocsRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,

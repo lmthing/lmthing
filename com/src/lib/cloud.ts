@@ -164,12 +164,12 @@ export function revokeApiKey(token: string) {
 export function createCheckout(tier: string) {
   return cloudFetch('/api/billing/checkout', {
     method: 'POST',
-    body: JSON.stringify({
-      tier,
-      success_url: `${window.location.origin}/billing?success=true`,
-      cancel_url: `${window.location.origin}/pricing`,
-    }),
-  })
+    body: JSON.stringify({ tier }),
+  }) as Promise<{ client_secret: string }>
+}
+
+export function getCheckoutStatus(sessionId: string) {
+  return cloudFetch(`/api/billing/checkout/status?session_id=${sessionId}`)
 }
 
 export function billingPortal() {

@@ -31,7 +31,7 @@ lmthing/
 │   │   ├── thing/          # @lmthing/thing — THING agent system studio (built-in spaces)
 │   │   └── utils/          # Shared build utilities (Vite config)
 │   └── docs/               # Documentation
-├── cloud/                  # lmthing.cloud — K3s API gateway (Hono/Node.js) + LiteLLM proxy
+├── cloud/                  # lmthing.cloud — API gateway (Hono/Node.js) + LiteLLM proxy
 ├── studio/                 # lmthing.studio — agent builder UI (React 19, Vite 7, TanStack Router)
 ├── chat/                   # lmthing.chat — personal THING interface
 ├── blog/                   # lmthing.blog — personalized AI news
@@ -50,7 +50,7 @@ lmthing/
 
 ## Backend Architecture — Important
 
-**There is no separate backend service.** The `cloud/` directory is the **sole backend** for the entire project. It runs on **K3s** (lightweight Kubernetes) on an Azure VM, with two services:
+**There is no separate backend service.** The `cloud/` directory is the **sole backend** for the entire project. It runs on Kubernetes (Kubespray) on an Azure VM, with two services:
 
 - **LiteLLM** — OpenAI-compatible LLM proxy that routes to Azure AI Foundry models, with budget enforcement, rate limiting, and token usage tracking (10% markup over Azure pricing).
 - **Gateway** — Hono/Node.js service handling auth, API key management, billing (Stripe subscriptions), and webhooks.
@@ -90,13 +90,13 @@ graph TB
         App --> State
     end
 
-    subgraph Cloud["K3s on Azure VM"]
-        Traefik["Traefik<br/>TLS + Routing"]
+    subgraph Cloud["Kubernetes on Azure VM"]
+        Envoy["Envoy Gateway<br/>TLS + Routing"]
         LiteLLM["LiteLLM<br/>OpenAI-compatible proxy"]
         Gateway["Gateway (Hono/Node.js)<br/>Auth · Keys · Billing · Webhooks"]
         DB[("Supabase PostgreSQL<br/>profiles · LiteLLM tables")]
-        Traefik -- "/v1/*" --> LiteLLM
-        Traefik -- "/api/*" --> Gateway
+        Envoy -- "/v1/*" --> LiteLLM
+        Envoy -- "/api/*" --> Gateway
         LiteLLM --> DB
         Gateway --> DB
     end
@@ -112,7 +112,7 @@ graph TB
         Core["lmthing Framework<br/>Vercel AI SDK · Plugins · CLI"]
     end
 
-    App -- "REST + Streaming" --> Traefik
+    App -- "REST + Streaming" --> Envoy
     LiteLLM --> Azure
     Gateway --> Stripe
     Gateway --> SupaAuth
@@ -266,9 +266,9 @@ org/libs/thing/
         └── knowledge/                    # distribution-models, pricing-strategy, listing-quality
 ```
 
-### cloud/ — K3s API Gateway + LiteLLM (The Only Backend)
+### cloud/ — API Gateway + LiteLLM (The Only Backend)
 
-The **sole backend** for all lmthing products. Runs on K3s (lightweight Kubernetes) on an Azure VM with two services:
+The **sole backend** for all lmthing products. Runs on Kubernetes (Kubespray) on an Azure VM with two services:
 
 - **LiteLLM** (`/v1/*`) — OpenAI-compatible LLM proxy routing to Azure AI Foundry, with per-user budgets, rate limits, and 10% token markup.
 - **Gateway** (`/api/*`) — Hono/Node.js service for auth, API keys, billing, and Stripe webhooks.
@@ -310,11 +310,11 @@ Adding a new tier touches files across the monorepo — see [Adding a New Tier](
 
 **Gateway libraries** in `gateway/src/lib/`: `litellm.ts` (LiteLLM admin API client), `stripe.ts` (Stripe client), `tiers.ts` (tier definitions + model lists).
 
-**K8s manifests** in `k8s/`: `litellm.yaml` (LiteLLM + model config), `gateway.yaml` (gateway service), `ingress.yaml.tpl` (Traefik routing), `traefik-config.yaml.tpl` (TLS).
+**K8s manifests** are now in `devops/ansible/k8s/` (Envoy Gateway). See `devops/CLAUDE.md` for details.
 
 ```mermaid
 graph TB
-    subgraph Traefik["Traefik (TLS + Routing)"]
+    subgraph EnvoyGW["Envoy Gateway (TLS + Routing)"]
         V1["/v1/* → LiteLLM"]
         API["/api/* → Gateway"]
     end
@@ -437,7 +437,7 @@ Different products run agents in different environments:
 ## Development Workflow
 
 - **Studio** is the primary development surface — most features are built and tested here
-- **Cloud gateway** is developed locally — build and run the Hono server, or deploy to the K3s VM via `scripts/deploy.sh`
+- **Cloud gateway** is developed locally — build and run the Hono server, deploy via `cd devops/ansible && make deploy`
 - **Core framework** changes can be tested via `lmthing run` CLI or within Studio
 - All workspace data syncs through git — standard merge/conflict resolution applies
 
@@ -518,7 +518,7 @@ All frontend apps share the same stack:
 ## Useful Links
 
 - [Architecture.md](./Architecture.md) — full product & domain architecture
-- [cloud/README.md](./cloud/README.md) — cloud backend setup & deployment
+- [devops/CLAUDE.md](./devops/CLAUDE.md) — infrastructure & deployment guide
 - [org/libs/core/](./org/libs/core/) — agent framework source
 - [org/libs/state/](./org/libs/state/) — VFS library source
 - [org/libs/css/](./org/libs/css/) — shared styles
@@ -549,7 +549,8 @@ This repository is a monorepo organized by TLD — each lmthing.\* domain has it
 
 ## Cloud Backend
 
-- `cloud/` — K3s API gateway (Hono/Node.js) + LiteLLM proxy on Azure VM. Gateway handles auth (Supabase Auth), API key management (LiteLLM), billing (Stripe subscriptions), and webhooks. LiteLLM provides OpenAI-compatible LLM proxy routing to Azure AI Foundry with tier-based budgets and rate limits. K8s manifests in `k8s/`, gateway source in `gateway/`.
+- `cloud/` — API gateway (Hono/Node.js) + LiteLLM proxy. Gateway handles auth (Supabase Auth), API key management (LiteLLM), billing (Stripe subscriptions), and webhooks. LiteLLM provides OpenAI-compatible LLM proxy routing to Azure AI Foundry with tier-based budgets and rate limits. Gateway source in `gateway/`, migrations in `migrations/`. K8s manifests are in `devops/ansible/k8s/`.
+- `devops/` — Infrastructure automation. Terraform for Azure VM provisioning, Kubespray for K8s cluster, Ansible for service deployment. Envoy Gateway for ingress, cert-manager for TLS, per-user compute pods for lmthing.computer. See `devops/CLAUDE.md`.
 
 ## Product Domains
 

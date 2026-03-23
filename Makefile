@@ -1,4 +1,4 @@
-.PHONY: up down proxy proxy-clean install check vmsync vmdeploy
+.PHONY: up down proxy proxy-clean install check
 
 # Parse services by type from services.yaml
 VITE_SERVICES := $(shell awk '/- name:/{name=$$3} /type: vite/{print name}' services.yaml)
@@ -44,37 +44,3 @@ install:
 # Health check all lmthing.* domains (DNS, TLS, HTTPS, hosting config)
 check:
 	@bash .etc/scripts/check-domains.sh
-
-# ── VM targets ───────────────────────────────────────────────
-# Require VM_HOST and SSH_KEY (set in env or pass inline):
-#   make vmsync VM_HOST=1.2.3.4 SSH_KEY=~/.ssh/key.pem
-#   make vmdeploy VM_HOST=1.2.3.4 SSH_KEY=~/.ssh/key.pem VM_USER=ubuntu
-
-VM_HOST ?=
-SSH_KEY ?=
-VM_USER ?= azureuser
-
-_check_vm_args:
-	@test -n "$(VM_HOST)" || (echo "ERROR: VM_HOST is required"; exit 1)
-	@test -n "$(SSH_KEY)" || (echo "ERROR: SSH_KEY is required"; exit 1)
-
-# Sync cloud/ and computer/ to VM without deploying
-vmsync: _check_vm_args
-	@echo "→ Syncing cloud/ to $(VM_USER)@$(VM_HOST):~/cloud/"
-	@rsync -az --delete --exclude='node_modules' --exclude='.env' \
-		-e "ssh -i $(SSH_KEY) -o StrictHostKeyChecking=accept-new" \
-		cloud/ $(VM_USER)@$(VM_HOST):~/cloud/
-	@if [ -d computer/dist ] && [ -f computer/Dockerfile ]; then \
-		echo "→ Syncing computer/ to $(VM_USER)@$(VM_HOST):~/computer/"; \
-		rsync -az --delete \
-			-e "ssh -i $(SSH_KEY) -o StrictHostKeyChecking=accept-new" \
-			computer/dist/ $(VM_USER)@$(VM_HOST):~/computer/dist/; \
-		scp -i $(SSH_KEY) -o StrictHostKeyChecking=accept-new \
-			computer/Dockerfile computer/nginx.conf \
-			$(VM_USER)@$(VM_HOST):~/computer/; \
-	fi
-	@echo "✓ Sync complete"
-
-# Full deploy: sync + build + apply + rollout
-vmdeploy: _check_vm_args
-	@bash cloud/scripts/deploy.sh --host $(VM_HOST) --key $(SSH_KEY) --user $(VM_USER)

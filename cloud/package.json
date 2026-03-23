@@ -3,8 +3,6 @@
   "version": "2.0.0",
   "private": true,
   "scripts": {
-    "setup": "source k8s/.env.secrets && ssh -i \"$SSH_KEY_PATH\" \"$VM_USER@$VM_HOST\" 'bash -s' < scripts/setup-vm.sh",
-    "deploy": "scripts/deploy.sh",
     "stripe:create-products": "tsx scripts/create-stripe-products.ts",
     "gateway:dev": "cd gateway && npm run dev",
     "gateway:build": "cd gateway && npm run build"

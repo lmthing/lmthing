@@ -3,7 +3,7 @@ import type { Tier } from "./tiers.js";
 const LITELLM_URL = process.env.LITELLM_URL || "http://litellm:4000";
 const MASTER_KEY = process.env.LITELLM_MASTER_KEY || "";
 
-async function request(path: string, method: string, body?: unknown) {
+export async function request(path: string, method: string, body?: unknown) {
   const res = await fetch(`${LITELLM_URL}${path}`, {
     method,
     headers: {

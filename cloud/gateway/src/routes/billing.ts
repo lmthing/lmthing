@@ -4,12 +4,52 @@ import * as litellm from "../lib/litellm.js";
 import { TIERS } from "../lib/tiers.js";
 import { authMiddleware } from "../middleware/auth.js";
 import type { Env } from "../types.js";
+import type { AuthUser } from "../middleware/auth.js";
 
 const BASE_URL = process.env.BASE_URL!;
 
 const billing = new Hono<Env>();
 
 billing.use("*", authMiddleware);
+
+// Ensure user has a Stripe customer — create one if missing
+async function ensureStripeCustomer(user: AuthUser): Promise<string> {
+  // Check LiteLLM metadata first
+  try {
+    const info = await litellm.getUserInfo(user.id);
+    const existing = info.user_info?.metadata?.stripe_customer_id;
+    if (existing) return existing;
+  } catch {
+    // user might not exist in LiteLLM yet
+  }
+
+  // Create Stripe customer
+  const customer = await stripe.customers.create({
+    email: user.email,
+    metadata: { user_id: user.id },
+  });
+
+  // Store in LiteLLM user metadata
+  try {
+    await litellm.createUser(user.id, TIERS.free, {
+      stripe_customer_id: customer.id,
+    });
+  } catch {
+    // User might already exist — update metadata instead
+    try {
+      const info = await litellm.getUserInfo(user.id);
+      const existingMeta = info.user_info?.metadata || {};
+      await litellm.request("/user/update", "POST", {
+        user_id: user.id,
+        metadata: { ...existingMeta, stripe_customer_id: customer.id },
+      });
+    } catch {
+      // best effort
+    }
+  }
+
+  return customer.id;
+}
 
 // Create a Stripe Checkout session for tier upgrade
 billing.post("/checkout", async (c) => {
@@ -24,25 +64,15 @@ billing.post("/checkout", async (c) => {
     return c.json({ error: `Invalid tier: ${tier}` }, 400);
   }
 
-  // Look up Stripe customer ID from LiteLLM metadata
-  let customerId: string | undefined;
-  try {
-    const info = await litellm.getUserInfo(user.id);
-    customerId = info.user_info?.metadata?.stripe_customer_id;
-  } catch {
-    // no customer yet
-  }
-
-  if (!customerId) {
-    return c.json({ error: "No billing account. Register first." }, 400);
-  }
+  const customerId = await ensureStripeCustomer(user);
 
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     mode: "subscription",
     ui_mode: "embedded",
     line_items: [{ price: targetTier.stripePriceId, quantity: 1 }],
-    return_url: return_url || `${BASE_URL}/checkout?session_id={CHECKOUT_SESSION_ID}`,
+    return_url:
+      return_url || `${BASE_URL}/checkout?session_id={CHECKOUT_SESSION_ID}`,
     subscription_data: {
       metadata: { user_id: user.id, tier },
     },
@@ -54,18 +84,7 @@ billing.post("/checkout", async (c) => {
 // Create a Stripe Customer Portal session
 billing.post("/portal", async (c) => {
   const user = c.get("user");
-
-  let customerId: string | undefined;
-  try {
-    const info = await litellm.getUserInfo(user.id);
-    customerId = info.user_info?.metadata?.stripe_customer_id;
-  } catch {
-    // no customer yet
-  }
-
-  if (!customerId) {
-    return c.json({ error: "No billing account" }, 400);
-  }
+  const customerId = await ensureStripeCustomer(user);
 
   const session = await stripe.billingPortal.sessions.create({
     customer: customerId,

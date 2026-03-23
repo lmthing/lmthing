@@ -1,4 +1,4 @@
-.PHONY: up down proxy proxy-clean install
+.PHONY: up down proxy proxy-clean install check
 
 # Parse services by type from services.yaml
 VITE_SERVICES := $(shell awk '/- name:/{name=$$3} /type: vite/{print name}' services.yaml)
@@ -40,3 +40,7 @@ proxy-clean:
 # Install all workspace dependencies
 install:
 	pnpm install
+
+# Health check all lmthing.* domains (DNS, TLS, HTTPS, hosting config)
+check:
+	@bash .etc/scripts/check-domains.sh

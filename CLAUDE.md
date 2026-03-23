@@ -482,6 +482,7 @@ Port assignments and domain mappings are defined in `services.yaml`.
 | `make proxy`       | Set up nginx + `/etc/hosts` for `*.local` domains (interactive, prompts for sudo) |
 | `make proxy-clean` | Remove nginx configs and `/etc/hosts` entries                                     |
 | `make install`     | Run `pnpm install`                                                                |
+| `make check`       | Health check all lmthing.\* domains (DNS, TLS, HTTPS, hosting config)             |
 
 ### Proxy Setup
 

@@ -16,13 +16,15 @@
 ## Architecture
 
 ```
-Users → lmthing.cloud (Traefik + Let's Encrypt)
-         ├── /v1/*  → LiteLLM (OpenAI-compatible proxy → Azure Foundry)
-         └── /api/* → Gateway (Hono/Node.js)
-                       ├── /api/auth/*    → Supabase Auth (register, login, OAuth)
-                       ├── /api/keys/*    → LiteLLM Admin API (key CRUD)
-                       ├── /api/billing/* → Stripe (checkout, portal, usage)
-                       └── /api/stripe/*  → Stripe webhooks (tier changes)
+Traefik (TLS + Routing)
+├── lmthing.cloud
+│   ├── /v1/*  → LiteLLM (OpenAI-compatible proxy → Azure Foundry)
+│   └── /api/* → Gateway (Hono/Node.js)
+│                 ├── /api/auth/*    → Supabase Auth (register, login, OAuth)
+│                 ├── /api/keys/*    → LiteLLM Admin API (key CRUD)
+│                 ├── /api/billing/* → Stripe (checkout, portal, usage)
+│                 └── /api/stripe/*  → Stripe webhooks (tier changes)
+└── lmthing.computer → nginx (static SPA + cross-origin isolation headers)
 
 LiteLLM ↔ Supabase PostgreSQL (keys, budgets, usage tracking)
 LiteLLM → Azure AI Foundry (model endpoints)
@@ -121,7 +123,8 @@ cloud/
 |------|-----------------|
 | `litellm.yaml` | LiteLLM proxy container (`ghcr.io/berriai/litellm:main-latest`). ConfigMap defines model list with Azure endpoints and 10% markup pricing. Env vars from secret: `DATABASE_URL`, `LITELLM_MASTER_KEY`, `AZURE_API_KEY`, `AZURE_API_BASE`. |
 | `gateway.yaml` | Gateway container (locally built `lmthing/gateway:latest`, `imagePullPolicy: IfNotPresent`). Env vars from secret: all Stripe, Supabase, LiteLLM vars + `BASE_URL`. |
-| `ingress.yaml.tpl` | Traefik IngressRoute: `/v1/*` → litellm:4000, `/api/*` → gateway:3000. TLS via `letsencrypt` cert resolver. No HTTP IngressRoute (breaks ACME challenges). |
+| `computer.yaml` | Computer SPA container (nginx:alpine, `imagePullPolicy: IfNotPresent`). Serves `lmthing.computer` static files with COEP/COOP headers for WebContainer cross-origin isolation. Source files at `~/computer/` on VM. |
+| `ingress.yaml.tpl` | Traefik IngressRoutes: `lmthing.cloud` `/v1/*` → litellm:4000, `/api/*` → gateway:3000; `lmthing.computer` → computer:80. TLS via `letsencrypt` cert resolver. No HTTP IngressRoute (breaks ACME challenges). |
 | `traefik-config.yaml.tpl` | HelmChartConfig for K3s Traefik: HTTP→HTTPS redirect, Let's Encrypt via `additionalArguments` (not `certResolvers` — K3s ignores that). Persistence enabled for ACME storage. |
 
 ## Database
@@ -522,6 +525,20 @@ ssh -i ~/LMTHING/litellm_key.pem azureuser@135.116.57.95 \
    --dry-run=client -o yaml | sudo k3s kubectl apply -f - && \
    sudo k3s kubectl -n lmthing rollout restart deployment/gateway && \
    sudo k3s kubectl -n lmthing rollout restart deployment/litellm"
+```
+
+**"I changed the computer app"**
+```bash
+# Build locally first
+pnpm --filter @lmthing/computer build
+# Sync and rebuild on VM
+rsync -avz -e "ssh -i ~/LMTHING/litellm_key.pem" \
+  computer/dist/ computer/nginx.conf computer/Dockerfile \
+  azureuser@135.116.57.95:~/computer/
+ssh -i ~/LMTHING/litellm_key.pem azureuser@135.116.57.95 \
+  "cd ~/computer && sudo docker build -t lmthing/computer:latest . && \
+   sudo docker save lmthing/computer:latest | sudo k3s ctr images import - && \
+   sudo k3s kubectl -n lmthing rollout restart deployment/computer"
 ```
 
 **"Something is broken, show me everything"**

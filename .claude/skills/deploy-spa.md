@@ -2,7 +2,9 @@
 
 ## Overview
 
-All frontend apps are static SPAs deployed to **GitHub Pages** via separate repos. Each SPA gets its own GitHub repo (e.g., `lmthing/studio`, `lmthing/chat`, `lmthing/com`) that exists solely to host a GitHub Pages site. The repo contains only a `.github/workflows/deploy.yml` — no source code.
+Most frontend apps are static SPAs deployed to **GitHub Pages** via separate repos. Each SPA gets its own GitHub repo (e.g., `lmthing/studio`, `lmthing/chat`, `lmthing/com`) that exists solely to host a GitHub Pages site. The repo contains only a `.github/workflows/deploy.yml` — no source code.
+
+**Exception:** `lmthing.computer` is served from the **Azure VM** (K3s) instead of GitHub Pages, because it requires `Cross-Origin-Embedder-Policy` and `Cross-Origin-Opener-Policy` headers for WebContainer support (SharedArrayBuffer). See [VM-hosted SPAs](#vm-hosted-spas-lmthingcomputer) below.
 
 ## How It Works
 
@@ -25,7 +27,7 @@ All frontend apps are static SPAs deployed to **GitHub Pages** via separate repo
 | `dispatch-team.yml` | `lmthing/team` |
 | `dispatch-social.yml` | `lmthing/social` |
 | `dispatch-space.yml` | `lmthing/space` |
-| `dispatch-computer.yml` | `lmthing/computer` |
+| `dispatch-computer.yml` | ~~`lmthing/computer`~~ (deprecated — computer is now VM-hosted) |
 
 ## Adding a New SPA Deployment
 
@@ -142,12 +144,48 @@ jobs:
 - Add custom domain `lmthing.blog` (Settings > Pages > Custom domain)
 - Add `DISPATCH_TOKEN` as a monorepo secret if not already present (a PAT with `repo` scope)
 
+## VM-hosted SPAs (lmthing.computer)
+
+Some SPAs need custom HTTP headers that GitHub Pages can't provide. These are served from the Azure VM via nginx in K3s.
+
+**Why:** `lmthing.computer` uses WebContainer, which requires `SharedArrayBuffer`. Browsers gate this behind cross-origin isolation (`Cross-Origin-Embedder-Policy: credentialless` + `Cross-Origin-Opener-Policy: same-origin`). GitHub Pages cannot set custom response headers.
+
+**Architecture:** `computer/Dockerfile` (nginx:alpine) + `computer/nginx.conf` (headers + SPA fallback) → K8s deployment (`cloud/k8s/computer.yaml`) → Traefik IngressRoute (`computer-ingress` in `cloud/k8s/ingress.yaml.tpl`) → Let's Encrypt TLS.
+
+**DNS:** `lmthing.computer` A record → `135.116.57.95` (Azure VM), NOT GitHub Pages IPs.
+
+### Deploy computer to VM
+
+```bash
+# 1. Build locally
+pnpm --filter @lmthing/computer build
+
+# 2. Sync to VM
+rsync -avz -e "ssh -i ~/LMTHING/litellm_key.pem" \
+  computer/dist/ computer/nginx.conf computer/Dockerfile \
+  azureuser@135.116.57.95:~/computer/
+
+# 3. Build image + restart on VM
+ssh -i ~/LMTHING/litellm_key.pem azureuser@135.116.57.95 \
+  "cd ~/computer && sudo docker build -t lmthing/computer:latest . && \
+   sudo docker save lmthing/computer:latest | sudo k3s ctr images import - && \
+   sudo k3s kubectl -n lmthing rollout restart deployment/computer"
+```
+
+### Moving another SPA to the VM
+
+1. Create `{app}/Dockerfile` and `{app}/nginx.conf` (copy from `computer/`)
+2. Create `cloud/k8s/{app}.yaml` deployment + service (copy from `computer.yaml`)
+3. Add an IngressRoute in `cloud/k8s/ingress.yaml.tpl` for `Host(\`lmthing.{tld}\`)`
+4. Add the resource to `cloud/k8s/kustomization.yaml`
+5. Point DNS A record to `135.116.57.95`
+
 ## Domain Health Check
 
 Run `.etc/scripts/check-domains.sh` to verify all lmthing.\* domains are correctly configured. It checks:
 
-- **DNS** — A records point to GitHub Pages IPs (185.199.{108-111}.153)
+- **DNS** — A records point to GitHub Pages IPs (185.199.{108-111}.153) or Azure VM (`135.116.57.95` for VM-hosted SPAs)
 - **TLS** — Let's Encrypt certificate is provisioned for the domain
 - **HTTPS** — site responds (200 = deployed, 404 = not yet deployed)
-- **GitHub Pages config** — custom domain set, build source is Actions workflow, HTTPS enforcement enabled
-- **Dispatch workflow** — `dispatch-{app}.yml` exists in the monorepo
+- **GitHub Pages config** — custom domain set, build source is Actions workflow, HTTPS enforcement enabled (GH Pages SPAs only)
+- **Dispatch workflow** — `dispatch-{app}.yml` exists in the monorepo (GH Pages SPAs only)

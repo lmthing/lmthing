@@ -1,6 +1,6 @@
 ---
 title: Infrastructure
-description: Fly.io containers, pnpm workspaces, nginx proxy, GitHub sync, and deployment
+description: K8s compute pods, pnpm workspaces, nginx proxy, GitHub sync, and deployment
 order: 3
 ---
 
@@ -8,28 +8,27 @@ order: 3
 
 The infrastructure layer handles compute provisioning, monorepo tooling, local development, and deployment.
 
-## Compute — Fly.io
+## Compute — Kubernetes
 
-Fly.io provides container-based compute for two use cases:
+K8s pods provide container-based compute for two use cases:
 
 ### Computer Nodes
 
-- **Purpose**: THING agent runtime — 1 core, 1 GB RAM per user
-- **Provisioning**: Triggered by `stripe-webhook` after successful payment, calls `provision-computer` edge function
-- **Access**: Terminal via WebSocket, managed by `org/libs/server/` runtime
-- **Management**: `@lmthing/container` library wraps Fly.io Machines API
+- **Purpose**: THING agent runtime — 0.5 CPU, 1 GB RAM, 1 GB storage per user
+- **Provisioning**: Triggered by Stripe webhook after Pro tier subscription, Gateway creates K8s namespace + deployment + service
+- **Access**: Terminal via WebSocket, Envoy Gateway routes `/api/*` to user's pod
+- **Management**: Gateway uses K8s API directly (in-cluster service account)
 
 ### Space Containers
 
 - **Purpose**: Deployed spaces with running agents, or published agents for API access
-- **Lifecycle**: Create → Start → Stop → Delete, managed by space edge functions
-- **Tokens**: Short-lived access tokens issued by `issue-space-token` edge function
+- **Lifecycle**: Create → Start → Stop → Delete, managed by Gateway via K8s API
 
-### Key Fly.io Concepts
+### Key K8s Concepts
 
-- **Machines API** — REST API for creating/starting/stopping/destroying VMs
-- **Regions** — Deploy close to users (auto-selected or specified)
-- **Volumes** — Persistent storage attached to machines (for computer nodes)
+- **Per-user namespace** — `user-{id}` namespace isolates each user's resources
+- **Envoy Gateway** — JWT validation + Lua script for dynamic per-user routing
+- **emptyDir volumes** — Ephemeral storage for user workspace data (1 GB limit)
 
 ## Monorepo Tooling — pnpm
 
@@ -120,18 +119,13 @@ Port assignments defined in `services.yaml`.
 - Deployed to CDN/edge hosting (Vercel, Cloudflare Pages, or similar)
 - No server-side rendering — all client-side
 
-### Cloud Functions
+### Cloud Backend
 
-```bash
-# Deploy a single function
-supabase functions deploy <function-name>
+- Gateway (Hono/Node.js) + LiteLLM deployed to K8s via Ansible
+- `cd devops/ansible && make deploy`
 
-# Deploy all functions
-supabase functions deploy
-```
+### Per-User Compute
 
-### Fly.io Containers
-
-- Provisioned dynamically via Machines API
-- Managed by edge functions (`create-space`, `provision-computer`, etc.)
-- `@lmthing/container` library handles all Fly.io API interactions
+- Provisioned dynamically via K8s API by the Gateway
+- Managed by Stripe webhook handlers (create on Pro subscribe, delete on cancel)
+- Pod template: Bun + @lmthing/repl runtime image

@@ -36,7 +36,7 @@ lmthing/
 ├── studio/                 # lmthing.studio — agent builder UI (React 19, Vite 7, TanStack Router)
 ├── chat/                   # lmthing.chat — personal THING interface
 ├── blog/                   # lmthing.blog — personalized AI news
-├── space/                  # lmthing.space — Fly.io agent runtime
+├── space/                  # lmthing.space — K8s agent runtime
 ├── social/                 # lmthing.social — public hive mind
 ├── team/                   # lmthing.team — private agent rooms
 ├── store/                  # lmthing.store — agent marketplace

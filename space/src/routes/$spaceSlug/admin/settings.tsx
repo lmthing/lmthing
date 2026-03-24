@@ -92,7 +92,7 @@ function Settings() {
       <div className="mt-12 rounded-lg border border-destructive/30 p-4">
         <h2 className="mb-2 text-lg font-semibold text-destructive">Danger Zone</h2>
         <p className="mb-4 text-sm text-muted-foreground">
-          Deleting this space will destroy all associated data, including the database and Fly.io machine.
+          Deleting this space will destroy all associated data, including the database and compute pod.
         </p>
         <button
           onClick={handleDelete}

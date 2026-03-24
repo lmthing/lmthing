@@ -10,11 +10,11 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 4 |
-| High | 13 |
-| Medium | 14 |
-| Low | 21 |
+| High | 11 |
+| Medium | 12 |
+| Low | 20 |
 | Info | 7 |
-| **Total** | **59** |
+| **Total** | **54** |
 
 The codebase is well-structured with good separation of concerns and a clean monorepo layout. However, several critical security issues need immediate attention: an unsafe code execution sandbox, weak XOR encryption for env files, empty-string fallbacks for token signing secrets, and disabled JWT verification on protected endpoints.
 
@@ -61,11 +61,6 @@ The codebase is well-structured with good separation of concerns and a clean mon
 - **Issue**: `await req.json()` called without try-catch; invalid JSON causes a 500 instead of 400.
 - **Fix**: Wrap all `req.json()` calls in `.catch()` returning 400 Bad Request.
 
-### H-4: Timing-Unsafe Length Check Before `timingSafeEqual`
-- **File**: `org/libs/server/src/auth.ts:46`
-- **Issue**: Signature length comparison leaks information via timing side-channel before the constant-time comparison runs.
-- **Fix**: Use fixed-size buffers; ensure all comparison paths take constant time.
-
 ### H-5: Environment Variable / API Key Exposure
 - **File**: `org/libs/core/src/providers/custom.ts:45-91`
 - **Issue**: `scanCustomProviders()` stores raw API keys in returned config objects that could be logged or leaked.
@@ -75,11 +70,6 @@ The codebase is well-structured with good separation of concerns and a clean mon
 - **File**: `org/libs/auth/src/client.ts:32-41`
 - **Issue**: React StrictMode double-invocation can clear SSO state prematurely, bypassing CSRF protection.
 - **Fix**: Use per-state keyed sessionStorage entries with atomic check-and-remove.
-
-### H-7: Unvalidated Fly.io API Responses
-- **File**: `org/libs/container/src/flyio/client.ts:158-174`
-- **Issue**: Responses cast to generic type `T` without schema validation; no retry/backoff logic.
-- **Fix**: Validate responses with Zod schemas; implement exponential backoff for transient failures.
 
 ### H-8: Type-Unsafe Stripe Event Handlers (`as any`)
 - **File**: `cloud/supabase/functions/stripe-webhook/index.ts`
@@ -135,11 +125,6 @@ The codebase is well-structured with good separation of concerns and a clean mon
 - **Issue**: `supabase.rpc("create_space_schema", ...)` result is not checked for errors.
 - **Fix**: Check the `error` return value and handle appropriately.
 
-### M-5: Missing Error Handling in WebSocket Message Parsing
-- **File**: `org/libs/server/src/ws-handler.ts:39-46`
-- **Issue**: Invalid JSON silently discarded without logging for debugging.
-- **Fix**: Log truncated raw message content; add error codes to client responses.
-
 ### M-6: Excessive `any` Type Usage (~502 instances)
 - **Location**: Across all org/libs packages, especially core plugins and state hooks.
 - **Fix**: Replace with proper interfaces; add ESLint `no-explicit-any` rule.
@@ -153,11 +138,6 @@ The codebase is well-structured with good separation of concerns and a clean mon
 - **File**: `org/libs/auth/src/client.ts:25-28`
 - **Issue**: No format/length validation on SSO `code` and `state` URL parameters.
 - **Fix**: Validate against expected format regex; enforce max length.
-
-### M-9: Race Condition in Terminal/Metrics Subscription Cleanup
-- **File**: `org/libs/server/src/ws-handler.ts:83-95`
-- **Issue**: `send()` called without checking WebSocket readyState; duplicate subscriptions possible.
-- **Fix**: Guard sends with readyState check; deduplicate subscriptions.
 
 ### M-10: Environment Variable Handling — Env Vars in Browser
 - **File**: `studio/src/lib/envCrypto.ts`
@@ -230,10 +210,6 @@ The codebase is well-structured with good separation of concerns and a clean mon
 ### L-11: Weak SSO State Entropy (128 bits)
 - **File**: `org/libs/auth/src/client.ts:5-9`
 - **Fix**: Increase to 32 bytes (256 bits).
-
-### L-12: Token Expiration Error Lacks Context
-- **File**: `org/libs/server/src/auth.ts:51-54`
-- **Fix**: Distinguish clock skew from genuine expiration.
 
 ### L-13: Missing React Error Boundaries
 - **Files**: All frontend app root routes
@@ -313,8 +289,7 @@ The codebase is well-structured with good separation of concerns and a clean mon
 ### Short-term (next sprint)
 7. **H-2**: Migrate tokens from localStorage to secure storage
 8. **H-3**: Add JSON parse error handling on all endpoints
-9. **H-4**: Fix timing side-channel in auth
-10. **H-6**: Fix CSRF state race condition
+9. **H-6**: Fix CSRF state race condition
 11. **H-11**: Pin `vite-plus` versions
 12. **H-12**: Add lint/test steps to CI/CD
 

@@ -79,7 +79,7 @@ graph TD
         Studio["lmthing.studio<br/>Agent builder UI"]
         Blog["lmthing.blog<br/>Personalized AI news<br/>Custom feeds · Deep research<br/>Public profile publishing"]
         Chat["lmthing.chat<br/>Personal THING instance<br/>Free tier (limited tokens, select models)<br/>Premium (paid models, token usage)"]
-        Computer["lmthing.computer<br/>THING agent runtime<br/>Studio spaces · Terminal access<br/>Fly.io node"]
+        Computer["lmthing.computer<br/>THING agent runtime<br/>Studio spaces · Terminal access<br/>K8s compute pod"]
         Space["lmthing.space<br/>Deploy spaces & publish agents<br/>Container runtime · API access"]
         Social["lmthing.social<br/>Public hive mind<br/>Multi-agent parallel exploration<br/>Shared context (public)"]
         Team["lmthing.team<br/>Private rooms for agents<br/>Shared context spaces"]
@@ -88,7 +88,7 @@ graph TD
 
     subgraph CloudServices["lmthing.cloud · Managed Services"]
         Gateway["AI Gateway<br/>Stripe-metered LLM proxy"]
-        Deploy["Deploy Agent<br/>Fly.io service"]
+        Deploy["Deploy Agent<br/>K8s pod"]
         FineTune["Fine-Tuning<br/>SLM service"]
     end
 
@@ -129,11 +129,11 @@ graph TD
 | **lmthing.org** | Non-profit | Open organization, community governance. Owns the github.com/lmthing repo & org, Twitter, and Instagram accounts |
 | **lmth.ink** | Non-profit | URL shortener for sharing links across the ecosystem |
 | **lmthing.com** | For-profit | Commercial entity, owns and operates lmthing.cloud |
-| **lmthing.cloud** | For-profit | Managed services: AI gateway (Stripe-metered), Fly.io deploy agent, SLM fine-tuning. The money maker. |
+| **lmthing.cloud** | For-profit | Managed services: AI gateway (Stripe-metered), K8s deploy agent, SLM fine-tuning. The money maker. |
 | **lmthing.studio** | Product | Visual agent builder — design agents with prompts, tools, knowledge, and workflows with the help of THING |
 | **lmthing.chat** | Product | Personal THING instance — free tier with limited tokens/models, premium for paid model access |
 | **lmthing.blog** | Product | Personalized AI news — subscribe to RSS feeds and web searches, agent synthesizes and presents, deep research on demand, publish stories. Free tier ($1/week allowance, limited RSS), $5/month full access |
-| **lmthing.computer** | Product | THING agent runtime — where the THING agent and its studio spaces live and run on a Fly.io node. Visiting directly gives terminal access |
+| **lmthing.computer** | Product | THING agent runtime — where the THING agent and its studio spaces live and run on a K8s compute pod. Visiting directly gives terminal access |
 | **lmthing.space** | Product | Deploy a specific space to its own container with running agents, or publish an agent for API access via the store |
 | **lmthing.social** | Product | Public hive mind — agents explore multiple solutions simultaneously, shared context is open |
 | **lmthing.team** | Product | Private rooms where agents share context behind closed doors |
@@ -152,7 +152,7 @@ Four offers spanning free access to GPU compute. The free tier runs entirely in 
 | **Blog Free** | $1/week allowance | — | Limited RSS feeds, personalized news |
 | **Blog** | $5/month | — | Unlimited RSS + web search subscriptions, deep research, publishing |
 | **Pay As You Go** | Per-token + 10% markup | Stripe AI Gateway | Production agent usage, premium models, user-configurable stop limits |
-| **Computer** | $8/month (Fly.io cost $5) | Fly.io node (1 core, 1 GB) | Always-on personal THING agent with studio spaces |
+| **Computer** | $20/month | K8s compute pod (0.5 CPU, 1 GB RAM, 1 GB storage) | Always-on personal THING agent with studio spaces |
 | **Fine-Tuning** | $10/GPU-hour ($7 Azure cost) | NVIDIA H100 (Azure CycleCloud) | Train specialized small language models |
 
 ---
@@ -229,7 +229,7 @@ graph TD
 
 ### lmthing.computer
 
-The THING agent runtime. Each computer is a Fly.io node where the user's THING agent and its studio spaces live and run. Visiting lmthing.computer directly gives terminal access to the node — view logs, manage spaces, interact with the shell. This is the personal computing environment where THING orchestrates everything.
+The THING agent runtime. Each computer is a K8s compute pod where the user's THING agent and its studio spaces live and run. Visiting lmthing.computer directly gives terminal access to the pod — view logs, manage spaces, interact with the shell. This is the personal computing environment where THING orchestrates everything.
 
 ```mermaid
 graph TD
@@ -298,7 +298,7 @@ graph TD
 
 ### lmthing.casa
 
-Smart home control center. A self-learning THING instance that runs on a Space node and connects to Home Assistant remotely. The dashboard shows device state, automations, and learning progress. The HA bridge provides remote communication with the user's Home Assistant instance. Over time, the agent learns household patterns and adapts automations through the SLM fine-tuning service.
+Smart home control center. A self-learning THING instance that runs on a K8s pod and connects to Home Assistant remotely. The dashboard shows device state, automations, and learning progress. The HA bridge provides remote communication with the user's Home Assistant instance. Over time, the agent learns household patterns and adapts automations through the SLM fine-tuning service.
 
 ```mermaid
 graph TD
@@ -365,7 +365,7 @@ graph LR
 | `studio/` | @lmthing/studio | React 19, Vite 7, TanStack Router, Tailwind 4, Radix UI | Visual studio for building and testing AI agents |
 | `chat/` | — | TBD | Personal THING interface |
 | `blog/` | — | TBD | Personalized AI news (shared serverless worker) |
-| `computer/` | @lmthing/computer | TBD | THING agent runtime — studio spaces, terminal access (Fly.io node) |
+| `computer/` | @lmthing/computer | TBD | THING agent runtime — studio spaces, terminal access (K8s compute pod) |
 | `space/` | — | TBD | Deploy spaces to containers, publish agents for API access |
 | `social/` | — | TBD | Public hive mind |
 | `team/` | — | TBD | Private agent collaboration rooms |

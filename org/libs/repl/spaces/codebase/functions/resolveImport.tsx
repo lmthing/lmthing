@@ -26,14 +26,6 @@ const aliasMap: Record<string, { path: string; description: string }> = {
     path: "org/libs/css/src",
     description: "Shared Tailwind styles and design tokens",
   },
-  "@lmthing/container": {
-    path: "org/libs/container/src",
-    description: "Fly.io Machines API client",
-  },
-  "@lmthing/server": {
-    path: "org/libs/server/src",
-    description: "Container runtime server — WebSocket, PTY, metrics",
-  },
   "@lmthing/thing": {
     path: "org/libs/thing",
     description: "THING agent system studio — built-in spaces",

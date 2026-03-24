@@ -51,20 +51,6 @@ Shared Tailwind CSS styles and design tokens.
 
 - **Key files**: `src/global.css`, `src/tokens.ts`
 
-### `org/libs/container/` — `@lmthing/container`
-
-Fly.io Machines API client for managing compute containers.
-
-- **Purpose**: Provision, start, stop, and destroy Fly.io machines for spaces and computers
-- **Key files**: `src/machines.ts`, `src/types.ts`
-
-### `org/libs/server/`
-
-Container runtime server with WebSocket, PTY, and metrics support.
-
-- **Purpose**: Runs inside Fly.io containers to provide terminal access, health checks, and metrics
-- **Key files**: `src/server.ts`, `src/pty.ts`, `src/ws.ts`
-
 ### `org/libs/thing/` — `@lmthing/thing`
 
 THING agent system studio — 7 built-in spaces that ship with the THING agent.
@@ -87,7 +73,7 @@ product apps → @lmthing/ui, @lmthing/css, @lmthing/state, @lmthing/auth, lmthi
 @lmthing/auth → (standalone, calls cloud/ edge functions)
 @lmthing/ui → @lmthing/css
 lmthing (core) → Vercel AI SDK v6, @lmthing/state (optional)
-cloud/ → @lmthing/container, Stripe SDK, Supabase client
+cloud/ → Stripe SDK, Supabase client, K8s API
 ```
 
 ## Working with Shared Libs

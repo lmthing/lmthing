@@ -21,6 +21,6 @@ graph TD
 
 ## Revenue Model
 
-- **Space subscription** — $8/month for the always-on Fly.io node running the Casa agent.
+- **Space subscription** — Included with Pro tier ($20/month) — dedicated compute pod running the Casa agent.
 - **Token usage** — per-token billing through the Stripe AI Gateway (10% markup) for all LLM calls.
 - **Fine-Tuning** — $10/GPU-hour for training the self-learning SLM that adapts to household patterns.

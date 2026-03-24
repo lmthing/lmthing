@@ -3,18 +3,19 @@ import type { RuntimeTier } from './types'
 
 const CLOUD_BASE_URL = import.meta.env.VITE_CLOUD_BASE_URL
   ?? (import.meta.env.DEV ? `${window.location.protocol}//cloud.local` : 'https://lmthing.cloud')
+const COMPUTER_BASE_URL = import.meta.env.VITE_COMPUTER_BASE_URL
+  ?? (import.meta.env.DEV ? `${window.location.protocol}//computer.local` : 'https://lmthing.computer')
 const CLOUD_AUTH_KEY = 'lmthing-cloud-auth'
 
 interface CloudAuth {
   accessToken: string
 }
 
-interface TierDetectionResult {
+export interface TierDetectionResult {
   tier: RuntimeTier
-  flyioConfig?: {
-    appHost: string
-    cloudBaseUrl: string
-    authHeader: string
+  podConfig?: {
+    computerBaseUrl: string
+    accessToken: string
   }
 }
 
@@ -29,16 +30,12 @@ function getCloudAuth(): CloudAuth | null {
 }
 
 /**
- * Detects the user's runtime tier by checking for a cloud auth session
- * with a Computer tier subscription. Falls back to webcontainer (free tier).
- *
- * Calls issue-computer-token which verifies the subscription and returns
- * the appHost for the user's provisioned Fly.io machine.
+ * Detects the user's runtime tier by checking their subscription via /api/auth/me.
+ * Pro and Max tiers get a dedicated K8s compute pod. Others use WebContainer.
  */
 export function useTierDetection(): TierDetectionResult {
   const [tier, setTier] = useState<RuntimeTier>('webcontainer')
-  const [appHost, setAppHost] = useState<string | null>(null)
-  const [authHeader, setAuthHeader] = useState<string | null>(null)
+  const [accessToken, setAccessToken] = useState<string | null>(null)
 
   useEffect(() => {
     const cloudAuth = getCloudAuth()
@@ -47,14 +44,10 @@ export function useTierDetection(): TierDetectionResult {
       return
     }
 
-    const header = `Bearer ${cloudAuth.accessToken}`
-
-    // issue-computer-token verifies subscription and returns appHost
-    fetch(`${CLOUD_BASE_URL}/functions/v1/issue-computer-token`, {
-      method: 'POST',
+    // Check user tier via gateway
+    fetch(`${CLOUD_BASE_URL}/api/auth/me`, {
       headers: {
-        'Authorization': header,
-        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${cloudAuth.accessToken}`,
       },
     })
       .then(async (res) => {
@@ -63,10 +56,10 @@ export function useTierDetection(): TierDetectionResult {
           return
         }
         const data = await res.json()
-        if (data.appHost) {
-          setTier('flyio')
-          setAppHost(data.appHost)
-          setAuthHeader(header)
+        const userTier = data.tier as string
+        if (userTier === 'pro' || userTier === 'max') {
+          setTier('pod')
+          setAccessToken(cloudAuth.accessToken)
         } else {
           setTier('webcontainer')
         }
@@ -76,10 +69,10 @@ export function useTierDetection(): TierDetectionResult {
       })
   }, [])
 
-  const flyioConfig = useMemo(() => {
-    if (tier !== 'flyio' || !appHost || !authHeader) return undefined
-    return { appHost, cloudBaseUrl: CLOUD_BASE_URL, authHeader }
-  }, [tier, appHost, authHeader])
+  const podConfig = useMemo(() => {
+    if (tier !== 'pod' || !accessToken) return undefined
+    return { computerBaseUrl: COMPUTER_BASE_URL, accessToken }
+  }, [tier, accessToken])
 
-  return { tier, flyioConfig }
+  return { tier, podConfig }
 }

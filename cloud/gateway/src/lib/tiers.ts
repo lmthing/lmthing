@@ -9,6 +9,8 @@ export interface Tier {
   models: string[];
   tpmLimit: number;
   rpmLimit: number;
+  /** Whether this tier includes a dedicated compute pod */
+  compute: boolean;
 }
 
 export const TIERS: Record<string, Tier> = {
@@ -20,6 +22,7 @@ export const TIERS: Record<string, Tier> = {
     models: ["gpt-5.4-nano"],
     tpmLimit: 10_000,
     rpmLimit: 60,
+    compute: false,
   },
   starter: {
     name: "Starter",
@@ -29,6 +32,7 @@ export const TIERS: Record<string, Tier> = {
     models: ["gpt-5.4-nano"],
     tpmLimit: 25_000,
     rpmLimit: 150,
+    compute: false,
   },
   basic: {
     name: "Basic",
@@ -38,6 +42,7 @@ export const TIERS: Record<string, Tier> = {
     models: ["gpt-5.4-nano"],
     tpmLimit: 50_000,
     rpmLimit: 300,
+    compute: false,
   },
   pro: {
     name: "Pro",
@@ -47,6 +52,7 @@ export const TIERS: Record<string, Tier> = {
     models: ["gpt-5.4-nano"],
     tpmLimit: 100_000,
     rpmLimit: 1_000,
+    compute: true,
   },
   max: {
     name: "Max",
@@ -56,6 +62,7 @@ export const TIERS: Record<string, Tier> = {
     models: [],
     tpmLimit: 1_000_000,
     rpmLimit: 5_000,
+    compute: true,
   },
 };
 

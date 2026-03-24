@@ -42,20 +42,6 @@ const packages = [
     keyFiles: ["src/global.css", "src/tokens.ts"],
   },
   {
-    name: "@lmthing/container",
-    aliases: ["container", "flyio", "machines"],
-    path: "org/libs/container/",
-    description: "Fly.io Machines API client — provision, start, stop containers",
-    keyFiles: ["src/machines.ts", "src/types.ts"],
-  },
-  {
-    name: "@lmthing/server",
-    aliases: ["server", "runtime", "pty", "websocket"],
-    path: "org/libs/server/",
-    description: "Container runtime server — WebSocket, PTY, metrics",
-    keyFiles: ["src/server.ts", "src/pty.ts", "src/ws.ts"],
-  },
-  {
     name: "@lmthing/thing",
     aliases: ["thing", "spaces", "built-in"],
     path: "org/libs/thing/",
@@ -99,9 +85,9 @@ const packages = [
   },
   {
     name: "computer",
-    aliases: ["runtime", "terminal", "flyio-node"],
+    aliases: ["runtime", "terminal", "pod"],
     path: "computer/",
-    description: "THING agent runtime on Fly.io — terminal access",
+    description: "THING agent runtime — dedicated K8s compute pod + terminal access",
     keyFiles: ["src/routes/", "src/terminal/"],
   },
   {

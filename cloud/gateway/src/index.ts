@@ -5,6 +5,7 @@ import auth from "./routes/auth.js";
 import keys from "./routes/keys.js";
 import billing from "./routes/billing.js";
 import webhook from "./routes/webhook.js";
+import compute from "./routes/compute.js";
 
 const app = new Hono();
 
@@ -23,6 +24,7 @@ app.route("/api/auth", auth);
 app.route("/api/keys", keys);
 app.route("/api/billing", billing);
 app.route("/api/stripe/webhook", webhook);
+app.route("/api/compute", compute);
 
 const port = parseInt(process.env.PORT || "3000");
 

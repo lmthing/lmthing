@@ -442,12 +442,6 @@ importers:
         specifier: ^5.6.0
         version: 5.9.3
 
-  org/libs/container:
-    devDependencies:
-      typescript:
-        specifier: ^5.6.0
-        version: 5.9.3
-
   org/libs/core:
     dependencies:
       '@ai-sdk/amazon-bedrock':
@@ -642,28 +636,6 @@ importers:
       sharp:
         specifier: ^0.33.0
         version: 0.33.5
-
-  org/libs/server:
-    dependencies:
-      node-pty:
-        specifier: ^1.0.0
-        version: 1.1.0
-      ws:
-        specifier: ^8.18.0
-        version: 8.19.0
-    devDependencies:
-      '@types/node':
-        specifier: ^24
-        version: 24.11.0
-      '@types/ws':
-        specifier: ^8.5.0
-        version: 8.18.1
-      tsx:
-        specifier: ^4.0.0
-        version: 4.21.0
-      typescript:
-        specifier: ^5
-        version: 5.9.3
 
   org/libs/state:
     devDependencies:
@@ -5173,12 +5145,6 @@ packages:
   node-abi@3.89.0:
     resolution: {integrity: sha512-6u9UwL0HlAl21+agMN3YAMXcKByMqwGx+pq+P76vii5f7hTPtKDp08/H9py6DY+cfDw7kQNTGEj/rly3IgbNQA==}
     engines: {node: '>=10'}
-
-  node-addon-api@7.1.1:
-    resolution: {integrity: sha512-5m3bsyrjFWE1xf7nz7YXdN4udnVtXK6/Yfgn5qnahL6bCkf2yKt4k3nuTKAtT4r3IG8JNR2ncsIMdZuAzJjHQQ==}
-
-  node-pty@1.1.0:
-    resolution: {integrity: sha512-20JqtutY6JPXTUnL0ij1uad7Qe1baT46lyolh2sSENDd4sTzKZ4nmAFkeAARDKwmlLjPx6XKRlwRUxwjOy+lUg==}
 
   node-releases@2.0.27:
     resolution: {integrity: sha512-nmh3lCkYZ3grZvqcCH+fjmQ7X+H0OeZgP40OierEaAptX4XofMh5kwNbWh7lBduUzCcV/8kZ+NDLCwm2iorIlA==}
@@ -9991,12 +9957,6 @@ snapshots:
     dependencies:
       semver: 7.7.4
     optional: true
-
-  node-addon-api@7.1.1: {}
-
-  node-pty@1.1.0:
-    dependencies:
-      node-addon-api: 7.1.1
 
   node-releases@2.0.27: {}
 

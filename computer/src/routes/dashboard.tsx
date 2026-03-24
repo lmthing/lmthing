@@ -12,7 +12,7 @@ export const Route = createFileRoute('/dashboard')({
 function mapStatusToBootStage(status: string, tier: string): BootStage {
   if (status === 'running') return 'running'
   if (status === 'error') return 'error'
-  if (tier === 'flyio') return 'connecting'
+  if (tier === 'pod') return 'connecting'
   return 'booting'
 }
 

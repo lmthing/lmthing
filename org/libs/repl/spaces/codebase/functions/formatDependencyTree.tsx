@@ -27,14 +27,6 @@ const dependencyGraph: Record<string, { dependsOn: string[]; dependedBy: string[
     dependsOn: ["Tailwind CSS v4"],
     dependedBy: ["@lmthing/ui", "studio", "chat", "com", "computer", "space", "social", "team", "store", "blog", "casa"],
   },
-  "@lmthing/container": {
-    dependsOn: ["Fly.io Machines API"],
-    dependedBy: ["cloud"],
-  },
-  "@lmthing/server": {
-    dependsOn: ["ws", "node-pty"],
-    dependedBy: ["computer (runtime)", "space (runtime)"],
-  },
   "@lmthing/thing": {
     dependsOn: ["lmthing"],
     dependedBy: ["computer", "chat"],
@@ -44,7 +36,7 @@ const dependencyGraph: Record<string, { dependsOn: string[]; dependedBy: string[
     dependedBy: ["studio", "chat", "com", "computer", "space", "social", "team", "store", "blog", "casa"],
   },
   "cloud": {
-    dependsOn: ["@lmthing/container", "Supabase", "Stripe SDK", "Deno"],
+    dependsOn: ["Supabase", "Stripe SDK", "K8s API"],
     dependedBy: ["all frontend apps (via HTTP)"],
   },
   "studio": {
@@ -66,8 +58,6 @@ const aliases: Record<string, string> = {
   auth: "@lmthing/auth",
   ui: "@lmthing/ui",
   css: "@lmthing/css",
-  container: "@lmthing/container",
-  server: "@lmthing/server",
   thing: "@lmthing/thing",
   utils: "@lmthing/utils",
   backend: "cloud",

@@ -12,7 +12,7 @@ import type {
   TerminalSession,
 } from './types'
 import { WebContainerRuntime } from './webcontainer'
-import { FlyioRuntime } from './flyio'
+import { PodRuntime } from './pod'
 import { defaultTemplate } from './template'
 import { buildFileTree, watchFileSystem } from './file-watcher'
 import { useIdeStore } from '../store'
@@ -91,19 +91,18 @@ const initialState: State = {
   error: null,
 }
 
-interface FlyioConfig {
-  appHost: string
-  cloudBaseUrl: string
-  authHeader: string
+interface PodConfig {
+  computerBaseUrl: string
+  accessToken: string
 }
 
 interface ComputerProviderProps {
   children: React.ReactNode
   tier?: RuntimeTier
-  flyioConfig?: FlyioConfig
+  podConfig?: PodConfig
 }
 
-export function ComputerProvider({ children, tier = 'webcontainer', flyioConfig }: ComputerProviderProps) {
+export function ComputerProvider({ children, tier = 'webcontainer', podConfig }: ComputerProviderProps) {
   const [state, dispatch] = useReducer(reducer, initialState)
   const runtimeRef = useRef<ComputerRuntime | null>(null)
   const ideInitRef = useRef(false)
@@ -111,8 +110,8 @@ export function ComputerProvider({ children, tier = 'webcontainer', flyioConfig 
   useEffect(() => {
     if (tier === 'webcontainer') {
       runtimeRef.current = new WebContainerRuntime()
-    } else if (tier === 'flyio' && flyioConfig) {
-      runtimeRef.current = new FlyioRuntime(flyioConfig)
+    } else if (tier === 'pod' && podConfig) {
+      runtimeRef.current = new PodRuntime(podConfig)
     }
 
     const rt = runtimeRef.current
@@ -131,7 +130,7 @@ export function ComputerProvider({ children, tier = 'webcontainer', flyioConfig 
       unsubs.forEach((fn) => fn())
       rt.shutdown()
     }
-  }, [tier, flyioConfig])
+  }, [tier, podConfig])
 
   // Auto-boot
   useEffect(() => {
@@ -141,7 +140,7 @@ export function ComputerProvider({ children, tier = 'webcontainer', flyioConfig 
         dispatch({ type: 'error', error: String(err) })
       })
     }
-  }, [tier, flyioConfig])
+  }, [tier, podConfig])
 
   const boot = useCallback(async () => {
     const rt = runtimeRef.current

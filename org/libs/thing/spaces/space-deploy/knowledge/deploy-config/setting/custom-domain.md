@@ -6,7 +6,7 @@ order: 2
 
 # Custom Domain
 
-Map a custom domain to your deployed space instead of using the default `{fly_app_name}.fly.dev` hostname.
+Map a custom domain to your deployed space instead of using the default hostname.
 
 ## How It Works
 

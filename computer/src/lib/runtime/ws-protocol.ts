@@ -1,4 +1,4 @@
-// WebSocket protocol for Fly.io runtime communication
+// WebSocket protocol for compute pod runtime communication
 
 // --- Client → Server messages ---
 

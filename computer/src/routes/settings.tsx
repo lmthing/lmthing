@@ -130,20 +130,20 @@ function Settings() {
             <Heading level={4}>Runtime</Heading>
           </CardHeader>
           <CardBody>
-            <Badge variant={tier === 'flyio' ? 'primary' : 'muted'}>
-              {tier === 'flyio' ? 'Computer ($8/mo)' : 'Free (WebContainer)'}
+            <Badge variant={tier === 'pod' ? 'primary' : 'muted'}>
+              {tier === 'pod' ? 'Pro (Dedicated Pod)' : 'Free (WebContainer)'}
             </Badge>
             <Caption muted>
               Status: {status}
             </Caption>
             {tier === 'webcontainer' && (
               <Caption muted>
-                Upgrade to Computer tier for an always-on Fly.io node with full CPU/memory metrics, network monitoring, and persistent processes.
+                Upgrade to Pro for a dedicated compute pod with full CPU/memory metrics, network monitoring, and persistent processes.
               </Caption>
             )}
-            {tier === 'flyio' && (
+            {tier === 'pod' && (
               <Caption muted>
-                1 core, 1 GB memory on Fly.io. Always-on with full metrics and terminal access.
+                0.5 CPU, 1 GB memory, 1 GB storage. Always-on with full metrics and terminal access.
               </Caption>
             )}
           </CardBody>
@@ -166,10 +166,10 @@ function Settings() {
                 onClick={handleUpgrade}
                 disabled={billingLoading}
               >
-                {billingLoading ? 'Redirecting...' : 'Upgrade to Computer ($8/mo)'}
+                {billingLoading ? 'Redirecting...' : 'Upgrade to Pro'}
               </Button>
             )}
-            {hasCloudAuth && tier === 'flyio' && (
+            {hasCloudAuth && tier === 'pod' && (
               <Button
                 variant="secondary"
                 size="sm"

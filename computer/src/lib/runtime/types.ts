@@ -1,6 +1,6 @@
-// Runtime abstraction — both WebContainer and Fly.io backends implement this
+// Runtime abstraction — both WebContainer and Pod backends implement this
 
-export type RuntimeTier = 'webcontainer' | 'flyio'
+export type RuntimeTier = 'webcontainer' | 'pod'
 export type RuntimeStatus = 'booting' | 'running' | 'stopped' | 'error'
 
 export interface RuntimeMetrics {

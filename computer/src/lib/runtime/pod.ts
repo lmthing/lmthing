@@ -9,8 +9,8 @@ import type {
   NetworkEntry,
   TerminalSession,
 } from './types'
-import type { ClientMessage, ServerMessage } from './flyio-protocol'
-import { encodeMessage, decodeMessage } from './flyio-protocol'
+import type { ClientMessage, ServerMessage } from './ws-protocol'
+import { encodeMessage, decodeMessage } from './ws-protocol'
 
 type Listener<T> = (value: T) => void
 
@@ -19,27 +19,28 @@ const BASE_DELAY_MS = 1000
 
 let sessionCounter = 0
 
-export interface FlyioRuntimeOptions {
-  /** The user's Fly.io app hostname, e.g. "user-abc123.fly.dev" */
-  appHost: string
-  /** Cloud API base URL for token issuance */
-  cloudBaseUrl: string
-  /** Authorization header value (Bearer JWT or lmt_ key) */
-  authHeader: string
+export interface PodRuntimeOptions {
+  /** Base URL of lmthing.computer (e.g. "https://lmthing.computer") */
+  computerBaseUrl: string
+  /** Supabase access token (JWT) — Envoy validates this at the edge */
+  accessToken: string
 }
 
-export class FlyioRuntime implements ComputerRuntime {
-  readonly tier: RuntimeTier = 'flyio'
+/**
+ * PodRuntime connects to a dedicated K8s compute pod via lmthing.computer.
+ * Envoy Gateway handles JWT validation and routes /api/* to the user's pod.
+ * Uses the same WebSocket protocol (ws-protocol.ts).
+ */
+export class PodRuntime implements ComputerRuntime {
+  readonly tier: RuntimeTier = 'pod'
   private _status: RuntimeStatus = 'stopped'
   private ws: WebSocket | null = null
-  private token: string | null = null
   private retryCount = 0
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private disposed = false
 
-  private readonly appHost: string
-  private readonly cloudBaseUrl: string
-  private readonly authHeader: string
+  private readonly computerBaseUrl: string
+  private readonly accessToken: string
 
   private statusListeners = new Set<Listener<RuntimeStatus>>()
   private metricsListeners = new Set<Listener<RuntimeMetrics>>()
@@ -50,10 +51,9 @@ export class FlyioRuntime implements ComputerRuntime {
 
   private terminalDataListeners = new Map<string, Set<Listener<string>>>()
 
-  constructor(options: FlyioRuntimeOptions) {
-    this.appHost = options.appHost
-    this.cloudBaseUrl = options.cloudBaseUrl
-    this.authHeader = options.authHeader
+  constructor(options: PodRuntimeOptions) {
+    this.computerBaseUrl = options.computerBaseUrl
+    this.accessToken = options.accessToken
   }
 
   get status(): RuntimeStatus {
@@ -88,20 +88,18 @@ export class FlyioRuntime implements ComputerRuntime {
       this.ws.close(1000, 'shutdown')
       this.ws = null
     }
-    this.token = null
     this.setStatus('stopped')
   }
 
   async createTerminalSession(): Promise<TerminalSession> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      throw new Error('Not connected to Fly.io runtime')
+      throw new Error('Not connected to compute pod')
     }
 
-    const id = `fly-session-${++sessionCounter}`
+    const id = `pod-session-${++sessionCounter}`
     const dataListeners = new Set<Listener<string>>()
     this.terminalDataListeners.set(id, dataListeners)
 
-    // Request the server to open a terminal session
     this.send({ type: 'terminal.open', sessionId: id })
 
     return {
@@ -156,35 +154,16 @@ export class FlyioRuntime implements ComputerRuntime {
 
   // --- Private ---
 
-  private async fetchToken(): Promise<string> {
-    const res = await fetch(`${this.cloudBaseUrl}/functions/v1/issue-computer-token`, {
-      method: 'POST',
-      headers: {
-        'Authorization': this.authHeader,
-        'Content-Type': 'application/json',
-      },
-    })
-
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}))
-      throw new Error(body?.error?.message ?? `Token issuance failed (${res.status})`)
-    }
-
-    const { token } = await res.json()
-    return token
-  }
-
-  private async connect(): Promise<void> {
-    // Always fetch a fresh token before connecting (token may have expired)
-    this.token = await this.fetchToken()
-
+  private connect(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      const url = `wss://${this.appHost}/ws?token=${encodeURIComponent(this.token!)}`
+      // Connect via lmthing.computer/api/ws — Envoy strips /api, pod sees /ws
+      // JWT passed as query param since browsers can't set WebSocket headers
+      const wsBase = this.computerBaseUrl.replace(/^http/, 'ws')
+      const url = `${wsBase}/api/ws?access_token=${encodeURIComponent(this.accessToken)}`
       const ws = new WebSocket(url)
       this.ws = ws
 
       ws.onopen = () => {
-        // Subscribe to all channels
         this.send({
           type: 'subscribe',
           channels: ['metrics', 'processes', 'agents', 'logs', 'network'],
@@ -197,13 +176,12 @@ export class FlyioRuntime implements ComputerRuntime {
       }
 
       ws.onerror = () => {
-        // onclose will fire after this — handle reconnect there
+        // onclose fires after — handle reconnect there
       }
 
       ws.onclose = (event) => {
         if (this.disposed) return
 
-        // If we never resolved (still booting), reject
         if (this._status === 'booting') {
           reject(new Error(`WebSocket closed during boot (code ${event.code})`))
           return
@@ -225,7 +203,7 @@ export class FlyioRuntime implements ComputerRuntime {
       case 'auth.ok':
         this.retryCount = 0
         this.setStatus('running')
-        this.emitLog('info', 'runtime', 'Connected to Fly.io runtime')
+        this.emitLog('info', 'runtime', 'Connected to compute pod')
         onConnected?.()
         break
 
@@ -245,7 +223,6 @@ export class FlyioRuntime implements ComputerRuntime {
       }
 
       case 'terminal.opened':
-        // Session acknowledged by server — no action needed
         break
 
       case 'metrics':
@@ -324,7 +301,7 @@ export class FlyioRuntime implements ComputerRuntime {
       try {
         await this.connect()
       } catch {
-        // connect() failure will trigger onclose → scheduleReconnect again
+        // connect() failure triggers onclose → scheduleReconnect
       }
     }, delay)
   }

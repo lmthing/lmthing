@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { stripe } from "../lib/stripe.js";
 import * as litellm from "../lib/litellm.js";
 import { getTierByPriceId, TIERS } from "../lib/tiers.js";
+import { createUserPod, deleteUserPod } from "../lib/compute.js";
 
 const webhook = new Hono();
 
@@ -55,6 +56,22 @@ webhook.post("/", async (c) => {
       } catch (err) {
         console.error(`Failed to update user ${userId}:`, err);
       }
+
+      // Create or delete compute pod based on tier
+      if (tier.compute) {
+        try {
+          await createUserPod(userId);
+          console.log(`Compute pod created for user ${userId}`);
+        } catch (err) {
+          console.error(`Failed to create compute pod for ${userId}:`, err);
+        }
+      } else {
+        try {
+          await deleteUserPod(userId);
+        } catch (err) {
+          console.error(`Failed to delete compute pod for ${userId}:`, err);
+        }
+      }
       break;
     }
 
@@ -74,6 +91,13 @@ webhook.post("/", async (c) => {
         console.log(`User ${userId} downgraded to free`);
       } catch (err) {
         console.error(`Failed to downgrade user ${userId}:`, err);
+      }
+
+      // Delete compute pod on subscription cancellation
+      try {
+        await deleteUserPod(userId);
+      } catch (err) {
+        console.error(`Failed to delete compute pod for ${userId}:`, err);
       }
       break;
     }

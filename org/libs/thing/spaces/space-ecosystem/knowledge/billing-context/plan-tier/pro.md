@@ -28,4 +28,4 @@ Pro is for users who build agents regularly, need premium models for quality-sen
 
 ## Upgrading to Computer
 
-If you need a persistent runtime environment with terminal access, consider the Computer tier which includes everything in Pro plus a dedicated Fly.io machine.
+If you need a persistent runtime environment with terminal access, consider the Computer tier which includes everything in Pro plus a dedicated K8s pod.

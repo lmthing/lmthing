@@ -60,9 +60,9 @@ function ComputerShell() {
 }
 
 function TierAwareProvider({ children }: { children: React.ReactNode }) {
-  const { tier, flyioConfig } = useTierDetection()
+  const { tier, podConfig } = useTierDetection()
   return (
-    <ComputerProvider tier={tier} flyioConfig={flyioConfig}>
+    <ComputerProvider tier={tier} podConfig={podConfig}>
       {children}
     </ComputerProvider>
   )

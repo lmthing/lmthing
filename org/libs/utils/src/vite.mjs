@@ -44,7 +44,7 @@ export function createViteConfig(dirname, overrides) {
         'lmthing': path.resolve(dirname, '../org/libs/core/src'),
         '@lmthing/state': path.resolve(dirname, '../org/libs/state/src'),
         '@lmthing/auth': path.resolve(dirname, '../org/libs/auth/src'),
-        '@lmthing/container': path.resolve(dirname, '../org/libs/container/src'),
+
         'vm2': emptyStub,
         'coffee-script': emptyStub,
         '@ai-sdk/anthropic': aiSdkStub,

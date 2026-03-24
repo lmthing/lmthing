@@ -26,8 +26,6 @@ lmthing/
 │   │   ├── css/            # Shared styles
 │   │   ├── ui/             # Shared UI components
 │   │   ├── auth/           # @lmthing/auth — cross-domain SSO client
-│   │   ├── container/      # @lmthing/container — Fly.io Machines API client
-│   │   ├── server/         # Container runtime server (WebSocket, PTY, metrics)
 │   │   ├── thing/          # @lmthing/thing — THING agent system studio (built-in spaces)
 │   │   └── utils/          # Shared build utilities (Vite config)
 │   └── docs/               # Documentation
@@ -35,7 +33,7 @@ lmthing/
 ├── studio/                 # lmthing.studio — agent builder UI (React 19, Vite 7, TanStack Router)
 ├── chat/                   # lmthing.chat — personal THING interface
 ├── blog/                   # lmthing.blog — personalized AI news
-├── computer/               # lmthing.computer — THING agent runtime (Fly.io node, terminal access)
+├── computer/               # lmthing.computer — THING agent runtime (K8s compute pod, terminal access)
 ├── space/                  # lmthing.space — deploy spaces & publish agents
 ├── social/                 # lmthing.social — public hive mind
 ├── team/                   # lmthing.team — private agent rooms
@@ -252,11 +250,11 @@ org/libs/thing/
     │   ├── agents/                       # ChatAssistant
     │   ├── flows/                        # flow_start_conversation
     │   └── knowledge/                    # chat-modes, model-guide
-    ├── space-computer/                   # Fly.io computer node management & troubleshooting
+    ├── space-computer/                   # Compute pod management & troubleshooting
     │   ├── agents/                       # ComputerAdmin, Troubleshooter
     │   ├── flows/                        # flow_setup_computer, flow_troubleshoot
     │   └── knowledge/                    # infrastructure, computer-ops, regions
-    ├── space-deploy/                     # Space deployment lifecycle on Fly.io
+    ├── space-deploy/                     # Space deployment lifecycle on K8s
     │   ├── agents/                       # DeployManager, SpaceMonitor
     │   ├── flows/                        # flow_deploy_space, flow_check_status
     │   └── knowledge/                    # space-lifecycle, deploy-config, regions
@@ -426,8 +424,8 @@ Different products run agents in different environments:
 | Product     | Runtime                                                  |
 | ----------- | -------------------------------------------------------- |
 | Studio      | Browser (WebContainer for free tier)                     |
-| Computer    | Fly.io node (1 core, 1 GB) — THING agent + studio spaces |
-| Space       | Fly.io container — deployed spaces + published agents    |
+| Computer    | K8s pod (0.5 CPU, 1 GB) — THING agent + studio spaces    |
+| Space       | K8s pod — deployed spaces + published agents              |
 | Blog        | Shared serverless worker                                 |
 | Casa        | Computer node → remote Home Assistant connection         |
 | Social/Team | Shared VFS + conversation log                            |
@@ -545,7 +543,7 @@ This repository is a monorepo organized by TLD — each lmthing.\* domain has it
 - `org/libs/state/` — Virtual file system (`@lmthing/state`). In-memory Map-based VFS with FSEventBus, React context hierarchy, and hooks (`useFile`, `useDir`, `useGlob`, `useDraft`).
 - `org/libs/css/` — Shared styles used across all product domains.
 - `org/libs/ui/` — Shared React UI components used across all product domains.
-- `org/libs/thing/` — THING agent system studio (`@lmthing/thing`). 7 built-in spaces that ship with the THING agent: `space-creator` (meta-space for creating spaces), `space-ecosystem` (platform navigation, account/billing), `space-studio` (agent building, workspace management, prompt optimization), `space-chat` (personal chat interface), `space-computer` (Fly.io node management, troubleshooting), `space-deploy` (space deployment lifecycle), `space-store` (marketplace publishing, listing optimization). Total: 12 agents, 12 flows, 17 knowledge domains across all spaces.
+- `org/libs/thing/` — THING agent system studio (`@lmthing/thing`). 7 built-in spaces that ship with the THING agent: `space-creator` (meta-space for creating spaces), `space-ecosystem` (platform navigation, account/billing), `space-studio` (agent building, workspace management, prompt optimization), `space-chat` (personal chat interface), `space-computer` (compute pod management, troubleshooting), `space-deploy` (space deployment lifecycle), `space-store` (marketplace publishing, listing optimization). Total: 12 agents, 12 flows, 17 knowledge domains across all spaces.
 
 ## Cloud Backend
 
@@ -557,7 +555,7 @@ This repository is a monorepo organized by TLD — each lmthing.\* domain has it
 - `studio/` — Agent builder UI (React 19, Vite 7, TanStack Router, Tailwind 4, Radix UI). Primary development surface.
 - `chat/` — Personal THING interface.
 - `blog/` — Personalized AI news.
-- `computer/` — THING agent runtime. Where the THING agent and its studio spaces live and run on a Fly.io node. Visiting directly gives terminal access.
+- `computer/` — THING agent runtime. Where the THING agent and its studio spaces live and run on a dedicated K8s compute pod. Visiting directly gives terminal access.
 - `space/` — Deploy spaces to containers with running agents, or publish agents for API access via the store.
 - `social/` — Public hive mind.
 - `team/` — Private agent rooms.

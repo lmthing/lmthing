@@ -45,10 +45,10 @@ CREATE TABLE public.spaces (
   name              text NOT NULL,
   description       text,
 
-  -- Fly.io
-  fly_machine_id    text UNIQUE,
-  fly_app_name      text,
-  fly_volume_id     text,
+  -- K8s
+  pod_name          text UNIQUE,
+  namespace         text,
+  volume_claim      text,
   region            text NOT NULL DEFAULT 'iad',
   status            text NOT NULL DEFAULT 'created'
                     CHECK (status IN ('created','provisioning','running','stopped','failed','destroyed')),
@@ -84,11 +84,11 @@ All follow the standard pattern in `cloud/supabase/functions/`:
 
 | Function | Method | Auth | Purpose |
 |----------|--------|------|---------|
-| `create-space` | POST | JWT | Insert into `spaces`, provision Fly.io machine, create DB schema |
+| `create-space` | POST | JWT | Insert into `spaces`, create K8s pod, create DB schema |
 | `list-spaces` | GET | JWT | `SELECT * FROM spaces WHERE user_id = auth.uid()` |
 | `get-space` | GET | JWT or none | By slug; public if `status = 'running'` (RLS handles it) |
 | `update-space` | POST | JWT | Update config, status, custom domain |
-| `delete-space` | POST | JWT | Set `status = 'destroyed'`, destroy Fly.io machine |
+| `delete-space` | POST | JWT | Set `status = 'destroyed'`, delete K8s namespace |
 
 File structure for each:
 
@@ -120,8 +120,8 @@ const { data: space } = await supabase
 // 4. Create DB schema for this space
 await supabase.rpc('create_space_schema', { schema_name: `space_${space.id.replace(/-/g, '')}` });
 
-// 5. Provision Fly.io machine (async — update status on completion)
-// TODO: Fly.io Machines API call
+// 5. Create K8s pod (async — update status on completion)
+// TODO: K8s API call
 
 // 6. Return space metadata
 ```
@@ -334,8 +334,8 @@ export interface Space {
   slug: string
   name: string
   description: string | null
-  fly_machine_id: string | null
-  fly_app_name: string | null
+  pod_name: string | null
+  namespace: string | null
   region: string
   status: 'created' | 'provisioning' | 'running' | 'stopped' | 'failed' | 'destroyed'
   app_config: Record<string, unknown>
@@ -412,17 +412,17 @@ export async function deleteSpace(id: string): Promise<void> { ... }
 
 `$spaceSlug/admin/builder.tsx` — conversational app builder where the admin talks to THING.
 
-Connection model: same as `computer/` terminal — WebSocket to the space's Fly.io node. But instead of a terminal, it's a chat interface.
+Connection model: same as `computer/` terminal — WebSocket to the space's K8s pod. But instead of a terminal, it's a chat interface.
 
 ```
-Admin → builder.tsx → WebSocket → Fly.io node → THING agent → tools → VFS/DB changes
+Admin → builder.tsx → WebSocket → K8s pod → THING agent → tools → VFS/DB changes
 ```
 
-Reference: `studio/` chat patterns for the UI, `computer/` flyio runtime for the WebSocket connection.
+Reference: `studio/` chat patterns for the UI, `computer/` pod runtime for the WebSocket connection.
 
 ### 3.2 Builder Agent Tools
 
-Tools defined using `lmthing` core's Zod-schema tool system, running on the Fly.io node:
+Tools defined using `lmthing` core's Zod-schema tool system, running on the K8s pod:
 
 | Tool | Purpose | VFS Path |
 |------|---------|----------|
@@ -527,7 +527,7 @@ org/libs/app-engine/
 
 ### 4.5 Custom Component Loading
 
-THING generates `.tsx` files in `app/custom/`. The Fly.io node compiles them with esbuild and serves as JS modules. The SPA loads via dynamic `import()`.
+THING generates `.tsx` files in `app/custom/`. The K8s pod compiles them with esbuild and serves as JS modules. The SPA loads via dynamic `import()`.
 
 ```typescript
 // ComponentLoader.tsx
@@ -673,6 +673,6 @@ Phases 1 and 2 are foundational — everything depends on them. Phases 3-5 can p
 2. **Separate `issue-space-token`** — avoids breaking computer terminal flow
 3. **Schema isolation** — per-space PostgreSQL schemas within shared Supabase project (cost-effective, instant provisioning)
 4. **Config-driven + code-gen hybrid** — JSON configs for standard patterns, generated TSX for custom components
-5. **Builder chat over WebSocket** — same protocol as computer terminal but chat-mode, runs THING on Fly.io node
+5. **Builder chat over WebSocket** — same protocol as computer terminal but chat-mode, runs THING on K8s pod
 6. **`@lmthing/app-engine` as shared lib** — reusable across space and potentially studio preview
 7. **SpaceRoleGate** — single component handles owner vs visitor routing, simplifies auth logic

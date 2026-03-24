@@ -12,7 +12,7 @@ The default region for lmthing space deployments. Located on the US East Coast w
 
 - **Default region** — Most lmthing infrastructure runs in IAD, minimizing inter-service latency
 - **Excellent connectivity** — Major internet exchange with strong peering to all major cloud providers
-- **Reliable capacity** — Fly.io's largest US datacenter with consistent availability
+- **Reliable capacity** — Well-provisioned K8s cluster with consistent availability
 - **Best all-around** — If you have no specific geographic requirements, IAD is the safest choice
 
 ## Best For

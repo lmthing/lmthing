@@ -41,7 +41,7 @@ function TerminalRoute() {
     return (
       <BootProgress
         tier={tier}
-        stage={status === 'booting' ? (tier === 'flyio' ? 'connecting' : 'booting') : 'booting'}
+        stage={status === 'booting' ? (tier === 'pod' ? 'connecting' : 'booting') : 'booting'}
       />
     )
   }

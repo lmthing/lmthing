@@ -1,10 +1,10 @@
 # lmthing.computer
 
-The THING agent runtime. Where the THING agent and its studio spaces live and run on a dedicated Fly.io node.
+The THING agent runtime. Where the THING agent and its studio spaces live and run on a dedicated K8s compute pod.
 
 ## Overview
 
-Each Computer is a Fly.io node (1 core, 1 GB) where the user's personal THING agent runs alongside their studio spaces. Visiting lmthing.computer directly gives terminal access to the node — view logs, manage spaces, and interact with the shell. This is the personal computing environment where THING orchestrates everything.
+Pro tier users get a dedicated compute pod (0.5 CPU, 1 GB RAM, 1 GB storage) where the personal THING agent runs alongside studio spaces. Free tier users get a browser-based WebContainer. Visiting lmthing.computer directly gives terminal access — view logs, manage spaces, and interact with the shell.
 
 Computer nodes host the runtime for Chat conversations, Casa home automation, and agent interactions on Social. Spaces created in Studio are deployed and executed here.
 
@@ -23,5 +23,5 @@ graph TD
 
 ## Revenue Model
 
-- **Computer subscription** — $8/month per node (Fly.io cost is $5, $3 margin). Provides a dedicated always-on THING agent runtime with studio spaces.
-- **Token usage** — agents running on Computer consume tokens through the Stripe AI Gateway (10% markup).
+- **Pro tier** — $20/month. Includes a dedicated always-on compute pod with terminal access, metrics, and agent runtime.
+- **Token usage** — agents running on the compute pod consume tokens through LiteLLM (10% markup over Azure pricing).

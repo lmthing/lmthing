@@ -190,9 +190,9 @@ export function ComputerProvider({ children, tier = 'webcontainer', podConfig }:
       store.setRunning(true)
       await wc.spawn('pnpm', ['run', 'dev'])
 
-      // Listen for server-ready
-      wc.on('server-ready', (_port: number, url: string) => {
-        store.setPreviewUrl(url)
+      // Listen for server-ready on port 3010
+      wc.on('server-ready', (port: number, url: string) => {
+        if (port === 3010) store.setPreviewUrl(url)
       })
 
       // Watch file system

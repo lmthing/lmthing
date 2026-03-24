@@ -1,1 +1,0 @@
-export { EffectsManager } from './EffectsManager';

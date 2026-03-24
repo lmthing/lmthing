@@ -1,9 +1,0 @@
-{
-  "label": "Difficulty",
-  "description": "Quiz difficulty level",
-  "fieldType": "select",
-  "required": false,
-  "default": "beginner",
-  "variableName": "difficulty",
-  "renderAs": "field"
-}

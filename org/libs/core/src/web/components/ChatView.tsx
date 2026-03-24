@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { UIBlock } from '../rpc-client'
-import type { SessionStatus } from '../../session/types'
+import type { SessionStatus } from '@lmthing/repl'
 import { BlockRenderer } from './BlockRenderer'
 import { ActivityIndicator } from './ActivityIndicator'
 

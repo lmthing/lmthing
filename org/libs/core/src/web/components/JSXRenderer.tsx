@@ -1,5 +1,5 @@
 import { createElement, useState } from 'react'
-import type { SerializedJSX } from '../../session/types'
+import type { SerializedJSX } from '@lmthing/repl'
 
 /**
  * Renders a SerializedJSX tree from the agent sandbox into React elements.

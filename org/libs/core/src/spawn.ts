@@ -6,12 +6,11 @@
  */
 
 import type { LanguageModel } from "ai";
-import { Session } from "../session/session";
-import type { SessionOptions } from "../session/session";
-import type { SessionEvent } from "../session/types";
-import { AgentLoop } from "../cli/agent-loop";
-import type { ChatMessage } from "../cli/agent-loop";
-import { buildSystemPrompt } from "../cli/buildSystemPrompt";
+import { Session } from "@lmthing/repl";
+import type { SessionOptions, SessionEvent } from "@lmthing/repl";
+import { AgentLoop } from "./cli/agent-loop";
+import type { ChatMessage } from "./cli/agent-loop";
+import { buildSystemPrompt } from "./cli/buildSystemPrompt";
 
 // ── Types ──
 

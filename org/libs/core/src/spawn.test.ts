@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { executeSpawn } from "./spawn";
 import type { SpawnConfig, SpawnContext } from "./spawn";
-import { Session } from "../session/session";
-import { AgentLoop } from "../cli/agent-loop";
-import type { SessionEvent } from "../session/types";
+import { Session } from "@lmthing/repl";
+import type { SessionEvent } from "@lmthing/repl";
+import { AgentLoop } from "./cli/agent-loop";
 
 // ── Mock streamText ──
 

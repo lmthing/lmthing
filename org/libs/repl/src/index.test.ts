@@ -55,9 +55,11 @@ describe('index (barrel export)', () => {
     expect(repl.formatCatalogForPrompt).toBeDefined()
   })
 
-  it('exports RPC', () => {
-    expect(repl.ReplSessionServer).toBeDefined()
-    expect(repl.connectToRepl).toBeDefined()
+  it('exports knowledge writer utilities', () => {
+    expect(repl.saveKnowledgeFile).toBeDefined()
+    expect(repl.deleteKnowledgeFile).toBeDefined()
+    expect(repl.parseFieldPath).toBeDefined()
+    expect(repl.ensureMemoryDomain).toBeDefined()
   })
 
   it('exports tasklist reminder message builder', () => {

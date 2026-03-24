@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { UIBlock } from '../rpc-client'
-import type { SerializedJSX } from '../../session/types'
+import type { SerializedJSX } from '@lmthing/repl'
 import { JSXRenderer } from './JSXRenderer'
 import { FormBlock } from './FormBlock'
 

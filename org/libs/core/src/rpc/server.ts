@@ -1,7 +1,6 @@
 import type { ReplSession } from './interface'
-import type { SessionEvent, SessionSnapshot } from '../session/types'
-import type { ConversationState } from '../session/conversation-state'
-import { Session } from '../session/session'
+import type { SessionEvent, SessionSnapshot, ConversationState } from '@lmthing/repl'
+import { Session } from '@lmthing/repl'
 
 /**
  * RPC server that exposes the Session to the browser via RPC.

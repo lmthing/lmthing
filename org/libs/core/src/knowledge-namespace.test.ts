@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mkdirSync, rmSync, existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { createKnowledgeNamespace, formatKnowledgeNamespaceForPrompt } from '../sandbox/agent-namespaces'
-import { buildKnowledgeTree, loadKnowledgeFiles } from './index'
-import { ensureMemoryDomain } from './writer'
+import { createKnowledgeNamespace, formatKnowledgeNamespaceForPrompt } from './agent-namespaces'
+import { buildKnowledgeTree, loadKnowledgeFiles, ensureMemoryDomain } from '@lmthing/repl'
 
-const TEST_DIR = join(__dirname, '../../.test-knowledge-ns')
+const TEST_DIR = join(__dirname, '../.test-knowledge-ns')
 
 beforeEach(() => {
   rmSync(TEST_DIR, { recursive: true, force: true })

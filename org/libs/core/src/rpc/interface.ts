@@ -1,5 +1,4 @@
-import type { SessionEvent, SessionSnapshot, ScopeEntry, SerializedJSX } from '../session/types'
-import type { ConversationState } from '../session/conversation-state'
+import type { SessionEvent, SessionSnapshot, ScopeEntry, SerializedJSX, ConversationState } from '@lmthing/repl'
 
 /** Exposed by CLI (backend) → consumed by browser (frontend) */
 export interface ReplSession {

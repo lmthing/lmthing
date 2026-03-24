@@ -10,11 +10,10 @@
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join, resolve, basename } from 'node:path'
-import { loadAgent } from '../cli/agent-loader'
-import type { AgentAction, LoadedAgent } from '../cli/agent-loader'
-import type { KnowledgeTree, KnowledgeDomain, KnowledgeField } from '../knowledge/types'
-import type { AgentSpawnConfig, AgentSpawnResult } from '../session/types'
-import { saveKnowledgeFile, deleteKnowledgeFile, parseFieldPath } from '../knowledge/writer'
+import { loadAgent } from './cli/agent-loader'
+import type { AgentAction, LoadedAgent } from './cli/agent-loader'
+import { saveKnowledgeFile, deleteKnowledgeFile, parseFieldPath } from '@lmthing/repl'
+import type { KnowledgeTree, KnowledgeDomain, KnowledgeField, AgentSpawnConfig, AgentSpawnResult } from '@lmthing/repl'
 
 // ── Types ──
 

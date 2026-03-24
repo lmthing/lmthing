@@ -1,6 +1,7 @@
 import ts from 'typescript'
 import { resolve } from 'node:path'
-import type { ClassMethodInfo } from '../session/types'
+// NOTE: ClassMethodInfo is not yet exported from @lmthing/repl — needs to be added
+import type { ClassMethodInfo } from '@lmthing/repl'
 
 // ── Types ──
 

@@ -2,10 +2,10 @@ import { createServer, type Server } from 'node:http'
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs'
 import { resolve, join, extname } from 'node:path'
 import { WebSocketServer, type WebSocket } from 'ws'
-import { Session } from '../session/session'
+import { Session } from '@lmthing/repl'
+import type { SessionEvent } from '@lmthing/repl'
 import { ReplSessionServer } from '../rpc/server'
 import { AgentLoop } from './agent-loop'
-import type { SessionEvent } from '../session/types'
 
 export interface ServerOptions {
   port: number

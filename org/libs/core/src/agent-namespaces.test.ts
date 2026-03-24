@@ -15,12 +15,11 @@ import type {
   ParamSchema,
   OnSpawnFn,
 } from './agent-namespaces'
-import type { AgentSpawnConfig, AgentSpawnResult } from '../session/types'
-import type { KnowledgeTree } from '../knowledge/types'
+import type { AgentSpawnConfig, AgentSpawnResult, KnowledgeTree } from '@lmthing/repl'
 
 // ── Test Helpers ──
 
-const FIXTURES_DIR = resolve(__dirname, '../../spaces/cooking')
+const FIXTURES_DIR = resolve(__dirname, '../spaces/cooking')
 
 function makeAgentEntry(overrides: Partial<AgentEntry> = {}): AgentEntry {
   return {

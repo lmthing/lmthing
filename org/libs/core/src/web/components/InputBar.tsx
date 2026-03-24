@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
-import type { SessionStatus } from '../../session/types'
+import type { SessionStatus } from '@lmthing/repl'
 import type { AgentAction } from '../rpc-client'
 
 interface InputBarProps {

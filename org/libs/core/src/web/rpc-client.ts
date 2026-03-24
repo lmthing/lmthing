@@ -6,8 +6,8 @@ import type {
   SerializedJSX,
   ErrorPayload,
   Tasklist,
-} from "../session/types";
-import type { ConversationState } from "../session/conversation-state";
+  ConversationState,
+} from "@lmthing/repl";
 
 // ── Conversation Summary ──
 

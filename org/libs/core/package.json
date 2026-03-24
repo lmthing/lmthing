@@ -3,7 +3,8 @@
   "version": "0.0.1",
   "type": "module",
   "bin": {
-    "lmthing-repl": "./src/cli/bin.ts"
+    "lmthing": "./src/cli/bin.ts",
+    "lmt": "./src/cli/bin.ts"
   },
   "exports": {
     ".": {

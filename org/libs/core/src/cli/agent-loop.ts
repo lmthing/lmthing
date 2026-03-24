@@ -8,25 +8,30 @@
 import { streamText, type LanguageModel } from "ai";
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { Session } from "../session/session";
-import type { SessionOptions } from "../session/session";
-import { serialize } from "../stream/serializer";
-import { isKnowledgeContent, decayKnowledgeValue } from "../context/knowledge-decay";
-import type { KnowledgeContent } from "../knowledge/types";
-import type { SessionEvent, StopPayload, ErrorPayload } from "../session/types";
-import type { ClassifiedExport } from "./loader";
-import { formatCollapsedClass, formatExpandedClass } from "./loader";
-import { buildSystemPrompt } from "./buildSystemPrompt";
-import { generateTasklistCode, type ParsedFlow } from "./agent-loader";
 import {
+  Session,
+  serialize,
+  isKnowledgeContent,
+  decayKnowledgeValue,
   buildTaskOrderViolationMessage,
   buildTaskContinueMessage,
   generateTasksBlock,
   generateCurrentTaskBlock,
-} from "../context/message-builder";
-import { executeSpawn } from "../sandbox/spawn";
-import type { SpawnConfig, SpawnResult, SpawnContext } from "../sandbox/spawn";
-import { generateAgentsBlock } from "../context/agents-block";
+  generateAgentsBlock,
+} from "@lmthing/repl";
+import type {
+  SessionOptions,
+  KnowledgeContent,
+  SessionEvent,
+  StopPayload,
+  ErrorPayload,
+} from "@lmthing/repl";
+import type { ClassifiedExport } from "./loader";
+import { formatCollapsedClass, formatExpandedClass } from "./loader";
+import { buildSystemPrompt } from "./buildSystemPrompt";
+import { generateTasklistCode, type ParsedFlow } from "./agent-loader";
+import { executeSpawn } from "../spawn";
+import type { SpawnConfig, SpawnResult, SpawnContext } from "../spawn";
 
 export interface AgentLoopOptions {
   session: Session;

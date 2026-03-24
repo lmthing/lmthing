@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useReplSession } from './rpc-client'
 import type { UIBlock } from './rpc-client'
-import type { ConversationTurn } from '../session/conversation-state'
+import type { ConversationTurn } from '@lmthing/repl'
 import { ChatView } from './components/ChatView'
 import { InputBar } from './components/InputBar'
 import { Sidebar } from './components/Sidebar'

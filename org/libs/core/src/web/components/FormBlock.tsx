@@ -1,5 +1,5 @@
 import { useRef, useCallback } from 'react'
-import type { SerializedJSX } from '../../session/types'
+import type { SerializedJSX } from '@lmthing/repl'
 import { JSXRenderer } from './JSXRenderer'
 
 interface FormBlockProps {

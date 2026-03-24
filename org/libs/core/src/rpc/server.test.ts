@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { ReplSessionServer } from './server'
-import { Session } from '../session/session'
-import type { SessionEvent } from '../session/types'
+import { Session } from '@lmthing/repl'
+import type { SessionEvent } from '@lmthing/repl'
 
 describe('rpc/server', () => {
   it('delegates sendMessage to session', async () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { createReplServer } from './server'
-import { Session } from '../session/session'
+import { Session } from '@lmthing/repl'
 
 describe('cli/server', () => {
   let cleanup: (() => void) | null = null

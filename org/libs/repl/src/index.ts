@@ -44,6 +44,9 @@ export type {
   AgentStatus,
   AgentPromiseEntry,
   AgentSnapshot,
+  AgentSpawnConfig,
+  AgentSpawnResult,
+  ClassMethodInfo,
 } from './session/types'
 
 // Sandbox
@@ -78,7 +81,7 @@ export { getDecayLevel, decayStopPayload, decayErrorMessage } from './context/st
 export { buildSystemPrompt, updateScopeInPrompt } from './context/system-prompt'
 export { isKnowledgeContent, tagAsKnowledge, decayKnowledgeValue, getKnowledgeDecayLevel, KNOWLEDGE_TAG } from './context/knowledge-decay'
 export type { KnowledgeDecayTiers, KnowledgeDecayLevel } from './context/knowledge-decay'
-export { buildStopMessage, buildErrorMessage, buildInterventionMessage, buildHookInterruptMessage, buildTasklistReminderMessage, renderTaskLine } from './context/message-builder'
+export { buildStopMessage, buildErrorMessage, buildInterventionMessage, buildHookInterruptMessage, buildTasklistReminderMessage, buildTaskContinueMessage, buildTaskOrderViolationMessage, generateCurrentTaskBlock, generateTasksBlock, renderTaskLine } from './context/message-builder'
 export { generateAgentsBlock } from './context/agents-block'
 
 // Hooks
@@ -99,31 +102,4 @@ export { loadCatalog, mergeCatalogs, getCatalogModule, formatCatalogForPrompt } 
 // Knowledge
 export type { KnowledgeTree, KnowledgeDomain, KnowledgeField, KnowledgeOption, KnowledgeSelector, KnowledgeContent, FlatKnowledgeSelector, FlatKnowledgeContent } from './knowledge/types'
 export { buildKnowledgeTree, mergeKnowledgeTrees, loadKnowledgeFiles, formatKnowledgeTreeForPrompt } from './knowledge/index'
-
-// RPC
-export type { ReplSession } from './rpc/interface'
-export { ReplSessionServer } from './rpc/server'
-export { connectToRepl } from './rpc/client'
-
-// Web
-export { useReplSession } from './web/rpc-client'
-export type { UseReplSessionResult, UIBlock } from './web/rpc-client'
-
-// Providers
-export { resolveModel, type ModelInput } from './providers/resolver'
-export { ProviderError, ErrorCodes } from './providers/errors'
-export type { ProviderName } from './providers/index'
-export { getProvider, listProviders } from './providers/index'
-export {
-  scanCustomProviders,
-  createCustomProvider,
-  getCustomProviders,
-  getCustomProvider,
-  isCustomProvider,
-  listCustomProviders,
-  type CustomProviderConfig,
-} from './providers/custom'
-
-// Agent runner
-export { runAgent } from './cli/run-agent'
-export type { RunAgentOptions, RunAgentResult } from './cli/run-agent'
+export { saveKnowledgeFile, deleteKnowledgeFile, parseFieldPath, ensureMemoryDomain } from './knowledge/writer'

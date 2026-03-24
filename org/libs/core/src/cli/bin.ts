@@ -5,13 +5,20 @@ import { fileURLToPath } from 'node:url'
 import { config } from 'dotenv'
 import { parseArgs } from './args'
 import { classifyExports, formatExportsForPrompt, type ClassifiedExport } from './loader'
-import { Session } from '../session/session'
+import {
+  Session,
+  loadCatalog,
+  mergeCatalogs,
+  formatCatalogForPrompt,
+  buildKnowledgeTree,
+  loadKnowledgeFiles,
+  formatKnowledgeTreeForPrompt,
+  // NOTE: ensureMemoryDomain is not yet exported from @lmthing/repl — needs to be added
+  ensureMemoryDomain,
+} from '@lmthing/repl'
 import { AgentLoop } from './agent-loop'
 import { createReplServer } from './server'
-import { loadCatalog, mergeCatalogs, formatCatalogForPrompt } from '../catalog/index'
-import { buildKnowledgeTree, loadKnowledgeFiles, formatKnowledgeTreeForPrompt } from '../knowledge/index'
-import { ensureMemoryDomain } from '../knowledge/writer'
-import { createKnowledgeNamespace, formatKnowledgeNamespaceForPrompt } from '../sandbox/agent-namespaces'
+import { createKnowledgeNamespace, formatKnowledgeNamespaceForPrompt } from '../agent-namespaces'
 import {
   loadAgent,
   resolveLocalFunctions,

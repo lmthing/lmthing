@@ -10,14 +10,21 @@ import { resolve, dirname, basename } from 'node:path'
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { classifyExports, formatExportsForPrompt, type ClassifiedExport } from './loader'
-import { Session } from '../session/session'
+import {
+  Session,
+  loadCatalog,
+  mergeCatalogs,
+  formatCatalogForPrompt,
+  buildKnowledgeTree,
+  loadKnowledgeFiles,
+  formatKnowledgeTreeForPrompt,
+  // NOTE: ensureMemoryDomain is not yet exported from @lmthing/repl — needs to be added
+  ensureMemoryDomain,
+} from '@lmthing/repl'
+import type { KnowledgeTree } from '@lmthing/repl'
 import { AgentLoop } from './agent-loop'
 import { createReplServer } from './server'
-import { loadCatalog, mergeCatalogs, formatCatalogForPrompt } from '../catalog/index'
-import { buildKnowledgeTree, loadKnowledgeFiles, formatKnowledgeTreeForPrompt } from '../knowledge/index'
-import { ensureMemoryDomain } from '../knowledge/writer'
-import type { KnowledgeTree } from '../knowledge/types'
-import { buildSpaceAgentTrees, createNamespaceGlobals, formatAgentTreeForPrompt, createKnowledgeNamespace, formatKnowledgeNamespaceForPrompt } from '../sandbox/agent-namespaces'
+import { buildSpaceAgentTrees, createNamespaceGlobals, formatAgentTreeForPrompt, createKnowledgeNamespace, formatKnowledgeNamespaceForPrompt } from '../agent-namespaces'
 import type { LanguageModel } from 'ai'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))

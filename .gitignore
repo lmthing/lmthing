@@ -49,8 +49,7 @@ devops/ansible/inventory/*/artifacts/
 
 # Terraform
 devops/terraform/.terraform/
-devops/terraform/*.tfstate
-devops/terraform/*.tfstate.backup
+devops/terraform/*.tfstate*
 devops/terraform/.terraform.lock.hcl
 devops/terraform/terraform.tfvars
 devops/terraform/generated/

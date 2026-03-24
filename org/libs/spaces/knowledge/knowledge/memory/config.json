@@ -1,0 +1,7 @@
+{
+  "label": "Memory",
+  "description": "Persistent agent memory",
+  "icon": "🧠",
+  "color": "#9b59b6",
+  "renderAs": "section"
+}

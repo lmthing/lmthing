@@ -5,7 +5,14 @@ export const Route = createFileRoute('/')({
   component: Landing,
 })
 
-const services = [
+const services: {
+  name: string
+  tagline: string
+  description: string
+  color: string
+  icon: React.ReactNode
+  upcoming?: boolean
+}[] = [
   {
     name: 'lmthing.studio',
     tagline: 'Build AI agents visually',
@@ -55,18 +62,6 @@ const services = [
     ),
   },
   {
-    name: 'lmthing.blog',
-    tagline: 'AI news, personalized',
-    description:
-      'Your daily AI briefing, curated by agents that learn what you care about. Never miss what matters.',
-    color: 'var(--brand-5)',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-6">
-        <path d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25M16.5 7.5V18a2.25 2.25 0 0 0 2.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 0 0 2.25 2.25h13.5" />
-      </svg>
-    ),
-  },
-  {
     name: 'lmthing.store',
     tagline: 'Agent marketplace',
     description:
@@ -84,6 +79,7 @@ const services = [
     description:
       'Share agents and conversations publicly. Explore what the community is building and remix ideas in real time.',
     color: 'var(--spectrum-18)',
+    upcoming: true,
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-6">
         <path d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0m6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0m-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0" />
@@ -96,9 +92,23 @@ const services = [
     description:
       'Collaborate with your team in shared agent workspaces. Private rooms, shared knowledge, real-time co-editing.',
     color: 'var(--spectrum-28)',
+    upcoming: true,
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-6">
         <path d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25" />
+      </svg>
+    ),
+  },
+  {
+    name: 'lmthing.blog',
+    tagline: 'AI news, personalized',
+    description:
+      'Your daily AI briefing, curated by agents that learn what you care about. Never miss what matters.',
+    color: 'var(--brand-5)',
+    upcoming: true,
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-6">
+        <path d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25M16.5 7.5V18a2.25 2.25 0 0 0 2.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 0 0 2.25 2.25h13.5" />
       </svg>
     ),
   },
@@ -108,6 +118,7 @@ const services = [
     description:
       'Connect your THING to Home Assistant and control your home with natural language. Automations that actually understand you.',
     color: 'var(--spectrum-38)',
+    upcoming: true,
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-6">
         <path d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
@@ -199,7 +210,7 @@ function Landing() {
             {services.map((service, i) => (
               <div
                 key={service.name}
-                className="group relative rounded-xl border border-border bg-card p-6 hover:border-transparent hover:shadow-lg transition-all duration-300"
+                className={`group relative rounded-xl border border-border bg-card p-6 hover:border-transparent hover:shadow-lg transition-all duration-300${service.upcoming ? ' opacity-75' : ''}`}
                 style={{
                   animationDelay: `${i * 60}ms`,
                   animationName: 'fade-in-up',
@@ -222,6 +233,17 @@ function Landing() {
                     pointerEvents: 'none',
                   }}
                 />
+                {service.upcoming && (
+                  <span
+                    className="absolute top-3 right-3 text-[10px] font-semibold uppercase tracking-wider rounded-full px-2.5 py-0.5"
+                    style={{
+                      backgroundColor: `color-mix(in srgb, ${service.color} 15%, transparent)`,
+                      color: service.color,
+                    }}
+                  >
+                    Coming soon
+                  </span>
+                )}
                 <div className="flex items-start gap-4">
                   <div
                     className="flex-shrink-0 rounded-lg p-2.5"

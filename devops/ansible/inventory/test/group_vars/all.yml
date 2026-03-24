@@ -4,6 +4,8 @@ metrics_server_enabled: true
 
 # TLS certificate management (Let's Encrypt via cert-manager)
 cert_manager_enabled: true
+cert_manager_controller_extra_args:
+  - "--feature-gates=ExperimentalGatewayAPISupport=true"
 
 # LoadBalancer for bare-metal (advertises node IP via ARP)
 metallb_enabled: true

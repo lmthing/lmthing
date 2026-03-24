@@ -1,0 +1,114 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - config.yaml
+  - reference-grants.yaml
+  - tls-certificates.yaml
+  - cloud-gateway.yaml
+  - cloud-routes.yaml
+  - computer-routes.yaml
+  - computer-policies.yaml
+
+replacements:
+  # ── DOMAIN → lmthing.cloud hostnames ────────────────────────
+  - source:
+      kind: ConfigMap
+      name: lmthing-envoy-config
+      fieldPath: data.domain
+    targets:
+      - select:
+          kind: Gateway
+          name: lmthing-gw
+        fieldPaths:
+          - spec.listeners.[name=cloud-http].hostname
+          - spec.listeners.[name=cloud-https].hostname
+      - select:
+          kind: HTTPRoute
+          name: cloud-http-redirect
+        fieldPaths:
+          - spec.hostnames.0
+      - select:
+          kind: HTTPRoute
+          name: cloud-litellm
+        fieldPaths:
+          - spec.hostnames.0
+      - select:
+          kind: HTTPRoute
+          name: cloud-gateway-api
+        fieldPaths:
+          - spec.hostnames.0
+      - select:
+          kind: Certificate
+          name: lmthing-cloud-tls
+        fieldPaths:
+          - spec.dnsNames.0
+
+  # ── COMPUTER_DOMAIN → lmthing.computer hostnames ────────────
+  - source:
+      kind: ConfigMap
+      name: lmthing-envoy-config
+      fieldPath: data.computerDomain
+    targets:
+      - select:
+          kind: Gateway
+          name: lmthing-gw
+        fieldPaths:
+          - spec.listeners.[name=computer-http].hostname
+          - spec.listeners.[name=computer-https].hostname
+      - select:
+          kind: HTTPRoute
+          name: computer-http-redirect
+        fieldPaths:
+          - spec.hostnames.0
+      - select:
+          kind: HTTPRoute
+          name: computer-api-proxy
+        fieldPaths:
+          - spec.hostnames.0
+      - select:
+          kind: HTTPRoute
+          name: computer-static
+        fieldPaths:
+          - spec.hostnames.0
+      - select:
+          kind: Certificate
+          name: lmthing-computer-tls
+        fieldPaths:
+          - spec.dnsNames.0
+
+  # ── ACME_EMAIL → ClusterIssuer ──────────────────────────────
+  - source:
+      kind: ConfigMap
+      name: lmthing-envoy-config
+      fieldPath: data.acmeEmail
+    targets:
+      - select:
+          kind: ClusterIssuer
+          name: letsencrypt-prod
+        fieldPaths:
+          - spec.acme.email
+
+  # ── Supabase JWT issuer → SecurityPolicy ────────────────────
+  - source:
+      kind: ConfigMap
+      name: lmthing-envoy-config
+      fieldPath: data.supabaseJwtIssuer
+    targets:
+      - select:
+          kind: SecurityPolicy
+          name: computer-jwt
+        fieldPaths:
+          - spec.jwt.providers.0.issuer
+
+  # ── Supabase JWKS URI → SecurityPolicy ──────────────────────
+  - source:
+      kind: ConfigMap
+      name: lmthing-envoy-config
+      fieldPath: data.supabaseJwksUri
+    targets:
+      - select:
+          kind: SecurityPolicy
+          name: computer-jwt
+        fieldPaths:
+          - spec.jwt.providers.0.remoteJWKS.uri

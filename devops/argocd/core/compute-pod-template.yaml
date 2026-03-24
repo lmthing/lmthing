@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: compute-pod-template
+  namespace: lmthing
+data:
+  user-pod-template.yaml: |
+    # Template for per-user compute pods.
+    # The gateway creates these resources via the K8s API when a user subscribes to Pro tier.
+    # Variables: USER_ID is replaced at creation time by the gateway app.
+
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: user-USER_ID
+      labels:
+        lmthing.cloud/user: "USER_ID"
+        lmthing.cloud/type: compute
+
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: lmthing
+      namespace: user-USER_ID
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: compute
+      template:
+        metadata:
+          labels:
+            app: compute
+            lmthing.cloud/user: "USER_ID"
+        spec:
+          containers:
+            - name: compute
+              image: lmthing/compute:latest
+              imagePullPolicy: IfNotPresent
+              ports:
+                - containerPort: 8080
+              resources:
+                requests:
+                  memory: "1Gi"
+                  cpu: "500m"
+                limits:
+                  memory: "1Gi"
+                  cpu: "500m"
+              volumeMounts:
+                - name: spaces
+                  mountPath: /data/spaces
+          volumes:
+            - name: spaces
+              emptyDir:
+                sizeLimit: "1Gi"
+
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: lmthing
+      namespace: user-USER_ID
+    spec:
+      selector:
+        app: compute
+      ports:
+        - port: 8080
+          targetPort: 8080

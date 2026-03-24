@@ -43,7 +43,6 @@
   loop:
     - cloud-gateway.yaml.tpl
     - cloud-routes.yaml.tpl
-    - computer-gateway.yaml.tpl
     - computer-routes.yaml.tpl
     - computer-policies.yaml.tpl
     - tls-certificates.yaml.tpl
@@ -82,7 +81,6 @@
   loop:
     - cloud-gateway.yaml
     - cloud-routes.yaml
-    - computer-gateway.yaml
     - computer-routes.yaml
     - computer-policies.yaml
     - tls-certificates.yaml
@@ -107,7 +105,6 @@
     - tls-certificates.yaml
     - cloud-gateway.yaml
     - cloud-routes.yaml
-    - computer-gateway.yaml
     - computer-routes.yaml
     - computer-policies.yaml
 

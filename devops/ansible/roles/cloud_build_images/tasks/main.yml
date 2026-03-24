@@ -1,4 +1,18 @@
 ---
+- name: Prune nerdctl builder cache to avoid stale snapshot references
+  ansible.builtin.command:
+    cmd: nerdctl -n k8s.io builder prune -f
+  ignore_errors: true
+
+- name: Remove existing lmthing images to clear corrupted snapshots
+  ansible.builtin.command:
+    cmd: nerdctl -n k8s.io rmi -f {{ item }}
+  loop:
+    - lmthing/gateway:latest
+    - lmthing/computer:latest
+    - lmthing/compute:latest
+  ignore_errors: true
+
 - name: Create build directory on node
   ansible.builtin.file:
     path: "{{ item }}"

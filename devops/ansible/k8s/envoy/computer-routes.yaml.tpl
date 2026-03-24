@@ -36,6 +36,11 @@ spec:
             type: PathPrefix
             value: /api
       filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
         - type: ExtensionRef
           extensionRef:
             group: gateway.envoyproxy.io

@@ -12,7 +12,7 @@ metadata:
   name: lmthing-compute-manager
 rules:
   - apiGroups: [""]
-    resources: ["namespaces", "services"]
+    resources: ["namespaces", "services", "configmaps"]
     verbs: ["get", "list", "create", "delete"]
   - apiGroups: ["apps"]
     resources: ["deployments"]
@@ -56,6 +56,8 @@ spec:
           ports:
             - containerPort: 3000
           env:
+            - name: NODE_EXTRA_CA_CERTS
+              value: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
             - name: LITELLM_MASTER_KEY
               valueFrom:
                 secretKeyRef:

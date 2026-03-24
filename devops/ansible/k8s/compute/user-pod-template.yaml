@@ -35,17 +35,18 @@ spec:
             - containerPort: 8080
           resources:
             requests:
-              memory: "512Mi"
+              memory: "1Gi"
               cpu: "500m"
             limits:
               memory: "1Gi"
-              cpu: "1000m"
+              cpu: "500m"
           volumeMounts:
             - name: spaces
               mountPath: /data/spaces
       volumes:
         - name: spaces
-          emptyDir: {}
+          emptyDir:
+            sizeLimit: "1Gi"
 
 ---
 apiVersion: v1

@@ -477,6 +477,9 @@ export class AgentLoop {
               attemptedTaskId: event.attemptedTaskId,
               readyTasks: event.readyTasks,
             };
+            console.log(
+              `\x1b[31m  [task_order_violation]\x1b[0m tried "${event.attemptedTaskId}" in "${event.tasklistId}" — ready: ${event.readyTasks.map((t) => t.id).join(", ")}`,
+            );
             break;
           case "task_complete_continue":
             state.taskContinue = {
@@ -484,6 +487,9 @@ export class AgentLoop {
               completedTaskId: event.completedTaskId,
               readyTasks: event.readyTasks,
             };
+            console.log(
+              `\x1b[36m  [continue]\x1b[0m ${event.tasklistId}/${event.completedTaskId} done — next: ${event.readyTasks.map((t) => t.id).join(", ")}`,
+            );
             break;
           case "display":
             console.log(`\x1b[35m  [display]\x1b[0m component rendered`);
@@ -537,16 +543,6 @@ export class AgentLoop {
           case "task_async_failed":
             console.log(
               `\x1b[31m  [taskAsync]\x1b[0m failed: ${event.tasklistId}/${event.id}: ${event.error}`,
-            );
-            break;
-          case "task_order_violation":
-            console.log(
-              `\x1b[31m  [task_order_violation]\x1b[0m tried "${event.attemptedTaskId}" in "${event.tasklistId}" — ready: ${event.readyTasks.map((t) => t.id).join(", ")}`,
-            );
-            break;
-          case "task_complete_continue":
-            console.log(
-              `\x1b[36m  [continue]\x1b[0m ${event.tasklistId}/${event.completedTaskId} done — next: ${event.readyTasks.map((t) => t.id).join(", ")}`,
             );
             break;
           case "tasklist_reminder":

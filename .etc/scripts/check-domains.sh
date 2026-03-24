@@ -5,7 +5,7 @@
 set -euo pipefail
 
 GHPAGES_IPS=("185.199.108.153" "185.199.109.153" "185.199.110.153" "185.199.111.153")
-VM_IP="135.116.57.95"
+VM_IP="4.223.83.5"
 
 # GitHub Pages domains — app:repo:domain
 GHPAGES_DOMAINS=(
@@ -180,7 +180,7 @@ for entry in "${VM_DOMAINS[@]}"; do
 done
 
 # --- Cloud API ---
-echo -e "${CYAN}${BOLD}lmthing.cloud${NC} [K3s API gateway @ $VM_IP]"
+echo -e "${CYAN}${BOLD}lmthing.cloud${NC} [API gateway @ $VM_IP]"
 TOTAL=$((TOTAL + 1))
 
 check_dns_tls_https "lmthing.cloud" "$VM_IP"

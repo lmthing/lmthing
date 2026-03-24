@@ -1,4 +1,5 @@
 import '@lmthing/css/components/computer/ide-layout.css'
+import { CozyThingText } from '@lmthing/ui/elements/branding/cozy-text'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { Badge } from '../../elements/content/badge'
 import { Loader2 } from 'lucide-react'
@@ -42,7 +43,7 @@ function IdeLayout(props: IdeLayoutProps) {
   return (
     <div className="ide-layout">
       <div className="ide-layout__header">
-        <span className="ide-layout__title">lmthing.computer</span>
+        <span className="ide-layout__title"><CozyThingText text="lmthing.computer" /></span>
         <div className="ide-layout__status">
           {(isBooting || isInstalling) && <Loader2 size={14} className="animate-spin" />}
           {isBooting && 'Booting...'}

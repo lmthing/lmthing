@@ -1,5 +1,6 @@
 import { createRootRoute, Outlet, Link, useNavigate } from '@tanstack/react-router'
 import { AuthProvider, useAuth } from '@/lib/auth/AuthProvider'
+import { CozyThingText } from '@lmthing/ui/elements/branding/cozy-text'
 import '@/index.css'
 
 function Nav() {
@@ -15,7 +16,7 @@ function Nav() {
     <header className="border-b border-border">
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <div className="flex items-center gap-6">
-          <Link to="/" className="text-lg font-bold">lmthing</Link>
+          <Link to="/" className="text-lg font-bold"><CozyThingText text="lmthing" /></Link>
           <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground">Pricing</Link>
           <Link to="/docs" className="text-sm text-muted-foreground hover:text-foreground">Docs</Link>
           <Link to="/about" className="text-sm text-muted-foreground hover:text-foreground">About</Link>

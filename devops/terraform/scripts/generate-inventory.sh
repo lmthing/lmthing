@@ -5,9 +5,10 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-OUTPUT="${1:-$SCRIPT_DIR/../ansible/inventory/test/hosts.yml}"
+TF_DIR="$SCRIPT_DIR/.."
+OUTPUT="${1:-$TF_DIR/../ansible/inventory/test/hosts.yml}"
 
-cd "$SCRIPT_DIR"
+cd "$TF_DIR"
 
 # Read Terraform outputs as JSON
 NODES=$(terraform output -json nodes)

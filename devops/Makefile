@@ -5,10 +5,13 @@ TF_DIR := $(ROOT_DIR)/terraform
 ANSIBLE_DIR := $(ROOT_DIR)/ansible
 EXTRA_ARGS ?=
 
-.PHONY: tf-init tf-plan tf-apply tf-destroy tf-output tf-inventory
+.PHONY: tf-bootstrap tf-init tf-plan tf-apply tf-destroy tf-output tf-inventory
 .PHONY: up scale-up scale-down cluster deploy status vault-edit
 
 # ── Terraform: Azure VMs ───────────────────────────────────────
+
+tf-bootstrap:
+	$(TF_DIR)/scripts/bootstrap-backend.sh
 
 tf-init:
 	cd $(TF_DIR) && terraform init
@@ -27,7 +30,7 @@ tf-output:
 
 # Generate Ansible inventory from Terraform outputs
 tf-inventory:
-	$(TF_DIR)/generate-inventory.sh
+	$(TF_DIR)/scripts/generate-inventory.sh
 
 # ── Full Pipeline ──────────────────────────────────────────────
 

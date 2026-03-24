@@ -28,7 +28,6 @@
     dest: "/tmp/lmthing-manifests/k8s/envoy/{{ item }}"
     mode: "0644"
   loop:
-    - computer-policies.yaml
     - reference-grants.yaml
 
 - name: Sync Envoy Gateway templates
@@ -41,6 +40,7 @@
     - cloud-routes.yaml.tpl
     - computer-gateway.yaml.tpl
     - computer-routes.yaml.tpl
+    - computer-policies.yaml.tpl
     - tls-certificates.yaml.tpl
 
 - name: Sync database migrations
@@ -71,6 +71,7 @@
     export DOMAIN="{{ vault_domain }}"
     export COMPUTER_DOMAIN="{{ vault_computer_domain }}"
     export ACME_EMAIL="{{ vault_acme_email }}"
+    export SUPABASE_URL="{{ vault_supabase_url }}"
     envsubst < "/tmp/lmthing-manifests/k8s/envoy/{{ item }}.tpl" \
              > "/tmp/lmthing-manifests/k8s/envoy/{{ item }}"
   loop:
@@ -78,6 +79,7 @@
     - cloud-routes.yaml
     - computer-gateway.yaml
     - computer-routes.yaml
+    - computer-policies.yaml
     - tls-certificates.yaml
   changed_when: true
 

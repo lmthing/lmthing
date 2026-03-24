@@ -74,17 +74,16 @@ spec:
   jwt:
     providers:
       - name: supabase
-        issuer: https://SUPABASE_PROJECT_REF.supabase.co/auth/v1
+        issuer: ${SUPABASE_URL}/auth/v1
         audiences:
           - authenticated
         extractFrom:
           headers:
             - name: Authorization
-              prefix: "Bearer "
           params:
             - access_token
         claimToHeaders:
           - claim: sub
             header: x-user-id
         remoteJWKS:
-          uri: https://SUPABASE_PROJECT_REF.supabase.co/auth/v1/.well-known/jwks.json
+          uri: ${SUPABASE_URL}/auth/v1/.well-known/jwks.json

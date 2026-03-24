@@ -6,7 +6,7 @@ ANSIBLE_DIR := $(ROOT_DIR)/ansible
 EXTRA_ARGS ?=
 
 .PHONY: tf-init tf-plan tf-apply tf-destroy tf-output tf-inventory
-.PHONY: up scale-up scale-down cluster deploy status
+.PHONY: up scale-up scale-down cluster deploy status vault-edit
 
 # ── Terraform: Azure VMs ───────────────────────────────────────
 
@@ -72,3 +72,6 @@ deploy:
 
 status:
 	cd $(ANSIBLE_DIR) && $(MAKE) status $(if $(EXTRA_ARGS),EXTRA_ARGS="$(EXTRA_ARGS)")
+
+vault-edit:
+	cd $(ANSIBLE_DIR) && source .venv/bin/activate && ansible-vault edit vault.yml

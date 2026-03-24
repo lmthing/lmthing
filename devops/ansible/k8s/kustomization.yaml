@@ -3,7 +3,6 @@ kind: Kustomization
 namespace: lmthing
 
 resources:
-  - namespace.yaml
   - litellm.yaml
   - gateway.yaml
   - computer.yaml

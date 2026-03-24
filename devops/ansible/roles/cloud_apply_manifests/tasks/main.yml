@@ -81,6 +81,11 @@
     - tls-certificates.yaml
   changed_when: true
 
+# ── Apply namespaces first (not managed by kustomize) ─────────
+- name: Apply namespaces
+  ansible.builtin.command:
+    cmd: kubectl apply -f /tmp/lmthing-manifests/k8s/namespace.yaml
+
 # ── Apply core services ────────────────────────────────────────
 - name: Apply core services via kustomize
   ansible.builtin.command:

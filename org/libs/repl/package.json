@@ -4,11 +4,16 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "pnpm build",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
@@ -27,6 +32,7 @@
     "@swc/core": "^1.10.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
+    "tsup": "^8.0.0",
     "tsx": "^4.0.0",
     "vitest": "catalog:"
   }

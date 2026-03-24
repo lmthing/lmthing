@@ -4,7 +4,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { config } from 'dotenv'
 import { parseArgs } from './args'
-import { classifyExports, formatExportsForPrompt, type ClassifiedExport } from './loader'
+import { classifyExports, formatExportsForPrompt, importTs, type ClassifiedExport } from './loader'
 import {
   Session,
   loadCatalog,
@@ -31,8 +31,21 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-// Load .env from the repl package root
-config({ path: resolve(__dirname, '../../.env') })
+// Load .env from the package root.
+// __dirname is dist/ when compiled, src/cli/ when running from source.
+for (const rel of ['../.env', '../../.env']) {
+  const envPath = resolve(__dirname, rel)
+  if (existsSync(envPath)) { config({ path: envPath }); break }
+}
+
+/** Resolve the dist/web directory regardless of whether we're running compiled or from source. */
+function resolveDistWeb(): string | undefined {
+  for (const rel of ['web', '../../dist/web']) {
+    const p = resolve(__dirname, rel)
+    if (existsSync(resolve(p, 'index.html'))) return p
+  }
+  return undefined
+}
 
 /** Resolve built-in component paths from component group names. */
 function resolveComponentPaths(groups: string[]): string[] {
@@ -75,7 +88,7 @@ async function main() {
     for (const fnPath of localFnPaths) {
       let mod: Record<string, unknown> = {}
       try {
-        mod = await import(fnPath) as Record<string, unknown>
+        mod = await importTs(fnPath)
         for (const [name, value] of Object.entries(mod)) {
           if (name === 'default') continue
           if (typeof value === 'function') agentGlobals[name] = value
@@ -124,7 +137,7 @@ async function main() {
     // Local component paths
     for (const compPath of resolved.localPaths) {
       try {
-        const mod = await import(compPath)
+        const mod = await importTs(compPath)
         for (const [name, value] of Object.entries(mod)) {
           if (typeof value === 'function' && /^[A-Z]/.test(name)) compGlobals[name] = value
         }
@@ -161,7 +174,7 @@ async function main() {
         } catch { /* skip */ }
 
         try {
-          const mod = await import(compPath)
+          const mod = await importTs(compPath)
           for (const [name, value] of Object.entries(mod)) {
             if (typeof value === 'function' && /^[A-Z]/.test(name)) compGlobals[name] = value
           }
@@ -363,8 +376,7 @@ async function main() {
     // Resolve static dir for web UI
     let staticDir: string | undefined
     if (!args.noUi) {
-      const distWeb = resolve(__dirname, '../../dist/web')
-      if (existsSync(resolve(distWeb, 'index.html'))) staticDir = distWeb
+      staticDir = resolveDistWeb()
     }
 
     // Start server

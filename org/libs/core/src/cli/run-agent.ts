@@ -9,7 +9,7 @@
 import { resolve, dirname, basename } from 'node:path'
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { classifyExports, formatExportsForPrompt, type ClassifiedExport } from './loader'
+import { classifyExports, formatExportsForPrompt, importTs, type ClassifiedExport } from './loader'
 import {
   Session,
   loadCatalog,
@@ -97,7 +97,7 @@ export async function runAgent(
 
   let userModule: Record<string, unknown> = {}
   try {
-    userModule = await import(absolutePath) as Record<string, unknown>
+    userModule = await importTs(absolutePath)
     for (const [name, value] of Object.entries(userModule)) {
       if (name === 'replConfig' && typeof value === 'object' && value !== null) {
         replConfig = value as Record<string, any>
@@ -186,7 +186,7 @@ export async function runAgent(
         } catch { /* skip */ }
 
         try {
-          const mod = await import(compPath)
+          const mod = await importTs(compPath)
           for (const [name, value] of Object.entries(mod)) {
             if (typeof value === 'function' && /^[A-Z]/.test(name)) {
               builtinCompGlobals[name] = value
@@ -212,7 +212,7 @@ export async function runAgent(
         } catch { /* skip */ }
 
         try {
-          const mod = await import(compPath)
+          const mod = await importTs(compPath)
           for (const [name, value] of Object.entries(mod)) {
             if (typeof value === 'function' && /^[A-Z]/.test(name)) {
               builtinCompGlobals[name] = value
@@ -425,9 +425,9 @@ export async function runAgent(
   if (opts.port != null) {
     let staticDir: string | undefined
     if (!opts.noUi) {
-      const distWeb = resolve(__dirname, '../../dist/web')
-      if (existsSync(resolve(distWeb, 'index.html'))) {
-        staticDir = distWeb
+      for (const rel of ['web', '../../dist/web']) {
+        const p = resolve(__dirname, rel)
+        if (existsSync(resolve(p, 'index.html'))) { staticDir = p; break }
       }
     }
 

@@ -1,5 +1,7 @@
 import ts from 'typescript'
-import { resolve } from 'node:path'
+import { resolve, dirname, basename, join } from 'node:path'
+import { readFileSync, writeFileSync, unlinkSync } from 'node:fs'
+import { randomBytes } from 'node:crypto'
 // NOTE: ClassMethodInfo is not yet exported from @lmthing/repl — needs to be added
 import type { ClassMethodInfo } from '@lmthing/repl'
 
@@ -383,4 +385,40 @@ export function formatExpandedClass(c: ClassifiedExport): string {
     }
   }
   return lines.join('\n')
+}
+
+// ── TSX/TS dynamic import ──
+
+/**
+ * Import a TypeScript or TSX file at runtime by transpiling it first.
+ * Writes a temporary .mjs file next to the original so that relative imports
+ * and bare specifiers (e.g. "react") resolve correctly, then cleans up.
+ */
+export async function importTs(filePath: string): Promise<Record<string, unknown>> {
+  const ext = filePath.split('.').pop()?.toLowerCase()
+  if (ext !== 'ts' && ext !== 'tsx') {
+    return import(filePath) as Promise<Record<string, unknown>>
+  }
+
+  const source = readFileSync(filePath, 'utf-8')
+  const result = ts.transpileModule(source, {
+    compilerOptions: {
+      target: ts.ScriptTarget.ESNext,
+      module: ts.ModuleKind.ESNext,
+      jsx: ts.JsxEmit.ReactJSX,
+      moduleResolution: ts.ModuleResolutionKind.Bundler,
+    },
+  })
+
+  const dir = dirname(filePath)
+  const base = basename(filePath).replace(/\.(tsx?)$/, '')
+  const rand = randomBytes(4).toString('hex')
+  const tmpPath = join(dir, `.__lmt_${base}_${rand}.mjs`)
+
+  writeFileSync(tmpPath, result.outputText, 'utf-8')
+  try {
+    return await import(tmpPath) as Record<string, unknown>
+  } finally {
+    try { unlinkSync(tmpPath) } catch { /* ignore */ }
+  }
 }

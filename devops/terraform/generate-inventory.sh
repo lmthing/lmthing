@@ -39,12 +39,16 @@ for name in $(echo "$NODES" | jq -r 'keys[]' | sort); do
     HOSTS+="      etcd_member_name: etcd${etcd_index}
 "
     etcd_index=$((etcd_index + 1))
-    CONTROL_PLANE+="        ${name}:\n"
-    ETCD+="        ${name}:\n"
+    CONTROL_PLANE+="        ${name}:
+"
+    ETCD+="        ${name}:
+"
     # Control plane nodes also run workloads
-    WORKERS+="        ${name}:\n"
+    WORKERS+="        ${name}:
+"
   else
-    WORKERS+="        ${name}:\n"
+    WORKERS+="        ${name}:
+"
   fi
 done
 
@@ -55,11 +59,11 @@ all:
 ${HOSTS}  children:
     kube_control_plane:
       hosts:
-$(echo -e "$CONTROL_PLANE")    etcd:
+${CONTROL_PLANE}    etcd:
       hosts:
-$(echo -e "$ETCD")    kube_node:
+${ETCD}    kube_node:
       hosts:
-$(echo -e "$WORKERS")    calico_rr:
+${WORKERS}    calico_rr:
       hosts: {}
     bastion:
       hosts: {}

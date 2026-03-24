@@ -51,7 +51,7 @@ variable "nodes" {
   description = "Map of cluster nodes. Key = node name, value = configuration."
   type = map(object({
     role             = string           # "control_plane" or "worker"
-    vm_size          = optional(string, "Standard_D4s_v3")
+    vm_size          = optional(string, "Standard_B4as_v2")
     os_disk_size_gb  = optional(number, 64)
     data_disk_size_gb = optional(number, 0)
   }))

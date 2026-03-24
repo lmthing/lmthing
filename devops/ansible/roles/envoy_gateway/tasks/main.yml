@@ -1,9 +1,4 @@
 ---
-- name: Add Envoy Gateway Helm repository
-  kubernetes.core.helm_repository:
-    name: eg
-    repo_url: https://charts.gateway.envoyproxy.io
-
 - name: Create envoy-gateway-system namespace
   kubernetes.core.k8s:
     state: present
@@ -13,12 +8,12 @@
       metadata:
         name: envoy-gateway-system
 
-- name: Install Envoy Gateway via Helm
+- name: Install Envoy Gateway via Helm (OCI)
   kubernetes.core.helm:
     name: eg
-    chart_ref: eg/gateway-helm
+    chart_ref: oci://docker.io/envoyproxy/gateway-helm
     release_namespace: envoy-gateway-system
-    chart_version: "{{ envoy_gateway_chart_version | default('v1.3.0') }}"
+    chart_version: "{{ envoy_gateway_chart_version | default('v1.7.1') }}"
     create_namespace: true
     wait: true
     wait_timeout: "300s"

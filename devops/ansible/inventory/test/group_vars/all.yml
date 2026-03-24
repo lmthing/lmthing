@@ -9,10 +9,11 @@ cert_manager_enabled: true
 metallb_enabled: true
 metallb_speaker_enabled: true
 metallb_protocol: layer2
+kube_proxy_strict_arp: true
 metallb_ip_range:
-  - 135.225.105.98/32
+  - 4.223.83.5/32
 # When scaling: add public IPs of all nodes that should receive LoadBalancer traffic.
 # MetalLB Layer 2 advertises these IPs via ARP on the local network.
 # Example with multiple nodes:
-#   - 135.225.105.98/32
+#   - 4.223.83.5/32
 #   - 135.225.105.99/32

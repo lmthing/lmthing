@@ -1,21 +1,22 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
-  name: cloud-gw
+  name: lmthing-gw
   namespace: gateway
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   gatewayClassName: eg
   listeners:
-    - name: http
+    # ── lmthing.cloud ──────────────────────────────────────────
+    - name: cloud-http
       hostname: "${DOMAIN}"
       protocol: HTTP
       port: 80
       allowedRoutes:
         namespaces:
           from: Same
-    - name: https
+    - name: cloud-https
       hostname: "${DOMAIN}"
       protocol: HTTPS
       port: 443
@@ -23,6 +24,26 @@ spec:
         mode: Terminate
         certificateRefs:
           - name: lmthing-cloud-tls
+            kind: Secret
+      allowedRoutes:
+        namespaces:
+          from: Same
+    # ── lmthing.computer ───────────────────────────────────────
+    - name: computer-http
+      hostname: "${COMPUTER_DOMAIN}"
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: computer-https
+      hostname: "${COMPUTER_DOMAIN}"
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: lmthing-computer-tls
             kind: Secret
       allowedRoutes:
         namespaces:

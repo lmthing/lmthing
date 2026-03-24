@@ -6,8 +6,8 @@ metadata:
   namespace: gateway
 spec:
   parentRefs:
-    - name: cloud-gw
-      sectionName: http
+    - name: lmthing-gw
+      sectionName: cloud-http
   hostnames:
     - "${DOMAIN}"
   rules:
@@ -26,8 +26,8 @@ metadata:
   namespace: gateway
 spec:
   parentRefs:
-    - name: cloud-gw
-      sectionName: https
+    - name: lmthing-gw
+      sectionName: cloud-https
   hostnames:
     - "${DOMAIN}"
   rules:
@@ -49,8 +49,8 @@ metadata:
   namespace: gateway
 spec:
   parentRefs:
-    - name: cloud-gw
-      sectionName: https
+    - name: lmthing-gw
+      sectionName: cloud-https
   hostnames:
     - "${DOMAIN}"
   rules:

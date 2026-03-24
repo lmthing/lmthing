@@ -6,8 +6,8 @@ metadata:
   namespace: gateway
 spec:
   parentRefs:
-    - name: computer-gw
-      sectionName: http
+    - name: lmthing-gw
+      sectionName: computer-http
   hostnames:
     - "${COMPUTER_DOMAIN}"
   rules:
@@ -26,8 +26,8 @@ metadata:
   namespace: gateway
 spec:
   parentRefs:
-    - name: computer-gw
-      sectionName: https
+    - name: lmthing-gw
+      sectionName: computer-https
   hostnames:
     - "${COMPUTER_DOMAIN}"
   rules:
@@ -55,8 +55,8 @@ metadata:
   namespace: gateway
 spec:
   parentRefs:
-    - name: computer-gw
-      sectionName: https
+    - name: lmthing-gw
+      sectionName: computer-https
   hostnames:
     - "${COMPUTER_DOMAIN}"
   rules:

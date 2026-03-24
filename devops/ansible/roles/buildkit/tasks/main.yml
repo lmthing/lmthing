@@ -1,0 +1,68 @@
+---
+- name: Check if buildkitd is already installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/buildkitd
+  register: buildkitd_bin
+
+- name: Get installed BuildKit version
+  ansible.builtin.command:
+    cmd: buildkitd --version
+  register: buildkitd_installed_version
+  changed_when: false
+  when: buildkitd_bin.stat.exists
+
+- name: Install BuildKit
+  when: >-
+    not buildkitd_bin.stat.exists or
+    buildkit_version not in (buildkitd_installed_version.stdout | default(''))
+  block:
+    - name: Download BuildKit release
+      ansible.builtin.get_url:
+        url: "https://github.com/moby/buildkit/releases/download/{{ buildkit_version }}/buildkit-{{ buildkit_version }}.linux-amd64.tar.gz"
+        dest: /tmp/buildkit.tar.gz
+        mode: "0644"
+
+    - name: Extract BuildKit binaries
+      ansible.builtin.unarchive:
+        src: /tmp/buildkit.tar.gz
+        dest: /usr/local
+        remote_src: true
+
+    - name: Clean up tarball
+      ansible.builtin.file:
+        path: /tmp/buildkit.tar.gz
+        state: absent
+
+- name: Create BuildKit systemd service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/buildkit.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=BuildKit
+      Documentation=https://github.com/moby/buildkit
+      After=containerd.service
+
+      [Service]
+      Type=notify
+      ExecStart=/usr/local/bin/buildkitd --oci-worker=false --containerd-worker=true
+
+      [Install]
+      WantedBy=multi-user.target
+  register: buildkit_unit
+
+- name: Reload systemd if unit changed
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: buildkit_unit.changed
+
+- name: Enable and start BuildKit
+  ansible.builtin.systemd:
+    name: buildkit
+    state: started
+    enabled: true
+
+- name: Verify BuildKit is running
+  ansible.builtin.command:
+    cmd: buildctl debug workers
+  changed_when: false

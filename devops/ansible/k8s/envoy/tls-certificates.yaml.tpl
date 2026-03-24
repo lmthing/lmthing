@@ -13,7 +13,7 @@ spec:
       - http01:
           gatewayHTTPRoute:
             parentRefs:
-              - name: cloud-gw
+              - name: lmthing-gw
                 namespace: gateway
                 kind: Gateway
 

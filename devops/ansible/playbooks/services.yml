@@ -8,9 +8,13 @@
   roles:
     - role: envoy_gateway
       tags: [infra, envoy]
+    - role: buildkit
+      tags: [infra, buildkit, images]
     - role: cloud_build_images
       tags: [images]
     - role: cloud_apply_manifests
       tags: [manifests]
     - role: cloud_compute
       tags: [compute]
+    - role: ingress_iptables
+      tags: [infra, ingress]

@@ -1,0 +1,53 @@
+---
+# On Azure, the VM's public IP is NAT'd to the private IP by Azure SDN.
+# MetalLB Layer 2 (ARP-based) cannot advertise the public IP to external
+# clients. We use iptables PREROUTING DNAT rules to forward external
+# traffic on ports 80/443 to the Envoy Gateway ClusterIP.
+
+- name: Get Envoy Gateway service ClusterIP
+  ansible.builtin.command:
+    cmd: >-
+      kubectl get svc -n envoy-gateway-system
+      -l gateway.envoyproxy.io/owning-gateway-name=lmthing-gw
+      -o jsonpath='{.items[0].spec.clusterIP}'
+  register: envoy_cluster_ip
+  changed_when: false
+
+- name: Fail if Envoy Gateway service not found
+  ansible.builtin.fail:
+    msg: "Envoy Gateway service not found. Run deploy first."
+  when: envoy_cluster_ip.stdout == ""
+
+- name: Add DNAT rule for port 80 (HTTP)
+  ansible.builtin.iptables:
+    table: nat
+    chain: PREROUTING
+    protocol: tcp
+    in_interface: eth0
+    destination_port: "80"
+    jump: DNAT
+    to_destination: "{{ envoy_cluster_ip.stdout }}:80"
+    comment: "lmthing: forward HTTP to Envoy Gateway"
+
+- name: Add DNAT rule for port 443 (HTTPS)
+  ansible.builtin.iptables:
+    table: nat
+    chain: PREROUTING
+    protocol: tcp
+    in_interface: eth0
+    destination_port: "443"
+    jump: DNAT
+    to_destination: "{{ envoy_cluster_ip.stdout }}:443"
+    comment: "lmthing: forward HTTPS to Envoy Gateway"
+
+- name: Install iptables-persistent
+  ansible.builtin.apt:
+    name: iptables-persistent
+    state: present
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+
+- name: Save iptables rules
+  ansible.builtin.command:
+    cmd: netfilter-persistent save
+  changed_when: true

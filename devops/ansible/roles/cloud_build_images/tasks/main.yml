@@ -18,15 +18,10 @@
       - "--exclude=node_modules"
       - "--exclude=.git"
 
-- name: Build gateway Docker image
+- name: Build gateway image
   ansible.builtin.command:
-    cmd: docker build -t lmthing/gateway:latest .
+    cmd: nerdctl -n k8s.io build -t lmthing/gateway:latest .
     chdir: /tmp/lmthing-build/gateway
-
-- name: Import gateway image into containerd
-  ansible.builtin.shell: |
-    docker save lmthing/gateway:latest | ctr -n k8s.io images import -
-  changed_when: true
 
 # ── Computer SPA image ─────────────────────────────────────────
 - name: Sync computer build files to node
@@ -38,15 +33,10 @@
       - "--exclude=src"
       - "--exclude=.git"
 
-- name: Build computer Docker image
+- name: Build computer image
   ansible.builtin.command:
-    cmd: docker build -t lmthing/computer:latest .
+    cmd: nerdctl -n k8s.io build -t lmthing/computer:latest .
     chdir: /tmp/lmthing-build/computer
-
-- name: Import computer image into containerd
-  ansible.builtin.shell: |
-    docker save lmthing/computer:latest | ctr -n k8s.io images import -
-  changed_when: true
 
 # ── Compute runtime image (Bun + @lmthing/repl) ───────────────
 - name: Sync compute Dockerfile to node
@@ -63,15 +53,10 @@
       - "--exclude=node_modules"
       - "--exclude=.git"
 
-- name: Build compute runtime Docker image
+- name: Build compute runtime image
   ansible.builtin.command:
-    cmd: docker build -t lmthing/compute:latest -f Dockerfile .
+    cmd: nerdctl -n k8s.io build -t lmthing/compute:latest -f Dockerfile .
     chdir: /tmp/lmthing-build/compute
-
-- name: Import compute image into containerd
-  ansible.builtin.shell: |
-    docker save lmthing/compute:latest | ctr -n k8s.io images import -
-  changed_when: true
 
 # ── Cleanup ────────────────────────────────────────────────────
 - name: Clean up build directory

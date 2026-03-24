@@ -1,4 +1,5 @@
 import '@lmthing/css/components/computer/computer-layout.css'
+import { CozyThingText } from '../../elements/branding/cozy-text'
 import { Sidebar, SidebarItem } from '../../elements/nav/sidebar'
 import { TopBar } from '../../elements/nav/top-bar'
 import { Badge } from '../../elements/content/badge'
@@ -43,7 +44,7 @@ function ComputerLayout({ status, tier, currentPath, onNavigate, error, onRetry,
       </Sidebar>
       <div className="computer-layout__content">
         <TopBar
-          title="lmthing.computer"
+          title={<CozyThingText text="lmthing.computer" />}
           actions={
             <>
               <Badge variant={status === 'running' ? 'success' : 'muted'}>{status}</Badge>

@@ -2,15 +2,24 @@
 # Applies ArgoCD Application definitions to bootstrap GitOps sync.
 # After this, ArgoCD manages all K8s manifests from the git repo.
 
+- name: Copy ArgoCD Application manifests to node
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/tmp/{{ item | basename }}"
+    mode: "0644"
+  loop:
+    - "{{ playbook_dir }}/../../../devops/argocd/apps/core.yaml"
+    - "{{ playbook_dir }}/../../../devops/argocd/apps/envoy.yaml"
+
 - name: Create ArgoCD Application for core services
   kubernetes.core.k8s:
     state: present
-    src: "{{ playbook_dir }}/../../../devops/argocd/apps/core.yaml"
+    src: /tmp/core.yaml
 
 - name: Create ArgoCD Application for Envoy Gateway resources
   kubernetes.core.k8s:
     state: present
-    src: "{{ playbook_dir }}/../../../devops/argocd/apps/envoy.yaml"
+    src: /tmp/envoy.yaml
 
 - name: Wait for ArgoCD to sync core application
   ansible.builtin.command:

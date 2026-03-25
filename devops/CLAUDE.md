@@ -2,14 +2,15 @@
 
 ## Project Overview
 
-**devops/** automates the full infrastructure lifecycle: Azure VM provisioning (Terraform), Kubernetes cluster setup (Kubespray + Ansible), and lmthing service deployment (Ansible). It is the successor to the K3s single-VM setup in `cloud/`, replacing Traefik with Envoy Gateway, Fly.io with per-user K8s compute pods, and shell scripts with Ansible playbooks.
+**devops/** automates the full infrastructure lifecycle: Azure VM provisioning (Terraform), Kubernetes cluster setup (Kubespray + Ansible), and lmthing service deployment (ArgoCD GitOps). It is the successor to the K3s single-VM setup in `cloud/`, replacing Traefik with Envoy Gateway, Fly.io with per-user K8s compute pods, and shell scripts with ArgoCD + Ansible.
 
 **VM Provisioning:** Terraform (Azure RM provider)
 **Cluster:** Kubespray v2.30.0 on Azure VM (Ubuntu 24.04)
 **Ingress:** Envoy Gateway (Gateway API)
+**GitOps:** ArgoCD (auto-syncs K8s manifests from git)
 **TLS:** cert-manager + Let's Encrypt (ACME HTTP-01)
 **Load Balancer:** MetalLB Layer 2
-**Secrets:** Ansible Vault
+**Secrets:** Ansible Vault → K8s Secrets (managed outside ArgoCD)
 **Container Runtime:** containerd (Kubespray default)
 
 ## Architecture
@@ -33,12 +34,16 @@ cert-manager → ClusterIssuer (letsencrypt-prod) → Certificate per domain
 1. Terraform provisions Azure VMs (resource group, VNet, NSG, VMs)
 2. `generate-inventory.sh` creates Kubespray inventory from Terraform outputs
 3. Kubespray provisions K8s cluster with MetalLB + cert-manager addons
-2. Envoy Gateway installed via Helm — provides Gateway API CRDs
-3. Core services (LiteLLM, Gateway, Computer SPA) deployed to `lmthing` namespace
-4. Envoy Gateway resources in `gateway` namespace route traffic via Gateway API
-5. cert-manager auto-issues Let's Encrypt TLS certs for both domains
-6. Per-user compute pods created by Gateway/Hono when user subscribes to Pro tier
-7. Envoy Lua script routes `/api/*` requests to `lmthing.user-{id}.svc.cluster.local:8080`
+4. Envoy Gateway installed via Helm — provides Gateway API CRDs
+5. ArgoCD installed via Helm — provides GitOps continuous deployment
+6. Ansible creates K8s secrets from Ansible Vault (secrets stay outside git)
+7. ArgoCD Applications bootstrap — syncs core services + envoy resources from git
+8. ArgoCD auto-syncs `devops/argocd/core/` → `lmthing` namespace (LiteLLM, Gateway, Computer SPA)
+9. ArgoCD auto-syncs `devops/argocd/envoy/` → `gateway` namespace (routing, TLS, policies)
+10. cert-manager auto-issues Let's Encrypt TLS certs for both domains
+11. Per-user compute pods created by Gateway/Hono when user subscribes to Pro tier
+12. Envoy Lua script routes `/api/*` requests to `lmthing.user-{id}.svc.cluster.local:8080`
+13. Ongoing changes: push to git → ArgoCD auto-syncs (no manual `kubectl apply` needed)
 
 ### Key Differences from K3s Setup (cloud/)
 
@@ -55,12 +60,13 @@ cert-manager → ClusterIssuer (letsencrypt-prod) → Certificate per domain
 
 ## Namespace Strategy
 
-| Namespace | Purpose |
-|-----------|---------|
-| `envoy-gateway-system` | Envoy Gateway controller (Helm-managed) |
-| `lmthing` | Core services: LiteLLM, Gateway/Hono, Computer SPA |
-| `gateway` | Envoy routing resources: Gateway, HTTPRoute, policies |
-| `user-{id}` | Per-user compute pods (created dynamically by Gateway/Hono) |
+| Namespace | Purpose | Managed By |
+|-----------|---------|------------|
+| `envoy-gateway-system` | Envoy Gateway controller | Helm (Ansible role) |
+| `argocd` | ArgoCD server, controller, repo-server | Helm (Ansible role) |
+| `lmthing` | Core services: LiteLLM, Gateway/Hono, Computer SPA | ArgoCD (`lmthing-core` app) |
+| `gateway` | Envoy routing resources: Gateway, HTTPRoute, policies | ArgoCD (`lmthing-envoy` app) |
+| `user-{id}` | Per-user compute pods (created dynamically by Gateway/Hono) | Gateway app (K8s API) |
 
 Cross-namespace routing requires a `ReferenceGrant` in `lmthing` allowing HTTPRoutes in `gateway` to reference Services in `lmthing`.
 
@@ -71,6 +77,29 @@ devops/
 ├── Makefile                                         # Top-level: terraform + pipeline targets
 ├── README.md
 ├── CLAUDE.md                                        # This file
+├── argocd/                                          # ArgoCD-managed K8s manifests (GitOps source of truth)
+│   ├── core/                                        # Core services (synced by ArgoCD → lmthing namespace)
+│   │   ├── kustomization.yaml                       # Kustomize entrypoint
+│   │   ├── namespace.yaml                           # lmthing + gateway namespaces
+│   │   ├── litellm.yaml                             # LiteLLM ConfigMap + Deployment + Service
+│   │   ├── gateway.yaml                             # Gateway Deployment + Service + RBAC
+│   │   ├── computer.yaml                            # Computer SPA Deployment + Service
+│   │   └── compute-pod-template.yaml                # ConfigMap with per-user pod template
+│   ├── envoy/                                       # Envoy Gateway resources (synced by ArgoCD → gateway namespace)
+│   │   ├── kustomization.yaml                       # Kustomize entrypoint + replacements
+│   │   ├── config.yaml                              # ConfigMap with domain values (non-secret)
+│   │   ├── cloud-gateway.yaml                       # Gateway listeners for lmthing.cloud + lmthing.computer
+│   │   ├── cloud-routes.yaml                        # HTTPRoutes: /v1/* → litellm, /api/* → gateway
+│   │   ├── computer-routes.yaml                     # HTTPRoutes: /api/* → dynamic, /* → SPA
+│   │   ├── computer-policies.yaml                   # DynamicResolver, Lua routing, JWT (Supabase)
+│   │   ├── reference-grants.yaml                    # Cross-namespace ReferenceGrant
+│   │   └── tls-certificates.yaml                    # ClusterIssuer + Certificate resources
+│   ├── apps/                                        # ArgoCD Application definitions
+│   │   ├── core.yaml                                # Application: lmthing-core
+│   │   └── envoy.yaml                               # Application: lmthing-envoy
+│   └── compute/                                     # Per-user compute pod resources
+│       ├── Dockerfile                               # Bun + @lmthing/repl runtime image
+│       └── user-pod-template.yaml                   # Template: Namespace + Deployment + Service
 ├── terraform/                                       # Azure VM provisioning
 │   ├── versions.tf                                  # Provider config (azurerm ~> 4.0)
 │   ├── variables.tf                                 # All input variables
@@ -79,42 +108,28 @@ devops/
 │   ├── terraform.tfvars.example                     # Variable template
 │   └── generate-inventory.sh                        # Generate Ansible hosts.yml from TF outputs
 ├── ansible/
-│   ├── Makefile                                     # All targets: cluster, deploy, status, logs
+│   ├── Makefile                                     # All targets: cluster, deploy, status, logs, argocd
 │   ├── ansible.cfg                                  # Ansible config (roles path includes Kubespray)
 │   ├── requirements.yml                             # Ansible collections (kubernetes.core)
 │   ├── vault.yml                                    # Ansible Vault secrets (encrypt before use)
 │   ├── playbooks/
 │   │   ├── kubespray.yml                            # K8s cluster provisioning + postinstall
-│   │   └── services.yml                             # Cloud service deployment (4 roles)
+│   │   └── services.yml                             # Cloud service deployment (ArgoCD + infrastructure)
 │   ├── roles/
 │   │   ├── k8s_postinstall/tasks/main.yml           # Kubeconfig setup for SSH user
 │   │   ├── envoy_gateway/tasks/main.yml             # Install Envoy Gateway via Helm
-│   │   ├── cloud_build_images/tasks/main.yml        # Build gateway + computer + compute images
-│   │   ├── cloud_apply_manifests/                   # Apply K8s manifests + DB migrations
+│   │   ├── argocd/                                  # Install ArgoCD via Helm
 │   │   │   ├── tasks/main.yml
-│   │   │   └── templates/env-secrets.j2             # Secrets template from vault vars
-│   │   └── cloud_compute/tasks/main.yml             # Compute pod template ConfigMap
+│   │   │   └── defaults/main.yml                    # Chart version config
+│   │   ├── buildkit/tasks/main.yml                  # Install BuildKit for image building
+│   │   ├── cloud_build_images/tasks/main.yml        # Build gateway + computer + compute images
+│   │   ├── cloud_secrets/tasks/main.yml             # Create K8s secrets from vault + run DB migrations
+│   │   ├── argocd_apps/tasks/main.yml               # Apply ArgoCD Application definitions
+│   │   └── ingress_iptables/tasks/main.yml          # iptables DNAT rules for MetalLB
 │   ├── inventory/test/
-│   │   ├── hosts.yml                                # Node inventory (135.225.105.98)
+│   │   ├── hosts.yml                                # Node inventory
 │   │   └── group_vars/all.yml                       # Cluster addons: Helm, MetalLB, cert-manager
-│   ├── k8s/                                         # Kubernetes manifests
-│   │   ├── namespace.yaml                           # lmthing + gateway namespaces
-│   │   ├── litellm.yaml                             # LiteLLM ConfigMap + Deployment + Service
-│   │   ├── gateway.yaml                             # Gateway Deployment + Service + RBAC
-│   │   ├── computer.yaml                            # Computer SPA Deployment + Service
-│   │   ├── kustomization.yaml                       # Kustomize entrypoint + secretGenerator
-│   │   ├── .env.secrets.example                     # Env vars template
-│   │   ├── envoy/                                   # Envoy Gateway resources
-│   │   │   ├── cloud-gateway.yaml.tpl               # Gateway for lmthing.cloud
-│   │   │   ├── cloud-routes.yaml.tpl                # HTTPRoutes: /v1/* → litellm, /api/* → gateway
-│   │   │   ├── computer-gateway.yaml.tpl            # Gateway for lmthing.computer
-│   │   │   ├── computer-routes.yaml.tpl             # HTTPRoutes: /api/* → dynamic, /* → SPA
-│   │   │   ├── computer-policies.yaml               # DynamicResolver, Lua routing, JWT (Supabase)
-│   │   │   ├── reference-grants.yaml                # Cross-namespace ReferenceGrant
-│   │   │   └── tls-certificates.yaml.tpl            # ClusterIssuer + Certificate resources
-│   │   └── compute/                                 # Per-user compute pod resources
-│   │       ├── Dockerfile                           # Bun + @lmthing/repl runtime image
-│   │       └── user-pod-template.yaml               # Template: Namespace + Deployment + Service
+│   ├── k8s/                                         # [LEGACY] Old Ansible-managed manifests (use argocd/ instead)
 │   └── scripts/setup/
 │       └── bootstrap.sh                             # Clone Kubespray + create venv
 └── docs/getting-started/
@@ -261,19 +276,23 @@ The `subscription_id` is always required in `terraform.tfvars`.
 
 | Target | Description |
 |--------|-------------|
-| `make deploy` | Full deploy: Envoy Gateway + images + manifests + compute |
+| `make deploy` | Full deploy: infra + images + secrets + ArgoCD apps |
 | `make deploy-images` | Rebuild and import Docker images only |
-| `make deploy-manifests` | Apply K8s manifests only |
-| `make status` | Show pods in `lmthing` + `gateway` namespaces |
+| `make deploy-secrets` | Update K8s secrets from vault + run DB migrations |
+| `make deploy-argocd` | Install ArgoCD + apply Application definitions |
+| `make status` | Show pods in `lmthing`, `gateway`, and `argocd` namespaces |
 | `make routes` | Show Gateways, HTTPRoutes, Certificates |
 | `make logs-gateway` | Tail gateway logs (last 50 lines) |
 | `make logs-litellm` | Tail litellm logs (last 50 lines) |
+| `make logs-argocd` | Tail ArgoCD server logs (last 50 lines) |
+| `make argocd-apps` | Show ArgoCD Application sync status |
+| `make argocd-sync APP=<name>` | Trigger manual sync for an ArgoCD Application |
 
 All deploy targets prompt for the Ansible Vault password (`--ask-vault-pass`).
 
 Pass extra Ansible args via `EXTRA_ARGS`:
 ```bash
-make deploy EXTRA_ARGS="--tags manifests -vv"
+make deploy EXTRA_ARGS="--tags secrets -vv"
 ```
 
 ## Ansible Roles
@@ -289,6 +308,17 @@ Installs Envoy Gateway via Helm chart.
 
 **Tags:** `infra`, `envoy`
 
+### `argocd`
+
+Installs ArgoCD via Helm chart for GitOps continuous deployment.
+
+1. Create `argocd` namespace
+2. Install ArgoCD Helm chart (argo-cd v7.8.13) with insecure mode (TLS at Envoy)
+3. Wait for ArgoCD server deployment ready
+4. Display initial admin password
+
+**Tags:** `infra`, `argocd`
+
 ### `cloud_build_images`
 
 Builds three Docker images on the node and imports into containerd:
@@ -297,39 +327,36 @@ Builds three Docker images on the node and imports into containerd:
 |-------|--------|---------|
 | `lmthing/gateway:latest` | `cloud/gateway/` | Hono API gateway |
 | `lmthing/computer:latest` | `computer/` | Static SPA (lmthing.computer frontend) |
-| `lmthing/compute:latest` | `org/libs/repl/` + `k8s/compute/Dockerfile` | Bun + @lmthing/repl runtime |
+| `lmthing/compute:latest` | `org/libs/repl/` + `argocd/compute/Dockerfile` | Bun + @lmthing/repl runtime |
 
-Images are built via Docker, then exported and imported into containerd:
-```bash
-docker save <image> | ctr -n k8s.io images import -
-```
+Images are built via nerdctl in the `k8s.io` namespace for containerd.
 
 **Tags:** `images`
 
-### `cloud_apply_manifests`
+### `cloud_secrets`
 
-Applies all K8s resources and runs database migrations.
+Creates K8s secrets from Ansible Vault and runs database migrations. Secrets are managed outside ArgoCD to keep sensitive values out of git.
 
-1. Sync manifests + migrations to node
-2. Create `.env.secrets` from Ansible Vault variables
-3. Run SQL migrations against Supabase PostgreSQL
-4. Render `.yaml.tpl` templates with `envsubst` (substitutes `$DOMAIN`, `$COMPUTER_DOMAIN`, `$ACME_EMAIL`)
-5. Apply core services via `kubectl apply -k` (kustomization)
-6. Apply Envoy Gateway resources (ordered: reference-grants → certs → gateways → routes → policies)
-7. Wait for rollouts (litellm, gateway, computer)
+1. Create `lmthing-secrets` K8s Secret in `lmthing` namespace from vault variables
+2. Sync SQL migrations to node
+3. Run migrations against Supabase PostgreSQL
+4. Clean up
 
-**Tags:** `manifests`
+**Tags:** `secrets`
 
-### `cloud_compute`
+### `argocd_apps`
 
-Sets up per-user compute infrastructure.
+Bootstraps ArgoCD Application definitions and verifies sync.
 
-1. Create ConfigMap `compute-pod-template` in `lmthing` namespace (contains the user pod template YAML)
-2. Verify `lmthing/compute:latest` image exists in containerd
+1. Apply ArgoCD Application for core services (`devops/argocd/apps/core.yaml`)
+2. Apply ArgoCD Application for Envoy Gateway resources (`devops/argocd/apps/envoy.yaml`)
+3. Wait for ArgoCD to sync the core application
+4. Wait for core service rollouts (litellm, gateway, computer)
+5. Verify compute image is available
 
-The Gateway/Hono app reads this template and creates per-user resources via the K8s API when a user subscribes to Pro tier.
+After this role runs, ArgoCD manages all K8s manifests. Push changes to git and ArgoCD auto-syncs.
 
-**Tags:** `compute`
+**Tags:** `argocd`, `apps`
 
 ## Routing
 
@@ -344,7 +371,7 @@ Client → Envoy Gateway (cloud-gw)
   TLS: cert-manager auto-issued Let's Encrypt cert
 ```
 
-Resources: `cloud-gateway.yaml.tpl`, `cloud-routes.yaml.tpl`
+Resources: `argocd/envoy/cloud-gateway.yaml`, `argocd/envoy/cloud-routes.yaml`
 
 ### lmthing.computer — Dynamic Per-User Routing
 
@@ -359,7 +386,7 @@ Client → Envoy Gateway (computer-gw)
   TLS: cert-manager auto-issued Let's Encrypt cert
 ```
 
-Resources: `computer-gateway.yaml.tpl`, `computer-routes.yaml.tpl`, `computer-policies.yaml`
+Resources: `argocd/envoy/computer-routes.yaml`, `argocd/envoy/computer-policies.yaml`
 
 **JWT configuration** (in `computer-policies.yaml`):
 - Issuer: Supabase project URL + `/auth/v1`
@@ -460,13 +487,15 @@ make deploy
 
 **"I changed gateway code"**
 ```bash
-make deploy-images        # rebuilds all images
-make deploy-manifests     # restarts deployments
+make deploy-images        # rebuilds all images on node
+# ArgoCD will detect the new image and restart pods (imagePullPolicy: IfNotPresent)
+# If needed, trigger a manual restart via kubectl rollout restart
 ```
 
-**"I only changed K8s manifests"**
+**"I changed K8s manifests"**
 ```bash
-make deploy-manifests
+git push                  # push changes to git
+# ArgoCD auto-syncs within 3 minutes (or manually: make argocd-sync APP=lmthing-core)
 ```
 
 **"I want to rebuild just images"**
@@ -476,16 +505,18 @@ make deploy-images
 
 **"Something is broken"**
 ```bash
-make status               # check pod status
+make status               # check pod status (includes argocd namespace)
+make argocd-apps          # check ArgoCD sync status
 make logs-gateway         # check gateway logs
 make logs-litellm         # check litellm logs
+make logs-argocd          # check ArgoCD server logs
 make routes               # check gateways, routes, certs
 ```
 
 **"I changed vault secrets"**
 ```bash
 ansible-vault edit vault.yml
-make deploy-manifests     # re-renders secrets + restarts
+make deploy-secrets       # updates K8s secrets + restarts affected pods
 ```
 
 **"I need more capacity"**
@@ -522,9 +553,11 @@ kubectl get gateways -A
 kubectl logs deployment/gateway -n lmthing --tail=50
 ```
 
-## K8s Manifests
+## K8s Manifests (ArgoCD-managed)
 
-### Core Services (`k8s/`)
+All K8s manifests live in `devops/argocd/` and are synced by ArgoCD from git. No manual `kubectl apply` needed for ongoing changes.
+
+### Core Services (`argocd/core/`)
 
 | File | Kind | Namespace | Purpose |
 |------|------|-----------|---------|
@@ -532,51 +565,63 @@ kubectl logs deployment/gateway -n lmthing --tail=50
 | `litellm.yaml` | ConfigMap + Deployment + Service | lmthing | LiteLLM proxy (Azure Foundry, budget enforcement) |
 | `gateway.yaml` | ServiceAccount + ClusterRole + Deployment + Service | lmthing | Gateway/Hono + RBAC for user pod management |
 | `computer.yaml` | Deployment + Service | lmthing | Computer SPA (nginx, COEP/COOP headers) |
-| `kustomization.yaml` | Kustomization | lmthing | Entrypoint + secretGenerator |
+| `compute-pod-template.yaml` | ConfigMap | lmthing | Per-user compute pod template |
+| `kustomization.yaml` | Kustomization | lmthing | Kustomize entrypoint |
 
-### Envoy Gateway (`k8s/envoy/`)
+### Envoy Gateway (`argocd/envoy/`)
 
 | File | Kind | Namespace | Purpose |
 |------|------|-----------|---------|
-| `cloud-gateway.yaml.tpl` | Gateway | gateway | Listeners for lmthing.cloud (HTTP + HTTPS) |
-| `cloud-routes.yaml.tpl` | HTTPRoute ×3 | gateway | Redirect + /v1 → litellm + /api → gateway |
-| `computer-gateway.yaml.tpl` | Gateway | gateway | Listeners for lmthing.computer (HTTP + HTTPS) |
-| `computer-routes.yaml.tpl` | HTTPRoute ×3 | gateway | Redirect + /api → dynamic + /* → SPA |
+| `config.yaml` | ConfigMap | gateway | Domain values for Kustomize replacements |
+| `cloud-gateway.yaml` | Gateway | gateway | Listeners for lmthing.cloud + lmthing.computer |
+| `cloud-routes.yaml` | HTTPRoute ×3 | gateway | Redirect + /v1 → litellm + /api → gateway |
+| `computer-routes.yaml` | HTTPRoute ×3 | gateway | Redirect + /api → dynamic + /* → SPA |
 | `computer-policies.yaml` | Backend + HTTPRouteFilter + EnvoyExtensionPolicy + SecurityPolicy | gateway | Dynamic routing + Lua + JWT |
 | `reference-grants.yaml` | ReferenceGrant | lmthing | Cross-namespace backend access |
-| `tls-certificates.yaml.tpl` | ClusterIssuer + Certificate ×2 | — / gateway | Let's Encrypt + per-domain certs |
+| `tls-certificates.yaml` | ClusterIssuer + Certificate ×2 | — / gateway | Let's Encrypt + per-domain certs |
+| `kustomization.yaml` | Kustomization | — | Kustomize entrypoint + replacements |
 
-### Compute (`k8s/compute/`)
+### ArgoCD Applications (`argocd/apps/`)
+
+| File | Application Name | Syncs From | Purpose |
+|------|-----------------|------------|---------|
+| `core.yaml` | `lmthing-core` | `devops/argocd/core/` | Core services (auto-sync, self-heal, prune) |
+| `envoy.yaml` | `lmthing-envoy` | `devops/argocd/envoy/` | Envoy Gateway resources (auto-sync, self-heal) |
+
+### Compute (`argocd/compute/`)
 
 | File | Purpose |
 |------|---------|
 | `Dockerfile` | Bun + @lmthing/repl runtime image |
 | `user-pod-template.yaml` | Template for per-user Namespace + Deployment + Service |
 
-## Template Rendering
+## Domain Configuration (Kustomize Replacements)
 
-Files ending in `.yaml.tpl` are rendered with `envsubst` at deploy time. Variables:
+Domain values are configured in `argocd/envoy/config.yaml` (a ConfigMap) and injected into envoy manifests via Kustomize `replacements` in `argocd/envoy/kustomization.yaml`. This replaces the old `envsubst` + `.yaml.tpl` approach.
 
-| Variable | Source | Example |
-|----------|--------|---------|
-| `${DOMAIN}` | `vault_domain` | `lmthing.cloud` |
-| `${COMPUTER_DOMAIN}` | `vault_computer_domain` | `lmthing.computer` |
-| `${ACME_EMAIL}` | `vault_acme_email` | `admin@lmthing.cloud` |
+| ConfigMap Key | Example Value | Injected Into |
+|---------------|---------------|---------------|
+| `domain` | `lmthing.cloud` | Gateway hostnames, HTTPRoute hostnames, Certificate dnsNames |
+| `computerDomain` | `lmthing.computer` | Gateway hostnames, HTTPRoute hostnames, Certificate dnsNames |
+| `acmeEmail` | `admin@lmthing.cloud` | ClusterIssuer ACME email |
+| `supabaseJwtIssuer` | `https://xxx.supabase.co/auth/v1` | SecurityPolicy JWT issuer |
+| `supabaseJwksUri` | `https://xxx.supabase.co/auth/v1/.well-known/jwks.json` | SecurityPolicy JWKS URI |
 
-Rendered files are gitignored — only `.tpl` sources are committed.
+To update domain values: edit `argocd/envoy/config.yaml`, push to git, ArgoCD auto-syncs.
 
 ## Gotchas
 
 - **Encrypt vault.yml before committing** — the file ships as plaintext template. Run `ansible-vault encrypt vault.yml` after filling in real values.
+- **Secrets are NOT managed by ArgoCD** — secrets are created by the `cloud_secrets` Ansible role. If you change vault secrets, run `make deploy-secrets` (ArgoCD won't pick up secret changes from git).
+- **Update `argocd/envoy/config.yaml` before first deploy** — set your actual domain values and Supabase project reference.
+- **ArgoCD auto-sync delay** — ArgoCD polls git every 3 minutes by default. Use `make argocd-sync APP=<name>` for immediate sync.
 - **MetalLB IP must match node's external IP** — `metallb_ip_range` in group_vars must contain the node's public IP for LoadBalancer Services to be reachable.
-- **Envoy Gateway creates separate proxy per Gateway** — two Gateway objects (cloud-gw, computer-gw) means two Envoy proxy Deployments. More resource usage but better isolation.
-- **computer-policies.yaml has hardcoded Supabase URLs** — replace `SUPABASE_PROJECT_REF` with your actual Supabase project reference before deploying.
 - **ReferenceGrant is required** — without it, HTTPRoutes in `gateway` namespace cannot reference Services in `lmthing` namespace. Cross-namespace routing silently fails.
 - **cert-manager HTTP-01 needs port 80 open** — the ACME solver creates temporary HTTPRoutes on the HTTP listener. Ensure the Gateway's HTTP listener exists and firewall allows port 80.
-- **Image import uses containerd** — unlike K3s (`k3s ctr`), Kubespray uses standard containerd. Import with `ctr -n k8s.io images import`.
-- **No quotes in .env.secrets** — same as K3s setup: Kustomize reads values literally.
+- **Image import uses containerd** — Kubespray uses standard containerd. Build with `nerdctl -n k8s.io build`.
 - **Session pooler for DATABASE_URL** — must use Supabase port 5432 (session mode), not 6543 (transaction mode).
 - **Gateway ServiceAccount is critical** — the gateway needs the `lmthing-compute-manager` ClusterRole to create user pods. Without it, Pro tier subscriptions will fail to provision compute.
+- **Old manifests in `ansible/k8s/`** — these are legacy from the pre-ArgoCD setup. All active manifests are now in `argocd/`. Do not edit files in `ansible/k8s/`.
 
 ## Scaling the Cluster
 

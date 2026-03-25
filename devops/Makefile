@@ -6,7 +6,7 @@ ANSIBLE_DIR := $(ROOT_DIR)/ansible
 EXTRA_ARGS ?=
 
 .PHONY: tf-bootstrap tf-init tf-plan tf-apply tf-destroy tf-output tf-inventory
-.PHONY: up scale-up scale-down cluster deploy status vault-edit
+.PHONY: up scale-up scale-down cluster deploy deploy-secrets deploy-argocd status argocd-apps vault-edit
 
 # ── Terraform: Azure VMs ───────────────────────────────────────
 
@@ -73,8 +73,17 @@ cluster:
 deploy:
 	cd $(ANSIBLE_DIR) && $(MAKE) deploy $(if $(EXTRA_ARGS),EXTRA_ARGS="$(EXTRA_ARGS)")
 
+deploy-secrets:
+	cd $(ANSIBLE_DIR) && $(MAKE) deploy-secrets $(if $(EXTRA_ARGS),EXTRA_ARGS="$(EXTRA_ARGS)")
+
+deploy-argocd:
+	cd $(ANSIBLE_DIR) && $(MAKE) deploy-argocd $(if $(EXTRA_ARGS),EXTRA_ARGS="$(EXTRA_ARGS)")
+
 status:
 	cd $(ANSIBLE_DIR) && $(MAKE) status $(if $(EXTRA_ARGS),EXTRA_ARGS="$(EXTRA_ARGS)")
+
+argocd-apps:
+	cd $(ANSIBLE_DIR) && $(MAKE) argocd-apps $(if $(EXTRA_ARGS),EXTRA_ARGS="$(EXTRA_ARGS)")
 
 vault-edit:
 	cd $(ANSIBLE_DIR) && source .venv/bin/activate && ansible-vault edit vault.yml

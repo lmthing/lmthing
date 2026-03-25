@@ -1,0 +1,13 @@
+# Non-secret configuration values for Envoy Gateway resources.
+# Update these with your actual values before deploying.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lmthing-envoy-config
+  namespace: gateway
+data:
+  domain: "lmthing.cloud"
+  computerDomain: "lmthing.computer"
+  acmeEmail: "admin@lmthing.cloud"
+  supabaseJwtIssuer: "https://SUPABASE_PROJECT_REF.supabase.co/auth/v1"
+  supabaseJwksUri: "https://SUPABASE_PROJECT_REF.supabase.co/auth/v1/.well-known/jwks.json"

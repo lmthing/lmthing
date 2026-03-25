@@ -1,0 +1,139 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gateway
+  namespace: lmthing
+
+---
+# Allows the gateway to create/delete user-* namespaces, deployments, and services
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: lmthing-compute-manager
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces", "services", "configmaps"]
+    verbs: ["get", "list", "create", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "create", "delete", "patch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: lmthing-compute-manager
+subjects:
+  - kind: ServiceAccount
+    name: gateway
+    namespace: lmthing
+roleRef:
+  kind: ClusterRole
+  name: lmthing-compute-manager
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: lmthing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gateway
+  template:
+    metadata:
+      labels:
+        app: gateway
+    spec:
+      serviceAccountName: gateway
+      containers:
+        - name: gateway
+          image: lmthing/gateway:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_EXTRA_CA_CERTS
+              value: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            - name: LITELLM_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: LITELLM_MASTER_KEY
+            - name: LITELLM_URL
+              value: "http://litellm:4000"
+            - name: BASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: BASE_URL
+            - name: STRIPE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: STRIPE_SECRET_KEY
+            - name: STRIPE_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: STRIPE_WEBHOOK_SECRET
+            - name: STRIPE_PRICE_STARTER
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: STRIPE_PRICE_STARTER
+            - name: STRIPE_PRICE_BASIC
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: STRIPE_PRICE_BASIC
+            - name: STRIPE_PRICE_PRO
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: STRIPE_PRICE_PRO
+            - name: STRIPE_PRICE_MAX
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: STRIPE_PRICE_MAX
+            - name: SUPABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: SUPABASE_URL
+            - name: SUPABASE_SERVICE_ROLE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: SUPABASE_SERVICE_ROLE_KEY
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: lmthing
+spec:
+  selector:
+    app: gateway
+  ports:
+    - port: 3000
+      targetPort: 3000
+  type: ClusterIP

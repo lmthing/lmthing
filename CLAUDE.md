@@ -308,7 +308,7 @@ Adding a new tier touches files across the monorepo — see [Adding a New Tier](
 
 **Gateway libraries** in `gateway/src/lib/`: `litellm.ts` (LiteLLM admin API client), `stripe.ts` (Stripe client), `tiers.ts` (tier definitions + model lists).
 
-**K8s manifests** are now in `devops/ansible/k8s/` (Envoy Gateway). See `devops/CLAUDE.md` for details.
+**K8s manifests** are now in `devops/argocd/` (Envoy Gateway). See `devops/CLAUDE.md` for details.
 
 ```mermaid
 graph TB
@@ -435,7 +435,7 @@ Different products run agents in different environments:
 ## Development Workflow
 
 - **Studio** is the primary development surface — most features are built and tested here
-- **Cloud gateway** is developed locally — build and run the Hono server, deploy via `cd devops/ansible && make deploy`
+- **Cloud gateway** is developed locally — build and run the Hono server, deploy via `cd devops/ansible && make deploy` (ArgoCD auto-syncs manifest changes from git)
 - **Core framework** changes can be tested via `lmthing run` CLI or within Studio
 - All workspace data syncs through git — standard merge/conflict resolution applies
 
@@ -547,8 +547,8 @@ This repository is a monorepo organized by TLD — each lmthing.\* domain has it
 
 ## Cloud Backend
 
-- `cloud/` — API gateway (Hono/Node.js) + LiteLLM proxy. Gateway handles auth (Supabase Auth), API key management (LiteLLM), billing (Stripe subscriptions), and webhooks. LiteLLM provides OpenAI-compatible LLM proxy routing to Azure AI Foundry with tier-based budgets and rate limits. Gateway source in `gateway/`, migrations in `migrations/`. K8s manifests are in `devops/ansible/k8s/`.
-- `devops/` — Infrastructure automation. Terraform for Azure VM provisioning, Kubespray for K8s cluster, Ansible for service deployment. Envoy Gateway for ingress, cert-manager for TLS, per-user compute pods for lmthing.computer. See `devops/CLAUDE.md`.
+- `cloud/` — API gateway (Hono/Node.js) + LiteLLM proxy. Gateway handles auth (Supabase Auth), API key management (LiteLLM), billing (Stripe subscriptions), and webhooks. LiteLLM provides OpenAI-compatible LLM proxy routing to Azure AI Foundry with tier-based budgets and rate limits. Gateway source in `gateway/`, migrations in `migrations/`. K8s manifests are in `devops/argocd/`.
+- `devops/` — Infrastructure automation. Terraform for Azure VM provisioning, Kubespray for K8s cluster, ArgoCD for GitOps deployment. Envoy Gateway for ingress, cert-manager for TLS, per-user compute pods for lmthing.computer. K8s manifests in `devops/argocd/`, auto-synced by ArgoCD. See `devops/CLAUDE.md`.
 
 ## Product Domains
 

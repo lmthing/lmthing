@@ -1,0 +1,58 @@
+---
+- name: Create argocd namespace
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ argocd_namespace }}"
+
+- name: Install ArgoCD via Helm
+  kubernetes.core.helm:
+    name: argocd
+    chart_ref: argo-cd
+    chart_repo_url: https://argoproj.github.io/argo-helm
+    release_namespace: "{{ argocd_namespace }}"
+    chart_version: "{{ argocd_chart_version }}"
+    create_namespace: true
+    wait: true
+    wait_timeout: "300s"
+    values:
+      configs:
+        params:
+          # Run in insecure mode — TLS is terminated at Envoy Gateway
+          server.insecure: true
+      server:
+        replicas: 1
+      controller:
+        replicas: 1
+      repoServer:
+        replicas: 1
+
+- name: Wait for ArgoCD server to be ready
+  kubernetes.core.k8s_info:
+    kind: Deployment
+    namespace: "{{ argocd_namespace }}"
+    name: argocd-server
+  register: argocd_server
+  until: >-
+    argocd_server.resources | length > 0 and
+    (argocd_server.resources[0].status.readyReplicas | default(0)) >= 1
+  retries: 30
+  delay: 10
+
+- name: Get ArgoCD initial admin password
+  kubernetes.core.k8s_info:
+    kind: Secret
+    namespace: "{{ argocd_namespace }}"
+    name: argocd-initial-admin-secret
+  register: argocd_admin_secret
+  ignore_errors: true
+
+- name: Display ArgoCD admin password
+  ansible.builtin.debug:
+    msg: >-
+      ArgoCD initial admin password:
+      {{ argocd_admin_secret.resources[0].data.password | b64decode }}
+  when: argocd_admin_secret.resources | length > 0

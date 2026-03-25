@@ -1,0 +1,58 @@
+---
+# This role creates K8s secrets from Ansible Vault variables and runs database
+# migrations. Secrets are managed outside ArgoCD to keep sensitive values out of git.
+
+- name: Ensure psql is installed (for migrations)
+  ansible.builtin.apt:
+    name: postgresql-client
+    state: present
+
+# ── Create secrets directly via kubectl ──────────────────────
+- name: Create lmthing-secrets in cluster
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: lmthing-secrets
+        namespace: lmthing
+      type: Opaque
+      stringData:
+        DOMAIN: "{{ vault_domain }}"
+        COMPUTER_DOMAIN: "{{ vault_computer_domain }}"
+        BASE_URL: "{{ vault_base_url }}"
+        ACME_EMAIL: "{{ vault_acme_email }}"
+        AZURE_API_KEY: "{{ vault_azure_api_key }}"
+        AZURE_API_BASE: "{{ vault_azure_api_base }}"
+        SUPABASE_URL: "{{ vault_supabase_url }}"
+        SUPABASE_SERVICE_ROLE_KEY: "{{ vault_supabase_service_role_key }}"
+        DATABASE_URL: "{{ vault_database_url }}"
+        STRIPE_SECRET_KEY: "{{ vault_stripe_secret_key }}"
+        STRIPE_WEBHOOK_SECRET: "{{ vault_stripe_webhook_secret }}"
+        STRIPE_PRICE_STARTER: "{{ vault_stripe_price_starter }}"
+        STRIPE_PRICE_BASIC: "{{ vault_stripe_price_basic }}"
+        STRIPE_PRICE_PRO: "{{ vault_stripe_price_pro }}"
+        STRIPE_PRICE_MAX: "{{ vault_stripe_price_max }}"
+        LITELLM_MASTER_KEY: "{{ vault_litellm_master_key }}"
+  no_log: true
+
+# ── Database migrations ──────────────────────────────────────
+- name: Sync database migrations to node
+  ansible.builtin.copy:
+    src: "{{ migrations_src | default(playbook_dir + '/../../../cloud/migrations/') }}"
+    dest: /tmp/lmthing-migrations/
+    mode: "0644"
+
+- name: Run database migrations
+  ansible.builtin.shell: |
+    for f in /tmp/lmthing-migrations/*.sql; do
+      [ -f "$f" ] && PGPASSWORD="{{ vault_db_password }}" psql "{{ vault_database_url }}" -f "$f" 2>&1 || true
+    done
+  changed_when: true
+  no_log: true
+
+- name: Clean up migrations directory
+  ansible.builtin.file:
+    path: /tmp/lmthing-migrations
+    state: absent

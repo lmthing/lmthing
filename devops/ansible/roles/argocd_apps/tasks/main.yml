@@ -1,0 +1,39 @@
+---
+# Applies ArgoCD Application definitions to bootstrap GitOps sync.
+# After this, ArgoCD manages all K8s manifests from the git repo.
+
+- name: Create ArgoCD Application for core services
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ playbook_dir }}/../../../devops/argocd/apps/core.yaml"
+
+- name: Create ArgoCD Application for Envoy Gateway resources
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ playbook_dir }}/../../../devops/argocd/apps/envoy.yaml"
+
+- name: Wait for ArgoCD to sync core application
+  ansible.builtin.command:
+    cmd: >-
+      kubectl -n argocd get application lmthing-core
+      -o jsonpath='{.status.sync.status}'
+  register: core_sync_status
+  until: core_sync_status.stdout == "Synced"
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: Wait for core service rollouts
+  ansible.builtin.command:
+    cmd: "kubectl -n lmthing rollout status deployment/{{ item }} --timeout=120s"
+  loop:
+    - litellm
+    - gateway
+    - computer
+
+- name: Verify compute image is available
+  ansible.builtin.command:
+    cmd: ctr -n k8s.io images check name==docker.io/lmthing/compute:latest
+  register: compute_image_check
+  failed_when: compute_image_check.rc != 0
+  changed_when: false

@@ -16,7 +16,7 @@ SERVICES_PLAYBOOK ?= $(ROOT_DIR)/playbooks/services.yml
 export ANSIBLE_CONFIG := $(ROOT_DIR)/ansible.cfg
 
 .PHONY: bootstrap check-bootstrap inventory ping syntax cluster upgrade scale reset
-.PHONY: deploy deploy-images deploy-manifests status routes logs-gateway logs-litellm
+.PHONY: deploy deploy-images deploy-secrets deploy-argocd status routes logs-gateway logs-litellm logs-argocd
 
 bootstrap:
 	KUBESPRAY_REPO=$(KUBESPRAY_REPO) KUBESPRAY_VERSION=$(KUBESPRAY_VERSION) $(ROOT_DIR)/scripts/setup/bootstrap.sh
@@ -54,12 +54,15 @@ deploy: check-bootstrap
 deploy-images: check-bootstrap
 	$(ANSIBLE_PLAYBOOK) -i $(INVENTORY) $(SERVICES_PLAYBOOK) -b -v --ask-vault-pass --tags images $(EXTRA_ARGS)
 
-deploy-manifests: check-bootstrap
-	$(ANSIBLE_PLAYBOOK) -i $(INVENTORY) $(SERVICES_PLAYBOOK) -b -v --ask-vault-pass --tags manifests $(EXTRA_ARGS)
+deploy-secrets: check-bootstrap
+	$(ANSIBLE_PLAYBOOK) -i $(INVENTORY) $(SERVICES_PLAYBOOK) -b -v --ask-vault-pass --tags secrets $(EXTRA_ARGS)
+
+deploy-argocd: check-bootstrap
+	$(ANSIBLE_PLAYBOOK) -i $(INVENTORY) $(SERVICES_PLAYBOOK) -b -v --ask-vault-pass --tags argocd $(EXTRA_ARGS)
 
 status: check-bootstrap
 	$(ANSIBLE) -i $(INVENTORY) kube_control_plane[0] -b -m shell \
-		-a "kubectl get pods -n lmthing && echo '---' && kubectl get pods -n gateway" $(EXTRA_ARGS)
+		-a "kubectl get pods -n lmthing && echo '---' && kubectl get pods -n gateway && echo '---' && kubectl get pods -n argocd" $(EXTRA_ARGS)
 
 routes: check-bootstrap
 	$(ANSIBLE) -i $(INVENTORY) kube_control_plane[0] -b -m shell \
@@ -72,3 +75,15 @@ logs-gateway: check-bootstrap
 logs-litellm: check-bootstrap
 	$(ANSIBLE) -i $(INVENTORY) kube_control_plane[0] -b -m shell \
 		-a "kubectl -n lmthing logs deployment/litellm --tail=50" $(EXTRA_ARGS)
+
+logs-argocd: check-bootstrap
+	$(ANSIBLE) -i $(INVENTORY) kube_control_plane[0] -b -m shell \
+		-a "kubectl -n argocd logs deployment/argocd-server --tail=50" $(EXTRA_ARGS)
+
+argocd-apps: check-bootstrap
+	$(ANSIBLE) -i $(INVENTORY) kube_control_plane[0] -b -m shell \
+		-a "kubectl get applications -n argocd" $(EXTRA_ARGS)
+
+argocd-sync: check-bootstrap
+	$(ANSIBLE) -i $(INVENTORY) kube_control_plane[0] -b -m shell \
+		-a "kubectl -n argocd patch application {{ APP }} --type merge -p '{\"operation\":{\"initiatedBy\":{\"username\":\"admin\"},\"sync\":{\"prune\":true}}}'" $(EXTRA_ARGS)

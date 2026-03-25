@@ -32,11 +32,15 @@
   delay: 10
   changed_when: false
 
-- name: Wait for core service rollouts
+- name: Wait for litellm rollout
+  ansible.builtin.command:
+    cmd: kubectl -n lmthing rollout status deployment/litellm --timeout=300s
+  changed_when: false
+
+- name: Wait for remaining service rollouts
   ansible.builtin.command:
     cmd: "kubectl -n lmthing rollout status deployment/{{ item }} --timeout=120s"
   loop:
-    - litellm
     - gateway
     - computer
 

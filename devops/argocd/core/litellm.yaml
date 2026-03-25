@@ -46,7 +46,7 @@ spec:
     spec:
       containers:
         - name: litellm
-          image: ghcr.io/berriai/litellm:main-v1.82.6
+          image: ghcr.io/berriai/litellm:main-latest
           imagePullPolicy: IfNotPresent
           args: ["--config", "/app/config.yaml", "--port", "4000"]
           ports:

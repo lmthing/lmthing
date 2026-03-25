@@ -64,21 +64,27 @@ billing.post("/checkout", async (c) => {
     return c.json({ error: `Invalid tier: ${tier}` }, 400);
   }
 
-  const customerId = await ensureStripeCustomer(user);
+  try {
+    const customerId = await ensureStripeCustomer(user);
 
-  const session = await stripe.checkout.sessions.create({
-    customer: customerId,
-    mode: "subscription",
-    ui_mode: "embedded",
-    line_items: [{ price: targetTier.stripePriceId, quantity: 1 }],
-    return_url:
-      return_url || `${BASE_URL}/checkout?session_id={CHECKOUT_SESSION_ID}`,
-    subscription_data: {
-      metadata: { user_id: user.id, tier },
-    },
-  });
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: "subscription",
+      ui_mode: "embedded",
+      line_items: [{ price: targetTier.stripePriceId, quantity: 1 }],
+      return_url:
+        return_url || `${BASE_URL}/checkout?session_id={CHECKOUT_SESSION_ID}`,
+      subscription_data: {
+        metadata: { user_id: user.id, tier },
+      },
+    });
 
-  return c.json({ client_secret: session.client_secret });
+    return c.json({ client_secret: session.client_secret });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[billing/checkout]", message);
+    return c.json({ error: message }, 500);
+  }
 });
 
 // Create a Stripe Customer Portal session

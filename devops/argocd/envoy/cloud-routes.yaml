@@ -6,7 +6,9 @@ metadata:
   namespace: gateway
 spec:
   parentRefs:
-    - name: lmthing-gw
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: lmthing-gw
       sectionName: cloud-http
   hostnames:
     - DOMAIN_PLACEHOLDER
@@ -26,7 +28,9 @@ metadata:
   namespace: gateway
 spec:
   parentRefs:
-    - name: lmthing-gw
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: lmthing-gw
       sectionName: cloud-https
   hostnames:
     - DOMAIN_PLACEHOLDER
@@ -49,7 +53,9 @@ metadata:
   namespace: gateway
 spec:
   parentRefs:
-    - name: lmthing-gw
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: lmthing-gw
       sectionName: cloud-https
   hostnames:
     - DOMAIN_PLACEHOLDER

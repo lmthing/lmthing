@@ -13,9 +13,10 @@ spec:
       - http01:
           gatewayHTTPRoute:
             parentRefs:
-              - name: lmthing-gw
-                namespace: gateway
+              - group: gateway.networking.k8s.io
                 kind: Gateway
+                name: lmthing-gw
+                namespace: gateway
 
 ---
 # TLS certificate for lmthing.cloud

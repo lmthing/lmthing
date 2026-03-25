@@ -23,8 +23,9 @@ spec:
       tls:
         mode: Terminate
         certificateRefs:
-          - name: lmthing-cloud-tls
+          - group: ""
             kind: Secret
+            name: lmthing-cloud-tls
       allowedRoutes:
         namespaces:
           from: Same
@@ -43,8 +44,9 @@ spec:
       tls:
         mode: Terminate
         certificateRefs:
-          - name: lmthing-computer-tls
+          - group: ""
             kind: Secret
+            name: lmthing-computer-tls
       allowedRoutes:
         namespaces:
           from: Same

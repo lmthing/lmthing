@@ -3,6 +3,12 @@
 # MetalLB Layer 2 (ARP-based) cannot advertise the public IP to external
 # clients. We use iptables PREROUTING DNAT rules to forward external
 # traffic on ports 80/443 to the Envoy Gateway ClusterIP.
+#
+# Persistence: we use a dedicated systemd service rather than netfilter-persistent.
+# netfilter-persistent saves the entire iptables state (including kube-proxy ipsets),
+# which fails to restore on boot because kube-proxy hasn't run yet — causing ALL rules
+# to be dropped. The systemd service runs after kubelet, so the DNAT rules are applied
+# independently of kube-proxy's startup order.
 
 - name: Get Envoy Gateway service ClusterIP
   ansible.builtin.command:
@@ -40,14 +46,43 @@
     to_destination: "{{ envoy_cluster_ip.stdout }}:443"
     comment: "lmthing: forward HTTPS to Envoy Gateway"
 
-- name: Install iptables-persistent
-  ansible.builtin.apt:
-    name: iptables-persistent
-    state: present
-  environment:
-    DEBIAN_FRONTEND: noninteractive
+- name: Write DNAT restore script
+  ansible.builtin.copy:
+    dest: /usr/local/bin/lmthing-nat.sh
+    mode: "0755"
+    content: |
+      #!/bin/bash
+      # Reapply DNAT rules for lmthing ingress on boot.
+      # Runs after kubelet so the Envoy ClusterIP is stable.
+      CLUSTERIP="{{ envoy_cluster_ip.stdout }}"
+      iptables -t nat -C PREROUTING -i eth0 -p tcp --dport 80 -j DNAT --to-destination "${CLUSTERIP}:80" 2>/dev/null || \
+        iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j DNAT --to-destination "${CLUSTERIP}:80" \
+          -m comment --comment "lmthing: forward HTTP to Envoy Gateway"
+      iptables -t nat -C PREROUTING -i eth0 -p tcp --dport 443 -j DNAT --to-destination "${CLUSTERIP}:443" 2>/dev/null || \
+        iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 443 -j DNAT --to-destination "${CLUSTERIP}:443" \
+          -m comment --comment "lmthing: forward HTTPS to Envoy Gateway"
 
-- name: Save iptables rules
-  ansible.builtin.command:
-    cmd: netfilter-persistent save
-  changed_when: true
+- name: Install lmthing-nat systemd service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/lmthing-nat.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=lmthing iptables DNAT rules for Envoy Gateway ingress
+      After=network-online.target kubelet.service
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/lmthing-nat.sh
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=multi-user.target
+
+- name: Enable and start lmthing-nat service
+  ansible.builtin.systemd:
+    name: lmthing-nat
+    enabled: true
+    state: started
+    daemon_reload: true

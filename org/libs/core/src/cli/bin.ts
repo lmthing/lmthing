@@ -31,10 +31,13 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-// Load .env from the package root.
+// Load .env — check cwd first (user's project), then package root as fallback.
 // __dirname is dist/ when compiled, src/cli/ when running from source.
-for (const rel of ['../.env', '../../.env']) {
-  const envPath = resolve(__dirname, rel)
+for (const envPath of [
+  resolve(process.cwd(), '.env'),
+  resolve(__dirname, '../.env'),
+  resolve(__dirname, '../../.env'),
+]) {
   if (existsSync(envPath)) { config({ path: envPath }); break }
 }
 

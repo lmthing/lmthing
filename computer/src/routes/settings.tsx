@@ -1,11 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/auth/AuthContext'
 import { useComputer } from '@/lib/runtime/ComputerContext'
 import { Page, PageHeader, PageBody } from '@lmthing/ui/elements/layouts/page'
 import { Card, CardHeader, CardBody } from '@lmthing/ui/elements/content/card'
 import { Badge } from '@lmthing/ui/elements/content/badge'
 import { Button } from '@lmthing/ui/elements/forms/button'
+import { Input } from '@lmthing/ui/elements/forms/input'
 import { Heading } from '@lmthing/ui/elements/typography/heading'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
 
@@ -74,6 +75,105 @@ async function startCheckout() {
 
   const { checkout_url } = await res.json()
   window.location.href = checkout_url
+}
+
+const KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/
+
+function EnvVars() {
+  const [vars, setVars] = useState<Record<string, string>>({})
+  const [newKey, setNewKey] = useState('')
+  const [newVal, setNewVal] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    const auth = getAuthHeader()
+    if (!auth) { setLoading(false); return }
+    fetch(`${CLOUD_BASE_URL}/api/compute/env`, { headers: { Authorization: auth } })
+      .then(r => r.json())
+      .then(d => { if (d.vars) setVars(d.vars) })
+      .catch(() => setError('Failed to load env vars'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const addVar = () => {
+    const k = newKey.trim()
+    const v = newVal
+    if (!k) return
+    if (!KEY_RE.test(k)) { setError(`Invalid key "${k}"`); return }
+    setVars(prev => ({ ...prev, [k]: v }))
+    setNewKey('')
+    setNewVal('')
+    setError(null)
+  }
+
+  const removeVar = (key: string) => {
+    setVars(prev => { const next = { ...prev }; delete next[key]; return next })
+  }
+
+  const save = async () => {
+    const auth = getAuthHeader()
+    if (!auth) return
+    setSaving(true)
+    setError(null)
+    setSaved(false)
+    try {
+      const res = await fetch(`${CLOUD_BASE_URL}/api/compute/env`, {
+        method: 'PUT',
+        headers: { Authorization: auth, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vars }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to save')
+      setSaved(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) return <Caption muted>Loading...</Caption>
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      {Object.entries(vars).map(([k, v]) => (
+        <div key={k} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <Input value={k} readOnly style={{ flex: '0 0 40%', fontFamily: 'monospace' }} />
+          <Input
+            value={v}
+            onChange={e => setVars(prev => ({ ...prev, [k]: e.target.value }))}
+            style={{ flex: 1, fontFamily: 'monospace' }}
+          />
+          <Button variant="ghost" size="sm" onClick={() => removeVar(k)}>Remove</Button>
+        </div>
+      ))}
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <Input
+          placeholder="KEY"
+          value={newKey}
+          onChange={e => setNewKey(e.target.value)}
+          style={{ flex: '0 0 40%', fontFamily: 'monospace' }}
+          onKeyDown={e => e.key === 'Enter' && addVar()}
+        />
+        <Input
+          placeholder="value"
+          value={newVal}
+          onChange={e => setNewVal(e.target.value)}
+          style={{ flex: 1, fontFamily: 'monospace' }}
+          onKeyDown={e => e.key === 'Enter' && addVar()}
+        />
+        <Button variant="secondary" size="sm" onClick={addVar}>Add</Button>
+      </div>
+      {error && <Caption className="text-destructive">{error}</Caption>}
+      {saved && <Caption muted>Saved. Pod is restarting to apply changes.</Caption>}
+      <Button variant="primary" size="sm" onClick={save} disabled={saving}>
+        {saving ? 'Saving...' : 'Save & Restart Pod'}
+      </Button>
+    </div>
+  )
 }
 
 function Settings() {
@@ -148,6 +248,20 @@ function Settings() {
             )}
           </CardBody>
         </Card>
+
+        {tier === 'pod' && (
+          <Card>
+            <CardHeader>
+              <Heading level={4}>Environment Variables</Heading>
+            </CardHeader>
+            <CardBody>
+              <Caption muted>
+                Variables are injected into your compute pod at startup. Saving will restart your pod.
+              </Caption>
+              <EnvVars />
+            </CardBody>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>

@@ -13,8 +13,7 @@ export async function buildFileTree(container: WebContainer, path = '.'): Promis
     const nodes: FileTreeNode[] = []
 
     for (const entry of entries) {
-      // Skip node_modules and hidden files
-      if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue
+      if (entry.name === 'node_modules') continue
 
       const fullPath = path === '.' ? entry.name : `${path}/${entry.name}`
 

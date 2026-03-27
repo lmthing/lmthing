@@ -15,6 +15,7 @@ import { WebContainerRuntime } from './webcontainer'
 import { PodRuntime } from './pod'
 import { defaultTemplate } from './template'
 import { buildFileTree, watchFileSystem } from './file-watcher'
+import { hasSnapshot, restoreSnapshot, saveSnapshot } from './opfs'
 import { useIdeStore } from '../store'
 
 export interface ComputerContextValue {
@@ -172,8 +173,13 @@ export function ComputerProvider({ children, tier = 'webcontainer', podConfig }:
     store.setBooting(true)
 
     try {
-      // Mount template files
-      await wc.mount(defaultTemplate as any)
+      // Restore from OPFS if a snapshot exists, otherwise mount the default template
+      const snapshot = await hasSnapshot()
+      if (snapshot) {
+        await restoreSnapshot(wc)
+      } else {
+        await wc.mount(defaultTemplate as any)
+      }
 
       // Build initial file tree
       const tree = await buildFileTree(wc)
@@ -186,6 +192,9 @@ export function ComputerProvider({ children, tier = 'webcontainer', podConfig }:
       await installProc.exit
       store.setInstalling(false)
 
+      // Persist to OPFS after the first install so node_modules cache warms up
+      if (!snapshot) saveSnapshot(wc).catch(() => {})
+
       // Start dev server
       store.setRunning(true)
       await wc.spawn('pnpm', ['run', 'dev'])
@@ -195,9 +204,12 @@ export function ComputerProvider({ children, tier = 'webcontainer', podConfig }:
         if (port === 3010) store.setPreviewUrl(url)
       })
 
-      // Watch file system
+      // Watch file system and debounce-sync changes to OPFS
+      let syncTimer: ReturnType<typeof setTimeout> | null = null
       watchFileSystem(wc, (tree) => {
         useIdeStore.getState().setFileTree(tree)
+        if (syncTimer) clearTimeout(syncTimer)
+        syncTimer = setTimeout(() => { saveSnapshot(wc).catch(() => {}) }, 2000)
       })
     } catch (err) {
       store.setBooting(false)

@@ -88,7 +88,7 @@ check_dns_tls_https() {
   # TLS certificate
   cert_san=$(echo | openssl s_client -servername "$domain" -connect "$domain":443 2>/dev/null \
     | openssl x509 -noout -text 2>/dev/null \
-    | grep -oP 'DNS:\K[^,]+' | head -5)
+    | grep -oP 'DNS:\K[^,]+' | head -5 || true)
   if echo "$cert_san" | grep -q "^${domain}$"; then
     pass "TLS certificate valid for $domain"
   else
@@ -96,7 +96,7 @@ check_dns_tls_https() {
   fi
 
   # HTTPS response
-  http_code=$(curl -sI -o /dev/null -w "%{http_code}" --max-time 10 "https://$domain" 2>/dev/null || echo "000")
+  http_code=$(curl -sI -o /dev/null -w "%{http_code}" --max-time 10 "https://$domain" 2>/dev/null; true)
   if [ "$http_code" = "200" ]; then
     pass "HTTPS responds 200"
   elif [ "$http_code" = "404" ]; then

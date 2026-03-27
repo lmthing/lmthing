@@ -1,6 +1,6 @@
 import { createServer, type Server } from 'node:http'
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs'
-import { resolve, join, extname } from 'node:path'
+import { join, extname } from 'node:path'
 import { WebSocketServer, type WebSocket } from 'ws'
 import { Session } from '@lmthing/repl'
 import type { SessionEvent } from '@lmthing/repl'
@@ -12,6 +12,8 @@ export interface ServerOptions {
   session: Session
   agentLoop?: AgentLoop
   staticDir?: string
+  /** In-memory web assets: relative path → base64-encoded content */
+  webAssets?: Record<string, string>
   conversationsDir?: string
 }
 
@@ -33,22 +35,37 @@ const MIME_TYPES: Record<string, string> = {
 const VALID_ID = /^[a-zA-Z0-9_-]+$/
 
 export function createReplServer(options: ServerOptions): { server: Server; close: () => void } {
-  const { port, session, agentLoop, staticDir, conversationsDir } = options
+  const { port, session, agentLoop, staticDir, webAssets, conversationsDir } = options
   const rpcServer = new ReplSessionServer(session)
 
   const httpServer = createServer((req, res) => {
+    // In-memory assets take priority over staticDir
+    if (webAssets) {
+      const urlPath = req.url === '/' ? 'index.html' : req.url!.split('?')[0].replace(/^\//, '')
+      const b64 = webAssets[urlPath]
+      if (b64) {
+        const contentType = MIME_TYPES[extname(urlPath)] ?? 'application/octet-stream'
+        res.writeHead(200, { 'Content-Type': contentType })
+        res.end(Buffer.from(b64, 'base64'))
+        return
+      }
+      // SPA fallback
+      res.writeHead(200, { 'Content-Type': 'text/html' })
+      res.end(Buffer.from(webAssets['index.html'] ?? '', 'base64'))
+      return
+    }
+
     if (!staticDir) {
       res.writeHead(200, { 'Content-Type': 'text/html' })
       res.end('<html><body><h1>@lmthing/repl</h1><p>WebSocket endpoint ready.</p></body></html>')
       return
     }
 
-    // Serve static files
+    // Serve static files from disk (dev mode)
     const urlPath = req.url === '/' ? '/index.html' : req.url!.split('?')[0]
     const filePath = join(staticDir, urlPath)
 
     if (!existsSync(filePath)) {
-      // SPA fallback
       const indexPath = join(staticDir, 'index.html')
       if (existsSync(indexPath)) {
         res.writeHead(200, { 'Content-Type': 'text/html' })

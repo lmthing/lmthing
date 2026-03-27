@@ -1,6 +1,6 @@
 {
   "name": "lmthing",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "bin": {
     "lmthing": "dist/bin.js",
@@ -16,9 +16,9 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "vite build --config vite.config.web.ts && node scripts/embed-web.mjs && tsup",
     "build:web": "vite build --config vite.config.web.ts",
-    "prepublishOnly": "pnpm build && pnpm build:web",
+    "prepublishOnly": "pnpm build",
     "dev:web": "vite --config vite.config.web.ts",
     "preview:web": "vite preview --config vite.config.web.ts",
     "test": "vitest run",

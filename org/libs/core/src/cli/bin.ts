@@ -18,6 +18,7 @@ import {
 } from '@lmthing/repl'
 import { AgentLoop } from './agent-loop'
 import { createReplServer } from './server'
+import webAssets from './web-assets'
 import { createKnowledgeNamespace, formatKnowledgeNamespaceForPrompt } from '../agent-namespaces'
 import {
   loadAgent,
@@ -41,8 +42,9 @@ for (const envPath of [
   if (existsSync(envPath)) { config({ path: envPath }); break }
 }
 
-/** Resolve the dist/web directory regardless of whether we're running compiled or from source. */
-function resolveDistWeb(): string | undefined {
+/** Return embedded web assets if present, falling back to dist/web/ on disk (dev mode). */
+function resolveWebAssets(): Record<string, string> | string | undefined {
+  if (Object.keys(webAssets).length > 0) return webAssets
   for (const rel of ['web', '../../dist/web']) {
     const p = resolve(__dirname, rel)
     if (existsSync(resolve(p, 'index.html'))) return p
@@ -376,11 +378,10 @@ async function main() {
       rebuildKnowledgeTree,
     })
 
-    // Resolve static dir for web UI
-    let staticDir: string | undefined
-    if (!args.noUi) {
-      staticDir = resolveDistWeb()
-    }
+    // Resolve web UI (embedded assets or disk fallback in dev)
+    const webUi = args.noUi ? undefined : resolveWebAssets()
+    const staticDir = typeof webUi === 'string' ? webUi : undefined
+    const resolvedWebAssets = typeof webUi === 'object' ? webUi : undefined
 
     // Start server
     const conversationsDir = resolve(spacePath, '.conversations')
@@ -389,6 +390,7 @@ async function main() {
       session,
       agentLoop,
       staticDir,
+      webAssets: resolvedWebAssets,
       conversationsDir,
     })
 
@@ -745,14 +747,10 @@ async function main() {
     }
   }
 
-  // ── Resolve static dir for web UI ──
-  let staticDir: string | undefined
-  if (!args.noUi) {
-    const distWeb = resolve(__dirname, '../../dist/web')
-    if (existsSync(resolve(distWeb, 'index.html'))) {
-      staticDir = distWeb
-    }
-  }
+  // ── Resolve web UI (embedded assets or disk fallback in dev) ──
+  const webUi = args.noUi ? undefined : resolveWebAssets()
+  const staticDir = typeof webUi === 'string' ? webUi : undefined
+  const resolvedWebAssets = typeof webUi === 'object' ? webUi : undefined
 
   // ── Start server ──
   const conversationsDir = args.file
@@ -763,6 +761,7 @@ async function main() {
     session,
     agentLoop,
     staticDir,
+    webAssets: resolvedWebAssets,
     conversationsDir,
   })
 

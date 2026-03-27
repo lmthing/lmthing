@@ -11,12 +11,17 @@ function getToken(): string {
   return readFileSync(TOKEN_PATH, "utf-8").trim();
 }
 
-async function k8s(path: string, method: string, body?: unknown) {
+async function k8s(
+  path: string,
+  method: string,
+  body?: unknown,
+  contentType = "application/json",
+) {
   const res = await fetch(`${K8S_API}${path}`, {
     method,
     headers: {
       Authorization: `Bearer ${getToken()}`,
-      "Content-Type": "application/json",
+      "Content-Type": contentType,
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -77,6 +82,7 @@ function deployment(userId: string) {
                 requests: { memory: "1Gi", cpu: "500m" },
                 limits: { memory: "1Gi", cpu: "500m" },
               },
+              envFrom: [{ secretRef: { name: "user-env", optional: true } }],
               volumeMounts: [{ name: "spaces", mountPath: "/data/spaces" }],
             },
           ],
@@ -107,7 +113,77 @@ function service(userId: string) {
   };
 }
 
+function envSecret(userId: string, vars: Record<string, string>) {
+  const data: Record<string, string> = {};
+  for (const [k, v] of Object.entries(vars)) {
+    data[k] = Buffer.from(v).toString("base64");
+  }
+  return {
+    apiVersion: "v1",
+    kind: "Secret",
+    metadata: { name: "user-env", namespace: `user-${userId}` },
+    type: "Opaque",
+    data,
+  };
+}
+
 // --- Public API ---
+
+export async function getEnvVars(
+  userId: string,
+): Promise<Record<string, string>> {
+  const ns = `user-${userId}`;
+  const secret = await k8s(`/api/v1/namespaces/${ns}/secrets/user-env`, "GET");
+  if (!secret || !secret.data) return {};
+  const vars: Record<string, string> = {};
+  for (const [k, v] of Object.entries(
+    secret.data as Record<string, string>,
+  )) {
+    vars[k] = Buffer.from(v, "base64").toString("utf-8");
+  }
+  return vars;
+}
+
+export async function setEnvVars(
+  userId: string,
+  vars: Record<string, string>,
+): Promise<void> {
+  const ns = `user-${userId}`;
+  const existing = await k8s(
+    `/api/v1/namespaces/${ns}/secrets/user-env`,
+    "GET",
+  );
+  if (existing) {
+    await k8s(
+      `/api/v1/namespaces/${ns}/secrets/user-env`,
+      "PUT",
+      envSecret(userId, vars),
+    );
+  } else {
+    await k8s(
+      `/api/v1/namespaces/${ns}/secrets`,
+      "POST",
+      envSecret(userId, vars),
+    );
+  }
+  // Trigger rolling restart so pods pick up the new env vars
+  await k8s(
+    `/apis/apps/v1/namespaces/${ns}/deployments/lmthing`,
+    "PATCH",
+    {
+      spec: {
+        template: {
+          metadata: {
+            annotations: {
+              "kubectl.kubernetes.io/restartedAt": new Date().toISOString(),
+            },
+          },
+        },
+      },
+    },
+    "application/merge-patch+json",
+  );
+}
 
 export async function createUserPod(userId: string): Promise<void> {
   const ns = `user-${userId}`;
@@ -130,6 +206,18 @@ export async function createUserPod(userId: string): Promise<void> {
     console.log(`Deployment in ${ns} already exists, skipping`);
   } else {
     console.log(`Created deployment in ${ns}`);
+  }
+
+  // Create env secret (skip if exists)
+  const envResult = await k8s(
+    `/api/v1/namespaces/${ns}/secrets`,
+    "POST",
+    envSecret(userId, {}),
+  );
+  if (envResult === "conflict") {
+    console.log(`Env secret in ${ns} already exists, skipping`);
+  } else {
+    console.log(`Created env secret in ${ns}`);
   }
 
   // Create service (skip if exists)

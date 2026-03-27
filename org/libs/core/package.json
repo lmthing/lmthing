@@ -1,10 +1,10 @@
 {
   "name": "lmthing",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "bin": {
-    "lmthing": "./dist/bin.js",
-    "lmt": "./dist/bin.js"
+    "lmthing": "dist/bin.js",
+    "lmt": "dist/bin.js"
   },
   "exports": {
     ".": {

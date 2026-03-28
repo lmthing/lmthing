@@ -60,7 +60,7 @@ export function App() {
   const [activeSessionId] = useState(() => crypto.randomUUID())
   const conversationId = useConversationId(activeSessionId)
   const session = useReplSession(WS_URL)
-  const { snapshot, blocks, connected } = session
+  const { snapshot, blocks, connected, sendMessage } = session
   const isExecuting = snapshot.status === 'executing'
   const isPaused = snapshot.status === 'paused'
   const hasAsyncTasks = snapshot.asyncTasks.length > 0
@@ -92,6 +92,27 @@ export function App() {
   const historyBlocks = session.loadedConversation?.id === conversationId
     ? turnsToBlocks(session.loadedConversation.state.turns)
     : []
+
+  // When embedded as an inner iframe (relay mode): forward session state to the parent frame
+  // (the computer app), which relays onward to lmthing.chat.
+  useEffect(() => {
+    if (window === window.top) return
+    window.parent.postMessage({
+      type: 'lmthing:repl-update',
+      connected,
+      snapshot: { status: snapshot.status },
+      blocks,
+    }, '*')
+  }, [connected, snapshot.status, blocks])
+
+  useEffect(() => {
+    if (window === window.top) return
+    function onMessage(e: MessageEvent) {
+      if (e.data?.type === 'lmthing:repl-send') sendMessage(e.data.text)
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [sendMessage])
 
   const handleSelectConversation = (id: string) => {
     window.location.hash = `#/chat/${id}`

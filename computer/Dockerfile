@@ -1,8 +1,8 @@
 # ── Stage 1: Build the Vite app ─────────────────────────────────────────────
-FROM node:22-alpine AS builder
+FROM node:22-slim AS builder
 WORKDIR /repo
 
-RUN corepack enable && corepack prepare pnpm@10.17.1 --activate
+RUN npm install -g corepack && corepack enable && corepack prepare pnpm@10.17.1 --activate
 
 # Workspace manifests — all package.json files must be present for frozen-lockfile
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./

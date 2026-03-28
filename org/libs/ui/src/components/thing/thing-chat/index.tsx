@@ -10,22 +10,59 @@ import '@lmthing/css/components/thing/thing-chat/index.css'
 
 export interface ThingChatProps {
   wsUrl: string | null
+  computerStatus?: 'booting' | 'ready'
+  onShowComputer?: () => void
+}
+
+// ── Shared header ─────────────────────────────────────────────────────
+
+interface HeaderProps {
+  statusLabel: string
+  dotClass: string
+  computerStatus?: 'booting' | 'ready'
+  onShowComputer?: () => void
+}
+
+function ThingChatHeader({ statusLabel, dotClass, computerStatus, onShowComputer }: HeaderProps) {
+  return (
+    <div className="thing-chat__header">
+      <span className="thing-chat__header-title">
+        <CozyThingText text="THING" />
+      </span>
+      <div className="thing-chat__header-actions">
+        {onShowComputer && (
+          <button className="thing-chat__computer-btn" onClick={onShowComputer}>
+            <span className="thing-chat__computer-label">
+              {computerStatus === 'ready' ? 'Computer' : 'Starting…'}
+            </span>
+            <span className={[
+              'thing-panel__status-dot',
+              computerStatus === 'ready'
+                ? 'thing-panel__status-dot--ready'
+                : 'thing-panel__status-dot--warn',
+            ].join(' ')} />
+          </button>
+        )}
+        <div className="thing-chat__status">
+          <span className="thing-chat__status-label">{statusLabel}</span>
+          <span className={dotClass} />
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // ── Booting state ─────────────────────────────────────────────────────
 
-function ThingChatBooting() {
+function ThingChatBooting({ computerStatus, onShowComputer }: Pick<ThingChatProps, 'computerStatus' | 'onShowComputer'>) {
   return (
     <div className="thing-chat">
-      <div className="thing-chat__header">
-        <span className="thing-chat__header-title">
-          <CozyThingText text="THING" />
-        </span>
-        <div className="thing-chat__status">
-          <span className="thing-chat__status-label">Booting…</span>
-          <span className="thing-panel__status-dot thing-panel__status-dot--warn" />
-        </div>
-      </div>
+      <ThingChatHeader
+        statusLabel="Booting…"
+        dotClass="thing-panel__status-dot thing-panel__status-dot--warn"
+        computerStatus={computerStatus}
+        onShowComputer={onShowComputer}
+      />
       <div className="thing-chat__booting">
         <span className="thing-chat__booting-label">Starting computer…</span>
       </div>
@@ -100,7 +137,7 @@ function ReplBlock({ block }: { block: UIBlock }) {
 
 // ── Connected session ─────────────────────────────────────────────────
 
-function ThingChatSession({ wsUrl }: { wsUrl: string }) {
+function ThingChatSession({ wsUrl, computerStatus, onShowComputer }: { wsUrl: string } & Pick<ThingChatProps, 'computerStatus' | 'onShowComputer'>) {
   const session = useReplSession(wsUrl)
   const [input, setInput] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
@@ -143,15 +180,12 @@ function ThingChatSession({ wsUrl }: { wsUrl: string }) {
 
   return (
     <div className="thing-chat">
-      <div className="thing-chat__header">
-        <span className="thing-chat__header-title">
-          <CozyThingText text="THING" />
-        </span>
-        <div className="thing-chat__status">
-          <span className="thing-chat__status-label">{statusLabel}</span>
-          <span className={dotClass} />
-        </div>
-      </div>
+      <ThingChatHeader
+        statusLabel={statusLabel}
+        dotClass={dotClass}
+        computerStatus={computerStatus}
+        onShowComputer={onShowComputer}
+      />
 
       <div className="thing-chat__messages">
         {session.blocks.map((block) => (
@@ -184,7 +218,7 @@ function ThingChatSession({ wsUrl }: { wsUrl: string }) {
 
 // ── Public component ──────────────────────────────────────────────────
 
-export function ThingChat({ wsUrl }: ThingChatProps) {
-  if (!wsUrl) return <ThingChatBooting />
-  return <ThingChatSession wsUrl={wsUrl} />
+export function ThingChat({ wsUrl, computerStatus, onShowComputer }: ThingChatProps) {
+  if (!wsUrl) return <ThingChatBooting computerStatus={computerStatus} onShowComputer={onShowComputer} />
+  return <ThingChatSession wsUrl={wsUrl} computerStatus={computerStatus} onShowComputer={onShowComputer} />
 }

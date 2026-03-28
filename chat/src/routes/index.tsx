@@ -12,6 +12,7 @@ export const Route = createFileRoute('/')({
 
 function ChatHome() {
   const [wsUrl, setWsUrl] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const { session } = useAuth()
 
@@ -36,17 +37,44 @@ function ChatHome() {
   }, [session])
 
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
+    <div style={{ height: '100vh', width: '100vw', overflow: 'hidden', position: 'relative' }}>
+      {/* iframe always in DOM so WebContainer keeps running */}
       <iframe
         ref={iframeRef}
         src={COMPUTER_URL}
-        style={{ flex: 3, height: '100%', border: 'none', borderRight: '1px solid var(--border)' }}
         allow="cross-origin-isolated"
         title="lmthing computer"
         onLoad={sendSession}
+        style={expanded ? {
+          position: 'fixed', inset: 0, width: '100%', height: '100%',
+          border: 'none', zIndex: 40,
+        } : {
+          position: 'absolute', left: '-10000px',
+          width: '1280px', height: '800px', border: 'none',
+        }}
       />
-      <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <ThingChat wsUrl={wsUrl} />
+
+      {expanded && (
+        <button
+          onClick={() => setExpanded(false)}
+          style={{
+            position: 'fixed', top: '1rem', right: '1rem', zIndex: 50,
+            background: 'var(--background)', border: '1px solid var(--border)',
+            borderRadius: '0.375rem', padding: '0.375rem 0.75rem',
+            fontSize: '0.875rem', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: '0.375rem',
+          }}
+        >
+          ✕ Close
+        </button>
+      )}
+
+      <div style={{ height: '100%', position: 'relative', zIndex: 1 }}>
+        <ThingChat
+          wsUrl={wsUrl}
+          computerStatus={wsUrl ? 'ready' : 'booting'}
+          onShowComputer={() => setExpanded(true)}
+        />
       </div>
     </div>
   )

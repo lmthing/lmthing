@@ -13,7 +13,11 @@ spec:
   hostnames:
     - DOMAIN_PLACEHOLDER
   rules:
-    - filters:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
         - type: RequestRedirect
           requestRedirect:
             scheme: https
@@ -40,9 +44,12 @@ spec:
             type: PathPrefix
             value: /v1
       backendRefs:
-        - name: litellm
+        - group: ""
+          kind: Service
+          name: litellm
           namespace: lmthing
           port: 4000
+          weight: 1
 
 ---
 # /api/* -> Gateway (auth, keys, billing, webhooks)
@@ -65,6 +72,9 @@ spec:
             type: PathPrefix
             value: /api
       backendRefs:
-        - name: gateway
+        - group: ""
+          kind: Service
+          name: gateway
           namespace: lmthing
           port: 3000
+          weight: 1

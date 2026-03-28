@@ -13,7 +13,11 @@ spec:
   hostnames:
     - COMPUTER_DOMAIN_PLACEHOLDER
   rules:
-    - filters:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
         - type: RequestRedirect
           requestRedirect:
             scheme: https
@@ -54,6 +58,7 @@ spec:
         - group: gateway.envoyproxy.io
           kind: Backend
           name: dynamic-user-backend
+          weight: 1
 
 ---
 # /* -> Static SPA fallback (computer frontend)
@@ -76,6 +81,9 @@ spec:
             type: PathPrefix
             value: /
       backendRefs:
-        - name: computer
+        - group: ""
+          kind: Service
+          name: computer
           namespace: lmthing
           port: 80
+          weight: 1

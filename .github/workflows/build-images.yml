@@ -1,0 +1,94 @@
+name: Build and Push Images
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cloud/gateway/**'
+      - 'computer/**'
+      - 'org/libs/repl/**'
+      - 'devops/argocd/compute/Dockerfile'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 2
+
+      - name: Detect changed image sources
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            gateway:
+              - 'cloud/gateway/**'
+            computer:
+              - 'computer/**'
+            compute:
+              - 'org/libs/repl/**'
+              - 'devops/argocd/compute/Dockerfile'
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login to ACR
+        run: az acr login --name lmthingacr
+
+      - name: Set image tag
+        id: tag
+        run: echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Build and push gateway
+        if: steps.changes.outputs.gateway == 'true'
+        run: |
+          docker build \
+            -t lmthingacr.azurecr.io/gateway:${{ steps.tag.outputs.sha }} \
+            -t lmthingacr.azurecr.io/gateway:latest \
+            cloud/gateway/
+          docker push lmthingacr.azurecr.io/gateway:${{ steps.tag.outputs.sha }}
+          docker push lmthingacr.azurecr.io/gateway:latest
+          sed -i "s|image: lmthingacr.azurecr.io/gateway:.*|image: lmthingacr.azurecr.io/gateway:${{ steps.tag.outputs.sha }}|" \
+            devops/argocd/core/gateway.yaml
+
+      - name: Build and push computer
+        if: steps.changes.outputs.computer == 'true'
+        run: |
+          docker build \
+            -t lmthingacr.azurecr.io/computer:${{ steps.tag.outputs.sha }} \
+            -t lmthingacr.azurecr.io/computer:latest \
+            computer/
+          docker push lmthingacr.azurecr.io/computer:${{ steps.tag.outputs.sha }}
+          docker push lmthingacr.azurecr.io/computer:latest
+          sed -i "s|image: lmthingacr.azurecr.io/computer:.*|image: lmthingacr.azurecr.io/computer:${{ steps.tag.outputs.sha }}|" \
+            devops/argocd/core/computer.yaml
+
+      - name: Build and push compute
+        if: steps.changes.outputs.compute == 'true'
+        run: |
+          docker build \
+            -t lmthingacr.azurecr.io/compute:${{ steps.tag.outputs.sha }} \
+            -t lmthingacr.azurecr.io/compute:latest \
+            -f devops/argocd/compute/Dockerfile \
+            .
+          docker push lmthingacr.azurecr.io/compute:${{ steps.tag.outputs.sha }}
+          docker push lmthingacr.azurecr.io/compute:latest
+          sed -i "s|image: lmthingacr.azurecr.io/compute:.*|image: lmthingacr.azurecr.io/compute:${{ steps.tag.outputs.sha }}|" \
+            devops/argocd/core/compute-pod-template.yaml
+
+      - name: Commit updated image tags
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add devops/argocd/core/gateway.yaml \
+                  devops/argocd/core/computer.yaml \
+                  devops/argocd/core/compute-pod-template.yaml
+          git diff --staged --quiet || git commit -m "ci: update image tags to ${{ steps.tag.outputs.sha }} [skip ci]"
+          git push

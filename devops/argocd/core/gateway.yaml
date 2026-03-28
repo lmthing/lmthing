@@ -52,9 +52,11 @@ spec:
         app: gateway
     spec:
       serviceAccountName: gateway
+      imagePullSecrets:
+        - name: acr-pull-secret
       containers:
         - name: gateway
-          image: lmthing/gateway:latest
+          image: lmthingacr.azurecr.io/gateway:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -113,6 +115,21 @@ spec:
                 secretKeyRef:
                   name: lmthing-secrets
                   key: SUPABASE_SERVICE_ROLE_KEY
+            - name: ACR_REGISTRY
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: ACR_REGISTRY
+            - name: ACR_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: ACR_USERNAME
+            - name: ACR_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: ACR_PASSWORD
           resources:
             requests:
               memory: "128Mi"

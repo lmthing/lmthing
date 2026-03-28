@@ -37,6 +37,13 @@ async function k8s(
   return res.json();
 }
 
+// ACR credentials injected from lmthing-secrets
+const ACR_REGISTRY = process.env.ACR_REGISTRY ?? "lmthingacr.azurecr.io";
+const ACR_USERNAME = process.env.ACR_USERNAME ?? "";
+const ACR_PASSWORD = process.env.ACR_PASSWORD ?? "";
+const COMPUTE_IMAGE = `${ACR_REGISTRY}/compute:latest`;
+const PULL_SECRET_NAME = "acr-pull-secret";
+
 // --- Pod template (inline — matches k8s/compute/user-pod-template.yaml) ---
 
 function namespace(userId: string) {
@@ -50,6 +57,22 @@ function namespace(userId: string) {
         "lmthing.cloud/type": "compute",
       },
     },
+  };
+}
+
+function acrPullSecret(userId: string) {
+  const auth = Buffer.from(`${ACR_USERNAME}:${ACR_PASSWORD}`).toString(
+    "base64",
+  );
+  const dockerConfig = Buffer.from(
+    JSON.stringify({ auths: { [ACR_REGISTRY]: { auth } } }),
+  ).toString("base64");
+  return {
+    apiVersion: "v1",
+    kind: "Secret",
+    metadata: { name: PULL_SECRET_NAME, namespace: `user-${userId}` },
+    type: "kubernetes.io/dockerconfigjson",
+    data: { ".dockerconfigjson": dockerConfig },
   };
 }
 
@@ -72,10 +95,11 @@ function deployment(userId: string) {
           },
         },
         spec: {
+          imagePullSecrets: [{ name: PULL_SECRET_NAME }],
           containers: [
             {
               name: "compute",
-              image: "lmthing/compute:latest",
+              image: COMPUTE_IMAGE,
               imagePullPolicy: "IfNotPresent",
               ports: [{ containerPort: 8080 }],
               resources: {
@@ -194,6 +218,18 @@ export async function createUserPod(userId: string): Promise<void> {
     console.log(`Namespace ${ns} already exists, skipping creation`);
   } else {
     console.log(`Created namespace ${ns}`);
+  }
+
+  // Create ACR pull secret (skip if exists)
+  const pullSecretResult = await k8s(
+    `/api/v1/namespaces/${ns}/secrets`,
+    "POST",
+    acrPullSecret(userId),
+  );
+  if (pullSecretResult === "conflict") {
+    console.log(`ACR pull secret in ${ns} already exists, skipping`);
+  } else {
+    console.log(`Created ACR pull secret in ${ns}`);
   }
 
   // Create deployment (skip if exists)

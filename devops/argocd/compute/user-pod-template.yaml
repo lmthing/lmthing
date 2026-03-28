@@ -29,7 +29,7 @@ spec:
     spec:
       containers:
         - name: compute
-          image: lmthing/compute:latest
+          image: lmthingacr.azurecr.io/compute:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

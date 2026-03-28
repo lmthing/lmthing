@@ -1,0 +1,204 @@
+@reference "../../../theme.css";
+
+/* ── ThingChat container ─────────────────────────────────────────────── */
+
+.thing-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  background: var(--background);
+}
+
+/* ── Header ──────────────────────────────────────────────────────────── */
+
+.thing-chat__header {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.thing-chat__header-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.thing-chat__status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.thing-chat__status-label {
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+/* ── Booting placeholder ─────────────────────────────────────────────── */
+
+.thing-chat__booting {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  opacity: 0.5;
+}
+
+.thing-chat__booting-label {
+  font-size: 0.875rem;
+}
+
+/* ── Messages area ───────────────────────────────────────────────────── */
+
+.thing-chat__messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* ── Code block ──────────────────────────────────────────────────────── */
+
+.thing-code-block {
+  align-self: flex-start;
+  max-width: 90%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background-color: var(--muted);
+  overflow: hidden;
+}
+
+.thing-code-block__inner {
+  padding: 0.5rem 0.75rem;
+  font-family: monospace;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.5;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.thing-code-block__cursor {
+  animation: thing-blink 1s step-end infinite;
+}
+
+@keyframes thing-blink {
+  50% { opacity: 0; }
+}
+
+/* ── Error block ─────────────────────────────────────────────────────── */
+
+.thing-error-block {
+  align-self: flex-start;
+  max-width: 80%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--destructive);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--destructive);
+}
+
+/* ── Hook block ──────────────────────────────────────────────────────── */
+
+.thing-hook-block {
+  align-self: flex-start;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--border);
+  background-color: var(--muted);
+  font-size: 0.75rem;
+  font-family: monospace;
+  opacity: 0.7;
+}
+
+/* ── Tasklist block ──────────────────────────────────────────────────── */
+
+.thing-tasklist-block {
+  align-self: flex-start;
+  max-width: 80%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.thing-tasklist-block__title {
+  font-weight: 600;
+  margin-bottom: 0.375rem;
+}
+
+.thing-tasklist-block__task {
+  padding: 0.125rem 0;
+  opacity: 0.8;
+}
+
+/* ── Task complete ───────────────────────────────────────────────────── */
+
+.thing-task-complete {
+  align-self: flex-start;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  border: 1px solid var(--border);
+  background-color: var(--muted);
+  opacity: 0.7;
+}
+
+/* ── Input form ──────────────────────────────────────────────────────── */
+
+.thing-chat__input-form {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.thing-chat__textarea {
+  flex: 1;
+  resize: none;
+  border-radius: 0.375rem;
+  border: 1px solid var(--border);
+  background: var(--background);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  outline: none;
+}
+
+.thing-chat__textarea:focus {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ring) 20%, transparent);
+}
+
+.thing-chat__textarea:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.thing-chat__send-btn {
+  border-radius: 0.375rem;
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  align-self: flex-end;
+}
+
+.thing-chat__send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

@@ -2,6 +2,8 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '@lmthing/auth'
 import { ThingChat } from '@lmthing/ui/components/thing/thing-chat'
+import type { ReplSession } from '@lmthing/ui/components/thing/thing-chat'
+import type { UIBlock } from 'lmthing/web/rpc-client'
 
 const COMPUTER_URL = import.meta.env.VITE_COMPUTER_URL
   ?? (import.meta.env.DEV ? 'http://computer.local' : 'https://lmthing.computer')
@@ -10,11 +12,44 @@ export const Route = createFileRoute('/')({
   component: ChatHome,
 })
 
+function useReplRelay(iframeRef: React.RefObject<HTMLIFrameElement | null>): ReplSession | null {
+  const [state, setState] = useState<{
+    connected: boolean
+    snapshot: { status: string }
+    blocks: UIBlock[]
+  } | null>(null)
+
+  useEffect(() => {
+    function onMessage(e: MessageEvent) {
+      if (e.data?.type === 'lmthing:repl-update') {
+        setState({
+          connected: e.data.connected,
+          snapshot: e.data.snapshot,
+          blocks: e.data.blocks,
+        })
+      }
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [])
+
+  if (!state) return null
+
+  return {
+    ...state,
+    sendMessage(text: string) {
+      iframeRef.current?.contentWindow?.postMessage({ type: 'lmthing:repl-send', text }, '*')
+    },
+  }
+}
+
 function ChatHome() {
-  const [wsUrl, setWsUrl] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const { session } = useAuth()
+
+  const replSession = useReplRelay(iframeRef)
+  const computerReady = replSession?.connected ?? false
 
   function sendSession() {
     if (session && iframeRef.current?.contentWindow) {
@@ -24,10 +59,6 @@ function ChatHome() {
 
   useEffect(() => {
     function onMessage(e: MessageEvent) {
-      if (e.data?.type === 'lmthing:server-ready') {
-        const ws = (e.data.url as string).replace(/^http/, 'ws')
-        setWsUrl(ws)
-      }
       if (e.data?.type === 'lmthing:auth-needed') {
         sendSession()
       }
@@ -71,8 +102,8 @@ function ChatHome() {
 
       <div style={{ height: '100%', position: 'relative', zIndex: 1 }}>
         <ThingChat
-          wsUrl={wsUrl}
-          computerStatus={wsUrl ? 'ready' : 'booting'}
+          session={replSession}
+          computerStatus={computerReady ? 'ready' : 'booting'}
           onShowComputer={() => setExpanded(true)}
         />
       </div>

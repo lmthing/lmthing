@@ -1,5 +1,4 @@
 import { useRef, useState, useEffect, type FormEvent, type KeyboardEvent } from 'react'
-import { useReplSession } from 'lmthing/web/rpc-client'
 import type { UIBlock } from 'lmthing/web/rpc-client'
 import { CozyThingText } from '@lmthing/ui/elements/branding/cozy-text'
 
@@ -8,8 +7,15 @@ import '@lmthing/css/components/thing/thing-chat/index.css'
 
 // ── Types ─────────────────────────────────────────────────────────────
 
+export interface ReplSession {
+  connected: boolean
+  snapshot: { status: string }
+  blocks: UIBlock[]
+  sendMessage: (text: string) => void
+}
+
 export interface ThingChatProps {
-  wsUrl: string | null
+  session: ReplSession | null
   computerStatus?: 'booting' | 'ready'
   onShowComputer?: () => void
 }
@@ -137,8 +143,7 @@ function ReplBlock({ block }: { block: UIBlock }) {
 
 // ── Connected session ─────────────────────────────────────────────────
 
-function ThingChatSession({ wsUrl, computerStatus, onShowComputer }: { wsUrl: string } & Pick<ThingChatProps, 'computerStatus' | 'onShowComputer'>) {
-  const session = useReplSession(wsUrl)
+function ThingChatConnected({ session, computerStatus, onShowComputer }: { session: ReplSession } & Pick<ThingChatProps, 'computerStatus' | 'onShowComputer'>) {
   const [input, setInput] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
 
@@ -218,7 +223,7 @@ function ThingChatSession({ wsUrl, computerStatus, onShowComputer }: { wsUrl: st
 
 // ── Public component ──────────────────────────────────────────────────
 
-export function ThingChat({ wsUrl, computerStatus, onShowComputer }: ThingChatProps) {
-  if (!wsUrl) return <ThingChatBooting computerStatus={computerStatus} onShowComputer={onShowComputer} />
-  return <ThingChatSession wsUrl={wsUrl} computerStatus={computerStatus} onShowComputer={onShowComputer} />
+export function ThingChat({ session, computerStatus, onShowComputer }: ThingChatProps) {
+  if (!session) return <ThingChatBooting computerStatus={computerStatus} onShowComputer={onShowComputer} />
+  return <ThingChatConnected session={session} computerStatus={computerStatus} onShowComputer={onShowComputer} />
 }

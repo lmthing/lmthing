@@ -2,6 +2,7 @@ import { createRootRoute, Outlet, useRouter, useRouterState } from '@tanstack/re
 import { AppProvider } from '@lmthing/state'
 import { AuthProvider, useAuth, useRepoSync } from '@lmthing/auth'
 import { ComputerProvider, useComputer } from '@/lib/runtime/ComputerContext'
+import { ReplRelay } from '@/lib/runtime/ReplRelay'
 import { useTierDetection } from '@/lib/runtime/use-tier-detection'
 import { ComputerLayout } from '@lmthing/ui/components/computer/computer-layout'
 import { LoginScreen } from '@lmthing/ui/components/auth/login-screen'
@@ -63,6 +64,7 @@ function TierAwareProvider({ children }: { children: React.ReactNode }) {
   const { tier, podConfig } = useTierDetection()
   return (
     <ComputerProvider tier={tier} podConfig={podConfig}>
+      <ReplRelay />
       {children}
     </ComputerProvider>
   )

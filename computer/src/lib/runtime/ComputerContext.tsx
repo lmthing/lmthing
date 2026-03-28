@@ -189,6 +189,9 @@ export function ComputerProvider({ children, tier = 'webcontainer', podConfig }:
       // Listen for server-ready on any port
       wc.on('server-ready', (_port: number, url: string) => {
         store.setPreviewUrl(url)
+        if (window.parent !== window) {
+          window.parent.postMessage({ type: 'lmthing:server-ready', url }, '*')
+        }
       })
 
       // Install deps

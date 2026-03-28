@@ -1,4 +1,4 @@
-.PHONY: up down proxy proxy-clean install check
+.PHONY: up down proxy proxy-clean install check show-cost show-resources
 
 # Parse services by type from services.yaml
 VITE_SERVICES := $(shell awk '/- name:/{name=$$3} /type: vite/{print name}' services.yaml)
@@ -44,3 +44,11 @@ install:
 # Health check all lmthing.* domains (DNS, TLS, HTTPS, hosting config)
 check:
 	@bash .etc/scripts/check-domains.sh
+
+# Show Azure cost breakdown for current month (requires az CLI login)
+show-cost:
+	@bash .etc/scripts/show-cost.sh
+
+# Show all Azure resources by group and VM power state (requires az CLI login)
+show-resources:
+	@bash .etc/scripts/show-resources.sh

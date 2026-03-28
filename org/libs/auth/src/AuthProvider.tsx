@@ -24,15 +24,25 @@ interface AuthProviderProps {
   children: React.ReactNode
 }
 
+const DEMO_SESSION: AuthSession = {
+  accessToken: 'demo',
+  userId: 'demo-user',
+  email: 'demo@lmthing.local',
+  githubRepo: null,
+  githubUsername: null,
+}
+
 export function AuthProvider({ appName, callbackPath = '/', children }: AuthProviderProps) {
   const config = useMemo(() => resolveConfig(appName, callbackPath), [appName, callbackPath])
-  const [session, setSession] = useState<AuthSession | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const isDemo = typeof import.meta !== 'undefined' && import.meta.env?.VITE_DEMO_USER === 'true'
+  const [session, setSession] = useState<AuthSession | null>(isDemo ? DEMO_SESSION : null)
+  const [isLoading, setIsLoading] = useState(!isDemo)
   const [pinUnlocked, setPinUnlocked] = useState(false)
   const pinKeyRef = useRef<CryptoKey | null>(null)
 
   // Accept session injected by a parent frame (e.g. lmthing.chat → lmthing.computer iframe)
   useEffect(() => {
+    if (isDemo) return
     function onMessage(e: MessageEvent) {
       if (e.data?.type === 'lmthing:session' && e.data.session) {
         storeSession(e.data.session)
@@ -42,9 +52,10 @@ export function AuthProvider({ appName, callbackPath = '/', children }: AuthProv
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [])
+  }, [isDemo])
 
   useEffect(() => {
+    if (isDemo) return
     const url = new URL(window.location.href)
     if (url.searchParams.has('code')) {
       handleAuthCallback(config)
@@ -62,23 +73,25 @@ export function AuthProvider({ appName, callbackPath = '/', children }: AuthProv
       setSession(getSession())
       setIsLoading(false)
     }
-  }, [config])
+  }, [config, isDemo])
 
   const login = useCallback(() => {
+    if (isDemo) return
     if (window !== window.top) {
       // Embedded as iframe — ask parent to provide the session instead of navigating
       window.parent.postMessage({ type: 'lmthing:auth-needed' }, '*')
       return
     }
     redirectToLogin(config)
-  }, [config])
+  }, [config, isDemo])
 
   const logout = useCallback(() => {
+    if (isDemo) return
     clearSession()
     setSession(null)
     setPinUnlocked(false)
     pinKeyRef.current = null
-  }, [])
+  }, [isDemo])
 
   const unlockPin = useCallback(async (pin: string): Promise<boolean> => {
     const valid = await verifyPin(pin)
@@ -95,7 +108,7 @@ export function AuthProvider({ appName, callbackPath = '/', children }: AuthProv
 
   const username = session?.email ?? null
   const isAuthenticated = !!session
-  const needsPin = isPinSet() && !pinUnlocked
+  const needsPin = !isDemo && isPinSet() && !pinUnlocked
   const githubRepo = session?.githubRepo ?? null
   const githubUsername = session?.githubUsername ?? null
 

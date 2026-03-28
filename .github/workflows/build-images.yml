@@ -6,7 +6,7 @@ on:
     paths:
       - 'cloud/gateway/**'
       - 'computer/**'
-      - 'org/libs/repl/**'
+      - 'org/libs/**'
       - 'devops/argocd/compute/Dockerfile'
 
 jobs:
@@ -30,6 +30,13 @@ jobs:
               - 'cloud/gateway/**'
             computer:
               - 'computer/**'
+              - 'org/libs/auth/**'
+              - 'org/libs/core/**'
+              - 'org/libs/css/**'
+              - 'org/libs/state/**'
+              - 'org/libs/thing/**'
+              - 'org/libs/ui/**'
+              - 'org/libs/utils/**'
             compute:
               - 'org/libs/repl/**'
               - 'devops/argocd/compute/Dockerfile'
@@ -62,9 +69,10 @@ jobs:
         if: steps.changes.outputs.computer == 'true'
         run: |
           docker build \
+            -f computer/Dockerfile \
             -t lmthingacr.azurecr.io/computer:${{ steps.tag.outputs.sha }} \
             -t lmthingacr.azurecr.io/computer:latest \
-            computer/
+            .
           docker push lmthingacr.azurecr.io/computer:${{ steps.tag.outputs.sha }}
           docker push lmthingacr.azurecr.io/computer:latest
           sed -i "s|image: lmthingacr.azurecr.io/computer:.*|image: lmthingacr.azurecr.io/computer:${{ steps.tag.outputs.sha }}|" \

@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { createReadStream, existsSync, readdirSync, readFileSync } from 'fs'
+import { copyFileSync, createReadStream, existsSync, readdirSync, readFileSync } from 'fs'
 
 const __utilsDir = path.dirname(fileURLToPath(import.meta.url))
 
@@ -44,6 +44,24 @@ function sharedFaviconPlugin(faviconDir) {
 const emptyStub = path.resolve(__utilsDir, 'stubs/empty.ts')
 const aiSdkStub = path.resolve(__utilsDir, 'stubs/ai-sdk-provider.ts')
 
+function ghPages404Plugin() {
+  let outDir
+  return {
+    name: 'gh-pages-404',
+    apply: 'build',
+    configResolved(config) {
+      outDir = path.resolve(config.root, config.build.outDir)
+    },
+    closeBundle() {
+      const indexPath = path.join(outDir, 'index.html')
+      const notFoundPath = path.join(outDir, '404.html')
+      if (existsSync(indexPath)) {
+        copyFileSync(indexPath, notFoundPath)
+      }
+    },
+  }
+}
+
 /**
  * @param {string} dirname
  * @param {import('vite-plus').UserConfig} [overrides]
@@ -54,6 +72,7 @@ export function createViteConfig(dirname, overrides) {
 
   return defineConfig({
     plugins: [
+      ghPages404Plugin(),
       sharedFaviconPlugin(faviconDir),
       tanstackRouter({
         routesDirectory: './src/routes',

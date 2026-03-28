@@ -37,12 +37,12 @@ export type UIBlock =
       output: Record<string, any>;
     };
 
-type BlockAction =
+export type BlockAction =
   | { type: "event"; event: SessionEvent }
   | { type: "add_user_message"; id: string; text: string }
   | { type: "reset" };
 
-function blocksReducer(blocks: UIBlock[], action: BlockAction): UIBlock[] {
+export function blocksReducer(blocks: UIBlock[], action: BlockAction): UIBlock[] {
   if (action.type === "reset") return [];
   if (action.type === "add_user_message") {
     return [...blocks, { type: "user", id: action.id, text: action.text }];

@@ -39,6 +39,97 @@ export function createReplServer(options: ServerOptions): { server: Server; clos
   const rpcServer = new ReplSessionServer(session)
 
   const httpServer = createServer((req, res) => {
+    // SSE + POST API endpoints (must come before static file handling)
+
+    // CORS preflight
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      })
+      res.end()
+      return
+    }
+
+    // SSE stream: GET /events
+    if (req.method === 'GET' && req.url?.split('?')[0] === '/events') {
+      res.writeHead(200, {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      })
+      res.flushHeaders()
+
+      const send = (event: SessionEvent) => {
+        if (!res.destroyed) {
+          res.write(`data: ${JSON.stringify(event)}\n\n`)
+        }
+      }
+
+      session.on('event', send)
+
+      // Send initial snapshot so the client has current state immediately
+      rpcServer.getSnapshot().then(snapshot => {
+        if (!res.destroyed) {
+          res.write(`data: ${JSON.stringify({ type: 'snapshot', data: snapshot })}\n\n`)
+        }
+      }).catch(() => {})
+
+      req.on('close', () => {
+        session.off('event', send)
+      })
+      return
+    }
+
+    // Command dispatch: POST /send
+    if (req.method === 'POST' && req.url?.split('?')[0] === '/send') {
+      const chunks: Buffer[] = []
+      req.on('data', (chunk: Buffer) => chunks.push(chunk))
+      req.on('end', async () => {
+        const corsHeaders = {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json',
+        }
+        try {
+          const msg = JSON.parse(Buffer.concat(chunks).toString())
+          switch (msg.type) {
+            case 'sendMessage':
+              if (agentLoop) {
+                agentLoop.handleMessage(msg.text).catch(err => {
+                  console.error('[server] agent loop error:', err)
+                })
+              } else {
+                await rpcServer.sendMessage(msg.text)
+              }
+              break
+            case 'pause':
+              await rpcServer.pause()
+              break
+            case 'resume':
+              await rpcServer.resume()
+              break
+            case 'intervene':
+              if (agentLoop) {
+                agentLoop.handleMessage(msg.text).catch(err => {
+                  console.error('[server] agent loop error:', err)
+                })
+              } else {
+                await rpcServer.intervene(msg.text)
+              }
+              break
+          }
+          res.writeHead(200, corsHeaders)
+          res.end('{"ok":true}')
+        } catch (err) {
+          res.writeHead(400, corsHeaders)
+          res.end(JSON.stringify({ error: err instanceof Error ? err.message : 'Unknown error' }))
+        }
+      })
+      return
+    }
+
     // In-memory assets take priority over staticDir
     if (webAssets) {
       const urlPath = req.url === '/' ? 'index.html' : req.url!.split('?')[0].replace(/^\//, '')

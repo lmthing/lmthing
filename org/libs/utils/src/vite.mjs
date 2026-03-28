@@ -4,8 +4,43 @@ import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { createReadStream, existsSync, readdirSync, readFileSync } from 'fs'
 
 const __utilsDir = path.dirname(fileURLToPath(import.meta.url))
+
+const FAVICON_MIME = {
+  '.ico': 'image/x-icon',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.webmanifest': 'application/manifest+json',
+  '.json': 'application/json',
+}
+
+function sharedFaviconPlugin(faviconDir) {
+  return {
+    name: 'shared-favicon',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (!req.url?.startsWith('/favicon.ico/')) return next()
+        const file = req.url.slice('/favicon.ico/'.length).split('?')[0]
+        const filePath = path.join(faviconDir, file)
+        if (!existsSync(filePath)) return next()
+        const ext = path.extname(file)
+        res.setHeader('Content-Type', FAVICON_MIME[ext] ?? 'application/octet-stream')
+        createReadStream(filePath).pipe(res)
+      })
+    },
+    generateBundle() {
+      for (const file of readdirSync(faviconDir)) {
+        this.emitFile({
+          type: 'asset',
+          fileName: `favicon.ico/${file}`,
+          source: readFileSync(path.join(faviconDir, file)),
+        })
+      }
+    },
+  }
+}
 const emptyStub = path.resolve(__utilsDir, 'stubs/empty.ts')
 const aiSdkStub = path.resolve(__utilsDir, 'stubs/ai-sdk-provider.ts')
 
@@ -15,9 +50,11 @@ const aiSdkStub = path.resolve(__utilsDir, 'stubs/ai-sdk-provider.ts')
  */
 export function createViteConfig(dirname, overrides) {
   const libsDir = path.resolve(dirname, '../org/libs')
+  const faviconDir = path.resolve(dirname, '../org/common/favicon.ico')
 
   return defineConfig({
     plugins: [
+      sharedFaviconPlugin(faviconDir),
       tanstackRouter({
         routesDirectory: './src/routes',
         generatedRouteTree: './src/routeTree.gen.ts',

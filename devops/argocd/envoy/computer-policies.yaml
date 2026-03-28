@@ -86,4 +86,5 @@ spec:
           - claim: sub
             header: x-user-id
         remoteJWKS:
+          cacheDuration: 300s
           uri: SUPABASE_JWKS_URI_PLACEHOLDER

@@ -159,6 +159,32 @@ var title = TextUtils.titleCase(parsed.name)
 `
     : ""
 }
+### File Blocks — Write or patch files
+Write files or apply diff patches using four-backtick blocks. These are NOT function calls — they are special syntax processed directly by the host before the next statement runs.
+
+**Create / overwrite a file:**
+\`\`\`\`path/to/output.ts
+// full file content goes here
+export function greet(name: string) { return \`Hello, \${name}!\` }
+\`\`\`\`
+
+**Patch an existing file** (requires a prior \`readFile('path')\` call this session):
+\`\`\`\`diff path/to/output.ts
+--- a/path/to/output.ts
++++ b/path/to/output.ts
+@@ -1,3 +1,3 @@
+ // full file content goes here
+-export function greet(name: string) { return \`Hello, \${name}!\` }
++export function greet(name: string) { return \`Hello \${name}!\` }
+\`\`\`\`
+
+Rules:
+- The closing line must be exactly four backticks on its own line.
+- Diff patches require a prior \`await readFile('path')\` call on the same path this session.
+- If a patch fails (context mismatch or unread file), you will receive a \`← error [FileError]\` — adjust and retry.
+- Prefer diff patches for targeted edits to large files; use write blocks for new files or full rewrites.
+- After a file block, continue writing TypeScript as normal — no \`await\` needed.
+
 Workspace — Current Scope
 ${scope || "(no variables declared)"}
 
@@ -287,6 +313,7 @@ completeTask("main", "present", { done: true })
 <rule>Handle nullability with ?. and ??</rule>
 <rule>After calling await stop(...), STOP. Do not write any more code until you receive the stop response.</rule>
 <rule>Use loadKnowledge() to load relevant knowledge files before starting domain-specific work. Check the Knowledge Tree to see what is available. NEVER load all files from a domain or space — only select the specific options that are relevant to the user's request. Loading too much wastes context and degrades your performance.</rule>
+<rule>To write a file, use a four-backtick write block (not writeFile()). To patch a file, read it first with readFile() then use a four-backtick diff block. If the host reports a FileError, adjust your diff context and retry.</rule>
 </rules>`;
 
   if (instruct) prompt += `\n\n<instructions>\n${instruct}\n</instructions>`;

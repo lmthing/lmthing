@@ -2,11 +2,18 @@ import * as nodeFs from 'node:fs/promises'
 import * as nodePath from 'node:path'
 import { glob as nodeGlob } from 'node:fs/promises'
 import type { CatalogModule } from './types'
+import type { ReadLedger } from '../sandbox/read-ledger'
+import { recordRead } from '../sandbox/read-ledger'
 
 let workingDir = process.cwd()
+let activeLedger: ReadLedger | null = null
 
 export function setWorkingDir(dir: string): void {
   workingDir = dir
+}
+
+export function setReadLedger(ledger: ReadLedger): void {
+  activeLedger = ledger
 }
 
 function safePath(p: string): string {
@@ -26,7 +33,10 @@ const fsModule: CatalogModule = {
       description: 'Read file contents',
       signature: '(path: string, encoding?: string) => Promise<string>',
       fn: async (path: unknown, encoding?: unknown) => {
-        return nodeFs.readFile(safePath(path as string), (encoding as BufferEncoding) || 'utf-8')
+        const resolved = safePath(path as string)
+        const content = await nodeFs.readFile(resolved, (encoding as BufferEncoding) || 'utf-8')
+        if (activeLedger) recordRead(activeLedger, resolved)
+        return content
       },
     },
     {

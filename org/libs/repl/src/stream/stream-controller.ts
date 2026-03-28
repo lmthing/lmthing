@@ -6,7 +6,7 @@ import type {
   HookContext,
   LineResult,
 } from '../session/types'
-import { createLineAccumulator, feed, flush, clear } from './line-accumulator'
+import { createLineAccumulator, feed, flush, clear, type Statement, type FileBlockStatement } from './line-accumulator'
 import { detectGlobalCall } from '../parser/global-detector'
 import { executeHooks } from '../hooks/hook-executor'
 import { HookRegistry } from '../hooks/hook-registry'
@@ -20,6 +20,8 @@ export interface StreamControllerOptions {
   onCodeLine: (line: string) => void
   hookRegistry: HookRegistry
   hookContext: () => HookContext
+  /** Called when a 4-backtick file write or diff block is detected in the stream. */
+  onFileBlock?: (stmt: FileBlockStatement) => Promise<void>
 }
 
 export class StreamController implements StreamPauseController {
@@ -71,8 +73,25 @@ export class StreamController implements StreamPauseController {
     }
   }
 
-  private async processStatement(source: string): Promise<void> {
+  private async processStatement(stmt: Statement): Promise<void> {
     this.lineCount++
+
+    // File block statements bypass hooks and sandbox execution
+    if (stmt.type === 'file_write' || stmt.type === 'file_diff') {
+      // Record the file block header as a code line for conversation context
+      const header = stmt.type === 'file_diff'
+        ? `\`\`\`\`diff ${stmt.path}`
+        : `\`\`\`\`${stmt.path}`
+      this.options.onCodeLine(header)
+
+      if (this.options.onFileBlock) {
+        await this.options.onFileBlock(stmt)
+      }
+      return
+    }
+
+    // Code statement — run through hooks then execute
+    const source = stmt.source
     const ctx = this.options.hookContext()
 
     // Run before hooks

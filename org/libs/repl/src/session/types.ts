@@ -255,6 +255,9 @@ export type SessionEvent =
   | { type: 'agent_question_answered'; varName: string }
   | { type: 'knowledge_saved'; domain: string; field: string; option: string }
   | { type: 'knowledge_removed'; domain: string; field: string; option: string }
+  | { type: 'file_write'; path: string; blockId: string }
+  | { type: 'file_diff'; path: string; blockId: string }
+  | { type: 'file_error'; path: string; error: string; blockId: string }
   | { type: 'status'; status: SessionStatus }
   | { type: 'scope'; entries: ScopeEntry[] }
 

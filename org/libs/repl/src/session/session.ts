@@ -29,6 +29,8 @@ import { AgentRegistry } from '../sandbox/agent-registry'
 import { generateAgentsBlock } from '../context/agents-block'
 import { ConversationRecorder } from './conversation-state'
 import type { ConversationState } from './conversation-state'
+import { createReadLedger, type ReadLedger } from '../sandbox/read-ledger'
+import { applyFileWrite, applyFileDiff } from '../stream/file-block-applier'
 
 export interface SessionOptions {
   config?: Partial<SessionConfig>
@@ -49,6 +51,11 @@ export interface SessionOptions {
   isFireAndForget?: boolean
   /** Knowledge namespace global (built-in, always available if configured). */
   knowledgeNamespace?: Record<string, unknown>
+  /**
+   * Working directory for file block operations (4-backtick write/diff blocks).
+   * Defaults to process.cwd(). Paths are validated to stay within this directory.
+   */
+  fileWorkingDir?: string
 }
 
 export class Session extends EventEmitter {
@@ -69,12 +76,17 @@ export class Session extends EventEmitter {
   private recorder: ConversationRecorder
   private turnCodeStart = 0
   private onSpawn?: (config: any) => Promise<any>
+  private readLedger: ReadLedger
+  private fileWorkingDir: string
 
   constructor(options: SessionOptions = {}) {
     super()
     this.config = options.config
       ? mergeConfig(options.config)
       : createDefaultConfig()
+
+    this.readLedger = createReadLedger()
+    this.fileWorkingDir = options.fileWorkingDir ?? process.cwd()
 
     this.asyncManager = new AsyncManager(this.config.maxAsyncTasks)
     this.hookRegistry = new HookRegistry()
@@ -120,6 +132,7 @@ export class Session extends EventEmitter {
         sessionId: `session_${Date.now()}`,
         scope: this.sandbox.getScope(),
       }),
+      onFileBlock: (stmt) => this.handleFileBlock(stmt),
     })
 
     // Create globals
@@ -330,6 +343,39 @@ export class Session extends EventEmitter {
     const turnCode = this.codeLines.slice(this.turnCodeStart)
     this.recorder.recordError(turnCode, error, this.sandbox.getScope())
     this.turnCodeStart = this.codeLines.length
+  }
+
+  private async handleFileBlock(stmt: import('../stream/line-accumulator').FileBlockStatement): Promise<void> {
+    const blockId = `file_${Date.now()}`
+    let result: import('../stream/file-block-applier').ApplyResult
+
+    if (stmt.type === 'file_write') {
+      result = await applyFileWrite(stmt.path, stmt.content, this.fileWorkingDir, this.readLedger)
+      if (result.ok) {
+        this.emitEvent({ type: 'file_write', path: stmt.path, blockId })
+      }
+    } else {
+      result = await applyFileDiff(stmt.path, stmt.diff, this.fileWorkingDir, this.readLedger)
+      if (result.ok) {
+        this.emitEvent({ type: 'file_diff', path: stmt.path, blockId })
+      }
+    }
+
+    if (!result.ok) {
+      this.emitEvent({ type: 'file_error', path: stmt.path, error: result.error, blockId })
+      // Inject the error as a user message so the agent sees it on the next turn
+      const msg = `← error [FileError] ${result.error}`
+      this.messages.push({ role: 'assistant', content: this.codeLines.join('\n') })
+      this.messages.push({ role: 'user', content: msg })
+    }
+  }
+
+  /**
+   * Get the read ledger for this session.
+   * Pass to setReadLedger() in the fs catalog module to track readFile() calls.
+   */
+  getReadLedger(): ReadLedger {
+    return this.readLedger
   }
 
   /**

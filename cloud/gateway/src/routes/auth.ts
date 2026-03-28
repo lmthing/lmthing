@@ -10,6 +10,7 @@ import type { Env } from "../types.js";
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { flowType: "implicit" } },
 );
 
 const auth = new Hono<Env>();

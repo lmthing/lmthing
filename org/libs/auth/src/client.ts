@@ -98,6 +98,10 @@ export function clearSession(): void {
   localStorage.removeItem(SESSION_KEY)
 }
 
+export function storeSession(session: AuthSession): void {
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+}
+
 // PIN utilities for client-side encryption
 
 export function isPinSet(): boolean {

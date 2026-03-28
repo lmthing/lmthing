@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import type { AuthSession, AuthConfig, AuthContextValue } from './types'
-import { getSession, clearSession, redirectToLogin, handleAuthCallback, isPinSet, verifyPin, derivePinKey } from './client'
+import { getSession, clearSession, storeSession, redirectToLogin, handleAuthCallback, isPinSet, verifyPin, derivePinKey } from './client'
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
@@ -31,6 +31,19 @@ export function AuthProvider({ appName, callbackPath = '/', children }: AuthProv
   const [pinUnlocked, setPinUnlocked] = useState(false)
   const pinKeyRef = useRef<CryptoKey | null>(null)
 
+  // Accept session injected by a parent frame (e.g. lmthing.chat → lmthing.computer iframe)
+  useEffect(() => {
+    function onMessage(e: MessageEvent) {
+      if (e.data?.type === 'lmthing:session' && e.data.session) {
+        storeSession(e.data.session)
+        setSession(e.data.session)
+        setIsLoading(false)
+      }
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [])
+
   useEffect(() => {
     const url = new URL(window.location.href)
     if (url.searchParams.has('code')) {
@@ -52,6 +65,11 @@ export function AuthProvider({ appName, callbackPath = '/', children }: AuthProv
   }, [config])
 
   const login = useCallback(() => {
+    if (window !== window.top) {
+      // Embedded as iframe — ask parent to provide the session instead of navigating
+      window.parent.postMessage({ type: 'lmthing:auth-needed' }, '*')
+      return
+    }
     redirectToLogin(config)
   }, [config])
 

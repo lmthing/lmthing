@@ -6,7 +6,7 @@ import type { ReplSession } from '@lmthing/ui/components/thing/thing-chat'
 import type { UIBlock } from 'lmthing/web/rpc-client'
 
 const COMPUTER_URL = import.meta.env.VITE_COMPUTER_URL
-  ?? (import.meta.env.DEV ? 'http://computer.local' : 'https://lmthing.computer')
+  ?? (import.meta.env.DEV ? 'https://computer.local' : 'https://lmthing.computer')
 
 export const Route = createFileRoute('/')({
   component: ChatHome,

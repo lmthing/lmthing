@@ -2,7 +2,8 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { ThingChat } from '@lmthing/ui/components/thing/thing-chat'
 
-const COMPUTER_URL = import.meta.env.VITE_COMPUTER_URL ?? 'http://computer.local'
+const COMPUTER_URL = import.meta.env.VITE_COMPUTER_URL
+  ?? (import.meta.env.DEV ? 'http://computer.local' : 'https://lmthing.computer')
 
 export const Route = createFileRoute('/')({
   component: ChatHome,

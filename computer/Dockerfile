@@ -32,6 +32,7 @@ RUN pnpm install --frozen-lockfile
 # Copy source for computer and its workspace dependencies
 COPY computer/ computer/
 COPY org/libs/ org/libs/
+COPY org/common/ org/common/
 
 RUN pnpm --filter @lmthing/computer build
 

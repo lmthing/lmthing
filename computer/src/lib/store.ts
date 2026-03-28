@@ -23,9 +23,11 @@ interface IdeState {
   isBooting: boolean
   isInstalling: boolean
   isRunning: boolean
+  installComplete: boolean
   setBooting: (v: boolean) => void
   setInstalling: (v: boolean) => void
   setRunning: (v: boolean) => void
+  setInstallComplete: (v: boolean) => void
 }
 
 export const useIdeStore = create<IdeState>((set) => ({
@@ -61,7 +63,9 @@ export const useIdeStore = create<IdeState>((set) => ({
   isBooting: false,
   isInstalling: false,
   isRunning: false,
+  installComplete: false,
   setBooting: (v) => set({ isBooting: v }),
   setInstalling: (v) => set({ isInstalling: v }),
   setRunning: (v) => set({ isRunning: v }),
+  setInstallComplete: (v) => set({ installComplete: v }),
 }))

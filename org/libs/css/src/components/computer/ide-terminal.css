@@ -4,14 +4,34 @@
   @apply h-full flex flex-col bg-background;
 }
 
-.ide-terminal__header {
-  @apply flex items-center justify-between px-3 py-1.5 bg-card border-b border-border shrink-0;
+.ide-terminal__tabs {
+  @apply flex items-stretch bg-card border-b border-border shrink-0 overflow-x-auto;
 }
 
-.ide-terminal__title {
-  @apply text-xs font-semibold text-muted-foreground uppercase tracking-wider;
+.ide-terminal__tab {
+  @apply flex items-center gap-1 px-3 py-1.5 text-xs text-muted-foreground cursor-pointer hover:bg-accent hover:text-foreground transition-colors shrink-0 select-none whitespace-nowrap;
+}
+
+.ide-terminal__tab--active {
+  @apply bg-background text-foreground;
+}
+
+.ide-terminal__tab-close {
+  @apply flex items-center justify-center rounded w-4 h-4 opacity-50 hover:opacity-100 hover:bg-muted/80 transition-opacity;
+}
+
+.ide-terminal__add {
+  @apply flex items-center px-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer;
 }
 
 .ide-terminal__body {
-  @apply flex-1 min-h-0;
+  @apply flex-1 min-h-0 relative;
+}
+
+.ide-terminal__pane {
+  @apply absolute inset-0;
+}
+
+.ide-terminal__pane--hidden {
+  @apply invisible pointer-events-none;
 }

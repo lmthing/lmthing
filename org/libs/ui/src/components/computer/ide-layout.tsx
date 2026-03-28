@@ -3,11 +3,12 @@ import { CozyThingText } from '@lmthing/ui/elements/branding/cozy-text'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { Badge } from '../../elements/content/badge'
 import { Loader2 } from 'lucide-react'
-import type { TerminalSession } from '../../elements/content/terminal'
 import { IdeFileTree, type FileTreeNode } from './ide-file-tree'
 import { IdeEditor } from './ide-editor'
 import { IdePreview } from './ide-preview'
-import { IdeTerminal } from './ide-terminal'
+import { IdeTerminal, type TerminalTab } from './ide-terminal'
+
+export type { TerminalTab }
 
 export interface IdeLayoutProps {
   // Status
@@ -30,8 +31,12 @@ export interface IdeLayoutProps {
   onFileClose: (path: string) => void
   onContentChange: (path: string, content: string) => void
 
-  // Terminal
-  terminalSession: TerminalSession | null
+  // Terminal tabs
+  terminalTabs: TerminalTab[]
+  activeTerminalTabId: string | null
+  onTerminalTabSelect: (id: string) => void
+  onTerminalTabClose: (id: string) => void
+  onAddTerminalTab: () => void
 
   // Preview
   previewUrl: string | null
@@ -84,7 +89,13 @@ function IdeLayout(props: IdeLayoutProps) {
               <PanelResizeHandle className="ide-layout__resize-handle--vertical" />
 
               <Panel defaultSize={30} minSize={15}>
-                <IdeTerminal session={props.terminalSession} />
+                <IdeTerminal
+                  tabs={props.terminalTabs}
+                  activeTabId={props.activeTerminalTabId}
+                  onTabSelect={props.onTerminalTabSelect}
+                  onTabClose={props.onTerminalTabClose}
+                  onAddTab={props.onAddTerminalTab}
+                />
               </Panel>
             </PanelGroup>
           </Panel>

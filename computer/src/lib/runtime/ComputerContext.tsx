@@ -186,6 +186,11 @@ export function ComputerProvider({ children, tier = 'webcontainer', podConfig }:
       store.setFileTree(tree)
       store.setBooting(false)
 
+      // Listen for server-ready on any port
+      wc.on('server-ready', (_port: number, url: string) => {
+        store.setPreviewUrl(url)
+      })
+
       // Install deps
       store.setInstalling(true)
       const installProc = await wc.spawn('pnpm', ['install'])
@@ -195,14 +200,8 @@ export function ComputerProvider({ children, tier = 'webcontainer', podConfig }:
       // Persist to OPFS after the first install so node_modules cache warms up
       if (!snapshot) saveSnapshot(wc).catch(() => {})
 
-      // Start dev server
-      store.setRunning(true)
-      await wc.spawn('pnpm', ['run', 'dev'])
-
-      // Listen for server-ready on port 3010
-      wc.on('server-ready', (port: number, url: string) => {
-        if (port === 3010) store.setPreviewUrl(url)
-      })
+      // Signal that install is done — the dev terminal tab will run `pnpm dev`
+      store.setInstallComplete(true)
 
       // Watch file system and debounce-sync changes to OPFS
       let syncTimer: ReturnType<typeof setTimeout> | null = null

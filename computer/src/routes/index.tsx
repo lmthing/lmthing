@@ -1,9 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useComputer } from '@/lib/runtime/ComputerContext'
 import { useIdeStore } from '@/lib/store'
 import { readFile, writeFile, createFile, createDirectory, deleteFile } from '@/lib/runtime/file-operations'
 import { IdeLayout } from '@lmthing/ui/components/computer/ide-layout'
+import type { TerminalTab } from '@lmthing/ui/components/computer/ide-layout'
 import type { TerminalSession } from '@/lib/runtime/types'
 
 export const Route = createFileRoute('/')({
@@ -11,9 +12,17 @@ export const Route = createFileRoute('/')({
 })
 
 function IdeRoute() {
-  const { container, status, createTerminalSession, initIDE } = useComputer()
+  const { container, status, tier, createTerminalSession, initIDE } = useComputer()
   const store = useIdeStore()
-  const [session, setSession] = useState<TerminalSession | null>(null)
+
+  const [tabs, setTabs] = useState<TerminalTab[]>([
+    { id: 'dev', label: tier === 'webcontainer' ? 'dev' : 'terminal', session: null },
+  ])
+  const [activeTabId, setActiveTabId] = useState<string>('dev')
+
+  // Full runtime sessions (with dispose) tracked separately from UI tabs
+  const sessionsRef = useRef<Map<string, TerminalSession>>(new Map())
+  const devDoneRef = useRef(false)
 
   // Boot IDE once container is ready
   useEffect(() => {
@@ -22,24 +31,54 @@ function IdeRoute() {
     }
   }, [status, container, initIDE])
 
-  // Create terminal session
+  // Create the initial dev terminal session
   useEffect(() => {
     if (status !== 'running') return
 
     let disposed = false
-    let currentSession: TerminalSession | null = null
 
-    createTerminalSession().then((s) => {
-      if (disposed) { s.dispose(); return }
-      currentSession = s
-      setSession(s)
+    createTerminalSession().then((session) => {
+      if (disposed) { session.dispose(); return }
+      sessionsRef.current.set('dev', session)
+      setTabs((prev) => prev.map((t) => t.id === 'dev' ? { ...t, session } : t))
     })
 
     return () => {
       disposed = true
-      if (currentSession) { currentSession.dispose(); setSession(null) }
+      sessionsRef.current.get('dev')?.dispose()
+      sessionsRef.current.delete('dev')
+      setTabs((prev) => prev.map((t) => t.id === 'dev' ? { ...t, session: null } : t))
     }
   }, [status, createTerminalSession])
+
+  // After install completes, write `pnpm dev` to the dev tab (webcontainer only)
+  useEffect(() => {
+    if (!store.installComplete || devDoneRef.current || tier !== 'webcontainer') return
+    const devSession = sessionsRef.current.get('dev')
+    if (!devSession) return
+    devDoneRef.current = true
+    devSession.write('pnpm dev\n')
+  }, [store.installComplete, tier])
+
+  const handleAddTab = useCallback(async () => {
+    const id = `bash-${Date.now()}`
+    setTabs((prev) => [...prev, { id, label: 'bash', session: null }])
+    setActiveTabId(id)
+    const session = await createTerminalSession()
+    sessionsRef.current.set(id, session)
+    setTabs((prev) => prev.map((t) => t.id === id ? { ...t, session } : t))
+  }, [createTerminalSession])
+
+  const handleCloseTab = useCallback((id: string) => {
+    sessionsRef.current.get(id)?.dispose()
+    sessionsRef.current.delete(id)
+    setTabs((prev) => prev.filter((t) => t.id !== id))
+    setActiveTabId((prev) => {
+      if (prev !== id) return prev
+      const remaining = tabs.filter((t) => t.id !== id)
+      return remaining[remaining.length - 1]?.id ?? 'dev'
+    })
+  }, [tabs])
 
   // File tree callbacks
   const handleFileSelect = useCallback(async (path: string) => {
@@ -93,7 +132,11 @@ function IdeRoute() {
       onEditorFileSelect={(path) => store.setActiveFile(path)}
       onFileClose={(path) => store.closeFile(path)}
       onContentChange={handleContentChange}
-      terminalSession={session}
+      terminalTabs={tabs}
+      activeTerminalTabId={activeTabId}
+      onTerminalTabSelect={setActiveTabId}
+      onTerminalTabClose={handleCloseTab}
+      onAddTerminalTab={handleAddTab}
       previewUrl={store.previewUrl}
     />
   )

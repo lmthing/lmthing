@@ -299,7 +299,6 @@ Adding a new tier touches files across the monorepo — see [Adding a New Tier](
 | `/api/auth/register`       | POST   | Public     | Register → returns API key               |
 | `/api/auth/login`          | POST   | Public     | Login → returns JWT + refresh token      |
 | `/api/auth/oauth/url`      | GET    | Public     | Get Supabase OAuth URL (GitHub/Google)   |
-| `/api/auth/oauth/callback` | GET    | Public     | OAuth callback (Supabase redirect)       |
 | `/api/auth/provision`      | POST   | JWT        | Provision LiteLLM user + Stripe customer |
 | `/api/auth/refresh`        | POST   | Public     | Refresh access token                     |
 | `/api/auth/me`             | GET    | JWT        | User info + tier                         |
@@ -311,6 +310,10 @@ Adding a new tier touches files across the monorepo — see [Adding a New Tier](
 | `/api/billing/checkout`    | POST   | JWT        | Stripe checkout session                  |
 | `/api/billing/portal`      | POST   | JWT        | Stripe billing portal                    |
 | `/api/billing/usage`       | GET    | JWT        | Budget usage info                        |
+| `/api/billing/checkout/status` | GET | JWT       | Check Stripe checkout session status     |
+| `/api/compute/status`      | GET    | JWT        | Compute pod status                       |
+| `/api/compute/env`         | GET    | JWT        | List user pod environment variables      |
+| `/api/compute/env`         | PUT    | JWT        | Set user pod env vars (triggers restart) |
 | `/api/stripe/webhook`      | POST   | Stripe sig | Subscription events → tier changes       |
 | `/v1/chat/completions`     | POST   | API key    | OpenAI-compatible chat (via LiteLLM)     |
 | `/v1/models`               | GET    | API key    | Available models (via LiteLLM)           |

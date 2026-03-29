@@ -53,7 +53,7 @@ cert-manager → ClusterIssuer (letsencrypt-prod) → Certificate per domain
 | TLS | Traefik built-in ACME | cert-manager ClusterIssuer |
 | LB | N/A | MetalLB Layer 2 |
 | Compute | Fly.io Machines | Per-user K8s pods |
-| Images | `k3s ctr images import` | `ctr -n k8s.io images import` |
+| Images | `k3s ctr images import` | ACR (`lmthingacr.azurecr.io`) via GitHub Actions CI |
 | kubectl | `sudo k3s kubectl` | `kubectl` |
 | Deploy | Shell script (`deploy.sh`) | Ansible playbook + Makefile |
 | Secrets | `.env.secrets` file | Ansible Vault |
@@ -121,11 +121,11 @@ devops/
 │   │   ├── argocd/                                  # Install ArgoCD via Helm
 │   │   │   ├── tasks/main.yml
 │   │   │   └── defaults/main.yml                    # Chart version config
-│   │   ├── buildkit/tasks/main.yml                  # Install BuildKit for image building
-│   │   ├── cloud_build_images/tasks/main.yml        # Build gateway + computer + compute images
+│   │   ├── buildkit/tasks/main.yml                  # Install BuildKit (legacy — images now built by CI)
+│   │   ├── cloud_build_images/tasks/main.yml        # Legacy — images now built by GitHub Actions CI
 │   │   ├── cloud_secrets/tasks/main.yml             # Create K8s secrets from vault + run DB migrations
 │   │   ├── argocd_apps/tasks/main.yml               # Apply ArgoCD Application definitions
-│   │   └── ingress_iptables/tasks/main.yml          # iptables DNAT rules for MetalLB
+│   │   └── ingress_iptables/tasks/main.yml          # iptables DNAT rules for MetalLB (lmthing-nat systemd service)
 │   ├── inventory/test/
 │   │   ├── hosts.yml                                # Node inventory
 │   │   └── group_vars/all.yml                       # Cluster addons: Helm, MetalLB, cert-manager
@@ -319,17 +319,17 @@ Installs ArgoCD via Helm chart for GitOps continuous deployment.
 
 **Tags:** `infra`, `argocd`
 
-### `cloud_build_images`
+### `cloud_build_images` (Legacy)
 
-Builds three Docker images on the node and imports into containerd:
+**Images are now built by GitHub Actions CI** (`.github/workflows/build-images.yml`) and pushed to Azure Container Registry (`lmthingacr.azurecr.io`). The CI workflow triggers on pushes to `main` that touch source paths, builds SHA-tagged images, pushes them to ACR, and auto-commits updated image tags to ArgoCD manifests so ArgoCD redeploys automatically.
 
-| Image | Source | Purpose |
-|-------|--------|---------|
-| `lmthing/gateway:latest` | `cloud/gateway/` | Hono API gateway |
-| `lmthing/computer:latest` | `computer/` | Static SPA (lmthing.computer frontend) |
-| `lmthing/compute:latest` | `org/libs/repl/` + `argocd/compute/Dockerfile` | Bun + @lmthing/repl runtime |
+| Image | ACR Path | Source | Purpose |
+|-------|----------|--------|---------|
+| gateway | `lmthingacr.azurecr.io/gateway:<sha>` | `cloud/gateway/` | Hono API gateway |
+| computer | `lmthingacr.azurecr.io/computer:<sha>` | `computer/` (multi-stage: node:22-slim builder + nginx:alpine) | Static SPA (lmthing.computer frontend) |
+| compute | `lmthingacr.azurecr.io/compute:<sha>` | `org/libs/repl/` + `argocd/compute/Dockerfile` | Bun + @lmthing/repl runtime |
 
-Images are built via nerdctl in the `k8s.io` namespace for containerd.
+All deployments use `imagePullSecrets: [acr-pull-secret]` to pull from ACR.
 
 **Tags:** `images`
 
@@ -338,9 +338,10 @@ Images are built via nerdctl in the `k8s.io` namespace for containerd.
 Creates K8s secrets from Ansible Vault and runs database migrations. Secrets are managed outside ArgoCD to keep sensitive values out of git.
 
 1. Create `lmthing-secrets` K8s Secret in `lmthing` namespace from vault variables
-2. Sync SQL migrations to node
-3. Run migrations against Supabase PostgreSQL
-4. Clean up
+2. Create `acr-pull-secret` (type `kubernetes.io/dockerconfigjson`) in `lmthing` namespace for pulling images from ACR
+3. Sync SQL migrations to node
+4. Run migrations against Supabase PostgreSQL
+5. Clean up
 
 **Tags:** `secrets`
 
@@ -404,13 +405,15 @@ Resources: `argocd/envoy/computer-routes.yaml`, `argocd/envoy/computer-policies.
 Each user gets:
 ```
 Namespace: user-{user_id}
-  Deployment: lmthing (1 replica, 1 core / 1GB)
+  Secret: acr-pull-secret (ACR image pull credentials)
+  Secret: user-env (user-configurable env vars, mounted via envFrom)
+  Deployment: lmthing (1 replica, 1 core / 1GB, image: lmthingacr.azurecr.io/compute:<sha>)
   Service: lmthing → port 8080
 ```
 
-**Pod creation** is handled by Gateway/Hono via the K8s API. The gateway has a ServiceAccount (`gateway`) with a ClusterRole (`lmthing-compute-manager`) granting permissions to create/delete namespaces, deployments, and services.
+**Pod creation** is handled by Gateway/Hono via the K8s API. The gateway has a ServiceAccount (`gateway`) with a ClusterRole (`lmthing-compute-manager`) granting permissions to create/delete namespaces, deployments, services, and secrets. During provisioning, the gateway creates an ACR pull secret and a `user-env` secret in the user namespace.
 
-**Template:** `k8s/compute/user-pod-template.yaml` — stored in a ConfigMap, read by the gateway at pod creation time. `USER_ID` placeholders are replaced with the actual user ID.
+**Template:** `argocd/compute/user-pod-template.yaml` — stored in a ConfigMap, read by the gateway at pod creation time. `USER_ID` placeholders are replaced with the actual user ID.
 
 ## Secrets Management
 
@@ -449,6 +452,9 @@ make deploy
 | `vault_stripe_price_pro` | gateway | Stripe price ID for Pro tier |
 | `vault_stripe_price_max` | gateway | Stripe price ID for Max tier |
 | `vault_litellm_master_key` | both | LiteLLM admin API authentication |
+| `vault_acr_registry` | gateway, secrets | ACR registry URL (lmthingacr.azurecr.io) |
+| `vault_acr_username` | gateway, secrets | ACR authentication username |
+| `vault_acr_password` | gateway, secrets | ACR authentication password |
 
 ## Development Workflow
 
@@ -487,9 +493,8 @@ make deploy
 
 **"I changed gateway code"**
 ```bash
-make deploy-images        # rebuilds all images on node
-# ArgoCD will detect the new image and restart pods (imagePullPolicy: IfNotPresent)
-# If needed, trigger a manual restart via kubectl rollout restart
+git push origin main      # CI builds image, pushes to ACR, commits updated tag
+# ArgoCD auto-syncs the manifest change and redeploys
 ```
 
 **"I changed K8s manifests"**
@@ -500,7 +505,8 @@ git push                  # push changes to git
 
 **"I want to rebuild just images"**
 ```bash
-make deploy-images
+# Push source changes to main — CI auto-detects which images need rebuilding
+git push origin main
 ```
 
 **"Something is broken"**
@@ -618,7 +624,7 @@ To update domain values: edit `argocd/envoy/config.yaml`, push to git, ArgoCD au
 - **MetalLB IP must match node's external IP** — `metallb_ip_range` in group_vars must contain the node's public IP for LoadBalancer Services to be reachable.
 - **ReferenceGrant is required** — without it, HTTPRoutes in `gateway` namespace cannot reference Services in `lmthing` namespace. Cross-namespace routing silently fails.
 - **cert-manager HTTP-01 needs port 80 open** — the ACME solver creates temporary HTTPRoutes on the HTTP listener. Ensure the Gateway's HTTP listener exists and firewall allows port 80.
-- **Image import uses containerd** — Kubespray uses standard containerd. Build with `nerdctl -n k8s.io build`.
+- **ACR pull secret required** — All deployments and user pods require `imagePullSecrets: [acr-pull-secret]` to pull images from `lmthingacr.azurecr.io`. The gateway creates ACR pull secrets in each user namespace during pod provisioning.
 - **Session pooler for DATABASE_URL** — must use Supabase port 5432 (session mode), not 6543 (transaction mode).
 - **Gateway ServiceAccount is critical** — the gateway needs the `lmthing-compute-manager` ClusterRole to create user pods. Without it, Pro tier subscriptions will fail to provision compute.
 - **Old manifests in `ansible/k8s/`** — these are legacy from the pre-ArgoCD setup. All active manifests are now in `argocd/`. Do not edit files in `ansible/k8s/`.
@@ -660,7 +666,7 @@ make scale-down
 - **Always drain before removing** — `make scale-down` destroys the VM. If you don't drain first, pods are abruptly killed.
 - **MetalLB IP range** — after adding nodes, update `metallb_ip_range` in `group_vars/all.yml` to include all node public IPs that should receive LoadBalancer traffic.
 - **Control plane scaling** — adding control plane nodes requires etcd membership changes. Kubespray handles this via `make scale`, but verify etcd health after.
-- **Image availability** — newly joined nodes don't have locally-built images. Run `make deploy-images` after scaling to build images on all nodes.
+- **Image availability** — newly joined nodes pull images from ACR automatically via `imagePullSecrets`. No manual image builds needed.
 
 ## VM Configuration
 

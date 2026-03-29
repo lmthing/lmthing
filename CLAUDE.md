@@ -21,8 +21,10 @@ The monorepo is organized by TLD — each lmthing.\* domain has its own top-leve
 lmthing/
 ├── org/                    # Non-profit / open-source
 │   ├── libs/               # Shared libraries used across all domains
-│   │   ├── core/           # lmthing — agentic framework (TypeScript, Vercel AI SDK v6)
+│   │   ├── core/           # lmthing — streaming TypeScript REPL agent (Vercel AI SDK v6)
+│   │   ├── repl/           # @lmthing/repl — REPL sandbox runtime (vm.Context, TypeScript transpilation)
 │   │   ├── state/          # @lmthing/state — virtual file system (React hooks, Map-based VFS)
+│   │   ├── spaces/         # Shared space knowledge content
 │   │   ├── css/            # Shared styles
 │   │   ├── ui/             # Shared UI components
 │   │   ├── auth/           # @lmthing/auth — cross-domain SSO client
@@ -107,7 +109,7 @@ graph TB
     end
 
     subgraph Library["org/libs/core"]
-        Core["lmthing Framework<br/>Vercel AI SDK · Plugins · CLI"]
+        Core["lmthing Framework<br/>Streaming REPL Agent · Vercel AI SDK · CLI"]
     end
 
     App -- "REST + Streaming" --> Envoy
@@ -122,71 +124,78 @@ graph TB
 
 ## Key Packages
 
-### org/libs/core — Agent Framework
+### org/libs/core — Streaming TypeScript REPL Agent
 
-The agentic framework powering all of lmthing. Two modes of operation:
+A streaming TypeScript REPL agent system that executes LLM-generated code line-by-line with control primitives and a React render surface. The agent writes only TypeScript — no prose — and the host runtime parses, executes, and renders in real time.
 
-- **Stateful Interactive Chat** — multi-turn conversations where the agent maintains state across turns
-- **Autonomous Agents** — self-directed task execution without human input
+Four subsystems:
+
+1. **Stream Controller** — LLM connection, token accumulation, bracket depth tracking, pause/resume, context injection
+2. **Line Parser** — buffers tokens into complete statements, detects global calls
+3. **REPL Sandbox** — executes TypeScript line-by-line via `vm.Context`, persistent scope, TS transpilation, error capture
+4. **React Render Surface** — mounts components from `display`/`ask`, handles forms
 
 Key concepts:
 
-- **StatefulPrompt** — React-like hooks (`useState`, `useEffect`, `useMemo`, `useCallback`) for managing agent state
-- **Plugins** — `defTaskList` (task management), `defTaskGraph` (DAG dependencies), `defFunction` (vm2 sandbox), `defMethod` (inline code)
+- **12 Globals** — `stop`, `display`, `ask`, `async`, `tasklist`, `completeTask`, `completeTaskAsync`, `taskProgress`, `failTask`, `retryTask`, `sleep`, `loadKnowledge` — injected into the sandbox at session init
+- **`{{SCOPE}}`** — Variable state table regenerated every turn, the agent's source of truth
+- **Context management** — code window compression (200-line sliding window), stop payload decay, knowledge decay, token budget enforcement
+- **Developer hooks** — AST-based code interception with 5 actions: `continue`, `side_effect`, `transform`, `interrupt`, `skip`
+- **Spaces** — self-contained workspaces with agents, flows, functions, components, and knowledge
 - **Provider resolution** — `openai/*`, `anthropic/*`, `google/*`, `mistral/*`, `azure/*`, `groq/*`, or any OpenAI-compatible endpoint
-- **Entry points** — `runPrompt()` programmatic API, `lmthing run` CLI
+- **Entry points** — `runAgent()` pipeline, `lmthing run` CLI
 
-Built on Vercel AI SDK v6 (`streamText()`, `generateText()`, Zod tool schemas).
+Built on Vercel AI SDK v6 (`streamText()`, Zod tool schemas), Node.js `vm` for sandboxing, TypeScript compiler API for AST parsing.
 
 ```mermaid
 graph TB
     subgraph Entry["Entry Points"]
-        RunPrompt["runPrompt()"]
+        RunAgent["runAgent()"]
         CLI["CLI: lmthing run"]
     end
 
-    subgraph Modes["Agent Modes"]
-        Interactive["Stateful Interactive Chat<br/>Multi-turn conversations with state"]
-        Autonomous["Autonomous Agents<br/>Self-directed task execution"]
+    subgraph Stream["Stream Processing"]
+        LLM["LLM Token Stream"]
+        Parser["Line Parser<br/>Statement detection"]
+        Hooks["Developer Hooks<br/>AST interception"]
+        LLM --> Parser --> Hooks
     end
 
-    subgraph Prompt["StatefulPrompt System"]
-        SP["StatefulPrompt<br/>React-like hooks for agent state"]
-        Hooks["useState · useEffect<br/>useMemo · useCallback"]
-        SP --> Hooks
+    subgraph Sandbox["REPL Sandbox (vm.Context)"]
+        Exec["Line-by-line execution"]
+        Globals["12 Globals<br/>stop · display · ask · async<br/>tasklist · loadKnowledge · ..."]
+        Scope["{{SCOPE}} — Variable state"]
+        Exec --> Globals
+        Exec --> Scope
     end
 
-    Entry --> Modes
-    Modes --> Prompt
-
-    subgraph Plugins["Built-in Plugins"]
-        TaskList["defTaskList<br/>Task management"]
-        TaskGraph["defTaskGraph<br/>DAG dependencies"]
-        Function["defFunction<br/>vm2 sandbox execution"]
-        Method["defMethod<br/>Inline code execution"]
+    subgraph Render["React Render Surface"]
+        Display["display() — Read-only UI"]
+        Ask["ask() — Form input"]
     end
+
+    subgraph Context["Context Management"]
+        CodeWindow["Code window<br/>200-line sliding window"]
+        Decay["Payload decay<br/>stop · error · knowledge"]
+        Budget["Token budget<br/>enforcement"]
+    end
+
+    CLI --> RunAgent
+    RunAgent --> Stream
+    Hooks --> Sandbox
+    Globals --> Render
+    Sandbox --> Context
+    Context -- "context injection" --> LLM
 
     subgraph Providers["Provider Resolution"]
         OpenAI["openai/*"]
         Anthropic["anthropic/*"]
         Google["google/*"]
-        Mistral["mistral/*"]
         Azure["azure/*"]
-        Groq["groq/*"]
         Custom["custom (OpenAI-compatible)"]
     end
 
-    subgraph SDK["Vercel AI SDK v6"]
-        StreamText["streamText()"]
-        GenerateText["generateText()"]
-        Tools["Tool definitions + Zod schemas"]
-    end
-
-    RunPrompt --> SP
-    CLI --> RunPrompt
-    SP --> Plugins
-    SP --> SDK
-    SDK --> Providers
+    LLM --> Providers
 ```
 
 ### org/libs/state — Virtual File System
@@ -517,7 +526,9 @@ All frontend apps share the same stack:
 
 - [Architecture.md](./Architecture.md) — full product & domain architecture
 - [devops/CLAUDE.md](./devops/CLAUDE.md) — infrastructure & deployment guide
-- [org/libs/core/](./org/libs/core/) — agent framework source
+- [org/libs/core/](./org/libs/core/) — streaming REPL agent framework source
+- [org/libs/core/CLAUDE.md](./org/libs/core/CLAUDE.md) — detailed REPL agent architecture reference
+- [org/libs/repl/](./org/libs/repl/) — REPL sandbox runtime
 - [org/libs/state/](./org/libs/state/) — VFS library source
 - [org/libs/css/](./org/libs/css/) — shared styles
 - [org/libs/ui/](./org/libs/ui/) — shared UI components
@@ -539,8 +550,10 @@ This repository is a monorepo organized by TLD — each lmthing.\* domain has it
 
 ## Shared Libraries
 
-- `org/libs/core/` — Agentic framework (TypeScript, Vercel AI SDK v6). StatefulPrompt system with React-like hooks, plugins, multi-provider support, CLI (`lmthing run`).
+- `org/libs/core/` — Streaming TypeScript REPL agent framework (Vercel AI SDK v6). Executes LLM-generated code line-by-line via `vm.Context` sandbox with 12 globals (`stop`, `display`, `ask`, `async`, `tasklist`, etc.), context management (SCOPE, code window, payload decay), developer hooks (AST-based interception), spaces/agents architecture, multi-provider support, CLI (`lmthing run`).
+- `org/libs/repl/` — REPL sandbox runtime (`@lmthing/repl`). Standalone package for the TypeScript REPL execution engine used by the compute pods.
 - `org/libs/state/` — Virtual file system (`@lmthing/state`). In-memory Map-based VFS with FSEventBus, React context hierarchy, and hooks (`useFile`, `useDir`, `useGlob`, `useDraft`).
+- `org/libs/spaces/` — Shared space knowledge content.
 - `org/libs/css/` — Shared styles used across all product domains.
 - `org/libs/ui/` — Shared React UI components used across all product domains.
 - `org/libs/thing/` — THING agent system studio (`@lmthing/thing`). 7 built-in spaces that ship with the THING agent: `space-creator` (meta-space for creating spaces), `space-ecosystem` (platform navigation, account/billing), `space-studio` (agent building, workspace management, prompt optimization), `space-chat` (personal chat interface), `space-computer` (compute pod management, troubleshooting), `space-deploy` (space deployment lifecycle), `space-store` (marketplace publishing, listing optimization). Total: 12 agents, 12 flows, 17 knowledge domains across all spaces.
@@ -565,21 +578,26 @@ This repository is a monorepo organized by TLD — each lmthing.\* domain has it
 
 ## Spaces Architecture
 
-A **Space** is a self-contained workspace with three pillars: **Agents**, **Flows**, and **Knowledge**.
+A **Space** is a self-contained workspace with five pillars: **Agents**, **Flows**, **Functions**, **Components**, and **Knowledge**.
 
 ```
 {space-slug}/
 ├── package.json              # metadata (name, version)
 ├── agents/                   # AI specialists
 │   └── agent-{role}/
-│       ├── config.json       # runtime field requirements
-│       ├── instruct.md       # personality, tools, slash actions
-│       ├── values.json       # runtime state (starts empty)
-│       └── conversations/
+│       ├── config.json       # runtime field requirements + accessible functions/components/knowledge
+│       └── instruct.md       # personality, behavior, slash actions
 ├── flows/                    # step-by-step workflows
 │   └── flow_{action}/
 │       ├── index.md          # overview + step links
-│       └── {N}.Step Name.md  # numbered steps
+│       └── {N}.Step Name.md  # numbered steps with output schemas
+├── functions/                # utility functions (TypeScript)
+│   └── {functionName}.tsx    # plain TS exports, injected as sandbox globals
+├── components/               # React components
+│   ├── view/                 # display components (for display())
+│   │   └── {ComponentName}.tsx
+│   └── form/                 # form input components (for ask())
+│       └── {ComponentName}.tsx
 └── knowledge/                # structured domain data
     └── {domain}/
         ├── config.json       # section: label, icon, color
@@ -590,13 +608,13 @@ A **Space** is a self-contained workspace with three pillars: **Agents**, **Flow
 
 ### Agents
 
-Each agent is a specialist with a distinct role (e.g., `FormulaExpert`, `DataAnalyst`). An agent's `instruct.md` defines:
+Each agent is a specialist with a distinct role (e.g., `FormulaExpert`, `DataAnalyst`). An agent's `instruct.md` defines (via YAML frontmatter):
 
-- **Name** (PascalCase), **description**, **tools** (kebab-case)
-- **enabledKnowledgeFields** — which knowledge domains the agent can access (prefixed `domain-`)
-- **slash_actions** — commands that trigger linked flows (`flowId → flow_{action}`)
+- **title** — Agent display name (PascalCase)
+- **model** — LLM model override (optional)
+- **actions** — Slash commands that trigger flows (`id` = `/command`, `flow` = directory in `flows/`)
 
-The `config.json` declares **runtimeFields** — knowledge fields that need user input before the agent can run (mapping domain → field names).
+The `config.json` declares what the agent can access: **knowledge** (domain/field selectors), **components** (view + form references, including catalog components), and **functions** (local or catalog functions with optional config).
 
 ### Flows
 

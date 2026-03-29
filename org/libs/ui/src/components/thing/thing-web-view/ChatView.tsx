@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
-import type { UIBlock } from '../rpc-client'
-import type { SessionStatus } from '@lmthing/repl'
+import type { UIBlock, SessionStatus } from './types'
 import { BlockRenderer } from './BlockRenderer'
 import { ActivityIndicator } from './ActivityIndicator'
 
@@ -37,10 +36,10 @@ export function ChatView({ blocks, status, activeFormId, onSubmitForm, onCancelA
   const isPaused = status === 'paused'
 
   return (
-    <div className="chat-area" ref={scrollRef}>
+    <div className="twv-chat-area" ref={scrollRef}>
       {blocks.length === 0 && (
-        <div className="empty-state">
-          <div className="logo">@lmthing/repl</div>
+        <div className="twv-empty-state">
+          <div className="twv-empty-state__logo">@lmthing/repl</div>
           <div>Send a message to start</div>
         </div>
       )}
@@ -55,7 +54,7 @@ export function ChatView({ blocks, status, activeFormId, onSubmitForm, onCancelA
         />
       ))}
 
-      {isPaused && <div className="paused-badge">&#x23F8; Paused</div>}
+      {isPaused && <div className="twv-paused-badge">&#x23F8; Paused</div>}
       {isActive && <ActivityIndicator />}
     </div>
   )

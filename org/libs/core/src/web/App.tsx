@@ -1,12 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useReplSession } from './rpc-client'
-import type { UIBlock } from './rpc-client'
+import type { UIBlock } from '@lmthing/ui/components/thing/thing-web-view/types'
 import type { ConversationTurn } from '@lmthing/repl'
-import { ChatView } from './components/ChatView'
-import { InputBar } from './components/InputBar'
-import { Sidebar } from './components/Sidebar'
-import { ConversationSidebar } from './components/ConversationSidebar'
-import './App.css'
+import { ThingWebView } from '@lmthing/ui/components/thing/thing-web-view'
 
 const WS_URL = (import.meta as any).env?.VITE_WS_URL ?? 'ws://localhost:3010'
 
@@ -61,9 +57,6 @@ export function App() {
   const conversationId = useConversationId(activeSessionId)
   const session = useReplSession(WS_URL)
   const { snapshot, blocks, connected, sendMessage } = session
-  const isExecuting = snapshot.status === 'executing'
-  const isPaused = snapshot.status === 'paused'
-  const hasAsyncTasks = snapshot.asyncTasks.length > 0
   const isLiveView = conversationId === activeSessionId
 
   // Request conversations list on connect
@@ -71,7 +64,7 @@ export function App() {
     if (connected) session.requestConversations()
   }, [connected])
 
-  // Auto-save on turn boundaries (executing → idle/waiting/complete)
+  // Auto-save on turn boundaries (executing -> idle/waiting/complete)
   const prevStatusRef = useRef(snapshot.status)
   useEffect(() => {
     const prev = prevStatusRef.current
@@ -93,8 +86,7 @@ export function App() {
     ? turnsToBlocks(session.loadedConversation.state.turns)
     : []
 
-  // When embedded as an inner iframe (relay mode): forward session state to the parent frame
-  // (the computer app), which relays onward to lmthing.chat.
+  // When embedded as an inner iframe: forward session state to the parent frame
   useEffect(() => {
     if (window === window.top) return
     window.parent.postMessage({
@@ -122,54 +114,16 @@ export function App() {
     window.location.hash = `#/chat/${activeSessionId}`
   }
 
-  const displayBlocks = isLiveView ? blocks : historyBlocks
-
   return (
-    <div className="app-layout">
-      <ConversationSidebar
-        conversations={session.conversations}
-        activeId={conversationId}
-        liveSessionId={activeSessionId}
-        onSelect={handleSelectConversation}
-        onNew={handleNewConversation}
-      />
-      <div className="main-column">
-        {!connected && (
-          <div className="connection-bar">
-            Disconnected — waiting for server at {WS_URL}
-          </div>
-        )}
-        {!isLiveView && (
-          <div className="history-banner">
-            Viewing saved conversation
-            <button className="history-banner__back" onClick={handleNewConversation}>
-              Back to live session
-            </button>
-          </div>
-        )}
-        <ChatView
-          blocks={displayBlocks}
-          status={isLiveView ? snapshot.status : 'idle'}
-          activeFormId={isLiveView ? snapshot.activeFormId : null}
-          onSubmitForm={session.submitForm}
-          onCancelAsk={session.cancelAsk}
-        />
-        {isLiveView && (
-          <InputBar
-            onSend={isExecuting || isPaused ? session.intervene : session.sendMessage}
-            onPause={session.pause}
-            onResume={session.resume}
-            status={snapshot.status}
-            disabled={!connected}
-            actions={session.actions}
-          />
-        )}
-      </div>
-      <Sidebar
-        tasks={snapshot.asyncTasks}
-        onCancel={session.cancelTask}
-        collapsed={!hasAsyncTasks}
-      />
-    </div>
+    <ThingWebView
+      session={session}
+      conversationId={conversationId}
+      liveSessionId={activeSessionId}
+      onSelectConversation={handleSelectConversation}
+      onNewConversation={handleNewConversation}
+      historyBlocks={historyBlocks}
+      isLiveView={isLiveView}
+      wsUrl={WS_URL}
+    />
   )
 }

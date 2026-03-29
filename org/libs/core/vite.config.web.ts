@@ -5,6 +5,13 @@ import { resolve } from "path";
 export default defineConfig({
   root: resolve(__dirname, "src/web"),
   plugins: [react()],
+  resolve: {
+    alias: {
+      "@lmthing/ui": resolve(__dirname, "../ui/src"),
+      "@lmthing/css": resolve(__dirname, "../css/src"),
+      "@lmthing/repl": resolve(__dirname, "../repl/src"),
+    },
+  },
   build: {
     outDir: resolve(__dirname, "dist/web"),
     emptyOutDir: true,

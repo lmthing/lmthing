@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
-import type { SessionStatus } from '@lmthing/repl'
-import type { AgentAction } from '../rpc-client'
+import type { SessionStatus, AgentAction } from './types'
 
 interface InputBarProps {
   onSend: (text: string) => void
@@ -27,7 +26,6 @@ export function InputBar({ onSend, onPause, onResume, status, disabled, actions 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // Filter actions based on what the user has typed after /
   const filteredActions = useMemo(() => {
     if (!showActions || actions.length === 0) return []
     const slashMatch = text.match(/^\/(\S*)$/)
@@ -54,7 +52,6 @@ export function InputBar({ onSend, onPause, onResume, status, disabled, actions 
   }, [])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    // Handle dropdown navigation
     if (showActions && filteredActions.length > 0) {
       if (e.key === 'ArrowUp') {
         e.preventDefault()
@@ -88,7 +85,6 @@ export function InputBar({ onSend, onPause, onResume, status, disabled, actions 
     const value = e.target.value
     setText(value)
 
-    // Show actions dropdown when typing / at start
     if (actions.length > 0 && /^\/\S*$/.test(value)) {
       setShowActions(true)
       setSelectedIndex(0)
@@ -96,7 +92,6 @@ export function InputBar({ onSend, onPause, onResume, status, disabled, actions 
       setShowActions(false)
     }
 
-    // Auto-resize
     const el = textareaRef.current
     if (el) {
       el.style.height = 'auto'
@@ -104,7 +99,6 @@ export function InputBar({ onSend, onPause, onResume, status, disabled, actions 
     }
   }, [actions.length])
 
-  // Keyboard shortcut: Ctrl+Shift+P to toggle pause
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.key === 'P') {
@@ -117,7 +111,6 @@ export function InputBar({ onSend, onPause, onResume, status, disabled, actions 
     return () => window.removeEventListener('keydown', handler)
   }, [status, onPause, onResume])
 
-  // Close dropdown on blur
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (
@@ -137,43 +130,21 @@ export function InputBar({ onSend, onPause, onResume, status, disabled, actions 
   const placeholder = PLACEHOLDERS[status] ?? PLACEHOLDERS.idle
 
   return (
-    <div className="input-bar" style={{ position: 'relative' }}>
+    <div className="twv-input-bar" style={{ position: 'relative' }}>
       {showActions && filteredActions.length > 0 && (
         <div
           ref={dropdownRef}
-          className="actions-dropdown"
-          style={{
-            position: 'absolute',
-            bottom: '100%',
-            left: 24,
-            right: 24,
-            marginBottom: 4,
-            background: 'var(--surface-primary)',
-            border: '1px solid var(--border-form)',
-            borderRadius: 'var(--radius-input)',
-            boxShadow: '0 -4px 12px rgba(0,0,0,0.1)',
-            maxHeight: 200,
-            overflowY: 'auto',
-            zIndex: 10,
-          }}
+          className="twv-actions-dropdown"
         >
           {filteredActions.map((action, i) => (
             <div
               key={action.id}
               onClick={() => selectAction(action)}
-              style={{
-                padding: '8px 12px',
-                cursor: 'pointer',
-                background: i === selectedIndex ? 'var(--surface-agent)' : 'transparent',
-                display: 'flex',
-                gap: 8,
-                alignItems: 'baseline',
-                fontSize: 14,
-              }}
+              className={`twv-actions-dropdown__item ${i === selectedIndex ? 'twv-actions-dropdown__item--selected' : ''}`}
               onMouseEnter={() => setSelectedIndex(i)}
             >
-              <span style={{ fontWeight: 600, color: 'var(--accent)' }}>/{action.id}</span>
-              <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{action.label}</span>
+              <span className="twv-actions-dropdown__id">/{action.id}</span>
+              <span className="twv-actions-dropdown__label">{action.label}</span>
             </div>
           ))}
         </div>
@@ -189,17 +160,17 @@ export function InputBar({ onSend, onPause, onResume, status, disabled, actions 
         aria-label="Message input"
       />
       {showPause && (
-        <button className="btn-pause" onClick={onPause} aria-label="Pause agent execution">
+        <button className="twv-btn-pause" onClick={onPause} aria-label="Pause agent execution">
           Pause
         </button>
       )}
       {showResume && (
-        <button className="btn-pause" onClick={onResume} aria-label="Resume agent execution">
+        <button className="twv-btn-pause" onClick={onResume} aria-label="Resume agent execution">
           Resume
         </button>
       )}
       <button
-        className="btn-send"
+        className="twv-btn-send"
         onClick={handleSend}
         disabled={disabled || !text.trim()}
         aria-label="Send message"

@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import type { UIBlock } from '../rpc-client'
-import type { SerializedJSX } from '@lmthing/repl'
+import type { UIBlock, SerializedJSX } from './types'
 import { JSXRenderer } from './JSXRenderer'
 import { FormBlock } from './FormBlock'
 
@@ -25,7 +24,7 @@ export function BlockRenderer({ block, activeFormId, onSubmitForm, onCancelAsk }
       return <HookBlockUI hookId={block.hookId} action={block.action} detail={block.detail} />
     case 'display':
       return (
-        <div className="agent-block display-block">
+        <div className="twv-agent-block twv-display-block">
           <JSXRenderer jsx={block.jsx} />
         </div>
       )
@@ -42,10 +41,10 @@ export function BlockRenderer({ block, activeFormId, onSubmitForm, onCancelAsk }
       )
     case 'tasklist_declared':
       return (
-        <div className="agent-block tasklist">
+        <div className="twv-agent-block twv-tasklist">
           <h4>{block.plan.description} <span style={{ opacity: 0.5, fontSize: '0.85em' }}>({block.tasklistId})</span></h4>
           {block.plan.tasks.map(task => (
-            <div key={task.id} className="tasklist-task">
+            <div key={task.id} className="twv-tasklist-task">
               <span style={{ opacity: 0.5 }}>&#x25CB;</span>
               <span>{task.instructions}</span>
             </div>
@@ -54,7 +53,7 @@ export function BlockRenderer({ block, activeFormId, onSubmitForm, onCancelAsk }
       )
     case 'task_complete':
       return (
-        <div className="agent-block task-complete-block">
+        <div className="twv-agent-block twv-task-complete-block">
           <span>&#x2713;</span>
           <span>Task <strong>{block.tasklistId}/{block.taskId}</strong> complete</span>
         </div>
@@ -68,8 +67,8 @@ export function BlockRenderer({ block, activeFormId, onSubmitForm, onCancelAsk }
 
 function UserBubble({ text }: { text: string }) {
   return (
-    <div className="user-bubble">
-      <div className="user-bubble-inner">{text}</div>
+    <div className="twv-user-bubble">
+      <div className="twv-user-bubble__inner">{text}</div>
     </div>
   )
 }
@@ -78,17 +77,17 @@ function CodeBlockUI({ code, lineCount, streaming }: { code: string; lineCount: 
   const [collapsed, setCollapsed] = useState(true)
 
   return (
-    <div className="agent-block collapsible code-block">
-      <button className="collapsible-header" onClick={() => setCollapsed(c => !c)}>
-        <span className={`chevron ${collapsed ? '' : 'open'}`}>&#x25B6;</span>
-        <span className="summary">Code</span>
-        <span className="meta">
+    <div className="twv-agent-block twv-collapsible twv-code-block">
+      <button className="twv-collapsible__header" onClick={() => setCollapsed(c => !c)}>
+        <span className={`twv-collapsible__chevron ${collapsed ? '' : 'twv-collapsible__chevron--open'}`}>&#x25B6;</span>
+        <span className="twv-collapsible__summary">Code</span>
+        <span className="twv-collapsible__meta">
           {lineCount} line{lineCount !== 1 ? 's' : ''}
-          {streaming && <span className="streaming-icon"> &#x27F3;</span>}
+          {streaming && <span className="twv-streaming-icon"> &#x27F3;</span>}
         </span>
       </button>
       {!collapsed && (
-        <div className="collapsible-body">
+        <div className="twv-collapsible__body">
           <pre><code>{code}</code></pre>
         </div>
       )}
@@ -104,13 +103,13 @@ function ReadBlockUI({ payload }: { payload: Record<string, unknown> }) {
     : `${keys.length} values`
 
   return (
-    <div className="agent-block collapsible read-block">
-      <button className="collapsible-header" onClick={() => setCollapsed(c => !c)}>
-        <span className={`chevron ${collapsed ? '' : 'open'}`}>&#x25B6;</span>
-        <span className="summary">Read &mdash; {summary}</span>
+    <div className="twv-agent-block twv-collapsible twv-read-block">
+      <button className="twv-collapsible__header" onClick={() => setCollapsed(c => !c)}>
+        <span className={`twv-collapsible__chevron ${collapsed ? '' : 'twv-collapsible__chevron--open'}`}>&#x25B6;</span>
+        <span className="twv-collapsible__summary">Read &mdash; {summary}</span>
       </button>
       {!collapsed && (
-        <div className="collapsible-body">
+        <div className="twv-collapsible__body">
           <pre>{JSON.stringify(payload, null, 2)}</pre>
         </div>
       )}
@@ -122,16 +121,16 @@ function ErrorBlockUI({ error }: { error: { type: string; message: string; line:
   const [collapsed, setCollapsed] = useState(true)
 
   return (
-    <div className="agent-block collapsible error-block">
-      <button className="collapsible-header" onClick={() => setCollapsed(c => !c)}>
-        <span className={`chevron ${collapsed ? '' : 'open'}`}>&#x25B6;</span>
-        <span className="summary">Error &mdash; {error.type}: {error.message}</span>
+    <div className="twv-agent-block twv-collapsible twv-error-block">
+      <button className="twv-collapsible__header" onClick={() => setCollapsed(c => !c)}>
+        <span className={`twv-collapsible__chevron ${collapsed ? '' : 'twv-collapsible__chevron--open'}`}>&#x25B6;</span>
+        <span className="twv-collapsible__summary">Error &mdash; {error.type}: {error.message}</span>
       </button>
       {!collapsed && (
-        <div className="collapsible-body error-body">
+        <div className="twv-collapsible__body twv-error-block__body">
           <div style={{ fontWeight: 600, marginBottom: 4 }}>{error.type}</div>
           <div style={{ marginBottom: 8 }}>{error.message}</div>
-          <div className="error-source">
+          <div className="twv-error-block__source">
             <span style={{ marginRight: 8 }}>Line {error.line}:</span>
             {error.source}
           </div>
@@ -146,10 +145,10 @@ function HookBlockUI({ hookId, action, detail }: { hookId: string; action: strin
   const isInterruptive = action === 'interrupt' || action === 'skip'
 
   return (
-    <div className={`agent-block collapsible hook-block ${isInterruptive ? action : ''}`}>
-      <button className="collapsible-header" onClick={() => setCollapsed(c => !c)}>
-        <span className={`chevron ${collapsed ? '' : 'open'}`}>&#x25B6;</span>
-        <span className="summary">
+    <div className={`twv-agent-block twv-collapsible twv-hook-block ${isInterruptive ? `twv-hook-block--${action}` : ''}`}>
+      <button className="twv-collapsible__header" onClick={() => setCollapsed(c => !c)}>
+        <span className={`twv-collapsible__chevron ${collapsed ? '' : 'twv-collapsible__chevron--open'}`}>&#x25B6;</span>
+        <span className="twv-collapsible__summary">
           Hook &mdash; {hookId}
           <span style={{
             marginLeft: 8,
@@ -165,7 +164,7 @@ function HookBlockUI({ hookId, action, detail }: { hookId: string; action: strin
         </span>
       </button>
       {!collapsed && (
-        <div className="collapsible-body" style={{ padding: '8px 12px', fontSize: 13 }}>
+        <div className="twv-collapsible__body" style={{ padding: '8px 12px', fontSize: 13 }}>
           {detail}
         </div>
       )}
@@ -182,7 +181,6 @@ interface Segment {
 
 function splitCodeAndComments(code: string, streaming: boolean): Segment[] {
   const rawLines = code.split('\n')
-  // If streaming, the last line might be incomplete — keep it as code
   const lastIncomplete = streaming ? rawLines.pop() ?? '' : null
 
   const segments: Segment[] = []
@@ -210,7 +208,6 @@ function splitCodeAndComments(code: string, streaming: boolean): Segment[] {
 
   if (bufType && buf.length > 0) flushSegment(segments, bufType, buf)
 
-  // Append incomplete last line as code (might be a partial comment — we don't know yet)
   if (lastIncomplete !== null && lastIncomplete.trim()) {
     segments.push({ type: 'code', content: lastIncomplete })
   }
@@ -234,12 +231,10 @@ function flushSegment(segments: Segment[], type: 'comment' | 'code', lines: stri
 function CodeWithComments({ code, id, lineCount, streaming }: { code: string; id: string; lineCount: number; streaming: boolean }) {
   const segments = splitCodeAndComments(code, streaming)
 
-  // Single code-only segment — use original rendering
   if (segments.length === 1 && segments[0].type === 'code') {
     return <CodeBlockUI code={segments[0].content} lineCount={lineCount} streaming={streaming} />
   }
 
-  // No segments (e.g. empty or whitespace-only) — nothing to render
   if (segments.length === 0) return null
 
   return (
@@ -265,8 +260,8 @@ function CodeWithComments({ code, id, lineCount, streaming }: { code: string; id
 
 function AgentComment({ text }: { text: string }) {
   return (
-    <div className="agent-comment">
-      <div className="agent-comment-inner">{text}</div>
+    <div className="twv-agent-comment">
+      <div className="twv-agent-comment__inner">{text}</div>
     </div>
   )
 }

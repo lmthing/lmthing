@@ -41,8 +41,8 @@ function ComputerShell() {
   const routerState = useRouterState()
   const currentPath = routerState.location.pathname
 
-  // IDE route gets full-screen layout (no sidebar)
-  if (currentPath === '/') {
+  // IDE and chat routes get full-screen layout (no sidebar)
+  if (currentPath === '/' || currentPath === '/chat') {
     return <Outlet />
   }
 

@@ -1,15 +1,5 @@
 import { createElement, useState } from 'react'
-import type { SerializedJSX } from '@lmthing/repl'
-
-/**
- * Renders a SerializedJSX tree from the agent sandbox into React elements.
- *
- * SerializedJSX has the shape:
- * { component: string, props: Record<string, unknown>, children?: SerializedJSX[] }
- *
- * Safe HTML elements render directly. Known built-in components (form inputs)
- * are rendered via a component registry. Unknown components render as divs.
- */
+import type { SerializedJSX } from './types'
 
 const SAFE_ELEMENTS = new Set([
   'div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
@@ -26,14 +16,12 @@ const BLOCKED_PROPS = new Set([
 ])
 
 // ── Built-in component registry ──
-// These mirror the built-in form components from src/components/form/
-// but are self-contained here to avoid import issues with the web bundle.
 
 function BuiltinTextInput({ name, label, placeholder, defaultValue = '' }: Record<string, unknown>) {
   const [value, setValue] = useState(String(defaultValue))
   return createElement('div', { style: { marginBottom: 8 } },
     createElement('label', { style: { display: 'block', marginBottom: 4, fontSize: 13 } }, String(label)),
-    createElement('input', { name: String(name), type: 'text', placeholder: String(placeholder ?? ''), value, onChange: (e: any) => setValue(e.target.value), style: { padding: 8, borderRadius: 4, border: '1px solid var(--border-form, #ccc)', width: '100%', boxSizing: 'border-box' } }),
+    createElement('input', { name: String(name), type: 'text', placeholder: String(placeholder ?? ''), value, onChange: (e: any) => setValue(e.target.value), style: { padding: 8, borderRadius: 4, border: '1px solid var(--twv-border-form, #ccc)', width: '100%', boxSizing: 'border-box' } }),
   )
 }
 
@@ -41,7 +29,7 @@ function BuiltinTextArea({ name, label, placeholder, rows = 4 }: Record<string, 
   const [value, setValue] = useState('')
   return createElement('div', { style: { marginBottom: 8 } },
     createElement('label', { style: { display: 'block', marginBottom: 4, fontSize: 13 } }, String(label)),
-    createElement('textarea', { name: String(name), placeholder: String(placeholder ?? ''), rows: Number(rows), value, onChange: (e: any) => setValue(e.target.value), style: { padding: 8, borderRadius: 4, border: '1px solid var(--border-form, #ccc)', width: '100%', boxSizing: 'border-box', resize: 'vertical' } }),
+    createElement('textarea', { name: String(name), placeholder: String(placeholder ?? ''), rows: Number(rows), value, onChange: (e: any) => setValue(e.target.value), style: { padding: 8, borderRadius: 4, border: '1px solid var(--twv-border-form, #ccc)', width: '100%', boxSizing: 'border-box', resize: 'vertical' } }),
   )
 }
 
@@ -49,7 +37,7 @@ function BuiltinNumberInput({ name, label, min, max, step, defaultValue = 0 }: R
   const [value, setValue] = useState(Number(defaultValue))
   return createElement('div', { style: { marginBottom: 8 } },
     createElement('label', { style: { display: 'block', marginBottom: 4, fontSize: 13 } }, String(label)),
-    createElement('input', { name: String(name), type: 'number', value, min: min != null ? Number(min) : undefined, max: max != null ? Number(max) : undefined, step: step != null ? Number(step) : undefined, onChange: (e: any) => setValue(Number(e.target.value)), style: { padding: 8, borderRadius: 4, border: '1px solid var(--border-form, #ccc)', width: '100%', boxSizing: 'border-box' } }),
+    createElement('input', { name: String(name), type: 'number', value, min: min != null ? Number(min) : undefined, max: max != null ? Number(max) : undefined, step: step != null ? Number(step) : undefined, onChange: (e: any) => setValue(Number(e.target.value)), style: { padding: 8, borderRadius: 4, border: '1px solid var(--twv-border-form, #ccc)', width: '100%', boxSizing: 'border-box' } }),
   )
 }
 
@@ -75,7 +63,7 @@ function BuiltinSelect({ name, label, options, defaultValue = '' }: Record<strin
   const [value, setValue] = useState(String(defaultValue))
   return createElement('div', { style: { marginBottom: 8 } },
     createElement('label', { style: { display: 'block', marginBottom: 4, fontSize: 13 } }, String(label)),
-    createElement('select', { name: String(name), value, onChange: (e: any) => setValue(e.target.value), style: { padding: 8, borderRadius: 4, border: '1px solid var(--border-form, #ccc)', width: '100%', boxSizing: 'border-box' } },
+    createElement('select', { name: String(name), value, onChange: (e: any) => setValue(e.target.value), style: { padding: 8, borderRadius: 4, border: '1px solid var(--twv-border-form, #ccc)', width: '100%', boxSizing: 'border-box' } },
       createElement('option', { value: '' }, '— Select —'),
       ...opts.map(opt => createElement('option', { key: opt, value: opt }, opt)),
     ),
@@ -110,7 +98,7 @@ function BuiltinDatePicker({ name, label, defaultValue = '' }: Record<string, un
   const [value, setValue] = useState(String(defaultValue))
   return createElement('div', { style: { marginBottom: 8 } },
     createElement('label', { style: { display: 'block', marginBottom: 4, fontSize: 13 } }, String(label)),
-    createElement('input', { name: String(name), type: 'date', value, onChange: (e: any) => setValue(e.target.value), style: { padding: 8, borderRadius: 4, border: '1px solid var(--border-form, #ccc)', width: '100%', boxSizing: 'border-box' } }),
+    createElement('input', { name: String(name), type: 'date', value, onChange: (e: any) => setValue(e.target.value), style: { padding: 8, borderRadius: 4, border: '1px solid var(--twv-border-form, #ccc)', width: '100%', boxSizing: 'border-box' } }),
   )
 }
 
@@ -136,7 +124,6 @@ export function JSXRenderer({ jsx }: JSXRendererProps) {
 }
 
 function renderNode(node: SerializedJSX, index: number): React.ReactElement {
-  // Check component registry first (built-in form components etc.)
   const Registered = COMPONENT_REGISTRY[node.component]
   if (Registered) {
     const renderedChildren = node.children?.map((child, i) => {
@@ -148,7 +135,6 @@ function renderNode(node: SerializedJSX, index: number): React.ReactElement {
 
   const tag = SAFE_ELEMENTS.has(node.component) ? node.component : 'div'
 
-  // Filter dangerous props and event handlers (except form-related ones)
   const safeProps: Record<string, unknown> = { key: index }
   for (const [key, value] of Object.entries(node.props ?? {})) {
     if (BLOCKED_PROPS.has(key)) continue

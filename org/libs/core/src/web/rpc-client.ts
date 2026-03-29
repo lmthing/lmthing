@@ -2,134 +2,15 @@ import { useState, useEffect, useCallback, useRef, useReducer } from "react";
 import type {
   SessionEvent,
   SessionSnapshot,
-  SessionStatus,
-  SerializedJSX,
-  ErrorPayload,
-  Tasklist,
   ConversationState,
 } from "@lmthing/repl";
 
-// ── Conversation Summary ──
+// Re-export types and blocksReducer from the shared UI library
+export type { UIBlock, BlockAction, ConversationSummary, AgentAction } from "@lmthing/ui/components/thing/thing-web-view/types";
+export { blocksReducer } from "@lmthing/ui/components/thing/thing-web-view/blocks";
 
-export interface ConversationSummary {
-  id: string;
-  title: string;
-  updatedAt: string;
-  turnCount: number;
-}
-
-// ── UI Block Model ──
-
-export type UIBlock =
-  | { type: "user"; id: string; text: string }
-  | { type: "code"; id: string; code: string; streaming: boolean; lineCount: number }
-  | { type: "read"; id: string; payload: Record<string, unknown> }
-  | { type: "error"; id: string; error: ErrorPayload }
-  | { type: "hook"; id: string; hookId: string; action: string; detail: string }
-  | { type: "display"; id: string; jsx: SerializedJSX }
-  | { type: "form"; id: string; jsx: SerializedJSX; status: "active" | "submitted" | "timeout" }
-  | { type: "tasklist_declared"; id: string; tasklistId: string; plan: Tasklist }
-  | {
-      type: "task_complete";
-      id: string;
-      tasklistId: string;
-      taskId: string;
-      output: Record<string, any>;
-    };
-
-export type BlockAction =
-  | { type: "event"; event: SessionEvent }
-  | { type: "add_user_message"; id: string; text: string }
-  | { type: "reset" };
-
-export function blocksReducer(blocks: UIBlock[], action: BlockAction): UIBlock[] {
-  if (action.type === "reset") return [];
-  if (action.type === "add_user_message") {
-    return [...blocks, { type: "user", id: action.id, text: action.text }];
-  }
-
-  const event = action.event;
-  switch (event.type) {
-    case "code": {
-      const idx = blocks.findIndex((b) => b.id === event.blockId);
-      if (idx >= 0) {
-        const block = blocks[idx] as Extract<UIBlock, { type: "code" }>;
-        const newCode = block.code + event.lines;
-        const newBlocks = [...blocks];
-        newBlocks[idx] = { ...block, code: newCode, lineCount: countLines(newCode) };
-        return newBlocks;
-      }
-      return [
-        ...blocks,
-        {
-          type: "code",
-          id: event.blockId,
-          code: event.lines,
-          streaming: true,
-          lineCount: countLines(event.lines),
-        },
-      ];
-    }
-    case "code_complete": {
-      return blocks.map((b) =>
-        b.id === event.blockId && b.type === "code" ? { ...b, streaming: false } : b,
-      );
-    }
-    case "read":
-      return [...blocks, { type: "read", id: event.blockId, payload: event.payload }];
-    case "error":
-      return [...blocks, { type: "error", id: event.blockId, error: event.error }];
-    case "hook":
-      return [
-        ...blocks,
-        {
-          type: "hook",
-          id: event.blockId,
-          hookId: event.hookId,
-          action: event.action,
-          detail: event.detail,
-        },
-      ];
-    case "display":
-      return [...blocks, { type: "display", id: event.componentId, jsx: event.jsx }];
-    case "ask_start":
-      return [
-        ...blocks,
-        { type: "form", id: event.formId, jsx: event.jsx, status: "active" as const },
-      ];
-    case "ask_end":
-      return blocks.map((b) =>
-        b.type === "form" && b.id === event.formId ? { ...b, status: "submitted" as const } : b,
-      );
-    case "tasklist_declared":
-      return [
-        ...blocks,
-        {
-          type: "tasklist_declared",
-          id: `tl_plan_${event.tasklistId}_${Date.now()}`,
-          tasklistId: event.tasklistId,
-          plan: event.plan,
-        },
-      ];
-    case "task_complete":
-      return [
-        ...blocks,
-        {
-          type: "task_complete",
-          id: `tl_${event.tasklistId}_${event.id}`,
-          tasklistId: event.tasklistId,
-          taskId: event.id,
-          output: event.output,
-        },
-      ];
-    default:
-      return blocks;
-  }
-}
-
-function countLines(code: string): number {
-  return code.split("\n").filter((l) => l.trim().length > 0).length;
-}
+import type { UIBlock, AgentAction, ConversationSummary } from "@lmthing/ui/components/thing/thing-web-view/types";
+import { blocksReducer } from "@lmthing/ui/components/thing/thing-web-view/blocks";
 
 // ── Snapshot State ──
 
@@ -196,48 +77,24 @@ const EMPTY_SNAPSHOT: SessionSnapshot = {
 
 // ── Hook ──
 
-export interface AgentAction {
-  id: string;
-  label: string;
-  description: string;
-}
-
 export interface UseReplSessionResult {
-  /** Current session snapshot (status, scope, async tasks, etc.) */
   snapshot: SessionSnapshot;
-  /** Accumulated UI blocks for rendering */
   blocks: UIBlock[];
-  /** Whether the WebSocket is connected */
   connected: boolean;
-  /** Available slash actions from the agent */
   actions: AgentAction[];
-  /** Full serializable conversation state (null until requested) */
   conversationState: ConversationState | null;
-  /** List of saved conversations */
   conversations: ConversationSummary[];
-  /** Loaded conversation state for history view */
   loadedConversation: { id: string; state: ConversationState } | null;
-  /** Send a user message */
   sendMessage: (text: string) => void;
-  /** Submit a form */
   submitForm: (formId: string, data: Record<string, unknown>) => void;
-  /** Cancel a pending ask */
   cancelAsk: (formId: string) => void;
-  /** Cancel a background task */
   cancelTask: (taskId: string, message?: string) => void;
-  /** Pause the agent */
   pause: () => void;
-  /** Resume the agent */
   resume: () => void;
-  /** User intervention — inject a message while agent is running */
   intervene: (text: string) => void;
-  /** Request the full conversation state */
   getConversationState: () => void;
-  /** Save the current session under a conversation ID */
   saveConversation: (id: string) => void;
-  /** Request the list of saved conversations */
   requestConversations: () => void;
-  /** Load a saved conversation for viewing */
   loadConversation: (id: string) => void;
 }
 
@@ -277,7 +134,6 @@ export function useReplSession(url = "ws://localhost:3010"): UseReplSessionResul
       } else if (data.type === "conversationLoaded") {
         setLoadedConversation({ id: data.id, state: data.data });
       } else if (data.type === "conversationSaved") {
-        // Refresh the list after saving
         ws.send(JSON.stringify({ type: "listConversations" }));
       } else {
         setSnapshot((prev) => applyEvent(prev, data));

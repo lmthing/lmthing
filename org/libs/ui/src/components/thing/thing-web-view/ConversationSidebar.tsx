@@ -1,4 +1,4 @@
-import type { ConversationSummary } from '../rpc-client'
+import type { ConversationSummary } from './types'
 
 interface ConversationSidebarProps {
   conversations: ConversationSummary[]
@@ -30,25 +30,25 @@ export function ConversationSidebar({
   onNew,
 }: ConversationSidebarProps) {
   return (
-    <div className="conv-sidebar">
-      <div className="conv-sidebar__header">
-        <span className="conv-sidebar__title">Conversations</span>
-        <button className="conv-sidebar__new-btn" onClick={onNew}>
+    <div className="twv-conv-sidebar">
+      <div className="twv-conv-sidebar__header">
+        <span className="twv-conv-sidebar__title">Conversations</span>
+        <button className="twv-conv-sidebar__new-btn" onClick={onNew}>
           {activeId !== liveSessionId ? 'Live' : 'New'}
         </button>
       </div>
-      <div className="conv-sidebar__list">
+      <div className="twv-conv-sidebar__list">
         {conversations.length === 0 && (
-          <div className="conv-sidebar__empty">No saved conversations</div>
+          <div className="twv-conv-sidebar__empty">No saved conversations</div>
         )}
         {conversations.map(conv => (
           <button
             key={conv.id}
-            className={`conv-sidebar__item ${conv.id === activeId ? 'conv-sidebar__item--active' : ''}`}
+            className={`twv-conv-sidebar__item ${conv.id === activeId ? 'twv-conv-sidebar__item--active' : ''}`}
             onClick={() => onSelect(conv.id)}
           >
-            <div className="conv-sidebar__item-title">{conv.title}</div>
-            <div className="conv-sidebar__item-meta">
+            <div className="twv-conv-sidebar__item-title">{conv.title}</div>
+            <div className="twv-conv-sidebar__item-meta">
               <span>{formatRelativeDate(conv.updatedAt)}</span>
               <span>{conv.turnCount} turns</span>
             </div>

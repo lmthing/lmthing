@@ -1,5 +1,5 @@
 export { ThingPanel } from './thing-panel'
 export type { ThingPanelProps } from './thing-panel'
 
-export { ThingChat } from './thing-chat'
-export type { ThingChatProps, ReplSession } from './thing-chat'
+export { ThingWebView, blocksReducer } from './thing-web-view'
+export type { ThingWebViewProps, ThingWebViewSession, UIBlock, BlockAction, AgentAction, ConversationSummary } from './thing-web-view'

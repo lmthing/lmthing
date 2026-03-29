@@ -1,5 +1,5 @@
 import { useRef, useCallback } from 'react'
-import type { SerializedJSX } from '@lmthing/repl'
+import type { SerializedJSX } from './types'
 import { JSXRenderer } from './JSXRenderer'
 
 interface FormBlockProps {
@@ -29,7 +29,7 @@ export function FormBlock({ formId, jsx, status, isActive, onSubmit, onCancel }:
   const isTimedOut = status === 'timeout'
 
   return (
-    <div className={`agent-block form-card ${isSubmitted ? 'submitted' : ''}`}>
+    <div className={`twv-agent-block twv-form-card ${isSubmitted ? 'twv-form-card--submitted' : ''}`}>
       <form ref={formRef} onSubmit={handleSubmit}>
         <div style={{ marginBottom: 16 }}>
           <JSXRenderer jsx={jsx} />
@@ -42,9 +42,9 @@ export function FormBlock({ formId, jsx, status, isActive, onSubmit, onCancel }:
               style={{
                 padding: '8px 16px',
                 borderRadius: 6,
-                border: '1px solid var(--border-form)',
+                border: '1px solid var(--twv-border-form)',
                 background: 'transparent',
-                color: 'var(--text-secondary)',
+                color: 'var(--twv-text-secondary)',
                 fontSize: 14,
                 cursor: 'pointer',
               }}
@@ -53,7 +53,7 @@ export function FormBlock({ formId, jsx, status, isActive, onSubmit, onCancel }:
             </button>
             <button
               type="submit"
-              className="btn-send"
+              className="twv-btn-send"
               style={{
                 padding: '8px 20px',
                 borderRadius: 6,
@@ -68,12 +68,12 @@ export function FormBlock({ formId, jsx, status, isActive, onSubmit, onCancel }:
           </div>
         )}
         {isSubmitted && (
-          <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+          <div style={{ fontSize: 12, color: 'var(--twv-text-secondary)', fontStyle: 'italic' }}>
             &#x2713; Submitted
           </div>
         )}
         {isTimedOut && (
-          <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+          <div style={{ fontSize: 12, color: 'var(--twv-text-secondary)', fontStyle: 'italic' }}>
             No response — the agent continued with defaults.
           </div>
         )}

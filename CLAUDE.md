@@ -505,6 +505,10 @@ Port assignments and domain mappings are defined in `services.yaml`.
 
 The script is idempotent — re-running it skips already-configured services. Use `make proxy-clean` to tear everything down.
 
+### Demo Auth
+
+Studio, chat, and computer ship with `.env.development` files that set `VITE_DEMO_USER=true`. This makes `@lmthing/auth`'s `AuthProvider` skip SSO and use a hardcoded demo session, so you can develop without running the cloud gateway or com/.
+
 ### Running Individual Apps
 
 To run a single app without `make up`:

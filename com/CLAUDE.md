@@ -36,6 +36,8 @@ src/routes/
 ├── forgot-password.tsx     # Password reset request
 ├── reset-password.tsx      # Set new password (from email link)
 ├── callback.tsx            # OAuth callback (extracts tokens from Supabase hash redirect)
+├── checkout.tsx            # Stripe Embedded Checkout (uses @stripe/react-stripe-js EmbeddedCheckoutProvider)
+├── onboarding.tsx          # Post-signup onboarding (repo name setup + PIN creation)
 ├── auth/
 │   └── sso.tsx             # Cross-domain SSO handler
 ├── account.tsx             # Profile settings (protected)
@@ -48,7 +50,7 @@ src/routes/
 
 ## Key Modules
 
-- **`src/lib/cloud.ts`** — API client for the cloud gateway. Handles JWT storage, automatic token refresh, and typed wrappers for all API calls (`login`, `register`, `getOAuthUrl`, `provision`, `getMe`, `createSsoCode`, `exchangeSsoCode`, `listApiKeys`, `createApiKey`, `revokeApiKey`, `createCheckout`, `billingPortal`, `getUsage`). Uses `cloudFetch()` (authenticated) and `cloudFetchPublic()` (unauthenticated).
+- **`src/lib/cloud.ts`** — API client for the cloud gateway. Handles JWT storage, automatic token refresh, and typed wrappers for all API calls (`login`, `register`, `getOAuthUrl`, `provision`, `getMe`, `createSsoCode`, `exchangeSsoCode`, `listApiKeys`, `createApiKey`, `revokeApiKey`, `createCheckout`, `getCheckoutStatus`, `billingPortal`, `getUsage`). Uses `cloudFetch()` (authenticated) and `cloudFetchPublic()` (unauthenticated).
 - **`src/lib/auth/AuthProvider.tsx`** — React context with `useAuth()` hook. Exposes `user`, `loading`, `signIn`, `signUp`, `signOut`, `signInWithGitHub`, `signInWithGoogle`, `setSessionFromOAuth`. Uses cloud.ts for all API calls (no direct Supabase client).
 - **`src/config/plans.ts`** — Plan metadata for 5 tiers (Free / Starter / Basic / Pro / Max) with pricing, budget, and rate limit info.
 
@@ -78,7 +80,8 @@ src/routes/
 | `GET /api/auth/me` | `AuthProvider` — Get current user info |
 | `POST /api/auth/sso/create` | `/auth/sso` — Generate SSO code |
 | `POST /api/auth/sso/exchange` | Used by other apps via `@lmthing/auth` |
-| `POST /api/billing/checkout` | `/pricing` — Stripe checkout session |
+| `POST /api/billing/checkout` | `/checkout` — Stripe Embedded Checkout session |
+| `GET /api/billing/checkout/status` | `/checkout` — Poll checkout session status |
 | `POST /api/billing/portal` | `/billing` — Stripe billing portal |
 | `GET /api/billing/usage` | `/billing/usage` — Token budget usage |
 | `GET /api/keys` | `/account/keys` — List API keys |

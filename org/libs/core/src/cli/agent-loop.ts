@@ -231,6 +231,7 @@ export class AgentLoop {
     const scope = this.session.getScopeTable();
     const classBlock = this.buildClassBlock();
     const pinnedBlock = this.buildPinnedBlock();
+    const memoBlock = this.buildMemoBlock();
     const systemPrompt = buildSystemPrompt(
       this.functionSignatures,
       this.formSignatures,
@@ -242,6 +243,7 @@ export class AgentLoop {
       this.agentTree,
       this.knowledgeNamespacePrompt,
       pinnedBlock || undefined,
+      memoBlock || undefined,
     );
 
     // Initialize or update messages
@@ -272,6 +274,7 @@ export class AgentLoop {
       const scope = this.session.getScopeTable();
       const classBlock = this.buildClassBlock();
       const pinnedBlock = this.buildPinnedBlock();
+      const memoBlock = this.buildMemoBlock();
       const systemPrompt = buildSystemPrompt(
         this.functionSignatures,
         this.formSignatures,
@@ -283,6 +286,7 @@ export class AgentLoop {
         this.agentTree,
         this.knowledgeNamespacePrompt,
         pinnedBlock || undefined,
+        memoBlock || undefined,
       );
       this.messages.push({ role: "system", content: systemPrompt });
     }
@@ -940,10 +944,21 @@ export class AgentLoop {
     return lines.join("\n");
   }
 
+  private buildMemoBlock(): string {
+    const memos = this.session.getMemoMemory();
+    if (memos.size === 0) return "";
+    const lines: string[] = [];
+    for (const [key, value] of memos) {
+      lines.push(`[${key}] ${value}`);
+    }
+    return lines.join("\n");
+  }
+
   private refreshSystemPrompt(): void {
     const scope = this.session.getScopeTable();
     const classBlock = this.buildClassBlock();
     const pinnedBlock = this.buildPinnedBlock();
+    const memoBlock = this.buildMemoBlock();
     const systemPrompt = buildSystemPrompt(
       this.functionSignatures,
       this.formSignatures,
@@ -955,6 +970,7 @@ export class AgentLoop {
       this.agentTree,
       this.knowledgeNamespacePrompt,
       pinnedBlock || undefined,
+      memoBlock || undefined,
     );
     this.messages[0] = { role: "system", content: systemPrompt };
     this.logDebug("system_prompt", systemPrompt);

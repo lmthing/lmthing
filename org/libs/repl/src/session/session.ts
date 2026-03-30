@@ -250,6 +250,7 @@ export class Session extends EventEmitter {
     this.sandbox.inject('contextBudget', this.globalsApi.contextBudget)
     this.sandbox.inject('pin', this.globalsApi.pin)
     this.sandbox.inject('unpin', this.globalsApi.unpin)
+    this.sandbox.inject('memo', this.globalsApi.memo)
 
     // Inject agent namespace globals
     if (options.agentNamespaces) {
@@ -645,6 +646,10 @@ export class Session extends EventEmitter {
 
   getPinnedMemory(): Map<string, { value: unknown; display: string; turn: number }> {
     return this.globalsApi.getPinnedMemory()
+  }
+
+  getMemoMemory(): Map<string, string> {
+    return this.globalsApi.getMemoMemory()
   }
 
   private setStatus(status: SessionStatus): void {

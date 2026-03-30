@@ -80,6 +80,8 @@ export function createGlobals(config: GlobalsConfig) {
 
   // ── Pinned memory ──
   const pinnedMemory = new Map<string, { value: unknown; display: string; turn: number }>()
+  // ── Memo memory (agent-authored compressed notes) ──
+  const memoMemory = new Map<string, string>()
   let pinTurnCounter = 0
 
   let currentSource = ''
@@ -764,6 +766,38 @@ export function createGlobals(config: GlobalsConfig) {
   }
 
   /**
+   * memo(key) — Read a memo. memo(key, text) — Write a memo. memo(key, null) — Delete.
+   * Memos are agent-authored compressed notes (max 500 chars each, max 20 memos).
+   * They appear in a {{MEMO}} block in the system prompt.
+   */
+  function memoFn(key: string, value?: string | null): string | undefined {
+    if (typeof key !== 'string' || !key) {
+      throw new Error('memo() requires a non-empty string key')
+    }
+    // Read mode
+    if (arguments.length === 1) {
+      return memoMemory.get(key)
+    }
+    // Delete mode
+    if (value === null) {
+      memoMemory.delete(key)
+      return undefined
+    }
+    // Write mode
+    if (typeof value !== 'string') {
+      throw new Error('memo() value must be a string or null')
+    }
+    if (value.length > 500) {
+      throw new Error(`memo() value exceeds 500 char limit (got ${value.length}). Compress further.`)
+    }
+    if (memoMemory.size >= 20 && !memoMemory.has(key)) {
+      throw new Error('memo() limit reached (max 20 memos). Delete an existing memo first.')
+    }
+    memoMemory.set(key, value)
+    return value
+  }
+
+  /**
    * contextBudget() — Returns a snapshot of the agent's context window budget.
    * Lets the agent make informed decisions about knowledge loading, memo usage, etc.
    */
@@ -802,10 +836,12 @@ export function createGlobals(config: GlobalsConfig) {
     contextBudget: contextBudgetFn,
     pin: pinFn,
     unpin: unpinFn,
+    memo: memoFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,
     getPinnedMemory: () => pinnedMemory,
+    getMemoMemory: () => memoMemory,
     setPinTurn: (turn: number) => { pinTurnCounter = turn },
   }
 }

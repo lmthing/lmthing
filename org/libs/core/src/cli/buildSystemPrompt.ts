@@ -10,6 +10,7 @@ export function buildSystemPrompt(
   agentTree?: string,
   knowledgeNamespacePrompt?: string,
   pinnedBlock?: string,
+  memoBlock?: string,
 ): string {
   let prompt = `
 <role>
@@ -173,6 +174,15 @@ Frees a pin slot when the value is no longer needed.
 Example:
 unpin("userSchema")
 
+### memo(key, value?) — Compressed semantic memory
+Write a compressed note (max 500 chars) that persists in the {{MEMO}} block across all turns. Unlike pin() which stores raw values, memo() stores your own distilled summaries. Use it to remember decisions, patterns discovered, or strategy.
+
+Write: memo("data-shape", "Users table: 12 cols. Key: id (uuid), email (unique). FK: org_id → orgs.")
+Read:  var note = memo("data-shape") → returns the string or undefined
+Delete: memo("data-shape", null)
+
+Max 20 memos. Memos never decay — delete them when no longer needed.
+
 ### contextBudget() — Check context window usage
 Returns a snapshot of your current context budget: total/used/remaining tokens, per-category breakdown (system prompt, message history), current decay levels, turn number, and a recommendation ('nominal', 'conserve', 'critical'). Use this before loading large knowledge or spawning agents to make informed decisions about context usage.
 
@@ -209,7 +219,7 @@ Rules:
 
 Workspace — Current Scope
 ${scope || "(no variables declared)"}
-${pinnedBlock ? `\nPinned Memory (survives decay — use unpin() to free)\n${pinnedBlock}` : ""}
+${pinnedBlock ? `\nPinned Memory (survives decay — use unpin() to free)\n${pinnedBlock}` : ""}${memoBlock ? `\nAgent Memos (your compressed notes — use memo(key, null) to delete)\n${memoBlock}` : ""}
 Form Components — use ONLY inside ask()
 Render these inside \`var data = await ask(<Component />)\`. Always follow with \`await stop(data)\` to read the values.
 Each input must have a \`name\` attribute — the returned object maps name → submitted value.

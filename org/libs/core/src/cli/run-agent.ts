@@ -360,6 +360,7 @@ export async function runAgent(
     agentNamespaces: Object.keys(agentNamespaces).length > 0 ? agentNamespaces : undefined,
     knowledgeNamespace,
     onContextBudget: () => agentLoopRef!.getContextBudget(),
+    onReflect: (request) => agentLoopRef!.handleReflect(request),
   })
   runAgentSessionRef = session
 

@@ -26,6 +26,8 @@ import type {
   StopPayload,
   ErrorPayload,
   ContextBudgetSnapshot,
+  ReflectRequest,
+  ReflectResult,
 } from "@lmthing/repl";
 import type { ClassifiedExport } from "./loader";
 import { formatCollapsedClass, formatExpandedClass } from "./loader";
@@ -1047,6 +1049,72 @@ export class AgentLoop {
       decayLevel: { stops: stopDecay, knowledge: knowledgeDecay },
       recommendation,
     };
+  }
+
+  /**
+   * Handle a reflect() call — makes a separate LLM call for self-evaluation.
+   */
+  async handleReflect(request: ReflectRequest): Promise<ReflectResult> {
+    const criteria = request.criteria ?? ["correctness", "efficiency", "completeness"];
+    const contextStr = request.context
+      ? Object.entries(request.context)
+          .map(([k, v]) => `${k}: ${JSON.stringify(v, null, 2).slice(0, 500)}`)
+          .join("\n")
+      : "(no context provided)";
+
+    const reflectionPrompt = `You are a code review assistant. Evaluate the following question about an agent's approach.
+
+Question: ${request.question}
+
+Context:
+${contextStr}
+
+Current SCOPE:
+${this.session.getScopeTable()}
+
+Evaluate on these criteria: ${criteria.join(", ")}
+
+Respond with ONLY valid JSON (no markdown, no prose):
+{
+  "assessment": "brief assessment string",
+  "scores": { ${criteria.map((c) => `"${c}": 0.0`).join(", ")} },
+  "suggestions": ["suggestion1", "suggestion2"],
+  "shouldPivot": false
+}`;
+
+    try {
+      const result = streamText({
+        model: this.model,
+        messages: [
+          { role: "system", content: "You are a concise code review assistant. Respond only with valid JSON." },
+          { role: "user", content: reflectionPrompt },
+        ],
+        temperature: 0.1,
+        maxOutputTokens: 1024,
+      });
+
+      let text = "";
+      for await (const chunk of result.textStream) {
+        text += chunk;
+      }
+
+      // Parse JSON from response (strip markdown fences if present)
+      const jsonStr = text.replace(/```json?\s*/g, "").replace(/```\s*/g, "").trim();
+      const parsed = JSON.parse(jsonStr);
+      return {
+        assessment: parsed.assessment ?? "No assessment",
+        scores: parsed.scores ?? {},
+        suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [],
+        shouldPivot: !!parsed.shouldPivot,
+      };
+    } catch (err: any) {
+      return {
+        assessment: `Reflection failed: ${err.message}`,
+        scores: {},
+        suggestions: [],
+        shouldPivot: false,
+      };
+    }
   }
 
   private writeDebugLog(): void {

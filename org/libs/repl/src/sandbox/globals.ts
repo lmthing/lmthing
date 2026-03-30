@@ -48,6 +48,21 @@ export interface GlobalsConfig {
   onRespond?: (promise: unknown, data: Record<string, unknown>) => void
   /** Return a context budget snapshot for the agent. */
   onContextBudget?: () => ContextBudgetSnapshot
+  /** Execute a reflection LLM call and return the assessment. */
+  onReflect?: (request: ReflectRequest) => Promise<ReflectResult>
+}
+
+export interface ReflectRequest {
+  question: string
+  context?: Record<string, unknown>
+  criteria?: string[]
+}
+
+export interface ReflectResult {
+  assessment: string
+  scores: Record<string, number>
+  suggestions: string[]
+  shouldPivot: boolean
 }
 
 export interface ContextBudgetSnapshot {
@@ -735,6 +750,20 @@ export function createGlobals(config: GlobalsConfig) {
   }
 
   /**
+   * reflect(request) — Trigger a separate LLM call for self-evaluation.
+   * Returns an assessment, scores per criterion, suggestions, and a shouldPivot flag.
+   */
+  async function reflectFn(request: ReflectRequest): Promise<ReflectResult> {
+    if (!request || typeof request !== 'object' || !request.question) {
+      throw new Error('reflect() requires { question: string, context?: object, criteria?: string[] }')
+    }
+    if (!config.onReflect) {
+      throw new Error('reflect() is not available — no reflection model configured')
+    }
+    return config.onReflect(request)
+  }
+
+  /**
    * pin(key, value) — Pin a value to persistent memory that survives decay.
    * Pinned values appear in a {{PINNED}} block in the system prompt.
    * Max 10 pins, total budget ~2000 tokens.
@@ -837,6 +866,7 @@ export function createGlobals(config: GlobalsConfig) {
     pin: pinFn,
     unpin: unpinFn,
     memo: memoFn,
+    reflect: reflectFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,

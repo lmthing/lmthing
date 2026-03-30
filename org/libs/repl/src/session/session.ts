@@ -58,6 +58,8 @@ export interface SessionOptions {
   fileWorkingDir?: string
   /** Callback to get context budget snapshot for the agent. */
   onContextBudget?: () => import('../sandbox/globals').ContextBudgetSnapshot
+  /** Callback to execute a reflection LLM call. */
+  onReflect?: (request: import('../sandbox/globals').ReflectRequest) => Promise<import('../sandbox/globals').ReflectResult>
 }
 
 export class Session extends EventEmitter {
@@ -224,6 +226,7 @@ export class Session extends EventEmitter {
       onAskParent: options.onAskParent,
       isFireAndForget: options.isFireAndForget,
       onContextBudget: options.onContextBudget,
+      onReflect: options.onReflect,
       onRespond: (promise, data) => {
         const entry = this.agentRegistry.findByPromise(promise)
         if (!entry) throw new Error('respond: unknown agent — pass the agent variable as the first argument')
@@ -251,6 +254,7 @@ export class Session extends EventEmitter {
     this.sandbox.inject('pin', this.globalsApi.pin)
     this.sandbox.inject('unpin', this.globalsApi.unpin)
     this.sandbox.inject('memo', this.globalsApi.memo)
+    this.sandbox.inject('reflect', this.globalsApi.reflect)
 
     // Inject agent namespace globals
     if (options.agentNamespaces) {

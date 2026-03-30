@@ -183,6 +183,18 @@ Delete: memo("data-shape", null)
 
 Max 20 memos. Memos never decay — delete them when no longer needed.
 
+### await reflect({ question, context?, criteria? }) — Self-evaluation
+Triggers a separate LLM call to evaluate your current approach. Returns { assessment, scores, suggestions, shouldPivot }. Use when uncertain about correctness, efficiency, or when stuck. The reflection uses a separate context — only the compressed result enters your context.
+
+Example:
+var review = await reflect({
+  question: "Is my CSV parsing approach handling edge cases correctly?",
+  context: { approach: "regex split on commas" },
+  criteria: ["correctness", "edge-cases", "efficiency"]
+})
+await stop(review)
+// ← stop { review: { assessment: "Regex will fail on quoted commas...", scores: { correctness: 0.4, ... }, shouldPivot: true } }
+
 ### contextBudget() — Check context window usage
 Returns a snapshot of your current context budget: total/used/remaining tokens, per-category breakdown (system prompt, message history), current decay levels, turn number, and a recommendation ('nominal', 'conserve', 'critical'). Use this before loading large knowledge or spawning agents to make informed decisions about context usage.
 

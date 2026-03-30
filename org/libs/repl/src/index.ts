@@ -56,7 +56,7 @@ export { transpile } from './sandbox/transpiler'
 export { executeLine } from './sandbox/executor'
 export { AsyncManager } from './sandbox/async-manager'
 export { createGlobals } from './sandbox/globals'
-export type { GlobalsConfig, ContextBudgetSnapshot, ReflectRequest, ReflectResult, SpeculateBranch, SpeculateBranchResult, SpeculateResult, CompressOptions } from './sandbox/globals'
+export type { GlobalsConfig, ContextBudgetSnapshot, ReflectRequest, ReflectResult, SpeculateBranch, SpeculateBranchResult, SpeculateResult, CompressOptions, ForkRequest, ForkResult } from './sandbox/globals'
 export { AgentRegistry } from './sandbox/agent-registry'
 export type { AgentRegistryConfig } from './sandbox/agent-registry'
 

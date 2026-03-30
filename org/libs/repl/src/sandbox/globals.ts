@@ -54,6 +54,22 @@ export interface GlobalsConfig {
   onSpeculate?: (branches: SpeculateBranch[], timeout: number) => Promise<SpeculateResult>
   /** Compress data via an LLM call. */
   onCompress?: (data: string, options: CompressOptions) => Promise<string>
+  /** Fork a lightweight child agent for sub-reasoning. */
+  onFork?: (request: ForkRequest) => Promise<ForkResult>
+}
+
+export interface ForkRequest {
+  task: string
+  context?: Record<string, unknown>
+  outputSchema?: Record<string, { type: string }>
+  maxTurns?: number
+}
+
+export interface ForkResult {
+  output: Record<string, unknown>
+  turns: number
+  success: boolean
+  error?: string
 }
 
 export interface CompressOptions {
@@ -777,6 +793,21 @@ export function createGlobals(config: GlobalsConfig) {
   }
 
   /**
+   * fork({ task, context?, outputSchema?, maxTurns? }) — Lightweight sub-agent.
+   * Runs a focused sub-reasoning task in an isolated context. Only the final
+   * output enters your context — the child's full reasoning stays separate.
+   */
+  async function forkFn(request: ForkRequest): Promise<ForkResult> {
+    if (!request || typeof request !== 'object' || !request.task) {
+      throw new Error('fork() requires { task: string, context?: object, outputSchema?: object, maxTurns?: number }')
+    }
+    if (!config.onFork) {
+      throw new Error('fork() is not available — no fork handler configured')
+    }
+    return config.onFork(request)
+  }
+
+  /**
    * compress(data, options?) — Compress large data via an LLM call.
    * Returns a token-efficient summary preserving specified keys.
    */
@@ -972,6 +1003,7 @@ export function createGlobals(config: GlobalsConfig) {
     reflect: reflectFn,
     speculate: speculateFn,
     compress: compressFn,
+    fork: forkFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,

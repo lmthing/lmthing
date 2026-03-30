@@ -29,6 +29,8 @@ import type {
   ReflectRequest,
   ReflectResult,
   CompressOptions,
+  ForkRequest,
+  ForkResult,
 } from "@lmthing/repl";
 import type { ClassifiedExport } from "./loader";
 import { formatCollapsedClass, formatExpandedClass } from "./loader";
@@ -1180,6 +1182,78 @@ Respond with ONLY the compressed summary, no explanation.`;
       if (data.length <= maxLen) return data;
       return data.slice(0, maxLen) + "\n...(compression failed, truncated)";
     }
+  }
+
+  /**
+   * Handle a fork() call — runs a lightweight child LLM conversation.
+   */
+  async handleFork(request: ForkRequest): Promise<ForkResult> {
+    const maxTurns = request.maxTurns ?? 3;
+    const contextStr = request.context
+      ? Object.entries(request.context)
+          .map(([k, v]) => `${k}: ${JSON.stringify(v, null, 2).slice(0, 1000)}`)
+          .join("\n")
+      : "";
+    const schemaStr = request.outputSchema
+      ? `\nRespond with JSON matching: ${JSON.stringify(request.outputSchema)}`
+      : "\nRespond with a JSON object containing your findings.";
+
+    const systemPrompt =
+      "You are a focused sub-agent. Analyze the task and respond with ONLY valid JSON (no markdown, no prose)." +
+      schemaStr;
+
+    const userMsg = `Task: ${request.task}${contextStr ? `\n\nContext:\n${contextStr}` : ""}`;
+
+    const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMsg },
+    ];
+
+    let turns = 0;
+    try {
+      for (let t = 0; t < maxTurns; t++) {
+        turns++;
+        const result = streamText({
+          model: this.model,
+          messages,
+          temperature: 0.1,
+          maxOutputTokens: 2048,
+        });
+
+        let text = "";
+        for await (const chunk of result.textStream) {
+          text += chunk;
+        }
+
+        // Try to parse JSON
+        const jsonStr = text.replace(/```json?\s*/g, "").replace(/```\s*/g, "").trim();
+        try {
+          const output = JSON.parse(jsonStr);
+          return { output, turns, success: true };
+        } catch {
+          // If parsing failed and we have more turns, ask for correction
+          if (t < maxTurns - 1) {
+            messages.push({ role: "assistant", content: text });
+            messages.push({ role: "user", content: "That was not valid JSON. Please respond with ONLY valid JSON." });
+          } else {
+            return {
+              output: { raw: text.slice(0, 500) },
+              turns,
+              success: false,
+              error: "Failed to produce valid JSON after " + maxTurns + " attempts",
+            };
+          }
+        }
+      }
+    } catch (err: any) {
+      return {
+        output: {},
+        turns,
+        success: false,
+        error: err.message,
+      };
+    }
+    return { output: {}, turns, success: false, error: "Exhausted turns" };
   }
 
   private writeDebugLog(): void {

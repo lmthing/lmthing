@@ -187,6 +187,19 @@ Delete: memo("data-shape", null)
 
 Max 20 memos. Memos never decay — delete them when no longer needed.
 
+### await fork({ task, context?, outputSchema?, maxTurns? }) — Lightweight sub-agent
+Runs a focused sub-reasoning task in an isolated context. The child's full reasoning stays separate — only the final JSON output enters your context. Use for complex analysis that would pollute your main conversation. Default 3 turns.
+
+Example:
+var analysis = await fork({
+  task: "Analyze this error trace and identify the root cause",
+  context: { errorTrace: traceStr, codeSnippet: snippet },
+  outputSchema: { rootCause: { type: "string" }, fix: { type: "string" }, confidence: { type: "number" } },
+  maxTurns: 2,
+})
+await stop(analysis)
+// ← stop { analysis: { output: { rootCause: "Null pointer...", fix: "Add null check...", confidence: 0.9 }, success: true } }
+
 ### await compress(data, options?) — LLM-powered data compression
 Compresses large data into a token-efficient summary before it enters your context. Use proactively on large API responses or file contents. Options: preserveKeys (keep exact), maxTokens (target ~200), format ("structured"|"prose").
 

@@ -60,6 +60,8 @@ export interface SessionOptions {
   onContextBudget?: () => import('../sandbox/globals').ContextBudgetSnapshot
   /** Callback to execute a reflection LLM call. */
   onReflect?: (request: import('../sandbox/globals').ReflectRequest) => Promise<import('../sandbox/globals').ReflectResult>
+  /** Callback to compress data via LLM. */
+  onCompress?: (data: string, options: import('../sandbox/globals').CompressOptions) => Promise<string>
 }
 
 export class Session extends EventEmitter {
@@ -227,6 +229,7 @@ export class Session extends EventEmitter {
       isFireAndForget: options.isFireAndForget,
       onContextBudget: options.onContextBudget,
       onReflect: options.onReflect,
+      onCompress: options.onCompress,
       onRespond: (promise, data) => {
         const entry = this.agentRegistry.findByPromise(promise)
         if (!entry) throw new Error('respond: unknown agent — pass the agent variable as the first argument')
@@ -256,6 +259,7 @@ export class Session extends EventEmitter {
     this.sandbox.inject('memo', this.globalsApi.memo)
     this.sandbox.inject('reflect', this.globalsApi.reflect)
     this.sandbox.inject('speculate', this.globalsApi.speculate)
+    this.sandbox.inject('compress', this.globalsApi.compress)
 
     // Inject agent namespace globals
     if (options.agentNamespaces) {

@@ -52,6 +52,14 @@ export interface GlobalsConfig {
   onReflect?: (request: ReflectRequest) => Promise<ReflectResult>
   /** Execute speculative branches in parallel sandboxes. */
   onSpeculate?: (branches: SpeculateBranch[], timeout: number) => Promise<SpeculateResult>
+  /** Compress data via an LLM call. */
+  onCompress?: (data: string, options: CompressOptions) => Promise<string>
+}
+
+export interface CompressOptions {
+  preserveKeys?: string[]
+  maxTokens?: number
+  format?: 'structured' | 'prose'
 }
 
 export interface SpeculateBranch {
@@ -769,6 +777,29 @@ export function createGlobals(config: GlobalsConfig) {
   }
 
   /**
+   * compress(data, options?) — Compress large data via an LLM call.
+   * Returns a token-efficient summary preserving specified keys.
+   */
+  async function compressFn(
+    data: unknown,
+    options?: CompressOptions,
+  ): Promise<string> {
+    const dataStr = typeof data === 'string'
+      ? data
+      : JSON.stringify(data, null, 2)
+    if (!dataStr || dataStr.length < 100) {
+      return dataStr // Too small to compress
+    }
+    if (!config.onCompress) {
+      // Fallback: simple truncation
+      const maxLen = (options?.maxTokens ?? 200) * 4
+      if (dataStr.length <= maxLen) return dataStr
+      return dataStr.slice(0, maxLen) + '\n...(truncated)'
+    }
+    return config.onCompress(dataStr, options ?? {})
+  }
+
+  /**
    * speculate(branches, options?) — Run multiple approaches in parallel.
    * Each branch runs its function concurrently. Returns all results so
    * the agent can pick the winner. Branches that throw are captured as errors.
@@ -940,6 +971,7 @@ export function createGlobals(config: GlobalsConfig) {
     memo: memoFn,
     reflect: reflectFn,
     speculate: speculateFn,
+    compress: compressFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,

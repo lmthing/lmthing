@@ -187,6 +187,14 @@ Delete: memo("data-shape", null)
 
 Max 20 memos. Memos never decay — delete them when no longer needed.
 
+### await compress(data, options?) — LLM-powered data compression
+Compresses large data into a token-efficient summary before it enters your context. Use proactively on large API responses or file contents. Options: preserveKeys (keep exact), maxTokens (target ~200), format ("structured"|"prose").
+
+Example:
+var summary = await compress(largeApiResponse, { preserveKeys: ["id", "status"], maxTokens: 150 })
+await stop(summary)
+// ← stop { summary: "12 records. IDs: a1..a12. Status: 10 active, 2 pending. Fields: name, email, role, created_at." }
+
 ### await speculate(branches, options?) — Parallel hypothesis testing
 Run multiple approaches concurrently and compare results. Each branch runs its function in parallel. Failed branches are captured, not thrown. Max 5 branches, default 10s timeout.
 

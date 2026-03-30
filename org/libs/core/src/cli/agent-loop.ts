@@ -28,6 +28,7 @@ import type {
   ContextBudgetSnapshot,
   ReflectRequest,
   ReflectResult,
+  CompressOptions,
 } from "@lmthing/repl";
 import type { ClassifiedExport } from "./loader";
 import { formatCollapsedClass, formatExpandedClass } from "./loader";
@@ -1139,6 +1140,45 @@ Respond with ONLY valid JSON (no markdown, no prose):
         suggestions: [],
         shouldPivot: false,
       };
+    }
+  }
+
+  /**
+   * Handle a compress() call — makes a cheap LLM call to summarize data.
+   */
+  async handleCompress(data: string, options: CompressOptions): Promise<string> {
+    const maxTokens = options.maxTokens ?? 200;
+    const format = options.format ?? "structured";
+    const preserveKeys = options.preserveKeys ?? [];
+
+    const compressPrompt = `Compress the following data into a ${format} summary of ~${maxTokens} tokens.${preserveKeys.length > 0 ? ` Preserve these keys exactly: ${preserveKeys.join(", ")}.` : ""} Remove redundancy, keep essential information.
+
+DATA:
+${data.slice(0, 8000)}
+
+Respond with ONLY the compressed summary, no explanation.`;
+
+    try {
+      const result = streamText({
+        model: this.model,
+        messages: [
+          { role: "system", content: "You compress data into token-efficient summaries. Output only the summary." },
+          { role: "user", content: compressPrompt },
+        ],
+        temperature: 0.0,
+        maxOutputTokens: maxTokens * 2,
+      });
+
+      let text = "";
+      for await (const chunk of result.textStream) {
+        text += chunk;
+      }
+      return text.trim();
+    } catch (err: any) {
+      // Fallback to simple truncation
+      const maxLen = maxTokens * 4;
+      if (data.length <= maxLen) return data;
+      return data.slice(0, maxLen) + "\n...(compression failed, truncated)";
     }
   }
 

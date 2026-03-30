@@ -361,6 +361,7 @@ export async function runAgent(
     knowledgeNamespace,
     onContextBudget: () => agentLoopRef!.getContextBudget(),
     onReflect: (request) => agentLoopRef!.handleReflect(request),
+    onCompress: (data, options) => agentLoopRef!.handleCompress(data, options),
   })
   runAgentSessionRef = session
 

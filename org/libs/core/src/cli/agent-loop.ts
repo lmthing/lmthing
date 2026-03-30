@@ -117,6 +117,8 @@ export class AgentLoop {
     knowledgeKeys: Set<string>;
     knowledgeContent: Map<string, KnowledgeContent>;
   }> = [];
+  /** Tracks retention hints per stop message for adaptive decay. */
+  private stopRetentionHints: Map<number, 'high' | 'low'> = new Map();
 
   constructor(options: AgentLoopOptions) {
     this.session = options.session;
@@ -760,6 +762,16 @@ export class AgentLoop {
 
       // Handle stop → inject as user message and loop
       if (state.stop) {
+        // Extract retention hint if present (_retain key)
+        let retainHint: 'high' | 'low' | undefined;
+        if ('_retain' in state.stop) {
+          const retainVal = state.stop._retain?.value;
+          if (retainVal === 'high' || retainVal === 'low') {
+            retainHint = retainVal;
+          }
+          delete state.stop._retain;
+        }
+
         const entries = Object.entries(state.stop)
           .map(([k, v]) => `${k}: ${v.display}`)
           .join(", ");
@@ -789,6 +801,11 @@ export class AgentLoop {
         const codeUpToStop = truncateAtStop(code);
         this.messages.push({ role: "assistant", content: codeUpToStop });
         this.messages.push({ role: "user", content: stopMsg });
+
+        // Track retention hint for adaptive decay
+        if (retainHint) {
+          this.stopRetentionHints.set(this.messages.length - 1, retainHint);
+        }
 
         // Track knowledge-containing stops for progressive decay
         const knowledgeKeys = new Set<string>();
@@ -987,8 +1004,16 @@ export class AgentLoop {
    */
   private decayKnowledgeMessages(): void {
     for (const ks of this.knowledgeStops) {
-      const distance = this.totalTurns - ks.turn;
+      let distance = this.totalTurns - ks.turn;
       if (distance <= 0) continue;
+
+      // Apply adaptive decay multiplier from retention hints
+      const retainHint = this.stopRetentionHints.get(ks.messageIndex);
+      if (retainHint === 'high') {
+        distance = Math.floor(distance / 2); // decay half as fast
+      } else if (retainHint === 'low') {
+        distance = distance * 2; // decay twice as fast
+      }
 
       // Rebuild the stop message with decayed knowledge values
       const entries = Object.entries(ks.payload).map(([k, v]) => {

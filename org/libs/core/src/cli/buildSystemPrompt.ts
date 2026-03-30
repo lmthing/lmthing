@@ -34,6 +34,10 @@ Suspends your execution. The runtime evaluates each argument, serializes the res
 Use stop when you need to inspect a runtime value before deciding what to write next.
 Example: await stop(x, y) → you will see: ← stop { x: <value>, y: <value> }
 
+Retention hints: Include a _retain key to control how fast the stop payload decays.
+await stop(schema, _retain = "high")  // keeps values at full fidelity 2x longer
+await stop(debugLog, _retain = "low") // decays values 2x faster than normal
+
 IMPORTANT: After calling await stop(), STOP writing code. The runtime will pause your stream, read the values, and resume you in a new turn. Do NOT predict or simulate the stop response yourself.
 
 ### display(element) — Show output to user

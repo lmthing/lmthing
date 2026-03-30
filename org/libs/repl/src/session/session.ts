@@ -264,6 +264,7 @@ export class Session extends EventEmitter {
     this.sandbox.inject('speculate', this.globalsApi.speculate)
     this.sandbox.inject('compress', this.globalsApi.compress)
     this.sandbox.inject('fork', this.globalsApi.fork)
+    this.sandbox.inject('focus', this.globalsApi.focus)
 
     // Inject agent namespace globals
     if (options.agentNamespaces) {
@@ -663,6 +664,10 @@ export class Session extends EventEmitter {
 
   getMemoMemory(): Map<string, string> {
     return this.globalsApi.getMemoMemory()
+  }
+
+  getFocusSections(): Set<string> | null {
+    return this.globalsApi.getFocusSections()
   }
 
   private setStatus(status: SessionStatus): void {

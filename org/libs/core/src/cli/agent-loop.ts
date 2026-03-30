@@ -251,6 +251,7 @@ export class AgentLoop {
       this.knowledgeNamespacePrompt,
       pinnedBlock || undefined,
       memoBlock || undefined,
+      this.session.getFocusSections(),
     );
 
     // Initialize or update messages
@@ -294,6 +295,7 @@ export class AgentLoop {
         this.knowledgeNamespacePrompt,
         pinnedBlock || undefined,
         memoBlock || undefined,
+        this.session.getFocusSections(),
       );
       this.messages.push({ role: "system", content: systemPrompt });
     }
@@ -993,6 +995,7 @@ export class AgentLoop {
       this.knowledgeNamespacePrompt,
       pinnedBlock || undefined,
       memoBlock || undefined,
+      this.session.getFocusSections(),
     );
     this.messages[0] = { role: "system", content: systemPrompt };
     this.logDebug("system_prompt", systemPrompt);

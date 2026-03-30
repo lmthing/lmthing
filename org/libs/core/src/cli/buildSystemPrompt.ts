@@ -11,7 +11,15 @@ export function buildSystemPrompt(
   knowledgeNamespacePrompt?: string,
   pinnedBlock?: string,
   memoBlock?: string,
+  focusSections?: Set<string> | null,
 ): string {
+  // Helper: collapse a section if not in focus
+  const isExpanded = (section: string) => !focusSections || focusSections.has(section);
+  const collapseSection = (section: string, content: string, label: string) => {
+    if (isExpanded(section) || !content || content === '(none)') return content;
+    const lineCount = content.split('\n').length;
+    return `(${lineCount} ${label} available — use focus("${section}") to expand)`;
+  };
   let prompt = `
 <role>
   You are a code-execution agent. You respond EXCLUSIVELY with valid TypeScript code. No markdown. No prose. No explanations outside of code comments. Every character you emit is fed line-by-line into a live TypeScript REPL that executes as you stream.
@@ -187,6 +195,15 @@ Delete: memo("data-shape", null)
 
 Max 20 memos. Memos never decay — delete them when no longer needed.
 
+### focus(...sections) — Control prompt section expansion
+Collapses unused system prompt sections to save tokens. Sections: 'functions', 'knowledge', 'components', 'classes', 'agents'. Collapsed sections show a one-line summary. Call focus('all') to restore full expansion.
+
+Example:
+focus("functions", "knowledge")  // expand only these, collapse others
+// ... later, when done with knowledge:
+focus("functions")               // collapse knowledge too
+focus("all")                     // restore everything
+
 ### await fork({ task, context?, outputSchema?, maxTurns? }) — Lightweight sub-agent
 Runs a focused sub-reasoning task in an isolated context. The child's full reasoning stays separate — only the final JSON output enters your context. Use for complex analysis that would pollute your main conversation. Default 3 turns.
 
@@ -274,18 +291,18 @@ Render these inside \`var data = await ask(<Component />)\`. Always follow with 
 Each input must have a \`name\` attribute — the returned object maps name → submitted value.
 Prefer to use MultiSelect, Select for better user experience.
 Do NOT add a \`<form>\` tag — the host wraps automatically with Submit/Cancel buttons.
-${formSigs || "(none)"}
+${collapseSection('components', formSigs, 'form components') || "(none)"}
 
 Display Components — use with display()
 These components show output to the user. Use them with \`display(<Component ... />)\`. Non-blocking.
-${viewSigs || "(none)"}
+${collapseSection('components', viewSigs, 'display components') || "(none)"}
 </system>
 
 <functions>
-${fnSigs || "(none)"}
+${collapseSection('functions', fnSigs, 'functions') || "(none)"}
 
 Available Classes
-${classSigs || "(none)"}
+${collapseSection('classes', classSigs, 'classes') || "(none)"}
 </functions>`;
 
   if (agentTree || knowledgeNamespacePrompt) {
@@ -336,7 +353,7 @@ await stop(mem)
 \`\`\`
 
 \`\`\`
-${[knowledgeNamespacePrompt, agentTree].filter(Boolean).join("\n")}
+${isExpanded('agents') ? [knowledgeNamespacePrompt, agentTree].filter(Boolean).join("\n") : `(agent tree collapsed — use focus("agents") to expand)`}
 \`\`\`
 </agents>`;
   }
@@ -378,7 +395,12 @@ completeTask("main", "present", { done: true })
 </documentation>`;
 
   if (knowledgeTree) {
-    prompt += `\n\n<available_knowledge>\n${knowledgeTree}\n</available_knowledge>`;
+    if (isExpanded('knowledge')) {
+      prompt += `\n\n<available_knowledge>\n${knowledgeTree}\n</available_knowledge>`;
+    } else {
+      const domainCount = (knowledgeTree.match(/^  /gm) ?? []).length;
+      prompt += `\n\n<available_knowledge>\n(${domainCount} knowledge domains available — use focus("knowledge") to expand)\n</available_knowledge>`;
+    }
   }
 
   prompt += `

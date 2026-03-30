@@ -136,6 +136,9 @@ export function createGlobals(config: GlobalsConfig) {
     tasklists: new Map(),
   }
 
+  // ── Focus state (dynamic prompt sectioning) ──
+  let focusSections: Set<string> | null = null // null = all expanded
+
   // ── Pinned memory ──
   const pinnedMemory = new Map<string, { value: unknown; display: string; turn: number }>()
   // ── Memo memory (agent-authored compressed notes) ──
@@ -793,6 +796,26 @@ export function createGlobals(config: GlobalsConfig) {
   }
 
   /**
+   * focus(...sections) — Control which system prompt sections are expanded.
+   * Sections: 'functions', 'knowledge', 'components', 'classes', 'agents'.
+   * Call focus('all') to reset to full expansion.
+   * Collapsed sections show a one-line summary instead of full content.
+   */
+  function focusFn(...sections: string[]): void {
+    if (sections.length === 0 || (sections.length === 1 && sections[0] === 'all')) {
+      focusSections = null
+      return
+    }
+    const valid = new Set(['functions', 'knowledge', 'components', 'classes', 'agents'])
+    for (const s of sections) {
+      if (!valid.has(s)) {
+        throw new Error(`focus() unknown section: "${s}". Valid: ${[...valid].join(', ')}, or 'all'`)
+      }
+    }
+    focusSections = new Set(sections)
+  }
+
+  /**
    * fork({ task, context?, outputSchema?, maxTurns? }) — Lightweight sub-agent.
    * Runs a focused sub-reasoning task in an isolated context. Only the final
    * output enters your context — the child's full reasoning stays separate.
@@ -1004,11 +1027,13 @@ export function createGlobals(config: GlobalsConfig) {
     speculate: speculateFn,
     compress: compressFn,
     fork: forkFn,
+    focus: focusFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,
     getPinnedMemory: () => pinnedMemory,
     getMemoMemory: () => memoMemory,
+    getFocusSections: () => focusSections,
     setPinTurn: (turn: number) => { pinTurnCounter = turn },
   }
 }

@@ -159,6 +159,14 @@ var title = TextUtils.titleCase(parsed.name)
 `
     : ""
 }
+### contextBudget() — Check context window usage
+Returns a snapshot of your current context budget: total/used/remaining tokens, per-category breakdown (system prompt, message history), current decay levels, turn number, and a recommendation ('nominal', 'conserve', 'critical'). Use this before loading large knowledge or spawning agents to make informed decisions about context usage.
+
+Example:
+var budget = contextBudget()
+await stop(budget)
+// ← stop { budget: { totalTokens: 100000, usedTokens: 42000, remainingTokens: 58000, recommendation: "nominal", ... } }
+
 ### File Blocks — Write or patch files
 Write files or apply diff patches using four-backtick blocks. These are NOT function calls — they are special syntax processed directly by the host before the next statement runs.
 

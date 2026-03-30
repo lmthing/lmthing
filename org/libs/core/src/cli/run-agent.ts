@@ -350,6 +350,7 @@ export async function runAgent(
     : undefined
 
   // ── Create session ──
+  let agentLoopRef: AgentLoop | null = null
   const session = new Session({
     config: { sessionTimeout: timeout * 1000 },
     globals: allGlobals,
@@ -358,6 +359,7 @@ export async function runAgent(
     loadClass: loadClassFn,
     agentNamespaces: Object.keys(agentNamespaces).length > 0 ? agentNamespaces : undefined,
     knowledgeNamespace,
+    onContextBudget: () => agentLoopRef!.getContextBudget(),
   })
   runAgentSessionRef = session
 
@@ -398,6 +400,7 @@ export async function runAgent(
     knowledgeNamespacePrompt,
     rebuildKnowledgeTree,
   })
+  agentLoopRef = agentLoop
 
   // ── Run default export setup function ──
   if (setupFn) {

@@ -46,6 +46,19 @@ export interface GlobalsConfig {
   isFireAndForget?: boolean
   /** Deliver structured input to a child agent's pending askParent(). */
   onRespond?: (promise: unknown, data: Record<string, unknown>) => void
+  /** Return a context budget snapshot for the agent. */
+  onContextBudget?: () => ContextBudgetSnapshot
+}
+
+export interface ContextBudgetSnapshot {
+  totalTokens: number
+  usedTokens: number
+  remainingTokens: number
+  systemPromptTokens: number
+  messageHistoryTokens: number
+  turnNumber: number
+  decayLevel: { stops: string; knowledge: string }
+  recommendation: 'nominal' | 'conserve' | 'critical'
 }
 
 /**
@@ -715,6 +728,26 @@ export function createGlobals(config: GlobalsConfig) {
     config.onRespond(promise, data)
   }
 
+  /**
+   * contextBudget() — Returns a snapshot of the agent's context window budget.
+   * Lets the agent make informed decisions about knowledge loading, memo usage, etc.
+   */
+  function contextBudgetFn(): ContextBudgetSnapshot {
+    if (!config.onContextBudget) {
+      return {
+        totalTokens: 100_000,
+        usedTokens: 0,
+        remainingTokens: 100_000,
+        systemPromptTokens: 0,
+        messageHistoryTokens: 0,
+        turnNumber: 0,
+        decayLevel: { stops: 'full', knowledge: 'full' },
+        recommendation: 'nominal',
+      }
+    }
+    return config.onContextBudget()
+  }
+
   return {
     stop: stopFn,
     display: displayFn,
@@ -731,6 +764,7 @@ export function createGlobals(config: GlobalsConfig) {
     loadClass: loadClassFn,
     askParent: askParentFn,
     respond: respondFn,
+    contextBudget: contextBudgetFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,

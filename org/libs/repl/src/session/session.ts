@@ -56,6 +56,8 @@ export interface SessionOptions {
    * Defaults to process.cwd(). Paths are validated to stay within this directory.
    */
   fileWorkingDir?: string
+  /** Callback to get context budget snapshot for the agent. */
+  onContextBudget?: () => import('../sandbox/globals').ContextBudgetSnapshot
 }
 
 export class Session extends EventEmitter {
@@ -221,6 +223,7 @@ export class Session extends EventEmitter {
         : undefined,
       onAskParent: options.onAskParent,
       isFireAndForget: options.isFireAndForget,
+      onContextBudget: options.onContextBudget,
       onRespond: (promise, data) => {
         const entry = this.agentRegistry.findByPromise(promise)
         if (!entry) throw new Error('respond: unknown agent — pass the agent variable as the first argument')
@@ -244,6 +247,7 @@ export class Session extends EventEmitter {
     this.sandbox.inject('loadClass', this.globalsApi.loadClass)
     this.sandbox.inject('askParent', this.globalsApi.askParent)
     this.sandbox.inject('respond', this.globalsApi.respond)
+    this.sandbox.inject('contextBudget', this.globalsApi.contextBudget)
 
     // Inject agent namespace globals
     if (options.agentNamespaces) {

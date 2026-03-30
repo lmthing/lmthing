@@ -25,6 +25,7 @@ import type {
   SessionEvent,
   StopPayload,
   ErrorPayload,
+  ContextBudgetSnapshot,
 } from "@lmthing/repl";
 import type { ClassifiedExport } from "./loader";
 import { formatCollapsedClass, formatExpandedClass } from "./loader";
@@ -969,6 +970,51 @@ export class AgentLoop {
         content: `← stop { ${entries.join(", ")} }`,
       };
     }
+  }
+
+  /**
+   * Compute a context budget snapshot for the agent's contextBudget() global.
+   */
+  getContextBudget(): ContextBudgetSnapshot {
+    // Rough token estimate: ~4 chars per token
+    const estimateTokens = (s: string) => Math.ceil(s.length / 4);
+    const maxTokens = 100_000; // default context window
+
+    const systemPromptTokens = this.messages.length > 0
+      ? estimateTokens(this.messages[0].content)
+      : 0;
+    let messageHistoryTokens = 0;
+    for (let i = 1; i < this.messages.length; i++) {
+      messageHistoryTokens += estimateTokens(this.messages[i].content);
+    }
+    const usedTokens = systemPromptTokens + messageHistoryTokens;
+    const remainingTokens = Math.max(0, maxTokens - usedTokens);
+
+    // Determine current decay levels based on turn count
+    let stopDecay: string = 'full';
+    if (this.totalTurns > 10) stopDecay = 'removed';
+    else if (this.totalTurns > 5) stopDecay = 'count';
+    else if (this.totalTurns > 2) stopDecay = 'keys';
+
+    let knowledgeDecay: string = 'full';
+    if (this.totalTurns > 4) knowledgeDecay = 'names';
+    else if (this.totalTurns > 2) knowledgeDecay = 'headers';
+    else if (this.totalTurns > 0) knowledgeDecay = 'truncated';
+
+    const ratio = usedTokens / maxTokens;
+    const recommendation: 'nominal' | 'conserve' | 'critical' =
+      ratio > 0.85 ? 'critical' : ratio > 0.6 ? 'conserve' : 'nominal';
+
+    return {
+      totalTokens: maxTokens,
+      usedTokens,
+      remainingTokens,
+      systemPromptTokens,
+      messageHistoryTokens,
+      turnNumber: this.totalTurns,
+      decayLevel: { stops: stopDecay, knowledge: knowledgeDecay },
+      recommendation,
+    };
   }
 
   private writeDebugLog(): void {

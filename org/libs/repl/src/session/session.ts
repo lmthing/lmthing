@@ -248,6 +248,8 @@ export class Session extends EventEmitter {
     this.sandbox.inject('askParent', this.globalsApi.askParent)
     this.sandbox.inject('respond', this.globalsApi.respond)
     this.sandbox.inject('contextBudget', this.globalsApi.contextBudget)
+    this.sandbox.inject('pin', this.globalsApi.pin)
+    this.sandbox.inject('unpin', this.globalsApi.unpin)
 
     // Inject agent namespace globals
     if (options.agentNamespaces) {
@@ -639,6 +641,10 @@ export class Session extends EventEmitter {
       maxVariables: this.config.workspace.maxScopeVariables,
       maxValueWidth: this.config.workspace.maxScopeValueWidth,
     })
+  }
+
+  getPinnedMemory(): Map<string, { value: unknown; display: string; turn: number }> {
+    return this.globalsApi.getPinnedMemory()
   }
 
   private setStatus(status: SessionStatus): void {

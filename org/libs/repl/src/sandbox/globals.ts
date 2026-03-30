@@ -78,6 +78,10 @@ export function createGlobals(config: GlobalsConfig) {
     tasklists: new Map(),
   }
 
+  // ── Pinned memory ──
+  const pinnedMemory = new Map<string, { value: unknown; display: string; turn: number }>()
+  let pinTurnCounter = 0
+
   let currentSource = ''
 
   /**
@@ -729,6 +733,37 @@ export function createGlobals(config: GlobalsConfig) {
   }
 
   /**
+   * pin(key, value) — Pin a value to persistent memory that survives decay.
+   * Pinned values appear in a {{PINNED}} block in the system prompt.
+   * Max 10 pins, total budget ~2000 tokens.
+   */
+  function pinFn(key: string, value: unknown): void {
+    if (typeof key !== 'string' || !key) {
+      throw new Error('pin() requires a non-empty string key as first argument')
+    }
+    if (pinnedMemory.size >= 10 && !pinnedMemory.has(key)) {
+      throw new Error('pin() limit reached (max 10 pins). Unpin an existing key first.')
+    }
+    const display = serialize(value, {
+      maxStringLength: 500,
+      maxArrayElements: 20,
+      maxObjectKeys: 10,
+      maxDepth: 3,
+    })
+    pinnedMemory.set(key, { value, display, turn: pinTurnCounter })
+  }
+
+  /**
+   * unpin(key) — Remove a pinned value from persistent memory.
+   */
+  function unpinFn(key: string): void {
+    if (typeof key !== 'string' || !key) {
+      throw new Error('unpin() requires a non-empty string key')
+    }
+    pinnedMemory.delete(key)
+  }
+
+  /**
    * contextBudget() — Returns a snapshot of the agent's context window budget.
    * Lets the agent make informed decisions about knowledge loading, memo usage, etc.
    */
@@ -765,9 +800,13 @@ export function createGlobals(config: GlobalsConfig) {
     askParent: askParentFn,
     respond: respondFn,
     contextBudget: contextBudgetFn,
+    pin: pinFn,
+    unpin: unpinFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,
+    getPinnedMemory: () => pinnedMemory,
+    setPinTurn: (turn: number) => { pinTurnCounter = turn },
   }
 }
 

@@ -9,6 +9,7 @@ export function buildSystemPrompt(
   knowledgeTree?: string,
   agentTree?: string,
   knowledgeNamespacePrompt?: string,
+  pinnedBlock?: string,
 ): string {
   let prompt = `
 <role>
@@ -159,6 +160,19 @@ var title = TextUtils.titleCase(parsed.name)
 `
     : ""
 }
+### pin(key, value) — Pin a value to persistent memory
+Saves a value that survives stop-payload decay indefinitely. Pinned values appear in a {{PINNED}} block in the system prompt, visible every turn. Max 10 pins. Use for critical schema info, API keys, or configuration that must persist.
+
+Example:
+pin("userSchema", { id: "uuid", name: "string", email: "string" })
+// The schema is now visible every turn in {{PINNED}}, even after many turns
+
+### unpin(key) — Remove a pinned value
+Frees a pin slot when the value is no longer needed.
+
+Example:
+unpin("userSchema")
+
 ### contextBudget() — Check context window usage
 Returns a snapshot of your current context budget: total/used/remaining tokens, per-category breakdown (system prompt, message history), current decay levels, turn number, and a recommendation ('nominal', 'conserve', 'critical'). Use this before loading large knowledge or spawning agents to make informed decisions about context usage.
 
@@ -195,7 +209,7 @@ Rules:
 
 Workspace — Current Scope
 ${scope || "(no variables declared)"}
-
+${pinnedBlock ? `\nPinned Memory (survives decay — use unpin() to free)\n${pinnedBlock}` : ""}
 Form Components — use ONLY inside ask()
 Render these inside \`var data = await ask(<Component />)\`. Always follow with \`await stop(data)\` to read the values.
 Each input must have a \`name\` attribute — the returned object maps name → submitted value.

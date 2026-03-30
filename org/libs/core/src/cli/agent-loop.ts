@@ -230,6 +230,7 @@ export class AgentLoop {
     // Build initial system prompt
     const scope = this.session.getScopeTable();
     const classBlock = this.buildClassBlock();
+    const pinnedBlock = this.buildPinnedBlock();
     const systemPrompt = buildSystemPrompt(
       this.functionSignatures,
       this.formSignatures,
@@ -240,6 +241,7 @@ export class AgentLoop {
       this.knowledgeTree,
       this.agentTree,
       this.knowledgeNamespacePrompt,
+      pinnedBlock || undefined,
     );
 
     // Initialize or update messages
@@ -269,6 +271,7 @@ export class AgentLoop {
     if (this.messages.length === 0) {
       const scope = this.session.getScopeTable();
       const classBlock = this.buildClassBlock();
+      const pinnedBlock = this.buildPinnedBlock();
       const systemPrompt = buildSystemPrompt(
         this.functionSignatures,
         this.formSignatures,
@@ -279,6 +282,7 @@ export class AgentLoop {
         this.knowledgeTree,
         this.agentTree,
         this.knowledgeNamespacePrompt,
+        pinnedBlock || undefined,
       );
       this.messages.push({ role: "system", content: systemPrompt });
     }
@@ -926,9 +930,20 @@ export class AgentLoop {
     return blocks.filter(Boolean).join("\n");
   }
 
+  private buildPinnedBlock(): string {
+    const pinned = this.session.getPinnedMemory();
+    if (pinned.size === 0) return "";
+    const lines: string[] = [];
+    for (const [key, entry] of pinned) {
+      lines.push(`${key}: ${entry.display}`);
+    }
+    return lines.join("\n");
+  }
+
   private refreshSystemPrompt(): void {
     const scope = this.session.getScopeTable();
     const classBlock = this.buildClassBlock();
+    const pinnedBlock = this.buildPinnedBlock();
     const systemPrompt = buildSystemPrompt(
       this.functionSignatures,
       this.formSignatures,
@@ -939,6 +954,7 @@ export class AgentLoop {
       this.knowledgeTree,
       this.agentTree,
       this.knowledgeNamespacePrompt,
+      pinnedBlock || undefined,
     );
     this.messages[0] = { role: "system", content: systemPrompt };
     this.logDebug("system_prompt", systemPrompt);

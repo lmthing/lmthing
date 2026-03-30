@@ -187,6 +187,18 @@ Delete: memo("data-shape", null)
 
 Max 20 memos. Memos never decay — delete them when no longer needed.
 
+### await speculate(branches, options?) — Parallel hypothesis testing
+Run multiple approaches concurrently and compare results. Each branch runs its function in parallel. Failed branches are captured, not thrown. Max 5 branches, default 10s timeout.
+
+Example:
+var trial = await speculate([
+  { label: "regex", fn: () => data.match(/pattern/g)?.length ?? 0 },
+  { label: "split", fn: () => data.split("delimiter").length - 1 },
+  { label: "indexOf", fn: () => { var c = 0; var i = -1; while ((i = data.indexOf("x", i+1)) !== -1) c++; return c } },
+])
+await stop(trial)
+// ← stop { trial: { results: [{ label: "regex", ok: true, result: 42, durationMs: 3 }, ...] } }
+
 ### await reflect({ question, context?, criteria? }) — Self-evaluation
 Triggers a separate LLM call to evaluate your current approach. Returns { assessment, scores, suggestions, shouldPivot }. Use when uncertain about correctness, efficiency, or when stuck. The reflection uses a separate context — only the compressed result enters your context.
 

@@ -255,6 +255,7 @@ export class Session extends EventEmitter {
     this.sandbox.inject('unpin', this.globalsApi.unpin)
     this.sandbox.inject('memo', this.globalsApi.memo)
     this.sandbox.inject('reflect', this.globalsApi.reflect)
+    this.sandbox.inject('speculate', this.globalsApi.speculate)
 
     // Inject agent namespace globals
     if (options.agentNamespaces) {

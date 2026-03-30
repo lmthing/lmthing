@@ -50,6 +50,25 @@ export interface GlobalsConfig {
   onContextBudget?: () => ContextBudgetSnapshot
   /** Execute a reflection LLM call and return the assessment. */
   onReflect?: (request: ReflectRequest) => Promise<ReflectResult>
+  /** Execute speculative branches in parallel sandboxes. */
+  onSpeculate?: (branches: SpeculateBranch[], timeout: number) => Promise<SpeculateResult>
+}
+
+export interface SpeculateBranch {
+  label: string
+  fn: () => unknown
+}
+
+export interface SpeculateBranchResult {
+  label: string
+  ok: boolean
+  result?: unknown
+  error?: string
+  durationMs: number
+}
+
+export interface SpeculateResult {
+  results: SpeculateBranchResult[]
 }
 
 export interface ReflectRequest {
@@ -750,6 +769,59 @@ export function createGlobals(config: GlobalsConfig) {
   }
 
   /**
+   * speculate(branches, options?) — Run multiple approaches in parallel.
+   * Each branch runs its function concurrently. Returns all results so
+   * the agent can pick the winner. Branches that throw are captured as errors.
+   */
+  async function speculateFn(
+    branches: Array<{ label: string; fn: () => unknown }>,
+    options?: { timeout?: number },
+  ): Promise<SpeculateResult> {
+    if (!Array.isArray(branches) || branches.length === 0) {
+      throw new Error('speculate() requires a non-empty array of branches')
+    }
+    if (branches.length > 5) {
+      throw new Error('speculate() supports max 5 branches')
+    }
+    const timeout = options?.timeout ?? 10_000
+
+    // If no external handler, run branches in-process concurrently
+    if (config.onSpeculate) {
+      return config.onSpeculate(branches, timeout)
+    }
+
+    // Default: run all branches concurrently with timeout
+    const results: SpeculateBranchResult[] = await Promise.all(
+      branches.map(async (branch) => {
+        const start = Date.now()
+        try {
+          const result = await Promise.race([
+            Promise.resolve().then(() => branch.fn()),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Branch timed out')), timeout)
+            ),
+          ])
+          return {
+            label: branch.label,
+            ok: true,
+            result,
+            durationMs: Date.now() - start,
+          }
+        } catch (err: any) {
+          return {
+            label: branch.label,
+            ok: false,
+            error: err instanceof Error ? err.message : String(err),
+            durationMs: Date.now() - start,
+          }
+        }
+      }),
+    )
+
+    return { results }
+  }
+
+  /**
    * reflect(request) — Trigger a separate LLM call for self-evaluation.
    * Returns an assessment, scores per criterion, suggestions, and a shouldPivot flag.
    */
@@ -867,6 +939,7 @@ export function createGlobals(config: GlobalsConfig) {
     unpin: unpinFn,
     memo: memoFn,
     reflect: reflectFn,
+    speculate: speculateFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,

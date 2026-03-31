@@ -20,6 +20,7 @@ import {
   formatKnowledgeTreeForPrompt,
   // NOTE: ensureMemoryDomain is not yet exported from @lmthing/repl — needs to be added
   ensureMemoryDomain,
+  saveKnowledgeFile,
 } from '@lmthing/repl'
 import type { KnowledgeTree } from '@lmthing/repl'
 import { AgentLoop } from './agent-loop'
@@ -366,6 +367,13 @@ export async function runAgent(
     onTrace: () => agentLoopRef!.getTrace(),
     onPlan: (goal, constraints) => agentLoopRef!.handlePlan(goal, constraints),
     onCritique: (output, criteria, context) => agentLoopRef!.handleCritique(output, criteria, context),
+    onLearn: async (topic, insight, tags) => {
+      const slug = topic.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      const tagLine = tags?.length ? `\ntags: ${tags.join(', ')}` : ''
+      const content = `---\ntitle: ${topic}\ndescription: ${insight.slice(0, 100)}${tagLine}\norder: 0\n---\n\n${insight}`
+      saveKnowledgeFile(knowledgeWriteDir, 'memory', 'learnings', slug, content)
+      runAgentSessionRef?.emit('event', { type: 'knowledge_saved', domain: 'memory', field: 'learnings', option: slug })
+    },
   })
   runAgentSessionRef = session
 

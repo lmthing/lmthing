@@ -256,6 +256,13 @@ var review = await reflect({
 await stop(review)
 // ← stop { review: { assessment: "Regex will fail on quoted commas...", scores: { correctness: 0.4, ... }, shouldPivot: true } }
 
+### await learn(topic, insight, tags?) — Cross-session persistent memory
+Persists a learning to the knowledge base's memory domain so it's available in future sessions. Topic becomes the file name (slugified), insight is the markdown content. Optional tags for categorization. Use to remember user preferences, discovered patterns, or corrected mistakes.
+
+Example:
+await learn("user prefers dark themes", "The user consistently requests dark color schemes. Default to dark backgrounds with light text.", ["preferences", "ui"])
+await learn("API rate limit workaround", "The weather API returns 429 after 60 requests/min. Batch requests and add 1s delay between batches.", ["api", "optimization"])
+
 ### await critique(output, criteria, context?) — Output quality gate
 Evaluates output against criteria via a separate LLM call. Returns { pass, overallScore (0-1), scores (per criterion), issues, suggestions }. Pass threshold is 0.7. Use before delivering final results to ensure quality. The critique uses a separate context.
 

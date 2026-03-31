@@ -62,6 +62,8 @@ export interface GlobalsConfig {
   onPlan?: (goal: string, constraints?: string[]) => Promise<Array<{ id: string; instructions: string; dependsOn?: string[] }>>
   /** Critique output quality via LLM. */
   onCritique?: (output: string, criteria: string[], context?: string) => Promise<CritiqueResult>
+  /** Persist a learning to the knowledge base for cross-session memory. */
+  onLearn?: (topic: string, insight: string, tags?: string[]) => Promise<void>
   /** Snapshot current sandbox scope for checkpoint(). */
   onCheckpoint?: () => { values: Map<string, unknown>; declaredNames: Set<string> }
   /** Restore sandbox scope from a checkpoint. */
@@ -851,6 +853,17 @@ export function createGlobals(config: GlobalsConfig) {
   }
 
   /**
+   * learn(topic, insight, tags?) — Persist a learning for cross-session memory.
+   * Writes to the knowledge base's memory domain so it's available in future sessions.
+   */
+  async function learnFn(topic: string, insight: string, tags?: string[]): Promise<void> {
+    if (!config.onLearn) {
+      throw new Error('learn: knowledge persistence not available')
+    }
+    return config.onLearn(topic, insight, tags)
+  }
+
+  /**
    * critique(output, criteria, context?) — Quality gate via LLM evaluation.
    * Returns pass/fail, scores per criterion, issues, and suggestions.
    */
@@ -1215,6 +1228,7 @@ export function createGlobals(config: GlobalsConfig) {
     parallel: parallelFn,
     plan: planFn,
     critique: critiqueFn,
+    learn: learnFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,

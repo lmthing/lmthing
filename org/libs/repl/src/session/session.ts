@@ -70,6 +70,8 @@ export interface SessionOptions {
   onPlan?: (goal: string, constraints?: string[]) => Promise<Array<{ id: string; instructions: string; dependsOn?: string[] }>>
   /** Callback for LLM-powered output critique. */
   onCritique?: (output: string, criteria: string[], context?: string) => Promise<import('../sandbox/globals').CritiqueResult>
+  /** Callback to persist a learning to cross-session memory. */
+  onLearn?: (topic: string, insight: string, tags?: string[]) => Promise<void>
 }
 
 export class Session extends EventEmitter {
@@ -242,6 +244,7 @@ export class Session extends EventEmitter {
       onTrace: options.onTrace,
       onPlan: options.onPlan,
       onCritique: options.onCritique,
+      onLearn: options.onLearn,
       onCheckpoint: () => this.sandbox.snapshotScope(),
       onRollback: (snapshot) => this.sandbox.restoreScope(snapshot),
       onRespond: (promise, data) => {
@@ -283,6 +286,7 @@ export class Session extends EventEmitter {
     this.sandbox.inject('parallel', this.globalsApi.parallel)
     this.sandbox.inject('plan', this.globalsApi.plan)
     this.sandbox.inject('critique', this.globalsApi.critique)
+    this.sandbox.inject('learn', this.globalsApi.learn)
 
     // Inject agent namespace globals
     if (options.agentNamespaces) {

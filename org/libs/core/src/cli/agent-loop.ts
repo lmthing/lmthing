@@ -32,6 +32,7 @@ import type {
   ForkRequest,
   ForkResult,
   TraceSnapshot,
+  CritiqueResult,
 } from "@lmthing/repl";
 import type { ClassifiedExport } from "./loader";
 import { formatCollapsedClass, formatExpandedClass } from "./loader";
@@ -1170,6 +1171,59 @@ export class AgentLoop {
   /**
    * Handle a reflect() call — makes a separate LLM call for self-evaluation.
    */
+  async handleCritique(
+    output: string,
+    criteria: string[],
+    context?: string,
+  ): Promise<CritiqueResult> {
+    const contextStr = context ? `\n\nContext: ${context}` : '';
+    const criteriaStr = criteria.map(c => `- ${c}`).join('\n');
+
+    const result = streamText({
+      model: this.model,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a quality reviewer. Evaluate the output against the given criteria. ' +
+            'Respond with ONLY valid JSON: { "pass": boolean, "overallScore": 0-1, "scores": { criterion: 0-1 }, "issues": ["..."], "suggestions": ["..."] }. ' +
+            'pass is true if overallScore >= 0.7. No markdown, no prose.',
+        },
+        {
+          role: 'user',
+          content: `Evaluate this output:\n\n${output.slice(0, 3000)}\n\nCriteria:\n${criteriaStr}${contextStr}`,
+        },
+      ],
+      temperature: 0.1,
+      maxOutputTokens: 1024,
+    });
+
+    let text = '';
+    for await (const chunk of result.textStream) {
+      text += chunk;
+    }
+
+    const jsonStr = text.replace(/```json?\s*/g, '').replace(/```\s*/g, '').trim();
+    try {
+      const parsed = JSON.parse(jsonStr);
+      return {
+        pass: !!parsed.pass,
+        overallScore: Number(parsed.overallScore) || 0,
+        scores: parsed.scores ?? {},
+        issues: Array.isArray(parsed.issues) ? parsed.issues.map(String) : [],
+        suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions.map(String) : [],
+      };
+    } catch {
+      return {
+        pass: false,
+        overallScore: 0,
+        scores: {},
+        issues: ['Failed to parse critique response'],
+        suggestions: [],
+      };
+    }
+  }
+
   async handleReflect(request: ReflectRequest): Promise<ReflectResult> {
     const criteria = request.criteria ?? ["correctness", "efficiency", "completeness"];
     const contextStr = request.context

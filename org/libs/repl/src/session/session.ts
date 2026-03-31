@@ -68,6 +68,8 @@ export interface SessionOptions {
   onTrace?: () => import('../sandbox/globals').TraceSnapshot
   /** Callback for LLM-powered task planning. */
   onPlan?: (goal: string, constraints?: string[]) => Promise<Array<{ id: string; instructions: string; dependsOn?: string[] }>>
+  /** Callback for LLM-powered output critique. */
+  onCritique?: (output: string, criteria: string[], context?: string) => Promise<import('../sandbox/globals').CritiqueResult>
 }
 
 export class Session extends EventEmitter {
@@ -239,6 +241,7 @@ export class Session extends EventEmitter {
       onFork: options.onFork,
       onTrace: options.onTrace,
       onPlan: options.onPlan,
+      onCritique: options.onCritique,
       onCheckpoint: () => this.sandbox.snapshotScope(),
       onRollback: (snapshot) => this.sandbox.restoreScope(snapshot),
       onRespond: (promise, data) => {
@@ -279,6 +282,7 @@ export class Session extends EventEmitter {
     this.sandbox.inject('rollback', this.globalsApi.rollback)
     this.sandbox.inject('parallel', this.globalsApi.parallel)
     this.sandbox.inject('plan', this.globalsApi.plan)
+    this.sandbox.inject('critique', this.globalsApi.critique)
 
     // Inject agent namespace globals
     if (options.agentNamespaces) {

@@ -256,6 +256,15 @@ var review = await reflect({
 await stop(review)
 // ← stop { review: { assessment: "Regex will fail on quoted commas...", scores: { correctness: 0.4, ... }, shouldPivot: true } }
 
+### await critique(output, criteria, context?) — Output quality gate
+Evaluates output against criteria via a separate LLM call. Returns { pass, overallScore (0-1), scores (per criterion), issues, suggestions }. Pass threshold is 0.7. Use before delivering final results to ensure quality. The critique uses a separate context.
+
+Example:
+var report = "Q4 sales increased 15%..."
+var review = await critique(report, ["accuracy", "completeness", "clarity"], "This is a quarterly sales report for executives")
+await stop(review)
+// ← stop { review: { pass: true, overallScore: 0.85, scores: { accuracy: 0.9, completeness: 0.8, clarity: 0.85 }, issues: ["Missing regional breakdown"], suggestions: ["Add chart"] } }
+
 ### await plan(goal, constraints?) — LLM-powered task decomposition
 Generates a structured task plan from a natural language goal via a separate LLM call. Returns an array of { id, instructions, dependsOn? }. Use the result to feed into tasklist() for execution. Constraints are optional guardrails.
 

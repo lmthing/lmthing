@@ -60,6 +60,8 @@ export interface GlobalsConfig {
   onTrace?: () => TraceSnapshot
   /** Generate a task plan from a natural language goal via LLM. */
   onPlan?: (goal: string, constraints?: string[]) => Promise<Array<{ id: string; instructions: string; dependsOn?: string[] }>>
+  /** Critique output quality via LLM. */
+  onCritique?: (output: string, criteria: string[], context?: string) => Promise<CritiqueResult>
   /** Snapshot current sandbox scope for checkpoint(). */
   onCheckpoint?: () => { values: Map<string, unknown>; declaredNames: Set<string> }
   /** Restore sandbox scope from a checkpoint. */
@@ -76,6 +78,14 @@ export interface TraceSnapshot {
   pinnedCount: number
   memoCount: number
   sessionDurationMs: number
+}
+
+export interface CritiqueResult {
+  pass: boolean
+  overallScore: number
+  scores: Record<string, number>
+  issues: string[]
+  suggestions: string[]
 }
 
 export interface CheckpointData {
@@ -841,6 +851,21 @@ export function createGlobals(config: GlobalsConfig) {
   }
 
   /**
+   * critique(output, criteria, context?) — Quality gate via LLM evaluation.
+   * Returns pass/fail, scores per criterion, issues, and suggestions.
+   */
+  async function critiqueFn(
+    output: string,
+    criteria: string[],
+    context?: string,
+  ): Promise<CritiqueResult> {
+    if (!config.onCritique) {
+      throw new Error('critique: LLM critique not available')
+    }
+    return config.onCritique(output, criteria, context)
+  }
+
+  /**
    * plan(goal, constraints?) — LLM-powered task decomposition.
    * Returns a structured task plan from a natural language goal.
    */
@@ -1189,6 +1214,7 @@ export function createGlobals(config: GlobalsConfig) {
     rollback: rollbackFn,
     parallel: parallelFn,
     plan: planFn,
+    critique: critiqueFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,

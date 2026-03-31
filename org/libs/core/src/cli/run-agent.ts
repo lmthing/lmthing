@@ -365,6 +365,7 @@ export async function runAgent(
     onFork: (request) => agentLoopRef!.handleFork(request),
     onTrace: () => agentLoopRef!.getTrace(),
     onPlan: (goal, constraints) => agentLoopRef!.handlePlan(goal, constraints),
+    onCritique: (output, criteria, context) => agentLoopRef!.handleCritique(output, criteria, context),
   })
   runAgentSessionRef = session
 

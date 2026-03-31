@@ -839,6 +839,50 @@ export function createGlobals(config: GlobalsConfig) {
   }
 
   /**
+   * parallel(tasks, options?) — Run multiple async functions concurrently with fan-out/fan-in.
+   * Returns an array of { label, ok, result?, error?, durationMs } for each task.
+   * Max 10 concurrent tasks, default 30s timeout per task.
+   */
+  async function parallelFn(
+    tasks: Array<{ label: string; fn: () => unknown }>,
+    options?: { timeout?: number; failFast?: boolean },
+  ): Promise<Array<{ label: string; ok: boolean; result?: unknown; error?: string; durationMs: number }>> {
+    if (tasks.length === 0) return []
+    if (tasks.length > 10) throw new Error('parallel: max 10 concurrent tasks')
+    const timeout = Math.min(options?.timeout ?? 30000, 60000)
+    const failFast = options?.failFast ?? false
+
+    const controller = failFast ? new AbortController() : null
+
+    const results = await Promise.allSettled(
+      tasks.map(async (task) => {
+        const start = Date.now()
+        try {
+          const result = await Promise.race([
+            Promise.resolve(task.fn()),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('timeout')), timeout)
+            ),
+            ...(controller ? [new Promise((_, reject) => {
+              controller.signal.addEventListener('abort', () => reject(new Error('fail-fast abort')))
+            })] : []),
+          ])
+          return { label: task.label, ok: true as const, result, durationMs: Date.now() - start }
+        } catch (err: any) {
+          if (failFast && controller && !controller.signal.aborted) {
+            controller.abort()
+          }
+          return { label: task.label, ok: false as const, error: err?.message ?? String(err), durationMs: Date.now() - start }
+        }
+      }),
+    )
+
+    return results.map((r) =>
+      r.status === 'fulfilled' ? r.value : { label: '?', ok: false, error: r.reason?.message ?? 'unknown', durationMs: 0 },
+    )
+  }
+
+  /**
    * checkpoint(id) — Save a named snapshot of the current sandbox scope.
    * Max 5 checkpoints. Returns the checkpoint ID.
    */
@@ -1127,6 +1171,7 @@ export function createGlobals(config: GlobalsConfig) {
     trace: traceFn,
     checkpoint: checkpointFn,
     rollback: rollbackFn,
+    parallel: parallelFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,

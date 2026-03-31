@@ -274,6 +274,7 @@ export class Session extends EventEmitter {
     this.sandbox.inject('trace', this.globalsApi.trace)
     this.sandbox.inject('checkpoint', this.globalsApi.checkpoint)
     this.sandbox.inject('rollback', this.globalsApi.rollback)
+    this.sandbox.inject('parallel', this.globalsApi.parallel)
 
     // Inject agent namespace globals
     if (options.agentNamespaces) {

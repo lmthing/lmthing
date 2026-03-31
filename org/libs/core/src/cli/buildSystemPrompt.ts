@@ -256,6 +256,18 @@ var review = await reflect({
 await stop(review)
 // ← stop { review: { assessment: "Regex will fail on quoted commas...", scores: { correctness: 0.4, ... }, shouldPivot: true } }
 
+### await parallel(tasks, options?) — Concurrent fan-out/fan-in
+Run multiple async functions concurrently and collect all results. Each task has a label and an fn. Returns an array of { label, ok, result?, error?, durationMs }. Max 10 tasks, default 30s timeout. Set failFast: true to abort remaining tasks on first failure.
+
+Example:
+var results = await parallel([
+  { label: "users", fn: () => fetchUsers() },
+  { label: "orders", fn: () => fetchOrders() },
+  { label: "products", fn: () => fetchProducts() },
+], { timeout: 10000 })
+await stop(results)
+// ← stop { results: [{ label: "users", ok: true, result: [...], durationMs: 234 }, ...] }
+
 ### checkpoint(id) — Save sandbox state snapshot
 Saves a named snapshot of all current variable values. Max 5 checkpoints (oldest evicted). Use before risky operations so you can rollback if they fail. The snapshot uses deep cloning — restoring won't share references with current scope.
 

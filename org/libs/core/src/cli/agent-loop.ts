@@ -25,6 +25,14 @@ import type {
   SessionEvent,
   StopPayload,
   ErrorPayload,
+  ContextBudgetSnapshot,
+  ReflectRequest,
+  ReflectResult,
+  CompressOptions,
+  ForkRequest,
+  ForkResult,
+  TraceSnapshot,
+  CritiqueResult,
 } from "@lmthing/repl";
 import type { ClassifiedExport } from "./loader";
 import { formatCollapsedClass, formatExpandedClass } from "./loader";
@@ -114,6 +122,10 @@ export class AgentLoop {
     knowledgeKeys: Set<string>;
     knowledgeContent: Map<string, KnowledgeContent>;
   }> = [];
+  /** Tracks retention hints per stop message for adaptive decay. */
+  private stopRetentionHints: Map<number, 'high' | 'low'> = new Map();
+  /** Session start time for duration tracking. */
+  private startTime = Date.now();
 
   constructor(options: AgentLoopOptions) {
     this.session = options.session;
@@ -229,6 +241,8 @@ export class AgentLoop {
     // Build initial system prompt
     const scope = this.session.getScopeTable();
     const classBlock = this.buildClassBlock();
+    const pinnedBlock = this.buildPinnedBlock();
+    const memoBlock = this.buildMemoBlock();
     const systemPrompt = buildSystemPrompt(
       this.functionSignatures,
       this.formSignatures,
@@ -239,6 +253,9 @@ export class AgentLoop {
       this.knowledgeTree,
       this.agentTree,
       this.knowledgeNamespacePrompt,
+      pinnedBlock || undefined,
+      memoBlock || undefined,
+      this.session.getFocusSections(),
     );
 
     // Initialize or update messages
@@ -268,6 +285,8 @@ export class AgentLoop {
     if (this.messages.length === 0) {
       const scope = this.session.getScopeTable();
       const classBlock = this.buildClassBlock();
+      const pinnedBlock = this.buildPinnedBlock();
+      const memoBlock = this.buildMemoBlock();
       const systemPrompt = buildSystemPrompt(
         this.functionSignatures,
         this.formSignatures,
@@ -278,6 +297,9 @@ export class AgentLoop {
         this.knowledgeTree,
         this.agentTree,
         this.knowledgeNamespacePrompt,
+        pinnedBlock || undefined,
+        memoBlock || undefined,
+        this.session.getFocusSections(),
       );
       this.messages.push({ role: "system", content: systemPrompt });
     }
@@ -749,6 +771,16 @@ export class AgentLoop {
 
       // Handle stop → inject as user message and loop
       if (state.stop) {
+        // Extract retention hint if present (_retain key)
+        let retainHint: 'high' | 'low' | undefined;
+        if ('_retain' in state.stop) {
+          const retainVal = state.stop._retain?.value;
+          if (retainVal === 'high' || retainVal === 'low') {
+            retainHint = retainVal;
+          }
+          delete state.stop._retain;
+        }
+
         const entries = Object.entries(state.stop)
           .map(([k, v]) => `${k}: ${v.display}`)
           .join(", ");
@@ -778,6 +810,11 @@ export class AgentLoop {
         const codeUpToStop = truncateAtStop(code);
         this.messages.push({ role: "assistant", content: codeUpToStop });
         this.messages.push({ role: "user", content: stopMsg });
+
+        // Track retention hint for adaptive decay
+        if (retainHint) {
+          this.stopRetentionHints.set(this.messages.length - 1, retainHint);
+        }
 
         // Track knowledge-containing stops for progressive decay
         const knowledgeKeys = new Set<string>();
@@ -925,9 +962,31 @@ export class AgentLoop {
     return blocks.filter(Boolean).join("\n");
   }
 
+  private buildPinnedBlock(): string {
+    const pinned = this.session.getPinnedMemory();
+    if (pinned.size === 0) return "";
+    const lines: string[] = [];
+    for (const [key, entry] of pinned) {
+      lines.push(`${key}: ${entry.display}`);
+    }
+    return lines.join("\n");
+  }
+
+  private buildMemoBlock(): string {
+    const memos = this.session.getMemoMemory();
+    if (memos.size === 0) return "";
+    const lines: string[] = [];
+    for (const [key, value] of memos) {
+      lines.push(`[${key}] ${value}`);
+    }
+    return lines.join("\n");
+  }
+
   private refreshSystemPrompt(): void {
     const scope = this.session.getScopeTable();
     const classBlock = this.buildClassBlock();
+    const pinnedBlock = this.buildPinnedBlock();
+    const memoBlock = this.buildMemoBlock();
     const systemPrompt = buildSystemPrompt(
       this.functionSignatures,
       this.formSignatures,
@@ -938,6 +997,9 @@ export class AgentLoop {
       this.knowledgeTree,
       this.agentTree,
       this.knowledgeNamespacePrompt,
+      pinnedBlock || undefined,
+      memoBlock || undefined,
+      this.session.getFocusSections(),
     );
     this.messages[0] = { role: "system", content: systemPrompt };
     this.logDebug("system_prompt", systemPrompt);
@@ -952,8 +1014,16 @@ export class AgentLoop {
    */
   private decayKnowledgeMessages(): void {
     for (const ks of this.knowledgeStops) {
-      const distance = this.totalTurns - ks.turn;
+      let distance = this.totalTurns - ks.turn;
       if (distance <= 0) continue;
+
+      // Apply adaptive decay multiplier from retention hints
+      const retainHint = this.stopRetentionHints.get(ks.messageIndex);
+      if (retainHint === 'high') {
+        distance = Math.floor(distance / 2); // decay half as fast
+      } else if (retainHint === 'low') {
+        distance = distance * 2; // decay twice as fast
+      }
 
       // Rebuild the stop message with decayed knowledge values
       const entries = Object.entries(ks.payload).map(([k, v]) => {
@@ -969,6 +1039,363 @@ export class AgentLoop {
         content: `← stop { ${entries.join(", ")} }`,
       };
     }
+  }
+
+  /**
+   * Compute a context budget snapshot for the agent's contextBudget() global.
+   */
+  getContextBudget(): ContextBudgetSnapshot {
+    // Rough token estimate: ~4 chars per token
+    const estimateTokens = (s: string) => Math.ceil(s.length / 4);
+    const maxTokens = 100_000; // default context window
+
+    const systemPromptTokens = this.messages.length > 0
+      ? estimateTokens(this.messages[0].content)
+      : 0;
+    let messageHistoryTokens = 0;
+    for (let i = 1; i < this.messages.length; i++) {
+      messageHistoryTokens += estimateTokens(this.messages[i].content);
+    }
+    const usedTokens = systemPromptTokens + messageHistoryTokens;
+    const remainingTokens = Math.max(0, maxTokens - usedTokens);
+
+    // Determine current decay levels based on turn count
+    let stopDecay: string = 'full';
+    if (this.totalTurns > 10) stopDecay = 'removed';
+    else if (this.totalTurns > 5) stopDecay = 'count';
+    else if (this.totalTurns > 2) stopDecay = 'keys';
+
+    let knowledgeDecay: string = 'full';
+    if (this.totalTurns > 4) knowledgeDecay = 'names';
+    else if (this.totalTurns > 2) knowledgeDecay = 'headers';
+    else if (this.totalTurns > 0) knowledgeDecay = 'truncated';
+
+    const ratio = usedTokens / maxTokens;
+    const recommendation: 'nominal' | 'conserve' | 'critical' =
+      ratio > 0.85 ? 'critical' : ratio > 0.6 ? 'conserve' : 'nominal';
+
+    return {
+      totalTokens: maxTokens,
+      usedTokens,
+      remainingTokens,
+      systemPromptTokens,
+      messageHistoryTokens,
+      turnNumber: this.totalTurns,
+      decayLevel: { stops: stopDecay, knowledge: knowledgeDecay },
+      recommendation,
+    };
+  }
+
+  /**
+   * Return execution profiling snapshot for trace().
+   */
+  getTrace(): TraceSnapshot {
+    const snapshot = this.session.snapshot();
+    const asyncTasks = snapshot.asyncTasks;
+    const completed = asyncTasks.filter(t => t.status === 'completed').length;
+    const failed = asyncTasks.filter(t => t.status === 'failed').length;
+    const running = asyncTasks.filter(t => t.status === 'running').length;
+
+    // Rough cost estimate based on token usage (GPT-4o-class pricing ~$5/1M input, $15/1M output)
+    const inputCost = (this.tokenTotals.inputTokens / 1_000_000) * 5;
+    const outputCost = (this.tokenTotals.outputTokens / 1_000_000) * 15;
+    const totalCost = inputCost + outputCost;
+
+    return {
+      turns: this.totalTurns,
+      llmCalls: this.totalTurns, // 1 LLM call per turn
+      llmTokens: {
+        input: this.tokenTotals.inputTokens,
+        output: this.tokenTotals.outputTokens,
+        total: this.tokenTotals.totalTokens,
+      },
+      estimatedCost: `$${totalCost.toFixed(4)}`,
+      asyncTasks: { completed, failed, running },
+      scopeSize: snapshot.scope.length,
+      pinnedCount: this.session.getPinnedMemory().size,
+      memoCount: this.session.getMemoMemory().size,
+      sessionDurationMs: Date.now() - this.startTime,
+    };
+  }
+
+  /**
+   * Handle a plan() call — makes a separate LLM call for task decomposition.
+   */
+  async handlePlan(
+    goal: string,
+    constraints?: string[],
+  ): Promise<Array<{ id: string; instructions: string; dependsOn?: string[] }>> {
+    const constraintStr = constraints?.length
+      ? `\n\nConstraints:\n${constraints.map(c => `- ${c}`).join('\n')}`
+      : '';
+
+    const result = streamText({
+      model: this.model,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a task planner. Given a goal, decompose it into concrete, sequential steps. ' +
+            'Respond with ONLY a JSON array of task objects, each with: id (snake_case), instructions (clear action), ' +
+            'and optional dependsOn (array of task ids). Keep to 3-8 tasks. No prose, no markdown.',
+        },
+        {
+          role: 'user',
+          content: `Goal: ${goal}${constraintStr}`,
+        },
+      ],
+      temperature: 0.2,
+      maxOutputTokens: 2048,
+    });
+
+    let text = '';
+    for await (const chunk of result.textStream) {
+      text += chunk;
+    }
+
+    const jsonStr = text.replace(/```json?\s*/g, '').replace(/```\s*/g, '').trim();
+    try {
+      const tasks = JSON.parse(jsonStr);
+      if (!Array.isArray(tasks)) throw new Error('Expected array');
+      return tasks.map((t: any) => ({
+        id: String(t.id ?? ''),
+        instructions: String(t.instructions ?? ''),
+        ...(t.dependsOn ? { dependsOn: t.dependsOn.map(String) } : {}),
+      }));
+    } catch {
+      // Return a single fallback task
+      return [{ id: 'execute', instructions: goal }];
+    }
+  }
+
+  /**
+   * Handle a reflect() call — makes a separate LLM call for self-evaluation.
+   */
+  async handleCritique(
+    output: string,
+    criteria: string[],
+    context?: string,
+  ): Promise<CritiqueResult> {
+    const contextStr = context ? `\n\nContext: ${context}` : '';
+    const criteriaStr = criteria.map(c => `- ${c}`).join('\n');
+
+    const result = streamText({
+      model: this.model,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a quality reviewer. Evaluate the output against the given criteria. ' +
+            'Respond with ONLY valid JSON: { "pass": boolean, "overallScore": 0-1, "scores": { criterion: 0-1 }, "issues": ["..."], "suggestions": ["..."] }. ' +
+            'pass is true if overallScore >= 0.7. No markdown, no prose.',
+        },
+        {
+          role: 'user',
+          content: `Evaluate this output:\n\n${output.slice(0, 3000)}\n\nCriteria:\n${criteriaStr}${contextStr}`,
+        },
+      ],
+      temperature: 0.1,
+      maxOutputTokens: 1024,
+    });
+
+    let text = '';
+    for await (const chunk of result.textStream) {
+      text += chunk;
+    }
+
+    const jsonStr = text.replace(/```json?\s*/g, '').replace(/```\s*/g, '').trim();
+    try {
+      const parsed = JSON.parse(jsonStr);
+      return {
+        pass: !!parsed.pass,
+        overallScore: Number(parsed.overallScore) || 0,
+        scores: parsed.scores ?? {},
+        issues: Array.isArray(parsed.issues) ? parsed.issues.map(String) : [],
+        suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions.map(String) : [],
+      };
+    } catch {
+      return {
+        pass: false,
+        overallScore: 0,
+        scores: {},
+        issues: ['Failed to parse critique response'],
+        suggestions: [],
+      };
+    }
+  }
+
+  async handleReflect(request: ReflectRequest): Promise<ReflectResult> {
+    const criteria = request.criteria ?? ["correctness", "efficiency", "completeness"];
+    const contextStr = request.context
+      ? Object.entries(request.context)
+          .map(([k, v]) => `${k}: ${JSON.stringify(v, null, 2).slice(0, 500)}`)
+          .join("\n")
+      : "(no context provided)";
+
+    const reflectionPrompt = `You are a code review assistant. Evaluate the following question about an agent's approach.
+
+Question: ${request.question}
+
+Context:
+${contextStr}
+
+Current SCOPE:
+${this.session.getScopeTable()}
+
+Evaluate on these criteria: ${criteria.join(", ")}
+
+Respond with ONLY valid JSON (no markdown, no prose):
+{
+  "assessment": "brief assessment string",
+  "scores": { ${criteria.map((c) => `"${c}": 0.0`).join(", ")} },
+  "suggestions": ["suggestion1", "suggestion2"],
+  "shouldPivot": false
+}`;
+
+    try {
+      const result = streamText({
+        model: this.model,
+        messages: [
+          { role: "system", content: "You are a concise code review assistant. Respond only with valid JSON." },
+          { role: "user", content: reflectionPrompt },
+        ],
+        temperature: 0.1,
+        maxOutputTokens: 1024,
+      });
+
+      let text = "";
+      for await (const chunk of result.textStream) {
+        text += chunk;
+      }
+
+      // Parse JSON from response (strip markdown fences if present)
+      const jsonStr = text.replace(/```json?\s*/g, "").replace(/```\s*/g, "").trim();
+      const parsed = JSON.parse(jsonStr);
+      return {
+        assessment: parsed.assessment ?? "No assessment",
+        scores: parsed.scores ?? {},
+        suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [],
+        shouldPivot: !!parsed.shouldPivot,
+      };
+    } catch (err: any) {
+      return {
+        assessment: `Reflection failed: ${err.message}`,
+        scores: {},
+        suggestions: [],
+        shouldPivot: false,
+      };
+    }
+  }
+
+  /**
+   * Handle a compress() call — makes a cheap LLM call to summarize data.
+   */
+  async handleCompress(data: string, options: CompressOptions): Promise<string> {
+    const maxTokens = options.maxTokens ?? 200;
+    const format = options.format ?? "structured";
+    const preserveKeys = options.preserveKeys ?? [];
+
+    const compressPrompt = `Compress the following data into a ${format} summary of ~${maxTokens} tokens.${preserveKeys.length > 0 ? ` Preserve these keys exactly: ${preserveKeys.join(", ")}.` : ""} Remove redundancy, keep essential information.
+
+DATA:
+${data.slice(0, 8000)}
+
+Respond with ONLY the compressed summary, no explanation.`;
+
+    try {
+      const result = streamText({
+        model: this.model,
+        messages: [
+          { role: "system", content: "You compress data into token-efficient summaries. Output only the summary." },
+          { role: "user", content: compressPrompt },
+        ],
+        temperature: 0.0,
+        maxOutputTokens: maxTokens * 2,
+      });
+
+      let text = "";
+      for await (const chunk of result.textStream) {
+        text += chunk;
+      }
+      return text.trim();
+    } catch (err: any) {
+      // Fallback to simple truncation
+      const maxLen = maxTokens * 4;
+      if (data.length <= maxLen) return data;
+      return data.slice(0, maxLen) + "\n...(compression failed, truncated)";
+    }
+  }
+
+  /**
+   * Handle a fork() call — runs a lightweight child LLM conversation.
+   */
+  async handleFork(request: ForkRequest): Promise<ForkResult> {
+    const maxTurns = request.maxTurns ?? 3;
+    const contextStr = request.context
+      ? Object.entries(request.context)
+          .map(([k, v]) => `${k}: ${JSON.stringify(v, null, 2).slice(0, 1000)}`)
+          .join("\n")
+      : "";
+    const schemaStr = request.outputSchema
+      ? `\nRespond with JSON matching: ${JSON.stringify(request.outputSchema)}`
+      : "\nRespond with a JSON object containing your findings.";
+
+    const systemPrompt =
+      "You are a focused sub-agent. Analyze the task and respond with ONLY valid JSON (no markdown, no prose)." +
+      schemaStr;
+
+    const userMsg = `Task: ${request.task}${contextStr ? `\n\nContext:\n${contextStr}` : ""}`;
+
+    const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMsg },
+    ];
+
+    let turns = 0;
+    try {
+      for (let t = 0; t < maxTurns; t++) {
+        turns++;
+        const result = streamText({
+          model: this.model,
+          messages,
+          temperature: 0.1,
+          maxOutputTokens: 2048,
+        });
+
+        let text = "";
+        for await (const chunk of result.textStream) {
+          text += chunk;
+        }
+
+        // Try to parse JSON
+        const jsonStr = text.replace(/```json?\s*/g, "").replace(/```\s*/g, "").trim();
+        try {
+          const output = JSON.parse(jsonStr);
+          return { output, turns, success: true };
+        } catch {
+          // If parsing failed and we have more turns, ask for correction
+          if (t < maxTurns - 1) {
+            messages.push({ role: "assistant", content: text });
+            messages.push({ role: "user", content: "That was not valid JSON. Please respond with ONLY valid JSON." });
+          } else {
+            return {
+              output: { raw: text.slice(0, 500) },
+              turns,
+              success: false,
+              error: "Failed to produce valid JSON after " + maxTurns + " attempts",
+            };
+          }
+        }
+      }
+    } catch (err: any) {
+      return {
+        output: {},
+        turns,
+        success: false,
+        error: err.message,
+      };
+    }
+    return { output: {}, turns, success: false, error: "Exhausted turns" };
   }
 
   private writeDebugLog(): void {

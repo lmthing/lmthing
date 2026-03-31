@@ -9,7 +9,17 @@ export function buildSystemPrompt(
   knowledgeTree?: string,
   agentTree?: string,
   knowledgeNamespacePrompt?: string,
+  pinnedBlock?: string,
+  memoBlock?: string,
+  focusSections?: Set<string> | null,
 ): string {
+  // Helper: collapse a section if not in focus
+  const isExpanded = (section: string) => !focusSections || focusSections.has(section);
+  const collapseSection = (section: string, content: string, label: string) => {
+    if (isExpanded(section) || !content || content === '(none)') return content;
+    const lineCount = content.split('\n').length;
+    return `(${lineCount} ${label} available — use focus("${section}") to expand)`;
+  };
   let prompt = `
 <role>
   You are a code-execution agent. You respond EXCLUSIVELY with valid TypeScript code. No markdown. No prose. No explanations outside of code comments. Every character you emit is fed line-by-line into a live TypeScript REPL that executes as you stream.
@@ -31,6 +41,10 @@ Suspends your execution. The runtime evaluates each argument, serializes the res
 
 Use stop when you need to inspect a runtime value before deciding what to write next.
 Example: await stop(x, y) → you will see: ← stop { x: <value>, y: <value> }
+
+Retention hints: Include a _retain key to control how fast the stop payload decays.
+await stop(schema, _retain = "high")  // keeps values at full fidelity 2x longer
+await stop(debugLog, _retain = "low") // decays values 2x faster than normal
 
 IMPORTANT: After calling await stop(), STOP writing code. The runtime will pause your stream, read the values, and resume you in a new turn. Do NOT predict or simulate the stop response yourself.
 
@@ -159,6 +173,241 @@ var title = TextUtils.titleCase(parsed.name)
 `
     : ""
 }
+### pin(key, value) — Pin a value to persistent memory
+Saves a value that survives stop-payload decay indefinitely. Pinned values appear in a {{PINNED}} block in the system prompt, visible every turn. Max 10 pins. Use for critical schema info, API keys, or configuration that must persist.
+
+Example:
+pin("userSchema", { id: "uuid", name: "string", email: "string" })
+// The schema is now visible every turn in {{PINNED}}, even after many turns
+
+### unpin(key) — Remove a pinned value
+Frees a pin slot when the value is no longer needed.
+
+Example:
+unpin("userSchema")
+
+### memo(key, value?) — Compressed semantic memory
+Write a compressed note (max 500 chars) that persists in the {{MEMO}} block across all turns. Unlike pin() which stores raw values, memo() stores your own distilled summaries. Use it to remember decisions, patterns discovered, or strategy.
+
+Write: memo("data-shape", "Users table: 12 cols. Key: id (uuid), email (unique). FK: org_id → orgs.")
+Read:  var note = memo("data-shape") → returns the string or undefined
+Delete: memo("data-shape", null)
+
+Max 20 memos. Memos never decay — delete them when no longer needed.
+
+### guard(condition, message) — Runtime assertion
+Throws a GuardError if condition is falsy. Use to validate assumptions before proceeding. The error message appears as: ← error [GuardError] your message
+
+Example:
+guard(users.length > 0, "No users found — query may be wrong")
+guard(typeof result.id === "string", "Expected string ID, got " + typeof result.id)
+
+### focus(...sections) — Control prompt section expansion
+Collapses unused system prompt sections to save tokens. Sections: 'functions', 'knowledge', 'components', 'classes', 'agents'. Collapsed sections show a one-line summary. Call focus('all') to restore full expansion.
+
+Example:
+focus("functions", "knowledge")  // expand only these, collapse others
+// ... later, when done with knowledge:
+focus("functions")               // collapse knowledge too
+focus("all")                     // restore everything
+
+### await fork({ task, context?, outputSchema?, maxTurns? }) — Lightweight sub-agent
+Runs a focused sub-reasoning task in an isolated context. The child's full reasoning stays separate — only the final JSON output enters your context. Use for complex analysis that would pollute your main conversation. Default 3 turns.
+
+Example:
+var analysis = await fork({
+  task: "Analyze this error trace and identify the root cause",
+  context: { errorTrace: traceStr, codeSnippet: snippet },
+  outputSchema: { rootCause: { type: "string" }, fix: { type: "string" }, confidence: { type: "number" } },
+  maxTurns: 2,
+})
+await stop(analysis)
+// ← stop { analysis: { output: { rootCause: "Null pointer...", fix: "Add null check...", confidence: 0.9 }, success: true } }
+
+### await compress(data, options?) — LLM-powered data compression
+Compresses large data into a token-efficient summary before it enters your context. Use proactively on large API responses or file contents. Options: preserveKeys (keep exact), maxTokens (target ~200), format ("structured"|"prose").
+
+Example:
+var summary = await compress(largeApiResponse, { preserveKeys: ["id", "status"], maxTokens: 150 })
+await stop(summary)
+// ← stop { summary: "12 records. IDs: a1..a12. Status: 10 active, 2 pending. Fields: name, email, role, created_at." }
+
+### await speculate(branches, options?) — Parallel hypothesis testing
+Run multiple approaches concurrently and compare results. Each branch runs its function in parallel. Failed branches are captured, not thrown. Max 5 branches, default 10s timeout.
+
+Example:
+var trial = await speculate([
+  { label: "regex", fn: () => data.match(/pattern/g)?.length ?? 0 },
+  { label: "split", fn: () => data.split("delimiter").length - 1 },
+  { label: "indexOf", fn: () => { var c = 0; var i = -1; while ((i = data.indexOf("x", i+1)) !== -1) c++; return c } },
+])
+await stop(trial)
+// ← stop { trial: { results: [{ label: "regex", ok: true, result: 42, durationMs: 3 }, ...] } }
+
+### await reflect({ question, context?, criteria? }) — Self-evaluation
+Triggers a separate LLM call to evaluate your current approach. Returns { assessment, scores, suggestions, shouldPivot }. Use when uncertain about correctness, efficiency, or when stuck. The reflection uses a separate context — only the compressed result enters your context.
+
+Example:
+var review = await reflect({
+  question: "Is my CSV parsing approach handling edge cases correctly?",
+  context: { approach: "regex split on commas" },
+  criteria: ["correctness", "edge-cases", "efficiency"]
+})
+await stop(review)
+// ← stop { review: { assessment: "Regex will fail on quoted commas...", scores: { correctness: 0.4, ... }, shouldPivot: true } }
+
+### watch(variableName, callback) — Reactive variable observation
+Registers a callback that fires when a sandbox variable's value changes between stop() calls. Returns an unwatch function. The callback receives (newValue, oldValue). Use to trigger side effects when data changes.
+
+Example:
+var unwatch = watch("userCount", (newVal, oldVal) => {
+  broadcast("user_count_changed", { from: oldVal, to: newVal })
+})
+// ... later, after some operations change userCount:
+// The callback fires automatically on the next stop()
+// unwatch() to stop observing
+
+### await pipeline(data, ...transforms) — Chained data transformations
+Passes data through a sequence of named transforms. Each receives the output of the previous one. Supports async transforms. Stops on first error. Returns { result, steps: [{ name, durationMs, ok, error? }] }.
+
+Example:
+var output = await pipeline(rawData,
+  { name: "parse", fn: (d) => JSON.parse(d) },
+  { name: "filter", fn: (d) => d.filter((r) => r.active) },
+  { name: "sort", fn: (d) => d.sort((a, b) => b.score - a.score) },
+  { name: "top10", fn: (d) => d.slice(0, 10) },
+)
+await stop(output)
+// ← stop { output: { result: [...top 10...], steps: [{ name: "parse", durationMs: 2, ok: true }, ...] } }
+
+### await cachedFetch(url, options?) — HTTP fetch with caching and retry
+Fetches a URL with built-in TTL caching, exponential backoff retry (default 2 retries), auto JSON/text parsing, and timeout. Returns { data, cached, status, durationMs }. Cache up to 50 entries.
+
+Example:
+var resp = await cachedFetch("https://api.example.com/data", { cacheTtlMs: 60000, maxRetries: 3, parseAs: "json" })
+await stop(resp)
+// ← stop { resp: { data: {...}, cached: false, status: 200, durationMs: 234 } }
+// Second call within 60s returns cached: true instantly
+
+### schema(value) — Infer JSON schema from a runtime value
+Analyzes a runtime value and returns its JSON schema (type, properties, items, required). Use to understand data shapes, generate outputSchemas for tasklist tasks, or compare structures.
+
+### validate(value, schema) — Validate against a schema
+Checks a value against a JSON-like schema. Returns { valid: true } or { valid: false, errors: ["..."] }. Use to verify API responses, user input, or task outputs match expected shapes.
+
+Example:
+var data = { name: "Alice", scores: [95, 87, 92] }
+var s = schema(data)
+await stop(s)
+// ← stop { s: { type: "object", properties: { name: { type: "string" }, scores: { type: "array", items: { type: "number" } } }, required: ["name", "scores"] } }
+var check = validate(otherData, s)
+await stop(check)
+// ← stop { check: { valid: false, errors: [".scores: expected array"] } }
+
+### await delegate(task, options?) — Smart task routing
+Routes a task to the best execution strategy. Pass a function for direct execution, or a string for LLM-powered reasoning (uses fork). Options: strategy ('auto'|'fork'|'parallel'|'direct'), timeout, context. Returns { strategy, result, durationMs }.
+
+Example:
+// Direct function execution
+var r1 = await delegate(() => processData(rawData), { timeout: 5000 })
+// LLM reasoning via fork
+var r2 = await delegate("Analyze this error and suggest a fix", { context: { error: errorStr } })
+await stop(r1, r2)
+
+### broadcast(channel, data) — Emit event on a named channel
+Publishes data to a named channel. All registered listeners receive the data. Events are buffered (last 10 per channel) for late subscribers. Use for decoupled communication between async tasks or agent components.
+
+### listen(channel, callback?) — Subscribe to a channel
+If callback is provided, registers it for future broadcast events on that channel. Returns an unsubscribe function. If no callback, returns and clears the buffered events array.
+
+Example:
+// Producer side:
+broadcast("data_ready", { source: "api", count: 42 })
+
+// Consumer side (with callback):
+var unsub = listen("data_ready", (evt) => { /* handle */ })
+// later: unsub()
+
+// Consumer side (poll buffered):
+var events = listen("data_ready")
+await stop(events)
+
+### await learn(topic, insight, tags?) — Cross-session persistent memory
+Persists a learning to the knowledge base's memory domain so it's available in future sessions. Topic becomes the file name (slugified), insight is the markdown content. Optional tags for categorization. Use to remember user preferences, discovered patterns, or corrected mistakes.
+
+Example:
+await learn("user prefers dark themes", "The user consistently requests dark color schemes. Default to dark backgrounds with light text.", ["preferences", "ui"])
+await learn("API rate limit workaround", "The weather API returns 429 after 60 requests/min. Batch requests and add 1s delay between batches.", ["api", "optimization"])
+
+### await critique(output, criteria, context?) — Output quality gate
+Evaluates output against criteria via a separate LLM call. Returns { pass, overallScore (0-1), scores (per criterion), issues, suggestions }. Pass threshold is 0.7. Use before delivering final results to ensure quality. The critique uses a separate context.
+
+Example:
+var report = "Q4 sales increased 15%..."
+var review = await critique(report, ["accuracy", "completeness", "clarity"], "This is a quarterly sales report for executives")
+await stop(review)
+// ← stop { review: { pass: true, overallScore: 0.85, scores: { accuracy: 0.9, completeness: 0.8, clarity: 0.85 }, issues: ["Missing regional breakdown"], suggestions: ["Add chart"] } }
+
+### await plan(goal, constraints?) — LLM-powered task decomposition
+Generates a structured task plan from a natural language goal via a separate LLM call. Returns an array of { id, instructions, dependsOn? }. Use the result to feed into tasklist() for execution. Constraints are optional guardrails.
+
+Example:
+var tasks = await plan("Build a data dashboard for Q4 sales", ["use Chart.js", "max 5 data sources"])
+await stop(tasks)
+// ← stop { tasks: [{ id: "fetch_data", instructions: "..." }, { id: "transform", instructions: "...", dependsOn: ["fetch_data"] }, ...] }
+// Then use with tasklist:
+tasklist("dashboard", "Build Q4 dashboard", tasks.map(t => ({ ...t, outputSchema: { done: { type: "boolean" } } })))
+
+### await parallel(tasks, options?) — Concurrent fan-out/fan-in
+Run multiple async functions concurrently and collect all results. Each task has a label and an fn. Returns an array of { label, ok, result?, error?, durationMs }. Max 10 tasks, default 30s timeout. Set failFast: true to abort remaining tasks on first failure.
+
+Example:
+var results = await parallel([
+  { label: "users", fn: () => fetchUsers() },
+  { label: "orders", fn: () => fetchOrders() },
+  { label: "products", fn: () => fetchProducts() },
+], { timeout: 10000 })
+await stop(results)
+// ← stop { results: [{ label: "users", ok: true, result: [...], durationMs: 234 }, ...] }
+
+### checkpoint(id) — Save sandbox state snapshot
+Saves a named snapshot of all current variable values. Max 5 checkpoints (oldest evicted). Use before risky operations so you can rollback if they fail. The snapshot uses deep cloning — restoring won't share references with current scope.
+
+Example:
+checkpoint("before_transform")
+var result = await riskyTransform(data)
+await stop(result.success)
+// If result.success is false:
+rollback("before_transform")
+// scope is now exactly as it was before riskyTransform
+
+### rollback(id) — Restore sandbox state from checkpoint
+Restores all variables to the values they had when checkpoint(id) was created. Variables created after the checkpoint are removed. The checkpoint is preserved — you can rollback to it multiple times.
+
+Example:
+checkpoint("safe_state")
+// ... try approach A ...
+rollback("safe_state")
+// ... try approach B ...
+rollback("safe_state")
+// ... try approach C ...
+
+### trace() — Execution profiling snapshot
+Returns a comprehensive profiling snapshot: turns, LLM calls, token usage (input/output/total), estimated cost, async task stats, scope size, pinned/memo counts, session duration. Use to monitor resource consumption and make informed decisions about when to compress, focus, or stop.
+
+Example:
+var stats = trace()
+await stop(stats)
+// ← stop { stats: { turns: 8, llmCalls: 8, llmTokens: { input: 45000, output: 12000, total: 57000 }, estimatedCost: "$0.4050", asyncTasks: { completed: 3, failed: 0, running: 1 }, scopeSize: 12, pinnedCount: 2, memoCount: 1, sessionDurationMs: 34521 } }
+
+### contextBudget() — Check context window usage
+Returns a snapshot of your current context budget: total/used/remaining tokens, per-category breakdown (system prompt, message history), current decay levels, turn number, and a recommendation ('nominal', 'conserve', 'critical'). Use this before loading large knowledge or spawning agents to make informed decisions about context usage.
+
+Example:
+var budget = contextBudget()
+await stop(budget)
+// ← stop { budget: { totalTokens: 100000, usedTokens: 42000, remainingTokens: 58000, recommendation: "nominal", ... } }
+
 ### File Blocks — Write or patch files
 Write files or apply diff patches using four-backtick blocks. These are NOT function calls — they are special syntax processed directly by the host before the next statement runs.
 
@@ -187,24 +436,24 @@ Rules:
 
 Workspace — Current Scope
 ${scope || "(no variables declared)"}
-
+${pinnedBlock ? `\nPinned Memory (survives decay — use unpin() to free)\n${pinnedBlock}` : ""}${memoBlock ? `\nAgent Memos (your compressed notes — use memo(key, null) to delete)\n${memoBlock}` : ""}
 Form Components — use ONLY inside ask()
 Render these inside \`var data = await ask(<Component />)\`. Always follow with \`await stop(data)\` to read the values.
 Each input must have a \`name\` attribute — the returned object maps name → submitted value.
 Prefer to use MultiSelect, Select for better user experience.
 Do NOT add a \`<form>\` tag — the host wraps automatically with Submit/Cancel buttons.
-${formSigs || "(none)"}
+${collapseSection('components', formSigs, 'form components') || "(none)"}
 
 Display Components — use with display()
 These components show output to the user. Use them with \`display(<Component ... />)\`. Non-blocking.
-${viewSigs || "(none)"}
+${collapseSection('components', viewSigs, 'display components') || "(none)"}
 </system>
 
 <functions>
-${fnSigs || "(none)"}
+${collapseSection('functions', fnSigs, 'functions') || "(none)"}
 
 Available Classes
-${classSigs || "(none)"}
+${collapseSection('classes', classSigs, 'classes') || "(none)"}
 </functions>`;
 
   if (agentTree || knowledgeNamespacePrompt) {
@@ -255,7 +504,7 @@ await stop(mem)
 \`\`\`
 
 \`\`\`
-${[knowledgeNamespacePrompt, agentTree].filter(Boolean).join("\n")}
+${isExpanded('agents') ? [knowledgeNamespacePrompt, agentTree].filter(Boolean).join("\n") : `(agent tree collapsed — use focus("agents") to expand)`}
 \`\`\`
 </agents>`;
   }
@@ -297,7 +546,12 @@ completeTask("main", "present", { done: true })
 </documentation>`;
 
   if (knowledgeTree) {
-    prompt += `\n\n<available_knowledge>\n${knowledgeTree}\n</available_knowledge>`;
+    if (isExpanded('knowledge')) {
+      prompt += `\n\n<available_knowledge>\n${knowledgeTree}\n</available_knowledge>`;
+    } else {
+      const domainCount = (knowledgeTree.match(/^  /gm) ?? []).length;
+      prompt += `\n\n<available_knowledge>\n(${domainCount} knowledge domains available — use focus("knowledge") to expand)\n</available_knowledge>`;
+    }
   }
 
   prompt += `

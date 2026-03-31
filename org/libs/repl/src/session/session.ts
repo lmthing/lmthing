@@ -56,6 +56,22 @@ export interface SessionOptions {
    * Defaults to process.cwd(). Paths are validated to stay within this directory.
    */
   fileWorkingDir?: string
+  /** Callback to get context budget snapshot for the agent. */
+  onContextBudget?: () => import('../sandbox/globals').ContextBudgetSnapshot
+  /** Callback to execute a reflection LLM call. */
+  onReflect?: (request: import('../sandbox/globals').ReflectRequest) => Promise<import('../sandbox/globals').ReflectResult>
+  /** Callback to compress data via LLM. */
+  onCompress?: (data: string, options: import('../sandbox/globals').CompressOptions) => Promise<string>
+  /** Callback to fork a lightweight child agent. */
+  onFork?: (request: import('../sandbox/globals').ForkRequest) => Promise<import('../sandbox/globals').ForkResult>
+  /** Callback to get execution profiling data. */
+  onTrace?: () => import('../sandbox/globals').TraceSnapshot
+  /** Callback for LLM-powered task planning. */
+  onPlan?: (goal: string, constraints?: string[]) => Promise<Array<{ id: string; instructions: string; dependsOn?: string[] }>>
+  /** Callback for LLM-powered output critique. */
+  onCritique?: (output: string, criteria: string[], context?: string) => Promise<import('../sandbox/globals').CritiqueResult>
+  /** Callback to persist a learning to cross-session memory. */
+  onLearn?: (topic: string, insight: string, tags?: string[]) => Promise<void>
 }
 
 export class Session extends EventEmitter {
@@ -221,6 +237,16 @@ export class Session extends EventEmitter {
         : undefined,
       onAskParent: options.onAskParent,
       isFireAndForget: options.isFireAndForget,
+      onContextBudget: options.onContextBudget,
+      onReflect: options.onReflect,
+      onCompress: options.onCompress,
+      onFork: options.onFork,
+      onTrace: options.onTrace,
+      onPlan: options.onPlan,
+      onCritique: options.onCritique,
+      onLearn: options.onLearn,
+      onCheckpoint: () => this.sandbox.snapshotScope(),
+      onRollback: (snapshot) => this.sandbox.restoreScope(snapshot),
       onRespond: (promise, data) => {
         const entry = this.agentRegistry.findByPromise(promise)
         if (!entry) throw new Error('respond: unknown agent — pass the agent variable as the first argument')
@@ -244,6 +270,31 @@ export class Session extends EventEmitter {
     this.sandbox.inject('loadClass', this.globalsApi.loadClass)
     this.sandbox.inject('askParent', this.globalsApi.askParent)
     this.sandbox.inject('respond', this.globalsApi.respond)
+    this.sandbox.inject('contextBudget', this.globalsApi.contextBudget)
+    this.sandbox.inject('pin', this.globalsApi.pin)
+    this.sandbox.inject('unpin', this.globalsApi.unpin)
+    this.sandbox.inject('memo', this.globalsApi.memo)
+    this.sandbox.inject('reflect', this.globalsApi.reflect)
+    this.sandbox.inject('speculate', this.globalsApi.speculate)
+    this.sandbox.inject('compress', this.globalsApi.compress)
+    this.sandbox.inject('fork', this.globalsApi.fork)
+    this.sandbox.inject('focus', this.globalsApi.focus)
+    this.sandbox.inject('guard', this.globalsApi.guard)
+    this.sandbox.inject('trace', this.globalsApi.trace)
+    this.sandbox.inject('checkpoint', this.globalsApi.checkpoint)
+    this.sandbox.inject('rollback', this.globalsApi.rollback)
+    this.sandbox.inject('parallel', this.globalsApi.parallel)
+    this.sandbox.inject('plan', this.globalsApi.plan)
+    this.sandbox.inject('critique', this.globalsApi.critique)
+    this.sandbox.inject('learn', this.globalsApi.learn)
+    this.sandbox.inject('delegate', this.globalsApi.delegate)
+    this.sandbox.inject('cachedFetch', this.globalsApi.cachedFetch)
+    this.sandbox.inject('watch', this.globalsApi.watch)
+    this.sandbox.inject('pipeline', this.globalsApi.pipeline)
+    this.sandbox.inject('schema', this.globalsApi.schema)
+    this.sandbox.inject('validate', this.globalsApi.validate)
+    this.sandbox.inject('broadcast', this.globalsApi.broadcast)
+    this.sandbox.inject('listen', this.globalsApi.listen)
 
     // Inject agent namespace globals
     if (options.agentNamespaces) {
@@ -302,6 +353,9 @@ export class Session extends EventEmitter {
   private handleStop(payload: StopPayload, source: string): void {
     this.stopCount++
     this.agentRegistry.advanceTurn()
+
+    // Check watchers for variable changes
+    this.globalsApi.checkWatchers((name: string) => this.sandbox.getValue(name))
 
     const cpState = this.globalsApi.getTasklistsState()
     const tasksBlock = generateTasksBlock(cpState)
@@ -635,6 +689,18 @@ export class Session extends EventEmitter {
       maxVariables: this.config.workspace.maxScopeVariables,
       maxValueWidth: this.config.workspace.maxScopeValueWidth,
     })
+  }
+
+  getPinnedMemory(): Map<string, { value: unknown; display: string; turn: number }> {
+    return this.globalsApi.getPinnedMemory()
+  }
+
+  getMemoMemory(): Map<string, string> {
+    return this.globalsApi.getMemoMemory()
+  }
+
+  getFocusSections(): Set<string> | null {
+    return this.globalsApi.getFocusSections()
   }
 
   private setStatus(status: SessionStatus): void {

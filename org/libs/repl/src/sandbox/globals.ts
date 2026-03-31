@@ -46,6 +46,116 @@ export interface GlobalsConfig {
   isFireAndForget?: boolean
   /** Deliver structured input to a child agent's pending askParent(). */
   onRespond?: (promise: unknown, data: Record<string, unknown>) => void
+  /** Return a context budget snapshot for the agent. */
+  onContextBudget?: () => ContextBudgetSnapshot
+  /** Execute a reflection LLM call and return the assessment. */
+  onReflect?: (request: ReflectRequest) => Promise<ReflectResult>
+  /** Execute speculative branches in parallel sandboxes. */
+  onSpeculate?: (branches: SpeculateBranch[], timeout: number) => Promise<SpeculateResult>
+  /** Compress data via an LLM call. */
+  onCompress?: (data: string, options: CompressOptions) => Promise<string>
+  /** Fork a lightweight child agent for sub-reasoning. */
+  onFork?: (request: ForkRequest) => Promise<ForkResult>
+  /** Return execution profiling data. */
+  onTrace?: () => TraceSnapshot
+  /** Generate a task plan from a natural language goal via LLM. */
+  onPlan?: (goal: string, constraints?: string[]) => Promise<Array<{ id: string; instructions: string; dependsOn?: string[] }>>
+  /** Critique output quality via LLM. */
+  onCritique?: (output: string, criteria: string[], context?: string) => Promise<CritiqueResult>
+  /** Persist a learning to the knowledge base for cross-session memory. */
+  onLearn?: (topic: string, insight: string, tags?: string[]) => Promise<void>
+  /** Snapshot current sandbox scope for checkpoint(). */
+  onCheckpoint?: () => { values: Map<string, unknown>; declaredNames: Set<string> }
+  /** Restore sandbox scope from a checkpoint. */
+  onRollback?: (snapshot: { values: Map<string, unknown>; declaredNames: Set<string> }) => void
+}
+
+export interface TraceSnapshot {
+  turns: number
+  llmCalls: number
+  llmTokens: { input: number; output: number; total: number }
+  estimatedCost: string
+  asyncTasks: { completed: number; failed: number; running: number }
+  scopeSize: number
+  pinnedCount: number
+  memoCount: number
+  sessionDurationMs: number
+}
+
+export interface CritiqueResult {
+  pass: boolean
+  overallScore: number
+  scores: Record<string, number>
+  issues: string[]
+  suggestions: string[]
+}
+
+export interface CheckpointData {
+  id: string
+  timestamp: number
+  scopeSnapshot: Map<string, unknown>
+  declaredNames: Set<string>
+}
+
+export interface ForkRequest {
+  task: string
+  context?: Record<string, unknown>
+  outputSchema?: Record<string, { type: string }>
+  maxTurns?: number
+}
+
+export interface ForkResult {
+  output: Record<string, unknown>
+  turns: number
+  success: boolean
+  error?: string
+}
+
+export interface CompressOptions {
+  preserveKeys?: string[]
+  maxTokens?: number
+  format?: 'structured' | 'prose'
+}
+
+export interface SpeculateBranch {
+  label: string
+  fn: () => unknown
+}
+
+export interface SpeculateBranchResult {
+  label: string
+  ok: boolean
+  result?: unknown
+  error?: string
+  durationMs: number
+}
+
+export interface SpeculateResult {
+  results: SpeculateBranchResult[]
+}
+
+export interface ReflectRequest {
+  question: string
+  context?: Record<string, unknown>
+  criteria?: string[]
+}
+
+export interface ReflectResult {
+  assessment: string
+  scores: Record<string, number>
+  suggestions: string[]
+  shouldPivot: boolean
+}
+
+export interface ContextBudgetSnapshot {
+  totalTokens: number
+  usedTokens: number
+  remainingTokens: number
+  systemPromptTokens: number
+  messageHistoryTokens: number
+  turnNumber: number
+  decayLevel: { stops: string; knowledge: string }
+  recommendation: 'nominal' | 'conserve' | 'critical'
 }
 
 /**
@@ -64,6 +174,18 @@ export function createGlobals(config: GlobalsConfig) {
   const tasklistsState: TasklistsState = {
     tasklists: new Map(),
   }
+
+  // ── Focus state (dynamic prompt sectioning) ──
+  let focusSections: Set<string> | null = null // null = all expanded
+
+  // ── Checkpoint storage ──
+  const checkpoints = new Map<string, CheckpointData>()
+
+  // ── Pinned memory ──
+  const pinnedMemory = new Map<string, { value: unknown; display: string; turn: number }>()
+  // ── Memo memory (agent-authored compressed notes) ──
+  const memoMemory = new Map<string, string>()
+  let pinTurnCounter = 0
 
   let currentSource = ''
 
@@ -715,6 +837,591 @@ export function createGlobals(config: GlobalsConfig) {
     config.onRespond(promise, data)
   }
 
+  /**
+   * trace() — Returns execution profiling snapshot.
+   */
+  function traceFn(): TraceSnapshot {
+    if (!config.onTrace) {
+      return {
+        turns: 0, llmCalls: 0, llmTokens: { input: 0, output: 0, total: 0 },
+        estimatedCost: '$0.00', asyncTasks: { completed: 0, failed: 0, running: 0 },
+        scopeSize: 0, pinnedCount: pinnedMemory.size, memoCount: memoMemory.size,
+        sessionDurationMs: 0,
+      }
+    }
+    return config.onTrace()
+  }
+
+  // ── Watch state for reactive variable observation ──
+  const watchers = new Map<string, { callback: (newVal: unknown, oldVal: unknown) => void; lastValue: unknown }>()
+
+  /**
+   * watch(variableName, callback) — Observe changes to a sandbox variable.
+   * The callback fires when the variable's serialized value changes between stop() calls.
+   * Returns an unwatch function.
+   */
+  function watchFn(variableName: string, callback: (newVal: unknown, oldVal: unknown) => void): () => void {
+    watchers.set(variableName, { callback, lastValue: undefined })
+    return () => { watchers.delete(variableName) }
+  }
+
+  /**
+   * pipeline(data, ...transforms) — Chain data transformations.
+   * Each transform receives the output of the previous one. Supports async transforms.
+   * Returns { result, steps: [{ name, durationMs }] }.
+   */
+  async function pipelineFn(
+    data: unknown,
+    ...transforms: Array<{ name: string; fn: (input: unknown) => unknown }>
+  ): Promise<{ result: unknown; steps: Array<{ name: string; durationMs: number; ok: boolean; error?: string }> }> {
+    let current = data
+    const steps: Array<{ name: string; durationMs: number; ok: boolean; error?: string }> = []
+
+    for (const transform of transforms) {
+      const start = Date.now()
+      try {
+        current = await Promise.resolve(transform.fn(current))
+        steps.push({ name: transform.name, durationMs: Date.now() - start, ok: true })
+      } catch (err: any) {
+        steps.push({ name: transform.name, durationMs: Date.now() - start, ok: false, error: err?.message ?? String(err) })
+        return { result: current, steps }
+      }
+    }
+
+    return { result: current, steps }
+  }
+
+  // ── Enhanced fetch with caching and retry ──
+  const fetchCache = new Map<string, { data: unknown; timestamp: number; ttl: number }>()
+
+  /**
+   * cachedFetch(url, options?) — HTTP fetch with caching, retry, and pagination support.
+   * Built-in response parsing (JSON/text), TTL-based caching, and exponential backoff retry.
+   */
+  async function cachedFetchFn(
+    url: string,
+    options?: {
+      method?: string
+      headers?: Record<string, string>
+      body?: string
+      cacheTtlMs?: number
+      maxRetries?: number
+      parseAs?: 'json' | 'text'
+      timeout?: number
+    },
+  ): Promise<{ data: unknown; cached: boolean; status: number; durationMs: number }> {
+    const cacheKey = `${options?.method ?? 'GET'}:${url}`
+    const ttl = options?.cacheTtlMs ?? 0
+
+    // Check cache
+    if (ttl > 0) {
+      const cached = fetchCache.get(cacheKey)
+      if (cached && Date.now() - cached.timestamp < cached.ttl) {
+        return { data: cached.data, cached: true, status: 200, durationMs: 0 }
+      }
+    }
+
+    const maxRetries = options?.maxRetries ?? 2
+    const timeout = Math.min(options?.timeout ?? 30000, 60000)
+    const start = Date.now()
+
+    let lastError: Error | null = null
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      if (attempt > 0) {
+        await new Promise(r => setTimeout(r, Math.min(1000 * Math.pow(2, attempt - 1), 8000)))
+      }
+      try {
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), timeout)
+
+        const response = await fetch(url, {
+          method: options?.method ?? 'GET',
+          headers: options?.headers,
+          body: options?.body,
+          signal: controller.signal,
+        })
+        clearTimeout(timer)
+
+        const parseAs = options?.parseAs ?? (response.headers.get('content-type')?.includes('json') ? 'json' : 'text')
+        const data = parseAs === 'json' ? await response.json() : await response.text()
+
+        // Cache successful responses
+        if (ttl > 0 && response.ok) {
+          fetchCache.set(cacheKey, { data, timestamp: Date.now(), ttl })
+          // Evict old entries
+          if (fetchCache.size > 50) {
+            const oldest = [...fetchCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp)[0]
+            if (oldest) fetchCache.delete(oldest[0])
+          }
+        }
+
+        return { data, cached: false, status: response.status, durationMs: Date.now() - start }
+      } catch (err: any) {
+        lastError = err
+      }
+    }
+    throw lastError ?? new Error('cachedFetch: all retries failed')
+  }
+
+  /**
+   * schema(value) — Infer a JSON schema from a runtime value.
+   * Useful for understanding data shapes, generating outputSchemas for tasks,
+   * or validating that data matches an expected structure.
+   */
+  function schemaFn(value: unknown): Record<string, unknown> {
+    return inferSchema(value)
+  }
+
+  /**
+   * validate(value, schema) — Validate a value against a JSON-like schema.
+   * Returns { valid: true } or { valid: false, errors: string[] }.
+   */
+  function validateFn(value: unknown, schema: Record<string, unknown>): { valid: boolean; errors?: string[] } {
+    const errors: string[] = []
+    checkSchema(value, schema, '', errors)
+    return errors.length === 0 ? { valid: true } : { valid: false, errors }
+  }
+
+  /**
+   * delegate(task, options?) — Smart task routing.
+   * Chooses the best execution strategy: fork (complex reasoning), parallel (data processing),
+   * or direct execution. Returns the result with metadata about the chosen strategy.
+   */
+  async function delegateFn(
+    task: string | (() => unknown),
+    options?: { strategy?: 'auto' | 'fork' | 'parallel' | 'direct'; timeout?: number; context?: Record<string, unknown> },
+  ): Promise<{ strategy: string; result: unknown; durationMs: number }> {
+    const start = Date.now()
+    const strategy = options?.strategy ?? 'auto'
+    const timeout = options?.timeout ?? 30000
+
+    if (typeof task === 'function') {
+      // Direct function execution
+      const result = await Promise.race([
+        Promise.resolve(task()),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeout)),
+      ])
+      return { strategy: 'direct', result, durationMs: Date.now() - start }
+    }
+
+    // String task — needs LLM reasoning
+    if (strategy === 'direct') {
+      throw new Error('delegate: cannot use "direct" strategy with string tasks — use a function instead')
+    }
+
+    if (strategy === 'fork' || strategy === 'auto') {
+      // Use fork for string tasks
+      if (!config.onFork) throw new Error('delegate: fork not available')
+      const forkResult = await config.onFork({
+        task,
+        context: options?.context,
+        maxTurns: 2,
+      })
+      return { strategy: 'fork', result: forkResult.output, durationMs: Date.now() - start }
+    }
+
+    throw new Error(`delegate: unknown strategy "${strategy}"`)
+  }
+
+  // ── Event bus for broadcast/listen ──
+  const eventListeners = new Map<string, Array<(data: unknown) => void>>()
+  const eventBuffer = new Map<string, unknown[]>()
+
+  /**
+   * broadcast(channel, data) — Emit an event on a named channel.
+   * All registered listeners and buffered data for unlistened channels.
+   */
+  function broadcastFn(channel: string, data: unknown): void {
+    const listeners = eventListeners.get(channel)
+    if (listeners && listeners.length > 0) {
+      for (const listener of listeners) {
+        try { listener(data) } catch { /* swallow listener errors */ }
+      }
+    }
+    // Buffer last 10 events per channel
+    let buffer = eventBuffer.get(channel)
+    if (!buffer) {
+      buffer = []
+      eventBuffer.set(channel, buffer)
+    }
+    buffer.push(data)
+    if (buffer.length > 10) buffer.shift()
+  }
+
+  /**
+   * listen(channel, callback?) — Subscribe to a channel.
+   * If no callback, returns buffered events and clears the buffer.
+   * If callback provided, registers it for future events.
+   * Returns an unsubscribe function when callback is provided.
+   */
+  function listenFn(channel: string, callback?: (data: unknown) => void): unknown[] | (() => void) {
+    if (!callback) {
+      // Return buffered events
+      const buffer = eventBuffer.get(channel) ?? []
+      eventBuffer.delete(channel)
+      return [...buffer]
+    }
+    // Register listener
+    let listeners = eventListeners.get(channel)
+    if (!listeners) {
+      listeners = []
+      eventListeners.set(channel, listeners)
+    }
+    listeners.push(callback)
+    // Return unsubscribe
+    return () => {
+      const ls = eventListeners.get(channel)
+      if (ls) {
+        const idx = ls.indexOf(callback)
+        if (idx !== -1) ls.splice(idx, 1)
+      }
+    }
+  }
+
+  /**
+   * learn(topic, insight, tags?) — Persist a learning for cross-session memory.
+   * Writes to the knowledge base's memory domain so it's available in future sessions.
+   */
+  async function learnFn(topic: string, insight: string, tags?: string[]): Promise<void> {
+    if (!config.onLearn) {
+      throw new Error('learn: knowledge persistence not available')
+    }
+    return config.onLearn(topic, insight, tags)
+  }
+
+  /**
+   * critique(output, criteria, context?) — Quality gate via LLM evaluation.
+   * Returns pass/fail, scores per criterion, issues, and suggestions.
+   */
+  async function critiqueFn(
+    output: string,
+    criteria: string[],
+    context?: string,
+  ): Promise<CritiqueResult> {
+    if (!config.onCritique) {
+      throw new Error('critique: LLM critique not available')
+    }
+    return config.onCritique(output, criteria, context)
+  }
+
+  /**
+   * plan(goal, constraints?) — LLM-powered task decomposition.
+   * Returns a structured task plan from a natural language goal.
+   */
+  async function planFn(
+    goal: string,
+    constraints?: string[],
+  ): Promise<Array<{ id: string; instructions: string; dependsOn?: string[] }>> {
+    if (!config.onPlan) {
+      throw new Error('plan: LLM planning not available')
+    }
+    return config.onPlan(goal, constraints)
+  }
+
+  /**
+   * parallel(tasks, options?) — Run multiple async functions concurrently with fan-out/fan-in.
+   * Returns an array of { label, ok, result?, error?, durationMs } for each task.
+   * Max 10 concurrent tasks, default 30s timeout per task.
+   */
+  async function parallelFn(
+    tasks: Array<{ label: string; fn: () => unknown }>,
+    options?: { timeout?: number; failFast?: boolean },
+  ): Promise<Array<{ label: string; ok: boolean; result?: unknown; error?: string; durationMs: number }>> {
+    if (tasks.length === 0) return []
+    if (tasks.length > 10) throw new Error('parallel: max 10 concurrent tasks')
+    const timeout = Math.min(options?.timeout ?? 30000, 60000)
+    const failFast = options?.failFast ?? false
+
+    const controller = failFast ? new AbortController() : null
+
+    const results = await Promise.allSettled(
+      tasks.map(async (task) => {
+        const start = Date.now()
+        try {
+          const result = await Promise.race([
+            Promise.resolve(task.fn()),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('timeout')), timeout)
+            ),
+            ...(controller ? [new Promise((_, reject) => {
+              controller.signal.addEventListener('abort', () => reject(new Error('fail-fast abort')))
+            })] : []),
+          ])
+          return { label: task.label, ok: true as const, result, durationMs: Date.now() - start }
+        } catch (err: any) {
+          if (failFast && controller && !controller.signal.aborted) {
+            controller.abort()
+          }
+          return { label: task.label, ok: false as const, error: err?.message ?? String(err), durationMs: Date.now() - start }
+        }
+      }),
+    )
+
+    return results.map((r) =>
+      r.status === 'fulfilled' ? r.value : { label: '?', ok: false, error: r.reason?.message ?? 'unknown', durationMs: 0 },
+    )
+  }
+
+  /**
+   * checkpoint(id) — Save a named snapshot of the current sandbox scope.
+   * Max 5 checkpoints. Returns the checkpoint ID.
+   */
+  function checkpointFn(id: string): string {
+    if (checkpoints.size >= 5) {
+      // Evict the oldest checkpoint
+      const oldestKey = checkpoints.keys().next().value!
+      checkpoints.delete(oldestKey)
+    }
+    if (!config.onCheckpoint) {
+      throw new Error('checkpoint: sandbox snapshotting not available')
+    }
+    const snap = config.onCheckpoint()
+    checkpoints.set(id, {
+      id,
+      timestamp: Date.now(),
+      scopeSnapshot: snap.values,
+      declaredNames: snap.declaredNames,
+    })
+    return id
+  }
+
+  /**
+   * rollback(id) — Restore the sandbox scope from a named checkpoint.
+   * The checkpoint is preserved (can be rolled back to again).
+   */
+  function rollbackFn(id: string): void {
+    const cp = checkpoints.get(id)
+    if (!cp) {
+      throw new Error(`rollback: no checkpoint named "${id}" — available: [${[...checkpoints.keys()].join(', ')}]`)
+    }
+    if (!config.onRollback) {
+      throw new Error('rollback: sandbox restoration not available')
+    }
+    config.onRollback({
+      values: cp.scopeSnapshot,
+      declaredNames: cp.declaredNames,
+    })
+  }
+
+  /**
+   * guard(condition, message) — Runtime assertion. Throws GuardError if condition is false.
+   */
+  function guardFn(condition: unknown, message: string): void {
+    if (!condition) {
+      const err = new Error(message)
+      err.name = 'GuardError'
+      throw err
+    }
+  }
+
+  /**
+   * focus(...sections) — Control which system prompt sections are expanded.
+   * Sections: 'functions', 'knowledge', 'components', 'classes', 'agents'.
+   * Call focus('all') to reset to full expansion.
+   * Collapsed sections show a one-line summary instead of full content.
+   */
+  function focusFn(...sections: string[]): void {
+    if (sections.length === 0 || (sections.length === 1 && sections[0] === 'all')) {
+      focusSections = null
+      return
+    }
+    const valid = new Set(['functions', 'knowledge', 'components', 'classes', 'agents'])
+    for (const s of sections) {
+      if (!valid.has(s)) {
+        throw new Error(`focus() unknown section: "${s}". Valid: ${[...valid].join(', ')}, or 'all'`)
+      }
+    }
+    focusSections = new Set(sections)
+  }
+
+  /**
+   * fork({ task, context?, outputSchema?, maxTurns? }) — Lightweight sub-agent.
+   * Runs a focused sub-reasoning task in an isolated context. Only the final
+   * output enters your context — the child's full reasoning stays separate.
+   */
+  async function forkFn(request: ForkRequest): Promise<ForkResult> {
+    if (!request || typeof request !== 'object' || !request.task) {
+      throw new Error('fork() requires { task: string, context?: object, outputSchema?: object, maxTurns?: number }')
+    }
+    if (!config.onFork) {
+      throw new Error('fork() is not available — no fork handler configured')
+    }
+    return config.onFork(request)
+  }
+
+  /**
+   * compress(data, options?) — Compress large data via an LLM call.
+   * Returns a token-efficient summary preserving specified keys.
+   */
+  async function compressFn(
+    data: unknown,
+    options?: CompressOptions,
+  ): Promise<string> {
+    const dataStr = typeof data === 'string'
+      ? data
+      : JSON.stringify(data, null, 2)
+    if (!dataStr || dataStr.length < 100) {
+      return dataStr // Too small to compress
+    }
+    if (!config.onCompress) {
+      // Fallback: simple truncation
+      const maxLen = (options?.maxTokens ?? 200) * 4
+      if (dataStr.length <= maxLen) return dataStr
+      return dataStr.slice(0, maxLen) + '\n...(truncated)'
+    }
+    return config.onCompress(dataStr, options ?? {})
+  }
+
+  /**
+   * speculate(branches, options?) — Run multiple approaches in parallel.
+   * Each branch runs its function concurrently. Returns all results so
+   * the agent can pick the winner. Branches that throw are captured as errors.
+   */
+  async function speculateFn(
+    branches: Array<{ label: string; fn: () => unknown }>,
+    options?: { timeout?: number },
+  ): Promise<SpeculateResult> {
+    if (!Array.isArray(branches) || branches.length === 0) {
+      throw new Error('speculate() requires a non-empty array of branches')
+    }
+    if (branches.length > 5) {
+      throw new Error('speculate() supports max 5 branches')
+    }
+    const timeout = options?.timeout ?? 10_000
+
+    // If no external handler, run branches in-process concurrently
+    if (config.onSpeculate) {
+      return config.onSpeculate(branches, timeout)
+    }
+
+    // Default: run all branches concurrently with timeout
+    const results: SpeculateBranchResult[] = await Promise.all(
+      branches.map(async (branch) => {
+        const start = Date.now()
+        try {
+          const result = await Promise.race([
+            Promise.resolve().then(() => branch.fn()),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Branch timed out')), timeout)
+            ),
+          ])
+          return {
+            label: branch.label,
+            ok: true,
+            result,
+            durationMs: Date.now() - start,
+          }
+        } catch (err: any) {
+          return {
+            label: branch.label,
+            ok: false,
+            error: err instanceof Error ? err.message : String(err),
+            durationMs: Date.now() - start,
+          }
+        }
+      }),
+    )
+
+    return { results }
+  }
+
+  /**
+   * reflect(request) — Trigger a separate LLM call for self-evaluation.
+   * Returns an assessment, scores per criterion, suggestions, and a shouldPivot flag.
+   */
+  async function reflectFn(request: ReflectRequest): Promise<ReflectResult> {
+    if (!request || typeof request !== 'object' || !request.question) {
+      throw new Error('reflect() requires { question: string, context?: object, criteria?: string[] }')
+    }
+    if (!config.onReflect) {
+      throw new Error('reflect() is not available — no reflection model configured')
+    }
+    return config.onReflect(request)
+  }
+
+  /**
+   * pin(key, value) — Pin a value to persistent memory that survives decay.
+   * Pinned values appear in a {{PINNED}} block in the system prompt.
+   * Max 10 pins, total budget ~2000 tokens.
+   */
+  function pinFn(key: string, value: unknown): void {
+    if (typeof key !== 'string' || !key) {
+      throw new Error('pin() requires a non-empty string key as first argument')
+    }
+    if (pinnedMemory.size >= 10 && !pinnedMemory.has(key)) {
+      throw new Error('pin() limit reached (max 10 pins). Unpin an existing key first.')
+    }
+    const display = serialize(value, {
+      maxStringLength: 500,
+      maxArrayElements: 20,
+      maxObjectKeys: 10,
+      maxDepth: 3,
+    })
+    pinnedMemory.set(key, { value, display, turn: pinTurnCounter })
+  }
+
+  /**
+   * unpin(key) — Remove a pinned value from persistent memory.
+   */
+  function unpinFn(key: string): void {
+    if (typeof key !== 'string' || !key) {
+      throw new Error('unpin() requires a non-empty string key')
+    }
+    pinnedMemory.delete(key)
+  }
+
+  /**
+   * memo(key) — Read a memo. memo(key, text) — Write a memo. memo(key, null) — Delete.
+   * Memos are agent-authored compressed notes (max 500 chars each, max 20 memos).
+   * They appear in a {{MEMO}} block in the system prompt.
+   */
+  function memoFn(key: string, value?: string | null): string | undefined {
+    if (typeof key !== 'string' || !key) {
+      throw new Error('memo() requires a non-empty string key')
+    }
+    // Read mode
+    if (arguments.length === 1) {
+      return memoMemory.get(key)
+    }
+    // Delete mode
+    if (value === null) {
+      memoMemory.delete(key)
+      return undefined
+    }
+    // Write mode
+    if (typeof value !== 'string') {
+      throw new Error('memo() value must be a string or null')
+    }
+    if (value.length > 500) {
+      throw new Error(`memo() value exceeds 500 char limit (got ${value.length}). Compress further.`)
+    }
+    if (memoMemory.size >= 20 && !memoMemory.has(key)) {
+      throw new Error('memo() limit reached (max 20 memos). Delete an existing memo first.')
+    }
+    memoMemory.set(key, value)
+    return value
+  }
+
+  /**
+   * contextBudget() — Returns a snapshot of the agent's context window budget.
+   * Lets the agent make informed decisions about knowledge loading, memo usage, etc.
+   */
+  function contextBudgetFn(): ContextBudgetSnapshot {
+    if (!config.onContextBudget) {
+      return {
+        totalTokens: 100_000,
+        usedTokens: 0,
+        remainingTokens: 100_000,
+        systemPromptTokens: 0,
+        messageHistoryTokens: 0,
+        turnNumber: 0,
+        decayLevel: { stops: 'full', knowledge: 'full' },
+        recommendation: 'nominal',
+      }
+    }
+    return config.onContextBudget()
+  }
+
   return {
     stop: stopFn,
     display: displayFn,
@@ -731,9 +1438,52 @@ export function createGlobals(config: GlobalsConfig) {
     loadClass: loadClassFn,
     askParent: askParentFn,
     respond: respondFn,
+    contextBudget: contextBudgetFn,
+    pin: pinFn,
+    unpin: unpinFn,
+    memo: memoFn,
+    reflect: reflectFn,
+    speculate: speculateFn,
+    compress: compressFn,
+    fork: forkFn,
+    focus: focusFn,
+    guard: guardFn,
+    trace: traceFn,
+    checkpoint: checkpointFn,
+    rollback: rollbackFn,
+    parallel: parallelFn,
+    plan: planFn,
+    critique: critiqueFn,
+    learn: learnFn,
+    broadcast: broadcastFn,
+    listen: listenFn,
+    delegate: delegateFn,
+    schema: schemaFn,
+    validate: validateFn,
+    cachedFetch: cachedFetchFn,
+    pipeline: pipelineFn,
+    watch: watchFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,
+    getPinnedMemory: () => pinnedMemory,
+    getMemoMemory: () => memoMemory,
+    getFocusSections: () => focusSections,
+    setPinTurn: (turn: number) => { pinTurnCounter = turn },
+    checkWatchers: (getVar: (name: string) => unknown) => {
+      for (const [name, entry] of watchers) {
+        try {
+          const current = getVar(name)
+          const currentStr = JSON.stringify(current)
+          const lastStr = JSON.stringify(entry.lastValue)
+          if (currentStr !== lastStr) {
+            const oldVal = entry.lastValue
+            entry.lastValue = current
+            try { entry.callback(current, oldVal) } catch { /* swallow */ }
+          }
+        } catch { /* skip */ }
+      }
+    },
   }
 }
 
@@ -747,4 +1497,61 @@ function deriveLabel(source: string): string {
   if (callMatch) return callMatch[1]
 
   return 'background task'
+}
+
+function inferSchema(value: unknown, depth = 0): Record<string, unknown> {
+  if (depth > 5) return { type: 'unknown' }
+  if (value === null) return { type: 'null' }
+  if (value === undefined) return { type: 'undefined' }
+  if (typeof value === 'string') return { type: 'string' }
+  if (typeof value === 'number') return { type: 'number' }
+  if (typeof value === 'boolean') return { type: 'boolean' }
+  if (Array.isArray(value)) {
+    if (value.length === 0) return { type: 'array', items: { type: 'unknown' } }
+    const itemSchema = inferSchema(value[0], depth + 1)
+    return { type: 'array', items: itemSchema, minItems: value.length, maxItems: value.length }
+  }
+  if (typeof value === 'object') {
+    const properties: Record<string, unknown> = {}
+    const keys = Object.keys(value as Record<string, unknown>)
+    for (const key of keys.slice(0, 20)) {
+      properties[key] = inferSchema((value as any)[key], depth + 1)
+    }
+    return { type: 'object', properties, required: keys.slice(0, 20) }
+  }
+  return { type: typeof value }
+}
+
+function checkSchema(value: unknown, schema: Record<string, unknown>, path: string, errors: string[]): void {
+  const type = schema.type as string | undefined
+  if (!type) return
+
+  if (type === 'string' && typeof value !== 'string') errors.push(`${path || '.'}: expected string, got ${typeof value}`)
+  else if (type === 'number' && typeof value !== 'number') errors.push(`${path || '.'}: expected number, got ${typeof value}`)
+  else if (type === 'boolean' && typeof value !== 'boolean') errors.push(`${path || '.'}: expected boolean, got ${typeof value}`)
+  else if (type === 'array') {
+    if (!Array.isArray(value)) { errors.push(`${path || '.'}: expected array`); return }
+    const items = schema.items as Record<string, unknown> | undefined
+    if (items) {
+      for (let i = 0; i < Math.min(value.length, 10); i++) {
+        checkSchema(value[i], items, `${path}[${i}]`, errors)
+      }
+    }
+  } else if (type === 'object') {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) { errors.push(`${path || '.'}: expected object`); return }
+    const properties = schema.properties as Record<string, Record<string, unknown>> | undefined
+    const required = schema.required as string[] | undefined
+    if (required) {
+      for (const key of required) {
+        if (!(key in (value as any))) errors.push(`${path}.${key}: required property missing`)
+      }
+    }
+    if (properties) {
+      for (const [key, propSchema] of Object.entries(properties)) {
+        if (key in (value as any)) {
+          checkSchema((value as any)[key], propSchema, `${path}.${key}`, errors)
+        }
+      }
+    }
+  }
 }

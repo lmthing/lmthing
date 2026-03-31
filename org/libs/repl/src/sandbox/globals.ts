@@ -852,6 +852,78 @@ export function createGlobals(config: GlobalsConfig) {
     return config.onTrace()
   }
 
+  // ── Enhanced fetch with caching and retry ──
+  const fetchCache = new Map<string, { data: unknown; timestamp: number; ttl: number }>()
+
+  /**
+   * cachedFetch(url, options?) — HTTP fetch with caching, retry, and pagination support.
+   * Built-in response parsing (JSON/text), TTL-based caching, and exponential backoff retry.
+   */
+  async function cachedFetchFn(
+    url: string,
+    options?: {
+      method?: string
+      headers?: Record<string, string>
+      body?: string
+      cacheTtlMs?: number
+      maxRetries?: number
+      parseAs?: 'json' | 'text'
+      timeout?: number
+    },
+  ): Promise<{ data: unknown; cached: boolean; status: number; durationMs: number }> {
+    const cacheKey = `${options?.method ?? 'GET'}:${url}`
+    const ttl = options?.cacheTtlMs ?? 0
+
+    // Check cache
+    if (ttl > 0) {
+      const cached = fetchCache.get(cacheKey)
+      if (cached && Date.now() - cached.timestamp < cached.ttl) {
+        return { data: cached.data, cached: true, status: 200, durationMs: 0 }
+      }
+    }
+
+    const maxRetries = options?.maxRetries ?? 2
+    const timeout = Math.min(options?.timeout ?? 30000, 60000)
+    const start = Date.now()
+
+    let lastError: Error | null = null
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      if (attempt > 0) {
+        await new Promise(r => setTimeout(r, Math.min(1000 * Math.pow(2, attempt - 1), 8000)))
+      }
+      try {
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), timeout)
+
+        const response = await fetch(url, {
+          method: options?.method ?? 'GET',
+          headers: options?.headers,
+          body: options?.body,
+          signal: controller.signal,
+        })
+        clearTimeout(timer)
+
+        const parseAs = options?.parseAs ?? (response.headers.get('content-type')?.includes('json') ? 'json' : 'text')
+        const data = parseAs === 'json' ? await response.json() : await response.text()
+
+        // Cache successful responses
+        if (ttl > 0 && response.ok) {
+          fetchCache.set(cacheKey, { data, timestamp: Date.now(), ttl })
+          // Evict old entries
+          if (fetchCache.size > 50) {
+            const oldest = [...fetchCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp)[0]
+            if (oldest) fetchCache.delete(oldest[0])
+          }
+        }
+
+        return { data, cached: false, status: response.status, durationMs: Date.now() - start }
+      } catch (err: any) {
+        lastError = err
+      }
+    }
+    throw lastError ?? new Error('cachedFetch: all retries failed')
+  }
+
   /**
    * schema(value) — Infer a JSON schema from a runtime value.
    * Useful for understanding data shapes, generating outputSchemas for tasks,
@@ -1349,6 +1421,7 @@ export function createGlobals(config: GlobalsConfig) {
     delegate: delegateFn,
     schema: schemaFn,
     validate: validateFn,
+    cachedFetch: cachedFetchFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,

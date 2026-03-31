@@ -256,6 +256,15 @@ var review = await reflect({
 await stop(review)
 // ← stop { review: { assessment: "Regex will fail on quoted commas...", scores: { correctness: 0.4, ... }, shouldPivot: true } }
 
+### await cachedFetch(url, options?) — HTTP fetch with caching and retry
+Fetches a URL with built-in TTL caching, exponential backoff retry (default 2 retries), auto JSON/text parsing, and timeout. Returns { data, cached, status, durationMs }. Cache up to 50 entries.
+
+Example:
+var resp = await cachedFetch("https://api.example.com/data", { cacheTtlMs: 60000, maxRetries: 3, parseAs: "json" })
+await stop(resp)
+// ← stop { resp: { data: {...}, cached: false, status: 200, durationMs: 234 } }
+// Second call within 60s returns cached: true instantly
+
 ### schema(value) — Infer JSON schema from a runtime value
 Analyzes a runtime value and returns its JSON schema (type, properties, items, required). Use to understand data shapes, generate outputSchemas for tasklist tasks, or compare structures.
 

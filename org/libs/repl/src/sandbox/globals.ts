@@ -58,6 +58,10 @@ export interface GlobalsConfig {
   onFork?: (request: ForkRequest) => Promise<ForkResult>
   /** Return execution profiling data. */
   onTrace?: () => TraceSnapshot
+  /** Snapshot current sandbox scope for checkpoint(). */
+  onCheckpoint?: () => { values: Map<string, unknown>; declaredNames: Set<string> }
+  /** Restore sandbox scope from a checkpoint. */
+  onRollback?: (snapshot: { values: Map<string, unknown>; declaredNames: Set<string> }) => void
 }
 
 export interface TraceSnapshot {
@@ -70,6 +74,13 @@ export interface TraceSnapshot {
   pinnedCount: number
   memoCount: number
   sessionDurationMs: number
+}
+
+export interface CheckpointData {
+  id: string
+  timestamp: number
+  scopeSnapshot: Map<string, unknown>
+  declaredNames: Set<string>
 }
 
 export interface ForkRequest {
@@ -152,6 +163,9 @@ export function createGlobals(config: GlobalsConfig) {
 
   // ── Focus state (dynamic prompt sectioning) ──
   let focusSections: Set<string> | null = null // null = all expanded
+
+  // ── Checkpoint storage ──
+  const checkpoints = new Map<string, CheckpointData>()
 
   // ── Pinned memory ──
   const pinnedMemory = new Map<string, { value: unknown; display: string; turn: number }>()
@@ -825,6 +839,47 @@ export function createGlobals(config: GlobalsConfig) {
   }
 
   /**
+   * checkpoint(id) — Save a named snapshot of the current sandbox scope.
+   * Max 5 checkpoints. Returns the checkpoint ID.
+   */
+  function checkpointFn(id: string): string {
+    if (checkpoints.size >= 5) {
+      // Evict the oldest checkpoint
+      const oldestKey = checkpoints.keys().next().value!
+      checkpoints.delete(oldestKey)
+    }
+    if (!config.onCheckpoint) {
+      throw new Error('checkpoint: sandbox snapshotting not available')
+    }
+    const snap = config.onCheckpoint()
+    checkpoints.set(id, {
+      id,
+      timestamp: Date.now(),
+      scopeSnapshot: snap.values,
+      declaredNames: snap.declaredNames,
+    })
+    return id
+  }
+
+  /**
+   * rollback(id) — Restore the sandbox scope from a named checkpoint.
+   * The checkpoint is preserved (can be rolled back to again).
+   */
+  function rollbackFn(id: string): void {
+    const cp = checkpoints.get(id)
+    if (!cp) {
+      throw new Error(`rollback: no checkpoint named "${id}" — available: [${[...checkpoints.keys()].join(', ')}]`)
+    }
+    if (!config.onRollback) {
+      throw new Error('rollback: sandbox restoration not available')
+    }
+    config.onRollback({
+      values: cp.scopeSnapshot,
+      declaredNames: cp.declaredNames,
+    })
+  }
+
+  /**
    * guard(condition, message) — Runtime assertion. Throws GuardError if condition is false.
    */
   function guardFn(condition: unknown, message: string): void {
@@ -1070,6 +1125,8 @@ export function createGlobals(config: GlobalsConfig) {
     focus: focusFn,
     guard: guardFn,
     trace: traceFn,
+    checkpoint: checkpointFn,
+    rollback: rollbackFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,

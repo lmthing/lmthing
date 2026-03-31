@@ -153,6 +153,41 @@ export class Sandbox {
   }
 
   /**
+   * Snapshot all declared variable values (deep clone via structuredClone).
+   */
+  snapshotScope(): { values: Map<string, unknown>; declaredNames: Set<string> } {
+    const values = new Map<string, unknown>()
+    for (const name of this.declaredNames) {
+      try {
+        const val = this.context[name]
+        // structuredClone handles most JS types; fall back to identity for non-cloneable
+        values.set(name, typeof val === 'function' ? val : structuredClone(val))
+      } catch {
+        values.set(name, this.context[name])
+      }
+    }
+    return { values, declaredNames: new Set(this.declaredNames) }
+  }
+
+  /**
+   * Restore sandbox scope from a snapshot. Removes variables not in the snapshot,
+   * restores values for those that are, and updates declaredNames.
+   */
+  restoreScope(snapshot: { values: Map<string, unknown>; declaredNames: Set<string> }): void {
+    // Remove variables that didn't exist at checkpoint time
+    for (const name of this.declaredNames) {
+      if (!snapshot.declaredNames.has(name)) {
+        try { this.context[name] = undefined } catch { /* ignore */ }
+      }
+    }
+    // Restore checkpoint values
+    for (const [name, value] of snapshot.values) {
+      try { this.context[name] = value } catch { /* ignore */ }
+    }
+    this.declaredNames = new Set(snapshot.declaredNames)
+  }
+
+  /**
    * Destroy the sandbox.
    */
   destroy(): void {

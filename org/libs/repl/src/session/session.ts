@@ -236,6 +236,8 @@ export class Session extends EventEmitter {
       onCompress: options.onCompress,
       onFork: options.onFork,
       onTrace: options.onTrace,
+      onCheckpoint: () => this.sandbox.snapshotScope(),
+      onRollback: (snapshot) => this.sandbox.restoreScope(snapshot),
       onRespond: (promise, data) => {
         const entry = this.agentRegistry.findByPromise(promise)
         if (!entry) throw new Error('respond: unknown agent — pass the agent variable as the first argument')
@@ -270,6 +272,8 @@ export class Session extends EventEmitter {
     this.sandbox.inject('focus', this.globalsApi.focus)
     this.sandbox.inject('guard', this.globalsApi.guard)
     this.sandbox.inject('trace', this.globalsApi.trace)
+    this.sandbox.inject('checkpoint', this.globalsApi.checkpoint)
+    this.sandbox.inject('rollback', this.globalsApi.rollback)
 
     // Inject agent namespace globals
     if (options.agentNamespaces) {

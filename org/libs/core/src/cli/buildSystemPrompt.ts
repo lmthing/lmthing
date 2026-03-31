@@ -256,6 +256,28 @@ var review = await reflect({
 await stop(review)
 // ← stop { review: { assessment: "Regex will fail on quoted commas...", scores: { correctness: 0.4, ... }, shouldPivot: true } }
 
+### checkpoint(id) — Save sandbox state snapshot
+Saves a named snapshot of all current variable values. Max 5 checkpoints (oldest evicted). Use before risky operations so you can rollback if they fail. The snapshot uses deep cloning — restoring won't share references with current scope.
+
+Example:
+checkpoint("before_transform")
+var result = await riskyTransform(data)
+await stop(result.success)
+// If result.success is false:
+rollback("before_transform")
+// scope is now exactly as it was before riskyTransform
+
+### rollback(id) — Restore sandbox state from checkpoint
+Restores all variables to the values they had when checkpoint(id) was created. Variables created after the checkpoint are removed. The checkpoint is preserved — you can rollback to it multiple times.
+
+Example:
+checkpoint("safe_state")
+// ... try approach A ...
+rollback("safe_state")
+// ... try approach B ...
+rollback("safe_state")
+// ... try approach C ...
+
 ### trace() — Execution profiling snapshot
 Returns a comprehensive profiling snapshot: turns, LLM calls, token usage (input/output/total), estimated cost, async task stats, scope size, pinned/memo counts, session duration. Use to monitor resource consumption and make informed decisions about when to compress, focus, or stop.
 

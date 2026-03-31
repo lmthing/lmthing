@@ -796,6 +796,17 @@ export function createGlobals(config: GlobalsConfig) {
   }
 
   /**
+   * guard(condition, message) — Runtime assertion. Throws GuardError if condition is false.
+   */
+  function guardFn(condition: unknown, message: string): void {
+    if (!condition) {
+      const err = new Error(message)
+      err.name = 'GuardError'
+      throw err
+    }
+  }
+
+  /**
    * focus(...sections) — Control which system prompt sections are expanded.
    * Sections: 'functions', 'knowledge', 'components', 'classes', 'agents'.
    * Call focus('all') to reset to full expansion.
@@ -1028,6 +1039,7 @@ export function createGlobals(config: GlobalsConfig) {
     compress: compressFn,
     fork: forkFn,
     focus: focusFn,
+    guard: guardFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,

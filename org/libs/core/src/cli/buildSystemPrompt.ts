@@ -195,6 +195,13 @@ Delete: memo("data-shape", null)
 
 Max 20 memos. Memos never decay — delete them when no longer needed.
 
+### guard(condition, message) — Runtime assertion
+Throws a GuardError if condition is falsy. Use to validate assumptions before proceeding. The error message appears as: ← error [GuardError] your message
+
+Example:
+guard(users.length > 0, "No users found — query may be wrong")
+guard(typeof result.id === "string", "Expected string ID, got " + typeof result.id)
+
 ### focus(...sections) — Control prompt section expansion
 Collapses unused system prompt sections to save tokens. Sections: 'functions', 'knowledge', 'components', 'classes', 'agents'. Collapsed sections show a one-line summary. Call focus('all') to restore full expansion.
 

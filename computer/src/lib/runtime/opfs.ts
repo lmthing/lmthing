@@ -42,7 +42,6 @@ async function writeWCDir(
 ): Promise<void> {
   const entries = await container.fs.readdir(wcPath, { withFileTypes: true })
   for (const entry of entries) {
-    if (entry.name === 'node_modules') continue
     const childPath = wcPath === '.' ? entry.name : `${wcPath}/${entry.name}`
     if (entry.isDirectory()) {
       const childDir = await opfsDir.getDirectoryHandle(entry.name, { create: true })

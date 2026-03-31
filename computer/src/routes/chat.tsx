@@ -2,28 +2,18 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useMemo } from 'react'
 import { ThingWebView } from '@lmthing/ui/components/thing/thing-web-view'
 import type { ThingWebViewSession } from '@lmthing/ui/components/thing/thing-web-view'
-import { useReplConnection } from '@/lib/runtime/use-repl-connection'
-import { useIdeStore } from '@/lib/store'
+import { useReplBridge } from '@/lib/runtime/use-repl-bridge'
 
 export const Route = createFileRoute('/chat')({
   component: ChatRoute,
 })
 
 function ChatRoute() {
-  const previewUrl = useIdeStore(s => s.previewUrl)
-  const repl = useReplConnection(previewUrl)
+  const repl = useReplBridge()
 
   const session = useMemo<ThingWebViewSession>(() => ({
     connected: repl.connected,
-    snapshot: {
-      status: repl.status as any,
-      blocks: [],
-      scope: [],
-      asyncTasks: [],
-      activeFormId: null,
-      tasklistsState: { tasklists: new Map() },
-      agentEntries: [],
-    },
+    snapshot: repl.snapshot,
     blocks: repl.blocks,
     actions: [],
     conversations: [],
@@ -38,7 +28,7 @@ function ChatRoute() {
     saveConversation: () => {},
     requestConversations: () => {},
     loadConversation: () => {},
-  }), [repl.connected, repl.status, repl.blocks, repl.sendMessage])
+  }), [repl.connected, repl.snapshot, repl.blocks, repl.sendMessage])
 
   return (
     <div style={{ height: '100vh', width: '100vw' }}>

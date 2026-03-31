@@ -12,26 +12,18 @@ export const Route = createFileRoute('/')({
 })
 
 function IdeRoute() {
-  const { container, status, tier, createTerminalSession, initIDE } = useComputer()
+  const { container, status, tier, createTerminalSession } = useComputer()
   const store = useIdeStore()
 
   const [tabs, setTabs] = useState<TerminalTab[]>([
-    { id: 'dev', label: tier === 'webcontainer' ? 'dev' : 'terminal', session: null },
+    { id: 'bash', label: 'bash', session: null },
   ])
-  const [activeTabId, setActiveTabId] = useState<string>('dev')
+  const [activeTabId, setActiveTabId] = useState<string>('bash')
 
   // Full runtime sessions (with dispose) tracked separately from UI tabs
   const sessionsRef = useRef<Map<string, TerminalSession>>(new Map())
-  const devDoneRef = useRef(false)
 
-  // Boot IDE once container is ready
-  useEffect(() => {
-    if (status === 'running' && container) {
-      initIDE()
-    }
-  }, [status, container, initIDE])
-
-  // Create the initial dev terminal session
+  // Create the initial bash terminal session
   useEffect(() => {
     if (status !== 'running') return
 
@@ -39,26 +31,17 @@ function IdeRoute() {
 
     createTerminalSession().then((session) => {
       if (disposed) { session.dispose(); return }
-      sessionsRef.current.set('dev', session)
-      setTabs((prev) => prev.map((t) => t.id === 'dev' ? { ...t, session } : t))
+      sessionsRef.current.set('bash', session)
+      setTabs((prev) => prev.map((t) => t.id === 'bash' ? { ...t, session } : t))
     })
 
     return () => {
       disposed = true
-      sessionsRef.current.get('dev')?.dispose()
-      sessionsRef.current.delete('dev')
-      setTabs((prev) => prev.map((t) => t.id === 'dev' ? { ...t, session: null } : t))
+      sessionsRef.current.get('bash')?.dispose()
+      sessionsRef.current.delete('bash')
+      setTabs((prev) => prev.map((t) => t.id === 'bash' ? { ...t, session: null } : t))
     }
   }, [status, createTerminalSession])
-
-  // After install completes, write `pnpm dev` to the dev tab (webcontainer only)
-  useEffect(() => {
-    if (!store.installComplete || devDoneRef.current || tier !== 'webcontainer') return
-    const devSession = sessionsRef.current.get('dev')
-    if (!devSession) return
-    devDoneRef.current = true
-    devSession.write('pnpm dev\n')
-  }, [store.installComplete, tier])
 
   const handleAddTab = useCallback(async () => {
     const id = `bash-${Date.now()}`
@@ -76,7 +59,7 @@ function IdeRoute() {
     setActiveTabId((prev) => {
       if (prev !== id) return prev
       const remaining = tabs.filter((t) => t.id !== id)
-      return remaining[remaining.length - 1]?.id ?? 'dev'
+      return remaining[remaining.length - 1]?.id ?? 'bash'
     })
   }, [tabs])
 

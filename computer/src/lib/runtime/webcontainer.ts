@@ -14,6 +14,10 @@ import type {
 type Listener<T> = (value: T) => void
 
 let bootPromise: Promise<WebContainer> | null = null
+let ideInitialized = false
+
+export function markIdeInitialized(): void { ideInitialized = true }
+export function isIdeInitialized(): boolean { return ideInitialized }
 
 function getOrBootInstance(): Promise<WebContainer> {
   if (!crossOriginIsolated) {

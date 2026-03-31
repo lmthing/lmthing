@@ -3,11 +3,12 @@ import { AppProvider } from '@lmthing/state'
 import { AuthProvider, useAuth, useRepoSync } from '@lmthing/auth'
 import { ComputerProvider, useComputer } from '@/lib/runtime/ComputerContext'
 import { ReplRelay } from '@/lib/runtime/ReplRelay'
+import { FsRelay } from '@/lib/runtime/FsRelay'
 import { useTierDetection } from '@/lib/runtime/use-tier-detection'
 import { ComputerLayout } from '@lmthing/ui/components/computer/computer-layout'
 import { LoginScreen } from '@lmthing/ui/components/auth/login-screen'
 import { PinGate } from '@lmthing/ui/components/auth/pin-gate'
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import '@/index.css'
 
 function AuthGate({ children }: { children: React.ReactNode }) {
@@ -41,6 +42,15 @@ function ComputerShell() {
   const routerState = useRouterState()
   const currentPath = routerState.location.pathname
 
+  useEffect(() => {
+    function onMessage(e: MessageEvent) {
+      if (e.data?.type !== 'lmthing:navigate' || !e.data.path) return
+      router.navigate({ to: e.data.path })
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [router])
+
   // IDE and chat routes get full-screen layout (no sidebar)
   if (currentPath === '/' || currentPath === '/chat') {
     return <Outlet />
@@ -60,11 +70,23 @@ function ComputerShell() {
   )
 }
 
+function IdeInitializer() {
+  const { status, container, initIDE, tier } = useComputer()
+  useEffect(() => {
+    if (tier === 'webcontainer' && status === 'running' && container) {
+      initIDE()
+    }
+  }, [status, container, initIDE, tier])
+  return null
+}
+
 function TierAwareProvider({ children }: { children: React.ReactNode }) {
   const { tier, podConfig } = useTierDetection()
   return (
     <ComputerProvider tier={tier} podConfig={podConfig}>
+      <IdeInitializer />
       <ReplRelay />
+      <FsRelay />
       {children}
     </ComputerProvider>
   )

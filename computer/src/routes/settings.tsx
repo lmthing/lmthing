@@ -77,6 +77,57 @@ async function startCheckout() {
   window.location.href = checkout_url
 }
 
+const WC_MODEL_KEY = 'lmthing_wc_model'
+const WC_API_KEY_KEY = 'lmthing_wc_api_key'
+const WC_API_BASE_KEY = 'lmthing_wc_api_base'
+
+function WcModelConfig() {
+  const [model, setModel] = useState(() => localStorage.getItem(WC_MODEL_KEY) || '')
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem(WC_API_KEY_KEY) || '')
+  const [apiBase, setApiBase] = useState(() => localStorage.getItem(WC_API_BASE_KEY) || '')
+  const [saved, setSaved] = useState(false)
+
+  const save = () => {
+    if (model) localStorage.setItem(WC_MODEL_KEY, model)
+    else localStorage.removeItem(WC_MODEL_KEY)
+    if (apiKey) localStorage.setItem(WC_API_KEY_KEY, apiKey)
+    else localStorage.removeItem(WC_API_KEY_KEY)
+    if (apiBase) localStorage.setItem(WC_API_BASE_KEY, apiBase)
+    else localStorage.removeItem(WC_API_BASE_KEY)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 3000)
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      <Caption muted>Model identifier (e.g. <code>openai:gpt-4o-mini</code>, <code>anthropic:claude-3-5-haiku-20241022</code>)</Caption>
+      <Input
+        placeholder="openai:gpt-4o-mini"
+        value={model}
+        onChange={e => setModel(e.target.value)}
+        style={{ fontFamily: 'monospace' }}
+      />
+      <Caption muted>API key for your LLM provider</Caption>
+      <Input
+        type="password"
+        placeholder="sk-..."
+        value={apiKey}
+        onChange={e => setApiKey(e.target.value)}
+        style={{ fontFamily: 'monospace' }}
+      />
+      <Caption muted>Base URL (optional — for LiteLLM proxy or custom endpoint)</Caption>
+      <Input
+        placeholder="https://lmthing.cloud/v1"
+        value={apiBase}
+        onChange={e => setApiBase(e.target.value)}
+        style={{ fontFamily: 'monospace' }}
+      />
+      <Button variant="primary" size="sm" onClick={save}>Save</Button>
+      {saved && <Caption muted>Saved. Reload the page to apply.</Caption>}
+    </div>
+  )
+}
+
 const KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/
 
 function EnvVars() {
@@ -248,6 +299,20 @@ function Settings() {
             )}
           </CardBody>
         </Card>
+
+        {tier === 'webcontainer' && (
+          <Card>
+            <CardHeader>
+              <Heading level={4}>Model Configuration</Heading>
+            </CardHeader>
+            <CardBody>
+              <Caption muted>
+                Configure the LLM used by the chat agent running in your WebContainer.
+              </Caption>
+              <WcModelConfig />
+            </CardBody>
+          </Card>
+        )}
 
         {tier === 'pod' && (
           <Card>

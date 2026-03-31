@@ -1,10 +1,74 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { blocksReducer } from '@lmthing/ui/components/thing/thing-web-view/blocks'
-import type { UIBlock } from '@lmthing/ui/components/thing/thing-web-view/types'
+import type { UIBlock, SessionSnapshot } from '@lmthing/ui/components/thing/thing-web-view/types'
+
+// Minimal event shape for snapshot updates (matches @lmthing/repl SessionEvent)
+type ReplEvent = Record<string, unknown> & { type: string }
+
+const EMPTY_SNAPSHOT: SessionSnapshot = {
+  status: 'idle',
+  blocks: [],
+  scope: [],
+  asyncTasks: [],
+  activeFormId: null,
+  tasklistsState: { tasklists: new Map() },
+  agentEntries: [],
+}
+
+function applyEvent(prev: SessionSnapshot, event: ReplEvent): SessionSnapshot {
+  switch (event.type) {
+    case 'status':
+      return { ...prev, status: event.status as SessionSnapshot['status'] }
+    case 'scope':
+      return { ...prev, scope: event.entries as SessionSnapshot['scope'] }
+    case 'async_start':
+      return {
+        ...prev,
+        asyncTasks: [
+          ...prev.asyncTasks,
+          { id: event.taskId as string, label: event.label as string, status: 'running', elapsed: 0 },
+        ],
+      }
+    case 'async_progress':
+      return {
+        ...prev,
+        asyncTasks: prev.asyncTasks.map(t =>
+          t.id === event.taskId ? { ...t, elapsed: event.elapsed as number } : t,
+        ),
+      }
+    case 'async_complete':
+      return {
+        ...prev,
+        asyncTasks: prev.asyncTasks.map(t =>
+          t.id === event.taskId ? { ...t, status: 'completed', elapsed: event.elapsed as number } : t,
+        ),
+      }
+    case 'async_failed':
+      return {
+        ...prev,
+        asyncTasks: prev.asyncTasks.map(t =>
+          t.id === event.taskId ? { ...t, status: 'failed' } : t,
+        ),
+      }
+    case 'async_cancelled':
+      return {
+        ...prev,
+        asyncTasks: prev.asyncTasks.map(t =>
+          t.id === event.taskId ? { ...t, status: 'cancelled' } : t,
+        ),
+      }
+    case 'ask_start':
+      return { ...prev, activeFormId: event.formId as string }
+    case 'ask_end':
+      return { ...prev, activeFormId: null }
+    default:
+      return prev
+  }
+}
 
 export interface ReplConnectionState {
   connected: boolean
-  status: string
+  snapshot: SessionSnapshot
   blocks: UIBlock[]
   sendMessage: (text: string) => void
 }
@@ -15,7 +79,7 @@ export interface ReplConnectionState {
  */
 export function useReplConnection(previewUrl: string | null): ReplConnectionState {
   const [connected, setConnected] = useState(false)
-  const [status, setStatus] = useState('idle')
+  const [snapshot, setSnapshot] = useState<SessionSnapshot>(EMPTY_SNAPSHOT)
   const [blocks, setBlocks] = useState<UIBlock[]>([])
   const abortRef = useRef(false)
   const baseRef = useRef('')
@@ -23,7 +87,7 @@ export function useReplConnection(previewUrl: string | null): ReplConnectionStat
   useEffect(() => {
     if (!previewUrl) {
       setConnected(false)
-      setStatus('idle')
+      setSnapshot(EMPTY_SNAPSHOT)
       setBlocks([])
       return
     }
@@ -32,7 +96,7 @@ export function useReplConnection(previewUrl: string | null): ReplConnectionStat
     baseRef.current = base
     abortRef.current = false
     let currentBlocks: UIBlock[] = []
-    let currentStatus = 'idle'
+    let currentSnapshot: SessionSnapshot = EMPTY_SNAPSHOT
 
     const connect = async () => {
       await new Promise(r => setTimeout(r, 200))
@@ -44,7 +108,9 @@ export function useReplConnection(previewUrl: string | null): ReplConnectionStat
 
         setConnected(true)
         currentBlocks = []
+        currentSnapshot = EMPTY_SNAPSHOT
         setBlocks([])
+        setSnapshot(EMPTY_SNAPSHOT)
 
         const reader = res.body.getReader()
         const decoder = new TextDecoder()
@@ -64,15 +130,13 @@ export function useReplConnection(previewUrl: string | null): ReplConnectionStat
             try {
               const event = JSON.parse(dataLine.slice(6))
               if (event.type === 'snapshot') {
-                currentStatus = event.data.status ?? 'idle'
-                setStatus(currentStatus)
+                currentSnapshot = { ...EMPTY_SNAPSHOT, ...(event.data ?? {}), tasklistsState: { tasklists: new Map() } }
+                setSnapshot({ ...currentSnapshot })
                 currentBlocks = []
                 setBlocks([])
               } else {
-                if (event.type === 'status') {
-                  currentStatus = event.status
-                  setStatus(currentStatus)
-                }
+                currentSnapshot = applyEvent(currentSnapshot, event)
+                setSnapshot({ ...currentSnapshot })
                 currentBlocks = blocksReducer(currentBlocks, { type: 'event', event })
                 setBlocks([...currentBlocks])
               }
@@ -106,5 +170,5 @@ export function useReplConnection(previewUrl: string | null): ReplConnectionStat
     }).catch(() => {})
   }, [])
 
-  return { connected, status, blocks, sendMessage }
+  return { connected, snapshot, blocks, sendMessage }
 }

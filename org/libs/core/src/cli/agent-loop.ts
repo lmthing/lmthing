@@ -1118,6 +1118,56 @@ export class AgentLoop {
   }
 
   /**
+   * Handle a plan() call — makes a separate LLM call for task decomposition.
+   */
+  async handlePlan(
+    goal: string,
+    constraints?: string[],
+  ): Promise<Array<{ id: string; instructions: string; dependsOn?: string[] }>> {
+    const constraintStr = constraints?.length
+      ? `\n\nConstraints:\n${constraints.map(c => `- ${c}`).join('\n')}`
+      : '';
+
+    const result = streamText({
+      model: this.model,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a task planner. Given a goal, decompose it into concrete, sequential steps. ' +
+            'Respond with ONLY a JSON array of task objects, each with: id (snake_case), instructions (clear action), ' +
+            'and optional dependsOn (array of task ids). Keep to 3-8 tasks. No prose, no markdown.',
+        },
+        {
+          role: 'user',
+          content: `Goal: ${goal}${constraintStr}`,
+        },
+      ],
+      temperature: 0.2,
+      maxOutputTokens: 2048,
+    });
+
+    let text = '';
+    for await (const chunk of result.textStream) {
+      text += chunk;
+    }
+
+    const jsonStr = text.replace(/```json?\s*/g, '').replace(/```\s*/g, '').trim();
+    try {
+      const tasks = JSON.parse(jsonStr);
+      if (!Array.isArray(tasks)) throw new Error('Expected array');
+      return tasks.map((t: any) => ({
+        id: String(t.id ?? ''),
+        instructions: String(t.instructions ?? ''),
+        ...(t.dependsOn ? { dependsOn: t.dependsOn.map(String) } : {}),
+      }));
+    } catch {
+      // Return a single fallback task
+      return [{ id: 'execute', instructions: goal }];
+    }
+  }
+
+  /**
    * Handle a reflect() call — makes a separate LLM call for self-evaluation.
    */
   async handleReflect(request: ReflectRequest): Promise<ReflectResult> {

@@ -58,6 +58,8 @@ export interface GlobalsConfig {
   onFork?: (request: ForkRequest) => Promise<ForkResult>
   /** Return execution profiling data. */
   onTrace?: () => TraceSnapshot
+  /** Generate a task plan from a natural language goal via LLM. */
+  onPlan?: (goal: string, constraints?: string[]) => Promise<Array<{ id: string; instructions: string; dependsOn?: string[] }>>
   /** Snapshot current sandbox scope for checkpoint(). */
   onCheckpoint?: () => { values: Map<string, unknown>; declaredNames: Set<string> }
   /** Restore sandbox scope from a checkpoint. */
@@ -839,6 +841,20 @@ export function createGlobals(config: GlobalsConfig) {
   }
 
   /**
+   * plan(goal, constraints?) — LLM-powered task decomposition.
+   * Returns a structured task plan from a natural language goal.
+   */
+  async function planFn(
+    goal: string,
+    constraints?: string[],
+  ): Promise<Array<{ id: string; instructions: string; dependsOn?: string[] }>> {
+    if (!config.onPlan) {
+      throw new Error('plan: LLM planning not available')
+    }
+    return config.onPlan(goal, constraints)
+  }
+
+  /**
    * parallel(tasks, options?) — Run multiple async functions concurrently with fan-out/fan-in.
    * Returns an array of { label, ok, result?, error?, durationMs } for each task.
    * Max 10 concurrent tasks, default 30s timeout per task.
@@ -1172,6 +1188,7 @@ export function createGlobals(config: GlobalsConfig) {
     checkpoint: checkpointFn,
     rollback: rollbackFn,
     parallel: parallelFn,
+    plan: planFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,

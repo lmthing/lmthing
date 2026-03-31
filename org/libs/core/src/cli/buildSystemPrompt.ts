@@ -256,6 +256,16 @@ var review = await reflect({
 await stop(review)
 // ← stop { review: { assessment: "Regex will fail on quoted commas...", scores: { correctness: 0.4, ... }, shouldPivot: true } }
 
+### await plan(goal, constraints?) — LLM-powered task decomposition
+Generates a structured task plan from a natural language goal via a separate LLM call. Returns an array of { id, instructions, dependsOn? }. Use the result to feed into tasklist() for execution. Constraints are optional guardrails.
+
+Example:
+var tasks = await plan("Build a data dashboard for Q4 sales", ["use Chart.js", "max 5 data sources"])
+await stop(tasks)
+// ← stop { tasks: [{ id: "fetch_data", instructions: "..." }, { id: "transform", instructions: "...", dependsOn: ["fetch_data"] }, ...] }
+// Then use with tasklist:
+tasklist("dashboard", "Build Q4 dashboard", tasks.map(t => ({ ...t, outputSchema: { done: { type: "boolean" } } })))
+
 ### await parallel(tasks, options?) — Concurrent fan-out/fan-in
 Run multiple async functions concurrently and collect all results. Each task has a label and an fn. Returns an array of { label, ok, result?, error?, durationMs }. Max 10 tasks, default 30s timeout. Set failFast: true to abort remaining tasks on first failure.
 

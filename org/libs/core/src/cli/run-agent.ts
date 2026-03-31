@@ -363,6 +363,7 @@ export async function runAgent(
     onReflect: (request) => agentLoopRef!.handleReflect(request),
     onCompress: (data, options) => agentLoopRef!.handleCompress(data, options),
     onFork: (request) => agentLoopRef!.handleFork(request),
+    onTrace: () => agentLoopRef!.getTrace(),
   })
   runAgentSessionRef = session
 

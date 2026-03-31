@@ -256,6 +256,14 @@ var review = await reflect({
 await stop(review)
 // ← stop { review: { assessment: "Regex will fail on quoted commas...", scores: { correctness: 0.4, ... }, shouldPivot: true } }
 
+### trace() — Execution profiling snapshot
+Returns a comprehensive profiling snapshot: turns, LLM calls, token usage (input/output/total), estimated cost, async task stats, scope size, pinned/memo counts, session duration. Use to monitor resource consumption and make informed decisions about when to compress, focus, or stop.
+
+Example:
+var stats = trace()
+await stop(stats)
+// ← stop { stats: { turns: 8, llmCalls: 8, llmTokens: { input: 45000, output: 12000, total: 57000 }, estimatedCost: "$0.4050", asyncTasks: { completed: 3, failed: 0, running: 1 }, scopeSize: 12, pinnedCount: 2, memoCount: 1, sessionDurationMs: 34521 } }
+
 ### contextBudget() — Check context window usage
 Returns a snapshot of your current context budget: total/used/remaining tokens, per-category breakdown (system prompt, message history), current decay levels, turn number, and a recommendation ('nominal', 'conserve', 'critical'). Use this before loading large knowledge or spawning agents to make informed decisions about context usage.
 

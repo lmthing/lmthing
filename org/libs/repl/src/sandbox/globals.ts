@@ -56,6 +56,20 @@ export interface GlobalsConfig {
   onCompress?: (data: string, options: CompressOptions) => Promise<string>
   /** Fork a lightweight child agent for sub-reasoning. */
   onFork?: (request: ForkRequest) => Promise<ForkResult>
+  /** Return execution profiling data. */
+  onTrace?: () => TraceSnapshot
+}
+
+export interface TraceSnapshot {
+  turns: number
+  llmCalls: number
+  llmTokens: { input: number; output: number; total: number }
+  estimatedCost: string
+  asyncTasks: { completed: number; failed: number; running: number }
+  scopeSize: number
+  pinnedCount: number
+  memoCount: number
+  sessionDurationMs: number
 }
 
 export interface ForkRequest {
@@ -796,6 +810,21 @@ export function createGlobals(config: GlobalsConfig) {
   }
 
   /**
+   * trace() — Returns execution profiling snapshot.
+   */
+  function traceFn(): TraceSnapshot {
+    if (!config.onTrace) {
+      return {
+        turns: 0, llmCalls: 0, llmTokens: { input: 0, output: 0, total: 0 },
+        estimatedCost: '$0.00', asyncTasks: { completed: 0, failed: 0, running: 0 },
+        scopeSize: 0, pinnedCount: pinnedMemory.size, memoCount: memoMemory.size,
+        sessionDurationMs: 0,
+      }
+    }
+    return config.onTrace()
+  }
+
+  /**
    * guard(condition, message) — Runtime assertion. Throws GuardError if condition is false.
    */
   function guardFn(condition: unknown, message: string): void {
@@ -1040,6 +1069,7 @@ export function createGlobals(config: GlobalsConfig) {
     fork: forkFn,
     focus: focusFn,
     guard: guardFn,
+    trace: traceFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,

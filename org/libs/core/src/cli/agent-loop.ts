@@ -31,6 +31,7 @@ import type {
   CompressOptions,
   ForkRequest,
   ForkResult,
+  TraceSnapshot,
 } from "@lmthing/repl";
 import type { ClassifiedExport } from "./loader";
 import { formatCollapsedClass, formatExpandedClass } from "./loader";
@@ -122,6 +123,8 @@ export class AgentLoop {
   }> = [];
   /** Tracks retention hints per stop message for adaptive decay. */
   private stopRetentionHints: Map<number, 'high' | 'low'> = new Map();
+  /** Session start time for duration tracking. */
+  private startTime = Date.now();
 
   constructor(options: AgentLoopOptions) {
     this.session = options.session;
@@ -1079,6 +1082,38 @@ export class AgentLoop {
       turnNumber: this.totalTurns,
       decayLevel: { stops: stopDecay, knowledge: knowledgeDecay },
       recommendation,
+    };
+  }
+
+  /**
+   * Return execution profiling snapshot for trace().
+   */
+  getTrace(): TraceSnapshot {
+    const snapshot = this.session.snapshot();
+    const asyncTasks = snapshot.asyncTasks;
+    const completed = asyncTasks.filter(t => t.status === 'completed').length;
+    const failed = asyncTasks.filter(t => t.status === 'failed').length;
+    const running = asyncTasks.filter(t => t.status === 'running').length;
+
+    // Rough cost estimate based on token usage (GPT-4o-class pricing ~$5/1M input, $15/1M output)
+    const inputCost = (this.tokenTotals.inputTokens / 1_000_000) * 5;
+    const outputCost = (this.tokenTotals.outputTokens / 1_000_000) * 15;
+    const totalCost = inputCost + outputCost;
+
+    return {
+      turns: this.totalTurns,
+      llmCalls: this.totalTurns, // 1 LLM call per turn
+      llmTokens: {
+        input: this.tokenTotals.inputTokens,
+        output: this.tokenTotals.outputTokens,
+        total: this.tokenTotals.totalTokens,
+      },
+      estimatedCost: `$${totalCost.toFixed(4)}`,
+      asyncTasks: { completed, failed, running },
+      scopeSize: snapshot.scope.length,
+      pinnedCount: this.session.getPinnedMemory().size,
+      memoCount: this.session.getMemoMemory().size,
+      sessionDurationMs: Date.now() - this.startTime,
     };
   }
 

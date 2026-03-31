@@ -852,6 +852,61 @@ export function createGlobals(config: GlobalsConfig) {
     return config.onTrace()
   }
 
+  // ── Event bus for broadcast/listen ──
+  const eventListeners = new Map<string, Array<(data: unknown) => void>>()
+  const eventBuffer = new Map<string, unknown[]>()
+
+  /**
+   * broadcast(channel, data) — Emit an event on a named channel.
+   * All registered listeners and buffered data for unlistened channels.
+   */
+  function broadcastFn(channel: string, data: unknown): void {
+    const listeners = eventListeners.get(channel)
+    if (listeners && listeners.length > 0) {
+      for (const listener of listeners) {
+        try { listener(data) } catch { /* swallow listener errors */ }
+      }
+    }
+    // Buffer last 10 events per channel
+    let buffer = eventBuffer.get(channel)
+    if (!buffer) {
+      buffer = []
+      eventBuffer.set(channel, buffer)
+    }
+    buffer.push(data)
+    if (buffer.length > 10) buffer.shift()
+  }
+
+  /**
+   * listen(channel, callback?) — Subscribe to a channel.
+   * If no callback, returns buffered events and clears the buffer.
+   * If callback provided, registers it for future events.
+   * Returns an unsubscribe function when callback is provided.
+   */
+  function listenFn(channel: string, callback?: (data: unknown) => void): unknown[] | (() => void) {
+    if (!callback) {
+      // Return buffered events
+      const buffer = eventBuffer.get(channel) ?? []
+      eventBuffer.delete(channel)
+      return [...buffer]
+    }
+    // Register listener
+    let listeners = eventListeners.get(channel)
+    if (!listeners) {
+      listeners = []
+      eventListeners.set(channel, listeners)
+    }
+    listeners.push(callback)
+    // Return unsubscribe
+    return () => {
+      const ls = eventListeners.get(channel)
+      if (ls) {
+        const idx = ls.indexOf(callback)
+        if (idx !== -1) ls.splice(idx, 1)
+      }
+    }
+  }
+
   /**
    * learn(topic, insight, tags?) — Persist a learning for cross-session memory.
    * Writes to the knowledge base's memory domain so it's available in future sessions.
@@ -1229,6 +1284,8 @@ export function createGlobals(config: GlobalsConfig) {
     plan: planFn,
     critique: critiqueFn,
     learn: learnFn,
+    broadcast: broadcastFn,
+    listen: listenFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,

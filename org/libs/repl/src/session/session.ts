@@ -287,6 +287,8 @@ export class Session extends EventEmitter {
     this.sandbox.inject('plan', this.globalsApi.plan)
     this.sandbox.inject('critique', this.globalsApi.critique)
     this.sandbox.inject('learn', this.globalsApi.learn)
+    this.sandbox.inject('broadcast', this.globalsApi.broadcast)
+    this.sandbox.inject('listen', this.globalsApi.listen)
 
     // Inject agent namespace globals
     if (options.agentNamespaces) {

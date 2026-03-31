@@ -256,6 +256,24 @@ var review = await reflect({
 await stop(review)
 // ← stop { review: { assessment: "Regex will fail on quoted commas...", scores: { correctness: 0.4, ... }, shouldPivot: true } }
 
+### broadcast(channel, data) — Emit event on a named channel
+Publishes data to a named channel. All registered listeners receive the data. Events are buffered (last 10 per channel) for late subscribers. Use for decoupled communication between async tasks or agent components.
+
+### listen(channel, callback?) — Subscribe to a channel
+If callback is provided, registers it for future broadcast events on that channel. Returns an unsubscribe function. If no callback, returns and clears the buffered events array.
+
+Example:
+// Producer side:
+broadcast("data_ready", { source: "api", count: 42 })
+
+// Consumer side (with callback):
+var unsub = listen("data_ready", (evt) => { /* handle */ })
+// later: unsub()
+
+// Consumer side (poll buffered):
+var events = listen("data_ready")
+await stop(events)
+
 ### await learn(topic, insight, tags?) — Cross-session persistent memory
 Persists a learning to the knowledge base's memory domain so it's available in future sessions. Topic becomes the file name (slugified), insight is the markdown content. Optional tags for categorization. Use to remember user preferences, discovered patterns, or corrected mistakes.
 

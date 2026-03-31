@@ -852,6 +852,32 @@ export function createGlobals(config: GlobalsConfig) {
     return config.onTrace()
   }
 
+  /**
+   * pipeline(data, ...transforms) — Chain data transformations.
+   * Each transform receives the output of the previous one. Supports async transforms.
+   * Returns { result, steps: [{ name, durationMs }] }.
+   */
+  async function pipelineFn(
+    data: unknown,
+    ...transforms: Array<{ name: string; fn: (input: unknown) => unknown }>
+  ): Promise<{ result: unknown; steps: Array<{ name: string; durationMs: number; ok: boolean; error?: string }> }> {
+    let current = data
+    const steps: Array<{ name: string; durationMs: number; ok: boolean; error?: string }> = []
+
+    for (const transform of transforms) {
+      const start = Date.now()
+      try {
+        current = await Promise.resolve(transform.fn(current))
+        steps.push({ name: transform.name, durationMs: Date.now() - start, ok: true })
+      } catch (err: any) {
+        steps.push({ name: transform.name, durationMs: Date.now() - start, ok: false, error: err?.message ?? String(err) })
+        return { result: current, steps }
+      }
+    }
+
+    return { result: current, steps }
+  }
+
   // ── Enhanced fetch with caching and retry ──
   const fetchCache = new Map<string, { data: unknown; timestamp: number; ttl: number }>()
 
@@ -1422,6 +1448,7 @@ export function createGlobals(config: GlobalsConfig) {
     schema: schemaFn,
     validate: validateFn,
     cachedFetch: cachedFetchFn,
+    pipeline: pipelineFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,

@@ -256,6 +256,19 @@ var review = await reflect({
 await stop(review)
 // ← stop { review: { assessment: "Regex will fail on quoted commas...", scores: { correctness: 0.4, ... }, shouldPivot: true } }
 
+### await pipeline(data, ...transforms) — Chained data transformations
+Passes data through a sequence of named transforms. Each receives the output of the previous one. Supports async transforms. Stops on first error. Returns { result, steps: [{ name, durationMs, ok, error? }] }.
+
+Example:
+var output = await pipeline(rawData,
+  { name: "parse", fn: (d) => JSON.parse(d) },
+  { name: "filter", fn: (d) => d.filter((r) => r.active) },
+  { name: "sort", fn: (d) => d.sort((a, b) => b.score - a.score) },
+  { name: "top10", fn: (d) => d.slice(0, 10) },
+)
+await stop(output)
+// ← stop { output: { result: [...top 10...], steps: [{ name: "parse", durationMs: 2, ok: true }, ...] } }
+
 ### await cachedFetch(url, options?) — HTTP fetch with caching and retry
 Fetches a URL with built-in TTL caching, exponential backoff retry (default 2 retries), auto JSON/text parsing, and timeout. Returns { data, cached, status, durationMs }. Cache up to 50 entries.
 

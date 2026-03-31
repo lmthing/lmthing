@@ -256,6 +256,16 @@ var review = await reflect({
 await stop(review)
 // ← stop { review: { assessment: "Regex will fail on quoted commas...", scores: { correctness: 0.4, ... }, shouldPivot: true } }
 
+### await delegate(task, options?) — Smart task routing
+Routes a task to the best execution strategy. Pass a function for direct execution, or a string for LLM-powered reasoning (uses fork). Options: strategy ('auto'|'fork'|'parallel'|'direct'), timeout, context. Returns { strategy, result, durationMs }.
+
+Example:
+// Direct function execution
+var r1 = await delegate(() => processData(rawData), { timeout: 5000 })
+// LLM reasoning via fork
+var r2 = await delegate("Analyze this error and suggest a fix", { context: { error: errorStr } })
+await stop(r1, r2)
+
 ### broadcast(channel, data) — Emit event on a named channel
 Publishes data to a named channel. All registered listeners receive the data. Events are buffered (last 10 per channel) for late subscribers. Use for decoupled communication between async tasks or agent components.
 

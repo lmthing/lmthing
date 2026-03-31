@@ -852,6 +852,47 @@ export function createGlobals(config: GlobalsConfig) {
     return config.onTrace()
   }
 
+  /**
+   * delegate(task, options?) — Smart task routing.
+   * Chooses the best execution strategy: fork (complex reasoning), parallel (data processing),
+   * or direct execution. Returns the result with metadata about the chosen strategy.
+   */
+  async function delegateFn(
+    task: string | (() => unknown),
+    options?: { strategy?: 'auto' | 'fork' | 'parallel' | 'direct'; timeout?: number; context?: Record<string, unknown> },
+  ): Promise<{ strategy: string; result: unknown; durationMs: number }> {
+    const start = Date.now()
+    const strategy = options?.strategy ?? 'auto'
+    const timeout = options?.timeout ?? 30000
+
+    if (typeof task === 'function') {
+      // Direct function execution
+      const result = await Promise.race([
+        Promise.resolve(task()),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeout)),
+      ])
+      return { strategy: 'direct', result, durationMs: Date.now() - start }
+    }
+
+    // String task — needs LLM reasoning
+    if (strategy === 'direct') {
+      throw new Error('delegate: cannot use "direct" strategy with string tasks — use a function instead')
+    }
+
+    if (strategy === 'fork' || strategy === 'auto') {
+      // Use fork for string tasks
+      if (!config.onFork) throw new Error('delegate: fork not available')
+      const forkResult = await config.onFork({
+        task,
+        context: options?.context,
+        maxTurns: 2,
+      })
+      return { strategy: 'fork', result: forkResult.output, durationMs: Date.now() - start }
+    }
+
+    throw new Error(`delegate: unknown strategy "${strategy}"`)
+  }
+
   // ── Event bus for broadcast/listen ──
   const eventListeners = new Map<string, Array<(data: unknown) => void>>()
   const eventBuffer = new Map<string, unknown[]>()
@@ -1286,6 +1327,7 @@ export function createGlobals(config: GlobalsConfig) {
     learn: learnFn,
     broadcast: broadcastFn,
     listen: listenFn,
+    delegate: delegateFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,

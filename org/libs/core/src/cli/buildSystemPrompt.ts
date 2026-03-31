@@ -256,6 +256,21 @@ var review = await reflect({
 await stop(review)
 // ← stop { review: { assessment: "Regex will fail on quoted commas...", scores: { correctness: 0.4, ... }, shouldPivot: true } }
 
+### schema(value) — Infer JSON schema from a runtime value
+Analyzes a runtime value and returns its JSON schema (type, properties, items, required). Use to understand data shapes, generate outputSchemas for tasklist tasks, or compare structures.
+
+### validate(value, schema) — Validate against a schema
+Checks a value against a JSON-like schema. Returns { valid: true } or { valid: false, errors: ["..."] }. Use to verify API responses, user input, or task outputs match expected shapes.
+
+Example:
+var data = { name: "Alice", scores: [95, 87, 92] }
+var s = schema(data)
+await stop(s)
+// ← stop { s: { type: "object", properties: { name: { type: "string" }, scores: { type: "array", items: { type: "number" } } }, required: ["name", "scores"] } }
+var check = validate(otherData, s)
+await stop(check)
+// ← stop { check: { valid: false, errors: [".scores: expected array"] } }
+
 ### await delegate(task, options?) — Smart task routing
 Routes a task to the best execution strategy. Pass a function for direct execution, or a string for LLM-powered reasoning (uses fork). Options: strategy ('auto'|'fork'|'parallel'|'direct'), timeout, context. Returns { strategy, result, durationMs }.
 

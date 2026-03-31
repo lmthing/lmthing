@@ -853,6 +853,25 @@ export function createGlobals(config: GlobalsConfig) {
   }
 
   /**
+   * schema(value) — Infer a JSON schema from a runtime value.
+   * Useful for understanding data shapes, generating outputSchemas for tasks,
+   * or validating that data matches an expected structure.
+   */
+  function schemaFn(value: unknown): Record<string, unknown> {
+    return inferSchema(value)
+  }
+
+  /**
+   * validate(value, schema) — Validate a value against a JSON-like schema.
+   * Returns { valid: true } or { valid: false, errors: string[] }.
+   */
+  function validateFn(value: unknown, schema: Record<string, unknown>): { valid: boolean; errors?: string[] } {
+    const errors: string[] = []
+    checkSchema(value, schema, '', errors)
+    return errors.length === 0 ? { valid: true } : { valid: false, errors }
+  }
+
+  /**
    * delegate(task, options?) — Smart task routing.
    * Chooses the best execution strategy: fork (complex reasoning), parallel (data processing),
    * or direct execution. Returns the result with metadata about the chosen strategy.
@@ -1328,6 +1347,8 @@ export function createGlobals(config: GlobalsConfig) {
     broadcast: broadcastFn,
     listen: listenFn,
     delegate: delegateFn,
+    schema: schemaFn,
+    validate: validateFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,
@@ -1348,4 +1369,61 @@ function deriveLabel(source: string): string {
   if (callMatch) return callMatch[1]
 
   return 'background task'
+}
+
+function inferSchema(value: unknown, depth = 0): Record<string, unknown> {
+  if (depth > 5) return { type: 'unknown' }
+  if (value === null) return { type: 'null' }
+  if (value === undefined) return { type: 'undefined' }
+  if (typeof value === 'string') return { type: 'string' }
+  if (typeof value === 'number') return { type: 'number' }
+  if (typeof value === 'boolean') return { type: 'boolean' }
+  if (Array.isArray(value)) {
+    if (value.length === 0) return { type: 'array', items: { type: 'unknown' } }
+    const itemSchema = inferSchema(value[0], depth + 1)
+    return { type: 'array', items: itemSchema, minItems: value.length, maxItems: value.length }
+  }
+  if (typeof value === 'object') {
+    const properties: Record<string, unknown> = {}
+    const keys = Object.keys(value as Record<string, unknown>)
+    for (const key of keys.slice(0, 20)) {
+      properties[key] = inferSchema((value as any)[key], depth + 1)
+    }
+    return { type: 'object', properties, required: keys.slice(0, 20) }
+  }
+  return { type: typeof value }
+}
+
+function checkSchema(value: unknown, schema: Record<string, unknown>, path: string, errors: string[]): void {
+  const type = schema.type as string | undefined
+  if (!type) return
+
+  if (type === 'string' && typeof value !== 'string') errors.push(`${path || '.'}: expected string, got ${typeof value}`)
+  else if (type === 'number' && typeof value !== 'number') errors.push(`${path || '.'}: expected number, got ${typeof value}`)
+  else if (type === 'boolean' && typeof value !== 'boolean') errors.push(`${path || '.'}: expected boolean, got ${typeof value}`)
+  else if (type === 'array') {
+    if (!Array.isArray(value)) { errors.push(`${path || '.'}: expected array`); return }
+    const items = schema.items as Record<string, unknown> | undefined
+    if (items) {
+      for (let i = 0; i < Math.min(value.length, 10); i++) {
+        checkSchema(value[i], items, `${path}[${i}]`, errors)
+      }
+    }
+  } else if (type === 'object') {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) { errors.push(`${path || '.'}: expected object`); return }
+    const properties = schema.properties as Record<string, Record<string, unknown>> | undefined
+    const required = schema.required as string[] | undefined
+    if (required) {
+      for (const key of required) {
+        if (!(key in (value as any))) errors.push(`${path}.${key}: required property missing`)
+      }
+    }
+    if (properties) {
+      for (const [key, propSchema] of Object.entries(properties)) {
+        if (key in (value as any)) {
+          checkSchema((value as any)[key], propSchema, `${path}.${key}`, errors)
+        }
+      }
+    }
+  }
 }

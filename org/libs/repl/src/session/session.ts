@@ -288,6 +288,8 @@ export class Session extends EventEmitter {
     this.sandbox.inject('critique', this.globalsApi.critique)
     this.sandbox.inject('learn', this.globalsApi.learn)
     this.sandbox.inject('delegate', this.globalsApi.delegate)
+    this.sandbox.inject('schema', this.globalsApi.schema)
+    this.sandbox.inject('validate', this.globalsApi.validate)
     this.sandbox.inject('broadcast', this.globalsApi.broadcast)
     this.sandbox.inject('listen', this.globalsApi.listen)
 

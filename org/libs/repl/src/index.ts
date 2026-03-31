@@ -51,7 +51,7 @@ export type {
 
 // Sandbox
 export { Sandbox } from './sandbox/sandbox'
-export type { SandboxOptions } from './sandbox/sandbox'
+export type { SandboxOptions, SandboxResourceLimits, SandboxResourceUsage } from './sandbox/sandbox'
 export { transpile } from './sandbox/transpiler'
 export { executeLine } from './sandbox/executor'
 export { AsyncManager } from './sandbox/async-manager'

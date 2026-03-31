@@ -12,6 +12,24 @@ const BLOCKED_GLOBALS = [
 export interface SandboxOptions {
   timeout?: number
   globals?: Record<string, unknown>
+  /** Resource limits for the sandbox. */
+  resourceLimits?: SandboxResourceLimits
+}
+
+export interface SandboxResourceLimits {
+  /** Max total execution time in ms across all lines (default: 300_000 = 5 min). */
+  maxTotalExecutionMs?: number
+  /** Max number of lines that can be executed (default: 5000). */
+  maxLines?: number
+  /** Max number of declared variables (default: 500). */
+  maxVariables?: number
+}
+
+export interface SandboxResourceUsage {
+  totalExecutionMs: number
+  linesExecuted: number
+  variableCount: number
+  limits: Required<SandboxResourceLimits>
 }
 
 /**
@@ -22,9 +40,16 @@ export class Sandbox {
   private declaredNames = new Set<string>()
   private lineCount = 0
   private timeout: number
+  private totalExecutionMs = 0
+  private resourceLimits: Required<SandboxResourceLimits>
 
   constructor(options: SandboxOptions = {}) {
     this.timeout = options.timeout ?? 30_000
+    this.resourceLimits = {
+      maxTotalExecutionMs: options.resourceLimits?.maxTotalExecutionMs ?? 300_000,
+      maxLines: options.resourceLimits?.maxLines ?? 5000,
+      maxVariables: options.resourceLimits?.maxVariables ?? 500,
+    }
 
     // Create context with safe globals
     const contextGlobals: Record<string, unknown> = {
@@ -86,15 +111,30 @@ export class Sandbox {
    * Execute a line of TypeScript in the sandbox.
    */
   async execute(code: string): Promise<LineResult> {
+    // Enforce resource limits
+    if (this.lineCount >= this.resourceLimits.maxLines) {
+      throw new Error(`Sandbox resource limit: max ${this.resourceLimits.maxLines} lines exceeded`)
+    }
+    if (this.totalExecutionMs >= this.resourceLimits.maxTotalExecutionMs) {
+      throw new Error(`Sandbox resource limit: max ${this.resourceLimits.maxTotalExecutionMs}ms total execution time exceeded`)
+    }
+
     this.lineCount++
 
     // Track declarations before execution
     const declarations = extractDeclarations(code)
     for (const name of declarations) {
+      if (this.declaredNames.size >= this.resourceLimits.maxVariables && !this.declaredNames.has(name)) {
+        throw new Error(`Sandbox resource limit: max ${this.resourceLimits.maxVariables} variables exceeded`)
+      }
       this.declaredNames.add(name)
     }
 
-    return executeLine(code, this.lineCount, this.context, this.timeout)
+    const startMs = Date.now()
+    const result = await executeLine(code, this.lineCount, this.context, this.timeout)
+    this.totalExecutionMs += Date.now() - startMs
+
+    return result
   }
 
   /**
@@ -150,6 +190,18 @@ export class Sandbox {
    */
   getContext(): vm.Context {
     return this.context
+  }
+
+  /**
+   * Get current resource usage and limits.
+   */
+  getResourceUsage(): SandboxResourceUsage {
+    return {
+      totalExecutionMs: this.totalExecutionMs,
+      linesExecuted: this.lineCount,
+      variableCount: this.declaredNames.size,
+      limits: { ...this.resourceLimits },
+    }
   }
 
   /**

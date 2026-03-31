@@ -19,5 +19,11 @@
   "functions": [
     "buildGroceryList",
     "scaleIngredients"
-  ]
+  ],
+  "mcp": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
+    }
+  }
 }

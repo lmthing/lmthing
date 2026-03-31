@@ -98,6 +98,8 @@ export { sanitizeJSX, isJSXSafe, validateFormComponents } from './security/jsx-s
 // Catalog
 export type { CatalogFunction, CatalogModule } from './catalog/types'
 export { loadCatalog, mergeCatalogs, getCatalogModule, formatCatalogForPrompt } from './catalog/index'
+export { loadMcpServers, loadMcpServersFromConfig } from './catalog/mcp'
+export type { McpServerEntry, McpServerConfig } from './catalog/mcp'
 
 // Knowledge
 export type { KnowledgeTree, KnowledgeDomain, KnowledgeField, KnowledgeOption, KnowledgeSelector, KnowledgeContent, FlatKnowledgeSelector, FlatKnowledgeContent } from './knowledge/types'

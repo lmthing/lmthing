@@ -62,6 +62,9 @@ export function getCatalogModule(modules: CatalogModule[], id: string): CatalogM
   return modules.find(m => m.id === id)
 }
 
+export { loadMcpServers, loadMcpServersFromConfig } from './mcp'
+export type { McpServerEntry, McpServerConfig } from './mcp'
+
 /**
  * Generate the system prompt block for catalog functions.
  */

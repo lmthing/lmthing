@@ -10,12 +10,14 @@ import {
   loadCatalog,
   mergeCatalogs,
   formatCatalogForPrompt,
+  loadMcpServersFromConfig,
   buildKnowledgeTree,
   loadKnowledgeFiles,
   formatKnowledgeTreeForPrompt,
   // NOTE: ensureMemoryDomain is not yet exported from @lmthing/repl — needs to be added
   ensureMemoryDomain,
 } from '@lmthing/repl'
+import type { McpServerEntry } from '@lmthing/repl'
 import { AgentLoop } from './agent-loop'
 import { createReplServer } from './server'
 import webAssets from './web-assets'
@@ -133,6 +135,29 @@ async function main() {
       const fns = mergeCatalogs(modules)
       for (const fn of fns) catalogGlobals[fn.name] = fn.fn
       catalogSigs = formatCatalogForPrompt(modules)
+    }
+
+    // Load MCP servers declared in agent config.json
+    let mcpServers: McpServerEntry[] = []
+    if (Object.keys(agent.mcpServers).length > 0) {
+      mcpServers = await loadMcpServersFromConfig(
+        agent.mcpServers,
+        `agents/${args.agent}/config.json`,
+      )
+      const mcpClassExports: ClassifiedExport[] = mcpServers.map(s => ({
+        name: s.name,
+        kind: 'class' as const,
+        description: `MCP server: ${s.key}`,
+        methods: s.methods,
+        form: false,
+        params: [],
+        returnType: '',
+        props: [],
+        signature: '',
+      }))
+      agentClassExports.push(...mcpClassExports)
+      const mcpFormatted = formatExportsForPrompt(mcpClassExports, 'config.json', 'MCP')
+      if (mcpFormatted.classes) agentClassSigs += (agentClassSigs ? '\n' : '') + mcpFormatted.classes
     }
 
     // Load components
@@ -324,16 +349,24 @@ async function main() {
             return result
           }
         : undefined,
-      getClassInfo: classConstructors.size > 0
+      getClassInfo: (classConstructors.size > 0 || mcpServers.length > 0)
         ? (className) => {
             const classExport = agentClassExports.find(c => c.name === className)
-            if (!classExport?.methods || !classConstructors.has(className)) return null
+            if (!classExport?.methods) return null
+            if (mcpServers.some(s => s.name === className)) return { methods: classExport.methods }
+            if (!classConstructors.has(className)) return null
             return { methods: classExport.methods }
           }
         : undefined,
-      loadClass: classConstructors.size > 0
+      loadClass: (classConstructors.size > 0 || mcpServers.length > 0)
         ? (className, sess) => {
-            const Ctor = classConstructors.get(className)!
+            const mcpServer = mcpServers.find(s => s.name === className)
+            if (mcpServer) {
+              mcpServer.inject((name, value) => sess.injectGlobal(name, value))
+              return
+            }
+            const Ctor = classConstructors.get(className)
+            if (!Ctor) return
             const classExport = agentClassExports.find(c => c.name === className)!
             const instance = new Ctor() as any
             const bindings: Record<string, Function> = {}
@@ -400,6 +433,7 @@ async function main() {
     console.log(`\x1b[90mModel:   ${modelId}\x1b[0m`)
     console.log(`\x1b[90mSpace:   ${spacePath}\x1b[0m`)
     if (agent.catalogModules.length > 0) console.log(`\x1b[90mCatalog: ${agent.catalogModules.join(', ')}\x1b[0m`)
+    if (mcpServers.length > 0) console.log(`\x1b[90mMCP:     ${mcpServers.map(s => s.key).join(', ')}\x1b[0m`)
     if (agent.localFunctions.length > 0) console.log(`\x1b[90mFuncs:   ${agent.localFunctions.join(', ')}\x1b[0m`)
     if (agent.componentRefs.length > 0) console.log(`\x1b[90mComps:   ${agent.componentRefs.join(', ')}\x1b[0m`)
     if (agent.actions.length > 0) console.log(`\x1b[90mActions: ${agent.actions.map(a => '/' + a.id).join(', ')}\x1b[0m`)
@@ -416,6 +450,7 @@ async function main() {
       console.log('\nShutting down...')
       close()
       session.destroy()
+      if (mcpServers.length > 0) Promise.all(mcpServers.map(s => s.close())).catch(() => {})
       process.exit(0)
     })
 

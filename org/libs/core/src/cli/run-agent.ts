@@ -15,6 +15,7 @@ import {
   loadCatalog,
   mergeCatalogs,
   formatCatalogForPrompt,
+  loadMcpServers,
   buildKnowledgeTree,
   loadKnowledgeFiles,
   formatKnowledgeTreeForPrompt,
@@ -22,7 +23,7 @@ import {
   ensureMemoryDomain,
   saveKnowledgeFile,
 } from '@lmthing/repl'
-import type { KnowledgeTree } from '@lmthing/repl'
+import type { KnowledgeTree, McpServerEntry } from '@lmthing/repl'
 import { AgentLoop } from './agent-loop'
 import { createReplServer } from './server'
 import { buildSpaceAgentTrees, createNamespaceGlobals, formatAgentTreeForPrompt, createKnowledgeNamespace, formatKnowledgeNamespaceForPrompt } from '../agent-namespaces'
@@ -259,6 +260,33 @@ export async function runAgent(
     agentTreePrompt = formatAgentTreeForPrompt(agentTrees)
   }
 
+  // ── Load MCP servers from spaces (as lazy classes) ──
+  let mcpServers: McpServerEntry[] = []
+  if (spacePaths.length > 0) {
+    for (const spacePath of spacePaths) {
+      const servers = await loadMcpServers(resolve(spacePath, 'mcp.json'))
+      mcpServers.push(...servers)
+    }
+  }
+  if (mcpServers.length > 0) {
+    const mcpClassExports: ClassifiedExport[] = mcpServers.map(s => ({
+      name: s.name,
+      kind: 'class' as const,
+      description: `MCP server: ${s.key}`,
+      methods: s.methods,
+      form: false,
+      params: [],
+      returnType: '',
+      props: [],
+      signature: '',
+    }))
+    userClassExports = [...userClassExports, ...mcpClassExports]
+    const mcpFormatted = formatExportsForPrompt(mcpClassExports, 'mcp.json', 'MCP')
+    if (mcpFormatted.classes) {
+      userClassSigs = [userClassSigs, mcpFormatted.classes].filter(Boolean).join('\n')
+    }
+  }
+
   // ── Set up knowledge namespace (always available) ──
   const knowledgeSpaceDir = resolve(__dirname, '../../spaces/knowledge')
   const knowledgeWriteDir = resolve(knowledgeSpaceDir, 'knowledge')
@@ -327,17 +355,30 @@ export async function runAgent(
       }
     : undefined
 
-  const getClassInfo = classConstructors.size > 0
+  const getClassInfo = (classConstructors.size > 0 || mcpServers.length > 0)
     ? (className: string) => {
         const classExport = userClassExports.find(c => c.name === className)
-        if (!classExport?.methods || !classConstructors.has(className)) return null
+        if (!classExport?.methods) return null
+        // For MCP servers, methods are already populated at load time
+        if (mcpServers.some(s => s.name === className)) {
+          return { methods: classExport.methods }
+        }
+        if (!classConstructors.has(className)) return null
         return { methods: classExport.methods }
       }
     : undefined
 
-  const loadClassFn = classConstructors.size > 0
+  const loadClassFn = (classConstructors.size > 0 || mcpServers.length > 0)
     ? (className: string, sess: Session) => {
-        const Ctor = classConstructors.get(className)!
+        // MCP server: inject tool namespace on demand
+        const mcpServer = mcpServers.find(s => s.name === className)
+        if (mcpServer) {
+          mcpServer.inject((name, value) => sess.injectGlobal(name, value))
+          return
+        }
+        // Regular class: instantiate and bind methods
+        const Ctor = classConstructors.get(className)
+        if (!Ctor) return
         const classExport = userClassExports.find(c => c.name === className)!
         const instance = new Ctor() as any
         const bindings: Record<string, Function> = {}
@@ -458,6 +499,15 @@ export async function runAgent(
       conversationsDir,
     })
     close = server.close
+  }
+
+  // Wrap close to also shut down MCP server connections
+  if (mcpServers.length > 0) {
+    const prevClose = close
+    close = () => {
+      prevClose?.()
+      Promise.all(mcpServers.map(s => s.close())).catch(() => {})
+    }
   }
 
   return { session, agentLoop, close }

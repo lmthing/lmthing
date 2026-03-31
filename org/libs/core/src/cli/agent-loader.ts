@@ -25,6 +25,8 @@ export interface LoadedAgent {
   localFunctions: string[]
   componentRefs: string[]
   enabledAgents: Record<string, string[] | true>
+  /** MCP server configs declared in config.json under the "mcp" key */
+  mcpServers: Record<string, { command?: string; args?: string[]; env?: Record<string, string>; url?: string; headers?: Record<string, string> }>
 }
 
 export interface FlowStep {
@@ -106,6 +108,7 @@ export function loadAgent(spaceDir: string, agentSlug: string): LoadedAgent {
     localFunctions,
     componentRefs: config.components ?? [],
     enabledAgents: config.agents ?? {},
+    mcpServers: config.mcp ?? {},
   }
 }
 

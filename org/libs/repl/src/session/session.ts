@@ -289,6 +289,7 @@ export class Session extends EventEmitter {
     this.sandbox.inject('learn', this.globalsApi.learn)
     this.sandbox.inject('delegate', this.globalsApi.delegate)
     this.sandbox.inject('cachedFetch', this.globalsApi.cachedFetch)
+    this.sandbox.inject('watch', this.globalsApi.watch)
     this.sandbox.inject('pipeline', this.globalsApi.pipeline)
     this.sandbox.inject('schema', this.globalsApi.schema)
     this.sandbox.inject('validate', this.globalsApi.validate)
@@ -352,6 +353,9 @@ export class Session extends EventEmitter {
   private handleStop(payload: StopPayload, source: string): void {
     this.stopCount++
     this.agentRegistry.advanceTurn()
+
+    // Check watchers for variable changes
+    this.globalsApi.checkWatchers((name: string) => this.sandbox.getValue(name))
 
     const cpState = this.globalsApi.getTasklistsState()
     const tasksBlock = generateTasksBlock(cpState)

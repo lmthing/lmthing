@@ -256,6 +256,17 @@ var review = await reflect({
 await stop(review)
 // ← stop { review: { assessment: "Regex will fail on quoted commas...", scores: { correctness: 0.4, ... }, shouldPivot: true } }
 
+### watch(variableName, callback) — Reactive variable observation
+Registers a callback that fires when a sandbox variable's value changes between stop() calls. Returns an unwatch function. The callback receives (newValue, oldValue). Use to trigger side effects when data changes.
+
+Example:
+var unwatch = watch("userCount", (newVal, oldVal) => {
+  broadcast("user_count_changed", { from: oldVal, to: newVal })
+})
+// ... later, after some operations change userCount:
+// The callback fires automatically on the next stop()
+// unwatch() to stop observing
+
 ### await pipeline(data, ...transforms) — Chained data transformations
 Passes data through a sequence of named transforms. Each receives the output of the previous one. Supports async transforms. Stops on first error. Returns { result, steps: [{ name, durationMs, ok, error? }] }.
 

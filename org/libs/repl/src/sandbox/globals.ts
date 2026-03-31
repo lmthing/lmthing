@@ -852,6 +852,19 @@ export function createGlobals(config: GlobalsConfig) {
     return config.onTrace()
   }
 
+  // ── Watch state for reactive variable observation ──
+  const watchers = new Map<string, { callback: (newVal: unknown, oldVal: unknown) => void; lastValue: unknown }>()
+
+  /**
+   * watch(variableName, callback) — Observe changes to a sandbox variable.
+   * The callback fires when the variable's serialized value changes between stop() calls.
+   * Returns an unwatch function.
+   */
+  function watchFn(variableName: string, callback: (newVal: unknown, oldVal: unknown) => void): () => void {
+    watchers.set(variableName, { callback, lastValue: undefined })
+    return () => { watchers.delete(variableName) }
+  }
+
   /**
    * pipeline(data, ...transforms) — Chain data transformations.
    * Each transform receives the output of the previous one. Supports async transforms.
@@ -1449,6 +1462,7 @@ export function createGlobals(config: GlobalsConfig) {
     validate: validateFn,
     cachedFetch: cachedFetchFn,
     pipeline: pipelineFn,
+    watch: watchFn,
     setCurrentSource,
     resolveStop,
     getTasklistsState: () => tasklistsState,
@@ -1456,6 +1470,20 @@ export function createGlobals(config: GlobalsConfig) {
     getMemoMemory: () => memoMemory,
     getFocusSections: () => focusSections,
     setPinTurn: (turn: number) => { pinTurnCounter = turn },
+    checkWatchers: (getVar: (name: string) => unknown) => {
+      for (const [name, entry] of watchers) {
+        try {
+          const current = getVar(name)
+          const currentStr = JSON.stringify(current)
+          const lastStr = JSON.stringify(entry.lastValue)
+          if (currentStr !== lastStr) {
+            const oldVal = entry.lastValue
+            entry.lastValue = current
+            try { entry.callback(current, oldVal) } catch { /* swallow */ }
+          }
+        } catch { /* skip */ }
+      }
+    },
   }
 }
 

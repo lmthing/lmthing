@@ -6,8 +6,6 @@
 import { useCallback, useEffect, useMemo, useRef, type FormEvent } from 'react'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { Bot, Plus, ArrowLeft } from 'lucide-react'
-import { runPrompt, type PromptConfig } from 'lmthing'
-import { z } from 'zod'
 import { useApp, useUIState, useToggle } from '@lmthing/state'
 import { CozyThingText } from '@lmthing/ui/elements/branding/cozy-text'
 
@@ -31,7 +29,25 @@ type ThingConversation = {
   updatedAt: string
 }
 
-type ThingModelId = Extract<PromptConfig['model'], string>
+type ThingModelId = string
+
+// ── Provider URL map (OpenAI-compatible) ────────────────────────────────
+
+const PROVIDER_BASE_URLS: Record<string, string> = {
+  openai: 'https://api.openai.com/v1',
+  groq: 'https://api.groq.com/openai/v1',
+  openrouter: 'https://openrouter.ai/api/v1',
+  mistral: 'https://api.mistral.ai/v1',
+}
+
+const PROVIDER_ENV_KEYS: Record<string, string> = {
+  openai: 'OPENAI_API_KEY',
+  groq: 'GROQ_API_KEY',
+  openrouter: 'OPENROUTER_API_KEY',
+  mistral: 'MISTRAL_API_KEY',
+  google: 'GOOGLE_GENERATIVE_AI_API_KEY',
+  anthropic: 'ANTHROPIC_API_KEY',
+}
 
 // ── Constants ──────────────────────────────────────────────────────────
 
@@ -65,41 +81,41 @@ const ACTION_NAMES = [
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-function isValidModelId(value: unknown): value is ThingModelId {
-  if (typeof value !== 'string') return false
-  const [provider, model] = value.split(':')
-  return Boolean(provider?.trim() && model?.trim())
+function getWindowEnv(): Record<string, string | undefined> {
+  return typeof window !== 'undefined'
+    ? (window as Window & { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {}
+    : {}
 }
 
 function resolveModelId(): ThingModelId {
-  const env =
-    typeof window !== 'undefined'
-      ? (window as Window & { process?: { env?: Record<string, string | undefined> } }).process?.env
-      : undefined
+  const env = getWindowEnv()
+  const configured = env.LMTHING_THING_MODEL || env.LM_MODEL_DEFAULT || env.LM_MODEL_FAST || env.LM_MODEL_LARGE
+  if (typeof configured === 'string' && configured.includes(':')) return configured
+  return 'openai:gpt-4o-mini'
+}
 
-  const configured =
-    env?.LMTHING_THING_MODEL
-    || env?.LM_MODEL_DEFAULT
-    || env?.LM_MODEL_FAST
-    || env?.LM_MODEL_LARGE
+function resolveApiConfig(modelId: string): { baseUrl: string; apiKey: string; model: string } | null {
+  const colonIdx = modelId.indexOf(':')
+  if (colonIdx === -1) return null
+  const provider = modelId.slice(0, colonIdx)
+  const model = modelId.slice(colonIdx + 1)
+  const env = getWindowEnv()
 
-  if (isValidModelId(configured)) return configured
-  return 'zai:glm-4.5-air'
+  // Check for explicit base URL / key overrides
+  const baseUrl = env.LM_API_BASE_URL || env[`${provider.toUpperCase()}_BASE_URL`] || PROVIDER_BASE_URLS[provider]
+  const envKey = PROVIDER_ENV_KEYS[provider] || `${provider.toUpperCase()}_API_KEY`
+  const apiKey = env[envKey]
+
+  if (!baseUrl || !apiKey) return null
+  return { baseUrl: baseUrl.replace(/\/$/, ''), apiKey, model }
 }
 
 function checkHasEnv(): boolean {
-  const env =
-    typeof window !== 'undefined'
-      ? (window as Window & { process?: { env?: Record<string, string | undefined> } }).process?.env
-      : undefined
-
-  if (!env) return false
-
+  const env = getWindowEnv()
   const providerKeys = [
     'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY',
-    'MISTRAL_API_KEY', 'GROQ_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY',
+    'MISTRAL_API_KEY', 'GROQ_API_KEY', 'OPENROUTER_API_KEY',
   ]
-
   return providerKeys.some(key => {
     const value = env[key]
     return typeof value === 'string' && value.trim().length > 0 && !value.includes('your-')
@@ -246,6 +262,43 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
     setInput('')
   }, [conversations.length])
 
+  // ── Tool definitions ──────────────────────────────────────────────
+
+  const toolExecutors = useMemo(() => ({
+    listStudios: async () => {
+      const list = studios.filter(s => s.username === username)
+      return { ok: true, studios: list.map(s => ({ id: s.studioId, name: s.name })) }
+    },
+    createStudio: async ({ studioId, name }: { studioId: string; name: string }) => {
+      if (!username) return { ok: false, message: 'No username available.' }
+      createStudio(username, studioId, name)
+      return { ok: true, message: `Created studio "${name}" (${studioId}).` }
+    },
+    deleteStudio: async ({ studioId }: { studioId: string }) => {
+      if (!username) return { ok: false, message: 'No username available.' }
+      deleteStudio(username, studioId)
+      return { ok: true, message: `Deleted studio ${studioId}.` }
+    },
+    listFiles: async ({ prefix }: { prefix?: string }) => {
+      const allFiles = Object.keys(appFS.getSnapshot())
+      const filtered = prefix ? allFiles.filter(f => f.startsWith(prefix)) : allFiles
+      return { ok: true, files: filtered.slice(0, 100), total: filtered.length }
+    },
+    readFile: async ({ path }: { path: string }) => {
+      const content = appFS.readFile(path)
+      if (content === null) return { ok: false, message: `File not found: ${path}` }
+      return { ok: true, path, content: content.slice(0, 4000) }
+    },
+    writeFile: async ({ path, content }: { path: string; content: string }) => {
+      appFS.writeFile(path, content)
+      return { ok: true, message: `Wrote ${content.length} chars to ${path}.` }
+    },
+    deleteFile: async ({ path }: { path: string }) => {
+      appFS.deleteFile(path)
+      return { ok: true, message: `Deleted ${path}.` }
+    },
+  }), [studios, username, appFS, createStudio, deleteStudio])
+
   // ── Core message handler ──────────────────────────────────────────
 
   const handleMessage = useCallback(async (
@@ -268,156 +321,151 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
       ].join('\n')
     }
 
+    const apiConfig = resolveApiConfig(model)
+    if (!apiConfig) {
+      return 'Error: No API configuration found. Make sure environment variables with API keys are set.'
+    }
+
+    const userStudios = studios.filter(s => s.username === username)
+    const systemPrompt = [
+      'You are THING, the built-in AI agent for lmthing — a platform for building and managing AI agent studios.',
+      '',
+      'lmthing organizes work into: Users → Studios → Spaces.',
+      'Each space contains: agents, workflows, knowledge fields, and configuration.',
+      '',
+      'You can create studios, manage files, and help users navigate their data.',
+      'Be concise, precise, and helpful.',
+      '',
+      'CURRENT STATE:',
+      stringifyJson({ username, studios: userStudios.map(s => ({ id: s.studioId, name: s.name })) }),
+    ].join('\n')
+
+    const tools = [
+      { name: 'listStudios', description: 'List all studios for the current user.', parameters: { type: 'object', properties: {}, required: [] } },
+      { name: 'createStudio', description: 'Create a new studio.', parameters: { type: 'object', properties: { studioId: { type: 'string' }, name: { type: 'string' } }, required: ['studioId', 'name'] } },
+      { name: 'deleteStudio', description: 'Delete a studio by ID.', parameters: { type: 'object', properties: { studioId: { type: 'string' } }, required: ['studioId'] } },
+      { name: 'listFiles', description: 'List all files in the virtual file system.', parameters: { type: 'object', properties: { prefix: { type: 'string' } }, required: [] } },
+      { name: 'readFile', description: 'Read a file from the virtual file system.', parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } },
+      { name: 'writeFile', description: 'Write content to a file in the virtual file system.', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'] } },
+      { name: 'deleteFile', description: 'Delete a file from the virtual file system.', parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } },
+    ]
+
+    type OAIMessage = { role: string; content: string; tool_call_id?: string; name?: string }
+    type OAIToolCall = { id: string; type: 'function'; function: { name: string; arguments: string } }
+
+    const messages: OAIMessage[] = [
+      { role: 'system', content: systemPrompt },
+      ...conversation.map(m => ({ role: m.role, content: m.content })),
+    ]
+
     try {
-      const userStudios = studios.filter(s => s.username === username)
-      const summary = {
-        username,
-        studios: userStudios.map(s => ({ id: s.studioId, name: s.name })),
-        actionNames: ACTION_NAMES,
-      }
+      let finalText = ''
+      // Tool-call loop (max 5 steps)
+      for (let step = 0; step < 5; step++) {
+        const isLastStep = step === 4
 
-      const { result } = await runPrompt(async (prompt) => {
-        prompt.defSystem('role', [
-          'You are THING, the built-in AI agent for lmthing — a platform for building and managing AI agent studios.',
-          '',
-          'lmthing organizes work into: Users → Studios → Spaces.',
-          'Each space contains: agents, workflows, knowledge fields, and configuration.',
-          '',
-          'You can create studios, manage files, and help users navigate their data.',
-          'Be concise, precise, and helpful.',
-        ].join('\n'))
-
-        prompt.defSystem('context', [
-          'CURRENT STATE:',
-          stringifyJson(summary),
-        ].join('\n'))
-
-        // ── Tools ──
-
-        prompt.defTool(
-          'listStudios',
-          'List all studios for the current user.',
-          z.object({}),
-          async () => {
-            const list = studios.filter(s => s.username === username)
-            return { ok: true, studios: list.map(s => ({ id: s.studioId, name: s.name })) }
+        const res = await fetch(`${apiConfig.baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiConfig.apiKey}`,
           },
-        )
-
-        prompt.defTool(
-          'createStudio',
-          'Create a new studio.',
-          z.object({ studioId: z.string().min(1), name: z.string().min(1) }),
-          async ({ studioId, name }: { studioId: string; name: string }) => {
-            if (!username) return { ok: false, message: 'No username available.' }
-            createStudio(username, studioId, name)
-            return { ok: true, message: `Created studio "${name}" (${studioId}).` }
-          },
-        )
-
-        prompt.defTool(
-          'deleteStudio',
-          'Delete a studio by ID.',
-          z.object({ studioId: z.string().min(1) }),
-          async ({ studioId }: { studioId: string }) => {
-            if (!username) return { ok: false, message: 'No username available.' }
-            deleteStudio(username, studioId)
-            return { ok: true, message: `Deleted studio ${studioId}.` }
-          },
-        )
-
-        prompt.defTool(
-          'listFiles',
-          'List all files in the virtual file system, optionally filtered by prefix.',
-          z.object({ prefix: z.string().optional() }),
-          async ({ prefix }: { prefix?: string }) => {
-            const allFiles = Object.keys(appFS.getSnapshot())
-            const filtered = prefix ? allFiles.filter(f => f.startsWith(prefix)) : allFiles
-            return { ok: true, files: filtered.slice(0, 100), total: filtered.length }
-          },
-        )
-
-        prompt.defTool(
-          'readFile',
-          'Read a file from the virtual file system.',
-          z.object({ path: z.string().min(1) }),
-          async ({ path }: { path: string }) => {
-            const content = appFS.readFile(path)
-            if (content === null) return { ok: false, message: `File not found: ${path}` }
-            return { ok: true, path, content: content.slice(0, 4000) }
-          },
-        )
-
-        prompt.defTool(
-          'writeFile',
-          'Write content to a file in the virtual file system.',
-          z.object({ path: z.string().min(1), content: z.string() }),
-          async ({ path, content }: { path: string; content: string }) => {
-            appFS.writeFile(path, content)
-            return { ok: true, message: `Wrote ${content.length} chars to ${path}.` }
-          },
-        )
-
-        prompt.defTool(
-          'deleteFile',
-          'Delete a file from the virtual file system.',
-          z.object({ path: z.string().min(1) }),
-          async ({ path }: { path: string }) => {
-            appFS.deleteFile(path)
-            return { ok: true, message: `Deleted ${path}.` }
-          },
-        )
-
-        conversation.forEach(msg => {
-          prompt.defMessage(msg.role, msg.content)
+          body: JSON.stringify({
+            model: apiConfig.model,
+            messages,
+            tools: isLastStep ? undefined : tools.map(t => ({ type: 'function', function: t })),
+            tool_choice: isLastStep ? undefined : 'auto',
+            temperature: 0.1,
+            max_tokens: 600,
+            stream: true,
+          }),
         })
-      }, {
-        model,
-        options: {
-          temperature: 0.1,
-          maxOutputTokens: 600,
-          onStepFinish: (stepResult) => {
-            const r = stepResult as {
-              finishReason?: string
-              toolCalls?: Array<{ toolName?: string; input?: unknown }>
-              toolResults?: Array<{ toolName?: string; input?: unknown; output?: unknown }>
-            }
 
-            if (r.finishReason !== 'tool-calls') return
+        if (!res.ok || !res.body) {
+          const errorText = await res.text().catch(() => res.statusText)
+          throw new Error(`API error ${res.status}: ${errorText}`)
+        }
 
-            const toolResults = r.toolResults || []
-            if (toolResults.length > 0) {
-              const lines = toolResults.map(tr => {
-                const name = tr.toolName || 'unknown'
-                return toToolEventBlock(`🔧 ${name}\n⤷ args: ${stringifyJson(tr.input)}\n⤷ result: ${stringifyJson(tr.output)}`)
-              })
-              onToolEvent?.(lines.join('\n\n'))
-              return
-            }
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        let assistantText = ''
+        const toolCallMap: Map<number, { id: string; name: string; args: string }> = new Map()
+        let finishReason: string | null = null
 
-            const toolNames = (r.toolCalls || []).map(tc => tc.toolName).filter(Boolean)
-            onToolEvent?.(toToolEventBlock(`🔧 Running tool${toolNames.length > 1 ? 's' : ''}: ${toolNames.join(', ') || '...'}`))
-          },
-        },
-      })
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
 
-      const streamCandidate = (result as { textStream?: unknown }).textStream
-      let streamedText = ''
+          const lines = buffer.split('\n')
+          buffer = lines.pop() ?? ''
 
-      if (streamCandidate && typeof streamCandidate === 'object' && Symbol.asyncIterator in streamCandidate) {
-        for await (const delta of streamCandidate as AsyncIterable<string>) {
-          streamedText += delta
-          onTextDelta?.(delta)
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue
+            const data = line.slice(6).trim()
+            if (data === '[DONE]') break
+            try {
+              const chunk = JSON.parse(data)
+              const choice = chunk.choices?.[0]
+              if (!choice) continue
+              if (choice.finish_reason) finishReason = choice.finish_reason
+              const delta = choice.delta
+              if (delta?.content) {
+                assistantText += delta.content
+                onTextDelta?.(delta.content)
+              }
+              if (delta?.tool_calls) {
+                for (const tc of delta.tool_calls) {
+                  if (!toolCallMap.has(tc.index)) {
+                    toolCallMap.set(tc.index, { id: tc.id || '', name: tc.function?.name || '', args: '' })
+                  }
+                  const entry = toolCallMap.get(tc.index)!
+                  if (tc.id) entry.id = tc.id
+                  if (tc.function?.name) entry.name += tc.function.name
+                  if (tc.function?.arguments) entry.args += tc.function.arguments
+                }
+              }
+            } catch { /* skip malformed */ }
+          }
+        }
+
+        finalText = assistantText
+
+        if (finishReason !== 'tool_calls' || toolCallMap.size === 0) break
+
+        // Execute tool calls
+        const toolCalls: OAIToolCall[] = Array.from(toolCallMap.values()).map(tc => ({
+          id: tc.id,
+          type: 'function',
+          function: { name: tc.name, arguments: tc.args },
+        }))
+
+        const toolNames = toolCalls.map(tc => tc.function.name)
+        onToolEvent?.(toToolEventBlock(`🔧 Running tool${toolNames.length > 1 ? 's' : ''}: ${toolNames.join(', ')}`))
+
+        messages.push({ role: 'assistant', content: assistantText || '', ...toolCalls.length ? { tool_calls: toolCalls } : {} } as unknown as OAIMessage)
+
+        for (const tc of toolCalls) {
+          const name = tc.function.name as keyof typeof toolExecutors
+          let result: unknown
+          try {
+            const args = JSON.parse(tc.function.arguments || '{}')
+            result = await (toolExecutors[name] as (a: unknown) => Promise<unknown>)?.(args) ?? { ok: false, message: `Unknown tool: ${name}` }
+          } catch (e) {
+            result = { ok: false, message: e instanceof Error ? e.message : 'Tool error' }
+          }
+          onToolEvent?.(toToolEventBlock(`🔧 ${name}\n⤷ result: ${stringifyJson(result)}`))
+          messages.push({ role: 'tool', content: stringifyJson(result), tool_call_id: tc.id, name } as OAIMessage)
         }
       }
 
-      const text = await result.text
-      return text?.trim() || streamedText.trim() || 'Done.'
+      return finalText.trim() || 'Done.'
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
       return `Error: ${message}\n\nMake sure environment variables with API keys are configured.`
     }
-  }, [studios, username, appFS, model, createStudio, deleteStudio])
+  }, [studios, username, appFS, model, toolExecutors])
 
   // ── Run conversation ──────────────────────────────────────────────
 

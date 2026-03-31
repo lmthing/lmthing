@@ -95,5 +95,5 @@ export function ThingWebView({
   )
 }
 
-export type { ThingWebViewSession, UIBlock, BlockAction, AgentAction, ConversationSummary } from './types'
+export type { ThingWebViewSession, UIBlock, BlockAction, AgentAction, ConversationSummary, SessionSnapshot } from './types'
 export { blocksReducer } from './blocks'

@@ -70,6 +70,14 @@ function resolveComponentPaths(groups: string[]): string[] {
 async function main() {
   const args = parseArgs(process.argv.slice(2))
 
+  // ── Test mode ──
+  if (args.command === 'test') {
+    const { runSpaceTests } = await import('./test-runner')
+    const code = runSpaceTests(args.spaces!, { model: args.model, pattern: args.testPattern })
+    process.exit(code)
+    return
+  }
+
   // ── Agent mode ──
   if (args.agent) {
     const spacePath = resolve(args.spaces![0])

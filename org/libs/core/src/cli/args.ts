@@ -1,4 +1,6 @@
 export interface CLIArgs {
+  /** Subcommand: 'run' (default) or 'test' */
+  command: 'run' | 'test';
   /** Path to user's .ts/.tsx file (positional, optional if --catalog or --space is set) */
   file?: string;
   /** Special instructions appended to system prompt */
@@ -19,6 +21,8 @@ export interface CLIArgs {
   noUi: boolean;
   /** Path to write a debug log file (JSON or XML based on extension) */
   debugFile?: string;
+  /** Glob pattern for test file discovery (test command only, default: **\/*.test.ts) */
+  testPattern?: string;
 }
 
 /**
@@ -26,6 +30,7 @@ export interface CLIArgs {
  */
 export function parseArgs(argv: string[]): CLIArgs {
   const args: CLIArgs = {
+    command: 'run',
     port: 3010,
     timeout: 600,
     noUi: false,
@@ -34,7 +39,12 @@ export function parseArgs(argv: string[]): CLIArgs {
   const instructs: string[] = [];
   let i = 0;
 
-  // Skip node and script path
+  // Detect subcommand as first positional token
+  if (argv[0] === 'test') {
+    args.command = 'test';
+    i = 1;
+  }
+
   while (i < argv.length) {
     const arg = argv[i];
 
@@ -55,6 +65,8 @@ export function parseArgs(argv: string[]): CLIArgs {
       args.spaces.push(argv[++i]);
     } else if (arg === "--agent" || arg === "-a") {
       args.agent = argv[++i];
+    } else if (arg === "--pattern") {
+      args.testPattern = argv[++i];
     } else if (arg === "--no-ui") {
       args.noUi = true;
     } else if (!arg.startsWith("-") && !args.file) {
@@ -66,6 +78,13 @@ export function parseArgs(argv: string[]): CLIArgs {
 
   if (instructs.length > 0) {
     args.instruct = instructs;
+  }
+
+  if (args.command === 'test') {
+    if (!args.spaces || args.spaces.length === 0) {
+      throw new Error("lmthing test requires at least one --space <path>");
+    }
+    return args;
   }
 
   // Validate: --agent requires --space

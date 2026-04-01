@@ -68,4 +68,45 @@ describe("cli/args", () => {
     expect(args.file).toBeUndefined();
     expect(args.catalog).toBe("all");
   });
+
+  it("defaults command to run", () => {
+    const args = parseArgs(["tools.ts"]);
+    expect(args.command).toBe("run");
+  });
+});
+
+describe("cli/args — test subcommand", () => {
+  it("sets command to test", () => {
+    const args = parseArgs(["test", "--space", "./my-space"]);
+    expect(args.command).toBe("test");
+  });
+
+  it("parses space path", () => {
+    const args = parseArgs(["test", "--space", "./my-space"]);
+    expect(args.spaces).toEqual(["./my-space"]);
+  });
+
+  it("parses multiple spaces", () => {
+    const args = parseArgs(["test", "--space", "./a", "--space", "./b"]);
+    expect(args.spaces).toEqual(["./a", "./b"]);
+  });
+
+  it("parses --model alongside test", () => {
+    const args = parseArgs(["test", "--space", "./my-space", "--model", "small"]);
+    expect(args.model).toBe("small");
+  });
+
+  it("parses --pattern", () => {
+    const args = parseArgs(["test", "--space", "./my-space", "--pattern", "**/*.test.ts"]);
+    expect(args.testPattern).toBe("**/*.test.ts");
+  });
+
+  it("throws when no --space given to test", () => {
+    expect(() => parseArgs(["test"])).toThrow("lmthing test requires at least one --space");
+  });
+
+  it("does not require --model for test", () => {
+    const args = parseArgs(["test", "--space", "./my-space"]);
+    expect(args.model).toBeUndefined();
+  });
 });

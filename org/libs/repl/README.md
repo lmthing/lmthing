@@ -516,6 +516,88 @@ This creates:
 - **Branchable exploration** — try paths in parallel, merge results
 - **Collaboration** — multiple agents can share mental states via git
 
+## File I/O: Four-Backtick Blocks
+
+The agent writes and patches files using a dedicated stream-level syntax — four backticks — which the REPL's line accumulator intercepts before the code reaches the sandbox. This is separate from the `fs` catalog module: file blocks are for structured, complete-file writes and surgical diffs, not programmatic content generation.
+
+### Writing a File
+
+Four backticks followed immediately by the file path, then the file content, then a closing four-backtick line:
+
+````
+````agents/agent-recipe-advisor/instruct.md
+---
+title: RecipeAdvisor
+---
+
+You are a recipe specialist. Help users plan meals, scale recipes, and adapt dishes.
+````
+````
+
+- Parent directories are created automatically
+- The file is written atomically (complete overwrite)
+- The path is resolved relative to `fileWorkingDir` — traversal outside it is blocked
+- In a git-tracked working directory, a commit is created for every write
+
+### Patching a File
+
+Four backticks followed by `diff <path>`, then a standard unified diff, then closing four backticks:
+
+````
+````diff knowledge/recipes/ingredients/config.json
+--- a/knowledge/recipes/ingredients/config.json
++++ b/knowledge/recipes/ingredients/config.json
+@@ -3,6 +3,7 @@
+   "label": "Ingredients",
+   "icon": "🧄",
+   "color": "#e8a838",
++  "renderAs": "section",
+   "required": false
+ }
+````
+````
+
+**Safety rules for diffs:**
+
+- The file **must have been read** in the current session using `fs.readFile()` before it can be patched. The read ledger tracks this — patching an unread file returns an error: `← error [FileError] File '...' has not been read this session`.
+- Hunk context lines must match exactly. A mismatch error is injected as a user message so the agent can retry with a corrected diff.
+- Like writes, diffs in git-tracked directories create commits.
+
+### The Read → Patch Cycle
+
+```ts
+// Agent reads the current state first
+const config = await readFile('./knowledge/recipes/ingredients/config.json')
+stop(config)  // inspect before modifying
+
+// Agent patches just what changed
+````diff knowledge/recipes/ingredients/config.json
+@@ -3,5 +3,6 @@
+   "label": "Ingredients",
+   "icon": "🧄",
+   "color": "#e8a838",
++  "renderAs": "section",
+   "required": false
+ }
+````
+```
+
+This **read-before-write discipline** prevents the agent from blindly overwriting files it hasn't seen — the same safety model a human developer follows when editing code.
+
+### File Events
+
+File blocks emit session events so the host can react:
+
+```ts
+session.on('event', (event) => {
+  switch (event.type) {
+    case 'file_write':  // path, blockId
+    case 'file_diff':   // path, blockId
+    case 'file_error':  // path, error, blockId
+  }
+})
+```
+
 ## Motor Primitives: Control Functions
 
 These globals give LLMs **agency** — the ability to act, sense, and coordinate:
@@ -653,7 +735,7 @@ Pre-built neural modules for common tasks:
 
 | Module | Capabilities |
 |--------|-------------|
-| `fs` | Read/write files — interact with environment |
+| `fs` | Read/write files — programmatic content generation; use four-backtick blocks for structured file writes |
 | `fetch` | HTTP requests — gather external data |
 | `shell` | Execute commands — system interaction |
 | `path` | Path manipulation — filesystem navigation |
@@ -664,6 +746,7 @@ Pre-built neural modules for common tasks:
 | `csv` | CSV handling — spreadsheet data |
 | `image` | Image processing — visual data |
 | `db` | SQLite queries — structured storage |
+| `search` | `webSearch()`, `scrapeUrl()` — research and knowledge gathering |
 
 ```ts
 import { loadCatalog, formatCatalogForPrompt } from '@lmthing/repl'
@@ -710,6 +793,131 @@ A **Space** is a complete cognitive environment:
 ├── components/       // UI constructs (interaction patterns)
 └── knowledge/        // Semantic memory (domain knowledge)
 ```
+
+## Space Management: Living Environments
+
+Spaces are not static — the agent can read, update, extend, and install them at runtime. When `fileWorkingDir` points to a spaces directory, the agent has direct, git-tracked access to every file in every space.
+
+### Updating a Space
+
+The agent reads space files with `fs.readFile()`, then rewrites or patches them using four-backtick blocks:
+
+```ts
+// Read the current agent instruction
+const instruct = await readFile('./agents/agent-recipe-advisor/instruct.md')
+stop(instruct)
+
+// Patch to extend its capabilities
+````diff agents/agent-recipe-advisor/instruct.md
+@@ -4,3 +4,6 @@
+ You are a recipe specialist. Help users plan meals, scale recipes, and adapt dishes.
++
++## Dietary Adaptation
++When the user mentions dietary restrictions, proactively adjust all recipes.
++Substitution table is in knowledge/dietary-context.
+````
+```
+
+Every change is a git commit — the full evolution of a space is preserved in the repository history.
+
+### Growing Knowledge
+
+The agent can add new knowledge options directly:
+
+````
+````knowledge/recipes/techniques/braising.md
+---
+title: Braising
+description: Low-and-slow cooking in liquid — ideal for tough cuts
+order: 3
+---
+
+Braising develops deep flavour through the Maillard reaction followed by collagen breakdown.
+Liquid should cover one-third of the ingredient. Maintain 160–180 °C for 2–4 hours.
+````
+````
+
+Or remove outdated entries by patching the field directory's config or deleting the `.md` file via `fs.unlink()`.
+
+### Extending Flows
+
+New flow steps are just numbered markdown files. The agent creates them with a write block:
+
+````
+````flows/flow_create_menu/5.Review Dietary Needs.md
+---
+step: 5
+---
+
+Check the knowledge/dietary-context field. For each restriction present, flag incompatible
+dishes in the proposed menu and offer substitutions from the techniques knowledge domain.
+````
+````
+
+### Installing Spaces from Public Catalogs
+
+Spaces declare their dependencies — and can pull in spaces published to npm or GitHub — via the `spaces` field in `package.json`:
+
+```json
+{
+  "name": "my-cooking-space",
+  "spaces": {
+    "npm:@lmthing/space-nutrition": "^1.0.0",
+    "github:lmthing/spaces/wine-pairing": "latest",
+    "./local/sous-vide": "*"
+  }
+}
+```
+
+| Source | Format | Example |
+|--------|--------|---------|
+| npm registry | `npm:@scope/package` | `npm:@lmthing/space-nutrition` |
+| GitHub repo | `github:org/repo/subpath` | `github:lmthing/spaces/wine-pairing` |
+| Local path | relative or absolute | `./sous-vide` |
+
+**Searching the catalog:**
+
+```ts
+// Search npm for published spaces
+const results = await webSearch("site:npmjs.com @lmthing space")
+// Or query the npm registry directly
+const packages = await fetchJson('https://registry.npmjs.org/-/v1/search?text=keywords:lmthing-space')
+stop(packages)
+```
+
+**Installing a space:**
+
+```ts
+// Download and register a space from npm
+const spacePath = await space.install('npm:@lmthing/space-nutrition')
+stop(spacePath)  // ~/.lmthing/spaces/space-nutrition
+
+// Space is immediately live — new namespace available
+const menu = await nutrition.diet_planner({}).create_plan("vegetarian, 2000 kcal")
+stop(menu)
+```
+
+The installed space's files land in the user's spaces directory, git-tracked alongside their own spaces, and the agent namespace is hot-reloaded without restarting the session.
+
+### The Self-Extending Agent
+
+This creates a **self-extending cognitive environment**:
+
+```
+User: "Help me plan a Greek feast for 10 people"
+
+Agent checks spaces → no Greek cooking space
+Agent: webSearch("Greek cooking techniques and ingredients")
+Agent: scaffolds space-greek-cooking (agents, flows, knowledge)
+Agent: space.load(path) → namespace live
+Agent: greek_cooking.recipe_advisor({}).create_menu("feast for 10")
+→ structured menu returned
+
+Next session: space-greek-cooking already exists, no re-creation needed
+Agent continues to refine it based on feedback via file-block patches
+```
+
+The knowledge base grows with the user. Every `learn()` call, every patched knowledge file, every installed space — all committed to git, all available in the next session.
 
 ## Hook System: Neural Interception
 

@@ -72,25 +72,25 @@ Inter-package dependencies use `workspace:*`:
 
 `make proxy` sets up an nginx reverse proxy for local development:
 
-1. Adds `127.0.0.1 <app>.local` entries to `/etc/hosts`
-2. Creates nginx server blocks: `studio.local` → `localhost:3000`, etc.
+1. Adds `127.0.0.1 <app>.test` entries to `/etc/hosts`
+2. Creates nginx server blocks: `studio.test` → `localhost:3000`, etc.
 3. Includes WebSocket upgrade headers for Vite HMR
 
 ### Service Ports
 
 | App | Port | Domain |
 |-----|------|--------|
-| Studio | 3000 | studio.local |
-| Chat | 3001 | chat.local |
-| Com | 3002 | com.local |
-| Social | 3003 | social.local |
-| Store | 3004 | store.local |
-| Space | 3005 | space.local |
-| Team | 3006 | team.local |
-| Blog | 3007 | blog.local |
-| Casa | 3008 | casa.local |
-| Cloud | 3009 | cloud.local |
-| Computer | 3010 | computer.local |
+| Studio | 3000 | studio.test |
+| Chat | 3001 | chat.test |
+| Com | 3002 | com.test |
+| Social | 3003 | social.test |
+| Store | 3004 | store.test |
+| Space | 3005 | space.test |
+| Team | 3006 | team.test |
+| Blog | 3007 | blog.test |
+| Casa | 3008 | casa.test |
+| Cloud | 3009 | cloud.test |
+| Computer | 3010 | computer.test |
 
 Port assignments defined in `services.yaml`.
 
@@ -100,7 +100,7 @@ Port assignments defined in `services.yaml`.
 |---------|-------------|
 | `make up` | Start all frontend dev servers in parallel |
 | `make down` | Stop all running dev servers |
-| `make proxy` | Set up nginx + /etc/hosts for *.local domains |
+| `make proxy` | Set up nginx + /etc/hosts for *.test domains |
 | `make proxy-clean` | Remove nginx configs and /etc/hosts entries |
 | `make install` | Run `pnpm install` |
 

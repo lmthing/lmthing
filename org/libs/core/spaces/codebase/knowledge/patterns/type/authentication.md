@@ -32,7 +32,7 @@ Other lmthing.* apps redirect to `com/` for authentication:
 1. App detects no session → redirect to com/auth/sso?app=studio&redirect_uri=...&state=...
 2. com/ checks for active session (redirects to /login if none)
 3. com/ calls /api/auth/sso/create → gets single-use code (60s TTL)
-4. com/ redirects back: app.local/?code=<code>&state=<state>
+4. com/ redirects back: app.test/?code=<code>&state=<state>
 5. App calls /api/auth/sso/exchange → gets session (accessToken, user info)
 6. App stores session in localStorage
 ```

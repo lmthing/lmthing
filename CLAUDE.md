@@ -465,21 +465,21 @@ make up            # start all services
 
 ### Service Ports & Domains
 
-Each app runs on its own Vite dev server. The local proxy maps `*.local` domains via nginx.
+Each app runs on its own Vite dev server. The local proxy maps `*.test` domains via nginx.
 
-| App      | Port | Local Domain                            |
-| -------- | ---- | --------------------------------------- |
-| Studio   | 3000 | [studio.local](http://studio.local)     |
-| Chat     | 3001 | [chat.local](http://chat.local)         |
-| Com      | 3002 | [com.local](http://com.local)           |
-| Social   | 3003 | [social.local](http://social.local)     |
-| Store    | 3004 | [store.local](http://store.local)       |
-| Space    | 3005 | [space.local](http://space.local)       |
-| Team     | 3006 | [team.local](http://team.local)         |
-| Computer | 3010 | [computer.local](http://computer.local) |
-| Blog     | 3007 | [blog.local](http://blog.local)         |
-| Casa     | 3008 | [casa.local](http://casa.local)         |
-| Cloud    | 3009 | [cloud.local](http://cloud.local)       |
+| App      | Port | Local Domain                          |
+| -------- | ---- | ------------------------------------- |
+| Studio   | 3000 | [studio.test](http://studio.test)     |
+| Chat     | 3001 | [chat.test](http://chat.test)         |
+| Com      | 3002 | [com.test](http://com.test)           |
+| Social   | 3003 | [social.test](http://social.test)     |
+| Store    | 3004 | [store.test](http://store.test)       |
+| Space    | 3005 | [space.test](http://space.test)       |
+| Team     | 3006 | [team.test](http://team.test)         |
+| Computer | 3010 | [computer.test](http://computer.test) |
+| Blog     | 3007 | [blog.test](http://blog.test)         |
+| Casa     | 3008 | [casa.test](http://casa.test)         |
+| Cloud    | 3009 | [cloud.test](http://cloud.test)       |
 
 Port assignments and domain mappings are defined in `services.yaml`.
 
@@ -489,7 +489,7 @@ Port assignments and domain mappings are defined in `services.yaml`.
 | ------------------ | --------------------------------------------------------------------------------- |
 | `make up`          | Start all frontend dev servers in parallel                                        |
 | `make down`        | Stop all running dev servers                                                      |
-| `make proxy`       | Set up nginx + `/etc/hosts` for `*.local` domains (interactive, prompts for sudo) |
+| `make proxy`       | Set up nginx + `/etc/hosts` for `*.test` domains (interactive, prompts for sudo)  |
 | `make proxy-clean` | Remove nginx configs and `/etc/hosts` entries                                     |
 | `make install`     | Run `pnpm install`                                                                |
 | `make check`       | Health check all lmthing.\* domains (DNS, TLS, HTTPS, hosting config)             |
@@ -499,7 +499,7 @@ Port assignments and domain mappings are defined in `services.yaml`.
 `make proxy` runs `.etc/scripts/local-proxy.sh`, which:
 
 1. Installs nginx if missing (apt/brew)
-2. Adds `127.0.0.1 <app>.local` entries to `/etc/hosts`
+2. Adds `127.0.0.1 <app>.test` entries to `/etc/hosts`
 3. Creates nginx server blocks that reverse-proxy each domain to its Vite port (including WebSocket upgrade for HMR)
 4. Validates the config and restarts nginx
 

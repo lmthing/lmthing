@@ -10,9 +10,9 @@ function resolveConfig(appName: string, callbackPath: string): AuthConfig {
 
   return {
     comUrl: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_COM_URL)
-      || (isDev ? `${protocol}//com.local` : 'https://lmthing.com'),
+      || (isDev ? `${protocol}//com.test` : 'https://lmthing.com'),
     cloudUrl: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_CLOUD_URL)
-      || (isDev ? `${protocol}//cloud.local` : 'https://lmthing.cloud'),
+      || (isDev ? `${protocol}//cloud.test` : 'https://lmthing.cloud'),
     appName,
     callbackPath,
   }

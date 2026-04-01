@@ -116,7 +116,7 @@ export function createViteConfig(dirname, overrides) {
       },
     },
     server: {
-      allowedHosts: ['.local'],
+      allowedHosts: ['.test'],
       ...overrides?.server,
     },
     define: {

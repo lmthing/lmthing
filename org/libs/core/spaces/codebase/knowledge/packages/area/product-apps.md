@@ -103,10 +103,10 @@ All frontend apps share:
 ```bash
 make up          # Start all frontend dev servers in parallel
 make down        # Stop all running dev servers
-make proxy       # Set up nginx + /etc/hosts for *.local domains
+make proxy       # Set up nginx + /etc/hosts for *.test domains
 make proxy-clean # Remove nginx configs and /etc/hosts entries
 ```
 
 Individual app: `cd studio && pnpm dev`
 
-Domains resolve via nginx reverse proxy: `studio.local` → `localhost:3000`, etc.
+Domains resolve via nginx reverse proxy: `studio.test` → `localhost:3000`, etc.

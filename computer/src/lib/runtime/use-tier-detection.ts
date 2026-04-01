@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import type { RuntimeTier } from './types'
 
 const CLOUD_BASE_URL = import.meta.env.VITE_CLOUD_BASE_URL
-  ?? (import.meta.env.DEV ? `${window.location.protocol}//cloud.local` : 'https://lmthing.cloud')
+  ?? (import.meta.env.DEV ? `${window.location.protocol}//cloud.test` : 'https://lmthing.cloud')
 const COMPUTER_BASE_URL = import.meta.env.VITE_COMPUTER_BASE_URL
-  ?? (import.meta.env.DEV ? `${window.location.protocol}//computer.local` : 'https://lmthing.computer')
+  ?? (import.meta.env.DEV ? `${window.location.protocol}//computer.test` : 'https://lmthing.computer')
 const CLOUD_AUTH_KEY = 'lmthing-cloud-auth'
 
 interface CloudAuth {

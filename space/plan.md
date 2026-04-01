@@ -2,7 +2,7 @@
 
 > **Status:** Draft
 > **Date:** 2026-03-14
-> **Port:** 3005 (`space.local`)
+> **Port:** 3005 (`space.test`)
 > **Package:** `@lmthing/space`
 
 ---
@@ -361,7 +361,7 @@ Create `space/src/lib/api.ts`:
 ```typescript
 import { getAuthHeaders } from '@lmthing/auth'
 
-const CLOUD_URL = import.meta.env.VITE_CLOUD_URL || 'https://cloud.local/functions/v1'
+const CLOUD_URL = import.meta.env.VITE_CLOUD_URL || 'https://cloud.test/functions/v1'
 
 export async function listSpaces(): Promise<Space[]> { ... }
 export async function getSpace(slug: string): Promise<Space> { ... }
@@ -399,9 +399,9 @@ export async function deleteSpace(id: string): Promise<void> { ... }
 
 ### 2.11 Verification
 
-- Visit `space.local` → see spaces directory (empty initially, then with created spaces)
-- Visit `space.local/<slug>/` → as owner, redirected to admin overview
-- Visit `space.local/<slug>/` → as visitor, redirected to app (or login if auth_enabled)
+- Visit `space.test` → see spaces directory (empty initially, then with created spaces)
+- Visit `space.test/<slug>/` → as owner, redirected to admin overview
+- Visit `space.test/<slug>/` → as visitor, redirected to app (or login if auth_enabled)
 - Admin sidebar navigation works across all admin routes
 
 ---
@@ -452,7 +452,7 @@ Tools defined using `lmthing` core's Zod-schema tool system, running on the K8s 
 
 ### 3.4 Verification
 
-- Admin opens builder chat at `space.local/<slug>/admin/builder`
+- Admin opens builder chat at `space.test/<slug>/admin/builder`
 - Asks THING to create a page → page config JSON appears in VFS
 - Tool calls visible in chat as structured responses
 
@@ -556,7 +556,7 @@ export async function loadCustomComponent(name: string, nodeUrl: string) {
 
 ### 4.7 Verification
 
-- End-user visits `space.local/<slug>/` → sees rendered app with config-driven pages
+- End-user visits `space.test/<slug>/` → sees rendered app with config-driven pages
 - Pages with `data-table`, `form`, `agent-chat`, `markdown` sections render correctly
 - Custom components load via dynamic import from the node
 
@@ -625,14 +625,14 @@ CREATE TABLE users (id uuid PRIMARY KEY, name text, email text);
 
 ### 6.1 Space Pricing
 
-`space.local/` dashboard shows pricing if user has no active Space subscription. Links to Stripe checkout via `cloud/create-checkout` with `tier: "space"`.
+`space.test/` dashboard shows pricing if user has no active Space subscription. Links to Stripe checkout via `cloud/create-checkout` with `tier: "space"`.
 
 ### 6.2 Create Space Flow
 
 1. User has active subscription → "Create Space" button visible
 2. Modal: name (auto-slug), description, region select
 3. `POST cloud/create-space` → provisions everything
-4. Redirect to `space.local/<slug>/admin/builder`
+4. Redirect to `space.test/<slug>/admin/builder`
 
 ### 6.3 Studio Workspace Import
 

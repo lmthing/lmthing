@@ -6,7 +6,7 @@ import { ThingWebView } from '@lmthing/ui/components/thing/thing-web-view'
 import type { ThingWebViewSession, UIBlock, SessionSnapshot } from '@lmthing/ui/components/thing/thing-web-view'
 
 const COMPUTER_URL = import.meta.env.VITE_COMPUTER_URL
-  ?? (import.meta.env.DEV ? 'https://computer.local' : 'https://lmthing.computer')
+  ?? (import.meta.env.DEV ? 'https://computer.test' : 'https://lmthing.computer')
 
 const EMPTY_SNAPSHOT: SessionSnapshot = {
   status: 'idle',

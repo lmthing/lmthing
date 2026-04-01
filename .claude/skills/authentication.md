@@ -44,7 +44,7 @@ Authentication is handled through **com/** (the central auth hub) which talks to
 
 ### Demo mode (local development)
 
-When `VITE_DEMO_USER=true` is set (default in `.env.development` for studio, chat, and computer), AuthProvider skips all SSO flows and immediately provides a hardcoded demo session (`demo-user` / `demo@lmthing.local`). This means:
+When `VITE_DEMO_USER=true` is set (default in `.env.development` for studio, chat, and computer), AuthProvider skips all SSO flows and immediately provides a hardcoded demo session (`demo-user` / `demo@lmthing.test`). This means:
 
 - No redirect to com/ for login
 - No SSO code exchange
@@ -122,7 +122,7 @@ In `org/libs/utils/src/vite.mjs`:
 Defaults are auto-resolved. Override if needed:
 
 ```
-VITE_COM_URL=https://com.local       # defaults: com.local (dev) / lmthing.com (prod)
-VITE_CLOUD_URL=https://cloud.local   # defaults: cloud.local (dev) / lmthing.cloud (prod)
+VITE_COM_URL=https://com.test       # defaults: com.test (dev) / lmthing.com (prod)
+VITE_CLOUD_URL=https://cloud.test   # defaults: cloud.test (dev) / lmthing.cloud (prod)
 VITE_DEMO_USER=true                  # bypass auth with demo session (set in .env.development)
 ```

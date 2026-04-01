@@ -6,7 +6,7 @@ import { getAuthHeaders } from '@lmthing/auth'
 import { useSpace } from '@/lib/SpaceContext'
 
 const CLOUD_URL = import.meta.env.VITE_CLOUD_URL
-  || (import.meta.env.DEV ? `${window.location.protocol}//cloud.local/functions/v1` : 'https://lmthing.cloud/functions/v1')
+  || (import.meta.env.DEV ? `${window.location.protocol}//cloud.test/functions/v1` : 'https://lmthing.cloud/functions/v1')
 
 export const Route = createFileRoute('/$spaceSlug/admin/terminal')({
   component: SpaceTerminal,

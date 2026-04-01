@@ -29,7 +29,7 @@ down:
 	@$(foreach svc,$(SERVICES),fuser -k $(call port,$(svc))/tcp 2>/dev/null || true;)
 	@echo "Done."
 
-# Set up nginx proxy: *.local -> localhost ports
+# Set up nginx proxy: *.test -> localhost ports
 proxy:
 	@cd .etc/scripts && bash local-proxy.sh
 

@@ -2,7 +2,7 @@ import { getAuthHeaders } from '@lmthing/auth'
 import type { Space } from './types'
 
 const CLOUD_URL = import.meta.env.VITE_CLOUD_URL
-  || (import.meta.env.DEV ? `${window.location.protocol}//cloud.local/functions/v1` : 'https://lmthing.cloud/functions/v1')
+  || (import.meta.env.DEV ? `${window.location.protocol}//cloud.test/functions/v1` : 'https://lmthing.cloud/functions/v1')
 
 async function fetchJSON<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {

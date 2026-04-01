@@ -12,7 +12,7 @@ THING agent runtime environment. Browser-based IDE with file tree, Monaco editor
 ## Running Locally
 
 ```bash
-cd computer && pnpm dev    # http://localhost:3010 / computer.local
+cd computer && pnpm dev    # http://localhost:3010 / computer.test
 ```
 
 ## Route Structure

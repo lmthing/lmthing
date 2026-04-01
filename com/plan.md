@@ -60,13 +60,13 @@ Replace stub with real pricing page. Plan metadata (names, features, Stripe pric
 Since lmthing.* domains are different TLDs, SSO uses a redirect-based auth code exchange:
 
 ```
-1. User visits studio.local, clicks "Sign in"
+1. User visits studio.test, clicks "Sign in"
 2. Studio redirects to:
-     com.local/auth/sso?redirect_uri=https://studio.local/auth/callback
+     com.test/auth/sso?redirect_uri=https://studio.test/auth/callback
                        &app=studio&state={random_nonce}
 3. com/ checks for active Supabase session:
    - YES → generates single-use auth code via cloud/create-sso-code,
-           redirects back: studio.local/auth/callback?code={code}&state={nonce}
+           redirects back: studio.test/auth/callback?code={code}&state={nonce}
    - NO  → redirects to com/login?next=/auth/sso&... (user logs in, then continues)
 4. Studio receives code, calls cloud/exchange-sso-code → gets access_token + refresh_token
 5. Studio stores session, user is authenticated
@@ -196,10 +196,10 @@ com/src/routes/
 
 ## 7. Verification
 
-- **Auth flow:** Sign up at `com.local/signup`, verify email, log in, confirm session persists across page refreshes
+- **Auth flow:** Sign up at `com.test/signup`, verify email, log in, confirm session persists across page refreshes
 - **Billing flow:** Click subscribe on `/pricing`, complete Stripe test checkout, verify subscription shows on `/billing`
 - **API keys:** Create/list/revoke keys on `/account/keys`, verify they work against `cloud/generate-ai`
-- **SSO flow:** Visit `com.local/auth/sso?redirect_uri=http://studio.local/auth/callback&app=studio&state=test`, verify it generates a code and redirects correctly
+- **SSO flow:** Visit `com.test/auth/sso?redirect_uri=http://studio.test/auth/callback&app=studio&state=test`, verify it generates a code and redirects correctly
 
 ---
 

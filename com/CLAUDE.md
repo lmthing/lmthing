@@ -17,7 +17,7 @@ Central auth hub and billing surface for all lmthing.* domains.
 ## Running Locally
 
 ```bash
-cd com && pnpm dev    # http://localhost:3002 / com.local
+cd com && pnpm dev    # http://localhost:3002 / com.test
 ```
 
 Requires `VITE_CLOUD_URL` env var (defaults to `https://lmthing.cloud`).

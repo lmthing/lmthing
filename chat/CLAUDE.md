@@ -11,7 +11,7 @@ Personal THING chat interface. Embeds lmthing.computer in a hidden iframe and re
 ## Running Locally
 
 ```bash
-cd chat && pnpm dev    # http://localhost:3001 / chat.local
+cd chat && pnpm dev    # http://localhost:3001 / chat.test
 ```
 
 ## Route Structure

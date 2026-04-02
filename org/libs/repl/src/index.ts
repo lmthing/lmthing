@@ -59,6 +59,8 @@ export { createGlobals } from './sandbox/globals'
 export type { GlobalsConfig, ContextBudgetSnapshot, ReflectRequest, ReflectResult, SpeculateBranch, SpeculateBranchResult, SpeculateResult, CompressOptions, ForkRequest, ForkResult, TraceSnapshot, CheckpointData, CritiqueResult } from './sandbox/globals'
 export { AgentRegistry } from './sandbox/agent-registry'
 export type { AgentRegistryConfig } from './sandbox/agent-registry'
+export { VectorIndex } from './sandbox/vector-index'
+export type { VectorMatch, VectorIndexOptions } from './sandbox/vector-index'
 
 // Stream
 export { StreamController } from './stream/stream-controller'
@@ -84,6 +86,11 @@ export type { KnowledgeDecayTiers, KnowledgeDecayLevel } from './context/knowled
 export { buildStopMessage, buildErrorMessage, buildInterventionMessage, buildHookInterruptMessage, buildTasklistReminderMessage, buildTaskContinueMessage, buildTaskOrderViolationMessage, generateCurrentTaskBlock, generateTasksBlock, renderTaskLine } from './context/message-builder'
 export { generateAgentsBlock } from './context/agents-block'
 
+// Prompt Builder (composable system prompt assembly)
+export { SystemPromptBuilder, buildSystemPromptFromConfig } from './context/prompt'
+export type { SystemPromptConfig, SectionName } from './context/prompt/config'
+export { FocusController } from './context/prompt/focus'
+
 // Hooks
 export { HookRegistry } from './hooks/hook-registry'
 export { matchPattern, findMatches } from './hooks/pattern-matcher'
@@ -105,3 +112,36 @@ export type { McpServerEntry, McpServerConfig } from './catalog/mcp'
 export type { KnowledgeTree, KnowledgeDomain, KnowledgeField, KnowledgeOption, KnowledgeSelector, KnowledgeContent, FlatKnowledgeSelector, FlatKnowledgeContent } from './knowledge/types'
 export { buildKnowledgeTree, mergeKnowledgeTrees, loadKnowledgeFiles, formatKnowledgeTreeForPrompt } from './knowledge/index'
 export { saveKnowledgeFile, deleteKnowledgeFile, parseFieldPath, ensureMemoryDomain } from './knowledge/writer'
+
+// Git (auto-commit for file writes)
+export { GitClient, createGitClient } from './git/client'
+export type { GitClientOptions, GitCommitResult, GitStatusResult } from './git/client'
+
+// THING Agent Entry Point
+export { createThingSession, quickStart, ThingAgent } from './thing/entry'
+export type { ThingEntryPointOptions } from './thing/entry'
+
+// Web Search (Catalog module)
+export { webSearch, formatWebSearchResults } from './catalog/web-search'
+export type { WebSearchResult, WebSearchResponse } from './catalog/web-search'
+
+// Spaces (space creation utilities and hot-reload)
+export {
+  generatePackageJson,
+  generateAgentConfig,
+  generateSpaceStructure,
+  generateSpaceFileBlocks,
+  validateSpaceName,
+  slugifySpaceName,
+  watchSpaces,
+  isFileWatchingSupported,
+  createDynamicSpaceLoader,
+} from './spaces'
+export type {
+  SpaceMetadata,
+  AgentDefinition,
+  SpaceWatcherOptions,
+  SpaceWatcherHandle,
+  DynamicSpaceLoaderOptions,
+  DynamicSpaceLoaderHandle,
+} from './spaces'

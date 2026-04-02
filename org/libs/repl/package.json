@@ -6,6 +6,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./context/prompt": {
+      "types": "./dist/context/prompt.d.ts",
+      "import": "./dist/context/prompt.js"
     }
   },
   "files": [

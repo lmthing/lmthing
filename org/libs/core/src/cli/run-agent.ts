@@ -251,12 +251,18 @@ export async function runAgent(
   let agentNamespaces: Record<string, unknown> = {}
   let agentTreePrompt = ''
 
+  // Mutable reference for onSpawn — will be set after AgentLoop is created
+  // This breaks the circular dependency: Session needs agentNamespaces,
+  // agentNamespaces needs onSpawn, onSpawn needs AgentLoop, AgentLoop needs Session
+  let currentOnSpawn: (config: any) => Promise<any> = async () => {
+    throw new Error('Agent spawning not yet available — AgentLoop not initialized')
+  }
+
   if (spacePaths.length > 0) {
     const agentTrees = buildSpaceAgentTrees(spacePaths, knowledgeTrees)
-    const onSpawnStub = async () => {
-      throw new Error('Agent spawning not yet implemented — Phase 1a required')
-    }
-    agentNamespaces = createNamespaceGlobals(agentTrees, onSpawnStub)
+    // Use a wrapper that delegates to the mutable reference
+    const onSpawnWrapper = (config: any) => currentOnSpawn(config)
+    agentNamespaces = createNamespaceGlobals(agentTrees, onSpawnWrapper)
     agentTreePrompt = formatAgentTreeForPrompt(agentTrees)
   }
 
@@ -404,6 +410,7 @@ export async function runAgent(
     onContextBudget: () => agentLoopRef!.getContextBudget(),
     onReflect: (request) => agentLoopRef!.handleReflect(request),
     onCompress: (data, options) => agentLoopRef!.handleCompress(data, options),
+    onSpeculate: (branches, timeout) => agentLoopRef!.handleSpeculate(branches, timeout),
     onFork: (request) => agentLoopRef!.handleFork(request),
     onTrace: () => agentLoopRef!.getTrace(),
     onPlan: (goal, constraints) => agentLoopRef!.handlePlan(goal, constraints),
@@ -456,6 +463,9 @@ export async function runAgent(
     rebuildKnowledgeTree,
   })
   agentLoopRef = agentLoop
+
+  // Now that AgentLoop exists, update the onSpawn reference to use it
+  currentOnSpawn = (config: any) => agentLoop.handleAgentSpawn(config)
 
   // ── Run default export setup function ──
   if (setupFn) {

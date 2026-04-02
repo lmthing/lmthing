@@ -68,6 +68,15 @@ export interface GlobalsConfig {
   onCheckpoint?: () => { values: Map<string, unknown>; declaredNames: Set<string> }
   /** Restore sandbox scope from a checkpoint. */
   onRollback?: (snapshot: { values: Map<string, unknown>; declaredNames: Set<string> }) => void
+  /** Search past reasoning by semantic similarity. */
+  onVectorSearch?: (query: string, topK: number) => Promise<Array<{ turn: number; score: number; text: string; code: string }>>
+}
+
+export interface VectorMatch {
+  turn: number
+  score: number
+  text: string
+  code: string
 }
 
 export interface TraceSnapshot {
@@ -1326,6 +1335,21 @@ export function createGlobals(config: GlobalsConfig) {
   }
 
   /**
+   * vectorSearch(query, topK?) — Search past reasoning by semantic similarity.
+   * Uses TF-IDF cosine similarity on comment blocks and code to find
+   * similar past reasoning patterns.
+   */
+  async function vectorSearchFn(query: string, topK: number = 5): Promise<VectorMatch[]> {
+    if (typeof query !== 'string' || !query) {
+      throw new Error('vectorSearch() requires a non-empty query string')
+    }
+    if (!config.onVectorSearch) {
+      throw new Error('vectorSearch() is not available — no vector index configured')
+    }
+    return config.onVectorSearch(query, topK)
+  }
+
+  /**
    * reflect(request) — Trigger a separate LLM call for self-evaluation.
    * Returns an assessment, scores per criterion, suggestions, and a shouldPivot flag.
    */
@@ -1444,6 +1468,7 @@ export function createGlobals(config: GlobalsConfig) {
     memo: memoFn,
     reflect: reflectFn,
     speculate: speculateFn,
+    vectorSearch: vectorSearchFn,
     compress: compressFn,
     fork: forkFn,
     focus: focusFn,

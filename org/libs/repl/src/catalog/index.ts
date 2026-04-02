@@ -65,6 +65,10 @@ export function getCatalogModule(modules: CatalogModule[], id: string): CatalogM
 export { loadMcpServers, loadMcpServersFromConfig } from './mcp'
 export type { McpServerEntry, McpServerConfig } from './mcp'
 
+// Web search
+export { webSearch, formatWebSearchResults, webSearchFunction, formatSearchResultsFunction } from './web-search'
+export type { WebSearchResult, WebSearchResponse } from './web-search'
+
 /**
  * Generate the system prompt block for catalog functions.
  */

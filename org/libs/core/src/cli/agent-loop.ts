@@ -33,13 +33,17 @@ import type {
   ForkResult,
   TraceSnapshot,
   CritiqueResult,
+  SpeculateBranch,
+  SpeculateResult,
 } from "@lmthing/repl";
+import { Sandbox } from "@lmthing/repl";
 import type { ClassifiedExport } from "./loader";
 import { formatCollapsedClass, formatExpandedClass } from "./loader";
 import { buildSystemPrompt } from "./buildSystemPrompt";
-import { generateTasklistCode, type ParsedFlow } from "./agent-loader";
+import { generateTasklistCode, type ParsedFlow, loadAgent, parseFlow } from "./agent-loader";
 import { executeSpawn } from "../spawn";
 import type { SpawnConfig, SpawnResult, SpawnContext } from "../spawn";
+import type { AgentSpawnConfig } from "@lmthing/repl";
 
 export interface AgentLoopOptions {
   session: Session;
@@ -201,6 +205,114 @@ export class AgentLoop {
       parentSession: this.session,
     };
     return executeSpawn(config, ctx);
+  }
+
+  /**
+   * Handle an agent spawn request from the namespace system.
+   * Converts AgentSpawnConfig to SpawnConfig and delegates to handleSpawn.
+   */
+  async handleAgentSpawn(agentConfig: AgentSpawnConfig): Promise<SpawnResult> {
+    const { spaceDir, agentSlug, actionId, request, params, options, _originPromise } = agentConfig;
+
+    // Load the agent to get its instruct and find the flow
+    let agentInstruct: string | undefined;
+    let flowInstruct: string | undefined;
+
+    try {
+      const loaded = loadAgent(spaceDir, agentSlug);
+      agentInstruct = loaded.instruct;
+
+      // Find the action and load its flow for additional context
+      const action = loaded.actions.find(a => a.id === actionId);
+      if (action) {
+        const flowPath = resolve(spaceDir, 'flows', action.flow, 'index.md');
+        const flow = parseFlow(flowPath);
+        if (flow) {
+          flowInstruct = `You are executing the "${action.label}" action: ${action.description}
+
+## Flow Steps
+${flow.steps.map(s => `${s.number}. ${s.name}: ${s.description}`).join('\n')}
+
+## User Request
+${request}
+
+Follow the flow steps above to complete the request. Call stop() with your findings when complete.`;
+        }
+      }
+    } catch {
+      // If loading fails, continue with basic directive
+    }
+
+    // Combine agent instruct with flow-specific context
+    const combinedInstruct = flowInstruct
+      ? `${agentInstruct || ''}\n\n${flowInstruct}`
+      : agentInstruct;
+
+    // Build SpawnConfig from AgentSpawnConfig
+    const spawnConfig: SpawnConfig = {
+      directive: request,
+      context: options?.context ?? 'empty',
+      maxTurns: 5,
+      instruct: combinedInstruct,
+      _originPromise,
+    };
+
+    return this.handleSpawn(spawnConfig);
+  }
+
+  /**
+   * Handle speculate() — run multiple branches in parallel isolated sandboxes.
+   * Each branch runs in its own Sandbox with a snapshot of the current scope.
+   */
+  async handleSpeculate(branches: SpeculateBranch[], timeout: number): Promise<SpeculateResult> {
+    // Get current scope from session
+    const currentScopeEntries = this.session.getScope();
+
+    // Run all branches concurrently, each in an isolated sandbox
+    const results = await Promise.all(
+      branches.map(async (branch) => {
+        const start = Date.now();
+        try {
+          // Create a new sandbox with cloned scope
+          const sandbox = new Sandbox();
+          // Clone all variables from current scope into new sandbox
+          // currentScopeEntries is ScopeEntry[] with {name, type, value}
+          for (const entry of currentScopeEntries) {
+            sandbox.inject(entry.name, entry.value);
+          }
+
+          // Inject globals from session (stop, display, etc.)
+          const sessionGlobals = this.session.getGlobals();
+          for (const [name, fn] of Object.entries(sessionGlobals)) {
+            sandbox.inject(name, fn);
+          }
+
+          // Execute the branch function with timeout
+          const result = await Promise.race([
+            Promise.resolve().then(() => branch.fn()),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('Branch timed out')), timeout)
+            ),
+          ]);
+
+          return {
+            label: branch.label,
+            ok: true,
+            result,
+            durationMs: Date.now() - start,
+          };
+        } catch (err: unknown) {
+          return {
+            label: branch.label,
+            ok: false,
+            error: err instanceof Error ? err.message : String(err),
+            durationMs: Date.now() - start,
+          };
+        }
+      })
+    );
+
+    return { results };
   }
 
   private logDebug(type: DebugEntry["type"], data: unknown): void {

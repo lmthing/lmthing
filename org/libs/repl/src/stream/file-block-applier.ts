@@ -2,10 +2,20 @@ import * as nodeFs from 'node:fs/promises'
 import * as nodePath from 'node:path'
 import type { ReadLedger } from '../sandbox/read-ledger'
 import { hasBeenRead, recordRead } from '../sandbox/read-ledger'
+import type { GitClient } from '../git/client'
 
 export type ApplyResult =
-  | { ok: true }
+  | { ok: true; commitHash?: string }
   | { ok: false; error: string }
+
+export interface FileBlockApplyOptions {
+  workingDir: string
+  ledger: ReadLedger
+  /** Optional git client for auto-committing file changes. */
+  gitClient?: GitClient
+  /** Whether to auto-commit after successful writes/diffs. Default: true if gitClient provided. */
+  autoCommit?: boolean
+}
 
 // ── Path safety ──
 
@@ -127,9 +137,9 @@ function applyHunksToContent(fileContent: string, hunks: Hunk[]): { ok: true; co
 export async function applyFileWrite(
   filePath: string,
   content: string,
-  workingDir: string,
-  ledger: ReadLedger,
+  options: FileBlockApplyOptions,
 ): Promise<ApplyResult> {
+  const { workingDir, ledger, gitClient, autoCommit = true } = options
   const safePath = makeSafePath(workingDir)
   let resolved: string
   try {
@@ -145,15 +155,28 @@ export async function applyFileWrite(
   // Writing implicitly "reads" the file (agent knows what it wrote)
   recordRead(ledger, resolved)
 
+  // Auto-commit if git client provided and auto-commit enabled
+  if (gitClient && autoCommit) {
+    const commitResult = await gitClient.commitFile(
+      filePath,
+      `Create/update ${filePath}`
+    )
+    if (commitResult.ok) {
+      return { ok: true, commitHash: commitResult.hash }
+    }
+    // Commit failed but file write succeeded — don't fail the operation
+    // The error is logged but not propagated
+  }
+
   return { ok: true }
 }
 
 export async function applyFileDiff(
   filePath: string,
   diffContent: string,
-  workingDir: string,
-  ledger: ReadLedger,
+  options: FileBlockApplyOptions,
 ): Promise<ApplyResult> {
+  const { workingDir, ledger, gitClient, autoCommit = true } = options
   const safePath = makeSafePath(workingDir)
   let resolved: string
   try {
@@ -187,5 +210,18 @@ export async function applyFileDiff(
   }
 
   await nodeFs.writeFile(resolved, result.content, 'utf-8')
+
+  // Auto-commit if git client provided and auto-commit enabled
+  if (gitClient && autoCommit) {
+    const commitResult = await gitClient.commitFile(
+      filePath,
+      `Patch ${filePath}`
+    )
+    if (commitResult.ok) {
+      return { ok: true, commitHash: commitResult.hash }
+    }
+    // Commit failed but diff succeeded — don't fail the operation
+  }
+
   return { ok: true }
 }

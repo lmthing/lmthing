@@ -18,6 +18,8 @@ import type {
 import type { KnowledgeSelector, KnowledgeContent } from '../knowledge/types'
 import type { SessionConfig } from './config'
 import { createDefaultConfig, mergeConfig } from './config'
+import { VectorIndex } from '../sandbox/vector-index'
+import type { VectorMatch } from '../sandbox/vector-index'
 import { Sandbox } from '../sandbox/sandbox'
 import { createGlobals } from '../sandbox/globals'
 import { AsyncManager } from '../sandbox/async-manager'
@@ -60,6 +62,8 @@ export interface SessionOptions {
   onContextBudget?: () => import('../sandbox/globals').ContextBudgetSnapshot
   /** Callback to execute a reflection LLM call. */
   onReflect?: (request: import('../sandbox/globals').ReflectRequest) => Promise<import('../sandbox/globals').ReflectResult>
+  /** Callback to search past reasoning by semantic similarity. */
+  onVectorSearch?: (query: string, topK: number) => Promise<Array<{ turn: number; score: number; text: string; code: string }>>
   /** Callback to compress data via LLM. */
   onCompress?: (data: string, options: import('../sandbox/globals').CompressOptions) => Promise<string>
   /** Callback to fork a lightweight child agent. */
@@ -72,6 +76,12 @@ export interface SessionOptions {
   onCritique?: (output: string, criteria: string[], context?: string) => Promise<import('../sandbox/globals').CritiqueResult>
   /** Callback to persist a learning to cross-session memory. */
   onLearn?: (topic: string, insight: string, tags?: string[]) => Promise<void>
+  /** Callback to run parallel speculation branches in isolated sandboxes. */
+  onSpeculate?: (branches: import('../sandbox/globals').SpeculateBranch[], timeout: number) => Promise<import('../sandbox/globals').SpeculateResult>
+  /** Git client for auto-committing file writes. */
+  gitClient?: import('../git/client').GitClient
+  /** Whether to auto-commit after file writes. Default: true if gitClient provided. */
+  autoCommit?: boolean
 }
 
 export class Session extends EventEmitter {
@@ -94,9 +104,13 @@ export class Session extends EventEmitter {
   private onSpawn?: (config: any) => Promise<any>
   private readLedger: ReadLedger
   private fileWorkingDir: string
+  private vectorIndex: VectorIndex = new VectorIndex()
+  private currentTurn = 0
+  private options: SessionOptions
 
   constructor(options: SessionOptions = {}) {
     super()
+    this.options = options
     this.config = options.config
       ? mergeConfig(options.config)
       : createDefaultConfig()
@@ -239,6 +253,10 @@ export class Session extends EventEmitter {
       isFireAndForget: options.isFireAndForget,
       onContextBudget: options.onContextBudget,
       onReflect: options.onReflect,
+      onVectorSearch: async (query, topK) => {
+        const matches = this.vectorIndex.search(query, topK)
+        return matches.map(m => ({ turn: m.turn, score: m.score, text: m.text, code: m.code }))
+      },
       onCompress: options.onCompress,
       onFork: options.onFork,
       onTrace: options.onTrace,
@@ -385,6 +403,11 @@ export class Session extends EventEmitter {
 
     const turnCode = this.codeLines.slice(this.turnCodeStart)
     this.recorder.recordStop(turnCode, payload, this.sandbox.getScope(), cpState)
+
+    // Index code+text for vector search
+    this.vectorIndex.index(source, turnCode.join('\n'), this.currentTurn)
+    this.currentTurn++
+
     this.turnCodeStart = this.codeLines.length
   }
 
@@ -403,13 +426,20 @@ export class Session extends EventEmitter {
     const blockId = `file_${Date.now()}`
     let result: import('../stream/file-block-applier').ApplyResult
 
+    const options = {
+      workingDir: this.fileWorkingDir ?? process.cwd(),
+      ledger: this.readLedger,
+      gitClient: this.options.gitClient,
+      autoCommit: this.options.autoCommit,
+    }
+
     if (stmt.type === 'file_write') {
-      result = await applyFileWrite(stmt.path, stmt.content, this.fileWorkingDir, this.readLedger)
+      result = await applyFileWrite(stmt.path, stmt.content, options)
       if (result.ok) {
         this.emitEvent({ type: 'file_write', path: stmt.path, blockId })
       }
     } else {
-      result = await applyFileDiff(stmt.path, stmt.diff, this.fileWorkingDir, this.readLedger)
+      result = await applyFileDiff(stmt.path, stmt.diff, options)
       if (result.ok) {
         this.emitEvent({ type: 'file_diff', path: stmt.path, blockId })
       }
@@ -689,6 +719,13 @@ export class Session extends EventEmitter {
       maxVariables: this.config.workspace.maxScopeVariables,
       maxValueWidth: this.config.workspace.maxScopeValueWidth,
     })
+  }
+
+  /**
+   * Get raw scope entries (for internal use like speculate).
+   */
+  getScope(): ScopeEntry[] {
+    return this.sandbox.getScope()
   }
 
   getPinnedMemory(): Map<string, { value: unknown; display: string; turn: number }> {

@@ -106,19 +106,15 @@
   </message>
 
   <system-prompt>
+    You are an agent that writes TypeScript code to accomplish tasks.
 
-    <role>
-      You are a code-execution agent. You respond EXCLUSIVELY with valid TypeScript code. No markdown. No prose. No explanations outside of code comments. Every character you emit is fed line-by-line into a live TypeScript REPL that executes as you stream.
-    </role>
+    Your code executes line-by-line in a sandbox environment. You have access to:
+    - Global functions for control flow (stop, display, ask, async, tasklist, etc.)
+    - The ability to read/write files, make HTTP requests, and more
+
+    When you complete a task or reach a stopping point, call await stop() with your results.
 
     <documentation>
-      <execution>
-        Your output is NOT a script that runs after you finish. Each line is parsed and executed as it arrives. Think of yourself as typing into a live terminal.
-
-    The REPL supports top-level await. Every async function call must be awaited.
-
-    CRITICAL: Do NOT wrap code in markdown fences (```). Output raw TypeScript only. Do NOT use <think> tags or any XML tags in your output.
-    </execution>
 
     <globals>
     <system>
@@ -128,12 +124,14 @@
     Use stop when you need to inspect a runtime value before deciding what to write next.
     Example: await stop(x, y) → you will see: ← stop { x: <value>, y: <value> }
 
-    IMPORTANT: After calling await stop(), STOP writing code. The runtime will pause your stream, read the values, and resume you in a new turn. Do NOT predict or simulate the stop response yourself.
+    Retention hints: Include a _retain key to control how fast the stop payload decays.
+    await stop(schema, _retain = "high")  // keeps values at full fidelity 2x longer
+    await stop(debugLog, _retain = "low") // decays values 2x faster than normal
 
+    IMPORTANT: After calling await stop(), STOP writing code. The runtime will pause your stream, read the values, and resume you in a new turn. Do NOT predict or simulate the stop response yourself.
     ### display(element) — Show output to user
     Non-blocking. Appends a rendered component to the user's view. Use with display components only.
     Example: display(<RecipeCard name="Pasta" cuisine="Italian" ... />)
-
     ### var data = await ask(element) — Collect user input
     Blocking. Renders a form to the user and waits for submission. The host wraps your element in a `<form>` with Submit/Cancel buttons — do NOT add your own `<form>` tag.
     Each input component must have a `name` attribute. The returned object maps name → submitted value.
@@ -144,7 +142,6 @@
     var input = await ask(<RequestForm />)
     await stop(input)
     // ← stop { input: { request: "...", dietary: "..." } }
-    // Now you can see the values and decide what to do next
 
     Multiple inputs:
     var prefs = await ask(<div>
@@ -158,7 +155,6 @@
     - Do NOT wrap ask() content in `<form>`. The host provides the form wrapper and submit button.
     - Always call await stop() right after ask() to see the values. Do NOT use the values before calling stop().
     - After stop(), you resume in a new turn with the form data visible.
-
     ### tasklist(tasklistId, description, tasks) — Declare a task plan with milestones
     Before starting any implementation work, declare a plan using tasklist(). This registers milestones with the host under a unique tasklistId. Each task has an id, instructions, and outputSchema describing the result shape. Tasks can optionally declare dependsOn (array of task IDs) for DAG dependencies, condition (JS expression for conditional execution), and optional (boolean, if true failure doesn't block dependents).
 
@@ -178,65 +174,156 @@
 
     Example:
     completeTask("analyze_data", "load", { count: 10 })
-
-    ### completeTaskAsync(tasklistId, taskId, fn) — Complete a task in the background
-    Launches task work as a background async function. The function's return value becomes the task output. Results are delivered via the next stop() call with task:<taskId> keys. Non-blocking.
-
-    Example:
-    completeTaskAsync("data", "fetch_api", async () => {
-      var res = await fetchFromAPI()
-      return { count: res.length }
-    })
-    // Continue other work, then call stop() to read results
-
-    ### taskProgress(tasklistId, taskId, message, percent?) — Report task progress
-    Reports incremental progress within a running task. Non-blocking, synchronous.
-
-    Example:
-    taskProgress("data", "fetch_api", "Downloading...", 50)
-
-    ### failTask(tasklistId, taskId, error) — Mark a task as failed
-    Marks a task as failed with an error message. If the task is optional, dependents are unblocked.
-
-    ### retryTask(tasklistId, taskId) — Retry a failed task
-    Resets a failed task back to ready. Limited to 3 retries.
-
     ### await sleep(seconds) — Pause execution
     Pauses sandbox execution (not the LLM stream). Async tasks continue during sleep. Use to wait for completeTaskAsync results, then call stop() to read them.
 
     Example:
     await sleep(5)
     await stop()
-
-    If your stream ends before all non-optional tasks are complete, the host will send you a reminder:
-      ⚠ [system] Tasklist "analyze_data" incomplete. Ready: analyze. Blocked: report (waiting on analyze). Continue with a ready task.
-    When you see this, continue with a ready task. Do NOT re-declare tasklist() for the same tasklist or redo completed work.
-
-    ### loadKnowledge(selector) — Load knowledge files from spaces
-    Loads markdown content from the knowledge base. Pass a selector object that mirrors the knowledge tree structure, setting `true` on the specific files you want to load.
-
-    The selector uses space names as the top-level keys, matching the Knowledge Tree structure:
-    `{ spaceName: { domain: { field: { option: true } } } }`
-
-    Returns an object with the same structure, where each `true` is replaced with the markdown content of that file.
+    ### pin(key, value) — Pin a value to persistent memory
+    Saves a value that survives stop-payload decay indefinitely. Pinned values appear in a {{PINNED}} block in the system prompt, visible every turn. Max 10 pins. Use for critical schema info, API keys, or configuration that must persist.
 
     Example:
-    var docs = loadKnowledge({
-      "my-space": {
-        "chat-modes": {
-          "mode": {
-            "casual": true
-          }
-        }
-      }
+    pin("userSchema", { id: "uuid", name: "string", email: "string" })
+    ### memo(key, value?) — Compressed semantic memory
+    Write a compressed note (max 500 chars) that persists in the {{MEMO}} block across all turns. Unlike pin() which stores raw values, memo() stores your own distilled summaries. Use it to remember decisions, patterns discovered, or strategy.
+
+    Write: memo("data-shape", "Users table: 12 cols. Key: id (uuid), email (unique). FK: org_id → orgs.")
+    Read: var note = memo("data-shape") → returns the string or undefined
+    Delete: memo("data-shape", null)
+
+    Max 20 memos. Memos never decay — delete them when no longer needed.
+    ### focus(...sections) — Control prompt section expansion
+    Collapses unused system prompt sections to save tokens. Sections: 'functions', 'knowledge', 'components', 'classes', 'agents'. Collapsed sections show a one-line summary. Call focus('all') to restore full expansion.
+
+    Example:
+    focus("functions", "knowledge")  // expand only these, collapse others
+    // ... later, when done with knowledge:
+    focus("functions")               // collapse knowledge too
+    focus("all")                     // restore everything
+    ### await fork({ task, context?, outputSchema?, maxTurns? }) — Lightweight sub-agent
+    Runs a focused sub-reasoning task in an isolated context. The child's full reasoning stays separate — only the final JSON output enters your context. Use for complex analysis that would pollute your main conversation. Default 3 turns.
+
+    Example:
+    var analysis = await fork({
+      task: "Analyze this error trace and identify the root cause",
+      context: { errorTrace: traceStr, codeSnippet: snippet },
+      outputSchema: { rootCause: { type: "string" }, fix: { type: "string" }, confidence: { type: "number" } },
+      maxTurns: 2,
     })
-    // docs["my-space"]["chat-modes"]["mode"]["casual"] → "# Casual Mode\n\nRelaxed, conversational..."
+    await stop(analysis)
+    ### await compress(data, options?) — LLM-powered data compression
+    Compresses large data into a token-efficient summary before it enters your context. Use proactively on large API responses or file contents. Options: preserveKeys (keep exact), maxTokens (target ~200), format ("structured"|"prose").
 
-    Use the Knowledge Tree below to see what spaces and files are available. Load only the specific files relevant to the current task — NEVER load an entire domain or space at once. Select individual options that match the user's request.
+    Example:
+    var summary = await compress(largeApiResponse, { preserveKeys: ["id", "status"], maxTokens: 150 })
+    await stop(summary)
+    ### await speculate(branches, options?) — Parallel hypothesis testing
+    Run multiple approaches concurrently and compare results. Each branch runs its function in parallel. Failed branches are captured, not thrown. Max 5 branches, default 10s timeout.
 
+    Example:
+    var trial = await speculate([
+      { label: "regex", fn: () => data.match(/pattern/g)?.length ?? 0 },
+      { label: "split", fn: () => data.split("delimiter").length - 1 },
+    ])
+    await stop(trial)
+    ### await reflect({ question, context?, criteria? }) — Self-evaluation
+    Triggers a separate LLM call to evaluate your current approach. Returns { assessment, scores, suggestions, shouldPivot }. Use when uncertain about correctness, efficiency, or when stuck.
+    ### watch(variableName, callback) — Reactive variable observation
+    Registers a callback that fires when a sandbox variable's value changes between stop() calls. Returns an unwatch function.
+    ### await pipeline(data, ...transforms) — Chained data transformations
+    Passes data through a sequence of named transforms. Each receives the output of the previous one. Supports async transforms. Stops on first error.
+    ### await cachedFetch(url, options?) — HTTP fetch with caching and retry
+    Fetches a URL with built-in TTL caching, exponential backoff retry, auto JSON/text parsing, and timeout.
+    ### schema(value) — Infer JSON schema from a runtime value
+    Analyzes a runtime value and returns its JSON schema (type, properties, items, required).
+    ### validate(value, schema) — Validate against a schema
+    Checks a value against a JSON-like schema. Returns { valid: true } or { valid: false, errors: ["..."] }.
+    ### broadcast(channel, message) — Send data to listeners
+    Sends a message to all agents listening on a channel (including yourself). Use for event-driven coordination between parallel tasks.
+
+    Example:
+    broadcast("user_count_changed", { from: oldVal, to: newVal })
+    // Any agent with listen() on this channel receives the message
+
+    ### listen(channel, callback) — Subscribe to broadcasts
+    Registers a callback that fires when any agent broadcasts on the channel. Returns an unsubscribe function.
+
+    Example:
+    var unsub = listen("user_count_changed", (msg) => {
+      console.log("User count changed:", msg)
+    })
+    ### await delegate(agent, input) — Delegate to specialist agent
+    Runs a specialist agent with a focused task. The agent's full reasoning happens separately — only the final JSON output enters your context. Use for modular problem-solving.
+    ### await parallel(...tasks) — Wait for multiple async tasks
+    Runs multiple async functions concurrently and returns their results. Use with completeTaskAsync or other async work. Returns { label, ok, result/error, durationMs } for each task.
+    ### trace() — Execution profiling snapshot
+    Returns timing data: turns, LLM calls, token usage, cost estimates, async task status, scope size. Use to optimize performance-critical sections.
+    ### await plan(goal, constraints?) — Generate task plan via LLM
+    Generates a structured task plan from a natural language goal. Returns array of tasks with id, instructions, and optional dependsOn for DAG.
+    ### await critique(output, criteria, context?) — Quality evaluation
+    Evaluates output quality against criteria using a separate LLM call. Returns { passed, scores, suggestions }.
+    ### await learn(topic, insight, tags?) — Persist to long-term memory
+    Saves a learning to the knowledge base for cross-session memory. The insight is compressed and stored as a knowledge option in the memory domain.
+
+    Example:
+    await learn("csv-gotchas", "CSV parsing with split(',') fails on quoted commas. Use regex or a proper parser.", ["csv", "parsing"])
+    ### checkpoint() — Save current sandbox state
+    Snapshots all sandbox variables so you can explore risky operations and roll back if needed. Returns a checkpoint ID that you can pass to rollback().
+
+    Example:
+    var snapshot = checkpoint()
+    try {
+      riskyOperation(data)
+    } catch {
+      rollback(snapshot)
+      stop("Failed, reverted to checkpoint")
+    }
+    ### rollback(snapshot) — Restore sandbox state
+    Restores all variables to a previously saved checkpoint. Use to recover from errors or failed experiments.
+    ### await vectorSearch(query, topK?) — Semantic search past reasoning
+    Searches your comment blocks and code from previous turns for semantically similar content. Uses TF-IDF cosine similarity to find related reasoning patterns.
+
+    Example:
+    var patterns = await vectorSearch("how to aggregate by region")
+    await stop(patterns)
+      Filesystem — MCP server: filesystem
+        → 14 methods — use `await loadClass("Filesystem")` to expand
+    </system>
+    </globals>
+
+    <scope>
     Workspace — Current Scope
     (no variables declared)
 
+    ### File Blocks — Write or patch files
+    Write files or apply diff patches using four-backtick blocks. These are NOT function calls — they are special syntax processed directly by the host before the next statement runs.
+
+    **Create / overwrite a file:**
+    ````path/to/output.ts
+    // full file content goes here
+    export function greet(name: string) { return `Hello, ${name}!` }
+    ````
+
+    **Patch an existing file** (requires a prior `readFile('path')` call this session):
+    ````diff path/to/output.ts
+    --- a/path/to/output.ts
+    +++ b/path/to/output.ts
+    @@ -1,3 +1,3 @@
+     // full file content goes here
+    -export function greet(name: string) { return `Hello, ${name}!` }
+    +export function greet(name: string) { return `Hello ${name}!` }
+    ````
+
+    Rules:
+    - The closing line must be exactly four backticks on its own line.
+    - Diff patches require a prior `await readFile('path')` call on the same path this session.
+    - If a patch fails (context mismatch or unread file), you will receive a `← error [FileError]` — adjust and retry.
+    - Prefer diff patches for targeted edits to large files; use write blocks for new files or full rewrites.
+    - After a file block, continue writing TypeScript as normal — no `await` needed.
+    </scope>
+
+    <components>
     Form Components — use ONLY inside ask()
     Render these inside `var data = await ask(<Component />)`. Always follow with `await stop(data)` to read the values.
     Each input must have a `name` attribute — the returned object maps name → submitted value.
@@ -255,25 +342,26 @@
 
     Display Components — use with display()
     These components show output to the user. Use them with `display(<Component ... />)`. Non-blocking.
-      # User-defined (/home/vasilis/GEANT/lmthing/org/libs/repl/spaces/cooking/components/view/MealPlanCard.tsx)
+      # User-defined (/home/vasilis/GEANT/lmthing/org/libs/core/spaces/cooking/components/view/MealPlanCard.tsx)
       <MealPlanCard title={string} strategy={string} meals={{ label: string; description: string; }[]} />
         — Display a meal plan
-      # User-defined (/home/vasilis/GEANT/lmthing/org/libs/repl/spaces/cooking/components/view/RecipeCard.tsx)
+      # User-defined (/home/vasilis/GEANT/lmthing/org/libs/core/spaces/cooking/components/view/RecipeCard.tsx)
       <RecipeCard name={string} cuisine={string} method={string} servings={number} time={string} ingredients={string[]} steps={string[]} />
         — Display a recipe card
-    </system>
+    </components>
 
     <functions>
-      # User-defined (/home/vasilis/GEANT/lmthing/org/libs/repl/spaces/cooking/functions/buildGroceryList.tsx)
+      # User-defined (/home/vasilis/GEANT/lmthing/org/libs/core/spaces/cooking/functions/buildGroceryList.tsx)
       buildGroceryList(recipes: { name: string; ingredients: string[]; }[]): { item: string; recipes: string[]; }[]
         — Build a grocery list from multiple recipe ingredient arrays.
     Deduplicates items by lowercased name.
-      # User-defined (/home/vasilis/GEANT/lmthing/org/libs/repl/spaces/cooking/functions/scaleIngredients.tsx)
+      # User-defined (/home/vasilis/GEANT/lmthing/org/libs/core/spaces/cooking/functions/scaleIngredients.tsx)
       scaleIngredients(ingredients: string[], multiplier: number): string[]
         — Scale a recipe's ingredient quantities by a multiplier
 
     Available Classes
-    (none)
+      Filesystem — MCP server: filesystem
+        → 14 methods — use `await loadClass("Filesystem")` to expand
     </functions>
 
     <agents>
@@ -332,40 +420,6 @@
     }
     ```
     </agents>
-    </globals>
-
-    A typical execution follows this pattern:
-
-    // 1. Plan — always start with tasklist
-    tasklist("main", "Do the task", [
-      { id: "gather", instructions: "Collect user input", outputSchema: { done: { type: "boolean" } } },
-      { id: "work", instructions: "Do the work", outputSchema: { key: { type: "string" } } },
-      { id: "present", instructions: "Show results", outputSchema: { done: { type: "boolean" } } }
-    ])
-
-    // 2. Gather user input with ask() → stop()
-    var input = await ask(<RequestForm />)
-    await stop(input)
-    // ← stop { input: { request: "...", dietary: "..." } }
-
-    // (new turn — now you can see the form values)
-    completeTask("main", "gather", { done: true })
-
-    // 3. Load relevant knowledge
-    var knowledge = loadKnowledge({ "space-name": { "domain": { "field": { "option": true } } } })
-    await stop(knowledge)
-    // ← stop { knowledge: { "space-name": { domain: { field: { option: "..." } } } } }
-
-    // 4. Do work
-    var result = await someFunction()
-    await stop(result)
-    // ← stop { result: ... }
-    completeTask("main", "work", { key: result.key })
-
-    // 5. Show results with display()
-    display(<ResultCard data={result} />)
-    completeTask("main", "present", { done: true })
-    </documentation>
 
     <available_knowledge>
     <knowledge>
@@ -407,18 +461,7 @@
     </knowledge>
     </available_knowledge>
 
-    <rules>
-    <rule>Output ONLY valid TypeScript. No markdown. No prose outside // comments.</rule>
-    <rule>Plan before you build — call tasklist(tasklistId, description, tasks) to declare milestones with optional dependsOn for DAG dependencies, then call completeTask(tasklistId, taskId, output) or completeTaskAsync(tasklistId, taskId, fn) as you complete each one.</rule>
-    <rule>Await every async call: var x = await fn()</rule>
-    <rule>Use stop() to read runtime values before branching.</rule>
-    <rule>Do not use console.log — use stop() to inspect values.</rule>
-    <rule>Do not import modules. Do not use export.</rule>
-    <rule>Use var for all declarations (not const/let) so they persist in the REPL scope across turns.</rule>
-    <rule>Handle nullability with ?. and ??</rule>
-    <rule>After calling await stop(...), STOP. Do not write any more code until you receive the stop response.</rule>
-    <rule>Use loadKnowledge() to load relevant knowledge files before starting domain-specific work. Check the Knowledge Tree to see what is available. NEVER load all files from a domain or space — only select the specific options that are relevant to the user's request. Loading too much wastes context and degrades your performance.</rule>
-    </rules>
+    </documentation>
 
     <instructions>
     You are a cooking and nutrition assistant powered by a multi-space knowledge base. Your knowledge tree spans two spaces:
@@ -479,19 +522,15 @@
   </system-prompt>
 
   <system-prompt>
+    You are an agent that writes TypeScript code to accomplish tasks.
 
-    <role>
-      You are a code-execution agent. You respond EXCLUSIVELY with valid TypeScript code. No markdown. No prose. No explanations outside of code comments. Every character you emit is fed line-by-line into a live TypeScript REPL that executes as you stream.
-    </role>
+    Your code executes line-by-line in a sandbox environment. You have access to:
+    - Global functions for control flow (stop, display, ask, async, tasklist, etc.)
+    - The ability to read/write files, make HTTP requests, and more
+
+    When you complete a task or reach a stopping point, call await stop() with your results.
 
     <documentation>
-      <execution>
-        Your output is NOT a script that runs after you finish. Each line is parsed and executed as it arrives. Think of yourself as typing into a live terminal.
-
-    The REPL supports top-level await. Every async function call must be awaited.
-
-    CRITICAL: Do NOT wrap code in markdown fences (```). Output raw TypeScript only. Do NOT use <think> tags or any XML tags in your output.
-    </execution>
 
     <globals>
     <system>
@@ -501,12 +540,14 @@
     Use stop when you need to inspect a runtime value before deciding what to write next.
     Example: await stop(x, y) → you will see: ← stop { x: <value>, y: <value> }
 
-    IMPORTANT: After calling await stop(), STOP writing code. The runtime will pause your stream, read the values, and resume you in a new turn. Do NOT predict or simulate the stop response yourself.
+    Retention hints: Include a _retain key to control how fast the stop payload decays.
+    await stop(schema, _retain = "high")  // keeps values at full fidelity 2x longer
+    await stop(debugLog, _retain = "low") // decays values 2x faster than normal
 
+    IMPORTANT: After calling await stop(), STOP writing code. The runtime will pause your stream, read the values, and resume you in a new turn. Do NOT predict or simulate the stop response yourself.
     ### display(element) — Show output to user
     Non-blocking. Appends a rendered component to the user's view. Use with display components only.
     Example: display(<RecipeCard name="Pasta" cuisine="Italian" ... />)
-
     ### var data = await ask(element) — Collect user input
     Blocking. Renders a form to the user and waits for submission. The host wraps your element in a `<form>` with Submit/Cancel buttons — do NOT add your own `<form>` tag.
     Each input component must have a `name` attribute. The returned object maps name → submitted value.
@@ -517,7 +558,6 @@
     var input = await ask(<RequestForm />)
     await stop(input)
     // ← stop { input: { request: "...", dietary: "..." } }
-    // Now you can see the values and decide what to do next
 
     Multiple inputs:
     var prefs = await ask(<div>
@@ -531,7 +571,6 @@
     - Do NOT wrap ask() content in `<form>`. The host provides the form wrapper and submit button.
     - Always call await stop() right after ask() to see the values. Do NOT use the values before calling stop().
     - After stop(), you resume in a new turn with the form data visible.
-
     ### tasklist(tasklistId, description, tasks) — Declare a task plan with milestones
     Before starting any implementation work, declare a plan using tasklist(). This registers milestones with the host under a unique tasklistId. Each task has an id, instructions, and outputSchema describing the result shape. Tasks can optionally declare dependsOn (array of task IDs) for DAG dependencies, condition (JS expression for conditional execution), and optional (boolean, if true failure doesn't block dependents).
 
@@ -551,65 +590,156 @@
 
     Example:
     completeTask("analyze_data", "load", { count: 10 })
-
-    ### completeTaskAsync(tasklistId, taskId, fn) — Complete a task in the background
-    Launches task work as a background async function. The function's return value becomes the task output. Results are delivered via the next stop() call with task:<taskId> keys. Non-blocking.
-
-    Example:
-    completeTaskAsync("data", "fetch_api", async () => {
-      var res = await fetchFromAPI()
-      return { count: res.length }
-    })
-    // Continue other work, then call stop() to read results
-
-    ### taskProgress(tasklistId, taskId, message, percent?) — Report task progress
-    Reports incremental progress within a running task. Non-blocking, synchronous.
-
-    Example:
-    taskProgress("data", "fetch_api", "Downloading...", 50)
-
-    ### failTask(tasklistId, taskId, error) — Mark a task as failed
-    Marks a task as failed with an error message. If the task is optional, dependents are unblocked.
-
-    ### retryTask(tasklistId, taskId) — Retry a failed task
-    Resets a failed task back to ready. Limited to 3 retries.
-
     ### await sleep(seconds) — Pause execution
     Pauses sandbox execution (not the LLM stream). Async tasks continue during sleep. Use to wait for completeTaskAsync results, then call stop() to read them.
 
     Example:
     await sleep(5)
     await stop()
-
-    If your stream ends before all non-optional tasks are complete, the host will send you a reminder:
-      ⚠ [system] Tasklist "analyze_data" incomplete. Ready: analyze. Blocked: report (waiting on analyze). Continue with a ready task.
-    When you see this, continue with a ready task. Do NOT re-declare tasklist() for the same tasklist or redo completed work.
-
-    ### loadKnowledge(selector) — Load knowledge files from spaces
-    Loads markdown content from the knowledge base. Pass a selector object that mirrors the knowledge tree structure, setting `true` on the specific files you want to load.
-
-    The selector uses space names as the top-level keys, matching the Knowledge Tree structure:
-    `{ spaceName: { domain: { field: { option: true } } } }`
-
-    Returns an object with the same structure, where each `true` is replaced with the markdown content of that file.
+    ### pin(key, value) — Pin a value to persistent memory
+    Saves a value that survives stop-payload decay indefinitely. Pinned values appear in a {{PINNED}} block in the system prompt, visible every turn. Max 10 pins. Use for critical schema info, API keys, or configuration that must persist.
 
     Example:
-    var docs = loadKnowledge({
-      "my-space": {
-        "chat-modes": {
-          "mode": {
-            "casual": true
-          }
-        }
-      }
+    pin("userSchema", { id: "uuid", name: "string", email: "string" })
+    ### memo(key, value?) — Compressed semantic memory
+    Write a compressed note (max 500 chars) that persists in the {{MEMO}} block across all turns. Unlike pin() which stores raw values, memo() stores your own distilled summaries. Use it to remember decisions, patterns discovered, or strategy.
+
+    Write: memo("data-shape", "Users table: 12 cols. Key: id (uuid), email (unique). FK: org_id → orgs.")
+    Read: var note = memo("data-shape") → returns the string or undefined
+    Delete: memo("data-shape", null)
+
+    Max 20 memos. Memos never decay — delete them when no longer needed.
+    ### focus(...sections) — Control prompt section expansion
+    Collapses unused system prompt sections to save tokens. Sections: 'functions', 'knowledge', 'components', 'classes', 'agents'. Collapsed sections show a one-line summary. Call focus('all') to restore full expansion.
+
+    Example:
+    focus("functions", "knowledge")  // expand only these, collapse others
+    // ... later, when done with knowledge:
+    focus("functions")               // collapse knowledge too
+    focus("all")                     // restore everything
+    ### await fork({ task, context?, outputSchema?, maxTurns? }) — Lightweight sub-agent
+    Runs a focused sub-reasoning task in an isolated context. The child's full reasoning stays separate — only the final JSON output enters your context. Use for complex analysis that would pollute your main conversation. Default 3 turns.
+
+    Example:
+    var analysis = await fork({
+      task: "Analyze this error trace and identify the root cause",
+      context: { errorTrace: traceStr, codeSnippet: snippet },
+      outputSchema: { rootCause: { type: "string" }, fix: { type: "string" }, confidence: { type: "number" } },
+      maxTurns: 2,
     })
-    // docs["my-space"]["chat-modes"]["mode"]["casual"] → "# Casual Mode\n\nRelaxed, conversational..."
+    await stop(analysis)
+    ### await compress(data, options?) — LLM-powered data compression
+    Compresses large data into a token-efficient summary before it enters your context. Use proactively on large API responses or file contents. Options: preserveKeys (keep exact), maxTokens (target ~200), format ("structured"|"prose").
 
-    Use the Knowledge Tree below to see what spaces and files are available. Load only the specific files relevant to the current task — NEVER load an entire domain or space at once. Select individual options that match the user's request.
+    Example:
+    var summary = await compress(largeApiResponse, { preserveKeys: ["id", "status"], maxTokens: 150 })
+    await stop(summary)
+    ### await speculate(branches, options?) — Parallel hypothesis testing
+    Run multiple approaches concurrently and compare results. Each branch runs its function in parallel. Failed branches are captured, not thrown. Max 5 branches, default 10s timeout.
 
+    Example:
+    var trial = await speculate([
+      { label: "regex", fn: () => data.match(/pattern/g)?.length ?? 0 },
+      { label: "split", fn: () => data.split("delimiter").length - 1 },
+    ])
+    await stop(trial)
+    ### await reflect({ question, context?, criteria? }) — Self-evaluation
+    Triggers a separate LLM call to evaluate your current approach. Returns { assessment, scores, suggestions, shouldPivot }. Use when uncertain about correctness, efficiency, or when stuck.
+    ### watch(variableName, callback) — Reactive variable observation
+    Registers a callback that fires when a sandbox variable's value changes between stop() calls. Returns an unwatch function.
+    ### await pipeline(data, ...transforms) — Chained data transformations
+    Passes data through a sequence of named transforms. Each receives the output of the previous one. Supports async transforms. Stops on first error.
+    ### await cachedFetch(url, options?) — HTTP fetch with caching and retry
+    Fetches a URL with built-in TTL caching, exponential backoff retry, auto JSON/text parsing, and timeout.
+    ### schema(value) — Infer JSON schema from a runtime value
+    Analyzes a runtime value and returns its JSON schema (type, properties, items, required).
+    ### validate(value, schema) — Validate against a schema
+    Checks a value against a JSON-like schema. Returns { valid: true } or { valid: false, errors: ["..."] }.
+    ### broadcast(channel, message) — Send data to listeners
+    Sends a message to all agents listening on a channel (including yourself). Use for event-driven coordination between parallel tasks.
+
+    Example:
+    broadcast("user_count_changed", { from: oldVal, to: newVal })
+    // Any agent with listen() on this channel receives the message
+
+    ### listen(channel, callback) — Subscribe to broadcasts
+    Registers a callback that fires when any agent broadcasts on the channel. Returns an unsubscribe function.
+
+    Example:
+    var unsub = listen("user_count_changed", (msg) => {
+      console.log("User count changed:", msg)
+    })
+    ### await delegate(agent, input) — Delegate to specialist agent
+    Runs a specialist agent with a focused task. The agent's full reasoning happens separately — only the final JSON output enters your context. Use for modular problem-solving.
+    ### await parallel(...tasks) — Wait for multiple async tasks
+    Runs multiple async functions concurrently and returns their results. Use with completeTaskAsync or other async work. Returns { label, ok, result/error, durationMs } for each task.
+    ### trace() — Execution profiling snapshot
+    Returns timing data: turns, LLM calls, token usage, cost estimates, async task status, scope size. Use to optimize performance-critical sections.
+    ### await plan(goal, constraints?) — Generate task plan via LLM
+    Generates a structured task plan from a natural language goal. Returns array of tasks with id, instructions, and optional dependsOn for DAG.
+    ### await critique(output, criteria, context?) — Quality evaluation
+    Evaluates output quality against criteria using a separate LLM call. Returns { passed, scores, suggestions }.
+    ### await learn(topic, insight, tags?) — Persist to long-term memory
+    Saves a learning to the knowledge base for cross-session memory. The insight is compressed and stored as a knowledge option in the memory domain.
+
+    Example:
+    await learn("csv-gotchas", "CSV parsing with split(',') fails on quoted commas. Use regex or a proper parser.", ["csv", "parsing"])
+    ### checkpoint() — Save current sandbox state
+    Snapshots all sandbox variables so you can explore risky operations and roll back if needed. Returns a checkpoint ID that you can pass to rollback().
+
+    Example:
+    var snapshot = checkpoint()
+    try {
+      riskyOperation(data)
+    } catch {
+      rollback(snapshot)
+      stop("Failed, reverted to checkpoint")
+    }
+    ### rollback(snapshot) — Restore sandbox state
+    Restores all variables to a previously saved checkpoint. Use to recover from errors or failed experiments.
+    ### await vectorSearch(query, topK?) — Semantic search past reasoning
+    Searches your comment blocks and code from previous turns for semantically similar content. Uses TF-IDF cosine similarity to find related reasoning patterns.
+
+    Example:
+    var patterns = await vectorSearch("how to aggregate by region")
+    await stop(patterns)
+      Filesystem — MCP server: filesystem
+        → 14 methods — use `await loadClass("Filesystem")` to expand
+    </system>
+    </globals>
+
+    <scope>
     Workspace — Current Scope
     (no variables declared)
 
+    ### File Blocks — Write or patch files
+    Write files or apply diff patches using four-backtick blocks. These are NOT function calls — they are special syntax processed directly by the host before the next statement runs.
+
+    **Create / overwrite a file:**
+    ````path/to/output.ts
+    // full file content goes here
+    export function greet(name: string) { return `Hello, ${name}!` }
+    ````
+
+    **Patch an existing file** (requires a prior `readFile('path')` call this session):
+    ````diff path/to/output.ts
+    --- a/path/to/output.ts
+    +++ b/path/to/output.ts
+    @@ -1,3 +1,3 @@
+     // full file content goes here
+    -export function greet(name: string) { return `Hello, ${name}!` }
+    +export function greet(name: string) { return `Hello ${name}!` }
+    ````
+
+    Rules:
+    - The closing line must be exactly four backticks on its own line.
+    - Diff patches require a prior `await readFile('path')` call on the same path this session.
+    - If a patch fails (context mismatch or unread file), you will receive a `← error [FileError]` — adjust and retry.
+    - Prefer diff patches for targeted edits to large files; use write blocks for new files or full rewrites.
+    - After a file block, continue writing TypeScript as normal — no `await` needed.
+    </scope>
+
+    <components>
     Form Components — use ONLY inside ask()
     Render these inside `var data = await ask(<Component />)`. Always follow with `await stop(data)` to read the values.
     Each input must have a `name` attribute — the returned object maps name → submitted value.
@@ -628,25 +758,26 @@
 
     Display Components — use with display()
     These components show output to the user. Use them with `display(<Component ... />)`. Non-blocking.
-      # User-defined (/home/vasilis/GEANT/lmthing/org/libs/repl/spaces/cooking/components/view/MealPlanCard.tsx)
+      # User-defined (/home/vasilis/GEANT/lmthing/org/libs/core/spaces/cooking/components/view/MealPlanCard.tsx)
       <MealPlanCard title={string} strategy={string} meals={{ label: string; description: string; }[]} />
         — Display a meal plan
-      # User-defined (/home/vasilis/GEANT/lmthing/org/libs/repl/spaces/cooking/components/view/RecipeCard.tsx)
+      # User-defined (/home/vasilis/GEANT/lmthing/org/libs/core/spaces/cooking/components/view/RecipeCard.tsx)
       <RecipeCard name={string} cuisine={string} method={string} servings={number} time={string} ingredients={string[]} steps={string[]} />
         — Display a recipe card
-    </system>
+    </components>
 
     <functions>
-      # User-defined (/home/vasilis/GEANT/lmthing/org/libs/repl/spaces/cooking/functions/buildGroceryList.tsx)
+      # User-defined (/home/vasilis/GEANT/lmthing/org/libs/core/spaces/cooking/functions/buildGroceryList.tsx)
       buildGroceryList(recipes: { name: string; ingredients: string[]; }[]): { item: string; recipes: string[]; }[]
         — Build a grocery list from multiple recipe ingredient arrays.
     Deduplicates items by lowercased name.
-      # User-defined (/home/vasilis/GEANT/lmthing/org/libs/repl/spaces/cooking/functions/scaleIngredients.tsx)
+      # User-defined (/home/vasilis/GEANT/lmthing/org/libs/core/spaces/cooking/functions/scaleIngredients.tsx)
       scaleIngredients(ingredients: string[], multiplier: number): string[]
         — Scale a recipe's ingredient quantities by a multiplier
 
     Available Classes
-    (none)
+      Filesystem — MCP server: filesystem
+        → 14 methods — use `await loadClass("Filesystem")` to expand
     </functions>
 
     <agents>
@@ -705,40 +836,6 @@
     }
     ```
     </agents>
-    </globals>
-
-    A typical execution follows this pattern:
-
-    // 1. Plan — always start with tasklist
-    tasklist("main", "Do the task", [
-      { id: "gather", instructions: "Collect user input", outputSchema: { done: { type: "boolean" } } },
-      { id: "work", instructions: "Do the work", outputSchema: { key: { type: "string" } } },
-      { id: "present", instructions: "Show results", outputSchema: { done: { type: "boolean" } } }
-    ])
-
-    // 2. Gather user input with ask() → stop()
-    var input = await ask(<RequestForm />)
-    await stop(input)
-    // ← stop { input: { request: "...", dietary: "..." } }
-
-    // (new turn — now you can see the form values)
-    completeTask("main", "gather", { done: true })
-
-    // 3. Load relevant knowledge
-    var knowledge = loadKnowledge({ "space-name": { "domain": { "field": { "option": true } } } })
-    await stop(knowledge)
-    // ← stop { knowledge: { "space-name": { domain: { field: { option: "..." } } } } }
-
-    // 4. Do work
-    var result = await someFunction()
-    await stop(result)
-    // ← stop { result: ... }
-    completeTask("main", "work", { key: result.key })
-
-    // 5. Show results with display()
-    display(<ResultCard data={result} />)
-    completeTask("main", "present", { done: true })
-    </documentation>
 
     <available_knowledge>
     <knowledge>
@@ -780,18 +877,7 @@
     </knowledge>
     </available_knowledge>
 
-    <rules>
-    <rule>Output ONLY valid TypeScript. No markdown. No prose outside // comments.</rule>
-    <rule>Plan before you build — call tasklist(tasklistId, description, tasks) to declare milestones with optional dependsOn for DAG dependencies, then call completeTask(tasklistId, taskId, output) or completeTaskAsync(tasklistId, taskId, fn) as you complete each one.</rule>
-    <rule>Await every async call: var x = await fn()</rule>
-    <rule>Use stop() to read runtime values before branching.</rule>
-    <rule>Do not use console.log — use stop() to inspect values.</rule>
-    <rule>Do not import modules. Do not use export.</rule>
-    <rule>Use var for all declarations (not const/let) so they persist in the REPL scope across turns.</rule>
-    <rule>Handle nullability with ?. and ??</rule>
-    <rule>After calling await stop(...), STOP. Do not write any more code until you receive the stop response.</rule>
-    <rule>Use loadKnowledge() to load relevant knowledge files before starting domain-specific work. Check the Knowledge Tree to see what is available. NEVER load all files from a domain or space — only select the specific options that are relevant to the user's request. Loading too much wastes context and degrades your performance.</rule>
-    </rules>
+    </documentation>
 
     <instructions>
     You are a cooking and nutrition assistant powered by a multi-space knowledge base. Your knowledge tree spans two spaces:
@@ -852,617 +938,29 @@
   </system-prompt>
 
   <message role="user">
-    a pasta for four person vegetarian
+    Execute the "Create Recipe" flow
   </message>
 
-  <turn n="1" messages="3" finish="stop" model="gpt-5.4-nano-2026-03-17">
-    <usage input="5095" output="214" total="5309" reasoning="0" cache-read="0" />
-    <system-prompt>
-
-      <role>
-        You are a code-execution agent. You respond EXCLUSIVELY with valid TypeScript code. No markdown. No prose. No explanations outside of code comments. Every character you emit is fed line-by-line into a live TypeScript REPL that executes as you stream.
-      </role>
-
-      <documentation>
-        <execution>
-          Your output is NOT a script that runs after you finish. Each line is parsed and executed as it arrives. Think of yourself as typing into a live terminal.
-
-      The REPL supports top-level await. Every async function call must be awaited.
-
-      CRITICAL: Do NOT wrap code in markdown fences (```). Output raw TypeScript only. Do NOT use <think> tags or any XML tags in your output.
-      </execution>
-
-      <globals>
-      <system>
-      ### await stop(...values) — Pause and read
-      Suspends your execution. The runtime evaluates each argument, serializes the results, and injects them as a user message prefixed with "← stop". You resume with knowledge of those values.
-
-      Use stop when you need to inspect a runtime value before deciding what to write next.
-      Example: await stop(x, y) → you will see: ← stop { x: <value>, y: <value> }
-
-      IMPORTANT: After calling await stop(), STOP writing code. The runtime will pause your stream, read the values, and resume you in a new turn. Do NOT predict or simulate the stop response yourself.
-
-      ### display(element) — Show output to user
-      Non-blocking. Appends a rendered component to the user's view. Use with display components only.
-      Example: display(<RecipeCard name="Pasta" cuisine="Italian" ... />)
-
-      ### var data = await ask(element) — Collect user input
-      Blocking. Renders a form to the user and waits for submission. The host wraps your element in a `<form>` with Submit/Cancel buttons — do NOT add your own `<form>` tag.
-      Each input component must have a `name` attribute. The returned object maps name → submitted value.
-
-      ask() resumes silently — no message is injected into the conversation. You MUST call stop() after ask() to read the submitted values.
-
-      Pattern:
-      var input = await ask(<RequestForm />)
-      await stop(input)
-      // ← stop { input: { request: "...", dietary: "..." } }
-      // Now you can see the values and decide what to do next
-
-      Multiple inputs:
-      var prefs = await ask(<div>
-        <Select name="cuisine" label="Pick cuisine" options={["italian", "japanese"]} />
-        <TextInput name="notes" label="Any notes?" />
-      </div>)
-      await stop(prefs)
-      // ← stop { prefs: { cuisine: "italian", notes: "extra spicy" } }
-
-      IMPORTANT:
-      - Do NOT wrap ask() content in `<form>`. The host provides the form wrapper and submit button.
-      - Always call await stop() right after ask() to see the values. Do NOT use the values before calling stop().
-      - After stop(), you resume in a new turn with the form data visible.
-
-      ### tasklist(tasklistId, description, tasks) — Declare a task plan with milestones
-      Before starting any implementation work, declare a plan using tasklist(). This registers milestones with the host under a unique tasklistId. Each task has an id, instructions, and outputSchema describing the result shape. Tasks can optionally declare dependsOn (array of task IDs) for DAG dependencies, condition (JS expression for conditional execution), and optional (boolean, if true failure doesn't block dependents).
-
-      When no task has dependsOn, the tasklist behaves sequentially (backward compatible).
-
-      You can call tasklist() multiple times per session with different tasklist IDs. It does not block execution.
-
-      Example:
-      tasklist("analyze_data", "Analyze employee data", [
-        { id: "load", instructions: "Load the dataset", outputSchema: { count: { type: "number" } } },
-        { id: "analyze", instructions: "Compute statistics", outputSchema: { done: { type: "boolean" } }, dependsOn: ["load"] },
-        { id: "report", instructions: "Present results", outputSchema: { done: { type: "boolean" } }, dependsOn: ["analyze"] }
-      ])
-
-      ### completeTask(tasklistId, taskId, output) — Mark a milestone as complete
-      When you reach a milestone, call completeTask() with the tasklist ID, task ID, and an output object matching the declared outputSchema. Non-blocking. Task must be in the readyTasks set (all dependencies satisfied).
-
-      Example:
-      completeTask("analyze_data", "load", { count: 10 })
-
-      ### completeTaskAsync(tasklistId, taskId, fn) — Complete a task in the background
-      Launches task work as a background async function. The function's return value becomes the task output. Results are delivered via the next stop() call with task:<taskId> keys. Non-blocking.
-
-      Example:
-      completeTaskAsync("data", "fetch_api", async () => {
-        var res = await fetchFromAPI()
-        return { count: res.length }
-      })
-      // Continue other work, then call stop() to read results
-
-      ### taskProgress(tasklistId, taskId, message, percent?) — Report task progress
-      Reports incremental progress within a running task. Non-blocking, synchronous.
-
-      Example:
-      taskProgress("data", "fetch_api", "Downloading...", 50)
-
-      ### failTask(tasklistId, taskId, error) — Mark a task as failed
-      Marks a task as failed with an error message. If the task is optional, dependents are unblocked.
-
-      ### retryTask(tasklistId, taskId) — Retry a failed task
-      Resets a failed task back to ready. Limited to 3 retries.
-
-      ### await sleep(seconds) — Pause execution
-      Pauses sandbox execution (not the LLM stream). Async tasks continue during sleep. Use to wait for completeTaskAsync results, then call stop() to read them.
-
-      Example:
-      await sleep(5)
-      await stop()
-
-      If your stream ends before all non-optional tasks are complete, the host will send you a reminder:
-        ⚠ [system] Tasklist "analyze_data" incomplete. Ready: analyze. Blocked: report (waiting on analyze). Continue with a ready task.
-      When you see this, continue with a ready task. Do NOT re-declare tasklist() for the same tasklist or redo completed work.
-
-      ### loadKnowledge(selector) — Load knowledge files from spaces
-      Loads markdown content from the knowledge base. Pass a selector object that mirrors the knowledge tree structure, setting `true` on the specific files you want to load.
-
-      The selector uses space names as the top-level keys, matching the Knowledge Tree structure:
-      `{ spaceName: { domain: { field: { option: true } } } }`
-
-      Returns an object with the same structure, where each `true` is replaced with the markdown content of that file.
-
-      Example:
-      var docs = loadKnowledge({
-        "my-space": {
-          "chat-modes": {
-            "mode": {
-              "casual": true
-            }
-          }
-        }
-      })
-      // docs["my-space"]["chat-modes"]["mode"]["casual"] → "# Casual Mode\n\nRelaxed, conversational..."
-
-      Use the Knowledge Tree below to see what spaces and files are available. Load only the specific files relevant to the current task — NEVER load an entire domain or space at once. Select individual options that match the user's request.
-
-      Workspace — Current Scope
-      Name  Type    Value
-      ----  ------  --------------------------------------------------
-      req   Object  {cuisineType, dishName, servings, dietaryRestri...
-
-      Form Components — use ONLY inside ask()
-      Render these inside `var data = await ask(<Component />)`. Always follow with `await stop(data)` to read the values.
-      Each input must have a `name` attribute — the returned object maps name → submitted value.
-      Prefer to use MultiSelect, Select for better user experience.
-      Do NOT add a `<form>` tag — the host wraps automatically with Submit/Cancel buttons.
-        # Built-in (form)
-        <TextInput name={string} label={string} placeholder?={string} defaultValue?={string} />
-        <TextArea name={string} label={string} placeholder?={string} rows?={number} />
-        <NumberInput name={string} label={string} min?={number} max?={number} step?={number} defaultValue?={number} />
-        <Slider name={string} label={string} min={number} max={number} step?={number} defaultValue?={number} />
-        <Checkbox name={string} label={string} defaultChecked?={boolean} />
-        <Select name={string} label={string} options={string[]} defaultValue?={string} />
-        <MultiSelect name={string} label={string} options={string[]} defaultValue?={string[]} />
-        <DatePicker name={string} label={string} defaultValue?={string} />
-        <FileUpload name={string} label={string} accept?={string} maxSize?={number} />
-
-      Display Components — use with display()
-      These components show output to the user. Use them with `display(<Component ... />)`. Non-blocking.
-        # User-defined (/home/vasilis/GEANT/lmthing/org/libs/repl/spaces/cooking/components/view/MealPlanCard.tsx)
-        <MealPlanCard title={string} strategy={string} meals={{ label: string; description: string; }[]} />
-          — Display a meal plan
-        # User-defined (/home/vasilis/GEANT/lmthing/org/libs/repl/spaces/cooking/components/view/RecipeCard.tsx)
-        <RecipeCard name={string} cuisine={string} method={string} servings={number} time={string} ingredients={string[]} steps={string[]} />
-          — Display a recipe card
-      </system>
-
-      <functions>
-        # User-defined (/home/vasilis/GEANT/lmthing/org/libs/repl/spaces/cooking/functions/buildGroceryList.tsx)
-        buildGroceryList(recipes: { name: string; ingredients: string[]; }[]): { item: string; recipes: string[]; }[]
-          — Build a grocery list from multiple recipe ingredient arrays.
-      Deduplicates items by lowercased name.
-        # User-defined (/home/vasilis/GEANT/lmthing/org/libs/repl/spaces/cooking/functions/scaleIngredients.tsx)
-        scaleIngredients(ingredients: string[], multiplier: number): string[]
-          — Scale a recipe's ingredient quantities by a multiplier
-
-      Available Classes
-      (none)
-      </functions>
-
-      <agents>
-      Spawn child agents from loaded spaces. Each call returns a Promise.
-      Use `var result = space.agent(params).action(request)` to track, or omit `var` for fire-and-forget.
-      Chain `.options({ context: "branch" })` to give the child your conversation history (default: "empty").
-
-      Tracked agents (saved to a variable) can call `askParent(message, schema)` to pause and ask you for input.
-      Their question appears as "? waiting" in {{AGENTS}} with the message and expected schema.
-      Answer with: `respond(agentVariable, { key: value, ... })`
-      Fire-and-forget agents (no variable) cannot ask questions.
-
-      ### respond(agentPromise, data) — Answer a child agent's question
-      When a tracked spawned agent calls askParent(), it pauses and surfaces a question in {{AGENTS}}.
-      Call respond() with the agent's variable and a data object matching the question's schema.
-
-      Example:
-      respond(steakInstructions, {
-        doneness: "medium-rare",
-        thickness_cm: 3,
-      })
-
-      The child resumes execution with the data as the return value of its askParent() call.
-
-      ### knowledge.writer({ field }) — Persist knowledge and memories
-      The `knowledge` namespace is always available. Use it to save, update, or delete knowledge entries on disk. Writes are fire-and-forget — they complete in the background and the updated entries appear in the Knowledge Tree on subsequent turns.
-
-      The `field` parameter uses "domain/field" notation (e.g., `"memory/project"`, `"cuisine/type"`). If only one segment is given, it defaults to the `memory` domain.
-
-      Examples:
-      ```ts
-      // Save a project memory (fire-and-forget, no variable needed)
-      knowledge.writer({ field: "memory/project" }).save("auth-flow", "Authentication uses SSO codes with 60s TTL.")
-
-      // Save feedback
-      knowledge.writer({ field: "memory/feedback" }).save("testing-approach", "Use integration tests, not mocks.")
-
-      // Delete a memory
-      knowledge.writer({ field: "memory/feedback" }).remove("old-approach")
-
-      // Add multiple options from data
-      knowledge.writer({ field: "cuisine/type" }).addOptions("Store these recipes", recipeData, moreData)
-
-      // Load a saved memory (existing loadKnowledge global)
-      var mem = loadKnowledge({ "knowledge": { memory: { project: { "auth-flow": true } } } })
-      await stop(mem)
-      ```
-
-      ```
-      knowledge {
-        writer({ field: string }): {
-          save(option: string, content: string): Promise<void>;
-          remove(option: string): Promise<boolean>;
-          addOptions(description: string, ...data: any[]): Promise<void>;
-        }
-      }
-      ```
-      </agents>
-      </globals>
-
-      A typical execution follows this pattern:
-
-      // 1. Plan — always start with tasklist
-      tasklist("main", "Do the task", [
-        { id: "gather", instructions: "Collect user input", outputSchema: { done: { type: "boolean" } } },
-        { id: "work", instructions: "Do the work", outputSchema: { key: { type: "string" } } },
-        { id: "present", instructions: "Show results", outputSchema: { done: { type: "boolean" } } }
-      ])
-
-      // 2. Gather user input with ask() → stop()
-      var input = await ask(<RequestForm />)
-      await stop(input)
-      // ← stop { input: { request: "...", dietary: "..." } }
-
-      // (new turn — now you can see the form values)
-      completeTask("main", "gather", { done: true })
-
-      // 3. Load relevant knowledge
-      var knowledge = loadKnowledge({ "space-name": { "domain": { "field": { "option": true } } } })
-      await stop(knowledge)
-      // ← stop { knowledge: { "space-name": { domain: { field: { option: "..." } } } } }
-
-      // 4. Do work
-      var result = await someFunction()
-      await stop(result)
-      // ← stop { result: ... }
-      completeTask("main", "work", { key: result.key })
-
-      // 5. Show results with display()
-      display(<ResultCard data={result} />)
-      completeTask("main", "present", { done: true })
-      </documentation>
-
-      <available_knowledge>
-      <knowledge>
-        <space name="cooking">
-          <domain name="cuisine" icon="🌍" label="Cuisine">
-            <field name="type" type="select" var="cuisineType">
-              <option name="italian">Italian — Mediterranean cooking with emphasis on fresh ingredients and simplicity</option>
-              <option name="japanese">Japanese — Precision-driven cooking emphasizing umami, presentation, and seasonal harmony</option>
-              <option name="mexican">Mexican — Bold, layered flavors built on chiles, corn, and slow-cooked techniques</option>
-            </field>
-          </domain>
-          <domain name="dietary" icon="🥗" label="Dietary Needs">
-            <field name="restriction" type="multiSelect" var="dietaryRestriction">
-              <option name="vegetarian">Vegetarian — No meat or fish, but allows dairy and eggs</option>
-              <option name="gluten-free">Gluten-Free — No wheat, barley, rye, or their derivatives</option>
-              <option name="dairy-free">Dairy-Free — No milk, cheese, butter, cream, or other dairy products</option>
-            </field>
-          </domain>
-          <domain name="technique" icon="🔥" label="Cooking Techniques">
-            <field name="method" type="multiSelect" var="cookingMethod">
-              <option name="saute">Sauté — Quick cooking over high heat with a small amount of fat</option>
-              <option name="braise">Braise — Low and slow cooking in liquid for tender, flavorful results</option>
-              <option name="grill">Grill — Direct high-heat cooking over flame or coals for smoky, charred flavor</option>
-            </field>
-          </domain>
-        </space>
-        <space name="knowledge">
-          <domain name="memory" icon="🧠" label="Memory">
-            <field name="feedback" type="text" var="feedbackMemory">
-            </field>
-            <field name="project" type="text" var="projectMemory">
-            </field>
-            <field name="reference" type="text" var="referenceMemory">
-            </field>
-            <field name="user" type="text" var="userMemory">
-            </field>
-          </domain>
-        </space>
-      </knowledge>
-      </available_knowledge>
-
-      <rules>
-      <rule>Output ONLY valid TypeScript. No markdown. No prose outside // comments.</rule>
-      <rule>Plan before you build — call tasklist(tasklistId, description, tasks) to declare milestones with optional dependsOn for DAG dependencies, then call completeTask(tasklistId, taskId, output) or completeTaskAsync(tasklistId, taskId, fn) as you complete each one.</rule>
-      <rule>Await every async call: var x = await fn()</rule>
-      <rule>Use stop() to read runtime values before branching.</rule>
-      <rule>Do not use console.log — use stop() to inspect values.</rule>
-      <rule>Do not import modules. Do not use export.</rule>
-      <rule>Use var for all declarations (not const/let) so they persist in the REPL scope across turns.</rule>
-      <rule>Handle nullability with ?. and ??</rule>
-      <rule>After calling await stop(...), STOP. Do not write any more code until you receive the stop response.</rule>
-      <rule>Use loadKnowledge() to load relevant knowledge files before starting domain-specific work. Check the Knowledge Tree to see what is available. NEVER load all files from a domain or space — only select the specific options that are relevant to the user's request. Loading too much wastes context and degrades your performance.</rule>
-      </rules>
-
-      <instructions>
-      You are a cooking and nutrition assistant powered by a multi-space knowledge base. Your knowledge tree spans two spaces:
-
-      - **Cooking** — cuisine traditions, cooking techniques, and dietary restrictions
-      - **Nutrition** — macronutrients, dietary guidelines, food database, and meal scoring
-
-      When the user asks for help:
-
-      1. Start with `ask()` using a form component to gather their request
-      2. Use `loadKnowledge()` to load relevant knowledge from BOTH spaces as needed
-      3. Read the loaded content with `await stop()` to understand it
-      4. Use the utility functions (estimateCalories, scaleIngredients, buildGroceryList, formatTime) to compute values
-      5. Display results using the display components (RecipeCard, NutritionCard, TipCard, MealPlanCard)
-
-      Make sure to add a tasklist for using all the available functions.
-      Always load knowledge BEFORE giving advice — don't make things up when the knowledge base has the answer.
-      Never load all files from a space — only load the specific options relevant to the user's question.
-
-      When a recipe needs nutritional analysis, spawn the `diet_analyst` agent from the nutrition space to handle it. It has its own knowledge base, scoring functions, and display components.
-
-      ## Pre-loaded Knowledge
-
-      #### cuisine/type/italian
-      # Italian Cuisine
-
-      Italian cooking centers on high-quality, seasonal ingredients prepared simply to let flavors shine.
-
-      ## Key Principles
-      - **Simplicity** — Most dishes use 4–8 ingredients. The quality of each ingredient matters more than complexity.
-      - **Regionality** — Northern Italy favors butter, rice, and polenta; Southern Italy uses olive oil, tomatoes, and dried pasta.
-      - **Al dente** — Pasta should be cooked firm to the bite. Start tasting 2 minutes before the package time.
-      - **Soffritto** — The holy trinity of onion, carrot, and celery, slowly sweated in olive oil, forms the base of countless dishes.
-
-      ## Essential Techniques
-      - **Emulsifying pasta water** — Reserve starchy pasta water and toss with sauce to create a silky coating.
-      - **Risotto stirring** — Constant stirring releases starch for a creamy texture without cream.
-      - **Bruschetta method** — Rub toasted bread with raw garlic, then drizzle with good olive oil.
-
-      ## Staple Ingredients
-      Olive oil, San Marzano tomatoes, Parmigiano-Reggiano, fresh basil, garlic, dried pasta, arborio rice, prosciutto, mozzarella.
-
-      ## Classic Dishes
-      Cacio e pepe, carbonara, margherita pizza, risotto alla milanese, osso buco, tiramisu.
-
-      ## Slash Actions
-
-      /mealplan — Make a meal plan
-        Do a configurable meal plan
-        Steps: Define Meal Preferences → Design Weekly Menu → Create Prep Schedule → Build Grocery List
-      /recipe — Create a recipe
-        Generate a complete recipe with nutrition analysis
-        Steps: Select Cuisine and Dish → Gather Ingredients → Prepare Mise en Place → Cook Step by Step → Analyze Nutrition
-      /technique — Learn a technique
-        Learn a cooking technique step-by-step
-        Steps: Identify Technique → Explain Core Principles → Practice Exercises → Reference Recipe
-      </instructions>
-    </system-prompt>
-
     <message role="assistant">
-      var req = await ask(<div>
-        <Select name="cuisineType" label="Cuisine (optional)" options={["italian", "japanese", "mexican"]} defaultValue="italian" />
-        <TextInput name="dishName" label="Dish idea (optional)" placeholder="e.g., basil pesto pasta, primavera pasta, creamy tomato rigatoni" defaultValue="Creamy Tomato Basil Pasta" />
-        <NumberInput name="servings" label="Servings" min={1} max={12} step={1} defaultValue={4} />
-        <MultiSelect name="dietaryRestriction" label="Dietary" options={["vegetarian", "gluten-free", "dairy-free"]} defaultValue={["vegetarian"]} />
-        <MultiSelect name="cookingMethod" label="Cooking technique (optional)" options={["saute", "braise", "grill"]} defaultValue={["saute"]} />
-      </div>);
-      await stop(req)
+
     </message>
     <message role="user">
-      ← stop { req: { "cuisineType": "italian", "dishName": "Creamy Tomato Basil Pasta", "servings": "4", "dietaryRestriction": "vegetarian", "cookingMethod": "saute" } }
+      ⚠ [system] You are a code-execution agent in a live TypeScript REPL. Do NOT write prose or natural language. Output ONLY valid TypeScript code. Every character you emit is executed. Re-read the system prompt and try again.
     </message>
-    <scope>
-      req: Object {cuisineType, dishName, servings, dietaryRestri...
-    </scope>
   </turn>
 
-  <turn n="2" messages="5" finish="stop" model="gpt-5.4-nano-2026-03-17">
-    <usage input="5394" output="198" total="5592" reasoning="0" cache-read="0" />
-    <system-prompt diff="true">
-      ... (127 unchanged lines)
-
-      Workspace — Current Scope
-      Name                Type           Value
-      <del>----  ------  --------------------------------------------------</del>
-      <ins>------------------  -------------  --------------------------------------------------</ins>
-      req                 Object         {cuisineType, dishName, servings, dietaryRestri...
-      <ins>cuisineType         string         "italian"</ins>
-      <ins>dishName            string         "Creamy Tomato Basil Pasta"</ins>
-      <ins>servings            number         4</ins>
-      <ins>dietaryRestriction  Array<string>  ["vegetarian"]</ins>
-      <ins>cookingMethod       Array<string>  ["saute"]</ins>
-      <ins>loaded              Object         {cooking}</ins>
-
-      Form Components — use ONLY inside ask()
-      Render these inside `var data = await ask(<Component />)`. Always follow with `await stop(data)` to read the values.
-      ... (237 unchanged lines)
-    </system-prompt>
-
     <message role="assistant">
-      var cuisineType = req.cuisineType ?? "italian"
-      var dishName = req.dishName ?? "Creamy Tomato Basil Pasta"
-      var servings = Number(req.servings ?? 4) || 4
-      var dietaryRestriction = Array.isArray(req.dietaryRestriction) ? req.dietaryRestriction : [req.dietaryRestriction ?? "vegetarian"]
-      var cookingMethod = Array.isArray(req.cookingMethod) ? req.cookingMethod : [req.cookingMethod ?? "saute"]
 
-      var loaded = loadKnowledge({
-        "cooking": {
-          "cuisine": { "type": { [cuisineType]: true } },
-          "dietary": { "restriction": { vegetarian: true, "gluten-free": true, "dairy-free": true } },
-          "technique": { "method": { saute: true, braise: true, grill: true } }
-        }
-      })
-      await stop(loaded)
     </message>
     <message role="user">
-      ← stop { loaded: { "cooking": { "cuisine": { "type": { "italian": "# Italian Cuisine\n\nItalian cooking centers on high-quality, seasonal ingredients prepared simply to let flavors shine.\n\n## Key Principles\n- **Simplicity** — Most dishes use 4–8 ingredients. The quality of each ingredient matters more than complexity.\n- **Regionality** — Northern Italy favors butter, rice, and polenta; Southern Italy uses olive oil, tomatoes, and dried pasta.\n- **Al dente** — Pasta should be cooked firm to the bite. Start tasting 2 minutes before the package time.\n- **Soffritto** — The holy trinity of onion, carrot, and celery, slowly sweated in olive oil, forms the base of countless dishes.\n\n## Essential Techniques\n- **Emulsifying pasta water** — Reserve starchy pasta water and toss with sauce to create a silky coating.\n- **Risotto stirring** — Constant stirring releases starch for a creamy texture without cream.\n- **Bruschetta method** — Rub toasted bread with raw garlic, then drizzle with good olive oil.\n\n## Staple Ingredients\nOlive oil, San Marzano tomatoes, Parmigiano-Reggiano, fresh basil, garlic, dried pasta, arborio rice, prosciutto, mozzarella.\n\n## Classic Dishes\nCacio e pepe, carbonara, margherita pizza, risotto alla milanese, osso buco, tiramisu." } }, "dietary": { "restriction": { "vegetarian": "# Vegetarian Cooking\n\nVegetarian cooking excludes meat and fish but includes dairy, eggs, and honey.\n\n## Substitution Strategies\n- **Protein sources** — Eggs, cheese, legumes (lentils, chickpeas, black beans), tofu, tempeh, seitan, nuts\n- **Umami replacements** — Soy sauce, miso paste, nutritional yeast, aged cheeses, mushrooms, tomato paste\n- **Stock** — Use vegetable stock or mushroom stock instead of chicken/beef stock\n- **Gelatin** — Replace with agar-agar (1:1 ratio, but boil to activate)\n\n## Tips\n- Roast vegetables at high heat (220°C+) for caramelization and depth\n- Use smoked paprika, liquid smoke, or charred vegetables for smoky notes usually provided by meat\n- Don't treat vegetarian food as \"meat minus the meat\" — build dishes around vegetables as the star", "gluten-free": "# Gluten-Free Cooking\n\nGluten-free cooking avoids wheat, barley, rye, and products derived from them. This is essential for people with celiac disease or gluten sensitivity.\n\n## Substitution Strategies\n- **Flour** — Rice flour, almond flour, oat flour (certified GF), tapioca starch, potato starch, or commercial GF blends\n- **Pasta** — Rice noodles, corn pasta, chickpea pasta, zucchini noodles, sweet potato glass noodles\n- **Breadcrumbs** — Crushed rice crackers, almond meal, crushed cornflakes, polenta crumbs\n- **Thickeners** — Cornstarch or arrowroot instead of wheat flour for sauces and gravies\n- **Soy sauce** — Use tamari (check label for wheat-free) or coconut aminos\n\n## Hidden Gluten Sources\n- Soy sauce (most brands contain wheat)\n- Malt vinegar\n- Some spice blends and bouillon cubes\n- Beer (use GF beer or wine for cooking)\n- Processed foods with \"modified food starch\"\n\n## Tips\n- Many cuisines are naturally gluten-free: Mexican (corn-based), Japanese (rice-based), Indian (lentil and rice dishes)\n- When baking GF, add xanthan gum (½ tsp per cup of flour) to improve structure\n- Always check labels — gluten hides in unexpected places", "dairy-free": "# Dairy-Free Cooking\n\nDairy-free cooking eliminates milk, cheese, butter, cream, yogurt, and all products containing them.\n\n## Substitution Strategies\n- **Butter** — Olive oil, coconut oil, or vegan butter. For baking, use coconut oil (solid) at a 1:1 ratio.\n- **Milk** — Oat milk (best for cooking/baking), coconut milk (rich sauces, curries), almond milk (light uses)\n- **Cream** — Full-fat coconut cream, cashew cream (blend soaked cashews with water)\n- **Cheese** — Nutritional yeast for cheesy flavor, cashew-based sauces for creaminess, avocado for richness\n- **Yogurt** — Coconut yogurt or soy yogurt\n\n## Tips\n- Coconut cream is the best dairy-free substitute for heavy cream in sauces — refrigerate the can and scoop the solid cream\n- Nutritional yeast adds a savory, cheese-like flavor to pasta, popcorn, and sauces\n- Many Asian cuisines (Thai, Chinese, Japanese) are naturally dairy-free and excellent references\n- When making a roux, use olive oil or vegan butter instead of butter — the technique is identical" } }, "technique": { "method": { "saute": "# Sauté\n\nHigh-heat, quick cooking in a wide pan with a small amount of fat. The word comes from French \"sauter\" — to jump.\n\n## When to Use\n- Vegetables that should stay crisp-tender (bell peppers, snap peas, asparagus)\n- Thin cuts of meat or fish (chicken cutlets, shrimp, scallops)\n- Finishing a dish with a pan sauce after searing\n\n## Key Technique\n1. **Heat the pan first**, then add oil. The oil should shimmer but not smoke.\n2. **Don't overcrowd** — ingredients should sit in a single layer with space between them. Work in batches if needed.\n3. **Keep things moving** — toss or stir frequently. The goal is even browning without burning.\n4. **Season at the end** — salt draws out moisture and can prevent browning.\n\n## Equipment\nA wide, flat-bottomed skillet or sauté pan. Stainless steel gives the best fond (browned bits) for pan sauces. Non-stick works for delicate items like fish.\n\n## Common Mistakes\n- Starting with a cold pan (food steams instead of searing)\n- Adding too much food at once (temperature drops, food boils)\n- Moving food too often when you want a sear (let it sit for 2–3 minutes)", "braise": "# Braise\n\nBraising combines dry heat (searing) and wet heat (simmering in liquid) for dishes that are deeply flavorful and fall-apart tender.\n\n## When to Use\n- Tough, collagen-rich cuts of meat (short ribs, pork shoulder, lamb shanks, chuck roast)\n- Root vegetables that benefit from long cooking (carrots, turnips, parsnips)\n- Any dish where you want rich, concentrated sauce built from the cooking liquid\n\n## Key Technique\n1. **Sear first** — Pat the protein dry, season generously, and sear in hot oil until deeply browned on all sides. This is where most of the flavor comes from.\n2. **Build aromatics** — Sauté onions, carrots, celery, and garlic in the same pot after searing.\n3. **Deglaze** — Add wine, stock, or other liquid and scrape up the fond (browned bits).\n4. **Submerge halfway** — The liquid should come about halfway up the protein, not cover it completely.\n5. **Low and slow** — Cover and cook at 150–165°C (300–325°F) for 2–4 hours until fork-tender.\n6. **Rest and reduce** — Remove the protein, strain and reduce the braising liquid into a sauce.\n\n## Equipment\nA heavy Dutch oven with a tight-fitting lid. Cast iron or enameled cast iron retains heat evenly.\n\n## Common Mistakes\n- Skipping the sear (you lose enormous flavor)\n- Cooking at too high a temperature (the protein toughens before the collagen breaks down)\n- Not reducing the braising liquid (thin, watery sauce instead of a rich glaze)", "grill": "# Grill\n\nGrilling uses direct radiant heat from below to cook food quickly, creating characteristic char marks and smoky flavor.\n\n## When to Use\n- Steaks, burgers, chops, and other quick-cooking proteins\n- Vegetables with enough structure to hold together (corn, zucchini, peppers, eggplant)\n- Flatbreads, pizza, and fruit (peaches, pineapple)\n\n## Key Technique\n1. **Preheat thoroughly** — 15–20 minutes with the lid closed. The grates should be too hot to hold your hand near for more than 2 seconds.\n2. **Clean and oil the grates** — Brush with a grill brush, then oil with a folded paper towel dipped in high-smoke-point oil.\n3. **Two-zone setup** — Pile coals on one side (or turn on only half the burners) for a hot sear zone and a cooler indirect zone.\n4. **Don't press** — Pressing burgers or chicken squeezes out juices. Let the food sit until it releases naturally.\n5. **Rest the meat** — Rest for 5–10 minutes after grilling. Internal temperature will rise 3–5°F during resting.\n\n## Temperature Guide\n- **High (230°C+ / 450°F+)** — Steaks, thin cuts, vegetables\n- **Medium (175–230°C / 350–450°F)** — Chicken pieces, fish, sausages\n- **Low indirect (120–150°C / 250–300°F)** — Whole chickens, ribs, large roasts\n\n## Common Mistakes\n- Opening the lid too often (loses heat and extends cooking time)\n- Only using direct heat (thick cuts burn outside before cooking through)\n- Not letting the grill preheat (food sticks and doesn't char properly)" } } } } }
+      ⚠ [system] You are a code-execution agent in a live TypeScript REPL. Do NOT write prose or natural language. Output ONLY valid TypeScript code. Every character you emit is executed. Re-read the system prompt and try again.
     </message>
-    <scope>
-      req: Object {cuisineType, dishName, servings, dietaryRestri...
-      cuisineType: string "italian"
-      dishName: string "Creamy Tomato Basil Pasta"
-      servings: number 4
-      dietaryRestriction: Array<string> ["vegetarian"]
-      cookingMethod: Array<string> ["saute"]
-      loaded: Object {cooking}
-    </scope>
   </turn>
 
-  <turn n="3" messages="7" finish="stop" model="gpt-5.4-nano-2026-03-17">
-    <usage input="7786" output="1601" total="9387" reasoning="0" cache-read="0" />
-    <message role="assistant">
-      var cuisineType = (req?.cuisineType ?? "italian") as string
-      var dishName = (req?.dishName ?? "Creamy Tomato Basil Pasta") as string
-      var servings = Number(req?.servings ?? 4) || 4
-      var dietaryRestriction = (Array.isArray(req?.dietaryRestriction) ? req?.dietaryRestriction : [req?.dietaryRestriction ?? "vegetarian"]) as string[]
-      var cookingMethod = (Array.isArray(req?.cookingMethod) ? req?.cookingMethod : [req?.cookingMethod ?? "saute"]) as string[]
-
-      var technique = (cookingMethod[0] ?? "saute") as string
-
-      var description = "Creamy, tomato-basil pasta with a silky sauce (no cream needed) and a fresh, vegetarian finish."
-      var estimatedTime = "35–40 minutes"
-      var difficulty = "Easy"
-      var rationale = "Uses a quick sauté build for aromatics and a tomato-basil base; finishes with pasta water to emulsify into a creamy texture."
-
-      var baseIngredients = [
-        { item: "Dried pasta (penne, rigatoni, or fusilli)", qty: 400, unit: "g" },
-        { item: "Olive oil", qty: 2, unit: "tbsp" },
-        { item: "Onion", qty: 1, unit: "medium" },
-        { item: "Garlic", qty: 3, unit: "cloves" },
-        { item: "Crushed tomatoes (canned)", qty: 1, unit: "can (28 oz / ~800 g)" },
-        { item: "Tomato paste", qty: 1, unit: "tbsp" },
-        { item: "Fresh basil", qty: 1, unit: "packed cup" },
-        { item: "Vegetable broth", qty: 0.5, unit: "cup" },
-        { item: "Parmesan (or vegetarian hard cheese)", qty: 0.5, unit: "cup, grated" },
-        { item: "Salt", qty: 1, unit: "to taste" },
-        { item: "Black pepper", qty: 0.5, unit: "tsp" },
-        { item: "Red pepper flakes (optional)", qty: 0.25, unit: "tsp" },
-      ]
-
-      var scale = servings / 4
-      var scaledIngredients = baseIngredients.map((ing) => {
-        var qtyNum = typeof ing.qty === "number" ? ing.qty * scale : ing.qty
-        return { item: ing.item, qty: qtyNum, unit: ing.unit }
-      })
-
-      var pantryAssumptions = [
-        "Salt and black pepper",
-        "Red pepper flakes (optional)",
-        "Vegetable broth (or use water + a bouillon cube)"
-      ]
-
-      var advancePrep = [
-        "Chop onion and mince garlic.",
-        "Grate parmesan (if using) and roughly chop basil leaves."
-      ]
-
-      var immediatePrep = [
-        "Bring a large pot of salted water to a boil.",
-        "Measure crushed tomatoes, tomato paste, and broth."
-      ]
-
-      var equipmentNeeded = [
-        "Large pot",
-        "Wide sauté pan or skillet",
-        "Wooden spoon or spatula",
-        "Knife and cutting board",
-        "Colander"
-      ]
-
-      var steps = [
-        "Cook pasta: Boil pasta in salted water until al dente. Reserve 1–1.5 cups of pasta water, then drain.",
-        "Sauté aromatics: In a wide pan over medium-high heat, warm olive oil. Add diced onion and cook 4–5 minutes until softened. Add garlic and cook 30–60 seconds until fragrant.",
-        "Build tomato base: Stir in tomato paste and cook 1 minute. Add crushed tomatoes and broth, scraping any browned bits. Simmer 8–10 minutes to thicken. Season with salt, pepper, and red pepper flakes (if using).",
-        "Emulsify into creamy sauce: Add drained pasta to the pan. Toss well, adding reserved pasta water 1/4 cup at a time until glossy and creamy (usually 1/2–1 cup total).",
-        "Finish: Turn off heat and stir in parmesan until melted. Add basil and toss just until wilted."
-      ]
-
-      var totalActiveTime = "20–25 minutes active"
-      var totalPassiveTime = "10–15 minutes simmering"
-
-      var ingredientsList = scaledIngredients.map((x) => {
-        if (typeof x.qty === "number") {
-          var rounded =
-            x.unit === "g" ? Math.round(x.qty) : x.unit === "cup" || x.unit === "tbsp" ? Math.round(x.qty * 10) / 10 : Math.round(x.qty * 10) / 10
-          return `${rounded} ${x.unit} ${x.item}`
-        }
-        return `${x.qty} ${x.unit} ${x.item}`
-      })
-
-      var methodText = (technique === "saute"
-        ? "Sauté the aromatics first for flavor, then simmer the tomato sauce and emulsify with pasta water for a creamy finish."
-        : "Use the selected technique to build flavor, then combine with pasta water to create a creamy emulsion."
-      )
-
-      var perServingApprox = {
-        calories: 520,
-        protein_g: 18,
-        carbs_g: 68,
-        fat_g: 18,
-        fiber_g: 6
-      }
-
-      var dietaryNotes = [
-        "Vegetarian (contains dairy if you use parmesan; omit for dairy-free).",
-        "Gluten-free only if you use gluten-free pasta."
-      ]
-
-      var nutrientSources = [
-        "Pasta (carbohydrates)",
-        "Crushed tomatoes (fiber, antioxidants)",
-        "Olive oil + parmesan (fats + some protein)",
-        "Basil and onion/garlic (micronutrients)"
-      ]
-
-      var timeToCook = "Total: ~35–40 minutes"
-
-      var recipeSteps = steps
-
-      display(<RecipeCard name={dishName} cuisine={cuisineType} method={methodText} servings={servings} time={timeToCook} ingredients={ingredientsList} steps={recipeSteps} />)
-
-      display(<div>
-        <div style={{ marginTop: 10, fontWeight: 700 }}>Nutrition (approx per serving, varies by brands)</div>
-        <div>Calories: {perServingApprox.calories} kcal</div>
-        <div>Protein: {perServingApprox.protein_g} g • Carbs: {perServingApprox.carbs_g} g • Fat: {perServingApprox.fat_g} g • Fiber: {perServingApprox.fiber_g} g</div>
-        <div style={{ marginTop: 8, fontWeight: 700 }}>Dietary notes</div>
-        {dietaryNotes.map((n) => <div key={n}>• {n}</div>)}
-      </div>)
-
-      completeTask("recipe", "select-cuisine-and-dish", { cuisineType, dishName, description, servings, estimatedTime, difficulty, rationale })
-      completeTask("recipe", "gather-ingredients", { categories: ["produce", "pantry", "dairy/optional"], servingsBase: 4, pantryAssumptions })
-      completeTask("recipe", "prepare-mise-en-place", { advancePrep, immediatePrep, equipmentNeeded })
-      completeTask("recipe", "cook-step-by-step", { steps: recipeSteps, totalActiveTime, totalPassiveTime })
-      completeTask("recipe", "analyze-nutrition", { perServing: perServingApprox, nutrientSources, dietaryNotes: dietaryNotes })
-    </message>
-    <scope>
-      req: Object {cuisineType, dishName, servings, dietaryRestri...
-      cuisineType: string "italian"
-      dishName: string "Creamy Tomato Basil Pasta"
-      servings: number 4
-      dietaryRestriction: Array<string> ["vegetarian"]
-      cookingMethod: Array<string> ["saute"]
-      loaded: Object {cooking}
-      technique: string "saute"
-      description: string "Creamy, tomato-basil pasta with a silky sauce ...
-      estimatedTime: string "35–40 minutes"
-      difficulty: string "Easy"
-      rationale: string "Uses a quick sauté build for aromatics and a t...
-      baseIngredients: Array<Object> [{item, qty, unit}, {item, qty, unit}, {item, q...
-      scale: number 1
-      scaledIngredients: Array<Object> [{item, qty, unit}, {item, qty, unit}, {item, q...
-      pantryAssumptions: Array<string> ["Salt and black p..., "Red pepper flake..., "V...
-      advancePrep: Array<string> ["Chop onion and m..., "Grate parmesan (...]
-      immediatePrep: Array<string> ["Bring a large po..., "Measure crushed ...]
-      equipmentNeeded: Array<string> ["Large pot", "Wide sauté pan o..., "Wooden spo...
-      steps: Array<string> ["Cook pasta: Boil..., "Sauté aromatics:..., "B...
-      totalActiveTime: string "20–25 minutes active"
-      totalPassiveTime: string "10–15 minutes simmering"
-      ingredientsList: Array<string> ["400 g Dried past..., "2 tbsp Olive oil", "1 m...
-      methodText: string "Sauté the aromatics first for flavor, then sim...
-      perServingApprox: Object {calories, protein_g, carbs_g, fat_g, fiber_g}
-      dietaryNotes: Array<string> ["Vegetarian (cont..., "Gluten-free only...]
-      nutrientSources: Array<string> ["Pasta (carbohydr..., "Crushed tomatoes..., "O...
-      timeToCook: string "Total: ~35–40 minutes"
-      recipeSteps: Array<string> ["Cook pasta: Boil..., "Sauté aromatics:..., "B...
-    </scope>
   </turn>
 
-  <finalize model="small" turns="3" status="complete">
-    <tokens input="18275" output="2013" total="20288" />
+  <finalize model="large" turns="3" status="executing">
+    <tokens input="0" output="0" total="0" />
   </finalize>
 
 </debug-log>

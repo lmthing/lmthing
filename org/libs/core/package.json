@@ -28,6 +28,7 @@
   "dependencies": {
     "@ai-sdk/openai-compatible": "^2.0.30",
     "@ai-sdk/provider": "^3.0.8",
+    "@modelcontextprotocol/sdk": "catalog:",
     "ai": "^6.0.86",
     "citty": "^0.1.0",
     "dotenv": "^16.4.0",
@@ -53,8 +54,6 @@
   },
   "devDependencies": {
     "@lmthing/repl": "workspace:*",
-    "@vitejs/plugin-react": "^4.3.0",
-    "vite": "^6.0.0",
     "@radix-ui/themes": "^3.0.0",
     "@swc/core": "^1.10.0",
     "@testing-library/react": "^16.0.0",
@@ -62,10 +61,12 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/ws": "^8.5.0",
+    "@vitejs/plugin-react": "^4.3.0",
     "jsdom": "^25.0.0",
     "shiki": "^1.0.0",
     "tsup": "^8.0.0",
     "tsx": "^4.0.0",
+    "vite": "^6.0.0",
     "vitest": "catalog:"
   }
 }

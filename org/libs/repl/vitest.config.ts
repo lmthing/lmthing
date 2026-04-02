@@ -1,9 +1,17 @@
 import { defineConfig } from 'vitest/config'
+import path from 'node:path'
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      'lmthing/core': path.resolve(__dirname, '../../core/src/index.ts'),
+    },
+  },
   test: {
     globals: true,
     environment: 'node',
+    envDir: '.',
+    setupFiles: ['./test/setup.ts'],
     include: [
       'src/**/*.{test,spec}.{ts,tsx}',
     ],

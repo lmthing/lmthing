@@ -16,5 +16,6 @@ export default defineConfig({
     'typescript',
     'better-sqlite3',
     'sharp',
+    '@modelcontextprotocol/sdk',
   ],
 })

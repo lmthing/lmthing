@@ -12,8 +12,17 @@ import type { FocusController } from '../focus';
 const STOP_DOCS = `### await stop(...values) — Pause and read
 Suspends your execution. The runtime evaluates each argument, serializes the results, and injects them as a user message prefixed with "← stop". You resume with knowledge of those values.
 
-Use stop when you need to inspect a runtime value before deciding what to write next.
-Example: await stop(x, y) → you will see: ← stop { x: <value>, y: <value> }
+Use stop to read UNKNOWN values that you need to see before continuing:
+- After ask(): pass the form variable — await stop(form)
+- After loadKnowledge(): call with NO arguments — await stop()
+- After async computations: pass the result variable — await stop(result)
+
+Do NOT use stop() to inspect variables you just created or that are already in your scope.
+
+Examples:
+await stop(x, y) → you will see: ← stop { x: <value>, y: <value> }
+var data = await ask(<Form />); await stop(data) → see form responses
+var k = loadKnowledge(...); await stop() → see loaded knowledge
 
 Retention hints: Include a _retain key to control how fast the stop payload decays.
 await stop(schema, _retain = "high")  // keeps values at full fidelity 2x longer
@@ -48,6 +57,34 @@ IMPORTANT:
 - Do NOT wrap ask() content in \`<form>\`. The host provides the form wrapper and submit button.
 - Always call await stop() right after ask() to see the values. Do NOT use the values before calling stop().
 - After stop(), you resume in a new turn with the form data visible.`;
+
+const LOAD_KNOWLEDGE_DOCS = `### var data = loadKnowledge(selector) — Load knowledge from spaces
+Loads knowledge entries from the space's knowledge base. The selector mirrors the knowledge tree structure: { spaceName: { domain: { field: { option: true } } } }.
+
+IMPORTANT: Call await stop() with NO arguments immediately after loadKnowledge() to see the loaded knowledge in a formatted view. The knowledge is returned as a variable but you should stop to see the full content before using it.
+
+Pattern:
+var cookingKnowledge = loadKnowledge({
+  cooking: {
+    cuisine: { type: { italian: true } },
+    dietary: { restriction: { vegetarian: true } }
+  }
+})
+await stop()  // NO arguments — see loaded knowledge
+// ← stop shows formatted knowledge content
+
+// Next turn: use the knowledge and call completeTask()
+completeTask("recipe", "select-cuisine", {
+  cuisineType: "italian",
+  dishName: "Pasta",
+  // ...
+})
+
+Rules:
+- Load ONLY the specific options relevant to your task — never load entire domains
+- Call await stop() with NO arguments to see what was loaded
+- Use the loaded knowledge to complete your task, then call completeTask()
+- Do NOT pass the knowledge variable to stop() — call stop() with no arguments`;
 
 const TASKLIST_DOCS = `### tasklist(tasklistId, description, tasks) — Declare a task plan with milestones
 Before starting any implementation work, declare a plan using tasklist(). This registers milestones with the host under a unique tasklistId. Each task has an id, instructions, and outputSchema describing the result shape. Tasks can optionally declare dependsOn (array of task IDs) for DAG dependencies, condition (JS expression for conditional execution), and optional (boolean, if true failure doesn't block dependents).
@@ -211,6 +248,7 @@ export function buildGlobalsSection(config: SystemPromptConfig, focus: FocusCont
     content += '\n' + STOP_DOCS;
     content += '\n' + DISPLAY_DOCS;
     content += '\n' + ASK_DOCS;
+    content += '\n' + LOAD_KNOWLEDGE_DOCS;
     content += '\n' + TASKLIST_DOCS;
     content += '\n' + SLEEP_DOCS;
     content += '\n' + PIN_DOCS;

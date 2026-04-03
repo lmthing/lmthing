@@ -127,7 +127,7 @@ export class AgentLoop {
     knowledgeContent: Map<string, KnowledgeContent>;
   }> = [];
   /** Tracks retention hints per stop message for adaptive decay. */
-  private stopRetentionHints: Map<number, 'high' | 'low'> = new Map();
+  private stopRetentionHints: Map<number, "high" | "low"> = new Map();
   /** Session start time for duration tracking. */
   private startTime = Date.now();
 
@@ -223,15 +223,15 @@ export class AgentLoop {
       agentInstruct = loaded.instruct;
 
       // Find the action and load its flow for additional context
-      const action = loaded.actions.find(a => a.id === actionId);
+      const action = loaded.actions.find((a) => a.id === actionId);
       if (action) {
-        const flowPath = resolve(spaceDir, 'flows', action.flow, 'index.md');
+        const flowPath = resolve(spaceDir, "flows", action.flow, "index.md");
         const flow = parseFlow(flowPath);
         if (flow) {
           flowInstruct = `You are executing the "${action.label}" action: ${action.description}
 
 ## Flow Steps
-${flow.steps.map(s => `${s.number}. ${s.name}: ${s.description}`).join('\n')}
+${flow.steps.map((s) => `${s.number}. ${s.name}: ${s.description}`).join("\n")}
 
 ## User Request
 ${request}
@@ -245,13 +245,13 @@ Follow the flow steps above to complete the request. Call stop() with your findi
 
     // Combine agent instruct with flow-specific context
     const combinedInstruct = flowInstruct
-      ? `${agentInstruct || ''}\n\n${flowInstruct}`
+      ? `${agentInstruct || ""}\n\n${flowInstruct}`
       : agentInstruct;
 
     // Build SpawnConfig from AgentSpawnConfig
     const spawnConfig: SpawnConfig = {
       directive: request,
-      context: options?.context ?? 'empty',
+      context: options?.context ?? "empty",
       maxTurns: 5,
       instruct: combinedInstruct,
       _originPromise,
@@ -291,7 +291,7 @@ Follow the flow steps above to complete the request. Call stop() with your findi
           const result = await Promise.race([
             Promise.resolve().then(() => branch.fn()),
             new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error('Branch timed out')), timeout)
+              setTimeout(() => reject(new Error("Branch timed out")), timeout),
             ),
           ]);
 
@@ -309,7 +309,7 @@ Follow the flow steps above to complete the request. Call stop() with your findi
             durationMs: Date.now() - start,
           };
         }
-      })
+      }),
     );
 
     return { results };
@@ -824,7 +824,7 @@ Follow the flow steps above to complete the request. Call stop() with your findi
       // Step 3: Feed cleaned code to session line by line
       const lines = code.split("\n");
       for (const line of lines) {
-        if (state.stop || state.error || state.taskViolation || state.taskContinue) break;
+        if (state.stop || state.error || state.taskViolation) break;
         const trimmed = line.trim();
         if (!trimmed) continue;
         try {
@@ -838,7 +838,7 @@ Follow the flow steps above to complete the request. Call stop() with your findi
 
       // Step 4: Flush remaining buffer if no interruption
       let tasklistIncomplete = false;
-      if (!state.stop && !state.error && !state.taskViolation && !state.taskContinue) {
+      if (!state.stop && !state.error && !state.taskViolation) {
         try {
           const result = await this.session.finalize();
           if (result === "tasklist_incomplete") {
@@ -862,32 +862,13 @@ Follow the flow steps above to complete the request. Call stop() with your findi
         continue;
       }
 
-      // Handle task complete with remaining tasks → inject next task guidance and loop
-      if (state.taskContinue) {
-        const cpState = this.session.snapshot().tasklistsState;
-        const continueMsg = buildTaskContinueMessage(
-          state.taskContinue.tasklistId,
-          state.taskContinue.completedTaskId,
-          state.taskContinue.readyTasks,
-          cpState,
-        );
-
-        this.messages.push({ role: "assistant", content: code });
-        this.messages.push({ role: "user", content: continueMsg });
-        this.refreshSystemPrompt();
-        this.logDebug("message", { role: "assistant", content: code });
-        this.logDebug("message", { role: "user", content: continueMsg });
-        this.logDebug("scope", this.session.snapshot().scope);
-        continue;
-      }
-
       // Handle stop → inject as user message and loop
       if (state.stop) {
         // Extract retention hint if present (_retain key)
-        let retainHint: 'high' | 'low' | undefined;
-        if ('_retain' in state.stop) {
+        let retainHint: "high" | "low" | undefined;
+        if ("_retain" in state.stop) {
           const retainVal = state.stop._retain?.value;
-          if (retainVal === 'high' || retainVal === 'low') {
+          if (retainVal === "high" || retainVal === "low") {
             retainHint = retainVal;
           }
           delete state.stop._retain;
@@ -952,6 +933,54 @@ Follow the flow steps above to complete the request. Call stop() with your findi
         this.logDebug("message", { role: "user", content: stopMsg });
         this.logDebug("scope", this.session.snapshot().scope);
         continue;
+      }
+
+      // Handle task complete with remaining tasks → inject next task guidance and loop
+      if (state.taskContinue) {
+        const cpState = this.session.snapshot().tasklistsState;
+        const tasklist = cpState.tasklists.get(state.taskContinue.tasklistId);
+
+        if (tasklist) {
+          const hasRemainingTasks = tasklist.plan.tasks.some((task) => {
+            const completion = tasklist.completed.get(task.id);
+            return (
+              (!completion ||
+                (completion.status !== "completed" && completion.status !== "skipped")) &&
+              !task.optional
+            );
+          });
+
+          if (hasRemainingTasks && tasklist.readyTasks.size > 0) {
+            const readyTasks = [...tasklist.readyTasks]
+              .map((readyId) => {
+                const readyTask = tasklist.plan.tasks.find((task) => task.id === readyId);
+                if (!readyTask) return null;
+                return {
+                  id: readyTask.id,
+                  instructions: readyTask.instructions,
+                  outputSchema: readyTask.outputSchema,
+                };
+              })
+              .filter((task): task is NonNullable<typeof task> => task !== null);
+
+            if (readyTasks.length > 0) {
+              const continueMsg = buildTaskContinueMessage(
+                state.taskContinue.tasklistId,
+                state.taskContinue.completedTaskId,
+                readyTasks,
+                cpState,
+              );
+
+              this.messages.push({ role: "assistant", content: code });
+              this.messages.push({ role: "user", content: continueMsg });
+              this.refreshSystemPrompt();
+              this.logDebug("message", { role: "assistant", content: code });
+              this.logDebug("message", { role: "user", content: continueMsg });
+              this.logDebug("scope", this.session.snapshot().scope);
+              continue;
+            }
+          }
+        }
       }
 
       // Handle task order violation → inject guidance and loop (takes priority over generic error)
@@ -1131,9 +1160,9 @@ Follow the flow steps above to complete the request. Call stop() with your findi
 
       // Apply adaptive decay multiplier from retention hints
       const retainHint = this.stopRetentionHints.get(ks.messageIndex);
-      if (retainHint === 'high') {
+      if (retainHint === "high") {
         distance = Math.floor(distance / 2); // decay half as fast
-      } else if (retainHint === 'low') {
+      } else if (retainHint === "low") {
         distance = distance * 2; // decay twice as fast
       }
 
@@ -1161,9 +1190,8 @@ Follow the flow steps above to complete the request. Call stop() with your findi
     const estimateTokens = (s: string) => Math.ceil(s.length / 4);
     const maxTokens = 100_000; // default context window
 
-    const systemPromptTokens = this.messages.length > 0
-      ? estimateTokens(this.messages[0].content)
-      : 0;
+    const systemPromptTokens =
+      this.messages.length > 0 ? estimateTokens(this.messages[0].content) : 0;
     let messageHistoryTokens = 0;
     for (let i = 1; i < this.messages.length; i++) {
       messageHistoryTokens += estimateTokens(this.messages[i].content);
@@ -1172,19 +1200,19 @@ Follow the flow steps above to complete the request. Call stop() with your findi
     const remainingTokens = Math.max(0, maxTokens - usedTokens);
 
     // Determine current decay levels based on turn count
-    let stopDecay: string = 'full';
-    if (this.totalTurns > 10) stopDecay = 'removed';
-    else if (this.totalTurns > 5) stopDecay = 'count';
-    else if (this.totalTurns > 2) stopDecay = 'keys';
+    let stopDecay: string = "full";
+    if (this.totalTurns > 10) stopDecay = "removed";
+    else if (this.totalTurns > 5) stopDecay = "count";
+    else if (this.totalTurns > 2) stopDecay = "keys";
 
-    let knowledgeDecay: string = 'full';
-    if (this.totalTurns > 4) knowledgeDecay = 'names';
-    else if (this.totalTurns > 2) knowledgeDecay = 'headers';
-    else if (this.totalTurns > 0) knowledgeDecay = 'truncated';
+    let knowledgeDecay: string = "full";
+    if (this.totalTurns > 4) knowledgeDecay = "names";
+    else if (this.totalTurns > 2) knowledgeDecay = "headers";
+    else if (this.totalTurns > 0) knowledgeDecay = "truncated";
 
     const ratio = usedTokens / maxTokens;
-    const recommendation: 'nominal' | 'conserve' | 'critical' =
-      ratio > 0.85 ? 'critical' : ratio > 0.6 ? 'conserve' : 'nominal';
+    const recommendation: "nominal" | "conserve" | "critical" =
+      ratio > 0.85 ? "critical" : ratio > 0.6 ? "conserve" : "nominal";
 
     return {
       totalTokens: maxTokens,
@@ -1204,9 +1232,9 @@ Follow the flow steps above to complete the request. Call stop() with your findi
   getTrace(): TraceSnapshot {
     const snapshot = this.session.snapshot();
     const asyncTasks = snapshot.asyncTasks;
-    const completed = asyncTasks.filter(t => t.status === 'completed').length;
-    const failed = asyncTasks.filter(t => t.status === 'failed').length;
-    const running = asyncTasks.filter(t => t.status === 'running').length;
+    const completed = asyncTasks.filter((t) => t.status === "completed").length;
+    const failed = asyncTasks.filter((t) => t.status === "failed").length;
+    const running = asyncTasks.filter((t) => t.status === "running").length;
 
     // Rough cost estimate based on token usage (GPT-4o-class pricing ~$5/1M input, $15/1M output)
     const inputCost = (this.tokenTotals.inputTokens / 1_000_000) * 5;
@@ -1238,21 +1266,21 @@ Follow the flow steps above to complete the request. Call stop() with your findi
     constraints?: string[],
   ): Promise<Array<{ id: string; instructions: string; dependsOn?: string[] }>> {
     const constraintStr = constraints?.length
-      ? `\n\nConstraints:\n${constraints.map(c => `- ${c}`).join('\n')}`
-      : '';
+      ? `\n\nConstraints:\n${constraints.map((c) => `- ${c}`).join("\n")}`
+      : "";
 
     const result = streamText({
       model: this.model,
       messages: [
         {
-          role: 'system',
+          role: "system",
           content:
-            'You are a task planner. Given a goal, decompose it into concrete, sequential steps. ' +
-            'Respond with ONLY a JSON array of task objects, each with: id (snake_case), instructions (clear action), ' +
-            'and optional dependsOn (array of task ids). Keep to 3-8 tasks. No prose, no markdown.',
+            "You are a task planner. Given a goal, decompose it into concrete, sequential steps. " +
+            "Respond with ONLY a JSON array of task objects, each with: id (snake_case), instructions (clear action), " +
+            "and optional dependsOn (array of task ids). Keep to 3-8 tasks. No prose, no markdown.",
         },
         {
-          role: 'user',
+          role: "user",
           content: `Goal: ${goal}${constraintStr}`,
         },
       ],
@@ -1260,23 +1288,26 @@ Follow the flow steps above to complete the request. Call stop() with your findi
       maxOutputTokens: 2048,
     });
 
-    let text = '';
+    let text = "";
     for await (const chunk of result.textStream) {
       text += chunk;
     }
 
-    const jsonStr = text.replace(/```json?\s*/g, '').replace(/```\s*/g, '').trim();
+    const jsonStr = text
+      .replace(/```json?\s*/g, "")
+      .replace(/```\s*/g, "")
+      .trim();
     try {
       const tasks = JSON.parse(jsonStr);
-      if (!Array.isArray(tasks)) throw new Error('Expected array');
+      if (!Array.isArray(tasks)) throw new Error("Expected array");
       return tasks.map((t: any) => ({
-        id: String(t.id ?? ''),
-        instructions: String(t.instructions ?? ''),
+        id: String(t.id ?? ""),
+        instructions: String(t.instructions ?? ""),
         ...(t.dependsOn ? { dependsOn: t.dependsOn.map(String) } : {}),
       }));
     } catch {
       // Return a single fallback task
-      return [{ id: 'execute', instructions: goal }];
+      return [{ id: "execute", instructions: goal }];
     }
   }
 
@@ -1288,21 +1319,21 @@ Follow the flow steps above to complete the request. Call stop() with your findi
     criteria: string[],
     context?: string,
   ): Promise<CritiqueResult> {
-    const contextStr = context ? `\n\nContext: ${context}` : '';
-    const criteriaStr = criteria.map(c => `- ${c}`).join('\n');
+    const contextStr = context ? `\n\nContext: ${context}` : "";
+    const criteriaStr = criteria.map((c) => `- ${c}`).join("\n");
 
     const result = streamText({
       model: this.model,
       messages: [
         {
-          role: 'system',
+          role: "system",
           content:
-            'You are a quality reviewer. Evaluate the output against the given criteria. ' +
+            "You are a quality reviewer. Evaluate the output against the given criteria. " +
             'Respond with ONLY valid JSON: { "pass": boolean, "overallScore": 0-1, "scores": { criterion: 0-1 }, "issues": ["..."], "suggestions": ["..."] }. ' +
-            'pass is true if overallScore >= 0.7. No markdown, no prose.',
+            "pass is true if overallScore >= 0.7. No markdown, no prose.",
         },
         {
-          role: 'user',
+          role: "user",
           content: `Evaluate this output:\n\n${output.slice(0, 3000)}\n\nCriteria:\n${criteriaStr}${contextStr}`,
         },
       ],
@@ -1310,12 +1341,15 @@ Follow the flow steps above to complete the request. Call stop() with your findi
       maxOutputTokens: 1024,
     });
 
-    let text = '';
+    let text = "";
     for await (const chunk of result.textStream) {
       text += chunk;
     }
 
-    const jsonStr = text.replace(/```json?\s*/g, '').replace(/```\s*/g, '').trim();
+    const jsonStr = text
+      .replace(/```json?\s*/g, "")
+      .replace(/```\s*/g, "")
+      .trim();
     try {
       const parsed = JSON.parse(jsonStr);
       return {
@@ -1330,7 +1364,7 @@ Follow the flow steps above to complete the request. Call stop() with your findi
         pass: false,
         overallScore: 0,
         scores: {},
-        issues: ['Failed to parse critique response'],
+        issues: ["Failed to parse critique response"],
         suggestions: [],
       };
     }
@@ -1368,7 +1402,10 @@ Respond with ONLY valid JSON (no markdown, no prose):
       const result = streamText({
         model: this.model,
         messages: [
-          { role: "system", content: "You are a concise code review assistant. Respond only with valid JSON." },
+          {
+            role: "system",
+            content: "You are a concise code review assistant. Respond only with valid JSON.",
+          },
           { role: "user", content: reflectionPrompt },
         ],
         temperature: 0.1,
@@ -1381,7 +1418,10 @@ Respond with ONLY valid JSON (no markdown, no prose):
       }
 
       // Parse JSON from response (strip markdown fences if present)
-      const jsonStr = text.replace(/```json?\s*/g, "").replace(/```\s*/g, "").trim();
+      const jsonStr = text
+        .replace(/```json?\s*/g, "")
+        .replace(/```\s*/g, "")
+        .trim();
       const parsed = JSON.parse(jsonStr);
       return {
         assessment: parsed.assessment ?? "No assessment",
@@ -1418,7 +1458,10 @@ Respond with ONLY the compressed summary, no explanation.`;
       const result = streamText({
         model: this.model,
         messages: [
-          { role: "system", content: "You compress data into token-efficient summaries. Output only the summary." },
+          {
+            role: "system",
+            content: "You compress data into token-efficient summaries. Output only the summary.",
+          },
           { role: "user", content: compressPrompt },
         ],
         temperature: 0.0,
@@ -1480,7 +1523,10 @@ Respond with ONLY the compressed summary, no explanation.`;
         }
 
         // Try to parse JSON
-        const jsonStr = text.replace(/```json?\s*/g, "").replace(/```\s*/g, "").trim();
+        const jsonStr = text
+          .replace(/```json?\s*/g, "")
+          .replace(/```\s*/g, "")
+          .trim();
         try {
           const output = JSON.parse(jsonStr);
           return { output, turns, success: true };
@@ -1488,7 +1534,10 @@ Respond with ONLY the compressed summary, no explanation.`;
           // If parsing failed and we have more turns, ask for correction
           if (t < maxTurns - 1) {
             messages.push({ role: "assistant", content: text });
-            messages.push({ role: "user", content: "That was not valid JSON. Please respond with ONLY valid JSON." });
+            messages.push({
+              role: "user",
+              content: "That was not valid JSON. Please respond with ONLY valid JSON.",
+            });
           } else {
             return {
               output: { raw: text.slice(0, 500) },

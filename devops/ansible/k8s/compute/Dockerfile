@@ -6,11 +6,11 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 
 # Copy repl package and install dependencies
-COPY org/libs/repl/package.json ./package.json
+COPY sdk/org/repl/package.json ./package.json
 RUN bun install --production
 
 # Copy repl source
-COPY org/libs/repl/src ./src
+COPY sdk/org/repl/src ./src
 
 # User spaces are mounted or synced at runtime via /data/spaces
 RUN mkdir -p /data/spaces

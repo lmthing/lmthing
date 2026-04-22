@@ -18,15 +18,17 @@
 ```
 MetalLB (L2 ARP — advertises node IP for LoadBalancer Services)
 │
-Envoy Gateway (Gateway API — sole ingress controller)
-├── lmthing.cloud (cloud-gw)
+Envoy Gateway (Gateway API — sole ingress controller)  lmthing-gw
+├── lmthing.cloud
 │   ├── /v1/*  → LiteLLM :4000          (lmthing namespace)
 │   └── /api/* → Gateway/Hono :3000     (lmthing namespace)
-└── lmthing.computer (computer-gw)
-    ├── /api/* → JWT → Lua → user-{id} pod :8080  (dynamic per-user routing)
-    └── /*     → Computer SPA :80       (lmthing namespace)
+├── lmthing.computer
+│   ├── /api/* → JWT → Lua → user-{id} pod :8080  (dynamic per-user routing)
+│   └── /*     → Computer SPA :80       (lmthing namespace)
+└── lmthing.{studio,chat,com,blog,social,store,space,team,casa}
+    └── /*     → SPA nginx :80          (lmthing namespace, one deployment each)
 
-cert-manager → ClusterIssuer (letsencrypt-prod) → Certificate per domain
+cert-manager → ClusterIssuer (letsencrypt-prod) → Certificate per domain (11 total)
 ```
 
 ### How It Works
@@ -34,16 +36,17 @@ cert-manager → ClusterIssuer (letsencrypt-prod) → Certificate per domain
 1. Terraform provisions Azure VMs (resource group, VNet, NSG, VMs)
 2. `generate-inventory.sh` creates Kubespray inventory from Terraform outputs
 3. Kubespray provisions K8s cluster with MetalLB + cert-manager addons
-4. Envoy Gateway installed via Helm — provides Gateway API CRDs
+4. Envoy Gateway installed via Helm — provides Gateway API CRDs, Backend API enabled via `extensionApis.enableBackend: true`
 5. ArgoCD installed via Helm — provides GitOps continuous deployment
 6. Ansible creates K8s secrets from Ansible Vault (secrets stay outside git)
 7. ArgoCD Applications bootstrap — syncs core services + envoy resources from git
-8. ArgoCD auto-syncs `devops/argocd/core/` → `lmthing` namespace (LiteLLM, Gateway, Computer SPA)
+8. ArgoCD auto-syncs `devops/argocd/core/` → `lmthing` namespace (LiteLLM, Gateway, 10 SPA deployments)
 9. ArgoCD auto-syncs `devops/argocd/envoy/` → `gateway` namespace (routing, TLS, policies)
-10. cert-manager auto-issues Let's Encrypt TLS certs for both domains
+10. cert-manager auto-issues Let's Encrypt TLS certs for all 11 domains
 11. Per-user compute pods created by Gateway/Hono when user subscribes to Pro tier
 12. Envoy Lua script routes `/api/*` requests to `lmthing.user-{id}.svc.cluster.local:8080`
-13. Ongoing changes: push to git → ArgoCD auto-syncs (no manual `kubectl apply` needed)
+13. GitHub Actions CI builds images on push to `main`, pushes to ACR, auto-commits updated tags → ArgoCD redeploys
+14. Ongoing changes: push to git → ArgoCD auto-syncs (no manual `kubectl apply` needed)
 
 ### Key Differences from K3s Setup (cloud/)
 
@@ -618,6 +621,7 @@ To update domain values: edit `argocd/envoy/config.yaml`, push to git, ArgoCD au
 ## Gotchas
 
 - **Encrypt vault.yml before committing** — the file ships as plaintext template. Run `ansible-vault encrypt vault.yml` after filling in real values.
+- **`extensionApis.enableBackend: true` is required** — without it the `DynamicResolver` Backend is disabled and all `/api/*` requests to `lmthing.computer` return 500. The Ansible role passes this as a Helm value; do not remove it.
 - **Secrets are NOT managed by ArgoCD** — secrets are created by the `cloud_secrets` Ansible role. If you change vault secrets, run `make deploy-secrets` (ArgoCD won't pick up secret changes from git).
 - **Update `argocd/envoy/config.yaml` before first deploy** — set your actual domain values and Supabase project reference.
 - **ArgoCD auto-sync delay** — ArgoCD polls git every 3 minutes by default. Use `make argocd-sync APP=<name>` for immediate sync.

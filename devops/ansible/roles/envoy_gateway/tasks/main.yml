@@ -17,6 +17,11 @@
     create_namespace: true
     wait: true
     wait_timeout: "300s"
+    values:
+      config:
+        envoyGateway:
+          extensionApis:
+            enableBackend: true
 
 - name: Wait for Envoy Gateway controller to be ready
   kubernetes.core.k8s_info:

@@ -1,9 +1,0 @@
-{
-  "label": "Method",
-  "description": "Which cooking method to use",
-  "fieldType": "multiSelect",
-  "required": false,
-  "default": "saute",
-  "variableName": "cookingMethod",
-  "renderAs": "field"
-}

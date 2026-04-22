@@ -1,9 +1,0 @@
-{
-  "label": "Nutrient",
-  "description": "Which vitamin or mineral to learn about",
-  "fieldType": "select",
-  "required": false,
-  "default": "vitamin-d",
-  "variableName": "nutrient",
-  "renderAs": "field"
-}

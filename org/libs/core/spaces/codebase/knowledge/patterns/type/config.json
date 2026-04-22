@@ -1,8 +1,0 @@
-{
-  "label": "Pattern Type",
-  "description": "Which pattern or convention to explore",
-  "fieldType": "multiSelect",
-  "required": false,
-  "variableName": "patternType",
-  "renderAs": "field"
-}

@@ -1,7 +1,0 @@
-{
-  "label": "Code Patterns",
-  "description": "Conventions, patterns, and architectural decisions used across the codebase",
-  "icon": "🏗️",
-  "color": "#e74c3c",
-  "renderAs": "section"
-}

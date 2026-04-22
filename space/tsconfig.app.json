@@ -23,15 +23,15 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@lmthing/auth": ["../org/libs/auth/src/index.ts"],
-      "@lmthing/auth/*": ["../org/libs/auth/src/*"],
-      "@lmthing/ui": ["../org/libs/ui/src"],
-      "@lmthing/ui/*": ["../org/libs/ui/src/*"],
-      "@lmthing/css/*": ["../org/libs/css/src/*"],
-      "@lmthing/state": ["../org/libs/state/src/index.ts"],
-      "@lmthing/state/*": ["../org/libs/state/src/*"],
-      "lmthing": ["../org/libs/core/src"]
+      "@lmthing/auth": ["../sdk/libs/auth/src/index.ts"],
+      "@lmthing/auth/*": ["../sdk/libs/auth/src/*"],
+      "@lmthing/ui": ["../sdk/libs/ui/src"],
+      "@lmthing/ui/*": ["../sdk/libs/ui/src/*"],
+      "@lmthing/css/*": ["../sdk/libs/css/src/*"],
+      "@lmthing/state": ["../sdk/libs/state/src/index.ts"],
+      "@lmthing/state/*": ["../sdk/libs/state/src/*"],
+      "lmthing": ["../sdk/org/cli/src"]
     }
   },
-  "include": ["src", "../org/libs/ui/src", "../org/libs/css/src"]
+  "include": ["src", "../sdk/libs/ui/src", "../sdk/libs/css/src"]
 }

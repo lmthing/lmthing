@@ -84,4 +84,4 @@ Images are built by GitHub Actions CI and pushed to `lmthingacr.azurecr.io/compu
 
 ## Space Templates
 
-The `gen-spaces` script snapshots space templates from `org/libs/core/spaces/` and `org/libs/spaces/` for WebContainer initialization.
+The `gen-spaces` script snapshots space templates from `sdk/org/cli/spaces/` and `sdk/libs/spaces/` for WebContainer initialization.

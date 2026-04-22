@@ -108,7 +108,7 @@ graph TB
         GitHub["GitHub API<br/>OAuth + Repo Sync"]
     end
 
-    subgraph Library["org/libs/core"]
+    subgraph Library["sdk/org/cli"]
         Core["lmthing Framework<br/>Streaming REPL Agent · Vercel AI SDK · CLI"]
     end
 
@@ -124,7 +124,7 @@ graph TB
 
 ## Key Packages
 
-### org/libs/core — Streaming TypeScript REPL Agent
+### sdk/org/cli — Streaming TypeScript REPL Agent
 
 A streaming TypeScript REPL agent system that executes LLM-generated code line-by-line with control primitives and a React render surface. The agent writes only TypeScript — no prose — and the host runtime parses, executes, and renders in real time.
 
@@ -198,7 +198,7 @@ graph TB
     LLM --> Providers
 ```
 
-### org/libs/state — Virtual File System
+### sdk/libs/state — Virtual File System
 
 In-memory VFS for browser-based workspace management:
 
@@ -233,14 +233,14 @@ graph TB
     Hooks --> SpaceCtx
 ```
 
-### org/libs/thing — THING Agent System Studio
+### sdk/libs/thing — THING Agent System Studio
 
 Built-in spaces that ship with the THING agent. These are system-level spaces providing meta-capabilities for the entire lmthing ecosystem — from teaching users how to create spaces, to controlling each service on behalf of the user.
 
 7 built-in spaces (12 agents, 12 flows, 17 knowledge domains):
 
 ```
-org/libs/thing/
+sdk/libs/thing/
 ├── package.json                          # @lmthing/thing
 └── spaces/
     ├── space-creator/                    # Meta-space for creating spaces
@@ -533,13 +533,13 @@ All frontend apps share the same stack:
 
 - [Architecture.md](./Architecture.md) — full product & domain architecture
 - [devops/CLAUDE.md](./devops/CLAUDE.md) — infrastructure & deployment guide
-- [org/libs/core/](./org/libs/core/) — streaming REPL agent framework source
-- [org/libs/core/CLAUDE.md](./org/libs/core/CLAUDE.md) — detailed REPL agent architecture reference
-- [org/libs/repl/](./org/libs/repl/) — REPL sandbox runtime
-- [org/libs/state/](./org/libs/state/) — VFS library source
-- [org/libs/css/](./org/libs/css/) — shared styles
-- [org/libs/ui/](./org/libs/ui/) — shared UI components
-- [org/libs/thing/](./org/libs/thing/) — THING agent system studio (built-in spaces)
+- [sdk/org/cli/](./sdk/org/cli/) — streaming REPL agent framework source
+- [sdk/org/cli/CLAUDE.md](./sdk/org/cli/CLAUDE.md) — detailed REPL agent architecture reference
+- [sdk/org/repl/](./sdk/org/repl/) — REPL sandbox runtime
+- [sdk/libs/state/](./sdk/libs/state/) — VFS library source
+- [sdk/libs/css/](./sdk/libs/css/) — shared styles
+- [sdk/libs/ui/](./sdk/libs/ui/) — shared UI components
+- [sdk/libs/thing/](./sdk/libs/thing/) — THING agent system studio (built-in spaces)
 
 ---
 
@@ -557,13 +557,13 @@ This repository is a monorepo organized by TLD — each lmthing.\* domain has it
 
 ## Shared Libraries
 
-- `org/libs/core/` — Streaming TypeScript REPL agent framework (Vercel AI SDK v6). Executes LLM-generated code line-by-line via `vm.Context` sandbox with 12 globals (`stop`, `display`, `ask`, `async`, `tasklist`, etc.), context management (SCOPE, code window, payload decay), developer hooks (AST-based interception), spaces/agents architecture, multi-provider support, CLI (`lmthing run`).
-- `org/libs/repl/` — REPL sandbox runtime (`@lmthing/repl`). Standalone package for the TypeScript REPL execution engine used by the compute pods.
-- `org/libs/state/` — Virtual file system (`@lmthing/state`). In-memory Map-based VFS with FSEventBus, React context hierarchy, and hooks (`useFile`, `useDir`, `useGlob`, `useDraft`).
-- `org/libs/spaces/` — Shared space knowledge content.
-- `org/libs/css/` — Shared styles used across all product domains.
-- `org/libs/ui/` — Shared React UI components used across all product domains.
-- `org/libs/thing/` — THING agent system studio (`@lmthing/thing`). 7 built-in spaces that ship with the THING agent: `space-creator` (meta-space for creating spaces), `space-ecosystem` (platform navigation, account/billing), `space-studio` (agent building, workspace management, prompt optimization), `space-chat` (personal chat interface), `space-computer` (compute pod management, troubleshooting), `space-deploy` (space deployment lifecycle), `space-store` (marketplace publishing, listing optimization). Total: 12 agents, 12 flows, 17 knowledge domains across all spaces.
+- `sdk/org/cli/` — Streaming TypeScript REPL agent framework (Vercel AI SDK v6). Executes LLM-generated code line-by-line via `vm.Context` sandbox with 12 globals (`stop`, `display`, `ask`, `async`, `tasklist`, etc.), context management (SCOPE, code window, payload decay), developer hooks (AST-based interception), spaces/agents architecture, multi-provider support, CLI (`lmthing run`). Lives in the `lmthing/org` submodule.
+- `sdk/org/repl/` — REPL sandbox runtime (`@lmthing/repl`). Standalone package for the TypeScript REPL execution engine used by the compute pods. Lives in the `lmthing/org` submodule.
+- `sdk/libs/state/` — Virtual file system (`@lmthing/state`). In-memory Map-based VFS with FSEventBus, React context hierarchy, and hooks (`useFile`, `useDir`, `useGlob`, `useDraft`).
+- `sdk/libs/spaces/` — Shared space knowledge content.
+- `sdk/libs/css/` — Shared styles used across all product domains.
+- `sdk/libs/ui/` — Shared React UI components used across all product domains.
+- `sdk/libs/thing/` — THING agent system studio (`@lmthing/thing`). 7 built-in spaces that ship with the THING agent: `space-creator` (meta-space for creating spaces), `space-ecosystem` (platform navigation, account/billing), `space-studio` (agent building, workspace management, prompt optimization), `space-chat` (personal chat interface), `space-computer` (compute pod management, troubleshooting), `space-deploy` (space deployment lifecycle), `space-store` (marketplace publishing, listing optimization). Total: 12 agents, 12 flows, 17 knowledge domains across all spaces.
 
 ## Cloud Backend
 

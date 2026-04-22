@@ -10,7 +10,8 @@ packages:
   - store
   - team
   - cloud
-  - org/libs/*
+  - sdk/libs/*
+  - sdk/org/*
 
 catalog:
   '@modelcontextprotocol/sdk': 1.29.0

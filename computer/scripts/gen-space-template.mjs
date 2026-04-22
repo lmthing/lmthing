@@ -8,8 +8,8 @@
  *
  * Example:
  *   node scripts/gen-space-template.mjs \
- *     ../org/libs/core/spaces/codebase \
- *     ../org/libs/spaces/knowledge
+ *     ../sdk/org/cli/spaces/codebase \
+ *     ../sdk/libs/spaces/knowledge
  */
 
 import { readFileSync, readdirSync, statSync } from 'fs'

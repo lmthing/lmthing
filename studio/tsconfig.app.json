@@ -35,28 +35,28 @@
         "./src/*"
       ],
       "@lmthing/ui": [
-        "../org/libs/ui/src"
+        "../sdk/libs/ui/src"
       ],
       "@lmthing/ui/*": [
-        "../org/libs/ui/src/*"
+        "../sdk/libs/ui/src/*"
       ],
       "@lmthing/css/*": [
-        "../org/libs/css/src/*"
+        "../sdk/libs/css/src/*"
       ],
       "@lmthing/state": [
-        "../org/libs/state/src/index.ts"
+        "../sdk/libs/state/src/index.ts"
       ],
       "@lmthing/state/*": [
-        "../org/libs/state/src/*"
+        "../sdk/libs/state/src/*"
       ],
       "lmthing": [
-        "../org/libs/core/src"
+        "../sdk/org/cli/src"
       ]
     }
   },
   "include": [
     "src",
-    "../org/libs/ui/src",
-    "../org/libs/css/src"
+    "../sdk/libs/ui/src",
+    "../sdk/libs/css/src"
   ]
 }

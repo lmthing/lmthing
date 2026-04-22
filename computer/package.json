@@ -10,7 +10,7 @@
     "preview": "vp preview",
     "test": "vp test",
     "test:run": "vp test run",
-    "gen-spaces": "node scripts/gen-space-template.mjs ../org/libs/core/spaces/codebase ../org/libs/spaces/knowledge > src/lib/runtime/spaces-snapshot.ts"
+    "gen-spaces": "node scripts/gen-space-template.mjs ../sdk/org/cli/spaces/codebase ../sdk/libs/spaces/knowledge > src/lib/runtime/spaces-snapshot.ts"
   },
   "dependencies": {
     "@lmthing/auth": "workspace:*",

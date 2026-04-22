@@ -1,9 +1,0 @@
-{
-  "label": "Macronutrient Type",
-  "description": "Which macronutrient to learn about",
-  "fieldType": "select",
-  "required": false,
-  "default": "protein",
-  "variableName": "macroType",
-  "renderAs": "field"
-}

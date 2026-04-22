@@ -40,11 +40,11 @@ Add the plan to the `plans` array (renders left to right on the pricing page). S
 
 ### 6. Knowledge Base — Tier knowledge file
 
-Create `org/libs/thing/spaces/space-ecosystem/knowledge/billing-context/plan-tier/yourtier.md` with frontmatter (`title`, `description`, `order`) describing the tier.
+Create `sdk/libs/thing/spaces/space-ecosystem/knowledge/billing-context/plan-tier/yourtier.md` with frontmatter (`title`, `description`, `order`) describing the tier.
 
 ### 7. Knowledge Base — Tier config
 
-Add the tier slug to the `options` array in `org/libs/thing/spaces/space-ecosystem/knowledge/billing-context/plan-tier/config.json`.
+Add the tier slug to the `options` array in `sdk/libs/thing/spaces/space-ecosystem/knowledge/billing-context/plan-tier/config.json`.
 
 ### 8. Knowledge Base — Reorder existing tiers
 
@@ -57,7 +57,7 @@ Update tier tables and `(Free/Starter/Basic/Pro/Max)` references in:
 - `cloud/CLAUDE.md` — tier table + env var table
 - `cloud/README.md`
 - `com/CLAUDE.md` — tier count
-- `org/libs/repl/spaces/codebase/knowledge/stack/layer/backend.md`
+- `sdk/org/repl/spaces/codebase/knowledge/stack/layer/backend.md`
 
 ### 10. Deploy
 

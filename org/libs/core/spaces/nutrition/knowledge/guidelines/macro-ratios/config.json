@@ -1,5 +1,0 @@
-{
-  "fieldType": "select",
-  "default": "balanced",
-  "variableName": "macroRatio"
-}

@@ -18,21 +18,22 @@ COPY space/package.json          space/
 COPY store/package.json          store/
 COPY studio/package.json         studio/
 COPY team/package.json           team/
-COPY org/libs/auth/package.json  org/libs/auth/
-COPY org/libs/core/package.json  org/libs/core/
-COPY org/libs/css/package.json   org/libs/css/
-COPY org/libs/repl/package.json  org/libs/repl/
-COPY org/libs/state/package.json org/libs/state/
-COPY org/libs/thing/package.json org/libs/thing/
-COPY org/libs/ui/package.json    org/libs/ui/
-COPY org/libs/utils/package.json org/libs/utils/
+COPY sdk/libs/auth/package.json  sdk/libs/auth/
+COPY sdk/org/cli/package.json    sdk/org/cli/
+COPY sdk/libs/css/package.json   sdk/libs/css/
+COPY sdk/org/repl/package.json   sdk/org/repl/
+COPY sdk/libs/state/package.json sdk/libs/state/
+COPY sdk/libs/thing/package.json sdk/libs/thing/
+COPY sdk/libs/ui/package.json    sdk/libs/ui/
+COPY sdk/libs/utils/package.json sdk/libs/utils/
 
 RUN pnpm install --frozen-lockfile
 
 # Copy source for studio and its workspace dependencies
 COPY studio/ studio/
-COPY org/libs/ org/libs/
-COPY org/common/ org/common/
+COPY sdk/libs/ sdk/libs/
+COPY sdk/org/ sdk/org/
+COPY sdk/common/ sdk/common/
 
 RUN pnpm --filter @lmthing/app build
 

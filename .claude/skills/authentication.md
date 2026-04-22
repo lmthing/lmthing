@@ -59,7 +59,7 @@ This allows local development without running the cloud gateway or com/ auth ser
 | File | Purpose |
 |------|---------|
 | `com/src/lib/cloud.ts` | JWT + refresh token management, `cloudFetch()` |
-| `org/libs/auth/src/` | `@lmthing/auth` — cross-domain SSO client library |
+| `sdk/libs/auth/src/` | `@lmthing/auth` — cross-domain SSO client library |
 | `cloud/gateway/src/routes/auth.ts` | Auth route handlers |
 | `cloud/gateway/src/middleware/auth.ts` | JWT verification middleware |
 
@@ -111,10 +111,10 @@ const { username, isAuthenticated, isLoading, login, logout } = useAuth();
 
 ### 4. Ensure the Vite alias is registered
 
-In `org/libs/utils/src/vite.mjs`:
+In `sdk/libs/utils/src/vite.mjs`:
 
 ```js
-'@lmthing/auth': path.resolve(dirname, '../org/libs/auth/src'),
+'@lmthing/auth': path.resolve(dirname, '../sdk/libs/auth/src'),
 ```
 
 ### 5. Environment variables (optional)

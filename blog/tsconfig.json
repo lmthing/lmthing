@@ -8,11 +8,11 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@lmthing/ui": ["../org/libs/ui/src"],
-      "@lmthing/ui/*": ["../org/libs/ui/src/*"],
-      "@lmthing/css/*": ["../org/libs/css/src/*"],
-      "@lmthing/state": ["../org/libs/state/src"],
-      "lmthing": ["../org/libs/core/src"]
+      "@lmthing/ui": ["../sdk/libs/ui/src"],
+      "@lmthing/ui/*": ["../sdk/libs/ui/src/*"],
+      "@lmthing/css/*": ["../sdk/libs/css/src/*"],
+      "@lmthing/state": ["../sdk/libs/state/src"],
+      "lmthing": ["../sdk/org/cli/src"]
     },
     "target": "ES2022",
     "lib": ["dom", "dom.iterable", "ES2022"],

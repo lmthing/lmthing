@@ -1,9 +1,0 @@
-{
-  "label": "Stack Layer",
-  "description": "Which layer of the technology stack to explore",
-  "fieldType": "multiSelect",
-  "required": false,
-  "default": "frontend",
-  "variableName": "stackLayer",
-  "renderAs": "field"
-}

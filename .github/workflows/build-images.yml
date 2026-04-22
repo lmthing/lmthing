@@ -6,7 +6,8 @@ on:
     paths:
       - 'cloud/gateway/**'
       - 'computer/**'
-      - 'org/libs/**'
+      - 'sdk/libs/**'
+      - 'sdk/org/**'
       - 'devops/argocd/compute/Dockerfile'
       - 'studio/**'
       - 'chat/**'
@@ -39,43 +40,52 @@ jobs:
               - 'cloud/gateway/**'
             computer:
               - 'computer/**'
-              - 'org/libs/auth/**'
-              - 'org/libs/core/**'
-              - 'org/libs/css/**'
-              - 'org/libs/state/**'
-              - 'org/libs/thing/**'
-              - 'org/libs/ui/**'
-              - 'org/libs/utils/**'
+              - 'sdk/libs/auth/**'
+              - 'sdk/org/cli/**'
+              - 'sdk/libs/css/**'
+              - 'sdk/libs/state/**'
+              - 'sdk/libs/thing/**'
+              - 'sdk/libs/ui/**'
+              - 'sdk/libs/utils/**'
             compute:
-              - 'org/libs/repl/**'
+              - 'sdk/org/repl/**'
               - 'devops/argocd/compute/Dockerfile'
             studio:
               - 'studio/**'
-              - 'org/libs/**'
+              - 'sdk/libs/**'
+              - 'sdk/org/**'
             chat:
               - 'chat/**'
-              - 'org/libs/**'
+              - 'sdk/libs/**'
+              - 'sdk/org/**'
             com:
               - 'com/**'
-              - 'org/libs/**'
+              - 'sdk/libs/**'
+              - 'sdk/org/**'
             social:
               - 'social/**'
-              - 'org/libs/**'
+              - 'sdk/libs/**'
+              - 'sdk/org/**'
             store:
               - 'store/**'
-              - 'org/libs/**'
+              - 'sdk/libs/**'
+              - 'sdk/org/**'
             space:
               - 'space/**'
-              - 'org/libs/**'
+              - 'sdk/libs/**'
+              - 'sdk/org/**'
             team:
               - 'team/**'
-              - 'org/libs/**'
+              - 'sdk/libs/**'
+              - 'sdk/org/**'
             blog:
               - 'blog/**'
-              - 'org/libs/**'
+              - 'sdk/libs/**'
+              - 'sdk/org/**'
             casa:
               - 'casa/**'
-              - 'org/libs/**'
+              - 'sdk/libs/**'
+              - 'sdk/org/**'
 
       - name: Azure login
         uses: azure/login@v2

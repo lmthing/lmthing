@@ -37,8 +37,9 @@ proxy:
 proxy-clean:
 	@cd .etc/scripts && bash local-proxy.sh --clean
 
-# Install all workspace dependencies
+# Install all workspace dependencies (initialises git submodules first)
 install:
+	git submodule update --init --recursive
 	pnpm install
 
 # Health check all lmthing.* domains (DNS, TLS, HTTPS, hosting config)

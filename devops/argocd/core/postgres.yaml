@@ -1,0 +1,109 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: lmthing
+data:
+  init.sh: |
+    #!/bin/bash
+    set -e
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+      CREATE DATABASE zitadel;
+      CREATE USER zitadel WITH PASSWORD '$ZITADEL_DB_PASSWORD';
+      GRANT ALL PRIVILEGES ON DATABASE zitadel TO zitadel;
+    EOSQL
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "zitadel" <<-EOSQL
+      GRANT ALL ON SCHEMA public TO zitadel;
+    EOSQL
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: lmthing
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: lmthing
+            - name: ZITADEL_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: ZITADEL_DB_PASSWORD
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+            - name: init-scripts
+              mountPath: /docker-entrypoint-initdb.d
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)", "-d", "lmthing"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)", "-d", "lmthing"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      volumes:
+        - name: init-scripts
+          configMap:
+            name: postgres-init
+            defaultMode: 0755
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: lmthing
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+  type: ClusterIP

@@ -19,6 +19,21 @@ spec:
                 namespace: gateway
 
 ---
+# TLS certificate for auth.lmthing.cloud (Zitadel)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: lmthing-auth-tls
+  namespace: gateway
+spec:
+  secretName: lmthing-auth-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - AUTH_DOMAIN_PLACEHOLDER
+
+---
 # TLS certificate for lmthing.cloud
 apiVersion: cert-manager.io/v1
 kind: Certificate

@@ -3,6 +3,8 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
+  - postgres.yaml
+  - zitadel.yaml
   - litellm.yaml
   - gateway.yaml
   - computer.yaml

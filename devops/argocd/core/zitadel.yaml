@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zitadel
+  namespace: lmthing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zitadel
+  template:
+    metadata:
+      labels:
+        app: zitadel
+    spec:
+      initContainers:
+        - name: zitadel-init
+          image: ghcr.io/zitadel/zitadel:latest
+          args: ["init", "zitadel"]
+          env:
+            - name: ZITADEL_DATABASE_POSTGRES_HOST
+              value: postgres
+            - name: ZITADEL_DATABASE_POSTGRES_PORT
+              value: "5432"
+            - name: ZITADEL_DATABASE_POSTGRES_DATABASE
+              value: zitadel
+            - name: ZITADEL_DATABASE_POSTGRES_USER_USERNAME
+              value: zitadel
+            - name: ZITADEL_DATABASE_POSTGRES_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: ZITADEL_DB_PASSWORD
+            - name: ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE
+              value: disable
+            - name: ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: POSTGRES_USER
+            - name: ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: POSTGRES_PASSWORD
+            - name: ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE
+              value: disable
+      containers:
+        - name: zitadel
+          image: ghcr.io/zitadel/zitadel:latest
+          args: ["start-from-init", "--masterkeyFromEnv"]
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ZITADEL_MASTERKEY
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: ZITADEL_MASTER_KEY
+            - name: ZITADEL_DATABASE_POSTGRES_HOST
+              value: postgres
+            - name: ZITADEL_DATABASE_POSTGRES_PORT
+              value: "5432"
+            - name: ZITADEL_DATABASE_POSTGRES_DATABASE
+              value: zitadel
+            - name: ZITADEL_DATABASE_POSTGRES_USER_USERNAME
+              value: zitadel
+            - name: ZITADEL_DATABASE_POSTGRES_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: ZITADEL_DB_PASSWORD
+            - name: ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE
+              value: disable
+            - name: ZITADEL_EXTERNALDOMAIN
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: AUTH_DOMAIN
+            - name: ZITADEL_EXTERNALPORT
+              value: "443"
+            - name: ZITADEL_EXTERNALSECURE
+              value: "true"
+            - name: ZITADEL_TLS_ENABLED
+              value: "false"
+            - name: ZITADEL_FIRSTINSTANCE_ORG_NAME
+              value: lmthing
+            - name: ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME
+              value: admin
+            - name: ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: ZITADEL_ADMIN_PASSWORD
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /debug/ready
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /debug/healthz
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zitadel
+  namespace: lmthing
+spec:
+  selector:
+    app: zitadel
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP

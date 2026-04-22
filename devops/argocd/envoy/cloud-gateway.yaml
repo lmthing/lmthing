@@ -50,6 +50,27 @@ spec:
       allowedRoutes:
         namespaces:
           from: Same
+    # ── auth.lmthing.cloud ─────────────────────────────────────
+    - name: auth-http
+      hostname: AUTH_DOMAIN_PLACEHOLDER
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: auth-https
+      hostname: AUTH_DOMAIN_PLACEHOLDER
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: lmthing-auth-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
     # ── lmthing.studio ─────────────────────────────────────────
     - name: studio-http
       hostname: lmthing.studio

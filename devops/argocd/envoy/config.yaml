@@ -8,6 +8,7 @@ metadata:
 data:
   domain: "lmthing.cloud"
   computerDomain: "lmthing.computer"
+  authDomain: "auth.lmthing.cloud"
   acmeEmail: "admin@lmthing.cloud"
-  supabaseJwtIssuer: "https://mxfrzojrpqalmrwbbjca.supabase.co/auth/v1"
-  supabaseJwksUri: "https://mxfrzojrpqalmrwbbjca.supabase.co/auth/v1/.well-known/jwks.json"
+  zitadelJwtIssuer: "https://auth.lmthing.cloud"
+  zitadelJwksUri: "https://auth.lmthing.cloud/oauth/v2/keys"

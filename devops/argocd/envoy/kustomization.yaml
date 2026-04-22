@@ -90,11 +90,39 @@ replacements:
         fieldPaths:
           - spec.acme.email
 
-  # ── Supabase JWT issuer → SecurityPolicy ────────────────────
+  # ── AUTH_DOMAIN → auth.lmthing.cloud hostnames ──────────────
   - source:
       kind: ConfigMap
       name: lmthing-envoy-config
-      fieldPath: data.supabaseJwtIssuer
+      fieldPath: data.authDomain
+    targets:
+      - select:
+          kind: Gateway
+          name: lmthing-gw
+        fieldPaths:
+          - spec.listeners.[name=auth-http].hostname
+          - spec.listeners.[name=auth-https].hostname
+      - select:
+          kind: HTTPRoute
+          name: auth-http-redirect
+        fieldPaths:
+          - spec.hostnames.0
+      - select:
+          kind: HTTPRoute
+          name: auth-zitadel
+        fieldPaths:
+          - spec.hostnames.0
+      - select:
+          kind: Certificate
+          name: lmthing-auth-tls
+        fieldPaths:
+          - spec.dnsNames.0
+
+  # ── Zitadel JWT issuer → SecurityPolicy ─────────────────────
+  - source:
+      kind: ConfigMap
+      name: lmthing-envoy-config
+      fieldPath: data.zitadelJwtIssuer
     targets:
       - select:
           kind: SecurityPolicy
@@ -102,11 +130,11 @@ replacements:
         fieldPaths:
           - spec.jwt.providers.0.issuer
 
-  # ── Supabase JWKS URI → SecurityPolicy ──────────────────────
+  # ── Zitadel JWKS URI → SecurityPolicy ───────────────────────
   - source:
       kind: ConfigMap
       name: lmthing-envoy-config
-      fieldPath: data.supabaseJwksUri
+      fieldPath: data.zitadelJwksUri
     targets:
       - select:
           kind: SecurityPolicy

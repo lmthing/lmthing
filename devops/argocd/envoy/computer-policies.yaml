@@ -60,7 +60,7 @@ spec:
         end
 
 ---
-# JWT validation via Supabase — extracts `sub` claim as x-user-id header
+# JWT validation via Zitadel — extracts `sub` claim as x-user-id header
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: SecurityPolicy
 metadata:
@@ -73,10 +73,10 @@ spec:
       name: computer-api-proxy
   jwt:
     providers:
-      - name: supabase
-        issuer: SUPABASE_JWT_ISSUER_PLACEHOLDER
+      - name: zitadel
+        issuer: ZITADEL_JWT_ISSUER_PLACEHOLDER
         audiences:
-          - authenticated
+          - lmthing
         extractFrom:
           headers:
             - name: Authorization
@@ -87,4 +87,4 @@ spec:
             header: x-user-id
         remoteJWKS:
           cacheDuration: 300s
-          uri: SUPABASE_JWKS_URI_PLACEHOLDER
+          uri: ZITADEL_JWKS_URI_PLACEHOLDER

@@ -1,10 +1,9 @@
-import { createClient } from "@supabase/supabase-js";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 import type { Context, Next } from "hono";
 import type { Env } from "../types.js";
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+const JWKS = createRemoteJWKSet(
+  new URL(`${process.env.ZITADEL_URL}/oauth/v2/keys`),
 );
 
 export interface AuthUser {
@@ -19,15 +18,20 @@ export async function authMiddleware(c: Context<Env>, next: Next) {
   }
 
   const token = header.slice(7);
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser(token);
 
-  if (error || !user) {
+  try {
+    const { payload } = await jwtVerify(token, JWKS, {
+      issuer: process.env.ZITADEL_ISSUER,
+    });
+
+    if (!payload.sub || typeof payload.email !== "string") {
+      return c.json({ error: "Invalid token claims" }, 401);
+    }
+
+    c.set("user", { id: payload.sub, email: payload.email });
+  } catch {
     return c.json({ error: "Invalid or expired token" }, 401);
   }
 
-  c.set("user", { id: user.id, email: user.email! });
   await next();
 }

@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: casa
+  namespace: lmthing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: casa
+  template:
+    metadata:
+      labels:
+        app: casa
+    spec:
+      imagePullSecrets:
+        - name: acr-pull-secret
+      containers:
+        - name: casa
+          image: lmthingacr.azurecr.io/casa:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "10m"
+            limits:
+              memory: "64Mi"
+              cpu: "100m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: casa
+  namespace: lmthing
+spec:
+  selector:
+    app: casa
+  ports:
+    - port: 80
+      targetPort: 80

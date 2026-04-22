@@ -9,6 +9,7 @@ resources:
   - cloud-routes.yaml
   - computer-routes.yaml
   - computer-policies.yaml
+  - spa-routes.yaml
 
 replacements:
   # ── DOMAIN → lmthing.cloud hostnames ────────────────────────

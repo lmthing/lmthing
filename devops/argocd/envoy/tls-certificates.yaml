@@ -47,3 +47,138 @@ spec:
     kind: ClusterIssuer
   dnsNames:
     - COMPUTER_DOMAIN_PLACEHOLDER
+
+---
+# TLS certificate for lmthing.studio
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: lmthing-studio-tls
+  namespace: gateway
+spec:
+  secretName: lmthing-studio-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - lmthing.studio
+
+---
+# TLS certificate for lmthing.chat
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: lmthing-chat-tls
+  namespace: gateway
+spec:
+  secretName: lmthing-chat-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - lmthing.chat
+
+---
+# TLS certificate for lmthing.com
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: lmthing-com-tls
+  namespace: gateway
+spec:
+  secretName: lmthing-com-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - lmthing.com
+
+---
+# TLS certificate for lmthing.social
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: lmthing-social-tls
+  namespace: gateway
+spec:
+  secretName: lmthing-social-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - lmthing.social
+
+---
+# TLS certificate for lmthing.store
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: lmthing-store-tls
+  namespace: gateway
+spec:
+  secretName: lmthing-store-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - lmthing.store
+
+---
+# TLS certificate for lmthing.space
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: lmthing-space-tls
+  namespace: gateway
+spec:
+  secretName: lmthing-space-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - lmthing.space
+
+---
+# TLS certificate for lmthing.team
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: lmthing-team-tls
+  namespace: gateway
+spec:
+  secretName: lmthing-team-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - lmthing.team
+
+---
+# TLS certificate for lmthing.blog
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: lmthing-blog-tls
+  namespace: gateway
+spec:
+  secretName: lmthing-blog-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - lmthing.blog
+
+---
+# TLS certificate for lmthing.casa
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: lmthing-casa-tls
+  namespace: gateway
+spec:
+  secretName: lmthing-casa-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - lmthing.casa

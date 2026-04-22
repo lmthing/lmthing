@@ -8,6 +8,15 @@ on:
       - 'computer/**'
       - 'org/libs/**'
       - 'devops/argocd/compute/Dockerfile'
+      - 'studio/**'
+      - 'chat/**'
+      - 'com/**'
+      - 'social/**'
+      - 'store/**'
+      - 'space/**'
+      - 'team/**'
+      - 'blog/**'
+      - 'casa/**'
 
 jobs:
   build:
@@ -40,6 +49,33 @@ jobs:
             compute:
               - 'org/libs/repl/**'
               - 'devops/argocd/compute/Dockerfile'
+            studio:
+              - 'studio/**'
+              - 'org/libs/**'
+            chat:
+              - 'chat/**'
+              - 'org/libs/**'
+            com:
+              - 'com/**'
+              - 'org/libs/**'
+            social:
+              - 'social/**'
+              - 'org/libs/**'
+            store:
+              - 'store/**'
+              - 'org/libs/**'
+            space:
+              - 'space/**'
+              - 'org/libs/**'
+            team:
+              - 'team/**'
+              - 'org/libs/**'
+            blog:
+              - 'blog/**'
+              - 'org/libs/**'
+            casa:
+              - 'casa/**'
+              - 'org/libs/**'
 
       - name: Azure login
         uses: azure/login@v2
@@ -91,12 +127,138 @@ jobs:
           sed -i "s|image: lmthingacr.azurecr.io/compute:.*|image: lmthingacr.azurecr.io/compute:${{ steps.tag.outputs.sha }}|" \
             devops/argocd/core/compute-pod-template.yaml
 
+      - name: Build and push studio
+        if: steps.changes.outputs.studio == 'true'
+        run: |
+          docker build \
+            -f studio/Dockerfile \
+            -t lmthingacr.azurecr.io/studio:${{ steps.tag.outputs.sha }} \
+            -t lmthingacr.azurecr.io/studio:latest \
+            .
+          docker push lmthingacr.azurecr.io/studio:${{ steps.tag.outputs.sha }}
+          docker push lmthingacr.azurecr.io/studio:latest
+          sed -i "s|image: lmthingacr.azurecr.io/studio:.*|image: lmthingacr.azurecr.io/studio:${{ steps.tag.outputs.sha }}|" \
+            devops/argocd/core/studio.yaml
+
+      - name: Build and push chat
+        if: steps.changes.outputs.chat == 'true'
+        run: |
+          docker build \
+            -f chat/Dockerfile \
+            -t lmthingacr.azurecr.io/chat:${{ steps.tag.outputs.sha }} \
+            -t lmthingacr.azurecr.io/chat:latest \
+            .
+          docker push lmthingacr.azurecr.io/chat:${{ steps.tag.outputs.sha }}
+          docker push lmthingacr.azurecr.io/chat:latest
+          sed -i "s|image: lmthingacr.azurecr.io/chat:.*|image: lmthingacr.azurecr.io/chat:${{ steps.tag.outputs.sha }}|" \
+            devops/argocd/core/chat.yaml
+
+      - name: Build and push com
+        if: steps.changes.outputs.com == 'true'
+        run: |
+          docker build \
+            -f com/Dockerfile \
+            -t lmthingacr.azurecr.io/com:${{ steps.tag.outputs.sha }} \
+            -t lmthingacr.azurecr.io/com:latest \
+            .
+          docker push lmthingacr.azurecr.io/com:${{ steps.tag.outputs.sha }}
+          docker push lmthingacr.azurecr.io/com:latest
+          sed -i "s|image: lmthingacr.azurecr.io/com:.*|image: lmthingacr.azurecr.io/com:${{ steps.tag.outputs.sha }}|" \
+            devops/argocd/core/com.yaml
+
+      - name: Build and push social
+        if: steps.changes.outputs.social == 'true'
+        run: |
+          docker build \
+            -f social/Dockerfile \
+            -t lmthingacr.azurecr.io/social:${{ steps.tag.outputs.sha }} \
+            -t lmthingacr.azurecr.io/social:latest \
+            .
+          docker push lmthingacr.azurecr.io/social:${{ steps.tag.outputs.sha }}
+          docker push lmthingacr.azurecr.io/social:latest
+          sed -i "s|image: lmthingacr.azurecr.io/social:.*|image: lmthingacr.azurecr.io/social:${{ steps.tag.outputs.sha }}|" \
+            devops/argocd/core/social.yaml
+
+      - name: Build and push store
+        if: steps.changes.outputs.store == 'true'
+        run: |
+          docker build \
+            -f store/Dockerfile \
+            -t lmthingacr.azurecr.io/store:${{ steps.tag.outputs.sha }} \
+            -t lmthingacr.azurecr.io/store:latest \
+            .
+          docker push lmthingacr.azurecr.io/store:${{ steps.tag.outputs.sha }}
+          docker push lmthingacr.azurecr.io/store:latest
+          sed -i "s|image: lmthingacr.azurecr.io/store:.*|image: lmthingacr.azurecr.io/store:${{ steps.tag.outputs.sha }}|" \
+            devops/argocd/core/store.yaml
+
+      - name: Build and push space
+        if: steps.changes.outputs.space == 'true'
+        run: |
+          docker build \
+            -f space/Dockerfile \
+            -t lmthingacr.azurecr.io/space:${{ steps.tag.outputs.sha }} \
+            -t lmthingacr.azurecr.io/space:latest \
+            .
+          docker push lmthingacr.azurecr.io/space:${{ steps.tag.outputs.sha }}
+          docker push lmthingacr.azurecr.io/space:latest
+          sed -i "s|image: lmthingacr.azurecr.io/space:.*|image: lmthingacr.azurecr.io/space:${{ steps.tag.outputs.sha }}|" \
+            devops/argocd/core/space.yaml
+
+      - name: Build and push team
+        if: steps.changes.outputs.team == 'true'
+        run: |
+          docker build \
+            -f team/Dockerfile \
+            -t lmthingacr.azurecr.io/team:${{ steps.tag.outputs.sha }} \
+            -t lmthingacr.azurecr.io/team:latest \
+            .
+          docker push lmthingacr.azurecr.io/team:${{ steps.tag.outputs.sha }}
+          docker push lmthingacr.azurecr.io/team:latest
+          sed -i "s|image: lmthingacr.azurecr.io/team:.*|image: lmthingacr.azurecr.io/team:${{ steps.tag.outputs.sha }}|" \
+            devops/argocd/core/team.yaml
+
+      - name: Build and push blog
+        if: steps.changes.outputs.blog == 'true'
+        run: |
+          docker build \
+            -f blog/Dockerfile \
+            -t lmthingacr.azurecr.io/blog:${{ steps.tag.outputs.sha }} \
+            -t lmthingacr.azurecr.io/blog:latest \
+            .
+          docker push lmthingacr.azurecr.io/blog:${{ steps.tag.outputs.sha }}
+          docker push lmthingacr.azurecr.io/blog:latest
+          sed -i "s|image: lmthingacr.azurecr.io/blog:.*|image: lmthingacr.azurecr.io/blog:${{ steps.tag.outputs.sha }}|" \
+            devops/argocd/core/blog.yaml
+
+      - name: Build and push casa
+        if: steps.changes.outputs.casa == 'true'
+        run: |
+          docker build \
+            -f casa/Dockerfile \
+            -t lmthingacr.azurecr.io/casa:${{ steps.tag.outputs.sha }} \
+            -t lmthingacr.azurecr.io/casa:latest \
+            .
+          docker push lmthingacr.azurecr.io/casa:${{ steps.tag.outputs.sha }}
+          docker push lmthingacr.azurecr.io/casa:latest
+          sed -i "s|image: lmthingacr.azurecr.io/casa:.*|image: lmthingacr.azurecr.io/casa:${{ steps.tag.outputs.sha }}|" \
+            devops/argocd/core/casa.yaml
+
       - name: Commit updated image tags
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add devops/argocd/core/gateway.yaml \
                   devops/argocd/core/computer.yaml \
-                  devops/argocd/core/compute-pod-template.yaml
+                  devops/argocd/core/compute-pod-template.yaml \
+                  devops/argocd/core/studio.yaml \
+                  devops/argocd/core/chat.yaml \
+                  devops/argocd/core/com.yaml \
+                  devops/argocd/core/social.yaml \
+                  devops/argocd/core/store.yaml \
+                  devops/argocd/core/space.yaml \
+                  devops/argocd/core/team.yaml \
+                  devops/argocd/core/blog.yaml \
+                  devops/argocd/core/casa.yaml
           git diff --staged --quiet || git commit -m "ci: update image tags to ${{ steps.tag.outputs.sha }} [skip ci]"
           git push

@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat
+  namespace: lmthing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chat
+  template:
+    metadata:
+      labels:
+        app: chat
+    spec:
+      imagePullSecrets:
+        - name: acr-pull-secret
+      containers:
+        - name: chat
+          image: lmthingacr.azurecr.io/chat:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "10m"
+            limits:
+              memory: "64Mi"
+              cpu: "100m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chat
+  namespace: lmthing
+spec:
+  selector:
+    app: chat
+  ports:
+    - port: 80
+      targetPort: 80

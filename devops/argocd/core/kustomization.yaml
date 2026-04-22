@@ -7,3 +7,12 @@ resources:
   - gateway.yaml
   - computer.yaml
   - compute-pod-template.yaml
+  - studio.yaml
+  - chat.yaml
+  - com.yaml
+  - social.yaml
+  - store.yaml
+  - space.yaml
+  - team.yaml
+  - blog.yaml
+  - casa.yaml

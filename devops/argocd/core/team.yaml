@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: team
+  namespace: lmthing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: team
+  template:
+    metadata:
+      labels:
+        app: team
+    spec:
+      imagePullSecrets:
+        - name: acr-pull-secret
+      containers:
+        - name: team
+          image: lmthingacr.azurecr.io/team:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "10m"
+            limits:
+              memory: "64Mi"
+              cpu: "100m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: team
+  namespace: lmthing
+spec:
+  selector:
+    app: team
+  ports:
+    - port: 80
+      targetPort: 80

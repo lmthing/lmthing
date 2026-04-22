@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blog
+  namespace: lmthing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: blog
+  template:
+    metadata:
+      labels:
+        app: blog
+    spec:
+      imagePullSecrets:
+        - name: acr-pull-secret
+      containers:
+        - name: blog
+          image: lmthingacr.azurecr.io/blog:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "10m"
+            limits:
+              memory: "64Mi"
+              cpu: "100m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: blog
+  namespace: lmthing
+spec:
+  selector:
+    app: blog
+  ports:
+    - port: 80
+      targetPort: 80

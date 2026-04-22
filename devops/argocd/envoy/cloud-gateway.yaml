@@ -50,3 +50,192 @@ spec:
       allowedRoutes:
         namespaces:
           from: Same
+    # ── lmthing.studio ─────────────────────────────────────────
+    - name: studio-http
+      hostname: lmthing.studio
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: studio-https
+      hostname: lmthing.studio
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: lmthing-studio-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
+    # ── lmthing.chat ───────────────────────────────────────────
+    - name: chat-http
+      hostname: lmthing.chat
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: chat-https
+      hostname: lmthing.chat
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: lmthing-chat-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
+    # ── lmthing.com ────────────────────────────────────────────
+    - name: com-http
+      hostname: lmthing.com
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: com-https
+      hostname: lmthing.com
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: lmthing-com-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
+    # ── lmthing.social ─────────────────────────────────────────
+    - name: social-http
+      hostname: lmthing.social
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: social-https
+      hostname: lmthing.social
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: lmthing-social-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
+    # ── lmthing.store ──────────────────────────────────────────
+    - name: store-http
+      hostname: lmthing.store
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: store-https
+      hostname: lmthing.store
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: lmthing-store-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
+    # ── lmthing.space ──────────────────────────────────────────
+    - name: space-http
+      hostname: lmthing.space
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: space-https
+      hostname: lmthing.space
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: lmthing-space-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
+    # ── lmthing.team ───────────────────────────────────────────
+    - name: team-http
+      hostname: lmthing.team
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: team-https
+      hostname: lmthing.team
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: lmthing-team-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
+    # ── lmthing.blog ───────────────────────────────────────────
+    - name: blog-http
+      hostname: lmthing.blog
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: blog-https
+      hostname: lmthing.blog
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: lmthing-blog-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
+    # ── lmthing.casa ───────────────────────────────────────────
+    - name: casa-http
+      hostname: lmthing.casa
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: casa-https
+      hostname: lmthing.casa
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: lmthing-casa-tls
+      allowedRoutes:
+        namespaces:
+          from: Same

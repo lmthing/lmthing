@@ -13,6 +13,7 @@ spec:
       labels:
         app: zitadel
     spec:
+      enableServiceLinks: false
       initContainers:
         - name: zitadel-init
           image: ghcr.io/zitadel/zitadel:v2.68.0

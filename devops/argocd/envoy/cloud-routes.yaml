@@ -78,7 +78,7 @@ spec:
             statusCode: 301
 
 ---
-# auth.lmthing.cloud /* -> Zitadel
+# auth.lmthing.cloud /* -> Zitadel, /ui/v2/* -> Zitadel login UI v2
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -93,6 +93,17 @@ spec:
   hostnames:
     - AUTH_DOMAIN_PLACEHOLDER
   rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /ui/v2
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: zitadel-login
+          namespace: lmthing
+          port: 3000
+          weight: 1
     - matches:
         - path:
             type: PathPrefix

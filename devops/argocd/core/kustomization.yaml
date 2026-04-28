@@ -5,6 +5,7 @@ resources:
   - namespace.yaml
   - postgres.yaml
   - zitadel.yaml
+  - zitadel-login.yaml
   - litellm.yaml
   - gateway.yaml
   - computer.yaml

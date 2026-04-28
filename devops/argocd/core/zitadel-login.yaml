@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zitadel-login
+  namespace: lmthing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zitadel-login
+  template:
+    metadata:
+      labels:
+        app: zitadel-login
+    spec:
+      containers:
+        - name: zitadel-login
+          image: ghcr.io/zitadel/login:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: ZITADEL_API_URL
+              value: "http://zitadel.lmthing.svc.cluster.local:8080"
+            - name: BASE_PATH
+              value: "/ui/v2/login"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          readinessProbe:
+            httpGet:
+              path: /ui/v2/login
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zitadel-login
+  namespace: lmthing
+spec:
+  selector:
+    app: zitadel-login
+  ports:
+    - port: 3000
+      targetPort: 3000
+  type: ClusterIP

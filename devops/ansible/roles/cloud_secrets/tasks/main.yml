@@ -2,11 +2,6 @@
 # This role creates K8s secrets from Ansible Vault variables and runs database
 # migrations. Secrets are managed outside ArgoCD to keep sensitive values out of git.
 
-- name: Ensure psql is installed (for migrations)
-  ansible.builtin.apt:
-    name: postgresql-client
-    state: present
-
 # ── Create secrets directly via kubectl ──────────────────────
 - name: Create lmthing-secrets in cluster
   kubernetes.core.k8s:
@@ -21,12 +16,21 @@
       stringData:
         DOMAIN: "{{ vault_domain }}"
         COMPUTER_DOMAIN: "{{ vault_computer_domain }}"
+        AUTH_DOMAIN: "{{ vault_auth_domain }}"
         BASE_URL: "{{ vault_base_url }}"
         ACME_EMAIL: "{{ vault_acme_email }}"
         AZURE_API_KEY: "{{ vault_azure_api_key }}"
         AZURE_API_BASE: "{{ vault_azure_api_base }}"
-        SUPABASE_URL: "{{ vault_supabase_url }}"
-        SUPABASE_SERVICE_ROLE_KEY: "{{ vault_supabase_service_role_key }}"
+        POSTGRES_USER: "{{ vault_postgres_user }}"
+        POSTGRES_PASSWORD: "{{ vault_postgres_password }}"
+        ZITADEL_DB_PASSWORD: "{{ vault_zitadel_db_password }}"
+        ZITADEL_MASTER_KEY: "{{ vault_zitadel_master_key }}"
+        ZITADEL_ADMIN_PASSWORD: "{{ vault_zitadel_admin_password }}"
+        ZITADEL_ISSUER: "{{ vault_zitadel_issuer }}"
+        ZITADEL_SERVICE_ACCOUNT_ID: "{{ vault_zitadel_service_account_id }}"
+        ZITADEL_SERVICE_ACCOUNT_KEY: "{{ vault_zitadel_service_account_key }}"
+        ZITADEL_CLIENT_ID: "{{ vault_zitadel_client_id }}"
+        ZITADEL_CLIENT_SECRET: "{{ vault_zitadel_client_secret }}"
         DATABASE_URL: "{{ vault_database_url }}"
         STRIPE_SECRET_KEY: "{{ vault_stripe_secret_key }}"
         STRIPE_WEBHOOK_SECRET: "{{ vault_stripe_webhook_secret }}"
@@ -55,22 +59,44 @@
         .dockerconfigjson: "{{ {'auths': {vault_acr_registry: {'auth': (vault_acr_username + ':' + vault_acr_password) | b64encode}}} | to_json | b64encode }}"
   no_log: true
 
-# ── Database migrations ──────────────────────────────────────
+# ── Database migrations (runs inside Postgres pod) ───────────
+- name: Wait for Postgres pod to be ready
+  kubernetes.core.k8s_info:
+    kind: StatefulSet
+    name: postgres
+    namespace: lmthing
+  register: postgres_ss
+  until: >
+    postgres_ss.resources | length > 0 and
+    (postgres_ss.resources[0].status.readyReplicas | default(0)) >= 1
+  retries: 30
+  delay: 10
+
 - name: Sync database migrations to node
   ansible.builtin.copy:
     src: "{{ migrations_src | default(playbook_dir + '/../../../cloud/migrations/') }}"
     dest: /tmp/lmthing-migrations/
     mode: "0644"
 
-- name: Run database migrations
+- name: Copy migration files into Postgres pod
   ansible.builtin.shell: |
     for f in /tmp/lmthing-migrations/*.sql; do
-      [ -f "$f" ] && PGPASSWORD="{{ vault_db_password }}" psql "{{ vault_database_url }}" -f "$f" 2>&1 || true
+      [ -f "$f" ] && kubectl cp "$f" lmthing/$(kubectl get pod -n lmthing -l app=postgres -o jsonpath='{.items[0].metadata.name}'):/tmp/$(basename "$f") 2>&1
+    done
+  changed_when: true
+
+- name: Run migrations inside Postgres pod
+  ansible.builtin.shell: |
+    POD=$(kubectl get pod -n lmthing -l app=postgres -o jsonpath='{.items[0].metadata.name}')
+    for f in $(kubectl exec -n lmthing "$POD" -- ls /tmp/*.sql 2>/dev/null | sort); do
+      echo "Running migration: $f"
+      kubectl exec -n lmthing "$POD" -- \
+        psql -U "{{ vault_postgres_user }}" -d lmthing -f "$f" 2>&1 || true
     done
   changed_when: true
   no_log: true
 
-- name: Clean up migrations directory
+- name: Clean up migrations directory on node
   ansible.builtin.file:
     path: /tmp/lmthing-migrations
     state: absent

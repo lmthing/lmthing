@@ -436,18 +436,34 @@ make deploy
 
 ### Vault Variables
 
+See `devops/ansible/vault.yml.example` for the complete template. Fill it in, then:
+```bash
+cp vault.yml.example vault.yml
+vim vault.yml                          # fill in all CHANGE_ME values
+ansible-vault encrypt vault.yml
+```
+
 | Variable | Used By | Purpose |
 |----------|---------|---------|
 | `vault_domain` | templates | Primary domain (lmthing.cloud) |
 | `vault_computer_domain` | templates | Computer domain (lmthing.computer) |
+| `vault_auth_domain` | templates, secrets | Auth domain (auth.lmthing.cloud) |
 | `vault_base_url` | gateway | Full URL for Stripe redirects |
 | `vault_acme_email` | cert-manager | Let's Encrypt contact email |
 | `vault_azure_api_key` | litellm | Azure AI Foundry authentication |
 | `vault_azure_api_base` | litellm | Azure AI Foundry endpoint |
-| `vault_supabase_url` | gateway | Supabase project URL |
-| `vault_supabase_service_role_key` | gateway | Supabase admin access |
-| `vault_database_url` | litellm | PostgreSQL connection (session pooler, port 5432) |
-| `vault_db_password` | migrations | Database password for psql |
+| `vault_postgres_user` | postgres | Postgres superuser username |
+| `vault_postgres_password` | postgres | Postgres superuser password |
+| `vault_zitadel_db_password` | zitadel, postgres | Zitadel's database user password |
+| `vault_database_url` | litellm, gateway | PostgreSQL connection (`postgres:5432/lmthing`) |
+| `vault_db_password` | migrations | Same as `vault_postgres_password` (for psql runner) |
+| `vault_zitadel_master_key` | zitadel | 32-hex-char master encryption key |
+| `vault_zitadel_admin_password` | zitadel | Initial admin user password |
+| `vault_zitadel_issuer` | gateway | External issuer URL (`https://auth.lmthing.cloud`) |
+| `vault_zitadel_service_account_id` | gateway | Machine user client ID (set after Zitadel setup) |
+| `vault_zitadel_service_account_key` | gateway | Machine user client secret (set after Zitadel setup) |
+| `vault_zitadel_client_id` | gateway | Web app client ID (set after Zitadel setup) |
+| `vault_zitadel_client_secret` | gateway | Web app client secret (set after Zitadel setup) |
 | `vault_stripe_secret_key` | gateway | Stripe API access |
 | `vault_stripe_webhook_secret` | gateway | Stripe webhook signature verification |
 | `vault_stripe_price_starter` | gateway | Stripe price ID for Starter tier |
@@ -485,11 +501,56 @@ make ping
 make cluster
 
 # 6. Fill in vault secrets and encrypt
-vim vault.yml
+cp vault.yml.example vault.yml
+vim vault.yml                 # Fill in all CHANGE_ME values (leave Zitadel credentials blank for now)
 ansible-vault encrypt vault.yml
 
-# 7. Deploy services
+# 7. Deploy services (Postgres + Zitadel + gateway + ArgoCD)
 make deploy
+```
+
+### Zitadel First-Time Setup (one-time, after initial deploy)
+
+After `make deploy`, Zitadel is running at `https://auth.lmthing.cloud`. Log in with the admin credentials from the vault, then:
+
+**1. Create a Project**
+- Organization Settings → Projects → New Project
+- Name: `lmthing`
+- Enable "Assert Roles on Authentication" → Save
+
+**2. Create a Web Application in the project**
+- Applications → New → Web → Name: `gateway`, Auth method: `Basic`
+- Redirect URIs: `https://lmthing.cloud/api/auth/oauth/callback`
+- Copy the **Client ID** and **Client Secret** → save as `vault_zitadel_client_id` / `vault_zitadel_client_secret`
+
+**3. Configure Identity Providers (GitHub & Google)**
+- Organization Settings → Identity Providers → New
+- GitHub: create an OAuth App at github.com/settings/developers (callback: `https://auth.lmthing.cloud/ui/login/login/externalidp/callback`)
+- Google: create OAuth credentials at console.cloud.google.com (same callback URL)
+- After adding each IDP, activate it on the login policy
+
+**4. Create a Machine User (service account)**
+- Organization Settings → Users → Machine Users → New
+- Name: `gateway-service`
+- Generate a Client Secret → copy it
+- Assign role `ORG_OWNER` under the organization
+- Enable "Allow impersonation" on the machine user
+- Copy the **Client ID** (=username) and secret → save as `vault_zitadel_service_account_id` / `vault_zitadel_service_account_key`
+
+**5. Enable Token Exchange**
+- Instance Settings → Feature Flags → enable `Actions V2` and `Token Exchange`
+
+**6. Update vault with Zitadel credentials**
+```bash
+ansible-vault edit vault.yml
+# Fill in:
+#   vault_zitadel_service_account_id
+#   vault_zitadel_service_account_key
+#   vault_zitadel_client_id
+#   vault_zitadel_client_secret
+
+make deploy-secrets           # pushes updated secrets to K8s
+# Gateway will restart automatically and pick up the new credentials
 ```
 
 ### Typical Workflows
@@ -613,8 +674,9 @@ Domain values are configured in `argocd/envoy/config.yaml` (a ConfigMap) and inj
 | `domain` | `lmthing.cloud` | Gateway hostnames, HTTPRoute hostnames, Certificate dnsNames |
 | `computerDomain` | `lmthing.computer` | Gateway hostnames, HTTPRoute hostnames, Certificate dnsNames |
 | `acmeEmail` | `admin@lmthing.cloud` | ClusterIssuer ACME email |
-| `supabaseJwtIssuer` | `https://xxx.supabase.co/auth/v1` | SecurityPolicy JWT issuer |
-| `supabaseJwksUri` | `https://xxx.supabase.co/auth/v1/.well-known/jwks.json` | SecurityPolicy JWKS URI |
+| `authDomain` | `auth.lmthing.cloud` | Zitadel hostname (Gateway listeners, HTTPRoutes, Certificate) |
+| `zitadelJwtIssuer` | `https://auth.lmthing.cloud` | SecurityPolicy JWT issuer |
+| `zitadelJwksUri` | `https://auth.lmthing.cloud/oauth/v2/keys` | SecurityPolicy JWKS URI |
 
 To update domain values: edit `argocd/envoy/config.yaml`, push to git, ArgoCD auto-syncs.
 
@@ -629,7 +691,7 @@ To update domain values: edit `argocd/envoy/config.yaml`, push to git, ArgoCD au
 - **ReferenceGrant is required** — without it, HTTPRoutes in `gateway` namespace cannot reference Services in `lmthing` namespace. Cross-namespace routing silently fails.
 - **cert-manager HTTP-01 needs port 80 open** — the ACME solver creates temporary HTTPRoutes on the HTTP listener. Ensure the Gateway's HTTP listener exists and firewall allows port 80.
 - **ACR pull secret required** — All deployments and user pods require `imagePullSecrets: [acr-pull-secret]` to pull images from `lmthingacr.azurecr.io`. The gateway creates ACR pull secrets in each user namespace during pod provisioning.
-- **Session pooler for DATABASE_URL** — must use Supabase port 5432 (session mode), not 6543 (transaction mode).
+- **DATABASE_URL points to in-cluster Postgres** — use `postgresql://lmthing:PASSWORD@postgres:5432/lmthing`. The `postgres` hostname resolves inside the cluster via the `postgres` Service in `lmthing` namespace.
 - **Gateway ServiceAccount is critical** — the gateway needs the `lmthing-compute-manager` ClusterRole to create user pods. Without it, Pro tier subscriptions will fail to provision compute.
 - **Old manifests in `ansible/k8s/`** — these are legacy from the pre-ArgoCD setup. All active manifests are now in `argocd/`. Do not edit files in `ansible/k8s/`.
 

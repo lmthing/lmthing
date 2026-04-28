@@ -1,0 +1,55 @@
+# Ansible Vault template — fill in all values, then:
+#   ansible-vault encrypt vault.yml
+# To edit later:
+#   ansible-vault edit vault.yml
+
+# ── Domain ────────────────────────────────────────────────────
+vault_domain: lmthing.cloud
+vault_computer_domain: lmthing.computer
+vault_auth_domain: auth.lmthing.cloud
+vault_base_url: https://lmthing.cloud
+vault_acme_email: admin@lmthing.cloud
+
+# ── Azure Foundry ─────────────────────────────────────────────
+vault_azure_api_key: your-azure-api-key
+vault_azure_api_base: https://your-resource.openai.azure.com
+
+# ── PostgreSQL ────────────────────────────────────────────────
+# Generate passwords with: openssl rand -hex 24
+vault_postgres_user: lmthing
+vault_postgres_password: CHANGE_ME
+vault_zitadel_db_password: CHANGE_ME
+vault_database_url: postgresql://lmthing:CHANGE_ME@postgres:5432/lmthing
+# Used by the migration runner to connect as superuser
+vault_db_password: CHANGE_ME   # same as vault_postgres_password
+
+# ── Zitadel ───────────────────────────────────────────────────
+# Master key: generate with: python3 -c "import secrets; print(secrets.token_hex(16))"
+# Must be exactly 32 hex characters (16 bytes)
+vault_zitadel_master_key: CHANGE_ME_32_HEX_CHARS
+vault_zitadel_admin_password: CHANGE_ME
+vault_zitadel_issuer: https://auth.lmthing.cloud
+# Fill these in AFTER initial Zitadel setup (see Zitadel Setup section in devops/CLAUDE.md)
+vault_zitadel_service_account_id: ""
+vault_zitadel_service_account_key: ""
+vault_zitadel_client_id: ""
+vault_zitadel_client_secret: ""
+
+# ── Stripe ────────────────────────────────────────────────────
+vault_stripe_secret_key: sk_live_xxx
+vault_stripe_webhook_secret: whsec_xxx
+vault_stripe_price_starter: price_xxx
+vault_stripe_price_basic: price_xxx
+vault_stripe_price_pro: price_xxx
+vault_stripe_price_max: price_xxx
+
+# ── LiteLLM ───────────────────────────────────────────────────
+# Generate with: echo "sk-lmt-$(openssl rand -hex 32)"
+vault_litellm_master_key: sk-lmt-xxx
+
+# ── ACR (Azure Container Registry) ───────────────────────────
+vault_acr_registry: lmthingacr.azurecr.io
+vault_acr_username: lmthingacr
+vault_acr_password: your-acr-password
+
+

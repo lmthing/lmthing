@@ -14,6 +14,8 @@ spec:
         app: zitadel
     spec:
       initContainers:
+        # Creates the Zitadel schema in the zitadel database.
+        # Runs only on first deploy; idempotent on subsequent deploys.
         - name: zitadel-init
           image: ghcr.io/zitadel/zitadel:latest
           args: ["init", "zitadel"]
@@ -45,10 +47,15 @@ spec:
                   key: POSTGRES_PASSWORD
             - name: ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE
               value: disable
+            - name: ZITADEL_MASTERKEY
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: ZITADEL_MASTER_KEY
       containers:
         - name: zitadel
           image: ghcr.io/zitadel/zitadel:latest
-          args: ["start-from-init", "--masterkeyFromEnv"]
+          args: ["start", "--masterkeyFromEnv"]
           ports:
             - containerPort: 8080
           env:

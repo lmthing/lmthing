@@ -79,6 +79,18 @@ spec:
                   key: ZITADEL_DB_PASSWORD
             - name: ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE
               value: disable
+            - name: ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: POSTGRES_USER
+            - name: ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: POSTGRES_PASSWORD
+            - name: ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE
+              value: disable
             - name: ZITADEL_EXTERNALDOMAIN
               valueFrom:
                 secretKeyRef:

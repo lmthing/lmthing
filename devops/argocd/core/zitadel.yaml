@@ -55,7 +55,7 @@ spec:
       containers:
         - name: zitadel
           image: ghcr.io/zitadel/zitadel:latest
-          args: ["start", "--masterkeyFromEnv"]
+          args: ["start-from-init", "--masterkeyFromEnv"]
           ports:
             - containerPort: 8080
           env:
@@ -89,6 +89,8 @@ spec:
                 secretKeyRef:
                   name: lmthing-secrets
                   key: POSTGRES_PASSWORD
+            - name: ZITADEL_DATABASE_POSTGRES_ADMIN_PORT
+              value: "5432"
             - name: ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE
               value: disable
             - name: ZITADEL_EXTERNALDOMAIN

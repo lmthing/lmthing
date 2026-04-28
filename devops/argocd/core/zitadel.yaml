@@ -16,7 +16,7 @@ spec:
       initContainers:
         - name: zitadel-init
           image: ghcr.io/zitadel/zitadel:v2.68.0
-          args: ["init", "zitadel"]
+          args: ["init"]
           env:
             - name: ZITADEL_DATABASE_POSTGRES_HOST
               value: postgres

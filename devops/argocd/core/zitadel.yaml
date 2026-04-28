@@ -94,6 +94,33 @@ spec:
                 secretKeyRef:
                   name: lmthing-secrets
                   key: ZITADEL_ADMIN_PASSWORD
+        # Disables login v2 (separate service, not bundled in the binary).
+        # Uses the eventstore.push function so this is idempotent — re-running
+        # setup will re-enable login_v2 via migration 03_default_instance, and
+        # this container overwrites it immediately after.
+        - name: zitadel-disable-loginv2
+          image: postgres:16-alpine
+          command:
+            - psql
+            - "postgresql://lmthing:$(POSTGRES_PASSWORD)@postgres:5432/zitadel"
+            - -c
+            - |
+              SELECT eventstore.push(ARRAY[ROW(
+                (SELECT instance_id FROM eventstore.events2 WHERE aggregate_type='feature' LIMIT 1),
+                'feature',
+                (SELECT aggregate_id FROM eventstore.events2 WHERE aggregate_type='feature' LIMIT 1),
+                'feature.instance.login_v2.set',
+                2::smallint,
+                '{"Value": {"required": false}}'::jsonb,
+                '',
+                (SELECT owner FROM eventstore.events2 WHERE aggregate_type='feature' LIMIT 1)
+              )::eventstore.command]);
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: POSTGRES_PASSWORD
       containers:
         - name: zitadel
           image: ghcr.io/zitadel/zitadel:latest

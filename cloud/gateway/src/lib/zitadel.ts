@@ -1,17 +1,8 @@
-const ZITADEL_URL = process.env.ZITADEL_URL!;
-const ZITADEL_HOST = new URL(process.env.ZITADEL_ISSUER!).host; // e.g. auth.lmthing.cloud
+const ZITADEL_URL = process.env.ZITADEL_URL!; // https://auth.lmthing.cloud
 const SERVICE_ACCOUNT_ID = process.env.ZITADEL_SERVICE_ACCOUNT_ID!;
 const SERVICE_ACCOUNT_KEY = process.env.ZITADEL_SERVICE_ACCOUNT_KEY!;
 const CLIENT_ID = process.env.ZITADEL_CLIENT_ID!;
 const CLIENT_SECRET = process.env.ZITADEL_CLIENT_SECRET!;
-
-// Zitadel resolves the tenant instance via Host header. Internal calls go to the
-// K8s service (zitadel:8080) but must present the external domain as Host.
-function zFetch(url: string, init: RequestInit = {}): Promise<Response> {
-  const headers = new Headers(init.headers);
-  headers.set("Host", ZITADEL_HOST);
-  return fetch(url, { ...init, headers });
-}
 
 let cachedServiceToken: string | null = null;
 let serviceTokenExpiry = 0;
@@ -21,7 +12,7 @@ async function getServiceToken(): Promise<string> {
     return cachedServiceToken;
   }
 
-  const res = await zFetch(`${ZITADEL_URL}/oauth/v2/token`, {
+  const res = await fetch(`${ZITADEL_URL}/oauth/v2/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -47,7 +38,7 @@ export async function createUser(
   password: string,
 ): Promise<{ userId: string }> {
   const token = await getServiceToken();
-  const res = await zFetch(`${ZITADEL_URL}/v2/users/human`, {
+  const res = await fetch(`${ZITADEL_URL}/v2/users/human`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -74,7 +65,7 @@ export async function getUserById(
   userId: string,
 ): Promise<{ id: string; email: string }> {
   const token = await getServiceToken();
-  const res = await zFetch(`${ZITADEL_URL}/v2/users/${userId}`, {
+  const res = await fetch(`${ZITADEL_URL}/v2/users/${userId}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
@@ -95,7 +86,7 @@ export async function loginWithPassword(
   email: string,
   password: string,
 ): Promise<{ access_token: string; refresh_token: string; expires_at: number }> {
-  const res = await zFetch(`${ZITADEL_URL}/oauth/v2/token`, {
+  const res = await fetch(`${ZITADEL_URL}/oauth/v2/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -155,7 +146,7 @@ export async function exchangeOAuthCode(code: string): Promise<{
   user: { id: string; email: string };
 }> {
   const credentials = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64");
-  const res = await zFetch(`${ZITADEL_URL}/oauth/v2/token`, {
+  const res = await fetch(`${ZITADEL_URL}/oauth/v2/token`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -208,7 +199,7 @@ export async function refreshTokens(refreshToken: string): Promise<{
   expires_at: number;
 }> {
   const credentials = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64");
-  const res = await zFetch(`${ZITADEL_URL}/oauth/v2/token`, {
+  const res = await fetch(`${ZITADEL_URL}/oauth/v2/token`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -248,7 +239,7 @@ export async function exchangeTokenForUser(userId: string): Promise<{
 }> {
   const serviceToken = await getServiceToken();
 
-  const res = await zFetch(`${ZITADEL_URL}/oauth/v2/token`, {
+  const res = await fetch(`${ZITADEL_URL}/oauth/v2/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({

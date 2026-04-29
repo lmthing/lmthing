@@ -106,7 +106,7 @@ spec:
                   name: lmthing-secrets
                   key: STRIPE_PRICE_MAX
             - name: ZITADEL_URL
-              value: "http://zitadel:8080"
+              value: "https://auth.lmthing.cloud"
             - name: ZITADEL_ISSUER
               valueFrom:
                 secretKeyRef:

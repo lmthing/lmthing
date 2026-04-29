@@ -179,17 +179,34 @@ export async function exchangeOAuthCode(code: string): Promise<{
     id_token?: string;
   };
 
-  // Decode sub + email from the access token payload (no verification needed here — middleware already verifies)
-  const [, payloadB64] = data.access_token.split(".");
-  const payload = JSON.parse(
-    Buffer.from(payloadB64, "base64url").toString("utf-8"),
-  ) as { sub: string; email: string };
+  // Use id_token (always a JWT in OIDC) to extract sub + email.
+  // access_token from Zitadel may be opaque, but id_token is always a signed JWT.
+  const jwtSource = data.id_token ?? data.access_token;
+  const parts = jwtSource?.split(".");
+  let userId: string;
+  let userEmail: string;
+
+  if (parts && parts.length === 3) {
+    const payload = JSON.parse(
+      Buffer.from(parts[1], "base64url").toString("utf-8"),
+    ) as { sub?: string; email?: string };
+    userId = payload.sub ?? "";
+    userEmail = payload.email ?? "";
+  } else {
+    // Fallback: fetch userinfo endpoint
+    const uiRes = await fetch(`${ZITADEL_URL}/oidc/v1/userinfo`, {
+      headers: { Authorization: `Bearer ${data.access_token}` },
+    });
+    const ui = (await uiRes.json()) as { sub?: string; email?: string };
+    userId = ui.sub ?? "";
+    userEmail = ui.email ?? "";
+  }
 
   return {
     access_token: data.access_token,
     refresh_token: data.refresh_token,
     expires_at: Math.floor(Date.now() / 1000) + data.expires_in,
-    user: { id: payload.sub, email: payload.email },
+    user: { id: userId, email: userEmail },
   };
 }
 

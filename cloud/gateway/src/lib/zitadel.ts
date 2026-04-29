@@ -145,23 +145,31 @@ export async function exchangeOAuthCode(code: string): Promise<{
   expires_at: number;
   user: { id: string; email: string };
 }> {
+  const credentials = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64");
   const res = await fetch(`${ZITADEL_URL}/oauth/v2/token`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${credentials}`,
+    },
     body: new URLSearchParams({
       grant_type: "authorization_code",
       code,
       redirect_uri: `${process.env.BASE_URL}/api/auth/oauth/callback`,
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
     }),
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error_description: "Exchange failed" }));
-    throw new Error(
-      (err as { error_description?: string }).error_description || "OAuth exchange failed",
-    );
+    const body = await res.text();
+    let errMsg = "Exchange failed";
+    try {
+      const err = JSON.parse(body) as { error?: string; error_description?: string };
+      errMsg = err.error_description || err.error || body;
+    } catch {
+      errMsg = body || "Exchange failed";
+    }
+    console.error("[zitadel] exchangeOAuthCode failed:", res.status, errMsg);
+    throw new Error(errMsg);
   }
 
   const data = (await res.json()) as {
@@ -190,14 +198,16 @@ export async function refreshTokens(refreshToken: string): Promise<{
   refresh_token: string;
   expires_at: number;
 }> {
+  const credentials = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64");
   const res = await fetch(`${ZITADEL_URL}/oauth/v2/token`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${credentials}`,
+    },
     body: new URLSearchParams({
       grant_type: "refresh_token",
       refresh_token: refreshToken,
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
     }),
   });
 

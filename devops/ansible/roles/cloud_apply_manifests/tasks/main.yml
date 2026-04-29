@@ -75,8 +75,7 @@
     export DOMAIN="{{ vault_domain }}"
     export COMPUTER_DOMAIN="{{ vault_computer_domain }}"
     export ACME_EMAIL="{{ vault_acme_email }}"
-    export SUPABASE_URL="{{ vault_supabase_url }}"
-    envsubst < "/tmp/lmthing-manifests/k8s/envoy/{{ item }}.tpl" \
+envsubst < "/tmp/lmthing-manifests/k8s/envoy/{{ item }}.tpl" \
              > "/tmp/lmthing-manifests/k8s/envoy/{{ item }}"
   loop:
     - cloud-gateway.yaml

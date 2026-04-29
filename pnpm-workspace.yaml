@@ -15,10 +15,8 @@ packages:
 
 catalog:
   '@modelcontextprotocol/sdk': 1.29.0
-  '@supabase/supabase-js': ^2.99.1
   '@types/node': ^24
   dotenv: ^16.6.1
-  supabase: ^2.78.1
   typescript: ^5
   vite: npm:@voidzero-dev/vite-plus-core@latest
   vite-plus: latest

@@ -100,16 +100,6 @@ spec:
                 secretKeyRef:
                   name: lmthing-secrets
                   key: STRIPE_PRICE_MAX
-            - name: SUPABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: lmthing-secrets
-                  key: SUPABASE_URL
-            - name: SUPABASE_SERVICE_ROLE_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: lmthing-secrets
-                  key: SUPABASE_SERVICE_ROLE_KEY
           resources:
             requests:
               memory: "128Mi"

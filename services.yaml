@@ -75,10 +75,10 @@ services:
     color: "32" # green
 
   - name: cloud
-    type: supabase
+    type: gateway
     domain: lmthing.cloud
     local: cloud.test
-    port: 54321
+    port: 3009
     emoji: ☁️
     color: "37" # white
 

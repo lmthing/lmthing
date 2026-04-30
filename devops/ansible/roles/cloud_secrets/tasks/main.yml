@@ -27,7 +27,6 @@
         ZITADEL_MASTER_KEY: "{{ vault_zitadel_master_key }}"
         ZITADEL_ADMIN_PASSWORD: "{{ vault_zitadel_admin_password }}"
         ZITADEL_ISSUER: "{{ vault_zitadel_issuer }}"
-        ZITADEL_GITHUB_IDP_ID: "{{ vault_zitadel_github_idp_id }}"
         ZITADEL_SERVICE_ACCOUNT_ID: "{{ vault_zitadel_service_account_id }}"
         ZITADEL_SERVICE_ACCOUNT_KEY: "{{ vault_zitadel_service_account_key }}"
         ZITADEL_CLIENT_ID: "{{ vault_zitadel_client_id }}"

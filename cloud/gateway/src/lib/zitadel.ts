@@ -6,6 +6,32 @@ const CLIENT_SECRET = process.env.ZITADEL_CLIENT_SECRET!;
 
 let cachedServiceToken: string | null = null;
 let serviceTokenExpiry = 0;
+let cachedGithubIdpId: string | null = process.env.ZITADEL_GITHUB_IDP_ID ?? null;
+
+async function getGithubIdpId(): Promise<string> {
+  if (cachedGithubIdpId) return cachedGithubIdpId;
+
+  const token = await getServiceToken();
+  const res = await fetch(`${ZITADEL_URL}/management/v1/idps/_search`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ limit: 100 }),
+  });
+
+  if (!res.ok) throw new Error(`Failed to list IDPs: ${await res.text()}`);
+
+  const data = (await res.json()) as {
+    result?: Array<{ id: string; name: string; type?: string }>;
+  };
+
+  const github = data.result?.find(
+    (idp) => idp.type === "IDP_TYPE_GITHUB" || idp.name.toLowerCase().includes("github"),
+  );
+  if (!github) throw new Error("GitHub IDP not found in Zitadel — check Organization → Identity Providers");
+
+  cachedGithubIdpId = github.id;
+  return github.id;
+}
 
 async function getServiceToken(): Promise<string> {
   if (cachedServiceToken && Date.now() < serviceTokenExpiry - 30_000) {
@@ -121,7 +147,7 @@ export async function loginWithPassword(
 // Start a Zitadel IDP Intent for GitHub — returns the GitHub OAuth URL directly,
 // bypassing Zitadel's login UI entirely.
 export async function startIdpIntent(successUrl: string): Promise<string> {
-  const token = await getServiceToken();
+  const [token, idpId] = await Promise.all([getServiceToken(), getGithubIdpId()]);
   const res = await fetch(`${ZITADEL_URL}/v2/idp_intents`, {
     method: "POST",
     headers: {
@@ -129,7 +155,7 @@ export async function startIdpIntent(successUrl: string): Promise<string> {
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
-      idpId: process.env.ZITADEL_GITHUB_IDP_ID,
+      idpId,
       urls: {
         successUrl,
         failureUrl: `${process.env.BASE_URL}/api/auth/oauth/callback?error=idp_failed`,

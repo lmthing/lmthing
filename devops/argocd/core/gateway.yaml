@@ -112,16 +112,11 @@ spec:
                 secretKeyRef:
                   name: lmthing-secrets
                   key: ZITADEL_ISSUER
-            - name: ZITADEL_SERVICE_ACCOUNT_ID
+            - name: ZITADEL_SERVICE_PAT
               valueFrom:
                 secretKeyRef:
                   name: lmthing-secrets
-                  key: ZITADEL_SERVICE_ACCOUNT_ID
-            - name: ZITADEL_SERVICE_ACCOUNT_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: lmthing-secrets
-                  key: ZITADEL_SERVICE_ACCOUNT_KEY
+                  key: ZITADEL_SERVICE_PAT
             - name: ZITADEL_CLIENT_ID
               valueFrom:
                 secretKeyRef:

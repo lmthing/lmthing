@@ -1,20 +1,21 @@
 const ZITADEL_URL = process.env.ZITADEL_URL!; // https://auth.lmthing.cloud
-const SERVICE_ACCOUNT_ID = process.env.ZITADEL_SERVICE_ACCOUNT_ID!;
-const SERVICE_ACCOUNT_KEY = process.env.ZITADEL_SERVICE_ACCOUNT_KEY!;
+const SERVICE_PAT = process.env.ZITADEL_SERVICE_PAT!; // machine user Personal Access Token
 const CLIENT_ID = process.env.ZITADEL_CLIENT_ID!;
 const CLIENT_SECRET = process.env.ZITADEL_CLIENT_SECRET!;
 
-let cachedServiceToken: string | null = null;
-let serviceTokenExpiry = 0;
-let cachedGithubIdpId: string | null = process.env.ZITADEL_GITHUB_IDP_ID ?? null;
+let cachedGithubIdpId: string | null = null;
+
+// PAT is a long-lived token — return it directly, no exchange needed.
+function getServiceToken(): string {
+  return SERVICE_PAT;
+}
 
 async function getGithubIdpId(): Promise<string> {
   if (cachedGithubIdpId) return cachedGithubIdpId;
 
-  const token = await getServiceToken();
   const res = await fetch(`${ZITADEL_URL}/management/v1/idps/_search`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getServiceToken()}` },
     body: JSON.stringify({ limit: 100 }),
   });
 
@@ -33,37 +34,11 @@ async function getGithubIdpId(): Promise<string> {
   return github.id;
 }
 
-async function getServiceToken(): Promise<string> {
-  if (cachedServiceToken && Date.now() < serviceTokenExpiry - 30_000) {
-    return cachedServiceToken;
-  }
-
-  const res = await fetch(`${ZITADEL_URL}/oauth/v2/token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-      client_id: SERVICE_ACCOUNT_ID,
-      client_secret: SERVICE_ACCOUNT_KEY,
-      scope: "openid urn:zitadel:iam:org:project:id:zitadel:aud",
-    }),
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to get service token: ${await res.text()}`);
-  }
-
-  const data = (await res.json()) as { access_token: string; expires_in: number };
-  cachedServiceToken = data.access_token;
-  serviceTokenExpiry = Date.now() + data.expires_in * 1000;
-  return cachedServiceToken;
-}
-
 export async function createUser(
   email: string,
   password: string,
 ): Promise<{ userId: string }> {
-  const token = await getServiceToken();
+  const token = getServiceToken();
   const res = await fetch(`${ZITADEL_URL}/v2/users/human`, {
     method: "POST",
     headers: {
@@ -90,7 +65,7 @@ export async function createUser(
 export async function getUserById(
   userId: string,
 ): Promise<{ id: string; email: string }> {
-  const token = await getServiceToken();
+  const token = getServiceToken();
   const res = await fetch(`${ZITADEL_URL}/v2/users/${userId}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -147,7 +122,7 @@ export async function loginWithPassword(
 // Start a Zitadel IDP Intent for GitHub — returns the GitHub OAuth URL directly,
 // bypassing Zitadel's login UI entirely.
 export async function startIdpIntent(successUrl: string): Promise<string> {
-  const [token, idpId] = await Promise.all([getServiceToken(), getGithubIdpId()]);
+  const [token, idpId] = await Promise.all([Promise.resolve(getServiceToken()), getGithubIdpId()]);
   const res = await fetch(`${ZITADEL_URL}/v2/idp_intents`, {
     method: "POST",
     headers: {
@@ -173,7 +148,7 @@ export async function resolveIdpIntent(
   id: string,
   token: string,
 ): Promise<{ userId: string; email: string }> {
-  const serviceToken = await getServiceToken();
+  const serviceToken = getServiceToken();
 
   const retrieveRes = await fetch(
     `${ZITADEL_URL}/v2/idp_intents/${encodeURIComponent(id)}/retrieve`,
@@ -308,11 +283,14 @@ export async function exchangeTokenForUser(userId: string): Promise<{
   refresh_token: string;
   expires_at: number;
 }> {
-  const serviceToken = await getServiceToken();
-
+  const serviceToken = getServiceToken();
+  // PAT authenticates the actor via Bearer header; subject_token is the same PAT.
   const res = await fetch(`${ZITADEL_URL}/oauth/v2/token`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${serviceToken}`,
+    },
     body: new URLSearchParams({
       grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
       requested_token_type: "urn:ietf:params:oauth:token-type:access_token",
@@ -320,8 +298,6 @@ export async function exchangeTokenForUser(userId: string): Promise<{
       subject_token_type: "urn:ietf:params:oauth:token-type:access_token",
       requested_subject: userId,
       scope: "openid email profile offline_access",
-      client_id: SERVICE_ACCOUNT_ID,
-      client_secret: SERVICE_ACCOUNT_KEY,
     }),
   });
 

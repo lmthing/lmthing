@@ -113,37 +113,41 @@ auth.post("/login", async (c) => {
   }
 });
 
-// GET /oauth/url — get OAuth redirect URL for a provider
+// GET /oauth/url — start GitHub login via Zitadel IDP Intent (bypasses Zitadel UI)
 auth.get("/oauth/url", async (c) => {
-  const provider = c.req.query("provider");
-  if (!provider || !["github", "google"].includes(provider)) {
-    return c.json({ error: "provider must be 'github' or 'google'" }, 400);
-  }
-
   const redirectTo = c.req.query("redirect_to");
   if (!redirectTo) {
     return c.json({ error: "redirect_to is required" }, 400);
   }
 
-  const url = zitadel.getOAuthUrl(provider as "github" | "google", redirectTo);
-  return c.json({ url });
+  try {
+    const successUrl = `${process.env.BASE_URL}/api/auth/oauth/callback?state=${Buffer.from(redirectTo).toString("base64url")}`;
+    const url = await zitadel.startIdpIntent(successUrl);
+    return c.json({ url });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Failed to start login";
+    return c.json({ error: msg }, 500);
+  }
 });
 
-// GET /oauth/callback — exchange OAuth authorization code for tokens
-// Registered in Zitadel as the redirect URI for the gateway web application
+// GET /oauth/callback — Zitadel IDP Intent callback (id + token params)
 auth.get("/oauth/callback", async (c) => {
-  const code = c.req.query("code");
+  const error = c.req.query("error");
+  if (error) return c.json({ error }, 400);
+
+  const id = c.req.query("id");
+  const token = c.req.query("token");
   const state = c.req.query("state");
 
-  if (!code) {
-    return c.json({ error: "Missing authorization code" }, 400);
+  if (!id || !token) {
+    return c.json({ error: "Missing intent params" }, 400);
   }
 
   try {
-    const tokens = await zitadel.exchangeOAuthCode(code);
-    await provisionUser(tokens.user.id, tokens.user.email).catch(() => null);
+    const { userId, email } = await zitadel.resolveIdpIntent(id, token);
+    const tokens = await zitadel.exchangeTokenForUser(userId);
+    await provisionUser(userId, email).catch(() => null);
 
-    // Redirect to original app with tokens in URL fragment (same shape as before)
     const redirectTo = state
       ? Buffer.from(state, "base64url").toString("utf-8")
       : "/";

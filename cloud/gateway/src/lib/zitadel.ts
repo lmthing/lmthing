@@ -295,12 +295,15 @@ export async function exchangeTokenForUser(userId: string): Promise<{
   expires_at: number;
 }> {
   const serviceToken = getServiceToken();
-  // PAT authenticates the actor via Bearer header; subject_token is the same PAT.
+  // Client authenticates via Basic auth; PAT is the subject_token to exchange.
+  // Bearer auth must NOT be used here — it causes Zitadel to treat the request
+  // as a plain PAT token issue and ignore the grant_type body entirely.
+  const credentials = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64");
   const res = await fetch(`${ZITADEL_URL}/oauth/v2/token`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Bearer ${serviceToken}`,
+      Authorization: `Basic ${credentials}`,
     },
     body: new URLSearchParams({
       grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
@@ -309,8 +312,6 @@ export async function exchangeTokenForUser(userId: string): Promise<{
       subject_token_type: "urn:ietf:params:oauth:token-type:access_token",
       requested_subject: userId,
       scope: "openid email profile offline_access urn:zitadel:iam:org:project:id:zitadel:aud",
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
     }),
   });
 

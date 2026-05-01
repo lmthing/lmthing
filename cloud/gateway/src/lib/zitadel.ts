@@ -308,7 +308,7 @@ export async function exchangeTokenForUser(userId: string): Promise<{
       subject_token: serviceToken,
       subject_token_type: "urn:ietf:params:oauth:token-type:access_token",
       requested_subject: userId,
-      scope: "openid email profile offline_access",
+      scope: "openid email profile offline_access urn:zitadel:iam:org:project:id:zitadel:aud",
       client_id: CLIENT_ID,
       client_secret: CLIENT_SECRET,
     }),

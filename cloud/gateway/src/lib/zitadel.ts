@@ -164,7 +164,10 @@ export async function resolveIdpIntent(
 
   if (!retrieveRes.ok) throw new Error(`Intent retrieve failed: ${await retrieveRes.text()}`);
 
-  const intent = (await retrieveRes.json()) as {
+  const intentRaw = await retrieveRes.json();
+  console.log("IDP intent response:", JSON.stringify(intentRaw));
+
+  const intent = intentRaw as {
     userId?: string;
     idpInformation?: {
       idpId: string;
@@ -189,24 +192,30 @@ export async function resolveIdpIntent(
   const firstName = spaceIdx > 0 ? fullName.slice(0, spaceIdx) : fullName || "User";
   const lastName = spaceIdx > 0 ? fullName.slice(spaceIdx + 1) : ".";
 
+  const createBody = {
+    username: email || idpInfo.userName,
+    profile: { firstName, lastName },
+    email: { email, isVerified: true },
+    idpLinks: [{ idpId: idpInfo.idpId, userId: idpInfo.userId, userName: idpInfo.userName }],
+  };
+  console.log("Creating user:", JSON.stringify(createBody));
+
   const createRes = await fetch(`${ZITADEL_URL}/v2/users/human`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${serviceToken}`,
     },
-    body: JSON.stringify({
-      username: email || idpInfo.userName,
-      profile: { firstName, lastName },
-      email: { email, isVerified: true },
-      idpLinks: [{ idpId: idpInfo.idpId, userId: idpInfo.userId, userName: idpInfo.userName }],
-    }),
+    body: JSON.stringify(createBody),
   });
 
   if (createRes.ok) {
     const created = (await createRes.json()) as { userId: string };
     return { userId: created.userId, email };
   }
+
+  const createErr = await createRes.text();
+  console.error("User creation failed:", createRes.status, createErr);
 
   // Email already exists — find the user and link the IDP
   const searchRes = await fetch(`${ZITADEL_URL}/v2/users/_search`, {
@@ -220,8 +229,9 @@ export async function resolveIdpIntent(
     }),
   });
 
-  if (!searchRes.ok) throw new Error("Failed to create or find user");
+  if (!searchRes.ok) throw new Error(`Failed to search for user: ${await searchRes.text()}`);
   const search = (await searchRes.json()) as { result?: Array<{ userId: string }> };
+  console.log("User search result:", JSON.stringify(search));
   const existingId = search.result?.[0]?.userId;
   if (!existingId) throw new Error("User creation conflict but user not found");
 

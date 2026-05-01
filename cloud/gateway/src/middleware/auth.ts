@@ -1,10 +1,9 @@
-import { createRemoteJWKSet, jwtVerify } from "jose";
 import type { Context, Next } from "hono";
 import type { Env } from "../types.js";
 
-const JWKS = createRemoteJWKSet(
-  new URL(`${process.env.ZITADEL_URL}/oauth/v2/keys`),
-);
+const ZITADEL_URL = process.env.ZITADEL_URL!;
+const CLIENT_ID = process.env.ZITADEL_CLIENT_ID!;
+const CLIENT_SECRET = process.env.ZITADEL_CLIENT_SECRET!;
 
 export interface AuthUser {
   id: string;
@@ -20,20 +19,33 @@ export async function authMiddleware(c: Context<Env>, next: Next) {
   const token = header.slice(7);
 
   try {
-    const { payload } = await jwtVerify(token, JWKS, {
-      issuer: process.env.ZITADEL_ISSUER,
+    const credentials = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64");
+    const res = await fetch(`${ZITADEL_URL}/oauth/v2/introspect`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${credentials}`,
+      },
+      body: new URLSearchParams({ token }),
     });
 
-    if (!payload.sub || typeof payload.email !== "string") {
-      console.error("Invalid claims — sub:", payload.sub, "email:", payload.email, "type:", typeof payload.email);
-      return c.json({ error: "Invalid token claims" }, 401);
+    if (!res.ok) {
+      return c.json({ error: "Token introspection failed" }, 401);
+    }
+
+    const payload = (await res.json()) as {
+      active: boolean;
+      sub?: string;
+      email?: string;
+    };
+
+    if (!payload.active || !payload.sub || typeof payload.email !== "string") {
+      return c.json({ error: "Invalid or inactive token" }, 401);
     }
 
     c.set("user", { id: payload.sub, email: payload.email });
-  } catch (err) {
-    console.error("JWT verify failed:", err instanceof Error ? err.message : err);
-    console.error("Token prefix:", token.slice(0, 40));
-    return c.json({ error: "Invalid or expired token" }, 401);
+  } catch {
+    return c.json({ error: "Token validation failed" }, 401);
   }
 
   await next();

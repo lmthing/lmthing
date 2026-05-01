@@ -107,6 +107,11 @@ spec:
                   key: STRIPE_PRICE_MAX
             - name: ZITADEL_URL
               value: "https://auth.lmthing.cloud"
+            - name: ZITADEL_GITHUB_IDP_ID
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: ZITADEL_GITHUB_IDP_ID
             - name: ZITADEL_ISSUER
               valueFrom:
                 secretKeyRef:

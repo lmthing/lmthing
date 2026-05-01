@@ -3,7 +3,7 @@ const SERVICE_PAT = process.env.ZITADEL_SERVICE_PAT!; // machine user Personal A
 const CLIENT_ID = process.env.ZITADEL_CLIENT_ID!;
 const CLIENT_SECRET = process.env.ZITADEL_CLIENT_SECRET!;
 
-let cachedGithubIdpId: string | null = null;
+let cachedGithubIdpId: string | null = process.env.ZITADEL_GITHUB_IDP_ID ?? null;
 
 // PAT is a long-lived token — return it directly, no exchange needed.
 function getServiceToken(): string {

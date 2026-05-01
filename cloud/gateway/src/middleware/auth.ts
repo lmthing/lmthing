@@ -39,6 +39,8 @@ export async function authMiddleware(c: Context<Env>, next: Next) {
       email?: string;
     };
 
+    console.log("Introspect response:", JSON.stringify(payload));
+
     if (!payload.active || !payload.sub || typeof payload.email !== "string") {
       return c.json({ error: "Invalid or inactive token" }, 401);
     }

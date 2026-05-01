@@ -39,6 +39,7 @@
         STRIPE_PRICE_PRO: "{{ vault_stripe_price_pro }}"
         STRIPE_PRICE_MAX: "{{ vault_stripe_price_max }}"
         LITELLM_MASTER_KEY: "{{ vault_litellm_master_key }}"
+        GATEWAY_JWT_SECRET: "{{ vault_gateway_jwt_secret }}"
         ACR_REGISTRY: "{{ vault_acr_registry }}"
         ACR_USERNAME: "{{ vault_acr_username }}"
         ACR_PASSWORD: "{{ vault_acr_password }}"
@@ -57,6 +58,29 @@
       type: kubernetes.io/dockerconfigjson
       data:
         .dockerconfigjson: "{{ {'auths': {vault_acr_registry: {'auth': (vault_acr_username + ':' + vault_acr_password) | b64encode}}} | to_json | b64encode }}"
+  no_log: true
+
+# ── Sync Postgres lmthing user password ──────────────────────
+# The PVC persists across redeploys so POSTGRES_PASSWORD env var only applies
+# on first init. This ensures the password always matches DATABASE_URL.
+- name: Wait for Postgres pod to be ready before password sync
+  kubernetes.core.k8s_info:
+    kind: StatefulSet
+    name: postgres
+    namespace: lmthing
+  register: postgres_ss_pw
+  until: >
+    postgres_ss_pw.resources | length > 0 and
+    (postgres_ss_pw.resources[0].status.readyReplicas | default(0)) >= 1
+  retries: 30
+  delay: 10
+
+- name: Sync lmthing Postgres user password to match DATABASE_URL
+  ansible.builtin.shell: |
+    kubectl exec -n lmthing postgres-0 -- \
+      psql -U "{{ vault_postgres_user }}" -d lmthing -c \
+      "ALTER USER {{ vault_postgres_user }} PASSWORD '{{ vault_postgres_password }}';"
+  changed_when: true
   no_log: true
 
 # ── Database migrations (runs inside Postgres pod) ───────────

@@ -30,10 +30,14 @@ vault_zitadel_master_key: CHANGE_ME_32_HEX_CHARS
 vault_zitadel_admin_password: CHANGE_ME
 vault_zitadel_issuer: https://auth.lmthing.cloud
 # Fill these in AFTER initial Zitadel setup (see Zitadel Setup section in devops/CLAUDE.md)
-vault_zitadel_service_account_id: ""
-vault_zitadel_service_account_key: ""
+vault_zitadel_service_pat: ""        # Machine user Personal Access Token
+vault_zitadel_github_idp_id: ""      # Optional — auto-discovered if blank
 vault_zitadel_client_id: ""
 vault_zitadel_client_secret: ""
+
+# ── Gateway JWT ───────────────────────────────────────────────
+# Generate with: openssl rand -base64 32
+vault_gateway_jwt_secret: CHANGE_ME
 
 # ── Stripe ────────────────────────────────────────────────────
 vault_stripe_secret_key: sk_live_xxx

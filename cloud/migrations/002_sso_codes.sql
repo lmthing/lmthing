@@ -3,7 +3,7 @@
 
 create table if not exists public.sso_codes (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null,
+  user_id text not null,
   code text not null unique,
   redirect_uri text not null,
   app text not null,

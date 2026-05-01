@@ -1,5 +1,6 @@
 import type { Context, Next } from "hono";
 import type { Env } from "../types.js";
+import { verifyAccessToken } from "../lib/tokens.js";
 
 const ZITADEL_URL = process.env.ZITADEL_URL!;
 const CLIENT_ID = process.env.ZITADEL_CLIENT_ID!;
@@ -18,6 +19,14 @@ export async function authMiddleware(c: Context<Env>, next: Next) {
 
   const token = header.slice(7);
 
+  // Try our own JWT first (GitHub OAuth and password login tokens)
+  const local = await verifyAccessToken(token);
+  if (local) {
+    c.set("user", { id: local.userId, email: local.email });
+    return next();
+  }
+
+  // Fall back to Zitadel introspection for any legacy tokens
   try {
     const credentials = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64");
     const res = await fetch(`${ZITADEL_URL}/oauth/v2/introspect`, {
@@ -29,9 +38,7 @@ export async function authMiddleware(c: Context<Env>, next: Next) {
       body: new URLSearchParams({ token }),
     });
 
-    if (!res.ok) {
-      return c.json({ error: "Token introspection failed" }, 401);
-    }
+    if (!res.ok) return c.json({ error: "Unauthorized" }, 401);
 
     const payload = (await res.json()) as {
       active: boolean;
@@ -39,16 +46,14 @@ export async function authMiddleware(c: Context<Env>, next: Next) {
       email?: string;
     };
 
-    console.log("Introspect response:", JSON.stringify(payload));
-
     if (!payload.active || !payload.sub || typeof payload.email !== "string") {
-      return c.json({ error: "Invalid or inactive token" }, 401);
+      return c.json({ error: "Unauthorized" }, 401);
     }
 
     c.set("user", { id: payload.sub, email: payload.email });
   } catch {
-    return c.json({ error: "Token validation failed" }, 401);
+    return c.json({ error: "Unauthorized" }, 401);
   }
 
-  await next();
+  return next();
 }

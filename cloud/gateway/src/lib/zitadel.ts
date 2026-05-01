@@ -62,6 +62,24 @@ export async function createUser(
   return { userId: data.userId };
 }
 
+export async function getUserByEmail(
+  email: string,
+): Promise<{ userId: string; email: string }> {
+  const token = getServiceToken();
+  const res = await fetch(`${ZITADEL_URL}/v2/users`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      queries: [{ emailQuery: { email, method: "TEXT_QUERY_METHOD_EQUALS" } }],
+    }),
+  });
+  if (!res.ok) throw new Error(`User not found: ${email}`);
+  const data = (await res.json()) as { result?: Array<{ userId: string }> };
+  const userId = data.result?.[0]?.userId;
+  if (!userId) throw new Error(`User not found: ${email}`);
+  return getUserById(userId);
+}
+
 export async function getUserById(
   userId: string,
 ): Promise<{ id: string; email: string }> {

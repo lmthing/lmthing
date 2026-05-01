@@ -132,6 +132,11 @@ spec:
                 secretKeyRef:
                   name: lmthing-secrets
                   key: ZITADEL_CLIENT_SECRET
+            - name: GATEWAY_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: GATEWAY_JWT_SECRET
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:

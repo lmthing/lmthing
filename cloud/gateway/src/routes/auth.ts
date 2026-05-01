@@ -6,6 +6,7 @@ import * as zitadel from "../lib/zitadel.js";
 import * as db from "../lib/db.js";
 import { TIERS } from "../lib/tiers.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { signTokens, verifyRefreshToken } from "../lib/tokens.js";
 import type { Env } from "../types.js";
 
 const auth = new Hono<Env>();
@@ -101,7 +102,10 @@ auth.post("/login", async (c) => {
   }
 
   try {
-    const tokens = await zitadel.loginWithPassword(email, password);
+    const zTokens = await zitadel.loginWithPassword(email, password);
+    // Verify credentials via Zitadel, then issue our own tokens
+    const userInfo = await zitadel.getUserByEmail(email);
+    const tokens = await signTokens(userInfo.userId, email);
     return c.json({
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
@@ -145,7 +149,7 @@ auth.get("/oauth/callback", async (c) => {
 
   try {
     const { userId, email } = await zitadel.resolveIdpIntent(id, token);
-    const tokens = await zitadel.exchangeTokenForUser(userId);
+    const tokens = await signTokens(userId, email);
     await provisionUser(userId, email).catch(() => null);
 
     const redirectTo = state
@@ -209,7 +213,10 @@ auth.post("/refresh", async (c) => {
   }
 
   try {
-    const tokens = await zitadel.refreshTokens(refresh_token);
+    const payload = await verifyRefreshToken(refresh_token);
+    if (!payload) return c.json({ error: "Invalid refresh token" }, 401);
+    const userInfo = await zitadel.getUserById(payload.userId);
+    const tokens = await signTokens(payload.userId, userInfo.email);
     return c.json({
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
@@ -274,7 +281,7 @@ auth.post("/sso/exchange", async (c) => {
 
   let tokens: { access_token: string; refresh_token: string; expires_at: number };
   try {
-    tokens = await zitadel.exchangeTokenForUser(ssoCode.user_id);
+    tokens = await signTokens(ssoCode.user_id, userInfo.email);
   } catch {
     return c.json({ error: "Failed to create session" }, 500);
   }

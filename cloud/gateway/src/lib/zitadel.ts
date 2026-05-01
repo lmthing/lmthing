@@ -47,7 +47,7 @@ export async function createUser(
     },
     body: JSON.stringify({
       username: email,
-      profile: { firstName: "User", lastName: "" },
+      profile: { givenName: "User", familyName: "." },
       email: { email, isVerified: true },
       password: { password, changeRequired: false },
     }),
@@ -186,15 +186,16 @@ export async function resolveIdpIntent(
   // First login — create user and link IDP
   const idpInfo = intent.idpInformation!;
   const rawUser = idpInfo.rawInformation?.User ?? {};
-  const email = rawUser.email ?? "";
-  const fullName = rawUser.name ?? rawUser.login ?? idpInfo.userName ?? "";
+  const login = idpInfo.userName;
+  const email = rawUser.email || `${login}@github.users`;
+  const fullName = rawUser.name ?? login ?? "";
   const spaceIdx = fullName.indexOf(" ");
-  const firstName = spaceIdx > 0 ? fullName.slice(0, spaceIdx) : fullName || "User";
-  const lastName = spaceIdx > 0 ? fullName.slice(spaceIdx + 1) : ".";
+  const givenName = spaceIdx > 0 ? fullName.slice(0, spaceIdx) : fullName || login;
+  const familyName = spaceIdx > 0 ? fullName.slice(spaceIdx + 1) : ".";
 
   const createBody = {
-    username: email || idpInfo.userName,
-    profile: { firstName, lastName },
+    username: login,
+    profile: { givenName, familyName },
     email: { email, isVerified: true },
     idpLinks: [{ idpId: idpInfo.idpId, userId: idpInfo.userId, userName: idpInfo.userName }],
   };
@@ -218,7 +219,7 @@ export async function resolveIdpIntent(
   console.error("User creation failed:", createRes.status, createErr);
 
   // Email already exists — find the user and link the IDP
-  const searchRes = await fetch(`${ZITADEL_URL}/v2/users/_search`, {
+  const searchRes = await fetch(`${ZITADEL_URL}/v2/users`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

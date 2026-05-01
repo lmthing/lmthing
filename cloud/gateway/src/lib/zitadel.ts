@@ -151,7 +151,7 @@ export async function resolveIdpIntent(
   const serviceToken = getServiceToken();
 
   const retrieveRes = await fetch(
-    `${ZITADEL_URL}/v2/idp_intents/${encodeURIComponent(id)}/retrieve`,
+    `${ZITADEL_URL}/v2/idp_intents/${encodeURIComponent(id)}`,
     {
       method: "POST",
       headers: {

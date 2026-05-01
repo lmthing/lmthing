@@ -249,7 +249,8 @@ auth.post("/sso/create", authMiddleware, async (c) => {
 
   try {
     await db.insertSsoCode(user.id, code, redirect_uri, app, expiresAt);
-  } catch {
+  } catch (err) {
+    console.error("insertSsoCode failed:", err);
     return c.json({ error: "Failed to create SSO code" }, 500);
   }
 

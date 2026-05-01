@@ -1,8 +1,6 @@
-import { SignJWT, jwtVerify, createSecretKey } from "jose";
+import { SignJWT, jwtVerify } from "jose";
 
-const secret = createSecretKey(
-  Buffer.from(process.env.GATEWAY_JWT_SECRET!, "base64"),
-);
+const secret = Buffer.from(process.env.GATEWAY_JWT_SECRET!, "base64");
 
 const ACCESS_TTL = "12h";
 const REFRESH_TTL = "30d";

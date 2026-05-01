@@ -105,7 +105,7 @@ auth.post("/login", async (c) => {
     const zTokens = await zitadel.loginWithPassword(email, password);
     // Verify credentials via Zitadel, then issue our own tokens
     const userInfo = await zitadel.getUserByEmail(email);
-    const tokens = await signTokens(userInfo.userId, email);
+    const tokens = await signTokens(userInfo.id, email);
     return c.json({
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,

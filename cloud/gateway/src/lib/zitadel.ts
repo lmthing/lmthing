@@ -64,7 +64,7 @@ export async function createUser(
 
 export async function getUserByEmail(
   email: string,
-): Promise<{ userId: string; email: string }> {
+): Promise<{ id: string; email: string }> {
   const token = getServiceToken();
   const res = await fetch(`${ZITADEL_URL}/v2/users`, {
     method: "POST",

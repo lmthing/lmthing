@@ -57,7 +57,7 @@ lmthing/
 
 Key details:
 
-- **Users and all server-side data are stored in Supabase PostgreSQL** (profiles, LiteLLM tables), with Supabase Auth for user management.
+- **Users are managed by Zitadel** (auth.lmthing.cloud) — email/password and GitHub OAuth via IDP Intent API. The gateway issues its own HS256 JWTs; clients never hold Zitadel tokens. **Server-side data** (profiles, LiteLLM tables) is stored in PostgreSQL (in-cluster).
 - **Billing and usage metering** are handled by Stripe subscriptions, orchestrated through the gateway.
 - **LLM requests** go through LiteLLM (`/v1/*`), which enforces per-user budgets and rate limits based on their tier (Free/Starter/Basic/Pro/Max).
 - **Whenever any service needs backend functionality** (new API endpoint, database operation, webhook handler, etc.), it **must be implemented in the gateway (`cloud/gateway/`) or as K8s configuration**. Do not create backend services elsewhere.
@@ -94,7 +94,7 @@ graph TB
         Envoy["Envoy Gateway<br/>TLS + Routing"]
         LiteLLM["LiteLLM<br/>OpenAI-compatible proxy"]
         Gateway["Gateway (Hono/Node.js)<br/>Auth · Keys · Billing · Webhooks"]
-        DB[("Supabase PostgreSQL<br/>profiles · LiteLLM tables")]
+        DB[("PostgreSQL<br/>profiles · LiteLLM tables")]
         Envoy -- "/v1/*" --> LiteLLM
         Envoy -- "/api/*" --> Gateway
         LiteLLM --> DB
@@ -104,7 +104,7 @@ graph TB
     subgraph External["External Services"]
         Azure["Azure AI Foundry<br/>LLM Models"]
         Stripe["Stripe<br/>Subscriptions + Billing"]
-        SupaAuth["Supabase Auth<br/>Email/Password + OAuth"]
+        Zitadel["Zitadel<br/>Identity — users · GitHub OAuth"]
         GitHub["GitHub API<br/>OAuth + Repo Sync"]
     end
 
@@ -115,7 +115,7 @@ graph TB
     App -- "REST + Streaming" --> Envoy
     LiteLLM --> Azure
     Gateway --> Stripe
-    Gateway --> SupaAuth
+    Gateway --> Zitadel
     App -- "OAuth + Octokit" --> GitHub
     Core -. "Standalone CLI<br/>lmthing run" .-> Azure
 ```
@@ -298,7 +298,8 @@ Adding a new tier touches files across the monorepo — see [Adding a New Tier](
 | -------------------------- | ------ | ---------- | ---------------------------------------- |
 | `/api/auth/register`       | POST   | Public     | Register → returns API key               |
 | `/api/auth/login`          | POST   | Public     | Login → returns JWT + refresh token      |
-| `/api/auth/oauth/url`      | GET    | Public     | Get Supabase OAuth URL (GitHub/Google)   |
+| `/api/auth/oauth/url`      | GET    | Public     | Start GitHub OAuth via Zitadel IDP Intent |
+| `/api/auth/oauth/callback` | GET    | Public     | IDP Intent callback — issues gateway tokens, redirects |
 | `/api/auth/provision`      | POST   | JWT        | Provision LiteLLM user + Stripe customer |
 | `/api/auth/refresh`        | POST   | Public     | Refresh access token                     |
 | `/api/auth/me`             | GET    | JWT        | User info + tier                         |
@@ -318,7 +319,7 @@ Adding a new tier touches files across the monorepo — see [Adding a New Tier](
 | `/v1/chat/completions`     | POST   | API key    | OpenAI-compatible chat (via LiteLLM)     |
 | `/v1/models`               | GET    | API key    | Available models (via LiteLLM)           |
 
-**Gateway libraries** in `gateway/src/lib/`: `litellm.ts` (LiteLLM admin API client), `stripe.ts` (Stripe client), `tiers.ts` (tier definitions + model lists).
+**Gateway libraries** in `gateway/src/lib/`: `tokens.ts` (gateway JWT issuance/verification), `zitadel.ts` (Zitadel v2 API — users + IDP Intent), `litellm.ts` (LiteLLM admin API client), `stripe.ts` (Stripe client), `tiers.ts` (tier definitions + model lists).
 
 **K8s manifests** are now in `devops/argocd/` (Envoy Gateway). See `devops/CLAUDE.md` for details.
 
@@ -342,6 +343,8 @@ graph TB
     end
 
     subgraph Libs["gateway/src/lib/"]
+        TokensLib["tokens.ts<br/>HS256 JWT issuance"]
+        ZitadelLib["zitadel.ts<br/>Zitadel v2 API"]
         LiteLLMLib["litellm.ts<br/>Admin API client"]
         StripLib["stripe.ts<br/>Stripe client"]
         TiersLib["tiers.ts<br/>Tier definitions"]
@@ -349,9 +352,9 @@ graph TB
 
     subgraph External["External"]
         Azure["Azure AI Foundry"]
-        SupaAuth["Supabase Auth"]
+        Zitadel["Zitadel<br/>auth.lmthing.cloud"]
         Stripe["Stripe"]
-        DB[("Supabase PostgreSQL<br/>profiles · LiteLLM tables")]
+        DB[("PostgreSQL<br/>profiles · LiteLLM tables")]
     end
 
     V1 --> LiteLLMSvc
@@ -359,7 +362,7 @@ graph TB
     LiteLLMSvc --> Azure
     LiteLLMSvc --> DB
     GatewaySvc --> LiteLLMLib
-    GatewaySvc --> SupaAuth
+    GatewaySvc --> Zitadel
     GatewaySvc --> Stripe
     GatewaySvc --> DB
 ```
@@ -403,7 +406,7 @@ sequenceDiagram
 | ------------------ | ------------------------------- | ------------------- |
 | Client (ephemeral) | Auth tokens, encrypted sessions | localStorage        |
 | Client (ephemeral) | Workspace files                 | In-memory VFS       |
-| Server             | User profiles, API keys (RLS)   | Supabase PostgreSQL |
+| Server             | User profiles, API keys         | PostgreSQL (in-cluster) |
 | Server             | Billing, meters, subscriptions  | Stripe              |
 | Sync               | Workspace persistence           | GitHub repositories |
 
@@ -415,7 +418,7 @@ graph LR
     end
 
     subgraph Server["Server-side"]
-        Postgres[("PostgreSQL<br/>profiles · api_keys<br/>RLS enforced")]
+        Postgres[("PostgreSQL<br/>profiles · api_keys · sso_codes")]
         StripeBilling["Stripe<br/>Customers · Meters<br/>Subscriptions · Invoices"]
     end
 
@@ -567,7 +570,7 @@ This repository is a monorepo organized by TLD — each lmthing.\* domain has it
 
 ## Cloud Backend
 
-- `cloud/` — API gateway (Hono/Node.js) + LiteLLM proxy. Gateway handles auth (Supabase Auth), API key management (LiteLLM), billing (Stripe subscriptions), and webhooks. LiteLLM provides OpenAI-compatible LLM proxy routing to Azure AI Foundry with tier-based budgets and rate limits. Gateway source in `gateway/`, migrations in `migrations/`. K8s manifests are in `devops/argocd/`.
+- `cloud/` — API gateway (Hono/Node.js) + LiteLLM proxy. Gateway handles auth (Zitadel identity + gateway-issued HS256 JWTs), API key management (LiteLLM), billing (Stripe subscriptions), and webhooks. LiteLLM provides OpenAI-compatible LLM proxy routing to Azure AI Foundry with tier-based budgets and rate limits. Gateway source in `gateway/`, migrations in `migrations/`. K8s manifests are in `devops/argocd/`.
 - `devops/` — Infrastructure automation. Terraform for Azure VM provisioning, Kubespray for K8s cluster, ArgoCD for GitOps deployment. Envoy Gateway for ingress, cert-manager for TLS, per-user compute pods for lmthing.computer. K8s manifests in `devops/argocd/`, auto-synced by ArgoCD. See `devops/CLAUDE.md`.
 
 ## Product Domains

@@ -14,12 +14,13 @@ cloud/
 │       ├── index.ts                # Hono app entry — CORS, health check, route modules
 │       ├── types.ts                # Env type (Variables: { user: AuthUser })
 │       ├── middleware/
-│       │   └── auth.ts             # JWT auth middleware (Zitadel JWKS verification via jose)
+│       │   └── auth.ts             # JWT auth middleware — verifies gateway JWTs first, falls back to Zitadel introspection
 │       ├── lib/
 │       │   ├── tiers.ts            # Tier definitions (free/starter/basic/pro/max) + helpers
 │       │   ├── litellm.ts          # LiteLLM admin API client (user CRUD, key CRUD, tier updates)
 │       │   ├── stripe.ts           # Stripe client init
-│       │   ├── zitadel.ts          # Zitadel Management API client (user CRUD, OAuth, token exchange)
+│       │   ├── tokens.ts           # Gateway-issued HS256 JWTs — signTokens, verifyAccessToken, verifyRefreshToken
+│       │   ├── zitadel.ts          # Zitadel v2 API client — user CRUD, IDP Intent (GitHub OAuth), password login
 │       │   ├── db.ts               # Postgres client for sso_codes table
 │       │   └── compute.ts          # K8s API client — per-user namespaces, deployments, services, secrets
 │       └── routes/
@@ -30,11 +31,26 @@ cloud/
 │           └── compute.ts          # Pod status, env var get/set
 ├── migrations/
 │   ├── 001_profiles.sql            # profiles table (plain Postgres, no RLS)
-│   ├── 002_sso_codes.sql           # sso_codes table for cross-domain SSO
-│   └── 003_drop_supabase_objects.sql  # drops any legacy Supabase triggers/functions
+│   ├── 002_sso_codes.sql           # sso_codes table for cross-domain SSO (user_id text)
+│   ├── 003_drop_supabase_objects.sql  # drops any legacy Supabase triggers/functions
+│   └── 004_sso_codes_user_id_text.sql # idempotent: alters user_id uuid→text if needed
 └── scripts/
     └── create-stripe-products.ts   # Idempotent Stripe product/price creation
 ```
+
+## Auth Architecture
+
+The gateway issues its own **HS256 JWTs** (via `lib/tokens.ts`) signed with `GATEWAY_JWT_SECRET`. Zitadel handles identity (user storage, GitHub OAuth via IDP Intent API, password verification) but does **not** issue the tokens that clients use — the gateway does.
+
+**Token flow:**
+1. Login/OAuth callback → gateway verifies identity via Zitadel → calls `signTokens(userId, email)` → returns `access_token` (12h) + `refresh_token` (30d)
+2. Authenticated requests → `authMiddleware` verifies the gateway JWT locally (no network call). Falls back to Zitadel introspection for any legacy tokens.
+3. Refresh → verify refresh JWT → re-issue new pair
+
+**GitHub OAuth flow (IDP Intent):**
+1. `GET /api/auth/oauth/url?redirect_to=...` → gateway calls Zitadel `POST /v2/idp_intents` → returns GitHub OAuth URL directly (no Zitadel UI shown)
+2. User authenticates on GitHub → Zitadel redirects to `GET /api/auth/oauth/callback?id=...&token=...`
+3. Gateway calls `POST /v2/idp_intents/{id}` to resolve intent → gets/creates Zitadel user → calls `signTokens()` → redirects with tokens in hash fragment
 
 ## Routes
 
@@ -43,14 +59,14 @@ cloud/
 | Route | Method | Auth | Purpose |
 |-------|--------|------|---------|
 | `/api/auth/register` | POST | Public | Email+password signup, auto-provisions LiteLLM user + Stripe customer + API key |
-| `/api/auth/login` | POST | Public | Email+password login, returns Zitadel JWT + refresh token |
-| `/api/auth/oauth/url` | GET | Public | Returns Zitadel OAuth authorization URL (GitHub/Google) |
-| `/api/auth/oauth/callback` | GET | Public | Exchanges OAuth code for tokens, redirects to original app |
+| `/api/auth/login` | POST | Public | Email+password login — verifies via Zitadel, returns gateway JWT + refresh token |
+| `/api/auth/oauth/url` | GET | Public | Start GitHub OAuth via Zitadel IDP Intent — returns GitHub URL directly |
+| `/api/auth/oauth/callback` | GET | Public | Zitadel IDP Intent callback — resolves intent, issues gateway tokens, redirects |
 | `/api/auth/provision` | POST | JWT | Provisions LiteLLM user + Stripe customer + API key (idempotent) |
 | `/api/auth/me` | GET | JWT | Returns user info (id, email, tier, budget, spend) |
-| `/api/auth/refresh` | POST | Public | Exchanges refresh token for new tokens |
-| `/api/auth/sso/create` | POST | JWT | Generates single-use SSO code (60s TTL) |
-| `/api/auth/sso/exchange` | POST | Public | Exchanges SSO code for Zitadel session via token exchange |
+| `/api/auth/refresh` | POST | Public | Exchanges refresh token for new access token |
+| `/api/auth/sso/create` | POST | JWT | Generates single-use SSO code (60s TTL) stored in Postgres |
+| `/api/auth/sso/exchange` | POST | Public | Exchanges SSO code for gateway JWT session |
 
 ### Keys (`/api/keys/*`)
 
@@ -85,28 +101,44 @@ cloud/
 
 ## Lib Modules
 
+- **`tokens.ts`** — Gateway JWT issuance and verification. `signTokens(userId, email)` issues HS256 access (12h) + refresh (30d) tokens signed with `GATEWAY_JWT_SECRET`. `verifyAccessToken` / `verifyRefreshToken` verify locally via `jose`.
 - **`tiers.ts`** — `TIERS` record with budget, budgetDuration, models, tpmLimit, rpmLimit, compute flag per tier. Helpers: `getTierByPriceId()`, `getTierByName()`.
 - **`litellm.ts`** — HTTP client for LiteLLM admin API (`http://litellm:4000`). Functions: `createUser`, `generateKey`, `updateUserTier`, `listKeys`, `deleteKey`, `getUserInfo`, `getKeyInfo`.
 - **`stripe.ts`** — Stripe client init from `STRIPE_SECRET_KEY`.
-- **`zitadel.ts`** — Zitadel Management API + OIDC client. Uses service account (client credentials) for admin operations. Functions: `createUser`, `getUserById`, `loginWithPassword`, `getOAuthUrl`, `exchangeOAuthCode`, `refreshTokens`, `exchangeTokenForUser` (RFC 8693 token exchange for SSO).
+- **`zitadel.ts`** — Zitadel v2 API client using a machine user Personal Access Token (`ZITADEL_SERVICE_PAT`). Functions: `createUser`, `getUserById`, `getUserByEmail`, `loginWithPassword`, `startIdpIntent`, `resolveIdpIntent`. GitHub IDP ID is auto-discovered from Zitadel on first call and cached (override with `ZITADEL_GITHUB_IDP_ID`).
 - **`db.ts`** — Postgres client (`postgres` package) for `sso_codes` table. Functions: `insertSsoCode`, `findAndConsumeSsoCode`.
 - **`compute.ts`** — K8s in-cluster API client. Creates per-user namespaces (`user-{userId}`), ACR pull secrets, deployments (0.5 CPU / 1Gi, image from `lmthingacr.azurecr.io/compute`), services (port 8080), and `user-env` secrets.
 
 ## Middleware
 
 - **CORS** — Applied to all `/api/*` routes: `origin: "*"`, allows standard methods + Content-Type/Authorization headers.
-- **Auth** (`middleware/auth.ts`) — Extracts Bearer token, verifies against Zitadel JWKS using `jose` (cached, no network call on hot path), sets `user` (id + email) on Hono context.
+- **Auth** (`middleware/auth.ts`) — Extracts Bearer token. First tries `verifyAccessToken` (local, no network). Falls back to Zitadel `POST /oauth/v2/introspect` (Basic auth with `ZITADEL_CLIENT_ID/SECRET`) for any legacy tokens. Sets `user` (id + email) on Hono context.
 
 ## External Services
 
 | Service | Connection | Purpose |
 |---------|-----------|---------|
-| Zitadel | `ZITADEL_URL` (internal) + service account credentials | User management, JWT issuance, OAuth |
+| Zitadel | `ZITADEL_URL` + `ZITADEL_SERVICE_PAT` (machine user PAT) | User management, GitHub IDP Intent OAuth |
+| Zitadel OIDC | `ZITADEL_CLIENT_ID` + `ZITADEL_CLIENT_SECRET` | Password login, token introspection fallback |
 | PostgreSQL | `DATABASE_URL` (`postgres:5432`) | SSO codes, profiles, LiteLLM tables |
 | Stripe | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Checkout, billing portal, subscription webhooks |
 | LiteLLM | `http://litellm:4000` + `LITELLM_MASTER_KEY` | User/key provisioning, tier enforcement |
 | K8s API | In-cluster service account token | Per-user compute pod management |
 | ACR | `ACR_REGISTRY/USERNAME/PASSWORD` env vars | Image pull secrets for user pods |
+
+## Environment Variables
+
+| Variable | Source | Purpose |
+|----------|--------|---------|
+| `GATEWAY_JWT_SECRET` | `lmthing-secrets` | Base64-encoded 32-byte secret for signing HS256 JWTs |
+| `ZITADEL_URL` | hardcoded `https://auth.lmthing.cloud` | Zitadel instance URL |
+| `ZITADEL_SERVICE_PAT` | `lmthing-secrets` | Machine user Personal Access Token for Zitadel admin API |
+| `ZITADEL_CLIENT_ID` | `lmthing-secrets` | Web app client ID (OIDC — password login + introspection) |
+| `ZITADEL_CLIENT_SECRET` | `lmthing-secrets` | Web app client secret |
+| `ZITADEL_GITHUB_IDP_ID` | `lmthing-secrets` (optional) | GitHub IDP ID — auto-discovered if blank |
+| `DATABASE_URL` | `lmthing-secrets` | `postgresql://lmthing:PASSWORD@postgres:5432/lmthing` |
+| `LITELLM_MASTER_KEY` | `lmthing-secrets` | LiteLLM admin key |
+| `BASE_URL` | `lmthing-secrets` | `https://lmthing.cloud` — used for OAuth redirect URIs |
 
 ## Tiers
 

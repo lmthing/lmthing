@@ -2,66 +2,80 @@
 
 ## Overview
 
-Authentication is handled through **com/** (the central auth hub) which talks to the **cloud gateway API**. com/ has its own login/signup UI and uses the cloud gateway's auth routes (which proxy Supabase Auth). Other lmthing.\* apps use cross-domain SSO via com/.
+Authentication is handled through **com/** (the central auth hub) which talks to the **cloud gateway API**. com/ has its own login/signup UI. Other lmthing.\* apps use cross-domain SSO via com/.
 
-**Auth providers**: Email/password, GitHub OAuth, and Google OAuth (all via Supabase Auth, proxied through the gateway).
+**Identity provider**: [Zitadel](https://auth.lmthing.cloud) — stores users, handles GitHub OAuth (via IDP Intent API), and verifies passwords.
+
+**Token issuer**: The **gateway itself** — issues HS256 JWTs signed with `GATEWAY_JWT_SECRET`. Clients never hold Zitadel tokens.
+
+**Auth providers**: Email/password and GitHub OAuth (GitHub-only OAuth flow, no Zitadel login UI shown to users).
 
 ## Auth Flows
 
-### Direct auth (com/)
+### Email/password login (com/)
 
-1. User visits com/ and signs up or logs in via `/api/auth/register`, `/api/auth/login`, or OAuth
-2. OAuth flow: gateway returns Supabase OAuth URL, user authenticates, Supabase redirects to com/callback with tokens in hash fragment
-3. com/callback stores JWT + refresh token, calls `/api/auth/provision` to create LiteLLM user + Stripe customer + API key
-4. Token refresh handled automatically via `cloudFetch()` in `com/src/lib/cloud.ts`
+1. User submits email + password to `POST /api/auth/login`
+2. Gateway verifies credentials via Zitadel password grant
+3. Gateway looks up user ID by email (`getUserByEmail`)
+4. Gateway calls `signTokens(userId, email)` → returns gateway JWT (`access_token` 12h) + `refresh_token` (30d)
+5. com/ stores tokens, calls `/api/auth/provision` to create LiteLLM user + Stripe customer + API key
+
+### GitHub OAuth (IDP Intent flow)
+
+1. com/ calls `GET /api/auth/oauth/url?redirect_to=...`
+2. Gateway calls Zitadel `POST /v2/idp_intents` with the GitHub IDP ID → returns a GitHub OAuth URL directly (no Zitadel UI)
+3. User authenticates on GitHub
+4. GitHub → Zitadel → `GET /api/auth/oauth/callback?id=...&token=...` (the gateway's success URL)
+5. Gateway resolves the IDP intent (`POST /v2/idp_intents/{id}`), gets or creates the Zitadel user
+6. Gateway calls `signTokens(userId, email)` → redirects to `redirect_to#access_token=...&refresh_token=...`
+7. com/ extracts tokens from hash fragment, stores them, calls `/api/auth/provision`
 
 ### Cross-domain SSO (other apps via `@lmthing/auth`)
 
-1. App detects no session and redirects to `com/auth/sso`
+1. App detects no session → redirects to `lmthing.com/auth/sso?redirect_uri=...&app=...`
 2. com/ checks for active session (redirects to `/login` if none)
-3. com/ calls `/api/auth/sso/create` to generate a single-use auth code (60s TTL)
-4. Redirects back to the app with `?code=...&state=...`
-5. App exchanges the code for a session via `/api/auth/sso/exchange`
+3. com/ calls `POST /api/auth/sso/create` → gateway creates a single-use code in Postgres (60s TTL)
+4. com/ redirects back to the app with `?code=...`
+5. App calls `POST /api/auth/sso/exchange` → gateway validates code, calls `signTokens()` → returns gateway JWT session
 
-### Backend auth
+### Token refresh
 
-- **Supabase JWT** (browser) — verified by gateway middleware (`gateway/src/middleware/auth.ts`)
-- **LiteLLM API key** (`sk-*`) — verified by LiteLLM directly
+- `POST /api/auth/refresh` with `{ refresh_token }` → gateway verifies the refresh JWT locally → issues new token pair
+
+### Backend auth (gateway middleware)
+
+1. Extract `Authorization: Bearer <token>`
+2. Try `verifyAccessToken(token)` — local HS256 verification, no network call
+3. If that fails, fall back to Zitadel `POST /oauth/v2/introspect` (Basic auth) for any legacy tokens
 
 ## Gateway Auth Routes
 
 | Route | Method | Auth | Purpose |
 |-------|--------|------|---------|
-| `/api/auth/register` | POST | Public | Register, returns API key |
-| `/api/auth/login` | POST | Public | Login, returns JWT + refresh token |
-| `/api/auth/oauth/url` | GET | Public | Get Supabase OAuth URL (GitHub/Google) |
-| `/api/auth/oauth/callback` | GET | Public | OAuth callback (Supabase redirect) |
-| `/api/auth/provision` | POST | JWT | Provision LiteLLM user + Stripe customer |
+| `/api/auth/register` | POST | Public | Register, auto-provisions LiteLLM + Stripe, returns user info |
+| `/api/auth/login` | POST | Public | Password login — returns gateway JWT + refresh token |
+| `/api/auth/oauth/url` | GET | Public | Start GitHub OAuth via Zitadel IDP Intent |
+| `/api/auth/oauth/callback` | GET | Public | IDP Intent callback — issues gateway tokens, redirects |
+| `/api/auth/provision` | POST | JWT | Provision LiteLLM user + Stripe customer (idempotent) |
 | `/api/auth/refresh` | POST | Public | Refresh access token |
 | `/api/auth/me` | GET | JWT | User info + tier |
-| `/api/auth/sso/create` | POST | JWT | Generate SSO authorization code |
-| `/api/auth/sso/exchange` | POST | Public | Exchange SSO code for session |
-
-### Demo mode (local development)
-
-When `VITE_DEMO_USER=true` is set (default in `.env.development` for studio, chat, and computer), AuthProvider skips all SSO flows and immediately provides a hardcoded demo session (`demo-user` / `demo@lmthing.test`). This means:
-
-- No redirect to com/ for login
-- No SSO code exchange
-- No postMessage session injection
-- PIN gate is bypassed
-- `login()` and `logout()` are no-ops
-
-This allows local development without running the cloud gateway or com/ auth service.
+| `/api/auth/sso/create` | POST | JWT | Generate SSO authorization code (60s TTL) |
+| `/api/auth/sso/exchange` | POST | Public | Exchange SSO code for gateway JWT session |
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `com/src/lib/cloud.ts` | JWT + refresh token management, `cloudFetch()` |
+| `cloud/gateway/src/lib/tokens.ts` | `signTokens`, `verifyAccessToken`, `verifyRefreshToken` — HS256 JWTs |
+| `cloud/gateway/src/lib/zitadel.ts` | Zitadel v2 API client — user CRUD, IDP Intent, password login |
+| `cloud/gateway/src/routes/auth.ts` | All auth route handlers |
+| `cloud/gateway/src/middleware/auth.ts` | Bearer token verification middleware |
 | `sdk/libs/auth/src/` | `@lmthing/auth` — cross-domain SSO client library |
-| `cloud/gateway/src/routes/auth.ts` | Auth route handlers |
-| `cloud/gateway/src/middleware/auth.ts` | JWT verification middleware |
+| `com/src/lib/cloud.ts` | JWT + refresh token management, `cloudFetch()` |
+
+## Demo mode (local development)
+
+When `VITE_DEMO_USER=true` is set (default in `.env.development` for studio, chat, and computer), `AuthProvider` skips all SSO flows and uses a hardcoded demo session (`demo-user` / `demo@lmthing.test`). No redirect to com/, no SSO exchange, no gateway calls needed.
 
 ## Integrating Auth in a New Service
 
@@ -75,15 +89,12 @@ pnpm add "@lmthing/auth@workspace:*"
 ### 2. Wrap your app with AuthProvider
 
 ```tsx
-// src/routes/__root.tsx (or equivalent entry point)
 import { AuthProvider, useAuth } from "@lmthing/auth";
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   if (isLoading) return null;
-  if (!isAuthenticated) {
-    return <LoginScreen />;
-  }
+  if (!isAuthenticated) return <LoginScreen />;
   return <>{children}</>;
 }
 
@@ -98,7 +109,7 @@ function RootComponent() {
 }
 ```
 
-### 3. Use useAuth() anywhere in your app
+### 3. Use useAuth() anywhere
 
 ```tsx
 const { username, isAuthenticated, isLoading, login, logout } = useAuth();
@@ -107,7 +118,7 @@ const { username, isAuthenticated, isLoading, login, logout } = useAuth();
 - `login()` — redirects to com/ for SSO login
 - `logout()` — clears the local session
 - `username` — the user's email
-- `session.accessToken` — JWT for calling cloud functions
+- `session.accessToken` — gateway JWT for calling cloud APIs
 
 ### 4. Ensure the Vite alias is registered
 
@@ -118,8 +129,6 @@ In `sdk/libs/utils/src/vite.mjs`:
 ```
 
 ### 5. Environment variables (optional)
-
-Defaults are auto-resolved. Override if needed:
 
 ```
 VITE_COM_URL=https://com.test       # defaults: com.test (dev) / lmthing.com (prod)

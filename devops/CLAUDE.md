@@ -460,10 +460,11 @@ ansible-vault encrypt vault.yml
 | `vault_zitadel_master_key` | zitadel | 32-hex-char master encryption key |
 | `vault_zitadel_admin_password` | zitadel | Initial admin user password |
 | `vault_zitadel_issuer` | gateway | External issuer URL (`https://auth.lmthing.cloud`) |
-| `vault_zitadel_service_account_id` | gateway | Machine user client ID (set after Zitadel setup) |
-| `vault_zitadel_service_account_key` | gateway | Machine user client secret (set after Zitadel setup) |
+| `vault_zitadel_service_pat` | gateway | Machine user Personal Access Token (set after Zitadel setup) |
+| `vault_zitadel_github_idp_id` | gateway | GitHub IDP ID — optional, auto-discovered if blank |
 | `vault_zitadel_client_id` | gateway | Web app client ID (set after Zitadel setup) |
 | `vault_zitadel_client_secret` | gateway | Web app client secret (set after Zitadel setup) |
+| `vault_gateway_jwt_secret` | gateway | Base64-encoded 32-byte secret for HS256 JWT signing — generate: `openssl rand -base64 32` |
 | `vault_stripe_secret_key` | gateway | Stripe API access |
 | `vault_stripe_webhook_secret` | gateway | Stripe webhook signature verification |
 | `vault_stripe_price_starter` | gateway | Stripe price ID for Starter tier |
@@ -523,31 +524,28 @@ After `make deploy`, Zitadel is running at `https://auth.lmthing.cloud`. Log in 
 - Redirect URIs: `https://lmthing.cloud/api/auth/oauth/callback`
 - Copy the **Client ID** and **Client Secret** → save as `vault_zitadel_client_id` / `vault_zitadel_client_secret`
 
-**3. Configure Identity Providers (GitHub & Google)**
-- Organization Settings → Identity Providers → New
-- GitHub: create an OAuth App at github.com/settings/developers (callback: `https://auth.lmthing.cloud/ui/login/login/externalidp/callback`)
-- Google: create OAuth credentials at console.cloud.google.com (same callback URL)
-- After adding each IDP, activate it on the login policy
+**3. Configure GitHub Identity Provider**
+- Organization Settings → Identity Providers → New → GitHub
+- Create a GitHub OAuth App at github.com/settings/developers
+  - Callback URL: `https://auth.lmthing.cloud/ui/login/login/externalidp/callback`
+- Activate the IDP on the login policy
+- The GitHub IDP ID is auto-discovered by the gateway on first use (no manual config needed)
 
 **4. Create a Machine User (service account)**
 - Organization Settings → Users → Machine Users → New
 - Name: `gateway-service`
-- Generate a Client Secret → copy it
 - Assign role `ORG_OWNER` under the organization
-- Enable "Allow impersonation" on the machine user
-- Copy the **Client ID** (=username) and secret → save as `vault_zitadel_service_account_id` / `vault_zitadel_service_account_key`
+- Go to the machine user → Personal Access Tokens → Generate new token
+- Copy the PAT → save as `vault_zitadel_service_pat`
 
-**5. Enable Token Exchange**
-- Instance Settings → Feature Flags → enable `Actions V2` and `Token Exchange`
-
-**6. Update vault with Zitadel credentials**
+**5. Update vault with Zitadel credentials**
 ```bash
 ansible-vault edit vault.yml
 # Fill in:
-#   vault_zitadel_service_account_id
-#   vault_zitadel_service_account_key
+#   vault_zitadel_service_pat
 #   vault_zitadel_client_id
 #   vault_zitadel_client_secret
+#   vault_gateway_jwt_secret    # openssl rand -base64 32
 
 make deploy-secrets           # pushes updated secrets to K8s
 # Gateway will restart automatically and pick up the new credentials

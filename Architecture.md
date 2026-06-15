@@ -144,11 +144,11 @@ graph TD
 
 ## Pricing & Tiers
 
-Four offers spanning free access to GPU compute. The free tier runs entirely in the browser via WebContainers — no server needed. Paid tiers scale from token-based usage through dedicated infrastructure to GPU fine-tuning hours.
+Four offers spanning free access to GPU compute. Every tier gets an ephemeral per-user K8s compute pod (QuickJS WASM); WebContainers are retired. Paid tiers scale from token-based usage through dedicated infrastructure to GPU fine-tuning hours.
 
 | Tier | Price | Runtime | Use Case |
 |------|-------|---------|----------|
-| **Free** | $1/week allowance | WebContainer (browser) | Try lmthing, build agents locally (BYOK) |
+| **Free** | $1/week allowance | Ephemeral K8s pod (QuickJS WASM) | Try lmthing, build agents (BYOK) |
 | **Blog Free** | $1/week allowance | — | Limited RSS feeds, personalized news |
 | **Blog** | $5/month | — | Unlimited RSS + web search subscriptions, deep research, publishing |
 | **Pay As You Go** | Per-token + 10% markup | Stripe AI Gateway | Production agent usage, premium models, user-configurable stop limits |
@@ -356,7 +356,9 @@ graph LR
 
 | Directory | Name | Stack | Role |
 |-----------|------|-------|------|
-| `sdk/org/cli/` | lmthing | TypeScript, Vercel AI SDK v6, Zod, vm2 | Agentic framework — stateful prompts, plugins, tool execution, multi-provider support |
+| `sdk/org/packages/core/` | @lmthing/core | TypeScript, QuickJS WASM, Zod | Runtime — QuickJS sandbox, eval loop, globals, system spaces (architect/engineer/solver/deep_research) |
+| `sdk/org/packages/cli/` | @lmthing/cli | TypeScript, Ink (terminal), WS server | Terminal renderer, AI provider wiring, `lmthing run` CLI, DevTools WS server |
+| `sdk/org/packages/ui/` | @lmthing/agent-ui | React 19, Tailwind v4 | DevTools 3-pane web app, useReplSession, DisplayBlock/AskBlock/VariablesBlock |
 | `sdk/libs/state/` | @lmthing/state | React hooks, Map-based VFS, FSEventBus | Virtual file system with scoped contexts, event subscriptions, and glob matching |
 | `sdk/libs/css/` | — | CSS | Shared styles used across all product domains |
 | `sdk/libs/ui/` | — | React components | Shared UI components used across all product domains |

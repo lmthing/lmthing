@@ -21,15 +21,16 @@ The monorepo is organized by TLD — each lmthing.\* domain has its own top-leve
 lmthing/
 ├── org/                    # Non-profit / open-source
 │   ├── libs/               # Shared libraries used across all domains
-│   │   ├── core/           # lmthing — streaming TypeScript REPL agent (Vercel AI SDK v6)
-│   │   ├── repl/           # @lmthing/repl — REPL sandbox runtime (vm.Context, TypeScript transpilation)
 │   │   ├── state/          # @lmthing/state — virtual file system (React hooks, Map-based VFS)
 │   │   ├── spaces/         # Shared space knowledge content
 │   │   ├── css/            # Shared styles
 │   │   ├── ui/             # Shared UI components
 │   │   ├── auth/           # @lmthing/auth — cross-domain SSO client
-│   │   ├── thing/          # @lmthing/thing — THING agent system studio (built-in spaces)
 │   │   └── utils/          # Shared build utilities (Vite config)
+│   ├── packages/           # Core framework packages
+│   │   ├── core/           # @lmthing/core — QuickJS WASM sandbox, eval loop, globals, spaces
+│   │   ├── cli/            # @lmthing/cli — terminal (Ink), WS server, AI provider wiring
+│   │   └── ui/             # @lmthing/agent-ui — React DevTools web surface + useReplSession
 │   └── docs/               # Documentation
 ├── cloud/                  # lmthing.cloud — API gateway (Hono/Node.js) + LiteLLM proxy
 ├── studio/                 # lmthing.studio — agent builder UI (React 19, Vite 7, TanStack Router)
@@ -108,8 +109,8 @@ graph TB
         GitHub["GitHub API<br/>OAuth + Repo Sync"]
     end
 
-    subgraph Library["sdk/org/cli"]
-        Core["lmthing Framework<br/>Streaming REPL Agent · Vercel AI SDK · CLI"]
+    subgraph Library["sdk/org/packages"]
+        Core["@lmthing/core + @lmthing/cli<br/>QuickJS WASM Sandbox · System Spaces · CLI"]
     end
 
     App -- "REST + Streaming" --> Envoy
@@ -124,79 +125,25 @@ graph TB
 
 ## Key Packages
 
-### sdk/org/cli — Streaming TypeScript REPL Agent
+### sdk/org/packages — Core Framework
 
-A streaming TypeScript REPL agent system that executes LLM-generated code line-by-line with control primitives and a React render surface. The agent writes only TypeScript — no prose — and the host runtime parses, executes, and renders in real time.
+Three packages that power the THING agent runtime:
 
-Four subsystems:
-
-1. **Stream Controller** — LLM connection, token accumulation, bracket depth tracking, pause/resume, context injection
-2. **Line Parser** — buffers tokens into complete statements, detects global calls
-3. **REPL Sandbox** — executes TypeScript line-by-line via `vm.Context`, persistent scope, TS transpilation, error capture
-4. **React Render Surface** — mounts components from `display`/`ask`, handles forms
+| Package | Entry | Purpose |
+|---------|-------|---------|
+| `@lmthing/core` | `packages/core/src/index.ts` | Runtime — QuickJS WASM sandbox, eval loop, globals (`ask`, `sleep`, `fork`, `delegate`, `tasklist`, `loadKnowledge`, `registerSpace`, …), spaces/agents, system spaces. No renderer/provider. |
+| `@lmthing/cli` | `packages/cli/src/cli/bin.ts` | Terminal (Ink), WS DevTools server, AI provider wiring, `lmthing run` CLI. |
+| `@lmthing/agent-ui` | `packages/ui/src/index.ts` | React DevTools web surface (3-pane observability app, Tailwind v4). Exports `useReplSession`, `DisplayBlock`, `AskBlock`, `VariablesBlock`. |
 
 Key concepts:
 
-- **12 Globals** — `stop`, `display`, `ask`, `async`, `tasklist`, `completeTask`, `completeTaskAsync`, `taskProgress`, `failTask`, `retryTask`, `sleep`, `loadKnowledge` — injected into the sandbox at session init
-- **`{{SCOPE}}`** — Variable state table regenerated every turn, the agent's source of truth
-- **Context management** — code window compression (200-line sliding window), stop payload decay, knowledge decay, token budget enforcement
-- **Developer hooks** — AST-based code interception with 5 actions: `continue`, `side_effect`, `transform`, `interrupt`, `skip`
-- **Spaces** — self-contained workspaces with agents, flows, functions, components, and knowledge
-- **Provider resolution** — `openai/*`, `anthropic/*`, `google/*`, `mistral/*`, `azure/*`, `groq/*`, or any OpenAI-compatible endpoint
-- **Entry points** — `runAgent()` pipeline, `lmthing run` CLI
+- **Execution model** — The model streams TypeScript; the host evaluates statements one-at-a-time in a QuickJS WASM sandbox. Value-yielding calls (`ask`, `sleep`, `tasklist`, `fork`, `delegate`, `inspect`, `loadKnowledge`, `registerSpace`) abort the stream, hand control to the host, and resume the next turn with resolved values injected as a VARIABLES block.
+- **System spaces** — Always-loaded baseline spaces merged into every user space. The `global` space's functions are universally injected; other system agents (`architect`, `engineer`, `solver`, `deep_research`) are universally delegatable. The `architect` system agent IS the THING meta-agent — it synthesizes new spaces on demand via `scaffoldSpace`/`validateSpace`/`registerSpace`.
+- **Compute runtime** — Server-side QuickJS WASM running in K8s pods. Every tier gets an ephemeral per-user pod; WebContainers are retired.
+- **Spaces** — Self-contained directories with agents, functions, components, and knowledge. Loaded by `loadSpace(dir)`, merged via `mergeSystemInto`.
+- **Provider resolution** — `azure/*`, `anthropic/*`, `openai/*`, `google/*`, `mistral/*`, or any OpenAI-compatible endpoint.
 
-Built on Vercel AI SDK v6 (`streamText()`, Zod tool schemas), Node.js `vm` for sandboxing, TypeScript compiler API for AST parsing.
-
-```mermaid
-graph TB
-    subgraph Entry["Entry Points"]
-        RunAgent["runAgent()"]
-        CLI["CLI: lmthing run"]
-    end
-
-    subgraph Stream["Stream Processing"]
-        LLM["LLM Token Stream"]
-        Parser["Line Parser<br/>Statement detection"]
-        Hooks["Developer Hooks<br/>AST interception"]
-        LLM --> Parser --> Hooks
-    end
-
-    subgraph Sandbox["REPL Sandbox (vm.Context)"]
-        Exec["Line-by-line execution"]
-        Globals["12 Globals<br/>stop · display · ask · async<br/>tasklist · loadKnowledge · ..."]
-        Scope["{{SCOPE}} — Variable state"]
-        Exec --> Globals
-        Exec --> Scope
-    end
-
-    subgraph Render["React Render Surface"]
-        Display["display() — Read-only UI"]
-        Ask["ask() — Form input"]
-    end
-
-    subgraph Context["Context Management"]
-        CodeWindow["Code window<br/>200-line sliding window"]
-        Decay["Payload decay<br/>stop · error · knowledge"]
-        Budget["Token budget<br/>enforcement"]
-    end
-
-    CLI --> RunAgent
-    RunAgent --> Stream
-    Hooks --> Sandbox
-    Globals --> Render
-    Sandbox --> Context
-    Context -- "context injection" --> LLM
-
-    subgraph Providers["Provider Resolution"]
-        OpenAI["openai/*"]
-        Anthropic["anthropic/*"]
-        Google["google/*"]
-        Azure["azure/*"]
-        Custom["custom (OpenAI-compatible)"]
-    end
-
-    LLM --> Providers
-```
+See [sdk/org/CLAUDE.md](./sdk/org/CLAUDE.md) for the full runtime architecture reference.
 
 ### sdk/libs/state — Virtual File System
 
@@ -233,45 +180,19 @@ graph TB
     Hooks --> SpaceCtx
 ```
 
-### sdk/libs/thing — THING Agent System Studio
+### sdk/org/packages/core/system-spaces — THING System Spaces
 
-Built-in spaces that ship with the THING agent. These are system-level spaces providing meta-capabilities for the entire lmthing ecosystem — from teaching users how to create spaces, to controlling each service on behalf of the user.
+The THING agent and its baseline capabilities live in `@lmthing/core` as always-loaded system spaces, not in a separate package. The old `@lmthing/thing` package has been retired.
 
-7 built-in spaces (12 agents, 12 flows, 17 knowledge domains):
+Key system spaces (in `packages/core/system-spaces/`):
 
-```
-sdk/libs/thing/
-├── package.json                          # @lmthing/thing
-└── spaces/
-    ├── space-creator/                    # Meta-space for creating spaces
-    │   ├── agents/                       # SpaceArchitect, KnowledgeDesigner, FlowAuthor
-    │   ├── flows/                        # flow_create_space (6 steps), flow_design_knowledge (5 steps)
-    │   └── knowledge/                    # space-structure, knowledge-design, agent-design, naming-rules, creator-context
-    ├── space-ecosystem/                  # Platform overview, account & billing management
-    │   ├── agents/                       # PlatformGuide, AccountManager
-    │   ├── flows/                        # flow_explore_platform, flow_manage_billing
-    │   └── knowledge/                    # platform-map (10 services), billing-context, user-context
-    ├── space-studio/                     # Agent building, workspace management, prompt optimization
-    │   ├── agents/                       # WorkspaceManager, AgentBuilder, PromptCoach
-    │   ├── flows/                        # flow_create_agent, flow_manage_workspace, flow_optimize_prompts
-    │   └── knowledge/                    # workspace-ops, model-selection, prompt-patterns, user-context
-    ├── space-chat/                       # Personal THING chat interface
-    │   ├── agents/                       # ChatAssistant
-    │   ├── flows/                        # flow_start_conversation
-    │   └── knowledge/                    # chat-modes, model-guide
-    ├── space-computer/                   # Compute pod management & troubleshooting
-    │   ├── agents/                       # ComputerAdmin, Troubleshooter
-    │   ├── flows/                        # flow_setup_computer, flow_troubleshoot
-    │   └── knowledge/                    # infrastructure, computer-ops, regions
-    ├── space-deploy/                     # Space deployment lifecycle on K8s
-    │   ├── agents/                       # DeployManager, SpaceMonitor
-    │   ├── flows/                        # flow_deploy_space, flow_check_status
-    │   └── knowledge/                    # space-lifecycle, deploy-config, regions
-    └── space-store/                      # Agent marketplace publishing & optimization
-        ├── agents/                       # StoreCurator, ListingOptimizer
-        ├── flows/                        # flow_publish_agent, flow_optimize_listing
-        └── knowledge/                    # distribution-models, pricing-strategy, listing-quality
-```
+- **`global`** — Universally injected toolkit: `readFile`, `writeFile`, `editFile`, `glob`, `grep`, `listDir`, `webSearch`, `webFetch`, `remember`/`recall`/`forget`, `todoWrite`/`todoRead`.
+- **`architect`** — The THING meta-agent. Synthesizes new spaces via `scaffoldSpace`/`validateSpace`/`registerSpace`. Drives the `synthesize_and_run` tasklist DAG (research → design → scaffold → validate → register). Includes the `skill-to-space-transformer` agent for importing Claude Code skills/plugins.
+- **`engineer`** — Coding agent with `TaskInput` component.
+- **`solver`** — Verifier-gated coding agent.
+- **`deep_research`** — Deep Research Analyst with Tavily search + `research_report` tasklist.
+
+All system agents are universally delegatable from any user space. User space wins on name collisions (unless the user provides an empty placeholder).
 
 ### cloud/ — API Gateway + LiteLLM (The Only Backend)
 
@@ -436,14 +357,14 @@ graph LR
 
 Different products run agents in different environments:
 
-| Product     | Runtime                                                  |
-| ----------- | -------------------------------------------------------- |
-| Studio      | Browser (WebContainer for free tier)                     |
-| Computer    | K8s pod (0.5 CPU, 1 GB) — THING agent + studio spaces    |
-| Space       | K8s pod — deployed spaces + published agents              |
-| Blog        | Shared serverless worker                                 |
-| Casa        | Computer node → remote Home Assistant connection         |
-| Social/Team | Shared VFS + conversation log                            |
+| Product     | Runtime                                                              |
+| ----------- | -------------------------------------------------------------------- |
+| Studio      | Browser UI only — agent execution runs in the user's compute pod     |
+| Computer    | K8s pod (QuickJS WASM) — ephemeral per-user pod, every tier          |
+| Space       | K8s pod — deployed spaces + published agents                         |
+| Blog        | Shared serverless worker                                             |
+| Casa        | Computer node → remote Home Assistant connection                     |
+| Social/Team | Shared VFS + conversation log                                        |
 
 ---
 
@@ -451,7 +372,7 @@ Different products run agents in different environments:
 
 - **Studio** is the primary development surface — most features are built and tested here
 - **Cloud gateway** is developed locally — build and run the Hono server, deploy via `cd devops/ansible && make deploy` (ArgoCD auto-syncs manifest changes from git)
-- **Core framework** changes can be tested via `lmthing run` CLI or within Studio
+- **Core framework** changes can be tested via `lmthing run` CLI (in `sdk/org/`) or within Studio
 - All workspace data syncs through git — standard merge/conflict resolution applies
 
 ---
@@ -527,7 +448,7 @@ All frontend apps share the same stack:
 
 - **React 19** + **Vite 7** + **TanStack Router** (file-based routing)
 - **Tailwind CSS v4** via `@tailwindcss/vite`
-- Shared workspace libs: `@lmthing/ui`, `@lmthing/css`, `@lmthing/state`, `lmthing` (core)
+- Shared workspace libs: `@lmthing/ui`, `@lmthing/css`, `@lmthing/state`
 - Path aliases: `@/` → `./src`, workspace libs resolved via Vite `resolve.alias`
 
 ---
@@ -536,13 +457,13 @@ All frontend apps share the same stack:
 
 - [Architecture.md](./Architecture.md) — full product & domain architecture
 - [devops/CLAUDE.md](./devops/CLAUDE.md) — infrastructure & deployment guide
-- [sdk/org/cli/](./sdk/org/cli/) — streaming REPL agent framework source
-- [sdk/org/cli/CLAUDE.md](./sdk/org/cli/CLAUDE.md) — detailed REPL agent architecture reference
-- [sdk/org/repl/](./sdk/org/repl/) — REPL sandbox runtime
+- [sdk/org/CLAUDE.md](./sdk/org/CLAUDE.md) — core framework architecture reference (QuickJS sandbox, eval loop, system spaces)
+- [sdk/org/packages/core/](./sdk/org/packages/core/) — `@lmthing/core` runtime source
+- [sdk/org/packages/cli/](./sdk/org/packages/cli/) — `@lmthing/cli` terminal + WS server source
+- [sdk/org/packages/ui/](./sdk/org/packages/ui/) — `@lmthing/agent-ui` React DevTools source
 - [sdk/libs/state/](./sdk/libs/state/) — VFS library source
 - [sdk/libs/css/](./sdk/libs/css/) — shared styles
 - [sdk/libs/ui/](./sdk/libs/ui/) — shared UI components
-- [sdk/libs/thing/](./sdk/libs/thing/) — THING agent system studio (built-in spaces)
 
 ---
 
@@ -560,13 +481,13 @@ This repository is a monorepo organized by TLD — each lmthing.\* domain has it
 
 ## Shared Libraries
 
-- `sdk/org/cli/` — Streaming TypeScript REPL agent framework (Vercel AI SDK v6). Executes LLM-generated code line-by-line via `vm.Context` sandbox with 12 globals (`stop`, `display`, `ask`, `async`, `tasklist`, etc.), context management (SCOPE, code window, payload decay), developer hooks (AST-based interception), spaces/agents architecture, multi-provider support, CLI (`lmthing run`). Lives in the `lmthing/org` submodule.
-- `sdk/org/repl/` — REPL sandbox runtime (`@lmthing/repl`). Standalone package for the TypeScript REPL execution engine used by the compute pods. Lives in the `lmthing/org` submodule.
+- `sdk/org/packages/core/` — `@lmthing/core`. QuickJS WASM sandbox, eval loop, value-yielding globals (`ask`, `sleep`, `fork`, `delegate`, `tasklist`, `loadKnowledge`, `registerSpace`, …), spaces/agents loading, system spaces (including the `architect` THING agent). No renderer or provider dependency.
+- `sdk/org/packages/cli/` — `@lmthing/cli`. Terminal renderer (Ink), WS DevTools server, AI provider wiring, `lmthing run` CLI. Depends on `@lmthing/core`.
+- `sdk/org/packages/ui/` — `@lmthing/agent-ui`. React DevTools 3-pane web app (Tailwind v4). Exports `useReplSession`, `DisplayBlock`, `AskBlock`, `VariablesBlock`, and the Ink-compatibility layer (`@lmthing/agent-ui/compat`).
 - `sdk/libs/state/` — Virtual file system (`@lmthing/state`). In-memory Map-based VFS with FSEventBus, React context hierarchy, and hooks (`useFile`, `useDir`, `useGlob`, `useDraft`).
 - `sdk/libs/spaces/` — Shared space knowledge content.
 - `sdk/libs/css/` — Shared styles used across all product domains.
-- `sdk/libs/ui/` — Shared React UI components used across all product domains.
-- `sdk/libs/thing/` — THING agent system studio (`@lmthing/thing`). 7 built-in spaces that ship with the THING agent: `space-creator` (meta-space for creating spaces), `space-ecosystem` (platform navigation, account/billing), `space-studio` (agent building, workspace management, prompt optimization), `space-chat` (personal chat interface), `space-computer` (compute pod management, troubleshooting), `space-deploy` (space deployment lifecycle), `space-store` (marketplace publishing, listing optimization). Total: 12 agents, 12 flows, 17 knowledge domains across all spaces.
+- `sdk/libs/ui/` — Shared React UI components (`@lmthing/ui`) used across all product domains. Design elements, agent builder components, shell layouts. Rendering is done by `@lmthing/agent-ui` — `@lmthing/ui` does not re-export the agent renderer.
 
 ## Cloud Backend
 

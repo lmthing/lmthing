@@ -11,7 +11,7 @@ packages:
   - team
   - cloud
   - sdk/libs/*
-  - sdk/org/*
+  - sdk/org/packages/*
 
 catalog:
   '@modelcontextprotocol/sdk': 1.29.0

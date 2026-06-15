@@ -1,4 +1,5 @@
 // src/hooks/agent/useAgentInstruct.test.tsx
+// Updated for the NEW spec AgentInstruct shape.
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
@@ -15,9 +16,12 @@ describe('useAgentInstruct', () => {
 
   it('should parse agent instruct with frontmatter', () => {
     const content = `---
-name: Test Bot
-description: A test agent
-model: gpt-4
+title: Test Bot
+knowledge: []
+functions: []
+components: []
+actions: []
+dependencies: []
 ---
 You are a helpful assistant.`
 
@@ -28,10 +32,11 @@ You are a helpful assistant.`
     })
 
     expect(result.current).not.toBeNull()
-    expect(result.current?.name).toBe('Test Bot')
-    expect(result.current?.description).toBe('A test agent')
-    expect(result.current?.model).toBe('gpt-4')
-    expect(result.current?.instructions).toBe('You are a helpful assistant.')
+    expect(result.current?.title).toBe('Test Bot')
+    expect(result.current?.body).toBe('You are a helpful assistant.')
+    expect(result.current?.knowledge).toEqual([])
+    expect(result.current?.functions).toEqual([])
+    expect(result.current?.actions).toEqual([])
   })
 
   it('should return null for non-existent agent', () => {
@@ -43,7 +48,7 @@ You are a helpful assistant.`
   })
 
   it('should handle instruct without frontmatter', () => {
-    const content = 'Just instructions, no frontmatter'
+    const content = 'Just a body, no frontmatter'
 
     appFS.writeFile(getTestPath('agents/simple/instruct.md'), content)
 
@@ -52,39 +57,53 @@ You are a helpful assistant.`
     })
 
     expect(result.current).not.toBeNull()
-    expect(result.current?.name).toBe('')
-    expect(result.current?.instructions).toBe('Just instructions, no frontmatter')
+    expect(result.current?.title).toBe('')
+    expect(result.current?.body).toBe('Just a body, no frontmatter')
   })
 
   it('should parse all instruct fields', () => {
     const content = `---
-name: Advanced Bot
-description: An advanced agent
-model: gpt-4
-temperature: 0.7
-max-tokens: 2000
-system-prompt: You are advanced.
+title: Chef
+knowledge:
+  - cuisine/style
+functions:
+  - addIngredient
+  - checkPot
+components:
+  - PotStatus
+actions:
+  - id: cook_pasta
+    label: "Cook Pasta"
+    description: "Make pasta"
+    tasklist: make_pasta
+defaultAction: cook_pasta
+dependencies:
+  - sommelier-space/pairing
 ---
-Follow these instructions carefully.`
+You are an expert chef.`
 
-    appFS.writeFile(getTestPath('agents/advanced/instruct.md'), content)
+    appFS.writeFile(getTestPath('agents/chef/instruct.md'), content)
 
-    const { result } = renderHook(() => useAgentInstruct('advanced'), {
+    const { result } = renderHook(() => useAgentInstruct('chef'), {
       wrapper: createTestWrapper(appFS)
     })
 
-    expect(result.current?.name).toBe('Advanced Bot')
-    expect(result.current?.temperature).toBe(0.7)
-    expect(result.current?.maxTokens).toBe(2000)
-    expect(result.current?.systemPrompt).toBe('You are advanced.')
-    expect(result.current?.instructions).toBe('Follow these instructions carefully.')
+    expect(result.current?.title).toBe('Chef')
+    expect(result.current?.knowledge).toEqual(['cuisine/style'])
+    expect(result.current?.functions).toEqual(['addIngredient', 'checkPot'])
+    expect(result.current?.components).toEqual(['PotStatus'])
+    expect(result.current?.actions[0].id).toBe('cook_pasta')
+    expect(result.current?.actions[0].tasklist).toBe('make_pasta')
+    expect(result.current?.defaultAction).toBe('cook_pasta')
+    expect(result.current?.dependencies).toEqual(['sommelier-space/pairing'])
+    expect(result.current?.body).toBe('You are an expert chef.')
   })
 
   it('should re-render when instruct is updated', async () => {
     const initialContent = `---
-name: Bot
+title: Bot
 ---
-Original instructions`
+Original body`
 
     appFS.writeFile(getTestPath('agents/bot/instruct.md'), initialContent)
 
@@ -92,17 +111,17 @@ Original instructions`
       wrapper: createTestWrapper(appFS)
     })
 
-    expect(result.current?.instructions).toBe('Original instructions')
+    expect(result.current?.body).toBe('Original body')
 
     const updatedContent = `---
-name: Bot
+title: Bot
 ---
-Updated instructions`
+Updated body`
 
     appFS.writeFile(getTestPath('agents/bot/instruct.md'), updatedContent)
 
     await waitFor(() => {
-      expect(result.current?.instructions).toBe('Updated instructions')
+      expect(result.current?.body).toBe('Updated body')
     })
   })
 
@@ -114,23 +133,23 @@ Updated instructions`
     expect(result.current).toBeNull()
 
     const content = `---
-name: New Bot
+title: New Bot
 ---
-New instructions`
+New body`
 
     appFS.writeFile(getTestPath('agents/newbot/instruct.md'), content)
 
     await waitFor(() => {
       expect(result.current).not.toBeNull()
-      expect(result.current?.name).toBe('New Bot')
+      expect(result.current?.title).toBe('New Bot')
     })
   })
 
   it('should re-render when instruct is deleted', async () => {
     const content = `---
-name: Bot
+title: Bot
 ---
-Instructions`
+Body`
 
     appFS.writeFile(getTestPath('agents/bot/instruct.md'), content)
 
@@ -139,7 +158,6 @@ Instructions`
     })
 
     expect(result.current).not.toBeNull()
-
     appFS.deleteFile(getTestPath('agents/bot/instruct.md'))
 
     await waitFor(() => {
@@ -150,10 +168,10 @@ Instructions`
   it('should not re-render when different agent is updated', async () => {
     let renderCount = 0
 
-    appFS.writeFile(getTestPath('agents/bot1/instruct.md'), '---\nname: Bot1\n---')
-    appFS.writeFile(getTestPath('agents/bot2/instruct.md'), '---\nname: Bot2\n---')
+    appFS.writeFile(getTestPath('agents/bot1/instruct.md'), '---\ntitle: Bot1\n---')
+    appFS.writeFile(getTestPath('agents/bot2/instruct.md'), '---\ntitle: Bot2\n---')
 
-    const { result } = renderHook(() => {
+    renderHook(() => {
       renderCount++
       return useAgentInstruct('bot1')
     }, {
@@ -161,18 +179,16 @@ Instructions`
     })
 
     const initialCount = renderCount
-
-    // Update different agent
-    appFS.writeFile(getTestPath('agents/bot2/instruct.md'), '---\nname: Updated\n---')
+    appFS.writeFile(getTestPath('agents/bot2/instruct.md'), '---\ntitle: Updated\n---')
 
     await waitFor(() => {
       expect(renderCount).toBe(initialCount)
     })
   })
 
-  it('should handle multi-line instructions', () => {
+  it('should handle multi-line body', () => {
     const content = `---
-name: Bot
+title: Bot
 ---
 Line 1
 Line 2
@@ -184,11 +200,11 @@ Line 3`
       wrapper: createTestWrapper(appFS)
     })
 
-    expect(result.current?.instructions).toBe('Line 1\nLine 2\nLine 3')
+    expect(result.current?.body).toBe('Line 1\nLine 2\nLine 3')
   })
 
   it('should handle special characters in agent ID', () => {
-    const content = '---\nname: Bot\n---\n'
+    const content = '---\ntitle: Bot\n---\n'
 
     appFS.writeFile(getTestPath('agents/my-bot-123/instruct.md'), content)
 
@@ -196,12 +212,12 @@ Line 3`
       wrapper: createTestWrapper(appFS)
     })
 
-    expect(result.current?.name).toBe('Bot')
+    expect(result.current?.title).toBe('Bot')
   })
 
-  it('should handle empty instructions', () => {
+  it('should handle empty body', () => {
     const content = `---
-name: Bot
+title: Bot
 ---
 `
 
@@ -211,6 +227,6 @@ name: Bot
       wrapper: createTestWrapper(appFS)
     })
 
-    expect(result.current?.instructions).toBe('')
+    expect(result.current?.body).toBe('')
   })
 })

@@ -3,7 +3,9 @@
 import { useMemo } from 'react'
 import { useFile } from '../fs/useFile'
 import { P } from '../../lib/fs/paths'
-import { parseAgentInstruct, serializeAgentInstruct, type AgentInstruct } from '../../lib/fs/parsers/instruct'
+import { parseAgentInstruct, type AgentInstruct } from '../../lib/fs/parsers/instruct'
+
+export { type AgentInstruct }
 
 export function useAgentInstruct(id: string): AgentInstruct | null {
   const content = useFile(P.instruct(id))

@@ -12,6 +12,7 @@ export * from './glob'
 
 export * from './parsers/frontmatter'
 export * from './parsers/instruct'
+export * from './parsers/tasklist'
 export * from './parsers/task'
 export * from './parsers/config'
 export * from './parsers/conversation'

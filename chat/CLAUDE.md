@@ -1,11 +1,11 @@
 # chat/ — lmthing.chat
 
-Personal THING chat interface. Embeds lmthing.computer in a hidden iframe and relays REPL session state to a chat UI via postMessage.
+Personal THING chat interface. Renders agent sessions directly via `@lmthing/agent-ui` against the user's K8s compute pod.
 
 ## Stack
 
 - React 19 + Vite 8 + TanStack Router + Tailwind CSS v4
-- `@lmthing/auth` (SSO client), `@lmthing/state` (VFS), `@lmthing/ui`, `lmthing` (core)
+- `@lmthing/auth` (SSO client), `@lmthing/state` (VFS), `@lmthing/ui`, `@lmthing/agent-ui`
 - Uses `vite-plus` CLI wrapper
 
 ## Running Locally
@@ -19,45 +19,48 @@ cd chat && pnpm dev    # http://localhost:3001 / chat.test
 ```
 src/routes/
 ├── __root.tsx                  # AuthProvider("chat"), AuthGate, PinGate, RepoSyncGate
-├── index.tsx                   # Main chat page — iframe embed + ThingChat component
+├── index.tsx                   # Main chat page — direct pod session via @lmthing/agent-ui
 ├── conversation/
 │   └── $conversationId.tsx     # Conversation view (stub)
 └── settings.tsx                # Settings (stub)
 ```
 
-## Architecture — Chat <-> Computer Relay
+## Architecture — Direct Pod Session
 
-The core pattern is a hidden iframe embedding lmthing.computer, with postMessage as the communication bridge:
+Agent sessions run in the user's K8s compute pod. The chat app talks directly to the pod's
+multi-session server, authenticated by the user's gateway JWT.
 
 ```
-┌─────────────────────────────────┐     postMessage      ┌──────────────────────────────┐
-│  lmthing.chat                   │ ◄──────────────────► │  lmthing.computer (iframe)   │
-│                                 │                       │                              │
-│  ThingChat ◄─ useReplRelay()    │  lmthing:repl-update │  ReplRelay                   │
-│             ─► lmthing:repl-send│ ─────────────────────►│  ├─ SSE /events (read)       │
-│                                 │                       │  └─ POST /send (write)       │
-│  On load: sends lmthing:session │  lmthing:session     │  AuthProvider receives       │
-│  (auth tokens to iframe)        │ ─────────────────────►│  session, no SSO redirect    │
+┌─────────────────────────────────┐                       ┌──────────────────────────────┐
+│  lmthing.chat                   │   WS /api/ws           │  User K8s Pod                │
+│                                 │ ◄──────────────────── │  multi-session server        │
+│  useReplSession({ baseUrl,      │                       │  POST /api/sessions          │
+│    sessionId, accessToken })    │   HTTP /api/sessions/* │  POST /api/sessions/:id/msg  │
+│                                 │ ──────────────────────►│  WS  /api/ws?sessionId=:id   │
+│  DisplayBlock / AskBlock /      │                       │                              │
+│  VariablesBlock                 │                       │  Envoy routes /api/* to pod  │
 └─────────────────────────────────┘                       └──────────────────────────────┘
+         |
+         | POST /api/compute/ensure  (gateway JWT)
+         ▼
+   cloud.lmthing.cloud  (ensures pod is running before first session)
 ```
-
-### PostMessage Protocol
-
-| Message Type | Direction | Payload | Purpose |
-|-------------|-----------|---------|---------|
-| `lmthing:session` | chat → computer | `{ accessToken, userId, email }` | Authenticate iframe without SSO redirect |
-| `lmthing:auth-needed` | computer → chat | — | Computer requests session injection |
-| `lmthing:repl-update` | computer → chat | `{ status, output, ... }` | REPL state updates for ThingChat |
-| `lmthing:repl-send` | chat → computer | `{ message }` | User messages forwarded to REPL |
-| `lmthing:server-ready` | computer → chat | — | WebContainer/pod server is ready |
 
 ### Data Flow
 
-1. Chat loads lmthing.computer in a hidden iframe (positioned offscreen)
-2. On iframe load, chat sends auth session via `lmthing:session` postMessage
-3. Computer's AuthProvider receives session (no redirect needed)
-4. Computer's ReplRelay connects to WebContainer SSE `/events` endpoint
-5. ReplRelay forwards REPL state to chat via `lmthing:repl-update` postMessage
-6. User messages go: chat → `lmthing:repl-send` postMessage → ReplRelay → POST to `/send`
+1. On mount, after auth: `POST {VITE_CLOUD_URL}/api/compute/ensure` (JWT) — wakes the pod if idle.
+2. `ReplRpcClient.createSession(computerBaseUrl, {}, accessToken)` — creates a session on the pod,
+   returns a `sessionId`.
+3. `useReplSession({ baseUrl, sessionId, accessToken })` — opens a WebSocket to `WS /api/ws?sessionId=…`
+   and subscribes to `display` / `ask_start` / `ask_end` / `variables` / `error` / `done` events.
+4. User messages: `sendMessage(text)` → `POST /api/sessions/:id/message`.
+5. Ask forms: `submitForm(id, value)` → `POST /api/sessions/:id/ask/:id`;
+   `cancelAsk(id)` → `DELETE /api/sessions/:id/ask/:id`.
+6. Blocks are rendered as `<DisplayBlock>`, `<AskBlock>`, or `<VariablesBlock>` from `@lmthing/agent-ui`.
 
-The iframe can be expanded/collapsed via a toggle button (shows full computer IDE when expanded).
+### Environment Variables
+
+| Variable | Default (dev) | Default (prod) | Purpose |
+|----------|--------------|---------------|---------|
+| `VITE_COMPUTER_BASE_URL` | `https://computer.test` | `https://lmthing.computer` | Computer pod origin |
+| `VITE_CLOUD_URL` | `https://cloud.test` | `https://cloud.lmthing.cloud` | Gateway origin (compute/ensure) |

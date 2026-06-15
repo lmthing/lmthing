@@ -330,7 +330,9 @@ Installs ArgoCD via Helm chart for GitOps continuous deployment.
 |-------|----------|--------|---------|
 | gateway | `lmthingacr.azurecr.io/gateway:<sha>` | `cloud/gateway/` | Hono API gateway |
 | computer | `lmthingacr.azurecr.io/computer:<sha>` | `computer/` (multi-stage: node:22-slim builder + nginx:alpine) | Static SPA (lmthing.computer frontend) |
-| compute | `lmthingacr.azurecr.io/compute:<sha>` | `org/libs/repl/` + `argocd/compute/Dockerfile` | Bun + @lmthing/repl runtime |
+| compute | `lmthingacr.azurecr.io/compute:<sha>` | `sdk/org/packages/{core,cli,ui}` + `argocd/compute/Dockerfile` | Bun + @repl/core + @repl/cli multi-session QuickJS server |
+
+CI trigger path for the `compute` image: changes under `sdk/org/packages/**` (core, cli, or ui source). The build context passed to Docker is the `sdk/org/` submodule root.
 
 All deployments use `imagePullSecrets: [acr-pull-secret]` to pull from ACR.
 
@@ -393,17 +395,16 @@ Client → Envoy Gateway (computer-gw)
 Resources: `argocd/envoy/computer-routes.yaml`, `argocd/envoy/computer-policies.yaml`
 
 **JWT configuration** (in `computer-policies.yaml`):
-- Issuer: Supabase project URL + `/auth/v1`
-- Audience: `authenticated`
-- Claim: `sub` (Supabase user UUID) → `x-user-id` header
-- JWKS: Supabase `.well-known/jwks.json`
+- Issuer: gateway JWT issuer (`https://lmthing.cloud` or configured `vault_gateway_jwt_secret` domain)
+- Claim: `sub` (gateway user ID) → `x-user-id` header
+- Tokens are HS256 JWTs issued by the gateway — clients never hold Zitadel tokens
 - Extracts from `Authorization: Bearer` header or `access_token` query param
 
 ## Per-User Compute Pods
 
-**Runtime:** Custom image — Bun + `@lmthing/repl` (streaming TypeScript REPL agent from `org/libs/repl/`) + user spaces (GitHub-syncable).
+**Runtime:** Custom image — Bun + `@repl/core` (QuickJS WASM sandbox) + `@repl/cli` (multi-session server) from `sdk/org/packages/{core,cli}`. Replaces the deprecated single-session `@lmthing/repl` / WebContainer model. Every tier now gets a dedicated per-user pod (WebContainers are deprecated). The server is started with `bun run packages/cli/dist/cli/bin.js serve --port 8080`; it reads spaces from `/data/spaces`, writes session snapshots to `/data/snapshots`, and respects the `MAX_SESSIONS` env var.
 
-**Lifecycle:** Always-on. Created when user subscribes to Pro tier (Stripe webhook), destroyed on subscription cancellation.
+**Lifecycle:** Always-on. Created when user subscribes (any paid tier — previously Pro-only), destroyed on subscription cancellation.
 
 Each user gets:
 ```
@@ -660,8 +661,8 @@ All K8s manifests live in `devops/argocd/` and are synced by ArgoCD from git. No
 
 | File | Purpose |
 |------|---------|
-| `Dockerfile` | Bun + @lmthing/repl runtime image |
-| `user-pod-template.yaml` | Template for per-user Namespace + Deployment + Service |
+| `Dockerfile` | Multi-stage build: tsup builds @repl/core + @repl/cli from `sdk/org/packages/`; runtime stage runs `serve --port 8080` multi-session QuickJS server |
+| `user-pod-template.yaml` | Template for per-user Namespace + Deployment + Service; includes readiness/liveness probes, /data/snapshots volume, MAX_SESSIONS env, and {CPU}/{MEM} placeholder vars for tier-aware sizing |
 
 ## Domain Configuration (Kustomize Replacements)
 

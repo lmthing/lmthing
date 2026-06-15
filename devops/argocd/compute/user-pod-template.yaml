@@ -1,6 +1,21 @@
 # Template for per-user compute pods.
-# The gateway creates these resources via the K8s API when a user subscribes to Pro tier.
+# The gateway creates these resources via the K8s API when a user subscribes.
 # Variables: USER_ID is replaced at creation time by the gateway app.
+#
+# Resource sizing note:
+#   Each QuickJS WASM VM consumes ~64 MB of heap. With MAX_SESSIONS=8 (default)
+#   the VMs alone need ~512 MB, leaving the remaining memory for the Bun host
+#   process, esbuild bundling of space functions (~100 MB peak), and OS overhead.
+#   1.5 Gi is the recommended minimum for 8 sessions; increase MEM (and
+#   MAX_SESSIONS) proportionally for higher concurrency on paid tiers.
+#
+#   Example tier sizing:
+#     Free/Starter  — {CPU}: 500m  {MEM}: 1Gi    MAX_SESSIONS: 4
+#     Basic/Pro     — {CPU}: 1000m {MEM}: 2Gi    MAX_SESSIONS: 8   (defaults below)
+#     Max           — {CPU}: 2000m {MEM}: 4Gi    MAX_SESSIONS: 16
+#
+#   Replace {CPU} and {MEM} at pod-creation time with tier-appropriate values.
+#   The gateway substitutes USER_ID, CPU, and MEM before applying this template.
 
 apiVersion: v1
 kind: Namespace
@@ -33,20 +48,52 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
+          env:
+            # MAX_SESSIONS caps the number of concurrent QuickJS VMs in the pod.
+            # Each VM consumes ~64 MB; set this in proportion to {MEM} above.
+            # The serve subcommand reads this env var at startup.
+            - name: MAX_SESSIONS
+              value: "8"
+          envFrom:
+            - secretRef:
+                name: user-env
           resources:
             requests:
-              memory: "1Gi"
-              cpu: "500m"
+              memory: "{MEM}"
+              cpu: "{CPU}"
             limits:
-              memory: "1Gi"
-              cpu: "500m"
+              memory: "{MEM}"
+              cpu: "{CPU}"
+          readinessProbe:
+            httpGet:
+              path: /api/sessions
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/sessions
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
           volumeMounts:
             - name: spaces
               mountPath: /data/spaces
+            # /data/snapshots stores session state for resume across pod restarts.
+            # emptyDir is used here (snapshots lost on pod restart).
+            # TODO: for paid tiers, replace with a PVC (ReadWriteOnce, ~5Gi) so
+            # sessions survive pod reschedules without losing progress.
+            - name: snapshots
+              mountPath: /data/snapshots
       volumes:
         - name: spaces
           emptyDir:
             sizeLimit: "1Gi"
+        - name: snapshots
+          emptyDir:
+            sizeLimit: "500Mi"
 
 ---
 apiVersion: v1

@@ -19,7 +19,10 @@ rules:
     verbs: ["get", "list", "create", "update", "patch", "delete"]
   - apiGroups: ["apps"]
     resources: ["deployments"]
-    verbs: ["get", "list", "create", "delete", "patch"]
+    verbs: ["get", "list", "create", "delete", "patch", "update"]
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    verbs: ["get", "patch", "update"]
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1

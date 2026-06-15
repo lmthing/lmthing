@@ -6,8 +6,14 @@ import { Label } from '@lmthing/ui/elements/typography/label'
 import { Button } from '@lmthing/ui/elements/forms/button'
 import { Input } from '@lmthing/ui/elements/forms/input'
 import { X } from 'lucide-react'
-import type { KnowledgeNode } from '@/types/space-data'
 import '@lmthing/css/components/knowledge/index.css'
+
+// Local type — replaces deprecated KnowledgeNode
+interface KnowledgeNode {
+  path: string
+  type: 'directory' | 'file'
+  children?: KnowledgeNode[]
+}
 
 interface NewFileModalProps {
   isOpen: boolean

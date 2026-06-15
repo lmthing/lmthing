@@ -6,8 +6,9 @@ import { useCallback, useEffect } from 'react'
 import { useParams, useLocation, useNavigate } from '@tanstack/react-router'
 import { StudioShell } from '@lmthing/ui/components/shell/studio-shell'
 import { useAgentList } from '@lmthing/ui/hooks/useAgentList'
-import { useWorkflowList } from '@lmthing/ui/hooks/useWorkflowList'
+import { useTasklistList } from '@lmthing/ui/hooks/useWorkflowList'
 import { useUIState, useSpaceFS } from '@lmthing/state'
+import { serializeAgentInstruct } from '@lmthing/state'
 import { buildSpacePathFromParams } from '@/lib/space-url'
 
 type StudioState = {
@@ -20,6 +21,10 @@ function toSlug(name: string): string {
     .trim()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '') || `item-${Date.now()}`
+}
+
+function toCamelCase(slug: string): string {
+  return slug.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())
 }
 
 function useSpacePath(): string {
@@ -38,7 +43,7 @@ export function StudioLayout({ children }: { children?: React.ReactNode }) {
   const [state, setState] = useUIState<StudioState>('studio-layout.state', { sidebarCollapsed: false })
 
   const agentList = useAgentList()
-  const workflowList = useWorkflowList()
+  const tasklistList = useTasklistList()
 
   useEffect(() => {
     if (pathname.endsWith('/settings')) {
@@ -51,9 +56,16 @@ export function StudioLayout({ children }: { children?: React.ReactNode }) {
     const name = window.prompt('Agent name:')
     if (!name) return
     const slug = `agent-${toSlug(name)}`
-    spaceFS.writeFile(`agents/${slug}/instruct.md`, `---\nname: ${name}\ndescription: ""\ntools: []\nenabledKnowledgeFields: []\n---\n`)
-    spaceFS.writeFile(`agents/${slug}/config.json`, JSON.stringify({ runtimeFields: {} }, null, 2))
-    spaceFS.writeFile(`agents/${slug}/values.json`, '{}')
+    const content = serializeAgentInstruct({
+      title: name,
+      knowledge: [],
+      functions: [],
+      components: [],
+      actions: [],
+      dependencies: [],
+      body: '',
+    })
+    spaceFS.writeFile(`agents/${slug}/instruct.md`, content)
     navigate({ to: `${spacePath}/agent/${slug}` })
   }, [spaceFS, navigate, spacePath])
 
@@ -62,13 +74,12 @@ export function StudioLayout({ children }: { children?: React.ReactNode }) {
     const name = window.prompt('Knowledge domain name:')
     if (!name) return
     const slug = toSlug(name)
-    spaceFS.writeFile(`knowledge/${slug}/config.json`, JSON.stringify({
-      title: name,
-      description: '',
-      renderAs: 'section',
-      icon: '',
-      color: '#6366f1',
-    }, null, 2))
+    const variable = toCamelCase(slug)
+    // Creates a default domain+field at knowledge/<slug>/<slug>/index.md
+    spaceFS.writeFile(
+      `knowledge/${slug}/${slug}/index.md`,
+      `---\ntype: string\nvariable: ${variable}\n---\n\n${name} field.`,
+    )
     navigate({ to: `${spacePath}/knowledge/${slug}` })
   }, [spaceFS, navigate, spacePath])
 

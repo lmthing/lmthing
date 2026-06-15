@@ -15,7 +15,6 @@
     "@lmthing/css": "workspace:*",
     "@lmthing/state": "workspace:*",
     "@lmthing/ui": "workspace:*",
-    "lmthing": "workspace:*",
     "@stripe/react-stripe-js": "^3.6.0",
     "@stripe/stripe-js": "^7.3.0",
     "@tailwindcss/vite": "^4.1.17",

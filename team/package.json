@@ -15,7 +15,6 @@
     "@lmthing/css": "workspace:*",
     "@lmthing/state": "workspace:*",
     "@lmthing/ui": "workspace:*",
-    "lmthing": "workspace:*",
     "@tailwindcss/vite": "^4.1.17",
     "@tanstack/react-router": "^1.166.2",
     "class-variance-authority": "^0.7.1",

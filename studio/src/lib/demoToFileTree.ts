@@ -1,96 +1,185 @@
 /**
- * Converts a demo workspace JSON (WorkspaceData shape from /demos/*.json)
- * into a flat FileTree (Record<string, string>) suitable for importStudio.
+ * Converts a demo workspace JSON into a flat FileTree (Record<string, string>)
+ * suitable for importStudio.
+ *
+ * NEW SPEC output layout:
+ *   {spaceId}/agents/<slug>/instruct.md
+ *   {spaceId}/tasklists/<name>/NN-<id>.md
+ *   {spaceId}/knowledge/<domain>/<field>/index.md
+ *   {spaceId}/knowledge/<domain>/<field>/<optionSlug>.md
+ *   {spaceId}/package.json
  *
  * All paths are prefixed with `{spaceId}/` so they sit inside a studio.
  */
 
-interface AgentSlashAction {
-  name: string
-  description: string
-  flowId: string
-  actionId: string
-}
+// ============================================================
+// NEW-SPEC input shape (what demo JSON files should provide)
+// ============================================================
 
-interface AgentData {
+export interface DemoAgentAction {
   id: string
-  frontmatter: Record<string, unknown>
-  mainInstruction: string
-  slashActions: AgentSlashAction[]
-  config: Record<string, unknown>
-  formValues: Record<string, unknown>
-  conversations: unknown[]
-}
-
-interface FlowTask {
-  order: number
-  name: string
-  frontmatter: Record<string, unknown>
-  instructions: string
-}
-
-interface FlowData {
-  id: string
-  frontmatter: Record<string, unknown>
+  label: string
   description: string
-  tasks: FlowTask[]
+  tasklist: string
 }
 
-interface KnowledgeNode {
-  path: string
-  type: 'file' | 'directory'
-  children?: KnowledgeNode[]
-  config?: Record<string, unknown>
-  frontmatter?: Record<string, unknown>
-  content?: string
+export interface DemoAgent {
+  id: string
+  title: string
+  knowledge?: string[]
+  functions?: string[]
+  components?: string[]
+  actions?: DemoAgentAction[]
+  defaultAction?: string
+  dependencies?: string[]
+  body?: string
+}
+
+export interface DemoTasklistTask {
+  id: string
+  instruction: string
+  output?: Record<string, string>
+  dependsOn?: string[]
+  optional?: boolean
+  goal?: boolean
+}
+
+export interface DemoTasklist {
+  name: string
+  tasks: DemoTasklistTask[]
+}
+
+export interface DemoKnowledgeOption {
+  slug: string
+  content: string
+}
+
+export interface DemoKnowledgeField {
+  slug: string
+  type?: string
+  variable: string
+  default?: string
+  description?: string
+  options?: DemoKnowledgeOption[]
+}
+
+export interface DemoKnowledgeDomain {
+  slug: string
+  fields: DemoKnowledgeField[]
 }
 
 export interface DemoWorkspaceData {
   id: string
-  agents: Record<string, AgentData>
-  flows: Record<string, FlowData>
-  knowledge: KnowledgeNode[]
-  packageJson: Record<string, unknown> | null
-  env: Record<string, unknown>
+  agents?: Record<string, DemoAgent>
+  tasklists?: Record<string, DemoTasklist>
+  knowledge?: DemoKnowledgeDomain[]
+  packageJson?: Record<string, unknown> | null
+  env?: Record<string, unknown>
 }
 
-function frontmatterValue(value: unknown): string {
-  if (value === undefined) return ''
-  if (value === null) return 'null'
-  return JSON.stringify(value)
-}
+// ============================================================
+// Helpers
+// ============================================================
 
-function formatMarkdown(frontmatter: Record<string, unknown> | undefined, body: string): string {
-  const fm = frontmatter || {}
-  const keys = Object.keys(fm).filter(k => fm[k] !== undefined)
-  if (keys.length === 0) return body.trim()
-  const fmText = keys.map(k => `${k}: ${frontmatterValue(fm[k])}`).join('\n')
-  return `---\n${fmText}\n---\n${body.trim()}`
-}
+function serializeInstruct(agent: DemoAgent): string {
+  const lines: string[] = ['---', `title: ${agent.title}`]
 
-function escapeAttr(s: string): string {
-  return s.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
-}
-
-function toSlashActionBlock(actions: AgentSlashAction[]): string {
-  if (!actions.length) return ''
-  return actions
-    .map(a => `<slash_action name="${escapeAttr(a.name)}" description="${escapeAttr(a.description)}" flowId="${escapeAttr(a.flowId)}">\n/${a.actionId.replace(/^\/+/, '')}\n</slash_action>`)
-    .join('\n\n')
-}
-
-function walkKnowledge(nodes: KnowledgeNode[], files: Record<string, string>, prefix: string) {
-  for (const node of nodes) {
-    if (node.type === 'directory') {
-      if (node.config && Object.keys(node.config).length > 0) {
-        files[`${prefix}knowledge/${node.path}/config.json`] = JSON.stringify(node.config, null, 2)
-      }
-      if (node.children) walkKnowledge(node.children, files, prefix)
-    } else {
-      files[`${prefix}knowledge/${node.path}`] = formatMarkdown(node.frontmatter, node.content || '')
-    }
+  const knowledge = agent.knowledge ?? []
+  if (knowledge.length > 0) {
+    lines.push('knowledge:')
+    for (const k of knowledge) lines.push(`  - ${k}`)
+  } else {
+    lines.push('knowledge: []')
   }
+
+  const functions_ = agent.functions ?? []
+  if (functions_.length > 0) {
+    lines.push('functions:')
+    for (const f of functions_) lines.push(`  - ${f}`)
+  } else {
+    lines.push('functions: []')
+  }
+
+  const components = agent.components ?? []
+  if (components.length > 0) {
+    lines.push('components:')
+    for (const c of components) lines.push(`  - ${c}`)
+  } else {
+    lines.push('components: []')
+  }
+
+  if (agent.defaultAction) {
+    lines.push(`defaultAction: ${agent.defaultAction}`)
+  }
+
+  const actions = agent.actions ?? []
+  if (actions.length > 0) {
+    lines.push('actions:')
+    for (const a of actions) {
+      lines.push(`  - id: ${a.id}`)
+      lines.push(`    label: "${(a.label ?? '').replace(/"/g, '\\"')}"`)
+      lines.push(`    description: "${(a.description ?? '').replace(/"/g, '\\"')}"`)
+      lines.push(`    tasklist: ${a.tasklist}`)
+    }
+  } else {
+    lines.push('actions: []')
+  }
+
+  const deps = agent.dependencies ?? []
+  if (deps.length > 0) {
+    lines.push('dependencies:')
+    for (const d of deps) lines.push(`  - ${d}`)
+  } else {
+    lines.push('dependencies: []')
+  }
+
+  lines.push('---')
+  lines.push('')
+  lines.push((agent.body ?? '').trim())
+
+  return lines.join('\n')
 }
+
+function serializeTask(order: number, task: DemoTasklistTask): string {
+  const output = task.output ?? { result: 'string' }
+  const lines: string[] = ['---', `id: ${task.id}`, 'output:']
+  for (const [k, v] of Object.entries(output)) {
+    lines.push(`  ${k}: ${v}`)
+  }
+
+  const dependsOn = task.dependsOn ?? []
+  if (dependsOn.length > 0) {
+    lines.push('dependsOn:')
+    for (const d of dependsOn) lines.push(`  - ${d}`)
+  } else {
+    lines.push('dependsOn: []')
+  }
+
+  lines.push(`optional: ${task.optional ?? false}`)
+  lines.push(`goal: ${task.goal ?? false}`)
+  lines.push('---')
+  lines.push('')
+  lines.push(task.instruction.trim())
+
+  return lines.join('\n')
+}
+
+function taskFilename(order: number, id: string): string {
+  return `${String(order).padStart(2, '0')}-${id}.md`
+}
+
+function serializeKnowledgeFieldIndex(field: DemoKnowledgeField): string {
+  const lines: string[] = ['---', `type: ${field.type ?? 'string'}`, `variable: ${field.variable}`]
+  if (field.default !== undefined) lines.push(`default: "${field.default}"`)
+  lines.push('---')
+  lines.push('')
+  lines.push((field.description ?? `${field.variable} field.`).trim())
+  return lines.join('\n')
+}
+
+// ============================================================
+// Main converter
+// ============================================================
 
 export function demoToFileTree(data: DemoWorkspaceData): Record<string, string> {
   const spaceId = data.id
@@ -102,34 +191,38 @@ export function demoToFileTree(data: DemoWorkspaceData): Record<string, string> 
     files[`${prefix}package.json`] = JSON.stringify(data.packageJson, null, 2)
   }
 
-  // env files
-  for (const [name, content] of Object.entries(data.env || {})) {
+  // env files (keep as-is — still JSON blobs)
+  for (const [name, content] of Object.entries(data.env ?? {})) {
     if (name.startsWith('.env')) {
       files[`${prefix}${name}`] = JSON.stringify(content, null, 2)
     }
   }
 
-  // agents
-  for (const agent of Object.values(data.agents || {})) {
-    const base = `${prefix}agents/${agent.id}`
-    const body = [agent.mainInstruction?.trim() || '', toSlashActionBlock(agent.slashActions || [])].filter(Boolean).join('\n\n')
-    files[`${base}/instruct.md`] = formatMarkdown(agent.frontmatter, body)
-    files[`${base}/config.json`] = JSON.stringify(agent.config || {}, null, 2)
-    files[`${base}/values.json`] = JSON.stringify(agent.formValues || {}, null, 2)
+  // agents → agents/<id>/instruct.md (new spec)
+  for (const agent of Object.values(data.agents ?? {})) {
+    files[`${prefix}agents/${agent.id}/instruct.md`] = serializeInstruct(agent)
   }
 
-  // flows
-  for (const flow of Object.values(data.flows || {})) {
-    const base = `${prefix}flows/${flow.id}`
-    files[`${base}/index.md`] = formatMarkdown(flow.frontmatter, flow.description || '')
-    for (const task of flow.tasks || []) {
-      const taskName = (task.name || 'task').replaceAll('/', '-')
-      files[`${base}/${task.order}.${taskName}.md`] = formatMarkdown(task.frontmatter, task.instructions || '')
+  // tasklists → tasklists/<name>/NN-<id>.md (new spec)
+  for (const tasklist of Object.values(data.tasklists ?? {})) {
+    let order = 1
+    for (const task of tasklist.tasks) {
+      const filename = taskFilename(order, task.id)
+      files[`${prefix}tasklists/${tasklist.name}/${filename}`] = serializeTask(order, task)
+      order++
     }
   }
 
-  // knowledge
-  walkKnowledge(data.knowledge || [], files, prefix)
+  // knowledge → knowledge/<domain>/<field>/index.md + <slug>.md options (new spec)
+  for (const domain of data.knowledge ?? []) {
+    for (const field of domain.fields) {
+      const base = `${prefix}knowledge/${domain.slug}/${field.slug}`
+      files[`${base}/index.md`] = serializeKnowledgeFieldIndex(field)
+      for (const option of field.options ?? []) {
+        files[`${base}/${option.slug}.md`] = option.content
+      }
+    }
+  }
 
   return files
 }

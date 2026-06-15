@@ -6,7 +6,8 @@ export const Route = createFileRoute(
   beforeLoad: ({ params }) => {
     const { username, studioId, storageId, spaceId, fieldId } = params
     throw redirect({
-      to: `/${username}/${studioId}/${storageId}/${spaceId}/knowledge/${fieldId}`,
+      to: '/$username/$studioId/$storageId/$spaceId/knowledge/$fieldId',
+      params: { username, studioId, storageId, spaceId, fieldId },
     })
   },
   component: () => null,

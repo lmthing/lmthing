@@ -49,7 +49,7 @@ function FieldDetailPage() {
 
   const [selectedPath, setSelectedPath] = useUIState<string | null>('field-detail.selected-path', null)
   const [panelType, setPanelType] = useUIState<PanelType>('field-detail.panel-type', 'field-index')
-  const [hasUnsavedChanges, , setHasUnsavedChanges] = useToggle('field-detail.has-unsaved-changes', false)
+  const [_hasUnsavedChanges, , setHasUnsavedChanges] = useToggle('field-detail.has-unsaved-changes', false)
 
   // New option creation
   const [showNewOption, , setShowNewOption] = useToggle('field-detail.show-new-option', false)
@@ -232,7 +232,7 @@ function FieldDetailPage() {
                   }}
                   style={{ fontSize: '0.8125rem', marginBottom: '0.25rem' }}
                 />
-                <Stack row gap="xs">
+                <Stack row gap="sm">
                   <Button variant="primary" size="sm" onClick={handleCreateOption} disabled={!newOptionSlug.trim()}>
                     Add
                   </Button>

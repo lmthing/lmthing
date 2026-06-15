@@ -1,3 +1,6 @@
-// useWorkflow — UI name for useWorkFlow (maps to flows/ FS paths)
-export { useWorkFlow as useWorkflow } from '@lmthing/state'
-export type { WorkFlow as Workflow } from '@lmthing/state'
+// useWorkflow — UI name for useTasklist (replaces old useWorkFlow / flows/)
+export { useTasklist as useWorkflow } from '@lmthing/state'
+export type { Tasklist as Workflow } from '@lmthing/state'
+// low-level task hooks
+export { useTasklistTask } from '@lmthing/state'
+export type { TasklistTask } from '@lmthing/state'

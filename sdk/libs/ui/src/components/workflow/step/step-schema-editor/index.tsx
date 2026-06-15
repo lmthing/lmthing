@@ -1,6 +1,17 @@
 import { useEffect } from 'react'
 import { useUIState, useToggle } from '@lmthing/state'
-import type { JSONSchema } from '@/../product/sections/flow-builder/types'
+// JSONSchema — local definition (no dependency on old flow-builder types)
+export interface JSONSchema {
+  type?: string
+  properties?: Record<string, JSONSchema>
+  required?: string[]
+  items?: JSONSchema
+  enum?: string[]
+  format?: string
+  minimum?: number
+  maximum?: number
+  [key: string]: unknown
+}
 import { Button } from '@lmthing/ui/elements/forms/button'
 import { Input } from '@lmthing/ui/elements/forms/input'
 import { Textarea } from '@lmthing/ui/elements/forms/textarea'

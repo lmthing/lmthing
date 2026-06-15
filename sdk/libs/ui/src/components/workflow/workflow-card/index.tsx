@@ -1,5 +1,7 @@
-import type { Flow } from '@/../product/sections/flow-builder/types'
-import { Badge } from '@lmthing/ui/elements/content/badge'
+/**
+ * TasklistCard / TasklistListItem — card components for the tasklist list view.
+ */
+import type { TasklistListItem } from '@lmthing/state'
 import { Button } from '@lmthing/ui/elements/forms/button'
 import { Label } from '@lmthing/ui/elements/typography/label'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
@@ -7,37 +9,16 @@ import { cn } from '../../../lib/utils'
 
 import '@lmthing/css/components/workflow/workflow-card/index.css'
 
-interface WorkflowCardProps {
-  workflow: Flow
+// ─── Card (grid view) ─────────────────────────────────────────────────────────
+
+interface TasklistCardProps {
+  tasklist: TasklistListItem
   isSelected: boolean
   onSelect: () => void
   onDelete: () => void
 }
 
-const STATUS_CONFIG = {
-  active: { label: 'Active', variant: 'success' },
-  draft: { label: 'Draft', variant: 'muted' },
-  archived: { label: 'Archived', variant: 'default' },
-} as const
-
-function formatDate(isoString: string | null): string {
-  if (!isoString) return 'Never'
-  const date = new Date(isoString)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMs / 3600000)
-  const diffDays = Math.floor(diffMs / 86400000)
-
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays < 7) return `${diffDays}d ago`
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
-export function WorkflowCard({ workflow, isSelected, onSelect, onDelete }: WorkflowCardProps) {
-  const status = STATUS_CONFIG[workflow.status]
-
+export function TasklistCard({ tasklist, isSelected, onSelect, onDelete }: TasklistCardProps) {
   return (
     <div
       onClick={onSelect}
@@ -48,17 +29,15 @@ export function WorkflowCard({ workflow, isSelected, onSelect, onDelete }: Workf
         <div className="workflow-card__header">
           <div className="workflow-card__header-content">
             <div className="workflow-card__title-row">
-              <Label>{workflow.name}</Label>
-              <Badge variant={status.variant}>{status.label}</Badge>
+              <Label>{tasklist.name}</Label>
             </div>
-            <Caption muted>{workflow.description}</Caption>
           </div>
 
           {/* Delete button */}
           <Button
             variant="ghost"
             size="icon"
-            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            onClick={(e) => { e.stopPropagation(); onDelete() }}
           >
             <svg className="workflow-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M3 6h18" />
@@ -68,53 +47,9 @@ export function WorkflowCard({ workflow, isSelected, onSelect, onDelete }: Workf
           </Button>
         </div>
 
-        {/* Tags */}
-        {workflow.tags.length > 0 && (
-          <div className="workflow-card__tags">
-            {workflow.tags.slice(0, 3).map((tag) => (
-              <Badge key={tag} variant="primary">{tag}</Badge>
-            ))}
-            {workflow.tags.length > 3 && (
-              <Badge variant="muted">+{workflow.tags.length - 3}</Badge>
-            )}
-          </div>
-        )}
-
-        {/* Footer row */}
+        {/* Footer */}
         <div className="workflow-card__footer">
-          <div className="workflow-card__footer-stats">
-            <Caption muted>
-              <span className="workflow-card__stat">
-                <svg className="workflow-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                  <path d="M9 3v18" />
-                  <path d="M15 3v18" />
-                  <path d="M3 9h18" />
-                  <path d="M3 15h18" />
-                </svg>
-                {workflow.taskCount} step{workflow.taskCount !== 1 ? 's' : ''}
-              </span>
-            </Caption>
-            <Caption muted>
-              <span className="workflow-card__stat">
-                <svg className="workflow-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 6v6l4 2" />
-                </svg>
-                {formatDate(workflow.updatedAt)}
-              </span>
-            </Caption>
-          </div>
-
-          {/* Last run indicator */}
-          {workflow.lastRunAt && (
-            <Caption muted>
-              <span className="workflow-card__stat">
-                <span className="workflow-card__dot" />
-                Ran {formatDate(workflow.lastRunAt)}
-              </span>
-            </Caption>
-          )}
+          <Caption muted>{tasklist.path}</Caption>
         </div>
       </div>
 
@@ -130,49 +65,34 @@ export function WorkflowCard({ workflow, isSelected, onSelect, onDelete }: Workf
   )
 }
 
-// Workflow list item (compact row version)
-interface WorkflowListItemProps {
-  workflow: Flow
+// ─── List item (compact row view) ─────────────────────────────────────────────
+
+interface TasklistListItemProps {
+  tasklist: TasklistListItem
   isSelected: boolean
   onSelect: () => void
   onDelete: () => void
 }
 
-export function WorkflowListItem({ workflow, isSelected, onSelect, onDelete }: WorkflowListItemProps) {
-  const status = STATUS_CONFIG[workflow.status]
-  const statusDotClass = `workflow-list-item__status-dot workflow-list-item__status-dot--${workflow.status}`
-
+export function TasklistListItem({ tasklist, isSelected, onSelect, onDelete }: TasklistListItemProps) {
   return (
     <div
       onClick={onSelect}
       className={cn('workflow-list-item', isSelected && 'workflow-list-item--selected')}
     >
-      {/* Status indicator */}
-      <div className={statusDotClass} />
-
       {/* Workflow info */}
       <div className="workflow-list-item__content">
         <div className="workflow-list-item__title-row">
-          <Label>{workflow.name}</Label>
-          <Badge variant={status.variant}>{status.label}</Badge>
+          <Label>{tasklist.name}</Label>
         </div>
-        <Caption muted>
-          {workflow.taskCount} step{workflow.taskCount !== 1 ? 's' : ''} • {formatDate(workflow.updatedAt)}
-        </Caption>
-      </div>
-
-      {/* Tags preview */}
-      <div className="workflow-list-item__tags workflow-list-item__tags--responsive">
-        {workflow.tags.slice(0, 2).map((tag) => (
-          <Badge key={tag} variant="muted">{tag}</Badge>
-        ))}
+        <Caption muted>{tasklist.path}</Caption>
       </div>
 
       {/* Delete button */}
       <Button
         variant="ghost"
         size="icon"
-        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+        onClick={(e) => { e.stopPropagation(); onDelete() }}
       >
         <svg className="workflow-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M3 6h18" />
@@ -182,9 +102,20 @@ export function WorkflowListItem({ workflow, isSelected, onSelect, onDelete }: W
       </Button>
 
       {/* Chevron */}
-      <svg className={cn('workflow-list-item__chevron', isSelected && 'workflow-list-item__chevron--open')} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg
+        className={cn('workflow-list-item__chevron', isSelected && 'workflow-list-item__chevron--open')}
+        viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      >
         <path d="M9 18l6-6-6-6" />
       </svg>
     </div>
   )
 }
+
+// ─── Backward-compat aliases (old names) ──────────────────────────────────────
+/** @deprecated Use TasklistCard */
+const WorkflowCard = TasklistCard
+export { WorkflowCard }
+/** @deprecated Use TasklistListItem */
+const WorkflowListItem = TasklistListItem
+export { WorkflowListItem }

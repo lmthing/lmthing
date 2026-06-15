@@ -1,27 +1,23 @@
 /**
- * FieldTree - React-arborist file tree for knowledge management.
- * Phase 6: CRUD, drag-and-drop, context menu, rename. No Tailwind.
+ * FieldTree - Simple expandable 3-level domain→field→option tree for knowledge management.
+ * Replaces the react-arborist based tree with a lightweight React state implementation.
  */
-import { useRef, useCallback, useMemo, useImperativeHandle, forwardRef, type CSSProperties } from 'react'
-import { useUIState } from '@lmthing/state'
-import { Tree, type NodeApi, type TreeApi } from 'react-arborist'
+import { useState, useCallback, forwardRef, useImperativeHandle } from 'react'
+import type { Ref } from 'react'
 import {
   ChevronRight,
   ChevronDown,
-  Folder,
-  FolderOpen,
+  Database,
+  Layers,
   FileText,
   MoreVertical,
   Edit3,
-  Copy,
   Trash2,
   Plus,
-  FolderPlus,
 } from 'lucide-react'
-import type { KnowledgeNode } from '@/types/space-data'
+import { useKnowledgeTree } from '@lmthing/ui/hooks/useKnowledgeTree'
+import type { KnowledgeTreeNode } from '@lmthing/ui/hooks/useKnowledgeTree'
 import { Button } from '@lmthing/ui/elements/forms/button'
-import { Input } from '@lmthing/ui/elements/forms/input'
-import { Separator } from '@lmthing/ui/elements/content/separator'
 import { cn } from '@lmthing/ui/lib/utils'
 import './FieldTree.css'
 
@@ -31,61 +27,19 @@ export interface FieldTreeHandle {
 }
 
 export interface FieldTreeProps {
-  nodes: KnowledgeNode[]
-  selectedFilePath: string | null
-  searchQuery?: string
-  onFileSelect: (path: string) => void
-  onDirectorySelect: (path: string) => void
-  onRenameNode: (oldPath: string, newPath: string) => void
-  onDeleteNode: (path: string) => void
-  onDuplicateNode: (path: string) => void
-  onCreateFile: (parentPath: string | null) => void
-  onCreateFolder: (parentPath: string | null) => void
-  onMove: (dragPath: string, targetPath: string, index: number) => void
-  onRenameRequest?: (path: string, name: string, isDirectory: boolean) => void
+  selectedPath: string | null
+  onSelect: (path: string, type: 'domain' | 'field' | 'option') => void
+  onCreateOption: (domain: string, field: string) => void
+  onCreateField: (domain: string) => void
+  onDelete: (path: string, type: 'domain' | 'field' | 'option') => void
+  onRenameRequest: (path: string, name: string, type: 'domain' | 'field' | 'option') => void
 }
 
-interface TreeNode {
-  id: string
-  name: string
-  path: string
-  type: 'directory' | 'file'
-  children?: TreeNode[]
-  config?: KnowledgeNode['config']
-  frontmatter?: KnowledgeNode['frontmatter']
-}
+type NodeSelectFn = (path: string, type: 'domain' | 'field' | 'option') => void
 
 interface ContextMenuState {
-  node: NodeApi<TreeNode> | null
+  node: KnowledgeTreeNode | null
   position: { x: number; y: number } | null
-}
-
-function convertToTreeData(nodes: KnowledgeNode[]): TreeNode[] {
-  return nodes.map(node => ({
-    id: node.path,
-    name: node.path.split('/').pop() || node.path,
-    path: node.path,
-    type: node.type,
-    config: node.config,
-    frontmatter: node.frontmatter,
-    children: node.children ? convertToTreeData(node.children) : undefined,
-  }))
-}
-
-function filterTreeNodes(nodes: TreeNode[], query: string): TreeNode[] {
-  if (!query) return nodes
-  const lower = query.toLowerCase()
-  return nodes.reduce<TreeNode[]>((acc, node) => {
-    const nameMatches = node.name.toLowerCase().includes(lower)
-    const filteredChildren = node.children ? filterTreeNodes(node.children, query) : undefined
-    if (nameMatches || (filteredChildren && filteredChildren.length > 0)) {
-      acc.push({
-        ...node,
-        children: filteredChildren,
-      })
-    }
-    return acc
-  }, [])
 }
 
 function ContextMenu({
@@ -94,21 +48,15 @@ function ContextMenu({
   onClose,
   onRename,
   onDelete,
-  onDuplicate,
-  onCreateFile,
-  onCreateFolder,
+  onCreateChild,
 }: {
-  node: NodeApi<TreeNode>
+  node: KnowledgeTreeNode
   position: { x: number; y: number }
   onClose: () => void
   onRename: () => void
   onDelete: () => void
-  onDuplicate: () => void
-  onCreateFile: () => void
-  onCreateFolder: () => void
+  onCreateChild?: () => void
 }) {
-  const isDirectory = node.data.type === 'directory'
-
   return (
     <>
       <div className="field-tree-context-menu__backdrop" onClick={onClose} />
@@ -116,24 +64,14 @@ function ContextMenu({
         className="field-tree-context-menu"
         style={{ left: position.x, top: position.y }}
       >
-        {isDirectory && (
-          <>
-            <button
-              onClick={() => { onCreateFile(); onClose() }}
-              className="field-tree-context-menu__item"
-            >
-              <Plus className="field-tree-context-menu__item-icon" />
-              New File
-            </button>
-            <button
-              onClick={() => { onCreateFolder(); onClose() }}
-              className="field-tree-context-menu__item"
-            >
-              <FolderPlus className="field-tree-context-menu__item-icon" />
-              New Folder
-            </button>
-            <Separator />
-          </>
+        {onCreateChild && (
+          <button
+            onClick={() => { onCreateChild(); onClose() }}
+            className="field-tree-context-menu__item"
+          >
+            <Plus className="field-tree-context-menu__item-icon" />
+            {node.type === 'domain' ? 'New Field' : 'New Option'}
+          </button>
         )}
         <button
           onClick={() => { onRename(); onClose() }}
@@ -142,16 +80,6 @@ function ContextMenu({
           <Edit3 className="field-tree-context-menu__item-icon" />
           Rename
         </button>
-        {!isDirectory && (
-          <button
-            onClick={() => { onDuplicate(); onClose() }}
-            className="field-tree-context-menu__item"
-          >
-            <Copy className="field-tree-context-menu__item-icon" />
-            Duplicate
-          </button>
-        )}
-        <Separator />
         <button
           onClick={() => { onDelete(); onClose() }}
           className="field-tree-context-menu__item field-tree-context-menu__item--destructive"
@@ -164,238 +92,283 @@ function ContextMenu({
   )
 }
 
-function NodeRenderer({
+function OptionNode({
   node,
-  style,
-  dragHandle,
-  onContextMenu,
   selectedPath,
+  onSelect,
+  onContextMenu,
 }: {
-  node: NodeApi<TreeNode>
-  style: CSSProperties
-  dragHandle?: (el: HTMLDivElement | null) => void
-  onContextMenu: (node: NodeApi<TreeNode>, position: { x: number; y: number }) => void
+  node: KnowledgeTreeNode
   selectedPath: string | null
+  onSelect: NodeSelectFn
+  onContextMenu: (node: KnowledgeTreeNode, pos: { x: number; y: number }) => void
 }) {
-  const isDirectory = node.data.type === 'directory'
-  const isSelected = node.data.path === selectedPath
-
-  const handleClick = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (node.isInternal) {
-      node.toggle()
-    }
-    node.select()
-  }
-
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    onContextMenu(node, { x: e.clientX, y: e.clientY })
-  }
-
-  const nodeColor = isDirectory && node.data.config?.color
-    ? node.data.config.color
-    : undefined
+  const isSelected = node.path === selectedPath
 
   return (
     <div
-      ref={dragHandle}
-      style={style}
-      className="field-tree-node__row"
+      className={cn(
+        'field-tree-node field-tree-node--option',
+        isSelected && 'field-tree-node--selected',
+      )}
+      onClick={() => onSelect(node.path, 'option')}
     >
-      <div
-        onClick={handleClick}
-        onContextMenu={handleContextMenu}
-        className={cn(
-          'field-tree-node',
-          isSelected && 'field-tree-node--selected',
-          node.state.isDragging && 'field-tree-node--dragging',
-          node.state.willReceiveDrop && 'field-tree-node--drop-target',
-        )}
-      >
-        {isDirectory ? (
-          <>
-            {node.isOpen ? (
-              <ChevronDown className="field-tree-node__icon--chevron" />
-            ) : (
-              <ChevronRight className="field-tree-node__icon--chevron" />
-            )}
-            {node.isOpen ? (
-              <FolderOpen
-                className="field-tree-node__icon field-tree-node__icon--folder"
-                style={nodeColor && !isSelected ? { color: nodeColor } : undefined}
-              />
-            ) : (
-              <Folder
-                className="field-tree-node__icon field-tree-node__icon--folder"
-                style={nodeColor && !isSelected ? { color: nodeColor } : undefined}
-              />
-            )}
-          </>
-        ) : (
-          <>
-            <span className="field-tree-node__spacer" />
-            <FileText className="field-tree-node__icon field-tree-node__icon--file" />
-          </>
-        )}
-
-        {node.isEditing ? (
-          <Input
-            type="text"
-            defaultValue={node.data.name}
-            autoFocus
-            onBlur={() => node.reset()}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') node.reset()
-              else if (e.key === 'Enter') node.submit(e.currentTarget.value)
-            }}
-            onClick={(e) => e.stopPropagation()}
-            className="field-tree__edit-input"
-          />
-        ) : (
-          <>
-            <span className="field-tree-node__label">{node.data.name}</span>
-            <div className="field-tree-node__actions">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  const rect = (e.target as HTMLElement).getBoundingClientRect()
-                  onContextMenu(node, { x: rect.left, y: rect.bottom + 4 })
-                }}
-              >
-                <MoreVertical className="field-tree-node__icon" />
-              </Button>
-            </div>
-          </>
-        )}
+      <span className="field-tree-node__spacer" />
+      <span className="field-tree-node__spacer" />
+      <FileText className="field-tree-node__icon field-tree-node__icon--file" />
+      <span className="field-tree-node__label">{node.slug}</span>
+      <div className="field-tree-node__actions">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={(e: React.MouseEvent) => {
+            e.stopPropagation()
+            const rect = (e.target as HTMLElement).getBoundingClientRect()
+            onContextMenu(node, { x: rect.left, y: rect.bottom + 4 })
+          }}
+        >
+          <MoreVertical className="field-tree-node__icon" />
+        </Button>
       </div>
     </div>
   )
 }
 
-export const FieldTree = forwardRef<FieldTreeHandle, FieldTreeProps>(function FieldTree({
-  nodes,
-  selectedFilePath,
-  searchQuery,
-  onFileSelect,
-  onDirectorySelect,
-  onRenameNode,
-  onDeleteNode,
-  onDuplicateNode,
-  onCreateFile,
-  onCreateFolder,
-  onMove,
-  onRenameRequest,
-}, ref) {
-  const treeRef = useRef<TreeApi<TreeNode>>(null)
-  const [contextMenu, setContextMenu] = useUIState<ContextMenuState>('field-tree.context-menu', { node: null, position: null })
+function FieldNode({
+  node,
+  selectedPath,
+  onSelect,
+  onContextMenu,
+  isExpanded,
+  onToggle,
+}: {
+  node: KnowledgeTreeNode
+  selectedPath: string | null
+  onSelect: NodeSelectFn
+  onContextMenu: (node: KnowledgeTreeNode, pos: { x: number; y: number }) => void
+  isExpanded: boolean
+  onToggle: () => void
+}) {
+  const isSelected = node.path === selectedPath
+  const hasChildren = node.children && node.children.length > 0
+
+  return (
+    <div>
+      <div
+        className={cn(
+          'field-tree-node field-tree-node--field',
+          isSelected && 'field-tree-node--selected',
+        )}
+        onClick={() => { onToggle(); onSelect(node.path, 'field') }}
+      >
+        <span className="field-tree-node__spacer" />
+        {hasChildren ? (
+          isExpanded ? (
+            <ChevronDown className="field-tree-node__icon--chevron" />
+          ) : (
+            <ChevronRight className="field-tree-node__icon--chevron" />
+          )
+        ) : (
+          <span className="field-tree-node__spacer" />
+        )}
+        <Layers className="field-tree-node__icon field-tree-node__icon--folder" />
+        <span className="field-tree-node__label">{node.slug}</span>
+        <div className="field-tree-node__actions">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e: React.MouseEvent) => {
+              e.stopPropagation()
+              const rect = (e.target as HTMLElement).getBoundingClientRect()
+              onContextMenu(node, { x: rect.left, y: rect.bottom + 4 })
+            }}
+          >
+            <MoreVertical className="field-tree-node__icon" />
+          </Button>
+        </div>
+      </div>
+      {isExpanded && hasChildren && (
+        <div>
+          {node.children!.map(opt => (
+            <OptionNode
+              key={opt.path}
+              node={opt}
+              selectedPath={selectedPath}
+              onSelect={onSelect}
+              onContextMenu={onContextMenu}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DomainNode({
+  node,
+  selectedPath,
+  onSelect,
+  onContextMenu,
+  expandedFields,
+  onToggleField,
+  isExpanded,
+  onToggle,
+}: {
+  node: KnowledgeTreeNode
+  selectedPath: string | null
+  onSelect: NodeSelectFn
+  onContextMenu: (node: KnowledgeTreeNode, pos: { x: number; y: number }) => void
+  expandedFields: Set<string>
+  onToggleField: (path: string) => void
+  isExpanded: boolean
+  onToggle: () => void
+}) {
+  const isSelected = node.path === selectedPath
+  const hasChildren = node.children && node.children.length > 0
+
+  return (
+    <div>
+      <div
+        className={cn(
+          'field-tree-node field-tree-node--domain',
+          isSelected && 'field-tree-node--selected',
+        )}
+        onClick={() => { onToggle(); onSelect(node.path, 'domain') }}
+      >
+        {hasChildren ? (
+          isExpanded ? (
+            <ChevronDown className="field-tree-node__icon--chevron" />
+          ) : (
+            <ChevronRight className="field-tree-node__icon--chevron" />
+          )
+        ) : (
+          <span className="field-tree-node__spacer" />
+        )}
+        <Database className="field-tree-node__icon field-tree-node__icon--folder" />
+        <span className="field-tree-node__label">{node.slug}</span>
+        <div className="field-tree-node__actions">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e: React.MouseEvent) => {
+              e.stopPropagation()
+              const rect = (e.target as HTMLElement).getBoundingClientRect()
+              onContextMenu(node, { x: rect.left, y: rect.bottom + 4 })
+            }}
+          >
+            <MoreVertical className="field-tree-node__icon" />
+          </Button>
+        </div>
+      </div>
+      {isExpanded && hasChildren && (
+        <div>
+          {node.children!.map(fieldNode => (
+            <FieldNode
+              key={fieldNode.path}
+              node={fieldNode}
+              selectedPath={selectedPath}
+              onSelect={onSelect}
+              onContextMenu={onContextMenu}
+              isExpanded={expandedFields.has(fieldNode.path)}
+              onToggle={() => onToggleField(fieldNode.path)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FieldTreeInner(
+  {
+    selectedPath,
+    onSelect,
+    onCreateOption,
+    onCreateField,
+    onDelete,
+    onRenameRequest,
+  }: FieldTreeProps,
+  ref: Ref<FieldTreeHandle>
+) {
+  const tree = useKnowledgeTree()
+  const [expandedDomains, setExpandedDomains] = useState<Set<string>>(() => new Set())
+  const [expandedFields, setExpandedFields] = useState<Set<string>>(() => new Set())
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>({ node: null, position: null })
 
   useImperativeHandle(ref, () => ({
-    expandAll: () => treeRef.current?.openAll(),
-    collapseAll: () => treeRef.current?.closeAll(),
-  }), [])
+    expandAll: () => {
+      const domains = new Set(tree.map((d: KnowledgeTreeNode) => d.path))
+      const fields = new Set(tree.flatMap((d: KnowledgeTreeNode) => (d.children || []).map((f: KnowledgeTreeNode) => f.path)))
+      setExpandedDomains(domains)
+      setExpandedFields(fields)
+    },
+    collapseAll: () => {
+      setExpandedDomains(new Set())
+      setExpandedFields(new Set())
+    },
+  }), [tree])
 
-  const treeData = useMemo(() => {
-    const converted = convertToTreeData(nodes)
-    return searchQuery ? filterTreeNodes(converted, searchQuery) : converted
-  }, [nodes, searchQuery])
+  const toggleDomain = useCallback((path: string) => {
+    setExpandedDomains((prev: Set<string>) => {
+      const next = new Set(prev)
+      if (next.has(path)) next.delete(path)
+      else next.add(path)
+      return next
+    })
+  }, [])
 
-  const handleContextMenu = useCallback((node: NodeApi<TreeNode>, position: { x: number; y: number }) => {
+  const toggleField = useCallback((path: string) => {
+    setExpandedFields((prev: Set<string>) => {
+      const next = new Set(prev)
+      if (next.has(path)) next.delete(path)
+      else next.add(path)
+      return next
+    })
+  }, [])
+
+  const handleContextMenu = useCallback((node: KnowledgeTreeNode, position: { x: number; y: number }) => {
     setContextMenu({ node, position })
   }, [])
 
   const handleRename = useCallback(() => {
     if (!contextMenu.node) return
-    if (onRenameRequest) {
-      onRenameRequest(
-        contextMenu.node.data.path,
-        contextMenu.node.data.name,
-        contextMenu.node.data.type === 'directory'
-      )
-    } else {
-      contextMenu.node.edit()
-    }
+    onRenameRequest(contextMenu.node.path, contextMenu.node.slug, contextMenu.node.type)
   }, [contextMenu.node, onRenameRequest])
 
-  const handleRenameSubmit = useCallback(
-    (args: { id: string; name: string }) => {
-      const node = treeRef.current?.get(args.id)
-      if (!node) return
-      const oldPath = node.data.path
-      const pathParts = oldPath.split('/')
-      pathParts[pathParts.length - 1] = args.name
-      onRenameNode(oldPath, pathParts.join('/'))
-    },
-    [onRenameNode]
-  )
-
   const handleDelete = useCallback(() => {
-    if (contextMenu.node) onDeleteNode(contextMenu.node.data.path)
-  }, [contextMenu.node, onDeleteNode])
+    if (!contextMenu.node) return
+    onDelete(contextMenu.node.path, contextMenu.node.type)
+  }, [contextMenu.node, onDelete])
 
-  const handleDuplicate = useCallback(() => {
-    if (contextMenu.node) onDuplicateNode(contextMenu.node.data.path)
-  }, [contextMenu.node, onDuplicateNode])
+  const handleCreateChild = useCallback(() => {
+    if (!contextMenu.node) return
+    const node = contextMenu.node
+    if (node.type === 'domain') {
+      onCreateField(node.slug)
+    } else if (node.type === 'field') {
+      const parts = node.path.split('/')
+      const domain = parts[1]
+      onCreateOption(domain, node.slug)
+    }
+  }, [contextMenu.node, onCreateField, onCreateOption])
 
-  const handleCreateFile = useCallback(() => {
-    if (contextMenu.node) onCreateFile(contextMenu.node.data.path)
-  }, [contextMenu.node, onCreateFile])
-
-  const handleCreateFolder = useCallback(() => {
-    if (contextMenu.node) onCreateFolder(contextMenu.node.data.path)
-  }, [contextMenu.node, onCreateFolder])
-
-  const handleMove = useCallback(
-    (args: { dragIds: string[]; parentId: string | null; index: number }) => {
-      if (args.dragIds.length === 0) return
-      onMove(args.dragIds[0], args.parentId || '', args.index)
-    },
-    [onMove]
-  )
-
-  const handleSelect = useCallback(
-    (nodes: NodeApi<TreeNode>[]) => {
-      if (nodes.length > 0) {
-        const node = nodes[0]
-        if (node.data.type === 'directory') {
-          onDirectorySelect(node.data.path)
-        } else {
-          onFileSelect(node.data.path)
-        }
-      }
-    },
-    [onFileSelect, onDirectorySelect]
-  )
+  const canCreateChild = contextMenu.node?.type === 'domain' || contextMenu.node?.type === 'field'
 
   return (
     <div className="field-tree">
-      <Tree
-        ref={treeRef}
-        data={treeData}
-        openByDefault={false}
-        indent={24}
-        rowHeight={36}
-        overscanCount={8}
-        paddingTop={8}
-        paddingBottom={8}
-        onRename={handleRenameSubmit}
-        onMove={handleMove}
-        onSelect={handleSelect}
-        disableMultiSelection={false}
-        disableDrag={false}
-        disableDrop={false}
-      >
-        {(props) => (
-          <NodeRenderer
-            {...props}
-            onContextMenu={handleContextMenu}
-            selectedPath={selectedFilePath}
-          />
-        )}
-      </Tree>
+      {tree.map((domainNode: KnowledgeTreeNode) => (
+        <DomainNode
+          key={domainNode.path}
+          node={domainNode}
+          selectedPath={selectedPath}
+          onSelect={onSelect}
+          onContextMenu={handleContextMenu}
+          expandedFields={expandedFields}
+          onToggleField={toggleField}
+          isExpanded={expandedDomains.has(domainNode.path)}
+          onToggle={() => toggleDomain(domainNode.path)}
+        />
+      ))}
 
       {contextMenu.node && contextMenu.position && (
         <ContextMenu
@@ -404,11 +377,11 @@ export const FieldTree = forwardRef<FieldTreeHandle, FieldTreeProps>(function Fi
           onClose={() => setContextMenu({ node: null, position: null })}
           onRename={handleRename}
           onDelete={handleDelete}
-          onDuplicate={handleDuplicate}
-          onCreateFile={handleCreateFile}
-          onCreateFolder={handleCreateFolder}
+          onCreateChild={canCreateChild ? handleCreateChild : undefined}
         />
       )}
     </div>
   )
-})
+}
+
+export const FieldTree = forwardRef<FieldTreeHandle, FieldTreeProps>(FieldTreeInner)

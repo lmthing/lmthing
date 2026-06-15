@@ -17,7 +17,6 @@
       "@lmthing/css/*": ["../css/src/*"],
       "@lmthing/state": ["../state/src"],
       "@lmthing/state/*": ["../state/src/*"],
-      "lmthing": ["../core/src"],
       "@/*": ["../../studio/src/*"]
     }
   },

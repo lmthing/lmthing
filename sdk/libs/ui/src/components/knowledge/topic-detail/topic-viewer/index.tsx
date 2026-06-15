@@ -1,12 +1,5 @@
-/**
- * TopicViewer - Knowledge topic detail viewer and editor.
- * Uses new hooks from Phase 3 (useFile, useKnowledgeFields)
- * and element components instead of raw Tailwind.
- */
 import { useCallback, useEffect } from 'react'
-import { useUIState } from '@lmthing/state'
-import { useParams } from '@tanstack/react-router'
-import { useSpaceFS } from '@lmthing/state'
+import { useUIState, useSpaceFS } from '@lmthing/state'
 import { Page, PageHeader, PageBody } from '@lmthing/ui/elements/layouts/page'
 import { Heading } from '@lmthing/ui/elements/typography/heading'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
@@ -14,24 +7,21 @@ import { Stack } from '@lmthing/ui/elements/layouts/stack'
 import { Badge } from '@lmthing/ui/elements/content/badge'
 import { Button } from '@lmthing/ui/elements/forms/button'
 import { useFile } from '@lmthing/ui/hooks/fs/useFile'
-import { useKnowledgeFields } from '@lmthing/ui/hooks/useKnowledgeFields'
 import '@lmthing/css/components/knowledge/index.css'
 
 export interface TopicViewerProps {
+  optionPath?: string
+  // legacy props kept for backward compat (ignored)
   fieldId?: string
   topicPath?: string
 }
 
-export function TopicViewer({ fieldId, topicPath }: TopicViewerProps) {
-  const params = useParams({ strict: false }) as { fieldId?: string; topicId?: string }
-  const effectiveFieldId = fieldId || params.fieldId
-  const effectiveTopicPath = topicPath || (effectiveFieldId && params.topicId ? `knowledge/${effectiveFieldId}/${params.topicId}.md` : undefined)
-
+export function TopicViewer({ optionPath, topicPath }: TopicViewerProps) {
+  const effectivePath = optionPath || topicPath
   const spaceFS = useSpaceFS()
-  const knowledgeFields = useKnowledgeFields()
-  const content = useFile(effectiveTopicPath || '')
+  const content = useFile(effectivePath || '')
 
-  const [draft, setDraft] = useUIState<string>('topic-viewer.draft', content || '')
+  const [draft, setDraft] = useUIState<string>('topic-viewer.draft', '')
   const [hasUnsavedChanges, setHasUnsavedChanges] = useUIState<boolean>('topic-viewer.has-unsaved-changes', false)
   const [savedAt, setSavedAt] = useUIState<string | null>('topic-viewer.saved-at', null)
 
@@ -49,40 +39,35 @@ export function TopicViewer({ fieldId, topicPath }: TopicViewerProps) {
   }, [])
 
   const handleSave = useCallback(() => {
-    if (!spaceFS || !effectiveTopicPath || !hasUnsavedChanges) return
-    spaceFS.writeFile(effectiveTopicPath, draft)
+    if (!spaceFS || !effectivePath || !hasUnsavedChanges) return
+    spaceFS.writeFile(effectivePath, draft)
     setHasUnsavedChanges(false)
     setSavedAt(new Date().toLocaleTimeString())
-  }, [spaceFS, effectiveTopicPath, draft, hasUnsavedChanges])
+  }, [spaceFS, effectivePath, draft, hasUnsavedChanges])
 
-  if (!effectiveTopicPath) {
+  if (!effectivePath) {
     return (
       <Page full>
         <PageBody>
           <Stack className="topic-viewer__empty">
-            <Heading level={3}>Select a Topic</Heading>
+            <Heading level={3}>Select an Option</Heading>
             <Caption muted className="topic-viewer__empty-caption">
-              Choose a knowledge topic from the sidebar to view and edit its content.
+              Choose an option file from the tree to view and edit its content.
             </Caption>
-            {knowledgeFields.length > 0 && (
-              <Stack row gap="sm" className="topic-viewer__empty-fields">
-                {knowledgeFields.map(f => (
-                  <Badge key={f.id} variant="muted">{f.id}</Badge>
-                ))}
-              </Stack>
-            )}
           </Stack>
         </PageBody>
       </Page>
     )
   }
 
+  const name = effectivePath.split('/').pop()?.replace('.md', '') || 'Option'
+
   return (
     <Page full>
       <PageHeader className="topic-viewer__header">
         <div>
-          <Heading level={3}>{effectiveTopicPath.split('/').pop()?.replace('.md', '') || 'Topic'}</Heading>
-          {effectiveFieldId && <Caption muted>Field: {effectiveFieldId}</Caption>}
+          <Heading level={3}>{name}</Heading>
+          <Caption muted>{effectivePath}</Caption>
         </div>
         <Stack row gap="sm" className="topic-viewer__header-actions">
           {hasUnsavedChanges && <Badge variant="muted">Unsaved changes</Badge>}
@@ -98,12 +83,18 @@ export function TopicViewer({ fieldId, topicPath }: TopicViewerProps) {
           className="input topic-viewer__textarea"
           value={draft}
           onChange={e => handleChange(e.target.value)}
+          onKeyDown={e => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+              e.preventDefault()
+              handleSave()
+            }
+          }}
           spellCheck={false}
-          placeholder="Write knowledge content in Markdown..."
+          placeholder="Write option content in Markdown..."
         />
       </PageBody>
     </Page>
   )
 }
 
-export { TopicViewer as default }
+export default TopicViewer

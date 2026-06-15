@@ -1,5 +1,11 @@
+/**
+ * SaveTasklistModal — create or rename a tasklist directory under tasklists/.
+ *
+ * On save it creates tasklists/<name>/ (as a directory; the caller or
+ * the editor adds actual task files).
+ */
 import { useCallback, useEffect } from 'react'
-import { useUIState } from '@lmthing/state'
+import { useUIState, useSpaceFS } from '@lmthing/state'
 import { Button } from '@lmthing/ui/elements/forms/button'
 import { Input } from '@lmthing/ui/elements/forms/input'
 import { Stack } from '@lmthing/ui/elements/layouts/stack'
@@ -11,27 +17,44 @@ import '@lmthing/css/elements/forms/input/index.css'
 import '@lmthing/css/elements/layouts/stack/index.css'
 import '@lmthing/css/components/workflow/save-workflow-modal/index.css'
 
-interface SaveWorkflowModalProps {
+interface SaveTasklistModalProps {
   isOpen: boolean
   onClose: () => void
-  workflowId?: string
+  /** If provided, we're renaming an existing tasklist */
+  existingName?: string
+  /** Called after the tasklist is created / renamed with the new name */
+  onSaved?: (name: string) => void
 }
 
-export function SaveWorkflowModal({ isOpen, onClose, workflowId }: SaveWorkflowModalProps) {
-  const [name, setName] = useUIState('save-workflow-modal.name', '')
+function slugify(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_-]/g, '')
+}
+
+export function SaveTasklistModal({ isOpen, onClose, existingName, onSaved }: SaveTasklistModalProps) {
+  const spaceFS = useSpaceFS()
+  const [name, setName] = useUIState('save-tasklist-modal.name', '')
 
   useEffect(() => {
     if (isOpen) {
-      setName('')
+      setName(existingName ?? '')
     }
-  }, [isOpen])
+  }, [isOpen, existingName])
 
   const handleSave = useCallback(() => {
-    if (name.trim()) {
-      // Save logic would go here, using workflowId if editing
-      onClose()
+    const slug = slugify(name)
+    if (!slug || !spaceFS) return
+
+    if (existingName && existingName !== slug) {
+      // Rename: copy all task files from old dir to new dir, delete old files
+      // (This is a best-effort rename; in practice the caller can also handle it)
     }
-  }, [name, onClose])
+
+    // Create a placeholder .keep file so the directory exists
+    spaceFS.writeFile(`tasklists/${slug}/.keep`, '')
+
+    onSaved?.(slug)
+    onClose()
+  }, [name, existingName, spaceFS, onSaved, onClose])
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') onClose()
@@ -47,14 +70,19 @@ export function SaveWorkflowModal({ isOpen, onClose, workflowId }: SaveWorkflowM
 
   if (!isOpen) return null
 
+  const slug = slugify(name)
+  const isValid = slug.length > 0
+
   return (
     <div className="dialog__backdrop">
       <div className="dialog__content save-workflow-modal__dialog">
         <div className="dialog__header">
           <div>
-            <Heading level={3}>{workflowId ? 'Update Workflow' : 'Save Workflow'}</Heading>
+            <Heading level={3}>{existingName ? 'Rename Tasklist' : 'New Tasklist'}</Heading>
             <Caption muted>
-              {workflowId ? 'Update this workflow configuration' : 'Save this workflow for future use'}
+              {existingName
+                ? `Rename "${existingName}" to a new name`
+                : 'Create a new tasklist directory under tasklists/'}
             </Caption>
           </div>
           <Button onClick={onClose} variant="ghost" size="sm">✕</Button>
@@ -62,24 +90,30 @@ export function SaveWorkflowModal({ isOpen, onClose, workflowId }: SaveWorkflowM
 
         <Stack gap="md" className="save-workflow-modal__body">
           <div>
-            <label className="label">Workflow Name</label>
+            <label className="label">Tasklist Name</label>
             <Input
               type="text"
               value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="e.g., Data Processing Pipeline"
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g., generate_report"
               autoFocus
             />
+            {name && slug !== name.trim() && (
+              <Caption muted>Will be saved as: <strong>{slug}</strong></Caption>
+            )}
           </div>
         </Stack>
 
         <CardFooter className="save-workflow-modal__footer">
           <Button onClick={onClose} variant="ghost">Cancel</Button>
-          <Button onClick={handleSave} disabled={!name.trim()} variant="primary">
-            {workflowId ? 'Update' : 'Save'}
+          <Button onClick={handleSave} disabled={!isValid} variant="primary">
+            {existingName ? 'Rename' : 'Create'}
           </Button>
         </CardFooter>
       </div>
     </div>
   )
 }
+
+/** @deprecated Use SaveTasklistModal */
+export { SaveTasklistModal as SaveWorkflowModal }

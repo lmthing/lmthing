@@ -3,24 +3,22 @@ import { useUIState } from '@lmthing/state'
 import { Bot, X } from 'lucide-react'
 import { Button } from '@lmthing/ui/elements/forms/button'
 import { Input } from '@lmthing/ui/elements/forms/input'
-import { Textarea } from '@lmthing/ui/elements/forms/textarea'
 import { Card, CardHeader, CardBody } from '@lmthing/ui/elements/content/card'
 import { Stack } from '@lmthing/ui/elements/layouts/stack'
 import { Label } from '@lmthing/ui/elements/typography/label'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
 
 interface CreateAgentInlineProps {
-  onSubmit: (name: string, description: string) => void
+  onSubmit: (title: string) => void
   onCancel: () => void
 }
 
 export function CreateAgentInline({ onSubmit, onCancel }: CreateAgentInlineProps) {
-  const [name, setName] = useUIState('create-agent-inline.name', '')
-  const [description, setDescription] = useUIState('create-agent-inline.description', '')
+  const [title, setTitle] = useUIState('create-agent-inline.title', '')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (name.trim()) { onSubmit(name.trim(), description.trim()); setName(''); setDescription('') }
+    if (title.trim()) { onSubmit(title.trim()); setTitle('') }
   }
 
   return (
@@ -32,7 +30,7 @@ export function CreateAgentInline({ onSubmit, onCancel }: CreateAgentInlineProps
               <Bot className="create-agent-inline__avatar-icon" />
             </div>
             <div>
-              <Label>Create New Agent</Label>
+              <Label>New Agent</Label>
               <Caption muted>Define a new AI agent</Caption>
             </div>
           </Stack>
@@ -43,16 +41,12 @@ export function CreateAgentInline({ onSubmit, onCancel }: CreateAgentInlineProps
         <form onSubmit={handleSubmit}>
           <Stack gap="sm">
             <div>
-              <Label compact required>Name</Label>
-              <Input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Assessment Agent" autoFocus required />
-            </div>
-            <div>
-              <Label compact>Description (Optional)</Label>
-              <Textarea compact value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Brief description of what this agent does" />
+              <Label compact required>Title</Label>
+              <Input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Assessment Agent" autoFocus required />
             </div>
             <Stack row gap="sm" className="create-agent-inline__actions">
               <Button type="button" onClick={onCancel} variant="ghost" className="create-agent-inline__btn">Cancel</Button>
-              <Button type="submit" disabled={!name.trim()} variant="primary" className="create-agent-inline__btn">Create Agent</Button>
+              <Button type="submit" disabled={!title.trim()} variant="primary" className="create-agent-inline__btn">Create</Button>
             </Stack>
           </Stack>
         </form>

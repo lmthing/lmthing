@@ -1,413 +1,412 @@
 /**
- * AgentBuilder - Main agent configuration view.
- * L2: Three-Column Dashboard Layout with header, knowledge bar, main content, and right panel.
- *
- * US-201: Header with back button, name, Thing/Export buttons
- * US-202: Knowledge pill selection bar
- * US-203: Main instructions editor
- * US-204: Area knowledge accordion
- * US-205: Actions/Tools tabbed right panel
- * US-206: Attach workflow modal
- * US-207: Attached action cards
- * US-208: Floating chat button
- * US-209: Toggle action status
- * US-210: Detach action
- * US-212: Export agent config
- * US-213: Thing sliding panel
+ * AgentBuilder - New spec.
+ * Edits agents/<slug>/instruct.md ONLY.
+ * Fields: title, body, actions[], defaultAction, functions[], components[], knowledge[], dependencies[]
  */
 import '@lmthing/css/components/agent/builder/index.css'
-import { useEffect, useCallback, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from '@tanstack/react-router'
-import { useSpaceFS, P, serializeAgentInstruct, serializeAgentConfig, serializeAgentValues, useUIState, useToggle } from '@lmthing/state'
-import type { AgentConfig, AgentValues } from '@lmthing/state'
+import {
+  useSpaceFS,
+  useAgent,
+  useGlob,
+  useUIState,
+  P,
+  serializeAgentInstruct,
+} from '@lmthing/state'
+import type { AgentInstruct } from '@lmthing/state'
 import { Stack } from '@lmthing/ui/elements/layouts/stack'
 import { Label } from '@lmthing/ui/elements/typography/label'
-import { TabBar } from '@lmthing/ui/elements/nav/tab-bar'
-import { useAgent } from '@lmthing/ui/hooks/useAgent'
-import { useKnowledgeFields } from '@lmthing/ui/hooks/useKnowledgeFields'
-import { useWorkflowList } from '@lmthing/ui/hooks/useWorkflowList'
-import { buildSpacePathFromParams } from '@/lib/space-url'
+import { Caption } from '@lmthing/ui/elements/typography/caption'
+import { Button } from '@lmthing/ui/elements/forms/button'
+import { Input } from '@lmthing/ui/elements/forms/input'
+import { Select, SelectOption } from '@lmthing/ui/elements/forms/select'
 import { AgentHeader } from '../agent-header'
-import { KnowledgePillBar } from '../knowledge-pill-bar'
-import { ActionsPanel } from '../actions-panel'
-import type { AttachedWorkflow } from '../actions-panel'
-import { ToolsPanel } from '../tools-panel'
-import { PromptPreviewPanel } from '../prompt-preview'
-import { AttachWorkflowModal } from '../attach-workflow-modal'
-import { ChatFAB } from '../chat-fab'
-import { ThingPanel } from '../thing-panel'
-import { ConfigurationForm } from '../configuration-form'
-import type { FormValues } from '../configuration-form'
-import { useFieldSchema } from '@lmthing/ui/hooks/useFieldSchema'
 
-function getFormFieldValue(
-  values: FormValues, fieldId: string, variableName?: string
-): string | string[] | boolean | undefined {
-  if (values[fieldId] !== undefined) return values[fieldId]
-  if (variableName && values[variableName] !== undefined) return values[variableName]
-  const lastSegment = fieldId.split('/').pop()
-  if (lastSegment && values[lastSegment] !== undefined) return values[lastSegment]
-  return undefined
-}
+// ── helpers ──────────────────────────────────────────────────────────────────
 
 function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, '')
-    .replace(/[\s_]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    || 'untitled'
+  return text.toLowerCase().trim()
+    .replace(/[^\w\s-]/g, '').replace(/[\s_]+/g, '-').replace(/-+/g, '-')
+    .replace(/^-|-$/g, '') || 'untitled'
 }
+
+function buildSpacePath(username?: string, studioId?: string, storageId?: string, spaceId?: string) {
+  if (!username || !studioId || !storageId || !spaceId) return ''
+  return `/${username}/${studioId}/${storageId}/${spaceId}`
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+/** Multiselect pill grid */
+function MultiSelectField({ label, available, selected, onChange }: {
+  label: string
+  available: string[]
+  selected: string[]
+  onChange: (next: string[]) => void
+}) {
+  const toggle = (item: string) => {
+    onChange(selected.includes(item) ? selected.filter(x => x !== item) : [...selected, item])
+  }
+  return (
+    <div className="panel">
+      <div className="panel__header">
+        <Label>{label} ({selected.length}/{available.length})</Label>
+      </div>
+      <div className="panel__body">
+        {available.length === 0 ? (
+          <Caption muted>None available in this space.</Caption>
+        ) : (
+          <div className="agent-builder__pill-grid">
+            {available.map(item => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => toggle(item)}
+                className={`badge ${selected.includes(item) ? 'badge--primary' : 'badge--muted'} agent-builder__pill`}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Dependencies editor (add/remove string entries) */
+function DependenciesField({ deps, onChange }: {
+  deps: string[]
+  onChange: (next: string[]) => void
+}) {
+  const [newDep, setNewDep] = useUIState('agent-builder.new-dep', '')
+
+  const add = () => {
+    const v = newDep.trim()
+    if (v && !deps.includes(v)) { onChange([...deps, v]); setNewDep('') }
+  }
+  const remove = (dep: string) => onChange(deps.filter(d => d !== dep))
+
+  return (
+    <div className="panel">
+      <div className="panel__header"><Label>Dependencies ({deps.length})</Label></div>
+      <div className="panel__body">
+        <Stack gap="sm">
+          {deps.map(dep => (
+            <Stack key={dep} row gap="sm" className="agent-builder__dep-row">
+              <Caption className="agent-builder__dep-text">{dep}</Caption>
+              <Button variant="ghost" size="sm" onClick={() => remove(dep)}>✕</Button>
+            </Stack>
+          ))}
+          <Stack row gap="sm">
+            <Input
+              value={newDep}
+              onChange={e => setNewDep(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add() } }}
+              placeholder="space-ref/agent-slug"
+              className="agent-builder__dep-input"
+            />
+            <Button variant="ghost" size="sm" onClick={add} disabled={!newDep.trim()}>Add</Button>
+          </Stack>
+        </Stack>
+      </div>
+    </div>
+  )
+}
+
+/** One action row */
+function ActionRow({ action, tasklistNames, onChange, onRemove }: {
+  action: { id: string; label: string; description: string; tasklist: string }
+  tasklistNames: string[]
+  onChange: (updated: typeof action) => void
+  onRemove: () => void
+}) {
+  return (
+    <div className="panel agent-builder__action-row">
+      <div className="panel__body">
+        <Stack gap="sm">
+          <Stack row gap="sm">
+            <div style={{ flex: 1 }}>
+              <Label compact>ID</Label>
+              <Input value={action.id} onChange={e => onChange({ ...action, id: e.target.value })} placeholder="action-id" />
+            </div>
+            <div style={{ flex: 2 }}>
+              <Label compact>Label</Label>
+              <Input value={action.label} onChange={e => onChange({ ...action, label: e.target.value })} placeholder="Action label" />
+            </div>
+            <Button variant="ghost" size="sm" onClick={onRemove} style={{ alignSelf: 'flex-end' }}>✕</Button>
+          </Stack>
+          <div>
+            <Label compact>Description</Label>
+            <Input value={action.description} onChange={e => onChange({ ...action, description: e.target.value })} placeholder="What does this action do?" />
+          </div>
+          <div>
+            <Label compact>Tasklist</Label>
+            <Select value={action.tasklist} onChange={e => onChange({ ...action, tasklist: e.target.value })}>
+              <SelectOption value="">— select tasklist —</SelectOption>
+              {tasklistNames.map(name => (
+                <SelectOption key={name} value={name}>{name}</SelectOption>
+              ))}
+            </Select>
+          </div>
+        </Stack>
+      </div>
+    </div>
+  )
+}
+
+// ── Main builder ──────────────────────────────────────────────────────────────
 
 export function AgentBuilder() {
   const params = useParams({ strict: false }) as {
-    username?: string
-    studioId?: string
-    storageId?: string
-    spaceId?: string
-    agentId?: string
+    username?: string; studioId?: string; storageId?: string; spaceId?: string; agentId?: string
   }
   const { username, studioId, storageId, spaceId, agentId } = params
   const navigate = useNavigate()
   const spaceFS = useSpaceFS()
 
-  const [rightTab, setRightTab] = useUIState<'actions' | 'tools'>('agent-builder.right-tab', 'actions')
-  const [isThingOpen, toggleThing, setIsThingOpen] = useToggle('agent-builder.thing-open', false)
-  const [isExporting, , setIsExporting] = useToggle('agent-builder.exporting', false)
-  const [isAttachModalOpen, , setIsAttachModalOpen] = useToggle('agent-builder.attach-modal-open', false)
+  // ── space resource discovery ──────────────────────────────────────────────
+  const tasklistMatches = useGlob(P.globs.allTasklists)
+  const functionMatches = useGlob(P.globs.allFunctions)
+  const viewComponentMatches = useGlob(P.globs.allViewComponents)
+  const formComponentMatches = useGlob(P.globs.allFormComponents)
+  const knowledgeIndexMatches = useGlob(P.globs.allKnowledgeIndexes)
 
-  const agent = useAgent(agentId || '')
-  const knowledgeFields = useKnowledgeFields()
-  const workflowList = useWorkflowList()
+  const tasklistNames = useMemo(() => {
+    const names = new Set<string>()
+    for (const path of tasklistMatches) {
+      const parts = path.split('/')
+      if (parts.length >= 2) names.add(parts[1])
+    }
+    return Array.from(names).sort()
+  }, [tasklistMatches])
 
-  // Draft state
-  const [draftName, setDraftName] = useUIState('agent-builder.draft-name', '')
-  const [draftDescription, setDraftDescription] = useUIState('agent-builder.draft-description', '')
-  const [draftInstructions, setDraftInstructions] = useUIState('agent-builder.draft-instructions', '')
-  const [selectedFieldIds, setSelectedFieldIds] = useUIState<string[]>('agent-builder.selected-field-ids', [])
-  const [selectedWorkflowIds, setSelectedWorkflowIds] = useUIState<string[]>('agent-builder.selected-workflow-ids', [])
-  const [formValues, setFormValues] = useUIState<FormValues>('agent-builder.form-values', {})
-  const [askAtRuntimeIds, setAskAtRuntimeIds] = useUIState<string[]>('agent-builder.ask-at-runtime-ids', [])
+  const functionNames = useMemo(() =>
+    functionMatches.map(p => p.split('/').pop()?.replace(/\.ts$/, '') ?? '').filter(Boolean).sort()
+  , [functionMatches])
 
-  const fieldSchemas = useFieldSchema(selectedFieldIds)
-
-  const runtimeFieldEntries = useMemo(() => {
-    return fieldSchemas.flatMap(schema =>
-      schema.sections.filter(field => askAtRuntimeIds.includes(field.id))
-        .map(field => ({ fieldId: schema.fieldId, field }))
-    )
-  }, [fieldSchemas, askAtRuntimeIds])
-
-  const resolvedFormValues = useMemo(() => {
-    const resolved: FormValues = { ...formValues }
-    for (const schema of fieldSchemas) {
-      for (const field of schema.sections) {
-        if (resolved[field.id] === undefined) {
-          const found = getFormFieldValue(formValues, field.id, field.variableName)
-          if (found !== undefined) resolved[field.id] = found
-        }
+  const componentNames = useMemo(() => {
+    const names = new Set<string>()
+    for (const p of viewComponentMatches) {
+      const n = p.split('/').pop()?.replace(/\.tsx$/, '')
+      if (n) names.add(n)
+    }
+    for (const p of formComponentMatches) {
+      const parts = p.split('/')
+      // components/form/<Name>/web.tsx or components/form/<Name>/ink.tsx
+      if (parts.length >= 3) {
+        const n = parts[parts.length - 2]
+        if (n) names.add(n)
       }
     }
-    return resolved
-  }, [formValues, fieldSchemas])
+    return Array.from(names).sort()
+  }, [viewComponentMatches, formComponentMatches])
 
-  const enabledFilePaths = useMemo(() => {
-    const paths: string[] = []
-    for (const schema of fieldSchemas) {
-      for (const field of schema.sections) {
-        if (askAtRuntimeIds.includes(field.id)) continue
-        const value = formValues[field.id] ?? field.default
-        if (!value) continue
-        if (field.fieldType === 'select' && typeof value === 'string' && value)
-          paths.push(`knowledge/${field.id}/${value}.md`)
-        else if (field.fieldType === 'multiselect' && Array.isArray(value))
-          value.forEach(v => paths.push(`knowledge/${field.id}/${v}.md`))
-      }
-    }
-    return paths
-  }, [fieldSchemas, formValues, askAtRuntimeIds])
+  const knowledgeRefs = useMemo(() => {
+    return knowledgeIndexMatches.map(p => {
+      // knowledge/<domain>/<field>/index.md → "domain/field"
+      const parts = p.split('/')
+      if (parts.length >= 3) return `${parts[1]}/${parts[2]}`
+      return null
+    }).filter((x): x is string => x !== null).sort()
+  }, [knowledgeIndexMatches])
 
-  // Sync draft state when agent data loads or agentId changes.
-  const syncKey = `${agentId}::${agent.instruct?.name ?? ''}`
-  const lastSyncKey = useRef(syncKey)
+  // ── load existing agent ───────────────────────────────────────────────────
+  const agent = useAgent(agentId ?? '')
+
+  // ── draft state ───────────────────────────────────────────────────────────
+  const [draftTitle, setDraftTitle] = useUIState('agent-builder.draft-title', '')
+  const [draftBody, setDraftBody] = useUIState('agent-builder.draft-body', '')
+  const [draftActions, setDraftActions] = useUIState<AgentInstruct['actions']>('agent-builder.draft-actions', [])
+  const [draftDefaultAction, setDraftDefaultAction] = useUIState('agent-builder.draft-default-action', '')
+  const [draftFunctions, setDraftFunctions] = useUIState<string[]>('agent-builder.draft-functions', [])
+  const [draftComponents, setDraftComponents] = useUIState<string[]>('agent-builder.draft-components', [])
+  const [draftKnowledge, setDraftKnowledge] = useUIState<string[]>('agent-builder.draft-knowledge', [])
+  const [draftDeps, setDraftDeps] = useUIState<string[]>('agent-builder.draft-deps', [])
+
+  // Sync draft from instruct when agent loads / agentId changes
+  const syncKey = `${agentId}::${agent.instruct?.title ?? ''}`
+  const lastSyncKey = useRef('')
   useEffect(() => {
     if (lastSyncKey.current === syncKey) return
     lastSyncKey.current = syncKey
-    const instruct = agent.instruct
-    const cfg = agent.config as AgentConfig & { domains?: string[]; flows?: string[] } | null
-    if (agentId && instruct) {
-      setDraftName(instruct.name || '')
-      setDraftDescription(instruct.description || '')
-      setDraftInstructions(instruct.instructions || '')
-      setSelectedFieldIds(cfg?.domains || [])
-      setSelectedWorkflowIds(cfg?.flows || [])
-      setFormValues((agent.values as FormValues) || {})
-      setAskAtRuntimeIds((cfg?.askAtRuntime as string[]) || [])
+    const inst = agent.instruct
+    if (agentId && inst) {
+      setDraftTitle(inst.title ?? '')
+      setDraftBody(inst.body ?? '')
+      setDraftActions(inst.actions ?? [])
+      setDraftDefaultAction(inst.defaultAction ?? '')
+      setDraftFunctions(inst.functions ?? [])
+      setDraftComponents(inst.components ?? [])
+      setDraftKnowledge(inst.knowledge ?? [])
+      setDraftDeps(inst.dependencies ?? [])
     } else if (!agentId) {
-      setDraftName('')
-      setDraftDescription('')
-      setDraftInstructions('')
-      setSelectedFieldIds([])
-      setSelectedWorkflowIds([])
-      setFormValues({})
-      setAskAtRuntimeIds([])
+      setDraftTitle(''); setDraftBody(''); setDraftActions([])
+      setDraftDefaultAction(''); setDraftFunctions([]); setDraftComponents([])
+      setDraftKnowledge([]); setDraftDeps([])
     }
-  }) // intentionally no deps — we use the ref to control when sync happens
+  })
 
-  const spacePath = username && studioId && storageId && spaceId
-    ? buildSpacePathFromParams(username, studioId, storageId, spaceId)
-    : ''
-
+  const spacePath = buildSpacePath(username, studioId, storageId, spaceId)
   const isNew = !agentId
-  const isValid = draftName.trim().length > 0
+  const isValid = draftTitle.trim().length > 0
 
-  const hasUnsavedChanges = agentId
-    ? (draftName !== (agent.instruct?.name || '') ||
-       draftDescription !== (agent.instruct?.description || '') ||
-       draftInstructions !== (agent.instruct?.instructions || ''))
-    : draftName.trim().length > 0
-
-  // Build attached workflows from selectedWorkflowIds
-  const attachedWorkflows: AttachedWorkflow[] = useMemo(() => {
-    return selectedWorkflowIds.map(wfId => ({
-      workflowId: wfId,
-      workflowName: wfId,
-      stepCount: 0,
-      slashAction: {
-        id: `sa_${wfId}`,
-        actionId: wfId,
-        name: wfId,
-        description: '',
-        enabled: true,
-      },
-    }))
-  }, [selectedWorkflowIds])
+  const hasUnsavedChanges = isNew
+    ? isValid
+    : (
+      draftTitle !== (agent.instruct?.title ?? '') ||
+      draftBody !== (agent.instruct?.body ?? '') ||
+      JSON.stringify(draftActions) !== JSON.stringify(agent.instruct?.actions ?? []) ||
+      draftDefaultAction !== (agent.instruct?.defaultAction ?? '') ||
+      JSON.stringify(draftFunctions) !== JSON.stringify(agent.instruct?.functions ?? []) ||
+      JSON.stringify(draftComponents) !== JSON.stringify(agent.instruct?.components ?? []) ||
+      JSON.stringify(draftKnowledge) !== JSON.stringify(agent.instruct?.knowledge ?? []) ||
+      JSON.stringify(draftDeps) !== JSON.stringify(agent.instruct?.dependencies ?? [])
+    )
 
   const handleSave = useCallback(() => {
     if (!spaceFS || !isValid) return
-
-    const id = agentId || slugify(draftName)
-
-    spaceFS.writeFile(
-      P.instruct(id),
-      serializeAgentInstruct({
-        name: draftName,
-        description: draftDescription || undefined,
-        instructions: draftInstructions,
-      })
-    )
-
-    const existingConfig = (agent.config || {}) as AgentConfig & { domains?: string[]; flows?: string[] }
-    const config = {
-      ...existingConfig,
-      domains: selectedFieldIds,
-      flows: selectedWorkflowIds,
-      askAtRuntime: askAtRuntimeIds,
-      enabledFilePaths,
-      runtimeFieldIds: runtimeFieldEntries.map(e => e.field.id),
+    const id = agentId || slugify(draftTitle)
+    const instruct: AgentInstruct = {
+      title: draftTitle.trim(),
+      body: draftBody.trim(),
+      actions: draftActions,
+      defaultAction: draftDefaultAction || undefined,
+      functions: draftFunctions,
+      components: draftComponents,
+      knowledge: draftKnowledge,
+      dependencies: draftDeps,
     }
-    spaceFS.writeFile(P.agentConfig(id), serializeAgentConfig(config))
-
-    if (Object.keys(formValues).length > 0) {
-      spaceFS.writeFile(P.agentValues(id), serializeAgentValues(formValues as AgentValues))
-    }
-
+    spaceFS.writeFile(P.instruct(id), serializeAgentInstruct(instruct))
     if (!agentId) {
       navigate({ to: `${spacePath}/agent/${encodeURIComponent(id)}` })
     }
-  }, [spaceFS, isValid, agentId, draftName, draftDescription, draftInstructions, selectedFieldIds, selectedWorkflowIds, formValues, askAtRuntimeIds, agent.config, navigate, spacePath])
+  }, [spaceFS, isValid, agentId, draftTitle, draftBody, draftActions, draftDefaultAction, draftFunctions, draftComponents, draftKnowledge, draftDeps, spacePath, navigate])
 
   const handleBack = useCallback(() => {
     navigate({ to: `${spacePath}/agent` })
   }, [navigate, spacePath])
 
-  const handleFieldToggle = useCallback((fieldId: string) => {
-    setSelectedFieldIds(prev =>
-      prev.includes(fieldId) ? prev.filter(f => f !== fieldId) : [...prev, fieldId]
-    )
-  }, [])
+  // Actions helpers
+  const addAction = useCallback(() => {
+    setDraftActions(prev => [...prev, { id: '', label: '', description: '', tasklist: '' }])
+  }, [setDraftActions])
 
-  const handleClearAllFields = useCallback(() => {
-    setSelectedFieldIds([])
-  }, [])
+  const updateAction = useCallback((idx: number, updated: AgentInstruct['actions'][number]) => {
+    setDraftActions(prev => prev.map((a, i) => i === idx ? updated : a))
+  }, [setDraftActions])
 
-  const handleFormValueChange = useCallback((fieldId: string, value: string | string[] | boolean) => {
-    setFormValues(prev => ({ ...prev, [fieldId]: value }))
-  }, [])
-
-  const handleToggleAskAtRuntime = useCallback((fieldId: string) => {
-    setAskAtRuntimeIds(prev =>
-      prev.includes(fieldId) ? prev.filter(id => id !== fieldId) : [...prev, fieldId]
-    )
-  }, [])
-
-  const handleBulkToggleAskAtRuntime = useCallback((fieldIds: string[], enable: boolean) => {
-    setAskAtRuntimeIds(prev => {
-      if (enable) return [...new Set([...prev, ...fieldIds])]
-      const removeSet = new Set(fieldIds)
-      return prev.filter(id => !removeSet.has(id))
-    })
-  }, [])
-
-  const handleWorkflowToggle = useCallback((workflowId: string) => {
-    setSelectedWorkflowIds(prev =>
-      prev.includes(workflowId) ? prev.filter(w => w !== workflowId) : [...prev, workflowId]
-    )
-  }, [])
-
-  const handleChatClick = useCallback(() => {
-    if (!agentId) return
-    navigate({ to: `${spacePath}/agent/${encodeURIComponent(agentId)}/chat` })
-  }, [navigate, spacePath, agentId])
-
-  const handleExport = useCallback(() => {
-    if (!spaceFS || isExporting || isNew) return
-    setIsExporting(true)
-    setTimeout(() => setIsExporting(false), 1500)
-  }, [spaceFS, isExporting, isNew])
-
-  // Workflow action handlers
-  const handleDetachWorkflow = useCallback((slashActionId: string) => {
-    const wfId = slashActionId.replace('sa_', '')
-    setSelectedWorkflowIds(prev => prev.filter(w => w !== wfId))
-  }, [])
-
-  const handleToggleSlashAction = useCallback(() => {
-    // Toggle is visual only for now
-  }, [])
-
-  const handleEditSlashAction = useCallback((slashActionId: string) => {
-    const wfId = slashActionId.replace('sa_', '')
-    if (agentId) {
-      navigate({ to: `${spacePath}/agent/${encodeURIComponent(agentId)}/workflow/${encodeURIComponent(wfId)}` })
-    }
-  }, [agentId, navigate, spacePath])
-
-  const rightTabs = [
-    { id: 'actions', label: `Actions (${attachedWorkflows.length})` },
-    { id: 'tools', label: 'Tools (0)' },
-  ]
+  const removeAction = useCallback((idx: number) => {
+    setDraftActions(prev => prev.filter((_, i) => i !== idx))
+  }, [setDraftActions])
 
   return (
     <div className="agent-builder">
-      {/* US-201: Application Header */}
       <AgentHeader
-        name={draftName}
-        description={draftDescription}
+        title={draftTitle}
         isNew={isNew}
         hasUnsavedChanges={hasUnsavedChanges}
         isValid={isValid}
-        isThingOpen={isThingOpen}
-        isExporting={isExporting}
-        onNameChange={setDraftName}
-        onDescriptionChange={setDraftDescription}
+        onTitleChange={setDraftTitle}
         onSave={handleSave}
         onBack={handleBack}
-        onToggleThing={toggleThing}
-        onExport={handleExport}
       />
 
-      {/* US-202: Knowledge Pill Selection Bar */}
-      <KnowledgePillBar
-        fields={knowledgeFields}
-        selectedIds={selectedFieldIds}
-        onToggle={handleFieldToggle}
-        onClearAll={handleClearAllFields}
-      />
-
-      {/* Main content area: three-column layout */}
       <div className="agent-builder__content">
-        {/* Center: Main content */}
         <main className="agent-builder__main">
           <div className="agent-builder__main-inner">
             <Stack gap="lg">
-              {/* US-203: Main Instructions */}
+
+              {/* System Prompt Body */}
               <div className="panel">
-                <div className="panel__header">
-                  <Label>Main Instructions (optional)</Label>
-                </div>
+                <div className="panel__header"><Label>System Prompt</Label></div>
                 <div className="panel__body">
                   <textarea
                     className="input agent-builder__textarea"
-                    value={draftInstructions}
-                    onChange={e => setDraftInstructions(e.target.value)}
-                    placeholder="Write the agent's core system prompt here. Define its behavior, personality, and operational guidelines..."
+                    value={draftBody}
+                    onChange={e => setDraftBody(e.target.value)}
+                    placeholder="Write the agent's system prompt here..."
+                    rows={10}
                   />
                 </div>
               </div>
 
-              {/* Prompt Preview */}
-              <PromptPreviewPanel
-                instructions={draftInstructions}
-                selectedFieldIds={selectedFieldIds}
+              {/* Actions */}
+              <div className="panel">
+                <div className="panel__header">
+                  <Stack row className="agent-builder__section-header-row">
+                    <Label>Actions ({draftActions.length})</Label>
+                    <Button variant="ghost" size="sm" onClick={addAction}>+ Add Action</Button>
+                  </Stack>
+                </div>
+                <div className="panel__body">
+                  {draftActions.length === 0 ? (
+                    <Caption muted>No actions yet. Actions link this agent to a tasklist.</Caption>
+                  ) : (
+                    <Stack gap="md">
+                      {draftActions.map((action, idx) => (
+                        <ActionRow
+                          key={idx}
+                          action={action}
+                          tasklistNames={tasklistNames}
+                          onChange={updated => updateAction(idx, updated)}
+                          onRemove={() => removeAction(idx)}
+                        />
+                      ))}
+                    </Stack>
+                  )}
+                </div>
+              </div>
+
+              {/* Default Action */}
+              {draftActions.length > 0 && (
+                <div className="panel">
+                  <div className="panel__header"><Label>Default Action (optional)</Label></div>
+                  <div className="panel__body">
+                    <Select value={draftDefaultAction} onChange={e => setDraftDefaultAction(e.target.value)}>
+                      <SelectOption value="">— none —</SelectOption>
+                      {draftActions.filter(a => a.id).map(a => (
+                        <SelectOption key={a.id} value={a.id}>{a.label || a.id}</SelectOption>
+                      ))}
+                    </Select>
+                  </div>
+                </div>
+              )}
+
+              {/* Knowledge */}
+              <MultiSelectField
+                label="Knowledge"
+                available={knowledgeRefs}
+                selected={draftKnowledge}
+                onChange={setDraftKnowledge}
               />
 
-              {/* Configuration Form (dynamic fields from knowledge schemas) */}
-              {fieldSchemas.length > 0 && (
-                <ConfigurationForm
-                  schemas={fieldSchemas}
-                  values={resolvedFormValues}
-                  onValueChange={handleFormValueChange}
-                  askAtRuntimeIds={askAtRuntimeIds}
-                  onToggleAskAtRuntime={handleToggleAskAtRuntime}
-                  onBulkToggleAskAtRuntime={handleBulkToggleAskAtRuntime}
-                />
-              )}
+              {/* Functions */}
+              <MultiSelectField
+                label="Functions"
+                available={functionNames}
+                selected={draftFunctions}
+                onChange={setDraftFunctions}
+              />
+
+              {/* Components */}
+              <MultiSelectField
+                label="Components"
+                available={componentNames}
+                selected={draftComponents}
+                onChange={setDraftComponents}
+              />
+
+              {/* Dependencies */}
+              <DependenciesField deps={draftDeps} onChange={setDraftDeps} />
+
             </Stack>
           </div>
         </main>
-
-        {/* US-205: Right panel - Actions/Tools tabs */}
-        <aside className="agent-builder__aside">
-          <TabBar
-            tabs={rightTabs}
-            activeTab={rightTab}
-            onTabChange={(id) => setRightTab(id as 'actions' | 'tools')}
-          />
-
-          <div className="agent-builder__aside-body">
-            {rightTab === 'actions' ? (
-              <ActionsPanel
-                attachedWorkflows={attachedWorkflows}
-                onToggleEnabled={handleToggleSlashAction}
-                onEditAction={handleEditSlashAction}
-                onDetachWorkflow={handleDetachWorkflow}
-                onOpenWorkflowBuilder={() => setIsAttachModalOpen(true)}
-              />
-            ) : (
-              <ToolsPanel
-                enabledTools={[]}
-                onOpenLibrary={() => {}}
-                onRemoveTool={() => {}}
-                onConfigureTool={() => {}}
-              />
-            )}
-          </div>
-        </aside>
-
-        {/* US-213: Thing sliding panel */}
-        {isThingOpen && (
-          <ThingPanel onClose={() => setIsThingOpen(false)} />
-        )}
       </div>
-
-      {/* US-208: Floating Chat Button */}
-      {agentId && (
-        <ChatFAB onClick={handleChatClick} />
-      )}
-
-      {/* US-206: Attach Workflow Modal */}
-      <AttachWorkflowModal
-        isOpen={isAttachModalOpen}
-        onClose={() => setIsAttachModalOpen(false)}
-        workflows={workflowList}
-        alreadyAttachedIds={selectedWorkflowIds}
-        onAttach={handleWorkflowToggle}
-      />
     </div>
   )
 }
 
-export { AgentBuilder as default }
+export default AgentBuilder

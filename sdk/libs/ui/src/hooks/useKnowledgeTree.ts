@@ -1,73 +1,82 @@
 /**
- * useKnowledgeTree — Builds KnowledgeNode[] tree from SpaceFS glob results.
- * Used by FieldTree to render the file tree for a knowledge field.
+ * useKnowledgeTree — Builds a 3-level domain→field→option tree from SpaceFS glob results.
+ * Used by FieldTree to render the new knowledge hierarchy.
  */
 import { useMemo } from 'react'
 import { useGlob } from '@lmthing/state'
-import type { KnowledgeNode } from '@/types/space-data'
 
-export function useKnowledgeTree(fieldId: string): KnowledgeNode[] {
-  const allPaths = useGlob(`knowledge/${fieldId}/**`)
+export interface KnowledgeTreeNode {
+  slug: string
+  path: string
+  type: 'domain' | 'field' | 'option'
+  children?: KnowledgeTreeNode[]
+}
+
+export function useKnowledgeTree(): KnowledgeTreeNode[] {
+  const indexPaths = useGlob('knowledge/*/*/index.md')
+  const allPaths = useGlob('knowledge/**/*.md')
 
   return useMemo(() => {
-    if (!fieldId || allPaths.length === 0) return []
+    if (indexPaths.length === 0) return []
 
-    // Filter out config.json, keep only content files and infer directories
-    const prefix = `knowledge/${fieldId}/`
-    const relativePaths = allPaths
-      .filter(p => p.startsWith(prefix) && !p.endsWith('/config.json'))
-      .map(p => p.slice(prefix.length))
-      .sort()
-
-    // Collect all directory paths from file paths
-    const dirs = new Set<string>()
-    for (const rp of relativePaths) {
-      const parts = rp.split('/')
-      for (let i = 1; i < parts.length; i++) {
-        dirs.add(parts.slice(0, i).join('/'))
+    // Build domain→field map from index paths
+    const domainMap = new Map<string, Set<string>>()
+    for (const p of indexPaths) {
+      // p is knowledge/<domain>/<field>/index.md
+      const parts = p.split('/')
+      if (parts.length < 4) continue
+      const domain = parts[1]
+      const field = parts[2]
+      if (!domainMap.has(domain)) {
+        domainMap.set(domain, new Set())
       }
+      domainMap.get(domain)!.add(field)
     }
 
-    // Build flat list of all entries (dirs + files)
-    const allEntries: { path: string; type: 'directory' | 'file' }[] = []
-    for (const d of dirs) {
-      allEntries.push({ path: d, type: 'directory' })
-    }
-    for (const rp of relativePaths) {
-      allEntries.push({ path: rp, type: 'file' })
-    }
+    // Build a set of all option paths (any .md file that is NOT an index.md)
+    const optionPaths = allPaths.filter(p => !p.endsWith('/index.md'))
 
-    // Build tree from flat entries
-    const nodeMap = new Map<string, KnowledgeNode>()
+    // Build tree
+    const domains = Array.from(domainMap.keys()).sort()
+    return domains.map(domain => {
+      const fields = Array.from(domainMap.get(domain)!).sort()
+      const fieldNodes: KnowledgeTreeNode[] = fields.map(field => {
+        const fieldPath = `knowledge/${domain}/${field}`
+        const fieldPrefix = `${fieldPath}/`
 
-    // Create all nodes
-    for (const entry of allEntries) {
-      const fullPath = `${prefix}${entry.path}`
-      nodeMap.set(entry.path, {
-        path: fullPath,
-        type: entry.type,
-        children: entry.type === 'directory' ? [] : undefined,
-      })
-    }
+        // Find direct child option files (no subdirectories)
+        const fieldOptions = optionPaths
+          .filter(p => {
+            if (!p.startsWith(fieldPrefix)) return false
+            const relative = p.slice(fieldPrefix.length)
+            // Must be a direct child (no extra slashes)
+            return !relative.includes('/')
+          })
+          .map(p => {
+            const relative = p.slice(fieldPrefix.length)
+            const slug = relative.endsWith('.md') ? relative.slice(0, -3) : relative
+            return { slug, path: p }
+          })
+          .sort((a, b) => a.slug.localeCompare(b.slug))
 
-    // Build parent-child relationships
-    const roots: KnowledgeNode[] = []
-    for (const entry of allEntries) {
-      const node = nodeMap.get(entry.path)!
-      const lastSlash = entry.path.lastIndexOf('/')
-      if (lastSlash === -1) {
-        roots.push(node)
-      } else {
-        const parentPath = entry.path.slice(0, lastSlash)
-        const parent = nodeMap.get(parentPath)
-        if (parent && parent.children) {
-          parent.children.push(node)
-        } else {
-          roots.push(node)
+        return {
+          slug: field,
+          path: fieldPath,
+          type: 'field' as const,
+          children: fieldOptions.map(opt => ({
+            slug: opt.slug,
+            path: opt.path,
+            type: 'option' as const,
+          })),
         }
-      }
-    }
+      })
 
-    return roots
-  }, [fieldId, allPaths])
+      return {
+        slug: domain,
+        path: `knowledge/${domain}`,
+        type: 'domain' as const,
+        children: fieldNodes,
+      }
+    })
+  }, [indexPaths, allPaths])
 }

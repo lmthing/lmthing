@@ -1,7 +1,0 @@
-{
-  "label": "Space Lifecycle",
-  "description": "The states a deployed space goes through — from creation to running to destruction",
-  "icon": "🔄",
-  "color": "#2ecc71",
-  "renderAs": "section"
-}

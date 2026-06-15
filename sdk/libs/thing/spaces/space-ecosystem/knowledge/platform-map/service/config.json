@@ -1,9 +1,0 @@
-{
-  "label": "Service",
-  "description": "Which lmthing service to learn about or navigate to",
-  "fieldType": "select",
-  "required": false,
-  "default": "studio",
-  "variableName": "service",
-  "renderAs": "field"
-}

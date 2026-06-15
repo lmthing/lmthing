@@ -1,9 +1,0 @@
-{
-  "label": "Prompt Strategy",
-  "description": "Strategies for writing effective agent system prompts",
-  "fieldType": "select",
-  "required": false,
-  "default": "identity-first",
-  "variableName": "promptStrategy",
-  "renderAs": "field"
-}

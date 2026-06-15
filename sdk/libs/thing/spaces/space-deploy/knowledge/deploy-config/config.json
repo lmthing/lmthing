@@ -1,7 +1,0 @@
-{
-  "label": "Deploy Configuration",
-  "description": "Settings and options for configuring deployed spaces",
-  "icon": "⚙️",
-  "color": "#9b59b6",
-  "renderAs": "section"
-}

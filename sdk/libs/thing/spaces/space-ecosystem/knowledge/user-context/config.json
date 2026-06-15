@@ -1,7 +1,0 @@
-{
-  "label": "User Context",
-  "description": "Information about the user's familiarity with the lmthing platform",
-  "icon": "👤",
-  "color": "#d59ec8",
-  "renderAs": "section"
-}

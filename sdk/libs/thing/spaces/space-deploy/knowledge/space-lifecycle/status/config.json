@@ -1,9 +1,0 @@
-{
-  "label": "Status",
-  "description": "Which space lifecycle status to understand",
-  "fieldType": "select",
-  "required": false,
-  "default": "running",
-  "variableName": "spaceStatus",
-  "renderAs": "field"
-}

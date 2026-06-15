@@ -1,9 +1,0 @@
-{
-  "label": "Agent Pattern",
-  "description": "Common agent role archetypes and when to use each",
-  "fieldType": "select",
-  "required": false,
-  "default": "specialist",
-  "variableName": "agentPattern",
-  "renderAs": "field"
-}

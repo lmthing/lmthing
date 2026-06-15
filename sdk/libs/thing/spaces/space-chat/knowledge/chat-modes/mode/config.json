@@ -1,9 +1,0 @@
-{
-  "label": "Mode",
-  "description": "Which conversation style to use for chat interactions",
-  "fieldType": "select",
-  "required": false,
-  "default": "casual",
-  "variableName": "chatMode",
-  "renderAs": "field"
-}

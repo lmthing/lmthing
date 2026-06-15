@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { stripe } from "../lib/stripe.js";
 import * as litellm from "../lib/litellm.js";
 import { getTierByPriceId, TIERS } from "../lib/tiers.js";
-import { createUserPod, deleteUserPod } from "../lib/compute.js";
+import { ensureUserPod, deleteUserPod } from "../lib/compute.js";
 
 const webhook = new Hono();
 
@@ -48,29 +48,27 @@ webhook.post("/", async (c) => {
       }
 
       const [tierName, tier] = match;
-      console.log(`Upgrading user ${userId} to ${tierName}`);
+      console.log(`Updating user ${userId} to tier ${tierName}`);
 
       try {
         await litellm.updateUserTier(userId, tier);
-        console.log(`User ${userId} upgraded to ${tierName}`);
+        console.log(`User ${userId} updated to ${tierName}`);
       } catch (err) {
-        console.error(`Failed to update user ${userId}:`, err);
+        console.error(`Failed to update LiteLLM user ${userId}:`, err);
       }
 
-      // Create or delete compute pod based on tier
-      if (tier.compute) {
-        try {
-          await createUserPod(userId);
-          console.log(`Compute pod created for user ${userId}`);
-        } catch (err) {
-          console.error(`Failed to create compute pod for ${userId}:`, err);
-        }
-      } else {
-        try {
-          await deleteUserPod(userId);
-        } catch (err) {
-          console.error(`Failed to delete compute pod for ${userId}:`, err);
-        }
+      // All tiers now get a compute pod. On create/update we call ensureUserPod
+      // which is idempotent: it creates the pod if missing, wakes it if scaled to
+      // zero, or patches resources to match the new tier sizing (handles both
+      // upgrades and downgrades — a Free→Pro upgrade gets more CPU/mem, a
+      // Pro→Free downgrade keeps the pod but shrinks it instead of removing it).
+      try {
+        await ensureUserPod(userId, tier.pod);
+        console.log(
+          `Compute pod ensured for user ${userId} (tier: ${tierName})`,
+        );
+      } catch (err) {
+        console.error(`Failed to ensure compute pod for ${userId}:`, err);
       }
       break;
     }
@@ -93,9 +91,11 @@ webhook.post("/", async (c) => {
         console.error(`Failed to downgrade user ${userId}:`, err);
       }
 
-      // Delete compute pod on subscription cancellation
+      // On full subscription cancellation (not a tier change) we tear down the
+      // namespace entirely. The user reverts to lazy provisioning on next use.
       try {
         await deleteUserPod(userId);
+        console.log(`Compute pod deleted for user ${userId}`);
       } catch (err) {
         console.error(`Failed to delete compute pod for ${userId}:`, err);
       }

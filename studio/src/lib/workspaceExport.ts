@@ -1,12 +1,31 @@
+/**
+ * workspaceExport — NEW SPEC
+ *
+ * Serializes SpaceData back to the exact on-disk layout that the framework
+ * loader (sdk/org/packages/core/src/spaces/*) reads and scaffoldSpace.ts writes:
+ *
+ *   agents/<slug>/instruct.md           — frontmatter + body
+ *   tasklists/<name>/NN-<id>.md         — zero-padded task files
+ *   knowledge/<domain>/<field>/index.md — type/variable/default + description
+ *   knowledge/<domain>/<field>/<slug>.md — option content
+ *   functions/<name>.ts                 — raw source
+ *   components/view/<Name>.tsx          — raw source
+ *   components/form/<Name>/web.tsx      — raw source
+ *   components/form/<Name>/ink.tsx      — raw source
+ */
+
 import JSZip from 'jszip'
 import type { Octokit } from '@octokit/rest'
 import type {
   Agent,
+  Task,
+  Tasklist,
+  KnowledgeDomain,
+  KnowledgeField,
+  SpaceData,
   ExtractedDataStructure,
-  FlowTask,
-  KnowledgeNode,
-  WorkspaceData,
-} from '@/types/workspace-data'
+  AgentAction,
+} from '@/types/space-data'
 
 export interface FileTreeFileNode {
   type: 'file'
@@ -45,17 +64,11 @@ export interface ExportWorkspaceToGithubResult {
 
 type GithubApiError = Error & {
   status?: number
-  response?: {
-    data?: {
-      message?: string
-    }
-  }
+  response?: { data?: { message?: string } }
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms)
-  })
+  return new Promise((resolve) => { setTimeout(resolve, ms) })
 }
 
 async function retryGitOperation<T>(operation: () => Promise<T>, attempts = 6): Promise<T> {
@@ -70,11 +83,7 @@ async function retryGitOperation<T>(operation: () => Promise<T>, attempts = 6): 
       const apiError = error as GithubApiError
       const isConflict = apiError?.status === 409
       const isLastAttempt = index === attempts - 1
-
-      if (!isConflict || isLastAttempt) {
-        throw error
-      }
-
+      if (!isConflict || isLastAttempt) throw error
       await sleep(delayMs)
       delayMs = Math.min(delayMs * 2, 3000)
     }
@@ -83,149 +92,38 @@ async function retryGitOperation<T>(operation: () => Promise<T>, attempts = 6): 
   throw lastError instanceof Error ? lastError : new Error('GitHub operation failed')
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function frontmatterValueToString(value: unknown): string {
-  if (value === undefined) return ''
-  if (value === null) return 'null'
-
-  if (typeof value === 'string') {
-    return JSON.stringify(value)
-  }
-
-  if (
-    typeof value === 'number' ||
-    typeof value === 'boolean' ||
-    Array.isArray(value) ||
-    isPlainObject(value)
-  ) {
-    return JSON.stringify(value)
-  }
-
-  return JSON.stringify(String(value))
-}
-
-function formatMarkdownWithFrontmatter(
-  frontmatter: Record<string, unknown> | undefined,
-  body: string
-): string {
-  const fm = frontmatter || {}
-  const keys = Object.keys(fm).filter((key) => fm[key] !== undefined)
-
-  if (keys.length === 0) {
-    return body.trim()
-  }
-
-  const frontmatterText = keys
-    .map((key) => `${key}: ${frontmatterValueToString(fm[key])}`)
-    .join('\n')
-
-  return `---\n${frontmatterText}\n---\n${body.trim()}`
-}
-
-function escapeXmlAttribute(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('"', '&quot;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-}
-
-function toSlashActionBlock(agent: Agent): string {
-  if (!agent.slashActions || agent.slashActions.length === 0) {
-    return ''
-  }
-
-  return agent.slashActions
-    .map((action) => {
-      const name = escapeXmlAttribute(action.name || '')
-      const description = escapeXmlAttribute(action.description || '')
-      const flowId = escapeXmlAttribute(action.flowId || '')
-      const actionId = (action.actionId || '').trim().replace(/^\/+/, '')
-
-      return `<slash_action name="${name}" description="${description}" flowId="${flowId}">\n/${actionId}\n</slash_action>`
-    })
-    .join('\n\n')
-}
-
-function toAgentInstructMarkdown(agent: Agent): string {
-  const body = [agent.mainInstruction?.trim() || '', toSlashActionBlock(agent)]
-    .filter((part) => part.length > 0)
-    .join('\n\n')
-
-  return formatMarkdownWithFrontmatter(agent.frontmatter, body)
-}
-
-function toOutputBlock(task: FlowTask): string {
-  if (!task.outputSchema) {
-    return ''
-  }
-
-  const attr = task.targetFieldName ? ` target="${escapeXmlAttribute(task.targetFieldName)}"` : ''
-  const schema = JSON.stringify(task.outputSchema, null, 2)
-  return `<output${attr}>\n${schema}\n</output>`
-}
-
-function toTaskMarkdown(task: FlowTask): string {
-  const outputBlock = toOutputBlock(task)
-  const body = [task.instructions?.trim() || '', outputBlock]
-    .filter((part) => part.length > 0)
-    .join('\n\n')
-
-  return formatMarkdownWithFrontmatter(task.frontmatter, body)
-}
+// ── File-tree helpers ──────────────────────────────────────────────────────
 
 function getOrCreateDirectory(parent: FileTreeDirectoryNode, name: string): FileTreeDirectoryNode {
   const existing = parent.children.find(
-    (child): child is FileTreeDirectoryNode => child.type === 'directory' && child.name === name
+    (c): c is FileTreeDirectoryNode => c.type === 'directory' && c.name === name,
   )
-
-  if (existing) {
-    return existing
-  }
-
-  const next: FileTreeDirectoryNode = {
-    type: 'directory',
-    name,
-    children: [],
-  }
-
+  if (existing) return existing
+  const next: FileTreeDirectoryNode = { type: 'directory', name, children: [] }
   parent.children.push(next)
   return next
 }
 
 function upsertFile(parent: FileTreeDirectoryNode, fileName: string, content: string) {
   const existingIndex = parent.children.findIndex(
-    (child) => child.type === 'file' && child.name === fileName
+    (c) => c.type === 'file' && c.name === fileName,
   )
-
-  const nextFile: FileTreeFileNode = {
-    type: 'file',
-    name: fileName,
-    content,
-  }
-
+  const node: FileTreeFileNode = { type: 'file', name: fileName, content }
   if (existingIndex >= 0) {
-    parent.children[existingIndex] = nextFile
-    return
+    parent.children[existingIndex] = node
+  } else {
+    parent.children.push(node)
   }
-
-  parent.children.push(nextFile)
 }
 
 function addFileAtPath(root: FileTreeDirectoryNode, relativePath: string, content: string) {
   const segments = relativePath.split('/').filter(Boolean)
   if (segments.length === 0) return
-
   const fileName = segments[segments.length - 1]
   let cursor = root
-
   for (const segment of segments.slice(0, -1)) {
     cursor = getOrCreateDirectory(cursor, segment)
   }
-
   upsertFile(cursor, fileName, content)
 }
 
@@ -234,90 +132,198 @@ function sortTree(node: FileTreeDirectoryNode) {
     if (a.type !== b.type) return a.type === 'directory' ? -1 : 1
     return a.name.localeCompare(b.name)
   })
-
   for (const child of node.children) {
-    if (child.type === 'directory') {
-      sortTree(child)
-    }
+    if (child.type === 'directory') sortTree(child)
   }
 }
 
-function addKnowledgeNodeToFileTree(root: FileTreeDirectoryNode, node: KnowledgeNode) {
-  if (node.type === 'directory') {
-    if (node.config && Object.keys(node.config).length > 0) {
-      addFileAtPath(
-        root,
-        `knowledge/${node.path}/config.json`,
-        JSON.stringify(node.config, null, 2)
-      )
-    }
+// ── Serializers ────────────────────────────────────────────────────────────
 
-    for (const child of node.children || []) {
-      addKnowledgeNodeToFileTree(root, child)
-    }
-    return
+function serializeAgentInstruct(agent: Agent): string {
+  const fm = agent.frontmatter
+  const lines: string[] = ['---', `title: ${fm.title}`]
+
+  if (fm.knowledge.length > 0) {
+    lines.push('knowledge:')
+    for (const k of fm.knowledge) lines.push(`  - ${k}`)
+  } else {
+    lines.push('knowledge: []')
   }
 
-  const markdown = formatMarkdownWithFrontmatter(
-    node.frontmatter as Record<string, unknown> | undefined,
-    node.content || ''
-  )
+  if (fm.functions.length > 0) {
+    lines.push('functions:')
+    for (const f of fm.functions) lines.push(`  - ${f}`)
+  } else {
+    lines.push('functions: []')
+  }
 
-  addFileAtPath(root, `knowledge/${node.path}`, markdown)
+  if (fm.components.length > 0) {
+    lines.push('components:')
+    for (const c of fm.components) lines.push(`  - ${c}`)
+  } else {
+    lines.push('components: []')
+  }
+
+  if (fm.defaultAction) lines.push(`defaultAction: ${fm.defaultAction}`)
+
+  if (fm.actions.length > 0) {
+    lines.push('actions:')
+    for (const a of fm.actions) {
+      lines.push(`  - id: ${a.id}`)
+      lines.push(`    label: "${a.label.replace(/"/g, '\\"')}"`)
+      lines.push(`    description: "${a.description.replace(/"/g, '\\"')}"`)
+      lines.push(`    tasklist: ${a.tasklist}`)
+    }
+  } else {
+    lines.push('actions: []')
+  }
+
+  if (fm.dependencies.length > 0) {
+    lines.push('dependencies:')
+    for (const d of fm.dependencies) lines.push(`  - ${d}`)
+  } else {
+    lines.push('dependencies: []')
+  }
+
+  lines.push('---', '', (agent.body ?? '').trim())
+  return lines.join('\n')
 }
 
-export function workspaceToFileTreeJson(workspace: WorkspaceData): FileTreeDirectoryNode {
-  const root: FileTreeDirectoryNode = {
-    type: 'directory',
-    name: workspace.id,
-    children: [],
+function serializeTask(task: Task): string {
+  const lines: string[] = ['---', `id: ${task.id}`, 'output:']
+
+  for (const [k, v] of Object.entries(task.output)) {
+    lines.push(`  ${k}: ${v}`)
   }
 
-  if (workspace.packageJson) {
-    addFileAtPath(root, 'package.json', JSON.stringify(workspace.packageJson, null, 2))
+  const dependsOn = task.dependsOn ?? []
+  if (dependsOn.length > 0) {
+    lines.push('dependsOn:')
+    for (const d of dependsOn) lines.push(`  - ${d}`)
+  } else {
+    lines.push('dependsOn: []')
   }
 
-  const envEntries = Object.entries(workspace.env || {}).sort(([a], [b]) => a.localeCompare(b))
+  lines.push(`optional: ${task.optional ?? false}`)
+  lines.push(`goal: ${task.goal ?? false}`)
+
+  if (task.condition !== undefined) {
+    lines.push(`condition: "${task.condition.replace(/"/g, '\\"')}"`)
+  }
+
+  lines.push('---', '', (task.instruction ?? '').trim())
+  return lines.join('\n')
+}
+
+function serializeKnowledgeFieldIndex(field: KnowledgeField): string {
+  const idx = field.index
+  const lines = ['---', `type: ${idx.type}`, `variable: ${idx.variable}`]
+  if (idx.default !== undefined) lines.push(`default: ${idx.default}`)
+  lines.push('---', '', (field.description ?? '').trim())
+  return lines.join('\n')
+}
+
+function taskFilename(task: Task): string {
+  return `${String(task.order).padStart(2, '0')}-${task.id}.md`
+}
+
+/**
+ * Ensure exactly one task in the tasklist has goal: true.
+ * If none is flagged, flag the last task (matching scaffoldSpace.ts behaviour).
+ */
+function ensureGoalTask(tasks: Task[]): Task[] {
+  if (tasks.length === 0) return tasks
+  const hasGoal = tasks.some((t) => t.goal)
+  if (hasGoal) return tasks
+  return tasks.map((t, i) => (i === tasks.length - 1 ? { ...t, goal: true } : t))
+}
+
+// ── Main export ────────────────────────────────────────────────────────────
+
+export function workspaceToFileTreeJson(space: SpaceData): FileTreeDirectoryNode {
+  const root: FileTreeDirectoryNode = { type: 'directory', name: space.id, children: [] }
+
+  // package.json
+  if (space.packageJson) {
+    addFileAtPath(root, 'package.json', JSON.stringify(space.packageJson, null, 2))
+  }
+
+  // .env files
+  const envEntries = Object.entries(space.env || {}).sort(([a], [b]) => a.localeCompare(b))
   for (const [fileName, encryptedEnv] of envEntries) {
     if (!fileName.startsWith('.env')) continue
     addFileAtPath(root, fileName, JSON.stringify(encryptedEnv, null, 2))
   }
 
-  const sortedAgents = Object.values(workspace.agents || {}).sort((a, b) => a.id.localeCompare(b.id))
+  // agents/<slug>/instruct.md
+  const sortedAgents = Object.values(space.agents || {}).sort((a, b) => a.id.localeCompare(b.id))
   for (const agent of sortedAgents) {
-    const agentBase = `agents/${agent.id}`
-    addFileAtPath(root, `${agentBase}/instruct.md`, toAgentInstructMarkdown(agent))
-    addFileAtPath(root, `${agentBase}/config.json`, JSON.stringify(agent.config || {}, null, 2))
-    addFileAtPath(root, `${agentBase}/values.json`, JSON.stringify(agent.formValues || {}, null, 2))
+    addFileAtPath(root, `agents/${agent.id}/instruct.md`, serializeAgentInstruct(agent))
 
     for (const conversation of agent.conversations || []) {
-      const conversationId = (conversation.id || `conversation-${Date.now()}`).replace(/\//g, '-')
+      const convId = (conversation.id || `conversation-${Date.now()}`).replace(/\//g, '-')
       addFileAtPath(
         root,
-        `${agentBase}/conversations/${conversationId}.json`,
-        JSON.stringify(conversation, null, 2)
+        `agents/${agent.id}/conversations/${convId}.json`,
+        JSON.stringify(conversation, null, 2),
       )
     }
   }
 
-  const sortedFlows = Object.values(workspace.flows || {}).sort((a, b) => a.id.localeCompare(b.id))
-  for (const flow of sortedFlows) {
-    const flowBase = `flows/${flow.id}`
-    addFileAtPath(
-      root,
-      `${flowBase}/index.md`,
-      formatMarkdownWithFrontmatter(flow.frontmatter, flow.description || '')
-    )
-
-    const sortedTasks = [...(flow.tasks || [])].sort((a, b) => a.order - b.order)
-    for (const task of sortedTasks) {
-      const taskName = (task.name || 'task').replace(/\//g, '-')
-      addFileAtPath(root, `${flowBase}/${task.order}.${taskName}.md`, toTaskMarkdown(task))
+  // tasklists/<name>/NN-<id>.md
+  const sortedTasklists = Object.values(space.tasklists || {}).sort((a, b) =>
+    a.name.localeCompare(b.name),
+  )
+  for (const tasklist of sortedTasklists) {
+    const tasks = ensureGoalTask([...(tasklist.tasks || [])].sort((a, b) => a.order - b.order))
+    for (const task of tasks) {
+      addFileAtPath(root, `tasklists/${tasklist.name}/${taskFilename(task)}`, serializeTask(task))
     }
   }
 
-  for (const node of workspace.knowledge || []) {
-    addKnowledgeNodeToFileTree(root, node)
+  // knowledge/<domain>/<field>/index.md + options
+  const sortedDomains = Object.values(space.knowledge || {}).sort((a, b) =>
+    a.slug.localeCompare(b.slug),
+  )
+  for (const domain of sortedDomains) {
+    const sortedFields = Object.values(domain.fields || {}).sort((a, b) =>
+      a.slug.localeCompare(b.slug),
+    )
+    for (const field of sortedFields) {
+      addFileAtPath(
+        root,
+        `knowledge/${domain.slug}/${field.slug}/index.md`,
+        serializeKnowledgeFieldIndex(field),
+      )
+      for (const [slug, content] of Object.entries(field.options || {})) {
+        addFileAtPath(root, `knowledge/${domain.slug}/${field.slug}/${slug}.md`, content)
+      }
+    }
+  }
+
+  // functions/<name>.ts
+  const sortedFunctions = Object.values(space.functions || {}).sort((a, b) =>
+    a.name.localeCompare(b.name),
+  )
+  for (const fn of sortedFunctions) {
+    addFileAtPath(root, `functions/${fn.name}.ts`, fn.source)
+  }
+
+  // components/view/<Name>.tsx
+  const sortedViews = Object.values(space.components?.view || {}).sort((a, b) =>
+    a.name.localeCompare(b.name),
+  )
+  for (const view of sortedViews) {
+    addFileAtPath(root, `components/view/${view.name}.tsx`, view.source)
+  }
+
+  // components/form/<Name>/{web,ink}.tsx
+  const sortedForms = Object.values(space.components?.form || {}).sort((a, b) =>
+    a.name.localeCompare(b.name),
+  )
+  for (const form of sortedForms) {
+    addFileAtPath(root, `components/form/${form.name}/web.tsx`, form.web)
+    addFileAtPath(root, `components/form/${form.name}/ink.tsx`, form.ink)
   }
 
   sortTree(root)
@@ -326,37 +332,28 @@ export function workspaceToFileTreeJson(workspace: WorkspaceData): FileTreeDirec
 
 function addFileTreeNodeToZip(zip: JSZip, node: FileTreeNode, basePath = '') {
   const nodePath = basePath ? `${basePath}/${node.name}` : node.name
-
   if (node.type === 'file') {
     zip.file(nodePath, node.content)
     return
   }
-
   for (const child of node.children) {
     addFileTreeNodeToZip(zip, child, nodePath)
   }
 }
 
-function fileTreeToFileEntries(fileTree: FileTreeDirectoryNode): Array<{ path: string; content: string }> {
+function fileTreeToFileEntries(
+  fileTree: FileTreeDirectoryNode,
+): Array<{ path: string; content: string }> {
   const entries: Array<{ path: string; content: string }> = []
-
   const visit = (node: FileTreeNode, basePath = '') => {
     const nodePath = basePath ? `${basePath}/${node.name}` : node.name
-
     if (node.type === 'file') {
       entries.push({ path: nodePath, content: node.content })
       return
     }
-
-    for (const child of node.children) {
-      visit(child, nodePath)
-    }
+    for (const child of node.children) visit(child, nodePath)
   }
-
-  for (const child of fileTree.children) {
-    visit(child)
-  }
-
+  for (const child of fileTree.children) visit(child)
   return entries
 }
 
@@ -366,14 +363,13 @@ export async function fileTreeJsonToZipBlob(fileTree: FileTreeDirectoryNode): Pr
   return zip.generateAsync({ type: 'blob' })
 }
 
-export async function downloadWorkspaceZip(workspace: WorkspaceData): Promise<void> {
-  const fileTree = workspaceToFileTreeJson(workspace)
+export async function downloadWorkspaceZip(space: SpaceData): Promise<void> {
+  const fileTree = workspaceToFileTreeJson(space)
   const blob = await fileTreeJsonToZipBlob(fileTree)
-
   const link = document.createElement('a')
   const url = URL.createObjectURL(blob)
   link.href = url
-  link.download = `${workspace.id}-file-tree.zip`
+  link.download = `${space.id}-space.zip`
   document.body.appendChild(link)
   link.click()
   link.remove()
@@ -383,15 +379,14 @@ export async function downloadWorkspaceZip(workspace: WorkspaceData): Promise<vo
 export async function downloadAllWorkspacesZip(data: ExtractedDataStructure): Promise<void> {
   const root: FileTreeDirectoryNode = {
     type: 'directory',
-    name: 'workspaces',
-    children: Object.values(data.workspaces || {}).map(workspaceToFileTreeJson),
+    name: 'spaces',
+    children: Object.values(data.spaces || {}).map(workspaceToFileTreeJson),
   }
-
   const blob = await fileTreeJsonToZipBlob(root)
   const link = document.createElement('a')
   const url = URL.createObjectURL(blob)
   link.href = url
-  link.download = 'workspaces-file-tree.zip'
+  link.download = 'spaces-file-tree.zip'
   document.body.appendChild(link)
   link.click()
   link.remove()
@@ -399,95 +394,60 @@ export async function downloadAllWorkspacesZip(data: ExtractedDataStructure): Pr
 }
 
 export async function exportWorkspaceToNewGithubRepo(
-  workspace: WorkspaceData,
-  options: ExportWorkspaceToGithubOptions
+  space: SpaceData,
+  options: ExportWorkspaceToGithubOptions,
 ): Promise<ExportWorkspaceToGithubResult> {
-  const {
-    octokit,
-    owner,
-    repoName,
-    privateRepo = true,
-    description,
-    commitMessage,
-    onProgress,
-  } = options
+  const { octokit, owner, repoName, privateRepo = true, description, commitMessage, onProgress } =
+    options
 
-  const fileTree = workspaceToFileTreeJson(workspace)
+  const fileTree = workspaceToFileTreeJson(space)
   const originalEntries = fileTreeToFileEntries(fileTree)
   const fileEntries =
     originalEntries.length > 0
       ? originalEntries
-      : [{ path: 'README.md', content: `# ${repoName}\n\nExported from LMThing workspace \`${workspace.id}\`.` }]
+      : [
+          {
+            path: 'README.md',
+            content: `# ${repoName}\n\nExported from LMThing space \`${space.id}\`.`,
+          },
+        ]
   const totalFiles = fileEntries.length
 
-  onProgress?.({
-    uploadedFiles: 0,
-    totalFiles,
-    currentPath: 'Creating repository…',
-  })
+  onProgress?.({ uploadedFiles: 0, totalFiles, currentPath: 'Creating repository…' })
 
   const { data: createdRepo } = await octokit.rest.repos.createForAuthenticatedUser({
     name: repoName,
-    description: description || `Exported workspace "${workspace.id}" from LMThing`,
+    description: description || `Exported space "${space.id}" from LMThing`,
     private: privateRepo,
     auto_init: true,
   })
 
   const defaultBranch = createdRepo.default_branch || 'main'
 
-  const treeItems: Array<{
-    path: string
-    mode: '100644'
-    type: 'blob'
-    content: string
-  }> = []
-
+  const treeItems: Array<{ path: string; mode: '100644'; type: 'blob'; content: string }> = []
   let uploadedFiles = 0
 
   for (const entry of fileEntries) {
-    onProgress?.({
-      uploadedFiles,
-      totalFiles,
-      currentPath: entry.path,
-    })
-
-    treeItems.push({
-      path: entry.path,
-      mode: '100644',
-      type: 'blob',
-      content: entry.content,
-    })
-
+    onProgress?.({ uploadedFiles, totalFiles, currentPath: entry.path })
+    treeItems.push({ path: entry.path, mode: '100644', type: 'blob', content: entry.content })
     uploadedFiles += 1
-    onProgress?.({
-      uploadedFiles,
-      totalFiles,
-      currentPath: entry.path,
-    })
+    onProgress?.({ uploadedFiles, totalFiles, currentPath: entry.path })
   }
 
-  onProgress?.({
-    uploadedFiles,
-    totalFiles,
-    currentPath: 'Creating commit…',
-  })
+  onProgress?.({ uploadedFiles, totalFiles, currentPath: 'Creating commit…' })
 
   const { data: tree } = await retryGitOperation(() =>
-    octokit.rest.git.createTree({
-      owner,
-      repo: repoName,
-      tree: treeItems,
-    })
+    octokit.rest.git.createTree({ owner, repo: repoName, tree: treeItems }),
   )
 
   const { data: commit } = await retryGitOperation(() =>
     octokit.rest.git.createCommit({
       owner,
       repo: repoName,
-      message: commitMessage?.trim() || `Export workspace "${workspace.id}"`,
+      message: commitMessage?.trim() || `Export space "${space.id}"`,
       tree: tree.sha,
       parents: [],
-    })
+    }),
   )
 
   await retryGitOperation(() =>
@@ -497,13 +457,8 @@ export async function exportWorkspaceToNewGithubRepo(
       ref: `heads/${defaultBranch}`,
       sha: commit.sha,
       force: true,
-    })
+    }),
   )
 
-  return {
-    owner,
-    repoName,
-    repoUrl: `https://github.com/${owner}/${repoName}`,
-    filesCreated: uploadedFiles,
-  }
+  return { owner, repoName, repoUrl: `https://github.com/${owner}/${repoName}`, filesCreated: uploadedFiles }
 }

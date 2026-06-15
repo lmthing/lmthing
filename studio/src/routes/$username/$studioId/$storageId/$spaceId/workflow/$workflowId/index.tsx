@@ -1,19 +1,29 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { Heading } from '@lmthing/ui/elements/typography/heading'
-import { Caption } from '@lmthing/ui/elements/typography/caption'
+import { createFileRoute, useNavigate, useParams } from '@tanstack/react-router'
+import { TasklistEditor } from '@lmthing/ui/components/workflow'
 
-function WorkflowDetailPage() {
-  const { workflowId } = Route.useParams()
-  return (
-    <div style={{ padding: '2rem' }}>
-      <Heading level={2}>Workflow: {workflowId}</Heading>
-      <Caption muted>Edit workflow steps and configuration.</Caption>
-    </div>
-  )
+function TasklistEditorPage() {
+  const params = useParams({ strict: false }) as {
+    username?: string; studioId?: string; storageId?: string; spaceId?: string; workflowId?: string
+  }
+  const { username, studioId, storageId, spaceId, workflowId } = params
+  const navigate = useNavigate()
+
+  const spacePath = username && studioId && storageId && spaceId
+    ? `/${username}/${studioId}/${storageId}/${spaceId}`
+    : ''
+
+  const handleBack = () => {
+    navigate({ to: `${spacePath}/workflow` })
+  }
+
+  if (!workflowId) return null
+
+  // workflowId is the tasklist name (directory under tasklists/)
+  return <TasklistEditor name={workflowId} onBack={handleBack} />
 }
 
 export const Route = createFileRoute(
   '/$username/$studioId/$storageId/$spaceId/workflow/$workflowId/',
 )({
-  component: WorkflowDetailPage,
+  component: TasklistEditorPage,
 })

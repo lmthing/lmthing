@@ -1,171 +1,229 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useEffect, useRef, useState, useMemo } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useAuth } from '@lmthing/auth'
-import { useGlobRead, useSpaceFS } from '@lmthing/state'
-import { ThingWebView } from '@lmthing/ui/components/thing/thing-web-view'
-import type { ThingWebViewSession, UIBlock, SessionSnapshot } from '@lmthing/ui/components/thing/thing-web-view'
+import {
+  useReplSession,
+  ReplRpcClient,
+  DisplayBlock,
+  AskBlock,
+  VariablesBlock,
+} from '@lmthing/agent-ui'
 
-const COMPUTER_URL = import.meta.env.VITE_COMPUTER_URL
-  ?? (import.meta.env.DEV ? 'https://computer.test' : 'https://lmthing.computer')
+const COMPUTER_BASE_URL =
+  import.meta.env.VITE_COMPUTER_BASE_URL ??
+  (import.meta.env.DEV ? 'https://computer.test' : 'https://lmthing.computer')
 
-const EMPTY_SNAPSHOT: SessionSnapshot = {
-  status: 'idle',
-  blocks: [],
-  scope: [],
-  asyncTasks: [],
-  activeFormId: null,
-  tasklistsState: { tasklists: new Map() },
-  agentEntries: [],
-}
+const CLOUD_BASE_URL =
+  import.meta.env.VITE_CLOUD_URL ??
+  (import.meta.env.DEV ? 'https://cloud.test' : 'https://cloud.lmthing.cloud')
 
-function useReplRelay(
-  iframeRef: React.RefObject<HTMLIFrameElement | null>,
-): ThingWebViewSession {
-  const [state, setState] = useState<{
-    connected: boolean
-    snapshot: SessionSnapshot
-    blocks: UIBlock[]
-  }>({
-    connected: false,
-    snapshot: EMPTY_SNAPSHOT,
-    blocks: [],
+/** Ensure the user's compute pod is running before opening a session. */
+async function ensurePod(cloudBaseUrl: string, accessToken: string): Promise<void> {
+  const res = await fetch(`${cloudBaseUrl}/api/compute/ensure`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${accessToken}` },
   })
-
-  useEffect(() => {
-    function onMessage(e: MessageEvent) {
-      if (e.data?.type === 'lmthing:repl-update') {
-        setState({
-          connected: e.data.connected,
-          snapshot: e.data.snapshot ?? EMPTY_SNAPSHOT,
-          blocks: e.data.blocks ?? [],
-        })
-      }
-    }
-    window.addEventListener('message', onMessage)
-    return () => window.removeEventListener('message', onMessage)
-  }, [])
-
-  return useMemo<ThingWebViewSession>(() => ({
-    ...state,
-    actions: [],
-    conversations: [],
-    loadedConversation: null,
-    sendMessage: (text) => {
-      iframeRef.current?.contentWindow?.postMessage({ type: 'lmthing:repl-send', text }, '*')
-    },
-    intervene: (text) => {
-      iframeRef.current?.contentWindow?.postMessage({ type: 'lmthing:repl-send', text }, '*')
-    },
-    submitForm: () => {},
-    cancelAsk: () => {},
-    cancelTask: () => {},
-    pause: () => {},
-    resume: () => {},
-    saveConversation: () => {},
-    requestConversations: () => {},
-    loadConversation: () => {},
-  }), [state, iframeRef])
+  if (!res.ok) {
+    throw new Error(`compute/ensure failed: ${res.status}`)
+  }
 }
 
 function AgentChatPage() {
-  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const { agentId } = Route.useParams()
   const { session } = useAuth()
-  const spaceFiles = useGlobRead('**')
-  const spaceFS = useSpaceFS()
 
-  // Tracks what the computer currently has — used to push only diffs (studio→computer)
-  // and to avoid re-pushing files that just arrived from the computer (computer→studio).
-  const computerFilesRef = useRef<Map<string, string>>(new Map())
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [podError, setPodError] = useState<string | null>(null)
+  const [inputValue, setInputValue] = useState('')
+  const initRef = useRef(false)
 
-  const replSession = useReplRelay(iframeRef)
+  // Create a pod session for this agent once auth is available
+  useEffect(() => {
+    if (!session?.accessToken || initRef.current) return
+    initRef.current = true
 
-  const sendSession = () => {
-    if (session && iframeRef.current?.contentWindow) {
-      iframeRef.current.contentWindow.postMessage({ type: 'lmthing:session', session }, '*')
+    async function init() {
+      try {
+        await ensurePod(CLOUD_BASE_URL, session!.accessToken)
+        const client = await ReplRpcClient.createSession(
+          COMPUTER_BASE_URL,
+          { agentSlug: agentId },
+          session!.accessToken,
+        )
+        setSessionId(client.sessionId!)
+      } catch (err) {
+        setPodError(err instanceof Error ? err.message : String(err))
+      }
+    }
+
+    void init()
+  }, [session, agentId])
+
+  const { blocks, sendMessage, submitForm, cancelAsk, isConnected, isDone } = useReplSession(
+    sessionId
+      ? { baseUrl: COMPUTER_BASE_URL, sessionId, accessToken: session?.accessToken }
+      : // Pass a dummy config that won't connect until sessionId is set
+        { baseUrl: COMPUTER_BASE_URL, sessionId: '', accessToken: session?.accessToken },
+  )
+
+  const handleSend = useCallback(() => {
+    const text = inputValue.trim()
+    if (!text || !isConnected) return
+    sendMessage(text)
+    setInputValue('')
+  }, [inputValue, isConnected, sendMessage])
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
     }
   }
 
-  // ── Computer → Studio: apply FS changes from the computer ──
-  useEffect(() => {
-    if (!spaceFS) return
+  if (!session) {
+    return <div style={styles.center}>Signing in…</div>
+  }
 
-    function onMessage(e: MessageEvent) {
-      if (e.data?.type === 'lmthing:auth-needed') {
-        sendSession()
-        return
-      }
-      if (e.data?.type !== 'lmthing:fs-change') return
+  if (podError) {
+    return (
+      <div style={styles.center}>
+        <p style={{ color: '#c00' }}>Failed to start compute pod: {podError}</p>
+        <button onClick={() => { initRef.current = false; setPodError(null) }}>Retry</button>
+      </div>
+    )
+  }
 
-      const { path, content } = e.data as { path: string; content: string | null }
-      if (content === null) {
-        computerFilesRef.current.delete(path)
-        spaceFS.deleteFile(path)
-      } else {
-        computerFilesRef.current.set(path, content)
-        spaceFS.writeFile(path, content)
-      }
-    }
-
-    window.addEventListener('message', onMessage)
-    return () => window.removeEventListener('message', onMessage)
-  }, [spaceFS, session])
-
-  // ── Studio → Computer: push only files that differ from what computer has ──
-  useEffect(() => {
-    if (!spaceFiles || Object.keys(spaceFiles).length === 0) return
-
-    function pushChanges() {
-      if (!iframeRef.current?.contentWindow) return
-
-      const toSend: Record<string, string> = {}
-      for (const [path, content] of Object.entries(spaceFiles)) {
-        if (computerFilesRef.current.get(path) !== content) {
-          toSend[path] = content
-        }
-      }
-      if (Object.keys(toSend).length === 0) return
-
-      // Optimistically mark these as "computer now has this" to prevent echo loops
-      for (const [path, content] of Object.entries(toSend)) {
-        computerFilesRef.current.set(path, content)
-      }
-      iframeRef.current.contentWindow.postMessage({
-        type: 'lmthing:fs-write-batch',
-        files: toSend,
-      }, '*')
-    }
-
-    // Try immediately (container may already be ready)
-    pushChanges()
-
-    // Also push when WebContainer becomes ready after this effect runs
-    function onMessage(e: MessageEvent) {
-      if (e.data?.type === 'lmthing:fs-ready') pushChanges()
-    }
-    window.addEventListener('message', onMessage)
-    return () => window.removeEventListener('message', onMessage)
-  }, [spaceFiles])
+  if (!sessionId) {
+    return <div style={styles.center}>Starting agent session…</div>
+  }
 
   return (
-    <div style={{ height: '100%', width: '100%', overflow: 'hidden', position: 'relative' }}>
-      {/* Computer iframe always in DOM — keeps WebContainer running */}
-      <iframe
-        ref={iframeRef}
-        src={`${COMPUTER_URL}/chat`}
-        allow="cross-origin-isolated"
-        title="lmthing computer"
-        onLoad={sendSession}
-        style={{
-          position: 'absolute',
-          left: '-10000px',
-          width: '1280px',
-          height: '800px',
-          border: 'none',
-        }}
-      />
-      <ThingWebView session={replSession} />
+    <div style={styles.container}>
+      {/* Connection status */}
+      <div style={styles.statusBar}>
+        <span style={{ color: isConnected ? '#22c55e' : '#ef4444' }}>
+          {isConnected ? '● Connected' : '○ Connecting…'}
+        </span>
+        {isDone && <span style={{ marginLeft: 12, color: '#6b7280' }}>Done</span>}
+      </div>
+
+      {/* Block stream */}
+      <div style={styles.blocks}>
+        {blocks.map((block) => {
+          if (block.type === 'display') {
+            return <DisplayBlock key={block.id} descriptor={block.data} />
+          }
+          if (block.type === 'ask') {
+            return (
+              <AskBlock
+                key={block.id}
+                id={block.id}
+                descriptor={block.data}
+                onSubmit={submitForm}
+                onCancel={cancelAsk}
+              />
+            )
+          }
+          if (block.type === 'variables') {
+            return <VariablesBlock key={block.id} vars={block.data as Record<string, unknown>} />
+          }
+          if (block.type === 'error') {
+            return (
+              <div key={block.id} style={styles.errorBlock}>
+                {String(block.data)}
+              </div>
+            )
+          }
+          return null
+        })}
+      </div>
+
+      {/* Message input */}
+      <div style={styles.inputRow}>
+        <textarea
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Message agent… (Enter to send, Shift+Enter for newline)"
+          disabled={!isConnected}
+          style={styles.textarea}
+          rows={2}
+        />
+        <button
+          onClick={handleSend}
+          disabled={!isConnected || !inputValue.trim()}
+          style={styles.sendButton}
+        >
+          Send
+        </button>
+      </div>
     </div>
   )
+}
+
+const styles = {
+  container: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    height: '100%',
+    overflow: 'hidden',
+  },
+  center: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
+    color: '#6b7280',
+  } as React.CSSProperties,
+  statusBar: {
+    padding: '4px 12px',
+    borderBottom: '1px solid #e5e7eb',
+    fontSize: 12,
+    flexShrink: 0,
+  } as React.CSSProperties,
+  blocks: {
+    flex: 1,
+    overflowY: 'auto' as const,
+    padding: '12px',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '8px',
+  },
+  errorBlock: {
+    background: '#fee2e2',
+    border: '1px solid #fca5a5',
+    borderRadius: 4,
+    padding: '8px 12px',
+    color: '#dc2626',
+    fontFamily: 'monospace',
+    fontSize: 13,
+  } as React.CSSProperties,
+  inputRow: {
+    display: 'flex',
+    gap: 8,
+    padding: '8px 12px',
+    borderTop: '1px solid #e5e7eb',
+    flexShrink: 0,
+  } as React.CSSProperties,
+  textarea: {
+    flex: 1,
+    resize: 'none' as const,
+    padding: '8px',
+    borderRadius: 4,
+    border: '1px solid #d1d5db',
+    fontSize: 14,
+    fontFamily: 'inherit',
+  },
+  sendButton: {
+    padding: '0 16px',
+    borderRadius: 4,
+    border: 'none',
+    background: '#3b82f6',
+    color: '#fff',
+    fontWeight: 500,
+    cursor: 'pointer',
+    alignSelf: 'flex-end',
+  } as React.CSSProperties,
 }
 
 export const Route = createFileRoute(

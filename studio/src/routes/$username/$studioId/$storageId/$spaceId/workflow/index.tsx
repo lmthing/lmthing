@@ -1,32 +1,63 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { Heading } from '@lmthing/ui/elements/typography/heading'
-import { Caption } from '@lmthing/ui/elements/typography/caption'
-import { useWorkflowList } from '@lmthing/ui/hooks/useWorkflowList'
-import { Badge } from '@lmthing/ui/elements/content/badge'
-import { Stack } from '@lmthing/ui/elements/layouts/stack'
+import { createFileRoute, useNavigate, useParams } from '@tanstack/react-router'
+import { useState } from 'react'
+import { useSpaceFS } from '@lmthing/state'
+import { useTasklistList } from '@lmthing/ui/hooks/useTasklistList'
+import { TasklistList, SaveTasklistModal } from '@lmthing/ui/components/workflow'
 
-function WorkflowListPage() {
-  const workflows = useWorkflowList()
+function TasklistListPage() {
+  const params = useParams({ strict: false }) as {
+    username?: string; studioId?: string; storageId?: string; spaceId?: string
+  }
+  const { username, studioId, storageId, spaceId } = params
+  const navigate = useNavigate()
+  const spaceFS = useSpaceFS()
+  const tasklists = useTasklistList()
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedName, setSelectedName] = useState<string | null>(null)
+
+  const spacePath = username && studioId && storageId && spaceId
+    ? `/${username}/${studioId}/${storageId}/${spaceId}`
+    : ''
+
+  const handleSelect = (name: string) => {
+    setSelectedName(name)
+    navigate({ to: `${spacePath}/workflow/${encodeURIComponent(name)}` })
+  }
+
+  const handleDelete = (name: string) => {
+    if (!spaceFS) return
+    const entries = spaceFS.readDir(`tasklists/${name}`)
+    for (const entry of entries) {
+      if (entry.type === 'file') {
+        spaceFS.deleteFile(`tasklists/${name}/${entry.name}`)
+      }
+    }
+  }
+
+  const handleSaved = (name: string) => {
+    navigate({ to: `${spacePath}/workflow/${encodeURIComponent(name)}` })
+  }
+
   return (
-    <div style={{ padding: '2rem' }}>
-      <Heading level={2}>Workflows</Heading>
-      <Caption muted style={{ marginBottom: '1rem' }}>
-        {workflows.length} workflow{workflows.length !== 1 ? 's' : ''}{' '}
-        configured.
-      </Caption>
-      <Stack gap="sm">
-        {workflows.map((w) => (
-          <Badge key={w.id} variant="muted">
-            {w.id}
-          </Badge>
-        ))}
-      </Stack>
-    </div>
+    <>
+      <TasklistList
+        tasklists={tasklists}
+        selectedName={selectedName}
+        onSelectTasklist={handleSelect}
+        onCreateTasklist={() => setIsModalOpen(true)}
+        onDeleteTasklist={handleDelete}
+      />
+      <SaveTasklistModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSaved={handleSaved}
+      />
+    </>
   )
 }
 
 export const Route = createFileRoute(
   '/$username/$studioId/$storageId/$spaceId/workflow/',
 )({
-  component: WorkflowListPage,
+  component: TasklistListPage,
 })

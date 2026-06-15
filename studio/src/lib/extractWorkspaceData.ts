@@ -1,25 +1,44 @@
+/**
+ * extractWorkspaceData — NEW SPEC
+ *
+ * Parses the new on-disk space layout into SpaceData:
+ *   agents/<slug>/instruct.md           → AgentFrontmatter + body
+ *   tasklists/<name>/NN-<id>.md         → Tasklist[]
+ *   knowledge/<domain>/<field>/index.md → KnowledgeFieldIndex + description
+ *   knowledge/<domain>/<field>/<slug>.md → options
+ *   functions/<name>.ts                 → FunctionFile
+ *   components/view/<Name>.tsx          → ViewComponent
+ *   components/form/<Name>/web.tsx      → FormComponent.web
+ *   components/form/<Name>/ink.tsx      → FormComponent.ink
+ */
+
 import type {
   Agent,
   AgentFrontmatter,
-  AgentSlashAction,
-  Flow,
-  FlowTask,
-  TaskFrontmatter,
-  FlowFrontmatter,
-  KnowledgeNode,
-  WorkspaceData,
-  ExtractedDataStructure,
+  AgentAction,
   Conversation,
-  AgentConfig,
-  FormValues,
-  TaskOutputSchema,
-} from "@/types/workspace-data";
+  SpaceData,
+  ExtractedDataStructure,
+  Tasklist,
+  Task,
+  TaskOutput,
+  KnowledgeDomain,
+  KnowledgeField,
+  KnowledgeFieldIndex,
+  FunctionFile,
+  SpaceComponents,
+  ViewComponent,
+  FormComponent,
+  PackageJson,
+  SpaceEnv,
+  EncryptedEnvFile,
+} from "@/types/space-data";
 
 // ============================================================================
-// Frontmatter Parser
+// Frontmatter Parser (minimal YAML — handles the new multi-line block syntax)
 // ============================================================================
 
-const FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
+const FRONTMATTER_REGEX = /^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/;
 
 export function parseFrontmatter<T = Record<string, unknown>>(
   content: string,
@@ -28,87 +47,211 @@ export function parseFrontmatter<T = Record<string, unknown>>(
   if (!match) {
     return { frontmatter: {} as T, body: content };
   }
+  const frontmatter = parseYaml(match[1]) as T;
+  return { frontmatter, body: match[2].trim() };
+}
 
-  const frontmatterLines = match[1].split("\n");
-  const frontmatter: Record<string, unknown> = {};
+function parseYaml(yaml: string): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  const lines = yaml.split("\n");
+  let i = 0;
 
-  for (const line of frontmatterLines) {
-    const colonIndex = line.indexOf(":");
-    if (colonIndex === -1) continue;
+  while (i < lines.length) {
+    const line = lines[i];
+    // skip empty lines
+    if (!line.trim()) { i++; continue; }
 
-    const key = line.slice(0, colonIndex).trim();
-    let value: unknown = line.slice(colonIndex + 1).trim();
+    const colonIdx = line.indexOf(":");
+    if (colonIdx === -1) { i++; continue; }
 
-    // Remove quotes if present
-    if (typeof value === "string") {
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        value = value.slice(1, -1);
-      }
+    const key = line.slice(0, colonIdx).trim();
+    const rest = line.slice(colonIdx + 1).trim();
 
-      // Try to parse as JSON for arrays and objects
-      if (typeof value === "string" && (value.startsWith("[") || value.startsWith("{"))) {
-        try {
-          value = JSON.parse(value as string);
-        } catch {
-          // Keep as string if parsing fails
+    if (rest === "" || rest === "[]" || rest === "{}") {
+      // Could be a block list, block mapping, or empty
+      if (rest === "[]") { result[key] = []; i++; continue; }
+      if (rest === "{}") { result[key] = {}; i++; continue; }
+      // Peek at the next non-empty indented line to determine sequence vs mapping
+      let peekIdx = i + 1;
+      while (peekIdx < lines.length && !lines[peekIdx].trim()) peekIdx++;
+      const peekLine = lines[peekIdx] ?? "";
+      const isSequence = /^\s{2,}-\s/.test(peekLine);
+      const isMapping = !isSequence && /^\s{2,}[^-\s]/.test(peekLine) && peekLine.includes(":");
+
+      if (isSequence) {
+        // Block sequence
+        const items: unknown[] = [];
+        i++;
+        while (i < lines.length && /^\s{2,}/.test(lines[i])) {
+          const itemLine = lines[i].trim();
+          if (itemLine.startsWith("- ")) {
+            const itemRest = itemLine.slice(2).trim();
+            if (itemRest.includes(":") && !itemRest.startsWith("{")) {
+              // Block mapping item
+              const obj: Record<string, unknown> = {};
+              parseInlineKv(itemRest, obj);
+              i++;
+              while (i < lines.length && /^\s{4,}/.test(lines[i])) {
+                parseInlineKv(lines[i].trim(), obj);
+                i++;
+              }
+              items.push(obj);
+            } else {
+              items.push(parseScalar(itemRest));
+              i++;
+            }
+          } else {
+            break;
+          }
         }
+        result[key] = items;
+      } else if (isMapping) {
+        // Block mapping (sub-object like `output:\n  key: value`)
+        const obj: Record<string, unknown> = {};
+        i++;
+        while (i < lines.length && /^\s{2,}/.test(lines[i])) {
+          parseInlineKv(lines[i].trim(), obj);
+          i++;
+        }
+        result[key] = obj;
+      } else {
+        result[key] = {};
+        i++;
       }
+    } else if (rest.startsWith("[") && rest.endsWith("]")) {
+      // Inline array
+      result[key] = parseInlineArray(rest);
+    } else {
+      result[key] = parseScalar(rest);
+      i++;
     }
-
-    frontmatter[key] = value;
   }
 
-  return { frontmatter: frontmatter as T, body: match[2].trim() };
+  return result;
+}
+
+function parseInlineKv(text: string, target: Record<string, unknown>): void {
+  const colonIdx = text.indexOf(":");
+  if (colonIdx === -1) return;
+  const k = text.slice(0, colonIdx).trim();
+  const v = text.slice(colonIdx + 1).trim();
+  if (k) target[k] = parseScalar(v);
+}
+
+function parseInlineArray(text: string): unknown[] {
+  const inner = text.slice(1, -1).trim();
+  if (!inner) return [];
+  return inner.split(",").map((v) => parseScalar(v.trim()));
+}
+
+function parseScalar(value: string): unknown {
+  if (!value) return "";
+  if (value === "true") return true;
+  if (value === "false") return false;
+  if (value === "null" || value === "~") return null;
+  const num = Number(value);
+  if (!isNaN(num) && value !== "") return num;
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return value.slice(1, -1);
+  }
+  return value;
 }
 
 // ============================================================================
-// Slash Action Parser
+// Agent Parsing
 // ============================================================================
 
-const SLASH_ACTION_REGEX =
-  /<slash_action\s+name="([^"]+)"\s+description="([^"]+)"\s+flowId="([^"]+)">\s*\/([^\s\n]+)\s*<\/slash_action>/g;
+function parseAgentFrontmatter(raw: Record<string, unknown>): AgentFrontmatter {
+  return {
+    title: typeof raw.title === "string" ? raw.title : "",
+    knowledge: toStringArray(raw.knowledge),
+    functions: toStringArray(raw.functions),
+    components: toStringArray(raw.components),
+    actions: parseActions(raw.actions),
+    defaultAction: typeof raw.defaultAction === "string" ? raw.defaultAction : undefined,
+    dependencies: toStringArray(raw.dependencies),
+  };
+}
 
-export function parseSlashActions(content: string): AgentSlashAction[] {
-  const actions: AgentSlashAction[] = [];
-  let match;
+function parseActions(value: unknown): AgentAction[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((v): v is Record<string, unknown> => typeof v === "object" && v !== null)
+    .map((v) => ({
+      id: typeof v.id === "string" ? v.id : "",
+      label: typeof v.label === "string" ? v.label : "",
+      description: typeof v.description === "string" ? v.description : "",
+      tasklist: typeof v.tasklist === "string" ? v.tasklist : "",
+    }));
+}
 
-  while ((match = SLASH_ACTION_REGEX.exec(content)) !== null) {
-    actions.push({
-      name: match[1],
-      description: match[2],
-      flowId: match[3],
-      actionId: match[4].trim(),
-    });
-  }
-
-  return actions;
+function toStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((v): v is string => typeof v === "string");
+  if (typeof value === "string" && value.trim() !== "") return [value];
+  return [];
 }
 
 // ============================================================================
-// Output Tag Parser
+// Tasklist Parsing
 // ============================================================================
 
-const OUTPUT_TAG_REGEX = /<output(?:\s+target="([^"]+)")?>\n([\s\S]*?)\n<\/output>/;
+function parseTaskFile(filename: string, content: string): Task | null {
+  // filename: "01-boil_water.md"
+  const match = filename.match(/^(\d+)[_-](.+)\.md$/i);
+  if (!match) return null;
+  const order = parseInt(match[1], 10);
+  const id = match[2];
 
-export function parseOutputTag(content: string): {
-  outputSchema?: TaskOutputSchema;
-  targetFieldName?: string;
-} {
-  const match = content.match(OUTPUT_TAG_REGEX);
-  if (!match) return {};
+  const { frontmatter: raw, body } = parseFrontmatter<Record<string, unknown>>(content);
 
-  try {
-    const outputSchema = JSON.parse(match[2]) as TaskOutputSchema;
-    return {
-      outputSchema,
-      targetFieldName: match[1] || undefined,
-    };
-  } catch {
-    return {};
+  const output = parseTaskOutput(raw.output);
+  const dependsOn = toStringArray(raw.dependsOn);
+  const optional = raw.optional === true || raw.optional === "true";
+  const goal = raw.goal === true || raw.goal === "true";
+  const condition = typeof raw.condition === "string" ? raw.condition : undefined;
+
+  const task: Task = {
+    order,
+    id,
+    instruction: body.trim(),
+    output,
+  };
+  if (dependsOn.length > 0) task.dependsOn = dependsOn;
+  if (optional) task.optional = optional;
+  if (goal) task.goal = goal;
+  if (condition !== undefined) task.condition = condition;
+
+  return task;
+}
+
+function parseTaskOutput(value: unknown): TaskOutput {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    const out: TaskOutput = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = typeof v === "string" ? v : String(v);
+    }
+    return out;
   }
+  return { result: "string" };
+}
+
+// ============================================================================
+// Knowledge Parsing
+// ============================================================================
+
+function parseKnowledgeFieldIndex(content: string): { index: KnowledgeFieldIndex; description: string } {
+  const { frontmatter: raw, body } = parseFrontmatter<Record<string, unknown>>(content);
+  return {
+    index: {
+      type: typeof raw.type === "string" ? raw.type : "string",
+      variable: typeof raw.variable === "string" ? raw.variable : "",
+      default: typeof raw.default === "string" ? raw.default : undefined,
+    },
+    description: body.trim(),
+  };
 }
 
 // ============================================================================
@@ -116,93 +259,88 @@ export function parseOutputTag(content: string): {
 // ============================================================================
 
 /**
- * Extracts workspace data from an import.meta.glob result
- * @param workspaceId The workspace identifier
- * @param globResult Result from import.meta.glob with { eager: true, as: 'raw' }
- *        Example: { 'agents/agent1/instruct.md': 'content...', 'package.json': '...' }
+ * Extracts a SpaceData from an import.meta.glob result (or any flat map of
+ * path → file content).
+ *
+ * @param spaceId  The space identifier.
+ * @param globResult  A flat map: { 'agents/chef/instruct.md': '...', ... }
  */
 export function extractWorkspaceData(
-  workspaceId: string,
+  spaceId: string,
   globResult: Record<string, string>,
-): WorkspaceData {
-  const result: WorkspaceData = {
-    id: workspaceId,
+): SpaceData {
+  const result: SpaceData = {
+    id: spaceId,
     agents: {},
-    flows: {},
-    knowledge: [],
+    tasklists: {},
+    knowledge: {},
+    functions: {},
+    components: { view: {}, form: {} },
     packageJson: null,
     env: {},
   };
 
-  // Read package.json if it exists
+  // ── package.json ────────────────────────────────────────────────────────
   const packageJsonContent = globResult["package.json"];
   if (packageJsonContent) {
     try {
-      result.packageJson = JSON.parse(packageJsonContent) as WorkspaceData["packageJson"];
+      result.packageJson = JSON.parse(packageJsonContent) as PackageJson;
     } catch {
-      // Invalid JSON - keep as null
+      // keep null
     }
   }
 
-  // Extract agents
+  // ── .env files ──────────────────────────────────────────────────────────
+  for (const [filePath, content] of Object.entries(globResult)) {
+    if (/^\.env(?:\.[A-Za-z0-9_-]+)*$/.test(filePath)) {
+      try {
+        const encrypted = JSON.parse(content) as EncryptedEnvFile;
+        result.env![filePath] = encrypted;
+      } catch {
+        // not valid JSON — ignore
+      }
+    }
+  }
+
+  // ── Agents ──────────────────────────────────────────────────────────────
   const agentIds = new Set<string>();
   for (const filePath of Object.keys(globResult)) {
-    const match = filePath.match(/^agents\/([^/]+)\//);
-    if (match) agentIds.add(match[1]);
+    const m = filePath.match(/^agents\/([^/]+)\//);
+    if (m) agentIds.add(m[1]);
   }
 
   for (const agentId of agentIds) {
     const agent: Agent = {
       id: agentId,
-      frontmatter: {},
-      mainInstruction: "",
-      slashActions: [],
-      config: { runtimeFields: [] },
-      formValues: {},
+      frontmatter: {
+        title: "",
+        knowledge: [],
+        functions: [],
+        components: [],
+        actions: [],
+        dependencies: [],
+      },
+      body: "",
       conversations: [],
     };
 
-    // Read instruct.md
+    // instruct.md only — no config.json or values.json in new spec
     const instructContent = globResult[`agents/${agentId}/instruct.md`];
     if (instructContent) {
-      const { frontmatter, body } = parseFrontmatter<AgentFrontmatter>(instructContent);
-      agent.frontmatter = frontmatter;
-      agent.slashActions = parseSlashActions(body);
-      agent.mainInstruction = body.replace(SLASH_ACTION_REGEX, "").trim();
+      const { frontmatter: raw, body } = parseFrontmatter<Record<string, unknown>>(instructContent);
+      agent.frontmatter = parseAgentFrontmatter(raw);
+      agent.body = body.trim();
     }
 
-    // Read config.json
-    const configContent = globResult[`agents/${agentId}/config.json`];
-    if (configContent) {
-      try {
-        agent.config = JSON.parse(configContent) as AgentConfig;
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Unknown error";
-        console.warn(`Invalid config.json for agent ${agentId}: ${message}`);
-      }
-    }
-
-    // Read values.json
-    const valuesContent = globResult[`agents/${agentId}/values.json`];
-    if (valuesContent) {
-      try {
-        agent.formValues = JSON.parse(valuesContent) as FormValues;
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Unknown error";
-        console.warn(`Invalid values.json for agent ${agentId}: ${message}`);
-      }
-    }
-
-    // Read conversations
+    // conversations (still supported)
     for (const filePath of Object.keys(globResult)) {
       const convMatch = filePath.match(/^agents\/([^/]+)\/conversations\/(.+\.json)$/);
       if (convMatch && convMatch[1] === agentId) {
         try {
-          const conversation = JSON.parse(globResult[filePath]) as Conversation;
-          agent.conversations.push(conversation);
-        } catch (err) {
-          const message = err instanceof Error ? err.message : "Unknown error";
-          console.warn(`Invalid conversation file ${filePath}: ${message}`);
+          const conv = JSON.parse(globResult[filePath]) as Conversation;
+          agent.conversations.push(conv);
+        } catch {
+          // ignore
         }
       }
     }
@@ -210,176 +348,131 @@ export function extractWorkspaceData(
     result.agents[agentId] = agent;
   }
 
-  // Extract flows
-  const flowIds = new Set<string>();
+  // ── Tasklists ────────────────────────────────────────────────────────────
+  const tasklistNames = new Set<string>();
   for (const filePath of Object.keys(globResult)) {
-    const match = filePath.match(/^flows\/([^/]+)\//);
-    if (match) flowIds.add(match[1]);
+    const m = filePath.match(/^tasklists\/([^/]+)\//);
+    if (m) tasklistNames.add(m[1]);
   }
 
-  for (const flowId of flowIds) {
-    const flow: Flow = {
-      id: flowId,
-      frontmatter: {} as FlowFrontmatter,
-      description: "",
-      tasks: [],
-    };
+  for (const name of tasklistNames) {
+    const tasks: Task[] = [];
 
-    // Read index.md
-    const indexContent = globResult[`flows/${flowId}/index.md`];
-    if (indexContent) {
-      const { frontmatter, body } = parseFrontmatter<FlowFrontmatter>(indexContent);
-      flow.frontmatter = frontmatter;
-      flow.description = body;
-    }
-
-    // Read task files
     for (const filePath of Object.keys(globResult)) {
-      const taskMatch = filePath.match(/^flows\/([^/]+)\/([^/]+\.md)$/);
-      if (taskMatch && taskMatch[1] === flowId && taskMatch[2] !== "index.md") {
-        const taskFile = taskMatch[2];
-        const taskContent = globResult[filePath];
-        const { frontmatter, body } = parseFrontmatter<TaskFrontmatter>(taskContent);
+      const m = filePath.match(/^tasklists\/([^/]+)\/([^/]+\.md)$/i);
+      if (!m || m[1] !== name) continue;
+      const filename = m[2];
+      if (!/^\d+[_-].+\.md$/i.test(filename)) continue;
 
-        // Extract order and name from filename: {order}.{name}.md
-        const parts = taskFile.replace(".md", "").split(".");
-        const order = parseInt(parts[0], 10);
-        const name = parts.slice(1).join(".");
-
-        // Parse output tag if present
-        const { outputSchema, targetFieldName } = parseOutputTag(body);
-
-        // Remove output tag from instructions
-        const instructions = body.replace(OUTPUT_TAG_REGEX, "").trim();
-
-        const task: FlowTask = {
-          order,
-          name,
-          frontmatter,
-          instructions,
-          outputSchema,
-          targetFieldName,
-        };
-
-        flow.tasks.push(task);
-      }
+      const task = parseTaskFile(filename, globResult[filePath]);
+      if (task) tasks.push(task);
     }
 
-    // Sort tasks by order
-    flow.tasks.sort((a, b) => a.order - b.order);
+    tasks.sort((a, b) => a.order - b.order);
 
-    result.flows[flowId] = flow;
+    result.tasklists[name] = { name, tasks };
   }
 
-  // Extract knowledge
-  const knowledgeFiles = Object.keys(globResult)
-    .filter((p) => p.startsWith("knowledge/"))
-    .sort();
+  // ── Knowledge ────────────────────────────────────────────────────────────
+  // Layout: knowledge/<domain>/<field>/index.md + knowledge/<domain>/<field>/<slug>.md
+  for (const filePath of Object.keys(globResult)) {
+    if (!filePath.startsWith("knowledge/")) continue;
 
-  function buildKnowledgeTree(files: string[]): KnowledgeNode[] {
-    const tree: KnowledgeNode[] = [];
-    const dirMap = new Map<string, KnowledgeNode>();
+    const rel = filePath.slice("knowledge/".length);
+    const parts = rel.split("/");
 
-    for (const filePath of files) {
-      const relativePath = filePath.replace(/^knowledge\//, "");
-      const parts = relativePath.split("/");
+    if (parts.length < 2) continue; // bare file at knowledge/ root — skip
 
-      // Build directory structure
-      let currentPath = "";
-      for (let i = 0; i < parts.length - 1; i++) {
-        const dirName = parts[i];
-        const parentPath = currentPath;
-        currentPath = currentPath ? `${currentPath}/${dirName}` : dirName;
+    const domain = parts[0];
+    const field = parts[1];
 
-        if (!dirMap.has(currentPath)) {
-          const dirNode: KnowledgeNode = {
-            path: currentPath,
-            type: "directory",
-            children: [],
-          };
+    if (!result.knowledge[domain]) {
+      result.knowledge[domain] = { slug: domain, fields: {} };
+    }
+    const domainObj = result.knowledge[domain];
 
-          // Check for config.json
-          const configContent = globResult[`knowledge/${currentPath}/config.json`];
-          if (configContent) {
-            try {
-              dirNode.config = JSON.parse(configContent) as Record<string, unknown>;
-            } catch {
-              // Invalid config, skip
-            }
-          }
+    if (!domainObj.fields[field]) {
+      domainObj.fields[field] = {
+        slug: field,
+        index: { type: "string", variable: "" },
+        description: "",
+        options: {},
+      };
+    }
+    const fieldObj = domainObj.fields[field];
 
-          dirMap.set(currentPath, dirNode);
-
-          if (parentPath) {
-            dirMap.get(parentPath)?.children?.push(dirNode);
-          } else {
-            tree.push(dirNode);
-          }
-        }
-      }
-
-      // Add file if it's a markdown file
-      if (relativePath.endsWith(".md")) {
-        const content = globResult[filePath];
-        const { frontmatter, body } = parseFrontmatter(content);
-
-        const fileNode: KnowledgeNode = {
-          path: relativePath,
-          type: "file",
-          frontmatter,
-          content: body,
-        };
-
-        const parentPath = parts.slice(0, -1).join("/");
-        if (parentPath) {
-          dirMap.get(parentPath)?.children?.push(fileNode);
-        } else {
-          tree.push(fileNode);
-        }
+    if (parts.length === 3) {
+      const fileName = parts[2];
+      if (fileName === "index.md") {
+        const { index, description } = parseKnowledgeFieldIndex(globResult[filePath]);
+        fieldObj.index = index;
+        fieldObj.description = description;
+      } else if (fileName.endsWith(".md")) {
+        const slug = fileName.replace(/\.md$/, "");
+        fieldObj.options[slug] = globResult[filePath];
       }
     }
-
-    return tree;
   }
 
-  result.knowledge = buildKnowledgeTree(knowledgeFiles);
+  // ── Functions ────────────────────────────────────────────────────────────
+  for (const filePath of Object.keys(globResult)) {
+    const m = filePath.match(/^functions\/([^/]+)\.(ts|tsx)$/);
+    if (!m) continue;
+    const name = m[1];
+    result.functions[name] = { name, source: globResult[filePath] };
+  }
+
+  // ── Components ────────────────────────────────────────────────────────────
+  for (const filePath of Object.keys(globResult)) {
+    // components/view/<Name>.tsx
+    const viewMatch = filePath.match(/^components\/view\/([^/]+)\.tsx$/);
+    if (viewMatch) {
+      const name = viewMatch[1];
+      result.components.view[name] = { name, source: globResult[filePath] };
+      continue;
+    }
+    // components/form/<Name>/web.tsx or ink.tsx
+    const formMatch = filePath.match(/^components\/form\/([^/]+)\/(web|ink)\.tsx$/);
+    if (formMatch) {
+      const name = formMatch[1];
+      const variant = formMatch[2] as "web" | "ink";
+      if (!result.components.form[name]) {
+        result.components.form[name] = { name, web: "", ink: "" };
+      }
+      result.components.form[name][variant] = globResult[filePath];
+    }
+  }
 
   return result;
 }
 
 /**
- * Extracts all workspaces from an import.meta.glob result
- * @param globResult Result from import.meta.glob with { eager: true, as: 'raw' }
- *        Example: { 'education/agents/...': '...', 'plants/flows/...': '...' }
+ * Extracts all spaces from a multi-space glob result.
+ * Paths are expected to be prefixed with the space id: "<spaceId>/..."
  */
 export function extractAllWorkspaces(globResult: Record<string, string>): ExtractedDataStructure {
-  const result: ExtractedDataStructure = { workspaces: {} };
+  const result: ExtractedDataStructure = { spaces: {} };
 
-  // Extract workspace IDs from paths
-  const workspaceIds = new Set<string>();
+  const spaceIds = new Set<string>();
   for (const filePath of Object.keys(globResult)) {
-    const match = filePath.match(/^([^/]+)\//);
-    if (match) workspaceIds.add(match[1]);
+    const m = filePath.match(/^([^/]+)\//);
+    if (m) spaceIds.add(m[1]);
   }
 
-  for (const workspaceId of workspaceIds) {
-    console.log(`Extracting workspace: ${workspaceId}...`);
-
-    // Filter glob result to only this workspace
-    const workspaceGlob: Record<string, string> = {};
-    const prefix = `${workspaceId}/`;
+  for (const spaceId of spaceIds) {
+    const spaceGlob: Record<string, string> = {};
+    const prefix = `${spaceId}/`;
     for (const [filePath, content] of Object.entries(globResult)) {
       if (filePath.startsWith(prefix)) {
-        // Remove workspace prefix from path
-        workspaceGlob[filePath.slice(prefix.length)] = content;
+        spaceGlob[filePath.slice(prefix.length)] = content;
       }
     }
 
     try {
-      result.workspaces[workspaceId] = extractWorkspaceData(workspaceId, workspaceGlob);
+      result.spaces[spaceId] = extractWorkspaceData(spaceId, spaceGlob);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
-      console.error(`Failed to extract workspace ${workspaceId}:`, message);
+      console.error(`Failed to extract space ${spaceId}:`, message);
     }
   }
 

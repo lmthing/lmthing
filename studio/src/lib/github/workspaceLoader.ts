@@ -1,24 +1,39 @@
+/**
+ * workspaceLoader — GitHub loader, NEW SPEC
+ *
+ * Reads a GitHub repository and produces a SpaceData using the new layout:
+ *   agents/<slug>/instruct.md           → parsed frontmatter + body
+ *   tasklists/<name>/NN-<id>.md         → Tasklist tasks
+ *   knowledge/<domain>/<field>/index.md → KnowledgeFieldIndex + description
+ *   knowledge/<domain>/<field>/<slug>.md → option content
+ *   functions/<name>.ts                 → FunctionFile source
+ *   components/view/<Name>.tsx          → ViewComponent source
+ *   components/form/<Name>/{web,ink}.tsx → FormComponent
+ */
 import type { Octokit } from "@octokit/rest";
 import type {
   Agent,
-  AgentConfig,
   AgentFrontmatter,
-  AgentSlashAction,
+  AgentAction,
   Conversation,
-  Flow,
-  FlowFrontmatter,
-  FlowTask,
-  KnowledgeNode,
+  Task,
+  TaskOutput,
+  Tasklist,
+  KnowledgeDomain,
+  KnowledgeField,
+  KnowledgeFieldIndex,
+  FunctionFile,
+  ViewComponent,
+  FormComponent,
+  SpaceComponents,
   PackageJson,
-  TaskFrontmatter,
-  WorkspaceEnv,
-  WorkspaceData,
-} from "@/types/workspace-data";
+  SpaceEnv,
+  EncryptedEnvFile,
+  SpaceData,
+} from "@/types/space-data";
 import { parseEncryptedEnvFileContent } from "@/lib/envCrypto";
 
-const FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
-
-const OUTPUT_TAG_REGEX = /<output(?:\s+target="([^"]+)")?>\n([\s\S]*?)\n<\/output>/;
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function decodeBase64Utf8(base64: string): string {
   const normalized = base64.replace(/\n/g, "");
@@ -27,193 +42,150 @@ function decodeBase64Utf8(base64: string): string {
   return new TextDecoder().decode(bytes);
 }
 
+const FRONTMATTER_REGEX = /^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/;
+
 function parseFrontmatter<T = Record<string, unknown>>(
   content: string,
-): {
-  frontmatter: T;
-  body: string;
-} {
+): { frontmatter: T; body: string } {
   const match = content.match(FRONTMATTER_REGEX);
-  if (!match) {
-    return { frontmatter: {} as T, body: content };
-  }
+  if (!match) return { frontmatter: {} as T, body: content };
+  const frontmatter = parseYaml(match[1]) as T;
+  return { frontmatter, body: match[2].trim() };
+}
 
-  const frontmatterLines = match[1].split("\n");
-  const frontmatter: Record<string, unknown> = {};
+function parseYaml(yaml: string): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  const lines = yaml.split("\n");
+  let i = 0;
 
-  for (const line of frontmatterLines) {
-    const colonIndex = line.indexOf(":");
-    if (colonIndex === -1) continue;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (!line.trim()) { i++; continue; }
+    const colonIdx = line.indexOf(":");
+    if (colonIdx === -1) { i++; continue; }
 
-    const key = line.slice(0, colonIndex).trim();
-    let value: unknown = line.slice(colonIndex + 1).trim();
+    const key = line.slice(0, colonIdx).trim();
+    const rest = line.slice(colonIdx + 1).trim();
 
-    if (typeof value === "string") {
-      let stringValue = value;
-
-      if (
-        (stringValue.startsWith('"') && stringValue.endsWith('"')) ||
-        (stringValue.startsWith("'") && stringValue.endsWith("'"))
-      ) {
-        stringValue = stringValue.slice(1, -1);
-      }
-
-      if (stringValue.startsWith("[") || stringValue.startsWith("{")) {
-        try {
-          value = JSON.parse(stringValue);
-        } catch {
-          value = stringValue;
+    if (rest === "" || rest === "[]") {
+      if (rest === "[]") { result[key] = []; i++; continue; }
+      // Peek ahead to determine block sequence vs block mapping
+      let peekIdx = i + 1;
+      while (peekIdx < lines.length && !lines[peekIdx].trim()) peekIdx++;
+      const peekLine = lines[peekIdx] ?? "";
+      const isSequence = /^\s{2,}-\s/.test(peekLine);
+      const isMapping = !isSequence && /^\s{2,}[^-\s]/.test(peekLine) && peekLine.includes(":");
+      if (isMapping) {
+        // Block mapping sub-object (e.g. output:\n  key: value)
+        const obj: Record<string, unknown> = {};
+        i++;
+        while (i < lines.length && /^\s{2,}/.test(lines[i])) {
+          parseInlineKv(lines[i].trim(), obj);
+          i++;
         }
-      } else {
-        value = stringValue;
+        result[key] = obj;
+        continue;
       }
-    }
-
-    frontmatter[key] = value;
-  }
-
-  return { frontmatter: frontmatter as T, body: match[2].trim() };
-}
-
-function parseSlashActions(content: string): AgentSlashAction[] {
-  const slashActionRegex =
-    /<slash_action\s+name="([^"]+)"\s+description="([^"]+)"\s+flowId="([^"]+)">\s*\/([^\s\n]+)\s*<\/slash_action>/g;
-
-  const actions: AgentSlashAction[] = [];
-  let match: RegExpExecArray | null = null;
-
-  while ((match = slashActionRegex.exec(content)) !== null) {
-    actions.push({
-      name: match[1],
-      description: match[2],
-      flowId: match[3],
-      actionId: match[4].trim(),
-    });
-  }
-
-  return actions;
-}
-
-function stripSlashActions(content: string): string {
-  const slashActionRegex =
-    /<slash_action\s+name="([^"]+)"\s+description="([^"]+)"\s+flowId="([^"]+)">\s*\/([^\s\n]+)\s*<\/slash_action>/g;
-  return content.replace(slashActionRegex, "").trim();
-}
-
-function parseOutputTag(content: string): {
-  outputSchema?: FlowTask["outputSchema"];
-  targetFieldName?: string;
-} {
-  const match = content.match(OUTPUT_TAG_REGEX);
-  if (!match) return {};
-
-  try {
-    const outputSchema = JSON.parse(match[2]) as FlowTask["outputSchema"];
-    return {
-      outputSchema,
-      targetFieldName: match[1] || undefined,
-    };
-  } catch {
-    return {};
-  }
-}
-
-function stripOutputTag(content: string): string {
-  return content.replace(OUTPUT_TAG_REGEX, "").trim();
-}
-
-function sortKnowledgeNodes(nodes: KnowledgeNode[]): KnowledgeNode[] {
-  const sorted = [...nodes].sort((a, b) => {
-    if (a.type !== b.type) return a.type === "directory" ? -1 : 1;
-    return a.path.localeCompare(b.path);
-  });
-
-  return sorted.map((node) => {
-    if (node.type === "directory" && node.children) {
-      return {
-        ...node,
-        children: sortKnowledgeNodes(node.children),
-      };
-    }
-    return node;
-  });
-}
-
-function buildKnowledgeTree(
-  markdownFiles: Array<{ relativePath: string; content: string }>,
-  configFiles: Array<{ relativePath: string; content: string }>,
-): KnowledgeNode[] {
-  const rootNodes: KnowledgeNode[] = [];
-  const directoryMap = new Map<string, KnowledgeNode>();
-
-  const getParentPath = (value: string): string => {
-    const parts = value.split("/").filter(Boolean);
-    if (parts.length <= 1) return "";
-    return parts.slice(0, -1).join("/");
-  };
-
-  const ensureDirectory = (directoryPath: string): KnowledgeNode => {
-    const normalizedPath = directoryPath.replace(/^\/+|\/+$/g, "");
-    const existing = directoryMap.get(normalizedPath);
-    if (existing) return existing;
-
-    const node: KnowledgeNode = {
-      path: normalizedPath,
-      type: "directory",
-      children: [],
-    };
-
-    directoryMap.set(normalizedPath, node);
-
-    const parentPath = getParentPath(normalizedPath);
-    if (!parentPath) {
-      rootNodes.push(node);
+      const items: unknown[] = [];
+      i++;
+      while (i < lines.length && /^\s{2,}/.test(lines[i])) {
+        const itemLine = lines[i].trim();
+        if (itemLine.startsWith("- ")) {
+          const itemRest = itemLine.slice(2).trim();
+          if (itemRest.includes(":") && !itemRest.startsWith("{")) {
+            const obj: Record<string, unknown> = {};
+            parseInlineKv(itemRest, obj);
+            i++;
+            while (i < lines.length && /^\s{4,}/.test(lines[i])) {
+              parseInlineKv(lines[i].trim(), obj);
+              i++;
+            }
+            items.push(obj);
+          } else {
+            items.push(parseScalar(itemRest));
+            i++;
+          }
+        } else { i++; }
+      }
+      result[key] = items;
+    } else if (rest.startsWith("[") && rest.endsWith("]")) {
+      result[key] = rest.slice(1, -1).trim()
+        ? rest.slice(1, -1).split(",").map((v) => parseScalar(v.trim()))
+        : [];
+      i++;
     } else {
-      const parentNode = ensureDirectory(parentPath);
-      parentNode.children = [...(parentNode.children || []), node];
-    }
-
-    return node;
-  };
-
-  for (const file of markdownFiles) {
-    const parentPath = getParentPath(file.relativePath);
-    const { frontmatter, body } = parseFrontmatter(file.content);
-
-    const fileNode: KnowledgeNode = {
-      path: file.relativePath,
-      type: "file",
-      frontmatter,
-      content: body,
-    };
-
-    if (!parentPath) {
-      rootNodes.push(fileNode);
-    } else {
-      const parentNode = ensureDirectory(parentPath);
-      parentNode.children = [...(parentNode.children || []), fileNode];
+      result[key] = parseScalar(rest);
+      i++;
     }
   }
-
-  for (const configFile of configFiles) {
-    const directoryPath = configFile.relativePath.replace(/\/config\.json$/, "");
-    if (!directoryPath) continue;
-
-    const directoryNode = ensureDirectory(directoryPath);
-    try {
-      directoryNode.config = JSON.parse(configFile.content);
-    } catch {
-      directoryNode.config = {};
-    }
-  }
-
-  return sortKnowledgeNodes(rootNodes);
+  return result;
 }
 
-type RepoTextFile = {
-  path: string;
-  content: string;
-};
+function parseInlineKv(text: string, target: Record<string, unknown>): void {
+  const colonIdx = text.indexOf(":");
+  if (colonIdx === -1) return;
+  const k = text.slice(0, colonIdx).trim();
+  const v = text.slice(colonIdx + 1).trim();
+  if (k) target[k] = parseScalar(v);
+}
+
+function parseScalar(value: string): unknown {
+  if (!value) return "";
+  if (value === "true") return true;
+  if (value === "false") return false;
+  if (value === "null") return null;
+  const num = Number(value);
+  if (!isNaN(num) && value !== "") return num;
+  if ((value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'")))
+    return value.slice(1, -1);
+  return value;
+}
+
+function toStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((v): v is string => typeof v === "string");
+  if (typeof value === "string" && value.trim()) return [value];
+  return [];
+}
+
+function parseActions(value: unknown): AgentAction[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((v): v is Record<string, unknown> => typeof v === "object" && v !== null)
+    .map((v) => ({
+      id: typeof v.id === "string" ? v.id : "",
+      label: typeof v.label === "string" ? v.label : "",
+      description: typeof v.description === "string" ? v.description : "",
+      tasklist: typeof v.tasklist === "string" ? v.tasklist : "",
+    }));
+}
+
+function parseAgentFrontmatter(raw: Record<string, unknown>): AgentFrontmatter {
+  return {
+    title: typeof raw.title === "string" ? raw.title : "",
+    knowledge: toStringArray(raw.knowledge),
+    functions: toStringArray(raw.functions),
+    components: toStringArray(raw.components),
+    actions: parseActions(raw.actions),
+    defaultAction: typeof raw.defaultAction === "string" ? raw.defaultAction : undefined,
+    dependencies: toStringArray(raw.dependencies),
+  };
+}
+
+function parseTaskOutput(value: unknown): TaskOutput {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    const out: TaskOutput = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = typeof v === "string" ? v : String(v);
+    }
+    return out;
+  }
+  return { result: "string" };
+}
+
+// ── GitHub file listing ───────────────────────────────────────────────────────
+
+type RepoTextFile = { path: string; content: string };
 
 export interface GithubWorkspaceLoadProgress {
   loadedFiles: number;
@@ -231,72 +203,46 @@ async function listRepoTextFiles(
   const defaultBranch = repoData.default_branch || "main";
 
   const { data: branch } = await octokit.rest.repos.getBranch({
-    owner,
-    repo,
-    branch: defaultBranch,
+    owner, repo, branch: defaultBranch,
   });
-
   const treeSha = branch.commit.commit.tree.sha;
 
   const { data: tree } = await octokit.rest.git.getTree({
-    owner,
-    repo,
-    tree_sha: treeSha,
-    recursive: "1",
+    owner, repo, tree_sha: treeSha, recursive: "1",
   });
 
   const fileEntries = tree.tree
-    .filter((entry) => entry.type === "blob" && Boolean(entry.path) && Boolean(entry.sha))
-    .map((entry) => ({
-      path: entry.path as string,
-      sha: entry.sha as string,
-    }));
+    .filter((e) => e.type === "blob" && Boolean(e.path) && Boolean(e.sha))
+    .map((e) => ({ path: e.path as string, sha: e.sha as string }));
 
-  const relevantEntries = fileEntries.filter(
-    (entry) =>
-      entry.path === "package.json" ||
-      /^\.env(?:\.[A-Za-z0-9_-]+)*$/.test(entry.path) ||
-      entry.path.startsWith("agents/") ||
-      entry.path.startsWith("flows/") ||
-      entry.path.startsWith("knowledge/"),
+  const relevantEntries = fileEntries.filter((e) =>
+    e.path === "package.json" ||
+    /^\.env(?:\.[A-Za-z0-9_-]+)*$/.test(e.path) ||
+    e.path.startsWith("agents/") ||
+    e.path.startsWith("tasklists/") ||
+    e.path.startsWith("knowledge/") ||
+    e.path.startsWith("functions/") ||
+    e.path.startsWith("components/"),
   );
 
   const files: RepoTextFile[] = [];
   const totalFiles = relevantEntries.length;
   let loadedFiles = 0;
 
-  onProgress?.({
-    loadedFiles,
-    totalFiles,
-    currentPath: "Reading repository tree…",
-  });
+  onProgress?.({ loadedFiles, totalFiles, currentPath: "Reading repository tree…" });
 
   for (const entry of relevantEntries) {
-    onProgress?.({
-      loadedFiles,
-      totalFiles,
-      currentPath: entry.path,
-    });
-
-    const { data: blob } = await octokit.rest.git.getBlob({
-      owner,
-      repo,
-      file_sha: entry.sha,
-    });
-
-    const content = decodeBase64Utf8(blob.content);
-    files.push({ path: entry.path, content });
-
+    onProgress?.({ loadedFiles, totalFiles, currentPath: entry.path });
+    const { data: blob } = await octokit.rest.git.getBlob({ owner, repo, file_sha: entry.sha });
+    files.push({ path: entry.path, content: decodeBase64Utf8(blob.content) });
     loadedFiles += 1;
-    onProgress?.({
-      loadedFiles,
-      totalFiles,
-      currentPath: entry.path,
-    });
+    onProgress?.({ loadedFiles, totalFiles, currentPath: entry.path });
   }
 
   return files;
 }
+
+// ── Main loader ──────────────────────────────────────────────────────────────
 
 export async function loadWorkspaceDataFromGithubRepo(params: {
   octokit: Octokit;
@@ -304,35 +250,33 @@ export async function loadWorkspaceDataFromGithubRepo(params: {
   repo: string;
   workspaceId: string;
   onProgress?: (progress: GithubWorkspaceLoadProgress) => void;
-}): Promise<WorkspaceData> {
+}): Promise<SpaceData> {
   const { octokit, owner, repo, workspaceId, onProgress } = params;
   const files = await listRepoTextFiles(octokit, owner, repo, onProgress);
 
   const agents: Record<string, Agent> = {};
-  const flows: Record<string, Flow> = {};
-  const knowledgeMarkdown: Array<{ relativePath: string; content: string }> = [];
-  const knowledgeConfigs: Array<{ relativePath: string; content: string }> = [];
+  const tasklists: Record<string, Tasklist> = {};
+  const knowledge: Record<string, KnowledgeDomain> = {};
+  const functions: Record<string, FunctionFile> = {};
+  const components: SpaceComponents = { view: {}, form: {} };
   let packageJson: PackageJson | null = null;
-  const env: WorkspaceEnv = {};
+  const env: SpaceEnv = {};
 
   for (const file of files) {
+    // package.json
     if (file.path === "package.json") {
-      try {
-        packageJson = JSON.parse(file.content) as PackageJson;
-      } catch {
-        packageJson = null;
-      }
+      try { packageJson = JSON.parse(file.content) as PackageJson; } catch { packageJson = null; }
       continue;
     }
 
+    // .env files
     if (/^\.env(?:\.[A-Za-z0-9_-]+)*$/.test(file.path)) {
       const encrypted = parseEncryptedEnvFileContent(file.content);
-      if (encrypted) {
-        env[file.path] = encrypted;
-      }
+      if (encrypted) env[file.path] = encrypted;
       continue;
     }
 
+    // agents/<slug>/instruct.md or conversations
     const agentMatch = file.path.match(/^agents\/([^/]+)\/(.+)$/);
     if (agentMatch) {
       const agentId = agentMatch[1];
@@ -341,122 +285,128 @@ export async function loadWorkspaceDataFromGithubRepo(params: {
       if (!agents[agentId]) {
         agents[agentId] = {
           id: agentId,
-          frontmatter: {} as AgentFrontmatter,
-          mainInstruction: "",
-          slashActions: [],
-          config: { runtimeFields: [] } as AgentConfig,
-          formValues: {},
+          frontmatter: {
+            title: "", knowledge: [], functions: [], components: [],
+            actions: [], dependencies: [],
+          },
+          body: "",
           conversations: [],
         };
       }
 
       if (relative === "instruct.md") {
-        const { frontmatter, body } = parseFrontmatter<AgentFrontmatter>(file.content);
-        agents[agentId].frontmatter = frontmatter;
-        agents[agentId].slashActions = parseSlashActions(body);
-        agents[agentId].mainInstruction = stripSlashActions(body);
-      } else if (relative === "config.json") {
-        try {
-          agents[agentId].config = JSON.parse(file.content) as AgentConfig;
-        } catch {
-          agents[agentId].config = { runtimeFields: [] };
-        }
-      } else if (relative === "values.json") {
-        try {
-          agents[agentId].formValues = JSON.parse(file.content) as Agent["formValues"];
-        } catch {
-          agents[agentId].formValues = {};
-        }
+        const { frontmatter: raw, body } = parseFrontmatter<Record<string, unknown>>(file.content);
+        agents[agentId].frontmatter = parseAgentFrontmatter(raw);
+        agents[agentId].body = body.trim();
       } else if (relative.startsWith("conversations/") && relative.endsWith(".json")) {
         try {
-          const conversation = JSON.parse(file.content) as Conversation;
-          agents[agentId].conversations.push(conversation);
-        } catch {
-          // Ignore malformed conversation files
-        }
+          agents[agentId].conversations.push(JSON.parse(file.content) as Conversation);
+        } catch { /* ignore */ }
       }
-
       continue;
     }
 
-    const flowMatch = file.path.match(/^flows\/([^/]+)\/(.+)$/);
-    if (flowMatch) {
-      const flowId = flowMatch[1];
-      const relative = flowMatch[2];
+    // tasklists/<name>/NN-<id>.md
+    const tasklistMatch = file.path.match(/^tasklists\/([^/]+)\/([^/]+\.md)$/i);
+    if (tasklistMatch) {
+      const name = tasklistMatch[1];
+      const filename = tasklistMatch[2];
+      if (!/^\d+[_-].+\.md$/i.test(filename)) continue;
 
-      if (!flows[flowId]) {
-        flows[flowId] = {
-          id: flowId,
-          frontmatter: {} as FlowFrontmatter,
+      if (!tasklists[name]) tasklists[name] = { name, tasks: [] };
+
+      const match = filename.match(/^(\d+)[_-](.+)\.md$/i);
+      if (!match) continue;
+      const order = parseInt(match[1], 10);
+      const id = match[2];
+      const { frontmatter: raw, body } = parseFrontmatter<Record<string, unknown>>(file.content);
+      const dependsOn = toStringArray(raw.dependsOn);
+      const task: Task = {
+        order,
+        id,
+        instruction: body.trim(),
+        output: parseTaskOutput(raw.output),
+      };
+      if (dependsOn.length > 0) task.dependsOn = dependsOn;
+      if (raw.optional === true || raw.optional === "true") task.optional = true;
+      if (raw.goal === true || raw.goal === "true") task.goal = true;
+      if (typeof raw.condition === "string") task.condition = raw.condition;
+      tasklists[name].tasks.push(task);
+      continue;
+    }
+
+    // knowledge/<domain>/<field>/index.md or option files
+    const knowledgeMatch = file.path.match(/^knowledge\/([^/]+)\/([^/]+)\/(.+)$/);
+    if (knowledgeMatch) {
+      const domain = knowledgeMatch[1];
+      const field = knowledgeMatch[2];
+      const fileName = knowledgeMatch[3];
+
+      if (!knowledge[domain]) knowledge[domain] = { slug: domain, fields: {} };
+      if (!knowledge[domain].fields[field]) {
+        knowledge[domain].fields[field] = {
+          slug: field,
+          index: { type: "string", variable: "" },
           description: "",
-          tasks: [],
+          options: {},
         };
       }
+      const fieldObj = knowledge[domain].fields[field];
 
-      if (relative === "index.md") {
-        const { frontmatter, body } = parseFrontmatter<FlowFrontmatter>(file.content);
-        flows[flowId].frontmatter = frontmatter;
-        flows[flowId].description = body;
-      } else if (relative.endsWith(".md")) {
-        const taskFileName = relative.replace(/\.md$/, "");
-        const taskMatch = taskFileName.match(/^(\d+)\.(.+)$/);
-        if (taskMatch) {
-          const order = parseInt(taskMatch[1], 10);
-          const name = taskMatch[2];
-          const { frontmatter, body } = parseFrontmatter<TaskFrontmatter>(file.content);
-          const { outputSchema, targetFieldName } = parseOutputTag(body);
-
-          flows[flowId].tasks.push({
-            order,
-            name,
-            frontmatter,
-            instructions: stripOutputTag(body),
-            outputSchema,
-            targetFieldName,
-          });
-        }
+      if (fileName === "index.md") {
+        const { frontmatter: raw, body } = parseFrontmatter<Record<string, unknown>>(file.content);
+        fieldObj.index = {
+          type: typeof raw.type === "string" ? raw.type : "string",
+          variable: typeof raw.variable === "string" ? raw.variable : "",
+          default: typeof raw.default === "string" ? raw.default : undefined,
+        };
+        fieldObj.description = body.trim();
+      } else if (fileName.endsWith(".md")) {
+        fieldObj.options[fileName.replace(/\.md$/, "")] = file.content;
       }
-
       continue;
     }
 
-    const knowledgeMatch = file.path.match(/^knowledge\/(.+)$/);
-    if (knowledgeMatch) {
-      const relativePath = knowledgeMatch[1];
-      if (relativePath.endsWith(".md")) {
-        knowledgeMarkdown.push({ relativePath, content: file.content });
-      } else if (relativePath.endsWith("/config.json")) {
-        knowledgeConfigs.push({ relativePath, content: file.content });
-      }
+    // functions/<name>.ts(x)?
+    const fnMatch = file.path.match(/^functions\/([^/]+)\.(ts|tsx)$/);
+    if (fnMatch) {
+      functions[fnMatch[1]] = { name: fnMatch[1], source: file.content };
+      continue;
+    }
+
+    // components/view/<Name>.tsx
+    const viewMatch = file.path.match(/^components\/view\/([^/]+)\.tsx$/);
+    if (viewMatch) {
+      components.view[viewMatch[1]] = { name: viewMatch[1], source: file.content };
+      continue;
+    }
+
+    // components/form/<Name>/{web,ink}.tsx
+    const formMatch = file.path.match(/^components\/form\/([^/]+)\/(web|ink)\.tsx$/);
+    if (formMatch) {
+      const name = formMatch[1];
+      const variant = formMatch[2] as "web" | "ink";
+      if (!components.form[name]) components.form[name] = { name, web: "", ink: "" };
+      components.form[name][variant] = file.content;
     }
   }
 
-  Object.values(flows).forEach((flow) => {
-    flow.tasks.sort((a, b) => a.order - b.order);
-  });
-
-  Object.values(agents).forEach((agent) => {
-    agent.conversations.sort((a, b) => {
-      const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
-      const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
-      return bTime - aTime;
-    });
-  });
-
-  const knowledge = buildKnowledgeTree(knowledgeMarkdown, knowledgeConfigs);
+  // Sort tasklist tasks by order
+  for (const tl of Object.values(tasklists)) {
+    tl.tasks.sort((a, b) => a.order - b.order);
+  }
 
   const fallbackPackageJson: PackageJson = {
-    name: repo,
-    version: "1.0.0",
-    description: "",
-    dependencies: {},
+    name: repo, version: "1.0.0", description: "", dependencies: {},
   };
 
   return {
     id: workspaceId,
     agents,
-    flows,
+    tasklists,
     knowledge,
+    functions,
+    components,
     packageJson: packageJson || fallbackPackageJson,
     env,
   };

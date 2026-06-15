@@ -1,18 +1,13 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { TopicViewer } from '@lmthing/ui/components/knowledge/topic-detail/topic-viewer'
-
-function TopicDetailPage() {
-  const { fieldId, topicId } = Route.useParams()
-  return (
-    <TopicViewer
-      fieldId={fieldId}
-      topicPath={`knowledge/${fieldId}/${topicId}.md`}
-    />
-  )
-}
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
 export const Route = createFileRoute(
   '/$username/$studioId/$storageId/$spaceId/knowledge/$fieldId/$subjectId/$topicId/',
 )({
-  component: TopicDetailPage,
+  beforeLoad: ({ params }) => {
+    const { username, studioId, storageId, spaceId, fieldId } = params
+    throw redirect({
+      to: `/${username}/${studioId}/${storageId}/${spaceId}/knowledge/${fieldId}`,
+    })
+  },
+  component: () => null,
 })

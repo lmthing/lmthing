@@ -1,36 +1,28 @@
-import { useCallback, useRef, useMemo } from 'react'
-import { useUIState, useToggle, useSpaceFS } from '@lmthing/state'
+import { useCallback, useMemo, useRef } from 'react'
+import { useUIState, useToggle, useSpaceFS, useGlob } from '@lmthing/state'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Heading } from '@lmthing/ui/elements/typography/heading'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
 import { Stack } from '@lmthing/ui/elements/layouts/stack'
 import { Button } from '@lmthing/ui/elements/forms/button'
 import { Input } from '@lmthing/ui/elements/forms/input'
-import { FieldTree } from '@lmthing/ui/components/knowledge/field/field-tree'
-import type { FieldTreeHandle } from '@lmthing/ui/components/knowledge/field/field-tree'
 import { TopicEditor } from '@lmthing/ui/components/knowledge/topic-detail/topic-editor'
 import type { TopicEditorHandle } from '@lmthing/ui/components/knowledge/topic-detail/topic-editor'
-import { NewFileModal, collectFolders } from '@lmthing/ui/components/knowledge/field/new-file-modal'
-import { NewFolderModal } from '@lmthing/ui/components/knowledge/field/new-folder-modal'
-import { UnsavedChangesModal } from '@lmthing/ui/components/knowledge/field/unsaved-changes-modal'
+import { FieldIndexPanel } from '@lmthing/ui/components/knowledge/field/directory-metadata-panel'
 import { DeleteModal } from '@lmthing/ui/components/knowledge/field/delete-modal'
 import { RenameModal } from '@lmthing/ui/components/knowledge/field/rename-modal'
-import { DirectoryMetadataPanel } from '@lmthing/ui/components/knowledge/field/directory-metadata-panel'
-import { useKnowledgeTree } from '@lmthing/ui/hooks/useKnowledgeTree'
-import { useKnowledgeField } from '@lmthing/ui/hooks/useKnowledgeField'
 import { buildSpacePathFromParams } from '@/lib/space-url'
 import {
   ArrowLeft,
-  Search,
-  ChevronsUpDown,
-  ChevronsDownUp,
   FilePlus,
-  FolderPlus,
-  Download,
   FileText,
-  Bot,
-  X,
+  BookOpen,
+  Trash2,
+  Edit3,
 } from 'lucide-react'
+import { cn } from '@lmthing/ui/lib/utils'
+
+type PanelType = 'field-index' | 'option'
 
 function FieldDetailPage() {
   const params = Route.useParams()
@@ -38,187 +30,95 @@ function FieldDetailPage() {
   const navigate = useNavigate()
   const spaceFS = useSpaceFS()
 
-  const knowledge = useKnowledgeField(fieldId)
-  const treeNodes = useKnowledgeTree(fieldId)
-  const title = knowledge.config?.title || fieldId
-  const description = knowledge.config?.description || ''
+  // Decode domain and field from fieldId param (encoded as domain---field)
+  const separatorIdx = fieldId.indexOf('---')
+  const domain = separatorIdx >= 0 ? fieldId.slice(0, separatorIdx) : fieldId
+  const field = separatorIdx >= 0 ? fieldId.slice(separatorIdx + 3) : ''
 
   const spacePath = buildSpacePathFromParams(username, studioId, storageId, spaceId)
 
-  const [selectedFilePath, setSelectedFilePath] = useUIState<string | null>('field-page.selected-file', null)
-  const [selectedNodeType, setSelectedNodeType] = useUIState<'file' | 'directory' | null>('field-page.selected-node-type', null)
-  const [searchQuery, setSearchQuery] = useUIState('field-page.search-query', '')
-  const [isNewFileModalOpen, , setIsNewFileModalOpen] = useToggle('field-page.new-file-modal-open', false)
-  const [isNewFolderModalOpen, , setIsNewFolderModalOpen] = useToggle('field-page.new-folder-modal-open', false)
-  const [isThingOpen, toggleThingOpen, setIsThingOpen] = useToggle('field-page.thing-open', false)
-  const [isExporting, , setIsExporting] = useToggle('field-page.exporting', false)
+  // Get all files in the field directory
+  const fieldGlob = useGlob(field ? `knowledge/${domain}/${field}/*.md` : '')
 
-  // Phase 2: Unsaved changes tracking
-  const [hasUnsavedChanges, , setHasUnsavedChanges] = useToggle('field-page.has-unsaved-changes', false)
-  const [pendingFilePath, setPendingFilePath] = useUIState<string | null>('field-page.pending-file-path', null)
-  const [pendingNodeType, setPendingNodeType] = useUIState<'file' | 'directory' | null>('field-page.pending-node-type', null)
-  const [showUnsavedModal, , setShowUnsavedModal] = useToggle('field-page.show-unsaved-modal', false)
+  // Options = all .md files except index.md
+  const optionPaths = useMemo(() => {
+    return fieldGlob
+      .filter(p => !p.endsWith('/index.md'))
+      .sort()
+  }, [fieldGlob])
 
-  // Phase 5: Delete confirmation
-  const [deleteTarget, setDeleteTarget] = useUIState<{ path: string; isDirectory: boolean } | null>('field-page.delete-target', null)
+  const [selectedPath, setSelectedPath] = useUIState<string | null>('field-detail.selected-path', null)
+  const [panelType, setPanelType] = useUIState<PanelType>('field-detail.panel-type', 'field-index')
+  const [hasUnsavedChanges, , setHasUnsavedChanges] = useToggle('field-detail.has-unsaved-changes', false)
 
-  // Phase 6: Rename modal
-  const [renameTarget, setRenameTarget] = useUIState<{ path: string; name: string; isDirectory: boolean } | null>('field-page.rename-target', null)
+  // New option creation
+  const [showNewOption, , setShowNewOption] = useToggle('field-detail.show-new-option', false)
+  const [newOptionSlug, setNewOptionSlug] = useUIState<string>('field-detail.new-option-slug', '')
 
-  const treeRef = useRef<FieldTreeHandle>(null)
+  // Delete modal
+  const [deleteTarget, setDeleteTarget] = useUIState<{ path: string; isDirectory: boolean } | null>('field-detail.delete-target', null)
+
+  // Rename modal
+  const [renameTarget, setRenameTarget] = useUIState<{ path: string; name: string; isDirectory: boolean } | null>('field-detail.rename-target', null)
+
   const topicEditorRef = useRef<TopicEditorHandle>(null)
 
-  const folders = useMemo(() => collectFolders(treeNodes), [treeNodes])
-  const defaultLocation = `knowledge/${fieldId}`
-
-  // Switch to a new file/directory, with unsaved changes check
-  const switchTo = useCallback((path: string, type: 'file' | 'directory') => {
-    setSelectedFilePath(path)
-    setSelectedNodeType(type)
-    if (type === 'file') {
-      setHasUnsavedChanges(false)
-    }
+  const selectFieldIndex = useCallback(() => {
+    setSelectedPath(null)
+    setPanelType('field-index')
   }, [])
 
-  const handleFileSelect = useCallback((path: string) => {
-    if (hasUnsavedChanges && selectedFilePath && path !== selectedFilePath) {
-      setPendingFilePath(path)
-      setPendingNodeType('file')
-      setShowUnsavedModal(true)
-      return
-    }
-    switchTo(path, 'file')
-  }, [hasUnsavedChanges, selectedFilePath, switchTo])
-
-  const handleDirectorySelect = useCallback((path: string) => {
-    if (hasUnsavedChanges && selectedFilePath) {
-      setPendingFilePath(path)
-      setPendingNodeType('directory')
-      setShowUnsavedModal(true)
-      return
-    }
-    switchTo(path, 'directory')
-  }, [hasUnsavedChanges, selectedFilePath, switchTo])
-
-  // Unsaved changes modal handlers
-  const handleUnsavedDiscard = useCallback(() => {
-    setShowUnsavedModal(false)
+  const selectOption = useCallback((path: string) => {
+    setSelectedPath(path)
+    setPanelType('option')
     setHasUnsavedChanges(false)
-    if (pendingFilePath && pendingNodeType) {
-      switchTo(pendingFilePath, pendingNodeType)
-    }
-    setPendingFilePath(null)
-    setPendingNodeType(null)
-  }, [pendingFilePath, pendingNodeType, switchTo])
-
-  const handleUnsavedCancel = useCallback(() => {
-    setShowUnsavedModal(false)
-    setPendingFilePath(null)
-    setPendingNodeType(null)
   }, [])
 
-  const handleUnsavedSave = useCallback(() => {
-    topicEditorRef.current?.save()
-    setShowUnsavedModal(false)
-    setHasUnsavedChanges(false)
-    if (pendingFilePath && pendingNodeType) {
-      switchTo(pendingFilePath, pendingNodeType)
-    }
-    setPendingFilePath(null)
-    setPendingNodeType(null)
-  }, [pendingFilePath, pendingNodeType, switchTo])
-
-  const handleRenameNode = useCallback((oldPath: string, newPath: string) => {
-    if (!spaceFS) return
-    spaceFS.duplicatePath(oldPath, newPath)
-    spaceFS.deletePath(oldPath)
-    if (selectedFilePath === oldPath) {
-      setSelectedFilePath(newPath)
-    }
-  }, [spaceFS, selectedFilePath])
-
-  // Phase 5: Delete goes through modal
-  const handleDeleteNode = useCallback((path: string) => {
-    // Determine if directory by checking if it's in the tree
-    const isDir = path.endsWith('/') || !path.includes('.') || treeNodes.some(function findDir(n): boolean {
-      if (n.path === path) return n.type === 'directory'
-      return n.children?.some(findDir) || false
-    })
-    setDeleteTarget({ path, isDirectory: isDir })
-  }, [treeNodes])
+  const handleCreateOption = useCallback(() => {
+    if (!spaceFS || !newOptionSlug.trim() || !field) return
+    const slug = newOptionSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-')
+    const path = `knowledge/${domain}/${field}/${slug}.md`
+    spaceFS.writeFile(path, '')
+    setNewOptionSlug('')
+    setShowNewOption(false)
+    selectOption(path)
+  }, [spaceFS, newOptionSlug, domain, field, selectOption])
 
   const handleConfirmDelete = useCallback(() => {
     if (!spaceFS || !deleteTarget) return
     spaceFS.deletePath(deleteTarget.path)
-    if (selectedFilePath === deleteTarget.path) {
-      setSelectedFilePath(null)
-      setSelectedNodeType(null)
+    if (selectedPath === deleteTarget.path) {
+      setSelectedPath(null)
+      setPanelType('field-index')
     }
     setDeleteTarget(null)
-  }, [spaceFS, deleteTarget, selectedFilePath])
-
-  const handleDuplicateNode = useCallback((path: string) => {
-    if (!spaceFS) return
-    const ext = path.lastIndexOf('.')
-    const copyPath = ext > 0
-      ? `${path.slice(0, ext)}-copy${path.slice(ext)}`
-      : `${path}-copy`
-    spaceFS.duplicatePath(path, copyPath)
-  }, [spaceFS])
-
-  const handleCreateFile = useCallback((parentPath: string | null) => {
-    if (!spaceFS) return
-    const parent = parentPath || `knowledge/${fieldId}`
-    spaceFS.writeFile(`${parent}/untitled.md`, '')
-  }, [spaceFS, fieldId])
-
-  const handleCreateFolder = useCallback((parentPath: string | null) => {
-    if (!spaceFS) return
-    const parent = parentPath || `knowledge/${fieldId}`
-    spaceFS.writeFile(`${parent}/new-folder/config.json`, '{}')
-  }, [spaceFS, fieldId])
-
-  const handleCreateFileModal = useCallback((filename: string, location: string) => {
-    if (!spaceFS) return
-    spaceFS.writeFile(`${location}/${filename}`, '')
-    setSelectedFilePath(`${location}/${filename}`)
-    setSelectedNodeType('file')
-  }, [spaceFS])
-
-  const handleCreateFolderModal = useCallback((folderName: string, parentLocation: string) => {
-    if (!spaceFS) return
-    spaceFS.writeFile(`${parentLocation}/${folderName}/config.json`, '{}')
-  }, [spaceFS])
-
-  const handleMove = useCallback((dragPath: string, targetPath: string, _index: number) => {
-    if (!spaceFS || !targetPath) return
-    const fileName = dragPath.split('/').pop() || ''
-    const newPath = `${targetPath}/${fileName}`
-    if (newPath !== dragPath) {
-      spaceFS.duplicatePath(dragPath, newPath)
-      spaceFS.deletePath(dragPath)
-    }
-  }, [spaceFS])
-
-  const handleExport = useCallback(() => {
-    if (!spaceFS || isExporting) return
-    setIsExporting(true)
-    setTimeout(() => setIsExporting(false), 1500)
-  }, [spaceFS, isExporting])
-
-  // Phase 6: Rename modal handler
-  const handleRenameRequest = useCallback((path: string, name: string, isDirectory: boolean) => {
-    setRenameTarget({ path, name, isDirectory })
-  }, [])
+  }, [spaceFS, deleteTarget, selectedPath])
 
   const handleRenameConfirm = useCallback((newName: string) => {
     if (!renameTarget || !spaceFS) return
-    const pathParts = renameTarget.path.split('/')
-    pathParts[pathParts.length - 1] = newName
-    const newPath = pathParts.join('/')
-    handleRenameNode(renameTarget.path, newPath)
+    const parts = renameTarget.path.split('/')
+    parts[parts.length - 1] = newName.endsWith('.md') ? newName : `${newName}.md`
+    const newPath = parts.join('/')
+    spaceFS.duplicatePath(renameTarget.path, newPath)
+    spaceFS.deletePath(renameTarget.path)
+    if (selectedPath === renameTarget.path) {
+      setSelectedPath(newPath)
+    }
     setRenameTarget(null)
-  }, [renameTarget, spaceFS, handleRenameNode])
+  }, [renameTarget, spaceFS, selectedPath])
+
+  const optionSlugFromPath = (path: string) => {
+    const filename = path.split('/').pop() || ''
+    return filename.endsWith('.md') ? filename.slice(0, -3) : filename
+  }
+
+  if (!field) {
+    return (
+      <div style={{ padding: '2rem' }}>
+        <Caption muted>Invalid field ID: {fieldId}</Caption>
+      </div>
+    )
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -241,178 +141,129 @@ function FieldDetailPage() {
           </Button>
           <div style={{ minWidth: 0 }}>
             <Heading level={3} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {title}
+              {field}
             </Heading>
-            {description && (
-              <Caption muted style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {description}
-              </Caption>
-            )}
+            <Caption muted style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {domain}
+            </Caption>
           </div>
         </Stack>
-        <Stack row gap="sm" style={{ alignItems: 'center', flexShrink: 0 }}>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => toggleThingOpen()}
-          >
-            <Bot style={{ width: '1rem', height: '1rem', marginRight: '0.375rem' }} />
-            {isThingOpen ? 'Hide Thing' : 'Thing'}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleExport}
-            disabled={isExporting}
-          >
-            <Download style={{ width: '1rem', height: '1rem', marginRight: '0.375rem' }} />
-            {isExporting ? 'Exporting...' : 'Export'}
-          </Button>
-        </Stack>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowNewOption(true)}
+        >
+          <FilePlus style={{ width: '1rem', height: '1rem', marginRight: '0.375rem' }} />
+          New Option
+        </Button>
       </header>
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* Left pane: Tree Explorer */}
+        {/* Left pane: options list */}
         <aside style={{
-          width: '18rem',
+          width: '16rem',
           flexShrink: 0,
           borderRight: '1px solid var(--color-border)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
         }}>
-          <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)' }}>
-            <Stack row style={{ alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-              <Stack row style={{ alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{
-                  width: '0.5rem',
-                  height: '0.5rem',
-                  borderRadius: '50%',
-                  backgroundColor: '#10b981',
-                  display: 'inline-block',
-                }} />
-                <span style={{
-                  fontSize: '0.625rem',
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  color: 'var(--color-muted-foreground)',
-                }}>
-                  Knowledge Base
-                </span>
-              </Stack>
-              <Stack row style={{ gap: '0.125rem' }}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => treeRef.current?.expandAll()}
-                  title="Expand all"
-                  style={{ width: '1.5rem', height: '1.5rem' }}
-                >
-                  <ChevronsUpDown style={{ width: '0.75rem', height: '0.75rem' }} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => treeRef.current?.collapseAll()}
-                  title="Collapse all"
-                  style={{ width: '1.5rem', height: '1.5rem' }}
-                >
-                  <ChevronsDownUp style={{ width: '0.75rem', height: '0.75rem' }} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsNewFileModalOpen(true)}
-                  title="New file"
-                  style={{ width: '1.5rem', height: '1.5rem' }}
-                >
-                  <FilePlus style={{ width: '0.75rem', height: '0.75rem' }} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsNewFolderModalOpen(true)}
-                  title="New folder"
-                  style={{ width: '1.5rem', height: '1.5rem' }}
-                >
-                  <FolderPlus style={{ width: '0.75rem', height: '0.75rem' }} />
-                </Button>
-              </Stack>
-            </Stack>
-
-            <div style={{ position: 'relative' }}>
-              <Search style={{
-                position: 'absolute',
-                left: '0.5rem',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                width: '0.875rem',
-                height: '0.875rem',
-                color: 'var(--color-muted-foreground)',
-                pointerEvents: 'none',
-              }} />
-              <Input
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search files..."
-                style={{ paddingLeft: '2rem', fontSize: '0.8125rem' }}
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  style={{
-                    position: 'absolute',
-                    right: '0.375rem',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: '0.125rem',
-                    color: 'var(--color-muted-foreground)',
-                    display: 'flex',
-                  }}
-                >
-                  <X style={{ width: '0.75rem', height: '0.75rem' }} />
-                </button>
+          <div style={{ flex: 1, overflow: 'auto', padding: '0.5rem 0' }}>
+            {/* Field index entry */}
+            <div
+              className={cn(
+                'field-tree-node',
+                panelType === 'field-index' && !selectedPath && 'field-tree-node--selected',
               )}
+              style={{ padding: '0.5rem 1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              onClick={selectFieldIndex}
+            >
+              <BookOpen style={{ width: '0.875rem', height: '0.875rem', flexShrink: 0 }} />
+              <span style={{ fontSize: '0.8125rem' }}>index.md</span>
             </div>
-          </div>
 
-          <div style={{ flex: 1, overflow: 'auto' }}>
-            <FieldTree
-              ref={treeRef}
-              nodes={treeNodes}
-              selectedFilePath={selectedFilePath}
-              searchQuery={searchQuery}
-              onFileSelect={handleFileSelect}
-              onDirectorySelect={handleDirectorySelect}
-              onRenameNode={handleRenameNode}
-              onDeleteNode={handleDeleteNode}
-              onDuplicateNode={handleDuplicateNode}
-              onCreateFile={handleCreateFile}
-              onCreateFolder={handleCreateFolder}
-              onMove={handleMove}
-              onRenameRequest={handleRenameRequest}
-            />
+            {/* Option entries */}
+            {optionPaths.map(path => {
+              const slug = optionSlugFromPath(path)
+              const isSelected = selectedPath === path
+              return (
+                <div
+                  key={path}
+                  className={cn('field-tree-node', isSelected && 'field-tree-node--selected')}
+                  style={{ padding: '0.5rem 1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                  onClick={() => selectOption(path)}
+                >
+                  <FileText style={{ width: '0.875rem', height: '0.875rem', flexShrink: 0 }} />
+                  <span style={{ fontSize: '0.8125rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{slug}</span>
+                  <Stack row style={{ gap: '0.125rem', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      style={{ width: '1.5rem', height: '1.5rem' }}
+                      onClick={() => setRenameTarget({ path, name: slug, isDirectory: false })}
+                    >
+                      <Edit3 style={{ width: '0.75rem', height: '0.75rem' }} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      style={{ width: '1.5rem', height: '1.5rem' }}
+                      onClick={() => setDeleteTarget({ path, isDirectory: false })}
+                    >
+                      <Trash2 style={{ width: '0.75rem', height: '0.75rem' }} />
+                    </Button>
+                  </Stack>
+                </div>
+              )
+            })}
+
+            {/* New option inline form */}
+            {showNewOption && (
+              <div style={{ padding: '0.5rem 1rem' }}>
+                <Input
+                  type="text"
+                  value={newOptionSlug}
+                  onChange={e => setNewOptionSlug(e.target.value)}
+                  placeholder="option-slug"
+                  autoFocus
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') handleCreateOption()
+                    if (e.key === 'Escape') { setShowNewOption(false); setNewOptionSlug('') }
+                  }}
+                  style={{ fontSize: '0.8125rem', marginBottom: '0.25rem' }}
+                />
+                <Stack row gap="xs">
+                  <Button variant="primary" size="sm" onClick={handleCreateOption} disabled={!newOptionSlug.trim()}>
+                    Add
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => { setShowNewOption(false); setNewOptionSlug('') }}>
+                    Cancel
+                  </Button>
+                </Stack>
+              </div>
+            )}
+
+            {optionPaths.length === 0 && !showNewOption && (
+              <div style={{ padding: '1rem', textAlign: 'center' }}>
+                <Caption muted>No options yet.</Caption>
+              </div>
+            )}
           </div>
         </aside>
 
         {/* Main content area */}
         <main style={{ flex: 1, overflow: 'auto', display: 'flex' }}>
-          {selectedFilePath && selectedNodeType === 'file' ? (
+          {panelType === 'field-index' && !selectedPath ? (
+            <div style={{ flex: 1, padding: '1.5rem', overflow: 'auto' }}>
+              <FieldIndexPanel domain={domain} field={field} />
+            </div>
+          ) : panelType === 'option' && selectedPath ? (
             <div style={{ padding: '1.5rem', flex: 1 }}>
               <TopicEditor
                 ref={topicEditorRef}
-                topicPath={selectedFilePath}
+                topicPath={selectedPath}
                 onUnsavedChange={setHasUnsavedChanges}
               />
-            </div>
-          ) : selectedFilePath && selectedNodeType === 'directory' ? (
-            <div style={{ flex: 1 }}>
-              <DirectoryMetadataPanel directoryPath={selectedFilePath} />
             </div>
           ) : (
             <Stack style={{
@@ -423,86 +274,14 @@ function FieldDetailPage() {
               color: 'var(--color-muted-foreground)',
             }}>
               <FileText style={{ width: '3rem', height: '3rem', strokeWidth: 1, marginBottom: '1rem' }} />
-              <Heading level={3} style={{ color: 'var(--color-muted-foreground)' }}>No file selected</Heading>
+              <Heading level={3} style={{ color: 'var(--color-muted-foreground)' }}>No option selected</Heading>
               <Caption muted style={{ maxWidth: '24rem', textAlign: 'center' }}>
-                Select a file from the tree to view and edit its content, or create a new prompt fragment.
+                Select an option from the list, or click index.md to edit field settings.
               </Caption>
-              {knowledge.entries.length > 0 && (
-                <Caption muted style={{ marginTop: '0.5rem' }}>
-                  {knowledge.entries.length} {knowledge.entries.length === 1 ? 'entry' : 'entries'} in this field
-                </Caption>
-              )}
             </Stack>
-          )}
-
-          {/* Thing sliding panel */}
-          {isThingOpen && (
-            <aside style={{
-              width: '22rem',
-              flexShrink: 0,
-              borderLeft: '1px solid var(--color-border)',
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-              backgroundColor: 'var(--color-background)',
-            }}>
-              <div style={{
-                padding: '0.75rem 1rem',
-                borderBottom: '1px solid var(--color-border)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}>
-                <Stack row style={{ alignItems: 'center', gap: '0.5rem' }}>
-                  <Bot style={{ width: '1rem', height: '1rem', color: '#8b5cf6' }} />
-                  <Heading level={4}>Thing</Heading>
-                </Stack>
-                <Button variant="ghost" size="icon" onClick={() => setIsThingOpen(false)}>
-                  <X style={{ width: '0.875rem', height: '0.875rem' }} />
-                </Button>
-              </div>
-              <div style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '2rem',
-                color: 'var(--color-muted-foreground)',
-              }}>
-                <Bot style={{ width: '2.5rem', height: '2.5rem', strokeWidth: 1, marginBottom: '1rem' }} />
-                <Caption muted style={{ textAlign: 'center', maxWidth: '16rem' }}>
-                  Thing can help you generate content, organize structure, and summarize knowledge.
-                </Caption>
-              </div>
-            </aside>
           )}
         </main>
       </div>
-
-      {/* Modals */}
-      <NewFileModal
-        isOpen={isNewFileModalOpen}
-        onClose={() => setIsNewFileModalOpen(false)}
-        onCreate={handleCreateFileModal}
-        folders={folders}
-        defaultLocation={defaultLocation}
-      />
-
-      <NewFolderModal
-        isOpen={isNewFolderModalOpen}
-        onClose={() => setIsNewFolderModalOpen(false)}
-        onCreate={handleCreateFolderModal}
-        folders={folders}
-        defaultLocation={defaultLocation}
-      />
-
-      <UnsavedChangesModal
-        isOpen={showUnsavedModal}
-        onDiscard={handleUnsavedDiscard}
-        onCancel={handleUnsavedCancel}
-        onSave={handleUnsavedSave}
-      />
 
       <DeleteModal
         isOpen={!!deleteTarget}

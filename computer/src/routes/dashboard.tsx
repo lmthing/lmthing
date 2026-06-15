@@ -9,23 +9,22 @@ export const Route = createFileRoute('/dashboard')({
   component: DashboardRoute,
 })
 
-function mapStatusToBootStage(status: string, tier: string): BootStage {
+function mapStatusToBootStage(status: string): BootStage {
   if (status === 'running') return 'running'
   if (status === 'error') return 'error'
-  if (tier === 'pod') return 'connecting'
-  return 'booting'
+  return 'connecting'
 }
 
 function DashboardRoute() {
-  const { status, tier, metrics, processes, agents, logs, network } = useComputer()
+  const { status, metrics, processes, agents, logs, network } = useComputer()
   const bootedAt = useRef(Date.now())
   const uptime = status === 'running' ? Date.now() - bootedAt.current : 0
 
   if (status !== 'running' && status !== 'error') {
     return (
       <BootProgress
-        tier={tier}
-        stage={mapStatusToBootStage(status, tier)}
+        tier="flyio"
+        stage={mapStatusToBootStage(status)}
       />
     )
   }
@@ -33,7 +32,7 @@ function DashboardRoute() {
   return (
     <ComputerDashboard
       status={status}
-      tier={tier}
+      tier="flyio"
       uptime={uptime}
       cpuPercent={metrics.cpuPercent}
       memoryUsedMB={metrics.memoryUsedMB}

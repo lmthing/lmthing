@@ -2,8 +2,6 @@ import { createRootRoute, Outlet, useRouter, useRouterState } from '@tanstack/re
 import { AppProvider } from '@lmthing/state'
 import { AuthProvider, useAuth, useRepoSync } from '@lmthing/auth'
 import { ComputerProvider, useComputer } from '@/lib/runtime/ComputerContext'
-import { ReplRelay } from '@/lib/runtime/ReplRelay'
-import { FsRelay } from '@/lib/runtime/FsRelay'
 import { useTierDetection } from '@/lib/runtime/use-tier-detection'
 import { ComputerLayout } from '@lmthing/ui/components/computer/computer-layout'
 import { LoginScreen } from '@lmthing/ui/components/auth/login-screen'
@@ -37,7 +35,7 @@ function RepoSyncGate({ children }: { children: React.ReactNode }) {
 }
 
 function ComputerShell() {
-  const { status, tier, error, boot } = useComputer()
+  const { status, error, boot } = useComputer()
   const router = useRouter()
   const routerState = useRouterState()
   const currentPath = routerState.location.pathname
@@ -59,7 +57,7 @@ function ComputerShell() {
   return (
     <ComputerLayout
       status={status}
-      tier={tier}
+      tier="flyio"
       currentPath={currentPath}
       onNavigate={(path) => router.navigate({ to: path })}
       error={error}
@@ -70,23 +68,20 @@ function ComputerShell() {
   )
 }
 
-function IdeInitializer() {
-  const { status, container, initIDE, tier } = useComputer()
-  useEffect(() => {
-    if (tier === 'webcontainer' && status === 'running' && container) {
-      initIDE()
-    }
-  }, [status, container, initIDE, tier])
-  return null
-}
+function PodProvider({ children }: { children: React.ReactNode }) {
+  const { podConfig, ensuring } = useTierDetection()
 
-function TierAwareProvider({ children }: { children: React.ReactNode }) {
-  const { tier, podConfig } = useTierDetection()
+  if (ensuring || !podConfig) {
+    // Show a minimal loading state while we ensure the pod is up
+    return (
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f0f0f', color: '#666' }}>
+        {ensuring ? 'Starting pod…' : 'No pod config available'}
+      </div>
+    )
+  }
+
   return (
-    <ComputerProvider tier={tier} podConfig={podConfig}>
-      <IdeInitializer />
-      <ReplRelay />
-      <FsRelay />
+    <ComputerProvider computerBaseUrl={podConfig.computerBaseUrl} accessToken={podConfig.accessToken}>
       {children}
     </ComputerProvider>
   )
@@ -99,9 +94,9 @@ function RootComponent() {
         <AuthGate>
           <PinGate>
             <RepoSyncGate>
-              <TierAwareProvider>
+              <PodProvider>
                 <ComputerShell />
-              </TierAwareProvider>
+              </PodProvider>
             </RepoSyncGate>
           </PinGate>
         </AuthGate>

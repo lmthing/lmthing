@@ -1,6 +1,6 @@
-// Runtime abstraction — both WebContainer and Pod backends implement this
+// Runtime abstraction — K8s pod backend
 
-export type RuntimeTier = 'webcontainer' | 'pod'
+export type RuntimeTier = 'pod'
 export type RuntimeStatus = 'booting' | 'running' | 'stopped' | 'error'
 
 export interface RuntimeMetrics {

@@ -1,78 +1,56 @@
-import { useEffect, useMemo, useState } from 'react'
-import type { RuntimeTier } from './types'
+import { useEffect, useState } from 'react'
 
 const CLOUD_BASE_URL = import.meta.env.VITE_CLOUD_BASE_URL
   ?? (import.meta.env.DEV ? `${window.location.protocol}//cloud.test` : 'https://lmthing.cloud')
 const COMPUTER_BASE_URL = import.meta.env.VITE_COMPUTER_BASE_URL
   ?? (import.meta.env.DEV ? `${window.location.protocol}//computer.test` : 'https://lmthing.computer')
-const CLOUD_AUTH_KEY = 'lmthing-cloud-auth'
 
-interface CloudAuth {
+export interface PodConfig {
+  computerBaseUrl: string
   accessToken: string
 }
 
-export interface TierDetectionResult {
-  tier: RuntimeTier
-  podConfig?: {
-    computerBaseUrl: string
-    accessToken: string
-  }
-}
-
-function getCloudAuth(): CloudAuth | null {
-  try {
-    const raw = localStorage.getItem(CLOUD_AUTH_KEY)
-    if (!raw) return null
-    return JSON.parse(raw) as CloudAuth
-  } catch {
-    return null
-  }
-}
-
 /**
- * Detects the user's runtime tier by checking their subscription via /api/auth/me.
- * Pro and Max tiers get a dedicated K8s compute pod. Others use WebContainer.
+ * Reads the stored access token and optionally calls POST /api/compute/ensure
+ * so the pod is provisioned before we connect. Returns podConfig when ready.
  */
-export function useTierDetection(): TierDetectionResult {
-  const [tier, setTier] = useState<RuntimeTier>('webcontainer')
-  const [accessToken, setAccessToken] = useState<string | null>(null)
+export function useTierDetection(): { podConfig: PodConfig | null; ensuring: boolean } {
+  const [podConfig, setPodConfig] = useState<PodConfig | null>(null)
+  const [ensuring, setEnsuring] = useState(true)
 
   useEffect(() => {
-    const cloudAuth = getCloudAuth()
-    if (!cloudAuth?.accessToken) {
-      setTier('webcontainer')
-      return
+    let cancelled = false
+
+    async function ensurePod() {
+      try {
+        const raw = localStorage.getItem('lmthing-cloud-auth')
+        if (!raw) { setEnsuring(false); return }
+        const { accessToken } = JSON.parse(raw) as { accessToken: string }
+        if (!accessToken) { setEnsuring(false); return }
+
+        // Best-effort pod ensure — don't block the UI if the gateway is unreachable
+        try {
+          await fetch(`${CLOUD_BASE_URL}/api/compute/ensure`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${accessToken}` },
+          })
+        } catch {
+          // ignore — pod may already be running
+        }
+
+        if (!cancelled) {
+          setPodConfig({ computerBaseUrl: COMPUTER_BASE_URL, accessToken })
+        }
+      } catch {
+        // ignore parse errors
+      } finally {
+        if (!cancelled) setEnsuring(false)
+      }
     }
 
-    // Check user tier via gateway
-    fetch(`${CLOUD_BASE_URL}/api/auth/me`, {
-      headers: {
-        'Authorization': `Bearer ${cloudAuth.accessToken}`,
-      },
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          setTier('webcontainer')
-          return
-        }
-        const data = await res.json()
-        const userTier = data.tier as string
-        if (userTier === 'pro' || userTier === 'max') {
-          setTier('pod')
-          setAccessToken(cloudAuth.accessToken)
-        } else {
-          setTier('webcontainer')
-        }
-      })
-      .catch(() => {
-        setTier('webcontainer')
-      })
+    ensurePod()
+    return () => { cancelled = true }
   }, [])
 
-  const podConfig = useMemo(() => {
-    if (tier !== 'pod' || !accessToken) return undefined
-    return { computerBaseUrl: COMPUTER_BASE_URL, accessToken }
-  }, [tier, accessToken])
-
-  return { tier, podConfig }
+  return { podConfig, ensuring }
 }

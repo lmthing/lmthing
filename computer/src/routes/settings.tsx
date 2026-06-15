@@ -12,7 +12,6 @@ import { Caption } from '@lmthing/ui/elements/typography/caption'
 
 const CLOUD_BASE_URL = import.meta.env.VITE_CLOUD_BASE_URL ?? 'https://cloud.lmthing.org'
 const CLOUD_AUTH_KEY = 'lmthing-cloud-auth'
-const COMPUTER_PRICE_ID = import.meta.env.VITE_COMPUTER_PRICE_ID ?? ''
 
 export const Route = createFileRoute('/settings')({
   component: Settings,
@@ -33,7 +32,7 @@ async function openBillingPortal() {
   const authHeader = getAuthHeader()
   if (!authHeader) throw new Error('Not authenticated with cloud')
 
-  const res = await fetch(`${CLOUD_BASE_URL}/functions/v1/billing-portal`, {
+  const res = await fetch(`${CLOUD_BASE_URL}/api/billing/portal`, {
     method: 'POST',
     headers: {
       'Authorization': authHeader,
@@ -49,83 +48,6 @@ async function openBillingPortal() {
 
   const { portal_url } = await res.json()
   window.location.href = portal_url
-}
-
-async function startCheckout() {
-  const authHeader = getAuthHeader()
-  if (!authHeader) throw new Error('Not authenticated with cloud')
-
-  const res = await fetch(`${CLOUD_BASE_URL}/functions/v1/create-checkout`, {
-    method: 'POST',
-    headers: {
-      'Authorization': authHeader,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      price_id: COMPUTER_PRICE_ID,
-      success_url: `${window.location.origin}/settings?upgraded=1`,
-      cancel_url: window.location.href,
-    }),
-  })
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
-    throw new Error(body?.error?.message ?? 'Failed to start checkout')
-  }
-
-  const { checkout_url } = await res.json()
-  window.location.href = checkout_url
-}
-
-const WC_MODEL_KEY = 'lmthing_wc_model'
-const WC_API_KEY_KEY = 'lmthing_wc_api_key'
-const WC_API_BASE_KEY = 'lmthing_wc_api_base'
-
-function WcModelConfig() {
-  const [model, setModel] = useState(() => localStorage.getItem(WC_MODEL_KEY) || '')
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem(WC_API_KEY_KEY) || '')
-  const [apiBase, setApiBase] = useState(() => localStorage.getItem(WC_API_BASE_KEY) || '')
-  const [saved, setSaved] = useState(false)
-
-  const save = () => {
-    if (model) localStorage.setItem(WC_MODEL_KEY, model)
-    else localStorage.removeItem(WC_MODEL_KEY)
-    if (apiKey) localStorage.setItem(WC_API_KEY_KEY, apiKey)
-    else localStorage.removeItem(WC_API_KEY_KEY)
-    if (apiBase) localStorage.setItem(WC_API_BASE_KEY, apiBase)
-    else localStorage.removeItem(WC_API_BASE_KEY)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-      <Caption muted>Model identifier (e.g. <code>openai:gpt-4o-mini</code>, <code>anthropic:claude-3-5-haiku-20241022</code>)</Caption>
-      <Input
-        placeholder="openai:gpt-4o-mini"
-        value={model}
-        onChange={e => setModel(e.target.value)}
-        style={{ fontFamily: 'monospace' }}
-      />
-      <Caption muted>API key for your LLM provider</Caption>
-      <Input
-        type="password"
-        placeholder="sk-..."
-        value={apiKey}
-        onChange={e => setApiKey(e.target.value)}
-        style={{ fontFamily: 'monospace' }}
-      />
-      <Caption muted>Base URL (optional — for LiteLLM proxy or custom endpoint)</Caption>
-      <Input
-        placeholder="https://lmthing.cloud/v1"
-        value={apiBase}
-        onChange={e => setApiBase(e.target.value)}
-        style={{ fontFamily: 'monospace' }}
-      />
-      <Button variant="primary" size="sm" onClick={save}>Save</Button>
-      {saved && <Caption muted>Saved. Reload the page to apply.</Caption>}
-    </div>
-  )
 }
 
 const KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/
@@ -229,7 +151,7 @@ function EnvVars() {
 
 function Settings() {
   const { username, logout } = useAuth()
-  const { tier, status } = useComputer()
+  const { status } = useComputer()
   const [billingLoading, setBillingLoading] = useState(false)
   const [billingError, setBillingError] = useState<string | null>(null)
 
@@ -242,17 +164,6 @@ function Settings() {
       await openBillingPortal()
     } catch (err) {
       setBillingError(err instanceof Error ? err.message : 'Failed to open billing portal')
-      setBillingLoading(false)
-    }
-  }
-
-  const handleUpgrade = async () => {
-    setBillingLoading(true)
-    setBillingError(null)
-    try {
-      await startCheckout()
-    } catch (err) {
-      setBillingError(err instanceof Error ? err.message : 'Failed to start checkout')
       setBillingLoading(false)
     }
   }
@@ -281,52 +192,25 @@ function Settings() {
             <Heading level={4}>Runtime</Heading>
           </CardHeader>
           <CardBody>
-            <Badge variant={tier === 'pod' ? 'primary' : 'muted'}>
-              {tier === 'pod' ? 'Pro (Dedicated Pod)' : 'Free (WebContainer)'}
-            </Badge>
+            <Badge variant="primary">Dedicated Pod</Badge>
+            <Caption muted>Status: {status}</Caption>
             <Caption muted>
-              Status: {status}
+              0.5 CPU, 1 GB memory. Always-on with full metrics and terminal access.
             </Caption>
-            {tier === 'webcontainer' && (
-              <Caption muted>
-                Upgrade to Pro for a dedicated compute pod with full CPU/memory metrics, network monitoring, and persistent processes.
-              </Caption>
-            )}
-            {tier === 'pod' && (
-              <Caption muted>
-                0.5 CPU, 1 GB memory, 1 GB storage. Always-on with full metrics and terminal access.
-              </Caption>
-            )}
           </CardBody>
         </Card>
 
-        {tier === 'webcontainer' && (
-          <Card>
-            <CardHeader>
-              <Heading level={4}>Model Configuration</Heading>
-            </CardHeader>
-            <CardBody>
-              <Caption muted>
-                Configure the LLM used by the chat agent running in your WebContainer.
-              </Caption>
-              <WcModelConfig />
-            </CardBody>
-          </Card>
-        )}
-
-        {tier === 'pod' && (
-          <Card>
-            <CardHeader>
-              <Heading level={4}>Environment Variables</Heading>
-            </CardHeader>
-            <CardBody>
-              <Caption muted>
-                Variables are injected into your compute pod at startup. Saving will restart your pod.
-              </Caption>
-              <EnvVars />
-            </CardBody>
-          </Card>
-        )}
+        <Card>
+          <CardHeader>
+            <Heading level={4}>Environment Variables</Heading>
+          </CardHeader>
+          <CardBody>
+            <Caption muted>
+              Variables are injected into your compute pod at startup. Saving will restart your pod.
+            </Caption>
+            <EnvVars />
+          </CardBody>
+        </Card>
 
         <Card>
           <CardHeader>
@@ -338,17 +222,7 @@ function Settings() {
                 Sign in with your cloud account to manage billing.
               </Caption>
             )}
-            {hasCloudAuth && tier === 'webcontainer' && COMPUTER_PRICE_ID && (
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleUpgrade}
-                disabled={billingLoading}
-              >
-                {billingLoading ? 'Redirecting...' : 'Upgrade to Pro'}
-              </Button>
-            )}
-            {hasCloudAuth && tier === 'pod' && (
+            {hasCloudAuth && (
               <Button
                 variant="secondary"
                 size="sm"
@@ -356,16 +230,6 @@ function Settings() {
                 disabled={billingLoading}
               >
                 {billingLoading ? 'Redirecting...' : 'Manage Subscription'}
-              </Button>
-            )}
-            {hasCloudAuth && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleBillingPortal}
-                disabled={billingLoading}
-              >
-                {billingLoading ? 'Redirecting...' : 'Billing Portal'}
               </Button>
             )}
             {billingError && (

@@ -1,12 +1,12 @@
 # computer/ — lmthing.computer
 
-THING agent runtime environment. Browser-based IDE with file tree, Monaco editor, xterm.js terminal, and preview pane. Supports two runtime backends based on user tier.
+THING agent runtime environment. Browser-based IDE with file tree, Monaco editor, xterm.js terminal, and an agent chat view powered by `@lmthing/agent-ui`. All agent execution runs server-side in the user's K8s compute pod.
 
 ## Stack
 
 - React 19 + Vite 8 + TanStack Router + Tailwind CSS v4
 - Monaco Editor, xterm.js, react-resizable-panels, Zustand
-- `@lmthing/auth`, `@lmthing/state`, `@lmthing/ui`, `lmthing` (core)
+- `@lmthing/auth`, `@lmthing/state`, `@lmthing/ui`, `@lmthing/agent-ui`
 - Docker: multi-stage build (node:22-slim builder + nginx:alpine runtime)
 
 ## Running Locally
@@ -19,69 +19,87 @@ cd computer && pnpm dev    # http://localhost:3010 / computer.test
 
 ```
 src/routes/
-├── __root.tsx              # AuthProvider("computer"), AuthGate, PinGate
+├── __root.tsx              # AuthProvider("computer"), AuthGate, PinGate, PodProvider
 ├── index.tsx               # IDE: file tree + editor + terminal tabs + preview
+├── chat.tsx                # Agent chat via @lmthing/agent-ui (pod /api/sessions)
 ├── dashboard.tsx           # Pod management dashboard
 ├── terminal.tsx            # Full-screen terminal
-├── settings.tsx            # Settings
+├── settings.tsx            # Settings (env vars, billing)
 └── spaces/                 # Space management
 ```
 
-## Dual Runtime Architecture
+## Single Runtime Architecture — K8s Pod
 
-Tier detection (`use-tier-detection.ts`) calls `/api/auth/me` to determine runtime:
+All agent execution runs server-side in the user's dedicated K8s compute pod. Envoy Gateway validates the JWT and routes `/api/*` on lmthing.computer to the user's pod.
 
-| Tier | Runtime | Implementation |
-|------|---------|---------------|
-| Free/Starter/Basic | WebContainer | In-browser VM via `@webcontainer/api`, persisted to OPFS |
-| Pro/Max | K8s Pod | WebSocket connection to `user-{id}` pod via Envoy Gateway |
+### Tier detection (`use-tier-detection.ts`)
+
+1. Reads the stored `lmthing-cloud-auth` JWT from localStorage.
+2. Calls `POST {CLOUD_BASE_URL}/api/compute/ensure` (best-effort) to provision or wake the pod.
+3. Returns `{ podConfig: { computerBaseUrl, accessToken } }` once ready.
 
 ### ComputerContext (`src/lib/runtime/ComputerContext.tsx`)
 
-Central React context managing the runtime lifecycle. Creates either `WebContainerRuntime` or `PodRuntime`, dispatches events (status, metrics, process, agent, log, network), handles IDE initialization.
-
-### WebContainer Runtime (`src/lib/runtime/webcontainer.ts`)
-
-- Runs entirely in-browser using `@webcontainer/api`
-- Requires cross-origin isolation headers (COEP/COOP — see Docker section)
-- Persists state to OPFS (`src/lib/runtime/opfs.ts`) for snapshot/restore across sessions
-- Mounts space templates or restores from OPFS on boot
+Central React context managing the pod runtime lifecycle. Always creates a `PodRuntime` (never WebContainer). The root route wraps everything in `<PodProvider>` which reads from `useTierDetection()`.
 
 ### Pod Runtime (`src/lib/runtime/pod.ts`)
 
-- Connects to K8s compute pod via WebSocket: `/api/ws?access_token=...`
+- Connects to the K8s compute pod via WebSocket: `/api/ws?access_token=...`
 - Protocol defined in `src/lib/runtime/ws-protocol.ts`
 - Handles: terminal sessions, metrics, process/agent lists, logs, network events
 - Exponential backoff reconnection (max 5 retries)
 
-### ReplRelay (`src/lib/runtime/ReplRelay.tsx`)
+### Agent Session Rendering (`routes/chat.tsx`)
 
-Bridge component that activates only when embedded as iframe (by lmthing.chat):
+Agent sessions are created and rendered via `@lmthing/agent-ui`:
 
-1. Connects to WebContainer's SSE `/events` endpoint
-2. Receives REPL state updates
-3. Forwards to parent frame via `postMessage({ type: 'lmthing:repl-update' })`
-4. Receives user messages via `lmthing:repl-send` postMessage
-5. Sends them to WebContainer via POST `/send`
+```ts
+import { useReplSession, DisplayBlock, AskBlock, ReplRpcClient, type ReplClientConfig } from '@lmthing/agent-ui'
+
+// 1. Create session
+const client = await ReplRpcClient.createSession(
+  COMPUTER_BASE_URL,            // e.g. https://lmthing.computer
+  { agentSlug, model },          // optional
+  accessToken,                   // JWT from lmthing-cloud-auth
+)
+
+// 2. Feed into hook
+const { blocks, sendMessage, submitForm, cancelAsk } = useReplSession({
+  baseUrl: COMPUTER_BASE_URL,
+  sessionId: client.sessionId,
+  accessToken,
+})
+
+// 3. Render blocks
+blocks.map(block => {
+  if (block.type === 'display') return <DisplayBlock data={block.data} />
+  if (block.type === 'ask')    return <AskBlock id={block.id} data={block.data} onSubmit={...} onCancel={...} />
+})
+```
+
+The pod exposes:
+- `POST /api/sessions` → `{ sessionId }` — create a session
+- `GET/DELETE /api/sessions/:id` — inspect/destroy session
+- `POST /api/sessions/:id/message` — send a message
+- `POST/DELETE /api/sessions/:id/ask/:askId` — submit/cancel an ask
+- `WS /api/ws?sessionId=:id` — event stream (display/ask_start/ask_end/variables/error/done)
+
+Envoy routes `/api/*` on the computer origin to the user's pod by JWT → `x-user-id`.
 
 ## Zustand Store (`src/lib/store.ts`)
 
 IDE state: file tree, open files, active file, preview URL, boot/install status.
 
-## Docker & Cross-Origin Isolation
+## Docker & nginx
 
-The Dockerfile builds a multi-stage image (node:22-slim + nginx:alpine). nginx serves the SPA with required headers for WebContainer:
-
-```
-Cross-Origin-Embedder-Policy: credentialless
-Cross-Origin-Opener-Policy: same-origin
-Cross-Origin-Resource-Policy: cross-origin
-```
-
-These headers enable `SharedArrayBuffer` which WebContainer requires. The `credentialless` COEP policy (instead of `require-corp`) allows embedding as iframe in lmthing.chat without CORP issues.
+The Dockerfile builds a multi-stage image (node:22-slim + nginx:alpine). nginx serves the SPA — **no cross-origin isolation headers** (COEP/COOP/CORP were required only for WebContainer and have been removed).
 
 Images are built by GitHub Actions CI and pushed to `lmthingacr.azurecr.io/computer:<sha>`.
 
-## Space Templates
+## Obsolete concepts (removed)
 
-The `gen-spaces` script snapshots space templates from `sdk/org/cli/spaces/` and `sdk/libs/spaces/` for WebContainer initialization.
+- **WebContainer** — browser-based VM, OPFS snapshots, cross-origin isolation headers. All deleted.
+- **ReplRelay / FsRelay** — postMessage bridges for iframe embedding. Removed.
+- **use-repl-bridge / repl-bridge** — WebContainer process I/O bridge. Removed.
+- **Dual-runtime tier detection** — no longer selects between WebContainer and pod. Now just ensures the pod is provisioned and returns credentials.
+- **gen-spaces script** — snapshotted space dirs for WebContainer; now a no-op (pod runtime loads spaces server-side).

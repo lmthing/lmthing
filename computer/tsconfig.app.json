@@ -23,13 +23,13 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
+      "@lmthing/agent-ui": ["../sdk/org/packages/ui/src/index.ts"],
       "@lmthing/ui": ["../sdk/libs/ui/src"],
       "@lmthing/ui/*": ["../sdk/libs/ui/src/*"],
       "@lmthing/css/*": ["../sdk/libs/css/src/*"],
       "@lmthing/state": ["../sdk/libs/state/src/index.ts"],
-      "@lmthing/state/*": ["../sdk/libs/state/src/*"],
-      "lmthing": ["../sdk/org/cli/src"]
+      "@lmthing/state/*": ["../sdk/libs/state/src/*"]
     }
   },
-  "include": ["src", "../sdk/libs/ui/src", "../sdk/libs/css/src"]
+  "include": ["src", "../sdk/libs/ui/src", "../sdk/libs/css/src", "../sdk/org/packages/ui/src"]
 }

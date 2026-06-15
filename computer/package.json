@@ -10,9 +10,10 @@
     "preview": "vp preview",
     "test": "vp test",
     "test:run": "vp test run",
-    "gen-spaces": "node scripts/gen-space-template.mjs ../sdk/org/cli/spaces/codebase ../sdk/libs/spaces/knowledge > src/lib/runtime/spaces-snapshot.ts"
+    "gen-spaces": "echo 'gen-spaces is obsolete: WebContainer and spaces-snapshot are no longer used (pod-only runtime)'"
   },
   "dependencies": {
+    "@lmthing/agent-ui": "workspace:*",
     "@lmthing/auth": "workspace:*",
     "@lmthing/css": "workspace:*",
     "@lmthing/state": "workspace:*",
@@ -21,13 +22,11 @@
     "@radix-ui/react-context-menu": "^2.2.1",
     "@tailwindcss/vite": "^4.1.17",
     "@tanstack/react-router": "^1.166.2",
-    "@webcontainer/api": "^1.5.1",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/addon-web-links": "^0.11.0",
     "@xterm/xterm": "^5.5.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lmthing": "workspace:*",
     "lucide-react": "^0.575.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

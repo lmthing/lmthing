@@ -51,7 +51,7 @@ function ChatHome() {
         await ensurePod(CLOUD_BASE_URL, session!.accessToken)
         const client = await ReplRpcClient.createSession(
           COMPUTER_BASE_URL,
-          {},
+          { agentSlug: 'architect' },
           session!.accessToken,
         )
         setSessionId(client.sessionId!)

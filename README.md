@@ -25,34 +25,27 @@ cd studio && pnpm dev
 One-time setup:
 
 ```bash
-make local-k8s-setup       # start minikube, apply RBAC — prints your MINIKUBE_IP
-make local-compute-image   # build compute:local and load into minikube
-
 cp cloud/gateway/.env.local.example cloud/gateway/.env.local
 cp devops/local/.env.local.example devops/local/.env.local
 # Edit cloud/gateway/.env.local:
-#   MINIKUBE_IP=<printed by local-k8s-setup>
 #   GATEWAY_JWT_SECRET=$(openssl rand -base64 32)
 # Edit devops/local/.env.local:
 #   OPENAI_API_KEY=sk-...  (or whichever LLM provider you have)
 
-make proxy                 # set up nginx *.test domains (prompts for sudo)
+make proxy   # set up nginx *.test domains (prompts for sudo)
 ```
 
 Daily:
 
 ```bash
-make local-up    # Postgres + LiteLLM + kubectl proxy + gateway + all Vite apps
-make local-down  # stop everything
+make local-up           # Postgres + LiteLLM + kubectl proxy + gateway + all Vite apps
+make local-compute-dev  # compute server from source — sdk/org changes picked up instantly
+make local-down         # stop everything
 ```
 
-Useful during development:
+`make local-compute-dev` runs `tsup --watch` + `node --watch` in parallel — no image build needed. Edit anything in `sdk/org/` and the server restarts automatically.
 
-```bash
-make local-pods                              # list compute pods in minikube
-make local-pod-logs USER_ID=local-dev-user  # tail a pod's logs
-make local-compute-image                     # rebuild after changing sdk/org packages
-```
+**Minikube pods (optional, closer to production):** comment out `COMPUTE_LOCAL_URL` in `cloud/gateway/.env.local` and set `MINIKUBE_IP` instead, then run `make local-k8s-setup && make local-compute-image` once.
 
 ## Repository Structure
 

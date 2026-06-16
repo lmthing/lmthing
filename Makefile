@@ -85,7 +85,7 @@ local-up:
 	@echo "Starting kubectl proxy (K8s API on :8001)..."
 	kubectl proxy --port=8001 &
 	@echo "Starting gateway (port 3009)..."
-	cd cloud/gateway && PORT=3009 pnpm dev &
+	(cd cloud/gateway && set -a && . ./.env.local && set +a && PORT=3009 pnpm dev) &
 	@echo "Starting frontend dev servers..."
 	$(MAKE) up
 
@@ -103,3 +103,14 @@ local-pods:
 # Tail compute pod logs. Usage: make local-pod-logs USER_ID=local-dev-user
 local-pod-logs:
 	kubectl logs -n user-$(USER_ID) deployment/lmthing -f
+
+# Run the compute server from source on the host with auto-reload.
+# Set COMPUTE_LOCAL_URL=http://localhost:18080 in cloud/gateway/.env.local
+# to route all pod traffic here instead of minikube pods.
+# tsup --watch rebuilds on source changes; node --watch restarts the server.
+local-compute-dev:
+	@echo "Starting compute server with auto-reload..."
+	@trap 'kill 0' INT TERM; \
+	(cd sdk/org/packages/cli && pnpm dev) & \
+	sleep 4 && node --env-file=devops/local/.env.local --watch sdk/org/packages/cli/dist/cli/bin.js serve --port 18080 --space sdk/org/packages/core/system-spaces/architect & \
+	wait

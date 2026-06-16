@@ -11,6 +11,8 @@ export interface AuthUser {
   email: string;
 }
 
+const LOCAL_DEV = process.env.LOCAL_DEV === "true";
+
 export async function authMiddleware(c: Context<Env>, next: Next) {
   const header = c.req.header("Authorization");
   if (!header?.startsWith("Bearer ")) {
@@ -18,6 +20,12 @@ export async function authMiddleware(c: Context<Env>, next: Next) {
   }
 
   const token = header.slice(7);
+
+  // In local dev, accept the placeholder 'demo' token from @lmthing/auth's demo session
+  if (LOCAL_DEV && token === "demo") {
+    c.set("user", { id: "local-dev-user", email: "dev@local" });
+    return next();
+  }
 
   // Try our own JWT first (GitHub OAuth and password login tokens)
   const local = await verifyAccessToken(token);

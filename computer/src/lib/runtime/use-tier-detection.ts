@@ -10,6 +10,8 @@ export interface PodConfig {
   accessToken: string
 }
 
+const DEMO_USER = import.meta.env.VITE_DEMO_USER === 'true'
+
 /**
  * Reads the stored access token and optionally calls POST /api/compute/ensure
  * so the pod is provisioned before we connect. Returns podConfig when ready.
@@ -23,10 +25,22 @@ export function useTierDetection(): { podConfig: PodConfig | null; ensuring: boo
 
     async function ensurePod() {
       try {
-        const raw = localStorage.getItem('lmthing-cloud-auth')
-        if (!raw) { setEnsuring(false); return }
-        const { accessToken } = JSON.parse(raw) as { accessToken: string }
-        if (!accessToken) { setEnsuring(false); return }
+        let accessToken: string
+
+        if (DEMO_USER) {
+          // In demo mode, fetch a short-lived token via the same origin (computer.test/api/*
+          // is proxied to the gateway by nginx, so no cross-origin cert issues).
+          const res = await fetch(`${COMPUTER_BASE_URL}/api/auth/demo-token`)
+          if (!res.ok) { setEnsuring(false); return }
+          const data = await res.json() as { access_token: string }
+          accessToken = data.access_token
+        } else {
+          const raw = localStorage.getItem('lmthing-cloud-auth')
+          if (!raw) { setEnsuring(false); return }
+          const parsed = JSON.parse(raw) as { accessToken: string }
+          if (!parsed.accessToken) { setEnsuring(false); return }
+          accessToken = parsed.accessToken
+        }
 
         // Best-effort pod ensure — don't block the UI if the gateway is unreachable
         try {

@@ -7,6 +7,16 @@ import type { Env } from "../types.js";
 import { verifyAccessToken } from "./tokens.js";
 import { getPodProxyUrl } from "./compute.js";
 
+const LOCAL_DEV = process.env.LOCAL_DEV === "true";
+
+/** Resolve a token to a userId, accepting the demo placeholder in LOCAL_DEV. */
+async function resolveUser(
+  token: string,
+): Promise<{ userId: string } | null> {
+  if (LOCAL_DEV && token === "demo") return { userId: "local-dev-user" };
+  return verifyAccessToken(token);
+}
+
 // Paths served by the compute pod (not by the gateway itself).
 // All of these are proxied to the user's pod when LOCAL_DEV=true.
 const POD_PATH_PREFIXES = [
@@ -33,7 +43,7 @@ podProxy.all("*", async (c) => {
     null;
   if (!token) return c.json({ error: "Unauthorized" }, 401);
 
-  const user = await verifyAccessToken(token);
+  const user = await resolveUser(token);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
 
   const podUrl = await getPodProxyUrl(user.userId);
@@ -42,11 +52,14 @@ podProxy.all("*", async (c) => {
   const url = new URL(c.req.url);
   const target = `${podUrl}${url.pathname}${url.search}`;
 
+  const hasBody = !["GET", "HEAD"].includes(c.req.method);
   const res = await fetch(target, {
     method: c.req.method,
     headers: c.req.raw.headers,
-    body: ["GET", "HEAD"].includes(c.req.method) ? undefined : c.req.raw.body,
-  });
+    body: hasBody ? c.req.raw.body : undefined,
+    // Node fetch requires duplex:'half' when the body is a ReadableStream
+    ...(hasBody ? { duplex: "half" } : {}),
+  } as RequestInit);
 
   return new Response(res.body, {
     status: res.status,
@@ -76,7 +89,7 @@ export function attachWsProxy(server: ServerType) {
         return;
       }
 
-      const user = await verifyAccessToken(token);
+      const user = await resolveUser(token);
       if (!user) {
         socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
         socket.destroy();

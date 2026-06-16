@@ -409,12 +409,18 @@ export async function ensureUserPod(
 }
 
 /**
- * Returns the URL to reach a user's compute pod from the host (LOCAL_DEV only).
- * Uses the NodePort assigned to the user's service in minikube.
+ * Returns the URL to reach a user's compute server from the host (LOCAL_DEV only).
+ *
+ * Two modes:
+ *   COMPUTE_LOCAL_URL set → single shared server running on the host (e.g. bun --watch).
+ *     All users share one instance. No minikube pod needed.
+ *   Otherwise → per-user pod in minikube, accessed via NodePort.
+ *
  * Returns null in production (pods are only reachable in-cluster via Envoy).
  */
 export async function getPodProxyUrl(userId: string): Promise<string | null> {
   if (!LOCAL_DEV) return null;
+  if (process.env.COMPUTE_LOCAL_URL) return process.env.COMPUTE_LOCAL_URL;
   const ns = `user-${userId}`;
   const svc = await k8s(`/api/v1/namespaces/${ns}/services/lmthing`, "GET");
   const nodePort = svc?.spec?.ports?.[0]?.nodePort as number | undefined;

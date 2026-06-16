@@ -32,8 +32,9 @@ NAMES=()
 DOMAINS=()
 PORTS=()
 PROD_DOMAINS=()
-HEADERS=()  # per-service extra headers (newline-separated "add_header" directives)
-current_name="" current_domain="" current_local="" current_port="" current_headers="" in_headers=false
+HEADERS=()       # per-service extra headers (newline-separated "add_header" directives)
+API_GW_PORTS=()  # per-service api_gateway_port (empty string if not set)
+current_name="" current_domain="" current_local="" current_port="" current_api_gw_port="" current_headers="" in_headers=false
 while IFS= read -r line || [[ -n "$line" ]]; do
     [[ "$line" =~ ^[[:space:]]*#|^$ ]] && continue
     if [[ "$line" =~ ^[[:space:]]*-[[:space:]]*name:[[:space:]]*(.+) ]]; then
@@ -44,8 +45,9 @@ while IFS= read -r line || [[ -n "$line" ]]; do
             PORTS+=("$current_port")
             PROD_DOMAINS+=("$current_domain")
             HEADERS+=("$current_headers")
+            API_GW_PORTS+=("$current_api_gw_port")
         fi
-        current_name="${BASH_REMATCH[1]}" current_domain="" current_local="" current_port="" current_headers="" in_headers=false
+        current_name="${BASH_REMATCH[1]}" current_domain="" current_local="" current_port="" current_api_gw_port="" current_headers="" in_headers=false
     elif [[ "$line" =~ ^[[:space:]]*headers:[[:space:]]*$ ]]; then
         in_headers=true
     elif $in_headers && [[ "$line" =~ ^[[:space:]]{6,}([A-Za-z-]+):[[:space:]]*(.+) ]]; then
@@ -60,6 +62,8 @@ while IFS= read -r line || [[ -n "$line" ]]; do
             current_local="${BASH_REMATCH[1]}"
         elif [[ "$line" =~ ^[[:space:]]*port:[[:space:]]*(.+) ]]; then
             current_port="${BASH_REMATCH[1]}"
+        elif [[ "$line" =~ ^[[:space:]]*api_gateway_port:[[:space:]]*(.+) ]]; then
+            current_api_gw_port="${BASH_REMATCH[1]}"
         fi
     fi
 done < "$CONFIG_FILE"
@@ -70,6 +74,7 @@ if [[ -n "$current_local" && -n "$current_port" ]]; then
     PORTS+=("$current_port")
     PROD_DOMAINS+=("$current_domain")
     HEADERS+=("$current_headers")
+    API_GW_PORTS+=("$current_api_gw_port")
 fi
 
 if [[ ${#DOMAINS[@]} -eq 0 ]]; then
@@ -247,6 +252,7 @@ for i in "${!DOMAINS[@]}"; do
     DOMAIN="${DOMAINS[$i]}"
     PORT="${PORTS[$i]}"
     EXTRA_HEADERS="${HEADERS[$i]}"
+    API_GW_PORT="${API_GW_PORTS[$i]}"
     CONF_FILE="$NGINX_CONF_DIR/$DOMAIN.conf"
 
     if [[ "$OS" == "Linux" ]]; then
@@ -260,7 +266,45 @@ for i in "${!DOMAINS[@]}"; do
         ensure_sudo
     fi
 
-    NGINX_BLOCK="server {
+    if [[ -n "$API_GW_PORT" ]]; then
+        # Split-location block: /api/* → gateway (for pod proxy), /* → Vite SPA
+        NGINX_BLOCK="server {
+    listen 80;
+    server_name $DOMAIN;
+    return 301 https://\$host\$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name $DOMAIN;
+
+    ssl_certificate $CERT_FILE;
+    ssl_certificate_key $KEY_FILE;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:$API_GW_PORT/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \"upgrade\";
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:$PORT;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \"upgrade\";
+${EXTRA_HEADERS}    }
+}"
+    else
+        NGINX_BLOCK="server {
     listen 80;
     server_name $DOMAIN;
     return 301 https://\$host\$request_uri;
@@ -284,13 +328,19 @@ server {
         proxy_set_header Connection \"upgrade\";
 ${EXTRA_HEADERS}    }
 }"
+    fi
+
     if [[ "$OS" == "Darwin" ]]; then
         echo "$NGINX_BLOCK" > "$CONF_FILE"
     else
         echo "$NGINX_BLOCK" | sudo tee "$CONF_FILE" > /dev/null
         sudo ln -sf "$CONF_FILE" "$NGINX_ENABLED_DIR/$DOMAIN.conf"
     fi
-    ok "$DOMAIN → :$PORT (https)"
+    if [[ -n "$API_GW_PORT" ]]; then
+        ok "$DOMAIN → :$PORT (https, /api/* → :$API_GW_PORT)"
+    else
+        ok "$DOMAIN → :$PORT (https)"
+    fi
     CONFS_CHANGED=true
 done
 

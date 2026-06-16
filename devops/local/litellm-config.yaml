@@ -1,0 +1,17 @@
+model_list:
+  # Default: OpenAI gpt-4o-mini — swap for any provider you have an API key for.
+  # Other examples:
+  #   model: anthropic/claude-haiku-4-5-20251001  (set ANTHROPIC_API_KEY in .env.local)
+  #   model: azure/gpt-4o-mini                    (set AZURE_API_KEY + AZURE_API_BASE in .env.local)
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: postgresql://lmthing:lmthing_local@postgres:5432/lmthing
+
+litellm_settings:
+  drop_params: true
+  set_verbose: false

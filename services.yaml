@@ -87,6 +87,7 @@ services:
     domain: lmthing.computer
     local: computer.test
     port: 3010
+    api_gateway_port: 3009
     emoji: 🖥️
     color: "35" # magenta
     headers:

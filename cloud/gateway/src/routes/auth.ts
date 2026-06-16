@@ -297,4 +297,22 @@ auth.post("/sso/exchange", async (c) => {
   });
 });
 
+// ═══════════════════════════════════════════════════════════════
+// Local dev only — demo token for VITE_DEMO_USER=true frontends
+// ═══════════════════════════════════════════════════════════════
+
+// GET /demo-token — returns a signed JWT for a hardcoded local-dev-user.
+// Only active when LOCAL_DEV=true. Lets the computer app (demo mode) call
+// /api/compute/ensure and open WebSocket sessions without real auth.
+auth.get("/demo-token", async (c) => {
+  if (process.env.LOCAL_DEV !== "true") {
+    return c.json({ error: "Not found" }, 404);
+  }
+  const { access_token, expires_at } = await signTokens(
+    "local-dev-user",
+    "dev@local",
+  );
+  return c.json({ access_token, expires_at });
+});
+
 export default auth;

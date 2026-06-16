@@ -1,15 +1,23 @@
 import { readFileSync } from "node:fs";
 import type { PodConfig } from "./tiers.js";
 
-// In-cluster K8s API config (service account auto-mounted by K8s)
-const K8S_API = process.env.KUBERNETES_SERVICE_HOST
-  ? `https://${process.env.KUBERNETES_SERVICE_HOST}:${process.env.KUBERNETES_SERVICE_PORT}`
-  : "https://kubernetes.default.svc";
+// Local dev: when K8S_LOCAL_PROXY=true, talk to minikube via `kubectl proxy --port=8001`
+// (no TLS, no service account token needed).
+// Production: use in-cluster service account auto-mounted by K8s.
+const LOCAL_DEV = process.env.LOCAL_DEV === "true";
+const LOCAL_PROXY = process.env.K8S_LOCAL_PROXY === "true";
+
+const K8S_API =
+  process.env.K8S_API_URL ??
+  (process.env.KUBERNETES_SERVICE_HOST
+    ? `https://${process.env.KUBERNETES_SERVICE_HOST}:${process.env.KUBERNETES_SERVICE_PORT}`
+    : "https://kubernetes.default.svc");
 
 const TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token";
 
-function getToken(): string {
-  return readFileSync(TOKEN_PATH, "utf-8").trim();
+function getAuthHeaders(): Record<string, string> {
+  if (LOCAL_PROXY) return {};
+  return { Authorization: `Bearer ${readFileSync(TOKEN_PATH, "utf-8").trim()}` };
 }
 
 async function k8s(
@@ -21,7 +29,7 @@ async function k8s(
   const res = await fetch(`${K8S_API}${path}`, {
     method,
     headers: {
-      Authorization: `Bearer ${getToken()}`,
+      ...getAuthHeaders(),
       "Content-Type": contentType,
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -38,11 +46,13 @@ async function k8s(
   return res.json();
 }
 
-// ACR credentials injected from lmthing-secrets
+// ACR credentials injected from lmthing-secrets (not used when LOCAL_DEV=true)
 const ACR_REGISTRY = process.env.ACR_REGISTRY ?? "lmthingacr.azurecr.io";
 const ACR_USERNAME = process.env.ACR_USERNAME ?? "";
 const ACR_PASSWORD = process.env.ACR_PASSWORD ?? "";
-const COMPUTE_IMAGE = `${ACR_REGISTRY}/compute:latest`;
+const COMPUTE_IMAGE = LOCAL_DEV
+  ? (process.env.COMPUTE_IMAGE ?? "compute:local")
+  : `${ACR_REGISTRY}/compute:latest`;
 const PULL_SECRET_NAME = "acr-pull-secret";
 
 // --- Pod template (inline — matches k8s/compute/user-pod-template.yaml) ---
@@ -103,7 +113,7 @@ function deployment(userId: string, pod: PodConfig = DEFAULT_POD_CONFIG) {
           },
         },
         spec: {
-          imagePullSecrets: [{ name: PULL_SECRET_NAME }],
+          ...(LOCAL_DEV ? {} : { imagePullSecrets: [{ name: PULL_SECRET_NAME }] }),
           containers: [
             {
               name: "compute",
@@ -149,6 +159,8 @@ function service(userId: string) {
       namespace: `user-${userId}`,
     },
     spec: {
+      // NodePort when LOCAL_DEV so the gateway process (running on the host) can reach the pod
+      type: LOCAL_DEV ? "NodePort" : "ClusterIP",
       selector: { app: "compute" },
       ports: [{ port: 8080, targetPort: 8080 }],
     },
@@ -241,16 +253,18 @@ export async function createUserPod(
     console.log(`Created namespace ${ns}`);
   }
 
-  // Create ACR pull secret (skip if exists)
-  const pullSecretResult = await k8s(
-    `/api/v1/namespaces/${ns}/secrets`,
-    "POST",
-    acrPullSecret(userId),
-  );
-  if (pullSecretResult === "conflict") {
-    console.log(`ACR pull secret in ${ns} already exists, skipping`);
-  } else {
-    console.log(`Created ACR pull secret in ${ns}`);
+  // Create ACR pull secret (skip in local dev — compute:local is loaded directly into minikube)
+  if (!LOCAL_DEV) {
+    const pullSecretResult = await k8s(
+      `/api/v1/namespaces/${ns}/secrets`,
+      "POST",
+      acrPullSecret(userId),
+    );
+    if (pullSecretResult === "conflict") {
+      console.log(`ACR pull secret in ${ns} already exists, skipping`);
+    } else {
+      console.log(`Created ACR pull secret in ${ns}`);
+    }
   }
 
   // Create deployment (skip if exists)
@@ -379,11 +393,34 @@ export async function ensureUserPod(
     }
   }
 
+  if (LOCAL_DEV) {
+    // Resolve the NodePort assigned to the user's service so the gateway proxy can reach it
+    const svc = await k8s(`/api/v1/namespaces/${ns}/services/lmthing`, "GET");
+    const nodePort = svc?.spec?.ports?.[0]?.nodePort as number | undefined;
+    const minikubeIp = process.env.MINIKUBE_IP ?? "192.168.49.2";
+    return { host: minikubeIp, port: nodePort ?? 8080 };
+  }
+
   // In-cluster DNS for the user's service
   return {
     host: `lmthing.${ns}.svc.cluster.local`,
     port: 8080,
   };
+}
+
+/**
+ * Returns the URL to reach a user's compute pod from the host (LOCAL_DEV only).
+ * Uses the NodePort assigned to the user's service in minikube.
+ * Returns null in production (pods are only reachable in-cluster via Envoy).
+ */
+export async function getPodProxyUrl(userId: string): Promise<string | null> {
+  if (!LOCAL_DEV) return null;
+  const ns = `user-${userId}`;
+  const svc = await k8s(`/api/v1/namespaces/${ns}/services/lmthing`, "GET");
+  const nodePort = svc?.spec?.ports?.[0]?.nodePort as number | undefined;
+  if (!nodePort) return null;
+  const minikubeIp = process.env.MINIKUBE_IP ?? "192.168.49.2";
+  return `http://${minikubeIp}:${nodePort}`;
 }
 
 /**

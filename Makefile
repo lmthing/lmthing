@@ -1,4 +1,5 @@
-.PHONY: up down proxy proxy-clean install check show-cost show-resources
+.PHONY: up down proxy proxy-clean install check show-cost show-resources \
+        local-up local-down local-k8s-setup local-compute-image local-pods local-pod-logs
 
 # Parse services by type from services.yaml
 VITE_SERVICES := $(shell awk '/- name:/{name=$$3} /type: vite/{print name}' services.yaml)
@@ -53,3 +54,52 @@ show-cost:
 # Show all Azure resources by group and VM power state (requires az CLI login)
 show-resources:
 	@bash .etc/scripts/show-resources.sh
+
+# ── Local dev with minikube ──────────────────────────────────────────────────
+
+# One-time setup: start minikube and apply compute RBAC.
+# Prints the minikube IP — copy it to cloud/gateway/.env.local as MINIKUBE_IP.
+local-k8s-setup:
+	minikube start --driver=docker --cpus=4 --memory=4096
+	kubectl apply -f devops/local/k8s/compute-rbac.yaml
+	@echo ""
+	@echo "minikube IP: $$(minikube ip)"
+	@echo "→ Add MINIKUBE_IP=$$(minikube ip) to cloud/gateway/.env.local"
+
+# Build the compute pod image and load it into minikube's image store.
+# Re-run after changing sdk/org/packages/{core,cli,ui}.
+local-compute-image:
+	git submodule update --init sdk/org
+	docker build -f devops/argocd/compute/Dockerfile sdk/org/ -t compute:local
+	minikube image load compute:local
+	@echo "compute:local loaded into minikube"
+
+# Start the full local stack:
+#   - Postgres + LiteLLM via Docker Compose
+#   - kubectl proxy (K8s API on :8001)
+#   - gateway dev server (port 3009)
+#   - all Vite frontend apps
+local-up:
+	@echo "Starting Postgres + LiteLLM..."
+	cd devops/local && docker compose up -d
+	@echo "Starting kubectl proxy (K8s API on :8001)..."
+	kubectl proxy --port=8001 &
+	@echo "Starting gateway (port 3009)..."
+	cd cloud/gateway && PORT=3009 pnpm dev &
+	@echo "Starting frontend dev servers..."
+	$(MAKE) up
+
+# Stop everything started by local-up.
+local-down:
+	@$(MAKE) down
+	@pkill -f "kubectl proxy" 2>/dev/null || true
+	@pkill -f "cloud/gateway" 2>/dev/null || true
+	cd devops/local && docker compose down
+
+# Show all compute pods running in minikube.
+local-pods:
+	kubectl get pods -A -l app=compute
+
+# Tail compute pod logs. Usage: make local-pod-logs USER_ID=local-dev-user
+local-pod-logs:
+	kubectl logs -n user-$(USER_ID) deployment/lmthing -f

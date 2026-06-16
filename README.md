@@ -6,18 +6,53 @@ The ecosystem spans a non-profit (lmthing.org), a commercial entity (lmthing.com
 
 ## Getting Started
 
+**Prerequisites:** Node.js >= 20, pnpm >= 9, Git, Docker, minikube
+
 ```bash
-# Clone and install
 git clone git@github.com:lmthing/lmthing.git
 cd lmthing
 pnpm install
-
-# Run Studio (the main development surface)
-cd studio
-pnpm dev
 ```
 
-**Prerequisites:** Node.js >= 20, pnpm >= 9, Deno (for cloud/edge functions), Git
+### Studio only (no compute pods)
+
+```bash
+cd studio && pnpm dev
+```
+
+### Full local stack (with K8s compute pods)
+
+One-time setup:
+
+```bash
+make local-k8s-setup       # start minikube, apply RBAC — prints your MINIKUBE_IP
+make local-compute-image   # build compute:local and load into minikube
+
+cp cloud/gateway/.env.local.example cloud/gateway/.env.local
+cp devops/local/.env.local.example devops/local/.env.local
+# Edit cloud/gateway/.env.local:
+#   MINIKUBE_IP=<printed by local-k8s-setup>
+#   GATEWAY_JWT_SECRET=$(openssl rand -base64 32)
+# Edit devops/local/.env.local:
+#   OPENAI_API_KEY=sk-...  (or whichever LLM provider you have)
+
+make proxy                 # set up nginx *.test domains (prompts for sudo)
+```
+
+Daily:
+
+```bash
+make local-up    # Postgres + LiteLLM + kubectl proxy + gateway + all Vite apps
+make local-down  # stop everything
+```
+
+Useful during development:
+
+```bash
+make local-pods                              # list compute pods in minikube
+make local-pod-logs USER_ID=local-dev-user  # tail a pod's logs
+make local-compute-image                     # rebuild after changing sdk/org packages
+```
 
 ## Repository Structure
 

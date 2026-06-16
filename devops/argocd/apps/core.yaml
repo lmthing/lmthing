@@ -26,5 +26,7 @@ spec:
       name: postgres
       namespace: lmthing
       jqPathExpressions:
+        - .spec.volumeClaimTemplates[].apiVersion
+        - .spec.volumeClaimTemplates[].kind
         - .spec.volumeClaimTemplates[].spec.volumeMode
         - .spec.volumeClaimTemplates[].status

@@ -20,3 +20,11 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      name: postgres
+      namespace: lmthing
+      jqPathExpressions:
+        - .spec.volumeClaimTemplates[].spec.volumeMode
+        - .spec.volumeClaimTemplates[].status

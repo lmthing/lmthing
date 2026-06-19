@@ -1,8 +1,8 @@
 // src/hooks/knowledge/useKnowledgeFile.ts
 
 import { useFile } from '../fs/useFile'
-import { P } from '../../lib/fs/paths'
 
+/** @deprecated P.knowledgeFile is removed; pass the full path directly. */
 export function useKnowledgeFile(file: string): string | null {
-  return useFile(P.knowledgeFile(file))
+  return useFile(`knowledge/${file}.md`)
 }

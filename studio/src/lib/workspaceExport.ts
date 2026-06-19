@@ -185,6 +185,27 @@ function serializeAgentInstruct(agent: Agent): string {
     lines.push('dependencies: []')
   }
 
+  // runtimeFields (optional — omit when empty)
+  if (fm.runtimeFields && Object.keys(fm.runtimeFields).length > 0) {
+    lines.push('runtimeFields:')
+    for (const [comp, fields] of Object.entries(fm.runtimeFields)) {
+      lines.push(`  ${comp}:`)
+      for (const f of fields) lines.push(`    - ${f}`)
+    }
+  }
+
+  // formValues (optional — omit when empty)
+  if (fm.formValues && Object.keys(fm.formValues).length > 0) {
+    lines.push('formValues:')
+    for (const [comp, vals] of Object.entries(fm.formValues)) {
+      lines.push(`  ${comp}:`)
+      for (const [k, v] of Object.entries(vals)) {
+        const serialized = typeof v === 'string' ? `"${v.replace(/"/g, '\\"')}"` : String(v)
+        lines.push(`    ${k}: ${serialized}`)
+      }
+    }
+  }
+
   lines.push('---', '', (agent.body ?? '').trim())
   return lines.join('\n')
 }
@@ -219,7 +240,20 @@ function serializeKnowledgeFieldIndex(field: KnowledgeField): string {
   const idx = field.index
   const lines = ['---', `type: ${idx.type}`, `variable: ${idx.variable}`]
   if (idx.default !== undefined) lines.push(`default: ${idx.default}`)
+  if (idx.label !== undefined) lines.push(`label: "${idx.label.replace(/"/g, '\\"')}"`)
+  if (idx.fieldType !== undefined) lines.push(`fieldType: ${idx.fieldType}`)
+  if (idx.required !== undefined) lines.push(`required: ${idx.required}`)
+  if (idx.renderAs !== undefined) lines.push(`renderAs: ${idx.renderAs}`)
   lines.push('---', '', (field.description ?? '').trim())
+  return lines.join('\n')
+}
+
+function serializeKnowledgeDomainIndex(domain: KnowledgeDomain): string {
+  const lines = ['---']
+  if (domain.label !== undefined) lines.push(`label: "${domain.label.replace(/"/g, '\\"')}"`)
+  if (domain.icon !== undefined) lines.push(`icon: ${domain.icon}`)
+  if (domain.color !== undefined) lines.push(`color: "${domain.color.replace(/"/g, '\\"')}"`)
+  lines.push('---', '', (domain.description ?? '').trim())
   return lines.join('\n')
 }
 
@@ -281,11 +315,20 @@ export function workspaceToFileTreeJson(space: SpaceData): FileTreeDirectoryNode
     }
   }
 
-  // knowledge/<domain>/<field>/index.md + options
+  // knowledge/<domain>/index.md (domain metadata) + <field>/index.md + options
   const sortedDomains = Object.values(space.knowledge || {}).sort((a, b) =>
     a.slug.localeCompare(b.slug),
   )
   for (const domain of sortedDomains) {
+    // Emit domain index.md only when the domain has metadata
+    if (domain.label !== undefined || domain.icon !== undefined || domain.color !== undefined || domain.description !== undefined) {
+      addFileAtPath(
+        root,
+        `knowledge/${domain.slug}/index.md`,
+        serializeKnowledgeDomainIndex(domain),
+      )
+    }
+
     const sortedFields = Object.values(domain.fields || {}).sort((a, b) =>
       a.slug.localeCompare(b.slug),
     )

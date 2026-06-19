@@ -50,6 +50,9 @@ export const P = {
   // ── Knowledge paths (NEW SPEC) ────────────────────────────────────
   knowledgeDir: (dir: string): string => `knowledge/${dir}`,
 
+  knowledgeDomainIndex: (domain: string): `knowledge/${string}/index.md` =>
+    `knowledge/${domain}/index.md`,
+
   knowledgeFieldDir: (domain: string, field: string): string =>
     `knowledge/${domain}/${field}`,
 
@@ -89,39 +92,13 @@ export const P = {
 
     // Knowledge globs (NEW SPEC — index.md files identify fields)
     allKnowledgeIndexes: 'knowledge/*/*/index.md',
+    allKnowledgeDomainIndexes: 'knowledge/*/index.md',
     knowledgeOptions: (domain: string, field: string): string =>
       `knowledge/${domain}/${field}/*.md`,
     allKnowledge: 'knowledge/**',
 
     allConversations: (id: string): string => `agents/${id}/conversations/*.json`,
-
-    // ── Deprecated flow globs (OLD SPEC — kept for backward compat) ──
-    /** @deprecated Use tasklistTasks instead */
-    allFlows: 'flows/*/index.md',
-    /** @deprecated Use tasklistTasks instead */
-    flowTasks: (id: string): string => `flows/${id}/[0-9]*.*.md`,
-    /** @deprecated */
-    knowledgeFields: 'knowledge/*/config.json',
   } as const,
-
-  // ── Deprecated flow paths (OLD SPEC — kept for backward compat) ───
-  /** @deprecated Use tasklistDir instead */
-  flow: (id: string): string => `flows/${id}`,
-  /** @deprecated Use tasklistDir instead */
-  flowIndex: (id: string): string => `flows/${id}/index.md`,
-  /** @deprecated Use tasklistTask instead */
-  flowTask: (id: string, order: number, name: string): string =>
-    `flows/${id}/${order}.${name}.md`,
-  /** @deprecated Use knowledgeFieldIndex instead */
-  knowledgeConfig: (dir: string): string => `knowledge/${dir}/config.json`,
-  /** @deprecated */
-  knowledgeFile: (file: string): string => `knowledge/${file}.md`,
-
-  // ── Deprecated agent file paths (OLD SPEC) ────────────────────────
-  /** @deprecated The new spec has no per-agent config.json */
-  agentConfig: (id: string): string => `agents/${id}/config.json`,
-  /** @deprecated The new spec has no per-agent values.json */
-  agentValues: (id: string): string => `agents/${id}/values.json`,
 } as const
 
 export type PathBuilder = typeof P

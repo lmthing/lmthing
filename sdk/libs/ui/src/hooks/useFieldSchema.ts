@@ -1,8 +1,10 @@
 /**
  * useFieldSchema — Extracts schema fields from knowledge directory structure.
  *
- * Reads config.json files in knowledge subdirectories to find entries with
- * renderAs: "field" and builds SchemaField[] with options from .md files.
+ * Reads index.md frontmatter in knowledge subdirectories (new spec) to find
+ * entries with renderAs: "field" and builds SchemaField[] with options from the
+ * sibling option .md files. Domain-level index.md (renderAs: "section") supplies
+ * the section/field label.
  */
 import { useMemo } from 'react'
 import { useGlobRead } from '@lmthing/state'
@@ -51,21 +53,21 @@ export function useFieldSchema(selectedFieldIds: string[]): FieldSchema[] {
     for (const fieldId of selectedFieldIds) {
       const prefix = `knowledge/${fieldId}/`
 
-      // Find the top-level config for the field label
-      const topConfig = allFiles[`${prefix}config.json`]
+      // Find the domain-level index.md (section) for the field label
+      const topIndex = allFiles[`${prefix}index.md`]
       let fieldLabel = fieldId
       let category: string | undefined
-      if (topConfig) {
+      if (topIndex) {
         try {
-          const parsed = JSON.parse(topConfig)
-          fieldLabel = parsed.label || parsed.title || fieldId
-          if (parsed.category) category = parsed.category as string
+          const fm = parseFrontmatter(topIndex).frontmatter as Record<string, unknown>
+          fieldLabel = (fm.label as string) || (fm.title as string) || fieldId
+          if (fm.category) category = fm.category as string
         } catch { /* ignore */ }
       }
 
-      // Find all config.json files under this field
+      // Find all field index.md files under this domain
       const configPaths = Object.keys(allFiles)
-        .filter(p => p.startsWith(prefix) && p.endsWith('/config.json') && p !== `${prefix}config.json`)
+        .filter(p => p.startsWith(prefix) && p.endsWith('/index.md') && p !== `${prefix}index.md`)
         .sort()
 
       const fields: SchemaField[] = []
@@ -76,14 +78,14 @@ export function useFieldSchema(selectedFieldIds: string[]): FieldSchema[] {
 
         let config: Record<string, unknown>
         try {
-          config = JSON.parse(raw)
+          config = parseFrontmatter(raw).frontmatter as Record<string, unknown>
         } catch {
           continue
         }
 
         if (config.renderAs !== 'field') continue
 
-        const dirPath = configPath.replace('/config.json', '')
+        const dirPath = configPath.replace('/index.md', '')
         const relPath = dirPath.slice(prefix.length)
         const id = `${fieldId}/${relPath}`
 
@@ -93,20 +95,20 @@ export function useFieldSchema(selectedFieldIds: string[]): FieldSchema[] {
         let sectionId: string | undefined
         if (parts.length > 1) {
           const parentDir = parts.slice(0, -1).join('/')
-          const parentConfigPath = `${prefix}${parentDir}/config.json`
+          const parentConfigPath = `${prefix}${parentDir}/index.md`
           const parentRaw = allFiles[parentConfigPath]
           if (parentRaw) {
             try {
-              const parentConfig = JSON.parse(parentRaw)
+              const parentConfig = parseFrontmatter(parentRaw).frontmatter as Record<string, unknown>
               if (parentConfig.renderAs === 'section') {
-                sectionLabel = parentConfig.label || parentDir
+                sectionLabel = (parentConfig.label as string) || parentDir
                 sectionId = `${fieldId}/${parentDir}`
               }
             } catch { /* ignore */ }
           }
         }
 
-        // Collect options from .md files in this directory
+        // Collect options from sibling .md files (excluding the field's index.md)
         const options: FieldOption[] = []
         const optionPrefix = `${dirPath}/`
         for (const [filePath, content] of Object.entries(allFiles)) {
@@ -114,6 +116,7 @@ export function useFieldSchema(selectedFieldIds: string[]): FieldSchema[] {
           // Only direct children, not nested
           const remainder = filePath.slice(optionPrefix.length)
           if (remainder.includes('/')) continue
+          if (remainder === 'index.md') continue
 
           const optionId = remainder.replace(/\.md$/, '')
           let label = optionId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
@@ -134,7 +137,7 @@ export function useFieldSchema(selectedFieldIds: string[]): FieldSchema[] {
 
         options.sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
 
-        const ft = (config.fieldType as string) || 'select'
+        const ft = (config.fieldType as string) || (config.type as string) || 'select'
 
         fields.push({
           id,
@@ -144,7 +147,7 @@ export function useFieldSchema(selectedFieldIds: string[]): FieldSchema[] {
           fieldType: ft as SchemaFieldType,
           required: Boolean(config.required),
           default: (config.default ?? (ft === 'multiselect' ? [] : ft === 'toggle' ? false : '')) as string | string[] | boolean,
-          variableName: config.variableName as string | undefined,
+          variableName: (config.variable as string | undefined) ?? (config.variableName as string | undefined),
           options,
           sectionLabel,
           sectionId,

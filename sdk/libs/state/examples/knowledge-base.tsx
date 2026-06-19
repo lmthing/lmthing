@@ -1,14 +1,17 @@
 // examples/knowledge-base.tsx
 //
-// Demonstrates knowledge base functionality
+// Demonstrates knowledge base functionality on the new spec, where each domain
+// is described by a knowledge/<domain>/index.md (frontmatter: label/icon/color)
+// and fields live under knowledge/<domain>/<field>/ with their own index.md and
+// option markdown files.
 
 import { useState } from 'react'
 import {
   useDomainDirectory,
-  useKnowledge,
+  useKnowledgeDir,
   useKnowledgeFile,
   useSpaceFS,
-  P
+  P,
 } from '@lmthing/state'
 
 function DomainList({ onSelect, selectedDir }: { onSelect: (dir: string) => void; selectedDir: string | null }) {
@@ -34,76 +37,63 @@ function DomainList({ onSelect, selectedDir }: { onSelect: (dir: string) => void
 }
 
 function DomainViewer({ domain }: { domain: string }) {
-  const { config, entries } = useKnowledge(domain)
+  const entries = useKnowledgeDir(domain)
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
+  const fs = useSpaceFS()
 
-  const content = useKnowledgeFile(selectedFile || `${domain}/README`) || null
+  // index.md is the domain descriptor; everything else is a field directory.
+  const content = useKnowledgeFile(selectedFile ? `${domain}/${selectedFile}` : `${domain}/index`) || null
 
-  const handleCreateFile = () => {
-    const name = prompt('File name (without extension):')
-    if (!name) return
-
-    const fs = useSpaceFS()
-    fs.writeFile(P.knowledgeFile(`${domain}/${name}`), '# New Document\n')
+  const handleCreateField = () => {
+    const field = prompt('Field name (kebab-case):')
+    if (!field) return
+    fs.writeFile(
+      P.knowledgeFieldIndex(domain, field),
+      ['---', 'type: string', `variable: ${field.replace(/-/g, '')}`, '---', '', `${field} field.`].join('\n'),
+    )
   }
 
-  const handleDeleteFile = (fileName: string) => {
-    if (confirm(`Delete ${fileName}?`)) {
-      const fs = useSpaceFS()
-      fs.deleteFile(P.knowledgeFile(`${domain}/${fileName}`))
+  const handleDeleteField = (fieldName: string) => {
+    if (confirm(`Delete ${fieldName}?`)) {
+      fs.deletePath(P.knowledgeFieldDir(domain, fieldName))
     }
   }
 
   return (
     <div>
-      <h3>{config?.title || domain}</h3>
-
-      {config?.description && (
-        <p><strong>Description:</strong> {config.description}</p>
-      )}
-
-      {config?.tags && config.tags.length > 0 && (
-        <p>
-          <strong>Tags:</strong>{' '}
-          {config.tags.map((tag) => (
-            <span key={tag} style={{ marginLeft: '0.5rem', padding: '0.25rem 0.5rem', background: '#e0e0e0', borderRadius: '4px' }}>
-              {tag}
-            </span>
-          ))}
-        </p>
-      )}
+      <h3>{domain}</h3>
 
       <div style={{ marginTop: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h4>Documents</h4>
-          <button onClick={handleCreateFile}>+ Add Document</button>
+          <h4>Fields</h4>
+          <button onClick={handleCreateField}>+ Add Field</button>
         </div>
 
         <ul>
-          {entries.map((entry) => (
-            entry.type === 'file' ? (
+          {entries
+            .filter((entry) => entry.type === 'dir')
+            .map((entry) => (
               <li key={entry.path}>
                 <button
-                  onClick={() => setSelectedFile(entry.name.replace('.md', ''))}
-                  style={{ fontWeight: selectedFile === entry.name.replace('.md', '') ? 'bold' : 'normal' }}
+                  onClick={() => setSelectedFile(`${entry.name}/index`)}
+                  style={{ fontWeight: selectedFile === `${entry.name}/index` ? 'bold' : 'normal' }}
                 >
-                  {entry.name.replace('.md', '')}
+                  {entry.name}
                 </button>
                 <button
-                  onClick={() => handleDeleteFile(entry.name.replace('.md', ''))}
+                  onClick={() => handleDeleteField(entry.name)}
                   style={{ marginLeft: '1rem', fontSize: '0.8em' }}
                 >
                   Delete
                 </button>
               </li>
-            ) : null
-          ))}
+            ))}
         </ul>
       </div>
 
       {content && (
         <div style={{ marginTop: '1rem' }}>
-          <h4>Document Content</h4>
+          <h4>Content</h4>
           <div style={{ padding: '1rem', background: '#f5f5f5', borderRadius: '4px' }}>
             <pre style={{ whiteSpace: 'pre-wrap' }}>{content}</pre>
           </div>
@@ -116,25 +106,28 @@ function DomainViewer({ domain }: { domain: string }) {
 function CreateDomain({ onCreate }: { onCreate: (id: string) => void }) {
   const fs = useSpaceFS()
   const [id, setId] = useState('')
-  const [title, setTitle] = useState('')
+  const [label, setLabel] = useState('')
   const [description, setDescription] = useState('')
 
   const handleCreate = () => {
     if (!id.trim()) return
 
-    const config = {
-      title: title || id,
-      description,
-      createdAt: new Date().toISOString()
-    }
-
-    // Create directory structure
-    fs.writeFile(P.knowledgeConfig(id), JSON.stringify(config, null, 2))
-    fs.writeFile(P.knowledgeFile(`${id}/README`), `# ${title || id}\n\n${description}`)
+    // New spec: the domain descriptor is knowledge/<domain>/index.md.
+    fs.writeFile(
+      P.knowledgeDomainIndex(id),
+      [
+        '---',
+        `label: "${(label || id).replace(/"/g, '\\"')}"`,
+        'renderAs: section',
+        '---',
+        '',
+        description || `${label || id} knowledge.`,
+      ].join('\n'),
+    )
 
     onCreate(id)
     setId('')
-    setTitle('')
+    setLabel('')
     setDescription('')
   }
 
@@ -148,9 +141,9 @@ function CreateDomain({ onCreate }: { onCreate: (id: string) => void }) {
         style={{ display: 'block', marginBottom: '0.5rem' }}
       />
       <input
-        placeholder="Title"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Label"
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
         style={{ display: 'block', marginBottom: '0.5rem' }}
       />
       <input
@@ -202,7 +195,6 @@ function SearchBar({ onResults }: { onResults: (results: string[]) => void }) {
 
 export function KnowledgeBase() {
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null)
-  const [searchResults, setSearchResults] = useState<string[]>([])
 
   return (
     <div style={{ display: 'flex', gap: '2rem' }}>

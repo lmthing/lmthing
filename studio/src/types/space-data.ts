@@ -98,6 +98,10 @@ export interface AgentFrontmatter {
   defaultAction?: string;
   /** optional: space-ref/agent-slug dependencies */
   dependencies: string[];
+  /** optional: per-component runtime field selections — component name → list of field refs */
+  runtimeFields?: Record<string, string[]>;
+  /** optional: per-component saved form values — component name → key/value map */
+  formValues?: Record<string, Record<string, unknown>>;
   [key: string]: unknown;
 }
 
@@ -156,6 +160,10 @@ export interface KnowledgeFieldIndex {
   type: string; // "string" | "number" | "boolean" | "object" | "array"
   variable: string;
   default?: string;
+  label?: string;
+  fieldType?: string;
+  required?: boolean;
+  renderAs?: string;
 }
 
 /**
@@ -178,6 +186,14 @@ export interface KnowledgeDomain {
   /** slug of this domain (directory name) */
   slug: string;
   fields: Record<string, KnowledgeField>;
+  /** optional: display label for the domain */
+  label?: string;
+  /** optional: emoji or icon identifier */
+  icon?: string;
+  /** optional: hex color for the domain */
+  color?: string;
+  /** optional: description text (body of knowledge/<domain>/index.md) */
+  description?: string;
 }
 
 // ============== Function / Component Types ==============

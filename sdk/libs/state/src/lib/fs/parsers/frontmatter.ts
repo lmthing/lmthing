@@ -6,7 +6,9 @@ export interface FrontmatterResult<T = Record<string, unknown>> {
   raw: string
 }
 
-const FRONTMATTER_REGEX = /^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/
+// Matches a leading frontmatter block. The frontmatter body is optional so that
+// an empty block (`---\n---\n`) parses to empty frontmatter + empty content.
+const FRONTMATTER_REGEX = /^---\s*\n([\s\S]*?)\n?---\s*(?:\n([\s\S]*))?$/
 
 export function parseFrontmatter<T = Record<string, unknown>>(
   content: string
@@ -17,8 +19,8 @@ export function parseFrontmatter<T = Record<string, unknown>>(
     return { frontmatter: {} as T, content, raw: content }
   }
 
-  const rawFrontmatter = match[1]
-  const body = match[2]
+  const rawFrontmatter = match[1] ?? ''
+  const body = match[2] ?? ''
   const frontmatter = parseYAML<T>(rawFrontmatter)
 
   return {

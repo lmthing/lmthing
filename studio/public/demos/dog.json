@@ -3,117 +3,123 @@
   "agents": {
     "agent-training-plan": {
       "id": "agent-training-plan",
-      "frontmatter": {},
-      "mainInstruction": "# Dog Training Plan Generator\n\nThis agent helps create customized training plans for your dog based on their breed, age, and your living environment.\n\n## Capabilities\n- Generate weekly training schedules.\n- Suggest positive reinforcement techniques.\n- Provide solution for common behavioral issues.",
-      "slashActions": [],
-      "config": {
-        "runtimeFields": {
-          "canine": [
-            "breed-type"
-          ],
-          "owner": [
-            "experience"
-          ]
+      "title": "TrainingPlanGenerator",
+      "knowledge": [
+        "canine/breed-type"
+      ],
+      "functions": [],
+      "components": [],
+      "actions": [
+        {
+          "id": "generate_training_plan",
+          "label": "Generate Training Plan",
+          "description": "Creates a customized dog training plan with weekly schedule, rewards, and behavioral support",
+          "tasklist": "flow_training_generate"
         }
+      ],
+      "defaultAction": "generate_training_plan",
+      "dependencies": [],
+      "runtimeFields": {
+        "canine": [
+          "breed-type"
+        ],
+        "owner": [
+          "experience"
+        ]
       },
       "formValues": {
         "canine": {
-          "breed-type": "working",
-          "age": "puppy",
-          "health-status": "healthy"
+          "breed-type": "working"
         },
         "owner": {
-          "experience": "beginner",
-          "availability": "high"
+          "experience": "beginner"
         },
         "environment": {
           "living-space": "apartment"
         }
       },
-      "conversations": []
+      "body": "# Dog Training Plan Generator\n\nThis agent helps create customized training plans for your dog based on their breed, age, and your living environment.\n\n## Capabilities\n- Generate weekly training schedules.\n- Suggest positive reinforcement techniques.\n- Provide solution for common behavioral issues."
     }
   },
-  "flows": {
+  "tasklists": {
     "flow_training_generate": {
-      "id": "flow_training_generate",
-      "frontmatter": {},
-      "description": "# Dog Training Flow Index\n\n## Available Sections\n\n- [Generate Weekly Training Schedule](1.Generate%20Weekly%20Training%20Schedule.md)\n- [Generate Reward Recommendations](2.Generate%20Reward%20Recommendations.md)\n- [Generate Behavioral Support Guide](3.Generate%20Behavioral%20Support%20Guide.md)\n",
+      "name": "flow_training_generate",
       "tasks": [
         {
-          "order": 1,
-          "name": "Generate Weekly Training Schedule",
-          "frontmatter": {},
-          "instructions": "# Weekly Training Schedule\n\n## Goal: Basic Obedience\n\n1. **Monday:** Sit and Stay.\n2. **Tuesday:** Lie Down and Come.\n3. **Wednesday:** Loose Lead Walking.\n4. **Thursday:** Socialization.\n5. **Friday:** Review Basics.\n6. **Saturday:** Mental Stimulation/Games.\n7. **Sunday:** Long Walk and Relaxation."
+          "id": "generate-weekly-training-schedule",
+          "instruction": "Using the loaded knowledge (breed type, age, experience level, living environment) and user inputs, generate a personalized weekly training schedule for the dog. Assign specific skills to each day of the week with session duration, repetition counts, and progression criteria. Balance new skill introduction with review of previously learned commands. Include rest days and socialization time. Adapt intensity to the dog's energy level and attention span.\n\ncurrentTask.resolve({ weeklySchedule: 'string' })",
+          "output": {
+            "weeklySchedule": "string"
+          },
+          "dependsOn": [],
+          "optional": false,
+          "goal": false
         },
         {
-          "order": 2,
-          "name": "Generate Reward Recommendations",
-          "frontmatter": {},
-          "instructions": "# Reward Recommendations\n\n## High-Value Treats\n- Freeze-dried liver.\n- Small pieces of plain boiled chicken.\n- Small amounts of cheese (if dog is cheese-tolerant).\n\n## Low-Value Treats\n- Regular kibble.\n- Commercial mini-treats.\n\n## Non-Food Rewards\n- Verbal praise (\"Good boy/girl!\").\n- Head scratches and petting.\n- Favorite toy or brief game of tug-of-war."
+          "id": "generate-reward-recommendations",
+          "instruction": "Using the weekly schedule produced in the previous step and the loaded knowledge about breed type and dog traits, generate a personalized reward strategy. Create a tiered reward system: high-value treats for new or difficult skills, low-value treats for reinforcing known commands, and non-food rewards (verbal praise, petting, favorite toy). Include timing guidance for reward delivery (mark within 1-2 seconds), fading schedules for transitioning from continuous to intermittent reinforcement, and portion management to avoid overfeeding during training sessions.\n\ncurrentTask.resolve({ rewardStrategy: 'string' })",
+          "output": {
+            "rewardStrategy": "string"
+          },
+          "dependsOn": [
+            "generate-weekly-training-schedule"
+          ],
+          "optional": false,
+          "goal": false
+        },
+        {
+          "id": "generate-behavioral-support-guide",
+          "instruction": "Using the weekly schedule and reward strategy from the previous steps, plus the loaded knowledge about breed type and living environment, generate a behavioral support guide addressing common issues for this dog. Cover typical behavioral challenges (excessive barking, leash pulling, jumping, separation anxiety, resource guarding, leash reactivity) with positive reinforcement-based solutions. For each issue, provide root cause analysis, prevention strategies, step-by-step correction techniques, expected timeline for improvement, and when to seek professional help.\n\ncurrentTask.resolve({ behavioralGuide: 'string' })",
+          "output": {
+            "behavioralGuide": "string"
+          },
+          "dependsOn": [
+            "generate-reward-recommendations"
+          ],
+          "optional": false,
+          "goal": true
         }
       ]
     }
   },
   "knowledge": [
     {
-      "path": "canine",
-      "type": "directory",
-      "children": [
+      "slug": "canine",
+      "label": "Canine Characteristics",
+      "icon": "🐕",
+      "color": "#d59ec8",
+      "description": "Information about the dog breed, age, and health status",
+      "fields": [
         {
-          "path": "canine/breed-type",
-          "type": "directory",
-          "children": [
+          "slug": "breed-type",
+          "type": "string",
+          "variable": "breedType",
+          "default": "working",
+          "label": "Breed Type",
+          "fieldType": "select",
+          "required": true,
+          "description": "The general category of the dog breed",
+          "options": [
             {
-              "path": "canine/breed-type/working.md",
-              "type": "file",
-              "frontmatter": {
-                "title": "Working Breeds",
-                "order": "0"
-              },
-              "content": "# Working Breeds\n\n## Characteristics\n- **Purpose:** Bred to perform tasks like guarding, pulling, or rescuing.\n- **Traits:** Strong, intelligent, alert, and protective.\n- **Needs:** High mental and physical stimulation.\n\n## Examples\n- Boxer, Doberman Pinscher, Rottweiler, Siberian Husky."
+              "slug": "working",
+              "content": "---\ntitle: Working Breeds\norder: 0\n---\n\n# Working Breeds\n\n## Characteristics\n- **Purpose:** Bred to perform tasks like guarding, pulling, or rescuing.\n- **Traits:** Strong, intelligent, alert, and protective.\n- **Needs:** High mental and physical stimulation.\n\n## Examples\n- Boxer, Doberman Pinscher, Rottweiler, Siberian Husky."
             }
-          ],
-          "config": {
-            "label": "Breed Type",
-            "description": "The general category of the dog breed",
-            "fieldType": "select",
-            "required": true,
-            "default": "working",
-            "variableName": "breedType",
-            "renderAs": "field"
-          }
+          ]
         }
-      ],
-      "config": {
-        "label": "Canine Characteristics",
-        "description": "Information about the dog breed, age, and health status",
-        "icon": "🐕",
-        "color": "#3b82f6",
-        "renderAs": "section"
-      }
+      ]
     },
     {
-      "path": "rewards",
-      "type": "directory",
-      "children": [],
-      "config": {
-        "label": "Reward Recommendations",
-        "description": "Recommended treats and praise based on dog traits",
-        "icon": "🍖",
-        "color": "#10b981",
-        "renderAs": "section"
-      }
+      "slug": "rewards",
+      "label": "Reward Recommendations",
+      "icon": "🍖",
+      "color": "#f5c815",
+      "description": "Recommended treats and praise based on dog traits",
+      "fields": []
     }
   ],
   "packageJson": {
     "name": "dog",
     "version": "1.0.0",
-    "description": "Workspace: Canine Companions",
-    "dependencies": {
-      "@dogtools/training": "1.0.0",
-      "@dogtools/nutrition": "1.0.0",
-      "@dogtools/health": "1.0.0"
-    }
-  },
-  "env": {}
+    "description": "Workspace: Canine Companions"
+  }
 }

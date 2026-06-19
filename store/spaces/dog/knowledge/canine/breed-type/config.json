@@ -1,9 +1,0 @@
-{
-  "label": "Breed Type",
-  "description": "The general category of the dog breed",
-  "fieldType": "select",
-  "required": true,
-  "default": "working",
-  "variableName": "breedType",
-  "renderAs": "field"
-}

@@ -25,6 +25,10 @@ export interface AgentInstruct {
   actions: AgentAction[]
   defaultAction?: string
   dependencies: string[]
+  /** Per-component runtime field selections: component name → list of field refs */
+  runtimeFields?: Record<string, string[]>
+  /** Per-component saved form values: component name → key/value map */
+  formValues?: Record<string, Record<string, unknown>>
   /** System-prompt body (everything after the frontmatter block) */
   body: string
 }
@@ -54,7 +58,87 @@ function parseBlockYaml(yaml: string): Record<string, unknown> {
     if (rest === '' || rest === '[]' || rest === '{}') {
       if (rest === '[]') { result[key] = []; i++; continue }
       if (rest === '{}') { result[key] = {}; i++; continue }
-      // blank after colon → could be block list or block mapping
+      // blank after colon → could be a block list, a block mapping, or empty.
+      // Peek at the first non-blank child line to decide.
+      let peek = i + 1
+      while (peek < lines.length && !lines[peek].trim()) peek++
+      const childTrimmed = peek < lines.length ? lines[peek].trim() : ''
+      const childIndent = peek < lines.length ? (lines[peek].match(/^(\s+)/)?.[1].length ?? 0) : 0
+
+      if (childIndent >= 2 && !childTrimmed.startsWith('- ') && childTrimmed.includes(':')) {
+        // block mapping: key whose value is an indented mapping of sub-keys.
+        // Each sub-key may itself be a scalar, a block list, or an inline array.
+        const map: Record<string, unknown> = {}
+        i = peek
+        const baseIndent = childIndent
+        while (i < lines.length) {
+          const ml = lines[i]
+          if (!ml.trim()) { i++; continue }
+          const mIndent = ml.match(/^(\s+)/)?.[1].length ?? 0
+          if (mIndent < baseIndent) break
+          if (mIndent > baseIndent) { i++; continue }
+          const mTrimmed = ml.trim()
+          const mColon = mTrimmed.indexOf(':')
+          if (mColon === -1) { i++; continue }
+          const subKey = mTrimmed.slice(0, mColon).trim()
+          const subRest = mTrimmed.slice(mColon + 1).trim()
+          if (subRest === '' || subRest === '[]') {
+            if (subRest === '[]') { map[subKey] = []; i++; continue }
+            // Peek: a sub-block can be a list of scalars (`- foo`) or a nested
+            // mapping of scalars (`key: value`).
+            let sp = i + 1
+            while (sp < lines.length && !lines[sp].trim()) sp++
+            const spTrimmed = sp < lines.length ? lines[sp].trim() : ''
+            const spIndent = sp < lines.length ? (lines[sp].match(/^(\s+)/)?.[1].length ?? 0) : 0
+            if (spIndent > baseIndent && !spTrimmed.startsWith('- ') && spTrimmed.includes(':')) {
+              // nested mapping of scalars
+              const inner: Record<string, unknown> = {}
+              i = sp
+              const innerIndent = spIndent
+              while (i < lines.length) {
+                const il = lines[i]
+                if (!il.trim()) { i++; continue }
+                const iIndent = il.match(/^(\s+)/)?.[1].length ?? 0
+                if (iIndent < innerIndent) break
+                const iTrimmed = il.trim()
+                if (iTrimmed.startsWith('- ')) break
+                parseInlineKv(iTrimmed, inner)
+                i++
+              }
+              map[subKey] = inner
+            } else {
+              // sub-block list of scalars
+              const subItems: unknown[] = []
+              i++
+              while (i < lines.length) {
+                const sl = lines[i]
+                if (!sl.trim()) break
+                const sIndent = sl.match(/^(\s+)/)?.[1].length ?? 0
+                if (sIndent <= baseIndent) break
+                const sTrimmed = sl.trim()
+                if (sTrimmed.startsWith('- ')) {
+                  subItems.push(parseScalar(sTrimmed.slice(2).trim()))
+                  i++
+                } else {
+                  break
+                }
+              }
+              map[subKey] = subItems
+            }
+          } else if (subRest.startsWith('[') && subRest.endsWith(']')) {
+            const inner = subRest.slice(1, -1).trim()
+            map[subKey] = inner ? inner.split(',').map(v => parseScalar(v.trim())) : []
+            i++
+          } else {
+            map[subKey] = parseScalar(subRest)
+            i++
+          }
+        }
+        result[key] = map
+        continue
+      }
+
+      // block list (sequence of scalars or inline mappings)
       const items: unknown[] = []
       i++
       while (i < lines.length) {
@@ -148,6 +232,26 @@ function parseActions(value: unknown): AgentAction[] {
     }))
 }
 
+function parseStringArrayMap(value: unknown): Record<string, string[]> | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
+  const result: Record<string, string[]> = {}
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    result[k] = toStringArray(v)
+  }
+  return Object.keys(result).length > 0 ? result : undefined
+}
+
+function parseObjectMap(value: unknown): Record<string, Record<string, unknown>> | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
+  const result: Record<string, Record<string, unknown>> = {}
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
+      result[k] = v as Record<string, unknown>
+    }
+  }
+  return Object.keys(result).length > 0 ? result : undefined
+}
+
 /**
  * Parse the raw content of agents/<slug>/instruct.md into an AgentInstruct.
  */
@@ -176,6 +280,8 @@ export function parseAgentInstruct(content: string): AgentInstruct {
     actions: parseActions(raw.actions),
     defaultAction: typeof raw.defaultAction === 'string' ? raw.defaultAction : undefined,
     dependencies: toStringArray(raw.dependencies),
+    runtimeFields: parseStringArrayMap(raw.runtimeFields),
+    formValues: parseObjectMap(raw.formValues),
     body,
   }
 }
@@ -242,6 +348,27 @@ export function serializeAgentInstruct(instruct: AgentInstruct): string {
     for (const d of instruct.dependencies) lines.push(`  - ${d}`)
   } else {
     lines.push('dependencies: []')
+  }
+
+  // runtimeFields (optional — omit when empty)
+  if (instruct.runtimeFields && Object.keys(instruct.runtimeFields).length > 0) {
+    lines.push('runtimeFields:')
+    for (const [comp, fields] of Object.entries(instruct.runtimeFields)) {
+      lines.push(`  ${comp}:`)
+      for (const f of fields) lines.push(`    - ${f}`)
+    }
+  }
+
+  // formValues (optional — omit when empty)
+  if (instruct.formValues && Object.keys(instruct.formValues).length > 0) {
+    lines.push('formValues:')
+    for (const [comp, vals] of Object.entries(instruct.formValues)) {
+      lines.push(`  ${comp}:`)
+      for (const [k, v] of Object.entries(vals)) {
+        const serialized = typeof v === 'string' ? `"${v.replace(/"/g, '\\"')}"` : String(v)
+        lines.push(`    ${k}: ${serialized}`)
+      }
+    }
   }
 
   lines.push('---')

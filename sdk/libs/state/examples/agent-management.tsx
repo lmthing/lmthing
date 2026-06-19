@@ -179,9 +179,9 @@ function CreateAgent({ onCreate }: { onCreate: (id: string) => void }) {
       createdAt: new Date().toISOString()
     }
 
+    // New spec: everything lives in instruct.md frontmatter — there is no
+    // separate config.json / values.json.
     fs.writeFile(P.instruct(id), serializeAgentInstruct(instruct))
-    fs.writeFile(P.agentConfig(id), JSON.stringify({ enabled: true }, null, 2))
-    fs.writeFile(P.agentValues(id), JSON.stringify({}, null, 2))
 
     onCreate(id)
     setName('')

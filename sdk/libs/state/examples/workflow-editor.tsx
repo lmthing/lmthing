@@ -1,30 +1,31 @@
 // examples/workflow-editor.tsx
 //
-// Demonstrates workflow management functionality
+// Demonstrates tasklist management functionality (the new-spec replacement for
+// the old flows/ shape).
 
 import { useState } from 'react'
 import {
-  useFlowList,
-  useWorkFlow,
-  useFlowTask,
+  useTasklistList,
+  useTasklist,
+  useTasklistTask,
   useSpaceFS,
-  P
+  P,
 } from '@lmthing/state'
 
-function WorkflowList({ onSelect, selectedId }: { onSelect: (id: string) => void; selectedId: string | null }) {
-  const flows = useFlowList()
+function TasklistList({ onSelect, selectedName }: { onSelect: (name: string) => void; selectedName: string | null }) {
+  const tasklists = useTasklistList()
 
   return (
     <div>
-      <h2>Workflows</h2>
+      <h2>Tasklists</h2>
       <ul>
-        {flows.map((flow) => (
-          <li key={flow.id}>
+        {tasklists.map((tl) => (
+          <li key={tl.name}>
             <button
-              onClick={() => onSelect(flow.id)}
-              style={{ fontWeight: flow.id === selectedId ? 'bold' : 'normal' }}
+              onClick={() => onSelect(tl.name)}
+              style={{ fontWeight: tl.name === selectedName ? 'bold' : 'normal' }}
             >
-              {flow.id}
+              {tl.name}
             </button>
           </li>
         ))}
@@ -33,43 +34,30 @@ function WorkflowList({ onSelect, selectedId }: { onSelect: (id: string) => void
   )
 }
 
-function WorkflowEditor({ flowId }: { flowId: string }) {
-  const { index, tasks } = useWorkFlow(flowId)
+function TasklistEditor({ name }: { name: string }) {
+  const { tasks } = useTasklist(name)
   const fs = useSpaceFS()
 
   const handleCreateTask = () => {
-    const name = prompt('Task name:')
-    if (!name) return
+    const id = prompt('Task id (kebab-case):')
+    if (!id) return
 
     const order = tasks.length + 1
-    const task = {
-      name,
-      content: `# ${name}\n\nTask instructions go here.`
-    }
-    fs.writeFile(P.flowTask(flowId, order, name), serializeFlowTask(task))
+    fs.writeFile(
+      P.tasklistTask(name, order, id),
+      serializeTask({ id, instruction: `${id} instructions go here.` }),
+    )
   }
 
-  const handleDeleteTask = (taskName: string) => {
-    if (confirm(`Delete task ${taskName}?`)) {
-      // Find and delete the task file
-      const task = tasks.find(t => t.name === taskName)
-      if (task) {
-        fs.deleteFile(task.path)
-      }
+  const handleDeleteTask = (path: string) => {
+    if (confirm('Delete this task?')) {
+      fs.deleteFile(path)
     }
-  }
-
-  if (!index) {
-    return <p>Loading workflow...</p>
   }
 
   return (
     <div>
-      <h3>{index.name || 'Untitled Workflow'}</h3>
-
-      {index.description && (
-        <p><strong>Description:</strong> {index.description}</p>
-      )}
+      <h3>{name}</h3>
 
       <div style={{ marginTop: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -78,124 +66,106 @@ function WorkflowEditor({ flowId }: { flowId: string }) {
         </div>
 
         <ul>
-          {tasks
-            .sort((a, b) => a.order - b.order)
-            .map((task) => (
-              <li key={task.path}>
-                <span>{task.order}. {task.name}</span>
-                <button
-                  onClick={() => handleDeleteTask(task.name)}
-                  style={{ marginLeft: '1rem' }}
-                >
-                  Delete
-                </button>
-              </li>
-            ))}
+          {tasks.map((task) => (
+            <li key={task.path}>
+              <span>{task.order}. {task.id}</span>
+              <button onClick={() => handleDeleteTask(task.path)} style={{ marginLeft: '1rem' }}>
+                Delete
+              </button>
+            </li>
+          ))}
         </ul>
       </div>
 
       {tasks.length > 0 && (
         <div style={{ marginTop: '1rem' }}>
           <h4>Task Preview</h4>
-          <TaskPreview flowId={flowId} task={tasks[0]} />
+          <TaskPreview path={tasks[0].path} />
         </div>
       )}
     </div>
   )
 }
 
-function TaskPreview({ flowId, task }: { flowId: string; task: { order: number; name: string } }) {
-  const taskData = useFlowTask(flowId, task.order, task.name)
+function TaskPreview({ path }: { path: string }) {
+  const task = useTasklistTask(path)
 
-  if (!taskData) {
+  if (!task) {
     return <p>Select a task to preview</p>
   }
 
   return (
     <div style={{ padding: '1rem', background: '#f5f5f5' }}>
-      <h5>{taskData.name}</h5>
-
-      {taskData.description && (
-        <p><strong>Description:</strong> {taskData.description}</p>
-      )}
-
-      {taskData.agent && (
-        <p><strong>Agent:</strong> {taskData.agent}</p>
-      )}
+      <h5>{task.id}</h5>
 
       <div style={{ marginTop: '0.5rem' }}>
-        <strong>Content:</strong>
+        <strong>Instruction:</strong>
         <pre style={{ whiteSpace: 'pre-wrap', marginTop: '0.5rem' }}>
-          {taskData.content}
+          {task.instruction}
         </pre>
       </div>
     </div>
   )
 }
 
-function CreateWorkflow({ onCreate }: { onCreate: (id: string) => void }) {
+function CreateTasklist({ onCreate }: { onCreate: (name: string) => void }) {
   const fs = useSpaceFS()
   const [name, setName] = useState('')
 
   const handleCreate = () => {
     if (!name.trim()) return
 
-    const id = name.toLowerCase().replace(/\s+/g, '-')
-    const index = {
-      name,
-      tasks: []
-    }
-
-    fs.writeFile(P.flowIndex(id), serializeFlowIndex(index))
-    onCreate(id)
+    const tasklistName = name.toLowerCase().replace(/\s+/g, '_')
+    // Seed the tasklist with a first task so it shows up in listings.
+    fs.writeFile(
+      P.tasklistTask(tasklistName, 1, 'start'),
+      serializeTask({ id: 'start', instruction: 'First step.' }),
+    )
+    onCreate(tasklistName)
     setName('')
   }
 
   return (
     <div>
       <input
-        placeholder="Workflow name"
+        placeholder="Tasklist name"
         value={name}
         onChange={(e) => setName(e.target.value)}
       />
-      <button onClick={handleCreate}>Create Workflow</button>
+      <button onClick={handleCreate}>Create Tasklist</button>
     </div>
   )
 }
 
-function serializeFlowIndex(index: any): string {
-  const frontmatter = [
-    `name: ${JSON.stringify(index.name)}`,
-    index.description && `description: ${JSON.stringify(index.description)}`
-  ].filter(Boolean).join('\n')
-
-  return `---\n${frontmatter}\n---\n`
-}
-
-function serializeFlowTask(task: any): string {
-  const frontmatter = [
-    `name: ${JSON.stringify(task.name)}`,
-    task.description && `description: ${JSON.stringify(task.description)}`,
-    task.agent && `agent: ${JSON.stringify(task.agent)}`
-  ].filter(Boolean).join('\n')
-
-  return `---\n${frontmatter}\n---\n${task.content || ''}`
+function serializeTask(task: { id: string; instruction: string }): string {
+  return [
+    '---',
+    `id: ${task.id}`,
+    'output:',
+    '  result: string',
+    'dependsOn: []',
+    'optional: false',
+    'goal: false',
+    '---',
+    '',
+    task.instruction,
+  ].join('\n')
 }
 
 export function WorkflowEditor() {
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedName, setSelectedName] = useState<string | null>(null)
 
   return (
     <div style={{ display: 'flex', gap: '2rem' }}>
       <div>
-        <CreateWorkflow onCreate={setSelectedId} />
-        <WorkflowList onSelect={setSelectedId} selectedId={selectedId} />
+        <CreateTasklist onCreate={setSelectedName} />
+        <TasklistList onSelect={setSelectedName} selectedName={selectedName} />
       </div>
       <div style={{ flex: 1 }}>
-        {selectedId ? (
-          <WorkflowEditor flowId={selectedId} />
+        {selectedName ? (
+          <TasklistEditor name={selectedName} />
         ) : (
-          <p>Select a workflow to view details</p>
+          <p>Select a tasklist to view details</p>
         )}
       </div>
     </div>

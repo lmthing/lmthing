@@ -1,8 +1,8 @@
 // src/lib/fs/parsers/config.ts
 //
-// Parsers for knowledge/<domain>/<field>/index.md — NEW SPEC.
-// The old AgentConfig/AgentValues/KnowledgeConfig (JSON files) are retired.
-// Those types are kept as deprecated aliases so existing call sites compile.
+// Parsers for knowledge/<domain>/<field>/index.md and
+// knowledge/<domain>/index.md — NEW SPEC.
+// The old AgentConfig/AgentValues/KnowledgeConfig (JSON files) are removed.
 
 import { parseFrontmatter } from './frontmatter'
 
@@ -14,6 +14,10 @@ export interface KnowledgeFieldIndex {
   type: string // "string" | "number" | "boolean" | "object" | "array"
   variable: string
   default?: string
+  label?: string
+  fieldType?: string
+  required?: boolean
+  renderAs?: string
 }
 
 export function parseKnowledgeFieldIndex(content: string): KnowledgeFieldIndex & { description: string } {
@@ -22,6 +26,10 @@ export function parseKnowledgeFieldIndex(content: string): KnowledgeFieldIndex &
     type: typeof raw.type === 'string' ? raw.type : 'string',
     variable: typeof raw.variable === 'string' ? raw.variable : '',
     default: typeof raw.default === 'string' ? raw.default : undefined,
+    label: typeof raw.label === 'string' ? raw.label : undefined,
+    fieldType: typeof raw.fieldType === 'string' ? raw.fieldType : undefined,
+    required: typeof raw.required === 'boolean' ? raw.required : undefined,
+    renderAs: typeof raw.renderAs === 'string' ? raw.renderAs : undefined,
     description: body.trim(),
   }
 }
@@ -29,83 +37,43 @@ export function parseKnowledgeFieldIndex(content: string): KnowledgeFieldIndex &
 export function serializeKnowledgeFieldIndex(index: KnowledgeFieldIndex, description: string): string {
   const lines = ['---', `type: ${index.type}`, `variable: ${index.variable}`]
   if (index.default !== undefined) lines.push(`default: ${index.default}`)
+  if (index.label !== undefined) lines.push(`label: "${index.label.replace(/"/g, '\\"')}"`)
+  if (index.fieldType !== undefined) lines.push(`fieldType: ${index.fieldType}`)
+  if (index.required !== undefined) lines.push(`required: ${index.required}`)
+  if (index.renderAs !== undefined) lines.push(`renderAs: ${index.renderAs}`)
   lines.push('---', '', description.trim())
   return lines.join('\n')
 }
 
 // ---------------------------------------------------------------------------
-// Deprecated — kept for backward compatibility only.
-// These types were used by the OLD spec (config.json / values.json files).
+// Knowledge domain index: knowledge/<domain>/index.md
 // ---------------------------------------------------------------------------
 
-/** @deprecated The new spec has no per-agent config.json. */
-export interface AgentConfig {
-  enabled?: boolean
-  model?: string
-  temperature?: number
-  maxTokens?: number
-  frequencyPenalty?: number
-  presencePenalty?: number
-  stopSequences?: string[]
-  timeout?: number
-  retries?: number
-  [key: string]: unknown
-}
-
-/** @deprecated */
-export function parseAgentConfig(content: string): AgentConfig {
-  try {
-    return JSON.parse(content) as AgentConfig
-  } catch {
-    return {}
-  }
-}
-
-/** @deprecated */
-export function serializeAgentConfig(config: AgentConfig): string {
-  return JSON.stringify(config, null, 2)
-}
-
-/** @deprecated The new spec has no per-agent values.json. */
-export interface AgentValues {
-  [key: string]: string | number | boolean | null
-}
-
-/** @deprecated */
-export function parseAgentValues(content: string): AgentValues {
-  try {
-    return JSON.parse(content) as AgentValues
-  } catch {
-    return {}
-  }
-}
-
-/** @deprecated */
-export function serializeAgentValues(values: AgentValues): string {
-  return JSON.stringify(values, null, 2)
-}
-
-/** @deprecated The new spec has no knowledge/domain/config.json. */
-export interface KnowledgeConfig {
-  title?: string
+export interface KnowledgeDomainIndex {
+  label?: string
   description?: string
-  tags?: string[]
-  embeddingModel?: string
-  chunkSize?: number
-  chunkOverlap?: number
-  [key: string]: unknown
+  icon?: string
+  color?: string
+  renderAs?: string
 }
 
-/** @deprecated */
-export function parseKnowledgeConfig(content: string): KnowledgeConfig {
-  try {
-    return JSON.parse(content) as KnowledgeConfig
-  } catch {
-    return {}
+export function parseKnowledgeDomainIndex(content: string): KnowledgeDomainIndex & { description: string } {
+  const { frontmatter: raw, content: body } = parseFrontmatter<Record<string, unknown>>(content)
+  return {
+    label: typeof raw.label === 'string' ? raw.label : undefined,
+    icon: typeof raw.icon === 'string' ? raw.icon : undefined,
+    color: typeof raw.color === 'string' ? raw.color : undefined,
+    renderAs: typeof raw.renderAs === 'string' ? raw.renderAs : undefined,
+    description: body.trim(),
   }
 }
 
-/** @deprecated */
-export function serializeKnowledgeConfig(config: KnowledgeConfig): string {
-  return JSON.stringify(config, null, 2)
+export function serializeKnowledgeDomainIndex(index: KnowledgeDomainIndex, description: string): string {
+  const lines = ['---']
+  if (index.label !== undefined) lines.push(`label: "${index.label.replace(/"/g, '\\"')}"`)
+  if (index.icon !== undefined) lines.push(`icon: ${index.icon}`)
+  if (index.color !== undefined) lines.push(`color: "${index.color.replace(/"/g, '\\"')}"`)
+  if (index.renderAs !== undefined) lines.push(`renderAs: ${index.renderAs}`)
+  lines.push('---', '', description.trim())
+  return lines.join('\n')
 }

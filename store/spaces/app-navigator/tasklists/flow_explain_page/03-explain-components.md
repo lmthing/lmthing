@@ -1,0 +1,29 @@
+---
+id: explain-components
+output:
+  components: string[]
+  componentDescriptions: string
+dependsOn:
+  - describe-layout-and-structure
+optional: false
+goal: false
+---
+
+List and describe the key UI components that appear on the selected page. Use the component library as reference:
+
+| Component | Code | What It Does |
+|-----------|------|--------------|
+| Application Header | C1 | Top bar with logo, workspace selector, action buttons |
+| Sidebar Navigation | C2 | Fixed left panel with KNOWLEDGE, AGENTS, CONVERSATIONS sections |
+| Card Grid | C3 | Responsive grid of cards for Knowledge Areas and Agents |
+| Empty State | C4 | Centered placeholder with icon + guidance when no content exists |
+| Pill/Tag Bar | C5 | Horizontal scrollable bar of toggle pills |
+| Markdown Editor | C6 | Full textarea with monospace font for editing .md content |
+| Tree Explorer | C7 | Hierarchical file browser with expand/collapse, search, and context menus |
+| Modal Dialog | C8 | Overlay dialogs — simple form, tabbed settings, or selection list variants |
+| Floating Action Button | C9 | Fixed bottom-right button (e.g., "Chat" on agent config page) |
+| Sliding Side Panel | C10 | Right-side panel for Thing assistant interface |
+
+For the current page, list which components are present and explain their exact role on that page.
+
+currentTask.resolve({ components: ["<C1>", "<C2>", "..."], componentDescriptions: "<per-component explanation>" });

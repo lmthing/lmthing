@@ -164,6 +164,26 @@ function parseScalar(value: string): unknown {
 // Agent Parsing
 // ============================================================================
 
+function parseStringArrayMap(value: unknown): Record<string, string[]> | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const result: Record<string, string[]> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    result[k] = toStringArray(v);
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+function parseObjectMap(value: unknown): Record<string, Record<string, unknown>> | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const result: Record<string, Record<string, unknown>> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof v === "object" && v !== null && !Array.isArray(v)) {
+      result[k] = v as Record<string, unknown>;
+    }
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
 function parseAgentFrontmatter(raw: Record<string, unknown>): AgentFrontmatter {
   return {
     title: typeof raw.title === "string" ? raw.title : "",
@@ -173,6 +193,8 @@ function parseAgentFrontmatter(raw: Record<string, unknown>): AgentFrontmatter {
     actions: parseActions(raw.actions),
     defaultAction: typeof raw.defaultAction === "string" ? raw.defaultAction : undefined,
     dependencies: toStringArray(raw.dependencies),
+    runtimeFields: parseStringArrayMap(raw.runtimeFields),
+    formValues: parseObjectMap(raw.formValues),
   };
 }
 
@@ -249,8 +271,22 @@ function parseKnowledgeFieldIndex(content: string): { index: KnowledgeFieldIndex
       type: typeof raw.type === "string" ? raw.type : "string",
       variable: typeof raw.variable === "string" ? raw.variable : "",
       default: typeof raw.default === "string" ? raw.default : undefined,
+      label: typeof raw.label === "string" ? raw.label : undefined,
+      fieldType: typeof raw.fieldType === "string" ? raw.fieldType : undefined,
+      required: typeof raw.required === "boolean" ? raw.required : undefined,
+      renderAs: typeof raw.renderAs === "string" ? raw.renderAs : undefined,
     },
     description: body.trim(),
+  };
+}
+
+function parseKnowledgeDomainIndex(content: string): { label?: string; icon?: string; color?: string; description?: string } {
+  const { frontmatter: raw, body } = parseFrontmatter<Record<string, unknown>>(content);
+  return {
+    label: typeof raw.label === "string" ? raw.label : undefined,
+    icon: typeof raw.icon === "string" ? raw.icon : undefined,
+    color: typeof raw.color === "string" ? raw.color : undefined,
+    description: body.trim() || undefined,
   };
 }
 
@@ -374,7 +410,10 @@ export function extractWorkspaceData(
   }
 
   // ── Knowledge ────────────────────────────────────────────────────────────
-  // Layout: knowledge/<domain>/<field>/index.md + knowledge/<domain>/<field>/<slug>.md
+  // Layout:
+  //   knowledge/<domain>/index.md              — domain metadata (optional)
+  //   knowledge/<domain>/<field>/index.md      — field manifest
+  //   knowledge/<domain>/<field>/<slug>.md     — option files
   for (const filePath of Object.keys(globResult)) {
     if (!filePath.startsWith("knowledge/")) continue;
 
@@ -384,12 +423,26 @@ export function extractWorkspaceData(
     if (parts.length < 2) continue; // bare file at knowledge/ root — skip
 
     const domain = parts[0];
-    const field = parts[1];
 
     if (!result.knowledge[domain]) {
       result.knowledge[domain] = { slug: domain, fields: {} };
     }
     const domainObj = result.knowledge[domain];
+
+    if (parts.length === 2) {
+      // knowledge/<domain>/index.md — domain metadata
+      const fileName = parts[1];
+      if (fileName === "index.md") {
+        const meta = parseKnowledgeDomainIndex(globResult[filePath]);
+        if (meta.label !== undefined) domainObj.label = meta.label;
+        if (meta.icon !== undefined) domainObj.icon = meta.icon;
+        if (meta.color !== undefined) domainObj.color = meta.color;
+        if (meta.description !== undefined) domainObj.description = meta.description;
+      }
+      continue;
+    }
+
+    const field = parts[1];
 
     if (!domainObj.fields[field]) {
       domainObj.fields[field] = {

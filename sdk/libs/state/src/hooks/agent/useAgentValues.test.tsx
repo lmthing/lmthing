@@ -1,10 +1,29 @@
 // src/hooks/agent/useAgentValues.test.tsx
+//
+// The new spec exposes saved form values via the agent's instruct.md
+// frontmatter (`formValues`). useAgentValues returns that map.
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { AppFS } from '@/lib/fs/AppFS'
 import { useAgentValues } from './useAgentValues'
 import { createTestWrapper, getTestPath } from '@/test-utils'
+
+function instruct(formValues?: Record<string, Record<string, unknown>>): string {
+  const lines = ['---', 'title: Bot']
+  if (formValues) {
+    lines.push('formValues:')
+    for (const [comp, vals] of Object.entries(formValues)) {
+      lines.push(`  ${comp}:`)
+      for (const [k, v] of Object.entries(vals)) {
+        const serialized = typeof v === 'string' ? `"${v}"` : String(v)
+        lines.push(`    ${k}: ${serialized}`)
+      }
+    }
+  }
+  lines.push('---', '', 'System prompt body.')
+  return lines.join('\n')
+}
 
 describe('useAgentValues', () => {
   let appFS: AppFS
@@ -13,179 +32,83 @@ describe('useAgentValues', () => {
     appFS = new AppFS()
   })
 
-  it('should parse agent values', () => {
-    const values = {
-      apiKey: 'sk-1234',
-      endpoint: 'https://api.example.com',
-      maxRetries: 3
-    }
-
-    appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(values))
+  it('should return formValues from instruct frontmatter', () => {
+    appFS.writeFile(
+      getTestPath('agents/bot/instruct.md'),
+      instruct({ TaskInput: { gradeLevel: '5', subject: 'math' } }),
+    )
 
     const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createTestWrapper(appFS)
+      wrapper: createTestWrapper(appFS),
     })
 
     expect(result.current).not.toBeNull()
-    expect(result.current?.apiKey).toBe('sk-1234')
-    expect(result.current?.endpoint).toBe('https://api.example.com')
-    expect(result.current?.maxRetries).toBe(3)
+    expect(result.current?.TaskInput?.gradeLevel).toBe('5')
+    expect(result.current?.TaskInput?.subject).toBe('math')
   })
 
   it('should return null for non-existent agent', () => {
     const { result } = renderHook(() => useAgentValues('non-existent'), {
-      wrapper: createTestWrapper(appFS)
+      wrapper: createTestWrapper(appFS),
     })
 
     expect(result.current).toBeNull()
   })
 
-  it('should handle invalid JSON gracefully', () => {
-    appFS.writeFile(getTestPath('agents/bot/values.json'), 'not json')
+  it('should return null when instruct has no formValues', () => {
+    appFS.writeFile(getTestPath('agents/bot/instruct.md'), instruct())
 
     const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createTestWrapper(appFS)
+      wrapper: createTestWrapper(appFS),
     })
 
-    expect(result.current).toEqual({})
+    expect(result.current).toBeNull()
   })
 
   it('should parse different value types', () => {
-    const values = {
-      string: 'value',
-      number: 42,
-      float: 3.14,
-      bool: true,
-      nullValue: null
-    }
-
-    appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(values))
+    appFS.writeFile(
+      getTestPath('agents/bot/instruct.md'),
+      instruct({ Comp: { str: 'value', num: 42, bool: true } }),
+    )
 
     const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createTestWrapper(appFS)
+      wrapper: createTestWrapper(appFS),
     })
 
-    expect(result.current?.string).toBe('value')
-    expect(result.current?.number).toBe(42)
-    expect(result.current?.float).toBe(3.14)
-    expect(result.current?.bool).toBe(true)
-    expect(result.current?.nullValue).toBe(null)
+    expect(result.current?.Comp?.str).toBe('value')
+    expect(result.current?.Comp?.num).toBe(42)
+    expect(result.current?.Comp?.bool).toBe(true)
   })
 
-  it('should handle empty values', () => {
-    appFS.writeFile(getTestPath('agents/bot/values.json'), '{}')
+  it('should re-render when formValues are updated', async () => {
+    appFS.writeFile(getTestPath('agents/bot/instruct.md'), instruct({ Comp: { key: 'a' } }))
 
     const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createTestWrapper(appFS)
+      wrapper: createTestWrapper(appFS),
     })
 
-    expect(result.current).toEqual({})
-  })
+    expect(result.current?.Comp?.key).toBe('a')
 
-  it('should re-render when values are updated', async () => {
-    const initialValues = { apiKey: 'sk-1234' }
-    appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(initialValues))
-
-    const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createTestWrapper(appFS)
-    })
-
-    expect(result.current?.apiKey).toBe('sk-1234')
-
-    const updatedValues = { apiKey: 'sk-5678', endpoint: 'https://api.example.com' }
-    appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(updatedValues))
+    appFS.writeFile(getTestPath('agents/bot/instruct.md'), instruct({ Comp: { key: 'b' } }))
 
     await waitFor(() => {
-      expect(result.current?.apiKey).toBe('sk-5678')
-      expect(result.current?.endpoint).toBe('https://api.example.com')
+      expect(result.current?.Comp?.key).toBe('b')
     })
   })
 
-  it('should re-render when values are created', async () => {
-    const { result } = renderHook(() => useAgentValues('newbot'), {
-      wrapper: createTestWrapper(appFS)
-    })
-
-    expect(result.current).toBeNull()
-
-    const values = { apiKey: 'sk-1234' }
-    appFS.writeFile(getTestPath('agents/newbot/values.json'), JSON.stringify(values))
-
-    await waitFor(() => {
-      expect(result.current?.apiKey).toBe('sk-1234')
-    })
-  })
-
-  it('should re-render when values are deleted', async () => {
-    const values = { apiKey: 'sk-1234' }
-    appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(values))
+  it('should re-render when instruct is deleted', async () => {
+    appFS.writeFile(getTestPath('agents/bot/instruct.md'), instruct({ Comp: { key: 'a' } }))
 
     const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createTestWrapper(appFS)
+      wrapper: createTestWrapper(appFS),
     })
 
     expect(result.current).not.toBeNull()
 
-    appFS.deleteFile(getTestPath('agents/bot/values.json'))
+    appFS.deleteFile(getTestPath('agents/bot/instruct.md'))
 
     await waitFor(() => {
       expect(result.current).toBeNull()
     })
-  })
-
-  it('should not re-render when different agent changes', async () => {
-    let renderCount = 0
-
-    appFS.writeFile(getTestPath('agents/bot1/values.json'), JSON.stringify({ key: '1' }))
-    appFS.writeFile(getTestPath('agents/bot2/values.json'), JSON.stringify({ key: '2' }))
-
-    const { result } = renderHook(() => {
-      renderCount++
-      return useAgentValues('bot1')
-    }, {
-      wrapper: createTestWrapper(appFS)
-    })
-
-    const initialCount = renderCount
-
-    appFS.writeFile(getTestPath('agents/bot2/values.json'), JSON.stringify({ key: 'updated' }))
-
-    await waitFor(() => {
-      expect(renderCount).toBe(initialCount)
-    })
-  })
-
-  it('should handle nested objects in values', () => {
-    const values = {
-      config: {
-        nested: {
-          value: 'deep'
-        }
-      }
-    }
-
-    appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(values))
-
-    const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createTestWrapper(appFS)
-    })
-
-    expect(result.current?.config?.nested?.value).toBe('deep')
-  })
-
-  it('should handle arrays in values', () => {
-    const values = {
-      tags: ['tag1', 'tag2', 'tag3'],
-      numbers: [1, 2, 3]
-    }
-
-    appFS.writeFile(getTestPath('agents/bot/values.json'), JSON.stringify(values))
-
-    const { result } = renderHook(() => useAgentValues('bot'), {
-      wrapper: createTestWrapper(appFS)
-    })
-
-    expect(result.current?.tags).toEqual(['tag1', 'tag2', 'tag3'])
-    expect(result.current?.numbers).toEqual([1, 2, 3])
   })
 })

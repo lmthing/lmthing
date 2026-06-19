@@ -21,6 +21,7 @@ async function resolveUser(
 // All of these are proxied to the user's pod when LOCAL_DEV=true.
 const POD_PATH_PREFIXES = [
   "/api/sessions",
+  "/api/spaces",
   "/api/state",
   "/api/events",
   "/api/asks",

@@ -1,5 +1,5 @@
 .PHONY: up down proxy proxy-clean install check show-cost show-resources \
-        local-up local-down local-k8s-setup local-compute-image local-pods local-pod-logs
+        local-up local-down local-k8s-setup local-compute-image local-pods local-pod-logs local-compute-env
 
 # Parse services by type from services.yaml
 VITE_SERVICES := $(shell awk '/- name:/{name=$$3} /type: vite/{print name}' services.yaml)
@@ -103,6 +103,26 @@ local-pods:
 # Tail compute pod logs. Usage: make local-pod-logs USER_ID=local-dev-user
 local-pod-logs:
 	kubectl logs -n user-$(USER_ID) deployment/lmthing -f
+
+# Seed the user-env secret for a compute pod from devops/local/.env.local.
+# Usage: make local-compute-env USER_ID=local-dev-user  (default: local-dev-user)
+# Re-run after changing .env.local; triggers a pod restart to pick up new values.
+LOCAL_USER_ID ?= local-dev-user
+local-compute-env:
+	@set -a && . devops/local/.env.local && set +a && \
+	kubectl create secret generic user-env \
+	  --from-literal=AZURE_API_KEY="$$AZURE_API_KEY" \
+	  --from-literal=AZURE_RESOURCE_NAME="$$AZURE_RESOURCE_NAME" \
+	  --from-literal=LM_MODEL_XS="$$LM_MODEL_XS" \
+	  --from-literal=LM_MODEL_S="$$LM_MODEL_S" \
+	  --from-literal=LM_MODEL_M="$$LM_MODEL_M" \
+	  --from-literal=LM_MODEL_L="$$LM_MODEL_L" \
+	  --from-literal=LM_MODEL_M_R="$$LM_MODEL_M_R" \
+	  --from-literal=LM_MODEL_L_R="$$LM_MODEL_L_R" \
+	  --from-literal=TAVILY_API_KEY="$$TAVILY_API_KEY" \
+	  -n user-$(LOCAL_USER_ID) \
+	  --dry-run=client -o yaml | kubectl apply -f -
+	kubectl rollout restart deployment/lmthing -n user-$(LOCAL_USER_ID)
 
 # Run the compute server from source on the host with auto-reload.
 # Set COMPUTE_LOCAL_URL=http://localhost:18080 in cloud/gateway/.env.local

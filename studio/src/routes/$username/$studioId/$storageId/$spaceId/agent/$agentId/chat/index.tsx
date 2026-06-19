@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useAuth } from '@lmthing/auth'
+import { useGlobRead } from '@lmthing/state'
 import {
   useReplSession,
   ReplRpcClient,
@@ -28,36 +29,89 @@ async function ensurePod(cloudBaseUrl: string, accessToken: string): Promise<voi
   }
 }
 
+/** Files that belong to the editor but not the runnable space spec. */
+function isRunnableSpaceFile(path: string): boolean {
+  if (path.includes('/conversations/')) return false
+  const base = path.split('/').pop() ?? ''
+  if (base.startsWith('.env')) return false
+  return true
+}
+
+type RunPhase = 'idle' | 'provisioning' | 'syncing' | 'starting' | 'ready'
+
 function AgentChatPage() {
-  const { agentId } = Route.useParams()
+  const { agentId, storageId, spaceId } = Route.useParams()
   const { session } = useAuth()
 
+  // The current space's files, straight from the VFS in canonical on-disk
+  // layout (agents/<slug>/instruct.md, tasklists/…, knowledge/…, functions/…).
+  const spaceFiles = useGlobRead('**/*')
+  const fileMap = useMemo(() => {
+    const out: Record<string, string> = {}
+    for (const [path, content] of Object.entries(spaceFiles)) {
+      if (isRunnableSpaceFile(path)) out[path] = content
+    }
+    return out
+  }, [spaceFiles])
+
+  // A pod-unique, single-segment name for this space (the sync endpoint rejects
+  // path separators), stable across storages within the user's pod.
+  const spaceName = useMemo(
+    () => `${storageId}__${spaceId}`.replace(/[^a-zA-Z0-9._-]/g, '-'),
+    [storageId, spaceId],
+  )
+
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [phase, setPhase] = useState<RunPhase>('idle')
   const [podError, setPodError] = useState<string | null>(null)
   const [inputValue, setInputValue] = useState('')
-  const initRef = useRef(false)
+  const runningRef = useRef(false)
+  const startedOnceRef = useRef(false)
 
-  // Create a pod session for this agent once auth is available
-  useEffect(() => {
-    if (!session?.accessToken || initRef.current) return
-    initRef.current = true
+  // Sync the current (possibly unsaved) space into the pod, then open a fresh
+  // session against it. Re-runnable so edits can be pushed without a reload.
+  const startSession = useCallback(async () => {
+    if (!session?.accessToken || runningRef.current) return
+    runningRef.current = true
+    setPodError(null)
+    setSessionId(null)
+    try {
+      setPhase('provisioning')
+      await ensurePod(CLOUD_BASE_URL, session.accessToken)
 
-    async function init() {
-      try {
-        await ensurePod(CLOUD_BASE_URL, session!.accessToken)
-        const client = await ReplRpcClient.createSession(
-          COMPUTER_BASE_URL,
-          { agentSlug: agentId },
-          session!.accessToken,
-        )
-        setSessionId(client.sessionId!)
-      } catch (err) {
-        setPodError(err instanceof Error ? err.message : String(err))
-      }
+      setPhase('syncing')
+      const { spaceDir } = await ReplRpcClient.syncSpace(
+        COMPUTER_BASE_URL,
+        spaceName,
+        fileMap,
+        session.accessToken,
+      )
+
+      setPhase('starting')
+      const client = await ReplRpcClient.createSession(
+        COMPUTER_BASE_URL,
+        { spaceDir, agentSlug: agentId },
+        session.accessToken,
+      )
+      setSessionId(client.sessionId!)
+      setPhase('ready')
+    } catch (err) {
+      setPodError(err instanceof Error ? err.message : String(err))
+      setPhase('idle')
+    } finally {
+      runningRef.current = false
     }
+  }, [session, agentId, spaceName, fileMap])
 
-    void init()
-  }, [session, agentId])
+  // Auto-start once the VFS has hydrated. useGlobRead populates asynchronously,
+  // so starting on bare mount would sync an EMPTY space (race). Wait until the
+  // space actually has files before the first run.
+  useEffect(() => {
+    if (startedOnceRef.current || !session?.accessToken) return
+    if (Object.keys(fileMap).length === 0) return
+    startedOnceRef.current = true
+    void startSession()
+  }, [session, startSession, fileMap])
 
   const { blocks, sendMessage, submitForm, cancelAsk, isConnected, isDone } = useReplSession(
     sessionId
@@ -87,24 +141,32 @@ function AgentChatPage() {
   if (podError) {
     return (
       <div style={styles.center}>
-        <p style={{ color: '#c00' }}>Failed to start compute pod: {podError}</p>
-        <button onClick={() => { initRef.current = false; setPodError(null) }}>Retry</button>
+        <p style={{ color: '#c00' }}>Failed to run space: {podError}</p>
+        <button onClick={() => void startSession()}>Retry</button>
       </div>
     )
   }
 
   if (!sessionId) {
-    return <div style={styles.center}>Starting agent session…</div>
+    return <div style={styles.center}>{PHASE_LABEL[phase] ?? 'Starting agent session…'}</div>
   }
 
   return (
     <div style={styles.container}>
-      {/* Connection status */}
+      {/* Connection status + re-sync control */}
       <div style={styles.statusBar}>
         <span style={{ color: isConnected ? '#22c55e' : '#ef4444' }}>
           {isConnected ? '● Connected' : '○ Connecting…'}
         </span>
         {isDone && <span style={{ marginLeft: 12, color: '#6b7280' }}>Done</span>}
+        <button
+          onClick={() => void startSession()}
+          disabled={runningRef.current || phase !== 'ready'}
+          style={styles.resyncButton}
+          title="Push the latest edits to your pod and restart the agent"
+        >
+          ↻ Re-sync &amp; restart
+        </button>
       </div>
 
       {/* Block stream */}
@@ -161,6 +223,14 @@ function AgentChatPage() {
   )
 }
 
+const PHASE_LABEL: Record<RunPhase, string> = {
+  idle: 'Starting agent session…',
+  provisioning: 'Provisioning compute pod…',
+  syncing: 'Syncing space to your pod…',
+  starting: 'Starting agent session…',
+  ready: 'Ready',
+}
+
 const styles = {
   container: {
     display: 'flex',
@@ -176,10 +246,22 @@ const styles = {
     color: '#6b7280',
   } as React.CSSProperties,
   statusBar: {
+    display: 'flex',
+    alignItems: 'center',
     padding: '4px 12px',
     borderBottom: '1px solid #e5e7eb',
     fontSize: 12,
     flexShrink: 0,
+  } as React.CSSProperties,
+  resyncButton: {
+    marginLeft: 'auto',
+    padding: '2px 10px',
+    borderRadius: 4,
+    border: '1px solid #d1d5db',
+    background: '#f9fafb',
+    color: '#374151',
+    fontSize: 12,
+    cursor: 'pointer',
   } as React.CSSProperties,
   blocks: {
     flex: 1,

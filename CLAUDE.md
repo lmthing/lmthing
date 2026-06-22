@@ -30,7 +30,7 @@ lmthing/
 │   ├── packages/           # Core framework packages
 │   │   ├── core/           # @lmthing/core — QuickJS WASM sandbox, eval loop, globals, spaces
 │   │   ├── cli/            # @lmthing/cli — terminal (Ink), WS server, AI provider wiring
-│   │   └── ui/             # @lmthing/agent-ui — React DevTools web surface + useReplSession
+│   │   └── ui/             # @lmthing/agent-ui — React THING chat shell + DevTools observability panel
 │   └── docs/               # Documentation
 ├── cloud/                  # lmthing.cloud — API gateway (Hono/Node.js) + LiteLLM proxy
 ├── studio/                 # lmthing.studio — agent builder UI (React 19, Vite 7, TanStack Router)
@@ -133,12 +133,12 @@ Three packages that power the THING agent runtime:
 |---------|-------|---------|
 | `@lmthing/core` | `packages/core/src/index.ts` | Runtime — QuickJS WASM sandbox, eval loop, globals (`ask`, `sleep`, `fork`, `delegate`, `tasklist`, `loadKnowledge`, `registerSpace`, …), spaces/agents, system spaces. No renderer/provider. |
 | `@lmthing/cli` | `packages/cli/src/cli/bin.ts` | Terminal (Ink), WS DevTools server, AI provider wiring, `lmthing run` CLI. |
-| `@lmthing/agent-ui` | `packages/ui/src/index.ts` | React DevTools web surface (3-pane observability app, Tailwind v4). Exports `useReplSession`, `DisplayBlock`, `AskBlock`, `VariablesBlock`. |
+| `@lmthing/agent-ui` | `packages/ui/src/index.ts` | React web surface — the THING chat shell (`AppShell`: projects/sessions sidebar, chat, per-project documents + instructions) with a toggleable DevTools observability panel (execution tree + inspector), Tailwind v4. Exports `useReplSession`, `DisplayBlock`, `AskBlock`, `VariablesBlock`. |
 
 Key concepts:
 
 - **Execution model** — The model streams TypeScript; the host evaluates statements one-at-a-time in a QuickJS WASM sandbox. Value-yielding calls (`ask`, `sleep`, `tasklist`, `fork`, `delegate`, `inspect`, `loadKnowledge`, `registerSpace`) abort the stream, hand control to the host, and resume the next turn with resolved values injected as a VARIABLES block.
-- **System spaces** — Always-loaded baseline spaces merged into every user space. The `global` space's functions are universally injected; other system agents (`architect`, `engineer`, `solver`, `deep_research`) are universally delegatable. The `architect` system agent IS the THING meta-agent — it synthesizes new spaces on demand via `scaffoldSpace`/`validateSpace`/`registerSpace`.
+- **System spaces** — Always-loaded baseline spaces merged into every user space. The `global` space's functions are universally injected; the system agents (`thing`, `architect`, `engineer`, `solver`, `deep_research`, `memory`) are universally delegatable. The `thing` agent is the user-facing orchestrator that routes each request; the `architect` agent is the space-builder meta-agent — it synthesizes new spaces on demand via `scaffoldSpace`/`validateSpace`/`registerSpace`.
 - **Compute runtime** — Server-side QuickJS WASM running in K8s pods. Every tier gets an ephemeral per-user pod; WebContainers are retired.
 - **Spaces** — Self-contained directories with agents, functions, components, and knowledge. Loaded by `loadSpace(dir)`, merged via `mergeSystemInto`.
 - **Provider resolution** — `azure/*`, `anthropic/*`, `openai/*`, `google/*`, `mistral/*`, or any OpenAI-compatible endpoint.
@@ -182,15 +182,17 @@ graph TB
 
 ### sdk/org/packages/core/system-spaces — THING System Spaces
 
-The THING agent and its baseline capabilities live in `@lmthing/core` as always-loaded system spaces, not in a separate package. The old `@lmthing/thing` package has been retired.
+THING and its baseline capabilities live in `@lmthing/core` as always-loaded system spaces, not in a separate package. The old `@lmthing/thing` package has been retired.
 
 Key system spaces (in `packages/core/system-spaces/`):
 
-- **`global`** — Universally injected toolkit: `readFile`, `writeFile`, `editFile`, `glob`, `grep`, `listDir`, `webSearch`, `webFetch`, `remember`/`recall`/`forget`, `todoWrite`/`todoRead`.
-- **`architect`** — The THING meta-agent. Synthesizes new spaces via `scaffoldSpace`/`validateSpace`/`registerSpace`. Drives the `synthesize_and_run` tasklist DAG (research → design → scaffold → validate → register). Includes the `skill-to-space-transformer` agent for importing Claude Code skills/plugins.
+- **`global`** — Universally injected toolkit: `readFile`, `writeFile`, `editFile`, `glob`, `grep`, `listDir`, `webSearch`, `webFetch`, `remember`/`recall`/`recallAll`/`forget`, `todoWrite`/`todoRead`.
+- **`thing`** — The main user-facing orchestrator agent (model-driven, no forced tasklist) and the default agent in the `lmthing` project server. It triages each request: answer directly, `delegate('deep_research', …)` to research, `delegate('architect', …)` to build a new specialist, `delegate('engineer'|'solver', …)` to code, or `delegate('memory', …)` to persist user facts. Reads per-project `instructions.md` + `documents/`.
+- **`architect`** — The space-builder meta-agent. Synthesizes new spaces via `scaffoldSpace`/`validateSpace`/`registerSpace`, driving the `synthesize_and_run` tasklist DAG (research → design → scaffold → validate → register). Includes the `skill-to-space-transformer` agent for importing Claude Code skills/plugins.
 - **`engineer`** — Coding agent with `TaskInput` component.
 - **`solver`** — Verifier-gated coding agent.
 - **`deep_research`** — Deep Research Analyst with Tavily search + `research_report` tasklist.
+- **`memory`** — Thin agent wrapping `remember`/`recall`/`recallAll`/`forget`; stores facts about the user **globally** (across projects).
 
 All system agents are universally delegatable from any user space. User space wins on name collisions (unless the user provides an empty placeholder).
 
@@ -483,7 +485,7 @@ This repository is a monorepo organized by TLD — each lmthing.\* domain has it
 
 - `sdk/org/packages/core/` — `@lmthing/core`. QuickJS WASM sandbox, eval loop, value-yielding globals (`ask`, `sleep`, `fork`, `delegate`, `tasklist`, `loadKnowledge`, `registerSpace`, …), spaces/agents loading, system spaces (including the `architect` THING agent). No renderer or provider dependency.
 - `sdk/org/packages/cli/` — `@lmthing/cli`. Terminal renderer (Ink), WS DevTools server, AI provider wiring, `lmthing run` CLI. Depends on `@lmthing/core`.
-- `sdk/org/packages/ui/` — `@lmthing/agent-ui`. React DevTools 3-pane web app (Tailwind v4). Exports `useReplSession`, `DisplayBlock`, `AskBlock`, `VariablesBlock`, and the Ink-compatibility layer (`@lmthing/agent-ui/compat`).
+- `sdk/org/packages/ui/` — `@lmthing/agent-ui`. React THING chat shell (`AppShell` + Sidebar/ChatView/Composer/Message/ProjectSettings) with a toggleable DevTools observability panel (Tailwind v4). Exports `useReplSession`, `DisplayBlock`, `AskBlock`, `VariablesBlock`, and the Ink-compatibility layer (`@lmthing/agent-ui/compat`).
 - `sdk/libs/state/` — Virtual file system (`@lmthing/state`). In-memory Map-based VFS with FSEventBus, React context hierarchy, and hooks (`useFile`, `useDir`, `useGlob`, `useDraft`).
 - `sdk/libs/spaces/` — Shared space knowledge content.
 - `sdk/libs/css/` — Shared styles used across all product domains.

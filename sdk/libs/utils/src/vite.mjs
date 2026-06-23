@@ -96,9 +96,11 @@ export function createViteConfig(dirname, overrides) {
       alias: {
         '@': path.resolve(dirname, './src'),
         '@lmthing/ui': path.resolve(dirname, '../sdk/libs/ui/src'),
-        '@lmthing/thing-ui': path.resolve(dirname, '../sdk/org/ui/src'),
+        // @lmthing/agent-ui ships no committed dist; alias to source so SPA
+        // builds resolve it without a prior package build (e.g. studio's
+        // agent test-chat route).
+        '@lmthing/agent-ui': path.resolve(dirname, '../sdk/org/packages/ui/src'),
         '@lmthing/css': path.resolve(dirname, '../sdk/libs/css/src'),
-        'lmthing': path.resolve(dirname, '../sdk/org/cli/src'),
         '@lmthing/state': path.resolve(dirname, '../sdk/libs/state/src'),
         '@lmthing/auth': path.resolve(dirname, '../sdk/libs/auth/src'),
 

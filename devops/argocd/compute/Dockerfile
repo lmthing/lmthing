@@ -120,4 +120,4 @@ WORKDIR /data
 # for the corresponding env var and memory sizing notes.
 CMD ["bun", "run", "/app/packages/cli/dist/cli/bin.js", "serve", "--port", "8080"]
 
-# redeploy: pod-served UI refactor v2 (correct compute build context)
+# redeploy: ship ui/src + project-list fix (submodule c084772)

@@ -18,6 +18,32 @@ data:
           input_cost_per_token: 0.000000165
           output_cost_per_token: 0.00000165
 
+      # ── DEEPSEEK ───────────────────────────────────────────────
+      # TODO: replace azure/REPLACE_ME_DEEPSEEK with the real Azure Foundry deployment name
+      - model_name: deepseek
+        litellm_params:
+          model: azure/REPLACE_ME_DEEPSEEK  # TODO: real Azure Foundry deployment name
+          api_base: os.environ/AZURE_API_BASE
+          api_key: os.environ/AZURE_API_KEY
+          api_version: "2024-12-01-preview"
+        model_info:
+          # 10% markup — set these to (azure_cost * 1.1)
+          input_cost_per_token: 0.00000154
+          output_cost_per_token: 0.00000220
+
+      # ── DEEPSEEK FLASH ─────────────────────────────────────────
+      # TODO: replace azure/REPLACE_ME_DEEPSEEK_FLASH with the real Azure Foundry deployment name
+      - model_name: deepseek-flash
+        litellm_params:
+          model: azure/REPLACE_ME_DEEPSEEK_FLASH  # TODO: real Azure Foundry deployment name
+          api_base: os.environ/AZURE_API_BASE
+          api_key: os.environ/AZURE_API_KEY
+          api_version: "2024-12-01-preview"
+        model_info:
+          # 10% markup — set these to (azure_cost * 1.1)
+          input_cost_per_token: 0.00000011
+          output_cost_per_token: 0.00000044
+
     general_settings:
       master_key: os.environ/LITELLM_MASTER_KEY
       database_url: os.environ/DATABASE_URL

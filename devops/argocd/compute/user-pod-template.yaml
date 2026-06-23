@@ -26,6 +26,22 @@ metadata:
     lmthing.cloud/type: compute
 
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: user-data
+  namespace: user-USER_ID
+  labels:
+    lmthing.cloud/user: "USER_ID"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  # storageClassName omitted — uses the cluster default StorageClass
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -81,16 +97,13 @@ spec:
           volumeMounts:
             # /data is the unified runtime root. The server runs with cwd=/data,
             # so /data/.lmthing holds projects, generated spaces, and session
-            # snapshots — the single source of truth, persisted on this volume.
-            # emptyDir is used here (state lost on pod restart).
-            # TODO: for paid tiers, replace with a PVC (ReadWriteOnce, ~5Gi) so
-            # projects/sessions survive pod reschedules without losing progress.
+            # snapshots — the single source of truth, persisted across restarts.
             - name: data
               mountPath: /data
       volumes:
         - name: data
-          emptyDir:
-            sizeLimit: "2Gi"
+          persistentVolumeClaim:
+            claimName: user-data
 
 ---
 apiVersion: v1

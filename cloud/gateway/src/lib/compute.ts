@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import type { PodConfig } from "./tiers.js";
+import * as litellm from "./litellm.js";
 
 // Local dev: when K8S_LOCAL_PROXY=true, talk to minikube via `kubectl proxy --port=8001`
 // (no TLS, no service account token needed).
@@ -87,6 +88,23 @@ function acrPullSecret(userId: string) {
   };
 }
 
+function dataPvc(userId: string) {
+  return {
+    apiVersion: "v1",
+    kind: "PersistentVolumeClaim",
+    metadata: {
+      name: "user-data",
+      namespace: `user-${userId}`,
+      labels: { "lmthing.cloud/user": userId },
+    },
+    spec: {
+      accessModes: ["ReadWriteOnce"],
+      resources: { requests: { storage: "1Gi" } },
+      // uses the cluster default StorageClass
+    },
+  };
+}
+
 const DEFAULT_POD_CONFIG: PodConfig = {
   cpu: "500m",
   mem: "1Gi",
@@ -135,13 +153,13 @@ function deployment(userId: string, pod: PodConfig = DEFAULT_POD_CONFIG) {
                 },
               ],
               envFrom: [{ secretRef: { name: "user-env", optional: true } }],
-              volumeMounts: [{ name: "spaces", mountPath: "/data/spaces" }],
+              volumeMounts: [{ name: "data", mountPath: "/data" }],
             },
           ],
           volumes: [
             {
-              name: "spaces",
-              emptyDir: { sizeLimit: "1Gi" },
+              name: "data",
+              persistentVolumeClaim: { claimName: "user-data" },
             },
           ],
         },
@@ -179,6 +197,52 @@ function envSecret(userId: string, vars: Record<string, string>) {
     type: "Opaque",
     data,
   };
+}
+
+// --- LiteLLM key helpers ---
+
+/**
+ * Returns the user's LiteLLM virtual key string (sk-...).
+ * Fetches the first existing key via listKeys; if none exist, generates one.
+ */
+async function getLiteLLMKey(userId: string): Promise<string> {
+  try {
+    const keys = await litellm.listKeys(userId);
+    if (keys.length > 0 && keys[0].token) {
+      return keys[0].token as string;
+    }
+  } catch {
+    // User may not exist in LiteLLM yet — fall through to generate
+  }
+  // Provision a free-tier key on the fly (idempotent — provisionUser does same)
+  const { TIERS } = await import("./tiers.js");
+  const result = await litellm.generateKey(userId, TIERS.free);
+  return result.key as string;
+}
+
+/**
+ * Merges LiteLLM model env vars into the user-env secret without clobbering
+ * keys the user set themselves. Only writes defaults for keys that are absent.
+ */
+async function injectLiteLLMEnv(
+  userId: string,
+  litellmKey: string,
+): Promise<void> {
+  const existing = await getEnvVars(userId);
+  const defaults: Record<string, string> = {
+    OPENAI_BASE_URL:
+      "http://litellm.lmthing.svc.cluster.local:4000/v1",
+    OPENAI_API_KEY: litellmKey,
+    LM_MODEL: "openai:gpt-5.4-nano",
+  };
+  const merged: Record<string, string> = { ...defaults, ...existing };
+  // Only update if something actually changed
+  const needsUpdate = Object.keys(defaults).some(
+    (k) => existing[k] !== merged[k],
+  );
+  if (needsUpdate) {
+    await setEnvVars(userId, merged);
+  }
 }
 
 // --- Public API ---
@@ -267,6 +331,49 @@ export async function createUserPod(
     }
   }
 
+  // Create PVC for /data persistence (skip if exists)
+  const pvcResult = await k8s(
+    `/api/v1/namespaces/${ns}/persistentvolumeclaims`,
+    "POST",
+    dataPvc(userId),
+  );
+  if (pvcResult === "conflict") {
+    console.log(`PVC in ${ns} already exists, skipping`);
+  } else {
+    console.log(`Created PVC in ${ns}`);
+  }
+
+  // Fetch the user's LiteLLM virtual key and build the initial env secret
+  let litellmKey = "";
+  try {
+    litellmKey = await getLiteLLMKey(userId);
+  } catch (err) {
+    console.warn(`Could not fetch LiteLLM key for ${userId}: ${err}`);
+  }
+  const initialEnv: Record<string, string> = litellmKey
+    ? {
+        OPENAI_BASE_URL: "http://litellm.lmthing.svc.cluster.local:4000/v1",
+        OPENAI_API_KEY: litellmKey,
+        LM_MODEL: "openai:gpt-5.4-nano",
+      }
+    : {};
+
+  // Create env secret with LiteLLM defaults (skip if exists — will be merged below)
+  const envResult = await k8s(
+    `/api/v1/namespaces/${ns}/secrets`,
+    "POST",
+    envSecret(userId, initialEnv),
+  );
+  if (envResult === "conflict") {
+    console.log(`Env secret in ${ns} already exists, merging LiteLLM keys`);
+    // Secret already exists — merge defaults without clobbering user-set keys
+    if (litellmKey) {
+      await injectLiteLLMEnv(userId, litellmKey);
+    }
+  } else {
+    console.log(`Created env secret in ${ns}`);
+  }
+
   // Create deployment (skip if exists)
   const depResult = await k8s(
     `/apis/apps/v1/namespaces/${ns}/deployments`,
@@ -277,18 +384,6 @@ export async function createUserPod(
     console.log(`Deployment in ${ns} already exists, skipping`);
   } else {
     console.log(`Created deployment in ${ns}`);
-  }
-
-  // Create env secret (skip if exists)
-  const envResult = await k8s(
-    `/api/v1/namespaces/${ns}/secrets`,
-    "POST",
-    envSecret(userId, {}),
-  );
-  if (envResult === "conflict") {
-    console.log(`Env secret in ${ns} already exists, skipping`);
-  } else {
-    console.log(`Created env secret in ${ns}`);
   }
 
   // Create service (skip if exists)
@@ -385,6 +480,14 @@ export async function ensureUserPod(
       },
       "application/strategic-merge-patch+json",
     );
+
+    // Ensure LiteLLM env defaults are present (idempotent merge)
+    try {
+      const litellmKey = await getLiteLLMKey(userId);
+      await injectLiteLLMEnv(userId, litellmKey);
+    } catch (err) {
+      console.warn(`Could not inject LiteLLM env for ${userId}: ${err}`);
+    }
 
     const currentReplicas = dep.spec?.replicas ?? 0;
     if (currentReplicas === 0) {

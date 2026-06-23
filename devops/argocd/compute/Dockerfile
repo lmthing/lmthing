@@ -120,4 +120,4 @@ WORKDIR /data
 # for the corresponding env var and memory sizing notes.
 CMD ["bun", "run", "/app/packages/cli/dist/cli/bin.js", "serve", "--port", "8080"]
 
-# redeploy: ship ui/src + project-list fix (submodule c084772)
+# redeploy: custom env endpoint + @ai-sdk/zod pin (submodule 3bee9b3)

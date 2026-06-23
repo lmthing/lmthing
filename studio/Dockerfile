@@ -18,15 +18,15 @@ COPY space/package.json          space/
 COPY store/package.json          store/
 COPY studio/package.json         studio/
 COPY team/package.json           team/
-COPY sdk/libs/auth/package.json  sdk/libs/auth/
-COPY sdk/org/cli/package.json    sdk/org/cli/
-COPY sdk/libs/css/package.json   sdk/libs/css/
-COPY sdk/org/repl/package.json   sdk/org/repl/
-COPY sdk/org/ui/package.json      sdk/org/ui/
-COPY sdk/libs/state/package.json sdk/libs/state/
-COPY sdk/libs/thing/package.json sdk/libs/thing/
-COPY sdk/libs/ui/package.json    sdk/libs/ui/
-COPY sdk/libs/utils/package.json sdk/libs/utils/
+COPY sdk/libs/auth/package.json         sdk/libs/auth/
+COPY sdk/libs/css/package.json          sdk/libs/css/
+COPY sdk/libs/spaces/package.json       sdk/libs/spaces/
+COPY sdk/libs/state/package.json        sdk/libs/state/
+COPY sdk/libs/ui/package.json           sdk/libs/ui/
+COPY sdk/libs/utils/package.json        sdk/libs/utils/
+COPY sdk/org/packages/core/package.json sdk/org/packages/core/
+COPY sdk/org/packages/cli/package.json  sdk/org/packages/cli/
+COPY sdk/org/packages/ui/package.json   sdk/org/packages/ui/
 
 RUN pnpm install --frozen-lockfile
 

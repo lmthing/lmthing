@@ -20,7 +20,6 @@ COPY studio/package.json         studio/
 COPY team/package.json           team/
 COPY sdk/libs/auth/package.json         sdk/libs/auth/
 COPY sdk/libs/css/package.json          sdk/libs/css/
-COPY sdk/libs/spaces/package.json       sdk/libs/spaces/
 COPY sdk/libs/state/package.json        sdk/libs/state/
 COPY sdk/libs/ui/package.json           sdk/libs/ui/
 COPY sdk/libs/utils/package.json        sdk/libs/utils/

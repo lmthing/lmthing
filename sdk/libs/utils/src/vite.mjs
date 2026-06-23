@@ -128,3 +128,5 @@ export function createViteConfig(dirname, overrides) {
     },
   })
 }
+
+// retrigger: root lockfile sync

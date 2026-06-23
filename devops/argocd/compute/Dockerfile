@@ -120,4 +120,4 @@ WORKDIR /data
 # for the corresponding env var and memory sizing notes.
 CMD ["bun", "run", "/app/packages/cli/dist/cli/bin.js", "serve", "--port", "8080"]
 
-# redeploy: lazy model resolution (submodule bump)
+# redeploy: lazy model resolution + lockfile sync

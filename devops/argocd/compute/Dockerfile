@@ -116,3 +116,5 @@ WORKDIR /data
 # concurrent QuickJS VMs are allowed in this pod — see user-pod-template.yaml
 # for the corresponding env var and memory sizing notes.
 CMD ["bun", "run", "/app/packages/cli/dist/cli/bin.js", "serve", "--port", "8080"]
+
+# redeploy: pod-served UI refactor (chat full-route + auth-aware served UI)

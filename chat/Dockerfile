@@ -46,3 +46,5 @@ FROM nginx:alpine
 COPY --from=builder /repo/chat/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /repo/chat/dist/      /usr/share/nginx/html/
 EXPOSE 80
+
+# redeploy: pod-served UI refactor (chat full-route + auth-aware served UI)

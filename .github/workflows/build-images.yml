@@ -49,7 +49,7 @@ jobs:
               - 'sdk/libs/ui/**'
               - 'sdk/libs/utils/**'
             compute:
-              - 'sdk/org/repl/**'
+              - 'sdk/org/packages/**'
               - 'devops/argocd/compute/Dockerfile'
             studio:
               - 'studio/**'

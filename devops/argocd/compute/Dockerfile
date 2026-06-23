@@ -23,8 +23,10 @@ FROM oven/bun:latest AS builder
 
 WORKDIR /build
 
-# Install git (needed for bun install with git dependencies)
-RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+# Install git (needed for bun install with git dependencies) plus the native
+# build toolchain (python3/make/g++) required to compile node-pty for the PTY
+# terminal exposed over /api/ws.
+RUN apt-get update && apt-get install -y git python3 make g++ && rm -rf /var/lib/apt/lists/*
 
 # Copy workspace manifests first so dependency installation is cached
 # separately from source changes.
@@ -96,15 +98,21 @@ COPY --from=builder /build/packages/core/package.json ./packages/core/package.js
 COPY --from=builder /build/packages/cli/package.json  ./packages/cli/package.json
 COPY --from=builder /build/packages/ui/package.json   ./packages/ui/package.json
 
-# Runtime data directories.
-# /data/spaces  — user space files (synced from GitHub; emptyDir in K8s)
-# /data/snapshots — session snapshots for resume across pod restarts
-#                   (emptyDir for now; paid tiers may use a PVC — see user-pod-template.yaml)
-RUN mkdir -p /data/spaces /data/snapshots
+# Runtime root.
+# The server runs with its cwd set to /data so `lmthingRoot` resolves to
+# /data/.lmthing — the single source of truth for projects, spaces, and
+# session snapshots, all persisted on the pod volume mounted at /data
+# (emptyDir for now; paid tiers may use a PVC — see user-pod-template.yaml).
+RUN mkdir -p /data
 
 EXPOSE 8080
+
+# Run the server from /data so .lmthing lands on the persistent volume.
+# Built artefacts remain under /app, so the entrypoint is referenced by its
+# absolute path.
+WORKDIR /data
 
 # Start the multi-session server. MAX_SESSIONS (default 8) controls how many
 # concurrent QuickJS VMs are allowed in this pod — see user-pod-template.yaml
 # for the corresponding env var and memory sizing notes.
-CMD ["bun", "run", "packages/cli/dist/cli/bin.js", "serve", "--port", "8080"]
+CMD ["bun", "run", "/app/packages/cli/dist/cli/bin.js", "serve", "--port", "8080"]

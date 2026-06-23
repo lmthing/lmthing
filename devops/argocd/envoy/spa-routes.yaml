@@ -52,58 +52,10 @@ spec:
 
 ---
 # ── lmthing.chat ─────────────────────────────────────────────────────────────
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: chat-http-redirect
-  namespace: gateway
-spec:
-  parentRefs:
-    - group: gateway.networking.k8s.io
-      kind: Gateway
-      name: lmthing-gw
-      sectionName: chat-http
-  hostnames:
-    - lmthing.chat
-  rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
-      filters:
-        - type: RequestRedirect
-          requestRedirect:
-            scheme: https
-            statusCode: 301
+# chat is no longer a plain static SPA: its routing (HTTP redirect + query-param
+# pod route + /api proxy + static fallback) lives in chat-routes.yaml, with the
+# JWT/Lua policy in chat-policies.yaml. See those files.
 
----
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: chat-static
-  namespace: gateway
-spec:
-  parentRefs:
-    - group: gateway.networking.k8s.io
-      kind: Gateway
-      name: lmthing-gw
-      sectionName: chat-https
-  hostnames:
-    - lmthing.chat
-  rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
-      backendRefs:
-        - group: ""
-          kind: Service
-          name: chat
-          namespace: lmthing
-          port: 80
-          weight: 1
-
----
 # ── lmthing.com ──────────────────────────────────────────────────────────────
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute

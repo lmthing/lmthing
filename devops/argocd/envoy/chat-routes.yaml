@@ -1,0 +1,133 @@
+# HTTP -> HTTPS redirect
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: chat-http-redirect
+  namespace: gateway
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: lmthing-gw
+      sectionName: chat-http
+  hostnames:
+    - lmthing.chat
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+
+---
+# Rule A — / with an `access_token` query param present -> Dynamic per-user
+# backend (JWT-authenticated, Lua-routed). Serves the pod's own web UI HTML.
+# The query-param match is more specific than the bare PathPrefix `/` of the
+# static fallback, so it is selected first.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: chat-pod-root
+  namespace: gateway
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: lmthing-gw
+      sectionName: chat-https
+  hostnames:
+    - lmthing.chat
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+          queryParams:
+            # Presence match: any non-empty access_token value. Gateway API has
+            # no presence-only matcher, so a RegularExpression matching one-or-
+            # more characters is used to mean "the param is present".
+            - type: RegularExpression
+              name: access_token
+              value: ".+"
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.envoyproxy.io
+            kind: HTTPRouteFilter
+            name: rewrite-host-from-header
+      backendRefs:
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: dynamic-user-backend
+          weight: 1
+
+---
+# Rule B — /api/* -> Dynamic per-user backend (JWT-authenticated, Lua-routed).
+# The served UI's fetches carry `Authorization: Bearer`; its WS carries
+# `?access_token=`.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: chat-api-proxy
+  namespace: gateway
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: lmthing-gw
+      sectionName: chat-https
+  hostnames:
+    - lmthing.chat
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.envoyproxy.io
+            kind: HTTPRouteFilter
+            name: rewrite-host-from-header
+      backendRefs:
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: dynamic-user-backend
+          weight: 1
+
+---
+# Rule C — /* fallback (no token) -> Static SPA (the chat bootstrap shell).
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: chat-static
+  namespace: gateway
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: lmthing-gw
+      sectionName: chat-https
+  hostnames:
+    - lmthing.chat
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: chat
+          namespace: lmthing
+          port: 80
+          weight: 1

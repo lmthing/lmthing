@@ -49,6 +49,8 @@ Central React context managing the pod runtime lifecycle. Always creates a `PodR
 - Handles: terminal sessions, metrics, process/agent lists, logs, network events
 - Exponential backoff reconnection (max 5 retries)
 
+> **Server-side status (2026-06):** Only the terminal path (`terminal.open/input/resize/close` → `terminal.opened/terminal.data`) is currently implemented by the pod server. The `subscribe` message and all dashboard WS message types (`metrics`, `processes`, `agents`, `log`, `network`) are **not yet answered by the pod** — treat the dashboard as stubbed until the pod implements those channels.
+
 ### Agent Session Rendering (`routes/chat.tsx`)
 
 Agent sessions are created and rendered via `@lmthing/agent-ui`:

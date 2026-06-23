@@ -9,6 +9,8 @@ resources:
   - cloud-routes.yaml
   - computer-routes.yaml
   - computer-policies.yaml
+  - chat-routes.yaml
+  - chat-policies.yaml
   - spa-routes.yaml
 
 replacements:
@@ -129,6 +131,11 @@ replacements:
           name: computer-jwt
         fieldPaths:
           - spec.jwt.providers.0.issuer
+      - select:
+          kind: SecurityPolicy
+          name: chat-jwt
+        fieldPaths:
+          - spec.jwt.providers.0.issuer
 
   # ── Zitadel JWKS URI → SecurityPolicy ───────────────────────
   - source:
@@ -139,5 +146,10 @@ replacements:
       - select:
           kind: SecurityPolicy
           name: computer-jwt
+        fieldPaths:
+          - spec.jwt.providers.0.remoteJWKS.uri
+      - select:
+          kind: SecurityPolicy
+          name: chat-jwt
         fieldPaths:
           - spec.jwt.providers.0.remoteJWKS.uri

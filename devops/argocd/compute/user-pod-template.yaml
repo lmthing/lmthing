@@ -79,21 +79,18 @@ spec:
             periodSeconds: 20
             failureThreshold: 3
           volumeMounts:
-            - name: spaces
-              mountPath: /data/spaces
-            # /data/snapshots stores session state for resume across pod restarts.
-            # emptyDir is used here (snapshots lost on pod restart).
+            # /data is the unified runtime root. The server runs with cwd=/data,
+            # so /data/.lmthing holds projects, generated spaces, and session
+            # snapshots — the single source of truth, persisted on this volume.
+            # emptyDir is used here (state lost on pod restart).
             # TODO: for paid tiers, replace with a PVC (ReadWriteOnce, ~5Gi) so
-            # sessions survive pod reschedules without losing progress.
-            - name: snapshots
-              mountPath: /data/snapshots
+            # projects/sessions survive pod reschedules without losing progress.
+            - name: data
+              mountPath: /data
       volumes:
-        - name: spaces
+        - name: data
           emptyDir:
-            sizeLimit: "1Gi"
-        - name: snapshots
-          emptyDir:
-            sizeLimit: "500Mi"
+            sizeLimit: "2Gi"
 
 ---
 apiVersion: v1

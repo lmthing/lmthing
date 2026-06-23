@@ -1,0 +1,83 @@
+# Dynamic per-user routing for lmthing.chat.
+#
+# The shared infrastructure resources (`dynamic-user-backend` Backend and the
+# `rewrite-host-from-header` HTTPRouteFilter) are declared once in
+# computer-policies.yaml and reused here — they are cluster singletons in the
+# gateway namespace, so they are NOT redeclared.
+
+# Lua script: extracts user ID from JWT claim, constructs per-user upstream.
+# Identical logic to computer-lua-routing, bound to the chat dynamic routes.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyExtensionPolicy
+metadata:
+  name: chat-lua-routing
+  namespace: gateway
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: chat-api-proxy
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: chat-pod-root
+  lua:
+    - type: Inline
+      inline: |
+        function envoy_on_request(request_handle)
+          request_handle:headers():remove("x-dynamic-host-header")
+
+          local user_id = request_handle:headers():get("x-user-id")
+          if user_id == nil then
+            request_handle:respond(
+              {[":status"] = "401", ["content-type"] = "text/plain"},
+              "missing user_id claim"
+            )
+            return
+          end
+
+          if not string.match(user_id, "^[A-Za-z0-9_-]+$") then
+            request_handle:respond(
+              {[":status"] = "400", ["content-type"] = "text/plain"},
+              "invalid user_id"
+            )
+            return
+          end
+
+          local upstream = "lmthing.user-" .. user_id .. ".svc.cluster.local:8080"
+          request_handle:headers():replace("x-dynamic-host-header", upstream)
+        end
+
+---
+# JWT validation — extracts `sub` claim as x-user-id header.
+# Reuses computer's exact extractFrom (Authorization header + access_token query
+# param) and claimToHeaders mapping. No cookie source. Bound to Rules A + B.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: chat-jwt
+  namespace: gateway
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: chat-api-proxy
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: chat-pod-root
+  jwt:
+    providers:
+      - name: zitadel
+        issuer: ZITADEL_JWT_ISSUER_PLACEHOLDER
+        audiences:
+          - lmthing
+        extractFrom:
+          headers:
+            - name: Authorization
+          params:
+            - access_token
+        claimToHeaders:
+          - claim: sub
+            header: x-user-id
+        remoteJWKS:
+          cacheDuration: 300s
+          uri: ZITADEL_JWKS_URI_PLACEHOLDER

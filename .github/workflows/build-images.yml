@@ -132,7 +132,7 @@ jobs:
             -t lmthingacr.azurecr.io/compute:${{ steps.tag.outputs.sha }} \
             -t lmthingacr.azurecr.io/compute:latest \
             -f devops/argocd/compute/Dockerfile \
-            .
+            sdk/org
           docker push lmthingacr.azurecr.io/compute:${{ steps.tag.outputs.sha }}
           docker push lmthingacr.azurecr.io/compute:latest
           sed -i "s|image: lmthingacr.azurecr.io/compute:.*|image: lmthingacr.azurecr.io/compute:${{ steps.tag.outputs.sha }}|" \

@@ -91,6 +91,9 @@ COPY --from=builder /build/packages/cli/node_modules  ./packages/cli/node_module
 COPY --from=builder /build/packages/ui/dist        ./packages/ui/dist
 # dist-web/app.css is the prebuilt Tailwind CSS served by the web DevTools UI
 COPY --from=builder /build/packages/ui/dist-web    ./packages/ui/dist-web
+# src is required at runtime: `serve` esbuild-bundles the web app from
+# @lmthing/agent-ui/src/app/main.tsx (and the ink compat shims) on startup.
+COPY --from=builder /build/packages/ui/src         ./packages/ui/src
 COPY --from=builder /build/packages/ui/node_modules ./packages/ui/node_modules
 # Copy package.json files so Bun's module resolver can walk the workspace graph
 COPY --from=builder /build/package.json         ./package.json

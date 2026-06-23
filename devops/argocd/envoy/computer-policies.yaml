@@ -81,6 +81,7 @@ spec:
         extractFrom:
           headers:
             - name: Authorization
+              valuePrefix: "Bearer "
           params:
             - access_token
         claimToHeaders:

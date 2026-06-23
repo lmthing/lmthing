@@ -206,17 +206,24 @@ function envSecret(userId: string, vars: Record<string, string>) {
  * Fetches the first existing key via listKeys; if none exist, generates one.
  */
 async function getLiteLLMKey(userId: string): Promise<string> {
+  const { TIERS } = await import("./tiers.js");
   try {
     const keys = await litellm.listKeys(userId);
     if (keys.length > 0 && keys[0].token) {
       return keys[0].token as string;
     }
   } catch {
-    // User may not exist in LiteLLM yet — fall through to generate
+    // User may not exist in LiteLLM yet — fall through to provision
   }
-  // Provision a free-tier key on the fly (idempotent — provisionUser does same)
-  const { TIERS } = await import("./tiers.js");
-  const result = await litellm.generateKey(userId, TIERS.free);
+  // Ensure the LiteLLM user exists (idempotent — ignore "already exists").
+  try {
+    await litellm.createUser(userId, TIERS.free);
+  } catch {
+    // already provisioned
+  }
+  // LiteLLM requires globally-unique key aliases, so scope it per user
+  // (the default "default" alias collides across users).
+  const result = await litellm.generateKey(userId, TIERS.free, `compute-${userId}`);
   return result.key as string;
 }
 

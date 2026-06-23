@@ -2,6 +2,10 @@
 FROM node:22-slim AS builder
 WORKDIR /repo
 
+# vite-plus (Rust) reads the system CA store; node:22-slim ships without it.
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN npm install -g corepack && corepack enable && corepack prepare pnpm@10.17.1 --activate
 
 # Workspace manifests — all package.json files must be present for frozen-lockfile

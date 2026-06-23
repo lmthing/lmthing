@@ -41,3 +41,4 @@ const server: ServerType = serve({ fetch: app.fetch, port });
 if (process.env.LOCAL_DEV === "true") {
   attachWsProxy(server);
 }
+// redeploy: pick up /api/compute/ensure (pod-served UI refactor)

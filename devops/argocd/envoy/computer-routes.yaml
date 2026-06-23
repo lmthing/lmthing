@@ -44,11 +44,8 @@ spec:
             type: PathPrefix
             value: /api
       filters:
-        - type: URLRewrite
-          urlRewrite:
-            path:
-              type: ReplacePrefixMatch
-              replacePrefixMatch: /
+        # No path rewrite: the multi-session pod server serves routes UNDER /api
+        # (/api/projects, /api/sessions, /api/ws, …), so the prefix must be kept.
         - type: ExtensionRef
           extensionRef:
             group: gateway.envoyproxy.io

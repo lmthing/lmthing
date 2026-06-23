@@ -2,9 +2,10 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '@lmthing/auth'
 
+// Gateway origin — must match @lmthing/auth's cloudUrl (prod: lmthing.cloud).
 const CLOUD_BASE_URL =
   import.meta.env.VITE_CLOUD_URL ??
-  (import.meta.env.DEV ? 'https://cloud.test' : 'https://cloud.lmthing.cloud')
+  (import.meta.env.DEV ? 'https://cloud.test' : 'https://lmthing.cloud')
 
 /** Ensure the user's compute pod is running before redirecting. */
 async function ensurePod(cloudBaseUrl: string, accessToken: string): Promise<void> {

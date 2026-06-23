@@ -120,36 +120,6 @@ replacements:
         fieldPaths:
           - spec.dnsNames.0
 
-  # ── Zitadel JWT issuer → SecurityPolicy ─────────────────────
-  - source:
-      kind: ConfigMap
-      name: lmthing-envoy-config
-      fieldPath: data.zitadelJwtIssuer
-    targets:
-      - select:
-          kind: SecurityPolicy
-          name: computer-jwt
-        fieldPaths:
-          - spec.jwt.providers.0.issuer
-      - select:
-          kind: SecurityPolicy
-          name: chat-jwt
-        fieldPaths:
-          - spec.jwt.providers.0.issuer
-
-  # ── Zitadel JWKS URI → SecurityPolicy ───────────────────────
-  - source:
-      kind: ConfigMap
-      name: lmthing-envoy-config
-      fieldPath: data.zitadelJwksUri
-    targets:
-      - select:
-          kind: SecurityPolicy
-          name: computer-jwt
-        fieldPaths:
-          - spec.jwt.providers.0.remoteJWKS.uri
-      - select:
-          kind: SecurityPolicy
-          name: chat-jwt
-        fieldPaths:
-          - spec.jwt.providers.0.remoteJWKS.uri
+  # NOTE: computer-jwt / chat-jwt now validate the gateway-issued HS256 token via
+  # a local JWKS (gateway-jwt-jwks ConfigMap, created out-of-band) — no Zitadel
+  # issuer/JWKS replacements are needed.

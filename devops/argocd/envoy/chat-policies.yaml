@@ -66,10 +66,11 @@ spec:
       name: chat-pod-root
   jwt:
     providers:
-      - name: zitadel
-        issuer: ZITADEL_JWT_ISSUER_PLACEHOLDER
-        audiences:
-          - lmthing
+      - name: gateway
+        # @lmthing/auth carries the gateway-issued HS256 token (no iss/aud).
+        # Validate the HMAC signature against a local JWKS (oct key) sourced from
+        # the gateway-jwt-jwks ConfigMap, created out-of-band so the signing
+        # secret never enters git.
         extractFrom:
           headers:
             - name: Authorization
@@ -78,6 +79,9 @@ spec:
         claimToHeaders:
           - claim: sub
             header: x-user-id
-        remoteJWKS:
-          cacheDuration: 300s
-          uri: ZITADEL_JWKS_URI_PLACEHOLDER
+        localJWKS:
+          type: ValueRef
+          valueRef:
+            group: ""
+            kind: ConfigMap
+            name: gateway-jwt-jwks

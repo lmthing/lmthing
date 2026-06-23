@@ -1,3 +1,8 @@
+---
+name: authentication
+description: Load when working on auth flows, SSO, GitHub OAuth, gateway auth routes, or gateway JWT/token issuance.
+---
+
 # Authentication
 
 ## Overview

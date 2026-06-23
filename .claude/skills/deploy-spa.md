@@ -1,3 +1,8 @@
+---
+name: deploy-spa
+description: Load when deploying an SPA (GitHub Pages / K8s), adding a new deployment, or running domain health checks.
+---
+
 # Deploying SPA Services
 
 ## Overview

@@ -1,3 +1,8 @@
+---
+name: add-tier
+description: Load when adding or modifying a pricing tier (the cross-cutting backend/frontend/infra/docs checklist).
+---
+
 # Adding a New Tier
 
 ## Overview

@@ -38,7 +38,7 @@ export const TIERS: Record<string, Tier> = {
     models: ["gpt-5.4-nano"],
     tpmLimit: 10_000,
     rpmLimit: 60,
-    pod: { cpu: "250m", mem: "512Mi", idleTtlMinutes: 15, maxSessions: 1 },
+    pod: { cpu: "250m", mem: "512Mi", idleTtlMinutes: 15, maxSessions: 3 },
   },
   starter: {
     name: "Starter",

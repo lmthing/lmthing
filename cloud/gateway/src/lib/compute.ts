@@ -136,7 +136,9 @@ function deployment(userId: string, pod: PodConfig = DEFAULT_POD_CONFIG) {
             {
               name: "compute",
               image: COMPUTE_IMAGE,
-              imagePullPolicy: "IfNotPresent",
+              // COMPUTE_IMAGE is the moving `:latest` tag, so Always-pull ensures
+              // a freshly-built image is picked up when a pod is (re)created.
+              imagePullPolicy: "Always",
               ports: [{ containerPort: 8080 }],
               resources: {
                 requests: { memory: pod.mem, cpu: pod.cpu },

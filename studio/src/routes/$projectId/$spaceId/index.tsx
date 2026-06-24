@@ -7,7 +7,7 @@ export const Route = createFileRoute('/$projectId/$spaceId/')({
     <div style={{ padding: '2rem' }}>
       <Heading level={2}>Space Overview</Heading>
       <Caption muted>
-        Select an agent, workflow, or knowledge area from the sidebar.
+        Select an agent, tasklist, or knowledge area from the sidebar.
       </Caption>
     </div>
   ),

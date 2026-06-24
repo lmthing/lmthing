@@ -104,7 +104,7 @@ export function StudioShell({
                   Select a knowledge field or agent
                 </p>
                 <p className="studio-shell__empty-subtitle">
-                  {knowledgeFields.length} knowledge fields, {agentList.length} agents, {workflowList.length} workflows
+                  {knowledgeFields.length} knowledge fields, {agentList.length} agents, {workflowList.length} tasklists
                 </p>
               </div>
             </div>

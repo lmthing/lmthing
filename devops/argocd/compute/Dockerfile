@@ -134,3 +134,4 @@ CMD ["node", "/app/packages/cli/dist/cli/bin.js", "serve", "--port", "8080"]
 # retrigger: system-spaces co-location + LRU idle eviction (sdk/org 81c6d8e)
 # retrigger: serve-path runtime init (sdk/org 730cf80)
 # retrigger: fs routes + auth.ok + terminal command + log interceptor (sdk/org 324014c)
+# retrigger: restart API + restart button + upgrade flow (sdk/org 0c979e6)

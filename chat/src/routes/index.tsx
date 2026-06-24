@@ -86,7 +86,7 @@ function ChatHome() {
         ])
 
         const current = ensureData.pod?.computeTag
-        if (latest && current && latest !== current) {
+        if (latest && (current == null || latest !== current)) {
           setLatestTag(latest)
           setUpgradeAvailable(true)
         } else {

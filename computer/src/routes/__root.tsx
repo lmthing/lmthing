@@ -79,8 +79,8 @@ function ComputerShell() {
     setTimeout(poll, 1000)
   }
 
-  // IDE and chat routes get full-screen layout (no sidebar)
-  if (currentPath === '/' || currentPath === '/chat') {
+  // IDE gets full-screen layout (no sidebar)
+  if (currentPath === '/') {
     return <Outlet />
   }
 

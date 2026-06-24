@@ -23,6 +23,8 @@
         params:
           # Run in insecure mode — TLS is terminated at Envoy Gateway
           server.insecure: true
+        cm:
+          timeout.reconciliation: 60s
       server:
         replicas: 1
       controller:

@@ -96,25 +96,32 @@ function PodEnsureGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-function RootComponent() {
+/** Inner component — lives inside AuthProvider so useAuth() is safe here. */
+function AuthenticatedApp() {
   const { session } = useAuth()
 
   return (
+    <AuthGate>
+      <PinGate>
+        <PodEnsureGate>
+          <AppProvider
+            pod={{
+              podBaseUrl: COMPUTER_BASE_URL,
+              getAccessToken: () => session?.accessToken,
+            }}
+          >
+            <Outlet />
+          </AppProvider>
+        </PodEnsureGate>
+      </PinGate>
+    </AuthGate>
+  )
+}
+
+function RootComponent() {
+  return (
     <AuthProvider appName="studio">
-      <AuthGate>
-        <PinGate>
-          <PodEnsureGate>
-            <AppProvider
-              pod={{
-                podBaseUrl: COMPUTER_BASE_URL,
-                getAccessToken: () => session?.accessToken,
-              }}
-            >
-              <Outlet />
-            </AppProvider>
-          </PodEnsureGate>
-        </PinGate>
-      </AuthGate>
+      <AuthenticatedApp />
     </AuthProvider>
   )
 }

@@ -59,6 +59,46 @@ Load the matching file when working on:
 | the VFS library (`@lmthing/state`) | [./sdk/libs/state/CLAUDE.md](./sdk/libs/state/CLAUDE.md) |
 | infrastructure / deployment | [./devops/CLAUDE.md](./devops/CLAUDE.md) |
 
+## Kubernetes Cluster (Production)
+
+**SSH access:**
+```bash
+ssh -i ~/GEANT/lmthing/devops/terraform/generated/lmthing-test-key.pem \
+    -o StrictHostKeyChecking=no azureuser@4.223.83.5
+```
+
+**Namespace map:**
+
+| Namespace | What lives there |
+|---|---|
+| `lmthing` | All product deployments — `gateway`, `litellm`, `chat`, `studio`, `computer`, `com`, `social`, `team`, `store`, `space`, `blog`, `casa`, `zitadel` |
+| `user-<id>` | One namespace per user; contains a single `lmthing` deployment (the compute pod, image `lmthingacr.azurecr.io/compute:latest`) |
+| `argocd` | ArgoCD — GitOps controller, repo server, dex SSO, Redis |
+| `cert-manager` | TLS certificate management |
+| `envoy-gateway-system` | Envoy Gateway (ingress proxy) |
+| `kube-system` | CoreDNS, Calico CNI, metrics-server |
+| `metallb-system` | MetalLB load balancer |
+| `local-path-storage` | Local-path PV provisioner |
+
+**Common operations:**
+```bash
+# List all deployments
+kubectl get deployments --all-namespaces -o wide
+
+# Restart all user compute pods
+kubectl get namespaces | grep ^user- | awk '{print $1}' \
+  | xargs -I{} kubectl rollout restart deployment/lmthing -n {}
+
+# Restart a specific lmthing-namespace deployment (e.g. gateway)
+kubectl rollout restart deployment/gateway -n lmthing
+
+# Tail logs for a deployment
+kubectl logs -n lmthing deployment/gateway -f
+
+# Get all user namespaces
+kubectl get namespaces | grep ^user-
+```
+
 ## Useful Links
 
 - [Architecture.md](./Architecture.md) — full product & domain architecture

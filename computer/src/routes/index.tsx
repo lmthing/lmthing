@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useAuth } from '@lmthing/auth'
 import { useComputer } from '@/lib/runtime/ComputerContext'
@@ -64,6 +64,7 @@ function buildTree(paths: string[]): FileTreeNode[] {
 function IdeRoute() {
   const { status } = useComputer()
   const { session } = useAuth()
+  const router = useRouter()
   const store = useIdeStore()
   const { transport } = useApp()
 
@@ -277,6 +278,7 @@ function IdeRoute() {
       onTerminalTabSelect={setActiveTabId}
       onTerminalTabClose={handleCloseTab}
       onAddTerminalTab={handleAddTab}
+      onNavigate={(path) => router.navigate({ to: path })}
       onRestart={() => { void handleRestart() }}
       restarting={restarting}
     />

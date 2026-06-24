@@ -37,18 +37,36 @@ export interface IdeLayoutProps {
   onTerminalTabClose: (id: string) => void
   onAddTerminalTab: () => void
 
+  // Navigation
+  onNavigate?: (path: string) => void
+
   // Restart
   onRestart?: () => void
   restarting?: boolean
 }
 
+const navItems = [
+  { path: '/terminal', label: 'Terminal' },
+  { path: '/spaces', label: 'Spaces' },
+  { path: '/settings', label: 'Settings' },
+]
+
 function IdeLayout(props: IdeLayoutProps) {
-  const { status, isBooting, isInstalling, onRestart, restarting } = props
+  const { status, isBooting, isInstalling, onNavigate, onRestart, restarting } = props
 
   return (
     <div className="ide-layout">
       <div className="ide-layout__header">
         <span className="ide-layout__title"><CozyThingText text="lmthing.computer" /></span>
+        {onNavigate && (
+          <nav className="ide-layout__nav">
+            {navItems.map((item) => (
+              <button key={item.path} onClick={() => onNavigate(item.path)} className="ide-layout__nav-btn">
+                {item.label}
+              </button>
+            ))}
+          </nav>
+        )}
         <div className="ide-layout__status">
           {(isBooting || isInstalling) && <Loader2 size={14} className="animate-spin" />}
           {isBooting && 'Booting...'}

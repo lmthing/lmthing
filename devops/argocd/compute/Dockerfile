@@ -130,3 +130,4 @@ CMD ["bun", "run", "/app/packages/cli/dist/cli/bin.js", "serve", "--port", "8080
 # redeploy: lazy model resolution + lockfile sync
 # retrigger: system-spaces co-location + LRU idle eviction (sdk/org 81c6d8e)
 # retrigger: serve-path runtime init (sdk/org 730cf80)
+# retrigger: fs routes + auth.ok + terminal command + log interceptor (sdk/org 324014c)

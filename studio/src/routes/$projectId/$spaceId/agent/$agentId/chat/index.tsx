@@ -12,7 +12,7 @@ import {
 
 const COMPUTER_BASE_URL =
   import.meta.env.VITE_COMPUTER_BASE_URL ??
-  (import.meta.env.DEV ? 'https://computer.test' : 'https://lmthing.computer')
+  (import.meta.env.DEV ? 'https://computer.test' : window.location.origin)
 
 const CLOUD_BASE_URL =
   import.meta.env.VITE_CLOUD_URL ??

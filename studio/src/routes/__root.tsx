@@ -15,7 +15,7 @@ const CLOUD_BASE_URL =
 // directly (unlike chat, it does NOT full-route to the pod's served UI).
 const COMPUTER_BASE_URL =
   import.meta.env.VITE_COMPUTER_BASE_URL ??
-  (import.meta.env.DEV ? 'https://computer.test' : 'https://lmthing.computer')
+  (import.meta.env.DEV ? 'https://computer.test' : window.location.origin)
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()

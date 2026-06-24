@@ -11,6 +11,8 @@ resources:
   - computer-policies.yaml
   - chat-routes.yaml
   - chat-policies.yaml
+  - studio-routes.yaml
+  - studio-policies.yaml
   - spa-routes.yaml
 
 replacements:

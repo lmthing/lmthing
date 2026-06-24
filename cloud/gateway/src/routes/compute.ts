@@ -5,6 +5,8 @@ import {
   getEnvVars,
   setEnvVars,
   ensureUserPod,
+  restartUserPod,
+  COMPUTE_IMAGE_TAG,
 } from "../lib/compute.js";
 import * as litellm from "../lib/litellm.js";
 import { getTierByName } from "../lib/tiers.js";
@@ -21,6 +23,24 @@ async function resolveUserTier(userId: string): Promise<string> {
     return "free";
   }
 }
+
+// GET /version — returns the latest available compute image tag. Public (no auth).
+compute.get("/version", (c) => {
+  return c.json({ tag: COMPUTE_IMAGE_TAG || null });
+});
+
+// POST /upgrade — trigger a rolling restart of the user's pod so it pulls the
+// latest compute image. The pod stays alive until the new replica is ready.
+compute.post("/upgrade", authMiddleware, async (c) => {
+  const user = c.get("user");
+  try {
+    await restartUserPod(user.id);
+    return c.json({ ok: true });
+  } catch (err) {
+    console.error(`Failed to restart pod for ${user.id}:`, err);
+    return c.json({ error: "Failed to restart compute pod" }, 500);
+  }
+});
 
 // GET /status — returns compute pod status for the authenticated user.
 // All tiers now have compute access; the pod may be scaled to zero if idle.

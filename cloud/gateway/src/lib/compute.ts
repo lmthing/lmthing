@@ -55,6 +55,9 @@ const COMPUTE_IMAGE = LOCAL_DEV
   ? (process.env.COMPUTE_IMAGE ?? "compute:local")
   : `${ACR_REGISTRY}/compute:latest`;
 const PULL_SECRET_NAME = "acr-pull-secret";
+// The latest compute image tag, updated by CI on every new compute build.
+// Empty string means "unknown" — no upgrade banner is shown in that case.
+export const COMPUTE_IMAGE_TAG = process.env.COMPUTE_IMAGE_TAG ?? "";
 
 // --- Pod template (inline — matches k8s/compute/user-pod-template.yaml) ---
 
@@ -129,6 +132,9 @@ function deployment(userId: string, pod: PodConfig = DEFAULT_POD_CONFIG) {
             app: "compute",
             "lmthing.cloud/user": userId,
           },
+          ...(COMPUTE_IMAGE_TAG
+            ? { annotations: { "lmthing.cloud/compute-tag": COMPUTE_IMAGE_TAG } }
+            : {}),
         },
         spec: {
           ...(LOCAL_DEV ? {} : { imagePullSecrets: [{ name: PULL_SECRET_NAME }] }),
@@ -580,6 +586,8 @@ export interface PodStatus {
   exists: boolean;
   ready: boolean;
   phase: string | null;
+  /** The compute image tag that was set when the pod was last created or upgraded. */
+  computeTag?: string;
 }
 
 export async function getUserPodStatus(userId: string): Promise<PodStatus> {
@@ -604,9 +612,43 @@ export async function getUserPodStatus(userId: string): Promise<PodStatus> {
         ? "starting"
         : "pending";
 
+  const computeTag: string | undefined =
+    dep.spec?.template?.metadata?.annotations?.["lmthing.cloud/compute-tag"];
+
   return {
     exists: true,
     ready: readyReplicas > 0,
     phase,
+    ...(computeTag ? { computeTag } : {}),
   };
+}
+
+/**
+ * Trigger a rolling restart of the user's compute pod, updating the
+ * compute-tag annotation so the new image version is tracked.
+ * Since imagePullPolicy is Always and the image uses :latest, the new pod
+ * will pull the latest compute image from ACR.
+ */
+export async function restartUserPod(userId: string): Promise<void> {
+  const ns = `user-${userId}`;
+  await k8s(
+    `/apis/apps/v1/namespaces/${ns}/deployments/lmthing`,
+    "PATCH",
+    {
+      spec: {
+        template: {
+          metadata: {
+            annotations: {
+              "kubectl.kubernetes.io/restartedAt": new Date().toISOString(),
+              ...(COMPUTE_IMAGE_TAG
+                ? { "lmthing.cloud/compute-tag": COMPUTE_IMAGE_TAG }
+                : {}),
+            },
+          },
+        },
+      },
+    },
+    "application/merge-patch+json",
+  );
+  console.log(`Triggered rolling restart for user ${userId} pod`);
 }

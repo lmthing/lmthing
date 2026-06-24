@@ -206,6 +206,19 @@ jobs:
             new_content = re.sub(pattern, rf'\g<1>{sha}', content)
             with open(manifest, "w") as f:
               f.write(new_content)
+            # When the compute image is rebuilt, also update COMPUTE_IMAGE_TAG
+            # in gateway.yaml so the gateway can advertise the latest tag.
+            if image == "compute":
+              gw = "devops/argocd/core/gateway.yaml"
+              with open(gw) as f:
+                gw_content = f.read()
+              gw_new = re.sub(
+                r'(- name: COMPUTE_IMAGE_TAG\s*\n\s+value:\s*)"[^"]*"',
+                rf'\g<1>"{sha}"',
+                gw_content,
+              )
+              with open(gw, "w") as f:
+                f.write(gw_new)
           EOF
 
       - name: Commit and push

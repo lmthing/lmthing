@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
+import { useAuth } from '@lmthing/auth'
 
 const CLOUD_BASE_URL = import.meta.env.VITE_CLOUD_BASE_URL
+  ?? import.meta.env.VITE_CLOUD_URL
   ?? (import.meta.env.DEV ? `${window.location.protocol}//cloud.test` : 'https://lmthing.cloud')
 const COMPUTER_BASE_URL = import.meta.env.VITE_COMPUTER_BASE_URL
   ?? (import.meta.env.DEV ? `${window.location.protocol}//computer.test` : 'https://lmthing.computer')
@@ -13,33 +15,39 @@ export interface PodConfig {
 const DEMO_USER = import.meta.env.VITE_DEMO_USER === 'true'
 
 /**
- * Reads the stored access token and optionally calls POST /api/compute/ensure
+ * Reads the active session from @lmthing/auth and calls POST /api/compute/ensure
  * so the pod is provisioned before we connect. Returns podConfig when ready.
  */
 export function useTierDetection(): { podConfig: PodConfig | null; ensuring: boolean } {
+  const { session, isAuthenticated, isLoading } = useAuth()
   const [podConfig, setPodConfig] = useState<PodConfig | null>(null)
   const [ensuring, setEnsuring] = useState(true)
 
   useEffect(() => {
+    if (isLoading) return
+    if (!isAuthenticated || !session) {
+      setEnsuring(false)
+      return
+    }
+
     let cancelled = false
 
     async function ensurePod() {
       try {
-        let accessToken: string
+        let accessToken = session!.accessToken
 
-        if (DEMO_USER) {
+        if (accessToken === 'demo' || DEMO_USER) {
           // In demo mode, fetch a short-lived token via the same origin (computer.test/api/*
           // is proxied to the gateway by nginx, so no cross-origin cert issues).
-          const res = await fetch(`${COMPUTER_BASE_URL}/api/auth/demo-token`)
-          if (!res.ok) { setEnsuring(false); return }
-          const data = await res.json() as { access_token: string }
-          accessToken = data.access_token
-        } else {
-          const raw = localStorage.getItem('lmthing-cloud-auth')
-          if (!raw) { setEnsuring(false); return }
-          const parsed = JSON.parse(raw) as { accessToken: string }
-          if (!parsed.accessToken) { setEnsuring(false); return }
-          accessToken = parsed.accessToken
+          try {
+            const res = await fetch(`${COMPUTER_BASE_URL}/api/auth/demo-token`)
+            if (res.ok) {
+              const data = await res.json() as { access_token: string }
+              accessToken = data.access_token
+            }
+          } catch (e) {
+            console.error('Failed to fetch demo token:', e)
+          }
         }
 
         // Best-effort pod ensure — don't block the UI if the gateway is unreachable
@@ -64,7 +72,8 @@ export function useTierDetection(): { podConfig: PodConfig | null; ensuring: boo
 
     ensurePod()
     return () => { cancelled = true }
-  }, [])
+  }, [session, isAuthenticated, isLoading])
 
   return { podConfig, ensuring }
 }
+

@@ -1,13 +1,20 @@
 import { createRootRoute, Outlet, useRouter, useRouterState } from '@tanstack/react-router'
-import { AppProvider } from '@lmthing/state'
+import { AppProvider, ProjectProvider, SpaceProvider } from '@lmthing/state'
 import { AuthProvider, useAuth, useRepoSync } from '@lmthing/auth'
 import { ComputerProvider, useComputer } from '@/lib/runtime/ComputerContext'
-import { useTierDetection } from '@/lib/runtime/use-tier-detection'
 import { ComputerLayout } from '@lmthing/ui/components/computer/computer-layout'
 import { LoginScreen } from '@lmthing/ui/components/auth/login-screen'
 import { PinGate } from '@lmthing/ui/components/auth/pin-gate'
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import '@/index.css'
+
+const CLOUD_BASE_URL =
+  import.meta.env.VITE_CLOUD_URL ??
+  (import.meta.env.DEV ? 'https://cloud.test' : 'https://lmthing.cloud')
+
+const COMPUTER_BASE_URL =
+  import.meta.env.VITE_COMPUTER_BASE_URL ??
+  (import.meta.env.DEV ? 'https://computer.test' : window.location.origin)
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -68,40 +75,98 @@ function ComputerShell() {
   )
 }
 
-function PodProvider({ children }: { children: React.ReactNode }) {
-  const { podConfig, ensuring } = useTierDetection()
+async function ensurePod(cloudBaseUrl: string, accessToken: string): Promise<void> {
+  const res = await fetch(`${cloudBaseUrl}/api/compute/ensure`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${accessToken}` },
+  })
+  if (!res.ok) {
+    throw new Error(`compute/ensure failed: ${res.status}`)
+  }
+}
 
-  if (ensuring || !podConfig) {
-    // Show a minimal loading state while we ensure the pod is up
+function PodEnsureGate({ children }: { children: React.ReactNode }) {
+  const { session } = useAuth()
+  const [status, setStatus] = useState<'pending' | 'ready' | 'error'>('pending')
+  const [error, setError] = useState<string | null>(null)
+  const initRef = useRef(false)
+
+  useEffect(() => {
+    if (!session?.accessToken || initRef.current) return
+    initRef.current = true
+
+    let cancelled = false
+    async function init() {
+      try {
+        await ensurePod(CLOUD_BASE_URL, session!.accessToken)
+        if (!cancelled) setStatus('ready')
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : String(err))
+          setStatus('error')
+        }
+      }
+    }
+    void init()
+    return () => {
+      cancelled = true
+    }
+  }, [session])
+
+  const handleRetry = () => {
+    initRef.current = false
+    setError(null)
+    setStatus('pending')
+  }
+
+  if (!session) {
+    return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f0f0f', color: '#666' }}>Signing in…</div>
+  }
+
+  if (status === 'error') {
     return (
-      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f0f0f', color: '#666' }}>
-        {ensuring ? 'Starting pod…' : 'No pod config available'}
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f0f0f', color: '#666', flexDirection: 'column', gap: 12 }}>
+        <p style={{ color: '#c00' }}>Failed to start compute pod: {error}</p>
+        <button onClick={handleRetry}>Retry</button>
       </div>
     )
   }
 
+  if (status === 'pending') {
+    return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f0f0f', color: '#666' }}>Starting compute pod…</div>
+  }
+
   return (
-    <ComputerProvider computerBaseUrl={podConfig.computerBaseUrl} accessToken={podConfig.accessToken}>
-      {children}
+    <ComputerProvider computerBaseUrl={COMPUTER_BASE_URL} accessToken={session.accessToken}>
+      <AppProvider
+        pod={{
+          podBaseUrl: COMPUTER_BASE_URL,
+          getAccessToken: () => session.accessToken,
+        }}
+      >
+        <ProjectProvider projectId="user">
+          <SpaceProvider spaceId="default">
+            {children}
+          </SpaceProvider>
+        </ProjectProvider>
+      </AppProvider>
     </ComputerProvider>
   )
 }
 
 function RootComponent() {
   return (
-    <AppProvider>
-      <AuthProvider appName="computer">
-        <AuthGate>
-          <PinGate>
-            <RepoSyncGate>
-              <PodProvider>
-                <ComputerShell />
-              </PodProvider>
-            </RepoSyncGate>
-          </PinGate>
-        </AuthGate>
-      </AuthProvider>
-    </AppProvider>
+    <AuthProvider appName="computer">
+      <AuthGate>
+        <PinGate>
+          <RepoSyncGate>
+            <PodEnsureGate>
+              <ComputerShell />
+            </PodEnsureGate>
+          </RepoSyncGate>
+        </PinGate>
+      </AuthGate>
+    </AuthProvider>
   )
 }
 

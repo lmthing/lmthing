@@ -165,4 +165,52 @@ export class PodTransport {
       body: JSON.stringify({ path, content }),
     })
   }
+
+  /**
+   * Open a per-terminal WebSocket at `WS /api/terminals/:termId`.
+   * Returns an object matching the `TerminalSession` interface: `id`, `write`,
+   * `onData`, `resize`, `dispose`. PTY output arrives as raw text frames;
+   * input and resize are sent as JSON control frames.
+   */
+  connectTerminal(command?: string): {
+    id: string
+    write(data: string): void
+    onData(cb: (data: string) => void): () => void
+    resize(cols: number, rows: number): void
+    dispose(): void
+  } {
+    const token = this.opts.getAccessToken()
+    const wsBase = this.opts.baseUrl.replace(/^http/, 'ws')
+    const termId = `term-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    const params = new URLSearchParams()
+    if (token) params.set('access_token', token)
+    if (command) params.set('command', command)
+    const ws = new WebSocket(`${wsBase}/api/terminals/${termId}?${params}`)
+    const dataListeners = new Set<(data: string) => void>()
+
+    ws.onmessage = (e: MessageEvent) => {
+      const data = typeof e.data === 'string' ? e.data : ''
+      for (const cb of dataListeners) cb(data)
+    }
+
+    return {
+      id: termId,
+      write: (d: string) => {
+        if (ws.readyState === WebSocket.OPEN)
+          ws.send(JSON.stringify({ type: 'input', data: d }))
+      },
+      onData: (cb: (data: string) => void) => {
+        dataListeners.add(cb)
+        return () => { dataListeners.delete(cb) }
+      },
+      resize: (cols: number, rows: number) => {
+        if (ws.readyState === WebSocket.OPEN)
+          ws.send(JSON.stringify({ type: 'resize', cols, rows }))
+      },
+      dispose: () => {
+        dataListeners.clear()
+        ws.close()
+      },
+    }
+  }
 }

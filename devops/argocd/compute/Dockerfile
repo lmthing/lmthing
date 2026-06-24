@@ -70,7 +70,10 @@ RUN cd packages/cli  && bunx tsup
 # ---------------------------------------------------------------------------
 # Stage 2 — runtime
 # ---------------------------------------------------------------------------
-FROM oven/bun:latest
+# Use Node.js (not Bun) so node-pty's native addon resolves correctly.
+# Bun's CJS require fails to resolve relative paths to .node binaries, which
+# breaks PTY terminals. Node 22 runs the tsup ESM bundle without issues.
+FROM node:22-slim
 
 WORKDIR /app
 
@@ -125,7 +128,7 @@ WORKDIR /data
 # Start the multi-session server. MAX_SESSIONS (default 8) controls how many
 # concurrent QuickJS VMs are allowed in this pod — see user-pod-template.yaml
 # for the corresponding env var and memory sizing notes.
-CMD ["bun", "run", "/app/packages/cli/dist/cli/bin.js", "serve", "--port", "8080"]
+CMD ["node", "/app/packages/cli/dist/cli/bin.js", "serve", "--port", "8080"]
 
 # redeploy: lazy model resolution + lockfile sync
 # retrigger: system-spaces co-location + LRU idle eviction (sdk/org 81c6d8e)

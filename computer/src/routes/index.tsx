@@ -58,7 +58,7 @@ function buildTree(paths: string[]): FileTreeNode[] {
 }
 
 function IdeRoute() {
-  const { status, createTerminalSession } = useComputer()
+  const { status } = useComputer()
   const store = useIdeStore()
   const { transport } = useApp()
 
@@ -121,53 +121,41 @@ function IdeRoute() {
 
   const sessionsRef = useRef<Map<string, TerminalSession>>(new Map())
 
-  // Create both terminal sessions when pod is running
+  // Create both terminal sessions when pod is running via transport
   useEffect(() => {
-    if (status !== 'running') return
+    if (status !== 'running' || !transport) return
 
-    let disposed = false
+    const cliSession = transport.connectTerminal(CLI_LOG_COMMAND)
+    const bashSession = transport.connectTerminal()
 
-    async function initTerminals() {
-      const [cliSession, bashSession] = await Promise.all([
-        createTerminalSession(CLI_LOG_COMMAND),
-        createTerminalSession(),
-      ])
-      if (disposed) {
-        cliSession.dispose()
-        bashSession.dispose()
-        return
-      }
-      sessionsRef.current.set('cli', cliSession)
-      sessionsRef.current.set('bash', bashSession)
-      setTabs((prev) => prev.map((t) => {
-        if (t.id === 'cli') return { ...t, session: cliSession }
-        if (t.id === 'bash') return { ...t, session: bashSession }
-        return t
-      }))
-    }
-
-    void initTerminals()
+    sessionsRef.current.set('cli', cliSession)
+    sessionsRef.current.set('bash', bashSession)
+    setTabs((prev) => prev.map((t) => {
+      if (t.id === 'cli') return { ...t, session: cliSession }
+      if (t.id === 'bash') return { ...t, session: bashSession }
+      return t
+    }))
 
     return () => {
-      disposed = true
-      sessionsRef.current.get('cli')?.dispose()
-      sessionsRef.current.get('bash')?.dispose()
+      cliSession.dispose()
+      bashSession.dispose()
       sessionsRef.current.delete('cli')
       sessionsRef.current.delete('bash')
       setTabs((prev) => prev.map((t) =>
         (t.id === 'cli' || t.id === 'bash') ? { ...t, session: null } : t
       ))
     }
-  }, [status, createTerminalSession])
+  }, [status, transport])
 
-  const handleAddTab = useCallback(async () => {
+  const handleAddTab = useCallback(() => {
+    if (!transport) return
     const id = `bash-${Date.now()}`
     setTabs((prev) => [...prev, { id, label: 'bash', session: null }])
     setActiveTabId(id)
-    const session = await createTerminalSession()
+    const session = transport.connectTerminal()
     sessionsRef.current.set(id, session)
     setTabs((prev) => prev.map((t) => t.id === id ? { ...t, session } : t))
-  }, [createTerminalSession])
+  }, [transport])
 
   const handleCloseTab = useCallback((id: string) => {
     sessionsRef.current.get(id)?.dispose()

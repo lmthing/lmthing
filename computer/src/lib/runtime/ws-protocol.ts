@@ -18,6 +18,7 @@ export interface TerminalResizeMessage {
 export interface TerminalOpenMessage {
   type: 'terminal.open'
   sessionId: string
+  command?: string
 }
 
 export interface TerminalCloseMessage {

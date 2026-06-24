@@ -12,6 +12,8 @@ export const Route = createFileRoute('/')({
   component: IdeRoute,
 })
 
+const CLI_LOG_COMMAND = 'tail -n 100 -f /tmp/lmthing-server.log 2>/dev/null || sleep 9999'
+
 function buildTree(paths: string[]): FileTreeNode[] {
   const root: FileTreeNode[] = []
 
@@ -55,153 +57,106 @@ function buildTree(paths: string[]): FileTreeNode[] {
   return sort(root)
 }
 
-function parsePath(path: string): { projectId: string; spaceId: string; relPath: string } | null {
-  const parts = path.split('/')
-  if (parts.length < 3 || parts[1] !== 'spaces') return null
-  return {
-    projectId: parts[0],
-    spaceId: parts[2],
-    relPath: parts.slice(3).join('/'),
-  }
-}
-
 function IdeRoute() {
   const { status, createTerminalSession } = useComputer()
   const store = useIdeStore()
   const { transport } = useApp()
 
-  const [snapshot, setSnapshot] = useState<Record<string, string>>({})
+  const [filePaths, setFilePaths] = useState<string[]>([])
+  const [fileContents, setFileContents] = useState<Record<string, string>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const debounceTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
-  const snapshotRef = useRef(snapshot)
 
-  useEffect(() => {
-    snapshotRef.current = snapshot
-  }, [snapshot])
-
-  const saveSpace = useCallback(
-    (projectId: string, spaceId: string, currentSnapshot: Record<string, string>) => {
+  const saveFile = useCallback(
+    (path: string, content: string) => {
       if (!transport) return
-      const key = `${projectId}/${spaceId}`
-      const timer = debounceTimersRef.current.get(key)
+      const timer = debounceTimersRef.current.get(path)
       if (timer) clearTimeout(timer)
 
       const newTimer = setTimeout(async () => {
-        debounceTimersRef.current.delete(key)
-        const spaceFiles: Record<string, string> = {}
-        const prefix = `${projectId}/spaces/${spaceId}/`
-        for (const [p, content] of Object.entries(currentSnapshot)) {
-          if (p.startsWith(prefix)) {
-            const relPath = p.slice(prefix.length)
-            if (relPath) {
-              spaceFiles[relPath] = content
-            }
-          }
-        }
+        debounceTimersRef.current.delete(path)
         try {
-          await transport.saveSpaceFiles(projectId, spaceId, spaceFiles)
-          console.log(`Saved space ${key} to pod`)
+          await transport.writeFile(path, content)
         } catch (err) {
-          console.error(`Failed to save space ${key}:`, err)
+          console.error(`Failed to save ${path}:`, err)
         }
       }, 1500)
 
-      debounceTimersRef.current.set(key, newTimer)
+      debounceTimersRef.current.set(path, newTimer)
     },
     [transport],
   )
 
-  // Load all projects and spaces on mount
+  // Load file tree on mount
   useEffect(() => {
     if (!transport) return
     let cancelled = false
 
-    async function loadAll() {
+    async function loadTree() {
       setIsLoading(true)
       setError(null)
       try {
-        const projects = await transport!.listProjects()
-        const allFiles: Record<string, string> = {}
-
-        for (const project of projects) {
-          const spaces = await transport!.listSpaces(project.id)
-          for (const space of spaces) {
-            const files = await transport!.loadSpaceFiles(project.id, space.id)
-            const prefix = `${project.id}/spaces/${space.id}`
-            for (const [relPath, content] of Object.entries(files)) {
-              allFiles[`${prefix}/${relPath}`] = content
-            }
-          }
-        }
-
-        if (!cancelled) {
-          setSnapshot(allFiles)
-        }
+        const files = await transport!.listFiles()
+        if (!cancelled) setFilePaths(files)
       } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err))
-        }
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err))
       } finally {
-        if (!cancelled) {
-          setIsLoading(false)
-        }
+        if (!cancelled) setIsLoading(false)
       }
     }
 
-    void loadAll()
-
-    return () => {
-      cancelled = true
-      // Flush all pending saves immediately on unmount
-      for (const [key, timer] of debounceTimersRef.current.entries()) {
-        clearTimeout(timer)
-        const [projectId, spaceId] = key.split('/')
-        const spaceFiles: Record<string, string> = {}
-        const prefix = `${projectId}/spaces/${spaceId}/`
-        for (const [p, content] of Object.entries(snapshotRef.current)) {
-          if (p.startsWith(prefix)) {
-            const relPath = p.slice(prefix.length)
-            if (relPath) {
-              spaceFiles[relPath] = content
-            }
-          }
-        }
-        void transport!.saveSpaceFiles(projectId, spaceId, spaceFiles).catch(() => {})
-      }
-    }
+    void loadTree()
+    return () => { cancelled = true }
   }, [transport])
 
-  // Build the tree dynamically using buildTree
-  const paths = useMemo(() => Object.keys(snapshot).sort(), [snapshot])
-  const fileTree = useMemo(() => buildTree(paths), [paths])
+  const fileTree = useMemo(() => buildTree(filePaths), [filePaths])
 
   const [tabs, setTabs] = useState<TerminalTab[]>([
+    { id: 'cli', label: 'process', session: null, readonly: true },
     { id: 'bash', label: 'bash', session: null },
   ])
   const [activeTabId, setActiveTabId] = useState<string>('bash')
 
-  // Full runtime sessions (with dispose) tracked separately from UI tabs
   const sessionsRef = useRef<Map<string, TerminalSession>>(new Map())
 
-  // Create the initial bash terminal session
+  // Create both terminal sessions when pod is running
   useEffect(() => {
     if (status !== 'running') return
 
     let disposed = false
 
-    createTerminalSession().then((session) => {
-      if (disposed) { session.dispose(); return }
-      sessionsRef.current.set('bash', session)
-      setTabs((prev) => prev.map((t) => t.id === 'bash' ? { ...t, session } : t))
-    })
+    async function initTerminals() {
+      const [cliSession, bashSession] = await Promise.all([
+        createTerminalSession(CLI_LOG_COMMAND),
+        createTerminalSession(),
+      ])
+      if (disposed) {
+        cliSession.dispose()
+        bashSession.dispose()
+        return
+      }
+      sessionsRef.current.set('cli', cliSession)
+      sessionsRef.current.set('bash', bashSession)
+      setTabs((prev) => prev.map((t) => {
+        if (t.id === 'cli') return { ...t, session: cliSession }
+        if (t.id === 'bash') return { ...t, session: bashSession }
+        return t
+      }))
+    }
+
+    void initTerminals()
 
     return () => {
       disposed = true
+      sessionsRef.current.get('cli')?.dispose()
       sessionsRef.current.get('bash')?.dispose()
+      sessionsRef.current.delete('cli')
       sessionsRef.current.delete('bash')
-      setTabs((prev) => prev.map((t) => t.id === 'bash' ? { ...t, session: null } : t))
+      setTabs((prev) => prev.map((t) =>
+        (t.id === 'cli' || t.id === 'bash') ? { ...t, session: null } : t
+      ))
     }
   }, [status, createTerminalSession])
 
@@ -225,69 +180,66 @@ function IdeRoute() {
     })
   }, [tabs])
 
-  const handleFileSelect = useCallback((path: string) => {
-    const content = snapshot[path] ?? ''
-    store.openFile(path, content)
-  }, [snapshot, store])
-
-  const handleCreateFile = useCallback((parentPath: string, name: string) => {
-    const path = parentPath === '.' ? name : `${parentPath}/${name}`
-    const parsed = parsePath(path)
-    if (!parsed || !parsed.relPath) {
-      console.warn('Cannot create files outside of a space')
+  const handleFileSelect = useCallback(async (path: string) => {
+    if (fileContents[path] !== undefined) {
+      store.openFile(path, fileContents[path])
       return
     }
-    setSnapshot((prev) => {
-      const next = { ...prev, [path]: '' }
-      saveSpace(parsed.projectId, parsed.spaceId, next)
-      return next
-    })
-    store.openFile(path, '')
-  }, [saveSpace, store])
+    if (!transport) return
+    try {
+      const content = await transport.readFile(path)
+      setFileContents((prev) => ({ ...prev, [path]: content }))
+      store.openFile(path, content)
+    } catch (err) {
+      console.error(`Failed to read ${path}:`, err)
+      store.openFile(path, '')
+    }
+  }, [fileContents, transport, store])
 
-  const handleCreateDirectory = useCallback((parentPath: string, name: string) => {
+  const handleCreateFile = useCallback(async (parentPath: string, name: string) => {
+    const path = parentPath === '.' ? name : `${parentPath}/${name}`
+    if (!transport) return
+    try {
+      await transport.writeFile(path, '')
+      setFilePaths((prev) => prev.includes(path) ? prev : [...prev, path])
+      setFileContents((prev) => ({ ...prev, [path]: '' }))
+      store.openFile(path, '')
+    } catch (err) {
+      console.error(`Failed to create ${path}:`, err)
+    }
+  }, [transport, store])
+
+  const handleCreateDirectory = useCallback(async (parentPath: string, name: string) => {
     const path = parentPath === '.' ? name : `${parentPath}/${name}`
     const dummyPath = `${path}/.gitkeep`
-    const parsed = parsePath(dummyPath)
-    if (!parsed) return
-
-    setSnapshot((prev) => {
-      const next = { ...prev, [dummyPath]: '' }
-      saveSpace(parsed.projectId, parsed.spaceId, next)
-      return next
-    })
-  }, [saveSpace])
+    if (!transport) return
+    try {
+      await transport.writeFile(dummyPath, '')
+      setFilePaths((prev) => prev.includes(dummyPath) ? prev : [...prev, dummyPath])
+    } catch (err) {
+      console.error(`Failed to create directory ${path}:`, err)
+    }
+  }, [transport])
 
   const handleDelete = useCallback((path: string) => {
-    const parsed = parsePath(path)
-    if (!parsed) return
-
-    setSnapshot((prev) => {
+    // Optimistically remove from local state; no delete API yet
+    setFilePaths((prev) => prev.filter((p) => p !== path && !p.startsWith(`${path}/`)))
+    setFileContents((prev) => {
       const next = { ...prev }
       delete next[path]
-      const prefix = `${path}/`
       for (const k of Object.keys(next)) {
-        if (k.startsWith(prefix)) {
-          delete next[k]
-        }
+        if (k.startsWith(`${path}/`)) delete next[k]
       }
-      saveSpace(parsed.projectId, parsed.spaceId, next)
       return next
     })
     store.closeFile(path)
-  }, [saveSpace, store])
+  }, [store])
 
   const handleContentChange = useCallback((path: string, content: string) => {
-    const parsed = parsePath(path)
-    if (!parsed) return
-
-    setSnapshot((prev) => {
-      const next = { ...prev, [path]: content }
-      saveSpace(parsed.projectId, parsed.spaceId, next)
-      return next
-    })
+    setFileContents((prev) => ({ ...prev, [path]: content }))
     store.updateFileContent(path, content)
-  }, [saveSpace, store])
+    saveFile(path, content)
+  }, [saveFile, store])
 
   return (
     <IdeLayout
@@ -301,7 +253,7 @@ function IdeRoute() {
       onCreateDirectory={handleCreateDirectory}
       onDelete={handleDelete}
       openFiles={store.openFiles}
-      fileContents={snapshot}
+      fileContents={fileContents}
       onEditorFileSelect={(path) => store.setActiveFile(path)}
       onFileClose={(path) => store.closeFile(path)}
       onContentChange={handleContentChange}
@@ -310,7 +262,6 @@ function IdeRoute() {
       onTerminalTabSelect={setActiveTabId}
       onTerminalTabClose={handleCloseTab}
       onAddTerminalTab={handleAddTab}
-      previewUrl={store.previewUrl}
     />
   )
 }

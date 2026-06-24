@@ -15,10 +15,6 @@ interface IdeState {
   setActiveFile: (path: string) => void
   updateFileContent: (path: string, content: string) => void
 
-  // Preview
-  previewUrl: string | null
-  setPreviewUrl: (url: string | null) => void
-
   // Boot status
   isBooting: boolean
   isInstalling: boolean
@@ -56,9 +52,6 @@ export const useIdeStore = create<IdeState>((set) => ({
   setActiveFile: (path) => set({ activeFile: path }),
   updateFileContent: (path, content) =>
     set((s) => ({ fileContents: { ...s.fileContents, [path]: content } })),
-
-  previewUrl: null,
-  setPreviewUrl: (url) => set({ previewUrl: url }),
 
   isBooting: false,
   isInstalling: false,

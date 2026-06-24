@@ -91,7 +91,7 @@ export class PodRuntime implements ComputerRuntime {
     this.setStatus('stopped')
   }
 
-  async createTerminalSession(): Promise<TerminalSession> {
+  async createTerminalSession(command?: string): Promise<TerminalSession> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new Error('Not connected to compute pod')
     }
@@ -100,7 +100,7 @@ export class PodRuntime implements ComputerRuntime {
     const dataListeners = new Set<Listener<string>>()
     this.terminalDataListeners.set(id, dataListeners)
 
-    this.send({ type: 'terminal.open', sessionId: id })
+    this.send({ type: 'terminal.open', sessionId: id, ...(command ? { command } : {}) })
 
     return {
       id,

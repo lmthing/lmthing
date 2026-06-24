@@ -16,9 +16,10 @@ export interface TerminalProps {
   session: TerminalSession | null
   className?: string
   fontSize?: number
+  readonly?: boolean
 }
 
-function Terminal({ session, className, fontSize = 14 }: TerminalProps) {
+function Terminal({ session, className, fontSize = 14, readonly }: TerminalProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [xterm, setXterm] = useState<XTerm | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
@@ -89,15 +90,15 @@ function Terminal({ session, className, fontSize = 14 }: TerminalProps) {
       xterm.write(data)
     })
 
-    const disposable = xterm.onData((data) => {
+    const disposable = readonly ? null : xterm.onData((data: string) => {
       session.write(data)
     })
 
     return () => {
       unsubData()
-      disposable.dispose()
+      disposable?.dispose()
     }
-  }, [xterm, session])
+  }, [xterm, session, readonly])
 
   // Handle resize
   useEffect(() => {

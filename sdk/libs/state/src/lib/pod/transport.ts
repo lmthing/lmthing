@@ -141,4 +141,28 @@ export class PodTransport {
       body: JSON.stringify({ files: filtered }),
     })
   }
+
+  // ── Raw filesystem (IDE file tree) ────────────────────────────────────────
+
+  /** `GET /api/fs/tree` → `{ files: string[] }` — all file paths relative to pod workspace root. */
+  async listFiles(): Promise<string[]> {
+    const data = await this.request<{ files: string[] }>(`${this.opts.baseUrl}/api/fs/tree`)
+    return data.files
+  }
+
+  /** `GET /api/fs/read?path=<encoded>` → `{ content: string }`. */
+  async readFile(path: string): Promise<string> {
+    const data = await this.request<{ content: string }>(
+      `${this.opts.baseUrl}/api/fs/read?path=${encodeURIComponent(path)}`,
+    )
+    return data.content
+  }
+
+  /** `PUT /api/fs/write` `{ path, content }` — write a file at `path`. */
+  async writeFile(path: string, content: string): Promise<void> {
+    await this.request<{ ok: boolean }>(`${this.opts.baseUrl}/api/fs/write`, {
+      method: 'PUT',
+      body: JSON.stringify({ path, content }),
+    })
+  }
 }

@@ -7,6 +7,7 @@ export interface TerminalTab {
   id: string
   label: string
   session: TerminalSession | null
+  readonly?: boolean
 }
 
 export interface IdeTerminalProps {
@@ -30,7 +31,7 @@ function IdeTerminal({ tabs, activeTabId, onTabSelect, onTabClose, onAddTab }: I
             onClick={() => onTabSelect(tab.id)}
           >
             {tab.label}
-            {onTabClose && tabs.length > 1 && (
+            {onTabClose && !tab.readonly && tabs.filter(t => !t.readonly).length > 0 && (
               <button
                 className="ide-terminal__tab-close"
                 onClick={(e) => { e.stopPropagation(); onTabClose(tab.id) }}
@@ -53,7 +54,7 @@ function IdeTerminal({ tabs, activeTabId, onTabSelect, onTabClose, onAddTab }: I
             key={tab.id}
             className={`ide-terminal__pane${tab.id !== resolvedActiveId ? ' ide-terminal__pane--hidden' : ''}`}
           >
-            <Terminal session={tab.session} />
+            <Terminal session={tab.session} readonly={tab.readonly} />
           </div>
         ))}
       </div>

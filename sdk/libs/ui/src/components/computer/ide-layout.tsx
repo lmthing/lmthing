@@ -5,7 +5,6 @@ import { Badge } from '../../elements/content/badge'
 import { Loader2 } from 'lucide-react'
 import { IdeFileTree, type FileTreeNode } from './ide-file-tree'
 import { IdeEditor } from './ide-editor'
-import { IdePreview } from './ide-preview'
 import { IdeTerminal, type TerminalTab } from './ide-terminal'
 
 export type { TerminalTab }
@@ -38,8 +37,6 @@ export interface IdeLayoutProps {
   onTerminalTabClose: (id: string) => void
   onAddTerminalTab: () => void
 
-  // Preview
-  previewUrl: string | null
 }
 
 function IdeLayout(props: IdeLayoutProps) {
@@ -73,7 +70,7 @@ function IdeLayout(props: IdeLayoutProps) {
 
           <PanelResizeHandle className="ide-layout__resize-handle--horizontal" />
 
-          <Panel defaultSize={50} minSize={30}>
+          <Panel defaultSize={85} minSize={50}>
             <PanelGroup direction="vertical">
               <Panel defaultSize={70} minSize={30}>
                 <IdeEditor
@@ -100,11 +97,6 @@ function IdeLayout(props: IdeLayoutProps) {
             </PanelGroup>
           </Panel>
 
-          <PanelResizeHandle className="ide-layout__resize-handle--horizontal" />
-
-          <Panel defaultSize={35} minSize={20}>
-            <IdePreview url={props.previewUrl} />
-          </Panel>
         </PanelGroup>
       </div>
     </div>

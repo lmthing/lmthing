@@ -22,7 +22,7 @@ export interface ComputerContextValue {
   error: string | null
   boot(): Promise<void>
   shutdown(): Promise<void>
-  createTerminalSession(): Promise<TerminalSession>
+  createTerminalSession(command?: string): Promise<TerminalSession>
 }
 
 const ComputerContext = createContext<ComputerContextValue | null>(null)
@@ -129,10 +129,10 @@ export function ComputerProvider({ children, computerBaseUrl, accessToken }: Com
     if (rt) await rt.shutdown()
   }, [])
 
-  const createTerminalSession = useCallback(async () => {
+  const createTerminalSession = useCallback(async (command?: string) => {
     const rt = runtimeRef.current
     if (!rt) throw new Error('Runtime not initialized')
-    return rt.createTerminalSession()
+    return rt.createTerminalSession(command)
   }, [])
 
   const value: ComputerContextValue = {

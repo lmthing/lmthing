@@ -693,6 +693,10 @@ To update domain values: edit `argocd/envoy/config.yaml`, push to git, ArgoCD au
 - **DATABASE_URL points to in-cluster Postgres** — use `postgresql://lmthing:PASSWORD@postgres:5432/lmthing`. The `postgres` hostname resolves inside the cluster via the `postgres` Service in `lmthing` namespace.
 - **Gateway ServiceAccount is critical** — the gateway needs the `lmthing-compute-manager` ClusterRole to create user pods. Without it, Pro tier subscriptions will fail to provision compute.
 - **Old manifests in `ansible/k8s/`** — these are legacy from the pre-ArgoCD setup. All active manifests are now in `argocd/`. Do not edit files in `ansible/k8s/`.
+- **Compute image must co-locate `system-spaces` with the cli bundle** — the cli bundles `@lmthing/core`, so its system-space path resolution is relative to `…/cli/dist/`. The Dockerfile copies `system-spaces` to `packages/cli/dist/system-spaces`; without it `materializeRuntime` writes an empty `<data>/.lmthing/system/` and every chat session fails with `Agent "thing" not found`. See `.issues/` in `sdk/org`.
+- **`compute:latest` uses `imagePullPolicy: Always`** — per-user pods (`gateway/src/lib/compute.ts`) track the moving `:latest` tag, so a recreated pod must always re-pull or it runs a stale cached image. To roll a rebuilt compute image to an existing user, delete the user's `lmthing` Deployment (the PVC `/data` persists) and let the next `/api/compute/ensure` recreate it.
+- **`ensureUserPod` re-patches `MAX_SESSIONS`/resources on every chat load** — so the tier config (`gateway/src/lib/tiers.ts`) is the source of truth, not a one-off `kubectl set env` (which gets reverted on the next load). Free tier is `maxSessions: 3` (was 1, which made "+ New chat" silently fail).
+- **An out-of-bounds symlink anywhere in the repo breaks ArgoCD** — `ComparisonError: repository contains out-of-bounds symlinks` blocks *all* core/envoy syncs (not just the offending path). If a sync mysteriously stops applying, check the app's `status.conditions` for this error.
 
 ## Scaling the Cluster
 

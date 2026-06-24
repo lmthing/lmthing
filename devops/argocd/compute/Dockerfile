@@ -88,6 +88,13 @@ COPY --from=builder /build/packages/core/node_modules ./packages/core/node_modul
 COPY --from=builder /build/packages/core/system-spaces ./packages/core/system-spaces
 COPY --from=builder /build/packages/cli/dist    ./packages/cli/dist
 COPY --from=builder /build/packages/cli/node_modules  ./packages/cli/node_modules
+# The cli bundle inlines @lmthing/core, so defaultSystemSpaceDirs() resolves the
+# shipped system spaces RELATIVE TO THE BUNDLE (.../cli/dist/cli/bin.js →
+# ../system-spaces = .../cli/dist/system-spaces), not relative to the core
+# package. Place a copy there so `materializeRuntime` finds them; without it the
+# runtime materializes an empty system/ dir and every session fails with
+# `Agent "thing" not found`.
+COPY --from=builder /build/packages/core/system-spaces ./packages/cli/dist/system-spaces
 COPY --from=builder /build/packages/ui/dist        ./packages/ui/dist
 # dist-web/app.css is the prebuilt Tailwind CSS served by the web DevTools UI
 COPY --from=builder /build/packages/ui/dist-web    ./packages/ui/dist-web

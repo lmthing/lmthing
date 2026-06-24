@@ -37,10 +37,13 @@ export interface IdeLayoutProps {
   onTerminalTabClose: (id: string) => void
   onAddTerminalTab: () => void
 
+  // Restart
+  onRestart?: () => void
+  restarting?: boolean
 }
 
 function IdeLayout(props: IdeLayoutProps) {
-  const { status, isBooting, isInstalling } = props
+  const { status, isBooting, isInstalling, onRestart, restarting } = props
 
   return (
     <div className="ide-layout">
@@ -52,6 +55,16 @@ function IdeLayout(props: IdeLayoutProps) {
           {isInstalling && 'Installing dependencies...'}
           {!isBooting && !isInstalling && (
             <Badge variant={status === 'running' ? 'success' : 'muted'}>{status}</Badge>
+          )}
+          {onRestart && (
+            <button
+              onClick={restarting ? undefined : onRestart}
+              disabled={restarting}
+              className="ide-layout__restart-btn"
+              title="Restart CLI process (reloads .env)"
+            >
+              {restarting ? '↻' : '⏻'}
+            </button>
           )}
         </div>
       </div>

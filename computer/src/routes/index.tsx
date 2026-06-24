@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import { useAuth } from '@lmthing/auth'
 import { useComputer } from '@/lib/runtime/ComputerContext'
 import { useIdeStore } from '@/lib/store'
 import { useApp } from '@lmthing/state'
@@ -7,6 +8,9 @@ import { IdeLayout } from '@lmthing/ui/components/computer/ide-layout'
 import type { TerminalTab } from '@lmthing/ui/components/computer/ide-layout'
 import type { TerminalSession } from '@/lib/runtime/types'
 import type { FileTreeNode } from '@/lib/runtime/file-watcher'
+
+const COMPUTER_BASE_URL = import.meta.env.VITE_COMPUTER_BASE_URL
+  ?? (import.meta.env.DEV ? 'https://computer.test' : window.location.origin)
 
 export const Route = createFileRoute('/')({
   component: IdeRoute,
@@ -59,6 +63,7 @@ function buildTree(paths: string[]): FileTreeNode[] {
 
 function IdeRoute() {
   const { status } = useComputer()
+  const { session } = useAuth()
   const store = useIdeStore()
   const { transport } = useApp()
 
@@ -66,6 +71,28 @@ function IdeRoute() {
   const [fileContents, setFileContents] = useState<Record<string, string>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [restarting, setRestarting] = useState(false)
+
+  const handleRestart = useCallback(async () => {
+    if (!session?.accessToken) return
+    setRestarting(true)
+    try {
+      await fetch(`${COMPUTER_BASE_URL}/api/restart`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${session.accessToken}` },
+      })
+    } catch { /* expected — pod exits */ }
+    const poll = async () => {
+      try {
+        const r = await fetch(`${COMPUTER_BASE_URL}/api/env`, {
+          headers: { authorization: `Bearer ${session.accessToken}` },
+        })
+        if (r.ok) { window.location.reload(); return }
+      } catch { /* still down */ }
+      setTimeout(poll, 800)
+    }
+    setTimeout(poll, 1000)
+  }, [session])
 
   const debounceTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
@@ -250,6 +277,8 @@ function IdeRoute() {
       onTerminalTabSelect={setActiveTabId}
       onTerminalTabClose={handleCloseTab}
       onAddTerminalTab={handleAddTab}
+      onRestart={() => { void handleRestart() }}
+      restarting={restarting}
     />
   )
 }

@@ -109,6 +109,7 @@ function ChatHome() {
     try {
       await upgradePod(CLOUD_BASE_URL, session!.accessToken)
       await pollUntilReady(CLOUD_BASE_URL, session!.accessToken, latestTag!)
+      await new Promise((r) => setTimeout(r, 1500))
       redirect()
     } catch {
       setUpgrading(false)

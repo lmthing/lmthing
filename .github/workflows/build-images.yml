@@ -20,11 +20,11 @@ on:
       - 'casa/**'
 
 jobs:
-  build:
+  detect:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
+    outputs:
+      matrix: ${{ steps.build-matrix.outputs.matrix }}
+      sha: ${{ steps.tag.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -88,6 +88,71 @@ jobs:
               - 'sdk/libs/**'
               - 'sdk/org/**'
 
+      - name: Set image tag
+        id: tag
+        run: echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Build matrix
+        id: build-matrix
+        env:
+          GATEWAY: ${{ steps.changes.outputs.gateway }}
+          COMPUTER: ${{ steps.changes.outputs.computer }}
+          COMPUTE: ${{ steps.changes.outputs.compute }}
+          STUDIO: ${{ steps.changes.outputs.studio }}
+          CHAT: ${{ steps.changes.outputs.chat }}
+          COM: ${{ steps.changes.outputs.com }}
+          SOCIAL: ${{ steps.changes.outputs.social }}
+          STORE: ${{ steps.changes.outputs.store }}
+          SPACE: ${{ steps.changes.outputs.space }}
+          TEAM: ${{ steps.changes.outputs.team }}
+          BLOG: ${{ steps.changes.outputs.blog }}
+          CASA: ${{ steps.changes.outputs.casa }}
+        run: |
+          python3 << 'EOF' >> $GITHUB_OUTPUT
+          import json, os
+
+          all_images = [
+            {"image": "gateway",  "dockerfile": "cloud/gateway/Dockerfile",        "context": "cloud/gateway", "manifest": "devops/argocd/core/gateway.yaml",              "changed": os.environ["GATEWAY"]},
+            {"image": "computer", "dockerfile": "computer/Dockerfile",             "context": ".",             "manifest": "devops/argocd/core/computer.yaml",             "changed": os.environ["COMPUTER"]},
+            {"image": "compute",  "dockerfile": "devops/argocd/compute/Dockerfile","context": "sdk/org",       "manifest": "devops/argocd/core/compute-pod-template.yaml", "changed": os.environ["COMPUTE"]},
+            {"image": "studio",   "dockerfile": "studio/Dockerfile",               "context": ".",             "manifest": "devops/argocd/core/studio.yaml",               "changed": os.environ["STUDIO"]},
+            {"image": "chat",     "dockerfile": "chat/Dockerfile",                 "context": ".",             "manifest": "devops/argocd/core/chat.yaml",                 "changed": os.environ["CHAT"]},
+            {"image": "com",      "dockerfile": "com/Dockerfile",                  "context": ".",             "manifest": "devops/argocd/core/com.yaml",                  "changed": os.environ["COM"]},
+            {"image": "social",   "dockerfile": "social/Dockerfile",               "context": ".",             "manifest": "devops/argocd/core/social.yaml",               "changed": os.environ["SOCIAL"]},
+            {"image": "store",    "dockerfile": "store/Dockerfile",                "context": ".",             "manifest": "devops/argocd/core/store.yaml",                "changed": os.environ["STORE"]},
+            {"image": "space",    "dockerfile": "space/Dockerfile",                "context": ".",             "manifest": "devops/argocd/core/space.yaml",                "changed": os.environ["SPACE"]},
+            {"image": "team",     "dockerfile": "team/Dockerfile",                 "context": ".",             "manifest": "devops/argocd/core/team.yaml",                 "changed": os.environ["TEAM"]},
+            {"image": "blog",     "dockerfile": "blog/Dockerfile",                 "context": ".",             "manifest": "devops/argocd/core/blog.yaml",                 "changed": os.environ["BLOG"]},
+            {"image": "casa",     "dockerfile": "casa/Dockerfile",                 "context": ".",             "manifest": "devops/argocd/core/casa.yaml",                 "changed": os.environ["CASA"]},
+          ]
+
+          matrix = [
+            {"image": e["image"], "dockerfile": e["dockerfile"], "context": e["context"], "manifest": e["manifest"]}
+            for e in all_images if e["changed"] == "true"
+          ]
+          print("matrix=" + json.dumps(matrix))
+          EOF
+
+  build:
+    needs: detect
+    if: needs.detect.outputs.matrix != '[]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.detect.outputs.matrix) }}
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: recursive
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Azure login
         uses: azure/login@v2
         with:
@@ -96,180 +161,70 @@ jobs:
       - name: Login to ACR
         run: az acr login --name lmthingacr
 
-      - name: Set image tag
-        id: tag
-        run: echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: Build and push ${{ matrix.image }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            lmthingacr.azurecr.io/${{ matrix.image }}:${{ needs.detect.outputs.sha }}
+            lmthingacr.azurecr.io/${{ matrix.image }}:latest
+          cache-from: type=registry,ref=lmthingacr.azurecr.io/${{ matrix.image }}:buildcache
+          cache-to: type=registry,ref=lmthingacr.azurecr.io/${{ matrix.image }}:buildcache,mode=max
 
-      - name: Build and push gateway
-        if: steps.changes.outputs.gateway == 'true'
+  update-manifests:
+    needs: [detect, build]
+    if: always() && needs.detect.outputs.matrix != '[]' && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+
+      - name: Update image tags in manifests
+        env:
+          MATRIX: ${{ needs.detect.outputs.matrix }}
+          SHA: ${{ needs.detect.outputs.sha }}
         run: |
-          docker build \
-            -t lmthingacr.azurecr.io/gateway:${{ steps.tag.outputs.sha }} \
-            -t lmthingacr.azurecr.io/gateway:latest \
-            cloud/gateway/
-          docker push lmthingacr.azurecr.io/gateway:${{ steps.tag.outputs.sha }}
-          docker push lmthingacr.azurecr.io/gateway:latest
-          sed -i "s|image: lmthingacr.azurecr.io/gateway:.*|image: lmthingacr.azurecr.io/gateway:${{ steps.tag.outputs.sha }}|" \
-            devops/argocd/core/gateway.yaml
+          python3 << 'EOF'
+          import json, os, re
 
-      - name: Build and push computer
-        if: steps.changes.outputs.computer == 'true'
-        run: |
-          docker build \
-            -f computer/Dockerfile \
-            -t lmthingacr.azurecr.io/computer:${{ steps.tag.outputs.sha }} \
-            -t lmthingacr.azurecr.io/computer:latest \
-            .
-          docker push lmthingacr.azurecr.io/computer:${{ steps.tag.outputs.sha }}
-          docker push lmthingacr.azurecr.io/computer:latest
-          sed -i "s|image: lmthingacr.azurecr.io/computer:.*|image: lmthingacr.azurecr.io/computer:${{ steps.tag.outputs.sha }}|" \
-            devops/argocd/core/computer.yaml
+          matrix = json.loads(os.environ["MATRIX"])
+          sha = os.environ["SHA"]
 
-      - name: Build and push compute
-        if: steps.changes.outputs.compute == 'true'
-        run: |
-          docker build \
-            -t lmthingacr.azurecr.io/compute:${{ steps.tag.outputs.sha }} \
-            -t lmthingacr.azurecr.io/compute:latest \
-            -f devops/argocd/compute/Dockerfile \
-            sdk/org
-          docker push lmthingacr.azurecr.io/compute:${{ steps.tag.outputs.sha }}
-          docker push lmthingacr.azurecr.io/compute:latest
-          sed -i "s|image: lmthingacr.azurecr.io/compute:.*|image: lmthingacr.azurecr.io/compute:${{ steps.tag.outputs.sha }}|" \
-            devops/argocd/core/compute-pod-template.yaml
+          for entry in matrix:
+            manifest = entry["manifest"]
+            image = entry["image"]
+            pattern = rf'(image: lmthingacr\.azurecr\.io/{re.escape(image)}:)\S+'
+            with open(manifest) as f:
+              content = f.read()
+            new_content = re.sub(pattern, rf'\g<1>{sha}', content)
+            with open(manifest, "w") as f:
+              f.write(new_content)
+          EOF
 
-      - name: Build and push studio
-        if: steps.changes.outputs.studio == 'true'
-        run: |
-          docker build \
-            -f studio/Dockerfile \
-            -t lmthingacr.azurecr.io/studio:${{ steps.tag.outputs.sha }} \
-            -t lmthingacr.azurecr.io/studio:latest \
-            .
-          docker push lmthingacr.azurecr.io/studio:${{ steps.tag.outputs.sha }}
-          docker push lmthingacr.azurecr.io/studio:latest
-          sed -i "s|image: lmthingacr.azurecr.io/studio:.*|image: lmthingacr.azurecr.io/studio:${{ steps.tag.outputs.sha }}|" \
-            devops/argocd/core/studio.yaml
-
-      - name: Build and push chat
-        if: steps.changes.outputs.chat == 'true'
-        run: |
-          docker build \
-            -f chat/Dockerfile \
-            -t lmthingacr.azurecr.io/chat:${{ steps.tag.outputs.sha }} \
-            -t lmthingacr.azurecr.io/chat:latest \
-            .
-          docker push lmthingacr.azurecr.io/chat:${{ steps.tag.outputs.sha }}
-          docker push lmthingacr.azurecr.io/chat:latest
-          sed -i "s|image: lmthingacr.azurecr.io/chat:.*|image: lmthingacr.azurecr.io/chat:${{ steps.tag.outputs.sha }}|" \
-            devops/argocd/core/chat.yaml
-
-      - name: Build and push com
-        if: steps.changes.outputs.com == 'true'
-        run: |
-          docker build \
-            -f com/Dockerfile \
-            -t lmthingacr.azurecr.io/com:${{ steps.tag.outputs.sha }} \
-            -t lmthingacr.azurecr.io/com:latest \
-            .
-          docker push lmthingacr.azurecr.io/com:${{ steps.tag.outputs.sha }}
-          docker push lmthingacr.azurecr.io/com:latest
-          sed -i "s|image: lmthingacr.azurecr.io/com:.*|image: lmthingacr.azurecr.io/com:${{ steps.tag.outputs.sha }}|" \
-            devops/argocd/core/com.yaml
-
-      - name: Build and push social
-        if: steps.changes.outputs.social == 'true'
-        run: |
-          docker build \
-            -f social/Dockerfile \
-            -t lmthingacr.azurecr.io/social:${{ steps.tag.outputs.sha }} \
-            -t lmthingacr.azurecr.io/social:latest \
-            .
-          docker push lmthingacr.azurecr.io/social:${{ steps.tag.outputs.sha }}
-          docker push lmthingacr.azurecr.io/social:latest
-          sed -i "s|image: lmthingacr.azurecr.io/social:.*|image: lmthingacr.azurecr.io/social:${{ steps.tag.outputs.sha }}|" \
-            devops/argocd/core/social.yaml
-
-      - name: Build and push store
-        if: steps.changes.outputs.store == 'true'
-        run: |
-          docker build \
-            -f store/Dockerfile \
-            -t lmthingacr.azurecr.io/store:${{ steps.tag.outputs.sha }} \
-            -t lmthingacr.azurecr.io/store:latest \
-            .
-          docker push lmthingacr.azurecr.io/store:${{ steps.tag.outputs.sha }}
-          docker push lmthingacr.azurecr.io/store:latest
-          sed -i "s|image: lmthingacr.azurecr.io/store:.*|image: lmthingacr.azurecr.io/store:${{ steps.tag.outputs.sha }}|" \
-            devops/argocd/core/store.yaml
-
-      - name: Build and push space
-        if: steps.changes.outputs.space == 'true'
-        run: |
-          docker build \
-            -f space/Dockerfile \
-            -t lmthingacr.azurecr.io/space:${{ steps.tag.outputs.sha }} \
-            -t lmthingacr.azurecr.io/space:latest \
-            .
-          docker push lmthingacr.azurecr.io/space:${{ steps.tag.outputs.sha }}
-          docker push lmthingacr.azurecr.io/space:latest
-          sed -i "s|image: lmthingacr.azurecr.io/space:.*|image: lmthingacr.azurecr.io/space:${{ steps.tag.outputs.sha }}|" \
-            devops/argocd/core/space.yaml
-
-      - name: Build and push team
-        if: steps.changes.outputs.team == 'true'
-        run: |
-          docker build \
-            -f team/Dockerfile \
-            -t lmthingacr.azurecr.io/team:${{ steps.tag.outputs.sha }} \
-            -t lmthingacr.azurecr.io/team:latest \
-            .
-          docker push lmthingacr.azurecr.io/team:${{ steps.tag.outputs.sha }}
-          docker push lmthingacr.azurecr.io/team:latest
-          sed -i "s|image: lmthingacr.azurecr.io/team:.*|image: lmthingacr.azurecr.io/team:${{ steps.tag.outputs.sha }}|" \
-            devops/argocd/core/team.yaml
-
-      - name: Build and push blog
-        if: steps.changes.outputs.blog == 'true'
-        run: |
-          docker build \
-            -f blog/Dockerfile \
-            -t lmthingacr.azurecr.io/blog:${{ steps.tag.outputs.sha }} \
-            -t lmthingacr.azurecr.io/blog:latest \
-            .
-          docker push lmthingacr.azurecr.io/blog:${{ steps.tag.outputs.sha }}
-          docker push lmthingacr.azurecr.io/blog:latest
-          sed -i "s|image: lmthingacr.azurecr.io/blog:.*|image: lmthingacr.azurecr.io/blog:${{ steps.tag.outputs.sha }}|" \
-            devops/argocd/core/blog.yaml
-
-      - name: Build and push casa
-        if: steps.changes.outputs.casa == 'true'
-        run: |
-          docker build \
-            -f casa/Dockerfile \
-            -t lmthingacr.azurecr.io/casa:${{ steps.tag.outputs.sha }} \
-            -t lmthingacr.azurecr.io/casa:latest \
-            .
-          docker push lmthingacr.azurecr.io/casa:${{ steps.tag.outputs.sha }}
-          docker push lmthingacr.azurecr.io/casa:latest
-          sed -i "s|image: lmthingacr.azurecr.io/casa:.*|image: lmthingacr.azurecr.io/casa:${{ steps.tag.outputs.sha }}|" \
-            devops/argocd/core/casa.yaml
-
-      - name: Commit updated image tags
+      - name: Commit and push
+        env:
+          SHA: ${{ needs.detect.outputs.sha }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add devops/argocd/core/gateway.yaml \
-                  devops/argocd/core/computer.yaml \
-                  devops/argocd/core/compute-pod-template.yaml \
-                  devops/argocd/core/studio.yaml \
-                  devops/argocd/core/chat.yaml \
-                  devops/argocd/core/com.yaml \
-                  devops/argocd/core/social.yaml \
-                  devops/argocd/core/store.yaml \
-                  devops/argocd/core/space.yaml \
-                  devops/argocd/core/team.yaml \
-                  devops/argocd/core/blog.yaml \
-                  devops/argocd/core/casa.yaml
-          git diff --staged --quiet || git commit -m "ci: update image tags to ${{ steps.tag.outputs.sha }} [skip ci]"
+          git add devops/argocd/core/
+          git diff --staged --quiet || git commit -m "ci: update image tags to $SHA [skip ci]"
           git push
+
+      - name: Trigger ArgoCD sync
+        env:
+          ARGOCD_SERVER_URL: ${{ secrets.ARGOCD_SERVER_URL }}
+          ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+        run: |
+          [ -z "$ARGOCD_SERVER_URL" ] && exit 0
+          curl -sf -X POST "$ARGOCD_SERVER_URL/api/v1/applications/lmthing/sync" \
+            -H "Authorization: Bearer $ARGOCD_AUTH_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"prune": false, "dryRun": false}' || true

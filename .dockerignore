@@ -4,3 +4,9 @@
 **/.vite
 **/coverage
 **/*.log
+.claude/
+.github/
+devops/
+**/.env*
+**/*.md
+sdk/org/docs/

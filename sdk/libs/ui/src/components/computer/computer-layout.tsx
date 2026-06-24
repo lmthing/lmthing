@@ -13,6 +13,8 @@ export interface ComputerLayoutProps {
   onNavigate: (path: string) => void
   error?: string | null
   onRetry?: () => void
+  onRestart?: () => void
+  restarting?: boolean
   children: React.ReactNode
 }
 
@@ -23,24 +25,35 @@ const navItems = [
   { path: '/settings', label: 'Settings' },
 ]
 
-function ComputerLayout({ status, tier, currentPath, onNavigate, error, onRetry, children }: ComputerLayoutProps) {
+function ComputerLayout({ status, tier, currentPath, onNavigate, error, onRetry, onRestart, restarting, children }: ComputerLayoutProps) {
   const connectionState = status === 'error' ? 'error' as const
     : status === 'booting' ? 'booting' as const
     : 'connected' as const
 
   return (
     <div className="computer-layout">
-      <Sidebar>
-        {navItems.map((item) => (
+      <Sidebar style={{ justifyContent: 'space-between' }}>
+        <div>
+          {navItems.map((item) => (
+            <SidebarItem
+              key={item.path}
+              active={currentPath === item.path}
+              onClick={() => onNavigate(item.path)}
+              style={{ cursor: 'pointer' }}
+            >
+              {item.label}
+            </SidebarItem>
+          ))}
+        </div>
+        {onRestart && (
           <SidebarItem
-            key={item.path}
-            active={currentPath === item.path}
-            onClick={() => onNavigate(item.path)}
-            style={{ cursor: 'pointer' }}
+            onClick={restarting ? undefined : onRestart}
+            style={{ cursor: restarting ? 'default' : 'pointer', opacity: restarting ? 0.5 : 1 }}
+            title="Restart CLI process (reloads .env)"
           >
-            {item.label}
+            {restarting ? '↻ Restarting…' : '⏻ Restart'}
           </SidebarItem>
-        ))}
+        )}
       </Sidebar>
       <div className="computer-layout__content">
         <TopBar

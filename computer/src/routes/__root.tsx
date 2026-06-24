@@ -43,9 +43,11 @@ function RepoSyncGate({ children }: { children: React.ReactNode }) {
 
 function ComputerShell() {
   const { status, error, boot } = useComputer()
+  const { session } = useAuth()
   const router = useRouter()
   const routerState = useRouterState()
   const currentPath = routerState.location.pathname
+  const [restarting, setRestarting] = useState(false)
 
   useEffect(() => {
     function onMessage(e: MessageEvent) {
@@ -55,6 +57,27 @@ function ComputerShell() {
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
   }, [router])
+
+  const handleRestart = async () => {
+    if (!session?.accessToken) return
+    setRestarting(true)
+    try {
+      await fetch(`${COMPUTER_BASE_URL}/api/restart`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${session.accessToken}` },
+      })
+    } catch { /* expected — pod exits */ }
+    const poll = async () => {
+      try {
+        const r = await fetch(`${COMPUTER_BASE_URL}/api/env`, {
+          headers: { authorization: `Bearer ${session.accessToken}` },
+        })
+        if (r.ok) { window.location.reload(); return; }
+      } catch { /* still down */ }
+      setTimeout(poll, 800)
+    }
+    setTimeout(poll, 1000)
+  }
 
   // IDE and chat routes get full-screen layout (no sidebar)
   if (currentPath === '/' || currentPath === '/chat') {
@@ -69,6 +92,8 @@ function ComputerShell() {
       onNavigate={(path) => router.navigate({ to: path })}
       error={error}
       onRetry={boot}
+      onRestart={() => { void handleRestart() }}
+      restarting={restarting}
     >
       <Outlet />
     </ComputerLayout>

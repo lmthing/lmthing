@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>lmthing | System Status & Deployment Tracker</title>
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <style>
+    :root {
+      --bg-dark: #070913;
+      --card-bg: rgba(13, 17, 33, 0.7);
+      --card-border: rgba(255, 255, 255, 0.06);
+      --card-border-hover: rgba(255, 255, 255, 0.15);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #6366f1;
+      --primary-glow: rgba(99, 102, 241, 0.15);
+      
+      --status-operational: #10b981;
+      --status-operational-glow: rgba(16, 185, 129, 0.2);
+      --status-degraded: #f59e0b;
+      --status-degraded-glow: rgba(245, 158, 11, 0.2);
+      --status-offline: #ef4444;
+      --status-offline-glow: rgba(239, 68, 68, 0.2);
+      --status-checking: #38bdf8;
+      --status-checking-glow: rgba(56, 189, 248, 0.2);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(56, 189, 248, 0.04) 0%, transparent 40%);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      padding: 2rem 1.5rem;
+    }
+
+    h1, h2, h3, h4 {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* Header Section */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2.5rem;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 1.5rem;
+    }
+
+    .logo-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .logo-title {
+      font-size: 2rem;
+      background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.02em;
+    }
+
+    .logo-subtitle {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .overall-status {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1.25rem;
+      background: rgba(30, 41, 59, 0.4);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .overall-status.operational {
+      border-color: rgba(16, 185, 129, 0.3);
+      box-shadow: 0 0 15px rgba(16, 185, 129, 0.05);
+    }
+    
+    .overall-status.degraded {
+      border-color: rgba(245, 158, 11, 0.3);
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.05);
+    }
+
+    .overall-status.offline {
+      border-color: rgba(239, 68, 68, 0.3);
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.05);
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      position: relative;
+    }
+
+    .status-dot::after {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: -4px;
+      right: -4px;
+      bottom: -4px;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    .dot-operational {
+      background-color: var(--status-operational);
+    }
+    .dot-operational::after {
+      background-color: var(--status-operational-glow);
+    }
+
+    .dot-degraded {
+      background-color: var(--status-degraded);
+    }
+    .dot-degraded::after {
+      background-color: var(--status-degraded-glow);
+    }
+
+    .dot-offline {
+      background-color: var(--status-offline);
+    }
+    .dot-offline::after {
+      background-color: var(--status-offline-glow);
+    }
+
+    .dot-checking {
+      background-color: var(--status-checking);
+    }
+    .dot-checking::after {
+      background-color: var(--status-checking-glow);
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 0.8; }
+      70% { transform: scale(2); opacity: 0; }
+      100% { transform: scale(1); opacity: 0; }
+    }
+
+    /* Layout Columns */
+    .dashboard-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+
+    @media (min-width: 900px) {
+      .dashboard-layout {
+        grid-template-columns: 2fr 1fr;
+      }
+    }
+
+    /* Cards */
+    .section-title {
+      font-size: 1.25rem;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-main);
+    }
+
+    .section-title i {
+      color: var(--primary);
+    }
+
+    .services-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+    @media (min-width: 600px) {
+      .services-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .service-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .service-card:hover {
+      border-color: var(--card-border-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px -10px rgba(0, 0, 0, 0.5);
+    }
+
+    .service-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .service-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .service-emoji {
+      font-size: 1.5rem;
+    }
+
+    .service-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .service-name {
+      font-size: 1.125rem;
+      font-weight: 600;
+    }
+
+    .service-type {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 0.125rem;
+    }
+
+    .service-badge {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      font-weight: 500;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .service-status-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.375rem 0.625rem;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+    }
+
+    .service-status-badge.operational {
+      color: var(--status-operational);
+      border-color: rgba(16, 185, 129, 0.2);
+      background: rgba(16, 185, 129, 0.05);
+    }
+
+    .service-status-badge.offline {
+      color: var(--status-offline);
+      border-color: rgba(239, 68, 68, 0.2);
+      background: rgba(239, 68, 68, 0.05);
+    }
+
+    .service-status-badge.checking {
+      color: var(--status-checking);
+      border-color: rgba(56, 189, 248, 0.2);
+      background: rgba(56, 189, 248, 0.05);
+    }
+
+    .commit-section {
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+      padding-top: 0.75rem;
+      margin-top: 0.25rem;
+      font-size: 0.8125rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.375rem;
+    }
+
+    .commit-label {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .commit-hash {
+      font-family: monospace;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 0.125rem 0.375rem;
+      border-radius: 4px;
+      color: #cbd5e1;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      text-decoration: none;
+      transition: background 0.2s ease;
+      width: fit-content;
+    }
+
+    .commit-hash:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .commit-details {
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 0.75rem;
+    }
+
+    .latency-info {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    /* Actions workflow status */
+    .actions-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .workflow-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .workflow-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      padding-bottom: 0.75rem;
+    }
+
+    .workflow-title {
+      font-size: 1rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .workflow-running-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      animation: pulse-border 1.5s infinite;
+    }
+
+    @keyframes pulse-border {
+      0% { border-color: rgba(56, 189, 248, 0.2); box-shadow: 0 0 0 0px rgba(56, 189, 248, 0.1); }
+      70% { border-color: rgba(56, 189, 248, 0.6); box-shadow: 0 0 0 6px rgba(56, 189, 248, 0); }
+      100% { border-color: rgba(56, 189, 248, 0.2); box-shadow: 0 0 0 0px rgba(56, 189, 248, 0); }
+    }
+
+    .run-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .run-item {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 10px;
+      padding: 0.875rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      font-size: 0.8125rem;
+      transition: all 0.2s ease;
+    }
+
+    .run-item:hover {
+      border-color: rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .run-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .run-name {
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+    }
+
+    .run-status {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-weight: 500;
+    }
+
+    .run-status.success { color: var(--status-operational); }
+    .run-status.failure { color: var(--status-offline); }
+    .run-status.running { color: var(--status-checking); }
+    .run-status.queued { color: var(--text-muted); }
+
+    .run-commit {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-muted);
+      border-top: 1px solid rgba(255, 255, 255, 0.03);
+      padding-top: 0.5rem;
+    }
+
+    .avatar {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+    }
+
+    .run-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 500;
+      margin-top: 0.25rem;
+    }
+
+    .run-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+    }
+
+    .btn-refresh {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8125rem;
+      transition: opacity 0.2s ease;
+    }
+
+    .btn-refresh:hover {
+      opacity: 0.9;
+    }
+
+    .btn-refresh i.spinning {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    footer {
+      margin-top: 4rem;
+      border-top: 1px solid var(--card-border);
+      padding-top: 1.5rem;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .footer-link {
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    .footer-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo-container">
+        <h1 class="logo-title">lmthing</h1>
+        <div class="logo-subtitle">System Status & Deployment Dashboard</div>
+      </div>
+      <div id="overall-status-banner" class="overall-status operational">
+        <span id="overall-dot" class="status-dot dot-checking"></span>
+        <span id="overall-text">Loading Status...</span>
+      </div>
+    </header>
+
+    <div class="controls">
+      <div id="last-updated">Last updated: Checking...</div>
+      <button id="refresh-all-btn" class="btn-refresh">
+        <i data-lucide="refresh-cw" id="refresh-icon"></i> Refresh Status
+      </button>
+    </div>
+
+    <div class="dashboard-layout">
+      <!-- Services Health Column -->
+      <div>
+        <h2 class="section-title"><i data-lucide="server"></i> Services Status</h2>
+        <div class="services-grid" id="services-container">
+          <!-- Dynamically generated service cards will go here -->
+        </div>
+      </div>
+
+      <!-- GitHub Actions & Workflows Column -->
+      <div class="actions-panel">
+        <h2 class="section-title"><i data-lucide="github"></i> Build Pipelines</h2>
+        <div class="workflow-card">
+          <div class="workflow-header">
+            <div class="workflow-title">
+              <i data-lucide="package-open"></i> Build & Push Images
+            </div>
+            <div id="workflow-pulse" style="display: none;">
+              <span class="workflow-running-badge" style="color: var(--status-checking); border: 1px solid rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.05);">
+                <span class="status-dot dot-checking"></span> Active Build
+              </span>
+            </div>
+          </div>
+          
+          <div class="run-list" id="runs-container">
+            <div style="color: var(--text-muted); font-size: 0.875rem; text-align: center; padding: 1.5rem 0;">
+              Fetching workflow runs...
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <div>&copy; 2026 lmthing. All services monitored.</div>
+      <div>
+        <a href="https://github.com/lmthing/lmthing" class="footer-link" target="_blank">
+          <i data-lucide="github" style="width: 14px; height: 14px; vertical-align: middle;"></i> lmthing/lmthing
+        </a>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // Configuration for services
+    const services = [
+      { name: 'studio', domain: 'lmthing.studio', type: 'vite', emoji: '🎨', color: 'magenta', yaml: 'studio.yaml' },
+      { name: 'chat', domain: 'lmthing.chat', type: 'vite', emoji: '💬', color: 'cyan', yaml: 'chat.yaml' },
+      { name: 'com', domain: 'lmthing.com', type: 'vite', emoji: '🌐', color: 'blue', yaml: 'com.yaml' },
+      { name: 'social', domain: 'lmthing.social', type: 'vite', emoji: '👥', color: 'yellow', yaml: 'social.yaml' },
+      { name: 'store', domain: 'lmthing.store', type: 'vite', emoji: '🏪', color: 'green', yaml: 'store.yaml' },
+      { name: 'space', domain: 'lmthing.space', type: 'vite', emoji: '🚀', color: 'blue', yaml: 'space.yaml' },
+      { name: 'team', domain: 'lmthing.team', type: 'vite', emoji: '👔', color: 'cyan', yaml: 'team.yaml' },
+      { name: 'blog', domain: 'lmthing.blog', type: 'vite', emoji: '📝', color: 'yellow', yaml: 'blog.yaml' },
+      { name: 'casa', domain: 'lmthing.casa', type: 'vite', emoji: '🏠', color: 'green', yaml: 'casa.yaml' },
+      { name: 'cloud', domain: 'lmthing.cloud', type: 'gateway', emoji: '☁️', color: 'white', yaml: 'gateway.yaml', healthUrl: 'https://lmthing.cloud/api/health' },
+      { name: 'computer', domain: 'lmthing.computer', type: 'vite', emoji: '🖥️', color: 'magenta', yaml: 'computer.yaml' },
+      { name: 'compute', domain: 'minikube-pods', type: 'k8s-pod', emoji: '⚡', color: 'purple', yaml: 'compute-pod-template.yaml', isInternal: true }
+    ];
+
+    const repoOwner = 'lmthing';
+    const repoName = 'lmthing';
+    const mainBranch = 'main';
+
+    // State
+    const serviceStates = {};
+    let activeInterval = null;
+
+    // Initialize UI
+    function initializeUI() {
+      const container = document.getElementById('services-container');
+      container.innerHTML = '';
+
+      services.forEach(svc => {
+        serviceStates[svc.name] = {
+          status: 'checking',
+          commitSha: 'Loading...',
+          commitDetails: null,
+          latency: null
+        };
+
+        const card = document.createElement('a');
+        card.id = `card-${svc.name}`;
+        card.className = 'service-card';
+        if (!svc.isInternal) {
+          card.href = `https://${svc.domain}`;
+          card.target = '_blank';
+        } else {
+          card.style.cursor = 'default';
+        }
+
+        card.innerHTML = `
+          <div class="service-header">
+            <div class="service-meta">
+              <span class="service-emoji">${svc.emoji}</span>
+              <div class="service-info">
+                <span class="service-name">${svc.name}</span>
+                <span class="service-type">${svc.type}</span>
+              </div>
+            </div>
+            <div id="badge-${svc.name}" class="service-status-badge checking">
+              <span class="status-dot dot-checking" style="width:6px; height:6px;"></span> checking
+            </div>
+          </div>
+          
+          <div class="commit-section">
+            <div class="commit-label">
+              <i data-lucide="git-branch" style="width:12px; height:12px;"></i> deployed commit
+            </div>
+            <span id="commit-${svc.name}" class="commit-hash">...</span>
+            <div id="commit-msg-${svc.name}" class="commit-details">Fetching details...</div>
+          </div>
+
+          ${!svc.isInternal ? `
+            <div class="latency-info" id="latency-${svc.name}">
+              <i data-lucide="gauge" style="width:12px; height:12px;"></i> Latency: --
+            </div>
+          ` : ''}
+        `;
+
+        container.appendChild(card);
+      });
+
+      lucide.createIcons();
+    }
+
+    // Cache wrapper for GitHub commit information
+    async function getCommitDetails(sha) {
+      const cacheKey = `commit_details_${sha}`;
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          return JSON.parse(cached);
+        } catch (e) {
+          localStorage.removeItem(cacheKey);
+        }
+      }
+
+      try {
+        const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/commits/${sha}`);
+        if (!response.ok) throw new Error('Failed to fetch commit details');
+        const data = await response.json();
+        
+        const details = {
+          message: data.commit.message.split('\n')[0],
+          author: data.commit.author.name,
+          date: new Date(data.commit.author.date).toLocaleDateString(),
+          avatar: data.author ? data.author.avatar_url : null
+        };
+
+        localStorage.setItem(cacheKey, JSON.stringify(details));
+        return details;
+      } catch (e) {
+        console.error(`Failed to fetch details for commit ${sha}`, e);
+        return {
+          message: 'Failed to fetch details',
+          author: 'Unknown',
+          date: 'Unknown',
+          avatar: null
+        };
+      }
+    }
+
+    // Fetch commit SHA from the YAML file in the repo
+    async function fetchDeployedCommit(svc) {
+      try {
+        const url = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${mainBranch}/devops/argocd/core/${svc.yaml}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+        const text = await response.text();
+
+        // Extract commit SHA from ACR tag
+        const match = text.match(/image:\s*lmthingacr\.azurecr.io\/[a-zA-Z0-9-]+:([a-fA-F0-9]+)/);
+        if (match && match[1]) {
+          const sha = match[1];
+          serviceStates[svc.name].commitSha = sha;
+          
+          // Update SHA badge in UI
+          const commitEl = document.getElementById(`commit-${svc.name}`);
+          commitEl.innerText = sha;
+          commitEl.setAttribute('href', `https://github.com/${repoOwner}/${repoName}/commit/${sha}`);
+          commitEl.setAttribute('target', '_blank');
+          commitEl.onclick = (e) => e.stopPropagation(); // prevent card click triggers
+
+          // Fetch commit details (message, author)
+          const details = await getCommitDetails(sha);
+          serviceStates[svc.name].commitDetails = details;
+          
+          const detailsEl = document.getElementById(`commit-msg-${svc.name}`);
+          detailsEl.innerText = details.message;
+          detailsEl.title = `Author: ${details.author}\nDate: ${details.date}\n\n${details.message}`;
+        } else {
+          throw new Error('Image tag not found in config');
+        }
+      } catch (e) {
+        console.error(`Error loading commit for ${svc.name}:`, e);
+        document.getElementById(`commit-${svc.name}`).innerText = 'Unknown';
+        document.getElementById(`commit-msg-${svc.name}`).innerText = 'Could not load configuration';
+      }
+    }
+
+    // Run health check on a specific service
+    async function checkHealth(svc) {
+      if (svc.isInternal) {
+        // Internal services do not have a public HTTP endpoint
+        updateServiceState(svc.name, 'operational');
+        return;
+      }
+
+      const url = svc.healthUrl || `https://${svc.domain}/`;
+      const badge = document.getElementById(`badge-${svc.name}`);
+      const latencyEl = document.getElementById(`latency-${svc.name}`);
+
+      // Set to checking state in UI
+      badge.className = 'service-status-badge checking';
+      badge.innerHTML = '<span class="status-dot dot-checking" style="width:6px; height:6px;"></span> checking';
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+
+      const startTime = performance.now();
+      try {
+        // We use mode: 'no-cors' for Vite services so the fetch does not fail due to CORS.
+        // If the service is up, it resolves (even with status 0). If down, it rejects.
+        // For lmthing.cloud, we fetch the health URL which has CORS enabled.
+        const fetchOpts = { 
+          method: 'GET',
+          cache: 'no-store',
+          signal: controller.signal
+        };
+        if (!svc.healthUrl) {
+          fetchOpts.mode = 'no-cors';
+        }
+
+        const response = await fetch(url, fetchOpts);
+        clearTimeout(timeoutId);
+        
+        const duration = Math.round(performance.now() - startTime);
+        
+        // For endpoints supporting CORS (e.g. gateway health check), check the status code.
+        if (svc.healthUrl && !response.ok) {
+          throw new Error(`Health check returned status ${response.status}`);
+        }
+
+        updateServiceState(svc.name, 'operational', duration);
+      } catch (e) {
+        clearTimeout(timeoutId);
+        console.warn(`Health check failed for ${svc.name}:`, e);
+        updateServiceState(svc.name, 'offline');
+      }
+    }
+
+    function updateServiceState(name, status, latency = null) {
+      serviceStates[name].status = status;
+      serviceStates[name].latency = latency;
+
+      const badge = document.getElementById(`badge-${name}`);
+      const latencyEl = document.getElementById(`latency-${name}`);
+
+      if (status === 'operational') {
+        badge.className = 'service-status-badge operational';
+        badge.innerHTML = '<span class="status-dot dot-operational" style="width:6px; height:6px;"></span> operational';
+        if (latencyEl) {
+          latencyEl.innerHTML = `<i data-lucide="gauge" style="width:12px; height:12px;"></i> Latency: ${latency}ms`;
+        }
+      } else {
+        badge.className = 'service-status-badge offline';
+        badge.innerHTML = '<span class="status-dot dot-offline" style="width:6px; height:6px;"></span> offline';
+        if (latencyEl) {
+          latencyEl.innerHTML = `<i data-lucide="gauge" style="width:12px; height:12px;"></i> Latency: Offline`;
+        }
+      }
+      
+      lucide.createIcons();
+      updateOverallStatus();
+    }
+
+    function updateOverallStatus() {
+      const banner = document.getElementById('overall-status-banner');
+      const dot = document.getElementById('overall-dot');
+      const text = document.getElementById('overall-text');
+
+      const states = Object.values(serviceStates);
+      const isChecking = states.some(s => s.status === 'checking');
+      const offlineCount = states.filter(s => s.status === 'offline').length;
+
+      banner.className = 'overall-status';
+      
+      if (isChecking) {
+        banner.classList.add('checking');
+        dot.className = 'status-dot dot-checking';
+        text.innerText = 'Checking Systems...';
+      } else if (offlineCount === 0) {
+        banner.classList.add('operational');
+        dot.className = 'status-dot dot-operational';
+        text.innerText = 'All Services Operational';
+      } else if (offlineCount < services.length) {
+        banner.classList.add('degraded');
+        dot.className = 'status-dot dot-degraded';
+        text.innerText = `${offlineCount} Service${offlineCount > 1 ? 's' : ''} Offline`;
+      } else {
+        banner.classList.add('offline');
+        dot.className = 'status-dot dot-offline';
+        text.innerText = 'All Services Offline';
+      }
+    }
+
+    // Fetch GitHub Workflow runs
+    async function fetchWorkflowRuns() {
+      const runsContainer = document.getElementById('runs-container');
+      const pulseEl = document.getElementById('workflow-pulse');
+      
+      try {
+        const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/actions/workflows/build-images.yml/runs?per_page=5`);
+        if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+        const data = await response.json();
+        
+        runsContainer.innerHTML = '';
+        
+        if (!data.workflow_runs || data.workflow_runs.length === 0) {
+          runsContainer.innerHTML = '<div style="color:var(--text-muted); font-size:0.875rem; text-align:center; padding:1rem 0;">No runs found</div>';
+          pulseEl.style.display = 'none';
+          return;
+        }
+
+        // Check if there is an active running action
+        const activeRun = data.workflow_runs.find(run => 
+          run.status === 'in_progress' || run.status === 'queued'
+        );
+
+        if (activeRun) {
+          pulseEl.style.display = 'block';
+        } else {
+          pulseEl.style.display = 'none';
+        }
+
+        data.workflow_runs.forEach(run => {
+          const runItem = document.createElement('div');
+          runItem.className = 'run-item';
+
+          // Map status and conclusion to UI state
+          let statusClass = 'queued';
+          let statusText = run.status;
+          let statusIcon = 'clock';
+
+          if (run.status === 'completed') {
+            if (run.conclusion === 'success') {
+              statusClass = 'success';
+              statusText = 'success';
+              statusIcon = 'check-circle';
+            } else if (run.conclusion === 'failure') {
+              statusClass = 'failure';
+              statusText = 'failed';
+              statusIcon = 'x-circle';
+            } else {
+              statusClass = 'queued';
+              statusText = run.conclusion || 'cancelled';
+              statusIcon = 'slash';
+            }
+          } else {
+            statusClass = 'running';
+            statusText = run.status === 'in_progress' ? 'building' : 'queued';
+            statusIcon = run.status === 'in_progress' ? 'loader' : 'clock';
+          }
+
+          // Format Date
+          const time = new Date(run.created_at).toLocaleString();
+
+          runItem.innerHTML = `
+            <div class="run-meta">
+              <span class="run-name">Run #${run.run_number}</span>
+              <span class="run-status ${statusClass}">
+                <i data-lucide="${statusIcon}" style="width:12px; height:12px; vertical-align: middle; ${statusIcon === 'loader' ? 'animation: spin 1.5s linear infinite;' : ''}"></i>
+                ${statusText}
+              </span>
+            </div>
+            <div style="font-weight:500; font-size:0.875rem; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+              ${run.head_commit ? run.head_commit.message.split('\n')[0] : 'Triggered by push'}
+            </div>
+            <div class="run-commit">
+              ${run.triggering_actor ? `<img src="${run.triggering_actor.avatar_url}" class="avatar" alt="Avatar">` : ''}
+              <span>${run.triggering_actor ? run.triggering_actor.login : 'system'} committed ${run.head_commit ? `<code>${run.head_commit.id.substring(0, 7)}</code>` : ''}</span>
+            </div>
+            <div style="font-size:0.75rem; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center; margin-top:0.25rem;">
+              <span>${time}</span>
+              <a href="${run.html_url}" class="run-link" target="_blank">
+                View logs <i data-lucide="external-link" style="width:12px; height:12px;"></i>
+              </a>
+            </div>
+          `;
+
+          runsContainer.appendChild(runItem);
+        });
+
+      } catch (e) {
+        console.error('Error fetching workflow runs:', e);
+        runsContainer.innerHTML = `<div style="color:var(--status-offline); font-size:0.875rem; text-align:center; padding:1rem 0;">Failed to fetch workflow runs</div>`;
+        pulseEl.style.display = 'none';
+      }
+      
+      lucide.createIcons();
+    }
+
+    // Refresh all data
+    async function refreshAll() {
+      const refreshBtn = document.getElementById('refresh-all-btn');
+      const refreshIcon = document.getElementById('refresh-icon');
+      
+      refreshBtn.disabled = true;
+      refreshIcon.classList.add('spinning');
+      
+      document.getElementById('last-updated').innerText = 'Refreshing...';
+
+      // Refresh overall status to checking
+      const banner = document.getElementById('overall-status-banner');
+      const dot = document.getElementById('overall-dot');
+      const text = document.getElementById('overall-text');
+      banner.className = 'overall-status checking';
+      dot.className = 'status-dot dot-checking';
+      text.innerText = 'Checking Systems...';
+
+      // 1. Fetch GitHub Actions workflow runs
+      const runsPromise = fetchWorkflowRuns();
+
+      // 2. Fetch deployed commits and check health for all services in parallel
+      const servicePromises = services.map(async (svc) => {
+        // Fetch commit from raw configs
+        await fetchDeployedCommit(svc);
+        // Run health check
+        await checkHealth(svc);
+      });
+
+      await Promise.all([runsPromise, ...servicePromises]);
+
+      // Complete refresh
+      const now = new Date();
+      document.getElementById('last-updated').innerText = `Last updated: ${now.toLocaleTimeString()}`;
+      
+      refreshBtn.disabled = false;
+      refreshIcon.classList.remove('spinning');
+      
+      updateOverallStatus();
+    }
+
+    // Set up page
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeUI();
+      refreshAll();
+
+      // Refresh on button click
+      document.getElementById('refresh-all-btn').addEventListener('click', refreshAll);
+
+      // Auto poll actions & health checks every 60 seconds
+      if (activeInterval) clearInterval(activeInterval);
+      activeInterval = setInterval(() => {
+        console.log('Automated refresh running...');
+        refreshAll();
+      }, 60000);
+    });
+  </script>
+</body>
+</html>

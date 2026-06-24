@@ -36,8 +36,8 @@ describe('useAgentConversations', () => {
       messages: []
     }
 
-    appFS.writeFile('alice/test/space1/agents/bot/conversations/conv1.json', JSON.stringify(conv1))
-    appFS.writeFile('alice/test/space1/agents/bot/conversations/conv2.json', JSON.stringify(conv2))
+    appFS.writeFile('test/space1/agents/bot/conversations/conv1.json', JSON.stringify(conv1))
+    appFS.writeFile('test/space1/agents/bot/conversations/conv2.json', JSON.stringify(conv2))
 
     const { result } = renderHook(() => useAgentConversations('bot'), {
       wrapper: createTestWrapper(appFS)
@@ -68,7 +68,7 @@ describe('useAgentConversations', () => {
       messages: []
     }
 
-    appFS.writeFile('alice/test/space1/agents/bot/conversations/chat-1.json', JSON.stringify(conv))
+    appFS.writeFile('test/space1/agents/bot/conversations/chat-1.json', JSON.stringify(conv))
 
     const { result } = renderHook(() => useAgentConversations('bot'), {
       wrapper: createTestWrapper(appFS)
@@ -79,9 +79,9 @@ describe('useAgentConversations', () => {
   })
 
   it('should filter out non-JSON files', () => {
-    appFS.writeFile('alice/test/space1/agents/bot/conversations/chat1.json', '{"metadata": {}}')
-    appFS.writeFile('alice/test/space1/agents/bot/conversations/.gitkeep', '')
-    appFS.writeFile('alice/test/space1/agents/bot/conversations/readme.md', '# Readme')
+    appFS.writeFile('test/space1/agents/bot/conversations/chat1.json', '{"metadata": {}}')
+    appFS.writeFile('test/space1/agents/bot/conversations/.gitkeep', '')
+    appFS.writeFile('test/space1/agents/bot/conversations/readme.md', '# Readme')
 
     const { result } = renderHook(() => useAgentConversations('bot'), {
       wrapper: createTestWrapper(appFS)
@@ -97,7 +97,7 @@ describe('useAgentConversations', () => {
       messages: []
     }
 
-    appFS.writeFile('alice/test/space1/agents/bot/conversations/conv1.json', JSON.stringify(conv1))
+    appFS.writeFile('test/space1/agents/bot/conversations/conv1.json', JSON.stringify(conv1))
 
     const { result } = renderHook(() => useAgentConversations('bot'), {
       wrapper: createTestWrapper(appFS)
@@ -110,7 +110,7 @@ describe('useAgentConversations', () => {
       messages: []
     }
 
-    appFS.writeFile('alice/test/space1/agents/bot/conversations/conv2.json', JSON.stringify(conv2))
+    appFS.writeFile('test/space1/agents/bot/conversations/conv2.json', JSON.stringify(conv2))
 
     await waitFor(() => {
       expect(result.current).toHaveLength(2)
@@ -123,7 +123,7 @@ describe('useAgentConversations', () => {
       messages: []
     }
 
-    appFS.writeFile('alice/test/space1/agents/bot/conversations/conv1.json', JSON.stringify(conv))
+    appFS.writeFile('test/space1/agents/bot/conversations/conv1.json', JSON.stringify(conv))
 
     const { result } = renderHook(() => useAgentConversations('bot'), {
       wrapper: createTestWrapper(appFS)
@@ -131,7 +131,7 @@ describe('useAgentConversations', () => {
 
     expect(result.current).toHaveLength(1)
 
-    appFS.deleteFile('alice/test/space1/agents/bot/conversations/conv1.json')
+    appFS.deleteFile('test/space1/agents/bot/conversations/conv1.json')
 
     await waitFor(() => {
       expect(result.current).toHaveLength(0)
@@ -141,8 +141,8 @@ describe('useAgentConversations', () => {
   it('should not re-render when different agent changes', async () => {
     let renderCount = 0
 
-    appFS.writeFile('alice/test/space1/agents/bot1/conversations/conv1.json', '{"metadata": {}}')
-    appFS.writeFile('alice/test/space1/agents/bot2/conversations/conv2.json', '{"metadata": {}}')
+    appFS.writeFile('test/space1/agents/bot1/conversations/conv1.json', '{"metadata": {}}')
+    appFS.writeFile('test/space1/agents/bot2/conversations/conv2.json', '{"metadata": {}}')
 
     const { result } = renderHook(() => {
       renderCount++
@@ -153,7 +153,7 @@ describe('useAgentConversations', () => {
 
     const initialCount = renderCount
 
-    appFS.writeFile('alice/test/space1/agents/bot2/conversations/conv3.json', '{"metadata": {}}')
+    appFS.writeFile('test/space1/agents/bot2/conversations/conv3.json', '{"metadata": {}}')
 
     await waitFor(() => {
       expect(renderCount).toBe(initialCount)
@@ -166,7 +166,7 @@ describe('useAgentConversations', () => {
         metadata: { id: `conv${i}`, agentId: 'bot', createdAt: '', updatedAt: '', messageCount: 0 },
         messages: []
       }
-      appFS.writeFile(`alice/test/space1/agents/bot/conversations/conv${i}.json`, JSON.stringify(conv))
+      appFS.writeFile(`test/space1/agents/bot/conversations/conv${i}.json`, JSON.stringify(conv))
     }
 
     const { result } = renderHook(() => useAgentConversations('bot'), {

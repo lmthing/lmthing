@@ -4,7 +4,7 @@ import { useGlob } from '../fs/useGlob'
 import { P } from '../../lib/fs/paths'
 
 export function useEnvFileList(): string[] {
-  const matches = useGlob(P.globs.studioEnvFiles)
+  const matches = useGlob(P.globs.projectEnvFiles)
 
   return matches.filter(p => /^\.env(\.\w+)?$/.test(p))
 }

@@ -5,7 +5,7 @@
 import { useEffect, useMemo } from 'react'
 import { useLocation, useNavigate, useParams } from '@tanstack/react-router'
 import { Shield, FileCode2 } from 'lucide-react'
-import { buildSpacePathFromParams } from '@/lib/space-url'
+import { buildSpacePath } from '@lmthing/ui/lib/space-path'
 import '@lmthing/css/elements/forms/button/index.css'
 import '@lmthing/css/elements/forms/input/index.css'
 import '@lmthing/css/elements/content/panel/index.css'
@@ -23,9 +23,9 @@ interface SettingsViewProps {
 }
 
 function useSpacePath(): string {
-  const { username, studioId, storageId, spaceId } = useParams({ strict: false }) as { username?: string; studioId?: string; storageId?: string; spaceId?: string }
-  if (username && studioId && storageId && spaceId) {
-    return buildSpacePathFromParams(username, studioId, storageId, spaceId)
+  const { projectId, spaceId } = useParams({ strict: false }) as { projectId?: string; spaceId?: string }
+  if (projectId && spaceId) {
+    return buildSpacePath(projectId, spaceId)
   }
   return '/'
 }

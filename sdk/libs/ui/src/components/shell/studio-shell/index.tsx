@@ -6,7 +6,7 @@
 import { useCallback, useMemo } from 'react'
 import { useToggle } from '@lmthing/state'
 import { useParams, useLocation, useNavigate } from '@tanstack/react-router'
-import { buildSpacePathFromParams } from '@/lib/space-url'
+import { buildSpacePath } from '@lmthing/ui/lib/space-path'
 import '@lmthing/css/elements/layouts/split-pane/index.css'
 import '@lmthing/css/elements/layouts/page/index.css'
 import '@lmthing/css/components/shell/studio-shell/index.css'
@@ -43,9 +43,9 @@ export interface StudioShellProps {
 }
 
 function useSpacePath(): string {
-  const { username, studioId, storageId, spaceId } = useParams({ strict: false }) as { username?: string; studioId?: string; storageId?: string; spaceId?: string }
-  if (username && studioId && storageId && spaceId) {
-    return buildSpacePathFromParams(username, studioId, storageId, spaceId)
+  const { projectId, spaceId } = useParams({ strict: false }) as { projectId?: string; spaceId?: string }
+  if (projectId && spaceId) {
+    return buildSpacePath(projectId, spaceId)
   }
   return '/'
 }

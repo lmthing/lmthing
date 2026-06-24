@@ -1,7 +1,7 @@
 // src/hooks/index.ts
 
 export * from './fs'
-export * from './studio'
+export * from './project'
 export * from './agent'
 export * from './knowledge'
 export * from './tasklist'

@@ -11,7 +11,7 @@ describe('useFile', () => {
 
   beforeEach(() => {
     appFS = new AppFS()
-    appFS.writeFile('alice/test/space1/file.txt', 'content')
+    appFS.writeFile('test/space1/file.txt', 'content')
   })
 
   it('should read file content', () => {
@@ -38,7 +38,7 @@ describe('useFile', () => {
     expect(result.current).toBe('content')
 
     // Update the file through the AppFS
-    appFS.writeFile('alice/test/space1/file.txt', 'updated content')
+    appFS.writeFile('test/space1/file.txt', 'updated content')
 
     await waitFor(() => {
       expect(result.current).toBe('updated content')
@@ -57,7 +57,7 @@ describe('useFile', () => {
     const initialCount = renderCount.count
 
     // Update a different file
-    appFS.writeFile('alice/test/space1/other.txt', 'other')
+    appFS.writeFile('test/space1/other.txt', 'other')
 
     await waitFor(() => {
       // Should not have re-rendered
@@ -73,7 +73,7 @@ describe('useFile', () => {
     expect(result.current).toBeNull()
 
     // Create the file
-    appFS.writeFile('alice/test/space1/new.txt', 'new content')
+    appFS.writeFile('test/space1/new.txt', 'new content')
 
     await waitFor(() => {
       expect(result.current).toBe('new content')
@@ -88,7 +88,7 @@ describe('useFile', () => {
     expect(result.current).toBe('content')
 
     // Delete the file
-    appFS.deleteFile('alice/test/space1/file.txt')
+    appFS.deleteFile('test/space1/file.txt')
 
     await waitFor(() => {
       expect(result.current).toBeNull()
@@ -101,8 +101,8 @@ describe('useFile with special characters in path', () => {
 
   beforeEach(() => {
     appFS = new AppFS()
-    appFS.writeFile('alice/test/space1/file with spaces.txt', 'content')
-    appFS.writeFile('alice/test/space1/file/with/slashes.md', 'markdown')
+    appFS.writeFile('test/space1/file with spaces.txt', 'content')
+    appFS.writeFile('test/space1/file/with/slashes.md', 'markdown')
   })
 
 

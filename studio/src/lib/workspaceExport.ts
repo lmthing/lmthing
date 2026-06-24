@@ -15,16 +15,13 @@
  */
 
 import JSZip from 'jszip'
-import type { Octokit } from '@octokit/rest'
 import type {
   Agent,
   Task,
-  Tasklist,
   KnowledgeDomain,
   KnowledgeField,
   SpaceData,
   ExtractedDataStructure,
-  AgentAction,
 } from '@/types/space-data'
 
 export interface FileTreeFileNode {
@@ -40,57 +37,6 @@ export interface FileTreeDirectoryNode {
 }
 
 export type FileTreeNode = FileTreeFileNode | FileTreeDirectoryNode
-
-export interface ExportWorkspaceToGithubOptions {
-  octokit: Octokit
-  owner: string
-  repoName: string
-  privateRepo?: boolean
-  description?: string
-  commitMessage?: string
-  onProgress?: (progress: {
-    uploadedFiles: number
-    totalFiles: number
-    currentPath: string
-  }) => void
-}
-
-export interface ExportWorkspaceToGithubResult {
-  owner: string
-  repoName: string
-  repoUrl: string
-  filesCreated: number
-}
-
-type GithubApiError = Error & {
-  status?: number
-  response?: { data?: { message?: string } }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => { setTimeout(resolve, ms) })
-}
-
-async function retryGitOperation<T>(operation: () => Promise<T>, attempts = 6): Promise<T> {
-  let delayMs = 300
-  let lastError: unknown
-
-  for (let index = 0; index < attempts; index += 1) {
-    try {
-      return await operation()
-    } catch (error) {
-      lastError = error
-      const apiError = error as GithubApiError
-      const isConflict = apiError?.status === 409
-      const isLastAttempt = index === attempts - 1
-      if (!isConflict || isLastAttempt) throw error
-      await sleep(delayMs)
-      delayMs = Math.min(delayMs * 2, 3000)
-    }
-  }
-
-  throw lastError instanceof Error ? lastError : new Error('GitHub operation failed')
-}
 
 // ── File-tree helpers ──────────────────────────────────────────────────────
 
@@ -384,22 +330,6 @@ function addFileTreeNodeToZip(zip: JSZip, node: FileTreeNode, basePath = '') {
   }
 }
 
-function fileTreeToFileEntries(
-  fileTree: FileTreeDirectoryNode,
-): Array<{ path: string; content: string }> {
-  const entries: Array<{ path: string; content: string }> = []
-  const visit = (node: FileTreeNode, basePath = '') => {
-    const nodePath = basePath ? `${basePath}/${node.name}` : node.name
-    if (node.type === 'file') {
-      entries.push({ path: nodePath, content: node.content })
-      return
-    }
-    for (const child of node.children) visit(child, nodePath)
-  }
-  for (const child of fileTree.children) visit(child)
-  return entries
-}
-
 export async function fileTreeJsonToZipBlob(fileTree: FileTreeDirectoryNode): Promise<Blob> {
   const zip = new JSZip()
   addFileTreeNodeToZip(zip, fileTree)
@@ -436,72 +366,3 @@ export async function downloadAllWorkspacesZip(data: ExtractedDataStructure): Pr
   URL.revokeObjectURL(url)
 }
 
-export async function exportWorkspaceToNewGithubRepo(
-  space: SpaceData,
-  options: ExportWorkspaceToGithubOptions,
-): Promise<ExportWorkspaceToGithubResult> {
-  const { octokit, owner, repoName, privateRepo = true, description, commitMessage, onProgress } =
-    options
-
-  const fileTree = workspaceToFileTreeJson(space)
-  const originalEntries = fileTreeToFileEntries(fileTree)
-  const fileEntries =
-    originalEntries.length > 0
-      ? originalEntries
-      : [
-          {
-            path: 'README.md',
-            content: `# ${repoName}\n\nExported from LMThing space \`${space.id}\`.`,
-          },
-        ]
-  const totalFiles = fileEntries.length
-
-  onProgress?.({ uploadedFiles: 0, totalFiles, currentPath: 'Creating repository…' })
-
-  const { data: createdRepo } = await octokit.rest.repos.createForAuthenticatedUser({
-    name: repoName,
-    description: description || `Exported space "${space.id}" from LMThing`,
-    private: privateRepo,
-    auto_init: true,
-  })
-
-  const defaultBranch = createdRepo.default_branch || 'main'
-
-  const treeItems: Array<{ path: string; mode: '100644'; type: 'blob'; content: string }> = []
-  let uploadedFiles = 0
-
-  for (const entry of fileEntries) {
-    onProgress?.({ uploadedFiles, totalFiles, currentPath: entry.path })
-    treeItems.push({ path: entry.path, mode: '100644', type: 'blob', content: entry.content })
-    uploadedFiles += 1
-    onProgress?.({ uploadedFiles, totalFiles, currentPath: entry.path })
-  }
-
-  onProgress?.({ uploadedFiles, totalFiles, currentPath: 'Creating commit…' })
-
-  const { data: tree } = await retryGitOperation(() =>
-    octokit.rest.git.createTree({ owner, repo: repoName, tree: treeItems }),
-  )
-
-  const { data: commit } = await retryGitOperation(() =>
-    octokit.rest.git.createCommit({
-      owner,
-      repo: repoName,
-      message: commitMessage?.trim() || `Export space "${space.id}"`,
-      tree: tree.sha,
-      parents: [],
-    }),
-  )
-
-  await retryGitOperation(() =>
-    octokit.rest.git.updateRef({
-      owner,
-      repo: repoName,
-      ref: `heads/${defaultBranch}`,
-      sha: commit.sha,
-      force: true,
-    }),
-  )
-
-  return { owner, repoName, repoUrl: `https://github.com/${owner}/${repoName}`, filesCreated: uploadedFiles }
-}

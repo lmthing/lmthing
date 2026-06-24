@@ -1,12 +1,12 @@
-// useWorkspaces — returns studios list from AppContext (app-level, no StudioProvider needed)
+// useWorkspaces — returns projects list from AppContext (app-level, no ProjectProvider needed)
 import { useApp } from '@lmthing/state'
 
 export function useWorkspaces() {
-  const { studios, isLoading, error } = useApp()
+  const { projects, isLoading, error } = useApp()
 
-  // Map studios to a shape compatible with SpacesLayout (expects data.agents)
+  // Map projects to a shape compatible with list layouts (expects data.agents)
   const data = {
-    agents: studios.map(s => ({ id: `${s.username}/${s.studioId}`, name: s.name })),
+    agents: projects.map(s => ({ id: s.id, name: s.name })),
     flows: [] as { id: string }[],
     fields: [] as { id: string }[],
     packageJson: null,

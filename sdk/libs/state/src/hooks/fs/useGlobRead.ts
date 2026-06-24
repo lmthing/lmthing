@@ -2,7 +2,7 @@
 
 import { useRef, useSyncExternalStore } from 'react'
 import { useSpaceFS } from './useSpaceFS'
-import type { FileTree } from '../../types/studio'
+import type { FileTree } from '../../types/project'
 
 const EMPTY: FileTree = {}
 const NOOP = () => () => {}

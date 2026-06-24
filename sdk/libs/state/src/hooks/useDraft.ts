@@ -1,7 +1,7 @@
 // src/hooks/useDraft.ts
 
 import React, { useSyncExternalStore } from 'react'
-import { useApp } from './studio/useApp'
+import { useApp } from './project/useApp'
 import { useFile } from './fs/useFile'
 
 /**

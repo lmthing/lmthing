@@ -1,7 +1,12 @@
 /**
- * StudioSidebar - Navigation sidebar for studio sections.
- * Uses composite hooks (useAgentList, useKnowledgeFields)
- * and CSS element classes instead of raw Tailwind.
+ * StudioSidebar - Navigation sidebar for project/space sections.
+ *
+ * Uses composite hooks (useAgentList, useKnowledgeFields) and CSS element
+ * classes. Renders knowledge fields, agents, raw files, settings, and a
+ * collapse toggle.
+ *
+ * Removed under the pod-backed architecture: all GitHub connect/repo UI and
+ * the `useGithub` dependency. Route params are now `$projectId`/`$spaceId`.
  */
 import { useMemo } from 'react'
 import { useToggle } from '@lmthing/state'
@@ -9,7 +14,6 @@ import { Link, useLocation, useParams } from '@tanstack/react-router'
 import {
   Plus,
   Settings,
-  Github,
   ChevronLeft,
   ChevronRight,
   Folder,
@@ -20,13 +24,12 @@ import {
 } from 'lucide-react'
 import '@lmthing/css/elements/nav/sidebar/index.css'
 import '@lmthing/css/components/shell/index.css'
-import { buildSpacePathFromParams } from '@/lib/space-url'
+import { buildSpacePath } from '@lmthing/ui/lib/space-path'
 import { useAgentList } from '@lmthing/ui/hooks/useAgentList'
 import type { AgentListItem } from '@lmthing/ui/hooks/useAgentList'
 import { useKnowledgeFields } from '@lmthing/ui/hooks/useKnowledgeFields'
 import type { DomainMeta } from '@lmthing/ui/hooks/useKnowledgeFields'
 import { useAgent } from '@lmthing/ui/hooks/useAgent'
-import { useGithub } from '@/lib/github/GithubContext'
 import { CozyThingText } from '@lmthing/ui/elements/branding/cozy-text'
 
 export interface StudioSidebarProps {
@@ -45,9 +48,9 @@ export interface StudioSidebarProps {
 }
 
 function useSpacePath(): string {
-  const { username, studioId, storageId, spaceId } = useParams({ strict: false }) as { username?: string; studioId?: string; storageId?: string; spaceId?: string }
-  if (username && studioId && storageId && spaceId) {
-    return buildSpacePathFromParams(username, studioId, storageId, spaceId)
+  const { projectId, spaceId } = useParams({ strict: false }) as { projectId?: string; spaceId?: string }
+  if (projectId && spaceId) {
+    return buildSpacePath(projectId, spaceId)
   }
   return '/'
 }
@@ -67,8 +70,6 @@ export function StudioSidebar({
   const [fieldsExpanded, toggleFieldsExpanded] = useToggle('sidebar.fields.expanded', true)
   const [agentsExpanded, toggleAgentsExpanded] = useToggle('sidebar.agents.expanded', true)
   const [conversationsExpanded, toggleConversationsExpanded] = useToggle('sidebar.conversations.expanded', true)
-
-  const { isAuthenticated: isGithubConnected, isLoadingAuth: isGithubLoading, login: connectGithub, logout: disconnectGithub, deviceCodePrompt } = useGithub()
 
   const agentList = useAgentList()
   const knowledgeFields = useKnowledgeFields()
@@ -103,7 +104,7 @@ export function StudioSidebar({
           </Link>
           {!isCollapsed && (
             <span className="studio-sidebar__space-name">
-              {spaceId || 'Studio'}
+              {spaceId || 'Space'}
             </span>
           )}
         </div>
@@ -207,28 +208,6 @@ export function StudioSidebar({
             <Settings className="studio-sidebar__footer-icon" />
             {!isCollapsed && <span className="studio-sidebar__footer-label">Settings</span>}
           </button>
-          <button
-            onClick={() => {
-              if (isGithubLoading) return
-              if (isGithubConnected) { disconnectGithub(); return }
-              void connectGithub().catch(console.error)
-            }}
-            disabled={isGithubLoading}
-            className="sidebar__item"
-          >
-            <Github className="studio-sidebar__footer-icon" />
-            {!isCollapsed && (
-              <span className="studio-sidebar__footer-label">
-                {isGithubLoading ? 'Loading...' : isGithubConnected ? 'Disconnect GitHub' : 'Connect GitHub'}
-              </span>
-            )}
-          </button>
-          {!isCollapsed && deviceCodePrompt && (
-            <div className="studio-sidebar__device-code">
-              <p>Authorize GitHub: <a href={deviceCodePrompt.verificationUri} target="_blank" rel="noopener noreferrer">{deviceCodePrompt.verificationUri}</a></p>
-              <p>Code: <code>{deviceCodePrompt.userCode}</code></p>
-            </div>
-          )}
           <button onClick={onToggleCollapse} className="sidebar__item">
             {isCollapsed ? (
               <ChevronRight className="studio-sidebar__footer-icon" />

@@ -4,7 +4,7 @@
  * Provides a conversational interface with tool-calling for workspace operations.
  */
 import { useCallback, useEffect, useMemo, useRef, type FormEvent } from 'react'
-import { useNavigate, useParams } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
 import { Bot, Plus, ArrowLeft } from 'lucide-react'
 import { useApp, useUIState, useToggle } from '@lmthing/state'
 import { CozyThingText } from '@lmthing/ui/elements/branding/cozy-text'
@@ -56,23 +56,23 @@ const TOOL_EVENT_OPEN = '[[THING_TOOL_EVENT]]'
 const TOOL_EVENT_CLOSE = '[[/THING_TOOL_EVENT]]'
 
 const WELCOME_MESSAGE =
-  'I am THING. I can help you manage your studios, spaces, agents, workflows, and knowledge. Ask me anything or type help.'
+  'I am THING. I can help you manage your projects, spaces, agents, workflows, and knowledge. Ask me anything or type help.'
 
 const HELP_MESSAGE = [
   'Available commands:',
   '  help    — Show this help message',
-  '  status  — Show current studios and data summary',
+  '  status  — Show current projects and data summary',
   '',
   'You can also ask naturally, e.g.:',
-  '  "Create a new studio called my-project"',
-  '  "List all my studios"',
+  '  "Create a new project called my-project"',
+  '  "List all my projects"',
   '  "What agents are in this space?"',
 ].join('\n')
 
 const ACTION_NAMES = [
-  'listStudios',
-  'createStudio',
-  'deleteStudio',
+  'listProjects',
+  'createProject',
+  'deleteProject',
   'listFiles',
   'readFile',
   'writeFile',
@@ -196,8 +196,7 @@ export interface ThingPanelProps {
 
 export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
   const navigate = useNavigate()
-  const { username } = useParams({ strict: false }) as { username?: string }
-  const { studios, appFS, createStudio, deleteStudio } = useApp()
+  const { projects, appFS, createProject, deleteProject } = useApp()
 
   const [input, setInput] = useUIState<string>('thing-panel.input', '')
   const [conversations, setConversations] = useUIState<ThingConversation[]>('thing-panel.conversations', loadConversations())
@@ -265,19 +264,16 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
   // ── Tool definitions ──────────────────────────────────────────────
 
   const toolExecutors = useMemo(() => ({
-    listStudios: async () => {
-      const list = studios.filter(s => s.username === username)
-      return { ok: true, studios: list.map(s => ({ id: s.studioId, name: s.name })) }
+    listProjects: async () => {
+      return { ok: true, projects: projects.map(s => ({ id: s.id, name: s.name })) }
     },
-    createStudio: async ({ studioId, name }: { studioId: string; name: string }) => {
-      if (!username) return { ok: false, message: 'No username available.' }
-      createStudio(username, studioId, name)
-      return { ok: true, message: `Created studio "${name}" (${studioId}).` }
+    createProject: async ({ name }: { name: string }) => {
+      const created = await createProject(name)
+      return { ok: true, message: `Created project "${name}" (${created.id}).` }
     },
-    deleteStudio: async ({ studioId }: { studioId: string }) => {
-      if (!username) return { ok: false, message: 'No username available.' }
-      deleteStudio(username, studioId)
-      return { ok: true, message: `Deleted studio ${studioId}.` }
+    deleteProject: async ({ projectId }: { projectId: string }) => {
+      await deleteProject(projectId)
+      return { ok: true, message: `Deleted project ${projectId}.` }
     },
     listFiles: async ({ prefix }: { prefix?: string }) => {
       const allFiles = Object.keys(appFS.getSnapshot())
@@ -297,7 +293,7 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
       appFS.deleteFile(path)
       return { ok: true, message: `Deleted ${path}.` }
     },
-  }), [studios, username, appFS, createStudio, deleteStudio])
+  }), [projects, appFS, createProject, deleteProject])
 
   // ── Core message handler ──────────────────────────────────────────
 
@@ -312,11 +308,9 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
     if (!normalized) return 'Please enter a message.'
     if (normalized.toLowerCase() === 'help' || normalized === '/help') return HELP_MESSAGE
     if (normalized.toLowerCase() === 'status' || normalized === '/status') {
-      const userStudios = studios.filter(s => s.username === username)
       return [
-        `User: ${username || 'none'}`,
-        `Studios: ${userStudios.length}`,
-        ...userStudios.map(s => `  - ${s.name} (${s.studioId})`),
+        `Projects: ${projects.length}`,
+        ...projects.map(s => `  - ${s.name} (${s.id})`),
         `Total files in FS: ${Object.keys(appFS.getSnapshot()).length}`,
       ].join('\n')
     }
@@ -326,24 +320,23 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
       return 'Error: No API configuration found. Make sure environment variables with API keys are set.'
     }
 
-    const userStudios = studios.filter(s => s.username === username)
     const systemPrompt = [
-      'You are THING, the built-in AI agent for lmthing — a platform for building and managing AI agent studios.',
+      'You are THING, the built-in AI agent for lmthing — a platform for building and managing AI agent projects.',
       '',
-      'lmthing organizes work into: Users → Studios → Spaces.',
+      'lmthing organizes work into: Projects → Spaces.',
       'Each space contains: agents, workflows, knowledge fields, and configuration.',
       '',
-      'You can create studios, manage files, and help users navigate their data.',
+      'You can create projects, manage files, and help users navigate their data.',
       'Be concise, precise, and helpful.',
       '',
       'CURRENT STATE:',
-      stringifyJson({ username, studios: userStudios.map(s => ({ id: s.studioId, name: s.name })) }),
+      stringifyJson({ projects: projects.map(s => ({ id: s.id, name: s.name })) }),
     ].join('\n')
 
     const tools = [
-      { name: 'listStudios', description: 'List all studios for the current user.', parameters: { type: 'object', properties: {}, required: [] } },
-      { name: 'createStudio', description: 'Create a new studio.', parameters: { type: 'object', properties: { studioId: { type: 'string' }, name: { type: 'string' } }, required: ['studioId', 'name'] } },
-      { name: 'deleteStudio', description: 'Delete a studio by ID.', parameters: { type: 'object', properties: { studioId: { type: 'string' } }, required: ['studioId'] } },
+      { name: 'listProjects', description: 'List all projects on the user\'s compute pod.', parameters: { type: 'object', properties: {}, required: [] } },
+      { name: 'createProject', description: 'Create a new project.', parameters: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] } },
+      { name: 'deleteProject', description: 'Delete a project by ID.', parameters: { type: 'object', properties: { projectId: { type: 'string' } }, required: ['projectId'] } },
       { name: 'listFiles', description: 'List all files in the virtual file system.', parameters: { type: 'object', properties: { prefix: { type: 'string' } }, required: [] } },
       { name: 'readFile', description: 'Read a file from the virtual file system.', parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } },
       { name: 'writeFile', description: 'Write content to a file in the virtual file system.', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'] } },
@@ -465,7 +458,7 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
       const message = error instanceof Error ? error.message : 'Unknown error'
       return `Error: ${message}\n\nMake sure environment variables with API keys are configured.`
     }
-  }, [studios, username, appFS, model, toolExecutors])
+  }, [projects, appFS, model, toolExecutors])
 
   // ── Run conversation ──────────────────────────────────────────────
 
@@ -572,7 +565,7 @@ export function ThingPanel({ fullPage, onStatusChange }: ThingPanelProps) {
             {fullPage && (
               <button
                 className="btn btn--ghost btn--sm"
-                onClick={() => navigate({ to: username ? `/${encodeURIComponent(username)}` : '/' })}
+                onClick={() => navigate({ to: '/' })}
               >
                 <ArrowLeft size={16} />
               </button>

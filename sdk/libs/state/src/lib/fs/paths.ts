@@ -1,19 +1,26 @@
 // src/lib/fs/paths.ts
 
+/**
+ * Path builders for the pod-backed FS. AppFS key prefixes are
+ * `projectId/spaceId/...` (no username segment — the pod is per-user).
+ *
+ * Scoped FS classes strip their prefix before delivering paths, so the builders
+ * below are grouped by which scope they're used from:
+ *   - App scope (AppFS): full paths including the projectId.
+ *   - Project scope (ProjectFS — prefix `projectId/` already stripped).
+ *   - Space scope (SpaceFS — prefix `projectId/spaceId/` stripped).
+ */
 export const P = {
   // ── App level (AppFS) ─────────────────────────────────────────────
-  user: (username: string): string => `${username}`,
+  project: (projectId: string): string => `${projectId}`,
 
-  studio: (username: string, studioId: string): string =>
-    `${username}/${studioId}`,
+  projectSpace: (projectId: string, spaceId: string): string =>
+    `${projectId}/${spaceId}`,
 
-  studioSpace: (username: string, studioId: string, spaceId: string): string =>
-    `${username}/${studioId}/${spaceId}`,
+  // ── Project level (ProjectFS — prefix already stripped) ───────────
+  projectConfig: 'lmthing.json',
 
-  // ── Studio level (StudioFS — prefix already stripped) ─────────────
-  studioConfig: 'lmthing.json',
-
-  studioEnv: (suffix?: string): string => suffix ? `.env.${suffix}` : '.env',
+  projectEnv: (suffix?: string): string => (suffix ? `.env.${suffix}` : '.env'),
 
   space: (spaceId: string): string => spaceId,
 
@@ -29,13 +36,13 @@ export const P = {
   conversation: (id: string, cid: string): string =>
     `agents/${id}/conversations/${cid}.json`,
 
-  // ── Tasklist paths (NEW SPEC) ──────────────────────────────────────
+  // ── Tasklist paths ────────────────────────────────────────────────
   tasklistDir: (name: string): string => `tasklists/${name}`,
 
   tasklistTask: (name: string, order: number, id: string): string =>
     `tasklists/${name}/${String(order).padStart(2, '0')}-${id}.md`,
 
-  // ── Function paths ─────────────────────────────────────────────────
+  // ── Function paths ────────────────────────────────────────────────
   functionFile: (name: string): string => `functions/${name}.ts`,
 
   // ── Component paths ───────────────────────────────────────────────
@@ -47,7 +54,7 @@ export const P = {
 
   formComponentInk: (name: string): string => `components/form/${name}/ink.tsx`,
 
-  // ── Knowledge paths (NEW SPEC) ────────────────────────────────────
+  // ── Knowledge paths ───────────────────────────────────────────────
   knowledgeDir: (dir: string): string => `knowledge/${dir}`,
 
   knowledgeDomainIndex: (domain: string): `knowledge/${string}/index.md` =>
@@ -65,21 +72,20 @@ export const P = {
   // ── Glob patterns ─────────────────────────────────────────────────
   globs: {
     // App-scope
-    allStudios: (username: string): string =>
-      `${username}/*/lmthing.json`,
+    allProjects: '*/lmthing.json',
 
-    allSpaces: (username: string, studioId: string): string =>
-      `${username}/${studioId}/*/package.json`,
+    allProjectSpaces: (projectId: string): string =>
+      `${projectId}/*/package.json`,
 
-    // Studio-scope
-    studioEnvFiles: '.env*',
+    // Project-scope
+    projectEnvFiles: '.env*',
     spaceRoots: '*/package.json',
 
     // Space-scope
     allAgents: 'agents/*/instruct.md',
     agentFiles: (id: string): string => `agents/${id}/**`,
 
-    // Tasklist globs (NEW SPEC)
+    // Tasklist globs
     allTasklists: 'tasklists/*/[0-9][0-9]-*.md',
     tasklistTasks: (name: string): string => `tasklists/${name}/[0-9][0-9]-*.md`,
 
@@ -90,7 +96,7 @@ export const P = {
     allViewComponents: 'components/view/*.tsx',
     allFormComponents: 'components/form/**/*.tsx',
 
-    // Knowledge globs (NEW SPEC — index.md files identify fields)
+    // Knowledge globs (index.md files identify fields)
     allKnowledgeIndexes: 'knowledge/*/*/index.md',
     allKnowledgeDomainIndexes: 'knowledge/*/index.md',
     knowledgeOptions: (domain: string, field: string): string =>

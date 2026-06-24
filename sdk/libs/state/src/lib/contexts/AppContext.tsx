@@ -1,248 +1,190 @@
 // src/lib/contexts/AppContext.tsx
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { AppFS } from '../fs/AppFS'
 import { DraftStore } from '../fs/DraftStore'
 import { UIStore } from '../fs/UIStore'
-import type { AppData, StudioData, StudioConfig, FileTree, Unsubscribe } from '../../types/studio'
+import { PodTransport } from '../pod/transport'
+import type { PodProject } from '../../types/project'
 
-const APP_STORAGE_KEY = 'lmthing-app'
-const STUDIO_STORAGE_PREFIX = 'lmthing-studio:'
+export interface AppPodConfig {
+  /** Base URL of the compute pod's REST API (no trailing slash). */
+  podBaseUrl: string
+  /** Returns the current access token (JWT). Called per request. */
+  getAccessToken: () => string | null | undefined
+}
+
+export interface ProjectSummary {
+  id: string
+  name: string
+  createdAt?: number | string
+}
 
 interface AppContextValue {
   appFS: AppFS
   drafts: DraftStore
   ui: UIStore
-  studios: Array<{ username: string; studioId: string; name: string }>
-  currentStudioKey: string | null
+  /**
+   * Pod REST transport (exposed for advanced/direct use by providers).
+   * `null` when `AppProvider` is mounted without pod config (ephemeral-store
+   * mode, e.g. the `computer` app which only needs AppFS/drafts/UI and never
+   * calls the pod REST API itself). Pod features (`refreshProjects`,
+   * `createProject`, `deleteProject`) are no-ops/empty in that mode.
+   */
+  transport: PodTransport | null
+  projects: ProjectSummary[]
+  currentProjectId: string | null
   isLoading: boolean
   error: string | null
 
-  setCurrentStudio(username: string, studioId: string): void
-  createStudio(username: string, studioId: string, name: string): void
-  deleteStudio(username: string, studioId: string): void
-  importStudio(username: string, studioId: string, files: FileTree): void
+  refreshProjects(): Promise<void>
+  setCurrentProject(projectId: string): void
+  createProject(name: string): Promise<{ id: string }>
+  deleteProject(id: string): Promise<void>
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
 
 interface AppProviderProps {
   children: ReactNode
+  /** Pod connection config. Required in production (the transport is built from it). */
+  pod?: AppPodConfig
   /** Optional AppFS instance for testing. If not provided, creates a new one. */
   appFS?: AppFS
   /** Optional DraftStore instance for testing. If not provided, creates a new one. */
   draftStore?: DraftStore
   /** Optional UIStore instance for testing. If not provided, creates a new one. */
   uiStore?: UIStore
-  /** Optional initial studio key for testing. */
-  initialStudioKey?: string | null
-  /** Skip loading from localStorage (useful for testing). */
-  skipStorage?: boolean
+  /** Optional initial project id for testing. */
+  initialProjectId?: string | null
+  /** Skip the initial projects fetch (useful for testing). */
+  skipFetch?: boolean
+  /**
+   * Optional pre-built transport (testing seam). When provided, `pod` is not
+   * required and this transport is used instead of constructing one. Production
+   * callers pass `pod` instead.
+   */
+  transport?: PodTransport
 }
 
-export function AppProvider({ children, appFS: providedAppFS, draftStore: providedDraftStore, uiStore: providedUIStore, initialStudioKey, skipStorage = false }: AppProviderProps) {
+export function AppProvider({
+  children,
+  pod,
+  appFS: providedAppFS,
+  draftStore: providedDraftStore,
+  uiStore: providedUIStore,
+  initialProjectId,
+  skipFetch = false,
+  transport: providedTransport,
+}: AppProviderProps) {
   const [appFS] = useState(() => providedAppFS ?? new AppFS())
   const [drafts] = useState(() => providedDraftStore ?? new DraftStore())
   const [ui] = useState(() => providedUIStore ?? new UIStore())
-  const [studios, setStudios] = useState<Array<{ username: string; studioId: string; name: string }>>([])
-  const [currentStudioKey, setCurrentStudioKey] = useState<string | null>(initialStudioKey ?? null)
-  const [isLoading, setIsLoading] = useState(skipStorage ? false : true)
+
+  // Only construct a transport when pod config (or a prebuilt transport) is
+  // supplied. Callers that mount <AppProvider> purely for the ephemeral
+  // AppFS/drafts/UI store (e.g. `computer`) pass neither; in that mode the pod
+  // features are disabled rather than crashing on a missing base URL.
+  const transport = useMemo<PodTransport | null>(() => {
+    if (providedTransport) return providedTransport
+    if (pod) {
+      return new PodTransport({
+        baseUrl: pod.podBaseUrl,
+        getAccessToken: pod.getAccessToken,
+      })
+    }
+    return null
+  }, [providedTransport, pod?.podBaseUrl, pod?.getAccessToken])
+
+  const [projects, setProjects] = useState<ProjectSummary[]>([])
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(initialProjectId ?? null)
+  const [isLoading, setIsLoading] = useState(skipFetch ? false : true)
   const [error, setError] = useState<string | null>(null)
 
-  // Load from localStorage on mount (skip if skipStorage is true)
-  useEffect(() => {
-    if (skipStorage || providedAppFS) {
+  // Keep latest state inside a ref so the refresh closure passed to
+  // `refreshProjects` stays stable without stale captures.
+  const stateRef = useRef({ transport, skipFetch })
+  stateRef.current.transport = transport
+
+  const refreshProjects = useCallback(async () => {
+    if (!stateRef.current.transport) {
       setIsLoading(false)
       return
     }
-
+    setError(null)
     try {
-      const appDataJson = localStorage.getItem(APP_STORAGE_KEY)
-      if (appDataJson) {
-        const appData: AppData = JSON.parse(appDataJson)
-        setCurrentStudioKey(appData.currentStudioKey)
-
-        // Load each studio's spaces from individual storage keys
-        for (const [studioKey, studioData] of Object.entries(appData.studios)) {
-          // Write studio-level config into AppFS
-          appFS.writeFile(`${studioKey}/lmthing.json`, JSON.stringify(studioData.config, null, 2))
-
-          // Load each space's files
-          for (const spaceId of Object.keys(studioData.config.spaces)) {
-            const spaceStorageKey = `${STUDIO_STORAGE_PREFIX}${studioKey}/${spaceId}`
-            const spaceJson = localStorage.getItem(spaceStorageKey)
-            if (spaceJson) {
-              const spaceFiles: FileTree = JSON.parse(spaceJson)
-              for (const [relativePath, content] of Object.entries(spaceFiles)) {
-                appFS.writeFile(`${studioKey}/${spaceId}/${relativePath}`, content)
-              }
-            }
-          }
-        }
-
-        // Build studio list
-        const studioList = Object.entries(appData.studios).map(([_key, data]) => ({
-          username: data.username,
-          studioId: data.id,
-          name: data.config.name || 'Untitled Studio'
-        }))
-        setStudios(studioList)
-      }
+      const list = await stateRef.current.transport.listProjects()
+      const summary: ProjectSummary[] = list.map((p: PodProject) => ({
+        id: p.id,
+        name: p.name,
+        createdAt: p.createdAt,
+      }))
+      setProjects(summary)
+      return
     } catch (e) {
-      console.error('Failed to load app data:', e)
-      setError('Failed to load application data')
+      console.error('Failed to load projects:', e)
+      setError(e instanceof Error ? e.message : 'Failed to load projects')
     } finally {
       setIsLoading(false)
     }
-  }, [skipStorage, providedAppFS])
+  }, [])
 
-  // Persist appFS changes to localStorage
+  // Load projects on mount (skip in tests when skipFetch is true, and skip
+  // when there is no pod transport — ephemeral-store mode).
   useEffect(() => {
-    const unsubscribe = appFS.subscribe(() => {
-      saveAppData()
-    })
-    return unsubscribe
-  }, [appFS])
-
-  function parseStudioConfig(files: FileTree): StudioConfig | null {
-    const configContent = files['lmthing.json']
-    if (!configContent) return null
-    try {
-      return JSON.parse(configContent) as StudioConfig
-    } catch {
-      return null
+    if (skipFetch || providedAppFS || !transport) {
+      setIsLoading(false)
+      return
     }
-  }
+    refreshProjects()
+  }, [skipFetch, providedAppFS, transport, refreshProjects])
 
-  function saveAppData(): void {
-    try {
-      const currentFiles = appFS.export()
+  // Refetch on window focus (liveness per the plan).
+  useEffect(() => {
+    if (skipFetch || !transport) return
+    const onFocus = () => refreshProjects()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [skipFetch, transport, refreshProjects])
 
-      // Group files by studio (username/studioId)
-      const studioFiles: Record<string, FileTree> = {}
-      for (const [path, content] of Object.entries(currentFiles)) {
-        const segments = path.split('/')
-        if (segments.length < 2) continue
-        const studioKey = `${segments[0]}/${segments[1]}`
-        if (!studioFiles[studioKey]) studioFiles[studioKey] = {}
-        const relativePath = segments.slice(2).join('/')
-        studioFiles[studioKey][relativePath] = content
-      }
+  const setCurrentProject = useCallback((projectId: string) => {
+    setCurrentProjectId(projectId)
+  }, [])
 
-      // Build AppData (metadata only) and persist space files separately
-      const studioDataMap: Record<string, StudioData> = {}
+  const createProject = useCallback(
+    async (name: string) => {
+      if (!transport) throw new Error('AppProvider: no pod transport configured')
+      const { id } = await transport.createProject(name)
+      await refreshProjects()
+      return { id }
+    },
+    [transport, refreshProjects],
+  )
 
-      for (const [studioKey, files] of Object.entries(studioFiles)) {
-        const [username, studioId] = studioKey.split('/')
-        const config = parseStudioConfig(files)
-        if (!config) continue
-
-        studioDataMap[studioKey] = { id: studioId, username, config }
-
-        // Save each space's files under its own localStorage key
-        for (const spaceId of Object.keys(config.spaces)) {
-          const spacePrefix = `${spaceId}/`
-          const spaceFiles: FileTree = {}
-          for (const [relativePath, content] of Object.entries(files)) {
-            if (relativePath.startsWith(spacePrefix)) {
-              spaceFiles[relativePath.slice(spacePrefix.length)] = content
-            }
-          }
-          localStorage.setItem(
-            `${STUDIO_STORAGE_PREFIX}${studioKey}/${spaceId}`,
-            JSON.stringify(spaceFiles)
-          )
-        }
-      }
-
-      const appData: AppData = {
-        studios: studioDataMap,
-        currentStudioKey,
-        currentSpaceId: null
-      }
-
-      localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(appData))
-
-      // Update studios list
-      const studioList = Object.entries(studioDataMap).map(([_key, data]) => ({
-        username: data.username,
-        studioId: data.id,
-        name: data.config.name || 'Untitled Studio'
-      }))
-      setStudios(studioList)
-    } catch (e) {
-      console.error('Failed to save app data:', e)
-    }
-  }
-
-  function setCurrentStudio(username: string, studioId: string): void {
-    const key = `${username}/${studioId}`
-    setCurrentStudioKey(key)
-    saveAppData()
-  }
-
-  function createStudio(username: string, studioId: string, name: string): void {
-    const key = `${username}/${studioId}`
-
-    // Create lmthing.json
-    const config = {
-      id: studioId,
-      name,
-      version: '1.0.0',
-      spaces: {},
-      settings: {}
-    }
-
-    appFS.writeFile(`${key}/lmthing.json`, JSON.stringify(config, null, 2))
-    saveAppData()
-  }
-
-  function deleteStudio(username: string, studioId: string): void {
-    const key = `${username}/${studioId}`
-
-    // Read config to find space keys to clean up
-    const configContent = appFS.readFile(`${key}/lmthing.json`)
-    if (configContent) {
-      try {
-        const config = JSON.parse(configContent) as StudioConfig
-        for (const spaceId of Object.keys(config.spaces)) {
-          localStorage.removeItem(`${STUDIO_STORAGE_PREFIX}${key}/${spaceId}`)
-        }
-      } catch { /* ignore parse errors during cleanup */ }
-    }
-
-    appFS.deletePath(key)
-
-    if (currentStudioKey === key) {
-      setCurrentStudioKey(null)
-    }
-
-    saveAppData()
-  }
-
-  function importStudio(username: string, studioId: string, files: FileTree): void {
-    const key = `${username}/${studioId}`
-
-    for (const [relativePath, content] of Object.entries(files)) {
-      appFS.writeFile(`${key}/${relativePath}`, content)
-    }
-
-    saveAppData()
-  }
+  const deleteProject = useCallback(
+    async (id: string) => {
+      if (!transport) throw new Error('AppProvider: no pod transport configured')
+      await transport.deleteProject(id)
+      setCurrentProjectId((cur) => (cur === id ? null : cur))
+      await refreshProjects()
+    },
+    [transport, refreshProjects],
+  )
 
   const value: AppContextValue = {
     appFS,
     drafts,
     ui,
-    studios,
-    currentStudioKey,
+    transport,
+    projects,
+    currentProjectId,
     isLoading,
     error,
-    setCurrentStudio,
-    createStudio,
-    deleteStudio,
-    importStudio
+    refreshProjects,
+    setCurrentProject,
+    createProject,
+    deleteProject,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

@@ -2,7 +2,7 @@
 
 import { AppFS } from './AppFS'
 import type { FSInterface } from './FSInterface'
-import type { FileTree, DirEntry, FileOp, Unsubscribe } from '../../types/studio'
+import type { FileTree, DirEntry, FileOp, Unsubscribe } from '../../types/project'
 import type { FSEvent, DirEvent, BatchEvent } from './events'
 
 function normalizePrefix(prefix: string): string {
@@ -295,29 +295,28 @@ export class ScopedFS implements FSInterface {
 
 // ── Concrete FS classes ───────────────────────────────────────────────
 
-export class UserFS extends ScopedFS {
-  constructor(root: AppFS, username: string) {
-    super(root, username)
-  }
-}
+/**
+ * Scoped FS classes. Under the pod-backed architecture the AppFS key prefix is
+ * `projectId/spaceId/...` (no username segment — the pod is per-user). The
+ * {@link AppFS} in-memory `Map` is a write-through cache over the pod's PVC.
+ */
 
-export class StudioFS extends ScopedFS {
-  constructor(root: AppFS, username: string, studioId: string) {
-    super(root, `${username}/${studioId}`)
+export class ProjectFS extends ScopedFS {
+  constructor(root: AppFS, projectId: string) {
+    super(root, projectId)
   }
 }
 
 export class SpaceFS extends ScopedFS {
-  constructor(root: AppFS, username: string, studioId: string, spaceId: string) {
-    super(root, `${username}/${studioId}/${spaceId}`)
+  constructor(root: AppFS, projectId: string, spaceId: string) {
+    super(root, `${projectId}/${spaceId}`)
   }
 
-  // Convenience constructor from StudioFS
-  static fromStudioFS(studioFS: StudioFS, spaceId: string): SpaceFS {
-    const root = studioFS.getRoot()
-    const prefix = studioFS.getPrefix()
-    const username = prefix.split('/')[0]
-    const studioId = prefix.split('/')[1]
-    return new SpaceFS(root, username, studioId, spaceId)
+  /** Convenience constructor from a {@link ProjectFS}. */
+  static fromProjectFS(projectFS: ProjectFS, spaceId: string): SpaceFS {
+    const root = projectFS.getRoot()
+    const prefix = projectFS.getPrefix()
+    const projectId = prefix.split('/')[0]
+    return new SpaceFS(root, projectId, spaceId)
   }
 }

@@ -1,12 +1,12 @@
 // src/lib/fs/FSInterface.ts
 
-import type { FileTree, DirEntry, FileOp, Unsubscribe } from '../../types/studio'
+import type { FileTree, DirEntry, FileOp, Unsubscribe } from '../../types/project'
 import type { FSEvent, DirEvent, BatchEvent } from './events'
 
 /**
  * FSInterface - The complete file system interface contract
  *
- * Both AppFS and all scoped FS classes (UserFS, StudioFS, SpaceFS) implement this.
+ * Both AppFS and all scoped FS classes (ProjectFS, SpaceFS) implement this.
  * Scoped classes transparently strip their prefix before delivering events/paths.
  */
 export interface FSInterface {

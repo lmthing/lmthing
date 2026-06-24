@@ -182,3 +182,41 @@ Run `@lmthing/state` tests.
 6. Confirm localStorage no longer holds space files (`lmthing-app`/`lmthing-studio:*` keys gone).
 7. Monorepo typecheck passes incl. `chat`/`computer`; `pnpm --filter @lmthing/state test` passes.
 8. Old routes (`/$username/...`, `/pod/`) no longer exist.
+
+
+# Reconcider implementation decisions
+
+## 2026-06-24 — types/project.ts: `AppData` type mismatch with `PodTransport` [RESOLVED]
+`AppContext` now exposes `ProjectSummary[]` directly from the transport — `AppData` is not used for projects. The previous concern is no longer valid.
+
+## 2026-06-24 — paths.ts: `lmthing.json`-based globs retained but plan removes registry [RESOLVED]
+`AppContext` no longer uses the registry path; the globs remain in `paths.ts` for within-project reads but are no longer wired into the app bootstrap. Resolved.
+
+## 2026-06-24 — BREAKING: `hooks/index.ts` still exports `./studio` after studio hooks deleted [RESOLVED]
+Fixed: `hooks/index.ts` now exports `./project`.
+
+## 2026-06-24 — BREAKING: test files still import deleted `StudioProvider`/`StudioFS`/`UserFS` [RESOLVED]
+All three files updated: `test-utils.tsx` → `ProjectProvider`/`MockPodTransport`, `ScopedFS.test.ts` → `ProjectFS`/`fromProjectFS`, `useDraft.test.tsx` → `createTestWrapper`.
+
+## 2026-06-24 — BREAKING: `test-utils.tsx` passes `transport` prop that `AppProvider` doesn't accept [RESOLVED]
+`AppProvider` now accepts an optional `transport?: PodTransport` prop used as a testing seam; `pod` is no longer required when it is provided.
+
+## 2026-06-24 — BUG: `useProjectConfig` reads via `useFile` (SpaceFS scope) instead of ProjectFS
+`hooks/project/useProjectConfig.ts` calls `useFile('lmthing.json')`, but `useFile` reads from `SpaceFS` (prefix `projectId/spaceId`). `lmthing.json` lives at the project level (`projectId/lmthing.json`), not inside any space. So `useProjectConfig` always returns `null`. It should read directly from `projectFS.readFile('lmthing.json')` and subscribe via `projectFS.onFile(...)` using `useSyncExternalStore`, not via `useFile`.
+**File:** `sdk/libs/state/src/hooks/project/useProjectConfig.ts`
+
+## 2026-06-24 — PERF: `__root.tsx` recreates `PodTransport` on every render
+`RootComponent` passes `pod={{ podBaseUrl: COMPUTER_BASE_URL, getAccessToken: () => session?.accessToken }}` as an inline object literal. `AppProvider` memoises the transport on `[pod.podBaseUrl, pod.getAccessToken]`, but `pod.getAccessToken` is a new function reference every render, so a new `PodTransport` is constructed every render. No infinite-loop risk (transport is stateless, `refreshProjects` uses a ref), but it is wasteful. Fix: wrap `getAccessToken` in `useCallback(() => session?.accessToken, [session])` in `RootComponent`.
+**File:** `studio/src/routes/__root.tsx`
+
+## 2026-06-24 — BUILD BREAK (known/transitional): `routes/index.tsx` imports non-existent `ProjectsLayout`
+`routes/index.tsx` imports `{ ProjectsLayout }` from `@lmthing/ui/components/shell/projects-layout`, but `studios-layout` was just deleted and `projects-layout` has not been created yet (Workstream B). The comment in the file acknowledges this. Studio will not compile until Workstream B adds `ProjectsLayout`.
+**File:** `studio/src/routes/index.tsx`
+
+## 2026-06-24 — Workstream B (`@lmthing/ui`) complete [DONE]
+- `studios-layout` → `projects-layout` (`ProjectsLayout`); `spaces-layout` simplified (no local/GitHub UI); `studio-sidebar` GitHub UI removed.
+- Added `sdk/libs/ui/src/lib/space-path.ts` (`buildProjectPath`/`buildSpacePath`) to decouple shell components from the studio app's `@/lib/space-url` (the old `@/` alias pointed into `studio/src/*`). Shell components now route off `$projectId`/`$spaceId` params only.
+- `hooks/studio/*` → `hooks/project/*` (re-export renamed state hooks); `hooks/fs/useStudioFS` → `useProjectFS`; deleted `components/auth/system-studio-bootstrap.tsx`.
+- `thing-panel`/`agent-builder`/`settings-view`/`studio-layout`/`studio-shell` switched to project hooks + local space-path; legacy `useWorkspaces`/`studio-list` repointed at `projects`.
+- NOTE for studio agent: `ProjectsLayout`/`SpacesLayout` accept optional `onOpenProject`/`onOpenSpace`/`onGoHome` overrides; defaults navigate to `/$projectId` and `/$projectId/$spaceId`. The shared `github-login`/`github-stars`/`github-deployment-status` widgets stay (still import `@/lib/github/GithubContext` — studio-owned).
+- Typecheck: `@lmthing/ui` has 701 pre-existing errors (element-prop `children` typing + missing `vitest`/`@tanstack/react-router` modules) — **unchanged from the 726-error baseline on `main`**; Workstream B introduced zero new errors and fixed 2 rename-induced ones.

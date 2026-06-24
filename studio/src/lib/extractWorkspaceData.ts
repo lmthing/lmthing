@@ -19,18 +19,10 @@ import type {
   Conversation,
   SpaceData,
   ExtractedDataStructure,
-  Tasklist,
   Task,
   TaskOutput,
-  KnowledgeDomain,
-  KnowledgeField,
   KnowledgeFieldIndex,
-  FunctionFile,
-  SpaceComponents,
-  ViewComponent,
-  FormComponent,
   PackageJson,
-  SpaceEnv,
   EncryptedEnvFile,
 } from "@/types/space-data";
 

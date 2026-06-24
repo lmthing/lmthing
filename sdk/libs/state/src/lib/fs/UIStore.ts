@@ -1,6 +1,6 @@
 // src/lib/fs/UIStore.ts
 
-import type { Unsubscribe } from '../../types/studio'
+import type { Unsubscribe } from '../../types/project'
 
 type Subscriber = () => void
 

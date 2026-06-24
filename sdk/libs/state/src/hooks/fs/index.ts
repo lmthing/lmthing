@@ -1,7 +1,7 @@
 // src/hooks/fs/index.ts
 
 export * from './useAppFS'
-export * from './useStudioFS'
+export * from './useProjectFS'
 export * from './useSpaceFS'
 export * from './useFile'
 export * from './useFileFrontmatter'

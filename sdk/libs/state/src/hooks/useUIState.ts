@@ -1,7 +1,7 @@
 // src/hooks/useUIState.ts
 
 import { useCallback, useSyncExternalStore } from 'react'
-import { useApp } from './studio/useApp'
+import { useApp } from './project/useApp'
 
 /**
  * Ephemeral UI state hook — replaces useState for view-level concerns

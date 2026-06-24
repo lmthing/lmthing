@@ -2,50 +2,50 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { AppFS } from './AppFS'
-import { UserFS, StudioFS, SpaceFS } from './ScopedFS'
+import { ProjectFS, SpaceFS } from './ScopedFS'
 
 describe('ScopedFS', () => {
   let appFS: AppFS
-  let studioFS: StudioFS
+  let projectFS: ProjectFS
   let spaceFS: SpaceFS
 
   beforeEach(() => {
     appFS = new AppFS()
 
-    // Set up test data
-    appFS.writeFile('alice/studio1/.env', 'SHARED=secret')
-    appFS.writeFile('alice/studio1/lmthing.json', '{"name": "Studio 1"}')
-    appFS.writeFile('alice/studio1/space1/package.json', '{"name": "space1"}')
-    appFS.writeFile('alice/studio1/space1/agents/bot/instruct.md', 'Be a bot')
-    appFS.writeFile('alice/studio1/space1/flows/workflow/index.md', '# Workflow')
+    // Set up test data (prefix = projectId/spaceId, no username segment).
+    appFS.writeFile('project1/.env', 'SHARED=secret')
+    appFS.writeFile('project1/lmthing.json', '{"name": "Project 1"}')
+    appFS.writeFile('project1/space1/package.json', '{"name": "space1"}')
+    appFS.writeFile('project1/space1/agents/bot/instruct.md', 'Be a bot')
+    appFS.writeFile('project1/space1/flows/workflow/index.md', '# Workflow')
 
-    studioFS = new StudioFS(appFS, 'alice', 'studio1')
-    spaceFS = new SpaceFS(appFS, 'alice', 'studio1', 'space1')
+    projectFS = new ProjectFS(appFS, 'project1')
+    spaceFS = new SpaceFS(appFS, 'project1', 'space1')
   })
 
-  describe('StudioFS', () => {
-    it('should strip username/studio prefix from reads', () => {
-      const content = studioFS.readFile('lmthing.json')
-      expect(content).toBe('{"name": "Studio 1"}')
+  describe('ProjectFS', () => {
+    it('should strip projectId prefix from reads', () => {
+      const content = projectFS.readFile('lmthing.json')
+      expect(content).toBe('{"name": "Project 1"}')
     })
 
-    it('should strip username/studio prefix from writes', () => {
-      studioFS.writeFile('test.txt', 'content')
-      expect(appFS.readFile('alice/studio1/test.txt')).toBe('content')
+    it('should strip projectId prefix from writes', () => {
+      projectFS.writeFile('test.txt', 'content')
+      expect(appFS.readFile('project1/test.txt')).toBe('content')
     })
 
     it('should list immediate children correctly', () => {
-      const entries = studioFS.readDir('')
-      const names = entries.map(e => e.name).sort()
+      const entries = projectFS.readDir('')
+      const names = entries.map((e) => e.name).sort()
 
       expect(names).toContain('.env')
       expect(names).toContain('lmthing.json')
       expect(names).toContain('space1')
     })
 
-    it('should read studio-level directory', () => {
-      const entries = studioFS.readDir('space1')
-      const names = entries.map(e => e.name)
+    it('should read project-level directory', () => {
+      const entries = projectFS.readDir('space1')
+      const names = entries.map((e) => e.name)
 
       expect(names).toContain('package.json')
       expect(names).toContain('agents')
@@ -61,12 +61,12 @@ describe('ScopedFS', () => {
 
     it('should strip full prefix from writes', () => {
       spaceFS.writeFile('test.txt', 'content')
-      expect(appFS.readFile('alice/studio1/space1/test.txt')).toBe('content')
+      expect(appFS.readFile('project1/space1/test.txt')).toBe('content')
     })
 
     it('should list space-level contents', () => {
       const entries = spaceFS.readDir('')
-      const names = entries.map(e => e.name).sort()
+      const names = entries.map((e) => e.name).sort()
 
       expect(names).toContain('package.json')
       expect(names).toContain('agents')
@@ -75,7 +75,7 @@ describe('ScopedFS', () => {
 
     it('should read nested directories', () => {
       const entries = spaceFS.readDir('agents')
-      const names = entries.map(e => e.name)
+      const names = entries.map((e) => e.name)
 
       expect(names).toContain('bot')
     })
@@ -98,7 +98,7 @@ describe('ScopedFS', () => {
         capturedPath = e.path
       })
 
-      appFS.writeFile('alice/studio1/space1/agents/bot/instruct.md', 'New content')
+      appFS.writeFile('project1/space1/agents/bot/instruct.md', 'New content')
 
       expect(capturedPath).toBe('agents/bot/instruct.md')
     })
@@ -109,7 +109,7 @@ describe('ScopedFS', () => {
         capturedDir = e.dir
       })
 
-      appFS.writeFile('alice/studio1/space1/agents/new-agent.md', 'content')
+      appFS.writeFile('project1/space1/agents/new-agent.md', 'content')
 
       expect(capturedDir).toBe('agents')
     })
@@ -120,9 +120,9 @@ describe('ScopedFS', () => {
         callCount++
       })
 
-      appFS.writeFile('alice/studio1/space1/test.txt', 'a')
-      appFS.writeFile('alice/studio1/space2/test.txt', 'b')
-      appFS.writeFile('alice/studio2/space1/test.txt', 'c')
+      appFS.writeFile('project1/space1/test.txt', 'a')
+      appFS.writeFile('project1/space2/test.txt', 'b')
+      appFS.writeFile('project2/space1/test.txt', 'c')
 
       expect(callCount).toBe(1) // Only space1 file
     })
@@ -135,8 +135,8 @@ describe('ScopedFS', () => {
         callCount++
       })
 
-      appFS.writeFile('alice/studio1/space1/agents/bot/file.txt', 'a')
-      appFS.writeFile('alice/studio1/space1/flows/workflow/file.txt', 'b')
+      appFS.writeFile('project1/space1/agents/bot/file.txt', 'a')
+      appFS.writeFile('project1/space1/flows/workflow/file.txt', 'b')
 
       expect(callCount).toBe(1)
     })
@@ -149,7 +149,7 @@ describe('ScopedFS', () => {
         capturedPath = e.path
       })
 
-      appFS.writeFile('alice/studio1/space1/agents/bot/instruct.md', 'content')
+      appFS.writeFile('project1/space1/agents/bot/instruct.md', 'content')
 
       expect(capturedPath).toBe('agents/bot/instruct.md')
     })
@@ -164,13 +164,13 @@ describe('ScopedFS', () => {
       expect(snapshot['agents/bot/instruct.md']).toBeDefined()
 
       // Should not have full path keys
-      expect(snapshot['alice/studio1/space1/package.json']).toBeUndefined()
+      expect(snapshot['project1/space1/package.json']).toBeUndefined()
     })
   })
 
-  describe('fromStudioFS factory', () => {
-    it('should create SpaceFS from StudioFS', () => {
-      const space = SpaceFS.fromStudioFS(studioFS, 'space1')
+  describe('fromProjectFS factory', () => {
+    it('should create SpaceFS from ProjectFS', () => {
+      const space = SpaceFS.fromProjectFS(projectFS, 'space1')
 
       expect(space.readFile('package.json')).toBe('{"name": "space1"}')
     })
@@ -180,8 +180,8 @@ describe('ScopedFS', () => {
     it('should rename with scoped paths', () => {
       spaceFS.renamePath('agents/bot', 'agents/ai')
 
-      expect(appFS.readFile('alice/studio1/space1/agents/bot/instruct.md')).toBeNull()
-      expect(appFS.readFile('alice/studio1/space1/agents/ai/instruct.md')).toBe('Be a bot')
+      expect(appFS.readFile('project1/space1/agents/bot/instruct.md')).toBeNull()
+      expect(appFS.readFile('project1/space1/agents/ai/instruct.md')).toBe('Be a bot')
     })
   })
 
@@ -189,8 +189,8 @@ describe('ScopedFS', () => {
     it('should delete with scoped path', () => {
       spaceFS.deletePath('agents/bot')
 
-      expect(appFS.readFile('alice/studio1/space1/agents/bot/instruct.md')).toBeNull()
-      expect(appFS.readFile('alice/studio1/space1/flows/workflow/index.md')).toBe('# Workflow')
+      expect(appFS.readFile('project1/space1/agents/bot/instruct.md')).toBeNull()
+      expect(appFS.readFile('project1/space1/flows/workflow/index.md')).toBe('# Workflow')
     })
   })
 
@@ -198,11 +198,11 @@ describe('ScopedFS', () => {
     it('should transform all operations', () => {
       spaceFS.batch([
         { type: 'write', path: 'new.txt', content: 'new' },
-        { type: 'rename', oldPath: 'agents/bot', newPath: 'agents/ai' }
+        { type: 'rename', oldPath: 'agents/bot', newPath: 'agents/ai' },
       ])
 
-      expect(appFS.readFile('alice/studio1/space1/new.txt')).toBe('new')
-      expect(appFS.readFile('alice/studio1/space1/agents/ai/instruct.md')).toBe('Be a bot')
+      expect(appFS.readFile('project1/space1/new.txt')).toBe('new')
+      expect(appFS.readFile('project1/space1/agents/ai/instruct.md')).toBe('Be a bot')
     })
   })
 
@@ -215,7 +215,7 @@ describe('ScopedFS', () => {
 
       await spaceFS.streamWriteFile('stream.txt', stream())
 
-      expect(appFS.readFile('alice/studio1/space1/stream.txt')).toBe('streamed content')
+      expect(appFS.readFile('project1/space1/stream.txt')).toBe('streamed content')
       expect(spaceFS.readFile('stream.txt')).toBe('streamed content')
     })
   })

@@ -1,7 +1,7 @@
 // src/hooks/useUnsavedChanges.ts
 
 import { useRef, useSyncExternalStore } from 'react'
-import { useApp } from './studio/useApp'
+import { useApp } from './project/useApp'
 
 export function useUnsavedChanges(): number {
   const { drafts } = useApp()

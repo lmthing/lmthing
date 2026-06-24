@@ -1,5 +1,5 @@
 export { useAppFS } from './useAppFS'
-export { useStudioFS } from './useStudioFS'
+export { useProjectFS } from './useProjectFS'
 export { useSpaceFS } from './useSpaceFS'
 export { useFile } from './useFile'
 export { useFileFrontmatter } from './useFileFrontmatter'

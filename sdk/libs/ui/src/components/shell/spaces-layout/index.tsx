@@ -1,13 +1,17 @@
 /**
- * SpacesLayout - Layout for the spaces listing page within a studio.
- * Uses new composite hooks from Phase 3 and element components.
+ * SpacesLayout - Spaces listing page for a project.
+ *
+ * Lists the spaces in the current project (from `useProject().spaces`, which
+ * reads `GET /api/projects/:id/spaces`). Opening a space navigates to
+ * `/$projectId/$spaceId` (SpaceProvider hydrates files on enter).
+ *
+ * Removed under the pod-backed architecture: the "New local space" creator
+ * and all GitHub connect/disconnect UI. Search is retained.
  */
 import { useMemo } from 'react'
-import { useNavigate, useParams } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
 import {
   Building2,
-  Plus,
-  Github,
   ChevronLeft,
   ChevronRight,
   Search,
@@ -23,35 +27,27 @@ import { PageHeader, PageBody } from '@lmthing/ui/elements/layouts/page'
 import { Card, CardBody } from '@lmthing/ui/elements/content/card'
 import { Heading } from '@lmthing/ui/elements/typography/heading'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
-import { useStudio, useToggle, useUIState } from '@lmthing/state'
-import { useGithub } from '@/lib/github/GithubContext'
-import { buildSpacePath } from '@/lib/space-url'
+import { useProject, useToggle, useUIState } from '@lmthing/state'
+import { buildSpacePath } from '@lmthing/ui/lib/space-path'
 
 const SPACE_COLORS = ['#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ef4444', '#84cc16']
 
 type Space = { id: string; name: string; color: string }
 
-function toLocalSpaceId(value: string): string {
-  const trimmed = value.trim()
-  if (!trimmed) return ''
-  return trimmed.toLowerCase().replace(/[^a-z0-9-_]+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '')
+export interface SpacesLayoutProps {
+  /** Override the destination when a space is opened. Defaults to `/$projectId/$spaceId`. */
+  onOpenSpace?: (projectId: string, spaceId: string) => void
+  /** Override the home destination. Defaults to `/`. */
+  onGoHome?: () => void
 }
 
-export function SpacesLayout() {
+export function SpacesLayout({ onOpenSpace, onGoHome }: SpacesLayoutProps) {
   const navigate = useNavigate()
-  const { username, studioId } = useParams({ strict: false }) as { username: string; studioId: string }
-  const { spaces, createSpace } = useStudio()
-  const { login: connectGithub, logout: disconnectGithub, isAuthenticated: isGithubConnected, isLoadingAuth: isGithubLoading } = useGithub()
+  const { projectId, spaces, isLoadingSpaces, spacesError } = useProject()
 
   const [isSidebarCollapsed, toggleSidebarCollapsed] = useToggle('spaces-layout.sidebar-collapsed', false)
   const [searchQuery, setSearchQuery] = useUIState('spaces-layout.search-query', '')
-  const [isCreateLocalOpen, , setIsCreateLocalOpen] = useToggle('spaces-layout.create-local-open', false)
-  const [newLocalSpaceName, setNewLocalSpaceName] = useUIState('spaces-layout.new-local-space-name', '')
   const [selectedSpaceId, setSelectedSpaceId] = useUIState<string | null>('spaces-layout.selected-space-id', null)
-
-  const studioPath = username && studioId
-    ? `/${encodeURIComponent(username)}/${encodeURIComponent(studioId)}`
-    : '/'
 
   const allSpaces = useMemo<Space[]>(() => {
     return spaces.map((s, idx) => ({
@@ -67,16 +63,26 @@ export function SpacesLayout() {
     return allSpaces.filter(s => s.name.toLowerCase().includes(q))
   }, [allSpaces, searchQuery])
 
-  const selectedSpace = useMemo(() => allSpaces.find(s => s.id === selectedSpaceId) ?? null, [allSpaces, selectedSpaceId])
+  const selectedSpace = useMemo(
+    () => allSpaces.find(s => s.id === selectedSpaceId) ?? null,
+    [allSpaces, selectedSpaceId],
+  )
 
-  const handleCreateLocalSpace = () => {
-    const slug = toLocalSpaceId(newLocalSpaceName)
-    if (!slug) return
-    const localId = `local/${slug}`
-    createSpace(localId, { name: localId })
-    setIsCreateLocalOpen(false)
-    setNewLocalSpaceName('')
-    navigate({ to: buildSpacePath(username, studioId, localId) })
+  const openSpace = (spaceId: string) => {
+    if (!projectId) return
+    if (onOpenSpace) {
+      onOpenSpace(projectId, spaceId)
+      return
+    }
+    navigate({ to: buildSpacePath(projectId, spaceId) })
+  }
+
+  const goHome = () => {
+    if (onGoHome) {
+      onGoHome()
+      return
+    }
+    navigate({ to: '/' })
   }
 
   return (
@@ -84,7 +90,7 @@ export function SpacesLayout() {
       <aside className={`sidebar ${isSidebarCollapsed ? 'sidebar--collapsed' : ''}`} style={{ width: isSidebarCollapsed ? '4rem' : '17.5rem' }}>
         <div className="spaces-layout__sidebar-header">
           <div className="spaces-layout__sidebar-header-inner">
-            <button onClick={() => navigate({ to: '/' })} className="spaces-layout__home-btn" title="lmthing home" />
+            <button onClick={goHome} className="spaces-layout__home-btn" title="lmthing home" />
             {!isSidebarCollapsed && <span className="spaces-layout__sidebar-title">Spaces</span>}
           </div>
         </div>
@@ -93,15 +99,23 @@ export function SpacesLayout() {
           <div className="spaces-layout__sidebar-search-section">
             <div className="spaces-layout__search-wrapper">
               <Search className="spaces-layout__search-icon" />
-              <input className="input spaces-layout__search-input" placeholder="Search spaces..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+              <input
+                className="input spaces-layout__search-input"
+                placeholder="Search spaces..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
             </div>
-            <button className="btn btn--ghost btn--sm spaces-layout__new-space-btn" onClick={() => setIsCreateLocalOpen(true)}>
-              <Plus className="spaces-layout__icon-sm" /> New space
-            </button>
           </div>
         )}
 
         <div className="spaces-layout__sidebar-list">
+          {isLoadingSpaces && (
+            <Caption muted className="spaces-layout__loading">Loading spaces…</Caption>
+          )}
+          {spacesError && (
+            <Caption className="spaces-layout__error">Failed to load spaces.</Caption>
+          )}
           {filteredSpaces.map(space => (
             <button
               key={space.id}
@@ -117,12 +131,15 @@ export function SpacesLayout() {
         </div>
 
         <div className="spaces-layout__sidebar-footer">
-          <button onClick={() => { if (isGithubLoading) return; if (isGithubConnected) { disconnectGithub(); return; } void connectGithub().catch(console.error) }} disabled={isGithubLoading} className="sidebar__item spaces-layout__footer-btn">
-            <Github className="spaces-layout__github-icon" />
-            {!isSidebarCollapsed && <span className="spaces-layout__footer-label">{isGithubLoading ? 'Loading...' : isGithubConnected ? 'Disconnect GitHub' : 'Connect GitHub'}</span>}
-          </button>
           <button onClick={() => toggleSidebarCollapsed()} className="sidebar__item spaces-layout__footer-btn">
-            {isSidebarCollapsed ? <ChevronRight className="spaces-layout__collapse-icon" /> : <><ChevronLeft className="spaces-layout__collapse-icon" /><span className="spaces-layout__footer-label">Collapse</span></>}
+            {isSidebarCollapsed ? (
+              <ChevronRight className="spaces-layout__collapse-icon" />
+            ) : (
+              <>
+                <ChevronLeft className="spaces-layout__collapse-icon" />
+                <span className="spaces-layout__footer-label">Collapse</span>
+              </>
+            )}
           </button>
         </div>
       </aside>
@@ -140,9 +157,9 @@ export function SpacesLayout() {
                 </div>
                 <div className="spaces-layout__detail-info">
                   <Heading level={2}>{selectedSpace.name}</Heading>
-                  <Caption muted>{selectedSpace.name.startsWith('local/') ? 'Local space' : 'GitHub space'}</Caption>
+                  <Caption muted>Space</Caption>
                 </div>
-                <button className="btn btn--primary" onClick={() => navigate({ to: buildSpacePath(username, studioId, selectedSpace.id) })}>Open Space</button>
+                <button className="btn btn--primary" onClick={() => openSpace(selectedSpace.id)}>Open Space</button>
               </div>
             </div>
           ) : (
@@ -169,32 +186,16 @@ export function SpacesLayout() {
               ) : (
                 <div className="spaces-layout__empty">
                   <Building2 className="spaces-layout__empty-icon" />
-                  <Heading level={3}>No spaces yet</Heading>
-                  <button className="btn btn--primary spaces-layout__empty-create-btn" onClick={() => setIsCreateLocalOpen(true)}>
-                    <Plus className="spaces-layout__empty-create-icon" /> Create space
-                  </button>
+                  <Heading level={3}>No spaces in this project</Heading>
+                  <Caption muted className="spaces-layout__grid-caption">
+                    Spaces are created on the pod. Ask your compute pod to add a space, then refresh.
+                  </Caption>
                 </div>
               )}
             </div>
           )}
         </PageBody>
       </div>
-
-      {isCreateLocalOpen && (
-        <div className="spaces-layout__modal-backdrop">
-          <div className="spaces-layout__modal">
-            <h3 className="spaces-layout__modal-title">Create New Space</h3>
-            <p className="spaces-layout__modal-desc">Create a new space and open it in Studio.</p>
-            <div className="spaces-layout__modal-fields">
-              <input className="input" autoFocus placeholder="Space name (e.g. customer-support)" value={newLocalSpaceName} onChange={e => setNewLocalSpaceName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleCreateLocalSpace() }} />
-              <div className="spaces-layout__modal-actions">
-                <button className="btn btn--ghost" onClick={() => setIsCreateLocalOpen(false)}>Cancel</button>
-                <button className="btn btn--primary" onClick={handleCreateLocalSpace} disabled={!toLocalSpaceId(newLocalSpaceName)}>Create Space</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

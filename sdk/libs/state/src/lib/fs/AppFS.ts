@@ -3,7 +3,7 @@
 import { FSEventBus } from './FSEventBus'
 import type { FSInterface } from './FSInterface'
 import { globToRegex, expandBraces } from './glob'
-import type { FileTree, DirEntry, FileOp, Unsubscribe } from '../../types/studio'
+import type { FileTree, DirEntry, FileOp, Unsubscribe } from '../../types/project'
 import type { FSEvent, DirEvent, BatchEvent } from './events'
 
 export class AppFS implements FSInterface {
@@ -78,6 +78,11 @@ export class AppFS implements FSInterface {
     const type: FSEvent['type'] = exists ? 'update' : 'create'
     this.store.set(path, content)
     this.bus.emit({ type, path, content, timestamp: Date.now() })
+  }
+
+  /** Whether a file exists at `path`. */
+  has(path: string): boolean {
+    return this.store.has(path)
   }
 
   appendFile(path: string, content: string): void {

@@ -12,10 +12,10 @@ describe('useDir', () => {
   beforeEach(() => {
     appFS = new AppFS()
     // Set up test directory structure
-    appFS.writeFile('alice/test/space1/dir/file1.txt', 'a')
-    appFS.writeFile('alice/test/space1/dir/file2.txt', 'b')
-    appFS.writeFile('alice/test/space1/dir/subdir/file3.txt', 'c')
-    appFS.writeFile('alice/test/space1/other/file4.txt', 'd')
+    appFS.writeFile('test/space1/dir/file1.txt', 'a')
+    appFS.writeFile('test/space1/dir/file2.txt', 'b')
+    appFS.writeFile('test/space1/dir/subdir/file3.txt', 'c')
+    appFS.writeFile('test/space1/other/file4.txt', 'd')
   })
 
   it('should list directory contents', () => {
@@ -77,7 +77,7 @@ describe('useDir', () => {
     const initialCount = result.current.length
 
     // Add a new file
-    appFS.writeFile('alice/test/space1/dir/newfile.txt', 'new')
+    appFS.writeFile('test/space1/dir/newfile.txt', 'new')
 
     await waitFor(() => {
       expect(result.current.length).toBe(initialCount + 1)
@@ -93,7 +93,7 @@ describe('useDir', () => {
     const initialCount = result.current.length
 
     // Delete a file
-    appFS.deleteFile('alice/test/space1/dir/file1.txt')
+    appFS.deleteFile('test/space1/dir/file1.txt')
 
     await waitFor(() => {
       expect(result.current.length).toBe(initialCount - 1)
@@ -109,7 +109,7 @@ describe('useDir', () => {
     const initialCount = result.current.length
 
     // Add a new directory
-    appFS.writeFile('alice/test/space1/newdir/file.txt', 'content')
+    appFS.writeFile('test/space1/newdir/file.txt', 'content')
 
     await waitFor(() => {
       expect(result.current.length).toBe(initialCount + 1)
@@ -123,7 +123,7 @@ describe('useDir', () => {
     })
 
     // Rename a file
-    appFS.renamePath('alice/test/space1/dir/file1.txt', 'alice/test/space1/dir/renamed.txt')
+    appFS.renamePath('test/space1/dir/file1.txt', 'test/space1/dir/renamed.txt')
 
     await waitFor(() => {
       expect(result.current.some(e => e.name === 'file1.txt')).toBe(false)
@@ -144,7 +144,7 @@ describe('useDir', () => {
     const initialCount = renderCount
 
     // Modify a different directory
-    appFS.writeFile('alice/test/space1/other/file5.txt', 'new')
+    appFS.writeFile('test/space1/other/file5.txt', 'new')
 
     await waitFor(() => {
       // Should not have re-rendered
@@ -165,7 +165,7 @@ describe('useDir', () => {
   it('should handle directories with many entries', () => {
     // Add many files
     for (let i = 0; i < 100; i++) {
-      appFS.writeFile(`alice/test/space1/dir/file${i}.txt`, `content${i}`)
+      appFS.writeFile(`test/space1/dir/file${i}.txt`, `content${i}`)
     }
 
     const { result } = renderHook(() => useDir('dir'), {

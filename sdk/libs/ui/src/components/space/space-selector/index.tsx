@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { useUIState, useToggle } from '@lmthing/state'
-import { ChevronDown, Plus, Search, FolderOpen, Github } from 'lucide-react'
+import { ChevronDown, Plus, Search, FolderOpen } from 'lucide-react'
 import { Button } from '@lmthing/ui/elements/forms/button'
 import { Input } from '@lmthing/ui/elements/forms/input'
 import { Stack } from '@lmthing/ui/elements/layouts/stack'
@@ -12,8 +12,6 @@ export interface SpaceEntry {
   id: string
   name: string
   description?: string
-  isLocal?: boolean
-  ownerAvatarUrl?: string
 }
 
 interface SpaceSelectorProps {
@@ -73,13 +71,7 @@ export function SpaceSelector({ spaces, currentSpaceId, onSelectSpace, onCreateS
                   onClick={() => handleSelect(space.id)}
                   className={`dropdown__item space-selector__item ${space.id === currentSpaceId ? 'list-item--selected' : ''}`}
                 >
-                  {space.isLocal ? (
-                    <FolderOpen className="space-selector__item-icon" />
-                  ) : space.ownerAvatarUrl ? (
-                    <img src={space.ownerAvatarUrl} alt="" className="space-selector__avatar" />
-                  ) : (
-                    <Github className="space-selector__item-icon" />
-                  )}
+                  <FolderOpen className="space-selector__item-icon" />
                   <span className="space-selector__item-name">{space.name}</span>
                 </button>
               ))

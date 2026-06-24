@@ -15,8 +15,8 @@
  *   components/form/<Name>/ink.tsx      — form component ink (terminal) variant
  */
 
-// Re-export hierarchy types from lib/state
-export type { StudioConfig, SpaceConfig, AppData, FileTree, StudioData } from "@lmthing/state";
+// Re-export hierarchy types from lib/state (studio→project rename).
+export type { ProjectConfig, SpaceConfig, AppData, FileTree, ProjectData } from "@lmthing/state";
 
 /**
  * Model identifier string accepted by the lmthing runtime.

@@ -9,7 +9,7 @@ import { useAgentList } from '@lmthing/ui/hooks/useAgentList'
 import { useTasklistList } from '@lmthing/ui/hooks/useWorkflowList'
 import { useUIState, useSpaceFS } from '@lmthing/state'
 import { serializeAgentInstruct } from '@lmthing/state'
-import { buildSpacePathFromParams } from '@/lib/space-url'
+import { buildSpacePath } from '@lmthing/ui/lib/space-path'
 
 type StudioState = {
   sidebarCollapsed: boolean
@@ -28,9 +28,9 @@ function toCamelCase(slug: string): string {
 }
 
 function useSpacePath(): string {
-  const { username, studioId, storageId, spaceId } = useParams({ strict: false }) as { username?: string; studioId?: string; storageId?: string; spaceId?: string }
-  if (username && studioId && storageId && spaceId) {
-    return buildSpacePathFromParams(username, studioId, storageId, spaceId)
+  const { projectId, spaceId } = useParams({ strict: false }) as { projectId?: string; spaceId?: string }
+  if (projectId && spaceId) {
+    return buildSpacePath(projectId, spaceId)
   }
   return '/'
 }

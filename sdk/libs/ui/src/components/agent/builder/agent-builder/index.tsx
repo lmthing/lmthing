@@ -22,6 +22,7 @@ import { Button } from '@lmthing/ui/elements/forms/button'
 import { Input } from '@lmthing/ui/elements/forms/input'
 import { Select, SelectOption } from '@lmthing/ui/elements/forms/select'
 import { AgentHeader } from '../agent-header'
+import { buildSpacePath } from '@lmthing/ui/lib/space-path'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -29,11 +30,6 @@ function slugify(text: string): string {
   return text.toLowerCase().trim()
     .replace(/[^\w\s-]/g, '').replace(/[\s_]+/g, '-').replace(/-+/g, '-')
     .replace(/^-|-$/g, '') || 'untitled'
-}
-
-function buildSpacePath(username?: string, studioId?: string, storageId?: string, spaceId?: string) {
-  if (!username || !studioId || !storageId || !spaceId) return ''
-  return `/${username}/${studioId}/${storageId}/${spaceId}`
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -160,9 +156,9 @@ function ActionRow({ action, tasklistNames, onChange, onRemove }: {
 
 export function AgentBuilder() {
   const params = useParams({ strict: false }) as {
-    username?: string; studioId?: string; storageId?: string; spaceId?: string; agentId?: string
+    projectId?: string; spaceId?: string; agentId?: string
   }
-  const { username, studioId, storageId, spaceId, agentId } = params
+  const { projectId, spaceId, agentId } = params
   const navigate = useNavigate()
   const spaceFS = useSpaceFS()
 
@@ -248,7 +244,7 @@ export function AgentBuilder() {
     }
   })
 
-  const spacePath = buildSpacePath(username, studioId, storageId, spaceId)
+  const spacePath = buildSpacePath(projectId, spaceId)
   const isNew = !agentId
   const isValid = draftTitle.trim().length > 0
 

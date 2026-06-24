@@ -1,3 +1,3 @@
 export { AppProvider, useApp } from './AppContext'
-export { StudioProvider, useStudio } from './StudioContext'
+export { ProjectProvider, useProject } from './ProjectContext'
 export { SpaceProvider, useSpaceContext } from './SpaceContext'

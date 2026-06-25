@@ -1,5 +1,15 @@
 [
   {
+    "hash": "e6ec05a0",
+    "full_hash": "e6ec05a00ed17c34916596b483be06d5642151ca",
+    "type": "feat",
+    "scope": "",
+    "subject": "implement SPACE-SPEC changes across studio, state/ui libs, and core",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-25 17:01:59 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/e6ec05a00ed17c34916596b483be06d5642151ca"
+  },
+  {
     "hash": "e049aa4b",
     "full_hash": "e049aa4b10faf41a91a103a7d2958fa6999bb0ea",
     "type": "fix",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-03-13 14:58:12 +0200",
     "url": "https://github.com/lmthing/lmthing/commit/6515c940e3824d3476c764cdc4ae2f62deabdb94"
-  },
-  {
-    "hash": "3a950ed8",
-    "full_hash": "3a950ed82f5cbb945883ecf06034c2bfebfdb127",
-    "type": "feat",
-    "scope": "",
-    "subject": "migrate all projects to Vite+ (VoidZero unified toolchain)",
-    "author": "Claude",
-    "date": "2026-03-13 10:54:34 +0000",
-    "url": "https://github.com/lmthing/lmthing/commit/3a950ed82f5cbb945883ecf06034c2bfebfdb127"
   }
 ]

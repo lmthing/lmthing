@@ -1,5 +1,15 @@
 [
   {
+    "hash": "e6ec05a0",
+    "full_hash": "e6ec05a00ed17c34916596b483be06d5642151ca",
+    "type": "feat",
+    "scope": "",
+    "subject": "implement SPACE-SPEC changes across studio, state/ui libs, and core",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-25 17:01:59 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/e6ec05a00ed17c34916596b483be06d5642151ca"
+  },
+  {
     "hash": "e049aa4b",
     "full_hash": "e049aa4b10faf41a91a103a7d2958fa6999bb0ea",
     "type": "fix",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-04-22 13:48:26 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/c807d63555b22c1ae7bbe6811153d7957c4f1aa6"
-  },
-  {
-    "hash": "745c3fa4",
-    "full_hash": "745c3fa410ba4257cbd4c98871662d8601ea7a74",
-    "type": "feat",
-    "scope": "",
-    "subject": "extract cli and repl into lmthing/org submodule, rename org/ to sdk/",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-04-22 13:13:53 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/745c3fa410ba4257cbd4c98871662d8601ea7a74"
   }
 ]

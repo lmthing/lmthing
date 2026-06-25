@@ -1,5 +1,15 @@
 [
   {
+    "hash": "e6ec05a0",
+    "full_hash": "e6ec05a00ed17c34916596b483be06d5642151ca",
+    "type": "feat",
+    "scope": "",
+    "subject": "implement SPACE-SPEC changes across studio, state/ui libs, and core",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-25 17:01:59 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/e6ec05a00ed17c34916596b483be06d5642151ca"
+  },
+  {
     "hash": "e049aa4b",
     "full_hash": "e049aa4b10faf41a91a103a7d2958fa6999bb0ea",
     "type": "fix",
@@ -488,15 +498,5 @@
     "author": "Claude",
     "date": "2026-03-24 07:04:55 +0000",
     "url": "https://github.com/lmthing/lmthing/commit/5bb2032418118b3e95b0effb53c02414fd11d3ff"
-  },
-  {
-    "hash": "f48f4517",
-    "full_hash": "f48f4517460820df048c1d2dac1c19931d71de3b",
-    "type": "chore",
-    "scope": "",
-    "subject": "Move blog and casa to end of services grid",
-    "author": "Claude",
-    "date": "2026-03-24 07:04:10 +0000",
-    "url": "https://github.com/lmthing/lmthing/commit/f48f4517460820df048c1d2dac1c19931d71de3b"
   }
 ]

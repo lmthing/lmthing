@@ -1,5 +1,15 @@
 [
   {
+    "hash": "e6ec05a0",
+    "full_hash": "e6ec05a00ed17c34916596b483be06d5642151ca",
+    "type": "feat",
+    "scope": "",
+    "subject": "implement SPACE-SPEC changes across studio, state/ui libs, and core",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-25 17:01:59 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/e6ec05a00ed17c34916596b483be06d5642151ca"
+  },
+  {
     "hash": "e049aa4b",
     "full_hash": "e049aa4b10faf41a91a103a7d2958fa6999bb0ea",
     "type": "fix",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-03-14 22:03:00 +0200",
     "url": "https://github.com/lmthing/lmthing/commit/42b0fe0fe9b19522f62cb3f1f60d200c86438d32"
-  },
-  {
-    "hash": "6882531d",
-    "full_hash": "6882531d94b48d9daffe71401b2c517c2e1e2056",
-    "type": "feat",
-    "scope": "",
-    "subject": "implement Phase 4 \u2014 polish computer runtime UI",
-    "author": "Claude",
-    "date": "2026-03-14 05:48:15 +0000",
-    "url": "https://github.com/lmthing/lmthing/commit/6882531d94b48d9daffe71401b2c517c2e1e2056"
   }
 ]

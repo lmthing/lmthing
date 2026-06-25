@@ -1,5 +1,7 @@
 export interface AuthSession {
   accessToken: string
+  refreshToken?: string
+  expiresAt?: number
   userId: string
   email: string
   githubRepo: string | null

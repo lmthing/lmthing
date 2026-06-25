@@ -61,10 +61,36 @@ export async function handleAuthCallback(config: AuthConfig): Promise<AuthSessio
   const data = await res.json()
   const session: AuthSession = {
     accessToken: data.access_token,
+    refreshToken: data.refresh_token ?? undefined,
+    expiresAt: data.expires_at ?? undefined,
     userId: data.user.id,
     email: data.user.email,
     githubRepo: data.user.github_repo ?? null,
     githubUsername: data.user.github_username ?? null,
+  }
+
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+  return session
+}
+
+export async function refreshSession(config: AuthConfig): Promise<AuthSession | null> {
+  const current = getSession()
+  if (!current?.refreshToken) return null
+
+  const res = await fetch(`${config.cloudUrl}/api/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token: current.refreshToken }),
+  })
+
+  if (!res.ok) return null
+
+  const data = await res.json()
+  const session: AuthSession = {
+    ...current,
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token ?? current.refreshToken,
+    expiresAt: data.expires_at ?? undefined,
   }
 
   localStorage.setItem(SESSION_KEY, JSON.stringify(session))

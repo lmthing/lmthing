@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import type { AuthSession, AuthConfig, AuthContextValue } from './types'
-import { getSession, clearSession, storeSession, redirectToLogin, handleAuthCallback, isPinSet, verifyPin, derivePinKey } from './client'
+import { getSession, clearSession, storeSession, redirectToLogin, handleAuthCallback, refreshSession, isPinSet, verifyPin, derivePinKey } from './client'
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
@@ -74,6 +74,29 @@ export function AuthProvider({ appName, callbackPath = '/', children }: AuthProv
       setIsLoading(false)
     }
   }, [config, isDemo])
+
+  // Proactively refresh the access token 5 minutes before expiry.
+  // If already expired on load, refresh immediately.
+  useEffect(() => {
+    if (isDemo || !session?.refreshToken || !session.expiresAt) return
+
+    const REFRESH_BUFFER = 5 * 60 // seconds
+    const now = Math.floor(Date.now() / 1000)
+    const delay = Math.max(0, session.expiresAt - now - REFRESH_BUFFER) * 1000
+
+    const timer = setTimeout(async () => {
+      const refreshed = await refreshSession(config)
+      if (refreshed) {
+        setSession(refreshed)
+      } else {
+        // Refresh token is also expired — force re-login
+        clearSession()
+        setSession(null)
+      }
+    }, delay)
+
+    return () => clearTimeout(timer)
+  }, [isDemo, session?.refreshToken, session?.expiresAt, config])
 
   const login = useCallback(() => {
     if (isDemo) return

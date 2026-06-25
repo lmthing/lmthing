@@ -10,14 +10,14 @@
  *   knowledge/<domain>/<field>/<slug>.md — option content
  *   functions/<name>.ts                 — raw source
  *   components/view/<Name>.tsx          — raw source
- *   components/form/<Name>/web.tsx      — raw source
- *   components/form/<Name>/ink.tsx      — raw source
+ *   components/form/<Name>.tsx          — raw source (single-file, default export)
  */
 
 import JSZip from 'jszip'
 import type {
   Agent,
   Task,
+  Tasklist,
   KnowledgeDomain,
   KnowledgeField,
   SpaceData,
@@ -124,32 +124,11 @@ function serializeAgentInstruct(agent: Agent): string {
     lines.push('actions: []')
   }
 
-  if (fm.dependencies.length > 0) {
-    lines.push('dependencies:')
-    for (const d of fm.dependencies) lines.push(`  - ${d}`)
+  if (fm.canDelegateTo.length > 0) {
+    lines.push('canDelegateTo:')
+    for (const d of fm.canDelegateTo) lines.push(`  - ${d}`)
   } else {
-    lines.push('dependencies: []')
-  }
-
-  // runtimeFields (optional — omit when empty)
-  if (fm.runtimeFields && Object.keys(fm.runtimeFields).length > 0) {
-    lines.push('runtimeFields:')
-    for (const [comp, fields] of Object.entries(fm.runtimeFields)) {
-      lines.push(`  ${comp}:`)
-      for (const f of fields) lines.push(`    - ${f}`)
-    }
-  }
-
-  // formValues (optional — omit when empty)
-  if (fm.formValues && Object.keys(fm.formValues).length > 0) {
-    lines.push('formValues:')
-    for (const [comp, vals] of Object.entries(fm.formValues)) {
-      lines.push(`  ${comp}:`)
-      for (const [k, v] of Object.entries(vals)) {
-        const serialized = typeof v === 'string' ? `"${v.replace(/"/g, '\\"')}"` : String(v)
-        lines.push(`    ${k}: ${serialized}`)
-      }
-    }
+    lines.push('canDelegateTo: []')
   }
 
   lines.push('---', '', (agent.body ?? '').trim())
@@ -161,6 +140,13 @@ function serializeTask(task: Task): string {
 
   for (const [k, v] of Object.entries(task.output)) {
     lines.push(`  ${k}: ${v}`)
+  }
+
+  if (task.input && Object.keys(task.input).length > 0) {
+    lines.push('input:')
+    for (const [k, v] of Object.entries(task.input)) {
+      lines.push(`  ${k}: ${v}`)
+    }
   }
 
   const dependsOn = task.dependsOn ?? []
@@ -182,6 +168,22 @@ function serializeTask(task: Task): string {
   return lines.join('\n')
 }
 
+/**
+ * Serializes tasklists/<name>/index.md — the `input` schema + description body.
+ * Only emitted when the tasklist has an input schema and/or description.
+ */
+function serializeTasklistIndex(tasklist: Tasklist): string {
+  const lines: string[] = ['---']
+  if (tasklist.input && Object.keys(tasklist.input).length > 0) {
+    lines.push('input:')
+    for (const [k, v] of Object.entries(tasklist.input)) {
+      lines.push(`  ${k}: ${v}`)
+    }
+  }
+  lines.push('---', '', (tasklist.description ?? '').trim())
+  return lines.join('\n')
+}
+
 function serializeKnowledgeFieldIndex(field: KnowledgeField): string {
   const idx = field.index
   const lines = ['---', `type: ${idx.type}`, `variable: ${idx.variable}`]
@@ -189,7 +191,6 @@ function serializeKnowledgeFieldIndex(field: KnowledgeField): string {
   if (idx.label !== undefined) lines.push(`label: "${idx.label.replace(/"/g, '\\"')}"`)
   if (idx.fieldType !== undefined) lines.push(`fieldType: ${idx.fieldType}`)
   if (idx.required !== undefined) lines.push(`required: ${idx.required}`)
-  if (idx.renderAs !== undefined) lines.push(`renderAs: ${idx.renderAs}`)
   lines.push('---', '', (field.description ?? '').trim())
   return lines.join('\n')
 }
@@ -199,6 +200,7 @@ function serializeKnowledgeDomainIndex(domain: KnowledgeDomain): string {
   if (domain.label !== undefined) lines.push(`label: "${domain.label.replace(/"/g, '\\"')}"`)
   if (domain.icon !== undefined) lines.push(`icon: ${domain.icon}`)
   if (domain.color !== undefined) lines.push(`color: "${domain.color.replace(/"/g, '\\"')}"`)
+  if (domain.renderAs !== undefined) lines.push(`renderAs: ${domain.renderAs}`)
   lines.push('---', '', (domain.description ?? '').trim())
   return lines.join('\n')
 }
@@ -255,6 +257,15 @@ export function workspaceToFileTreeJson(space: SpaceData): FileTreeDirectoryNode
     a.name.localeCompare(b.name),
   )
   for (const tasklist of sortedTasklists) {
+    // tasklists/<name>/index.md — input schema + description (only when present)
+    if ((tasklist.input && Object.keys(tasklist.input).length > 0) || tasklist.description !== undefined) {
+      addFileAtPath(
+        root,
+        `tasklists/${tasklist.name}/index.md`,
+        serializeTasklistIndex(tasklist),
+      )
+    }
+
     const tasks = ensureGoalTask([...(tasklist.tasks || [])].sort((a, b) => a.order - b.order))
     for (const task of tasks) {
       addFileAtPath(root, `tasklists/${tasklist.name}/${taskFilename(task)}`, serializeTask(task))
@@ -267,7 +278,13 @@ export function workspaceToFileTreeJson(space: SpaceData): FileTreeDirectoryNode
   )
   for (const domain of sortedDomains) {
     // Emit domain index.md only when the domain has metadata
-    if (domain.label !== undefined || domain.icon !== undefined || domain.color !== undefined || domain.description !== undefined) {
+    if (
+      domain.label !== undefined ||
+      domain.icon !== undefined ||
+      domain.color !== undefined ||
+      domain.description !== undefined ||
+      domain.renderAs !== undefined
+    ) {
       addFileAtPath(
         root,
         `knowledge/${domain.slug}/index.md`,
@@ -306,13 +323,12 @@ export function workspaceToFileTreeJson(space: SpaceData): FileTreeDirectoryNode
     addFileAtPath(root, `components/view/${view.name}.tsx`, view.source)
   }
 
-  // components/form/<Name>/{web,ink}.tsx
+  // components/form/<Name>.tsx — single-file form component
   const sortedForms = Object.values(space.components?.form || {}).sort((a, b) =>
     a.name.localeCompare(b.name),
   )
   for (const form of sortedForms) {
-    addFileAtPath(root, `components/form/${form.name}/web.tsx`, form.web)
-    addFileAtPath(root, `components/form/${form.name}/ink.tsx`, form.ink)
+    addFileAtPath(root, `components/form/${form.name}.tsx`, form.source)
   }
 
   sortTree(root)

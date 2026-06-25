@@ -1,5 +1,5 @@
 // src/lib/fs/parsers/instruct.test.ts
-// Updated for the NEW spec: AgentInstruct uses title/knowledge/functions/components/actions/dependencies/body
+// Updated for the NEW spec: AgentInstruct uses title/knowledge/functions/components/actions/canDelegateTo/body
 
 import { describe, it, expect } from 'vitest'
 import { parseAgentInstruct, serializeAgentInstruct, type AgentInstruct } from './instruct'
@@ -13,7 +13,7 @@ knowledge: []
 functions: []
 components: []
 actions: []
-dependencies: []
+canDelegateTo: []
 ---
 You are an expert chef.`
 
@@ -24,7 +24,7 @@ You are an expert chef.`
       expect(result.functions).toEqual([])
       expect(result.components).toEqual([])
       expect(result.actions).toEqual([])
-      expect(result.dependencies).toEqual([])
+      expect(result.canDelegateTo).toEqual([])
       expect(result.body).toBe('You are an expert chef.')
     })
 
@@ -35,7 +35,7 @@ knowledge: [cuisine/style, cuisine/level]
 functions: [queryData, formatOutput]
 components: []
 actions: []
-dependencies: []
+canDelegateTo: []
 ---
 Analyse data.`
 
@@ -62,7 +62,7 @@ actions:
     label: "Cook Pasta"
     description: "Make a full pasta dish from scratch"
     tasklist: make_pasta
-dependencies:
+canDelegateTo:
   - sommelier-space/pairing
 ---
 
@@ -78,7 +78,7 @@ You are an expert chef.`
       expect(result.actions[0].label).toBe('Cook Pasta')
       expect(result.actions[0].description).toBe('Make a full pasta dish from scratch')
       expect(result.actions[0].tasklist).toBe('make_pasta')
-      expect(result.dependencies).toEqual(['sommelier-space/pairing'])
+      expect(result.canDelegateTo).toEqual(['sommelier-space/pairing'])
       expect(result.body).toContain('expert chef')
     })
 
@@ -94,7 +94,7 @@ actions:
     label: "Cook Pasta"
     description: "desc"
     tasklist: make_pasta
-dependencies: []
+canDelegateTo: []
 ---
 Body.`
 
@@ -114,8 +114,24 @@ Instructions here`
       expect(result.functions).toEqual([])
       expect(result.components).toEqual([])
       expect(result.actions).toEqual([])
-      expect(result.dependencies).toEqual([])
+      expect(result.canDelegateTo).toEqual([])
       expect(result.defaultAction).toBeUndefined()
+    })
+
+    it('should fall back to legacy `dependencies` key when canDelegateTo is absent', () => {
+      const content = `---
+title: Legacy
+knowledge: []
+functions: []
+components: []
+actions: []
+dependencies:
+  - sommelier-space/pairing
+---
+Body.`
+
+      const result = parseAgentInstruct(content)
+      expect(result.canDelegateTo).toEqual(['sommelier-space/pairing'])
     })
 
     it('should handle content without frontmatter', () => {
@@ -151,7 +167,7 @@ Line 3`
         functions: [],
         components: [],
         actions: [],
-        dependencies: [],
+        canDelegateTo: [],
         body: 'Be helpful',
       }
 
@@ -172,7 +188,7 @@ Line 3`
         actions: [
           { id: 'cook_pasta', label: 'Cook Pasta', description: 'Cook pasta', tasklist: 'make_pasta' },
         ],
-        dependencies: ['sommelier-space/pairing'],
+        canDelegateTo: ['sommelier-space/pairing'],
         body: 'You are a chef.',
       }
 
@@ -182,7 +198,7 @@ Line 3`
       expect(result).toContain('components:\n  - PotStatus')
       expect(result).toContain('  - id: cook_pasta')
       expect(result).toContain('    tasklist: make_pasta')
-      expect(result).toContain('dependencies:\n  - sommelier-space/pairing')
+      expect(result).toContain('canDelegateTo:\n  - sommelier-space/pairing')
     })
 
     it('should include defaultAction when set', () => {
@@ -195,7 +211,7 @@ Line 3`
         actions: [
           { id: 'cook_pasta', label: 'Cook', description: 'desc', tasklist: 'make_pasta' },
         ],
-        dependencies: [],
+        canDelegateTo: [],
         body: 'Body',
       }
 
@@ -210,7 +226,7 @@ Line 3`
         functions: [],
         components: [],
         actions: [],
-        dependencies: [],
+        canDelegateTo: [],
         body: 'Body',
       }
 
@@ -226,7 +242,7 @@ Line 3`
         components: ['PotStatus'],
         actions: [{ id: 'cook_pasta', label: 'Cook Pasta', description: 'desc', tasklist: 'make_pasta' }],
         defaultAction: 'cook_pasta',
-        dependencies: ['sommelier-space/pairing'],
+        canDelegateTo: ['sommelier-space/pairing'],
         body: 'You are an expert chef.',
       }
 
@@ -240,7 +256,7 @@ Line 3`
       expect(reparsed.actions[0].id).toBe('cook_pasta')
       expect(reparsed.actions[0].tasklist).toBe('make_pasta')
       expect(reparsed.defaultAction).toBe('cook_pasta')
-      expect(reparsed.dependencies).toEqual(original.dependencies)
+      expect(reparsed.canDelegateTo).toEqual(original.canDelegateTo)
       expect(reparsed.body).toBe(original.body)
     })
   })

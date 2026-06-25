@@ -3,3 +3,4 @@
 export * from './useKnowledgeFile'
 export * from './useKnowledgeDir'
 export * from './useKnowledgeFieldIndex'
+export * from './useKnowledgeDomainIndex'

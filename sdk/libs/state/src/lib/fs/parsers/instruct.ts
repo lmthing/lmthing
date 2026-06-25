@@ -2,7 +2,7 @@
 //
 // Parser/serializer for agents/<slug>/instruct.md — NEW SPEC.
 // Frontmatter fields: title, knowledge[], functions[], components[],
-// actions[]{id,label,description,tasklist}, defaultAction?, dependencies[].
+// actions[]{id,label,description,tasklist}, defaultAction?, canDelegateTo[].
 // Body is the system-prompt markdown.
 //
 // NOTE: We use a custom block-YAML parser rather than the shared frontmatter
@@ -24,11 +24,8 @@ export interface AgentInstruct {
   components: string[]
   actions: AgentAction[]
   defaultAction?: string
-  dependencies: string[]
-  /** Per-component runtime field selections: component name → list of field refs */
-  runtimeFields?: Record<string, string[]>
-  /** Per-component saved form values: component name → key/value map */
-  formValues?: Record<string, Record<string, unknown>>
+  /** space-ref/agent-slug, #action, bare slug, or npm: delegation targets */
+  canDelegateTo: string[]
   /** System-prompt body (everything after the frontmatter block) */
   body: string
 }
@@ -232,26 +229,6 @@ function parseActions(value: unknown): AgentAction[] {
     }))
 }
 
-function parseStringArrayMap(value: unknown): Record<string, string[]> | undefined {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
-  const result: Record<string, string[]> = {}
-  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-    result[k] = toStringArray(v)
-  }
-  return Object.keys(result).length > 0 ? result : undefined
-}
-
-function parseObjectMap(value: unknown): Record<string, Record<string, unknown>> | undefined {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
-  const result: Record<string, Record<string, unknown>> = {}
-  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-    if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
-      result[k] = v as Record<string, unknown>
-    }
-  }
-  return Object.keys(result).length > 0 ? result : undefined
-}
-
 /**
  * Parse the raw content of agents/<slug>/instruct.md into an AgentInstruct.
  */
@@ -264,7 +241,7 @@ export function parseAgentInstruct(content: string): AgentInstruct {
       functions: [],
       components: [],
       actions: [],
-      dependencies: [],
+      canDelegateTo: [],
       body: content.trim(),
     }
   }
@@ -279,9 +256,8 @@ export function parseAgentInstruct(content: string): AgentInstruct {
     components: toStringArray(raw.components),
     actions: parseActions(raw.actions),
     defaultAction: typeof raw.defaultAction === 'string' ? raw.defaultAction : undefined,
-    dependencies: toStringArray(raw.dependencies),
-    runtimeFields: parseStringArrayMap(raw.runtimeFields),
-    formValues: parseObjectMap(raw.formValues),
+    // accept legacy `dependencies` key as a fallback for old instruct.md files
+    canDelegateTo: toStringArray(raw.canDelegateTo ?? raw.dependencies),
     body,
   }
 }
@@ -342,33 +318,12 @@ export function serializeAgentInstruct(instruct: AgentInstruct): string {
     lines.push('actions: []')
   }
 
-  // dependencies
-  if ((instruct.dependencies ?? []).length > 0) {
-    lines.push('dependencies:')
-    for (const d of instruct.dependencies) lines.push(`  - ${d}`)
+  // canDelegateTo
+  if ((instruct.canDelegateTo ?? []).length > 0) {
+    lines.push('canDelegateTo:')
+    for (const d of instruct.canDelegateTo) lines.push(`  - ${d}`)
   } else {
-    lines.push('dependencies: []')
-  }
-
-  // runtimeFields (optional — omit when empty)
-  if (instruct.runtimeFields && Object.keys(instruct.runtimeFields).length > 0) {
-    lines.push('runtimeFields:')
-    for (const [comp, fields] of Object.entries(instruct.runtimeFields)) {
-      lines.push(`  ${comp}:`)
-      for (const f of fields) lines.push(`    - ${f}`)
-    }
-  }
-
-  // formValues (optional — omit when empty)
-  if (instruct.formValues && Object.keys(instruct.formValues).length > 0) {
-    lines.push('formValues:')
-    for (const [comp, vals] of Object.entries(instruct.formValues)) {
-      lines.push(`  ${comp}:`)
-      for (const [k, v] of Object.entries(vals)) {
-        const serialized = typeof v === 'string' ? `"${v.replace(/"/g, '\\"')}"` : String(v)
-        lines.push(`    ${k}: ${serialized}`)
-      }
-    }
+    lines.push('canDelegateTo: []')
   }
 
   lines.push('---')

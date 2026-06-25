@@ -15,6 +15,27 @@ interface FieldIndexPanelProps {
   field: string
 }
 
+/**
+ * `fieldType` is a UI hint for how to render/ask for this field — the value
+ * must name a control available in the catalog (see SPACE-SPEC "Built-in
+ * catalog components", Form section). Field-level `renderAs` was removed —
+ * rendering is inferred from `fieldType`.
+ */
+const FIELD_TYPE_OPTIONS = [
+  { value: '', label: '— none (use type default) —' },
+  { value: 'text', label: 'Text (TextField)' },
+  { value: 'textarea', label: 'Text area (TextArea)' },
+  { value: 'number', label: 'Number (NumberField)' },
+  { value: 'select', label: 'Select (Select)' },
+  { value: 'multiselect', label: 'Multi-select (MultiSelect)' },
+  { value: 'combobox', label: 'Combobox' },
+  { value: 'radio', label: 'Radio group (RadioGroup)' },
+  { value: 'checkbox', label: 'Checkbox' },
+  { value: 'toggle', label: 'Toggle (Switch)' },
+  { value: 'slider', label: 'Slider' },
+  { value: 'date', label: 'Date (DatePicker)' },
+] as const
+
 export function FieldIndexPanel({ domain, field }: FieldIndexPanelProps) {
   const spaceFS = useSpaceFS()
   const indexPath = `knowledge/${domain}/${field}/index.md`
@@ -23,6 +44,7 @@ export function FieldIndexPanel({ domain, field }: FieldIndexPanelProps) {
   const [type, setType] = useUIState<string>('field-index-panel.type', 'string')
   const [variable, setVariable] = useUIState<string>('field-index-panel.variable', '')
   const [defaultVal, setDefaultVal] = useUIState<string>('field-index-panel.default', '')
+  const [fieldType, setFieldType] = useUIState<string>('field-index-panel.field-type', '')
   const [description, setDescription] = useUIState<string>('field-index-panel.description', '')
   const [isDirty, setIsDirty] = useUIState<boolean>('field-index-panel.is-dirty', false)
 
@@ -31,6 +53,7 @@ export function FieldIndexPanel({ domain, field }: FieldIndexPanelProps) {
     setType(parsed.type || 'string')
     setVariable(parsed.variable || '')
     setDefaultVal(parsed.default || '')
+    setFieldType(parsed.fieldType || '')
     setDescription(parsed.description || '')
     setIsDirty(false)
   }, [parsed])
@@ -40,12 +63,17 @@ export function FieldIndexPanel({ domain, field }: FieldIndexPanelProps) {
   const handleSave = useCallback(() => {
     if (!spaceFS) return
     const content = serializeKnowledgeFieldIndex(
-      { type, variable, ...(defaultVal ? { default: defaultVal } : {}) },
+      {
+        type,
+        variable,
+        ...(defaultVal ? { default: defaultVal } : {}),
+        ...(fieldType ? { fieldType } : {}),
+      },
       description
     )
     spaceFS.writeFile(indexPath, content)
     setIsDirty(false)
-  }, [spaceFS, indexPath, type, variable, defaultVal, description])
+  }, [spaceFS, indexPath, type, variable, defaultVal, fieldType, description])
 
   return (
     <div className="dir-metadata">
@@ -92,6 +120,20 @@ export function FieldIndexPanel({ domain, field }: FieldIndexPanelProps) {
             onChange={e => { setDefaultVal(e.target.value); markDirty() }}
             placeholder="option-slug (optional)"
           />
+        </div>
+
+        <div>
+          <Label compact>Field Type</Label>
+          <select
+            className="input"
+            value={fieldType}
+            onChange={e => { setFieldType(e.target.value); markDirty() }}
+          >
+            {FIELD_TYPE_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          <Caption muted>UI hint: how studio/chat should render or ask for this field. Must name a catalog form control.</Caption>
         </div>
 
         <div>

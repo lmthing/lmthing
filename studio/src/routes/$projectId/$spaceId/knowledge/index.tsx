@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import { useToggle, useSpaceFS, useGlob, useUIState, serializeKnowledgeFieldIndex } from '@lmthing/state'
+import { useToggle, useSpaceFS, useGlob, useUIState, useKnowledgeDomainIndex, serializeKnowledgeFieldIndex } from '@lmthing/state'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Heading } from '@lmthing/ui/elements/typography/heading'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
@@ -8,6 +8,7 @@ import { Card, CardBody } from '@lmthing/ui/elements/content/card'
 import { Stack } from '@lmthing/ui/elements/layouts/stack'
 import { Button } from '@lmthing/ui/elements/forms/button'
 import { Input } from '@lmthing/ui/elements/forms/input'
+import { TabBar } from '@lmthing/ui/elements/nav/tab-bar'
 import { Plus, X } from 'lucide-react'
 
 interface FieldEntry {
@@ -35,6 +36,39 @@ function FieldCard({ entry, spacePath }: { entry: FieldEntry; spacePath: string 
         </Stack>
       </CardBody>
     </Card>
+  )
+}
+
+/**
+ * Renders one domain's fields. Domains default to a flat LIST; a domain
+ * whose knowledge/<domain>/index.md sets `renderAs: tabs` instead renders
+ * its fields as tabs (studio-only UI hint — the agent runtime ignores it).
+ */
+function DomainFields({ domain, fields, spacePath }: { domain: string; fields: FieldEntry[]; spacePath: string }) {
+  const domainIndex = useKnowledgeDomainIndex(domain)
+  const renderAs = domainIndex?.renderAs ?? 'list'
+  const [activeField, setActiveField] = useUIState<string>(`knowledge-page.active-field.${domain}`, fields[0]?.field ?? '')
+
+  if (renderAs === 'tabs') {
+    const current = fields.find(f => f.field === activeField) ?? fields[0]
+    return (
+      <Stack gap="sm">
+        <TabBar
+          tabs={fields.map(f => ({ id: f.field, label: f.field }))}
+          activeTab={current?.field}
+          onTabChange={setActiveField}
+        />
+        {current && <FieldCard entry={current} spacePath={spacePath} />}
+      </Stack>
+    )
+  }
+
+  return (
+    <Stack gap="sm">
+      {fields.map(entry => (
+        <FieldCard key={entry.fieldId} entry={entry} spacePath={spacePath} />
+      ))}
+    </Stack>
   )
 }
 
@@ -155,11 +189,7 @@ function KnowledgePage() {
                 <Heading level={4} style={{ marginBottom: '0.5rem', color: 'var(--color-muted-foreground)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   {domain}
                 </Heading>
-                <Stack gap="sm">
-                  {(byDomain.get(domain) || []).map(entry => (
-                    <FieldCard key={entry.fieldId} entry={entry} spacePath={spacePath} />
-                  ))}
-                </Stack>
+                <DomainFields domain={domain} fields={byDomain.get(domain) || []} spacePath={spacePath} />
               </div>
             ))}
           </Stack>

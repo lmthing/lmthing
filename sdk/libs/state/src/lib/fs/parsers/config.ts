@@ -15,9 +15,9 @@ export interface KnowledgeFieldIndex {
   variable: string
   default?: string
   label?: string
+  /** UI hint: how to render/ask for this field (e.g. "select", "text", "toggle"). Inferred-rendering input — no separate renderAs. */
   fieldType?: string
   required?: boolean
-  renderAs?: string
 }
 
 export function parseKnowledgeFieldIndex(content: string): KnowledgeFieldIndex & { description: string } {
@@ -29,7 +29,6 @@ export function parseKnowledgeFieldIndex(content: string): KnowledgeFieldIndex &
     label: typeof raw.label === 'string' ? raw.label : undefined,
     fieldType: typeof raw.fieldType === 'string' ? raw.fieldType : undefined,
     required: typeof raw.required === 'boolean' ? raw.required : undefined,
-    renderAs: typeof raw.renderAs === 'string' ? raw.renderAs : undefined,
     description: body.trim(),
   }
 }
@@ -40,7 +39,6 @@ export function serializeKnowledgeFieldIndex(index: KnowledgeFieldIndex, descrip
   if (index.label !== undefined) lines.push(`label: "${index.label.replace(/"/g, '\\"')}"`)
   if (index.fieldType !== undefined) lines.push(`fieldType: ${index.fieldType}`)
   if (index.required !== undefined) lines.push(`required: ${index.required}`)
-  if (index.renderAs !== undefined) lines.push(`renderAs: ${index.renderAs}`)
   lines.push('---', '', description.trim())
   return lines.join('\n')
 }
@@ -54,7 +52,8 @@ export interface KnowledgeDomainIndex {
   description?: string
   icon?: string
   color?: string
-  renderAs?: string
+  /** UI hint for how studio renders this domain's fields. Default: 'list'. */
+  renderAs?: 'tabs' | 'list'
 }
 
 export function parseKnowledgeDomainIndex(content: string): KnowledgeDomainIndex & { description: string } {
@@ -63,7 +62,7 @@ export function parseKnowledgeDomainIndex(content: string): KnowledgeDomainIndex
     label: typeof raw.label === 'string' ? raw.label : undefined,
     icon: typeof raw.icon === 'string' ? raw.icon : undefined,
     color: typeof raw.color === 'string' ? raw.color : undefined,
-    renderAs: typeof raw.renderAs === 'string' ? raw.renderAs : undefined,
+    renderAs: raw.renderAs === 'tabs' || raw.renderAs === 'list' ? raw.renderAs : undefined,
     description: body.trim(),
   }
 }

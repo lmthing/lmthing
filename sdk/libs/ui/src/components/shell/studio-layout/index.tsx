@@ -62,7 +62,7 @@ export function StudioLayout({ children }: { children?: React.ReactNode }) {
       functions: [],
       components: [],
       actions: [],
-      dependencies: [],
+      canDelegateTo: [],
       body: '',
     })
     spaceFS.writeFile(`agents/${slug}/instruct.md`, content)

@@ -1,6 +1,6 @@
 # Space Specification
 
-A space is a directory that defines one or more agents, the tasklists they can run, the knowledge they can load, the TypeScript functions they can call, and the UI components they can render. The file tree is the source of truth — both Studio (the editor) and the core runtime parse it independently.
+A space is a directory that defines one or more agents, the tasklists they can run, the knowledge they can load, the TypeScript functions they can call, and the UI components they can render. The file tree is the source of truth — Studio (the editor), the CLI/pod server, and the core runtime each parse it independently.
 
 ---
 
@@ -13,6 +13,7 @@ A space is a directory that defines one or more agents, the tasklists they can r
 │       └── instruct.md
 ├── tasklists/
 │   └── <name>/
+│       ├── index.md                  (optional tasklist manifest: input schema + description)
 │       ├── 01-<id>.md
 │       ├── 02-<id>.md
 │       └── ...
@@ -30,15 +31,14 @@ A space is a directory that defines one or more agents, the tasklists they can r
 │   ├── view/
 │   │   └── <Name>.tsx
 │   └── form/
-│       └── <Name>/
-│           ├── web.tsx
-│           └── ink.tsx
+│       └── <Name>.tsx
 └── package.json                      (optional)
 ```
 
 Files excluded from the runnable set (filtered by `isRunnableSpaceFile` on both read and write to/from the pod):
 ```
 agents/<slug>/conversations/          — conversation history
+sessions/                             — persisted sessions
 .env                                  — environment variables
 .env.*                                — any .env variant
 ```
@@ -55,12 +55,9 @@ A single file per agent. YAML frontmatter block followed by the system-prompt bo
 ---
 title: Chef
 knowledge:
-  ////CHANGE: I want to be able to preload specific options on a knowledge field. So `cooking/style/greek` should preload the `cooking/style/greek.md` file. The agent should not have access to the other options in that field. 
-  ////VALIDATE: When `cooking/style` is set in the array this means that in the system prompt the agent will be informed about the field and its options. The agent has to explicitly load specific options using `loadKnowledge([domain, field, option])`.
-  - cooking/style
-  - cooking/ingredients
+  - cooking/style/greek      # option-level preload (see below)
+  - cooking/ingredients      # field-level (agent loads options on demand)
 functions:
-  ////VALIDATE: the functions listed here must be passed by the typescript ast lib to extract their signatures and inject them into the system prompt. The agent must NOT be shown the full source code. 
   - addIngredient
   - putPotOnHeat
   - getPotTemperature
@@ -73,18 +70,8 @@ actions:
     description: Make a full pasta dish from scratch
     tasklist: make_pasta
 defaultAction: cook_pasta
-////CHANGE: dependencies should renamed to canDelegateTo. This is a list of other agents that this agent can delegate to. The agent can have only specific actions that it can trigger on the other agent. The agent should have access to all actions of the other agent only if no specific actions are defined.
-////CHANGE: There can be 4 types of delegates. agents of the same space, agents of other spaces under the same project, agents of other spaces under other user's projects, agents of spaces under the installed npm packages. The agent should be able to delegate to any of these types of agents. The agent should be able to delegate to all actions of the other agent if no specific actions are defined. If specific actions are defined, the agent should only have access to those actions. The agent metadata, desctription, available actions and their metadata should be available to the agent in the system prompt. The agent should be able to delegate to other agents using the `delegate()` function. examples: `'agent-slug'` (same space), `'agent-slug#action'` (same space, specific action),  `'space-name/agent-slug'` (other space in same project),`'space-name/agent-slug#action'` (other space in same project, specific action), `'npm:package/agent-slug'` (npm package), `'npm:package/agent-slug#action'` (npm package, specific action)
-dependencies:
-  - sommelier-space/pairing
-////CHANGE: runtimeFields is not needed anymore. This feature is handled by the knowledge field preloading.
-runtimeFields:
-  SaltinessSlider:
-    - cooking/style/saltiness
-////CHANGE: formValues is not needed anymore. This feature is handled by the knowledge field/option preloading.
-formValues:
-  SaltinessSlider:
-    level: 5
+canDelegateTo:
+  - sommelier-space/pairing#recommend
 ---
 
 You are an expert chef. You help users cook delicious pasta dishes.
@@ -96,14 +83,23 @@ Use the available functions to manage ingredients and cooking equipment.
 | Field | Required | Type | Description |
 |---|---|---|---|
 | `title` | ✅ | string | Display name for the agent |
-| `knowledge` | ✅ | string[] | Refs into `knowledge/` — each entry is `"<domain>/<field>"` |
+| `knowledge` | ✅ | string[] | Refs into `knowledge/` — `"<domain>/<field>"` (field-level) or `"<domain>/<field>/<option>"` (option-level preload) |
 | `functions` | ✅ | string[] | Function names from `functions/` (without `.ts`) |
 | `components` | ✅ | string[] | Component names from `components/view/` or `components/form/` |
 | `actions` | ✅ | ActionDef[] | Actions the agent can run (see below) |
 | `defaultAction` | optional | string | If set, freeform sessions skip the model-driven turn loop and run this action's tasklist deterministically |
-| `dependencies` | ✅ | string[] | Other agents this agent can delegate to (see formats below) |
-| `runtimeFields` | optional | `Record<string, string[]>` | Per-component runtime field selections: `componentName → [fieldRef, ...]`. Studio UI state only — not used by the core runtime |
-| `formValues` | optional | `Record<string, Record<string, unknown>>` | Per-component saved form values: `componentName → { key: value }`. Studio UI state only |
+| `canDelegateTo` | ✅ | string[] | Delegation targets (formats below). Replaces the former `dependencies` field |
+
+> **Compatibility:** the legacy `dependencies:` key is still accepted on read (deprecated, one release) and mapped to `canDelegateTo`. Serializers only write `canDelegateTo`. The former Studio-only `runtimeFields` and `formValues` fields have been **removed** — per-option preloading (knowledge `domain/field/option` refs) replaces them.
+
+### Knowledge refs — field-level vs option-level preload
+
+Each `knowledge` entry is either:
+
+- **Field-level** (`"<domain>/<field>"`, 2 parts) — the agent is informed about the field and its available options in the system prompt; it explicitly loads a specific option at runtime with `loadKnowledge([domain, field, option])`.
+- **Option-level preload** (`"<domain>/<field>/<option>"`, 3 parts) — the resolved option content is injected **directly** into the system prompt at boot. The agent does **not** see the field's other options and does not need to call `loadKnowledge` for it.
+
+In both cases, the referenced domain's `index.md` body (its description) is prepended once to the knowledge section.
 
 ### `actions` item shape
 
@@ -116,29 +112,55 @@ Use the available functions to manage ingredients and cooking equipment.
 }
 ```
 
-### `dependencies` formats
-////CHANGE: supports these`'agent-slug'` (same space), `'agent-slug#action'` (same space, specific action),  `'space-name/agent-slug'` (other space in same project),`'space-name/agent-slug#action'` (other space in same project, specific action), `'npm:package/agent-slug'` (npm package), `'npm:package/agent-slug#action'` (npm package, specific action)
-- `"space-name/agent-slug"` — specific agent in a space
-- `"space-name/*"` — all agents in a space
-- `"@npm-org/package/agent-slug"` — agent in an npm-published space
-- `"@npm-org/package/*"` — all agents in an npm-published space
+### `canDelegateTo` formats
+
+An agent may delegate to other agents. Three scopes are supported (cross-user delegation is **not** supported):
+
+| Ref | Scope | Actions allowed |
+|---|---|---|
+| `agent-slug` | same space | all actions |
+| `agent-slug#action` | same space | only `action` |
+| `space-name/agent-slug` | other space in the same project | all actions |
+| `space-name/agent-slug#action` | other space, same project | only `action` |
+| `npm:package/agent-slug` | agent in an installed npm-published space | all actions |
+| `npm:package/agent-slug#action` | npm package | only `action` |
+| `space-name/*` | other space, same project | all agents, all actions |
+
+Each target resolves to a `ResolvedDep { space, agent, target, allowedActions? }`. When `#action` suffixes restrict a target, `allowedActions` lists the permitted action ids; otherwise it is undefined (all actions allowed). If the same agent is referenced multiple times, the allowances are unioned — and any unrestricted entry makes all actions allowed. The agent calls `delegate(...)` to invoke a target; calling a disallowed action throws an actionable error naming the permitted actions. The delegatable agents' metadata, description, and permitted actions are rendered into the system prompt.
 
 ### Body
 
-Everything after the closing `---` is the system-prompt markdown. Injected verbatim into the LLM system block. No special format — plain markdown prose.
+Everything after the closing `---` is the system-prompt markdown, injected verbatim into the LLM system block.
 
 ### Parser notes
 
 The serializer always writes block-format YAML (multi-line lists, not inline `[a, b, c]`). Both formats are accepted on read. The `slug` is the directory name under `agents/`.
 
 ---
-////CHANGE: tasklists should also have a `tasklists/<name>/index.md`. this file frontmatter can have an optional input schema which is the input that the tasklist expects.  The input schema is used by the agent to know what input to provide to the tasklist and. The file will also have a description of what the tasklist does and when to use it.
 
-## `tasklists/<name>/NN-<id>.md`
+## `tasklists/<name>/`
 
-Each tasklist is a directory containing ordered task files. The `NN-` numeric prefix determines execution order.
+Each tasklist is a directory containing an optional manifest (`index.md`) and ordered task files. The `NN-` numeric prefix on task files determines **file order** (used to sort files and to pick the default goal); actual execution order is determined by the `dependsOn` DAG.
 
-### Filename format
+### `tasklists/<name>/index.md` (optional manifest)
+
+```markdown
+---
+input:
+  dish: string
+  servings: number
+---
+
+Cook a full pasta dish end to end. Use when the user wants a complete recipe executed.
+```
+
+| Field | Required | Type | Description |
+|---|---|---|---|
+| `input` | optional | `Record<string, string>` | Input schema the tasklist expects. The runtime `seed` passed to `tasklist(name, seed)` is validated against it; a missing/mistyped field throws. When absent, any seed is accepted |
+
+The body is a description of what the tasklist does and when to use it. `index.md` is excluded from the ordered task-file set.
+
+### `tasklists/<name>/NN-<id>.md`
 
 ```
 01-boil_water.md
@@ -147,8 +169,7 @@ Each tasklist is a directory containing ordered task files. The `NN-` numeric pr
 ```
 
 - Prefix must be numeric digits followed by `-` or `_` (e.g. `01-`, `002_`)
-- The part after the prefix is the task ID (if no `id` field in frontmatter)
-- Files are sorted numerically before loading — the prefix controls execution order
+- The part after the prefix is the task ID (when no `id` frontmatter field is present)
 - Extension must be `.md`
 
 ### Format
@@ -156,6 +177,8 @@ Each tasklist is a directory containing ordered task files. The `NN-` numeric pr
 ```markdown
 ---
 id: boil_water
+input:
+  pot_size: number
 output:
   water_ready: boolean
   temperature: number
@@ -171,16 +194,20 @@ Use putPotOnHeat and monitor with getPotTemperature.
 ```
 
 ### Frontmatter fields
-////CHANGE: the task frontmatter can have an optional input and output schema which is the information needed to be able to start this task and the information that will be returned after the task is completed. 
+
 | Field | Required | Type | Description |
 |---|---|---|---|
 | `id` | optional | string | Task identifier. If absent, derived from filename by stripping the numeric prefix (`01-boil_water.md` → `boil_water`) |
-| `output` | ✅ | `Record<string, string>` | Map of output field name → type string (`string`, `boolean`, `number`, `array`, `object`) |
+| `input` | optional | `Record<string, string>` | Information needed to start this task (type map, same form as `output`) |
+| `output` | optional | `Record<string, string>` | Information returned when the task completes — field name → type (`string`, `boolean`, `number`, `array`, `object`) |
 | `dependsOn` | optional | string[] | Task IDs from the same tasklist this task depends on (DAG edges) |
 | `optional` | optional | boolean | If true, failure does not abort the tasklist. Defaults to false |
-////CHANGE: if the `goal` field is set to true, and the task has output schema then this output schema will be used as the output schema of the tasklist. If the task has no output schema, then the tasklist will have no output schema. If no task has `goal: true`, then the last task in the tasklist is treated as the goal and its output schema is used as the output schema of the tasklist.
-| `goal` | optional | boolean | Exactly one task per tasklist should have `goal: true`. If none is set, the last task is treated as the goal |
+| `goal` | optional | boolean | **At most one** task may set `goal: true`. If none is set, the **last task** (by file order) is the goal |
 | `condition` | optional | string | DSL expression evaluated at runtime to decide whether to run the task |
+
+### Tasklist output schema
+
+The tasklist's output schema is the **effective goal task's** `output` (the explicit `goal: true` task, or the last task when none is marked). If the goal task declares no `output`, the tasklist has no output schema.
 
 ### Body
 
@@ -199,25 +226,22 @@ Optional domain-level descriptor. If absent the domain still exists (derived fro
 label: "Cooking Styles"
 icon: 🍳
 color: "#f5a623"
-////CHANGE: renderAs is a hint to the UI on how to render the knowledge domain. It can be `tabs` or `list`. If not set, the default is `list`. THIS MUST BE IMPLEMENTED on the studio UI. The agent does not use this information.
 renderAs: tabs
 ---
-////CHANGE: the body of the knowledge domain index.md is passed to the agent in the system prompt.
+
 Description of what this knowledge domain covers and when to use it.
 ```
-
-### Frontmatter fields
 
 | Field | Required | Type | Description |
 |---|---|---|---|
 | `label` | optional | string | Display name |
 | `icon` | optional | string | Emoji or icon identifier |
 | `color` | optional | string | Hex color |
-| `renderAs` | optional | string | UI rendering hint |
+| `renderAs` | optional | `tabs` \| `list` | **Studio UI hint** for rendering the domain's fields. `tabs` renders fields as a tab bar; defaults to `list`. Not used by the core runtime |
 
 ### Body
 
-Plain markdown description of the domain.
+Plain markdown description of the domain. **The body is injected into the agent's system prompt** (once per referenced domain).
 
 ---
 
@@ -230,31 +254,26 @@ Required field manifest. Defines the type and variable name for the field.
 ```markdown
 ---
 type: string
-////VALIDATE: if the `variable` is not set it is inferred from the <field> part of the file path.
 variable: cooking_style
 default: italian
 label: "Cooking Style"
 fieldType: select
 required: true
-renderAs: dropdown
 ---
 
 Controls the overall cooking style applied to all recipes in this session.
 ```
 
-### Frontmatter fields
-
 | Field | Required | Type | Description |
 |---|---|---|---|
 | `type` | ✅ | string | Value type: `string` \| `number` \| `boolean` \| `object` \| `array` |
-| `variable` | ✅ | string | Variable name injected into `loadKnowledge()` results |
+| `variable` | optional | string | Variable name returned by `loadKnowledge()`. **Inferred from the `<field>` directory name when omitted** |
 | `default` | optional | string | Fallback value when no option is selected |
 | `label` | optional | string | Display name |
-////VALIDATE: the `fieldType` is a hint to the UI on how to render the knowledge field in the studio or in the chat. The elements must be available in the catalog of components. The agent can use this information when they want to ask the user based on the knowledge they have access.
-| `fieldType` | optional | string | UI hint: `select`, `text`, `toggle`, etc. |
+| `fieldType` | optional | string | UI hint for how to render/ask for the field: `select`, `text`, `toggle`, etc. The control is drawn from the component catalog. The agent may use this when it asks the user. UI rendering is inferred from `fieldType` |
 | `required` | optional | boolean | Whether a value must be selected |
-////CHANGE: this can be removed since it can be inferred from the `fieldType`.
-| `renderAs` | optional | string | UI rendering hint |
+
+> The former `renderAs` field has been **removed** — rendering is inferred from `fieldType`.
 
 ### Body
 
@@ -273,15 +292,19 @@ The full description / content for this option.
 ```
 
 ### Format (with frontmatter)
-////CHANGE: the frontmatter must have required the fields `description`. The description is used by the agent in the system prompt to know what this option is about. NO arbitrary frontmatter fields are allowed. Other optional fields are `icon`, `color`, `label`. The agent does not use these optional fields. They are used by the studio UI to render the option in a more user friendly way.
+
 ```markdown
 ---
-someKey: someValue
-anotherKey: 42
+description: "Mediterranean cooking with olive oil, lemon, and herbs."
+icon: 🇬🇷
+color: "#2a6fdb"
+label: "Greek"
 ---
 
 Body content for this option.
 ```
+
+When frontmatter is present, `description` is **required**; `icon`, `color`, and `label` are the only other permitted keys. Any other key fails loud (on both space load and `resolveKnowledge`). `description` is used by the agent (system prompt); `icon`/`color`/`label` are used only by the Studio UI.
 
 When frontmatter is present, `resolveKnowledge([domain, field, slug])` returns `{ ...frontmatterData, body }`. When plain markdown, it returns the body string directly.
 
@@ -292,22 +315,27 @@ The slug is the filename without `.md`. `index.md` is reserved for the field man
 ## `functions/<name>.ts`
 
 A TypeScript file exporting a single callable. Injected into the QuickJS VM as a global under the filename stem.
-////CHANGE: the functions must have typescript type annotations for all parameters and return values. These will be extracted from AST and injected into the system prompt. The agent will not see the source code of the function, only its signature. The agent can call the function with the correct parameters and get the return value. The functions can have npm dependencies which will be bundled with esbuild at load time. The function MUST have multiline jsdoc for description of what it does. The description will be injected into the system prompt for the agent to know what the function does.  
+
+Functions **must** have:
+- **TypeScript type annotations** on all parameters and the return value. The signature is extracted from the AST and injected into the system prompt — the agent never sees the function source.
+- A **multi-line JSDoc** comment describing what the function does. The description is injected into the system prompt.
 
 ### Accepted export shapes
 
 ```ts
-// 1. Named default function
+/**
+ * Add an ingredient to the current dish.
+ */
 export default function addIngredient(name: string, amount: number): void {
   // ...
 }
 
-// 2. Default arrow / async
+/** Fetch a recipe by query. */
 export default async function fetchRecipe(query: string): Promise<string> {
   // ...
 }
 
-// 3. Named export (non-default)
+/** Named (non-default) export also works. */
 export function addIngredient(name: string, amount: number): void {
   // ...
 }
@@ -318,7 +346,7 @@ export function addIngredient(name: string, amount: number): void {
 - Extension must be `.ts` or `.tsx` — `.js` files are ignored
 - One file = one function = one global. The binding name in the VM is always the **filename stem**, not the in-file identifier
 - All `export` keywords are stripped before evaluation so the function lands in script scope
-- The function is then bound as `globalThis['<name>'] = <name>`
+- The function is bound as `globalThis['<name>'] = <name>`
 - Available to agent-generated code as a plain global call: `addIngredient("salt", 1)`
 - Only functions listed in the agent's `functions:` frontmatter array are injected for that agent
 
@@ -331,19 +359,27 @@ If the space has a `package.json` with installed `node_modules/`:
 
 ### Injection is best-effort
 
-One broken function logs a warning but does not abort the session. The remaining functions are still injected.
+One broken function logs a warning but does not abort the session. A missing JSDoc or type annotation produces a best-effort warning rather than a hard failure.
 
 ---
 
 ## `components/view/<Name>.tsx`
-////VALIDATE: The view components must ONLY components from the catalog.
-////CHANGE: the view components MUST ALWAYS have a jsdoc comment describing what the component does. The description will be injected into the system prompt for the agent to know what the component does. The view components must always have typescript type annotations for all props. The agent will not see the source code of the component, only its signature. The signature must be extracted from the AST and injected into the system prompt. 
 
 A React/TSX file with a default export. Used with `display()` — the model renders it as output.
+
+Requirements:
+- Extension must be `.tsx` or `.ts`; component name = filename stem (`PotStatus.tsx` → `PotStatus`)
+- Default export required
+- A **JSDoc** comment describing the component (injected into the system prompt)
+- **TypeScript type annotations** on all props — the props signature is extracted from the AST and injected into the system prompt; the agent never sees the source
+- Components may use **only catalog components**, and catalog components **must be imported** (e.g. `import { Stack, Heading } from '@lmthing/ui'`). The catalog import lines are stripped before evaluation and resolve to the injected catalog globals at runtime, while the DTS overlay still types them for typechecking.
 
 ### Format
 
 ```tsx
+import { Stack, Heading, KeyValue } from '@lmthing/ui';
+
+/** Shows the current pot temperature and readiness. */
 export default function PotStatus({ temperature, ready }: { temperature: number; ready: boolean }) {
   return (
     <Stack>
@@ -353,38 +389,21 @@ export default function PotStatus({ temperature, ready }: { temperature: number;
   );
 }
 ```
-////CHANGE: the view components are always tsx
-- Extension must be `.tsx` or `.ts`
-- Component name = filename stem (`PotStatus.tsx` → `PotStatus`)
-- Default export required
-////CHANGE: Catalog components MUST be imported
-- Catalog components (`Stack`, `Heading`, `KeyValue`, etc.) are always in scope — no import needed
 
 ---
-////CHANGE: there should NOT be web and ink components for form components. The form components must be created ONLY using the catalog components either from form or the view catalog.
-////CHANGE: the form components must have typescript type annotations for all props. The agent will not see the source code of the component, only its signature. The signature must be extracted from the AST and injected into the system prompt.
-## `components/form/<Name>/web.tsx` and `components/form/<Name>/ink.tsx`
 
-Two variants of the same form component. Used with `ask()` — the model collects user input.
+## `components/form/<Name>.tsx`
 
-- `web.tsx` — rendered by the browser renderer
-- `ink.tsx` — rendered by the terminal (Ink) renderer
-- Component name = directory name under `form/`
-- At least one of the two files is required; the other becomes an empty string if absent
+A **single** TSX file (default export), used with `ask()` — the model collects user input. The previous `web.tsx` / `ink.tsx` two-file split has been **removed**; a form component is now one file, built only from catalog components, exactly like a view component. Props require TypeScript annotations (AST-extracted into the system prompt) and a JSDoc description.
 
 ### Format
 
 ```tsx
-// web.tsx
+import { Slider } from '@lmthing/ui';
+
+/** Lets the user choose a saltiness level from 0–10. */
 export default function SaltinessSlider({ onSubmit }: { onSubmit: (v: number) => void }) {
   return <Slider name="level" label="Saltiness" min={0} max={10} onSubmit={onSubmit} />;
-}
-```
-
-```tsx
-// ink.tsx
-export default function SaltinessSlider({ onSubmit }: { onSubmit: (v: number) => void }) {
-  return <Stepper name="level" label="Saltiness" min={0} max={10} onSubmit={onSubmit} />;
 }
 ```
 
@@ -392,15 +411,15 @@ export default function SaltinessSlider({ onSubmit }: { onSubmit: (v: number) =>
 
 ## How components are injected at runtime
 
-All components (catalog + space) are injected as stub objects `{ displayName: "Name" }` on `globalThis` before the session starts. A React shim is installed as `React` that implements `createElement` to produce `JSXDescriptor` objects `{ type, props, children }`. The TypeScript compiler (DTS overlay) types every component as a callable that returns `JSXDescriptor`, so the model can write JSX that the host renderer later interprets.
+All components (catalog + space) are injected as stub objects `{ displayName: "Name" }` on `globalThis` before the session starts. A React shim is installed as `React` that implements `createElement` to produce `JSXDescriptor` objects `{ type, props, children }`. The TypeScript compiler (DTS overlay) types every component as a callable that returns `JSXDescriptor`, so the model can write JSX that the host renderer later interprets. Catalog import lines in authored components are stripped at load time (`stripCatalogImports`).
 
 Space component names override catalog names on collision.
 
 ---
 
-## Built-in catalog components (always available, no files needed)
+## Built-in catalog components (always available)
 
-These come from the core runtime and are injected into every VM automatically. The model can use them directly in JSX without any import or space file.
+These come from the core runtime and are injected into every VM automatically. The model imports them from the catalog and uses them in JSX.
 
 **Display (use with `display()`):**
 
@@ -488,7 +507,7 @@ A `<Form>` resolves to an object keyed by field `name`. A bare control resolves 
 
 Standard npm `package.json`. Optional. When present:
 
-- The runtime reads the `name` field as the space's package name (used for dependency resolution with `@scope/package/agent` refs)
+- The runtime reads the `name` field as the space's package name (used for dependency resolution with `npm:package/agent` refs)
 - If `node_modules/` is installed, functions are bundled with esbuild at load time
 - Dependencies declared here can be imported inside `functions/*.ts` files
 
@@ -510,34 +529,35 @@ The `loadKnowledge(path)` global resolves paths lazily at runtime:
 
 | Path | Returns |
 |---|---|
-| `[domain]` | Array of domain slugs |
+| `[domain]` | Field overview for the domain |
 | `[domain, field]` | `{ type, variableName, default, options: [slugs] }` |
-| `[domain, field, option]` | `{ ...frontmatterData, body }` if option has frontmatter, else raw body string |
+| `[domain, field, option]` | `{ ...frontmatterData, body }` if the option has frontmatter, else the raw body string |
+
+Option-level preloads declared in an agent's `knowledge` frontmatter are resolved at boot (`resolvePreloadedKnowledge`) and injected directly into the system prompt.
 
 ---
 
 ## System spaces
 
-Seven baseline spaces are always merged into every user space at runtime. They live in `sdk/org/packages/core/system-spaces/`:
-////CHANGE: remove the solver space and all it's references.
-////CHANGE: the system spaces must be prepended with the project they will be deployed when running `lmthing init`. So rename: system-global, system-engineer, system-architect, system-deep-research, user-memory, user-thing.
+Six baseline spaces are always merged into every user space at runtime. They live in `sdk/org/packages/core/system-spaces/` and are prefixed by intended deployment target (`system-*` for the platform toolkit/agents, `user-*` for the per-user agents materialized on `lmthing init`):
+
 ```
-global        engineer        architect       solver
-deep_research memory          thing
+system-global         system-engineer       system-architect
+system-deep-research  user-memory           user-thing
 ```
 
 Merge rules:
 - System spaces are merged at **low priority** — user space wins on collision
 - **Exception:** a user agent that has no `instructBody` text AND no actions is treated as an empty placeholder and does **not** shadow the system agent
 - **Exception:** a user tasklist with zero files does **not** shadow the system tasklist
-- The `global` space is special — its functions are injected into **every** session regardless of agent. All other system space functions are scoped to their own agents only
+- The `system-global` space is special — its functions are injected into **every** session regardless of agent. All other system-space functions are scoped to their own agents only
 - All system agents are universally delegatable from any user agent
 
 ---
 
 ## Wire shape — Pod REST API
 
-Studio syncs spaces to/from the compute pod via these endpoints:
+Studio syncs spaces to/from the compute pod via these endpoints.
 
 ### `GET /api/projects` → `{ projects: PodProject[] }`
 
@@ -563,18 +583,27 @@ interface PodSpaceMeta {
 }
 ```
 
-### `GET /api/projects/:id/spaces/:spaceId` → `{ files: FileTree }`
+### `GET /api/projects/:id/spaces/:spaceId/files` → `{ files: FileTree }`
 
 ```ts
 type FileTree = Record<string, string>  // relative filePath → raw string content
 ```
 
-Returns the full runnable file set. Studio filters with `isRunnableSpaceFile(path)` before use (drops `conversations/`, `.env*`).
-////CHANGE: add 3 new endpoint for creating, updating and deleting a file on a space.
+Returns the full runnable file set. Studio filters with `isRunnableSpaceFile(path)` before use (drops `conversations/`, `sessions/`, `.env*`).
+
 ### `PUT /api/projects/:id/spaces/:spaceId/files`
 
+Body: `{ files: FileTree }`. **Wipe-and-rewrite** — atomically replaces the entire runnable file set on the pod. Used for all routine edits (Studio's debounced save path).
 
-Body: `{ files: FileTree }`. **Wipe-and-rewrite** — atomically replaces the entire runnable file set on the pod. Used for all routine edits.
+### Per-file endpoints
+
+For targeted single-file operations (alongside the bulk PUT):
+
+- `POST   /api/projects/:id/spaces/:spaceId/files` — body `{ path, content }`; creates a file (201).
+- `PUT    /api/projects/:id/spaces/:spaceId/files/<path>` — body `{ content }`; updates a single file (200).
+- `DELETE /api/projects/:id/spaces/:spaceId/files/<path>` — deletes a single file (204; 404 if missing).
+
+All per-file routes validate the path with `isSafeRelPath` (rejecting traversal/unsafe segments, 400) and honor the `isRunnableSpaceFile` exclusions.
 
 ### `POST /api/projects` → `{ id: string }`
 
@@ -596,30 +625,28 @@ Drafts that are never saved never reach `AppFS` and never reach the pod.
 
 ## Serialization
 
-The canonical serializers (used for export and state lib write-back):
+The canonical serializers used for export and state-lib write-back live in **Studio** (`studio/src/lib/workspaceExport.ts`) and the `@lmthing/state` parsers (`sdk/libs/state/src/lib/fs/parsers/`), not in the core runtime:
 
-**`serializeAgentInstruct(instruct)`** → block YAML frontmatter + body. Arrays always written as block lists (multi-line), not inline.
+- **`serializeAgentInstruct(instruct)`** → block YAML frontmatter (incl. `canDelegateTo`) + body.
+- **`serializeTasklistTask(task)`** / **`serializeTasklistIndex(...)`** → task and tasklist-manifest frontmatter + body.
+- **`serializeKnowledgeFieldIndex(index, description)`** → field manifest YAML + description body.
+- **`serializeKnowledgeDomainIndex(index, description)`** → domain YAML (incl. `renderAs`) + description body.
 
-**`serializeTasklistTask(task)`** → block YAML frontmatter + instruction body.
-
-**`serializeKnowledgeFieldIndex(index, description)`** → YAML frontmatter + description body.
-
-**`serializeKnowledgeDomainIndex(index, description)`** → YAML frontmatter + description body.
-
-All serializers produce `---\n<fields>\n---\n\n<body>` format. The body is trimmed before output.
+All serializers produce `---\n<fields>\n---\n\n<body>` format with the body trimmed. Arrays are written as block lists (multi-line), not inline. The core runtime only reads spaces; it does not own the serializers.
 
 ---
 
 ## Complete agent boot sequence (runtime)
 
-1. `Session.start()` calls `loadSpace(spaceDir)` — scans filesystem, produces `Space`
+1. `Session.start()` calls `loadSpace(spaceDir)` — scans the filesystem, produces a `Space`
 2. System spaces loaded from `defaultSystemSpaceDirs()`, merged in via `mergeSystemInto()`
 3. Agent resolved from `agents/<slug>/instruct.md` — if `agentSlug = 'default'` and no agent literally named `default` exists, the first agent is used
 4. QuickJS VM created
-5. Value-yielding globals injected: `ask`, `display`, `inspect`, `sleep`, `loadKnowledge`, `fork`, `delegate`, `tasklist`, `solve`, `registerSpace`
+5. Value-yielding globals injected: `ask`, `display`, `inspect`, `sleep`, `loadKnowledge`, `fork`, `delegate`, `tasklist`, `registerSpace`
 6. Host tool globals injected: `console.log/warn/error`, `execShell`, `process.env`, `fetch`, `readFileRaw`, `writeFileRaw`, `progress`
-7. Space functions injected (system `global` functions + agent-scoped functions)
-8. JSX runtime injected (`React.createElement` shim + catalog stubs + space component stubs)
-9. System block built: runtime preamble → globals summary → UI catalog → system space tools → agent `instruct.md` body → actions → function signatures → knowledge tree → available components → delegatable dependencies
-10. If agent has `defaultAction`: freeform session delegates deterministically to that action's tasklist instead of running the model-driven turn loop
-11. Otherwise: `runTurnLoop()` — LLM streams TS statements → typecheck → transpile → eval in QuickJS → yields resolved → variables bound on `globalThis` → loop until done or error
+7. Space functions injected (system `system-global` functions + agent-scoped functions)
+8. JSX runtime injected (`React.createElement` shim + catalog stubs + space component stubs; catalog imports stripped)
+9. Option-level knowledge preloads resolved (`resolvePreloadedKnowledge`)
+10. System block built: runtime preamble → globals summary → UI catalog → built-in tools → agent `instruct.md` body → actions → function signatures → knowledge tree (domain descriptions, preloaded options, field options) → available components (AST props + JSDoc) → delegatable agents (metadata + permitted actions)
+11. If the agent has `defaultAction`: freeform session delegates deterministically to that action's tasklist instead of running the model-driven turn loop
+12. Otherwise: `runTurnLoop()` — LLM streams TS statements → typecheck → transpile → eval in QuickJS → yields resolved → variables bound on `globalThis` → loop until done or error

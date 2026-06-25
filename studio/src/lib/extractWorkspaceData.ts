@@ -8,8 +8,7 @@
  *   knowledge/<domain>/<field>/<slug>.md → options
  *   functions/<name>.ts                 → FunctionFile
  *   components/view/<Name>.tsx          → ViewComponent
- *   components/form/<Name>/web.tsx      → FormComponent.web
- *   components/form/<Name>/ink.tsx      → FormComponent.ink
+ *   components/form/<Name>.tsx          → FormComponent (single-file, default export)
  */
 
 import type {
@@ -21,6 +20,7 @@ import type {
   ExtractedDataStructure,
   Task,
   TaskOutput,
+  Tasklist,
   KnowledgeFieldIndex,
   PackageJson,
   EncryptedEnvFile,
@@ -156,27 +156,14 @@ function parseScalar(value: string): unknown {
 // Agent Parsing
 // ============================================================================
 
-function parseStringArrayMap(value: unknown): Record<string, string[]> | undefined {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
-  const result: Record<string, string[]> = {};
-  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-    result[k] = toStringArray(v);
-  }
-  return Object.keys(result).length > 0 ? result : undefined;
-}
-
-function parseObjectMap(value: unknown): Record<string, Record<string, unknown>> | undefined {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
-  const result: Record<string, Record<string, unknown>> = {};
-  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-    if (typeof v === "object" && v !== null && !Array.isArray(v)) {
-      result[k] = v as Record<string, unknown>;
-    }
-  }
-  return Object.keys(result).length > 0 ? result : undefined;
-}
-
 function parseAgentFrontmatter(raw: Record<string, unknown>): AgentFrontmatter {
+  // `canDelegateTo` is the current key; `dependencies` is deprecated (one-release
+  // compat, matching core's load.ts). Only fall back when canDelegateTo is absent —
+  // no merging of both keys.
+  const canDelegateTo = Array.isArray(raw.canDelegateTo)
+    ? toStringArray(raw.canDelegateTo)
+    : toStringArray(raw.dependencies);
+
   return {
     title: typeof raw.title === "string" ? raw.title : "",
     knowledge: toStringArray(raw.knowledge),
@@ -184,9 +171,7 @@ function parseAgentFrontmatter(raw: Record<string, unknown>): AgentFrontmatter {
     components: toStringArray(raw.components),
     actions: parseActions(raw.actions),
     defaultAction: typeof raw.defaultAction === "string" ? raw.defaultAction : undefined,
-    dependencies: toStringArray(raw.dependencies),
-    runtimeFields: parseStringArrayMap(raw.runtimeFields),
-    formValues: parseObjectMap(raw.formValues),
+    canDelegateTo,
   };
 }
 
@@ -222,6 +207,7 @@ function parseTaskFile(filename: string, content: string): Task | null {
   const { frontmatter: raw, body } = parseFrontmatter<Record<string, unknown>>(content);
 
   const output = parseTaskOutput(raw.output);
+  const input = parseObjectStringMap(raw.input);
   const dependsOn = toStringArray(raw.dependsOn);
   const optional = raw.optional === true || raw.optional === "true";
   const goal = raw.goal === true || raw.goal === "true";
@@ -233,12 +219,35 @@ function parseTaskFile(filename: string, content: string): Task | null {
     instruction: body.trim(),
     output,
   };
+  if (input !== undefined) task.input = input;
   if (dependsOn.length > 0) task.dependsOn = dependsOn;
   if (optional) task.optional = optional;
   if (goal) task.goal = goal;
   if (condition !== undefined) task.condition = condition;
 
   return task;
+}
+
+/** Parses a frontmatter object value into a field-name → type-string map (like `output`). */
+function parseObjectStringMap(value: unknown): Record<string, string> | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    out[k] = typeof v === "string" ? v : String(v);
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/**
+ * Parses tasklists/<name>/index.md — the `input` schema (field name → type string)
+ * and the description body. Matches core's `loadTasklists` (load.ts).
+ */
+function parseTasklistIndex(content: string): { description?: string; input?: Record<string, string> } {
+  const { frontmatter: raw, body } = parseFrontmatter<Record<string, unknown>>(content);
+  return {
+    description: body.trim() || undefined,
+    input: parseObjectStringMap(raw.input),
+  };
 }
 
 function parseTaskOutput(value: unknown): TaskOutput {
@@ -266,20 +275,64 @@ function parseKnowledgeFieldIndex(content: string): { index: KnowledgeFieldIndex
       label: typeof raw.label === "string" ? raw.label : undefined,
       fieldType: typeof raw.fieldType === "string" ? raw.fieldType : undefined,
       required: typeof raw.required === "boolean" ? raw.required : undefined,
-      renderAs: typeof raw.renderAs === "string" ? raw.renderAs : undefined,
     },
     description: body.trim(),
   };
 }
 
-function parseKnowledgeDomainIndex(content: string): { label?: string; icon?: string; color?: string; description?: string } {
+function parseKnowledgeDomainIndex(content: string): {
+  label?: string;
+  icon?: string;
+  color?: string;
+  description?: string;
+  renderAs?: 'tabs' | 'list';
+} {
   const { frontmatter: raw, body } = parseFrontmatter<Record<string, unknown>>(content);
   return {
     label: typeof raw.label === "string" ? raw.label : undefined,
     icon: typeof raw.icon === "string" ? raw.icon : undefined,
     color: typeof raw.color === "string" ? raw.color : undefined,
     description: body.trim() || undefined,
+    renderAs: raw.renderAs === "tabs" || raw.renderAs === "list" ? raw.renderAs : undefined,
   };
+}
+
+// ============================================================================
+// Knowledge Option Frontmatter Allow-list
+// ============================================================================
+
+const KNOWLEDGE_OPTION_ALLOWED_KEYS = new Set(["description", "icon", "color", "label"]);
+
+/**
+ * Validates a knowledge option file's frontmatter against the allow-list enforced
+ * by core (sdk/org/packages/core/src/spaces/load.ts `validateKnowledgeOptionFrontmatter`):
+ * absent frontmatter is always valid; present frontmatter requires a non-empty
+ * `description` and allows only `description`/`icon`/`color`/`label`.
+ *
+ * Studio tolerates and round-trips unknown keys rather than throwing — callers may
+ * surface `error` as a friendly message instead of failing extraction outright.
+ */
+export function validateKnowledgeOptionFrontmatter(
+  content: string,
+  source: string,
+): { valid: boolean; error?: string } {
+  const { frontmatter: raw } = parseFrontmatter<Record<string, unknown>>(content);
+  if (Object.keys(raw).length === 0) return { valid: true };
+
+  if (typeof raw.description !== "string" || raw.description.length === 0) {
+    return {
+      valid: false,
+      error: `Knowledge option "${source}" has frontmatter but is missing required key "description"`,
+    };
+  }
+  const unknownKeys = Object.keys(raw).filter((k) => !KNOWLEDGE_OPTION_ALLOWED_KEYS.has(k));
+  if (unknownKeys.length > 0) {
+    return {
+      valid: false,
+      error: `Knowledge option "${source}" has disallowed frontmatter key(s): ${unknownKeys.join(", ")}. Allowed keys: description (required), icon, color, label`,
+    };
+  }
+  return { valid: true };
 }
 
 // ============================================================================
@@ -346,7 +399,7 @@ export function extractWorkspaceData(
         functions: [],
         components: [],
         actions: [],
-        dependencies: [],
+        canDelegateTo: [],
       },
       body: "",
       conversations: [],
@@ -385,11 +438,22 @@ export function extractWorkspaceData(
 
   for (const name of tasklistNames) {
     const tasks: Task[] = [];
+    let description: string | undefined;
+    let input: Record<string, string> | undefined;
 
     for (const filePath of Object.keys(globResult)) {
       const m = filePath.match(/^tasklists\/([^/]+)\/([^/]+\.md)$/i);
       if (!m || m[1] !== name) continue;
       const filename = m[2];
+
+      if (filename.toLowerCase() === "index.md") {
+        // tasklists/<name>/index.md — input schema + description, excluded from tasks
+        const idx = parseTasklistIndex(globResult[filePath]);
+        description = idx.description;
+        input = idx.input;
+        continue;
+      }
+
       if (!/^\d+[_-].+\.md$/i.test(filename)) continue;
 
       const task = parseTaskFile(filename, globResult[filePath]);
@@ -398,7 +462,10 @@ export function extractWorkspaceData(
 
     tasks.sort((a, b) => a.order - b.order);
 
-    result.tasklists[name] = { name, tasks };
+    const tasklist: Tasklist = { name, tasks };
+    if (description !== undefined) tasklist.description = description;
+    if (input !== undefined) tasklist.input = input;
+    result.tasklists[name] = tasklist;
   }
 
   // ── Knowledge ────────────────────────────────────────────────────────────
@@ -430,6 +497,7 @@ export function extractWorkspaceData(
         if (meta.icon !== undefined) domainObj.icon = meta.icon;
         if (meta.color !== undefined) domainObj.color = meta.color;
         if (meta.description !== undefined) domainObj.description = meta.description;
+        if (meta.renderAs !== undefined) domainObj.renderAs = meta.renderAs;
       }
       continue;
     }
@@ -454,7 +522,18 @@ export function extractWorkspaceData(
         fieldObj.description = description;
       } else if (fileName.endsWith(".md")) {
         const slug = fileName.replace(/\.md$/, "");
-        fieldObj.options[slug] = globResult[filePath];
+        const optionContent = globResult[filePath];
+        const { error } = validateKnowledgeOptionFrontmatter(
+          optionContent,
+          `knowledge/${domain}/${field}/${fileName}`,
+        );
+        if (error) {
+          // Tolerate/round-trip the content even when frontmatter is non-conformant —
+          // surface a friendly console warning rather than throwing hard, since studio
+          // must still be able to load and let the user fix the file.
+          console.warn(error);
+        }
+        fieldObj.options[slug] = optionContent;
       }
     }
   }
@@ -476,15 +555,11 @@ export function extractWorkspaceData(
       result.components.view[name] = { name, source: globResult[filePath] };
       continue;
     }
-    // components/form/<Name>/web.tsx or ink.tsx
-    const formMatch = filePath.match(/^components\/form\/([^/]+)\/(web|ink)\.tsx$/);
+    // components/form/<Name>.tsx — single-file form component (default export)
+    const formMatch = filePath.match(/^components\/form\/([^/]+)\.tsx$/);
     if (formMatch) {
       const name = formMatch[1];
-      const variant = formMatch[2] as "web" | "ink";
-      if (!result.components.form[name]) {
-        result.components.form[name] = { name, web: "", ink: "" };
-      }
-      result.components.form[name][variant] = globResult[filePath];
+      result.components.form[name] = { name, source: globResult[filePath] };
     }
   }
 

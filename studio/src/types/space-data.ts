@@ -11,8 +11,7 @@
  *   knowledge/<domain>/<field>/<slug>.md — option files (plain markdown)
  *   functions/<name>.ts                 — single-export TypeScript functions
  *   components/view/<Name>.tsx          — view component (default export)
- *   components/form/<Name>/web.tsx      — form component web variant
- *   components/form/<Name>/ink.tsx      — form component ink (terminal) variant
+ *   components/form/<Name>.tsx          — single-file form component (default export)
  */
 
 // Re-export hierarchy types from lib/state (studio→project rename).
@@ -96,12 +95,8 @@ export interface AgentFrontmatter {
   actions: AgentAction[];
   /** optional: id of the default action */
   defaultAction?: string;
-  /** optional: space-ref/agent-slug dependencies */
-  dependencies: string[];
-  /** optional: per-component runtime field selections — component name → list of field refs */
-  runtimeFields?: Record<string, string[]>;
-  /** optional: per-component saved form values — component name → key/value map */
-  formValues?: Record<string, Record<string, unknown>>;
+  /** optional: space-ref/agent-slug/#action/npm: delegation targets */
+  canDelegateTo: string[];
   [key: string]: unknown;
 }
 
@@ -140,6 +135,8 @@ export interface Task {
   /** Exactly one task per tasklist has goal: true */
   goal?: boolean;
   condition?: string;
+  /** optional: input schema reference — field name → type string */
+  input?: Record<string, string>;
 }
 
 /**
@@ -149,6 +146,10 @@ export interface Tasklist {
   /** The tasklist directory name under tasklists/ */
   name: string;
   tasks: Task[];
+  /** optional: description text (body of tasklists/<name>/index.md) */
+  description?: string;
+  /** optional: input schema — field name → type string (from tasklists/<name>/index.md) */
+  input?: Record<string, string>;
 }
 
 // ============== Knowledge Types ==============
@@ -163,7 +164,6 @@ export interface KnowledgeFieldIndex {
   label?: string;
   fieldType?: string;
   required?: boolean;
-  renderAs?: string;
 }
 
 /**
@@ -194,6 +194,8 @@ export interface KnowledgeDomain {
   color?: string;
   /** optional: description text (body of knowledge/<domain>/index.md) */
   description?: string;
+  /** optional: domain-level UI hint for rendering its fields */
+  renderAs?: 'tabs' | 'list';
 }
 
 // ============== Function / Component Types ==============
@@ -212,8 +214,8 @@ export interface ViewComponent {
 
 export interface FormComponent {
   name: string;
-  web: string;
-  ink: string;
+  /** Raw TSX source (single-file, default export) */
+  source: string;
 }
 
 export interface SpaceComponents {

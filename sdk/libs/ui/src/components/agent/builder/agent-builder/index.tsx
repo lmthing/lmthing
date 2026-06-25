@@ -1,7 +1,7 @@
 /**
  * AgentBuilder - New spec.
  * Edits agents/<slug>/instruct.md ONLY.
- * Fields: title, body, actions[], defaultAction, functions[], components[], knowledge[], dependencies[]
+ * Fields: title, body, actions[], defaultAction, functions[], components[], knowledge[], canDelegateTo[]
  */
 import '@lmthing/css/components/agent/builder/index.css'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
@@ -71,39 +71,39 @@ function MultiSelectField({ label, available, selected, onChange }: {
   )
 }
 
-/** Dependencies editor (add/remove string entries) */
-function DependenciesField({ deps, onChange }: {
-  deps: string[]
+/** Delegation editor (add/remove canDelegateTo string entries) */
+function CanDelegateToField({ refs, onChange }: {
+  refs: string[]
   onChange: (next: string[]) => void
 }) {
-  const [newDep, setNewDep] = useUIState('agent-builder.new-dep', '')
+  const [newRef, setNewRef] = useUIState('agent-builder.new-delegate-ref', '')
 
   const add = () => {
-    const v = newDep.trim()
-    if (v && !deps.includes(v)) { onChange([...deps, v]); setNewDep('') }
+    const v = newRef.trim()
+    if (v && !refs.includes(v)) { onChange([...refs, v]); setNewRef('') }
   }
-  const remove = (dep: string) => onChange(deps.filter(d => d !== dep))
+  const remove = (ref: string) => onChange(refs.filter(d => d !== ref))
 
   return (
     <div className="panel">
-      <div className="panel__header"><Label>Dependencies ({deps.length})</Label></div>
+      <div className="panel__header"><Label>Can Delegate To ({refs.length})</Label></div>
       <div className="panel__body">
         <Stack gap="sm">
-          {deps.map(dep => (
-            <Stack key={dep} row gap="sm" className="agent-builder__dep-row">
-              <Caption className="agent-builder__dep-text">{dep}</Caption>
-              <Button variant="ghost" size="sm" onClick={() => remove(dep)}>✕</Button>
+          {refs.map(ref => (
+            <Stack key={ref} row gap="sm" className="agent-builder__dep-row">
+              <Caption className="agent-builder__dep-text">{ref}</Caption>
+              <Button variant="ghost" size="sm" onClick={() => remove(ref)}>✕</Button>
             </Stack>
           ))}
           <Stack row gap="sm">
             <Input
-              value={newDep}
-              onChange={e => setNewDep(e.target.value)}
+              value={newRef}
+              onChange={e => setNewRef(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add() } }}
-              placeholder="space-ref/agent-slug"
+              placeholder="space-ref/agent-slug or agent-slug#action"
               className="agent-builder__dep-input"
             />
-            <Button variant="ghost" size="sm" onClick={add} disabled={!newDep.trim()}>Add</Button>
+            <Button variant="ghost" size="sm" onClick={add} disabled={!newRef.trim()}>Add</Button>
           </Stack>
         </Stack>
       </div>
@@ -189,12 +189,9 @@ export function AgentBuilder() {
       if (n) names.add(n)
     }
     for (const p of formComponentMatches) {
-      const parts = p.split('/')
-      // components/form/<Name>/web.tsx or components/form/<Name>/ink.tsx
-      if (parts.length >= 3) {
-        const n = parts[parts.length - 2]
-        if (n) names.add(n)
-      }
+      // components/form/<Name>.tsx (single-file)
+      const n = p.split('/').pop()?.replace(/\.tsx$/, '')
+      if (n) names.add(n)
     }
     return Array.from(names).sort()
   }, [viewComponentMatches, formComponentMatches])
@@ -219,7 +216,7 @@ export function AgentBuilder() {
   const [draftFunctions, setDraftFunctions] = useUIState<string[]>('agent-builder.draft-functions', [])
   const [draftComponents, setDraftComponents] = useUIState<string[]>('agent-builder.draft-components', [])
   const [draftKnowledge, setDraftKnowledge] = useUIState<string[]>('agent-builder.draft-knowledge', [])
-  const [draftDeps, setDraftDeps] = useUIState<string[]>('agent-builder.draft-deps', [])
+  const [draftCanDelegateTo, setDraftCanDelegateTo] = useUIState<string[]>('agent-builder.draft-candelegateto', [])
 
   // Sync draft from instruct when agent loads / agentId changes
   const syncKey = `${agentId}::${agent.instruct?.title ?? ''}`
@@ -236,11 +233,11 @@ export function AgentBuilder() {
       setDraftFunctions(inst.functions ?? [])
       setDraftComponents(inst.components ?? [])
       setDraftKnowledge(inst.knowledge ?? [])
-      setDraftDeps(inst.dependencies ?? [])
+      setDraftCanDelegateTo(inst.canDelegateTo ?? [])
     } else if (!agentId) {
       setDraftTitle(''); setDraftBody(''); setDraftActions([])
       setDraftDefaultAction(''); setDraftFunctions([]); setDraftComponents([])
-      setDraftKnowledge([]); setDraftDeps([])
+      setDraftKnowledge([]); setDraftCanDelegateTo([])
     }
   })
 
@@ -258,7 +255,7 @@ export function AgentBuilder() {
       JSON.stringify(draftFunctions) !== JSON.stringify(agent.instruct?.functions ?? []) ||
       JSON.stringify(draftComponents) !== JSON.stringify(agent.instruct?.components ?? []) ||
       JSON.stringify(draftKnowledge) !== JSON.stringify(agent.instruct?.knowledge ?? []) ||
-      JSON.stringify(draftDeps) !== JSON.stringify(agent.instruct?.dependencies ?? [])
+      JSON.stringify(draftCanDelegateTo) !== JSON.stringify(agent.instruct?.canDelegateTo ?? [])
     )
 
   const handleSave = useCallback(() => {
@@ -272,13 +269,13 @@ export function AgentBuilder() {
       functions: draftFunctions,
       components: draftComponents,
       knowledge: draftKnowledge,
-      dependencies: draftDeps,
+      canDelegateTo: draftCanDelegateTo,
     }
     spaceFS.writeFile(P.instruct(id), serializeAgentInstruct(instruct))
     if (!agentId) {
       navigate({ to: `${spacePath}/agent/${encodeURIComponent(id)}` })
     }
-  }, [spaceFS, isValid, agentId, draftTitle, draftBody, draftActions, draftDefaultAction, draftFunctions, draftComponents, draftKnowledge, draftDeps, spacePath, navigate])
+  }, [spaceFS, isValid, agentId, draftTitle, draftBody, draftActions, draftDefaultAction, draftFunctions, draftComponents, draftKnowledge, draftCanDelegateTo, spacePath, navigate])
 
   const handleBack = useCallback(() => {
     navigate({ to: `${spacePath}/agent` })
@@ -395,7 +392,7 @@ export function AgentBuilder() {
               />
 
               {/* Dependencies */}
-              <DependenciesField deps={draftDeps} onChange={setDraftDeps} />
+              <CanDelegateToField refs={draftCanDelegateTo} onChange={setDraftCanDelegateTo} />
 
             </Stack>
           </div>

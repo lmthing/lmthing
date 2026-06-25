@@ -21,7 +21,7 @@ knowledge: []
 functions: []
 components: []
 actions: []
-dependencies: []
+canDelegateTo: []
 ---
 You are a helpful assistant.`
 
@@ -77,7 +77,7 @@ actions:
     description: "Make pasta"
     tasklist: make_pasta
 defaultAction: cook_pasta
-dependencies:
+canDelegateTo:
   - sommelier-space/pairing
 ---
 You are an expert chef.`
@@ -95,7 +95,7 @@ You are an expert chef.`
     expect(result.current?.actions[0].id).toBe('cook_pasta')
     expect(result.current?.actions[0].tasklist).toBe('make_pasta')
     expect(result.current?.defaultAction).toBe('cook_pasta')
-    expect(result.current?.dependencies).toEqual(['sommelier-space/pairing'])
+    expect(result.current?.canDelegateTo).toEqual(['sommelier-space/pairing'])
     expect(result.current?.body).toBe('You are an expert chef.')
   })
 

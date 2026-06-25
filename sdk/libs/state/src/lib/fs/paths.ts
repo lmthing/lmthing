@@ -48,11 +48,7 @@ export const P = {
   // ── Component paths ───────────────────────────────────────────────
   viewComponent: (name: string): string => `components/view/${name}.tsx`,
 
-  formComponentDir: (name: string): string => `components/form/${name}`,
-
-  formComponentWeb: (name: string): string => `components/form/${name}/web.tsx`,
-
-  formComponentInk: (name: string): string => `components/form/${name}/ink.tsx`,
+  formComponent: (name: string): string => `components/form/${name}.tsx`,
 
   // ── Knowledge paths ───────────────────────────────────────────────
   knowledgeDir: (dir: string): string => `knowledge/${dir}`,
@@ -94,7 +90,7 @@ export const P = {
 
     // Component globs
     allViewComponents: 'components/view/*.tsx',
-    allFormComponents: 'components/form/**/*.tsx',
+    allFormComponents: 'components/form/*.tsx',
 
     // Knowledge globs (index.md files identify fields)
     allKnowledgeIndexes: 'knowledge/*/*/index.md',

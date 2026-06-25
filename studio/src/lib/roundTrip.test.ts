@@ -2,11 +2,12 @@
  * Round-trip test: extractWorkspaceData(serialize(space)) === space
  *
  * Uses a representative new-spec space:
- *   - 1 agent with 2 actions, functions, components, dependencies, knowledge refs
- *   - 1 tasklist (make_pasta) with 3 tasks including a DAG dependency and a goal
- *   - 1 knowledge domain with 1 field and 2 options
+ *   - 1 agent with 2 actions, functions, components, canDelegateTo, knowledge refs
+ *   - 1 tasklist (make_pasta) with 3 tasks including a DAG dependency, a goal, an
+ *     index.md input schema + description, and Task.input
+ *   - 1 knowledge domain (with renderAs) with 1 field and 2 options
  *   - 1 function file
- *   - 1 view component + 1 form component
+ *   - 1 view component + 1 single-file form component
  */
 
 import { describe, it, expect } from 'vitest'
@@ -59,7 +60,7 @@ const SAMPLE_SPACE: SpaceData = {
           },
         ],
         defaultAction: 'cook_pasta',
-        dependencies: ['sommelier-space/pairing'],
+        canDelegateTo: ['sommelier-space/pairing'],
       },
       body: 'You are an expert chef. Help users cook delicious meals.',
       conversations: [],
@@ -68,12 +69,15 @@ const SAMPLE_SPACE: SpaceData = {
   tasklists: {
     make_pasta: {
       name: 'make_pasta',
+      description: 'Cook a full pasta dish from scratch.',
+      input: { servings: 'number' },
       tasks: [
         {
           order: 1,
           id: 'boil_water',
           instruction: 'Fill a large pot with water and bring to a boil.',
           output: { water_ready: 'boolean' },
+          input: { servings: 'number' },
         },
         {
           order: 2,
@@ -96,6 +100,7 @@ const SAMPLE_SPACE: SpaceData = {
   knowledge: {
     cuisine: {
       slug: 'cuisine',
+      renderAs: 'tabs',
       fields: {
         style: {
           slug: 'style',
@@ -129,8 +134,7 @@ const SAMPLE_SPACE: SpaceData = {
     form: {
       ConfirmDish: {
         name: 'ConfirmDish',
-        web: 'export default function ConfirmDish() { return <form /> }',
-        ink: 'export default function ConfirmDish() { return <Box /> }',
+        source: 'export default function ConfirmDish() { return <form /> }',
       },
     },
   },
@@ -161,7 +165,7 @@ describe('round-trip: extractWorkspaceData ↔ workspaceToFileTreeJson', () => {
     expect(agent.frontmatter.functions).toEqual(['addIngredient', 'checkPot'])
     expect(agent.frontmatter.components).toEqual(['PotStatus', 'ConfirmDish'])
     expect(agent.frontmatter.defaultAction).toBe('cook_pasta')
-    expect(agent.frontmatter.dependencies).toEqual(['sommelier-space/pairing'])
+    expect(agent.frontmatter.canDelegateTo).toEqual(['sommelier-space/pairing'])
     expect(agent.frontmatter.actions).toHaveLength(2)
     expect(agent.frontmatter.actions[0].id).toBe('cook_pasta')
     expect(agent.frontmatter.actions[0].tasklist).toBe('make_pasta')
@@ -183,12 +187,15 @@ describe('round-trip: extractWorkspaceData ↔ workspaceToFileTreeJson', () => {
     expect(tl).toBeDefined()
     expect(tl.name).toBe('make_pasta')
     expect(tl.tasks).toHaveLength(3)
+    expect(tl.description).toContain('Cook a full pasta dish')
+    expect(tl.input).toEqual({ servings: 'number' })
 
-    // tasks are sorted by order
+    // tasks are sorted by order, and index.md is excluded from the task list
     const [t1, t2, t3] = tl.tasks
     expect(t1.order).toBe(1)
     expect(t1.id).toBe('boil_water')
     expect(t1.output).toEqual({ water_ready: 'boolean' })
+    expect(t1.input).toEqual({ servings: 'number' })
     expect(t1.goal).toBeFalsy()
 
     expect(t2.order).toBe(2)
@@ -214,6 +221,7 @@ describe('round-trip: extractWorkspaceData ↔ workspaceToFileTreeJson', () => {
 
     expect(domain).toBeDefined()
     expect(domain.slug).toBe('cuisine')
+    expect(domain.renderAs).toBe('tabs')
 
     const field = domain.fields['style']
     expect(field).toBeDefined()
@@ -246,10 +254,31 @@ describe('round-trip: extractWorkspaceData ↔ workspaceToFileTreeJson', () => {
     expect(roundTripped.components.view['PotStatus']).toBeDefined()
     expect(roundTripped.components.view['PotStatus'].source).toContain('PotStatus')
 
-    // form component
+    // form component (single-file)
     expect(roundTripped.components.form['ConfirmDish']).toBeDefined()
-    expect(roundTripped.components.form['ConfirmDish'].web).toContain('form')
-    expect(roundTripped.components.form['ConfirmDish'].ink).toContain('Box')
+    expect(roundTripped.components.form['ConfirmDish'].source).toContain('form')
+    expect(roundTripped.components.form['ConfirmDish']).not.toHaveProperty('web')
+    expect(roundTripped.components.form['ConfirmDish']).not.toHaveProperty('ink')
+  })
+
+  it('does not emit runtimeFields, formValues, or field-level renderAs', () => {
+    const tree = workspaceToFileTreeJson(SAMPLE_SPACE)
+    const flat = flattenTree(tree)
+    const instructPath = Object.keys(flat).find((p) => p.endsWith('agents/chef/instruct.md'))
+    expect(instructPath).toBeDefined()
+    const instructContent = flat[instructPath!]
+    expect(instructContent).not.toContain('runtimeFields')
+    expect(instructContent).not.toContain('formValues')
+
+    const fieldIndexPath = Object.keys(flat).find((p) =>
+      p.endsWith('knowledge/cuisine/style/index.md'),
+    )
+    expect(fieldIndexPath).toBeDefined()
+    expect(flat[fieldIndexPath!]).not.toContain('renderAs')
+
+    const domainIndexPath = Object.keys(flat).find((p) => p.endsWith('knowledge/cuisine/index.md'))
+    expect(domainIndexPath).toBeDefined()
+    expect(flat[domainIndexPath!]).toContain('renderAs: tabs')
   })
 
   it('ensureGoalTask: flags last task as goal if none set', () => {

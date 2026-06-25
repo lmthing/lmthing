@@ -28,7 +28,6 @@ describe('config parser', () => {
           'label: "Grade Level"',
           'fieldType: select',
           'required: true',
-          'renderAs: section',
           '---',
           'Choose a grade level.',
         ].join('\n')
@@ -39,7 +38,6 @@ describe('config parser', () => {
         expect(result.label).toBe('Grade Level')
         expect(result.fieldType).toBe('select')
         expect(result.required).toBe(true)
-        expect(result.renderAs).toBe('section')
         expect(result.description).toBe('Choose a grade level.')
       })
 
@@ -49,7 +47,6 @@ describe('config parser', () => {
         expect(result.label).toBeUndefined()
         expect(result.fieldType).toBeUndefined()
         expect(result.required).toBeUndefined()
-        expect(result.renderAs).toBeUndefined()
       })
 
       it('should round-trip correctly', () => {
@@ -60,7 +57,6 @@ describe('config parser', () => {
           label: 'Topic',
           fieldType: 'select',
           required: true,
-          renderAs: 'section',
         }
         const serialized = serializeKnowledgeFieldIndex(original, 'Pick a topic.')
         const parsed = parseKnowledgeFieldIndex(serialized)
@@ -70,8 +66,15 @@ describe('config parser', () => {
         expect(parsed.label).toBe('Topic')
         expect(parsed.fieldType).toBe('select')
         expect(parsed.required).toBe(true)
-        expect(parsed.renderAs).toBe('section')
         expect(parsed.description).toBe('Pick a topic.')
+      })
+
+      it('should not emit a renderAs key (removed — inferred from fieldType)', () => {
+        const result = serializeKnowledgeFieldIndex(
+          { type: 'string', variable: 'x', fieldType: 'select' },
+          '',
+        )
+        expect(result).not.toContain('renderAs')
       })
     })
 
@@ -88,17 +91,16 @@ describe('config parser', () => {
         expect(result).not.toContain('label:')
         expect(result).not.toContain('fieldType:')
         expect(result).not.toContain('required:')
-        expect(result).not.toContain('renderAs:')
       })
 
       it('should include present optional fields', () => {
         const result = serializeKnowledgeFieldIndex(
-          { type: 'string', variable: 'x', label: 'My Label', required: false, renderAs: 'section' },
+          { type: 'string', variable: 'x', label: 'My Label', required: false, fieldType: 'select' },
           '',
         )
         expect(result).toContain('label: "My Label"')
         expect(result).toContain('required: false')
-        expect(result).toContain('renderAs: section')
+        expect(result).toContain('fieldType: select')
       })
     })
   })
@@ -111,7 +113,7 @@ describe('config parser', () => {
           'label: "Curriculum"',
           'icon: 📚',
           'color: "#4A90E2"',
-          'renderAs: section',
+          'renderAs: tabs',
           '---',
           'Core curriculum knowledge.',
         ].join('\n')
@@ -119,8 +121,20 @@ describe('config parser', () => {
         expect(result.label).toBe('Curriculum')
         expect(result.icon).toBe('📚')
         expect(result.color).toBe('#4A90E2')
-        expect(result.renderAs).toBe('section')
+        expect(result.renderAs).toBe('tabs')
         expect(result.description).toBe('Core curriculum knowledge.')
+      })
+
+      it('should default renderAs to undefined (studio treats as list) when missing', () => {
+        const content = `---\nlabel: "X"\n---\n`
+        const result = parseKnowledgeDomainIndex(content)
+        expect(result.renderAs).toBeUndefined()
+      })
+
+      it('should ignore an invalid renderAs value', () => {
+        const content = `---\nrenderAs: section\n---\n`
+        const result = parseKnowledgeDomainIndex(content)
+        expect(result.renderAs).toBeUndefined()
       })
 
       it('should handle missing fields', () => {
@@ -133,13 +147,15 @@ describe('config parser', () => {
       })
 
       it('should round-trip correctly', () => {
-        const original = { label: 'Science', icon: '🔬', color: '#00FF00', renderAs: 'section' }
+        const original: { label: string; icon: string; color: string; renderAs: 'tabs' | 'list' } = {
+          label: 'Science', icon: '🔬', color: '#00FF00', renderAs: 'tabs',
+        }
         const serialized = serializeKnowledgeDomainIndex(original, 'Science domain.')
         const parsed = parseKnowledgeDomainIndex(serialized)
         expect(parsed.label).toBe('Science')
         expect(parsed.icon).toBe('🔬')
         expect(parsed.color).toBe('#00FF00')
-        expect(parsed.renderAs).toBe('section')
+        expect(parsed.renderAs).toBe('tabs')
         expect(parsed.description).toBe('Science domain.')
       })
     })
@@ -161,6 +177,12 @@ describe('config parser', () => {
         expect(result).not.toContain('label:')
         expect(result).not.toContain('icon:')
         expect(result).not.toContain('color:')
+        expect(result).not.toContain('renderAs:')
+      })
+
+      it('should serialize renderAs when set to list', () => {
+        const result = serializeKnowledgeDomainIndex({ renderAs: 'list' }, '')
+        expect(result).toContain('renderAs: list')
       })
     })
   })

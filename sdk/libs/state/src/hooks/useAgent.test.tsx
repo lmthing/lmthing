@@ -28,7 +28,7 @@ actions:
     label: "Cook Pasta"
     description: "Cook pasta"
     tasklist: make_pasta
-dependencies: []
+canDelegateTo: []
 ---
 Be helpful`
 

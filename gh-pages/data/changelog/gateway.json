@@ -1,0 +1,432 @@
+[
+  {
+    "hash": "8e0bd9ad",
+    "full_hash": "8e0bd9adfb6622c654db28af96d0a0214e7a987f",
+    "type": "feat",
+    "scope": "",
+    "subject": "rich real-time status dashboard with cluster API",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-25 10:34:32 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/8e0bd9adfb6622c654db28af96d0a0214e7a987f"
+  },
+  {
+    "hash": "48c93caa",
+    "full_hash": "48c93caa6c8da25234e6ec0273bd0d33391dd55e",
+    "type": "feat",
+    "scope": "",
+    "subject": "compute upgrade flow \u2014 version tracking + chat upgrade banner",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-24 16:28:06 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/48c93caa6c8da25234e6ec0273bd0d33391dd55e"
+  },
+  {
+    "hash": "bc8f5646",
+    "full_hash": "bc8f5646e6da64046876f7815616a0f308ba3337",
+    "type": "ci",
+    "scope": "",
+    "subject": "parallelize builds, add registry cache, bump replicas",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-24 13:34:46 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/bc8f5646e6da64046876f7815616a0f308ba3337"
+  },
+  {
+    "hash": "53d45259",
+    "full_hash": "53d45259b3f9977160e027991790da71f48f2a86",
+    "type": "fix",
+    "scope": "gateway",
+    "subject": "raise free-tier maxSessions to 3; always-pull compute image",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-24 06:16:59 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/53d45259b3f9977160e027991790da71f48f2a86"
+  },
+  {
+    "hash": "c5827aa9",
+    "full_hash": "c5827aa928a3701430b3f30179c4795391541ab1",
+    "type": "fix",
+    "scope": "gateway",
+    "subject": "provision LiteLLM user + unique key alias for pod env injection",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-23 23:28:16 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/c5827aa928a3701430b3f30179c4795391541ab1"
+  },
+  {
+    "hash": "e48b5ec8",
+    "full_hash": "e48b5ec8b5067c6f58a8d93ce6d21039a2fb11d9",
+    "type": "fix",
+    "scope": "vite",
+    "subject": "alias @lmthing/agent-ui to source so SPA builds resolve it",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-23 23:17:00 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/e48b5ec8b5067c6f58a8d93ce6d21039a2fb11d9"
+  },
+  {
+    "hash": "ea943e78",
+    "full_hash": "ea943e787de8c30b3b435666f77c43da87d84c25",
+    "type": "feat",
+    "scope": "",
+    "subject": "complete pod model/credits + persistence + SPA image fixes",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-23 23:12:57 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/ea943e787de8c30b3b435666f77c43da87d84c25"
+  },
+  {
+    "hash": "4a6c8143",
+    "full_hash": "4a6c814398831ee62caee84271cca2be179fd200",
+    "type": "ci",
+    "scope": "",
+    "subject": "rebuild gateway to deploy /api/compute/ensure",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-23 21:48:19 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/4a6c814398831ee62caee84271cca2be179fd200"
+  },
+  {
+    "hash": "624b97b0",
+    "full_hash": "624b97b019ccd90f46ee49ef99d580fcd33ff78a",
+    "type": "feat",
+    "scope": "",
+    "subject": "add local compute environment setup and enhance agent session management",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-19 23:27:22 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/624b97b019ccd90f46ee49ef99d580fcd33ff78a"
+  },
+  {
+    "hash": "8c79138f",
+    "full_hash": "8c79138f5d662b0fc7e275be6bc8ef0480b2a722",
+    "type": "feat",
+    "scope": "",
+    "subject": "enhance local development setup with compute server support and demo user functionality",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-16 10:43:44 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/8c79138f5d662b0fc7e275be6bc8ef0480b2a722"
+  },
+  {
+    "hash": "8919df26",
+    "full_hash": "8919df26cf53e639654ee3435daadb6741f6ba65",
+    "type": "feat",
+    "scope": "",
+    "subject": "enhance local development setup with minikube support and API gateway integration",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-16 10:43:32 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/8919df26cf53e639654ee3435daadb6741f6ba65"
+  },
+  {
+    "hash": "2bdb3492",
+    "full_hash": "2bdb349213e27be7fe2be2c11602f68718fedb33",
+    "type": "feat",
+    "scope": "",
+    "subject": "enhance compute pod management with tier-based configurations",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-15 17:52:45 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/2bdb349213e27be7fe2be2c11602f68718fedb33"
+  },
+  {
+    "hash": "02a73cc7",
+    "full_hash": "02a73cc7b1971079236d31264a186616d44e4253",
+    "type": "fix",
+    "scope": "",
+    "subject": "log actual error in sso/create for debugging",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-05-01 12:21:39 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/02a73cc7b1971079236d31264a186616d44e4253"
+  },
+  {
+    "hash": "a67e58bd",
+    "full_hash": "a67e58bde41465bebf0ed4b6b1685466d7fa22bb",
+    "type": "fix",
+    "scope": "",
+    "subject": "resolve TypeScript build errors in gateway JWT implementation",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-05-01 12:06:51 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/a67e58bde41465bebf0ed4b6b1685466d7fa22bb"
+  },
+  {
+    "hash": "26e82587",
+    "full_hash": "26e82587cf26f8b15e2d4d6bef5171e9185edac3",
+    "type": "feat",
+    "scope": "",
+    "subject": "replace Zitadel token exchange with gateway-issued JWTs",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-05-01 12:04:10 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/26e82587cf26f8b15e2d4d6bef5171e9185edac3"
+  },
+  {
+    "hash": "d75e8d34",
+    "full_hash": "d75e8d34de76fff1fe2673c98d5beb019c12c4b4",
+    "type": "fix",
+    "scope": "",
+    "subject": "use Basic auth for token exchange, not Bearer PAT",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-05-01 11:48:57 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/d75e8d34de76fff1fe2673c98d5beb019c12c4b4"
+  },
+  {
+    "hash": "65db298d",
+    "full_hash": "65db298de53fa13acc58b64fe05bb237a380471a",
+    "type": "debug",
+    "scope": "",
+    "subject": "log introspection response",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-05-01 11:39:25 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/65db298de53fa13acc58b64fe05bb237a380471a"
+  },
+  {
+    "hash": "e2edc9e0",
+    "full_hash": "e2edc9e02a8ec51b5edb56673ebfe5efbacb8704",
+    "type": "fix",
+    "scope": "",
+    "subject": "replace JWT verification with Zitadel introspection endpoint",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-05-01 11:36:38 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/e2edc9e02a8ec51b5edb56673ebfe5efbacb8704"
+  },
+  {
+    "hash": "9c5798cb",
+    "full_hash": "9c5798cb9db9454a16bd5d134d0ba76985f56e55",
+    "type": "debug",
+    "scope": "",
+    "subject": "log JWT verify errors and claim details in auth middleware",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-05-01 11:34:01 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/9c5798cb9db9454a16bd5d134d0ba76985f56e55"
+  },
+  {
+    "hash": "7213f22c",
+    "full_hash": "7213f22c35140bf5d9bad942073cd56a5e1e17a7",
+    "type": "fix",
+    "scope": "",
+    "subject": "request JWT access token with audience scope in token exchange",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-05-01 11:31:55 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/7213f22c35140bf5d9bad942073cd56a5e1e17a7"
+  },
+  {
+    "hash": "b035163d",
+    "full_hash": "b035163d8526205acdd976cc55e53f2cbbf1aa30",
+    "type": "fix",
+    "scope": "",
+    "subject": "add client_id and client_secret to RFC 8693 token exchange request",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-05-01 11:20:25 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/b035163d8526205acdd976cc55e53f2cbbf1aa30"
+  },
+  {
+    "hash": "66d491a9",
+    "full_hash": "66d491a9b495f1764c16a0aa1e357139f5bbd182",
+    "type": "fix",
+    "scope": "",
+    "subject": "correct Zitadel v2 user creation field names and empty email handling",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-05-01 11:18:17 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/66d491a9b495f1764c16a0aa1e357139f5bbd182"
+  },
+  {
+    "hash": "dd23dd4a",
+    "full_hash": "dd23dd4a72c43a62528c8762fb90e91d4d439552",
+    "type": "debug",
+    "scope": "",
+    "subject": "log IDP intent response and user creation errors",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-05-01 11:15:14 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/dd23dd4a72c43a62528c8762fb90e91d4d439552"
+  },
+  {
+    "hash": "907caa04",
+    "full_hash": "907caa04ff74a0371cc146ce1a920b5a4750a501",
+    "type": "fix",
+    "scope": "",
+    "subject": "use correct Zitadel v2 IDP intent retrieve endpoint path",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-05-01 11:11:49 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/907caa04ff74a0371cc146ce1a920b5a4750a501"
+  },
+  {
+    "hash": "7e1ce669",
+    "full_hash": "7e1ce669caeac71fe1bc1bd849df27e4eee7e6c5",
+    "type": "ci",
+    "scope": "",
+    "subject": "trigger gateway rebuild",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-05-01 10:57:39 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/7e1ce669caeac71fe1bc1bd849df27e4eee7e6c5"
+  },
+  {
+    "hash": "6b3f77f1",
+    "full_hash": "6b3f77f10ccc2908f9ea5250f4405af78af93aae",
+    "type": "fix",
+    "scope": "",
+    "subject": "use env var for GitHub IDP ID (instance-level IDP not queryable via management API)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-05-01 10:51:48 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/6b3f77f10ccc2908f9ea5250f4405af78af93aae"
+  },
+  {
+    "hash": "64700ae2",
+    "full_hash": "64700ae215ce8d6cae27d3c59a510cb93b9a1d1b",
+    "type": "fix",
+    "scope": "",
+    "subject": "replace service account client_credentials with Personal Access Token",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-04-30 12:17:55 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/64700ae215ce8d6cae27d3c59a510cb93b9a1d1b"
+  },
+  {
+    "hash": "114d0ab6",
+    "full_hash": "114d0ab62c620d925636d8ddcbab954ef9fbb3c7",
+    "type": "feat",
+    "scope": "",
+    "subject": "auto-discover GitHub IDP ID from Zitadel instead of requiring manual config",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-04-30 12:07:27 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/114d0ab62c620d925636d8ddcbab954ef9fbb3c7"
+  },
+  {
+    "hash": "671e1927",
+    "full_hash": "671e192714cd10aaa31b22b4491c56132e77899b",
+    "type": "feat",
+    "scope": "",
+    "subject": "replace OIDC flow with Zitadel IDP Intent API for direct GitHub login",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-04-30 11:53:30 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/671e192714cd10aaa31b22b4491c56132e77899b"
+  },
+  {
+    "hash": "dcb2e5e2",
+    "full_hash": "dcb2e5e2e602b588813f9058e9341d3eb054eb82",
+    "type": "fix",
+    "scope": "",
+    "subject": "use id_token (not access_token) to extract user claims after OAuth exchange",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-04-29 16:16:23 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/dcb2e5e2e602b588813f9058e9341d3eb054eb82"
+  },
+  {
+    "hash": "1d7bbe94",
+    "full_hash": "1d7bbe94747eec109075de60deb870310723b3b7",
+    "type": "fix",
+    "scope": "",
+    "subject": "use external Zitadel URL so Host header resolves correctly",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-04-29 16:14:44 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/1d7bbe94747eec109075de60deb870310723b3b7"
+  },
+  {
+    "hash": "614f4211",
+    "full_hash": "614f421166ab0657706d41a4bfacdc96a1b0c454",
+    "type": "fix",
+    "scope": "",
+    "subject": "add Host header to internal Zitadel calls for instance resolution",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-04-29 16:07:52 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/614f421166ab0657706d41a4bfacdc96a1b0c454"
+  },
+  {
+    "hash": "948193ea",
+    "full_hash": "948193ea2a5932a2b0f4f042ba91abd8e522283c",
+    "type": "fix",
+    "scope": "",
+    "subject": "use Basic Auth for Zitadel token endpoint, improve error logging",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-04-29 16:00:43 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/948193ea2a5932a2b0f4f042ba91abd8e522283c"
+  },
+  {
+    "hash": "df968dce",
+    "full_hash": "df968dceb7381f63e1fdca3e43358249a4b14ef9",
+    "type": "feat",
+    "scope": "",
+    "subject": "integrate Zitadel for authentication and user management",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-04-22 17:28:10 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/df968dceb7381f63e1fdca3e43358249a4b14ef9"
+  },
+  {
+    "hash": "ddb2d77f",
+    "full_hash": "ddb2d77f4cb08ec194bac7f9abe2b04c75ad9653",
+    "type": "fix",
+    "scope": "",
+    "subject": "ensure implicit flow type is set for Supabase client",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-03-28 14:39:37 +0200",
+    "url": "https://github.com/lmthing/lmthing/commit/ddb2d77f4cb08ec194bac7f9abe2b04c75ad9653"
+  },
+  {
+    "hash": "dd70e76f",
+    "full_hash": "dd70e76ff34f1da271fb2c9553f73a26d58037df",
+    "type": "feat",
+    "scope": "",
+    "subject": "migrate images to Azure Container Registry with GitHub Actions CI",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-03-28 12:06:28 +0200",
+    "url": "https://github.com/lmthing/lmthing/commit/dd70e76ff34f1da271fb2c9553f73a26d58037df"
+  },
+  {
+    "hash": "15673412",
+    "full_hash": "1567341286e5e9e336360249d9ffb49e9822bd50",
+    "type": "feat",
+    "scope": "",
+    "subject": "add endpoints to list and set environment variables for user pods",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-03-27 17:23:46 +0200",
+    "url": "https://github.com/lmthing/lmthing/commit/1567341286e5e9e336360249d9ffb49e9822bd50"
+  },
+  {
+    "hash": "c2e009cd",
+    "full_hash": "c2e009cd46fe5393aa7800f8ef807c5aca272a58",
+    "type": "fix",
+    "scope": "",
+    "subject": "handle errors during Stripe checkout session creation",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-03-25 08:15:54 +0200",
+    "url": "https://github.com/lmthing/lmthing/commit/c2e009cd46fe5393aa7800f8ef807c5aca272a58"
+  },
+  {
+    "hash": "973cb369",
+    "full_hash": "973cb369e2dcd94d066f9ca6c2c8500aab90f697",
+    "type": "chore",
+    "scope": "",
+    "subject": "Refactor deployment infrastructure from Fly.io to K8s, updating documentation and code references throughout the project. Removed tsconfig.json for server, adjusted subscription tier descriptions, and modified deployment flows to reflect K8s pod usage. Updated README and plan files to align with new architecture. Ensure all references to Fly.io are replaced with K8s terminology, including in logs, error messages, and user instructions.",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-03-24 15:24:06 +0200",
+    "url": "https://github.com/lmthing/lmthing/commit/973cb369e2dcd94d066f9ca6c2c8500aab90f697"
+  },
+  {
+    "hash": "63ab5fcf",
+    "full_hash": "63ab5fcff723c65f7f5ed240e19ae36edeb34edb",
+    "type": "feat",
+    "scope": "",
+    "subject": "add Starter tier with pricing and documentation updates across the monorepo",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-03-23 20:30:17 +0200",
+    "url": "https://github.com/lmthing/lmthing/commit/63ab5fcff723c65f7f5ed240e19ae36edeb34edb"
+  },
+  {
+    "hash": "786f6c67",
+    "full_hash": "786f6c670c6698d30603b346b2f1bb154ced22b0",
+    "type": "feat",
+    "scope": "billing",
+    "subject": "implement ensureStripeCustomer function to manage Stripe customer creation and metadata",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-03-23 19:35:41 +0200",
+    "url": "https://github.com/lmthing/lmthing/commit/786f6c670c6698d30603b346b2f1bb154ced22b0"
+  },
+  {
+    "hash": "0759d665",
+    "full_hash": "0759d66529dbb3a22cabcdf0941376e4819c81ff",
+    "type": "refactor",
+    "scope": "",
+    "subject": "update Stripe Checkout session handling and remove unused success/cancel routes",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-03-23 19:11:11 +0200",
+    "url": "https://github.com/lmthing/lmthing/commit/0759d66529dbb3a22cabcdf0941376e4819c81ff"
+  },
+  {
+    "hash": "dcf0199a",
+    "full_hash": "dcf0199ac0278d92ad72081cb09a3cb034544108",
+    "type": "chore",
+    "scope": "",
+    "subject": "remove unused Supabase functions and migrations",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-03-22 20:03:36 +0200",
+    "url": "https://github.com/lmthing/lmthing/commit/dcf0199ac0278d92ad72081cb09a3cb034544108"
+  }
+]

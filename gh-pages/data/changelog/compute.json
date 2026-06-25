@@ -1,0 +1,192 @@
+[
+  {
+    "hash": "8fec9e4c",
+    "full_hash": "8fec9e4ca10d7bb4e0854c15a8b03555c5b9cd1b",
+    "type": "ci",
+    "scope": "",
+    "subject": "retrigger compute image build for restart API + upgrade flow",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-24 16:44:49 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/8fec9e4ca10d7bb4e0854c15a8b03555c5b9cd1b"
+  },
+  {
+    "hash": "a156085d",
+    "full_hash": "a156085d71b9252e32300029e9ad4fc5c13df72b",
+    "type": "feat",
+    "scope": "",
+    "subject": "refactor terminal session handling to use WebSocket transport and update Dockerfile to use Node.js",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-24 15:24:35 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/a156085d71b9252e32300029e9ad4fc5c13df72b"
+  },
+  {
+    "hash": "41727e6e",
+    "full_hash": "41727e6e6e80aad2e9f4ccddd4ff93620a4bebd7",
+    "type": "ci",
+    "scope": "",
+    "subject": "rebuild compute \u2014 fs routes, auth.ok, terminal command passthrough",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-24 14:57:56 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/41727e6e6e80aad2e9f4ccddd4ff93620a4bebd7"
+  },
+  {
+    "hash": "47a417d7",
+    "full_hash": "47a417d7dbd22bb607fefb7d81ae4e69cc93620e",
+    "type": "ci",
+    "scope": "",
+    "subject": "rebuild compute for serve-path runtime init",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-24 07:00:46 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/47a417d7dbd22bb607fefb7d81ae4e69cc93620e"
+  },
+  {
+    "hash": "2592d1ea",
+    "full_hash": "2592d1eaec8c33df6300c9c2224d6b0aa108f42a",
+    "type": "ci",
+    "scope": "",
+    "subject": "rebuild compute for system-spaces co-location + LRU eviction",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-24 06:56:25 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/2592d1eaec8c33df6300c9c2224d6b0aa108f42a"
+  },
+  {
+    "hash": "ac28915f",
+    "full_hash": "ac28915f9ea7e6c6b343c38e1fdc0304493a68ff",
+    "type": "fix",
+    "scope": "compute",
+    "subject": "ship system-spaces with the cli bundle; docs + issues",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-24 06:50:19 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/ac28915f9ea7e6c6b343c38e1fdc0304493a68ff"
+  },
+  {
+    "hash": "cd9fad63",
+    "full_hash": "cd9fad63d2349b251f61900ace7f3589aab4122c",
+    "type": "ci",
+    "scope": "",
+    "subject": "retrigger compute + SPA builds with synced lockfile",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-23 23:58:03 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/cd9fad63d2349b251f61900ace7f3589aab4122c"
+  },
+  {
+    "hash": "0b2e78bd",
+    "full_hash": "0b2e78bd786317b75488bd6a993625ed572a0ad5",
+    "type": "ci",
+    "scope": "",
+    "subject": "rebuild compute for lazy model resolution",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-23 23:54:18 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/0b2e78bd786317b75488bd6a993625ed572a0ad5"
+  },
+  {
+    "hash": "c07dd75c",
+    "full_hash": "c07dd75c3844ff030fac4c7e37d886d5890256d1",
+    "type": "ci",
+    "scope": "",
+    "subject": "rebuild compute for custom env endpoint + @ai-sdk/zod pin",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-23 23:46:58 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/c07dd75c3844ff030fac4c7e37d886d5890256d1"
+  },
+  {
+    "hash": "e48b5ec8",
+    "full_hash": "e48b5ec8b5067c6f58a8d93ce6d21039a2fb11d9",
+    "type": "fix",
+    "scope": "vite",
+    "subject": "alias @lmthing/agent-ui to source so SPA builds resolve it",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-23 23:17:00 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/e48b5ec8b5067c6f58a8d93ce6d21039a2fb11d9"
+  },
+  {
+    "hash": "ea943e78",
+    "full_hash": "ea943e787de8c30b3b435666f77c43da87d84c25",
+    "type": "feat",
+    "scope": "",
+    "subject": "complete pod model/credits + persistence + SPA image fixes",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-23 23:12:57 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/ea943e787de8c30b3b435666f77c43da87d84c25"
+  },
+  {
+    "hash": "049426bc",
+    "full_hash": "049426bc91928add2f0be7d6ecb9ca5b7c7b82fe",
+    "type": "fix",
+    "scope": "compute",
+    "subject": "ship packages/ui/src so the pod can bundle the web app",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-23 22:48:09 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/049426bc91928add2f0be7d6ecb9ca5b7c7b82fe"
+  },
+  {
+    "hash": "82807fe4",
+    "full_hash": "82807fe4fe5a1075072689720224981d0512362d",
+    "type": "ci",
+    "scope": "",
+    "subject": "fix compute image build context to sdk/org",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-23 21:20:31 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/82807fe4fe5a1075072689720224981d0512362d"
+  },
+  {
+    "hash": "67da8eea",
+    "full_hash": "67da8eea16df4291220fa4247195fc823664b174",
+    "type": "ci",
+    "scope": "",
+    "subject": "deploy chat + compute (pod) for pod-served UI refactor",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-23 21:18:03 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/67da8eea16df4291220fa4247195fc823664b174"
+  },
+  {
+    "hash": "26ad8fd1",
+    "full_hash": "26ad8fd1406088dcbc4a65bbcac6e3685c5a6313",
+    "type": "feat",
+    "scope": "",
+    "subject": "realign chat/studio/computer onto pod-served lmthing UI",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-23 20:57:56 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/26ad8fd1406088dcbc4a65bbcac6e3685c5a6313"
+  },
+  {
+    "hash": "cf1b57b7",
+    "full_hash": "cf1b57b75c159526e942ea1e02f6d102153e3424",
+    "type": "feat",
+    "scope": "",
+    "subject": "update compute pod configuration and Dockerfile for multi-session support and resource management",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-15 18:16:23 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/cf1b57b75c159526e942ea1e02f6d102153e3424"
+  },
+  {
+    "hash": "745c3fa4",
+    "full_hash": "745c3fa410ba4257cbd4c98871662d8601ea7a74",
+    "type": "feat",
+    "scope": "",
+    "subject": "extract cli and repl into lmthing/org submodule, rename org/ to sdk/",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-04-22 13:13:53 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/745c3fa410ba4257cbd4c98871662d8601ea7a74"
+  },
+  {
+    "hash": "dd70e76f",
+    "full_hash": "dd70e76ff34f1da271fb2c9553f73a26d58037df",
+    "type": "feat",
+    "scope": "",
+    "subject": "migrate images to Azure Container Registry with GitHub Actions CI",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-03-28 12:06:28 +0200",
+    "url": "https://github.com/lmthing/lmthing/commit/dd70e76ff34f1da271fb2c9553f73a26d58037df"
+  },
+  {
+    "hash": "99b8a765",
+    "full_hash": "99b8a76509188cb16fae2fa8107f2435965a56c8",
+    "type": "chore",
+    "scope": "",
+    "subject": "Migrate service deployment from Ansible to ArgoCD GitOps",
+    "author": "Claude",
+    "date": "2026-03-24 22:51:47 +0000",
+    "url": "https://github.com/lmthing/lmthing/commit/99b8a76509188cb16fae2fa8107f2435965a56c8"
+  }
+]

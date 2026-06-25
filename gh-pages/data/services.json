@@ -1,17 +1,137 @@
 {
   "services": [
-    {"name":"studio","domain":"lmthing.studio","emoji":"🎨","type":"vite","yaml":"studio.yaml","manifest":"devops/argocd/core/studio.yaml"},
-    {"name":"chat","domain":"lmthing.chat","emoji":"💬","type":"vite","yaml":"chat.yaml","manifest":"devops/argocd/core/chat.yaml"},
-    {"name":"com","domain":"lmthing.com","emoji":"🌐","type":"vite","yaml":"com.yaml","manifest":"devops/argocd/core/com.yaml"},
-    {"name":"social","domain":"lmthing.social","emoji":"👥","type":"vite","yaml":"social.yaml","manifest":"devops/argocd/core/social.yaml"},
-    {"name":"store","domain":"lmthing.store","emoji":"🏪","type":"vite","yaml":"store.yaml","manifest":"devops/argocd/core/store.yaml"},
-    {"name":"space","domain":"lmthing.space","emoji":"🚀","type":"vite","yaml":"space.yaml","manifest":"devops/argocd/core/space.yaml"},
-    {"name":"team","domain":"lmthing.team","emoji":"👔","type":"vite","yaml":"team.yaml","manifest":"devops/argocd/core/team.yaml"},
-    {"name":"blog","domain":"lmthing.blog","emoji":"📝","type":"vite","yaml":"blog.yaml","manifest":"devops/argocd/core/blog.yaml"},
-    {"name":"casa","domain":"lmthing.casa","emoji":"🏠","type":"vite","yaml":"casa.yaml","manifest":"devops/argocd/core/casa.yaml"},
-    {"name":"cloud","domain":"lmthing.cloud","emoji":"☁️","type":"gateway","yaml":"gateway.yaml","manifest":"devops/argocd/core/gateway.yaml"},
-    {"name":"computer","domain":"lmthing.computer","emoji":"🖥️","type":"vite","yaml":"computer.yaml","manifest":"devops/argocd/core/computer.yaml"},
-    {"name":"compute","domain":"minikube-pods","emoji":"⚡","type":"k8s-pod","yaml":"compute-pod-template.yaml","manifest":"devops/argocd/core/compute-pod-template.yaml","isInternal":true}
+    {
+      "name": "gateway",
+      "domain": "lmthing.cloud",
+      "emoji": "\u2601\ufe0f",
+      "type": "gateway",
+      "yaml": "gateway.yaml",
+      "manifest": "devops/argocd/core/gateway.yaml",
+      "isInternal": false,
+      "deployedSha": "48c93ca",
+      "deployedAt": "2026-06-24 16:28:06 +0300"
+    },
+    {
+      "name": "studio",
+      "domain": "lmthing.studio",
+      "emoji": "\ud83c\udfa8",
+      "type": "vite",
+      "yaml": "studio.yaml",
+      "manifest": "devops/argocd/core/studio.yaml",
+      "isInternal": false,
+      "deployedSha": "e049aa4",
+      "deployedAt": "2026-06-25 09:52:21 +0300"
+    },
+    {
+      "name": "chat",
+      "domain": "lmthing.chat",
+      "emoji": "\ud83d\udcac",
+      "type": "vite",
+      "yaml": "chat.yaml",
+      "manifest": "devops/argocd/core/chat.yaml",
+      "isInternal": false,
+      "deployedSha": "e049aa4",
+      "deployedAt": "2026-06-25 09:52:21 +0300"
+    },
+    {
+      "name": "com",
+      "domain": "lmthing.com",
+      "emoji": "\ud83c\udf10",
+      "type": "vite",
+      "yaml": "com.yaml",
+      "manifest": "devops/argocd/core/com.yaml",
+      "isInternal": false,
+      "deployedSha": "e049aa4",
+      "deployedAt": "2026-06-25 09:52:21 +0300"
+    },
+    {
+      "name": "social",
+      "domain": "lmthing.social",
+      "emoji": "\ud83d\udc65",
+      "type": "vite",
+      "yaml": "social.yaml",
+      "manifest": "devops/argocd/core/social.yaml",
+      "isInternal": false,
+      "deployedSha": "e049aa4",
+      "deployedAt": "2026-06-25 09:52:21 +0300"
+    },
+    {
+      "name": "store",
+      "domain": "lmthing.store",
+      "emoji": "\ud83c\udfea",
+      "type": "vite",
+      "yaml": "store.yaml",
+      "manifest": "devops/argocd/core/store.yaml",
+      "isInternal": false,
+      "deployedSha": "e049aa4",
+      "deployedAt": "2026-06-25 09:52:21 +0300"
+    },
+    {
+      "name": "space",
+      "domain": "lmthing.space",
+      "emoji": "\ud83d\ude80",
+      "type": "vite",
+      "yaml": "space.yaml",
+      "manifest": "devops/argocd/core/space.yaml",
+      "isInternal": false,
+      "deployedSha": "e049aa4",
+      "deployedAt": "2026-06-25 09:52:21 +0300"
+    },
+    {
+      "name": "team",
+      "domain": "lmthing.team",
+      "emoji": "\ud83d\udc54",
+      "type": "vite",
+      "yaml": "team.yaml",
+      "manifest": "devops/argocd/core/team.yaml",
+      "isInternal": false,
+      "deployedSha": "e049aa4",
+      "deployedAt": "2026-06-25 09:52:21 +0300"
+    },
+    {
+      "name": "blog",
+      "domain": "lmthing.blog",
+      "emoji": "\ud83d\udcdd",
+      "type": "vite",
+      "yaml": "blog.yaml",
+      "manifest": "devops/argocd/core/blog.yaml",
+      "isInternal": false,
+      "deployedSha": "e049aa4",
+      "deployedAt": "2026-06-25 09:52:21 +0300"
+    },
+    {
+      "name": "casa",
+      "domain": "lmthing.casa",
+      "emoji": "\ud83c\udfe0",
+      "type": "vite",
+      "yaml": "casa.yaml",
+      "manifest": "devops/argocd/core/casa.yaml",
+      "isInternal": false,
+      "deployedSha": "e049aa4",
+      "deployedAt": "2026-06-25 09:52:21 +0300"
+    },
+    {
+      "name": "computer",
+      "domain": "lmthing.computer",
+      "emoji": "\ud83d\udda5\ufe0f",
+      "type": "vite",
+      "yaml": "computer.yaml",
+      "manifest": "devops/argocd/core/computer.yaml",
+      "isInternal": false,
+      "deployedSha": "e049aa4",
+      "deployedAt": "2026-06-25 09:52:21 +0300"
+    },
+    {
+      "name": "compute",
+      "domain": "minikube-pods",
+      "emoji": "\u26a1",
+      "type": "k8s-pod",
+      "yaml": "compute-pod-template.yaml",
+      "manifest": "devops/argocd/core/compute-pod-template.yaml",
+      "isInternal": true,
+      "deployedSha": "6564469",
+      "deployedAt": "2026-06-24 17:22:08 +0300"
+    }
   ],
-  "updatedAt": "2026-06-25T00:00:00.000Z"
+  "updatedAt": "2026-06-25T07:34:43.526763+00:00"
 }

@@ -1,5 +1,15 @@
 [
   {
+    "hash": "5370090a",
+    "full_hash": "5370090a2fb5d2f5cc6a5b9cf99772989148604c",
+    "type": "docs",
+    "scope": "",
+    "subject": "align top-level + state-lib docs with SPACE-SPEC changes; bump sdk/org",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-25 17:42:08 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/5370090a2fb5d2f5cc6a5b9cf99772989148604c"
+  },
+  {
     "hash": "e6ec05a0",
     "full_hash": "e6ec05a00ed17c34916596b483be06d5642151ca",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-03-15 11:10:49 +0200",
     "url": "https://github.com/lmthing/lmthing/commit/9b19ba91e9e8d53cc7021dd4429af6fee718dd1a"
-  },
-  {
-    "hash": "6515c940",
-    "full_hash": "6515c940e3824d3476c764cdc4ae2f62deabdb94",
-    "type": "refactor",
-    "scope": "",
-    "subject": "replace AI SDK provider stubs with no-op implementations across multiple packages",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-03-13 14:58:12 +0200",
-    "url": "https://github.com/lmthing/lmthing/commit/6515c940e3824d3476c764cdc4ae2f62deabdb94"
   }
 ]

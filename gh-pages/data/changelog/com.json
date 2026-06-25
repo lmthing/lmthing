@@ -1,5 +1,15 @@
 [
   {
+    "hash": "5370090a",
+    "full_hash": "5370090a2fb5d2f5cc6a5b9cf99772989148604c",
+    "type": "docs",
+    "scope": "",
+    "subject": "align top-level + state-lib docs with SPACE-SPEC changes; bump sdk/org",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-25 17:42:08 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/5370090a2fb5d2f5cc6a5b9cf99772989148604c"
+  },
+  {
     "hash": "e6ec05a0",
     "full_hash": "e6ec05a00ed17c34916596b483be06d5642151ca",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-03-24 15:24:06 +0200",
     "url": "https://github.com/lmthing/lmthing/commit/973cb369e2dcd94d066f9ca6c2c8500aab90f697"
-  },
-  {
-    "hash": "5bb20324",
-    "full_hash": "5bb2032418118b3e95b0effb53c02414fd11d3ff",
-    "type": "chore",
-    "scope": "",
-    "subject": "Mark social and team as upcoming services",
-    "author": "Claude",
-    "date": "2026-03-24 07:04:55 +0000",
-    "url": "https://github.com/lmthing/lmthing/commit/5bb2032418118b3e95b0effb53c02414fd11d3ff"
   }
 ]

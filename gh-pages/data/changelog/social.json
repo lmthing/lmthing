@@ -1,5 +1,15 @@
 [
   {
+    "hash": "5370090a",
+    "full_hash": "5370090a2fb5d2f5cc6a5b9cf99772989148604c",
+    "type": "docs",
+    "scope": "",
+    "subject": "align top-level + state-lib docs with SPACE-SPEC changes; bump sdk/org",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-25 17:42:08 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/5370090a2fb5d2f5cc6a5b9cf99772989148604c"
+  },
+  {
     "hash": "e6ec05a0",
     "full_hash": "e6ec05a00ed17c34916596b483be06d5642151ca",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Claude",
     "date": "2026-03-13 10:54:34 +0000",
     "url": "https://github.com/lmthing/lmthing/commit/3a950ed82f5cbb945883ecf06034c2bfebfdb127"
-  },
-  {
-    "hash": "17d1697e",
-    "full_hash": "17d1697e678bc6879a5c37dfd816843ed5df43dd",
-    "type": "feat",
-    "scope": "",
-    "subject": "upgrade to Vite 8 with Rolldown bundler",
-    "author": "Claude",
-    "date": "2026-03-12 22:55:08 +0000",
-    "url": "https://github.com/lmthing/lmthing/commit/17d1697e678bc6879a5c37dfd816843ed5df43dd"
   }
 ]

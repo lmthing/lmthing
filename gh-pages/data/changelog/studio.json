@@ -1,5 +1,15 @@
 [
   {
+    "hash": "5370090a",
+    "full_hash": "5370090a2fb5d2f5cc6a5b9cf99772989148604c",
+    "type": "docs",
+    "scope": "",
+    "subject": "align top-level + state-lib docs with SPACE-SPEC changes; bump sdk/org",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-25 17:42:08 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/5370090a2fb5d2f5cc6a5b9cf99772989148604c"
+  },
+  {
     "hash": "e6ec05a0",
     "full_hash": "e6ec05a00ed17c34916596b483be06d5642151ca",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-04-22 13:55:58 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/8aab04045899cf6b4dfe783c418fa210c580a4d7"
-  },
-  {
-    "hash": "c807d635",
-    "full_hash": "c807d63555b22c1ae7bbe6811153d7957c4f1aa6",
-    "type": "feat",
-    "scope": "",
-    "subject": "move thing-web-view CSS into sdk/org/ui package",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-04-22 13:48:26 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/c807d63555b22c1ae7bbe6811153d7957c4f1aa6"
   }
 ]

@@ -1,5 +1,15 @@
 [
   {
+    "hash": "5370090a",
+    "full_hash": "5370090a2fb5d2f5cc6a5b9cf99772989148604c",
+    "type": "docs",
+    "scope": "",
+    "subject": "align top-level + state-lib docs with SPACE-SPEC changes; bump sdk/org",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-25 17:42:08 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/5370090a2fb5d2f5cc6a5b9cf99772989148604c"
+  },
+  {
     "hash": "e6ec05a0",
     "full_hash": "e6ec05a00ed17c34916596b483be06d5642151ca",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-03-14 22:03:20 +0200",
     "url": "https://github.com/lmthing/lmthing/commit/28c3c3ff14c250ac2637da411af55f55aa9830c3"
-  },
-  {
-    "hash": "42b0fe0f",
-    "full_hash": "42b0fe0fe9b19522f62cb3f1f60d200c86438d32",
-    "type": "refactor",
-    "scope": "",
-    "subject": "restructure space routes and introduce admin functionalities",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-03-14 22:03:00 +0200",
-    "url": "https://github.com/lmthing/lmthing/commit/42b0fe0fe9b19522f62cb3f1f60d200c86438d32"
   }
 ]

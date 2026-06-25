@@ -56,8 +56,6 @@ src/
     │   └── useStudioEnv.ts    # Environment file handling
     ├── agent/          # Agent-specific hooks
     │   ├── useAgentInstruct.ts    # Agent instruct.md (frontmatter + body)
-    │   ├── useAgentConfig.ts      # runtimeFields from instruct.md frontmatter
-    │   ├── useAgentValues.ts      # formValues from instruct.md frontmatter
     │   └── useAgentConversation.ts # Agent conversations
     ├── tasklist/       # Tasklist hooks (replaces the old flow/ hooks)
     │   ├── useTasklistTask.ts      # Read a single tasklists/<name>/NN-<id>.md
@@ -87,7 +85,7 @@ All file data lives in a single `Map<string, string>` within `AppFS`. Paths foll
       package.json
       agents/{agentId}/
         instruct.md                 # frontmatter (title, knowledge[], functions[],
-                                     #   components[], actions[], runtimeFields, formValues) + body
+                                     #   components[], actions[], canDelegateTo) + body
         conversations/{convId}.json
       tasklists/{tasklistName}/
         {NN}-{taskId}.md            # zero-padded ordered task files
@@ -99,9 +97,10 @@ All file data lives in a single `Map<string, string>` within `AppFS`. Paths foll
 ```
 
 > **Migration note:** the old shape (`agents/*/config.json`, `agents/*/values.json`,
-> `flows/`, `knowledge/<domain>/config.json`) has been removed. Per-agent runtime
-> selections live in `instruct.md` frontmatter (`runtimeFields`/`formValues`);
-> flows are now `tasklists/`; knowledge domains/fields are described by `index.md`.
+> `flows/`, `knowledge/<domain>/config.json`) has been removed.
+> Flows are now `tasklists/`; knowledge domains/fields are described by `index.md`.
+> The former `runtimeFields`/`formValues` frontmatter fields have also been removed —
+> per-option knowledge preloading (`domain/field/option` refs) replaces them.
 
 ### Scoped FS Classes
 
@@ -198,7 +197,7 @@ The `P` object from `@/lib/fs/paths` provides typed path builders:
 import { P } from '@/lib/fs/paths'
 
 // Agent paths (instruct.md carries title/knowledge/functions/components/
-// actions/runtimeFields/formValues in frontmatter — there is no config.json/values.json)
+// actions/canDelegateTo in frontmatter — there is no config.json/values.json)
 P.instruct('bot')              // → 'agents/bot/instruct.md'
 P.conversations('bot')         // → 'agents/bot/conversations'
 
@@ -298,10 +297,8 @@ interface AgentInstruct {
   components: string[]
   actions: { id: string; label: string; description: string; tasklist: string }[]
   defaultAction?: string
-  dependencies: string[]
-  runtimeFields?: Record<string, string[]>          // component → field refs
-  formValues?: Record<string, Record<string, unknown>> // component → saved values
-  body: string                                       // system-prompt markdown
+  canDelegateTo: string[]  // delegation targets (agent, space/agent, npm:pkg/agent, etc.)
+  body: string             // system-prompt markdown
 }
 ```
 

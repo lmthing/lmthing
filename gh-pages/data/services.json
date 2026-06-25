@@ -1,0 +1,17 @@
+{
+  "services": [
+    {"name":"studio","domain":"lmthing.studio","emoji":"🎨","type":"vite","yaml":"studio.yaml","manifest":"devops/argocd/core/studio.yaml"},
+    {"name":"chat","domain":"lmthing.chat","emoji":"💬","type":"vite","yaml":"chat.yaml","manifest":"devops/argocd/core/chat.yaml"},
+    {"name":"com","domain":"lmthing.com","emoji":"🌐","type":"vite","yaml":"com.yaml","manifest":"devops/argocd/core/com.yaml"},
+    {"name":"social","domain":"lmthing.social","emoji":"👥","type":"vite","yaml":"social.yaml","manifest":"devops/argocd/core/social.yaml"},
+    {"name":"store","domain":"lmthing.store","emoji":"🏪","type":"vite","yaml":"store.yaml","manifest":"devops/argocd/core/store.yaml"},
+    {"name":"space","domain":"lmthing.space","emoji":"🚀","type":"vite","yaml":"space.yaml","manifest":"devops/argocd/core/space.yaml"},
+    {"name":"team","domain":"lmthing.team","emoji":"👔","type":"vite","yaml":"team.yaml","manifest":"devops/argocd/core/team.yaml"},
+    {"name":"blog","domain":"lmthing.blog","emoji":"📝","type":"vite","yaml":"blog.yaml","manifest":"devops/argocd/core/blog.yaml"},
+    {"name":"casa","domain":"lmthing.casa","emoji":"🏠","type":"vite","yaml":"casa.yaml","manifest":"devops/argocd/core/casa.yaml"},
+    {"name":"cloud","domain":"lmthing.cloud","emoji":"☁️","type":"gateway","yaml":"gateway.yaml","manifest":"devops/argocd/core/gateway.yaml"},
+    {"name":"computer","domain":"lmthing.computer","emoji":"🖥️","type":"vite","yaml":"computer.yaml","manifest":"devops/argocd/core/computer.yaml"},
+    {"name":"compute","domain":"minikube-pods","emoji":"⚡","type":"k8s-pod","yaml":"compute-pod-template.yaml","manifest":"devops/argocd/core/compute-pod-template.yaml","isInternal":true}
+  ],
+  "updatedAt": "2026-06-25T00:00:00.000Z"
+}

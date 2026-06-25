@@ -164,6 +164,7 @@ jobs:
         run: az acr login --name lmthingacr
 
       - name: Build and push ${{ matrix.image }}
+        id: build-step
         uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.context }}
@@ -174,6 +175,123 @@ jobs:
             lmthingacr.azurecr.io/${{ matrix.image }}:latest
           cache-from: type=registry,ref=lmthingacr.azurecr.io/${{ matrix.image }}:buildcache
           cache-to: type=registry,ref=lmthingacr.azurecr.io/${{ matrix.image }}:buildcache,mode=max
+
+      - name: Record build metadata
+        if: always()
+        id: record
+        run: |
+          echo "started_at=${{ steps.build-step.outputs.metadata && 'unknown' || github.event.created_at }}" >> $GITHUB_OUTPUT
+          echo "conclusion=${{ job.status }}" >> $GITHUB_OUTPUT
+          python3 -c "
+          import json, os, sys
+          from datetime import datetime, timezone
+
+          sha = '${{ needs.detect.outputs.sha }}'
+          image = '${{ matrix.image }}'
+          run_id = '${{ github.run_id }}'
+          run_number = '${{ github.run_number }}'
+
+          record = {
+            'image': image,
+            'sha': sha,
+            'run_id': run_id,
+            'run_number': int(run_number),
+            'run_url': f'https://github.com/\${{ github.repository }}/actions/runs/{run_id}',
+            'status': 'completed',
+            'conclusion': os.environ.get('JOB_STATUS', 'unknown'),
+            'updated_at': datetime.now(timezone.utc).isoformat(),
+          }
+
+          os.makedirs('build-data', exist_ok=True)
+          with open(f'build-data/{image}.json', 'w') as f:
+            json.dump(record, f, indent=2)
+          print(f'Wrote build-data/{image}.json')
+          "
+        env:
+          JOB_STATUS: ${{ job.status }}
+
+      - name: Upload build artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-data-${{ matrix.image }}
+          path: build-data/${{ matrix.image }}.json
+          retention-days: 7
+
+  publish-build-data:
+    needs: [detect, build]
+    if: always() && needs.detect.outputs.matrix != '[]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: build-data-*
+          path: downloaded-artifacts
+          merge-multiple: true
+
+      - name: Publish build data to gh-pages
+        env:
+          MATRIX: ${{ needs.detect.outputs.matrix }}
+          SHA: ${{ needs.detect.outputs.sha }}
+        run: |
+          python3 << 'EOF'
+          import json, os, glob
+          from datetime import datetime, timezone
+
+          # Ensure data dirs exist
+          os.makedirs('gh-pages/data/builds', exist_ok=True)
+
+          # Collect all downloaded artifacts
+          artifact_files = glob.glob('downloaded-artifacts/*.json')
+          records = []
+          for path in artifact_files:
+            with open(path) as f:
+              rec = json.load(f)
+            # Write per-service latest
+            with open(f'gh-pages/data/builds/{rec["image"]}.json', 'w') as f:
+              json.dump(rec, f, indent=2)
+            records.append(rec)
+
+          # Update rolling history (cap at 50)
+          history_path = 'gh-pages/data/builds/history.json'
+          history = []
+          if os.path.exists(history_path):
+            with open(history_path) as f:
+              history = json.load(f)
+
+          # Remove old entries for same SHA to avoid duplicates
+          sha = os.environ.get('SHA', '')
+          history = [h for h in history if h.get('sha') != sha]
+
+          # Prepend new records
+          for rec in records:
+            history.insert(0, rec)
+
+          # Cap at 50
+          history = history[:50]
+
+          with open(history_path, 'w') as f:
+            json.dump(history, f, indent=2)
+
+          print(f'Updated history with {len(records)} records, total: {len(history)}')
+          EOF
+
+      - name: Commit and push build data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add gh-pages/data/builds/
+          git diff --staged --quiet || git commit -m "ci: update build data for ${{ needs.detect.outputs.sha }} [skip ci]"
+          git push
 
   update-manifests:
     needs: [detect, build]

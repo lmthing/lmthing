@@ -21,7 +21,7 @@ function getAuthHeaders(): Record<string, string> {
   return { Authorization: `Bearer ${readFileSync(TOKEN_PATH, "utf-8").trim()}` };
 }
 
-async function k8s(
+export async function k8s(
   path: string,
   method: string,
   body?: unknown,

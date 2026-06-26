@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import type { AuthSession, AuthConfig, AuthContextValue } from './types'
-import { getSession, clearSession, storeSession, redirectToLogin, handleAuthCallback, refreshSession, isPinSet, verifyPin, derivePinKey } from './client'
+import { getSession, clearSession, storeSession, redirectToLogin, handleAuthCallback, refreshSession, ensureValidToken, authFetch, isSessionExpired, onSessionChange, isPinSet, verifyPin, derivePinKey } from './client'
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
@@ -70,10 +70,41 @@ export function AuthProvider({ appName, callbackPath = '/', children }: AuthProv
           setIsLoading(false)
         })
     } else {
-      setSession(getSession())
-      setIsLoading(false)
+      // Cold reload: if the access token is already expired but we still have a
+      // refresh token, rotate it BEFORE unblocking the UI. Otherwise the app's
+      // first requests fly out with a stale token and 401 before the proactive
+      // timer runs — the exact "stuck on 401" state we're fixing.
+      const existing = getSession()
+      if (existing && isSessionExpired(existing) && existing.refreshToken) {
+        refreshSession(config)
+          .then(refreshed => {
+            if (refreshed) {
+              setSession(refreshed)
+            } else {
+              clearSession()
+              setSession(null)
+            }
+          })
+          .catch(() => {
+            clearSession()
+            setSession(null)
+          })
+          .finally(() => setIsLoading(false))
+      } else {
+        setSession(existing)
+        setIsLoading(false)
+      }
     }
   }, [config, isDemo])
+
+  // Stay in sync with token rotations that happen out-of-band (e.g. inside
+  // authFetch's 401-retry, which writes directly to localStorage). Without this
+  // the `session` state held by React — and the sync `session.accessToken`
+  // getter passed to some runtimes — would go stale until next reload.
+  useEffect(() => {
+    if (isDemo) return
+    return onSessionChange(sess => setSession(sess))
+  }, [isDemo])
 
   // Proactively refresh the access token 5 minutes before expiry.
   // If already expired on load, refresh immediately.
@@ -129,6 +160,13 @@ export function AuthProvider({ appName, callbackPath = '/', children }: AuthProv
     return pinKeyRef.current
   }, [])
 
+  const getAccessToken = useCallback(() => ensureValidToken(config), [config])
+
+  const authFetchBound = useCallback(
+    (url: string, options?: RequestInit) => authFetch(config, url, options),
+    [config],
+  )
+
   const username = session?.email ?? null
   const isAuthenticated = !!session
   const needsPin = !isDemo && isPinSet() && !pinUnlocked
@@ -147,6 +185,8 @@ export function AuthProvider({ appName, callbackPath = '/', children }: AuthProv
       pinUnlocked,
       login,
       logout,
+      getAccessToken,
+      authFetch: authFetchBound,
       unlockPin,
       getPinKey,
     }}>

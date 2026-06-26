@@ -8,11 +8,12 @@ const CLOUD_BASE_URL =
 
 async function ensurePod(
   cloudBaseUrl: string,
-  accessToken: string,
+  getAccessToken: () => Promise<string>,
 ): Promise<{ pod?: { computeTag?: string; ready?: boolean } }> {
+  const token = await getAccessToken()
   const res = await fetch(`${cloudBaseUrl}/api/compute/ensure`, {
     method: 'POST',
-    headers: { authorization: `Bearer ${accessToken}` },
+    headers: { authorization: `Bearer ${token}` },
   })
   if (!res.ok) throw new Error(`compute/ensure failed: ${res.status}`)
   return res.json() as Promise<{ pod?: { computeTag?: string; ready?: boolean } }>
@@ -29,23 +30,28 @@ async function fetchLatestTag(cloudBaseUrl: string): Promise<string | null> {
   }
 }
 
-async function upgradePod(cloudBaseUrl: string, accessToken: string): Promise<void> {
+async function upgradePod(
+  cloudBaseUrl: string,
+  getAccessToken: () => Promise<string>,
+): Promise<void> {
+  const token = await getAccessToken()
   await fetch(`${cloudBaseUrl}/api/compute/upgrade`, {
     method: 'POST',
-    headers: { authorization: `Bearer ${accessToken}` },
+    headers: { authorization: `Bearer ${token}` },
   })
 }
 
 async function pollUntilReady(
   cloudBaseUrl: string,
-  accessToken: string,
+  getAccessToken: () => Promise<string>,
   expectedTag: string,
 ): Promise<void> {
   return new Promise((resolve) => {
     const check = async () => {
       try {
+        const token = await getAccessToken()
         const res = await fetch(`${cloudBaseUrl}/api/compute/status`, {
-          headers: { authorization: `Bearer ${accessToken}` },
+          headers: { authorization: `Bearer ${token}` },
         })
         if (res.ok) {
           const data = (await res.json()) as { pod?: { ready?: boolean; computeTag?: string } }
@@ -66,7 +72,7 @@ export const Route = createFileRoute('/')({
 })
 
 function ChatHome() {
-  const { session } = useAuth()
+  const { session, getAccessToken } = useAuth()
   const [podError, setPodError] = useState<string | null>(null)
   const [upgradeAvailable, setUpgradeAvailable] = useState(false)
   const [latestTag, setLatestTag] = useState<string | null>(null)
@@ -81,7 +87,7 @@ function ChatHome() {
     async function init() {
       try {
         const [ensureData, latest] = await Promise.all([
-          ensurePod(CLOUD_BASE_URL, session!.accessToken),
+          ensurePod(CLOUD_BASE_URL, getAccessToken),
           fetchLatestTag(CLOUD_BASE_URL),
         ])
 
@@ -98,17 +104,18 @@ function ChatHome() {
     }
 
     void init()
-  }, [session])
+  }, [session, getAccessToken])
 
-  const redirect = () => {
-    window.location.replace('/?access_token=' + encodeURIComponent(session!.accessToken))
+  const redirect = async () => {
+    const token = await getAccessToken()
+    window.location.replace('/?access_token=' + encodeURIComponent(token))
   }
 
   const handleUpgrade = async () => {
     setUpgrading(true)
     try {
-      await upgradePod(CLOUD_BASE_URL, session!.accessToken)
-      await pollUntilReady(CLOUD_BASE_URL, session!.accessToken, latestTag!)
+      await upgradePod(CLOUD_BASE_URL, getAccessToken)
+      await pollUntilReady(CLOUD_BASE_URL, getAccessToken, latestTag!)
       await new Promise((r) => setTimeout(r, 1500))
       redirect()
     } catch {

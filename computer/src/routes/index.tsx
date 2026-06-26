@@ -63,7 +63,7 @@ function buildTree(paths: string[]): FileTreeNode[] {
 
 function IdeRoute() {
   const { status } = useComputer()
-  const { session } = useAuth()
+  const { session, authFetch } = useAuth()
   const router = useRouter()
   const store = useIdeStore()
   const { transport } = useApp()
@@ -78,22 +78,17 @@ function IdeRoute() {
     if (!session?.accessToken) return
     setRestarting(true)
     try {
-      await fetch(`${COMPUTER_BASE_URL}/api/restart`, {
-        method: 'POST',
-        headers: { authorization: `Bearer ${session.accessToken}` },
-      })
+      await authFetch(`${COMPUTER_BASE_URL}/api/restart`, { method: 'POST' })
     } catch { /* expected — pod exits */ }
     const poll = async () => {
       try {
-        const r = await fetch(`${COMPUTER_BASE_URL}/api/env`, {
-          headers: { authorization: `Bearer ${session.accessToken}` },
-        })
+        const r = await authFetch(`${COMPUTER_BASE_URL}/api/env`)
         if (r.ok) { setTimeout(() => window.location.reload(), 1500); return }
       } catch { /* still down */ }
       setTimeout(poll, 800)
     }
     setTimeout(poll, 1000)
-  }, [session])
+  }, [session, authFetch])
 
   const debounceTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 

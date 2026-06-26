@@ -26,6 +26,10 @@ export interface AuthContextValue {
   pinUnlocked: boolean
   login: () => void
   logout: () => void
+  /** Returns a live access token, refreshing first if near expiry. */
+  getAccessToken: () => Promise<string>
+  /** Authenticated fetch with automatic refresh + 401 retry. */
+  authFetch: (url: string, options?: RequestInit) => Promise<Response>
   unlockPin: (pin: string) => Promise<boolean>
   getPinKey: () => Promise<CryptoKey | null>
 }

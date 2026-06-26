@@ -85,15 +85,18 @@ const initialState: State = {
 export interface ComputerProviderProps {
   children: React.ReactNode
   computerBaseUrl: string
-  accessToken: string
+  /** Returns a live access token (refreshing first if near expiry). Passed
+   *  to PodRuntime, which awaits it on every (re)connection so the
+   *  long-lived WebSocket always uses a fresh token. */
+  getAccessToken: () => Promise<string>
 }
 
-export function ComputerProvider({ children, computerBaseUrl, accessToken }: ComputerProviderProps) {
+export function ComputerProvider({ children, computerBaseUrl, getAccessToken }: ComputerProviderProps) {
   const [state, dispatch] = useReducer(reducer, initialState)
   const runtimeRef = useRef<ComputerRuntime | null>(null)
 
   useEffect(() => {
-    runtimeRef.current = new PodRuntime({ computerBaseUrl, accessToken })
+    runtimeRef.current = new PodRuntime({ computerBaseUrl, getAccessToken })
 
     const rt = runtimeRef.current
 
@@ -115,7 +118,7 @@ export function ComputerProvider({ children, computerBaseUrl, accessToken }: Com
       rt.shutdown()
       runtimeRef.current = null
     }
-  }, [computerBaseUrl, accessToken])
+  }, [computerBaseUrl, getAccessToken])
 
   const boot = useCallback(async () => {
     const rt = runtimeRef.current

@@ -4,6 +4,22 @@ const SESSION_KEY = 'lmthing_session'
 const PIN_HASH_KEY = 'lmthing_pin_hash'
 const PIN_SET_KEY = 'lmthing_pin_set'
 
+/** Refresh this many seconds before the access token actually expires. */
+const REFRESH_BUFFER = 60
+
+// Pub/sub so React state stays in sync when a token is rotated out-of-band
+// (e.g. by authFetch's 401-retry, which writes to localStorage directly).
+const sessionListeners = new Set<(session: AuthSession | null) => void>()
+
+export function onSessionChange(cb: (session: AuthSession | null) => void): () => void {
+  sessionListeners.add(cb)
+  return () => sessionListeners.delete(cb)
+}
+
+function emitSessionChange(session: AuthSession | null): void {
+  sessionListeners.forEach(cb => cb(session))
+}
+
 function generateState(): string {
   const bytes = new Uint8Array(16)
   crypto.getRandomValues(bytes)
@@ -70,6 +86,7 @@ export async function handleAuthCallback(config: AuthConfig): Promise<AuthSessio
   }
 
   localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+  emitSessionChange(session)
   return session
 }
 
@@ -94,7 +111,69 @@ export async function refreshSession(config: AuthConfig): Promise<AuthSession | 
   }
 
   localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+  emitSessionChange(session)
   return session
+}
+
+/** True when the access token is within REFRESH_BUFFER of expiry (or past it). */
+export function isSessionExpired(session: AuthSession | null, bufferSec = REFRESH_BUFFER): boolean {
+  if (!session?.expiresAt) return false
+  return Math.floor(Date.now() / 1000) >= session.expiresAt - bufferSec
+}
+
+/**
+ * Return a live access token, refreshing first if the current one is near
+ * expiry. Clears the session and throws if there is no refresh token or the
+ * refresh fails — callers should treat the throw as "force re-login".
+ */
+export async function ensureValidToken(config: AuthConfig): Promise<string> {
+  const current = getSession()
+  if (!current) throw new Error('Not authenticated')
+
+  if (!isSessionExpired(current)) return current.accessToken
+  if (!current.refreshToken) {
+    clearSession()
+    throw new Error('Session expired')
+  }
+
+  const refreshed = await refreshSession(config)
+  if (!refreshed) {
+    clearSession()
+    throw new Error('Session expired')
+  }
+  return refreshed.accessToken
+}
+
+/**
+ * Authenticated fetch with automatic token rotation.
+ *
+ * Sets `Authorization: Bearer <token>` from the stored session, refreshing it
+ * first if it is near expiry. On a 401 response it force-refreshes once and
+ * retries — this is what keeps long-lived tabs working after the 12h access
+ * token expires. Returns the raw Response; callers check `res.ok` like fetch.
+ */
+export async function authFetch(
+  config: AuthConfig,
+  url: string,
+  options: RequestInit = {},
+): Promise<Response> {
+  const token = await ensureValidToken(config)
+  const headers = new Headers(options.headers)
+  headers.set('authorization', `Bearer ${token}`)
+
+  let res = await fetch(url, { ...options, headers })
+
+  if (res.status === 401) {
+    const refreshed = await refreshSession(config)
+    if (refreshed) {
+      headers.set('authorization', `Bearer ${refreshed.accessToken}`)
+      res = await fetch(url, { ...options, headers })
+    } else {
+      clearSession()
+    }
+  }
+
+  return res
 }
 
 export function getAuthHeaders(): Record<string, string> {
@@ -122,10 +201,12 @@ export function getSession(): AuthSession | null {
 
 export function clearSession(): void {
   localStorage.removeItem(SESSION_KEY)
+  emitSessionChange(null)
 }
 
 export function storeSession(session: AuthSession): void {
   localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+  emitSessionChange(session)
 }
 
 // PIN utilities for client-side encryption

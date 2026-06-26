@@ -22,8 +22,10 @@ let sessionCounter = 0
 export interface PodRuntimeOptions {
   /** Base URL of lmthing.computer (e.g. "https://lmthing.computer") */
   computerBaseUrl: string
-  /** Supabase access token (JWT) — Envoy validates this at the edge */
-  accessToken: string
+  /** Returns a live access token (JWT), refreshing first if near expiry.
+   *  Envoy validates this at the edge. The getter is called on every
+   *  (re)connection so the long-lived WebSocket always uses a fresh token. */
+  getAccessToken: () => Promise<string>
 }
 
 /**
@@ -40,7 +42,7 @@ export class PodRuntime implements ComputerRuntime {
   private disposed = false
 
   private readonly computerBaseUrl: string
-  private readonly accessToken: string
+  private readonly getAccessToken: () => Promise<string>
 
   private statusListeners = new Set<Listener<RuntimeStatus>>()
   private metricsListeners = new Set<Listener<RuntimeMetrics>>()
@@ -53,7 +55,7 @@ export class PodRuntime implements ComputerRuntime {
 
   constructor(options: PodRuntimeOptions) {
     this.computerBaseUrl = options.computerBaseUrl
-    this.accessToken = options.accessToken
+    this.getAccessToken = options.getAccessToken
   }
 
   get status(): RuntimeStatus {
@@ -154,12 +156,17 @@ export class PodRuntime implements ComputerRuntime {
 
   // --- Private ---
 
-  private connect(): Promise<void> {
+  private async connect(): Promise<void> {
+    // Fetch a fresh token on every (re)connection — access tokens expire
+    // after ~12h and this WebSocket is long-lived, so a stale token would
+    // stick the runtime on auth.fail after the first expiry.
+    const token = await this.getAccessToken()
+
     return new Promise<void>((resolve, reject) => {
       // Connect via lmthing.computer/api/ws — Envoy strips /api, pod sees /ws
       // JWT passed as query param since browsers can't set WebSocket headers
       const wsBase = this.computerBaseUrl.replace(/^http/, 'ws')
-      const url = `${wsBase}/api/ws?access_token=${encodeURIComponent(this.accessToken)}`
+      const url = `${wsBase}/api/ws?access_token=${encodeURIComponent(token)}`
       const ws = new WebSocket(url)
       this.ws = ws
 

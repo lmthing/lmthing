@@ -19,7 +19,7 @@ const DEMO_USER = import.meta.env.VITE_DEMO_USER === 'true'
  * so the pod is provisioned before we connect. Returns podConfig when ready.
  */
 export function useTierDetection(): { podConfig: PodConfig | null; ensuring: boolean } {
-  const { session, isAuthenticated, isLoading } = useAuth()
+  const { session, isAuthenticated, isLoading, getAccessToken } = useAuth()
   const [podConfig, setPodConfig] = useState<PodConfig | null>(null)
   const [ensuring, setEnsuring] = useState(true)
 
@@ -48,6 +48,10 @@ export function useTierDetection(): { podConfig: PodConfig | null; ensuring: boo
           } catch (e) {
             console.error('Failed to fetch demo token:', e)
           }
+        } else {
+          // Live token — refresh first if near expiry so compute/ensure and the
+          // downstream podConfig carry a fresh JWT (not a stale 12h one).
+          accessToken = await getAccessToken()
         }
 
         // Best-effort pod ensure — don't block the UI if the gateway is unreachable
@@ -72,7 +76,7 @@ export function useTierDetection(): { podConfig: PodConfig | null; ensuring: boo
 
     ensurePod()
     return () => { cancelled = true }
-  }, [session, isAuthenticated, isLoading])
+  }, [session, isAuthenticated, isLoading, getAccessToken])
 
   return { podConfig, ensuring }
 }

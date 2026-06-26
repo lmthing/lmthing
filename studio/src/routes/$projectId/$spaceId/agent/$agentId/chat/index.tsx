@@ -19,10 +19,14 @@ const CLOUD_BASE_URL =
   (import.meta.env.DEV ? 'https://cloud.test' : 'https://lmthing.cloud')
 
 /** Ensure the user's compute pod is running before opening a session. */
-async function ensurePod(cloudBaseUrl: string, accessToken: string): Promise<void> {
+async function ensurePod(
+  cloudBaseUrl: string,
+  getAccessToken: () => Promise<string>,
+): Promise<void> {
+  const token = await getAccessToken()
   const res = await fetch(`${cloudBaseUrl}/api/compute/ensure`, {
     method: 'POST',
-    headers: { authorization: `Bearer ${accessToken}` },
+    headers: { authorization: `Bearer ${token}` },
   })
   if (!res.ok) {
     throw new Error(`compute/ensure failed: ${res.status}`)
@@ -41,7 +45,7 @@ type RunPhase = 'idle' | 'provisioning' | 'syncing' | 'starting' | 'ready'
 
 function AgentChatPage() {
   const { agentId, spaceId } = Route.useParams()
-  const { session } = useAuth()
+  const { session, getAccessToken } = useAuth()
 
   // The current space's files, straight from the VFS in canonical on-disk
   // layout (agents/<slug>/instruct.md, tasklists/…, knowledge/…, functions/…).
@@ -77,21 +81,23 @@ function AgentChatPage() {
     setSessionId(null)
     try {
       setPhase('provisioning')
-      await ensurePod(CLOUD_BASE_URL, session.accessToken)
+      await ensurePod(CLOUD_BASE_URL, getAccessToken)
 
       setPhase('syncing')
+      const syncToken = await getAccessToken()
       const { spaceDir } = await ReplRpcClient.syncSpace(
         COMPUTER_BASE_URL,
         spaceName,
         fileMap,
-        session.accessToken,
+        syncToken,
       )
 
       setPhase('starting')
+      const createToken = await getAccessToken()
       const client = await ReplRpcClient.createSession(
         COMPUTER_BASE_URL,
         { spaceDir, agentSlug: agentId },
-        session.accessToken,
+        createToken,
       )
       setSessionId(client.sessionId!)
       setPhase('ready')
@@ -101,7 +107,7 @@ function AgentChatPage() {
     } finally {
       runningRef.current = false
     }
-  }, [session, agentId, spaceName, fileMap])
+  }, [session, agentId, spaceName, fileMap, getAccessToken])
 
   // Auto-start once the VFS has hydrated. useGlobRead populates asynchronously,
   // so starting on bare mount would sync an EMPTY space (race). Wait until the

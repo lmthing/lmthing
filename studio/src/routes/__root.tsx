@@ -25,10 +25,14 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 /** Ensure the user's compute pod is running before any pod API call. */
-async function ensurePod(cloudBaseUrl: string, accessToken: string): Promise<void> {
+async function ensurePod(
+  cloudBaseUrl: string,
+  getAccessToken: () => Promise<string>,
+): Promise<void> {
+  const token = await getAccessToken()
   const res = await fetch(`${cloudBaseUrl}/api/compute/ensure`, {
     method: 'POST',
-    headers: { authorization: `Bearer ${accessToken}` },
+    headers: { authorization: `Bearer ${token}` },
   })
   if (!res.ok) {
     throw new Error(`compute/ensure failed: ${res.status}`)
@@ -43,7 +47,7 @@ async function ensurePod(cloudBaseUrl: string, accessToken: string): Promise<voi
  * once ensure resolves.
  */
 function PodEnsureGate({ children }: { children: React.ReactNode }) {
-  const { session } = useAuth()
+  const { session, getAccessToken } = useAuth()
   const [status, setStatus] = useState<'pending' | 'ready' | 'error'>('pending')
   const [error, setError] = useState<string | null>(null)
   const initRef = useRef(false)
@@ -55,7 +59,7 @@ function PodEnsureGate({ children }: { children: React.ReactNode }) {
     let cancelled = false
     async function init() {
       try {
-        await ensurePod(CLOUD_BASE_URL, session!.accessToken)
+        await ensurePod(CLOUD_BASE_URL, getAccessToken)
         if (!cancelled) setStatus('ready')
       } catch (err) {
         if (!cancelled) {
@@ -68,7 +72,7 @@ function PodEnsureGate({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [session])
+  }, [session, getAccessToken])
 
   const handleRetry = () => {
     initRef.current = false

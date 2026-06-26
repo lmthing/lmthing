@@ -11,33 +11,15 @@ import { Heading } from '@lmthing/ui/elements/typography/heading'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
 
 const CLOUD_BASE_URL = import.meta.env.VITE_CLOUD_BASE_URL ?? 'https://cloud.lmthing.org'
-const CLOUD_AUTH_KEY = 'lmthing-cloud-auth'
 
 export const Route = createFileRoute('/settings')({
   component: Settings,
 })
 
-function getAuthHeader(): string | null {
-  try {
-    const raw = localStorage.getItem(CLOUD_AUTH_KEY)
-    if (!raw) return null
-    const { accessToken } = JSON.parse(raw)
-    return accessToken ? `Bearer ${accessToken}` : null
-  } catch {
-    return null
-  }
-}
-
-async function openBillingPortal() {
-  const authHeader = getAuthHeader()
-  if (!authHeader) throw new Error('Not authenticated with cloud')
-
-  const res = await fetch(`${CLOUD_BASE_URL}/api/billing/portal`, {
+async function openBillingPortal(authFetch: (url: string, options?: RequestInit) => Promise<Response>) {
+  const res = await authFetch(`${CLOUD_BASE_URL}/api/billing/portal`, {
     method: 'POST',
-    headers: {
-      'Authorization': authHeader,
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ return_url: window.location.href }),
   })
 
@@ -53,6 +35,7 @@ async function openBillingPortal() {
 const KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/
 
 function EnvVars() {
+  const { authFetch, isAuthenticated } = useAuth()
   const [vars, setVars] = useState<Record<string, string>>({})
   const [newKey, setNewKey] = useState('')
   const [newVal, setNewVal] = useState('')
@@ -62,14 +45,15 @@ function EnvVars() {
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
-    const auth = getAuthHeader()
-    if (!auth) { setLoading(false); return }
-    fetch(`${CLOUD_BASE_URL}/api/compute/env`, { headers: { Authorization: auth } })
+    if (!isAuthenticated) { setLoading(false); return }
+    let cancelled = false
+    authFetch(`${CLOUD_BASE_URL}/api/compute/env`)
       .then(r => r.json())
-      .then(d => { if (d.vars) setVars(d.vars) })
-      .catch(() => setError('Failed to load env vars'))
-      .finally(() => setLoading(false))
-  }, [])
+      .then(d => { if (!cancelled && d.vars) setVars(d.vars) })
+      .catch(() => { if (!cancelled) setError('Failed to load env vars') })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [authFetch, isAuthenticated])
 
   const addVar = () => {
     const k = newKey.trim()
@@ -87,15 +71,14 @@ function EnvVars() {
   }
 
   const save = async () => {
-    const auth = getAuthHeader()
-    if (!auth) return
+    if (!isAuthenticated) return
     setSaving(true)
     setError(null)
     setSaved(false)
     try {
-      const res = await fetch(`${CLOUD_BASE_URL}/api/compute/env`, {
+      const res = await authFetch(`${CLOUD_BASE_URL}/api/compute/env`, {
         method: 'PUT',
-        headers: { Authorization: auth, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vars }),
       })
       const data = await res.json()
@@ -150,18 +133,16 @@ function EnvVars() {
 }
 
 function Settings() {
-  const { username, logout } = useAuth()
+  const { username, logout, authFetch, isAuthenticated } = useAuth()
   const { status } = useComputer()
   const [billingLoading, setBillingLoading] = useState(false)
   const [billingError, setBillingError] = useState<string | null>(null)
-
-  const hasCloudAuth = !!getAuthHeader()
 
   const handleBillingPortal = async () => {
     setBillingLoading(true)
     setBillingError(null)
     try {
-      await openBillingPortal()
+      await openBillingPortal(authFetch)
     } catch (err) {
       setBillingError(err instanceof Error ? err.message : 'Failed to open billing portal')
       setBillingLoading(false)
@@ -217,12 +198,12 @@ function Settings() {
             <Heading level={4}>Billing</Heading>
           </CardHeader>
           <CardBody>
-            {!hasCloudAuth && (
+            {!isAuthenticated && (
               <Caption muted>
                 Sign in with your cloud account to manage billing.
               </Caption>
             )}
-            {hasCloudAuth && (
+            {isAuthenticated && (
               <Button
                 variant="secondary"
                 size="sm"

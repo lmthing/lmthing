@@ -1,5 +1,35 @@
 [
   {
+    "hash": "e7423028",
+    "full_hash": "e74230281bdb60e131497472e8f2f5803ab62cd6",
+    "type": "chore",
+    "scope": "",
+    "subject": "update subproject commit reference in sdk/org",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-26 17:29:23 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/e74230281bdb60e131497472e8f2f5803ab62cd6"
+  },
+  {
+    "hash": "5e6014c6",
+    "full_hash": "5e6014c6caab17a980ce33a35bfc3482d2cc1181",
+    "type": "fix",
+    "scope": "auth",
+    "subject": "refresh access tokens reactively so SPAs don't stick on 401",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-26 17:28:43 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/5e6014c6caab17a980ce33a35bfc3482d2cc1181"
+  },
+  {
+    "hash": "f3559907",
+    "full_hash": "f355990709f6997980e2e6d304a5ce2b18afa82f",
+    "type": "chore",
+    "scope": "",
+    "subject": "bump sdk/org submodule to architect per-file builders",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-26 16:22:10 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/f355990709f6997980e2e6d304a5ce2b18afa82f"
+  },
+  {
     "hash": "5370090a",
     "full_hash": "5370090a2fb5d2f5cc6a5b9cf99772989148604c",
     "type": "docs",
@@ -468,35 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-03-28 12:27:06 +0200",
     "url": "https://github.com/lmthing/lmthing/commit/4a2a93e4e8b9862fb7524c956c58fd4a1e8d2377"
-  },
-  {
-    "hash": "973cb369",
-    "full_hash": "973cb369e2dcd94d066f9ca6c2c8500aab90f697",
-    "type": "chore",
-    "scope": "",
-    "subject": "Refactor deployment infrastructure from Fly.io to K8s, updating documentation and code references throughout the project. Removed tsconfig.json for server, adjusted subscription tier descriptions, and modified deployment flows to reflect K8s pod usage. Updated README and plan files to align with new architecture. Ensure all references to Fly.io are replaced with K8s terminology, including in logs, error messages, and user instructions.",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-03-24 15:24:06 +0200",
-    "url": "https://github.com/lmthing/lmthing/commit/973cb369e2dcd94d066f9ca6c2c8500aab90f697"
-  },
-  {
-    "hash": "bb2b1eda",
-    "full_hash": "bb2b1eda5924f89fbb13d6c44d4f44c8a54cd0f6",
-    "type": "chore",
-    "scope": "",
-    "subject": "Standardize lmthing brand display using CozyThingText across all services",
-    "author": "Claude",
-    "date": "2026-03-24 06:43:41 +0000",
-    "url": "https://github.com/lmthing/lmthing/commit/bb2b1eda5924f89fbb13d6c44d4f44c8a54cd0f6"
-  },
-  {
-    "hash": "6515c940",
-    "full_hash": "6515c940e3824d3476c764cdc4ae2f62deabdb94",
-    "type": "refactor",
-    "scope": "",
-    "subject": "replace AI SDK provider stubs with no-op implementations across multiple packages",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-03-13 14:58:12 +0200",
-    "url": "https://github.com/lmthing/lmthing/commit/6515c940e3824d3476c764cdc4ae2f62deabdb94"
   }
 ]

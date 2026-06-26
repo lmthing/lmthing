@@ -1,5 +1,35 @@
 [
   {
+    "hash": "e7423028",
+    "full_hash": "e74230281bdb60e131497472e8f2f5803ab62cd6",
+    "type": "chore",
+    "scope": "",
+    "subject": "update subproject commit reference in sdk/org",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-26 17:29:23 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/e74230281bdb60e131497472e8f2f5803ab62cd6"
+  },
+  {
+    "hash": "5e6014c6",
+    "full_hash": "5e6014c6caab17a980ce33a35bfc3482d2cc1181",
+    "type": "fix",
+    "scope": "auth",
+    "subject": "refresh access tokens reactively so SPAs don't stick on 401",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-26 17:28:43 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/5e6014c6caab17a980ce33a35bfc3482d2cc1181"
+  },
+  {
+    "hash": "f3559907",
+    "full_hash": "f355990709f6997980e2e6d304a5ce2b18afa82f",
+    "type": "chore",
+    "scope": "",
+    "subject": "bump sdk/org submodule to architect per-file builders",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-26 16:22:10 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/f355990709f6997980e2e6d304a5ce2b18afa82f"
+  },
+  {
     "hash": "5370090a",
     "full_hash": "5370090a2fb5d2f5cc6a5b9cf99772989148604c",
     "type": "docs",
@@ -468,35 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-05-21 11:23:44 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/496ac8fd446790e3718c0b27a2f2ca0ad41c0747"
-  },
-  {
-    "hash": "df968dce",
-    "full_hash": "df968dceb7381f63e1fdca3e43358249a4b14ef9",
-    "type": "feat",
-    "scope": "",
-    "subject": "integrate Zitadel for authentication and user management",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-04-22 17:28:10 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/df968dceb7381f63e1fdca3e43358249a4b14ef9"
-  },
-  {
-    "hash": "ffc35ded",
-    "full_hash": "ffc35dedd13df224db6a9e5686e6a6783a7767c5",
-    "type": "fix",
-    "scope": "",
-    "subject": "update subproject commit reference in sdk/org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-04-22 15:37:29 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/ffc35dedd13df224db6a9e5686e6a6783a7767c5"
-  },
-  {
-    "hash": "e15285b0",
-    "full_hash": "e15285b0e3066d709575ee6f7861797727fdc596",
-    "type": "fix",
-    "scope": "",
-    "subject": "add sdk/org/ui/package.json to all SPA Dockerfiles",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-04-22 15:24:13 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/e15285b0e3066d709575ee6f7861797727fdc596"
   }
 ]

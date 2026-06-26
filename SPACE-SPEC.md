@@ -643,7 +643,7 @@ All serializers produce `---\n<fields>\n---\n\n<body>` format with the body trim
 3. Agent resolved from `agents/<slug>/instruct.md` — if `agentSlug = 'default'` and no agent literally named `default` exists, the first agent is used
 4. QuickJS VM created
 5. Value-yielding globals injected: `ask`, `display`, `inspect`, `sleep`, `loadKnowledge`, `fork`, `delegate`, `tasklist`, `registerSpace`
-6. Host tool globals injected: `console.log/warn/error`, `execShell`, `process.env`, `fetch`, `readFileRaw`, `writeFileRaw`, `progress`
+6. Host tool globals injected: `console.log/warn/error`, `execShell`, `process.env`, `fetch`, `readFileRaw`, `writeFileRaw`, `typecheckSource`, `progress`
 7. Space functions injected (system `system-global` functions + agent-scoped functions)
 8. JSX runtime injected (`React.createElement` shim + catalog stubs + space component stubs; catalog imports stripped)
 9. Option-level knowledge preloads resolved (`resolvePreloadedKnowledge`)

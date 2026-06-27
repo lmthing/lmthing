@@ -1,5 +1,15 @@
 [
   {
+    "hash": "03ddb223",
+    "full_hash": "03ddb22357d7b131f38bb104f97eb231b5b5c8ce",
+    "type": "ci",
+    "scope": "",
+    "subject": "update subproject commit reference to 55c8e6b",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-27 18:06:49 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/03ddb22357d7b131f38bb104f97eb231b5b5c8ce"
+  },
+  {
     "hash": "14a57188",
     "full_hash": "14a57188435d14047c9cd23723789ede51d0a733",
     "type": "ci",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-15 21:36:27 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/eb8e8260d535f02e9d2d4532fd2493b4f6c59396"
-  },
-  {
-    "hash": "c88d3900",
-    "full_hash": "c88d39009abbbe55eacd938aec705a084463f18a",
-    "type": "feat",
-    "scope": "",
-    "subject": "refactor chat interface to use direct pod sessions and enhance user experience",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-15 18:15:49 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/c88d39009abbbe55eacd938aec705a084463f18a"
   }
 ]

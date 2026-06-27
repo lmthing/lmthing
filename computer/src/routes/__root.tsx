@@ -107,7 +107,7 @@ async function ensurePod(cloudBaseUrl: string, getAccessToken: () => Promise<str
 }
 
 function PodEnsureGate({ children }: { children: React.ReactNode }) {
-  const { session, getAccessToken } = useAuth()
+  const { session, getAccessToken, getAccessTokenSync, refreshAuth } = useAuth()
   const [status, setStatus] = useState<'pending' | 'ready' | 'error'>('pending')
   const [error, setError] = useState<string | null>(null)
   const initRef = useRef(false)
@@ -162,7 +162,8 @@ function PodEnsureGate({ children }: { children: React.ReactNode }) {
       <AppProvider
         pod={{
           podBaseUrl: COMPUTER_BASE_URL,
-          getAccessToken: () => session.accessToken,
+          getAccessToken: getAccessTokenSync,
+          refresh: refreshAuth,
         }}
       >
         <ProjectProvider projectId="user">

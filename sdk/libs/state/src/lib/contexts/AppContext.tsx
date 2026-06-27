@@ -11,8 +11,11 @@ import type { PodProject } from '../../types/project'
 export interface AppPodConfig {
   /** Base URL of the compute pod's REST API (no trailing slash). */
   podBaseUrl: string
-  /** Returns the current access token (JWT). Called per request. */
+  /** Returns the current access token (JWT). Called per request; must read the
+   *  host's live session store so it returns a fresh token after `refresh`. */
   getAccessToken: () => string | null | undefined
+  /** Force-rotates the token; the transport awaits this and retries on 401. */
+  refresh?: () => Promise<void>
 }
 
 export interface ProjectSummary {
@@ -92,10 +95,11 @@ export function AppProvider({
       return new PodTransport({
         baseUrl: pod.podBaseUrl,
         getAccessToken: pod.getAccessToken,
+        refresh: pod.refresh,
       })
     }
     return null
-  }, [providedTransport, pod?.podBaseUrl, pod?.getAccessToken])
+  }, [providedTransport, pod?.podBaseUrl, pod?.getAccessToken, pod?.refresh])
 
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(initialProjectId ?? null)

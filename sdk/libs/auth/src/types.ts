@@ -28,6 +28,12 @@ export interface AuthContextValue {
   logout: () => void
   /** Returns a live access token, refreshing first if near expiry. */
   getAccessToken: () => Promise<string>
+  /** Sync read of the current access token from the session store (no refresh).
+   *  Use for inject-into-runtimes getters that must always return the latest
+   *  stored token, paired with `refreshAuth` for the 401-retry path. */
+  getAccessTokenSync: () => string | null
+  /** Force-rotates the token pair now (used as the transport's `refresh`). */
+  refreshAuth: () => Promise<void>
   /** Authenticated fetch with automatic refresh + 401 retry. */
   authFetch: (url: string, options?: RequestInit) => Promise<Response>
   unlockPin: (pin: string) => Promise<boolean>

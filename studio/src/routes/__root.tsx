@@ -102,7 +102,7 @@ function PodEnsureGate({ children }: { children: React.ReactNode }) {
 
 /** Inner component — lives inside AuthProvider so useAuth() is safe here. */
 function AuthenticatedApp() {
-  const { session } = useAuth()
+  const { getAccessTokenSync, refreshAuth } = useAuth()
 
   return (
     <AuthGate>
@@ -111,7 +111,8 @@ function AuthenticatedApp() {
           <AppProvider
             pod={{
               podBaseUrl: COMPUTER_BASE_URL,
-              getAccessToken: () => session?.accessToken,
+              getAccessToken: getAccessTokenSync,
+              refresh: refreshAuth,
             }}
           >
             <Outlet />

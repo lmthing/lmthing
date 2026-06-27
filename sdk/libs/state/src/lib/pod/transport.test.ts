@@ -169,6 +169,42 @@ describe('PodTransport', () => {
 
     expect(mock.calls[0]?.headers?.authorization).toBeUndefined()
   })
+
+  it('recovers from a 401 by refreshing the token and retrying once', async () => {
+    // First call: expired token → 401. After refresh() rotates the live token,
+    // the retry's getAccessToken() returns the fresh token and succeeds.
+    let currentToken = 'expired'
+    let refreshes = 0
+    mock.setHandler('GET', `${BASE}/api/projects`, () => {
+      // The handler can't see the header, so gate on the live token value.
+      return currentToken === 'expired'
+        ? { status: 401, json: { error: 'expired' } }
+        : { status: 200, json: { projects: [{ id: 'user', name: 'Personal' }] } }
+    })
+
+    const t = new PodTransport({
+      baseUrl: BASE,
+      getAccessToken: () => currentToken,
+      refresh: async () => {
+        refreshes++
+        currentToken = 'fresh'
+      },
+    })
+    const result = await t.listProjects()
+
+    expect(refreshes).toBe(1)
+    expect(result).toEqual([{ id: 'user', name: 'Personal' }])
+    // Authorization on the retried (second) request carries the fresh token
+    expect(mock.calls[1]?.headers?.authorization).toBe('Bearer fresh')
+  })
+
+  it('does not retry a 401 when no refresh is configured', async () => {
+    mock.setHandler('GET', `${BASE}/api/projects`, () => ({ status: 401, json: { error: 'expired' } }))
+
+    const t = new PodTransport({ baseUrl: BASE, getAccessToken: () => 'expired' })
+    await expect(t.listProjects()).rejects.toThrow(/401/)
+    expect(mock.calls).toHaveLength(1)
+  })
 })
 
 describe('isRunnableSpaceFile', () => {

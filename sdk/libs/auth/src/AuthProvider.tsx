@@ -167,6 +167,16 @@ export function AuthProvider({ appName, callbackPath = '/', children }: AuthProv
     [config],
   )
 
+  // Live sync read of the stored token (no refresh). Paired with `refreshAuth`
+  // for injection into runtimes (e.g. PodTransport) that need a getter which
+  // returns the fresh token after a forced refresh — a React closure captured
+  // at mount would go stale, but reading localStorage always sees the latest.
+  const getAccessTokenSync = useCallback(() => getSession()?.accessToken ?? null, [])
+
+  const refreshAuth = useCallback(async () => {
+    await refreshSession(config)
+  }, [config])
+
   const username = session?.email ?? null
   const isAuthenticated = !!session
   const needsPin = !isDemo && isPinSet() && !pinUnlocked
@@ -186,6 +196,8 @@ export function AuthProvider({ appName, callbackPath = '/', children }: AuthProv
       login,
       logout,
       getAccessToken,
+      getAccessTokenSync,
+      refreshAuth,
       authFetch: authFetchBound,
       unlockPin,
       getPinKey,

@@ -13,8 +13,14 @@ import type { PodProject, PodSpaceMeta, FileTree } from '../../types/project'
 export interface PodTransportOptions {
   /** Base URL of the compute pod's REST API (no trailing slash), e.g. `https://lmthing.computer`. */
   baseUrl: string
-  /** Returns the current access token (JWT). Called immediately before each request. */
+  /** Returns the current access token (JWT). Called immediately before each request;
+   *  must read the host's live session store (not a stale closure) so that after
+   *  `refresh()` rotates the token, the next call returns the fresh one. */
   getAccessToken: () => string | null | undefined
+  /** Force-rotates the access token in the host's session store. The transport
+   *  awaits this and re-reads `getAccessToken` when a request comes back 401, so
+   *  a long-lived client recovers instead of sticking on auth failure. Optional. */
+  refresh?: () => Promise<void>
 }
 
 /**
@@ -50,10 +56,20 @@ export class PodTransport {
   }
 
   private async request<T>(url: string, init?: RequestInit): Promise<T> {
-    const res = await fetch(url, {
-      ...init,
-      headers: { ...this.headers(), ...(init?.headers ?? {}) },
-    })
+    const send = (): Promise<Response> =>
+      fetch(url, {
+        ...init,
+        headers: { ...this.headers(), ...(init?.headers ?? {}) },
+      })
+
+    let res = await send()
+    // Access tokens expire (~12h). Recover by rotating the token once and
+    // retrying — `getAccessToken` reads the host's live session store, so
+    // after `refresh()` it returns a fresh token.
+    if (res.status === 401 && this.opts.refresh) {
+      await this.opts.refresh()
+      res = await send()
+    }
     if (!res.ok) {
       let body = ''
       try {

@@ -1,5 +1,25 @@
 [
   {
+    "hash": "0b2c32fa",
+    "full_hash": "0b2c32faf63f8191202989f785f36e9a99ae5453",
+    "type": "ci",
+    "scope": "",
+    "subject": "update subproject commit reference to 9281df6",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-27 12:40:16 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/0b2c32faf63f8191202989f785f36e9a99ae5453"
+  },
+  {
+    "hash": "f2bf2391",
+    "full_hash": "f2bf239120c037ac7ba99000f6cf445e52c6761b",
+    "type": "fix",
+    "scope": "auth",
+    "subject": "make the pod transport recover from 401 so studio/computer don't stick",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-27 12:37:01 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/f2bf239120c037ac7ba99000f6cf445e52c6761b"
+  },
+  {
     "hash": "ca0ce09c",
     "full_hash": "ca0ce09c1c2019a987bbb8115e0c5f11df46886d",
     "type": "ci",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-15 15:02:26 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/1e14cc614e75076c6fc38d7a4c98ac13bdce3ae4"
-  },
-  {
-    "hash": "4b6ad044",
-    "full_hash": "4b6ad044c57940865f04998e233d0c3e4f0482a3",
-    "type": "chore",
-    "scope": "",
-    "subject": "update org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-15 13:02:10 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/4b6ad044c57940865f04998e233d0c3e4f0482a3"
-  },
-  {
-    "hash": "496ac8fd",
-    "full_hash": "496ac8fd446790e3718c0b27a2f2ca0ad41c0747",
-    "type": "chore",
-    "scope": "",
-    "subject": "update org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-05-21 11:23:44 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/496ac8fd446790e3718c0b27a2f2ca0ad41c0747"
   }
 ]

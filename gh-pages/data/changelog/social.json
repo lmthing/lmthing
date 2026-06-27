@@ -1,5 +1,25 @@
 [
   {
+    "hash": "0b2c32fa",
+    "full_hash": "0b2c32faf63f8191202989f785f36e9a99ae5453",
+    "type": "ci",
+    "scope": "",
+    "subject": "update subproject commit reference to 9281df6",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-27 12:40:16 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/0b2c32faf63f8191202989f785f36e9a99ae5453"
+  },
+  {
+    "hash": "f2bf2391",
+    "full_hash": "f2bf239120c037ac7ba99000f6cf445e52c6761b",
+    "type": "fix",
+    "scope": "auth",
+    "subject": "make the pod transport recover from 401 so studio/computer don't stick",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-27 12:37:01 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/f2bf239120c037ac7ba99000f6cf445e52c6761b"
+  },
+  {
     "hash": "ca0ce09c",
     "full_hash": "ca0ce09c1c2019a987bbb8115e0c5f11df46886d",
     "type": "ci",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-04-22 13:48:26 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/c807d63555b22c1ae7bbe6811153d7957c4f1aa6"
-  },
-  {
-    "hash": "745c3fa4",
-    "full_hash": "745c3fa410ba4257cbd4c98871662d8601ea7a74",
-    "type": "feat",
-    "scope": "",
-    "subject": "extract cli and repl into lmthing/org submodule, rename org/ to sdk/",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-04-22 13:13:53 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/745c3fa410ba4257cbd4c98871662d8601ea7a74"
-  },
-  {
-    "hash": "8b8d9468",
-    "full_hash": "8b8d9468366f93c4cc602f4a4bc0934fcc6e2fe6",
-    "type": "feat",
-    "scope": "",
-    "subject": "add deployments and services for casa, chat, com, social, space, store, studio, and team applications into the vm",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-04-22 11:41:37 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/8b8d9468366f93c4cc602f4a4bc0934fcc6e2fe6"
   }
 ]

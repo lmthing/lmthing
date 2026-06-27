@@ -1,5 +1,15 @@
 [
   {
+    "hash": "ca0ce09c",
+    "full_hash": "ca0ce09c1c2019a987bbb8115e0c5f11df46886d",
+    "type": "ci",
+    "scope": "",
+    "subject": "update subproject commit reference",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-27 01:55:24 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/ca0ce09c1c2019a987bbb8115e0c5f11df46886d"
+  },
+  {
     "hash": "e7423028",
     "full_hash": "e74230281bdb60e131497472e8f2f5803ab62cd6",
     "type": "chore",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-04-22 11:41:37 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/8b8d9468366f93c4cc602f4a4bc0934fcc6e2fe6"
-  },
-  {
-    "hash": "69c41986",
-    "full_hash": "69c41986efcb622fbc4b17508fc678af60798f13",
-    "type": "chore",
-    "scope": "",
-    "subject": "Update local development environment to use `.test` domains instead of `.local`",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-04-01 21:53:51 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/69c41986efcb622fbc4b17508fc678af60798f13"
   }
 ]

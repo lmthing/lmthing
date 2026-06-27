@@ -1,5 +1,15 @@
 [
   {
+    "hash": "14a57188",
+    "full_hash": "14a57188435d14047c9cd23723789ede51d0a733",
+    "type": "ci",
+    "scope": "",
+    "subject": "update subproject commit reference to de52868",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-27 13:20:20 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/14a57188435d14047c9cd23723789ede51d0a733"
+  },
+  {
     "hash": "0b2c32fa",
     "full_hash": "0b2c32faf63f8191202989f785f36e9a99ae5453",
     "type": "ci",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-04-22 13:55:58 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/8aab04045899cf6b4dfe783c418fa210c580a4d7"
-  },
-  {
-    "hash": "c807d635",
-    "full_hash": "c807d63555b22c1ae7bbe6811153d7957c4f1aa6",
-    "type": "feat",
-    "scope": "",
-    "subject": "move thing-web-view CSS into sdk/org/ui package",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-04-22 13:48:26 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/c807d63555b22c1ae7bbe6811153d7957c4f1aa6"
   }
 ]

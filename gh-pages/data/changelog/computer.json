@@ -1,5 +1,15 @@
 [
   {
+    "hash": "c65440cf",
+    "full_hash": "c65440cf32b84fe503d8cd28527aefbc78cc4e72",
+    "type": "chore",
+    "scope": "",
+    "subject": "bump sdk/org \u2014 AgentChatPanel WS access-token fix",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-28 04:44:41 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/c65440cf32b84fe503d8cd28527aefbc78cc4e72"
+  },
+  {
     "hash": "e81ced9b",
     "full_hash": "e81ced9b9732a1d9a1819070d4996303784185de",
     "type": "fix",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-16 10:43:44 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/8c79138f5d662b0fc7e275be6bc8ef0480b2a722"
-  },
-  {
-    "hash": "a41a92da",
-    "full_hash": "a41a92daea5ee35244a6618f7bad996db5a59d5a",
-    "type": "refactor",
-    "scope": "",
-    "subject": "remove unused components and tests from agent builder",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-15 22:14:51 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/a41a92daea5ee35244a6618f7bad996db5a59d5a"
   }
 ]

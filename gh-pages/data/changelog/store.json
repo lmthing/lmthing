@@ -1,5 +1,15 @@
 [
   {
+    "hash": "f7222c3f",
+    "full_hash": "f7222c3f2d62f008debb45ca34259691d094a687",
+    "type": "feat",
+    "scope": "ui",
+    "subject": "cross-app nav links between studio, chat and computer",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-28 16:10:18 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/f7222c3f2d62f008debb45ca34259691d094a687"
+  },
+  {
     "hash": "df952584",
     "full_hash": "df95258443cddd46727aa926323986dcd081c985",
     "type": "fix",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-15 22:14:51 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/a41a92daea5ee35244a6618f7bad996db5a59d5a"
-  },
-  {
-    "hash": "efc1e834",
-    "full_hash": "efc1e834119880d6bed253cbfe38d8f259d69672",
-    "type": "refactor",
-    "scope": "",
-    "subject": "rename WorkflowList to TasklistList and update related components",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-15 21:36:52 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/efc1e834119880d6bed253cbfe38d8f259d69672"
   }
 ]

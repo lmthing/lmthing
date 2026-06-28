@@ -1,5 +1,15 @@
 [
   {
+    "hash": "f7222c3f",
+    "full_hash": "f7222c3f2d62f008debb45ca34259691d094a687",
+    "type": "feat",
+    "scope": "ui",
+    "subject": "cross-app nav links between studio, chat and computer",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-28 16:10:18 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/f7222c3f2d62f008debb45ca34259691d094a687"
+  },
+  {
     "hash": "df952584",
     "full_hash": "df95258443cddd46727aa926323986dcd081c985",
     "type": "fix",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 00:41:57 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/d404feb9ebc3a66dd685871005848dceecc8f5fa"
-  },
-  {
-    "hash": "c548a29a",
-    "full_hash": "c548a29ab6f89b07cdadb744dbbf396f8cdda663",
-    "type": "fix",
-    "scope": "",
-    "subject": "update subproject commit reference for sdk/org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-22 17:55:24 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/c548a29ab6f89b07cdadb744dbbf396f8cdda663"
   }
 ]

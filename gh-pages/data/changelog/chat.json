@@ -1,5 +1,15 @@
 [
   {
+    "hash": "f7222c3f",
+    "full_hash": "f7222c3f2d62f008debb45ca34259691d094a687",
+    "type": "feat",
+    "scope": "ui",
+    "subject": "cross-app nav links between studio, chat and computer",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-28 16:10:18 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/f7222c3f2d62f008debb45ca34259691d094a687"
+  },
+  {
     "hash": "df952584",
     "full_hash": "df95258443cddd46727aa926323986dcd081c985",
     "type": "fix",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 21:05:22 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/bff6c7359843829d5d9f2e155c767beeec6c0461"
-  },
-  {
-    "hash": "26ad8fd1",
-    "full_hash": "26ad8fd1406088dcbc4a65bbcac6e3685c5a6313",
-    "type": "feat",
-    "scope": "",
-    "subject": "realign chat/studio/computer onto pod-served lmthing UI",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 20:57:56 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/26ad8fd1406088dcbc4a65bbcac6e3685c5a6313"
   }
 ]

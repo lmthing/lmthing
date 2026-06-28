@@ -93,6 +93,12 @@ export function createViteConfig(dirname, overrides) {
       ...(overrides?.plugins ?? []),
     ],
     resolve: {
+      // Collapse every React import to a single copy. Workspace libs aliased to
+      // source (notably @lmthing/agent-ui, which lives in the sdk/org submodule
+      // with its OWN node_modules/react@18) would otherwise pull a second React
+      // instance, breaking hooks ("Cannot read properties of null (reading
+      // 'useState')") when their components render inside the app's React tree.
+      dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
       alias: {
         '@': path.resolve(dirname, './src'),
         '@lmthing/ui': path.resolve(dirname, '../sdk/libs/ui/src'),

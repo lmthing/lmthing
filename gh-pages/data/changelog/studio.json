@@ -1,5 +1,25 @@
 [
   {
+    "hash": "bbefc3cc",
+    "full_hash": "bbefc3ccaf1f125d82adc6cca1d212a1926cf2b7",
+    "type": "feat",
+    "scope": "studio",
+    "subject": "knowledge loads in sidebar; Functions/Components nav; docked THING chat",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-28 13:33:50 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/bbefc3ccaf1f125d82adc6cca1d212a1926cf2b7"
+  },
+  {
+    "hash": "8f84ebec",
+    "full_hash": "8f84ebec81f707dfbbbd3769ca32f58c1155362a",
+    "type": "chore",
+    "scope": "",
+    "subject": "bump sdk/org \u2014 standalone chat keeps shell + inspect",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-28 13:14:03 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/8f84ebec81f707dfbbbd3769ca32f58c1155362a"
+  },
+  {
     "hash": "c65440cf",
     "full_hash": "c65440cf32b84fe503d8cd28527aefbc78cc4e72",
     "type": "chore",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-19 23:19:45 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/9f1c12c249339cdfabef6f546df4e3c5203cf445"
-  },
-  {
-    "hash": "77d3a696",
-    "full_hash": "77d3a69632678a850f4f85d8e62cffb005bd8bd2",
-    "type": "refactor",
-    "scope": "",
-    "subject": "remove deprecated types and legacy re-exports from workspace-data.ts",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-15 22:14:58 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/77d3a69632678a850f4f85d8e62cffb005bd8bd2"
-  },
-  {
-    "hash": "a41a92da",
-    "full_hash": "a41a92daea5ee35244a6618f7bad996db5a59d5a",
-    "type": "refactor",
-    "scope": "",
-    "subject": "remove unused components and tests from agent builder",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-15 22:14:51 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/a41a92daea5ee35244a6618f7bad996db5a59d5a"
   }
 ]

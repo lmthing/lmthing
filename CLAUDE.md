@@ -99,8 +99,26 @@ kubectl logs -n lmthing deployment/gateway -f
 kubectl get namespaces | grep ^user-
 ```
 
+## Testing on production / creating a test user
+
+The production apps require a logged-in user. `POST https://lmthing.cloud/api/auth/register`
+creates one, but **`POST /api/auth/login` is broken** (Zitadel "password not supported" —
+see [.issues/zitadel-password-login-disabled.md](./.issues/zitadel-password-login-disabled.md)).
+To get a session: mint a gateway HS256 JWT with `GATEWAY_JWT_SECRET` (from the
+`lmthing-secrets` k8s secret; shape in `cloud/gateway/src/lib/tokens.ts`) for the
+registered `user_id`, then inject `localStorage.lmthing_session = {accessToken,
+refreshToken, expiresAt, userId, email, githubRepo:null, githubUsername:null}` on the
+target SPA and reload. `POST /api/compute/ensure` provisions the free-tier pod;
+`PUT /api/compute/env {vars}` loads API keys (it **replaces** all vars — GET + merge first;
+source keys in `sdk/org/.env`). Drive the browser with the chrome-devtools MCP.
+
+Studio shows a synthetic **`system`** project (the system/user spaces) plus the user's
+projects, and an always-on right-side **THING** chat dock — see [studio/agents.md](./studio/agents.md).
+Open `.issues/` problems: CI/ArgoCD deploy flakiness, Zitadel login, architect stall (sdk/org/.issues).
+
 ## Useful Links
 
 - [Architecture.md](./Architecture.md) — full product & domain architecture
+- [studio/agents.md](./studio/agents.md) — Studio dev guide (editors, sidebar, projects, THING dock)
 - [sdk/org/CLAUDE.md](./sdk/org/CLAUDE.md) — core runtime reference (eval loop, system spaces, sessions)
 - [devops/CLAUDE.md](./devops/CLAUDE.md) — infrastructure & deployment

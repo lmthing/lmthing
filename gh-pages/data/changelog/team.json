@@ -1,5 +1,15 @@
 [
   {
+    "hash": "e81ced9b",
+    "full_hash": "e81ced9b9732a1d9a1819070d4996303784185de",
+    "type": "fix",
+    "scope": "vite",
+    "subject": "dedupe react across source-aliased workspace libs",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-28 04:38:13 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/e81ced9b9732a1d9a1819070d4996303784185de"
+  },
+  {
     "hash": "78129950",
     "full_hash": "78129950895a32b12c73e5d1a46cdb6375dfed60",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-05-21 11:23:44 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/496ac8fd446790e3718c0b27a2f2ca0ad41c0747"
-  },
-  {
-    "hash": "df968dce",
-    "full_hash": "df968dceb7381f63e1fdca3e43358249a4b14ef9",
-    "type": "feat",
-    "scope": "",
-    "subject": "integrate Zitadel for authentication and user management",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-04-22 17:28:10 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/df968dceb7381f63e1fdca3e43358249a4b14ef9"
   }
 ]

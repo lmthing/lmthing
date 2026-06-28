@@ -1,5 +1,15 @@
 [
   {
+    "hash": "e81ced9b",
+    "full_hash": "e81ced9b9732a1d9a1819070d4996303784185de",
+    "type": "fix",
+    "scope": "vite",
+    "subject": "dedupe react across source-aliased workspace libs",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-28 04:38:13 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/e81ced9b9732a1d9a1819070d4996303784185de"
+  },
+  {
     "hash": "78129950",
     "full_hash": "78129950895a32b12c73e5d1a46cdb6375dfed60",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-15 22:14:51 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/a41a92daea5ee35244a6618f7bad996db5a59d5a"
-  },
-  {
-    "hash": "efc1e834",
-    "full_hash": "efc1e834119880d6bed253cbfe38d8f259d69672",
-    "type": "refactor",
-    "scope": "",
-    "subject": "rename WorkflowList to TasklistList and update related components",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-15 21:36:52 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/efc1e834119880d6bed253cbfe38d8f259d69672"
   }
 ]

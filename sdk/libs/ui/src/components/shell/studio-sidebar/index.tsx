@@ -35,6 +35,7 @@ import { useKnowledgeFieldList } from '@lmthing/state'
 import type { KnowledgeFieldMeta } from '@lmthing/state'
 import { useAgent } from '@lmthing/ui/hooks/useAgent'
 import { CozyThingText } from '@lmthing/ui/elements/branding/cozy-text'
+import { otherAppLinks } from '@lmthing/ui/lib/app-urls'
 
 export interface StudioSidebarProps {
   isCollapsed?: boolean
@@ -334,6 +335,17 @@ export function StudioSidebar({
             <FileCode className="studio-sidebar__footer-icon" />
             {!isCollapsed && <span className="studio-sidebar__footer-label">Raw Files</span>}
           </Link>
+          {otherAppLinks('studio').map((link) => (
+            <a
+              key={link.app}
+              href={link.url}
+              className="sidebar__item"
+              title={`Open lmthing.${link.app}`}
+            >
+              <span className="studio-sidebar__footer-icon" aria-hidden="true">{link.emoji}</span>
+              {!isCollapsed && <span className="studio-sidebar__footer-label">{link.label}</span>}
+            </a>
+          ))}
           <button onClick={onOpenSettings} className="sidebar__item">
             <Settings className="studio-sidebar__footer-icon" />
             {!isCollapsed && <span className="studio-sidebar__footer-label">Settings</span>}

@@ -3,6 +3,7 @@ import { CozyThingText } from '../../elements/branding/cozy-text'
 import { Sidebar, SidebarItem } from '../../elements/nav/sidebar'
 import { TopBar } from '../../elements/nav/top-bar'
 import { Badge } from '../../elements/content/badge'
+import { otherAppLinks } from '../../lib/app-urls'
 import { ConnectionBanner } from './connection-banner'
 import type { RuntimeStatus, RuntimeTier } from './status-card'
 
@@ -45,15 +46,28 @@ function ComputerLayout({ status, tier, currentPath, onNavigate, error, onRetry,
             </SidebarItem>
           ))}
         </div>
-        {onRestart && (
-          <SidebarItem
-            onClick={restarting ? undefined : onRestart}
-            style={{ cursor: restarting ? 'default' : 'pointer', opacity: restarting ? 0.5 : 1 }}
-            title="Restart CLI process (reloads .env)"
-          >
-            {restarting ? '↻ Restarting…' : '⏻ Restart'}
-          </SidebarItem>
-        )}
+        <div>
+          {otherAppLinks('computer').map((link) => (
+            <a
+              key={link.app}
+              href={link.url}
+              className="sidebar__item"
+              title={`Open lmthing.${link.app}`}
+              style={{ display: 'block', textDecoration: 'none' }}
+            >
+              {link.emoji} {link.label}
+            </a>
+          ))}
+          {onRestart && (
+            <SidebarItem
+              onClick={restarting ? undefined : onRestart}
+              style={{ cursor: restarting ? 'default' : 'pointer', opacity: restarting ? 0.5 : 1 }}
+              title="Restart CLI process (reloads .env)"
+            >
+              {restarting ? '↻ Restarting…' : '⏻ Restart'}
+            </SidebarItem>
+          )}
+        </div>
       </Sidebar>
       <div className="computer-layout__content">
         <TopBar

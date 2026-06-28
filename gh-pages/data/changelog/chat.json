@@ -1,5 +1,25 @@
 [
   {
+    "hash": "0cdd211e",
+    "full_hash": "0cdd211e421c61c972c1177b18313669ba4ce5b6",
+    "type": "chore",
+    "scope": "",
+    "subject": "update docs",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-28 14:01:50 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/0cdd211e421c61c972c1177b18313669ba4ce5b6"
+  },
+  {
+    "hash": "aca7a2cc",
+    "full_hash": "aca7a2cc1895f683e5a235a5f8acf6571f0a0fe1",
+    "type": "docs",
+    "scope": "",
+    "subject": "studio dev guide (system project, sidebar/editors, THING dock, prod test user); file CI + auth issues; bump sdk/org [skip ci]",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-28 13:59:10 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/aca7a2cc1895f683e5a235a5f8acf6571f0a0fe1"
+  },
+  {
     "hash": "bbefc3cc",
     "full_hash": "bbefc3ccaf1f125d82adc6cca1d212a1926cf2b7",
     "type": "feat",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 00:41:57 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/d404feb9ebc3a66dd685871005848dceecc8f5fa"
-  },
-  {
-    "hash": "c548a29a",
-    "full_hash": "c548a29ab6f89b07cdadb744dbbf396f8cdda663",
-    "type": "fix",
-    "scope": "",
-    "subject": "update subproject commit reference for sdk/org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-22 17:55:24 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/c548a29ab6f89b07cdadb744dbbf396f8cdda663"
-  },
-  {
-    "hash": "0b4cc015",
-    "full_hash": "0b4cc015dc74f113cdb58125296aed1729dec8ef",
-    "type": "fix",
-    "scope": "",
-    "subject": "update subproject commit reference for sdk/org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-22 17:31:06 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/0b4cc015dc74f113cdb58125296aed1729dec8ef"
   }
 ]

@@ -1,5 +1,25 @@
 [
   {
+    "hash": "0cdd211e",
+    "full_hash": "0cdd211e421c61c972c1177b18313669ba4ce5b6",
+    "type": "chore",
+    "scope": "",
+    "subject": "update docs",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-28 14:01:50 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/0cdd211e421c61c972c1177b18313669ba4ce5b6"
+  },
+  {
+    "hash": "aca7a2cc",
+    "full_hash": "aca7a2cc1895f683e5a235a5f8acf6571f0a0fe1",
+    "type": "docs",
+    "scope": "",
+    "subject": "studio dev guide (system project, sidebar/editors, THING dock, prod test user); file CI + auth issues; bump sdk/org [skip ci]",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-28 13:59:10 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/aca7a2cc1895f683e5a235a5f8acf6571f0a0fe1"
+  },
+  {
     "hash": "bbefc3cc",
     "full_hash": "bbefc3ccaf1f125d82adc6cca1d212a1926cf2b7",
     "type": "feat",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-19 23:27:35 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/983d2f9741ab258dc6742ce630a49abd4a07bdd5"
-  },
-  {
-    "hash": "624b97b0",
-    "full_hash": "624b97b019ccd90f46ee49ef99d580fcd33ff78a",
-    "type": "feat",
-    "scope": "",
-    "subject": "add local compute environment setup and enhance agent session management",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-19 23:27:22 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/624b97b019ccd90f46ee49ef99d580fcd33ff78a"
-  },
-  {
-    "hash": "9f1c12c2",
-    "full_hash": "9f1c12c249339cdfabef6f546df4e3c5203cf445",
-    "type": "refactor",
-    "scope": "spaces",
-    "subject": "migrate store spaces to new sdk/org shape, remove old shape",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-19 23:19:45 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/9f1c12c249339cdfabef6f546df4e3c5203cf445"
   }
 ]

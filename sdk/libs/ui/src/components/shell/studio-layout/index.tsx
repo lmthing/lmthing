@@ -35,7 +35,13 @@ function useSpacePath(): string {
   return '/'
 }
 
-export function StudioLayout({ children }: { children?: React.ReactNode }) {
+export function StudioLayout({
+  children,
+  rightPanel,
+}: {
+  children?: React.ReactNode
+  rightPanel?: React.ReactNode
+}) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const spacePath = useSpacePath()
@@ -80,7 +86,8 @@ export function StudioLayout({ children }: { children?: React.ReactNode }) {
       `knowledge/${slug}/${slug}/index.md`,
       `---\ntype: string\nvariable: ${variable}\n---\n\n${name} field.`,
     )
-    navigate({ to: `${spacePath}/knowledge/${slug}` })
+    // Field-detail route id is encoded as `<domain>---<field>`.
+    navigate({ to: `${spacePath}/knowledge/${encodeURIComponent(`${slug}---${slug}`)}` })
   }, [spaceFS, navigate, spacePath])
 
   return (
@@ -94,6 +101,7 @@ export function StudioLayout({ children }: { children?: React.ReactNode }) {
       onOpenSettings={() => navigate({ to: `${spacePath}/settings/env` })}
       onCreateField={handleCreateField}
       onCreateAgent={handleCreateAgent}
+      rightPanel={rightPanel}
     >
       {children}
     </StudioShell>

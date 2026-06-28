@@ -40,6 +40,9 @@ export interface StudioShellProps {
   onDuplicate?: (nodeId: string) => void
   user?: { name: string }
   children?: React.ReactNode
+  /** Optional THING chat panel, docked on the right when toggled on. Built by
+   *  the app (it needs auth + compute origin); the shell only shows/hides it. */
+  rightPanel?: React.ReactNode
 }
 
 function useSpacePath(): string {
@@ -57,12 +60,15 @@ export function StudioShell({
   onCreateField,
   onCreateAgent,
   children,
+  rightPanel,
 }: StudioShellProps) {
   const { agentId } = useParams({ strict: false }) as { agentId?: string }
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const spacePath = useSpacePath()
   const [sidebarCollapsed, , setSidebarCollapsed] = useToggle('studio-shell.sidebar.collapsed', defaultSidebarCollapsed)
+  // THING chat dock — persisted, always-on while enabled (does not navigate).
+  const [thingOpen, toggleThingOpen] = useToggle('studio-shell.thing.open', false)
 
   const agentList = useAgentList()
   const knowledgeFields = useKnowledgeFields()
@@ -91,6 +97,8 @@ export function StudioShell({
         onOpenSettings={onOpenSettings || (() => navigate({ to: `${spacePath}/settings/env` }))}
         onCreateField={onCreateField}
         onCreateAgent={onCreateAgent}
+        thingOpen={thingOpen}
+        onToggleThing={rightPanel ? toggleThingOpen : undefined}
       />
 
       <div className="split-pane__primary">
@@ -111,6 +119,24 @@ export function StudioShell({
           )
         )}
       </div>
+
+      {rightPanel && thingOpen && (
+        <div
+          className="studio-shell__thing-dock"
+          style={{
+            width: 400,
+            flex: '0 0 400px',
+            height: '100%',
+            borderLeft: '1px solid var(--border, #e5e7eb)',
+            display: 'flex',
+            flexDirection: 'column',
+            minWidth: 0,
+            overflow: 'hidden',
+          }}
+        >
+          {rightPanel}
+        </div>
+      )}
     </div>
   )
 }

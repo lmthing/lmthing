@@ -9,7 +9,7 @@
  * the `useGithub` dependency. Route params are now `$projectId`/`$spaceId`.
  */
 import { useMemo } from 'react'
-import { useToggle, useTasklistList } from '@lmthing/state'
+import { useToggle, useTasklistList, useGlob } from '@lmthing/state'
 import { Link, useLocation, useParams } from '@tanstack/react-router'
 import {
   Plus,
@@ -22,14 +22,17 @@ import {
   ChevronRight as ChevronRightSmall,
   FileCode,
   ListChecks,
+  FunctionSquare,
+  Box,
+  MessageSquare,
 } from 'lucide-react'
 import '@lmthing/css/elements/nav/sidebar/index.css'
 import '@lmthing/css/components/shell/index.css'
 import { buildSpacePath } from '@lmthing/ui/lib/space-path'
 import { useAgentList } from '@lmthing/ui/hooks/useAgentList'
 import type { AgentListItem } from '@lmthing/ui/hooks/useAgentList'
-import { useKnowledgeFields } from '@lmthing/ui/hooks/useKnowledgeFields'
-import type { DomainMeta } from '@lmthing/ui/hooks/useKnowledgeFields'
+import { useKnowledgeFieldList } from '@lmthing/state'
+import type { KnowledgeFieldMeta } from '@lmthing/state'
 import { useAgent } from '@lmthing/ui/hooks/useAgent'
 import { CozyThingText } from '@lmthing/ui/elements/branding/cozy-text'
 
@@ -41,6 +44,10 @@ export interface StudioSidebarProps {
   onOpenSettings?: () => void
   onCreateField?: () => void
   onCreateAgent?: () => void
+  /** When provided, the THING footer entry toggles the right-side chat dock
+   *  (instead of navigating). `thingOpen` reflects the dock's current state. */
+  thingOpen?: boolean
+  onToggleThing?: () => void
   onExportZip?: () => void
   onExportGithub?: () => void
   isExporting?: boolean
@@ -64,6 +71,8 @@ export function StudioSidebar({
   onOpenSettings,
   onCreateField,
   onCreateAgent,
+  thingOpen,
+  onToggleThing,
 }: StudioSidebarProps) {
   const { pathname } = useLocation()
   const { spaceId } = useParams({ strict: false }) as { spaceId?: string }
@@ -71,10 +80,12 @@ export function StudioSidebar({
   const [fieldsExpanded, toggleFieldsExpanded] = useToggle('sidebar.fields.expanded', true)
   const [agentsExpanded, toggleAgentsExpanded] = useToggle('sidebar.agents.expanded', true)
   const [tasklistsExpanded, toggleTasklistsExpanded] = useToggle('sidebar.tasklists.expanded', true)
+  const [functionsExpanded, toggleFunctionsExpanded] = useToggle('sidebar.functions.expanded', true)
+  const [componentsExpanded, toggleComponentsExpanded] = useToggle('sidebar.components.expanded', true)
   const [conversationsExpanded, toggleConversationsExpanded] = useToggle('sidebar.conversations.expanded', true)
 
   const agentList = useAgentList()
-  const knowledgeFields = useKnowledgeFields()
+  const knowledgeFields = useKnowledgeFieldList()
   const activeAgent = useAgent(activeAgentId || '')
   const tasklistItems = useTasklistList()
 
@@ -87,12 +98,33 @@ export function StudioSidebar({
   }, [agentList])
 
   const fields = useMemo(() => {
-    return knowledgeFields.map((field: DomainMeta) => ({
-      id: field.id,
-      label: field.id,
-      path: field.path,
+    return knowledgeFields.map((f: KnowledgeFieldMeta) => ({
+      id: f.fieldId,
+      label: `${f.domain} / ${f.field}`,
+      path: f.path,
     }))
   }, [knowledgeFields])
+
+  // Functions (functions/<name>.ts) and components (components/{view,form}/<Name>.tsx).
+  const functionPaths = useGlob('functions/*.ts')
+  const viewComponentPaths = useGlob('components/view/*.tsx')
+  const formComponentPaths = useGlob('components/form/*.tsx')
+
+  const functions = useMemo(
+    () =>
+      functionPaths
+        .map((p) => p.split('/').pop()!.replace(/\.ts$/, ''))
+        .sort((a, b) => a.localeCompare(b)),
+    [functionPaths],
+  )
+  const components = useMemo(
+    () =>
+      [
+        ...viewComponentPaths.map((p) => ({ name: p.split('/').pop()!.replace(/\.tsx$/, ''), kind: 'view' as const })),
+        ...formComponentPaths.map((p) => ({ name: p.split('/').pop()!.replace(/\.tsx$/, ''), kind: 'form' as const })),
+      ].sort((a, b) => a.name.localeCompare(b.name)),
+    [viewComponentPaths, formComponentPaths],
+  )
 
   return (
     <aside className={`sidebar ${isCollapsed ? 'sidebar--collapsed' : ''}`}>
@@ -127,7 +159,7 @@ export function StudioSidebar({
               {fieldsExpanded && (
                 <div className="studio-sidebar__section-items">
                   {fields.map(field => {
-                    const href = `${spacePath}/knowledge/${field.id}`
+                    const href = `${spacePath}/knowledge/${encodeURIComponent(field.id)}`
                     const isActive = pathname === href || activeFieldId === field.id
                     return (
                       <Link key={field.id} to={href} className={`sidebar__item ${isActive ? 'sidebar__item--active' : ''}`}>
@@ -200,6 +232,58 @@ export function StudioSidebar({
               )}
             </section>
 
+            <section>
+              <button
+                onClick={toggleFunctionsExpanded}
+                className="sidebar__item studio-sidebar__section-header"
+              >
+                {functionsExpanded ? <ChevronDown className="studio-sidebar__section-chevron" /> : <ChevronRightSmall className="studio-sidebar__section-chevron" />}
+                Functions ({functions.length})
+              </button>
+              {functionsExpanded && (
+                <div className="studio-sidebar__section-items">
+                  {functions.map(name => {
+                    const href = `${spacePath}/functions`
+                    return (
+                      <Link key={name} to={href} className="sidebar__item">
+                        <FunctionSquare className="studio-sidebar__item-icon--knowledge" />
+                        <span className="studio-sidebar__item-label">{name}</span>
+                      </Link>
+                    )
+                  })}
+                  <Link to={`${spacePath}/functions`} className="sidebar__item studio-sidebar__create-btn">
+                    <Plus className="studio-sidebar__create-icon" />
+                    <span className="studio-sidebar__create-label">Edit Functions</span>
+                  </Link>
+                </div>
+              )}
+            </section>
+
+            <section>
+              <button
+                onClick={toggleComponentsExpanded}
+                className="sidebar__item studio-sidebar__section-header"
+              >
+                {componentsExpanded ? <ChevronDown className="studio-sidebar__section-chevron" /> : <ChevronRightSmall className="studio-sidebar__section-chevron" />}
+                Components ({components.length})
+              </button>
+              {componentsExpanded && (
+                <div className="studio-sidebar__section-items">
+                  {components.map(c => (
+                    <Link key={`${c.kind}/${c.name}`} to={`${spacePath}/components`} className="sidebar__item">
+                      <Box className="studio-sidebar__item-icon--knowledge" />
+                      <span className="studio-sidebar__item-label">{c.name}</span>
+                      <span className="studio-sidebar__item-badge" style={{ marginLeft: 'auto', opacity: 0.6, fontSize: 11 }}>{c.kind}</span>
+                    </Link>
+                  ))}
+                  <Link to={`${spacePath}/components`} className="sidebar__item studio-sidebar__create-btn">
+                    <Plus className="studio-sidebar__create-icon" />
+                    <span className="studio-sidebar__create-label">Edit Components</span>
+                  </Link>
+                </div>
+              )}
+            </section>
+
             {activeAgentId && (
               <section>
                 <button
@@ -231,10 +315,21 @@ export function StudioSidebar({
 
       <div className="studio-sidebar__footer">
         <div className="studio-sidebar__footer-items">
-          <Link to="/thing" className={`sidebar__item ${pathname.startsWith('/thing') ? 'sidebar__item--active' : ''}`}>
-            <span className="studio-sidebar__footer-icon" aria-hidden="true">🤖</span>
-            {!isCollapsed && <span className="studio-sidebar__footer-label">THING</span>}
-          </Link>
+          {onToggleThing ? (
+            <button
+              onClick={onToggleThing}
+              className={`sidebar__item ${thingOpen ? 'sidebar__item--active' : ''}`}
+              title={thingOpen ? 'Hide THING chat' : 'Show THING chat'}
+            >
+              <MessageSquare className="studio-sidebar__footer-icon" />
+              {!isCollapsed && <span className="studio-sidebar__footer-label">THING</span>}
+            </button>
+          ) : (
+            <Link to="/thing" className={`sidebar__item ${pathname.startsWith('/thing') ? 'sidebar__item--active' : ''}`}>
+              <span className="studio-sidebar__footer-icon" aria-hidden="true">🤖</span>
+              {!isCollapsed && <span className="studio-sidebar__footer-label">THING</span>}
+            </Link>
+          )}
           <Link to={`${spacePath}/raw`} className={`sidebar__item ${pathname.includes('/raw') ? 'sidebar__item--active' : ''}`}>
             <FileCode className="studio-sidebar__footer-icon" />
             {!isCollapsed && <span className="studio-sidebar__footer-label">Raw Files</span>}

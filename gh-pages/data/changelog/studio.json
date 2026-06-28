@@ -1,5 +1,25 @@
 [
   {
+    "hash": "78129950",
+    "full_hash": "78129950895a32b12c73e5d1a46cdb6375dfed60",
+    "type": "feat",
+    "scope": "studio",
+    "subject": "full SPACE-SPEC fidelity + embedded THING chat; bump sdk/org",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-28 04:24:40 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/78129950895a32b12c73e5d1a46cdb6375dfed60"
+  },
+  {
+    "hash": "b2a89ca8",
+    "full_hash": "b2a89ca833812f0cba7434f05aac47affff4ba27",
+    "type": "ci",
+    "scope": "",
+    "subject": "update subproject commit reference to 2b673e5",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-27 20:37:21 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/b2a89ca833812f0cba7434f05aac47affff4ba27"
+  },
+  {
     "hash": "03ddb223",
     "full_hash": "03ddb22357d7b131f38bb104f97eb231b5b5c8ce",
     "type": "ci",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-15 21:36:52 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/efc1e834119880d6bed253cbfe38d8f259d69672"
-  },
-  {
-    "hash": "eb8e8260",
-    "full_hash": "eb8e8260d535f02e9d2d4532fd2493b4f6c59396",
-    "type": "chore",
-    "scope": "",
-    "subject": "Refactor agent and tasklist handling for new specification",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-15 21:36:27 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/eb8e8260d535f02e9d2d4532fd2493b4f6c59396"
-  },
-  {
-    "hash": "8aea3045",
-    "full_hash": "8aea3045d92005cb1322470a30c8646bfb2b2d4f",
-    "type": "chore",
-    "scope": "",
-    "subject": "remove thing",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-15 17:51:53 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/8aea3045d92005cb1322470a30c8646bfb2b2d4f"
   }
 ]

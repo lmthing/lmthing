@@ -1,5 +1,25 @@
 [
   {
+    "hash": "78129950",
+    "full_hash": "78129950895a32b12c73e5d1a46cdb6375dfed60",
+    "type": "feat",
+    "scope": "studio",
+    "subject": "full SPACE-SPEC fidelity + embedded THING chat; bump sdk/org",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-28 04:24:40 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/78129950895a32b12c73e5d1a46cdb6375dfed60"
+  },
+  {
+    "hash": "b2a89ca8",
+    "full_hash": "b2a89ca833812f0cba7434f05aac47affff4ba27",
+    "type": "ci",
+    "scope": "",
+    "subject": "update subproject commit reference to 2b673e5",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-27 20:37:21 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/b2a89ca833812f0cba7434f05aac47affff4ba27"
+  },
+  {
     "hash": "03ddb223",
     "full_hash": "03ddb22357d7b131f38bb104f97eb231b5b5c8ce",
     "type": "ci",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-04-22 17:28:10 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/df968dceb7381f63e1fdca3e43358249a4b14ef9"
-  },
-  {
-    "hash": "ffc35ded",
-    "full_hash": "ffc35dedd13df224db6a9e5686e6a6783a7767c5",
-    "type": "fix",
-    "scope": "",
-    "subject": "update subproject commit reference in sdk/org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-04-22 15:37:29 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/ffc35dedd13df224db6a9e5686e6a6783a7767c5"
-  },
-  {
-    "hash": "e15285b0",
-    "full_hash": "e15285b0e3066d709575ee6f7861797727fdc596",
-    "type": "fix",
-    "scope": "",
-    "subject": "add sdk/org/ui/package.json to all SPA Dockerfiles",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-04-22 15:24:13 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/e15285b0e3066d709575ee6f7861797727fdc596"
   }
 ]

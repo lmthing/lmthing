@@ -113,12 +113,12 @@ target SPA and reload. `POST /api/compute/ensure` provisions the free-tier pod;
 source keys in `sdk/org/.env`). Drive the browser with the chrome-devtools MCP.
 
 Studio shows a synthetic **`system`** project (the system/user spaces) plus the user's
-projects, and an always-on right-side **THING** chat dock — see [studio/agents.md](./studio/agents.md).
+projects, and an always-on right-side **THING** chat dock — see [studio/CLAUDE.md](./studio/CLAUDE.md).
 Open `.issues/` problems: CI/ArgoCD deploy flakiness, Zitadel login, architect stall (sdk/org/.issues).
 
 ## Useful Links
 
 - [Architecture.md](./Architecture.md) — full product & domain architecture
-- [studio/agents.md](./studio/agents.md) — Studio dev guide (editors, sidebar, projects, THING dock)
+- [studio/CLAUDE.md](./studio/CLAUDE.md) — Studio dev guide (editors, sidebar, projects, THING dock)
 - [sdk/org/CLAUDE.md](./sdk/org/CLAUDE.md) — core runtime reference (eval loop, system spaces, sessions)
 - [devops/CLAUDE.md](./devops/CLAUDE.md) — infrastructure & deployment

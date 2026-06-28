@@ -369,6 +369,30 @@ describe('useFile', () => {
 })
 ```
 
+## Recent additions (2026-06)
+
+New parsers/hooks added so Studio can view+edit everything in SPACE-SPEC:
+
+- **`parsers/tasklist.ts`** — now **block-YAML aware** (the shared
+  `parseFrontmatter` flattens nested maps, which dropped `input`/`output`).
+  `parseTasklistTask(filename, content)` parses per-task `input` + `output` maps;
+  `serializeTasklistTask` writes them. Added `TasklistIndex` +
+  `parseTasklistIndex(content)` / `serializeTasklistIndex(index, description)`
+  for the optional `tasklists/<name>/index.md` manifest.
+- **`parsers/knowledge-option.ts`** (new) — `parseKnowledgeOption(content)` /
+  `serializeKnowledgeOption(option)` + `KNOWLEDGE_OPTION_ALLOWED_KEYS`. Enforces
+  the spec allow-list: `description` required when frontmatter is present;
+  `icon`/`color`/`label` optional; any other key throws.
+- **`parsers/config.ts`** — `KnowledgeFieldIndex.variable` is now optional
+  (inferred from the field dir name when omitted, like the core loader).
+- **Removed** the dead `parsers/task.ts` (`FlowTask`/`FlowIndex` — old flow schema).
+- **Hooks**: `useTasklistTasks(name)` → fully-parsed `{path, task}[]` (so the
+  editor loads real task content, not skeletons); `useTasklistIndex(name)` →
+  parsed manifest; `useKnowledgeFieldList()` → `{domain, field, fieldId, path}[]`
+  discovered via the **required** `knowledge/*/*/index.md` (NOT the optional
+  domain `index.md` — that was the "knowledge not loading in the sidebar" bug).
+  `useDomainDirectory()` now derives domains from field indexes too.
+
 ## Common Tasks
 
 ### Add a new hook

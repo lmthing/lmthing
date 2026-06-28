@@ -196,14 +196,30 @@ export function AgentBuilder() {
     return Array.from(names).sort()
   }, [viewComponentMatches, formComponentMatches])
 
+  // Option-level: knowledge/<domain>/<field>/<slug>.md (excludes index.md)
+  const knowledgeOptionMatches = useGlob(P.globs.allKnowledgeOptions)
+
   const knowledgeRefs = useMemo(() => {
-    return knowledgeIndexMatches.map(p => {
-      // knowledge/<domain>/<field>/index.md → "domain/field"
+    // 2-part field-level refs: knowledge/<domain>/<field>/index.md → "domain/field"
+    const fieldRefs = knowledgeIndexMatches.map(p => {
       const parts = p.split('/')
       if (parts.length >= 3) return `${parts[1]}/${parts[2]}`
       return null
-    }).filter((x): x is string => x !== null).sort()
-  }, [knowledgeIndexMatches])
+    }).filter((x): x is string => x !== null)
+
+    // 3-part option-level refs: knowledge/<domain>/<field>/<slug>.md → "domain/field/slug"
+    const optionRefs = knowledgeOptionMatches.map(p => {
+      const parts = p.split('/')
+      // parts: ["knowledge", domain, field, "slug.md"]
+      if (parts.length >= 4) {
+        const slug = parts[3].replace(/\.md$/, '')
+        return `${parts[1]}/${parts[2]}/${slug}`
+      }
+      return null
+    }).filter((x): x is string => x !== null)
+
+    return [...fieldRefs, ...optionRefs].sort()
+  }, [knowledgeIndexMatches, knowledgeOptionMatches])
 
   // ── load existing agent ───────────────────────────────────────────────────
   const agent = useAgent(agentId ?? '')

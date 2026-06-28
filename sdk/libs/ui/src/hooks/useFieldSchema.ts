@@ -1,10 +1,15 @@
 /**
  * useFieldSchema — Extracts schema fields from knowledge directory structure.
  *
- * Reads index.md frontmatter in knowledge subdirectories (new spec) to find
- * entries with renderAs: "field" and builds SchemaField[] with options from the
- * sibling option .md files. Domain-level index.md (renderAs: "section") supplies
- * the section/field label.
+ * Reads index.md frontmatter in knowledge subdirectories to find field
+ * descriptors (identified by having a `type` key in their frontmatter) and
+ * builds SchemaField[] with options from the sibling option .md files.
+ * Domain-level index.md supplies the domain/category label.
+ *
+ * Current spec: domain index.md has `renderAs?: 'tabs' | 'list'` (studio hint
+ * only). Field index.md has `type` (required), `fieldType` (UI hint), etc.
+ * Field-level `renderAs` was removed from the spec; `renderAs: 'field'` /
+ * `renderAs: 'section'` are stale values that are no longer written.
  */
 import { useMemo } from 'react'
 import { useGlobRead } from '@lmthing/state'

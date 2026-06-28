@@ -42,18 +42,22 @@ export function FieldIndexPanel({ domain, field }: FieldIndexPanelProps) {
   const parsed = useKnowledgeFieldIndex(domain, field)
 
   const [type, setType] = useUIState<string>('field-index-panel.type', 'string')
+  const [label, setLabel] = useUIState<string>('field-index-panel.label', '')
   const [variable, setVariable] = useUIState<string>('field-index-panel.variable', '')
   const [defaultVal, setDefaultVal] = useUIState<string>('field-index-panel.default', '')
   const [fieldType, setFieldType] = useUIState<string>('field-index-panel.field-type', '')
+  const [required, setRequired] = useUIState<boolean>('field-index-panel.required', false)
   const [description, setDescription] = useUIState<string>('field-index-panel.description', '')
   const [isDirty, setIsDirty] = useUIState<boolean>('field-index-panel.is-dirty', false)
 
   useEffect(() => {
     if (!parsed) return
     setType(parsed.type || 'string')
+    setLabel(parsed.label || '')
     setVariable(parsed.variable || '')
     setDefaultVal(parsed.default || '')
     setFieldType(parsed.fieldType || '')
+    setRequired(parsed.required ?? false)
     setDescription(parsed.description || '')
     setIsDirty(false)
   }, [parsed])
@@ -65,15 +69,17 @@ export function FieldIndexPanel({ domain, field }: FieldIndexPanelProps) {
     const content = serializeKnowledgeFieldIndex(
       {
         type,
+        ...(label ? { label } : {}),
         variable,
         ...(defaultVal ? { default: defaultVal } : {}),
         ...(fieldType ? { fieldType } : {}),
+        ...(required ? { required } : {}),
       },
       description
     )
     spaceFS.writeFile(indexPath, content)
     setIsDirty(false)
-  }, [spaceFS, indexPath, type, variable, defaultVal, fieldType, description])
+  }, [spaceFS, indexPath, type, label, variable, defaultVal, fieldType, required, description])
 
   return (
     <div className="dir-metadata">
@@ -102,6 +108,17 @@ export function FieldIndexPanel({ domain, field }: FieldIndexPanelProps) {
         </div>
 
         <div>
+          <Label compact>Label</Label>
+          <Input
+            type="text"
+            value={label}
+            onChange={e => { setLabel(e.target.value); markDirty() }}
+            placeholder="Human-readable label (optional)"
+          />
+          <Caption muted>Display name shown in studio UI. If blank, the field dir name is used.</Caption>
+        </div>
+
+        <div>
           <Label compact>Variable</Label>
           <Input
             type="text"
@@ -109,7 +126,7 @@ export function FieldIndexPanel({ domain, field }: FieldIndexPanelProps) {
             onChange={e => { setVariable(e.target.value); markDirty() }}
             placeholder="camelCaseVar"
           />
-          <Caption muted>JS identifier injected into agent context</Caption>
+          <Caption muted>JS identifier injected into agent context. If blank, inferred from the field directory name.</Caption>
         </div>
 
         <div>
@@ -134,6 +151,18 @@ export function FieldIndexPanel({ domain, field }: FieldIndexPanelProps) {
             ))}
           </select>
           <Caption muted>UI hint: how studio/chat should render or ask for this field. Must name a catalog form control.</Caption>
+        </div>
+
+        <div>
+          <Label compact>Required</Label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={required}
+              onChange={e => { setRequired(e.target.checked); markDirty() }}
+            />
+            <span className="caption">This field must be filled before the agent runs</span>
+          </label>
         </div>
 
         <div>

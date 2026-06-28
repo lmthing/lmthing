@@ -1,0 +1,112 @@
+@reference "../../theme.css";
+
+/* ── ComponentEditor ──────────────────────────────────────────────── */
+
+.component-editor {
+  @apply flex flex-col;
+  height: 100%;
+  gap: 1rem;
+}
+
+.component-editor__header {
+  @apply flex items-center justify-between;
+  padding: 0 0 0.5rem;
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+}
+
+.component-editor__section-title {
+  @apply flex items-center;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+}
+
+.component-editor__kind-badge {
+  font-size: 0.6875rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.component-editor__kind-badge--view {
+  background: var(--color-info-subtle, #dbeafe);
+  color: var(--color-info, #1d4ed8);
+}
+
+.component-editor__kind-badge--form {
+  background: var(--color-success-subtle, #dcfce7);
+  color: var(--color-success, #15803d);
+}
+
+.component-editor__list {
+  @apply flex flex-col;
+  gap: 0.25rem;
+  min-height: 2rem;
+}
+
+.component-editor__list-item {
+  @apply flex items-center justify-between;
+  padding: 0.375rem 0.5rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.component-editor__list-item:hover {
+  background: var(--color-surface-hover, rgba(0,0,0,0.04));
+}
+
+.component-editor__list-item--active {
+  background: var(--color-surface-active, rgba(0,0,0,0.07));
+}
+
+.component-editor__list-item-name {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.875rem;
+}
+
+.component-editor__list-item-actions {
+  @apply flex items-center;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.component-editor__list-item:hover .component-editor__list-item-actions {
+  opacity: 1;
+}
+
+.component-editor__empty {
+  padding: 0.75rem 0;
+}
+
+/* editor pane */
+.component-editor__pane {
+  @apply flex flex-col;
+  flex: 1;
+  gap: 0.5rem;
+}
+
+.component-editor__pane-header {
+  @apply flex items-center justify-between;
+}
+
+.component-editor__textarea {
+  flex: 1;
+  min-height: 20rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8125rem;
+  resize: vertical;
+  width: 100%;
+}
+
+/* new-component inline form */
+.component-editor__new-form {
+  @apply flex items-center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: var(--color-surface-subtle, rgba(0,0,0,0.02));
+  border-radius: 0.375rem;
+  border: 1px dashed var(--color-border, #e2e8f0);
+}

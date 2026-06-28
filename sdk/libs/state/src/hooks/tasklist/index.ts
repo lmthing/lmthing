@@ -2,3 +2,5 @@
 
 export * from './useTasklistTask'
 export * from './useTasklistTaskList'
+export * from './useTasklistTasks'
+export * from './useTasklistIndex'

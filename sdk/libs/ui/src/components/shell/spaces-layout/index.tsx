@@ -8,13 +8,14 @@
  * Removed under the pod-backed architecture: the "New local space" creator
  * and all GitHub connect/disconnect UI. Search is retained.
  */
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import {
   Building2,
   ChevronLeft,
   ChevronRight,
   Search,
+  Plus,
 } from 'lucide-react'
 import '@lmthing/css/elements/nav/sidebar/index.css'
 import '@lmthing/css/elements/layouts/split-pane/index.css'
@@ -27,8 +28,20 @@ import { PageHeader, PageBody } from '@lmthing/ui/elements/layouts/page'
 import { Card, CardBody } from '@lmthing/ui/elements/content/card'
 import { Heading } from '@lmthing/ui/elements/typography/heading'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
-import { useProject, useToggle, useUIState } from '@lmthing/state'
+import { useProject, useApp, useToggle, useUIState } from '@lmthing/state'
+import { serializeAgentInstruct } from '@lmthing/state'
 import { buildSpacePath } from '@lmthing/ui/lib/space-path'
+
+/** Derive a slug from a space name. */
+function toSlug(value: string): string {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  return trimmed
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
 
 const SPACE_COLORS = ['#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ef4444', '#84cc16']
 
@@ -43,11 +56,55 @@ export interface SpacesLayoutProps {
 
 export function SpacesLayout({ onOpenSpace, onGoHome }: SpacesLayoutProps) {
   const navigate = useNavigate()
-  const { projectId, spaces, isLoadingSpaces, spacesError } = useProject()
+  const { projectId, spaces, isLoadingSpaces, spacesError, refreshSpaces } = useProject()
+  const { transport } = useApp()
+
+  const isSystemProject = projectId === 'system'
 
   const [isSidebarCollapsed, toggleSidebarCollapsed] = useToggle('spaces-layout.sidebar-collapsed', false)
   const [searchQuery, setSearchQuery] = useUIState('spaces-layout.search-query', '')
   const [selectedSpaceId, setSelectedSpaceId] = useUIState<string | null>('spaces-layout.selected-space-id', null)
+
+  // New space modal state
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [newSpaceName, setNewSpaceName] = useState('')
+  const [isCreating, setIsCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+
+  const handleCreateSpace = async () => {
+    const slug = toSlug(newSpaceName)
+    if (!slug || !projectId || !transport) return
+    setIsCreating(true)
+    setCreateError(null)
+    try {
+      // Seed a minimal valid space file: agents/<slug>/instruct.md
+      const instructContent = serializeAgentInstruct({
+        title: newSpaceName.trim(),
+        knowledge: [],
+        functions: [],
+        components: [],
+        actions: [],
+        canDelegateTo: [],
+        body: `You are ${newSpaceName.trim()}, a helpful assistant.`,
+      })
+      const files: Record<string, string> = {
+        [`agents/${slug}/instruct.md`]: instructContent,
+      }
+      await transport.saveSpaceFiles(projectId, slug, files)
+      await refreshSpaces()
+      setIsCreateOpen(false)
+      setNewSpaceName('')
+      if (onOpenSpace) {
+        onOpenSpace(projectId, slug)
+      } else {
+        navigate({ to: buildSpacePath(projectId, slug) })
+      }
+    } catch (e) {
+      setCreateError(e instanceof Error ? e.message : 'Failed to create space')
+    } finally {
+      setIsCreating(false)
+    }
+  }
 
   const allSpaces = useMemo<Space[]>(() => {
     return spaces.map((s, idx) => ({
@@ -93,6 +150,16 @@ export function SpacesLayout({ onOpenSpace, onGoHome }: SpacesLayoutProps) {
             <button onClick={goHome} className="spaces-layout__home-btn" title="lmthing home" />
             {!isSidebarCollapsed && <span className="spaces-layout__sidebar-title">Spaces</span>}
           </div>
+          {!isSidebarCollapsed && !isSystemProject && (
+            <button
+              className="btn btn--primary btn--sm spaces-layout__new-space-btn"
+              onClick={() => setIsCreateOpen(true)}
+              title="New Space"
+            >
+              <Plus className="spaces-layout__new-space-icon" />
+              New Space
+            </button>
+          )}
         </div>
 
         {!isSidebarCollapsed && (
@@ -187,15 +254,73 @@ export function SpacesLayout({ onOpenSpace, onGoHome }: SpacesLayoutProps) {
                 <div className="spaces-layout__empty">
                   <Building2 className="spaces-layout__empty-icon" />
                   <Heading level={3}>No spaces in this project</Heading>
-                  <Caption muted className="spaces-layout__grid-caption">
-                    Spaces are created on the pod. Ask your compute pod to add a space, then refresh.
-                  </Caption>
+                  {isSystemProject ? (
+                    <span className="caption caption--muted spaces-layout__grid-caption">
+                      System spaces are platform-provided and cannot be created here.
+                    </span>
+                  ) : (
+                    <>
+                      <span className="caption caption--muted spaces-layout__grid-caption">
+                        Create a new space to get started.
+                      </span>
+                      <button
+                        className="btn btn--primary spaces-layout__empty-create-btn"
+                        onClick={() => setIsCreateOpen(true)}
+                      >
+                        <Plus className="spaces-layout__empty-create-icon" /> New Space
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
           )}
         </PageBody>
       </div>
+      {/* Create space modal */}
+      {isCreateOpen && !isSystemProject && (
+        <div className="projects-layout__modal-backdrop">
+          <div className="projects-layout__modal">
+            <h3 className="projects-layout__modal-title">Create New Space</h3>
+            <p className="projects-layout__modal-desc">
+              A space holds agents, knowledge, and tasklists. Enter a name to create one.
+            </p>
+            <div className="projects-layout__modal-fields">
+              <input
+                className="input"
+                autoFocus
+                placeholder="Space name (e.g. my-space)"
+                value={newSpaceName}
+                onChange={e => setNewSpaceName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') void handleCreateSpace() }}
+                disabled={isCreating}
+              />
+              {newSpaceName.trim() && (
+                <span className="caption caption--muted">{`Space id: ${toSlug(newSpaceName)}`}</span>
+              )}
+              {createError && (
+                <span className="caption spaces-layout__create-error">{createError}</span>
+              )}
+              <div className="projects-layout__modal-actions">
+                <button
+                  className="btn btn--ghost"
+                  onClick={() => { setIsCreateOpen(false); setNewSpaceName(''); setCreateError(null) }}
+                  disabled={isCreating}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn--primary"
+                  onClick={() => void handleCreateSpace()}
+                  disabled={!toSlug(newSpaceName) || isCreating}
+                >
+                  {isCreating ? 'Creating…' : 'Create Space'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

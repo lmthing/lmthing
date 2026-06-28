@@ -9,7 +9,7 @@
  * the `useGithub` dependency. Route params are now `$projectId`/`$spaceId`.
  */
 import { useMemo } from 'react'
-import { useToggle } from '@lmthing/state'
+import { useToggle, useTasklistList } from '@lmthing/state'
 import { Link, useLocation, useParams } from '@tanstack/react-router'
 import {
   Plus,
@@ -21,6 +21,7 @@ import {
   ChevronDown,
   ChevronRight as ChevronRightSmall,
   FileCode,
+  ListChecks,
 } from 'lucide-react'
 import '@lmthing/css/elements/nav/sidebar/index.css'
 import '@lmthing/css/components/shell/index.css'
@@ -69,11 +70,13 @@ export function StudioSidebar({
   const spacePath = useSpacePath()
   const [fieldsExpanded, toggleFieldsExpanded] = useToggle('sidebar.fields.expanded', true)
   const [agentsExpanded, toggleAgentsExpanded] = useToggle('sidebar.agents.expanded', true)
+  const [tasklistsExpanded, toggleTasklistsExpanded] = useToggle('sidebar.tasklists.expanded', true)
   const [conversationsExpanded, toggleConversationsExpanded] = useToggle('sidebar.conversations.expanded', true)
 
   const agentList = useAgentList()
   const knowledgeFields = useKnowledgeFields()
   const activeAgent = useAgent(activeAgentId || '')
+  const tasklistItems = useTasklistList()
 
   const agents = useMemo(() => {
     return agentList.map((item: AgentListItem) => ({
@@ -169,6 +172,34 @@ export function StudioSidebar({
               )}
             </section>
 
+            <section>
+              <button
+                onClick={toggleTasklistsExpanded}
+                className="sidebar__item studio-sidebar__section-header"
+              >
+                {tasklistsExpanded ? <ChevronDown className="studio-sidebar__section-chevron" /> : <ChevronRightSmall className="studio-sidebar__section-chevron" />}
+                Tasklists ({tasklistItems.length})
+              </button>
+              {tasklistsExpanded && (
+                <div className="studio-sidebar__section-items">
+                  {tasklistItems.map(item => {
+                    const href = `${spacePath}/workflow/${item.name}`
+                    const isActive = pathname.startsWith(href)
+                    return (
+                      <Link key={item.name} to={href} className={`sidebar__item ${isActive ? 'sidebar__item--active' : ''}`}>
+                        <ListChecks className="studio-sidebar__item-icon--tasklist" />
+                        <span className="studio-sidebar__item-label">{item.name}</span>
+                      </Link>
+                    )
+                  })}
+                  <button onClick={onCreateAgent} className="sidebar__item studio-sidebar__create-btn">
+                    <Plus className="studio-sidebar__create-icon" />
+                    <span className="studio-sidebar__create-label">Create Tasklist</span>
+                  </button>
+                </div>
+              )}
+            </section>
+
             {activeAgentId && (
               <section>
                 <button
@@ -200,6 +231,10 @@ export function StudioSidebar({
 
       <div className="studio-sidebar__footer">
         <div className="studio-sidebar__footer-items">
+          <Link to="/thing" className={`sidebar__item ${pathname.startsWith('/thing') ? 'sidebar__item--active' : ''}`}>
+            <span className="studio-sidebar__footer-icon" aria-hidden="true">🤖</span>
+            {!isCollapsed && <span className="studio-sidebar__footer-label">THING</span>}
+          </Link>
           <Link to={`${spacePath}/raw`} className={`sidebar__item ${pathname.includes('/raw') ? 'sidebar__item--active' : ''}`}>
             <FileCode className="studio-sidebar__footer-icon" />
             {!isCollapsed && <span className="studio-sidebar__footer-label">Raw Files</span>}

@@ -39,6 +39,8 @@ export const P = {
   // ── Tasklist paths ────────────────────────────────────────────────
   tasklistDir: (name: string): string => `tasklists/${name}`,
 
+  tasklistIndex: (name: string): string => `tasklists/${name}/index.md`,
+
   tasklistTask: (name: string, order: number, id: string): string =>
     `tasklists/${name}/${String(order).padStart(2, '0')}-${id}.md`,
 
@@ -97,6 +99,8 @@ export const P = {
     allKnowledgeDomainIndexes: 'knowledge/*/index.md',
     knowledgeOptions: (domain: string, field: string): string =>
       `knowledge/${domain}/${field}/*.md`,
+    // All option files across every domain/field — excludes index.md files
+    allKnowledgeOptions: 'knowledge/*/*/!(index).md',
     allKnowledge: 'knowledge/**',
 
     allConversations: (id: string): string => `agents/${id}/conversations/*.json`,

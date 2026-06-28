@@ -1,16 +1,21 @@
 /**
  * TasklistEditor — form-based editor for a single tasklist.
  *
- * Reads/writes tasklists/<name>/NN-<id>.md via SpaceFS.
- * Uses useTasklist(name) from @lmthing/state to read live task data.
+ * Reads/writes tasklists/<name>/NN-<id>.md and tasklists/<name>/index.md via SpaceFS.
+ * Uses useTasklistTasks(name) from @lmthing/state to read live, fully-parsed task data.
+ * Uses useTasklistIndex(name) to read the manifest (input schema + description).
  */
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import {
-  useTasklist,
+  useTasklistTasks,
+  useTasklistIndex,
   useSpaceFS,
   serializeTasklistTask,
+  serializeTasklistIndex,
   tasklistTaskFilename,
+  P,
   type TasklistTask,
+  type TasklistIndex,
 } from '@lmthing/state'
 import { Button } from '@lmthing/ui/elements/forms/button'
 import { Input } from '@lmthing/ui/elements/forms/input'
@@ -24,17 +29,30 @@ import { cn } from '@lmthing/ui/lib/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type TaskOutputType = 'string' | 'number' | 'boolean' | 'object' | 'array'
+type TaskFieldType = 'string' | 'number' | 'boolean' | 'object' | 'array'
+
+/** A field→type pair used in the input/output editors */
+interface SchemaRow {
+  field: string
+  type: TaskFieldType
+}
 
 /** Draft state for a single task being edited in the form */
 interface TaskDraft {
   id: string
   instruction: string
-  output: Array<{ field: string; type: TaskOutputType }>
+  input: SchemaRow[]
+  output: SchemaRow[]
   dependsOn: string[]
   goal: boolean
   optional: boolean
   condition: string
+}
+
+/** Draft state for the tasklist manifest (index.md) */
+interface ManifestDraft {
+  description: string
+  input: SchemaRow[]
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -47,7 +65,7 @@ interface TasklistEditorProps {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function outputRowsToRecord(rows: Array<{ field: string; type: TaskOutputType }>): Record<string, string> {
+function schemaRowsToRecord(rows: SchemaRow[]): Record<string, string> {
   const record: Record<string, string> = {}
   for (const row of rows) {
     if (row.field.trim()) record[row.field.trim()] = row.type
@@ -55,7 +73,135 @@ function outputRowsToRecord(rows: Array<{ field: string; type: TaskOutputType }>
   return record
 }
 
-const OUTPUT_TYPES: TaskOutputType[] = ['string', 'number', 'boolean', 'object', 'array']
+function recordToSchemaRows(record: Record<string, string> | undefined): SchemaRow[] {
+  if (!record || Object.keys(record).length === 0) return []
+  return Object.entries(record).map(([field, type]) => ({
+    field,
+    type: type as TaskFieldType,
+  }))
+}
+
+const FIELD_TYPES: TaskFieldType[] = ['string', 'number', 'boolean', 'object', 'array']
+
+// Convert a parsed TasklistTask to a TaskDraft
+function taskToTaskDraft(task: TasklistTask): TaskDraft {
+  return {
+    id: task.id,
+    instruction: task.instruction,
+    input: recordToSchemaRows(task.input),
+    output: recordToSchemaRows(task.output).length > 0
+      ? recordToSchemaRows(task.output)
+      : [{ field: 'result', type: 'string' }],
+    dependsOn: task.dependsOn ?? [],
+    goal: task.goal ?? false,
+    optional: task.optional ?? false,
+    condition: task.condition ?? '',
+  }
+}
+
+// ─── SchemaEditor ────────────────────────────────────────────────────────────
+
+interface SchemaEditorProps {
+  rows: SchemaRow[]
+  onChange: (rows: SchemaRow[]) => void
+  addLabel?: string
+  emptyHint?: string
+}
+
+function SchemaEditor({ rows, onChange, addLabel = '+ Add field', emptyHint }: SchemaEditorProps) {
+  return (
+    <div className="tasklist-editor__output-rows">
+      {rows.map((row, i) => (
+        <div key={i} className="tasklist-editor__output-row">
+          <Input
+            type="text"
+            value={row.field}
+            onChange={(e) => {
+              const next = [...rows]
+              next[i] = { ...row, field: e.target.value }
+              onChange(next)
+            }}
+            placeholder="fieldName"
+            className="tasklist-editor__output-field-input"
+          />
+          <Select
+            value={row.type}
+            onChange={(e) => {
+              const next = [...rows]
+              next[i] = { ...row, type: e.target.value as TaskFieldType }
+              onChange(next)
+            }}
+          >
+            {FIELD_TYPES.map((t) => (
+              <SelectOption key={t} value={t}>{t}</SelectOption>
+            ))}
+          </Select>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onChange(rows.filter((_, j) => j !== i))}
+            title="Remove field"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}>
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </Button>
+        </div>
+      ))}
+      <button
+        className="tasklist-editor__add-output-btn"
+        onClick={() => onChange([...rows, { field: '', type: 'string' }])}
+      >
+        {addLabel}
+      </button>
+      {emptyHint && rows.length === 0 && (
+        <Caption muted>{emptyHint}</Caption>
+      )}
+    </div>
+  )
+}
+
+// ─── ManifestSection ─────────────────────────────────────────────────────────
+
+interface ManifestSectionProps {
+  draft: ManifestDraft
+  onChange: (draft: ManifestDraft) => void
+}
+
+function ManifestSection({ draft, onChange }: ManifestSectionProps) {
+  return (
+    <div className="tasklist-editor__manifest">
+      <div className="tasklist-editor__manifest-header">
+        <Heading level={3}>Manifest</Heading>
+        <Caption muted>Tasklist-level input schema and description (index.md)</Caption>
+      </div>
+      <div className="tasklist-editor__manifest-body">
+        {/* description */}
+        <div>
+          <Label compact>Description</Label>
+          <Textarea
+            value={draft.description}
+            onChange={(e) => onChange({ ...draft, description: e.target.value })}
+            placeholder="Describe what this tasklist accomplishes..."
+            compact
+          />
+        </div>
+
+        {/* input schema */}
+        <div>
+          <Label compact>Input fields</Label>
+          <SchemaEditor
+            rows={draft.input}
+            onChange={(rows) => onChange({ ...draft, input: rows })}
+            addLabel="+ Add input field"
+            emptyHint="No input fields defined. Add fields if this tasklist requires external inputs."
+          />
+          <Caption muted>Declare the fields callers must supply when running this tasklist.</Caption>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ─── TaskForm ────────────────────────────────────────────────────────────────
 
@@ -85,10 +231,6 @@ function TaskForm({
   onSetGoal,
 }: TaskFormProps) {
   const otherTaskIds = allTaskIds.filter((id) => id !== draft.id)
-
-  const updateOutput = (rows: Array<{ field: string; type: TaskOutputType }>) => {
-    onChange({ ...draft, output: rows })
-  }
 
   const toggleDepends = (taskId: string) => {
     const next = draft.dependsOn.includes(taskId)
@@ -148,54 +290,26 @@ function TaskForm({
           />
         </div>
 
+        {/* input */}
+        <div>
+          <Label compact>Input fields</Label>
+          <SchemaEditor
+            rows={draft.input}
+            onChange={(rows) => onChange({ ...draft, input: rows })}
+            addLabel="+ Add input field"
+            emptyHint="No input fields. Add fields if this task requires specific inputs."
+          />
+          <Caption muted>Declare the fields this task expects as input (field name → type).</Caption>
+        </div>
+
         {/* output */}
         <div>
           <Label compact>Output fields</Label>
-          <div className="tasklist-editor__output-rows">
-            {draft.output.map((row, i) => (
-              <div key={i} className="tasklist-editor__output-row">
-                <Input
-                  type="text"
-                  value={row.field}
-                  onChange={(e) => {
-                    const next = [...draft.output]
-                    next[i] = { ...row, field: e.target.value }
-                    updateOutput(next)
-                  }}
-                  placeholder="fieldName"
-                  className="tasklist-editor__output-field-input"
-                />
-                <Select
-                  value={row.type}
-                  onChange={(e) => {
-                    const next = [...draft.output]
-                    next[i] = { ...row, type: e.target.value as TaskOutputType }
-                    updateOutput(next)
-                  }}
-                >
-                  {OUTPUT_TYPES.map((t) => (
-                    <SelectOption key={t} value={t}>{t}</SelectOption>
-                  ))}
-                </Select>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => updateOutput(draft.output.filter((_, j) => j !== i))}
-                  title="Remove field"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}>
-                    <path d="M18 6L6 18M6 6l12 12" />
-                  </svg>
-                </Button>
-              </div>
-            ))}
-            <button
-              className="tasklist-editor__add-output-btn"
-              onClick={() => updateOutput([...draft.output, { field: '', type: 'string' }])}
-            >
-              + Add output field
-            </button>
-          </div>
+          <SchemaEditor
+            rows={draft.output}
+            onChange={(rows) => onChange({ ...draft, output: rows })}
+            addLabel="+ Add output field"
+          />
           <Caption muted>Declare the fields this task produces (field name → type).</Caption>
         </div>
 
@@ -278,38 +392,57 @@ function TaskForm({
 // ─── TasklistEditor ────────────────────────────────────────────────────────────
 
 export function TasklistEditor({ name, onBack }: TasklistEditorProps) {
-  const tasklist = useTasklist(name)
+  // Wave-1 APIs: fully-parsed tasks + manifest
+  const taskEntries = useTasklistTasks(name)
+  const tasklistIndex = useTasklistIndex(name)
   const spaceFS = useSpaceFS()
 
-  // Build initial drafts from live FS data each time the task list changes externally
-  const [drafts, setDrafts] = useState<TaskDraft[]>(() =>
-    tasklist.tasks
-      .map((item) => {
-        // useTasklist returns TasklistTaskItem (path + order + id) not full task
-        // We need to read each task file directly; for the editor init we build
-        // a minimal draft — the full content will come from useTasklistTask per-item
-        // but for simplicity we return a skeleton here and rely on the save logic.
-        return {
-          id: item.id,
-          instruction: '',
-          output: [{ field: 'result', type: 'string' as TaskOutputType }],
-          dependsOn: [],
-          goal: false,
-          optional: false,
-          condition: '',
-        }
-      })
-  )
-
+  // Track whether the draft has been seeded from live FS data.
+  // We seed once (or when the component re-mounts for a different tasklist)
+  // and then leave edits untouched until the user saves.
+  const seededRef = useRef<string | null>(null)
   const [isDirty, setIsDirty] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
-  // Sync from FS when tasklist changes (only if not dirty)
-  // (We skip auto-sync when dirty to avoid overwriting edits)
+  // ── Task drafts ───────────────────────────────────────────────────────────
+
+  const [drafts, setDrafts] = useState<TaskDraft[]>(() =>
+    taskEntries
+      .map((entry) => entry.task)
+      .filter((t): t is TasklistTask => t !== null)
+      .map(taskToTaskDraft)
+  )
+
+  // ── Manifest draft ────────────────────────────────────────────────────────
+
+  const [manifestDraft, setManifestDraft] = useState<ManifestDraft>(() => ({
+    description: tasklistIndex?.description ?? '',
+    input: recordToSchemaRows(tasklistIndex?.input),
+  }))
+
+  // Re-seed from live FS when switching to a different tasklist or on first mount
+  useEffect(() => {
+    if (seededRef.current === name) return // already seeded for this name
+    seededRef.current = name
+    setIsDirty(false)
+
+    const seeded = taskEntries
+      .map((entry) => entry.task)
+      .filter((t): t is TasklistTask => t !== null)
+      .map(taskToTaskDraft)
+    setDrafts(seeded)
+
+    setManifestDraft({
+      description: tasklistIndex?.description ?? '',
+      input: recordToSchemaRows(tasklistIndex?.input),
+    })
+  // We intentionally only re-seed when the tasklist name changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [name])
 
   const allTaskIds = drafts.map((d) => d.id)
 
-  // ── Mutations ──────────────────────────────────────────────────────────────
+  // ── Task mutations ─────────────────────────────────────────────────────────
 
   const updateDraft = useCallback((index: number, updated: TaskDraft) => {
     setDrafts((prev) => prev.map((d, i) => (i === index ? updated : d)))
@@ -323,7 +456,8 @@ export function TasklistEditor({ name, onBack }: TasklistEditorProps) {
       {
         id: newId,
         instruction: '',
-        output: [{ field: 'result', type: 'string' as TaskOutputType }],
+        input: [],
+        output: [{ field: 'result', type: 'string' as TaskFieldType }],
         dependsOn: [],
         goal: prev.length === 0, // first task gets goal by default
         optional: false,
@@ -364,6 +498,11 @@ export function TasklistEditor({ name, onBack }: TasklistEditorProps) {
     setIsDirty(true)
   }, [])
 
+  const updateManifest = useCallback((updated: ManifestDraft) => {
+    setManifestDraft(updated)
+    setIsDirty(true)
+  }, [])
+
   // ── Save ───────────────────────────────────────────────────────────────────
 
   const handleSave = useCallback(async () => {
@@ -395,7 +534,7 @@ export function TasklistEditor({ name, onBack }: TasklistEditorProps) {
       }
 
       // Remove old task files for this tasklist
-      const existingPaths = tasklist.tasks.map((item) => item.path)
+      const existingPaths = taskEntries.map((entry) => entry.path)
       for (const path of existingPaths) {
         spaceFS.deleteFile(path)
       }
@@ -407,11 +546,13 @@ export function TasklistEditor({ name, onBack }: TasklistEditorProps) {
         const filename = tasklistTaskFilename(order, d.id)
         const path = `tasklists/${name}/${filename}`
 
+        const inputRecord = schemaRowsToRecord(d.input)
         const task: TasklistTask = {
           order,
           id: d.id,
           instruction: d.instruction,
-          output: outputRowsToRecord(d.output),
+          ...(Object.keys(inputRecord).length > 0 ? { input: inputRecord } : {}),
+          output: schemaRowsToRecord(d.output),
           dependsOn: d.dependsOn.length > 0 ? d.dependsOn : undefined,
           optional: d.optional || undefined,
           goal: d.goal || undefined,
@@ -421,12 +562,20 @@ export function TasklistEditor({ name, onBack }: TasklistEditorProps) {
         spaceFS.writeFile(path, serializeTasklistTask(task))
       }
 
+      // Write (or overwrite) the manifest index.md
+      const inputRecord = schemaRowsToRecord(manifestDraft.input)
+      const indexData: TasklistIndex = {
+        ...(Object.keys(inputRecord).length > 0 ? { input: inputRecord } : {}),
+        description: manifestDraft.description,
+      }
+      spaceFS.writeFile(P.tasklistIndex(name), serializeTasklistIndex(indexData, manifestDraft.description))
+
       setDrafts(normalizedDrafts)
       setIsDirty(false)
     } finally {
       setIsSaving(false)
     }
-  }, [drafts, name, spaceFS, tasklist.tasks])
+  }, [drafts, manifestDraft, name, spaceFS, taskEntries])
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -463,8 +612,18 @@ export function TasklistEditor({ name, onBack }: TasklistEditorProps) {
         </div>
       </div>
 
-      {/* Tasks */}
+      {/* Body */}
       <div className="tasklist-editor__body">
+        {/* Manifest section (index.md) */}
+        <ManifestSection
+          draft={manifestDraft}
+          onChange={updateManifest}
+        />
+
+        {/* Divider */}
+        <div className="tasklist-editor__section-divider" />
+
+        {/* Tasks */}
         {drafts.length === 0 ? (
           <div className="tasklist-editor__empty">
             <Heading level={3}>No tasks yet</Heading>

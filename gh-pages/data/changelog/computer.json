@@ -1,5 +1,25 @@
 [
   {
+    "hash": "df952584",
+    "full_hash": "df95258443cddd46727aa926323986dcd081c985",
+    "type": "fix",
+    "scope": "spa",
+    "subject": "never cache index.html \u2014 pick up new deploys without a hard refresh",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-28 14:35:19 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/df95258443cddd46727aa926323986dcd081c985"
+  },
+  {
+    "hash": "6139d13d",
+    "full_hash": "6139d13dbdaca9d20fbb1ace666604e0faf15d05",
+    "type": "chore",
+    "scope": "",
+    "subject": "bump sdk/org \u2014 AgentChatPanel echoes user messages",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-28 14:24:26 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/6139d13dbdaca9d20fbb1ace666604e0faf15d05"
+  },
+  {
     "hash": "0cdd211e",
     "full_hash": "0cdd211e421c61c972c1177b18313669ba4ce5b6",
     "type": "chore",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 18:12:23 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/86169c74e865cf92a49e0ccfc4dd8af2a9d7f632"
-  },
-  {
-    "hash": "d404feb9",
-    "full_hash": "d404feb9ebc3a66dd685871005848dceecc8f5fa",
-    "type": "fix",
-    "scope": "",
-    "subject": "update subproject commit reference for sdk/org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 00:41:57 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/d404feb9ebc3a66dd685871005848dceecc8f5fa"
-  },
-  {
-    "hash": "c548a29a",
-    "full_hash": "c548a29ab6f89b07cdadb744dbbf396f8cdda663",
-    "type": "fix",
-    "scope": "",
-    "subject": "update subproject commit reference for sdk/org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-22 17:55:24 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/c548a29ab6f89b07cdadb744dbbf396f8cdda663"
   }
 ]

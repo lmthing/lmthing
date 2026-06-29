@@ -1,5 +1,15 @@
 [
   {
+    "hash": "af4f0e5f",
+    "full_hash": "af4f0e5ff8684e59600678eed677d0b90f40f741",
+    "type": "chore",
+    "scope": "",
+    "subject": "move studio and computer into sdk/org cli server",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-29 21:30:11 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/af4f0e5ff8684e59600678eed677d0b90f40f741"
+  },
+  {
     "hash": "f7222c3f",
     "full_hash": "f7222c3f2d62f008debb45ca34259691d094a687",
     "type": "feat",
@@ -78,16 +88,6 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-28 04:44:41 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/c65440cf32b84fe503d8cd28527aefbc78cc4e72"
-  },
-  {
-    "hash": "e81ced9b",
-    "full_hash": "e81ced9b9732a1d9a1819070d4996303784185de",
-    "type": "fix",
-    "scope": "vite",
-    "subject": "dedupe react across source-aliased workspace libs",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-28 04:38:13 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/e81ced9b9732a1d9a1819070d4996303784185de"
   },
   {
     "hash": "78129950",
@@ -210,16 +210,6 @@
     "url": "https://github.com/lmthing/lmthing/commit/e6ec05a00ed17c34916596b483be06d5642151ca"
   },
   {
-    "hash": "e049aa4b",
-    "full_hash": "e049aa4b10faf41a91a103a7d2958fa6999bb0ea",
-    "type": "fix",
-    "scope": "auth",
-    "subject": "persist refresh token and auto-refresh before expiry",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-25 09:52:21 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/e049aa4b10faf41a91a103a7d2958fa6999bb0ea"
-  },
-  {
     "hash": "65644695",
     "full_hash": "65644695d8686d6e5e19fff60f89067e595234f5",
     "type": "fix",
@@ -238,26 +228,6 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-24 17:21:49 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/543f9f3661e3b5e7786ed407b96c707804af3400"
-  },
-  {
-    "hash": "d4a6f596",
-    "full_hash": "d4a6f5965ecccc7fde7fb9fe14d358e1f30c95f3",
-    "type": "feat",
-    "scope": "computer",
-    "subject": "nav links + restart button in IDE header",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 17:15:44 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/d4a6f5965ecccc7fde7fb9fe14d358e1f30c95f3"
-  },
-  {
-    "hash": "c34d42ea",
-    "full_hash": "c34d42ea634b51bd80034c9dbcc890480992c151",
-    "type": "feat",
-    "scope": "computer",
-    "subject": "add restart button to IDE header (index route)",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 17:14:45 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/c34d42ea634b51bd80034c9dbcc890480992c151"
   },
   {
     "hash": "98cfe7d5",
@@ -298,16 +268,6 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-24 14:28:24 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/b242ee182e974c00794c481ee9fc0330b64067f2"
-  },
-  {
-    "hash": "8a89e5e0",
-    "full_hash": "8a89e5e0b7b5474e06749660b009fa7af797f3a7",
-    "type": "feat",
-    "scope": "",
-    "subject": "fix computer file tree, terminal, remove preview panel",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 14:27:36 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/8a89e5e0b7b5474e06749660b009fa7af797f3a7"
   },
   {
     "hash": "3819a078",
@@ -390,16 +350,6 @@
     "url": "https://github.com/lmthing/lmthing/commit/53d45259b3f9977160e027991790da71f48f2a86"
   },
   {
-    "hash": "cd9fad63",
-    "full_hash": "cd9fad63d2349b251f61900ace7f3589aab4122c",
-    "type": "ci",
-    "scope": "",
-    "subject": "retrigger compute + SPA builds with synced lockfile",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 23:58:03 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/cd9fad63d2349b251f61900ace7f3589aab4122c"
-  },
-  {
     "hash": "0b2e78bd",
     "full_hash": "0b2e78bd786317b75488bd6a993625ed572a0ad5",
     "type": "ci",
@@ -418,16 +368,6 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 23:45:33 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/4b71ba58581e6161f64a600a269aa55ae633892e"
-  },
-  {
-    "hash": "e48b5ec8",
-    "full_hash": "e48b5ec8b5067c6f58a8d93ce6d21039a2fb11d9",
-    "type": "fix",
-    "scope": "vite",
-    "subject": "alias @lmthing/agent-ui to source so SPA builds resolve it",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 23:17:00 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/e48b5ec8b5067c6f58a8d93ce6d21039a2fb11d9"
   },
   {
     "hash": "ea943e78",
@@ -498,5 +438,65 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 00:41:57 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/d404feb9ebc3a66dd685871005848dceecc8f5fa"
+  },
+  {
+    "hash": "c548a29a",
+    "full_hash": "c548a29ab6f89b07cdadb744dbbf396f8cdda663",
+    "type": "fix",
+    "scope": "",
+    "subject": "update subproject commit reference for sdk/org",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-22 17:55:24 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/c548a29ab6f89b07cdadb744dbbf396f8cdda663"
+  },
+  {
+    "hash": "0b4cc015",
+    "full_hash": "0b4cc015dc74f113cdb58125296aed1729dec8ef",
+    "type": "fix",
+    "scope": "",
+    "subject": "update subproject commit reference for sdk/org",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-22 17:31:06 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/0b4cc015dc74f113cdb58125296aed1729dec8ef"
+  },
+  {
+    "hash": "983d2f97",
+    "full_hash": "983d2f9741ab258dc6742ce630a49abd4a07bdd5",
+    "type": "fix",
+    "scope": "",
+    "subject": "update subproject commit reference for sdk/org",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-19 23:27:35 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/983d2f9741ab258dc6742ce630a49abd4a07bdd5"
+  },
+  {
+    "hash": "624b97b0",
+    "full_hash": "624b97b019ccd90f46ee49ef99d580fcd33ff78a",
+    "type": "feat",
+    "scope": "",
+    "subject": "add local compute environment setup and enhance agent session management",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-19 23:27:22 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/624b97b019ccd90f46ee49ef99d580fcd33ff78a"
+  },
+  {
+    "hash": "9f1c12c2",
+    "full_hash": "9f1c12c249339cdfabef6f546df4e3c5203cf445",
+    "type": "refactor",
+    "scope": "spaces",
+    "subject": "migrate store spaces to new sdk/org shape, remove old shape",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-19 23:19:45 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/9f1c12c249339cdfabef6f546df4e3c5203cf445"
+  },
+  {
+    "hash": "77d3a696",
+    "full_hash": "77d3a69632678a850f4f85d8e62cffb005bd8bd2",
+    "type": "refactor",
+    "scope": "",
+    "subject": "remove deprecated types and legacy re-exports from workspace-data.ts",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-15 22:14:58 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/77d3a69632678a850f4f85d8e62cffb005bd8bd2"
   }
 ]

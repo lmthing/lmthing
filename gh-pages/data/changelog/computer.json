@@ -1,5 +1,15 @@
 [
   {
+    "hash": "af4f0e5f",
+    "full_hash": "af4f0e5ff8684e59600678eed677d0b90f40f741",
+    "type": "chore",
+    "scope": "",
+    "subject": "move studio and computer into sdk/org cli server",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-29 21:30:11 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/af4f0e5ff8684e59600678eed677d0b90f40f741"
+  },
+  {
     "hash": "f7222c3f",
     "full_hash": "f7222c3f2d62f008debb45ca34259691d094a687",
     "type": "feat",
@@ -30,16 +40,6 @@
     "url": "https://github.com/lmthing/lmthing/commit/6139d13dbdaca9d20fbb1ace666604e0faf15d05"
   },
   {
-    "hash": "0cdd211e",
-    "full_hash": "0cdd211e421c61c972c1177b18313669ba4ce5b6",
-    "type": "chore",
-    "scope": "",
-    "subject": "update docs",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-28 14:01:50 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/0cdd211e421c61c972c1177b18313669ba4ce5b6"
-  },
-  {
     "hash": "aca7a2cc",
     "full_hash": "aca7a2cc1895f683e5a235a5f8acf6571f0a0fe1",
     "type": "docs",
@@ -48,16 +48,6 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-28 13:59:10 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/aca7a2cc1895f683e5a235a5f8acf6571f0a0fe1"
-  },
-  {
-    "hash": "bbefc3cc",
-    "full_hash": "bbefc3ccaf1f125d82adc6cca1d212a1926cf2b7",
-    "type": "feat",
-    "scope": "studio",
-    "subject": "knowledge loads in sidebar; Functions/Components nav; docked THING chat",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-28 13:33:50 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/bbefc3ccaf1f125d82adc6cca1d212a1926cf2b7"
   },
   {
     "hash": "8f84ebec",
@@ -78,16 +68,6 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-28 04:44:41 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/c65440cf32b84fe503d8cd28527aefbc78cc4e72"
-  },
-  {
-    "hash": "e81ced9b",
-    "full_hash": "e81ced9b9732a1d9a1819070d4996303784185de",
-    "type": "fix",
-    "scope": "vite",
-    "subject": "dedupe react across source-aliased workspace libs",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-28 04:38:13 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/e81ced9b9732a1d9a1819070d4996303784185de"
   },
   {
     "hash": "78129950",
@@ -208,16 +188,6 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-25 17:01:59 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/e6ec05a00ed17c34916596b483be06d5642151ca"
-  },
-  {
-    "hash": "e049aa4b",
-    "full_hash": "e049aa4b10faf41a91a103a7d2958fa6999bb0ea",
-    "type": "fix",
-    "scope": "auth",
-    "subject": "persist refresh token and auto-refresh before expiry",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-25 09:52:21 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/e049aa4b10faf41a91a103a7d2958fa6999bb0ea"
   },
   {
     "hash": "65644695",
@@ -350,16 +320,6 @@
     "url": "https://github.com/lmthing/lmthing/commit/5af0314ac4ca8d4c9806044e16532df1146f83d7"
   },
   {
-    "hash": "fc8db839",
-    "full_hash": "fc8db83909ddcc2aa09ab49323482904c901752a",
-    "type": "chore",
-    "scope": "",
-    "subject": "implement lmthing-studio-refactor plan",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 09:29:30 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/fc8db83909ddcc2aa09ab49323482904c901752a"
-  },
-  {
     "hash": "51f162ae",
     "full_hash": "51f162aefdf31459a90c95f58480e91f64307c51",
     "type": "chore",
@@ -410,16 +370,6 @@
     "url": "https://github.com/lmthing/lmthing/commit/53d45259b3f9977160e027991790da71f48f2a86"
   },
   {
-    "hash": "cd9fad63",
-    "full_hash": "cd9fad63d2349b251f61900ace7f3589aab4122c",
-    "type": "ci",
-    "scope": "",
-    "subject": "retrigger compute + SPA builds with synced lockfile",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 23:58:03 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/cd9fad63d2349b251f61900ace7f3589aab4122c"
-  },
-  {
     "hash": "0b2e78bd",
     "full_hash": "0b2e78bd786317b75488bd6a993625ed572a0ad5",
     "type": "ci",
@@ -438,16 +388,6 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 23:45:33 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/4b71ba58581e6161f64a600a269aa55ae633892e"
-  },
-  {
-    "hash": "e48b5ec8",
-    "full_hash": "e48b5ec8b5067c6f58a8d93ce6d21039a2fb11d9",
-    "type": "fix",
-    "scope": "vite",
-    "subject": "alias @lmthing/agent-ui to source so SPA builds resolve it",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 23:17:00 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/e48b5ec8b5067c6f58a8d93ce6d21039a2fb11d9"
   },
   {
     "hash": "ea943e78",
@@ -498,5 +438,65 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 20:57:56 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/26ad8fd1406088dcbc4a65bbcac6e3685c5a6313"
+  },
+  {
+    "hash": "86169c74",
+    "full_hash": "86169c74e865cf92a49e0ccfc4dd8af2a9d7f632",
+    "type": "fix",
+    "scope": "",
+    "subject": "update subproject commit reference for sdk/org",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-23 18:12:23 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/86169c74e865cf92a49e0ccfc4dd8af2a9d7f632"
+  },
+  {
+    "hash": "d404feb9",
+    "full_hash": "d404feb9ebc3a66dd685871005848dceecc8f5fa",
+    "type": "fix",
+    "scope": "",
+    "subject": "update subproject commit reference for sdk/org",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-23 00:41:57 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/d404feb9ebc3a66dd685871005848dceecc8f5fa"
+  },
+  {
+    "hash": "c548a29a",
+    "full_hash": "c548a29ab6f89b07cdadb744dbbf396f8cdda663",
+    "type": "fix",
+    "scope": "",
+    "subject": "update subproject commit reference for sdk/org",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-22 17:55:24 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/c548a29ab6f89b07cdadb744dbbf396f8cdda663"
+  },
+  {
+    "hash": "0b4cc015",
+    "full_hash": "0b4cc015dc74f113cdb58125296aed1729dec8ef",
+    "type": "fix",
+    "scope": "",
+    "subject": "update subproject commit reference for sdk/org",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-22 17:31:06 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/0b4cc015dc74f113cdb58125296aed1729dec8ef"
+  },
+  {
+    "hash": "983d2f97",
+    "full_hash": "983d2f9741ab258dc6742ce630a49abd4a07bdd5",
+    "type": "fix",
+    "scope": "",
+    "subject": "update subproject commit reference for sdk/org",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-19 23:27:35 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/983d2f9741ab258dc6742ce630a49abd4a07bdd5"
+  },
+  {
+    "hash": "8c79138f",
+    "full_hash": "8c79138f5d662b0fc7e275be6bc8ef0480b2a722",
+    "type": "feat",
+    "scope": "",
+    "subject": "enhance local development setup with compute server support and demo user functionality",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-16 10:43:44 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/8c79138f5d662b0fc7e275be6bc8ef0480b2a722"
   }
 ]

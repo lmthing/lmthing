@@ -1,5 +1,15 @@
 [
   {
+    "hash": "af4f0e5f",
+    "full_hash": "af4f0e5ff8684e59600678eed677d0b90f40f741",
+    "type": "chore",
+    "scope": "",
+    "subject": "move studio and computer into sdk/org cli server",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-29 21:30:11 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/af4f0e5ff8684e59600678eed677d0b90f40f741"
+  },
+  {
     "hash": "8fec9e4c",
     "full_hash": "8fec9e4ca10d7bb4e0854c15a8b03555c5b9cd1b",
     "type": "ci",

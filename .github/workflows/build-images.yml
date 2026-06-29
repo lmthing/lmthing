@@ -7,7 +7,6 @@ on:
     paths:
       - 'cloud/gateway/**'
       - 'computer/**'
-      - 'sdk/libs/**'
       - 'sdk/org/**'
       - 'devops/argocd/compute/Dockerfile'
       - 'studio/**'
@@ -42,52 +41,36 @@ jobs:
               - 'cloud/gateway/**'
             computer:
               - 'computer/**'
-              - 'sdk/libs/auth/**'
-              - 'sdk/org/cli/**'
-              - 'sdk/libs/css/**'
-              - 'sdk/libs/state/**'
-              - 'sdk/libs/thing/**'
-              - 'sdk/libs/ui/**'
-              - 'sdk/libs/utils/**'
+              - 'sdk/org/**'
             compute:
-              - 'sdk/org'
-              - 'sdk/org/packages/**'
+              - 'sdk/org/**'
               - 'devops/argocd/compute/Dockerfile'
             studio:
               - 'studio/**'
-              - 'sdk/libs/**'
               - 'sdk/org/**'
             chat:
               - 'chat/**'
-              - 'sdk/libs/**'
               - 'sdk/org/**'
             com:
               - 'com/**'
-              - 'sdk/libs/**'
               - 'sdk/org/**'
             social:
               - 'social/**'
-              - 'sdk/libs/**'
               - 'sdk/org/**'
             store:
               - 'store/**'
-              - 'sdk/libs/**'
               - 'sdk/org/**'
             space:
               - 'space/**'
-              - 'sdk/libs/**'
               - 'sdk/org/**'
             team:
               - 'team/**'
-              - 'sdk/libs/**'
               - 'sdk/org/**'
             blog:
               - 'blog/**'
-              - 'sdk/libs/**'
               - 'sdk/org/**'
             casa:
               - 'casa/**'
-              - 'sdk/libs/**'
               - 'sdk/org/**'
 
       - name: Set image tag
@@ -115,9 +98,9 @@ jobs:
 
           all_images = [
             {"image": "gateway",  "dockerfile": "cloud/gateway/Dockerfile",        "context": "cloud/gateway", "manifest": "devops/argocd/core/gateway.yaml",              "changed": os.environ["GATEWAY"]},
-            {"image": "computer", "dockerfile": "computer/Dockerfile",             "context": ".",             "manifest": "devops/argocd/core/computer.yaml",             "changed": os.environ["COMPUTER"]},
+            {"image": "computer", "dockerfile": "sdk/org/packages/ui/apps/computer/Dockerfile", "context": ".",             "manifest": "devops/argocd/core/computer.yaml",             "changed": os.environ["COMPUTER"]},
             {"image": "compute",  "dockerfile": "devops/argocd/compute/Dockerfile","context": "sdk/org",       "manifest": "devops/argocd/core/compute-pod-template.yaml", "changed": os.environ["COMPUTE"]},
-            {"image": "studio",   "dockerfile": "studio/Dockerfile",               "context": ".",             "manifest": "devops/argocd/core/studio.yaml",               "changed": os.environ["STUDIO"]},
+            {"image": "studio",   "dockerfile": "sdk/org/packages/ui/apps/studio/Dockerfile", "context": ".",             "manifest": "devops/argocd/core/studio.yaml",               "changed": os.environ["STUDIO"]},
             {"image": "chat",     "dockerfile": "chat/Dockerfile",                 "context": ".",             "manifest": "devops/argocd/core/chat.yaml",                 "changed": os.environ["CHAT"]},
             {"image": "com",      "dockerfile": "com/Dockerfile",                  "context": ".",             "manifest": "devops/argocd/core/com.yaml",                  "changed": os.environ["COM"]},
             {"image": "social",   "dockerfile": "social/Dockerfile",               "context": ".",             "manifest": "devops/argocd/core/social.yaml",               "changed": os.environ["SOCIAL"]},

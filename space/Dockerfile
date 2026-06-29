@@ -16,28 +16,27 @@ COPY casa/package.json           casa/
 COPY chat/package.json           chat/
 COPY cloud/package.json          cloud/
 COPY com/package.json            com/
-COPY computer/package.json       computer/
 COPY social/package.json         social/
 COPY space/package.json          space/
 COPY store/package.json          store/
-COPY studio/package.json         studio/
 COPY team/package.json           team/
-COPY sdk/libs/auth/package.json         sdk/libs/auth/
-COPY sdk/libs/css/package.json          sdk/libs/css/
-COPY sdk/libs/state/package.json        sdk/libs/state/
-COPY sdk/libs/ui/package.json           sdk/libs/ui/
-COPY sdk/libs/utils/package.json        sdk/libs/utils/
+COPY sdk/org/libs/auth/package.json         sdk/org/libs/auth/
+COPY sdk/org/libs/css/package.json          sdk/org/libs/css/
+COPY sdk/org/libs/state/package.json        sdk/org/libs/state/
+COPY sdk/org/libs/ui/package.json           sdk/org/libs/ui/
+COPY sdk/org/libs/utils/package.json        sdk/org/libs/utils/
 COPY sdk/org/packages/core/package.json sdk/org/packages/core/
 COPY sdk/org/packages/cli/package.json  sdk/org/packages/cli/
 COPY sdk/org/packages/ui/package.json   sdk/org/packages/ui/
+COPY sdk/org/packages/ui/apps/studio/package.json   sdk/org/packages/ui/apps/studio/
+COPY sdk/org/packages/ui/apps/computer/package.json sdk/org/packages/ui/apps/computer/
+COPY sdk/org/packages/ui/apps/chat/package.json     sdk/org/packages/ui/apps/chat/
 
 RUN pnpm install --frozen-lockfile
 
 # Copy source for space and its workspace dependencies
 COPY space/ space/
-COPY sdk/libs/ sdk/libs/
 COPY sdk/org/ sdk/org/
-COPY sdk/common/ sdk/common/
 
 RUN pnpm --filter @lmthing/space build
 

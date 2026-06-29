@@ -17,7 +17,7 @@ on:
       - 'casa/**'
       - 'computer/**'
       - 'sdk/org/**'
-      - 'sdk/libs/**'
+      - 'sdk/org/libs/**'
   schedule:
     - cron: '*/30 * * * *'
   workflow_dispatch:
@@ -44,16 +44,16 @@ jobs:
 
           services = [
             {"name": "gateway",  "domain": "lmthing.cloud",    "emoji": "☁️",  "type": "gateway",  "yaml": "gateway.yaml",              "paths": ["cloud/gateway"]},
-            {"name": "studio",   "domain": "lmthing.studio",   "emoji": "🎨",  "type": "vite",     "yaml": "studio.yaml",               "paths": ["studio", "sdk/libs", "sdk/org"]},
-            {"name": "chat",     "domain": "lmthing.chat",     "emoji": "💬",  "type": "vite",     "yaml": "chat.yaml",                 "paths": ["chat", "sdk/libs", "sdk/org"]},
-            {"name": "com",      "domain": "lmthing.com",      "emoji": "🌐",  "type": "vite",     "yaml": "com.yaml",                  "paths": ["com", "sdk/libs", "sdk/org"]},
-            {"name": "social",   "domain": "lmthing.social",   "emoji": "👥",  "type": "vite",     "yaml": "social.yaml",               "paths": ["social", "sdk/libs", "sdk/org"]},
-            {"name": "store",    "domain": "lmthing.store",    "emoji": "🏪",  "type": "vite",     "yaml": "store.yaml",                "paths": ["store", "sdk/libs", "sdk/org"]},
-            {"name": "space",    "domain": "lmthing.space",    "emoji": "🚀",  "type": "vite",     "yaml": "space.yaml",                "paths": ["space", "sdk/libs", "sdk/org"]},
-            {"name": "team",     "domain": "lmthing.team",     "emoji": "👔",  "type": "vite",     "yaml": "team.yaml",                 "paths": ["team", "sdk/libs", "sdk/org"]},
-            {"name": "blog",     "domain": "lmthing.blog",     "emoji": "📝",  "type": "vite",     "yaml": "blog.yaml",                 "paths": ["blog", "sdk/libs", "sdk/org"]},
-            {"name": "casa",     "domain": "lmthing.casa",     "emoji": "🏠",  "type": "vite",     "yaml": "casa.yaml",                 "paths": ["casa", "sdk/libs", "sdk/org"]},
-            {"name": "computer", "domain": "lmthing.computer", "emoji": "🖥️",  "type": "vite",     "yaml": "computer.yaml",             "paths": ["computer", "sdk/libs", "sdk/org"]},
+            {"name": "studio",   "domain": "lmthing.studio",   "emoji": "🎨",  "type": "vite",     "yaml": "studio.yaml",               "paths": ["studio", "sdk/org/libs", "sdk/org"]},
+            {"name": "chat",     "domain": "lmthing.chat",     "emoji": "💬",  "type": "vite",     "yaml": "chat.yaml",                 "paths": ["chat", "sdk/org/libs", "sdk/org"]},
+            {"name": "com",      "domain": "lmthing.com",      "emoji": "🌐",  "type": "vite",     "yaml": "com.yaml",                  "paths": ["com", "sdk/org/libs", "sdk/org"]},
+            {"name": "social",   "domain": "lmthing.social",   "emoji": "👥",  "type": "vite",     "yaml": "social.yaml",               "paths": ["social", "sdk/org/libs", "sdk/org"]},
+            {"name": "store",    "domain": "lmthing.store",    "emoji": "🏪",  "type": "vite",     "yaml": "store.yaml",                "paths": ["store", "sdk/org/libs", "sdk/org"]},
+            {"name": "space",    "domain": "lmthing.space",    "emoji": "🚀",  "type": "vite",     "yaml": "space.yaml",                "paths": ["space", "sdk/org/libs", "sdk/org"]},
+            {"name": "team",     "domain": "lmthing.team",     "emoji": "👔",  "type": "vite",     "yaml": "team.yaml",                 "paths": ["team", "sdk/org/libs", "sdk/org"]},
+            {"name": "blog",     "domain": "lmthing.blog",     "emoji": "📝",  "type": "vite",     "yaml": "blog.yaml",                 "paths": ["blog", "sdk/org/libs", "sdk/org"]},
+            {"name": "casa",     "domain": "lmthing.casa",     "emoji": "🏠",  "type": "vite",     "yaml": "casa.yaml",                 "paths": ["casa", "sdk/org/libs", "sdk/org"]},
+            {"name": "computer", "domain": "lmthing.computer", "emoji": "🖥️",  "type": "vite",     "yaml": "computer.yaml",             "paths": ["computer", "sdk/org/libs", "sdk/org"]},
             {"name": "compute",  "domain": "minikube-pods",    "emoji": "⚡",  "type": "k8s-pod",  "yaml": "compute-pod-template.yaml", "paths": ["sdk/org/packages", "devops/argocd/compute"]},
           ]
 

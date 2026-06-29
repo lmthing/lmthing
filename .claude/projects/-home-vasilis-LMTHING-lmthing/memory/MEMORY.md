@@ -1,0 +1,1 @@
+- [Embed studio/computer Phase 1](embed-studio-computer-phase1.md) — apps moved into sdk/org submodule, CLI serves them by Host header; submodule pnpm-workspace gotcha

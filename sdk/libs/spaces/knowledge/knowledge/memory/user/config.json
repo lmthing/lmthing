@@ -1,8 +1,0 @@
-{
-  "label": "User",
-  "description": "User preferences and context",
-  "fieldType": "text",
-  "variableName": "userMemory",
-  "required": false,
-  "renderAs": "field"
-}

@@ -12,20 +12,20 @@ The monorepo is organized by TLD — each lmthing.\* domain has its own top-leve
 
 ```
 lmthing/
-├── org/                # open-source core + shared libs (the sdk)
+├── sdk/org/            # the sdk submodule (github.com/lmthing/org): core, shared libs, runtime + the studio/computer/chat Vite apps
 │   ├── libs/           # @lmthing/{state,spaces,css,ui,auth,utils}
-│   ├── packages/       # @lmthing/{core,cli,agent-ui} — the THING runtime
-│   └── docs/
+│   ├── common/         # shared favicons (favicon.ico/*)
+│   └── packages/
+│       ├── core, cli   # the THING runtime (QuickJS eval loop + the pod `serve` server)
+│       └── ui/         # @lmthing/agent-ui  +  ui/apps/{studio,computer,chat} — Vite SPAs the pod serves by Host header
 ├── cloud/              # THE backend — gateway + LiteLLM (see cloud-backend skill)
-├── studio/             # agent builder UI (primary dev surface)
-├── computer/           # THING agent runtime (K8s compute pod)
-├── chat/ com/ social/ team/ store/ space/ blog/ casa/   # product apps
+├── chat/ com/ social/ team/ store/ space/ blog/ casa/   # product app shells (static SPAs)
 ├── pnpm-workspace.yaml · package.json
 ```
 
-- **Studio** (`studio/`) is the primary development surface.
+- **Studio / Computer / Chat** live together in one Vite SPA — `sdk/org/packages/ui/apps/web/` — as client-side routes (`/studio`, `/computer`, `/chat`). The per-user **compute pod** (`lmthing serve`) builds and serves this single app; `./cli/bin` serves it with `/chat` (the agent-ui shell), `/studio`, and `/computer` all on one origin.
 - **Core runtime** lives in `sdk/org/packages/{core,cli,ui}` — model-streamed TypeScript evaluated one statement at a time in a QuickJS WASM sandbox. See [sdk/org/CLAUDE.md](./sdk/org/CLAUDE.md).
-- **Shared libraries** in `sdk/org/libs/`: `@lmthing/state` (in-memory VFS), `@lmthing/ui`, `@lmthing/css`, `@lmthing/auth`, `@lmthing/spaces`, `@lmthing/utils`.
+- **Shared libraries** in `sdk/org/libs/`: `@lmthing/state` (in-memory VFS), `@lmthing/ui`, `@lmthing/css`, `@lmthing/auth`, `@lmthing/spaces`, `@lmthing/utils`. They live **inside the sdk/org submodule** so the pod image (Docker context = `sdk/org`) can build the apps self-contained.
 
 ## Backend — important
 
@@ -38,7 +38,7 @@ lmthing/
 
 ```bash
 pnpm install
-cd studio && pnpm dev     # primary dev surface
+cd sdk/org/packages/ui/apps/web && pnpm dev        # unified app (routes: /studio /computer /chat)
 ```
 
 Running the full local stack (ports, `*.test` nginx proxy, demo auth, make targets) → `@.claude/skills/local-dev.md`.
@@ -56,7 +56,7 @@ Load the matching file when working on:
 | deploying an SPA / domain health checks | `@.claude/skills/deploy-spa.md` |
 | full system & data-flow architecture (diagrams) | [./Architecture.md](./Architecture.md) |
 | spaces authoring / agent runtime / eval loop | [./sdk/org/CLAUDE.md](./sdk/org/CLAUDE.md) |
-| the VFS library (`@lmthing/state`) | [./sdk/libs/state/CLAUDE.md](./sdk/libs/state/CLAUDE.md) |
+| the VFS library (`@lmthing/state`) | [./sdk/org/libs/state/CLAUDE.md](./sdk/org/libs/state/CLAUDE.md) |
 | infrastructure / deployment | [./devops/CLAUDE.md](./devops/CLAUDE.md) |
 
 ## Kubernetes Cluster (Production)
@@ -113,12 +113,12 @@ target SPA and reload. `POST /api/compute/ensure` provisions the free-tier pod;
 source keys in `sdk/org/.env`). Drive the browser with the chrome-devtools MCP.
 
 Studio shows a synthetic **`system`** project (the system/user spaces) plus the user's
-projects, and an always-on right-side **THING** chat dock — see [studio/CLAUDE.md](./studio/CLAUDE.md).
+projects, and an always-on right-side **THING** chat dock (the `/studio` route in `sdk/org/packages/ui/apps/web/`).
 Open `.issues/` problems: CI/ArgoCD deploy flakiness, Zitadel login, architect stall (sdk/org/.issues).
 
 ## Useful Links
 
 - [Architecture.md](./Architecture.md) — full product & domain architecture
-- [studio/CLAUDE.md](./studio/CLAUDE.md) — Studio dev guide (editors, sidebar, projects, THING dock)
+- [sdk/org/CLAUDE.md](./sdk/org/CLAUDE.md) — core runtime + served UI (studio/computer/chat routes in `packages/ui/apps/web/`)
 - [sdk/org/CLAUDE.md](./sdk/org/CLAUDE.md) — core runtime reference (eval loop, system spaces, sessions)
 - [devops/CLAUDE.md](./devops/CLAUDE.md) — infrastructure & deployment

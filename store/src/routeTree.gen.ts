@@ -60,11 +60,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to: '/' | '/publish' | '/agent/$agentId' | '/category/$categoryId'
   id:
-    | '__root__'
-    | '/'
-    | '/publish'
-    | '/agent/$agentId'
-    | '/category/$categoryId'
+    '__root__' | '/' | '/publish' | '/agent/$agentId' | '/category/$categoryId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {

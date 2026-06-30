@@ -1,5 +1,25 @@
 [
   {
+    "hash": "1366456e",
+    "full_hash": "1366456ecb8ea824e2222dde5cbd8d3be13efb83",
+    "type": "chore",
+    "scope": "",
+    "subject": "update sdk/org submodule reference to latest commit",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-30 16:31:56 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/1366456ecb8ea824e2222dde5cbd8d3be13efb83"
+  },
+  {
+    "hash": "3bdf7d73",
+    "full_hash": "3bdf7d7325b71a57854bf734b74ebe5c6811d8a5",
+    "type": "chore",
+    "scope": "",
+    "subject": "update sdk/org submodule reference to latest commit",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-30 15:51:07 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/3bdf7d7325b71a57854bf734b74ebe5c6811d8a5"
+  },
+  {
     "hash": "104dc665",
     "full_hash": "104dc66589482f24541593b91181992cb5dda139",
     "type": "chore",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-22 17:31:06 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/0b4cc015dc74f113cdb58125296aed1729dec8ef"
-  },
-  {
-    "hash": "983d2f97",
-    "full_hash": "983d2f9741ab258dc6742ce630a49abd4a07bdd5",
-    "type": "fix",
-    "scope": "",
-    "subject": "update subproject commit reference for sdk/org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-19 23:27:35 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/983d2f9741ab258dc6742ce630a49abd4a07bdd5"
-  },
-  {
-    "hash": "8c79138f",
-    "full_hash": "8c79138f5d662b0fc7e275be6bc8ef0480b2a722",
-    "type": "feat",
-    "scope": "",
-    "subject": "enhance local development setup with compute server support and demo user functionality",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-16 10:43:44 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/8c79138f5d662b0fc7e275be6bc8ef0480b2a722"
   }
 ]

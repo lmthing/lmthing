@@ -1,5 +1,35 @@
 [
   {
+    "hash": "8c4b2bfd",
+    "full_hash": "8c4b2bfdde72233af99efd8e77e8aa8cd2cce6ea",
+    "type": "fix",
+    "scope": "",
+    "subject": "update pnpm workspace and all SPA Dockerfiles for Phase 2.2 restructure",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-30 16:39:34 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/8c4b2bfdde72233af99efd8e77e8aa8cd2cce6ea"
+  },
+  {
+    "hash": "1366456e",
+    "full_hash": "1366456ecb8ea824e2222dde5cbd8d3be13efb83",
+    "type": "chore",
+    "scope": "",
+    "subject": "update sdk/org submodule reference to latest commit",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-30 16:31:56 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/1366456ecb8ea824e2222dde5cbd8d3be13efb83"
+  },
+  {
+    "hash": "3bdf7d73",
+    "full_hash": "3bdf7d7325b71a57854bf734b74ebe5c6811d8a5",
+    "type": "chore",
+    "scope": "",
+    "subject": "update sdk/org submodule reference to latest commit",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-30 15:51:07 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/3bdf7d7325b71a57854bf734b74ebe5c6811d8a5"
+  },
+  {
     "hash": "104dc665",
     "full_hash": "104dc66589482f24541593b91181992cb5dda139",
     "type": "chore",
@@ -468,35 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-04-22 17:28:10 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/df968dceb7381f63e1fdca3e43358249a4b14ef9"
-  },
-  {
-    "hash": "ffc35ded",
-    "full_hash": "ffc35dedd13df224db6a9e5686e6a6783a7767c5",
-    "type": "fix",
-    "scope": "",
-    "subject": "update subproject commit reference in sdk/org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-04-22 15:37:29 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/ffc35dedd13df224db6a9e5686e6a6783a7767c5"
-  },
-  {
-    "hash": "e15285b0",
-    "full_hash": "e15285b0e3066d709575ee6f7861797727fdc596",
-    "type": "fix",
-    "scope": "",
-    "subject": "add sdk/org/ui/package.json to all SPA Dockerfiles",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-04-22 15:24:13 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/e15285b0e3066d709575ee6f7861797727fdc596"
-  },
-  {
-    "hash": "8aab0404",
-    "full_hash": "8aab04045899cf6b4dfe783c418fa210c580a4d7",
-    "type": "fix",
-    "scope": "",
-    "subject": "update subproject commit reference in sdk/org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-04-22 13:55:58 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/8aab04045899cf6b4dfe783c418fa210c580a4d7"
   }
 ]

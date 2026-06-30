@@ -11,7 +11,7 @@
 # Self-contained app: the shared @lmthing/{ui,css,state,auth,utils} libs live
 # under sdk/org/libs (inside this submodule), so the unified web Vite app
 # (studio/computer/chat as client-side routes) can be built here and served by
-# `lmthing serve`. Its built dist lands at /app/packages/ui/apps/web/dist.
+# `lmthing serve`. Its built dist lands at /app/apps/web/dist.
 #
 # QuickJS WASM note: quickjs-emscripten ships its own .wasm file inside the npm
 # package (node_modules/quickjs-emscripten/…/quickjs.wasm). Node resolves and
@@ -42,15 +42,15 @@ RUN apt-get update && apt-get install -y git python3 make g++ ca-certificates &&
 # from source changes. Every workspace package.json must be present so pnpm can
 # resolve the full workspace graph (runtime packages + libs + the Vite apps).
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
-COPY packages/core/package.json ./packages/core/package.json
-COPY packages/cli/package.json  ./packages/cli/package.json
-COPY packages/ui/package.json   ./packages/ui/package.json
-COPY libs/auth/package.json     ./libs/auth/package.json
-COPY libs/css/package.json      ./libs/css/package.json
-COPY libs/state/package.json    ./libs/state/package.json
-COPY libs/ui/package.json       ./libs/ui/package.json
-COPY libs/utils/package.json    ./libs/utils/package.json
-COPY packages/ui/apps/web/package.json      ./packages/ui/apps/web/package.json
+COPY libs/core/package.json   ./libs/core/package.json
+COPY libs/cli/package.json    ./libs/cli/package.json
+COPY libs/ui/package.json     ./libs/ui/package.json
+COPY libs/auth/package.json   ./libs/auth/package.json
+COPY libs/css/package.json    ./libs/css/package.json
+COPY libs/config/package.json ./libs/config/package.json
+COPY libs/state/package.json  ./libs/state/package.json
+COPY libs/utils/package.json  ./libs/utils/package.json
+COPY apps/web/package.json    ./apps/web/package.json
 
 # Install all workspace dependencies (dev deps needed for tsup + vite builds).
 # The checked-in pnpm-lock.yaml is the source of truth; --frozen-lockfile
@@ -58,28 +58,24 @@ COPY packages/ui/apps/web/package.json      ./packages/ui/apps/web/package.json
 RUN pnpm install --frozen-lockfile
 
 # Copy source for the runtime packages we need to build
-COPY packages/core/src     ./packages/core/src
-COPY packages/core/tsup.config.ts ./packages/core/tsup.config.ts
-COPY packages/core/tsconfig.json  ./packages/core/tsconfig.json
+COPY libs/core/src          ./libs/core/src
+COPY libs/core/tsup.config.ts ./libs/core/tsup.config.ts
+COPY libs/core/tsconfig.json  ./libs/core/tsconfig.json
 # system-spaces are read at runtime relative to the built core dist directory;
 # copy them alongside the source so they land in the correct position after build.
-COPY packages/core/system-spaces ./packages/core/system-spaces
+COPY libs/core/system-spaces ./libs/core/system-spaces
 
-COPY packages/cli/src      ./packages/cli/src
-COPY packages/cli/tsup.config.ts ./packages/cli/tsup.config.ts
-COPY packages/cli/tsconfig.json  ./packages/cli/tsconfig.json
+COPY libs/cli/src           ./libs/cli/src
+COPY libs/cli/tsup.config.ts ./libs/cli/tsup.config.ts
+COPY libs/cli/tsconfig.json  ./libs/cli/tsconfig.json
 
-# @lmthing/agent-ui (packages/ui) is a dependency of @lmthing/cli (web
-# observability surface) and of the three Vite apps built below.
-COPY packages/ui/src       ./packages/ui/src
-COPY packages/ui/tsup.config.ts  ./packages/ui/tsup.config.ts
-COPY packages/ui/tsconfig.json   ./packages/ui/tsconfig.json
+# @lmthing/ui (libs/ui) is a source-only package — no tsup step needed.
+# It is consumed directly from src by the CLI's esbuild bundler (--web mode)
+# and as a Vite workspace dep for the apps/web build.
 
-# Build the runtime packages in dependency order: core → ui → cli.
-# We invoke tsup (and tailwindcss for @lmthing/agent-ui) directly per package.
-RUN cd packages/core && pnpm exec tsup
-RUN cd packages/ui   && pnpm exec tsup && pnpm exec tailwindcss -i src/app/styles.css -o dist-web/app.css --minify
-RUN cd packages/cli  && pnpm exec tsup
+# Build the runtime packages in dependency order: core → cli.
+RUN cd libs/core && pnpm exec tsup
+RUN cd libs/cli  && pnpm exec tsup
 
 # Build the unified web app (studio/computer/chat as client-side routes). It
 # resolves the shared libs under ./libs and the favicons under ./common via the
@@ -87,8 +83,8 @@ RUN cd packages/cli  && pnpm exec tsup
 # `vp` is vite-plus.
 COPY libs/    ./libs/
 COPY common/  ./common/
-COPY packages/ui/apps/ ./packages/ui/apps/
-RUN cd packages/ui/apps/web && pnpm exec vp build
+COPY apps/    ./apps/
+RUN cd apps/web && pnpm exec vp build
 
 # ---------------------------------------------------------------------------
 # Stage 2 — runtime
@@ -106,36 +102,33 @@ RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 # node_modules contains quickjs-emscripten (with its bundled WASM), esbuild,
 # and all other runtime dependencies — no install needed here.
 COPY --from=builder /build/node_modules         ./node_modules
-COPY --from=builder /build/packages/core/dist   ./packages/core/dist
-COPY --from=builder /build/packages/core/node_modules ./packages/core/node_modules
-# system-spaces must sit at packages/core/system-spaces/ relative to the
+COPY --from=builder /build/libs/core/dist       ./libs/core/dist
+COPY --from=builder /build/libs/core/node_modules ./libs/core/node_modules
+# system-spaces must sit at libs/core/system-spaces/ relative to the
 # working directory so the runtime path resolution (relative to built core) works.
-COPY --from=builder /build/packages/core/system-spaces ./packages/core/system-spaces
-COPY --from=builder /build/packages/cli/dist    ./packages/cli/dist
-COPY --from=builder /build/packages/cli/node_modules  ./packages/cli/node_modules
+COPY --from=builder /build/libs/core/system-spaces ./libs/core/system-spaces
+COPY --from=builder /build/libs/cli/dist        ./libs/cli/dist
+COPY --from=builder /build/libs/cli/node_modules  ./libs/cli/node_modules
 # The cli bundle inlines @lmthing/core, so defaultSystemSpaceDirs() resolves the
 # shipped system spaces RELATIVE TO THE BUNDLE (.../cli/dist/cli/bin.js →
 # ../system-spaces = .../cli/dist/system-spaces), not relative to the core
 # package. Place a copy there so `materializeRuntime` finds them; without it the
 # runtime materializes an empty system/ dir and every session fails with
 # `Agent "thing" not found`.
-COPY --from=builder /build/packages/core/system-spaces ./packages/cli/dist/system-spaces
-COPY --from=builder /build/packages/ui/dist        ./packages/ui/dist
-# dist-web/app.css is the prebuilt Tailwind CSS served by the web DevTools UI
-COPY --from=builder /build/packages/ui/dist-web    ./packages/ui/dist-web
-# src is required at runtime: the `--web` dev path esbuild-bundles the web app
-# from @lmthing/agent-ui/src/app/main.tsx (and the ink compat shims) on startup.
-COPY --from=builder /build/packages/ui/src         ./packages/ui/src
-COPY --from=builder /build/packages/ui/node_modules ./packages/ui/node_modules
+COPY --from=builder /build/libs/core/system-spaces ./libs/cli/dist/system-spaces
+# @lmthing/ui source is required at runtime: the `--web` dev path esbuild-bundles
+# the web app from @lmthing/ui/src/chat/app/main.tsx on startup.
+COPY --from=builder /build/libs/ui/src          ./libs/ui/src
+COPY --from=builder /build/libs/ui/node_modules  ./libs/ui/node_modules
 # Prebuilt unified web app served by `lmthing serve` (studio/computer/chat are
 # client-side routes under /studio, /computer, /chat). static-apps.ts resolves it
-# via findAppsBase() → /app/packages/ui/apps/web/dist.
-COPY --from=builder /build/packages/ui/apps/web/dist   ./packages/ui/apps/web/dist
+# via findAppsBase() → /app/apps/web/dist.
+COPY --from=builder /build/apps/web/dist        ./apps/web/dist
 # Copy package.json files so the module resolver can walk the workspace graph
 COPY --from=builder /build/package.json         ./package.json
-COPY --from=builder /build/packages/core/package.json ./packages/core/package.json
-COPY --from=builder /build/packages/cli/package.json  ./packages/cli/package.json
-COPY --from=builder /build/packages/ui/package.json   ./packages/ui/package.json
+COPY --from=builder /build/libs/core/package.json ./libs/core/package.json
+COPY --from=builder /build/libs/cli/package.json  ./libs/cli/package.json
+COPY --from=builder /build/libs/ui/package.json   ./libs/ui/package.json
 
 # Runtime root.
 # The server runs with its cwd set to /data so `lmthingRoot` resolves to
@@ -154,11 +147,4 @@ WORKDIR /data
 # Start the multi-session server. MAX_SESSIONS (default 8) controls how many
 # concurrent QuickJS VMs are allowed in this pod — see user-pod-template.yaml
 # for the corresponding env var and memory sizing notes.
-CMD ["node", "/app/packages/cli/dist/cli/bin.js", "serve", "--port", "8080"]
-
-# redeploy: lazy model resolution + lockfile sync
-# retrigger: system-spaces co-location + LRU idle eviction (sdk/org 81c6d8e)
-# retrigger: serve-path runtime init (sdk/org 730cf80)
-# retrigger: fs routes + auth.ok + terminal command + log interceptor (sdk/org 324014c)
-# retrigger: restart API + restart button + upgrade flow (sdk/org 0c979e6)
-# retrigger: serve studio/computer/chat from the pod (libs relocated into sdk/org)
+CMD ["node", "/app/libs/cli/dist/cli/bin.js", "serve", "--port", "8080"]

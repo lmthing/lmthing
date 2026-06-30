@@ -1,5 +1,25 @@
 [
   {
+    "hash": "685bc21a",
+    "full_hash": "685bc21aa84196b18007cd3aa757782b00705414",
+    "type": "chore",
+    "scope": "",
+    "subject": "update sdk/org (vite alias fix for @lmthing/core/ui)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-30 17:28:49 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/685bc21aa84196b18007cd3aa757782b00705414"
+  },
+  {
+    "hash": "4235fe21",
+    "full_hash": "4235fe21bb42d17c35f6594f2f218b27ff887458",
+    "type": "chore",
+    "scope": "",
+    "subject": "update sdk/org to fix Dockerfile .npmrc copy",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-30 17:22:52 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/4235fe21bb42d17c35f6594f2f218b27ff887458"
+  },
+  {
     "hash": "8c4b2bfd",
     "full_hash": "8c4b2bfdde72233af99efd8e77e8aa8cd2cce6ea",
     "type": "fix",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-15 15:02:26 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/1e14cc614e75076c6fc38d7a4c98ac13bdce3ae4"
-  },
-  {
-    "hash": "4b6ad044",
-    "full_hash": "4b6ad044c57940865f04998e233d0c3e4f0482a3",
-    "type": "chore",
-    "scope": "",
-    "subject": "update org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-15 13:02:10 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/4b6ad044c57940865f04998e233d0c3e4f0482a3"
-  },
-  {
-    "hash": "496ac8fd",
-    "full_hash": "496ac8fd446790e3718c0b27a2f2ca0ad41c0747",
-    "type": "chore",
-    "scope": "",
-    "subject": "update org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-05-21 11:23:44 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/496ac8fd446790e3718c0b27a2f2ca0ad41c0747"
   }
 ]

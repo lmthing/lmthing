@@ -19,8 +19,8 @@
       "yaml": "studio.yaml",
       "manifest": "devops/argocd/core/studio.yaml",
       "isInternal": false,
-      "deployedSha": "f7222c3",
-      "deployedAt": "2026-06-28 16:10:24 +0300"
+      "deployedSha": "685bc21",
+      "deployedAt": "2026-06-30 17:28:50 +0300"
     },
     {
       "name": "chat",
@@ -30,8 +30,8 @@
       "yaml": "chat.yaml",
       "manifest": "devops/argocd/core/chat.yaml",
       "isInternal": false,
-      "deployedSha": "f7222c3",
-      "deployedAt": "2026-06-28 16:10:24 +0300"
+      "deployedSha": "685bc21",
+      "deployedAt": "2026-06-30 17:28:50 +0300"
     },
     {
       "name": "com",
@@ -118,8 +118,8 @@
       "yaml": "computer.yaml",
       "manifest": "devops/argocd/core/computer.yaml",
       "isInternal": false,
-      "deployedSha": "f7222c3",
-      "deployedAt": "2026-06-28 16:10:24 +0300"
+      "deployedSha": "685bc21",
+      "deployedAt": "2026-06-30 17:28:50 +0300"
     },
     {
       "name": "compute",
@@ -133,5 +133,5 @@
       "deployedAt": "2026-06-28 16:10:24 +0300"
     }
   ],
-  "updatedAt": "2026-06-30T14:20:25.180527+00:00"
+  "updatedAt": "2026-06-30T14:41:28.401583+00:00"
 }

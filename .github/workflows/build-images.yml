@@ -2,6 +2,11 @@ name: Build and Push Images
 
 on:
   workflow_dispatch:
+    inputs:
+      images:
+        description: 'Comma-separated images to build (leave blank for all)'
+        required: false
+        default: ''
   push:
     branches: [main]
     paths:
@@ -86,6 +91,8 @@ jobs:
       - name: Build matrix
         id: build-matrix
         env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_IMAGES: ${{ github.event.inputs.images }}
           GATEWAY: ${{ steps.changes.outputs.gateway }}
           COMPUTER: ${{ steps.changes.outputs.computer }}
           COMPUTE: ${{ steps.changes.outputs.compute }}
@@ -102,24 +109,32 @@ jobs:
           python3 << 'EOF' >> $GITHUB_OUTPUT
           import json, os
 
+          is_dispatch = os.environ["EVENT_NAME"] == "workflow_dispatch"
+          dispatch_filter = {s.strip() for s in os.environ.get("DISPATCH_IMAGES", "").split(",") if s.strip()}
+
+          def changed(name):
+            if is_dispatch:
+              return not dispatch_filter or name in dispatch_filter
+            return os.environ[name.upper()] == "true"
+
           all_images = [
-            {"image": "gateway",  "dockerfile": "cloud/gateway/Dockerfile",        "context": "cloud/gateway", "manifest": "devops/argocd/core/gateway.yaml",              "changed": os.environ["GATEWAY"]},
-            {"image": "computer", "dockerfile": "sdk/org/apps/web/Dockerfile",     "context": ".",             "manifest": "devops/argocd/core/computer.yaml",             "changed": os.environ["COMPUTER"]},
-            {"image": "compute",  "dockerfile": "devops/argocd/compute/Dockerfile","context": "sdk/org",       "manifest": "devops/argocd/core/compute-pod-template.yaml", "changed": os.environ["COMPUTE"]},
-            {"image": "studio",   "dockerfile": "sdk/org/apps/web/Dockerfile",     "context": ".",             "manifest": "devops/argocd/core/studio.yaml",               "changed": os.environ["STUDIO"]},
-            {"image": "chat",     "dockerfile": "sdk/org/apps/web/Dockerfile",     "context": ".",             "manifest": "devops/argocd/core/chat.yaml",                 "changed": os.environ["CHAT"]},
-            {"image": "com",      "dockerfile": "com/Dockerfile",                  "context": ".",             "manifest": "devops/argocd/core/com.yaml",                  "changed": os.environ["COM"]},
-            {"image": "social",   "dockerfile": "social/Dockerfile",               "context": ".",             "manifest": "devops/argocd/core/social.yaml",               "changed": os.environ["SOCIAL"]},
-            {"image": "store",    "dockerfile": "store/Dockerfile",                "context": ".",             "manifest": "devops/argocd/core/store.yaml",                "changed": os.environ["STORE"]},
-            {"image": "space",    "dockerfile": "space/Dockerfile",                "context": ".",             "manifest": "devops/argocd/core/space.yaml",                "changed": os.environ["SPACE"]},
-            {"image": "team",     "dockerfile": "team/Dockerfile",                 "context": ".",             "manifest": "devops/argocd/core/team.yaml",                 "changed": os.environ["TEAM"]},
-            {"image": "blog",     "dockerfile": "blog/Dockerfile",                 "context": ".",             "manifest": "devops/argocd/core/blog.yaml",                 "changed": os.environ["BLOG"]},
-            {"image": "casa",     "dockerfile": "casa/Dockerfile",                 "context": ".",             "manifest": "devops/argocd/core/casa.yaml",                 "changed": os.environ["CASA"]},
+            {"image": "gateway",  "dockerfile": "cloud/gateway/Dockerfile",        "context": "cloud/gateway", "manifest": "devops/argocd/core/gateway.yaml",              "changed": changed("gateway")},
+            {"image": "computer", "dockerfile": "sdk/org/apps/web/Dockerfile",     "context": ".",             "manifest": "devops/argocd/core/computer.yaml",             "changed": changed("computer")},
+            {"image": "compute",  "dockerfile": "devops/argocd/compute/Dockerfile","context": "sdk/org",       "manifest": "devops/argocd/core/compute-pod-template.yaml", "changed": changed("compute")},
+            {"image": "studio",   "dockerfile": "sdk/org/apps/web/Dockerfile",     "context": ".",             "manifest": "devops/argocd/core/studio.yaml",               "changed": changed("studio")},
+            {"image": "chat",     "dockerfile": "sdk/org/apps/web/Dockerfile",     "context": ".",             "manifest": "devops/argocd/core/chat.yaml",                 "changed": changed("chat")},
+            {"image": "com",      "dockerfile": "com/Dockerfile",                  "context": ".",             "manifest": "devops/argocd/core/com.yaml",                  "changed": changed("com")},
+            {"image": "social",   "dockerfile": "social/Dockerfile",               "context": ".",             "manifest": "devops/argocd/core/social.yaml",               "changed": changed("social")},
+            {"image": "store",    "dockerfile": "store/Dockerfile",                "context": ".",             "manifest": "devops/argocd/core/store.yaml",                "changed": changed("store")},
+            {"image": "space",    "dockerfile": "space/Dockerfile",                "context": ".",             "manifest": "devops/argocd/core/space.yaml",                "changed": changed("space")},
+            {"image": "team",     "dockerfile": "team/Dockerfile",                 "context": ".",             "manifest": "devops/argocd/core/team.yaml",                 "changed": changed("team")},
+            {"image": "blog",     "dockerfile": "blog/Dockerfile",                 "context": ".",             "manifest": "devops/argocd/core/blog.yaml",                 "changed": changed("blog")},
+            {"image": "casa",     "dockerfile": "casa/Dockerfile",                 "context": ".",             "manifest": "devops/argocd/core/casa.yaml",                 "changed": changed("casa")},
           ]
 
           matrix = [
             {"image": e["image"], "dockerfile": e["dockerfile"], "context": e["context"], "manifest": e["manifest"]}
-            for e in all_images if e["changed"] == "true"
+            for e in all_images if e["changed"]
           ]
           print("matrix=" + json.dumps(matrix))
           EOF

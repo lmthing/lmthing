@@ -1,5 +1,25 @@
 [
   {
+    "hash": "104dc665",
+    "full_hash": "104dc66589482f24541593b91181992cb5dda139",
+    "type": "chore",
+    "scope": "",
+    "subject": "update org submodule reference to latest commit",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-30 11:20:32 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/104dc66589482f24541593b91181992cb5dda139"
+  },
+  {
+    "hash": "e756f4db",
+    "full_hash": "e756f4dbcbb226cb846f3ffb6917c0ffb4da1891",
+    "type": "chore",
+    "scope": "",
+    "subject": "update pnpm workspace configuration and sdk subproject reference",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-30 11:20:20 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/e756f4dbcbb226cb846f3ffb6917c0ffb4da1891"
+  },
+  {
     "hash": "3b1414cb",
     "full_hash": "3b1414cbc226ec4702f5b81d4eb21754d08e7ec7",
     "type": "chore",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-04-22 15:24:13 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/e15285b0e3066d709575ee6f7861797727fdc596"
-  },
-  {
-    "hash": "8aab0404",
-    "full_hash": "8aab04045899cf6b4dfe783c418fa210c580a4d7",
-    "type": "fix",
-    "scope": "",
-    "subject": "update subproject commit reference in sdk/org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-04-22 13:55:58 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/8aab04045899cf6b4dfe783c418fa210c580a4d7"
-  },
-  {
-    "hash": "c807d635",
-    "full_hash": "c807d63555b22c1ae7bbe6811153d7957c4f1aa6",
-    "type": "feat",
-    "scope": "",
-    "subject": "move thing-web-view CSS into sdk/org/ui package",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-04-22 13:48:26 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/c807d63555b22c1ae7bbe6811153d7957c4f1aa6"
   }
 ]

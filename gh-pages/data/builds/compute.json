@@ -1,10 +1,10 @@
 {
   "image": "compute",
-  "sha": "76a2045",
-  "run_id": "28454210826",
-  "run_number": 121,
-  "run_url": "https://github.com/\\lmthing/lmthing/actions/runs/28454210826",
+  "sha": "7ef2afc",
+  "run_id": "28454699124",
+  "run_number": 122,
+  "run_url": "https://github.com/\\lmthing/lmthing/actions/runs/28454699124",
   "status": "completed",
   "conclusion": "failure",
-  "updated_at": "2026-06-30T15:02:49.535840+00:00"
+  "updated_at": "2026-06-30T15:09:35.357465+00:00"
 }

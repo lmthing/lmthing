@@ -92,10 +92,10 @@ jobs:
 
           all_images = [
             {"image": "gateway",  "dockerfile": "cloud/gateway/Dockerfile",        "context": "cloud/gateway", "manifest": "devops/argocd/core/gateway.yaml",              "changed": os.environ["GATEWAY"]},
-            {"image": "computer", "dockerfile": "sdk/org/packages/ui/apps/web/Dockerfile",     "context": ".",             "manifest": "devops/argocd/core/computer.yaml",             "changed": os.environ["COMPUTER"]},
+            {"image": "computer", "dockerfile": "sdk/org/apps/web/Dockerfile",     "context": ".",             "manifest": "devops/argocd/core/computer.yaml",             "changed": os.environ["COMPUTER"]},
             {"image": "compute",  "dockerfile": "devops/argocd/compute/Dockerfile","context": "sdk/org",       "manifest": "devops/argocd/core/compute-pod-template.yaml", "changed": os.environ["COMPUTE"]},
-            {"image": "studio",   "dockerfile": "sdk/org/packages/ui/apps/web/Dockerfile",     "context": ".",             "manifest": "devops/argocd/core/studio.yaml",               "changed": os.environ["STUDIO"]},
-            {"image": "chat",     "dockerfile": "sdk/org/packages/ui/apps/web/Dockerfile",     "context": ".",             "manifest": "devops/argocd/core/chat.yaml",                 "changed": os.environ["CHAT"]},
+            {"image": "studio",   "dockerfile": "sdk/org/apps/web/Dockerfile",     "context": ".",             "manifest": "devops/argocd/core/studio.yaml",               "changed": os.environ["STUDIO"]},
+            {"image": "chat",     "dockerfile": "sdk/org/apps/web/Dockerfile",     "context": ".",             "manifest": "devops/argocd/core/chat.yaml",                 "changed": os.environ["CHAT"]},
             {"image": "com",      "dockerfile": "com/Dockerfile",                  "context": ".",             "manifest": "devops/argocd/core/com.yaml",                  "changed": os.environ["COM"]},
             {"image": "social",   "dockerfile": "social/Dockerfile",               "context": ".",             "manifest": "devops/argocd/core/social.yaml",               "changed": os.environ["SOCIAL"]},
             {"image": "store",    "dockerfile": "store/Dockerfile",                "context": ".",             "manifest": "devops/argocd/core/store.yaml",                "changed": os.environ["STORE"]},

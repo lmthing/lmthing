@@ -15,18 +15,16 @@ make up            # start all services
 
 ## Service Ports & Domains
 
-Each app runs on its own Vite dev server. The local proxy maps `*.test` domains via nginx. Port assignments and domain mappings are defined in `services.yaml`.
+Studio, Computer, and Chat are all client-side routes in the unified SPA (`sdk/org/packages/ui/apps/web/`), served by a single dev server. Other apps each have their own Vite dev server. The local proxy maps `*.test` domains via nginx.
 
 | App      | Port | Local Domain                          |
 | -------- | ---- | ------------------------------------- |
-| Studio   | 3000 | [studio.test](http://studio.test)     |
-| Chat     | 3001 | [chat.test](http://chat.test)         |
+| Studio / Computer / Chat (unified) | 3000 | [studio.test](http://studio.test) / [computer.test](http://computer.test) / [chat.test](http://chat.test) |
 | Com      | 3002 | [com.test](http://com.test)           |
 | Social   | 3003 | [social.test](http://social.test)     |
 | Store    | 3004 | [store.test](http://store.test)       |
 | Space    | 3005 | [space.test](http://space.test)       |
 | Team     | 3006 | [team.test](http://team.test)         |
-| Computer | 3010 | [computer.test](http://computer.test) |
 | Blog     | 3007 | [blog.test](http://blog.test)         |
 | Casa     | 3008 | [casa.test](http://casa.test)         |
 | Cloud    | 3009 | [cloud.test](http://cloud.test)       |
@@ -55,15 +53,20 @@ The script is idempotent — re-running it skips already-configured services. Us
 
 ## Demo Auth
 
-Studio, chat, and computer ship with `.env.development` files that set `VITE_DEMO_USER=true`. This makes `@lmthing/auth`'s `AuthProvider` skip SSO and use a hardcoded demo session, so you can develop without running the cloud gateway or com/.
+The unified web app ships with an `.env.development` file in `sdk/org/packages/ui/apps/web/` that sets `VITE_DEMO_USER=true`. This makes `@lmthing/auth`'s `AuthProvider` skip SSO and use a hardcoded demo session, so you can develop without running the cloud gateway.
 
 ## Running Individual Apps
 
-To run a single app without `make up`:
+To run the unified app (Studio / Computer / Chat) without `make up`:
 
 ```bash
-cd studio && pnpm dev          # starts on default port
-cd chat && pnpm vite --port 3001  # starts on assigned port
+cd sdk/org/packages/ui/apps/web && pnpm dev    # starts on port 3000
+```
+
+To run any other app individually:
+
+```bash
+cd com && pnpm dev        # starts on default port
 ```
 
 ## Stack

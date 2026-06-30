@@ -75,12 +75,12 @@ Authentication is handled through **com/** (the central auth hub) which talks to
 | `cloud/gateway/src/lib/zitadel.ts` | Zitadel v2 API client — user CRUD, IDP Intent, password login |
 | `cloud/gateway/src/routes/auth.ts` | All auth route handlers |
 | `cloud/gateway/src/middleware/auth.ts` | Bearer token verification middleware |
-| `sdk/libs/auth/src/` | `@lmthing/auth` — cross-domain SSO client library |
+| `sdk/org/libs/auth/src/` | `@lmthing/auth` — cross-domain SSO client library |
 | `com/src/lib/cloud.ts` | JWT + refresh token management, `cloudFetch()` |
 
 ## Demo mode (local development)
 
-When `VITE_DEMO_USER=true` is set (default in `.env.development` for studio, chat, and computer), `AuthProvider` skips all SSO flows and uses a hardcoded demo session (`demo-user` / `demo@lmthing.test`). No redirect to com/, no SSO exchange, no gateway calls needed.
+When `VITE_DEMO_USER=true` is set (default in `sdk/org/packages/ui/apps/web/.env.development` for the unified app), `AuthProvider` skips all SSO flows and uses a hardcoded demo session (`demo-user` / `demo@lmthing.test`). No redirect to com/, no SSO exchange, no gateway calls needed.
 
 ## Integrating Auth in a New Service
 

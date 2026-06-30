@@ -57,6 +57,11 @@ COPY apps/web/package.json    ./apps/web/package.json
 # guarantees reproducible installs.
 RUN pnpm install --frozen-lockfile
 
+# @lmthing/config provides shared tsconfig presets (node-lib, react-lib, base)
+# referenced by extends in libs/core/tsconfig.json and libs/cli/tsconfig.json.
+# The full directory must be present so pnpm's workspace symlink resolves correctly.
+COPY libs/config/ ./libs/config/
+
 # Copy source for the runtime packages we need to build
 COPY libs/core/src          ./libs/core/src
 COPY libs/core/tsup.config.ts ./libs/core/tsup.config.ts

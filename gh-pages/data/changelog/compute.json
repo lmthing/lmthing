@@ -1,5 +1,25 @@
 [
   {
+    "hash": "81f811b0",
+    "full_hash": "81f811b02acafac8e20a8f3eaa2aca06e16541d8",
+    "type": "fix",
+    "scope": "compute",
+    "subject": "copy libs/config before tsup so tsconfig extends resolves",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-30 18:12:34 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/81f811b02acafac8e20a8f3eaa2aca06e16541d8"
+  },
+  {
+    "hash": "7ef2afc9",
+    "full_hash": "7ef2afc9d4c2a9718d0d838005f88a7c33ce548c",
+    "type": "fix",
+    "scope": "compute",
+    "subject": "update Dockerfile paths after packages/ \u2192 libs/ restructure",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-30 18:08:28 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/7ef2afc9d4c2a9718d0d838005f88a7c33ce548c"
+  },
+  {
     "hash": "76a20452",
     "full_hash": "76a204521bc6981b0a213003be11f0c0dfa87c8d",
     "type": "chore",

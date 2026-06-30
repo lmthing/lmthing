@@ -4,7 +4,7 @@
 # the COPY instructions below resolve correctly.
 #
 # Build strategy: build from source with tsup inside the image.
-# Rationale: tsup + bun produce a fast, repeatable build; shipping dist/ from CI
+# Rationale: tsup + pnpm produce a fast, repeatable build; shipping dist/ from CI
 # would require committing build artefacts or a multi-stage CI artifact handoff.
 # The build stage is discarded — only the runtime stage is pushed to ACR.
 #
@@ -14,7 +14,7 @@
 # `lmthing serve`. Its built dist lands at /app/packages/ui/apps/web/dist.
 #
 # QuickJS WASM note: quickjs-emscripten ships its own .wasm file inside the npm
-# package (node_modules/quickjs-emscripten/…/quickjs.wasm). Bun resolves and
+# package (node_modules/quickjs-emscripten/…/quickjs.wasm). Node resolves and
 # serves it at runtime without any extra configuration; no copy or WASM_PATH
 # override is needed because the package uses a synchronous inline-base64 variant
 # by default (quickjs-emscripten's "sync" build). If a future upgrade switches to
@@ -24,18 +24,22 @@
 # ---------------------------------------------------------------------------
 # Stage 1 — builder
 # ---------------------------------------------------------------------------
-FROM oven/bun:latest AS builder
+FROM node:24-slim AS builder
 
 WORKDIR /build
 
-# Install git (needed for bun install with git dependencies), the native build
+# Enable corepack so the pnpm version pinned by package.json#packageManager is
+# used for installs and `pnpm exec` lookups.
+RUN corepack enable
+
+# Install git (needed for pnpm install with git dependencies), the native build
 # toolchain (python3/make/g++) required to compile node-pty for the PTY terminal
 # exposed over /api/ws, and ca-certificates (vite-plus, a Rust binary, reads the
 # system CA store when building the Vite apps).
 RUN apt-get update && apt-get install -y git python3 make g++ ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Copy workspace manifests first so dependency installation is cached separately
-# from source changes. Every workspace package.json must be present so bun can
+# from source changes. Every workspace package.json must be present so pnpm can
 # resolve the full workspace graph (runtime packages + libs + the Vite apps).
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
 COPY packages/core/package.json ./packages/core/package.json
@@ -49,10 +53,9 @@ COPY libs/utils/package.json    ./libs/utils/package.json
 COPY packages/ui/apps/web/package.json      ./packages/ui/apps/web/package.json
 
 # Install all workspace dependencies (dev deps needed for tsup + vite builds).
-# bun can read pnpm-lock.yaml when no bun.lockb is present; we omit
-# --frozen-lockfile because bun's frozen-lockfile mode requires bun.lockb.
-# Pinning is still reliable since the pnpm lockfile is checked in.
-RUN bun install
+# The checked-in pnpm-lock.yaml is the source of truth; --frozen-lockfile
+# guarantees reproducible installs.
+RUN pnpm install --frozen-lockfile
 
 # Copy source for the runtime packages we need to build
 COPY packages/core/src     ./packages/core/src
@@ -73,11 +76,10 @@ COPY packages/ui/tsup.config.ts  ./packages/ui/tsup.config.ts
 COPY packages/ui/tsconfig.json   ./packages/ui/tsconfig.json
 
 # Build the runtime packages in dependency order: core → ui → cli.
-# The root build script uses pnpm -r which is not available in the Bun image,
-# so we invoke tsup (and tailwindcss for @lmthing/agent-ui) directly per package.
-RUN cd packages/core && bunx tsup
-RUN cd packages/ui   && bunx tsup && bunx tailwindcss -i src/app/styles.css -o dist-web/app.css --minify
-RUN cd packages/cli  && bunx tsup
+# We invoke tsup (and tailwindcss for @lmthing/agent-ui) directly per package.
+RUN cd packages/core && pnpm exec tsup
+RUN cd packages/ui   && pnpm exec tsup && pnpm exec tailwindcss -i src/app/styles.css -o dist-web/app.css --minify
+RUN cd packages/cli  && pnpm exec tsup
 
 # Build the unified web app (studio/computer/chat as client-side routes). It
 # resolves the shared libs under ./libs and the favicons under ./common via the
@@ -86,15 +88,14 @@ RUN cd packages/cli  && bunx tsup
 COPY libs/    ./libs/
 COPY common/  ./common/
 COPY packages/ui/apps/ ./packages/ui/apps/
-RUN cd packages/ui/apps/web && bunx vp build
+RUN cd packages/ui/apps/web && pnpm exec vp build
 
 # ---------------------------------------------------------------------------
 # Stage 2 — runtime
 # ---------------------------------------------------------------------------
-# Use Node.js (not Bun) so node-pty's native addon resolves correctly.
-# Bun's CJS require fails to resolve relative paths to .node binaries, which
-# breaks PTY terminals. Node 22 runs the tsup ESM bundle without issues.
-FROM node:22-slim
+# Node 24 runs the tsup ESM bundle and resolves node-pty's native addon (.node)
+# correctly, which the PTY terminals exposed over /api/ws require.
+FROM node:24-slim
 
 WORKDIR /app
 
@@ -103,7 +104,7 @@ RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 
 # Copy built artefacts and node_modules from the builder stage.
 # node_modules contains quickjs-emscripten (with its bundled WASM), esbuild,
-# and all other runtime dependencies — no npm/bun install needed here.
+# and all other runtime dependencies — no install needed here.
 COPY --from=builder /build/node_modules         ./node_modules
 COPY --from=builder /build/packages/core/dist   ./packages/core/dist
 COPY --from=builder /build/packages/core/node_modules ./packages/core/node_modules

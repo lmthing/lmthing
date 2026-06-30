@@ -103,7 +103,7 @@ devops/
 │   │   ├── core.yaml                                # Application: lmthing-core
 │   │   └── envoy.yaml                               # Application: lmthing-envoy
 │   └── compute/                                     # Per-user compute pod resources
-│       ├── Dockerfile                               # Bun + @lmthing/repl runtime image
+│       ├── Dockerfile                               # Node 24 runtime image (multi-session QuickJS server)
 │       └── user-pod-template.yaml                   # Template: Namespace + Deployment + Service
 ├── terraform/                                       # Azure VM provisioning
 │   ├── versions.tf                                  # Provider config (azurerm ~> 4.0)
@@ -126,19 +126,16 @@ devops/
 │   │   ├── argocd/                                  # Install ArgoCD via Helm
 │   │   │   ├── tasks/main.yml
 │   │   │   └── defaults/main.yml                    # Chart version config
-│   │   ├── buildkit/tasks/main.yml                  # Install BuildKit (legacy — images now built by CI)
-│   │   ├── cloud_build_images/tasks/main.yml        # Legacy — images now built by GitHub Actions CI
 │   │   ├── cloud_secrets/tasks/main.yml             # Create K8s secrets from vault + run DB migrations
 │   │   ├── argocd_apps/tasks/main.yml               # Apply ArgoCD Application definitions
 │   │   └── ingress_iptables/tasks/main.yml          # iptables DNAT rules for MetalLB (lmthing-nat systemd service)
 │   ├── inventory/test/
 │   │   ├── hosts.yml                                # Node inventory
 │   │   └── group_vars/all.yml                       # Cluster addons: Helm, MetalLB, cert-manager
-│   ├── k8s/                                         # [LEGACY] Old Ansible-managed manifests (use argocd/ instead)
-│   └── scripts/setup/
-│       └── bootstrap.sh                             # Clone Kubespray + create venv
-└── docs/getting-started/
-    └── kubespray-test.md                            # Step-by-step cluster setup guide
+│   ├── scripts/setup/
+│   │   └── bootstrap.sh                             # Clone Kubespray + create venv
+│   └── docs/getting-started/
+│       └── kubespray-test.md                        # Step-by-step cluster setup guide
 ```
 
 ## Terraform — Azure VM Provisioning
@@ -281,8 +278,7 @@ The `subscription_id` is always required in `terraform.tfvars`.
 
 | Target | Description |
 |--------|-------------|
-| `make deploy` | Full deploy: infra + images + secrets + ArgoCD apps |
-| `make deploy-images` | Rebuild and import Docker images only |
+| `make deploy` | Full deploy: infra + secrets + ArgoCD apps |
 | `make deploy-secrets` | Update K8s secrets from vault + run DB migrations |
 | `make deploy-argocd` | Install ArgoCD + apply Application definitions |
 | `make status` | Show pods in `lmthing`, `gateway`, and `argocd` namespaces |
@@ -324,9 +320,9 @@ Installs ArgoCD via Helm chart for GitOps continuous deployment.
 
 **Tags:** `infra`, `argocd`
 
-### `cloud_build_images` (Legacy)
+### Container Images (CI)
 
-**Images are now built by GitHub Actions CI** (`.github/workflows/build-images.yml`) and pushed to Azure Container Registry (`lmthingacr.azurecr.io`). The CI workflow triggers on pushes to `main` that touch source paths, builds SHA-tagged images, pushes them to ACR, and auto-commits updated image tags to ArgoCD manifests so ArgoCD redeploys automatically.
+Images are built by **GitHub Actions CI** (`.github/workflows/build-images.yml`) and pushed to Azure Container Registry (`lmthingacr.azurecr.io`). The CI workflow triggers on pushes to `main` that touch source paths, builds SHA-tagged images, pushes them to ACR, and auto-commits updated image tags to ArgoCD manifests so ArgoCD redeploys automatically.
 
 | Image | ACR Path | Source | Purpose |
 |-------|----------|--------|---------|
@@ -334,13 +330,11 @@ Installs ArgoCD via Helm chart for GitOps continuous deployment.
 | studio | `lmthingacr.azurecr.io/studio:<sha>` | `sdk/org/packages/ui/apps/web/Dockerfile` (context: repo root) | Unified SPA nginx image (lmthing.studio) |
 | computer | `lmthingacr.azurecr.io/computer:<sha>` | `sdk/org/packages/ui/apps/web/Dockerfile` (context: repo root) | Unified SPA nginx image (lmthing.computer) |
 | chat | `lmthingacr.azurecr.io/chat:<sha>` | `sdk/org/packages/ui/apps/web/Dockerfile` (context: repo root) | Unified SPA nginx image (lmthing.chat) |
-| compute | `lmthingacr.azurecr.io/compute:<sha>` | `sdk/org/packages/{core,cli,ui}` + `argocd/compute/Dockerfile` | Bun + @repl/core + @repl/cli multi-session QuickJS server |
+| compute | `lmthingacr.azurecr.io/compute:<sha>` | `sdk/org/packages/{core,cli,ui}` + `argocd/compute/Dockerfile` | Node 24 multi-session QuickJS server |
 
 CI trigger path for the `compute` image: changes under `sdk/org/packages/**` (core, cli, or ui source). The build context passed to Docker is the `sdk/org/` submodule root.
 
 All deployments use `imagePullSecrets: [acr-pull-secret]` to pull from ACR.
-
-**Tags:** `images`
 
 ### `cloud_secrets`
 
@@ -406,7 +400,7 @@ Resources: `argocd/envoy/computer-routes.yaml`, `argocd/envoy/computer-policies.
 
 ## Per-User Compute Pods
 
-**Runtime:** Custom image — Bun + `@repl/core` (QuickJS WASM sandbox) + `@repl/cli` (multi-session server) from `sdk/org/packages/{core,cli}`. Replaces the deprecated single-session `@lmthing/repl` / WebContainer model. Every tier now gets a dedicated per-user pod (WebContainers are deprecated). The server is started with `bun run packages/cli/dist/cli/bin.js serve --port 8080`; it reads spaces from `/data/spaces`, writes session snapshots to `/data/snapshots`, and respects the `MAX_SESSIONS` env var.
+**Runtime:** Custom image — Node 24 running `@lmthing/core` (QuickJS WASM sandbox) + `@lmthing/cli` (multi-session server) from `sdk/org/packages/{core,cli}`. Every tier gets a dedicated per-user pod. The server is started with `node packages/cli/dist/cli/bin.js serve --port 8080`; it reads spaces from `/data/spaces`, writes session snapshots to `/data/snapshots`, and respects the `MAX_SESSIONS` env var.
 
 **Lifecycle:** Always-on. Created when user subscribes (any paid tier — previously Pro-only), destroyed on subscription cancellation.
 
@@ -598,7 +592,7 @@ make deploy-secrets       # updates K8s secrets + restarts affected pods
 cd devops
 make scale-up             # provisions VM + joins cluster
 cd ansible
-make deploy-images        # build images on new node
+make deploy              # converge services on the new node
 ```
 
 **"I need to remove a node"**
@@ -671,7 +665,7 @@ All K8s manifests live in `devops/argocd/` and are synced by ArgoCD from git. No
 
 | File | Purpose |
 |------|---------|
-| `Dockerfile` | Multi-stage build: tsup builds @repl/core + @repl/cli from `sdk/org/packages/`; runtime stage runs `serve --port 8080` multi-session QuickJS server |
+| `Dockerfile` | Multi-stage build: tsup builds @lmthing/core + @lmthing/cli from `sdk/org/packages/`; runtime stage runs `serve --port 8080` multi-session QuickJS server |
 | `user-pod-template.yaml` | Template for per-user Namespace + Deployment + Service; includes readiness/liveness probes, /data/snapshots volume, MAX_SESSIONS env, and {CPU}/{MEM} placeholder vars for tier-aware sizing |
 
 ## Domain Configuration (Kustomize Replacements)
@@ -702,7 +696,6 @@ To update domain values: edit `argocd/envoy/config.yaml`, push to git, ArgoCD au
 - **ACR pull secret required** — All deployments and user pods require `imagePullSecrets: [acr-pull-secret]` to pull images from `lmthingacr.azurecr.io`. The gateway creates ACR pull secrets in each user namespace during pod provisioning.
 - **DATABASE_URL points to in-cluster Postgres** — use `postgresql://lmthing:PASSWORD@postgres:5432/lmthing`. The `postgres` hostname resolves inside the cluster via the `postgres` Service in `lmthing` namespace.
 - **Gateway ServiceAccount is critical** — the gateway needs the `lmthing-compute-manager` ClusterRole to create user pods. Without it, Pro tier subscriptions will fail to provision compute.
-- **Old manifests in `ansible/k8s/`** — these are legacy from the pre-ArgoCD setup. All active manifests are now in `argocd/`. Do not edit files in `ansible/k8s/`.
 - **Compute image must co-locate `system-spaces` with the cli bundle** — the cli bundles `@lmthing/core`, so its system-space path resolution is relative to `…/cli/dist/`. The Dockerfile copies `system-spaces` to `packages/cli/dist/system-spaces`; without it `materializeRuntime` writes an empty `<data>/.lmthing/system/` and every chat session fails with `Agent "thing" not found`. See `.issues/` in `sdk/org`.
 - **`compute:latest` uses `imagePullPolicy: Always`** — per-user pods (`gateway/src/lib/compute.ts`) track the moving `:latest` tag, so a recreated pod must always re-pull or it runs a stale cached image. To roll a rebuilt compute image to an existing user, delete the user's `lmthing` Deployment (the PVC `/data` persists) and let the next `/api/compute/ensure` recreate it.
 - **`ensureUserPod` re-patches `MAX_SESSIONS`/resources on every chat load** — so the tier config (`gateway/src/lib/tiers.ts`) is the source of truth, not a one-off `kubectl set env` (which gets reverted on the next load). Free tier is `maxSessions: 3` (was 1, which made "+ New chat" silently fail).

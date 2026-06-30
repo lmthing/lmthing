@@ -16,7 +16,7 @@ SERVICES_PLAYBOOK ?= $(ROOT_DIR)/playbooks/services.yml
 export ANSIBLE_CONFIG := $(ROOT_DIR)/ansible.cfg
 
 .PHONY: bootstrap check-bootstrap inventory ping syntax cluster upgrade scale reset
-.PHONY: deploy deploy-images deploy-secrets deploy-argocd status routes logs-gateway logs-litellm logs-argocd
+.PHONY: deploy deploy-secrets deploy-argocd status routes logs-gateway logs-litellm logs-argocd
 
 bootstrap:
 	KUBESPRAY_REPO=$(KUBESPRAY_REPO) KUBESPRAY_VERSION=$(KUBESPRAY_VERSION) $(ROOT_DIR)/scripts/setup/bootstrap.sh
@@ -50,9 +50,6 @@ reset: check-bootstrap
 
 deploy: check-bootstrap
 	$(ANSIBLE_PLAYBOOK) -i $(INVENTORY) $(SERVICES_PLAYBOOK) -b -v --ask-vault-pass $(EXTRA_ARGS)
-
-deploy-images: check-bootstrap
-	$(ANSIBLE_PLAYBOOK) -i $(INVENTORY) $(SERVICES_PLAYBOOK) -b -v --ask-vault-pass --tags images $(EXTRA_ARGS)
 
 deploy-secrets: check-bootstrap
 	$(ANSIBLE_PLAYBOOK) -i $(INVENTORY) $(SERVICES_PLAYBOOK) -b -v --ask-vault-pass --tags secrets $(EXTRA_ARGS)

@@ -2,6 +2,9 @@
   "name": "lmthing-monorepo",
   "private": true,
   "packageManager": "pnpm@10.17.1",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "pnpm --filter ./studio dev",
     "build": "pnpm --filter ./studio build",

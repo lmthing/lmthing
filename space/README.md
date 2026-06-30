@@ -32,7 +32,7 @@ Spaces run on K8s pods, managed by the Gateway via the K8s API.
 ### Lifecycle
 
 1. User creates a space → Gateway provisions a K8s namespace + deployment + service
-2. Pod boots the compute runtime image (Bun + @lmthing/repl)
+2. Pod boots the compute runtime image (Node + @lmthing/cli)
 3. Admin panel connects via WebSocket for terminal, metrics, logs
 4. Owner can start/stop/restart from the admin overview
 5. Deleting a space destroys the namespace (cascades all resources)

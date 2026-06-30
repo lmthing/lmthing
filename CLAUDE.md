@@ -4,7 +4,7 @@ Welcome to lmthing. This file is an **orientation index** — load the detail fi
 
 ## Prerequisites
 
-- **Node.js** ≥ 20 · **pnpm** ≥ 9 · **Git** · a GitHub account (OAuth + workspace persistence)
+- **Node.js** ≥ 24 · **pnpm** ≥ 9 · **Git** · a GitHub account (OAuth + workspace persistence)
 
 ## Repository Structure
 

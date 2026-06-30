@@ -59,8 +59,8 @@ graph TB
             end
 
             subgraph UserNS["user-{id} namespaces"]
-                Pod1["user-abc123<br/>Bun + REPL :8080"]
-                Pod2["user-def456<br/>Bun + REPL :8080"]
+                Pod1["user-abc123<br/>Node + REPL :8080"]
+                Pod2["user-def456<br/>Node + REPL :8080"]
                 PodN["..."]
             end
         end
@@ -111,7 +111,7 @@ graph LR
         D80["HTTP :80"] -->|301 redirect| D443["HTTPS :443"]
         D443 -->|"/api/*"| JWT{"JWT Validation<br/>(Supabase)"}
         JWT -->|"sub → x-user-id"| Lua{"Lua Script"}
-        Lua -->|"user-{id}.svc:8080"| UserPod["Per-User Pod<br/>Bun + REPL"]
+        Lua -->|"user-{id}.svc:8080"| UserPod["Per-User Pod<br/>Node + REPL"]
         D443 -->|"/*"| SPA["Computer SPA<br/>Static Frontend"]
     end
 ```
@@ -131,7 +131,7 @@ sequenceDiagram
     Stripe->>Gateway: Webhook: subscription.created
     Gateway->>K8sAPI: Create Namespace user-{id}
     Gateway->>K8sAPI: Create Deployment + Service
-    K8sAPI-->>Pod: Pod starts (Bun + @lmthing/repl)
+    K8sAPI-->>Pod: Pod starts (Node + @lmthing/cli)
 
     Note over User,Pod: Runtime (authenticated requests)
     User->>Gateway: GET lmthing.computer/api/...
@@ -150,17 +150,20 @@ sequenceDiagram
 ```mermaid
 graph TD
     subgraph Local["Local Machine"]
-        Code["Source Code<br/>cloud/ · computer/ · org/libs/repl/"]
+        Code["Source Code<br/>cloud/ · sdk/org/"]
         Vault["vault.yml<br/>(Ansible Vault)"]
+    end
+
+    subgraph CI["GitHub Actions CI"]
+        Build["push to main<br/>builds & pushes images to ACR"]
     end
 
     subgraph Ansible["make deploy"]
         R1["1. envoy_gateway<br/>Helm install Envoy Gateway"]
         R2["2. argocd<br/>Helm install ArgoCD"]
-        R3["3. cloud_build_images<br/>Build 3 Docker images"]
-        R4["4. cloud_secrets<br/>K8s secrets + DB migrations"]
-        R5["5. argocd_apps<br/>Bootstrap ArgoCD Applications"]
-        R1 --> R2 --> R3 --> R4 --> R5
+        R3["3. cloud_secrets<br/>K8s secrets + DB migrations"]
+        R4["4. argocd_apps<br/>Bootstrap ArgoCD Applications"]
+        R1 --> R2 --> R3 --> R4
     end
 
     subgraph Node["Kubespray Node"]
@@ -168,10 +171,10 @@ graph TD
         ArgoCD["ArgoCD<br/>Auto-syncs manifests from git"]
     end
 
-    Code --> R3
-    Vault --> R4
-    R3 --> Containerd
-    R5 --> ArgoCD
+    Code --> Build
+    Build --> Containerd
+    Vault --> R3
+    R4 --> ArgoCD
 ```
 
 ## Namespace Layout
@@ -201,11 +204,11 @@ graph TB
             SEC["lmthing-secrets"]
         end
         subgraph NS4["user-abc123"]
-            UP1["Deployment: lmthing<br/>Bun + REPL"]
+            UP1["Deployment: lmthing<br/>Node + REPL"]
             US1["Service: lmthing<br/>:8080"]
         end
         subgraph NS5["user-def456"]
-            UP2["Deployment: lmthing<br/>Bun + REPL"]
+            UP2["Deployment: lmthing<br/>Node + REPL"]
             US2["Service: lmthing<br/>:8080"]
         end
     end
@@ -272,15 +275,12 @@ devops/
 │   │   ├── k8s_postinstall/          # Kubeconfig setup
 │   │   ├── envoy_gateway/            # Install Envoy Gateway via Helm
 │   │   ├── argocd/                   # Install ArgoCD via Helm
-│   │   ├── buildkit/                 # Install BuildKit for image building
-│   │   ├── cloud_build_images/       # Build Docker images
 │   │   ├── cloud_secrets/            # Create K8s secrets + run DB migrations
 │   │   ├── argocd_apps/              # Bootstrap ArgoCD Application definitions
 │   │   └── ingress_iptables/         # iptables for MetalLB ingress
 │   ├── inventory/test/
 │   │   ├── hosts.yml                 # Node inventory (auto-generated from TF)
 │   │   └── group_vars/all.yml        # Cluster addons
-│   ├── k8s/                          # [LEGACY] Old Ansible-managed manifests (use argocd/ instead)
 │   └── scripts/setup/
 │       └── bootstrap.sh              # Kubespray + venv setup
 └── docs/getting-started/
@@ -392,8 +392,7 @@ nodes = {
 cd devops
 make scale-up
 
-# 3. Build images on new node
-cd ansible && make deploy-images
+# 3. New node pulls images from ACR automatically (imagePullSecrets)
 ```
 
 ### Removing a Node
@@ -428,7 +427,6 @@ All Ansible commands run from `devops/ansible/`. Terraform and scaling from `dev
 | Upgrade cluster | `cd ansible && make upgrade` |
 | **Services** | |
 | Full deploy | `cd ansible && make deploy` |
-| Rebuild images only | `cd ansible && make deploy-images` |
 | Update secrets + migrations | `cd ansible && make deploy-secrets` |
 | Install/update ArgoCD + apps | `cd ansible && make deploy-argocd` |
 | **Observability** | |

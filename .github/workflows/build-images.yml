@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'cloud/gateway/**'
+      - 'sdk/org'
       - 'sdk/org/**'
       - 'devops/argocd/compute/Dockerfile'
       - 'com/**'
@@ -37,34 +38,45 @@ jobs:
             gateway:
               - 'cloud/gateway/**'
             computer:
+              - 'sdk/org'
               - 'sdk/org/**'
             compute:
+              - 'sdk/org'
               - 'sdk/org/**'
               - 'devops/argocd/compute/Dockerfile'
             studio:
+              - 'sdk/org'
               - 'sdk/org/**'
             chat:
+              - 'sdk/org'
               - 'sdk/org/**'
             com:
               - 'com/**'
+              - 'sdk/org'
               - 'sdk/org/**'
             social:
               - 'social/**'
+              - 'sdk/org'
               - 'sdk/org/**'
             store:
               - 'store/**'
+              - 'sdk/org'
               - 'sdk/org/**'
             space:
               - 'space/**'
+              - 'sdk/org'
               - 'sdk/org/**'
             team:
               - 'team/**'
+              - 'sdk/org'
               - 'sdk/org/**'
             blog:
               - 'blog/**'
+              - 'sdk/org'
               - 'sdk/org/**'
             casa:
               - 'casa/**'
+              - 'sdk/org'
               - 'sdk/org/**'
 
       - name: Set image tag

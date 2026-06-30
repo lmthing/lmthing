@@ -1,5 +1,15 @@
 [
   {
+    "hash": "76a20452",
+    "full_hash": "76a204521bc6981b0a213003be11f0c0dfa87c8d",
+    "type": "chore",
+    "scope": "",
+    "subject": "upgrade Node.js version to 24 across Dockerfiles and documentation",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-30 18:00:50 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/76a204521bc6981b0a213003be11f0c0dfa87c8d"
+  },
+  {
     "hash": "af4f0e5f",
     "full_hash": "af4f0e5ff8684e59600678eed677d0b90f40f741",
     "type": "chore",

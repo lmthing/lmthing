@@ -1,5 +1,25 @@
 [
   {
+    "hash": "76a20452",
+    "full_hash": "76a204521bc6981b0a213003be11f0c0dfa87c8d",
+    "type": "chore",
+    "scope": "",
+    "subject": "upgrade Node.js version to 24 across Dockerfiles and documentation",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-30 18:00:50 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/76a204521bc6981b0a213003be11f0c0dfa87c8d"
+  },
+  {
+    "hash": "c33fda04",
+    "full_hash": "c33fda0406ee58b7a185eb597f1148010eba5152",
+    "type": "chore",
+    "scope": "",
+    "subject": "update sdk/org (clean URLs on domain-specific hosts)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-30 17:55:54 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/c33fda0406ee58b7a185eb597f1148010eba5152"
+  },
+  {
     "hash": "685bc21a",
     "full_hash": "685bc21aa84196b18007cd3aa757782b00705414",
     "type": "chore",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 21:09:31 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/d68ee3fe2503519389dd71b81be2ec11044f1ac1"
-  },
-  {
-    "hash": "3172d95d",
-    "full_hash": "3172d95d16ba8055543b403237c3794dfc91a2d8",
-    "type": "fix",
-    "scope": "docker",
-    "subject": "drop non-package sdk/libs/spaces from SPA image COPY",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 21:07:06 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/3172d95d16ba8055543b403237c3794dfc91a2d8"
-  },
-  {
-    "hash": "bff6c735",
-    "full_hash": "bff6c7359843829d5d9f2e155c767beeec6c0461",
-    "type": "fix",
-    "scope": "docker",
-    "subject": "correct stale sdk workspace paths in SPA images; sync root lockfile",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 21:05:22 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/bff6c7359843829d5d9f2e155c767beeec6c0461"
   }
 ]

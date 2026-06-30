@@ -1,5 +1,25 @@
 [
   {
+    "hash": "76a20452",
+    "full_hash": "76a204521bc6981b0a213003be11f0c0dfa87c8d",
+    "type": "chore",
+    "scope": "",
+    "subject": "upgrade Node.js version to 24 across Dockerfiles and documentation",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-30 18:00:50 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/76a204521bc6981b0a213003be11f0c0dfa87c8d"
+  },
+  {
+    "hash": "c33fda04",
+    "full_hash": "c33fda0406ee58b7a185eb597f1148010eba5152",
+    "type": "chore",
+    "scope": "",
+    "subject": "update sdk/org (clean URLs on domain-specific hosts)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-06-30 17:55:54 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/c33fda0406ee58b7a185eb597f1148010eba5152"
+  },
+  {
     "hash": "685bc21a",
     "full_hash": "685bc21aa84196b18007cd3aa757782b00705414",
     "type": "chore",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 21:05:22 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/bff6c7359843829d5d9f2e155c767beeec6c0461"
-  },
-  {
-    "hash": "26ad8fd1",
-    "full_hash": "26ad8fd1406088dcbc4a65bbcac6e3685c5a6313",
-    "type": "feat",
-    "scope": "",
-    "subject": "realign chat/studio/computer onto pod-served lmthing UI",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 20:57:56 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/26ad8fd1406088dcbc4a65bbcac6e3685c5a6313"
-  },
-  {
-    "hash": "86169c74",
-    "full_hash": "86169c74e865cf92a49e0ccfc4dd8af2a9d7f632",
-    "type": "fix",
-    "scope": "",
-    "subject": "update subproject commit reference for sdk/org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 18:12:23 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/86169c74e865cf92a49e0ccfc4dd8af2a9d7f632"
   }
 ]

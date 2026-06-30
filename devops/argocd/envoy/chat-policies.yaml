@@ -17,9 +17,6 @@ spec:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       name: chat-api-proxy
-    - group: gateway.networking.k8s.io
-      kind: HTTPRoute
-      name: chat-pod-root
   lua:
     - type: Inline
       inline: |
@@ -50,7 +47,7 @@ spec:
 ---
 # JWT validation — extracts `sub` claim as x-user-id header.
 # Reuses computer's exact extractFrom (Authorization header + access_token query
-# param) and claimToHeaders mapping. No cookie source. Bound to Rules A + B.
+# param) and claimToHeaders mapping. No cookie source. Bound to the /api proxy.
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: SecurityPolicy
 metadata:
@@ -61,9 +58,6 @@ spec:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       name: chat-api-proxy
-    - group: gateway.networking.k8s.io
-      kind: HTTPRoute
-      name: chat-pod-root
   jwt:
     providers:
       - name: gateway

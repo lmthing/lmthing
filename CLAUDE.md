@@ -17,13 +17,13 @@ lmthing/
 │   ├── common/         # shared favicons (favicon.ico/*)
 │   └── packages/
 │       ├── core, cli   # the THING runtime (QuickJS eval loop + the pod `serve` server)
-│       └── ui/         # @lmthing/agent-ui  +  ui/apps/{studio,computer,chat} — Vite SPAs the pod serves by Host header
+│       └── ui/         # @lmthing/agent-ui  +  ui/apps/web/ — unified Vite SPA; /studio, /computer, /chat as client-side routes (Host-redirect at /)
 ├── cloud/              # THE backend — gateway + LiteLLM (see cloud-backend skill)
-├── chat/ com/ social/ team/ store/ space/ blog/ casa/   # product app shells (static SPAs)
+├── com/ social/ team/ store/ space/ blog/ casa/          # product app shells (static SPAs)
 ├── pnpm-workspace.yaml · package.json
 ```
 
-- **Studio / Computer / Chat** live together in one Vite SPA — `sdk/org/packages/ui/apps/web/` — as client-side routes (`/studio`, `/computer`, `/chat`). The per-user **compute pod** (`lmthing serve`) builds and serves this single app; `./cli/bin` serves it with `/chat` (the agent-ui shell), `/studio`, and `/computer` all on one origin.
+- **Studio / Computer / Chat** live together in one Vite SPA — `sdk/org/packages/ui/apps/web/` — as client-side routes (`/studio`, `/computer`, `/chat`). `lmthing serve` (the bare `lmthing` command) serves the pre-built SPA as a catch-all for all non-`/api` requests; all three surfaces are on one origin. In production, the same build is deployed as three separate nginx K8s images (one per domain); the hostname-based redirect at `/` picks the right surface client-side.
 - **Core runtime** lives in `sdk/org/packages/{core,cli,ui}` — model-streamed TypeScript evaluated one statement at a time in a QuickJS WASM sandbox. See [sdk/org/CLAUDE.md](./sdk/org/CLAUDE.md).
 - **Shared libraries** in `sdk/org/libs/`: `@lmthing/state` (in-memory VFS), `@lmthing/ui`, `@lmthing/css`, `@lmthing/auth`, `@lmthing/spaces`, `@lmthing/utils`. They live **inside the sdk/org submodule** so the pod image (Docker context = `sdk/org`) can build the apps self-contained.
 

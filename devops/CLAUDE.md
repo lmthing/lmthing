@@ -22,10 +22,10 @@ Envoy Gateway (Gateway API — sole ingress controller)  lmthing-gw
 ├── lmthing.cloud
 │   ├── /v1/*  → LiteLLM :4000          (lmthing namespace)
 │   └── /api/* → Gateway/Hono :3000     (lmthing namespace)
-├── lmthing.computer
+├── lmthing.{studio,computer,chat}
 │   ├── /api/* → JWT → Lua → user-{id} pod :8080  (dynamic per-user routing)
-│   └── /*     → Computer SPA :80       (lmthing namespace)
-└── lmthing.{studio,chat,com,blog,social,store,space,team,casa}
+│   └── /*     → unified SPA nginx :80  (lmthing namespace, one deployment each)
+└── lmthing.{com,blog,social,store,space,team,casa}
     └── /*     → SPA nginx :80          (lmthing namespace, one deployment each)
 
 cert-manager → ClusterIssuer (letsencrypt-prod) → Certificate per domain (11 total)
@@ -67,7 +67,7 @@ cert-manager → ClusterIssuer (letsencrypt-prod) → Certificate per domain (11
 |-----------|---------|------------|
 | `envoy-gateway-system` | Envoy Gateway controller | Helm (Ansible role) |
 | `argocd` | ArgoCD server, controller, repo-server | Helm (Ansible role) |
-| `lmthing` | Core services: LiteLLM, Gateway/Hono, Computer SPA | ArgoCD (`lmthing-core` app) |
+| `lmthing` | Core services: LiteLLM, Gateway/Hono, Studio/Computer/Chat SPAs | ArgoCD (`lmthing-core` app) |
 | `gateway` | Envoy routing resources: Gateway, HTTPRoute, policies | ArgoCD (`lmthing-envoy` app) |
 | `user-{id}` | Per-user compute pods (created dynamically by Gateway/Hono) | Gateway app (K8s API) |
 
@@ -86,7 +86,9 @@ devops/
 │   │   ├── namespace.yaml                           # lmthing + gateway namespaces
 │   │   ├── litellm.yaml                             # LiteLLM ConfigMap + Deployment + Service
 │   │   ├── gateway.yaml                             # Gateway Deployment + Service + RBAC
+│   │   ├── studio.yaml                              # Studio SPA Deployment + Service
 │   │   ├── computer.yaml                            # Computer SPA Deployment + Service
+│   │   ├── chat.yaml                                # Chat SPA Deployment + Service
 │   │   └── compute-pod-template.yaml                # ConfigMap with per-user pod template
 │   ├── envoy/                                       # Envoy Gateway resources (synced by ArgoCD → gateway namespace)
 │   │   ├── kustomization.yaml                       # Kustomize entrypoint + replacements
@@ -329,7 +331,9 @@ Installs ArgoCD via Helm chart for GitOps continuous deployment.
 | Image | ACR Path | Source | Purpose |
 |-------|----------|--------|---------|
 | gateway | `lmthingacr.azurecr.io/gateway:<sha>` | `cloud/gateway/` | Hono API gateway |
-| computer | `lmthingacr.azurecr.io/computer:<sha>` | `computer/` (multi-stage: node:22-slim builder + nginx:alpine) | Static SPA (lmthing.computer frontend) |
+| studio | `lmthingacr.azurecr.io/studio:<sha>` | `sdk/org/packages/ui/apps/web/Dockerfile` (context: repo root) | Unified SPA nginx image (lmthing.studio) |
+| computer | `lmthingacr.azurecr.io/computer:<sha>` | `sdk/org/packages/ui/apps/web/Dockerfile` (context: repo root) | Unified SPA nginx image (lmthing.computer) |
+| chat | `lmthingacr.azurecr.io/chat:<sha>` | `sdk/org/packages/ui/apps/web/Dockerfile` (context: repo root) | Unified SPA nginx image (lmthing.chat) |
 | compute | `lmthingacr.azurecr.io/compute:<sha>` | `sdk/org/packages/{core,cli,ui}` + `argocd/compute/Dockerfile` | Bun + @repl/core + @repl/cli multi-session QuickJS server |
 
 CI trigger path for the `compute` image: changes under `sdk/org/packages/**` (core, cli, or ui source). The build context passed to Docker is the `sdk/org/` submodule root.
@@ -633,7 +637,9 @@ All K8s manifests live in `devops/argocd/` and are synced by ArgoCD from git. No
 | `namespace.yaml` | Namespace | — | Creates `lmthing` + `gateway` |
 | `litellm.yaml` | ConfigMap + Deployment + Service | lmthing | LiteLLM proxy (Azure Foundry, budget enforcement) |
 | `gateway.yaml` | ServiceAccount + ClusterRole + Deployment + Service | lmthing | Gateway/Hono + RBAC for user pod management |
-| `computer.yaml` | Deployment + Service | lmthing | Computer SPA (nginx, COEP/COOP headers) |
+| `studio.yaml` | Deployment + Service | lmthing | Studio SPA — same image as computer/chat, lmthing.studio domain |
+| `computer.yaml` | Deployment + Service | lmthing | Computer SPA — same image as studio/chat, lmthing.computer domain |
+| `chat.yaml` | Deployment + Service | lmthing | Chat SPA — same image as studio/computer, lmthing.chat domain |
 | `compute-pod-template.yaml` | ConfigMap | lmthing | Per-user compute pod template |
 | `kustomization.yaml` | Kustomization | lmthing | Kustomize entrypoint |
 
@@ -644,8 +650,12 @@ All K8s manifests live in `devops/argocd/` and are synced by ArgoCD from git. No
 | `config.yaml` | ConfigMap | gateway | Domain values for Kustomize replacements |
 | `cloud-gateway.yaml` | Gateway | gateway | Listeners for lmthing.cloud + lmthing.computer |
 | `cloud-routes.yaml` | HTTPRoute ×3 | gateway | Redirect + /v1 → litellm + /api → gateway |
+| `studio-routes.yaml` | HTTPRoute ×3 | gateway | Redirect + /api → dynamic + /* → SPA |
+| `studio-policies.yaml` | EnvoyExtensionPolicy + SecurityPolicy | gateway | Lua routing + JWT for studio |
 | `computer-routes.yaml` | HTTPRoute ×3 | gateway | Redirect + /api → dynamic + /* → SPA |
-| `computer-policies.yaml` | Backend + HTTPRouteFilter + EnvoyExtensionPolicy + SecurityPolicy | gateway | Dynamic routing + Lua + JWT |
+| `computer-policies.yaml` | Backend + HTTPRouteFilter + EnvoyExtensionPolicy + SecurityPolicy | gateway | Dynamic routing + Lua + JWT (shared Backend/Filter used by studio+chat too) |
+| `chat-routes.yaml` | HTTPRoute ×3 | gateway | Redirect + /api → dynamic + /* → SPA |
+| `chat-policies.yaml` | EnvoyExtensionPolicy + SecurityPolicy | gateway | Lua routing + JWT for chat |
 | `reference-grants.yaml` | ReferenceGrant | lmthing | Cross-namespace backend access |
 | `tls-certificates.yaml` | ClusterIssuer + Certificate ×2 | — / gateway | Let's Encrypt + per-domain certs |
 | `kustomization.yaml` | Kustomization | — | Kustomize entrypoint + replacements |

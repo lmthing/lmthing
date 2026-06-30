@@ -300,7 +300,9 @@ jobs:
 
   update-manifests:
     needs: [detect, build]
-    if: always() && needs.detect.outputs.matrix != '[]' && needs.build.result == 'success'
+    # Run when at least one image was built (even if some failed, e.g. compute).
+    # The script below reads build-data artifacts to skip images that failed.
+    if: always() && needs.detect.outputs.matrix != '[]' && needs.build.result != 'cancelled' && needs.build.result != 'skipped'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -311,18 +313,36 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 1
 
+      - name: Download build artifacts to check which images succeeded
+        uses: actions/download-artifact@v4
+        with:
+          pattern: build-data-*
+          path: downloaded-artifacts
+          merge-multiple: true
+
       - name: Update image tags in manifests
         env:
           MATRIX: ${{ needs.detect.outputs.matrix }}
           SHA: ${{ needs.detect.outputs.sha }}
         run: |
           python3 << 'EOF'
-          import json, os, re
+          import json, os, re, glob
 
           matrix = json.loads(os.environ["MATRIX"])
           sha = os.environ["SHA"]
 
+          # Only update manifests for images whose build artifact exists and succeeded
+          built = set()
+          for path in glob.glob('downloaded-artifacts/*.json'):
+            with open(path) as f:
+              rec = json.load(f)
+            if rec.get('conclusion') == 'success':
+              built.add(rec['image'])
+
           for entry in matrix:
+            if entry['image'] not in built:
+              print(f"Skipping {entry['image']} — build did not succeed")
+              continue
             manifest = entry["manifest"]
             image = entry["image"]
             pattern = rf'(image: lmthingacr\.azurecr\.io/{re.escape(image)}:)\S+'

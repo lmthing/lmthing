@@ -13,18 +13,16 @@ The monorepo is organized by TLD — each lmthing.\* domain has its own top-leve
 ```
 lmthing/
 ├── sdk/org/            # the sdk submodule (github.com/lmthing/org): core, shared libs, runtime + the studio/computer/chat Vite apps
-│   ├── libs/           # @lmthing/{state,spaces,css,ui,auth,utils}
-│   ├── common/         # shared favicons (favicon.ico/*)
-│   └── packages/
-│       ├── core, cli   # the THING runtime (QuickJS eval loop + the pod `serve` server)
-│       └── ui/         # @lmthing/agent-ui  +  ui/apps/web/ — unified Vite SPA; /studio, /computer, /chat as client-side routes (Host-redirect at /)
+│   ├── libs/           # @lmthing/{state,spaces,css,ui,auth,utils,core,cli}
+│   ├── apps/web/       # unified Vite SPA; /studio, /computer, /chat as client-side routes (Host-redirect at /)
+│   └── common/         # shared favicons (favicon.ico/*)
 ├── cloud/              # THE backend — gateway + LiteLLM (see cloud-backend skill)
 ├── com/ social/ team/ store/ space/ blog/ casa/          # product app shells (static SPAs)
 ├── pnpm-workspace.yaml · package.json
 ```
 
-- **Studio / Computer / Chat** live together in one Vite SPA — `sdk/org/packages/ui/apps/web/` — as client-side routes (`/studio`, `/computer`, `/chat`). `lmthing serve` (the bare `lmthing` command) serves the pre-built SPA as a catch-all for all non-`/api` requests; all three surfaces are on one origin. In production, the same build is deployed as three separate nginx K8s images (one per domain); the hostname-based redirect at `/` picks the right surface client-side.
-- **Core runtime** lives in `sdk/org/packages/{core,cli,ui}` — model-streamed TypeScript evaluated one statement at a time in a QuickJS WASM sandbox. See [sdk/org/CLAUDE.md](./sdk/org/CLAUDE.md).
+- **Studio / Computer / Chat** live together in one Vite SPA — `sdk/org/apps/web/` — as client-side routes (`/studio`, `/computer`, `/chat`). `lmthing serve` (the bare `lmthing` command) serves the pre-built SPA as a catch-all for all non-`/api` requests; all three surfaces are on one origin. In production, the same build is deployed as three separate nginx K8s images (one per domain); the hostname-based redirect at `/` picks the right surface client-side.
+- **Core runtime** lives in `sdk/org/libs/{core,cli}` — model-streamed TypeScript evaluated one statement at a time in a QuickJS WASM sandbox. See [sdk/org/CLAUDE.md](./sdk/org/CLAUDE.md).
 - **Shared libraries** in `sdk/org/libs/`: `@lmthing/state` (in-memory VFS), `@lmthing/ui`, `@lmthing/css`, `@lmthing/auth`, `@lmthing/spaces`, `@lmthing/utils`. They live **inside the sdk/org submodule** so the pod image (Docker context = `sdk/org`) can build the apps self-contained.
 
 ## Backend — important
@@ -38,7 +36,7 @@ lmthing/
 
 ```bash
 pnpm install
-cd sdk/org/packages/ui/apps/web && pnpm dev        # unified app (routes: /studio /computer /chat)
+cd sdk/org/apps/web && pnpm dev        # unified app (routes: /studio /computer /chat)
 ```
 
 Running the full local stack (ports, `*.test` nginx proxy, demo auth, make targets) → `@.claude/skills/local-dev.md`.
@@ -113,12 +111,12 @@ target SPA and reload. `POST /api/compute/ensure` provisions the free-tier pod;
 source keys in `sdk/org/.env`). Drive the browser with the chrome-devtools MCP.
 
 Studio shows a synthetic **`system`** project (the system/user spaces) plus the user's
-projects, and an always-on right-side **THING** chat dock (the `/studio` route in `sdk/org/packages/ui/apps/web/`).
+projects, and an always-on right-side **THING** chat dock (the `/studio` route in `sdk/org/apps/web/`).
 Open `.issues/` problems: CI/ArgoCD deploy flakiness, Zitadel login, architect stall (sdk/org/.issues).
 
 ## Useful Links
 
 - [Architecture.md](./Architecture.md) — full product & domain architecture
-- [sdk/org/CLAUDE.md](./sdk/org/CLAUDE.md) — core runtime + served UI (studio/computer/chat routes in `packages/ui/apps/web/`)
+- [sdk/org/CLAUDE.md](./sdk/org/CLAUDE.md) — core runtime + served UI (studio/computer/chat routes in `apps/web/`)
 - [sdk/org/CLAUDE.md](./sdk/org/CLAUDE.md) — core runtime reference (eval loop, system spaces, sessions)
 - [devops/CLAUDE.md](./devops/CLAUDE.md) — infrastructure & deployment

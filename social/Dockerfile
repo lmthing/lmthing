@@ -13,7 +13,6 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 
 COPY blog/package.json           blog/
 COPY casa/package.json           casa/
-COPY chat/package.json           chat/
 COPY cloud/package.json          cloud/
 COPY com/package.json            com/
 COPY social/package.json         social/
@@ -25,12 +24,10 @@ COPY sdk/org/libs/css/package.json          sdk/org/libs/css/
 COPY sdk/org/libs/state/package.json        sdk/org/libs/state/
 COPY sdk/org/libs/ui/package.json           sdk/org/libs/ui/
 COPY sdk/org/libs/utils/package.json        sdk/org/libs/utils/
-COPY sdk/org/packages/core/package.json sdk/org/packages/core/
-COPY sdk/org/packages/cli/package.json  sdk/org/packages/cli/
-COPY sdk/org/packages/ui/package.json   sdk/org/packages/ui/
-COPY sdk/org/packages/ui/apps/studio/package.json   sdk/org/packages/ui/apps/studio/
-COPY sdk/org/packages/ui/apps/computer/package.json sdk/org/packages/ui/apps/computer/
-COPY sdk/org/packages/ui/apps/chat/package.json     sdk/org/packages/ui/apps/chat/
+COPY sdk/org/libs/config/package.json sdk/org/libs/config/
+COPY sdk/org/libs/core/package.json   sdk/org/libs/core/
+COPY sdk/org/libs/cli/package.json    sdk/org/libs/cli/
+COPY sdk/org/apps/web/package.json    sdk/org/apps/web/
 
 RUN pnpm install --frozen-lockfile
 

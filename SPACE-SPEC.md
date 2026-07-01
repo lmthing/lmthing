@@ -543,7 +543,7 @@ Six baseline spaces are always merged into every user space at runtime. They liv
 
 ```
 system-global         system-engineer       system-architect
-system-deep-research  user-memory           user-thing
+system-research       user-memory           user-thing
 ```
 
 Merge rules:

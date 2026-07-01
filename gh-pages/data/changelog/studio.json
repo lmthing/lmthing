@@ -1,5 +1,15 @@
 [
   {
+    "hash": "99d4af86",
+    "full_hash": "99d4af865a6efd80aa77eb415a4d61d02dfda6a6",
+    "type": "feat",
+    "scope": "cloud",
+    "subject": "4-tier multi-window LLM provider, 4 Azure models @15% markup",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 13:07:54 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/99d4af865a6efd80aa77eb415a4d61d02dfda6a6"
+  },
+  {
     "hash": "1eebc032",
     "full_hash": "1eebc032ea15a116a074d046a0891631d681e15d",
     "type": "ci",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 23:12:57 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/ea943e787de8c30b3b435666f77c43da87d84c25"
-  },
-  {
-    "hash": "d68ee3fe",
-    "full_hash": "d68ee3fe2503519389dd71b81be2ec11044f1ac1",
-    "type": "fix",
-    "scope": "docker",
-    "subject": "install ca-certificates for vite-plus build in SPA images",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 21:09:31 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/d68ee3fe2503519389dd71b81be2ec11044f1ac1"
   }
 ]

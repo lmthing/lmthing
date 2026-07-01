@@ -1,5 +1,15 @@
 [
   {
+    "hash": "99d4af86",
+    "full_hash": "99d4af865a6efd80aa77eb415a4d61d02dfda6a6",
+    "type": "feat",
+    "scope": "cloud",
+    "subject": "4-tier multi-window LLM provider, 4 Azure models @15% markup",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 13:07:54 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/99d4af865a6efd80aa77eb415a4d61d02dfda6a6"
+  },
+  {
     "hash": "1eebc032",
     "full_hash": "1eebc032ea15a116a074d046a0891631d681e15d",
     "type": "ci",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 23:54:18 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/0b2e78bd786317b75488bd6a993625ed572a0ad5"
-  },
-  {
-    "hash": "4b71ba58",
-    "full_hash": "4b71ba58581e6161f64a600a269aa55ae633892e",
-    "type": "chore",
-    "scope": "",
-    "subject": "bump sdk/org (custom env endpoint + Env UI + @ai-sdk/zod pin)",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 23:45:33 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/4b71ba58581e6161f64a600a269aa55ae633892e"
   }
 ]

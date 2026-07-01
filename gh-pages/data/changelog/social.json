@@ -1,5 +1,15 @@
 [
   {
+    "hash": "99d4af86",
+    "full_hash": "99d4af865a6efd80aa77eb415a4d61d02dfda6a6",
+    "type": "feat",
+    "scope": "cloud",
+    "subject": "4-tier multi-window LLM provider, 4 Azure models @15% markup",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 13:07:54 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/99d4af865a6efd80aa77eb415a4d61d02dfda6a6"
+  },
+  {
     "hash": "1eebc032",
     "full_hash": "1eebc032ea15a116a074d046a0891631d681e15d",
     "type": "ci",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-19 23:27:35 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/983d2f9741ab258dc6742ce630a49abd4a07bdd5"
-  },
-  {
-    "hash": "eb8e8260",
-    "full_hash": "eb8e8260d535f02e9d2d4532fd2493b4f6c59396",
-    "type": "chore",
-    "scope": "",
-    "subject": "Refactor agent and tasklist handling for new specification",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-15 21:36:27 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/eb8e8260d535f02e9d2d4532fd2493b4f6c59396"
   }
 ]

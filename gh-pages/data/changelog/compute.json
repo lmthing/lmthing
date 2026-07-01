@@ -1,5 +1,15 @@
 [
   {
+    "hash": "99d4af86",
+    "full_hash": "99d4af865a6efd80aa77eb415a4d61d02dfda6a6",
+    "type": "feat",
+    "scope": "cloud",
+    "subject": "4-tier multi-window LLM provider, 4 Azure models @15% markup",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 13:07:54 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/99d4af865a6efd80aa77eb415a4d61d02dfda6a6"
+  },
+  {
     "hash": "81f811b0",
     "full_hash": "81f811b02acafac8e20a8f3eaa2aca06e16541d8",
     "type": "fix",

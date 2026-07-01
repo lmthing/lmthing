@@ -1,10 +1,10 @@
 {
   "image": "casa",
-  "sha": "99d4af8",
-  "run_id": "28509894236",
-  "run_number": 126,
-  "run_url": "https://github.com/\\lmthing/lmthing/actions/runs/28509894236",
+  "sha": "83b1088",
+  "run_id": "28511347795",
+  "run_number": 128,
+  "run_url": "https://github.com/\\lmthing/lmthing/actions/runs/28511347795",
   "status": "completed",
   "conclusion": "success",
-  "updated_at": "2026-07-01T10:09:53.094520+00:00"
+  "updated_at": "2026-07-01T10:36:17.736454+00:00"
 }

@@ -11,19 +11,21 @@ Tiers are a cross-cutting concern spanning backend, frontend, infra, knowledge b
 
 ## Current Tiers
 
-| Tier    | Price      | Budget  | Reset   | Rate Limits          |
-|---------|------------|---------|---------|----------------------|
-| Free    | $0         | $1      | 7 days  | 10K tpm / 60 rpm     |
-| Starter | $5/month   | $5      | 30 days | 25K tpm / 150 rpm    |
-| Basic   | $10/month  | $10     | 30 days | 50K tpm / 300 rpm    |
-| Pro     | $20/month  | $20     | 30 days | 100K tpm / 1K rpm    |
-| Max     | $100/month | $100    | 30 days | 1M tpm / 5K rpm      |
+Each tier carries three budget windows (5h / 7d / 30d spend caps) rather than a single
+budget. All tiers can call all four enabled models.
+
+| Tier    | Price      | Budget (5h / 7d / 30d) | Rate Limits          |
+|---------|------------|------------------------|----------------------|
+| Free    | $0         | $0.30 / $2 / $6        | 10K tpm / 60 rpm     |
+| Basic   | $10/month  | $1 / $4 / $10          | 50K tpm / 300 rpm    |
+| Pro     | $20/month  | $3 / $10 / $20         | 100K tpm / 1K rpm    |
+| Max     | $100/month | $10 / $30 / $100       | 1M tpm / 5K rpm      |
 
 ## Checklist
 
 ### 1. Backend — `cloud/gateway/src/lib/tiers.ts`
 
-Add the tier to the `TIERS` object in order. Define `name`, `stripePriceId` (env var), `budget`, `budgetDuration`, `models`, `tpmLimit`, `rpmLimit`. No other backend code changes needed — routes and helpers iterate `TIERS` dynamically.
+Add the tier to the `TIERS` object in order. Define `name`, `stripePriceId` (env var), `budgetLimits` (array of `{ duration, maxBudget }` windows, e.g. 5h/7d/30d), `models` (usually `[...ENABLED_MODELS]`), `tpmLimit`, `rpmLimit`, `pod`. No other backend code changes needed — routes and helpers iterate `TIERS` dynamically and `toBudgetLimits()` maps the windows to the LiteLLM payload.
 
 ### 2. Backend — `cloud/scripts/create-stripe-products.ts`
 
@@ -57,7 +59,7 @@ Bump `order` in any existing tier `.md` files that come after the new one. Updat
 
 ### 9. Documentation
 
-Update tier tables and `(Free/Starter/Basic/Pro/Max)` references in:
+Update tier tables and `(Free/Basic/Pro/Max)` references in:
 - `CLAUDE.md` (root)
 - `cloud/CLAUDE.md` — tier table + env var table
 - `cloud/README.md`

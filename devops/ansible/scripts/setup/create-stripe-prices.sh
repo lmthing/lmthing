@@ -45,7 +45,6 @@ create_price() {
 
 echo "Creating Stripe prices..." >&2
 
-STARTER=$(create_price "Starter" 500)
 BASIC=$(create_price "Basic" 1000)
 PRO=$(create_price "Pro" 2000)
 MAX=$(create_price "Max" 10000)
@@ -62,7 +61,6 @@ WEBHOOK_SECRET=$(stripe_post /webhook_endpoints \
 echo "" >&2
 echo "Done. Add these to vault.yml:" >&2
 echo "─────────────────────────────────────────"
-echo "vault_stripe_price_starter: \"${STARTER}\""
 echo "vault_stripe_price_basic: \"${BASIC}\""
 echo "vault_stripe_price_pro: \"${PRO}\""
 echo "vault_stripe_price_max: \"${MAX}\""

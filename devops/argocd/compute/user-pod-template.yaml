@@ -10,7 +10,7 @@
 #   MAX_SESSIONS) proportionally for higher concurrency on paid tiers.
 #
 #   Example tier sizing:
-#     Free/Starter  — {CPU}: 500m  {MEM}: 1Gi    MAX_SESSIONS: 4
+#     Free/Basic    — {CPU}: 500m  {MEM}: 1Gi    MAX_SESSIONS: 4
 #     Basic/Pro     — {CPU}: 1000m {MEM}: 2Gi    MAX_SESSIONS: 8   (defaults below)
 #     Max           — {CPU}: 2000m {MEM}: 4Gi    MAX_SESSIONS: 16
 #

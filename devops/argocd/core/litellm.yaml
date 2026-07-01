@@ -5,44 +5,55 @@ metadata:
   namespace: lmthing
 data:
   config.yaml: |
+    # ── Enabled models (all tiers) ─────────────────────────────
+    # input/output_cost_per_token = Azure base (per-1K) / 1000 * 1.15 (15% gateway markup).
+    # Regenerate this block with: cd cloud && pnpm litellm:generate-models
+    # (base prices live in sdk/org/libs/cli/prices/azure.json, refreshed by
+    #  `pnpm fetch-azure-prices` in libs/cli).
     model_list:
-      # ── FREE TIER ──────────────────────────────────────────
-      - model_name: gpt-5.4-nano
+      - model_name: DeepSeek-V4-Flash
         litellm_params:
-          model: azure/gpt-5.4-nano
+          model: azure/DeepSeek-V4-Flash
           api_base: os.environ/AZURE_API_BASE
           api_key: os.environ/AZURE_API_KEY
           api_version: "2024-12-01-preview"
         model_info:
-          # 10% markup — set these to (azure_cost * 1.1)
-          input_cost_per_token: 0.000000165
-          output_cost_per_token: 0.00000165
-
-      # ── DEEPSEEK ───────────────────────────────────────────────
-      # TODO: replace azure/REPLACE_ME_DEEPSEEK with the real Azure Foundry deployment name
-      - model_name: deepseek
+          # 15% markup over Azure base price (azure_per_1K / 1000 * 1.15)
+          input_cost_per_token: 0.0000002185
+          output_cost_per_token: 0.0000005865
+      - model_name: DeepSeek-V4-Pro
         litellm_params:
-          model: azure/REPLACE_ME_DEEPSEEK  # TODO: real Azure Foundry deployment name
+          model: azure/DeepSeek-V4-Pro
           api_base: os.environ/AZURE_API_BASE
           api_key: os.environ/AZURE_API_KEY
           api_version: "2024-12-01-preview"
         model_info:
-          # 10% markup — set these to (azure_cost * 1.1)
-          input_cost_per_token: 0.00000154
-          output_cost_per_token: 0.00000220
-
-      # ── DEEPSEEK FLASH ─────────────────────────────────────────
-      # TODO: replace azure/REPLACE_ME_DEEPSEEK_FLASH with the real Azure Foundry deployment name
-      - model_name: deepseek-flash
+          # 15% markup over Azure base price (azure_per_1K / 1000 * 1.15)
+          input_cost_per_token: 0.000002001
+          output_cost_per_token: 0.000004002
+      - model_name: Kimi-K2.6
         litellm_params:
-          model: azure/REPLACE_ME_DEEPSEEK_FLASH  # TODO: real Azure Foundry deployment name
+          model: azure/Kimi-K2.6
           api_base: os.environ/AZURE_API_BASE
           api_key: os.environ/AZURE_API_KEY
           api_version: "2024-12-01-preview"
         model_info:
-          # 10% markup — set these to (azure_cost * 1.1)
-          input_cost_per_token: 0.00000011
-          output_cost_per_token: 0.00000044
+          # 15% markup over Azure base price (azure_per_1K / 1000 * 1.15)
+          input_cost_per_token: 0.0000010925
+          output_cost_per_token: 0.0000046
+      # gpt-5.5 Global: Azure base €4.39 in / €26.33 out / €0.44 cached per 1M,
+      # converted to USD (×1.08) → per-1K in prices/azure.json, then ×1.15 markup.
+      - model_name: gpt-5.5
+        litellm_params:
+          model: azure/gpt-5.5
+          api_base: os.environ/AZURE_API_BASE
+          api_key: os.environ/AZURE_API_KEY
+          api_version: "2024-12-01-preview"
+        model_info:
+          # 15% markup over Azure base price (azure_per_1K / 1000 * 1.15)
+          input_cost_per_token: 0.00000545238
+          output_cost_per_token: 0.0000327019
+          cache_read_input_token_cost: 0.00000054648
 
     general_settings:
       master_key: os.environ/LITELLM_MASTER_KEY

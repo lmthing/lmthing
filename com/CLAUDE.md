@@ -30,7 +30,7 @@ src/routes/
 ├── index.tsx               # Landing page
 ├── about.tsx               # About page
 ├── docs.tsx                # Documentation
-├── pricing.tsx             # Plan comparison + subscribe CTAs (5 tiers: Free/Starter/Basic/Pro/Max)
+├── pricing.tsx             # Plan comparison + subscribe CTAs (4 tiers: Free/Basic/Pro/Max)
 ├── login.tsx               # Email/password + GitHub/Google OAuth
 ├── signup.tsx              # Registration
 ├── forgot-password.tsx     # Password reset request
@@ -52,7 +52,7 @@ src/routes/
 
 - **`src/lib/cloud.ts`** — API client for the cloud gateway. Handles JWT storage, automatic token refresh, and typed wrappers for all API calls (`login`, `register`, `getOAuthUrl`, `provision`, `getMe`, `createSsoCode`, `exchangeSsoCode`, `listApiKeys`, `createApiKey`, `revokeApiKey`, `createCheckout`, `getCheckoutStatus`, `billingPortal`, `getUsage`). Uses `cloudFetch()` (authenticated) and `cloudFetchPublic()` (unauthenticated).
 - **`src/lib/auth/AuthProvider.tsx`** — React context with `useAuth()` hook. Exposes `user`, `loading`, `signIn`, `signUp`, `signOut`, `signInWithGitHub`, `signInWithGoogle`, `setSessionFromOAuth`. Uses cloud.ts for all API calls (no direct Supabase client).
-- **`src/config/plans.ts`** — Plan metadata for 5 tiers (Free / Starter / Basic / Pro / Max) with pricing, budget, and rate limit info.
+- **`src/config/plans.ts`** — Plan metadata for 4 tiers (Free / Basic / Pro / Max) with pricing, budget windows (5h/7d/30d), and rate limit info.
 
 ## Auth Flow
 

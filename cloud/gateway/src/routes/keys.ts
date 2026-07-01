@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import * as litellm from "../lib/litellm.js";
-import { TIERS } from "../lib/tiers.js";
+import { TIERS, toBudgetLimits } from "../lib/tiers.js";
 import { authMiddleware } from "../middleware/auth.js";
 import type { Env } from "../types.js";
 
@@ -54,8 +54,7 @@ keys.post("/", async (c) => {
     key_alias: body.name || keyResult.key_alias,
     tier: tierName,
     models: tier.models.length > 0 ? tier.models : "all",
-    max_budget: tier.budget,
-    budget_duration: tier.budgetDuration,
+    budget_limits: toBudgetLimits(tier),
   });
 });
 

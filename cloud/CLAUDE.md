@@ -16,7 +16,7 @@ cloud/
 │       ├── middleware/
 │       │   └── auth.ts             # JWT auth middleware — verifies gateway JWTs first, falls back to Zitadel introspection
 │       ├── lib/
-│       │   ├── tiers.ts            # Tier definitions (free/starter/basic/pro/max) + helpers
+│       │   ├── tiers.ts            # Tier definitions (free/basic/pro/max) + budget windows
 │       │   ├── litellm.ts          # LiteLLM admin API client (user CRUD, key CRUD, tier updates)
 │       │   ├── stripe.ts           # Stripe client init
 │       │   ├── tokens.ts           # Gateway-issued HS256 JWTs — signTokens, verifyAccessToken, verifyRefreshToken
@@ -145,13 +145,20 @@ The gateway issues its own **HS256 JWTs** (via `lib/tokens.ts`) signed with `GAT
 
 ## Tiers
 
-| Tier | Price | Budget | Reset | Rate Limits | Compute |
-|------|-------|--------|-------|-------------|---------|
-| Free | $0 | $1 | 7 days | 10K tpm / 60 rpm | No |
-| Starter | $5/mo | $5 | 30 days | 25K tpm / 150 rpm | No |
-| Basic | $10/mo | $10 | 30 days | 50K tpm / 300 rpm | No |
-| Pro | $20/mo | $20 | 30 days | 100K tpm / 1K rpm | Yes |
-| Max | $100/mo | $100 | 30 days | 1M tpm / 5K rpm | Yes |
+Every tier can call all four enabled models (DeepSeek-V4-Flash, DeepSeek-V4-Pro,
+Kimi-K2.6, gpt-5.5). Tiers differ only by their **budget windows** — three independent
+rolling spend caps (5h / 7d / 30d) enforced on the user's single API key via LiteLLM's
+multiple-budget-windows feature. A request is rejected once any window is exhausted.
+
+| Tier | Price | Budget (5h / 7d / 30d) | Rate Limits | Compute |
+|------|-------|------------------------|-------------|---------|
+| Free | $0 | $0.30 / $2 / $6 | 10K tpm / 60 rpm | Yes |
+| Basic | $10/mo | $1 / $4 / $10 | 50K tpm / 300 rpm | Yes |
+| Pro | $20/mo | $3 / $10 / $20 | 100K tpm / 1K rpm | Yes |
+| Max | $100/mo | $10 / $30 / $100 | 1M tpm / 5K rpm | Yes |
+
+Pricing carries a **15% markup** over Azure base cost, set per-model in
+`devops/argocd/core/litellm.yaml` (regenerate with `pnpm litellm:generate-models`).
 
 ## Development
 

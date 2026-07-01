@@ -24,7 +24,7 @@ lmthing.com is the revenue hub. All money flows through lmthing.cloud:
 
 | Service | Price | Cost | Margin |
 |---------|-------|------|--------|
-| AI Gateway | Per-token + 10% markup | Provider cost | 10% of token spend |
+| AI Gateway | Per-token + 15% markup | Provider cost | 15% of token spend |
 | Compute pods | $20/month | $10 K8s | $10/pod/month |
 | Fine-Tuning | $10/GPU-hour | $7 Azure H100 | $3/GPU-hour |
 | Blog subscription | $5/month | Cheap model tokens | Subscription minus token cost |

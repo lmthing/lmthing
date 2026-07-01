@@ -29,5 +29,5 @@ graph TD
 ## Revenue Model
 
 - **Source purchases** — lmthing takes a platform fee on one-time source code sales.
-- **API access** — creators set their own per-token markup on top of provider costs. lmthing collects the standard 10% gateway markup plus any platform commission.
+- **API access** — creators set their own per-token markup on top of provider costs. lmthing collects the standard 15% gateway markup plus any platform commission.
 - **Gateway traffic** — all API-access agents route through the Stripe AI Gateway, generating per-token revenue.

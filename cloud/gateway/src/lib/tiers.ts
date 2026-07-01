@@ -1,6 +1,25 @@
 // Adding a new tier? See CLAUDE.md § "Adding a New Tier" for the full checklist.
 // This file is one of ~10 places that need updating across the monorepo.
 
+/** The models enabled on the lmthing.cloud provider. Every tier gets all of them;
+ *  tiers differ only by their budget windows. These names match the LiteLLM
+ *  `model_name`s in devops/argocd/core/litellm.yaml. */
+export const ENABLED_MODELS = [
+  "DeepSeek-V4-Flash",
+  "DeepSeek-V4-Pro",
+  "Kimi-K2.6",
+  "gpt-5.5",
+] as const;
+
+/** One LiteLLM budget window: a spend cap that resets on its own cadence.
+ *  `duration` uses LiteLLM's format ("5h", "7d", "30d"). */
+export interface BudgetWindow {
+  /** LiteLLM budget_duration string, e.g. "5h", "7d", "30d". */
+  duration: string;
+  /** Max USD spend allowed within this rolling window. */
+  maxBudget: number;
+}
+
 /** Per-tier compute pod sizing and idle behaviour. Every tier now gets a pod. */
 export interface PodConfig {
   /** CPU request+limit (Kubernetes quantity string, e.g. "250m") */
@@ -16,8 +35,12 @@ export interface PodConfig {
 export interface Tier {
   name: string;
   stripePriceId: string | null;
-  budget: number;
-  budgetDuration: string;
+  /**
+   * The budget windows applied to every user/key on this tier. Each window is an
+   * independent rolling spend cap (LiteLLM "multiple budget windows"). A request is
+   * rejected once ANY window is exhausted.
+   */
+  budgetLimits: BudgetWindow[];
   models: string[];
   tpmLimit: number;
   rpmLimit: number;
@@ -33,29 +56,25 @@ export const TIERS: Record<string, Tier> = {
   free: {
     name: "Free",
     stripePriceId: null,
-    budget: 1.0,
-    budgetDuration: "7d",
-    models: ["gpt-5.4-nano"],
+    budgetLimits: [
+      { duration: "5h", maxBudget: 0.3 },
+      { duration: "7d", maxBudget: 2 },
+      { duration: "30d", maxBudget: 6 },
+    ],
+    models: [...ENABLED_MODELS],
     tpmLimit: 10_000,
     rpmLimit: 60,
     pod: { cpu: "250m", mem: "512Mi", idleTtlMinutes: 15, maxSessions: 3 },
   },
-  starter: {
-    name: "Starter",
-    stripePriceId: process.env.STRIPE_PRICE_STARTER || "",
-    budget: 5.0,
-    budgetDuration: "30d",
-    models: ["gpt-5.4-nano"],
-    tpmLimit: 25_000,
-    rpmLimit: 150,
-    pod: { cpu: "250m", mem: "512Mi", idleTtlMinutes: 20, maxSessions: 2 },
-  },
   basic: {
     name: "Basic",
     stripePriceId: process.env.STRIPE_PRICE_BASIC || "",
-    budget: 10.0,
-    budgetDuration: "30d",
-    models: ["gpt-5.4-nano"],
+    budgetLimits: [
+      { duration: "5h", maxBudget: 1 },
+      { duration: "7d", maxBudget: 4 },
+      { duration: "30d", maxBudget: 10 },
+    ],
+    models: [...ENABLED_MODELS],
     tpmLimit: 50_000,
     rpmLimit: 300,
     pod: { cpu: "500m", mem: "768Mi", idleTtlMinutes: 30, maxSessions: 3 },
@@ -63,9 +82,12 @@ export const TIERS: Record<string, Tier> = {
   pro: {
     name: "Pro",
     stripePriceId: process.env.STRIPE_PRICE_PRO || "",
-    budget: 20.0,
-    budgetDuration: "30d",
-    models: ["gpt-5.4-nano"],
+    budgetLimits: [
+      { duration: "5h", maxBudget: 3 },
+      { duration: "7d", maxBudget: 10 },
+      { duration: "30d", maxBudget: 20 },
+    ],
+    models: [...ENABLED_MODELS],
     tpmLimit: 100_000,
     rpmLimit: 1_000,
     pod: { cpu: "500m", mem: "1Gi", idleTtlMinutes: 60, maxSessions: 5 },
@@ -73,9 +95,12 @@ export const TIERS: Record<string, Tier> = {
   max: {
     name: "Max",
     stripePriceId: process.env.STRIPE_PRICE_MAX || "",
-    budget: 100.0,
-    budgetDuration: "30d",
-    models: [],
+    budgetLimits: [
+      { duration: "5h", maxBudget: 10 },
+      { duration: "7d", maxBudget: 30 },
+      { duration: "30d", maxBudget: 100 },
+    ],
+    models: [...ENABLED_MODELS],
     tpmLimit: 1_000_000,
     rpmLimit: 5_000,
     pod: { cpu: "1000m", mem: "2Gi", idleTtlMinutes: 120, maxSessions: 10 },
@@ -93,4 +118,22 @@ export function getTierByPriceId(priceId: string): [string, Tier] | null {
 
 export function getTierByName(name: string): Tier | null {
   return TIERS[name] || null;
+}
+
+/** The 30-day window's cap — the coarse "monthly budget" headline for a tier.
+ *  Falls back to the largest configured window if no 30d window exists. */
+export function monthlyBudget(tier: Tier): number {
+  const monthly = tier.budgetLimits.find((b) => b.duration === "30d");
+  if (monthly) return monthly.maxBudget;
+  return tier.budgetLimits.reduce((max, b) => Math.max(max, b.maxBudget), 0);
+}
+
+/** Map a tier's budget windows to the LiteLLM `budget_limits` payload shape. */
+export function toBudgetLimits(
+  tier: Tier,
+): { budget_duration: string; max_budget: number }[] {
+  return tier.budgetLimits.map((b) => ({
+    budget_duration: b.duration,
+    max_budget: b.maxBudget,
+  }));
 }

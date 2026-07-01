@@ -466,7 +466,6 @@ ansible-vault encrypt vault.yml
 | `vault_gateway_jwt_secret` | gateway | Base64-encoded 32-byte secret for HS256 JWT signing — generate: `openssl rand -base64 32` |
 | `vault_stripe_secret_key` | gateway | Stripe API access |
 | `vault_stripe_webhook_secret` | gateway | Stripe webhook signature verification |
-| `vault_stripe_price_starter` | gateway | Stripe price ID for Starter tier |
 | `vault_stripe_price_basic` | gateway | Stripe price ID for Basic tier |
 | `vault_stripe_price_pro` | gateway | Stripe price ID for Pro tier |
 | `vault_stripe_price_max` | gateway | Stripe price ID for Max tier |

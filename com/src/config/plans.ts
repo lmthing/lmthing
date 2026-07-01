@@ -11,6 +11,8 @@ export interface Plan {
   highlighted?: boolean
 }
 
+// Budget windows (5h / 7d / 30d spend caps) mirror cloud/gateway/src/lib/tiers.ts.
+// All tiers can call all four models (DeepSeek-V4-Flash, DeepSeek-V4-Pro, Kimi-K2.6, gpt-5.5).
 export const plans: Plan[] = [
   {
     id: 'free',
@@ -19,23 +21,10 @@ export const plans: Plan[] = [
     price: '$0',
     period: 'forever',
     features: [
-      '$1/week token budget',
-      'gpt-5.4-nano',
+      'Budget: $0.30 / 5h · $2 / 7d · $6 / 30d',
+      'All 4 models',
       '10K tokens/min, 60 req/min',
       'OpenAI-compatible API',
-    ],
-  },
-  {
-    id: 'starter',
-    name: 'Starter',
-    description: 'For personal projects and experimentation',
-    price: '$5',
-    period: 'per month',
-    features: [
-      '$5/month token budget',
-      'All free models',
-      '25K tokens/min, 150 req/min',
-      'Email support',
     ],
   },
   {
@@ -45,8 +34,8 @@ export const plans: Plan[] = [
     price: '$10',
     period: 'per month',
     features: [
-      '$10/month token budget',
-      'All free models',
+      'Budget: $1 / 5h · $4 / 7d · $10 / 30d',
+      'All 4 models',
       '50K tokens/min, 300 req/min',
       'Priority support',
     ],
@@ -58,8 +47,8 @@ export const plans: Plan[] = [
     price: '$20',
     period: 'per month',
     features: [
-      '$20/month token budget',
-      'All basic + pro models',
+      'Budget: $3 / 5h · $10 / 7d · $20 / 30d',
+      'All 4 models',
       '100K tokens/min, 1K req/min',
       'Priority support',
     ],
@@ -72,8 +61,8 @@ export const plans: Plan[] = [
     price: '$100',
     period: 'per month',
     features: [
-      '$100/month token budget',
-      'All models',
+      'Budget: $10 / 5h · $30 / 7d · $100 / 30d',
+      'All 4 models',
       '1M tokens/min, 5K req/min',
       'Dedicated support',
     ],

@@ -1,12 +1,50 @@
 model_list:
-  # Default: OpenAI gpt-4o-mini — swap for any provider you have an API key for.
-  # Other examples:
-  #   model: anthropic/claude-haiku-4-5-20251001  (set ANTHROPIC_API_KEY in .env.local)
-  #   model: azure/gpt-4o-mini                    (set AZURE_API_KEY + AZURE_API_BASE in .env.local)
+  # Keyless-friendly default for local dev: OpenAI gpt-4o-mini.
   - model_name: gpt-4o-mini
     litellm_params:
       model: openai/gpt-4o-mini
       api_key: os.environ/OPENAI_API_KEY
+
+  # The four enabled lmthing.cloud models (mirror of devops/argocd/core/litellm.yaml).
+  # These only resolve if AZURE_API_KEY + AZURE_API_BASE are set in .env.local; they're
+  # loaded but inert otherwise, so keyless local dev still works via gpt-4o-mini.
+  - model_name: DeepSeek-V4-Flash
+    litellm_params:
+      model: azure/DeepSeek-V4-Flash
+      api_base: os.environ/AZURE_API_BASE
+      api_key: os.environ/AZURE_API_KEY
+      api_version: "2024-12-01-preview"
+    model_info:
+      input_cost_per_token: 0.0000002185
+      output_cost_per_token: 0.0000005865
+  - model_name: DeepSeek-V4-Pro
+    litellm_params:
+      model: azure/DeepSeek-V4-Pro
+      api_base: os.environ/AZURE_API_BASE
+      api_key: os.environ/AZURE_API_KEY
+      api_version: "2024-12-01-preview"
+    model_info:
+      input_cost_per_token: 0.000002001
+      output_cost_per_token: 0.000004002
+  - model_name: Kimi-K2.6
+    litellm_params:
+      model: azure/Kimi-K2.6
+      api_base: os.environ/AZURE_API_BASE
+      api_key: os.environ/AZURE_API_KEY
+      api_version: "2024-12-01-preview"
+    model_info:
+      input_cost_per_token: 0.0000010925
+      output_cost_per_token: 0.0000046
+  - model_name: gpt-5.5
+    litellm_params:
+      model: azure/gpt-5.5
+      api_base: os.environ/AZURE_API_BASE
+      api_key: os.environ/AZURE_API_KEY
+      api_version: "2024-12-01-preview"
+    model_info:
+      input_cost_per_token: 0.00000545238
+      output_cost_per_token: 0.0000327019
+      cache_read_input_token_cost: 0.00000054648
 
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY

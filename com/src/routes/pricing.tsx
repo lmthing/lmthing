@@ -22,7 +22,7 @@ function Pricing() {
     <div className="mx-auto max-w-6xl px-6 py-16">
       <div className="mb-12 text-center">
         <h1 className="mb-3 text-3xl font-bold">Simple, transparent pricing</h1>
-        <p className="text-muted-foreground">Start free, scale as you grow. All plans include 10% token markup over provider costs.</p>
+        <p className="text-muted-foreground">Start free, scale as you grow. All plans include 15% token markup over provider costs.</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-4">

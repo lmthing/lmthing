@@ -21,7 +21,6 @@ interface TierConfig {
 }
 
 const TIERS: TierConfig[] = [
-  { lookupKey: "lmthing_starter", amount: 500, label: "Starter $5/month" },
   { lookupKey: "lmthing_basic", amount: 1000, label: "Basic $10/month" },
   { lookupKey: "lmthing_pro", amount: 2000, label: "Pro $20/month" },
   { lookupKey: "lmthing_max", amount: 10000, label: "Max $100/month" },
@@ -55,7 +54,7 @@ async function main() {
   if (!product) {
     product = await stripe.products.create({
       name: "LMThing API Gateway",
-      description: "LLM API access with tiered pricing and 10% token markup",
+      description: "LLM API access with tiered pricing and 15% token markup",
     });
     console.log(`Created product: ${product.id}`);
   } else {
@@ -85,7 +84,6 @@ async function main() {
   }
 
   console.log("\n── Add these to your .env.secrets ──\n");
-  console.log(`STRIPE_PRICE_STARTER=${priceIds.lmthing_starter}`);
   console.log(`STRIPE_PRICE_BASIC=${priceIds.lmthing_basic}`);
   console.log(`STRIPE_PRICE_PRO=${priceIds.lmthing_pro}`);
   console.log(`STRIPE_PRICE_MAX=${priceIds.lmthing_max}`);

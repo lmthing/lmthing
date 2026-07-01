@@ -42,7 +42,6 @@ vault_gateway_jwt_secret: CHANGE_ME
 # ── Stripe ────────────────────────────────────────────────────
 vault_stripe_secret_key: sk_live_xxx
 vault_stripe_webhook_secret: whsec_xxx
-vault_stripe_price_starter: price_xxx
 vault_stripe_price_basic: price_xxx
 vault_stripe_price_pro: price_xxx
 vault_stripe_price_max: price_xxx

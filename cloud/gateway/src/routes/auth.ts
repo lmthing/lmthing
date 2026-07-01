@@ -192,7 +192,7 @@ auth.get("/me", authMiddleware, async (c) => {
       user_id: user.id,
       email: user.email,
       tier: info.user_info?.metadata?.tier || "free",
-      max_budget: info.user_info?.max_budget,
+      budget_limits: info.user_info?.budget_limits,
       spend: info.user_info?.spend,
     });
   } catch {

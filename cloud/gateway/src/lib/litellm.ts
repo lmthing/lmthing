@@ -1,4 +1,5 @@
 import type { Tier } from "./tiers.js";
+import { toBudgetLimits } from "./tiers.js";
 
 const LITELLM_URL = process.env.LITELLM_URL || "http://litellm:4000";
 const MASTER_KEY = process.env.LITELLM_MASTER_KEY || "";
@@ -28,8 +29,7 @@ export async function createUser(
 ) {
   return request("/user/new", "POST", {
     user_id: userId,
-    max_budget: tier.budget,
-    budget_duration: tier.budgetDuration,
+    budget_limits: toBudgetLimits(tier),
     models: tier.models.length > 0 ? tier.models : undefined,
     tpm_limit: tier.tpmLimit,
     rpm_limit: tier.rpmLimit,
@@ -45,8 +45,7 @@ export async function generateKey(
   return request("/key/generate", "POST", {
     user_id: userId,
     models: tier.models.length > 0 ? tier.models : undefined,
-    max_budget: tier.budget,
-    budget_duration: tier.budgetDuration,
+    budget_limits: toBudgetLimits(tier),
     tpm_limit: tier.tpmLimit,
     rpm_limit: tier.rpmLimit,
     key_alias: keyAlias || "default",
@@ -57,8 +56,7 @@ export async function generateKey(
 export async function updateUserTier(userId: string, tier: Tier) {
   await request("/user/update", "POST", {
     user_id: userId,
-    max_budget: tier.budget,
-    budget_duration: tier.budgetDuration,
+    budget_limits: toBudgetLimits(tier),
     models: tier.models.length > 0 ? tier.models : undefined,
     tpm_limit: tier.tpmLimit,
     rpm_limit: tier.rpmLimit,
@@ -70,8 +68,7 @@ export async function updateUserTier(userId: string, tier: Tier) {
     await request("/key/update", "POST", {
       key: key.token,
       models: tier.models.length > 0 ? tier.models : undefined,
-      max_budget: tier.budget,
-      budget_duration: tier.budgetDuration,
+      budget_limits: toBudgetLimits(tier),
       tpm_limit: tier.tpmLimit,
       rpm_limit: tier.rpmLimit,
       metadata: { tier: tier.name.toLowerCase() },

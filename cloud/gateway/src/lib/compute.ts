@@ -248,7 +248,7 @@ async function injectLiteLLMEnv(
     OPENAI_BASE_URL:
       "http://litellm.lmthing.svc.cluster.local:4000/v1",
     OPENAI_API_KEY: litellmKey,
-    LM_MODEL: "openai:gpt-5.4-nano",
+    LM_MODEL: "openai:DeepSeek-V4-Flash",
   };
   const merged: Record<string, string> = { ...defaults, ...existing };
   // Only update if something actually changed
@@ -369,7 +369,7 @@ export async function createUserPod(
     ? {
         OPENAI_BASE_URL: "http://litellm.lmthing.svc.cluster.local:4000/v1",
         OPENAI_API_KEY: litellmKey,
-        LM_MODEL: "openai:gpt-5.4-nano",
+        LM_MODEL: "openai:DeepSeek-V4-Flash",
       }
     : {};
 

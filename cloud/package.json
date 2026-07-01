@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "stripe:create-products": "tsx scripts/create-stripe-products.ts",
+    "litellm:generate-models": "tsx scripts/generate-litellm-models.ts",
     "gateway:dev": "cd gateway && npm run dev",
     "gateway:build": "cd gateway && npm run build"
   },

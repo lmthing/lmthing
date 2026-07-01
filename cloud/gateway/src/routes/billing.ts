@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { stripe } from "../lib/stripe.js";
 import * as litellm from "../lib/litellm.js";
-import { TIERS } from "../lib/tiers.js";
+import { TIERS, getTierByName } from "../lib/tiers.js";
 import { authMiddleware } from "../middleware/auth.js";
 import type { Env } from "../types.js";
 import type { AuthUser } from "../middleware/auth.js";
@@ -100,28 +100,46 @@ billing.post("/portal", async (c) => {
   return c.json({ url: session.url });
 });
 
-// Get current usage and budget
+// Get current usage and budget.
+// Every user/key carries multiple budget windows (5h/7d/30d). We return the tier's
+// configured windows plus the current overall spend, and best-effort per-window spend
+// if the LiteLLM image exposes it. `budgets` is the source of truth for the UI.
 billing.get("/usage", async (c) => {
   const user = c.get("user");
+
+  const buildBudgets = (tierName: string, litellmWindows?: unknown[]) => {
+    const tier = getTierByName(tierName) || TIERS.free;
+    // Map LiteLLM per-window spend (if present) onto our configured windows by duration.
+    const byDuration = new Map<string, number>();
+    for (const w of litellmWindows || []) {
+      const rec = w as { budget_duration?: string; spend?: number };
+      if (rec.budget_duration && typeof rec.spend === "number") {
+        byDuration.set(rec.budget_duration, rec.spend);
+      }
+    }
+    return tier.budgetLimits.map((b) => ({
+      duration: b.duration,
+      max_budget: b.maxBudget,
+      spend: byDuration.get(b.duration) ?? null,
+    }));
+  };
 
   try {
     const info = await litellm.getUserInfo(user.id);
     const userInfo = info.user_info || {};
+    const tierName = userInfo.metadata?.tier || "free";
 
     return c.json({
-      tier: userInfo.metadata?.tier || "free",
+      tier: tierName,
       spend: userInfo.spend || 0,
-      max_budget: userInfo.max_budget || 1,
-      budget_duration: userInfo.budget_duration || "7d",
-      budget_reset_at: userInfo.budget_reset_at,
+      budgets: buildBudgets(tierName, userInfo.budget_limits),
       models: userInfo.models || TIERS.free.models,
     });
   } catch {
     return c.json({
       tier: "free",
       spend: 0,
-      max_budget: 1,
-      budget_duration: "7d",
+      budgets: buildBudgets("free"),
       models: TIERS.free.models,
     });
   }

@@ -61,3 +61,4 @@ devops/ansible/k8s/envoy/cloud-routes.yaml
 devops/ansible/k8s/envoy/computer-gateway.yaml
 devops/ansible/k8s/envoy/computer-routes.yaml
 devops/ansible/k8s/envoy/tls-certificates.yaml
+.etc/.vault-pass

@@ -9,7 +9,7 @@ The **sole backend** for all lmthing products. There is no separate backend serv
 
 ## The two services
 
-- **LiteLLM** (`/v1/*`) — OpenAI-compatible LLM proxy routing to Azure AI Foundry, with per-user budgets, rate limits, and 10% token markup. Authenticates the API key, checks budget + rate limits for the user's tier, forwards to Azure, tracks token usage.
+- **LiteLLM** (`/v1/*`) — OpenAI-compatible LLM proxy routing to Azure AI Foundry, with per-user budget windows, rate limits, and a 15% token markup. Authenticates the API key, checks the tier's budget windows + rate limits, forwards to Azure, tracks token usage. Four models enabled (DeepSeek-V4-Flash, DeepSeek-V4-Pro, Kimi-K2.6, gpt-5.5), all available on every tier.
 - **Gateway** (`/api/*`) — Hono/Node.js service for auth, API key management, billing, and Stripe webhooks. Users are managed by **Zitadel** (auth.lmthing.cloud) — email/password and GitHub OAuth via IDP Intent API. The gateway issues its own HS256 JWTs; clients never hold Zitadel tokens. Server-side data (profiles, LiteLLM tables) is stored in **PostgreSQL** (in-cluster). Billing/usage metering is handled by **Stripe** subscriptions, orchestrated through the gateway.
 
 ```mermaid
@@ -96,13 +96,16 @@ graph TB
 
 ## Tiers
 
-| Tier    | Price      | Budget | Reset   | Rate Limits       |
-| ------- | ---------- | ------ | ------- | ----------------- |
-| Free    | $0         | $1     | 7 days  | 10K tpm / 60 rpm  |
-| Starter | $5/month   | $5     | 30 days | 25K tpm / 150 rpm |
-| Basic   | $10/month  | $10    | 30 days | 50K tpm / 300 rpm |
-| Pro     | $20/month  | $20    | 30 days | 100K tpm / 1K rpm |
-| Max     | $100/month | $100   | 30 days | 1M tpm / 5K rpm   |
+Each tier defines three independent budget windows (5h / 7d / 30d spend caps), set on the
+user's single API key via LiteLLM's multiple-budget-windows feature. All tiers can call all
+four enabled models.
+
+| Tier    | Price      | Budget (5h / 7d / 30d) | Rate Limits       |
+| ------- | ---------- | ---------------------- | ----------------- |
+| Free    | $0         | $0.30 / $2 / $6        | 10K tpm / 60 rpm  |
+| Basic   | $10/month  | $1 / $4 / $10          | 50K tpm / 300 rpm |
+| Pro     | $20/month  | $3 / $10 / $20         | 100K tpm / 1K rpm |
+| Max     | $100/month | $10 / $30 / $100       | 1M tpm / 5K rpm   |
 
 Adding a new tier touches files across the monorepo — see `@.claude/skills/add-tier.md`.
 

@@ -1,5 +1,25 @@
 [
   {
+    "hash": "1eebc032",
+    "full_hash": "1eebc032ea15a116a074d046a0891631d681e15d",
+    "type": "ci",
+    "scope": "",
+    "subject": "update API routes for compute service and enhance documentation",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 10:49:48 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/1eebc032ea15a116a074d046a0891631d681e15d"
+  },
+  {
+    "hash": "522a7956",
+    "full_hash": "522a79561853a5b55767a07cf597a9c18d3ef42c",
+    "type": "ci",
+    "scope": "",
+    "subject": "update subproject commit reference",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 10:40:05 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/522a79561853a5b55767a07cf597a9c18d3ef42c"
+  },
+  {
     "hash": "76a20452",
     "full_hash": "76a204521bc6981b0a213003be11f0c0dfa87c8d",
     "type": "chore",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-19 23:19:45 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/9f1c12c249339cdfabef6f546df4e3c5203cf445"
-  },
-  {
-    "hash": "eb8e8260",
-    "full_hash": "eb8e8260d535f02e9d2d4532fd2493b4f6c59396",
-    "type": "chore",
-    "scope": "",
-    "subject": "Refactor agent and tasklist handling for new specification",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-15 21:36:27 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/eb8e8260d535f02e9d2d4532fd2493b4f6c59396"
-  },
-  {
-    "hash": "b6af45a0",
-    "full_hash": "b6af45a0b2e5301f146587db80381cd9046f7485",
-    "type": "refactor",
-    "scope": "",
-    "subject": "remove redundant 'lmthing' workspace dependency from package.json files",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-15 18:16:55 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/b6af45a0b2e5301f146587db80381cd9046f7485"
   }
 ]

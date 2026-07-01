@@ -1,5 +1,25 @@
 [
   {
+    "hash": "1eebc032",
+    "full_hash": "1eebc032ea15a116a074d046a0891631d681e15d",
+    "type": "ci",
+    "scope": "",
+    "subject": "update API routes for compute service and enhance documentation",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 10:49:48 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/1eebc032ea15a116a074d046a0891631d681e15d"
+  },
+  {
+    "hash": "522a7956",
+    "full_hash": "522a79561853a5b55767a07cf597a9c18d3ef42c",
+    "type": "ci",
+    "scope": "",
+    "subject": "update subproject commit reference",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 10:40:05 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/522a79561853a5b55767a07cf597a9c18d3ef42c"
+  },
+  {
     "hash": "76a20452",
     "full_hash": "76a204521bc6981b0a213003be11f0c0dfa87c8d",
     "type": "chore",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 23:45:33 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/4b71ba58581e6161f64a600a269aa55ae633892e"
-  },
-  {
-    "hash": "ea943e78",
-    "full_hash": "ea943e787de8c30b3b435666f77c43da87d84c25",
-    "type": "feat",
-    "scope": "",
-    "subject": "complete pod model/credits + persistence + SPA image fixes",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 23:12:57 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/ea943e787de8c30b3b435666f77c43da87d84c25"
-  },
-  {
-    "hash": "d68ee3fe",
-    "full_hash": "d68ee3fe2503519389dd71b81be2ec11044f1ac1",
-    "type": "fix",
-    "scope": "docker",
-    "subject": "install ca-certificates for vite-plus build in SPA images",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 21:09:31 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/d68ee3fe2503519389dd71b81be2ec11044f1ac1"
   }
 ]

@@ -1,5 +1,25 @@
 [
   {
+    "hash": "1eebc032",
+    "full_hash": "1eebc032ea15a116a074d046a0891631d681e15d",
+    "type": "ci",
+    "scope": "",
+    "subject": "update API routes for compute service and enhance documentation",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 10:49:48 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/1eebc032ea15a116a074d046a0891631d681e15d"
+  },
+  {
+    "hash": "522a7956",
+    "full_hash": "522a79561853a5b55767a07cf597a9c18d3ef42c",
+    "type": "ci",
+    "scope": "",
+    "subject": "update subproject commit reference",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 10:40:05 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/522a79561853a5b55767a07cf597a9c18d3ef42c"
+  },
+  {
     "hash": "76a20452",
     "full_hash": "76a204521bc6981b0a213003be11f0c0dfa87c8d",
     "type": "chore",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 21:07:06 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/3172d95d16ba8055543b403237c3794dfc91a2d8"
-  },
-  {
-    "hash": "bff6c735",
-    "full_hash": "bff6c7359843829d5d9f2e155c767beeec6c0461",
-    "type": "fix",
-    "scope": "docker",
-    "subject": "correct stale sdk workspace paths in SPA images; sync root lockfile",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 21:05:22 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/bff6c7359843829d5d9f2e155c767beeec6c0461"
-  },
-  {
-    "hash": "26ad8fd1",
-    "full_hash": "26ad8fd1406088dcbc4a65bbcac6e3685c5a6313",
-    "type": "feat",
-    "scope": "",
-    "subject": "realign chat/studio/computer onto pod-served lmthing UI",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 20:57:56 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/26ad8fd1406088dcbc4a65bbcac6e3685c5a6313"
   }
 ]

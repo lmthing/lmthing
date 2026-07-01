@@ -1,5 +1,15 @@
 [
   {
+    "hash": "81554c55",
+    "full_hash": "81554c55f9433b7177d6b9a81a37a785a6319b2f",
+    "type": "ci",
+    "scope": "",
+    "subject": "update subproject commit reference to 01a6c97",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 14:24:20 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/81554c55f9433b7177d6b9a81a37a785a6319b2f"
+  },
+  {
     "hash": "83b10880",
     "full_hash": "83b108805bc4d401a8527ac80bbfdd51f588c8dd",
     "type": "fix",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-22 17:55:24 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/c548a29ab6f89b07cdadb744dbbf396f8cdda663"
-  },
-  {
-    "hash": "0b4cc015",
-    "full_hash": "0b4cc015dc74f113cdb58125296aed1729dec8ef",
-    "type": "fix",
-    "scope": "",
-    "subject": "update subproject commit reference for sdk/org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-22 17:31:06 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/0b4cc015dc74f113cdb58125296aed1729dec8ef"
   }
 ]

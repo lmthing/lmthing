@@ -1,5 +1,15 @@
 [
   {
+    "hash": "81554c55",
+    "full_hash": "81554c55f9433b7177d6b9a81a37a785a6319b2f",
+    "type": "ci",
+    "scope": "",
+    "subject": "update subproject commit reference to 01a6c97",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 14:24:20 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/81554c55f9433b7177d6b9a81a37a785a6319b2f"
+  },
+  {
     "hash": "83b10880",
     "full_hash": "83b108805bc4d401a8527ac80bbfdd51f588c8dd",
     "type": "fix",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 21:20:31 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/82807fe4fe5a1075072689720224981d0512362d"
-  },
-  {
-    "hash": "67da8eea",
-    "full_hash": "67da8eea16df4291220fa4247195fc823664b174",
-    "type": "ci",
-    "scope": "",
-    "subject": "deploy chat + compute (pod) for pod-served UI refactor",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 21:18:03 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/67da8eea16df4291220fa4247195fc823664b174"
   }
 ]

@@ -1,5 +1,15 @@
 [
   {
+    "hash": "81554c55",
+    "full_hash": "81554c55f9433b7177d6b9a81a37a785a6319b2f",
+    "type": "ci",
+    "scope": "",
+    "subject": "update subproject commit reference to 01a6c97",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 14:24:20 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/81554c55f9433b7177d6b9a81a37a785a6319b2f"
+  },
+  {
     "hash": "83b10880",
     "full_hash": "83b108805bc4d401a8527ac80bbfdd51f588c8dd",
     "type": "fix",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 23:46:58 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/c07dd75c3844ff030fac4c7e37d886d5890256d1"
-  },
-  {
-    "hash": "4b71ba58",
-    "full_hash": "4b71ba58581e6161f64a600a269aa55ae633892e",
-    "type": "chore",
-    "scope": "",
-    "subject": "bump sdk/org (custom env endpoint + Env UI + @ai-sdk/zod pin)",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 23:45:33 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/4b71ba58581e6161f64a600a269aa55ae633892e"
   }
 ]

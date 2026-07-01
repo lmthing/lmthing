@@ -80,7 +80,7 @@ Authentication is handled through **com/** (the central auth hub) which talks to
 
 ## Demo mode (local development)
 
-When `VITE_DEMO_USER=true` is set (default in `sdk/org/packages/ui/apps/web/.env.development` for the unified app), `AuthProvider` skips all SSO flows and uses a hardcoded demo session (`demo-user` / `demo@lmthing.test`). No redirect to com/, no SSO exchange, no gateway calls needed.
+When `VITE_DEMO_USER=true` is set (default in `sdk/org/libs/ui/apps/web/.env.development` for the unified app), `AuthProvider` skips all SSO flows and uses a hardcoded demo session (`demo-user` / `demo@lmthing.test`). No redirect to com/, no SSO exchange, no gateway calls needed.
 
 ## Integrating Auth in a New Service
 

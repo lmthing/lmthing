@@ -9,7 +9,7 @@ description: Load when deploying an SPA (GitHub Pages / K8s), adding a new deplo
 
 All frontend SPAs are deployed to the **Azure VM** via Kubernetes (ArgoCD GitOps).
 
-**Studio, Computer, and Chat** are all served from a single unified Docker image (`lmthingacr.azurecr.io/{studio,computer,chat}`) built from `sdk/org/packages/ui/apps/web/Dockerfile` — same Dockerfile, separate K8s Deployments + Services because they serve distinct domains with different Envoy routing (studio/computer have JWT+Lua /api/* routing; chat/studio/computer all proxy /api/* to the user's compute pod).
+**Studio, Computer, and Chat** are all served from a single unified Docker image (`lmthingacr.azurecr.io/{studio,computer,chat}`) built from `sdk/org/libs/ui/apps/web/Dockerfile` — same Dockerfile, separate K8s Deployments + Services because they serve distinct domains with different Envoy routing (studio/computer have JWT+Lua /api/* routing; chat/studio/computer all proxy /api/* to the user's compute pod).
 
 All other SPAs (`com`, `social`, `store`, `space`, `team`, `blog`, `casa`) each have their own `{app}/Dockerfile` and `{app}/nginx.conf`.
 
@@ -36,9 +36,9 @@ All other SPAs (`com`, `social`, `store`, `space`, `team`, `blog`, `casa`) each 
 
 | App | Domain | ACR Image | Dockerfile | Envoy routing |
 |-----|--------|-----------|------------|---------------|
-| studio | lmthing.studio | `lmthingacr.azurecr.io/studio` | `sdk/org/packages/ui/apps/web/Dockerfile` | JWT+Lua /api/* → compute pod |
-| computer | lmthing.computer | `lmthingacr.azurecr.io/computer` | `sdk/org/packages/ui/apps/web/Dockerfile` | JWT+Lua /api/* → compute pod |
-| chat | lmthing.chat | `lmthingacr.azurecr.io/chat` | `sdk/org/packages/ui/apps/web/Dockerfile` | JWT+Lua /api/* → compute pod |
+| studio | lmthing.studio | `lmthingacr.azurecr.io/studio` | `sdk/org/libs/ui/apps/web/Dockerfile` | JWT+Lua /api/* → compute pod |
+| computer | lmthing.computer | `lmthingacr.azurecr.io/computer` | `sdk/org/libs/ui/apps/web/Dockerfile` | JWT+Lua /api/* → compute pod |
+| chat | lmthing.chat | `lmthingacr.azurecr.io/chat` | `sdk/org/libs/ui/apps/web/Dockerfile` | JWT+Lua /api/* → compute pod |
 | com | lmthing.com | `lmthingacr.azurecr.io/com` | `com/Dockerfile` | static only |
 | social | lmthing.social | `lmthingacr.azurecr.io/social` | `social/Dockerfile` | static only |
 | store | lmthing.store | `lmthingacr.azurecr.io/store` | `store/Dockerfile` | static only |

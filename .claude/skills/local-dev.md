@@ -15,7 +15,7 @@ make up            # start all services
 
 ## Service Ports & Domains
 
-Studio, Computer, and Chat are all client-side routes in the unified SPA (`sdk/org/packages/ui/apps/web/`), served by a single dev server. Other apps each have their own Vite dev server. The local proxy maps `*.test` domains via nginx.
+Studio, Computer, and Chat are all client-side routes in the unified SPA (`sdk/org/libs/ui/apps/web/`), served by a single dev server. Other apps each have their own Vite dev server. The local proxy maps `*.test` domains via nginx.
 
 | App      | Port | Local Domain                          |
 | -------- | ---- | ------------------------------------- |
@@ -53,14 +53,14 @@ The script is idempotent — re-running it skips already-configured services. Us
 
 ## Demo Auth
 
-The unified web app ships with an `.env.development` file in `sdk/org/packages/ui/apps/web/` that sets `VITE_DEMO_USER=true`. This makes `@lmthing/auth`'s `AuthProvider` skip SSO and use a hardcoded demo session, so you can develop without running the cloud gateway.
+The unified web app ships with an `.env.development` file in `sdk/org/libs/ui/apps/web/` that sets `VITE_DEMO_USER=true`. This makes `@lmthing/auth`'s `AuthProvider` skip SSO and use a hardcoded demo session, so you can develop without running the cloud gateway.
 
 ## Running Individual Apps
 
 To run the unified app (Studio / Computer / Chat) without `make up`:
 
 ```bash
-cd sdk/org/packages/ui/apps/web && pnpm dev    # starts on port 3000
+cd sdk/org/libs/ui/apps/web && pnpm dev    # starts on port 3000
 ```
 
 To run any other app individually:

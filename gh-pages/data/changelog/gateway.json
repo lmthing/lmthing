@@ -1,5 +1,15 @@
 [
   {
+    "hash": "f290c3ff",
+    "full_hash": "f290c3ff2af3e03d8e0718913ac3164b9906d30b",
+    "type": "fix",
+    "scope": "gateway",
+    "subject": "raise free tier TPM limit to 100K",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 14:54:01 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/f290c3ff2af3e03d8e0718913ac3164b9906d30b"
+  },
+  {
     "hash": "e148819f",
     "full_hash": "e148819fbf4d460a34e9c8b1180e470680c6f0f3",
     "type": "fix",

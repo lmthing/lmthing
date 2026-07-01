@@ -1,5 +1,25 @@
 [
   {
+    "hash": "21a7124c",
+    "full_hash": "21a7124cdaca4fc32a03d248b3f7af9e0934e7c2",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to 1550891 \u2014 reliability P0-P5",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 01:23:55 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/21a7124cdaca4fc32a03d248b3f7af9e0934e7c2"
+  },
+  {
+    "hash": "bbfd299d",
+    "full_hash": "bbfd299d5e22f52ddf066e863339f81e7b5058af",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to 8011daf",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 23:40:55 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/bbfd299d5e22f52ddf066e863339f81e7b5058af"
+  },
+  {
     "hash": "d756c98d",
     "full_hash": "d756c98d28257b19e2ce39dbcc2fd0af0bac7b22",
     "type": "fix",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-24 11:04:42 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/3819a0788a7defed92cd69ce55dd36d0edd520cc"
-  },
-  {
-    "hash": "5bbe5cd4",
-    "full_hash": "5bbe5cd47436de470573be00f0057ae42c32f272",
-    "type": "refactor",
-    "scope": "",
-    "subject": "extract authentication gates into an AuthenticatedApp component for cleaner root route structure",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 10:30:26 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/5bbe5cd47436de470573be00f0057ae42c32f272"
-  },
-  {
-    "hash": "fc8db839",
-    "full_hash": "fc8db83909ddcc2aa09ab49323482904c901752a",
-    "type": "chore",
-    "scope": "",
-    "subject": "implement lmthing-studio-refactor plan",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 09:29:30 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/fc8db83909ddcc2aa09ab49323482904c901752a"
   }
 ]

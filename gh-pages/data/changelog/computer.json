@@ -1,5 +1,25 @@
 [
   {
+    "hash": "21a7124c",
+    "full_hash": "21a7124cdaca4fc32a03d248b3f7af9e0934e7c2",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to 1550891 \u2014 reliability P0-P5",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 01:23:55 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/21a7124cdaca4fc32a03d248b3f7af9e0934e7c2"
+  },
+  {
+    "hash": "bbfd299d",
+    "full_hash": "bbfd299d5e22f52ddf066e863339f81e7b5058af",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to 8011daf",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 23:40:55 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/bbfd299d5e22f52ddf066e863339f81e7b5058af"
+  },
+  {
     "hash": "d756c98d",
     "full_hash": "d756c98d28257b19e2ce39dbcc2fd0af0bac7b22",
     "type": "fix",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-24 15:24:35 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/a156085d71b9252e32300029e9ad4fc5c13df72b"
-  },
-  {
-    "hash": "b242ee18",
-    "full_hash": "b242ee182e974c00794c481ee9fc0330b64067f2",
-    "type": "chore",
-    "scope": "",
-    "subject": "update sdk/org submodule to 324014c",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 14:28:24 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/b242ee182e974c00794c481ee9fc0330b64067f2"
-  },
-  {
-    "hash": "8a89e5e0",
-    "full_hash": "8a89e5e0b7b5474e06749660b009fa7af797f3a7",
-    "type": "feat",
-    "scope": "",
-    "subject": "fix computer file tree, terminal, remove preview panel",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 14:27:36 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/8a89e5e0b7b5474e06749660b009fa7af797f3a7"
   }
 ]

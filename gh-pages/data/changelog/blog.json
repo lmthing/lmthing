@@ -1,5 +1,25 @@
 [
   {
+    "hash": "68074cb3",
+    "full_hash": "68074cb36aa72389a7ed878febf29d597378c2f2",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to eddb4df",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 20:27:04 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/68074cb36aa72389a7ed878febf29d597378c2f2"
+  },
+  {
+    "hash": "3475deaf",
+    "full_hash": "3475deaf539c0845930b157bfb960c0bdee71b43",
+    "type": "feat",
+    "scope": "design-system",
+    "subject": "enforce shared design system across all SPAs",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 19:06:00 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/3475deaf539c0845930b157bfb960c0bdee71b43"
+  },
+  {
     "hash": "da178d8f",
     "full_hash": "da178d8f10f80efcd2402217cf298f0dcdeb10cb",
     "type": "fix",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 23:12:57 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/ea943e787de8c30b3b435666f77c43da87d84c25"
-  },
-  {
-    "hash": "26ad8fd1",
-    "full_hash": "26ad8fd1406088dcbc4a65bbcac6e3685c5a6313",
-    "type": "feat",
-    "scope": "",
-    "subject": "realign chat/studio/computer onto pod-served lmthing UI",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 20:57:56 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/26ad8fd1406088dcbc4a65bbcac6e3685c5a6313"
-  },
-  {
-    "hash": "86169c74",
-    "full_hash": "86169c74e865cf92a49e0ccfc4dd8af2a9d7f632",
-    "type": "fix",
-    "scope": "",
-    "subject": "update subproject commit reference for sdk/org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 18:12:23 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/86169c74e865cf92a49e0ccfc4dd8af2a9d7f632"
   }
 ]

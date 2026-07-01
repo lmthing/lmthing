@@ -1,5 +1,25 @@
 [
   {
+    "hash": "68074cb3",
+    "full_hash": "68074cb36aa72389a7ed878febf29d597378c2f2",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to eddb4df",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 20:27:04 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/68074cb36aa72389a7ed878febf29d597378c2f2"
+  },
+  {
+    "hash": "3475deaf",
+    "full_hash": "3475deaf539c0845930b157bfb960c0bdee71b43",
+    "type": "feat",
+    "scope": "design-system",
+    "subject": "enforce shared design system across all SPAs",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 19:06:00 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/3475deaf539c0845930b157bfb960c0bdee71b43"
+  },
+  {
     "hash": "da178d8f",
     "full_hash": "da178d8f10f80efcd2402217cf298f0dcdeb10cb",
     "type": "fix",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-24 06:50:19 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/ac28915f9ea7e6c6b343c38e1fdc0304493a68ff"
-  },
-  {
-    "hash": "53d45259",
-    "full_hash": "53d45259b3f9977160e027991790da71f48f2a86",
-    "type": "fix",
-    "scope": "gateway",
-    "subject": "raise free-tier maxSessions to 3; always-pull compute image",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 06:16:59 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/53d45259b3f9977160e027991790da71f48f2a86"
-  },
-  {
-    "hash": "cd9fad63",
-    "full_hash": "cd9fad63d2349b251f61900ace7f3589aab4122c",
-    "type": "ci",
-    "scope": "",
-    "subject": "retrigger compute + SPA builds with synced lockfile",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 23:58:03 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/cd9fad63d2349b251f61900ace7f3589aab4122c"
   }
 ]

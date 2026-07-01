@@ -1,5 +1,15 @@
 [
   {
+    "hash": "83b10880",
+    "full_hash": "83b108805bc4d401a8527ac80bbfdd51f588c8dd",
+    "type": "fix",
+    "scope": "",
+    "subject": "sdk/org submodule uses libs/, not packages/",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 13:34:55 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/83b108805bc4d401a8527ac80bbfdd51f588c8dd"
+  },
+  {
     "hash": "99d4af86",
     "full_hash": "99d4af865a6efd80aa77eb415a4d61d02dfda6a6",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 23:45:33 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/4b71ba58581e6161f64a600a269aa55ae633892e"
-  },
-  {
-    "hash": "ea943e78",
-    "full_hash": "ea943e787de8c30b3b435666f77c43da87d84c25",
-    "type": "feat",
-    "scope": "",
-    "subject": "complete pod model/credits + persistence + SPA image fixes",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 23:12:57 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/ea943e787de8c30b3b435666f77c43da87d84c25"
   }
 ]

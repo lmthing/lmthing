@@ -8,8 +8,8 @@
       "yaml": "gateway.yaml",
       "manifest": "devops/argocd/core/gateway.yaml",
       "isInternal": false,
-      "deployedSha": "99d4af8",
-      "deployedAt": "2026-07-01 13:08:04 +0300"
+      "deployedSha": "edbc389",
+      "deployedAt": "2026-07-01 13:26:31 +0300"
     },
     {
       "name": "studio",
@@ -19,8 +19,8 @@
       "yaml": "studio.yaml",
       "manifest": "devops/argocd/core/studio.yaml",
       "isInternal": false,
-      "deployedSha": "99d4af8",
-      "deployedAt": "2026-07-01 13:08:04 +0300"
+      "deployedSha": "83b1088",
+      "deployedAt": "2026-07-01 13:34:56 +0300"
     },
     {
       "name": "chat",
@@ -30,8 +30,8 @@
       "yaml": "chat.yaml",
       "manifest": "devops/argocd/core/chat.yaml",
       "isInternal": false,
-      "deployedSha": "99d4af8",
-      "deployedAt": "2026-07-01 13:08:04 +0300"
+      "deployedSha": "83b1088",
+      "deployedAt": "2026-07-01 13:34:56 +0300"
     },
     {
       "name": "com",
@@ -41,8 +41,8 @@
       "yaml": "com.yaml",
       "manifest": "devops/argocd/core/com.yaml",
       "isInternal": false,
-      "deployedSha": "99d4af8",
-      "deployedAt": "2026-07-01 13:08:04 +0300"
+      "deployedSha": "83b1088",
+      "deployedAt": "2026-07-01 13:34:56 +0300"
     },
     {
       "name": "social",
@@ -52,8 +52,8 @@
       "yaml": "social.yaml",
       "manifest": "devops/argocd/core/social.yaml",
       "isInternal": false,
-      "deployedSha": "99d4af8",
-      "deployedAt": "2026-07-01 13:08:04 +0300"
+      "deployedSha": "83b1088",
+      "deployedAt": "2026-07-01 13:34:56 +0300"
     },
     {
       "name": "store",
@@ -63,8 +63,8 @@
       "yaml": "store.yaml",
       "manifest": "devops/argocd/core/store.yaml",
       "isInternal": false,
-      "deployedSha": "99d4af8",
-      "deployedAt": "2026-07-01 13:08:04 +0300"
+      "deployedSha": "83b1088",
+      "deployedAt": "2026-07-01 13:34:56 +0300"
     },
     {
       "name": "space",
@@ -74,8 +74,8 @@
       "yaml": "space.yaml",
       "manifest": "devops/argocd/core/space.yaml",
       "isInternal": false,
-      "deployedSha": "99d4af8",
-      "deployedAt": "2026-07-01 13:08:04 +0300"
+      "deployedSha": "83b1088",
+      "deployedAt": "2026-07-01 13:34:56 +0300"
     },
     {
       "name": "team",
@@ -85,8 +85,8 @@
       "yaml": "team.yaml",
       "manifest": "devops/argocd/core/team.yaml",
       "isInternal": false,
-      "deployedSha": "99d4af8",
-      "deployedAt": "2026-07-01 13:08:04 +0300"
+      "deployedSha": "83b1088",
+      "deployedAt": "2026-07-01 13:34:56 +0300"
     },
     {
       "name": "blog",
@@ -96,8 +96,8 @@
       "yaml": "blog.yaml",
       "manifest": "devops/argocd/core/blog.yaml",
       "isInternal": false,
-      "deployedSha": "99d4af8",
-      "deployedAt": "2026-07-01 13:08:04 +0300"
+      "deployedSha": "83b1088",
+      "deployedAt": "2026-07-01 13:34:56 +0300"
     },
     {
       "name": "casa",
@@ -107,8 +107,8 @@
       "yaml": "casa.yaml",
       "manifest": "devops/argocd/core/casa.yaml",
       "isInternal": false,
-      "deployedSha": "99d4af8",
-      "deployedAt": "2026-07-01 13:08:04 +0300"
+      "deployedSha": "83b1088",
+      "deployedAt": "2026-07-01 13:34:56 +0300"
     },
     {
       "name": "computer",
@@ -118,8 +118,8 @@
       "yaml": "computer.yaml",
       "manifest": "devops/argocd/core/computer.yaml",
       "isInternal": false,
-      "deployedSha": "99d4af8",
-      "deployedAt": "2026-07-01 13:08:04 +0300"
+      "deployedSha": "83b1088",
+      "deployedAt": "2026-07-01 13:34:56 +0300"
     },
     {
       "name": "compute",
@@ -129,9 +129,9 @@
       "yaml": "compute-pod-template.yaml",
       "manifest": "devops/argocd/core/compute-pod-template.yaml",
       "isInternal": true,
-      "deployedSha": "99d4af8",
-      "deployedAt": "2026-07-01 13:08:04 +0300"
+      "deployedSha": "83b1088",
+      "deployedAt": "2026-07-01 13:34:56 +0300"
     }
   ],
-  "updatedAt": "2026-07-01T10:26:41.110472+00:00"
+  "updatedAt": "2026-07-01T10:45:31.574900+00:00"
 }

@@ -1,5 +1,15 @@
 [
   {
+    "hash": "edbc389c",
+    "full_hash": "edbc389ce35fd554aa4565036a2311f49f4f23c3",
+    "type": "feat",
+    "scope": "compute",
+    "subject": "inject lmthingcloud model aliases into user pods",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 13:26:31 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/edbc389ce35fd554aa4565036a2311f49f4f23c3"
+  },
+  {
     "hash": "99d4af86",
     "full_hash": "99d4af865a6efd80aa77eb415a4d61d02dfda6a6",
     "type": "feat",

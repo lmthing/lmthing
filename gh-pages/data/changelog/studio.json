@@ -1,5 +1,15 @@
 [
   {
+    "hash": "da178d8f",
+    "full_hash": "da178d8f10f80efcd2402217cf298f0dcdeb10cb",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to 6df45f9",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 15:36:02 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/da178d8f10f80efcd2402217cf298f0dcdeb10cb"
+  },
+  {
     "hash": "a4a30571",
     "full_hash": "a4a3057168751aa3010ab3d8d5f8158cf076bc07",
     "type": "fix",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-24 06:50:19 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/ac28915f9ea7e6c6b343c38e1fdc0304493a68ff"
-  },
-  {
-    "hash": "53d45259",
-    "full_hash": "53d45259b3f9977160e027991790da71f48f2a86",
-    "type": "fix",
-    "scope": "gateway",
-    "subject": "raise free-tier maxSessions to 3; always-pull compute image",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 06:16:59 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/53d45259b3f9977160e027991790da71f48f2a86"
   }
 ]

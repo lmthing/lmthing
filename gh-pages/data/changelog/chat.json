@@ -1,5 +1,15 @@
 [
   {
+    "hash": "da178d8f",
+    "full_hash": "da178d8f10f80efcd2402217cf298f0dcdeb10cb",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to 6df45f9",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 15:36:02 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/da178d8f10f80efcd2402217cf298f0dcdeb10cb"
+  },
+  {
     "hash": "a4a30571",
     "full_hash": "a4a3057168751aa3010ab3d8d5f8158cf076bc07",
     "type": "fix",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 23:12:57 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/ea943e787de8c30b3b435666f77c43da87d84c25"
-  },
-  {
-    "hash": "22f38824",
-    "full_hash": "22f38824fccf852f6b465dff0acf93376a907d86",
-    "type": "fix",
-    "scope": "chat",
-    "subject": "point ensurePod at lmthing.cloud (match @lmthing/auth)",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 21:43:11 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/22f38824fccf852f6b465dff0acf93376a907d86"
   }
 ]

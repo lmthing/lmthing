@@ -1,5 +1,15 @@
 [
   {
+    "hash": "da178d8f",
+    "full_hash": "da178d8f10f80efcd2402217cf298f0dcdeb10cb",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to 6df45f9",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 15:36:02 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/da178d8f10f80efcd2402217cf298f0dcdeb10cb"
+  },
+  {
     "hash": "a4a30571",
     "full_hash": "a4a3057168751aa3010ab3d8d5f8158cf076bc07",
     "type": "fix",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 23:58:03 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/cd9fad63d2349b251f61900ace7f3589aab4122c"
-  },
-  {
-    "hash": "0b2e78bd",
-    "full_hash": "0b2e78bd786317b75488bd6a993625ed572a0ad5",
-    "type": "ci",
-    "scope": "",
-    "subject": "rebuild compute for lazy model resolution",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 23:54:18 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/0b2e78bd786317b75488bd6a993625ed572a0ad5"
   }
 ]

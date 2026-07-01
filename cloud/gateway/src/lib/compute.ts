@@ -215,14 +215,6 @@ function envSecret(userId: string, vars: Record<string, string>) {
  */
 async function getLiteLLMKey(userId: string): Promise<string> {
   const { TIERS } = await import("./tiers.js");
-  try {
-    const keys = await litellm.listKeys(userId);
-    if (keys.length > 0 && keys[0].token) {
-      return keys[0].token as string;
-    }
-  } catch {
-    // User may not exist in LiteLLM yet — fall through to provision
-  }
   // Ensure the LiteLLM user exists (idempotent — ignore "already exists").
   try {
     await litellm.createUser(userId, TIERS.free);
@@ -231,8 +223,18 @@ async function getLiteLLMKey(userId: string): Promise<string> {
   }
   // LiteLLM requires globally-unique key aliases, so scope it per user
   // (the default "default" alias collides across users).
-  const result = await litellm.generateKey(userId, TIERS.free, `compute-${userId}`);
-  return result.key as string;
+  try {
+    const result = await litellm.generateKey(userId, TIERS.free, `compute-${userId}`);
+    return result.key as string;
+  } catch (err) {
+    // Alias already provisioned by a previous ensure/upgrade call. LiteLLM
+    // never returns a key's raw secret again after creation (/key/list only
+    // returns hashed tokens), so recover the value already persisted in the
+    // pod's env instead of erroring out on every subsequent call.
+    const existing = await getEnvVars(userId);
+    if (existing.LMTHINGCLOUD_API_KEY) return existing.LMTHINGCLOUD_API_KEY;
+    throw err;
+  }
 }
 
 /**

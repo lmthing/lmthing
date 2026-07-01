@@ -1,5 +1,25 @@
 [
   {
+    "hash": "d756c98d",
+    "full_hash": "d756c98d28257b19e2ce39dbcc2fd0af0bac7b22",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to 7a4ad0c",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 23:29:38 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/d756c98d28257b19e2ce39dbcc2fd0af0bac7b22"
+  },
+  {
+    "hash": "c9cacf98",
+    "full_hash": "c9cacf986e3c357e5e5db86f6625c6c08f45c330",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to c5ea4e9",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 23:04:33 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/c9cacf986e3c357e5e5db86f6625c6c08f45c330"
+  },
+  {
     "hash": "68074cb3",
     "full_hash": "68074cb36aa72389a7ed878febf29d597378c2f2",
     "type": "fix",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-24 14:27:36 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/8a89e5e0b7b5474e06749660b009fa7af797f3a7"
-  },
-  {
-    "hash": "8486c496",
-    "full_hash": "8486c4966790e6e53ec9d43337583ac9ec85c674",
-    "type": "feat",
-    "scope": "",
-    "subject": "replace local filesystem with debounced remote transport for space file management",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 13:19:26 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/8486c4966790e6e53ec9d43337583ac9ec85c674"
-  },
-  {
-    "hash": "5af0314a",
-    "full_hash": "5af0314ac4ca8d4c9806044e16532df1146f83d7",
-    "type": "refactor",
-    "scope": "",
-    "subject": "migrate file system state management to @lmthing/state and implement dynamic pod provisioning flow",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 12:44:50 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/5af0314ac4ca8d4c9806044e16532df1146f83d7"
   }
 ]

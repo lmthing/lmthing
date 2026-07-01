@@ -1,5 +1,25 @@
 [
   {
+    "hash": "d756c98d",
+    "full_hash": "d756c98d28257b19e2ce39dbcc2fd0af0bac7b22",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to 7a4ad0c",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 23:29:38 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/d756c98d28257b19e2ce39dbcc2fd0af0bac7b22"
+  },
+  {
+    "hash": "c9cacf98",
+    "full_hash": "c9cacf986e3c357e5e5db86f6625c6c08f45c330",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to c5ea4e9",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 23:04:33 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/c9cacf986e3c357e5e5db86f6625c6c08f45c330"
+  },
+  {
     "hash": "68074cb3",
     "full_hash": "68074cb36aa72389a7ed878febf29d597378c2f2",
     "type": "fix",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 23:54:18 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/0b2e78bd786317b75488bd6a993625ed572a0ad5"
-  },
-  {
-    "hash": "4b71ba58",
-    "full_hash": "4b71ba58581e6161f64a600a269aa55ae633892e",
-    "type": "chore",
-    "scope": "",
-    "subject": "bump sdk/org (custom env endpoint + Env UI + @ai-sdk/zod pin)",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 23:45:33 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/4b71ba58581e6161f64a600a269aa55ae633892e"
-  },
-  {
-    "hash": "ea943e78",
-    "full_hash": "ea943e787de8c30b3b435666f77c43da87d84c25",
-    "type": "feat",
-    "scope": "",
-    "subject": "complete pod model/credits + persistence + SPA image fixes",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 23:12:57 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/ea943e787de8c30b3b435666f77c43da87d84c25"
   }
 ]

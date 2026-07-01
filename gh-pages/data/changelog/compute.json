@@ -1,5 +1,15 @@
 [
   {
+    "hash": "a4a30571",
+    "full_hash": "a4a3057168751aa3010ab3d8d5f8158cf076bc07",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit reference",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 15:12:04 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/a4a3057168751aa3010ab3d8d5f8158cf076bc07"
+  },
+  {
     "hash": "81554c55",
     "full_hash": "81554c55f9433b7177d6b9a81a37a785a6319b2f",
     "type": "ci",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 23:54:18 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/0b2e78bd786317b75488bd6a993625ed572a0ad5"
-  },
-  {
-    "hash": "c07dd75c",
-    "full_hash": "c07dd75c3844ff030fac4c7e37d886d5890256d1",
-    "type": "ci",
-    "scope": "",
-    "subject": "rebuild compute for custom env endpoint + @ai-sdk/zod pin",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 23:46:58 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/c07dd75c3844ff030fac4c7e37d886d5890256d1"
   }
 ]

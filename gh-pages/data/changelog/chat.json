@@ -1,5 +1,15 @@
 [
   {
+    "hash": "a4a30571",
+    "full_hash": "a4a3057168751aa3010ab3d8d5f8158cf076bc07",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit reference",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 15:12:04 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/a4a3057168751aa3010ab3d8d5f8158cf076bc07"
+  },
+  {
     "hash": "81554c55",
     "full_hash": "81554c55f9433b7177d6b9a81a37a785a6319b2f",
     "type": "ci",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-23 21:43:11 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/22f38824fccf852f6b465dff0acf93376a907d86"
-  },
-  {
-    "hash": "82807fe4",
-    "full_hash": "82807fe4fe5a1075072689720224981d0512362d",
-    "type": "ci",
-    "scope": "",
-    "subject": "fix compute image build context to sdk/org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-23 21:20:31 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/82807fe4fe5a1075072689720224981d0512362d"
   }
 ]

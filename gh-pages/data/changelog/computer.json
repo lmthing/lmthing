@@ -1,5 +1,15 @@
 [
   {
+    "hash": "a4a30571",
+    "full_hash": "a4a3057168751aa3010ab3d8d5f8158cf076bc07",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit reference",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 15:12:04 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/a4a3057168751aa3010ab3d8d5f8158cf076bc07"
+  },
+  {
     "hash": "81554c55",
     "full_hash": "81554c55f9433b7177d6b9a81a37a785a6319b2f",
     "type": "ci",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-24 06:55:33 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/5660bd037dbe0d7f1f6b89fd8a8a88b68b23ef33"
-  },
-  {
-    "hash": "ac28915f",
-    "full_hash": "ac28915f9ea7e6c6b343c38e1fdc0304493a68ff",
-    "type": "fix",
-    "scope": "compute",
-    "subject": "ship system-spaces with the cli bundle; docs + issues",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 06:50:19 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/ac28915f9ea7e6c6b343c38e1fdc0304493a68ff"
   }
 ]

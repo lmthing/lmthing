@@ -62,7 +62,7 @@ export const TIERS: Record<string, Tier> = {
       { duration: "30d", maxBudget: 6 },
     ],
     models: [...ENABLED_MODELS],
-    tpmLimit: 10_000,
+    tpmLimit: 100_000,
     rpmLimit: 60,
     pod: { cpu: "250m", mem: "512Mi", idleTtlMinutes: 15, maxSessions: 3 },
   },

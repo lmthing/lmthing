@@ -236,21 +236,40 @@ async function getLiteLLMKey(userId: string): Promise<string> {
 }
 
 /**
+ * The env vars a fresh pod needs to reach lmthing.cloud as an LLM provider.
+ * `litellmKey` is the user's own LiteLLM virtual key — the one tied to their
+ * subscription, carrying the tier's 5h/7d/30d budget windows. The size/role
+ * model aliases resolve through @lmthing/cli's `lmthingcloud:` provider, which
+ * reads LMTHINGCLOUD_API_KEY + LMTHINGCLOUD_BASE_URL.
+ */
+function litellmEnvDefaults(litellmKey: string): Record<string, string> {
+  return {
+    LMTHINGCLOUD_API_KEY: litellmKey,
+    // In-cluster LiteLLM endpoint — keeps model traffic off the public ingress.
+    LMTHINGCLOUD_BASE_URL: "http://litellm.lmthing.svc.cluster.local:4000/v1",
+    LM_MODEL_XS: "lmthingcloud:DeepSeek-V4-Flash",
+    LM_MODEL_S: "lmthingcloud:DeepSeek-V4-Flash",
+    LM_MODEL_M: "lmthingcloud:DeepSeek-V4-Pro",
+    LM_MODEL_L: "lmthingcloud:gpt-5.5",
+    LM_MODEL_M_R: "lmthingcloud:DeepSeek-V4-Pro",
+    LM_MODEL_L_R: "lmthingcloud:Kimi-K2.6",
+  };
+}
+
+/**
  * Merges LiteLLM model env vars into the user-env secret without clobbering
- * keys the user set themselves. Only writes defaults for keys that are absent.
+ * keys the user set themselves. Only writes defaults for keys that are absent —
+ * except LMTHINGCLOUD_API_KEY, which always tracks the user's current key.
  */
 async function injectLiteLLMEnv(
   userId: string,
   litellmKey: string,
 ): Promise<void> {
   const existing = await getEnvVars(userId);
-  const defaults: Record<string, string> = {
-    OPENAI_BASE_URL:
-      "http://litellm.lmthing.svc.cluster.local:4000/v1",
-    OPENAI_API_KEY: litellmKey,
-    LM_MODEL: "openai:DeepSeek-V4-Flash",
-  };
+  const defaults = litellmEnvDefaults(litellmKey);
   const merged: Record<string, string> = { ...defaults, ...existing };
+  // The user's subscription key is authoritative — never let a stale value win.
+  merged.LMTHINGCLOUD_API_KEY = litellmKey;
   // Only update if something actually changed
   const needsUpdate = Object.keys(defaults).some(
     (k) => existing[k] !== merged[k],
@@ -366,11 +385,7 @@ export async function createUserPod(
     console.warn(`Could not fetch LiteLLM key for ${userId}: ${err}`);
   }
   const initialEnv: Record<string, string> = litellmKey
-    ? {
-        OPENAI_BASE_URL: "http://litellm.lmthing.svc.cluster.local:4000/v1",
-        OPENAI_API_KEY: litellmKey,
-        LM_MODEL: "openai:DeepSeek-V4-Flash",
-      }
+    ? litellmEnvDefaults(litellmKey)
     : {};
 
   // Create env secret with LiteLLM defaults (skip if exists — will be merged below)

@@ -110,14 +110,16 @@
 
 - name: Run migrations inside Postgres pod
   ansible.builtin.shell: |
+    set -euo pipefail
     POD=$(kubectl get pod -n lmthing -l app=postgres -o jsonpath='{.items[0].metadata.name}')
     for f in $(kubectl exec -n lmthing "$POD" -- ls /tmp/*.sql 2>/dev/null | sort); do
       echo "Running migration: $f"
+      # ON_ERROR_STOP=1 + no `|| true`: a broken migration must fail the play,
+      # not silently leave the gateway schema (profiles/sso_codes) missing.
       kubectl exec -n lmthing "$POD" -- \
-        psql -U "{{ vault_postgres_user }}" -d lmthing -f "$f" 2>&1 || true
+        psql -U "{{ vault_postgres_user }}" -d lmthing -v ON_ERROR_STOP=1 -f "$f"
     done
   changed_when: true
-  no_log: true
 
 - name: Clean up migrations directory on node
   ansible.builtin.file:

@@ -9,6 +9,7 @@ import compute from "./routes/compute.js";
 import status from "./routes/status.js";
 import { podProxy, attachWsProxy } from "./lib/pod-proxy.js";
 import { startRefresher } from "./lib/cluster-status.js";
+import { ensureSchema } from "./lib/db.js";
 
 const app = new Hono();
 
@@ -35,6 +36,13 @@ app.route("/api/status", status);
 if (process.env.LOCAL_DEV === "true") {
   app.route("/api", podProxy);
 }
+
+// Self-heal the gateway's own DB schema before serving traffic. Idempotent;
+// logs and continues on failure so a DB blip can't wedge the whole gateway.
+await ensureSchema().then(
+  () => console.log("DB schema ensured (profiles, sso_codes)"),
+  (err) => console.error("ensureSchema failed (continuing):", err),
+);
 
 const port = parseInt(process.env.PORT || "3000");
 

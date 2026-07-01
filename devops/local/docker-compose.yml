@@ -17,7 +17,7 @@ services:
       retries: 10
 
   litellm:
-    image: ghcr.io/berriai/litellm:main-latest
+    image: ghcr.io/berriai/litellm:v1.90.0
     ports:
       - "4000:4000"
     env_file:

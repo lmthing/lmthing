@@ -83,7 +83,11 @@ spec:
     spec:
       containers:
         - name: litellm
-          image: ghcr.io/berriai/litellm:main-latest
+          # Pinned to a concrete release (not the floating main-latest) so the
+          # version is reproducible and imagePullPolicy:IfNotPresent can't serve a
+          # stale cached digest. Multi-window key budgets (budget_limits) require
+          # >= this release; 1.82.6 silently dropped them. Bump deliberately.
+          image: ghcr.io/berriai/litellm:v1.90.0
           imagePullPolicy: IfNotPresent
           args: ["--config", "/app/config.yaml", "--port", "4000"]
           ports:

@@ -343,7 +343,7 @@ Creates K8s secrets from Ansible Vault and runs database migrations. Secrets are
 1. Create `lmthing-secrets` K8s Secret in `lmthing` namespace from vault variables
 2. Create `acr-pull-secret` (type `kubernetes.io/dockerconfigjson`) in `lmthing` namespace for pulling images from ACR
 3. Sync SQL migrations to node
-4. Run migrations against Supabase PostgreSQL
+4. Run migrations against the in-cluster PostgreSQL (`psql -v ON_ERROR_STOP=1`, no `|| true` — a broken migration fails the play loudly). The gateway also self-heals its own `profiles`/`sso_codes` schema on boot via `ensureSchema()`, so these tables exist even if this step is skipped.
 5. Clean up
 
 **Tags:** `secrets`
@@ -699,6 +699,9 @@ To update domain values: edit `argocd/envoy/config.yaml`, push to git, ArgoCD au
 - **`compute:latest` uses `imagePullPolicy: Always`** — per-user pods (`gateway/src/lib/compute.ts`) track the moving `:latest` tag, so a recreated pod must always re-pull or it runs a stale cached image. To roll a rebuilt compute image to an existing user, delete the user's `lmthing` Deployment (the PVC `/data` persists) and let the next `/api/compute/ensure` recreate it.
 - **`ensureUserPod` re-patches `MAX_SESSIONS`/resources on every chat load** — so the tier config (`gateway/src/lib/tiers.ts`) is the source of truth, not a one-off `kubectl set env` (which gets reverted on the next load). Free tier is `maxSessions: 3` (was 1, which made "+ New chat" silently fail).
 - **An out-of-bounds symlink anywhere in the repo breaks ArgoCD** — `ComparisonError: repository contains out-of-bounds symlinks` blocks *all* core/envoy syncs (not just the offending path). If a sync mysteriously stops applying, check the app's `status.conditions` for this error.
+- **LiteLLM is pinned to a concrete version (`v1.90.0`), not `main-latest`** — the floating tag plus `imagePullPolicy: IfNotPresent` served a stale cached image indefinitely, and older builds (1.82.6) **silently dropped** the per-key `budget_limits` array, so the tier's 5h/7d/30d windows were never enforced. Multi-window budgets require ≥ v1.90.0. Bump the tag deliberately in `argocd/core/litellm.yaml`.
+- **A `litellm.yaml` ConfigMap change does NOT roll the litellm pods** — ArgoCD syncs the ConfigMap, but K8s won't restart pods on a mounted-ConfigMap change. After editing the model list / prices, run `kubectl rollout restart deploy/litellm -n lmthing` (see `.issues/argocd-no-webhook-sync-latency.md`).
+- **ArgoCD is poll-only (no git webhook), ~3-min sync latency** — freshly-pushed commits aren't synced until the comparison cache expires. Force with `kubectl -n argocd annotate application lmthing-core argocd.argoproj.io/refresh=hard --overwrite`. Root cause + fix in `.issues/argocd-no-webhook-sync-latency.md`.
 
 ## Scaling the Cluster
 

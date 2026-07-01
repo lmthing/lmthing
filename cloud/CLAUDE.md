@@ -29,7 +29,8 @@ cloud/
 │           ├── keys.ts             # List, create, revoke API keys
 │           ├── webhook.ts          # Stripe webhook — tier changes, compute pod lifecycle
 │           └── compute.ts          # Pod status, env var get/set
-├── migrations/
+├── migrations/                     # applied by Ansible cloud_secrets; also self-healed
+│   │                               # on gateway boot via db.ts ensureSchema()
 │   ├── 001_profiles.sql            # profiles table (plain Postgres, no RLS)
 │   ├── 002_sso_codes.sql           # sso_codes table for cross-domain SSO (user_id text)
 │   ├── 003_drop_supabase_objects.sql  # drops any legacy Supabase triggers/functions
@@ -105,12 +106,12 @@ The gateway issues its own **HS256 JWTs** (via `lib/tokens.ts`) signed with `GAT
 ## Lib Modules
 
 - **`tokens.ts`** — Gateway JWT issuance and verification. `signTokens(userId, email)` issues HS256 access (12h) + refresh (30d) tokens signed with `GATEWAY_JWT_SECRET`. `verifyAccessToken` / `verifyRefreshToken` verify locally via `jose`.
-- **`tiers.ts`** — `TIERS` record with budget, budgetDuration, models, tpmLimit, rpmLimit, compute flag per tier. Helpers: `getTierByPriceId()`, `getTierByName()`.
+- **`tiers.ts`** — `TIERS` record with `budgetLimits` (an array of 5h/7d/30d `{duration, maxBudget}` windows), `models`, `tpmLimit`, `rpmLimit`, and `pod` sizing per tier. Helpers: `getTierByPriceId()`, `getTierByName()`, `monthlyBudget()`, `toBudgetLimits()` (maps to LiteLLM's `budget_limits` payload).
 - **`litellm.ts`** — HTTP client for LiteLLM admin API (`http://litellm:4000`). Functions: `createUser`, `generateKey`, `updateUserTier`, `listKeys`, `deleteKey`, `getUserInfo`, `getKeyInfo`.
 - **`stripe.ts`** — Stripe client init from `STRIPE_SECRET_KEY`.
 - **`zitadel.ts`** — Zitadel v2 API client using a machine user Personal Access Token (`ZITADEL_SERVICE_PAT`). Functions: `createUser`, `getUserById`, `getUserByEmail`, `loginWithPassword`, `startIdpIntent`, `resolveIdpIntent`. GitHub IDP ID is auto-discovered from Zitadel on first call and cached (override with `ZITADEL_GITHUB_IDP_ID`).
-- **`db.ts`** — Postgres client (`postgres` package) for `sso_codes` table. Functions: `insertSsoCode`, `findAndConsumeSsoCode`.
-- **`compute.ts`** — K8s in-cluster API client. Creates per-user namespaces (`user-{userId}`), ACR pull secrets, deployments (0.5 CPU / 1Gi, image from `lmthingacr.azurecr.io/compute`), services (port 8080), and `user-env` secrets.
+- **`db.ts`** — Postgres client (`postgres` package) for the `sso_codes` table. Functions: `insertSsoCode`, `findAndConsumeSsoCode`, and `ensureSchema()` — called on gateway startup (`index.ts`) to idempotently create the gateway's own tables (`profiles`, `sso_codes`), so a fresh or half-migrated DB self-heals without depending on the Ansible migration step. Keep it in sync with `migrations/*.sql`.
+- **`compute.ts`** — K8s in-cluster API client. Creates per-user namespaces (`user-{userId}`), ACR pull secrets, deployments (image from `lmthingacr.azurecr.io/compute`, tier-sized via `pod`), services (port 8080), and `user-env` secrets. Into `user-env` it injects the `lmthingcloud` provider config (`litellmEnvDefaults`): `LMTHINGCLOUD_API_KEY` = the user's own LiteLLM key (carries their tier budget windows), `LMTHINGCLOUD_BASE_URL` = in-cluster LiteLLM `/v1`, and the size/role model aliases `LM_MODEL_{XS,S,M,L,M_R,L_R}` → `lmthingcloud:<model>` (XS/S=DeepSeek-V4-Flash, M/M_R=DeepSeek-V4-Pro, L=gpt-5.5, L_R=Kimi-K2.6). The merge preserves user-set vars but always refreshes the API key.
 
 ## Middleware
 

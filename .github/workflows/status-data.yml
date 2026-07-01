@@ -54,7 +54,7 @@ jobs:
             {"name": "blog",     "domain": "lmthing.blog",     "emoji": "📝",  "type": "vite",     "yaml": "blog.yaml",                 "paths": ["blog", "sdk/org/libs", "sdk/org"]},
             {"name": "casa",     "domain": "lmthing.casa",     "emoji": "🏠",  "type": "vite",     "yaml": "casa.yaml",                 "paths": ["casa", "sdk/org/libs", "sdk/org"]},
             {"name": "computer", "domain": "lmthing.computer", "emoji": "🖥️",  "type": "vite",     "yaml": "computer.yaml",             "paths": ["computer", "sdk/org/libs", "sdk/org"]},
-            {"name": "compute",  "domain": "minikube-pods",    "emoji": "⚡",  "type": "k8s-pod",  "yaml": "compute-pod-template.yaml", "paths": ["sdk/org/packages", "devops/argocd/compute"]},
+            {"name": "compute",  "domain": "minikube-pods",    "emoji": "⚡",  "type": "k8s-pod",  "yaml": "compute-pod-template.yaml", "paths": ["sdk/org/libs", "sdk/org/apps", "sdk/org", "devops/argocd/compute"]},
           ]
 
           os.makedirs('gh-pages/data/changelog', exist_ok=True)

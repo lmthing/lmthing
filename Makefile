@@ -67,7 +67,7 @@ local-k8s-setup:
 	@echo "→ Add MINIKUBE_IP=$$(minikube ip) to cloud/gateway/.env.local"
 
 # Build the compute pod image and load it into minikube's image store.
-# Re-run after changing sdk/org/packages/{core,cli,ui}.
+# Re-run after changing sdk/org/libs/{core,cli,ui}.
 local-compute-image:
 	git submodule update --init sdk/org
 	docker build -f devops/argocd/compute/Dockerfile sdk/org/ -t compute:local
@@ -131,6 +131,6 @@ local-compute-env:
 local-compute-dev:
 	@echo "Starting compute server with auto-reload..."
 	@trap 'kill 0' INT TERM; \
-	(cd sdk/org/packages/cli && pnpm dev) & \
-	sleep 4 && node --env-file=devops/local/.env.local --watch sdk/org/packages/cli/dist/cli/bin.js serve --port 18080 --space sdk/org/packages/core/system-spaces/architect & \
+	(cd sdk/org/libs/cli && pnpm dev) & \
+	sleep 4 && node --env-file=devops/local/.env.local --watch sdk/org/libs/cli/dist/cli/bin.js serve --port 18080 --space sdk/org/libs/core/system-spaces/architect & \
 	wait

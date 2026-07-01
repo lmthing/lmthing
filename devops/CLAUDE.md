@@ -327,12 +327,12 @@ Images are built by **GitHub Actions CI** (`.github/workflows/build-images.yml`)
 | Image | ACR Path | Source | Purpose |
 |-------|----------|--------|---------|
 | gateway | `lmthingacr.azurecr.io/gateway:<sha>` | `cloud/gateway/` | Hono API gateway |
-| studio | `lmthingacr.azurecr.io/studio:<sha>` | `sdk/org/packages/ui/apps/web/Dockerfile` (context: repo root) | Unified SPA nginx image (lmthing.studio) |
-| computer | `lmthingacr.azurecr.io/computer:<sha>` | `sdk/org/packages/ui/apps/web/Dockerfile` (context: repo root) | Unified SPA nginx image (lmthing.computer) |
-| chat | `lmthingacr.azurecr.io/chat:<sha>` | `sdk/org/packages/ui/apps/web/Dockerfile` (context: repo root) | Unified SPA nginx image (lmthing.chat) |
-| compute | `lmthingacr.azurecr.io/compute:<sha>` | `sdk/org/packages/{core,cli,ui}` + `argocd/compute/Dockerfile` | Node 24 multi-session QuickJS server |
+| studio | `lmthingacr.azurecr.io/studio:<sha>` | `sdk/org/apps/web/Dockerfile` (context: repo root) | Unified SPA nginx image (lmthing.studio) |
+| computer | `lmthingacr.azurecr.io/computer:<sha>` | `sdk/org/apps/web/Dockerfile` (context: repo root) | Unified SPA nginx image (lmthing.computer) |
+| chat | `lmthingacr.azurecr.io/chat:<sha>` | `sdk/org/apps/web/Dockerfile` (context: repo root) | Unified SPA nginx image (lmthing.chat) |
+| compute | `lmthingacr.azurecr.io/compute:<sha>` | `sdk/org/libs/{core,cli,ui}` + `argocd/compute/Dockerfile` | Node 24 multi-session QuickJS server |
 
-CI trigger path for the `compute` image: changes under `sdk/org/packages/**` (core, cli, or ui source). The build context passed to Docker is the `sdk/org/` submodule root.
+CI trigger path for the `compute` image: changes under `sdk/org/**` (the build-images workflow filters on `sdk/org` + `sdk/org/**`, so any submodule source — `libs/{core,cli,ui}` or `apps/web` — triggers a rebuild). The build context passed to Docker is the `sdk/org/` submodule root.
 
 All deployments use `imagePullSecrets: [acr-pull-secret]` to pull from ACR.
 
@@ -400,7 +400,7 @@ Resources: `argocd/envoy/computer-routes.yaml`, `argocd/envoy/computer-policies.
 
 ## Per-User Compute Pods
 
-**Runtime:** Custom image — Node 24 running `@lmthing/core` (QuickJS WASM sandbox) + `@lmthing/cli` (multi-session server) from `sdk/org/packages/{core,cli}`. Every tier gets a dedicated per-user pod. The server is started with `node packages/cli/dist/cli/bin.js serve --port 8080`; it reads spaces from `/data/spaces`, writes session snapshots to `/data/snapshots`, and respects the `MAX_SESSIONS` env var.
+**Runtime:** Custom image — Node 24 running `@lmthing/core` (QuickJS WASM sandbox) + `@lmthing/cli` (multi-session server) from `sdk/org/libs/{core,cli}`. Every tier gets a dedicated per-user pod. The server is started with `node libs/cli/dist/cli/bin.js serve --port 8080`; it reads spaces from `/data/spaces`, writes session snapshots to `/data/snapshots`, and respects the `MAX_SESSIONS` env var.
 
 **Lifecycle:** Always-on. Created when user subscribes (any paid tier — previously Pro-only), destroyed on subscription cancellation.
 
@@ -664,7 +664,7 @@ All K8s manifests live in `devops/argocd/` and are synced by ArgoCD from git. No
 
 | File | Purpose |
 |------|---------|
-| `Dockerfile` | Multi-stage build: tsup builds @lmthing/core + @lmthing/cli from `sdk/org/packages/`; runtime stage runs `serve --port 8080` multi-session QuickJS server |
+| `Dockerfile` | Multi-stage build: tsup builds @lmthing/core + @lmthing/cli from `sdk/org/libs/`; runtime stage runs `serve --port 8080` multi-session QuickJS server |
 | `user-pod-template.yaml` | Template for per-user Namespace + Deployment + Service; includes readiness/liveness probes, /data/snapshots volume, MAX_SESSIONS env, and {CPU}/{MEM} placeholder vars for tier-aware sizing |
 
 ## Domain Configuration (Kustomize Replacements)
@@ -695,7 +695,7 @@ To update domain values: edit `argocd/envoy/config.yaml`, push to git, ArgoCD au
 - **ACR pull secret required** — All deployments and user pods require `imagePullSecrets: [acr-pull-secret]` to pull images from `lmthingacr.azurecr.io`. The gateway creates ACR pull secrets in each user namespace during pod provisioning.
 - **DATABASE_URL points to in-cluster Postgres** — use `postgresql://lmthing:PASSWORD@postgres:5432/lmthing`. The `postgres` hostname resolves inside the cluster via the `postgres` Service in `lmthing` namespace.
 - **Gateway ServiceAccount is critical** — the gateway needs the `lmthing-compute-manager` ClusterRole to create user pods. Without it, Pro tier subscriptions will fail to provision compute.
-- **Compute image must co-locate `system-spaces` with the cli bundle** — the cli bundles `@lmthing/core`, so its system-space path resolution is relative to `…/cli/dist/`. The Dockerfile copies `system-spaces` to `packages/cli/dist/system-spaces`; without it `materializeRuntime` writes an empty `<data>/.lmthing/system/` and every chat session fails with `Agent "thing" not found`. See `.issues/` in `sdk/org`.
+- **Compute image must co-locate `system-spaces` with the cli bundle** — the cli bundles `@lmthing/core`, so its system-space path resolution is relative to `…/cli/dist/`. The Dockerfile copies `system-spaces` to `libs/cli/dist/system-spaces`; without it `materializeRuntime` writes an empty `<data>/.lmthing/system/` and every chat session fails with `Agent "thing" not found`. See `.issues/` in `sdk/org`.
 - **`compute:latest` uses `imagePullPolicy: Always`** — per-user pods (`gateway/src/lib/compute.ts`) track the moving `:latest` tag, so a recreated pod must always re-pull or it runs a stale cached image. To roll a rebuilt compute image to an existing user, delete the user's `lmthing` Deployment (the PVC `/data` persists) and let the next `/api/compute/ensure` recreate it.
 - **`ensureUserPod` re-patches `MAX_SESSIONS`/resources on every chat load** — so the tier config (`gateway/src/lib/tiers.ts`) is the source of truth, not a one-off `kubectl set env` (which gets reverted on the next load). Free tier is `maxSessions: 3` (was 1, which made "+ New chat" silently fail).
 - **An out-of-bounds symlink anywhere in the repo breaks ArgoCD** — `ComparisonError: repository contains out-of-bounds symlinks` blocks *all* core/envoy syncs (not just the offending path). If a sync mysteriously stops applying, check the app's `status.conditions` for this error.

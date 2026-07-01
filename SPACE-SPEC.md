@@ -539,7 +539,7 @@ Option-level preloads declared in an agent's `knowledge` frontmatter are resolve
 
 ## System spaces
 
-Six baseline spaces are always merged into every user space at runtime. They live in `sdk/org/packages/core/system-spaces/` and are prefixed by intended deployment target (`system-*` for the platform toolkit/agents, `user-*` for the per-user agents materialized on `lmthing init`):
+Six baseline spaces are always merged into every user space at runtime. They live in `sdk/org/libs/core/system-spaces/` and are prefixed by intended deployment target (`system-*` for the platform toolkit/agents, `user-*` for the per-user agents materialized on `lmthing init`):
 
 ```
 system-global         system-engineer       system-architect

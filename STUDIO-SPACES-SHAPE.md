@@ -1,6 +1,6 @@
 # Studio — Project & Spaces Data Shape, Runtime, and Save Path
 
-A complete reference for how the **studio** service models projects and spaces, how the **agent runtime** (`sdk/org/packages/core`) consumes a space, and how studio persists changes back to the **compute pod**.
+A complete reference for how the **studio** service models projects and spaces, how the **agent runtime** (`sdk/org/libs/core`) consumes a space, and how studio persists changes back to the **compute pod**.
 
 There are three distinct "shapes" to keep apart:
 
@@ -49,7 +49,7 @@ Returns `{ spaces: PodSpaceMeta[] }`.
 // project.ts:73
 /**
  * Space metadata, as returned by `GET /api/projects/:id/spaces`.
- * Shape mirrors `SpaceMeta` in `sdk/org/packages/cli/src/server/session-manager.ts`.
+ * Shape mirrors `SpaceMeta` in `sdk/org/libs/cli/src/server/session-manager.ts`.
  */
 export interface PodSpaceMeta {
   id: string
@@ -162,7 +162,7 @@ export type Unsubscribe = () => void
 
 ## 2. The On-Disk Space Layout
 
-The file tree the pod's framework loader (`sdk/org/packages/core/src/spaces/*`) and studio agree on. Documented in `studio/src/types/space-data.ts:1-16`:
+The file tree the pod's framework loader (`sdk/org/libs/core/src/spaces/*`) and studio agree on. Documented in `studio/src/types/space-data.ts:1-16`:
 
 ```
 agents/<slug>/instruct.md            — YAML frontmatter + system-prompt body
@@ -547,7 +547,7 @@ Missing/malformed fields simply become `""` / `[]` / `{}`. So "expects" is loose
 
 # Part A — The Runtime: How a Space Becomes a Running Agent
 
-Everything lives in `sdk/org/packages/core/src/`. The full boot sequence runs in `Session.start()` (`session/session.ts:152`).
+Everything lives in `sdk/org/libs/core/src/`. The full boot sequence runs in `Session.start()` (`session/session.ts:152`).
 
 ## A.1 Loading (`spaces/load.ts`)
 

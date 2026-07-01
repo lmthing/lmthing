@@ -356,9 +356,9 @@ graph LR
 
 | Directory | Name | Stack | Role |
 |-----------|------|-------|------|
-| `sdk/org/packages/core/` | @lmthing/core | TypeScript, QuickJS WASM, Zod | Runtime — QuickJS sandbox, eval loop, globals, system spaces (system-global, system-engineer, system-architect, system-deep-research, user-memory, user-thing) |
-| `sdk/org/packages/cli/` | @lmthing/cli | TypeScript, Ink (terminal), WS server | Terminal renderer, AI provider wiring, `lmthing run` CLI, DevTools WS server |
-| `sdk/org/packages/ui/` | @lmthing/agent-ui | React 19, Tailwind v4 | DevTools 3-pane web app, useReplSession, DisplayBlock/AskBlock/VariablesBlock |
+| `sdk/org/libs/core/` | @lmthing/core | TypeScript, QuickJS WASM, Zod | Runtime — QuickJS sandbox, eval loop, globals, system spaces (system-global, system-engineer, system-architect, system-deep-research, user-memory, user-thing) |
+| `sdk/org/libs/cli/` | @lmthing/cli | TypeScript, Ink (terminal), WS server | Terminal renderer, AI provider wiring, `lmthing run` CLI, DevTools WS server |
+| `sdk/org/libs/ui/` | @lmthing/agent-ui | React 19, Tailwind v4 | DevTools 3-pane web app, useReplSession, DisplayBlock/AskBlock/VariablesBlock |
 | `sdk/libs/state/` | @lmthing/state | React hooks, Map-based VFS, FSEventBus | Virtual file system with scoped contexts, event subscriptions, and glob matching |
 | `sdk/libs/css/` | — | CSS | Shared styles used across all product domains |
 | `sdk/libs/ui/` | — | React components | Shared UI components used across all product domains |

@@ -83,7 +83,8 @@ ssh -i ~/GEANT/lmthing/devops/terraform/generated/lmthing-test-key.pem \
 # List all deployments
 kubectl get deployments --all-namespaces -o wide
 
-# Restart all user compute pods
+# Restart all user compute pods (blunt fallback — normally users are prompted
+# in-app to upgrade individually; see PodEnsureGate in sdk/org/apps/web)
 kubectl get namespaces | grep ^user- | awk '{print $1}' \
   | xargs -I{} kubectl rollout restart deployment/lmthing -n {}
 

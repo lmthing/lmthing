@@ -89,7 +89,10 @@ The gateway issues its own **HS256 JWTs** (via `lib/tokens.ts`) signed with `GAT
 
 | Route | Method | Auth | Purpose |
 |-------|--------|------|---------|
-| `/api/compute/status` | GET | JWT | Pod status (exists, ready, phase) — requires pro/max tier |
+| `/api/compute/version` | GET | none | Latest built compute image tag (`COMPUTE_IMAGE_TAG`) |
+| `/api/compute/ensure` | POST | JWT | Lazily provision/wake the user's pod; returns status incl. running `computeTag` |
+| `/api/compute/status` | GET | JWT | Pod status (exists, ready, phase, `computeTag`) — requires pro/max tier |
+| `/api/compute/upgrade` | POST | JWT | Rolling restart onto the latest compute image (frontend prompts before calling this) |
 | `/api/compute/env` | GET | JWT | List user pod env vars — requires pro/max tier |
 | `/api/compute/env` | PUT | JWT | Set env vars + trigger pod restart — requires pro/max tier |
 

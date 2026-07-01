@@ -84,7 +84,10 @@ graph TB
 | `/api/billing/portal`      | POST   | JWT        | Stripe billing portal                    |
 | `/api/billing/usage`       | GET    | JWT        | Budget usage info                        |
 | `/api/billing/checkout/status` | GET | JWT       | Check Stripe checkout session status     |
-| `/api/compute/status`      | GET    | JWT        | Compute pod status                       |
+| `/api/compute/version`     | GET    | none       | Latest built compute image tag           |
+| `/api/compute/ensure`      | POST   | JWT        | Provision/wake pod; returns running `computeTag` |
+| `/api/compute/status`      | GET    | JWT        | Compute pod status (incl. `computeTag`)  |
+| `/api/compute/upgrade`     | POST   | JWT        | Rolling restart onto latest compute image |
 | `/api/compute/env`         | GET    | JWT        | List user pod environment variables      |
 | `/api/compute/env`         | PUT    | JWT        | Set user pod env vars (triggers restart) |
 | `/api/stripe/webhook`      | POST   | Stripe sig | Subscription events → tier changes       |

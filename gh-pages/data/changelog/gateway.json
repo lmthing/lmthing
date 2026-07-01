@@ -1,5 +1,15 @@
 [
   {
+    "hash": "601d3acf",
+    "full_hash": "601d3acf8e9a0e361029daca814689dc9de70e24",
+    "type": "fix",
+    "scope": "tiers",
+    "subject": "increase tpm and rpm limits for all tiers",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-01 15:16:11 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/601d3acf8e9a0e361029daca814689dc9de70e24"
+  },
+  {
     "hash": "6eb5876f",
     "full_hash": "6eb5876ffdbdf3a3ff74d3fdfd45b8087c63cfa2",
     "type": "fix",

@@ -62,8 +62,8 @@ export const TIERS: Record<string, Tier> = {
       { duration: "30d", maxBudget: 6 },
     ],
     models: [...ENABLED_MODELS],
-    tpmLimit: 100_000,
-    rpmLimit: 60,
+    tpmLimit: 1_000_000,
+    rpmLimit: 5_000,
     pod: { cpu: "250m", mem: "512Mi", idleTtlMinutes: 15, maxSessions: 3 },
   },
   basic: {
@@ -75,8 +75,8 @@ export const TIERS: Record<string, Tier> = {
       { duration: "30d", maxBudget: 10 },
     ],
     models: [...ENABLED_MODELS],
-    tpmLimit: 50_000,
-    rpmLimit: 300,
+    tpmLimit: 1_000_000,
+    rpmLimit: 5_000,
     pod: { cpu: "500m", mem: "768Mi", idleTtlMinutes: 30, maxSessions: 3 },
   },
   pro: {
@@ -88,8 +88,8 @@ export const TIERS: Record<string, Tier> = {
       { duration: "30d", maxBudget: 20 },
     ],
     models: [...ENABLED_MODELS],
-    tpmLimit: 100_000,
-    rpmLimit: 1_000,
+    tpmLimit: 1_000_000,
+    rpmLimit: 5_000,
     pod: { cpu: "500m", mem: "1Gi", idleTtlMinutes: 60, maxSessions: 5 },
   },
   max: {

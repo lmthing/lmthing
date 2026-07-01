@@ -9,12 +9,12 @@ export const Route = createFileRoute('/')({
 
 function StatusBadge({ status }: { status: Space['status'] }) {
   const colors: Record<Space['status'], string> = {
-    created: 'bg-gray-200 text-gray-700',
-    provisioning: 'bg-yellow-200 text-yellow-800',
-    running: 'bg-green-200 text-green-800',
-    stopped: 'bg-gray-300 text-gray-700',
-    failed: 'bg-red-200 text-red-800',
-    destroyed: 'bg-red-100 text-red-600',
+    created: 'bg-muted text-muted-foreground',
+    provisioning: 'bg-warning/15 text-warning',
+    running: 'bg-success/15 text-success',
+    stopped: 'bg-secondary text-secondary-foreground',
+    failed: 'bg-destructive/15 text-destructive',
+    destroyed: 'bg-destructive/10 text-destructive',
   }
 
   return (

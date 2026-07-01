@@ -14,6 +14,14 @@ Central auth hub and billing surface for all lmthing.* domains.
 - Shared libs: `@lmthing/ui`, `@lmthing/css`, `@lmthing/state`, `lmthing`
 - Vite config uses shared `createViteConfig` from `@lmthing/utils/vite`
 
+## Design system (mandatory)
+
+This SPA uses the shared lmthing design system (`@lmthing/css` tokens + `@lmthing/ui`).
+**Never write a raw color** (hex, literal `rgb()/hsl()`, or stock Tailwind colors like
+`gray-*`/`blue-*`); use a token (`var(--foreground)`, `bg-primary`, `text-agent`, …). Enforced
+by `pnpm lint:tokens` (a hard CI gate). Full rules → root `@.claude/skills/design-system.md`
+(spec: [../sdk/org/libs/css/DESIGN.md](../sdk/org/libs/css/DESIGN.md)).
+
 ## Running Locally
 
 ```bash

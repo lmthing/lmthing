@@ -41,12 +41,25 @@ cd sdk/org/apps/web && pnpm dev        # unified app (routes: /studio /computer 
 
 Running the full local stack (ports, `*.test` nginx proxy, demo auth, make targets) → `@.claude/skills/local-dev.md`.
 
+## Design system (all frontend — mandatory)
+
+Every web surface (the `sdk/org` studio/chat/computer app **and** the product SPAs
+`com/social/team/store/space/blog/casa`) shares one token-driven design system in
+`@lmthing/css`. **Never write a raw color** (no hex, no literal `rgb()/hsl()`, no stock
+Tailwind color utilities like `gray-*`/`blue-*`/`green-500`) — use a design token
+(`var(--foreground)`, `bg-primary`, `text-agent`, …). To change a color, edit
+`sdk/org/libs/css/src/tokens/tokens.json` then `pnpm --filter @lmthing/css generate`; never
+hand-edit `theme.css`. This is a **hard gate**: `pnpm lint:tokens` (root) and CI
+(`.github/workflows/design-tokens.yml`) fail on violations. Full rules → `@.claude/skills/design-system.md`
+(canonical spec: [sdk/org/libs/css/DESIGN.md](./sdk/org/libs/css/DESIGN.md)).
+
 ## Task Index
 
 Load the matching file when working on:
 
 | Working on… | Load |
 |---|---|
+| **any frontend styling** — colors, Tailwind classes, component CSS, theming (MANDATORY, enforced) | `@.claude/skills/design-system.md` |
 | cloud gateway / LiteLLM / billing / tiers / API routes / webhooks | `@.claude/skills/cloud-backend.md` |
 | running the local dev stack (ports, `make`, nginx proxy, demo auth) | `@.claude/skills/local-dev.md` |
 | adding a pricing tier (cross-cutting checklist) | `@.claude/skills/add-tier.md` |

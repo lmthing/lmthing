@@ -1,0 +1,43 @@
+name: Design tokens
+
+# Hard gate: fail if any source uses a raw color instead of a design-system token.
+# See sdk/org/libs/css/DESIGN.md for the rules and escape hatches (ds-lint-ok / ds-lint-file-ok).
+
+on:
+  pull_request:
+    paths:
+      - 'sdk/org/**'
+      - 'com/**'
+      - 'social/**'
+      - 'team/**'
+      - 'store/**'
+      - 'space/**'
+      - 'blog/**'
+      - 'casa/**'
+  push:
+    branches: [main]
+    paths:
+      - 'sdk/org/**'
+      - 'com/**'
+      - 'social/**'
+      - 'team/**'
+      - 'store/**'
+      - 'space/**'
+      - 'blog/**'
+      - 'casa/**'
+
+jobs:
+  lint-tokens:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Lint design tokens
+        run: >
+          node sdk/org/libs/css/scripts/lint-design-tokens.mjs
+          sdk/org/libs/css/src sdk/org/libs/ui/src sdk/org/apps/web/src
+          com/src social/src team/src store/src space/src blog/src casa/src

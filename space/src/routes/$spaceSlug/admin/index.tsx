@@ -9,9 +9,9 @@ export const Route = createFileRoute('/$spaceSlug/admin/')({
 })
 
 const STATUS_COLORS: Record<string, string> = {
-  running: 'text-green-600',
-  stopped: 'text-yellow-600',
-  provisioning: 'text-blue-600',
+  running: 'text-success',
+  stopped: 'text-warning',
+  provisioning: 'text-agent',
   failed: 'text-destructive',
   destroyed: 'text-muted-foreground',
   created: 'text-muted-foreground',
@@ -95,14 +95,14 @@ function AdminOverview() {
             <button
               onClick={handleStart}
               disabled={!canStart || acting}
-              className="rounded bg-green-600 px-3 py-1.5 text-sm text-white disabled:opacity-40"
+              className="rounded bg-success px-3 py-1.5 text-sm text-success-foreground disabled:opacity-40"
             >
               {acting && canStart ? 'Starting...' : 'Start'}
             </button>
             <button
               onClick={handleStop}
               disabled={!canStop || acting}
-              className="rounded bg-yellow-600 px-3 py-1.5 text-sm text-white disabled:opacity-40"
+              className="rounded bg-warning px-3 py-1.5 text-sm text-warning-foreground disabled:opacity-40"
             >
               {acting && canStop ? 'Stopping...' : 'Stop'}
             </button>
@@ -126,8 +126,8 @@ function AdminOverview() {
 
       {/* Provisioning state */}
       {space.status === 'provisioning' && (
-        <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
-          <p className="text-sm text-blue-800 dark:text-blue-200">
+        <div className="mt-6 rounded-lg border border-agent/30 bg-agent/5 p-4">
+          <p className="text-sm text-agent">
             Your space is being provisioned. This usually takes 30-60 seconds.
           </p>
         </div>

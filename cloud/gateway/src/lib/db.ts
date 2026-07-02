@@ -37,6 +37,73 @@ export async function ensureSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_sso_codes_code
       ON public.sso_codes (code) WHERE used_at IS NULL
   `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS public.backup_config (
+      user_id text PRIMARY KEY,
+      installation_id text,
+      repo text,
+      auto boolean NOT NULL DEFAULT false,
+      interval_minutes int NOT NULL DEFAULT 60,
+      branch text NOT NULL DEFAULT 'lmthing-backup',
+      last_backup_at timestamptz,
+      last_commit_sha text,
+      status text,
+      error text,
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `;
+}
+
+export interface BackupConfig {
+  user_id: string;
+  installation_id: string | null;
+  repo: string | null;
+  auto: boolean;
+  interval_minutes: number;
+  branch: string;
+  last_backup_at: string | null;
+  last_commit_sha: string | null;
+  status: string | null;
+  error: string | null;
+  updated_at: string;
+}
+
+export async function getBackupConfig(
+  userId: string,
+): Promise<BackupConfig | null> {
+  const rows = await sql<BackupConfig[]>`
+    SELECT * FROM backup_config WHERE user_id = ${userId} LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+/** Record (or update) which GitHub App installation backs this user. */
+export async function setBackupInstallation(
+  userId: string,
+  installationId: string,
+): Promise<void> {
+  await sql`
+    INSERT INTO backup_config (user_id, installation_id, updated_at)
+    VALUES (${userId}, ${installationId}, now())
+    ON CONFLICT (user_id) DO UPDATE
+      SET installation_id = ${installationId}, updated_at = now()
+  `;
+}
+
+/** Persist the user-chosen backup settings (repo + auto + interval). */
+export async function setBackupSettings(
+  userId: string,
+  repo: string,
+  auto: boolean,
+  intervalMinutes: number,
+): Promise<void> {
+  await sql`
+    INSERT INTO backup_config (user_id, repo, auto, interval_minutes, updated_at)
+    VALUES (${userId}, ${repo}, ${auto}, ${intervalMinutes}, now())
+    ON CONFLICT (user_id) DO UPDATE
+      SET repo = ${repo}, auto = ${auto},
+          interval_minutes = ${intervalMinutes}, updated_at = now()
+  `;
 }
 
 export interface SsoCode {

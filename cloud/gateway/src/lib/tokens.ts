@@ -52,3 +52,71 @@ export async function verifyRefreshToken(
     return null;
   }
 }
+
+// --- Backup tokens ---
+//
+// The compute pod runs backups/restores autonomously (a periodic timer, and a
+// SIGTERM flush) with no user request in flight, so it can't relay a user's
+// access token. Instead the gateway mints a long-lived, narrowly-scoped
+// (`aud: "backup"`) JWT and injects it into the pod's `user-env` secret; the
+// pod presents it to POST /api/backup/token to obtain a short-lived GitHub App
+// installation token. This keeps GitHub credentials out of the pod entirely.
+
+const BACKUP_TTL = "365d";
+
+export async function signBackupToken(userId: string): Promise<string> {
+  return new SignJWT({})
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject(userId)
+    .setAudience("backup")
+    .setIssuedAt()
+    .setExpirationTime(BACKUP_TTL)
+    .sign(secret);
+}
+
+export async function verifyBackupToken(
+  token: string,
+): Promise<{ userId: string } | null> {
+  try {
+    const { payload } = await jwtVerify(token, secret, { audience: "backup" });
+    if (!payload.sub) return null;
+    return { userId: payload.sub };
+  } catch {
+    return null;
+  }
+}
+
+// Short-lived signed state carried through the GitHub App install redirect so
+// the callback (which GitHub hits without our auth header) can be tied back to
+// the user who initiated it.
+const INSTALL_STATE_TTL = "10m";
+
+export async function signInstallState(
+  userId: string,
+  redirectTo: string,
+): Promise<string> {
+  return new SignJWT({ rt: redirectTo })
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject(userId)
+    .setAudience("backup-install")
+    .setIssuedAt()
+    .setExpirationTime(INSTALL_STATE_TTL)
+    .sign(secret);
+}
+
+export async function verifyInstallState(
+  token: string,
+): Promise<{ userId: string; redirectTo: string } | null> {
+  try {
+    const { payload } = await jwtVerify(token, secret, {
+      audience: "backup-install",
+    });
+    if (!payload.sub) return null;
+    return {
+      userId: payload.sub,
+      redirectTo: typeof payload.rt === "string" ? payload.rt : "",
+    };
+  } catch {
+    return null;
+  }
+}

@@ -68,7 +68,7 @@ spec:
         - name: acr-pull-secret
       containers:
         - name: gateway
-          image: lmthingacr.azurecr.io/gateway:61cfc4c
+          image: lmthingacr.azurecr.io/gateway:66b225e
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -165,7 +165,7 @@ spec:
                   name: lmthing-secrets
                   key: ACR_PASSWORD
             - name: COMPUTE_IMAGE_TAG
-              value: "61cfc4c"
+              value: "66b225e"
           resources:
             requests:
               memory: "128Mi"

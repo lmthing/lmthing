@@ -1,5 +1,15 @@
 [
   {
+    "hash": "66b225e7",
+    "full_hash": "66b225e773ea6a8ff9dd7ddb4c8ef73a18ad4c10",
+    "type": "feat",
+    "scope": "budget",
+    "subject": "gateway computes budget windows with the master key",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 18:57:08 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/66b225e773ea6a8ff9dd7ddb4c8ef73a18ad4c10"
+  },
+  {
     "hash": "61cfc4c8",
     "full_hash": "61cfc4c801be7408a7d56ec70ccdc0f92668cfa2",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-03-23 19:35:41 +0200",
     "url": "https://github.com/lmthing/lmthing/commit/786f6c670c6698d30603b346b2f1bb154ced22b0"
-  },
-  {
-    "hash": "0759d665",
-    "full_hash": "0759d66529dbb3a22cabcdf0941376e4819c81ff",
-    "type": "refactor",
-    "scope": "",
-    "subject": "update Stripe Checkout session handling and remove unused success/cancel routes",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-03-23 19:11:11 +0200",
-    "url": "https://github.com/lmthing/lmthing/commit/0759d66529dbb3a22cabcdf0941376e4819c81ff"
   }
 ]

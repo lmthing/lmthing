@@ -1,5 +1,15 @@
 [
   {
+    "hash": "66b225e7",
+    "full_hash": "66b225e773ea6a8ff9dd7ddb4c8ef73a18ad4c10",
+    "type": "feat",
+    "scope": "budget",
+    "subject": "gateway computes budget windows with the master key",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 18:57:08 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/66b225e773ea6a8ff9dd7ddb4c8ef73a18ad4c10"
+  },
+  {
     "hash": "61cfc4c8",
     "full_hash": "61cfc4c801be7408a7d56ec70ccdc0f92668cfa2",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-25 17:42:08 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/5370090a2fb5d2f5cc6a5b9cf99772989148604c"
-  },
-  {
-    "hash": "e6ec05a0",
-    "full_hash": "e6ec05a00ed17c34916596b483be06d5642151ca",
-    "type": "feat",
-    "scope": "",
-    "subject": "implement SPACE-SPEC changes across studio, state/ui libs, and core",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-25 17:01:59 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/e6ec05a00ed17c34916596b483be06d5642151ca"
   }
 ]

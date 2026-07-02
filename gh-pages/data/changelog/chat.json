@@ -1,5 +1,15 @@
 [
   {
+    "hash": "66b225e7",
+    "full_hash": "66b225e773ea6a8ff9dd7ddb4c8ef73a18ad4c10",
+    "type": "feat",
+    "scope": "budget",
+    "subject": "gateway computes budget windows with the master key",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 18:57:08 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/66b225e773ea6a8ff9dd7ddb4c8ef73a18ad4c10"
+  },
+  {
     "hash": "61cfc4c8",
     "full_hash": "61cfc4c801be7408a7d56ec70ccdc0f92668cfa2",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-24 17:21:49 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/543f9f3661e3b5e7786ed407b96c707804af3400"
-  },
-  {
-    "hash": "4af73f6c",
-    "full_hash": "4af73f6c09281a1d3a2c88c9d6f222478dd21209",
-    "type": "fix",
-    "scope": "",
-    "subject": "make restart button always visible",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 17:09:23 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/4af73f6c09281a1d3a2c88c9d6f222478dd21209"
   }
 ]

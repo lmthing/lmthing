@@ -1,5 +1,15 @@
 [
   {
+    "hash": "66b225e7",
+    "full_hash": "66b225e773ea6a8ff9dd7ddb4c8ef73a18ad4c10",
+    "type": "feat",
+    "scope": "budget",
+    "subject": "gateway computes budget windows with the master key",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 18:57:08 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/66b225e773ea6a8ff9dd7ddb4c8ef73a18ad4c10"
+  },
+  {
     "hash": "61cfc4c8",
     "full_hash": "61cfc4c801be7408a7d56ec70ccdc0f92668cfa2",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-24 17:22:08 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/65644695d8686d6e5e19fff60f89067e595234f5"
-  },
-  {
-    "hash": "543f9f36",
-    "full_hash": "543f9f3661e3b5e7786ed407b96c707804af3400",
-    "type": "fix",
-    "scope": "",
-    "subject": "studio spaces loading + system spaces path + tasklist terminology",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 17:21:49 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/543f9f3661e3b5e7786ed407b96c707804af3400"
   }
 ]

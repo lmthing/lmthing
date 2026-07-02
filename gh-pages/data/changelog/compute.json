@@ -1,5 +1,15 @@
 [
   {
+    "hash": "66b225e7",
+    "full_hash": "66b225e773ea6a8ff9dd7ddb4c8ef73a18ad4c10",
+    "type": "feat",
+    "scope": "budget",
+    "subject": "gateway computes budget windows with the master key",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 18:57:08 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/66b225e773ea6a8ff9dd7ddb4c8ef73a18ad4c10"
+  },
+  {
     "hash": "61cfc4c8",
     "full_hash": "61cfc4c801be7408a7d56ec70ccdc0f92668cfa2",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-24 17:21:49 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/543f9f3661e3b5e7786ed407b96c707804af3400"
-  },
-  {
-    "hash": "98cfe7d5",
-    "full_hash": "98cfe7d571ed641ca690528329f8ec86372f6071",
-    "type": "feat",
-    "scope": "",
-    "subject": "restart button in sidebar (computer SPA) + App.tsx TopBar (CLI dev view)",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 16:57:33 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/98cfe7d571ed641ca690528329f8ec86372f6071"
   }
 ]

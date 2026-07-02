@@ -2,6 +2,14 @@ import { Hono } from "hono";
 import { stripe } from "../lib/stripe.js";
 import * as litellm from "../lib/litellm.js";
 import { TIERS, getTierByName } from "../lib/tiers.js";
+import {
+  WINDOW_LABELS,
+  parseDurationDays,
+  windowBounds,
+  sumSpend,
+  remainingPct,
+  isoDate,
+} from "../lib/budget-math.js";
 import { authMiddleware } from "../middleware/auth.js";
 import type { Env } from "../types.js";
 import type { AuthUser } from "../middleware/auth.js";
@@ -142,6 +150,54 @@ billing.get("/usage", async (c) => {
       budgets: buildBudgets("free"),
       models: TIERS.free.models,
     });
+  }
+});
+
+// Remaining budget per rolling window (1d / 7d / 30d), computed with the master
+// key so it works even when the user's own key is over-budget (LiteLLM 429s an
+// over-budget key on ALL calls, including reads). Per-window spend isn't exposed
+// by LiteLLM, so we sum /user/daily/activity, anchoring each window to the user's
+// first day (`created_at`). Shape: { windows: [{ duration, label, remainingPct, resetsAt }] }.
+billing.get("/budget", async (c) => {
+  const user = c.get("user");
+
+  try {
+    const info = await litellm.getUserInfo(user.id);
+    const userInfo = info.user_info || {};
+    const tierName = userInfo.metadata?.tier || "free";
+    const tier = getTierByName(tierName) || TIERS.free;
+
+    const createdMs = userInfo.created_at
+      ? Date.parse(userInfo.created_at)
+      : Date.now();
+    const nowMs = Date.now();
+
+    const specs = tier.budgetLimits.map((b) => {
+      const nDays = parseDurationDays(b.duration) ?? 1;
+      const { start, reset } = windowBounds(createdMs, nowMs, nDays);
+      return { duration: b.duration, maxBudget: b.maxBudget, nDays, start, reset };
+    });
+
+    const earliest = Math.min(...specs.map((s) => s.start));
+    const daily = await litellm.getUserDailySpend(
+      user.id,
+      isoDate(earliest),
+      isoDate(nowMs),
+    );
+
+    const windows = specs
+      .sort((a, b) => a.nDays - b.nDays)
+      .map((s) => ({
+        duration: s.duration,
+        label: WINDOW_LABELS[s.duration] || s.duration,
+        remainingPct: remainingPct(s.maxBudget, sumSpend(daily, s.start, nowMs)),
+        resetsAt: new Date(s.reset).toISOString(),
+      }));
+
+    return c.json({ windows });
+  } catch (err) {
+    console.error("[billing/budget]", err);
+    return c.json({ error: "budget unavailable" }, 502);
   }
 });
 

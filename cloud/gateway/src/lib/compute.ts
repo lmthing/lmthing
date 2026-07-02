@@ -249,6 +249,9 @@ function litellmEnvDefaults(litellmKey: string): Record<string, string> {
     LMTHINGCLOUD_API_KEY: litellmKey,
     // In-cluster LiteLLM endpoint — keeps model traffic off the public ingress.
     LMTHINGCLOUD_BASE_URL: "http://litellm.lmthing.svc.cluster.local:4000/v1",
+    // In-cluster gateway — the pod's /api/budget forwards here (the gateway
+    // computes budgets with the master key, which an over-budget user key can't).
+    LMTHING_GATEWAY_URL: "http://gateway.lmthing.svc.cluster.local:3000",
     LM_MODEL_XS: "lmthingcloud:DeepSeek-V4-Flash",
     LM_MODEL_S: "lmthingcloud:DeepSeek-V4-Flash",
     LM_MODEL_M: "lmthingcloud:DeepSeek-V4-Pro",

@@ -95,3 +95,33 @@ export async function getUserInfo(userId: string) {
 export async function getKeyInfo(token: string) {
   return request("/key/info", "POST", { key: token });
 }
+
+/** Per-day spend for a user (master key bypasses the per-key budget gate, so
+ *  this works even when the user's own key is over-budget and 429s). Returns a
+ *  `YYYY-MM-DD → spend` map, following pagination. */
+export async function getUserDailySpend(
+  userId: string,
+  startDate: string,
+  endDate: string,
+): Promise<Map<string, number>> {
+  const byDate = new Map<string, number>();
+  const q = `user_id=${encodeURIComponent(userId)}&start_date=${startDate}&end_date=${endDate}`;
+  // 30d is at most ~31 daily rows (< one page), but page defensively anyway.
+  for (let page = 1; page <= 5; page++) {
+    const res = (await request(
+      `/user/daily/activity?${q}&page=${page}`,
+      "GET",
+    )) as {
+      results?: { date?: string; metrics?: { spend?: number } }[];
+      metadata?: { total_pages?: number };
+    };
+    for (const row of res.results || []) {
+      if (row.date && typeof row.metrics?.spend === "number") {
+        byDate.set(row.date, (byDate.get(row.date) || 0) + row.metrics.spend);
+      }
+    }
+    const totalPages = res.metadata?.total_pages;
+    if (!totalPages || page >= totalPages) break;
+  }
+  return byDate;
+}

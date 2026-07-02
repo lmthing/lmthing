@@ -7,6 +7,7 @@
   },
   "scripts": {
     "dev": "pnpm --filter ./studio dev",
+    "thing": "node sdk/org/scripts/thing-dev.mjs",
     "build": "pnpm --filter ./studio build",
     "build:pages": "pnpm --filter ./studio build:pages",
     "lint": "pnpm --filter ./studio lint",

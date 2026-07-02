@@ -96,11 +96,11 @@ graph TB
 
 ## Tiers
 
-Each tier defines three independent budget windows (5h / 7d / 30d spend caps), set on the
+Each tier defines three independent budget windows (1d / 7d / 30d spend caps), set on the
 user's single API key via LiteLLM's multiple-budget-windows feature. All tiers can call all
 four enabled models.
 
-| Tier    | Price      | Budget (5h / 7d / 30d) | Rate Limits       |
+| Tier    | Price      | Budget (1d / 7d / 30d) | Rate Limits       |
 | ------- | ---------- | ---------------------- | ----------------- |
 | Free    | $0         | $0.30 / $2 / $6        | 10K tpm / 60 rpm  |
 | Basic   | $10/month  | $1 / $4 / $10          | 50K tpm / 300 rpm |

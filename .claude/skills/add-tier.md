@@ -11,10 +11,10 @@ Tiers are a cross-cutting concern spanning backend, frontend, infra, knowledge b
 
 ## Current Tiers
 
-Each tier carries three budget windows (5h / 7d / 30d spend caps) rather than a single
+Each tier carries three budget windows (1d / 7d / 30d spend caps) rather than a single
 budget. All tiers can call all four enabled models.
 
-| Tier    | Price      | Budget (5h / 7d / 30d) | Rate Limits          |
+| Tier    | Price      | Budget (1d / 7d / 30d) | Rate Limits          |
 |---------|------------|------------------------|----------------------|
 | Free    | $0         | $0.30 / $2 / $6        | 10K tpm / 60 rpm     |
 | Basic   | $10/month  | $1 / $4 / $10          | 50K tpm / 300 rpm    |
@@ -25,7 +25,7 @@ budget. All tiers can call all four enabled models.
 
 ### 1. Backend — `cloud/gateway/src/lib/tiers.ts`
 
-Add the tier to the `TIERS` object in order. Define `name`, `stripePriceId` (env var), `budgetLimits` (array of `{ duration, maxBudget }` windows, e.g. 5h/7d/30d), `models` (usually `[...ENABLED_MODELS]`), `tpmLimit`, `rpmLimit`, `pod`. No other backend code changes needed — routes and helpers iterate `TIERS` dynamically and `toBudgetLimits()` maps the windows to the LiteLLM payload.
+Add the tier to the `TIERS` object in order. Define `name`, `stripePriceId` (env var), `budgetLimits` (array of `{ duration, maxBudget }` windows, e.g. 1d/7d/30d), `models` (usually `[...ENABLED_MODELS]`), `tpmLimit`, `rpmLimit`, `pod`. No other backend code changes needed — routes and helpers iterate `TIERS` dynamically and `toBudgetLimits()` maps the windows to the LiteLLM payload.
 
 ### 2. Backend — `cloud/scripts/create-stripe-products.ts`
 

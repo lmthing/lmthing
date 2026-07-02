@@ -106,7 +106,7 @@ The gateway issues its own **HS256 JWTs** (via `lib/tokens.ts`) signed with `GAT
 ## Lib Modules
 
 - **`tokens.ts`** — Gateway JWT issuance and verification. `signTokens(userId, email)` issues HS256 access (12h) + refresh (30d) tokens signed with `GATEWAY_JWT_SECRET`. `verifyAccessToken` / `verifyRefreshToken` verify locally via `jose`.
-- **`tiers.ts`** — `TIERS` record with `budgetLimits` (an array of 5h/7d/30d `{duration, maxBudget}` windows), `models`, `tpmLimit`, `rpmLimit`, and `pod` sizing per tier. Helpers: `getTierByPriceId()`, `getTierByName()`, `monthlyBudget()`, `toBudgetLimits()` (maps to LiteLLM's `budget_limits` payload).
+- **`tiers.ts`** — `TIERS` record with `budgetLimits` (an array of 1d/7d/30d `{duration, maxBudget}` windows), `models`, `tpmLimit`, `rpmLimit`, and `pod` sizing per tier. Helpers: `getTierByPriceId()`, `getTierByName()`, `monthlyBudget()`, `toBudgetLimits()` (maps to LiteLLM's `budget_limits` payload).
 - **`litellm.ts`** — HTTP client for LiteLLM admin API (`http://litellm:4000`). Functions: `createUser`, `generateKey`, `updateUserTier`, `listKeys`, `deleteKey`, `getUserInfo`, `getKeyInfo`.
 - **`stripe.ts`** — Stripe client init from `STRIPE_SECRET_KEY`.
 - **`zitadel.ts`** — Zitadel v2 API client using a machine user Personal Access Token (`ZITADEL_SERVICE_PAT`). Functions: `createUser`, `getUserById`, `getUserByEmail`, `loginWithPassword`, `startIdpIntent`, `resolveIdpIntent`. GitHub IDP ID is auto-discovered from Zitadel on first call and cached (override with `ZITADEL_GITHUB_IDP_ID`).
@@ -148,10 +148,10 @@ The gateway issues its own **HS256 JWTs** (via `lib/tokens.ts`) signed with `GAT
 
 Every tier can call all four enabled models (DeepSeek-V4-Flash, DeepSeek-V4-Pro,
 Kimi-K2.6, gpt-5.5). Tiers differ only by their **budget windows** — three independent
-rolling spend caps (5h / 7d / 30d) enforced on the user's single API key via LiteLLM's
+rolling spend caps (1d / 7d / 30d) enforced on the user's single API key via LiteLLM's
 multiple-budget-windows feature. A request is rejected once any window is exhausted.
 
-| Tier | Price | Budget (5h / 7d / 30d) | Rate Limits | Compute |
+| Tier | Price | Budget (1d / 7d / 30d) | Rate Limits | Compute |
 |------|-------|------------------------|-------------|---------|
 | Free | $0 | $0.30 / $2 / $6 | 10K tpm / 60 rpm | Yes |
 | Basic | $10/mo | $1 / $4 / $10 | 50K tpm / 300 rpm | Yes |

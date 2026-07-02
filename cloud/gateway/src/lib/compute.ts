@@ -240,7 +240,7 @@ async function getLiteLLMKey(userId: string): Promise<string> {
 /**
  * The env vars a fresh pod needs to reach lmthing.cloud as an LLM provider.
  * `litellmKey` is the user's own LiteLLM virtual key — the one tied to their
- * subscription, carrying the tier's 5h/7d/30d budget windows. The size/role
+ * subscription, carrying the tier's 1d/7d/30d budget windows. The size/role
  * model aliases resolve through @lmthing/cli's `lmthingcloud:` provider, which
  * reads LMTHINGCLOUD_API_KEY + LMTHINGCLOUD_BASE_URL.
  */

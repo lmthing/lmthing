@@ -101,7 +101,7 @@ billing.post("/portal", async (c) => {
 });
 
 // Get current usage and budget.
-// Every user/key carries multiple budget windows (5h/7d/30d). We return the tier's
+// Every user/key carries multiple budget windows (1d/7d/30d). We return the tier's
 // configured windows plus the current overall spend, and best-effort per-window spend
 // if the LiteLLM image exposes it. `budgets` is the source of truth for the UI.
 billing.get("/usage", async (c) => {

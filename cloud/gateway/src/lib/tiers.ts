@@ -12,9 +12,9 @@ export const ENABLED_MODELS = [
 ] as const;
 
 /** One LiteLLM budget window: a spend cap that resets on its own cadence.
- *  `duration` uses LiteLLM's format ("5h", "7d", "30d"). */
+ *  `duration` uses LiteLLM's format ("1d", "7d", "30d"). */
 export interface BudgetWindow {
-  /** LiteLLM budget_duration string, e.g. "5h", "7d", "30d". */
+  /** LiteLLM budget_duration string, e.g. "1d", "7d", "30d". */
   duration: string;
   /** Max USD spend allowed within this rolling window. */
   maxBudget: number;
@@ -57,7 +57,7 @@ export const TIERS: Record<string, Tier> = {
     name: "Free",
     stripePriceId: null,
     budgetLimits: [
-      { duration: "5h", maxBudget: 0.3 },
+      { duration: "1d", maxBudget: 0.3 },
       { duration: "7d", maxBudget: 2 },
       { duration: "30d", maxBudget: 6 },
     ],
@@ -70,7 +70,7 @@ export const TIERS: Record<string, Tier> = {
     name: "Basic",
     stripePriceId: process.env.STRIPE_PRICE_BASIC || "",
     budgetLimits: [
-      { duration: "5h", maxBudget: 1 },
+      { duration: "1d", maxBudget: 1 },
       { duration: "7d", maxBudget: 4 },
       { duration: "30d", maxBudget: 10 },
     ],
@@ -83,7 +83,7 @@ export const TIERS: Record<string, Tier> = {
     name: "Pro",
     stripePriceId: process.env.STRIPE_PRICE_PRO || "",
     budgetLimits: [
-      { duration: "5h", maxBudget: 3 },
+      { duration: "1d", maxBudget: 3 },
       { duration: "7d", maxBudget: 10 },
       { duration: "30d", maxBudget: 20 },
     ],
@@ -96,7 +96,7 @@ export const TIERS: Record<string, Tier> = {
     name: "Max",
     stripePriceId: process.env.STRIPE_PRICE_MAX || "",
     budgetLimits: [
-      { duration: "5h", maxBudget: 10 },
+      { duration: "1d", maxBudget: 10 },
       { duration: "7d", maxBudget: 30 },
       { duration: "30d", maxBudget: 100 },
     ],

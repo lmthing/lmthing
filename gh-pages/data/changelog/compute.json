@@ -1,5 +1,35 @@
 [
   {
+    "hash": "63924dbf",
+    "full_hash": "63924dbf082b92717019e729fc7b587f4b7c5fff",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to b1774f4",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 18:31:31 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/63924dbf082b92717019e729fc7b587f4b7c5fff"
+  },
+  {
+    "hash": "0f7d5f72",
+    "full_hash": "0f7d5f729beca62a0b030e81e67aa4ebd2b81b3b",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to c142706",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 17:55:01 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/0f7d5f729beca62a0b030e81e67aa4ebd2b81b3b"
+  },
+  {
+    "hash": "6dfa2417",
+    "full_hash": "6dfa241761912850e3c86941c4940e12af97315f",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to e0fd0bb",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 16:53:51 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/6dfa241761912850e3c86941c4940e12af97315f"
+  },
+  {
     "hash": "977e2ff0",
     "full_hash": "977e2ff0eb9b632999cd4995dae3860e5a84e9fd",
     "type": "fix",
@@ -468,35 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-24 16:08:29 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/904f475f554e47bdb0c7fa49b80904bba0e0c063"
-  },
-  {
-    "hash": "a156085d",
-    "full_hash": "a156085d71b9252e32300029e9ad4fc5c13df72b",
-    "type": "feat",
-    "scope": "",
-    "subject": "refactor terminal session handling to use WebSocket transport and update Dockerfile to use Node.js",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 15:24:35 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/a156085d71b9252e32300029e9ad4fc5c13df72b"
-  },
-  {
-    "hash": "41727e6e",
-    "full_hash": "41727e6e6e80aad2e9f4ccddd4ff93620a4bebd7",
-    "type": "ci",
-    "scope": "",
-    "subject": "rebuild compute \u2014 fs routes, auth.ok, terminal command passthrough",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 14:57:56 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/41727e6e6e80aad2e9f4ccddd4ff93620a4bebd7"
-  },
-  {
-    "hash": "b242ee18",
-    "full_hash": "b242ee182e974c00794c481ee9fc0330b64067f2",
-    "type": "chore",
-    "scope": "",
-    "subject": "update sdk/org submodule to 324014c",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 14:28:24 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/b242ee182e974c00794c481ee9fc0330b64067f2"
   }
 ]

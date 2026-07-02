@@ -1,5 +1,35 @@
 [
   {
+    "hash": "63924dbf",
+    "full_hash": "63924dbf082b92717019e729fc7b587f4b7c5fff",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to b1774f4",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 18:31:31 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/63924dbf082b92717019e729fc7b587f4b7c5fff"
+  },
+  {
+    "hash": "0f7d5f72",
+    "full_hash": "0f7d5f729beca62a0b030e81e67aa4ebd2b81b3b",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to c142706",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 17:55:01 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/0f7d5f729beca62a0b030e81e67aa4ebd2b81b3b"
+  },
+  {
+    "hash": "6dfa2417",
+    "full_hash": "6dfa241761912850e3c86941c4940e12af97315f",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to e0fd0bb",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 16:53:51 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/6dfa241761912850e3c86941c4940e12af97315f"
+  },
+  {
     "hash": "977e2ff0",
     "full_hash": "977e2ff0eb9b632999cd4995dae3860e5a84e9fd",
     "type": "fix",
@@ -468,35 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-24 17:14:45 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/c34d42ea634b51bd80034c9dbcc890480992c151"
-  },
-  {
-    "hash": "8a6b4f5e",
-    "full_hash": "8a6b4f5e952d7dd8edec589601b1bf3dfae80db9",
-    "type": "feat",
-    "scope": "computer",
-    "subject": "remove /chat route",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 17:11:47 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/8a6b4f5e952d7dd8edec589601b1bf3dfae80db9"
-  },
-  {
-    "hash": "4af73f6c",
-    "full_hash": "4af73f6c09281a1d3a2c88c9d6f222478dd21209",
-    "type": "fix",
-    "scope": "",
-    "subject": "make restart button always visible",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 17:09:23 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/4af73f6c09281a1d3a2c88c9d6f222478dd21209"
-  },
-  {
-    "hash": "98cfe7d5",
-    "full_hash": "98cfe7d571ed641ca690528329f8ec86372f6071",
-    "type": "feat",
-    "scope": "",
-    "subject": "restart button in sidebar (computer SPA) + App.tsx TopBar (CLI dev view)",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 16:57:33 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/98cfe7d571ed641ca690528329f8ec86372f6071"
   }
 ]

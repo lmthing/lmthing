@@ -126,7 +126,7 @@ source keys in `sdk/org/.env`). Drive the browser with the chrome-devtools MCP.
 
 Studio shows a synthetic **`system`** project (the system/user spaces) plus the user's
 projects, and an always-on right-side **THING** chat dock (the `/studio` route in `sdk/org/apps/web/`).
-Open `.issues/` problems: CI/ArgoCD deploy flakiness, Zitadel login, architect stall (sdk/org/.issues).
+Open `.issues/` problems: CI/ArgoCD deploy flakiness, Zitadel login (sdk/org/.issues is empty — the reliability-redesign issues were closed after live verification, 2026-07-02).
 
 ## Useful Links
 

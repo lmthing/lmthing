@@ -1,5 +1,25 @@
 [
   {
+    "hash": "61cfc4c8",
+    "full_hash": "61cfc4c801be7408a7d56ec70ccdc0f92668cfa2",
+    "type": "feat",
+    "scope": "budget",
+    "subject": "rename budget windows 5h \u2192 1d; wire pod budget endpoint",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 18:48:20 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/61cfc4c801be7408a7d56ec70ccdc0f92668cfa2"
+  },
+  {
+    "hash": "675fff4e",
+    "full_hash": "675fff4e856268802042d11be6f289cd3600371a",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to d83891d",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 18:38:57 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/675fff4e856268802042d11be6f289cd3600371a"
+  },
+  {
     "hash": "63924dbf",
     "full_hash": "63924dbf082b92717019e729fc7b587f4b7c5fff",
     "type": "fix",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-24 17:21:49 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/543f9f3661e3b5e7786ed407b96c707804af3400"
-  },
-  {
-    "hash": "d4a6f596",
-    "full_hash": "d4a6f5965ecccc7fde7fb9fe14d358e1f30c95f3",
-    "type": "feat",
-    "scope": "computer",
-    "subject": "nav links + restart button in IDE header",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 17:15:44 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/d4a6f5965ecccc7fde7fb9fe14d358e1f30c95f3"
-  },
-  {
-    "hash": "c34d42ea",
-    "full_hash": "c34d42ea634b51bd80034c9dbcc890480992c151",
-    "type": "feat",
-    "scope": "computer",
-    "subject": "add restart button to IDE header (index route)",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 17:14:45 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/c34d42ea634b51bd80034c9dbcc890480992c151"
   }
 ]

@@ -1,5 +1,25 @@
 [
   {
+    "hash": "61cfc4c8",
+    "full_hash": "61cfc4c801be7408a7d56ec70ccdc0f92668cfa2",
+    "type": "feat",
+    "scope": "budget",
+    "subject": "rename budget windows 5h \u2192 1d; wire pod budget endpoint",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 18:48:20 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/61cfc4c801be7408a7d56ec70ccdc0f92668cfa2"
+  },
+  {
+    "hash": "675fff4e",
+    "full_hash": "675fff4e856268802042d11be6f289cd3600371a",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to d83891d",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 18:38:57 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/675fff4e856268802042d11be6f289cd3600371a"
+  },
+  {
     "hash": "63924dbf",
     "full_hash": "63924dbf082b92717019e729fc7b587f4b7c5fff",
     "type": "fix",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-24 16:57:33 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/98cfe7d571ed641ca690528329f8ec86372f6071"
-  },
-  {
-    "hash": "8fec9e4c",
-    "full_hash": "8fec9e4ca10d7bb4e0854c15a8b03555c5b9cd1b",
-    "type": "ci",
-    "scope": "",
-    "subject": "retrigger compute image build for restart API + upgrade flow",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 16:44:49 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/8fec9e4ca10d7bb4e0854c15a8b03555c5b9cd1b"
-  },
-  {
-    "hash": "904f475f",
-    "full_hash": "904f475f554e47bdb0c7fa49b80904bba0e0c063",
-    "type": "chore",
-    "scope": "",
-    "subject": "update sdk/org submodule to 0c979e6",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 16:08:29 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/904f475f554e47bdb0c7fa49b80904bba0e0c063"
   }
 ]

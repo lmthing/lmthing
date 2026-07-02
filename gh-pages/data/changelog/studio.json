@@ -1,5 +1,25 @@
 [
   {
+    "hash": "61cfc4c8",
+    "full_hash": "61cfc4c801be7408a7d56ec70ccdc0f92668cfa2",
+    "type": "feat",
+    "scope": "budget",
+    "subject": "rename budget windows 5h \u2192 1d; wire pod budget endpoint",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 18:48:20 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/61cfc4c801be7408a7d56ec70ccdc0f92668cfa2"
+  },
+  {
+    "hash": "675fff4e",
+    "full_hash": "675fff4e856268802042d11be6f289cd3600371a",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to d83891d",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 18:38:57 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/675fff4e856268802042d11be6f289cd3600371a"
+  },
+  {
     "hash": "63924dbf",
     "full_hash": "63924dbf082b92717019e729fc7b587f4b7c5fff",
     "type": "fix",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-25 17:01:59 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/e6ec05a00ed17c34916596b483be06d5642151ca"
-  },
-  {
-    "hash": "65644695",
-    "full_hash": "65644695d8686d6e5e19fff60f89067e595234f5",
-    "type": "fix",
-    "scope": "",
-    "subject": "add 1.5s settling delay before redirect/reload after restart or upgrade",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 17:22:08 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/65644695d8686d6e5e19fff60f89067e595234f5"
-  },
-  {
-    "hash": "543f9f36",
-    "full_hash": "543f9f3661e3b5e7786ed407b96c707804af3400",
-    "type": "fix",
-    "scope": "",
-    "subject": "studio spaces loading + system spaces path + tasklist terminology",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 17:21:49 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/543f9f3661e3b5e7786ed407b96c707804af3400"
   }
 ]

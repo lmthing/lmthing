@@ -1,5 +1,15 @@
 [
   {
+    "hash": "61cfc4c8",
+    "full_hash": "61cfc4c801be7408a7d56ec70ccdc0f92668cfa2",
+    "type": "feat",
+    "scope": "budget",
+    "subject": "rename budget windows 5h \u2192 1d; wire pod budget endpoint",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 18:48:20 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/61cfc4c801be7408a7d56ec70ccdc0f92668cfa2"
+  },
+  {
     "hash": "601d3acf",
     "full_hash": "601d3acf8e9a0e361029daca814689dc9de70e24",
     "type": "fix",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-03-23 19:11:11 +0200",
     "url": "https://github.com/lmthing/lmthing/commit/0759d66529dbb3a22cabcdf0941376e4819c81ff"
-  },
-  {
-    "hash": "dcf0199a",
-    "full_hash": "dcf0199ac0278d92ad72081cb09a3cb034544108",
-    "type": "chore",
-    "scope": "",
-    "subject": "remove unused Supabase functions and migrations",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-03-22 20:03:36 +0200",
-    "url": "https://github.com/lmthing/lmthing/commit/dcf0199ac0278d92ad72081cb09a3cb034544108"
   }
 ]

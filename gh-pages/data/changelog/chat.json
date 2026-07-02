@@ -1,5 +1,25 @@
 [
   {
+    "hash": "61cfc4c8",
+    "full_hash": "61cfc4c801be7408a7d56ec70ccdc0f92668cfa2",
+    "type": "feat",
+    "scope": "budget",
+    "subject": "rename budget windows 5h \u2192 1d; wire pod budget endpoint",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 18:48:20 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/61cfc4c801be7408a7d56ec70ccdc0f92668cfa2"
+  },
+  {
+    "hash": "675fff4e",
+    "full_hash": "675fff4e856268802042d11be6f289cd3600371a",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to d83891d",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 18:38:57 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/675fff4e856268802042d11be6f289cd3600371a"
+  },
+  {
     "hash": "63924dbf",
     "full_hash": "63924dbf082b92717019e729fc7b587f4b7c5fff",
     "type": "fix",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-24 17:09:23 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/4af73f6c09281a1d3a2c88c9d6f222478dd21209"
-  },
-  {
-    "hash": "98cfe7d5",
-    "full_hash": "98cfe7d571ed641ca690528329f8ec86372f6071",
-    "type": "feat",
-    "scope": "",
-    "subject": "restart button in sidebar (computer SPA) + App.tsx TopBar (CLI dev view)",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 16:57:33 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/98cfe7d571ed641ca690528329f8ec86372f6071"
-  },
-  {
-    "hash": "48c93caa",
-    "full_hash": "48c93caa6c8da25234e6ec0273bd0d33391dd55e",
-    "type": "feat",
-    "scope": "",
-    "subject": "compute upgrade flow \u2014 version tracking + chat upgrade banner",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 16:28:06 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/48c93caa6c8da25234e6ec0273bd0d33391dd55e"
   }
 ]

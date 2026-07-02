@@ -1,5 +1,15 @@
 [
   {
+    "hash": "9c3aac9c",
+    "full_hash": "9c3aac9c7595c06061c1d8f80347145bc63b0abe",
+    "type": "chore",
+    "scope": "",
+    "subject": "bump sdk/org \u2014 block sends when budget window exhausted",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 19:08:28 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/9c3aac9c7595c06061c1d8f80347145bc63b0abe"
+  },
+  {
     "hash": "66b225e7",
     "full_hash": "66b225e773ea6a8ff9dd7ddb4c8ef73a18ad4c10",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-25 17:01:59 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/e6ec05a00ed17c34916596b483be06d5642151ca"
-  },
-  {
-    "hash": "65644695",
-    "full_hash": "65644695d8686d6e5e19fff60f89067e595234f5",
-    "type": "fix",
-    "scope": "",
-    "subject": "add 1.5s settling delay before redirect/reload after restart or upgrade",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 17:22:08 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/65644695d8686d6e5e19fff60f89067e595234f5"
   }
 ]

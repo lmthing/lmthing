@@ -1,5 +1,15 @@
 [
   {
+    "hash": "9c3aac9c",
+    "full_hash": "9c3aac9c7595c06061c1d8f80347145bc63b0abe",
+    "type": "chore",
+    "scope": "",
+    "subject": "bump sdk/org \u2014 block sends when budget window exhausted",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 19:08:28 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/9c3aac9c7595c06061c1d8f80347145bc63b0abe"
+  },
+  {
     "hash": "66b225e7",
     "full_hash": "66b225e773ea6a8ff9dd7ddb4c8ef73a18ad4c10",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-26 16:22:10 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/f355990709f6997980e2e6d304a5ce2b18afa82f"
-  },
-  {
-    "hash": "5370090a",
-    "full_hash": "5370090a2fb5d2f5cc6a5b9cf99772989148604c",
-    "type": "docs",
-    "scope": "",
-    "subject": "align top-level + state-lib docs with SPACE-SPEC changes; bump sdk/org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-25 17:42:08 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/5370090a2fb5d2f5cc6a5b9cf99772989148604c"
   }
 ]

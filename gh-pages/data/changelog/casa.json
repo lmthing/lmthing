@@ -1,5 +1,25 @@
 [
   {
+    "hash": "977e2ff0",
+    "full_hash": "977e2ff0eb9b632999cd4995dae3860e5a84e9fd",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to 0b63bfc",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 15:20:20 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/977e2ff0eb9b632999cd4995dae3860e5a84e9fd"
+  },
+  {
+    "hash": "c5c91402",
+    "full_hash": "c5c9140269d2d9dab4ef9793063664da9fe3a408",
+    "type": "chore",
+    "scope": "sdk",
+    "subject": "P7 live verification complete \u2014 bump sdk/org to e595e1f",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 14:30:53 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/c5c9140269d2d9dab4ef9793063664da9fe3a408"
+  },
+  {
     "hash": "21a7124c",
     "full_hash": "21a7124cdaca4fc32a03d248b3f7af9e0934e7c2",
     "type": "fix",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-24 07:00:46 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/2f9debc93410f1d546c7929c48c65a0e5e42dded"
-  },
-  {
-    "hash": "5660bd03",
-    "full_hash": "5660bd037dbe0d7f1f6b89fd8a8a88b68b23ef33",
-    "type": "chore",
-    "scope": "",
-    "subject": "bump sdk/org to 81c6d8e (LRU idle-session eviction at cap)",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 06:55:33 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/5660bd037dbe0d7f1f6b89fd8a8a88b68b23ef33"
-  },
-  {
-    "hash": "ac28915f",
-    "full_hash": "ac28915f9ea7e6c6b343c38e1fdc0304493a68ff",
-    "type": "fix",
-    "scope": "compute",
-    "subject": "ship system-spaces with the cli bundle; docs + issues",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 06:50:19 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/ac28915f9ea7e6c6b343c38e1fdc0304493a68ff"
   }
 ]

@@ -1,5 +1,25 @@
 [
   {
+    "hash": "977e2ff0",
+    "full_hash": "977e2ff0eb9b632999cd4995dae3860e5a84e9fd",
+    "type": "fix",
+    "scope": "sdk",
+    "subject": "update subproject commit to 0b63bfc",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 15:20:20 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/977e2ff0eb9b632999cd4995dae3860e5a84e9fd"
+  },
+  {
+    "hash": "c5c91402",
+    "full_hash": "c5c9140269d2d9dab4ef9793063664da9fe3a408",
+    "type": "chore",
+    "scope": "sdk",
+    "subject": "P7 live verification complete \u2014 bump sdk/org to e595e1f",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-02 14:30:53 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/c5c9140269d2d9dab4ef9793063664da9fe3a408"
+  },
+  {
     "hash": "21a7124c",
     "full_hash": "21a7124cdaca4fc32a03d248b3f7af9e0934e7c2",
     "type": "fix",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-24 14:28:24 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/b242ee182e974c00794c481ee9fc0330b64067f2"
-  },
-  {
-    "hash": "51f162ae",
-    "full_hash": "51f162aefdf31459a90c95f58480e91f64307c51",
-    "type": "chore",
-    "scope": "",
-    "subject": "bump sdk/org to dad1662 (system-spaces opt-in-update docs)",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 07:09:18 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/51f162aefdf31459a90c95f58480e91f64307c51"
-  },
-  {
-    "hash": "47a417d7",
-    "full_hash": "47a417d7dbd22bb607fefb7d81ae4e69cc93620e",
-    "type": "ci",
-    "scope": "",
-    "subject": "rebuild compute for serve-path runtime init",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-24 07:00:46 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/47a417d7dbd22bb607fefb7d81ae4e69cc93620e"
   }
 ]

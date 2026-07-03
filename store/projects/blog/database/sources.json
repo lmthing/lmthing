@@ -1,0 +1,17 @@
+{
+  "title": "Sources",
+  "description": "A subscription the user follows — an RSS feed or a saved web-search query — that the newsroom polls for news.",
+  "columns": {
+    "id":            { "type": "string",  "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "kind":          { "type": "string",  "description": "'rss' (feed URL) or 'search' (web-search query)", "required": true },
+    "value":         { "type": "string",  "description": "the RSS feed URL or the search query text; dedupe key", "required": true, "unique": true },
+    "label":         { "type": "string",  "description": "human label shown in Preferences" },
+    "topics":        { "type": "json",    "description": "array of topic tag strings this source is filed under" },
+    "active":        { "type": "boolean", "description": "whether the newsroom currently polls it", "default": true },
+    "lastFetchedAt": { "type": "date",    "description": "when the newsroom last polled this source" },
+    "createdAt":     { "type": "date",    "description": "when the user subscribed", "generated": "now" }
+  },
+  "relations": {
+    "items": { "hasMany": "raw_items", "via": "sourceId", "description": "raw entries fetched from this source" }
+  }
+}

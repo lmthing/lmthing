@@ -1,0 +1,5 @@
+# Generated + runtime — never checked in (parent plan §Directory layout)
+types/
+.data/
+node_modules/
+dist/

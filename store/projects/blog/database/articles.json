@@ -1,0 +1,20 @@
+{
+  "title": "Articles",
+  "description": "A synthesized, personalized news article shown in the user's feed.",
+  "columns": {
+    "id":        { "type": "string",  "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "title":     { "type": "string",  "description": "headline shown in the feed", "required": true },
+    "summary":   { "type": "string",  "description": "one-paragraph deck shown in the feed list", "required": true },
+    "body":      { "type": "string",  "description": "full synthesized article, markdown", "required": true },
+    "tags":      { "type": "json",    "description": "topic tag strings — feed filtering and the /tag route" },
+    "imageUrl":  { "type": "string",  "description": "optional hero image URL surfaced in the feed card (from a cited item)" },
+    "score":     { "type": "number",  "description": "personalization relevance rank; higher = surfaced first", "default": 0 },
+    "read":      { "type": "boolean", "description": "whether the user has opened it", "default": false },
+    "saved":     { "type": "boolean", "description": "whether the user bookmarked it for later", "default": false },
+    "createdAt": { "type": "date",    "description": "when the article entered the feed", "generated": "now" }
+  },
+  "relations": {
+    "citations": { "hasMany": "citations", "via": "articleId", "description": "the raw items this article was synthesized from" },
+    "research":  { "hasMany": "research",  "via": "articleId", "description": "deep-dive reports requested on this article" }
+  }
+}

@@ -1,8 +1,13 @@
 # Autonomous app-builder
 
 Runs **Claude Code headless every 5 hours** to build, test, and ship the four
-project-applications described in `app-specifications/{health,blog,kitchen,trips}-application.md`,
-each conforming to the architecture in `app-specifications/project-as-application.md`.
+project-applications described in `app-specifications/{blog,kitchen,health,trips}-application.md`,
+each conforming to the two canonical architecture docs the prompt reads in full every run:
+`sdk/org/project-as-application.md` (the model + file formats) and
+`sdk/org/project-as-application-implementation.md` (the phased build/test/push contract —
+§0 global protocol, live-DeepSeek test protocol, push-both-repos protocol, engine phases).
+Those two live in the `sdk/org` submodule and are **read-only ground truth**; the builder edits
+only the four app specs (in `app-specifications/`, parent repo).
 
 Each 5-hour run targets **one app** (round-robin `blog → kitchen → health → trips`), so a
 full cycle touches every app roughly once per 20 hours.

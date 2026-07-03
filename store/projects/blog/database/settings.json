@@ -1,0 +1,10 @@
+{
+  "title": "Settings",
+  "description": "The single account-settings row for this user's blog. Exactly one row (seeded at provisioning / by getSettings).",
+  "columns": {
+    "id":              { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "tier":            { "type": "string", "description": "'free' or 'subscription' — gates deep research and the source cap", "default": "free" },
+    "weeklyBudgetUsd": { "type": "number", "description": "newsroom spend allowance per week (tier-driven)", "default": 1 },
+    "maxFreeSources":  { "type": "number", "description": "how many sources a free-tier user may add before addSource returns 402", "default": 5 }
+  }
+}

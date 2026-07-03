@@ -1,0 +1,16 @@
+{
+  "title": "Research reports",
+  "description": "An on-demand deep-dive the researcher agent produces for an article or a free topic.",
+  "columns": {
+    "id":        { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "articleId": { "type": "string", "description": "the article this expands (null for a free-topic dive)",
+                   "references": { "table": "articles", "column": "id", "onDelete": "cascade" } },
+    "topic":     { "type": "string", "description": "the question or topic researched", "required": true },
+    "body":      { "type": "string", "description": "the deep-dive report, markdown; empty while pending" },
+    "status":    { "type": "string", "description": "'pending' while the researcher runs, 'ready' when done, 'error' on failure", "default": "pending" },
+    "createdAt": { "type": "date",   "description": "when the dive was requested", "generated": "now" }
+  },
+  "relations": {
+    "article": { "belongsTo": "articles", "via": "articleId", "description": "the article being expanded" }
+  }
+}

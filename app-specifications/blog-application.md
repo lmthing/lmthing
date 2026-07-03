@@ -1,6 +1,6 @@
 # lmthing.blog as a Project-Application — the `blog` project
 
-> A concrete instantiation of [project-as-application.md](./project-as-application.md) for
+> A concrete instantiation of [project-as-application.md](../sdk/org/project-as-application.md) for
 > **lmthing.blog**: personalized AI news. The `blog` project owns the app — `database/` (sources,
 > raw items, synthesized articles, research), `pages/` (client React feed / preferences / article),
 > `api/` (named typed Node endpoints), `hooks/` (poll + synthesize), and a project-scoped
@@ -56,8 +56,12 @@ blog/
 ├── components/               # shared page components (ArticleCard, SourceRow, MarkdownBody…)
 ├── api/
 │   ├── feed-list/GET.ts               # feedList
+│   ├── stats/GET.ts                   # feedStats
 │   ├── mark-read/POST.ts              # markRead
+│   ├── mark-all-read/POST.ts          # markAllRead
+│   ├── settings/GET.ts                # getSettings (seeds the single row)
 │   ├── articles/[id]/GET.ts           # getArticle
+│   ├── articles/[id]/save/POST.ts     # saveArticle
 │   ├── articles/[id]/research/
 │   │   ├── GET.ts                     # getResearch
 │   │   └── POST.ts                    # requestResearch   (subscription-gated)
@@ -129,8 +133,10 @@ loud on any missing one. Foreign keys map to real SQLite `FOREIGN KEY` (`PRAGMA 
     "summary":   { "type": "string",  "description": "one-paragraph deck shown in the feed list", "required": true },
     "body":      { "type": "string",  "description": "full synthesized article, markdown", "required": true },
     "tags":      { "type": "json",    "description": "topic tag strings — feed filtering and the /tag route" },
+    "imageUrl":  { "type": "string",  "description": "optional hero image URL surfaced in the feed card (from a cited item)" },
     "score":     { "type": "number",  "description": "personalization relevance rank; higher = surfaced first", "default": 0 },
     "read":      { "type": "boolean", "description": "whether the user has opened it", "default": false },
+    "saved":     { "type": "boolean", "description": "whether the user bookmarked it for later", "default": false },
     "createdAt": { "type": "date",    "description": "when the article entered the feed", "generated": "now" } },
   "relations": {
     "citations": { "hasMany": "citations", "via": "articleId", "description": "the raw items this article was synthesized from" },
@@ -191,11 +197,15 @@ stub routes map over: `index.tsx`→feed, `post/$slug`→`feed/[articleId]` (art
 
 | File | Route | Reads |
 |---|---|---|
-| `pages/index.tsx` | `/` | `feedList` (unread + `?tag`) |
-| `pages/preferences.tsx` | `/preferences` | `listSources`; mutates via `addSource`/`removeSource` |
-| `pages/feed/[articleId].tsx` | `/feed/:articleId` | `getArticle` (`include` citations); `markRead` on open |
+| `pages/index.tsx` | `/` | `feedList` (unread/saved + `?tag`) + `feedStats` strip; `markAllRead`, `saveArticle` toggles |
+| `pages/preferences.tsx` | `/preferences` | `listSources` + `getSettings` (tier/budget); mutates via `addSource`/`removeSource` |
+| `pages/feed/[articleId].tsx` | `/feed/:articleId` | `getArticle` (`include` citations); `markRead` on open; `saveArticle` bookmark |
 | `pages/feed/[articleId]/research.tsx` | `/feed/:articleId/research` | `getResearch`; `requestResearch` + `<Chat agent="newsroom/researcher">` |
 | `pages/tag/[tag].tsx` | `/tag/:tag` | `feedList` filtered by tag |
+
+A **Saved** filter and the **stats strip** (unread / saved / total / source counts + top tags) are
+round-1 additions on the feed, backed by `feedStats` + the `saved` column — modest UX depth without
+new pages. The layout nav gains a **Saved** quick-filter alongside Feed · Preferences.
 
 ```tsx
 // pages/index.tsx  → "/"  (the feed)
@@ -219,14 +229,27 @@ surface; `spawn` is fire-and-forget). Dual-addressed (HTTP for the browser, `nam
 
 | name | method + route | I/O sketch |
 |---|---|---|
-| `feedList` | `GET api/feed-list` | `{ unreadOnly?, tag? }` → `Article[]` |
+| `feedList` | `GET api/feed-list` | `{ unreadOnly?, savedOnly?, tag? }` → `Article[]` |
 | `getArticle` | `GET api/articles/:id` | `{ id }` → `Article & { citations }` |
 | `markRead` | `POST api/mark-read` | `{ id }` → `{ ok }` |
+| `markAllRead` | `POST api/mark-all-read` | `{ tag? }` → `{ count }` — flip every unread (optionally tag-scoped) |
+| `saveArticle` | `POST api/articles/:id/save` | `{ id, saved }` → `{ ok }` — bookmark/unbookmark |
+| `feedStats` | `GET api/stats` | `{}` → `{ unread, saved, total, sources, tags: {tag,count}[] }` — feed summary strip |
 | `listSources` | `GET api/sources` | `{}` → `Source[]` |
-| `addSource` | `POST api/sources` | `{ kind, value, label?, topics? }` → `Source` |
+| `addSource` | `POST api/sources` | `{ kind, value, label?, topics? }` → `Source` — free-tier source cap enforced |
 | `removeSource` | `DELETE api/sources/:id` | `{ id }` → `{ ok }` |
+| `getSettings` | `GET api/settings` | `{}` → `Setting` (tier + weekly budget; seeds the row if absent) |
 | `requestResearch` | `POST api/articles/:id/research` | `{ id, topic }` → `{ researchId, status:'pending' }` — **gated** |
 | `getResearch` | `GET api/articles/:id/research` | `{ id }` → `Research[]` |
+
+> **Generated row-type names (engine singularizer).** Pages/handlers import row types from
+> `@app/types`; the build derives interface names deterministically (`build/schema.ts`): `sources→
+> Source`, `raw_items→RawItem`, `articles→Article`, `citations→Citation`, `research→Research`,
+> `settings→**Setting**` (trailing `gs`→`g`). Reference `Setting` (singular), not `Settings`.
+>
+> **`db.query` `where` is equality-only** (`Record<string,unknown>` + `include/orderBy/limit/
+> offset`) — no `LIKE`/ranges. Handlers and newsroom agents that need substring/negation filters
+> **query-all then filter in JS** (a Phase-7 live-run learning); the api handlers below follow this.
 
 ```ts
 // api/articles/[id]/research/POST.ts → POST .../api/articles/:id/research ; name "requestResearch"
@@ -310,28 +333,35 @@ Project-scoped at `blog/spaces/newsroom/`. Capabilities are least-privilege per 
 config-bearing `capabilities:` frontmatter key, table scope **per verb** (parent plan §"Capability
 globals"):
 
-| Agent | `db:read` tables | `db:write` tables | `api:call` allow | Role |
+| Agent | `db:read` tables | `db:write` tables | `functions` (fetch tools) | Role |
 |---|---|---|---|---|
-| **fetcher** | `sources, raw_items` | `raw_items, sources` | `webSearch` | poll `active` sources, insert deduped `raw_items` (writes `sources` only for `lastFetchedAt`) |
-| **synthesizer** | `raw_items, sources, articles` | `articles, citations, raw_items` | — | read unprocessed items → write `articles` + `citations`, mark processed |
-| **researcher** | `articles, citations, research` | `research` | `webSearch` | deep dives → fill `research` rows (chat- and POST-driven) |
+| **fetcher** | `sources, raw_items` | `raw_items, sources` | `webSearch, webFetch, fetch` | poll `active` sources, insert deduped `raw_items` (writes `sources` only for `lastFetchedAt`) |
+| **synthesizer** | `raw_items, sources, articles` | `articles, citations, raw_items` | `[]` (no fetch — db-only) | read unprocessed items → write `articles` + `citations`, mark processed |
+| **researcher** | `articles, citations, research` | `research` | `webSearch, webFetch, fetch` | deep dives → fill `research` rows (chat- and POST-driven) |
 
 ```yaml
 # blog/spaces/newsroom/agents/fetcher/instruct.md frontmatter
+title: Fetcher
+functions: [webSearch, webFetch, fetch]         # system fetch tools (functions allow-list)
 capabilities:
   - db:read:  { tables: [sources, raw_items] }
   - db:write: { tables: [raw_items, sources] }   # sources: lastFetchedAt updates only
-  - api:call: { allow: [webSearch] }
 ```
 
+- **Fetch tools are system `functions:`, not `api:call` bindings.** In the shipped engine
+  `webSearch`/`webFetch`/`fetch` are **value-yielding system functions** gated by the agent's
+  `functions:` allow-list (a `[]` list = no fetch at all — the synthesizer is deliberately
+  db-only). There is no external named-binding registry, so **`api:call` is reserved for the
+  app's own typed endpoints** (`apiCall('feedList', …)`); the newsroom agents need none of the
+  app's endpoints and therefore carry no `api:call` capability.
 - **Per-verb table scope keeps each agent in its own lane** — the fetcher can't touch `articles`,
   the researcher reads `articles` but can only write `research`; none of them can even read
   `settings` (tier gating is the api handler's job, not an agent's).
 - **No `db:schema`/`pages:write`/`api:write` here** — the newsroom *operates* the app; *building/evolving*
   it (new tables, pages, endpoints) is THING → `system-appbuilder` (parent plan). "Add a 'saved'
   column and a Saved page" is an authoring request, not a newsroom one.
-- `webSearch` is a **named binding** (hidden URL+key kept out of the transcript); the allowlisted set
-  is each agent's callable-tool menu.
+- **Equality-only `where`** — agents that need "unprocessed items" query the table and filter in
+  JS (`db.query('raw_items').filter(r => !r.processed)`), never a `LIKE`/range `where`.
 
 ## Serving & domains
 
@@ -375,7 +405,8 @@ build, hooks runtime, chat) exists. Blog-specific work on top:
 2. **`newsroom` space** — the three agents' `instruct.md` (config-bearing `capabilities:`
    frontmatter — per-verb `tables`, `api:call` allow — plus tasklists for
    `refresh`/`synthesize`/`deep-dive`); `webSearch` named binding registered.
-3. **API** — the eight endpoints (dir/method layout above), tier gate on `requestResearch`.
+3. **API** — the twelve endpoints (dir/method layout above), tier gate on `requestResearch`,
+   free-tier source cap on `addSource`, single-row seed on `getSettings`.
 4. **Hooks** — `refresh-sources` (cron) + `synthesize-new` (database:insert); confirm the
    insert→synthesize loop is bounded (no article-insert cascade).
 5. **Pages** — port `blog/src/routes/*` to `pages/*` (index→feed, post/$slug→`feed/[articleId]`,
@@ -412,7 +443,7 @@ build, hooks runtime, chat) exists. Blog-specific work on top:
 
 - **Reuses the parent engine wholesale** — no blog-specific runtime; this is data + agents + pages +
   hooks on the shared project-application layer. If a mechanism is missing here, it belongs in
-  [project-as-application.md](./project-as-application.md), not a blog fork.
+  [project-as-application.md](../sdk/org/project-as-application.md), not a blog fork.
 - **Personalization scoring** (`articles.score`) is a synthesizer concern (rank by the user's `topics`
   / read history), not a schema one — left to the agent, kept as a plain column.
 - **The whole app stays within per-user pod isolation** — no public or cross-user surface, so no v1

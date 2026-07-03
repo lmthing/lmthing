@@ -1,0 +1,19 @@
+{
+  "title": "Raw items",
+  "description": "One unsynthesized entry fetched from a source, before the newsroom writes it up.",
+  "columns": {
+    "id":        { "type": "string",  "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "sourceId":  { "type": "string",  "description": "the source this was fetched from", "required": true,
+                   "references": { "table": "sources", "column": "id", "onDelete": "cascade" } },
+    "title":     { "type": "string",  "description": "original headline as fetched", "required": true },
+    "url":       { "type": "string",  "description": "canonical source URL — dedupe key", "required": true, "unique": true },
+    "excerpt":   { "type": "string",  "description": "raw summary / first paragraph as fetched" },
+    "imageUrl":  { "type": "string",  "description": "optional lead image URL from the source entry, inherited by the synthesized article" },
+    "fetchedAt": { "type": "date",    "description": "when fetched", "generated": "now" },
+    "processed": { "type": "boolean", "description": "whether an article has been synthesized from it", "default": false }
+  },
+  "relations": {
+    "source":    { "belongsTo": "sources", "via": "sourceId", "description": "the feed it came from" },
+    "citations": { "hasMany": "citations", "via": "rawItemId", "description": "articles that cite this item" }
+  }
+}

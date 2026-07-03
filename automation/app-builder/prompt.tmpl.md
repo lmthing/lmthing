@@ -37,14 +37,32 @@ size of what you add scales with the round:
 
 ## Ground truth (read these first, in order)
 
-1. `app-specifications/project-as-application.md` — **the architecture you must abide by.**
-   This is the canonical model: Space = agent capability; Project = the app (`database/
-   pages/ api/ hooks/ package.json`) + its project-scoped spaces; capability globals; the
-   typed-contract pipeline; serving; the `system-appbuilder` space. Everything you build
-   must conform to it.
-2. `app-specifications/__SPEC_FILE__` — **the spec for the app you are building this run**
-   (`__APP__`).
-3. Skim `app-specifications/project-as-application-implementation.md` if present, and
+**You MUST read BOTH of these two canonical architecture documents IN FULL, every run,
+before doing anything else** — together they are the complete picture of how these apps and
+their runtime engine are built. They are **read-only ground truth**: never edit them (you
+edit only the app spec in step 3).
+
+1. `sdk/org/project-as-application.md` — **the architecture / model you must abide by.**
+   Space = agent capability; Project = the app (`database/ pages/ api/ hooks/ package.json`)
+   + its project-scoped spaces; the capability-globals model (`db:*`, `pages:write`,
+   `api:write`, `hooks:write`, `api:call`); the exact file formats (`database/<table>.json`,
+   `api/<route>/<METHOD>.ts`, `hooks/<slug>.ts`, `pages/`); the typed-contract pipeline;
+   serving; the `system-appbuilder` space. Everything you build must conform to it.
+2. `sdk/org/project-as-application-implementation.md` — **the phased implementation contract:
+   HOW it gets built, tested, and shipped.** Read it in full: §0 Global protocol (the
+   Definition-of-Done gate; the **mandatory live-DeepSeek test protocol** via `sdk/org/.env`
+   with `--model S`; the **push-both-repos protocol**; the backward-compatibility invariants),
+   the Phase 1–11 engine build plan with exact files in `libs/core`/`libs/cli`, and the
+   capability/DTS/db/api/hooks/build/chat mechanics. When a runtime piece an app needs isn't
+   implemented yet, THIS document tells you which files to add and how to test them.
+   - **Location caveat:** that doc's §0.6 uses a `store/apps/<appId>/` catalog + a store
+     install endpoint. For THIS automation the operator's chosen output location is
+     **`store/projects/__APP__/`** — use the implementation doc for the engine mechanics,
+     file formats, capability model, and build/test/push protocol, **not** for the app's
+     output path (create the app under `store/projects/__APP__/`, and treat the store-catalog
+     install flow as out of scope for these runs).
+3. `app-specifications/__SPEC_FILE__` — **the spec for the app you are building this run**
+   (`__APP__`); this is the one document you DO edit (step Phase 1). Also read
    `sdk/org/CLAUDE.md` + root `CLAUDE.md` for runtime/repo conventions.
 4. `automation/app-builder/PROGRESS.__APP__.md` — **your running log for THIS app.** If it
    exists, read it first: it tells you what previous runs already did and where to resume.
@@ -61,9 +79,10 @@ size of what you add scales with the round:
 ### Phase 1 — Improve the spec (think deeply, then edit the spec file)
 - **Think deeply** about `app-specifications/__SPEC_FILE__`: what improvements and feature
   additions would make `__APP__` a genuinely better, more valuable AI-assisted application —
-  while staying strictly inside the parent model in `project-as-application.md` (no new
-  runtime mechanisms; only data/agents/pages/api/hooks on the shared engine, exactly as the
-  spec's "Additional features" sections do).
+  while staying strictly inside the model in `sdk/org/project-as-application.md` and the
+  mechanics/protocol in `sdk/org/project-as-application-implementation.md` (only
+  data/agents/pages/api/hooks on the shared engine, exactly as the spec's "Additional
+  features" sections do — no capabilities the parent plan forbids).
 - **Edit `app-specifications/__SPEC_FILE__` in place** to fold those improvements into the spec
   (new tables/columns/endpoints/hooks/agent capabilities/pages, sharper UX, safety notes).
   Keep the document's existing structure and tone. Do not invent capabilities the parent
@@ -164,8 +183,11 @@ parent monorepo — never leave one pushed and the other not.** Do them in this 
   reference an unpushed submodule commit.
 
 ## Hard rules
-- Abide by `project-as-application.md`. If the spec and the parent plan disagree, the
-  parent plan wins and you fix the spec.
+- **Read both `sdk/org/project-as-application.md` AND
+  `sdk/org/project-as-application-implementation.md` in full at the start of every run** —
+  they are the complete, canonical source for how the app + engine are built, tested, and
+  pushed. Abide by them. If the app spec and these architecture docs disagree, the
+  architecture docs win and you fix the app spec.
 - Design tokens only — `pnpm lint:tokens` is a hard gate.
 - Keep `.issues/` honest: file an issue for any real bug you find and can't fix; delete it
   when fixed.

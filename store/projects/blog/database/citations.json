@@ -1,0 +1,16 @@
+{
+  "title": "Citations",
+  "description": "Links a synthesized article to a raw item it drew from, for provenance.",
+  "columns": {
+    "id":        { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "articleId": { "type": "string", "description": "the article", "required": true,
+                   "references": { "table": "articles", "column": "id", "onDelete": "cascade" } },
+    "rawItemId": { "type": "string", "description": "the source raw item (kept when article deleted → set null)",
+                   "references": { "table": "raw_items", "column": "id", "onDelete": "setNull" } },
+    "quote":     { "type": "string", "description": "the passage the article relied on" }
+  },
+  "relations": {
+    "article": { "belongsTo": "articles",  "via": "articleId", "description": "the citing article" },
+    "item":    { "belongsTo": "raw_items",  "via": "rawItemId", "description": "the cited raw item" }
+  }
+}

@@ -10,6 +10,7 @@ import {
   installUrl,
   mintInstallationToken,
   isGithubAppConfigured,
+  checkBackupRepo,
 } from "../lib/github-app.js";
 import {
   getBackupConfig,
@@ -103,6 +104,38 @@ backup.put("/config", authMiddleware, async (c) => {
     typeof body.intervalMinutes === "number" ? Math.floor(body.intervalMinutes) : 60;
   if (!Number.isFinite(intervalMinutes) || intervalMinutes < 5) intervalMinutes = 5;
   if (intervalMinutes > 1440) intervalMinutes = 1440;
+
+  // The repo must already exist, be reachable by the App, and be empty (or a
+  // prior lmthing backup). We never create it — creating a user-owned repo needs
+  // a user token, not an installation token. Validate up-front so the user gets
+  // a clear message instead of a later push failure.
+  const cfg0 = await getBackupConfig(user.id);
+  if (!cfg0?.installation_id) {
+    return c.json({ error: "Connect GitHub first, then choose a repository." }, 400);
+  }
+  const [owner, name] = repo.split("/");
+  try {
+    const check = await checkBackupRepo(cfg0.installation_id, owner, name, DEFAULT_BRANCH);
+    if (!check.ok && check.reason === "not-found") {
+      return c.json(
+        {
+          error: `Repository "${repo}" not found, or the backup App isn't granted access to it. Create an empty private repo and add it to the App's installation, then try again.`,
+        },
+        404,
+      );
+    }
+    if (!check.ok && check.reason === "not-empty") {
+      return c.json(
+        {
+          error: `Repository "${repo}" is not empty (found branch(es): ${check.branches.join(", ")}). Use a fresh empty repo so backups can't overwrite existing work.`,
+        },
+        409,
+      );
+    }
+  } catch (err) {
+    console.error(`Repo validation failed for ${user.id} (${repo}):`, err);
+    return c.json({ error: "Could not validate the repository with GitHub. Try again." }, 502);
+  }
 
   try {
     await setBackupSettings(user.id, repo, auto, intervalMinutes);

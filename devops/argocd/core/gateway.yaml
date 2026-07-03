@@ -180,7 +180,7 @@ spec:
                   name: lmthing-secrets
                   key: ACR_PASSWORD
             - name: COMPUTE_IMAGE_TAG
-              value: "aaf38a6"
+              value: "7d37728"
           resources:
             requests:
               memory: "128Mi"

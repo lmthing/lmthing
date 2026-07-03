@@ -89,4 +89,32 @@ Running log across 5-hour autonomous runs. Single source of truth for status.
     db-change hook dispatch, live multi-agent delegate, typed api read view — all live.
   - The fetcher correctly **refused** to insert fabricated data first (its own guardrail),
     which is why the real-feed path was used — good agent behavior, captured.
-- Phase 5 push: (pending — after unit test files + full sdk/org gate + lint:tokens)
+- Phase 5 push ✅ — green gate then two-repo push (submodule first):
+  - Gate: build ✅ typecheck ✅ test ✅ (907 passed / 21 skipped; the lone red
+    `serve-tree-ws.test.ts` is a pre-existing ENOTEMPTY teardown flake — passes in
+    isolation, unrelated to the `build/schema.ts` change) · system-spaces-dag ✅ (11) ·
+    lint:tokens ✅ (root 567 + blog 12) · blog app tests ✅ (8, `node --test`).
+  - **Pushed sdk/org `main`: `e70161a`** (escapeGlobPath fix + regression test).
+  - **Pushed monorepo `main`: `a7c0e41`** (blog app + spec + PLAN/PROGRESS + pointer bump).
+  - Verified: both level with origin/main; parent pointer records `e70161a` (matches
+    submodule HEAD). Left the sibling health/kitchen/trips app-specs untouched (other rounds).
+
+## Resume notes for the NEXT run (round 2 — FEATURE EXPANSION)
+- The app EXISTS and is green + live-verified. Round 2 is strictly additive — do NOT
+  regress/delete round-1 files. Floors: ≥1 new project-scoped space, ≥3 new agents, ≥5 new
+  pages, ≥8 new api endpoints, ≥3 new hooks, ≥3 new tables + substantial new features.
+- Run the app locally exactly as this run: materialize `store/projects/blog/` into a temp
+  `LMTHING_ROOT`'s `<root>/blog/`, `node sdk/org/libs/cli/dist/cli/bin.js serve --port <p>`
+  (flag is `--port`, NOT `--serve-port`), then drive via `POST /app/blog/api/*`, the admin
+  data browser (`GET /api/projects/blog/app/data/:table`), and chat sessions
+  (`POST /api/sessions {projectId:'blog', spaceRef:'<space>/<agent>'}` +
+  `POST /api/sessions/:id/message {content}`). Live model via `sdk/org/.env` (AZURE keys set).
+- Engine gotchas already handled (keep applying): dynamic `[param]` api routes need the
+  glob-escape fix (now shipped); agent `functions:` is space-functions-only (system
+  webSearch/webFetch/fetch are universal — don't list them); named delegate actions need an
+  `actions:` frontmatter entry (empty tasklist = model-driven); `db.query` `where` is
+  equality-only; per-hook coalesce means rapid same-table inserts synthesize once per window.
+- Ideas for round 2 spaces/features: an **`editorial`** space (curator/ranker/copyeditor);
+  tables `digests`, `topics`, `reading_events`, `newsletters`; endpoints for personalization
+  (topic follow/mute, per-topic feeds), a daily **digest** builder hook, saved-search alerts,
+  full-text-ish client search, an article **/tag** aggregation page, RSS OPML import.

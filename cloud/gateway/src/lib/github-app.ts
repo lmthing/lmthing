@@ -1,4 +1,5 @@
-import { SignJWT, importPKCS8 } from "jose";
+import { SignJWT } from "jose";
+import { createPrivateKey } from "node:crypto";
 
 /**
  * GitHub App client — the gateway is the sole custodian of the App's private
@@ -33,7 +34,11 @@ export function isGithubAppConfigured(): boolean {
  * authenticate as the App itself when minting installation tokens.
  */
 async function appJwt(): Promise<string> {
-  const key = await importPKCS8(PRIVATE_KEY, "RS256");
+  // GitHub App keys download in PKCS#1 (`BEGIN RSA PRIVATE KEY`); jose's
+  // importPKCS8 only accepts PKCS#8 (`BEGIN PRIVATE KEY`). node's
+  // createPrivateKey parses both, so users can paste the key GitHub gives them
+  // verbatim. The returned KeyObject is accepted directly by SignJWT.sign().
+  const key = createPrivateKey(PRIVATE_KEY);
   const now = Math.floor(Date.now() / 1000);
   return new SignJWT({})
     .setProtectedHeader({ alg: "RS256" })

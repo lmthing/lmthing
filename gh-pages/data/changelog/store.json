@@ -1,5 +1,15 @@
 [
   {
+    "hash": "ffbe11e7",
+    "full_hash": "ffbe11e71fdcfc535f5f892772b78abd0c1c2f3c",
+    "type": "chore",
+    "scope": "",
+    "subject": "bump sdk/org \u2014 project-as-application Phase 8 (Studio admin API + UI) + domain devops task",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-03 23:08:18 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/ffbe11e71fdcfc535f5f892772b78abd0c1c2f3c"
+  },
+  {
     "hash": "7c27f6b8",
     "full_hash": "7c27f6b8d545ac4c312537a051a93a355e364de8",
     "type": "chore",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-28 16:10:18 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/f7222c3f2d62f008debb45ca34259691d094a687"
-  },
-  {
-    "hash": "df952584",
-    "full_hash": "df95258443cddd46727aa926323986dcd081c985",
-    "type": "fix",
-    "scope": "spa",
-    "subject": "never cache index.html \u2014 pick up new deploys without a hard refresh",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-28 14:35:19 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/df95258443cddd46727aa926323986dcd081c985"
   }
 ]

@@ -1,5 +1,15 @@
 [
   {
+    "hash": "ffbe11e7",
+    "full_hash": "ffbe11e71fdcfc535f5f892772b78abd0c1c2f3c",
+    "type": "chore",
+    "scope": "",
+    "subject": "bump sdk/org \u2014 project-as-application Phase 8 (Studio admin API + UI) + domain devops task",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-03 23:08:18 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/ffbe11e71fdcfc535f5f892772b78abd0c1c2f3c"
+  },
+  {
     "hash": "7c27f6b8",
     "full_hash": "7c27f6b8d545ac4c312537a051a93a355e364de8",
     "type": "chore",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-28 14:35:19 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/df95258443cddd46727aa926323986dcd081c985"
-  },
-  {
-    "hash": "6139d13d",
-    "full_hash": "6139d13dbdaca9d20fbb1ace666604e0faf15d05",
-    "type": "chore",
-    "scope": "",
-    "subject": "bump sdk/org \u2014 AgentChatPanel echoes user messages",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-28 14:24:26 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/6139d13dbdaca9d20fbb1ace666604e0faf15d05"
   }
 ]

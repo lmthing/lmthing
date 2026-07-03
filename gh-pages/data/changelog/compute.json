@@ -1,5 +1,15 @@
 [
   {
+    "hash": "ffbe11e7",
+    "full_hash": "ffbe11e71fdcfc535f5f892772b78abd0c1c2f3c",
+    "type": "chore",
+    "scope": "",
+    "subject": "bump sdk/org \u2014 project-as-application Phase 8 (Studio admin API + UI) + domain devops task",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-03 23:08:18 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/ffbe11e71fdcfc535f5f892772b78abd0c1c2f3c"
+  },
+  {
     "hash": "7c27f6b8",
     "full_hash": "7c27f6b8d545ac4c312537a051a93a355e364de8",
     "type": "chore",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-29 21:30:11 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/af4f0e5ff8684e59600678eed677d0b90f40f741"
-  },
-  {
-    "hash": "f7222c3f",
-    "full_hash": "f7222c3f2d62f008debb45ca34259691d094a687",
-    "type": "feat",
-    "scope": "ui",
-    "subject": "cross-app nav links between studio, chat and computer",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-28 16:10:18 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/f7222c3f2d62f008debb45ca34259691d094a687"
   }
 ]

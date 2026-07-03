@@ -1,5 +1,15 @@
 [
   {
+    "hash": "a7c0e412",
+    "full_hash": "a7c0e4123de35ec9329ae1f51eac1075d927915a",
+    "type": "feat",
+    "scope": "blog",
+    "subject": "ship the blog project-application (round 1 \u2014 core build)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 00:34:28 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/a7c0e4123de35ec9329ae1f51eac1075d927915a"
+  },
+  {
     "hash": "ffbe11e7",
     "full_hash": "ffbe11e71fdcfc535f5f892772b78abd0c1c2f3c",
     "type": "chore",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-29 21:33:40 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/3b1414cbc226ec4702f5b81d4eb21754d08e7ec7"
-  },
-  {
-    "hash": "af4f0e5f",
-    "full_hash": "af4f0e5ff8684e59600678eed677d0b90f40f741",
-    "type": "chore",
-    "scope": "",
-    "subject": "move studio and computer into sdk/org cli server",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-29 21:30:11 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/af4f0e5ff8684e59600678eed677d0b90f40f741"
   }
 ]

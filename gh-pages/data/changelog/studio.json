@@ -1,5 +1,15 @@
 [
   {
+    "hash": "a7c0e412",
+    "full_hash": "a7c0e4123de35ec9329ae1f51eac1075d927915a",
+    "type": "feat",
+    "scope": "blog",
+    "subject": "ship the blog project-application (round 1 \u2014 core build)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 00:34:28 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/a7c0e4123de35ec9329ae1f51eac1075d927915a"
+  },
+  {
     "hash": "ffbe11e7",
     "full_hash": "ffbe11e71fdcfc535f5f892772b78abd0c1c2f3c",
     "type": "chore",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-28 16:10:18 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/f7222c3f2d62f008debb45ca34259691d094a687"
-  },
-  {
-    "hash": "df952584",
-    "full_hash": "df95258443cddd46727aa926323986dcd081c985",
-    "type": "fix",
-    "scope": "spa",
-    "subject": "never cache index.html \u2014 pick up new deploys without a hard refresh",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-28 14:35:19 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/df95258443cddd46727aa926323986dcd081c985"
   }
 ]

@@ -1,5 +1,15 @@
 [
   {
+    "hash": "e8f98a86",
+    "full_hash": "e8f98a864f4001c7060d72973ca0b2608201eebe",
+    "type": "fix",
+    "scope": "backup",
+    "subject": "accept PKCS#1 GitHub App keys (fixes 502 on token mint)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-03 12:51:46 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/e8f98a864f4001c7060d72973ca0b2608201eebe"
+  },
+  {
     "hash": "07f47b37",
     "full_hash": "07f47b37a1cd444e53dcc569e54ae37efefab945",
     "type": "chore",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-03-24 15:24:06 +0200",
     "url": "https://github.com/lmthing/lmthing/commit/973cb369e2dcd94d066f9ca6c2c8500aab90f697"
-  },
-  {
-    "hash": "63ab5fcf",
-    "full_hash": "63ab5fcff723c65f7f5ed240e19ae36edeb34edb",
-    "type": "feat",
-    "scope": "",
-    "subject": "add Starter tier with pricing and documentation updates across the monorepo",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-03-23 20:30:17 +0200",
-    "url": "https://github.com/lmthing/lmthing/commit/63ab5fcff723c65f7f5ed240e19ae36edeb34edb"
   }
 ]

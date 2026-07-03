@@ -464,6 +464,9 @@ ansible-vault encrypt vault.yml
 | `vault_zitadel_client_id` | gateway | Web app client ID (set after Zitadel setup) |
 | `vault_zitadel_client_secret` | gateway | Web app client secret (set after Zitadel setup) |
 | `vault_gateway_jwt_secret` | gateway | Base64-encoded 32-byte secret for HS256 JWT signing — generate: `openssl rand -base64 32` |
+| `vault_github_app_id` | gateway | Workspace-backup GitHub App numeric ID — blank disables the feature |
+| `vault_github_app_slug` | gateway | Workspace-backup GitHub App public slug (`…/apps/<slug>`) |
+| `vault_github_app_private_key` | gateway | Workspace-backup GitHub App private-key PEM (block scalar) |
 | `vault_stripe_secret_key` | gateway | Stripe API access |
 | `vault_stripe_webhook_secret` | gateway | Stripe webhook signature verification |
 | `vault_stripe_price_basic` | gateway | Stripe price ID for Basic tier |

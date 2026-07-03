@@ -39,6 +39,9 @@
         STRIPE_PRICE_MAX: "{{ vault_stripe_price_max }}"
         LITELLM_MASTER_KEY: "{{ vault_litellm_master_key }}"
         GATEWAY_JWT_SECRET: "{{ vault_gateway_jwt_secret }}"
+        GITHUB_APP_ID: "{{ vault_github_app_id | default('') }}"
+        GITHUB_APP_SLUG: "{{ vault_github_app_slug | default('') }}"
+        GITHUB_APP_PRIVATE_KEY: "{{ vault_github_app_private_key | default('') }}"
         ACR_REGISTRY: "{{ vault_acr_registry }}"
         ACR_USERNAME: "{{ vault_acr_username }}"
         ACR_PASSWORD: "{{ vault_acr_password }}"
@@ -119,6 +122,10 @@
       kubectl exec -n lmthing "$POD" -- \
         psql -U "{{ vault_postgres_user }}" -d lmthing -v ON_ERROR_STOP=1 -f "$f"
     done
+  # pipefail is a bashism; ansible.builtin.shell defaults to /bin/sh (dash on
+  # the node), which aborts on `set -o pipefail`. Force bash.
+  args:
+    executable: /bin/bash
   changed_when: true
 
 - name: Clean up migrations directory on node

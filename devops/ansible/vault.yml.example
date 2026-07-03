@@ -39,6 +39,20 @@ vault_zitadel_client_secret: ""
 # Generate with: openssl rand -base64 32
 vault_gateway_jwt_secret: CHANGE_ME
 
+# ── GitHub App (workspace backup) ─────────────────────────────
+# Powers the "Workspace Backup" feature. Create a GitHub App (Contents: read &
+# write, Metadata: read, no webhooks; Setup URL https://lmthing.cloud/api/backup/callback;
+# installable on "Any account"). Leave blank to keep the feature disabled — the
+# gateway reports `configured: false` and the UI hides it.
+vault_github_app_id: ""            # numeric App ID from the App's General page
+vault_github_app_slug: ""          # public slug (…/apps/<slug>)
+# Paste the downloaded .pem as a YAML block scalar, e.g.:
+#   vault_github_app_private_key: |
+#     -----BEGIN RSA PRIVATE KEY-----
+#     ...
+#     -----END RSA PRIVATE KEY-----
+vault_github_app_private_key: ""
+
 # ── Stripe ────────────────────────────────────────────────────
 vault_stripe_secret_key: sk_live_xxx
 vault_stripe_webhook_secret: whsec_xxx

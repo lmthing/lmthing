@@ -54,9 +54,13 @@ export async function generateKey(
 }
 
 export async function updateUserTier(userId: string, tier: Tier) {
+  // NOTE: budget windows are enforced at the KEY level. LiteLLM's user table has
+  // no budget_limits column, and passing it to /user/update 400s ("Could not find
+  // field ... budget_limits"), which previously aborted the whole tier change
+  // before any key was updated. So update only the user's non-budget attributes
+  // here, then apply budget_limits to each key below.
   await request("/user/update", "POST", {
     user_id: userId,
-    budget_limits: toBudgetLimits(tier),
     models: tier.models.length > 0 ? tier.models : undefined,
     tpm_limit: tier.tpmLimit,
     rpm_limit: tier.rpmLimit,

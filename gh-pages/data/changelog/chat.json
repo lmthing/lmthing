@@ -1,5 +1,35 @@
 [
   {
+    "hash": "348f3478",
+    "full_hash": "348f3478d8d95f51617a66b793c4e0a3f6e6d09a",
+    "type": "chore",
+    "scope": "",
+    "subject": "bump sdk/org \u2014 project-as-application Phase 2 (CLI db engine + project app loader + boot reconcile + backup)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-03 19:06:09 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/348f3478d8d95f51617a66b793c4e0a3f6e6d09a"
+  },
+  {
+    "hash": "7302f82e",
+    "full_hash": "7302f82eab7ac8771f7d44b920c783f5b800ff7f",
+    "type": "chore",
+    "scope": "",
+    "subject": "bump sdk/org \u2014 project-as-application Phase 1 (db interfaces + capability globals + DTS refactor + projectRoot threading)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-03 18:36:49 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/7302f82eab7ac8771f7d44b920c783f5b800ff7f"
+  },
+  {
+    "hash": "484e9326",
+    "full_hash": "484e93262a355bec832a39167799be96f2768ac9",
+    "type": "chore",
+    "scope": "",
+    "subject": "add automation for claude",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-03 17:59:01 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/484e93262a355bec832a39167799be96f2768ac9"
+  },
+  {
     "hash": "12c1764e",
     "full_hash": "12c1764e0d1ca7d661b18b3aa41744f7a2d460d5",
     "type": "chore",
@@ -468,35 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-27 20:37:21 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/b2a89ca833812f0cba7434f05aac47affff4ba27"
-  },
-  {
-    "hash": "03ddb223",
-    "full_hash": "03ddb22357d7b131f38bb104f97eb231b5b5c8ce",
-    "type": "ci",
-    "scope": "",
-    "subject": "update subproject commit reference to 55c8e6b",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-27 18:06:49 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/03ddb22357d7b131f38bb104f97eb231b5b5c8ce"
-  },
-  {
-    "hash": "14a57188",
-    "full_hash": "14a57188435d14047c9cd23723789ede51d0a733",
-    "type": "ci",
-    "scope": "",
-    "subject": "update subproject commit reference to de52868",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-27 13:20:20 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/14a57188435d14047c9cd23723789ede51d0a733"
-  },
-  {
-    "hash": "0b2c32fa",
-    "full_hash": "0b2c32faf63f8191202989f785f36e9a99ae5453",
-    "type": "ci",
-    "scope": "",
-    "subject": "update subproject commit reference to 9281df6",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-27 12:40:16 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/0b2c32faf63f8191202989f785f36e9a99ae5453"
   }
 ]

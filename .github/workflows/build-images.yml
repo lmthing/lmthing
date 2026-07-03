@@ -22,6 +22,13 @@ on:
       - 'blog/**'
       - 'casa/**'
 
+# Serialize whole runs on the same branch: the manifest/build-data commits push
+# to main, so overlapping runs would race on the ref. Queue rather than cancel —
+# every build's tag update must land.
+concurrency:
+  group: build-images-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   detect:
     runs-on: ubuntu-latest
@@ -299,7 +306,9 @@ jobs:
           git push
 
   update-manifests:
-    needs: [detect, build]
+    # Depends on publish-build-data (not for its output, but to serialize the
+    # two jobs' pushes to main — running them in parallel races on the ref).
+    needs: [detect, build, publish-build-data]
     # Run when at least one image was built (even if some failed, e.g. compute).
     # The script below reads build-data artifacts to skip images that failed.
     if: always() && needs.detect.outputs.matrix != '[]' && needs.build.result != 'cancelled' && needs.build.result != 'skipped'

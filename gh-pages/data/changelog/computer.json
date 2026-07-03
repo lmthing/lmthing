@@ -1,5 +1,15 @@
 [
   {
+    "hash": "12c1764e",
+    "full_hash": "12c1764e0d1ca7d661b18b3aa41744f7a2d460d5",
+    "type": "chore",
+    "scope": "",
+    "subject": "bump sdk/org to 7453585 (Dialog focus fix)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-03 14:48:20 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/12c1764e0d1ca7d661b18b3aa41744f7a2d460d5"
+  },
+  {
     "hash": "469b1220",
     "full_hash": "469b12202f941cc3e9873fc978d58a8b8827da00",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-27 12:40:16 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/0b2c32faf63f8191202989f785f36e9a99ae5453"
-  },
-  {
-    "hash": "f2bf2391",
-    "full_hash": "f2bf239120c037ac7ba99000f6cf445e52c6761b",
-    "type": "fix",
-    "scope": "auth",
-    "subject": "make the pod transport recover from 401 so studio/computer don't stick",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-27 12:37:01 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/f2bf239120c037ac7ba99000f6cf445e52c6761b"
   }
 ]

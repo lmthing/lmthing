@@ -1,5 +1,35 @@
 [
   {
+    "hash": "aaf38a65",
+    "full_hash": "aaf38a654fe4d358487b1480a2894a39a60139f7",
+    "type": "ci",
+    "scope": "",
+    "subject": "update subproject commit reference to fa02384",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-03 10:43:00 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/aaf38a654fe4d358487b1480a2894a39a60139f7"
+  },
+  {
+    "hash": "57db6fa5",
+    "full_hash": "57db6fa58c49a7d328b6a878133bcba98d5e1182",
+    "type": "ci",
+    "scope": "",
+    "subject": "update subproject commit reference to af18e16",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-03 10:23:51 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/57db6fa58c49a7d328b6a878133bcba98d5e1182"
+  },
+  {
+    "hash": "58718991",
+    "full_hash": "587189911ac5c3613f4f9d3aec75fe184acc4994",
+    "type": "ci",
+    "scope": "",
+    "subject": "update subproject commit reference",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-03 10:02:45 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/587189911ac5c3613f4f9d3aec75fe184acc4994"
+  },
+  {
     "hash": "bffd55c7",
     "full_hash": "bffd55c7d0026e926d610cada248a34a5629f480",
     "type": "ci",
@@ -468,35 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-26 17:29:23 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/e74230281bdb60e131497472e8f2f5803ab62cd6"
-  },
-  {
-    "hash": "5e6014c6",
-    "full_hash": "5e6014c6caab17a980ce33a35bfc3482d2cc1181",
-    "type": "fix",
-    "scope": "auth",
-    "subject": "refresh access tokens reactively so SPAs don't stick on 401",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-26 17:28:43 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/5e6014c6caab17a980ce33a35bfc3482d2cc1181"
-  },
-  {
-    "hash": "f3559907",
-    "full_hash": "f355990709f6997980e2e6d304a5ce2b18afa82f",
-    "type": "chore",
-    "scope": "",
-    "subject": "bump sdk/org submodule to architect per-file builders",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-26 16:22:10 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/f355990709f6997980e2e6d304a5ce2b18afa82f"
-  },
-  {
-    "hash": "5370090a",
-    "full_hash": "5370090a2fb5d2f5cc6a5b9cf99772989148604c",
-    "type": "docs",
-    "scope": "",
-    "subject": "align top-level + state-lib docs with SPACE-SPEC changes; bump sdk/org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-25 17:42:08 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/5370090a2fb5d2f5cc6a5b9cf99772989148604c"
   }
 ]

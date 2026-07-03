@@ -1,5 +1,15 @@
 [
   {
+    "hash": "de88be7a",
+    "full_hash": "de88be7a44c18814bd23e90551714c4d64d0dd99",
+    "type": "feat",
+    "scope": "backup",
+    "subject": "validate target repo at save (must exist + be empty)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-03 12:58:38 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/de88be7a44c18814bd23e90551714c4d64d0dd99"
+  },
+  {
     "hash": "e8f98a86",
     "full_hash": "e8f98a864f4001c7060d72973ca0b2608201eebe",
     "type": "fix",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-03-25 08:15:54 +0200",
     "url": "https://github.com/lmthing/lmthing/commit/c2e009cd46fe5393aa7800f8ef807c5aca272a58"
-  },
-  {
-    "hash": "973cb369",
-    "full_hash": "973cb369e2dcd94d066f9ca6c2c8500aab90f697",
-    "type": "chore",
-    "scope": "",
-    "subject": "Refactor deployment infrastructure from Fly.io to K8s, updating documentation and code references throughout the project. Removed tsconfig.json for server, adjusted subscription tier descriptions, and modified deployment flows to reflect K8s pod usage. Updated README and plan files to align with new architecture. Ensure all references to Fly.io are replaced with K8s terminology, including in logs, error messages, and user instructions.",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-03-24 15:24:06 +0200",
-    "url": "https://github.com/lmthing/lmthing/commit/973cb369e2dcd94d066f9ca6c2c8500aab90f697"
   }
 ]

@@ -1,5 +1,25 @@
 [
   {
+    "hash": "469b1220",
+    "full_hash": "469b12202f941cc3e9873fc978d58a8b8827da00",
+    "type": "feat",
+    "scope": "gateway",
+    "subject": "add /api/issues bug-report endpoint (lmthing/bug-reports)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-03 14:01:26 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/469b12202f941cc3e9873fc978d58a8b8827da00"
+  },
+  {
+    "hash": "7d377281",
+    "full_hash": "7d3772818bf2d291223322dbd4b04781d1723668",
+    "type": "chore",
+    "scope": "",
+    "subject": "bump sdk/org to 4bb7bb8 (backup settings UI guidance)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-03 13:05:19 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/7d3772818bf2d291223322dbd4b04781d1723668"
+  },
+  {
     "hash": "aaf38a65",
     "full_hash": "aaf38a654fe4d358487b1480a2894a39a60139f7",
     "type": "ci",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-27 12:37:01 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/f2bf239120c037ac7ba99000f6cf445e52c6761b"
-  },
-  {
-    "hash": "ca0ce09c",
-    "full_hash": "ca0ce09c1c2019a987bbb8115e0c5f11df46886d",
-    "type": "ci",
-    "scope": "",
-    "subject": "update subproject commit reference",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-27 01:55:24 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/ca0ce09c1c2019a987bbb8115e0c5f11df46886d"
-  },
-  {
-    "hash": "e7423028",
-    "full_hash": "e74230281bdb60e131497472e8f2f5803ab62cd6",
-    "type": "chore",
-    "scope": "",
-    "subject": "update subproject commit reference in sdk/org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-26 17:29:23 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/e74230281bdb60e131497472e8f2f5803ab62cd6"
   }
 ]

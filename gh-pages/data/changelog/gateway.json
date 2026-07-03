@@ -1,5 +1,15 @@
 [
   {
+    "hash": "469b1220",
+    "full_hash": "469b12202f941cc3e9873fc978d58a8b8827da00",
+    "type": "feat",
+    "scope": "gateway",
+    "subject": "add /api/issues bug-report endpoint (lmthing/bug-reports)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-03 14:01:26 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/469b12202f941cc3e9873fc978d58a8b8827da00"
+  },
+  {
     "hash": "de88be7a",
     "full_hash": "de88be7a44c18814bd23e90551714c4d64d0dd99",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-03-27 17:23:46 +0200",
     "url": "https://github.com/lmthing/lmthing/commit/1567341286e5e9e336360249d9ffb49e9822bd50"
-  },
-  {
-    "hash": "c2e009cd",
-    "full_hash": "c2e009cd46fe5393aa7800f8ef807c5aca272a58",
-    "type": "fix",
-    "scope": "",
-    "subject": "handle errors during Stripe checkout session creation",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-03-25 08:15:54 +0200",
-    "url": "https://github.com/lmthing/lmthing/commit/c2e009cd46fe5393aa7800f8ef807c5aca272a58"
   }
 ]

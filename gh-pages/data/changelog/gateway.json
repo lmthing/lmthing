@@ -1,5 +1,15 @@
 [
   {
+    "hash": "26786435",
+    "full_hash": "267864354f44ce02d5b18d8e5d58746e086f430d",
+    "type": "feat",
+    "scope": "tiers",
+    "subject": "raise free-tier budgets ~10x and fix tier-change budget apply",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-03 15:37:30 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/267864354f44ce02d5b18d8e5d58746e086f430d"
+  },
+  {
     "hash": "469b1220",
     "full_hash": "469b12202f941cc3e9873fc978d58a8b8827da00",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-03-28 12:06:28 +0200",
     "url": "https://github.com/lmthing/lmthing/commit/dd70e76ff34f1da271fb2c9553f73a26d58037df"
-  },
-  {
-    "hash": "15673412",
-    "full_hash": "1567341286e5e9e336360249d9ffb49e9822bd50",
-    "type": "feat",
-    "scope": "",
-    "subject": "add endpoints to list and set environment variables for user pods",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-03-27 17:23:46 +0200",
-    "url": "https://github.com/lmthing/lmthing/commit/1567341286e5e9e336360249d9ffb49e9822bd50"
   }
 ]

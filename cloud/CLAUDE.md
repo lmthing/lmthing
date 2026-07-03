@@ -22,13 +22,16 @@ cloud/
 │       │   ├── tokens.ts           # Gateway-issued HS256 JWTs — signTokens, verifyAccessToken, verifyRefreshToken
 │       │   ├── zitadel.ts          # Zitadel v2 API client — user CRUD, IDP Intent (GitHub OAuth), password login
 │       │   ├── db.ts               # Postgres client for sso_codes table
-│       │   └── compute.ts          # K8s API client — per-user namespaces, deployments, services, secrets
+│       │   ├── compute.ts          # K8s API client — per-user namespaces, deployments, services, secrets
+│       │   ├── github-app.ts       # GitHub App client — installation tokens for workspace backup
+│       │   └── github-issues.ts    # GitHub Issues client — PAT-based, files bug reports + uploads artifacts
 │       └── routes/
 │           ├── auth.ts             # Register, login, OAuth, provision, me, refresh, SSO
 │           ├── billing.ts          # Checkout, portal, usage, checkout status
 │           ├── keys.ts             # List, create, revoke API keys
 │           ├── webhook.ts          # Stripe webhook — tier changes, compute pod lifecycle
-│           └── compute.ts          # Pod status, env var get/set
+│           ├── compute.ts          # Pod status, env var get/set
+│           └── issues.ts           # File a GitHub issue (bug report) in the org repo
 ├── migrations/                     # applied by Ansible cloud_secrets; also self-healed
 │   │                               # on gateway boot via db.ts ensureSchema()
 │   ├── 001_profiles.sql            # profiles table (plain Postgres, no RLS)
@@ -97,6 +100,12 @@ The gateway issues its own **HS256 JWTs** (via `lib/tokens.ts`) signed with `GAT
 | `/api/compute/env` | GET | JWT | List user pod env vars — requires pro/max tier |
 | `/api/compute/env` | PUT | JWT | Set env vars + trigger pod restart — requires pro/max tier |
 
+### Issues (`/api/issues`)
+
+| Route | Method | Auth | Purpose |
+|-------|--------|------|---------|
+| `/api/issues` | POST | JWT | Files a GitHub issue in `GITHUB_ISSUES_REPO` (prod: `lmthing/bug-reports`) from a pod's UI bug reporter; uploads trace/screenshot artifacts to `GITHUB_BUGREPORT_REPO` via the Contents API. 501 if `GITHUB_ISSUES_TOKEN` unset. |
+
 ### Webhook
 
 | Route | Method | Auth | Purpose |
@@ -143,6 +152,9 @@ The gateway issues its own **HS256 JWTs** (via `lib/tokens.ts`) signed with `GAT
 | `DATABASE_URL` | `lmthing-secrets` | `postgresql://lmthing:PASSWORD@postgres:5432/lmthing` |
 | `LITELLM_MASTER_KEY` | `lmthing-secrets` | LiteLLM admin key |
 | `BASE_URL` | `lmthing-secrets` | `https://lmthing.cloud` — used for OAuth redirect URIs |
+| `GITHUB_ISSUES_TOKEN` | `lmthing-secrets` | GitHub PAT (`repo` scope, or fine-grained Issues:write + Contents:write) for filing bug-report issues; unset disables `/api/issues` (501) |
+| `GITHUB_ISSUES_REPO` | plain value (prod `lmthing/bug-reports`; code default `lmthing/org`) | Repo issues are filed in |
+| `GITHUB_BUGREPORT_REPO` | plain value, default = `GITHUB_ISSUES_REPO` | Repo trace/screenshot artifacts are committed to |
 
 ## Tiers
 

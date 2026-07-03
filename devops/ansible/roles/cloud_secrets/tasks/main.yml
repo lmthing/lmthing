@@ -42,6 +42,7 @@
         GITHUB_APP_ID: "{{ vault_github_app_id | default('') }}"
         GITHUB_APP_SLUG: "{{ vault_github_app_slug | default('') }}"
         GITHUB_APP_PRIVATE_KEY: "{{ vault_github_app_private_key | default('') }}"
+        GITHUB_ISSUES_TOKEN: "{{ vault_github_issues_token | default('') }}"
         ACR_REGISTRY: "{{ vault_acr_registry }}"
         ACR_USERNAME: "{{ vault_acr_username }}"
         ACR_PASSWORD: "{{ vault_acr_password }}"

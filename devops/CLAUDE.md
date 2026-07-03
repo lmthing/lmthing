@@ -467,6 +467,7 @@ ansible-vault encrypt vault.yml
 | `vault_github_app_id` | gateway | Workspace-backup GitHub App numeric ID — blank disables the feature |
 | `vault_github_app_slug` | gateway | Workspace-backup GitHub App public slug (`…/apps/<slug>`) |
 | `vault_github_app_private_key` | gateway | Workspace-backup GitHub App private-key PEM (block scalar) |
+| `vault_github_issues_token` | gateway | Bug-reporter GitHub PAT (`repo`, or fine-grained Issues+Contents:write) for POST /api/issues → lmthing/org — blank disables (501) |
 | `vault_stripe_secret_key` | gateway | Stripe API access |
 | `vault_stripe_webhook_secret` | gateway | Stripe webhook signature verification |
 | `vault_stripe_price_basic` | gateway | Stripe price ID for Basic tier |

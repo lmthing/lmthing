@@ -53,6 +53,14 @@ vault_github_app_slug: ""          # public slug (…/apps/<slug>)
 #     -----END RSA PRIVATE KEY-----
 vault_github_app_private_key: ""
 
+# In-app bug reporter (POST /api/issues) — a GitHub PAT used to file issues into
+# lmthing/org and commit trace/screenshot artifacts. Classic token needs `repo`
+# scope; a fine-grained token needs Issues:write + Contents:write on the org
+# (and the GITHUB_BUGREPORT_REPO storage repo). Leave blank to disable the
+# feature (the endpoint returns 501). Storage repo is set via the plain
+# GITHUB_BUGREPORT_REPO env in argocd/core/gateway.yaml (default lmthing/bug-reports).
+vault_github_issues_token: ""
+
 # ── Stripe ────────────────────────────────────────────────────
 vault_stripe_secret_key: sk_live_xxx
 vault_stripe_webhook_secret: whsec_xxx

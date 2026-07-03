@@ -159,6 +159,15 @@ spec:
                 secretKeyRef:
                   name: lmthing-secrets
                   key: GITHUB_APP_PRIVATE_KEY
+            - name: GITHUB_ISSUES_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: GITHUB_ISSUES_TOKEN
+            - name: GITHUB_ISSUES_REPO
+              value: "lmthing/bug-reports"
+            - name: GITHUB_BUGREPORT_REPO
+              value: "lmthing/bug-reports"
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:

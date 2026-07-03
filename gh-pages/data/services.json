@@ -129,9 +129,9 @@
       "yaml": "compute-pod-template.yaml",
       "manifest": "devops/argocd/core/compute-pod-template.yaml",
       "isInternal": true,
-      "deployedSha": "348f347",
-      "deployedAt": "2026-07-03 19:06:09 +0300"
+      "deployedSha": "9b21cb6",
+      "deployedAt": "2026-07-03 20:24:20 +0300"
     }
   ],
-  "updatedAt": "2026-07-03T16:24:30.934917+00:00"
+  "updatedAt": "2026-07-03T17:56:59.859104+00:00"
 }

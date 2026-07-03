@@ -1,5 +1,35 @@
 [
   {
+    "hash": "9b21cb66",
+    "full_hash": "9b21cb664c6db580eed064cd13c15345e27df2a5",
+    "type": "chore",
+    "scope": "",
+    "subject": "bump sdk/org \u2014 project-as-application Phase 5 (pages build + serving)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-03 20:24:18 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/9b21cb664c6db580eed064cd13c15345e27df2a5"
+  },
+  {
+    "hash": "598fa0e5",
+    "full_hash": "598fa0e53cf61b68936bfcb07263f39d3ef6628f",
+    "type": "chore",
+    "scope": "",
+    "subject": "bump sdk/org \u2014 project-as-application Phase 4 (typed-contract build pipeline)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-03 19:54:12 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/598fa0e53cf61b68936bfcb07263f39d3ef6628f"
+  },
+  {
+    "hash": "973d32f0",
+    "full_hash": "973d32f06cc61058fdb5095df386e7ea6ae9cada",
+    "type": "chore",
+    "scope": "",
+    "subject": "bump sdk/org \u2014 project-as-application Phase 3 (worker-isolated API runtime)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-03 19:33:51 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/973d32f06cc61058fdb5095df386e7ea6ae9cada"
+  },
+  {
     "hash": "348f3478",
     "full_hash": "348f3478d8d95f51617a66b793c4e0a3f6e6d09a",
     "type": "chore",
@@ -468,35 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-28 13:14:03 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/8f84ebec81f707dfbbbd3769ca32f58c1155362a"
-  },
-  {
-    "hash": "c65440cf",
-    "full_hash": "c65440cf32b84fe503d8cd28527aefbc78cc4e72",
-    "type": "chore",
-    "scope": "",
-    "subject": "bump sdk/org \u2014 AgentChatPanel WS access-token fix",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-28 04:44:41 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/c65440cf32b84fe503d8cd28527aefbc78cc4e72"
-  },
-  {
-    "hash": "78129950",
-    "full_hash": "78129950895a32b12c73e5d1a46cdb6375dfed60",
-    "type": "feat",
-    "scope": "studio",
-    "subject": "full SPACE-SPEC fidelity + embedded THING chat; bump sdk/org",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-28 04:24:40 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/78129950895a32b12c73e5d1a46cdb6375dfed60"
-  },
-  {
-    "hash": "b2a89ca8",
-    "full_hash": "b2a89ca833812f0cba7434f05aac47affff4ba27",
-    "type": "ci",
-    "scope": "",
-    "subject": "update subproject commit reference to 2b673e5",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-27 20:37:21 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/b2a89ca833812f0cba7434f05aac47affff4ba27"
   }
 ]

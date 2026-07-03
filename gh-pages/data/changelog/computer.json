@@ -1,5 +1,15 @@
 [
   {
+    "hash": "bffd55c7",
+    "full_hash": "bffd55c7d0026e926d610cada248a34a5629f480",
+    "type": "ci",
+    "scope": "",
+    "subject": "update subproject commit reference",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-03 09:39:44 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/bffd55c7d0026e926d610cada248a34a5629f480"
+  },
+  {
     "hash": "9c3aac9c",
     "full_hash": "9c3aac9c7595c06061c1d8f80347145bc63b0abe",
     "type": "chore",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-25 17:42:08 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/5370090a2fb5d2f5cc6a5b9cf99772989148604c"
-  },
-  {
-    "hash": "e6ec05a0",
-    "full_hash": "e6ec05a00ed17c34916596b483be06d5642151ca",
-    "type": "feat",
-    "scope": "",
-    "subject": "implement SPACE-SPEC changes across studio, state/ui libs, and core",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-25 17:01:59 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/e6ec05a00ed17c34916596b483be06d5642151ca"
   }
 ]

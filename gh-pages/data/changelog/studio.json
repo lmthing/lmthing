@@ -1,5 +1,15 @@
 [
   {
+    "hash": "bffd55c7",
+    "full_hash": "bffd55c7d0026e926d610cada248a34a5629f480",
+    "type": "ci",
+    "scope": "",
+    "subject": "update subproject commit reference",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-03 09:39:44 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/bffd55c7d0026e926d610cada248a34a5629f480"
+  },
+  {
     "hash": "9c3aac9c",
     "full_hash": "9c3aac9c7595c06061c1d8f80347145bc63b0abe",
     "type": "chore",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-26 17:28:43 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/5e6014c6caab17a980ce33a35bfc3482d2cc1181"
-  },
-  {
-    "hash": "f3559907",
-    "full_hash": "f355990709f6997980e2e6d304a5ce2b18afa82f",
-    "type": "chore",
-    "scope": "",
-    "subject": "bump sdk/org submodule to architect per-file builders",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-26 16:22:10 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/f355990709f6997980e2e6d304a5ce2b18afa82f"
   }
 ]

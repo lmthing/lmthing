@@ -1,0 +1,11 @@
+{
+  "name": "@app/demo-feed",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "description": "lmthing.store — Personal Feed, the canonical hand-authored reference project-application (database + api + pages + hooks).",
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

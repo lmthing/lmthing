@@ -1,0 +1,24 @@
+{
+  "apps": [
+    {
+      "id": "demo-feed",
+      "title": "Personal Feed",
+      "description": "Hand-authored reference app for the project-as-application engine: a personal reading feed with a database table, list/mark-read/add-item API endpoints, a page, and a database hook that enriches new items.",
+      "icon": "📰",
+      "tables": [
+        "feed_items"
+      ],
+      "pages": [
+        "index.tsx"
+      ],
+      "endpoints": [
+        "add-item",
+        "feed-list",
+        "mark-read"
+      ],
+      "hooks": [
+        "enrich-on-add"
+      ]
+    }
+  ]
+}

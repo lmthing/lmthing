@@ -1,0 +1,12 @@
+{
+  "title": "Feed Items",
+  "description": "A single article/link saved to the user's personal reading feed, with an optional summary and a read/unread flag.",
+  "columns": {
+    "id":        { "type": "string",  "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "title":     { "type": "string",  "description": "headline shown in the feed list", "required": true },
+    "url":       { "type": "string",  "description": "the source link this feed item points to", "default": "" },
+    "summary":   { "type": "string",  "description": "short one-paragraph summary shown under the title", "default": "" },
+    "read":      { "type": "boolean", "description": "whether the user has marked this item read", "default": false },
+    "createdAt": { "type": "date",    "description": "when this item was added to the feed", "generated": "now" }
+  }
+}

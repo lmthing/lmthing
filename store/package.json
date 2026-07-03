@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
+    "gen:apps-manifest": "node scripts/gen-apps-manifest.mjs",
     "build": "vp build",
     "preview": "vp preview",
     "test": "vp test",

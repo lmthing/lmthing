@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as PublishRouteImport } from './routes/publish'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppsIndexRouteImport } from './routes/apps/index'
 import { Route as CategoryCategoryIdRouteImport } from './routes/category/$categoryId'
+import { Route as AppsAppIdRouteImport } from './routes/apps/$appId'
 import { Route as AgentAgentIdRouteImport } from './routes/agent/$agentId'
 
 const PublishRoute = PublishRouteImport.update({
@@ -24,9 +26,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppsIndexRoute = AppsIndexRouteImport.update({
+  id: '/apps/',
+  path: '/apps/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CategoryCategoryIdRoute = CategoryCategoryIdRouteImport.update({
   id: '/category/$categoryId',
   path: '/category/$categoryId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppsAppIdRoute = AppsAppIdRouteImport.update({
+  id: '/apps/$appId',
+  path: '/apps/$appId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AgentAgentIdRoute = AgentAgentIdRouteImport.update({
@@ -39,35 +51,61 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/publish': typeof PublishRoute
   '/agent/$agentId': typeof AgentAgentIdRoute
+  '/apps/$appId': typeof AppsAppIdRoute
   '/category/$categoryId': typeof CategoryCategoryIdRoute
+  '/apps/': typeof AppsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/publish': typeof PublishRoute
   '/agent/$agentId': typeof AgentAgentIdRoute
+  '/apps/$appId': typeof AppsAppIdRoute
   '/category/$categoryId': typeof CategoryCategoryIdRoute
+  '/apps': typeof AppsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/publish': typeof PublishRoute
   '/agent/$agentId': typeof AgentAgentIdRoute
+  '/apps/$appId': typeof AppsAppIdRoute
   '/category/$categoryId': typeof CategoryCategoryIdRoute
+  '/apps/': typeof AppsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/publish' | '/agent/$agentId' | '/category/$categoryId'
+  fullPaths:
+    | '/'
+    | '/publish'
+    | '/agent/$agentId'
+    | '/apps/$appId'
+    | '/category/$categoryId'
+    | '/apps/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/publish' | '/agent/$agentId' | '/category/$categoryId'
+  to:
+    | '/'
+    | '/publish'
+    | '/agent/$agentId'
+    | '/apps/$appId'
+    | '/category/$categoryId'
+    | '/apps'
   id:
-    '__root__' | '/' | '/publish' | '/agent/$agentId' | '/category/$categoryId'
+    | '__root__'
+    | '/'
+    | '/publish'
+    | '/agent/$agentId'
+    | '/apps/$appId'
+    | '/category/$categoryId'
+    | '/apps/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PublishRoute: typeof PublishRoute
   AgentAgentIdRoute: typeof AgentAgentIdRoute
+  AppsAppIdRoute: typeof AppsAppIdRoute
   CategoryCategoryIdRoute: typeof CategoryCategoryIdRoute
+  AppsIndexRoute: typeof AppsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -86,11 +124,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/apps/': {
+      id: '/apps/'
+      path: '/apps'
+      fullPath: '/apps/'
+      preLoaderRoute: typeof AppsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/category/$categoryId': {
       id: '/category/$categoryId'
       path: '/category/$categoryId'
       fullPath: '/category/$categoryId'
       preLoaderRoute: typeof CategoryCategoryIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/apps/$appId': {
+      id: '/apps/$appId'
+      path: '/apps/$appId'
+      fullPath: '/apps/$appId'
+      preLoaderRoute: typeof AppsAppIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/agent/$agentId': {
@@ -107,7 +159,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PublishRoute: PublishRoute,
   AgentAgentIdRoute: AgentAgentIdRoute,
+  AppsAppIdRoute: AppsAppIdRoute,
   CategoryCategoryIdRoute: CategoryCategoryIdRoute,
+  AppsIndexRoute: AppsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

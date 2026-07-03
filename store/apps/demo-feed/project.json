@@ -1,0 +1,6 @@
+{
+  "id": "demo-feed",
+  "title": "Personal Feed",
+  "description": "Hand-authored reference app for the project-as-application engine: a personal reading feed with a database table, list/mark-read/add-item API endpoints, a page, and a database hook that enriches new items.",
+  "icon": "📰"
+}

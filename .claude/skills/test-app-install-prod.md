@@ -33,8 +33,9 @@ chrome-devtools MCP.
   by the gateway (`user-env` secret) for the AI features.
 
 Throughout, `TEST=user-379847043318834826` is the chosen test-user namespace and
-`UID=379847043318834826` its user id (the `user-<UID>` suffix). Pick any real
-`user-*` namespace as the test user — you mint your own session for it.
+`LMUID=379847043318834826` its user id (the `user-<id>` suffix; **`UID` is a bash
+readonly var — don't use that name**). Pick any real `user-*` namespace as the
+test user — you mint your own session for it.
 
 ---
 
@@ -91,43 +92,55 @@ means the new code is running. A missing route / 404 here ⇒ still the old imag
 ## Step 3 — Mint a gateway JWT for the test user
 
 The gateway issues **HS256** JWTs signed with `GATEWAY_JWT_SECRET` (base64, in
-the `lmthing-secrets` secret). Payload: `{ sub: <UID>, email, iat, exp }`
+the `lmthing-secrets` secret). Payload: `{ sub: <uid>, email, iat, exp }`
 (`cloud/gateway/src/lib/tokens.ts`). Mint one **on the node**, printing **only
-the token** (never the secret) — pure `node:crypto`, no `jose` needed:
+the token** (never the secret).
+
+> Node caveats found live: the k8s host has **no `node`** on PATH (use
+> `python3`), and `UID` is a **bash readonly** var (use `LMUID`). To dodge all
+> shell-quoting pitfalls, the mint script is **base64-encoded** and piped to
+> `python3` — regenerate the blob from the plaintext below with
+> `base64 -w0 mint.py` if you edit it.
+
+`mint.py` (HS256 JWT mint, reads `SECRET_B64`/`LMUID` from env):
+
+```python
+import hmac,hashlib,base64,json,time,os
+key=base64.b64decode(os.environ["SECRET_B64"])
+def b(o): return base64.urlsafe_b64encode(json.dumps(o,separators=(",",":")).encode()).rstrip(b"=").decode()
+def sign(p):
+    h=b({"alg":"HS256","typ":"JWT"})+"."+b(p)
+    sig=base64.urlsafe_b64encode(hmac.new(key,h.encode(),hashlib.sha256).digest()).rstrip(b"=").decode()
+    return h+"."+sig
+now=int(time.time()); uid=os.environ["LMUID"]
+print(json.dumps({"access":sign({"email":"test@lmthing.cloud","sub":uid,"iat":now,"exp":now+43200}),"refresh":sign({"type":"refresh","sub":uid,"iat":now,"exp":now+2592000}),"exp":(now+43200)*1000,"uid":uid}))
+```
+
+Run it on the node (`<B64>` = `base64 -w0 mint.py`):
 
 ```bash
 ssh -i ~/GEANT/lmthing/devops/terraform/generated/lmthing-test-key.pem \
-    -o StrictHostKeyChecking=no azureuser@4.223.83.5 '
-UID=379847043318834826
-SECRET_B64=$(kubectl get secret lmthing-secrets -n lmthing -o jsonpath="{.data.GATEWAY_JWT_SECRET}" | base64 -d)
-SECRET_B64="$SECRET_B64" UID="$UID" node -e "
-  const c=require(\"crypto\");
-  const key=Buffer.from(process.env.SECRET_B64,\"base64\");
-  const b=(o)=>Buffer.from(JSON.stringify(o)).toString(\"base64url\");
-  const now=Math.floor(Date.now()/1000);
-  const sign=(p)=>{const h=b({alg:\"HS256\",typ:\"JWT\"})+\".\"+b(p);
-    return h+\".\"+c.createHmac(\"sha256\",key).update(h).digest(\"base64url\");};
-  const uid=process.env.UID;
-  console.log(JSON.stringify({
-    access:  sign({email:\"test@lmthing.cloud\",sub:uid,iat:now,exp:now+43200}),
-    refresh: sign({type:\"refresh\",sub:uid,iat:now,exp:now+2592000}),
-    exp: (now+43200)*1000, uid
-  }));
-"'
+    -o StrictHostKeyChecking=no azureuser@4.223.83.5 \
+    'SECRET_B64=$(kubectl get secret lmthing-secrets -n lmthing -o jsonpath="{.data.GATEWAY_JWT_SECRET}" | base64 -d); export SECRET_B64; export LMUID=379847043318834826; echo <B64> | base64 -d | python3'
 ```
 
-`GATEWAY_JWT_SECRET` reads a prod secret — if the auto classifier blocks it,
-run the SSH line yourself with `! <cmd>` and paste back the JSON (only a
-short-lived test token, not the secret). Keep the JSON — Step 4 injects it.
+`GATEWAY_JWT_SECRET` reads a prod secret — the auto classifier blocks the
+assistant from running it, so **run the SSH line yourself** with `! <cmd>` and
+save the JSON to **`.etc/.gateway-secret.json`** (gitignored) so the assistant
+can read it directly for the rest of the run (shape: `{access, refresh, exp,
+uid}`). The access token is a 12h HS256 JWT — re-mint when it expires (`exp` is
+epoch-ms). A ready-to-run copy of this command lives at `scratch/mint-test-jwt.sh`
+(the plaintext mint is `scratch/mint.py`).
 
 ## Step 4 — Seed the browser session and drive the UI flow
 
-The SPA reads its session from `localStorage.lmthing_session`. Inject the minted
-token on **both** origins (the store links you to the app), then reload. With
+The SPA reads its session from `localStorage.lmthing_session`. Read the token
+from `.etc/.gateway-secret.json` (`access`/`refresh`/`exp`/`uid`) and inject it
+on **both** origins (the store links you to the app), then reload. With
 chrome-devtools MCP:
 
 1. `new_page` → `https://lmthing.store`
-2. `evaluate_script` to seed the session (use the JSON from Step 3):
+2. `evaluate_script` to seed the session (ACCESS/REFRESH/EXP/UID from the file):
    ```js
    const s = { accessToken: ACCESS, refreshToken: REFRESH, expiresAt: EXP,
      userId: UID, email: 'test@lmthing.cloud', githubRepo: null, githubUsername: null };
@@ -237,3 +250,7 @@ dir in the pod if you want a clean slate for the next run.
 - `sdk/org/libs/cli/src/server/routes/apps.ts` — `GET /api/apps`, `POST /api/apps/install`.
 - `store/scripts/gen-apps-manifest.mjs` — emits `/projects/manifest.json` + per-app `files`.
 - `.claude/skills/cloud-backend.md`, `reference-prod-test-user-and-deploy` memory.
+
+
+
+

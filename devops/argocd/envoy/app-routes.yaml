@@ -65,9 +65,10 @@ spec:
 
 ---
 # /app/* -> the user's pod, which serves the installed apps' built pages at
-# /app/<project>/… (+ their /app/<project>/api/*). Per-user Lua routing, JWT exactly
-# like studio/chat (Authorization: Bearer header OR ?access_token= param) — no special
-# auth for apps. Matched before /* so app pages hit the pod, not the SPA.
+# /app/<project>/… (+ their /app/<project>/api/*). Single-user apps have no auth of their
+# own; the platform routes to the right pod via the per-user JWT (from the access_token
+# COOKIE for page + asset navigations, or header/param for fetches) — see app-policies.yaml.
+# Matched before /* so app pages hit the pod, not the SPA.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:

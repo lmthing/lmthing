@@ -1,7 +1,11 @@
-# Per-user routing + JWT auth for lmthing.app's pod routes (app-api-proxy = /api/*,
-# app-pages-proxy = /app/*). Exactly the studio/chat mechanism: JWT from the
-# Authorization: Bearer header OR the access_token query param → sub → x-user-id → Lua
-# per-user upstream. No special-casing for apps.
+# Per-user pod routing for lmthing.app (app-api-proxy = /api/*, app-pages-proxy = /app/*).
+# A project-app is SINGLE-USER and has no auth of its own — the only auth here is the
+# PLATFORM picking which pod. The per-user JWT (sub → x-user-id → Lua upstream) is read from
+# the Authorization: Bearer header / access_token param (SPA fetches, install POST) AND from
+# a scoped `access_token` COOKIE set by the shell after login — the cookie is what lets a
+# page navigation and its relative <script>/<link> assets route to the user's pod (a browser
+# can't put a Bearer header on those). This is a platform session, not app auth; the pod never
+# checks it. Localhost has no gateway and needs no auth at all.
 
 # Lua script: extracts user ID from the JWT-derived x-user-id header, constructs
 # the per-user pod upstream (identical to studio-lua-routing / chat-lua-routing).
@@ -69,6 +73,10 @@ spec:
             - name: Authorization
               valuePrefix: "Bearer "
           params:
+            - access_token
+          # Platform session for page + asset requests (browser navigation / <script>/<link>
+          # can't send a Bearer header): the lmthing.app shell sets this scoped cookie after login.
+          cookies:
             - access_token
         claimToHeaders:
           - claim: sub

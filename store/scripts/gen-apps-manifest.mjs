@@ -86,6 +86,27 @@ async function listDirNames(dir) {
     .sort()
 }
 
+/**
+ * ALL file paths under an app template, relative to it (`/`-joined, sorted),
+ * excluding the runtime/generated/dependency dirs. This is the download list a
+ * pod's install endpoint uses to fetch every file of the app from the store's
+ * public path (`lmthing.store/projects/<appId>/<relpath>`).
+ */
+async function listAllFiles(dir, base = dir) {
+  const entries = await safeReaddir(dir)
+  const out = []
+  for (const entry of entries) {
+    if (entry.isDirectory() && EXCLUDED_DIRS.has(entry.name)) continue
+    const abs = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      out.push(...(await listAllFiles(abs, base)))
+    } else if (entry.isFile()) {
+      out.push(path.relative(base, abs).split(path.sep).join('/'))
+    }
+  }
+  return out.sort()
+}
+
 /** File paths (`.tsx`/`.jsx`) recursively under `pages/`, relative to it — sorted. */
 async function listPageFiles(dir, base = dir) {
   const entries = await safeReaddir(dir)
@@ -122,11 +143,12 @@ async function loadAppEntry(appDir, appId) {
   const project = await readJson(path.join(appDir, 'project.json'))
   const pkg = project ? null : await readJson(path.join(appDir, 'package.json'))
 
-  const [tables, pages, endpoints, hooks] = await Promise.all([
+  const [tables, pages, endpoints, hooks, files] = await Promise.all([
     listNamesWithExt(path.join(appDir, 'database'), '.json'),
     listPageFiles(path.join(appDir, 'pages')),
     listDirNames(path.join(appDir, 'api')),
     listNamesWithExt(path.join(appDir, 'hooks'), '.ts'),
+    listAllFiles(appDir),
   ])
 
   const looksLikeApp = tables.length + pages.length + endpoints.length + hooks.length > 0
@@ -142,6 +164,9 @@ async function loadAppEntry(appDir, appId) {
     pages,
     endpoints,
     hooks,
+    // Full download list — every template file, so a pod's install endpoint can fetch
+    // each from `<store>/projects/<id>/<relpath>` (no server-side catalog needed).
+    files,
   }
 }
 

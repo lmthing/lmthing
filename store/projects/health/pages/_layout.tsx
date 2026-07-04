@@ -9,7 +9,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <Link href="/" className="text-lg font-bold text-foreground hover:text-primary">
           lmthing.health
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <Link href="/" className="text-sm text-muted-foreground hover:text-primary">
             Dashboard
           </Link>
@@ -18,6 +18,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </Link>
           <Link href="/symptoms" className="text-sm text-muted-foreground hover:text-primary">
             Symptoms
+          </Link>
+          <Link href="/documents" className="text-sm text-muted-foreground hover:text-primary">
+            Documents
+          </Link>
+          <Link href="/visits" className="text-sm text-muted-foreground hover:text-primary">
+            Visits
+          </Link>
+          <Link href="/insights" className="text-sm text-muted-foreground hover:text-primary">
+            Insights
+          </Link>
+          <Link href="/goals" className="text-sm text-muted-foreground hover:text-primary">
+            Goals
+          </Link>
+          <Link href="/medications" className="text-sm text-muted-foreground hover:text-primary">
+            Medications
           </Link>
           <Link href="/settings" className="text-sm text-muted-foreground hover:text-primary">
             Settings

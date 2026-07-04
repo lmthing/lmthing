@@ -1,0 +1,18 @@
+{
+  "title": "Knowledge notes",
+  "description": "A durable, cited note the records/librarian and clinic/researcher write so the app gets smarter over time — the interpreter and analyst read these on future analyses. This is the db-backed knowledge store (distinct from the space `knowledge/` authoring files, which stay a build-time concern).",
+  "columns": {
+    "id":         { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "topic":      { "type": "string", "description": "the subject of the note, e.g. 'elevated LDL cholesterol'", "required": true },
+    "body":       { "type": "string", "description": "the note in markdown, with citations", "required": true },
+    "sourceKind": { "type": "string", "description": "'document' | 'research' | 'literature' — where the note came from", "default": "research" },
+    "documentId": { "type": "string", "description": "the source document this note derived from (null if not document-driven)",
+                    "references": { "table": "documents", "column": "id", "onDelete": "setNull" } },
+    "analyte":    { "type": "string", "description": "the lab analyte this note is about, if any (used to surface it on the matching lab)" },
+    "tag":        { "type": "string", "description": "an optional free tag for grouping notes" },
+    "createdAt":  { "type": "date",   "description": "when the note was written", "generated": "now" }
+  },
+  "relations": {
+    "document": { "belongsTo": "documents", "via": "documentId", "description": "the source document, if any" }
+  }
+}

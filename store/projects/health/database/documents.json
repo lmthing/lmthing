@@ -1,0 +1,19 @@
+{
+  "title": "Documents",
+  "description": "One uploaded health document — a lab-report text, a wearable CSV export, a doctor's-note text, or a medication label — that the records/analyst reads and extracts structured data from. The raw/extracted source text is stored inline in `content` (this app keeps text inline rather than a separate blob file); binary uploads arrive as text or are summarised on the client.",
+  "columns": {
+    "id":         { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "kind":       { "type": "string", "description": "the document kind — 'lab_pdf' | 'wearable_csv' | 'note_text' | 'med_label' | 'other'; the analyst may correct a guessed kind", "required": true },
+    "filename":   { "type": "string", "description": "the original filename the user uploaded", "required": true },
+    "mime":       { "type": "string", "description": "the reported MIME type, e.g. 'text/csv' | 'text/plain'", "default": "text/plain" },
+    "content":    { "type": "string", "description": "the raw or extracted text of the document the analyst parses (kept inline; never rendered as HTML — sanitised before display)", "required": true },
+    "status":     { "type": "string", "description": "'pending' while queued, 'analyzing' while the analyst runs, 'analyzed' when done, 'error' on failure — set by the analyst, not the user", "default": "pending" },
+    "summary":    { "type": "string", "description": "markdown summary of what the analyst found and wrote (empty while pending)" },
+    "error":      { "type": "string", "description": "the failure reason when status is 'error'" },
+    "uploadedAt": { "type": "date",   "description": "when the document was uploaded", "generated": "now" }
+  },
+  "relations": {
+    "extractions": { "hasMany": "document_extractions", "via": "documentId", "description": "the domain rows the analyst derived from this document" },
+    "notes":       { "hasMany": "knowledge_notes",      "via": "documentId", "description": "cited knowledge notes derived from this document" }
+  }
+}

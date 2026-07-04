@@ -5,6 +5,8 @@ actions:
   - id: deep-dive
     label: Literature deep dive
     description: research a lab result, symptom, or topic and write it up with citations
+knowledge:
+  - clinical/literature-research
 capabilities:
   - db:read:  { tables: [research, lab_results, symptoms, sources] }
   - db:write: { tables: [research] }

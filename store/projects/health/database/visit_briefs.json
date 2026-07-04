@@ -1,0 +1,13 @@
+{
+  "title": "Visit briefs",
+  "description": "A one-page appointment-prep brief the clinic/interpreter compiles from recent flagged labs, active symptoms, metric trends, and ready research — the printable summary a user walks into a doctor's visit with, ending in questions to ask. Not medical advice.",
+  "columns": {
+    "id":         { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "title":      { "type": "string", "description": "a short label for the brief, e.g. 'Visit prep — Mar 2026'", "default": "Appointment prep brief" },
+    "body":       { "type": "string", "description": "the brief in markdown (empty while pending); ends with 'Questions to ask'", "default": "" },
+    "status":     { "type": "string", "description": "'pending' while the interpreter compiles it, 'ready' when done — set by the interpreter", "default": "pending" },
+    "periodFrom": { "type": "date",   "description": "start of the period the brief covers (null = all history)" },
+    "periodTo":   { "type": "date",   "description": "end of the period the brief covers (null = now)" },
+    "createdAt":  { "type": "date",   "description": "when the brief was requested", "generated": "now" }
+  }
+}

@@ -1,5 +1,5 @@
 /**
- * Self-contained tests for the `health` project-application.
+ * Self-contained tests for the `health` project-application (round 2 — feature expansion).
  *
  * Runs dependency-free with Node's built-in runner:
  *   node --test store/projects/health/tests/health.test.mjs
@@ -7,13 +7,13 @@
  * - **Schemas** are validated with the REAL engine validator (`validateSchemaSet`
  *   from the built `@lmthing/core` in the sdk/org submodule) — the same fail-loud
  *   check the runtime loader (`libs/cli/src/app/loader.ts`) applies at boot.
- * - **API handlers / hooks / agents** are asserted structurally (the files are TS,
- *   not importable here without a transpile, so we check their required exports /
- *   shape by source) — a green here means the contract the runtime relies on holds.
+ * - **API handlers / hooks / agents / spaces** are asserted structurally (the files are
+ *   TS/MD, not importable here without a transpile, so we check required exports / shape
+ *   by source) — a green here means the contract the runtime relies on holds.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
@@ -24,15 +24,23 @@ const CORE = join(REPO, 'sdk', 'org', 'libs', 'core', 'dist', 'index.js');
 
 // ── Schemas — real engine validation ────────────────────────────────────────
 const EXPECTED_TABLES = [
+  'document_extractions',
+  'documents',
+  'followups',
+  'goals',
+  'insights',
+  'knowledge_notes',
   'lab_results',
+  'medications',
   'metrics',
   'research',
   'settings',
   'sources',
   'symptoms',
+  'visit_briefs',
 ];
 
-test('all 6 database schemas pass the engine validateSchemaSet (fail-loud)', async () => {
+test('all 14 database schemas pass the engine validateSchemaSet (fail-loud)', async () => {
   assert.ok(
     existsSync(CORE),
     `built @lmthing/core not found at ${CORE} — run \`pnpm --filter @lmthing/core build\` in sdk/org`,
@@ -74,8 +82,24 @@ test("research's two optional FKs resolve to real tables", () => {
   assert.equal(research.columns.symptomId.references.onDelete, 'cascade');
 });
 
-// ── API handlers — the 12 named, typed endpoints ────────────────────────────
+test('round-2 provenance + note FKs resolve, and lab_results gains personal-baseline columns', () => {
+  const dbDir = join(APP, 'database');
+  const load = (n) => JSON.parse(readFileSync(join(dbDir, `${n}.json`), 'utf8'));
+  const ext = load('document_extractions');
+  assert.equal(ext.columns.documentId.references.table, 'documents');
+  assert.equal(ext.columns.documentId.references.onDelete, 'cascade');
+  const notes = load('knowledge_notes');
+  assert.equal(notes.columns.documentId.references.table, 'documents');
+  const followups = load('followups');
+  assert.equal(followups.columns.labResultId.references.table, 'lab_results');
+  const labs = load('lab_results');
+  assert.ok(labs.columns.personalLow, 'lab_results must gain personalLow');
+  assert.ok(labs.columns.personalHigh, 'lab_results must gain personalHigh');
+});
+
+// ── API handlers — 28 named, typed endpoints (12 round-1 + 16 round-2) ───────
 const EXPECTED_ENDPOINTS = [
+  // round 1
   ['metrics/GET.ts', 'listMetrics'],
   ['metrics/POST.ts', 'logMetric'],
   ['labs/GET.ts', 'listLabs'],
@@ -88,9 +112,26 @@ const EXPECTED_ENDPOINTS = [
   ['settings/GET.ts', 'getSettings'],
   ['settings/disclaimer/POST.ts', 'acceptDisclaimer'],
   ['stats/GET.ts', 'healthStats'],
+  // round 2
+  ['documents/POST.ts', 'uploadDocument'],
+  ['documents/GET.ts', 'listDocuments'],
+  ['documents/[id]/GET.ts', 'getDocument'],
+  ['visit-brief/POST.ts', 'prepareVisit'],
+  ['visit-brief/GET.ts', 'listVisitBriefs'],
+  ['visit-brief/[id]/GET.ts', 'getVisitBrief'],
+  ['insights/GET.ts', 'listInsights'],
+  ['followups/GET.ts', 'listFollowups'],
+  ['followups/[id]/complete/POST.ts', 'completeFollowup'],
+  ['goals/GET.ts', 'listGoals'],
+  ['goals/POST.ts', 'createGoal'],
+  ['goals/[id]/PATCH.ts', 'updateGoal'],
+  ['metrics/import/POST.ts', 'importMetrics'],
+  ['medications/GET.ts', 'listMedications'],
+  ['medications/POST.ts', 'addMedication'],
+  ['knowledge/GET.ts', 'listKnowledgeNotes'],
 ];
 
-test('all 12 api handlers exist and export name / Input / Output / default handler', () => {
+test('all 28 api handlers exist and export name / Input / Output / default handler', () => {
   for (const [rel, name] of EXPECTED_ENDPOINTS) {
     const p = join(APP, 'api', rel);
     assert.ok(existsSync(p), `missing handler ${rel}`);
@@ -108,57 +149,119 @@ test('requestResearch gates deep research behind the subscription tier (402)', (
   assert.match(src, /subscription/i, 'requestResearch must reference the subscription tier');
 });
 
-test('getLab uses include to hydrate its relations', () => {
-  const src = readFileSync(join(APP, 'api', 'labs', '[id]', 'GET.ts'), 'utf8');
-  assert.match(src, /include/, 'getLab must use include to join related data');
+test('getLab and getDocument use include to hydrate their relations', () => {
+  assert.match(readFileSync(join(APP, 'api', 'labs', '[id]', 'GET.ts'), 'utf8'), /include/);
+  assert.match(readFileSync(join(APP, 'api', 'documents', '[id]', 'GET.ts'), 'utf8'), /include/);
 });
 
-// ── Hooks — database:insert + cron loops ────────────────────────────────────
-test('interpret-new-lab is a database:insert hook on lab_results that triggers the interpreter', () => {
-  const src = readFileSync(join(APP, 'hooks', 'interpret-new-lab.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /table:\s*['"]lab_results['"]/);
-  assert.match(src, /event:\s*['"]insert['"]/);
-  // Declarative trigger — a hook delegate does not thread structured input, so the interpreter
-  // self-queries (reconciles all labs) rather than receiving a labResultId.
-  assert.match(src, /trigger:\s*['"]clinic\/interpreter#interpret['"]/, 'must trigger the interpreter');
+test('uploadDocument inserts a pending document and rejects empty content', () => {
+  const src = readFileSync(join(APP, 'api', 'documents', 'POST.ts'), 'utf8');
+  assert.match(src, /insert\(\s*['"]documents['"]/);
+  assert.match(src, /pending/);
+  assert.match(src, /400/, 'must reject bad input with a 400');
 });
 
-test('research-deep-dive is a database:insert hook on research that triggers the researcher', () => {
-  const src = readFileSync(join(APP, 'hooks', 'research-deep-dive.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /table:\s*['"]research['"]/);
-  assert.match(src, /event:\s*['"]insert['"]/);
-  assert.match(src, /trigger:\s*['"]clinic\/researcher#deep-dive['"]/, 'must trigger the researcher');
+// ── Hooks — 7 total (5 database/cron round-1 + round-2) ──────────────────────
+const EXPECTED_HOOKS = [
+  ['interpret-new-lab.ts', /table:\s*['"]lab_results['"]/, /clinic\/interpreter#interpret/],
+  ['research-deep-dive.ts', /table:\s*['"]research['"]/, /clinic\/researcher#deep-dive/],
+  ['daily-digest.ts', /type:\s*['"]cron['"]/, /clinic\/interpreter#digest/],
+  ['analyze-document.ts', /table:\s*['"]documents['"]/, /records\/analyst#analyze/],
+  ['prepare-visit-brief.ts', /table:\s*['"]visit_briefs['"]/, /clinic\/interpreter#prep/],
+  ['followup-reminders.ts', /type:\s*['"]cron['"]/, /coaching\/coach#reminders/],
+  ['goal-checkin.ts', /type:\s*['"]cron['"]/, /coaching\/coach#checkin/],
+];
+
+test('all 7 hooks exist with the right table/type and trigger target', () => {
+  for (const [file, shape, target] of EXPECTED_HOOKS) {
+    const src = readFileSync(join(APP, 'hooks', file), 'utf8');
+    assert.match(src, shape, `${file}: wrong shape`);
+    assert.match(src, target, `${file}: wrong trigger target`);
+  }
 });
 
-test('daily-digest is a cron hook that triggers the interpreter digest action', () => {
-  const src = readFileSync(join(APP, 'hooks', 'daily-digest.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]cron['"]/);
-  assert.match(src, /clinic\/interpreter#digest/);
+test('the two round-2 database hooks are declarative triggers (self-query pattern)', () => {
+  for (const file of ['analyze-document.ts', 'prepare-visit-brief.ts']) {
+    const src = readFileSync(join(APP, 'hooks', file), 'utf8');
+    assert.match(src, /type:\s*['"]database['"]/);
+    assert.match(src, /event:\s*['"]insert['"]/);
+    assert.match(src, /trigger:/, `${file}: must use a declarative trigger`);
+  }
 });
 
-// ── clinic agents — least-privilege capabilities ────────────────────────────
-test('clinic has 3 agents, each least-privilege with no forbidden authoring caps', () => {
-  const agentsDir = join(APP, 'spaces', 'clinic', 'agents');
-  const agents = readdirSync(agentsDir);
-  assert.deepEqual(agents.sort(), ['interpreter', 'logger', 'researcher']);
-  for (const a of agents) {
-    const src = readFileSync(join(agentsDir, a, 'instruct.md'), 'utf8');
-    assert.match(src, /capabilities:/, `${a}: must declare capabilities`);
-    // The clinic OPERATES the app; it must not carry authoring/schema caps.
-    for (const forbidden of ['db:schema', 'pages:write', 'api:write', 'hooks:write']) {
-      assert.doesNotMatch(src, new RegExp(forbidden), `${a}: must NOT hold ${forbidden}`);
+// ── Spaces — three project-scoped spaces, each in full format ────────────────
+const SPACES = {
+  clinic: ['interpreter', 'logger', 'researcher'],
+  records: ['analyst', 'librarian'],
+  coaching: ['coach'],
+};
+
+test('three project-scoped spaces exist, each with the expected agents (charter + instruct)', () => {
+  for (const [space, agents] of Object.entries(SPACES)) {
+    const agentsDir = join(APP, 'spaces', space, 'agents');
+    assert.ok(existsSync(agentsDir), `space ${space} missing agents/`);
+    assert.deepEqual(readdirSync(agentsDir).sort(), [...agents].sort(), `${space}: agent set`);
+    for (const a of agents) {
+      assert.ok(existsSync(join(agentsDir, a, 'charter.md')), `${space}/${a}: charter.md required`);
+      assert.ok(existsSync(join(agentsDir, a, 'instruct.md')), `${space}/${a}: instruct.md required`);
     }
   }
 });
 
-test('per-verb table scope: interpreter, logger, and researcher each write only their own tables', () => {
-  const agentsDir = join(APP, 'spaces', 'clinic', 'agents');
-  const interpreter = readFileSync(join(agentsDir, 'interpreter', 'instruct.md'), 'utf8');
-  assert.match(interpreter, /db:write:\s*\{\s*tables:\s*\[lab_results,\s*research\]/);
-  const logger = readFileSync(join(agentsDir, 'logger', 'instruct.md'), 'utf8');
-  assert.match(logger, /db:write:\s*\{\s*tables:\s*\[metrics,\s*lab_results,\s*symptoms\]/);
-  const researcher = readFileSync(join(agentsDir, 'researcher', 'instruct.md'), 'utf8');
-  assert.match(researcher, /db:write:\s*\{\s*tables:\s*\[research\]/);
+test('every space is FULL format — functions/, components/, and extensive knowledge/ (index + aspects)', () => {
+  for (const space of Object.keys(SPACES)) {
+    const root = join(APP, 'spaces', space);
+    for (const part of ['functions', 'components', 'knowledge', 'tasklists']) {
+      assert.ok(existsSync(join(root, part)), `${space}: missing ${part}/ (full-format requirement)`);
+    }
+    // knowledge must have ≥1 field with an index.md overview + ≥2 aspect deep-dives.
+    const kroot = join(root, 'knowledge');
+    const fields = [];
+    const walk = (d) => {
+      for (const e of readdirSync(d)) {
+        const p = join(d, e);
+        if (statSync(p).isDirectory()) {
+          if (existsSync(join(p, 'index.md'))) fields.push(p);
+          else walk(p);
+        }
+      }
+    };
+    walk(kroot);
+    assert.ok(fields.length >= 1, `${space}: knowledge must have at least one field with index.md`);
+    for (const f of fields) {
+      const aspects = readdirSync(f).filter((n) => n.endsWith('.md') && n !== 'index.md');
+      assert.ok(aspects.length >= 2, `${space}: knowledge field ${f} needs ≥2 aspect .md files`);
+    }
+  }
+});
+
+// ── Capabilities — least-privilege across all six agents ─────────────────────
+test('no operating agent holds an authoring capability (db:schema / pages/api/hooks:write)', () => {
+  for (const [space, agents] of Object.entries(SPACES)) {
+    for (const a of agents) {
+      const src = readFileSync(join(APP, 'spaces', space, 'agents', a, 'instruct.md'), 'utf8');
+      assert.match(src, /capabilities:/, `${space}/${a}: must declare capabilities`);
+      for (const forbidden of ['db:schema', 'pages:write', 'api:write', 'hooks:write']) {
+        assert.doesNotMatch(src, new RegExp(forbidden), `${space}/${a}: must NOT hold ${forbidden}`);
+      }
+    }
+  }
+});
+
+test('per-verb table scope holds for the extended + new agents', () => {
+  const read = (space, a) => readFileSync(join(APP, 'spaces', space, 'agents', a, 'instruct.md'), 'utf8');
+  // interpreter now also writes visit_briefs + insights
+  const interpreter = read('clinic', 'interpreter');
+  assert.match(interpreter, /db:write:\s*\{\s*tables:\s*\[lab_results,\s*research,\s*visit_briefs,\s*insights,\s*followups\]/);
+  // logger now also writes medications
+  assert.match(read('clinic', 'logger'), /db:write:\s*\{\s*tables:\s*\[metrics,\s*lab_results,\s*symptoms,\s*medications\]/);
+  // researcher unchanged (research only)
+  assert.match(read('clinic', 'researcher'), /db:write:\s*\{\s*tables:\s*\[research\]/);
+  // analyst writes the ingestion tables incl. research (queues dives) but NOT via canDelegateTo
+  const analyst = read('records', 'analyst');
+  assert.match(analyst, /db:write:/);
+  assert.match(analyst, /research/);
+  assert.doesNotMatch(analyst, /canDelegateTo/, 'analyst queues research via db insert, not delegation');
+  // coach writes only coaching tables
+  assert.match(read('coaching', 'coach'), /db:write:\s*\{\s*tables:\s*\[goals,\s*followups,\s*insights\]/);
 });

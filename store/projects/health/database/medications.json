@@ -1,0 +1,13 @@
+{
+  "title": "Medications",
+  "description": "A medication the user is taking, with its dose and schedule — logged manually, from chat, or extracted from a med-label document. The app tracks it over time; it never advises starting, stopping, or changing a medication. Not medical advice.",
+  "columns": {
+    "id":        { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "name":      { "type": "string", "description": "the medication name, e.g. 'Atorvastatin'", "required": true },
+    "dose":      { "type": "string", "description": "the dose, e.g. '20 mg'" },
+    "schedule":  { "type": "string", "description": "how often it is taken, e.g. 'once daily'" },
+    "startedAt": { "type": "date",   "description": "when the user started taking it", "required": true },
+    "endedAt":   { "type": "date",   "description": "when the user stopped taking it (null = ongoing)" },
+    "note":      { "type": "string", "description": "optional context — prescriber, purpose, notes" }
+  }
+}

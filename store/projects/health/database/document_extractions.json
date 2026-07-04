@@ -1,0 +1,16 @@
+{
+  "title": "Document extractions",
+  "description": "A provenance record: one domain row (a lab result, a metric, a medication…) that the records/analyst derived from an uploaded document, so every derived row traces back to its source file and re-analysis stays idempotent.",
+  "columns": {
+    "id":          { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "documentId":  { "type": "string", "description": "the source document this extraction came from", "required": true,
+                     "references": { "table": "documents", "column": "id", "onDelete": "cascade" } },
+    "targetTable": { "type": "string", "description": "which domain table the derived row was written to, e.g. 'lab_results' | 'metrics' | 'medications'", "required": true },
+    "rowId":       { "type": "string", "description": "the id of the derived row in `targetTable`", "required": true },
+    "confidence":  { "type": "number", "description": "0..1 confidence the analyst assigned to this extraction", "default": 0.5 },
+    "createdAt":   { "type": "date",   "description": "when the extraction was recorded", "generated": "now" }
+  },
+  "relations": {
+    "document": { "belongsTo": "documents", "via": "documentId", "description": "the source document" }
+  }
+}

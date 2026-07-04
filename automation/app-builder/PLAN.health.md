@@ -84,3 +84,92 @@ Row types: Metric, LabResult, Symptom, Research, Source, **Setting**.
 - Full pipeline under `lmthing serve` (temp LMTHING_ROOT, health materialized, LM_MODEL=S): manifest 6 tables + 12 endpoints + 3 hooks; types generated incl. `Setting`; pages build; GET /app/health/ → 200; api I/O live.
 - 🔴 LIVE core loop (DeepSeek): seed settings tier='subscription'; addLab abnormal (LDL 190, refHigh 130) → interpret-new-lab hook → interpreter sets flag:'high' → inserts pending research → research-deep-dive hook → researcher fills body status:'ready'. Also free-tier: addLab → flag set, requestResearch → 402. Capability gate proven (agent denied out-of-scope table).
 - Install to local test user root; re-run core loop as that user.
+
+---
+
+# PLAN — round 2 (FEATURE EXPANSION)
+
+Strictly additive on the round-1 app. Floors all exceeded: 2 new spaces (→3 total), 3 new agents,
+8 new pages, 16 new endpoints (→28), 4 new hooks (→7), 8 new tables (→14). Plus full-format
+remediation of `clinic`. Row types (singularizer): Document, DocumentExtraction, KnowledgeNote,
+VisitBrief, Insight, Followup, Goal, Medication.
+
+## database/ (8 new tables ✅ authored + validated by orchestrator; +2 columns on lab_results)
+- `documents.json` — id(pk,uuid), kind(req), filename(req), mime(default text/plain), content(text,req),
+  status(default pending), summary, error, uploadedAt(now). relations extractions(hasMany document_extractions via documentId), notes(hasMany knowledge_notes via documentId).
+- `document_extractions.json` — id(pk), documentId(FK→documents cascade,req), targetTable(req), rowId(req),
+  confidence(default 0.5), createdAt(now). relation document(belongsTo documents).
+- `knowledge_notes.json` — id(pk), topic(req), body(req), sourceKind(default research), documentId?(FK→documents setNull), analyte?, tag?, createdAt(now). relation document(belongsTo).
+- `visit_briefs.json` — id(pk), title(default), body(default ""), status(default pending), periodFrom?, periodTo?, createdAt(now).
+- `insights.json` — id(pk), kind(req), body(req), metricKind?, createdAt(now).
+- `followups.json` — id(pk), topic(req), reason?, dueAt(date,req), done(bool default false), labResultId?(FK→lab_results setNull), createdAt(now). relation lab(belongsTo).
+- `goals.json` — id(pk), title(req), metricKind?, target?, current(default 0), status(default active), dueAt?, createdAt(now).
+- `medications.json` — id(pk), name(req), dose?, schedule?, startedAt(date,req), endedAt?, note?.
+- `lab_results.json` — +personalLow?, +personalHigh? columns; +followups relation (hasMany via labResultId).
+
+## api/ (16 new endpoints — inline Db/Ctx types, async handler, HttpError from '@app/runtime')
+- `documents/POST.ts` — uploadDocument {kind,filename,mime?,content} → {documentId,status}. Insert documents row status:'pending' (fires analyze-document). Reject empty content / oversize (>200k) with HttpError(400).
+- `documents/GET.ts` — listDocuments {} → Document[] (uploadedAt desc).
+- `documents/[id]/GET.ts` — getDocument {id} → Document & {extractions,notes}. include:['extractions','notes']; 404.
+- `visit-brief/POST.ts` — prepareVisit {title?,since?} → {visitBriefId,status}. Insert pending visit_briefs (fires prepare-visit-brief).
+- `visit-brief/GET.ts` — listVisitBriefs {} → VisitBrief[] (createdAt desc).
+- `visit-brief/[id]/GET.ts` — getVisitBrief {id} → VisitBrief. 404.
+- `insights/GET.ts` — listInsights {kind?} → Insight[] (createdAt desc, JS filter).
+- `followups/GET.ts` — listFollowups {dueOnly?} → Followup[]. dueOnly → dueAt<=now && !done. sort dueAt asc.
+- `followups/[id]/complete/POST.ts` — completeFollowup {id} → Followup. update done:true; 404.
+- `goals/GET.ts` — listGoals {} → Goal[] (createdAt desc).
+- `goals/POST.ts` — createGoal {title,metricKind?,target?,dueAt?} → Goal.
+- `goals/[id]/PATCH.ts` — updateGoal {id,current?,status?,dueAt?} → Goal. 404.
+- `metrics/import/POST.ts` — importMetrics {format,payload} → {imported}. Parse payload (csv text or array), bulk insert metrics, dedupe on kind+recordedAt (query-all + JS). format in apple|google|csv.
+- `medications/GET.ts` — listMedications {} → Medication[] (startedAt desc).
+- `medications/POST.ts` — addMedication {name,dose?,schedule?,startedAt,note?} → Medication.
+- `knowledge/GET.ts` — listKnowledgeNotes {analyte?,tag?} → KnowledgeNote[] (createdAt desc, JS filter).
+
+## hooks/ (4 new ✅ authored by orchestrator)
+- `analyze-document.ts` — database documents:insert → trigger records/analyst#analyze.
+- `prepare-visit-brief.ts` — database visit_briefs:insert → trigger clinic/interpreter#prep.
+- `followup-reminders.ts` — cron daily 07:30 → trigger coaching/coach#reminders.
+- `goal-checkin.ts` — cron daily 20:00 → trigger coaching/coach#checkin.
+
+## spaces/ — full six-part format (agents{charter,instruct} + tasklists + functions + components + knowledge)
+### records/ (NEW)
+- agents/analyst — caps db:read [documents,document_extractions,lab_results,metrics,medications,knowledge_notes,settings], db:write [documents,document_extractions,lab_results,metrics,symptoms,medications,research]. functions:[parseCsv,detectKind]. components:[ExtractionSummary]. knowledge:[records/extraction]. defaultAction analyze. action analyze = model-driven (robust): self-query documents status:'pending'; for each, detectKind, parse content (parseCsv for csv), db.insert domain rows, db.insert document_extractions provenance, set documents.status analyzed/error+summary; for a novel/abnormal analyte insert pending research (fires research-deep-dive). NB: analyst holds no canDelegateTo — queues research via db insert.
+- agents/librarian — caps db:read [knowledge_notes,sources,research,documents], db:write [knowledge_notes,sources]. knowledge:[records/knowledge-curation]. defaultAction curate. Curates notes from ready research + seeds trusted sources; dedupe by topic/value.
+- functions/parseCsv.ts (CSV text → rows[]), detectKind.ts (guess kind from filename+content). 
+- components/view/ExtractionSummary.tsx (card: N rows extracted, by table).
+- knowledge/records/extraction/{index.md, lab-report-parsing.md, wearable-csv.md, provenance.md}; knowledge/records/knowledge-curation/{index.md, note-standards.md, dedupe.md}.
+- tasklists/analyze/{index.md, 01-load-pending.md, 02-extract.md(forEach), 03-provenance.md} (documented decomposition).
+
+### coaching/ (NEW)
+- agents/coach — caps db:read [metrics,lab_results,symptoms,goals,followups,insights,settings], db:write [goals,followups,insights]. functions:[goalProgress,computeTrend]. components:[GoalProgress]. knowledge:[coaching/behavior-change, coaching/baselines]. defaultAction checkin. actions: checkin (per active goal compute current from metrics via goalProgress; set status met if target reached; else propose a followup), reminders (list due followups, display plain-language reminder). Chat surface on /goals.
+- functions/goalProgress.ts (metrics+goal → current value), computeTrend.ts (series → pct change).
+- components/view/GoalProgress.tsx (progress bar goal vs target — tokens only).
+- knowledge/coaching/behavior-change/{index.md, goal-setting.md, follow-through.md}; knowledge/coaching/baselines/{index.md, trend-detection.md, correlations.md}.
+- tasklists/checkin/{index.md, 01-load-goals.md, 02-evaluate.md(forEach), 03-followups.md}.
+
+### clinic/ (REMEDIATE to full format — keep 3 agents; extend interpreter+logger caps/actions)
+- interpreter: db:read += [visit_briefs,insights,followups]; db:write += [visit_briefs,insights]. New action `prep` (self-query pending visit_briefs; compile brief from flagged labs+active symptoms+trends+ready research + "Questions to ask"; status ready). `interpret` also caches personalLow/personalHigh (mean±2sd from analyte history) and proposes a followup on a newly-abnormal lab. `digest` now writes `insights` (trend/correlation rows) instead of display-only.
+- logger: db:read/write += [medications]. Logs meds from chat.
+- researcher: unchanged caps; gains knowledge/tasklists.
+- functions/flagFromRange.ts, computeTrend.ts, personalBaseline.ts.
+- components/view/TrendCard.tsx, FlagSummary.tsx.
+- knowledge/clinical/reference-ranges/{index.md, common-panels.md, interpretation.md, not-a-doctor.md}; knowledge/clinical/triage/{index.md, red-flags.md, when-to-see-a-doctor.md}; knowledge/clinical/literature-research/{index.md, trusted-sources.md, citation-standards.md}.
+- tasklists/digest/{index.md, 01-gather.md, 02-trends.md, 03-write-insights.md}; tasklists/prep/{index.md, 01-gather.md, 02-compose.md}.
+- Wire knowledge:/functions:/components: into interpreter/researcher/logger instruct frontmatter.
+
+## pages/ (8 new) + _layout nav update + components (10 new)
+- documents/index.tsx, documents/[id].tsx, visits.tsx, insights.tsx, followups.tsx, goals.tsx, knowledge.tsx, medications.tsx.
+- components: DocumentRow, UploadForm, ExtractionList, VisitBriefCard, InsightCard, FollowupRow, GoalCard, KnowledgeNoteCard, ImportForm, MedicationRow.
+- _layout.tsx: add nav links Documents · Visits · Insights · Goals (+ keep Dashboard/Labs/Symptoms/Settings). Design tokens only.
+
+## tests/health.test.mjs (extend)
+- EXPECTED_TABLES → 14; endpoint list → 28; new hooks (4) shapes; new spaces exist w/ charter+instruct+functions+knowledge; full-format assertion (each space has knowledge/ with index.md); interpreter extended write scope; analyst/librarian/coach least-privilege (no authoring caps); records/coaching agents present.
+
+## Build sequence (fan-out by directory to Sonnet subagents; orchestrator did database+hooks+schemas)
+1. ✅ orchestrator: schemas (14), hooks (4), spec, plan.
+2. Subagent A: 16 api handlers.
+3. Subagent B: 8 pages + 10 components + _layout nav.
+4. Subagent C: records space (full format).
+5. Subagent D: coaching space (full format).
+6. Subagent E: clinic remediation (functions/components/knowledge/tasklists + extend instruct).
+7. orchestrator: extend test file; typecheck; lint:tokens; live pipeline; commit+push; prod install.

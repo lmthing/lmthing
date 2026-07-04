@@ -1,0 +1,11 @@
+{
+  "title": "Insights",
+  "description": "An observation the clinic/interpreter's daily digest surfaces from the user's own data — a rolling trend, a plausible correlation, or an anomaly. Framed as observations to discuss with a clinician, never as diagnoses. Not medical advice.",
+  "columns": {
+    "id":         { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "kind":       { "type": "string", "description": "'trend' | 'correlation' | 'anomaly'", "required": true },
+    "body":       { "type": "string", "description": "the observation in plain language, e.g. 'resting HR is up ~8% over 3 weeks'", "required": true },
+    "metricKind": { "type": "string", "description": "the metric kind this insight is about, if any (e.g. 'resting_hr')" },
+    "createdAt":  { "type": "date",   "description": "when the insight was computed", "generated": "now" }
+  }
+}

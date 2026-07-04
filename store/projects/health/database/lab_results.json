@@ -10,10 +10,13 @@
     "refLow":   { "type": "number", "description": "low end of the reference range (null = no lower bound)" },
     "refHigh":  { "type": "number", "description": "high end of the reference range (null = no upper bound)" },
     "flag":     { "type": "string", "description": "'low' | 'normal' | 'high' — set by the interpreter, not the user", "default": "normal" },
+    "personalLow":  { "type": "number", "description": "cached low end of the user's OWN historical baseline for this analyte (mean − 2·sd); set by the interpreter, used to flag a sharp move from your own trend even when in the population range" },
+    "personalHigh": { "type": "number", "description": "cached high end of the user's OWN historical baseline for this analyte (mean + 2·sd); set by the interpreter" },
     "takenAt":  { "type": "date",   "description": "when the sample was drawn", "required": true },
     "note":     { "type": "string", "description": "lab or user note" }
   },
   "relations": {
-    "research": { "hasMany": "research", "via": "labResultId", "description": "deep dives about this result" }
+    "research":  { "hasMany": "research",  "via": "labResultId", "description": "deep dives about this result" },
+    "followups": { "hasMany": "followups", "via": "labResultId", "description": "recheck reminders prompted by this result" }
   }
 }

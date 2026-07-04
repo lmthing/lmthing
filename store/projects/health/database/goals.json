@@ -1,0 +1,14 @@
+{
+  "title": "Goals",
+  "description": "A wellness goal the user sets and the coaching/coach tracks against their own metrics — e.g. 'sleep 7h', 'walk 8000 steps'. The coach checks progress and proposes follow-ups. Observations only, not medical advice.",
+  "columns": {
+    "id":         { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "title":      { "type": "string", "description": "the goal, e.g. 'Average 7 hours of sleep'", "required": true },
+    "metricKind": { "type": "string", "description": "the metric kind this goal tracks against, if any (e.g. 'sleep_hours' | 'steps')" },
+    "target":     { "type": "number", "description": "the numeric target for `metricKind`, if any" },
+    "current":    { "type": "number", "description": "the latest computed progress value the coach filled in", "default": 0 },
+    "status":     { "type": "string", "description": "'active' | 'met' | 'archived' — set by the coach or the user", "default": "active" },
+    "dueAt":      { "type": "date",   "description": "an optional target date" },
+    "createdAt":  { "type": "date",   "description": "when the goal was set", "generated": "now" }
+  }
+}

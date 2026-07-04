@@ -537,6 +537,98 @@ Hand-logging is the adoption killer; ingesting an existing export makes the tren
 - **API**: `importMetrics` `POST api/metrics/import` `{ format: 'apple'|'google', payload }` → bulk
   `db.insert('metrics', …)` (dedupe on `kind`+`recordedAt`).
 
+## Round 2 — feature expansion (implemented)
+
+Round 1 shipped the core loop (six tables, the `clinic` space, twelve endpoints, three hooks, eight
+pages) live-verified against DeepSeek. Round 2 folds the §"Additional features" backlog into the
+product as **fully-implemented** capability, adds **two new project-scoped spaces**, and brings the
+existing `clinic` space up to the **full space format**. Everything below is additive — round-1 files
+and behaviour are unchanged. All new spaces read/write the **same** project-rooted db and feed the same
+pages; cross-space work is wired through `hooks/` (declarative `trigger:` + self-querying agents,
+exactly as round 1 — a hook delegate does not thread structured input, so an agent finds its own work).
+
+### New spaces (now three total; the multi-space shape)
+- **`records`** — document ingestion & extraction. Agents **`analyst`** (reads an uploaded document,
+  extracts labs/metrics/medications into the db by kind, records provenance, and queues research on
+  anything novel) and **`librarian`** (curates the durable `knowledge_notes` store and trusted
+  `sources`). Kills hand-entry — the biggest friction in the core app.
+- **`coaching`** — wellness coaching & follow-through. Agent **`coach`** (tracks `goals` against the
+  user's own metrics, closes the loop with `followups`, and computes personal-baseline observations).
+- **`clinic`** (existing) is **remediated to full format**: each agent gains a `charter.md` (already
+  present) alongside `instruct.md`, and the space gains `functions/` (deterministic flag/trend/baseline
+  helpers), `components/` (chat catalog cards), extensive `knowledge/` (reference-range interpretation,
+  triage/red-flags with the not-a-doctor framing, literature-research standards), and `tasklists/`
+  (the digest and visit-prep decompositions).
+
+Every project space follows the six-part format (`agents/{charter,instruct}.md`, `tasklists/`,
+`functions/`, `components/`, `knowledge/<field>/{index.md + ≥2 aspects}`).
+
+### New tables (eight; plus two columns on `lab_results`)
+`documents`, `document_extractions`, `knowledge_notes`, `visit_briefs`, `insights`, `followups`,
+`goals`, `medications`. Row types (engine singularizer): `Document`, `DocumentExtraction`,
+`KnowledgeNote`, `VisitBrief`, `Insight`, `Followup`, `Goal`, `Medication`. New columns
+`lab_results.personalLow`/`personalHigh` cache the user's **own** baseline (mean ± 2·sd) so the
+interpreter can flag a sharp move from your trend even when in the population range.
+
+- **Document storage is inline (`documents.content`), not a blob file this round.** The parent plan's
+  aspirational `.data/uploads/<id>/` blob path needs fs access from a worker-isolated handler and
+  multipart parsing; to stay buildable/testable on the current engine, an upload carries its text (a
+  pasted lab report, a CSV export, a note) in `content`, which the analyst parses. Binary PDFs/images
+  are out of scope this round (the `kind` allow-list still records them; OCR/pdf-extract remain a
+  future round needing a heavier dep). **All extracted/rendered text is sanitised** (untrusted → XSS).
+
+### New API endpoints (sixteen; twenty-eight total)
+| name | method + route | I/O sketch |
+|---|---|---|
+| `uploadDocument` | `POST api/documents` | `{ kind, filename, mime?, content }` → `{ documentId, status:'pending' }` (fires `analyze-document`) |
+| `listDocuments` | `GET api/documents` | `{}` → `Document[]` |
+| `getDocument` | `GET api/documents/:id` | `{ id }` → `Document & { extractions: DocumentExtraction[]; notes: KnowledgeNote[] }` |
+| `prepareVisit` | `POST api/visit-brief` | `{ title?, since? }` → `{ visitBriefId, status:'pending' }` (fires `prepare-visit-brief`) |
+| `listVisitBriefs` | `GET api/visit-brief` | `{}` → `VisitBrief[]` |
+| `getVisitBrief` | `GET api/visit-brief/:id` | `{ id }` → `VisitBrief` |
+| `listInsights` | `GET api/insights` | `{ kind? }` → `Insight[]` |
+| `listFollowups` | `GET api/followups` | `{ dueOnly? }` → `Followup[]` |
+| `completeFollowup` | `POST api/followups/:id/complete` | `{ id }` → `Followup` |
+| `listGoals` | `GET api/goals` | `{}` → `Goal[]` |
+| `createGoal` | `POST api/goals` | `{ title, metricKind?, target?, dueAt? }` → `Goal` |
+| `updateGoal` | `PATCH api/goals/:id` | `{ id, current?, status?, dueAt? }` → `Goal` |
+| `importMetrics` | `POST api/metrics/import` | `{ format:'apple'|'google'|'csv', payload }` → `{ imported }` (bulk insert, dedupe on kind+recordedAt) |
+| `listMedications` | `GET api/medications` | `{}` → `Medication[]` |
+| `addMedication` | `POST api/medications` | `{ name, dose?, schedule?, startedAt, note? }` → `Medication` |
+| `listKnowledgeNotes` | `GET api/knowledge` | `{ analyte?, tag? }` → `KnowledgeNote[]` |
+
+`prepareVisit` follows the robust round-1 shape: it inserts a **pending** `visit_briefs` row (firing the
+`prepare-visit-brief` hook → the interpreter compiles it), rather than relying on a stubbed api `spawn`.
+
+### New hooks (four; seven total)
+- `analyze-document.ts` — **database** on `documents:insert` → `records/analyst#analyze` (self-queries
+  pending docs; idempotent; loop-bounded by self-write exclusion).
+- `prepare-visit-brief.ts` — **database** on `visit_briefs:insert` → `clinic/interpreter#prep`.
+- `followup-reminders.ts` — **cron** daily 07:30 → `coaching/coach#reminders` (surfaces due follow-ups).
+- `goal-checkin.ts` — **cron** daily 20:00 → `coaching/coach#checkin` (updates goal progress, proposes follow-ups).
+
+### New pages (eight)
+`/documents` (upload + list), `/documents/:id` (source summary + extracted rows + linked notes; live-polls
+while pending), `/visits` (generate/list/print briefs), `/insights` (trends/correlations/anomalies strip),
+`/followups` (due reminders + complete), `/goals` (create/track + `<Chat agent="coaching/coach">`),
+`/knowledge` (browse the db-backed notes), `/medications` (list + log). New components: `DocumentRow`,
+`UploadForm`, `ExtractionList`, `VisitBriefCard`, `InsightCard`, `FollowupRow`, `GoalCard`,
+`KnowledgeNoteCard`, `ImportForm`, `MedicationRow`. Design tokens only (no raw colors).
+
+### New / extended agent capabilities (least-privilege, per-verb table scope)
+| Agent | `db:read` | `db:write` | other |
+|---|---|---|---|
+| **records/analyst** | `documents, document_extractions, lab_results, metrics, medications, knowledge_notes, settings` | `documents, document_extractions, lab_results, metrics, symptoms, medications, research` | `functions: [parseCsv, detectKind]` (deterministic parsing; omits web tools by design) |
+| **records/librarian** | `knowledge_notes, sources, research, documents` | `knowledge_notes, sources` | — |
+| **coaching/coach** | `metrics, lab_results, symptoms, goals, followups, insights, settings` | `goals, followups, insights` | `functions: [goalProgress, computeTrend]` |
+| **clinic/interpreter** (extended) | + `visit_briefs, insights, followups` | + `visit_briefs, insights, followups` | new actions `prep`, personal-baselines + recheck follow-ups in `interpret` |
+| **clinic/logger** (extended) | + `medications` | + `medications` | logs meds from chat |
+
+No agent gains `db:schema`/`pages:write`/`api:write`/`hooks:write` — evolving the model stays a THING →
+`system-appbuilder` authoring concern. The analyst queues research by inserting a pending `research`
+row (firing the existing `research-deep-dive` hook → the researcher), so it holds **no** `canDelegateTo`
+— the same hooks-over-shared-db shape as round 1, not agent-to-agent delegation.
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages

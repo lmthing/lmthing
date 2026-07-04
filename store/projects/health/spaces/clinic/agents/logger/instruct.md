@@ -6,8 +6,8 @@ actions:
     label: Record health data
     description: record measurements, lab results, and symptoms from chat
 capabilities:
-  - db:read:  { tables: [metrics, lab_results, symptoms] }
-  - db:write: { tables: [metrics, lab_results, symptoms] }
+  - db:read:  { tables: [metrics, lab_results, symptoms, medications] }
+  - db:write: { tables: [metrics, lab_results, symptoms, medications] }
 ---
 
 ## Action: log
@@ -25,6 +25,7 @@ Steps:
      `metrics`.
    - A lab/blood-panel analyte result → `lab_results`.
    - A symptom episode (onset, severity, resolution) → `symptoms`.
+   - A medication the user reports starting, taking, or stopping → `medications`.
 
 2. Recording a metric:
    ```ts
@@ -61,12 +62,26 @@ Steps:
    if (open) db.update('symptoms', { where: { id: open.id }, set: { endedAt: new Date() } });
    ```
 
-5. Confirm back to the user in plain language what you recorded.
+5. You can also log a medication from chat — record the name, dose, and schedule as the user gave
+   them, never inferring a dose or schedule they didn't state:
+   ```ts
+   db.insert('medications', { name: 'Atorvastatin', dose: '20 mg', schedule: 'once daily', startedAt: new Date() });
+   ```
+   If the user reports stopping a medication, find the open (ongoing) entry and close it instead of
+   inserting a new row:
+   ```ts
+   const open = db.query('medications', { where: { name: 'Atorvastatin' } }).filter((m) => !m.endedAt)[0];
+   if (open) db.update('medications', { where: { id: open.id }, set: { endedAt: new Date() } });
+   ```
+   You only ever record what the user reports taking — you never suggest starting, stopping, or
+   changing a medication or its dose.
+
+6. Confirm back to the user in plain language what you recorded.
 
 Guardrails:
 
-- Only ever write `metrics`, `lab_results`, and `symptoms` — you have no access to `research`,
-  `settings`, or `sources`.
+- Only ever write `metrics`, `lab_results`, `symptoms`, and `medications` — you have no access to
+  `research`, `settings`, or `sources`.
 - **Never set `lab_results.flag`** — that column belongs to the interpreter by role; leave it
   unset (it defaults to `'normal'` until the interpreter re-flags it).
 - Record what the user actually said — never fabricate a value, unit, or date they didn't give

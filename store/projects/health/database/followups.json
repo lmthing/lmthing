@@ -1,0 +1,17 @@
+{
+  "title": "Follow-ups",
+  "description": "A recheck or action reminder the clinic/interpreter or coaching/coach proposes off an abnormal result or a goal — turning a one-time flag into managed care over time. The daily reminder cron surfaces due ones. Not medical advice.",
+  "columns": {
+    "id":          { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "topic":       { "type": "string", "description": "what to follow up on, e.g. 'recheck LDL'", "required": true },
+    "reason":      { "type": "string", "description": "why it was proposed, e.g. 'LDL 190 mg/dL was high'" },
+    "dueAt":       { "type": "date",   "description": "when the follow-up is due", "required": true },
+    "done":        { "type": "boolean", "description": "whether the user marked it complete", "default": false },
+    "labResultId": { "type": "string", "description": "the lab result that prompted this follow-up, if any",
+                     "references": { "table": "lab_results", "column": "id", "onDelete": "setNull" } },
+    "createdAt":   { "type": "date",   "description": "when the follow-up was created", "generated": "now" }
+  },
+  "relations": {
+    "lab": { "belongsTo": "lab_results", "via": "labResultId", "description": "the lab result that prompted this follow-up" }
+  }
+}

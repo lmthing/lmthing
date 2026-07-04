@@ -156,6 +156,67 @@ Running log across 5-hour autonomous runs. Single source of truth for status.
 - sdk/org `main`: **`6da8f42`** — pages-serve `<base href>` fix + regression test (pushed to origin/main).
 - monorepo `main`: this commit — health app + spec + PLAN/PROGRESS + submodule pointer bump to `6da8f42`.
 
+### Round 2 — FEATURE EXPANSION (in progress, 2026-07-04)
+- Phase 0 orient ✅ — re-read both arch docs + implementation doc + health spec + PROGRESS/PLAN + engine
+  space-format (Explore: project spaces load full 6-part format identically to system spaces). Baseline
+  health test green (before changes). Concurrent kitchen round-2 work is uncommitted in the tree — I will
+  NOT touch kitchen files; Phase-5 staging is health-only paths.
+- Phase 1 spec ✅ — added a "Round 2 — feature expansion (implemented)" section to
+  `app-specifications/health-application.md`: 2 new spaces (records, coaching), 8 new tables, 16 new
+  endpoints, 4 new hooks, 8 new pages, extended agent caps. Documented the inline-`documents.content`
+  deviation (no blob file this round; PDF/OCR deferred — needs heavier dep) + sanitisation/XSS note.
+- Phase 2 PLAN ✅ — appended round-2 file-by-file plan to `automation/app-builder/PLAN.health.md`.
+- Phase 3 build ✅: orchestrator authored 8 new schemas (validated: 14 tables pass `validateSchemaSet`)
+  + `lab_results` personalLow/High cols + `followups` relation + 4 hooks. 5 Sonnet subagents (disjoint
+  dirs): A=api(16 handlers), B=8 pages+10 components+nav, C=records space (analyst+librarian, full
+  format), D=coaching space (coach, full format), E=clinic full-format remediation (functions/components/
+  knowledge(3 fields×≥2 aspects)/tasklists + extended interpreter[+prep/insights/followups/baselines caps]
+  & logger[+medications]). Fixed a real cap bug the E subagent flagged (interpreter inserts followups but
+  db:write excluded it → added). Confirmed via engine source: actions bind tasklists ONLY via explicit
+  `tasklist:` field — my hook-triggered actions omit it → run model-driven instruct prose (robust), tasklists
+  are loadable decompositions satisfying full-format.
+- Phase 4 tests + LIVE (DeepSeek azure:DeepSeek-V4-Flash) ✅:
+  - Structural suite `tests/health.test.mjs` — **14/14 green** (14 tables via validateSchemaSet; 28-endpoint
+    contract; 7 hooks; 3 full-format spaces w/ knowledge index+≥2 aspects; extended/least-privilege caps).
+  - Token gate: 0 raw colors across health pages/components/space-components.
+  - Full pipeline under `lmthing serve` (temp LMTHING_ROOT, LM_MODEL=S): manifest **14 tables, 28 endpoints,
+    7 hooks**; types generated incl. all 8 new row types; pages built (all new routes); GET /app/health/ 200.
+  - **🔴 LIVE loops verified end-to-end:**
+    - **Document CSV extraction** — uploadDocument(wearable_csv) → analyze-document hook → records/analyst
+      (live) `parseCsv` → inserted 5 metrics + 5 document_extractions provenance → status analyzed. ✅
+    - **Document lab extraction** — uploadDocument(lab_pdf) → analyst `parseLabReport` (NEW deterministic fn
+      I added after the weak model failed free-text extraction) → 4 lab_results + provenance + queued research. ✅
+    - **Full cascade** document→interpret-new-lab→flag→research-deep-dive: labs flagged high/low, research
+      filled status:ready. ✅ (see engine fix below)
+    - **Coaching** goal-checkin → coach (live) `goalProgress` computed current=8166 from seeded steps metrics. ✅
+    - **interpret** extended: created recheck **followups** for abnormal LDL/Triglycerides. ✅
+    - **prep** → interpreter compiled a proper **visit brief** (flagged labs, trends via metricTrends, research,
+      "Questions to ask"). ✅  **digest** → wrote **insights** (trend:steps). ✅
+  - Round-1 loop regression: addLab abnormal → interpret-new-lab → flagged high (live). ✅
+
+### Engine facts / fixes discovered this round (sdk/org)
+- **🔧 ENGINE BUG FIXED (in-scope): cascaded database hooks stalled after one level.**
+  `ProjectHookRuntime.drain()` (`libs/cli/src/app/hooks/runtime.ts`) — a hook-triggered agent run's own db
+  writes fire `onDbWrite` WHILE the runtime is draining, so `scheduleDrain` was suppressed (`this.draining`)
+  and never re-armed; the dispatcher's snapshot-up-front `drain()` never sees them → any A→B→C hook chain
+  (document→interpret→research) stalled after the first level until an unrelated external write kicked a new
+  drain. **Fix:** after `dispatcher.drain()` returns, `if (this.dispatcher.queued.length > 0) this.scheduleDrain()`
+  — re-arms a fresh tick (still non-re-entrant; bounded by the depth cap of 3). Regression test
+  `libs/cli/src/app/hooks/runtime.test.ts` (a run that enqueues a cascaded hook now completes A→B). This
+  affects ALL project-apps (blog/kitchen too) — a latent bug round-1's shallower chains masked.
+- **Weak-model robustness patterns applied (keep for future rounds):** (1) deterministic space FUNCTIONS beat
+  model free-text/gymnastics — `parseLabReport` (lab text→rows) and `metricTrends` (group+trend) fixed
+  extraction/digest/prep flakiness where DeepSeek-Flash wrote typecheck-breaking Map/sort/annotation code;
+  (2) tell the model explicitly NOT to call `loadKnowledge` (knowledge is auto-injected) — it was hallucinating
+  `loadKnowledge("clinical","triage","overview")` and burning turns.
+
+### Gate (round 2)
+- sdk/org `pnpm typecheck` ✅ (6/6 packages) · `pnpm test` ✅ **957 passed / 21 skipped / 0 failed** (incl. new
+  runtime.test.ts; QuickJS "Aborted" teardown lines are the known catchable assertion — those tests pass) ·
+  health structural ✅ 14/14 · token gate ✅ 0 violations.
+
+
+
 ## Resume notes for the NEXT run (round 2 — FEATURE EXPANSION)
 - The health app EXISTS and is green + live-verified. Round 2 is strictly additive — do NOT
   regress/delete round-1 files. Floors: ≥1 new project-scoped space, ≥3 new agents, ≥5 new pages,

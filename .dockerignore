@@ -9,4 +9,9 @@
 devops/
 **/.env*
 **/*.md
+# …but project-app catalog content under store/projects/ ships REAL markdown at
+# runtime — agent definitions (spaces/*/agents/*/{charter,instruct}.md) and
+# knowledge (*.md). Excluding them made the store build a manifest without any
+# agents, so installed apps' <Chat> failed "agent not found". Re-include them.
+!store/projects/**/*.md
 sdk/org/docs/

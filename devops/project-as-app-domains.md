@@ -1,4 +1,20 @@
-# Project-as-Application — two-TLD domain routing (Phase 8C, deferred devops task)
+# Project-as-Application — two-TLD domain routing (Phase 8C)
+
+> **STATUS 2026-07-04: `lmthing.app` is LIVE.** Set up exactly like `lmthing.studio`/`lmthing.chat`
+> (`devops/argocd/envoy/app-routes.yaml` + `app-policies.yaml`, gateway `app-http`/`app-https`
+> listeners, `lmthing-app-tls` Let's Encrypt cert). Per-user pod routing via the shared
+> `rewrite-host-from-header` filter + `dynamic-user-backend`, JWT (`Authorization: Bearer` OR
+> `?access_token=`) → `sub`→`x-user-id` → Lua → `lmthing.user-<id>.svc:8080`. Paths pass through
+> unchanged (like chat's `/api` proxy), so the app surface is reached at `lmthing.app/app/<project>/…`.
+> Verified: HTTP→HTTPS 301, valid TLS, and `401 "Jwt is missing"` without a token (auth layer live).
+> **Remaining (optional):** (1) if the clean root-anchored URL `lmthing.app/<project>/` (→ pod
+> `/app/<project>/`) is wanted instead of `lmthing.app/app/<project>/`, add a `ReplacePrefixMatch /app`
+> URLRewrite to `app-proxy`. (2) `lmthing.studio` same-origin `/app/*` preview passthrough is not yet
+> wired (studio currently proxies only `/api/*`). (3) the browser token-handoff (how a top-level nav
+> gets the `access_token`) rides the same self-auth flow the chat/studio SPAs use.
+
+---
+
 
 > The project-app **engine** (db/api/typed-contracts/pages/hooks/chat + the Studio management
 > API) is fully built and validated locally (`localhost:8080/{studio, app/<project>, api}` all

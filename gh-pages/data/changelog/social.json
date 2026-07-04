@@ -1,5 +1,15 @@
 [
   {
+    "hash": "c036e3ff",
+    "full_hash": "c036e3ff16f59dcee97a8e4cf74ca123b8336d42",
+    "type": "feat",
+    "scope": "health",
+    "subject": "round 2 \u2014 document ingestion, coaching, insights & visit briefs",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 17:51:08 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/c036e3ff16f59dcee97a8e4cf74ca123b8336d42"
+  },
+  {
     "hash": "4b142c22",
     "full_hash": "4b142c22fbc53233e2689387a4e2900fe1f7ba31",
     "type": "chore",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-07-01 15:12:04 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/a4a3057168751aa3010ab3d8d5f8158cf076bc07"
-  },
-  {
-    "hash": "81554c55",
-    "full_hash": "81554c55f9433b7177d6b9a81a37a785a6319b2f",
-    "type": "ci",
-    "scope": "",
-    "subject": "update subproject commit reference to 01a6c97",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 14:24:20 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/81554c55f9433b7177d6b9a81a37a785a6319b2f"
   }
 ]

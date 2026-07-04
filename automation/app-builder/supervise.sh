@@ -61,13 +61,18 @@ sleep_until() {
   done
 }
 
-trap 'log "supervisor stopping (signal)"; write_status stopped; rm -f "$PIDFILE"; exit 0' INT TERM
+# Only touch the shared pidfile/status if WE still own the pidfile — otherwise a late-firing
+# trap from a just-killed supervisor would clobber a newer supervisor's files (relaunch race).
+own_pidfile() { [ "$(cat "$PIDFILE" 2>/dev/null)" = "$$" ]; }
+cleanup_if_owner() { if own_pidfile; then write_status "$1"; rm -f "$PIDFILE"; fi; }
+
+trap 'log "supervisor stopping (signal)"; cleanup_if_owner stopped; exit 0' INT TERM
 
 log "supervisor up. start=$(date -Is -d "@$START_EPOCH")  deadline=$(date -Is -d "@$DEADLINE_EPOCH")  interval=${RUN_INTERVAL}s"
 write_status waiting-for-start none "$(date -Is -d "@$START_EPOCH")"
 
 if ! sleep_until "$START_EPOCH"; then
-  log "deadline reached before start window — nothing to do"; write_status done; rm -f "$PIDFILE"; exit 0
+  log "deadline reached before start window — nothing to do"; cleanup_if_owner done; exit 0
 fi
 
 run_count=0
@@ -92,6 +97,5 @@ while :; do
   sleep_until "$local_next" || { log "deadline reached during sleep — stopping"; break; }
 done
 
-write_status done "$(date -Is)" ""
-rm -f "$PIDFILE"
+if own_pidfile; then write_status done "$(date -Is)" ""; rm -f "$PIDFILE"; fi
 log "supervisor done."

@@ -1,5 +1,15 @@
 [
   {
+    "hash": "cfa59ab0",
+    "full_hash": "cfa59ab033d5712acbba7c74df86292e4be0d935",
+    "type": "fix",
+    "scope": "trips",
+    "subject": "raise analyze-document hook budget so a doc can't get stuck 'analyzing'",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 21:22:04 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/cfa59ab033d5712acbba7c74df86292e4be0d935"
+  },
+  {
     "hash": "cf1770d9",
     "full_hash": "cf1770d9f7ae429b5b1a6e1ae046b515e0aee5b1",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-07-02 01:23:55 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/21a7124cdaca4fc32a03d248b3f7af9e0934e7c2"
-  },
-  {
-    "hash": "bbfd299d",
-    "full_hash": "bbfd299d5e22f52ddf066e863339f81e7b5058af",
-    "type": "fix",
-    "scope": "sdk",
-    "subject": "update subproject commit to 8011daf",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 23:40:55 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/bbfd299d5e22f52ddf066e863339f81e7b5058af"
   }
 ]

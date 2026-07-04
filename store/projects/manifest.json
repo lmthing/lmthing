@@ -1,0 +1,165 @@
+{
+  "apps": [
+    {
+      "id": "blog",
+      "title": "Blog",
+      "description": "lmthing.blog — personalized AI news, as a project-application (database + pages + api + hooks + newsroom space).",
+      "icon": null,
+      "tables": [
+        "articles",
+        "citations",
+        "raw_items",
+        "research",
+        "settings",
+        "sources"
+      ],
+      "pages": [
+        "_app.tsx",
+        "_layout.tsx",
+        "feed/[articleId].tsx",
+        "feed/[articleId]/research.tsx",
+        "index.tsx",
+        "preferences.tsx",
+        "tag/[tag].tsx"
+      ],
+      "endpoints": [
+        "articles",
+        "feed-list",
+        "mark-all-read",
+        "mark-read",
+        "settings",
+        "sources",
+        "stats"
+      ],
+      "hooks": [
+        "refresh-sources",
+        "synthesize-new"
+      ]
+    },
+    {
+      "id": "demo-feed",
+      "title": "Personal Feed",
+      "description": "Hand-authored reference app for the project-as-application engine: a personal reading feed with a database table, list/mark-read/add-item API endpoints, a page, and a database hook that enriches new items.",
+      "icon": "📰",
+      "tables": [
+        "feed_items"
+      ],
+      "pages": [
+        "index.tsx"
+      ],
+      "endpoints": [
+        "add-item",
+        "feed-list",
+        "mark-read"
+      ],
+      "hooks": [
+        "enrich-on-add"
+      ]
+    },
+    {
+      "id": "health",
+      "title": "Health",
+      "description": "lmthing.health — personal health research page, as a project-application (database + pages + api + hooks + clinic space). Not medical advice.",
+      "icon": null,
+      "tables": [
+        "lab_results",
+        "metrics",
+        "research",
+        "settings",
+        "sources",
+        "symptoms"
+      ],
+      "pages": [
+        "_app.tsx",
+        "_layout.tsx",
+        "index.tsx",
+        "labs/[id].tsx",
+        "labs/index.tsx",
+        "research/[id].tsx",
+        "settings.tsx",
+        "symptoms.tsx"
+      ],
+      "endpoints": [
+        "labs",
+        "metrics",
+        "research",
+        "settings",
+        "stats",
+        "symptoms"
+      ],
+      "hooks": [
+        "daily-digest",
+        "interpret-new-lab",
+        "research-deep-dive"
+      ]
+    },
+    {
+      "id": "kitchen",
+      "title": "Kitchen",
+      "description": "lmthing.kitchen — pantry + meal planner, as a project-application (database + pages + api + hooks + chef space).",
+      "icon": null,
+      "tables": [
+        "ingredients",
+        "meal_plans",
+        "plan_meals",
+        "recipe_ingredients",
+        "recipes",
+        "shopping_list"
+      ],
+      "pages": [
+        "_app.tsx",
+        "_layout.tsx",
+        "index.tsx",
+        "pantry.tsx",
+        "plan/[planId].tsx",
+        "recipes/[id].tsx",
+        "recipes/index.tsx",
+        "shopping.tsx"
+      ],
+      "endpoints": [
+        "meals",
+        "pantry",
+        "plan",
+        "recipes",
+        "shopping",
+        "stats"
+      ],
+      "hooks": [
+        "plan-week",
+        "recompute-shopping"
+      ]
+    },
+    {
+      "id": "trips",
+      "title": "Trips",
+      "description": "lmthing.trips — an AI trip planner, as a project-application (database + pages + api + hooks + concierge space).",
+      "icon": null,
+      "tables": [
+        "bookings",
+        "destinations",
+        "itinerary_items",
+        "research",
+        "trips"
+      ],
+      "pages": [
+        "_app.tsx",
+        "_layout.tsx",
+        "index.tsx",
+        "new.tsx",
+        "trips/[tripId].tsx",
+        "trips/[tripId]/plan.tsx",
+        "trips/[tripId]/research/[destId].tsx"
+      ],
+      "endpoints": [
+        "bookings",
+        "items",
+        "research",
+        "trips"
+      ],
+      "hooks": [
+        "research-new-destination",
+        "watch-booking-prices"
+      ]
+    }
+  ]
+}

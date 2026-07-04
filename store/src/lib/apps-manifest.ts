@@ -7,7 +7,7 @@
  * fetched, so the catalog browse pages need no network round-trip in dev or prod
  * — Vite inlines it at build time and serves it fresh on every dev-server request.
  */
-import manifestData from '../../apps/manifest.json'
+import manifestData from '../../projects/manifest.json'
 
 /** One `store/apps/<appId>/` catalog entry, as derived by the manifest generator. */
 export interface CatalogApp {

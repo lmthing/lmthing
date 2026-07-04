@@ -11,7 +11,7 @@ import { Stack } from '@lmthing/ui/elements/layouts/stack'
 import { getCatalogApp } from '@/lib/apps-manifest'
 import { installApp, POD_API_BASE } from '@/lib/pod-api'
 
-export const Route = createFileRoute('/apps/$appId')({
+export const Route = createFileRoute('/projects/$appId')({
   component: AppDetail,
 })
 
@@ -42,7 +42,7 @@ function AppDetail() {
         <PageBody>
           <Stack gap="sm">
             <Caption muted>App &quot;{appId}&quot; was not found in the catalog.</Caption>
-            <Link to="/apps" className="text-sm text-primary underline">
+            <Link to="/projects" className="text-sm text-primary underline">
               Back to catalog
             </Link>
           </Stack>
@@ -55,7 +55,7 @@ function AppDetail() {
     <Page>
       <PageHeader>
         <Link
-          to="/apps"
+          to="/projects"
           className="mb-2 inline-flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />

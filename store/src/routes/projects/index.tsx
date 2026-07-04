@@ -7,7 +7,7 @@ import { Badge } from '@lmthing/ui/elements/content/badge'
 import { Page, PageHeader, PageBody } from '@lmthing/ui/elements/layouts/page'
 import { listCatalogApps } from '@/lib/apps-manifest'
 
-export const Route = createFileRoute('/apps/')({
+export const Route = createFileRoute('/projects/')({
   component: AppsBrowse,
 })
 
@@ -28,7 +28,7 @@ function AppsBrowse() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {apps.map((app) => (
-              <Link key={app.id} to="/apps/$appId" params={{ appId: app.id }} className="block">
+              <Link key={app.id} to="/projects/$appId" params={{ appId: app.id }} className="block">
                 <Card interactive className="flex h-full flex-col">
                   <CardBody className="flex h-full flex-col gap-3">
                     <div className="flex items-center gap-3">

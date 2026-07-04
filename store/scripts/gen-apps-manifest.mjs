@@ -33,13 +33,23 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-/** `store/apps/` — the catalog dir (§0.6). */
-export const APPS_DIR = path.resolve(__dirname, '..', 'apps')
-/** `store/apps/manifest.json` — the generated static browse index. */
+/** `store/projects/` — the catalog dir (project-apps live here, incl. the ones the
+ *  autonomous app-builder ships). */
+export const APPS_DIR = path.resolve(__dirname, '..', 'projects')
+/** `store/projects/manifest.json` — the generated static browse index. */
 export const MANIFEST_PATH = path.join(APPS_DIR, 'manifest.json')
 
-/** Runtime/generated trees never copied into a distributed catalog entry. */
-const EXCLUDED_DIRS = new Set(['.data', 'types'])
+/** Runtime/generated/dependency trees never copied into a distributed catalog entry. */
+const EXCLUDED_DIRS = new Set(['.data', 'types', 'node_modules'])
+
+/** Title-case a slug id for a fallback display title (`personal-feed` → `Personal Feed`). */
+function humanizeId(id) {
+  return id
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
+}
 
 async function dirExists(p) {
   try {
@@ -91,18 +101,26 @@ async function listPageFiles(dir, base = dir) {
   return out.sort()
 }
 
-/** Load one `store/apps/<appId>/` template into a manifest entry, or `null` to skip it. */
-async function loadAppEntry(appDir, appId) {
-  const projectJsonPath = path.join(appDir, 'project.json')
-  if (!existsSync(projectJsonPath)) return null
-
-  let project
+/** Read + parse a JSON file, or `null` if it's absent/invalid. */
+async function readJson(p) {
+  if (!existsSync(p)) return null
   try {
-    project = JSON.parse(await readFile(projectJsonPath, 'utf8'))
-  } catch (err) {
-    console.warn(`[gen-apps-manifest] skipping "${appId}": invalid project.json (${err.message})`)
+    return JSON.parse(await readFile(p, 'utf8'))
+  } catch {
     return null
   }
+}
+
+/**
+ * Load one `store/projects/<appId>/` template into a manifest entry, or `null` to skip.
+ * Metadata comes from `project.json` when present (hand-authored catalog apps like
+ * `demo-feed`); otherwise it's derived from `package.json` (the app-builder ships apps
+ * with a `package.json` name/description but no `project.json`). A dir that is neither an
+ * app (no database/pages/api/hooks) nor carries either manifest is skipped.
+ */
+async function loadAppEntry(appDir, appId) {
+  const project = await readJson(path.join(appDir, 'project.json'))
+  const pkg = project ? null : await readJson(path.join(appDir, 'package.json'))
 
   const [tables, pages, endpoints, hooks] = await Promise.all([
     listNamesWithExt(path.join(appDir, 'database'), '.json'),
@@ -111,11 +129,15 @@ async function loadAppEntry(appDir, appId) {
     listNamesWithExt(path.join(appDir, 'hooks'), '.ts'),
   ])
 
+  const looksLikeApp = tables.length + pages.length + endpoints.length + hooks.length > 0
+  if (!project && !pkg) return null
+  if (!project && !looksLikeApp) return null // a plain package that isn't a project-app
+
   return {
-    id: project.id ?? appId,
-    title: project.title ?? appId,
-    description: project.description ?? '',
-    icon: project.icon ?? null,
+    id: project?.id ?? appId,
+    title: project?.title ?? humanizeId(appId),
+    description: project?.description ?? pkg?.description ?? '',
+    icon: project?.icon ?? null,
     tables,
     pages,
     endpoints,
@@ -147,12 +169,13 @@ export async function generateManifestFile(appsDir = APPS_DIR, manifestPath = MA
 }
 
 /**
- * Copy each app template (excluding `.data/`/`types/`) plus `manifest.json`
- * into `<distDir>/apps/` — the static assets nginx serves alongside the SPA
- * (`store/nginx.conf`), and what a pod's install endpoint fetches in prod.
+ * Copy each app template (excluding `.data/`/`types/`/`node_modules/`) plus
+ * `manifest.json` into `<distDir>/projects/` — the static assets nginx serves
+ * alongside the SPA (`store/nginx.conf`), and what a pod's install endpoint
+ * fetches in prod.
  */
 export async function copyAppsToDist(distDir, appsDir = APPS_DIR, manifestPath = MANIFEST_PATH) {
-  const destApps = path.join(distDir, 'apps')
+  const destApps = path.join(distDir, 'projects')
   await mkdir(destApps, { recursive: true })
   if (existsSync(manifestPath)) {
     await cp(manifestPath, path.join(destApps, 'manifest.json'))

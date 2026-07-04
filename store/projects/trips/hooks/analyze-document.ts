@@ -1,7 +1,10 @@
 export default {
   type: 'database',
   on: { table: 'documents', event: 'insert' },
-  budget: { maxEpisodes: 10 },
+  // Extraction runs classify → extract → research-followup through the model; give it enough
+  // room to reach the terminal `analyzed`/`error` status even on a busy pod (a too-small
+  // episode budget can leave a document stuck 'analyzing' — a perpetual spinner in the UI).
+  budget: { maxEpisodes: 24, maxWallClockMs: 600000 },
   handler: async ({ row, db, delegate }: { row: any; db: any; delegate: (ref: string, action: string, opts: { input: unknown }) => Promise<unknown> }) => {
     // Idempotence — only analyze a freshly-uploaded, unprocessed document.
     if (row.status && row.status !== 'pending') return;

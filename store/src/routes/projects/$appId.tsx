@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { ArrowLeft, Database, FileCode, Globe, Package, Zap, type LucideIcon } from 'lucide-react'
 import { Card, CardBody, CardHeader } from '@lmthing/ui/elements/content/card'
@@ -9,31 +8,20 @@ import { Button } from '@lmthing/ui/elements/forms/button'
 import { Page, PageHeader, PageBody } from '@lmthing/ui/elements/layouts/page'
 import { Stack } from '@lmthing/ui/elements/layouts/stack'
 import { getCatalogApp } from '@/lib/apps-manifest'
-import { installApp, POD_API_BASE } from '@/lib/pod-api'
+import { installUrlForApp } from '@/lib/pod-api'
 
 export const Route = createFileRoute('/projects/$appId')({
   component: AppDetail,
 })
 
-type InstallState =
-  | { status: 'idle' }
-  | { status: 'installing' }
-  | { status: 'done'; ok: boolean; body: unknown }
-  | { status: 'error'; message: string }
-
 function AppDetail() {
   const { appId } = Route.useParams()
   const app = getCatalogApp(appId)
-  const [install, setInstall] = useState<InstallState>({ status: 'idle' })
 
-  async function handleInstall() {
-    setInstall({ status: 'installing' })
-    try {
-      const result = await installApp(appId)
-      setInstall({ status: 'done', ok: result.ok, body: result.body })
-    } catch (err) {
-      setInstall({ status: 'error', message: err instanceof Error ? err.message : String(err) })
-    }
+  // The public store can't reach a user's authenticated pod. Installing hands off to
+  // the lmthing.app install page, which runs in the user's pod context and performs it.
+  function handleInstall() {
+    window.location.href = installUrlForApp(appId)
   }
 
   if (!app) {
@@ -81,35 +69,13 @@ function AppDetail() {
             <CardHeader>
               <Heading level={3}>Install to my pod</Heading>
               <Caption muted>
-                Posts <code className="rounded bg-muted px-1 py-0.5">{`{ appId: "${app.id}" }`}</code> to{' '}
-                <code className="rounded bg-muted px-1 py-0.5">POD_API_BASE + /api/apps/install</code> on your
-                compute pod&apos;s CLI server. Cross-origin routing from this public store site to your
-                authenticated pod is production infrastructure (Envoy JWT + per-user routing) that is{' '}
-                <strong>deferred</strong> — set <code className="rounded bg-muted px-1 py-0.5">VITE_POD_API_BASE</code>{' '}
-                at build time to a reachable pod origin (or a same-origin proxy) to try this against a running
-                pod. Current base:{' '}
-                <code className="rounded bg-muted px-1 py-0.5">{POD_API_BASE || '(same-origin)'}</code>
+                Takes you to <code className="rounded bg-muted px-1 py-0.5">lmthing.app</code>, signed in to your
+                own workspace, to install <span className="font-medium">{app.title}</span> and open it. The public
+                store can&apos;t reach your private pod, so the install happens there.
               </Caption>
             </CardHeader>
             <CardBody>
-              <Button onClick={handleInstall} disabled={install.status === 'installing'}>
-                {install.status === 'installing' ? 'Installing…' : 'Install to my pod'}
-              </Button>
-              {install.status === 'done' && (
-                <pre className="mt-3 max-h-64 overflow-auto rounded-md bg-muted p-3 text-xs text-foreground">
-                  {JSON.stringify(
-                    {
-                      ok: install.ok,
-                      ...(install.body && typeof install.body === 'object' ? (install.body as object) : { result: install.body }),
-                    },
-                    null,
-                    2
-                  )}
-                </pre>
-              )}
-              {install.status === 'error' && (
-                <p className="mt-3 text-sm text-destructive">Install request failed: {install.message}</p>
-              )}
+              <Button onClick={handleInstall}>Install to my pod</Button>
             </CardBody>
           </Card>
 

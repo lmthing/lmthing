@@ -240,8 +240,12 @@ parent monorepo — never leave one pushed and the other not.** Do them in this 
   reference an unpushed submodule commit.
 
 ### Phase 6 — Prod install + AI functional test (REQUIRED after every run)
-After the push, verify the app **actually works installed on the live cluster**, following the
-runbook in `.claude/skills/test-app-install-prod.md` — **read it in full first**. Do this every run.
+After the push, verify the app **actually works installed on the live cluster**. **ALWAYS
+`Read` the current `.claude/skills/test-app-install-prod.md` IN FULL at this point and follow
+the on-disk version — that skill is the authoritative runbook and IS UPDATED OVER TIME.** Do not
+rely on the summary bullets below or on memory of a previous run's steps: read the file fresh
+every run, and if it disagrees with anything here, **the skill wins**. (The bullets below are a
+stale-prone orientation only.) Do this every run.
 - **Get the pushed build onto the test pod.** Your Phase-5 push to `main` triggers CI to rebuild
   the `compute` + `store` images; the app is installable once the test user's pod runs the new
   `compute:latest`. Per the skill (Step 2), over SSH: `kubectl rollout restart deploy/lmthing -n
@@ -280,10 +284,11 @@ runbook in `.claude/skills/test-app-install-prod.md` — **read it in full first
 - Update `automation/app-builder/PROGRESS.__APP__.md` continuously. It is the memory across
   5-hour runs — treat it as the single source of truth for status.
 - Never leave `main` broken. Green or nothing on `main`.
-- **After every run, prod-install + AI-functional-test the app** per
-  `.claude/skills/test-app-install-prod.md` (Phase 6) — it must actually work installed on the
-  live cluster, not just build green locally. Record the result in PROGRESS; deploy lag is not a
-  run failure, but a real functional bug is (fix + re-push).
+- **After every run, prod-install + AI-functional-test the app** (Phase 6) — it must actually work
+  installed on the live cluster, not just build green locally. **`Read` the current
+  `.claude/skills/test-app-install-prod.md` in full each run and follow it — that skill changes over
+  time and is authoritative; never rely on a cached/remembered version.** Record the result in
+  PROGRESS; deploy lag is not a run failure, but a real functional bug is (fix + re-push).
 - **Always push `main` on BOTH repos** — the `sdk/org` submodule and the parent monorepo —
   at the end of a successful run (Phase 5). Submodule first, then the parent (which bumps the
   pointer). Never push one without the other.

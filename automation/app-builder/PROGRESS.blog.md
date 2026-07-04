@@ -302,3 +302,49 @@ newsroom+editorial already full-format (no remediation needed) ✅.
   `ci: update status data` commit (afbdefa4) advanced remote after the push — normal, not a regression.
 - Verified: parent pointer e4be05f4 == sdk/org HEAD == origin/main (references a pushed commit). Staged
   ONLY blog files — the in-progress sibling **kitchen** working-tree changes were left untouched/uncommitted.
+
+### Round 3 — Phase 6 prod install + AI functional test (2026-07-05)
+Followed `.claude/skills/test-app-install-prod.md` (read in full). Test user `user-379847043318834826`.
+- **Deploy lag (expected):** my round-3 push's CI "Build and Push Images" completed **success**, but
+  **ArgoCD had not yet synced the round-3 store/compute images** — the deployed catalog `GET /api/apps`
+  still lists **round-2 blog (11 tables, no briefings/collections/alerts)**. Per the skill, deploy lag
+  is **not a run failure** → the round-3-specific prod functional test (requestBriefing/scan/file) is
+  **deferred to the next run** once ArgoCD deploys round-3. (Round 3 was already exhaustively
+  live-verified LOCALLY this run — all 3 agent loops green with DeepSeek.)
+- Node was cpu-saturated (95%): scaled the 4 non-test user pods to 0 (Step 1), **restored all 4 to
+  replicas=1 in cleanup (Step 8)**.
+- Rolled the test pod to latest compute (`rollout restart`); `GET /api/apps` served the catalog.
+- **Pre-existing pod-state divergence fixed:** the test pod's stale blog `.data` had a
+  `digest_items.createdAt` column absent from the current schema → boot reconcile threw a non-additive
+  divergence and blocked install. Removed `/data/.lmthing/blog` and **reinstalled clean** → succeeded.
+- **Install + build + serve verified on prod:** after the clean reinstall, `GET /api/projects` lists
+  `blog`, `GET /app/blog/` → 200, `GET /app/blog/api/feed-list` → `[]` (app API live). (First install
+  curl hit the ~150s/Envoy timeout mid-build — known; the pod finished the build and the second check
+  confirmed it settled.)
+- **🔴 Prod AI functional path confirmed live:** `POST /app/blog/api/digests {period:'daily'}` →
+  seeded a `building` digest → **`editorial/curator` ran on the live cluster** (LiteLLM `/v1/*` → Azure,
+  not 429/401) → filled the digest row ("Daily Digest — No Highlights Today" — honestly empty because
+  the freshly-reinstalled feed had no articles; correct guardrail behavior). Proves the prod
+  model→agent→db path works on the current (round-2) image.
+- **Next run:** once ArgoCD deploys the round-3 images, re-run the prod functional test for the round-3
+  loops (requestBriefing→analyst briefing; scan→alert; file→smart-collection) against the installed app.
+
+## Resume notes for the NEXT run (round 4 — FEATURE EXPANSION)
+- App now has **3 full-format spaces** (newsroom, editorial, research), **18 tables, 47 endpoints,
+  10 hooks, 19 pages, 26 components**. Round 4 is strictly additive — do NOT regress. Floors: ≥1 new
+  space (→≥4 total), ≥3 new agents, ≥5 pages, ≥8 endpoints, ≥3 hooks, ≥3 tables + substantial features.
+- **FIRST at Phase 6 next run:** the round-3 prod functional test is owed — restart the test pod to the
+  (by then) round-3 image, confirm `GET /api/apps` blog has 18 tables, reinstall, and drive
+  requestBriefing/scan/file live. If the `digest_items.createdAt`-style stale divergence recurs, nuke
+  `/data/.lmthing/blog` before reinstall (done this run).
+- **Critical engine facts to keep applying (verified round 3):** (a) **tasklist forks must be
+  `role: general` for reliable `db.query`** — `role: explore` led DeepSeek-Flash to improvise
+  `todoRead()` instead of the db; (b) hook-delegated headless agents need a real budget
+  (`maxEpisodes: 30`) or a multi-fetch survey starves; (c) write/finalize tasks must never fabricate a
+  row when a self-query fails — fill the pending row (error) instead; (d) run headless agent loops
+  **sequentially** — two concurrent DeepSeek sessions → `"Lifetime not alive"` QuickJS teardown; (e)
+  hook `delegate` still drops input → agents self-query; (f) `db.query` where is equality-only.
+- Ideas for round 4: a **community/social** space (comments, reactions, shared boards) or an
+  **archive/export** space (OPML export, EPUB/PDF briefing export, scheduled newsletter sending);
+  tables `comments`/`reactions`/`exports`/`schedules`; a newsletter-send cron, a saved-view/board-share
+  endpoint set, per-briefing citations table, a reading-streak/gamification surface.

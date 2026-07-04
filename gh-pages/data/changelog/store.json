@@ -1,5 +1,35 @@
 [
   {
+    "hash": "297482d9",
+    "full_hash": "297482d9cacb5bbe3778fad642c69aead2f070af",
+    "type": "feat",
+    "scope": "store",
+    "subject": "'Install to my pod' redirects to lmthing.app install page",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 10:21:19 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/297482d9cacb5bbe3778fad642c69aead2f070af"
+  },
+  {
+    "hash": "1485cfb2",
+    "full_hash": "1485cfb2d67389d300d1f658aeed684b8766a4d8",
+    "type": "chore",
+    "scope": "",
+    "subject": "bump sdk/org \u2014 app surface at /apps (fix /app pod collision)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 10:17:55 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/1485cfb2d67389d300d1f658aeed684b8766a4d8"
+  },
+  {
+    "hash": "18105dc3",
+    "full_hash": "18105dc38b7e4606dfecee68f8bbaa58b4413fdf",
+    "type": "feat",
+    "scope": "",
+    "subject": "lmthing.app app surface \u2014 /app pod pages route + web bump",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 10:08:34 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/18105dc38b7e4606dfecee68f8bbaa58b4413fdf"
+  },
+  {
     "hash": "6b03623e",
     "full_hash": "6b03623e10c0acc7189ab9f9165a7e54d6b9c51b",
     "type": "feat",
@@ -468,35 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-07-01 10:40:05 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/522a79561853a5b55767a07cf597a9c18d3ef42c"
-  },
-  {
-    "hash": "76a20452",
-    "full_hash": "76a204521bc6981b0a213003be11f0c0dfa87c8d",
-    "type": "chore",
-    "scope": "",
-    "subject": "upgrade Node.js version to 24 across Dockerfiles and documentation",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-30 18:00:50 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/76a204521bc6981b0a213003be11f0c0dfa87c8d"
-  },
-  {
-    "hash": "c33fda04",
-    "full_hash": "c33fda0406ee58b7a185eb597f1148010eba5152",
-    "type": "chore",
-    "scope": "",
-    "subject": "update sdk/org (clean URLs on domain-specific hosts)",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-30 17:55:54 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/c33fda0406ee58b7a185eb597f1148010eba5152"
-  },
-  {
-    "hash": "685bc21a",
-    "full_hash": "685bc21aa84196b18007cd3aa757782b00705414",
-    "type": "chore",
-    "scope": "",
-    "subject": "update sdk/org (vite alias fix for @lmthing/core/ui)",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-30 17:28:49 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/685bc21aa84196b18007cd3aa757782b00705414"
   }
 ]

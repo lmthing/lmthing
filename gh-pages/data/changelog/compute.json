@@ -1,5 +1,35 @@
 [
   {
+    "hash": "297482d9",
+    "full_hash": "297482d9cacb5bbe3778fad642c69aead2f070af",
+    "type": "feat",
+    "scope": "store",
+    "subject": "'Install to my pod' redirects to lmthing.app install page",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 10:21:19 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/297482d9cacb5bbe3778fad642c69aead2f070af"
+  },
+  {
+    "hash": "1485cfb2",
+    "full_hash": "1485cfb2d67389d300d1f658aeed684b8766a4d8",
+    "type": "chore",
+    "scope": "",
+    "subject": "bump sdk/org \u2014 app surface at /apps (fix /app pod collision)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 10:17:55 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/1485cfb2d67389d300d1f658aeed684b8766a4d8"
+  },
+  {
+    "hash": "18105dc3",
+    "full_hash": "18105dc38b7e4606dfecee68f8bbaa58b4413fdf",
+    "type": "feat",
+    "scope": "",
+    "subject": "lmthing.app app surface \u2014 /app pod pages route + web bump",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 10:08:34 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/18105dc38b7e4606dfecee68f8bbaa58b4413fdf"
+  },
+  {
     "hash": "6b03623e",
     "full_hash": "6b03623e10c0acc7189ab9f9165a7e54d6b9c51b",
     "type": "feat",
@@ -468,35 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-30 17:55:54 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/c33fda0406ee58b7a185eb597f1148010eba5152"
-  },
-  {
-    "hash": "685bc21a",
-    "full_hash": "685bc21aa84196b18007cd3aa757782b00705414",
-    "type": "chore",
-    "scope": "",
-    "subject": "update sdk/org (vite alias fix for @lmthing/core/ui)",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-30 17:28:49 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/685bc21aa84196b18007cd3aa757782b00705414"
-  },
-  {
-    "hash": "4235fe21",
-    "full_hash": "4235fe21bb42d17c35f6594f2f218b27ff887458",
-    "type": "chore",
-    "scope": "",
-    "subject": "update sdk/org to fix Dockerfile .npmrc copy",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-30 17:22:52 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/4235fe21bb42d17c35f6594f2f218b27ff887458"
-  },
-  {
-    "hash": "1366456e",
-    "full_hash": "1366456ecb8ea824e2222dde5cbd8d3be13efb83",
-    "type": "chore",
-    "scope": "",
-    "subject": "update sdk/org submodule reference to latest commit",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-30 16:31:56 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/1366456ecb8ea824e2222dde5cbd8d3be13efb83"
   }
 ]

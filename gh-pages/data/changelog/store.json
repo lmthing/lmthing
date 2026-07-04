@@ -1,5 +1,15 @@
 [
   {
+    "hash": "cf1770d9",
+    "full_hash": "cf1770d9f7ae429b5b1a6e1ae046b515e0aee5b1",
+    "type": "feat",
+    "scope": "trips",
+    "subject": "round-2 expansion \u2014 documents/records + logistics spaces, packing, transit, reminders",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 21:04:51 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/cf1770d9f7ae429b5b1a6e1ae046b515e0aee5b1"
+  },
+  {
     "hash": "c036e3ff",
     "full_hash": "c036e3ff16f59dcee97a8e4cf74ca123b8336d42",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-07-01 23:40:55 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/bbfd299d5e22f52ddf066e863339f81e7b5058af"
-  },
-  {
-    "hash": "d756c98d",
-    "full_hash": "d756c98d28257b19e2ce39dbcc2fd0af0bac7b22",
-    "type": "fix",
-    "scope": "sdk",
-    "subject": "update subproject commit to 7a4ad0c",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 23:29:38 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/d756c98d28257b19e2ce39dbcc2fd0af0bac7b22"
   }
 ]

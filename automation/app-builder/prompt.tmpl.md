@@ -8,8 +8,9 @@ if you run out of budget/time, leave the repo in a clean, committed, resumable s
 
 ## This run: round __ROUND__ — __ROUND_MODE__
 
-The build proceeds in **rounds**. One round is a full pass over all four apps
-(blog → kitchen → health → trips). This run is **round __ROUND__** for `__APP__`, and the
+The build proceeds in **rounds**. One round is a full pass over all eight apps
+(blog → kitchen → health → trips → money → career → learn → people). This run is
+**round __ROUND__** for `__APP__`, and the
 size of what you add scales with the round:
 
 - **Round 1 — CORE BUILD.** Establish the app exactly as its spec describes: the core

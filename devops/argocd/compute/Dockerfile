@@ -100,8 +100,14 @@ FROM node:24-slim
 
 WORKDIR /app
 
-# Install git so per-user spaces can be synced from GitHub at runtime
-RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+# git — per-user spaces synced from GitHub at runtime; ca-certificates — Node's
+# global fetch (app installs, GitHub) needs the system CA store for HTTPS.
+RUN apt-get update && apt-get install -y git ca-certificates && rm -rf /var/lib/apt/lists/*
+
+# Where POST /api/apps/install downloads catalog apps from. In-cluster the pod reaches
+# the store via its ClusterIP Service over HTTP — no LB hairpin, no TLS/CA needed. (Local
+# `lmthing serve` runs from source without this env and falls back to https://lmthing.store.)
+ENV LM_STORE_URL=http://store.lmthing.svc.cluster.local
 
 # Copy built artefacts and node_modules from the builder stage.
 # node_modules contains quickjs-emscripten (with its bundled WASM), esbuild,

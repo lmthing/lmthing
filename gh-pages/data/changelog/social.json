@@ -1,5 +1,15 @@
 [
   {
+    "hash": "4ed87c6b",
+    "full_hash": "4ed87c6b89b73fc80b82c56dc0d2087eaaa392e2",
+    "type": "feat",
+    "scope": "health",
+    "subject": "round-1 core build of the health project-application",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 06:46:54 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/4ed87c6b89b73fc80b82c56dc0d2087eaaa392e2"
+  },
+  {
     "hash": "ecb8342c",
     "full_hash": "ecb8342c71fc9370cf592d04b2cdaaf988c07365",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-30 11:20:32 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/104dc66589482f24541593b91181992cb5dda139"
-  },
-  {
-    "hash": "e756f4db",
-    "full_hash": "e756f4dbcbb226cb846f3ffb6917c0ffb4da1891",
-    "type": "chore",
-    "scope": "",
-    "subject": "update pnpm workspace configuration and sdk subproject reference",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-30 11:20:20 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/e756f4dbcbb226cb846f3ffb6917c0ffb4da1891"
   }
 ]

@@ -1,5 +1,15 @@
 [
   {
+    "hash": "4ed87c6b",
+    "full_hash": "4ed87c6b89b73fc80b82c56dc0d2087eaaa392e2",
+    "type": "feat",
+    "scope": "health",
+    "subject": "round-1 core build of the health project-application",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 06:46:54 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/4ed87c6b89b73fc80b82c56dc0d2087eaaa392e2"
+  },
+  {
     "hash": "ecb8342c",
     "full_hash": "ecb8342c71fc9370cf592d04b2cdaaf988c07365",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-30 11:20:20 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/e756f4dbcbb226cb846f3ffb6917c0ffb4da1891"
-  },
-  {
-    "hash": "3b1414cb",
-    "full_hash": "3b1414cbc226ec4702f5b81d4eb21754d08e7ec7",
-    "type": "chore",
-    "scope": "",
-    "subject": "update org submodule",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-29 21:33:40 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/3b1414cbc226ec4702f5b81d4eb21754d08e7ec7"
   }
 ]

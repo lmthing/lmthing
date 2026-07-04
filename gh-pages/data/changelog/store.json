@@ -1,5 +1,45 @@
 [
   {
+    "hash": "27a7bc9e",
+    "full_hash": "27a7bc9ecbf57f1438f4f2e97eb1ce2f8d97ace7",
+    "type": "feat",
+    "scope": "",
+    "subject": "store emits per-app file list for CLI download; bump sdk/org",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 11:18:42 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/27a7bc9ecbf57f1438f4f2e97eb1ce2f8d97ace7"
+  },
+  {
+    "hash": "2f510ddb",
+    "full_hash": "2f510ddb114336eda51cc5aa70b502a472430dc1",
+    "type": "chore",
+    "scope": "",
+    "subject": "bump sdk/org \u2014 fix SSO callback drop at / (login)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 10:57:31 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/2f510ddb114336eda51cc5aa70b502a472430dc1"
+  },
+  {
+    "hash": "3d8a5f67",
+    "full_hash": "3d8a5f672d264721de78cf4ba6e086c945dea467",
+    "type": "feat",
+    "scope": "",
+    "subject": "platform-session cookie for lmthing.app pod routes + web bump",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 10:48:06 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/3d8a5f672d264721de78cf4ba6e086c945dea467"
+  },
+  {
+    "hash": "75962f6b",
+    "full_hash": "75962f6b0a08258f12de3ddf130c135938855746",
+    "type": "chore",
+    "scope": "",
+    "subject": "bump sdk/org \u2014 app launcher name fix (+ coexisting /install page)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 10:28:42 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/75962f6b0a08258f12de3ddf130c135938855746"
+  },
+  {
     "hash": "297482d9",
     "full_hash": "297482d9cacb5bbe3778fad642c69aead2f070af",
     "type": "feat",
@@ -458,45 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-07-01 14:24:20 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/81554c55f9433b7177d6b9a81a37a785a6319b2f"
-  },
-  {
-    "hash": "83b10880",
-    "full_hash": "83b108805bc4d401a8527ac80bbfdd51f588c8dd",
-    "type": "fix",
-    "scope": "",
-    "subject": "sdk/org submodule uses libs/, not packages/",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 13:34:55 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/83b108805bc4d401a8527ac80bbfdd51f588c8dd"
-  },
-  {
-    "hash": "99d4af86",
-    "full_hash": "99d4af865a6efd80aa77eb415a4d61d02dfda6a6",
-    "type": "feat",
-    "scope": "cloud",
-    "subject": "4-tier multi-window LLM provider, 4 Azure models @15% markup",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 13:07:54 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/99d4af865a6efd80aa77eb415a4d61d02dfda6a6"
-  },
-  {
-    "hash": "1eebc032",
-    "full_hash": "1eebc032ea15a116a074d046a0891631d681e15d",
-    "type": "ci",
-    "scope": "",
-    "subject": "update API routes for compute service and enhance documentation",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 10:49:48 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/1eebc032ea15a116a074d046a0891631d681e15d"
-  },
-  {
-    "hash": "522a7956",
-    "full_hash": "522a79561853a5b55767a07cf597a9c18d3ef42c",
-    "type": "ci",
-    "scope": "",
-    "subject": "update subproject commit reference",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 10:40:05 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/522a79561853a5b55767a07cf597a9c18d3ef42c"
   }
 ]

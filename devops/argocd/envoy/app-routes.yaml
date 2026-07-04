@@ -64,11 +64,45 @@ spec:
           weight: 1
 
 ---
+# /app/* -> the user's pod, which serves the installed apps' built pages at
+# /app/<project>/… (+ their /app/<project>/api/*). Per-user Lua routing, JWT exactly
+# like studio/chat (Authorization: Bearer header OR ?access_token= param) — no special
+# auth for apps. Matched before /* so app pages hit the pod, not the SPA.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: app-pages-proxy
+  namespace: gateway
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: lmthing-gw
+      sectionName: app-https
+  hostnames:
+    - lmthing.app
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /app
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.envoyproxy.io
+            kind: HTTPRouteFilter
+            name: rewrite-host-from-header
+      backendRefs:
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: dynamic-user-backend
+          weight: 1
+
+---
 # /* -> Static unified web app (JWT-free). Serves the document + /assets/*; the app
 # self-authenticates (@lmthing/auth) and calls /api/* with a Bearer token. Reuses the
-# shared unified-SPA Service (same image as studio/chat/computer); the surface is chosen
-# client-side by hostname (surfaceForHost falls back to /studio for lmthing.app until a
-# dedicated /app surface ships).
+# shared unified-SPA Service (same image as studio/chat/computer); on lmthing.app the
+# client picks the /app surface (surfaceForHost), the app launcher.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:

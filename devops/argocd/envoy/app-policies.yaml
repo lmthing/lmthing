@@ -1,6 +1,7 @@
-# Per-user routing + JWT auth for lmthing.app — mirrors studio/chat exactly.
-# (JWT from Authorization: Bearer header OR access_token query param → sub claim →
-# x-user-id → Lua builds the per-user pod upstream.)
+# Per-user routing + JWT auth for lmthing.app's pod routes (app-api-proxy = /api/*,
+# app-pages-proxy = /app/*). Exactly the studio/chat mechanism: JWT from the
+# Authorization: Bearer header OR the access_token query param → sub → x-user-id → Lua
+# per-user upstream. No special-casing for apps.
 
 # Lua script: extracts user ID from the JWT-derived x-user-id header, constructs
 # the per-user pod upstream (identical to studio-lua-routing / chat-lua-routing).
@@ -14,6 +15,9 @@ spec:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       name: app-api-proxy
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: app-pages-proxy
   lua:
     - type: Inline
       inline: |
@@ -54,6 +58,9 @@ spec:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       name: app-api-proxy
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: app-pages-proxy
   jwt:
     providers:
       - name: gateway

@@ -120,6 +120,15 @@ COPY --from=builder /build/libs/core/node_modules ./libs/core/node_modules
 COPY --from=builder /build/libs/core/system-spaces ./libs/core/system-spaces
 COPY --from=builder /build/libs/cli/dist        ./libs/cli/dist
 COPY --from=builder /build/libs/cli/node_modules  ./libs/cli/node_modules
+# Project-app pages build (buildProjectPages → resolveEnv) aliases `@app/runtime`
+# to the cli's runtime SOURCE at <cliRoot>/src/app/runtime/index.ts and esbuild-
+# bundles it (TS/TSX). The bundled dist has no standalone runtime module, so the
+# source subtree must ship in the image; without it every project-app page build
+# fails with `Could not resolve "@app/runtime"` and the app UI 404s. Its only
+# cross-package import is `../../../../ui/src/...`, satisfied by libs/ui/src below.
+COPY --from=builder /build/libs/cli/src/app/runtime ./libs/cli/src/app/runtime
+# The cli package.json must sit at <cliRoot> so findCliRoot() identifies /app/libs/cli
+# as the cli root (already copied below for the module resolver).
 # The cli bundle inlines @lmthing/core, so defaultSystemSpaceDirs() resolves the
 # shipped system spaces RELATIVE TO THE BUNDLE (.../cli/dist/cli/bin.js →
 # ../system-spaces = .../cli/dist/system-spaces), not relative to the core

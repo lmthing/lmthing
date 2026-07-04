@@ -1,5 +1,15 @@
 [
   {
+    "hash": "1478ce95",
+    "full_hash": "1478ce9594b82118c25468a26dbff6d057281e25",
+    "type": "spec",
+    "scope": "trips",
+    "subject": "add document-upload \u2192 type-driven analysis \u2192 itinerary + research feature (new records space)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 09:59:35 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/1478ce9594b82118c25468a26dbff6d057281e25"
+  },
+  {
     "hash": "128aeeb9",
     "full_hash": "128aeeb9692edc1867cd7b36341ffe8ce8deadab",
     "type": "fix",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-30 17:22:52 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/4235fe21bb42d17c35f6594f2f218b27ff887458"
-  },
-  {
-    "hash": "8c4b2bfd",
-    "full_hash": "8c4b2bfdde72233af99efd8e77e8aa8cd2cce6ea",
-    "type": "fix",
-    "scope": "",
-    "subject": "update pnpm workspace and all SPA Dockerfiles for Phase 2.2 restructure",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-30 16:39:34 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/8c4b2bfdde72233af99efd8e77e8aa8cd2cce6ea"
   }
 ]

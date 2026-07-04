@@ -291,3 +291,14 @@ librarian, least-privilege) ✅ · **7 new pages** (collections/index, collectio
 alerts, briefings/index, briefings/[id], search) + 8 components ✅ · **21 new endpoints** (→47) ✅ ·
 **4 new hooks** (→10) ✅ · **7 new tables** (→18) + 2 articles columns + 4 relations ✅ ·
 newsroom+editorial already full-format (no remediation needed) ✅.
+
+### Round 3 — Phase 5 push ✅ (2026-07-05)
+- Green gate: blog structural tests 22/22 · lint:tokens root ✓ (575) + blog project-app tsx 0 raw
+  colors · pages build ✓ (built:true, 17 routes) · live e2e (briefing/scan/file all live green).
+  sdk/org untouched (app-only round).
+- **Submodule sdk/org: no changes** — clean, level with origin/main at **e4be05f4** (confirm-push = no-op).
+- **Pushed monorepo `main`: `8b7ba19a`** (round-3 blog app + spec + PLAN/PROGRESS; sdk/org pointer e4be05f4).
+  Rebased over a CI status-data commit; verified 8b7ba19a is an ancestor of origin/main (landed). A later
+  `ci: update status data` commit (afbdefa4) advanced remote after the push — normal, not a regression.
+- Verified: parent pointer e4be05f4 == sdk/org HEAD == origin/main (references a pushed commit). Staged
+  ONLY blog files — the in-progress sibling **kitchen** working-tree changes were left untouched/uncommitted.

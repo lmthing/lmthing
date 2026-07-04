@@ -217,23 +217,57 @@ Running log across 5-hour autonomous runs. Single source of truth for status.
 
 
 
-## Resume notes for the NEXT run (round 2 — FEATURE EXPANSION)
-- The health app EXISTS and is green + live-verified. Round 2 is strictly additive — do NOT
-  regress/delete round-1 files. Floors: ≥1 new project-scoped space, ≥3 new agents, ≥5 new pages,
-  ≥8 new api endpoints, ≥3 new hooks, ≥3 new tables + substantial new features.
-- The spec's **"Additional features"** section is the round-2 backlog, already written: **appointment
-  prep brief** (`visit_briefs` table + `prepareVisit` endpoint + interpreter#prep + `/visits` page),
-  **trends & correlations** (`insights` table + digest computes trends/correlations), **personal
-  baselines** (flag vs your own trend), **follow-up reminders** (`followups` table + cron), **wearable
-  import** (`importMetrics`). A natural ≥1 new space (e.g. `wellness` or `care-coordination`) + agents.
-  Row-type names for those tables: `visit_briefs→VisitBrief`, `insights→Insight`, `followups→Followup`.
+### Pushed SHAs (round 2)
+- sdk/org `main`: **`e4be05f`** — cascaded-hook drain re-arm fix + runtime.test.ts (pushed to origin/main).
+- monorepo `main`: **`c036e3f`** — health round-2 app (113 files) + spec + PLAN/PROGRESS + submodule pointer
+  bump to e4be05f (pushed to origin/main). Pointer verified == pushed submodule HEAD. Kitchen concurrent
+  work deliberately NOT staged.
+- Phase 6 (prod install + AI functional test) ✅ **DONE this run** (followed `.claude/skills/test-app-install-prod.md`):
+  - CI built compute+store images for c036e3f (`aada091 ci: update image tags to c036e3f`); updated test pod
+    `user-379847043318834826` deploy image to `compute:c036e3f`. Node was CPU-saturated (Insufficient cpu) →
+    scaled 4 other user pods to 0 (370990497893738122, 380011590780479114, 380133200178996874, 380267943084189322),
+    rolled the test pod, then **RESTORED all 4 to replicas=1 in cleanup (Step 8)**. Test user left installed.
+  - `GET /api/apps` on the pod shows **round-2 health with all 14 tables**. `POST /api/apps/install {appId:health,force}`
+    → **ok:true, 14 tables, 28 endpoints, 7 hooks, contracts.ok:true, pages.ok:true, pages.built:true**.
+  - **AI functional test (real pod model, no local key):** uploaded a wearable CSV via `POST /app/health/api/documents`
+    (200) → `analyze-document` hook → `records/analyst` ran the pod's live model → document `status:analyzed`,
+    **2 extractions**, summary "Extracted 2 row(s) from this wearable csv document (metrics: 2)", and the **DB updated**
+    (steps metric row present). Real model path fired (a 429/401 would have left it pending/error). ✅
+  - **Install nuance found (not a round-2 regression; pre-existing):** re-installing an app that ADDS tables onto an
+    EXISTING `app.db` did not create the new tables until a **pod restart** ran the boot schema-reconcile (then
+    documents/goals/insights all 200). Workaround applied (rollout restart). Follow-up for a future engine round:
+    make `POST /api/apps/install`'s reconcile step run additive `createTable` on an already-present db, not only on boot.
+  - Browser UI flow (chrome-devtools) skipped: the JWT mint reads `GATEWAY_JWT_SECRET` (classifier-gated, needs a
+    human `!`) — not runnable in this headless run. Server-side pod-curl proved install + build + AI + DB-update, which
+    is the authoritative functional proof.
+
+## Resume notes for the NEXT run (round 3 — FEATURE EXPANSION)
+- **Round 2 is DONE, shipped, and prod-verified.** State now: **14 tables, 28 endpoints, 7 hooks, 3
+  full-format project spaces (clinic, records, coaching; 6 agents), 16 pages, 20 components.** Everything
+  from the spec's "Additional features" backlog is IMPLEMENTED (document ingestion + `records` space,
+  visit briefs, insights/trends, personal baselines, follow-ups, wearable import, medications, coaching).
+  Round 3 is strictly additive — do NOT regress/delete round-1/2 files. Floors (per round): ≥1 new space
+  (→≥2 already met), ≥3 new agents, ≥5 new pages, ≥8 new endpoints, ≥3 new hooks, ≥3 new tables.
+- **Round-3 backlog ideas (net-new, still inside the engine model, not-a-doctor line):** a `care-team`
+  space (share a read-only summary / export a provider PDF-ish markdown; care-contacts table); a
+  `medications` adherence tracker (doses table + reminder cron + interaction-check research via the
+  researcher); condition/goal **programs** (multi-week plans with milestones); symptom **triage assistant**
+  (a triage agent using the clinic/triage knowledge, gated, that suggests when-to-see-a-doctor as
+  observations); **lab trend charts per analyte** with the personal baseline band on the labs page;
+  imaging/appointment **calendar** + reminders; an **export/report** endpoint. Add ≥1 new full-format space.
 - **Engine gotchas confirmed — keep applying:** (1) hook `delegate` opts are DROPPED (`void opts`) → use
-  declarative `trigger:` + self-querying agents that find their own work; (2) the SPA `<base href>` fix
-  is shipped in sdk/org — nested routes now work in the browser; (3) `db.query` `where` is equality-only
-  (query-all + JS filter); (4) `functions:` in agent instruct is space-functions-only — OMIT it to keep
-  universal webSearch/webFetch; (5) an agent needs `db:read` on a table it wants to dedupe against, not
-  just `db:write`; (6) run the app via temp `LMTHING_ROOT` + `POST /app/health/api/*` + admin data browser
+  declarative `trigger:` + self-querying agents that find their own work; (2) SPA `<base href>` fix shipped
+  (nested routes work in-browser); (3) `db.query` `where` is equality-only (query-all + JS filter);
+  (4) `functions:` in agent instruct is space-functions-only — OMIT it to keep universal webSearch/webFetch;
+  (5) an agent needs `db:read` on a table it dedupes against; (6) actions bind a tasklist ONLY via an explicit
+  `tasklist:` field — omit it and the action runs model-driven instruct prose (robust for the weak model);
+  (7) **cascaded db hooks now work** — the drain re-arm fix (sdk/org e4be05f) lets A→B→C chains complete;
+  (8) **deterministic space FUNCTIONS beat weak-model free-text** — `parseLabReport`/`parseCsv`/`metricTrends`
+  fixed extraction/digest/prep; tell the model NOT to call `loadKnowledge` (auto-injected) or it flails;
+  (9) run the app via temp `LMTHING_ROOT` + `POST /app/health/api/*` + admin browser
   (`GET/PATCH /api/projects/health/app/data/:table[/:id]`) + `POST .../hooks/:slug/run`.
-- Researcher output quality: the weak DeepSeek-Flash model can dump raw scraped content; a "summarise in
-  your own words, never paste raw page content" guardrail was added — tighten further / try a stronger
-  research model in round 2 if desired.
+- **Prod test-app-install nuance:** re-installing an app that adds tables onto an existing `app.db` needs a
+  pod `rollout restart` to run boot schema-reconcile before the new tables exist (see Phase 6). Consider
+  fixing the install-endpoint reconcile in a future engine round.
+- Researcher output quality: DeepSeek-Flash still occasionally pastes scraped content despite the
+  "summarise in your own words" guardrail — tighten further / try a stronger research model when available.

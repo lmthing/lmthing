@@ -30,6 +30,14 @@ size of what you add scales with the round:
     - **≥3 new database tables** (plus new columns/relations) to back all of the above;
     - substantial **new user-facing features** in the spirit of the spec's "Additional
       features" sections — but many more of them, **fully implemented**, not just described.
+    - **SPACE-FORMAT REMEDIATION (mandatory every expansion round until complete).** Round-1
+      builds wrongly created project spaces containing **only `agents/`**. Every expansion
+      round must bring this app's existing space(s) up to the **full space format** (see the
+      "Project-scoped spaces MUST follow the full space format" requirement in Phase 3):
+      backfill the missing `tasklists/`, `functions/`, `components/`, and especially **extensive
+      `knowledge/`** for each existing agent/space, and give each agent a `charter.md` alongside
+      its `instruct.md`. This is not optional and counts toward the round's work — a space that
+      is still just `agents/` is a defect to fix, not preserve.
   More than these floors is better. **Never regress or delete what earlier rounds shipped** —
   expansion is strictly additive, and everything (old + new) must stay green and tested with
   the live model before you push. Use `PROGRESS.__APP__.md` to see what prior rounds built so
@@ -98,7 +106,10 @@ edit only the app spec in step 3).
   `api/*/{METHOD}.ts`, `hooks/*.ts`, the project-scoped space(s) and agent `instruct.md`
   frontmatter (config-bearing `capabilities:`), `package.json`, and the test files.
   Sequence it so each step is verifiable. If a plan already exists from a prior run,
-  reconcile it with your Phase-1 spec changes.
+  reconcile it with your Phase-1 spec changes. **The plan must explicitly enumerate the full
+  space-format work** (per space: `charter.md`+`instruct.md` per agent, `tasklists/`,
+  `functions/`, `components/`, and the multi-field/multi-aspect `knowledge/` files) — both for
+  new spaces and for remediating any existing `agents/`-only space (see Phase 3).
 
 ### Phase 3 — Execute the plan (build the project)
 - **Create the project at `store/projects/__APP__/`** (parent repo), following the exact
@@ -107,8 +118,9 @@ edit only the app spec in step 3).
   `package.json`, `tsconfig.json`. `types/` and `.data/` are generated/runtime — do not
   hand-author them; make sure they are git-ignored for this project.
   On a FEATURE-EXPANSION round, also scaffold the **new** project-scoped spaces under
-  `store/projects/__APP__/spaces/<newspace>/` (agents / tasklists / knowledge), and extend
-  the existing space(s) with new agents — everything wired to the same project-rooted db.
+  `store/projects/__APP__/spaces/<newspace>/` (in **full space format** — see the space-format
+  requirement below), extend the existing space(s) with new agents, AND **remediate the existing
+  round-1 spaces** that are currently `agents/`-only — everything wired to the same project-rooted db.
 - Every `database/<table>.json` table AND every column AND every relation carries a
   **required `description`** (the loader fails loud otherwise). Exactly one primary key.
   `references`/`relations` must resolve to real tables/columns.
@@ -116,6 +128,34 @@ edit only the app spec in step 3).
   default handler. `hooks/*.ts` use the `cron`/`database` shapes from the spec. Agent
   `instruct.md` frontmatter uses the config-bearing `capabilities:` key with per-verb
   `tables` scope exactly as the spec's capability table dictates.
+- **Project-scoped spaces MUST follow the FULL space format — not just `agents/`.** A space
+  with only an `agents/` dir is a **defect**. Read the canonical space format first
+  (`sdk/org/SPACE_DEVELOPMENT.md`, `sdk/org/.claude/skills/new-space.md`,
+  `sdk/org/libs/core/system-spaces/DEVELOPMENT.md`) and mirror how the shipped system spaces
+  (`sdk/org/libs/core/system-spaces/*`) are actually structured. Every project space you author
+  (and every space you remediate) must include:
+    - **`agents/<slug>/`** — both a short fork-safe **`charter.md`** (identity/guardrails,
+      injected into every fork) AND an **`instruct.md`** (orchestration/routing, top-level),
+      not just `instruct.md`.
+    - **`tasklists/<name>/`** — the decompositions the spec describes (e.g. the planner's
+      fan-out, the synthesizer's pipeline): an `index.md` goal + per-task files with real
+      frontmatter (`role`, `functions`, `forEach`, `canDelegateTo`). Agents that orchestrate
+      must actually have their tasklist, not just prose.
+    - **`knowledge/<field>/`** — **extensive** domain knowledge, the single most important gap
+      to fix. Each field is a dir with an **`index.md` overview** (surfaced to the agent) plus
+      **≥2 `<aspect>.md`** deep-dive files loaded on demand (never a single `overview.md`).
+      Give each agent the real domain expertise it needs (e.g. the blog synthesizer's editorial
+      standards; the health interpreter's reference-range/triage knowledge with the
+      not-a-doctor framing; the kitchen planner's nutrition/substitution knowledge; the trips
+      researcher's destination-research method). Multiple fields, multiple aspects each — this
+      should be the bulk of the space's content.
+    - **`functions/`** — reusable space functions (typed TS) the agents call for deterministic
+      work (formatting, scoring, dedupe, diffing) instead of re-deriving it in prose.
+    - **`components/`** — catalog display/`ask` components the agents render in chat (the
+      descriptor renderer surface), design-token-gated.
+  This applies to **every** space in every round: new spaces are born full-format, and existing
+  thin spaces (the round-1 `agents/`-only ones) are remediated to full format (see the round
+  policy's SPACE-FORMAT REMEDIATION item). Re-typecheck and live-test the space after.
 - **Design-system gate is mandatory** for any page/component styling: never write a raw
   color (no hex, no literal `rgb()/hsl()`, no stock Tailwind `gray-*`/`blue-*`/etc.) —
   use `@lmthing/css` tokens (`var(--foreground)`, `bg-primary`, `text-agent`, …). Run

@@ -1,3 +1,12 @@
+> ⚠️ **OUTSTANDING — operator directive (2026-07-04):** this app's round-1 project space was
+> created with **only `agents/`**, which violates the space format. On the **next (expansion)
+> round** you MUST remediate it to the **FULL space format**: add a `charter.md` per agent
+> (alongside `instruct.md`), plus `tasklists/`, `functions/`, `components/`, and especially
+> **extensive `knowledge/`** (each field = `index.md` overview + ≥2 `<aspect>.md` deep-dives).
+> See `automation/app-builder/prompt.tmpl.md` → Phase 3 "Project-scoped spaces MUST follow the
+> FULL space format" and the round policy's "SPACE-FORMAT REMEDIATION" item. This is required
+> work, not optional.
+
 # PLAN — `health` project-application (round 1, CORE BUILD)
 
 File-by-file plan for `store/projects/health/`. Mirrors `store/projects/{blog,kitchen}/` shapes.

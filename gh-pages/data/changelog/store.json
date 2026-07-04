@@ -1,5 +1,15 @@
 [
   {
+    "hash": "4b142c22",
+    "full_hash": "4b142c22fbc53233e2689387a4e2900fe1f7ba31",
+    "type": "chore",
+    "scope": "",
+    "subject": "bump sdk/org \u2014 reinstall page-cache invalidation fix",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 13:17:17 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/4b142c22fbc53233e2689387a4e2900fe1f7ba31"
+  },
+  {
     "hash": "b83cd295",
     "full_hash": "b83cd29501e44b9eda22fe2cde34949affa3efbf",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-07-01 23:04:33 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/c9cacf986e3c357e5e5db86f6625c6c08f45c330"
-  },
-  {
-    "hash": "68074cb3",
-    "full_hash": "68074cb36aa72389a7ed878febf29d597378c2f2",
-    "type": "fix",
-    "scope": "sdk",
-    "subject": "update subproject commit to eddb4df",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 20:27:04 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/68074cb36aa72389a7ed878febf29d597378c2f2"
   }
 ]

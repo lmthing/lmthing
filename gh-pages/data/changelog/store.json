@@ -1,5 +1,15 @@
 [
   {
+    "hash": "8b7ba19a",
+    "full_hash": "8b7ba19a1a69907bdce19911284c64808557a95e",
+    "type": "feat",
+    "scope": "blog",
+    "subject": "round 3 \u2014 research workspace (collections, annotations, alerts, briefings) + research space",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-05 00:12:52 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/8b7ba19a1a69907bdce19911284c64808557a95e"
+  },
+  {
     "hash": "cfa59ab0",
     "full_hash": "cfa59ab033d5712acbba7c74df86292e4be0d935",
     "type": "fix",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-07-02 14:30:53 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/c5c9140269d2d9dab4ef9793063664da9fe3a408"
-  },
-  {
-    "hash": "21a7124c",
-    "full_hash": "21a7124cdaca4fc32a03d248b3f7af9e0934e7c2",
-    "type": "fix",
-    "scope": "sdk",
-    "subject": "update subproject commit to 1550891 \u2014 reliability P0-P5",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-02 01:23:55 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/21a7124cdaca4fc32a03d248b3f7af9e0934e7c2"
   }
 ]

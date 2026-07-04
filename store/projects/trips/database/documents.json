@@ -1,0 +1,22 @@
+{
+  "title": "Trip documents",
+  "description": "A document the traveller dropped into a trip — a pasted booking confirmation, a forwarded itinerary, an e-ticket, a passport/visa note — that the records analyst reads and turns into structured trip data.",
+  "columns": {
+    "id":         { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "tripId":     { "type": "string", "description": "the trip this document belongs to", "required": true,
+                    "references": { "table": "trips", "column": "id", "onDelete": "cascade" } },
+    "kind":       { "type": "string", "description": "the document type: 'booking_pdf' | 'ticket_image' | 'itinerary' | 'passport_visa' | 'place_photo' | 'other' — the analyst may correct a guessed kind", "required": true },
+    "filename":   { "type": "string", "description": "original file/name the user gave the document" },
+    "mime":       { "type": "string", "description": "MIME hint for the source, e.g. 'text/plain', 'application/pdf'" },
+    "content":    { "type": "string", "description": "the pasted text of the document — the everyday copy-paste case the analyst extracts from (multipart blob upload is deferred)" },
+    "sourceUrl":  { "type": "string", "description": "optional URL the analyst may webFetch for more detail (a booking-management link, a place page)" },
+    "status":     { "type": "string", "description": "'pending' when uploaded, 'analyzing' while the analyst runs, 'analyzed' when done, 'error' on failure", "default": "pending" },
+    "summary":    { "type": "string", "description": "markdown summary of what the analyst found and wrote back; empty while pending" },
+    "error":      { "type": "string", "description": "a short reason set when status is 'error'" },
+    "uploadedAt": { "type": "date",   "description": "when the document was added", "generated": "now" }
+  },
+  "relations": {
+    "trip":        { "belongsTo": "trips",                 "via": "tripId",     "description": "the trip it belongs to" },
+    "extractions": { "hasMany":   "document_extractions",  "via": "documentId", "description": "the rows this document produced" }
+  }
+}

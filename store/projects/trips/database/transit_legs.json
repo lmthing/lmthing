@@ -1,0 +1,27 @@
+{
+  "title": "Transit legs",
+  "description": "One hop between two places on a trip (or from the traveller's origin into the first destination) — the mode, rough duration/cost, and when to book it. The logistics navigator plans and orders these.",
+  "columns": {
+    "id":                { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "tripId":            { "type": "string", "description": "the trip this leg is part of", "required": true,
+                           "references": { "table": "trips", "column": "id", "onDelete": "cascade" } },
+    "fromDestinationId": { "type": "string", "description": "the destination departed from (null = trip origin / home)",
+                           "references": { "table": "destinations", "column": "id", "onDelete": "setNull" } },
+    "toDestinationId":   { "type": "string", "description": "the destination arrived at", "required": true,
+                           "references": { "table": "destinations", "column": "id", "onDelete": "cascade" } },
+    "mode":              { "type": "string", "description": "'flight' | 'train' | 'bus' | 'car' | 'ferry' | 'walk'", "required": true },
+    "departAt":          { "type": "date",   "description": "planned departure datetime (null = flexible)" },
+    "arriveAt":          { "type": "date",   "description": "planned arrival datetime (null = flexible)" },
+    "durationMinutes":   { "type": "number", "description": "rough travel time in minutes" },
+    "estimatedCost":     { "type": "number", "description": "rough per-person cost of the leg, in currency", "default": 0 },
+    "currency":          { "type": "string", "description": "ISO currency code for estimatedCost", "default": "USD" },
+    "bookByDate":        { "type": "date",   "description": "when to book this leg to get a reasonable fare (null = no deadline)" },
+    "notes":             { "type": "string", "description": "options, caveats, cited sources — markdown" },
+    "status":            { "type": "string", "description": "'suggested' while the navigator proposes it, 'confirmed' once the traveller books", "default": "suggested" }
+  },
+  "relations": {
+    "trip": { "belongsTo": "trips",        "via": "tripId",            "description": "the trip it belongs to" },
+    "from": { "belongsTo": "destinations", "via": "fromDestinationId", "description": "the origin of the leg" },
+    "to":   { "belongsTo": "destinations", "via": "toDestinationId",   "description": "the destination of the leg" }
+  }
+}

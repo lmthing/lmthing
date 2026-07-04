@@ -6,6 +6,7 @@ import { DayColumn } from '../../components/DayColumn';
 import { BookingRow } from '../../components/BookingRow';
 import { BudgetStrip } from '../../components/BudgetStrip';
 import { Spinner } from '../../components/Spinner';
+import { TripTabs } from '../../components/TripTabs';
 
 type FullTrip = Trip & {
   destinations: (Destination & { items: ItineraryItem[] })[];
@@ -59,6 +60,8 @@ export default function TripTimeline({ params }: { params: { tripId: string } })
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-6">
+      <TripTabs tripId={tripId} active="timeline" />
+
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">{current.title}</h1>

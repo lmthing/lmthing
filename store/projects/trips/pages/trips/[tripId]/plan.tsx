@@ -2,6 +2,7 @@ import React from 'react';
 import type { Trip, Destination, ItineraryItem, Booking } from '@app/types';
 import { useApi, Chat, Link } from '@app/runtime';
 import { Spinner } from '../../../components/Spinner';
+import { TripTabs } from '../../../components/TripTabs';
 
 type FullTrip = Trip & {
   destinations: (Destination & { items: ItineraryItem[] })[];
@@ -14,6 +15,10 @@ export default function PlanTrip({ params }: { params: { tripId: string } }) {
 
   return (
     <main className="mx-auto grid max-w-5xl grid-cols-1 gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+      <div className="col-span-full">
+        <TripTabs tripId={tripId} active="plan" />
+      </div>
+
       <div className="space-y-4">
         <div>
           <Link href={`/trips/${tripId}`} className="text-sm text-muted-foreground hover:text-primary">

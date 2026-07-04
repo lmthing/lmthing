@@ -1,0 +1,22 @@
+{
+  "title": "Knowledge notes",
+  "description": "A db-backed, cited note the concierge/records/logistics agents write and read — visa rules, currency tips, a fact pulled from an uploaded document, a logistics caveat. Makes the trip smarter over time; distinct from a space's authoring-only knowledge/ dir.",
+  "columns": {
+    "id":            { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "tripId":        { "type": "string", "description": "the trip this note is about (null for a general note)",
+                       "references": { "table": "trips", "column": "id", "onDelete": "cascade" } },
+    "destinationId": { "type": "string", "description": "the destination this note is about, if any (null = trip-wide)",
+                       "references": { "table": "destinations", "column": "id", "onDelete": "setNull" } },
+    "topic":         { "type": "string", "description": "the note's subject, e.g. 'Schengen visa validity' or 'book Jerónimos tickets'", "required": true },
+    "body":          { "type": "string", "description": "the note body, markdown, cited to its source" },
+    "sourceKind":    { "type": "string", "description": "where the note came from: 'document' | 'research' | 'web' | 'logistics'", "required": true },
+    "documentId":    { "type": "string", "description": "the source document, when sourceKind is 'document'",
+                       "references": { "table": "documents", "column": "id", "onDelete": "setNull" } },
+    "createdAt":     { "type": "date",   "description": "when the note was written", "generated": "now" }
+  },
+  "relations": {
+    "trip":        { "belongsTo": "trips",        "via": "tripId",        "description": "the trip it belongs to" },
+    "destination": { "belongsTo": "destinations", "via": "destinationId", "description": "the destination it expands" },
+    "document":    { "belongsTo": "documents",    "via": "documentId",    "description": "the source document, if any" }
+  }
+}

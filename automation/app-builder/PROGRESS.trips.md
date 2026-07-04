@@ -111,3 +111,69 @@ Running log across 5-hour autonomous runs. Single source of truth for status.
   data browser (`GET /api/projects/trips/app/data/:table`), chat sessions (`POST /api/sessions
   {projectId:'trips', spaceRef:'concierge/planner'}` + `POST /api/sessions/:id/message {content}`).
   Live model via `sdk/org/.env` (AZURE keys + `LM_MODEL_S` set).
+
+## Round 2 — FEATURE EXPANSION (complete)
+Strictly additive to round 1. Floors met/exceeded: **+5 tables, +2 spaces (3 agents), +12 api,
++4 hooks, +5 pages**. Totals now: 10 tables, 24 api endpoints, 6 hooks, 3 project-scoped spaces
+(concierge+records+logistics), 12 pages.
+
+### Phase 1 spec ✅ — folded into `app-specifications/trips-application.md`
+- New `logistics` space section (navigator + packer) + `transit_legs` table; sharpened
+  documents/packing/reminders; new "Round-2 reconciliation" subsection documenting: **text-content
+  upload** (no multipart/blob — `documents.content` holds pasted text; ajv-friendly), no external
+  weather/maps bindings (universal webSearch), `knowledge_notes` as db-backed note store, the new
+  row-type singularizers, and the ≥2-space/full-format requirement satisfied.
+
+### Phase 3 build ✅ (fanned to 3 Sonnet subagents by dir; integrated by orchestrator)
+- **database/** (me): documents, document_extractions, knowledge_notes, packing_items, transit_legs
+  (+itinerary_items.needsBooking/bookByDate/weatherNote). All 10 pass real `validateSchemaSet`.
+  concierge caps extended with knowledge_notes (researcher gains db:write knowledge_notes).
+- **api/** (12): uploadDocument, listDocuments, getDocument; packingList, generatePacking,
+  addPackingItem, togglePacked, removePackingItem; transitLegs, planTransit; tripReminders, tripNotes.
+- **spaces/records/** (analyst, full format) + **spaces/logistics/** (navigator + packer, full
+  format) — charter+instruct per agent, tasklists, functions, components, extensive knowledge (each
+  field index.md + ≥2 aspects). Least-privilege caps (no authoring caps).
+- **hooks/** (4): analyze-document (database:insert docs), plan-transit-on-destination (database:insert
+  destinations), regenerate-packing (cron→packer#pack-due), to-book-reminders (cron→navigator#booking-windows).
+- **pages/** (5): trips/[tripId]/{documents,packing,logistics,reminders}, documents/[docId] + 7 components
+  + TripTabs sub-nav wired into existing trip pages. Token-clean (raw-color scan + lint:tokens 575 files ✓).
+
+### Engine constraints discovered + fixed THIS round (grounded in real serve run)
+- **cron hooks require a declarative `trigger`; only `database` hooks take an imperative `handler`**
+  (`libs/cli/src/app/hooks/loader.ts validateHook`). My two cron hooks originally used `handler` →
+  `loadHooks` threw → the WHOLE hook set silently loaded as `[]` (incl. round-1's two). Fixed:
+  cron hooks now `trigger: 'logistics/packer#pack-due'` / `'logistics/navigator#booking-windows'`,
+  and the packer/navigator gained **self-scanning** actions.
+- **Hook `delegate(ref, action, {input})` DROPS the input** (`routes/hooks.ts:160 void opts` — matches
+  memory `reference-project-app-engine-facts`). Hook-delegated agents must **self-query the db**.
+  Fixed: `records/analyst#analyze`, `logistics/navigator#plan-transit`, and (non-regressively)
+  `concierge/researcher#dive` are now model-driven self-scanning actions that discover their targets
+  (pending documents / destinations lacking legs / un-researched destinations) and seed the tasklist
+  with real ids — instead of relying on `input`.
+- **A tasklist task's `output` schema is validated fail-loud** — `02-extract` declared
+  `newDestinationId: string` (required) but resolved `undefined` for a booking → "Fork output does not
+  match schema" killed the analysis. Fixed: output is `{ ok }`; research-followup recovers new dest ids
+  from `document_extractions` provenance.
+- **forEach-fork db writes are unreliable with the weak model** — the weak DeepSeek-V4-Flash in a
+  `forEach` fork hallucinated `remember/recall/readFileRaw` instead of `db.insert`. Fixed: `plan-transit`
+  writes all legs in a **single non-forEach `general` task loop** (the pattern the analyst extract task
+  provably uses), carrying `tripId` inside each pair.
+
+### Phase 4 tests + 🔴 LIVE (DeepSeek `azure:DeepSeek-V4-Flash`, real `lmthing serve`) ✅
+- `tests/trips.test.mjs` extended: 26 tests green (10-table validateSchemaSet, new columns, 24
+  endpoints, 6 hooks, records+logistics full-format + least-privilege, ≥2 spaces).
+- Booted `lmthing serve` on a temp `LMTHING_ROOT` (trips materialized). Manifest: **10 tables, 24
+  endpoints, 6 hooks, 10/12 page routes, build built:true**. All new pages serve 200.
+- **LIVE database-hook write paths, all three proven writing real rows:**
+  - `analyze-document`: uploaded a pasted hotel confirmation → hook → analyst self-scan → analyze-document
+    tasklist → wrote a `bookings` row + a `document_extractions` provenance row + set `documents.status`
+    `pending→analyzing→analyzed`. (Field accuracy imperfect on the weak flash model — one run got
+    cost=340 right, another grabbed the header as provider — a MODEL limitation, not a code defect; the
+    pipeline/provenance/lifecycle are correct.)
+  - `research-new-destination`: added Lisbon+Porto → researcher self-scan → 2 `research` rows (status ready).
+  - `plan-transit-on-destination`: → navigator self-scan → plan-transit tasklist → 2 `transit_legs`
+    (origin→Lisbon flight €150, Lisbon→Porto train €25, status suggested). `transitLegs` API read view
+    returns them with resolved from/to names.
+- Install path: **local test user via `lmthing serve`** (temp root). No prod install yet (Phase 6 next run/below).
+
+### Phase 5 push

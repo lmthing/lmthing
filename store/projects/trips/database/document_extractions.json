@@ -1,0 +1,16 @@
+{
+  "title": "Document extractions",
+  "description": "A provenance record: one row a document produced in a domain table (a booking, an itinerary item, a destination, a note). Every derived row traces back to its source document, and re-analysis stays idempotent.",
+  "columns": {
+    "id":         { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "documentId": { "type": "string", "description": "the source document this extraction came from", "required": true,
+                    "references": { "table": "documents", "column": "id", "onDelete": "cascade" } },
+    "table":      { "type": "string", "description": "the domain table a row was written to, e.g. 'bookings' | 'itinerary_items' | 'destinations' | 'knowledge_notes'", "required": true },
+    "rowId":      { "type": "string", "description": "the primary key of the row that was written", "required": true },
+    "confidence": { "type": "number", "description": "0..1 confidence the analyst had in this extraction; low-confidence bookings become notes, not booking rows", "default": 0 },
+    "createdAt":  { "type": "date",   "description": "when the extraction was recorded", "generated": "now" }
+  },
+  "relations": {
+    "document": { "belongsTo": "documents", "via": "documentId", "description": "the source document" }
+  }
+}

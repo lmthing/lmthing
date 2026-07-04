@@ -15,7 +15,10 @@
     "estimatedCost": { "type": "number", "description": "rough per-item cost the researcher/scheduler estimates, in the item's currency; feeds the budget roll-up", "default": 0 },
     "currency":      { "type": "string", "description": "ISO currency code for estimatedCost, e.g. 'USD'/'EUR'", "default": "USD" },
     "bookingId":     { "type": "string", "description": "the reservation backing this item, if any (kept when booking removed → set null)",
-                       "references": { "table": "bookings", "column": "id", "onDelete": "setNull" } }
+                       "references": { "table": "bookings", "column": "id", "onDelete": "setNull" } },
+    "needsBooking":  { "type": "boolean", "description": "true when this item must be reserved ahead (timed-entry ticket, popular restaurant); drives to-book reminders", "default": false },
+    "bookByDate":    { "type": "date",   "description": "the date by which this item should be booked to secure it (null = no deadline)" },
+    "weatherNote":   { "type": "string", "description": "scheduler/packer note about weather for this item's day, e.g. 'rain likely — indoor alternative'" }
   },
   "relations": {
     "destination": { "belongsTo": "destinations", "via": "destinationId", "description": "where this happens" },

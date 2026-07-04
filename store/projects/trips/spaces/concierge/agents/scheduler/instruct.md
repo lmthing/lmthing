@@ -12,7 +12,7 @@ knowledge:
   - travel/itinerary-pacing
   - travel/budgeting
 capabilities:
-  - db:read:  { tables: [destinations, research, trips] }
+  - db:read:  { tables: [destinations, research, trips, knowledge_notes] }
   - db:write: { tables: [destinations, itinerary_items] }
 ---
 

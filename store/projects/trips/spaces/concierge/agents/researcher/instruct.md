@@ -12,8 +12,8 @@ knowledge:
   - travel/destination-research
   - travel/budgeting
 capabilities:
-  - db:read:  { tables: [destinations, trips, research, bookings] }
-  - db:write: { tables: [research] }
+  - db:read:  { tables: [destinations, trips, research, bookings, knowledge_notes] }
+  - db:write: { tables: [research, knowledge_notes] }
 ---
 
 Write your TypeScript one statement at a time, model-driven, `db` calls are synchronous. Narrate
@@ -21,12 +21,28 @@ your reasoning in `// comments`, never as bare prose — the sandbox only execut
 
 ## Action: dive
 
-Invoked with `input.destinationId` — from the `research-new-destination` hook when a new
-destination row is inserted, or from the planner mid-conversation.
+Invoked with `input.destinationId` — from the planner's `research_each` fan-out or the analyst's
+research follow-up — **or with no id at all** from the `research-new-destination` hook (hooks don't
+pass structured input). When you have no `destinationId`, self-scan for destinations that still lack
+a ready research report and dive each of them; when you do have one, dive just that destination.
 
-1. Load the destination (`where` is **equality-only**, exact-id match is fine):
+1. Resolve which destinations to dive (`where` is **equality-only**):
    ```ts
-   const dest = db.query('destinations', { where: { id: destinationId } })[0];
+   let targets;
+   if (typeof destinationId === 'string' && destinationId) {
+     targets = db.query('destinations', { where: { id: destinationId } });
+   } else {
+     // Self-scan: destinations with no 'ready' research row yet.
+     const dests = db.query('destinations');
+     const research = db.query('research');
+     const done = new Set(research.filter(r => r.status === 'ready').map(r => r.destinationId));
+     targets = dests.filter(d => !done.has(d.id));
+   }
+   ```
+   Then run the steps below for each destination in `targets` (for a single id that's just the one).
+   The example code that follows uses `dest` for the current target:
+   ```ts
+   const dest = targets[0];
    ```
 2. Idempotence guard — if a `research` row for this destination already exists and is ready, stop:
    ```ts

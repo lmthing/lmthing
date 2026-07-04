@@ -100,3 +100,110 @@ the sibling `blog` build patterns exactly.
 4. 🔴 LIVE: createTrip → planner plan-trip → propose destinations → research_each forEach → lay_out writes
    itinerary_items (DeepSeek `LM_MODEL_S`). Capture trace. Fallback to mock streamFn only if keys empty.
 5. Green gate (lint:tokens/typecheck/build/test) → push sdk/org then monorepo.
+
+---
+
+# PLAN — round 2 (FEATURE EXPANSION)
+
+Strictly additive to round 1 (never delete/regress). Same engine contracts (see PROGRESS
+"Environment"). Floors met: 5 new tables, 2 new spaces (3 agents), 12 new api endpoints, 4 new hooks,
+5 new pages. All grounded in the spec's "Additional features" + the round-2 reconciliation.
+
+## database/ — 5 NEW tables + column adds
+- `documents.json` — id(pk uuid), tripId→trips(cascade,req), kind(req: booking_pdf|ticket_image|
+  itinerary|passport_visa|place_photo|other), filename, mime, content(the pasted text — see
+  reconciliation), sourceUrl, status(def pending), summary, error, uploadedAt(now);
+  relations trip(belongsTo), extractions(hasMany document_extractions via documentId).
+- `document_extractions.json` — id(pk), documentId→documents(cascade,req), table(req: which domain
+  table), rowId(req), confidence(number, def 0), createdAt(now); relation document(belongsTo).
+- `knowledge_notes.json` — id(pk), tripId→trips(cascade, nullable), destinationId→destinations(setNull,
+  nullable), topic(req), body(md), sourceKind(req: document|research|web|logistics), documentId→
+  documents(setNull, nullable), createdAt(now); relations trip/destination/document(belongsTo).
+- `packing_items.json` — id(pk), tripId→trips(cascade,req), label(req), category(def other:
+  clothing|gear|documents|toiletries|electronics|other), reason, packed(bool def false),
+  createdAt(now); relation trip(belongsTo).
+- `transit_legs.json` — id(pk), tripId→trips(cascade,req), fromDestinationId→destinations(setNull,
+  nullable), toDestinationId→destinations(cascade,req), mode(req: flight|train|bus|car|ferry|walk),
+  departAt, arriveAt, durationMinutes, estimatedCost(def 0), currency(def USD), bookByDate,
+  notes, status(def suggested); relations trip(belongsTo), from(belongsTo destinations via
+  fromDestinationId), to(belongsTo destinations via toDestinationId).
+- `itinerary_items.json` — ADD columns: needsBooking(bool def false), bookByDate(date), weatherNote(string).
+
+## api/ — 12 NEW endpoints (name/description/Input/Output + default async handler; inline Db/Ctx types)
+Documents: `trips/[id]/documents/POST.ts`→uploadDocument; `trips/[id]/documents/GET.ts`→listDocuments;
+  `documents/[id]/GET.ts`→getDocument (include extractions + linked rows + notes).
+Packing: `trips/[id]/packing/GET.ts`→packingList; `trips/[id]/packing/generate/POST.ts`→generatePacking
+  (spawn logistics/packer#pack); `packing/POST.ts`→addPackingItem; `packing/[id]/PATCH.ts`→togglePacked;
+  `packing/[id]/DELETE.ts`→removePackingItem.
+Logistics: `trips/[id]/transit/GET.ts`→transitLegs (ordered); `trips/[id]/transit/plan/POST.ts`→
+  planTransit (spawn logistics/navigator#plan-transit).
+Reminders+notes: `trips/[id]/reminders/GET.ts`→tripReminders (items needsBooking && !bookingId, daysLeft+
+  urgency); `trips/[id]/notes/GET.ts`→tripNotes (knowledge_notes for the trip).
+
+## hooks/ — 4 NEW
+- `analyze-document.ts` — database insert on documents → delegate records/analyst#analyze; idempotent
+  (skip if status!=='pending' or extractions exist).
+- `plan-transit-on-destination.ts` — database insert on destinations → delegate logistics/navigator#
+  plan-transit; idempotent (skip if a transit_leg toDestinationId===row.id exists).
+- `regenerate-packing.ts` — cron every 24h; imperative handler: for trips with startDate within ~10d,
+  delegate logistics/packer#pack.
+- `to-book-reminders.ts` — cron daily; imperative handler: scan itinerary_items needsBooking && !bookingId
+  && bookByDate approaching → delegate logistics/navigator#booking-windows { input:{tripId} }.
+
+## spaces/records/ — NEW full-format space
+- agents/analyst/{charter.md,instruct.md} — caps: db:read [documents, document_extractions, trips,
+  destinations, bookings, itinerary_items, knowledge_notes], db:write [documents, document_extractions,
+  bookings, itinerary_items, destinations, knowledge_notes]; canDelegateTo concierge/researcher#dive.
+  actions: analyze. Routes by documents.kind.
+- tasklists/analyze-document/ — index + 01-classify + 02-extract (route by kind) + 03-research-followup
+  (delegate researcher).
+- knowledge/documents/{index, booking-confirmations.md, itineraries-and-tickets.md};
+  knowledge/extraction/{index, confidence-and-provenance.md, no-fabrication-safety.md}.
+- functions/ — classifyKind.ts, parseTripDates.ts, extractAmount.ts.
+- components/view/ExtractionSummary.tsx (token-gated).
+
+## spaces/logistics/ — NEW full-format space (2 agents)
+- agents/navigator/{charter.md,instruct.md} — caps: db:read [trips, destinations, transit_legs, bookings,
+  knowledge_notes], db:write [transit_legs, knowledge_notes]. actions: plan-transit, booking-windows,
+  visa-currency.
+- agents/packer/{charter.md,instruct.md} — caps: db:read [trips, destinations, itinerary_items,
+  transit_legs], db:write [packing_items]. action: pack.
+- tasklists/plan-transit/ — index + 01-order-destinations + 02-leg_each (forEach over pairs) delegate…
+  (navigator single-agent; tasklist is model-driven within navigator). Keep simple: index + 2 tasks.
+- tasklists/build-packing/ — index + tasks (packer).
+- knowledge/transit/{index, modes-and-booking-windows.md, visas-and-currency.md};
+  knowledge/packing/{index, climate-and-season.md, activity-and-gear.md}.
+- functions/ — legDuration.ts, packingCategories.ts, formatMoney.ts.
+- components/view/TransitLegCard.tsx, PackingChecklist.tsx.
+
+## concierge caps updates (additive)
+- researcher: db:write add knowledge_notes → [research, knowledge_notes]; db:read add knowledge_notes.
+- planner: db:read add knowledge_notes.
+- scheduler: db:read add knowledge_notes; db:write add needsBooking/bookByDate via itinerary_items (already writes items).
+
+## pages/ — 5 NEW routes + components + TripTabs sub-nav
+- trips/[tripId]/documents.tsx — upload form + document list (status).
+- documents/[docId].tsx — source summary + extractions + linked rows + notes (poll while pending).
+- trips/[tripId]/packing.tsx — packing checklist (toggle/add/regenerate).
+- trips/[tripId]/logistics.tsx — transit legs + <Chat agent="logistics/navigator"> + visa/currency notes.
+- trips/[tripId]/reminders.tsx — to-book reminders (tripReminders) + trip notes (tripNotes).
+- components: TripTabs.tsx (sub-nav: Timeline·Plan·Packing·Logistics·Docs·Reminders), DocumentUploadForm,
+  DocumentRow, ExtractionRow, PackingRow, TransitLegRow, ReminderRow, NoteCard. Design tokens only.
+- Wire TripTabs into the existing trip pages (timeline/plan/research) header. Update _layout unchanged.
+
+## tests/ — extend trips.test.mjs
+- Schemas: now 10 tables (add documents, document_extractions, knowledge_notes, packing_items,
+  transit_legs) still pass validateSchemaSet; itinerary_items has needsBooking/bookByDate/weatherNote.
+- EXPECTED_ENDPOINTS += the 12 new; all export name/Input/Output/default async handler.
+- Hooks: analyze-document + plan-transit database; regenerate-packing + to-book-reminders cron/imperative.
+- records + logistics full-format assertions (charter+instruct per agent, tasklists/functions/components/
+  knowledge each field index.md + ≥2 aspects); least-privilege (no authoring caps).
+- ≥2 spaces present.
+
+## Build/verify
+1. me: database + concierge caps.
+2. fan out 3 Sonnet: api / spaces(records+logistics) / pages+components.
+3. me: hooks + tests + integrate.
+4. serve locally, live DeepSeek: uploadDocument→analyze-document hook→analyst extracts; addDestination→
+   plan-transit hook→navigator writes transit_legs; generatePacking→packer. Capture evidence.
+5. green gate → push both repos.

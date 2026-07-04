@@ -490,9 +490,58 @@ A list generated from where you're going, when, and what you'll actually do beat
 The itinerary should tell you *when to act*, not just what to do.
 - **Data**: add `needsBooking` bool + `bookByDate` to `itinerary_items` (a restaurant that books out
   weeks ahead, timed-entry tickets).
+- **API**: `tripReminders` `GET api/trips/:id/reminders` → the live set of items with
+  `needsBooking && !bookingId`, sorted by `bookByDate` (soonest first), each annotated with a
+  `daysLeft` and an `urgency` (`overdue|soon|later`) — a read view the timeline and a dedicated
+  reminders page render.
 - **Hook**: `cron daily` scans items with `needsBooking && !bookingId && bookByDate` approaching and
-  surfaces a reminder ("book Jerónimos tickets — sells out ~2 weeks out"), using the parent plan's
-  **user-facing hook deferral** surface.
+  **writes a cited `knowledge_notes` reminder** ("book Jerónimos tickets — sells out ~2 weeks out")
+  by delegating to `logistics/navigator#booking-windows`, using the parent plan's **user-facing hook
+  deferral** surface. The note is what the reminders page surfaces alongside the live item scan.
+
+### Logistics — transit legs, visas & currency (new `logistics` space)
+Getting *between* places — and the paperwork/money to do it — is its own body of work, distinct from
+researching what to see. This is the round-2 **`logistics`** project-scoped space (satisfying the ≥2
+spaces rule alongside `concierge` and `records`), with two specialists sharing the project-rooted db.
+- **Data**: `transit_legs` — one hop between two destinations (or airport→city): `id`, `tripId` FK →
+  `trips` (`onDelete:'cascade'`), `fromDestinationId?` FK → `destinations` (`setNull`; null = trip
+  origin/home), `toDestinationId` FK → `destinations` (`cascade`), `mode`
+  (`'flight'|'train'|'bus'|'car'|'ferry'|'walk'`), `departAt?`, `arriveAt?`, `durationMinutes?`,
+  `estimatedCost?`, `currency` (default `USD`), `bookByDate?` (when to book to get a good fare),
+  `notes` (md — options, caveats, cited), `status` (`'suggested'|'confirmed'`, default `suggested`).
+- **Agents** (least-privilege):
+  - `logistics/navigator` — `db:read [trips, destinations, transit_legs, bookings, knowledge_notes]`,
+    `db:write [transit_legs, knowledge_notes]`; universal `webSearch`/`webFetch`. Plans the ordered
+    transit legs between a trip's destinations (mode, rough duration/cost, booking window), and holds
+    visa/currency knowledge it writes as cited `knowledge_notes`. Actions: `plan-transit` (fan out
+    over consecutive destination pairs), `booking-windows` (the daily-reminder delegate),
+    `visa-currency` (a per-trip advisory note).
+  - `logistics/packer` — `db:read [trips, destinations, itinerary_items, transit_legs]`,
+    `db:write [packing_items]`; universal `webSearch` for the forecast (no external weather binding —
+    see reconciliation). Builds a weather- and activity-aware `packing_items` list. Action: `pack`.
+- **API**: `transitLegs` `GET api/trips/:id/transit` (ordered legs); `planTransit`
+  `POST api/trips/:id/transit/plan` (spawns `logistics/navigator#plan-transit`, returns immediately);
+  the packing endpoints below.
+- **Hooks**: `plan-transit-on-destination` (**database** insert on `destinations` →
+  `logistics/navigator#plan-transit`; idempotent — skips if a leg to that destination already exists;
+  runs *alongside* `research-new-destination`, and because the navigator writes only `transit_legs`
+  its writes never re-fire the destination hooks).
+- **Pages**: `/trips/:tripId/logistics` (ordered transit legs with mode/duration/cost + a
+  `<Chat agent="logistics/navigator">` to refine, and the visa/currency notes for the trip).
+
+### Packing list — weather- and activity-aware *(round-2, in `logistics`)*
+- **Data**: `packing_items` (`id`, `tripId` FK → `trips` cascade, `label`, `category`
+  (`'clothing'|'gear'|'documents'|'toiletries'|'electronics'|'other'`), `reason` (why it's on the
+  list, cited to the itinerary/forecast), `packed` bool default false, `createdAt` now).
+- **Agent**: `logistics/packer` (above) builds the list from destinations, season, planned
+  activities, and the forecast (`webSearch`) — "rain days in Sintra → umbrella", "hiking day →
+  boots".
+- **API**: `packingList` `GET api/trips/:id/packing`; `generatePacking`
+  `POST api/trips/:id/packing/generate` (spawns the packer); `addPackingItem` `POST api/packing`
+  (manual add); `togglePacked` `PATCH api/packing/:id`; `removePackingItem` `DELETE api/packing/:id`.
+- **Pages**: `/trips/:id/packing` with check-offs, category grouping, and a "regenerate" action.
+- **Hook**: `regenerate-packing` (**cron**, ~daily) → `logistics/packer#pack` for trips whose
+  `startDate` is within ~10 days, so the list tracks the latest forecast/plan.
 
 ## Engine reconciliation (round-1 build notes)
 
@@ -518,6 +567,39 @@ delegation to scaffold it). Honest reconciliation of the spec against the real r
   budget roll-up, dedupe), catalog `components/`, and **extensive `knowledge/`** (destination-research
   method, itinerary-pacing craft, budgeting) — each field an `index.md` overview + ≥2 `<aspect>.md`
   deep-dives.
+
+### Round-2 reconciliation (documents, packing, logistics)
+Round 2 folds in the "Additional features" as **shipped** implementations (documents/records,
+budget already core, packing + logistics + to-book reminders), reconciled against the engine:
+
+- **Document upload is text-content, not multipart blobs.** The engine's api runtime validates a JSON
+  `Input` (ajv, `coerceTypes`) and has no multipart/file-part decoder or blob store wired, so
+  `uploadDocument` accepts JSON `{ filename?, mime?, kind?, content, sourceUrl? }` where **`content`
+  is the pasted text** of a booking confirmation / forwarded itinerary / e-ticket (the everyday case
+  is copy-paste, and it round-trips through ajv cleanly). `documents` therefore stores the raw
+  `content` **column** (not a `storagePath` blob) plus an optional `sourceUrl` the analyst may
+  `webFetch`. Real binary/OCR upload (`.data/uploads/`, `pdfExtract`/`ocr` bindings) stays deferred
+  with the aspirational external-binding registry — the analyst extracts from `content`/`sourceUrl`
+  with the universal `webSearch`/`webFetch` + its own reasoning, never a fabricated field.
+- **`records/analyst` routes by `documents.kind`** to an extraction path and writes the domain tables
+  (`bookings`, `itinerary_items`, `destinations`, `knowledge_notes`) with a `document_extractions`
+  provenance row per derived row (idempotent on re-analysis). It never fabricates a booking from a
+  low-confidence read — a doubtful one becomes a `knowledge_notes` note, per the charter.
+- **No external `weatherLookup`/`mapsSearch` bindings** — `logistics/packer` and `navigator` use the
+  universal `webSearch`/`webFetch` for forecast/route/fare info (same reconciliation the round-1
+  researcher used); their `api:call` allow stays reserved for the app's own typed endpoints.
+- **`knowledge_notes` is a db-backed, runtime-writable note store** (distinct from a space's authoring
+  `knowledge/` dir, which stays an authoring-only surface). `concierge/researcher` gains
+  `db:write [research, knowledge_notes]`; `planner`/`scheduler` gain `db:read [knowledge_notes]` so
+  uploads and logistics research make future planning smarter — exactly the spec's intent, without
+  inventing a runtime `knowledge:write` capability.
+- **Row-type singularizer (new tables):** `documents→Document`, `document_extractions→DocumentExtraction`,
+  `knowledge_notes→KnowledgeNote`, `packing_items→PackingItem`, `transit_legs→TransitLeg`.
+- **Two new full-format project-scoped spaces** (`records`, `logistics`) join `concierge` (3 spaces
+  total), each with `charter.md`+`instruct.md` per agent, `tasklists/`, `functions/`, `components/`,
+  and extensive `knowledge/` (each field `index.md` + ≥2 aspects). Cross-space orchestration rides
+  `hooks/` (`analyze-document`→`records/analyst`; `plan-transit-on-destination`→`logistics/navigator`;
+  the analyst then delegates `concierge/researcher#dive`).
 
 ## Phases & order
 

@@ -11,7 +11,7 @@ knowledge:
   - travel/itinerary-pacing
   - travel/budgeting
 capabilities:
-  - db:read: { tables: [trips, destinations] }
+  - db:read: { tables: [trips, destinations, knowledge_notes] }
 canDelegateTo:
   - concierge/scheduler#propose
   - concierge/researcher#dive

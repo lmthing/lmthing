@@ -177,3 +177,27 @@ Strictly additive to round 1. Floors met/exceeded: **+5 tables, +2 spaces (3 age
 - Install path: **local test user via `lmthing serve`** (temp root). No prod install yet (Phase 6 next run/below).
 
 ### Phase 5 push
+- Green gate: 26 app tests ✓, lint:tokens 575 files ✓, trips raw-color scan clean, serve pages
+  build built:true. Two-repo push (submodule first):
+  - **sdk/org `main`: `e4be05f`** — UNCHANGED this round (no engine changes needed; all round-2 work is
+    engine *usage* on the P8 runtime). Pushed as a confirmed no-op, level with origin.
+  - **monorepo `main`: `cf1770d`** — trips round-2 app + spec + PLAN/PROGRESS (pointer records e4be05f,
+    matches submodule HEAD on origin). Both verified level with origin.
+
+## Resume notes for the NEXT run (round 3 — FEATURE EXPANSION)
+- Round-2 shipped records + logistics spaces (3 spaces total, all full format). Do NOT regress.
+- Round-3 ideas: a `budget`/`finance` space (currency conversion, spend tracking, split-with-companions),
+  a companions/travelers table + per-traveler preferences feeding packing/visa, a day-planner map view,
+  offline export (PDF/ICS), a "trip templates" catalog. Add ≥3 tables, ≥1 space, ≥3 agents, ≥8 api,
+  ≥3 hooks, ≥5 pages.
+- ENGINE GOTCHAS to reuse (this round's hard-won facts):
+  - cron hooks need a declarative `trigger` (no imperative handler); database hooks take `handler`.
+  - hook `delegate(...,{input})` DROPS input → make hook-invoked agent actions **self-scan** the db.
+  - tasklist task `output` schemas are fail-loud — keep them minimal / optional-friendly.
+  - avoid db writes inside a `forEach` fork with the weak model — use a single `general` task loop.
+  - a tasklist-backed action invoked by a hook can't be seeded (input dropped) — make the action
+    model-driven (self-scan) and call `tasklist(name,{realId})` per discovered target.
+- Live-test recipe unchanged: materialize into temp `LMTHING_ROOT`/`<root>/trips`, `node
+  sdk/org/libs/cli/dist/cli/bin.js serve --port <p>` with `LM_MODEL=S`, drive `POST /app/trips/api/*`,
+  watch `GET /api/projects/trips/app/data/<table>`. Live model DeepSeek is weak on field accuracy —
+  the pipeline/provenance are what to assert, not exact extracted values.

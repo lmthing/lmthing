@@ -1,5 +1,15 @@
 [
   {
+    "hash": "b83cd295",
+    "full_hash": "b83cd29501e44b9eda22fe2cde34949affa3efbf",
+    "type": "feat",
+    "scope": "blog",
+    "subject": "round-2 expansion \u2014 editorial space, digests, newsletters, personalization",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 12:39:09 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/b83cd29501e44b9eda22fe2cde34949affa3efbf"
+  },
+  {
     "hash": "d77b123c",
     "full_hash": "d77b123c0fe1660104e4f36d4d3d05d5a7026acd",
     "type": "fix",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-07-01 20:27:04 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/68074cb36aa72389a7ed878febf29d597378c2f2"
-  },
-  {
-    "hash": "3475deaf",
-    "full_hash": "3475deaf539c0845930b157bfb960c0bdee71b43",
-    "type": "feat",
-    "scope": "design-system",
-    "subject": "enforce shared design system across all SPAs",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 19:06:00 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/3475deaf539c0845930b157bfb960c0bdee71b43"
   }
 ]

@@ -1,0 +1,18 @@
+{
+  "title": "Annotations",
+  "description": "A highlight or note the reader (or the fact-checker agent) attaches to a specific passage of an article, for research and verification.",
+  "columns": {
+    "id":        { "type": "string",  "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "articleId": { "type": "string",  "description": "the article this annotation is attached to", "required": true,
+                    "references": { "table": "articles", "column": "id", "onDelete": "cascade" } },
+    "quote":     { "type": "string",  "description": "the exact passage of article text being highlighted or annotated" },
+    "note":      { "type": "string",  "description": "the reader's or agent's comment about the highlighted passage" },
+    "kind":      { "type": "string",  "description": "'note' (reader comment), 'highlight', or 'fact-check' — what kind of annotation this is", "default": "note" },
+    "color":     { "type": "string",  "description": "design-token color name used to render the highlight (e.g. 'accent'), not a raw color value", "default": "accent" },
+    "verified":  { "type": "boolean", "description": "whether the fact-checker agent has verified the claim in this passage", "default": false },
+    "createdAt": { "type": "date",    "description": "when the annotation was created", "generated": "now" }
+  },
+  "relations": {
+    "article": { "belongsTo": "articles", "via": "articleId", "description": "the article this annotation is attached to" }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "title": "Alerts",
+  "description": "A single notification raised when a new article matches an active subscription's saved search.",
+  "columns": {
+    "id":             { "type": "string",  "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "subscriptionId": { "type": "string",  "description": "the subscription whose saved search matched", "required": true,
+                         "references": { "table": "subscriptions", "column": "id", "onDelete": "cascade" } },
+    "articleId":      { "type": "string",  "description": "the matching article (kept when the article is deleted -> set null)",
+                         "references": { "table": "articles", "column": "id", "onDelete": "setNull" } },
+    "title":          { "type": "string",  "description": "the alert headline shown in the Alerts list", "required": true },
+    "summary":        { "type": "string",  "description": "a one-line summary of why the match fired" },
+    "read":           { "type": "boolean", "description": "whether the user has dismissed/read this alert", "default": false },
+    "createdAt":       { "type": "date",   "description": "when the alert was raised", "generated": "now" }
+  },
+  "relations": {
+    "subscription": { "belongsTo": "subscriptions", "via": "subscriptionId", "description": "the subscription that raised this alert" },
+    "article":      { "belongsTo": "articles",       "via": "articleId",      "description": "the article that matched" }
+  }
+}

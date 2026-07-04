@@ -200,3 +200,100 @@ in the shipped engine (see PROGRESS "Environment"; reference full-format space =
 4. hooks/ (+4) → loader + dispatch.
 5. pages/components (+5/+5) → buildProjectPages + lint:tokens green.
 6. tests update; materialize + serve + live editorial loop (DeepSeek). Green gate → push both repos.
+
+---
+
+# ROUND 3 — FEATURE EXPANSION (research workspace: collections · annotations · alerts · briefings + `research` space)
+
+Strictly additive to rounds 1-2. Output root unchanged: `store/projects/blog/`. All contracts
+grounded in the shipped engine (see PROGRESS "Environment"; reference full-format spaces =
+`store/projects/blog/spaces/{newsroom,editorial}`). newsroom+editorial are ALREADY full-format
+(round-2 remediation done) — no remediation this round.
+
+## database/ (+7 tables, +2 columns, +4 relations). Descriptions mandatory; exactly-one PK; FK/relations resolve.
+- `collections.json` — id(pk uuid), title(req), description, kind(def 'manual'), query(json),
+  pinned(bool def false), articleCount(number def 0), createdAt(now). relations items→collection_items via collectionId, briefings→briefings via collectionId.
+- `collection_items.json` — id(pk), collectionId→collections(cascade,req), articleId→articles(cascade,req),
+  note, position(number def 0), addedAt(now). relations collection(belongsTo), article(belongsTo).
+- `annotations.json` — id(pk), articleId→articles(cascade,req), quote, note, kind(def 'note'),
+  color(def 'accent' — TOKEN name), verified(bool def false), createdAt(now). relation article(belongsTo).
+- `subscriptions.json` — id(pk), name(req), query(json), cadence(def 'daily'), channel(def 'alert'),
+  active(bool def true), lastRunAt(date), createdAt(now). relation alerts→alerts via subscriptionId.
+- `alerts.json` — id(pk), subscriptionId→subscriptions(cascade,req), articleId→articles(setNull),
+  title(req), summary, read(bool def false), createdAt(now). relations subscription(belongsTo), article(belongsTo).
+- `briefings.json` — id(pk), title(req), topic(req), body, status(def 'pending'),
+  collectionId→collections(setNull), sourceCount(number def 0), createdAt(now). relation collection(belongsTo).
+- `source_health.json` — id(pk), sourceId→sources(cascade,req,UNIQUE), fetchCount(number def 0),
+  itemCount(number def 0), errorCount(number def 0), lastError, lastStatus(def 'ok'), successRate(number def 1),
+  updatedAt(now). relation source(belongsTo).
+- articles.json ADD COLUMNS: annotationCount(number def 0), collectionCount(number def 0);
+  ADD RELATIONS: annotations→annotations via articleId, collectionItems→collection_items via articleId, alerts→alerts via articleId.
+- sources.json ADD RELATION: health→source_health via sourceId.
+(Keep ALL round-1/2 columns/relations untouched.)
+
+## api/ (+21 endpoints → 47). Each: local Row/Db/Ctx types (mirror round-2 handlers), name/description/Input/Output + default async handler; `HttpError` from `@app/runtime` where gated.
+Collections: collections/GET.ts→listCollections; collections/POST.ts→createCollection;
+  collections/[id]/GET.ts→getCollection (items+article join, position sort); collections/[id]/PATCH.ts→updateCollection;
+  collections/[id]/DELETE.ts→removeCollection; collections/[id]/items/POST.ts→addToCollection (dedupe by articleId; bump collections.articleCount + articles.collectionCount);
+  collection-items/[id]/DELETE.ts→removeCollectionItem (decrement counters).
+Annotations: articles/[id]/annotations/GET.ts→listAnnotations; articles/[id]/annotations/POST.ts→addAnnotation (bump articles.annotationCount);
+  annotations/[id]/DELETE.ts→removeAnnotation (decrement).
+Subscriptions/alerts: subscriptions/GET.ts→listSubscriptions; subscriptions/POST.ts→createSubscription;
+  subscriptions/[id]/PATCH.ts→updateSubscription; subscriptions/[id]/DELETE.ts→removeSubscription;
+  alerts/GET.ts→listAlerts {unreadOnly?}; alerts/[id]/read/POST.ts→markAlertRead.
+Briefings: briefings/GET.ts→listBriefings; briefings/[id]/GET.ts→getBriefing; briefings/POST.ts→requestBriefing (insert pending {topic,collectionId?}; NO spawn — the generate-briefing hook drives analyst).
+Search/health: search/GET.ts→search {q}→{articles,briefings,collections} (query-all + JS case-insensitive substring); source-health/GET.ts→sourceHealth (join sources).
+
+## hooks/ (+4 → 10 total)
+- scan-subscriptions.ts — cron every:'30m', trigger 'research/librarian#scan', budget maxEpisodes 15.
+- generate-briefing.ts — database briefings:insert, handler: guard row undefined; if row && (row.body || row.status!=='pending') return; delegate('research/analyst','brief',{input:{briefingId:row?.id}}).
+- file-into-collections.ts — database articles:insert, handler: guard row undefined; delegate('research/librarian','file',{input:{articleId:row?.id}}).
+- track-source-health.ts — database raw_items:insert, PURE-DB handler (no delegate): guard row undefined; query source_health, find by sourceId, insert-or-update (itemCount+1, fetchCount+1, lastStatus 'ok', successRate recompute, updatedAt now).
+
+## spaces/research/ (NEW, full format — 3 agents)
+- agents/analyst/{charter,instruct}.md — title Analyst; defaultAction brief→tasklist build-briefing;
+  actions brief(tasklist), quick-take; knowledge research/{research-method,fact-checking,curation-and-collections};
+  functions [rankBriefingSources,formatBriefing,summarizeCollection] (SPACE fns only — system webSearch/webFetch universal at agent scope);
+  components [BriefingPreview]; capabilities db:read[articles,citations,collections,collection_items,briefings,topics] db:write[briefings].
+- agents/fact-checker/{charter,instruct}.md — title Fact-checker; defaultAction verify; actions verify;
+  knowledge research/{fact-checking,research-method}; functions [triageClaims,formatCitation?→use triageClaims];
+  components [BriefingPreview]; capabilities db:read[articles,citations,raw_items,annotations] db:write[annotations]. (single-shot, model-driven; NO tasklist.)
+- agents/librarian/{charter,instruct}.md — title Librarian; defaultAction file; actions file, scan(tasklist scan-subscriptions);
+  knowledge research/{curation-and-collections}; functions [matchSubscription,dedupeAlerts,summarizeCollection];
+  components [AlertBadge]; capabilities db:read[articles,collections,collection_items,topics,subscriptions,alerts] db:write[collections,collection_items,alerts,articles]. (db-only, no fetch.)
+- tasklists/build-briefing/ — index.md input {query}; 01-survey.md (role explore, OMIT functions: to keep webSearch/webFetch; self-query oldest pending briefing or use query; webSearch+webFetch top hits + read feed articles/collection), 02-write.md (role general, formatBriefing; UPDATE the pending briefing to ready w/ body+sourceCount, or insert fresh).
+- tasklists/scan-subscriptions/ — index.md input {query}; 01-load.md (load active subscriptions + recent articles + existing alerts), 02-match.md (matchSubscription per sub over recent articles, dedupeAlerts vs existing, insert new alerts, set subscriptions.lastRunAt).
+- functions/ — matchSubscription.ts (article, query→boolean), rankBriefingSources.ts, summarizeCollection.ts, dedupeAlerts.ts (candidates, existing→new), formatBriefing.ts, triageClaims.ts. (typed, pure.)
+- components/view/ — BriefingPreview.tsx, AlertBadge.tsx (design tokens only).
+- knowledge/research/ — research-method/{index,framing-a-question,multi-source-synthesis}.md;
+  fact-checking/{index,verification-and-provenance,claim-triage}.md;
+  curation-and-collections/{index,smart-collections,saved-search-alerts}.md. (index has variable:+description: frontmatter.)
+
+## pages/ (+7) + components (+8). Design tokens ONLY.
+- pages/collections/index.tsx (/collections) — listCollections; CollectionCard grid; createCollection form.
+- pages/collections/[collectionId].tsx (/collections/:id) — getCollection; items list; updateCollection/removeCollection/removeCollectionItem; requestBriefing scoped to collection.
+- pages/subscriptions.tsx (/subscriptions) — listSubscriptions; SubscriptionRow; create/update/remove.
+- pages/alerts.tsx (/alerts) — listAlerts; AlertRow; markAlertRead.
+- pages/briefings/index.tsx (/briefings) — listBriefings; BriefingCard; requestBriefing form.
+- pages/briefings/[briefingId].tsx (/briefings/:id) — getBriefing; MarkdownBody; <Chat agent="research/analyst">.
+- pages/search.tsx (/search) — search {q}; SearchResults (articles/briefings/collections sections).
+- components: CollectionCard.tsx, AnnotationItem.tsx, SubscriptionRow.tsx, AlertRow.tsx, BriefingCard.tsx, SearchResults.tsx, SourceHealthBar.tsx, AddToCollectionMenu.tsx.
+- _layout.tsx: add nav Collections · Briefings · Alerts · Search (keep all existing).
+- feed/[articleId].tsx: ADDITIVE — Annotations panel (listAnnotations + addAnnotation/removeAnnotation, color from tokens) + AddToCollectionMenu (addToCollection). Keep existing behavior.
+- preferences.tsx: ADDITIVE — Source health strip (sourceHealth + SourceHealthBar). Keep existing.
+
+## tests (extend store/projects/blog/tests/blog.test.mjs)
+- Update expected table list (18), endpoint list (47), hooks (10), spaces (newsroom+editorial+research).
+- Assert new schemas validate (validateSchemaSet), FK/relations resolve, descriptions present.
+- Assert research agents least-privilege (no db:schema/pages:write/api:write/hooks:write).
+- Assert new hook shapes (scan cron→librarian#scan; generate-briefing briefings:insert→analyst; file-into-collections articles:insert→librarian; track-source-health raw_items:insert pure-db upsert).
+- Assert research is full-format (assertFullFormatSpace + 3 knowledge fields).
+- Live e2e (Phase 4): materialize temp root, lmthing serve, drive: createCollection(smart) → insert article via synthesize path → file-into-collections files it; requestBriefing → generate-briefing → analyst#brief (DeepSeek) writes briefing ready; createSubscription → scan (manual hook run) → librarian inserts alert; addAnnotation. Assert via getCollection/getBriefing/listAlerts. Keep round-1/2 loops.
+
+## Build sequence (fan-out by directory, integrate, then test)
+1. database/ (+7 tables +2 cols +4 rel) → schema test green.
+2. spaces/research/ (full format) → space loads + typechecks.
+3. api/ (+21) → contract gen + I/O shape.
+4. hooks/ (+4) → loader + dispatch.
+5. pages/components (+7/+8) → buildProjectPages + lint:tokens green.
+6. tests update; materialize + serve + live research loop (DeepSeek). Green gate → push both repos.

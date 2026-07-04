@@ -75,12 +75,18 @@ blog/
 │   ├── build-daily-digest.ts  # cron  daily 07:00 → editorial/curator#digest          (round 2)
 │   ├── render-newsletter.ts   # database digests:insert → editorial/digest-writer#render (round 2)
 │   ├── personalize-on-read.ts # database reading_events:insert → editorial/personalizer#learn (round 2)
-│   └── rescore-on-topic-change.ts # database topics:update → editorial/personalizer#rescore  (round 2)
-├── spaces/                     # ≥2 project-scoped specialist teams, one shared db
+│   ├── rescore-on-topic-change.ts # database topics:update → editorial/personalizer#rescore  (round 2)
+│   ├── scan-subscriptions.ts  # cron 30m → research/librarian#scan (saved-search alerts)      (round 3)
+│   ├── generate-briefing.ts   # database briefings:insert → research/analyst#brief            (round 3)
+│   ├── file-into-collections.ts # database articles:insert → research/librarian#file          (round 3)
+│   └── track-source-health.ts # database raw_items:insert → pure-db source_health upsert       (round 3)
+├── spaces/                     # ≥3 project-scoped specialist teams, one shared db
 │   ├── newsroom/               # fetch + synthesize + deep-dive (agents/tasklists/functions/components/knowledge)
 │   │   └── agents/{fetcher,synthesizer,researcher}/{charter,instruct}.md
-│   └── editorial/             # curate + digest + personalize (round 2, full format)
-│       └── agents/{curator,digest-writer,personalizer}/{charter,instruct}.md
+│   ├── editorial/             # curate + digest + personalize (round 2, full format)
+│   │   └── agents/{curator,digest-writer,personalizer}/{charter,instruct}.md
+│   └── research/              # briefings + fact-check + collections/alerts (round 3, full format)
+│       └── agents/{analyst,fact-checker,librarian}/{charter,instruct}.md
 ├── types/generated.d.ts      # GENERATED — row + endpoint I/O types
 └── .data/
     ├── app.db                # SQLite (WAL)
@@ -530,6 +536,182 @@ catalog `components/` (`ArticlePreview`, `ResearchPreview`); and **extensive `kn
 grounding-and-honesty). The synthesizer stays model-driven (a single-shot writer the `synthesize-new`
 hook delegates to — unchanged so the round-1-verified core loop does not regress) but gains the new
 knowledge/functions.
+
+## Round 3 — Research workspace: collections, annotations, alerts & briefings (feature expansion)
+
+Round 1 shipped the raw fetch→synthesize→feed loop (`newsroom`); round 2 added curation,
+personalization, digests and newsletters (`editorial`). Round 3 turns `blog` from a feed you *read*
+into a research workspace you *work in*: the reader organizes articles into **collections** (boards /
+reading lists, manual or smart), **highlights and annotates** passages, subscribes to **saved-search
+alerts** that fire when new matching content lands, and commissions **analyst briefings** — deep,
+multi-source syntheses over a topic or a whole collection. A third specialist team (**`research`** —
+analyst · fact-checker · librarian) does the deep-dive, verification and organizing work; a
+**source-health** table gives the reader visibility into which subscriptions are actually producing
+good news. Everything below is strictly additive to the round-1/2 shape — same project-rooted db,
+same serving, same capability model — and stays inside the parent plan (data/agents/pages/api/hooks
+only).
+
+### New database tables (round 3 — 7, bringing the app to 18)
+
+Seven new tables (descriptions mandatory on table/column/relation, FKs resolve, exactly-one PK):
+
+- **`collections.json`** — a user-curated board / reading list. `id` (pk uuid) · `title` (required) ·
+  `description` (string) · `kind` (string, def `'manual'` — `'manual'`|`'smart'`; a smart collection
+  auto-files matching articles via the `file-into-collections` hook) · `query` (json — for smart
+  collections, the match spec `{ tags?: string[], sources?: string[], savedOnly?: boolean }`) ·
+  `pinned` (boolean, def false) · `articleCount` (number, def 0 — denormalized slot count the
+  librarian refreshes) · `createdAt` (date, now). Relations: `items` hasMany `collection_items` via
+  `collectionId`; `briefings` hasMany `briefings` via `collectionId`.
+- **`collection_items.json`** — the ordered join of a collection to its articles. `id` (pk) ·
+  `collectionId` (references `collections` onDelete cascade, required) · `articleId` (references
+  `articles` onDelete cascade, required) · `note` (string — the reader's why-I-saved-this) ·
+  `position` (number, def 0 — display order) · `addedAt` (date, now). Relations: `collection`
+  belongsTo `collections` via `collectionId`; `article` belongsTo `articles` via `articleId`.
+- **`annotations.json`** — a highlight / note / question / fact-check attached to an article
+  passage. `id` (pk) · `articleId` (references `articles` onDelete cascade, required) · `quote`
+  (string — the highlighted passage) · `note` (string — the reader's or fact-checker's note) ·
+  `kind` (string, def `'note'` — `'note'`|`'highlight'`|`'question'`|`'factcheck'`) · `color`
+  (string, def `'accent'` — a **design-token name** for the highlight, never a raw color) ·
+  `verified` (boolean, def false — the fact-checker confirmed the passage against a source) ·
+  `createdAt` (date, now). Relation `article` belongsTo `articles` via `articleId`.
+- **`subscriptions.json`** — a saved search + its alert cadence. `id` (pk) · `name` (required) ·
+  `query` (json — the match spec `{ tags?: string[], keyword?: string, sources?: string[] }`) ·
+  `cadence` (string, def `'daily'` — `'realtime'`|`'daily'`|`'weekly'`) · `channel` (string, def
+  `'alert'` — `'alert'`|`'feed'`|`'newsletter'`) · `active` (boolean, def true) · `lastRunAt` (date —
+  when the scan last evaluated it) · `createdAt` (date, now). Relation `alerts` hasMany `alerts` via
+  `subscriptionId`.
+- **`alerts.json`** — a fired alert event (a saved search matched a new article). `id` (pk) ·
+  `subscriptionId` (references `subscriptions` onDelete cascade, required) · `articleId` (references
+  `articles` onDelete setNull) · `title` (required) · `summary` (string) · `read` (boolean, def
+  false) · `createdAt` (date, now). Relations: `subscription` belongsTo `subscriptions` via
+  `subscriptionId`; `article` belongsTo `articles` via `articleId`.
+- **`briefings.json`** — an analyst deep-dive briefing (multi-article synthesis), distinct from
+  round-1 `research` (a single-article dive). `id` (pk) · `title` (required) · `topic` (required —
+  the question the briefing answers) · `body` (string — the full markdown briefing; empty while
+  pending) · `status` (string, def `'pending'` — `'pending'`|`'ready'`|`'error'`) · `collectionId`
+  (references `collections` onDelete setNull — a briefing may be scoped to a collection) ·
+  `sourceCount` (number, def 0 — how many articles/sources it drew on) · `createdAt` (date, now).
+  Relation `collection` belongsTo `collections` via `collectionId`.
+- **`source_health.json`** — per-source health metrics the reader sees in Preferences. `id` (pk) ·
+  `sourceId` (references `sources` onDelete cascade, required, **unique** — one row per source) ·
+  `fetchCount` (number, def 0) · `itemCount` (number, def 0 — raw items yielded) · `errorCount`
+  (number, def 0) · `lastError` (string) · `lastStatus` (string, def `'ok'` — `'ok'`|`'error'`|
+  `'stale'`) · `successRate` (number, def 1 — 0–1) · `updatedAt` (date, now). Relation `source`
+  belongsTo `sources` via `sourceId`.
+
+New columns on the round-1 `articles.json` (additive `addColumn`): `annotationCount` (number, def 0 —
+denormalized highlight/note count shown on the card) and `collectionCount` (number, def 0 — how many
+collections file this article). New additive **relations** on `articles`: `annotations` hasMany
+`annotations` via `articleId`; `collectionItems` hasMany `collection_items` via `articleId`; `alerts`
+hasMany `alerts` via `articleId`. New additive relation on `sources`: `health` hasMany `source_health`
+via `sourceId` (semantically one row — the unique constraint enforces it).
+
+### New API endpoints (round 3 — 21, bringing the app to 47)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `listCollections` | `GET api/collections` | `{}` → `Collection[]` (pinned first, newest next) |
+| `createCollection` | `POST api/collections` | `{ title, description?, kind?, query? }` → `Collection` |
+| `getCollection` | `GET api/collections/:id` | `{ id }` → `Collection & { items: (CollectionItem & { article })[] }` |
+| `updateCollection` | `PATCH api/collections/:id` | `{ id, title?, description?, pinned?, query? }` → `Collection` |
+| `removeCollection` | `DELETE api/collections/:id` | `{ id }` → `{ ok }` |
+| `addToCollection` | `POST api/collections/:id/items` | `{ id, articleId, note? }` → `CollectionItem` — dedupes, bumps `articleCount`/`collectionCount` |
+| `removeCollectionItem` | `DELETE api/collection-items/:id` | `{ id }` → `{ ok }` — decrements the counters |
+| `listAnnotations` | `GET api/articles/:id/annotations` | `{ id }` → `Annotation[]` |
+| `addAnnotation` | `POST api/articles/:id/annotations` | `{ id, quote, note?, kind?, color? }` → `Annotation` — bumps `annotationCount` |
+| `removeAnnotation` | `DELETE api/annotations/:id` | `{ id }` → `{ ok }` |
+| `listSubscriptions` | `GET api/subscriptions` | `{}` → `Subscription[]` |
+| `createSubscription` | `POST api/subscriptions` | `{ name, query, cadence?, channel? }` → `Subscription` |
+| `updateSubscription` | `PATCH api/subscriptions/:id` | `{ id, name?, query?, cadence?, active? }` → `Subscription` |
+| `removeSubscription` | `DELETE api/subscriptions/:id` | `{ id }` → `{ ok }` |
+| `listAlerts` | `GET api/alerts` | `{ unreadOnly? }` → `Alert[]` (newest first) |
+| `markAlertRead` | `POST api/alerts/:id/read` | `{ id }` → `{ ok }` |
+| `listBriefings` | `GET api/briefings` | `{}` → `Briefing[]` (newest first) |
+| `getBriefing` | `GET api/briefings/:id` | `{ id }` → `Briefing` |
+| `requestBriefing` | `POST api/briefings` | `{ topic, collectionId? }` → `{ briefingId, status:'pending' }` — seeds a `pending` briefing (the `generate-briefing` hook drives the analyst) |
+| `search` | `GET api/search` | `{ q }` → `{ articles: Article[], briefings: Briefing[], collections: Collection[] }` — full-text-ish (query-all + JS substring/case-insensitive filter) |
+| `sourceHealth` | `GET api/source-health` | `{}` → `(SourceHealth & { source })[]` — per-source metrics joined to their source |
+
+All follow the round-1/2 rules: equality-only `where` (query-all + JS filter for tag/substring/
+negation), `HttpError` for typed failures, `spawn` (never `delegate`) from handlers, single-object
+method-aware `Input`, and the local `Row`/`Db`/`Ctx` types the round-2 handlers use. `requestBriefing`
+is a fire-and-forget seed (the hook, not the handler, spawns the analyst); the work lands via the
+research agents writing rows the pages read back.
+
+### New hooks (round 3 — 4, bringing the app to 10)
+
+- **`scan-subscriptions.ts`** — `cron`, `every: '30m'`, `trigger: 'research/librarian#scan'`, budget —
+  the recurring pass that evaluates every `active` subscription against recent articles and inserts
+  `alerts` for new matches (self-queried; structured input is not delivered across the hook boundary).
+- **`generate-briefing.ts`** — `database` `briefings:insert`, imperative handler: skip if the row
+  already has a `body` (idempotence) or is not `pending`, else `delegate('research/analyst', 'brief',
+  { input: { briefingId: row?.id } })` — the analyst self-queries the oldest `pending` briefing and
+  fills it in. Guards `row` undefined (manual/boot runs).
+- **`file-into-collections.ts`** — `database` `articles:insert`, imperative handler:
+  `delegate('research/librarian', 'file', { input: { articleId: row?.id } })` — the librarian auto-files
+  newly-synthesized articles into any matching **smart** collection. Guards `row` undefined.
+- **`track-source-health.ts`** — `database` `raw_items:insert`, imperative **pure-db** handler (no
+  agent): upserts the `source_health` row for `row.sourceId` (increment `itemCount`, refresh
+  `lastStatus:'ok'`/`successRate`/`updatedAt`). Guards `row` undefined. Deterministic — no model call.
+
+**Loop-guard sanity.** `raw_items:insert` fans to `synthesize-new` (writes `articles`) **and**
+`track-source-health` (writes `source_health`, no hook → stops). `articles:insert` (from synthesize) →
+`file-into-collections` (writes `collection_items` + `articles.collectionCount`) → `collection_items`
+has no hook and the `articles` update has no update-hook ⇒ the cascade stops at depth 2 (cap 3).
+`briefings:insert` → `generate-briefing` → the analyst *updates* the pending row to `ready` (an update,
+no update-hook; self-write exclusion also blocks a re-fire) ⇒ stops. `alerts` and `source_health` have
+no hooks. Per-hook coalesce means a burst of `raw_items`/`articles` inserts files/scans once per window.
+
+### New pages (round 3 — 7) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/collections/index.tsx` | `/collections` | `listCollections`; `createCollection` — board grid, new-collection form |
+| `pages/collections/[collectionId].tsx` | `/collections/:id` | `getCollection` (items + articles); `updateCollection`/`removeCollection`/`removeCollectionItem` + `requestBriefing` scoped to the collection |
+| `pages/subscriptions.tsx` | `/subscriptions` | `listSubscriptions`; `createSubscription`/`updateSubscription`/`removeSubscription` — saved-search manager |
+| `pages/alerts.tsx` | `/alerts` | `listAlerts`; `markAlertRead` — the alert inbox |
+| `pages/briefings/index.tsx` | `/briefings` | `listBriefings`; `requestBriefing` — briefing archive + commission form |
+| `pages/briefings/[briefingId].tsx` | `/briefings/:id` | `getBriefing`; `<Chat agent="research/analyst">` — read the briefing and ask follow-ups |
+| `pages/search.tsx` | `/search` | `search` — full-text-ish results across articles, briefings, collections |
+
+New shared components (design tokens only, no raw color): `CollectionCard`, `AnnotationItem`,
+`SubscriptionRow`, `AlertRow`, `BriefingCard`, `SearchResults`, `SourceHealthBar`, `AddToCollectionMenu`.
+The `_layout.tsx` nav gains **Collections · Briefings · Alerts · Search** alongside Feed · Topics ·
+Digests · Insights · Discover · Preferences. The article-detail page (`pages/feed/[articleId].tsx`)
+additively gains an **Annotations** panel (`listAnnotations` + `addAnnotation`/`removeAnnotation` with a
+highlight color chosen from tokens) and an **Add to collection** menu (`addToCollection`); the
+Preferences page additively shows a **Source health** strip (`sourceHealth`). All round-1/2 behavior on
+those pages is preserved.
+
+### The `research` space (third project-scoped space, full format)
+
+`blog/spaces/research/` — a distinct specialist team that shares the same project-rooted db as
+`newsroom` and `editorial` (the parent plan's multi-space shape). Least-privilege per verb:
+
+| Agent | `db:read` tables | `db:write` tables | fetch? | Role |
+|---|---|---|---|---|
+| **analyst** | `articles, citations, collections, collection_items, briefings, topics` | `briefings` | yes | write deep multi-source **briefings** (survey the web + the feed, synthesize, fill a `pending` row) |
+| **fact-checker** | `articles, citations, raw_items, annotations` | `annotations` | yes | verify article claims against their citations/sources, write `factcheck` **annotations**, mark passages `verified` |
+| **librarian** | `articles, collections, collection_items, topics, subscriptions, alerts` | `collections, collection_items, alerts, articles` | no | **file** new articles into matching smart collections; **scan** active subscriptions → insert `alerts` |
+
+- **Fetch tools are agent-level universal globals** — the analyst and fact-checker use
+  `webSearch`/`webFetch`/`fetch` (they research the open web); at the **agent** `functions:` key you
+  list only **space** functions (listing a system fn there fails the load — system fetch tools are
+  universal at agent scope). A **tasklist task** that fetches either omits `functions:` entirely or
+  lists the system fetch tools alongside its space functions (the task-level `functions:` allowlist
+  *does* gate system fns). The librarian is deliberately db-only.
+- **No authoring caps** (`db:schema`/`pages:write`/`api:write`/`hooks:write`) — research *operates*
+  the app like newsroom/editorial; evolving it stays THING → `system-appbuilder`.
+- Full space format (parent plan's space anatomy, mirrored on newsroom/editorial):
+  `agents/<slug>/{charter.md,instruct.md}`, tasklists (`build-briefing/` for the analyst:
+  survey→write; `scan-subscriptions/` for the librarian: load→match→alert), `functions/`
+  (deterministic `matchSubscription`, `rankBriefingSources`, `summarizeCollection`, `dedupeAlerts`,
+  `formatBriefing`, `triageClaims`), `components/` (catalog `BriefingPreview`/`AlertBadge` for chat),
+  and **extensive `knowledge/research/`** — `research-method` (framing-a-question,
+  multi-source-synthesis), `fact-checking` (verification-and-provenance, claim-triage),
+  `curation-and-collections` (smart-collections, saved-search-alerts), each field an `index.md`
+  overview + ≥2 aspect deep-dives. The fact-checker stays model-driven (single-shot, invoked
+  interactively) but carries the full knowledge/functions.
 
 ## Tiers & budget
 

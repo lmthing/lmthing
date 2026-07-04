@@ -12,6 +12,7 @@
     "createdAt":     { "type": "date",    "description": "when the user subscribed", "generated": "now" }
   },
   "relations": {
-    "items": { "hasMany": "raw_items", "via": "sourceId", "description": "raw entries fetched from this source" }
+    "items":  { "hasMany": "raw_items",      "via": "sourceId", "description": "raw entries fetched from this source" },
+    "health": { "hasMany": "source_health",  "via": "sourceId", "description": "the per-source health-metrics row (one per source)" }
   }
 }

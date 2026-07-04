@@ -3,10 +3,16 @@ import type { Source, Setting } from '@app/types';
 import { useApi, useApiMutation } from '@app/runtime';
 import { SourceRow } from '../components/SourceRow';
 import { Spinner } from '../components/Spinner';
+import { SourceHealthBar, type SourceHealthLike } from '../components/SourceHealthBar';
 
 export default function Preferences() {
   const { data: sources, isLoading, error } = useApi<Source[]>('listSources', {});
   const { data: settings } = useApi<Setting>('getSettings', {});
+  const {
+    data: sourceHealth,
+    isLoading: sourceHealthLoading,
+    error: sourceHealthError,
+  } = useApi<SourceHealthLike[]>('sourceHealth', {});
 
   const removeSource = useApiMutation<{ ok: boolean }>('removeSource', {
     invalidates: ['listSources'],
@@ -101,6 +107,28 @@ export default function Preferences() {
         <div className="space-y-2">
           {(sources ?? []).map((s) => (
             <SourceRow key={s.id} source={s} onRemove={() => removeSource.mutate({ id: s.id })} />
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-bold uppercase text-muted-foreground">Source health</h2>
+
+        {sourceHealthLoading ? <Spinner /> : null}
+        {sourceHealthError ? (
+          <div className="rounded-lg border border-destructive p-4 text-sm text-destructive">
+            Failed to load source health.
+          </div>
+        ) : null}
+        {!sourceHealthLoading && !sourceHealthError && (sourceHealth ?? []).length === 0 ? (
+          <div className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
+            No source health data yet.
+          </div>
+        ) : null}
+
+        <div className="space-y-2">
+          {(sourceHealth ?? []).map((row) => (
+            <SourceHealthBar key={row.id} row={row} />
           ))}
         </div>
       </section>

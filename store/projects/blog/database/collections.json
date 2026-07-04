@@ -1,0 +1,18 @@
+{
+  "title": "Collections",
+  "description": "A user-curated, named grouping of articles — either hand-picked or defined by a saved smart-query — used to organize research.",
+  "columns": {
+    "id":             { "type": "string",  "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "title":          { "type": "string",  "description": "the collection's display name shown in the collections list", "required": true },
+    "description":    { "type": "string",  "description": "optional longer note explaining what this collection is for" },
+    "kind":           { "type": "string",  "description": "'manual' (curator adds articles by hand) or 'smart' (membership derived from query)", "default": "manual" },
+    "query":          { "type": "json",    "description": "the saved smart-collection query (tags/keywords/filters) used to auto-match articles when kind is 'smart'" },
+    "pinned":         { "type": "boolean", "description": "whether this collection is pinned to the top of the collections list", "default": false },
+    "articleCount":   { "type": "number",  "description": "denormalized count of articles currently filed in this collection", "default": 0 },
+    "createdAt":      { "type": "date",    "description": "when the collection was created", "generated": "now" }
+  },
+  "relations": {
+    "items":     { "hasMany": "collection_items", "via": "collectionId", "description": "the article memberships filed under this collection" },
+    "briefings": { "hasMany": "briefings",         "via": "collectionId", "description": "research briefings scoped to this collection" }
+  }
+}

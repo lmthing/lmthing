@@ -1,0 +1,18 @@
+{
+  "title": "Briefings",
+  "description": "A requested research report on a topic (optionally scoped to a collection), assembled by the analyst agent from cited sources.",
+  "columns": {
+    "id":            { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "title":         { "type": "string", "description": "the briefing headline shown in the briefings list", "required": true },
+    "topic":         { "type": "string", "description": "the topic or question the briefing addresses", "required": true },
+    "body":          { "type": "string", "description": "the full assembled briefing report, markdown" },
+    "status":        { "type": "string", "description": "'pending' while queued for the analyst, 'ready' when complete, 'error' on failure", "default": "pending" },
+    "collectionId":  { "type": "string", "description": "the collection this briefing is scoped to, if requested from a collection view",
+                        "references": { "table": "collections", "column": "id", "onDelete": "setNull" } },
+    "sourceCount":   { "type": "number", "description": "how many sources the analyst drew on to write this briefing", "default": 0 },
+    "createdAt":     { "type": "date",   "description": "when the briefing was requested", "generated": "now" }
+  },
+  "relations": {
+    "collection": { "belongsTo": "collections", "via": "collectionId", "description": "the collection this briefing is scoped to, if any" }
+  }
+}

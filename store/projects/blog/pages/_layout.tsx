@@ -27,6 +27,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <Link href="/preferences" className="text-sm text-muted-foreground hover:text-primary">
             Preferences
           </Link>
+          <Link href="/collections" className="text-sm text-muted-foreground hover:text-primary">
+            Collections
+          </Link>
+          <Link href="/briefings" className="text-sm text-muted-foreground hover:text-primary">
+            Briefings
+          </Link>
+          <Link href="/alerts" className="text-sm text-muted-foreground hover:text-primary">
+            Alerts
+          </Link>
+          <Link href="/search" className="text-sm text-muted-foreground hover:text-primary">
+            Search
+          </Link>
         </div>
       </nav>
       {children}

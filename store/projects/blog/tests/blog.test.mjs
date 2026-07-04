@@ -23,7 +23,7 @@ const REPO = join(APP, '..', '..', '..'); // monorepo root
 const CORE = join(REPO, 'sdk', 'org', 'libs', 'core', 'dist', 'index.js');
 
 // ── Schemas — real engine validation ────────────────────────────────────────
-test('all 11 database schemas pass the engine validateSchemaSet (fail-loud)', async () => {
+test('all 18 database schemas pass the engine validateSchemaSet (fail-loud)', async () => {
   assert.ok(existsSync(CORE), `built @lmthing/core not found at ${CORE} — run \`pnpm --filter @lmthing/core build\` in sdk/org`);
   const { validateSchemaSet } = await import(CORE);
   const dbDir = join(APP, 'database');
@@ -35,7 +35,8 @@ test('all 11 database schemas pass the engine validateSchemaSet (fail-loud)', as
     tables.map((t) => t.name),
     // round 1: articles citations raw_items research settings sources
     // round 2: digest_items digests newsletters reading_events topics
-    ['articles', 'citations', 'digest_items', 'digests', 'newsletters', 'raw_items', 'reading_events', 'research', 'settings', 'sources', 'topics'],
+    // round 3: alerts annotations briefings collection_items collections source_health subscriptions
+    ['alerts', 'annotations', 'articles', 'briefings', 'citations', 'collection_items', 'collections', 'digest_items', 'digests', 'newsletters', 'raw_items', 'reading_events', 'research', 'settings', 'source_health', 'sources', 'subscriptions', 'topics'],
   );
   // Throws (fail-loud) on a missing description, dup/absent PK, or a dangling FK/relation.
   assert.doesNotThrow(() => validateSchemaSet(tables));
@@ -86,9 +87,31 @@ const EXPECTED_ENDPOINTS = [
   ['insights/GET.ts', 'feedInsights'],
   ['articles/[id]/pin/POST.ts', 'pinArticle'],
   ['articles/[id]/dismiss/POST.ts', 'dismissArticle'],
+  // ── round 3 (21) ──
+  ['collections/GET.ts', 'listCollections'],
+  ['collections/POST.ts', 'createCollection'],
+  ['collections/[id]/GET.ts', 'getCollection'],
+  ['collections/[id]/PATCH.ts', 'updateCollection'],
+  ['collections/[id]/DELETE.ts', 'removeCollection'],
+  ['collections/[id]/items/POST.ts', 'addToCollection'],
+  ['collection-items/[id]/DELETE.ts', 'removeCollectionItem'],
+  ['articles/[id]/annotations/GET.ts', 'listAnnotations'],
+  ['articles/[id]/annotations/POST.ts', 'addAnnotation'],
+  ['annotations/[id]/DELETE.ts', 'removeAnnotation'],
+  ['subscriptions/GET.ts', 'listSubscriptions'],
+  ['subscriptions/POST.ts', 'createSubscription'],
+  ['subscriptions/[id]/PATCH.ts', 'updateSubscription'],
+  ['subscriptions/[id]/DELETE.ts', 'removeSubscription'],
+  ['alerts/GET.ts', 'listAlerts'],
+  ['alerts/[id]/read/POST.ts', 'markAlertRead'],
+  ['briefings/GET.ts', 'listBriefings'],
+  ['briefings/[id]/GET.ts', 'getBriefing'],
+  ['briefings/POST.ts', 'requestBriefing'],
+  ['search/GET.ts', 'search'],
+  ['source-health/GET.ts', 'sourceHealth'],
 ];
 
-test('all 26 api handlers exist and export name / Input / Output / default handler', () => {
+test('all 47 api handlers exist and export name / Input / Output / default handler', () => {
   for (const [rel, name] of EXPECTED_ENDPOINTS) {
     const p = join(APP, 'api', rel);
     assert.ok(existsSync(p), `missing handler ${rel}`);
@@ -160,6 +183,44 @@ test('rescore-on-topic-change is a topics:update hook delegating rescore', () =>
   assert.match(src, /delegate\(\s*['"]editorial\/personalizer['"]\s*,\s*['"]rescore['"]/, 'must delegate rescore');
 });
 
+// ── Round-3 hooks (4) — subscriptions / briefings / collections / source health ──
+test('scan-subscriptions is a cron hook that triggers the librarian', () => {
+  const src = readFileSync(join(APP, 'hooks', 'scan-subscriptions.ts'), 'utf8');
+  assert.match(src, /type:\s*['"]cron['"]/);
+  assert.match(src, /research\/librarian#scan/);
+});
+
+test('generate-briefing is a briefings:insert hook delegating to the analyst with a pending guard', () => {
+  const src = readFileSync(join(APP, 'hooks', 'generate-briefing.ts'), 'utf8');
+  assert.match(src, /type:\s*['"]database['"]/);
+  assert.match(src, /table:\s*['"]briefings['"]/);
+  assert.match(src, /event:\s*['"]insert['"]/);
+  assert.match(src, /delegate\(\s*['"]research\/analyst['"]\s*,\s*['"]brief['"]/, 'must delegate brief');
+  assert.match(src, /pending/, 'must guard on the pending status (idempotence)');
+});
+
+test('file-into-collections is an articles:insert hook delegating to the librarian', () => {
+  const src = readFileSync(join(APP, 'hooks', 'file-into-collections.ts'), 'utf8');
+  assert.match(src, /type:\s*['"]database['"]/);
+  assert.match(src, /table:\s*['"]articles['"]/);
+  assert.match(src, /event:\s*['"]insert['"]/);
+  assert.match(src, /delegate\(\s*['"]research\/librarian['"]\s*,\s*['"]file['"]/, 'must delegate file');
+});
+
+test('track-source-health is a pure-db raw_items:insert hook (no delegate)', () => {
+  const src = readFileSync(join(APP, 'hooks', 'track-source-health.ts'), 'utf8');
+  assert.match(src, /type:\s*['"]database['"]/);
+  assert.match(src, /table:\s*['"]raw_items['"]/);
+  assert.match(src, /source_health/, 'must upsert the source_health row');
+  assert.doesNotMatch(src, /delegate\(/, 'must be a pure-db handler — no agent delegate');
+});
+
+test('requestBriefing seeds a pending briefing (hook-driven, no spawn)', () => {
+  const src = readFileSync(join(APP, 'api', 'briefings', 'POST.ts'), 'utf8');
+  assert.match(src, /['"]pending['"]/, 'must seed a pending status');
+  assert.match(src, /db\.insert\(\s*['"]briefings['"]/, 'must insert a briefings row');
+});
+
 test('buildDigest seeds a building digest and spawns the curator', () => {
   const src = readFileSync(join(APP, 'api', 'digests', 'POST.ts'), 'utf8');
   assert.match(src, /['"]building['"]/, 'must seed a building status');
@@ -225,9 +286,22 @@ function assertFullFormatSpace(spaceName, expectedAgents) {
   assert.ok(fnFiles.length >= 1, `${spaceName}: needs >=1 function`);
 }
 
-test('the app has >=2 project-scoped spaces (newsroom + editorial)', () => {
+test('the app has >=3 project-scoped spaces (newsroom + editorial + research)', () => {
   const spaces = readdirSync(join(APP, 'spaces'), { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name).sort();
-  assert.deepEqual(spaces, ['editorial', 'newsroom']);
+  assert.deepEqual(spaces, ['editorial', 'newsroom', 'research']);
+});
+
+test('research is a full-format space with 3 least-privilege agents', () => {
+  assertFullFormatSpace('research', ['analyst', 'fact-checker', 'librarian']);
+  const agentsDir = join(APP, 'spaces', 'research', 'agents');
+  for (const a of readdirSync(agentsDir)) {
+    const src = readFileSync(join(agentsDir, a, 'instruct.md'), 'utf8');
+    assert.match(src, /capabilities:/, `${a}: must declare capabilities`);
+    // research OPERATES the app — no authoring/schema caps.
+    for (const forbidden of ['db:schema', 'pages:write', 'api:write', 'hooks:write']) {
+      assert.doesNotMatch(src, new RegExp(forbidden), `${a}: must NOT hold ${forbidden}`);
+    }
+  }
 });
 
 test('newsroom is remediated to the full space format', () => {

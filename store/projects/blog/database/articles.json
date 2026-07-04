@@ -14,10 +14,15 @@
     "pinned":    { "type": "boolean", "description": "whether the curator pinned this to the top of the feed and every digest", "default": false },
     "editorNote":{ "type": "string",  "description": "optional curator annotation shown on the article card" },
     "clusterKey":{ "type": "string",  "description": "normalized grouping key so near-duplicate articles collapse in digests" },
-    "createdAt": { "type": "date",    "description": "when the article entered the feed", "generated": "now" }
+    "createdAt": { "type": "date",    "description": "when the article entered the feed", "generated": "now" },
+    "annotationCount":  { "type": "number", "description": "denormalized count of annotations/highlights on this article", "default": 0 },
+    "collectionCount":  { "type": "number", "description": "how many collections file this article", "default": 0 }
   },
   "relations": {
-    "citations": { "hasMany": "citations", "via": "articleId", "description": "the raw items this article was synthesized from" },
-    "research":  { "hasMany": "research",  "via": "articleId", "description": "deep-dive reports requested on this article" }
+    "citations":       { "hasMany": "citations",         "via": "articleId", "description": "the raw items this article was synthesized from" },
+    "research":        { "hasMany": "research",          "via": "articleId", "description": "deep-dive reports requested on this article" },
+    "annotations":     { "hasMany": "annotations",        "via": "articleId", "description": "the highlights and notes readers/agents have attached to this article" },
+    "collectionItems": { "hasMany": "collection_items",   "via": "articleId", "description": "the collection memberships this article has been filed into" },
+    "alerts":          { "hasMany": "alerts",             "via": "articleId", "description": "the subscription alerts this article has triggered" }
   }
 }

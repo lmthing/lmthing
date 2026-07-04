@@ -1,0 +1,18 @@
+{
+  "title": "Collection items",
+  "description": "One article's membership in a collection — the join row linking an article to a collection, with an optional curator note and sort position.",
+  "columns": {
+    "id":           { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "collectionId": { "type": "string", "description": "the collection this membership belongs to", "required": true,
+                       "references": { "table": "collections", "column": "id", "onDelete": "cascade" } },
+    "articleId":    { "type": "string", "description": "the article filed into the collection", "required": true,
+                       "references": { "table": "articles", "column": "id", "onDelete": "cascade" } },
+    "note":         { "type": "string", "description": "optional curator note explaining why this article was added" },
+    "position":     { "type": "number", "description": "display order within the collection; lower = higher up", "default": 0 },
+    "addedAt":      { "type": "date",   "description": "when the article was added to the collection", "generated": "now" }
+  },
+  "relations": {
+    "collection": { "belongsTo": "collections", "via": "collectionId", "description": "the collection this membership is filed under" },
+    "article":    { "belongsTo": "articles",     "via": "articleId",    "description": "the article this membership references" }
+  }
+}

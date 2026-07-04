@@ -216,3 +216,78 @@ digests/[id]/insights/discover) + 5 components ✅ · **14 new endpoints** (→2
   `collections`/`annotations`/`subscriptions`/`alerts`; saved-search alerts, article collections/
   boards, an OPML import endpoint, a newsletter-schedule/cadence, per-source health metrics, a
   weekly digest cron, full-text-ish client search page.
+
+## Round log — ROUND 3 (FEATURE EXPANSION, 2026-07-04, in progress)
+Theme: **Research workspace** — collections/boards, annotations & highlights, saved-search alerts,
+analyst briefings, source-health metrics, full-text-ish search + a third `research` specialist space.
+Strictly additive; round-1/2 files untouched.
+- Phase 0 orient ✅ — re-read BOTH architecture docs in full (`project-as-application.md` +
+  `…-implementation.md`), the spec, PROGRESS, and studied round-2 reference files
+  (editorial/curator + personalizer instruct.md, build-digest tasklist, scoreByTopics fn,
+  digest-craft knowledge, DigestCard component, blog.test.mjs, deep-dive/01-survey task, _layout).
+  Confirmed round-2 green + pushed (monorepo b83cd29, sdk/org pointer a340052). Working tree also
+  has **in-progress kitchen** changes from a sibling round — Phase 5 will stage ONLY blog files.
+- Round-3 plan (floors): new space **research** (analyst/fact-checker/librarian, full format) → **3
+  spaces total**; **7 new tables** (collections, collection_items, annotations, subscriptions,
+  alerts, briefings, source_health) + articles cols/relations; **21 new endpoints** (→47); **4 new
+  hooks** (→10); **7 new pages** + components. newsroom+editorial already full-format (round-2
+  remediation complete) — no remediation needed.
+- Phase 1 spec ✅ — added "Round 3 — Research workspace" section to `app-specifications/blog-application.md`
+  (7 tables, 21 endpoints, 4 hooks, 7 pages, research space, articles cols/relations); patched dir layout.
+- Phase 2 PLAN ✅ — round-3 section appended to `automation/app-builder/PLAN.blog.md`.
+- Phase 3 build ✅ — fanned out 5 parallel Sonnet subagents by directory (database / api /
+  hooks+research-space / research-knowledge / pages+components); integrated by orchestrator.
+  Result: **18 tables** (all validate via engine `validateSchemaSet`), **47 api handlers**, **10 hooks**,
+  **3 full-format spaces**, **7 new pages + 8 new components**.
+
+### Round 3 — Phase 4 live verification + engine findings (2026-07-05)
+- **App loads** via `lmthing serve` on a temp root: manifest = **18 tables + 47 endpoints + 10 hooks +
+  17 pages**; additive migration added articles.annotationCount/collectionCount + relations;
+  `types/generated.d.ts` regenerated; **pages built** (`built:true`, entry.js/css + 17 routes; all new
+  routes /collections /briefings /alerts /search /subscriptions serve 200). Design tokens: root
+  lint:tokens ✓ (575) + blog project-app tsx 0 raw colors (manual grep).
+- **Deterministic API verified live** (curl over serve): createCollection(smart)+createSubscription
+  (json cols marshal), addToCollection (dedupe + articleCount/collectionCount bump + article join),
+  addAnnotation (default color 'accent', annotationCount bump), getCollection join, search, sourceHealth.
+- **🔴 LIVE agent loops (DeepSeek azure:DeepSeek-V4-Flash), all end-to-end via serve:**
+  1. **Briefing:** `requestBriefing` seeds a pending briefing → **`generate-briefing` (briefings:insert)
+     hook auto-fired** → `research/analyst#brief` ran the `build-briefing` tasklist (live webSearch +
+     2 webFetch + 2 feed articles) → wrote a real **ready briefing** (2146-char body, sourceCount 2,
+     on-topic "AI coding assistants…", grounded in web + seeded feed articles).
+  2. **Scan→alert:** manual-run `scan-subscriptions` hook → `research/librarian#scan` tasklist (live)
+     → matched the seeded Rust article vs the "Rust news" subscription → inserted **1 alert**.
+  3. **File→smart-collection:** manual-run `file-into-collections` hook → `research/librarian#file`
+     (live) → filed the 2 ai-tagged articles into the "AI watch" smart collection (query tags:[ai]),
+     **deduping** the pre-existing item (1→3 items, counters bumped).
+- **Engine facts re-confirmed / new this round (NO sdk/org code changed — app-only round):**
+  1. **`role: explore` tasklist forks are unreliable for `db.query`** with DeepSeek-Flash — the survey
+     task (originally `role: explore`) improvised `todoRead()` instead of `db.query('briefings')`,
+     found nothing, and fell back to the hook-trigger string as the topic → empty/error briefing.
+     **Fix (app-level):** switched `build-briefing/01-survey` to **`role: general`** (matches the proven
+     round-2 editorial `gather` task) + made the self-query instruction unmissable ("read the `briefings`
+     table with db.query — do NOT use todoRead"). After the fix the survey used db.query (0 todoRead) and
+     the loop went green.
+  2. **Hook-delegated headless briefing needs real budget** — `generate-briefing` at `maxEpisodes:10`
+     starved the survey mid-fetch (webSearch + fetches + write) → honest-but-empty error briefing.
+     Bumped to **`maxEpisodes:30, maxWallClockMs:600000`**.
+  3. **Never let the write task fabricate** — the original `02-write` inserted a fresh briefing with a
+     model-invented topic when the survey failed. Hardened: on the hook path always fill the pending row
+     (ready on success, error on failure); only the free-form chat path may insert, and only when the
+     survey genuinely succeeded — never a fabricated row.
+  4. **Two concurrent headless DeepSeek sessions → `"Lifetime not alive"`** (shared QuickJS WASM
+     teardown contention, per sdk/org CLAUDE.md gotchas). Ran the live loops **sequentially** (one agent
+     at a time) and all three passed cleanly. Flag for a future runtime round; not app-fixable.
+  5. `track-source-health` (pure-db raw_items:insert upsert) is deterministic and structurally tested
+     (asserted pure-db / no delegate); not exercised with a live raw_items insert this run (would need a
+     full fetcher cascade) — low-risk, same dispatch mechanism proven by synthesize-new in rounds 1-2.
+- **Gate:** blog structural tests **22/22 green** (`node --test`: 18 tables, 47 endpoints, 10 hooks,
+  3 full-format spaces w/ tasklists+functions+components+≥3 knowledge fields each, research
+  least-privilege). sdk/org untouched → its build/typecheck/test unchanged from round-2's pushed green
+  state (pointer a340052); engine proven functional by the full live serve run.
+
+### Floors delivered (round 3) — all exceeded
+new space **research** (full format) → **3 spaces total** ✅ · **3 new agents** (analyst/fact-checker/
+librarian, least-privilege) ✅ · **7 new pages** (collections/index, collections/[id], subscriptions,
+alerts, briefings/index, briefings/[id], search) + 8 components ✅ · **21 new endpoints** (→47) ✅ ·
+**4 new hooks** (→10) ✅ · **7 new tables** (→18) + 2 articles columns + 4 relations ✅ ·
+newsroom+editorial already full-format (no remediation needed) ✅.

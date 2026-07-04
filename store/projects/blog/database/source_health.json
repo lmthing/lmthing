@@ -1,0 +1,19 @@
+{
+  "title": "Source health",
+  "description": "Rolling fetch-reliability metrics for a source — one row per source, kept up to date by the track-source-health hook whenever new raw items arrive.",
+  "columns": {
+    "id":           { "type": "string",  "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "sourceId":     { "type": "string",  "description": "the source these metrics are tracked for; one health row per source", "required": true, "unique": true,
+                       "references": { "table": "sources", "column": "id", "onDelete": "cascade" } },
+    "fetchCount":   { "type": "number",  "description": "total number of times the newsroom has polled this source", "default": 0 },
+    "itemCount":    { "type": "number",  "description": "total number of raw items this source has produced", "default": 0 },
+    "errorCount":   { "type": "number",  "description": "total number of failed fetch attempts for this source", "default": 0 },
+    "lastError":    { "type": "string",  "description": "the most recent error message from a failed fetch, if any" },
+    "lastStatus":   { "type": "string",  "description": "'ok' or 'error' — the outcome of the most recent fetch attempt", "default": "ok" },
+    "successRate":  { "type": "number",  "description": "rolling fraction of fetches that succeeded (0-1), used for the health strip", "default": 1 },
+    "updatedAt":    { "type": "date",    "description": "when these metrics were last updated", "generated": "now" }
+  },
+  "relations": {
+    "source": { "belongsTo": "sources", "via": "sourceId", "description": "the source these health metrics describe" }
+  }
+}

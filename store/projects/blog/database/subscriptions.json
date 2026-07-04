@@ -1,0 +1,17 @@
+{
+  "title": "Subscriptions",
+  "description": "A saved-search alert definition — a standing query the librarian agent periodically matches against new articles to raise alerts.",
+  "columns": {
+    "id":         { "type": "string",  "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "name":       { "type": "string",  "description": "the subscription's display name shown in Subscriptions", "required": true },
+    "query":      { "type": "json",    "description": "the saved-search match criteria (tags/keywords/filters) used to test new articles" },
+    "cadence":    { "type": "string",  "description": "'daily' or 'weekly' — how often the scan-subscriptions job runs this subscription", "default": "daily" },
+    "channel":    { "type": "string",  "description": "'alert' (in-app alert) or 'digest' (fold matches into the next digest) — where matches surface", "default": "alert" },
+    "active":     { "type": "boolean", "description": "whether the librarian currently scans for this subscription", "default": true },
+    "lastRunAt":  { "type": "date",    "description": "when this subscription was last scanned for matches" },
+    "createdAt":  { "type": "date",    "description": "when the subscription was created", "generated": "now" }
+  },
+  "relations": {
+    "alerts": { "hasMany": "alerts", "via": "subscriptionId", "description": "the alerts this subscription has raised" }
+  }
+}

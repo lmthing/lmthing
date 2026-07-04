@@ -1,5 +1,35 @@
 [
   {
+    "hash": "d77b123c",
+    "full_hash": "d77b123c0fe1660104e4f36d4d3d05d5a7026acd",
+    "type": "fix",
+    "scope": "compute",
+    "subject": "ship @lmthing/{auth,css,state,utils} for pages build",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 12:06:01 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/d77b123c0fe1660104e4f36d4d3d05d5a7026acd"
+  },
+  {
+    "hash": "789086fa",
+    "full_hash": "789086fa941598ab664332c1f96c9046e24e28e1",
+    "type": "fix",
+    "scope": "compute",
+    "subject": "ship @app/runtime source so project-app pages build",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 11:53:16 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/789086fa941598ab664332c1f96c9046e24e28e1"
+  },
+  {
+    "hash": "4371a69d",
+    "full_hash": "4371a69df4c305ad1acf7c96d92b8176c7494875",
+    "type": "chore",
+    "scope": "",
+    "subject": "update subproject commit reference in sdk/org",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 11:20:43 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/4371a69df4c305ad1acf7c96d92b8176c7494875"
+  },
+  {
     "hash": "27a7bc9e",
     "full_hash": "27a7bc9ecbf57f1438f4f2e97eb1ce2f8d97ace7",
     "type": "feat",
@@ -468,35 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-07-01 19:06:00 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/3475deaf539c0845930b157bfb960c0bdee71b43"
-  },
-  {
-    "hash": "da178d8f",
-    "full_hash": "da178d8f10f80efcd2402217cf298f0dcdeb10cb",
-    "type": "fix",
-    "scope": "sdk",
-    "subject": "update subproject commit to 6df45f9",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 15:36:02 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/da178d8f10f80efcd2402217cf298f0dcdeb10cb"
-  },
-  {
-    "hash": "a4a30571",
-    "full_hash": "a4a3057168751aa3010ab3d8d5f8158cf076bc07",
-    "type": "fix",
-    "scope": "sdk",
-    "subject": "update subproject commit reference",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 15:12:04 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/a4a3057168751aa3010ab3d8d5f8158cf076bc07"
-  },
-  {
-    "hash": "81554c55",
-    "full_hash": "81554c55f9433b7177d6b9a81a37a785a6319b2f",
-    "type": "ci",
-    "scope": "",
-    "subject": "update subproject commit reference to 01a6c97",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 14:24:20 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/81554c55f9433b7177d6b9a81a37a785a6319b2f"
   }
 ]

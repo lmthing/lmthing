@@ -1,5 +1,45 @@
 [
   {
+    "hash": "d77b123c",
+    "full_hash": "d77b123c0fe1660104e4f36d4d3d05d5a7026acd",
+    "type": "fix",
+    "scope": "compute",
+    "subject": "ship @lmthing/{auth,css,state,utils} for pages build",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 12:06:01 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/d77b123c0fe1660104e4f36d4d3d05d5a7026acd"
+  },
+  {
+    "hash": "789086fa",
+    "full_hash": "789086fa941598ab664332c1f96c9046e24e28e1",
+    "type": "fix",
+    "scope": "compute",
+    "subject": "ship @app/runtime source so project-app pages build",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 11:53:16 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/789086fa941598ab664332c1f96c9046e24e28e1"
+  },
+  {
+    "hash": "5b5a823d",
+    "full_hash": "5b5a823df26bcce0acd171ae4d617ffd6f4ad0c7",
+    "type": "fix",
+    "scope": "compute",
+    "subject": "CA certs + in-cluster LM_STORE_URL for app install download",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 11:24:41 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/5b5a823df26bcce0acd171ae4d617ffd6f4ad0c7"
+  },
+  {
+    "hash": "4371a69d",
+    "full_hash": "4371a69df4c305ad1acf7c96d92b8176c7494875",
+    "type": "chore",
+    "scope": "",
+    "subject": "update subproject commit reference in sdk/org",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 11:20:43 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/4371a69df4c305ad1acf7c96d92b8176c7494875"
+  },
+  {
     "hash": "27a7bc9e",
     "full_hash": "27a7bc9ecbf57f1438f4f2e97eb1ce2f8d97ace7",
     "type": "feat",
@@ -458,45 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-07-01 14:24:20 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/81554c55f9433b7177d6b9a81a37a785a6319b2f"
-  },
-  {
-    "hash": "83b10880",
-    "full_hash": "83b108805bc4d401a8527ac80bbfdd51f588c8dd",
-    "type": "fix",
-    "scope": "",
-    "subject": "sdk/org submodule uses libs/, not packages/",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 13:34:55 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/83b108805bc4d401a8527ac80bbfdd51f588c8dd"
-  },
-  {
-    "hash": "99d4af86",
-    "full_hash": "99d4af865a6efd80aa77eb415a4d61d02dfda6a6",
-    "type": "feat",
-    "scope": "cloud",
-    "subject": "4-tier multi-window LLM provider, 4 Azure models @15% markup",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 13:07:54 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/99d4af865a6efd80aa77eb415a4d61d02dfda6a6"
-  },
-  {
-    "hash": "1eebc032",
-    "full_hash": "1eebc032ea15a116a074d046a0891631d681e15d",
-    "type": "ci",
-    "scope": "",
-    "subject": "update API routes for compute service and enhance documentation",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 10:49:48 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/1eebc032ea15a116a074d046a0891631d681e15d"
-  },
-  {
-    "hash": "522a7956",
-    "full_hash": "522a79561853a5b55767a07cf597a9c18d3ef42c",
-    "type": "ci",
-    "scope": "",
-    "subject": "update subproject commit reference",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 10:40:05 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/522a79561853a5b55767a07cf597a9c18d3ef42c"
   }
 ]

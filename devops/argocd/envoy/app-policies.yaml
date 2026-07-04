@@ -21,6 +21,9 @@ spec:
       name: app-api-proxy
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
+      name: app-install-proxy
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
       name: app-pages-proxy
   lua:
     - type: Inline
@@ -62,6 +65,9 @@ spec:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       name: app-api-proxy
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: app-install-proxy
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       name: app-pages-proxy

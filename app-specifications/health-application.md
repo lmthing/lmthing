@@ -481,6 +481,29 @@ These deepen the core promise — turning data into understanding you can act on
 the same engine, and each stays inside the not-a-doctor line (observations and literature, never
 diagnosis; see Safety).
 
+### Document upload → type-driven analysis → data + research (kill hand-entry)
+The biggest friction in the core app is hand-entering labs/metrics. Let the user **upload the file they
+already have** — a lab-report PDF, a wearable CSV export, a phone photo of a doctor's note, a medication
+label — and have an agent read it, extract the data into the db by **file type**, and kick off research.
+This is a **new project-scoped space** (`records`) so it also satisfies the ≥2-spaces rule; it reads/writes
+the same project-rooted db as `clinic`.
+
+- **Data**:
+  - `documents` — one uploaded file: `id`, `kind` (`'lab_pdf' | 'wearable_csv' | 'note_image' | 'med_label' | 'other'`; the analyst may correct a guessed kind), `filename`, `mime`, `storagePath` (relative path under `.data/uploads/<id>/…`, git-ignored like the db), `status` (`'pending' | 'analyzing' | 'analyzed' | 'error'`), `summary` (md — what was found), `error`, `uploadedAt` (`generated:'now'`).
+  - `document_extractions` — provenance join: `documentId` FK → `documents`, `table` (which domain table a row was written to, e.g. `'lab_results'`), `rowId`, `confidence` (0..1), so every derived row is traceable back to the source file (and re-analysis is idempotent).
+  - `knowledge_notes` — the **db-backed knowledge store** research updates: `id`, `topic`, `body` (md, cited), `sourceKind` (`'document' | 'research' | 'literature'`), `documentId?` FK, `analyte?`/`tag?`, `createdAt`. The `interpreter`/`researcher` **read** this on future analyses, so uploads make the app smarter over time. (Runtime agents have no `knowledge:write` for space `knowledge/` files — that stays an authoring action; durable, broadly-reusable notes can later be **promoted into the `records`/`clinic` space `knowledge/` via THING → `system-appbuilder`**. Do NOT invent a runtime knowledge-write capability.)
+- **API**: `uploadDocument` `POST api/documents` (multipart; stores the blob under `.data/uploads/<id>/`, inserts `documents` row `status:'pending'`, returns `{ documentId, status }`); `listDocuments` `GET api/documents`; `getDocument` `GET api/documents/:id` (include extractions + linked rows + notes). Enforce a size/type allow-list and per-user pod isolation.
+- **Hook**: `analyze-document.ts` — **database** insert on `documents` → `delegate('records/analyst', 'analyze', { documentId })`. Idempotent (skip if `status !== 'pending'` or extractions already exist); loop-guard applies (the analyst's own `documents.status` write is self-write-excluded).
+- **Agent (`records/analyst`)** — routes **by `kind`** to a per-type action and writes the domain tables:
+  - `lab_pdf` → `pdfExtract` → parse analytes/ranges → `db.insert('lab_results', …)` (which fires the existing `interpret-new-lab` hook → flagging + subscription auto-research);
+  - `wearable_csv` → `csvParse` → bulk `db.insert('metrics', …)` (dedupe on `kind`+`recordedAt`);
+  - `note_image` / `med_label` → `ocr` → extract symptoms / a `medications` row;
+  - unknown → best-effort summary + `status:'error'` with a reason. Always writes `document_extractions` for traceability and sets `documents.status`/`summary`.
+- **Research + knowledge update (the second trigger)**: after extraction the analyst delegates to `clinic/researcher#dive` for anything novel/abnormal (a new out-of-range analyte, a new medication interaction). The researcher writes the usual `research` rows **and appends cited `knowledge_notes`** — the durable knowledge the interpreter consults next time. Subscription-gated exactly like `requestResearch`; free tier extracts + flags but doesn't auto-dive.
+- **Pages**: `/documents` (drag-drop upload, list with per-row status), `/documents/:id` (source summary + the extracted rows it created + linked research/notes; live-polls while `status` is pending).
+- **Capabilities** (least-privilege): `records/analyst` → `db:read [documents, document_extractions, lab_results, metrics, medications, knowledge_notes]`, `db:write [documents, document_extractions, lab_results, metrics, symptoms, medications, knowledge_notes]`, `api:call [pdfExtract, ocr, csvParse]` (named bindings, keys hidden), `canDelegateTo: clinic/researcher#dive`. `clinic/researcher` gains `db:write [research, knowledge_notes]`.
+- **Safety**: not-medical-advice framing unchanged; **sanitize all extracted text** (uploaded/OCR'd content is untrusted → XSS); blobs are strictly per-user pod-isolated and `**/.data/uploads/` is backup-excluded like `app.db`.
+
 ### Appointment prep brief — walk in ready
 Directly serves the "walk into an appointment informed" pitch: a printable page a doctor skims in 30s.
 - **Data**: `visit_briefs` table (`body` md, `periodFrom`, `periodTo`, `createdAt`).

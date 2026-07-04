@@ -22,7 +22,9 @@ size of what you add scales with the round:
   capability to BOTH the spec and the implementation, then build, test, and ship it exactly
   like round 1. On an expansion round you must add, at minimum:
     - **≥1 new project-scoped space** (a whole new specialist team under
-      `store/projects/__APP__/spaces/<newspace>/`) with its own agents, tasklists, knowledge;
+      `store/projects/__APP__/spaces/<newspace>/`) in **full format** (agents with
+      charter+instruct, tasklists, functions, components, extensive knowledge) — and the app must
+      end the round with **≥2 project-scoped spaces total** (see Phase 3's multi-space rule);
     - **≥3 new agents** across the spaces — each least-privilege (config-bearing
       `capabilities:` frontmatter, per-verb `tables` scope);
     - **≥5 new pages** + components (new routes, richer UX) — **design tokens only**;
@@ -37,7 +39,10 @@ size of what you add scales with the round:
       backfill the missing `tasklists/`, `functions/`, `components/`, and especially **extensive
       `knowledge/`** for each existing agent/space, and give each agent a `charter.md` alongside
       its `instruct.md`. This is not optional and counts toward the round's work — a space that
-      is still just `agents/` is a defect to fix, not preserve.
+      is still just `agents/` is a defect to fix, not preserve. **Also ensure the app has ≥2
+      project-scoped spaces** (Phase 3's multi-space rule): if it still has only one, the new
+      space required above satisfies this — split responsibilities into distinct specialist teams
+      sharing the project-rooted db.
   More than these floors is better. **Never regress or delete what earlier rounds shipped** —
   expansion is strictly additive, and everything (old + new) must stay green and tested with
   the live model before you push. Use `PROGRESS.__APP__.md` to see what prior rounds built so
@@ -156,6 +161,18 @@ edit only the app spec in step 3).
   This applies to **every** space in every round: new spaces are born full-format, and existing
   thin spaces (the round-1 `agents/`-only ones) are remediated to full format (see the round
   policy's SPACE-FORMAT REMEDIATION item). Re-typecheck and live-test the space after.
+- **Each project MUST have MORE THAN ONE project-scoped space (≥2).** A single-space project is
+  incomplete — the architecture is explicitly multi-space ("one project can host several
+  specialized spaces… that all read/write the same tables", `project-as-application.md`). Split
+  the work into **distinct specialist teams** under `store/projects/__APP__/spaces/<space>/`,
+  each a full-format space sharing the same project-rooted db (e.g. blog: a `newsroom` that
+  fetches/synthesizes **plus** an `editorial`/`curation` space for ranking/personalization and a
+  `research` space for deep dives; kitchen: `chef` planning **plus** a `pantry` space and a
+  `nutrition`/`shopping` space; health: `clinic` **plus** a `research` space and a `coaching`
+  space; trips: `concierge` **plus** a `research` space and a `logistics`/`booking` space). Wire
+  cross-space orchestration through `hooks/` (`trigger: '<space>/<agent>#<action>'`) as the parent
+  plan describes. Round 1 should already ship ≥2 where sensible; any app still at one space MUST
+  reach ≥2 on its next expansion round.
 - **Design-system gate is mandatory** for any page/component styling: never write a raw
   color (no hex, no literal `rgb()/hsl()`, no stock Tailwind `gray-*`/`blue-*`/etc.) —
   use `@lmthing/css` tokens (`var(--foreground)`, `bg-primary`, `text-agent`, …). Run

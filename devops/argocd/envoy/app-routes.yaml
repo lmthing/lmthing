@@ -1,9 +1,8 @@
-# lmthing.app — the project-app surface. Routed EXACTLY like lmthing.chat/lmthing.studio:
-# per-user pod proxy via the shared `rewrite-host-from-header` filter + dynamic-user-backend,
-# JWT-authenticated (Authorization: Bearer header OR ?access_token= param) and Lua-routed to
-# `lmthing.user-<sub>.svc.cluster.local:8080`. Paths pass through UNCHANGED (like chat's
-# /api proxy keeps its prefix): the pod serves app content under /app/<project>/…, so
-# lmthing.app/app/<project>/… reaches the app pages + their /app/<project>/api/*.
+# lmthing.app — routed EXACTLY like lmthing.studio/lmthing.chat: a JWT-FREE static
+# unified-SPA shell at /* (which renders the login page when unauthenticated and then
+# self-authenticates via @lmthing/auth), plus a JWT-authenticated /api/* proxy to the
+# user's compute pod (per-user Lua routing). This is why the other domains show a login
+# page instead of a raw 401 — the shell is public; only /api/* requires the token.
 
 # HTTP -> HTTPS redirect
 apiVersion: gateway.networking.k8s.io/v1
@@ -31,13 +30,49 @@ spec:
             statusCode: 301
 
 ---
-# /* -> Dynamic per-user backend (JWT-authenticated, Lua-routed). The served app
-# bundle's fetches carry `Authorization: Bearer`; its WS carries `?access_token=`.
-# No path rewrite (like chat-api-proxy): the pod's routes are kept verbatim.
+# /api/* -> Dynamic per-user backend (JWT-authenticated, Lua-routed). The served UI's
+# fetches carry `Authorization: Bearer`; its WS carries `?access_token=`. No path rewrite
+# (like chat-api-proxy): the pod's routes under /api/* are kept verbatim.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: app-proxy
+  name: app-api-proxy
+  namespace: gateway
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: lmthing-gw
+      sectionName: app-https
+  hostnames:
+    - lmthing.app
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.envoyproxy.io
+            kind: HTTPRouteFilter
+            name: rewrite-host-from-header
+      backendRefs:
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: dynamic-user-backend
+          weight: 1
+
+---
+# /* -> Static unified web app (JWT-free). Serves the document + /assets/*; the app
+# self-authenticates (@lmthing/auth) and calls /api/* with a Bearer token. Reuses the
+# shared unified-SPA Service (same image as studio/chat/computer); the surface is chosen
+# client-side by hostname (surfaceForHost falls back to /studio for lmthing.app until a
+# dedicated /app surface ships).
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: app-static
   namespace: gateway
 spec:
   parentRefs:
@@ -52,14 +87,10 @@ spec:
         - path:
             type: PathPrefix
             value: /
-      filters:
-        - type: ExtensionRef
-          extensionRef:
-            group: gateway.envoyproxy.io
-            kind: HTTPRouteFilter
-            name: rewrite-host-from-header
       backendRefs:
-        - group: gateway.envoyproxy.io
-          kind: Backend
-          name: dynamic-user-backend
+        - group: ""
+          kind: Service
+          name: studio
+          namespace: lmthing
+          port: 80
           weight: 1

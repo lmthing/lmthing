@@ -1,0 +1,19 @@
+{
+  "title": "Research reports",
+  "description": "An on-demand or interpreter-triggered literature deep-dive, tied to a lab result, a symptom, or a free topic.",
+  "columns": {
+    "id":          { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "labResultId": { "type": "string", "description": "the lab result this expands (null if not lab-driven)",
+                     "references": { "table": "lab_results", "column": "id", "onDelete": "cascade" } },
+    "symptomId":   { "type": "string", "description": "the symptom this expands (null if not symptom-driven)",
+                     "references": { "table": "symptoms", "column": "id", "onDelete": "cascade" } },
+    "topic":       { "type": "string", "description": "the question or subject researched", "required": true },
+    "body":        { "type": "string", "description": "the report, markdown with citations; empty while pending" },
+    "status":      { "type": "string", "description": "'pending' while the researcher runs, 'ready' when done", "default": "pending" },
+    "createdAt":   { "type": "date",   "description": "when the dive was requested", "generated": "now" }
+  },
+  "relations": {
+    "lab":     { "belongsTo": "lab_results", "via": "labResultId", "description": "the lab result being expanded" },
+    "symptom": { "belongsTo": "symptoms",    "via": "symptomId",   "description": "the symptom being expanded" }
+  }
+}

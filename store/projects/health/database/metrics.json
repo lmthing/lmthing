@@ -1,0 +1,13 @@
+{
+  "title": "Metrics",
+  "description": "One dated measurement the user records — weight, sleep hours, blood pressure, steps, resting heart rate, etc. Generic so new kinds need no schema change.",
+  "columns": {
+    "id":         { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "kind":       { "type": "string", "description": "what was measured, e.g. 'weight' | 'sleep_hours' | 'bp_systolic' | 'steps' | 'resting_hr'", "required": true },
+    "value":      { "type": "number", "description": "the numeric measurement", "required": true },
+    "unit":       { "type": "string", "description": "the unit, e.g. 'kg' | 'h' | 'mmHg' | 'count' | 'bpm'", "required": true },
+    "recordedAt": { "type": "date",   "description": "when the measurement was taken", "required": true },
+    "source":     { "type": "string", "description": "'manual' or a device name", "default": "manual" },
+    "note":       { "type": "string", "description": "optional context the user added" }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "title": "Sources",
+  "description": "A trusted literature source or saved research query the researcher prefers (journals, guideline bodies).",
+  "columns": {
+    "id":    { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "kind":  { "type": "string", "description": "'journal' | 'guideline' | 'query'", "required": true },
+    "value": { "type": "string", "description": "the source domain, guideline name, or saved query; dedupe key", "required": true, "unique": true },
+    "label": { "type": "string", "description": "human label shown in Settings" },
+    "trust": { "type": "number", "description": "0..1 weight the researcher gives this source", "default": 0.5 }
+  }
+}

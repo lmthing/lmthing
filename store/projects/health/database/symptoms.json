@@ -1,0 +1,15 @@
+{
+  "title": "Symptoms",
+  "description": "A symptom episode the user logs, with severity and duration.",
+  "columns": {
+    "id":        { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "name":      { "type": "string", "description": "the symptom, e.g. 'headache'", "required": true },
+    "severity":  { "type": "number", "description": "1 (mild) to 5 (severe)", "default": 1 },
+    "startedAt": { "type": "date",   "description": "when it started", "required": true },
+    "endedAt":   { "type": "date",   "description": "when it resolved (null = ongoing)" },
+    "note":      { "type": "string", "description": "context — triggers, what helped" }
+  },
+  "relations": {
+    "research": { "hasMany": "research", "via": "symptomId", "description": "deep dives about this symptom" }
+  }
+}

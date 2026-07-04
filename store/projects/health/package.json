@@ -1,0 +1,13 @@
+{
+  "name": "@lmthing/app-health",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "lmthing.health — personal health research page, as a project-application (database + pages + api + hooks + clinic space). Not medical advice.",
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@lmthing/ui": "workspace:*",
+    "@lmthing/css": "workspace:*"
+  }
+}

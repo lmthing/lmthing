@@ -1,0 +1,19 @@
+{
+  "title": "Lab results",
+  "description": "One analyte result from a blood panel or lab test, with its reference range so the interpreter can flag it.",
+  "columns": {
+    "id":       { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "panel":    { "type": "string", "description": "the test/panel name, e.g. 'Lipid panel'", "required": true },
+    "analyte":  { "type": "string", "description": "the measured analyte, e.g. 'LDL cholesterol'", "required": true },
+    "value":    { "type": "number", "description": "the measured value", "required": true },
+    "unit":     { "type": "string", "description": "the unit, e.g. 'mg/dL'", "required": true },
+    "refLow":   { "type": "number", "description": "low end of the reference range (null = no lower bound)" },
+    "refHigh":  { "type": "number", "description": "high end of the reference range (null = no upper bound)" },
+    "flag":     { "type": "string", "description": "'low' | 'normal' | 'high' — set by the interpreter, not the user", "default": "normal" },
+    "takenAt":  { "type": "date",   "description": "when the sample was drawn", "required": true },
+    "note":     { "type": "string", "description": "lab or user note" }
+  },
+  "relations": {
+    "research": { "hasMany": "research", "via": "labResultId", "description": "deep dives about this result" }
+  }
+}

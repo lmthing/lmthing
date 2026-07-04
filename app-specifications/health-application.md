@@ -76,11 +76,16 @@ health/
 │   ├── symptoms/
 │   │   ├── GET.ts                    # listSymptoms
 │   │   └── POST.ts                   # logSymptom
-│   └── research/
-│       ├── POST.ts                   # requestResearch   (subscription-gated → 402)
-│       └── [id]/GET.ts               # getResearch
+│   ├── research/
+│   │   ├── POST.ts                   # requestResearch   (subscription-gated → 402)
+│   │   └── [id]/GET.ts               # getResearch
+│   ├── settings/
+│   │   ├── GET.ts                    # getSettings   (find-or-create the single row)
+│   │   └── disclaimer/POST.ts        # acceptDisclaimer
+│   └── stats/GET.ts                  # healthStats   (dashboard counts)
 ├── hooks/
 │   ├── interpret-new-lab.ts  # database lab_results:insert → clinic/interpreter#interpret
+│   ├── research-deep-dive.ts # database research:insert → clinic/researcher#deep-dive
 │   └── daily-digest.ts       # cron 08:00 → clinic/interpreter#digest
 ├── spaces/
 │   └── clinic/               # project-scoped space (agents / tasklists / knowledge)
@@ -190,7 +195,17 @@ labelled panel) is where THING → `system-appbuilder` adds tables (see §"Self-
 ```
 
 - The **"exactly one row"** invariant on `settings` is **not schema-expressible** (as in blog) — seeded
-  at provisioning, every reader does `db.query('settings', {})[0]` (documented, not enforced).
+  at provisioning, every reader does `db.query('settings', {})[0]`. To make pages robust even before
+  provisioning has run, the app also exposes a **`getSettings`** endpoint that **find-or-creates** the
+  single row (seeds `tier:'free'`) — every settings reader goes through it (documented, not enforced).
+
+> **Row-type note (engine truth).** The build's row-interface names come from a **deterministic
+> singularizer** (`libs/cli/src/app/build/schema.ts` `tableInterfaceName`): split on `_`/`-`,
+> singularize the last word, PascalCase. For this app it yields `Metric`, `LabResult`, `Symptom`,
+> `Research` (unchanged — ends `ch`, not `ches`), `Source`, and **`Setting`** — note the `settings`
+> table's row type is **`Setting`** (a bare trailing `s` after a normal consonant is stripped), **not**
+> `Settings`. Pages/types import `Setting`. This is the same class of gotcha `kitchen` hit with
+> `ShoppingList`; the arch docs (engine) win, so the type name is `Setting`.
 - **`research` has two optional FKs** (`labResultId` *or* `symptomId`, or neither for a free topic) —
   the loader validates both `references` resolve; `belongsTo` relations give `Research.lab` /
   `Research.symptom`, and `LabResult.research` / `Symptom.research` the reverse.
@@ -255,6 +270,9 @@ agents via `apiCall`).
 | `logSymptom` | `POST api/symptoms` | `{ name, severity?, startedAt, note? }` → `Symptom` |
 | `requestResearch` | `POST api/research` | `{ topic, labResultId?, symptomId? }` → `{ researchId, status:'pending' }` — **gated** |
 | `getResearch` | `GET api/research/:id` | `{ id }` → `Research` |
+| `getSettings` | `GET api/settings` | `{}` → `Setting` — **find-or-creates** the single row (seeds `tier:'free'`) |
+| `acceptDisclaimer` | `POST api/settings/disclaimer` | `{}` → `Setting` — sets `acceptedDisclaimer:true` (gates first use) |
+| `healthStats` | `GET api/stats` | `{}` → `{ metrics, labs, flagged, activeSymptoms, research }` — dashboard counts strip |
 
 ```ts
 // api/research/POST.ts → POST .../api/research ; name "requestResearch"
@@ -271,13 +289,14 @@ export interface Input  {
 }
 export interface Output { researchId: string; status: 'pending' }
 
-export default function handler(input: Input, ctx: { db: DbApi; delegate: DelegateFn }): Output {
-  const settings = ctx.db.query('settings', {})[0]
-  if (settings.tier !== 'subscription') throw new HttpError(402, 'Deep research is a subscription feature')
-  const r = ctx.db.insert('research', {
+export default async function handler(input: Input, ctx: { db: AsyncDbApi }): Promise<Output> {
+  const settings = (await ctx.db.query('settings', {}))[0]
+  if (!settings || settings.tier !== 'subscription') throw new HttpError(402, 'Deep research is a subscription feature')
+  const r = await ctx.db.insert('research', {
     topic: input.topic, labResultId: input.labResultId, symptomId: input.symptomId, status: 'pending',
   })
-  ctx.delegate('clinic/researcher', 'deep-dive', { input: { researchId: r.id } })  // returns immediately
+  // The `db.insert` fires the `research-deep-dive` database hook, which delegates the researcher —
+  // no api-side `spawn`/`delegate` needed (and api `spawn` is fire-and-forget only). Returns immediately.
   return { researchId: r.id, status: 'pending' }
 }
 ```
@@ -305,6 +324,22 @@ export default {
 ```
 
 ```ts
+// hooks/research-deep-dive.ts — fill every pending research row via the researcher
+export default {
+  type: 'database',
+  on: { table: 'research', event: 'insert' },
+  budget: { maxEpisodes: 8, maxWallClockMs: 300000 },
+  handler: async ({ row, delegate }) => {
+    // A research row is created two ways — the interpreter (abnormal lab + subscription) or the
+    // user's one-click `requestResearch` — both `db.insert('research', { status:'pending' })`.
+    // This one hook fans either into the researcher; the researcher only ever *updates* the row
+    // (status→'ready', fills `body`), so its writes never re-fire this insert hook (bounded).
+    await delegate('clinic/researcher', 'deep-dive', { input: { researchId: row.id } })
+  },
+}
+```
+
+```ts
 // hooks/daily-digest.ts — a morning summary of trends / anything newly flagged
 export default {
   type: 'cron',
@@ -316,9 +351,13 @@ export default {
 
 - **The interpreter flags, then (subscription only) requests a dive**: `interpret` sets
   `lab_results.flag` and, if the value is out of range *and* `settings.tier === 'subscription'`,
-  `db.insert('research', { labResultId, status:'pending' })` and delegates the researcher. The
-  `research` insert does **not** cascade a hook (nothing watches `research`), and the interpreter's own
-  `flag` write is **self-write-excluded**, so the loop is bounded (parent plan §Safety).
+  `db.insert('research', { labResultId, topic, status:'pending' })`. That insert fires the
+  **`research-deep-dive`** database hook, which delegates the researcher — so the interpreter does
+  **not** itself hold `canDelegateTo`; the two agents are wired by *hooks over the shared db*, not
+  agent-to-agent delegation (the robust, engine-proven shape: `api`/`interpreter` writes a row → a
+  `database` hook fans it into the specialist, exactly like `kitchen`'s planner→shopper). The
+  researcher only ever `db.update`s `research`, so it never re-fires the insert hook; the interpreter's
+  own `flag` write is **self-write-excluded**; the loop is bounded (parent plan §Safety).
 - Cron timing is the parent plan's **crond → hook-run endpoint** mechanism
   (`POST /api/projects/health/hooks/daily-digest/run`); a morning missed while the pod was down runs
   once via boot catch-up; local dev uses the in-process fallback tick.
@@ -329,8 +368,9 @@ One drop-in `<Chat agent="clinic/researcher" />` widget, reusing the always-avai
 endpoint (parent plan §Chat) — the binding is a runtime prop, no `chats/` dir:
 
 - **`/research/:id`** → `<Chat agent="clinic/researcher" />`. The user asks follow-ups on a dive
-  interactively; the researcher runs with full caps (`db:write research` + `api:call [pubmedSearch,
-  webSearch]`), so its `db.update('research', …)` is a first-class write and the report grows on the
+  interactively; the researcher runs with full caps (`db:write research` + the universal
+  `webSearch`/`webFetch` globals — see the round-1 engine-truth note above), so its
+  `db.update('research', …)` is a first-class write and the report grows on the
   page. The one-click `requestResearch` POST is the non-interactive path to the same agent.
 - The chat agent's prompts carry the **not-medical-advice framing** (Safety) — it summarises
   literature and cites sources, it does not diagnose or prescribe.
@@ -348,29 +388,34 @@ literature rather than a random blog.
 | Agent | `db:read` tables | `db:write` tables | `api:call` allow | Role |
 |---|---|---|---|---|
 | **logger** | `metrics, lab_results, symptoms` | `metrics, lab_results, symptoms` | — | record measurements/results/symptoms from chat or manual entry (never sets `flag`) |
-| **interpreter** | `lab_results, metrics, symptoms, settings` | `lab_results, research` | — | set `flag` vs reference range; on abnormal + subscription, create a pending `research` and delegate |
-| **researcher** | `research, lab_results, symptoms, sources` | `research` | `pubmedSearch`, `webSearch` | literature deep dives → fill `research` bodies with citations |
+| **interpreter** | `lab_results, metrics, symptoms, settings, research` | `lab_results, research` | — | set `flag` vs reference range; on abnormal + subscription, create a pending `research` (reads `research` to dedupe) |
+| **researcher** | `research, lab_results, symptoms, sources` | `research` | *(universal `webSearch`/`webFetch` globals — see note)* | literature deep dives → fill `research` bodies with citations |
 
 ```yaml
-# health/spaces/clinic/agents/researcher/instruct.md frontmatter — the named-binding example
+# health/spaces/clinic/agents/researcher/instruct.md frontmatter
 capabilities:
   - db:read:  { tables: [research, lab_results, symptoms, sources] }
   - db:write: { tables: [research] }
-  - api:call: { allow: [pubmedSearch, webSearch] }   # pubmedSearch is a distinct named binding
+# NB (engine truth, round 1): web/literature search is the UNIVERSAL `webSearch`/`webFetch` global,
+# NOT an `api:call` binding — grant it by OMITTING `functions:` (which defaults to all system tools).
+# There is no external-binding registry yet, so a credentialed `pubmedSearch` binding is a round-2+
+# concern; `api:call` is reserved for the app's OWN typed endpoints (the researcher needs none).
 ```
 
 ```yaml
 # health/spaces/clinic/agents/interpreter/instruct.md frontmatter
 capabilities:
-  - db:read:  { tables: [lab_results, metrics, symptoms, settings] }   # reads settings to check tier
-  - db:write: { tables: [lab_results, research] }                      # writes flag; creates pending research
+  - db:read:  { tables: [lab_results, metrics, symptoms, settings, research] }  # settings→tier; research→dedupe pending dives
+  - db:write: { tables: [lab_results, research] }                              # writes flag; creates pending research
 ```
 
-- **`pubmedSearch` is a trusted named binding** — a `{ name, description }` → hidden URL+key the model
-  never sees (keeps the API credential out of the transcript), pointed at a medical-literature API.
-  Grounding research in a curated source (rather than open-web `webSearch`) is what makes the write-ups
-  trustworthy enough to hand a user about their own health; the allowlisted `[pubmedSearch, webSearch]`
-  set is the researcher's callable-tool menu.
+- **Literature grounding uses the universal `webSearch`/`webFetch` globals (round 1).** The engine has
+  no external-binding registry yet, so the aspirational credentialed **`pubmedSearch`** binding — a
+  `{ name, description }` → hidden URL+key the model never sees, pointed at a medical-literature API — is
+  a **round-2+** feature (it needs that registry built in `sdk/org`). Until then the researcher grounds
+  its write-ups with the universal `webSearch`/`webFetch` tools (granted by omitting `functions:`), and
+  the charter steers it toward reputable medical sources (guideline bodies, journals) and explicit
+  citations. `api:call` stays reserved for the app's own typed endpoints.
 - **`flag` is agent-owned, by role not by capability** — only the *interpreter* is delegated to set a
   result's flag; the `logger`/`addLab` path doesn't. Note the capability model gates whole *tables*,
   not single *columns*, so this boundary is enforced by which agent runs (role + prompt), not by
@@ -478,9 +523,10 @@ build, hooks runtime, chat) exists. Health-specific work on top:
    descriptions pass the fail-loud loader; row + relation types generate (`LabResult.research`,
    `Research.lab`/`Research.symptom`).
 2. **`clinic` space** — the three agents' `instruct.md` (config-bearing `capabilities:` — per-verb
-   `tables`, interpreter reads `settings`, researcher `api:call [pubmedSearch, webSearch]`) plus
-   tasklists for `interpret`/`digest`/`deep-dive`; register the **`pubmedSearch` named binding** (URL +
-   key) and `webSearch`.
+   `tables`, interpreter reads `settings`, researcher uses the universal `webSearch`/`webFetch` globals
+   — see the round-1 engine-truth note) plus tasklists for `interpret`/`digest`/`deep-dive`. (The
+   credentialed **`pubmedSearch` named binding** is deferred to round 2+ — it needs the external-binding
+   registry built in `sdk/org` first.)
 3. **API** — the nine endpoints; tier gate on `requestResearch`; `getLab` `include` research.
 4. **Hooks** — `interpret-new-lab` (database:insert) + `daily-digest` (cron); confirm the
    interpret→(maybe)research loop is bounded (self-write-excluded `flag`, no `research` cascade).
@@ -500,7 +546,7 @@ build, hooks runtime, chat) exists. Health-specific work on top:
 ## Verification (end-to-end, local)
 
 1. Load the `health` project → schemas validate (descriptions/FK/relations), `types/generated.d.ts` has
-   `Metric`/`LabResult`/`Symptom`/`Research`/`Source`/`Settings` with relation fields
+   `Metric`/`LabResult`/`Symptom`/`Research`/`Source`/`Setting` with relation fields
    (`LabResult.research: Research[]`, `Research.lab`/`Research.symptom`).
 2. `lmthing serve`; `GET localhost:8080/app/health/` renders the dashboard (client-side), which calls
    `GET …/app/health/api/metrics?kind=weight`.

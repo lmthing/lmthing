@@ -1,0 +1,10 @@
+{
+  "title": "Settings",
+  "description": "The single account-settings row for this user's health app. Exactly one row (seeded at provisioning; the getSettings endpoint find-or-creates it).",
+  "columns": {
+    "id":                 { "type": "string",  "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "tier":               { "type": "string",  "description": "'free' or 'subscription' — gates deep research", "default": "free" },
+    "weeklyBudgetUsd":    { "type": "number",  "description": "clinic research spend allowance per week (tier-driven)", "default": 1 },
+    "acceptedDisclaimer": { "type": "boolean", "description": "whether the user acknowledged this is not medical advice", "default": false }
+  }
+}

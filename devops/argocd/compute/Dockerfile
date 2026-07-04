@@ -140,6 +140,19 @@ COPY --from=builder /build/libs/core/system-spaces ./libs/cli/dist/system-spaces
 # the web app from @lmthing/ui/src/chat/app/main.tsx on startup.
 COPY --from=builder /build/libs/ui/src          ./libs/ui/src
 COPY --from=builder /build/libs/ui/node_modules  ./libs/ui/node_modules
+# The project-app pages build (esbuild, resolveEnv) bundles page components that
+# import `@app/runtime` → which re-exports `<Chat>` from `@lmthing/ui/chat`. That
+# subtree resolves `@lmthing/auth` (getSession) and `@lmthing/css/elements/*`
+# (per-element CSS) + tokens, and @lmthing/ui contexts reach `@lmthing/state`.
+# These libs are workspace symlinks under node_modules/@lmthing/* → libs/*; ship
+# their sources so the symlinks resolve in-pod. Without them a Chat-using app page
+# (blog/discover, trips, health, kitchen) fails the build and the app UI 404s.
+# @lmthing/core is already shipped above (its `/ui` subpath supplies the form
+# helpers; the bare `@lmthing/core` type imports are erased by esbuild).
+COPY --from=builder /build/libs/auth  ./libs/auth
+COPY --from=builder /build/libs/css   ./libs/css
+COPY --from=builder /build/libs/state ./libs/state
+COPY --from=builder /build/libs/utils ./libs/utils
 # Prebuilt unified web app served by `lmthing serve` (studio/computer/chat are
 # client-side routes under /studio, /computer, /chat). static-apps.ts resolves it
 # via findAppsBase() → /app/apps/web/dist.

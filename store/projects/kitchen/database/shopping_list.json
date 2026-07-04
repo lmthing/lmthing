@@ -1,0 +1,17 @@
+{
+  "title": "Shopping list",
+  "description": "One line of a plan's shopping list: an ingredient the week needs more of than the pantry has.",
+  "columns": {
+    "id":           { "type": "string",  "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "planId":       { "type": "string",  "description": "the plan this list is for", "required": true,
+                      "references": { "table": "meal_plans", "column": "id", "onDelete": "cascade" } },
+    "ingredientId": { "type": "string",  "description": "the ingredient to buy", "required": true,
+                      "references": { "table": "ingredients", "column": "id", "onDelete": "cascade" } },
+    "quantity":     { "type": "number",  "description": "how much to buy (required by the week minus pantry stock), in the ingredient's unit", "required": true },
+    "bought":       { "type": "boolean", "description": "whether the user has bought it (checking it off tops up the pantry)", "default": false }
+  },
+  "relations": {
+    "plan":       { "belongsTo": "meal_plans",  "via": "planId",       "description": "the week" },
+    "ingredient": { "belongsTo": "ingredients", "via": "ingredientId", "description": "the ingredient to buy" }
+  }
+}

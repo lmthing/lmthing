@@ -74,9 +74,11 @@ kitchen/
 │   ├── pantry/
 │   │   ├── GET.ts                    # listPantry
 │   │   ├── POST.ts                   # addIngredient
+│   │   ├── low/GET.ts                # lowStock (stock at/below lowStockThreshold)
 │   │   └── [id]/PATCH.ts             # updatePantry (set quantity — "used the milk")
-│   └── shopping/
-│       └── [id]/PATCH.ts             # toggleBought (mark a shopping row bought → adds to pantry)
+│   ├── shopping/
+│   │   └── [id]/PATCH.ts             # toggleBought (mark a shopping row bought → adds to pantry)
+│   └── stats/GET.ts                  # kitchenStats (dashboard counts for the home grid)
 ├── hooks/
 │   ├── plan-week.ts          # cron  Sun 18:00 → chef/planner#plan
 │   └── recompute-shopping.ts # database plan_meals:insert|update|remove → chef/shopper#recompute
@@ -127,6 +129,7 @@ diff is one call, not N+1 reads.
     "servings":    { "type": "number", "description": "how many servings the ingredient quantities are for", "default": 2 },
     "prepMinutes": { "type": "number", "description": "rough total time in minutes", "default": 30 },
     "tags":        { "type": "json",   "description": "array of tag strings — 'vegetarian', 'quick', cuisine…" },
+    "imageUrl":    { "type": "string", "description": "optional hero image URL shown on the recipe card and detail page" },
     "source":      { "type": "string", "description": "where it came from (url or 'chef')" } },
   "relations": {
     "ingredients": { "hasMany": "recipe_ingredients", "via": "recipeId", "description": "the ingredient quantities this recipe needs" },
@@ -222,9 +225,13 @@ fields arrive typed, so a recipe page renders its ingredient lines with no extra
 | `pages/index.tsx` | `/` | `currentPlan` (include meals → recipe) |
 | `pages/recipes/index.tsx` | `/recipes` | `listRecipes` |
 | `pages/recipes/[id].tsx` | `/recipes/:id` | `getRecipe` (include ingredients → ingredient) |
-| `pages/pantry.tsx` | `/pantry` | `listPantry`; `updatePantry`/`addIngredient` |
+| `pages/pantry.tsx` | `/pantry` | `listPantry` + `lowStock`; `updatePantry`/`addIngredient` |
 | `pages/plan/[planId].tsx` | `/plan/:planId` | `currentPlan`-shaped for a specific week; `updateMeal` on swap |
 | `pages/shopping.tsx` | `/shopping` | `shoppingList`; `toggleBought` |
+
+The home week-grid (`index.tsx`) also reads `kitchenStats` and renders a small counts strip
+(recipes · pantry items · low-stock · planned meals · shopping gaps) above the grid — a cheap
+at-a-glance dashboard, the same "pages are a live read view" pattern as the rest of the app.
 
 ```tsx
 // pages/recipes/[id].tsx  → "/recipes/:id"
@@ -267,16 +274,24 @@ agents via `apiCall`).
 |---|---|---|
 | `currentPlan` | `GET api/plan` | `{}` → `MealPlan & { meals: (PlanMeal & { recipe })[] }` |
 | `generatePlan` | `POST api/plan` | `{ weekStart? }` → `{ planId, status:'planning' }` |
-| `shoppingList` | `GET api/plan/:id/shopping` | `{ id }` → `(ShoppingItem & { ingredient })[]` |
+| `shoppingList` | `GET api/plan/:id/shopping` | `{ id }` → `(ShoppingList & { ingredient })[]` |
 | `listRecipes` | `GET api/recipes` | `{ tag? }` → `Recipe[]` |
 | `addRecipe` | `POST api/recipes` | `{ title, instructions, ingredients:[{name,quantity,unit}] }` → `Recipe` |
 | `getRecipe` | `GET api/recipes/:id` | `{ id }` → `Recipe & { ingredients: (RecipeIngredient & { ingredient })[] }` |
 | `updateMeal` | `PATCH api/meals/:id` | `{ id, recipeId?, day?, servings? }` → `PlanMeal` |
 | `removeMeal` | `DELETE api/meals/:id` | `{ id }` → `{ ok }` |
 | `listPantry` | `GET api/pantry` | `{}` → `Ingredient[]` |
+| `lowStock` | `GET api/pantry/low` | `{}` → `Ingredient[]` (stock at/below `lowStockThreshold`) |
 | `addIngredient` | `POST api/pantry` | `{ name, unit, quantity?, category? }` → `Ingredient` |
 | `updatePantry` | `PATCH api/pantry/:id` | `{ id, quantity }` → `Ingredient` |
 | `toggleBought` | `PATCH api/shopping/:id` | `{ id, bought }` → `{ ok }` |
+| `kitchenStats` | `GET api/stats` | `{}` → `{ recipes, pantryItems, lowStock, plannedMeals, shoppingGaps }` |
+
+> **Row-type note (engine truth).** The generated row-interface name is the engine's deterministic
+> singularizer (`build/schema.ts`): `shopping_list → ShoppingList` (the last word `list` ends in
+> `t`, so it is left unchanged — it is **not** `ShoppingItem`). Pages and handlers import
+> `ShoppingList` from `@app/types`. Likewise `meal_plans → MealPlan`, `plan_meals → PlanMeal`,
+> `recipe_ingredients → RecipeIngredient`.
 
 ```ts
 // api/plan/[id]/shopping/GET.ts → GET .../api/plan/:id/shopping ; name "shoppingList"
@@ -372,16 +387,21 @@ globals"):
 
 | Agent | `db:read` tables | `db:write` tables | `api:call` allow | Role |
 |---|---|---|---|---|
-| **planner** | `recipes, recipe_ingredients, ingredients, meal_plans, plan_meals` | `meal_plans, plan_meals` | `recipeSearch`, `webSearch` | pick recipes for the week (respecting pantry + tags); write the plan (a `forEach` over days) |
+| **planner** | `recipes, recipe_ingredients, ingredients, meal_plans, plan_meals` | `meal_plans, plan_meals` | — (round 1: db-only) | pick recipes for the week (respecting pantry + tags); write the plan (a `forEach` over days) |
 | **shopper** | `plan_meals, recipes, recipe_ingredients, ingredients` | `shopping_list` | — | diff week-required vs pantry (the join) → write `shopping_list` gaps |
 | **pantry-keeper** | `ingredients` | `ingredients` | — | chat: keep pantry stock accurate; add new ingredients |
 
+> **Round 1 = db-only chef.** With no external-binding registry in the shipped engine (§Notes), the
+> planner plans from the seeded recipe box using its `db:read` only; the web-search-driven recipe
+> `importer` (with `functions: [webFetch]`) is a round-2 Additional feature. The frontmatter below
+> therefore carries no `api:call` for round 1.
+
 ```yaml
-# kitchen/spaces/chef/agents/planner/instruct.md frontmatter
+# kitchen/spaces/chef/agents/planner/instruct.md frontmatter (round 1: db-only)
 capabilities:
   - db:read:  { tables: [recipes, recipe_ingredients, ingredients, meal_plans, plan_meals] }
   - db:write: { tables: [meal_plans, plan_meals] }        # writes the week; never touches pantry or shopping
-  - api:call: { allow: [recipeSearch, webSearch] }        # find new recipes when the box is thin
+  # round 2 (Additional features): the importer gains `functions: [webFetch]` to pull recipes from URLs
 ```
 
 ```yaml
@@ -485,7 +505,7 @@ build, hooks runtime, chat) exists. Kitchen-specific work on top:
 ## Verification (end-to-end, local)
 
 1. Load the `kitchen` project → schemas validate (descriptions/FK/relations), `types/generated.d.ts`
-   has `Ingredient`/`Recipe`/`RecipeIngredient`/`MealPlan`/`PlanMeal`/`ShoppingItem` with relation
+   has `Ingredient`/`Recipe`/`RecipeIngredient`/`MealPlan`/`PlanMeal`/`ShoppingList` with relation
    fields, including the nested `Recipe.ingredients: (RecipeIngredient & { ingredient: Ingredient })[]`.
 2. `lmthing serve`; `GET localhost:8080/app/kitchen/recipes/<id>` renders a recipe with its ingredient
    lines from a **single** `getRecipe` `include` call (no per-line fetch in the network log).
@@ -521,3 +541,15 @@ build, hooks runtime, chat) exists. Kitchen-specific work on top:
 - **The "one plan per week" and quantity math** live in agent logic + a `weekStart` unique constraint;
   the diff itself is deterministic handler code (`shoppingList`) so the UI and the shopper agree. The
   app stays within per-user pod isolation, so no v1 deviation from the parent plan's authz model.
+- **`db.query` `where` is equality-only** in the shipped engine (`Record<string,unknown>` +
+  `include`/`orderBy`/`limit`/`offset`; no `LIKE`/ranges). Every filter that isn't an exact match —
+  "recipes tagged X", "meals for this day", "positive gaps" — is a query-all-then-filter-in-JS in the
+  agent prompt / handler code, not a SQL predicate. The shopping diff is exactly this: read the plan's
+  `plan_meals` with `include`, sum required quantities in memory, subtract pantry stock.
+- **No external-binding registry exists in v1** — `webSearch`/`webFetch`/`fetch` are **universal
+  system globals**, not `api:call` named bindings. So an agent that needs the web (e.g. a future
+  recipe importer) declares them under `functions:` (space-function gate) or just calls the universal
+  global; `api:call` is reserved for the app's own typed endpoints (e.g. the shopper could `apiCall`
+  `shoppingList`). Round 1 seeds a starter recipe box and keeps the `chef` agents **db-only** — the
+  planner/shopper/pantry-keeper need no `api:call`; the `recipeSearch`/`webSearch`-driven importer is
+  a round-2 (Additional features) concern.

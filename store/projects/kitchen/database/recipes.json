@@ -1,0 +1,19 @@
+{
+  "title": "Recipes",
+  "description": "A recipe the household can cook — instructions plus the set of ingredient quantities it needs.",
+  "columns": {
+    "id":          { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "title":       { "type": "string", "description": "recipe name shown in the list", "required": true },
+    "description": { "type": "string", "description": "one-line summary shown on the card" },
+    "instructions":{ "type": "string", "description": "full method, markdown", "required": true },
+    "servings":    { "type": "number", "description": "how many servings the ingredient quantities are for", "default": 2 },
+    "prepMinutes": { "type": "number", "description": "rough total time in minutes", "default": 30 },
+    "tags":        { "type": "json",   "description": "array of tag strings — 'vegetarian', 'quick', cuisine…" },
+    "imageUrl":    { "type": "string", "description": "optional hero image URL shown on the recipe card and detail page" },
+    "source":      { "type": "string", "description": "where it came from (url or 'chef')" }
+  },
+  "relations": {
+    "ingredients": { "hasMany": "recipe_ingredients", "via": "recipeId", "description": "the ingredient quantities this recipe needs" },
+    "meals":       { "hasMany": "plan_meals",         "via": "recipeId", "description": "plan slots using this recipe" }
+  }
+}

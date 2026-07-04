@@ -1,0 +1,17 @@
+{
+  "title": "Recipe ingredients",
+  "description": "One line of a recipe: how much of a given ingredient the recipe needs. The bridge between recipes and pantry ingredients.",
+  "columns": {
+    "id":           { "type": "string",  "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "recipeId":     { "type": "string",  "description": "the recipe this line belongs to", "required": true,
+                      "references": { "table": "recipes", "column": "id", "onDelete": "cascade" } },
+    "ingredientId": { "type": "string",  "description": "the pantry ingredient needed", "required": true,
+                      "references": { "table": "ingredients", "column": "id", "onDelete": "restrict" } },
+    "quantity":     { "type": "number",  "description": "how much is needed, in the ingredient's unit, for the recipe's `servings`", "required": true },
+    "optional":     { "type": "boolean", "description": "whether the recipe works without it (excluded from the shopping diff)", "default": false }
+  },
+  "relations": {
+    "recipe":     { "belongsTo": "recipes",     "via": "recipeId",     "description": "the recipe" },
+    "ingredient": { "belongsTo": "ingredients", "via": "ingredientId", "description": "the pantry ingredient" }
+  }
+}

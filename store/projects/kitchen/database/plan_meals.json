@@ -1,0 +1,18 @@
+{
+  "title": "Plan meals",
+  "description": "A recipe slotted into a specific day and meal of a weekly plan.",
+  "columns": {
+    "id":       { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "planId":   { "type": "string", "description": "the week this slot is in", "required": true,
+                  "references": { "table": "meal_plans", "column": "id", "onDelete": "cascade" } },
+    "recipeId": { "type": "string", "description": "the recipe cooked in this slot", "required": true,
+                  "references": { "table": "recipes", "column": "id", "onDelete": "restrict" } },
+    "day":      { "type": "date",   "description": "the calendar day of this meal", "required": true },
+    "meal":     { "type": "string", "description": "'breakfast' | 'lunch' | 'dinner'", "required": true },
+    "servings": { "type": "number", "description": "servings to cook (scales the recipe's ingredient quantities)", "default": 2 }
+  },
+  "relations": {
+    "plan":   { "belongsTo": "meal_plans", "via": "planId",   "description": "the week" },
+    "recipe": { "belongsTo": "recipes",    "via": "recipeId", "description": "the recipe cooked" }
+  }
+}

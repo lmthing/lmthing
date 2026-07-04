@@ -191,3 +191,28 @@ new space **editorial** (full format) → **2 spaces total** ✅ · **3 new agen
 digests/[id]/insights/discover) + 5 components ✅ · **14 new endpoints** (→26) ✅ · **4 new hooks**
 (→6) ✅ · **5 new tables** (→11) + 3 new articles columns ✅ · newsroom **remediated to full format**
 (tasklists/functions/components/3 knowledge fields) ✅.
+
+### Round 2 — Phase 5 push ✅ (2026-07-04)
+- Green gate: blog structural tests 16/16 · lint:tokens root ✓ (575) + blog app ✓ (37) ·
+  live e2e comprehensive (digest/newsletter/learn/rescore all live). sdk/org untouched (app-only round).
+- **Submodule sdk/org: no changes** — clean, level with origin/main at **a340052** (push = no-op).
+- **Pushed monorepo `main`: `b83cd29`** (round-2 blog app + spec + PLAN/PROGRESS; sdk/org pointer a340052).
+- Verified: both level with origin/main; parent pointer a340052 == sdk/org HEAD (references a pushed commit).
+
+## Resume notes for the NEXT run (round 3 — FEATURE EXPANSION)
+- App now has **2 full-format spaces** (newsroom, editorial), **11 tables, 26 endpoints, 6 hooks,
+  12 pages, 15 components**. Round 3 is strictly additive — do NOT regress. Floors: ≥1 new space
+  (→≥3 total), ≥3 new agents, ≥5 pages, ≥8 endpoints, ≥3 hooks, ≥3 tables + substantial features.
+- **Critical engine facts to keep applying (verified round 2):** (a) hook `delegate` drops input +
+  api `spawn` is a no-op stub → agents MUST self-query; bound tasklists get `{ query, ...context }`.
+  (b) task `functions:` allowlist gates system webSearch/webFetch too — list them or omit the key.
+  (c) db hooks fire on api-writes (main process) but NOT on writes inside a headless hook-triggered
+  session (learn→rescore 2nd hop won't auto-cascade; user/api/cron paths do). (d) db-hook handlers
+  must guard `row` undefined (manual/boot runs). (e) `db.query` where is equality-only.
+- **Possible engine improvement (out of app scope, flag for a runtime round):** wire the api-runtime
+  `spawnRunner` (app-api.ts) to `runHeadless` (Phase 6) so buildDigest/personalizeFeed fire agents,
+  and make headless-session db writes re-dispatch hooks so hook→agent→hook cascades work end to end.
+- Ideas for round 3: a **research** space (deep-dive analysts split from newsroom); tables
+  `collections`/`annotations`/`subscriptions`/`alerts`; saved-search alerts, article collections/
+  boards, an OPML import endpoint, a newsletter-schedule/cadence, per-source health metrics, a
+  weekly digest cron, full-text-ish client search page.

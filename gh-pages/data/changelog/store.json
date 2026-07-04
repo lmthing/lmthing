@@ -1,5 +1,15 @@
 [
   {
+    "hash": "6b03623e",
+    "full_hash": "6b03623e10c0acc7189ab9f9165a7e54d6b9c51b",
+    "type": "feat",
+    "scope": "store",
+    "subject": "catalog from store/projects + landing page",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 10:05:49 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/6b03623e10c0acc7189ab9f9165a7e54d6b9c51b"
+  },
+  {
     "hash": "1478ce95",
     "full_hash": "1478ce9594b82118c25468a26dbff6d057281e25",
     "type": "spec",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-30 17:28:49 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/685bc21aa84196b18007cd3aa757782b00705414"
-  },
-  {
-    "hash": "4235fe21",
-    "full_hash": "4235fe21bb42d17c35f6594f2f218b27ff887458",
-    "type": "chore",
-    "scope": "",
-    "subject": "update sdk/org to fix Dockerfile .npmrc copy",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-30 17:22:52 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/4235fe21bb42d17c35f6594f2f218b27ff887458"
   }
 ]

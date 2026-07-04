@@ -63,8 +63,8 @@
       "yaml": "store.yaml",
       "manifest": "devops/argocd/core/store.yaml",
       "isInternal": false,
-      "deployedSha": "128aeeb",
-      "deployedAt": "2026-07-04 09:50:06 +0300"
+      "deployedSha": "1478ce9",
+      "deployedAt": "2026-07-04 09:59:35 +0300"
     },
     {
       "name": "space",
@@ -133,5 +133,5 @@
       "deployedAt": "2026-07-04 06:46:54 +0300"
     }
   ],
-  "updatedAt": "2026-07-04T06:59:46.830892+00:00"
+  "updatedAt": "2026-07-04T07:05:59.409497+00:00"
 }

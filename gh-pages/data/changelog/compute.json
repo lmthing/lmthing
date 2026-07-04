@@ -1,5 +1,15 @@
 [
   {
+    "hash": "6b03623e",
+    "full_hash": "6b03623e10c0acc7189ab9f9165a7e54d6b9c51b",
+    "type": "feat",
+    "scope": "store",
+    "subject": "catalog from store/projects + landing page",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 10:05:49 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/6b03623e10c0acc7189ab9f9165a7e54d6b9c51b"
+  },
+  {
     "hash": "4ed87c6b",
     "full_hash": "4ed87c6b89b73fc80b82c56dc0d2087eaaa392e2",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-30 16:31:56 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/1366456ecb8ea824e2222dde5cbd8d3be13efb83"
-  },
-  {
-    "hash": "3bdf7d73",
-    "full_hash": "3bdf7d7325b71a57854bf734b74ebe5c6811d8a5",
-    "type": "chore",
-    "scope": "",
-    "subject": "update sdk/org submodule reference to latest commit",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-30 15:51:07 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/3bdf7d7325b71a57854bf734b74ebe5c6811d8a5"
   }
 ]

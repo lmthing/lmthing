@@ -110,7 +110,9 @@ Running log across 5-hour autonomous runs. Single source of truth for status.
 ## Pushed SHAs
 - sdk/org: **no changes this round** (engine already at the needed state) — submodule `main` left
   level with origin (push is a no-op confirm).
-- monorepo `main`: <filled at commit>
+- monorepo `main`: **`8ff6dfa`** (kitchen app + spec + PLAN/PROGRESS). Verified: both repos level
+  with origin/main; parent pointer records submodule `0a875677` which is on origin/main. Left the
+  pre-existing ` M automation/app-builder/supervise.sh` (harness file, not mine) untouched/unstaged.
 
 ## Resume notes for the NEXT run (round 2 — FEATURE EXPANSION)
 - The kitchen app EXISTS and is green + live-verified. Round 2 is strictly additive — do NOT

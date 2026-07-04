@@ -92,7 +92,12 @@ Running log across 5-hour autonomous runs. Single source of truth for status.
     the plan-trip full fan-out will light up when the api spawn runner lands. No code change needed.
   - Install path used: **local test user via `lmthing serve`** (temp `LMTHING_ROOT`, trips
     materialized into `<root>/trips/`). No prod install this run.
-- Phase 5 push — (in progress)
+- Phase 5 push ✅ — green gate (app tests 12/12, lint:tokens ✓ 571 files, trips raw-color scan clean,
+  full serve-pipeline build/typecheck/pages-build green) then two-repo push (submodule first):
+  - **sdk/org `main`: `6da8f42`** — UNCHANGED this round (no engine changes were needed; pushed as a
+    confirmed no-op, level with origin/main).
+  - **monorepo `main`: `e81a960`** — trips app + spec + PLAN/PROGRESS (pointer records 6da8f42, matches
+    submodule HEAD, which is on origin/main). Verified both level with origin.
 
 ## Resume notes for the NEXT run (round 2 — FEATURE EXPANSION)
 - Round 2 is strictly additive — do NOT regress/delete round-1 files. Floors: ≥1 new project-scoped

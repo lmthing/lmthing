@@ -1,0 +1,17 @@
+{
+  "title": "Digests",
+  "description": "A generated, curated roundup of the best recent articles for a period (daily or weekly), assembled by the editorial curator.",
+  "columns": {
+    "id":           { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "title":        { "type": "string", "description": "the digest headline shown in the archive", "required": true },
+    "summary":      { "type": "string", "description": "a one-paragraph deck summarizing what this digest covers", "required": true },
+    "period":       { "type": "string", "description": "'daily' or 'weekly' — the cadence this digest covers", "default": "daily" },
+    "status":       { "type": "string", "description": "'building' while the curator assembles it, 'ready' when complete, 'error' on failure", "default": "ready" },
+    "articleCount": { "type": "number", "description": "how many articles the digest includes", "default": 0 },
+    "createdAt":    { "type": "date",   "description": "when the digest was generated", "generated": "now" }
+  },
+  "relations": {
+    "items":       { "hasMany": "digest_items", "via": "digestId", "description": "the ordered article slots in this digest" },
+    "newsletters": { "hasMany": "newsletters",  "via": "digestId", "description": "rendered newsletter editions built from this digest" }
+  }
+}

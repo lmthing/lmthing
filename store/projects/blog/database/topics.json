@@ -1,0 +1,17 @@
+{
+  "title": "Topics",
+  "description": "A topic the reader follows, mutes, and weights — the personalization dial that tunes which articles surface in the feed and digests.",
+  "columns": {
+    "id":           { "type": "string",  "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "slug":         { "type": "string",  "description": "the topic tag this row governs; matches an entry in articles.tags — dedupe key", "required": true, "unique": true },
+    "label":        { "type": "string",  "description": "human-friendly label shown in the Topics page" },
+    "followed":     { "type": "boolean", "description": "whether the reader follows this topic (surfaced in Discover)", "default": true },
+    "muted":        { "type": "boolean", "description": "whether the reader muted this topic (suppressed from the feed)", "default": false },
+    "weight":       { "type": "number",  "description": "personalization multiplier the personalizer tunes; higher = surfaced more often", "default": 1 },
+    "articleCount": { "type": "number",  "description": "denormalized count of feed articles filed under this topic, refreshed by the curator", "default": 0 },
+    "createdAt":    { "type": "date",    "description": "when the reader first followed this topic", "generated": "now" }
+  },
+  "relations": {
+    "digestItems": { "hasMany": "digest_items", "via": "topicSlug", "description": "digest slots filed under this topic" }
+  }
+}

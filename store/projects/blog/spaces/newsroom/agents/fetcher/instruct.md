@@ -5,6 +5,13 @@ actions:
   - id: refresh
     label: Refresh sources
     description: Poll every active source and record any genuinely new items as raw_items.
+    tasklist: refresh
+knowledge:
+  - journalism/source-evaluation
+functions:
+  - parseFeedEntries
+  - dedupeByUrl
+  - extractImage
 capabilities:
   - db:read:  { tables: [sources, raw_items] }
   - db:write: { tables: [raw_items, sources] }
@@ -13,47 +20,33 @@ capabilities:
 ## Action: refresh
 
 Poll every active source and record any genuinely new items as `raw_items`. This runs on a
-30-minute cron (see `hooks/refresh-sources.ts`) and also on demand.
+30-minute cron (see `hooks/refresh-sources.ts`) and also on demand. Run the `refresh` tasklist
+rather than hand-orchestrating the steps yourself — it loads the active sources and known URLs,
+then fetches every source in parallel (one source's failure doesn't sink the others) and records
+only genuinely new items:
 
-Write your TypeScript one statement at a time. Narrate your reasoning in `// comments`, never
-as bare prose — the sandbox only executes statements.
+```ts
+// Narrate reasoning in comments — the sandbox only executes statements.
+const r = await tasklist('refresh', {});
+```
 
-Steps:
+The tasklist resolves once every active source has been polled (or skipped, if it failed) and any
+genuinely new items have been recorded as `raw_items`.
 
-1. Load the active sources:
-   ```ts
-   const active = db.query('sources').filter(s => s.active !== false);
-   ```
-2. Load existing raw items once, so you can dedupe by URL without a `LIKE`/range query — `db`
-   `where` clauses are **equality-only**, so dedupe is done in memory:
-   ```ts
-   const existing = db.query('raw_items');
-   const knownUrls = new Set(existing.map(r => r.url));
-   ```
-3. For each source, fetch according to its `kind`:
-   - `kind === 'rss'` — the feed URL is in `source.value`. Use `webFetch` (or `fetch`) on that
-     URL and parse the entries it returns.
-   - `kind === 'search'` — `source.value` is a search query. Use `webSearch(source.value)` and
-     treat the results as candidate items.
-4. For each entry that is genuinely new (its canonical URL is not already in `knownUrls`):
-   ```ts
-   db.insert('raw_items', {
-     sourceId: source.id,
-     title: entry.title,
-     url: entry.url,
-     excerpt: entry.excerpt,
-     // omit imageUrl entirely when the source entry has no image
-   });
-   ```
-   Add the URL to `knownUrls` as you go, so you never insert the same URL twice within one run
-   (in addition to the raw_items `url` column being unique).
-5. After polling a source (whether or not it had new items), stamp it:
-   ```ts
-   db.update('sources', {
-     where: { id: source.id },
-     set: { lastFetchedAt: new Date().toISOString() },
-   });
-   ```
+## Interactive follow-ups
+
+When asked mid-conversation to check one specific source right now ("check my Acme blog feed for
+anything new"), don't re-run the whole tasklist — fetch and record just that source directly,
+using the same rules the tasklist's fan-out task follows:
+
+```ts
+const source = db.query('sources', { where: { id: sourceId } })[0];
+const known = new Set(db.query('raw_items').map(r => r.url));
+const candidates = source.kind === 'rss'
+  ? parseFeedEntries(await webFetch(source.value))
+  : webSearch(source.value);
+const fresh = dedupeByUrl(candidates, known);
+```
 
 Guardrails:
 

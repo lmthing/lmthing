@@ -1,11 +1,6 @@
-> ⚠️ **OUTSTANDING — operator directive (2026-07-04):** this app's round-1 project space was
-> created with **only `agents/`**, which violates the space format. On the **next (expansion)
-> round** you MUST remediate it to the **FULL space format**: add a `charter.md` per agent
-> (alongside `instruct.md`), plus `tasklists/`, `functions/`, `components/`, and especially
-> **extensive `knowledge/`** (each field = `index.md` overview + ≥2 `<aspect>.md` deep-dives).
-> See `automation/app-builder/prompt.tmpl.md` → Phase 3 "Project-scoped spaces MUST follow the
-> FULL space format" and the round policy's "SPACE-FORMAT REMEDIATION" item. This is required
-> work, not optional.
+> **Round 2 (FEATURE EXPANSION) plan is at the bottom of this file** (`## ROUND 2 …`). It adds the
+> `editorial` space + digests/topics/personalization AND remediates `newsroom` to full space format.
+> The round-1 plan below is kept for provenance — round 2 is strictly additive.
 
 # PLAN — `blog` project-application (round 1, CORE BUILD)
 
@@ -108,3 +103,100 @@ awkward, add a self-contained `store/projects/blog/tests/` with its own vitest c
 5. pages/components → `buildProjectPages` succeeds; lint:tokens green.
 6. Materialize + `lmthing serve` + live synthesize loop (DeepSeek).
 7. Green gate → commit + push both repos.
+
+---
+
+# ROUND 2 — FEATURE EXPANSION (editorial · digests · topics · personalization + newsroom remediation)
+
+Strictly additive to round 1. Output root unchanged: `store/projects/blog/`. All contracts grounded
+in the shipped engine (see PROGRESS "Environment"; reference full-format space = `store/projects/trips/spaces/concierge`).
+
+## database/ (+5 tables, +3 columns)
+- `topics.json` — id(pk uuid), slug(string unique req), label(string), followed(bool def true),
+  muted(bool def false), weight(number def 1), articleCount(number def 0), createdAt(now).
+  relation `digestItems` hasMany digest_items via topicSlug.
+- `digests.json` — id(pk), title(req), summary(req), period(string def 'daily'), status(string def 'ready'),
+  articleCount(number def 0), createdAt(now). relations items→digest_items via digestId, newsletters→newsletters via digestId.
+- `digest_items.json` — id(pk), digestId→digests(cascade,req), articleId→articles(cascade,req),
+  topicSlug(string), position(number def 0), blurb(string). relations digest(belongsTo), article(belongsTo).
+- `reading_events.json` — id(pk), articleId→articles(setNull), kind(string req), dwellMs(number def 0),
+  tag(string), createdAt(now). relation article(belongsTo).
+- `newsletters.json` — id(pk), digestId→digests(cascade,req), subject(req), body(req), sentAt(date), createdAt(now).
+  relation digest(belongsTo).
+- articles.json ADD COLUMNS: pinned(bool def false), editorNote(string), clusterKey(string). (additive — keep all round-1 columns/relations.)
+
+## api/ (+14 endpoints → 26 total). Each: name/description/Input/Output + default async handler; local Db/Ctx types (mirror round-1 handlers).
+- topics/GET.ts → listTopics {} → Topic[] (weight desc)
+- topics/POST.ts → followTopic {slug,label?,weight?} → Topic (upsert by slug: query-all, find slug, insert or update)
+- topics/[id]/PATCH.ts → updateTopic {id,followed?,muted?,weight?} → Topic
+- topics/[id]/DELETE.ts → removeTopic {id} → {ok}
+- topics/[id]/feed/GET.ts → topicFeed {id} → Article[] (load topic, filter articles whose tags include slug)
+- digests/GET.ts → listDigests {} → Digest[] (createdAt desc)
+- digests/[id]/GET.ts → getDigest {id} → Digest & {items:(DigestItem&{article})[]} (query digest_items where digestId, join article per item, sort position)
+- digests/POST.ts → buildDigest {period?} → {digestId,status:'building'} (insert digest status building; spawn editorial/curator#digest {digestId}; onError set status error)
+- digests/[id]/newsletter/GET.ts → getNewsletter {id} → Newsletter|null (newest for digestId)
+- reading-events/POST.ts → logReadingEvent {articleId,kind,dwellMs?,tag?} → {ok} (insert row)
+- personalize/POST.ts → personalizeFeed {} → {ok} (spawn editorial/personalizer#rescore)
+- insights/GET.ts → feedInsights {} → {totalRead,totalSaved,totalDismissed,byTag[],byDay[],topTopics[]} (aggregate reading_events + articles + topics in JS)
+- articles/[id]/pin/POST.ts → pinArticle {id,pinned} → {ok} (update articles.pinned)
+- articles/[id]/dismiss/POST.ts → dismissArticle {id} → {ok} (update articles.read=true; insert reading_events kind 'dismiss')
+
+## hooks/ (+4 → 6 total)
+- build-daily-digest.ts — cron daily:'07:00', trigger 'editorial/curator#digest', budget maxEpisodes 20.
+- render-newsletter.ts — database digests:insert, handler: if row.status==='building' return; query newsletters where digestId, if exists return; delegate('editorial/digest-writer','render',{input:{digestId:row.id}}).
+- personalize-on-read.ts — database reading_events:insert, handler: delegate('editorial/personalizer','learn',{input:{eventId:row.id}}).
+- rescore-on-topic-change.ts — database topics:update, handler: delegate('editorial/personalizer','rescore',{}).
+
+## spaces/editorial/ (NEW, full format — 3 agents)
+- agents/curator/{charter,instruct}.md — title Curator; knowledge editorial/{editorial-standards,ranking-and-personalization,digest-craft};
+  functions [scoreByTopics,clusterArticles,dedupeArticles,summarizeEngagement]; defaultAction digest→tasklist build-digest;
+  actions digest(tasklist build-digest), pin, annotate; canDelegateTo editorial/digest-writer#render;
+  capabilities db:read[articles,citations,topics,reading_events,digests,digest_items] db:write[digests,digest_items,articles]. functions:[] (fetch). components [DigestPreview].
+- agents/digest-writer/{charter,instruct}.md — title Digest writer; knowledge editorial/{editorial-standards,digest-craft};
+  functions [formatNewsletter]; action render; capabilities db:read[digests,digest_items,articles,newsletters] db:write[newsletters].
+- agents/personalizer/{charter,instruct}.md — title Personalizer; knowledge editorial/{ranking-and-personalization};
+  functions [scoreByTopics,summarizeEngagement,computeTopicWeights]; actions learn, rescore;
+  capabilities db:read[reading_events,topics,articles] db:write[topics,articles]. components [TopicWeightBadge].
+- tasklists/build-digest/ — index.md (input {digestId}); 01-gather.md (role explore/general, read recent unread articles + topics), 02-cluster.md (dedupe+cluster by topic weight), 03-write.md (insert digest_items + finalize digest).
+- functions/ — scoreByTopics.ts, clusterArticles.ts, dedupeArticles.ts, summarizeEngagement.ts, computeTopicWeights.ts, formatNewsletter.ts (typed, pure).
+- components/view/ — DigestPreview.tsx, TopicWeightBadge.tsx (design tokens only).
+- knowledge/editorial/ — editorial-standards/{index,voice-and-tone,accuracy-and-provenance}.md;
+  ranking-and-personalization/{index,signals-and-weights,avoiding-filter-bubbles}.md;
+  digest-craft/{index,selection-and-ordering,newsletter-format}.md. (index has `variable:` + `description:` frontmatter.)
+
+## spaces/newsroom/ REMEDIATION (full format — additive, don't break round-1 loop)
+- tasklists/refresh/ — index.md (fetcher per-source fan-out); bind fetcher action refresh→tasklist refresh. 01-load_sources, 02-fetch_each(forEach sources.ids), 03-done. Keep guardrails (no fabrication).
+- tasklists/deep-dive/ — researcher survey→fetch→write; bind researcher action deep-dive→tasklist deep-dive. index.md input {researchId?|topic}.
+- synthesizer: STAYS model-driven (single-shot; hook delegates 'synthesize'). Add knowledge/functions refs only.
+- functions/ — parseFeedEntries.ts, dedupeByUrl.ts, extractImage.ts, formatCitation.ts, scoreRelevance.ts.
+- components/view/ — ArticlePreview.tsx, ResearchPreview.tsx.
+- knowledge/journalism/ — synthesis-method/{index,from-raw-to-article,headline-and-deck}.md;
+  source-evaluation/{index,credibility-signals,dedup-and-clustering}.md;
+  deep-dive-method/{index,structuring-a-report,grounding-and-honesty}.md.
+- Update fetcher/researcher/synthesizer instruct.md frontmatter to reference knowledge:/functions:/components: and (fetcher/researcher) tasklist actions. Keep capabilities unchanged.
+
+## pages/ (+5) + components (+5). Design tokens ONLY.
+- pages/topics.tsx (/topics) — listTopics; TopicChip w/ follow/mute/weight (updateTopic/removeTopic/followTopic).
+- pages/digests/index.tsx (/digests) — listDigests; DigestCard; buildDigest button.
+- pages/digests/[digestId].tsx (/digests/:id) — getDigest + getNewsletter; NewsletterView.
+- pages/insights.tsx (/insights) — feedInsights; InsightsPanel + TopicWeightBar.
+- pages/discover.tsx (/discover) — listTopics + feedInsights + <Chat agent="editorial/curator">.
+- components: TopicChip.tsx, DigestCard.tsx, NewsletterView.tsx, InsightsPanel.tsx, TopicWeightBar.tsx.
+- _layout.tsx: add nav Topics · Digests · Insights · Discover (keep Feed · Saved · Preferences).
+- index.tsx / feed/[articleId].tsx: additive — Pin + Dismiss actions (pinArticle/dismissArticle), logReadingEvent('open') on article open. Keep existing behavior.
+
+## tests (extend store/projects/blog/tests/blog.test.mjs)
+- Update expected table list (11), endpoint list (26), hooks (6), spaces (newsroom+editorial), agents.
+- Assert new schemas validate (validateSchemaSet), FK/relations resolve, descriptions present.
+- Assert editorial agents least-privilege (no db:schema/pages:write/api:write/hooks:write; functions [] fetch).
+- Assert new hooks shapes; new endpoints export name/Input/Output/default.
+- Assert full-format: newsroom+editorial each have tasklists/ functions/ components/ knowledge/; each agent charter.md+instruct.md; each knowledge field index.md + ≥2 aspects.
+- Live e2e (Phase 4): materialize into temp root, lmthing serve, drive: buildDigest → curator#digest (DeepSeek) writes digest+items; logReadingEvent → personalizer learns; assert via getDigest/feedInsights. Keep round-1 synthesize loop test.
+
+## Build sequence (fan-out by directory, integrate, then test)
+1. database/ (+5 tables +3 cols) → schema test green.
+2. spaces/editorial/ + newsroom remediation (full format) → space loads + typechecks.
+3. api/ (+14) → contract gen + I/O tests.
+4. hooks/ (+4) → loader + dispatch.
+5. pages/components (+5/+5) → buildProjectPages + lint:tokens green.
+6. tests update; materialize + serve + live editorial loop (DeepSeek). Green gate → push both repos.

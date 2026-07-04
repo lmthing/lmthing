@@ -23,7 +23,7 @@ const REPO = join(APP, '..', '..', '..'); // monorepo root
 const CORE = join(REPO, 'sdk', 'org', 'libs', 'core', 'dist', 'index.js');
 
 // ── Schemas — real engine validation ────────────────────────────────────────
-test('all 6 database schemas pass the engine validateSchemaSet (fail-loud)', async () => {
+test('all 11 database schemas pass the engine validateSchemaSet (fail-loud)', async () => {
   assert.ok(existsSync(CORE), `built @lmthing/core not found at ${CORE} — run \`pnpm --filter @lmthing/core build\` in sdk/org`);
   const { validateSchemaSet } = await import(CORE);
   const dbDir = join(APP, 'database');
@@ -33,7 +33,9 @@ test('all 6 database schemas pass the engine validateSchemaSet (fail-loud)', asy
     .sort((a, b) => a.name.localeCompare(b.name));
   assert.deepEqual(
     tables.map((t) => t.name),
-    ['articles', 'citations', 'raw_items', 'research', 'settings', 'sources'],
+    // round 1: articles citations raw_items research settings sources
+    // round 2: digest_items digests newsletters reading_events topics
+    ['articles', 'citations', 'digest_items', 'digests', 'newsletters', 'raw_items', 'reading_events', 'research', 'settings', 'sources', 'topics'],
   );
   // Throws (fail-loud) on a missing description, dup/absent PK, or a dangling FK/relation.
   assert.doesNotThrow(() => validateSchemaSet(tables));
@@ -69,9 +71,24 @@ const EXPECTED_ENDPOINTS = [
   ['sources/GET.ts', 'listSources'],
   ['sources/POST.ts', 'addSource'],
   ['sources/[id]/DELETE.ts', 'removeSource'],
+  // ── round 2 (14) ──
+  ['topics/GET.ts', 'listTopics'],
+  ['topics/POST.ts', 'followTopic'],
+  ['topics/[id]/PATCH.ts', 'updateTopic'],
+  ['topics/[id]/DELETE.ts', 'removeTopic'],
+  ['topics/[id]/feed/GET.ts', 'topicFeed'],
+  ['digests/GET.ts', 'listDigests'],
+  ['digests/[id]/GET.ts', 'getDigest'],
+  ['digests/POST.ts', 'buildDigest'],
+  ['digests/[id]/newsletter/GET.ts', 'getNewsletter'],
+  ['reading-events/POST.ts', 'logReadingEvent'],
+  ['personalize/POST.ts', 'personalizeFeed'],
+  ['insights/GET.ts', 'feedInsights'],
+  ['articles/[id]/pin/POST.ts', 'pinArticle'],
+  ['articles/[id]/dismiss/POST.ts', 'dismissArticle'],
 ];
 
-test('all 12 api handlers exist and export name / Input / Output / default handler', () => {
+test('all 26 api handlers exist and export name / Input / Output / default handler', () => {
   for (const [rel, name] of EXPECTED_ENDPOINTS) {
     const p = join(APP, 'api', rel);
     assert.ok(existsSync(p), `missing handler ${rel}`);
@@ -111,6 +128,44 @@ test('synthesize-new is a database:insert hook with an idempotence guard + deleg
   assert.match(src, /delegate\(\s*['"]newsroom\/synthesizer['"]/, 'must delegate to the synthesizer');
 });
 
+// ── Round-2 hooks (4) — digests / newsletters / personalization ─────────────
+test('build-daily-digest is a daily cron that triggers the curator', () => {
+  const src = readFileSync(join(APP, 'hooks', 'build-daily-digest.ts'), 'utf8');
+  assert.match(src, /type:\s*['"]cron['"]/);
+  assert.match(src, /daily:/, 'must be a daily cron');
+  assert.match(src, /editorial\/curator#digest/);
+});
+
+test('render-newsletter is a digests:insert hook with idempotence + delegate to digest-writer', () => {
+  const src = readFileSync(join(APP, 'hooks', 'render-newsletter.ts'), 'utf8');
+  assert.match(src, /type:\s*['"]database['"]/);
+  assert.match(src, /table:\s*['"]digests['"]/);
+  assert.match(src, /event:\s*['"]insert['"]/);
+  assert.match(src, /newsletters/, 'must check for an existing newsletter (idempotence)');
+  assert.match(src, /delegate\(\s*['"]editorial\/digest-writer['"]/, 'must delegate to the digest-writer');
+});
+
+test('personalize-on-read is a reading_events:insert hook delegating to the personalizer', () => {
+  const src = readFileSync(join(APP, 'hooks', 'personalize-on-read.ts'), 'utf8');
+  assert.match(src, /type:\s*['"]database['"]/);
+  assert.match(src, /table:\s*['"]reading_events['"]/);
+  assert.match(src, /delegate\(\s*['"]editorial\/personalizer['"]\s*,\s*['"]learn['"]/, 'must delegate learn');
+});
+
+test('rescore-on-topic-change is a topics:update hook delegating rescore', () => {
+  const src = readFileSync(join(APP, 'hooks', 'rescore-on-topic-change.ts'), 'utf8');
+  assert.match(src, /type:\s*['"]database['"]/);
+  assert.match(src, /table:\s*['"]topics['"]/);
+  assert.match(src, /event:\s*['"]update['"]/);
+  assert.match(src, /delegate\(\s*['"]editorial\/personalizer['"]\s*,\s*['"]rescore['"]/, 'must delegate rescore');
+});
+
+test('buildDigest seeds a building digest and spawns the curator', () => {
+  const src = readFileSync(join(APP, 'api', 'digests', 'POST.ts'), 'utf8');
+  assert.match(src, /['"]building['"]/, 'must seed a building status');
+  assert.match(src, /ctx\.spawn\(\s*['"]editorial\/curator/, 'must spawn the editorial curator');
+});
+
 // ── Newsroom agents — least-privilege capabilities ──────────────────────────
 test('newsroom has 3 agents, each with least-privilege capabilities and no forbidden authoring caps', () => {
   const agentsDir = join(APP, 'spaces', 'newsroom', 'agents');
@@ -120,6 +175,72 @@ test('newsroom has 3 agents, each with least-privilege capabilities and no forbi
     const src = readFileSync(join(agentsDir, a, 'instruct.md'), 'utf8');
     assert.match(src, /capabilities:/, `${a}: must declare capabilities`);
     // The newsroom OPERATES the app; it must not carry authoring/schema caps.
+    for (const forbidden of ['db:schema', 'pages:write', 'api:write', 'hooks:write']) {
+      assert.doesNotMatch(src, new RegExp(forbidden), `${a}: must NOT hold ${forbidden}`);
+    }
+  }
+});
+
+// ── Full space-format compliance (round-2 remediation) ──────────────────────
+// A project-scoped space must be MORE than an `agents/` dir: it needs
+// tasklists/ functions/ components/ and extensive knowledge/ (each field an
+// index.md overview + >=2 aspect deep-dives), and every agent needs BOTH a
+// charter.md and an instruct.md.
+function assertFullFormatSpace(spaceName, expectedAgents) {
+  const spaceDir = join(APP, 'spaces', spaceName);
+  for (const sub of ['agents', 'tasklists', 'functions', 'components', 'knowledge']) {
+    assert.ok(existsSync(join(spaceDir, sub)), `${spaceName}: missing ${sub}/ (full-format required)`);
+  }
+  const agents = readdirSync(join(spaceDir, 'agents')).sort();
+  assert.deepEqual(agents, expectedAgents.slice().sort(), `${spaceName}: agent set`);
+  for (const a of agents) {
+    assert.ok(existsSync(join(spaceDir, 'agents', a, 'charter.md')), `${spaceName}/${a}: missing charter.md`);
+    assert.ok(existsSync(join(spaceDir, 'agents', a, 'instruct.md')), `${spaceName}/${a}: missing instruct.md`);
+  }
+  // knowledge: at least one domain, each field = index.md + >=2 aspect files.
+  const knowRoot = join(spaceDir, 'knowledge');
+  const domains = readdirSync(knowRoot).filter((d) => existsSync(join(knowRoot, d)) && readdirSync(knowRoot, { withFileTypes: true }).find((e) => e.name === d && e.isDirectory()));
+  let fieldCount = 0;
+  for (const domain of domains) {
+    const fields = readdirSync(join(knowRoot, domain), { withFileTypes: true }).filter((e) => e.isDirectory());
+    for (const f of fields) {
+      fieldCount++;
+      const fieldDir = join(knowRoot, domain, f.name);
+      assert.ok(existsSync(join(fieldDir, 'index.md')), `${spaceName} knowledge ${domain}/${f.name}: missing index.md overview`);
+      const aspects = readdirSync(fieldDir).filter((x) => x.endsWith('.md') && x !== 'index.md');
+      assert.ok(aspects.length >= 2, `${spaceName} knowledge ${domain}/${f.name}: needs >=2 aspect deep-dives, has ${aspects.length}`);
+    }
+  }
+  assert.ok(fieldCount >= 3, `${spaceName}: expected >=3 knowledge fields, found ${fieldCount}`);
+  // at least one tasklist with an index.md
+  const tlRoot = join(spaceDir, 'tasklists');
+  const tls = readdirSync(tlRoot, { withFileTypes: true }).filter((e) => e.isDirectory());
+  assert.ok(tls.length >= 1, `${spaceName}: needs >=1 tasklist`);
+  for (const tl of tls) {
+    assert.ok(existsSync(join(tlRoot, tl.name, 'index.md')), `${spaceName} tasklist ${tl.name}: missing index.md`);
+  }
+  // at least one function + one component file
+  assert.ok(readdirSync(tlRoot).length >= 1, `${spaceName}: tasklists present`);
+  const fnFiles = readdirSync(join(spaceDir, 'functions')).filter((x) => x.endsWith('.ts'));
+  assert.ok(fnFiles.length >= 1, `${spaceName}: needs >=1 function`);
+}
+
+test('the app has >=2 project-scoped spaces (newsroom + editorial)', () => {
+  const spaces = readdirSync(join(APP, 'spaces'), { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name).sort();
+  assert.deepEqual(spaces, ['editorial', 'newsroom']);
+});
+
+test('newsroom is remediated to the full space format', () => {
+  assertFullFormatSpace('newsroom', ['fetcher', 'researcher', 'synthesizer']);
+});
+
+test('editorial is a full-format space with 3 least-privilege agents', () => {
+  assertFullFormatSpace('editorial', ['curator', 'digest-writer', 'personalizer']);
+  const agentsDir = join(APP, 'spaces', 'editorial', 'agents');
+  for (const a of readdirSync(agentsDir)) {
+    const src = readFileSync(join(agentsDir, a, 'instruct.md'), 'utf8');
+    assert.match(src, /capabilities:/, `${a}: must declare capabilities`);
+    // editorial OPERATES the app — no authoring/schema caps.
     for (const forbidden of ['db:schema', 'pages:write', 'api:write', 'hooks:write']) {
       assert.doesNotMatch(src, new RegExp(forbidden), `${a}: must NOT hold ${forbidden}`);
     }

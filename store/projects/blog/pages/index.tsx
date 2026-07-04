@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Article } from '@app/types';
-import { useApi, useApiMutation } from '@app/runtime';
+import { useApi, useApiMutation, apiCall } from '@app/runtime';
 import { ArticleCard } from '../components/ArticleCard';
 import { StatsStrip, type Stats } from '../components/StatsStrip';
 import { Spinner } from '../components/Spinner';
@@ -15,6 +15,7 @@ export default function Feed() {
     data: articles,
     isLoading,
     error,
+    refetch,
   } = useApi<Article[]>('feedList', {
     unreadOnly: filter === 'unread' ? true : undefined,
     savedOnly: filter === 'saved' ? true : undefined,
@@ -23,6 +24,24 @@ export default function Feed() {
   const markAllRead = useApiMutation<{ count: number }>('markAllRead', {
     invalidates: ['feedList', 'feedStats'],
   });
+
+  const onPin = async (a: Article) => {
+    try {
+      await apiCall('pinArticle', { id: a.id, pinned: !a.pinned });
+      refetch?.();
+    } catch {
+      // ignore — non-critical action
+    }
+  };
+
+  const onDismiss = async (a: Article) => {
+    try {
+      await apiCall('dismissArticle', { id: a.id });
+      refetch?.();
+    } catch {
+      // ignore — non-critical action
+    }
+  };
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-6">
@@ -72,7 +91,12 @@ export default function Feed() {
 
       <div className="space-y-3">
         {(articles ?? []).map((a) => (
-          <ArticleCard key={a.id} article={a} />
+          <ArticleCard
+            key={a.id}
+            article={a}
+            onPin={() => onPin(a)}
+            onDismiss={() => onDismiss(a)}
+          />
         ))}
       </div>
     </main>

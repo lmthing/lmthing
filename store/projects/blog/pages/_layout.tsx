@@ -12,6 +12,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <Link href="/" className="text-sm text-muted-foreground hover:text-primary">
             Feed
           </Link>
+          <Link href="/topics" className="text-sm text-muted-foreground hover:text-primary">
+            Topics
+          </Link>
+          <Link href="/digests" className="text-sm text-muted-foreground hover:text-primary">
+            Digests
+          </Link>
+          <Link href="/insights" className="text-sm text-muted-foreground hover:text-primary">
+            Insights
+          </Link>
+          <Link href="/discover" className="text-sm text-muted-foreground hover:text-primary">
+            Discover
+          </Link>
           <Link href="/preferences" className="text-sm text-muted-foreground hover:text-primary">
             Preferences
           </Link>

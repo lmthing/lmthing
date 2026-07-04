@@ -1,0 +1,16 @@
+{
+  "title": "Reading events",
+  "description": "The reader-engagement log — one row per open/save/dismiss/dwell — that drives feed personalization.",
+  "columns": {
+    "id":        { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "articleId": { "type": "string", "description": "the article the event is about (kept when the article is deleted -> set null)",
+                   "references": { "table": "articles", "column": "id", "onDelete": "setNull" } },
+    "kind":      { "type": "string", "description": "'open' | 'save' | 'dismiss' | 'dwell' — the kind of engagement", "required": true },
+    "dwellMs":   { "type": "number", "description": "milliseconds the reader spent on the article (for 'dwell' events)", "default": 0 },
+    "tag":       { "type": "string", "description": "denormalized primary topic tag, so the personalizer needn't re-join to the article" },
+    "createdAt": { "type": "date",   "description": "when the event occurred", "generated": "now" }
+  },
+  "relations": {
+    "article": { "belongsTo": "articles", "via": "articleId", "description": "the article this engagement event is about" }
+  }
+}

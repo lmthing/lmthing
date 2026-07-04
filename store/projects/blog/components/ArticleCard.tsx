@@ -2,7 +2,15 @@ import React from 'react';
 import type { Article } from '@app/types';
 import { Link } from '@app/runtime';
 
-export function ArticleCard({ article }: { article: Article }) {
+export function ArticleCard({
+  article,
+  onPin,
+  onDismiss,
+}: {
+  article: Article;
+  onPin?: () => void;
+  onDismiss?: () => void;
+}) {
   const tags = Array.isArray(article.tags) ? article.tags : [];
 
   return (
@@ -27,6 +35,9 @@ export function ArticleCard({ article }: { article: Article }) {
             {article.saved ? (
               <span className="text-xs text-primary" title="Saved">★</span>
             ) : null}
+            {article.pinned ? (
+              <span className="text-xs text-primary" title="Pinned">📌</span>
+            ) : null}
           </div>
         </div>
 
@@ -43,6 +54,33 @@ export function ArticleCard({ article }: { article: Article }) {
                 #{t}
               </Link>
             ))}
+          </div>
+        ) : null}
+
+        {onPin || onDismiss ? (
+          <div className="flex items-center gap-2 pt-1">
+            {onPin ? (
+              <button
+                type="button"
+                onClick={onPin}
+                className={
+                  article.pinned
+                    ? 'rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground'
+                    : 'rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground hover:bg-muted'
+                }
+              >
+                {article.pinned ? 'Unpin' : 'Pin'}
+              </button>
+            ) : null}
+            {onDismiss ? (
+              <button
+                type="button"
+                onClick={onDismiss}
+                className="rounded-md border border-border bg-background px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
+              >
+                Dismiss
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>

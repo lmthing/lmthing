@@ -70,11 +70,17 @@ blog/
 │       ├── POST.ts                    # addSource
 │       └── [id]/DELETE.ts             # removeSource
 ├── hooks/
-│   ├── refresh-sources.ts    # cron  30m → newsroom/fetcher#refresh
-│   └── synthesize-new.ts     # database raw_items:insert → newsroom/synthesizer#synthesize
-├── spaces/
-│   └── newsroom/             # project-scoped space (agents / tasklists / knowledge)
-│       └── agents/{fetcher,synthesizer,researcher}/instruct.md
+│   ├── refresh-sources.ts     # cron  30m → newsroom/fetcher#refresh
+│   ├── synthesize-new.ts      # database raw_items:insert → newsroom/synthesizer#synthesize
+│   ├── build-daily-digest.ts  # cron  daily 07:00 → editorial/curator#digest          (round 2)
+│   ├── render-newsletter.ts   # database digests:insert → editorial/digest-writer#render (round 2)
+│   ├── personalize-on-read.ts # database reading_events:insert → editorial/personalizer#learn (round 2)
+│   └── rescore-on-topic-change.ts # database topics:update → editorial/personalizer#rescore  (round 2)
+├── spaces/                     # ≥2 project-scoped specialist teams, one shared db
+│   ├── newsroom/               # fetch + synthesize + deep-dive (agents/tasklists/functions/components/knowledge)
+│   │   └── agents/{fetcher,synthesizer,researcher}/{charter,instruct}.md
+│   └── editorial/             # curate + digest + personalize (round 2, full format)
+│       └── agents/{curator,digest-writer,personalizer}/{charter,instruct}.md
 ├── types/generated.d.ts      # GENERATED — row + endpoint I/O types
 └── .data/
     ├── app.db                # SQLite (WAL)
@@ -379,6 +385,151 @@ capabilities:
 **No public/shared surface** — with the public profile removed, every route and endpoint is an
 authenticated, per-user pod read/write; the app stays fully within per-user pod isolation, so there is
 no v1 deviation from the parent plan (no cross-user routing to build).
+
+## Round 2 — Editorial, digests & personalization (feature expansion)
+
+Round 1 shipped the raw fetch→synthesize→feed loop and one `newsroom` space. Round 2 turns `blog`
+from a flat reverse-chron feed into a **curated, personalized newsroom**: the reader follows and
+weights **topics**, the app logs **reading engagement**, a second specialist team (**`editorial`**)
+ranks and clusters articles into scheduled **digests** and rendered **newsletters**, and a
+**personalizer** continuously re-scores the feed from what the reader actually opens, saves, and
+dismisses. Everything below is strictly additive to the round-1 shape — same project-rooted db, same
+serving, same capability model — and stays inside the parent plan (data/agents/pages/api/hooks only).
+
+### New database tables (round 2)
+
+Five new tables (descriptions mandatory on table/column/relation, FKs resolve, exactly-one PK):
+
+- **`topics.json`** — a topic the reader follows, mutes, and weights for personalization.
+  `id` (pk uuid) · `slug` (string, **unique**, required — matches an `articles.tags` entry) · `label`
+  (string) · `followed` (boolean, def true) · `muted` (boolean, def false) · `weight` (number, def 1
+  — personalization multiplier the personalizer tunes; higher ⇒ surfaced more) · `articleCount`
+  (number, def 0 — denormalized count the curator refreshes) · `createdAt` (date, now).
+  Relation `digestItems` hasMany `digest_items` via `topicSlug` (**description**: digest slots filed
+  under this topic).
+- **`digests.json`** — a generated roundup of articles for a period. `id` (pk) · `title` (required) ·
+  `summary` (required — the deck) · `period` (string, def `'daily'` — `'daily'`|`'weekly'`) ·
+  `status` (string, def `'ready'` — `'building'` while the curator runs) · `articleCount` (number,
+  def 0) · `createdAt` (date, now). Relations: `items` hasMany `digest_items` via `digestId`;
+  `newsletters` hasMany `newsletters` via `digestId`.
+- **`digest_items.json`** — the ordered join of a digest to its articles. `id` (pk) · `digestId`
+  (references `digests` onDelete cascade, required) · `articleId` (references `articles` onDelete
+  cascade, required) · `topicSlug` (string — the topic bucket this slot belongs to) · `position`
+  (number, def 0 — display order) · `blurb` (string — the curator's one-line "why this matters").
+  Relations: `digest` belongsTo `digests` via `digestId`; `article` belongsTo `articles` via
+  `articleId`.
+- **`reading_events.json`** — the reader-engagement log that drives personalization. `id` (pk) ·
+  `articleId` (references `articles` onDelete setNull) · `kind` (string, required —
+  `'open'`|`'save'`|`'dismiss'`|`'dwell'`) · `dwellMs` (number, def 0 — ms spent on the article) ·
+  `tag` (string — denormalized primary topic, so the personalizer needn't re-join) · `createdAt`
+  (date, now). Relation `article` belongsTo `articles` via `articleId`.
+- **`newsletters.json`** — a rendered, send-ready edition built from a digest. `id` (pk) · `digestId`
+  (references `digests` onDelete cascade, required) · `subject` (required) · `body` (required —
+  the full markdown edition) · `sentAt` (date — null until "sent") · `createdAt` (date, now).
+  Relation `digest` belongsTo `digests` via `digestId`.
+
+New columns on the round-1 `articles.json` (additive `addColumn`): `pinned` (boolean, def false —
+the curator can pin an article to the top of the feed and every digest), `editorNote` (string — an
+optional curator annotation shown on the card), `clusterKey` (string — a normalized grouping key the
+curator sets so near-duplicate articles collapse in digests).
+
+### New API endpoints (round 2 — 14, bringing the app to 26)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `listTopics` | `GET api/topics` | `{}` → `Topic[]` (weight-sorted) |
+| `followTopic` | `POST api/topics` | `{ slug, label?, weight? }` → `Topic` — upsert a follow by slug |
+| `updateTopic` | `PATCH api/topics/:id` | `{ id, followed?, muted?, weight? }` → `Topic` |
+| `removeTopic` | `DELETE api/topics/:id` | `{ id }` → `{ ok }` |
+| `topicFeed` | `GET api/topics/:id/feed` | `{ id }` → `Article[]` — articles whose tags include the topic slug |
+| `listDigests` | `GET api/digests` | `{}` → `Digest[]` (newest first) |
+| `getDigest` | `GET api/digests/:id` | `{ id }` → `Digest & { items: (DigestItem & { article })[] }` |
+| `buildDigest` | `POST api/digests` | `{ period? }` → `{ digestId, status:'building' }` — seeds a `building` digest, `spawn`s `editorial/curator#digest` (onError → status `'error'`) |
+| `getNewsletter` | `GET api/digests/:id/newsletter` | `{ id }` → `Newsletter \| null` |
+| `logReadingEvent` | `POST api/reading-events` | `{ articleId, kind, dwellMs?, tag? }` → `{ ok }` — the engagement signal |
+| `personalizeFeed` | `POST api/personalize` | `{}` → `{ ok }` — `spawn`s `editorial/personalizer#rescore` |
+| `feedInsights` | `GET api/insights` | `{}` → `{ totalRead, totalSaved, totalDismissed, byTag:{tag,count}[], byDay:{day,count}[], topTopics:{slug,weight}[] }` |
+| `pinArticle` | `POST api/articles/:id/pin` | `{ id, pinned }` → `{ ok }` |
+| `dismissArticle` | `POST api/articles/:id/dismiss` | `{ id }` → `{ ok }` — marks read + logs a `dismiss` `reading_event` |
+
+All follow the round-1 rules: equality-only `where` (query-all + JS filter for tag/substring),
+`HttpError` for typed failures, `spawn` (never `delegate`) from handlers, single-object method-aware
+`Input`. `buildDigest`/`personalizeFeed` are fire-and-forget kick-offs; the work lands via the
+editorial agents writing rows the pages read back.
+
+### New hooks (round 2 — 4, bringing the app to 6)
+
+- **`build-daily-digest.ts`** — `cron`, `daily: '07:00'`, `trigger: 'editorial/curator#digest'`,
+  budget — the scheduled curation pass that assembles the morning digest.
+- **`render-newsletter.ts`** — `database` `digests:insert`, imperative handler: skip if the digest is
+  still `building` or already has a newsletter, else `delegate('editorial/digest-writer','render',
+  { input: { digestId: row.id } })` — turns a fresh digest into a send-ready edition.
+- **`personalize-on-read.ts`** — `database` `reading_events:insert`, imperative handler (coalesced):
+  `delegate('editorial/personalizer','learn', { input: { eventId: row.id } })` — nudges topic
+  weights from the newest signal.
+- **`rescore-on-topic-change.ts`** — `database` `topics:update`, imperative handler:
+  `delegate('editorial/personalizer','rescore', {})` — re-scores the feed after a weight change.
+
+**Loop-guard sanity.** `reading_events:insert` → `learn` (writes `topics`) → `topics:update` →
+`rescore` (writes `articles.score`) → `articles` has no hook ⇒ the cascade stops at depth 2 (cap 3).
+`digests:insert` → `render` (writes `newsletters`) → `newsletters` has no hook ⇒ stops. Per-hook
+coalesce means a burst of `reading_events` learns once per window; self-write exclusion keeps
+`personalize-on-read` from re-firing on its own topic writes (a *different* hook,
+`rescore-on-topic-change`, legitimately does, once, within the cap).
+
+### New pages (round 2 — 5) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/topics.tsx` | `/topics` | `listTopics`; `followTopic`/`updateTopic`/`removeTopic` — follow, mute, and slider-weight topics |
+| `pages/digests/index.tsx` | `/digests` | `listDigests`; `buildDigest` button — the digest archive |
+| `pages/digests/[digestId].tsx` | `/digests/:id` | `getDigest` (items + articles) + `getNewsletter` — read the roundup and its edition |
+| `pages/insights.tsx` | `/insights` | `feedInsights` — reading analytics (read/saved/dismissed, by tag, by day, top topics) |
+| `pages/discover.tsx` | `/discover` | `listTopics` + `feedInsights`; `<Chat agent="editorial/curator">` — trending topics + ask the curator for a custom digest |
+
+New shared components (design tokens only, no raw color): `TopicChip` (follow/mute/weight pill),
+`DigestCard`, `NewsletterView` (renders the markdown edition), `InsightsPanel` (token-styled bars),
+`TopicWeightBar`. The `_layout.tsx` nav gains **Topics · Digests · Insights · Discover** alongside
+Feed · Saved · Preferences. The article-detail page additionally `logReadingEvent`s an `open` (and a
+`dwell` on unmount) so personalization has signal; the feed card gains **Pin** and **Dismiss**
+actions wired to `pinArticle`/`dismissArticle`.
+
+### The `editorial` space (second project-scoped space, full format)
+
+`blog/spaces/editorial/` — a distinct specialist team that shares the same project-rooted db as
+`newsroom` (parent plan's multi-space shape). Least-privilege per verb:
+
+| Agent | `db:read` tables | `db:write` tables | `functions` | Role |
+|---|---|---|---|---|
+| **curator** | `articles, citations, topics, reading_events, digests, digest_items` | `digests, digest_items, articles` | `[]` (db-only) | build scheduled digests (cluster + rank + write items), pin/annotate articles |
+| **digest-writer** | `digests, digest_items, articles, newsletters` | `newsletters` | `[]` | render a digest into a send-ready newsletter markdown edition |
+| **personalizer** | `reading_events, topics, articles` | `topics, articles` | `[]` | learn topic weights from engagement, re-score the feed |
+
+- **No fetch tools** — the editorial team reasons over rows already in the db (`functions: []`),
+  never the open web; only `newsroom`'s fetcher/researcher touch `webSearch`/`webFetch`/`fetch`.
+- **No authoring caps** (`db:schema`/`pages:write`/`api:write`/`hooks:write`) — editorial *operates*
+  the app like newsroom; evolving it stays THING → `system-appbuilder`.
+- Full space format (parent plan's space anatomy, mirrored on `newsroom` too — see below):
+  `agents/<slug>/{charter.md,instruct.md}`, `tasklists/build-digest/` (the curator's gather→cluster→
+  write fan-out), `functions/` (deterministic `scoreByTopics`, `clusterArticles`, `formatNewsletter`,
+  `dedupeArticles`, `summarizeEngagement`), `components/` (catalog `DigestPreview`/`TopicWeightBadge`
+  for chat), and **extensive `knowledge/editorial/`** — `editorial-standards` (voice/tone,
+  accuracy-and-provenance), `ranking-and-personalization` (signals-and-weights, avoiding
+  filter-bubbles), `digest-craft` (selection-and-ordering, newsletter-format), each field an
+  `index.md` overview + ≥2 aspect deep-dives.
+
+### `newsroom` space-format remediation (round 2)
+
+Round 1 left `newsroom` as `agents/`-only (charter+instruct but no `tasklists/`/`functions/`/
+`components/`/`knowledge/`). Round 2 brings it to the **full space format**: a `refresh` tasklist for
+the fetcher (per-source fan-out) and a `deep-dive` tasklist for the researcher (survey→fetch→write);
+`functions/` (`parseFeedEntries`, `dedupeByUrl`, `extractImage`, `formatCitation`, `scoreRelevance`);
+catalog `components/` (`ArticlePreview`, `ResearchPreview`); and **extensive `knowledge/journalism/`**
+— `synthesis-method` (from-raw-to-article, headline-and-deck), `source-evaluation`
+(credibility-signals, dedup-and-clustering), `deep-dive-method` (structuring-a-report,
+grounding-and-honesty). The synthesizer stays model-driven (a single-shot writer the `synthesize-new`
+hook delegates to — unchanged so the round-1-verified core loop does not regress) but gains the new
+knowledge/functions.
 
 ## Tiers & budget
 

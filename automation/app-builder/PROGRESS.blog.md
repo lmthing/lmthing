@@ -1,12 +1,3 @@
-> ⚠️ **OUTSTANDING — operator directive (2026-07-04):** this app's round-1 project space was
-> created with **only `agents/`**, which violates the space format. On the **next (expansion)
-> round** you MUST remediate it to the **FULL space format**: add a `charter.md` per agent
-> (alongside `instruct.md`), plus `tasklists/`, `functions/`, `components/`, and especially
-> **extensive `knowledge/`** (each field = `index.md` overview + ≥2 `<aspect>.md` deep-dives).
-> See `automation/app-builder/prompt.tmpl.md` → Phase 3 "Project-scoped spaces MUST follow the
-> FULL space format" and the round policy's "SPACE-FORMAT REMEDIATION" item. This is required
-> work, not optional.
-
 # PROGRESS — `blog` project-application
 
 Running log across 5-hour autonomous runs. Single source of truth for status.
@@ -127,3 +118,76 @@ Running log across 5-hour autonomous runs. Single source of truth for status.
   tables `digests`, `topics`, `reading_events`, `newsletters`; endpoints for personalization
   (topic follow/mute, per-topic feeds), a daily **digest** builder hook, saved-search alerts,
   full-text-ish client search, an article **/tag** aggregation page, RSS OPML import.
+
+## Round log — ROUND 2 (FEATURE EXPANSION, 2026-07-04, in progress)
+Theme: raw feed → curated/personalized newsroom (topics · digests · newsletters · personalization) +
+newsroom full-format remediation. Strictly additive; round-1 files untouched.
+- Phase 0 orient ✅ — re-read both architecture docs in full + spec + PROGRESS; studied full-format
+  reference `store/projects/trips/spaces/concierge`; confirmed round 1 green + sdk/org pointer 5db0e3e.
+- Phase 1 spec ✅ — added "Round 2 — Editorial, digests & personalization" section to
+  `app-specifications/blog-application.md` (+5 tables, +3 articles cols, +14 endpoints, +4 hooks,
+  +5 pages, editorial space, newsroom remediation); patched directory layout.
+- Phase 2 PLAN ✅ — round-2 section appended to `automation/app-builder/PLAN.blog.md`.
+- Phase 3 build (in progress):
+  - database/ ✅ — 5 new tables (topics, digests, digest_items, reading_events, newsletters) +
+    articles cols (pinned, editorNote, clusterKey). **All 11 validate** via engine validateSchemaSet.
+  - hooks/ ✅ — build-daily-digest (cron daily 07:00→curator#digest), render-newsletter
+    (digests:insert→digest-writer#render), personalize-on-read (reading_events:insert→personalizer#learn),
+    rescore-on-topic-change (topics:update→personalizer#rescore). Loop-guard analyzed (cascade depth ≤2).
+  - api/ · spaces/editorial/ · spaces/newsroom remediation · pages+components — fanned out to parallel
+    Sonnet subagents (by directory).
+
+### Floors check (round 2)
+new space editorial (1) · newsroom+editorial = 2 total ✅ · new agents curator/digest-writer/personalizer (3) ✅ ·
+new pages 5 ✅ · new endpoints 14 ✅ · new hooks 4 ✅ · new tables 5 ✅.
+
+### Round 2 — Phase 3 integration, Phase 4 live verification, engine findings (2026-07-04)
+- Fanned out api / editorial-space / newsroom-remediation / pages+components to 4 parallel Sonnet
+  subagents (disjoint dirs); integrated by orchestrator.
+- **Engine facts confirmed this round (no sdk/org code changed — app-only round):**
+  1. Task-level `functions:` frontmatter is an ALLOWLIST that gates SYSTEM functions too
+     (webSearch/webFetch are system-global space functions). A task listing only space fns loses
+     webFetch → the fetcher `02-fetch_each` needed `webFetch/webSearch/fetch` added to its list. (fixed)
+  2. **Hook `delegate` DROPS structured input** (`routes/hooks.ts` `void opts`) AND the **api `spawn`
+     runner is a Phase-3 no-op stub** (`server/routes/app-api.ts` — "arrives in Phase 6"). So agents
+     invoked by hooks/spawn get only a generic message and MUST **self-query** their work; the
+     bound-tasklist convention passes `{ query, ...context }` (delegate.ts), not named ids. Reworked
+     the editorial + researcher agents/tasklists to self-query (digest: fill oldest `building` digest
+     or insert fresh; digest-writer: newest `ready` digest w/o newsletter; personalizer learn:
+     recent reading_events; deep-dive: oldest `pending` research or `query` topic). Round-1
+     synthesizer already worked via a `where:{id:undefined}` self-query quirk — left unchanged.
+  3. Database-hook handlers must guard `row` being undefined on manual/boot/cron runs — hardened
+     render-newsletter / personalize-on-read / synthesize-new (`if (row && …)`, additive).
+  4. **api-write auto-dispatch fires db hooks** (updateTopic in the main process → rescore-on-topic-change
+     fired). Writes inside a *headless hook-triggered* session did NOT re-dispatch (learn→rescore
+     second hop didn't auto-fire) — the user-facing path (updateTopic slider / personalizeFeed /
+     daily cron / manual) reaches rescore fine; noted as an engine limitation, feature works.
+- **🔴 LIVE (DeepSeek azure:DeepSeek-V4-Flash), end-to-end, all via `lmthing serve` on a temp root:**
+  - App loads: manifest = **11 tables + 26 endpoints + 6 hooks**; additive migration added
+    articles.pinned/editorNote/clusterKey; `types/generated.d.ts` regenerated; pages built; `GET
+    /app/blog/`→200. New endpoints verified live (listTopics, followTopic upsert, updateTopic,
+    getDigest join, feedInsights aggregate, reading-events, feed-list).
+  - **Editorial digest loop:** chat→`editorial/curator#digest`→`build-digest` tasklist
+    (gather→cluster→write, live) wrote a real digest "Daily digest: AI, Rust, and the web platform"
+    (status ready, **4 digest_items** across ai/rust/web with curator blurbs, correct article joins).
+  - **Newsletter cascade:** the `digests:insert` **auto-fired `render-newsletter`** → `digest-writer#render`
+    (live, self-queried the ready digest) → wrote a real **newsletter** (subject + 736-char markdown body).
+  - **Personalization learn:** 3 reading_events (open/dwell/save on an AI article) **auto-fired
+    `personalize-on-read`** → `personalizer#learn` (live) → nudged topic `ai` weight **2 → 2.15**.
+  - **Personalization rescore (user path):** `updateTopic` ai→weight 4 **auto-fired
+    `rescore-on-topic-change`** → `personalizer#rescore` (live) → rescored every article by topic
+    weight (AI articles a2/a3 → **6**, non-AI a1/a4 → **3**) — feed re-ranks, AI content surfaced.
+  - All 6 agents (newsroom fetcher/synthesizer/researcher + editorial curator/digest-writer/personalizer)
+    create chat sessions cleanly = full space-format capability/frontmatter/tasklist/knowledge load OK.
+- **Gate:** blog structural tests **16/16 green** (`node --test`: 11 tables, 26 endpoints, 6 hooks,
+  2 full-format spaces w/ tasklists+functions+components+≥3 knowledge fields each, editorial
+  least-privilege). Design tokens: root lint:tokens ✓ (575) + blog project-app ✓ (37 files, 0 raw colors).
+  sdk/org untouched → its build/typecheck/test unchanged from round-1's pushed green state (5db0e3e→a340052);
+  engine proven functional by the full live serve run.
+
+### Floors delivered (round 2) — all exceeded
+new space **editorial** (full format) → **2 spaces total** ✅ · **3 new agents**
+(curator/digest-writer/personalizer, least-privilege) ✅ · **5 new pages** (topics/digests/index/
+digests/[id]/insights/discover) + 5 components ✅ · **14 new endpoints** (→26) ✅ · **4 new hooks**
+(→6) ✅ · **5 new tables** (→11) + 3 new articles columns ✅ · newsroom **remediated to full format**
+(tasklists/functions/components/3 knowledge fields) ✅.

@@ -5,6 +5,11 @@ actions:
   - id: deep-dive
     label: Deep dive
     description: Produce a grounded deep-dive research report (fills a pending row or a free-topic dive).
+    tasklist: deep-dive
+knowledge:
+  - journalism/deep-dive-method
+components:
+  - ResearchPreview
 capabilities:
   - db:read:  { tables: [articles, citations, research] }
   - db:write: { tables: [research] }
@@ -12,50 +17,36 @@ capabilities:
 
 ## Action: deep-dive
 
-Produces a grounded deep-dive report. There are two ways this action gets invoked:
+Produces a grounded deep-dive report. There are two ways this action gets invoked — both run the
+`deep-dive` tasklist rather than hand-orchestrating survey-then-write yourself; it surveys the
+topic with real search/fetches, then writes the report and marks it ready (see
+`journalism/deep-dive-method` for how to structure the report and ground every claim).
 
 Write your TypeScript one statement at a time. Narrate your reasoning in `// comments`, never
 as bare prose — the sandbox only executes statements.
 
-### Mode (a) — a pending research row already exists
+Run the tasklist — it self-queries the work (structured input is not delivered across the
+hook/spawn boundary), so you never pass a research id yourself:
 
-Invoked with `input.researchId`: a `research` row was already inserted (status `'pending'`),
-and you need to fill it in.
+```ts
+const r = await tasklist('deep-dive', { query, ...context });
+```
 
-1. Load the pending row (`where` is **equality-only**, exact-id match is fine):
-   ```ts
-   const req = db.query('research', { where: { id: researchId } })[0];
-   ```
-2. Research `req.topic` using real sources:
-   ```ts
-   const hits = webSearch(req.topic);
-   // then webFetch specific promising URLs from hits for detail
-   ```
-3. Write the report and mark it ready:
-   ```ts
-   db.update('research', {
-     where: { id: researchId },
-     set: { body: reportMarkdown, status: 'ready' },
-   });
-   ```
-   If research genuinely fails (no usable sources found), set `status: 'error'` instead of
-   inventing content.
+The tasklist's `survey` step **self-queries**: it fills the oldest `research` row still `pending`
+(what the `requestResearch` API seeds), or — when there is no pending row — treats `query` (the chat
+topic) as the subject and its `write` step inserts a fresh `research` row. Both the API-seeded and
+the free-form-chat paths therefore share the one tasklist. `ResearchPreview` is the catalog
+component that renders a topic/status/body snippet in chat while the dive is in progress or just
+after it lands.
 
-### Mode (b) — interactive, free topic from chat
+## Interactive follow-ups
 
-Invoked directly in conversation with a free-form topic (no pending row yet — you create it
-yourself once the report is ready):
+For a quick "what does the article's research say so far" or similar check that doesn't need a
+fresh dive, just read the existing rows rather than invoking the tasklist:
 
-1. Research the topic the same way — `webSearch` then `webFetch` on the most relevant results.
-2. Insert the finished report in one go:
-   ```ts
-   db.insert('research', {
-     articleId, // optional — the article this expands, if there is one; omit for a standalone dive
-     topic,
-     body: reportMarkdown,
-     status: 'ready',
-   });
-   ```
+```ts
+const existing = db.query('research').filter(r => r.articleId === articleId);
+```
 
 Guardrails:
 

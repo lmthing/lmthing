@@ -1,0 +1,16 @@
+{
+  "title": "Newsletters",
+  "description": "A rendered, send-ready newsletter edition built from a digest by the editorial digest-writer.",
+  "columns": {
+    "id":        { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "digestId":  { "type": "string", "description": "the digest this edition was rendered from", "required": true,
+                   "references": { "table": "digests", "column": "id", "onDelete": "cascade" } },
+    "subject":   { "type": "string", "description": "the email-style subject line", "required": true },
+    "body":      { "type": "string", "description": "the full newsletter edition, markdown", "required": true },
+    "sentAt":    { "type": "date",   "description": "when the edition was sent (null until sent)" },
+    "createdAt": { "type": "date",   "description": "when the edition was rendered", "generated": "now" }
+  },
+  "relations": {
+    "digest": { "belongsTo": "digests", "via": "digestId", "description": "the digest this edition was rendered from" }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "title": "Digest items",
+  "description": "One ordered slot in a digest — a chosen article with the curator's blurb and its topic bucket.",
+  "columns": {
+    "id":        { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "digestId":  { "type": "string", "description": "the digest this slot belongs to", "required": true,
+                   "references": { "table": "digests", "column": "id", "onDelete": "cascade" } },
+    "articleId": { "type": "string", "description": "the article featured in this slot", "required": true,
+                   "references": { "table": "articles", "column": "id", "onDelete": "cascade" } },
+    "topicSlug": { "type": "string", "description": "the topic bucket this slot is filed under (matches a topics.slug / articles.tags entry)" },
+    "position":  { "type": "number", "description": "display order within the digest; lower = higher up", "default": 0 },
+    "blurb":     { "type": "string", "description": "the curator's one-line 'why this matters' for the slot" }
+  },
+  "relations": {
+    "digest":  { "belongsTo": "digests",  "via": "digestId",  "description": "the digest this slot is part of" },
+    "article": { "belongsTo": "articles", "via": "articleId", "description": "the article featured in this slot" }
+  }
+}

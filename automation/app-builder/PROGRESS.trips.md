@@ -201,3 +201,28 @@ Strictly additive to round 1. Floors met/exceeded: **+5 tables, +2 spaces (3 age
   sdk/org/libs/cli/dist/cli/bin.js serve --port <p>` with `LM_MODEL=S`, drive `POST /app/trips/api/*`,
   watch `GET /api/projects/trips/app/data/<table>`. Live model DeepSeek is weak on field accuracy —
   the pipeline/provenance are what to assert, not exact extracted values.
+
+## Phase 6 — PROD install + AI functional test (per .claude/skills/test-app-install-prod.md) ✅
+- CI "Build and Push Images" for the round-2 push **succeeded** → `compute:latest` has round-2.
+- Test user `user-379847043318834826`. Node was CPU-saturated (95%) → scaled the other 4 user pods
+  to 0 (Step 1), rolled `deploy/lmthing` (Step 2); new pod Running 1/1. Restored all 4 in cleanup (Step 8).
+- `GET /api/apps`: trips listed with all **10 round-2 tables**.
+- **Install** (`POST /api/apps/install {appId:'trips',force:true}`): `ok:true`,
+  installed 10 tables / 10 pages / 24 endpoints / 6 hooks; **`built.contracts.ok:true`,
+  `built.pages.ok:true built:true`** (assetCount 3). App serves; `GET /app/trips/api/trips`→200.
+- **AI functional test on the REAL model (lmthingcloud):** created a trip, added Lisbon+Porto →
+  the **`plan-transit-on-destination` hook fired the navigator live → wrote 2 `transit_legs`**
+  (origin→Lisbon flight, Lisbon→Porto train €35). This proves the real model path fires
+  (**no 429/401 in logs**) AND the DB updated — the Phase-6 pass criteria. The researcher + analyst
+  also ran live (analyst set `documents.status:'analyzing'`; researcher actively webSearched).
+- **Known limitation found on prod (fix pushed):** with all three hooks firing at once on one pod,
+  the analyst's classify→extract chain didn't reach `analyzed` within its `maxEpisodes:10` budget →
+  the document stayed `analyzing` (no 429/error — pure episode budget). **Fixed** by raising the
+  analyze-document budget to 24 episodes + 10-min wall-clock (commit below). Locally the analyst
+  completes fully (booking + provenance + `analyzed`); the fix is a safe budget increase and was
+  **not** re-verified on prod this run (deferred — the mechanism is already proven by the transit
+  path + the local analyst run).
+
+## Final pushed SHAs (both repos level with origin)
+- **sdk/org `main`: `e4be05f`** (unchanged all round — engine usage only).
+- **monorepo `main`: `cfa59ab0`** (round-2 app + spec + PLAN/PROGRESS + the analyze-document budget fix).

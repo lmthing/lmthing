@@ -13,6 +13,8 @@ resources:
   - chat-policies.yaml
   - studio-routes.yaml
   - studio-policies.yaml
+  - app-routes.yaml
+  - app-policies.yaml
   - spa-routes.yaml
 
 replacements:

@@ -1,0 +1,74 @@
+# Per-user routing + JWT auth for lmthing.app — mirrors studio/chat exactly.
+# (JWT from Authorization: Bearer header OR access_token query param → sub claim →
+# x-user-id → Lua builds the per-user pod upstream.)
+
+# Lua script: extracts user ID from the JWT-derived x-user-id header, constructs
+# the per-user pod upstream (identical to studio-lua-routing / chat-lua-routing).
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyExtensionPolicy
+metadata:
+  name: app-lua-routing
+  namespace: gateway
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: app-proxy
+  lua:
+    - type: Inline
+      inline: |
+        function envoy_on_request(request_handle)
+          request_handle:headers():remove("x-dynamic-host-header")
+
+          local user_id = request_handle:headers():get("x-user-id")
+          if user_id == nil then
+            request_handle:respond(
+              {[":status"] = "401", ["content-type"] = "text/plain"},
+              "missing user_id claim"
+            )
+            return
+          end
+
+          if not string.match(user_id, "^[A-Za-z0-9_-]+$") then
+            request_handle:respond(
+              {[":status"] = "400", ["content-type"] = "text/plain"},
+              "invalid user_id"
+            )
+            return
+          end
+
+          local upstream = "lmthing.user-" .. user_id .. ".svc.cluster.local:8080"
+          request_handle:headers():replace("x-dynamic-host-header", upstream)
+        end
+
+---
+# JWT validation — extracts `sub` claim as x-user-id header (identical to studio-jwt:
+# gateway-issued HS256 token validated via the local gateway-jwt-jwks ConfigMap).
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: app-jwt
+  namespace: gateway
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: app-proxy
+  jwt:
+    providers:
+      - name: gateway
+        extractFrom:
+          headers:
+            - name: Authorization
+              valuePrefix: "Bearer "
+          params:
+            - access_token
+        claimToHeaders:
+          - claim: sub
+            header: x-user-id
+        localJWKS:
+          type: ValueRef
+          valueRef:
+            group: ""
+            kind: ConfigMap
+            name: gateway-jwt-jwks

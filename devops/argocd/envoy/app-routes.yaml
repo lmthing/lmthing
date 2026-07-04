@@ -1,0 +1,65 @@
+# lmthing.app — the project-app surface. Routed EXACTLY like lmthing.chat/lmthing.studio:
+# per-user pod proxy via the shared `rewrite-host-from-header` filter + dynamic-user-backend,
+# JWT-authenticated (Authorization: Bearer header OR ?access_token= param) and Lua-routed to
+# `lmthing.user-<sub>.svc.cluster.local:8080`. Paths pass through UNCHANGED (like chat's
+# /api proxy keeps its prefix): the pod serves app content under /app/<project>/…, so
+# lmthing.app/app/<project>/… reaches the app pages + their /app/<project>/api/*.
+
+# HTTP -> HTTPS redirect
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: app-http-redirect
+  namespace: gateway
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: lmthing-gw
+      sectionName: app-http
+  hostnames:
+    - lmthing.app
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+
+---
+# /* -> Dynamic per-user backend (JWT-authenticated, Lua-routed). The served app
+# bundle's fetches carry `Authorization: Bearer`; its WS carries `?access_token=`.
+# No path rewrite (like chat-api-proxy): the pod's routes are kept verbatim.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: app-proxy
+  namespace: gateway
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: lmthing-gw
+      sectionName: app-https
+  hostnames:
+    - lmthing.app
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.envoyproxy.io
+            kind: HTTPRouteFilter
+            name: rewrite-host-from-header
+      backendRefs:
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: dynamic-user-backend
+          weight: 1

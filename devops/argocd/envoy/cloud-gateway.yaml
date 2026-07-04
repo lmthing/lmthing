@@ -113,6 +113,27 @@ spec:
       allowedRoutes:
         namespaces:
           from: Same
+    # ── lmthing.app ────────────────────────────────────────────
+    - name: app-http
+      hostname: lmthing.app
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: app-https
+      hostname: lmthing.app
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: lmthing-app-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
     # ── lmthing.com ────────────────────────────────────────────
     - name: com-http
       hostname: lmthing.com

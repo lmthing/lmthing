@@ -239,6 +239,35 @@ parent monorepo — never leave one pushed and the other not.** Do them in this 
   both `main`s must be pushed together — a submodule pointer on parent `main` must never
   reference an unpushed submodule commit.
 
+### Phase 6 — Prod install + AI functional test (REQUIRED after every run)
+After the push, verify the app **actually works installed on the live cluster**, following the
+runbook in `.claude/skills/test-app-install-prod.md` — **read it in full first**. Do this every run.
+- **Get the pushed build onto the test pod.** Your Phase-5 push to `main` triggers CI to rebuild
+  the `compute` + `store` images; the app is installable once the test user's pod runs the new
+  `compute:latest`. Per the skill (Step 2), over SSH: `kubectl rollout restart deploy/lmthing -n
+  <TEST>`, wait for rollout, and confirm `GET http://<POD_IP>:8080/api/apps` lists `__APP__`.
+  CI/ArgoCD is flaky (memory `reference-prod-test-user-and-deploy`) — `gh run rerun --failed` /
+  force an ArgoCD hard refresh and retry rather than giving up. If the new image genuinely hasn't
+  deployed this cycle, **record it in PROGRESS and test against the current image (or defer the
+  functional check to the next run) — do NOT fail the whole run for deploy lag.**
+- **Session + install** (skill Steps 3–5): mint a gateway JWT for the test user (SSH + `node:crypto`;
+  **never print the secret**), seed `localStorage.lmthing_session` on `lmthing.store` + `lmthing.app`,
+  and drive `store → Install __APP__ → /app/__APP__/` with the **chrome-devtools MCP**; cross-check
+  server-side with `POST /api/apps/install {appId:'__APP__'}` and confirm `built.pages.ok:true`.
+- **AI functional test** (skill Step 6): open `/app/__APP__/`, drive the app's **primary AI action**
+  (blog: add a source → the enrich hook populates an article; kitchen: generate a plan; health: add a
+  lab → interpreter flags; trips: create a trip → concierge researches) and confirm the real model
+  path fires — `/v1/*` LiteLLM calls return **200** (not 429 budget / 401) and the **DB updated**
+  (the app's list endpoint / `GET /api/projects/__APP__/…` shows new rows). Take screenshots.
+- **Be conservative with the cluster:** only scale other user pods down to free CPU (skill Step 1) if
+  the node is genuinely saturated, and **always scale them back up in cleanup (Step 8)**. Leave the
+  test user's install in place.
+- **Record the outcome in `PROGRESS.__APP__.md`** (installed? pages built? AI call 200? DB updated? +
+  screenshots) and file a `.issues/` entry for any real defect (install 404, `@app/runtime` unresolved,
+  blank page, hook that never fires). **If the app installs+builds but a functional bug appears, fix it
+  and re-push (Phase 5)** — the app must actually *work* installed, not merely build green. (Fanning the
+  test across Sonnet subagents per skill Step 7 is optional — one app per run, so a single pass suffices.)
+
 ## Hard rules
 - **Read both `sdk/org/project-as-application.md` AND
   `sdk/org/project-as-application-implementation.md` in full at the start of every run** —
@@ -251,6 +280,10 @@ parent monorepo — never leave one pushed and the other not.** Do them in this 
 - Update `automation/app-builder/PROGRESS.__APP__.md` continuously. It is the memory across
   5-hour runs — treat it as the single source of truth for status.
 - Never leave `main` broken. Green or nothing on `main`.
+- **After every run, prod-install + AI-functional-test the app** per
+  `.claude/skills/test-app-install-prod.md` (Phase 6) — it must actually work installed on the
+  live cluster, not just build green locally. Record the result in PROGRESS; deploy lag is not a
+  run failure, but a real functional bug is (fix + re-push).
 - **Always push `main` on BOTH repos** — the `sdk/org` submodule and the parent monorepo —
   at the end of a successful run (Phase 5). Submodule first, then the parent (which bumps the
   pointer). Never push one without the other.

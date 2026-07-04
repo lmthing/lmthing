@@ -2,16 +2,21 @@
 
 > **STATUS 2026-07-04: `lmthing.app` is LIVE.** Set up exactly like `lmthing.studio`/`lmthing.chat`
 > (`devops/argocd/envoy/app-routes.yaml` + `app-policies.yaml`, gateway `app-http`/`app-https`
-> listeners, `lmthing-app-tls` Let's Encrypt cert). Per-user pod routing via the shared
-> `rewrite-host-from-header` filter + `dynamic-user-backend`, JWT (`Authorization: Bearer` OR
-> `?access_token=`) → `sub`→`x-user-id` → Lua → `lmthing.user-<id>.svc:8080`. Paths pass through
-> unchanged (like chat's `/api` proxy), so the app surface is reached at `lmthing.app/app/<project>/…`.
-> Verified: HTTP→HTTPS 301, valid TLS, and `401 "Jwt is missing"` without a token (auth layer live).
-> **Remaining (optional):** (1) if the clean root-anchored URL `lmthing.app/<project>/` (→ pod
-> `/app/<project>/`) is wanted instead of `lmthing.app/app/<project>/`, add a `ReplacePrefixMatch /app`
-> URLRewrite to `app-proxy`. (2) `lmthing.studio` same-origin `/app/*` preview passthrough is not yet
-> wired (studio currently proxies only `/api/*`). (3) the browser token-handoff (how a top-level nav
-> gets the `access_token`) rides the same self-auth flow the chat/studio SPAs use.
+> listeners, `lmthing-app-tls` Let's Encrypt cert):
+> - **`/*` → the JWT-FREE unified-SPA shell** (`app-static` → the shared `studio` Service) — it
+>   renders the **login page** when unauthenticated and self-authenticates via `@lmthing/auth`. This
+>   is why the other domains show login rather than a raw 401; the shell is public.
+> - **`/api/*` → per-user pod** (`app-api-proxy` → `dynamic-user-backend` via the shared
+>   `rewrite-host-from-header` filter), JWT (`Authorization: Bearer` OR `?access_token=`) →
+>   `sub`→`x-user-id` → Lua → `lmthing.user-<id>.svc:8080`.
+> Verified live: `/` → 200 (SPA HTML + JWT-free assets), `/api/*` → 401 without a token, HTTP→HTTPS 301,
+> valid Let's Encrypt TLS.
+> **Remaining (optional, for a DEDICATED app surface):** the SPA has no `/app` surface yet, so
+> `surfaceForHost('lmthing.app')` falls back to `/studio` (`apps/web/src/routes/index.tsx`). To make
+> `lmthing.app` its own end-user surface that browses/launches installed apps and renders a project's
+> pod-served pages (`/app/<project>/…`), add an `/app` route to `apps/web` + `lmthing.app` to
+> `HOST_SURFACE`, and (if serving pod pages same-origin) an `app-pages-proxy` for `/app/*` → pod
+> alongside `/api/*`. `lmthing.studio` `/app/*` preview passthrough is likewise not yet wired.
 
 ---
 

@@ -1,0 +1,13 @@
+{
+  "name": "@lmthing/app-trips",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "lmthing.trips — an AI trip planner, as a project-application (database + pages + api + hooks + concierge space).",
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@lmthing/ui": "workspace:*",
+    "@lmthing/css": "workspace:*"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "title": "Destinations",
+  "description": "A place the trip visits, with the dates the traveller is there. The unit the researcher and scheduler fan out over.",
+  "columns": {
+    "id":            { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "tripId":        { "type": "string", "description": "the trip this destination belongs to", "required": true,
+                       "references": { "table": "trips", "column": "id", "onDelete": "cascade" } },
+    "name":          { "type": "string", "description": "the place name, e.g. 'Lisbon'", "required": true },
+    "arrivalDate":   { "type": "date",   "description": "day the traveller arrives here" },
+    "departureDate": { "type": "date",   "description": "day the traveller leaves" },
+    "orderIndex":    { "type": "number", "description": "position in the trip sequence; lower comes first", "default": 0 },
+    "notes":         { "type": "string", "description": "planner notes about why this stop and what to prioritise" }
+  },
+  "relations": {
+    "trip":     { "belongsTo": "trips",           "via": "tripId",        "description": "the parent trip" },
+    "items":    { "hasMany":   "itinerary_items", "via": "destinationId", "description": "scheduled items while here" },
+    "research": { "hasMany":   "research",         "via": "destinationId", "description": "deep-dive reports for this place" }
+  }
+}

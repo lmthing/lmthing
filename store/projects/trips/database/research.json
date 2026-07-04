@@ -1,0 +1,19 @@
+{
+  "title": "Research reports",
+  "description": "A deep-dive the researcher agent produced for a destination or a free topic (e.g. 'best pasteis de nata in Belem').",
+  "columns": {
+    "id":            { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "tripId":        { "type": "string", "description": "the trip this research is for", "required": true,
+                       "references": { "table": "trips", "column": "id", "onDelete": "cascade" } },
+    "destinationId": { "type": "string", "description": "the destination this expands (null for a trip-wide topic)",
+                       "references": { "table": "destinations", "column": "id", "onDelete": "cascade" } },
+    "topic":         { "type": "string", "description": "the question or theme researched", "required": true },
+    "body":          { "type": "string", "description": "the report, markdown; empty while pending" },
+    "status":        { "type": "string", "description": "'pending' while the researcher runs, 'ready' when done", "default": "pending" },
+    "createdAt":     { "type": "date",   "description": "when the dive was requested", "generated": "now" }
+  },
+  "relations": {
+    "destination": { "belongsTo": "destinations", "via": "destinationId", "description": "the place being expanded" },
+    "trip":        { "belongsTo": "trips",         "via": "tripId",        "description": "the trip it belongs to" }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "title": "Bookings",
+  "description": "A confirmed reservation the traveller has made for the trip.",
+  "columns": {
+    "id":           { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "tripId":       { "type": "string", "description": "the trip this booking is for", "required": true,
+                      "references": { "table": "trips", "column": "id", "onDelete": "cascade" } },
+    "kind":         { "type": "string", "description": "'flight' | 'hotel' | 'car' | 'activity'", "required": true },
+    "provider":     { "type": "string", "description": "airline / hotel / vendor name" },
+    "confirmation": { "type": "string", "description": "confirmation / reference code" },
+    "cost":         { "type": "number", "description": "amount paid, in the trip's budget currency", "default": 0 },
+    "startAt":      { "type": "date",   "description": "when the booking begins (check-in, departure)" },
+    "endAt":        { "type": "date",   "description": "when it ends (check-out, arrival)" },
+    "url":          { "type": "string", "description": "link to the reservation" }
+  },
+  "relations": {
+    "trip":  { "belongsTo": "trips",           "via": "tripId",     "description": "the trip it belongs to" },
+    "items": { "hasMany":   "itinerary_items", "via": "bookingId",  "description": "itinerary items backed by this booking" }
+  }
+}

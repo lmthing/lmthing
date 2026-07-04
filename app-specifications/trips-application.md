@@ -148,6 +148,8 @@ loud on any missing one. Foreign keys map to real SQLite `FOREIGN KEY` (`PRAGMA 
     "title":         { "type": "string", "description": "what it is, e.g. 'Jerónimos Monastery'", "required": true },
     "location":      { "type": "string", "description": "address or area for the item" },
     "notes":         { "type": "string", "description": "tips, reservations needed, walking time" },
+    "estimatedCost": { "type": "number", "description": "rough per-item cost the researcher/scheduler estimates, in the item's currency; feeds the budget roll-up", "default": 0 },
+    "currency":      { "type": "string", "description": "ISO currency code for estimatedCost, e.g. 'USD'/'EUR'", "default": "USD" },
     "bookingId":     { "type": "string", "description": "the reservation backing this item, if any (kept when booking removed → set null)",
                        "references": { "table": "bookings", "column": "id", "onDelete": "setNull" } } },
   "relations": {
@@ -255,6 +257,8 @@ agents via `apiCall`).
 | `createTrip` | `POST api/trips` | `{ title, brief, startDate?, endDate?, budgetUsd? }` → `{ tripId, status:'planning' }` |
 | `getTrip` | `GET api/trips/:id` | `{ id }` → `Trip & { destinations: (Destination & { items })[] }` |
 | `updateTrip` | `PATCH api/trips/:id` | `{ id, …fields }` → `Trip` |
+| `deleteTrip` | `DELETE api/trips/:id` | `{ id }` → `{ ok }` (cascades destinations → items + bookings) |
+| `tripBudget` | `GET api/trips/:id/budget` | `{ id }` → `{ budgetUsd, booked, estimated, remaining, byKind }` (budget roll-up, round-1 core) |
 | `addDestination` | `POST api/trips/:id/destinations` | `{ id, name, arrivalDate?, departureDate? }` → `Destination` |
 | `updateItem` | `PATCH api/items/:id` | `{ id, day?, startTime?, …}` → `ItineraryItem` |
 | `removeItem` | `DELETE api/items/:id` | `{ id }` → `{ ok }` |
@@ -430,15 +434,17 @@ Beyond the core describe → researched-itinerary loop, these earn their place b
 trip-planning pain. Each is **additive** — new tables/endpoints/hooks + agent capabilities on the same
 engine — so it ships after the core loop without reworking it.
 
-### Budget roll-up — "will this blow my budget?"
+### Budget roll-up — "will this blow my budget?"  *(promoted into round-1 core)*
 Cost is the question that actually kills or greenlights a trip, and it's invisible in a plain itinerary.
-- **Data**: add `estimatedCost` + `currency` to `itinerary_items` (the researcher writes rough costs
-  it finds); `bookings.cost` already exists.
-- **API**: `tripBudget` `GET api/trips/:id/budget` → `{ budgetUsd, booked, estimated, remaining, byCategory }`
-  — sums confirmed `bookings.cost` + item `estimatedCost` against `trips.budgetUsd`.
-- **Pages**: a budget strip on `/trips/:id` (booked vs estimated vs cap; over-budget rendered in a
-  warning design token). The planner reads the roll-up and, in chat, trims or swaps to fit ("keep it
-  under €1,500").
+Small enough and valuable enough that it ships **with the core loop** rather than as a later add-on.
+- **Data**: `estimatedCost` + `currency` on `itinerary_items` (the researcher/scheduler write rough
+  costs); `bookings.cost` already exists.
+- **API**: `tripBudget` `GET api/trips/:id/budget` → `{ budgetUsd, booked, estimated, remaining, byKind }`
+  — sums confirmed `bookings.cost` + item `estimatedCost` against `trips.budgetUsd`, grouped by item/booking
+  `kind`.
+- **Pages**: a `BudgetStrip` on `/trips/:id` (booked vs estimated vs cap; over-budget rendered in a
+  `text-destructive`/warning design token). The planner reads the roll-up and, in chat, trims or swaps to
+  fit ("keep it under €1,500").
 
 ### Packing list — weather- and activity-aware
 A list generated from where you're going, when, and what you'll actually do beats a generic template.
@@ -462,6 +468,31 @@ The itinerary should tell you *when to act*, not just what to do.
 - **Hook**: `cron daily` scans items with `needsBooking && !bookingId && bookByDate` approaching and
   surfaces a reminder ("book Jerónimos tickets — sells out ~2 weeks out"), using the parent plan's
   **user-facing hook deferral** surface.
+
+## Engine reconciliation (round-1 build notes)
+
+Grounded in the **shipped** engine (`sdk/org/libs/{core,cli}`, built through Phase 8; `system-appbuilder`
+is not built, so `trips` is **hand-authored** under `store/projects/trips/`, no THING/appbuilder
+delegation to scaffold it). Honest reconciliation of the spec against the real runtime:
+
+- **`webSearch`/`webFetch`/`fetch` are universal system globals**, gated by an agent's `functions:`
+  frontmatter (the space's own `functions/` dir), **not** `api:call` named bindings — there is no
+  external-binding registry (`mapsSearch`/`weatherLookup` bindings are aspirational, deferred). The
+  `researcher` therefore simply omits `functions:` (keeping the universal `webSearch`/`webFetch`) and its
+  `api:call` allow is reserved for the app's own typed endpoints. Prices/maps come from `webSearch`.
+- **`db.query` `where` is equality-only** (`Record<string,unknown>` + `include`/`orderBy`/`limit`/
+  `offset`) — no `LIKE`/ranges; agents and handlers query-all then filter/sort in JS.
+- **Row-type interface names** are the engine's deterministic singularizer: `trips→Trip`,
+  `destinations→Destination`, `itinerary_items→ItineraryItem`, `bookings→Booking`, `research→Research`.
+- **Named delegate actions need an `actions:` frontmatter entry** (empty tasklist ⇒ model-driven); the
+  hook's `delegate('concierge/researcher','dive',…)` and the planner's `#plan-trip`/scheduler's `#lay-out`
+  therefore each resolve to a declared action/tasklist.
+- **The `concierge` space is built in the FULL space format from round 1** (not `agents/`-only): every
+  agent ships a `charter.md` (fork-safe identity) **and** `instruct.md`; the space ships a `plan-trip`
+  `tasklists/` decomposition (the `research_each` `forEach` fan-out), reusable `functions/` (day grouping,
+  budget roll-up, dedupe), catalog `components/`, and **extensive `knowledge/`** (destination-research
+  method, itinerary-pacing craft, budgeting) — each field an `index.md` overview + ≥2 `<aspect>.md`
+  deep-dives.
 
 ## Phases & order
 

@@ -1,0 +1,24 @@
+{
+  "title": "Itinerary items",
+  "description": "One scheduled thing on a specific day — an activity, a meal, a transit leg, or a lodging block.",
+  "columns": {
+    "id":            { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "destinationId": { "type": "string", "description": "the destination this item happens at", "required": true,
+                       "references": { "table": "destinations", "column": "id", "onDelete": "cascade" } },
+    "day":           { "type": "date",   "description": "the calendar day of this item", "required": true },
+    "startTime":     { "type": "string", "description": "local start time 'HH:MM' (null = flexible)" },
+    "endTime":       { "type": "string", "description": "local end time 'HH:MM' (null = flexible)" },
+    "kind":          { "type": "string", "description": "'activity' | 'meal' | 'transit' | 'lodging'", "required": true },
+    "title":         { "type": "string", "description": "what it is, e.g. 'Jerónimos Monastery'", "required": true },
+    "location":      { "type": "string", "description": "address or area for the item" },
+    "notes":         { "type": "string", "description": "tips, reservations needed, walking time" },
+    "estimatedCost": { "type": "number", "description": "rough per-item cost the researcher/scheduler estimates, in the item's currency; feeds the budget roll-up", "default": 0 },
+    "currency":      { "type": "string", "description": "ISO currency code for estimatedCost, e.g. 'USD'/'EUR'", "default": "USD" },
+    "bookingId":     { "type": "string", "description": "the reservation backing this item, if any (kept when booking removed → set null)",
+                       "references": { "table": "bookings", "column": "id", "onDelete": "setNull" } }
+  },
+  "relations": {
+    "destination": { "belongsTo": "destinations", "via": "destinationId", "description": "where this happens" },
+    "booking":     { "belongsTo": "bookings",      "via": "bookingId",     "description": "the reservation behind it" }
+  }
+}

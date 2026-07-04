@@ -1,0 +1,18 @@
+{
+  "title": "Trips",
+  "description": "One trip the user is planning or has taken — the top-level container the concierge builds around.",
+  "columns": {
+    "id":        { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "title":     { "type": "string", "description": "short trip name shown in the list, e.g. 'Portugal, October'", "required": true },
+    "brief":     { "type": "string", "description": "the user's original free-text description of what they want" },
+    "startDate": { "type": "date",   "description": "first day of the trip" },
+    "endDate":   { "type": "date",   "description": "last day of the trip" },
+    "status":    { "type": "string", "description": "'planning' while the concierge builds it, 'booked', or 'complete'", "default": "planning" },
+    "budgetUsd": { "type": "number", "description": "rough total budget the planner should respect", "default": 0 },
+    "createdAt": { "type": "date",   "description": "when the trip was created", "generated": "now" }
+  },
+  "relations": {
+    "destinations": { "hasMany": "destinations", "via": "tripId", "description": "the places on this trip, in order" },
+    "bookings":     { "hasMany": "bookings",     "via": "tripId", "description": "confirmed reservations for this trip" }
+  }
+}

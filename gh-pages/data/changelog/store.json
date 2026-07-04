@@ -1,5 +1,15 @@
 [
   {
+    "hash": "128aeeb9",
+    "full_hash": "128aeeb9692edc1867cd7b36341ffe8ce8deadab",
+    "type": "fix",
+    "scope": "store",
+    "subject": "serve SPA fallback for routes colliding with dist/apps/",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-04 09:50:06 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/128aeeb9692edc1867cd7b36341ffe8ce8deadab"
+  },
+  {
     "hash": "e81a9603",
     "full_hash": "e81a96035861f69e0c6b702c013c3f814adc8fdc",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-06-30 16:39:34 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/8c4b2bfdde72233af99efd8e77e8aa8cd2cce6ea"
-  },
-  {
-    "hash": "1366456e",
-    "full_hash": "1366456ecb8ea824e2222dde5cbd8d3be13efb83",
-    "type": "chore",
-    "scope": "",
-    "subject": "update sdk/org submodule reference to latest commit",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-06-30 16:31:56 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/1366456ecb8ea824e2222dde5cbd8d3be13efb83"
   }
 ]

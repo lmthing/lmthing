@@ -434,6 +434,31 @@ Beyond the core describe → researched-itinerary loop, these earn their place b
 trip-planning pain. Each is **additive** — new tables/endpoints/hooks + agent capabilities on the same
 engine — so it ships after the core loop without reworking it.
 
+### Document upload → type-driven analysis → itinerary + research (drop your confirmations in)
+Travellers already hold the artifacts of a trip — booking-confirmation PDFs, e-ticket images, a
+forwarded itinerary, passport/visa scans, a photo of a place they want to go. Let the user **upload the
+file** and have an agent read it, extract the data into the trip by **file type**, and kick off the
+concierge research. This is a **new project-scoped space** (`records`) so it also satisfies the ≥2-spaces
+rule; it reads/writes the same project-rooted db as `concierge`.
+
+- **Data**:
+  - `documents` — one uploaded file: `id`, `tripId` FK → `trips` (`onDelete:'cascade'`; the doc belongs to a trip), `kind` (`'booking_pdf' | 'ticket_image' | 'itinerary' | 'passport_visa' | 'place_photo' | 'other'`; the analyst may correct a guessed kind), `filename`, `mime`, `storagePath` (relative path under `.data/uploads/<id>/…`, git-ignored like the db), `status` (`'pending' | 'analyzing' | 'analyzed' | 'error'`), `summary` (md — what was found), `error`, `uploadedAt` (`generated:'now'`).
+  - `document_extractions` — provenance join: `documentId` FK → `documents`, `table` (which domain table a row was written to, e.g. `'bookings'`), `rowId`, `confidence` (0..1) — every derived row traces back to its source file, and re-analysis is idempotent.
+  - `knowledge_notes` — the **db-backed knowledge store** research updates: `id`, `tripId?` FK, `destinationId?` FK, `topic`, `body` (md, cited), `sourceKind` (`'document' | 'research' | 'web'`), `documentId?` FK, `createdAt`. The `planner`/`researcher`/`scheduler` **read** this on future planning, so uploads make the trip smarter over time. (Runtime agents have **no** `knowledge:write` for space `knowledge/` files — that stays an authoring action; durable, broadly-reusable notes can later be **promoted into the `records`/`concierge` space `knowledge/` via THING → `system-appbuilder`**. Do NOT invent a runtime knowledge-write capability.)
+- **API**: `uploadDocument` `POST api/trips/:id/documents` (multipart; stores the blob under `.data/uploads/<id>/`, inserts `documents` row `status:'pending'` for that trip, returns `{ documentId, status }`); `listDocuments` `GET api/trips/:id/documents`; `getDocument` `GET api/documents/:id` (include extractions + linked rows + notes). Size/type allow-list; per-user pod isolation.
+- **Hook**: `analyze-document.ts` — **database** insert on `documents` → `delegate('records/analyst', 'analyze', { documentId })`. Idempotent (skip if `status !== 'pending'` or extractions already exist); loop-guard applies (the analyst's own `documents.status` write is self-write-excluded).
+- **Agent (`records/analyst`)** — routes **by `kind`** to a per-type action and writes the domain tables:
+  - `booking_pdf` → `pdfExtract` → parse provider/dates/confirmation/cost → `db.insert('bookings', …)` (and link an `itinerary_items` row via `bookingId`);
+  - `ticket_image` → `ocr` → a flight/train/event `bookings` + itinerary item;
+  - `itinerary` → `pdfExtract` → `destinations` + `itinerary_items` (arrival/departure days, activities);
+  - `passport_visa` → `ocr` → a durable `knowledge_notes` entry (validity/visa constraints — never fabricated into a booking);
+  - `place_photo` → best-effort caption/geo → a candidate `destinations`/note;
+  - unknown → summary + `status:'error'` with a reason. Always writes `document_extractions` and sets `documents.status`/`summary`.
+- **Research + knowledge update (the second trigger)**: after extraction the analyst delegates to `concierge/researcher#dive` for anything new (a just-added destination, a venue near a booking) — the researcher writes the usual `research` rows **and appends cited `knowledge_notes`** the planner consults next time. A newly-inserted `destinations` row also fires the existing `research-new-destination` hook, so the two paths converge (idempotence guard prevents a double-dive).
+- **Pages**: `/trips/:tripId/documents` (drag-drop upload + list with per-row status), `/documents/:id` (source summary + the extracted bookings/items/destinations it created + linked research/notes; live-polls while `status` is pending).
+- **Capabilities** (least-privilege): `records/analyst` → `db:read [documents, document_extractions, trips, destinations, bookings, itinerary_items, knowledge_notes]`, `db:write [documents, document_extractions, bookings, itinerary_items, destinations, knowledge_notes]`, `api:call [pdfExtract, ocr]` (named bindings, keys hidden), `canDelegateTo: concierge/researcher#dive`. `concierge/researcher` gains `db:write [research, knowledge_notes]`.
+- **Safety**: **sanitize all extracted/OCR'd text** (uploaded content is untrusted → XSS); **never fabricate a booking/confirmation** from a low-confidence extraction (the charter's no-invented-bookings rule extends to documents — a doubtful booking becomes a note, not a `bookings` row); blobs are strictly per-user pod-isolated and `**/.data/uploads/` is backup-excluded like `app.db`.
+
 ### Budget roll-up — "will this blow my budget?"  *(promoted into round-1 core)*
 Cost is the question that actually kills or greenlights a trip, and it's invisible in a plain itinerary.
 Small enough and valuable enough that it ships **with the core loop** rather than as a later add-on.

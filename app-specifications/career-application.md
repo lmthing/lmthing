@@ -1373,6 +1373,137 @@ pinned); engaging opens the right agent with the draft in context; **(f)** an `a
 signal surfaces in the round-5 brief with `signalIds` tracing (timing-fusion observed);
 **(g)** `pnpm lint:tokens` green.
 
+## Round 7 — The sparring room, the coherence audit & the Friday retro (feature expansion)
+
+Round 7 adds three interactions only a model can hold — **no new space**; each lands inside
+the team that owns the craft. **The sparring room**: scripts (round 2) tell you what to say;
+sparring makes you able to say it under pressure. The negotiator plays the hiring manager —
+armed with the *real* offer numbers and the *real* market brief, deploying the real tactics
+(the exploding deadline, the "we don't negotiate at this level", the long silence) — and the
+debrief scores anchoring, silence-tolerance, and concession discipline against the same rubric
+machinery mocks use. **The coherence audit**: by round 6 you have a resume per application, a
+story bank, public posts, review packets — all making claims. People notice contradictions;
+now the app notices first. A monthly cross-artifact audit finds contradictions, drift
+(the same project described three increasingly grand ways), and stale claims, each finding
+citing both artifacts. **The Friday retro**: five minutes of conversation ("what actually
+happened this week?") that the scribe turns into ledger candidates and a week note — the
+lowest-friction path yet into the round-3 ledger that feeds everything else. Strictly
+additive; data/agents/pages/api/hooks only.
+
+### New database tables (round 7 — 3, bringing the app to 31)
+
+- **`rehearsals.json`** — one sparring session. `id` (pk uuid) · `kind` (string, required —
+  `'salary-negotiation'`|`'screening-call'`|`'resignation'`|`'raise-ask'`) · `offerId`
+  (references `offers` onDelete setNull — armed with the real numbers when one exists) ·
+  `applicationId` (references `applications` onDelete setNull) · `scenario` (string, required
+  — the counterpart the negotiator played, tactics included) · `transcriptSummary` (string,
+  required — the arc, honest about where composure broke) · `scores` (json, required —
+  `{ anchoring, silenceTolerance, concessionDiscipline, composure }`, 1–5 each with a
+  one-line justification — the `mock_sessions` rubric shape, reused) · `debrief` (string,
+  required — the strongest move, the tell, the one line to practice) · `createdAt` (date,
+  now).
+- **`coherence_reports.json`** — one cross-artifact audit. `id` (pk) · `scanAt` (date,
+  required) · `artifactsScanned` (json, required — counts per kind: documents, stories,
+  posts, packets, facts) · `findings` (json, required — `{ kind:
+  'contradiction'|'drift'|'stale-claim'|'orphan-claim', severity: 'fix-now'|'worth-knowing',
+  detail, artifacts: [{ table, id, quote }] }[]` — every finding quotes BOTH sides; an
+  orphan-claim is a public statement whose backing fact was retired) · `status` (string, def
+  `'open'` — `'open'`|`'reviewed'`) · `createdAt` (date, now).
+- **`week_notes.json`** — one Friday retro's distillate. `id` (pk) · `weekStart` (date,
+  required, unique) · `body` (string, required — the week in three sentences, the user's
+  words compressed honestly) · `ledgerCandidates` (json, def `[]` — accomplishment-shaped
+  moments the scribe spotted; each becomes a real ledger row only on user confirm) · `energy`
+  (string — `'up'`|`'level'`|`'down'`, self-reported; the strategist's quarterly read gets a
+  human trendline, not just pipeline math) · `createdAt` (date, now).
+
+New columns (additive `addColumn`): `stories.lastAuditedAt` (date); `posts.lastAuditedAt`
+(date) — the audit's high-water marks, so monthly scans read deltas, not the world.
+
+### New API endpoints (round 7 — 7, bringing the app to 73)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `startSpar` | `POST api/spar` | `{ kind, offerId? }` → opens the negotiator chat in spar mode, numbers + market brief loaded |
+| `listRehearsals` / `getRehearsal` | `GET api/spar` / `GET api/spar/:id` | history; one session's scores + debrief |
+| `runCoherenceScan` | `POST api/coherence` | `{}` → `{ status:'scanning' }` — on-demand before a big interview or a packet submission |
+| `getCoherenceReport` / `listCoherenceReports` | `GET api/coherence/:id` / `GET` | findings with both-sides quotes; mark `reviewed` |
+| `getWeekNote` / `listWeekNotes` | `GET api/retro/:week` / `GET api/retro` | the Friday distillates + energy trendline |
+
+Deterministic centrepiece: `claimIndex` (below) — the extraction pass that makes the audit
+tractable is a function; the model judges only candidate pairs. Established rules hold.
+
+### New hooks (round 7 — 2, bringing the app to 20)
+
+- **`coherence-scan.ts`** — `cron`, `daily: '05:50'`, first-Saturday-of-month-gated →
+  `compass/storyteller#audit` — the storyteller owns the material and the no-fabrication
+  culture, so it owns the contradiction hunt. Delta-scan via the `lastAuditedAt` marks; a
+  clean scan writes a report with zero findings (the all-clear is information too).
+- **`friday-retro.ts`** — `cron`, `daily: '16:30'`, Friday-gated → `chronicle/scribe#invite`
+  — open ONE retro starter ("five minutes on the week?") through the shared round-6 starter
+  surface and bounds (the scribe writes the starter; `starterBounds` is the shared function —
+  if two are already open, the retro waits for next Friday rather than crowding). The retro
+  itself is chat; the `week_notes` row is a session-end write.
+
+**Loop-guard sanity.** Both crons write unwatched tables (`coherence_reports`, `starters`,
+`week_notes` at session end) ⇒ stop at depth 1. Confirming a `ledgerCandidate` flows through
+the round-3 `logAccomplishment` path — the same provenance pipeline, no new cascade.
+Rehearsal rows are session-end writes (no hook on `rehearsals`).
+
+### New pages (round 7 — 3, bringing the app to 27) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/spar.tsx` | `/spar` | `startSpar` intake (kind + live offer picker); the sparring chat; history with score trajectories |
+| `pages/coherence.tsx` | `/coherence` | latest report; findings with both-sides quotes and fix links (each artifact's edit page); `runCoherenceScan` |
+| `pages/retro.tsx` | `/retro` | the week notes archive + energy trendline; pending `ledgerCandidates` confirm/dismiss |
+
+New components (design tokens only): `SparScoreTrend` (the four rubric dimensions across
+sessions — practice visibly working), `FindingCard` (kind + severity + the two quotes
+side-by-side + fix links), `EnergyLine` (the human trendline, quiet styling), `CandidateChip`
+(confirm-into-ledger). The offers page gains "spar before you answer" beside the comparison
+matrix; the packets flow runs `runCoherenceScan` as a pre-submit suggestion; the strategist's
+quarterly review reads the energy trendline.
+
+### Space extensions (round 7 — no new space)
+
+- **`prep/negotiator`** gains the `spar` action (tasklist `spar/`): `01-arm.md`
+  (`role: explore` — the real offer via `apiCall('compareOffers')`, the latest market brief,
+  the user's stated floor if one was set), `02-play.md` (the counterpart contract: real
+  tactics, one pressure escalation, no cartoon villainy AND no pushover — calibrated to the
+  market brief's actual leverage picture; **never reveals a "budget" number as if real** —
+  the sim is honest that it's a sim), `03-score.md` (the rubric write; reuses
+  `rubricAggregate` from round 2). New knowledge field `sparring/`
+  (`real-tactics-catalog.md`, `pressure-calibration.md`, `debrief-the-tell.md`).
+- **`compass/storyteller`** gains the `audit` action (tasklist `audit/`): `01-index.md`
+  (`role: explore`, `functions: [claimIndex]` — extract dated, quantified claims from
+  documents/stories/posts/packets/facts into a comparable index; `output` typed),
+  `02-judge.md` (**`forEach: "index.candidatePairs"`** — one fork per suspicious pair:
+  contradiction, drift, or fine), `03-report.md` (findings with both quotes; severity per the
+  `fix-now` bar: anything an interviewer could catch). New function `claimIndex`; new
+  knowledge aspects under `story-craft/` (`one-truth-many-tellings.md` — the same project may
+  be told at different depths but never with different facts; `drift-detection.md`).
+- **`chronicle/scribe`** gains the `retro` action (the Friday chat: three questions, five
+  minutes, the user's words; candidates proposed via the existing `ask()` patterns) and the
+  `invite` action (the starter write within shared bounds). New knowledge aspects under
+  `ledger-craft/` (`friday-five-minutes.md`, `energy-is-data.md`).
+
+### Phases & verification additions (round 7)
+
+**(R7-1)** schemas + columns; **(R7-2)** the space extensions; **(R7-3)** the 7 endpoints;
+**(R7-4)** the 2 hooks; **(R7-5)** the 3 pages + cross-surface links; **(R7-6)** tests.
+Verification: **(a)** a spar armed with a seeded offer: the counterpart's numbers trace to
+`compareOffers` and the market brief (no invented leverage — trace-audited); scores carry
+justifications; the trend renders across three seeded sessions; **(b)** the audit on a
+seeded corpus containing one contradiction (two documents claiming different team sizes),
+one drift (a project growing across three posts), and one orphan (a post backed by a retired
+fact) finds exactly those three, each with both-sides quotes resolving to real rows; a clean
+corpus yields a zero-findings report (all-clear pinned); delta-scanning skips unchanged
+artifacts (`lastAuditedAt` observed); **(c)** Friday: one starter within shared bounds (a
+full board defers it — bound test); the retro writes one `week_notes` row; confirming a
+candidate creates a real ledger row via `logAccomplishment` (provenance chain intact),
+dismissing writes nothing; **(d)** the quarterly strategy review cites the energy trendline
+when it moves; **(e)** `pnpm lint:tokens` green across the 3 new pages.
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages

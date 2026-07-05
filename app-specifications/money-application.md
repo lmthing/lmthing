@@ -1400,6 +1400,137 @@ engaging opens the named agent pre-seeded with `seed`; **(f)** a thrice-linked, 
 entry gets flagged for space-knowledge promotion and the flag routes as an authoring request
 (never a runtime write to `knowledge/` — pinned); **(g)** `pnpm lint:tokens` green.
 
+## Round 7 — The dojo & the mirror: rehearsal, values & commitments (feature expansion)
+
+Six spaces compute, watch, advise, and teach. Round 7 adds three interactions only a model can
+hold — **no new space**; each lands as new actions, tables, and craft inside the team that owns
+it. **The dojo**: before you make the cancellation or rate-reduction call, you rehearse it —
+the scholar plays the retention rep (script-true, obstinate the way real reps are, using the
+shelf's actual playbooks), you play you, and the debrief tells you where you folded and what
+line to hold. **The mirror**: you tell the app what you say matters to you — five ranked value
+statements in your own words — and the monthly review gains an alignment read: your actual
+spend mapped against your stated values, deterministically bucketed, honestly narrated ("you
+rank 'time with friends' second; it got 3% of discretionary spend — is the ranking wrong or
+the month?"). **Commitments**: things you *say* in chat ("cap eating out at €200") become
+tracked rows — only after an explicit `ask()` confirmation, measured by handler math, reported
+in the Sunday briefing as kept/broken with zero nagging in between. Strictly additive;
+data/agents/pages/api/hooks only.
+
+### New database tables (round 7 — 3, bringing the app to 35)
+
+- **`rehearsals.json`** — one dojo session's record. `id` (pk uuid) · `kind` (string, required
+  — `'cancellation'`|`'rate-reduction'`|`'bill-dispute'`|`'salary-ask'`) ·
+  `recurringChargeId` (references `recurring_charges` onDelete setNull — the subscription being
+  rehearsed against, when there is one) · `shelfEntryId` (references `shelf_entries` onDelete
+  setNull, required in practice — the script rehearsed from) · `scenario` (string, required —
+  the setup the scholar played: "rep offers 3 months half price, then escalates") ·
+  `transcriptSummary` (string, required — the arc, honest about where the user folded) ·
+  `debrief` (json, required — `{ heldWell: [...], folded: [{ moment, betterLine }],
+  oneThingToHold }`) · `usedAt` (date — the user reports "I made the call"; outcome in
+  `outcomeNote`) · `outcomeNote` (string) · `createdAt` (date, now).
+- **`money_values.json`** — the user's stated priorities. `id` (pk) · `statement` (string,
+  required — verbatim, their words: "travel with the kids while they want to come") · `rank`
+  (number, required, 1–5) · `categoryIds` (json, required — which spend categories express
+  this value; the user tags, the analyst may *suggest* tags, never set them) · `active`
+  (boolean, def true) · `createdAt` (date, now).
+- **`commitments.json`** — one spoken intention, tracked. `id` (pk) · `text` (string, required
+  — verbatim from chat) · `metric` (json, required — the measurable form, confirmed via
+  `ask()`: `{ categoryId?, merchantPattern?, cap?, direction: 'under'|'over', window:
+  'month'|'week' }`) · `madeAt` (date, required) · `status` (string, def `'active'` —
+  `'active'`|`'kept'`|`'broken'`|`'retired'` — kept/broken assessed per window by
+  `commitmentStatus`, retired is the user's exit, always offered, never judged) ·
+  `history` (json, def `[]` — per-window results) · `createdAt` (date, now).
+
+New columns (additive `addColumn`): `monthly_reviews.alignment` (json — the deterministic
+value-bucket spend map the analyst narrates); `briefings.commitmentResults` (json — the week's
+kept/broken, auditable like every briefing input).
+
+### New API endpoints (round 7 — 7, bringing the app to 75)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `startRehearsal` | `POST api/dojo` | `{ kind, recurringChargeId? }` → opens the scholar chat in dojo mode, script + scenario loaded; the row lands at session end |
+| `listRehearsals` / `reportOutcome` | `GET api/dojo` / `PATCH api/dojo/:id` | history + debriefs; "I made the call" + what happened |
+| `setValues` / `listValues` | `PUT/GET api/values` | the ranked statements + category tags |
+| `alignmentView` | `GET api/values/alignment` | `{ month? }` → `{ rows: [{ valueId, statement, rank, spend, shareOfDiscretionary }] , untagged }` — deterministic bucket math |
+| `confirmCommitment` | `POST api/commitments` | `{ text, metric }` → `Commitment` (written ONLY by the ask()-confirmed path; a model may propose, never file) |
+| `listCommitments` / `retireCommitment` | `GET/PATCH api/commitments` | history per window; retire without ceremony |
+
+`alignmentView` and `commitmentStatus` are round 7's deterministic centrepieces — the mirror
+and the scoreboard are arithmetic; the model's job is the *conversation about them*.
+Established rules hold.
+
+### New hooks (round 7 — 1, bringing the app to 20)
+
+- **`commitment-check.ts`** — `cron`, `daily: '06:45'`, Saturday-gated in the agent →
+  `counsel/counselor#commitments` — close each active commitment's window via
+  `commitmentStatus`, append to `history`, stage the results into the Sunday briefing's inputs.
+  **Deliberately no mid-window hook**: a commitment that pings you on Tuesday is a nag; one
+  honest weekly line is accountability. The dojo and the mirror need no hooks at all — they are
+  chat- and review-woven, and their rows are written at session/review end by the agents that
+  own them (the round's shape: deeper interaction, not more automation).
+
+**Loop-guard sanity.** The one cron writes `commitments` + briefing inputs (unwatched) ⇒ stops
+at depth 1. Rehearsal rows are session-end writes by the scholar (no hook on `rehearsals`);
+value rows are user writes. Nothing new watches anything.
+
+### New pages (round 7 — 3, bringing the app to 32) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/dojo.tsx` | `/dojo` | `startRehearsal` intake (kind + target sub); the rehearsal chat; history with debriefs + outcomes |
+| `pages/values.tsx` | `/values` | `setValues` (five statements, ranked, tagged); `alignmentView` for any month — the mirror |
+| `pages/commitments.tsx` | `/commitments` | active with per-window history; retire; the confirmed-only provenance visible ("said on May 3, confirmed") |
+
+New components (design tokens only): `DojoDebrief` (heldWell / folded / the one line to hold),
+`AlignmentRow` (rank vs share, discrepancy rendered neutrally — the mirror describes, never
+scolds), `CommitmentCard` (verbatim text + metric + window dots), `OutcomeChip` ("called —
+saved €7/mo"). The subscriptions page gains "rehearse the call" beside "judge this"; the
+monthly review renders its `alignment` section; the Sunday briefing carries
+`commitmentResults` with one line each.
+
+### Space extensions (round 7 — no new space)
+
+- **`library/scholar`** gains the `spar` action (tasklist `spar/`): `01-arm.md`
+  (`role: explore` — load the shelf script + the target charge's cadence/amount metadata via
+  the guide-maintained links; NEVER ledger reads — the scholar's capability walls are
+  unchanged, and the dojo works from the shelf script + what the user says in the room),
+  `02-play.md` (the roleplay contract: script-true rep behavior, one escalation, no
+  strawmen — the rep must be as good as real retention reps are), `03-debrief.md` (write the
+  row; `folded[].betterLine` must come from the shelf entry, cited). New knowledge field
+  `dojo-craft/` (`play-it-straight.md`, `fold-points.md`, `debrief-without-embarrassment.md`).
+- **`ledger/analyst`** gains the alignment read in its monthly `review` tasklist (a new
+  `04-mirror.md` task: narrate `alignmentView` — discrepancy is a question to the user, never
+  a verdict; `functions: [alignmentView-shaped read]`), and new knowledge aspects under
+  `review-craft/` (`values-mirror.md`, `discrepancy-as-question.md`).
+- **`counsel/counselor`** gains the `commitments` action (the Saturday close + the capture
+  path: when chat surfaces a commitment-shaped statement, it *proposes* the metric via the new
+  form component `CommitmentConfirm` (`ask()`) — the user confirms or edits; only
+  `confirmCommitment` files). New function `commitmentStatus` (window math — the same rule the
+  endpoint serves); new knowledge aspects under `impulse-craft/`
+  (`confirmed-not-inferred.md`, `weekly-honesty-no-nagging.md`, `retiring-is-fine.md`).
+- **`mentor/briefer`** folds `commitmentResults` into the Sunday read (one line per
+  commitment, numbers from `history`, tone from `retiring-is-fine.md`).
+
+### Phases & verification additions (round 7)
+
+**(R7-1)** schemas + columns; **(R7-2)** the space extensions (actions, tasklists, functions,
+knowledge, `CommitmentConfirm` + `DojoDebrief` components); **(R7-3)** the 7 endpoints
+(`alignmentView`/`commitmentStatus` single-definition); **(R7-4)** the 1 hook; **(R7-5)** the
+3 pages + cross-surface links; **(R7-6)** tests. Verification: **(a)** a dojo run against a
+seeded price-hiked subscription: the rep escalates once, every `betterLine` in the debrief
+cites the shelf script, and the scholar made zero ledger reads (capability trace — the dojo
+respects the round-6 privacy shape); `reportOutcome` closes the loop and the outcome renders
+on the subscriptions page; **(b)** `alignmentView` buckets match hand math on a tagged
+fixture; untagged discretionary spend is reported as `untagged`, never silently dropped; the
+review's mirror section poses the discrepancy as a question (charter review test);
+**(c)** a commitment-shaped chat line produces an `ask()` proposal — declining files nothing
+(confirmed-not-inferred pinned); a confirmed cap is assessed Saturday by `commitmentStatus`
+on fixture windows (kept and broken both exercised); no mid-window writes exist (nag-free
+pinned structurally: only the Saturday cron touches `commitments`); retiring mid-window
+closes without a kept/broken verdict; **(d)** the Sunday briefing's commitment lines equal
+`history` (claim-audit extended); **(e)** `pnpm lint:tokens` green across the 3 new pages.
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages

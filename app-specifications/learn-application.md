@@ -1333,6 +1333,157 @@ lands on `arena/listener` pre-seeded; a quiet day opens nothing; **(f)** a −2 
 exactly one re-vet; a dead link flips `dead-link` and drops from queues; **(g)** `pnpm
 lint:tokens` green across the 3 new pages.
 
+## Round 7 — The debate hall, the misconception ledger & analogies that fit you (feature expansion)
+
+Round 7 adds the three deepest tutor moves in the catalog — **no new space**; each lands
+inside the team that owns the craft. **Debates**: recall proves you remember; teaching proves
+you can explain; *defending* proves you understand. The examiner takes a plausible-wrong
+position ("actually, cloning is basically free in Rust, the borrow checker is just style") and
+you must correct it — with the charter's hardest honesty rule: the examiner concedes cleanly
+the moment you're right, never gaslights, and names the exact point where you let a wrong
+claim stand. **The misconception ledger**: misses aren't random — they cluster around named
+wrong models ("you model the borrow checker as a garbage collector"). A weekly diagnostic pass
+mines reviews, teach-back gaps, exam sections, and debate concessions into explicit
+`misconceptions` rows with evidence; lessons open on them, redrills attack them, and *busting*
+one is a first-class, celebrated state transition. **Analogies that fit you**: the app finally
+asks who you are — your anchor domains (you cook; you climb; you ran a bar) — and the
+explainer forges analogies FROM those domains, each carrying its own honest breaking point
+("where this analogy lies to you"). Strictly additive; data/agents/pages/api/hooks only.
+
+### New database tables (round 7 — 3, bringing the app to 29)
+
+- **`debates.json`** — one defended proposition. `id` (pk uuid) · `conceptId` (references
+  `concepts` onDelete cascade, required) · `proposition` (string, required — the wrong-but-
+  plausible stance the examiner argued, on record before the debate starts) · `whyPlausible`
+  (string, required — the real confusion this stance rides on; the debate is aimed at a known
+  failure mode, not trivia) · `transcriptSummary` (string, required — the arc: where you held,
+  where you wobbled) · `verdict` (string, required — `'defended'` (you corrected it cleanly) |
+  `'partial'` (right conclusion, shaky reasoning) | `'conceded'` (a wrong claim stood)) ·
+  `letStand` (json, def `[]` — wrong claims that survived, quoted — the misconception miner's
+  richest ore) · `createdAt` (date, now).
+- **`misconceptions.json`** — one named wrong model. `id` (pk) · `name` (string, required,
+  unique — short and memorable: "borrow-checker-as-GC") · `model` (string, required — the
+  wrong mental model stated plainly, in second person, kindly) · `truth` (string, required —
+  the correction, one paragraph) · `conceptIds` (json, required) · `evidence` (json, required
+  — `{ kind: 'review'|'teachback'|'exam'|'debate', id, note }[]` — every diagnosis cites its
+  cases) · `status` (string, def `'active'` — `'active'`|`'busted'` — busted requires
+  post-diagnosis evidence: a defended debate or clean exam section on the same ground) ·
+  `bustedBy` (json — the evidence that flipped it) · `createdAt` (date, now).
+- **`analogies.json`** — one personalized bridge. `id` (pk) · `conceptId` (references
+  `concepts` onDelete cascade, required) · `domain` (string, required — which of YOUR anchor
+  domains it draws from) · `body` (string, required — the analogy worked through, in the
+  domain's own vocabulary) · `breaksAt` (string, required — **where the analogy stops being
+  true**, stated up front; an analogy without its breaking point is a future misconception) ·
+  `helpful` (number, def 0 — net votes; ≤ −2 retires it) · `status` (string, def `'live'` —
+  `'live'`|`'retired'`) · `createdAt` (date, now).
+
+New columns (additive `addColumn`): `settings.anchorDomains` (json, def `[]` — the user's
+domains, gathered once by an `ask()` intake: work, hobbies, past lives); `lessons.targetMisconceptionId`
+(string — a lesson may open aimed at one); `cards.misconceptionId` (string — redrills tagged
+with the wrong model they attack, so busting evidence is queryable).
+
+### New API endpoints (round 7 — 7, bringing the app to 56)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `startDebate` | `POST api/debates` | `{ conceptId? }` → opens the examiner chat in debate mode; unset concept → the examiner picks the ripest (held-but-never-defended) |
+| `listDebates` / `getDebate` | `GET api/debates` / `GET api/debates/:id` | history; one debate's proposition, arc, verdict, letStand |
+| `listMisconceptions` | `GET api/misconceptions` | `{ status? }` → active first, each with evidence counts and its attack plan (targeted lessons/cards) |
+| `requestAnalogy` | `POST api/analogies` | `{ conceptId, domain? }` → `{ status:'forging' }` (unset domain → the explainer picks the best-fitting anchor) |
+| `listAnalogies` / `rateAnalogy` | `GET api/analogies` / `PATCH api/analogies/:id` | per concept; votes (≤ −2 retires) |
+| `setAnchorDomains` | `PUT api/settings/anchors` | `{ domains }` → settings (the once-asked identity the explainer draws from) |
+
+Deterministic centrepiece: `bustingEvidence` — the rule for when a misconception may flip to
+`busted` (post-diagnosis defended debate OR clean exam section on ≥2 of its concepts) is a
+function, not a feeling; the professor argues *from* it, never around it. Established rules
+hold.
+
+### New hooks (round 7 — 2, bringing the app to 19)
+
+- **`misconception-mine.ts`** — `cron`, `daily: '06:40'`, Sunday-gated (runs before the
+  curator's digest, which then reports the ledger's movement) →
+  `faculty/professor#diagnose` — mine the week's misses: lapse clusters by concept,
+  teach-back `gaps`, weak exam sections, and above all `debates.letStand`; write/update
+  misconceptions (evidence-append, fingerprint-free — the `name` is the dedupe key and
+  merging evidence into an existing diagnosis is the norm); check `bustingEvidence` and flip
+  the earned ones (a bust is a starter candidate: "you killed 'borrow-checker-as-GC' — want
+  the harder version?").
+- **`debate-followup.ts`** — `database` `debates:insert`, imperative handler: skip when
+  `verdict === 'defended'`, else `delegate('tutor/cardsmith','draft', { input: { topicId,
+  focus: letStand } })` — the claims you let stand become tomorrow's cards (the round-3
+  teach-back shape, third consumer; measurement keeps feeding one card pipeline).
+
+**Loop-guard sanity.** `debates:insert` → cardsmith writes `cards` (unwatched) ⇒ stops at
+depth 1. The Sunday miner writes `misconceptions` (unwatched) and starter candidates flow
+through the round-6 guide's bounded surface ⇒ stops. Analogies are forge-on-request
+(`spawn`) + explainer session writes — no hook, no cascade. Nothing new touches scheduling
+(the whole-table assertion extends to round 7's writers).
+
+### New pages (round 7 — 3, bringing the app to 30) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/debate.tsx` | `/debate` | `startDebate` (concept picker or "surprise me"); the debate chat; history with verdict streaks |
+| `pages/misconceptions.tsx` | `/misconceptions` | the ledger: active models with evidence + attack plans; busted ones with what busted them — the trophy wall |
+| `pages/me.tsx` | `/me` | `setAnchorDomains` (the who-are-you intake, editable); which analogies your domains have produced; helpfulness votes |
+
+New components (design tokens only): `PropositionCard` (the stance on record, pre-debate),
+`VerdictBadge` (defended/partial/conceded as semantic tokens), `MisconceptionCard` (model →
+truth → evidence → attack plan), `TrophyRow` (busted, with `bustedBy`), `AnalogyCard` (body +
+the `breaksAt` callout rendered as prominently as the analogy — the honesty is the feature),
+`DomainChips`. The explanation tabs (round 5) gain "in your language" — the concept's live
+analogies beside intuition/formal/application; lesson records show their target
+misconception; the Sunday digest reports ledger movement (diagnosed / attacked / busted).
+
+### Space extensions (round 7 — no new space)
+
+- **`arena` (examiner-side craft, new action on `tutor/examiner`)** — the `debate` action
+  (tasklist `debate/`): `01-stance.md` (`role: explore`, `output: { proposition: 'json' }` —
+  pick the concept's most plausible wrong stance, preferring an ACTIVE misconception's model
+  when one exists — debates become targeted busting attempts), `02-argue.md` (the contract:
+  argue well but honestly — real textbook-wrong arguments, no invented citations, concede
+  cleanly and SAY why the user's correction is right, never reward confident wrongness),
+  `03-verdict.md` (verdict + `letStand` quotes + write). New knowledge field
+  `debate-craft/` (`plausible-wrongness.md`, `concede-cleanly.md`, `never-gaslight.md`,
+  `target-the-ledger.md`).
+- **`faculty/professor`** gains the `diagnose` action (tasklist `diagnose/`): `01-ore.md`
+  (`role: explore`, `output: { clusters: 'json' }` — the week's evidence, grouped),
+  `02-name.md` (**`forEach: "ore.clusters"`** — one fork per cluster: name the model or
+  decline — "three misses, no common model" is a valid finding), `03-ledger.md`
+  (merge-first writes; `functions: [bustingEvidence]` for flips). Lessons: `01-entry.md`
+  extends to load the topic's active misconceptions into `entryState`; `02-arc.md` gains the
+  rule *teach against the named model, don't just teach the truth* (naming the wrong model
+  first is what makes the correction stick). New knowledge aspects under
+  `adaptive-teaching/` (`name-the-wrong-model.md`, `bust-worthy-evidence.md`).
+- **`faculty/explainer`** gains the `analogize` action (tasklist `analogize/`):
+  `01-anchor.md` (`role: explore` — the user's domains + the concept's structure; pick the
+  domain whose *mechanics* match, not whose vocabulary is fun), `02-forge.md` (the analogy +
+  its `breaksAt`, mandatory — the tasklist fails without it), `03-file.md`. New knowledge
+  field `analogy-craft/` (`mechanics-not-vocabulary.md`, `every-analogy-lies-somewhere.md`,
+  `your-domains-first.md`).
+
+### Phases & verification additions (round 7)
+
+**(R7-1)** schemas + columns; **(R7-2)** the space extensions + the anchor-domains `ask()`
+intake; **(R7-3)** the 7 endpoints (`bustingEvidence` single-definition); **(R7-4)** the 2
+hooks; **(R7-5)** the 3 pages + cross-surface links; **(R7-6)** tests. Verification:
+**(a)** a debate on a concept with an active misconception argues THAT model (target-the-
+ledger observed); the proposition is on record before the chat opens; a seeded correct
+correction is conceded cleanly in-transcript and lands `defended`; a wrong claim the fixture
+user accepts lands in `letStand` verbatim; **(b)** `debate-followup` fires only on
+non-defended verdicts; the drafted cards carry `misconceptionId`; **(c)** the Sunday miner on
+a seeded week (lapse cluster + teach-back gap + one `letStand`) produces ONE merged
+misconception with all three evidence kinds (merge-first pinned); a no-common-model cluster
+produces nothing (decline-is-valid pinned); `busted` flips only when `bustingEvidence` passes
+on fixtures — and the flip surfaces as a starter candidate within the round-6 bounds;
+**(d)** with anchor domains `['cooking','climbing']`, a forged analogy draws its mechanics
+from one of them and its `breaksAt` is non-empty (mandatory pinned); a −2 analogy retires;
+the explanation tabs render "in your language" only when live analogies exist;
+**(e)** lessons opening on a targeted misconception name the wrong model in the opening
+(charter test); the digest reports ledger movement; **(f)** scheduling state untouched by
+every round-7 writer (whole-table assertion extended); **(g)** `pnpm lint:tokens` green
+across the 3 new pages.
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages

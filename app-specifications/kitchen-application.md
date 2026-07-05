@@ -476,6 +476,139 @@ The plan should get better every week, not stay static.
 - **Agent**: the `planner` reads past ratings to favor winners, retire flops, and avoid repeating a
   recipe cooked in the last N weeks (variety).
 
+## Round 2 — Nutrition, Sourcing & Kitchen Intelligence (expansion)
+
+Round 1 shipped the core loop (pantry → weekly plan → shopping diff). Round 2 turns kitchen from a
+*planner* into a **kitchen-intelligence system**: it now knows the **nutrition** of what you cook,
+**sources** recipes for you (paste a URL) and **optimizes** the shop (aisle order, cost, substitutions),
+and proactively **surfaces suggestions** (use up what's about to expire, swap out-of-stock items). This
+adds two whole new specialist teams alongside `chef` — a `nutrition` team and a `sourcing` team — all
+reading/writing the **same** project-rooted db (the multi-agent-application shape at full strength).
+Everything here is **additive** on the same engine; round-1 tables/endpoints/agents are unchanged.
+
+### New database tables (6) & columns
+
+| Table | Row type | Purpose |
+|---|---|---|
+| `settings` | `Setting` | single-row household + dietary prefs: `householdSize`, `diet`, `allergies` (json), `dislikes` (json), `cuisines` (json), `maxPrepMinutes`, `calorieTarget`, `proteinTarget` |
+| `nutrition_facts` | `NutritionFact` | per-ingredient nutrition **per one `unit`**: `ingredientId` (FK, unique), `caloriesPerUnit`, `proteinPerUnit`, `carbsPerUnit`, `fatPerUnit`, `basisNote` |
+| `meal_nutrition` | `MealNutrition` | computed nutrition for one `plan_meals` slot: `planMealId` (FK, unique), `calories`, `protein`, `carbs`, `fat` |
+| `substitutions` | `Substitution` | suggested swap for an ingredient: `ingredientId` (FK), `substituteName`, `ratio`, `reason` (`out-of-stock`\|`expiring`\|`cost`\|`dietary`), `note` |
+| `shopping_trips` | `ShoppingTrip` | an aisle-organized, cost-estimated shop for a plan: `planId` (FK), `store`, `estimatedCost`, `organized` (json: `[{aisle, lines:[…]}]`), `status` |
+| `suggestions` | `Suggestion` | a proactive card surfaced to the user: `type` (`use-it-up`\|`substitution`\|`nutrition`), `title`, `body`, `ingredientId?`/`recipeId?` (FK, setNull), `priority`, `dismissed`, `createdAt` |
+
+New **columns** on existing tables (additive `db.addColumn` on boot): `ingredients.expiresAt` (date,
+nullable — waste), `ingredients.costPerUnit` (number, default 0 — cost estimate), `recipes.cuisine`
+(string, nullable — preference filtering), `plan_meals.rating` (number 1–5, nullable — learning) and
+`plan_meals.cookedAt` (date, nullable). Relations: `ingredients.nutrition → nutrition_facts` (hasMany),
+`ingredients.substitutes → substitutions` (hasMany), `meal_plans.trips → shopping_trips` (hasMany),
+`plan_meals.nutrition → meal_nutrition` (hasMany), plus the `belongsTo` back-links.
+
+### New API endpoints (13) — → **27 total**
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `getSettings` | `GET api/settings` | `{}` → `Setting` (seeds the single default row if absent) |
+| `updateSettings` | `PATCH api/settings` | `{ householdSize?, diet?, allergies?, dislikes?, cuisines?, maxPrepMinutes?, calorieTarget?, proteinTarget? }` → `Setting` |
+| `importRecipe` | `POST api/recipes/import` | `{ url }` → `{ recipeId, status:'importing' }` (creates a stub recipe, spawns `sourcing/importer`) |
+| `rateMeal` | `PATCH api/meals/:id/rating` | `{ id, rating }` → `PlanMeal` |
+| `markCooked` | `POST api/meals/:id/cooked` | `{ id }` → `PlanMeal` (sets `cookedAt`) |
+| `getRecipeNutrition` | `GET api/recipes/:id/nutrition` | `{ id }` → `{ calories, protein, carbs, fat, perServing, missing:[names] }` (sums `nutrition_facts` over the recipe's lines) |
+| `getPlanNutrition` | `GET api/plan/:id/nutrition` | `{ id }` → `{ days:[{day, calories, protein, carbs, fat}], targets, adherence }` |
+| `listExpiring` | `GET api/pantry/expiring` | `{ withinDays? }` → `Ingredient[]` (non-null `expiresAt` within N days) |
+| `getShoppingTrip` | `GET api/plan/:id/trip` | `{ id }` → `{ aisles:[{aisle, lines:[{ingredient,unit,quantity,estCost}]}], estimatedCost }` (deterministic aisle-group + cost of the gaps) |
+| `listSubstitutions` | `GET api/substitutions/:ingredientId` | `{ ingredientId }` → `(Substitution & { ingredient })[]` |
+| `nutritionStats` | `GET api/nutrition/stats` | `{}` → `{ weekCalories, weekProtein, avgPerDay, target, onTrack }` |
+| `listSuggestions` | `GET api/suggestions` | `{ type? }` → `(Suggestion & { ingredient?, recipe? })[]` (undismissed, by priority) |
+| `dismissSuggestion` | `PATCH api/suggestions/:id` | `{ id }` → `{ ok }` |
+
+- The **deterministic** work stays in handlers (`getRecipeNutrition`/`getPlanNutrition` sum
+  `nutrition_facts`; `getShoppingTrip` groups the diff by `ingredients.category` and multiplies
+  `costPerUnit` — same "read-view is handler code, the agent persists" split as round-1's `shoppingList`).
+  The **judgement** work (parse a messy recipe page, pick a sensible substitute, write a coaching note)
+  is the new agents.
+- `importRecipe` follows the round-1 `generatePlan` pattern: it creates a stub `recipes` row
+  (`status`/`source:url`) and fires `sourcing/importer` fire-and-forget (`spawn` is a P6 stub in the
+  shipped engine → the **live** import path is `<Chat agent="sourcing/importer">` on `/import`, exactly
+  as round-1's live planner path is chat/hook, not api `spawn`).
+
+### New hooks (4) — → **6 total** (each fires on a path that actually dispatches)
+
+| Hook | Type | Trigger | Fires because |
+|---|---|---|---|
+| `compute-nutrition.ts` | `database` `plan_meals:insert` | `nutrition/nutritionist#compute` | the planner writes `plan_meals` in a **top-level/chat** session (main-process write → dispatches) |
+| `enrich-recipe-nutrition.ts` | `database` `recipes:insert` | `nutrition/nutritionist#analyze-recipe` | `addRecipe`/`importRecipe` are **api** handlers (main-process write → dispatches) |
+| `use-it-up.ts` | `cron` `daily` | `chef/planner#suggest-uses` | cron → hook-run endpoint (always dispatches; agent self-queries) |
+| `nightly-substitutions.ts` | `cron` `daily` | `sourcing/optimizer#substitutions` | cron (agent self-queries low/expiring/out-of-stock stock) |
+
+- **Loop-boundedness** (parent §Safety): `compute-nutrition` writes `meal_nutrition` (no hook) and
+  `enrich-recipe-nutrition` writes `nutrition_facts` (no hook) — neither cascades. The `plan_meals:insert`
+  burst from a planning run **coalesces** into one `compute-nutrition` run (as it already does for
+  `recompute-shopping`). The two cron hooks self-query and write `suggestions`/`substitutions` (no hook)
+  — terminal. No hook watches `suggestions`/`substitutions`/`meal_nutrition`/`shopping_trips`.
+- **Self-query, not passed input** (engine truth): hook `delegate` drops structured input and api `spawn`
+  is a P6 no-op, so every hook-invoked action **self-queries** the db for its work (e.g. `compute`
+  finds `plan_meals` whose `meal_nutrition` is missing; `suggest-uses` finds `ingredients` with a near
+  `expiresAt`; `substitutions` finds out-of-stock/expiring/expensive ingredients).
+
+### The `nutrition` space (new specialist team — full format)
+
+Project-scoped at `kitchen/spaces/nutrition/`. Least-privilege per verb.
+
+| Agent | `db:read` | `db:write` | Role |
+|---|---|---|---|
+| **nutritionist** | `recipes, recipe_ingredients, ingredients, plan_meals, meal_plans, nutrition_facts, settings` | `meal_nutrition, nutrition_facts, suggestions` | estimate per-ingredient `nutrition_facts`; roll them up per meal into `meal_nutrition`; flag a day far off `calorieTarget`/`proteinTarget` as a `nutrition` suggestion |
+| **coach** | `settings, meal_plans, plan_meals, recipes, meal_nutrition, nutrition_facts, suggestions` | `settings, suggestions` | chat: help the user set goals/diet/household; explain the week's nutrition in plain language; **not a dietitian** framing |
+
+- `nutritionist` estimates nutrition from ingredient identity (name + category + unit) — a heuristic
+  `estimateNutrition` space function seeds a first pass; the agent refines with its
+  `nutrition-science` knowledge. Deterministic roll-ups (sum lines × servings) are functions; the
+  estimate itself is the judgement.
+
+### The `sourcing` space (new specialist team — full format)
+
+Project-scoped at `kitchen/spaces/sourcing/`.
+
+| Agent | `db:read` | `db:write` | Extra | Role |
+|---|---|---|---|---|
+| **importer** | `ingredients, recipes` | `recipes, recipe_ingredients, ingredients` | web via **task-level** `functions:` (not agent-level) | fetch a recipe URL, parse title/ingredients/steps, find-or-create `ingredients`, insert `recipes` + `recipe_ingredients` |
+| **optimizer** | `shopping_list, ingredients, meal_plans, plan_meals, recipes, recipe_ingredients, substitutions, settings, suggestions` | `shopping_trips, substitutions, suggestions` | — | organize a plan's shopping list by aisle + estimate cost into `shopping_trips`; suggest substitutes for out-of-stock/expiring/expensive items |
+
+- **importer** is the first kitchen agent to touch the web — via the **universal system globals**
+  `webFetch`/`webSearch`/`fetch` (there is **no** external-binding registry; `api:call` is reserved for
+  the app's own endpoints — see §Notes). **Engine truth (verified live 2026-07-05):** these globals are
+  *ambient/universal* at the agent's top level and must **not** appear in an agent's `instruct.md`
+  `functions:` block — that block is validated fail-loud against real files in `functions/`, so listing a
+  system global there throws "not found in functions/" at space load. They belong in a **task-level**
+  `functions:` allowlist (the import tasklist's fetch task lists them, which is where a restricted task
+  regains them). Agent-level `functions:` on the importer therefore lists only real space functions
+  (`parseRecipe`, `matchIngredient`). The importer never invents an ingredient it didn't parse; a page it
+  can't fetch/parse leaves the stub recipe flagged, not filled with fabrication.
+
+### Chef space — full-format remediation (required)
+
+Round 1 shipped `chef` as `agents/` + `charter.md` only. Round 2 brings it to the **full space format**
+that `sourcing`/`nutrition` are born with: `tasklists/` (planner's day-`forEach` `plan` + `suggest-uses`;
+shopper's `recompute`), `functions/` (the diff/scale/scoring helpers the agents call instead of
+re-deriving in prose), `components/` (catalog previews for chat), and **extensive `knowledge/`**
+(meal-planning, pantry-management, shopping — each a field with an `index.md` overview + ≥2 aspect
+deep-dives). The planner also gains `db:read: settings` (dietary hard-filtering) + `db:write:
+suggestions` and a `suggest-uses` action.
+
+### New pages (5) — → **13 total** (design tokens only)
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/preferences.tsx` | `/preferences` | `getSettings` + `updateSettings`; `<Chat agent="nutrition/coach">` |
+| `pages/nutrition.tsx` | `/nutrition` | `getPlanNutrition` + `nutritionStats` — per-day macro bars vs targets |
+| `pages/import.tsx` | `/import` | `importRecipe`; `<Chat agent="sourcing/importer">` |
+| `pages/trip/[planId].tsx` | `/trip/:planId` | `getShoppingTrip`; `<Chat agent="sourcing/optimizer">` |
+| `pages/expiring.tsx` | `/expiring` | `listExpiring` + `listSuggestions` + `dismissSuggestion` |
+
+The nav (`_layout.tsx`) grows the new destinations; the home grid additively gains a **suggestions
+strip** (`listSuggestions`) and the recipe detail page a **nutrition panel** (`getRecipeNutrition`) —
+additive edits, round-1 behaviour preserved.
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages
@@ -500,7 +633,10 @@ build, hooks runtime, chat) exists. Kitchen-specific work on top:
 7. **Additional features** — preferences/household + dietary filtering, expiry/use-it-up, recipe
    import from URL, meal ratings (see §"Additional features"); each is additive (new `settings`/
    columns/endpoints/hook + `importer` agent), shippable after the core loop.
-8. **Docs** — fold into `SPACE_DEVELOPMENT.md` "Project apps" as a worked example.
+8. **Round 2 — Nutrition, Sourcing & Kitchen Intelligence** (see §"Round 2") — the two new specialist
+   teams (`nutrition`, `sourcing`), 6 new tables + 5 new columns, 13 new endpoints, 4 new hooks, 5 new
+   pages, and the chef full-format remediation. Strictly additive on the round-1 core loop.
+9. **Docs** — fold into `SPACE_DEVELOPMENT.md` "Project apps" as a worked example.
 
 ## Verification (end-to-end, local)
 

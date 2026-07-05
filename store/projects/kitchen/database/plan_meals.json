@@ -9,10 +9,13 @@
                   "references": { "table": "recipes", "column": "id", "onDelete": "restrict" } },
     "day":      { "type": "date",   "description": "the calendar day of this meal", "required": true },
     "meal":     { "type": "string", "description": "'breakfast' | 'lunch' | 'dinner'", "required": true },
-    "servings": { "type": "number", "description": "servings to cook (scales the recipe's ingredient quantities)", "default": 2 }
+    "servings": { "type": "number", "description": "servings to cook (scales the recipe's ingredient quantities)", "default": 2 },
+    "rating":   { "type": "number", "description": "optional 1–5 rating the user gave this meal after cooking; the planner favors winners and avoids flops" },
+    "cookedAt": { "type": "date",   "description": "when the meal was actually cooked, if marked; drives ratings and variety-over-time" }
   },
   "relations": {
-    "plan":   { "belongsTo": "meal_plans", "via": "planId",   "description": "the week" },
-    "recipe": { "belongsTo": "recipes",    "via": "recipeId", "description": "the recipe cooked" }
+    "plan":      { "belongsTo": "meal_plans",    "via": "planId",   "description": "the week" },
+    "recipe":    { "belongsTo": "recipes",       "via": "recipeId", "description": "the recipe cooked" },
+    "nutrition": { "hasMany":   "meal_nutrition", "via": "planMealId", "description": "the computed nutrition totals for this slot" }
   }
 }

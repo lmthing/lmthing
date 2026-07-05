@@ -10,6 +10,7 @@
     "prepMinutes": { "type": "number", "description": "rough total time in minutes", "default": 30 },
     "tags":        { "type": "json",   "description": "array of tag strings — 'vegetarian', 'quick', cuisine…" },
     "imageUrl":    { "type": "string", "description": "optional hero image URL shown on the recipe card and detail page" },
+    "cuisine":     { "type": "string", "description": "optional cuisine label, e.g. 'italian' | 'thai'; the planner favors the household's preferred cuisines" },
     "source":      { "type": "string", "description": "where it came from (url or 'chef')" }
   },
   "relations": {

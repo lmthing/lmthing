@@ -1,0 +1,16 @@
+{
+  "title": "Settings",
+  "description": "The household's single-row kitchen preferences: who's eating, dietary constraints, tastes, and nutrition goals. One row per pod; getSettings seeds it.",
+  "columns": {
+    "id":            { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "householdSize": { "type": "number", "description": "how many people the plan cooks for; scales plan_meals.servings", "default": 2 },
+    "diet":          { "type": "string", "description": "dietary pattern the plan must honor: 'none' | 'vegetarian' | 'vegan' | 'pescatarian' | 'keto' | …", "default": "none" },
+    "allergies":     { "type": "json",   "description": "array of ingredient/allergen name strings the plan must NEVER include (hard filter)" },
+    "dislikes":      { "type": "json",   "description": "array of ingredient name strings to avoid where possible (soft filter)" },
+    "cuisines":      { "type": "json",   "description": "array of preferred cuisine strings the planner favors" },
+    "maxPrepMinutes":{ "type": "number", "description": "weeknight time cap: prefer recipes at/under this prepMinutes", "default": 45 },
+    "calorieTarget": { "type": "number", "description": "target calories per person per day, used by the nutrition dashboard", "default": 2000 },
+    "proteinTarget": { "type": "number", "description": "target grams of protein per person per day", "default": 80 },
+    "updatedAt":     { "type": "date",   "description": "when the preferences were last changed", "generated": "now" }
+  }
+}

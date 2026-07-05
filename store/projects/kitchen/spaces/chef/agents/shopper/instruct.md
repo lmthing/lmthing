@@ -8,20 +8,35 @@ actions:
 capabilities:
   - db:read:  { tables: [plan_meals, recipes, recipe_ingredients, ingredients] }
   - db:write: { tables: [shopping_list] }
+knowledge:
+  - shopping/shopping-diff
 ---
 
 ## Action: recompute
 
 Triggered by `hooks/recompute-shopping.ts` whenever `plan_meals` rows are inserted for a plan
-(input: `{ planId }`, coalesced across a burst of inserts into one run). Diff the week's total
-ingredient needs against the pantry and (re)write `shopping_list`.
+(coalesced across a burst of inserts into one run). Diff the week's total ingredient needs against
+the pantry and (re)write `shopping_list`.
 
 Write your TypeScript one statement at a time. Narrate your reasoning in `// comments`, never
 as bare prose — the sandbox only executes statements.
 
+**IMPORTANT — you are not handed a `planId`.** The hook delegate carries **no structured input**, so
+do NOT assume a `planId` variable exists. **Self-query** the db to find which plan(s) to recompute.
+Your readable tables are exactly `plan_meals, recipes, recipe_ingredients, ingredients` — there is
+**no `plans` table** (the week is `meal_plans`, which you do not need here); read `plan_meals`
+directly to discover the plan ids.
+
 Steps:
 
-1. Load the plan's meals:
+0. Discover the plan(s) to recompute by self-querying `plan_meals` (never `plans`):
+   ```ts
+   const allMeals = db.query('plan_meals');
+   const planIds = [...new Set(allMeals.map(m => m.planId))];
+   ```
+   Recompute each `planId` in `planIds` with the steps below (usually just the one current plan).
+
+1. Load this plan's meals:
    ```ts
    const meals = db.query('plan_meals', { where: { planId } });
    ```

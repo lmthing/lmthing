@@ -1,11 +1,8 @@
-> ⚠️ **OUTSTANDING — operator directive (2026-07-04):** this app's round-1 project space was
-> created with **only `agents/`**, which violates the space format. On the **next (expansion)
-> round** you MUST remediate it to the **FULL space format**: add a `charter.md` per agent
-> (alongside `instruct.md`), plus `tasklists/`, `functions/`, `components/`, and especially
-> **extensive `knowledge/`** (each field = `index.md` overview + ≥2 `<aspect>.md` deep-dives).
-> See `automation/app-builder/prompt.tmpl.md` → Phase 3 "Project-scoped spaces MUST follow the
-> FULL space format" and the round policy's "SPACE-FORMAT REMEDIATION" item. This is required
-> work, not optional.
+> ✅ **RESOLVED (2026-07-05):** the space-format remediation is complete. All 3 project spaces
+> (`chef`, `nutrition`, `sourcing`) are now FULL format — `agents/{charter,instruct}`, `tasklists/`,
+> `functions/`, `components/`, and extensive `knowledge/` (each field = `index.md` overview + ≥2
+> `<aspect>.md` deep-dives). Verified via the real engine `loadSpace` + the 18/18 test suite. See the
+> "ROUND 2 COMPLETION" round-log entry at the bottom for details.
 
 # PROGRESS — `kitchen` project-application
 
@@ -146,3 +143,106 @@ Running log across 5-hour autonomous runs. Single source of truth for status.
   live agent path is chat sessions / database-hook delegates, not api `spawn`; `db.query` `where` is
   equality-only; `include` is single-hop (hydrate the 2nd join manually); weak models need
   imperative "use the `db` global, don't explore the filesystem" guidance in chat-agent instructs.
+
+## Round log — ROUND 2 (FEATURE EXPANSION, 2026-07-04, in progress)
+Theme: **from a meal planner → a full kitchen-intelligence system** — nutrition tracking, smart
+sourcing (recipe import + shopping optimization), and proactive pantry/waste intelligence. Two whole
+new specialist teams (`nutrition`, `sourcing`) + chef full-format remediation. Strictly additive;
+round-1 files never regressed.
+- Phase 0 orient ✅ — re-read BOTH architecture docs in full + the kitchen spec + round-1 PROGRESS/PLAN;
+  studied the full-format reference `store/projects/blog/spaces/{newsroom,editorial}` (blog is 2 rounds
+  in). Confirmed engine built through P8 (dist present), `sdk/org/.env` AZURE keys set, kitchen baseline
+  **11/11 green**, both repos level with origin/main. Verified the row-type singularizer for all 6 new
+  tables (`settings→Setting`, `nutrition_facts→NutritionFact`, `meal_nutrition→MealNutrition`,
+  `substitutions→Substitution`, `shopping_trips→ShoppingTrip`, `suggestions→Suggestion`).
+- **Critical engine facts carried from the blog round-2 log (apply, do NOT rediscover):**
+  (a) hook `delegate` DROPS structured input + api `spawn` is a no-op stub → agents invoked by
+  hooks/spawn get only a generic message and MUST **self-query** their work (bound tasklists get
+  `{ query, ...context }`). (b) task-level `functions:` is an ALLOWLIST that gates SYSTEM
+  webSearch/webFetch/fetch too — the importer's fetch task must list them. (c) db hooks fire on
+  api-writes / top-level (chat) writes in the main process, but NOT on writes inside a headless
+  hook-triggered session (so a hook→agent→hook 2nd hop won't auto-cascade; cron/api/chat paths do).
+  (d) db-hook handlers must guard `row` undefined (manual/boot/cron runs). (e) `db.query` where is
+  equality-only. → all four new hooks fire on working paths (2 db-insert from top-level/api writes,
+  2 cron self-query) — NONE rely on headless-session re-dispatch.
+- Phase 1 spec ✅ — added a "## Round 2 — Nutrition, Sourcing & Kitchen Intelligence (expansion)" section
+  to `app-specifications/kitchen-application.md` (6 new tables + 5 columns, 13 endpoints, 4 hooks, 2 new
+  full-format spaces `nutrition`+`sourcing`, 4 new agents, 5 pages, chef full-format remediation).
+- Phase 2 PLAN ✅ — appended a file-by-file round-2 section to `automation/app-builder/PLAN.kitchen.md`.
+- Phase 3 build (in progress):
+  - database/ ✅ — 6 new tables + column adds. **All 12 validate** via the real engine `validateSchemaSet`
+    (I authored these directly — foundation locked before fan-out).
+  - api/ ✅ — 13 new handlers (Sonnet subagent). → 27 endpoints total.
+  - hooks/ ✅ — 4 new hooks (all declarative-trigger self-query). → 6 total.
+  - spaces (chef remediation + nutrition + sourcing) + pages/components — fanned out to parallel Sonnet
+    subagents by directory. Integration + full build/test/live pending.
+
+## Round log — ROUND 2 COMPLETION (2026-07-05, this run) — shipped ✅
+Picked up the in-flight round-2 expansion (all round-2 files were on disk but uncommitted, unverified,
+and the space-format remediation was incomplete). Completed it end-to-end, found+fixed 4 real bugs, and
+shipped. This run's expansion floors are all met: **+2 spaces (nutrition, sourcing → 3 total), +4 agents,
++5 pages (13 total), +13 endpoints (27 total), +4 hooks (6 total), +6 tables (12 total)**.
+
+- **Space-format remediation (the flagged defect) — DONE.** All 3 spaces are now FULL format:
+  - `chef`: added `tasklists/{plan(7-day forEach),suggest-uses,recompute}`, `functions/{scaleQuantity,
+    coverageScore,diffShoppingNeeds,expiringSoon}`, `components/view/{WeekPlanCard,ShoppingListCard}`,
+    `knowledge/{meal-planning/{dietary-constraints,variety-and-balance}, pantry/pantry-management,
+    shopping/shopping-diff}` (4 topics, each index.md + ≥2 aspects). Planner gained `db:read settings`,
+    `db:write suggestions`, a `suggest-uses` action + `knowledge:` refs.
+  - `nutrition`: added `tasklists/{compute,analyze-recipe,explain-week}` + `knowledge/{nutrition-science/
+    {macros-and-estimation,targets-and-adherence}, coaching/not-a-dietitian}`. (functions/components pre-existed.)
+  - `sourcing`: added `tasklists/{import,substitutions,organize-trip}`, `components/view/{ImportedRecipePreview,
+    ShoppingTripPreview,SubstitutionCard}`, `knowledge/{recipe-import/{parsing-web-recipes,web-fetch-safety},
+    shopping-optimization/{aisle-and-cost,substitutions}}`, and **4 new functions** (see bug #1).
+  - Fanned out to 3 parallel Sonnet subagents by directory (one per space); I integrated + verified.
+- **All 3 spaces load clean via the real engine `loadSpace`** (pre-flight before the live test).
+- **Test suite: 18/18 green** (`node --test store/projects/kitchen/tests/kitchen.test.mjs`) — 12 schemas
+  validate, 27 endpoints, 6 hooks, 3 full-format spaces, knowledge index+≥2-aspects, least-privilege caps,
+  + 3 NEW regression tests (see bugs below). Token scan: **0 raw colors** across pages+components+space-components.
+- **Full pipeline under `lmthing serve` (temp LMTHING_ROOT, LM_MODEL=S):** manifest = **12 tables / 27
+  endpoints / 6 hooks**; `types/generated.d.ts` has all 11 row interfaces; **11 page routes build** (3 assets);
+  `GET /app/kitchen/ → 200`. Deterministic read endpoints verified exactly correct: `shoppingList`
+  (pasta 1900, garlic 26, tomato 400 — olive oil excluded, pantry covers it), `getShoppingTrip` (aisle-grouped
+  pantry/produce + cost), `getPlanNutrition`/`nutritionStats` (13638 wk cal, 1948/day avg).
+
+### 🔴 LIVE core loop (DeepSeek `azure:DeepSeek-V4-Flash`), end-to-end — PROVEN
+- **Planner (chat session, live):** wrote **7 plan_meals** (one/day 07-06→07-12), **scaled servings to
+  householdSize=4 from `settings`** (round-2 dietary/household feature LIVE), marked the plan `ready`,
+  favored in-stock recipes (6× Garlic Pasta + 1× Tomato Soup).
+- **enrich-recipe-nutrition db hook (recipes:insert) → nutritionist (live):** wrote **4 nutrition_facts**
+  (all seeded ingredients estimated via `estimateNutrition`).
+- **recompute-shopping db hook fired → shopper (live):** after bug #4 fix, wrote **3 shopping_list gaps**
+  matching the deterministic diff exactly.
+- **compute-nutrition db hook fired → nutritionist compute (live):** after bug #3 fix, wrote **7
+  meal_nutrition rows** (Garlic Pasta @4srv ≈2182 cal/46g; Tomato Soup ≈546 cal/16g) → `getPlanNutrition`
+  + `nutritionStats` now show real macros.
+- **Capability gate proven live** (host-enforced per-verb table scope errors, agents recovered).
+
+### Bugs found + fixed live this run (each now has a regression test / is engine-verified)
+1. **Sourcing space failed to load (fail-loud).** The importer/optimizer agent `functions:` listed system
+   globals `webFetch/webSearch/fetch` (not files → loader throws "not found in functions/") and 4 helper
+   functions that didn't exist. Fix: removed system globals from AGENT `functions:` (they're universal/ambient
+   at top level; the import **tasklist fetch task** keeps them as a task-level allowlist — the correct engine
+   location) and **created the 4 helper functions** `matchIngredient, groupByAisle, estimateTripCost,
+   suggestSubstitute` (sourcing now has 5 functions). New tests: `the importer reaches the web via its
+   task-level functions allowlist…` + `no agent-level functions: lists a system global (fail-loud loader trap)`.
+2. **Round-2 columns had no write path.** `addIngredient`/`updatePantry` didn't accept `expiresAt`/`costPerUnit`,
+   so the /expiring page, use-it-up hook, and shopping-trip cost estimate would build but never have data.
+   Fix: both handlers now accept the optional columns (updatePantry became partial — quantity-only PATCH no
+   longer clobbers expiry). New test: `pantry writes accept the round-2 columns…`.
+3. **nutritionist `compute` couldn't run** — `db:read: table "meal_nutrition"/"suggestions" not permitted`
+   (they were write-only, but compute must read them for its idempotence guard). Fix: added `meal_nutrition`
+   + `suggestions` to the nutritionist's `db:read`. Verified live: 7 meal_nutrition rows written.
+4. **shopper `recompute` wrote 0 rows** — its instruct assumed a `planId` input, but **hook delegates drop
+   structured input**; the weak model then guessed a non-existent `plans` table. Fix: instruct now tells it
+   to **self-query `plan_meals`** for the plan ids and warns there is no `plans` table (the week is
+   `meal_plans`). Verified live: 3 correct shopping_list rows.
+
+### Known / accepted (non-blocking)
+- **Weak-model noise:** DeepSeek-Flash sometimes calls `loadKnowledge('<field>/overview')` (guessing an
+  option name) → a **retryable** yield error (the field overview is `index.md`, auto-injected; no `overview.md`).
+  Non-fatal — the planner completed correctly. Could add aspect-name hints to each index.md in a later round.
+- DeepSeek-Flash occasionally flakes on the shopper's multi-step diff (a non-yielding-binding nudge loop) on
+  the first hook-triggered run; a fresh session + the bug-#4 self-query fix succeeded. The **deterministic
+  `shoppingList`/`getShoppingTrip` API endpoints guarantee UI correctness regardless of agent flakiness.**
+- sdk/org engine: **no changes needed this run** (kitchen relies only on already-shipped engine behavior).

@@ -1,0 +1,17 @@
+{
+  "title": "Substitutions",
+  "description": "A suggested swap for a pantry ingredient — because it's out of stock, expiring, expensive, or clashes with the diet. Written by the sourcing optimizer.",
+  "columns": {
+    "id":             { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "ingredientId":   { "type": "string", "description": "the ingredient being substituted for", "required": true,
+                        "references": { "table": "ingredients", "column": "id", "onDelete": "cascade" } },
+    "substituteName": { "type": "string", "description": "the ingredient name to use instead", "required": true },
+    "ratio":          { "type": "number", "description": "how much substitute per one unit of the original (1 = one-for-one)", "default": 1 },
+    "reason":         { "type": "string", "description": "why: 'out-of-stock' | 'expiring' | 'cost' | 'dietary'", "required": true },
+    "note":           { "type": "string", "description": "a short human note, e.g. 'butter → olive oil works for sautéing'" },
+    "createdAt":      { "type": "date",   "description": "when the suggestion was made", "generated": "now" }
+  },
+  "relations": {
+    "ingredient": { "belongsTo": "ingredients", "via": "ingredientId", "description": "the ingredient being substituted for" }
+  }
+}

@@ -4,6 +4,7 @@ import { useApi, useApiMutation } from '@app/runtime';
 import { StatsStrip, type Stats } from '../components/StatsStrip';
 import { WeekGrid } from '../components/WeekGrid';
 import { Spinner } from '../components/Spinner';
+import { SuggestionCard, type SuggestionWithRefs } from '../components/SuggestionCard';
 
 type PlanWithMeals = MealPlan & { meals: (PlanMeal & { recipe: Recipe | null })[] };
 
@@ -16,6 +17,12 @@ export default function ThisWeek() {
     refetch,
   } = useApi<{ plan: PlanWithMeals | null }>('currentPlan', {});
 
+  const { data: suggestions } = useApi<SuggestionWithRefs[]>('listSuggestions', {});
+
+  const dismissSuggestion = useApiMutation<{ ok: boolean }>('dismissSuggestion', {
+    invalidates: ['listSuggestions'],
+  });
+
   const generatePlan = useApiMutation<{ planId: string; status: string }>('generatePlan', {
     invalidates: ['currentPlan', 'kitchenStats'],
   });
@@ -25,6 +32,7 @@ export default function ThisWeek() {
   });
 
   const plan = data?.plan ?? null;
+  const topSuggestions = (suggestions ?? []).slice(0, 3);
 
   useEffect(() => {
     if (plan?.status !== 'planning') return;
@@ -36,6 +44,21 @@ export default function ThisWeek() {
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6">
+      {topSuggestions.length > 0 ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-bold uppercase text-muted-foreground">Suggestions</h2>
+          <div className="space-y-2">
+            {topSuggestions.map((s) => (
+              <SuggestionCard
+                key={s.id}
+                suggestion={s}
+                onDismiss={(id) => dismissSuggestion.mutate({ id })}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       {stats ? <StatsStrip stats={stats} /> : null}
 
       {isLoading ? <Spinner /> : null}

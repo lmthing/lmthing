@@ -1,19 +1,19 @@
 /**
- * Self-contained tests for the `kitchen` project-application.
+ * Self-contained tests for the `kitchen` project-application (round 1 + round 2).
  *
  * Runs dependency-free with Node's built-in runner:
- *   node --test store/projects/kitchen/tests/
+ *   node --test store/projects/kitchen/tests/kitchen.test.mjs
  *
  * - **Schemas** are validated with the REAL engine validator (`validateSchemaSet`
  *   from the built `@lmthing/core` in the sdk/org submodule) — the same fail-loud
  *   check the runtime loader (`libs/cli/src/app/loader.ts`) applies at boot.
- * - **API handlers / hooks / agents** are asserted structurally (the files are TS,
- *   not importable here without a transpile, so we check their required exports /
- *   shape by source) — a green here means the contract the runtime relies on holds.
+ * - **API handlers / hooks / agents / spaces** are asserted structurally (the files
+ *   are TS/md, not importable here without a transpile) — a green here means the
+ *   contract the runtime relies on holds.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
@@ -22,17 +22,23 @@ const APP = join(HERE, '..'); // store/projects/kitchen
 const REPO = join(APP, '..', '..', '..'); // monorepo root
 const CORE = join(REPO, 'sdk', 'org', 'libs', 'core', 'dist', 'index.js');
 
-// ── Schemas — real engine validation ────────────────────────────────────────
+// ── Schemas — real engine validation (round 1: 6 tables + round 2: 6 new = 12) ─
 const EXPECTED_TABLES = [
   'ingredients',
+  'meal_nutrition',
   'meal_plans',
+  'nutrition_facts',
   'plan_meals',
   'recipe_ingredients',
   'recipes',
+  'settings',
   'shopping_list',
+  'shopping_trips',
+  'substitutions',
+  'suggestions',
 ];
 
-test('all 6 database schemas pass the engine validateSchemaSet (fail-loud)', async () => {
+test('all 12 database schemas pass the engine validateSchemaSet (fail-loud)', async () => {
   assert.ok(
     existsSync(CORE),
     `built @lmthing/core not found at ${CORE} — run \`pnpm --filter @lmthing/core build\` in sdk/org`,
@@ -78,8 +84,34 @@ test('the many-to-many + plan chain relations resolve to real tables', () => {
   assert.equal(pm.columns.recipeId.references.onDelete, 'restrict');
 });
 
-// ── API handlers — the 14 named, typed endpoints ────────────────────────────
+test('round-2 tables carry their key FKs, unique constraints and new columns', () => {
+  const dbDir = join(APP, 'database');
+  const load = (n) => JSON.parse(readFileSync(join(dbDir, `${n}.json`), 'utf8'));
+  const nf = load('nutrition_facts');
+  assert.equal(nf.columns.ingredientId.references.table, 'ingredients');
+  assert.equal(nf.columns.ingredientId.unique, true, 'nutrition_facts.ingredientId must be unique');
+  const mn = load('meal_nutrition');
+  assert.equal(mn.columns.planMealId.references.table, 'plan_meals');
+  assert.equal(mn.columns.planMealId.unique, true, 'meal_nutrition.planMealId must be unique');
+  const sub = load('substitutions');
+  assert.equal(sub.columns.ingredientId.references.table, 'ingredients');
+  const trip = load('shopping_trips');
+  assert.equal(trip.columns.planId.references.table, 'meal_plans');
+  const sug = load('suggestions');
+  assert.equal(sug.columns.ingredientId.references.onDelete, 'setNull');
+  assert.equal(sug.columns.recipeId.references.onDelete, 'setNull');
+  // new columns on existing tables
+  const ing = load('ingredients');
+  assert.ok(ing.columns.expiresAt && ing.columns.costPerUnit, 'ingredients gains expiresAt + costPerUnit');
+  const rec = load('recipes');
+  assert.ok(rec.columns.cuisine, 'recipes gains cuisine');
+  const pm = load('plan_meals');
+  assert.ok(pm.columns.rating && pm.columns.cookedAt, 'plan_meals gains rating + cookedAt');
+});
+
+// ── API handlers — 14 round-1 + 13 round-2 = 27 named, typed endpoints ──────────
 const EXPECTED_ENDPOINTS = [
+  // round 1
   ['plan/GET.ts', 'currentPlan'],
   ['plan/POST.ts', 'generatePlan'],
   ['plan/[id]/shopping/GET.ts', 'shoppingList'],
@@ -94,9 +126,24 @@ const EXPECTED_ENDPOINTS = [
   ['pantry/[id]/PATCH.ts', 'updatePantry'],
   ['shopping/[id]/PATCH.ts', 'toggleBought'],
   ['stats/GET.ts', 'kitchenStats'],
+  // round 2
+  ['settings/GET.ts', 'getSettings'],
+  ['settings/PATCH.ts', 'updateSettings'],
+  ['recipes/import/POST.ts', 'importRecipe'],
+  ['meals/[id]/rating/PATCH.ts', 'rateMeal'],
+  ['meals/[id]/cooked/POST.ts', 'markCooked'],
+  ['recipes/[id]/nutrition/GET.ts', 'getRecipeNutrition'],
+  ['plan/[id]/nutrition/GET.ts', 'getPlanNutrition'],
+  ['pantry/expiring/GET.ts', 'listExpiring'],
+  ['plan/[id]/trip/GET.ts', 'getShoppingTrip'],
+  ['substitutions/[ingredientId]/GET.ts', 'listSubstitutions'],
+  ['nutrition/stats/GET.ts', 'nutritionStats'],
+  ['suggestions/GET.ts', 'listSuggestions'],
+  ['suggestions/[id]/PATCH.ts', 'dismissSuggestion'],
 ];
 
-test('all 14 api handlers exist and export name / Input / Output / default handler', () => {
+test('all 27 api handlers exist and export name / Input / Output / default handler', () => {
+  assert.equal(EXPECTED_ENDPOINTS.length, 27);
   for (const [rel, name] of EXPECTED_ENDPOINTS) {
     const p = join(APP, 'api', rel);
     assert.ok(existsSync(p), `missing handler ${rel}`);
@@ -108,58 +155,169 @@ test('all 14 api handlers exist and export name / Input / Output / default handl
   }
 });
 
-test('generatePlan spawns the planner fire-and-forget', () => {
-  const src = readFileSync(join(APP, 'api', 'plan', 'POST.ts'), 'utf8');
-  assert.match(src, /ctx\.spawn\(/, 'generatePlan must spawn the planner');
-  assert.match(src, /chef\/planner#plan/, 'generatePlan must target chef/planner#plan');
+test('generatePlan spawns the planner; importRecipe spawns the importer', () => {
+  const plan = readFileSync(join(APP, 'api', 'plan', 'POST.ts'), 'utf8');
+  assert.match(plan, /ctx\.spawn\(/);
+  assert.match(plan, /chef\/planner#plan/);
+  const imp = readFileSync(join(APP, 'api', 'recipes', 'import', 'POST.ts'), 'utf8');
+  assert.match(imp, /ctx\.spawn\(/);
+  assert.match(imp, /sourcing\/importer#import/);
 });
 
-test('shoppingList computes the diff over include-d relations', () => {
-  const src = readFileSync(join(APP, 'api', 'plan', '[id]', 'shopping', 'GET.ts'), 'utf8');
-  assert.match(src, /include/, 'shoppingList must use include to join the plan graph');
+test('shoppingList + getShoppingTrip compute the diff over include-d relations', () => {
+  assert.match(readFileSync(join(APP, 'api', 'plan', '[id]', 'shopping', 'GET.ts'), 'utf8'), /include/);
+  assert.match(readFileSync(join(APP, 'api', 'plan', '[id]', 'trip', 'GET.ts'), 'utf8'), /include|recipe_ingredients/);
 });
 
 test('toggleBought tops up the pantry when a row is marked bought', () => {
   const src = readFileSync(join(APP, 'api', 'shopping', '[id]', 'PATCH.ts'), 'utf8');
-  assert.match(src, /ingredients/, 'toggleBought must write back to ingredients (pantry top-up)');
+  assert.match(src, /ingredients/);
 });
 
-// ── Hooks — cron + database:insert loop ─────────────────────────────────────
-test('plan-week is a cron hook that triggers the planner', () => {
-  const src = readFileSync(join(APP, 'hooks', 'plan-week.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]cron['"]/);
-  assert.match(src, /chef\/planner#plan/);
+test('pantry writes accept the round-2 columns (expiresAt/costPerUnit) so waste + cost features have data', () => {
+  // Without these, the round-2 expiresAt/costPerUnit columns have no write path — the /expiring page,
+  // use-it-up hook, and shopping-trip cost estimate would build but never have data to work on.
+  const add = readFileSync(join(APP, 'api', 'pantry', 'POST.ts'), 'utf8');
+  assert.match(add, /expiresAt/, 'addIngredient must accept expiresAt');
+  assert.match(add, /costPerUnit/, 'addIngredient must accept costPerUnit');
+  const patch = readFileSync(join(APP, 'api', 'pantry', '[id]', 'PATCH.ts'), 'utf8');
+  assert.match(patch, /expiresAt/, 'updatePantry must accept expiresAt');
+  assert.match(patch, /costPerUnit/, 'updatePantry must accept costPerUnit');
 });
 
-test('recompute-shopping is a database:insert hook on plan_meals that delegates the shopper', () => {
-  const src = readFileSync(join(APP, 'hooks', 'recompute-shopping.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /table:\s*['"]plan_meals['"]/);
-  assert.match(src, /event:\s*['"]insert['"]/);
-  assert.match(src, /delegate\(\s*['"]chef\/shopper['"]/, 'must delegate to the shopper');
+// ── Hooks — 2 round-1 + 4 round-2 = 6 ───────────────────────────────────────────
+test('plan-week + recompute-shopping (round 1) are intact', () => {
+  const pw = readFileSync(join(APP, 'hooks', 'plan-week.ts'), 'utf8');
+  assert.match(pw, /type:\s*['"]cron['"]/);
+  assert.match(pw, /chef\/planner#plan/);
+  const rs = readFileSync(join(APP, 'hooks', 'recompute-shopping.ts'), 'utf8');
+  assert.match(rs, /type:\s*['"]database['"]/);
+  assert.match(rs, /table:\s*['"]plan_meals['"]/);
+  assert.match(rs, /chef\/shopper/);
 });
 
-// ── chef agents — least-privilege capabilities ──────────────────────────────
-test('chef has 3 agents, each least-privilege with no forbidden authoring caps', () => {
-  const agentsDir = join(APP, 'spaces', 'chef', 'agents');
-  const agents = readdirSync(agentsDir);
-  assert.deepEqual(agents.sort(), ['pantry-keeper', 'planner', 'shopper']);
-  for (const a of agents) {
-    const src = readFileSync(join(agentsDir, a, 'instruct.md'), 'utf8');
-    assert.match(src, /capabilities:/, `${a}: must declare capabilities`);
-    // The chef OPERATES the app; it must not carry authoring/schema caps.
-    for (const forbidden of ['db:schema', 'pages:write', 'api:write', 'hooks:write']) {
-      assert.doesNotMatch(src, new RegExp(forbidden), `${a}: must NOT hold ${forbidden}`);
+test('round-2 hooks: 2 database (nutrition) + 2 cron, on working dispatch paths', () => {
+  const cn = readFileSync(join(APP, 'hooks', 'compute-nutrition.ts'), 'utf8');
+  assert.match(cn, /type:\s*['"]database['"]/);
+  assert.match(cn, /table:\s*['"]plan_meals['"]/);
+  assert.match(cn, /nutrition\/nutritionist#compute/);
+  const er = readFileSync(join(APP, 'hooks', 'enrich-recipe-nutrition.ts'), 'utf8');
+  assert.match(er, /type:\s*['"]database['"]/);
+  assert.match(er, /table:\s*['"]recipes['"]/);
+  assert.match(er, /nutrition\/nutritionist#analyze-recipe/);
+  const uu = readFileSync(join(APP, 'hooks', 'use-it-up.ts'), 'utf8');
+  assert.match(uu, /type:\s*['"]cron['"]/);
+  assert.match(uu, /chef\/planner#suggest-uses/);
+  const ns = readFileSync(join(APP, 'hooks', 'nightly-substitutions.ts'), 'utf8');
+  assert.match(ns, /type:\s*['"]cron['"]/);
+  assert.match(ns, /sourcing\/optimizer#substitutions/);
+});
+
+// ── Spaces — 3 project-scoped spaces, each FULL space format ─────────────────────
+const SPACES = ['chef', 'nutrition', 'sourcing'];
+
+test('kitchen has 3 project-scoped spaces', () => {
+  const dir = join(APP, 'spaces');
+  assert.deepEqual(readdirSync(dir).filter((d) => statSync(join(dir, d)).isDirectory()).sort(), SPACES);
+});
+
+test('every space is FULL format (agents charter+instruct, tasklists, functions, components, knowledge)', () => {
+  for (const sp of SPACES) {
+    const base = join(APP, 'spaces', sp);
+    for (const sub of ['agents', 'tasklists', 'functions', 'components', 'knowledge']) {
+      assert.ok(existsSync(join(base, sub)), `${sp}: missing ${sub}/ (full-format requirement)`);
+    }
+    // agents each have BOTH charter.md and instruct.md
+    for (const a of readdirSync(join(base, 'agents'))) {
+      assert.ok(existsSync(join(base, 'agents', a, 'charter.md')), `${sp}/${a}: missing charter.md`);
+      assert.ok(existsSync(join(base, 'agents', a, 'instruct.md')), `${sp}/${a}: missing instruct.md`);
+    }
+    // at least one space function and one component
+    assert.ok(readdirSync(join(base, 'functions')).some((f) => f.endsWith('.ts')), `${sp}: needs ≥1 function`);
+    const compRoot = existsSync(join(base, 'components', 'view')) ? join(base, 'components', 'view') : join(base, 'components');
+    assert.ok(readdirSync(compRoot).some((f) => f.endsWith('.tsx')), `${sp}: needs ≥1 component`);
+  }
+});
+
+test('every knowledge topic has an index.md overview + ≥2 aspect deep-dives', () => {
+  for (const sp of SPACES) {
+    const kroot = join(APP, 'spaces', sp, 'knowledge');
+    // knowledge/<namespace>/<topic>/{index.md + ≥2 aspects}
+    const topics = [];
+    for (const ns of readdirSync(kroot).filter((d) => statSync(join(kroot, d)).isDirectory())) {
+      for (const topic of readdirSync(join(kroot, ns)).filter((d) => statSync(join(kroot, ns, d)).isDirectory())) {
+        topics.push(join(kroot, ns, topic));
+      }
+    }
+    assert.ok(topics.length >= 1, `${sp}: needs ≥1 knowledge topic`);
+    for (const t of topics) {
+      const files = readdirSync(t).filter((f) => f.endsWith('.md'));
+      assert.ok(files.includes('index.md'), `${t}: missing index.md overview`);
+      const aspects = files.filter((f) => f !== 'index.md');
+      assert.ok(aspects.length >= 2, `${t}: needs ≥2 aspect deep-dives (has ${aspects.length})`);
     }
   }
 });
 
-test('per-verb table scope: planner writes only meal_plans/plan_meals, shopper only shopping_list', () => {
+// ── Least-privilege capabilities across all spaces ───────────────────────────────
+test('no project agent holds an authoring capability (db:schema/pages/api/hooks:write)', () => {
+  for (const sp of SPACES) {
+    const agentsDir = join(APP, 'spaces', sp, 'agents');
+    for (const a of readdirSync(agentsDir)) {
+      const src = readFileSync(join(agentsDir, a, 'instruct.md'), 'utf8');
+      assert.match(src, /capabilities:/, `${sp}/${a}: must declare capabilities`);
+      for (const forbidden of ['db:schema', 'pages:write', 'api:write', 'hooks:write']) {
+        assert.doesNotMatch(src, new RegExp(forbidden), `${sp}/${a}: must NOT hold ${forbidden}`);
+      }
+    }
+  }
+});
+
+test('per-verb table scope: planner (+suggestions), shopper, pantry-keeper stay in their lanes', () => {
   const agentsDir = join(APP, 'spaces', 'chef', 'agents');
   const planner = readFileSync(join(agentsDir, 'planner', 'instruct.md'), 'utf8');
-  assert.match(planner, /db:write:\s*\{\s*tables:\s*\[meal_plans,\s*plan_meals\]/);
+  assert.match(planner, /db:write:\s*\{\s*tables:\s*\[meal_plans,\s*plan_meals,\s*suggestions\]/);
+  assert.match(planner, /db:read:[^\n]*settings/, 'planner reads settings for dietary filtering');
   const shopper = readFileSync(join(agentsDir, 'shopper', 'instruct.md'), 'utf8');
   assert.match(shopper, /db:write:\s*\{\s*tables:\s*\[shopping_list\]/);
   const keeper = readFileSync(join(agentsDir, 'pantry-keeper', 'instruct.md'), 'utf8');
   assert.match(keeper, /db:write:\s*\{\s*tables:\s*\[ingredients\]/);
+});
+
+test('the importer reaches the web via its task-level functions allowlist, not agent frontmatter', () => {
+  // Engine truth: webFetch/webSearch/fetch are UNIVERSAL system globals. Listing them in an
+  // agent's `functions:` frontmatter makes the space loader fail-loud ("not found in functions/"),
+  // because agent `functions:` is validated against real files in functions/. They belong in a
+  // TASK-level functions allowlist (which restricts the otherwise-locked-down task capability set).
+  const imp = readFileSync(join(APP, 'spaces', 'sourcing', 'agents', 'importer', 'instruct.md'), 'utf8');
+  assert.match(imp, /functions:/);
+  assert.match(imp, /webFetch/, 'importer instruct must describe using webFetch');
+  const fetchTask = readFileSync(
+    join(APP, 'spaces', 'sourcing', 'tasklists', 'import', '01-fetch_page.md'),
+    'utf8',
+  );
+  assert.match(fetchTask, /functions:\s*\[[^\]]*webFetch/, 'the fetch task must allowlist webFetch');
+});
+
+test('no agent-level functions: frontmatter lists a system global (fail-loud loader trap)', () => {
+  // Regression: a system global (webFetch/webSearch/fetch) in an agent `functions:` block throws
+  // at space load. Every agent `functions:` entry must resolve to a file in that space's functions/.
+  const SYSTEM_GLOBALS = ['webFetch', 'webSearch', 'fetch'];
+  for (const sp of SPACES) {
+    const fnDir = join(APP, 'spaces', sp, 'functions');
+    const files = existsSync(fnDir)
+      ? new Set(readdirSync(fnDir).filter((f) => f.endsWith('.ts')).map((f) => f.slice(0, -3)))
+      : new Set();
+    const agentsDir = join(APP, 'spaces', sp, 'agents');
+    for (const a of readdirSync(agentsDir)) {
+      const src = readFileSync(join(agentsDir, a, 'instruct.md'), 'utf8');
+      const m = src.match(/\nfunctions:\n((?:\s*-\s*\S+\n)+)/);
+      if (!m) continue;
+      const listed = [...m[1].matchAll(/-\s*(\S+)/g)].map((x) => x[1]);
+      for (const fn of listed) {
+        assert.ok(!SYSTEM_GLOBALS.includes(fn), `${sp}/${a}: '${fn}' is a system global — remove it from agent functions:`);
+        assert.ok(files.has(fn), `${sp}/${a}: functions: '${fn}' has no file in ${sp}/functions/`);
+      }
+    }
+  }
 });

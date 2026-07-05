@@ -20,6 +20,10 @@ export interface Input {
   quantity?: number;
   category?: string;
   lowStockThreshold?: number;
+  /** ISO date this stock goes off, for waste-reduction (the /expiring page + use-it-up hook). */
+  expiresAt?: string;
+  /** rough price per `unit`, for the shopping-trip cost estimate. */
+  costPerUnit?: number;
 }
 
 export interface Ingredient {
@@ -49,6 +53,8 @@ export default async function handler(input: Input, ctx: Ctx): Promise<Output> {
     quantity: input.quantity ?? 0,
     category: input.category,
     lowStockThreshold: input.lowStockThreshold ?? 0,
+    ...(input.expiresAt !== undefined ? { expiresAt: input.expiresAt } : {}),
+    ...(input.costPerUnit !== undefined ? { costPerUnit: input.costPerUnit } : {}),
   })) as Ingredient;
 
   return created;

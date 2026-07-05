@@ -159,3 +159,158 @@ Fallback to a mock streamFn ONLY if AZURE key missing (record in PROGRESS).
 - C: `pages/` + `components/`.
 - D: `hooks/` + `spaces/chef/`.
 Then orchestrator integrates, writes tests, runs the engine loaders/build, live e2e, push.
+
+---
+
+# PLAN — round 2 (FEATURE EXPANSION): Nutrition, Sourcing & Kitchen Intelligence
+
+Strictly additive. Root unchanged `store/projects/kitchen/`. All contracts grounded in the shipped
+engine + the round-1 build + the `store/projects/blog` full-format reference. Row-type names verified
+against the engine singularizer.
+
+## database/ (+6 tables, +5 columns) — descriptions mandatory; FK/relations resolve
+- `settings.json` — Setting. cols: id(pk uuid), householdSize(number def 2), diet(string def 'none'),
+  allergies(json), dislikes(json), cuisines(json), maxPrepMinutes(number def 45), calorieTarget(number
+  def 2000), proteinTarget(number def 80), updatedAt(now). (single-row; getSettings seeds it.)
+- `nutrition_facts.json` — NutritionFact. cols: id(pk uuid), ingredientId(FK ingredients cascade, req,
+  unique), caloriesPerUnit(number def 0), proteinPerUnit(number def 0), carbsPerUnit(number def 0),
+  fatPerUnit(number def 0), basisNote(string). relation ingredient(belongsTo ingredients).
+- `meal_nutrition.json` — MealNutrition. cols: id(pk uuid), planMealId(FK plan_meals cascade, req,
+  unique), calories(number def 0), protein(number def 0), carbs(number def 0), fat(number def 0),
+  computedAt(now). relation meal(belongsTo plan_meals via planMealId).
+- `substitutions.json` — Substitution. cols: id(pk uuid), ingredientId(FK ingredients cascade, req),
+  substituteName(string req), ratio(number def 1), reason(string req), note(string), createdAt(now).
+  relation ingredient(belongsTo ingredients).
+- `shopping_trips.json` — ShoppingTrip. cols: id(pk uuid), planId(FK meal_plans cascade, req),
+  store(string), estimatedCost(number def 0), organized(json), status(string def 'draft'), createdAt(now).
+  relation plan(belongsTo meal_plans).
+- `suggestions.json` — Suggestion. cols: id(pk uuid), type(string req), title(string req), body(string),
+  ingredientId(FK ingredients setNull), recipeId(FK recipes setNull), priority(number def 0),
+  dismissed(boolean def false), createdAt(now). relations ingredient(belongsTo ingredients),
+  recipe(belongsTo recipes).
+- COLUMN ADDS: ingredients += expiresAt(date), costPerUnit(number def 0), nutrition(hasMany
+  nutrition_facts via ingredientId), substitutes(hasMany substitutions via ingredientId). recipes +=
+  cuisine(string). plan_meals += rating(number), cookedAt(date), nutrition(hasMany meal_nutrition via
+  planMealId). meal_plans += trips(hasMany shopping_trips via planId).
+- Verify: all 12 tables validate via validateSchemaSet; row types Setting/NutritionFact/MealNutrition/
+  Substitution/ShoppingTrip/Suggestion generate.
+
+## api/ (+13 endpoints → 27) — name/description/Input/Output + default async handler; inline Db/Ctx types
+- `settings/GET.ts` getSettings — read the single settings row; if none, insert defaults; return it.
+- `settings/PATCH.ts` updateSettings — get-or-seed the row, update provided fields, updatedAt now.
+- `recipes/import/POST.ts` importRecipe {url} → insert stub recipe (title 'Importing…', source url,
+  instructions ''), spawn('sourcing/importer#import',{recipeId,url}) fire-and-forget; return {recipeId,status}.
+- `meals/[id]/rating/PATCH.ts` rateMeal {id,rating} → update plan_meals set rating; return row.
+- `meals/[id]/cooked/POST.ts` markCooked {id} → update plan_meals set cookedAt now; return row.
+- `recipes/[id]/nutrition/GET.ts` getRecipeNutrition {id} → include recipe_ingredients, hydrate each
+  ingredient's nutrition_facts, sum cal/protein/carbs/fat × line.quantity; list missing names.
+- `plan/[id]/nutrition/GET.ts` getPlanNutrition {id} → plan.meals → per meal recipe nutrition scaled by
+  servings, grouped per day; targets from settings; adherence ratio.
+- `pantry/expiring/GET.ts` listExpiring {withinDays?=3} → query-all ingredients, filter non-null
+  expiresAt within N days, sort by expiresAt.
+- `plan/[id]/trip/GET.ts` getShoppingTrip {id} → compute the diff (like shoppingList) then group by
+  ingredient.category into aisles, estCost = gap × costPerUnit, sum estimatedCost.
+- `substitutions/[ingredientId]/GET.ts` listSubstitutions {ingredientId} → query substitutions where
+  ingredientId, hydrate ingredient.
+- `nutrition/stats/GET.ts` nutritionStats {} → current plan per-day nutrition, week totals/avg, target,
+  onTrack boolean.
+- `suggestions/GET.ts` listSuggestions {type?} → query-all suggestions, filter !dismissed (+ type),
+  hydrate ingredient/recipe, sort priority desc.
+- `suggestions/[id]/PATCH.ts` dismissSuggestion {id} → set dismissed true; return {ok}.
+
+## hooks/ (+4 → 6)
+- `compute-nutrition.ts` — database plan_meals:insert → trigger 'nutrition/nutritionist#compute';
+  budget {maxEpisodes:8}. (guard row undefined; declarative trigger — agent self-queries missing meals.)
+- `enrich-recipe-nutrition.ts` — database recipes:insert → 'nutrition/nutritionist#analyze-recipe';
+  budget {maxEpisodes:8}.
+- `use-it-up.ts` — cron daily:'08:00' → 'chef/planner#suggest-uses'; budget {maxEpisodes:8}.
+- `nightly-substitutions.ts` — cron daily:'07:00' → 'sourcing/optimizer#substitutions'; budget {maxEpisodes:8}.
+
+## spaces/ — chef REMEDIATION (full format) + nutrition + sourcing (born full)
+Full format each = agents/<slug>/{charter.md,instruct.md} + tasklists/ + functions/ + components/ +
+knowledge/<field>/{index.md + ≥2 aspect.md}.
+
+### spaces/chef (remediate)
+- planner instruct: add db:read settings, db:write suggestions, actions [plan, suggest-uses]; knowledge
+  [meal-planning, pantry-management]; functions [scoreRecipeForWeek, scaleQuantity, isExpiringSoon];
+  components [PlanPreview]. tasklists/plan (index + 01-read + 02-slot forEach days), tasklists/suggest-uses.
+- shopper instruct: knowledge [shopping]; functions [sumRequired, diffPantry, formatShoppingLine];
+  components [ShoppingListPreview]. tasklists/recompute (index + task).
+- pantry-keeper instruct: knowledge [pantry-management]; functions [normalizeUnit]; components [PantryUpdatePreview].
+- functions/: scoreRecipeForWeek.ts, scaleQuantity.ts, isExpiringSoon.ts, sumRequired.ts, diffPantry.ts,
+  formatShoppingLine.ts, normalizeUnit.ts.
+- components/view/: PlanPreview.tsx, ShoppingListPreview.tsx, PantryUpdatePreview.tsx.
+- knowledge/: meal-planning/{index, pantry-first-planning, variety-and-rotation, dietary-constraints},
+  pantry-management/{index, units-and-quantities, waste-reduction}, shopping/{index, the-diff-method, aisle-organization}.
+
+### spaces/nutrition (new)
+- agents/nutritionist {charter,instruct}: db:read [recipes,recipe_ingredients,ingredients,plan_meals,
+  meal_plans,nutrition_facts,settings]; db:write [meal_nutrition,nutrition_facts,suggestions]; actions
+  [compute, analyze-recipe]; knowledge [nutrition-science]; functions [estimateNutrition,sumMacros,
+  macroTargetStatus]; components [NutritionSummary]. tasklists/compute, tasklists/analyze-recipe.
+- agents/coach {charter,instruct}: db:read [settings,meal_plans,plan_meals,recipes,meal_nutrition,
+  nutrition_facts,suggestions]; db:write [settings,suggestions]; defaultAction chat; knowledge
+  [nutrition-science, coaching]; functions [macroTargetStatus]; components [NutritionSummary].
+- functions/: estimateNutrition.ts, sumMacros.ts, macroTargetStatus.ts.
+- components/view/: NutritionSummary.tsx, MacroBadge.tsx.
+- knowledge/: nutrition-science/{index, macros-and-energy, estimating-from-ingredients, dietary-patterns},
+  coaching/{index, goal-setting, not-a-dietitian}.
+
+### spaces/sourcing (new)
+- agents/importer {charter,instruct}: db:read [ingredients,recipes]; db:write [recipes,recipe_ingredients,
+  ingredients]; functions [webFetch,webSearch,fetch,parseRecipe,matchIngredient]; actions [import];
+  knowledge [recipe-import]; components [ImportedRecipePreview]. tasklists/import (index + 01-fetch + 02-insert).
+- agents/optimizer {charter,instruct}: db:read [shopping_list,ingredients,meal_plans,plan_meals,recipes,
+  recipe_ingredients,substitutions,settings,suggestions]; db:write [shopping_trips,substitutions,
+  suggestions]; actions [organize, substitutions]; knowledge [shopping-optimization]; functions
+  [groupByAisle,estimateTripCost,suggestSubstitute]; components [ShoppingTripPreview]. tasklists/organize,
+  tasklists/substitutions.
+- functions/: parseRecipe.ts, matchIngredient.ts, groupByAisle.ts, estimateTripCost.ts, suggestSubstitute.ts.
+  NOTE: webFetch/webSearch/fetch are SYSTEM globals — list them in the importer instruct `functions:` and
+  in the import tasklist task `functions:` allowlist (they are NOT space functions and have no .ts file).
+- components/view/: ImportedRecipePreview.tsx, ShoppingTripPreview.tsx.
+- knowledge/: recipe-import/{index, parsing-recipe-pages, matching-ingredients},
+  shopping-optimization/{index, aisle-order, substitutions-and-cost}.
+
+## pages/ + components/ (+5 pages, design tokens ONLY)
+- pages/preferences.tsx — getSettings/updateSettings form (PreferencesForm) + <Chat nutrition/coach>.
+- pages/nutrition.tsx — getPlanNutrition + nutritionStats; per-day MacroBar vs targets.
+- pages/import.tsx — importRecipe URL form (ImportForm) + <Chat sourcing/importer>.
+- pages/trip/[planId].tsx — getShoppingTrip aisle groups (AisleGroup) + cost + <Chat sourcing/optimizer>.
+- pages/expiring.tsx — listExpiring (ExpiringRow) + listSuggestions/dismissSuggestion (SuggestionCard).
+- Additive edits: _layout nav (+Nutrition +Preferences +Import +Expiring), index suggestions strip,
+  recipes/[id] nutrition panel.
+- components/: PreferencesForm.tsx, MacroBar.tsx, ImportForm.tsx, AisleGroup.tsx, ExpiringRow.tsx,
+  SuggestionCard.tsx, RatingStars.tsx.
+
+## Tests — extend store/projects/kitchen/tests/kitchen.test.mjs
+- Schemas: all 12 tables validate; new row types resolve (Setting/NutritionFact/MealNutrition/
+  Substitution/ShoppingTrip/Suggestion); new columns present.
+- API: 27 handlers exist + export name/Input/Output/default; new names present.
+- Hooks: 6 total; compute-nutrition/enrich-recipe-nutrition are database hooks; use-it-up/
+  nightly-substitutions are cron; existing 2 unchanged.
+- Spaces: 3 spaces (chef/nutrition/sourcing); each full format (tasklists+functions+components+≥1
+  knowledge field w/ index+≥2 aspects per field); new agents least-privilege, per-verb table scope,
+  NO authoring caps; importer has functions webFetch/webSearch/fetch.
+
+## Live e2e (Phase 4) — DeepSeek --model S via sdk/org/.env, under `lmthing serve` on a temp root
+1. Seed via api (addIngredient with expiresAt/costPerUnit, addRecipe).
+2. updateSettings (diet/targets). getSettings seeds+returns.
+3. generatePlan via chat planner → plan_meals inserts → compute-nutrition fires → nutritionist writes
+   meal_nutrition; recompute-shopping still fires → shopper writes shopping_list.
+4. enrich-recipe-nutrition: addRecipe (api) → nutritionist writes nutrition_facts (live).
+5. getRecipeNutrition/getPlanNutrition/nutritionStats reflect it.
+6. cron nightly-substitutions → optimizer writes substitutions/suggestions (live self-query).
+7. Chat: <Chat sourcing/importer> "import <url>" → webFetch → recipe+recipe_ingredients inserted.
+8. getShoppingTrip aisle-groups + cost; listExpiring; listSuggestions/dismiss.
+Fallback to mock streamFn ONLY if AZURE key missing (record in PROGRESS).
+
+## Fan-out (parallel Sonnet subagents by directory)
+- A: database/ (6 tables + column edits to 4 existing). — orchestrator does this first (foundation), verifies validate.
+- B: api/ (13 new handlers).
+- C: pages/ + components/ (5 pages + 7 components + additive edits).
+- D: spaces/chef remediation (full format).
+- E: spaces/nutrition (full format).
+- F: spaces/sourcing (full format).
+- G: hooks/ (4).
+Then orchestrator integrates, extends tests, runs loaders/build, live e2e, push both repos.

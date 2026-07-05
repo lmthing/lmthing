@@ -1,0 +1,21 @@
+{
+  "title": "Suggestions",
+  "description": "A proactive card surfaced to the user — use up an expiring ingredient, swap an out-of-stock item, or a nutrition nudge. Written by the chef planner, sourcing optimizer, and nutritionist; dismissed from the UI.",
+  "columns": {
+    "id":           { "type": "string",  "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "type":         { "type": "string",  "description": "'use-it-up' | 'substitution' | 'nutrition' — drives the card's icon/section", "required": true },
+    "title":        { "type": "string",  "description": "the short headline shown on the card", "required": true },
+    "body":         { "type": "string",  "description": "one or two sentences of detail / the recommended action" },
+    "ingredientId": { "type": "string",  "description": "the ingredient this suggestion is about, if any",
+                      "references": { "table": "ingredients", "column": "id", "onDelete": "setNull" } },
+    "recipeId":     { "type": "string",  "description": "the recipe this suggestion points at, if any",
+                      "references": { "table": "recipes", "column": "id", "onDelete": "setNull" } },
+    "priority":     { "type": "number",  "description": "higher = more urgent/important; the feed sorts by this", "default": 0 },
+    "dismissed":    { "type": "boolean", "description": "whether the user dismissed the card", "default": false },
+    "createdAt":    { "type": "date",    "description": "when the suggestion was created", "generated": "now" }
+  },
+  "relations": {
+    "ingredient": { "belongsTo": "ingredients", "via": "ingredientId", "description": "the ingredient the suggestion is about" },
+    "recipe":     { "belongsTo": "recipes",     "via": "recipeId",     "description": "the recipe the suggestion points at" }
+  }
+}

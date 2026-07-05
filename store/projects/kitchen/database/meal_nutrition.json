@@ -1,0 +1,17 @@
+{
+  "title": "Meal nutrition",
+  "description": "Computed nutrition totals for one plan_meals slot (its recipe's ingredient nutrition scaled to the slot's servings). Written by the nutritionist when a meal is planned.",
+  "columns": {
+    "id":         { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "planMealId": { "type": "string", "description": "the plan_meals slot these totals are for (one row per slot)", "required": true, "unique": true,
+                    "references": { "table": "plan_meals", "column": "id", "onDelete": "cascade" } },
+    "calories":   { "type": "number", "description": "total kcal for the slot as cooked (scaled by servings)", "default": 0 },
+    "protein":    { "type": "number", "description": "total grams of protein for the slot", "default": 0 },
+    "carbs":      { "type": "number", "description": "total grams of carbohydrate for the slot", "default": 0 },
+    "fat":        { "type": "number", "description": "total grams of fat for the slot", "default": 0 },
+    "computedAt": { "type": "date",   "description": "when the totals were computed", "generated": "now" }
+  },
+  "relations": {
+    "meal": { "belongsTo": "plan_meals", "via": "planMealId", "description": "the plan slot these totals are for" }
+  }
+}

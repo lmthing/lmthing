@@ -8,7 +8,8 @@
     "createdAt": { "type": "date",   "description": "when the plan was generated", "generated": "now" }
   },
   "relations": {
-    "meals":    { "hasMany": "plan_meals",    "via": "planId", "description": "the recipes slotted into this week" },
-    "shopping": { "hasMany": "shopping_list", "via": "planId", "description": "the computed shopping list for this week" }
+    "meals":    { "hasMany": "plan_meals",     "via": "planId", "description": "the recipes slotted into this week" },
+    "shopping": { "hasMany": "shopping_list",  "via": "planId", "description": "the computed shopping list for this week" },
+    "trips":    { "hasMany": "shopping_trips", "via": "planId", "description": "aisle-organized shopping trips for this week" }
   }
 }

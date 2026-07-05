@@ -1,0 +1,17 @@
+{
+  "title": "Shopping trips",
+  "description": "An aisle-organized, cost-estimated shopping run for a plan's shopping list. The optimizer groups the gap lines by grocery aisle and estimates the total cost.",
+  "columns": {
+    "id":            { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "planId":        { "type": "string", "description": "the plan whose shopping list this trip organizes", "required": true,
+                       "references": { "table": "meal_plans", "column": "id", "onDelete": "cascade" } },
+    "store":         { "type": "string", "description": "which store the trip is for, if named" },
+    "estimatedCost": { "type": "number", "description": "estimated total cost of the trip (sum of gap quantities × ingredient costPerUnit)", "default": 0 },
+    "organized":     { "type": "json",   "description": "the aisle-grouped lines: array of { aisle, lines:[{ ingredient, unit, quantity, estCost }] }" },
+    "status":        { "type": "string", "description": "'draft' while being built, 'ready' when organized", "default": "draft" },
+    "createdAt":     { "type": "date",   "description": "when the trip was organized", "generated": "now" }
+  },
+  "relations": {
+    "plan": { "belongsTo": "meal_plans", "via": "planId", "description": "the week this trip shops for" }
+  }
+}

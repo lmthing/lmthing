@@ -1,0 +1,18 @@
+{
+  "title": "Nutrition facts",
+  "description": "Estimated nutrition for one pantry ingredient, expressed per one of the ingredient's `unit`. The nutritionist estimates and maintains these; recipe/plan nutrition is summed from them.",
+  "columns": {
+    "id":             { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "ingredientId":   { "type": "string", "description": "the ingredient these facts describe (one row per ingredient)", "required": true, "unique": true,
+                        "references": { "table": "ingredients", "column": "id", "onDelete": "cascade" } },
+    "caloriesPerUnit":{ "type": "number", "description": "kcal per one `unit` of the ingredient", "default": 0 },
+    "proteinPerUnit": { "type": "number", "description": "grams of protein per one `unit`", "default": 0 },
+    "carbsPerUnit":   { "type": "number", "description": "grams of carbohydrate per one `unit`", "default": 0 },
+    "fatPerUnit":     { "type": "number", "description": "grams of fat per one `unit`", "default": 0 },
+    "basisNote":      { "type": "string", "description": "how the estimate was derived, e.g. 'per 1g, typical olive oil'" },
+    "updatedAt":      { "type": "date",   "description": "when the estimate was last refreshed", "generated": "now" }
+  },
+  "relations": {
+    "ingredient": { "belongsTo": "ingredients", "via": "ingredientId", "description": "the ingredient these facts are for" }
+  }
+}

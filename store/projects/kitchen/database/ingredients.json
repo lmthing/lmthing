@@ -8,10 +8,14 @@
     "unit":              { "type": "string", "description": "the unit stock/needs are measured in, e.g. 'g' | 'ml' | 'count'", "required": true },
     "quantity":          { "type": "number", "description": "how much is currently in the pantry, in `unit`", "default": 0 },
     "lowStockThreshold": { "type": "number", "description": "restock hint: at/below this, the planner treats it as unavailable and the pantry flags it low", "default": 0 },
+    "expiresAt":         { "type": "date",   "description": "optional best-before date; the use-it-up hook surfaces items expiring soon and the planner scores recipes that consume them" },
+    "costPerUnit":       { "type": "number", "description": "estimated cost of one `unit`, used to estimate a shopping trip's total cost", "default": 0 },
     "updatedAt":         { "type": "date",   "description": "when the pantry quantity was last changed", "generated": "now" }
   },
   "relations": {
-    "usedIn":   { "hasMany": "recipe_ingredients", "via": "ingredientId", "description": "recipes that call for this ingredient" },
-    "shopping": { "hasMany": "shopping_list",       "via": "ingredientId", "description": "shopping rows for this ingredient" }
+    "usedIn":      { "hasMany": "recipe_ingredients", "via": "ingredientId", "description": "recipes that call for this ingredient" },
+    "shopping":    { "hasMany": "shopping_list",       "via": "ingredientId", "description": "shopping rows for this ingredient" },
+    "nutrition":   { "hasMany": "nutrition_facts",     "via": "ingredientId", "description": "the estimated nutrition facts for this ingredient" },
+    "substitutes": { "hasMany": "substitutions",       "via": "ingredientId", "description": "suggested swaps for this ingredient" }
   }
 }

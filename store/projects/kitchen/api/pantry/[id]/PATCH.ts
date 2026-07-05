@@ -18,7 +18,13 @@ export const description = "Update a pantry ingredient's on-hand quantity.";
 
 export interface Input {
   id: string;
-  quantity: number;
+  quantity?: number;
+  /** ISO date this stock goes off (waste-reduction: the /expiring page + use-it-up hook). */
+  expiresAt?: string | null;
+  /** rough price per `unit`, feeding the shopping-trip cost estimate. */
+  costPerUnit?: number;
+  /** restock hint: below this the planner treats the item as unavailable. */
+  lowStockThreshold?: number;
 }
 
 export interface Ingredient {
@@ -34,10 +40,14 @@ export interface Ingredient {
 export type Output = Ingredient;
 
 export default async function handler(input: Input, ctx: Ctx): Promise<Output> {
-  await ctx.db.update('ingredients', {
-    where: { id: input.id },
-    set: { quantity: input.quantity, updatedAt: new Date().toISOString() },
-  });
+  // Only set the fields the caller actually sent — a quantity-only "used the milk" PATCH must not
+  // clobber expiresAt/costPerUnit, and an expiry-only PATCH must not reset the quantity.
+  const set: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+  if (input.quantity !== undefined) set.quantity = input.quantity;
+  if (input.expiresAt !== undefined) set.expiresAt = input.expiresAt;
+  if (input.costPerUnit !== undefined) set.costPerUnit = input.costPerUnit;
+  if (input.lowStockThreshold !== undefined) set.lowStockThreshold = input.lowStockThreshold;
+  await ctx.db.update('ingredients', { where: { id: input.id }, set });
 
   const rows = (await ctx.db.query('ingredients', { where: { id: input.id } })) as Ingredient[];
   const ingredient = rows[0];

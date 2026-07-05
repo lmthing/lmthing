@@ -489,6 +489,196 @@ The core loop wins when documents are truthful and nothing goes stale; these com
 - **API**: `exportDocument` → renders a document's markdown into a print-styled HTML page (design
   tokens; print stylesheet) the user prints to PDF from the browser. No new agent; a pure page.
 
+## Round 2 — Interview mastery, market intelligence & the endgame (feature expansion)
+
+Round 1 shipped the pipeline — postings in, truthful documents out, nothing goes stale — and one
+`agency` space. Round 2 covers the parts of the search that happen **in the room and at the
+finish line**: a **`prep`** space (interviewer · negotiator · market-analyst) runs **mock
+interviews** in chat against a per-application **question bank** and scores them against a rubric;
+**offers** get deterministic total-comp comparison plus model-drafted negotiation scripts; a weekly
+**market brief** keeps the user calibrated on their segment; and the round-1 "Additional features"
+**job-feed scouting** and **offer comparison** are promoted to fully-specced work. Everything below
+is strictly additive to the round-1 shape — same project-rooted db, same serving, same capability
+model — and stays inside the parent plan (data/agents/pages/api/hooks only).
+
+### New database tables (round 2 — 5, bringing the app to 11)
+
+Prose-schema form (descriptions mandatory on table/column/relation, FKs resolve, exactly-one PK):
+
+- **`searches.json`** — a saved hunting query the scout sweeps daily. `id` (pk uuid) · `query`
+  (string, required — e.g. `'senior backend engineer'`) · `location` (string) · `remoteOnly`
+  (boolean, def false) · `active` (boolean, def true) · `lastRunAt` (date) · `newFoundTotal`
+  (number, def 0 — running count, the "is this query earning its keep" signal) · `createdAt`
+  (date, now).
+- **`questions.json`** — the per-application interview question bank. `id` (pk) · `applicationId`
+  (references `applications` onDelete cascade, required) · `kind` (string, required —
+  `'behavioral'`|`'technical'`|`'company'`|`'reverse'` — reverse = questions the *user* should ask)
+  · `prompt` (string, required) · `angle` (string, required — what the interviewer is really
+  probing, one line) · `modelAnswerNotes` (string — bullet notes anchored to `profile_facts`, never
+  a script to memorize) · `factIds` (json, required — provenance, same discipline as `documents`) ·
+  `askedInMock` (number, def 0) · `createdAt` (date, now). Relation `application` belongsTo
+  `applications` via `applicationId`.
+- **`mock_sessions.json`** — one scored mock-interview run. `id` (pk) · `applicationId`
+  (references `applications` onDelete cascade, required) · `focus` (string, def `'mixed'` — which
+  `questions.kind` the drill weighted) · `askedQuestionIds` (json, required) · `scores` (json,
+  required — per-dimension rubric `{ structure, specificity, relevance, concision }`, 1–5 each,
+  with a one-line justification per score) · `feedback` (string, required — markdown: strongest
+  answer, weakest answer, the one habit to fix) · `createdAt` (date, now). Relation `application`
+  belongsTo `applications` via `applicationId`.
+- **`offers.json`** — the endgame rows. `id` (pk) · `applicationId` (references `applications`
+  onDelete restrict, required) · `base` (number, required) · `bonus` (number, def 0) · `equity`
+  (string — grant description verbatim) · `equityAnnualized` (number, def 0 — the user's own
+  annualized estimate; the app never invents a valuation) · `benefits` (json — named perks with
+  user-assigned values) · `currency` (string, required) · `deadline` (date) · `status` (string,
+  def `'open'` — `'open'`|`'accepted'`|`'declined'`|`'expired'`) · `notes` (string) · `createdAt`
+  (date, now). Relation `application` belongsTo `applications` via `applicationId`.
+- **`market_briefs.json`** — the weekly calibration report. `id` (pk) · `weekStart` (date,
+  required, unique) · `body` (string, required — markdown: demand signals for the user's
+  `targetRoles`, in-demand skills delta vs `profile_facts`, salary ranges *with cited sources*) ·
+  `sources` (json, required — array of `{ title, url }` every claim traces to) · `createdAt`
+  (date, now).
+
+New columns on round-1 tables (additive `addColumn`): `documents.kind` gains `'negotiation'`
+(the negotiator's talking-points scripts live in the existing versioned/provenance pipeline);
+`postings.foundBy` (string, def `'user'` — `'user'`|`'search'`, so the pipeline shows which
+postings the scout hunted vs the user pasted).
+
+### New API endpoints (round 2 — 11, bringing the app to 27)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `addSearch` | `POST api/searches` | `{ query, location?, remoteOnly? }` → `Search` |
+| `listSearches` | `GET api/searches` | `{}` → `Search[]` |
+| `updateSearch` | `PATCH api/searches/:id` | `{ id, active?, query?, location? }` → `Search` |
+| `listQuestions` | `GET api/applications/:id/questions` | `{ id, kind? }` → `Question[]` |
+| `regenerateQuestions` | `POST api/applications/:id/questions` | `{ id, focus? }` → `{ status:'drafting' }` — `spawn`s `prep/interviewer#questions` |
+| `listMocks` | `GET api/mocks` | `{ applicationId? }` → `MockSession[]` (scores only, no feedback body) |
+| `getMockSession` | `GET api/mocks/:id` | `{ id }` → `MockSession` |
+| `addOffer` | `POST api/offers` | `{ applicationId, base, currency, bonus?, equity?, … }` → `Offer` |
+| `updateOffer` | `PATCH api/offers/:id` | `{ id, status?, …fields }` → `Offer` |
+| `compareOffers` | `GET api/offers/compare` | `{}` → `{ rows: [{ offerId, company, totalComp, perComponent, deadline }] }` — deterministic; converts nothing it wasn't given |
+| `getMarketBrief` | `GET api/market/:week` | `{ week }` → `MarketBrief` (plus `listMarketBriefs` `GET api/market` → headers) |
+
+All follow the round-1 rules — equality-only `where`, typed `HttpError` failures, **`spawn` (never
+`delegate`) from handlers** for fire-and-forget kick-offs. `compareOffers` is round 2's
+deterministic centrepiece: total comp = `base + bonus + equityAnnualized + Σ benefits` in the
+offer's own currency (mixed currencies are reported per-currency with a typed note, never silently
+converted); the negotiator narrates these numbers, it never computes its own.
+
+### New hooks (round 2 — 3, bringing the app to 6)
+
+- **`scout-feed.ts`** — `cron`, `daily: '07:00'`, `trigger: 'agency/scout#hunt'`, budget — sweep
+  each `active` search via `webSearch`, insert novel postings (`url` unique dedupes,
+  `foundBy:'search'`), bump `lastRunAt`/`newFoundTotal`.
+- **`build-questions.ts`** — `database` `documents:insert`, imperative handler: skip unless
+  `row.kind === 'brief'`, else `delegate('prep/interviewer','questions', { input: { applicationId:
+  row.applicationId } })` — a fresh interview brief automatically grows its question bank.
+- **`weekly-market-brief.ts`** — `cron`, `daily: '08:00'`, Friday-gated in the agent →
+  `prep/market-analyst#brief` — the calibration report lands before the weekend.
+
+**Loop-guard sanity.** `scout-feed` inserts `postings` → the round-1 `enrich-posting` hook fires →
+the scout *updates* the posting (no hook on update) ⇒ an **intentional depth-2 cascade** that
+stops (cap 3) — hunted postings arrive parsed with zero extra wiring. `build-questions` fires on
+every `documents:insert` but gates on `kind:'brief'`, so the tailor's resume/cover-letter inserts
+and the negotiator's scripts no-op; the interviewer writes `questions` (unwatched) ⇒ stops.
+The market-analyst writes `market_briefs` (unwatched) ⇒ stops. Per-hook coalesce collapses a
+multi-search hunt burst; **self-write exclusion** keeps the scout's own posting updates from
+re-firing anything.
+
+### New pages (round 2 — 5, bringing the app to 11) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/searches.tsx` | `/searches` | `listSearches`; `addSearch`/`updateSearch` — the hunting queries + their yield |
+| `pages/practice.tsx` | `/practice` | `<Chat agent="prep/interviewer">` (the mock room) + `listMocks` history rail |
+| `pages/mocks/[id].tsx` | `/mocks/:id` | `getMockSession` — rubric scores + feedback + which questions were asked |
+| `pages/offers.tsx` | `/offers` | `compareOffers` matrix; `addOffer`/`updateOffer`; negotiation scripts via `listDocuments kind:'negotiation'` |
+| `pages/market.tsx` | `/market` | `listMarketBriefs`/`getMarketBrief` — the weekly briefs with cited sources |
+
+New shared components (design tokens only): `OfferMatrix` (side-by-side total-comp table),
+`MockScoreCard` (rubric dial per dimension), `QuestionCard` (prompt + angle + notes, spoiler-style
+reveal), `SearchRow` (query + yield sparkline), `BriefView`. The application page
+(`/applications/:id`) gains a **Questions** tab (`listQuestions` grouped by kind) and a
+**Practice** button deep-linking `/practice` pre-scoped to that application. `_layout.tsx` nav
+gains **Practice · Offers · Market**.
+
+### The `prep` space (second project-scoped space, full format)
+
+`career/spaces/prep/` — the in-the-room specialist team, sharing the same project-rooted db as
+`agency` (parent plan's multi-space shape). Least-privilege per verb:
+
+| Agent | `db:read` tables | `db:write` tables | `api:call` allow | `functions` | Role |
+|---|---|---|---|---|---|
+| **interviewer** | `applications, postings, documents, questions, mock_sessions, profile_facts, settings` | `questions, mock_sessions` | — | `[]` (none) | build the question bank from brief+posting+facts; run and score mock drills in chat |
+| **negotiator** | `offers, applications, postings, market_briefs, documents, profile_facts, settings` | `documents` | `compareOffers` | `[]` (none) | draft negotiation scripts (kind `'negotiation'`) from the deterministic comp table + market briefs |
+| **market-analyst** | `searches, postings, applications, market_briefs, profile_facts, settings` | `market_briefs` | — | `webSearch, webFetch` | the weekly calibration brief; every claim carries a source |
+
+- **Agent-frontmatter features exercised**: the interviewer declares
+  `canDelegateTo: [agency/coach#brief]` — a **cross-space** hard allowlist: asked to build
+  questions for an application with no brief yet, it first commissions one from the round-1 coach
+  (any other delegation throws, naming the allowed target). It also declares `defaultAction: mock`
+  so "drill me on the Acme role" freeform delegation lands correctly, and `actions:` for
+  `questions` (tasklist `question-bank`) and `mock`. The negotiator's `api:call` allowlist is the
+  round-1 pattern: numbers come from `compareOffers`, never model arithmetic.
+- **Tasklists**: `question-bank/` — `01-digest.md` (`role: explore`, read-only: brief + posting
+  requirements + facts), `02-draft.md` (**`forEach: "digest.kinds"`** — one fork per question
+  kind, behavioral/technical/company/reverse; the model never writes the loop), `03-file.md`
+  (dedupe against existing bank, write rows with `factIds`). `mock/` — `01-select.md` (pick
+  `quizLength`-style slate weighted to low-`askedInMock` + the session `focus`), `02-drill.md`
+  (the conversational loop lives in chat; this task defines the rubric contract), `03-score.md`
+  (write `mock_sessions` with per-dimension justifications; bump `askedInMock`).
+- **Functions** (`functions/*.ts`, deterministic): `totalComp` (the same math `compareOffers`
+  uses — one definition, both sides), `staleQuestions` (bank slots asked most / least),
+  `rubricAggregate` (dimension scores → session summary), `citeCheck` (a market-brief body →
+  the list of claims lacking a `sources` entry — the analyst runs it before writing).
+- **Components**: view `MockScorePreview` (chat-rendered rubric after a drill), view
+  `OfferSummary`; form `FocusPicker` — an `ask()` sheet the interviewer renders to choose the
+  drill focus (behavioral / technical / company / mixed). Design-token-gated.
+- **Knowledge** (`knowledge/interviewing/`, each field `index.md` + ≥2 aspects): `mock-method/`
+  (`question-selection.md`, `probing-follow-ups.md`, `scoring-honestly.md` — praise is cheap,
+  the rubric is the kindness), `answer-craft/` (`star-structure.md`, `specificity-and-numbers.md`,
+  `red-flags.md`), `negotiation/` (`anchoring-and-ranges.md`, `total-comp-math.md`,
+  `no-bluffing.md` — scripts never claim competing offers that don't exist in `offers`), and
+  `market-reading/` (`demand-signals.md`, `source-quality.md`).
+
+### `agency` space-format remediation (round 2)
+
+Round 1 left `agency` as `agents/`-only. Round 2 brings it to the **full space format**:
+`charter.md` alongside every `instruct.md` (the tailor's fork-safe no-fabrication rule — its most
+important guardrail now injected into every fork; the scout's fail-loud rule; the coach's
+dedupe-before-draft rule); tasklists — `tailor/` formalized (`01-match.md` `role: explore` score
+facts vs requirements → `02-draft.md` **`forEach: "match.kinds"`** → `03-file.md` versioned write
+with `factIds`), `enrich/` for the scout (fetch → parse → verify-or-fail), `nudge/` for the coach
+(sweep via `apiCall('pipeline')` → dedupe → draft); `functions/`
+(`scoreRequirementMatch`, `stalenessDays` — the same definition `pipeline` uses,
+`normalizeSalaryText`, `renderDocumentHeader`); catalog `components/` (`PostingPreview`,
+`DocumentPreview` for chat); and **extensive `knowledge/job-search/`** — `tailoring-craft/`
+(`resume-principles.md`, `cover-letter-structure.md`, `honesty-under-pressure.md`),
+`posting-analysis/` (`requirement-extraction.md`, `reading-between-lines.md`), `outreach/`
+(`follow-up-timing.md`, `tone-per-stage.md`).
+
+### Phases & verification additions (round 2)
+
+Ordered on top of the round-1 phases: **(R2-1)** new schemas + columns; **(R2-2)** the `prep`
+space full-format + `agency` remediation; **(R2-3)** the 11 endpoints (`compareOffers`/`totalComp`
+single-definition check); **(R2-4)** the 3 hooks + loop-guard checks; **(R2-5)** the 5 pages +
+components; **(R2-6)** tests.
+
+Verification additions: **(a)** an active search + `scout-feed` → novel postings inserted
+(`foundBy:'search'`), each then auto-enriched by the round-1 hook (the depth-2 cascade observed,
+then stops); a re-run inserts nothing (url dedupe); **(b)** a coach brief lands →
+`build-questions` fires once; a resume-document insert does **not** fire it (kind gate); the bank's
+`factIds` all resolve, and `modelAnswerNotes` contain no claim untraceable to a fact (the tailor's
+integrity test, extended); **(c)** with no brief present, "build questions for Acme" makes the
+interviewer delegate `agency/coach#brief` first (cross-space allowlist observed; any other target
+throws); **(d)** a chat mock drill writes one `mock_sessions` row — every scored dimension carries
+a justification, `askedInMock` bumps only on asked questions; **(e)** `compareOffers` on two
+same-currency offers matches hand math; mixed currencies produce per-currency rows + typed note,
+never a silent conversion; the negotiator's script quotes only `compareOffers` numbers and — per
+`no-bluffing.md` — references only offers that exist as rows; **(f)** Friday `weekly-market-brief`
+→ one `market_briefs` row; `citeCheck` returns empty (every claim sourced); unique `weekStart`
+makes a boot-catch-up double-fire a no-op; **(g)** `pnpm lint:tokens` green across the 5 new pages.
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages

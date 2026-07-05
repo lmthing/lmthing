@@ -438,6 +438,201 @@ ceiling. Each is **additive** on the same engine.
   from current intervals (pure math). The stats page charts it (design-token chart colors), which
   is also the honest "how big is tomorrow's session" answer.
 
+## Round 2 — From decks to a study program: sources, plans & open-ended practice (feature expansion)
+
+Round 1 shipped the retention engine — decks, the deterministic scheduler, the drill — and one
+`tutor` space. Round 2 turns `learn` from a card app into a **study program**: drop in **sources**
+(URLs, pasted documents) and a `librarian` distills them into topics that flow straight into the
+round-1 card pipeline; a `syllabist` builds and weekly-adjusts a **multi-week study plan** with
+milestones against a real exam date; and a `grader` closes the gap flashcards can't cover —
+**open-ended practice**: rubric-scored free-writing prompts with real feedback. A second
+specialist team (**`academy`** — librarian · syllabist · grader) does this work; `tutor` keeps
+owning cards and the drill. The round-1 "Additional features" **exam mode** and **material
+import** are promoted to fully-specced work here. Everything below is strictly additive to the
+round-1 shape — same project-rooted db, same serving, same capability model — and stays inside the
+parent plan (data/agents/pages/api/hooks only).
+
+### New database tables (round 2 — 5, bringing the app to 10)
+
+Prose-schema form (descriptions mandatory on table/column/relation, FKs resolve, exactly-one PK):
+
+- **`sources.json`** — an ingested study source. `id` (pk uuid) · `kind` (string, required —
+  `'url'`|`'text'`) · `url` (string — unique when present; re-adding a URL is a handler no-op) ·
+  `title` (string, def `'pending'` — the librarian fills it) · `content` (string — pasted text, or
+  the librarian's cleaned extraction) · `status` (string, def `'pending'` —
+  `'pending'`|`'ingested'`|`'fetch-failed'`) · `topicIds` (json, def `[]` — the topics distilled
+  from it, the provenance of where a deck came from) · `createdAt` (date, now).
+- **`study_plans.json`** — one active program. `id` (pk) · `title` (string, required) · `goal`
+  (string, required — e.g. `'pass the CKA on March 14'`) · `examAt` (date — drives round-1 exam
+  mode: `dueCards` compresses intervals for this plan's topics as it nears) · `topicIds` (json,
+  required — the topics in scope) · `status` (string, def `'active'` —
+  `'active'`|`'completed'`|`'abandoned'`) · `rationale` (string, required — the syllabist's
+  ordering logic, markdown) · `createdAt` (date, now). Relation `milestones` hasMany `milestones`
+  via `planId`.
+- **`milestones.json`** — one week of the program. `id` (pk) · `planId` (references `study_plans`
+  onDelete cascade, required) · `weekStart` (date, required) · `focusTopicIds` (json, required) ·
+  `targets` (json, required — `{ newCards, reviews, attempts, minRetention }`) · `actuals` (json,
+  def `{}` — the syllabist's weekly check-in fills from `learnStats`) · `status` (string, def
+  `'planned'` — `'planned'`|`'on-track'`|`'behind'`|`'done'`) · `note` (string — the check-in's
+  one-line read) · `createdAt` (date, now). Relation `plan` belongsTo `study_plans` via `planId`.
+- **`prompts.json`** — an open-ended practice prompt. `id` (pk) · `topicId` (references `topics`
+  onDelete cascade, required) · `prompt` (string, required — explain/derive/apply, never
+  yes-or-no) · `rubric` (json, required — 3–5 named criteria with what "good" looks like, written
+  when the prompt is authored so grading is anchored *before* any answer exists) · `difficulty`
+  (string, def `'core'` — `'core'`|`'stretch'`) · `source` (string, def `'agent'`) · `createdAt`
+  (date, now). Relations: `topic` belongsTo `topics` via `topicId`; `attempts` hasMany `attempts`
+  via `promptId`.
+- **`attempts.json`** — one graded free-writing attempt. `id` (pk) · `promptId` (references
+  `prompts` onDelete cascade, required) · `answer` (string, required — the user's writing,
+  verbatim, never edited) · `scores` (json — per-criterion `{ score: 1–5, evidence }` where
+  `evidence` **quotes the answer**; null until graded) · `feedback` (string — what was right, what
+  was missing, the one thing to redo; null until graded) · `status` (string, def `'submitted'` —
+  `'submitted'`|`'graded'`) · `gradedAt` (date) · `createdAt` (date, now). Relation `prompt`
+  belongsTo `prompts` via `promptId`.
+
+New columns on round-1 tables (additive `addColumn`): `topics.sourceId` (string — the source a
+topic was distilled from, null for hand-added); `cards.planWeight` (number, def 1 — the
+exam-mode compression factor `dueCards` applies; set only by the deterministic handler path).
+
+### New API endpoints (round 2 — 10, bringing the app to 21)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `addSource` | `POST api/sources` | `{ url? , text?, title? }` → `Source` (stub; ingest hook fills it) |
+| `listSources` | `GET api/sources` | `{}` → `Source[]` |
+| `createPlan` | `POST api/plans` | `{ title, goal, examAt?, topicIds? }` → `{ planId, status:'planning' }` — `spawn`s `academy/syllabist#plan` |
+| `getPlan` | `GET api/plans/:id` | `{ id }` → `StudyPlan & { milestones: Milestone[] }` |
+| `planProgress` | `GET api/plans/:id/progress` | `{ id }` → `{ perMilestone: [{ milestoneId, targets, actuals, delta }] }` — deterministic, from `reviews`/`attempts` |
+| `updateMilestone` | `PATCH api/milestones/:id` | `{ id, targets?, status? }` → `Milestone` |
+| `listPrompts` | `GET api/prompts` | `{ topicId?, difficulty? }` → `Prompt[]` |
+| `generatePrompts` | `POST api/topics/:id/prompts` | `{ id, difficulty? }` → `{ status:'drafting' }` — `spawn`s `academy/grader#author` |
+| `submitAttempt` | `POST api/attempts` | `{ promptId, answer }` → `Attempt` (status `submitted`; grade hook fires) |
+| `getAttempt` | `GET api/attempts/:id` | `{ id }` → `Attempt & { prompt }` (plus `listAttempts` `GET api/attempts` → headers) |
+
+All follow the round-1 rules — equality-only `where`, typed `HttpError` failures, **`spawn` (never
+`delegate`) from handlers**. `planProgress` is round 2's deterministic centrepiece: actuals are
+counted from `reviews`/`attempts` rows in the milestone's week window — the same numbers the
+syllabist's check-in writes into `actuals`, so the page and the agent can never disagree.
+Round-1 `dueCards` gains the promoted **exam mode**: when an active plan's `examAt` is within
+`2 × intervalDays` for a scoped card, the handler compresses that card's effective due date via
+`planWeight` — pure handler math, agents never touch scheduling (the round-1 invariant holds).
+
+### New hooks (round 2 — 3, bringing the app to 5)
+
+- **`ingest-source.ts`** — `database` `sources:insert`, imperative handler:
+  `delegate('academy/librarian','ingest', { input: { sourceId: row.id } })` — fetch/clean the
+  source, distill it into 1–4 `topics` (with `material` filled and `sourceId` back-refs), mark the
+  source `ingested` (or `fetch-failed` with the reason).
+- **`weekly-plan-checkin.ts`** — `cron`, `daily: '07:15'`, Monday-gated in the agent →
+  `academy/syllabist#adjust` — fill last week's `actuals` from `learnStats`, set
+  `on-track`/`behind`, rebalance the coming weeks' `targets` (never past ones), write the
+  one-line `note`.
+- **`grade-attempt.ts`** — `database` `attempts:insert`, imperative handler:
+  `delegate('academy/grader','grade', { input: { attemptId: row.id } })` — score against the
+  prompt's pre-authored rubric, quote evidence, write feedback, flip `graded`.
+
+**Loop-guard sanity.** `sources:insert` → librarian writes `topics` → the round-1 `draft-cards`
+hook fires → cardsmith writes `cards` (no hook) ⇒ an **intentional cross-space depth-2 cascade**
+that stops (cap 3): *drop a URL, get a deck* with zero new wiring. `attempts:insert` → grader
+*updates* the attempt (no hook on update) ⇒ stops. The syllabist writes
+`study_plans`/`milestones` (unwatched) ⇒ stops. Per-hook coalesce collapses a paste-several-
+sources burst; **self-write exclusion** keeps the librarian's own source-status updates and the
+grader's attempt updates from re-firing anything.
+
+### New pages (round 2 — 5, bringing the app to 10) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/plan.tsx` | `/plan` | `getPlan` + `planProgress` (milestone track, targets vs actuals); `createPlan`, `updateMilestone` |
+| `pages/sources.tsx` | `/sources` | `listSources`; `addSource` (URL box + paste zone); status fills in live |
+| `pages/write.tsx` | `/write` | `listPrompts` (pick one) → attempt editor → `submitAttempt`; grading status polls in |
+| `pages/attempts/[id].tsx` | `/attempts/:id` | `getAttempt` — the answer side-by-side with per-criterion scores, quoted evidence, feedback |
+| `pages/prompts.tsx` | `/prompts` | `listPrompts` by topic/difficulty; `generatePrompts` |
+
+New shared components (design tokens only): `MilestoneTrack` (week rail with on-track/behind
+states as semantic tokens), `SourceRow` (status + distilled-topics chips), `PromptCard`,
+`RubricScores` (per-criterion bars with evidence popovers), `AttemptEditor`. `_layout.tsx` nav
+gains **Plan · Write · Sources** alongside Today · Topics · Quiz · Stats; the Today page shows the
+current milestone's delta strip (from `planProgress`) so the daily queue carries its "why".
+
+### The `academy` space (second project-scoped space, full format)
+
+`learn/spaces/academy/` — the program-level team, sharing the same project-rooted db as `tutor`
+(parent plan's multi-space shape). Least-privilege per verb:
+
+| Agent | `db:read` tables | `db:write` tables | `api:call` allow | `functions` | Role |
+|---|---|---|---|---|---|
+| **librarian** | `sources, topics, settings` | `sources, topics` | — | `webFetch` | fetch/clean a source, distill topics with `material`, honest `fetch-failed` |
+| **syllabist** | `topics, cards, reviews, study_plans, milestones, digests, settings` | `study_plans, milestones` | `learnStats, dueCards` | `[]` (none) | build the program; weekly check-in: actuals, status, rebalance forward weeks |
+| **grader** | `prompts, attempts, topics, cards, settings` | `prompts, attempts` | — | `[]` (none) | author prompts *with rubrics up front*; grade attempts against them with quoted evidence |
+
+- **Agent-frontmatter features exercised**: the syllabist declares
+  `canDelegateTo: [tutor/cardsmith#draft]` — a **cross-space** hard allowlist: when plan-building
+  finds a scoped topic with a thin deck (< `deckSize/2` cards), it commissions more cards from the
+  round-1 cardsmith rather than writing any itself (any other delegation throws, naming the
+  allowed target). The grader declares `defaultAction: grade` and `actions:` for `author`
+  (tasklist `author-prompts`) and `grade`; the librarian declares `defaultAction: ingest`.
+- **Tasklists**: `build-plan/` — `01-audit.md` (`role: explore`, read-only: scoped topics, deck
+  depth, current retention via `apiCall('learnStats')`), `02-sequence.md` (order topics
+  prerequisite-first; write `study_plans` with `rationale`), `03-milestones.md`
+  (**`forEach: "sequence.weeks"`** — one fork per program week writes that week's `milestones`
+  row; the model never writes the loop). `author-prompts/` — `01-survey.md` (`role: explore`:
+  the topic's cards + existing prompts, to avoid duplication), `02-author.md` (write prompts
+  **with rubrics**; `functions: []`). `grade/` — `01-read.md` (`role: explore`: attempt + prompt
+  + rubric only — deliberately *not* other students' answers; there are none, but the discipline
+  is the point), `02-score.md` (per-criterion scores with quoted evidence), `03-feedback.md`
+  (write the feedback; update the attempt).
+- **Functions** (`functions/*.ts`, deterministic): `chunkMaterial` (split a cleaned source into
+  candidate topic sections), `weekWindows` (examAt + start → the week list `03-milestones` fans
+  over), `progressDelta` (targets vs actuals — the same math `planProgress` uses),
+  `rubricComplete` (a prompt's rubric → the criteria lacking a "what good looks like"; the grader
+  runs it before filing).
+- **Components**: view `MilestonePreview` (chat-rendered week card), view `RubricPreview`; form
+  `PlanIntake` — an `ask()` sheet the syllabist renders when `createPlan` arrives underspecified
+  (exam date? hours/week? which topics in scope?). Design-token-gated.
+- **Knowledge** (`knowledge/learning-science/`, each field `index.md` + ≥2 aspects):
+  `program-design/` (`sequencing-prerequisites.md`, `load-balancing.md`,
+  `behind-is-information.md` — a behind milestone rebalances forward, it never guilt-trips),
+  `assessment/` (`rubric-design.md`, `evidence-quoting.md`, `feedback-that-teaches.md`),
+  `source-distillation/` (`what-makes-a-topic.md`, `extraction-fidelity.md` — distill what the
+  source says, never what the model knows about the subject).
+
+### `tutor` space-format remediation (round 2)
+
+Round 1 left `tutor` as `agents/`-only. Round 2 brings it to the **full space format**:
+`charter.md` alongside every `instruct.md` (the cardsmith's fork-safe atomicity/no-duplicates
+rule; the examiner's grade-via-API-only + state-the-grade rule; the curator's
+redrill-not-guilt rule); tasklists — `draft/` formalized for the cardsmith (`01-split.md`
+`role: explore` → `02-write.md` **`forEach: "split.sections"`** → `03-file.md` dedupe + write +
+flip topic `ready`) and `digest/` for the curator (stats → weak-spots → redrills → write);
+`functions/` (`computeRetention` — the same math `learnStats` uses, `pickWeakCards`,
+`formatCloze`, `dedupeCardFronts`); catalog `components/` (`CardPreview`, `QuizScore` for chat);
+and **extensive `knowledge/card-craft/`** — `atomicity/` (`one-fact-per-card.md`,
+`prompt-forces-retrieval.md`), `cloze-design/` (`what-to-blank.md`, `context-sufficiency.md`),
+`drill-method/` (`socratic-follow-ups.md`, `explaining-misses.md`).
+
+### Phases & verification additions (round 2)
+
+Ordered on top of the round-1 phases: **(R2-1)** new schemas + columns; **(R2-2)** the `academy`
+space full-format + `tutor` remediation; **(R2-3)** the 10 endpoints (+ exam-mode math in
+`dueCards`, `planProgress`/`progressDelta` single definition); **(R2-4)** the 3 hooks +
+loop-guard checks; **(R2-5)** the 5 pages + components; **(R2-6)** tests.
+
+Verification additions: **(a)** `addSource` with a URL → librarian ingests, 1–4 topics land with
+`sourceId` + `material`, then the round-1 hook drafts their decks (the cross-space cascade
+observed end-to-end: *URL in, cards out*), and a bad URL lands `fetch-failed` with a reason, no
+retry loop; **(b)** `createPlan` with a thin-deck topic → the syllabist delegates
+`tutor/cardsmith#draft` (cross-space allowlist observed; anything else throws) and writes one
+milestone row per week via the `forEach`; **(c)** Monday `weekly-plan-checkin` → last week's
+`actuals` equal `planProgress` exactly (single-definition check), forward weeks rebalance, past
+weeks never change; **(d)** `submitAttempt` → grader fires once; every criterion score carries
+`evidence` that is a verbatim substring of the answer (checked mechanically); the attempt's
+`answer` is byte-identical after grading; **(e)** with `examAt` near, `dueCards` pulls scoped
+cards forward via `planWeight` — replaying `reviews` history still reproduces card state (the
+round-1 invariant survives exam mode); **(f)** the grader attempting `db.update('cards', …)` →
+host error (not in its tables); the librarian calling `webSearch` → typecheck failure (only
+`webFetch` granted); **(g)** `pnpm lint:tokens` green across the 5 new pages.
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages

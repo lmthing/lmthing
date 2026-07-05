@@ -490,6 +490,222 @@ Each is **additive** on the same engine.
 - **Pages**: `/threads` — all active `kind:'thread'` facts across contacts ("said I'd send Ben the
   climbing video"), each resolvable (deactivate) from the page. Pure page + existing endpoints.
 
+## Round 2 — Gatherings, gifts & the long view (feature expansion)
+
+Round 1 shipped the memory-and-timing core — log in a sentence, extract facts, draft the daily
+check-ins — and one `circle` space. Round 2 covers the parts of a social life that involve **more
+than one person at a time and more than one day at a time**: **groups** (the book club, the family,
+the old team) and **gatherings** with guest lists and RSVP tracking, planned by a `planner` that
+drafts the invites and the checklist; a **gift** lifecycle where a `gifter` turns extracted facts
+into concrete, on-time gift ideas ahead of key dates; and a quarterly **retrospective** where an
+`archivist` shows you the long view of how your relationships are actually doing. A second
+specialist team (**`host`** — planner · gifter · archivist) does this work; `circle` keeps owning
+the daily loop. The round-1 privacy invariant — `functions: []` everywhere, the app never sends
+anything — extends unchanged to the new space. Everything below is strictly additive to the
+round-1 shape — same project-rooted db, same serving, same capability model — and stays inside the
+parent plan (data/agents/pages/api/hooks only).
+
+### New database tables (round 2 — 6, bringing the app to 12)
+
+Prose-schema form (descriptions mandatory on table/column/relation, FKs resolve, exactly-one PK).
+Round 2 adds the app's two many-to-manys (`group_members`, `gathering_guests`) — the kitchen-style
+join shape, here joining people to circles and events:
+
+- **`groups.json`** — a named circle of contacts. `id` (pk uuid) · `name` (string, required,
+  unique) · `kind` (string, required — `'family'`|`'friends'`|`'club'`|`'work'`|`'other'`) ·
+  `description` (string) · `cadenceDays` (number, def 0 — a group-level "we should all get
+  together" intention, 0 = none) · `lastGatheredAt` (date — denormalized, maintained by the
+  gathering-completion handler) · `archived` (boolean, def false) · `createdAt` (date, now).
+  Relations: `members` hasMany `group_members` via `groupId`; `gatherings` hasMany `gatherings`
+  via `groupId`.
+- **`group_members.json`** — the contacts ⇄ groups join. `id` (pk) · `groupId` (references
+  `groups` onDelete cascade, required) · `contactId` (references `contacts` onDelete cascade,
+  required) · `role` (string, def `'member'` — `'member'`|`'organizer'`) · `createdAt` (date,
+  now). Relations: `group` belongsTo `groups` via `groupId`; `contact` belongsTo `contacts` via
+  `contactId`.
+- **`gatherings.json`** — one planned event. `id` (pk) · `groupId` (references `groups` onDelete
+  restrict — a gathering can also be group-less; null allowed) · `title` (string, required) · `at`
+  (date, required) · `place` (string) · `status` (string, def `'planning'` —
+  `'planning'`|`'invited'`|`'confirmed'`|`'happened'`|`'cancelled'`) · `checklist` (json, def `[]`
+  — `{ item, done }` rows the planner drafts and the user ticks) · `notes` (string) · `createdAt`
+  (date, now). Relations: `group` belongsTo `groups` via `groupId`; `guests` hasMany
+  `gathering_guests` via `gatheringId`.
+- **`gathering_guests.json`** — the contacts ⇄ gatherings join with RSVP state. `id` (pk) ·
+  `gatheringId` (references `gatherings` onDelete cascade, required) · `contactId` (references
+  `contacts` onDelete cascade, required) · `rsvp` (string, def `'pending'` —
+  `'pending'`|`'yes'`|`'no'`|`'maybe'`, user-reported as replies come in) · `inviteDraft` (string
+  — the planner's personal invite for THIS guest, referencing their facts; copy-out like every
+  draft in the app) · `createdAt` (date, now). Relations: `gathering` belongsTo `gatherings` via
+  `gatheringId`; `contact` belongsTo `contacts` via `contactId`.
+- **`gifts.json`** — the idea-to-given lifecycle. `id` (pk) · `contactId` (references `contacts`
+  onDelete cascade, required) · `occasion` (string, required — e.g. `'birthday 2027'`,
+  `'housewarming'`) · `keyDateId` (references `key_dates` onDelete setNull — the date it's aimed
+  at, when there is one) · `idea` (string, required — the gift, one line) · `why` (string,
+  required — which fact makes it *them*) · `factIds` (json, required — provenance, the round-1
+  discipline) · `status` (string, def `'idea'` — `'idea'`|`'shortlisted'`|`'bought'`|`'given'`|
+  `'discarded'`) · `givenAt` (date) · `createdAt` (date, now). Relations: `contact` belongsTo
+  `contacts` via `contactId`; `keyDate` belongsTo `key_dates` via `keyDateId`.
+- **`retros.json`** — the quarterly long view. `id` (pk) · `quarter` (string, required, unique —
+  `'2026-Q3'`) · `body` (string, required — markdown: who you kept up with, who quietly slipped,
+  which groups actually gathered, gifts that landed; written kindly — the archivist's charter
+  forbids guilt framing) · `stats` (json, required — `{ interactions, keptUpCount, slippedCount,
+  gatheringsHeld, giftsGiven, perRelationship: [{kind, kept, slipped}] }` from the deterministic
+  `retroStats` math) · `createdAt` (date, now).
+
+New columns on round-1 tables (additive `addColumn`): `nudges.reason` gains `'invite'` and
+`'gift'` (the planner's invite drafts and the gifter's buy-reminders ride the existing agenda
+surface, cap and dedupe included); `settings.giftLeadDays` (number, def 21 — how far before a key
+date gift ideas should exist); `settings.reconnectQuarterly` (boolean, def false — the promoted
+opt-in reconnection pass, folded into the archivist's quarter run).
+
+### New API endpoints (round 2 — 11, bringing the app to 22)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `createGroup` | `POST api/groups` | `{ name, kind, cadenceDays?, memberIds? }` → `Group` |
+| `listGroups` | `GET api/groups` | `{}` → `(Group & { memberCount, lastGatheredAt })[]` |
+| `getGroup` | `GET api/groups/:id` | `{ id }` → `Group & { members: (GroupMember & { contact })[], gatherings }` |
+| `setGroupMembers` | `PUT api/groups/:id/members` | `{ id, contactIds }` → `{ ok }` (diff-and-write the join) |
+| `createGathering` | `POST api/gatherings` | `{ title, at, groupId?, place?, guestIds? }` → `Gathering` (plan hook fires) |
+| `getGathering` | `GET api/gatherings/:id` | `{ id }` → `Gathering & { guests: (GatheringGuest & { contact })[] }` |
+| `rsvpGuest` | `PATCH api/gatherings/guests/:id` | `{ id, rsvp }` → `GatheringGuest` |
+| `completeGathering` | `PATCH api/gatherings/:id` | `{ id, status }` → `Gathering` (`happened` logs one group interaction per `yes` guest + bumps `lastGatheredAt`) |
+| `listGifts` | `GET api/gifts` | `{ contactId?, status? }` → `(Gift & { contact })[]` |
+| `upsertGift` | `POST api/gifts` | `{ id?, contactId, occasion, idea, why, status? }` → `Gift` (user edits/advances the lifecycle) |
+| `getRetro` | `GET api/retros/:quarter` | `{ quarter }` → `Retro` (plus `listRetros` `GET api/retros` → stats-only headers) |
+
+All follow the round-1 rules — equality-only `where`, typed `HttpError` failures, **`spawn`
+(never `delegate`) from handlers**. `completeGathering` is the round-2 closing-the-loop
+centrepiece: marking a gathering `happened` writes a `channel:'in-person'` interaction for every
+`yes` guest through the round-1 `logInteraction` path — one evening un-overdues eight people at
+once, and the extract hook mines the gathering `notes` once for everyone. `retroStats` (inside
+`getRetro`'s builder path) is the deterministic quarter math the archivist narrates.
+
+### New hooks (round 2 — 3, bringing the app to 5)
+
+- **`plan-gathering.ts`** — `database` `gatherings:insert`, imperative handler:
+  `delegate('host/planner','plan', { input: { gatheringId: row.id } })` — draft the checklist and
+  a **personal** invite per guest (into `gathering_guests.inviteDraft`), flip status to
+  `'invited'`, and surface one `reason:'invite'` nudge pointing at the gathering page.
+- **`gift-radar.ts`** — `cron`, `daily: '07:45'`, `trigger: 'host/gifter#scan'`, budget — for key
+  dates entering `giftLeadDays`, ensure 2–3 `idea` gifts exist (skip contacts who already have
+  open ideas for that occasion) and surface one `reason:'gift'` nudge; escalate `shortlisted`-
+  but-unbought a week out.
+- **`quarterly-retro.ts`** — `cron`, `daily: '08:15'`, quarter-start-gated in the agent →
+  `host/archivist#retro` — write the quarter's `retros` row from `retroStats`; when
+  `reconnectQuarterly` is on, append up to 3 opt-in reconnection suggestions as `reason:'thread'`
+  nudges (the promoted round-1 feature, now quarterly and inside the cap).
+
+**Loop-guard sanity.** `gatherings:insert` → planner writes `gathering_guests`/`nudges`
+(unwatched) ⇒ stops at depth 1. `completeGathering` → `logInteraction` per yes-guest →
+`interactions:insert` fires the round-1 `extract-facts` hook once (coalesced across the whole
+guest burst) → biographer writes `facts`/`key_dates` (unwatched) ⇒ an **intentional depth-2
+cascade** that stops (cap 3) — and a new key date the biographer mines from the gathering notes
+is exactly what tomorrow's `gift-radar` cron (not a database hook — no further cascade) acts on.
+The gifter writes `gifts`/`nudges` (unwatched) ⇒ stops. **Self-write exclusion** backstops all
+three agents; the nudge cap + open-nudge dedupe hold because invites and gift reminders ride the
+same `nudges` table as round 1.
+
+### New pages (round 2 — 5, bringing the app to 9) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/groups/index.tsx` | `/groups` | `listGroups`; `createGroup` — circles with last-gathered staleness |
+| `pages/groups/[id].tsx` | `/groups/:id` | `getGroup` (members + past gatherings); `setGroupMembers`; "plan a gathering" → `createGathering` |
+| `pages/gatherings/[id].tsx` | `/gatherings/:id` | `getGathering` — RSVP board, per-guest invite drafts (copy-out), checklist ticking; `rsvpGuest`, `completeGathering`; `<Chat agent="host/planner">` dock |
+| `pages/gifts.tsx` | `/gifts` | `listGifts` grouped by upcoming occasion; `upsertGift` lifecycle moves |
+| `pages/retros.tsx` | `/retros` | `listRetros`/`getRetro` — the quarterly long view |
+
+New shared components (design tokens only): `RSVPBoard` (pending/yes/no/maybe columns),
+`GuestChip` (contact + rsvp state), `InviteDraftBox` (copy-out, edit-first framing), `GiftCard`
+(idea → given lifecycle stepper), `RetroView`, `GroupStalenessBadge`. `_layout.tsx` nav gains
+**Groups · Gifts · Retros**; the round-1 agenda page renders the new `'invite'`/`'gift'` nudge
+reasons with their own card treatments; the dossier gains a **Gifts** tab (that contact's
+lifecycle rows).
+
+### The `host` space (second project-scoped space, full format)
+
+`people/spaces/host/` — the more-than-one-person team, sharing the same project-rooted db as
+`circle` (parent plan's multi-space shape). Least-privilege per verb; **`functions: []` on every
+agent** — the round-1 privacy invariant is project-wide (gift ideas come from *their facts*, not
+from shopping the web; a browsing gifter would leak the most intimate table in the catalog):
+
+| Agent | `db:read` tables | `db:write` tables | `api:call` allow | Role |
+|---|---|---|---|---|
+| **planner** | `contacts, facts, key_dates, groups, group_members, gatherings, gathering_guests, nudges, settings` | `gatherings, gathering_guests, nudges` | — | checklist + per-guest personal invites; date-conflict check against key dates |
+| **gifter** | `contacts, facts, key_dates, gifts, nudges, settings` | `gifts, nudges` | — | fact-grounded gift ideas ahead of key dates; buy-reminder escalation |
+| **archivist** | `contacts, interactions, facts, key_dates, nudges, groups, group_members, gatherings, gathering_guests, gifts, retros, settings` | `retros, nudges` | `agenda` | the quarterly long view; opt-in reconnection suggestions |
+
+- **Agent-frontmatter features exercised**: the planner declares
+  `canDelegateTo: [circle/biographer#extract]` — a **cross-space** hard allowlist: when the user
+  dumps post-gathering notes into the planner's chat dock, it hands them to the round-1
+  biographer rather than extracting facts itself (any other delegation throws, naming the allowed
+  target). The gifter declares `defaultAction: scan`; the planner `defaultAction: plan` with
+  `actions:` for `plan` (tasklist `plan-gathering`) and the archivist `defaultAction: retro`.
+- **Tasklists**: `plan-gathering/` — `01-roster.md` (`role: explore`, read-only: resolve the
+  guest list — group members or explicit ids — with each guest's facts + key-date conflicts),
+  `02-invites.md` (**`forEach: "roster.guests"`** — one fork per guest writes that guest's
+  `inviteDraft`, personal and register-matched; the model never writes the loop),
+  `03-checklist.md` (venue/food/logistics checklist from the gathering shape; write + status
+  `'invited'` + the one agenda nudge). `retro/` — `01-stats.md` (`role: explore` +
+  `functions: [retroStats]` — the deterministic quarter numbers), `02-narrate.md` (the kind
+  long-view write-up; `functions: []`), `03-reconnect.md` (`optional: true` — runs only when
+  `reconnectQuarterly`; picks ≤3 easy-opener reconnections).
+- **Functions** (`functions/*.ts`, deterministic): `retroStats` (the quarter aggregation —
+  the same numbers `getRetro` serves), `daysUntilNext` (shared key-date roll math, identical to
+  the round-1 `agenda` handler's), `overdueScore` (cadence × grace ordering, one definition),
+  `rsvpSummary` (guest rows → pending/yes/no/maybe counts for chat).
+- **Components**: view `GatheringPreview` (chat-rendered RSVP snapshot via `rsvpSummary`), view
+  `GiftShortlist`; form `GuestPicker` — an `ask()` sheet the planner renders when "plan a dinner"
+  arrives without a guest list (group or hand-picked contacts). Design-token-gated.
+- **Knowledge** (`knowledge/hosting/`, each field `index.md` + ≥2 aspects): `gathering-craft/`
+  (`guest-mix.md`, `invite-register.md`, `checklist-method.md`), `gift-craft/`
+  (`fact-to-gift.md`, `timing-and-lead.md`, `taste-vs-projection.md` — a gift reflects *their*
+  facts, not the model's taste), `long-view/` (`relationship-seasons.md`,
+  `reading-drift-kindly.md` — slipped ≠ failed; the retro reports, it never scolds).
+
+### `circle` space-format remediation (round 2)
+
+Round 1 left `circle` as `agents/`-only. Round 2 brings it to the **full space format**:
+`charter.md` alongside every `instruct.md` (the secretary's fork-safe ask-on-ambiguity rule; the
+biographer's extract-don't-editorialize rule; the outreach agent's no-guilt-stacking rule);
+tasklists — `draft/` formalized for the outreach agent (`01-sweep.md` `role: explore` via
+`apiCall('agenda')` → `02-pick.md` cap/dedupe/priority → `03-write.md`
+**`forEach: "pick.contacts"`** one personal draft per pick) and `extract/` for the biographer
+(read batch → distill → supersede-then-insert); `functions/` (`daysUntilNext` + `overdueScore`
+shared with `host`, `dedupeFacts`, `draftLengthCheck` — drafts must stay sendable-short);
+catalog `components/` (`ContactCard`, `NudgePreview` for chat); and **extensive
+`knowledge/relationships/`** — `fact-extraction/` (`what-counts-as-durable.md`,
+`supersedence.md`), `outreach-craft/` (`register-matching.md`, `brevity-and-editability.md`),
+`cadence-design/` (`relationship-tiers.md`, `grace-not-alarms.md`).
+
+### Phases & verification additions (round 2)
+
+Ordered on top of the round-1 phases: **(R2-1)** new schemas + columns (the two joins resolve
+both directions); **(R2-2)** the `host` space full-format + `circle` remediation; **(R2-3)** the
+11 endpoints (`completeGathering` → `logInteraction` fan-in; `retroStats` single definition);
+**(R2-4)** the 3 hooks + loop-guard checks; **(R2-5)** the 5 pages + components; **(R2-6)** tests.
+
+Verification additions: **(a)** `createGathering` for a 6-member group → planner fires once, six
+`inviteDraft`s land — each referencing only that guest's facts (cross-guest leakage = test
+failure, the round-1 provenance test extended to the `forEach`), plus checklist + exactly one
+`'invite'` nudge; **(b)** `GuestPicker`: "plan a dinner" in chat with no guests → the planner
+`ask()`s with the form component instead of guessing; **(c)** `completeGathering('happened')`
+with 4 `yes` guests → four interactions via `logInteraction` (single-writer holds),
+`lastInteractionAt` bumps for all four, **one** coalesced biographer run mines the notes, and
+`lastGatheredAt` updates; **(d)** a birthday 20 days out (`giftLeadDays: 21`) → `gift-radar`
+writes 2–3 ideas whose `factIds` resolve to that contact, one `'gift'` nudge, and a re-run adds
+**nothing** (open-idea dedupe); the week-out escalation fires only for `shortlisted` unbought;
+**(e)** quarter start → one `retros` row whose `stats` equal `retroStats` exactly; with
+`reconnectQuarterly` off, zero reconnection nudges; on, ≤3 and inside the daily cap; unique
+`quarter` makes a boot-catch-up double-fire a no-op; **(f)** post-gathering notes pasted into the
+planner's dock → it delegates `circle/biographer#extract` (cross-space allowlist observed;
+anything else throws); **(g)** any `host` agent calling `webFetch` → typecheck failure
+(`functions: []` project-wide); the gifter writing `facts` → host error naming its tables;
+**(h)** deleting a contact still cascades cleanly through the new joins (`group_members`,
+`gathering_guests`, `gifts`) — the full-forget check extended; **(i)** `pnpm lint:tokens` green
+across the 5 new pages.
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages

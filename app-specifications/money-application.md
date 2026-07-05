@@ -533,6 +533,201 @@ The core loop earns trust with correct categories and a useful review; these dee
   `year:'YYYY'` review (stored in `monthly_reviews` with `month:'YYYY'`): totals, subscription
   creep over the year, category trends, three concrete suggestions.
 
+## Round 2 — Planning, forecasting & tax season (feature expansion)
+
+Round 1 shipped the backward-looking ledger — import, categorize, watch, review — and one `ledger`
+space. Round 2 turns `money` **forward-looking**: savings **goals** with funding coaching, a
+deterministic **cash-flow forecast** the `forecaster` narrates, a **tax season** workflow where a
+`tax-scribe` screens categorized spending for deductible candidates and assembles the annual
+evidence pack, plus the round-1 "Additional features" **promoted to fully-specced work**
+(multi-currency `fx_rates`, statement-shape `import_profiles`, the annual review). A second
+specialist team (**`advisor`** — forecaster · goal-coach · tax-scribe) does the forward-looking
+work; `ledger` stays the system of record. Everything below is strictly additive to the round-1
+shape — same project-rooted db, same serving, same capability model — and stays inside the parent
+plan (data/agents/pages/api/hooks only).
+
+### New database tables (round 2 — 6, bringing the app to 15)
+
+Prose-schema form (descriptions mandatory on table/column/relation, FKs resolve, exactly-one PK):
+
+- **`goals.json`** — a savings goal the net number funds. `id` (pk uuid) · `name` (string,
+  required, unique) · `targetAmount` (number, required) · `targetDate` (date) · `savedAmount`
+  (number, def 0 — updated by `fundGoal`) · `monthlySuggested` (number — the goal-coach's current
+  realistic contribution, recomputed weekly) · `status` (string, def `'active'` —
+  `'active'`|`'reached'`|`'paused'`) · `createdAt` (date, now).
+- **`forecasts.json`** — one cash-flow projection run. `id` (pk) · `month` (string `'YYYY-MM'`,
+  required — the month the projection starts) · `horizonMonths` (number, def 6) · `projection`
+  (json, required — per-month `{ month, expectedIncome, expectedSpend, recurring, net,
+  cumulativeNet }` computed by the deterministic `projectCashflow` space function) · `narrative`
+  (string, required — the forecaster's plain-language read: risks, seasonality, the one thing to
+  change) · `createdAt` (date, now). Latest row per `month` wins; history kept for "what did we
+  expect vs what happened".
+- **`tax_items.json`** — a transaction flagged as deductible-relevant. `id` (pk) · `transactionId`
+  (references `transactions` onDelete cascade, required, **unique** — one screening verdict per
+  line) · `taxYear` (number, required) · `taxCategory` (string, required — e.g.
+  `'home-office'`|`'work-equipment'`|`'donation'`|`'medical'`|`'education'`|`'other'`) ·
+  `rationale` (string, required — the scribe's one-line why) · `status` (string, def `'candidate'`
+  — `'candidate'`|`'confirmed'`|`'rejected'`, user-decided) · `createdAt` (date, now). Relation
+  `transaction` belongsTo `transactions` via `transactionId`.
+- **`tax_reports.json`** — the annual evidence pack. `id` (pk) · `taxYear` (number, required,
+  unique) · `body` (string, required — markdown: per-category totals with the confirmed line items
+  listed as evidence) · `totals` (json, required — `{ byCategory: {cat: amount}, confirmedCount,
+  candidateCount }`) · `status` (string, def `'draft'` — regenerated while candidates are still
+  open) · `createdAt` (date, now).
+- **`fx_rates.json`** — month rates for multi-currency accounts. `id` (pk) · `month` (string,
+  required) · `from` (string, required) · `to` (string, required) · `rate` (number, required) ·
+  `source` (string, def `'user'`). One row per (month, from, to) — `setFxRate` upserts
+  (query-then-update; uniqueness is per-column only). All conversion is deterministic handler code.
+- **`import_profiles.json`** — the learned statement shape per account. `id` (pk) · `accountId`
+  (references `accounts` onDelete cascade, required, unique) · `columnMap` (json, required —
+  header → field mapping) · `dateFormat` (string, required) · `decimalSeparator` (string, def
+  `'.'`) · `inferredBy` (string, def `'agent'`) · `createdAt` (date, now). First import of an
+  account delegates the bookkeeper once to infer the mapping; every later import parses
+  deterministically — the `rules` self-automation pattern applied to parsing.
+
+New columns on round-1 tables (additive `addColumn`): `transactions.taxScreened` (boolean, def
+false — the scribe's high-water mark so re-screens skip done work); `monthly_reviews.kind` (string,
+def `'month'` — `'month'`|`'year'`, the promoted annual review reuses the table).
+
+### New API endpoints (round 2 — 12, bringing the app to 28)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `listGoals` | `GET api/goals` | `{}` → `Goal[]` |
+| `setGoal` | `POST api/goals` | `{ name, targetAmount, targetDate? }` → `Goal` (upsert by name) |
+| `fundGoal` | `PATCH api/goals/:id/fund` | `{ id, amount }` → `Goal` (bumps `savedAmount`; `reached` when target hit) |
+| `cashflowForecast` | `GET api/forecast` | `{}` → latest `Forecast` (projection + narrative) |
+| `rebuildForecast` | `POST api/forecast` | `{ horizonMonths? }` → `{ status:'projecting' }` — `spawn`s `advisor/forecaster#project` |
+| `listTaxItems` | `GET api/tax/items` | `{ taxYear, status? }` → `(TaxItem & { transaction })[]` |
+| `reviewTaxItem` | `PATCH api/tax/items/:id` | `{ id, status }` → `TaxItem` (confirm/reject a candidate) |
+| `buildTaxReport` | `POST api/tax/report` | `{ taxYear }` → `{ status:'building' }` — `spawn`s `advisor/tax-scribe#report` |
+| `getTaxReport` | `GET api/tax/report/:year` | `{ year }` → `TaxReport` |
+| `setFxRate` | `PUT api/fx` | `{ month, from, to, rate }` → `FxRate` (upsert) |
+| `listImportProfiles` | `GET api/imports/profiles` | `{}` → `ImportProfile[]` |
+| `setImportProfile` | `PUT api/imports/profiles` | `{ accountId, columnMap, dateFormat, decimalSeparator? }` → `ImportProfile` (user override beats inferred) |
+
+All follow the round-1 rules — equality-only `where` (query-all + JS filter), typed `HttpError`
+failures, **`spawn` (never `delegate`) from handlers** for fire-and-forget kick-offs. `budgetStatus`
+and `moneyStats` gain deterministic `settings.currency` conversion via `fx_rates` (missing rate =
+typed error naming the month/pair, never a silent 1.0). `importTransactions` consults
+`import_profiles` before its dialect sniffing.
+
+### New hooks (round 2 — 4, bringing the app to 7)
+
+- **`flag-deductibles.ts`** — `database` `transactions:update` (coalesced), imperative handler:
+  skip unless the update set a `categoryId` on a line with `taxScreened:false`, else
+  `delegate('advisor/tax-scribe','screen',{})` — the scribe drains its own queue (categorized,
+  unscreened), writes `tax_items` candidates, and flips `taxScreened` on everything it examined
+  (including non-candidates, so nothing is screened twice).
+- **`goal-checkin.ts`** — `cron`, `daily: '08:30'`, Monday-gated in the agent →
+  `advisor/goal-coach#checkin`: recompute each active goal's `monthlySuggested` from the last three
+  months' actual net (via `apiCall('budgetStatus')` history), write an `alerts` row when a goal
+  went off-pace, flip `reached` goals.
+- **`reforecast-monthly.ts`** — `cron`, `daily: '09:30'`, gated to `settings.reviewDay` →
+  `advisor/forecaster#project` — a fresh projection lands right after the analyst's month review.
+- **`reforecast-on-budget-change.ts`** — `database` `budgets:update`, imperative handler
+  (coalesced): `delegate('advisor/forecaster','project',{})` — editing budgets refreshes the
+  forecast without waiting a month.
+
+**Loop-guard sanity.** `transactions:insert` → bookkeeper categorizes (an *update*) →
+`flag-deductibles` fires on that update → scribe writes `tax_items` + flips `taxScreened` — the
+scribe's own `transactions` updates are excluded by **self-write exclusion** and gated by the
+`taxScreened` check, so the cascade stops at depth 2 (cap 3). `budgets:update` → forecaster writes
+`forecasts` (no hook) ⇒ stops. The goal-coach writes `goals`/`alerts` (unwatched) ⇒ stops. Per-hook
+coalesce collapses a whole CSV import's categorization burst into one screening run.
+
+### New pages (round 2 — 5, bringing the app to 12) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/goals.tsx` | `/goals` | `listGoals`; `setGoal`/`fundGoal`; `<Chat agent="advisor/goal-coach">` dock |
+| `pages/forecast.tsx` | `/forecast` | `cashflowForecast` (projection chart + narrative); `rebuildForecast` button |
+| `pages/tax.tsx` | `/tax` | `listTaxItems` (candidate triage: confirm/reject rows); `buildTaxReport`; `getTaxReport` |
+| `pages/imports.tsx` | `/imports` | `listImportProfiles`/`setImportProfile` + per-account import history |
+| `pages/reviews/year.tsx` | `/reviews/year` | the promoted annual review (`monthly_reviews` `kind:'year'`) |
+
+New shared components (design tokens only): `GoalRing` (progress dial), `ForecastChart`
+(token-styled projection bars, expected-vs-actual overlay), `DeductibleRow` (confirm/reject
+inline), `FxTable`, `ProfileEditor`. `_layout.tsx` nav gains **Goals · Forecast · Tax** alongside
+the round-1 items.
+
+### The `advisor` space (second project-scoped space, full format)
+
+`money/spaces/advisor/` — a distinct forward-looking team sharing the same project-rooted db as
+`ledger` (parent plan's multi-space shape). Least-privilege per verb; **`functions: []` on every
+agent** — the round-1 privacy invariant (no web, ever) extends to the whole project:
+
+| Agent | `db:read` tables | `db:write` tables | `api:call` allow | Role |
+|---|---|---|---|---|
+| **forecaster** | `transactions, categories, budgets, recurring_charges, goals, forecasts, fx_rates, settings` | `forecasts` | `budgetStatus` | run `projectCashflow`, sanity-check it, write projection + narrative |
+| **goal-coach** | `goals, transactions, budgets, forecasts, monthly_reviews, alerts, settings` | `goals, alerts` | `budgetStatus, cashflowForecast` | weekly check-ins, realistic `monthlySuggested`, off-pace alerts; `/goals` chat |
+| **tax-scribe** | `transactions, categories, rules, tax_items, tax_reports, settings` | `tax_items, tax_reports, transactions` | — | screen categorized lines for deductible candidates (writes `taxScreened`), assemble the year report |
+
+- **Agent-frontmatter features exercised**: the goal-coach declares
+  `canDelegateTo: [advisor/forecaster#project]` (a "what if I saved €300/month?" chat question
+  legitimately commissions a fresh projection — hard allowlist, anything else throws naming the
+  allowed targets); the tax-scribe declares `defaultAction: screen` so a freeform delegation
+  ("check March for deductibles") lands on the right action; every agent binds its `knowledge:`
+  refs (below).
+- **Tasklists** (`tasklists/`, numbered task files with real frontmatter):
+  `project/` — `01-gather.md` (`role: explore`, read-only: pull 12 months of actuals + recurring +
+  budgets), `02-project.md` (`functions: [projectCashflow, convertFx]` — run the deterministic
+  projection), `03-narrate.md` (write `forecasts`; `functions: []`). `tax-season/` —
+  `01-collect.md` (`role: explore` — the year's confirmed items + open candidates),
+  `02-screen.md` (**`forEach: "collect.categoryBatches"`** — the host fans one screening fork per
+  spend-category batch; the model never writes the loop), `03-report.md` (assemble
+  `tax_reports.body` from confirmed items only).
+- **Functions** (`functions/*.ts`, deterministic, host-primitive-only): `projectCashflow`
+  (actuals + recurring + budgets → per-month projection), `annualize` (recurring cadence → yearly
+  cost), `convertFx` (amount, month, pair → converted, throws on missing rate),
+  `deductibleHeuristics` (category + merchant → candidate taxCategory or null — the screen's first
+  pass, so the model only judges the ambiguous remainder).
+- **Components** (`components/`): view `GoalProgress` (chat-rendered goal dial),
+  view `ForecastSummary`; form `DeductibleReview` — an `ask()` batch confirm/reject sheet the
+  tax-scribe renders in chat at year-end ("12 candidates need your call"). Design-token-gated.
+- **Knowledge** (`knowledge/personal-finance/`, each field an `index.md` overview + ≥2 aspect
+  deep-dives loaded via `loadKnowledge`): `forecasting/` (`seasonality.md`,
+  `recurring-vs-oneoff.md`, `uncertainty-honesty.md`), `tax-hygiene/` (`deductible-categories.md`,
+  `evidence-trail.md`, `jurisdiction-neutrality.md` — the scribe's **not-tax-advice** framing: it
+  collects and organizes evidence, it never asserts what is legally deductible; the UI carries the
+  same line), `goal-coaching/` (`funding-strategies.md`, `motivation-without-nagging.md`).
+
+### `ledger` space-format remediation (round 2)
+
+Round 1 left `ledger` as `agents/`-only. Round 2 brings it to the **full space format**:
+`charter.md` alongside every `instruct.md` (the bookkeeper's fork-safe no-refile-user-rules
+guardrail; the watchdog's dedupe-before-write rule; the analyst's narrate-never-recompute rule);
+tasklists — `categorize/` for the bookkeeper (`01-queue.md` `role: explore` →
+`02-file.md` **`forEach: "queue.merchantGroups"`** one fork per distinct new merchant →
+`03-rules.md` write the rule per group) and `sweep/` for the watchdog (detect → dedupe → alert
+pipeline); `functions/` (`matchRules` — the same user-first/longest-pattern-first matcher the
+import handler uses, `detectCadence`, `summarizeMonth`, `formatCurrency`); catalog `components/`
+(`BudgetPreview`, `AlertCard` for chat rendering); and **extensive `knowledge/bookkeeping/`** —
+`categorization/` (`merchant-descriptor-heuristics.md`, `transfer-detection.md`),
+`subscription-audit/` (`cadence-detection.md`, `price-change-thresholds.md`), `review-craft/`
+(`narrative-structure.md`, `benchmarks-and-restraint.md`).
+
+### Phases & verification additions (round 2)
+
+Ordered on top of the round-1 phases: **(R2-1)** new schemas + columns; **(R2-2)** the `advisor`
+space full-format (agents, tasklists, functions, components, knowledge) + `ledger` remediation;
+**(R2-3)** the 12 endpoints (fx conversion threaded through `budgetStatus`/`moneyStats`);
+**(R2-4)** the 4 hooks + loop-guard checks; **(R2-5)** the 5 pages + components; **(R2-6)** tests.
+
+Verification additions: **(a)** categorize a work-equipment line → `flag-deductibles` fires once
+(coalesced), a `candidate` `tax_items` row cites a rationale, `taxScreened` flips on every examined
+line, re-running screens nothing; **(b)** `reviewTaxItem` confirm ×N + `buildTaxReport` → the
+report's `totals.byCategory` equals the sum of confirmed items only; rejected items appear nowhere;
+**(c)** `rebuildForecast` → `projectCashflow`'s json equals a hand-computed fixture; the narrative
+references only numbers present in the projection; **(d)** goal-coach Monday run recomputes
+`monthlySuggested` from actual net and writes an off-pace alert exactly once; the "what if" chat
+question delegates `advisor/forecaster#project` (allowlist holds — delegating anything else
+throws); **(e)** a second-currency account converts via `fx_rates` in `budgetStatus`; a missing
+rate is a typed error naming month+pair; **(f)** first import of a new account infers an
+`import_profiles` row once; the next import parses deterministically with no agent involvement;
+**(g)** `pnpm lint:tokens` stays green across the 5 new pages; **(h)** the tax page and the
+scribe's outputs both carry the not-tax-advice line.
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages

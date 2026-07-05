@@ -2,20 +2,20 @@
 /**
  * Store catalog manifest generator (Phase 10 — store distribution).
  *
- * Scans `store/apps/<appId>/` (each a full project-app template per
+ * Scans `store/projects/<appId>/` (each a full project-app template per
  * `sdk/org/project-as-application-implementation.md` §0.6 — `package.json
  * database/ pages/ api/ hooks/ components/ lib/`, minus runtime `.data/`/
  * `types/`) and:
  *
- *  - writes `store/apps/manifest.json` = `{ apps: [{ id, title, description,
- *    icon, tables, pages, endpoints, hooks }] }` — the static browse index the
- *    public store SPA imports directly (no server call needed to browse).
+ *  - writes `store/projects/manifest.json` = `{ apps: [{ id, title, description,
+ *    icon, tables, pages, endpoints, hooks, files }] }` — the static browse index
+ *    the public store SPA imports directly (no server call needed to browse).
  *  - copies each app template (excluding `.data/`/`types/`) plus the manifest
- *    itself into `<distDir>/apps/` so the built SPA serves them as static
+ *    itself into `<distDir>/projects/` so the built SPA serves them as static
  *    assets (nginx) — this is also how a pod's install endpoint fetches a
  *    published app's files in production (no server-side catalog needed).
  *
- * Tolerates a missing/empty `store/apps/` — emits `{ apps: [] }` rather than
+ * Tolerates a missing/empty `store/projects/` — emits `{ apps: [] }` rather than
  * throwing, so the store SPA always builds even before any app template
  * lands (mirrors `loadProjectApp`'s spaces-only tolerance in
  * `sdk/org/libs/cli/src/app/loader.ts`).

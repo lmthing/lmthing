@@ -3,13 +3,13 @@ import { createViteConfig } from '@lmthing/utils/vite'
 import { generateManifestFile, copyAppsToDist } from './scripts/gen-apps-manifest.mjs'
 
 /**
- * Regenerates `store/apps/manifest.json` from `store/apps/<appId>/` templates
+ * Regenerates `store/projects/manifest.json` from `store/projects/<appId>/` templates
  * on every build, then copies each template (+ the manifest) into the build
- * output (`<outDir>/apps/`) so nginx serves them as static assets — see
+ * output (`<outDir>/projects/`) so nginx serves them as static assets — see
  * `store/scripts/gen-apps-manifest.mjs` for the full contract. Runs on
  * `buildStart`/`closeBundle` so `pnpm --filter @lmthing/store build` always
  * regenerates without a separate script-chaining step; tolerates an empty
- * `store/apps/` (emits `{ apps: [] }`).
+ * `store/projects/` (emits `{ apps: [] }`).
  */
 function appsManifestPlugin() {
   let outDir = path.resolve(__dirname, 'dist')

@@ -1,5 +1,15 @@
 [
   {
+    "hash": "a165147b",
+    "full_hash": "a165147bcd1e19edafe2c5247f86ff5d2fe5d02e",
+    "type": "feat",
+    "scope": "kitchen",
+    "subject": "complete round-2 expansion \u2014 nutrition + sourcing teams, full-format spaces",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-05 03:09:27 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/a165147bcd1e19edafe2c5247f86ff5d2fe5d02e"
+  },
+  {
     "hash": "8b7ba19a",
     "full_hash": "8b7ba19a1a69907bdce19911284c64808557a95e",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-07-02 15:20:20 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/977e2ff0eb9b632999cd4995dae3860e5a84e9fd"
-  },
-  {
-    "hash": "c5c91402",
-    "full_hash": "c5c9140269d2d9dab4ef9793063664da9fe3a408",
-    "type": "chore",
-    "scope": "sdk",
-    "subject": "P7 live verification complete \u2014 bump sdk/org to e595e1f",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-02 14:30:53 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/c5c9140269d2d9dab4ef9793063664da9fe3a408"
   }
 ]

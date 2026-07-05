@@ -678,8 +678,8 @@ draftInquiry → vetting note before approval. 5. green gate → push both repos
 
 Strictly additive to rounds 1–7 (30 tables / ~73 api / 23 hooks / 8 spaces). Floors met: 3 new
 tables (+4 columns), 1 new space + 3 agents, 8 new api (+1 filter extension), 3 new hooks, 5 new
-pages. Spec: §Round 8 + §Round-8 reconciliation. End state: 33 tables / ~81 api / 26 hooks /
-9 spaces / 26 agents.
+pages. Spec: §Round 8 + §Round-8 reconciliation. After this round: 33 tables / ~81 api /
+26 hooks / 9 spaces / 26 agents.
 
 ## database/
 - `hunt_reports.json` — id(pk), searchId→searches(cascade,req), metrics(json — huntMetrics.ts
@@ -754,3 +754,194 @@ space + clipper/surveyor/ranker edits / pages. 3. hooks + integrate. 4. LIVE: in
 seeds cited notes + moveInBy; dismiss → ingest price-drop fixture → one resurfacing; accept →
 status 'new' + signal; checkup → report + ≤1 pace_warning; checklist write → one pack.
 5. green gate → push both repos. Phase 6 prod install + AI test per prompt protocol.
+
+---
+
+# PLAN — round 9 (FEATURE EXPANSION: `diligence` — sign with confidence)
+
+Strictly additive to rounds 1–8 (33 tables / ~81 api / 26 hooks / 9 spaces). Floors met: 4 new
+tables, 1 new space + 3 agents, 9 new api, 3 new hooks, 5 new pages. Spec: §Round 9 + §Round-9
+reconciliation. Framing (charter): information not legal advice; quote clauses verbatim, never
+paraphrase-and-escalate; works estimates are cited RANGES; ground truth (verifications) beats
+inference.
+
+## database/
+- `contracts.json` — id(pk), listingId→listings(cascade,req), applicationId→applications(setNull),
+  kind(req lease|reservation|agency_terms|purchase), content(req — pasted text, sanitized),
+  status(def pending: pending|reviewed|error), summary(md plain-language), createdAt(now);
+  relations listing/application(belongsTo), findings(hasMany contract_findings).
+- `contract_findings.json` — id(pk), contractId→contracts(cascade,req), clause(req — VERBATIM
+  quoted excerpt), category(req deposit|termination|fees|repairs|privacy|missing_term|other),
+  severity(req info|caution|red_flag), body(req md — cited to clause + matching rights_notes
+  rule), createdAt(now); relation contract(belongsTo).
+- `renovation_estimates.json` — id(pk), listingId→listings(cascade,req), scope(req cosmetic|
+  kitchen|bathroom|electrics|windows|heating|structural_question), rationale(req md cited to
+  analyses/verifications/viewing notes), costLow(def 0), costHigh(def 0), currency(def USD),
+  basis(req md — cited ballpark source), createdAt(now); relation listing(belongsTo).
+- `verifications.json` — id(pk), listingId→listings(cascade,req), viewingId→viewings(setNull),
+  question(req), topic(req size|light|noise|damp|heating|condition|location|other), status(def
+  open: open|confirmed|refuted|unclear), evidence(md — the user's observation), **applied(bool
+  def false — apply-hook cursor)**, resolvedAt, createdAt(now); relations listing/viewing(belongsTo).
+- alerts.kind += contract_red_flag; listings.flags vocabulary += works_needed.
+
+## api/ — 9 NEW
+- `listings/[id]/contracts/POST.ts`→uploadContract (paste; insert fires review hook);
+  `contracts/[id]/GET.ts`→getContract (include findings, worst severity first);
+  `contracts/[id]/review/POST.ts`→reviewContract (re-run after edit);
+  `listings/[id]/renovation/GET.ts`→renovationEstimate (lines + total range);
+  `listings/[id]/renovation/POST.ts`→scopeRenovation (spawn diligence/estimator#scope);
+  `listings/[id]/total-cost/GET.ts`→totalCostWithWorks (price/rent + amortized works midpoint via
+  worksCost.ts — every line labelled); `listings/[id]/verifications/GET.ts`→listVerifications;
+  `verifications/[id]/PATCH.ts`→resolveVerification (status+evidence; fires apply hook);
+  `searches/[id]/verifications/GET.ts`→openVerifications (shortlist-wide open questions,
+  grouped by viewing).
+
+## hooks/ — 3 NEW
+- `review-new-contract.ts` — database insert contracts → diligence/reader#review (skip unless
+  status==='pending').
+- `collect-verifications.ts` — database insert viewings → diligence/verifier#collect (runs
+  ALONGSIDE round-2 checklist-on-viewing on the same insert — different hooks may share a
+  trigger; idempotent: skip if open verifications exist for the listing).
+- `apply-verification.ts` — database **update** verifications → guard status!=='open' &&
+  !applied → sequential delegates: diligence/verifier#apply, then diligence/estimator#scope when
+  the topic is condition-grade (damp|heating|condition) — the two-delegate imperative pattern.
+
+## spaces/diligence/ — NEW full-format space (3 agents)
+- reader: db:read [contracts,contract_findings,rights_notes,listings,applications], db:write
+  [contracts,contract_findings,alerts]; canDelegateTo [guardian/rights#brief] (pull the rights
+  briefing in when absent — cross-space delegation); action review. red_flag REQUIRES a matched
+  cited rule (or self-contradiction with the listing's stated terms); unmatched concern ⇒
+  caution + "verify with a local expert".
+- estimator: db:read [listings,listing_analyses,verifications,viewings,renovation_estimates,
+  searches], db:write [renovation_estimates,listings]; universal webSearch (cited ballparks);
+  action scope. Un-evidenced scope ⇒ structural_question, never a number.
+- verifier: db:read [listings,listing_analyses,viewings,verifications], db:write [verifications,
+  listing_analyses,listings,taste_signals]; actions collect/apply; defaultAction collect.
+  apply is deterministic via verificationDelta.ts (confirmed ⇒ flag stays + confidence 1.0;
+  refuted ⇒ flag removed + analysis annotated; both write a taste signal).
+- tasklists/review-contract/{index,01-split-clauses(role:explore),02-check-terms,
+  03-write-findings}.md; tasklists/scope-works/{index,01-collect-evidence(role:explore),
+  02-estimate-ranges}.md.
+- functions/ — clauseSplit.ts, mandatoryTerms.ts (locale checklist matched vs cited rights_notes),
+  worksCost.ts (range math + amortize-into-monthly, reusing R4 amortization), verificationDelta.ts.
+- components/ — view/ClauseFinding.tsx, view/WorksEstimate.tsx, ask/VerifyAtViewing.tsx (the
+  post-viewing record-what-you-saw chat flow — chat-only; the verifications page form is the
+  headless-equivalent path). Token-gated.
+- knowledge/ — contracts/{index,lease-red-flags,mandatory-terms-by-locale};
+  works/{index,cost-ballparks-and-ranges,spotting-hidden-work};
+  verification/{index,observation-vs-inference,resolving-findings}.
+
+## pages/ — 5 NEW
+- listings/[id]/contract.tsx (paste + findings by severity, quoted clause + cited rule +
+  <Chat agent="diligence/reader">), contracts/[id].tsx (summary + full findings),
+  listings/[id]/renovation.tsx (scoped lines + total-cost-with-works comparison),
+  listings/[id]/verifications.tsx (the ledger: open questions → record observations),
+  searches/[searchId]/diligence.tsx (shortlist board: contract status, red flags, works totals,
+  open verifications). SearchTabs += Diligence.
+
+## tests/
+- 37 tables; verifications has applied cursor; EXPECTED_ENDPOINTS += 9; two hooks share the
+  viewings insert trigger (both idempotent); apply-verification guard (second resolve → no-op);
+  diligence full-format (4th ask component present); clauseSplit/mandatoryTerms unit tests
+  (over-cap deposit fixture → red_flag w/ rule citation; unmatched concern → caution; missing
+  mandatory term → missing_term finding); worksCost golden numbers (totalCostWithWorks ===
+  function output); verificationDelta (confirmed/refuted paths; taste signal written both ways).
+
+## Build/verify
+1. me: database + functions (clause/works/delta fixtures first). 2. fan out: api / diligence
+space / pages. 3. hooks + integrate. 4. LIVE: paste lease fixture → red_flag quoting clause +
+citing rule + alert; schedule viewing → checklist AND verifications once each; resolve refuted →
+flag removed + signal + idempotent re-resolve; confirmed damp → ranged cited works line.
+5. green gate → push both repos.
+
+---
+
+# PLAN — round 10 (FEATURE EXPANSION: `lookout` — see the whole board)
+
+Strictly additive to rounds 1–9 (37 tables / ~90 api / 29 hooks / 10 spaces). Floors met: 3 new
+tables, 1 new space + 3 agents, 9 new api, 3 new hooks, 5 new pages. Spec: §Round 10 + §Round-10
+reconciliation. End state: 40 tables / ~99 api / 32 hooks / 11 spaces / 32 agents. Framing
+(charter): small-sample honesty — below the minimum n the economist claims NO trend; web context
+cited, never blended into the numbers; playbook = lessons about the hunt, no personal data about
+counterparties.
+
+## database/
+- `coverage_reports.json` — id(pk), searchId→searches(cascade,req), gaps(json: stale_source|
+  missing_portal|filter_mismatch|budget_band_gap entries), body(md cited), createdAt(now);
+  relation search(belongsTo).
+- `market_snapshots.json` — id(pk), areaId→areas(setNull — null = search-city scope), scope(req
+  label: area/rooms-band), metrics(json — marketStats.ts output verbatim incl. sampleSize +
+  insufficient flag), body(md cited — no trend claims when insufficient), computedAt(now);
+  relation area(belongsTo).
+- `playbook_notes.json` — id(pk), sourceSearchId→searches(setNull — pod-durable beyond the hunt),
+  scope(req sources|taste|process|areas), body(req md cited), createdAt(now);
+  relation sourceSearch(belongsTo).
+- searches.status += completed|abandoned (additive values; pollers/crons already skip
+  non-active); alerts.kind += coverage_gap, market_shift.
+
+## api/ — 9 NEW
+- `searches/[id]/coverage/GET.ts`→coverageReport (latest + gaps);
+  `searches/[id]/coverage/POST.ts`→runCoverage (spawn lookout/spotter#scan);
+  `areas/[id]/market/GET.ts`→areaMarket (snapshot history);
+  `searches/[id]/market/GET.ts`→searchMarket (search-scoped pulse across its areas);
+  `searches/[id]/market/POST.ts`→runPulse (spawn lookout/economist#pulse);
+  `listings/[id]/timing/GET.ts`→offerTiming (DOM + cut history vs the snapshot distribution,
+  cited); `playbook/GET.ts`→playbook (pod-wide, newest first); `playbook/POST.ts`→addPlaybookNote
+  (user lessons join the agents'); `searches/[id]/retrospective/GET.ts`→retrospective
+  (retroTimeline.ts assembly: events + journal + reports + winner provenance + distilled notes).
+  Completing a hunt rides existing updateSearch (status:'completed').
+
+## hooks/ — 3 NEW
+- `coverage-checkup.ts` — cron '7d', trigger lookout/spotter#scan (gap alerts dedupe vs the
+  previous report's gaps — one alert per NEW gap).
+- `market-pulse.ts` — cron '7d', trigger lookout/economist#pulse (material inter-snapshot move ⇒
+  one market_shift alert).
+- `archive-completed-search.ts` — database **update** searches → guard status∈{completed,
+  abandoned} && no playbook notes distilled from it → lookout/archivist#distill.
+
+## spaces/lookout/ — NEW full-format space (3 agents)
+- spotter: db:read [searches,sources,raw_captures,listings,coverage_reports], db:write
+  [coverage_reports,alerts]; universal webSearch (portal landscape, cited); action scan.
+  Staleness/filter math via coverageGaps.ts; names portals, never disparages.
+- economist: db:read [areas,listings,listing_events,market_snapshots,searches], db:write
+  [market_snapshots,alerts]; universal webSearch (context only, cited); actions pulse/timing;
+  defaultAction pulse. marketStats.ts computes (medians/percentiles, DOM distribution, cut
+  frequency, min-sample gate baked in); model narrates.
+- archivist: db:read [searches,sources,listings,listing_events,taste_notes,taste_signals,
+  decision_entries,hunt_reports,playbook_notes], db:write [playbook_notes]; action distill.
+  Playbook = db-backed durable memory (NOT a runtime knowledge/ write — the standing rule;
+  promotion into space knowledge stays THING→appbuilder).
+- Cross-agent additive updates: scout/appraiser + advisor/negotiator + coach/pacer db:read +=
+  [market_snapshots]; coach/interviewer db:read += [playbook_notes] (day-one interview opens
+  with last hunt's lessons).
+- tasklists/market-pulse/{index,01-compute-stats(role:explore),02-write-snapshot}.md;
+  tasklists/distill-playbook/{index,01-gather-hunt(role:explore),02-write-notes}.md.
+- functions/ — marketStats.ts, coverageGaps.ts, retroTimeline.ts.
+- components/ — view/MarketTiles.tsx (sampleSize ALWAYS rendered), view/CoverageGapCard.tsx.
+- knowledge/ — market-reading/{index,small-sample-honesty,timing-signals};
+  coverage/{index,portal-landscapes,tuning-saved-searches};
+  hunt-memory/{index,what-transfers-between-hunts,distilling-a-playbook}.
+
+## pages/ — 5 NEW
+- searches/[searchId]/coverage.tsx (gaps + fix-it actions: add source / fix filter),
+  market.tsx (/market — pod-wide pulse dashboard, MetricTiles w/ sample sizes),
+  listings/[id]/timing.tsx (when-to-offer beside the negotiation brief),
+  playbook.tsx (/playbook — durable lessons, agent- + user-written),
+  searches/[searchId]/retrospective.tsx (the hunt's story — close-out screen).
+  SearchTabs += Coverage·Market.
+
+## tests/
+- 40 tables; searches.status accepts completed/abandoned; EXPECTED_ENDPOINTS += 9 (≈99 total);
+  spaces list = [advisor,closer,coach,diligence,district,finance,guardian,household,intake,
+  lookout,scout]; lookout full-format; marketStats golden numbers + min-sample gate
+  (insufficient:true below n → economist body asserts no trend); coverageGaps (14d-silent
+  producing source → stale_source; gap dedupe: second scan same gap → no new alert);
+  archive guard (re-save completed → no-op; distill exactly once); retroTimeline assembly.
+
+## Build/verify
+1. me: database + functions (marketStats/coverageGaps golden tests first). 2. fan out: api /
+lookout space + cross-agent cap edits / pages. 3. hooks + integrate. 4. LIVE: seed 20+ listings
+across 2 areas → pulse snapshots match golden medians; sparse area → insufficient, no trend
+claim; silence a producing source 14d (fixture clock) → one coverage_gap alert; complete the
+search → playbook distilled once; new search interview cites it. 5. green gate → push both
+repos. Phase 6 prod install + AI test per prompt protocol.

@@ -754,10 +754,11 @@ Beyond the core paste → canonical-record → analyzed-ranked-feed loop, expans
 specialist space plus the tables/endpoints/hooks/pages behind it, **strictly additively** — earlier
 rounds are never regressed. The arc follows the hunt itself: find it (round 1) → **act on it**
 (round 2) → **know the ground** (round 3) → **afford it** (round 4) → **decide together** (round 5)
-→ **win it** (round 6) → **don't get burned** (round 7) → **keep the hunt on track** (round 8).
-End state after round 8: **9 spaces, 26 agents, 33 tables, ~81 endpoints, 26 hooks, 40+ routes**,
-all sharing the one project-rooted db. Each round closes with its honest engine reconciliation
-under §Engine reconciliation.
+→ **win it** (round 6) → **don't get burned** (round 7) → **keep the hunt on track** (round 8) →
+**sign with confidence** (round 9) → **see the whole board** (round 10). End state after round 10:
+**11 spaces, 32 agents, 40 tables, ~99 endpoints, 32 hooks, 50+ routes**, all sharing the one
+project-rooted db. Each round closes with its honest engine reconciliation under
+§Engine reconciliation.
 
 ### Round 2 — the `advisor` space: act before someone else does
 The core loop finds the right place; round 2 helps you **win** it, and gives every listing a
@@ -1198,6 +1199,170 @@ extraction, and a printable viewing-day pack.
   `'pace_warning'` per report cycle); resurfacing respects the user's original call — a decline is
   final for that trigger; the viewing pack contains only data already in the db.
 
+### Round 9 — the `diligence` space: sign with confidence
+The most expensive mistakes happen in the last mile: a lease clause you didn't read, a renovation
+bill you didn't price, a "bright and quiet" you never actually verified. Round 9 adds a
+`diligence` space (`reader`, `estimator`, `verifier`) that reviews the contract you're about to
+sign, prices the works the place actually needs, and **closes the loop the analyst opened in round
+1** — every low-confidence finding becomes a verification you resolve at the viewing, and the
+resolution flows back into flags, confidence, and taste.
+
+- **Data**:
+  - `contracts` — a pasted contract text: `id`, `listingId` FK → `listings` (`cascade`, req),
+    `applicationId` FK → `applications` (`setNull` — linked when it's the actual lease/offer
+    paperwork), `kind` (`'lease' | 'reservation' | 'agency_terms' | 'purchase'`), `content` (the
+    pasted text, sanitized — untrusted content), `status` (`'pending' | 'reviewed' | 'error'`,
+    default `pending`), `summary` (md — the plain-language read: what you're agreeing to, in one
+    screen), `createdAt`.
+  - `contract_findings` — one clause-level finding: `id`, `contractId` FK (`cascade`, req),
+    `clause` (the **verbatim quoted excerpt** it rests on), `category` (`'deposit' |
+    'termination' | 'fees' | 'repairs' | 'privacy' | 'missing_term' | 'other'`), `severity`
+    (`'info' | 'caution' | 'red_flag'`), `body` (md — what it means and why it matters, cited to
+    the clause AND the matching `rights_notes` rule where one exists), `createdAt`.
+  - `renovation_estimates` — one scoped line of works: `id`, `listingId` FK (`cascade`, req),
+    `scope` (`'cosmetic' | 'kitchen' | 'bathroom' | 'electrics' | 'windows' | 'heating' |
+    'structural_question'`), `rationale` (md — cited to the analyses/verifications/viewing notes
+    that motivated it), `costLow`, `costHigh` (a **range**, never a point), `currency`, `basis`
+    (md — the cited per-m²/per-job ballpark source), `createdAt`.
+  - `verifications` — the ledger that closes the analyst's loop: `id`, `listingId` FK (`cascade`,
+    req), `viewingId` FK → `viewings` (`setNull`), `question` (req — from a low-confidence finding
+    or flag: "plan sums to 71 m² vs 85 stated — measure the living room"), `topic` (`'size' |
+    'light' | 'noise' | 'damp' | 'heating' | 'condition' | 'location' | 'other'`), `status`
+    (`'open' | 'confirmed' | 'refuted' | 'unclear'`, default `open`), `evidence` (md — what the
+    user actually observed), `applied` (bool, default false — the apply hook's cursor),
+    `resolvedAt?`, `createdAt`.
+  - **Additive enum values**: `alerts.kind` gains `'contract_red_flag'`; `listings.flags`
+    vocabulary gains `works_needed`.
+- **Agents** (least-privilege):
+  - `diligence/reader` — `db:read [contracts, contract_findings, rights_notes, listings,
+    applications]`, `db:write [contracts, contract_findings, alerts]`,
+    `canDelegateTo: [guardian/rights#brief]` (a contract arriving before the rights briefing
+    exists pulls the briefing in first — cross-space delegation on the shared db). Action
+    `review`: split the pasted text into clauses (`clauseSplit.ts`), check them against the cited
+    rights rules and the locale's mandatory-terms checklist (`mandatoryTerms.ts` — a missing
+    mandatory term is itself a finding), quote every finding verbatim, and write the
+    plain-language `summary` + the questions to ask before signing. A `red_flag` raises a
+    `'contract_red_flag'` alert.
+  - `diligence/estimator` — `db:read [listings, listing_analyses, verifications, viewings,
+    renovation_estimates, searches]`, `db:write [renovation_estimates, listings]`; universal
+    `webSearch` for cited cost ballparks. Action `scope`: turn condition evidence (dated-kitchen
+    flags, confirmed damp, viewing notes) into ranged, cited works lines; merge the
+    `works_needed` flag; the total feeds `totalCostWithWorks` and the negotiator's angles ("€9–14k
+    of scoped works → open lower, cite the lines").
+  - `diligence/verifier` — `db:read [listings, listing_analyses, viewings, verifications]`,
+    `db:write [verifications, listing_analyses, listings, taste_signals]`. Actions: `collect`
+    (turn a listing's open low-confidence findings + flags into `verifications` rows when a
+    viewing is scheduled — the structured sibling of round 2's checklist json), `apply` (fold a
+    resolution back in **deterministically** via `verificationDelta.ts`: confirmed ⇒ flag stays +
+    confidence → 1.0; refuted ⇒ flag removed + the analysis annotated; either way a taste-grade
+    signal is written — ground truth beats inference).
+- **API** (9): `uploadContract` `POST api/listings/:id/contracts` (paste; fires the review hook);
+  `getContract` `GET api/contracts/:id` (include findings, worst severity first);
+  `reviewContract` `POST api/contracts/:id/review` (re-run after an edit); `renovationEstimate`
+  `GET api/listings/:id/renovation` (the scoped lines + total range); `scopeRenovation`
+  `POST api/listings/:id/renovation` (spawns the estimator); `totalCostWithWorks`
+  `GET api/listings/:id/total-cost` (price/rent + the amortized works midpoint — the number that
+  actually compares two listings, every line labelled); `listVerifications`
+  `GET api/listings/:id/verifications`; `resolveVerification` `PATCH api/verifications/:id`
+  (record status + evidence; fires the apply hook); `openVerifications`
+  `GET api/searches/:id/verifications` (every open question across the shortlist — what to check
+  next, grouped by viewing).
+- **Hooks** (3): `review-new-contract` (**database** insert on `contracts` →
+  `diligence/reader#review`; idempotent — skip unless `status === 'pending'`);
+  `collect-verifications` (**database** insert on `viewings` → `diligence/verifier#collect`;
+  runs alongside round 2's checklist hook on the same insert — different hooks may share a
+  trigger; idempotent — skip if open verifications already exist for the listing);
+  `apply-verification` (**database** update on `verifications` — guarded:
+  `status !== 'open' && !applied` → `diligence/verifier#apply`, then `diligence/estimator#scope`
+  when the resolved topic is condition-grade (damp/heating/condition) — the two-delegate
+  imperative pattern).
+- **Pages** (5): `/listings/:id/contract` (paste box + findings by severity, each showing its
+  quoted clause + cited rule + `<Chat agent="diligence/reader">`), `/contracts/:id` (the
+  plain-language summary + full findings), `/listings/:id/renovation` (scoped lines + the
+  total-cost-with-works comparison), `/listings/:id/verifications` (the ledger: open questions →
+  record what you saw; the post-viewing companion), `/searches/:searchId/diligence` (the shortlist
+  diligence board: contract status, red flags, works totals, open verifications per listing).
+- **Safety**: contract review is **information, not legal advice** (the guardian charter framing,
+  shared) — findings quote the clause verbatim and cite the rule; the reader never paraphrases a
+  clause into a stronger claim than its text supports, and an unmatched rule ⇒ `'caution'` with
+  "verify with a local expert", never a fabricated `red_flag`. Works estimates are cited ranges;
+  a scope the evidence can't support becomes a `structural_question` to raise at the viewing, not
+  a number. Contract text is sanitized like every capture and never leaves the pod.
+
+### Round 10 — the `lookout` space: see the whole board
+Every hunter carries two quiet anxieties — "am I even seeing all the listings?" and "is now a good
+time?" — and every finished hunt throws away what it learned. Round 10 adds a `lookout` space
+(`spotter`, `economist`, `archivist`): source-coverage auditing, a market pulse computed from the
+pod's **own accumulating data** with small-sample honesty, and a cross-hunt playbook so the next
+search starts where this one ended.
+
+- **Data**:
+  - `coverage_reports` — the "are my sources enough?" audit: `id`, `searchId` FK (`cascade`, req),
+    `gaps` (json — machine-readable findings: `stale_source` (an alert email that used to produce
+    and went quiet), `missing_portal` (a major local portal with no source configured, cited),
+    `filter_mismatch` (saved-search params vs the brief/must-haves), `budget_band_gap`), `body`
+    (md — the narrative, cited), `createdAt`.
+  - `market_snapshots` — the periodic pulse: `id`, `areaId` FK → `areas` (`setNull` — null = the
+    search-city scope), `scope` (a label: area/rooms-band), `metrics` (json — the deterministic
+    output of `marketStats.ts`: median asking €/m², days-on-market distribution, price-cut
+    frequency, inventory in/out, **sampleSize**), `body` (md — the economist's cited read; below
+    the minimum sample it says "too few data points" and claims nothing), `computedAt`.
+  - `playbook_notes` — what transfers to the next hunt: `id`, `sourceSearchId` FK → `searches`
+    (`setNull` — the hunt it was distilled from; the note itself is pod-durable), `scope`
+    (`'sources' | 'taste' | 'process' | 'areas'`), `body` (md, cited — "the winner came from the
+    OLX alert in week 2; the 'must see light in person' rule saved three wasted viewings"),
+    `createdAt`.
+  - **Additive enum values**: `searches.status` gains `'completed'` and `'abandoned'`;
+    `alerts.kind` gains `'coverage_gap'` and `'market_shift'`.
+- **Agents** (least-privilege):
+  - `lookout/spotter` — `db:read [searches, sources, raw_captures, listings, coverage_reports]`,
+    `db:write [coverage_reports, alerts]`; universal `webSearch` (the locale's portal landscape,
+    cited). Action `scan`: staleness math over `sources.lastIngestedAt`/capture history, portal
+    coverage vs the cited landscape, saved-search filters vs the brief — one `'coverage_gap'`
+    alert per new gap, never repeated for a known one.
+  - `lookout/economist` — `db:read [areas, listings, listing_events, market_snapshots,
+    searches]`, `db:write [market_snapshots, alerts]`; universal `webSearch` (rate moves, new
+    regulation — context only, cited). Actions: `pulse` (the weekly cron delegate — compute
+    snapshots per area/rooms band from the pod's own listings + events), `timing` (the
+    when-to-offer read for a listing: its days-on-market + cut history vs the snapshot
+    distribution — "top-quartile stale with one cut already; waiting is cheap here"). A material
+    inter-snapshot move raises one `'market_shift'` alert.
+  - `lookout/archivist` — `db:read [searches, sources, listings, listing_events, taste_notes,
+    taste_signals, decision_entries, hunt_reports, playbook_notes]`, `db:write [playbook_notes]`.
+    Action `distill`: when a hunt completes (or is abandoned), write the cited playbook — which
+    sources produced, which taste notes survived contact with reality (verification outcomes!),
+    what the journal says actually killed each finalist — so `coach/interviewer` seeds the next
+    search from evidence, not folklore.
+- **API** (9): `coverageReport` `GET api/searches/:id/coverage` (latest + gaps); `runCoverage`
+  `POST api/searches/:id/coverage` (spawns the spotter); `areaMarket` `GET api/areas/:id/market`
+  (snapshot history for an area); `searchMarket` `GET api/searches/:id/market` (the search-scoped
+  pulse across its areas); `runPulse` `POST api/searches/:id/market` (spawns the economist);
+  `offerTiming` `GET api/listings/:id/timing` (the cited when-to-offer read); `playbook`
+  `GET api/playbook` (pod-wide notes, newest first); `addPlaybookNote` `POST api/playbook` (the
+  user's own lessons join the agents'); `retrospective` `GET api/searches/:id/retrospective` (the
+  whole hunt assembled: timeline from events + journal + reports, the winner's provenance, the
+  distilled notes). Completing a hunt rides the existing `updateSearch` (`status:'completed'`).
+- **Hooks** (3): `coverage-checkup` (**cron** `every:'7d'` → `lookout/spotter#scan`,
+  declarative); `market-pulse` (**cron** `every:'7d'` → `lookout/economist#pulse`, declarative);
+  `archive-completed-search` (**database** update on `searches` — guarded:
+  `status ∈ {completed, abandoned}` and no playbook notes distilled from it yet →
+  `lookout/archivist#distill`).
+- **Pages** (5): `/searches/:searchId/coverage` (the gap audit + fix-it actions: add the missing
+  source, fix the filter), `/market` (the pod-wide pulse dashboard: snapshot tiles per area/band,
+  sample sizes always visible), `/listings/:id/timing` (the when-to-offer read beside the
+  negotiation brief), `/playbook` (the durable lessons, agent- and user-written),
+  `/searches/:searchId/retrospective` (the hunt's story — also the emotional close-out screen).
+- **Cross-agent updates (additive)**: `scout/appraiser` and `advisor/negotiator` gain
+  `db:read [market_snapshots]` (comps get market context; angles cite the pulse); `coach/pacer`
+  reads them too ("inventory rising — waiting is cheap" enters the pace advice);
+  `coach/interviewer` gains `db:read [playbook_notes]` (the next hunt's day-one interview opens
+  with last hunt's lessons).
+- **Safety**: market claims are **deterministic stats over the pod's own rows with the sample size
+  always attached** — below the minimum n the economist explicitly declines to see a trend
+  (small-sample honesty is a charter rule, not a hope); web context is cited and never blended
+  silently into the numbers. Coverage advice names portals, never disparages them. The playbook
+  contains lessons about *the hunt*, not personal data about counterparties.
+
 ## Engine reconciliation (round-1 build notes)
 
 Grounded in the **shipped** engine (`sdk/org/libs/{core,cli}`, built through Phase 8;
@@ -1445,6 +1610,65 @@ the same engine (engine *usage*, no engine changes):
   (`pacing-a-deadline-hunt.md`, `when-to-widen-criteria.md`), `taste-elicitation/`
   (`interview-questions-that-work.md`, `tradeoffs-not-wishlists.md`).
 
+### Round-9 reconciliation (diligence)
+- **Contracts are pasted text** (the standing no-blob/no-multipart fact) — `contracts.content` is
+  the pasted lease/terms text, sanitized like every capture; a scanned-PDF lease means the user
+  pastes the text they can copy. Clause segmentation (`clauseSplit.ts`) and the mandatory-terms
+  checklist (`mandatoryTerms.ts` — matched against cited `rights_notes`) are deterministic
+  functions; the reader quotes and explains, the functions segment and match.
+- **Severity is rule-bound, not vibes** — `red_flag` requires a matched cited rule (or a
+  contradiction with the listing's own stated terms); an unmatched concern is `caution` with
+  "verify with a local expert". This is the guardian framing extended to contracts:
+  information, not legal advice; quote, don't paraphrase-and-escalate.
+- **Works estimates are ranged and cited** — `worksCost.ts` does the per-scope range math and the
+  amortize-into-monthly for `totalCostWithWorks` (reusing round 4's amortization); ballpark rates
+  come from `webSearch`, cited in `basis`; evidence that can't support a scope yields a
+  `structural_question`, never a number.
+- **Verification application is deterministic** — `verificationDelta.ts` maps
+  confirmed/refuted/unclear onto flag/confidence updates; the `applied` cursor makes the
+  update-event hook idempotent (rows, not diffs — the standing pattern). Two hooks share the
+  `viewings` insert trigger (round 2's checklist + round 9's collect) — legal, both idempotent,
+  and self-write exclusion keeps each from re-firing itself.
+- **Row-type singularizer**: `contracts→Contract`, `contract_findings→ContractFinding`,
+  `renovation_estimates→RenovationEstimate`, `verifications→Verification`.
+- **`diligence` is born full-format** — `tasklists/review-contract/` + `tasklists/scope-works/`;
+  functions (`clauseSplit.ts`, `mandatoryTerms.ts`, `worksCost.ts`, `verificationDelta.ts`);
+  components (`view/ClauseFinding.tsx`, `view/WorksEstimate.tsx`, `ask/VerifyAtViewing.tsx` — the
+  post-viewing record-what-you-saw chat flow, ask = chat-only as ever, with the page form as the
+  headless-equivalent path); knowledge: `contracts/` (`lease-red-flags.md`,
+  `mandatory-terms-by-locale.md`), `works/` (`cost-ballparks-and-ranges.md`,
+  `spotting-hidden-work.md`), `verification/` (`observation-vs-inference.md`,
+  `resolving-findings.md`).
+
+### Round-10 reconciliation (lookout)
+- **The market data is the pod's own db** — `marketStats.ts` computes medians/percentiles,
+  days-on-market distributions, and cut frequencies over the pod's accumulated `listings` +
+  `listing_events` (equality-only `where` → query-all + JS, as ever), with a **minimum-sample
+  gate baked into the function**: below n the metrics carry `insufficient: true` and the
+  economist's charter forbids trend claims over them. `webSearch` context (rates, regulation) is
+  cited prose, never silently blended into the numbers.
+- **Coverage math is deterministic** — `coverageGaps.ts` computes source staleness (capture
+  cadence vs history) and filter/brief mismatches; the portal-landscape comparison is the
+  spotter's cited `webSearch` read. Gap alerts dedupe against the previous report's `gaps` (one
+  alert per NEW gap — the digest lesson).
+- **The playbook is the db-backed durable-memory pattern again** — `playbook_notes` is a table,
+  NOT a runtime write into any space's `knowledge/` (the standing rule: runtime agents hold no
+  `knowledge:write`; promoting a playbook lesson into space knowledge stays a THING →
+  `system-appbuilder` authoring action). `coach/interviewer` reads the table — memory flows
+  through the db, exactly like `taste_notes`.
+- **`archive-completed-search` guards on row state** — `status ∈ {completed, abandoned}` + a
+  no-notes-distilled-yet query (update hooks see rows, not diffs); re-saving a completed search
+  is a no-op. `searches.status` gains values additively — round-1 `'active'`/`'paused'` behaviour
+  is untouched, and the pollers/crons already skip non-`active` searches.
+- **Row-type singularizer**: `coverage_reports→CoverageReport`,
+  `market_snapshots→MarketSnapshot`, `playbook_notes→PlaybookNote`.
+- **`lookout` is born full-format** — `tasklists/market-pulse/` + `tasklists/distill-playbook/`;
+  functions (`marketStats.ts`, `coverageGaps.ts`, `retroTimeline.ts` — the retrospective's
+  deterministic assembly); components (`view/MarketTiles.tsx` — sample size always rendered,
+  `view/CoverageGapCard.tsx`); knowledge: `market-reading/` (`small-sample-honesty.md`,
+  `timing-signals.md`), `coverage/` (`portal-landscapes.md`, `tuning-saved-searches.md`),
+  `hunt-memory/` (`what-transfers-between-hunts.md`, `distilling-a-playbook.md`).
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages
@@ -1468,15 +1692,17 @@ build, hooks runtime, chat) exists. Homes-specific work on top:
 6. **Serving** — seed each pod's `homes` project from the checked-in template; serve under generic
    `lmthing.app/homes/*`; Studio manages it under `/api/projects/homes/app`. (Store install +
    friendly alias are later phases.)
-7. **Expansion rounds 2–8** (§Additional features), in order: `advisor` (inquiries, viewings,
+7. **Expansion rounds 2–10** (§Additional features), in order: `advisor` (inquiries, viewings,
    pipeline, digest, events + comps) → `district` (area dossiers, listing↔area assignment, fit +
    discovery) → `finance` (profiles, scenarios, cited rates, negotiation briefs) → `household`
    (stakeholders, votes, conflicts, journal, per-person taste) → `closer` (applications, dossier
    checklists, contacts, deadlines, move-in) → `guardian` (scam screening, rights + fee audit,
    counterparty vetting) → `coach` (deadline pacing, day-one interview, second chances,
-   cash-to-move-in, viewing packs). Each round is strictly additive — a new full-format space +
-   its tables/endpoints/hooks/pages — and lands with its own reconciliation
-   (§Engine reconciliation) and verification pass before the next begins.
+   cash-to-move-in, viewing packs) → `diligence` (contract review, works scoping, the
+   verification ledger) → `lookout` (coverage audit, market pulse, the cross-hunt playbook).
+   Each round is strictly additive — a new full-format space + its tables/endpoints/hooks/pages —
+   and lands with its own reconciliation (§Engine reconciliation) and verification pass before
+   the next begins.
 8. **Docs** — fold into `SPACE_DEVELOPMENT.md` "Project apps" as a worked example.
 
 ## Verification (end-to-end, local)
@@ -1561,6 +1787,21 @@ build, hooks runtime, chat) exists. Homes-specific work on top:
   `'new'` + writes a signal, decline reinforces the dismissal and never re-suggests that trigger;
   checklist write → one viewing pack; `upfrontCost` lines are all labelled; amenity filter narrows
   the feed without a schema change.
+- **R9**: paste a lease fixture with an over-cap deposit clause and a missing mandatory term →
+  one `red_flag` finding quoting the clause + citing the rights rule, one `missing_term` finding,
+  a `'contract_red_flag'` alert, and a plain-language summary; a concern with no matched rule ⇒
+  `caution`, never `red_flag`. Scheduling a viewing → checklist (R2) AND open `verifications`
+  (R9) from the same insert, each exactly once; `resolveVerification { status:'refuted' }` on the
+  poor-light question → the flag is removed, the analysis annotated, a taste signal written, and
+  a second resolve is a no-op (`applied`); a confirmed damp resolution → the estimator scopes a
+  ranged, cited works line and `totalCostWithWorks` equals the deterministic function output.
+- **R10**: with fewer than the minimum comparable rows the snapshot carries
+  `insufficient: true` and the economist's body claims no trend; seeding 20+ listings across two
+  areas → snapshot medians equal `marketStats.ts` golden output and `offerTiming` cites the
+  listing's own days-on-market vs the distribution; silencing a previously-producing alert-email
+  source for 14 days → exactly one `'coverage_gap'` alert (the next scan does not re-alert the
+  same gap); `updateSearch { status:'completed' }` → the archivist distills cited playbook notes
+  exactly once (a re-save is a no-op), and a new search's day-one interview surfaces them.
 
 ## Notes
 

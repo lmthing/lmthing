@@ -817,6 +817,192 @@ map run → `weak`/`orphan` statuses match `conceptRetention`/`clusterIslands` f
 curator digest cites the fresh map (cron-to-cron handoff observed through data); **(g)** the map
 page renders with zero raw colors (`pnpm lint:tokens` green across the 5 new pages).
 
+## Round 4 — The workshop: missions, the notebook & just-in-time refreshers (feature expansion)
+
+Rounds 1–3 build retention, structure, and proof. Round 4 closes the three gaps real learners
+hit *after* the cards work: **knowledge you never apply doesn't survive contact with reality**
+(you can ace the Rust deck and still freeze at a real borrow-checker error); **the insights you
+have while studying evaporate** (the "oh, THAT's why" moment lives in no card and is gone by
+Friday); and **the actual moment of need is an event, not a schedule** ("the interview is
+Thursday — refresh me on Kubernetes *now*", when the spaced queue says your K8s cards aren't due
+till month's end). A fourth specialist team (**`workshop`** — foreman · notekeeper · crammer)
+covers them: **missions** are small, real application projects with acceptance criteria and a
+reviewed write-up; the **notebook** captures insights in chat and links them into the round-3
+concept map, resurfacing them exactly where they're relevant; and **cram packs** are
+deadline-driven refreshers that borrow urgency without corrupting the scheduler. Everything
+below is strictly additive — same project-rooted db, same capability model — and stays inside
+the parent plan (data/agents/pages/api/hooks only).
+
+### New database tables (round 4 — 5, bringing the app to 20)
+
+- **`missions.json`** — one real-world application task. `id` (pk uuid) · `topicId` (references
+  `topics` onDelete cascade, required) · `title` (string, required — "build a CLI that
+  deliberately fights the borrow checker, then fix it three ways") · `brief` (string, required —
+  markdown: the task, why it exercises this topic, constraints) · `acceptanceCriteria` (json,
+  required — 3–5 checkable criteria written **before** any attempt, the grader-rubric
+  discipline applied to doing) · `conceptIds` (json, def `[]` — the map nodes this mission
+  exercises; missions target weak islands first) · `difficulty` (string, def `'core'` —
+  `'core'`|`'stretch'`) · `status` (string, def `'open'` — `'open'`|`'in-progress'`|`'done'`|
+  `'shelved'`) · `createdAt` (date, now). Relations: `topic` belongsTo `topics` via `topicId`;
+  `reports` hasMany `mission_reports` via `missionId`.
+- **`mission_reports.json`** — the write-up of an attempt. `id` (pk) · `missionId` (references
+  `missions` onDelete cascade, required) · `body` (string, required — what you built, what
+  fought back, what you'd do differently; verbatim, never edited) · `artifacts` (json, def `[]`
+  — links/paths the user pastes; the app stores references, not files) · `review` (json — per-
+  criterion `{ met: boolean, evidence }` where evidence **quotes the report**; null until
+  reviewed) · `feedback` (string — the foreman's read: the strongest move, the gap, one harder
+  variation; null until reviewed) · `status` (string, def `'submitted'` —
+  `'submitted'`|`'reviewed'`) · `createdAt` (date, now). Relation `mission` belongsTo `missions`
+  via `missionId`.
+- **`notes.json`** — one captured insight. `id` (pk) · `body` (string, required — the insight in
+  the user's words, verbatim) · `context` (string — where it struck: a card id, a mission, a
+  teach-back, "in the shower") · `source` (string, def `'chat'` — `'chat'`|`'review-page'`|
+  `'mission'`) · `pinned` (boolean, def false) · `createdAt` (date, now). Relation `links`
+  hasMany `note_links` via `noteId`.
+- **`note_links.json`** — the note ⇄ knowledge-graph join. `id` (pk) · `noteId` (references
+  `notes` onDelete cascade, required) · `targetType` (string, required —
+  `'concept'`|`'topic'`|`'card'`|`'mission'`) · `targetId` (string, required) · `linkedBy`
+  (string, def `'agent'` — `'agent'`|`'user'`; agent links are suggestions the user can cut) ·
+  `createdAt` (date, now). Relation `note` belongsTo `notes` via `noteId`.
+- **`cram_packs.json`** — a deadline-driven refresher. `id` (pk) · `title` (string, required —
+  "K8s for Thursday's interview") · `eventAt` (date, required) · `scope` (json, required —
+  topicIds/conceptIds in play) · `items` (json, required — the prioritized drill list: weakest-
+  relevant cards, unresolved teach-back gaps, pinned notes, one mission report worth rereading —
+  each `{ kind, id, why }`) · `onePager` (string — the final summary sheet, written by the
+  crammer the day before `eventAt`; null until then) · `status` (string, def `'building'` —
+  `'building'`|`'ready'`|`'finalized'`|`'expired'`) · `createdAt` (date, now).
+
+New columns on earlier tables (additive `addColumn`): `cards.lastCrammedAt` (date — cram
+exposure is logged for honesty but **never** moves `dueAt`/`ease`: cramming is recognition, not
+retention, and the scheduler must not be fooled by it — the round-1 wall, extended);
+`concepts.missionCount` (number, def 0 — the cartographer's map shows which islands have been
+exercised for real, not just drilled).
+
+### New API endpoints (round 4 — 11, bringing the app to 43)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `requestMission` | `POST api/missions` | `{ topicId, difficulty? }` → `{ status:'drafting' }` — `spawn`s `workshop/foreman#draft` |
+| `listMissions` / `getMission` | `GET api/missions` / `GET api/missions/:id` | briefs + reports; weak-island-first ordering |
+| `updateMission` | `PATCH api/missions/:id` | `{ id, status }` → `Mission` (`in-progress`/`shelved` are user moves) |
+| `submitReport` | `POST api/missions/:id/report` | `{ id, body, artifacts? }` → `MissionReport` (review hook fires) |
+| `addNote` | `POST api/notes` | `{ body, context? }` → `Note` (link hook fires) |
+| `listNotes` / `updateNote` | `GET api/notes` / `PATCH api/notes/:id` | search-by-JS-filter; pin; cut/add links (`linkedBy:'user'`) |
+| `relatedNotes` | `GET api/notes/related` | `{ targetType, targetId }` → `Note[]` — the resurface read: the review page and mission page call it per item |
+| `buildCramPack` | `POST api/cram` | `{ title, eventAt, scope }` → `CramPack` (`building`; `spawn`s `workshop/crammer#build`) |
+| `getCramPack` / `listCramPacks` | `GET api/cram/:id` / `GET api/cram` | the pack + one-pager once finalized |
+
+Deterministic centrepiece: `relatedNotes` (link-graph walk, pure reads — an insight you wrote in
+March surfaces on the exact card that triggered it) and the cram `items` prioritizer
+(`cramPriority`: weakest-relevant ordering from `conceptRetention` + teach-back gap severity —
+the crammer narrates the ordering, the function computes it). All established rules hold —
+equality-only `where`, typed `HttpError`, **`spawn` from handlers**.
+
+### New hooks (round 4 — 3, bringing the app to 11)
+
+- **`review-mission.ts`** — `database` `mission_reports:insert`, imperative handler:
+  `delegate('workshop/foreman','review', { input: { reportId: row.id } })` — per-criterion
+  verdicts with quoted evidence, feedback, `missionCount` bump on the exercised concepts; on
+  `met:false` criteria tied to a concept, the handler-side note names the concept so the round-3
+  map stays honest.
+- **`link-notes.ts`** — `database` `notes:insert` (coalesced), imperative handler:
+  `delegate('workshop/notekeeper','link',{})` — drain unlinked notes, propose `note_links` into
+  concepts/topics/cards (`linkedBy:'agent'`), never rewrite `body`.
+- **`finalize-cram.ts`** — `cron`, `daily: '06:50'`, `trigger: 'workshop/crammer#finalize'` —
+  for `ready` packs whose `eventAt` is tomorrow: write the `onePager` from the pack's actual
+  items (freshest state: a gap closed since building drops off the sheet), flip `finalized`;
+  packs past `eventAt` flip `expired` silently — no post-event guilt.
+
+**Loop-guard sanity.** `mission_reports:insert` → foreman updates the report + `concepts`
+(unwatched) ⇒ stops at depth 1. `notes:insert` → notekeeper writes `note_links` (unwatched) ⇒
+stops. The cram cron writes `cram_packs` (unwatched) ⇒ stops. **Nothing in round 4 touches card
+scheduling**: `lastCrammedAt` is written by the cram page's exposure logging, `dueAt`/`ease`
+move only through `submitReview` — asserted over the whole table in the round-4 tests, the
+strictest form of the round-1 invariant. **Self-write exclusion** backstops all three agents.
+
+### New pages (round 4 — 5, bringing the app to 20) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/missions/index.tsx` | `/missions` | `listMissions` (weak-island-first); `requestMission`; status moves |
+| `pages/missions/[id].tsx` | `/missions/:id` | brief + criteria; `submitReport`; the review with quoted evidence; `relatedNotes` rail |
+| `pages/notebook.tsx` | `/notebook` | `listNotes` (filter/pin); `addNote`; link editing; `<Chat agent="workshop/notekeeper">` dock ("just realized why lifetimes…") |
+| `pages/cram/index.tsx` | `/cram` | `buildCramPack` intake (title/date/scope); `listCramPacks` |
+| `pages/cram/[id].tsx` | `/cram/:id` | the pack: prioritized items with `why`, drill-through, the one-pager once finalized |
+
+New shared components (design tokens only): `MissionCard` (criteria checklist states as semantic
+tokens), `CriterionRow` (met/unmet + quoted evidence), `NoteChip` (resurfaced inline on review/
+mission pages via `relatedNotes`), `CramList` (priority-ordered, `why` visible), `OnePagerView`.
+The round-1 Today page resurfaces `relatedNotes` under the current card (the March insight,
+back exactly when it matters); the round-3 map colors exercised concepts (`missionCount > 0`)
+distinctly — drilled vs *done*.
+
+### The `workshop` space (fourth project-scoped space, full format)
+
+`learn/spaces/workshop/` — the application team. Least-privilege per verb:
+
+| Agent | `db:read` tables | `db:write` tables | `api:call` allow | `functions` | Role |
+|---|---|---|---|---|---|
+| **foreman** | `missions, mission_reports, topics, cards, concepts, concept_links, teachbacks, settings` | `missions, mission_reports, concepts` | — | `webSearch, webFetch` | draft missions targeting weak islands (real-world task shapes need the web); review reports against pre-set criteria |
+| **notekeeper** | `notes, note_links, concepts, topics, cards, missions, settings` | `notes, note_links` | — | `[]` | capture verbatim, link generously, never rewrite; the notebook chat |
+| **crammer** | `cram_packs, cards, reviews, concepts, teachbacks, notes, note_links, topics, settings` | `cram_packs` | `learnStats, dueCards` | `[]` | build/finalize packs from the weakest relevant material; zero scheduler writes |
+
+- **Agent-frontmatter features exercised**: the foreman declares
+  `canDelegateTo: [academy/grader#grade]` — a mission report containing an essay-shaped
+  derivation can be rubric-graded by the round-2 owner of that craft (cross-space allowlist) —
+  and `defaultAction: draft`. The crammer declares `defaultAction: build`; the notekeeper
+  `defaultAction: capture` (so "note: the reason X works is Y" in ANY chat context lands as a
+  note). The crammer is the space's discipline showcase: it reads half the database and can
+  write exactly one table.
+- **Tasklists**: `draft-mission/` — `01-target.md` (`role: explore`, `output: { island: 'json',
+  priorConcepts: 'json' }` — pick the weakest under-exercised island), `02-shape.md`
+  (`functions: [webSearch]` scoped to THIS task — find a realistic task shape; the other tasks
+  have `functions: []`), `03-criteria.md` (`dependsOn: [shape]` — acceptance criteria BEFORE
+  filing; a mission without checkable criteria fails the tasklist), `04-file.md`. `review/` —
+  read (`role: explore`) → judge (**`forEach: "read.criteria"`** — one fork per criterion, each
+  returning `{ met, evidence }` with the quote) → feedback (`optional` delegation task,
+  **task-level `canDelegateTo: [academy/grader#grade]`**, runs only for derivation-heavy
+  reports) → file. `build-pack/` — scope (`role: explore` via `apiCall`s) → prioritize
+  (`functions: [cramPriority]`) → compose.
+- **Functions** (`functions/*.ts`, deterministic): `cramPriority` (scope × retention ×
+  gap-severity → the ordered item list — the same ordering the pack page shows),
+  `linkCandidates` (note text × concept/topic names → suggested targets, so the notekeeper
+  judges only the ambiguous tail), `criteriaCheckable` (criteria list → the ones that aren't
+  observable; the foreman runs it before filing), `exercisedMap` (concepts × missionCount for
+  the map overlay).
+- **Components**: view `MissionBriefPreview` (chat-rendered brief + criteria), view
+  `PackSummary`; form `CramIntake` — the `ask()` sheet when "I have an interview Thursday"
+  arrives without scope (which topics? how much time do you actually have?).
+- **Knowledge** (`knowledge/application-craft/`, each field `index.md` + ≥2 aspects):
+  `mission-design/` (`real-not-toy.md`, `criteria-before-attempt.md`,
+  `weak-islands-first.md`, `stretch-vs-core.md`), `review-method/` (`evidence-quoting.md`,
+  `one-harder-variation.md`), `note-craft/` (`verbatim-capture.md`, `link-generously.md`,
+  `resurface-not-remind.md` — notes appear in context, they never nag), `cramming/`
+  (`recognition-vs-retention.md` — the one-pager says plainly what cramming does and doesn't do,
+  `deadline-triage.md`, `no-post-event-guilt.md`).
+
+### Phases & verification additions (round 4)
+
+**(R4-1)** schemas + columns; **(R4-2)** `workshop` full-format; **(R4-3)** the 11 endpoints
+(`relatedNotes` graph-walk and `cramPriority` single-definition checks); **(R4-4)** the 3 hooks;
+**(R4-5)** the 5 pages; **(R4-6)** tests. Verification: **(a)** `requestMission` on a topic
+whose island is weak → the brief targets it (`conceptIds` ⊂ the island), criteria pass
+`criteriaCheckable`, and only `02-shape.md` could touch the web (task-scoped `functions`
+observed; typecheck failure elsewhere); **(b)** `submitReport` → per-criterion verdicts whose
+`evidence` is a verbatim substring of the report (mechanical check, the round-2 grader
+discipline); a derivation-heavy report delegates `academy/grader#grade` from the feedback task
+only (task-level allowlist); `missionCount` bumps; the report `body` is byte-identical after
+review; **(c)** a note captured mid-drill ("note: …" in the examiner chat still routes to the
+notekeeper via `defaultAction`) → links proposed within the coalesced window; `relatedNotes` on
+the triggering card returns it (the March-insight property, observed); user-cut links stay cut;
+**(d)** `buildCramPack` for Thursday → items ordered exactly per `cramPriority`; the Wednesday
+cron writes the one-pager from *current* state (a gap closed Tuesday is absent — freshness
+pinned); Friday flips `expired` with zero nudges; **(e)** after a full cram cycle, every card's
+`dueAt`/`ease`/`intervalDays` is unchanged except through `submitReview` rows (whole-table
+assertion — cramming moved nothing); `lastCrammedAt` logged; **(f)** the Today page shows the
+resurfaced note under its card; the map overlay distinguishes drilled from exercised;
+**(g)** `pnpm lint:tokens` green across the 5 new pages.
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages

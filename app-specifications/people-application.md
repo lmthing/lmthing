@@ -895,6 +895,194 @@ failure (project invariant); the chronicler writing `facts` → host error namin
 **(h)** contact deletion cascades through `moment_contacts`/`intros` (full-forget extended);
 **(i)** `pnpm lint:tokens` green across the 5 new pages.
 
+## Round 4 — Being there: support seasons, asks & your own capacity (feature expansion)
+
+Rounds 1–3 keep ordinary relationships warm. Round 4 is for the extraordinary parts — the ones
+people most want to get right and most often fumble: **a friend in a hard season** (illness,
+grief, divorce, job loss — when "checking in" needs to be more frequent, lighter-touch, and
+never demand a reply); **asking your people for help** (you know forty people and still hire a
+stranger, because asking feels like imposing — and favors never get returned because nobody
+remembers them); and **your own limits** (the app has spent three rounds telling you to do more;
+a real friend also tells you when you're overcommitted). A fourth specialist team (**`anchor`**
+— supporter · broker · balancer) covers them. The project invariant is untouched and matters
+most here: `functions: []` everywhere, every draft is copy-out, the app never sends — and round
+4 adds a second line to it: **this is logistics for care, not care itself, and never therapy**
+(charter + UI, see Notes below). Everything is strictly additive and stays inside the parent
+plan (data/agents/pages/api/hooks only).
+
+### New database tables (round 4 — 4, bringing the app to 21)
+
+- **`support_seasons.json`** — an elevated-care period for one person. `id` (pk uuid) ·
+  `contactId` (references `contacts` onDelete cascade, required) · `kind` (string, required —
+  `'illness'`|`'grief'`|`'crisis'`|`'transition'`|`'celebration'` — a new baby is also a season)
+  · `startedAt` (date, required) · `carePlan` (json, required — the supporter's plan: `{
+  cadenceDays, checkInStyle: 'no-reply-needed'|'normal', practicalOffers: [...], keyDates:
+  [{label, at}] }` — surgery dates and hearing dates live here, not in birthday-shaped
+  `key_dates`) · `sensitivities` (json, def `[]` — **do-not-say notes**, verbatim from the user:
+  "don't ask about the prognosis", "doesn't want advice") · `status` (string, def `'active'` —
+  `'active'`|`'easing'`|`'closed'`) · `closedAt` (date) · `createdAt` (date, now). Relation
+  `contact` belongsTo `contacts` via `contactId`. **While a season is active, the round-1
+  agenda's overdue math excludes this contact** — the supporter owns their cadence; two systems
+  nudging about one person is how care becomes noise.
+- **`asks.json`** — one need put to your people. `id` (pk) · `need` (string, required — "a
+  Berlin plumber", "someone who's done a US visa run") · `detail` (string) · `matchedContactIds`
+  (json, def `[]` — the broker's candidates, each with a `why` that passes the disclosure rule)
+  · `drafts` (json, def `{}` — per-candidate copy-out asks, light, easy to decline: "no worries
+  at all if not") · `status` (string, def `'open'` — `'open'`|`'asked'`|`'answered'`|`'closed'`)
+  · `resolvedBy` (string — the contact id who came through, if any) · `createdAt` (date, now).
+- **`favors.json`** — the reciprocity ledger. `id` (pk) · `contactId` (references `contacts`
+  onDelete cascade, required) · `direction` (string, required — `'they-helped'`|`'you-helped'`)
+  · `what` (string, required) · `at` (date, required) · `askId` (references `asks` onDelete
+  setNull) · `acknowledged` (boolean, def false — a `they-helped` favor is un-acknowledged until
+  you've said thanks properly; the agenda gets ONE gentle prompt, never a recurring one) ·
+  `createdAt` (date, now). Relations: `contact` belongsTo `contacts` via `contactId`; `ask`
+  belongsTo `asks` via `askId`.
+- **`capacity_weeks.json`** — your own week, looked at honestly. `id` (pk) · `weekStart` (date,
+  required, unique) · `plannedLoad` (json, required — the deterministic tally: gatherings
+  hosted/attending, active support seasons, open nudges, traditions due) · `loadScore` (number,
+  required — from the documented `capacityScore` weights) · `verdict` (string, required —
+  `'light'`|`'full'`|`'over'` — thresholds in settings, math not vibes) · `suggestion` (string —
+  only when `over`: the balancer's ONE concrete relief, e.g. "move the dinner; Anna's season is
+  the week's real work") · `createdAt` (date, now).
+
+New columns on earlier tables (additive `addColumn`): `nudges.reason` gains `'care'`, `'ask'`,
+`'thanks'` (all ride the round-1 agenda, cap included — care nudges take priority within the
+cap); `settings.capacityThresholds` (json, def `{ full: 5, over: 8 }`);
+`settings.quietWeekdays` (json, def `[]` — days the agenda never schedules anything social).
+
+### New API endpoints (round 4 — 10, bringing the app to 43)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `openSeason` | `POST api/seasons` | `{ contactId, kind, sensitivities? }` → `SupportSeason` (plan fills via hook) |
+| `listSeasons` / `updateSeason` | `GET api/seasons` / `PATCH api/seasons/:id` | active first; `easing`/`closed` are user moves; editing `sensitivities` is always user-only |
+| `createAsk` | `POST api/asks` | `{ need, detail? }` → `Ask` (match hook fires) |
+| `listAsks` / `advanceAsk` | `GET api/asks` / `PATCH api/asks/:id` | the ask board; `asked`/`answered`/`closed`; `answered` + `resolvedBy` writes a `they-helped` favor |
+| `logFavor` / `listFavors` | `POST/GET api/favors` | the reciprocity ledger; `acknowledgeFavor` `PATCH` marks thanks done |
+| `getCapacityWeek` | `GET api/capacity` | `{ weekStart? }` → `CapacityWeek` — the deterministic tally + verdict |
+| `contactCareView` | `GET api/contacts/:id/care` | `{ id }` → the season dossier: plan, key dates, sensitivities, recent check-ins — the open-before-you-call page |
+
+Deterministic centrepieces: `capacityScore` (the documented load weights — the balancer narrates
+the verdict, never invents it) and the agenda-exclusion rule for in-season contacts (one
+definition, in the round-1 `agenda` handler, extended and pinned). All established rules hold —
+equality-only `where`, typed `HttpError`, **`spawn` from handlers**.
+
+### New hooks (round 4 — 4, bringing the app to 13)
+
+- **`open-season.ts`** — `database` `support_seasons:insert`, imperative handler:
+  `delegate('anchor/supporter','plan', { input: { seasonId: row.id } })` — draft the care plan
+  from the relationship's real texture (facts, register, what helped before), propose cadence +
+  practical offers, file key dates. The plan is a **proposal**: the season page shows it for
+  user edit before the first check-in draft.
+- **`season-care.ts`** — `cron`, `daily: '07:20'`, `trigger: 'anchor/supporter#care'` — for
+  active seasons at their care cadence: one `'care'` nudge with a draft that honors
+  `checkInStyle` (no-reply-needed drafts explicitly close themselves: "no need to answer this")
+  and **never violates `sensitivities`** (mechanically checked against the do-not-say list
+  before filing); season key dates get day-before drafts ("thinking of you tomorrow").
+- **`match-ask.ts`** — `database` `asks:insert`, imperative handler:
+  `delegate('anchor/broker','match', { input: { askId: row.id } })` — candidates from facts/
+  history, each `why` passed through `disclosureCheck` (the round-3 function, reused: a draft
+  may say "you mentioned your amazing plumber last spring", never "since your renovation
+  nightmare…" if that story was told in confidence); ≤3 candidates, one `'ask'` nudge.
+- **`capacity-check.ts`** — `cron`, `daily: '18:00'`, Sunday-gated in the agent →
+  `anchor/balancer#week` — write next week's `capacity_weeks` row; on `over` only, the one
+  suggestion; **on `over`, the Monday agenda also caps non-care nudges to zero** — the app
+  visibly does less, which is the feature.
+
+**Loop-guard sanity.** `support_seasons:insert` → supporter updates the row + writes `nudges`
+(unwatched) ⇒ stops at depth 1. `asks:insert` → broker updates the row + one nudge ⇒ stops.
+`advanceAsk('answered')` writes a `favors` row (unwatched) ⇒ stops. The Sunday balancer writes
+`capacity_weeks` (unwatched) ⇒ stops. Resolving a season (`closed`) is a plain update (no update
+hook) — the contact re-enters normal round-1 cadence with `lastInteractionAt` naturally fresh
+from the season's check-ins. **Self-write exclusion** backstops all three agents; every new
+nudge reason lives inside the round-1 cap and dedupe.
+
+### New pages (round 4 — 5, bringing the app to 19) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/care.tsx` | `/care` | `listSeasons`; `openSeason`; each season's plan/status; `<Chat agent="anchor/supporter">` dock |
+| `pages/people/[id]/care.tsx` | `/people/:id/care` | `contactCareView` — the open-before-you-call page: plan, key dates, sensitivities, last check-ins |
+| `pages/asks.tsx` | `/asks` | `createAsk`; the board with per-candidate `why` + copy-out drafts; `advanceAsk` |
+| `pages/favors.tsx` | `/favors` | `listFavors` (unacknowledged first); `logFavor`/`acknowledgeFavor` |
+| `pages/capacity.tsx` | `/capacity` | `getCapacityWeek` (this week + history); thresholds + quiet-days settings |
+
+New shared components (design tokens only): `SeasonCard` (kind + status, quiet visual register —
+no urgency styling on grief), `SensitivityList` (do-not-say, always visible while drafting),
+`AskCandidateRow` (why + draft + decline-friendly framing), `FavorRow` (direction +
+acknowledged), `CapacityDial` (light/full/over as semantic tokens), `QuietWeekBanner` (shown on
+the agenda when the balancer capped it). The round-1 agenda renders `'care'` nudges first and
+shows the season badge on in-season contacts everywhere they appear.
+
+### The `anchor` space (fourth project-scoped space, full format)
+
+`people/spaces/anchor/` — the hard-seasons team. `functions: []` on every agent (project
+invariant, at its most important):
+
+| Agent | `db:read` tables | `db:write` tables | `api:call` allow | Role |
+|---|---|---|---|---|
+| **supporter** | `contacts, facts, interactions, key_dates, support_seasons, nudges, settings` | `support_seasons, nudges` | `agenda` | care plans as proposals; cadence-true, sensitivity-checked, no-reply-needed check-in drafts |
+| **broker** | `contacts, facts, interactions, favors, asks, nudges, settings` | `asks, favors, nudges` | — | disclosure-safe matching; decline-friendly drafts; the reciprocity ledger |
+| **balancer** | `gatherings, gathering_guests, traditions, support_seasons, nudges, capacity_weeks, settings` | `capacity_weeks, nudges` | `agenda` | the honest week tally; on `over`, one relief and a quieter agenda |
+
+- **Agent-frontmatter features exercised**: the supporter declares
+  `canDelegateTo: [circle/outreach#draft]` — an `easing` season's "welcome back to normal"
+  message is ordinary outreach craft, delegated to its round-1 owner (cross-space allowlist) —
+  and `defaultAction: care`. The broker declares `defaultAction: match`; the balancer
+  `defaultAction: week`. The balancer is the catalog's only agent whose success metric is
+  **fewer** nudges shipped.
+- **Tasklists**: `plan-season/` — `01-texture.md` (`role: explore`, `output: { register:
+  'json', helpedBefore: 'json', keyDates: 'json' }` — how THIS relationship actually works),
+  `02-plan.md` (`dependsOn: [texture]` — cadence/style/offers proposal), `03-sensitize.md`
+  (`optional: true` — runs when the user provided `sensitivities`; folds each into concrete
+  drafting constraints). `match-ask/` — candidates (`role: explore`,
+  `functions: [pairSharedGround, disclosureCheck]` — the round-3 functions reused across
+  spaces), `02-vet.md` (**`forEach: "candidates.cleared"`** — one fork per cleared candidate
+  writes its `why` + draft), `03-file.md`. `week/` — tally (`role: explore`,
+  `functions: [capacityScore]`) → verdict → relief (`optional: true` — only on `over`).
+- **Functions** (`functions/*.ts`, deterministic): `capacityScore` (the documented weights —
+  seasons count double; the same number `getCapacityWeek` serves), `sensitivityCheck` (draft
+  text × do-not-say list → violations; the supporter runs it before filing every care draft —
+  the mechanical half of the guardrail), `careCadence` (season cadence + last check-in → due),
+  `askTone` (draft → flags demand-shaped phrasing; asks must be easy to decline).
+- **Components**: view `SeasonPlanPreview` (chat-rendered proposal for approval), view
+  `WeekTally`; form `SeasonIntake` — the `ask()` sheet when `openSeason` arrives bare (what
+  kind of season? anything I should never bring up?) — the sensitivities question is asked
+  **once, up front**, because asking later means a draft already got it wrong.
+- **Knowledge** (`knowledge/being-there/`, each field `index.md` + ≥2 aspects): `hard-seasons/`
+  (`no-reply-needed-craft.md`, `practical-beats-vague.md` — "I'm dropping soup Tuesday" beats
+  "let me know if you need anything", `grief-specifics.md`, `not-therapy.md` — the app
+  schedules and drafts; it never counsels, diagnoses, or scripts emotional processing, and a
+  season whose sensitivities describe acute danger gets a plain suggestion to involve
+  professionals, nothing more), `asking-well/` (`decline-friendly-asks.md`,
+  `reciprocity-without-scorekeeping.md` — the ledger exists so gratitude happens, not so debts
+  balance), `capacity/` (`load-honesty.md`, `doing-less-as-care.md`,
+  `quiet-weeks.md`).
+
+### Phases & verification additions (round 4)
+
+**(R4-1)** schemas + columns (agenda exclusion rule extended in the round-1 handler and
+pinned); **(R4-2)** the `anchor` space full-format; **(R4-3)** the 10 endpoints
+(`capacityScore` single-definition); **(R4-4)** the 4 hooks; **(R4-5)** the 5 pages;
+**(R4-6)** tests. Verification: **(a)** `openSeason` → a plan proposal citing the
+relationship's real texture; the first care draft ships only after the plan renders on the
+season page; an in-season contact vanishes from round-1 overdue math (pinned) and returns on
+`closed`; **(b)** with a sensitivity "don't ask about the prognosis" adversarially seeded
+against a tempting `health` fact, every care draft passes `sensitivityCheck` — a violating
+fixture draft fails the run; no-reply-needed drafts contain their self-closing line; a season
+key date gets its day-before draft exactly once; **(c)** `createAsk` → ≤3 candidates, every
+`why` passes `disclosureCheck` (round-3 function, cross-space reuse observed); `askTone` flags
+a demand-shaped fixture; `answered` writes the `they-helped` favor and ONE `'thanks'` prompt,
+never recurring; **(d)** Sunday balancer: `loadScore` equals `capacityScore` by hand; an `over`
+week caps Monday's non-care nudges to zero (the QuietWeekBanner renders; care nudges still
+flow); a `light` week writes no suggestion; **(e)** an `easing` season's welcome-back draft is
+delegated to `circle/outreach#draft` (cross-space allowlist observed); **(f)** any `anchor`
+agent calling any web function → typecheck failure; the broker writing `support_seasons` →
+host error naming its tables; **(g)** contact deletion cascades through
+seasons/asks-matches/favors (full-forget extended); **(h)** the not-therapy line renders on
+`/care` and in the supporter's chat preamble; **(i)** `pnpm lint:tokens` green across the 5 new
+pages (and grief-kind styling uses quiet tokens, no urgency treatments).
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages

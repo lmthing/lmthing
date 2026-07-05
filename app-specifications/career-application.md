@@ -856,6 +856,181 @@ allowlist observed); exactly 3 moves, each naming its evidence; **(g)** `pattern
 don't fragment across tag spellings (`normalizePatternTag` pinned); **(h)** `pnpm lint:tokens`
 green across the 5 new pages.
 
+## Round 4 — Landing well: the first 90 days, review season & the public record (feature expansion)
+
+Rounds 1–3 find the job, win the room, and learn from the misses. Round 4 covers the truth every
+job-changer discovers too late: **the search doesn't end at "accepted" — that's when the risky
+part starts.** New roles fail in the first 90 days for preventable reasons (unclear expectations,
+no early wins, no relationship map), review season arrives with your best work forgotten, the
+reference you need hasn't heard from you in two years, and between searches you're invisible. A
+fourth specialist team (**`podium`** — onboarder · advocate · publicist) closes the loop: a
+**transition plan** with weekly checkpoints spins up the moment an offer flips to accepted; a
+**review/promotion packet** assembles itself from the round-3 ledger when your company's review
+season nears; a **referee kit** keeps your vouchers warm and consent-checked; and **public-record
+drafts** (bio, profile summary, post drafts) are generated from *promoted accomplishments only* —
+the tailor's no-fabrication wall, extended to your public voice. Everything below is strictly
+additive — same project-rooted db, same capability model — and stays inside the parent plan
+(data/agents/pages/api/hooks only).
+
+### New database tables (round 4 — 5, bringing the app to 21)
+
+- **`transitions.json`** — one new-role landing. `id` (pk uuid) · `offerId` (references `offers`
+  onDelete restrict, required, unique) · `startDate` (date, required) · `plan` (json, required —
+  the 30/60/90 frame: `{ phase, focus, earlyWins:[…], relationships:[{who, why}], risks:[…] }`
+  per phase, drafted by the onboarder from the posting + interview record) · `status` (string,
+  def `'planned'` — `'planned'`|`'active'`|`'landed'`|`'rocky'`|`'closed'`) · `createdAt` (date,
+  now). Relations: `offer` belongsTo `offers` via `offerId`; `checkpoints` hasMany `checkpoints`
+  via `transitionId`.
+- **`checkpoints.json`** — one weekly transition check-in. `id` (pk) · `transitionId`
+  (references `transitions` onDelete cascade, required) · `weekStart` (date, required) ·
+  `prompts` (json, required — the 3 questions this week's phase asks) · `answers` (json — the
+  user's chat answers, verbatim) · `signals` (json, def `[]` — `{ kind:
+  'win'|'risk'|'expectation-gap', note }` distilled by the onboarder) · `status` (string, def
+  `'pending'` — `'pending'`|`'done'`|`'skipped'`) · `createdAt` (date, now). Relation
+  `transition` belongsTo `transitions` via `transitionId`.
+- **`packets.json`** — a review-season artifact. `id` (pk) · `kind` (string, required —
+  `'self-review'`|`'promotion-case'`) · `periodStart`/`periodEnd` (dates, required) · `body`
+  (string, required — markdown, structured to `settings.reviewTemplate` when set) ·
+  `accomplishmentIds` (json, required — every claim traces to a ledger row; the packet is
+  **assembled**, not written from vibes) · `gapsCalledOut` (json, def `[]` — targets the period
+  missed, stated plainly; a packet that hides misses reads as spin and fails review) · `version`
+  (number, def 1) · `createdAt` (date, now).
+- **`referees.json`** — a person who can vouch. `id` (pk) · `connectionId` (references
+  `connections` onDelete setNull) · `name` (string, required) · `vouchesFor` (json, required —
+  which skills/periods they can actually speak to, mapped to `skills`/`accomplishments`) ·
+  `consent` (string, def `'unasked'` — `'unasked'`|`'asked'`|`'granted'`|`'declined'`|`'stale'`
+  — granted consent goes `stale` after `settings.refereeStaleDays` without contact) ·
+  `lastTouch` (date) · `askDraft` (string — the copy-out consent ask, warm, specific about what
+  they'd be vouching for) · `createdAt` (date, now).
+- **`posts.json`** — a public-record draft. `id` (pk) · `kind` (string, required —
+  `'bio'`|`'profile-summary'`|`'post'`|`'talk-abstract'`) · `title` (string, required) · `body`
+  (string, required — markdown, copy-out) · `accomplishmentIds` (json, required — the provenance
+  wall: public claims come from promoted, verifiable ledger rows only) · `status` (string, def
+  `'draft'` — `'draft'`|`'published'`|`'discarded'`, user-reported) · `version` (number, def 1)
+  · `createdAt` (date, now).
+
+New columns on earlier tables (additive `addColumn`): `settings.reviewMonths` (json, def `[]` —
+the company's review-cycle months, e.g. `[3, 9]`); `settings.reviewTemplate` (string — the
+company's self-review headings, pasted once); `settings.refereeStaleDays` (number, def 180);
+`accomplishments.visibility` (string, def `'private'` — `'private'`|`'public-ok'` — the user's
+per-win consent gate the publicist must respect).
+
+### New API endpoints (round 4 — 11, bringing the app to 49)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `getTransition` / `listTransitions` | `GET api/transitions/:id` / `GET` | plan + checkpoints; readiness of the landing |
+| `updateTransition` | `PATCH api/transitions/:id` | `{ id, status }` → `Transition` (`landed`/`rocky` are user verdicts) |
+| `answerCheckpoint` | `PATCH api/checkpoints/:id` | `{ id, answers }` → `Checkpoint` (onboarder distills `signals` via `spawn`) |
+| `buildPacket` | `POST api/packets` | `{ kind, periodStart, periodEnd }` → `{ status:'assembling' }` — `spawn`s `podium/advocate#packet` |
+| `getPacket` / `listPackets` | `GET api/packets/:id` / `GET` | the artifact + its ledger provenance |
+| `upsertReferee` / `listReferees` | `POST/GET api/referees` | referee CRUD; list surfaces `stale` consents first |
+| `touchReferee` | `PATCH api/referees/:id` | `{ id, consent?, note? }` → `Referee` (stamps `lastTouch`) |
+| `draftPost` | `POST api/posts` | `{ kind, focus? }` → `{ status:'drafting' }` — `spawn`s `podium/publicist#draft` |
+| `listPosts` / `updatePost` | `GET api/posts` / `PATCH api/posts/:id` | drafts; `published`/`discarded` user-reported |
+
+Deterministic centrepiece: `refereeCoverage` (inside `listReferees`) — which target skills have
+zero granted-consent referees, pure set math the advocate narrates. All established rules hold —
+equality-only `where`, typed `HttpError`, **`spawn` from handlers**.
+
+### New hooks (round 4 — 3, bringing the app to 12)
+
+- **`start-transition.ts`** — `database` **`offers:update`**, imperative handler: skip unless
+  the update set `status:'accepted'` and no transition exists for the offer, else
+  `delegate('podium/onboarder','plan', { input: { offerId: row.id } })` — the 30/60/90 plan is
+  drafted from what the process already knows (posting requirements, interview activities, mock
+  weak spots, the debrief if one exists) before day one.
+- **`weekly-checkpoint.ts`** — `cron`, `daily: '08:20'`, Monday-gated in the agent →
+  `podium/onboarder#checkpoint` — during an `active` transition, write the week's checkpoint row
+  (phase-appropriate prompts) + one agenda-style activity nudge; skipped weeks are recorded
+  `skipped`, never nagged twice.
+- **`review-season.ts`** — `cron`, `daily: '08:50'`, gated in the agent to 6 weeks before any
+  `settings.reviewMonths` entry → `podium/advocate#season` — one heads-up per season: the packet
+  period, the ledger's coverage of it (thin months named), and referee consents going stale —
+  so the packet is assembled from a full ledger, not a panic reconstruction.
+
+**Loop-guard sanity.** `offers:update(accepted)` → onboarder writes `transitions`/`checkpoints`
+(unwatched) ⇒ stops at depth 1; the one-transition-per-offer gate + **self-write exclusion** pin
+re-entry (the round-3 discipline). The two crons write unwatched tables ⇒ stop.
+`answerCheckpoint` updates `checkpoints` (no update hook) ⇒ stops. Nothing round 4 adds watches
+`accomplishments`/`posts`/`packets`/`referees` — the public-record pipeline is pull-only by
+design (publishing cadence is a human choice, not an automation).
+
+### New pages (round 4 — 5, bringing the app to 21) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/landing.tsx` | `/landing` | the active transition: 30/60/90 board, this week's checkpoint, signals rail; `answerCheckpoint`; `<Chat agent="podium/onboarder">` dock |
+| `pages/packets.tsx` | `/packets` | `buildPacket` (kind + period); `listPackets`; provenance-linked packet view |
+| `pages/referees.tsx` | `/referees` | `listReferees` (stale-first) + coverage gaps; `upsertReferee`/`touchReferee`; copy-out ask drafts |
+| `pages/public.tsx` | `/public` | `draftPost` intake; `listPosts`/`updatePost` — the public-record drafts with per-claim provenance |
+| `pages/transitions/[id].tsx` | `/transitions/:id` | a past landing in full: plan vs signals vs verdict — the retrospective read |
+
+New shared components (design tokens only): `PhaseBoard` (30/60/90 columns), `CheckpointCard`,
+`SignalChip` (win/risk/expectation-gap as semantic tokens), `CoverageGapRow`, `ProvenanceLine`
+(claim → ledger row, on packets and posts alike), `ConsentBadge`. `_layout.tsx` nav gains
+**Landing · Packets · Public**; `/ledger` entries gain the `visibility` toggle; `/strategy`
+links the latest transition verdict into the quarterly read.
+
+### The `podium` space (fourth project-scoped space, full format)
+
+`career/spaces/podium/` — the landing-and-leverage team. Least-privilege per verb:
+
+| Agent | `db:read` tables | `db:write` tables | `api:call` allow | `functions` | Role |
+|---|---|---|---|---|---|
+| **onboarder** | `transitions, checkpoints, offers, postings, applications, activities, mock_sessions, debriefs, profile_facts, settings` | `transitions, checkpoints, activities` | `pipeline` | `[]` | the 30/60/90 plan; weekly prompts; distill signals; flag `rocky` early with evidence |
+| **advocate** | `packets, accomplishments, profile_facts, skills, referees, connections, settings` | `packets, referees` | `skillGaps` | `[]` | assemble packets (claims = ledger rows; gaps stated); referee kit + consent asks |
+| **publicist** | `posts, accomplishments, profile_facts, skills, settings` | `posts` | — | `[]` | public-record drafts from `visibility:'public-ok'` accomplishments only |
+
+- **Agent-frontmatter features exercised**: the advocate declares
+  `canDelegateTo: [chronicle/scribe#promote]` — a packet-worthy accomplishment that never got
+  promoted to a fact gets promoted through the round-3 owner of that pipeline (cross-space
+  allowlist). The onboarder declares `defaultAction: checkpoint`; the publicist
+  `defaultAction: draft`. The publicist has **no web and reads no market data** — the public
+  record is built from what you did, not what performs.
+- **Tasklists**: `plan-landing/` — `01-record.md` (`role: explore`, `output: { expectations:
+  'json', weakSpots: 'json', relationships: 'json' }` — mined from posting/interviews/mocks/
+  debrief), `02-phases.md` (`dependsOn: [record]` — **`forEach: "record.phases"`** over
+  30/60/90), `03-file.md`. `packet/` — `01-harvest.md` (`role: explore` — period ledger rows +
+  gaps vs targets), `02-promote.md` (`optional: true`, **task-level `canDelegateTo:
+  [chronicle/scribe#promote]`** — only this task may promote), `03-assemble.md` (template-
+  structured, claims bound to `accomplishmentIds`), `04-gaps.md` (`dependsOn: [harvest]` — the
+  honest-misses section). `public-draft/` — select (`role: explore`, `visibility` filter is a
+  hard gate) → draft → provenance-check (`functions: [provenanceCheck]`).
+- **Functions** (`functions/*.ts`, deterministic): `refereeCoverage` (target skills × granted
+  consents → gaps — the same math `listReferees` serves), `periodLedger` (date-window ledger
+  slice + thin-month detection), `provenanceCheck` (a draft body → claims lacking an
+  `accomplishmentIds` anchor; the publicist and advocate both run it before filing),
+  `phasePrompts` (transition phase → the week's 3 questions).
+- **Components**: view `LandingSnapshot` (chat-rendered phase + signals), view `PacketOutline`;
+  form `CheckpointSheet` — the `ask()` form the onboarder uses in chat for the weekly 3 questions
+  (answers land verbatim in `checkpoints.answers`).
+- **Knowledge** (`knowledge/landing-and-leverage/`, each field `index.md` + ≥2 aspects):
+  `first-90-days/` (`expectation-alignment.md`, `early-wins-that-count.md`,
+  `relationship-mapping.md`, `rocky-signals.md`), `review-craft/` (`assembled-not-written.md`,
+  `gaps-stated-plainly.md`, `template-fidelity.md`), `references/` (`consent-first.md`,
+  `specific-asks.md`, `staleness-and-warmth.md`), `public-voice/` (`provenance-or-silence.md`,
+  `no-engagement-bait.md` — the publicist writes the true version, not the viral one).
+
+### Phases & verification additions (round 4)
+
+**(R4-1)** schemas + columns; **(R4-2)** `podium` full-format; **(R4-3)** the 11 endpoints
+(`refereeCoverage` single-definition); **(R4-4)** the 3 hooks incl. the offers:update gate test;
+**(R4-5)** the 5 pages; **(R4-6)** tests. Verification: **(a)** flipping an offer to `accepted`
+→ one transition whose plan cites the real record (posting requirements + a mock weak spot
+appear in `risks`); a second flip on the same offer fires nothing (gate pinned); **(b)** Monday
+checkpoint → phase-appropriate prompts; answering via the `CheckpointSheet` `ask()` lands
+verbatim answers + distilled signals, each `signals.evidence`-style note traceable; a skipped
+week records `skipped` and is not re-nagged; **(c)** `buildPacket` over a period with an
+unpromoted win → `02-promote.md` delegates `chronicle/scribe#promote` (task-level allowlist;
+typecheck failure from any other task), the packet's every claim resolves to a ledger row, and
+`gapsCalledOut` is non-empty on the seeded thin period (honesty pinned); **(d)** a `private`
+accomplishment never appears in any post draft (adversarially seeded: the juiciest win is
+private — `provenanceCheck` + visibility gate both hold); **(e)** referee consent goes `stale`
+after `refereeStaleDays`; coverage gaps match hand math; ask drafts name what's being vouched
+for; **(f)** the review-season heads-up fires once per season, six weeks early, naming thin
+months; **(g)** `pnpm lint:tokens` green across the 5 new pages.
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages

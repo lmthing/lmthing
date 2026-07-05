@@ -1031,6 +1031,176 @@ after `refereeStaleDays`; coverage gaps match hand math; ask drafts name what's 
 for; **(f)** the review-season heads-up fires once per season, six weeks early, naming thin
 months; **(g)** `pnpm lint:tokens` green across the 5 new pages.
 
+## Round 5 — The compass: fit intelligence, the story bank & the daily brief (feature expansion)
+
+Rounds 1–4 built the machinery; round 5 adds the judgment layer — the three places where model
+intelligence, not workflow, is the entire value. **Fit intelligence**: the biggest waste in any
+search is applying to everything, so every enriched posting now gets a **decoded read** — what
+the role actually is beneath the listing-speak, a fit score with per-requirement evidence from
+YOUR facts, red flags (zombie posting, seniority mismatch, salary vs the market brief), and a
+recommendation: *apply / network-first / skip, with reasons*. **The story bank**: interviews are
+won with five great stories told well, not fifty facts — a `storyteller` mines your
+accomplishments and facts into canonical STAR stories, each provenance-anchored, each tagged
+with the question families it answers; the round-2 interviewer drills them, the tailor
+references them. **The daily brief**: one morning read that fuses pipeline, practice, and
+transition into "the three things that matter today", each deep-linked and draft-attached. A
+fifth team (**`compass`** — decoder · storyteller · aide) owns it — and deliberately **db-only**
+(`functions: []` all three): the postings are already fetched, the market briefs already cited,
+your record already structured; this round is pure synthesis. Strictly additive;
+data/agents/pages/api/hooks only.
+
+### New database tables (round 5 — 3, bringing the app to 24)
+
+- **`fit_reports.json`** — the decoded read of one posting. `id` (pk uuid) · `postingId`
+  (references `postings` onDelete cascade, required, unique) · `decoded` (string, required —
+  markdown: what this role actually is, seniority reality-check, what the day-to-day likely
+  looks like, reading between the lines of the requirements) · `fitScore` (number, required,
+  0–100 — from the deterministic `fitScore` requirement-vs-facts math; the model interprets it,
+  never invents it) · `requirementMatch` (json, required — per requirement `{ requirement, met:
+  'strong'|'partial'|'missing', factIds }` — evidence or `missing`, no wishful matching) ·
+  `redFlags` (json, def `[]` — `{ flag, evidence }`: reposted-for-months, salary below the
+  market brief's range, title/scope mismatch, requirement soup) · `recommendation` (string,
+  required — `'apply'`|`'network-first'`|`'skip'`) · `why` (string, required — three sentences
+  max) · `createdAt` (date, now). Relation `posting` belongsTo `postings` via `postingId`.
+- **`stories.json`** — one canonical interview story. `id` (pk) · `title` (string, required —
+  "the zero-downtime migration") · `situation`/`task`/`action`/`result` (strings, required —
+  the STAR body, written in the user's register from `settings.tone`) · `factIds` (json,
+  required — every beat anchored to facts/accomplishments; the tailor's wall applied to
+  storytelling) · `questionKinds` (json, required — which families it answers:
+  `'leadership'`|`'conflict'`|`'failure'`|`'impact'`|`'ambiguity'`|`'technical-depth'`…) ·
+  `strength` (string, def `'draft'` — `'draft'`|`'solid'`|`'signature'` — moves up only through
+  mock-drill performance, `mock_sessions` evidence) · `timesDrilled` (number, def 0) ·
+  `userEdited` (boolean, def false — an edited story is never regenerated, only re-tagged) ·
+  `createdAt` (date, now).
+- **`daily_briefs.json`** — the morning read. `id` (pk) · `day` (date, required, unique) ·
+  `body` (string, required — markdown, three items max, each with its deep-link and, where one
+  exists, its ready draft) · `actions` (json, required — `[{ label, route, draftDocumentId? }]`
+  — auditable against the body, same discipline as money's briefing `inputs`) · `createdAt`
+  (date, now).
+
+New columns (additive `addColumn`): `applications.fitScoreAtApply` (number — frozen from the
+fit report when stage first moves to `applied`, so the strategist can later correlate fit
+scores with outcomes — the data that makes NEXT search's recommendations smarter);
+`questions.storyId` (string — the interviewer links bank questions to the story that answers
+them).
+
+### New API endpoints (round 5 — 9, bringing the app to 58)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `getFitReport` | `GET api/fit/:postingId` | `{ postingId }` → `FitReport` |
+| `applyQueue` | `GET api/queue` | `{}` → `{ apply: QueueRow[], networkFirst: QueueRow[], skip: QueueRow[] }` — active postings bucketed by recommendation, fit-ranked; each row carries score + top red flag |
+| `redecodePosting` | `POST api/fit/:postingId` | `{ postingId }` → `{ status:'decoding' }` — after a profile change ("I just added three facts — re-score everything relevant") |
+| `listStories` / `getStory` | `GET api/stories` / `GET api/stories/:id` | the bank, by questionKind/strength |
+| `reviseStory` | `PATCH api/stories/:id` | `{ id, situation?, …, questionKinds? }` → `Story` (sets `userEdited`) |
+| `mineStories` | `POST api/stories/mine` | `{}` → `{ status:'mining' }` — on-demand pass over unmined material |
+| `getDailyBrief` / `listDailyBriefs` | `GET api/brief/:day` / `GET api/brief` | the read + archive |
+| `fitOutcomes` | `GET api/fit/outcomes` | `{}` → `{ rows: [{ scoreBand, applied, interviews, offers }] }` — deterministic: frozen `fitScoreAtApply` vs actual stage outcomes — does the decoder's judgment predict anything? Shown to the user, honestly. |
+
+`fitScore` and `fitOutcomes` are round 5's deterministic centrepieces — and `fitOutcomes` is the
+round's honesty mechanism: the app measures its own decoder against reality and shows the
+calibration curve rather than asking for faith. Established rules hold (equality-only `where`,
+typed `HttpError`, `spawn` from handlers).
+
+### New hooks (round 5 — 3, bringing the app to 15)
+
+- **`decode-posting.ts`** — `database` **`postings:update`**, imperative handler: skip unless
+  the update set `status:'enriched'` and no fit report exists, else
+  `delegate('compass/decoder','decode', { input: { postingId: row.id } })` — completing the
+  round-1 cascade into a three-step pipeline: **paste a URL → enriched → decoded**, so by the
+  time you look at a posting the app already has an opinion with evidence.
+- **`mine-stories.ts`** — `cron`, `daily: '07:05'`, Sunday-gated in the agent →
+  `compass/storyteller#mine` — sweep unmined `achievement` facts + reviewed accomplishments;
+  draft ≤2 new stories a week (a bank of forty is worse than a bank of eight); propose merges
+  when a new win strengthens an existing story instead of duplicating it.
+- **`daily-brief.ts`** — `cron`, `daily: '06:55'`, `trigger: 'compass/aide#brief'` — fuse
+  `pipeline` (stale + upcoming interviews), the practice state (signature-story coverage of
+  Thursday's interview kinds), the active transition checkpoint, and the queue's top mover into
+  three items max. On a day with nothing that matters: "nothing needs you today" — and no row
+  is written (silence is a feature, pinned by test).
+
+**Loop-guard sanity.** `postings:update(enriched)` → decoder writes `fit_reports` (unwatched) ⇒
+the full paste-to-decoded cascade runs insert → enrich(update) → decode → stop at depth 3 —
+exactly the engine cap, documented and pinned as the catalog's deepest intentional chain (each
+step's gate tested: re-enrich without a status flip fires nothing, a second `enriched` update
+with an existing report fires nothing). The two crons write unwatched tables ⇒ stop.
+**Self-write exclusion** backstops.
+
+### New pages (round 5 — 4, bringing the app to 25) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/queue.tsx` | `/queue` | `applyQueue` — the ranked triage board; `redecodePosting`; apply/skip actions straight into round-1 flows |
+| `pages/fit/[postingId].tsx` | `/fit/:postingId` | the decoded read: requirement match rows with fact links, red flags with evidence, the recommendation + `fitOutcomes` calibration footer |
+| `pages/stories.tsx` | `/stories` | the bank by question family; `reviseStory`; strength badges with their mock evidence; `<Chat agent="compass/storyteller">` ("help me tighten the migration story") |
+| `pages/brief.tsx` | `/brief` | today's three things + archive |
+
+New components (design tokens only): `QueueColumn` (apply/network-first/skip), `MatchRow`
+(strong/partial/missing as semantic tokens + fact links), `RedFlagChip` (evidence popover),
+`StoryCard` (STAR-collapsed, question-family tags, strength badge), `BriefCard` (item +
+deep-link + attached draft), `CalibrationStrip` (the fitOutcomes bands). The postings list
+shows each row's score + recommendation inline; the application page shows `fitScoreAtApply`;
+the round-2 practice page filters the bank to the upcoming interview's question kinds.
+
+### The `compass` space (fifth project-scoped space, full format)
+
+`career/spaces/compass/` — the judgment team, deliberately db-only:
+
+| Agent | `db:read` tables | `db:write` tables | `api:call` allow | `functions` | Role |
+|---|---|---|---|---|---|
+| **decoder** | `postings, fit_reports, profile_facts, skills, market_briefs, applications, settings` | `fit_reports` | — | `[]` | decode the role; score with evidence; flag honestly; recommend with reasons |
+| **storyteller** | `stories, accomplishments, profile_facts, mock_sessions, questions, settings` | `stories, questions` | — | `[]` | mine/merge stories; anchor every beat; promote strength only on drill evidence |
+| **aide** | `daily_briefs, applications, activities, documents, transitions, checkpoints, stories, fit_reports, settings` | `daily_briefs` | `pipeline, applyQueue` | `[]` | three things max; drafts attached; silence when nothing matters |
+
+- **Frontmatter features**: the storyteller declares `canDelegateTo:
+  [prep/interviewer#questions]` — a new `signature` story warrants refreshing the question
+  banks that could use it (hard allowlist); the aide declares `canDelegateTo:
+  [agency/coach#nudge]` for the one case where the brief surfaces a stale application whose
+  follow-up draft doesn't exist yet. `defaultAction: decode` / `mine` / `brief`.
+- **Tasklists**: `decode/` — `01-evidence.md` (`role: explore`, `output: { matches: 'json',
+  flags: 'json' }` — `fitScore` + `redFlagScan` outputs, typed), `02-read.md` (`dependsOn:
+  [evidence]` — the decoded narrative; may not contradict the evidence table),
+  `03-recommend.md` (one of three verdicts; `why` ≤ 3 sentences enforced by review). `mine/` —
+  harvest (`role: explore` — unmined material + existing bank), draft (**`forEach:
+  "harvest.candidates"`** — one fork per story, each emitting STAR + factIds + kinds), merge
+  (dedupe against the bank; propose merges, never silently overwrite; `userEdited` stories are
+  untouchable). `brief/` — gather (`role: explore` via the two `apiCall`s + transition state) →
+  select (three max; the task fails on four) → write.
+- **Functions** (deterministic): `fitScore` (requirements × facts/skills → 0–100 with
+  per-requirement met levels — the same math the handler serves), `redFlagScan` (posting age /
+  repost detection via `fetchedAt` history, salary-vs-brief range check, title-seniority
+  heuristics — candidates only; the model judges which are real), `storyCoverage` (question
+  kinds × bank → the gaps the miner prioritizes), `briefInputs` (the day's raw material,
+  typed).
+- **Components**: view `FitSummary` (chat-rendered score + top matches/flags), view
+  `StoryOutline`; form `StoryIntake` — the `ask()` sheet when the storyteller needs the human
+  half ("what was the actual hard part here? what number can you stand behind?") — the model
+  structures, the user supplies truth.
+- **Knowledge** (`knowledge/judgment/`): `decoding/` (`listing-speak.md`,
+  `seniority-reality.md`, `red-flag-taxonomy.md`, `recommend-with-reasons.md`), `story-craft/`
+  (`five-great-beats-fifty-facts.md`, `star-without-formula-smell.md`,
+  `numbers-carry-stories.md`, `merge-dont-multiply.md`), `briefing/` (`three-things.md`,
+  `silence-is-a-feature.md`, `draft-attached-or-it-didnt-help.md`).
+
+### Phases & verification additions (round 5)
+
+**(R5-1)** schemas + columns; **(R5-2)** `compass` full-format; **(R5-3)** the 9 endpoints
+(`fitScore`/`fitOutcomes` single-definition); **(R5-4)** the 3 hooks + the depth-3 cascade
+test; **(R5-5)** the 4 pages + inline surfacing; **(R5-6)** tests. Verification: **(a)** paste
+a URL → enriched → decoded with no further action (the three-step cascade observed end-to-end
+and terminating at depth 3; each gate's no-refire case pinned); every `requirementMatch` entry
+is `missing` or carries resolving `factIds` (no wishful matching — adversarially seeded with a
+near-miss requirement); **(b)** a below-market salary vs the latest brief lands in `redFlags`
+with the brief cited; a fresh posting yields no repost flag (candidates-only pinned);
+**(c)** `applyQueue` buckets match recommendations; applying freezes `fitScoreAtApply`;
+`fitOutcomes` bands equal hand math on a seeded history — and render even when unflattering;
+**(d)** Sunday mining on a bank with a near-duplicate win proposes a merge, not a new story;
+`userEdited` stories survive mining byte-identical; strength never rises without
+`mock_sessions` evidence; every STAR beat's `factIds` resolve; **(e)** the brief holds three
+items with resolving routes and attached drafts where promised; a genuinely quiet fixture day
+writes no row; the missing-follow-up case delegates `agency/coach#nudge` (allowlist observed);
+**(f)** `pnpm lint:tokens` green across the 4 new pages.
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages

@@ -1074,6 +1074,161 @@ round-1 categorize path runs (cascade pinned end-to-end from parking lot to ledg
 elsewhere); **(g)** `pnpm lint:tokens` green; the not-refinancing-advice line renders on
 `/payoff`.
 
+## Round 5 — The mentor: briefings, patterns & experiments (feature expansion)
+
+Rounds 1–4 built four teams that each know one slice. Round 5 adds the layer users actually
+experience as *intelligence*: something that reads **all of it** and talks to you like a sharp
+friend who happens to have perfect memory. Three genuinely AI-shaped capabilities: the **Sunday
+briefing** — five minutes, one narrative, one action, fused from every space (alerts, danger
+days, goal pace, parked decisions, the forecast) instead of five dashboards; **pattern mining**
+— the behavioral shapes hiding in your own ledger ("delivery spikes every Friday you work late",
+"the post-payday 48 hours cost €130/month"), surfaced as evidence-backed, dismissible
+observations, never accusations; and **spending experiments** — a pattern becomes a two-week
+protocol with a deterministic baseline and a measured verdict ("delivery pause: projected €62,
+actual €71 — keep it?"). Plus **explain-any-number**: every figure in the app becomes clickable
+into a deterministic delta decomposition the analyst narrates. A fifth team (**`mentor`** —
+briefer · pattern-miner · experimenter) owns it; `functions: []` project-wide holds — this round
+is pure synthesis over your own rows, the strongest proof that the AI value here needs no web.
+Strictly additive; data/agents/pages/api/hooks only.
+
+### New database tables (round 5 — 3, bringing the app to 29)
+
+- **`briefings.json`** — one weekly read. `id` (pk uuid) · `weekStart` (date, required, unique) ·
+  `body` (string, required — markdown, ≤ five minutes' reading, written to the `briefing-craft`
+  knowledge: lead with what changed, one number per claim, end with exactly one action) ·
+  `focusAction` (json, required — `{ label, route, why }` — THE one thing, deep-linked into the
+  app: a decision to unpark, a finding to resolve, a budget to adjust) · `inputs` (json, required
+  — the machine-readable digest of what it fused: open alerts, danger days, goal paces, parked
+  decisions, forecast month — so the brief is auditable against its sources) · `createdAt`
+  (date, now).
+- **`patterns.json`** — one mined behavioral shape. `id` (pk) · `title` (string, required —
+  "Friday delivery spike") · `description` (string, required — the pattern in plain language,
+  no moralizing) · `evidence` (json, required — the transaction ids + the aggregation that
+  demonstrates it; every pattern is re-checkable) · `monthlyImpact` (number, required — the
+  deterministic cost/benefit estimate from `patternImpact`) · `status` (string, def `'candidate'`
+  — `'candidate'`|`'confirmed'`|`'dismissed'` — the user judges; dismissed patterns are never
+  re-mined (fingerprint kept)) · `fingerprint` (string, required, unique — normalized
+  pattern key so re-mining can't resurrect a dismissal) · `createdAt` (date, now).
+- **`experiments.json`** — one measured behavior change. `id` (pk) · `patternId` (references
+  `patterns` onDelete setNull — most experiments come from a pattern; free-standing allowed) ·
+  `hypothesis` (string, required — "pausing delivery apps for 14 days saves ≈ €62") ·
+  `protocol` (string, required — what the user actually does, one paragraph) · `startAt`/`endAt`
+  (dates, required) · `baseline` (json, required — the matched-window spend computed at start by
+  `experimentBaseline`; frozen, never recomputed) · `result` (json — the same math over the live
+  window; null until `endAt`) · `verdict` (string — `'worked'`|`'partly'`|`'didnt'` + the
+  experimenter's one-paragraph honest read; null until concluded) · `status` (string, def
+  `'active'` — `'active'`|`'concluded'`|`'abandoned'`) · `createdAt` (date, now).
+
+New columns (additive `addColumn`): `alerts.kind` gains `'experiment-concluded'`;
+`settings.briefingDay` (number, def 0 — Sunday).
+
+### New API endpoints (round 5 — 9, bringing the app to 60)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `getBriefing` / `listBriefings` | `GET api/briefing/:week` / `GET api/briefing` | the read + archive |
+| `explainDelta` | `GET api/explain` | `{ month, categoryId?, compareTo? }` → `{ delta, drivers: [{ kind:'new-merchant'\|'price-change'\|'frequency'\|'one-off', label, amount, transactionIds }] }` — the deterministic decomposition behind every clickable number |
+| `listPatterns` / `reviewPattern` | `GET api/patterns` / `PATCH api/patterns/:id` | candidates first; confirm/dismiss (dismissal is permanent via fingerprint) |
+| `startExperiment` | `POST api/experiments` | `{ patternId?, hypothesis, protocol, days? }` → `Experiment` (baseline frozen now) |
+| `getExperiment` / `listExperiments` | `GET api/experiments/:id` / `GET` | live progress: the same window math running against today |
+| `abandonExperiment` | `PATCH api/experiments/:id` | `{ id }` → `Experiment` (no verdict, no guilt — recorded and closed) |
+
+`explainDelta` is round 5's deterministic centrepiece and its biggest UX lever: month-over-month
+change decomposed into named drivers with the exact lines behind each — the analyst, briefer,
+and pattern-miner all narrate **this** decomposition, and the dashboard/budget/review pages all
+deep-link into it. Established rules hold (equality-only `where`, typed `HttpError`, `spawn`
+from handlers).
+
+### New hooks (round 5 — 3, bringing the app to 16)
+
+- **`weekly-briefing.ts`** — `cron`, `daily: '07:00'`, `briefingDay`-gated in the agent →
+  `mentor/briefer#brief` — fuse the week via `apiCall`s (`budgetStatus`, `cashflowForecast`,
+  `billCalendar`, `netWorth`, `explainDelta`), write the one narrative + the one `focusAction`.
+- **`mine-patterns.ts`** — `cron`, `daily: '07:10'`, first-of-month-gated →
+  `mentor/pattern-miner#mine` — run the deterministic candidate generators
+  (`minePatternCandidates`: weekday/time-of-month/merchant-frequency shapes), have the model
+  judge which candidates are *real and worth saying*, write ≤3 new `candidate` patterns
+  (fingerprint-deduped against everything ever mined).
+- **`experiment-watch.ts`** — `cron`, `daily: '07:50'`, `trigger: 'mentor/experimenter#watch'`
+  — refresh active experiments' live window; at `endAt`, compute `result`, write the honest
+  `verdict` + one `experiment-concluded` alert; suggest (in the verdict text only, never
+  auto-apply) the follow-through — a budget change, a rule, a cancelled subscription.
+
+**Loop-guard sanity.** All three write only `briefings`/`patterns`/`experiments`/`alerts` —
+none watched ⇒ every chain stops at depth 1. Pattern mining is capped (≤3/month), fingerprinted,
+and dismissals are terminal — the mentor cannot become a nag by construction. **Self-write
+exclusion** backstops as ever.
+
+### New pages (round 5 — 4, bringing the app to 26) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/briefing.tsx` | `/briefing` | this week's read + archive; the `focusAction` button; `<Chat agent="mentor/briefer">` ("why is groceries the focus?") |
+| `pages/patterns.tsx` | `/patterns` | `listPatterns`; confirm/dismiss; evidence drill-down into `explainDelta`; "try an experiment" → intake |
+| `pages/experiments/index.tsx` | `/experiments` | active with live progress bar (baseline vs current window), concluded with verdicts |
+| `pages/explain.tsx` | `/explain` | the driver decomposition view every number deep-links into (`?month=&categoryId=`) |
+
+New components (design tokens only): `BriefingView` (reading-first typography), `FocusActionCard`,
+`PatternCard` (evidence-expandable, dismiss-forever affordance), `ExperimentProgress` (baseline
+vs live, no red until concluded), `DriverBar` (delta decomposition rows). Every number on the
+dashboard, budgets, and reviews pages becomes an `explainDelta` deep-link — the app-wide
+"why?" affordance.
+
+### The `mentor` space (fifth project-scoped space, full format)
+
+`money/spaces/mentor/` — the synthesis team. `functions: []` on every agent (project invariant —
+the whole round is db-only intelligence):
+
+| Agent | `db:read` tables | `db:write` tables | `api:call` allow | Role |
+|---|---|---|---|---|
+| **briefer** | all read tables of rounds 1–4 + `briefings, patterns, experiments` | `briefings` | `budgetStatus, cashflowForecast, billCalendar, netWorth, explainDelta` | the Sunday read; one action, every claim numbered and auditable against `inputs` |
+| **pattern-miner** | `transactions, categories, recurring_charges, patterns, settings` | `patterns` | `explainDelta` | judge deterministic candidates; ≤3/month; evidence or silence |
+| **experimenter** | `experiments, patterns, transactions, budgets, alerts, settings` | `experiments, alerts` | `explainDelta` | frozen baselines, honest verdicts, suggested (never auto-applied) follow-through |
+
+- **Frontmatter features**: the briefer declares `canDelegateTo: [advisor/forecaster#project,
+  counsel/counselor#judge]` — the brief may commission a fresh projection or re-judge a parked
+  decision whose cooldown ended this week, so the Sunday read is current, not stale (hard
+  allowlist). `defaultAction: brief` / `mine` / `watch` respectively.
+- **Tasklists**: `brief/` — `01-gather.md` (`role: explore`, `output: { inputs: 'json' }` — the
+  five `apiCall`s into one typed digest), `02-focus.md` (`dependsOn: [gather]` — pick THE
+  action; the task fails if it picks more than one), `03-write.md` (`functions: []` — narrative
+  over `inputs` only; a claim without a matching input number fails review). `mine/` —
+  candidates (`role: explore`, `functions: [minePatternCandidates, patternImpact]`) → judge
+  (**`forEach: "candidates.shapes"`**, each fork returns keep/drop + phrasing) → file
+  (fingerprint dedupe). `experiment/` — baseline (`functions: [experimentBaseline]`) → watch →
+  verdict.
+- **Functions** (deterministic): `minePatternCandidates` (weekday/time-of-month/merchant-
+  frequency aggregations → candidate shapes with supporting rows), `patternImpact` (shape →
+  monthly cost estimate), `experimentBaseline` (matched prior window, seasonality-adjusted via
+  same-weekday matching — documented), `deltaDrivers` (the `explainDelta` math — single
+  definition, shared with the handler).
+- **Components**: view `BriefingPreview` (chat-rendered focus + top numbers), form
+  `ExperimentIntake` — the `ask()` sheet from a pattern card ("14 days? what's the protocol in
+  your words?" — the user writes the protocol; commitment they author is commitment they keep).
+- **Knowledge** (`knowledge/mentoring/`): `briefing-craft/` (`one-action.md`,
+  `numbers-not-adjectives.md`, `five-minute-ceiling.md`), `pattern-ethics/`
+  (`observation-not-judgment.md`, `dismissed-means-dismissed.md`, `evidence-or-silence.md`),
+  `experiment-method/` (`frozen-baselines.md`, `honest-verdicts.md`,
+  `follow-through-not-automation.md` — the app proposes the rule/budget change; the user applies
+  it on the pages that own those writes).
+
+### Phases & verification additions (round 5)
+
+**(R5-1)** schemas; **(R5-2)** `mentor` full-format; **(R5-3)** the 9 endpoints
+(`explainDelta`/`deltaDrivers` single definition); **(R5-4)** the 3 hooks; **(R5-5)** the 4
+pages + the app-wide explain deep-links; **(R5-6)** tests. Verification: **(a)** the Sunday
+brief: every number in `body` appears in `inputs` (mechanical claim-audit); exactly one
+`focusAction`, and its route resolves; a week where a parked decision's cooldown ended shows the
+re-judgment (delegation allowlist observed); **(b)** `explainDelta` drivers sum to the delta
+exactly on fixtures (new merchant / price change / frequency / one-off each isolated);
+**(c)** mining on a seeded Friday-spike ledger yields that pattern with correct
+`monthlyImpact`; dismissing it and re-mining yields nothing (fingerprint pinned); a clean
+ledger yields zero patterns (evidence-or-silence pinned); **(d)** an experiment's `baseline` is
+byte-identical at conclusion to what was frozen at start; the verdict compares like windows;
+abandoning writes no verdict and no alert; nothing auto-applied anywhere (no writes to
+budgets/rules from `mentor` — capability walls make this structural); **(e)** `pnpm
+lint:tokens` green across the 4 new pages.
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages

@@ -1003,6 +1003,167 @@ assertion — cramming moved nothing); `lastCrammedAt` logged; **(f)** the Today
 resurfaced note under its card; the map overlay distinguishes drilled from exercised;
 **(g)** `pnpm lint:tokens` green across the 5 new pages.
 
+## Round 5 — The faculty: adaptive lessons, layered explanations & the study brief (feature expansion)
+
+Four rounds in, the app schedules, drills, proves, and applies — but it has never once
+**taught**. Round 5 adds the teacher: a **`professor`** that runs real adaptive lessons in chat
+— Socratic, personalized by your actual record (it opens knowing which of the topic's concepts
+you hold, which you've lapsed, what your last teach-back exposed, which mission fought back),
+building each idea from the nearest thing you already know via the round-3 concept map's
+prerequisite edges. An **`explainer`** maintains **layered explanations** — every concept
+explainable at three depths (*intuition* / *formal* / *application*), generated on demand and
+auto-generated the moment the map flags a concept newly weak, so the help exists before you ask.
+And an **`aide`** writes the **daily study brief**: reviews due (with honest minutes), the
+milestone delta, the teach-back or lesson that would move you most — one read, three items max.
+A fifth team (**`faculty`**) owns it. Strictly additive; data/agents/pages/api/hooks only.
+
+### New database tables (round 5 — 3, bringing the app to 23)
+
+- **`lessons.json`** — one adaptive teaching session's record. `id` (pk uuid) · `topicId`
+  (references `topics` onDelete cascade, required) · `objective` (string, required — the ONE
+  thing this lesson set out to build, chosen from the record: "connect lifetimes to the
+  borrow-checker errors you keep hitting") · `entryState` (json, required — the personalization
+  snapshot at start: held/lapsed concepts, last teach-back gaps, mission friction — frozen, so
+  a lesson is auditable against what the professor actually knew) · `transcriptSummary`
+  (string, required — the arc of the dialogue, honest about where the student struggled) ·
+  `checkResult` (json, required — the lesson's exit check: 2–3 questions asked at the end,
+  `{ question, answered: 'yes'|'shaky'|'no' }`) · `cardSeeds` (json, def `[]` — prompts the
+  dialogue exposed as worth drilling; the seed hook turns them into cards) · `createdAt`
+  (date, now). Relation `topic` belongsTo `topics` via `topicId`.
+- **`explanations.json`** — one concept at one depth. `id` (pk) · `conceptId` (references
+  `concepts` onDelete cascade, required) · `depth` (string, required —
+  `'intuition'`|`'formal'`|`'application'`) · `body` (string, required — intuition: analogy +
+  the one sentence that makes it click; formal: the precise version with the notation; the
+  application layer worked through a concrete case) · `groundedIn` (json, def `[]` — cards /
+  source excerpts / notes the explanation drew on: your material first, the model's general
+  knowledge clearly second) · `helpful` (number, def 0 — net user votes; ≤ −2 queues a rewrite)
+  · `stale` (boolean, def false — flipped when the concept's cards/sources change materially)
+  · `createdAt` (date, now). One row per (concept, depth) — the endpoint upserts.
+- **`daily_briefs.json`** — the morning read. `id` (pk) · `day` (date, required, unique) ·
+  `body` (string, required — markdown, three items max) · `plan` (json, required — the typed
+  version: `{ reviewsDue, estMinutes, milestoneDelta, suggestion: { kind:
+  'lesson'|'teachback'|'mission'|'rest', targetId?, why } }` — auditable against the body) ·
+  `createdAt` (date, now).
+
+New columns (additive `addColumn`): `topics.lastLessonAt` (date); `concepts.explainedDepths`
+(json, def `[]` — which layers exist, so the map and cards can show the "explain" affordance
+only when it's real, and the explainer can see coverage gaps).
+
+### New API endpoints (round 5 — 9, bringing the app to 41)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `requestLesson` | `POST api/lessons` | `{ topicId, focus? }` → `{ status:'preparing' }` — assembles `entryState`, opens the professor chat primed with it |
+| `listLessons` / `getLesson` | `GET api/lessons` / `GET api/lessons/:id` | history + one lesson's record (entry state, arc, exit check) |
+| `getExplanation` | `GET api/explain/:conceptId` | `{ conceptId, depth }` → `Explanation` — serves the row, or inserts a `pending` stub the generate hook fills (`spawn`) |
+| `rateExplanation` | `PATCH api/explain/:id` | `{ id, vote: 1\|-1 }` → `Explanation` (≤ −2 queues rewrite) |
+| `explainCoverage` | `GET api/explain/coverage` | `{}` → `{ rows: [{ conceptId, depths, weak }] }` — deterministic: which weak concepts still lack an intuition layer |
+| `getDailyBrief` / `listDailyBriefs` | `GET api/brief/:day` / `GET api/brief` | the read + archive |
+| `todayPlan` | `GET api/plan/today` | `{}` → the deterministic half of the brief: `reviewsDue` + `estMinutes` (from your OWN median seconds-per-review in `reviews`, not a guess) + `milestoneDelta` — the numbers the aide narrates |
+
+`todayPlan` is round 5's deterministic centrepiece — `estMinutes` from your measured review
+pace is the small honesty that makes the brief trustable. Established rules hold
+(equality-only `where`, typed `HttpError`, `spawn` from handlers).
+
+### New hooks (round 5 — 3, bringing the app to 14)
+
+- **`seed-cards-from-lesson.ts`** — `database` `lessons:insert`, imperative handler: skip when
+  `row.cardSeeds` is empty, else `delegate('tutor/cardsmith','draft', { input: { topicId:
+  row.topicId, focus: seeds } })` — what the dialogue exposed becomes tomorrow's drill (the
+  round-3 teach-back shape, reused: teaching and testing both feed the same card pipeline).
+- **`explain-weak.ts`** — `database` **`concepts:update`**, imperative handler: skip unless the
+  update set `status:'weak'` and no `intuition` explanation exists, else
+  `delegate('faculty/explainer','explain', { input: { conceptId: row.id, depth: 'intuition' }
+  })` — the Saturday map run (round 3) now *produces help, not just diagnosis*: by Sunday every
+  newly-weak concept has its intuition layer waiting behind the "explain" affordance.
+- **`daily-brief.ts`** — `cron`, `daily: '06:30'`, `trigger: 'faculty/aide#brief'` — narrate
+  `todayPlan`, pick the ONE suggestion (the weakest thing a lesson/teach-back/mission would
+  most move — or `rest` when the streak is long and the queue is light: an app that never says
+  "take the day" is a slot machine, not a tutor). A day with zero reviews due and no active
+  plan writes nothing (silence pinned, the money/career discipline).
+
+**Loop-guard sanity.** `lessons:insert` → cardsmith writes `cards` (unwatched) ⇒ stops at
+depth 1. The Saturday cron updates `concepts` → `explain-weak` fires → explainer writes
+`explanations` + `explainedDepths` — that second `concepts:update` is gated (no status change,
+intuition now exists) and **self-write excluded** ⇒ stops at depth 2 (cap 3; gate pinned). The
+brief cron writes `daily_briefs` (unwatched) ⇒ stops. Lessons themselves are chat sessions —
+no hook, no cascade; only their *record* (the insert) triggers work.
+
+### New pages (round 5 — 4, bringing the app to 24) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/learn.tsx` | `/learn` | `<Chat agent="faculty/professor" />` (the lesson room) + `requestLesson` intake + lesson history rail |
+| `pages/lessons/[id].tsx` | `/lessons/:id` | one lesson: objective, entry state, the arc, exit check, the cards it seeded |
+| `pages/explain/[conceptId].tsx` | `/explain/:conceptId` | the three layers as tabs; `rateExplanation`; grounded-in links; generate-on-first-visit |
+| `pages/brief.tsx` | `/brief` | today's read + archive; the suggestion deep-links (`/learn`, `/teach`, `/missions/:id`) |
+
+New components (design tokens only): `LessonRecord` (entry state → arc → exit check),
+`DepthTabs` (intuition/formal/application), `GroundedInList`, `BriefPlan` (due + honest
+minutes + the one suggestion), `RestCard` (the take-the-day state, styled calm). The Today
+page's card view gains the "explain" affordance (shown only when `explainedDepths` has the
+layer); the round-3 map's weak nodes deep-link to their intuition layer; the round-2 plan page
+embeds the brief's milestone line.
+
+### The `faculty` space (fifth project-scoped space, full format)
+
+`learn/spaces/faculty/` — the teaching team:
+
+| Agent | `db:read` tables | `db:write` tables | `api:call` allow | `functions` | Role |
+|---|---|---|---|---|---|
+| **professor** | `topics, cards, reviews, concepts, concept_links, teachbacks, mission_reports, lessons, explanations, settings` | `lessons, topics` | `dueCards` | `[]` | the adaptive lesson: open from the record, build from the nearest held concept, check at exit, seed cards — never touch scheduling |
+| **explainer** | `concepts, concept_links, cards, topics, sources, notes, explanations, settings` | `explanations, concepts` | — | `webSearch, webFetch` | the three layers; grounded in YOUR material first (cards/sources/notes), the web only for a better analogy — every borrowed frame cited in `groundedIn` |
+| **aide** | `cards, reviews, study_plans, milestones, teachbacks, lessons, missions, daily_briefs, settings` | `daily_briefs` | `todayPlan, learnStats` | `[]` | narrate the numbers; one suggestion; `rest` is a real verdict; silence on empty days |
+
+- **Frontmatter features**: the professor declares `canDelegateTo: [arena/listener#session]` —
+  when the exit check comes back all-`yes`, the honest next step is proving it, so the
+  professor can hand the student straight into a teach-back (hard allowlist; the two sessions
+  stay separate records). `defaultAction: teach` / `explain` / `brief` respectively.
+- **Tasklists**: `teach/` — `01-entry.md` (`role: explore`, `output: { entryState: 'json' }` —
+  held/lapsed concepts via the map, last teach-back gaps, mission friction; frozen into the
+  lesson row), `02-arc.md` (the dialogue contract: Socratic, one objective, build from the
+  nearest held concept via `prerequisite` edges, worked example before abstraction — the chat
+  itself is model-driven; this task defines what the professor may and may not do, including
+  **never lecturing past a wrong answer**: a miss becomes a question, not a paragraph),
+  `03-close.md` (`dependsOn: [entry]` — exit check, `cardSeeds`, write the record). `explain/`
+  — ground (`role: explore` — gather the concept's cards/sources/notes first), draft
+  (**`forEach: "ground.depths"`** — one fork per requested layer), file (upsert; flip
+  `explainedDepths`). `brief/` — numbers (`role: explore` via `apiCall('todayPlan')`) →
+  suggest (one, or `rest`, or silence) → write.
+- **Functions** (deterministic): `entrySnapshot` (the personalization gather — same shape the
+  lesson row freezes), `estMinutes` (median seconds-per-review from `reviews` × due count —
+  the same math `todayPlan` serves), `nearestHeld` (map walk: weak target → closest held
+  prerequisite, the professor's opening move), `staleExplanations` (concept material changed →
+  layers to flag).
+- **Components**: view `LessonOpening` (chat-rendered entry state: "here's where you are"),
+  view `ExitCheck`; form `LessonIntake` — the `ask()` sheet when `requestLesson` arrives bare
+  ("which topic — and is there a specific wall you keep hitting?").
+- **Knowledge** (`knowledge/pedagogy/`): `adaptive-teaching/` (`open-from-the-record.md`,
+  `nearest-held-concept.md`, `socratic-not-lecture.md`, `one-objective.md`),
+  `explanation-craft/` (`intuition-first.md`, `your-material-first.md`,
+  `analogies-that-dont-lie.md`), `pacing/` (`honest-minutes.md`, `rest-is-a-verdict.md`,
+  `silence-on-empty-days.md`).
+
+### Phases & verification additions (round 5)
+
+**(R5-1)** schemas + columns; **(R5-2)** `faculty` full-format; **(R5-3)** the 9 endpoints
+(`todayPlan`/`estMinutes` single-definition); **(R5-4)** the 3 hooks incl. the depth-2
+weak→explain gate; **(R5-5)** the 4 pages + affordance surfacing; **(R5-6)** tests.
+Verification: **(a)** `requestLesson` on a seeded record → the lesson row's `entryState`
+matches `entrySnapshot` exactly (frozen personalization pinned); the professor's opening cites
+a held prerequisite from the map (`nearestHeld` observed in the transcript); the lesson
+changes **zero** scheduling state (whole-table assertion, the round-1 wall under its newest
+consumer); **(b)** an exit check with `cardSeeds` → one cardsmith run seeds those prompts;
+all-`yes` offers the teach-back handoff (`arena/listener#session` allowlist observed);
+**(c)** Saturday flags a concept weak → by the next map read its intuition layer exists
+(`explain-weak` fired once; the explainer's own concept update re-fires nothing — depth-2 gate
+pinned); `groundedIn` on a fixture concept cites the user's own card/source before any web
+frame; **(d)** `estMinutes` equals median-pace math on fixtures; a long-streak light-queue day
+suggests `rest`; an empty day writes no brief (silence pinned); every brief suggestion's
+deep-link resolves; **(e)** `rateExplanation` to −2 queues exactly one rewrite; a `userEdited`-
+style protection is N/A here but stale-flagging on material change is pinned;
+**(f)** `pnpm lint:tokens` green across the 4 new pages.
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages

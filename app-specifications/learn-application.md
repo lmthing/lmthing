@@ -633,6 +633,190 @@ round-1 invariant survives exam mode); **(f)** the grader attempting `db.update(
 host error (not in its tables); the librarian calling `webSearch` → typecheck failure (only
 `webFetch` granted); **(g)** `pnpm lint:tokens` green across the 5 new pages.
 
+## Round 3 — The arena: mock exams, teach-back & the knowledge map (feature expansion)
+
+Round 1 built retention (`tutor`); round 2 built the program around it (`academy`). Round 3
+builds the **proving ground**: timed, mixed-topic **mock exams** assembled and graded by a
+`proctor` (essay sections graded by the round-2 grader — reuse, not reinvention), **teach-back**
+sessions where you explain a topic in your own words and a `listener` probes Feynman-style until
+the gaps show, and a **concept map** a `cartographer` maintains across everything you're learning
+— surfacing orphan concepts and weak islands the flat deck view can't see. A third specialist
+team (**`arena`** — proctor · listener · cartographer) does this work. Everything below is
+strictly additive to the round-1/2 shape — same project-rooted db, same serving, same capability
+model — and stays inside the parent plan (data/agents/pages/api/hooks only).
+
+### New database tables (round 3 — 5, bringing the app to 15)
+
+- **`exams.json`** — a mock exam definition. `id` (pk uuid) · `title` (string, required) ·
+  `planId` (references `study_plans` onDelete setNull — scoped to a program when present) ·
+  `topicIds` (json, required) · `blueprint` (json, required — the section plan: `{ kind:
+  'recall'|'application'|'essay', count, minutes }[]`, assembled by the proctor from cards +
+  prompts) · `questionRefs` (json, required — `{ section, sourceType:'card'|'prompt', sourceId }[]`
+  — every exam question traces to an existing card or prompt; the proctor authors nothing new) ·
+  `totalMinutes` (number, required) · `createdAt` (date, now). Relation `sittings` hasMany
+  `exam_sittings` via `examId`.
+- **`exam_sittings.json`** — one timed run. `id` (pk) · `examId` (references `exams` onDelete
+  cascade, required) · `startedAt` (date, required) · `deadlineAt` (date, required — startedAt +
+  totalMinutes; the page enforces it, the grader trusts only `submittedAt`) · `submittedAt`
+  (date) · `answers` (json, def `{}` — per-questionRef user answers, saved as they type) ·
+  `status` (string, def `'in-progress'` — `'in-progress'`|`'submitted'`|`'graded'`|`'abandoned'`)
+  · `sectionScores` (json — per-section `{ correct, total, notes }`; essay sections carry the
+  grader's rubric verdicts) · `analysis` (string — the proctor's read: readiness, weakest
+  section, what to drill before the real thing) · `createdAt` (date, now). Relation `exam`
+  belongsTo `exams` via `examId`.
+- **`teachbacks.json`** — one Feynman session's distillate. `id` (pk) · `topicId` (references
+  `topics` onDelete cascade, required) · `transcriptSummary` (string, required — what you said,
+  compressed honestly, not improved) · `gaps` (json, required — `{ concept, whatWasMissing,
+  severity: 'shaky'|'missing'|'wrong' }[]`) · `strengths` (json, def `[]` — what you explained
+  well; the listener's charter requires naming at least one when true) · `redrillTopicFocus`
+  (string — the focus string handed to the cardsmith for gap cards) · `createdAt` (date, now).
+  Relation `topic` belongsTo `topics` via `topicId`.
+- **`concepts.json`** — a node in the knowledge map. `id` (pk) · `name` (string, required,
+  unique) · `topicIds` (json, required — the topics this concept appears in; cross-topic concepts
+  are the map's whole point) · `cardIds` (json, def `[]` — the cards drilling it) · `retention`
+  (number, def 0 — the cluster's 30-day retention, from the deterministic `conceptRetention`
+  math) · `status` (string, def `'healthy'` — `'healthy'`|`'weak'`|`'orphan'` — orphan = no cards
+  drill it) · `createdAt` (date, now).
+- **`concept_links.json`** — a directed edge. `id` (pk) · `fromConceptId` (references `concepts`
+  onDelete cascade, required) · `toConceptId` (references `concepts` onDelete cascade, required)
+  · `kind` (string, required — `'prerequisite'`|`'contrast'`|`'applies-to'`) · `rationale`
+  (string, required — one line, e.g. "borrowing presupposes ownership") · `createdAt` (date,
+  now). Relations: `from` belongsTo `concepts` via `fromConceptId`; `to` belongsTo `concepts` via
+  `toConceptId`.
+
+New columns on earlier tables (additive `addColumn`): `topics.lastTeachbackAt` (date — the
+listener stamps it; the syllabist's check-in treats a scoped topic with high retention but no
+teach-back as "fluent-looking, unproven"); `study_plans.readiness` (number, def 0 — the latest
+sitting's blended score for this plan's exam, set by the proctor's grading pass).
+
+### New API endpoints (round 3 — 11, bringing the app to 32)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `createExam` | `POST api/exams` | `{ title, topicIds, planId?, minutes? }` → `{ examId, status:'assembling' }` — `spawn`s `arena/proctor#assemble` |
+| `getExam` / `listExams` | `GET api/exams/:id` / `GET api/exams` | definition + past sittings headers |
+| `startSitting` | `POST api/exams/:id/sit` | `{ id }` → `ExamSitting` (stamps `startedAt`/`deadlineAt`; refuses if one is `in-progress`) |
+| `saveAnswers` | `PATCH api/sittings/:id/answers` | `{ id, answers }` → `{ ok }` (refused after `deadlineAt` — typed `HttpError`) |
+| `submitSitting` | `PATCH api/sittings/:id` | `{ id }` → `ExamSitting` (status `submitted`; grade hook fires) |
+| `getSitting` / `listSittings` | `GET api/sittings/:id` / `GET api/sittings` | scores + analysis once graded |
+| `conceptMap` | `GET api/map` | `{}` → `{ nodes: Concept[], links: (ConceptLink & { from, to })[] }` |
+| `weakIslands` | `GET api/map/weak` | `{}` → `{ clusters: [{ conceptIds, avgRetention, cardCount }] }` — deterministic graph-cluster math over `conceptRetention` |
+| `teachbackHistory` | `GET api/teachbacks` | `{ topicId? }` → `Teachback[]` (plus `getTeachback` `GET api/teachbacks/:id`) |
+
+All follow the established rules — equality-only `where`, typed `HttpError`, **`spawn` from
+handlers**. Round-1 invariants hold under exam pressure: exam grading writes
+`sectionScores`/`analysis` — it **never** touches card scheduling (an exam is a measurement, not
+a review; cards only move through `submitReview`). `weakIslands`/`conceptRetention` are round 3's
+deterministic centrepieces — the cartographer narrates them, the map page renders them, one
+definition.
+
+### New hooks (round 3 — 3, bringing the app to 8)
+
+- **`grade-sitting.ts`** — `database` **`exam_sittings:update`** (the app's first update-event
+  hook), imperative handler: skip unless the update set `status:'submitted'`, else
+  `delegate('arena/proctor','grade', { input: { sittingId: row.id } })` — recall/application
+  sections are checked against card backs / prompt rubrics; essay sections are **delegated per
+  section to the round-2 grader** (see the tasklist's task-level `canDelegateTo`); the proctor
+  blends section scores, writes `analysis`, sets `study_plans.readiness`, flips `graded`.
+- **`redrill-teachback.ts`** — `database` `teachbacks:insert`, imperative handler: skip when
+  `row.gaps` is empty, else `delegate('tutor/cardsmith','draft', { input: { topicId: row.topicId,
+  focus: row.redrillTopicFocus } })` — a hook-driven **cross-space** delegation (no
+  `canDelegateTo` needed at the hook layer — hooks are host code): gaps become cards by tomorrow.
+- **`refresh-map.ts`** — `cron`, `daily: '07:45'`, Saturday-gated in the agent →
+  `arena/cartographer#map` — re-derive concepts from topics/cards (new cards join their concepts;
+  `conceptRetention` recomputed), reconcile links, set `weak`/`orphan` statuses, and file one
+  digest-style note into the week's curator digest input (the curator's Sunday run reads the
+  fresh map instead of rediscovering weakness from scratch).
+
+**Loop-guard sanity.** `exam_sittings:update(submitted)` → proctor updates the sitting to
+`graded` — the same-table re-entry is gated (`submitted` only) and **self-write excluded** ⇒
+stops at depth 1 (gate pinned by test, the money/career discipline). `teachbacks:insert` →
+cardsmith writes `cards` (unwatched) ⇒ stops at depth 1 — and deliberately does NOT route through
+`topics:insert`, so the round-2 ingest cascade is not re-entered. The cartographer writes
+`concepts`/`concept_links` (unwatched) ⇒ stops. Saturday map → Sunday digest is a **cron-to-cron
+handoff through data**, not a hook chain — no cascade at all, just fresher input.
+
+### New pages (round 3 — 5, bringing the app to 15) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/exams/index.tsx` | `/exams` | `listExams`; `createExam` (topics + minutes form); readiness per plan |
+| `pages/exams/[id]/sit.tsx` | `/exams/:id/sit` | the timed room: `startSitting`, autosave via `saveAnswers`, countdown, `submitSitting`; deadline enforced client-side, verified server-side |
+| `pages/sittings/[id].tsx` | `/sittings/:id` | `getSitting` — section scores, essay rubric verdicts, the proctor's analysis |
+| `pages/map.tsx` | `/map` | `conceptMap` + `weakIslands` — the graph (token-styled SVG: node fill by status, edges by kind); click-through to cards |
+| `pages/teach.tsx` | `/teach` | `<Chat agent="arena/listener" />` (the teach-back room) + `teachbackHistory` rail |
+
+New shared components (design tokens only): `ExamTimer` (countdown, deadline states as semantic
+tokens), `SectionScoreBar`, `ConceptGraph` (the map SVG — no raw colors; `status` maps to
+tokens), `GapList` (severity-badged), `ReadinessDial`. `_layout.tsx` nav gains **Exams · Map ·
+Teach**; the plan page shows `readiness` beside the exam date; the Today page links a weak
+island's cards when one exists ("your weakest cluster today: lifetimes").
+
+### The `arena` space (third project-scoped space, full format)
+
+`learn/spaces/arena/` — the proving-ground team. Least-privilege per verb:
+
+| Agent | `db:read` tables | `db:write` tables | `api:call` allow | `functions` | Role |
+|---|---|---|---|---|---|
+| **proctor** | `exams, exam_sittings, cards, prompts, topics, study_plans, settings` | `exams, exam_sittings, study_plans` | — | `[]` | assemble from existing cards/prompts only; grade objectively; readiness verdicts with evidence |
+| **listener** | `topics, cards, concepts, concept_links, teachbacks, settings` | `teachbacks, topics` | — | `[]` | the Feynman room: probe, don't lecture; distill gaps honestly; stamp `lastTeachbackAt` |
+| **cartographer** | `topics, cards, reviews, concepts, concept_links, digests, settings` | `concepts, concept_links` | `learnStats` | `[]` | derive/maintain the map; weak islands + orphans; feed the curator |
+
+- **Agent-frontmatter features exercised**: the proctor declares `defaultAction: assemble` and
+  `actions:` for `assemble` (tasklist `assemble-exam`) and `grade` (tasklist `grade-sitting`);
+  the listener declares `defaultAction: session`. The listener holds **no web and no card
+  writes** — its entire output is the `teachbacks` row; the redrill hook, not the listener,
+  decides that gaps become cards (separation of measurement from remediation, mechanically).
+- **Tasklists**: `assemble-exam/` — `01-inventory.md` (`role: explore`, `output: { pool: 'json' }`
+  — eligible cards/prompts per topic, typed), `02-blueprint.md` (`dependsOn: [inventory]` —
+  sections sized to the pool; refuse-with-reason when a topic can't fill its section),
+  `03-select.md` (**`forEach: "blueprint.sections"`** — one fork per section picks its
+  `questionRefs`, low-`askedInMock`-style rotation). `grade-sitting/` — `01-objective.md`
+  (`role: explore` — score recall/application against card backs; `output: { sectionScores:
+  'json' }`), `02-essays.md` (`optional: true`, **task-level `canDelegateTo:
+  [academy/grader#grade]`** — one delegation per essay section, reusing the round-2 rubric
+  machinery verbatim; the task runs only when the blueprint has essay sections),
+  `03-verdict.md` (`dependsOn: [objective]` — blend, write `analysis` + `readiness`, flip
+  `graded`). `map/` — derive (`role: explore`) → reconcile → flag (`forEach` over changed
+  clusters).
+- **Functions** (`functions/*.ts`, deterministic): `conceptRetention` (cluster 30-day retention
+  from `reviews` — the same math `weakIslands` uses), `blendScores` (section scores → the one
+  readiness number, weights fixed and documented), `deadlineCheck` (the same rule
+  `saveAnswers` enforces), `clusterIslands` (graph connectivity over weak nodes).
+- **Components**: view `SittingSummary` (chat-rendered section bars + readiness), view
+  `MapDelta` (what changed this week); form `ExamIntake` — the `ask()` sheet the proctor renders
+  when `createExam` arrives underspecified (which plan? how long? essay section or not?).
+- **Knowledge** (`knowledge/assessment-craft/`, each field `index.md` + ≥2 aspects):
+  `exam-design/` (`blueprint-balance.md`, `reuse-not-authoring.md` — measurement questions come
+  from the corpus so results map back to cards; `time-pressure-calibration.md`),
+  `proctoring/` (`objective-grading.md`, `readiness-honesty.md` — "not ready" with evidence
+  beats comfort), `feynman-method/` (`probing-questions.md`, `gap-taxonomy.md`,
+  `strengths-first.md`), `mapping/` (`concept-granularity.md`, `edge-kinds.md`,
+  `orphans-and-islands.md`).
+
+### Phases & verification additions (round 3)
+
+Ordered on top of rounds 1–2: **(R3-1)** new schemas + columns; **(R3-2)** the `arena` space
+full-format; **(R3-3)** the 11 endpoints (deadline + single-definition checks); **(R3-4)** the 3
+hooks incl. the update-event gate test; **(R3-5)** the 5 pages + components; **(R3-6)** tests.
+
+Verification additions: **(a)** `createExam` → the proctor assembles **only** from existing
+cards/prompts (`questionRefs` all resolve; zero new rows in `cards`/`prompts` — reuse pinned
+mechanically); an underspecified request renders the `ExamIntake` `ask()` form; a topic too thin
+for its section refuses with a reason instead of padding; **(b)** `saveAnswers` after
+`deadlineAt` → typed error (server-side `deadlineCheck`, not just UI); `submitSitting` →
+`grade-sitting` fires once; the `graded` flip does not re-fire (gate + self-write pinned);
+**(c)** an essay-section sitting delegates `academy/grader#grade` from `02-essays.md` ONLY — a
+delegation attempt from `01-objective.md` fails typecheck (task-level allowlist observed); a
+no-essay blueprint skips the task (`optional: true`); **(d)** grading a sitting changes **zero**
+card scheduling state (the measurement/review wall, asserted over the whole cards table);
+`readiness` equals `blendScores` on the fixture; **(e)** a teach-back with gaps → one cardsmith
+run with the `focus` string, new cards land on the topic, empty-gaps sessions fire nothing; the
+listener's `strengths` is non-empty when the transcript warrants (charter test); **(f)** Saturday
+map run → `weak`/`orphan` statuses match `conceptRetention`/`clusterIslands` fixtures; Sunday's
+curator digest cites the fresh map (cron-to-cron handoff observed through data); **(g)** the map
+page renders with zero raw colors (`pnpm lint:tokens` green across the 5 new pages).
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages

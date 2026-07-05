@@ -706,6 +706,195 @@ anything else throws); **(g)** any `host` agent calling `webFetch` → typecheck
 `gathering_guests`, `gifts`) — the full-forget check extended; **(i)** `pnpm lint:tokens` green
 across the 5 new pages.
 
+## Round 3 — The salon: introductions, moments & the year in people (feature expansion)
+
+Round 1 built memory and timing (`circle`); round 2 built the more-than-one-person layer
+(`host`). Round 3 builds the **connective and commemorative** layer: **introductions** — a
+`matchmaker` spots pairs of your people who should know each other and drafts double-opt-in
+intros that never leak a private fact; a **moments timeline** — a `chronicler` promotes the
+interactions that were actually memorable into a life timeline with "on this day" resurfacing;
+**traditions** — recurring rituals (the monthly dinner, the annual trip) tracked as first-class
+intentions with lapse-watching; and the **yearbook** — a `celebrant`'s year-in-people annual
+review. A third specialist team (**`salon`** — matchmaker · chronicler · celebrant) does this
+work. The project invariant is untouched: `functions: []` everywhere, every draft is copy-out,
+the app never sends. Everything below is strictly additive to the round-1/2 shape and stays
+inside the parent plan (data/agents/pages/api/hooks only).
+
+### New database tables (round 3 — 5, bringing the app to 17)
+
+- **`intros.json`** — a suggested introduction between two of your people. `id` (pk uuid) ·
+  `contactAId` (references `contacts` onDelete cascade, required) · `contactBId` (references
+  `contacts` onDelete cascade, required) · `rationale` (string, required — the shared ground, in
+  terms both sides already know publicly) · `sharedFactIds` (json, required — the facts the
+  rationale rests on; **every one must pass the disclosure rule**, see the space section) ·
+  `draftForA` (string — the copy-out message to A proposing the intro) · `draftForB` (string —
+  written only after A said yes; double-opt-in is sequential, not parallel) · `status` (string,
+  def `'suggested'` — `'suggested'`|`'asked-a'`|`'asked-b'`|`'made'`|`'declined'`|`'dismissed'`)
+  · `createdAt` (date, now). Relations: `contactA`/`contactB` belongTo `contacts` via the two
+  FKs.
+- **`moments.json`** — a memorable event on the life timeline. `id` (pk) · `at` (date, required)
+  · `title` (string, required — "Anna's wedding", "the Dolomites trip") · `body` (string —
+  markdown, the story as the user told it) · `interactionId` (references `interactions` onDelete
+  setNull — the log entry it was promoted from) · `promotedBy` (string, def `'agent'` —
+  `'agent'`|`'user'`; user promotions always stick, agent ones are suggestions until confirmed) ·
+  `confirmed` (boolean, def false — unconfirmed agent promotions render as suggestions, never as
+  memories) · `createdAt` (date, now). Relations: `interaction` belongsTo `interactions` via
+  `interactionId`; `people` hasMany `moment_contacts` via `momentId`.
+- **`moment_contacts.json`** — the moments ⇄ contacts join. `id` (pk) · `momentId` (references
+  `moments` onDelete cascade, required) · `contactId` (references `contacts` onDelete cascade,
+  required). Relations: `moment` belongsTo `moments` via `momentId`; `contact` belongsTo
+  `contacts` via `contactId`.
+- **`traditions.json`** — a recurring ritual worth protecting. `id` (pk) · `name` (string,
+  required, unique — "first-Friday dinner with the old team") · `groupId` (references `groups`
+  onDelete setNull) · `contactIds` (json, def `[]` — participants when there's no group) ·
+  `cadenceDays` (number, required) · `lastHeldAt` (date) · `timesHeld` (number, def 0) ·
+  `status` (string, def `'alive'` — `'alive'`|`'lapsing'`|`'dormant'` — set by the deterministic
+  lapse math, never by vibes) · `createdAt` (date, now). Relation `group` belongsTo `groups` via
+  `groupId`.
+- **`yearbooks.json`** — the year in people. `id` (pk) · `year` (number, required, unique) ·
+  `body` (string, required — markdown: the people who defined the year, moments, traditions
+  held/lapsed, intros made, gifts that landed; kind, specific, zero guilt) · `stats` (json,
+  required — from the deterministic `yearStats` math) · `createdAt` (date, now).
+
+New columns on earlier tables (additive `addColumn`): `nudges.reason` gains `'intro'` and
+`'tradition'` (both ride the round-1 agenda surface, cap and dedupe included);
+`settings.introMonthly` (boolean, def **false** — the matchmaker is opt-in, like round 2's
+reconnections: proposing people to each other is a feature you turn on, not endure).
+
+### New API endpoints (round 3 — 11, bringing the app to 33)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `listIntros` | `GET api/intros` | `{ status? }` → `(Intro & { contactA, contactB })[]` |
+| `advanceIntro` | `PATCH api/intros/:id` | `{ id, status }` → `Intro` — the double-opt-in state machine; `asked-a → asked-b` triggers the matchmaker to write `draftForB`; `made` logs a `message` interaction for both sides |
+| `listMoments` | `GET api/moments` | `{ contactId?, year? }` → `(Moment & { people })[]` (confirmed first) |
+| `confirmMoment` | `PATCH api/moments/:id` | `{ id, confirmed, title?, body? }` → `Moment` (user edits stick; declining deletes the suggestion) |
+| `addMoment` | `POST api/moments` | `{ title, at, body?, contactIds }` → `Moment` (`promotedBy:'user'`, confirmed) |
+| `onThisDay` | `GET api/on-this-day` | `{}` → `{ moments: Moment[], yearsAgo: number[] }` — deterministic month/day match across years |
+| `contactTimeline` | `GET api/contacts/:id/timeline` | `{ id }` → interleaved interactions + moments + gifts + gatherings for one person — the dossier's fourth dimension |
+| `addTradition` / `listTraditions` | `POST/GET api/traditions` | CRUD; list carries computed next-due + status |
+| `holdTradition` | `PATCH api/traditions/:id/held` | `{ id, at?, gatheringId? }` → `Tradition` (bumps `lastHeldAt`/`timesHeld`; when linked to a gathering the round-2 completion flow already logged the interactions — no double-logging) |
+| `getYearbook` | `GET api/yearbooks/:year` | `{ year }` → `Yearbook` (plus `listYearbooks` → headers) |
+
+All follow the established rules — equality-only `where`, typed `HttpError`, **`spawn` from
+handlers**. `onThisDay`, the traditions lapse math, and `yearStats` are round 3's deterministic
+centrepieces; agents narrate them. The round-1 agenda page gains an **On this day** strip
+(`onThisDay`) — resurfacing is a read, not a nudge: it never counts against the daily cap.
+
+### New hooks (round 3 — 4, bringing the app to 9)
+
+- **`suggest-intros.ts`** — `cron`, `daily: '08:00'`, first-Monday-of-month-gated in the agent,
+  **no-op unless `settings.introMonthly`** → `salon/matchmaker#scan` — score contact pairs on
+  shared ground (facts/groups/gatherings co-attendance), write ≤2 `suggested` intros with
+  `draftForA` only, one `'intro'` nudge each (inside the daily cap).
+- **`curate-moments.ts`** — `database` `interactions:insert` (the **second** hook on this table
+  — multi-hook fan-out is a first-class engine shape; each hook coalesces independently),
+  imperative handler: `delegate('salon/chronicler','curate',{})` — the chronicler drains recent
+  unreviewed interactions and promotes the genuinely memorable few (weddings, births, big moves,
+  once-a-decade trips) as **unconfirmed** moment suggestions; its charter forbids promoting
+  routine coffees (a timeline of everything is a timeline of nothing).
+- **`tradition-watch.ts`** — `cron`, `daily: '07:40'`, `trigger: 'salon/celebrant#watch'` —
+  recompute each tradition's status from `lastHeldAt + cadenceDays` (grace-ratio'd like round-1
+  cadences); on `alive → lapsing` transitions only, write one `'tradition'` nudge with a drafted
+  "shall we get one on the calendar?" message to the organizer-most contact.
+- **`yearbook.ts`** — `cron`, `daily: '09:00'`, Dec-28-through-Jan-6-gated in the agent (runs
+  once; unique `year` makes retries no-ops) → `salon/celebrant#yearbook`.
+
+**Loop-guard sanity.** `interactions:insert` now fans to TWO hooks — `extract-facts` (round 1)
+and `curate-moments` — which run independently, each once per coalesced burst; the chronicler
+writes `moments`/`moment_contacts` (unwatched) ⇒ stops. The round-2 `completeGathering` fan-in
+therefore now costs exactly two agent runs total (one biographer, one chronicler) regardless of
+guest count — pinned by test. `advanceIntro('made')` logs interactions → the same two hooks fire
+once more and terminate identically. The matchmaker and celebrant write only unwatched tables +
+`nudges` ⇒ stop at depth 1. **Self-write exclusion** backstops all three agents.
+
+### New pages (round 3 — 5, bringing the app to 14) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/timeline.tsx` | `/timeline` | `listMoments` (the life view, by year); `addMoment`; confirm/decline suggestions |
+| `pages/people/[id]/timeline.tsx` | `/people/:id/timeline` | `contactTimeline` — one person's whole arc (interactions · moments · gifts · gatherings interleaved) |
+| `pages/intros.tsx` | `/intros` | `listIntros`; `advanceIntro` — the double-opt-in board with copy-out drafts per stage |
+| `pages/traditions.tsx` | `/traditions` | `listTraditions`; `addTradition`/`holdTradition` — status, streaks, next-due |
+| `pages/yearbook.tsx` | `/yearbook` | `listYearbooks`/`getYearbook` — the annual reads |
+
+New shared components (design tokens only): `TimelineRail` (year-grouped moments),
+`MomentSuggestionCard` (confirm/edit/decline), `IntroBoard` (sequential opt-in stages),
+`TraditionCard` (streak + status as semantic tokens), `YearbookView`, `OnThisDayStrip` (mounted
+on the round-1 agenda page). `_layout.tsx` nav gains **Timeline · Intros · Traditions**; the
+dossier links its person-timeline tab.
+
+### The `salon` space (third project-scoped space, full format)
+
+`people/spaces/salon/` — the connective-and-commemorative team. Least-privilege per verb;
+`functions: []` on every agent (project invariant):
+
+| Agent | `db:read` tables | `db:write` tables | `api:call` allow | Role |
+|---|---|---|---|---|
+| **matchmaker** | `contacts, facts, groups, group_members, gatherings, gathering_guests, intros, nudges, settings` | `intros, nudges` | — | monthly opt-in scan; sequential double-opt-in drafts; the disclosure rule above all |
+| **chronicler** | `contacts, interactions, moments, moment_contacts, gatherings, settings` | `moments, moment_contacts` | — | promote the memorable few as suggestions; never confirm its own suggestions |
+| **celebrant** | everything `circle`/`host` reads + `traditions, yearbooks` | `traditions, yearbooks, nudges` | `agenda` | tradition lapse-watching (deterministic status, drafted revival notes); the yearbook |
+
+- **The disclosure rule is the space's load-bearing guardrail** (charter + mechanically
+  testable): an intro `rationale`/draft may only reference a fact about A that B could already
+  know — public-sphere facts (`work`, declared interests, co-attendance at YOUR events) qualify;
+  `health`, `family`, private `plan`/`thread` facts never do. `sharedFactIds` records exactly
+  what was used; the verification step fails on any non-qualifying kind. Sequential opt-in means
+  B's draft is written only after A agrees — B never receives a message about an intro A
+  declined.
+- **Agent-frontmatter features exercised**: the celebrant declares
+  `canDelegateTo: [circle/outreach#draft]` — a lapsed tradition's revival note is drafted by the
+  round-1 outreach specialist (register-matched, cap-respecting) rather than duplicating that
+  craft (cross-space allowlist; anything else throws). The matchmaker declares
+  `defaultAction: scan`; the chronicler `defaultAction: curate`.
+- **Tasklists**: `scan-intros/` — `01-pairs.md` (`role: explore`, `output: { candidates: 'json' }`
+  — pair scores from shared ground), `02-disclosure.md` (`dependsOn: [pairs]` — filter every
+  candidate's facts through the disclosure rule; a pair with no clean shared ground is dropped,
+  never laundered), `03-draft.md` (**`forEach: "disclosure.cleared"`** — one fork per cleared
+  pair writes `draftForA`). `yearbook/` — `01-stats.md` (`role: explore`,
+  `functions: [yearStats]`), `02-narrate.md` (`dependsOn: [stats]` — the kind year read),
+  `03-traditions.md` (`optional: true` — the December tradition-planning postscript, only when
+  any tradition is `lapsing`/`dormant`).
+- **Functions** (`functions/*.ts`, deterministic): `yearStats` (the year aggregation
+  `yearbooks.stats` must equal), `traditionStatus` (lastHeldAt + cadence + grace → status — the
+  same rule `listTraditions` serves), `pairSharedGround` (co-groups/co-gatherings/fact-overlap
+  scoring), `disclosureCheck` (fact kinds → qualifying subset — the mechanical half of the
+  disclosure rule).
+- **Components**: view `IntroCandidateCard` (chat-rendered pair + rationale), view
+  `TraditionStreak`; form `IntroConsent` — the `ask()` sheet when the user reviews a suggestion
+  in chat ("propose it to Anna? / edit the rationale / drop it").
+- **Knowledge** (`knowledge/weaving/`, each field `index.md` + ≥2 aspects): `introductions/`
+  (`shared-ground.md`, `disclosure-ethics.md`, `sequential-opt-in.md`), `memory-keeping/`
+  (`what-makes-a-moment.md`, `suggestion-not-assertion.md` — the chronicler proposes, the human
+  remembers), `rituals/` (`tradition-lifecycle.md`, `revival-without-guilt.md`), `year-review/`
+  (`kindness-and-truth.md`, `stats-as-seasoning.md`).
+
+### Phases & verification additions (round 3)
+
+Ordered on top of rounds 1–2: **(R3-1)** new schemas + columns (both new joins resolve);
+**(R3-2)** the `salon` space full-format; **(R3-3)** the 11 endpoints (`onThisDay`,
+`traditionStatus`, `yearStats` single-definition checks); **(R3-4)** the 4 hooks incl. the
+multi-hook fan-out test; **(R3-5)** the 5 pages + components; **(R3-6)** tests.
+
+Verification additions: **(a)** with `introMonthly` off the matchmaker never runs; on, ≤2
+suggestions whose `sharedFactIds` ALL pass `disclosureCheck` — seeding a tempting pair whose only
+shared ground is a `health` fact yields **no** suggestion (the disclosure test, adversarially
+seeded); **(b)** the double-opt-in sequence: `draftForB` is null until `asked-a → asked-b`;
+declining at `asked-a` leaves B with zero trace; `made` logs one interaction per side through
+`logInteraction`; **(c)** a gathering completion with 6 guests still costs exactly two agent runs
+(biographer + chronicler, coalesced fan-out pinned); the chronicler's promotions land
+`confirmed:false` and render as suggestions; `confirmMoment` edits stick; a declined suggestion
+deletes; **(d)** `onThisDay` matches month/day across years deterministically and never writes a
+nudge; **(e)** tradition `alive → lapsing` fires exactly one revival nudge, drafted via
+`circle/outreach#draft` (cross-space allowlist observed); `holdTradition` linked to a gathering
+double-logs nothing; status equals `traditionStatus` on fixtures; **(f)** the yearbook window
+runs once (unique `year`; retry no-op); `stats` equals `yearStats`; the body names zero
+guilt-framings (charter review test) and `03-traditions.md` runs only when something is lapsed
+(`optional` observed); **(g)** any `salon` agent calling `webSearch`/`webFetch` → typecheck
+failure (project invariant); the chronicler writing `facts` → host error naming its tables;
+**(h)** contact deletion cascades through `moment_contacts`/`intros` (full-forget extended);
+**(i)** `pnpm lint:tokens` green across the 5 new pages.
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages

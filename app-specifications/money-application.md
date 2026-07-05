@@ -728,6 +728,188 @@ rate is a typed error naming month+pair; **(f)** first import of a new account i
 **(g)** `pnpm lint:tokens` stays green across the 5 new pages; **(h)** the tax page and the
 scribe's outputs both carry the not-tax-advice line.
 
+## Round 3 — Net worth, reconciliation & the paper trail (feature expansion)
+
+Round 1 built the backward-looking ledger (`ledger`); round 2 made it forward-looking (`advisor`).
+Round 3 makes it **trustworthy to the cent and complete beyond cash flow**: a **net worth** view
+that folds assets and liabilities into the picture, a monthly **reconciliation** ritual where an
+`auditor` hunts down why the ledger disagrees with the bank statement, and a **paper trail** —
+paste a receipt and a `receipt-clerk` matches it to its transaction and itemizes it, unlocking
+item-level analytics ("how much of 'groceries' is actually coffee?"). A third specialist team
+(**`treasury`** — auditor · receipt-clerk · wealth-keeper) does this work. Everything below is
+strictly additive to the round-1/2 shape — same project-rooted db, same serving, same capability
+model, `functions: []` project-wide as ever — and stays inside the parent plan
+(data/agents/pages/api/hooks only).
+
+### New database tables (round 3 — 6, bringing the app to 21)
+
+- **`assets.json`** — a non-cash thing of value. `id` (pk uuid) · `name` (string, required,
+  unique) · `kind` (string, required — `'property'`|`'vehicle'`|`'investment'`|`'pension'`|
+  `'other'`) · `currency` (string, required) · `notes` (string) · `archived` (boolean, def false)
+  · `createdAt` (date, now). Relation `valuations` hasMany `valuations` via `subjectId`.
+- **`valuations.json`** — a point-in-time value snapshot, generic over subject. `id` (pk) ·
+  `subjectType` (string, required — `'asset'`|`'liability'`|`'net-worth'`) · `subjectId` (string —
+  the asset/liability id; null for the monthly `'net-worth'` roll-up rows the wealth-keeper
+  writes) · `month` (string `'YYYY-MM'`, required) · `value` (number, required) · `source`
+  (string, def `'user'` — `'user'`|`'agent'`) · `createdAt` (date, now).
+- **`liabilities.json`** — a debt. `id` (pk) · `name` (string, required, unique) · `kind`
+  (string, required — `'mortgage'`|`'loan'`|`'credit'`|`'other'`) · `principal` (number,
+  required — current balance, user-updated or via valuations) · `ratePercent` (number) ·
+  `minimumPayment` (number) · `currency` (string, required) · `archived` (boolean, def false) ·
+  `createdAt` (date, now).
+- **`reconciliations.json`** — one account-month reconciliation run. `id` (pk) · `accountId`
+  (references `accounts` onDelete cascade, required) · `month` (string, required) ·
+  `statementBalance` (number, required — typed in from the bank statement) · `computedBalance`
+  (number, required — the deterministic ledger sum at month end) · `delta` (number, required) ·
+  `findings` (json, def `[]` — the auditor's `{ kind:'missing'|'duplicate'|'uncleared'|'unknown',
+  transactionId?, note }` list) · `status` (string, def `'open'` —
+  `'open'`|`'explained'`|`'balanced'`) · `createdAt` (date, now). Relation `account` belongsTo
+  `accounts` via `accountId`.
+- **`receipts.json`** — a pasted receipt awaiting its transaction. `id` (pk) · `rawText`
+  (string, required — pasted verbatim, never edited) · `merchantGuess` (string) · `total`
+  (number) · `purchasedAt` (date) · `transactionId` (references `transactions` onDelete setNull —
+  the matched line) · `status` (string, def `'pending'` —
+  `'pending'`|`'matched'`|`'unmatched'`) · `createdAt` (date, now). Relation `transaction`
+  belongsTo `transactions` via `transactionId`.
+- **`transaction_items.json`** — the itemization of a matched receipt. `id` (pk) ·
+  `transactionId` (references `transactions` onDelete cascade, required) · `receiptId`
+  (references `receipts` onDelete cascade, required) · `label` (string, required — the line item
+  as printed) · `itemCategory` (string, required — a finer-grained tag than the transaction's
+  category, e.g. `'coffee'` inside `'groceries'`) · `amount` (number, required) · `quantity`
+  (number, def 1). Relations: `transaction` belongsTo `transactions` via `transactionId`;
+  `receipt` belongsTo `receipts` via `receiptId`.
+
+New columns on earlier tables (additive `addColumn`): `transactions.cleared` (boolean, def false
+— reconciliation state; set by the auditor's findings resolution and by `toggleBought`-style user
+action on the reconcile page); `alerts.kind` gains `'stale-valuation'` and `'reconcile-delta'`.
+
+### New API endpoints (round 3 — 12, bringing the app to 40)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `addAsset` / `listAssets` | `POST/GET api/assets` | asset CRUD; list includes latest valuation |
+| `addLiability` / `listLiabilities` | `POST/GET api/liabilities` | liability CRUD |
+| `addValuation` | `POST api/valuations` | `{ subjectType, subjectId, month, value }` → `Valuation` |
+| `netWorth` | `GET api/net-worth` | `{}` → `{ month, cash, assets, liabilities, net, history: [{month, net}] }` — deterministic: cleared account balances + latest asset valuations − liability principals, fx-converted |
+| `startReconciliation` | `POST api/reconcile` | `{ accountId, month, statementBalance }` → `Reconciliation` (computes `computedBalance`/`delta`; auditor hook fires when delta ≠ 0) |
+| `getReconciliation` | `GET api/reconcile/:id` | `{ id }` → `Reconciliation & { account }` |
+| `resolveFinding` | `PATCH api/reconcile/:id/findings` | `{ id, index, action }` → `Reconciliation` (`action`: mark cleared / delete duplicate / add missing via `importTransactions`-shaped stub) |
+| `addReceipt` | `POST api/receipts` | `{ rawText }` → `Receipt` (stub; match hook fires) |
+| `listReceipts` | `GET api/receipts` | `{ status? }` → `Receipt[]` |
+| `itemBreakdown` | `GET api/items` | `{ month?, itemCategory? }` → `{ rows: [{ itemCategory, total, count }] }` — item-level analytics under the category level |
+
+All follow the established rules — equality-only `where`, typed `HttpError`, **`spawn` from
+handlers**. `netWorth` is round 3's deterministic centrepiece: every number is a sum the user can
+audit, the wealth-keeper only narrates it, and the monthly `'net-worth'` valuation row it writes
+must equal what `netWorth` computed for that month (single-definition check, testable).
+
+### New hooks (round 3 — 3, bringing the app to 10)
+
+- **`hunt-discrepancies.ts`** — `database` `reconciliations:insert`, imperative handler: skip
+  when `row.delta === 0` (auto-`balanced`), else `delegate('treasury/auditor','hunt', { input: {
+  reconciliationId: row.id } })` — the auditor works the month's lines: candidate duplicates
+  (same day/amount/merchant), missing entries implied by the statement direction, uncleared
+  strays; writes `findings` + a `reconcile-delta` alert.
+- **`match-receipt.ts`** — `database` `receipts:insert` (coalesced), imperative handler:
+  `delegate('treasury/receipt-clerk','match',{})` — the clerk drains `pending` receipts: parse
+  merchant/total/date from `rawText`, match against transactions (±3 days, amount within fx/tip
+  tolerance), itemize into `transaction_items`, honest `unmatched` when no line fits.
+- **`net-worth-snapshot.ts`** — `cron`, `daily: '09:45'`, gated to `settings.reviewDay` →
+  `treasury/wealth-keeper#snapshot` — write the month's `'net-worth'` valuation row, flag assets
+  whose latest valuation is > 6 months old (`stale-valuation` alerts), and note allocation drift
+  in one narrative paragraph appended to the month's review (`monthly_reviews.body` — the analyst
+  left a `## Net worth` placeholder section for exactly this).
+
+**Loop-guard sanity.** `reconciliations:insert` → auditor *updates* the row + writes `alerts`
+(unwatched) ⇒ stops at depth 1. `receipts:insert` → clerk writes `transaction_items` + updates
+`receipts`/`transactions.cleared` — `transactions:update` DOES fire round-2's
+`flag-deductibles`, but its gate (`categoryId` newly set + `taxScreened:false`) makes a
+cleared-flag update a no-op ⇒ the cascade terminates at depth 2 (cap 3), and the gate is now
+load-bearing enough that the round-3 tests pin it. The wealth-keeper writes
+`valuations`/`alerts`/`monthly_reviews` (all unwatched) ⇒ stops. **Self-write exclusion**
+backstops all three; the auditor's `hunt` runs inside the hook budget and files partial findings
+rather than overrunning.
+
+### New pages (round 3 — 5, bringing the app to 17) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/net-worth.tsx` | `/net-worth` | `netWorth` (history chart + composition); `<Chat agent="treasury/wealth-keeper">` dock |
+| `pages/assets.tsx` | `/assets` | `listAssets`/`listLiabilities`; `addAsset`/`addLiability`/`addValuation` |
+| `pages/reconcile.tsx` | `/reconcile` | `startReconciliation` (account+month+balance form); `getReconciliation` findings triage; `resolveFinding` |
+| `pages/receipts.tsx` | `/receipts` | `addReceipt` (paste zone); `listReceipts` with match status filling in live |
+| `pages/items.tsx` | `/items` | `itemBreakdown` — the sub-category drill-down |
+
+New shared components (design tokens only): `NetWorthChart` (history + composition bands),
+`FindingRow` (discrepancy triage card), `ReceiptMatchCard` (raw text ⇄ matched line,
+side-by-side), `ItemBar`, `ValuationSparkline`. `_layout.tsx` nav gains **Net worth · Reconcile ·
+Receipts**; the transactions page shows a `cleared` check column and a paperclip glyph linking a
+line to its receipt items.
+
+### The `treasury` space (third project-scoped space, full format)
+
+`money/spaces/treasury/` — the correctness-and-completeness team. Least-privilege per verb;
+`functions: []` on every agent (project invariant):
+
+| Agent | `db:read` tables | `db:write` tables | `api:call` allow | Role |
+|---|---|---|---|---|
+| **auditor** | `transactions, accounts, reconciliations, rules, categories, settings` | `reconciliations, transactions, alerts` | — | hunt statement/ledger deltas; findings with evidence, never silent fixes |
+| **receipt-clerk** | `receipts, transactions, transaction_items, categories, settings` | `receipts, transaction_items, transactions` | — | parse/match/itemize pasted receipts; honest `unmatched` |
+| **wealth-keeper** | `accounts, assets, valuations, liabilities, fx_rates, monthly_reviews, alerts, settings` | `valuations, alerts, monthly_reviews` | `netWorth, budgetStatus` | monthly snapshot, stale-valuation flags, allocation-drift narrative |
+
+- **Agent-frontmatter features exercised**: the wealth-keeper's numbers all arrive via
+  `apiCall('netWorth')` (never recomputed — the round-1 discipline at its strictest); the
+  receipt-clerk declares `defaultAction: match`; the auditor declares `actions:` for `hunt`
+  (tasklist `reconcile`) with `defaultAction: hunt`.
+- **Tasklists** (round 3 exercises the remaining task-frontmatter surface): `reconcile/` —
+  `01-scope.md` (`role: explore`, `output: { candidates: 'json' }` — a typed `output` schema so
+  the downstream task binds a validated shape), `02-classify.md` (`dependsOn: [scope]`,
+  **`forEach: "scope.candidates"`** — one fork per candidate discrepancy),
+  `03-strays.md` (`optional: true`, **task-level `canDelegateTo:
+  [ledger/bookkeeper#categorize]`** — when the hunt surfaces uncategorized strays, THIS TASK may
+  hand them to the round-1 bookkeeper; the tasklist's other tasks cannot delegate at all),
+  `04-file.md` (`dependsOn: [classify]` — write `findings` + alert). `match/` for the clerk —
+  parse (`role: explore`, `output` typed) → match `forEach` over pending receipts → itemize.
+- **Functions** (`functions/*.ts`, deterministic): `computeMonthEndBalance` (the same sum
+  `startReconciliation` uses — single definition), `receiptParse` (rawText → merchant/total/date
+  candidates, so the model only judges ambiguity), `matchScore` (receipt ⇄ transaction closeness),
+  `allocationDrift` (composition month-over-month deltas).
+- **Components**: view `ReconcileSummary` (chat-rendered delta + findings count), view
+  `NetWorthCard`; form `FindingTriage` — an `ask()` sheet the auditor renders in chat when a
+  finding needs the user's call ("these two €12.90 UBER lines — same ride twice, or two rides?").
+- **Knowledge** (`knowledge/stewardship/`, each field `index.md` + ≥2 aspects): `reconciling/`
+  (`delta-taxonomy.md`, `evidence-first.md`, `never-silent-fixes.md` — every ledger mutation the
+  auditor proposes goes through `resolveFinding`, user-approved), `receipts/`
+  (`parsing-heuristics.md`, `matching-tolerances.md`), `net-worth/` (`valuation-honesty.md` —
+  the app records the user's valuations, it never appraises; `allocation-basics.md`,
+  `not-investment-advice.md` — the wealth-keeper describes composition and drift, it never
+  recommends buying or selling anything; the UI carries the same line).
+
+### Phases & verification additions (round 3)
+
+Ordered on top of rounds 1–2: **(R3-1)** new schemas + columns; **(R3-2)** the `treasury` space
+full-format; **(R3-3)** the 12 endpoints (`netWorth`/`computeMonthEndBalance` single-definition);
+**(R3-4)** the 3 hooks + the now-load-bearing `flag-deductibles` gate test; **(R3-5)** the 5
+pages + components; **(R3-6)** tests.
+
+Verification additions: **(a)** `startReconciliation` with a delta → auditor files findings each
+citing a transaction or an explicit `unknown`; `resolveFinding` is the only path that mutates
+lines (duplicate delete / cleared flip observed through it, never directly by the agent);
+balancing the delta flips `status:'balanced'`; a zero-delta start never fires the hook;
+**(b)** the ambiguous-duplicate case renders the `FindingTriage` `ask()` form instead of
+guessing; **(c)** paste a 14-line receipt → clerk matches the right transaction (±3 days
+tolerance observed), `transaction_items` sum to the receipt total (mechanical check), and the
+`cleared` update does **not** produce a `tax_items` row (the depth-2 gate test); an unmatchable
+receipt lands `unmatched`, no retry loop; **(d)** `itemBreakdown` totals reconcile with the
+parent transactions' amounts; **(e)** on `reviewDay` the wealth-keeper's `'net-worth'` valuation
+row equals `netWorth`'s computed value exactly; a 7-month-old asset valuation raises exactly one
+`stale-valuation` alert; the review body gains the `## Net worth` paragraph without disturbing
+the analyst's sections; **(f)** in the `reconcile` tasklist, only `03-strays.md` can delegate
+(to `ledger/bookkeeper#categorize`); a delegate call from `02-classify.md` fails typecheck
+(stripped from the fork DTS); the `01-scope.md` `output` schema rejects a malformed candidates
+shape; **(g)** `pnpm lint:tokens` green across the 5 new pages; the not-investment-advice line
+renders on `/net-worth`.
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages

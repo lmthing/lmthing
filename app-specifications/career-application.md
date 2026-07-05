@@ -679,6 +679,183 @@ never a silent conversion; the negotiator's script quotes only `compareOffers` n
 → one `market_briefs` row; `citeCheck` returns empty (every claim sourced); unique `weekStart`
 makes a boot-catch-up double-fire a no-op; **(g)** `pnpm lint:tokens` green across the 5 new pages.
 
+## Round 3 — The career ledger: skills, network, debriefs & strategy (feature expansion)
+
+Round 1 ran the pipeline (`agency`); round 2 covered the room and the endgame (`prep`). Round 3
+plays the **long game — the career between searches**: an **accomplishments ledger** you feed in
+one chat sentence (which keeps `profile_facts` permanently warm, killing the next search's
+cold-start), a **skills matrix** with deterministic gap analysis against what your target market
+actually asks for, a lightweight **network** of people-at-companies (who referred you, who you
+owe a coffee), structured **rejection debriefs** that turn lost applications into patterns, and a
+**quarterly strategy review** that reads all of it. A third specialist team (**`chronicle`** —
+scribe · connector · strategist) does this work. Everything below is strictly additive to the
+round-1/2 shape — same project-rooted db, same serving, same capability model — and stays inside
+the parent plan (data/agents/pages/api/hooks only).
+
+### New database tables (round 3 — 5, bringing the app to 16)
+
+- **`accomplishments.json`** — one dated win, logged as it happens. `id` (pk uuid) · `at` (date,
+  required) · `title` (string, required) · `detail` (string, required — what/how, markdown) ·
+  `metrics` (string — the numbers, verbatim: "cut p95 from 900ms to 210ms") · `tags` (json) ·
+  `promotedFactId` (string — the `profile_facts` row the scribe promoted this into; null until
+  promoted) · `source` (string, def `'chat'`) · `createdAt` (date, now).
+- **`skills.json`** — the living skill inventory. `id` (pk) · `name` (string, required, unique) ·
+  `level` (number, required, 1–5 — self-assessed, evidence-linked) · `targetLevel` (number, def
+  0 — 0 = not targeted) · `evidenceFactIds` (json, def `[]` — facts/accomplishments backing the
+  level; a level without evidence is flagged, not trusted) · `demandScore` (number, def 0 — how
+  often active-market postings ask for it; refreshed from briefs/postings) · `lastUsedAt` (date)
+  · `createdAt` (date, now).
+- **`connections.json`** — a person at a company (deliberately light — this is not the `people`
+  app; it tracks professional context only). `id` (pk) · `name` (string, required) · `company`
+  (string, required) · `role` (string) · `relation` (string, required — `'former-colleague'`|
+  `'referrer'`|`'interviewer'`|`'recruiter'`|`'met-at-event'`) · `applicationId` (references
+  `applications` onDelete setNull — the application they're connected to, if any) · `lastTouch`
+  (date) · `owes` (string — `'you-owe'`|`'owes-you'`|`''` — the coffee ledger) · `notes` (string)
+  · `createdAt` (date, now). Relation `application` belongsTo `applications` via `applicationId`.
+- **`debriefs.json`** — a structured post-mortem on a terminal application. `id` (pk) ·
+  `applicationId` (references `applications` onDelete cascade, required, unique — one debrief per
+  application) · `outcome` (string, required — `'rejected'`|`'withdrawn'`|`'accepted'`) · `stageReached`
+  (string, required) · `signals` (json, required — `{ signal, evidence }` list: what the process
+  actually told you) · `lessons` (string, required — markdown) · `patternTags` (json, def `[]` —
+  normalized tags the strategist aggregates: `'stalled-at-screening'`, `'missing-skill:<x>'`…) ·
+  `createdAt` (date, now). Relation `application` belongsTo `applications` via `applicationId`.
+- **`strategy_reviews.json`** — the quarterly read. `id` (pk) · `quarter` (string, required,
+  unique) · `body` (string, required — markdown: pipeline conversion, debrief patterns, skill
+  gaps closed/opened, network moves, the 3 next-quarter moves) · `stats` (json, required — from
+  the deterministic `careerQuarterStats` math) · `createdAt` (date, now).
+
+New columns on earlier tables (additive `addColumn`): `applications.debriefed` (boolean, def
+false — the scribe's high-water mark); `profile_facts.accomplishmentId` (string — back-ref when a
+fact was promoted from the ledger, closing the provenance loop in both directions).
+
+### New API endpoints (round 3 — 11, bringing the app to 38)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `logAccomplishment` | `POST api/ledger` | `{ title, detail, metrics?, at?, tags? }` → `Accomplishment` |
+| `listAccomplishments` | `GET api/ledger` | `{ tag?, year? }` → `Accomplishment[]` |
+| `promoteAccomplishment` | `POST api/ledger/:id/promote` | `{ id }` → `{ factId }` — files it as an `achievement` `profile_facts` row (both back-refs set) |
+| `listSkills` / `upsertSkill` | `GET/POST api/skills` | skill CRUD; `level` changes require ≥1 `evidenceFactIds` entry or land `flagged` |
+| `skillGaps` | `GET api/skills/gaps` | `{}` → `{ rows: [{ skill, level, targetLevel, demandScore, gap }] }` — deterministic: demand aggregated from active postings' `requirements` + latest brief |
+| `addConnection` / `listConnections` | `POST/GET api/network` | connection CRUD; list grouped by company |
+| `touchConnection` | `PATCH api/network/:id` | `{ id, note? }` → `Connection` (stamps `lastTouch`) |
+| `getDebrief` | `GET api/debriefs/:applicationId` | `{ applicationId }` → `Debrief` (plus `listDebriefs` → headers with `patternTags`) |
+| `patternReport` | `GET api/debriefs/patterns` | `{}` → `{ rows: [{ tag, count, applications }] }` — deterministic aggregation the strategist narrates |
+| `getStrategyReview` | `GET api/strategy/:quarter` | `{ quarter }` → `StrategyReview` (plus `listStrategyReviews` → headers) |
+
+All follow the established rules — equality-only `where`, typed `HttpError`, **`spawn` from
+handlers**. `skillGaps` and `patternReport` are round 3's deterministic centrepieces: demand and
+pattern counts are handler aggregations; the strategist and scribe narrate them, never recount
+them. `careerStats` gains `ledgerCount` and `debriefCoverage` (debriefed / terminal).
+
+### New hooks (round 3 — 3, bringing the app to 9)
+
+- **`debrief-on-close.ts`** — `database` **`applications:update`** (the app's first
+  update-event hook), imperative handler: skip unless the update moved `stage` into
+  `rejected`/`withdrawn`/`accepted` and `debriefed` is false, else
+  `delegate('chronicle/scribe','debrief', { input: { applicationId: row.id } })` — the scribe
+  drafts the debrief skeleton from the timeline (stage reached, days per stage, mock scores if
+  any), asks the two questions only the user can answer via its chat thread, files the row, flips
+  `debriefed`.
+- **`refresh-demand.ts`** — `database` `market_briefs:insert`, imperative handler:
+  `delegate('chronicle/strategist','demand',{})` — re-derive every skill's `demandScore` from
+  active postings + the fresh brief (a cross-ROUND cascade: the round-2 Friday cron's brief
+  insert drives round-3 demand refresh with zero new scheduling).
+- **`quarterly-strategy.ts`** — `cron`, `daily: '08:45'`, quarter-start-gated in the agent →
+  `chronicle/strategist#review` — write the quarter's `strategy_reviews` row from
+  `careerQuarterStats` + `patternReport` + `skillGaps`.
+
+**Loop-guard sanity.** `applications:update` → scribe writes `debriefs` + flips `debriefed` —
+that flip is itself an `applications:update`, but the stage-transition + `debriefed:false` gate
+makes the re-entry a no-op and **self-write exclusion** backstops it ⇒ stops at depth 1 (the gate
+is pinned by a test, same discipline as money's `flag-deductibles`). `market_briefs:insert` →
+strategist updates `skills` (unwatched) ⇒ stops at depth 2 counting from the Friday cron.
+The quarterly review writes `strategy_reviews` (unwatched) ⇒ stops. Per-hook coalesce collapses a
+bulk stage-cleanup session into one debrief pass (the scribe drains all undebriefed terminals in
+that run).
+
+### New pages (round 3 — 5, bringing the app to 16) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/ledger.tsx` | `/ledger` | `listAccomplishments`; `logAccomplishment`/`promoteAccomplishment`; `<Chat agent="chronicle/scribe">` dock ("shipped the migration today, zero downtime") |
+| `pages/skills.tsx` | `/skills` | `listSkills` + `skillGaps` matrix (level vs target vs demand); `upsertSkill` |
+| `pages/network.tsx` | `/network` | `listConnections` by company; `addConnection`/`touchConnection`; the coffee ledger |
+| `pages/debriefs.tsx` | `/debriefs` | `listDebriefs` + `patternReport` (the patterns panel); links into each `getDebrief` |
+| `pages/strategy.tsx` | `/strategy` | `listStrategyReviews`/`getStrategyReview` — the quarterly reads |
+
+New shared components (design tokens only): `SkillMatrix` (level/target/demand tri-bar rows),
+`PatternChip` (tag + count, drill-through), `LedgerEntry`, `ConnectionCard` (company-grouped,
+owes-state badge), `StrategyView`. `_layout.tsx` nav gains **Ledger · Skills · Strategy**; the
+application page links its debrief once one exists; `/profile` shows promoted facts with their
+ledger back-refs (provenance visible in both directions).
+
+### The `chronicle` space (third project-scoped space, full format)
+
+`career/spaces/chronicle/` — the long-game team. Least-privilege per verb:
+
+| Agent | `db:read` tables | `db:write` tables | `api:call` allow | `functions` | Role |
+|---|---|---|---|---|---|
+| **scribe** | `accomplishments, profile_facts, applications, activities, mock_sessions, debriefs, settings` | `accomplishments, profile_facts, debriefs, applications` | — | `[]` | ledger chat intake; promote wins to facts; draft + file debriefs (flip `debriefed`) |
+| **connector** | `connections, applications, postings, activities, settings` | `connections, activities` | — | `[]` | keep the network warm: infer connections from logged interviews, surface owes/staleness |
+| **strategist** | everything above + `skills, market_briefs, postings, strategy_reviews, offers` | `skills, strategy_reviews` | `skillGaps, patternReport, pipeline` | `[]` | demand refresh; the quarterly review; 3 concrete next-quarter moves |
+
+- **Agent-frontmatter features exercised**: the strategist declares
+  `canDelegateTo: [prep/market-analyst#brief]` — before a quarterly review, if the latest brief
+  is > 2 weeks old it commissions a fresh one (cross-space allowlist; anything else throws). The
+  scribe declares `defaultAction: log` (freeform "add to my ledger: …" lands right) plus
+  `actions:` for `log`, `promote`, and `debrief` (tasklist `debrief`). The connector declares
+  `defaultAction: touch`.
+- **Tasklists**: `debrief/` — `01-timeline.md` (`role: explore`, `output: { stages: 'json',
+  daysPerStage: 'json', mockScores: 'json' }` — typed output the next task binds),
+  `02-signals.md` (`dependsOn: [timeline]` — derive `{signal, evidence}` candidates; evidence
+  must cite an activity/mock row), `03-user-input.md` (`optional: true` — the two
+  only-the-user-knows questions, asked in the scribe's chat thread when the debrief was
+  user-initiated; skipped on hook-driven runs, which file `signals` only), `04-file.md`
+  (`dependsOn: [signals]` — write the row, normalize `patternTags`, flip `debriefed`).
+  `quarterly/` for the strategist — stats (`role: explore` via the three `apiCall`s) → patterns →
+  moves (**`forEach: "patterns.themes"`** — one fork per dominant theme drafts one concrete
+  move) → write.
+- **Functions** (`functions/*.ts`, deterministic): `careerQuarterStats` (the quarter aggregation
+  `strategy_reviews.stats` must equal), `demandFromPostings` (requirements[] aggregation →
+  per-skill demand — the same math `skillGaps` uses), `normalizePatternTag` (free-text lesson →
+  canonical tag, so `patternReport` counts don't fragment), `staleBrief` (latest brief age check).
+- **Components**: view `SkillGapPreview` (chat-rendered top-3 gaps), view `QuarterCard`; form
+  `DebriefIntake` — the `ask()` sheet for `03-user-input.md`'s two questions (what did they say
+  no to? what would you do differently?).
+- **Knowledge** (`knowledge/career-strategy/`, each field `index.md` + ≥2 aspects):
+  `ledger-craft/` (`capture-while-fresh.md`, `metrics-not-adjectives.md`,
+  `promotion-into-facts.md` — a promoted fact must stay verifiable, same bar as round 1),
+  `pattern-reading/` (`signal-vs-noise.md`, `stage-funnel-analysis.md`,
+  `rejection-without-story.md` — most rejections carry no signal; the scribe says so rather than
+  inventing one), `network-hygiene/` (`light-touch-crm.md`, `owes-ledger.md` — this is
+  professional context, not the `people` app; keep it thin), `strategy/`
+  (`three-moves-not-ten.md`, `evidence-backed-planning.md`).
+
+### Phases & verification additions (round 3)
+
+Ordered on top of rounds 1–2: **(R3-1)** new schemas + columns; **(R3-2)** the `chronicle` space
+full-format; **(R3-3)** the 11 endpoints (`skillGaps`/`demandFromPostings` and
+`careerQuarterStats` single-definition checks); **(R3-4)** the 3 hooks incl. the update-event
+gate test; **(R3-5)** the 5 pages + components; **(R3-6)** tests.
+
+Verification additions: **(a)** move an application to `rejected` → `debrief-on-close` fires
+once; the scribe's debrief cites real timeline rows in `signals.evidence`; the `debriefed` flip
+does **not** re-fire the hook (gate + self-write pinned); a second stage edit on the same
+application fires nothing; **(b)** hook-driven debriefs skip `03-user-input.md`
+(`optional: true` observed); a user-initiated "debrief the Acme one" runs it and renders the
+`DebriefIntake` `ask()` form; **(c)** `promoteAccomplishment` → one `achievement` fact with both
+back-refs; the round-1 tailor can now draw on it (provenance chain: ledger → fact → document
+`factIds` — walked end-to-end in a test); **(d)** Friday's brief insert → `refresh-demand`
+recomputes `demandScore` equal to `demandFromPostings` run by hand (single definition); the
+cross-round cascade observed and terminating; **(e)** `upsertSkill` raising a level with no
+evidence lands `flagged` state, with evidence passes; `skillGaps.gap` math matches fixture;
+**(f)** quarter start → one `strategy_reviews` row; `stats` equals `careerQuarterStats`; with a
+3-week-old brief the strategist first delegates `prep/market-analyst#brief` (cross-space
+allowlist observed); exactly 3 moves, each naming its evidence; **(g)** `patternReport` counts
+don't fragment across tag spellings (`normalizePatternTag` pinned); **(h)** `pnpm lint:tokens`
+green across the 5 new pages.
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages

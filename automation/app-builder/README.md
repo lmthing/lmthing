@@ -1,7 +1,8 @@
 # Autonomous app-builder
 
-Runs **Claude Code headless every 5 hours** to build, test, and ship the four
-project-applications described in `app-specifications/{blog,kitchen,health,trips}-application.md`,
+Runs **Claude Code headless every 5 hours** to build, test, and ship the eight
+project-applications described in
+`app-specifications/{blog,kitchen,health,trips,money,career,learn,people}-application.md`,
 each conforming to the two canonical architecture docs the prompt reads in full every run:
 `sdk/org/project-as-application.md` (the model + file formats) and
 `sdk/org/project-as-application-implementation.md` (the phased build/test/push contract —
@@ -9,10 +10,11 @@ each conforming to the two canonical architecture docs the prompt reads in full 
 Those two live in the `sdk/org` submodule and are **read-only ground truth**; the builder edits
 only the four app specs (in `app-specifications/`, parent repo).
 
-Each 5-hour run targets **one app** (round-robin `blog → kitchen → health → trips`), so a
-full cycle touches every app roughly once per 20 hours.
+Each 5-hour run targets **one app** (round-robin `blog → kitchen → health → trips →
+money → career → learn → people`), so a full cycle touches every app roughly once per
+40 hours.
 
-**Rounds scale the ambition.** A round is one full pass over all four apps. **Round 1** builds
+**Rounds scale the ambition.** A round is one full pass over all eight apps. **Round 1** builds
 each app's core (as its spec describes). **Round 2 and every later round** revisit each app
 and expand it *a lot* — adding new project-scoped spaces, new agents, many new pages/APIs/
 hooks/tables, and substantial new features to the spec, then implementing and testing them

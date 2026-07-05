@@ -1,0 +1,1567 @@
+# lmthing.learn as a Project-Application — the `learn` project
+
+> A concrete instantiation of [project-as-application.md](./project-as-application.md) for a
+> **spaced-repetition tutor**: you name a topic (or paste your own material), a **`tutor`** space
+> generates a deck of cards for it, a deterministic SM-2-style scheduler in handler code decides
+> what you review each day, and a conversational examiner quizzes you and explains what you miss.
+> The `learn` project owns the app — `database/` (topics, cards, reviews, digests, settings),
+> `pages/` (client React today-queue / topics / stats), `api/` (named typed Node endpoints —
+> including the scheduler), `hooks/` (a `database` deck-drafting hook + a weekly digest cron), and
+> the project-scoped `tutor` space. Read the parent plan first for the shared mechanisms
+> (capability globals, typed-contract pipeline, serving); this file is the learn-specific shape.
+> Paths are relative to the org repo root.
+
+## Context
+
+Spaced repetition is the most evidence-backed way to actually retain anything — and almost everyone
+who tries it quits, for two reasons: **making good cards is hard work**, and a deck of bare
+flashcards can't explain *why* you got something wrong. This app removes both. Say "I'm learning
+Rust ownership" or paste a chapter, and the `cardsmith` writes the deck — atomic prompts, cloze
+deletions, and application questions, not definition-parroting. Each day the app hands you a queue
+computed by a **deterministic scheduler** (the same SM-2 family Anki uses, implemented in handler
+code so the math is exact and auditable). And when you'd rather be quizzed than flip cards, the
+`examiner` runs a conversational drill — it asks, you answer in your own words, it grades **through
+the app's own typed API** so the scheduler stays the single source of truth, and it *explains* the
+gap when you miss. On Sundays the `curator` writes a digest — retention per topic, your weak spots,
+and fresh re-drill cards aimed exactly at them. **The value is Anki-grade retention without
+Anki-grade card-authoring labor, plus a tutor who explains** — the app grows with whatever you're
+learning. (There is no `learn/` domain today — it's a net-new project-application, served under the
+generic `lmthing.app/<project>/` mount.)
+
+## The project
+
+- **Project id**: `learn`. One per user pod (your learning = per-user data; your review history is
+  the whole asset).
+- **Project-scoped space**: `learn/spaces/tutor/` — the specialists that maintain the app
+  (`cardsmith`, `examiner`, `curator`). Because the db is **project-rooted**, all three read/write
+  the **same** tables and feed the **same** pages (the multi-agent-application shape).
+- **THING** builds/evolves the app by delegating to `system-appbuilder` (parent plan
+  §"system-appbuilder") — "add image-occlusion cards", "track my exam dates" are authoring
+  requests. **Runtime** work is the `tutor` agents, driven by one hook, one cron, and chat — not
+  THING.
+- **Provisioning**: v1 seeds the `learn` project from a checked-in template materialized into the
+  pod's `<root>/learn/`, with one small demo topic ("How this app schedules reviews" — the deck
+  teaches its own algorithm, which doubles as onboarding). In a **later phase** it becomes
+  **installable from lmthing.store** as a project app (parent plan §Risks "Distribution").
+
+## Directory layout
+
+```
+learn/
+├── package.json              # react, @tanstack/react-router, @lmthing/{ui,css}, lucide-react …
+├── database/
+│   ├── topics.json           # a thing being learned (with optional pasted source material)
+│   ├── cards.json            # one prompt/answer card + its scheduling state (ease/interval/due)
+│   ├── reviews.json          # one graded review event (the append-only history)
+│   ├── digests.json          # the curator's weekly progress write-ups
+│   └── settings.json         # single row: daily caps, quiz length, grading scale prefs
+├── pages/                    # client-side React SPA
+│   ├── _app.tsx              # QueryClient + design-system theme provider
+│   ├── _layout.tsx           # nav chrome: Today · Topics · Quiz · Stats
+│   ├── index.tsx             # "/"               → today's queue (flip + grade)
+│   ├── topics/
+│   │   ├── index.tsx         # "/topics"         → topic list (+ add-a-topic box)
+│   │   └── [id].tsx          # "/topics/:id"     → the deck (browse/edit/suspend cards)
+│   ├── quiz.tsx              # "/quiz"           → the examiner chat (conversational drill)
+│   └── stats.tsx             # "/stats"          → streak, retention, digests
+├── components/               # CardFace, GradeBar, TopicCard, DeckTable, RetentionChart, DigestView…
+├── api/
+│   ├── topics/
+│   │   ├── GET.ts                    # listTopics
+│   │   ├── POST.ts                   # addTopic       (insert → draft-cards hook fires)
+│   │   ├── [id]/GET.ts               # getTopic       (include cards)
+│   │   └── [id]/cards/POST.ts        # regenerateCards (delegates the cardsmith for more/harder)
+│   ├── queue/GET.ts                  # dueCards       (the deterministic scheduler read)
+│   ├── reviews/POST.ts               # submitReview   (the deterministic scheduler write — SM-2 step)
+│   ├── cards/
+│   │   ├── POST.ts                   # addCard        (manual authoring stays first-class)
+│   │   └── [id]/PATCH.ts             # updateCard     (edit faces / suspend / unsuspend)
+│   ├── digests/
+│   │   ├── GET.ts                    # listDigests
+│   │   └── [week]/GET.ts             # getDigest
+│   └── stats/GET.ts                  # learnStats     (streak, due counts, retention per topic)
+├── hooks/
+│   ├── draft-cards.ts        # database topics:insert → tutor/cardsmith#draft
+│   └── weekly-digest.ts      # cron daily 07:00; the curator no-ops unless it's Sunday
+├── spaces/
+│   └── tutor/                # project-scoped space (agents / tasklists / knowledge)
+│       └── agents/{cardsmith,examiner,curator}/instruct.md
+├── types/generated.d.ts      # GENERATED — row + endpoint I/O types (incl. relation fields)
+└── .data/
+    ├── app.db                # SQLite (WAL)
+    ├── app.sql               # backup dump
+    └── hooks-state.json      # cron last-run / pending queue
+```
+
+## Database (schemas — descriptions mandatory, FKs + relations)
+
+Learn is the **deterministic-algorithm** example: the scheduling state lives *on* the card
+(`ease`/`intervalDays`/`dueAt`), is mutated by exactly one code path (`submitReview`), and
+`reviews` is the append-only audit trail that makes retention computable and the algorithm
+replayable. Agents write card *content*; they never touch scheduling fields. Every table and column
+carries a required `description`; the loader fails loud on any missing one.
+
+```json
+// database/topics.json
+{ "title": "Topics",
+  "description": "One thing the user is learning. May carry pasted source material the cardsmith drafts from; without material the cardsmith researches the topic itself.",
+  "columns": {
+    "id":        { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "title":     { "type": "string", "description": "what's being learned, e.g. 'Rust ownership & borrowing'; dedupe key", "required": true, "unique": true },
+    "goal":      { "type": "string", "description": "why / to what depth, e.g. 'pass the CKA exam in March' — steers card difficulty" },
+    "material":  { "type": "string", "description": "optional pasted source text (markdown) the deck is drafted from" },
+    "status":    { "type": "string", "description": "'drafting' while the cardsmith writes the deck, 'ready' after, 'archived' to retire", "default": "drafting" },
+    "createdAt": { "type": "date",   "description": "when the topic was added", "generated": "now" } },
+  "relations": {
+    "cards": { "hasMany": "cards", "via": "topicId", "description": "the deck for this topic" } } }
+```
+
+```json
+// database/cards.json — content + scheduling state in one row
+{ "title": "Cards",
+  "description": "One reviewable card: a prompt, an answer, and its scheduling state. Scheduling fields (ease, intervalDays, dueAt, reps, lapses) are mutated ONLY by the submitReview handler — never by agents or pages directly.",
+  "columns": {
+    "id":           { "type": "string",  "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "topicId":      { "type": "string",  "description": "the topic this card drills", "required": true,
+                      "references": { "table": "topics", "column": "id", "onDelete": "cascade" } },
+    "front":        { "type": "string",  "description": "the prompt, markdown — a question, cloze, or scenario", "required": true },
+    "back":         { "type": "string",  "description": "the answer, markdown — short, atomic, with a one-line 'why' where it helps", "required": true },
+    "kind":         { "type": "string",  "description": "'basic' | 'cloze' | 'application' — application cards pose a scenario, not a definition", "default": "basic" },
+    "ease":         { "type": "number",  "description": "SM-2 ease factor; starts 2.5, floor 1.3; moved only by submitReview", "default": 2.5 },
+    "intervalDays": { "type": "number",  "description": "current inter-review interval in days; 0 = learning (due same day)", "default": 0 },
+    "dueAt":        { "type": "date",    "description": "when the card is next due; the queue is dueAt <= now", "required": true },
+    "reps":         { "type": "number",  "description": "successful review count since last lapse", "default": 0 },
+    "lapses":       { "type": "number",  "description": "times the card was failed after being learned — the weakness signal the curator drills", "default": 0 },
+    "suspended":    { "type": "boolean", "description": "excluded from the queue when true (leeches, duplicates)", "default": false },
+    "source":       { "type": "string",  "description": "'agent' | 'user' | 'redrill' — redrill = written by the curator against a weak spot", "default": "agent" },
+    "createdAt":    { "type": "date",    "description": "when the card was created", "generated": "now" } },
+  "relations": {
+    "topic":   { "belongsTo": "topics",  "via": "topicId", "description": "the topic" },
+    "history": { "hasMany":  "reviews",  "via": "cardId",  "description": "every graded review of this card" } } }
+```
+
+```json
+// database/reviews.json — append-only grading history
+{ "title": "Reviews",
+  "description": "One graded review event. Append-only: written by submitReview alongside the card's scheduling update, so history and state can never drift.",
+  "columns": {
+    "id":            { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "cardId":        { "type": "string", "description": "the card graded", "required": true,
+                       "references": { "table": "cards", "column": "id", "onDelete": "cascade" } },
+    "grade":         { "type": "number", "description": "0 again · 1 hard · 2 good · 3 easy", "required": true },
+    "gradedAt":      { "type": "date",   "description": "when the review happened", "generated": "now" },
+    "elapsedDays":   { "type": "number", "description": "days since the previous review (0 for the first)", "required": true },
+    "intervalAfter": { "type": "number", "description": "the interval submitReview assigned as a result — makes the algorithm replayable from history", "required": true },
+    "mode":          { "type": "string", "description": "'review' (queue page) | 'quiz' (examiner drill via apiCall)", "default": "review" } },
+  "relations": {
+    "card": { "belongsTo": "cards", "via": "cardId", "description": "the card graded" } } }
+```
+
+```json
+// database/digests.json
+{ "title": "Digests",
+  "description": "The curator's weekly write-up: what was reviewed, retention per topic, weak spots, and what it did about them (re-drill cards).",
+  "columns": {
+    "id":        { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "weekStart": { "type": "date",   "description": "Monday of the digested week; one digest per week", "required": true, "unique": true },
+    "body":      { "type": "string", "description": "the digest, markdown — narrative over the deterministic stats", "required": true },
+    "stats":     { "type": "json",   "description": "machine-readable week stats: { reviewed, correctRate, perTopic: [{topicId, retention}], redrillsAdded }", "required": true },
+    "createdAt": { "type": "date",   "description": "when the curator wrote it", "generated": "now" } } }
+```
+
+```json
+// database/settings.json — single row
+{ "title": "Settings",
+  "description": "Single-row app settings. Seeded on provisioning; edited via the stats page.",
+  "columns": {
+    "id":             { "type": "string", "description": "always 'settings'", "primaryKey": true },
+    "dailyNewCards":  { "type": "number", "description": "max never-reviewed cards introduced into the queue per day", "default": 10 },
+    "dailyReviewCap": { "type": "number", "description": "max total cards in a day's queue (protects against backlog avalanches after a break)", "default": 60 },
+    "quizLength":     { "type": "number", "description": "cards per examiner drill session", "default": 8 },
+    "deckSize":       { "type": "number", "description": "target card count the cardsmith drafts for a new topic", "default": 20 } } }
+```
+
+- **One writer for scheduling state** — `ease`/`intervalDays`/`dueAt`/`reps`/`lapses` change in
+  `submitReview` and nowhere else. Agents create/edit card *faces* and `suspended`; the examiner
+  grades **only** via `apiCall('submitReview')`. This is what keeps the review math trustworthy no
+  matter who's driving.
+- **`reviews.intervalAfter` makes the algorithm auditable** — replaying history through the SM-2
+  step must reproduce every card's current state; the verification section tests exactly that.
+- **`onDelete` is deliberate**: cards cascade with their topic, reviews cascade with their card —
+  archiving is the non-destructive path (`topics.status:'archived'`, `cards.suspended`), deletion
+  is the real thing.
+
+## Pages (client React, file-based routing)
+
+Data comes from the generated typed client `useApi(name, input)` — no pod-side loaders. Relation
+fields arrive typed, so the deck table renders per-card history counts without a second fetch.
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/index.tsx` | `/` | `dueCards`; `submitReview` per grade tap |
+| `pages/topics/index.tsx` | `/topics` | `listTopics`; `addTopic` (title/goal/material box) |
+| `pages/topics/[id].tsx` | `/topics/:id` | `getTopic` (include cards); `updateCard`, `regenerateCards` |
+| `pages/quiz.tsx` | `/quiz` | `<Chat agent="tutor/examiner" />` (the drill) |
+| `pages/stats.tsx` | `/stats` | `learnStats` + `listDigests`/`getDigest` |
+
+A freshly added topic shows `status:'drafting'`; `/topics/:id` polls `getTopic` so cards appear
+live as the cardsmith writes them (the "pages are a live read view" property). The Today page is a
+keyboard-first flip-and-grade surface: space to flip, 1–4 to grade, each grade an immediate
+`submitReview` (optimistic; the queue shrinks card by card).
+
+```tsx
+// pages/index.tsx → "/" — today's queue
+import { useApi, useApiMutation } from '@app/runtime'
+import { CardFace, GradeBar } from '../components'
+
+export default function Today() {
+  const { data, refetch } = useApi('dueCards', {})       // typed: { cards: DueCard[], newIntroduced, capped }
+  const grade = useApiMutation('submitReview')
+  const card = data?.cards[0]
+  if (!card) return <AllDone streak={data?.streak} />
+  return (
+    <section>
+      <CardFace front={card.front} back={card.back} />   {/* flip state local; tokens only */}
+      <GradeBar onGrade={(g) => grade.mutate({ cardId: card.id, grade: g }, { onSuccess: refetch })} />
+    </section>
+  )
+}
+```
+
+## API (named, typed, Node handlers)
+
+Endpoint = dir, method = filename; each exports `name`/`description`/`Input`/`Output` + default
+handler `(input, { db, delegate, apiCall })`. Dual-addressed (HTTP for the browser, `name` for
+agents via `apiCall`).
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `listTopics` | `GET api/topics` | `{}` → `(Topic & { dueCount, cardCount })[]` |
+| `addTopic` | `POST api/topics` | `{ title, goal?, material? }` → `Topic` (status `drafting`) |
+| `getTopic` | `GET api/topics/:id` | `{ id }` → `Topic & { cards: Card[] }` |
+| `regenerateCards` | `POST api/topics/:id/cards` | `{ id, focus? }` → `{ status:'drafting' }` (fire-and-forget) |
+| `dueCards` | `GET api/queue` | `{}` → `{ cards: DueCard[], newIntroduced, capped, streak }` |
+| `submitReview` | `POST api/reviews` | `{ cardId, grade, mode? }` → `{ card: Card, intervalAfter }` |
+| `addCard` | `POST api/cards` | `{ topicId, front, back, kind? }` → `Card` |
+| `updateCard` | `PATCH api/cards/:id` | `{ id, front?, back?, suspended? }` → `Card` |
+| `listDigests` | `GET api/digests` | `{}` → `Digest[]` (stats only, no body) |
+| `getDigest` | `GET api/digests/:week` | `{ week }` → `Digest` |
+| `learnStats` | `GET api/stats` | `{}` → `{ streak, dueToday, reviewedToday, retention7d, perTopic[] }` |
+
+> **Row-type note (engine truth).** The generated row-interface names follow the engine's
+> deterministic singularizer (`build/schema.ts`): `topics → Topic`, `cards → Card`,
+> `reviews → Review`, `digests → Digest`, `settings → Setting`. Pages and handlers import these
+> from `@app/types`.
+
+```ts
+// api/reviews/POST.ts → POST .../api/reviews ; name "submitReview"
+/** Grade a card: the ONLY code path that mutates scheduling state. SM-2-lite, exact and replayable. */
+export const name = 'submitReview'
+export const description = 'Apply a grade (0 again · 1 hard · 2 good · 3 easy) to a card: update ease/interval/dueAt and append the review row.'
+
+export interface Input  { cardId: string; /** 0|1|2|3 */ grade: number; /** 'review' | 'quiz' */ mode?: string }
+export interface Output { card: Card; intervalAfter: number }
+
+export default async function handler(input: Input, ctx: { db: AsyncDbApi }): Promise<Output> {
+  const card = (await ctx.db.query('cards', { where: { id: input.cardId } }))[0]
+  const last = (await ctx.db.query('reviews', { where: { cardId: card.id }, orderBy: 'gradedAt', limit: 1 }))[0]
+  const elapsedDays = last ? Math.max(0, (Date.now() - Date.parse(last.gradedAt)) / 86400000) : 0
+
+  let { ease, intervalDays, reps, lapses } = card
+  if (input.grade === 0) {                          // again → lapse: relearn today, ease down
+    lapses += 1; reps = 0; intervalDays = 0
+    ease = Math.max(1.3, ease - 0.2)
+  } else {
+    reps += 1
+    ease = Math.max(1.3, ease + [0, -0.15, 0, 0.15][input.grade])
+    intervalDays = reps === 1 ? 1
+      : reps === 2 ? 3
+      : Math.round(intervalDays * ease * [0, 0.8, 1, 1.3][input.grade])
+  }
+  const dueAt = new Date(Date.now() + intervalDays * 86400000).toISOString()
+
+  const updated = await ctx.db.update('cards', card.id, { ease, intervalDays, dueAt, reps, lapses })
+  await ctx.db.insert('reviews', {
+    cardId: card.id, grade: input.grade, elapsedDays,
+    intervalAfter: intervalDays, mode: input.mode ?? 'review',
+  })
+  return { card: updated, intervalAfter: intervalDays }
+}
+```
+
+- `submitReview` + `dueCards` are the doc's **deterministic centrepiece**: `dueCards` reads all
+  unsuspended cards, filters `dueAt <= now` in JS (equality-only `where` — see Notes), orders
+  lapsed-first-then-oldest-due, introduces at most `dailyNewCards` never-reviewed cards, and caps
+  the queue at `dailyReviewCap` (reporting `capped: true` so the UI can say "60 of 214 — backlog
+  mode"). The Today page, the examiner's drill, and the curator's stats all consume these two —
+  nobody reimplements the math.
+- `regenerateCards` is **fire-and-forget** (parent-plan `generatePlan` pattern): it delegates
+  `tutor/cardsmith#draft` with an optional focus ("harder", "more application questions") and
+  returns; the deck page polls new cards in.
+
+## Hooks
+
+```ts
+// hooks/draft-cards.ts — write the deck when a topic is added
+export default {
+  type: 'database',
+  on: { table: 'topics', event: 'insert' },
+  budget: { maxEpisodes: 12, maxWallClockMs: 600000 },
+  handler: async ({ row, delegate }) => {
+    await delegate('tutor/cardsmith', 'draft', { input: { topicId: row.id } })
+  },
+}
+```
+
+```ts
+// hooks/weekly-digest.ts — Sunday retrospective + targeted re-drills
+export default {
+  type: 'cron',
+  daily: '07:00',                                   // fires daily; the curator no-ops unless it's Sunday
+  trigger: 'tutor/curator#digest',
+  budget: { maxEpisodes: 12, maxWallClockMs: 600000 },
+}
+```
+
+- **The loop is bounded**: the cardsmith writes `cards` and flips its topic to `ready` — the hook
+  watches `topics:insert` only, so its own `topics` *update* doesn't re-fire, and no hook watches
+  `cards` or `reviews` at all (grading is a pure handler path — an agent hook per review would be
+  both wasteful and wrong). The curator writes `digests` (unwatched) and re-drill `cards`
+  (unwatched). **Self-write exclusion** backstops all of it; **per-hook coalesce** collapses a
+  paste-five-topics burst into sequential drafts without duplication.
+- Cron timing is the parent plan's **crond → hook-run endpoint** mechanism
+  (`POST /api/projects/learn/hooks/weekly-digest/run`); a Sunday missed while the pod was down runs
+  once via boot catch-up (unique `weekStart` makes a double-fire a no-op); local dev uses the
+  in-process fallback tick.
+
+## Chat (the examiner's drill)
+
+One drop-in `<Chat agent="tutor/examiner" />` widget IS the `/quiz` page, reusing the
+always-available multisession WS endpoint (parent plan §Chat) — the binding is a runtime prop, no
+`chats/` dir:
+
+- "Quiz me" → the examiner pulls `quizLength` cards from `dueCards` (weak/lapsed first), asks the
+  prompts conversationally, and accepts free-text answers — you answer in your own words, not by
+  self-grading a flip.
+- After each answer it judges the grade, **submits it via `apiCall('submitReview', { mode:'quiz' })`**,
+  tells you the grade it gave and why, and — on a miss — explains the actual answer and where your
+  answer diverged. The explanation is the thing flashcards can't do.
+- "Why do I keep missing this one?" → it reads the card's `history` and answers from the pattern
+  (e.g. "you always swap the two directions — here's a mnemonic").
+- History persists at `learn/spaces/tutor/sessions/<id>` (project-session snapshot form,
+  resumable). This is the one place the catalog descriptor renderer re-enters the app — pages stay
+  real React.
+
+## The `tutor` space (agents + capabilities)
+
+Project-scoped at `learn/spaces/tutor/`. Capabilities are least-privilege per agent — one
+config-bearing `capabilities:` frontmatter key, table scope **per verb** (parent plan §"Capability
+globals"):
+
+| Agent | `db:read` tables | `db:write` tables | `api:call` allow | `functions` | Role |
+|---|---|---|---|---|---|
+| **cardsmith** | `topics, cards, settings` | `cards, topics` | — | `webSearch, webFetch` | draft `deckSize` atomic cards from material (or research the topic); flip topic to `ready`; never touch scheduling fields |
+| **examiner** | `topics, cards, reviews, settings` | — (none) | `dueCards, submitReview` | `[]` (none) | the conversational drill: ask, judge free-text answers, grade via the API, explain misses |
+| **curator** | `topics, cards, reviews, digests, settings` | `digests, cards` | `learnStats` | `[]` (none) | Sunday digest: narrative over the stats; write `redrill` cards for high-lapse spots; suspend leeches |
+
+```yaml
+# learn/spaces/tutor/agents/examiner/instruct.md frontmatter — acts ONLY through the app's API
+capabilities:
+  - db:read:  { tables: [topics, cards, reviews, settings] }
+  # no db:write at all — grading goes through submitReview so the scheduler stays the single writer
+  - api:call: { names: [dueCards, submitReview] }
+functions: []
+```
+
+```yaml
+# learn/spaces/tutor/agents/cardsmith/instruct.md frontmatter
+capabilities:
+  - db:read:  { tables: [topics, cards, settings] }
+  - db:write: { tables: [cards, topics] }   # card faces + topic status; scheduling fields belong to submitReview
+functions: [webSearch, webFetch]            # research the topic when no material was pasted
+```
+
+- **The examiner is the catalog's purest `api:call` showcase** — an agent with **zero** `db:write`
+  whose every state change flows through the app's own typed endpoints. `apiCall('submitReview',
+  { cardId, grade: '2' })` with a string grade fails the DTS overload at typecheck; the scheduler's
+  invariants hold no matter what the drill conversation does.
+- **The cardsmith's `draft` tasklist uses a `forEach` over material sections** — a first task
+  splits `material` (or its researched outline) into sections; the host fans out one drafting fork
+  per section (parallel, within the fork cap) and collects the cards; the model never writes the
+  loop. Its charter encodes card craft: atomic (one fact per card), prompts that force retrieval
+  (no yes/no), application cards that pose scenarios, and *no duplicates* against the existing deck
+  (it reads `cards` first).
+- **The curator turns weakness into work** — high-`lapses` cards get a fresh `redrill` card
+  attacking the same concept from a different angle (`source:'redrill'`), and true leeches
+  (lapses ≥ 8) get `suspended: true` with a digest mention, mirroring Anki's leech handling but
+  with an explanation attached.
+- **No `db:schema`/`pages:write`/`api:write` here** — the tutor *operates* the app. "Add exam
+  countdowns" or "share a deck with my study group" is an authoring request → THING →
+  `system-appbuilder`.
+
+## Serving & domains
+
+- **Local CLI**: `localhost:8080/app/learn/…` (pages) and `localhost:8080/app/learn/api/<name>` —
+  the parent plan's mount, `<project>` = `learn`.
+- **Prod**: served under the **generic authenticated `lmthing.app` domain** at `lmthing.app/learn/*`
+  → the authenticated user's pod `/app/learn/*` (Envoy JWT + per-user routing). No pre-existing
+  static SPA to replace; a `lmthing.learn` alias is an optional later edge-alias.
+- **Admin/dev**: `lmthing.studio` manages it via `/api/projects/learn/app` (manifest, data browser,
+  manual hook run, build status, live preview iframe of `…/app/learn/`).
+
+**No public/shared surface** — every route and endpoint is an authenticated, per-user pod
+read/write. (Deck *sharing* is a real future want — it belongs to the lmthing.store distribution
+phase, not a v1 authz exception.)
+
+## Additional features (more user value)
+
+The core loop earns its place when the queue is honest and the cards are good; these raise the
+ceiling. Each is **additive** on the same engine.
+
+### Exam mode — a deadline changes the math
+- **Data**: add `examAt` (nullable date) to `topics`.
+- **Handler**: `dueCards` pulls a topic's cards forward when `examAt` is near (compress intervals
+  so everything gets ≥2 more reps before the date) — still fully deterministic.
+- **Agent**: the curator's digest counts down and calls out what won't be ready in time.
+
+### Ingest a document or URL — decks from real sources
+- **API**: `importMaterial` `POST api/topics/import` `{ url? , text? }` → creates the topic with
+  `material` filled (the cardsmith `webFetch`es a URL first when given one). Kills the
+  copy-paste-formatting chore; the existing draft hook does the rest.
+
+### Explain-this button — the tutor inside the review
+- **Flow**: a "explain" affordance on the Today page opens the examiner chat pre-seeded with the
+  current card ("I don't get why this is the answer") — pure chat wiring, no new capability.
+
+### Retention forecast — see the payoff
+- **Handler**: `learnStats` gains a `forecast` — cards due per day for the next 14 days computed
+  from current intervals (pure math). The stats page charts it (design-token chart colors), which
+  is also the honest "how big is tomorrow's session" answer.
+
+## Round 2 — From decks to a study program: sources, plans & open-ended practice (feature expansion)
+
+Round 1 shipped the retention engine — decks, the deterministic scheduler, the drill — and one
+`tutor` space. Round 2 turns `learn` from a card app into a **study program**: drop in **sources**
+(URLs, pasted documents) and a `librarian` distills them into topics that flow straight into the
+round-1 card pipeline; a `syllabist` builds and weekly-adjusts a **multi-week study plan** with
+milestones against a real exam date; and a `grader` closes the gap flashcards can't cover —
+**open-ended practice**: rubric-scored free-writing prompts with real feedback. A second
+specialist team (**`academy`** — librarian · syllabist · grader) does this work; `tutor` keeps
+owning cards and the drill. The round-1 "Additional features" **exam mode** and **material
+import** are promoted to fully-specced work here. Everything below is strictly additive to the
+round-1 shape — same project-rooted db, same serving, same capability model — and stays inside the
+parent plan (data/agents/pages/api/hooks only).
+
+### New database tables (round 2 — 5, bringing the app to 10)
+
+Prose-schema form (descriptions mandatory on table/column/relation, FKs resolve, exactly-one PK):
+
+- **`sources.json`** — an ingested study source. `id` (pk uuid) · `kind` (string, required —
+  `'url'`|`'text'`) · `url` (string — unique when present; re-adding a URL is a handler no-op) ·
+  `title` (string, def `'pending'` — the librarian fills it) · `content` (string — pasted text, or
+  the librarian's cleaned extraction) · `status` (string, def `'pending'` —
+  `'pending'`|`'ingested'`|`'fetch-failed'`) · `topicIds` (json, def `[]` — the topics distilled
+  from it, the provenance of where a deck came from) · `createdAt` (date, now).
+- **`study_plans.json`** — one active program. `id` (pk) · `title` (string, required) · `goal`
+  (string, required — e.g. `'pass the CKA on March 14'`) · `examAt` (date — drives round-1 exam
+  mode: `dueCards` compresses intervals for this plan's topics as it nears) · `topicIds` (json,
+  required — the topics in scope) · `status` (string, def `'active'` —
+  `'active'`|`'completed'`|`'abandoned'`) · `rationale` (string, required — the syllabist's
+  ordering logic, markdown) · `createdAt` (date, now). Relation `milestones` hasMany `milestones`
+  via `planId`.
+- **`milestones.json`** — one week of the program. `id` (pk) · `planId` (references `study_plans`
+  onDelete cascade, required) · `weekStart` (date, required) · `focusTopicIds` (json, required) ·
+  `targets` (json, required — `{ newCards, reviews, attempts, minRetention }`) · `actuals` (json,
+  def `{}` — the syllabist's weekly check-in fills from `learnStats`) · `status` (string, def
+  `'planned'` — `'planned'`|`'on-track'`|`'behind'`|`'done'`) · `note` (string — the check-in's
+  one-line read) · `createdAt` (date, now). Relation `plan` belongsTo `study_plans` via `planId`.
+- **`prompts.json`** — an open-ended practice prompt. `id` (pk) · `topicId` (references `topics`
+  onDelete cascade, required) · `prompt` (string, required — explain/derive/apply, never
+  yes-or-no) · `rubric` (json, required — 3–5 named criteria with what "good" looks like, written
+  when the prompt is authored so grading is anchored *before* any answer exists) · `difficulty`
+  (string, def `'core'` — `'core'`|`'stretch'`) · `source` (string, def `'agent'`) · `createdAt`
+  (date, now). Relations: `topic` belongsTo `topics` via `topicId`; `attempts` hasMany `attempts`
+  via `promptId`.
+- **`attempts.json`** — one graded free-writing attempt. `id` (pk) · `promptId` (references
+  `prompts` onDelete cascade, required) · `answer` (string, required — the user's writing,
+  verbatim, never edited) · `scores` (json — per-criterion `{ score: 1–5, evidence }` where
+  `evidence` **quotes the answer**; null until graded) · `feedback` (string — what was right, what
+  was missing, the one thing to redo; null until graded) · `status` (string, def `'submitted'` —
+  `'submitted'`|`'graded'`) · `gradedAt` (date) · `createdAt` (date, now). Relation `prompt`
+  belongsTo `prompts` via `promptId`.
+
+New columns on round-1 tables (additive `addColumn`): `topics.sourceId` (string — the source a
+topic was distilled from, null for hand-added); `cards.planWeight` (number, def 1 — the
+exam-mode compression factor `dueCards` applies; set only by the deterministic handler path).
+
+### New API endpoints (round 2 — 10, bringing the app to 21)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `addSource` | `POST api/sources` | `{ url? , text?, title? }` → `Source` (stub; ingest hook fills it) |
+| `listSources` | `GET api/sources` | `{}` → `Source[]` |
+| `createPlan` | `POST api/plans` | `{ title, goal, examAt?, topicIds? }` → `{ planId, status:'planning' }` — `spawn`s `academy/syllabist#plan` |
+| `getPlan` | `GET api/plans/:id` | `{ id }` → `StudyPlan & { milestones: Milestone[] }` |
+| `planProgress` | `GET api/plans/:id/progress` | `{ id }` → `{ perMilestone: [{ milestoneId, targets, actuals, delta }] }` — deterministic, from `reviews`/`attempts` |
+| `updateMilestone` | `PATCH api/milestones/:id` | `{ id, targets?, status? }` → `Milestone` |
+| `listPrompts` | `GET api/prompts` | `{ topicId?, difficulty? }` → `Prompt[]` |
+| `generatePrompts` | `POST api/topics/:id/prompts` | `{ id, difficulty? }` → `{ status:'drafting' }` — `spawn`s `academy/grader#author` |
+| `submitAttempt` | `POST api/attempts` | `{ promptId, answer }` → `Attempt` (status `submitted`; grade hook fires) |
+| `getAttempt` | `GET api/attempts/:id` | `{ id }` → `Attempt & { prompt }` (plus `listAttempts` `GET api/attempts` → headers) |
+
+All follow the round-1 rules — equality-only `where`, typed `HttpError` failures, **`spawn` (never
+`delegate`) from handlers**. `planProgress` is round 2's deterministic centrepiece: actuals are
+counted from `reviews`/`attempts` rows in the milestone's week window — the same numbers the
+syllabist's check-in writes into `actuals`, so the page and the agent can never disagree.
+Round-1 `dueCards` gains the promoted **exam mode**: when an active plan's `examAt` is within
+`2 × intervalDays` for a scoped card, the handler compresses that card's effective due date via
+`planWeight` — pure handler math, agents never touch scheduling (the round-1 invariant holds).
+
+### New hooks (round 2 — 3, bringing the app to 5)
+
+- **`ingest-source.ts`** — `database` `sources:insert`, imperative handler:
+  `delegate('academy/librarian','ingest', { input: { sourceId: row.id } })` — fetch/clean the
+  source, distill it into 1–4 `topics` (with `material` filled and `sourceId` back-refs), mark the
+  source `ingested` (or `fetch-failed` with the reason).
+- **`weekly-plan-checkin.ts`** — `cron`, `daily: '07:15'`, Monday-gated in the agent →
+  `academy/syllabist#adjust` — fill last week's `actuals` from `learnStats`, set
+  `on-track`/`behind`, rebalance the coming weeks' `targets` (never past ones), write the
+  one-line `note`.
+- **`grade-attempt.ts`** — `database` `attempts:insert`, imperative handler:
+  `delegate('academy/grader','grade', { input: { attemptId: row.id } })` — score against the
+  prompt's pre-authored rubric, quote evidence, write feedback, flip `graded`.
+
+**Loop-guard sanity.** `sources:insert` → librarian writes `topics` → the round-1 `draft-cards`
+hook fires → cardsmith writes `cards` (no hook) ⇒ an **intentional cross-space depth-2 cascade**
+that stops (cap 3): *drop a URL, get a deck* with zero new wiring. `attempts:insert` → grader
+*updates* the attempt (no hook on update) ⇒ stops. The syllabist writes
+`study_plans`/`milestones` (unwatched) ⇒ stops. Per-hook coalesce collapses a paste-several-
+sources burst; **self-write exclusion** keeps the librarian's own source-status updates and the
+grader's attempt updates from re-firing anything.
+
+### New pages (round 2 — 5, bringing the app to 10) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/plan.tsx` | `/plan` | `getPlan` + `planProgress` (milestone track, targets vs actuals); `createPlan`, `updateMilestone` |
+| `pages/sources.tsx` | `/sources` | `listSources`; `addSource` (URL box + paste zone); status fills in live |
+| `pages/write.tsx` | `/write` | `listPrompts` (pick one) → attempt editor → `submitAttempt`; grading status polls in |
+| `pages/attempts/[id].tsx` | `/attempts/:id` | `getAttempt` — the answer side-by-side with per-criterion scores, quoted evidence, feedback |
+| `pages/prompts.tsx` | `/prompts` | `listPrompts` by topic/difficulty; `generatePrompts` |
+
+New shared components (design tokens only): `MilestoneTrack` (week rail with on-track/behind
+states as semantic tokens), `SourceRow` (status + distilled-topics chips), `PromptCard`,
+`RubricScores` (per-criterion bars with evidence popovers), `AttemptEditor`. `_layout.tsx` nav
+gains **Plan · Write · Sources** alongside Today · Topics · Quiz · Stats; the Today page shows the
+current milestone's delta strip (from `planProgress`) so the daily queue carries its "why".
+
+### The `academy` space (second project-scoped space, full format)
+
+`learn/spaces/academy/` — the program-level team, sharing the same project-rooted db as `tutor`
+(parent plan's multi-space shape). Least-privilege per verb:
+
+| Agent | `db:read` tables | `db:write` tables | `api:call` allow | `functions` | Role |
+|---|---|---|---|---|---|
+| **librarian** | `sources, topics, settings` | `sources, topics` | — | `webFetch` | fetch/clean a source, distill topics with `material`, honest `fetch-failed` |
+| **syllabist** | `topics, cards, reviews, study_plans, milestones, digests, settings` | `study_plans, milestones` | `learnStats, dueCards` | `[]` (none) | build the program; weekly check-in: actuals, status, rebalance forward weeks |
+| **grader** | `prompts, attempts, topics, cards, settings` | `prompts, attempts` | — | `[]` (none) | author prompts *with rubrics up front*; grade attempts against them with quoted evidence |
+
+- **Agent-frontmatter features exercised**: the syllabist declares
+  `canDelegateTo: [tutor/cardsmith#draft]` — a **cross-space** hard allowlist: when plan-building
+  finds a scoped topic with a thin deck (< `deckSize/2` cards), it commissions more cards from the
+  round-1 cardsmith rather than writing any itself (any other delegation throws, naming the
+  allowed target). The grader declares `defaultAction: grade` and `actions:` for `author`
+  (tasklist `author-prompts`) and `grade`; the librarian declares `defaultAction: ingest`.
+- **Tasklists**: `build-plan/` — `01-audit.md` (`role: explore`, read-only: scoped topics, deck
+  depth, current retention via `apiCall('learnStats')`), `02-sequence.md` (order topics
+  prerequisite-first; write `study_plans` with `rationale`), `03-milestones.md`
+  (**`forEach: "sequence.weeks"`** — one fork per program week writes that week's `milestones`
+  row; the model never writes the loop). `author-prompts/` — `01-survey.md` (`role: explore`:
+  the topic's cards + existing prompts, to avoid duplication), `02-author.md` (write prompts
+  **with rubrics**; `functions: []`). `grade/` — `01-read.md` (`role: explore`: attempt + prompt
+  + rubric only — deliberately *not* other students' answers; there are none, but the discipline
+  is the point), `02-score.md` (per-criterion scores with quoted evidence), `03-feedback.md`
+  (write the feedback; update the attempt).
+- **Functions** (`functions/*.ts`, deterministic): `chunkMaterial` (split a cleaned source into
+  candidate topic sections), `weekWindows` (examAt + start → the week list `03-milestones` fans
+  over), `progressDelta` (targets vs actuals — the same math `planProgress` uses),
+  `rubricComplete` (a prompt's rubric → the criteria lacking a "what good looks like"; the grader
+  runs it before filing).
+- **Components**: view `MilestonePreview` (chat-rendered week card), view `RubricPreview`; form
+  `PlanIntake` — an `ask()` sheet the syllabist renders when `createPlan` arrives underspecified
+  (exam date? hours/week? which topics in scope?). Design-token-gated.
+- **Knowledge** (`knowledge/learning-science/`, each field `index.md` + ≥2 aspects):
+  `program-design/` (`sequencing-prerequisites.md`, `load-balancing.md`,
+  `behind-is-information.md` — a behind milestone rebalances forward, it never guilt-trips),
+  `assessment/` (`rubric-design.md`, `evidence-quoting.md`, `feedback-that-teaches.md`),
+  `source-distillation/` (`what-makes-a-topic.md`, `extraction-fidelity.md` — distill what the
+  source says, never what the model knows about the subject).
+
+### `tutor` space-format remediation (round 2)
+
+Round 1 left `tutor` as `agents/`-only. Round 2 brings it to the **full space format**:
+`charter.md` alongside every `instruct.md` (the cardsmith's fork-safe atomicity/no-duplicates
+rule; the examiner's grade-via-API-only + state-the-grade rule; the curator's
+redrill-not-guilt rule); tasklists — `draft/` formalized for the cardsmith (`01-split.md`
+`role: explore` → `02-write.md` **`forEach: "split.sections"`** → `03-file.md` dedupe + write +
+flip topic `ready`) and `digest/` for the curator (stats → weak-spots → redrills → write);
+`functions/` (`computeRetention` — the same math `learnStats` uses, `pickWeakCards`,
+`formatCloze`, `dedupeCardFronts`); catalog `components/` (`CardPreview`, `QuizScore` for chat);
+and **extensive `knowledge/card-craft/`** — `atomicity/` (`one-fact-per-card.md`,
+`prompt-forces-retrieval.md`), `cloze-design/` (`what-to-blank.md`, `context-sufficiency.md`),
+`drill-method/` (`socratic-follow-ups.md`, `explaining-misses.md`).
+
+### Phases & verification additions (round 2)
+
+Ordered on top of the round-1 phases: **(R2-1)** new schemas + columns; **(R2-2)** the `academy`
+space full-format + `tutor` remediation; **(R2-3)** the 10 endpoints (+ exam-mode math in
+`dueCards`, `planProgress`/`progressDelta` single definition); **(R2-4)** the 3 hooks +
+loop-guard checks; **(R2-5)** the 5 pages + components; **(R2-6)** tests.
+
+Verification additions: **(a)** `addSource` with a URL → librarian ingests, 1–4 topics land with
+`sourceId` + `material`, then the round-1 hook drafts their decks (the cross-space cascade
+observed end-to-end: *URL in, cards out*), and a bad URL lands `fetch-failed` with a reason, no
+retry loop; **(b)** `createPlan` with a thin-deck topic → the syllabist delegates
+`tutor/cardsmith#draft` (cross-space allowlist observed; anything else throws) and writes one
+milestone row per week via the `forEach`; **(c)** Monday `weekly-plan-checkin` → last week's
+`actuals` equal `planProgress` exactly (single-definition check), forward weeks rebalance, past
+weeks never change; **(d)** `submitAttempt` → grader fires once; every criterion score carries
+`evidence` that is a verbatim substring of the answer (checked mechanically); the attempt's
+`answer` is byte-identical after grading; **(e)** with `examAt` near, `dueCards` pulls scoped
+cards forward via `planWeight` — replaying `reviews` history still reproduces card state (the
+round-1 invariant survives exam mode); **(f)** the grader attempting `db.update('cards', …)` →
+host error (not in its tables); the librarian calling `webSearch` → typecheck failure (only
+`webFetch` granted); **(g)** `pnpm lint:tokens` green across the 5 new pages.
+
+## Round 3 — The arena: mock exams, teach-back & the knowledge map (feature expansion)
+
+Round 1 built retention (`tutor`); round 2 built the program around it (`academy`). Round 3
+builds the **proving ground**: timed, mixed-topic **mock exams** assembled and graded by a
+`proctor` (essay sections graded by the round-2 grader — reuse, not reinvention), **teach-back**
+sessions where you explain a topic in your own words and a `listener` probes Feynman-style until
+the gaps show, and a **concept map** a `cartographer` maintains across everything you're learning
+— surfacing orphan concepts and weak islands the flat deck view can't see. A third specialist
+team (**`arena`** — proctor · listener · cartographer) does this work. Everything below is
+strictly additive to the round-1/2 shape — same project-rooted db, same serving, same capability
+model — and stays inside the parent plan (data/agents/pages/api/hooks only).
+
+### New database tables (round 3 — 5, bringing the app to 15)
+
+- **`exams.json`** — a mock exam definition. `id` (pk uuid) · `title` (string, required) ·
+  `planId` (references `study_plans` onDelete setNull — scoped to a program when present) ·
+  `topicIds` (json, required) · `blueprint` (json, required — the section plan: `{ kind:
+  'recall'|'application'|'essay', count, minutes }[]`, assembled by the proctor from cards +
+  prompts) · `questionRefs` (json, required — `{ section, sourceType:'card'|'prompt', sourceId }[]`
+  — every exam question traces to an existing card or prompt; the proctor authors nothing new) ·
+  `totalMinutes` (number, required) · `createdAt` (date, now). Relation `sittings` hasMany
+  `exam_sittings` via `examId`.
+- **`exam_sittings.json`** — one timed run. `id` (pk) · `examId` (references `exams` onDelete
+  cascade, required) · `startedAt` (date, required) · `deadlineAt` (date, required — startedAt +
+  totalMinutes; the page enforces it, the grader trusts only `submittedAt`) · `submittedAt`
+  (date) · `answers` (json, def `{}` — per-questionRef user answers, saved as they type) ·
+  `status` (string, def `'in-progress'` — `'in-progress'`|`'submitted'`|`'graded'`|`'abandoned'`)
+  · `sectionScores` (json — per-section `{ correct, total, notes }`; essay sections carry the
+  grader's rubric verdicts) · `analysis` (string — the proctor's read: readiness, weakest
+  section, what to drill before the real thing) · `createdAt` (date, now). Relation `exam`
+  belongsTo `exams` via `examId`.
+- **`teachbacks.json`** — one Feynman session's distillate. `id` (pk) · `topicId` (references
+  `topics` onDelete cascade, required) · `transcriptSummary` (string, required — what you said,
+  compressed honestly, not improved) · `gaps` (json, required — `{ concept, whatWasMissing,
+  severity: 'shaky'|'missing'|'wrong' }[]`) · `strengths` (json, def `[]` — what you explained
+  well; the listener's charter requires naming at least one when true) · `redrillTopicFocus`
+  (string — the focus string handed to the cardsmith for gap cards) · `createdAt` (date, now).
+  Relation `topic` belongsTo `topics` via `topicId`.
+- **`concepts.json`** — a node in the knowledge map. `id` (pk) · `name` (string, required,
+  unique) · `topicIds` (json, required — the topics this concept appears in; cross-topic concepts
+  are the map's whole point) · `cardIds` (json, def `[]` — the cards drilling it) · `retention`
+  (number, def 0 — the cluster's 30-day retention, from the deterministic `conceptRetention`
+  math) · `status` (string, def `'healthy'` — `'healthy'`|`'weak'`|`'orphan'` — orphan = no cards
+  drill it) · `createdAt` (date, now).
+- **`concept_links.json`** — a directed edge. `id` (pk) · `fromConceptId` (references `concepts`
+  onDelete cascade, required) · `toConceptId` (references `concepts` onDelete cascade, required)
+  · `kind` (string, required — `'prerequisite'`|`'contrast'`|`'applies-to'`) · `rationale`
+  (string, required — one line, e.g. "borrowing presupposes ownership") · `createdAt` (date,
+  now). Relations: `from` belongsTo `concepts` via `fromConceptId`; `to` belongsTo `concepts` via
+  `toConceptId`.
+
+New columns on earlier tables (additive `addColumn`): `topics.lastTeachbackAt` (date — the
+listener stamps it; the syllabist's check-in treats a scoped topic with high retention but no
+teach-back as "fluent-looking, unproven"); `study_plans.readiness` (number, def 0 — the latest
+sitting's blended score for this plan's exam, set by the proctor's grading pass).
+
+### New API endpoints (round 3 — 11, bringing the app to 32)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `createExam` | `POST api/exams` | `{ title, topicIds, planId?, minutes? }` → `{ examId, status:'assembling' }` — `spawn`s `arena/proctor#assemble` |
+| `getExam` / `listExams` | `GET api/exams/:id` / `GET api/exams` | definition + past sittings headers |
+| `startSitting` | `POST api/exams/:id/sit` | `{ id }` → `ExamSitting` (stamps `startedAt`/`deadlineAt`; refuses if one is `in-progress`) |
+| `saveAnswers` | `PATCH api/sittings/:id/answers` | `{ id, answers }` → `{ ok }` (refused after `deadlineAt` — typed `HttpError`) |
+| `submitSitting` | `PATCH api/sittings/:id` | `{ id }` → `ExamSitting` (status `submitted`; grade hook fires) |
+| `getSitting` / `listSittings` | `GET api/sittings/:id` / `GET api/sittings` | scores + analysis once graded |
+| `conceptMap` | `GET api/map` | `{}` → `{ nodes: Concept[], links: (ConceptLink & { from, to })[] }` |
+| `weakIslands` | `GET api/map/weak` | `{}` → `{ clusters: [{ conceptIds, avgRetention, cardCount }] }` — deterministic graph-cluster math over `conceptRetention` |
+| `teachbackHistory` | `GET api/teachbacks` | `{ topicId? }` → `Teachback[]` (plus `getTeachback` `GET api/teachbacks/:id`) |
+
+All follow the established rules — equality-only `where`, typed `HttpError`, **`spawn` from
+handlers**. Round-1 invariants hold under exam pressure: exam grading writes
+`sectionScores`/`analysis` — it **never** touches card scheduling (an exam is a measurement, not
+a review; cards only move through `submitReview`). `weakIslands`/`conceptRetention` are round 3's
+deterministic centrepieces — the cartographer narrates them, the map page renders them, one
+definition.
+
+### New hooks (round 3 — 3, bringing the app to 8)
+
+- **`grade-sitting.ts`** — `database` **`exam_sittings:update`** (the app's first update-event
+  hook), imperative handler: skip unless the update set `status:'submitted'`, else
+  `delegate('arena/proctor','grade', { input: { sittingId: row.id } })` — recall/application
+  sections are checked against card backs / prompt rubrics; essay sections are **delegated per
+  section to the round-2 grader** (see the tasklist's task-level `canDelegateTo`); the proctor
+  blends section scores, writes `analysis`, sets `study_plans.readiness`, flips `graded`.
+- **`redrill-teachback.ts`** — `database` `teachbacks:insert`, imperative handler: skip when
+  `row.gaps` is empty, else `delegate('tutor/cardsmith','draft', { input: { topicId: row.topicId,
+  focus: row.redrillTopicFocus } })` — a hook-driven **cross-space** delegation (no
+  `canDelegateTo` needed at the hook layer — hooks are host code): gaps become cards by tomorrow.
+- **`refresh-map.ts`** — `cron`, `daily: '07:45'`, Saturday-gated in the agent →
+  `arena/cartographer#map` — re-derive concepts from topics/cards (new cards join their concepts;
+  `conceptRetention` recomputed), reconcile links, set `weak`/`orphan` statuses, and file one
+  digest-style note into the week's curator digest input (the curator's Sunday run reads the
+  fresh map instead of rediscovering weakness from scratch).
+
+**Loop-guard sanity.** `exam_sittings:update(submitted)` → proctor updates the sitting to
+`graded` — the same-table re-entry is gated (`submitted` only) and **self-write excluded** ⇒
+stops at depth 1 (gate pinned by test, the money/career discipline). `teachbacks:insert` →
+cardsmith writes `cards` (unwatched) ⇒ stops at depth 1 — and deliberately does NOT route through
+`topics:insert`, so the round-2 ingest cascade is not re-entered. The cartographer writes
+`concepts`/`concept_links` (unwatched) ⇒ stops. Saturday map → Sunday digest is a **cron-to-cron
+handoff through data**, not a hook chain — no cascade at all, just fresher input.
+
+### New pages (round 3 — 5, bringing the app to 15) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/exams/index.tsx` | `/exams` | `listExams`; `createExam` (topics + minutes form); readiness per plan |
+| `pages/exams/[id]/sit.tsx` | `/exams/:id/sit` | the timed room: `startSitting`, autosave via `saveAnswers`, countdown, `submitSitting`; deadline enforced client-side, verified server-side |
+| `pages/sittings/[id].tsx` | `/sittings/:id` | `getSitting` — section scores, essay rubric verdicts, the proctor's analysis |
+| `pages/map.tsx` | `/map` | `conceptMap` + `weakIslands` — the graph (token-styled SVG: node fill by status, edges by kind); click-through to cards |
+| `pages/teach.tsx` | `/teach` | `<Chat agent="arena/listener" />` (the teach-back room) + `teachbackHistory` rail |
+
+New shared components (design tokens only): `ExamTimer` (countdown, deadline states as semantic
+tokens), `SectionScoreBar`, `ConceptGraph` (the map SVG — no raw colors; `status` maps to
+tokens), `GapList` (severity-badged), `ReadinessDial`. `_layout.tsx` nav gains **Exams · Map ·
+Teach**; the plan page shows `readiness` beside the exam date; the Today page links a weak
+island's cards when one exists ("your weakest cluster today: lifetimes").
+
+### The `arena` space (third project-scoped space, full format)
+
+`learn/spaces/arena/` — the proving-ground team. Least-privilege per verb:
+
+| Agent | `db:read` tables | `db:write` tables | `api:call` allow | `functions` | Role |
+|---|---|---|---|---|---|
+| **proctor** | `exams, exam_sittings, cards, prompts, topics, study_plans, settings` | `exams, exam_sittings, study_plans` | — | `[]` | assemble from existing cards/prompts only; grade objectively; readiness verdicts with evidence |
+| **listener** | `topics, cards, concepts, concept_links, teachbacks, settings` | `teachbacks, topics` | — | `[]` | the Feynman room: probe, don't lecture; distill gaps honestly; stamp `lastTeachbackAt` |
+| **cartographer** | `topics, cards, reviews, concepts, concept_links, digests, settings` | `concepts, concept_links` | `learnStats` | `[]` | derive/maintain the map; weak islands + orphans; feed the curator |
+
+- **Agent-frontmatter features exercised**: the proctor declares `defaultAction: assemble` and
+  `actions:` for `assemble` (tasklist `assemble-exam`) and `grade` (tasklist `grade-sitting`);
+  the listener declares `defaultAction: session`. The listener holds **no web and no card
+  writes** — its entire output is the `teachbacks` row; the redrill hook, not the listener,
+  decides that gaps become cards (separation of measurement from remediation, mechanically).
+- **Tasklists**: `assemble-exam/` — `01-inventory.md` (`role: explore`, `output: { pool: 'json' }`
+  — eligible cards/prompts per topic, typed), `02-blueprint.md` (`dependsOn: [inventory]` —
+  sections sized to the pool; refuse-with-reason when a topic can't fill its section),
+  `03-select.md` (**`forEach: "blueprint.sections"`** — one fork per section picks its
+  `questionRefs`, low-`askedInMock`-style rotation). `grade-sitting/` — `01-objective.md`
+  (`role: explore` — score recall/application against card backs; `output: { sectionScores:
+  'json' }`), `02-essays.md` (`optional: true`, **task-level `canDelegateTo:
+  [academy/grader#grade]`** — one delegation per essay section, reusing the round-2 rubric
+  machinery verbatim; the task runs only when the blueprint has essay sections),
+  `03-verdict.md` (`dependsOn: [objective]` — blend, write `analysis` + `readiness`, flip
+  `graded`). `map/` — derive (`role: explore`) → reconcile → flag (`forEach` over changed
+  clusters).
+- **Functions** (`functions/*.ts`, deterministic): `conceptRetention` (cluster 30-day retention
+  from `reviews` — the same math `weakIslands` uses), `blendScores` (section scores → the one
+  readiness number, weights fixed and documented), `deadlineCheck` (the same rule
+  `saveAnswers` enforces), `clusterIslands` (graph connectivity over weak nodes).
+- **Components**: view `SittingSummary` (chat-rendered section bars + readiness), view
+  `MapDelta` (what changed this week); form `ExamIntake` — the `ask()` sheet the proctor renders
+  when `createExam` arrives underspecified (which plan? how long? essay section or not?).
+- **Knowledge** (`knowledge/assessment-craft/`, each field `index.md` + ≥2 aspects):
+  `exam-design/` (`blueprint-balance.md`, `reuse-not-authoring.md` — measurement questions come
+  from the corpus so results map back to cards; `time-pressure-calibration.md`),
+  `proctoring/` (`objective-grading.md`, `readiness-honesty.md` — "not ready" with evidence
+  beats comfort), `feynman-method/` (`probing-questions.md`, `gap-taxonomy.md`,
+  `strengths-first.md`), `mapping/` (`concept-granularity.md`, `edge-kinds.md`,
+  `orphans-and-islands.md`).
+
+### Phases & verification additions (round 3)
+
+Ordered on top of rounds 1–2: **(R3-1)** new schemas + columns; **(R3-2)** the `arena` space
+full-format; **(R3-3)** the 11 endpoints (deadline + single-definition checks); **(R3-4)** the 3
+hooks incl. the update-event gate test; **(R3-5)** the 5 pages + components; **(R3-6)** tests.
+
+Verification additions: **(a)** `createExam` → the proctor assembles **only** from existing
+cards/prompts (`questionRefs` all resolve; zero new rows in `cards`/`prompts` — reuse pinned
+mechanically); an underspecified request renders the `ExamIntake` `ask()` form; a topic too thin
+for its section refuses with a reason instead of padding; **(b)** `saveAnswers` after
+`deadlineAt` → typed error (server-side `deadlineCheck`, not just UI); `submitSitting` →
+`grade-sitting` fires once; the `graded` flip does not re-fire (gate + self-write pinned);
+**(c)** an essay-section sitting delegates `academy/grader#grade` from `02-essays.md` ONLY — a
+delegation attempt from `01-objective.md` fails typecheck (task-level allowlist observed); a
+no-essay blueprint skips the task (`optional: true`); **(d)** grading a sitting changes **zero**
+card scheduling state (the measurement/review wall, asserted over the whole cards table);
+`readiness` equals `blendScores` on the fixture; **(e)** a teach-back with gaps → one cardsmith
+run with the `focus` string, new cards land on the topic, empty-gaps sessions fire nothing; the
+listener's `strengths` is non-empty when the transcript warrants (charter test); **(f)** Saturday
+map run → `weak`/`orphan` statuses match `conceptRetention`/`clusterIslands` fixtures; Sunday's
+curator digest cites the fresh map (cron-to-cron handoff observed through data); **(g)** the map
+page renders with zero raw colors (`pnpm lint:tokens` green across the 5 new pages).
+
+## Round 4 — The workshop: missions, the notebook & just-in-time refreshers (feature expansion)
+
+Rounds 1–3 build retention, structure, and proof. Round 4 closes the three gaps real learners
+hit *after* the cards work: **knowledge you never apply doesn't survive contact with reality**
+(you can ace the Rust deck and still freeze at a real borrow-checker error); **the insights you
+have while studying evaporate** (the "oh, THAT's why" moment lives in no card and is gone by
+Friday); and **the actual moment of need is an event, not a schedule** ("the interview is
+Thursday — refresh me on Kubernetes *now*", when the spaced queue says your K8s cards aren't due
+till month's end). A fourth specialist team (**`workshop`** — foreman · notekeeper · crammer)
+covers them: **missions** are small, real application projects with acceptance criteria and a
+reviewed write-up; the **notebook** captures insights in chat and links them into the round-3
+concept map, resurfacing them exactly where they're relevant; and **cram packs** are
+deadline-driven refreshers that borrow urgency without corrupting the scheduler. Everything
+below is strictly additive — same project-rooted db, same capability model — and stays inside
+the parent plan (data/agents/pages/api/hooks only).
+
+### New database tables (round 4 — 5, bringing the app to 20)
+
+- **`missions.json`** — one real-world application task. `id` (pk uuid) · `topicId` (references
+  `topics` onDelete cascade, required) · `title` (string, required — "build a CLI that
+  deliberately fights the borrow checker, then fix it three ways") · `brief` (string, required —
+  markdown: the task, why it exercises this topic, constraints) · `acceptanceCriteria` (json,
+  required — 3–5 checkable criteria written **before** any attempt, the grader-rubric
+  discipline applied to doing) · `conceptIds` (json, def `[]` — the map nodes this mission
+  exercises; missions target weak islands first) · `difficulty` (string, def `'core'` —
+  `'core'`|`'stretch'`) · `status` (string, def `'open'` — `'open'`|`'in-progress'`|`'done'`|
+  `'shelved'`) · `createdAt` (date, now). Relations: `topic` belongsTo `topics` via `topicId`;
+  `reports` hasMany `mission_reports` via `missionId`.
+- **`mission_reports.json`** — the write-up of an attempt. `id` (pk) · `missionId` (references
+  `missions` onDelete cascade, required) · `body` (string, required — what you built, what
+  fought back, what you'd do differently; verbatim, never edited) · `artifacts` (json, def `[]`
+  — links/paths the user pastes; the app stores references, not files) · `review` (json — per-
+  criterion `{ met: boolean, evidence }` where evidence **quotes the report**; null until
+  reviewed) · `feedback` (string — the foreman's read: the strongest move, the gap, one harder
+  variation; null until reviewed) · `status` (string, def `'submitted'` —
+  `'submitted'`|`'reviewed'`) · `createdAt` (date, now). Relation `mission` belongsTo `missions`
+  via `missionId`.
+- **`notes.json`** — one captured insight. `id` (pk) · `body` (string, required — the insight in
+  the user's words, verbatim) · `context` (string — where it struck: a card id, a mission, a
+  teach-back, "in the shower") · `source` (string, def `'chat'` — `'chat'`|`'review-page'`|
+  `'mission'`) · `pinned` (boolean, def false) · `createdAt` (date, now). Relation `links`
+  hasMany `note_links` via `noteId`.
+- **`note_links.json`** — the note ⇄ knowledge-graph join. `id` (pk) · `noteId` (references
+  `notes` onDelete cascade, required) · `targetType` (string, required —
+  `'concept'`|`'topic'`|`'card'`|`'mission'`) · `targetId` (string, required) · `linkedBy`
+  (string, def `'agent'` — `'agent'`|`'user'`; agent links are suggestions the user can cut) ·
+  `createdAt` (date, now). Relation `note` belongsTo `notes` via `noteId`.
+- **`cram_packs.json`** — a deadline-driven refresher. `id` (pk) · `title` (string, required —
+  "K8s for Thursday's interview") · `eventAt` (date, required) · `scope` (json, required —
+  topicIds/conceptIds in play) · `items` (json, required — the prioritized drill list: weakest-
+  relevant cards, unresolved teach-back gaps, pinned notes, one mission report worth rereading —
+  each `{ kind, id, why }`) · `onePager` (string — the final summary sheet, written by the
+  crammer the day before `eventAt`; null until then) · `status` (string, def `'building'` —
+  `'building'`|`'ready'`|`'finalized'`|`'expired'`) · `createdAt` (date, now).
+
+New columns on earlier tables (additive `addColumn`): `cards.lastCrammedAt` (date — cram
+exposure is logged for honesty but **never** moves `dueAt`/`ease`: cramming is recognition, not
+retention, and the scheduler must not be fooled by it — the round-1 wall, extended);
+`concepts.missionCount` (number, def 0 — the cartographer's map shows which islands have been
+exercised for real, not just drilled).
+
+### New API endpoints (round 4 — 11, bringing the app to 43)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `requestMission` | `POST api/missions` | `{ topicId, difficulty? }` → `{ status:'drafting' }` — `spawn`s `workshop/foreman#draft` |
+| `listMissions` / `getMission` | `GET api/missions` / `GET api/missions/:id` | briefs + reports; weak-island-first ordering |
+| `updateMission` | `PATCH api/missions/:id` | `{ id, status }` → `Mission` (`in-progress`/`shelved` are user moves) |
+| `submitReport` | `POST api/missions/:id/report` | `{ id, body, artifacts? }` → `MissionReport` (review hook fires) |
+| `addNote` | `POST api/notes` | `{ body, context? }` → `Note` (link hook fires) |
+| `listNotes` / `updateNote` | `GET api/notes` / `PATCH api/notes/:id` | search-by-JS-filter; pin; cut/add links (`linkedBy:'user'`) |
+| `relatedNotes` | `GET api/notes/related` | `{ targetType, targetId }` → `Note[]` — the resurface read: the review page and mission page call it per item |
+| `buildCramPack` | `POST api/cram` | `{ title, eventAt, scope }` → `CramPack` (`building`; `spawn`s `workshop/crammer#build`) |
+| `getCramPack` / `listCramPacks` | `GET api/cram/:id` / `GET api/cram` | the pack + one-pager once finalized |
+
+Deterministic centrepiece: `relatedNotes` (link-graph walk, pure reads — an insight you wrote in
+March surfaces on the exact card that triggered it) and the cram `items` prioritizer
+(`cramPriority`: weakest-relevant ordering from `conceptRetention` + teach-back gap severity —
+the crammer narrates the ordering, the function computes it). All established rules hold —
+equality-only `where`, typed `HttpError`, **`spawn` from handlers**.
+
+### New hooks (round 4 — 3, bringing the app to 11)
+
+- **`review-mission.ts`** — `database` `mission_reports:insert`, imperative handler:
+  `delegate('workshop/foreman','review', { input: { reportId: row.id } })` — per-criterion
+  verdicts with quoted evidence, feedback, `missionCount` bump on the exercised concepts; on
+  `met:false` criteria tied to a concept, the handler-side note names the concept so the round-3
+  map stays honest.
+- **`link-notes.ts`** — `database` `notes:insert` (coalesced), imperative handler:
+  `delegate('workshop/notekeeper','link',{})` — drain unlinked notes, propose `note_links` into
+  concepts/topics/cards (`linkedBy:'agent'`), never rewrite `body`.
+- **`finalize-cram.ts`** — `cron`, `daily: '06:50'`, `trigger: 'workshop/crammer#finalize'` —
+  for `ready` packs whose `eventAt` is tomorrow: write the `onePager` from the pack's actual
+  items (freshest state: a gap closed since building drops off the sheet), flip `finalized`;
+  packs past `eventAt` flip `expired` silently — no post-event guilt.
+
+**Loop-guard sanity.** `mission_reports:insert` → foreman updates the report + `concepts`
+(unwatched) ⇒ stops at depth 1. `notes:insert` → notekeeper writes `note_links` (unwatched) ⇒
+stops. The cram cron writes `cram_packs` (unwatched) ⇒ stops. **Nothing in round 4 touches card
+scheduling**: `lastCrammedAt` is written by the cram page's exposure logging, `dueAt`/`ease`
+move only through `submitReview` — asserted over the whole table in the round-4 tests, the
+strictest form of the round-1 invariant. **Self-write exclusion** backstops all three agents.
+
+### New pages (round 4 — 5, bringing the app to 20) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/missions/index.tsx` | `/missions` | `listMissions` (weak-island-first); `requestMission`; status moves |
+| `pages/missions/[id].tsx` | `/missions/:id` | brief + criteria; `submitReport`; the review with quoted evidence; `relatedNotes` rail |
+| `pages/notebook.tsx` | `/notebook` | `listNotes` (filter/pin); `addNote`; link editing; `<Chat agent="workshop/notekeeper">` dock ("just realized why lifetimes…") |
+| `pages/cram/index.tsx` | `/cram` | `buildCramPack` intake (title/date/scope); `listCramPacks` |
+| `pages/cram/[id].tsx` | `/cram/:id` | the pack: prioritized items with `why`, drill-through, the one-pager once finalized |
+
+New shared components (design tokens only): `MissionCard` (criteria checklist states as semantic
+tokens), `CriterionRow` (met/unmet + quoted evidence), `NoteChip` (resurfaced inline on review/
+mission pages via `relatedNotes`), `CramList` (priority-ordered, `why` visible), `OnePagerView`.
+The round-1 Today page resurfaces `relatedNotes` under the current card (the March insight,
+back exactly when it matters); the round-3 map colors exercised concepts (`missionCount > 0`)
+distinctly — drilled vs *done*.
+
+### The `workshop` space (fourth project-scoped space, full format)
+
+`learn/spaces/workshop/` — the application team. Least-privilege per verb:
+
+| Agent | `db:read` tables | `db:write` tables | `api:call` allow | `functions` | Role |
+|---|---|---|---|---|---|
+| **foreman** | `missions, mission_reports, topics, cards, concepts, concept_links, teachbacks, settings` | `missions, mission_reports, concepts` | — | `webSearch, webFetch` | draft missions targeting weak islands (real-world task shapes need the web); review reports against pre-set criteria |
+| **notekeeper** | `notes, note_links, concepts, topics, cards, missions, settings` | `notes, note_links` | — | `[]` | capture verbatim, link generously, never rewrite; the notebook chat |
+| **crammer** | `cram_packs, cards, reviews, concepts, teachbacks, notes, note_links, topics, settings` | `cram_packs` | `learnStats, dueCards` | `[]` | build/finalize packs from the weakest relevant material; zero scheduler writes |
+
+- **Agent-frontmatter features exercised**: the foreman declares
+  `canDelegateTo: [academy/grader#grade]` — a mission report containing an essay-shaped
+  derivation can be rubric-graded by the round-2 owner of that craft (cross-space allowlist) —
+  and `defaultAction: draft`. The crammer declares `defaultAction: build`; the notekeeper
+  `defaultAction: capture` (so "note: the reason X works is Y" in ANY chat context lands as a
+  note). The crammer is the space's discipline showcase: it reads half the database and can
+  write exactly one table.
+- **Tasklists**: `draft-mission/` — `01-target.md` (`role: explore`, `output: { island: 'json',
+  priorConcepts: 'json' }` — pick the weakest under-exercised island), `02-shape.md`
+  (`functions: [webSearch]` scoped to THIS task — find a realistic task shape; the other tasks
+  have `functions: []`), `03-criteria.md` (`dependsOn: [shape]` — acceptance criteria BEFORE
+  filing; a mission without checkable criteria fails the tasklist), `04-file.md`. `review/` —
+  read (`role: explore`) → judge (**`forEach: "read.criteria"`** — one fork per criterion, each
+  returning `{ met, evidence }` with the quote) → feedback (`optional` delegation task,
+  **task-level `canDelegateTo: [academy/grader#grade]`**, runs only for derivation-heavy
+  reports) → file. `build-pack/` — scope (`role: explore` via `apiCall`s) → prioritize
+  (`functions: [cramPriority]`) → compose.
+- **Functions** (`functions/*.ts`, deterministic): `cramPriority` (scope × retention ×
+  gap-severity → the ordered item list — the same ordering the pack page shows),
+  `linkCandidates` (note text × concept/topic names → suggested targets, so the notekeeper
+  judges only the ambiguous tail), `criteriaCheckable` (criteria list → the ones that aren't
+  observable; the foreman runs it before filing), `exercisedMap` (concepts × missionCount for
+  the map overlay).
+- **Components**: view `MissionBriefPreview` (chat-rendered brief + criteria), view
+  `PackSummary`; form `CramIntake` — the `ask()` sheet when "I have an interview Thursday"
+  arrives without scope (which topics? how much time do you actually have?).
+- **Knowledge** (`knowledge/application-craft/`, each field `index.md` + ≥2 aspects):
+  `mission-design/` (`real-not-toy.md`, `criteria-before-attempt.md`,
+  `weak-islands-first.md`, `stretch-vs-core.md`), `review-method/` (`evidence-quoting.md`,
+  `one-harder-variation.md`), `note-craft/` (`verbatim-capture.md`, `link-generously.md`,
+  `resurface-not-remind.md` — notes appear in context, they never nag), `cramming/`
+  (`recognition-vs-retention.md` — the one-pager says plainly what cramming does and doesn't do,
+  `deadline-triage.md`, `no-post-event-guilt.md`).
+
+### Phases & verification additions (round 4)
+
+**(R4-1)** schemas + columns; **(R4-2)** `workshop` full-format; **(R4-3)** the 11 endpoints
+(`relatedNotes` graph-walk and `cramPriority` single-definition checks); **(R4-4)** the 3 hooks;
+**(R4-5)** the 5 pages; **(R4-6)** tests. Verification: **(a)** `requestMission` on a topic
+whose island is weak → the brief targets it (`conceptIds` ⊂ the island), criteria pass
+`criteriaCheckable`, and only `02-shape.md` could touch the web (task-scoped `functions`
+observed; typecheck failure elsewhere); **(b)** `submitReport` → per-criterion verdicts whose
+`evidence` is a verbatim substring of the report (mechanical check, the round-2 grader
+discipline); a derivation-heavy report delegates `academy/grader#grade` from the feedback task
+only (task-level allowlist); `missionCount` bumps; the report `body` is byte-identical after
+review; **(c)** a note captured mid-drill ("note: …" in the examiner chat still routes to the
+notekeeper via `defaultAction`) → links proposed within the coalesced window; `relatedNotes` on
+the triggering card returns it (the March-insight property, observed); user-cut links stay cut;
+**(d)** `buildCramPack` for Thursday → items ordered exactly per `cramPriority`; the Wednesday
+cron writes the one-pager from *current* state (a gap closed Tuesday is absent — freshness
+pinned); Friday flips `expired` with zero nudges; **(e)** after a full cram cycle, every card's
+`dueAt`/`ease`/`intervalDays` is unchanged except through `submitReview` rows (whole-table
+assertion — cramming moved nothing); `lastCrammedAt` logged; **(f)** the Today page shows the
+resurfaced note under its card; the map overlay distinguishes drilled from exercised;
+**(g)** `pnpm lint:tokens` green across the 5 new pages.
+
+## Round 5 — The faculty: adaptive lessons, layered explanations & the study brief (feature expansion)
+
+Four rounds in, the app schedules, drills, proves, and applies — but it has never once
+**taught**. Round 5 adds the teacher: a **`professor`** that runs real adaptive lessons in chat
+— Socratic, personalized by your actual record (it opens knowing which of the topic's concepts
+you hold, which you've lapsed, what your last teach-back exposed, which mission fought back),
+building each idea from the nearest thing you already know via the round-3 concept map's
+prerequisite edges. An **`explainer`** maintains **layered explanations** — every concept
+explainable at three depths (*intuition* / *formal* / *application*), generated on demand and
+auto-generated the moment the map flags a concept newly weak, so the help exists before you ask.
+And an **`aide`** writes the **daily study brief**: reviews due (with honest minutes), the
+milestone delta, the teach-back or lesson that would move you most — one read, three items max.
+A fifth team (**`faculty`**) owns it. Strictly additive; data/agents/pages/api/hooks only.
+
+### New database tables (round 5 — 3, bringing the app to 23)
+
+- **`lessons.json`** — one adaptive teaching session's record. `id` (pk uuid) · `topicId`
+  (references `topics` onDelete cascade, required) · `objective` (string, required — the ONE
+  thing this lesson set out to build, chosen from the record: "connect lifetimes to the
+  borrow-checker errors you keep hitting") · `entryState` (json, required — the personalization
+  snapshot at start: held/lapsed concepts, last teach-back gaps, mission friction — frozen, so
+  a lesson is auditable against what the professor actually knew) · `transcriptSummary`
+  (string, required — the arc of the dialogue, honest about where the student struggled) ·
+  `checkResult` (json, required — the lesson's exit check: 2–3 questions asked at the end,
+  `{ question, answered: 'yes'|'shaky'|'no' }`) · `cardSeeds` (json, def `[]` — prompts the
+  dialogue exposed as worth drilling; the seed hook turns them into cards) · `createdAt`
+  (date, now). Relation `topic` belongsTo `topics` via `topicId`.
+- **`explanations.json`** — one concept at one depth. `id` (pk) · `conceptId` (references
+  `concepts` onDelete cascade, required) · `depth` (string, required —
+  `'intuition'`|`'formal'`|`'application'`) · `body` (string, required — intuition: analogy +
+  the one sentence that makes it click; formal: the precise version with the notation; the
+  application layer worked through a concrete case) · `groundedIn` (json, def `[]` — cards /
+  source excerpts / notes the explanation drew on: your material first, the model's general
+  knowledge clearly second) · `helpful` (number, def 0 — net user votes; ≤ −2 queues a rewrite)
+  · `stale` (boolean, def false — flipped when the concept's cards/sources change materially)
+  · `createdAt` (date, now). One row per (concept, depth) — the endpoint upserts.
+- **`daily_briefs.json`** — the morning read. `id` (pk) · `day` (date, required, unique) ·
+  `body` (string, required — markdown, three items max) · `plan` (json, required — the typed
+  version: `{ reviewsDue, estMinutes, milestoneDelta, suggestion: { kind:
+  'lesson'|'teachback'|'mission'|'rest', targetId?, why } }` — auditable against the body) ·
+  `createdAt` (date, now).
+
+New columns (additive `addColumn`): `topics.lastLessonAt` (date); `concepts.explainedDepths`
+(json, def `[]` — which layers exist, so the map and cards can show the "explain" affordance
+only when it's real, and the explainer can see coverage gaps).
+
+### New API endpoints (round 5 — 9, bringing the app to 41)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `requestLesson` | `POST api/lessons` | `{ topicId, focus? }` → `{ status:'preparing' }` — assembles `entryState`, opens the professor chat primed with it |
+| `listLessons` / `getLesson` | `GET api/lessons` / `GET api/lessons/:id` | history + one lesson's record (entry state, arc, exit check) |
+| `getExplanation` | `GET api/explain/:conceptId` | `{ conceptId, depth }` → `Explanation` — serves the row, or inserts a `pending` stub the generate hook fills (`spawn`) |
+| `rateExplanation` | `PATCH api/explain/:id` | `{ id, vote: 1\|-1 }` → `Explanation` (≤ −2 queues rewrite) |
+| `explainCoverage` | `GET api/explain/coverage` | `{}` → `{ rows: [{ conceptId, depths, weak }] }` — deterministic: which weak concepts still lack an intuition layer |
+| `getDailyBrief` / `listDailyBriefs` | `GET api/brief/:day` / `GET api/brief` | the read + archive |
+| `todayPlan` | `GET api/plan/today` | `{}` → the deterministic half of the brief: `reviewsDue` + `estMinutes` (from your OWN median seconds-per-review in `reviews`, not a guess) + `milestoneDelta` — the numbers the aide narrates |
+
+`todayPlan` is round 5's deterministic centrepiece — `estMinutes` from your measured review
+pace is the small honesty that makes the brief trustable. Established rules hold
+(equality-only `where`, typed `HttpError`, `spawn` from handlers).
+
+### New hooks (round 5 — 3, bringing the app to 14)
+
+- **`seed-cards-from-lesson.ts`** — `database` `lessons:insert`, imperative handler: skip when
+  `row.cardSeeds` is empty, else `delegate('tutor/cardsmith','draft', { input: { topicId:
+  row.topicId, focus: seeds } })` — what the dialogue exposed becomes tomorrow's drill (the
+  round-3 teach-back shape, reused: teaching and testing both feed the same card pipeline).
+- **`explain-weak.ts`** — `database` **`concepts:update`**, imperative handler: skip unless the
+  update set `status:'weak'` and no `intuition` explanation exists, else
+  `delegate('faculty/explainer','explain', { input: { conceptId: row.id, depth: 'intuition' }
+  })` — the Saturday map run (round 3) now *produces help, not just diagnosis*: by Sunday every
+  newly-weak concept has its intuition layer waiting behind the "explain" affordance.
+- **`daily-brief.ts`** — `cron`, `daily: '06:30'`, `trigger: 'faculty/aide#brief'` — narrate
+  `todayPlan`, pick the ONE suggestion (the weakest thing a lesson/teach-back/mission would
+  most move — or `rest` when the streak is long and the queue is light: an app that never says
+  "take the day" is a slot machine, not a tutor). A day with zero reviews due and no active
+  plan writes nothing (silence pinned, the money/career discipline).
+
+**Loop-guard sanity.** `lessons:insert` → cardsmith writes `cards` (unwatched) ⇒ stops at
+depth 1. The Saturday cron updates `concepts` → `explain-weak` fires → explainer writes
+`explanations` + `explainedDepths` — that second `concepts:update` is gated (no status change,
+intuition now exists) and **self-write excluded** ⇒ stops at depth 2 (cap 3; gate pinned). The
+brief cron writes `daily_briefs` (unwatched) ⇒ stops. Lessons themselves are chat sessions —
+no hook, no cascade; only their *record* (the insert) triggers work.
+
+### New pages (round 5 — 4, bringing the app to 24) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/learn.tsx` | `/learn` | `<Chat agent="faculty/professor" />` (the lesson room) + `requestLesson` intake + lesson history rail |
+| `pages/lessons/[id].tsx` | `/lessons/:id` | one lesson: objective, entry state, the arc, exit check, the cards it seeded |
+| `pages/explain/[conceptId].tsx` | `/explain/:conceptId` | the three layers as tabs; `rateExplanation`; grounded-in links; generate-on-first-visit |
+| `pages/brief.tsx` | `/brief` | today's read + archive; the suggestion deep-links (`/learn`, `/teach`, `/missions/:id`) |
+
+New components (design tokens only): `LessonRecord` (entry state → arc → exit check),
+`DepthTabs` (intuition/formal/application), `GroundedInList`, `BriefPlan` (due + honest
+minutes + the one suggestion), `RestCard` (the take-the-day state, styled calm). The Today
+page's card view gains the "explain" affordance (shown only when `explainedDepths` has the
+layer); the round-3 map's weak nodes deep-link to their intuition layer; the round-2 plan page
+embeds the brief's milestone line.
+
+### The `faculty` space (fifth project-scoped space, full format)
+
+`learn/spaces/faculty/` — the teaching team:
+
+| Agent | `db:read` tables | `db:write` tables | `api:call` allow | `functions` | Role |
+|---|---|---|---|---|---|
+| **professor** | `topics, cards, reviews, concepts, concept_links, teachbacks, mission_reports, lessons, explanations, settings` | `lessons, topics` | `dueCards` | `[]` | the adaptive lesson: open from the record, build from the nearest held concept, check at exit, seed cards — never touch scheduling |
+| **explainer** | `concepts, concept_links, cards, topics, sources, notes, explanations, settings` | `explanations, concepts` | — | `webSearch, webFetch` | the three layers; grounded in YOUR material first (cards/sources/notes), the web only for a better analogy — every borrowed frame cited in `groundedIn` |
+| **aide** | `cards, reviews, study_plans, milestones, teachbacks, lessons, missions, daily_briefs, settings` | `daily_briefs` | `todayPlan, learnStats` | `[]` | narrate the numbers; one suggestion; `rest` is a real verdict; silence on empty days |
+
+- **Frontmatter features**: the professor declares `canDelegateTo: [arena/listener#session]` —
+  when the exit check comes back all-`yes`, the honest next step is proving it, so the
+  professor can hand the student straight into a teach-back (hard allowlist; the two sessions
+  stay separate records). `defaultAction: teach` / `explain` / `brief` respectively.
+- **Tasklists**: `teach/` — `01-entry.md` (`role: explore`, `output: { entryState: 'json' }` —
+  held/lapsed concepts via the map, last teach-back gaps, mission friction; frozen into the
+  lesson row), `02-arc.md` (the dialogue contract: Socratic, one objective, build from the
+  nearest held concept via `prerequisite` edges, worked example before abstraction — the chat
+  itself is model-driven; this task defines what the professor may and may not do, including
+  **never lecturing past a wrong answer**: a miss becomes a question, not a paragraph),
+  `03-close.md` (`dependsOn: [entry]` — exit check, `cardSeeds`, write the record). `explain/`
+  — ground (`role: explore` — gather the concept's cards/sources/notes first), draft
+  (**`forEach: "ground.depths"`** — one fork per requested layer), file (upsert; flip
+  `explainedDepths`). `brief/` — numbers (`role: explore` via `apiCall('todayPlan')`) →
+  suggest (one, or `rest`, or silence) → write.
+- **Functions** (deterministic): `entrySnapshot` (the personalization gather — same shape the
+  lesson row freezes), `estMinutes` (median seconds-per-review from `reviews` × due count —
+  the same math `todayPlan` serves), `nearestHeld` (map walk: weak target → closest held
+  prerequisite, the professor's opening move), `staleExplanations` (concept material changed →
+  layers to flag).
+- **Components**: view `LessonOpening` (chat-rendered entry state: "here's where you are"),
+  view `ExitCheck`; form `LessonIntake` — the `ask()` sheet when `requestLesson` arrives bare
+  ("which topic — and is there a specific wall you keep hitting?").
+- **Knowledge** (`knowledge/pedagogy/`): `adaptive-teaching/` (`open-from-the-record.md`,
+  `nearest-held-concept.md`, `socratic-not-lecture.md`, `one-objective.md`),
+  `explanation-craft/` (`intuition-first.md`, `your-material-first.md`,
+  `analogies-that-dont-lie.md`), `pacing/` (`honest-minutes.md`, `rest-is-a-verdict.md`,
+  `silence-on-empty-days.md`).
+
+### Phases & verification additions (round 5)
+
+**(R5-1)** schemas + columns; **(R5-2)** `faculty` full-format; **(R5-3)** the 9 endpoints
+(`todayPlan`/`estMinutes` single-definition); **(R5-4)** the 3 hooks incl. the depth-2
+weak→explain gate; **(R5-5)** the 4 pages + affordance surfacing; **(R5-6)** tests.
+Verification: **(a)** `requestLesson` on a seeded record → the lesson row's `entryState`
+matches `entrySnapshot` exactly (frozen personalization pinned); the professor's opening cites
+a held prerequisite from the map (`nearestHeld` observed in the transcript); the lesson
+changes **zero** scheduling state (whole-table assertion, the round-1 wall under its newest
+consumer); **(b)** an exit check with `cardSeeds` → one cardsmith run seeds those prompts;
+all-`yes` offers the teach-back handoff (`arena/listener#session` allowlist observed);
+**(c)** Saturday flags a concept weak → by the next map read its intuition layer exists
+(`explain-weak` fired once; the explainer's own concept update re-fires nothing — depth-2 gate
+pinned); `groundedIn` on a fixture concept cites the user's own card/source before any web
+frame; **(d)** `estMinutes` equals median-pace math on fixtures; a long-streak light-queue day
+suggests `rest`; an empty day writes no brief (silence pinned); every brief suggestion's
+deep-link resolves; **(e)** `rateExplanation` to −2 queues exactly one rewrite; a `userEdited`-
+style protection is N/A here but stale-flagging on material change is pinned;
+**(f)** `pnpm lint:tokens` green across the 4 new pages.
+
+## Round 6 — The atlas: curated resources, frontier watch & conversation (feature expansion)
+
+The app generates all its own content — cards, explanations, lessons — and treats the outside
+world as raw material it saw once at ingestion. Round 6 adds curation and currency: a sixth
+space (**`atlas`** — curator · sentinel · guide) maintains a **vetted resource shelf** — for
+each concept (weak ones first), the 2–3 genuinely best external things to read or watch, each
+with an annotation that says *why this one* and *what to skip*, stored as db rows the whole app
+links into; a **frontier watch** — topics marked `living` ("React", "EU AI regulation", any
+moving subject) get a weekly sweep, and real changes become cited **update notes** that flag
+the exact cards and explanations now stale, so your deck can't silently rot; and the
+**conversation-starter** surface arrives in learn — bounded, dismissible openers where the AI
+reaches toward you at the right moment ("you've held 'lifetimes' three weeks — 10-minute
+teach-back?", "React 20 changed what two of your cards claim — review the diff?"). Durable
+curation standards get promoted into space knowledge through the authoring path. Strictly
+additive; data/agents/pages/api/hooks only.
+
+### New database tables (round 6 — 3, bringing the app to 26)
+
+- **`resources.json`** — one vetted external resource. `id` (pk uuid) · `conceptId`
+  (references `concepts` onDelete cascade — concept-scoped; nullable with `topicId` set for
+  topic-level resources) · `topicId` (references `topics` onDelete cascade) · `url` (string,
+  required, unique) · `kind` (string, required — `'article'`|`'video'`|`'docs'`|`'paper'`|
+  `'interactive'`) · `title` (string, required) · `annotation` (string, required — why THIS
+  one, what it does better than the alternatives, what to skip inside it, honest time cost:
+  "watch 12:40–31:00, skip the setup") · `minutes` (number, required — the honest cost, same
+  discipline as the round-5 brief) · `vetVerdict` (json, required — the curator's structured
+  vetting: `{ accurate, currentAsOf, level: 'intro'|'core'|'deep', alternativesConsidered }`)
+  · `status` (string, def `'live'` — `'live'`|`'superseded'`|`'dead-link'`) · `createdAt`
+  (date, now).
+- **`topic_updates.json`** — one frontier change note. `id` (pk) · `topicId` (references
+  `topics` onDelete cascade, required) · `headline` (string, required — "React 20: the
+  compiler is on by default") · `whatChanged` (string, required — cited markdown, 3–6
+  sentences, written against *your* material: "your card 'when does memo help' now overclaims")
+  · `sources` (json, required) · `impact` (json, required — `{ cardIds, explanationIds,
+  resourceIds }` — the rows this change touches; the sentinel flags them, remediation flows
+  through the existing owners) · `fingerprint` (string, required, unique — one event, one
+  note) · `status` (string, def `'open'` — `'open'`|`'applied'`|`'dismissed'`) · `createdAt`
+  (date, now).
+- **`starters.json`** — the opener surface (the shared round-6 shape, identical
+  handler-enforced bounds: ≤2 open, fingerprint dedupe, terminal dismissal, silent expiry).
+  `id` · `agent` · `hook` · `seed` · `reason` (json) · `status` · `expiresAt` · `createdAt`.
+  Learn's openers point at the whole faculty: the listener for a ripe teach-back, the
+  professor for a lesson on a fresh weak island, the crammer when a plan's `examAt` enters
+  range, the curator when a weak concept just got a great 15-minute resource.
+
+New columns (additive `addColumn`): `topics.living` (boolean, def false — user-set: this
+subject moves); `cards.flaggedByUpdateId` (string — the update note that questioned this card;
+cleared when the card is revised or the note dismissed); `resources.helpful` (number, def 0 —
+net votes, ≤ −2 queues re-vetting).
+
+### New API endpoints (round 6 — 8, bringing the app to 49)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `listResources` | `GET api/resources` | `{ conceptId?, topicId?, kind? }` → `Resource[]` (weak-concept coverage first) |
+| `rateResource` | `PATCH api/resources/:id` | `{ id, vote: 1\|-1 }` → `Resource` |
+| `requestResources` | `POST api/resources/request` | `{ conceptId }` → `{ status:'curating' }` — on-demand stocking |
+| `readingQueue` | `GET api/queue/reading` | `{ minutes? }` → `{ items: [{ resource, why }], totalMinutes }` — deterministic: weakest-relevant coverage packed into the time you actually have (`cramPriority`'s sibling) |
+| `listTopicUpdates` / `resolveTopicUpdate` | `GET api/updates` / `PATCH api/updates/:id` | open notes with impact; `applied`/`dismissed` (dismissal clears card flags) |
+| `listStarters` / `engageStarter` | `GET/PATCH api/starters` | the chips; engage opens the pre-seeded chat with the named faculty agent |
+
+`readingQueue` is round 6's deterministic centrepiece — "I have 25 minutes tonight" becomes a
+packed, honest-minutes list from the vetted shelf, weakest concepts first; the round-5 brief's
+suggestion slot may point at it. Established rules hold (equality-only `where`, typed
+`HttpError`, `spawn` from handlers).
+
+### New hooks (round 6 — 3, bringing the app to 17)
+
+- **`stock-resources.ts`** — `database` **`concepts:update`** (the SECOND hook on this event,
+  beside round 5's `explain-weak` — multi-hook fan-out, each independently gated and
+  coalesced): skip unless the update set `status:'weak'` and the concept has < 2 live
+  resources, else `delegate('atlas/curator','stock', { input: { conceptId: row.id } })` — by
+  the weekend a newly-weak concept has its explanation (round 5) AND its two best external
+  resources (round 6) waiting.
+- **`frontier-watch.ts`** — `cron`, `daily: '05:45'`, Thursday-gated in the agent →
+  `atlas/sentinel#watch` — sweep `living` topics (staleness-ordered, budget-capped): find real
+  changes, fingerprint-dedupe, write update notes **diffed against your actual cards and
+  explanations** (the impact list is the point — news without impact is noise), flag the
+  touched rows.
+- **`open-starters.ts`** — `cron`, `daily: '07:55'`, `trigger: 'atlas/guide#starters'` — from
+  the day's surfaces (ripe teach-backs, fresh weak islands, exam windows opening, applied
+  update notes, a new resource on a weak concept): ≤1/day within the shared bounds, each
+  pointed at the right faculty agent with a pre-seeded first message.
+
+**Loop-guard sanity.** `concepts:update(weak)` now fans to two hooks; both write unwatched
+tables (`explanations`+`explainedDepths` gate-guarded from round 5; `resources` unwatched) ⇒
+both chains stop at depth 2 (cap 3; the round-5 gate test extends to assert the pair runs
+once each). `topic_updates:insert` fires nothing — remediation is **pull**: flagged cards
+surface in the curator digest and the Today page badge, and fixing a card flows through the
+existing `updateCard`/cardsmith paths (content changes stay with their owners; the sentinel
+only flags). The starter cron writes `starters` (unwatched) ⇒ stops. **Self-write exclusion**
+backstops.
+
+### New pages (round 6 — 3, bringing the app to 27) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/resources.tsx` | `/resources` | the shelf by concept/kind; `rateResource`; `requestResources`; the reading-queue builder ("I have __ minutes") |
+| `pages/frontier.tsx` | `/frontier` | open update notes with impact chips → the flagged cards/explanations; `resolveTopicUpdate` |
+| `pages/queue.tsx` | `/queue` | tonight's `readingQueue` — packed list, honest total, check-off |
+
+New components (design tokens only): `StarterChips` (on the Today page — the faculty reaching
+toward you), `ResourceCard` (kind badge + annotation + honest minutes + vet verdict),
+`UpdateNote` (headline + whatChanged + impact chips), `QueueBuilder` (minutes slider →
+packed list), `StaleFlag` (on flagged cards in the deck table and Today page — "questioned by
+'React 20' — review"). The round-5 explanation tabs link the concept's top resource ("prefer
+a human's version? this one, 14 min"); the map's weak nodes show resource coverage.
+
+### The `atlas` space (sixth project-scoped space, full format)
+
+`learn/spaces/atlas/` — the curation-and-currency team:
+
+| Agent | `db:read` tables | `db:write` tables | `api:call` allow | `functions` | Role |
+|---|---|---|---|---|---|
+| **curator** | `resources, concepts, concept_links, topics, cards, reviews, settings` | `resources` | — | `webSearch, webFetch` | find, vet, annotate the 2–3 best per concept; alternatives considered on record; re-vet on downvotes |
+| **sentinel** | `topics, topic_updates, cards, explanations, resources, settings` | `topic_updates, cards, explanations, resources` | — | `webSearch, webFetch` | the frontier sweep: real changes only, diffed against YOUR material; flag, never rewrite |
+| **guide** | `starters, teachbacks, concepts, study_plans, cards, reviews, topic_updates, resources, settings` | `starters` | `learnStats, todayPlan` | `[]` | ≤1 opener/day, the right faculty agent, the right moment; no web by design |
+
+- **Frontmatter features**: the sentinel declares `canDelegateTo: [tutor/cardsmith#draft]` —
+  when an applied update note obsoletes cards outright, replacement drafting goes to the
+  card-craft owner (cross-space allowlist; the sentinel flags and commissions, it never
+  authors cards). The curator declares `defaultAction: stock`; the guide `defaultAction:
+  starters` and — like money's guide — `canDelegateTo: []` (it opens conversations, it never
+  has them). Curation standards that prove out (vet criteria that consistently predict
+  `helpful` votes) are flagged for **space-knowledge promotion** via the authoring path
+  (THING → `system-appbuilder` folds them into `atlas/knowledge/`; runtime agents never write
+  `knowledge/` files — the catalog-standard lifecycle).
+- **Tasklists**: `stock/` — `01-survey.md` (`role: explore`, `output: { candidates: 'json',
+  existing: 'json' }` — what the concept needs at which level), `02-hunt.md` (**`forEach:
+  "survey.levels"`** — one fork per missing level (intro/core/deep); `functions: [webSearch,
+  webFetch]` scoped here), `03-vet.md` (`functions: [vetChecklist]` — structured verdict or
+  rejection; two great resources beat five adequate ones), `04-file.md`. `watch/` — queue
+  (`role: explore`, staleness-ordered) → sweep (**`forEach: "queue.topics"`**, web-scoped) →
+  diff (`functions: [impactScan]` — against YOUR cards/explanations; no impact → no note) →
+  file (fingerprint dedupe). `starters/` — the shared scan → pick-one (fails on two) → open
+  shape.
+- **Functions** (deterministic): `packQueue` (minutes budget × weakest-coverage → the packed
+  reading list — the same math `readingQueue` serves), `vetChecklist` (verdict completeness
+  gate), `impactScan` (change text × card fronts/backs + explanation bodies → candidate
+  impact rows; the model confirms, the function finds), `starterBounds` (the shared rule).
+- **Components**: view `ResourcePick` (chat-rendered "this one, because"), view `FrontierDiff`
+  (what changed → what it touches); form `LivingIntake` — the `ask()` sheet when a topic is
+  marked living ("how fast does this move? what kind of change matters to you?").
+- **Knowledge** (`knowledge/curation/`): `vetting/` (`two-great-beats-five-good.md`,
+  `honest-minutes.md`, `alternatives-on-record.md`, `level-matching.md`), `frontier-method/`
+  (`impact-or-silence.md`, `diff-against-their-material.md`, `flag-dont-rewrite.md`),
+  `openers/` (`right-agent-right-moment.md`, `ripe-not-nag.md`, `shared-bounds.md`).
+
+### Phases & verification additions (round 6)
+
+**(R6-1)** schemas + columns; **(R6-2)** the `atlas` space full-format; **(R6-3)** the 8
+endpoints (`packQueue` single-definition); **(R6-4)** the 3 hooks + the two-hooks-one-event
+pin; **(R6-5)** the 3 pages + StarterChips + cross-surface links; **(R6-6)** tests.
+Verification: **(a)** flagging a concept weak fires `explain-weak` AND `stock-resources`
+exactly once each (fan-out pinned); the stocked resources cover missing levels only, each
+`vetVerdict` complete with `alternativesConsidered` non-empty, `minutes` honest against the
+annotation's skip-ranges; **(b)** `readingQueue` for 25 minutes packs ≤25 honest minutes,
+weakest-coverage first, matching `packQueue` on fixtures; **(c)** the Thursday sweep on a
+seeded framework-changed fixture writes ONE note (fingerprint), whose `impact` names exactly
+the seeded stale card + explanation (`impactScan` confirmed by the model, not replaced);
+flagged cards badge on Today; a no-impact change writes nothing (impact-or-silence pinned);
+**(d)** resolving a note `applied` with obsoleted cards delegates `tutor/cardsmith#draft`
+(allowlist observed); `dismissed` clears the flags; the sentinel never wrote a card body
+(flag-don't-rewrite structural: assert card fronts/backs byte-stable through a sweep);
+**(e)** starters: the shared bound/dedupe/terminal-dismissal suite; a ripe-teach-back opener
+lands on `arena/listener` pre-seeded; a quiet day opens nothing; **(f)** a −2 resource queues
+exactly one re-vet; a dead link flips `dead-link` and drops from queues; **(g)** `pnpm
+lint:tokens` green across the 3 new pages.
+
+## Round 7 — The debate hall, the misconception ledger & analogies that fit you (feature expansion)
+
+Round 7 adds the three deepest tutor moves in the catalog — **no new space**; each lands
+inside the team that owns the craft. **Debates**: recall proves you remember; teaching proves
+you can explain; *defending* proves you understand. The examiner takes a plausible-wrong
+position ("actually, cloning is basically free in Rust, the borrow checker is just style") and
+you must correct it — with the charter's hardest honesty rule: the examiner concedes cleanly
+the moment you're right, never gaslights, and names the exact point where you let a wrong
+claim stand. **The misconception ledger**: misses aren't random — they cluster around named
+wrong models ("you model the borrow checker as a garbage collector"). A weekly diagnostic pass
+mines reviews, teach-back gaps, exam sections, and debate concessions into explicit
+`misconceptions` rows with evidence; lessons open on them, redrills attack them, and *busting*
+one is a first-class, celebrated state transition. **Analogies that fit you**: the app finally
+asks who you are — your anchor domains (you cook; you climb; you ran a bar) — and the
+explainer forges analogies FROM those domains, each carrying its own honest breaking point
+("where this analogy lies to you"). Strictly additive; data/agents/pages/api/hooks only.
+
+### New database tables (round 7 — 3, bringing the app to 29)
+
+- **`debates.json`** — one defended proposition. `id` (pk uuid) · `conceptId` (references
+  `concepts` onDelete cascade, required) · `proposition` (string, required — the wrong-but-
+  plausible stance the examiner argued, on record before the debate starts) · `whyPlausible`
+  (string, required — the real confusion this stance rides on; the debate is aimed at a known
+  failure mode, not trivia) · `transcriptSummary` (string, required — the arc: where you held,
+  where you wobbled) · `verdict` (string, required — `'defended'` (you corrected it cleanly) |
+  `'partial'` (right conclusion, shaky reasoning) | `'conceded'` (a wrong claim stood)) ·
+  `letStand` (json, def `[]` — wrong claims that survived, quoted — the misconception miner's
+  richest ore) · `createdAt` (date, now).
+- **`misconceptions.json`** — one named wrong model. `id` (pk) · `name` (string, required,
+  unique — short and memorable: "borrow-checker-as-GC") · `model` (string, required — the
+  wrong mental model stated plainly, in second person, kindly) · `truth` (string, required —
+  the correction, one paragraph) · `conceptIds` (json, required) · `evidence` (json, required
+  — `{ kind: 'review'|'teachback'|'exam'|'debate', id, note }[]` — every diagnosis cites its
+  cases) · `status` (string, def `'active'` — `'active'`|`'busted'` — busted requires
+  post-diagnosis evidence: a defended debate or clean exam section on the same ground) ·
+  `bustedBy` (json — the evidence that flipped it) · `createdAt` (date, now).
+- **`analogies.json`** — one personalized bridge. `id` (pk) · `conceptId` (references
+  `concepts` onDelete cascade, required) · `domain` (string, required — which of YOUR anchor
+  domains it draws from) · `body` (string, required — the analogy worked through, in the
+  domain's own vocabulary) · `breaksAt` (string, required — **where the analogy stops being
+  true**, stated up front; an analogy without its breaking point is a future misconception) ·
+  `helpful` (number, def 0 — net votes; ≤ −2 retires it) · `status` (string, def `'live'` —
+  `'live'`|`'retired'`) · `createdAt` (date, now).
+
+New columns (additive `addColumn`): `settings.anchorDomains` (json, def `[]` — the user's
+domains, gathered once by an `ask()` intake: work, hobbies, past lives); `lessons.targetMisconceptionId`
+(string — a lesson may open aimed at one); `cards.misconceptionId` (string — redrills tagged
+with the wrong model they attack, so busting evidence is queryable).
+
+### New API endpoints (round 7 — 7, bringing the app to 56)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `startDebate` | `POST api/debates` | `{ conceptId? }` → opens the examiner chat in debate mode; unset concept → the examiner picks the ripest (held-but-never-defended) |
+| `listDebates` / `getDebate` | `GET api/debates` / `GET api/debates/:id` | history; one debate's proposition, arc, verdict, letStand |
+| `listMisconceptions` | `GET api/misconceptions` | `{ status? }` → active first, each with evidence counts and its attack plan (targeted lessons/cards) |
+| `requestAnalogy` | `POST api/analogies` | `{ conceptId, domain? }` → `{ status:'forging' }` (unset domain → the explainer picks the best-fitting anchor) |
+| `listAnalogies` / `rateAnalogy` | `GET api/analogies` / `PATCH api/analogies/:id` | per concept; votes (≤ −2 retires) |
+| `setAnchorDomains` | `PUT api/settings/anchors` | `{ domains }` → settings (the once-asked identity the explainer draws from) |
+
+Deterministic centrepiece: `bustingEvidence` — the rule for when a misconception may flip to
+`busted` (post-diagnosis defended debate OR clean exam section on ≥2 of its concepts) is a
+function, not a feeling; the professor argues *from* it, never around it. Established rules
+hold.
+
+### New hooks (round 7 — 2, bringing the app to 19)
+
+- **`misconception-mine.ts`** — `cron`, `daily: '06:40'`, Sunday-gated (runs before the
+  curator's digest, which then reports the ledger's movement) →
+  `faculty/professor#diagnose` — mine the week's misses: lapse clusters by concept,
+  teach-back `gaps`, weak exam sections, and above all `debates.letStand`; write/update
+  misconceptions (evidence-append, fingerprint-free — the `name` is the dedupe key and
+  merging evidence into an existing diagnosis is the norm); check `bustingEvidence` and flip
+  the earned ones (a bust is a starter candidate: "you killed 'borrow-checker-as-GC' — want
+  the harder version?").
+- **`debate-followup.ts`** — `database` `debates:insert`, imperative handler: skip when
+  `verdict === 'defended'`, else `delegate('tutor/cardsmith','draft', { input: { topicId,
+  focus: letStand } })` — the claims you let stand become tomorrow's cards (the round-3
+  teach-back shape, third consumer; measurement keeps feeding one card pipeline).
+
+**Loop-guard sanity.** `debates:insert` → cardsmith writes `cards` (unwatched) ⇒ stops at
+depth 1. The Sunday miner writes `misconceptions` (unwatched) and starter candidates flow
+through the round-6 guide's bounded surface ⇒ stops. Analogies are forge-on-request
+(`spawn`) + explainer session writes — no hook, no cascade. Nothing new touches scheduling
+(the whole-table assertion extends to round 7's writers).
+
+### New pages (round 7 — 3, bringing the app to 30) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/debate.tsx` | `/debate` | `startDebate` (concept picker or "surprise me"); the debate chat; history with verdict streaks |
+| `pages/misconceptions.tsx` | `/misconceptions` | the ledger: active models with evidence + attack plans; busted ones with what busted them — the trophy wall |
+| `pages/me.tsx` | `/me` | `setAnchorDomains` (the who-are-you intake, editable); which analogies your domains have produced; helpfulness votes |
+
+New components (design tokens only): `PropositionCard` (the stance on record, pre-debate),
+`VerdictBadge` (defended/partial/conceded as semantic tokens), `MisconceptionCard` (model →
+truth → evidence → attack plan), `TrophyRow` (busted, with `bustedBy`), `AnalogyCard` (body +
+the `breaksAt` callout rendered as prominently as the analogy — the honesty is the feature),
+`DomainChips`. The explanation tabs (round 5) gain "in your language" — the concept's live
+analogies beside intuition/formal/application; lesson records show their target
+misconception; the Sunday digest reports ledger movement (diagnosed / attacked / busted).
+
+### Space extensions (round 7 — no new space)
+
+- **`arena` (examiner-side craft, new action on `tutor/examiner`)** — the `debate` action
+  (tasklist `debate/`): `01-stance.md` (`role: explore`, `output: { proposition: 'json' }` —
+  pick the concept's most plausible wrong stance, preferring an ACTIVE misconception's model
+  when one exists — debates become targeted busting attempts), `02-argue.md` (the contract:
+  argue well but honestly — real textbook-wrong arguments, no invented citations, concede
+  cleanly and SAY why the user's correction is right, never reward confident wrongness),
+  `03-verdict.md` (verdict + `letStand` quotes + write). New knowledge field
+  `debate-craft/` (`plausible-wrongness.md`, `concede-cleanly.md`, `never-gaslight.md`,
+  `target-the-ledger.md`).
+- **`faculty/professor`** gains the `diagnose` action (tasklist `diagnose/`): `01-ore.md`
+  (`role: explore`, `output: { clusters: 'json' }` — the week's evidence, grouped),
+  `02-name.md` (**`forEach: "ore.clusters"`** — one fork per cluster: name the model or
+  decline — "three misses, no common model" is a valid finding), `03-ledger.md`
+  (merge-first writes; `functions: [bustingEvidence]` for flips). Lessons: `01-entry.md`
+  extends to load the topic's active misconceptions into `entryState`; `02-arc.md` gains the
+  rule *teach against the named model, don't just teach the truth* (naming the wrong model
+  first is what makes the correction stick). New knowledge aspects under
+  `adaptive-teaching/` (`name-the-wrong-model.md`, `bust-worthy-evidence.md`).
+- **`faculty/explainer`** gains the `analogize` action (tasklist `analogize/`):
+  `01-anchor.md` (`role: explore` — the user's domains + the concept's structure; pick the
+  domain whose *mechanics* match, not whose vocabulary is fun), `02-forge.md` (the analogy +
+  its `breaksAt`, mandatory — the tasklist fails without it), `03-file.md`. New knowledge
+  field `analogy-craft/` (`mechanics-not-vocabulary.md`, `every-analogy-lies-somewhere.md`,
+  `your-domains-first.md`).
+
+### Phases & verification additions (round 7)
+
+**(R7-1)** schemas + columns; **(R7-2)** the space extensions + the anchor-domains `ask()`
+intake; **(R7-3)** the 7 endpoints (`bustingEvidence` single-definition); **(R7-4)** the 2
+hooks; **(R7-5)** the 3 pages + cross-surface links; **(R7-6)** tests. Verification:
+**(a)** a debate on a concept with an active misconception argues THAT model (target-the-
+ledger observed); the proposition is on record before the chat opens; a seeded correct
+correction is conceded cleanly in-transcript and lands `defended`; a wrong claim the fixture
+user accepts lands in `letStand` verbatim; **(b)** `debate-followup` fires only on
+non-defended verdicts; the drafted cards carry `misconceptionId`; **(c)** the Sunday miner on
+a seeded week (lapse cluster + teach-back gap + one `letStand`) produces ONE merged
+misconception with all three evidence kinds (merge-first pinned); a no-common-model cluster
+produces nothing (decline-is-valid pinned); `busted` flips only when `bustingEvidence` passes
+on fixtures — and the flip surfaces as a starter candidate within the round-6 bounds;
+**(d)** with anchor domains `['cooking','climbing']`, a forged analogy draws its mechanics
+from one of them and its `breaksAt` is non-empty (mandatory pinned); a −2 analogy retires;
+the explanation tabs render "in your language" only when live analogies exist;
+**(e)** lessons opening on a targeted misconception name the wrong model in the opening
+(charter test); the digest reports ledger movement; **(f)** scheduling state untouched by
+every round-7 writer (whole-table assertion extended); **(g)** `pnpm lint:tokens` green
+across the 3 new pages.
+
+## Phases & order
+
+Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages
+build, hooks runtime, chat) exists. Learn-specific work on top:
+
+1. **Schemas** — the five `database/*.json`; verify FKs (`cards` → topics, `reviews` → cards),
+   unique `topics.title`/`digests.weekStart`, required descriptions pass the fail-loud loader; row
+   + relation types generate (`Card & { history: Review[] }`).
+2. **Scheduler** — `submitReview` (the SM-2 step, exactly as specced) + `dueCards`
+   (filter/order/new-cap/day-cap) with unit tests replaying grade sequences to known
+   ease/interval outcomes — the algorithm is table-driven-testable before any agent exists.
+3. **`tutor` space** — the three agents' `instruct.md` (config-bearing `capabilities:` — the
+   examiner's zero-write/api-only shape, the cardsmith's craft charter + section-`forEach` draft
+   tasklist, the curator's redrill/leech contract).
+4. **API** — the remaining endpoints; `regenerateCards` fire-and-forget; `learnStats` retention
+   math from `reviews`.
+5. **Hooks** — `draft-cards` (database:insert on topics) + `weekly-digest` (cron daily,
+   Sunday-gated); confirm boundedness (no hook on `cards`/`reviews`; topic update ≠ insert).
+6. **Pages** — Today (keyboard flip/grade), topics + deck table (drafting poll), quiz (=examiner
+   chat), stats (retention + digests); design-system token gate (no raw colors — grade buttons use
+   semantic tokens, not literal green/red).
+7. **Serving** — seed each pod's `learn` project from the checked-in template (with the
+   self-describing demo deck); serve under generic `lmthing.app/learn/*`; Studio manages it under
+   `/api/projects/learn/app`.
+8. **Additional features** — exam mode, material import, explain-this, forecast (§above); each
+   additive, shippable after the core loop.
+9. **Docs** — fold into `SPACE_DEVELOPMENT.md` "Project apps" as the deterministic-algorithm +
+   api-only-agent example.
+
+## Verification (end-to-end, local)
+
+1. Load the `learn` project → schemas validate (descriptions/FK/relations), `types/generated.d.ts`
+   has `Topic`/`Card`/`Review`/`Digest` with relation fields (`Card.history?: Review[]`).
+2. **Scheduler unit truth** (no agents): a fresh card graded `2,2,2` lands on intervals `1,3,~8`
+   (2.5 ease); grading `0` sets `intervalDays:0`, bumps `lapses`, floors ease at ≥1.3 after
+   repeats; replaying any card's `reviews` history through the SM-2 step reproduces its current
+   `ease/intervalDays` exactly (`intervalAfter` chain).
+3. `lmthing serve`; `addTopic` with pasted material (mock streamFn) → the draft hook fires **once**;
+   the cardsmith's section-`forEach` writes ~`deckSize` cards; topic flips `ready`; the deck page
+   showed cards appearing live. Adding 3 topics in a burst → 3 drafts, no duplicates, no re-fire
+   from the cardsmith's own topic update.
+4. `dueCards` honors the caps: with 200 due, returns `dailyReviewCap` and `capped:true`; with 30
+   fresh cards, introduces only `dailyNewCards` of them; lapsed cards sort first.
+5. Grade through the Today page → each tap = one `submitReview`, queue shrinks, `learnStats.streak`
+   increments at the day boundary.
+6. Quiz: the examiner (live model) drills `quizLength` cards; every grade it issues arrives as a
+   `reviews` row with `mode:'quiz'`; the card states move **identically** to page-graded cards.
+   `apiCall('submitReview', { cardId, grade: 'good' })` fails the agent typecheck (DTS overload);
+   the examiner attempting `db.update('cards', …)` → host error (no `db:write` at all).
+7. Sunday `weekly-digest` → one `digests` row whose `stats` match `learnStats` for the week;
+   high-lapse cards gained `redrill` siblings (`source:'redrill'`); a leech got `suspended:true`
+   and a digest mention; restart that day → boot catch-up doesn't duplicate (unique `weekStart`).
+8. Chat continuity: "why do I keep missing the borrow-checker card?" → the examiner cites that
+   card's actual `history`; session persists under `learn/spaces/tutor/sessions/`.
+9. Backup: `app.sql` + schemas + pages + api + hooks + tutor space committed; `**/sessions/` not;
+   restore rebuilds `app.db` from `app.sql` (review history intact → stats/replay still exact).
+
+## Notes
+
+- **Reuses the parent engine wholesale** — no learn-specific runtime; data + agents + pages + hooks
+  on the shared layer. If a mechanism is missing here, it belongs in
+  [project-as-application.md](./project-as-application.md), not a learn fork.
+- **Why it's a good AI-assisted app** — spaced repetition's two failure modes are exactly the
+  engine's two halves: card authoring is fuzzy generative work (agent), scheduling is exact math
+  that must never be vibes (handler). The examiner adds the piece no flashcard app has — judging
+  free-text answers and *explaining* misses — while the api-only capability shape guarantees the
+  drill can't corrupt the schedule.
+- **The scheduler is deliberately SM-2-lite, not FSRS** — four grades, transparent constants, fully
+  replayable from `reviews`. A smarter scheduler is a drop-in handler change later (the `reviews`
+  log is scheduler-agnostic evidence); shipping v1 with auditable math beats shipping a black box.
+- **`db.query` `where` is equality-only** in the shipped engine — `dueAt <= now`, week windows,
+  lapse thresholds, and per-topic retention are all query-wide-then-filter-in-JS in handlers/agent
+  prompts, not SQL predicates. A personal deck (thousands of cards) stays trivially in-memory.
+- **No external-binding registry exists in v1** — `webSearch`/`webFetch` are universal globals
+  gated per-agent via `functions:` (cardsmith yes; examiner/curator no — the drill and the digest
+  work only from what's in the db); `api:call` is reserved for the app's own typed endpoints, and
+  the examiner is the proof of how far that alone can carry an agent.
+- **Grades are the app's only self-report** — the examiner *judges* free-text answers, which is a
+  model call with model fallibility; its charter requires it to state the grade it gave and why, so
+  a user can immediately contest ("that was right, actually" → it re-grades via the same API). The
+  audit trail (`mode:'quiz'` rows) keeps examiner grading measurable against page grading.

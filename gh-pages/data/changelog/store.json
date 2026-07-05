@@ -1,5 +1,15 @@
 [
   {
+    "hash": "233db07d",
+    "full_hash": "233db07d2233506e5110b56fff071a0e180ed14c",
+    "type": "feat",
+    "scope": "health",
+    "subject": "round-3 expansion \u2014 active care management (pharmacy + care spaces)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-05 05:45:53 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/233db07d2233506e5110b56fff071a0e180ed14c"
+  },
+  {
     "hash": "a165147b",
     "full_hash": "a165147bcd1e19edafe2c5247f86ff5d2fe5d02e",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-07-02 16:53:51 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/6dfa241761912850e3c86941c4940e12af97315f"
-  },
-  {
-    "hash": "977e2ff0",
-    "full_hash": "977e2ff0eb9b632999cd4995dae3860e5a84e9fd",
-    "type": "fix",
-    "scope": "sdk",
-    "subject": "update subproject commit to 0b63bfc",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-02 15:20:20 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/977e2ff0eb9b632999cd4995dae3860e5a84e9fd"
   }
 ]

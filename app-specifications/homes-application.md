@@ -752,11 +752,12 @@ plan's authz model).
 Beyond the core paste → canonical-record → analyzed-ranked-feed loop, expansion proceeds in
 **rounds** (the app-builder's round model): each round adds a new full-format project-scoped
 specialist space plus the tables/endpoints/hooks/pages behind it, **strictly additively** — earlier
-rounds are never regressed. The arc follows the hunt itself: find it (rounds 1) → **act on it**
+rounds are never regressed. The arc follows the hunt itself: find it (round 1) → **act on it**
 (round 2) → **know the ground** (round 3) → **afford it** (round 4) → **decide together** (round 5)
-→ **win it** (round 6). End state after round 6: **7 spaces, 20 agents, 27 tables, ~65 endpoints,
-20 hooks, 30+ routes**, all sharing the one project-rooted db. Each round closes with its honest
-engine reconciliation under §Engine reconciliation.
+→ **win it** (round 6) → **don't get burned** (round 7) → **keep the hunt on track** (round 8).
+End state after round 8: **9 spaces, 26 agents, 33 tables, ~81 endpoints, 26 hooks, 40+ routes**,
+all sharing the one project-rooted db. Each round closes with its honest engine reconciliation
+under §Engine reconciliation.
 
 ### Round 2 — the `advisor` space: act before someone else does
 The core loop finds the right place; round 2 helps you **win** it, and gives every listing a
@@ -1059,6 +1060,144 @@ contact book of agents and landlords, deadline nudges, and a move-in runbook onc
   payslips, statements) into the db; nothing is submitted anywhere by the app; nudges are in-app
   alerts only.
 
+### Round 7 — the `guardian` space: don't get burned
+Rental fraud is endemic where housing is tight, illegal fees are routine, and by the time you're
+wiring a deposit it's too late. Round 7 adds a `guardian` space (`screener`, `rights`, `vetter`)
+that screens every listing for scam patterns, audits fees against local tenant-rights rules, and
+vets the counterparty *before* you contact them — all advisory, all cited, never an accusation.
+
+- **Data**:
+  - `screenings` — one scam-pattern read per listing: `id`, `listingId` FK (`cascade`, req),
+    `riskScore` (0..1 — a deterministic signal blend, NOT an assertion of fraud), `signals` (json —
+    which patterns fired: `below_comps_outlier`, `deposit_before_viewing_language`,
+    `urgency_pressure`, `webmail_only_contact`, `recycled_content`, `no_viewing_offered`), `body`
+    (md — each signal cited to the exact listing text/comps rows), `createdAt`.
+  - `rights_notes` — a cited local-rules note per search locale: `id`, `searchId` FK (`cascade`,
+    req), `topic` (`'deposit_cap' | 'agency_fees' | 'notice_period' | 'rent_control' |
+    'habitability' | 'other'`), `body` (md — the rule as sourced, cited to official/statutory
+    pages), `sourceQuality` (`'official' | 'reputable' | 'unverified'`), `createdAt`.
+  - `vetting_notes` — a public-record read on a counterparty: `id`, `listingId` FK (`cascade`,
+    req), `subject` (the agency/landlord name AS STATED in the listing), `kind`
+    (`'agency' | 'landlord' | 'unknown'`), `body` (md — quoted public reviews/mentions with links,
+    presented as quotes, never as the app's own claims), `confidence` (0..1), `createdAt`.
+  - **Additive enum values**: `alerts.kind` gains `'scam_risk'` and `'questionable_fee'`;
+    `listings.flags` vocabulary gains `scam_signals` and `questionable_fee`.
+- **Agents** (least-privilege):
+  - `guardian/screener` — `db:read [searches, listings, listing_analyses, listing_events,
+    screenings]`, `db:write [screenings, listings, alerts]`. Action `screen`: run the deterministic
+    signal functions over the listing + its comps/history, write the cited screening, merge the
+    flag, and raise a `'scam_risk'` alert past a threshold. Cross-listing reuse (same photos/near-
+    identical description under a different address/price) is checked **against the db itself**.
+  - `guardian/rights` — `db:read [searches, listings, rights_notes]`, `db:write [rights_notes,
+    listings, alerts]`; universal `webSearch`/`webFetch`. Actions: `brief` (build the search
+    locale's cited rights notes), `audit-fees` (cross-check every listing's `costBreakdown` lines
+    against the cited caps — an over-cap line gets a `'questionable_fee'` flag + alert, citing both
+    the line and the rule), `refresh` (the weekly cron delegate — re-verify aging notes).
+  - `guardian/vetter` — `db:read [listings, inquiries, vetting_notes]`, `db:write [vetting_notes]`;
+    universal `webSearch`/`webFetch`. Action `vet`: look up the counterparty's public footprint
+    (agency register entries, review sites) and write a quoted, linked, confidence-scored note —
+    run **before** the user sends an inquiry.
+- **API** (8): `getScreening` `GET api/listings/:id/screening`; `rescreen`
+  `POST api/listings/:id/screening` (spawns the screener); `listRisks`
+  `GET api/searches/:id/risks` (all listings with `riskScore` or `questionable_fee`, worst first);
+  `rightsBriefing` `GET api/searches/:id/rights`; `refreshRights`
+  `POST api/searches/:id/rights/refresh`; `feeAudit` `GET api/listings/:id/fees`
+  (`costBreakdown` lines annotated legal/over-cap/unknown, each citing its rule); `getVetting`
+  `GET api/listings/:id/vetting`; `vetContact` `POST api/listings/:id/vetting` (spawns the
+  vetter).
+- **Hooks** (3, plus one additive edit): `rights-for-search` (**database** insert on `searches` →
+  `guardian/rights#brief`; idempotent per locale); `vet-before-contact` (**database** insert on
+  `inquiries` → `guardian/vetter#vet` — the vetting lands while the draft is still unapproved, so
+  the user reads it before sending; idempotent — skip if a fresh note exists);
+  `weekly-rights-refresh` (**cron** `every:'7d'` → `guardian/rights#refresh`, declarative).
+  **Additive edit**: `enrich-new-listing` gains a sixth sequential delegate —
+  `guardian/screener#screen` — after `appraise` (same session, same depth; screening *needs* the
+  comps that appraise just wrote).
+- **Pages** (5): `/searches/:searchId/risks` (the risk board, worst first),
+  `/listings/:id/safety` (screening signals, each linked to its evidence),
+  `/searches/:searchId/rights` (the cited rights briefing + `<Chat agent="guardian/rights">`),
+  `/listings/:id/vetting` (the quoted public-record read), `/searches/:searchId/fees` (search-wide
+  fee audit: every questionable line across the shortlist). Feed cards and the listing detail gain
+  a `RiskBadge` (token-gated, `text-destructive` past threshold).
+- **Safety**: the guardian never asserts fraud or wrongdoing — a screening is "signals consistent
+  with common scam patterns; verify before paying anything", cited to the exact text; vetting
+  notes are **quotes with links**, clearly attributed, confidence-scored, never the app's own
+  claims about a person; rights notes are "information, not legal advice" with `sourceQuality`
+  labelled; fee audits cite both the fee line and the rule. All of it is advisory input to the
+  user's judgement.
+
+### Round 8 — the `coach` space: keep the hunt on track
+The hunt itself is a project with a deadline, a cold-start problem, and regret. Round 8 adds a
+`coach` space (`interviewer`, `pacer`, `reviewer`) plus quality-of-life data the earlier rounds
+make immediately useful: a move-by date driving urgency, a day-one taste interview, second-chance
+resurfacing of dismissed listings whose circumstances changed, cash-to-move-in, amenities/energy
+extraction, and a printable viewing-day pack.
+
+- **Data**:
+  - `hunt_reports` — the weekly hunt-health snapshot: `id`, `searchId` FK (`cascade`, req),
+    `metrics` (json — new listings/wk, save ratio, viewing conversion, days to `moveInBy`,
+    projected viewings remaining), `body` (md — the pacer's read: what's working, what to widen),
+    `createdAt`.
+  - `resurfacings` — a second chance: `id`, `listingId` FK (`cascade`, req), `trigger`
+    (`'price_drop' | 'taste_shift' | 'back_online'`), `reason` (md, cited — "dismissed at €1,750;
+    now €1,590, inside budget; your 'light' note strengthened since"), `status`
+    (`'suggested' | 'accepted' | 'declined'`, default `suggested`), `createdAt`. Accepting moves
+    the listing back to `'new'` **and** writes a taste signal; declining writes a `'dismiss'`
+    signal reinforcing the original call — either way the taste model learns.
+  - `viewing_packs` — the printable day-of sheet: `id`, `viewingId` FK (`cascade`, req), `content`
+    (md — address + best location guess, the checklist, open questions, the fee/rights flags to
+    ask about, contact + votes so far), `builtAt`.
+  - **New columns**: `searches.moveInBy` (date — the hard deadline urgency derives from);
+    `listings.amenities` (json — extracted inclusions: elevator, AC, heating type, washer,
+    furnished, pets, parking, balcony…), `listings.energyClass` (as stated; feeds a seasonal-cost
+    line in `costBreakdown`), `listings.cashToMoveIn` (deposit + advance months + agency fee +
+    estimated moving cost — the up-front number renters actually need, every line labelled).
+    `alerts.kind` gains `'pace_warning'` and `'second_chance'`.
+- **Agents** (least-privilege):
+  - `coach/interviewer` — `db:read [searches, taste_notes, taste_signals, listings]`,
+    `db:write [taste_notes, taste_signals, searches]`. Action `interview` (**chat-only**, built on
+    ask components): a structured day-one interview (budget honesty, dealbreakers, light/noise/
+    layout trade-offs, `moveInBy`, must-have amenities) that seeds cited `taste_notes` and updates
+    the search — solving the cold-start before the first save/dismiss exists.
+  - `coach/pacer` — `db:read [searches, listings, taste_signals, viewings, applications,
+    hunt_reports]`, `db:write [hunt_reports, alerts]`. Actions: `checkup` (the weekly cron
+    delegate — compute the deterministic metrics, write the report, raise a `'pace_warning'` when
+    the projection misses `moveInBy`: "at 2 viewings/week you'll see ~6 more before March 1 —
+    widen the area or relax a must-have?"), `plan` (chat — replan the remaining weeks).
+  - `coach/reviewer` — `db:read [searches, listings, listing_events, taste_signals, taste_notes,
+    resurfacings]`, `db:write [resurfacings, listings, taste_signals, alerts]`. Action `rescan`
+    (the daily cron delegate — scan dismissed listings for price drops into range, `back_online`
+    events, and taste-note shifts that now clear the blend threshold → cited `resurfacings` +
+    `'second_chance'` alerts; never resurface the same listing twice for the same trigger).
+- **API** (8): `huntReport` `GET api/searches/:id/report` (latest + history); `runCheckup`
+  `POST api/searches/:id/report` (spawns the pacer); `listResurfacings`
+  `GET api/searches/:id/second-chances`; `resolveResurfacing` `PATCH api/resurfacings/:id`
+  (accept/decline — writes the taste signal and, on accept, flips the listing to `'new'`);
+  `viewingPack` `GET api/viewings/:id/pack`; `buildPack` `POST api/viewings/:id/pack` (spawns the
+  builder); `upfrontCost` `GET api/listings/:id/upfront` (the labelled cash-to-move-in breakdown);
+  `interviewStatus` `GET api/searches/:id/interview-status` (has the day-one interview run — the
+  interview page's gate); plus `listingFeed` gains an `amenity?` filter (additive Input field,
+  JS-filtered).
+- **Hooks** (3): `weekly-checkup` (**cron** `every:'7d'` → `coach/pacer#checkup`, declarative);
+  `second-chance-scan` (**cron** daily → `coach/reviewer#rescan`, declarative);
+  `pack-on-checklist` (**database** update on `viewings` — guarded: `checklist` non-empty and no
+  pack yet → `coach/reviewer` builds the `viewing_packs` row from the checklist + flags + rights
+  questions; runs after round 2's checklist hook by construction, since it triggers on the
+  checklist write itself).
+- **Pages** (5): `/searches/:searchId/report` (hunt-health dashboard: metric tiles + the pacer's
+  read + `<Chat agent="coach/pacer">`), `/searches/:searchId/interview` (the day-one interview —
+  `<Chat agent="coach/interviewer">` with its ask flow), `/searches/:searchId/second-chances`
+  (accept/decline cards with the cited reason), `/viewings/:id/pack` (print-CSS page — the sheet
+  you take to the viewing), `/searches/:searchId/upfront` (cash-to-move-in compared across the
+  shortlist). The feed gains amenity filter chips; `updateSearch` already carries `moveInBy`.
+- **Surveyor/clipper/ranker updates (additive)**: the clipper extracts `amenities`/`energyClass`
+  during parse (functions, not prose); the surveyor writes `cashToMoveIn` + the seasonal-energy
+  `costBreakdown` line; `blendScore` gains amenity-mustHave matching and a `moveInBy`-proximity
+  urgency term (deterministic inputs, as ever).
+- **Safety**: pace advice is descriptive math plus suggestions, never nagging by default (one
+  `'pace_warning'` per report cycle); resurfacing respects the user's original call — a decline is
+  final for that trigger; the viewing pack contains only data already in the db.
+
 ## Engine reconciliation (round-1 build notes)
 
 Grounded in the **shipped** engine (`sdk/org/libs/{core,cli}`, built through Phase 8;
@@ -1253,6 +1392,59 @@ the same engine (engine *usage*, no engine changes):
   `applications/` (`rental-dossiers-by-locale.md`, `offers-and-terms.md`), `closing/`
   (`deadline-discipline.md`, `movein-runbook.md`).
 
+### Round-7 reconciliation (guardian)
+- **Risk is a deterministic signal blend, narrated — never model-declared fraud.** The scam
+  signals are typed functions (`scamSignals.ts` — pattern tests over the listing's own text +
+  price-vs-comps outlier math; `textSimilarity.ts` + shared-photo-URL checks for
+  `recycled_content`, run **against the db only** — equality-only `where`, query-all + JS). The
+  screener maps evidence to the fired signals and writes the cited body; `riskScore` comes out of
+  the function.
+- **Vetting and rights ride the universal `webSearch`/`webFetch`, cited** — no registry/review-site
+  API bindings exist. Vetting notes are **quotes with links** (defamation-safe framing enforced by
+  charter: attributed quotes, confidence, never the app's own claim about a person); rights notes
+  carry `sourceQuality` and the "information, not legal advice" charter framing. An unverifiable
+  rule stays `'unverified'` and the fee audit marks the line `unknown`, not `over-cap`.
+- **Fee legality is a deterministic cross-check** — `feeAudit.ts` compares `costBreakdown` lines
+  against the numeric caps parsed from cited `rights_notes`; the model writes the explanation,
+  the function does the comparison.
+- **The enrich edit is additive and depth-neutral** — screener appended as the sixth sequential
+  delegate in the SAME hook session, deliberately **after** `appraise` (it consumes the comps
+  analysis for the below-comps outlier signal); the round-1 depth accounting still holds.
+- **Row-type singularizer**: `screenings→Screening`, `rights_notes→RightsNote`,
+  `vetting_notes→VettingNote`.
+- **`guardian` is born full-format** — `tasklists/screen-listing/` + `tasklists/rights-brief/`;
+  functions (`scamSignals.ts`, `textSimilarity.ts`, `feeAudit.ts`); components (RiskBadge,
+  SignalRow — token-gated); knowledge: `scam-patterns/` (`classic-rental-scams.md`,
+  `pressure-and-payment-red-flags.md`), `tenant-rights/` (`researching-local-rules.md`,
+  `fees-deposits-and-caps.md`), `vetting/` (`public-footprint-reads.md`,
+  `quoting-not-accusing.md`).
+
+### Round-8 reconciliation (coach)
+- **The interview is ask-driven, therefore chat-only** (the standing `ask` fact) — the interviewer
+  runs its structured flow through ask components in a top-level session; there is no headless
+  interview. A search created without one simply cold-starts from the brief (round-1 behaviour,
+  preserved).
+- **Pace math is deterministic** — `huntMetrics.ts` (rates, conversion, days-left projection)
+  computes; the pacer narrates and suggests. The urgency term is a `blendScore` **input**
+  (`moveInBy` proximity), not model arithmetic; with no `moveInBy` set the term is zero and
+  round-1 scores are unchanged.
+- **The viewing pack is markdown rendered client-side with print CSS** — there is no PDF/binary
+  generation pipeline (the standing no-blob fact); "printable" means a print-styled page, and the
+  pack contains only rows already in the db.
+- **Resurfacing is evidence-gated and idempotent** — `rescan` triggers only off concrete rows
+  (`listing_events` price/`back_online`, recomputed blend clearing the threshold), writes one
+  `resurfacings` row per (listing, trigger), and both resolutions write taste signals — the
+  learn loop closes either way. Amenity/energy extraction lands in `parseAlertEmail`/
+  `parsePortalHtml`/`extractListingFields` (functions, per round 1), so the clipper's charter
+  ("never invent a field") covers them automatically.
+- **Row-type singularizer**: `hunt_reports→HuntReport`, `resurfacings→Resurfacing`,
+  `viewing_packs→ViewingPack`.
+- **`coach` is born full-format** — `tasklists/day-one-interview/` + `tasklists/weekly-checkup/`;
+  functions (`huntMetrics.ts`, `packContent.ts`); components (`ask/InterviewStep.tsx` — the
+  third ask component, MetricTile, SecondChanceCard — token-gated); knowledge: `hunt-craft/`
+  (`pacing-a-deadline-hunt.md`, `when-to-widen-criteria.md`), `taste-elicitation/`
+  (`interview-questions-that-work.md`, `tradeoffs-not-wishlists.md`).
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages
@@ -1276,12 +1468,14 @@ build, hooks runtime, chat) exists. Homes-specific work on top:
 6. **Serving** — seed each pod's `homes` project from the checked-in template; serve under generic
    `lmthing.app/homes/*`; Studio manages it under `/api/projects/homes/app`. (Store install +
    friendly alias are later phases.)
-7. **Expansion rounds 2–6** (§Additional features), in order: `advisor` (inquiries, viewings,
+7. **Expansion rounds 2–8** (§Additional features), in order: `advisor` (inquiries, viewings,
    pipeline, digest, events + comps) → `district` (area dossiers, listing↔area assignment, fit +
    discovery) → `finance` (profiles, scenarios, cited rates, negotiation briefs) → `household`
    (stakeholders, votes, conflicts, journal, per-person taste) → `closer` (applications, dossier
-   checklists, contacts, deadlines, move-in). Each round is strictly additive — a new full-format
-   space + its tables/endpoints/hooks/pages — and lands with its own reconciliation
+   checklists, contacts, deadlines, move-in) → `guardian` (scam screening, rights + fee audit,
+   counterparty vetting) → `coach` (deadline pacing, day-one interview, second chances,
+   cash-to-move-in, viewing packs). Each round is strictly additive — a new full-format space +
+   its tables/endpoints/hooks/pages — and lands with its own reconciliation
    (§Engine reconciliation) and verification pass before the next begins.
 8. **Docs** — fold into `SPACE_DEVELOPMENT.md` "Project apps" as a worked example.
 
@@ -1353,6 +1547,20 @@ build, hooks runtime, chat) exists. Homes-specific work on top:
 - **R6**: `createApplication` → cited dossier checklist; `status:'accepted'` → move-in items +
   deadlines exactly once; overdue deadline + stale submitted application → one coalesced nudge
   alert per search per day; no `application_items.note` contains document contents.
+- **R7**: a scam-bait fixture (below-comps price + "wire deposit, viewing impossible" language +
+  photos duplicated from another db listing) → screening fires the expected signals, cited to the
+  exact text/rows, `'scam_risk'` alert past threshold; the same fixture minus the language scores
+  lower (signals are independent); a fee line over a cited cap → `questionable_fee` flag citing
+  BOTH the line and the rule (uncited rule ⇒ `unknown`, no flag); `draftInquiry` → vetting note
+  (quotes + links) lands before the draft is approved; enrich now ends screener-last and the
+  round-1 depth accounting still passes.
+- **R8**: interview in chat seeds cited taste notes + `moveInBy` (headless session: no interview,
+  brief-only cold start — no error); `weekly-checkup` writes a report whose metrics equal
+  `huntMetrics.ts` output and raises at most one `'pace_warning'`; dismissing a listing then
+  ingesting its price drop into range → exactly one `resurfacings` row; accept flips it to
+  `'new'` + writes a signal, decline reinforces the dismissal and never re-suggests that trigger;
+  checklist write → one viewing pack; `upfrontCost` lines are all labelled; amenity filter narrows
+  the feed without a schema change.
 
 ## Notes
 

@@ -524,7 +524,7 @@ shortlisted → conflict alert + matrix + scoreSummary names it; re-vote updates
 
 Strictly additive to rounds 1–5 (23 tables / 55 api / 17 hooks / 6 spaces). Floors met: 4 new
 tables, 1 new space + 3 agents, 10 new api, 3 new hooks, 5 new pages. Spec: §Round 6 + §Round-6
-reconciliation. End state: 27 tables / ~65 api / 20 hooks / 7 spaces / 20 agents.
+reconciliation. After this round: 27 tables / ~65 api / 20 hooks / 7 spaces / 20 agents.
 
 ## database/
 - `applications.json` — id(pk), listingId→listings(cascade,req), kind(req rental_application|
@@ -591,3 +591,166 @@ reconciliation. End state: 27 tables / ~65 api / 20 hooks / 7 spaces / 20 agents
 4. LIVE: createApplication → cited checklist once; accepted → movein items + deadlines exactly
 once; overdue fixture → one coalesced nudge alert. 5. green gate → push both repos. Phase 6 prod
 install + AI test per prompt protocol.
+
+---
+
+# PLAN — round 7 (FEATURE EXPANSION: `guardian` — don't get burned)
+
+Strictly additive to rounds 1–6 (27 tables / ~65 api / 20 hooks / 7 spaces). Floors met: 3 new
+tables, 1 new space + 3 agents, 8 new api, 3 new hooks (+1 additive enrich edit), 5 new pages.
+Spec: §Round 7 + §Round-7 reconciliation. Framing rules (charter-enforced): never assert fraud —
+"signals consistent with…", cited; vetting = attributed quotes + links; rights = information not
+legal advice, sourceQuality labelled.
+
+## database/
+- `screenings.json` — id(pk), listingId→listings(cascade,req), riskScore(def 0 — deterministic
+  blend, not an assertion), signals(json: below_comps_outlier|deposit_before_viewing_language|
+  urgency_pressure|webmail_only_contact|recycled_content|no_viewing_offered), body(md — each
+  signal cited to exact text/rows), createdAt(now); relation listing(belongsTo).
+- `rights_notes.json` — id(pk), searchId→searches(cascade,req), topic(req deposit_cap|agency_fees|
+  notice_period|rent_control|habitability|other), body(req md cited), sourceQuality(def
+  unverified: official|reputable|unverified), createdAt(now); relation search(belongsTo).
+- `vetting_notes.json` — id(pk), listingId→listings(cascade,req), subject(req — the name AS
+  STATED), kind(def unknown: agency|landlord|unknown), body(md — quotes + links, attributed),
+  confidence(def 0), createdAt(now); relation listing(belongsTo).
+- alerts.kind += scam_risk, questionable_fee; listings.flags vocabulary += scam_signals,
+  questionable_fee.
+
+## api/ — 8 NEW
+- `listings/[id]/screening/GET.ts`→getScreening; `listings/[id]/screening/POST.ts`→rescreen
+  (spawn guardian/screener#screen); `searches/[id]/risks/GET.ts`→listRisks (flagged listings,
+  worst riskScore first, JS sort); `searches/[id]/rights/GET.ts`→rightsBriefing;
+  `searches/[id]/rights/refresh/POST.ts`→refreshRights (spawn guardian/rights#refresh);
+  `listings/[id]/fees/GET.ts`→feeAudit (costBreakdown lines annotated legal|over_cap|unknown via
+  functions/feeAudit.ts, each citing its rights_notes rule); `listings/[id]/vetting/GET.ts`→
+  getVetting; `listings/[id]/vetting/POST.ts`→vetContact (spawn guardian/vetter#vet).
+
+## hooks/ — 3 NEW + 1 additive edit
+- `rights-for-search.ts` — database insert searches → guardian/rights#brief (idempotent per
+  locale: fresh rights_notes exist → skip).
+- `vet-before-contact.ts` — database insert inquiries → guardian/vetter#vet (lands while the
+  draft is unapproved; skip if a fresh vetting_note exists).
+- `weekly-rights-refresh.ts` — cron '7d', trigger guardian/rights#refresh.
+- EDIT `enrich-new-listing.ts` — append 6th sequential delegate guardian/screener#screen AFTER
+  appraise (screening consumes the comps analysis; same session/depth).
+
+## spaces/guardian/ — NEW full-format space (3 agents)
+- screener: db:read [searches,listings,listing_analyses,listing_events,screenings], db:write
+  [screenings,listings,alerts]; action screen. functions/scamSignals.ts (pattern tests + price-vs-
+  comps outlier math), functions/textSimilarity.ts (+ shared photoUrls check → recycled_content,
+  db-only). riskScore from the function; model writes cited narration only.
+- rights: db:read [searches,listings,rights_notes], db:write [rights_notes,listings,alerts];
+  universal webSearch/webFetch; actions brief/audit-fees/refresh; defaultAction brief. Uncited
+  rule → sourceQuality 'unverified'; fee line w/o a cited cap → 'unknown', never over_cap.
+- vetter: db:read [listings,inquiries,vetting_notes], db:write [vetting_notes]; universal
+  webSearch/webFetch; action vet. Charter: quotes-not-accusations, links + confidence mandatory.
+- tasklists/screen-listing/{index,01-run-signals(role:explore),02-write-screening}.md;
+  tasklists/rights-brief/{index,01-research-rules(role:explore),02-write-notes,03-audit-fees}.md.
+- functions/ — scamSignals.ts, textSimilarity.ts, feeAudit.ts.
+- components/ — view/RiskBadge.tsx (text-destructive past threshold), view/SignalRow.tsx.
+- knowledge/ — scam-patterns/{index,classic-rental-scams,pressure-and-payment-red-flags};
+  tenant-rights/{index,researching-local-rules,fees-deposits-and-caps};
+  vetting/{index,public-footprint-reads,quoting-not-accusing}.
+
+## pages/ — 5 NEW
+- searches/[searchId]/risks.tsx (risk board, worst first), listings/[id]/safety.tsx (signals →
+  evidence links), searches/[searchId]/rights.tsx (briefing + <Chat agent="guardian/rights">),
+  listings/[id]/vetting.tsx (quoted public-record read), searches/[searchId]/fees.tsx
+  (search-wide fee audit). RiskBadge onto ListingCard + listing detail (additive). SearchTabs +=
+  Risks·Rights.
+
+## tests/
+- 30 tables; EXPECTED_ENDPOINTS += 8; enrich has 6 delegates (screener last); rights-for-search/
+  vet-before-contact idempotence; guardian full-format; scamSignals unit tests (bait fixture →
+  expected signals; language-free fixture scores lower — independence), textSimilarity (duplicate
+  description/photos → recycled_content), feeAudit (over-cap w/ cited rule → over_cap; uncited →
+  unknown); no vetting_note body without a link.
+
+## Build/verify
+1. me: database + functions (signal fixtures first). 2. fan out: api / guardian space / pages.
+3. hooks + enrich edit + integrate. 4. LIVE: scam-bait fixture through ingest → screening w/
+cited signals + scam_risk alert; fee-over-cap fixture → questionable_fee citing line + rule;
+draftInquiry → vetting note before approval. 5. green gate → push both repos.
+
+---
+
+# PLAN — round 8 (FEATURE EXPANSION: `coach` — keep the hunt on track)
+
+Strictly additive to rounds 1–7 (30 tables / ~73 api / 23 hooks / 8 spaces). Floors met: 3 new
+tables (+4 columns), 1 new space + 3 agents, 8 new api (+1 filter extension), 3 new hooks, 5 new
+pages. Spec: §Round 8 + §Round-8 reconciliation. End state: 33 tables / ~81 api / 26 hooks /
+9 spaces / 26 agents.
+
+## database/
+- `hunt_reports.json` — id(pk), searchId→searches(cascade,req), metrics(json — huntMetrics.ts
+  output verbatim), body(md — the pacer's read), createdAt(now); relation search(belongsTo).
+- `resurfacings.json` — id(pk), listingId→listings(cascade,req), trigger(req price_drop|
+  taste_shift|back_online), reason(req md cited), status(def suggested: suggested|accepted|
+  declined), createdAt(now); relation listing(belongsTo). One row per (listing, trigger) —
+  handler/agent enforced.
+- `viewing_packs.json` — id(pk), viewingId→viewings(cascade,req), content(md — pack from db rows
+  only), builtAt(now); relation viewing(belongsTo).
+- COLUMN ADDS: searches.moveInBy(date); listings.amenities(json), listings.energyClass,
+  listings.cashToMoveIn(def 0 — labelled breakdown line items ride costBreakdown). alerts.kind +=
+  pace_warning, second_chance.
+
+## api/ — 8 NEW (+1 extension)
+- `searches/[id]/report/GET.ts`→huntReport (latest + history); `searches/[id]/report/POST.ts`→
+  runCheckup (spawn coach/pacer#checkup); `searches/[id]/second-chances/GET.ts`→listResurfacings;
+  `resurfacings/[id]/PATCH.ts`→resolveResurfacing (accept → listing status 'new' + 'save'-grade
+  signal; decline → reinforcing 'dismiss' signal; both close the learn loop);
+  `viewings/[id]/pack/GET.ts`→viewingPack; `viewings/[id]/pack/POST.ts`→buildPack;
+  `listings/[id]/upfront/GET.ts`→upfrontCost (labelled cash-to-move-in);
+  `searches/[id]/interview-status/GET.ts`→interviewStatus (has the day-one interview run — the
+  interview page's gate). EXTEND listingFeed Input += amenity? (JS filter, additive).
+
+## hooks/ — 3 NEW
+- `weekly-checkup.ts` — cron '7d', trigger coach/pacer#checkup.
+- `second-chance-scan.ts` — cron 24h, trigger coach/reviewer#rescan (evidence-gated: price into
+  range / back_online event / blend now clears threshold; one row per listing+trigger).
+- `pack-on-checklist.ts` — database **update** viewings → guard checklist non-empty && no pack →
+  coach/reviewer builds viewing_packs from checklist + flags + rights questions (runs after the
+  round-2 checklist hook by construction — it triggers on the checklist write itself).
+
+## spaces/coach/ — NEW full-format space (3 agents)
+- interviewer: db:read [searches,taste_notes,taste_signals,listings], db:write [taste_notes,
+  taste_signals,searches]; action interview (CHAT-ONLY — ask-driven; headless = brief-only cold
+  start, no error). Uses components/ask/InterviewStep.tsx.
+- pacer: db:read [searches,listings,taste_signals,viewings,applications,hunt_reports], db:write
+  [hunt_reports,alerts]; actions checkup/plan; defaultAction plan. ≤1 pace_warning per cycle.
+- reviewer: db:read [searches,listings,listing_events,taste_signals,taste_notes,resurfacings],
+  db:write [resurfacings,listings,taste_signals,alerts]; action rescan. Never re-suggest a
+  declined (listing,trigger).
+- ranker/clipper/surveyor additive updates: clipper extracts amenities/energyClass in parse
+  (extractListingFields.ts extension); surveyor writes cashToMoveIn + seasonal-energy breakdown
+  line; blendScore += amenity-mustHave match + moveInBy-proximity urgency term (zero when unset —
+  round-1 scores unchanged).
+- tasklists/day-one-interview/{index,01-ask-tradeoffs,02-seed-notes}.md;
+  tasklists/weekly-checkup/{index,01-compute-metrics(role:explore),02-write-report}.md.
+- functions/ — huntMetrics.ts, packContent.ts.
+- components/ — ask/InterviewStep.tsx, view/MetricTile.tsx, view/SecondChanceCard.tsx.
+- knowledge/ — hunt-craft/{index,pacing-a-deadline-hunt,when-to-widen-criteria};
+  taste-elicitation/{index,interview-questions-that-work,tradeoffs-not-wishlists}.
+
+## pages/ — 5 NEW
+- searches/[searchId]/report.tsx (MetricTiles + read + <Chat agent="coach/pacer">),
+  searches/[searchId]/interview.tsx (<Chat agent="coach/interviewer"> + ask flow),
+  searches/[searchId]/second-chances.tsx (accept/decline cards),
+  viewings/[id]/pack.tsx (print-CSS sheet — md rendered client-side, no PDF pipeline),
+  searches/[searchId]/upfront.tsx (cash-to-move-in across shortlist). Feed += amenity filter
+  chips. SearchTabs += Report·Second chances.
+
+## tests/
+- 33 tables; searches has moveInBy, listings have amenities/energyClass/cashToMoveIn;
+  EXPECTED_ENDPOINTS += 8; spaces list = [advisor,closer,coach,district,finance,guardian,
+  household,intake,scout]; coach full-format (3rd ask component present); huntMetrics golden
+  numbers; blendScore urgency term zero when moveInBy unset; resurfacing idempotence
+  (listing+trigger), decline never re-suggests; pack-on-checklist guard (checklist write → 1 pack;
+  score-style unrelated viewing updates → none).
+
+## Build/verify
+1. me: database + functions (huntMetrics/blendScore golden tests first). 2. fan out: api / coach
+space + clipper/surveyor/ranker edits / pages. 3. hooks + integrate. 4. LIVE: interview in chat
+seeds cited notes + moveInBy; dismiss → ingest price-drop fixture → one resurfacing; accept →
+status 'new' + signal; checkup → report + ≤1 pace_warning; checklist write → one pack.
+5. green gate → push both repos. Phase 6 prod install + AI test per prompt protocol.

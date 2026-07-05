@@ -1,0 +1,28 @@
+{
+  "title": "Expenses",
+  "description": "One real amount spent on the trip — a meal, a taxi, a museum ticket, a hotel night. The treasurer splits it across travelers and rolls it up against the budget. Distinct from bookings (a reservation) though an expense may reference one.",
+  "columns": {
+    "id":               { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "tripId":           { "type": "string", "description": "the trip this expense belongs to", "required": true,
+                          "references": { "table": "trips", "column": "id", "onDelete": "cascade" } },
+    "paidByTravelerId": { "type": "string", "description": "the traveler who paid (null = shared/unknown payer)",
+                          "references": { "table": "travelers", "column": "id", "onDelete": "setNull" } },
+    "category":         { "type": "string", "description": "'lodging' | 'transit' | 'food' | 'activity' | 'shopping' | 'fees' | 'other' — feeds the per-category roll-up", "required": true },
+    "description":      { "type": "string", "description": "what the money was for, e.g. 'dinner at Ramiro'", "required": true },
+    "amount":          { "type": "number", "description": "the amount spent, in `currency`", "required": true },
+    "currency":        { "type": "string", "description": "ISO currency code the amount is in, e.g. 'EUR'", "default": "USD" },
+    "incurredAt":      { "type": "date",   "description": "when the money was spent" },
+    "bookingId":       { "type": "string", "description": "the reservation this expense settles, if any (kept when the booking is removed → set null)",
+                          "references": { "table": "bookings", "column": "id", "onDelete": "setNull" } },
+    "itineraryItemId": { "type": "string", "description": "the itinerary item this expense is for, if any",
+                          "references": { "table": "itinerary_items", "column": "id", "onDelete": "setNull" } },
+    "createdAt":       { "type": "date",   "description": "when the expense was recorded", "generated": "now" }
+  },
+  "relations": {
+    "trip":    { "belongsTo": "trips",           "via": "tripId",           "description": "the trip it belongs to" },
+    "payer":   { "belongsTo": "travelers",       "via": "paidByTravelerId", "description": "the traveler who fronted the money" },
+    "booking": { "belongsTo": "bookings",        "via": "bookingId",        "description": "the reservation it settles" },
+    "item":    { "belongsTo": "itinerary_items", "via": "itineraryItemId",  "description": "the itinerary item it is for" },
+    "shares":  { "hasMany":   "expense_shares",  "via": "expenseId",        "description": "how this expense is split across travelers" }
+  }
+}

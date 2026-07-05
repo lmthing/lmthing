@@ -23,7 +23,16 @@ const REPO = join(APP, '..', '..', '..'); // monorepo root
 const CORE = join(REPO, 'sdk', 'org', 'libs', 'core', 'dist', 'index.js');
 
 // ── Schemas — real engine validation ────────────────────────────────────────
-test('all 10 database schemas pass the engine validateSchemaSet (fail-loud)', async () => {
+const EXPECTED_TABLES = [
+  // round 1
+  'trips', 'destinations', 'itinerary_items', 'bookings', 'research',
+  // round 2
+  'documents', 'document_extractions', 'knowledge_notes', 'packing_items', 'transit_legs',
+  // round 3 — Money & People
+  'travelers', 'traveler_preferences', 'expenses', 'expense_shares', 'deals', 'currency_rates',
+];
+
+test('all 16 database schemas pass the engine validateSchemaSet (fail-loud)', async () => {
   assert.ok(existsSync(CORE), `built @lmthing/core not found at ${CORE} — run \`pnpm --filter @lmthing/core build\` in sdk/org`);
   const { validateSchemaSet } = await import(CORE);
   const dbDir = join(APP, 'database');
@@ -31,16 +40,33 @@ test('all 10 database schemas pass the engine validateSchemaSet (fail-loud)', as
     .filter((f) => f.endsWith('.json'))
     .map((f) => ({ name: f.slice(0, -5), schema: JSON.parse(readFileSync(join(dbDir, f), 'utf8')) }))
     .sort((a, b) => a.name.localeCompare(b.name));
-  assert.deepEqual(
-    tables.map((t) => t.name),
-    [
-      'bookings', 'destinations', 'document_extractions', 'documents',
-      'itinerary_items', 'knowledge_notes', 'packing_items', 'research',
-      'transit_legs', 'trips',
-    ],
-  );
+  // Compare as sets (order-independent) so a locale/underscore sort quirk can't break it.
+  assert.deepEqual([...tables.map((t) => t.name)].sort(), [...EXPECTED_TABLES].sort());
   // Throws (fail-loud) on a missing description, dup/absent PK, or a dangling FK/relation.
   assert.doesNotThrow(() => validateSchemaSet(tables));
+});
+
+test('trips carries the round-3 finance columns (homeCurrency, partySize) + travelers/expenses relations', () => {
+  const s = JSON.parse(readFileSync(join(APP, 'database', 'trips.json'), 'utf8'));
+  assert.ok(s.columns.homeCurrency, 'trips.homeCurrency missing');
+  assert.ok(s.columns.partySize, 'trips.partySize missing');
+  assert.ok(s.relations.travelers && s.relations.expenses, 'trips travelers/expenses relations missing');
+});
+
+test('round-3 tables exist with the expected key columns + relations', () => {
+  const load = (t) => JSON.parse(readFileSync(join(APP, 'database', `${t}.json`), 'utf8'));
+  const travelers = load('travelers');
+  assert.ok(travelers.columns.role && travelers.relations.preferences && travelers.relations.shares, 'travelers columns/relations missing');
+  const prefs = load('traveler_preferences');
+  assert.ok(prefs.columns.category && prefs.columns.value && prefs.columns.weight, 'traveler_preferences columns missing');
+  const expenses = load('expenses');
+  assert.ok(expenses.columns.amount && expenses.columns.category && expenses.relations.shares, 'expenses columns/relations missing');
+  const shares = load('expense_shares');
+  assert.ok(shares.columns.shareAmount && shares.columns.settled && shares.columns.expenseId, 'expense_shares columns missing');
+  const deals = load('deals');
+  assert.ok(deals.columns.estimatedSavings && deals.columns.status && deals.columns.kind, 'deals columns missing');
+  const rates = load('currency_rates');
+  assert.ok(rates.columns.base && rates.columns.quote && rates.columns.rate, 'currency_rates columns missing');
 });
 
 test('every table, column, and relation carries a required description + exactly one PK', () => {
@@ -116,6 +142,24 @@ const EXPECTED_ENDPOINTS = [
   ['trips/[id]/transit/plan/POST.ts', 'planTransit'],
   ['trips/[id]/reminders/GET.ts', 'tripReminders'],
   ['trips/[id]/notes/GET.ts', 'tripNotes'],
+  // ── round-3 endpoints (Money & People) ──
+  ['trips/[id]/expenses/GET.ts', 'listExpenses'],
+  ['trips/[id]/expenses/POST.ts', 'addExpense'],
+  ['expenses/[id]/PATCH.ts', 'updateExpense'],
+  ['expenses/[id]/DELETE.ts', 'removeExpense'],
+  ['trips/[id]/settlement/GET.ts', 'settlement'],
+  ['expense-shares/[id]/PATCH.ts', 'settleShare'],
+  ['trips/[id]/finances/GET.ts', 'tripFinances'],
+  ['trips/[id]/travelers/GET.ts', 'listTravelers'],
+  ['trips/[id]/travelers/POST.ts', 'addTraveler'],
+  ['travelers/[id]/GET.ts', 'getTraveler'],
+  ['travelers/[id]/PATCH.ts', 'updateTraveler'],
+  ['travelers/[id]/DELETE.ts', 'removeTraveler'],
+  ['travelers/[id]/preferences/POST.ts', 'setPreference'],
+  ['preferences/[id]/DELETE.ts', 'removePreference'],
+  ['trips/[id]/deals/GET.ts', 'listDeals'],
+  ['trips/[id]/deals/find/POST.ts', 'findDeals'],
+  ['deals/[id]/PATCH.ts', 'updateDeal'],
 ];
 
 test('all api handlers exist and export name / Input / Output / default handler', () => {
@@ -252,16 +296,18 @@ const frontmatterOf = (src) => {
   return m ? m[1] : '';
 };
 
-test('project has ≥2 project-scoped spaces (concierge + records + logistics)', () => {
+test('project has ≥2 project-scoped spaces (concierge + records + logistics + finance + companions)', () => {
   const spacesDir = join(APP, 'spaces');
   const spaces = readdirSync(spacesDir).filter((d) => statSync(join(spacesDir, d)).isDirectory()).sort();
-  assert.deepEqual(spaces, ['concierge', 'logistics', 'records']);
+  assert.deepEqual(spaces, ['companions', 'concierge', 'finance', 'logistics', 'records']);
 });
 
-// Generic FULL-space-format checker applied to each round-2 space.
+// Generic FULL-space-format checker applied to each round-2 AND round-3 space.
 const NEW_SPACES = {
   records: ['analyst'],
   logistics: ['navigator', 'packer'],
+  finance: ['deal-hunter', 'treasurer'],
+  companions: ['host'],
 };
 
 for (const [space, agents] of Object.entries(NEW_SPACES)) {
@@ -321,4 +367,52 @@ test('analyst is least-privilege but can write the document/domain tables + dele
   const fm = frontmatterOf(readFileSync(join(APP, 'spaces', 'records', 'agents', 'analyst', 'instruct.md'), 'utf8'));
   assert.match(fm, /db:write/, 'analyst must be able to write extracted rows');
   assert.match(fm, /concierge\/researcher/, 'analyst delegates research follow-up to the concierge researcher');
+});
+
+// ── Round-3 finance/companions capability checks ─────────────────────────────
+test('treasurer writes expenses/expense_shares/currency_rates but holds no authoring caps', () => {
+  const fm = frontmatterOf(readFileSync(join(APP, 'spaces', 'finance', 'agents', 'treasurer', 'instruct.md'), 'utf8'));
+  assert.match(fm, /db:write/, 'treasurer must write shares/rates');
+  assert.match(fm, /expense_shares/, 'treasurer must scope to expense_shares');
+});
+
+test('deal-hunter writes deals/knowledge_notes only (advisory — no bookings write)', () => {
+  const fm = frontmatterOf(readFileSync(join(APP, 'spaces', 'finance', 'agents', 'deal-hunter', 'instruct.md'), 'utf8'));
+  assert.match(fm, /db:write/, 'deal-hunter must write deals');
+  assert.doesNotMatch(fm, /db:write:\s*\{\s*tables:\s*\[[^\]]*\bbookings\b/, 'deal-hunter must NOT write bookings (advisory only)');
+});
+
+test('companions host writes traveler_preferences/knowledge_notes only', () => {
+  const fm = frontmatterOf(readFileSync(join(APP, 'spaces', 'companions', 'agents', 'host', 'instruct.md'), 'utf8'));
+  assert.match(fm, /db:write/, 'host must write preferences/notes');
+  assert.match(fm, /traveler_preferences|knowledge_notes/, 'host writes prefs/notes');
+});
+
+// ── Round-3 hooks ────────────────────────────────────────────────────────────
+test('split-new-expense is a database:insert hook on expenses → finance/treasurer#split (idempotent)', () => {
+  const src = readFileSync(join(APP, 'hooks', 'split-new-expense.ts'), 'utf8');
+  assert.match(src, /type:\s*['"]database['"]/);
+  assert.match(src, /table:\s*['"]expenses['"]/);
+  assert.match(src, /event:\s*['"]insert['"]/);
+  assert.match(src, /delegate\(\s*['"]finance\/treasurer['"]/, 'must delegate to the treasurer');
+  assert.match(src, /expense_shares/, 'must have an idempotence guard on expense_shares');
+});
+
+test('reconcile-traveler is a database:insert hook on travelers → companions/host#reconcile', () => {
+  const src = readFileSync(join(APP, 'hooks', 'reconcile-traveler.ts'), 'utf8');
+  assert.match(src, /type:\s*['"]database['"]/);
+  assert.match(src, /table:\s*['"]travelers['"]/);
+  assert.match(src, /delegate\(\s*['"]companions\/host['"]/, 'must delegate to the host');
+});
+
+test('hunt-deals is a cron hook triggering finance/deal-hunter#hunt', () => {
+  const src = readFileSync(join(APP, 'hooks', 'hunt-deals.ts'), 'utf8');
+  assert.match(src, /type:\s*['"]cron['"]/);
+  assert.match(src, /trigger:\s*['"]finance\/deal-hunter#hunt['"]/);
+});
+
+test('refresh-currency-rates is a cron hook triggering finance/treasurer#refresh-rates', () => {
+  const src = readFileSync(join(APP, 'hooks', 'refresh-currency-rates.ts'), 'utf8');
+  assert.match(src, /type:\s*['"]cron['"]/);
+  assert.match(src, /trigger:\s*['"]finance\/treasurer#refresh-rates['"]/);
 });

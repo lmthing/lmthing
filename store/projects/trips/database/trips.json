@@ -9,10 +9,14 @@
     "endDate":   { "type": "date",   "description": "last day of the trip" },
     "status":    { "type": "string", "description": "'planning' while the concierge builds it, 'booked', or 'complete'", "default": "planning" },
     "budgetUsd": { "type": "number", "description": "rough total budget the planner should respect", "default": 0 },
+    "homeCurrency": { "type": "string", "description": "the trip's base currency (ISO code) the finance roll-up normalizes mixed-currency expenses into, e.g. 'USD'/'EUR'", "default": "USD" },
+    "partySize":  { "type": "number", "description": "how many people are travelling; kept in sync with the travelers list and used for default expense splits", "default": 1 },
     "createdAt": { "type": "date",   "description": "when the trip was created", "generated": "now" }
   },
   "relations": {
     "destinations": { "hasMany": "destinations", "via": "tripId", "description": "the places on this trip, in order" },
-    "bookings":     { "hasMany": "bookings",     "via": "tripId", "description": "confirmed reservations for this trip" }
+    "bookings":     { "hasMany": "bookings",     "via": "tripId", "description": "confirmed reservations for this trip" },
+    "travelers":    { "hasMany": "travelers",    "via": "tripId", "description": "the party travelling on this trip" },
+    "expenses":     { "hasMany": "expenses",     "via": "tripId", "description": "amounts spent on this trip" }
   }
 }

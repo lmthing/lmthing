@@ -1,0 +1,21 @@
+{
+  "title": "Deals",
+  "description": "A money-saving opportunity the deal-hunter found for the trip — a cheaper flight window, a better-value hotel, a discounted activity, a transit pass. Advisory only; never a confirmed booking.",
+  "columns": {
+    "id":               { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "tripId":           { "type": "string", "description": "the trip this deal is for", "required": true,
+                          "references": { "table": "trips", "column": "id", "onDelete": "cascade" } },
+    "kind":             { "type": "string", "description": "'flight' | 'hotel' | 'activity' | 'transit' | 'dining' | 'other' — what the saving is on", "required": true },
+    "title":            { "type": "string", "description": "short headline, e.g. 'Book Lisbon→Porto train 3 weeks out for €12'", "required": true },
+    "description":      { "type": "string", "description": "the detail, markdown, with cited sources — what the saving is and how to capture it" },
+    "estimatedSavings": { "type": "number", "description": "rough amount saved vs the naive option, in `currency`", "default": 0 },
+    "currency":         { "type": "string", "description": "ISO currency code for estimatedSavings", "default": "USD" },
+    "url":              { "type": "string", "description": "link to the source or booking page (never auto-booked)" },
+    "status":           { "type": "string", "description": "'active' while it stands, 'taken' once the traveller acts, 'expired' when the window passes", "default": "active" },
+    "expiresAt":        { "type": "date",   "description": "when the deal or its booking window lapses" },
+    "foundAt":          { "type": "date",   "description": "when the deal-hunter surfaced it", "generated": "now" }
+  },
+  "relations": {
+    "trip": { "belongsTo": "trips", "via": "tripId", "description": "the trip this deal is for" }
+  }
+}

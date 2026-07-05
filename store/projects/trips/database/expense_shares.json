@@ -1,0 +1,19 @@
+{
+  "title": "Expense shares",
+  "description": "One traveler's portion of a split expense — the join the treasurer writes so the settlement view can compute who owes whom. Sum of an expense's shares equals the expense amount.",
+  "columns": {
+    "id":         { "type": "string",  "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "expenseId":  { "type": "string",  "description": "the expense being split", "required": true,
+                    "references": { "table": "expenses", "column": "id", "onDelete": "cascade" } },
+    "travelerId": { "type": "string",  "description": "the traveler who owes this portion", "required": true,
+                    "references": { "table": "travelers", "column": "id", "onDelete": "cascade" } },
+    "shareAmount":{ "type": "number",  "description": "this traveler's owed portion, in the expense's currency", "required": true },
+    "currency":   { "type": "string",  "description": "ISO currency code matching the parent expense", "default": "USD" },
+    "settled":    { "type": "boolean", "description": "whether this share has been paid back to the payer", "default": false },
+    "settledAt":  { "type": "date",    "description": "when the share was marked settled" }
+  },
+  "relations": {
+    "expense":  { "belongsTo": "expenses",  "via": "expenseId",  "description": "the expense being split" },
+    "traveler": { "belongsTo": "travelers", "via": "travelerId", "description": "the traveler who owes this share" }
+  }
+}

@@ -543,6 +543,96 @@ spaces rule alongside `concierge` and `records`), with two specialists sharing t
 - **Hook**: `regenerate-packing` (**cron**, ~daily) → `logistics/packer#pack` for trips whose
   `startDate` is within ~10 days, so the list tracks the latest forecast/plan.
 
+### Money & People — travelers, expenses/splitting & deals (round-3: `finance` + `companions` spaces)
+A trip is rarely solo, and money is the thing that actually decides it. Round 3 turns `trips` from a
+single-planner itinerary tool into a **group-travel** app: it knows *who* is going (with each person's
+diet/mobility/interests), tracks *what was spent* and *who owes whom*, normalizes mixed currencies to a
+home currency, and hunts for savings. Two new **project-scoped spaces** join `concierge`/`records`/
+`logistics` (5 total), each a full-format specialist team sharing the same project-rooted db.
+
+- **Data** (round-3 tables, all cascading off `trips`):
+  - `travelers` — a person on the trip: `id`, `tripId` FK → `trips` (`cascade`), `name`, `role`
+    (`'organizer'|'companion'|'child'|'other'`), `homeCountry` (nationality hint feeding the logistics
+    visa/currency advisory), `email?`, `notes`, `createdAt`. Relations: `preferences` hasMany,
+    `expensesPaid` hasMany (via `paidByTravelerId`), `shares` hasMany.
+  - `traveler_preferences` — a typed preference the concierge/packer read: `travelerId` FK
+    (`cascade`), `category` (`'diet'|'mobility'|'interest'|'pace'|'budget'|'other'`), `value`, `weight`
+    (0..1; an allergy is 1), `notes`, `createdAt`.
+  - `expenses` — one real amount spent: `tripId` FK (`cascade`), `paidByTravelerId?` FK (`setNull`),
+    `category` (`'lodging'|'transit'|'food'|'activity'|'shopping'|'fees'|'other'`), `description`,
+    `amount`, `currency`, `incurredAt?`, `bookingId?`/`itineraryItemId?` FK (`setNull`, optional links),
+    `createdAt`. Distinct from `bookings` (a reservation) — an expense is money that actually left the
+    wallet, and it may reference a booking or item.
+  - `expense_shares` — the split join: `expenseId` FK (`cascade`), `travelerId` FK (`cascade`),
+    `shareAmount`, `currency`, `settled` bool, `settledAt?`. Sum of an expense's shares = its amount.
+  - `deals` — a saving the deal-hunter found: `tripId` FK (`cascade`), `kind`
+    (`'flight'|'hotel'|'activity'|'transit'|'dining'|'other'`), `title`, `description` (md, cited),
+    `estimatedSavings`, `currency`, `url`, `status` (`'active'|'taken'|'expired'`), `expiresAt?`,
+    `foundAt`. **Advisory only — never a confirmed booking** (the charter's no-invented-bookings rule).
+  - `currency_rates` — a tiny FX cache the treasurer fills via `webSearch`: `base`, `quote`, `rate`,
+    `source` (cited), `fetchedAt` — so the finance roll-up normalizes mixed currencies without
+    re-searching every request.
+  - **New columns on `trips`**: `homeCurrency` (default `USD`; the base the finance roll-up normalizes
+    into) and `partySize` (kept in sync with the travelers list; default split denominator).
+
+- **`finance` space** (two specialists, least-privilege):
+  - `finance/treasurer` — `db:read [trips, travelers, expenses, expense_shares, bookings,
+    itinerary_items, currency_rates]`, `db:write [expenses, expense_shares, currency_rates,
+    knowledge_notes]`; universal `webSearch` for FX rates. Splits new expenses across the party,
+    computes the minimal settlement, and refreshes currency rates. Actions: `split` (the split-expense
+    delegate — self-scans for expenses lacking shares), `refresh-rates` (the currency cron delegate —
+    self-scans the trip's currencies), `settle-summary` (annotate/settle).
+  - `finance/deal-hunter` — `db:read [trips, destinations, bookings, itinerary_items, transit_legs,
+    deals]`, `db:write [deals, knowledge_notes]`; universal `webSearch`. Scans the trip for savings and
+    writes `deals` rows + cited notes. Actions: `hunt` (the daily deal cron delegate — self-scans active
+    trips), `price-window` (fare-timing advice as a `knowledge_notes` reminder).
+- **`companions` space** (one specialist):
+  - `companions/host` — `db:read [trips, travelers, traveler_preferences, destinations,
+    itinerary_items, packing_items, knowledge_notes]`, `db:write [traveler_preferences,
+    knowledge_notes]`. Manages the party and **reconciles** each traveler's preferences into cited
+    `knowledge_notes` the planner/packer/scheduler consult (diets, mobility limits, interests, pace) —
+    so adding a person makes the whole plan personalize. Actions: `reconcile` (the traveler-insert
+    delegate — self-scans travelers whose prefs aren't yet reflected in a note), `profile` (summarize a
+    named traveler's needs on demand from chat).
+
+- **API** (round-3 endpoints):
+  - Expenses/finance: `listExpenses` `GET api/trips/:id/expenses`; `addExpense`
+    `POST api/trips/:id/expenses` (fires the split hook); `updateExpense` `PATCH api/expenses/:id`;
+    `removeExpense` `DELETE api/expenses/:id`; `settlement` `GET api/trips/:id/settlement`
+    (`{ balances, transfers }` — per-traveler net position + the minimal set of who-pays-whom, currency-
+    normalized); `settleShare` `PATCH api/expense-shares/:id` (mark settled); `tripFinances`
+    `GET api/trips/:id/finances` (`{ homeCurrency, budget, booked, spent, remaining, byCategory,
+    byTraveler }` — the combined budget-vs-actual dashboard, all normalized to `homeCurrency`).
+  - Travelers: `listTravelers` `GET api/trips/:id/travelers`; `addTraveler`
+    `POST api/trips/:id/travelers` (fires the reconcile hook, bumps `trips.partySize`); `getTraveler`
+    `GET api/travelers/:id` (include preferences + shares); `updateTraveler` `PATCH api/travelers/:id`;
+    `removeTraveler` `DELETE api/travelers/:id`; `setPreference` `POST api/travelers/:id/preferences`;
+    `removePreference` `DELETE api/preferences/:id`.
+  - Deals: `listDeals` `GET api/trips/:id/deals`; `findDeals` `POST api/trips/:id/deals/find` (spawns
+    `finance/deal-hunter#hunt`, returns immediately); `updateDeal` `PATCH api/deals/:id` (mark
+    `taken`/`expired`).
+- **Hooks** (round-3):
+  - `split-new-expense` — **database** insert on `expenses` → `finance/treasurer#split`. Idempotent
+    (skip if `expense_shares` for that expense exist); the treasurer self-scans un-split expenses
+    (input is dropped by the hook delegate — the round-2 engine fact).
+  - `reconcile-traveler` — **database** insert on `travelers` → `companions/host#reconcile`. Idempotent;
+    the host self-scans travelers whose preferences aren't yet folded into a `knowledge_notes` note.
+  - `hunt-deals` — **cron** (~daily) → `finance/deal-hunter#hunt` (declarative trigger; self-scans
+    active trips).
+  - `refresh-currency-rates` — **cron** (~daily) → `finance/treasurer#refresh-rates` (declarative
+    trigger; self-scans the currencies used across the trip's expenses vs `homeCurrency`).
+- **Pages** (round-3): `/trips/:id/travelers` (party + per-traveler preferences editor +
+  `<Chat agent="companions/host">`), `/trips/:id/expenses` (expense list + add + per-category/per-
+  traveler breakdown), `/trips/:id/settlement` (who-owes-whom, mark settled), `/trips/:id/finances`
+  (budget-vs-actual dashboard with token-driven category bars), `/trips/:id/deals` (deals + savings +
+  `<Chat agent="finance/deal-hunter">`), `/travelers/:travelerId` (a traveler's profile: preferences +
+  their expenses/shares). The `TripTabs` sub-nav gains Travelers · Expenses · Finances · Deals.
+- **Safety**: deals/notes are **advisory** — the deal-hunter never writes a `bookings` row or a
+  confirmed price; a doubtful saving is a note, not a fact. Splits never exceed the expense amount
+  (functions enforce the sum). FX conversion always carries the cited `currency_rates.source`; an
+  un-found rate falls back to a clearly-labelled 1:1 with a warning, never a fabricated rate. All of it
+  stays within per-user pod isolation.
+
 ## Engine reconciliation (round-1 build notes)
 
 Grounded in the **shipped** engine (`sdk/org/libs/{core,cli}`, built through Phase 8; `system-appbuilder`
@@ -600,6 +690,35 @@ budget already core, packing + logistics + to-book reminders), reconciled agains
   and extensive `knowledge/` (each field `index.md` + ≥2 aspects). Cross-space orchestration rides
   `hooks/` (`analyze-document`→`records/analyst`; `plan-transit-on-destination`→`logistics/navigator`;
   the analyst then delegates `concierge/researcher#dive`).
+
+### Round-3 reconciliation (travelers, expenses/splitting, deals, currency)
+Round 3 folds "Money & People" in as **shipped** implementations, reconciled against the real engine
+(same P8 runtime — engine *usage*, no engine changes):
+
+- **No external FX/deal binding — the treasurer/deal-hunter use the universal `webSearch`/`webFetch`.**
+  There is no external-binding registry (the round-1/2 reconciliation), so FX rates and fare/price
+  savings come from `webSearch`, cached in the db-backed `currency_rates` table and cited in
+  `deals.description`/`knowledge_notes.body`. Their `api:call` allow stays reserved for the app's own
+  typed endpoints.
+- **Hook `delegate(ref, action, {input})` drops the input** (the round-2 fact) — so `split-new-expense`
+  and `reconcile-traveler` invoke **self-scanning** actions: `finance/treasurer#split` self-scans
+  `expenses` that have no `expense_shares` yet; `companions/host#reconcile` self-scans `travelers`
+  whose preferences aren't yet in a `knowledge_notes` note. Cron hooks (`hunt-deals`,
+  `refresh-currency-rates`) carry a **declarative `trigger`** only (no imperative handler — cron shape)
+  and their agents self-scan.
+- **Deterministic money math lives in space `functions/`, not model prose** — even/weighted split,
+  debt-minimizing settlement, FX apply, and per-category sums are typed TS functions the treasurer
+  calls, so the weak live model never re-derives arithmetic (the round-2 "avoid fragile model math"
+  lesson). Splits are written in a **single non-forEach task loop** (the proven-reliable pattern), not a
+  `forEach` fork.
+- **`db.query` `where` stays equality-only** — settlement/roll-up query-all-then-reduce in JS; the
+  finances endpoint normalizes each expense to `homeCurrency` via the freshest matching `currency_rates`
+  row (1:1 labelled fallback when absent).
+- **Row-type singularizer (new tables):** `travelers→Traveler`, `traveler_preferences→TravelerPreference`,
+  `expenses→Expense`, `expense_shares→ExpenseShare`, `deals→Deal`, `currency_rates→CurrencyRate`.
+- **Two new full-format project-scoped spaces** (`finance`, `companions`) join the three existing (5
+  total), each with `charter.md`+`instruct.md` per agent, `tasklists/`, `functions/`, `components/`, and
+  extensive `knowledge/` (each field `index.md` + ≥2 aspects). Cross-space orchestration rides `hooks/`.
 
 ## Phases & order
 

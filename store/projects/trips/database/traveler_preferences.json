@@ -1,0 +1,17 @@
+{
+  "title": "Traveler preferences",
+  "description": "A typed preference for one traveler that the concierge, packer, and scheduler read to personalize the trip — a diet restriction, a mobility need, an interest, a pace preference.",
+  "columns": {
+    "id":         { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "travelerId": { "type": "string", "description": "the traveler this preference belongs to", "required": true,
+                    "references": { "table": "travelers", "column": "id", "onDelete": "cascade" } },
+    "category":   { "type": "string", "description": "'diet' | 'mobility' | 'interest' | 'pace' | 'budget' | 'other' — how the preference should be applied", "required": true },
+    "value":      { "type": "string", "description": "the preference itself, e.g. 'vegetarian', 'no long hikes', 'loves museums', 'slow mornings'", "required": true },
+    "weight":     { "type": "number", "description": "how strongly to weigh this (0..1); a hard constraint like an allergy is 1", "default": 0.5 },
+    "notes":      { "type": "string", "description": "optional elaboration the host records" },
+    "createdAt":  { "type": "date",   "description": "when the preference was recorded", "generated": "now" }
+  },
+  "relations": {
+    "traveler": { "belongsTo": "travelers", "via": "travelerId", "description": "the traveler this preference is for" }
+  }
+}

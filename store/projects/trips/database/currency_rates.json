@@ -1,0 +1,12 @@
+{
+  "title": "Currency rates",
+  "description": "A cached foreign-exchange rate the treasurer looked up (via webSearch) so expenses in mixed currencies can be normalized to the trip's home currency without re-searching every roll-up. A lightweight cache, refreshed by the currency cron hook.",
+  "columns": {
+    "id":        { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "base":      { "type": "string", "description": "the currency being converted FROM (ISO code, e.g. 'EUR')", "required": true },
+    "quote":     { "type": "string", "description": "the currency being converted TO (ISO code, e.g. 'USD')", "required": true },
+    "rate":      { "type": "number", "description": "how many units of `quote` one unit of `base` buys", "required": true },
+    "source":    { "type": "string", "description": "where the rate came from (a cited webSearch source or 'estimate')" },
+    "fetchedAt": { "type": "date",   "description": "when this rate was recorded; the roll-up prefers the freshest", "generated": "now" }
+  }
+}

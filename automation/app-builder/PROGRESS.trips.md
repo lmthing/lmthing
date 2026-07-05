@@ -226,3 +226,63 @@ Strictly additive to round 1. Floors met/exceeded: **+5 tables, +2 spaces (3 age
 ## Final pushed SHAs (both repos level with origin)
 - **sdk/org `main`: `e4be05f`** (unchanged all round — engine usage only).
 - **monorepo `main`: `cfa59ab0`** (round-2 app + spec + PLAN/PROGRESS + the analyze-document budget fix).
+
+## Round 3 — FEATURE EXPANSION ("Money & People": finance + companions) — COMPLETE
+Strictly additive to rounds 1–2. Floors met/exceeded: **+6 tables, +2 spaces (3 agents), +17 api,
++4 hooks, +6 pages**. Totals now: **16 tables, 41 api endpoints, 10 hooks, 5 project-scoped spaces
+(concierge+records+logistics+finance+companions), 16 pages.**
+
+### Phase 1 spec ✅ — folded into `app-specifications/trips-application.md`
+- New "Money & People" section (finance space: treasurer+deal-hunter; companions space: host) +
+  6 tables (travelers, traveler_preferences, expenses, expense_shares, deals, currency_rates) +
+  trips.homeCurrency/partySize; 17 endpoints, 4 hooks, 6 pages enumerated.
+- New "Round-3 reconciliation" subsection: no external FX/deal binding (universal webSearch, cached in
+  currency_rates); hook delegate drops input → self-scanning split/reconcile actions; deterministic
+  money math in space functions (not model prose); equality-only where; new row-type singularizers.
+
+### Phase 3 build ✅ (database by me; 3 Sonnet subagents by dir: api / spaces / pages+hooks)
+- **database/** (me): 6 new tables + trips columns/relations. All 16 pass real `validateSchemaSet`.
+- **api/** (subagent, 17): listExpenses, addExpense, updateExpense, removeExpense, settlement (minimal
+  transfers), settleShare, tripFinances (FX-normalized), listTravelers, addTraveler (bumps partySize),
+  getTraveler, updateTraveler, removeTraveler, setPreference, removePreference, listDeals, findDeals
+  (spawn deal-hunter), updateDeal. Each exports name/description/Input/Output + default async handler.
+- **spaces/finance/** (treasurer, deal-hunter) + **spaces/companions/** (host) — FULL format: charter+
+  instruct per agent, tasklists, functions (finance 4 / companions 3), components/view, extensive
+  knowledge (finance 3 fields, companions 2 fields; each index.md + 2 aspects). Least-privilege
+  (no authoring caps; deal-hunter cannot write bookings — advisory only).
+- **pages/** (6): trips/[tripId]/{travelers,expenses,settlement,finances,deals} + travelers/[travelerId];
+  7 components (ExpenseRow, TravelerCard, PreferenceRow, DealCard, SettlementRow, FinanceBar,
+  CurrencyBadge) + TripTabs extended (active union += travelers|expenses|finances|deals|settlement).
+- **hooks/** (4): split-new-expense (database:insert expenses → treasurer#split), reconcile-traveler
+  (database:insert travelers → host#reconcile), hunt-deals (cron → deal-hunter#hunt),
+  refresh-currency-rates (cron → treasurer#refresh-rates).
+
+### Engine fix discovered + applied THIS round (grounded in real serve run)
+- **split-expense tasklist overran the hook episode budget** (weak DeepSeek: `load_party` plan task hit
+  10-episode cap, treasurer fell back to manual but the session budget then exhausted → 0 shares). The
+  round-2 lesson recurring. **Fixed**: `finance/treasurer#split` now writes shares in a **direct inline
+  self-scan loop** using the `splitEvenly` space function (space functions are available because the
+  agent omits `functions:`), NOT the tasklist; bumped split-new-expense hook budget to 16 episodes /
+  10-min wall. The tasklist dir stays for optional large chat-initiated backfills. After the fix the
+  split hook wrote all 6 shares correctly.
+- Note (not a defect): a bare `loadKnowledge('money/deal-hunting')` yield-errored EISDIR once under
+  compute contention — retryable, engine-level knowledge nuance, not round-3 code; deal-hunter wrote its
+  deal on the clean run.
+
+### Phase 4 tests + 🔴 LIVE (DeepSeek `azure:DeepSeek-V4-Flash`, real `lmthing serve`) ✅
+- `tests/trips.test.mjs`: **41 tests green** (16-table validateSchemaSet, trips cols, 41 endpoints,
+  10 hooks, finance+companions FULL-format + least-privilege, 5 spaces). lint:tokens 575 files ✓;
+  trips raw-color scan clean.
+- Booted `lmthing serve` on temp LMTHING_ROOT (trips materialized). Manifest: **16 tables, 41 endpoints,
+  10 hooks, 16 page routes, pages build built:true** (CSS+JS+index.html; all 6 new pages compiled).
+- **LIVE write paths, all three new agents proven writing real rows:**
+  - `reconcile-traveler`: added Alice+Bob → host self-scan → wrote a real `knowledge_notes` "Party
+    preferences & constraints" note (diet/mobility/pace synthesized live).
+  - `split-new-expense`: 3 expenses (90/50/30 EUR) → treasurer self-scan → **6 `expense_shares`** written
+    (45+45, 25+25, 15+15 — even, summing exactly). `settlement` endpoint: Alice net +55, Bob −55 →
+    single transfer Bob→Alice 55. `tripFinances`: budget 2000, spent 170, remaining 1830, byCategory +
+    byTraveler correct.
+  - `deal-hunter` (via chat session): wrote a `deals` row (Lisbon–Porto advance-fare, savings €18, active).
+  - **Regression intact**: the destination insert still fired round-1/2 `research-new-destination` +
+    `plan-transit-on-destination` hooks live (research=1, transit_legs=1).
+- Install path: **local test user via `lmthing serve`** (temp root). Prod install = Phase 6.

@@ -207,3 +207,84 @@ Reminders+notes: `trips/[id]/reminders/GET.ts`→tripReminders (items needsBooki
 4. serve locally, live DeepSeek: uploadDocument→analyze-document hook→analyst extracts; addDestination→
    plan-transit hook→navigator writes transit_legs; generatePacking→packer. Capture evidence.
 5. green gate → push both repos.
+
+---
+
+# Round 3 — FEATURE EXPANSION plan ("Money & People": finance + companions)
+
+Strictly additive to rounds 1–2 (10 tables / 24 api / 6 hooks / 12 pages / 3 spaces). Do NOT regress.
+
+## database/ (me — DONE, validated by validateSchemaSet: 16 tables)
+- NEW: travelers, traveler_preferences, expenses, expense_shares, deals, currency_rates.
+- trips += homeCurrency (default USD), partySize (default 1); + relations travelers/expenses.
+
+## api/ (subagent A) — 17 new endpoints, each exports name/description/Input/Output + default async handler.
+Local Db/Ctx boilerplate copied from existing handlers (see api/trips/[id]/reminders/GET.ts).
+- trips/[id]/expenses/GET.ts        → listExpenses
+- trips/[id]/expenses/POST.ts       → addExpense (db.insert expenses; split hook fires on insert)
+- expenses/[id]/PATCH.ts            → updateExpense
+- expenses/[id]/DELETE.ts           → removeExpense
+- trips/[id]/settlement/GET.ts      → settlement ({balances, transfers}; query-all + reduce; minimal transfers)
+- expense-shares/[id]/PATCH.ts      → settleShare (set settled/settledAt)
+- trips/[id]/finances/GET.ts        → tripFinances ({homeCurrency,budget,booked,spent,remaining,byCategory,byTraveler}; FX-normalize via currency_rates)
+- trips/[id]/travelers/GET.ts       → listTravelers
+- trips/[id]/travelers/POST.ts      → addTraveler (db.insert travelers; bump trips.partySize; reconcile hook fires)
+- travelers/[id]/GET.ts             → getTraveler (include preferences+shares; equality-only, assemble in JS)
+- travelers/[id]/PATCH.ts           → updateTraveler
+- travelers/[id]/DELETE.ts          → removeTraveler (decrement partySize)
+- travelers/[id]/preferences/POST.ts→ setPreference
+- preferences/[id]/DELETE.ts        → removePreference
+- trips/[id]/deals/GET.ts           → listDeals
+- trips/[id]/deals/find/POST.ts     → findDeals (ctx.spawn 'finance/deal-hunter#hunt')
+- deals/[id]/PATCH.ts               → updateDeal (status taken/expired)
+
+## spaces/ (subagent B) — 2 new FULL-format spaces (born full format).
+### spaces/finance/
+- agents/treasurer/{charter.md,instruct.md} caps: db:read[trips,travelers,expenses,expense_shares,
+  bookings,itinerary_items,currency_rates] db:write[expenses,expense_shares,currency_rates,knowledge_notes];
+  actions split/refresh-rates/settle-summary; defaultAction split. Self-scanning (hook drops input).
+- agents/deal-hunter/{charter.md,instruct.md} caps: db:read[trips,destinations,bookings,itinerary_items,
+  transit_legs,deals] db:write[deals,knowledge_notes]; actions hunt/price-window; defaultAction hunt.
+- tasklists/split-expense/{index,01-load-party,02-write-shares}.md (single general loop, no forEach for writes)
+- tasklists/hunt-deals/{index,01-scan-trip,02-write-deals}.md
+- functions/{splitEvenly,settleDebts,convertAmount,sumByCategory}.ts (typed)
+- components/view/{DealCard,SettlementSummary}.tsx (design tokens only)
+- knowledge/money/{expense-splitting,currency,deal-hunting}/ each index.md + ≥2 aspects
+### spaces/companions/
+- agents/host/{charter.md,instruct.md} caps: db:read[trips,travelers,traveler_preferences,destinations,
+  itinerary_items,packing_items,knowledge_notes] db:write[traveler_preferences,knowledge_notes];
+  actions reconcile/profile; defaultAction reconcile. Self-scanning.
+- tasklists/reconcile-party/{index,01-scan-travelers,02-write-notes}.md
+- functions/{mergePreferences,dietSummary,preferenceCategories}.ts
+- components/view/TravelerProfile.tsx
+- knowledge/people/{preferences,group-travel}/ each index.md + ≥2 aspects
+
+## pages/ + components/ + hooks/ (subagent C)
+Pages (design tokens only, useApi/useApiMutation, TripTabs sub-nav):
+- trips/[tripId]/travelers.tsx   (list+add+prefs + <Chat agent="companions/host"/>)
+- trips/[tripId]/expenses.tsx    (list+add+category/traveler breakdown)
+- trips/[tripId]/settlement.tsx  (balances + transfers + settle)
+- trips/[tripId]/finances.tsx    (budget-vs-actual dashboard, token category bars)
+- trips/[tripId]/deals.tsx       (deals + <Chat agent="finance/deal-hunter"/>)
+- travelers/[travelerId].tsx     (profile: prefs + expenses/shares)
+Components: ExpenseRow, TravelerCard, PreferenceRow, DealCard, SettlementRow, FinanceBar, CurrencyBadge.
+Edit components/TripTabs.tsx: add Travelers/Expenses/Finances/Deals tabs (additive).
+Hooks (4):
+- hooks/split-new-expense.ts       database insert expenses → delegate finance/treasurer#split (idempotent: skip if expense_shares exist)
+- hooks/reconcile-traveler.ts      database insert travelers → delegate companions/host#reconcile (idempotent)
+- hooks/hunt-deals.ts              cron 24h → trigger finance/deal-hunter#hunt
+- hooks/refresh-currency-rates.ts  cron 24h → trigger finance/treasurer#refresh-rates
+
+## tests (me) — extend tests/trips.test.mjs
+- 16-table list (derive sorted, don't hardcode order fragilely); new columns on trips.
+- EXPECTED_ENDPOINTS += 17; spaces list = [companions,concierge,finance,logistics,records].
+- NEW_SPACES round-3 full-format checks: finance[deal-hunter,treasurer], companions[host].
+- split-new-expense/reconcile-traveler database hooks; hunt-deals/refresh-currency-rates cron triggers.
+
+## verify + push
+1. validateSchemaSet 16 ✓ (done). node --test tests/ green.
+2. lint:tokens green; trips raw-color scan clean.
+3. lmthing serve on temp root: manifest 16 tables/41 api/10 hooks; new pages 200.
+4. LIVE DeepSeek: addExpense→split-new-expense hook→treasurer writes expense_shares;
+   addTraveler→reconcile-traveler→host writes knowledge_notes; findDeals→deal-hunter writes deals.
+5. Green gate → push submodule (no-op likely) then monorepo. Phase 6 prod install + AI test.

@@ -2,7 +2,7 @@
 #
 # supervise.sh — time-boxed driver for the autonomous app-builder.
 #
-# Waits until a start time, then runs one build (run.sh, round-robin over the four apps)
+# Waits until a start time, then runs one build (run.sh, round-robin over the apps)
 # every INTERVAL seconds until a hard DEADLINE, then stops. Absolute START/DEADLINE epochs
 # are persisted so a restart resumes the same window instead of extending it.
 #

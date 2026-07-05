@@ -3,8 +3,8 @@
 # run.sh — one autonomous Claude Code run that builds/ships one project-application.
 #
 # Invoked by the scheduler every 5 hours (see schedule.sh). Each invocation targets
-# ONE app (round-robin over health → blog → kitchen → trips), so each 5-hour session
-# stays focused. Override the app by passing its name as $1.
+# ONE app (round-robin over blog → kitchen → health → trips → homes), so each 5-hour
+# session stays focused. Override the app by passing its name as $1.
 #
 # Usage:
 #   ./run.sh                 # next app in the round-robin
@@ -32,18 +32,20 @@ CLAUDE_BIN="${CLAUDE_BIN:-claude}"
 RUN_INTERVAL="${RUN_INTERVAL:-18000}"   # 5 hours
 
 # app -> spec file, project-scoped space name (from the specs)
-APPS=(blog kitchen health trips)
+APPS=(blog kitchen health trips homes)
 declare -A SPEC=(
   [health]=health-application.md
   [blog]=blog-application.md
   [kitchen]=kitchen-application.md
   [trips]=trips-application.md
+  [homes]=homes-application.md
 )
 declare -A SPACE=(
   [health]=clinic
   [blog]=newsroom
   [kitchen]=chef
   [trips]=concierge
+  [homes]=scout
 )
 
 # --- pick the model from sdk/org/.env (the LIVE model the app is tested with) ---
@@ -59,7 +61,7 @@ pick_model() {
 }
 
 # --- choose which app this run targets, and which ROUND it is --------------
-# A "round" is one full pass over all four apps. Round 1 = core build;
+# A "round" is one full pass over all the apps. Round 1 = core build;
 # round >= 2 = feature-expansion (revisit each app and grow it a lot).
 choose_app() {
   local forced="${1:-}"

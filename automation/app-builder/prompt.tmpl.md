@@ -8,8 +8,8 @@ if you run out of budget/time, leave the repo in a clean, committed, resumable s
 
 ## This run: round __ROUND__ — __ROUND_MODE__
 
-The build proceeds in **rounds**. One round is a full pass over all four apps
-(blog → kitchen → health → trips). This run is **round __ROUND__** for `__APP__`, and the
+The build proceeds in **rounds**. One round is a full pass over all the apps
+(blog → kitchen → health → trips → homes). This run is **round __ROUND__** for `__APP__`, and the
 size of what you add scales with the round:
 
 - **Round 1 — CORE BUILD.** Establish the app exactly as its spec describes: the core
@@ -260,7 +260,8 @@ stale-prone orientation only.) Do this every run.
   server-side with `POST /api/apps/install {appId:'__APP__'}` and confirm `built.pages.ok:true`.
 - **AI functional test** (skill Step 6): open `/app/__APP__/`, drive the app's **primary AI action**
   (blog: add a source → the enrich hook populates an article; kitchen: generate a plan; health: add a
-  lab → interpreter flags; trips: create a trip → concierge researches) and confirm the real model
+  lab → interpreter flags; trips: create a trip → concierge researches; homes: paste an alert email →
+  the intake/scout pipeline parses, analyzes, and ranks listings) and confirm the real model
   path fires — `/v1/*` LiteLLM calls return **200** (not 429 budget / 401) and the **DB updated**
   (the app's list endpoint / `GET /api/projects/__APP__/…` shows new rows). Take screenshots.
 - **Be conservative with the cluster:** only scale other user pods down to free CPU (skill Step 1) if

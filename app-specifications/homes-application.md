@@ -30,9 +30,11 @@ flags, photo/text contradictions), pinned to a **confidence-scored location gues
 a taste model learned from their own saves and dismisses**. The best new match surfaces as an alert
 within minutes of pasting, with a drafted inquiry ready to approve. **The value is turning listing
 triage into a conversation** — the agents do the reading, measuring, and cross-checking; the user
-makes the calls. Crucially, the app **never scrapes portals**: it only ingests content the user
-already receives and explicitly hands it (pasted alert-email bodies, pasted links, saved-search
-pages they open themselves). (There is no `homes/` domain today — `lmthing.casa` is the unrelated
+makes the calls. Crucially, the app does **no blind portal crawling**: paste-first is the default —
+it ingests content the user already receives and explicitly hands it (pasted alert-email bodies,
+pasted links, saved-search pages) — and, **opt-in per source**, it can politely poll the specific
+saved-search URLs the user configures (robots-aware, throttled, personal-scale; see §The `intake`
+space "Scraping toolkit"). (There is no `homes/` domain today — `lmthing.casa` is the unrelated
 Home-Assistant product — so this is a net-new project-application served under the generic
 `lmthing.app/homes/` mount, exactly like `trips`.)
 
@@ -45,7 +47,9 @@ Home-Assistant product — so this is a net-new project-application served under
   captures into clean canonical listings — `clipper`, `surveyor`) and `homes/spaces/scout/` (the
   intelligence layer — `analyst`, `locator`, `ranker`). Because the db is **project-rooted**, all
   five agents read/write the **same** tables and feed the **same** pages (the multi-agent-application
-  shape). Round 2 adds the **`advisor`** space (§Additional features).
+  shape). Expansion rounds 2–6 add the **`advisor`**, **`district`**, **`finance`**, **`household`**,
+  and **`closer`** spaces in order (§Additional features) — 7 spaces / 20 agents at end state, all
+  on the one db.
 - **THING** builds/evolves the app by delegating to `system-appbuilder` (parent plan
   §"system-appbuilder"); **runtime** work is the `intake`/`scout` agents, driven by api handlers,
   hooks, and chat — not THING.
@@ -103,13 +107,18 @@ homes/
 │   │       ├── PATCH.ts              # updateListing  (shortlist pipeline moves)
 │   │       ├── save/POST.ts          # saveListing    (taste signal + shortlist)
 │   │       └── dismiss/POST.ts       # dismissListing (taste signal + reason — the learning gold)
+│   ├── sources/
+│   │   └── [id]/
+│   │       ├── PATCH.ts              # updateSource   (opt polling in/out, interval, label)
+│   │       └── poll/POST.ts          # pollSource     (manual "check now" — spawns the poller)
 │   └── alerts/
 │       └── [id]/PATCH.ts             # markAlertRead
 ├── hooks/
 │   ├── parse-new-capture.ts          # database  raw_captures:insert → intake/clipper#parse
 │   ├── enrich-new-listing.ts         # database  listings:insert → the whole scout pipeline (one hook)
 │   ├── learn-from-signal.ts          # database  taste_signals:insert → scout/ranker#learn
-│   └── refresh-tracked-listings.ts   # cron 6h → intake/clipper#refresh (gone / price-drop detection)
+│   ├── refresh-tracked-listings.ts   # cron 6h → intake/clipper#refresh (gone / price-drop detection)
+│   └── poll-saved-searches.ts        # cron 6h → intake/clipper#poll (opt-in saved-search polling)
 ├── spaces/
 │   ├── intake/               # project-scoped space: clipper + surveyor (full space format)
 │   │   ├── agents/clipper/{charter.md,instruct.md}
@@ -165,14 +174,18 @@ loud on any missing one. Foreign keys map to real SQLite `FOREIGN KEY` (`PRAGMA 
 ```json
 // database/sources.json
 { "title": "Sources",
-  "description": "A place captures come from — an alert email the user forwards, a saved search page they paste, or ad-hoc pasted links. The app ingests ONLY what the user hands it; it never crawls portals.",
+  "description": "A place captures come from — an alert email the user forwards, a saved-search page, or ad-hoc pasted links. Paste-first by default; a 'saved_search' source with a URL can be opted into polite polling (robots-aware, throttled).",
   "columns": {
     "id":             { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
     "searchId":       { "type": "string", "description": "the search this source feeds", "required": true,
                         "references": { "table": "searches", "column": "id", "onDelete": "cascade" } },
-    "kind":           { "type": "string", "description": "'alert_email' | 'saved_search' | 'pasted_link' | 'manual'", "required": true },
+    "kind":           { "type": "string", "description": "'alert_email' | 'saved_search' | 'pasted_link' | 'manual' — only 'saved_search' sources are pollable", "required": true },
     "label":          { "type": "string", "description": "human name, e.g. 'Idealista daily alert'", "required": true },
-    "url":            { "type": "string", "description": "the saved-search or portal URL, if any (opened by the USER; the refresh cron re-fetches only listing URLs already captured)" },
+    "url":            { "type": "string", "description": "the saved-search or portal URL, if any — the ONLY thing the poller ever fetches (plus its result pages); required for polling" },
+    "pollEnabled":    { "type": "boolean","description": "opt-in: whether the poll-saved-searches cron may fetch this source's url", "default": false },
+    "pollIntervalHours": { "type": "number", "description": "hours between polls (min 6 — enforced by the clipper's politeFetchPlan)", "default": 12 },
+    "lastPolledAt":   { "type": "date",   "description": "when the poller last fetched this source" },
+    "blockedReason":  { "type": "string", "description": "why polling stopped, if it did — robots disallow, repeated fetch failures, or a block page; surfaced to the user, polling auto-disabled" },
     "notes":          { "type": "string", "description": "anything the clipper should know about this source's format" },
     "lastIngestedAt": { "type": "date",   "description": "when a capture from this source was last parsed" },
     "createdAt":      { "type": "date",   "description": "when the source was added", "generated": "now" } },
@@ -432,6 +445,8 @@ agents via `apiCall`).
 | `tasteProfile` | `GET api/searches/:id/taste` | `{ id }` → `{ notes: TasteNote[], recentSignals: TasteSignal[] }` |
 | `listAlerts` | `GET api/searches/:id/alerts` | `{ id, unreadOnly? }` → `Alert[]` |
 | `markAlertRead` | `PATCH api/alerts/:id` | `{ id }` → `{ ok }` |
+| `updateSource` | `PATCH api/sources/:id` | `{ id, label?, pollEnabled?, pollIntervalHours?, notes? }` → `Source` (opting polling in/out; clears `blockedReason` on re-enable) |
+| `pollSource` | `POST api/sources/:id/poll` | `{ id }` → `{ ok, status:'polling' }` — manual "check now"; spawns `intake/clipper#poll` fire-and-forget (404 via `HttpError` when the source has no `url`) |
 
 ```ts
 // api/searches/[id]/captures/POST.ts → POST .../api/searches/:id/captures ; name "ingestCapture"
@@ -471,6 +486,13 @@ export default async function handler(
 - `saveListing`/`dismissListing` are deliberately their own endpoints (not a bare `updateListing`)
   because they carry the **taste signal** — the reason string is the learning gold, and the UI
   prompts for it on dismiss.
+- **Error contract + one-shot calls**: handlers throw `HttpError(status, message)` from
+  `@app/runtime` (404 on a missing listing/source, 400 rides ajv) — the same `error` shape surfaces
+  to the browser and, via `apiCall`, to agents as a retryable yield error. Pages use the bare
+  **`apiCall`** for fire-and-forget one-shots (e.g. `markAlertRead` when an alert scrolls into
+  view) alongside the `useApi`/`useApiMutation` hooks. Across the app the api surface exercises
+  **all five methods** (GET/POST/PATCH/DELETE here; PUT arrives with round 4's
+  `setFinanceProfile`).
 
 ## Hooks
 
@@ -535,12 +557,22 @@ export default {
 }
 ```
 
+```ts
+// hooks/poll-saved-searches.ts — cron: opt-in polite polling of user-configured saved searches
+export default {
+  type: 'cron',
+  every: '6h',
+  trigger: 'intake/clipper#poll',    // declarative; self-scans pollEnabled sources due per their interval
+  budget: { maxEpisodes: 10, maxWallClockMs: 600000 },
+}
+```
+
 - **Depth accounting** (why this shape): user `ingestCapture` (depth 0) → `parse-new-capture`
   (depth-1 session) → clipper inserts `listings` → `enrich-new-listing` (depth-2 session) runs the
   entire scout pipeline as sequential delegates inside that one session; its writes (analyses,
-  guesses, commutes, score, alerts) fire nothing further. The refresh cron re-ingests via new
-  `raw_captures`, adding one level — the pipeline still completes because enrichment never relies on
-  a *fourth* hook.
+  guesses, commutes, score, alerts) fire nothing further. The refresh and poll crons re-ingest via
+  new `raw_captures`, adding one level — the pipeline still completes because enrichment never
+  relies on a *fourth* hook.
 - The ranker's `rank` **writes the `alerts` row itself** when a score crosses the search's bar
   (strong `new_match`) — no separate alert hook, so alerting works even at max depth.
 - Cron timing is the parent plan's **crond → hook-run endpoint** mechanism
@@ -553,7 +585,7 @@ The pipeline crew: everything between "user pasted something" and "a clean canon
 
 | Agent | `db:read` | `db:write` | universal fns | Role |
 |---|---|---|---|---|
-| **clipper** | `searches, sources, raw_captures, listings` | `raw_captures, sources, listings, alerts` | `webFetch`, `webSearch` | parse captures into listings (extract, sanitize, dedupe-merge); refresh tracked listings (gone / price-drop → alert) |
+| **clipper** | `searches, sources, raw_captures, listings` | `raw_captures, sources, listings, alerts` | `webFetch`, `webSearch` | parse captures into listings (extract, sanitize, dedupe-merge); refresh tracked listings (gone / price-drop → alert); poll opted-in saved-search sources (robots-aware, throttled) |
 | **surveyor** | `searches, listings, commutes` | `listings, commutes` | `webFetch`, `webSearch` | normalize: compute `trueCostMonthly` + `costBreakdown` (deterministic space functions), and commute estimates per target |
 
 ```yaml
@@ -565,16 +597,42 @@ capabilities:
 actions:
   - parse      # self-scans pending raw_captures; extracts + dedupes into listings
   - refresh    # self-scans active searches' tracked listings; re-fetches URLs; marks gone / price drops
+  - poll       # self-scans pollEnabled sources due per interval; fetch → paginate → parse → raw_captures
 ```
 
 - **The clipper never invents a field** — a value absent from the capture stays at its default; a
   suspicious one (price wildly off the search's band) is kept but flagged in the capture `summary`.
   All extracted text is **sanitized** on write (captures are untrusted content — XSS surface, parent
   plan §Safety).
+- **The scraping toolkit lives in `functions/`, not prose** — deterministic, typed, unit-testable
+  extraction the clipper drives with the universal `webFetch`:
+  - `parseAlertEmail.ts` — split a pasted alert-email body into per-listing candidate blocks
+    (portal-idiom heuristics: title/price/link/size patterns);
+  - `parsePortalHtml.ts` — strip boilerplate from a fetched listing page and pull the description,
+    structured fields, photo URLs + captions, and the **JSON-LD block**
+    (`schema.org/RealEstateListing` etc.) when present — the highest-fidelity source;
+  - `extractListingFields.ts` — normalize a candidate into canonical listing columns (price via
+    `parseMoney.ts`, m², rooms, floor, year);
+  - `paginateSavedSearch.ts` — find the result-card blocks + the next-page URL in a saved-search
+    results page (bounded page count per poll);
+  - `robotsAllowed.ts` — parse a fetched `robots.txt` and answer path allowance; disallowed ⇒ the
+    source gets `blockedReason` + polling auto-disables (surfaced to the user, never silently
+    retried);
+  - `politeFetchPlan.ts` — turn the due sources into a throttled fetch plan (min interval per
+    host, jitter, hard per-run page cap) the `poll` action follows.
+  The model classifies and narrates; the functions parse and throttle.
+- **Polling is opt-in, per source, and self-limiting** — only `saved_search` sources with a `url`
+  and `pollEnabled:true` are ever fetched; `pollIntervalHours` floors at 6; a robots disallow, a
+  block page, or repeated failures set `blockedReason` and stop the source. Poll results enter as
+  ordinary `raw_captures`, so the parse→enrich pipeline and all its guards apply unchanged.
 - **Dedupe is a function, not prose**: `functions/dedupeKey.ts` computes the canonical key
   (normalized address + rooms + size band + price band); the clipper queries by key before every
   insert and **merges** on a hit (union of portals/photos/fees, best URL, `lastSeenAt` bump) — the
-  `unique` constraint backs it.
+  `unique` constraint backs it. A **borderline** match (same street + size band, different price
+  band) is not silently merged: in a chat session the clipper raises the
+  `components/ask/ConfirmMerge.tsx` **ask component** (merge / keep separate, with the evidence
+  side-by-side); in a headless hook run — where `ask` doesn't exist — it keeps the rows separate
+  and flags both `possible_duplicate` for the user to resolve later.
 - **The surveyor's money math is deterministic**: `functions/trueCost.ts` (rent: rent + stated fees
   + a per-m² utilities estimate; buy: amortized mortgage at a cited reference rate + charges) builds
   `costBreakdown` with every line labelled `stated`/`estimated`. The model narrates; the function
@@ -601,6 +659,7 @@ capabilities:
 actions:
   - rank    # self-scans unscored/changed listings; writes score + scoreSummary; alerts on a strong match
   - learn   # self-scans unfolded taste_signals; updates cited taste_notes; re-ranks affected listings
+defaultAction: rank
 ```
 
 - **The analyst separates observation from inference.** Every `listing_analyses.body` finding cites
@@ -627,11 +686,26 @@ actions:
   duplicating dimensions, then re-scores. **The taste model stays inspectable**: the taste page
   shows every statement + its citations, and the user can chat-correct it ("no, ground floor is
   fine if there's a garden") — the ranker updates the note and cites the correction.
-- **The `learn-taste` tasklist** (the one orchestrated decomposition, modelled on the sibling
-  patterns): `load_signals` (`role: explore` — read-only scan of unfolded signals + current notes) →
-  `update_notes` (single non-`forEach` write loop — the proven-reliable pattern for writes) →
-  `rescore_affected` (single loop re-running the blend for listings the changed notes touch).
-  Fan-out `forEach` is reserved for read-only analysis sweeps; **writes stay in single loops**.
+- **The `learn-taste` tasklist** (modelled on the sibling patterns): `load_signals`
+  (`role: explore` — read-only scan of unfolded signals + current notes) → `update_notes` (single
+  non-`forEach` write loop — the proven-reliable pattern for writes) → `rescore_affected` (single
+  loop re-running the blend for listings the changed notes touch). Fan-out `forEach` is reserved
+  for read-only analysis sweeps; **writes stay in single loops**.
+- **The `deep-sweep` tasklist** (the read-only `forEach` fan-out — the "second look" before a
+  viewing decision, invocable from chat or by round 2's counsel): `pick_targets` (`role: plan` —
+  choose the shortlisted listings worth re-verifying; emits `listingIds`) → `reverify_each`
+  (**`forEach: "pick_targets.listingIds"`**, `role: explore` — the host runs one read-only
+  re-check **per listing in parallel** within the fork cap, injecting the id as `item`: stale
+  price? unresolved flags? guess still consistent? the task's frontmatter adds
+  `canDelegateTo: scout/appraiser#appraise` back in, the task-level delegation-allowlist pattern) →
+  `write_findings` (`role: general` — a single write loop landing the findings as
+  `listing_analyses` rows + alerts where something changed). Orchestrator-fork **salvage
+  semantics** apply: one listing's slow re-check salvages partial rather than sinking the sweep.
+- **The `TasteQuiz` ask component** (`components/ask/TasteQuiz.tsx`, token-gated) — in a chat
+  session the ranker can run a quick A/B ("which of these two would you rather view?" with the two
+  listing cards side-by-side); the answer lands as a `'note'` taste signal and feeds `learn`.
+  Like all `ask` surfaces it is **top-level-chat-only** — never used in hooks/forks, where `ask`
+  doesn't exist.
 - **`charter.md` vs `instruct.md`**: every agent ships a short fork-safe `charter.md` — the shared
   guardrails are "never invent a fact about a listing; cite every finding; a guess is labelled a
   guess; never contact anyone" — injected into every fork; `instruct.md` (routing/orchestration) is
@@ -673,93 +747,317 @@ Drop-in `<Chat agent="…">` widgets on the always-available multisession WS end
 read/write; the app stays fully within per-user pod isolation (no v1 deviation from the parent
 plan's authz model).
 
-## Additional features (more user value)
+## Additional features (rounds 2–6 — more user value)
 
-Beyond the core paste → canonical-record → analyzed-ranked-feed loop, these earn their place by
-removing real house-hunting pain. Each is **additive** — new tables/endpoints/hooks + agent
-capabilities on the same engine — so it ships after the core loop without reworking it.
+Beyond the core paste → canonical-record → analyzed-ranked-feed loop, expansion proceeds in
+**rounds** (the app-builder's round model): each round adds a new full-format project-scoped
+specialist space plus the tables/endpoints/hooks/pages behind it, **strictly additively** — earlier
+rounds are never regressed. The arc follows the hunt itself: find it (rounds 1) → **act on it**
+(round 2) → **know the ground** (round 3) → **afford it** (round 4) → **decide together** (round 5)
+→ **win it** (round 6). End state after round 6: **7 spaces, 20 agents, 27 tables, ~65 endpoints,
+20 hooks, 30+ routes**, all sharing the one project-rooted db. Each round closes with its honest
+engine reconciliation under §Engine reconciliation.
 
-### The `advisor` space — inquiries, viewings & the acting assistant *(round 2)*
-The core loop finds the right place; the `advisor` space helps you **win** it. A new project-scoped
-space (two specialists) sharing the project-rooted db.
+### Round 2 — the `advisor` space: act before someone else does
+The core loop finds the right place; round 2 helps you **win** it, and gives every listing a
+memory. A new project-scoped space (`advisor`: `counsel`, `inspector`) joins `intake`/`scout`, plus
+a new **`scout/appraiser`** for price fairness.
 
 - **Data**:
   - `inquiries` — a drafted contact message: `id`, `listingId` FK → `listings` (`cascade`), `body`
-    (md draft, personalized from the listing + the user's situation), `channel`
+    (md draft, personalized from the listing + facts the user provided), `channel`
     (`'portal_form' | 'email' | 'phone_script'`), `status` (`'draft' | 'approved' | 'sent'`,
     default `draft`), `sentAt?`, `createdAt`. **The app never sends anything** — drafts are
     copy-paste artifacts the user approves and sends themselves; `status:'sent'` is user-recorded.
   - `viewings` — a scheduled visit: `id`, `listingId` FK (`cascade`), `scheduledAt`, `checklist`
-    (json — per-listing verification items **generated from that listing's analyses and flags**:
-    "measure the living room — plan sums to 71 m² vs 85 stated", "check light at the hour you'd be
-    home", "ask about the €120 condo fee"), `notes` (md — what the user found), `outcome`
-    (`'pending' | 'passed' | 'rejected' | 'offer'`, default `pending`), `createdAt`.
+    (json — per-listing verification items **generated from that listing's analyses, flags, and
+    open low-confidence questions**: "measure the living room — plan sums to 71 m² vs 85 stated",
+    "check light at the hour you'd be home", "ask about the €120 condo fee"), `notes` (md — what
+    the user found), `outcome` (`'pending' | 'passed' | 'rejected' | 'offer'`, default `pending`),
+    `outcomeRecorded` (bool, default false — the outcome hook's idempotence cursor), `createdAt`.
+  - `listing_events` — the listing's timeline: `id`, `listingId` FK (`cascade`), `kind`
+    (`'first_seen' | 'price_change' | 'gone' | 'back_online' | 'relisted'`), `detail` (md — old/new
+    price, gap length), `createdAt`. Written by `intake/clipper` (`parse` writes `first_seen`;
+    `refresh` writes the rest alongside its alerts) — the memory that turns a relisting into
+    negotiation evidence.
+  - **Additive enum values**: `listing_analyses.kind` gains `'comps'`; `alerts.kind` gains
+    `'digest'`.
 - **Agents** (least-privilege):
-  - `advisor/counsel` — the conversational orchestrator: `db:read` wide (all core tables +
-    `inquiries`, `viewings`), `db:write [inquiries, taste_signals]`,
-    `canDelegateTo: [scout/analyst#analyze, scout/ranker#rank, intake/surveyor#normalize]`. Drafts
-    inquiries (action `draft-inquiry`), answers "which should I visit first?" with evidence, and
-    turns viewing notes into taste signals. The chat dock on the pipeline page.
-  - `advisor/inspector` — `db:read [listings, listing_analyses, location_guesses, viewings]`,
-    `db:write [viewings]`. Action `checklist`: generates/refreshes the per-listing viewing
-    checklist from the flags and open low-confidence questions.
-- **API**: `draftInquiry` `POST api/listings/:id/inquiry` (spawns counsel, returns immediately);
-  `updateInquiry` `PATCH api/inquiries/:id` (approve / mark sent); `scheduleViewing`
-  `POST api/listings/:id/viewings` (fires the checklist hook); `updateViewing`
-  `PATCH api/viewings/:id` (notes + outcome — an outcome writes a `'viewed'` taste signal);
-  `pipeline` `GET api/searches/:id/pipeline` (listings grouped by `status`, the kanban read view).
-- **Hooks**: `checklist-on-viewing` (**database** insert on `viewings` → `advisor/inspector#checklist`,
-  idempotent); `daily-digest` (**cron** daily → `advisor/counsel#digest` — one `alerts` row of kind
-  `'new_match'` summarizing the day: top new matches, price drops, expiring to-dos; coalesced, never
-  spammy).
-- **Pages**: `/searches/:searchId/pipeline` (kanban: new → shortlisted → contacted → viewing →
-  applied, with `<Chat agent="advisor/counsel">`), `/listings/:id/visit` (checklist + notes +
-  outcome), inquiry drawer on the listing page.
+  - `advisor/counsel` — the conversational orchestrator: `db:read` wide (core tables + `inquiries`,
+    `viewings`, `listing_events`), `db:write [inquiries, taste_signals, alerts]`,
+    `canDelegateTo: [advisor/inspector#checklist, scout/appraiser#appraise, scout/ranker#rank]`.
+    Actions: `draft-inquiry` (personalized draft citing only stated facts), `digest` (the daily
+    cron delegate — one coalesced `'digest'` alert: top new matches, price drops, stale to-dos),
+    `advise` (chat: "which should I visit first?" answered with evidence).
+  - `advisor/inspector` — `db:read [listings, listing_analyses, location_guesses, commutes,
+    viewings]`, `db:write [viewings]`. Action `checklist`: generate/refresh the per-listing viewing
+    checklist from the flags and unresolved low-confidence findings.
+  - `scout/appraiser` — `db:read [searches, listings, listing_analyses, listing_events, commutes]`,
+    `db:write [listing_analyses]`. Action `appraise`: a `'comps'` analysis comparing the listing's
+    price/m² (true cost over best-known size) against the *other listings in the same search and
+    area band* — **the db is the comp set, no external data** — plus timeline evidence ("gone 3
+    weeks, back at −5%"), all cited ("12% above the median €/m² of the 14 comparable 2-beds you're
+    tracking").
+- **API** (9): `draftInquiry` `POST api/listings/:id/inquiry` (spawns counsel, returns
+  immediately); `listInquiries` `GET api/searches/:id/inquiries`; `updateInquiry`
+  `PATCH api/inquiries/:id` (approve / mark sent); `scheduleViewing`
+  `POST api/listings/:id/viewings` (fires the checklist hook); `listViewings`
+  `GET api/searches/:id/viewings` (upcoming first); `updateViewing` `PATCH api/viewings/:id`
+  (notes + outcome); `pipeline` `GET api/searches/:id/pipeline` (listings grouped by `status` —
+  the kanban read view); `listingHistory` `GET api/listings/:id/events`; `listingComps`
+  `GET api/listings/:id/comps` (the latest `'comps'` analysis + the comp rows behind it).
+- **Hooks** (3, plus one additive edit): `checklist-on-viewing` (**database** insert on `viewings`
+  → `advisor/inspector#checklist`; idempotent — skip if `checklist` non-empty);
+  `record-viewing-outcome` (**database** update on `viewings` — guarded: return unless
+  `outcome !== 'pending' && !outcomeRecorded`; delegates counsel to write a `'viewed'` taste signal
+  carrying the outcome + notes as reason and flip `outcomeRecorded` — a viewing verdict is the
+  strongest taste evidence there is); `daily-digest` (**cron** daily → `advisor/counsel#digest`,
+  declarative). **Additive edit**: `enrich-new-listing` gains a fifth sequential delegate —
+  `scout/appraiser#appraise` after `rank` (same hook session, same depth — the round-1 depth
+  accounting still holds); the digest also re-runs `appraise`, so comps sharpen as the comp set
+  grows.
+- **Pages** (5): `/searches/:searchId/pipeline` (kanban new → shortlisted → contacted → viewing →
+  applied, with `<Chat agent="advisor/counsel">`), `/listings/:id/visit` (checklist check-offs +
+  notes + outcome), `/listings/:id/inquiry` (draft view/edit/approve + copy button),
+  `/searches/:searchId/inquiries` (all drafts by status), `/searches/:searchId/activity` (the
+  merged `listing_events` timeline). The listing detail page gains a `PriceHistory` strip + a
+  fairness panel.
 - **Safety**: inquiries are **drafts only** — no send capability exists, no email/portal
-  integration; the charter forbids impersonation and pressure tactics; drafted text contains only
-  facts the user provided or the listing states.
+  integration; the counsel's charter forbids impersonation, invented urgency, and pressure tactics;
+  drafted text contains only facts the user provided or the listing states. Fairness reads are
+  advisory and cite their comp set.
 
-### Market context — price fairness & the listing's history *(round 2)*
-"Is this a good price?" answered with evidence already in the db, plus a memory of how each listing
-behaved.
-- **Data**: `listing_events` — the timeline: `id`, `listingId` FK (`cascade`), `kind`
-  (`'first_seen' | 'price_change' | 'gone' | 'back_online' | 'relisted'`), `detail` (md — old/new
-  price, gap length), `createdAt`. Written by the clipper's `refresh` alongside its alerts.
-- **Analysis**: a new analyst kind `'comps'` — compare the listing's €/m² (true cost / best-known
-  size) against the *other listings in the same search and area band* (query-all + JS; the db is the
-  comp set — no external data): output a fairness read ("12% above the median €/m² of the 14
-  comparable 2-beds you're tracking"), cited. A long-idle relisting ("gone 3 weeks, back at −5%")
-  is negotiation evidence the counsel folds into inquiry drafts.
-- **API/Pages**: `listingHistory` `GET api/listings/:id/events`; a `PriceHistory` strip + fairness
-  panel on the listing page.
+### Round 3 — the `district` space: know the ground
+A home is a place *in* a place. Round 3 gives the app a model of the neighbourhoods themselves — a
+new project-scoped space (`district`: `geographer`, `profiler`, `matchmaker`) that builds cited
+area dossiers, pins listings to areas, scores each area against the user's taste and commutes, and
+suggests areas they aren't searching but should be.
 
-### Neighbourhood dossiers *(round 2/3)*
-The place around the place. A `scout/geographer` agent (or `district` space if it grows) writes
-**cited** area notes.
-- **Data**: `area_notes` — `id`, `searchId` FK (`cascade`), `areaLabel` (the neighbourhood),
-  `topic` (`'transit' | 'noise' | 'green' | 'services' | 'prices' | 'character'`), `body` (md,
-  cited via `webSearch`), `createdAt`.
-- **Trigger**: on the first location guess landing in a new neighbourhood, the enrich pipeline adds
-  a `geographer#survey` delegate (idempotent per area). The feed shows the area chip; the listing
-  page shows the dossier beside the location guess.
+- **Data**:
+  - `areas` — a canonical neighbourhood: `id`, `label` (req, e.g. 'Arroios'), `city`,
+    `centroidLat`/`centroidLng`, `radiusM`, `summary` (md — the dossier lede, cited), `createdAt`.
+    Deduped by normalized label+city (space function), never duplicated per listing.
+  - `area_notes` — one cited finding: `id`, `areaId` FK (`cascade`), `topic` (`'transit' | 'noise'
+    | 'green' | 'services' | 'safety_pointers' | 'prices' | 'character'`), `body` (md, cited via
+    `webSearch`), `confidence` (0..1), `createdAt`.
+  - `area_scores` — per-search fit: `id`, `areaId` FK (`cascade`), `searchId` FK (`cascade`),
+    `score` (0..100 — the deterministic blend of taste notes × area notes + commute targets),
+    `rationale` (md, cited), `computedAt`.
+  - **New column on `listings`**: `areaId` FK → `areas` (`setNull`) — assigned by the profiler from
+    the best location guess. `alerts.kind` gains `'area_suggestion'`.
+- **Agents** (least-privilege):
+  - `district/geographer` — `db:read [areas, area_notes, listings, location_guesses]`,
+    `db:write [areas, area_notes]`; universal `webSearch`/`webFetch`. Actions: `survey` (build or
+    extend an area's dossier — every note cited), `refresh` (the weekly cron delegate — re-verify
+    stale notes).
+  - `district/profiler` — `db:read [areas, listings, location_guesses]`, `db:write [listings]`.
+    Action `assign`: link listings to areas (haversine of the best guess vs area centroids, a space
+    function); a listing whose guess is too weak/wide **stays unassigned** — never force a match.
+  - `district/matchmaker` — `db:read [areas, area_notes, area_scores, searches, taste_notes,
+    listings, commutes]`, `db:write [area_scores, alerts]`. Actions: `fit` (score every known area
+    for a search), `discover` (suggest areas the user *isn't* searching that fit their taste +
+    commute — the "have you considered Penha de França?" `'area_suggestion'` alert).
+- **API** (8): `listAreas` `GET api/areas`; `getArea` `GET api/areas/:id` (include notes);
+  `areaListings` `GET api/areas/:id/listings`; `surveyArea` `POST api/areas/:id/survey` (spawns the
+  geographer); `areaFit` `GET api/searches/:id/areas` (fit-ranked `area_scores` + rationale);
+  `compareAreas` `GET api/searches/:id/areas/compare` (`{ids}` → one normalized row per topic);
+  `suggestAreas` `POST api/searches/:id/areas/discover` (spawns the matchmaker);
+  `assignListingArea` `PATCH api/listings/:id/area` (manual correction — also inserts a `'note'`
+  taste signal, since a correction is preference-grade evidence).
+- **Hooks** (3): `survey-new-area` (**database** insert on `location_guesses` — ONE imperative
+  hook, two sequential delegates, the round-1 depth-shaping pattern: `district/profiler#assign`,
+  then `district/geographer#survey` idempotently — skip when the assigned area already has a fresh
+  dossier; per-hook cooldown coalesces guess bursts); `refit-areas-on-taste` (**database** insert
+  on `taste_notes` → `district/matchmaker#fit`; cooldown-coalesced — taste edits arrive in bursts);
+  `refresh-area-dossiers` (**cron** `every:'7d'` → `district/geographer#refresh`, declarative).
+- **Pages** (5): `/areas` (all known areas), `/areas/:areaId` (the dossier: notes by topic + your
+  tracked listings there), `/searches/:searchId/areas` (fit-ranked areas + rationale),
+  `/searches/:searchId/areas/compare`, `/searches/:searchId/discover` (matchmaker suggestions +
+  `<Chat agent="district/matchmaker">`). Feed cards and the listing detail gain an **area chip**
+  linking into the dossier.
+- **Safety**: area notes describe the *place*, never the people — no demographic profiling;
+  `'safety_pointers'` cites official/statistical sources only and is phrased as things to check on
+  a visit, not verdicts; every note carries its citation and confidence; a thin dossier says it's
+  thin.
 
-### Buyer finance — what buying actually costs monthly *(round 3)*
-For `mode:'buy'` searches, the surveyor's `trueCost` deepens into scenarios.
-- **Data**: `finance_scenarios` — `id`, `searchId` FK (`cascade`), `label`, `downPayment`,
-  `ratePct` (cited to a `webSearch`ed reference rate + date), `termYears`, `createdAt`; the compare
-  page and feed recompute `trueCostMonthly` per scenario via the deterministic amortization
-  function. **Advisory only** — labelled estimates with cited rates, never financial advice
-  (charter framing), and a doubtful number is a range, not a point.
+### Round 4 — the `finance` space: what it actually costs to say yes
+Money is what greenlights or kills a home. Round 4 adds a `finance` space (`underwriter`,
+`strategist`) plus an **`advisor/negotiator`** — turning the round-1 `trueCostMonthly` into full
+scenario modelling, affordability guardrails, rent-vs-buy framing, and evidence-based negotiation
+briefs.
 
-### Household decisions — two people, one shortlist *(round 3)*
-Most homes are chosen by more than one person; disagreement is data.
-- **Data**: `stakeholders` (`id`, `searchId` FK cascade, `name`, `notes`), `stakeholder_votes`
-  (`id`, `stakeholderId` FK cascade, `listingId` FK cascade, `vote` (`'yes'|'no'|'maybe'`),
-  `reason`, `createdAt`).
-- **Agent**: the ranker's `learn` reconciles per-person signals into **per-stakeholder taste notes**
-  (dimension-tagged), and `rank` surfaces conflicts explicitly ("scores 84 for Ana, 41 for Rui —
-  the garden vs the commute") instead of averaging them away.
-- **Pages**: vote chips on the feed and compare pages; a "where you disagree" panel on the pipeline.
+- **Data**:
+  - `finance_profiles` — the user's coarse numbers (typed by them, one per search): `id`,
+    `searchId` FK (`cascade`), `grossIncomeMonthly`, `savingsAvailable`, `monthlyDebts`,
+    `targetDownPaymentPct`, `maxComfortableMonthly` (their own ceiling, distinct from `budgetMax`),
+    `notes`, `createdAt`.
+  - `finance_scenarios` — one what-if: `id`, `searchId` FK (`cascade`), `listingId` FK (`setNull`;
+    null = search-generic), `label`, `kind` (`'purchase' | 'rent_vs_buy'`), `downPayment`,
+    `ratePct`, `rateSource` (cited — which `rate_snapshots` row + date), `termYears`,
+    `monthlyTotal` (computed by the deterministic amortization function), `breakdown` (json — every
+    line `stated`/`estimated`), `createdAt`.
+  - `rate_snapshots` — the cited reference-rate cache: `id`, `product` (e.g.
+    `'mortgage_fixed_20y'`), `ratePct`, `source` (cited URL/name), `fetchedAt`.
+  - `negotiation_briefs` — an evidence-based angle: `id`, `listingId` FK (`cascade`), `angle` (md,
+    cited), `evidence` (json — the `listing_events`/comps rows it rests on), `suggestedOpening`
+    (md — a draft line the user may fold into an inquiry), `status` (`'draft' | 'used'`, default
+    `draft`), `createdAt`.
+- **Agents** (least-privilege):
+  - `finance/underwriter` — `db:read [searches, listings, finance_profiles, finance_scenarios,
+    rate_snapshots]`, `db:write [finance_scenarios, rate_snapshots, alerts]`; universal `webSearch`
+    for reference rates. Actions: `scenarios` (self-scans shortlisted buy-mode listings lacking
+    scenarios → builds labelled ones off the profile + freshest rate), `refresh-rates` (the daily
+    cron delegate — re-search reference rates, write cited snapshots, alert on a material move).
+  - `finance/strategist` — `db:read [searches, listings, finance_profiles, finance_scenarios,
+    rate_snapshots, commutes, taste_notes, listing_events]`, `db:write [finance_scenarios]`.
+    Actions: `rent-vs-buy` (a `'rent_vs_buy'` scenario framing total-cost-over-horizon for a
+    listing or the search band), `advise` (chat — trade-offs in plain language, information not
+    advice).
+  - `advisor/negotiator` — `db:read [listings, listing_analyses, listing_events, inquiries,
+    finance_scenarios]`, `db:write [negotiation_briefs, inquiries]`. Action `brief`: distill the
+    listing's timeline + comps + days-on-market into a cited negotiation angle and a suggested
+    opening the user may merge into their inquiry draft.
+- **API** (10): `getFinanceProfile` `GET api/searches/:id/finance/profile`; `setFinanceProfile`
+  `PUT api/searches/:id/finance/profile`; `listRates` `GET api/finance/rates`; `refreshRates`
+  `POST api/finance/rates/refresh` (spawns the underwriter); `listScenarios`
+  `GET api/searches/:id/scenarios`; `createScenario` `POST api/searches/:id/scenarios`;
+  `removeScenario` `DELETE api/scenarios/:id`; `listingAffordability`
+  `GET api/listings/:id/affordability` (profile + freshest rate → monthly, stress margin,
+  share-of-income — all deterministic); `rentVsBuy` `GET api/searches/:id/rent-vs-buy`;
+  `draftNegotiation` `POST api/listings/:id/negotiation` (spawns the negotiator; `listBriefs` rides
+  `getListing`'s include).
+- **Hooks** (3): `refresh-rates` (**cron** daily → `finance/underwriter#refresh-rates`,
+  declarative); `scenario-on-shortlist` (**database** update on `listings` — guarded:
+  `status === 'shortlisted'`, buy-mode search, no scenario for this listing yet →
+  `finance/underwriter#scenarios`); `negotiate-on-price-drop` (**database** insert on
+  `listing_events` — guarded: `kind ∈ {price_change↓, relisted}`, no fresh brief →
+  `advisor/negotiator#brief`).
+- **Pages** (5): `/searches/:searchId/finance` (profile editor + current cited rates),
+  `/searches/:searchId/affordability` (shortlist × scenarios grid + stress margins +
+  `<Chat agent="finance/strategist">`), `/listings/:id/scenarios`, `/listings/:id/negotiation`
+  (brief + evidence + merge-into-inquiry), `/searches/:searchId/rent-vs-buy`.
+- **Safety**: **information, not advice** — every figure carries its cited rate + date and a
+  labelled breakdown; stress margins are shown, a doubtful number is a range; the charter says
+  "verify with your bank/broker" and forbids requesting documents or account details. The
+  negotiator never fabricates competing offers or market claims — every angle cites a db row.
+
+### Round 5 — the `household` space: decide together
+Most homes are chosen by more than one person, and disagreement is data. Round 5 adds a
+`household` space (`host`, `mediator`, `chronicler`): named stakeholders with their own briefs and
+votes, per-person taste, explicit conflict surfacing, and a decision journal that remembers *why*
+each place advanced or died.
+
+- **Data**:
+  - `stakeholders` — a person in the decision: `id`, `searchId` FK (`cascade`), `name` (req),
+    `role` (`'decider' | 'companion' | 'advisor'`), `brief` (their own free-text wants), `notes`,
+    `createdAt`.
+  - `stakeholder_votes` — one person's verdict on a listing: `id`, `stakeholderId` FK (`cascade`),
+    `listingId` FK (`cascade`), `vote` (`'yes' | 'no' | 'maybe'`, req), `reason`, `folded` (bool,
+    default false — the reconcile cursor), `createdAt`. A re-vote **updates** the person's existing
+    row (handler upsert), so the matrix stays one cell per person×listing.
+  - `decision_entries` — the journal: `id`, `searchId` FK (`cascade`), `listingId` FK (`setNull`),
+    `kind` (`'advanced' | 'dismissed' | 'viewed' | 'applied' | 'note'`), `body` (md — what moved
+    and why, cited to votes/signals/analyses), `createdAt`.
+  - **New column on `taste_notes`**: `stakeholderId` FK → `stakeholders` (`setNull`; null = the
+    shared household taste — all round-1 notes remain valid unchanged). `alerts.kind` gains
+    `'household_conflict'`.
+- **Agents** (least-privilege):
+  - `household/host` — `db:read [searches, stakeholders, taste_notes, taste_signals]`,
+    `db:write [stakeholders, taste_notes]`. Action `onboard`: fold a new stakeholder's brief into
+    stakeholder-tagged taste notes (cited to the brief), so the ranker sees them immediately.
+  - `household/mediator` — `db:read [searches, stakeholders, stakeholder_votes, listings,
+    taste_notes, taste_signals]`, `db:write [taste_notes, taste_signals, alerts]`. Actions:
+    `reconcile` (self-scans unfolded votes → distill reasons into per-person notes; raise a
+    `'household_conflict'` alert when a shortlisted listing splits), `conflicts` (chat — narrate
+    where and *why* the household disagrees, neutrally).
+  - `household/chronicler` — `db:read [listings, stakeholder_votes, taste_signals,
+    decision_entries]`, `db:write [decision_entries]`. Action `journal`: record pipeline moves with
+    their evidence — the retrospective memory ("we passed on Graça over the stairs, not the
+    price").
+- **API** (9): `addStakeholder` `POST api/searches/:id/stakeholders` (fires the onboard hook);
+  `listStakeholders` `GET api/searches/:id/stakeholders`; `updateStakeholder`
+  `PATCH api/stakeholders/:id`; `removeStakeholder` `DELETE api/stakeholders/:id`; `castVote`
+  `POST api/listings/:id/votes` (`{stakeholderId, vote, reason?}` — upsert per person); `listingVotes`
+  `GET api/listings/:id/votes`; `conflicts` `GET api/searches/:id/conflicts` (the disagreement
+  matrix: split listings + the dimension driving each split); `decisionLog`
+  `GET api/searches/:id/journal`; `addDecisionNote` `POST api/searches/:id/journal`.
+- **Hooks** (3): `onboard-stakeholder` (**database** insert on `stakeholders` →
+  `household/host#onboard`; idempotent — skip when the brief is already reflected in a tagged
+  note); `reconcile-vote` (**database** insert on `stakeholder_votes` →
+  `household/mediator#reconcile`; self-scans `folded === false`); `journal-pipeline-moves`
+  (**database** update on `listings` → `household/chronicler#journal` — guarded: the chronicler
+  compares `row.status` to the last journal entry for that listing and returns when unchanged, so
+  the ranker's frequent score writes never produce journal spam; per-hook cooldown backs it).
+- **Pages** (5): `/searches/:searchId/household` (people + briefs +
+  `<Chat agent="household/mediator">`), `/searches/:searchId/conflicts` (the listings × people
+  matrix), `/listings/:id/votes` (vote panel + reasons), `/searches/:searchId/journal` (the
+  decision log), `/searches/:searchId/taste/:stakeholderId` (one person's cited taste notes). Feed
+  and compare cards gain vote chips.
+- **Ranker updates (additive)**: `db:read` gains `[stakeholders, stakeholder_votes]`; `rank`
+  surfaces splits explicitly in `scoreSummary` ("84 for Ana, 41 for Rui — the garden vs the
+  commute") instead of averaging them away; `learn` attributes a signal to a stakeholder when the
+  vote/reason names one.
+- **Safety**: stakeholders are **rows, not accounts** — the pod stays single-user and the household
+  shares one screen/session; no auth change, no cross-user access. The mediator reports
+  disagreement neutrally and never manufactures consensus.
+
+### Round 6 — the `closer` space: win the place
+The hunt ends in paperwork and deadlines. Round 6 adds a `closer` space (`applicant`,
+`coordinator`, `settler`): application/offer tracking with per-locale document checklists, a mini
+contact book of agents and landlords, deadline nudges, and a move-in runbook once a place is won.
+
+- **Data**:
+  - `applications` — one application or offer on a listing: `id`, `listingId` FK (`cascade`, req),
+    `kind` (`'rental_application' | 'offer'`), `status` (`'draft' | 'submitted' | 'accepted' |
+    'rejected' | 'withdrawn'`, default `draft`), `terms` (json — offered price/rent, move-in date,
+    conditions), `submittedAt?`, `decidedAt?`, `notes` (md), `createdAt`.
+  - `application_items` — the dossier checklist: `id`, `applicationId` FK (`cascade`), `label`
+    (req — e.g. 'proof of income (last 3 payslips)'), `category` (`'document' | 'task' |
+    'movein'`), `done` (bool, default false), `note` (md — user notes, **never document
+    contents**), `dueAt?`, `createdAt`.
+  - `contacts` — the mini-CRM: `id`, `searchId` FK (`cascade`), `listingId` FK (`setNull`), `name`
+    (req), `role` (`'agent' | 'landlord' | 'property_manager' | 'other'`), `channel` (how to reach
+    them), `lastContactAt`, `notes` (md — responsiveness, quirks), `createdAt`.
+  - `deadlines` — what's due: `id`, `searchId` FK (`cascade`), `listingId` FK (`setNull`),
+    `applicationId` FK (`setNull`), `label` (req), `dueAt` (req), `done` (bool, default false),
+    `source` (md — where the deadline came from, cited), `createdAt`.
+  - **Additive enum values**: `alerts.kind` gains `'followup_due'` and `'deadline_soon'`.
+- **Agents** (least-privilege):
+  - `closer/applicant` — `db:read [searches, listings, applications, application_items,
+    contacts]`, `db:write [applications, application_items]`; universal `webSearch` for locale
+    norms. Action `checklist`: build the per-application dossier item list for the mode + locale
+    ("typical Lisbon rental dossier: …", cited in item notes); idempotent per application.
+  - `closer/coordinator` — `db:read [applications, application_items, contacts, deadlines,
+    listings, inquiries, viewings]`, `db:write [deadlines, contacts, alerts]`. Actions: `nudge`
+    (the daily cron delegate — scan overdue deadlines, stale submitted applications, long-silent
+    contacts → coalesced `'followup_due'`/`'deadline_soon'` alerts), `track` (chat — "where does
+    everything stand?").
+  - `closer/settler` — `db:read [applications, application_items, listings, deadlines]`,
+    `db:write [application_items, deadlines]`. Action `movein`: when an application is accepted,
+    build the move-in runbook — `'movein'` checklist items + deadline rows (utilities transfer,
+    address changes, condition report at handover, deposit paperwork).
+- **API** (10): `createApplication` `POST api/listings/:id/applications` (fires the checklist
+  hook); `listApplications` `GET api/searches/:id/applications`; `getApplication`
+  `GET api/applications/:id` (include items + the listing + its contacts); `updateApplication`
+  `PATCH api/applications/:id` (status/terms — `accepted` fires the move-in hook);
+  `toggleApplicationItem` `PATCH api/application-items/:id`; `addContact`
+  `POST api/searches/:id/contacts`; `listContacts` `GET api/searches/:id/contacts`;
+  `updateContact` `PATCH api/contacts/:id`; `listDeadlines` `GET api/searches/:id/deadlines`
+  (soonest first, `done` filtered); `completeDeadline` `PATCH api/deadlines/:id`.
+- **Hooks** (3): `checklist-on-application` (**database** insert on `applications` →
+  `closer/applicant#checklist`; idempotent — skip if items exist); `followup-nudges` (**cron**
+  daily → `closer/coordinator#nudge`, declarative — coalesces to at most one nudge alert per
+  search per day); `prepare-movein` (**database** update on `applications` — guarded:
+  `status === 'accepted'` and no `'movein'` items yet → `closer/settler#movein`).
+- **Pages** (5): `/searches/:searchId/applications` (status board),
+  `/applications/:id` (the dossier: checklist + terms + contacts + linked viewing/inquiry history +
+  `<Chat agent="closer/coordinator">`), `/searches/:searchId/contacts` (the mini-CRM),
+  `/searches/:searchId/deadlines` (what's due, soonest first), `/applications/:id/movein` (the
+  accepted-place runbook).
+- **Safety**: the app tracks documents as **labels + done flags + user notes, never contents** — no
+  blob store exists and the charter forbids pasting sensitive document contents (ID numbers,
+  payslips, statements) into the db; nothing is submitted anywhere by the app; nudges are in-app
+  alerts only.
 
 ## Engine reconciliation (round-1 build notes)
 
@@ -773,6 +1071,18 @@ runtime:
   emails" means the user **pastes the email body** into the inbox (`ingestCapture.content`), the
   same reconciliation the trips document-upload made. A bare pasted URL is a capture whose `content`
   is the URL; the clipper `webFetch`es it. True mail-in ingestion is deferred with the platform.
+- **Scraping is text-fetch + deterministic parsing, not a headless browser.** The universal
+  `webFetch` returns the page as text — there is no browser binding, no JS execution, no
+  form/login automation. The scraping `functions/` (`parsePortalHtml.ts`, `paginateSavedSearch.ts`,
+  …) therefore work on server-rendered HTML and embedded JSON-LD; a portal that renders listings
+  only client-side degrades gracefully to the paste/alert-email path (the clipper notes it in the
+  source's `notes`). Politeness is deterministic, not promised: `robotsAllowed.ts` +
+  `politeFetchPlan.ts` gate every poll, auth walls are never circumvented, and a block page sets
+  `blockedReason` and stops the source.
+- **`ask` components are top-level-chat-only** (the standing engine fact: `ask` is stripped from
+  fork/delegate DTS) — `ConfirmMerge` and `TasteQuiz` fire only in chat sessions; every
+  hook-driven path has a stated headless fallback (borderline dedupe ⇒ keep separate +
+  `possible_duplicate` flag; no quiz ⇒ learn from ordinary signals).
 - **"Reads the photos" is staged — the shipped engine has no image-input pipeline.** `webFetch`
   returns text; there is no vision binding. Round-1 photo/floor-plan analysis therefore works from
   **text evidence**: photo captions/alt text captured with the URLs, per-room dimensions printed in
@@ -803,27 +1113,145 @@ runtime:
   markers live in the rows themselves (`status`, `folded`, existence checks).
 - **Named delegate actions need an `actions:` frontmatter entry** (empty tasklist ⇒ model-driven);
   every `#action` above is declared.
-- **Deterministic math lives in space `functions/`, never model prose** — `dedupeKey.ts`,
-  `trueCost.ts`, `sumRoomAreas.ts`, `haversine.ts`, `blendScore.ts`, `formatMoney.ts` (the sibling
-  "avoid fragile model math" lesson). Writes happen in **single non-`forEach` task loops** (the
-  proven-reliable pattern); `forEach` fan-out is reserved for read-only sweeps.
+- **Deterministic work lives in space `functions/`, never model prose** — math (`trueCost.ts`,
+  `sumRoomAreas.ts`, `haversine.ts`, `blendScore.ts`, `formatMoney.ts`, `parseMoney.ts`), identity
+  (`dedupeKey.ts`), and the whole scraping toolkit (`parseAlertEmail.ts`, `parsePortalHtml.ts`,
+  `extractListingFields.ts`, `paginateSavedSearch.ts`, `robotsAllowed.ts`, `politeFetchPlan.ts`)
+  — the sibling "avoid fragile model math" lesson extended to parsing and throttling. Writes happen
+  in **single non-`forEach` task loops** (the proven-reliable pattern); `forEach` fan-out is
+  read-only (`deep-sweep`'s `reverify_each`).
 - **Row-type singularizer**: `searches→Search`, `sources→Source`, `raw_captures→RawCapture`,
   `listings→Listing`, `listing_analyses→ListingAnalysis`, `location_guesses→LocationGuess`,
   `commutes→Commute`, `taste_signals→TasteSignal`, `taste_notes→TasteNote`, `alerts→Alert`.
 - **Both project-scoped spaces are built in the FULL space format from round 1** (not
-  `agents/`-only): every agent ships `charter.md` + `instruct.md`; the spaces ship tasklists
-  (`intake/parse-captures`, `scout/learn-taste`), typed `functions/`, catalog `components/`
-  (ListingProposal / TasteNoteCard ask-display components, token-gated), and **extensive
-  `knowledge/`** — each field an `index.md` overview + ≥2 `<aspect>.md` deep-dives:
-  - `intake`: `listing-parsing/` (`portals-and-alert-emails.md`, `dedupe-and-canonicalization.md`),
-    `true-cost/` (`rent-fees-and-utilities.md`, `buyer-costs-and-mortgage.md`),
-    `commute-estimation/` (`transit-heuristics.md`, `mode-tradeoffs.md`).
+  `agents/`-only), deliberately exercising **every surface of the format**: every agent ships
+  `charter.md` + `instruct.md` with config-bearing `capabilities:`, declared `actions:` and a
+  `defaultAction`; the spaces ship tasklists covering all three roles plus a `forEach` fan-out and
+  a task-level `canDelegateTo` (`intake/parse-captures`, `scout/learn-taste`, `scout/deep-sweep`);
+  typed `functions/` (math + the scraping toolkit); catalog `components/` of **both kinds** —
+  `view/` (CaptureSummary, TasteNoteCard, LocationGuessCard) and `ask/` (ConfirmMerge, TasteQuiz),
+  token-gated; and **extensive `knowledge/`** — each field an `index.md` overview + ≥2
+  `<aspect>.md` deep-dives:
+  - `intake`: `listing-parsing/` (`portals-and-alert-emails.md`, `dedupe-and-canonicalization.md`,
+    `polling-and-politeness.md`), `true-cost/` (`rent-fees-and-utilities.md`,
+    `buyer-costs-and-mortgage.md`), `commute-estimation/` (`transit-heuristics.md`,
+    `mode-tradeoffs.md`).
   - `scout`: `photo-forensics/` (`condition-and-dating-cues.md`, `light-and-orientation.md`,
     `staging-and-wide-angle-tricks.md`), `floorplan-measurement/` (`dimensions-and-scale.md`,
     `layout-red-flags.md`), `listing-mismatch/` (`text-vs-evidence-contradictions.md`,
     `too-good-to-be-true.md`), `location-triangulation/` (`fuzzed-pin-strategies.md`,
     `clue-extraction-and-intersection.md`), `taste-learning/` (`signals-to-preferences.md`,
     `scoring-and-explanations.md`).
+
+### Round-2 reconciliation (advisor, appraiser, listing events)
+Round 2 folds "act before someone else does" in as **shipped** implementations, reconciled against
+the same engine (engine *usage*, no engine changes):
+
+- **Hook `delegate(ref, action, {input})` drops the input** (the standing engine fact) — every
+  round-2 hook action **self-scans**: `inspector#checklist` scans viewings with an empty
+  `checklist`, `counsel`'s outcome pass scans `outcome !== 'pending' && !outcomeRecorded`, `digest`
+  scans the day's rows. **Database hooks on `update` events see the row, not a field diff** — so
+  idempotence markers live in the rows themselves (`outcomeRecorded`), the same pattern as round
+  1's `folded`.
+- **The enrich edit is additive and depth-neutral** — `scout/appraiser#appraise` is appended as the
+  fifth sequential delegate inside the SAME `enrich-new-listing` session; the round-1 depth
+  accounting holds unchanged.
+- **Comps are db-only** — the search's own listings are the comp set (`db.query` equality-only →
+  query-all + JS banding in `functions/compsBand.ts`); there is no external market-data binding.
+  Every fairness read cites its comp rows.
+- **No send channel exists** — `inquiries.status:'sent'` is user-recorded; the digest is an in-app
+  `alerts` row, not an email/push (no outbound messaging capability, and none is invented).
+- **Row-type singularizer (new tables)**: `inquiries→Inquiry`, `viewings→Viewing`,
+  `listing_events→ListingEvent`.
+- **`advisor` is born full-format**: charter+instruct per agent; `tasklists/draft-inquiry/` +
+  `tasklists/build-checklist/`; typed `functions/` (`compsBand.ts`, `checklistFromFlags.ts`,
+  `daysOnMarket.ts`); catalog `components/` (InquiryDraftCard, ChecklistCard — token-gated);
+  knowledge fields each `index.md` + ≥2 aspects: `inquiries/` (`what-landlords-respond-to.md`,
+  `tone-and-facts.md`), `viewings/` (`what-to-verify-on-site.md`, `reading-a-building.md`),
+  `market-timing/` (`relistings-and-price-cuts.md`, `acting-fast-safely.md`).
+
+### Round-3 reconciliation (district)
+- **No geocoding binding** — area centroids and clue coordinates come from the universal
+  `webSearch`/`webFetch`, cited in `areas.summary`/`area_notes.body`; the profiler's
+  listing→area assignment is the deterministic `haversine.ts` against centroids, and a weak/wide
+  guess **stays unassigned** rather than force-matched.
+- **Area fit is the deterministic-blend pattern again** — `functions/areaFit.ts` (taste-note
+  weights × area-note topics + commute-target reachability) computes the 0..100; the matchmaker
+  *writes the cited rationale*, never the arithmetic.
+- **`survey-new-area` is one imperative hook with two sequential delegates** (profiler → geographer)
+  — the round-1 depth-shaping rationale; its per-hook cooldown coalesces the guess bursts a
+  multi-listing capture produces.
+- **`'safety_pointers'` is charter-constrained** to cited official/statistical sources phrased as
+  visit check-items — the no-demographic-profiling rule is a guardrail in every `district` charter,
+  not prose in a prompt.
+- **Row-type singularizer**: `areas→Area`, `area_notes→AreaNote`, `area_scores→AreaScore`.
+- **`district` is born full-format** — `tasklists/survey-area/` + `tasklists/fit-areas/`; functions
+  (`areaFit.ts`, `areaKey.ts` label+city dedupe, `haversine.ts` shared via space copy); components
+  (AreaDossierCard, FitBar); knowledge: `area-research/` (`sources-and-verification.md`,
+  `what-makes-a-dossier-useful.md`), `neighbourhood-fit/` (`taste-to-place-mapping.md`,
+  `commute-vs-character-tradeoffs.md`).
+
+### Round-4 reconciliation (finance, negotiator)
+- **No rates API binding** — reference rates come from `webSearch`, cached as cited
+  `rate_snapshots` (source + date), and every scenario figure carries its `rateSource`. A rate the
+  underwriter can't verify becomes a clearly-labelled assumption, never a fabricated number.
+- **All money math is typed functions** — `amortize.ts`, `afford.ts` (share-of-income + stress
+  margin), `rentVsBuyHorizon.ts`, reusing round-1 `formatMoney.ts`/`parseMoney.ts`; the model maps
+  evidence and writes labelled breakdowns, the functions compute (the standing "no model
+  arithmetic" lesson).
+- **`finance_profiles` hold coarse user-typed numbers only** — the charter forbids requesting
+  documents, statements, or account details; "information, not advice; verify with your
+  bank/broker" is charter text injected into every fork.
+- **Update-event guards live in row state** — `scenario-on-shortlist` checks
+  `status === 'shortlisted'` + search mode + an existing-scenario query (update hooks see the row,
+  not the diff); `negotiate-on-price-drop` guards on `listing_events.kind` + a fresh-brief check.
+- **Row-type singularizer**: `finance_profiles→FinanceProfile`, `finance_scenarios→FinanceScenario`,
+  `rate_snapshots→RateSnapshot`, `negotiation_briefs→NegotiationBrief`.
+- **`finance` is born full-format** — `tasklists/build-scenarios/`; functions above; components
+  (ScenarioCard, StressGauge — token-gated, `text-destructive` for over-ceiling); knowledge:
+  `mortgages/` (`rates-terms-and-amortization.md`, `closing-and-recurring-costs.md`),
+  `affordability/` (`stress-testing.md`, `rent-vs-buy-framing.md`), `negotiation/`
+  (`evidence-based-angles.md`, `what-not-to-claim.md`) — the last shared with
+  `advisor/negotiator`'s charter.
+
+### Round-5 reconciliation (household)
+- **Stakeholders are rows, not users** — the pod stays single-user (one screen, one session); no
+  auth change, no cross-user routing, no deviation from the parent plan's authz model.
+- **The vote upsert is handler logic** — the schema language has no compound-unique constraint, so
+  `castVote` queries by `stakeholderId`+`listingId` (equality-only) and inserts-or-updates; the
+  matrix invariant is enforced in one place.
+- **`journal-pipeline-moves` fires on every `listings` update** — including the ranker's frequent
+  score writes — so the chronicler's compare-to-last-journal-entry guard (query the listing's
+  latest `decision_entries` row; return when `status` unchanged) is what keeps the journal quiet;
+  the per-hook cooldown backs it. Self-write exclusion already prevents the chronicler re-firing
+  itself.
+- **`taste_notes.stakeholderId` is an additive column** — null = shared household taste, so every
+  round-1 note remains valid unchanged and the ranker's round-1 behaviour is preserved when no
+  stakeholders exist.
+- **Row-type singularizer**: `stakeholders→Stakeholder`, `stakeholder_votes→StakeholderVote`,
+  `decision_entries→DecisionEntry`.
+- **`household` is born full-format** — `tasklists/reconcile-votes/`; functions
+  (`voteMatrix.ts`, `splitDetector.ts` — deterministic conflict detection the mediator narrates);
+  components (VoteChips, ConflictMatrix); knowledge: `group-decisions/`
+  (`surfacing-disagreement-neutrally.md`, `briefs-to-preferences.md`), `decision-memory/`
+  (`what-to-journal.md`, `retrospectives-that-help.md`).
+
+### Round-6 reconciliation (closer)
+- **No blob store / multipart** (the standing round-1 fact) — `application_items` track documents
+  as labels + `done` flags + user notes, **never contents**; the charter forbids pasting sensitive
+  document contents (ID numbers, payslips, statements) into the db — reference by name only.
+- **Locale dossier norms via `webSearch`, cited** in item notes; where norms can't be verified the
+  applicant writes a generic checklist and says so.
+- **`prepare-movein` guards on row state** — `status === 'accepted'` + a no-`'movein'`-items query
+  (update hooks see rows, not diffs); a second `accepted` write is a no-op.
+- **Nudges are in-app only** — there is no push/email channel; `followup-nudges` coalesces to at
+  most one `'followup_due'`/`'deadline_soon'` alert per search per day (the digest lesson).
+- **Row-type singularizer**: `applications→Application`, `application_items→ApplicationItem`,
+  `contacts→Contact`, `deadlines→Deadline`.
+- **`closer` is born full-format** — `tasklists/build-dossier/` + `tasklists/movein-runbook/`;
+  functions (`dueSoon.ts`, `staleness.ts`); components (DossierChecklist, DeadlineRow); knowledge:
+  `applications/` (`rental-dossiers-by-locale.md`, `offers-and-terms.md`), `closing/`
+  (`deadline-discipline.md`, `movein-runbook.md`).
 
 ## Phases & order
 
@@ -836,11 +1264,11 @@ build, hooks runtime, chat) exists. Homes-specific work on top:
 2. **Spaces** — `intake` (clipper, surveyor) + `scout` (analyst, locator, ranker) in full format:
    config-bearing `capabilities:` per the tables above, `actions:` declared, charters with the
    no-invention/citation guardrails, tasklists, the deterministic `functions/`, knowledge fields.
-3. **API** — the 17 endpoints; `ingestCapture` inserts-and-returns (hook does the rest);
+3. **API** — the 19 endpoints; `ingestCapture` inserts-and-returns (hook does the rest);
    `saveListing`/`dismissListing` write the taste signal.
 4. **Hooks** — `parse-new-capture`, `enrich-new-listing` (the one-hook sequential scout pipeline),
-   `learn-from-signal`, `refresh-tracked-listings`; confirm the depth accounting (refresh-path
-   ingest still fully enriches) and idempotence guards.
+   `learn-from-signal`, `refresh-tracked-listings`, `poll-saved-searches`; confirm the depth
+   accounting (refresh/poll-path ingest still fully enriches) and idempotence guards.
 5. **Pages** — feed (ranked cards, save/dismiss, alert strip), inbox (paste + live parse status),
    listing detail (analyses/guess/commutes + chat), compare, taste page; wire `useApi`/
    `useApiMutation` + the three `<Chat>` widgets; live-poll while captures pend; design-token gate
@@ -848,9 +1276,13 @@ build, hooks runtime, chat) exists. Homes-specific work on top:
 6. **Serving** — seed each pod's `homes` project from the checked-in template; serve under generic
    `lmthing.app/homes/*`; Studio manages it under `/api/projects/homes/app`. (Store install +
    friendly alias are later phases.)
-7. **Additional features** — the `advisor` space (inquiries, viewings, pipeline, digest), market
-   context (`listing_events`, comps), neighbourhood dossiers, buyer finance, household decisions
-   (§Additional features); each additive, shippable after the core loop.
+7. **Expansion rounds 2–6** (§Additional features), in order: `advisor` (inquiries, viewings,
+   pipeline, digest, events + comps) → `district` (area dossiers, listing↔area assignment, fit +
+   discovery) → `finance` (profiles, scenarios, cited rates, negotiation briefs) → `household`
+   (stakeholders, votes, conflicts, journal, per-person taste) → `closer` (applications, dossier
+   checklists, contacts, deadlines, move-in). Each round is strictly additive — a new full-format
+   space + its tables/endpoints/hooks/pages — and lands with its own reconciliation
+   (§Engine reconciliation) and verification pass before the next begins.
 8. **Docs** — fold into `SPACE_DEVELOPMENT.md` "Project apps" as a worked example.
 
 ## Verification (end-to-end, local)
@@ -877,10 +1309,19 @@ build, hooks runtime, chat) exists. Homes-specific work on top:
    The taste page lists the statements with citations.
 6. **Alerts**: a subsequent ingest containing a strong match (fits constraints + taste) →
    `alerts` row of kind `new_match` appears on the bell + feed strip; `markAlertRead` clears it.
-7. **Refresh**: run the `refresh-tracked-listings` hook manually
+7. **Refresh + poll**: run the `refresh-tracked-listings` hook manually
    (`POST /api/projects/homes/hooks/refresh-tracked-listings/run`) against a fixture where one
    tracked URL 404s and one shows a lower price → `status:'gone'` on the first (+ `gone` alert),
    price + `price_drop` alert on the second; restart → one boot catch-up run, no double-run.
+   Enable polling on a `saved_search` source pointed at a fixture results page → `pollSource` →
+   `paginateSavedSearch`/`parsePortalHtml` yield `raw_captures` → the normal pipeline runs; a
+   fixture whose `robots.txt` disallows the path → `blockedReason` set, polling auto-disabled, no
+   fetch made; a not-due source is skipped by `politeFetchPlan`.
+7b. **forEach + ask**: run `scout/deep-sweep` from chat with 3 shortlisted listings →
+   `reverify_each` fans out one read-only fork per listing (parallel; one forced-slow fork
+   salvages partial, the sweep completes) → `write_findings` lands rows in one loop. A borderline
+   dedupe in a chat session raises `ConfirmMerge` and honors the answer; the same fixture through
+   the headless hook path keeps both rows + `possible_duplicate` flags.
 8. `apiCall('dismissListing', { id, reason: 42 })` with `reason` as a number **fails the agent
    typecheck** (DTS overload); an un-allowlisted `apiCall` name → host error naming allowed names;
    a `db.write` to a table outside an agent's `tables` scope → host error naming the allowed
@@ -889,6 +1330,29 @@ build, hooks runtime, chat) exists. Homes-specific work on top:
    update + re-rank, feed reflects it; history under `homes/spaces/scout/sessions/`.
 10. Backup: `app.sql` + schemas + pages + api + hooks + both spaces committed; `**/sessions/` not;
     restore rebuilds `app.db` from `app.sql`.
+
+**Expansion-round verification** (each round re-runs 1–10 green, plus its own pass):
+
+- **R2**: `scheduleViewing` → checklist hook → items derived from that listing's real flags; set
+  `outcome:'rejected'` + notes → exactly one `'viewed'` taste signal (`outcomeRecorded` flips; a
+  second update is a no-op); enrich now ends with a cited `'comps'` analysis; `daily-digest` run →
+  one coalesced `'digest'` alert; a `refresh` price drop lands a `listing_events` row + the
+  timeline page shows it. Inquiry drafts contain only stated facts; nothing sends.
+- **R3**: a new location guess → profiler assigns `areaId` (weak guess stays unassigned) →
+  geographer writes a cited dossier once (second guess in the same area is a no-op); a taste-note
+  insert → `refit-areas-on-taste` recomputes `area_scores` (coalesced under burst); `discover`
+  raises an `'area_suggestion'` alert for a fitting un-searched area.
+- **R4**: shortlisting a buy-mode listing → `scenario-on-shortlist` builds labelled scenarios off
+  the profile + freshest cited rate (rent-mode: no-op); a price-drop event → one negotiation brief
+  citing the event/comp rows; `listingAffordability` figures match the deterministic functions
+  exactly; every figure carries `rateSource` + date.
+- **R5**: `addStakeholder` with a brief → tagged taste notes appear; two opposing votes on a
+  shortlisted listing → `'household_conflict'` alert + the conflicts matrix shows the split + the
+  ranker's `scoreSummary` names it; a re-vote updates (not duplicates) the cell; score-only writes
+  produce **zero** journal entries, a status move produces exactly one.
+- **R6**: `createApplication` → cited dossier checklist; `status:'accepted'` → move-in items +
+  deadlines exactly once; overdue deadline + stale submitted application → one coalesced nudge
+  alert per search per day; no `application_items.note` contains document contents.
 
 ## Notes
 
@@ -900,11 +1364,25 @@ build, hooks runtime, chat) exists. Homes-specific work on top:
   against evidence, and explaining a ranking. A static app can't learn that you'll trade size for
   light; a person can't re-read forty listings a day without going numb. The agents do the reading;
   the user makes the calls.
-- **Not a scraper, by design** — the app ingests only content the user already receives and
-  explicitly pastes (their alert emails, their saved searches, their links); the refresh cron
-  re-checks only individual listing URLs already captured, at a gentle cadence. No portal crawling,
-  no auth-wall circumvention, no bulk collection. This is a personal filing assistant for one
-  user's own house hunt, inside their own pod.
+- **No blind crawling, by design** — paste-first is the default: the app ingests content the user
+  already receives and explicitly hands it (their alert emails, their saved searches, their
+  links). The only fetching it does on its own is **opt-in, per source, and self-limiting**: the
+  refresh cron re-checks individual listing URLs already captured, and the poll cron fetches only
+  the saved-search URLs the user enabled — both through the deterministic politeness gates
+  (`robotsAllowed.ts`, `politeFetchPlan.ts`: robots respected, per-host throttling + jitter, hard
+  page caps, auto-stop on a block page or disallow). No auth-wall circumvention, no bulk
+  collection, personal scale only — a filing assistant for one user's own house hunt, inside their
+  own pod.
+- **The spec deliberately exercises the full format surface** (a builder checklist, not an
+  accident): space format — charters + instructs, config-bearing `capabilities:` with per-verb
+  `tables` scope, `actions:` + `defaultAction`, `canDelegateTo` (agent- and task-level), tasklists
+  with `role: plan/explore/general` and a `forEach` fan-out, typed `functions/`, `view/` **and**
+  `ask/` components, multi-field multi-aspect `knowledge/`; app format — db FKs (`cascade` +
+  `setNull`), `relations`, `unique`, `generated` uuid/now, json columns, additive evolution; api
+  with all five HTTP methods, dynamic + nested segments, spawn-and-return, `HttpError`; hooks of
+  both types in both shapes (declarative `trigger` + imperative `handler`) with budgets and every
+  loop-guard rule; pages with `_app`/`_layout`, nested dynamic routes,
+  `useApi`/`useApiMutation`/bare `apiCall`, and `<Chat>`.
 - **Honesty is the product** — every derived value carries its basis (`costBreakdown` line items,
   `commutes.basis`, `location_guesses.method`, cited analyses and taste notes). A guess is a
   labelled guess with a confidence; a low-confidence finding is a viewing question, not a fact.

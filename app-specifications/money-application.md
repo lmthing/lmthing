@@ -1229,6 +1229,177 @@ abandoning writes no verdict and no alert; nothing auto-applied anywhere (no wri
 budgets/rules from `mentor` — capability walls make this structural); **(e)** `pnpm
 lint:tokens` green across the 4 new pages.
 
+## Round 6 — The library: researched content, curated answers & conversation (feature expansion)
+
+Five rounds of agents compute over your rows; none of them can *teach you anything about money*.
+Round 6 adds researched, curated, **db-stored content** — and does it without breaking the
+project's load-bearing privacy invariant, by making it **architecturally impossible** for
+financial data to reach the web: a sixth space (**`library`** — scholar · archivist · guide) is
+the ONLY space in the project with web functions, and it holds **zero `db:read` on any ledger
+table** — no transactions, no accounts, no budgets, nothing. Web access and ledger access are
+disjoint capability sets; the invariant stops being a promise and becomes a shape. The library
+curates a **reference shelf** (cited explainers on the topics the app lives in — budgeting
+methods, subscription-cancellation scripts, debt strategy, tax-hygiene primers), answers
+**user-asked questions** (queries the user typed are the user's to send; queries derived from
+ledger rows are forbidden and unconstructible), and keeps it all **fresh** (entries carry
+freshness and get re-verified). And round 6 adds the catalog's new user↔AI surface:
+**conversation starters** — bounded, dismissible openers where an agent reaches toward the user
+with something worth talking about, each opening a pre-seeded chat with the *right* agent.
+Strictly additive; data/agents/pages/api/hooks only.
+
+### New database tables (round 6 — 3, bringing the app to 32)
+
+- **`shelf_entries.json`** — one curated explainer. `id` (pk uuid) · `topic` (string, required,
+  unique — "cancelling a gym membership", "avalanche vs snowball, honestly") · `curriculum`
+  (string, required — `'seeded'`|`'requested'` — the seeded curriculum ships with the template;
+  requested entries come from user questions that deserved a durable answer) · `body` (string,
+  required — markdown, written to the `shelf-craft` knowledge: practical, sourced, no
+  affiliate-shaped advice) · `sources` (json, required — `{ title, url, checkedAt }[]`; every
+  claim traces) · `freshness` (string, def `'fresh'` — `'fresh'`|`'aging'`|`'stale'` — set by
+  the deterministic age rule; `stale` queues re-verification) · `linkedFrom` (json, def `[]` —
+  where the app surfaces it: alert kinds, pattern fingerprints, page routes — maintained by the
+  guide) · `createdAt`/`verifiedAt` (dates) .
+- **`money_questions.json`** — one user-asked question and its answer. `id` (pk) · `question`
+  (string, required — verbatim as typed; the ONLY user-originated text the library ever sees) ·
+  `answer` (string — cited markdown; null while `researching`) · `sources` (json, def `[]`) ·
+  `needsYourNumbers` (boolean, def false — true when a complete answer requires the user's own
+  figures; the answer then covers the general picture and the UI offers the **analyst** dock —
+  a designed handoff between two agents with disjoint powers) · `promotedToShelf` (string —
+  `shelf_entries` id when the answer proved durable) · `status` (string, def `'researching'` —
+  `'researching'`|`'answered'`) · `createdAt` (date, now).
+- **`starters.json`** — one agent-initiated conversation opener. `id` (pk) · `agent` (string,
+  required — the `space/agent` the chat opens with) · `hook` (string, required — the one-line
+  opener shown on the chip: "Netflix went up 30% — want the cancellation script?") · `seed`
+  (string, required — the pre-seeded first message context the chat session starts from) ·
+  `reason` (json, required — the row/alert/pattern that justified it; auditable) · `status`
+  (string, def `'open'` — `'open'`|`'engaged'`|`'dismissed'`|`'expired'`) · `expiresAt` (date,
+  required — starters die quietly; a stale opener is worse than none) · `createdAt` (date,
+  now). **Hard bounds, handler-enforced**: ≤2 `open` at once app-wide, dedupe by `reason`
+  fingerprint, dismissal is terminal for that fingerprint.
+
+New columns (additive `addColumn`): `alerts.shelfEntryId` (string — an alert can carry its
+explainer: the price-increase alert links the cancellation-script entry);
+`patterns.shelfEntryId` (same, on pattern cards).
+
+### New API endpoints (round 6 — 8, bringing the app to 68)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `browseShelf` / `getShelfEntry` | `GET api/shelf` / `GET api/shelf/:id` | the shelf by topic/freshness; one entry with sources |
+| `askLibrary` | `POST api/questions` | `{ question }` → `MoneyQuestion` (`researching`; answer hook fires) |
+| `listQuestions` / `getQuestion` | `GET api/questions` / `GET api/questions/:id` | history; one Q&A with sources |
+| `listStarters` | `GET api/starters` | `{}` → open, unexpired `Starter[]` (the home-page chips) |
+| `engageStarter` | `PATCH api/starters/:id` | `{ id, action:'engage'\|'dismiss' }` → on engage: opens the agent chat pre-seeded with `seed`; on dismiss: terminal for the fingerprint |
+| `shelfHealth` | `GET api/shelf/health` | `{}` → `{ fresh, aging, stale, coverage: [{ linkedSurface, hasEntry }] }` — deterministic freshness + coverage audit |
+
+Established rules hold. The **linking** of shelf entries into alerts/patterns is done by the
+`guide` (which reads alert *kinds* and pattern *fingerprints* — metadata, never amounts or
+merchants beyond what the entry topic needs — and even that lives inside the no-web `mentor`-
+side boundary: the guide has **no web either**; see the capability table).
+
+### New hooks (round 6 — 3, bringing the app to 19)
+
+- **`curate-shelf.ts`** — `cron`, `daily: '05:30'`, Wednesday-gated in the agent →
+  `library/scholar#curate` — write the next unseeded curriculum entry OR re-verify the oldest
+  `stale` one (freshness rule: `verifiedAt` > 120 days → `aging`, > 240 → `stale`); one entry
+  per week — a shelf that grows slowly and stays true beats a content farm.
+- **`answer-question.ts`** — `database` `money_questions:insert`, imperative handler:
+  `delegate('library/scholar','answer', { input: { questionId: row.id } })` — research, cite,
+  set `needsYourNumbers` honestly; an answer that proved durable gets proposed for shelf
+  promotion (the archivist judges).
+- **`open-starters.ts`** — `cron`, `daily: '08:10'`, `trigger: 'library/guide#starters'` — scan
+  the *surfaces* (new alerts by kind, fresh patterns, cooldowns ending, a new shelf entry
+  matching an open alert) and open ≤1 new starter per day within the ≤2-open bound, each
+  pointing at the right agent (`ledger/analyst` for "why", `counsel/counselor` for a parked
+  decision, `library/scholar` for a shelf read).
+
+**Loop-guard sanity.** All three write only `shelf_entries`/`money_questions`/`starters`
+(unwatched) ⇒ every chain stops at depth 1. The scholar cannot read ledger tables (no
+capability) and the guide cannot reach the web (no functions) — the two halves of the privacy
+shape, each enforced at typecheck/host level, both pinned by tests.
+
+### New pages (round 6 — 3, bringing the app to 29) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/shelf/index.tsx` | `/shelf` | `browseShelf` + `shelfHealth`; the ask box (`askLibrary`); `<Chat agent="library/scholar">` dock |
+| `pages/shelf/[id].tsx` | `/shelf/:id` | one entry: body, sources with checked dates, freshness badge, "where this appears" |
+| `pages/questions.tsx` | `/questions` | Q&A history; `needsYourNumbers` rows carry the analyst-dock handoff button |
+
+New components (design tokens only): `StarterChips` (mounted on the dashboard — the new
+front-door surface: ≤2 chips, each `engageStarter` into a pre-seeded chat), `ShelfCard`
+(freshness badge + source count), `SourceLine` (title + checkedAt), `HandoffButton` ("get YOUR
+numbers → analyst"). Alerts and pattern cards render their linked shelf entry inline
+("→ the cancellation script") — content meets moment.
+
+### The `library` space (sixth project-scoped space, full format)
+
+`money/spaces/library/` — the only web-capable space in the project, and the only one that
+cannot see money:
+
+| Agent | `db:read` tables | `db:write` tables | `functions` | Role |
+|---|---|---|---|---|
+| **scholar** | `shelf_entries, money_questions, settings` | `shelf_entries, money_questions` | `webSearch, webFetch` | research + write entries and answers; cite everything; jurisdiction-neutral, product-neutral |
+| **archivist** | `shelf_entries, money_questions` | `shelf_entries` | `[]` | freshness sweeps, promotion judgments (question → shelf), dedupe/merge of overlapping topics |
+| **guide** | `shelf_entries, starters, alerts, patterns, decisions, settings` | `starters, alerts, patterns` | `[]` | link entries into surfaces (`linkedFrom`, `shelfEntryId`); open the day's ≤1 starter; no web, by design |
+
+- **The privacy shape, stated once**: the scholar/archivist read NO ledger table (their
+  `db:read` lists above are exhaustive — a `db.query('transactions', …)` fails at host level
+  and is absent from their DTS); the guide, which does read alert/pattern metadata, has
+  `functions: []`. No agent in the project holds both web and ledger. The charter adds the
+  prose half: the scholar answers the question as asked and never requests figures; a question
+  that needs them sets `needsYourNumbers` and stops.
+- **Frontmatter features**: the scholar declares `defaultAction: answer` (any freeform ask in
+  its dock routes right); `actions:` bind `curate` (tasklist `curate`) and `answer` (tasklist
+  `answer`). The guide declares `canDelegateTo: []` — it opens conversations, it never has
+  them (the loader-warned explicit no-delegation shape, used deliberately once in the
+  catalog). The archivist's promotion path notes the **space-knowledge lifecycle**: an entry
+  that proves foundational (linked from 3+ surfaces, stable through 2 re-verifications) is
+  flagged `promoteToSpaceKnowledge` in its row — an *authoring* request THING routes to
+  `system-appbuilder`, which folds it into `library/knowledge/` as a proper field aspect (the
+  trips-app precedent: runtime agents never write space `knowledge/` files; durable content is
+  promoted through the authoring path, making future scholars smarter without a capability
+  violation).
+- **Tasklists**: `curate/` — `01-pick.md` (`role: explore` — next curriculum gap or oldest
+  stale, via `shelfHealth`-shaped reads), `02-research.md` (`functions: [webSearch, webFetch]`
+  scoped to THIS task — the round-4 workshop pattern), `03-write.md` (`functions: []` — cited
+  body from `02`'s gathered sources only; `citeCheck`-style function gate before filing).
+  `answer/` — read-question → research (web-scoped task) → answer (+ `needsYourNumbers`
+  verdict) → propose-promotion (`optional: true`, archivist-bound). `starters/` — scan
+  (`role: explore`, `output: { candidates: 'json' }`) → pick-one (the task fails on two) →
+  open.
+- **Functions** (deterministic): `freshnessRule` (verifiedAt → fresh/aging/stale — the same
+  rule `shelfHealth` serves), `starterBounds` (open-count + fingerprint dedupe — the same rule
+  the handler enforces), `sourceCheck` (body → claims lacking a source entry), `topicOverlap`
+  (new topic vs shelf → merge candidates for the archivist).
+- **Components**: view `ShelfPreview` (chat-rendered entry card), view `AnswerCard` (answer +
+  sources + the handoff state); form `PromoteSheet` — the archivist's `ask()` when a promotion
+  judgment is genuinely close ("this answer keeps coming up — make it a shelf entry?").
+- **Knowledge** (`knowledge/librarianship/`): `shelf-craft/` (`practical-not-encyclopedic.md`,
+  `product-neutrality.md` — no bank/broker/app recommendations, ever; `jurisdiction-honesty.md`),
+  `research-method/` (`source-quality.md`, `cite-or-cut.md`, `freshness-discipline.md`),
+  `conversation-craft/` (`starters-worth-tapping.md`, `right-agent-for-the-opener.md`,
+  `two-open-max.md` — the guide's restraint rules, mirrored by the handler bounds).
+
+### Phases & verification additions (round 6)
+
+**(R6-1)** schemas + columns; **(R6-2)** the `library` space full-format; **(R6-3)** the 8
+endpoints (`freshnessRule`/`starterBounds` single-definition); **(R6-4)** the 3 hooks;
+**(R6-5)** the 3 pages + StarterChips + inline entry links; **(R6-6)** tests. Verification:
+**(a)** the privacy shape, adversarially: the scholar attempting `db.query('transactions',…)`
+→ host error + absent from DTS; the guide calling `webSearch` → typecheck failure; a grep of
+every `library` capability list confirms web∩ledger = ∅ (structural test); **(b)** `askLibrary`
+→ a cited answer; a fixture question that needs figures sets `needsYourNumbers` and the answer
+contains no request for them; the handoff button opens the analyst dock; **(c)** Wednesday
+curation writes exactly one entry (or one re-verification); every body claim passes
+`sourceCheck`; freshness transitions match the rule on aged fixtures; **(d)** a price-increase
+alert renders its linked cancellation-script entry; `shelfHealth.coverage` flags a linked
+surface with no entry; **(e)** starters: never >2 open (bound test under a flood of
+candidates), dedupe by fingerprint survives re-scans, dismissal is terminal, expiry silent;
+engaging opens the named agent pre-seeded with `seed`; **(f)** a thrice-linked, twice-verified
+entry gets flagged for space-knowledge promotion and the flag routes as an authoring request
+(never a runtime write to `knowledge/` — pinned); **(g)** `pnpm lint:tokens` green.
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages

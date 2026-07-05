@@ -1164,6 +1164,175 @@ deep-link resolves; **(e)** `rateExplanation` to −2 queues exactly one rewrite
 style protection is N/A here but stale-flagging on material change is pinned;
 **(f)** `pnpm lint:tokens` green across the 4 new pages.
 
+## Round 6 — The atlas: curated resources, frontier watch & conversation (feature expansion)
+
+The app generates all its own content — cards, explanations, lessons — and treats the outside
+world as raw material it saw once at ingestion. Round 6 adds curation and currency: a sixth
+space (**`atlas`** — curator · sentinel · guide) maintains a **vetted resource shelf** — for
+each concept (weak ones first), the 2–3 genuinely best external things to read or watch, each
+with an annotation that says *why this one* and *what to skip*, stored as db rows the whole app
+links into; a **frontier watch** — topics marked `living` ("React", "EU AI regulation", any
+moving subject) get a weekly sweep, and real changes become cited **update notes** that flag
+the exact cards and explanations now stale, so your deck can't silently rot; and the
+**conversation-starter** surface arrives in learn — bounded, dismissible openers where the AI
+reaches toward you at the right moment ("you've held 'lifetimes' three weeks — 10-minute
+teach-back?", "React 20 changed what two of your cards claim — review the diff?"). Durable
+curation standards get promoted into space knowledge through the authoring path. Strictly
+additive; data/agents/pages/api/hooks only.
+
+### New database tables (round 6 — 3, bringing the app to 26)
+
+- **`resources.json`** — one vetted external resource. `id` (pk uuid) · `conceptId`
+  (references `concepts` onDelete cascade — concept-scoped; nullable with `topicId` set for
+  topic-level resources) · `topicId` (references `topics` onDelete cascade) · `url` (string,
+  required, unique) · `kind` (string, required — `'article'`|`'video'`|`'docs'`|`'paper'`|
+  `'interactive'`) · `title` (string, required) · `annotation` (string, required — why THIS
+  one, what it does better than the alternatives, what to skip inside it, honest time cost:
+  "watch 12:40–31:00, skip the setup") · `minutes` (number, required — the honest cost, same
+  discipline as the round-5 brief) · `vetVerdict` (json, required — the curator's structured
+  vetting: `{ accurate, currentAsOf, level: 'intro'|'core'|'deep', alternativesConsidered }`)
+  · `status` (string, def `'live'` — `'live'`|`'superseded'`|`'dead-link'`) · `createdAt`
+  (date, now).
+- **`topic_updates.json`** — one frontier change note. `id` (pk) · `topicId` (references
+  `topics` onDelete cascade, required) · `headline` (string, required — "React 20: the
+  compiler is on by default") · `whatChanged` (string, required — cited markdown, 3–6
+  sentences, written against *your* material: "your card 'when does memo help' now overclaims")
+  · `sources` (json, required) · `impact` (json, required — `{ cardIds, explanationIds,
+  resourceIds }` — the rows this change touches; the sentinel flags them, remediation flows
+  through the existing owners) · `fingerprint` (string, required, unique — one event, one
+  note) · `status` (string, def `'open'` — `'open'`|`'applied'`|`'dismissed'`) · `createdAt`
+  (date, now).
+- **`starters.json`** — the opener surface (the shared round-6 shape, identical
+  handler-enforced bounds: ≤2 open, fingerprint dedupe, terminal dismissal, silent expiry).
+  `id` · `agent` · `hook` · `seed` · `reason` (json) · `status` · `expiresAt` · `createdAt`.
+  Learn's openers point at the whole faculty: the listener for a ripe teach-back, the
+  professor for a lesson on a fresh weak island, the crammer when a plan's `examAt` enters
+  range, the curator when a weak concept just got a great 15-minute resource.
+
+New columns (additive `addColumn`): `topics.living` (boolean, def false — user-set: this
+subject moves); `cards.flaggedByUpdateId` (string — the update note that questioned this card;
+cleared when the card is revised or the note dismissed); `resources.helpful` (number, def 0 —
+net votes, ≤ −2 queues re-vetting).
+
+### New API endpoints (round 6 — 8, bringing the app to 49)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `listResources` | `GET api/resources` | `{ conceptId?, topicId?, kind? }` → `Resource[]` (weak-concept coverage first) |
+| `rateResource` | `PATCH api/resources/:id` | `{ id, vote: 1\|-1 }` → `Resource` |
+| `requestResources` | `POST api/resources/request` | `{ conceptId }` → `{ status:'curating' }` — on-demand stocking |
+| `readingQueue` | `GET api/queue/reading` | `{ minutes? }` → `{ items: [{ resource, why }], totalMinutes }` — deterministic: weakest-relevant coverage packed into the time you actually have (`cramPriority`'s sibling) |
+| `listTopicUpdates` / `resolveTopicUpdate` | `GET api/updates` / `PATCH api/updates/:id` | open notes with impact; `applied`/`dismissed` (dismissal clears card flags) |
+| `listStarters` / `engageStarter` | `GET/PATCH api/starters` | the chips; engage opens the pre-seeded chat with the named faculty agent |
+
+`readingQueue` is round 6's deterministic centrepiece — "I have 25 minutes tonight" becomes a
+packed, honest-minutes list from the vetted shelf, weakest concepts first; the round-5 brief's
+suggestion slot may point at it. Established rules hold (equality-only `where`, typed
+`HttpError`, `spawn` from handlers).
+
+### New hooks (round 6 — 3, bringing the app to 17)
+
+- **`stock-resources.ts`** — `database` **`concepts:update`** (the SECOND hook on this event,
+  beside round 5's `explain-weak` — multi-hook fan-out, each independently gated and
+  coalesced): skip unless the update set `status:'weak'` and the concept has < 2 live
+  resources, else `delegate('atlas/curator','stock', { input: { conceptId: row.id } })` — by
+  the weekend a newly-weak concept has its explanation (round 5) AND its two best external
+  resources (round 6) waiting.
+- **`frontier-watch.ts`** — `cron`, `daily: '05:45'`, Thursday-gated in the agent →
+  `atlas/sentinel#watch` — sweep `living` topics (staleness-ordered, budget-capped): find real
+  changes, fingerprint-dedupe, write update notes **diffed against your actual cards and
+  explanations** (the impact list is the point — news without impact is noise), flag the
+  touched rows.
+- **`open-starters.ts`** — `cron`, `daily: '07:55'`, `trigger: 'atlas/guide#starters'` — from
+  the day's surfaces (ripe teach-backs, fresh weak islands, exam windows opening, applied
+  update notes, a new resource on a weak concept): ≤1/day within the shared bounds, each
+  pointed at the right faculty agent with a pre-seeded first message.
+
+**Loop-guard sanity.** `concepts:update(weak)` now fans to two hooks; both write unwatched
+tables (`explanations`+`explainedDepths` gate-guarded from round 5; `resources` unwatched) ⇒
+both chains stop at depth 2 (cap 3; the round-5 gate test extends to assert the pair runs
+once each). `topic_updates:insert` fires nothing — remediation is **pull**: flagged cards
+surface in the curator digest and the Today page badge, and fixing a card flows through the
+existing `updateCard`/cardsmith paths (content changes stay with their owners; the sentinel
+only flags). The starter cron writes `starters` (unwatched) ⇒ stops. **Self-write exclusion**
+backstops.
+
+### New pages (round 6 — 3, bringing the app to 27) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/resources.tsx` | `/resources` | the shelf by concept/kind; `rateResource`; `requestResources`; the reading-queue builder ("I have __ minutes") |
+| `pages/frontier.tsx` | `/frontier` | open update notes with impact chips → the flagged cards/explanations; `resolveTopicUpdate` |
+| `pages/queue.tsx` | `/queue` | tonight's `readingQueue` — packed list, honest total, check-off |
+
+New components (design tokens only): `StarterChips` (on the Today page — the faculty reaching
+toward you), `ResourceCard` (kind badge + annotation + honest minutes + vet verdict),
+`UpdateNote` (headline + whatChanged + impact chips), `QueueBuilder` (minutes slider →
+packed list), `StaleFlag` (on flagged cards in the deck table and Today page — "questioned by
+'React 20' — review"). The round-5 explanation tabs link the concept's top resource ("prefer
+a human's version? this one, 14 min"); the map's weak nodes show resource coverage.
+
+### The `atlas` space (sixth project-scoped space, full format)
+
+`learn/spaces/atlas/` — the curation-and-currency team:
+
+| Agent | `db:read` tables | `db:write` tables | `api:call` allow | `functions` | Role |
+|---|---|---|---|---|---|
+| **curator** | `resources, concepts, concept_links, topics, cards, reviews, settings` | `resources` | — | `webSearch, webFetch` | find, vet, annotate the 2–3 best per concept; alternatives considered on record; re-vet on downvotes |
+| **sentinel** | `topics, topic_updates, cards, explanations, resources, settings` | `topic_updates, cards, explanations, resources` | — | `webSearch, webFetch` | the frontier sweep: real changes only, diffed against YOUR material; flag, never rewrite |
+| **guide** | `starters, teachbacks, concepts, study_plans, cards, reviews, topic_updates, resources, settings` | `starters` | `learnStats, todayPlan` | `[]` | ≤1 opener/day, the right faculty agent, the right moment; no web by design |
+
+- **Frontmatter features**: the sentinel declares `canDelegateTo: [tutor/cardsmith#draft]` —
+  when an applied update note obsoletes cards outright, replacement drafting goes to the
+  card-craft owner (cross-space allowlist; the sentinel flags and commissions, it never
+  authors cards). The curator declares `defaultAction: stock`; the guide `defaultAction:
+  starters` and — like money's guide — `canDelegateTo: []` (it opens conversations, it never
+  has them). Curation standards that prove out (vet criteria that consistently predict
+  `helpful` votes) are flagged for **space-knowledge promotion** via the authoring path
+  (THING → `system-appbuilder` folds them into `atlas/knowledge/`; runtime agents never write
+  `knowledge/` files — the catalog-standard lifecycle).
+- **Tasklists**: `stock/` — `01-survey.md` (`role: explore`, `output: { candidates: 'json',
+  existing: 'json' }` — what the concept needs at which level), `02-hunt.md` (**`forEach:
+  "survey.levels"`** — one fork per missing level (intro/core/deep); `functions: [webSearch,
+  webFetch]` scoped here), `03-vet.md` (`functions: [vetChecklist]` — structured verdict or
+  rejection; two great resources beat five adequate ones), `04-file.md`. `watch/` — queue
+  (`role: explore`, staleness-ordered) → sweep (**`forEach: "queue.topics"`**, web-scoped) →
+  diff (`functions: [impactScan]` — against YOUR cards/explanations; no impact → no note) →
+  file (fingerprint dedupe). `starters/` — the shared scan → pick-one (fails on two) → open
+  shape.
+- **Functions** (deterministic): `packQueue` (minutes budget × weakest-coverage → the packed
+  reading list — the same math `readingQueue` serves), `vetChecklist` (verdict completeness
+  gate), `impactScan` (change text × card fronts/backs + explanation bodies → candidate
+  impact rows; the model confirms, the function finds), `starterBounds` (the shared rule).
+- **Components**: view `ResourcePick` (chat-rendered "this one, because"), view `FrontierDiff`
+  (what changed → what it touches); form `LivingIntake` — the `ask()` sheet when a topic is
+  marked living ("how fast does this move? what kind of change matters to you?").
+- **Knowledge** (`knowledge/curation/`): `vetting/` (`two-great-beats-five-good.md`,
+  `honest-minutes.md`, `alternatives-on-record.md`, `level-matching.md`), `frontier-method/`
+  (`impact-or-silence.md`, `diff-against-their-material.md`, `flag-dont-rewrite.md`),
+  `openers/` (`right-agent-right-moment.md`, `ripe-not-nag.md`, `shared-bounds.md`).
+
+### Phases & verification additions (round 6)
+
+**(R6-1)** schemas + columns; **(R6-2)** the `atlas` space full-format; **(R6-3)** the 8
+endpoints (`packQueue` single-definition); **(R6-4)** the 3 hooks + the two-hooks-one-event
+pin; **(R6-5)** the 3 pages + StarterChips + cross-surface links; **(R6-6)** tests.
+Verification: **(a)** flagging a concept weak fires `explain-weak` AND `stock-resources`
+exactly once each (fan-out pinned); the stocked resources cover missing levels only, each
+`vetVerdict` complete with `alternativesConsidered` non-empty, `minutes` honest against the
+annotation's skip-ranges; **(b)** `readingQueue` for 25 minutes packs ≤25 honest minutes,
+weakest-coverage first, matching `packQueue` on fixtures; **(c)** the Thursday sweep on a
+seeded framework-changed fixture writes ONE note (fingerprint), whose `impact` names exactly
+the seeded stale card + explanation (`impactScan` confirmed by the model, not replaced);
+flagged cards badge on Today; a no-impact change writes nothing (impact-or-silence pinned);
+**(d)** resolving a note `applied` with obsoleted cards delegates `tutor/cardsmith#draft`
+(allowlist observed); `dismissed` clears the flags; the sentinel never wrote a card body
+(flag-don't-rewrite structural: assert card fronts/backs byte-stable through a sweep);
+**(e)** starters: the shared bound/dedupe/terminal-dismissal suite; a ripe-teach-back opener
+lands on `arena/listener` pre-seeded; a quiet day opens nothing; **(f)** a −2 resource queues
+exactly one re-vet; a dead link flips `dead-link` and drops from queues; **(g)** `pnpm
+lint:tokens` green across the 3 new pages.
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages

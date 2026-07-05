@@ -1201,6 +1201,178 @@ items with resolving routes and attached drafts where promised; a genuinely quie
 writes no row; the missing-follow-up case delegates `agency/coach#nudge` (allowlist observed);
 **(f)** `pnpm lint:tokens` green across the 4 new pages.
 
+## Round 6 — The radar: living dossiers, market signals & conversation (feature expansion)
+
+Everything the app knows about a company it learned once — at enrichment, at brief time — and
+then let rot. Round 6 makes company and market knowledge **living, curated, db-stored
+content**: a sixth space (**`radar`** — watcher · dossierist · opener) keeps a daily watch on
+the companies that matter to you (everything in your pipeline, everyone you might return to),
+distills raw findings into deduplicated, cited **signals** (funding, layoffs, launches,
+leadership changes, hiring waves), and folds them into a **living dossier** per company — the
+one page you read before any call, always current, every claim sourced and dated. Signals are
+also *timing*: the round-5 brief learns to say "Acme announced the launch you asked about in
+your interview — today is the day to follow up", and the catalog's **conversation-starter**
+surface arrives in career — bounded, dismissible chips where an agent opens with something
+worth acting on *and the draft already attached*. Curated market insight that proves durable
+gets promoted into space knowledge through the authoring path (the trips-app precedent) — the
+radar makes every future brief and interview prep smarter. Strictly additive;
+data/agents/pages/api/hooks only.
+
+### New database tables (round 6 — 4, bringing the app to 28)
+
+- **`watch_targets.json`** — one company or theme under watch. `id` (pk uuid) · `kind`
+  (string, required — `'company'`|`'theme'` — themes are market threads like "EU remote
+  hiring") · `name` (string, required, unique) · `reason` (string, required — why it's
+  watched: "active application", "referee works there", "target-role market") · `source`
+  (string, def `'auto'` — `'auto'`|`'user'`; every application's company is auto-watched by
+  the `createApplication` handler, deterministically — no agent needed to start caring) ·
+  `active` (boolean, def true — closing all applications at a company sets it inactive after
+  `settings.watchCooldownDays`) · `lastSweptAt` (date) · `createdAt` (date, now). Relation
+  `signals` hasMany `signals` via `targetId`.
+- **`signals.json`** — one curated finding. `id` (pk) · `targetId` (references `watch_targets`
+  onDelete cascade, required) · `kind` (string, required — `'funding'`|`'layoffs'`|`'launch'`|
+  `'leadership'`|`'hiring'`|`'press'`|`'other'`) · `headline` (string, required — one line, the
+  watcher's words) · `summary` (string, required — 2–3 sentences, what it means for YOU:
+  "hiring wave in your target org — referrals land better in the first two weeks") · `sources`
+  (json, required — `{ title, url, publishedAt }[]`) · `fingerprint` (string, required, unique
+  — normalized event key; the same story from five outlets is one signal) · `weight` (string,
+  def `'notable'` — `'notable'`|`'actionable'` — only `actionable` signals may become starters
+  or brief items) · `createdAt` (date, now). Relation `target` belongsTo `watch_targets` via
+  `targetId`.
+- **`dossiers.json`** — the living company page. `id` (pk) · `targetId` (references
+  `watch_targets` onDelete cascade, required, unique) · `body` (string, required — markdown,
+  sectioned: what they do · money & momentum · org & leadership · how they hire · your history
+  with them (from YOUR rows: applications, activities, connections, debriefs) · talking
+  points) · `claimSources` (json, required — per-section source anchors; a dossier claim
+  without a source or a your-rows reference fails the dossierist's own gate) · `freshAsOf`
+  (date, required) · `createdAt` (date, now).
+- **`starters.json`** — the conversation-opener surface (the money-app round-6 shape,
+  identical bounds). `id` (pk) · `agent` · `hook` ("Acme raised a Series B — your referrer
+  would love to hear from you; draft attached") · `seed` · `reason` (json — the signal /
+  brief item behind it) · `draftDocumentId` (string — career's twist: a starter arrives with
+  its draft already in `documents`) · `status` (`'open'`|`'engaged'`|`'dismissed'`|`'expired'`)
+  · `expiresAt` · `createdAt`. **Handler-enforced: ≤2 open, fingerprint dedupe, terminal
+  dismissal.**
+
+New columns (additive `addColumn`): `settings.watchCooldownDays` (number, def 60);
+`daily_briefs.signalIds` (json, def `[]` — the brief's timing items trace to real signals).
+
+### New API endpoints (round 6 — 8, bringing the app to 66)
+
+| name | method + route | I/O sketch |
+|---|---|---|
+| `listWatchTargets` / `watchTarget` | `GET/POST api/radar` | the watchlist; add a manual target or theme |
+| `updateWatchTarget` | `PATCH api/radar/:id` | `{ id, active }` → mute/unmute |
+| `listSignals` | `GET api/radar/signals` | `{ targetId?, weight? }` → `Signal[]` (newest first) |
+| `getDossier` | `GET api/radar/dossier/:targetId` | the living page + `freshAsOf` |
+| `refreshDossier` | `POST api/radar/dossier/:targetId` | `{ targetId }` → `{ status:'updating' }` — on-demand before a call |
+| `listStarters` / `engageStarter` | `GET/PATCH api/starters` | the chips; engage opens the pre-seeded chat, dismiss is terminal |
+
+Deterministic centrepieces: the **auto-watch rule** (application → target, handler-side) and
+the signal `fingerprint` dedupe. The round-2 coach's `brief` action now **reads dossiers
+instead of re-researching from scratch** — prep gets faster *and* deeper as the radar
+accumulates; its own web pass only fills what the dossier lacks. Established rules hold.
+
+### New hooks (round 6 — 3, bringing the app to 18)
+
+- **`sweep-signals.ts`** — `cron`, `daily: '06:15'`, `trigger: 'radar/watcher#sweep'` — per
+  active target (staleness-ordered, budget-capped per run): search, distill, fingerprint-dedupe,
+  weigh; write only what a person would mention to you — the charter's bar for `notable`, and
+  "you should do something about this" for `actionable`.
+- **`update-dossier.ts`** — `database` `signals:insert` (coalesced), imperative handler:
+  `delegate('radar/dossierist','fold',{})` — fold the burst into the affected dossiers
+  (section-targeted edits, `freshAsOf` bump), never a full rewrite (stability makes the page
+  readable daily).
+- **`open-starters.ts`** — `cron`, `daily: '08:15'`, `trigger: 'radar/opener#starters'` — from
+  yesterday's `actionable` signals + round-5 brief leftovers: ≤1 new starter/day within the
+  ≤2-open bound, each with its draft pre-written into `documents` (via the round-1 pipeline's
+  own versioned shape) and its chat pointed at the right agent (`agency/coach` for outreach,
+  `prep/negotiator` when the signal moves an open offer's leverage).
+
+**Loop-guard sanity.** `signals:insert` → dossierist writes `dossiers` (unwatched) ⇒ stops at
+depth 1. The sweep writes `signals` — which fires `update-dossier`, an intentional depth-2
+chain ⇒ stops (cap 3). The opener writes `starters` + `documents` — `documents:insert` DOES
+fire the round-2 `build-questions` hook, whose `kind:'brief'` gate makes a starter draft a
+no-op ⇒ stops at depth 2 (the gate gains a round-6 pin). **Self-write exclusion** backstops;
+per-target sweep budgets keep a big watchlist inside the hook budget (partial sweeps resume
+next day by `lastSweptAt` order).
+
+### New pages (round 6 — 3, bringing the app to 24) + components
+
+| File | Route | Reads / writes |
+|---|---|---|
+| `pages/radar/index.tsx` | `/radar` | watchlist + latest signals stream; mute/add; weight filter |
+| `pages/radar/[targetId].tsx` | `/radar/:targetId` | the living dossier + its signal history; `refreshDossier`; `<Chat agent="radar/dossierist">` ("what changed since last month?") |
+| `pages/signals.tsx` | `/signals` | the cross-target stream, `actionable` first — the morning-read companion to `/brief` |
+
+New components (design tokens only): `StarterChips` (on `/brief` and the board — engage opens
+the chat with the draft attached), `SignalRow` (kind badge + headline + sources), `DossierView`
+(sectioned, per-claim source anchors, `freshAsOf`), `WatchRow`. The application page links its
+company's dossier; interview prep (round 2) shows "dossier-backed" on brief sections that came
+from the radar.
+
+### The `radar` space (sixth project-scoped space, full format)
+
+`career/spaces/radar/` — the market-intelligence team:
+
+| Agent | `db:read` tables | `db:write` tables | `api:call` allow | `functions` | Role |
+|---|---|---|---|---|---|
+| **watcher** | `watch_targets, signals, settings` | `signals, watch_targets` | — | `webSearch, webFetch` | the daily sweep: distill, dedupe, weigh; a quiet day writes nothing |
+| **dossierist** | `watch_targets, signals, dossiers, applications, activities, connections, debriefs, postings, settings` | `dossiers` | — | `webFetch` | fold signals + YOUR history into the living page; section edits, sourced claims |
+| **opener** | `signals, starters, daily_briefs, applications, offers, connections, settings` | `starters, documents` | `pipeline` | `[]` | ≤1/day: the right moment, the right agent, the draft attached |
+
+- **Frontmatter features**: the opener declares `canDelegateTo: [agency/coach#nudge,
+  prep/negotiator]` — the draft attached to a starter is written by the agent who owns that
+  craft, not by the opener (cross-space allowlist; the opener composes moments, not prose).
+  The watcher declares `defaultAction: sweep`; the dossierist `defaultAction: fold` plus a
+  `refresh` action bound to the on-demand tasklist. Durable market insight (a theme signal
+  pattern that has held for months) is flagged for **space-knowledge promotion** through the
+  authoring path — THING → `system-appbuilder` folds it into `radar/knowledge/` (runtime
+  agents never write `knowledge/` files; the trips precedent, now standard across the
+  catalog).
+- **Tasklists**: `sweep/` — `01-targets.md` (`role: explore`, `output: { queue: 'json' }` —
+  staleness-ordered, budget-sized), `02-hunt.md` (**`forEach: "targets.queue"`** — one fork
+  per target; `functions: [webSearch, webFetch]` scoped here), `03-file.md`
+  (`functions: [fingerprintSignal]` — dedupe, weigh, write). `fold/` — affected
+  (`role: explore` — which dossiers the burst touches), edit (**`forEach:
+  "affected.targets"`**, section-targeted), stamp. `starters/` — candidates (`role: explore`)
+  → pick-one (fails on two) → draft-via-delegation (**task-level `canDelegateTo:
+  [agency/coach#nudge, prep/negotiator]`** — only this task delegates) → open.
+- **Functions** (deterministic): `fingerprintSignal` (event-key normalization — the dedupe the
+  handler's unique column backstops), `sweepQueue` (staleness + budget → today's targets),
+  `dossierSections` (the canonical section list + which signal kinds feed which section),
+  `starterBounds` (the shared ≤2-open/fingerprint rule).
+- **Components**: view `SignalDigest` (chat-rendered day's signals), view `DossierDelta`
+  ("what changed since you last read this" — the dossierist's chat answer, rendered); form
+  `WatchIntake` — the `ask()` sheet when a theme watch arrives vague ("which market, which
+  geography, what would make a finding useful to you?").
+- **Knowledge** (`knowledge/market-intelligence/`): `signal-craft/`
+  (`would-a-person-mention-it.md`, `actionable-is-rare.md`, `five-outlets-one-event.md`),
+  `dossier-craft/` (`living-not-rewritten.md`, `your-history-is-half-the-page.md`,
+  `sourced-or-silent.md`), `timing/` (`moments-beat-reminders.md`,
+  `draft-attached-or-it-didnt-help.md` — shared bar with the round-5 aide).
+
+### Phases & verification additions (round 6)
+
+**(R6-1)** schemas + columns (auto-watch in `createApplication` pinned); **(R6-2)** the
+`radar` space full-format; **(R6-3)** the 8 endpoints; **(R6-4)** the 3 hooks + the
+`build-questions` gate re-pin; **(R6-5)** the 3 pages + StarterChips + dossier links;
+**(R6-6)** tests. Verification: **(a)** creating an application auto-watches its company
+(handler, no agent run); closing the last application flips inactive after the cooldown;
+**(b)** a seeded five-outlet story lands as ONE signal (fingerprint pinned); a quiet-day
+sweep writes zero rows (would-a-person-mention-it pinned); sweep resumes by `lastSweptAt`
+under a too-big watchlist (partial-sweep budget observed); **(c)** a signal burst folds into
+section-targeted dossier edits — untouched sections byte-identical (living-not-rewritten
+pinned); every dossier claim carries a source or a your-rows anchor; `refreshDossier` before
+a fixture call date updates `freshAsOf`; **(d)** the round-2 coach's brief on a
+dossier-backed company cites the dossier and only web-fills the gaps (faster-and-deeper
+observed as fewer web calls in the trace); **(e)** starters: the bound/dedupe/terminal-
+dismissal suite (shared with money); the draft is authored by the delegated owner
+(`agency/coach` trace) and the starter's `documents` insert no-ops `build-questions` (gate
+pinned); engaging opens the right agent with the draft in context; **(f)** an `actionable`
+signal surfaces in the round-5 brief with `signalIds` tracing (timing-fusion observed);
+**(g)** `pnpm lint:tokens` green.
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages

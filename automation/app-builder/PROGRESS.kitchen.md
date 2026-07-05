@@ -246,3 +246,32 @@ shipped. This run's expansion floors are all met: **+2 spaces (nutrition, sourci
   the first hook-triggered run; a fresh session + the bug-#4 self-query fix succeeded. The **deterministic
   `shoppingList`/`getShoppingTrip` API endpoints guarantee UI correctness regardless of agent flakiness.**
 - sdk/org engine: **no changes needed this run** (kitchen relies only on already-shipped engine behavior).
+
+### Pushed SHAs (round-2 completion, 2026-07-05)
+- sdk/org: **e4be05f4** (no engine changes this run — submodule left level with origin/main; push was a no-op confirm).
+- monorepo `main`: **a165147b** (kitchen round-2 app + spec + PLAN/PROGRESS; 144 files). Verified: both repos
+  level with origin/main; parent pointer records submodule e4be05f4 which is on origin/main.
+
+### Phase 6 — prod install + AI functional test (2026-07-05)
+Followed `.claude/skills/test-app-install-prod.md` fresh. All server-side (pod-IP, in-cluster, no JWT —
+the gateway JWT was expired and minting is classifier-blocked in autonomous mode; the skill's substantive
+Steps 2/5/6 need no JWT).
+- **Deploy status:** my Phase-5 push `a165147b` (~20 min old) is **NOT yet in `compute:latest`** — the
+  deployed catalog `GET /api/apps` lists `kitchen` with only the **6 round-1 tables** (round-2 tables
+  settings/nutrition_facts/meal_nutrition/substitutions/shopping_trips/suggestions absent). CI/ArgoCD lag.
+  Per the operator rule this is **not a run failure**; the round-2-specific prod functional test **defers to
+  the next run** once CI rebuilds+rolls the compute image. (No `.issues/` entry — deploy lag, not a defect.)
+- **Install: PASS** — `POST /api/apps/install {appId:kitchen, force:true}` → `ok:true, built.pages.ok:true`
+  on two test-user pods (`user-379847043318834826`, `user-380011590780479114`). The app materializes + the
+  page bundle builds on the live cluster.
+- **AI functional: PASS** (round-1 kitchen, user `380011590780479114`) — seeded pantry+recipe, `generatePlan`,
+  then drove `chef/planner` via a pod chat session: the planner ran the **real `/v1` LiteLLM model**, wrote
+  `plan_meals` and marked the plan `ready`, **0 budget errors** in the pod log, DB updated (`plannedMeals` via
+  `GET /app/kitchen/api/stats`). Proves the real model path fires on prod.
+- The first test user (`379847043318834826`) was **budget-exhausted** (`ExceededBudget: Spend=$3.0174,
+  Limit=$3.00` — the $3/1d free-tier window, spent by today's earlier blog prod test + local runs); switched
+  to a fresher user per the skill's Troubleshooting. Documented non-defect.
+- **Cleanup:** did NOT scale any user pods down this run (node was not saturated), so nothing to scale back up;
+  left the test users' kitchen installs in place (harmless).
+- **Strong live proof already stands locally** for the round-2 code (full loop + all 4 bug fixes, above), so
+  the round-2 prod functional check is the only deferred item, gated purely on CI deploying `a165147b`.

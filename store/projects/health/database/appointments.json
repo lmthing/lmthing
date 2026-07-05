@@ -1,0 +1,20 @@
+{
+  "title": "Appointments",
+  "description": "One scheduled healthcare appointment the user tracks — a doctor visit, lab draw, imaging, or dental. The care/coordinator surfaces upcoming ones and can auto-prepare a visit brief for an imminent appointment.",
+  "columns": {
+    "id":          { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "title":       { "type": "string", "description": "a short label for the appointment, e.g. 'Cardiology follow-up'", "required": true },
+    "provider":    { "type": "string", "description": "the clinician or facility, e.g. 'Dr. Lee'" },
+    "location":    { "type": "string", "description": "where the appointment is" },
+    "kind":        { "type": "string", "description": "'doctor' | 'lab' | 'imaging' | 'dental' | 'other'", "default": "doctor" },
+    "scheduledAt": { "type": "date",   "description": "when the appointment is", "required": true },
+    "status":      { "type": "string", "description": "'scheduled' | 'completed' | 'cancelled'", "default": "scheduled" },
+    "prepBriefId": { "type": "string", "description": "the visit brief prepared for this appointment (null until prepared)",
+                     "references": { "table": "visit_briefs", "column": "id", "onDelete": "setNull" } },
+    "note":        { "type": "string", "description": "optional context — reason for the visit, things to bring" },
+    "createdAt":   { "type": "date",   "description": "when the appointment was added", "generated": "now" }
+  },
+  "relations": {
+    "brief": { "belongsTo": "visit_briefs", "via": "prepBriefId", "description": "the prep brief compiled for this appointment" }
+  }
+}

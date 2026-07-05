@@ -1,0 +1,17 @@
+{
+  "title": "Triage assessments",
+  "description": "One conservative symptom-triage observation written by the care/triage-nurse, grounded strictly in the curated triage knowledge (red-flags, when-to-see-a-doctor) — never the open web. It reports an urgency level and what to watch for; it never diagnoses. Not medical advice.",
+  "columns": {
+    "id":         { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "symptomId":  { "type": "string", "description": "the symptom this assessment is about (null for a free-text question)",
+                    "references": { "table": "symptoms", "column": "id", "onDelete": "setNull" } },
+    "question":   { "type": "string", "description": "the user's triage question, e.g. 'chest tightness after climbing stairs'", "required": true },
+    "body":       { "type": "string", "description": "the observation in markdown, ending with an explicit 'if X, seek care now' line; empty while pending" },
+    "urgency":    { "type": "string", "description": "'self_care' | 'routine' | 'urgent' | 'emergency' | 'unknown' — the triage-nurse's conservative read", "default": "unknown" },
+    "status":     { "type": "string", "description": "'pending' while the triage-nurse assesses it, 'ready' when done", "default": "pending" },
+    "createdAt":  { "type": "date",   "description": "when the triage was requested", "generated": "now" }
+  },
+  "relations": {
+    "symptom": { "belongsTo": "symptoms", "via": "symptomId", "description": "the symptom episode this assessment concerns" }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "title": "Care shares",
+  "description": "One exportable, printable care-summary snapshot the care/coordinator compiles from the user's record — labs, medications, insights, and upcoming appointments — to hand to a clinician. Per-user and pod-isolated; there is no public/cross-user share surface. Not medical advice.",
+  "columns": {
+    "id":        { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "title":     { "type": "string", "description": "a short label for the export, e.g. 'Summary for cardiology'", "default": "Care summary" },
+    "scope":     { "type": "string", "description": "'full' | 'labs' | 'meds' | 'summary' — how much of the record the export covers", "default": "summary" },
+    "body":      { "type": "string", "description": "the compiled summary in markdown; empty while pending" },
+    "status":    { "type": "string", "description": "'pending' while the coordinator compiles it, 'ready' when done", "default": "pending" },
+    "token":     { "type": "string", "description": "an opaque local id for the printable page (not a public link)" },
+    "createdAt": { "type": "date",   "description": "when the export was requested", "generated": "now" }
+  }
+}

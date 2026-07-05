@@ -173,3 +173,88 @@ VisitBrief, Insight, Followup, Goal, Medication.
 5. Subagent D: coaching space (full format).
 6. Subagent E: clinic remediation (functions/components/knowledge/tasklists + extend instruct).
 7. orchestrator: extend test file; typecheck; lint:tokens; live pipeline; commit+push; prod install.
+
+---
+
+# ROUND 3 — feature expansion plan (active care management)
+
+Theme: turn the passive tracker into an active care-management system — medication **adherence**,
+literature-backed **interaction reviews**, **appointment**/care-team **coordination**, a shareable
+**care-summary export**, and a conservative knowledge-grounded **symptom triage**. Strictly additive;
+round-1/2 files untouched. Two new spaces → **five** total.
+
+## database/ (orchestrator authors; 6 new tables + 2 cols + relations)
+- adherence_logs.json — id(pk,uuid), medicationId(FK medications cascade,req), scheduledAt(date,req),
+  takenAt(date), status(str def 'pending'), note(str). relation medication belongsTo medications.
+- interactions.json — id, medicationId(FK medications cascade,req), otherName(str,req),
+  severity(str def 'unknown'), body(str), status(str def 'pending'), createdAt(now). rel medication belongsTo.
+- appointments.json — id, title(req), provider, location, kind(def 'doctor'), scheduledAt(date,req),
+  status(def 'scheduled'), prepBriefId(FK visit_briefs setNull), note, createdAt(now). rel brief belongsTo visit_briefs.
+- care_contacts.json — id, name(req), role(def 'other'), organization, phone, email, note, createdAt(now).
+- care_shares.json — id, title, scope(def 'summary'), body(str), status(def 'pending'), token(str), createdAt(now).
+- triage_assessments.json — id, symptomId(FK symptoms setNull), question(req), body(str),
+  urgency(def 'unknown'), status(def 'pending'), createdAt(now). rel symptom belongsTo symptoms.
+- medications.json (extend) — +refillsRemaining(number), +reminderTime(str HH:MM); +relations doses(hasMany
+  adherence_logs via medicationId), interactions(hasMany interactions via medicationId).
+- symptoms.json (extend) — +relation triage(hasMany triage_assessments via symptomId).
+- visit_briefs.json (extend) — +relation appointments(hasMany appointments via prepBriefId).
+
+## api/ (Subagent A — 16 handlers, mirror Ctx/Db inline-type shape of existing handlers)
+doses/POST.ts logDose · doses/GET.ts listDoses · medications/[id]/GET.ts getMedication (include doses,interactions)
+· interactions/POST.ts checkInteractions (402 gate on settings.tier; insert pending) · interactions/GET.ts listInteractions
+· appointments/GET.ts listAppointments · appointments/POST.ts addAppointment · appointments/[id]/PATCH.ts updateAppointment
+· contacts/GET.ts listContacts · contacts/POST.ts addContact · shares/POST.ts createShare (insert pending; token via crypto/randomUUID)
+· shares/GET.ts listShares · shares/[id]/GET.ts getShare · triage/POST.ts requestTriage (FREE; insert pending)
+· triage/GET.ts listTriage · triage/[id]/GET.ts getTriage.
+
+## hooks/ (orchestrator — 5 new)
+check-interactions.ts (database interactions:insert → pharmacy/pharmacist#review) ·
+compile-care-share.ts (database care_shares:insert → care/coordinator#compile) ·
+triage-symptom.ts (database triage_assessments:insert → care/triage-nurse#assess) ·
+dose-reminders.ts (cron daily 09:00 → pharmacy/pharmacist#reminders) ·
+appointment-reminders.ts (cron daily 07:00 → care/coordinator#reminders).
+
+## spaces/pharmacy/ (Subagent C — full format)
+- agents/pharmacist/{charter,instruct}.md — caps: db:read [medications,adherence_logs,interactions,research,
+  knowledge_notes,sources,settings], db:write [adherence_logs,interactions]; OMIT functions (keep web + space fns).
+  Actions: review (fill pending interactions via webSearch, cite, not-a-doctor), reminders (compute adherence via
+  adherenceRate, surface missed/due doses; writes nothing).
+- functions/adherenceRate.ts, functions/nextDoseDue.ts (typed, deterministic).
+- components/view/AdherenceCard.tsx (token-gated chat card).
+- knowledge/pharmacology/{adherence,interactions}/{index.md + >=2 aspects} — adherence: index, missed-dose-handling,
+  adherence-metrics; interactions: index, common-interactions, literature-standards.
+- tasklists/review/{index.md,01-load-pending.md,02-research.md,03-write.md}.
+
+## spaces/care/ (Subagent D — full format, 2 agents)
+- agents/coordinator/{charter,instruct}.md — caps: db:read [metrics,lab_results,symptoms,medications,adherence_logs,
+  research,insights,followups,visit_briefs,appointments,care_contacts,care_shares,settings], db:write
+  [care_shares,appointments,visit_briefs]; functions: [buildCareSummary] (deny web). Actions: compile (self-query
+  pending care_shares, build md via buildCareSummary, mark ready), reminders (surface upcoming appts; for appt <48h
+  w/o brief, insert pending visit_briefs + link via prepBriefId).
+- agents/triage-nurse/{charter,instruct}.md — caps: db:read [symptoms,triage_assessments,metrics,lab_results,
+  medications,knowledge_notes,settings], db:write [triage_assessments]; functions: [] (deny web+fns). Action: assess
+  (self-query pending triage_assessments; reason over care/triage knowledge; write urgency+body; emergency banner).
+- functions/buildCareSummary.ts (typed; assembles md sections from row arrays).
+- components/view/{CareSummaryCard,TriageObservation}.tsx.
+- knowledge/care/coordination/{index.md,share-scopes.md,appointment-prep.md} +
+  knowledge/care/triage/{index.md,red-flags.md,when-to-escalate.md,urgency-levels.md}.
+- tasklists/compile/{index.md,01-gather.md,02-compose.md} + tasklists/assess/{index.md,01-reason.md,02-write.md}.
+
+## pages/ + components/ (Subagent B — 10 pages + 12 components + nav)
+doses.tsx, medications/[id].tsx, interactions.tsx, appointments/index.tsx, appointments/[id].tsx, contacts.tsx,
+shares/index.tsx, shares/[id].tsx, triage/index.tsx, triage/[id].tsx.
+components: DoseRow, DoseChecklist, AdherenceBar, InteractionCard, SeverityBadge, AppointmentRow, AppointmentCard,
+ContactCard, CareShareCard, TriageCard, UrgencyBadge, MedicationDetail.
+_layout.tsx: add nav Doses · Appointments · Triage (+ keep existing). Design tokens only. import row types from @app/types.
+
+## tests/health.test.mjs (orchestrator — extend)
+EXPECTED_TABLES → 20; endpoint list → 44; EXPECTED_HOOKS → 12; SPACES adds pharmacy:[pharmacist], care:[coordinator,
+triage-nurse]; full-format assertion covers all 5; new-agent least-privilege (no authoring caps); pharmacist/coordinator/
+triage-nurse per-verb scope; checkInteractions 402 gate; getMedication include; medications new columns present.
+
+## Build sequence (fan-out by directory)
+1. orchestrator: schemas (6 new + 3 extend), hooks (5), spec, plan.
+2. Subagent A: 16 api handlers.  3. Subagent B: 10 pages + 12 components + nav.
+4. Subagent C: pharmacy space.   5. Subagent D: care space.
+6. orchestrator: extend tests; build sdk/org core; typecheck; lint:tokens; live pipeline (temp LMTHING_ROOT, LM_MODEL=S);
+   commit+push both repos; prod install + AI test.

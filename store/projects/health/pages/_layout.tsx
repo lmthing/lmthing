@@ -34,6 +34,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <Link href="/medications" className="text-sm text-muted-foreground hover:text-primary">
             Medications
           </Link>
+          <Link href="/doses" className="text-sm text-muted-foreground hover:text-primary">
+            Doses
+          </Link>
+          <Link href="/appointments" className="text-sm text-muted-foreground hover:text-primary">
+            Appointments
+          </Link>
+          <Link href="/contacts" className="text-sm text-muted-foreground hover:text-primary">
+            Contacts
+          </Link>
+          <Link href="/triage" className="text-sm text-muted-foreground hover:text-primary">
+            Triage
+          </Link>
           <Link href="/settings" className="text-sm text-muted-foreground hover:text-primary">
             Settings
           </Link>

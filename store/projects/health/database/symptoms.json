@@ -10,6 +10,7 @@
     "note":      { "type": "string", "description": "context — triggers, what helped" }
   },
   "relations": {
-    "research": { "hasMany": "research", "via": "symptomId", "description": "deep dives about this symptom" }
+    "research": { "hasMany": "research", "via": "symptomId", "description": "deep dives about this symptom" },
+    "triage":   { "hasMany": "triage_assessments", "via": "symptomId", "description": "triage assessments about this symptom" }
   }
 }

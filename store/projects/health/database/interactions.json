@@ -1,0 +1,17 @@
+{
+  "title": "Interactions",
+  "description": "One literature-backed drug/food/supplement interaction finding for a medication, written by the pharmacy/pharmacist from reputable sources. It reports what the literature says about a pairing and cites sources; it never advises starting, stopping, or changing a medication. Not medical advice.",
+  "columns": {
+    "id":          { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "medicationId":{ "type": "string", "description": "the medication this interaction concerns", "required": true,
+                     "references": { "table": "medications", "column": "id", "onDelete": "cascade" } },
+    "otherName":   { "type": "string", "description": "the interacting drug, food, or supplement, e.g. 'grapefruit'", "required": true },
+    "severity":    { "type": "string", "description": "'minor' | 'moderate' | 'severe' | 'unknown' — the interaction's reported severity, set by the pharmacist", "default": "unknown" },
+    "body":        { "type": "string", "description": "the finding in markdown with citations; empty while pending" },
+    "status":      { "type": "string", "description": "'pending' while the pharmacist researches it, 'ready' when done", "default": "pending" },
+    "createdAt":   { "type": "date",   "description": "when the interaction review was requested", "generated": "now" }
+  },
+  "relations": {
+    "medication": { "belongsTo": "medications", "via": "medicationId", "description": "the medication this interaction concerns" }
+  }
+}

@@ -9,5 +9,8 @@
     "periodFrom": { "type": "date",   "description": "start of the period the brief covers (null = all history)" },
     "periodTo":   { "type": "date",   "description": "end of the period the brief covers (null = now)" },
     "createdAt":  { "type": "date",   "description": "when the brief was requested", "generated": "now" }
+  },
+  "relations": {
+    "appointments": { "hasMany": "appointments", "via": "prepBriefId", "description": "appointments this brief was prepared for" }
   }
 }

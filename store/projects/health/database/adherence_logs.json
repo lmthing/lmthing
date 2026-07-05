@@ -1,0 +1,16 @@
+{
+  "title": "Adherence logs",
+  "description": "One recorded or scheduled dose of a medication — the adherence trail the pharmacy space tracks. A row is 'taken' when the user confirms a dose, 'missed'/'skipped' when they don't, or 'pending' while it is still due. The app only records adherence; it never advises changing a dose. Not medical advice.",
+  "columns": {
+    "id":          { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "medicationId":{ "type": "string", "description": "the medication this dose belongs to", "required": true,
+                     "references": { "table": "medications", "column": "id", "onDelete": "cascade" } },
+    "scheduledAt": { "type": "date",   "description": "when the dose was scheduled to be taken", "required": true },
+    "takenAt":     { "type": "date",   "description": "when the dose was actually taken (null = not yet, missed, or skipped)" },
+    "status":      { "type": "string", "description": "'taken' | 'missed' | 'skipped' | 'pending' — the adherence state of this dose", "default": "pending" },
+    "note":        { "type": "string", "description": "optional context the user added, e.g. 'took with food'" }
+  },
+  "relations": {
+    "medication": { "belongsTo": "medications", "via": "medicationId", "description": "the medication this dose is for" }
+  }
+}

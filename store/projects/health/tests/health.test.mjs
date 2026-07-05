@@ -24,11 +24,16 @@ const CORE = join(REPO, 'sdk', 'org', 'libs', 'core', 'dist', 'index.js');
 
 // ── Schemas — real engine validation ────────────────────────────────────────
 const EXPECTED_TABLES = [
+  'adherence_logs',
+  'appointments',
+  'care_contacts',
+  'care_shares',
   'document_extractions',
   'documents',
   'followups',
   'goals',
   'insights',
+  'interactions',
   'knowledge_notes',
   'lab_results',
   'medications',
@@ -37,10 +42,11 @@ const EXPECTED_TABLES = [
   'settings',
   'sources',
   'symptoms',
+  'triage_assessments',
   'visit_briefs',
 ];
 
-test('all 14 database schemas pass the engine validateSchemaSet (fail-loud)', async () => {
+test('all 20 database schemas pass the engine validateSchemaSet (fail-loud)', async () => {
   assert.ok(
     existsSync(CORE),
     `built @lmthing/core not found at ${CORE} — run \`pnpm --filter @lmthing/core build\` in sdk/org`,
@@ -97,6 +103,29 @@ test('round-2 provenance + note FKs resolve, and lab_results gains personal-base
   assert.ok(labs.columns.personalHigh, 'lab_results must gain personalHigh');
 });
 
+test('round-3 FKs + relations + new medication columns resolve', () => {
+  const dbDir = join(APP, 'database');
+  const load = (n) => JSON.parse(readFileSync(join(dbDir, `${n}.json`), 'utf8'));
+  // adherence_logs + interactions belong to medications (cascade)
+  const doses = load('adherence_logs');
+  assert.equal(doses.columns.medicationId.references.table, 'medications');
+  assert.equal(doses.columns.medicationId.references.onDelete, 'cascade');
+  const interactions = load('interactions');
+  assert.equal(interactions.columns.medicationId.references.table, 'medications');
+  // appointments prep brief FK (setNull), triage symptom FK (setNull)
+  assert.equal(load('appointments').columns.prepBriefId.references.table, 'visit_briefs');
+  assert.equal(load('appointments').columns.prepBriefId.references.onDelete, 'setNull');
+  assert.equal(load('triage_assessments').columns.symptomId.references.table, 'symptoms');
+  // medications gains two columns + doses/interactions relations
+  const meds = load('medications');
+  assert.ok(meds.columns.refillsRemaining, 'medications must gain refillsRemaining');
+  assert.ok(meds.columns.reminderTime, 'medications must gain reminderTime');
+  assert.equal(meds.relations.doses.hasMany, 'adherence_logs');
+  assert.equal(meds.relations.interactions.hasMany, 'interactions');
+  // symptoms gains a triage relation (additive alongside research)
+  assert.equal(load('symptoms').relations.triage.hasMany, 'triage_assessments');
+});
+
 // ── API handlers — 28 named, typed endpoints (12 round-1 + 16 round-2) ───────
 const EXPECTED_ENDPOINTS = [
   // round 1
@@ -129,9 +158,27 @@ const EXPECTED_ENDPOINTS = [
   ['medications/GET.ts', 'listMedications'],
   ['medications/POST.ts', 'addMedication'],
   ['knowledge/GET.ts', 'listKnowledgeNotes'],
+  // round 3 — pharmacy (adherence + interactions)
+  ['doses/POST.ts', 'logDose'],
+  ['doses/GET.ts', 'listDoses'],
+  ['medications/[id]/GET.ts', 'getMedication'],
+  ['interactions/POST.ts', 'checkInteractions'],
+  ['interactions/GET.ts', 'listInteractions'],
+  // round 3 — care (appointments + contacts + shares + triage)
+  ['appointments/GET.ts', 'listAppointments'],
+  ['appointments/POST.ts', 'addAppointment'],
+  ['appointments/[id]/PATCH.ts', 'updateAppointment'],
+  ['contacts/GET.ts', 'listContacts'],
+  ['contacts/POST.ts', 'addContact'],
+  ['shares/POST.ts', 'createShare'],
+  ['shares/GET.ts', 'listShares'],
+  ['shares/[id]/GET.ts', 'getShare'],
+  ['triage/POST.ts', 'requestTriage'],
+  ['triage/GET.ts', 'listTriage'],
+  ['triage/[id]/GET.ts', 'getTriage'],
 ];
 
-test('all 28 api handlers exist and export name / Input / Output / default handler', () => {
+test('all 44 api handlers exist and export name / Input / Output / default handler', () => {
   for (const [rel, name] of EXPECTED_ENDPOINTS) {
     const p = join(APP, 'api', rel);
     assert.ok(existsSync(p), `missing handler ${rel}`);
@@ -149,9 +196,19 @@ test('requestResearch gates deep research behind the subscription tier (402)', (
   assert.match(src, /subscription/i, 'requestResearch must reference the subscription tier');
 });
 
-test('getLab and getDocument use include to hydrate their relations', () => {
+test('checkInteractions is subscription-gated (402) but requestTriage is free (no gate)', () => {
+  const interactions = readFileSync(join(APP, 'api', 'interactions', 'POST.ts'), 'utf8');
+  assert.match(interactions, /402/, 'checkInteractions must gate on subscription');
+  assert.match(interactions, /subscription/i);
+  const triage = readFileSync(join(APP, 'api', 'triage', 'POST.ts'), 'utf8');
+  assert.doesNotMatch(triage, /402/, 'requestTriage must be free (safety) — no 402 gate');
+  assert.match(triage, /insert\(\s*['"]triage_assessments['"]/);
+});
+
+test('getLab, getDocument, and getMedication use include to hydrate their relations', () => {
   assert.match(readFileSync(join(APP, 'api', 'labs', '[id]', 'GET.ts'), 'utf8'), /include/);
   assert.match(readFileSync(join(APP, 'api', 'documents', '[id]', 'GET.ts'), 'utf8'), /include/);
+  assert.match(readFileSync(join(APP, 'api', 'medications', '[id]', 'GET.ts'), 'utf8'), /include/);
 });
 
 test('uploadDocument inserts a pending document and rejects empty content', () => {
@@ -170,9 +227,15 @@ const EXPECTED_HOOKS = [
   ['prepare-visit-brief.ts', /table:\s*['"]visit_briefs['"]/, /clinic\/interpreter#prep/],
   ['followup-reminders.ts', /type:\s*['"]cron['"]/, /coaching\/coach#reminders/],
   ['goal-checkin.ts', /type:\s*['"]cron['"]/, /coaching\/coach#checkin/],
+  // round 3
+  ['check-interactions.ts', /table:\s*['"]interactions['"]/, /pharmacy\/pharmacist#review/],
+  ['compile-care-share.ts', /table:\s*['"]care_shares['"]/, /care\/coordinator#compile/],
+  ['triage-symptom.ts', /table:\s*['"]triage_assessments['"]/, /care\/triage-nurse#assess/],
+  ['dose-reminders.ts', /type:\s*['"]cron['"]/, /pharmacy\/pharmacist#reminders/],
+  ['appointment-reminders.ts', /type:\s*['"]cron['"]/, /care\/coordinator#reminders/],
 ];
 
-test('all 7 hooks exist with the right table/type and trigger target', () => {
+test('all 12 hooks exist with the right table/type and trigger target', () => {
   for (const [file, shape, target] of EXPECTED_HOOKS) {
     const src = readFileSync(join(APP, 'hooks', file), 'utf8');
     assert.match(src, shape, `${file}: wrong shape`);
@@ -194,9 +257,11 @@ const SPACES = {
   clinic: ['interpreter', 'logger', 'researcher'],
   records: ['analyst', 'librarian'],
   coaching: ['coach'],
+  pharmacy: ['pharmacist'],
+  care: ['coordinator', 'triage-nurse'],
 };
 
-test('three project-scoped spaces exist, each with the expected agents (charter + instruct)', () => {
+test('five project-scoped spaces exist, each with the expected agents (charter + instruct)', () => {
   for (const [space, agents] of Object.entries(SPACES)) {
     const agentsDir = join(APP, 'spaces', space, 'agents');
     assert.ok(existsSync(agentsDir), `space ${space} missing agents/`);
@@ -264,4 +329,21 @@ test('per-verb table scope holds for the extended + new agents', () => {
   assert.doesNotMatch(analyst, /canDelegateTo/, 'analyst queues research via db insert, not delegation');
   // coach writes only coaching tables
   assert.match(read('coaching', 'coach'), /db:write:\s*\{\s*tables:\s*\[goals,\s*followups,\s*insights\]/);
+});
+
+test('round-3 agents: correct functions posture + per-verb write scope', () => {
+  const read = (space, a) => readFileSync(join(APP, 'spaces', space, 'agents', a, 'instruct.md'), 'utf8');
+  const fm = (src) => src.split('---')[1] ?? ''; // frontmatter block only
+  // pharmacist needs web literature → OMITS functions: (no functions key in frontmatter)
+  const pharmacist = read('pharmacy', 'pharmacist');
+  assert.doesNotMatch(fm(pharmacist), /^\s*functions:/m, 'pharmacist must OMIT functions: to keep web tools');
+  assert.match(pharmacist, /db:write:\s*\{\s*tables:\s*\[adherence_logs,\s*interactions\]/);
+  // coordinator denies web via functions: [buildCareSummary]
+  const coordinator = read('care', 'coordinator');
+  assert.match(fm(coordinator), /functions:\s*(\[\s*buildCareSummary\s*\]|\n\s*-\s*buildCareSummary)/, 'coordinator lists only buildCareSummary (no web)');
+  assert.match(coordinator, /db:write:\s*\{\s*tables:\s*\[care_shares,\s*appointments,\s*visit_briefs\]/);
+  // triage-nurse denies ALL functions incl web via functions: []
+  const triage = read('care', 'triage-nurse');
+  assert.match(fm(triage), /functions:\s*\[\s*\]/, 'triage-nurse must set functions: [] (no web, grounded in knowledge)');
+  assert.match(triage, /db:write:\s*\{\s*tables:\s*\[triage_assessments\]/);
 });

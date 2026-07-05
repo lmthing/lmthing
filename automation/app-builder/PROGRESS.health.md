@@ -241,6 +241,58 @@ Running log across 5-hour autonomous runs. Single source of truth for status.
     human `!`) — not runnable in this headless run. Server-side pod-curl proved install + build + AI + DB-update, which
     is the authoritative functional proof.
 
+### Round 3 — FEATURE EXPANSION (in progress, 2026-07-05)
+Theme: **active care management** — medication adherence, literature interaction reviews, appointment +
+care-team coordination, a shareable care-summary export, and a conservative knowledge-grounded symptom
+triage. Two NEW spaces (`pharmacy`, `care`) → **five spaces total**; strictly additive.
+- Phase 0 orient ✅ — re-read both arch docs + implementation doc IN FULL + health spec + PROGRESS/PLAN +
+  engine singularizer source. Baseline round-2 state confirmed (14 tables/28 endpoints/7 hooks/3 spaces/16
+  pages). Working tree clean on `main`.
+- Phase 1 spec ✅ — added a "Round 3 — feature expansion (implemented)" section to
+  `app-specifications/health-application.md`: 2 spaces (pharmacy, care), 3 agents (pharmacist, coordinator,
+  triage-nurse), 6 tables + 2 cols + relations, 16 endpoints, 5 hooks, 10 pages. Named the adherence table
+  `adherence_logs` (→`AdherenceLog`) NOT `med_doses` (would singularize to `MedDos`).
+- Phase 2 PLAN ✅ — appended round-3 file-by-file plan to `automation/app-builder/PLAN.health.md`.
+- Phase 3 build (in progress) — orchestrator authored 6 new schemas + 2 medication cols + relations on
+  medications/symptoms/visit_briefs (all 20 tables pass `validateSchemaSet`) + 5 hooks. Fanned out 4 Sonnet
+  subagents by disjoint dir: A=api(16 handlers), B=10 pages+12 components+nav, C=pharmacy space (full format,
+  OMITs functions→web), D=care space (coordinator functions:[buildCareSummary] no-web + triage-nurse functions:[]
+  no-web, both full format). Cross-space chain: appointment-reminders→coordinator inserts pending visit_briefs
+  → existing prepare-visit-brief hook → interpreter (validated cascaded-hook drain fix from round 2 e4be05f).
+- Phase 4 tests + LIVE (DeepSeek azure:DeepSeek-V4-Flash) ✅:
+  - Structural suite `tests/health.test.mjs` — **17/17 green** (20 tables via validateSchemaSet; 44-endpoint
+    contract; 12 hooks; 5 full-format spaces w/ knowledge index+≥2 aspects; round-3 FK/relation/new-column checks;
+    checkInteractions 402 gate vs requestTriage free; getMedication include; per-verb scope + functions-posture for
+    the 3 new agents — pharmacist OMITs functions/coordinator functions:[buildCareSummary]/triage-nurse functions:[]).
+  - Token gate: **0 raw colors** across health pages/components/space-components.
+  - Full pipeline under `lmthing serve` (temp LMTHING_ROOT, LM_MODEL=S): manifest **20 tables, 44 endpoints, 12
+    hooks**; types generated incl. all 6 new row types (AdherenceLog/Interaction/Appointment/CareContact/CareShare/
+    TriageAssessment); pages **built:true** (assetCount 3, stale:false); GET /app/health/ + deep routes
+    (/medications/:id, /triage) all **200** (base-href fix intact). Additive `addColumn` verified live —
+    medications gained refillsRemaining/reminderTime on an existing db.
+  - **🔴 LIVE loops verified end-to-end (all completed within one poll cycle):**
+    - **Interaction review** — checkInteractions (subscription) → check-interactions hook → `pharmacy/pharmacist`
+      (live) **web-searched** and wrote a **1641-char cited** finding (grapefruit / red-yeast-rice / St John's wort;
+      drug–drug/drug–food categories) ending in a not-a-doctor line; status→ready. ✅
+    - **Symptom triage** — requestTriage (FREE) → triage-symptom hook → `care/triage-nurse` (live, **functions:[]**,
+      no web) wrote a conservative **urgency=emergency** observation for "chest tightness climbing stairs" with an
+      explicit "seek care now — call emergency services" escalation line, framed as observation-not-diagnosis. ✅
+    - **Care-summary export** — createShare → compile-care-share hook → `care/coordinator` (live) used the
+      **buildCareSummary** space function to compile a sectioned markdown summary (Labs/Medications/Insights/
+      Appointments/Care team) + not-a-doctor line; token generated; status→ready. ✅
+    - **Cross-space chain** — added an appointment <48h, ran appointment-reminders hook → coordinator (live) inserted
+      a pending visit_briefs row + linked `prepBriefId` → fired the existing prepare-visit-brief hook →
+      `clinic/interpreter` (live) compiled the brief (ready, 415 chars). Proves care→clinic orchestration over the
+      shared db AND the cascaded-hook drain fix on a brand-new chain. ✅
+  - **Round-1/2 regression** — addLab abnormal (LDL 190, refHigh 130) → interpret-new-lab → interpreter flagged
+    `high` (live). ✅
+
+### Gate (round 3)
+- health structural ✅ **17/17** · token gate ✅ 0 violations · full live pipeline ✅ (20/44/12; all 5 loops green).
+- **No `sdk/org` engine changes were needed this round** — the round-2 engine (cascaded-hook drain, base-href,
+  additive addColumn, per-verb caps, functions posture) covered every round-3 feature. Submodule push is a no-op
+  (still run per protocol).
+
 ## Resume notes for the NEXT run (round 3 — FEATURE EXPANSION)
 - **Round 2 is DONE, shipped, and prod-verified.** State now: **14 tables, 28 endpoints, 7 hooks, 3
   full-format project spaces (clinic, records, coaching; 6 agents), 16 pages, 20 components.** Everything

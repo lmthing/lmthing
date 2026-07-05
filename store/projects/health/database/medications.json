@@ -8,6 +8,12 @@
     "schedule":  { "type": "string", "description": "how often it is taken, e.g. 'once daily'" },
     "startedAt": { "type": "date",   "description": "when the user started taking it", "required": true },
     "endedAt":   { "type": "date",   "description": "when the user stopped taking it (null = ongoing)" },
-    "note":      { "type": "string", "description": "optional context — prescriber, purpose, notes" }
+    "note":      { "type": "string", "description": "optional context — prescriber, purpose, notes" },
+    "refillsRemaining": { "type": "number", "description": "how many refills the user has left (null = unknown/not tracked)" },
+    "reminderTime":     { "type": "string", "description": "preferred daily reminder time as 'HH:MM' (null = no reminder)" }
+  },
+  "relations": {
+    "doses":        { "hasMany": "adherence_logs", "via": "medicationId", "description": "the recorded/scheduled doses of this medication" },
+    "interactions": { "hasMany": "interactions",   "via": "medicationId", "description": "literature-backed interaction findings for this medication" }
   }
 }

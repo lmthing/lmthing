@@ -629,6 +629,142 @@ No agent gains `db:schema`/`pages:write`/`api:write`/`hooks:write` — evolving 
 row (firing the existing `research-deep-dive` hook → the researcher), so it holds **no** `canDelegateTo`
 — the same hooks-over-shared-db shape as round 1, not agent-to-agent delegation.
 
+## Round 3 — feature expansion (implemented)
+
+Rounds 1–2 shipped the core loop plus document ingestion, visit briefs, insights, follow-ups, goals,
+and medications — three project-scoped spaces (`clinic`, `records`, `coaching`), fourteen tables,
+twenty-eight endpoints, seven hooks, sixteen pages. Round 3 turns the passive tracker into an **active
+care-management system**: it tracks whether the user actually **takes** their medications
+(adherence), checks the medication list for **literature-backed interactions**, coordinates
+**appointments** and a **care team**, produces a shareable **care summary export**, and adds a
+conservative, knowledge-grounded **symptom triage** assistant. Two new project-scoped spaces
+(`pharmacy`, `care`) bring the app to **five spaces total**. Everything below is strictly additive —
+round-1/2 files and behaviour are unchanged, all new spaces read/write the same project-rooted db and
+feed the same pages, and cross-space work is wired through `hooks/` (declarative `trigger:` +
+self-querying agents — a hook delegate threads no structured input, so an agent finds its own work).
+
+### New spaces (now five total; the multi-space shape)
+- **`pharmacy`** — medication adherence & safety. Agent **`pharmacist`** (a) tracks each dose the
+  user records against its schedule and computes an **adherence rate**, surfacing missed/due doses each
+  morning, and (b) on demand runs **literature-backed drug/food/supplement interaction reviews** over
+  the user's medication list, writing cited findings. Subscription-gated for the literature review
+  (the same gate as `requestResearch`); adherence tracking is free.
+- **`care`** — care coordination & triage. Agents **`coordinator`** (compiles a **shareable care
+  summary** from the whole record — labs, meds, insights, upcoming appointments — and surfaces
+  upcoming **appointments**, auto-preparing a visit brief for imminent ones) and **`triage-nurse`** (a
+  conservative symptom-triage assistant that reasons **only** over the curated `clinic`/`care` triage
+  knowledge — red-flags, when-to-see-a-doctor — never the open web, and writes an **urgency
+  observation**, never a diagnosis).
+
+Every project space follows the six-part format (`agents/{charter,instruct}.md`, `tasklists/`,
+`functions/`, `components/`, `knowledge/<field>/{index.md + ≥2 aspects}`).
+
+### New tables (six; plus two columns + relations on existing tables)
+`adherence_logs`, `interactions`, `appointments`, `care_contacts`, `care_shares`,
+`triage_assessments`. Row types (engine singularizer): `AdherenceLog`, `Interaction`, `Appointment`,
+`CareContact`, `CareShare`, `TriageAssessment` (note: `med_doses` would singularize to the ugly
+`MedDos`, so the adherence table is named `adherence_logs` → `AdherenceLog`). New **columns**
+`medications.refillsRemaining` (number) and `medications.reminderTime` (`'HH:MM'`) back the dose
+reminder; they exercise the boot **additive `addColumn`** path. New **relations**: `medications.doses`
+(hasMany `adherence_logs`) + `medications.interactions` (hasMany `interactions`); `symptoms.triage`
+(hasMany `triage_assessments`, additive alongside the existing `research` relation);
+`visit_briefs.appointments` (hasMany `appointments`); and the reverse `belongsTo` links
+(`AdherenceLog.medication`, `Interaction.medication`, `TriageAssessment.symptom`, `Appointment.brief`).
+
+- `adherence_logs` — one recorded/scheduled dose: `medicationId` FK→`medications` (cascade), `scheduledAt`,
+  `takenAt` (null = not yet/missed), `status` (`'taken' | 'missed' | 'skipped' | 'pending'`), `note`.
+- `interactions` — one interaction finding for a medication: `medicationId` FK→`medications` (cascade),
+  `otherName` (the interacting drug/food/supplement), `severity` (`'minor' | 'moderate' | 'severe' |
+  'unknown'`), `body` (md, cited; empty while pending), `status` (`'pending' | 'ready'`), `createdAt`.
+- `appointments` — `title`, `provider`, `location`, `kind` (`'doctor' | 'lab' | 'imaging' | 'dental' |
+  'other'`), `scheduledAt`, `status` (`'scheduled' | 'completed' | 'cancelled'`), `prepBriefId`
+  FK→`visit_briefs` (setNull), `note`, `createdAt`.
+- `care_contacts` — `name`, `role` (`'primary_care' | 'specialist' | 'pharmacy' | 'emergency' |
+  'other'`), `organization`, `phone`, `email`, `note`, `createdAt`.
+- `care_shares` — an exportable snapshot: `title`, `scope` (`'full' | 'labs' | 'meds' | 'summary'`),
+  `body` (md, empty while pending), `status` (`'pending' | 'ready'`), `token` (opaque share token the
+  handler generates), `createdAt`.
+- `triage_assessments` — `symptomId` FK→`symptoms` (setNull, optional — a free-text question needs no
+  symptom row), `question`, `body` (md observations + when-to-see-a-doctor, empty while pending),
+  `urgency` (`'self_care' | 'routine' | 'urgent' | 'emergency' | 'unknown'`), `status`, `createdAt`.
+
+### New API endpoints (sixteen; forty-four total)
+| name | method + route | I/O sketch |
+|---|---|---|
+| `logDose` | `POST api/doses` | `{ medicationId, status?, scheduledAt?, takenAt?, note? }` → `AdherenceLog` |
+| `listDoses` | `GET api/doses` | `{ medicationId?, dueOnly? }` → `AdherenceLog[]` |
+| `getMedication` | `GET api/medications/:id` | `{ id }` → `Medication & { doses: AdherenceLog[]; interactions: Interaction[] }` |
+| `checkInteractions` | `POST api/interactions` | `{ medicationId }` → `{ interactionId, status:'pending' }` — **subscription-gated (402)**; fires `check-interactions` |
+| `listInteractions` | `GET api/interactions` | `{ medicationId? }` → `Interaction[]` |
+| `listAppointments` | `GET api/appointments` | `{ upcomingOnly? }` → `Appointment[]` |
+| `addAppointment` | `POST api/appointments` | `{ title, provider?, scheduledAt, kind?, location?, note? }` → `Appointment` |
+| `updateAppointment` | `PATCH api/appointments/:id` | `{ id, status?, scheduledAt?, prepBriefId? }` → `Appointment` |
+| `listContacts` | `GET api/contacts` | `{}` → `CareContact[]` |
+| `addContact` | `POST api/contacts` | `{ name, role?, organization?, phone?, email?, note? }` → `CareContact` |
+| `createShare` | `POST api/shares` | `{ title?, scope? }` → `{ shareId, status:'pending' }` — fires `compile-care-share` |
+| `listShares` | `GET api/shares` | `{}` → `CareShare[]` |
+| `getShare` | `GET api/shares/:id` | `{ id }` → `CareShare` |
+| `requestTriage` | `POST api/triage` | `{ question, symptomId? }` → `{ triageId, status:'pending' }` — **free** (safety); fires `triage-symptom` |
+| `listTriage` | `GET api/triage` | `{}` → `TriageAssessment[]` |
+| `getTriage` | `GET api/triage/:id` | `{ id }` → `TriageAssessment` |
+
+`checkInteractions`, `createShare`, and `requestTriage` all follow the robust round-1 shape: they
+insert a **pending** row (firing the matching hook → the specialist compiles it), rather than relying
+on a stubbed api `spawn`. `checkInteractions` gates on `settings.tier === 'subscription'` (402
+otherwise) exactly like `requestResearch`; **`requestTriage` is deliberately free** — safety guidance
+should not be paywalled.
+
+### New hooks (five; twelve total)
+- `check-interactions.ts` — **database** on `interactions:insert` → `pharmacy/pharmacist#review`
+  (self-queries pending interaction rows, fills each via the universal `webSearch`/`webFetch` globals,
+  loop-bounded because it only UPDATEs the row it fills).
+- `compile-care-share.ts` — **database** on `care_shares:insert` → `care/coordinator#compile`.
+- `triage-symptom.ts` — **database** on `triage_assessments:insert` → `care/triage-nurse#assess`.
+- `dose-reminders.ts` — **cron** daily 09:00 → `pharmacy/pharmacist#reminders` (surfaces missed/due
+  doses; computes today's adherence).
+- `appointment-reminders.ts` — **cron** daily 07:00 → `care/coordinator#reminders` (surfaces upcoming
+  appointments; for an appointment within 48h with no prep brief yet, inserts a pending `visit_briefs`
+  row — which fires the existing `prepare-visit-brief` hook → the interpreter compiles it — and links
+  it back via `updateAppointment`/`prepBriefId`, a clean cross-space chain over the shared db).
+
+### New pages (ten)
+`/doses` (today's dose checklist + adherence log), `/medications/:id` (medication detail: doses +
+adherence rate + interactions + `<Chat agent="pharmacy/pharmacist">`), `/interactions` (interaction
+findings list), `/appointments` (calendar/list + add), `/appointments/:id` (detail + linked prep brief
++ `<Chat agent="care/coordinator">`), `/contacts` (care team), `/shares` (create + list exports),
+`/shares/:id` (printable care summary), `/triage` (ask a triage question + list), `/triage/:id`
+(assessment detail + `<Chat agent="care/triage-nurse">`). New components: `DoseRow`, `DoseChecklist`,
+`AdherenceBar`, `InteractionCard`, `SeverityBadge`, `AppointmentRow`, `AppointmentCard`, `ContactCard`,
+`CareShareCard`, `TriageCard`, `UrgencyBadge`, `MedicationDetail`. Design tokens only (no raw colors;
+severity/urgency badges reuse the existing `success`/`warning`/`destructive` flag-color convention).
+
+### New / extended agent capabilities (least-privilege, per-verb table scope)
+| Agent | `db:read` | `db:write` | other |
+|---|---|---|---|
+| **pharmacy/pharmacist** | `medications, adherence_logs, interactions, research, knowledge_notes, sources, settings` | `adherence_logs, interactions` | OMITS `functions:` → keeps universal `webSearch`/`webFetch` for interaction literature + the space's `adherenceRate`/`nextDoseDue` functions |
+| **care/coordinator** | `metrics, lab_results, symptoms, medications, adherence_logs, research, insights, followups, visit_briefs, appointments, care_contacts, care_shares, settings` | `care_shares, appointments, visit_briefs` | `functions: [buildCareSummary]` (deny web by design — compiles from the db only; can fire the visit-brief chain) |
+| **care/triage-nurse** | `symptoms, triage_assessments, metrics, lab_results, medications, knowledge_notes, settings` | `triage_assessments` | `functions: []` (deny **all** web + space functions — triage is grounded strictly in the curated `care/triage` knowledge, never the open web) |
+
+No new agent gains `db:schema`/`pages:write`/`api:write`/`hooks:write` — evolving the model stays a
+THING → `system-appbuilder` authoring concern. None holds `canDelegateTo`: the coordinator's
+visit-brief chain and the pharmacist's/triage-nurse's work are all wired hooks-over-shared-db, not
+agent-to-agent delegation (the same robust shape as rounds 1–2). The `coordinator` writes
+`visit_briefs` (a pending row) to trigger the existing interpreter prep chain; it never sets a lab
+`flag` or a research `body` — those stay owned by their respective clinic agents.
+
+### Safety (round 3)
+- **Triage is conservative by construction** — the `triage-nurse` holds `functions: []` (no web), so
+  it cannot pull an unvetted internet claim into a triage answer; it reasons over the curated
+  red-flags / when-to-see-a-doctor knowledge and always frames output as an **observation with an
+  explicit "if X, seek care now" line**, never a diagnosis. Emergency-flagged assessments lead with a
+  "this may need urgent care — contact a clinician / emergency services" banner.
+- **The interaction reviewer never advises changing a medication** — it reports what the literature
+  says about a pairing, cites sources, and defers to the user's clinician/pharmacist; the not-a-doctor
+  line is unchanged.
+- **The care-share export is per-user and pod-isolated** — `token` is an opaque local id for the
+  printable page; there is **no** cross-user or public share surface in this round (health data stays
+  strictly per-user, per the parent plan). All rendered/exported text is sanitised (untrusted → XSS).
+
 ## Phases & order
 
 Assumes the parent plan's engine (db + capability globals, api runtime, typed-contract build, pages

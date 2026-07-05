@@ -1,0 +1,14 @@
+{
+  "title": "Care contacts",
+  "description": "One member of the user's care team — a clinician, pharmacy, specialist, or emergency contact — kept for quick reference and for the care-summary export.",
+  "columns": {
+    "id":           { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "name":         { "type": "string", "description": "the contact's name, e.g. 'Dr. Priya Rao'", "required": true },
+    "role":         { "type": "string", "description": "'primary_care' | 'specialist' | 'pharmacy' | 'emergency' | 'other'", "default": "other" },
+    "organization": { "type": "string", "description": "the clinic, hospital, or pharmacy they belong to" },
+    "phone":        { "type": "string", "description": "phone number" },
+    "email":        { "type": "string", "description": "email address" },
+    "note":         { "type": "string", "description": "optional context — specialty, hours, when to call" },
+    "createdAt":    { "type": "date",   "description": "when the contact was added", "generated": "now" }
+  }
+}

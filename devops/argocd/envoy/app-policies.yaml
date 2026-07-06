@@ -44,6 +44,16 @@ spec:
             return
           end
 
+          -- The same gateway JWT can arrive in BOTH the Authorization header AND the
+          -- access_token cookie: page/asset navigations under the root app mount
+          -- (lmthing.app/<project>/…) rely on the cookie (path=/), and same-origin
+          -- /api/* XHRs send that cookie too while also carrying the Bearer header.
+          -- Envoy then writes the `sub` claim into x-user-id once PER source, joined
+          -- with a comma ("<id>,<id>"). It is the same user either way, so collapse to
+          -- the first value before validating + routing (otherwise the comma fails the
+          -- namespace-safe check below → spurious 400 "invalid user_id").
+          user_id = string.match(user_id, "^[^,]+") or user_id
+
           if not string.match(user_id, "^[A-Za-z0-9_-]+$") then
             request_handle:respond(
               {[":status"] = "400", ["content-type"] = "text/plain"},

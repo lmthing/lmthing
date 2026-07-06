@@ -134,6 +134,13 @@ spec:
             group: gateway.envoyproxy.io
             kind: HTTPRouteFilter
             name: rewrite-host-from-header
+      # The FIRST page request after a pod (re)start triggers a cold esbuild of the
+      # app's bundle (can take ~100s for a heavy app); it is cached after. Without a
+      # raised timeout Envoy 504s ("upstream request timeout") before the build lands.
+      # Mirrors app-install-proxy. Subsequent requests are sub-second.
+      timeouts:
+        request: "300s"
+        backendRequest: "300s"
       backendRefs:
         - group: gateway.envoyproxy.io
           kind: Backend
@@ -219,6 +226,11 @@ spec:
             group: gateway.envoyproxy.io
             kind: HTTPRouteFilter
             name: rewrite-host-from-header
+      # Root-mount app pages build lazily on first hit (cold esbuild ~100s) — give the
+      # catch-all the same long timeout as /app/* so a first open doesn't 504.
+      timeouts:
+        request: "300s"
+        backendRequest: "300s"
       backendRefs:
         - group: gateway.envoyproxy.io
           kind: Backend

@@ -293,6 +293,13 @@ triage. Two NEW spaces (`pharmacy`, `care`) → **five spaces total**; strictly 
   additive addColumn, per-verb caps, functions posture) covered every round-3 feature. Submodule push is a no-op
   (still run per protocol).
 
+### Pushed SHAs (round 3)
+- sdk/org `main`: **`e4be05f`** — UNCHANGED (no engine work needed this round); push is a verified no-op,
+  pointer references the pushed commit.
+- monorepo `main`: **`233db07d`** — health round-3 app (6 tables + 2 cols + relations, 16 endpoints, 5 hooks,
+  pharmacy+care spaces, 10 pages + 12 components) + spec Round-3 section + PLAN/PROGRESS. Pointer verified ==
+  pushed submodule HEAD (e4be05f). Both `main`s confirmed up-to-date with origin.
+
 ## Resume notes for the NEXT run (round 3 — FEATURE EXPANSION)
 - **Round 2 is DONE, shipped, and prod-verified.** State now: **14 tables, 28 endpoints, 7 hooks, 3
   full-format project spaces (clinic, records, coaching; 6 agents), 16 pages, 20 components.** Everything

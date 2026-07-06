@@ -286,3 +286,23 @@ Strictly additive to rounds 1–2. Floors met/exceeded: **+6 tables, +2 spaces (
   - **Regression intact**: the destination insert still fired round-1/2 `research-new-destination` +
     `plan-transit-on-destination` hooks live (research=1, transit_legs=1).
 - Install path: **local test user via `lmthing serve`** (temp root). Prod install = Phase 6.
+
+### Phase 5 push ✅
+- Green gate: 41 app tests ✓, lint:tokens 575 files ✓ (also passed in CI "Design tokens"),
+  trips raw-color scan clean, serve pages build built:true.
+- **sdk/org `main`: `e4be05f`** — UNCHANGED this round (round-3 is pure engine *usage* on the P8
+  runtime; the split fix is an app-side instruct/hook edit, not an engine change). Pushed as a
+  confirmed no-op, level with origin.
+- **monorepo `main`: `9690f5e0`** — round-3 trips app + spec + PLAN/PROGRESS (pointer records e4be05f,
+  matches submodule HEAD on origin). Both verified level with origin. (PROGRESS.health.md, a sibling
+  app's uncommitted log, was deliberately NOT staged.)
+
+### Phase 6 — PROD install + AI functional test (in progress)
+- CI: "Design tokens" + "Generate Status Data" green; **"Build and Push Images" building** `compute:latest`
+  from 9690f5e0 (watching). Node1 CPU 73% (not saturated → no scale-down). Only pod is the test user
+  `user-379847043318834826` (Running, 8h old = pre-push image → needs rollout once the new image lands).
+- Plan on image-ready: rollout restart deploy/lmthing -n test → confirm GET /api/apps lists trips with
+  16 round-3 tables → POST /api/apps/install {appId:trips,force:true} (expect built.pages.ok:true) →
+  AI test via pod IP: addTraveler→reconcile-traveler hook (host writes knowledge_notes) +
+  addExpense→split-new-expense hook (treasurer writes expense_shares), confirm /v1/* 200 + DB updated.
+  (Headless: server-side pod-IP verification; the browser/JWT flow is classifier-gated + no user to run it.)

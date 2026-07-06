@@ -2,7 +2,7 @@
 output "nodes" {
   description = "All node details (for inventory generation)"
   value = {
-    for name, node in var.nodes : name => {
+    for name, node in local.all_nodes : name => {
       public_ip  = azurerm_public_ip.node[name].ip_address
       private_ip = azurerm_network_interface.node[name].private_ip_address
       role       = node.role
@@ -31,7 +31,7 @@ output "admin_username" {
 output "ssh_commands" {
   description = "SSH commands for each node"
   value = {
-    for name, _ in var.nodes : name =>
+    for name, _ in local.all_nodes : name =>
       "ssh -i ${local.ssh_private_key_path} ${var.vm_admin_username}@${azurerm_public_ip.node[name].ip_address}"
   }
 }

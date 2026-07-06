@@ -1,4 +1,14 @@
-import { k8s } from "./compute.js";
+import {
+  k8s,
+  sweepIdlePods,
+  ensureUserPod,
+  resolvePodConfig,
+} from "./compute.js";
+import {
+  withLeaderLock,
+  selectDueCronJobs,
+  markCronWoken,
+} from "./db.js";
 
 // --- Types ---
 interface Deployment {
@@ -229,6 +239,50 @@ async function refreshFleetAndEvents() {
 
 let started = false;
 
+// ─── Leader-locked controller ticks (scale-to-zero + externalized cron) ───────
+
+const SWEEP_TICK_MS = 60_000;
+const CRON_TICK_MS = 60_000;
+const CRON_BATCH_LIMIT = 200; // max pods woken per cron tick
+const CRON_WAKE_COOLDOWN_MS = 5 * 60_000; // don't re-wake a still-booting pod
+const WAKE_CONCURRENCY = 8; // bounded fan-out so a wake burst doesn't hammer K8s
+
+/**
+ * One cron-wake pass: find jobs whose `next_run_at` has arrived, group by user
+ * (one wake per user), and wake each pod with bounded concurrency. The pod's boot
+ * catch-up runs the due hooks and republishes its manifest (advancing next_run_at),
+ * then idles back to zero. `markCronWoken` stamps a cooldown so a still-booting pod
+ * isn't re-woken next tick.
+ */
+async function cronWakeTick(): Promise<void> {
+  const due = await selectDueCronJobs(CRON_BATCH_LIMIT, CRON_WAKE_COOLDOWN_MS);
+  if (due.length === 0) return;
+  const users = [...new Set(due.map((j) => j.user_id))];
+  console.log(
+    `[cron-wake] ${due.length} due job(s) across ${users.length} user(s)`,
+  );
+  let i = 0;
+  const worker = async (): Promise<void> => {
+    while (i < users.length) {
+      const userId = users[i++]!;
+      try {
+        const pod = await resolvePodConfig(userId);
+        await ensureUserPod(userId, pod);
+      } catch (err) {
+        console.warn(
+          `[cron-wake] wake failed for ${userId}:`,
+          err instanceof Error ? err.message : err,
+        );
+      } finally {
+        await markCronWoken(userId).catch(() => {});
+      }
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(WAKE_CONCURRENCY, users.length) }, worker),
+  );
+}
+
 export function startRefresher() {
   if (started) return;
   started = true;
@@ -238,7 +292,21 @@ export function startRefresher() {
   // Periodic polls
   setInterval(() => void refreshCluster(), 5000);
   setInterval(() => void refreshFleetAndEvents(), 10000);
-  console.log("[cluster-status] background refresher started");
+
+  // Controller ticks — each gated by a Postgres advisory lock so exactly ONE of
+  // the 2 gateway replicas runs it per tick (the other skips).
+  setInterval(() => {
+    void withLeaderLock("idle-sweep", () => sweepIdlePods()).catch((err) =>
+      console.warn("[sweep] tick failed:", err instanceof Error ? err.message : err),
+    );
+  }, SWEEP_TICK_MS);
+  setInterval(() => {
+    void withLeaderLock("cron-wake", cronWakeTick).catch((err) =>
+      console.warn("[cron-wake] tick failed:", err instanceof Error ? err.message : err),
+    );
+  }, CRON_TICK_MS);
+
+  console.log("[cluster-status] background refresher + controllers started");
 }
 
 // Getters — only read cache, never call K8s

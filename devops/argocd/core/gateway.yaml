@@ -190,6 +190,16 @@ spec:
                   key: ACR_PASSWORD
             - name: COMPUTE_IMAGE_TAG
               value: "0ceda4f"
+            # Phase 4 fast cold-start: when set (bare "sha256:...", no
+            # "compute@" prefix), the gateway builds
+            # ${ACR_REGISTRY}/compute@${COMPUTE_IMAGE_DIGEST} with
+            # imagePullPolicy: IfNotPresent instead of compute:latest +
+            # Always (see cloud/gateway/src/lib/compute.ts). Empty today —
+            # CI (.github/workflows/build-images.yml) fills this in on the
+            # next successful compute image build, in lockstep with
+            # COMPUTE_IMAGE_TAG and the compute-prepull DaemonSet image.
+            - name: COMPUTE_IMAGE_DIGEST
+              value: ""
           resources:
             requests:
               memory: "128Mi"

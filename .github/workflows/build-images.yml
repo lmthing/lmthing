@@ -227,12 +227,17 @@ jobs:
 
           sha = '${{ needs.detect.outputs.sha }}'
           image = '${{ matrix.image }}'
+          # Bare 'sha256:...' digest of the pushed image (docker/build-push-action
+          # output). Phase 4: propagated to COMPUTE_IMAGE_DIGEST alongside the
+          # sha tag so the gateway + compute-prepull DaemonSet can pin by digest.
+          digest = '${{ steps.build-step.outputs.digest }}'
           run_id = '${{ github.run_id }}'
           run_number = '${{ github.run_number }}'
 
           record = {
             'image': image,
             'sha': sha,
+            'digest': digest,
             'run_id': run_id,
             'run_number': int(run_number),
             'run_url': f'https://github.com/\${{ github.repository }}/actions/runs/{run_id}',
@@ -370,11 +375,14 @@ jobs:
 
           # Only update manifests for images whose build artifact exists and succeeded
           built = set()
+          digests = {}
           for path in glob.glob('downloaded-artifacts/*.json'):
             with open(path) as f:
               rec = json.load(f)
             if rec.get('conclusion') == 'success':
               built.add(rec['image'])
+              if rec.get('digest'):
+                digests[rec['image']] = rec['digest']
 
           for entry in matrix:
             if entry['image'] not in built:
@@ -389,8 +397,10 @@ jobs:
             with open(manifest, "w") as f:
               f.write(new_content)
             # When the compute image is rebuilt, also update COMPUTE_IMAGE_TAG
-            # in gateway.yaml so the gateway can advertise the latest tag.
+            # (and, when a digest was captured, COMPUTE_IMAGE_DIGEST) in
+            # gateway.yaml so the gateway can advertise the latest build.
             if image == "compute":
+              digest = digests.get(image)
               gw = "devops/argocd/core/gateway.yaml"
               with open(gw) as f:
                 gw_content = f.read()
@@ -399,8 +409,30 @@ jobs:
                 rf'\g<1>"{sha}"',
                 gw_content,
               )
+              if digest:
+                gw_new = re.sub(
+                  r'(- name: COMPUTE_IMAGE_DIGEST\s*\n\s+value:\s*)"[^"]*"',
+                  rf'\g<1>"{digest}"',
+                  gw_new,
+                )
               with open(gw, "w") as f:
                 f.write(gw_new)
+
+              # Pre-pull DaemonSet (Phase 4 fast cold-start): pin by digest so
+              # containerd caches the exact layers a real user pod will
+              # request. Bumped in lockstep with COMPUTE_IMAGE_DIGEST above.
+              if digest:
+                prepull = "devops/argocd/core/compute-prepull.yaml"
+                if os.path.exists(prepull):
+                  with open(prepull) as f:
+                    prepull_content = f.read()
+                  prepull_new = re.sub(
+                    r'(image: lmthingacr\.azurecr\.io/compute@)sha256:\S+',
+                    rf'\g<1>{digest}',
+                    prepull_content,
+                  )
+                  with open(prepull, "w") as f:
+                    f.write(prepull_new)
           EOF
 
       - name: Commit and push

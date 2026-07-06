@@ -22,14 +22,34 @@ export interface BudgetWindow {
 
 /** Per-tier compute pod sizing and idle behaviour. Every tier now gets a pod. */
 export interface PodConfig {
-  /** CPU request+limit (Kubernetes quantity string, e.g. "250m") */
+  /** CPU LIMIT (Kubernetes quantity string, e.g. "250m"). Also the request when
+   *  `cpuRequest` is omitted (Guaranteed QoS). */
   cpu: string;
-  /** Memory request+limit (Kubernetes quantity string, e.g. "512Mi") */
+  /** Memory LIMIT (Kubernetes quantity string, e.g. "512Mi"). Also the request
+   *  when `memRequest` is omitted (Guaranteed QoS). */
   mem: string;
+  /** CPU request. When set below `cpu`, the pod is **Burstable** — the scheduler
+   *  packs by this smaller request, enabling overcommit of mostly-idle pods.
+   *  Omit on paid tiers to keep them Guaranteed (`request == limit`). */
+  cpuRequest?: string;
+  /** Memory request. When set below `mem`, the pod is **Burstable**. Omit to keep
+   *  Guaranteed. The in-pod memory watchdog turns limit-pressure into graceful,
+   *  recoverable session eviction (never an OOMKill). */
+  memRequest?: string;
   /** Minutes of inactivity before the pod is scaled to 0 */
   idleTtlMinutes: number;
   /** Maximum concurrent agent sessions allowed in this pod */
   maxSessions: number;
+}
+
+/** Per-tier policy for externalized (gateway-driven) cron scheduling. Bounds how
+ *  often a free pod is woken and how many jobs it can register. */
+export interface CronPolicy {
+  /** Minimum interval (ms) a cron hook may fire at. Shorter schedules published by
+   *  a pod are clamped UP to this floor (free-tier throttling of idle-pod wakes). */
+  minIntervalMs: number;
+  /** Maximum cron jobs accepted per user; excess jobs in a manifest are dropped. */
+  maxJobs: number;
 }
 
 export interface Tier {
@@ -50,6 +70,8 @@ export interface Tier {
    * and scaled to zero when idle (see idleTtlMinutes).
    */
   pod: PodConfig;
+  /** Externalized-cron policy (min interval + max jobs) for this tier. */
+  cron: CronPolicy;
 }
 
 export const TIERS: Record<string, Tier> = {
@@ -64,7 +86,19 @@ export const TIERS: Record<string, Tier> = {
     models: [...ENABLED_MODELS],
     tpmLimit: 1_000_000,
     rpmLimit: 5_000,
-    pod: { cpu: "250m", mem: "512Mi", idleTtlMinutes: 15, maxSessions: 3 },
+    // Burstable: the scheduler packs by the small requests (memRequest is the
+    // binding constraint at ~110 pods/node), while the limits cap a busy pod. The
+    // in-pod memory watchdog sheds idle sessions before the limit OOMKills.
+    pod: {
+      cpu: "250m",
+      mem: "512Mi",
+      cpuRequest: "50m",
+      memRequest: "256Mi",
+      idleTtlMinutes: 15,
+      maxSessions: 3,
+    },
+    // 60-min floor bounds how often an idle free pod is woken for cron.
+    cron: { minIntervalMs: 60 * 60_000, maxJobs: 20 },
   },
   basic: {
     name: "Basic",
@@ -78,6 +112,7 @@ export const TIERS: Record<string, Tier> = {
     tpmLimit: 1_000_000,
     rpmLimit: 5_000,
     pod: { cpu: "500m", mem: "768Mi", idleTtlMinutes: 30, maxSessions: 3 },
+    cron: { minIntervalMs: 15 * 60_000, maxJobs: 50 },
   },
   pro: {
     name: "Pro",
@@ -91,6 +126,7 @@ export const TIERS: Record<string, Tier> = {
     tpmLimit: 1_000_000,
     rpmLimit: 5_000,
     pod: { cpu: "500m", mem: "1Gi", idleTtlMinutes: 60, maxSessions: 5 },
+    cron: { minIntervalMs: 5 * 60_000, maxJobs: 100 },
   },
   max: {
     name: "Max",
@@ -104,6 +140,7 @@ export const TIERS: Record<string, Tier> = {
     tpmLimit: 1_000_000,
     rpmLimit: 5_000,
     pod: { cpu: "1000m", mem: "2Gi", idleTtlMinutes: 120, maxSessions: 10 },
+    cron: { minIntervalMs: 5 * 60_000, maxJobs: 200 },
   },
 };
 

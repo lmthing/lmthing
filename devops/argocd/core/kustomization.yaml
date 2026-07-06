@@ -9,6 +9,7 @@ resources:
   - gateway.yaml
   - computer.yaml
   - compute-pod-template.yaml
+  - compute-prepull.yaml
   - studio.yaml
   - chat.yaml
   - com.yaml

@@ -36,6 +36,23 @@ for name in $(echo "$NODES" | jq -r 'keys[]' | sort); do
       access_ip: ${private_ip}
 "
 
+  # Dedicated user-pod pool node(s) (Phase 4): labelled + tainted so only
+  # user-pod workloads (which carry a matching toleration, see
+  # cloud/gateway/src/lib/compute.ts COMPUTE_NODE_POOL) schedule here.
+  # node_labels/node_taints are native Kubespray inventory vars, applied by
+  # the kubernetes/node-label + kubernetes/node-taint roles that already run
+  # in both cluster.yml and scale.yml — no extra Ansible role needed. Keyed
+  # on the node name (matches the user_pool_nodes key in
+  # terraform/variables.tf), so this is a no-op whenever no such node exists
+  # in the Terraform state — e.g. today, before enable_user_pool is true.
+  if [[ "$name" == lmthing-user-pool-* ]]; then
+    HOSTS+="      node_labels:
+        lmthing.cloud/pool: user
+      node_taints:
+        - \"lmthing.cloud/pool=user:NoSchedule\"
+"
+  fi
+
   if [ "$role" = "control_plane" ]; then
     HOSTS+="      etcd_member_name: etcd${etcd_index}
 "

@@ -1,0 +1,56 @@
+# Pre-pulls the compute image onto the dedicated user-pod pool node(s) so a
+# user's first pod scheduled on a fresh pool node doesn't pay a cold,
+# multi-hundred-MB image pull (Phase 4 fast cold-start).
+#
+# Runs ONLY on nodes labelled lmthing.cloud/pool=user — see:
+#   - devops/terraform (enable_user_pool + user_pool_nodes)
+#   - devops/terraform/scripts/generate-inventory.sh (node_labels/node_taints)
+#   - cloud/gateway/src/lib/compute.ts (COMPUTE_NODE_POOL — same label/taint
+#     used to schedule real user pods onto the pool)
+#
+# With no such node in the cluster today, this DaemonSet's nodeSelector
+# matches zero nodes, so it schedules 0 pods — a complete no-op until the
+# pool node actually exists and joins with the label.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: compute-prepull
+  namespace: lmthing
+spec:
+  selector:
+    matchLabels:
+      app: compute-prepull
+  template:
+    metadata:
+      labels:
+        app: compute-prepull
+    spec:
+      nodeSelector:
+        lmthing.cloud/pool: user
+      tolerations:
+        - key: lmthing.cloud/pool
+          operator: Equal
+          value: user
+          effect: NoSchedule
+      imagePullSecrets:
+        - name: acr-pull-secret
+      containers:
+        - name: compute-prepull
+          # Pinned by digest (not :latest / :<sha> tag) so containerd caches
+          # the exact layers a real user pod will request. Placeholder until
+          # the first successful compute image build after this file
+          # merges — CI (.github/workflows/build-images.yml) overwrites this
+          # line in lockstep with COMPUTE_IMAGE_TAG/COMPUTE_IMAGE_DIGEST on
+          # every compute push (see the update-manifests job). Harmless
+          # until then: the nodeSelector above means this pod never actually
+          # schedules, so the placeholder digest is never resolved/pulled.
+          image: lmthingacr.azurecr.io/compute@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c", "sleep infinity"]
+          resources:
+            requests:
+              memory: "16Mi"
+              cpu: "10m"
+            limits:
+              memory: "64Mi"
+              cpu: "50m"

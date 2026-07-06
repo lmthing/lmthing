@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
-import type { PodConfig } from "./tiers.js";
+import { getTierByName, TIERS, type PodConfig } from "./tiers.js";
 import * as litellm from "./litellm.js";
+import { signComputeToken } from "./tokens.js";
+import { deleteCronJobs } from "./db.js";
 
 // Local dev: when K8S_LOCAL_PROXY=true, talk to minikube via `kubectl proxy --port=8001`
 // (no TLS, no service account token needed).
@@ -51,13 +53,78 @@ export async function k8s(
 const ACR_REGISTRY = process.env.ACR_REGISTRY ?? "lmthingacr.azurecr.io";
 const ACR_USERNAME = process.env.ACR_USERNAME ?? "";
 const ACR_PASSWORD = process.env.ACR_PASSWORD ?? "";
-const COMPUTE_IMAGE = LOCAL_DEV
-  ? (process.env.COMPUTE_IMAGE ?? "compute:local")
-  : `${ACR_REGISTRY}/compute:latest`;
-const PULL_SECRET_NAME = "acr-pull-secret";
 // The latest compute image tag, updated by CI on every new compute build.
 // Empty string means "unknown" — no upgrade banner is shown in that case.
 export const COMPUTE_IMAGE_TAG = process.env.COMPUTE_IMAGE_TAG ?? "";
+// Digest-pin (P4): when CI sets COMPUTE_IMAGE_DIGEST (bare `sha256:...`), free
+// pods run the immutable-by-digest image with imagePullPolicy: IfNotPresent, so a
+// cold start reuses layers the pre-pull DaemonSet already cached on the node (the
+// #1 cold-start killer is re-pulling the moving `:latest` tag on every wake). When
+// UNSET, behaviour is unchanged: `:latest` + Always. Local dev is untouched.
+const COMPUTE_IMAGE_DIGEST = process.env.COMPUTE_IMAGE_DIGEST ?? "";
+const COMPUTE_IMAGE = LOCAL_DEV
+  ? (process.env.COMPUTE_IMAGE ?? "compute:local")
+  : COMPUTE_IMAGE_DIGEST
+    ? `${ACR_REGISTRY}/compute@${COMPUTE_IMAGE_DIGEST}`
+    : `${ACR_REGISTRY}/compute:latest`;
+// Digest is immutable ⇒ IfNotPresent (cached layers are always the right ones).
+// A moving `:latest` tag ⇒ Always (re-pull so a new build is picked up on recreate).
+const COMPUTE_IMAGE_PULL_POLICY =
+  !LOCAL_DEV && COMPUTE_IMAGE_DIGEST ? "IfNotPresent" : "Always";
+// Dedicated user-pod node pool (P4): set COMPUTE_NODE_POOL=user in the gateway
+// env ONCE the tainted pool node exists. Unset ⇒ no nodeSelector/toleration, so
+// pods schedule anywhere (today's single-node behaviour) — this keeps deploys
+// safe before the pool is provisioned.
+const COMPUTE_NODE_POOL = process.env.COMPUTE_NODE_POOL ?? "";
+// Backstop idle-sweep staleness threshold: a pod whose `last-active` annotation
+// is older than this (missed heartbeats ⇒ wedged self-idle watchdog) is scaled to
+// zero by the gateway even though it didn't self-report. Generous so it never
+// races a genuinely-active pod (which heartbeats every ≤5 min).
+const SWEEP_STALE_MS =
+  (Number(process.env.COMPUTE_SWEEP_STALE_MIN) || 30) * 60_000;
+const LAST_ACTIVE_ANNOTATION = "lmthing.cloud/last-active";
+// Refuse a self-idle scale-down within this window of the last wake/heartbeat —
+// guards the (rare) wake → immediate-idle race.
+const WAKE_RACE_MS = 30_000;
+const PULL_SECRET_NAME = "acr-pull-secret";
+
+/** Parse a K8s memory quantity ("512Mi", "1Gi", "768Mi") to MiB. */
+function memToMiB(mem: string): number {
+  const m = /^(\d+(?:\.\d+)?)\s*(Mi|Gi|M|G)?$/.exec(mem.trim());
+  if (!m) return 512;
+  const n = Number(m[1]);
+  switch (m[2]) {
+    case "Gi": return Math.round(n * 1024);
+    case "G": return Math.round((n * 1_000_000_000) / (1024 * 1024));
+    case "M": return Math.round((n * 1_000_000) / (1024 * 1024));
+    default: return Math.round(n); // Mi (or bare)
+  }
+}
+
+/** V8 old-space cap (~60% of the memory LIMIT) so the JS heap GCs before the
+ *  cgroup OOMs. QuickJS WASM VMs live in off-heap ArrayBuffers, so this bounds the
+ *  host-heap portion; the in-pod watchdog bounds the rest. */
+function nodeOptionsFor(pod: PodConfig): string {
+  const capMiB = Math.max(128, Math.floor(memToMiB(pod.mem) * 0.6));
+  return `--max-old-space-size=${capMiB}`;
+}
+
+/** nodeSelector + tolerations for the user pool, or `{}` when the pool is not
+ *  enabled (COMPUTE_NODE_POOL unset). Spread into a Pod spec. */
+function poolPlacement(): Record<string, unknown> {
+  if (!COMPUTE_NODE_POOL) return {};
+  return {
+    nodeSelector: { "lmthing.cloud/pool": COMPUTE_NODE_POOL },
+    tolerations: [
+      {
+        key: "lmthing.cloud/pool",
+        operator: "Equal",
+        value: COMPUTE_NODE_POOL,
+        effect: "NoSchedule",
+      },
+    ],
+  };
+}
 
 // --- Pod template (inline — matches k8s/compute/user-pod-template.yaml) ---
 
@@ -122,6 +189,10 @@ function deployment(userId: string, pod: PodConfig = DEFAULT_POD_CONFIG) {
     metadata: {
       name: "lmthing",
       namespace: `user-${userId}`,
+      // Baseline for the idle-sweep backstop. Refreshed on wake + by pod
+      // heartbeats (annotateLastActive); on Deployment METADATA, never the pod
+      // template (a template patch would trigger a rolling restart).
+      annotations: { [LAST_ACTIVE_ANNOTATION]: new Date().toISOString() },
     },
     spec: {
       replicas: 1,
@@ -138,30 +209,43 @@ function deployment(userId: string, pod: PodConfig = DEFAULT_POD_CONFIG) {
         },
         spec: {
           ...(LOCAL_DEV ? {} : { imagePullSecrets: [{ name: PULL_SECRET_NAME }] }),
+          // Pin free pods to the tainted user pool when enabled (P4); no-op today.
+          ...poolPlacement(),
+          // Grace window so the SIGTERM backup flush (≤25s cap) finishes before
+          // SIGKILL on scale-to-zero. Default 30s is too tight.
+          terminationGracePeriodSeconds: 45,
           containers: [
             {
               name: "compute",
               image: COMPUTE_IMAGE,
-              // COMPUTE_IMAGE is the moving `:latest` tag, so Always-pull ensures
-              // a freshly-built image is picked up when a pod is (re)created.
-              imagePullPolicy: "Always",
+              imagePullPolicy: COMPUTE_IMAGE_PULL_POLICY,
               ports: [{ containerPort: 8080 }],
               resources: {
-                requests: { memory: pod.mem, cpu: pod.cpu },
+                // Burstable when *Request < limit (free tier): the scheduler packs
+                // by requests, the limit caps a busy pod. Falls back to limit when
+                // *Request is omitted (paid tiers stay Guaranteed).
+                requests: {
+                  memory: pod.memRequest ?? pod.mem,
+                  cpu: pod.cpuRequest ?? pod.cpu,
+                },
                 limits: { memory: pod.mem, cpu: pod.cpu },
               },
               env: [
-                {
-                  name: "MAX_SESSIONS",
-                  value: String(pod.maxSessions),
-                },
-                {
-                  name: "IDLE_TTL_MINUTES",
-                  value: String(pod.idleTtlMinutes),
-                },
+                { name: "MAX_SESSIONS", value: String(pod.maxSessions) },
+                { name: "IDLE_TTL_MINUTES", value: String(pod.idleTtlMinutes) },
+                // Bound the V8 heap under the Burstable limit (GC before OOM).
+                { name: "NODE_OPTIONS", value: nodeOptionsFor(pod) },
               ],
               envFrom: [{ secretRef: { name: "user-env", optional: true } }],
               volumeMounts: [{ name: "data", mountPath: "/data" }],
+              // Readiness gates the Service so Envoy only routes to a booted pod on
+              // wake (a wake request never hits a 0-endpoint or still-booting pod).
+              readinessProbe: {
+                httpGet: { path: "/api/sessions", port: 8080 },
+                initialDelaySeconds: 2,
+                periodSeconds: 5,
+                failureThreshold: 3,
+              },
             },
           ],
           volumes: [
@@ -284,6 +368,92 @@ async function injectLiteLLMEnv(
   }
 }
 
+/**
+ * Ensure the pod→gateway compute credentials are present in user-env: a scoped
+ * compute JWT (self-idle + cron-manifest auth) and the self-idle enable flag.
+ * GET-merge-PUT so LiteLLM/user keys are never clobbered; writes only when a value
+ * is missing (the JWT is long-lived — no rotation on every ensure, so no needless
+ * pod restart). This is the migration path for pods created before P1.
+ */
+async function injectComputeEnv(userId: string): Promise<void> {
+  const existing = await getEnvVars(userId);
+  const additions: Record<string, string> = {};
+  if (!existing.LMTHING_COMPUTE_JWT) {
+    additions.LMTHING_COMPUTE_JWT = await signComputeToken(userId);
+  }
+  if (existing.LMTHING_SELF_IDLE === undefined) {
+    additions.LMTHING_SELF_IDLE = "1";
+  }
+  if (Object.keys(additions).length === 0) return;
+  await setEnvVars(userId, { ...existing, ...additions });
+}
+
+/**
+ * Refresh the Deployment's `last-active` annotation — the idle-sweep backstop
+ * clock. Stamped on wake and by pod activity heartbeats. Patches the Deployment
+ * METADATA (a merge-patch), never the pod template, so it never rolls the pod.
+ */
+export async function annotateLastActive(
+  userId: string,
+  iso: string = new Date().toISOString(),
+): Promise<void> {
+  const ns = `user-${userId}`;
+  await k8s(
+    `/apis/apps/v1/namespaces/${ns}/deployments/lmthing`,
+    "PATCH",
+    { metadata: { annotations: { [LAST_ACTIVE_ANNOTATION]: iso } } },
+    "application/merge-patch+json",
+  );
+}
+
+/** Resolve a user's tier pod sizing (defaults to free). Used by the cron-wake
+ *  tick so a woken pod gets its own tier's resources, not a generic default. */
+export async function resolvePodConfig(userId: string): Promise<PodConfig> {
+  try {
+    const info = await litellm.getUserInfo(userId);
+    const tierName = info.user_info?.metadata?.tier || "free";
+    return (getTierByName(tierName) ?? TIERS.free).pod;
+  } catch {
+    return TIERS.free.pod;
+  }
+}
+
+/** Read the epoch-ms of a pod's `last-active` annotation, or null if unset. */
+async function getLastActive(userId: string): Promise<number | null> {
+  const ns = `user-${userId}`;
+  const dep = (await k8s(
+    `/apis/apps/v1/namespaces/${ns}/deployments/lmthing`,
+    "GET",
+  )) as { metadata?: { annotations?: Record<string, string> } } | null;
+  const iso = dep?.metadata?.annotations?.[LAST_ACTIVE_ANNOTATION];
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/**
+ * Handle a pod's activity report (pod → gateway, POST /api/compute/self-idle).
+ *   - `idle: false` → heartbeat: refresh the sweep backstop clock.
+ *   - `idle: true`  → self-report idle: scale the pod to 0, UNLESS a wake/heartbeat
+ *     was stamped within {@link WAKE_RACE_MS} (guards the wake → immediate-idle race).
+ * The userId comes from the verified compute token, so a pod can only ever act on
+ * its own namespace. Returns what happened (for logging).
+ */
+export async function reportPodActivity(
+  userId: string,
+  idle: boolean,
+): Promise<"scaled-down" | "heartbeat" | "wake-race"> {
+  if (!idle) {
+    await annotateLastActive(userId);
+    return "heartbeat";
+  }
+  const last = await getLastActive(userId);
+  if (last !== null && Date.now() - last < WAKE_RACE_MS) return "wake-race";
+  await scaleUserPod(userId, 0);
+  console.log(`[self-idle] scaled down pod for ${userId} (self-reported idle)`);
+  return "scaled-down";
+}
+
 // --- Public API ---
 
 export async function getEnvVars(
@@ -389,9 +559,15 @@ export async function createUserPod(
   } catch (err) {
     console.warn(`Could not fetch LiteLLM key for ${userId}: ${err}`);
   }
-  const initialEnv: Record<string, string> = litellmKey
-    ? litellmEnvDefaults(litellmKey)
-    : {};
+  // Seed the initial env with LiteLLM defaults + the pod→gateway compute creds
+  // (scoped JWT + self-idle flag) so a fresh pod boots ready to self-report and
+  // publish its cron manifest — no post-create restart needed.
+  const computeJwt = await signComputeToken(userId);
+  const initialEnv: Record<string, string> = {
+    ...(litellmKey ? litellmEnvDefaults(litellmKey) : {}),
+    LMTHING_COMPUTE_JWT: computeJwt,
+    LMTHING_SELF_IDLE: "1",
+  };
 
   // Create env secret with LiteLLM defaults (skip if exists — will be merged below)
   const envResult = await k8s(
@@ -400,11 +576,12 @@ export async function createUserPod(
     envSecret(userId, initialEnv),
   );
   if (envResult === "conflict") {
-    console.log(`Env secret in ${ns} already exists, merging LiteLLM keys`);
+    console.log(`Env secret in ${ns} already exists, merging LiteLLM + compute keys`);
     // Secret already exists — merge defaults without clobbering user-set keys
     if (litellmKey) {
       await injectLiteLLMEnv(userId, litellmKey);
     }
+    await injectComputeEnv(userId);
   } else {
     console.log(`Created env secret in ${ns}`);
   }
@@ -485,7 +662,10 @@ export async function ensureUserPod(
     // First use — provision the full namespace + resources
     await createUserPod(userId, pod);
   } else {
-    // Patch resources + env vars to match current tier (handles tier changes)
+    // Patch resources + env + pod-shape to match current config (handles tier
+    // changes AND migrates existing pods onto the P1–P4 spec — Burstable requests,
+    // NODE_OPTIONS, readiness probe, grace, pool placement, digest image — on the
+    // next wake). A strategic-merge patch that changes nothing is a no-op (no roll).
     await k8s(
       `/apis/apps/v1/namespaces/${ns}/deployments/lmthing`,
       "PATCH",
@@ -493,11 +673,18 @@ export async function ensureUserPod(
         spec: {
           template: {
             spec: {
+              ...poolPlacement(),
+              terminationGracePeriodSeconds: 45,
               containers: [
                 {
                   name: "compute",
+                  image: COMPUTE_IMAGE,
+                  imagePullPolicy: COMPUTE_IMAGE_PULL_POLICY,
                   resources: {
-                    requests: { memory: pod.mem, cpu: pod.cpu },
+                    requests: {
+                      memory: pod.memRequest ?? pod.mem,
+                      cpu: pod.cpuRequest ?? pod.cpu,
+                    },
                     limits: { memory: pod.mem, cpu: pod.cpu },
                   },
                   env: [
@@ -506,7 +693,14 @@ export async function ensureUserPod(
                       name: "IDLE_TTL_MINUTES",
                       value: String(pod.idleTtlMinutes),
                     },
+                    { name: "NODE_OPTIONS", value: nodeOptionsFor(pod) },
                   ],
+                  readinessProbe: {
+                    httpGet: { path: "/api/sessions", port: 8080 },
+                    initialDelaySeconds: 2,
+                    periodSeconds: 5,
+                    failureThreshold: 3,
+                  },
                 },
               ],
             },
@@ -516,12 +710,17 @@ export async function ensureUserPod(
       "application/strategic-merge-patch+json",
     );
 
-    // Ensure LiteLLM env defaults are present (idempotent merge)
+    // Ensure LiteLLM + compute env are present (idempotent merges).
     try {
       const litellmKey = await getLiteLLMKey(userId);
       await injectLiteLLMEnv(userId, litellmKey);
     } catch (err) {
       console.warn(`Could not inject LiteLLM env for ${userId}: ${err}`);
+    }
+    try {
+      await injectComputeEnv(userId);
+    } catch (err) {
+      console.warn(`Could not inject compute env for ${userId}: ${err}`);
     }
 
     const currentReplicas = dep.spec?.replicas ?? 0;
@@ -529,6 +728,13 @@ export async function ensureUserPod(
       await scaleUserPod(userId, 1);
       console.log(`Woke up scaled-to-zero pod for user ${userId}`);
     }
+  }
+
+  // Stamp the idle-sweep backstop clock — an ensure means the user is active.
+  try {
+    await annotateLastActive(userId);
+  } catch (err) {
+    console.warn(`Could not annotate last-active for ${userId}: ${err}`);
   }
 
   if (LOCAL_DEV) {
@@ -568,26 +774,64 @@ export async function getPodProxyUrl(userId: string): Promise<string | null> {
 }
 
 /**
- * Stub for a future idle-sweep controller.
+ * Backstop idle-sweep controller body. Enumerates every `user-*` namespace's
+ * Deployment and scales to 0 any pod that is (a) currently at replicas ≥ 1 and
+ * (b) whose `last-active` annotation is older than {@link SWEEP_STALE_MS} — i.e.
+ * its self-idle watchdog stopped heartbeating (wedged / crashed / pre-migration
+ * old image). The PRIMARY scale-down path is the pod self-reporting idle (POST
+ * /api/compute/self-idle); this only catches pods that failed to.
  *
- * This function is intentionally not wired to a background timer here —
- * the gateway is stateless and managing per-user timers adds complexity.
- * Recommended approaches:
- *   1. The compute pod self-reports: when idle for idleTtlMinutes, it calls
- *      scaleUserPod(userId, 0) via the in-cluster K8s API or a sidecar.
- *   2. A dedicated CronJob in the lmthing namespace queries all user-* namespaces,
- *      checks the last-active annotation, and scales idle pods to zero.
- *   3. A future gateway background task (e.g. using setInterval at startup)
- *      calls this function periodically.
- *
- * @param userIds - list of userIds whose pods should be checked and scaled to 0 if idle
+ * A pod with NO annotation gets one grace round: we stamp it now and skip, so a
+ * genuinely-active pod is never scaled down the instant this ships. Best-effort
+ * per namespace — one failure never aborts the sweep. Runs behind `withLeaderLock`
+ * (cluster-status.ts) so only one of the 2 gateway replicas sweeps each tick.
  */
-export async function scaleIdlePodsToZero(userIds: string[]): Promise<void> {
-  // STUB — iterate userIds, check pod status and last-active annotation,
-  // call scaleUserPod(userId, 0) for pods past their idleTtlMinutes threshold.
-  console.log(
-    `scaleIdlePodsToZero: stub called for ${userIds.length} user(s)`,
+export async function sweepIdlePods(): Promise<{
+  scanned: number;
+  scaledDown: number;
+}> {
+  const nsData = (await k8s("/api/v1/namespaces", "GET")) as {
+    items?: Array<{ metadata?: { name?: string } }>;
+  } | null;
+  const userNs = (nsData?.items ?? [])
+    .map((n) => n.metadata?.name ?? "")
+    .filter((name) => name.startsWith("user-"));
+
+  const now = Date.now();
+  let scaledDown = 0;
+  await Promise.allSettled(
+    userNs.map(async (ns) => {
+      const userId = ns.slice("user-".length);
+      const dep = (await k8s(
+        `/apis/apps/v1/namespaces/${ns}/deployments/lmthing`,
+        "GET",
+      )) as {
+        spec?: { replicas?: number };
+        metadata?: { annotations?: Record<string, string> };
+      } | null;
+      if (!dep) return;
+      if ((dep.spec?.replicas ?? 0) < 1) return; // already scaled to zero
+
+      const lastActive = dep.metadata?.annotations?.[LAST_ACTIVE_ANNOTATION];
+      if (!lastActive) {
+        // No baseline yet (pre-migration pod) — grace round: stamp and wait.
+        await annotateLastActive(userId, new Date(now).toISOString()).catch(() => {});
+        return;
+      }
+      const lastMs = Date.parse(lastActive);
+      if (Number.isFinite(lastMs) && now - lastMs < SWEEP_STALE_MS) return; // fresh
+
+      await scaleUserPod(userId, 0);
+      scaledDown++;
+      console.log(
+        `[sweep] scaled down stale pod ${ns} (last-active ${lastActive})`,
+      );
+    }),
   );
+  if (scaledDown > 0 || userNs.length > 0) {
+    console.log(`[sweep] scanned ${userNs.length} pod(s), scaled down ${scaledDown}`);
+  }
+  return { scanned: userNs.length, scaledDown };
 }
 
 export async function deleteUserPod(userId: string): Promise<void> {
@@ -600,6 +844,11 @@ export async function deleteUserPod(userId: string): Promise<void> {
   } else {
     console.log(`Deleted namespace ${ns}`);
   }
+  // Drop the user's externalized cron schedule so the wake tick stops targeting
+  // a now-deleted pod.
+  await deleteCronJobs(userId).catch((err) =>
+    console.warn(`Could not delete cron jobs for ${userId}: ${err}`),
+  );
 }
 
 export interface PodStatus {

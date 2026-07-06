@@ -6,8 +6,13 @@ locals {
     managed_by  = "terraform"
   }, var.extra_tags)
 
-  control_plane_nodes = { for k, v in var.nodes : k => v if v.role == "control_plane" }
-  worker_nodes        = { for k, v in var.nodes : k => v if v.role == "worker" }
+  # Phase 4: merge in the (default-disabled) user pool node(s). When
+  # enable_user_pool = false this is merge(var.nodes, {}) == var.nodes, so
+  # every for_each below is byte-for-byte identical to today's plan.
+  all_nodes = merge(var.nodes, var.enable_user_pool ? var.user_pool_nodes : {})
+
+  control_plane_nodes = { for k, v in local.all_nodes : k => v if v.role == "control_plane" }
+  worker_nodes        = { for k, v in local.all_nodes : k => v if v.role == "worker" }
 }
 
 # ── Resource Group ──────────────────────────────────────────────
@@ -140,7 +145,7 @@ locals {
 
 # ── Per-Node Resources ─────────────────────────────────────────
 resource "azurerm_public_ip" "node" {
-  for_each            = var.nodes
+  for_each            = local.all_nodes
   name                = "${local.prefix}-${each.key}-pip"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
@@ -150,7 +155,7 @@ resource "azurerm_public_ip" "node" {
 }
 
 resource "azurerm_network_interface" "node" {
-  for_each            = var.nodes
+  for_each            = local.all_nodes
   name                = "${local.prefix}-${each.key}-nic"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
@@ -165,13 +170,13 @@ resource "azurerm_network_interface" "node" {
 }
 
 resource "azurerm_network_interface_security_group_association" "node" {
-  for_each              = var.nodes
+  for_each              = local.all_nodes
   network_interface_id  = azurerm_network_interface.node[each.key].id
   network_security_group_id = azurerm_network_security_group.main.id
 }
 
 resource "azurerm_linux_virtual_machine" "node" {
-  for_each                        = var.nodes
+  for_each                        = local.all_nodes
   name                            = "${local.prefix}-${each.key}"
   location                        = azurerm_resource_group.main.location
   resource_group_name             = azurerm_resource_group.main.name
@@ -206,7 +211,7 @@ resource "azurerm_linux_virtual_machine" "node" {
 
 # ── Data Disks (optional per node) ─────────────────────────────
 resource "azurerm_managed_disk" "data" {
-  for_each             = { for k, v in var.nodes : k => v if v.data_disk_size_gb > 0 }
+  for_each             = { for k, v in local.all_nodes : k => v if v.data_disk_size_gb > 0 }
   name                 = "${local.prefix}-${each.key}-datadisk"
   location             = azurerm_resource_group.main.location
   resource_group_name  = azurerm_resource_group.main.name
@@ -217,7 +222,7 @@ resource "azurerm_managed_disk" "data" {
 }
 
 resource "azurerm_virtual_machine_data_disk_attachment" "data" {
-  for_each           = { for k, v in var.nodes : k => v if v.data_disk_size_gb > 0 }
+  for_each           = { for k, v in local.all_nodes : k => v if v.data_disk_size_gb > 0 }
   managed_disk_id    = azurerm_managed_disk.data[each.key].id
   virtual_machine_id = azurerm_linux_virtual_machine.node[each.key].id
   lun                = 0

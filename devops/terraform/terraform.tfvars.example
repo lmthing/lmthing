@@ -31,6 +31,15 @@ nodes = {
   # }
 }
 
+# ── User Pool (Phase 4) ──────────────────────────────────────────
+# Dedicated on-demand node pool for user compute pods, pre-pulled with the
+# compute image for fast cold-start. Costs real money — leave disabled
+# until explicitly approved to purchase capacity. See variables.tf for the
+# default node shape (lmthing-user-pool-1, Standard_B8as_v2, 256GiB Premium
+# data disk); override user_pool_nodes here only if you need something
+# different from that default.
+# enable_user_pool = true
+
 # VM defaults
 vm_admin_username = "azureuser"
 

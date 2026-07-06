@@ -86,6 +86,40 @@ export async function verifyBackupToken(
   }
 }
 
+// --- Compute tokens ---
+//
+// Per-user compute pods make autonomous calls back to the gateway with no user
+// request in flight — self-idle scale-to-zero (POST /api/compute/self-idle) and
+// cron-schedule publishing (POST /api/compute/cron-manifest) — so they can't
+// relay a browser access token. As with backup tokens, the gateway mints a
+// long-lived, narrowly-scoped (`aud: "compute"`) JWT and injects it into the
+// pod's `user-env` secret. A pod can only ever act on its OWN namespace: the
+// userId is taken from the verified token subject, never from the request body.
+
+const COMPUTE_TTL = "365d";
+
+export async function signComputeToken(userId: string): Promise<string> {
+  return new SignJWT({})
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject(userId)
+    .setAudience("compute")
+    .setIssuedAt()
+    .setExpirationTime(COMPUTE_TTL)
+    .sign(secret);
+}
+
+export async function verifyComputeToken(
+  token: string,
+): Promise<{ userId: string } | null> {
+  try {
+    const { payload } = await jwtVerify(token, secret, { audience: "compute" });
+    if (!payload.sub) return null;
+    return { userId: payload.sub };
+  } catch {
+    return null;
+  }
+}
+
 // Short-lived signed state carried through the GitHub App install redirect so
 // the callback (which GitHub hits without our auth header) can be tied back to
 // the user who initiated it.

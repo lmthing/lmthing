@@ -6,10 +6,13 @@ import {
   setEnvVars,
   ensureUserPod,
   restartUserPod,
+  reportPodActivity,
   COMPUTE_IMAGE_TAG,
 } from "../lib/compute.js";
 import * as litellm from "../lib/litellm.js";
 import { getTierByName } from "../lib/tiers.js";
+import { verifyComputeToken } from "../lib/tokens.js";
+import { replaceCronManifest, type CronManifestJob } from "../lib/db.js";
 import type { Env } from "../types.js";
 
 const compute = new Hono<Env>();
@@ -23,6 +26,105 @@ async function resolveUserTier(userId: string): Promise<string> {
     return "free";
   }
 }
+
+// ─── Pod → gateway autonomous calls (compute-JWT authed, NOT authMiddleware) ───
+
+/** Extract + verify the pod's scoped compute JWT → its userId, or null. */
+async function computeUser(c: {
+  req: { header: (n: string) => string | undefined };
+}): Promise<string | null> {
+  const header = c.req.header("Authorization");
+  if (!header?.startsWith("Bearer ")) return null;
+  const v = await verifyComputeToken(header.slice(7));
+  return v?.userId ?? null;
+}
+
+// Deterministic per-job jitter window so many users' same-minute jobs (e.g. a
+// daily 09:00 digest) don't stampede the gateway's cron-wake tick.
+const CRON_JITTER_MS = 5 * 60_000;
+function hashStr(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+// POST /self-idle — the pod reports its activity. Body `{ idle: boolean }`:
+//   idle:true (or empty body) → scale the pod to 0 (race-guarded);
+//   idle:false → heartbeat (refresh the idle-sweep backstop clock).
+// Authed by the injected compute JWT, so a pod can only act on its own namespace.
+compute.post("/self-idle", async (c) => {
+  const userId = await computeUser(c);
+  if (!userId) return c.json({ error: "Invalid compute token" }, 401);
+  let body: { idle?: unknown } = {};
+  try {
+    body = await c.req.json();
+  } catch {
+    /* empty body ⇒ idle:true default */
+  }
+  const idle = body.idle !== false; // default true — a bare POST means "I'm idle"
+  try {
+    const outcome = await reportPodActivity(userId, idle);
+    return c.json({ ok: true, outcome });
+  } catch (err) {
+    console.error(`self-idle failed for ${userId}:`, err);
+    return c.json({ error: "self-idle failed" }, 500);
+  }
+});
+
+// POST /cron-manifest — the pod publishes its full cron schedule. Body
+// `{ jobs: [{ projectId, slug, cronExpr, everyMs, nextRunAt }] }`. The gateway
+// enforces the tier cron policy (clamp interval to the floor, cap job count,
+// jitter next_run_at) then replaces the user's stored manifest. The always-on
+// cron-wake tick (cluster-status.ts) wakes the pod at each due next_run_at.
+compute.post("/cron-manifest", async (c) => {
+  const userId = await computeUser(c);
+  if (!userId) return c.json({ error: "Invalid compute token" }, 401);
+
+  let body: { jobs?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON" }, 400);
+  }
+  const rawJobs = Array.isArray(body.jobs) ? body.jobs : [];
+
+  const tierName = await resolveUserTier(userId);
+  const tier = getTierByName(tierName) ?? getTierByName("free")!;
+  const policy = tier.cron;
+
+  const seen = new Set<string>();
+  const jobs: CronManifestJob[] = [];
+  for (const raw of rawJobs) {
+    if (!raw || typeof raw !== "object") continue;
+    const j = raw as Record<string, unknown>;
+    const projectId = typeof j.projectId === "string" ? j.projectId : "";
+    const slug = typeof j.slug === "string" ? j.slug : "";
+    const cronExpr = typeof j.cronExpr === "string" ? j.cronExpr : "";
+    const everyMsRaw = Number(j.everyMs);
+    const nextRunAtRaw = Number(j.nextRunAt);
+    if (!projectId || !slug || !cronExpr) continue;
+    if (!Number.isFinite(everyMsRaw) || !Number.isFinite(nextRunAtRaw)) continue;
+    const key = `${projectId}/${slug}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    // Clamp interval up to the tier floor; jitter the fire time deterministically.
+    const everyMs = Math.max(everyMsRaw, policy.minIntervalMs);
+    const jitter = hashStr(`${userId}:${key}`) % CRON_JITTER_MS;
+    jobs.push({ projectId, slug, cronExpr, everyMs, nextRunAt: nextRunAtRaw + jitter });
+    if (jobs.length >= policy.maxJobs) break;
+  }
+
+  try {
+    await replaceCronManifest(userId, jobs, policy.minIntervalMs);
+    return c.json({ ok: true, accepted: jobs.length });
+  } catch (err) {
+    console.error(`cron-manifest failed for ${userId}:`, err);
+    return c.json({ error: "cron-manifest failed" }, 500);
+  }
+});
 
 // GET /version — returns the latest available compute image tag. Public (no auth).
 compute.get("/version", (c) => {

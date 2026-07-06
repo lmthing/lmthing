@@ -1,4 +1,5 @@
-# Per-user pod routing for lmthing.app (app-api-proxy = /api/*, app-pages-proxy = /app/*).
+# Per-user pod routing for lmthing.app (app-api-proxy = /api/*, app-pages-proxy = /app/*,
+# app-pages-bare = the /* catch-all root mount lmthing.app/<project>/…).
 # A project-app is SINGLE-USER and has no auth of its own — the only auth here is the
 # PLATFORM picking which pod. The per-user JWT (sub → x-user-id → Lua upstream) is read from
 # the Authorization: Bearer header / access_token param (SPA fetches, install POST) AND from
@@ -25,6 +26,9 @@ spec:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       name: app-pages-proxy
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: app-pages-bare
   lua:
     - type: Inline
       inline: |
@@ -71,6 +75,9 @@ spec:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       name: app-pages-proxy
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: app-pages-bare
   jwt:
     providers:
       - name: gateway

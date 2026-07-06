@@ -141,14 +141,64 @@ spec:
           weight: 1
 
 ---
-# /* -> Static unified web app (JWT-free). Serves the document + /assets/*; the app
-# self-authenticates (@lmthing/auth) and calls /api/* with a Bearer token. Reuses the
-# shared unified-SPA Service (same image as studio/chat/computer); on lmthing.app the
-# client picks the /app surface (surfaceForHost), the app launcher.
+# SHELL (JWT-free) -> the static unified web app. Unlike studio/chat (where the SPA is
+# the `/` catch-all), on lmthing.app the pod owns the catch-all so installed apps get
+# CLEAN root URLs (lmthing.app/<project>/…). The shell therefore only serves its own
+# fixed paths, which take precedence over the catch-all below (Exact > longer prefix):
+#   • Exact `/`     — the launcher document (the client shows this surface at `/`)
+#   • /assets/*     — the SPA's hashed JS/CSS
+#   • /favicon.ico/ — the shared favicon bundle (index.html references /favicon.ico/*)
+#   • /install      — the store's "install to my pod" landing (self-authenticates, POSTs
+#                     the install to the pod). Kept JWT-free so a logged-out arrival sees
+#                     the login page, not a 401.
+# Every one of these is more specific than the `/` catch-all below, so it wins. Reuses the
+# shared unified-SPA Service (same image as studio/chat/computer).
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: app-static
+  name: app-shell
+  namespace: gateway
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: lmthing-gw
+      sectionName: app-https
+  hostnames:
+    - lmthing.app
+  rules:
+    - matches:
+        - path:
+            type: Exact
+            value: /
+        - path:
+            type: PathPrefix
+            value: /assets
+        - path:
+            type: PathPrefix
+            value: /favicon.ico
+        - path:
+            type: PathPrefix
+            value: /install
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: studio
+          namespace: lmthing
+          port: 80
+          weight: 1
+
+---
+# /* (catch-all) -> the user's pod. Everything the shell above does NOT reserve is an
+# installed app served at the ROOT mount (lmthing.app/<project>/… + /<project>/api/*) —
+# the pod registers a bare `/<project>/*` route in this (behind-Envoy) mode. Same per-user
+# JWT/Lua routing as /app/* (from the access_token cookie for page+asset navigations, or
+# header/param for fetches — see app-policies.yaml). Lowest precedence, so /api, /app,
+# /assets, /install and Exact / all win first.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: app-pages-bare
   namespace: gateway
 spec:
   parentRefs:
@@ -163,10 +213,14 @@ spec:
         - path:
             type: PathPrefix
             value: /
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.envoyproxy.io
+            kind: HTTPRouteFilter
+            name: rewrite-host-from-header
       backendRefs:
-        - group: ""
-          kind: Service
-          name: studio
-          namespace: lmthing
-          port: 80
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: dynamic-user-backend
           weight: 1

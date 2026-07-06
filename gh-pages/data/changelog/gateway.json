@@ -1,5 +1,15 @@
 [
   {
+    "hash": "c9e53f08",
+    "full_hash": "c9e53f083a8cf7b2461c3a0e87c92c1118f72e84",
+    "type": "fix",
+    "scope": "gateway",
+    "subject": "exactly-once controller ticks + bump sdk/org (PodEnsureGate race)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-07 01:00:38 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/c9e53f083a8cf7b2461c3a0e87c92c1118f72e84"
+  },
+  {
     "hash": "0939eada",
     "full_hash": "0939eadac09c106bf235306dff2583887c0bfe2d",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-04-22 17:28:10 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/df968dceb7381f63e1fdca3e43358249a4b14ef9"
-  },
-  {
-    "hash": "ddb2d77f",
-    "full_hash": "ddb2d77f4cb08ec194bac7f9abe2b04c75ad9653",
-    "type": "fix",
-    "scope": "",
-    "subject": "ensure implicit flow type is set for Supabase client",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-03-28 14:39:37 +0200",
-    "url": "https://github.com/lmthing/lmthing/commit/ddb2d77f4cb08ec194bac7f9abe2b04c75ad9653"
   }
 ]

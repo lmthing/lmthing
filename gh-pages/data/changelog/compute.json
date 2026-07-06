@@ -1,5 +1,15 @@
 [
   {
+    "hash": "c9e53f08",
+    "full_hash": "c9e53f083a8cf7b2461c3a0e87c92c1118f72e84",
+    "type": "fix",
+    "scope": "gateway",
+    "subject": "exactly-once controller ticks + bump sdk/org (PodEnsureGate race)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-07 01:00:38 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/c9e53f083a8cf7b2461c3a0e87c92c1118f72e84"
+  },
+  {
     "hash": "0939eada",
     "full_hash": "0939eadac09c106bf235306dff2583887c0bfe2d",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-07-02 16:53:51 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/6dfa241761912850e3c86941c4940e12af97315f"
-  },
-  {
-    "hash": "977e2ff0",
-    "full_hash": "977e2ff0eb9b632999cd4995dae3860e5a84e9fd",
-    "type": "fix",
-    "scope": "sdk",
-    "subject": "update subproject commit to 0b63bfc",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-02 15:20:20 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/977e2ff0eb9b632999cd4995dae3860e5a84e9fd"
   }
 ]

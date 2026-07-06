@@ -52,6 +52,32 @@ export async function withLeaderLock<T>(
 }
 
 /**
+ * Claim a singleton controller tick across the 2 gateway replicas. Returns true
+ * to at MOST one caller per `minSpacingMs` window, regardless of replica timing.
+ *
+ * `withLeaderLock` only prevents *simultaneous* execution; the two replicas' 60s
+ * `setInterval`s are offset (by their pod-start delta), so each would run its own
+ * tick — the controller effectively fires ~2×/interval. This atomic upsert instead
+ * records the last claim time and only lets a claim through when enough time has
+ * elapsed since the previous one (by any replica), giving true "≈once per tick".
+ * A single statement, serialized by the primary-key row lock — no advisory lock.
+ */
+export async function claimTick(
+  key: string,
+  minSpacingMs: number,
+): Promise<boolean> {
+  const rows = await sql`
+    INSERT INTO controller_ticks (key, last_run_at)
+    VALUES (${key}, now())
+    ON CONFLICT (key) DO UPDATE SET last_run_at = now()
+      WHERE controller_ticks.last_run_at
+            < now() - make_interval(secs => ${minSpacingMs}::float8 / 1000.0)
+    RETURNING 1 AS claimed
+  `;
+  return rows.length > 0;
+}
+
+/**
  * Idempotently ensure the gateway's own tables exist. LiteLLM manages its
  * tables automatically in the same schema, but `profiles` and `sso_codes` are
  * ours — mirror of cloud/migrations/{001,002}. Runs on every startup so a fresh
@@ -121,6 +147,13 @@ export async function ensureSchema(): Promise<void> {
   await sql`
     CREATE INDEX IF NOT EXISTS idx_user_cron_jobs_next_run
       ON public.user_cron_jobs (next_run_at)
+  `;
+  // Singleton controller-tick coordination across the 2 gateway replicas (claimTick).
+  await sql`
+    CREATE TABLE IF NOT EXISTS public.controller_ticks (
+      key text PRIMARY KEY,
+      last_run_at timestamptz NOT NULL DEFAULT now()
+    )
   `;
 }
 

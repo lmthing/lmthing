@@ -5,7 +5,7 @@ import {
   resolvePodConfig,
 } from "./compute.js";
 import {
-  withLeaderLock,
+  claimTick,
   selectDueCronJobs,
   markCronWoken,
 } from "./db.js";
@@ -293,15 +293,22 @@ export function startRefresher() {
   setInterval(() => void refreshCluster(), 5000);
   setInterval(() => void refreshFleetAndEvents(), 10000);
 
-  // Controller ticks — each gated by a Postgres advisory lock so exactly ONE of
-  // the 2 gateway replicas runs it per tick (the other skips).
+  // Controller ticks — `claimTick` records the last run in Postgres and admits at
+  // most one execution per ~tick across BOTH replicas (their 60s intervals are
+  // offset, so a plain advisory lock — which only blocks simultaneous runs —
+  // wouldn't dedupe them). Spacing is 0.8× the interval so a legit next tick isn't
+  // starved while an offset replica's tick is suppressed.
   setInterval(() => {
-    void withLeaderLock("idle-sweep", () => sweepIdlePods()).catch((err) =>
+    void (async () => {
+      if (await claimTick("idle-sweep", SWEEP_TICK_MS * 0.8)) await sweepIdlePods();
+    })().catch((err) =>
       console.warn("[sweep] tick failed:", err instanceof Error ? err.message : err),
     );
   }, SWEEP_TICK_MS);
   setInterval(() => {
-    void withLeaderLock("cron-wake", cronWakeTick).catch((err) =>
+    void (async () => {
+      if (await claimTick("cron-wake", CRON_TICK_MS * 0.8)) await cronWakeTick();
+    })().catch((err) =>
       console.warn("[cron-wake] tick failed:", err instanceof Error ? err.message : err),
     );
   }, CRON_TICK_MS);

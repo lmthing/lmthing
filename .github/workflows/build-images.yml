@@ -21,6 +21,13 @@ on:
       - 'team/**'
       - 'blog/**'
       - 'casa/**'
+      # Monorepo-root workspace files: every root-context image runs
+      # `pnpm install --frozen-lockfile` against these, so a change to any of
+      # them (e.g. a lockfile sync) must trigger a rebuild of the web surfaces.
+      - 'pnpm-lock.yaml'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - 'tsconfig.base.json'
 
 # Serialize whole runs on the same branch: the manifest/build-data commits push
 # to main, so overlapping runs would race on the ref. Queue rather than cancel —
@@ -47,9 +54,21 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           filters: |
+            # Monorepo-root workspace files. Every root-context image build runs
+            # `pnpm install --frozen-lockfile` against the ROOT lockfile, so a
+            # change to any of these must rebuild all of them. (compute builds
+            # from the sdk/org context with sdk/org's OWN lockfile — already
+            # covered by 'sdk/org/**' — so it deliberately omits this anchor.)
+            _root: &root
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - 'pnpm-workspace.yaml'
+              - 'tsconfig.base.json'
             gateway:
+              - *root
               - 'cloud/gateway/**'
             computer:
+              - *root
               - 'sdk/org'
               - 'sdk/org/**'
             compute:
@@ -57,36 +76,45 @@ jobs:
               - 'sdk/org/**'
               - 'devops/argocd/compute/Dockerfile'
             studio:
+              - *root
               - 'sdk/org'
               - 'sdk/org/**'
             chat:
+              - *root
               - 'sdk/org'
               - 'sdk/org/**'
             com:
+              - *root
               - 'com/**'
               - 'sdk/org'
               - 'sdk/org/**'
             social:
+              - *root
               - 'social/**'
               - 'sdk/org'
               - 'sdk/org/**'
             store:
+              - *root
               - 'store/**'
               - 'sdk/org'
               - 'sdk/org/**'
             space:
+              - *root
               - 'space/**'
               - 'sdk/org'
               - 'sdk/org/**'
             team:
+              - *root
               - 'team/**'
               - 'sdk/org'
               - 'sdk/org/**'
             blog:
+              - *root
               - 'blog/**'
               - 'sdk/org'
               - 'sdk/org/**'
             casa:
+              - *root
               - 'casa/**'
               - 'sdk/org'
               - 'sdk/org/**'

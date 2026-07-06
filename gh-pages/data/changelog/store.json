@@ -1,5 +1,25 @@
 [
   {
+    "hash": "7c6a6bd9",
+    "full_hash": "7c6a6bd93bc780acff5d8bbb98f7c8a4c5cee54f",
+    "type": "fix",
+    "scope": "app",
+    "subject": "bump sdk/org \u2014 root-mount gate on LMTHING_GATEWAY_URL",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-06 19:27:16 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/7c6a6bd93bc780acff5d8bbb98f7c8a4c5cee54f"
+  },
+  {
+    "hash": "97051a89",
+    "full_hash": "97051a89beefc1beca82adebcb3421382f362e3c",
+    "type": "feat",
+    "scope": "app",
+    "subject": "clean root URLs for lmthing.app installed apps (envoy + submodule)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-06 19:07:29 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/97051a89beefc1beca82adebcb3421382f362e3c"
+  },
+  {
     "hash": "58e25291",
     "full_hash": "58e252914b2a736488b28a03d232f6f221b91b4f",
     "type": "chore",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-07-03 09:39:44 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/bffd55c7d0026e926d610cada248a34a5629f480"
-  },
-  {
-    "hash": "9c3aac9c",
-    "full_hash": "9c3aac9c7595c06061c1d8f80347145bc63b0abe",
-    "type": "chore",
-    "scope": "",
-    "subject": "bump sdk/org \u2014 block sends when budget window exhausted",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-02 19:08:28 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/9c3aac9c7595c06061c1d8f80347145bc63b0abe"
-  },
-  {
-    "hash": "66b225e7",
-    "full_hash": "66b225e773ea6a8ff9dd7ddb4c8ef73a18ad4c10",
-    "type": "feat",
-    "scope": "budget",
-    "subject": "gateway computes budget windows with the master key",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-02 18:57:08 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/66b225e773ea6a8ff9dd7ddb4c8ef73a18ad4c10"
   }
 ]

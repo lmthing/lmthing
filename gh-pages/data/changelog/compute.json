@@ -1,5 +1,25 @@
 [
   {
+    "hash": "7c6a6bd9",
+    "full_hash": "7c6a6bd93bc780acff5d8bbb98f7c8a4c5cee54f",
+    "type": "fix",
+    "scope": "app",
+    "subject": "bump sdk/org \u2014 root-mount gate on LMTHING_GATEWAY_URL",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-06 19:27:16 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/7c6a6bd93bc780acff5d8bbb98f7c8a4c5cee54f"
+  },
+  {
+    "hash": "97051a89",
+    "full_hash": "97051a89beefc1beca82adebcb3421382f362e3c",
+    "type": "feat",
+    "scope": "app",
+    "subject": "clean root URLs for lmthing.app installed apps (envoy + submodule)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-06 19:07:29 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/97051a89beefc1beca82adebcb3421382f362e3c"
+  },
+  {
     "hash": "58e25291",
     "full_hash": "58e252914b2a736488b28a03d232f6f221b91b4f",
     "type": "chore",
@@ -478,25 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-07-01 23:40:55 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/bbfd299d5e22f52ddf066e863339f81e7b5058af"
-  },
-  {
-    "hash": "d756c98d",
-    "full_hash": "d756c98d28257b19e2ce39dbcc2fd0af0bac7b22",
-    "type": "fix",
-    "scope": "sdk",
-    "subject": "update subproject commit to 7a4ad0c",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 23:29:38 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/d756c98d28257b19e2ce39dbcc2fd0af0bac7b22"
-  },
-  {
-    "hash": "c9cacf98",
-    "full_hash": "c9cacf986e3c357e5e5db86f6625c6c08f45c330",
-    "type": "fix",
-    "scope": "sdk",
-    "subject": "update subproject commit to c5ea4e9",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 23:04:33 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/c9cacf986e3c357e5e5db86f6625c6c08f45c330"
   }
 ]

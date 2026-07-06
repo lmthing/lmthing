@@ -1,5 +1,35 @@
 [
   {
+    "hash": "58e25291",
+    "full_hash": "58e252914b2a736488b28a03d232f6f221b91b4f",
+    "type": "chore",
+    "scope": "sdk/org",
+    "subject": "bump submodule for project-app <Chat> auth fix",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-06 12:13:52 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/58e252914b2a736488b28a03d232f6f221b91b4f"
+  },
+  {
+    "hash": "ab63f527",
+    "full_hash": "ab63f527b23a30bbc60943b2133b0be8d805ba06",
+    "type": "chore",
+    "scope": "sdk/org",
+    "subject": "bump submodule for project-app <Link> routing fix",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-06 11:09:16 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/ab63f527b23a30bbc60943b2133b0be8d805ba06"
+  },
+  {
+    "hash": "407ef773",
+    "full_hash": "407ef773e395d61522ac26b1a6c654ebc237ebb4",
+    "type": "ci",
+    "scope": "",
+    "subject": "update progress logs for health and trips projects; update sdk/org submodule commit",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-06 10:08:08 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/407ef773e395d61522ac26b1a6c654ebc237ebb4"
+  },
+  {
     "hash": "c036e3ff",
     "full_hash": "c036e3ff16f59dcee97a8e4cf74ca123b8336d42",
     "type": "feat",
@@ -468,35 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-07-01 20:27:04 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/68074cb36aa72389a7ed878febf29d597378c2f2"
-  },
-  {
-    "hash": "3475deaf",
-    "full_hash": "3475deaf539c0845930b157bfb960c0bdee71b43",
-    "type": "feat",
-    "scope": "design-system",
-    "subject": "enforce shared design system across all SPAs",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 19:06:00 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/3475deaf539c0845930b157bfb960c0bdee71b43"
-  },
-  {
-    "hash": "da178d8f",
-    "full_hash": "da178d8f10f80efcd2402217cf298f0dcdeb10cb",
-    "type": "fix",
-    "scope": "sdk",
-    "subject": "update subproject commit to 6df45f9",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 15:36:02 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/da178d8f10f80efcd2402217cf298f0dcdeb10cb"
-  },
-  {
-    "hash": "a4a30571",
-    "full_hash": "a4a3057168751aa3010ab3d8d5f8158cf076bc07",
-    "type": "fix",
-    "scope": "sdk",
-    "subject": "update subproject commit reference",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 15:12:04 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/a4a3057168751aa3010ab3d8d5f8158cf076bc07"
   }
 ]

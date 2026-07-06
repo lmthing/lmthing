@@ -1,5 +1,15 @@
 [
   {
+    "hash": "0939eada",
+    "full_hash": "0939eadac09c106bf235306dff2583887c0bfe2d",
+    "type": "feat",
+    "scope": "gateway+infra",
+    "subject": "serverless free-tier compute pods (scale-to-zero + externalized cron + burstable)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-07 00:33:05 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/0939eadac09c106bf235306dff2583887c0bfe2d"
+  },
+  {
     "hash": "26786435",
     "full_hash": "267864354f44ce02d5b18d8e5d58746e086f430d",
     "type": "feat",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-03-28 14:39:37 +0200",
     "url": "https://github.com/lmthing/lmthing/commit/ddb2d77f4cb08ec194bac7f9abe2b04c75ad9653"
-  },
-  {
-    "hash": "dd70e76f",
-    "full_hash": "dd70e76ff34f1da271fb2c9553f73a26d58037df",
-    "type": "feat",
-    "scope": "",
-    "subject": "migrate images to Azure Container Registry with GitHub Actions CI",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-03-28 12:06:28 +0200",
-    "url": "https://github.com/lmthing/lmthing/commit/dd70e76ff34f1da271fb2c9553f73a26d58037df"
   }
 ]

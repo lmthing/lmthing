@@ -1,5 +1,35 @@
 [
   {
+    "hash": "0939eada",
+    "full_hash": "0939eadac09c106bf235306dff2583887c0bfe2d",
+    "type": "feat",
+    "scope": "gateway+infra",
+    "subject": "serverless free-tier compute pods (scale-to-zero + externalized cron + burstable)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-07 00:33:05 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/0939eadac09c106bf235306dff2583887c0bfe2d"
+  },
+  {
+    "hash": "0ceda4fc",
+    "full_hash": "0ceda4fc809715caef7965a7d170ae6d5e37b441",
+    "type": "fix",
+    "scope": "app",
+    "subject": "lmthing.app page-route 300s timeout + bump sdk/org (CSP nonce)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-07 00:10:35 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/0ceda4fc809715caef7965a7d170ae6d5e37b441"
+  },
+  {
+    "hash": "e87ea91a",
+    "full_hash": "e87ea91a8e30f672047e760bbf7d5c5168c4fa80",
+    "type": "fix",
+    "scope": "app",
+    "subject": "bump sdk/org \u2014 __APP_BASE__ for root-mount app router",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-06 23:56:47 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/e87ea91a8e30f672047e760bbf7d5c5168c4fa80"
+  },
+  {
     "hash": "7c6a6bd9",
     "full_hash": "7c6a6bd93bc780acff5d8bbb98f7c8a4c5cee54f",
     "type": "fix",
@@ -468,35 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-07-03 10:43:00 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/aaf38a654fe4d358487b1480a2894a39a60139f7"
-  },
-  {
-    "hash": "57db6fa5",
-    "full_hash": "57db6fa58c49a7d328b6a878133bcba98d5e1182",
-    "type": "ci",
-    "scope": "",
-    "subject": "update subproject commit reference to af18e16",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-03 10:23:51 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/57db6fa58c49a7d328b6a878133bcba98d5e1182"
-  },
-  {
-    "hash": "58718991",
-    "full_hash": "587189911ac5c3613f4f9d3aec75fe184acc4994",
-    "type": "ci",
-    "scope": "",
-    "subject": "update subproject commit reference",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-03 10:02:45 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/587189911ac5c3613f4f9d3aec75fe184acc4994"
-  },
-  {
-    "hash": "bffd55c7",
-    "full_hash": "bffd55c7d0026e926d610cada248a34a5629f480",
-    "type": "ci",
-    "scope": "",
-    "subject": "update subproject commit reference",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-03 09:39:44 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/bffd55c7d0026e926d610cada248a34a5629f480"
   }
 ]

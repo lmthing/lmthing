@@ -1,5 +1,35 @@
 [
   {
+    "hash": "0939eada",
+    "full_hash": "0939eadac09c106bf235306dff2583887c0bfe2d",
+    "type": "feat",
+    "scope": "gateway+infra",
+    "subject": "serverless free-tier compute pods (scale-to-zero + externalized cron + burstable)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-07 00:33:05 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/0939eadac09c106bf235306dff2583887c0bfe2d"
+  },
+  {
+    "hash": "0ceda4fc",
+    "full_hash": "0ceda4fc809715caef7965a7d170ae6d5e37b441",
+    "type": "fix",
+    "scope": "app",
+    "subject": "lmthing.app page-route 300s timeout + bump sdk/org (CSP nonce)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-07 00:10:35 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/0ceda4fc809715caef7965a7d170ae6d5e37b441"
+  },
+  {
+    "hash": "e87ea91a",
+    "full_hash": "e87ea91a8e30f672047e760bbf7d5c5168c4fa80",
+    "type": "fix",
+    "scope": "app",
+    "subject": "bump sdk/org \u2014 __APP_BASE__ for root-mount app router",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-06 23:56:47 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/e87ea91a8e30f672047e760bbf7d5c5168c4fa80"
+  },
+  {
     "hash": "7c6a6bd9",
     "full_hash": "7c6a6bd93bc780acff5d8bbb98f7c8a4c5cee54f",
     "type": "fix",
@@ -468,35 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-07-02 14:30:53 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/c5c9140269d2d9dab4ef9793063664da9fe3a408"
-  },
-  {
-    "hash": "21a7124c",
-    "full_hash": "21a7124cdaca4fc32a03d248b3f7af9e0934e7c2",
-    "type": "fix",
-    "scope": "sdk",
-    "subject": "update subproject commit to 1550891 \u2014 reliability P0-P5",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-02 01:23:55 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/21a7124cdaca4fc32a03d248b3f7af9e0934e7c2"
-  },
-  {
-    "hash": "bbfd299d",
-    "full_hash": "bbfd299d5e22f52ddf066e863339f81e7b5058af",
-    "type": "fix",
-    "scope": "sdk",
-    "subject": "update subproject commit to 8011daf",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 23:40:55 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/bbfd299d5e22f52ddf066e863339f81e7b5058af"
-  },
-  {
-    "hash": "d756c98d",
-    "full_hash": "d756c98d28257b19e2ce39dbcc2fd0af0bac7b22",
-    "type": "fix",
-    "scope": "sdk",
-    "subject": "update subproject commit to 7a4ad0c",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-07-01 23:29:38 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/d756c98d28257b19e2ce39dbcc2fd0af0bac7b22"
   }
 ]

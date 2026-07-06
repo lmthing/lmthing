@@ -74,13 +74,32 @@ Node pool: label `lmthing.cloud/pool=user`, taint `lmthing.cloud/pool=user:NoSch
 - [ ] `make scale-up` (real Azure VM purchase — explicit-confirm gate)
 
 ### Verification
-- [ ] build + typecheck + pnpm test (both packages)
-- [ ] local smoke (lmthing serve + web, no gateway env)
-- [ ] commit + push main → deploy (CI/ArgoCD)
-- [ ] per-phase prod acceptance gates (real logged-in user)
-- [ ] full-feature regression
-- [ ] multi-user stress test (50→200→500)
-- [ ] teardown + Definition of Done
+- [x] build + typecheck + pnpm test (both packages) — gateway tsc clean, cli 366 pass, web build clean
+- [x] local smoke (lmthing serve + web, no gateway env) — inert, cron via in-process tick
+- [x] commit + push main → deploy (CI/ArgoCD) — deployed c9e53f0, ArgoCD Synced/Healthy
+- [x] per-phase prod acceptance gates (minted user prodtestpods1)
+- [x] full-feature regression — THING agent responded; budget/report-bug/upgrade/studio UI ✓
+- [x] multi-user validation (3 pods) — density, no OOM, scale-to-zero all ✓
+- [~] full-scale stress (50→200→500) — **GATED on the dedicated pool node** (Azure spend); infra is code-ready (enable_user_pool toggle)
+- [x] teardown — test namespaces + cron rows + local secret scripts removed; tree clean
+
+## Definition of Done — status
+1. ✅ Phases 1–4 implemented, built, typechecked, unit-tested, **deployed to prod** (c9e53f0).
+2. ✅ Per-phase acceptance gates green on prod:
+   - **P1** scale-to-zero: `/self-idle{idle:true}`→replicas 0; `/ensure`→wake 1 (fast, digest cached). Sweep backstop live. Self-idle + mem-watchdog started in pod.
+   - **P2** cron: manifest publish → 60-min floor clamp (300000→3600000) + jitter; gateway cron-wake scaled pod 0→1 for a due job; pod republished (row cleaned). Zero model calls.
+   - **P3** Burstable (50m/256Mi live) + NODE_OPTIONS=307 + mem-watchdog started (cgroup-gated). evictOneIdle unit-tested. *(actual eviction-under-load ⇒ node stress, deferred.)*
+   - **P4** digest-pin image + IfNotPresent live; upgrade prompt + upgrade flow ✓; nodeSelector inert (COMPUTE_NODE_POOL unset) — safe on single node.
+   - **claimTick** exactly-once ticks verified (one sweep/tick across 2 replicas, was 2×).
+3. ✅ Full-feature regression green (minted user): THING agent responded "pods are alive"; budget 100%, report-bug button, upgrade flow, studio+chat UI, pod routing (/api/projects,/api/sessions 200).
+4. [~] Stress: small multi-user (3 pods) density + no-OOM + scale-to-zero ✓; **full 50→200→500 requires the dedicated tainted node (money gate).**
+5. ✅ Teardown complete; no `.issues/` opened.
+
+**Bonus fix (pre-existing, exposed by scale-to-zero):** PodEnsureGate stuck on "Starting compute pod…" (unstable effect deps) → fixed; the gate now advances (verified).
+
+**REMAINING (user decision — recurring Azure spend):** provision the `Standard_B8as_v2` pool node
+(`enable_user_pool=true` + `make scale-up`), then set `COMPUTE_NODE_POOL=user` on the gateway and run
+the full 50→200→500 density stress. Everything is code-ready and inert until then.
 
 ## Log
 - 2026-07-06 — Plan approved. PROGRESS.md reset for this effort. Reading anchor files (gateway spine first).

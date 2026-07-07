@@ -8,8 +8,8 @@
       "yaml": "gateway.yaml",
       "manifest": "devops/argocd/core/gateway.yaml",
       "isInternal": false,
-      "deployedSha": "c9e53f0",
-      "deployedAt": "2026-07-07 01:00:38 +0300"
+      "deployedSha": "0124f64",
+      "deployedAt": "2026-07-07 07:57:40 +0300"
     },
     {
       "name": "studio",
@@ -133,5 +133,5 @@
       "deployedAt": "2026-07-07 01:00:38 +0300"
     }
   ],
-  "updatedAt": "2026-07-07T04:57:50.145206+00:00"
+  "updatedAt": "2026-07-07T07:02:16.667678+00:00"
 }

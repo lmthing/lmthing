@@ -1,7 +1,19 @@
 import React from 'react';
 import type { Source } from '@app/types';
 
-export function SourceRow({ source, onRemove }: { source: Source; onRemove?: () => void }) {
+export function SourceRow({
+  source,
+  onRemove,
+  onIngest,
+  ingesting,
+  ingestStatus,
+}: {
+  source: Source;
+  onRemove?: () => void;
+  onIngest?: () => void;
+  ingesting?: boolean;
+  ingestStatus?: string;
+}) {
   const topics = Array.isArray(source.topics) ? source.topics : [];
 
   return (
@@ -35,15 +47,30 @@ export function SourceRow({ source, onRemove }: { source: Source; onRemove?: () 
         ) : null}
       </div>
 
-      {onRemove ? (
-        <button
-          type="button"
-          onClick={onRemove}
-          className="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm text-destructive hover:bg-muted"
-        >
-          Remove
-        </button>
-      ) : null}
+      <div className="flex shrink-0 items-center gap-1.5">
+        {ingestStatus ? (
+          <span className="text-xs text-muted-foreground">{ingestStatus}</span>
+        ) : null}
+        {onIngest && source.kind === 'rss' ? (
+          <button
+            type="button"
+            onClick={onIngest}
+            disabled={ingesting}
+            className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground hover:bg-muted disabled:opacity-50"
+          >
+            {ingesting ? 'Fetching…' : 'Fetch now'}
+          </button>
+        ) : null}
+        {onRemove ? (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="rounded-md border border-border px-3 py-1.5 text-sm text-destructive hover:bg-muted"
+          >
+            Remove
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

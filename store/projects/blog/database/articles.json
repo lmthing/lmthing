@@ -21,6 +21,7 @@
   "relations": {
     "citations":       { "hasMany": "citations",         "via": "articleId", "description": "the raw items this article was synthesized from" },
     "research":        { "hasMany": "research",          "via": "articleId", "description": "deep-dive reports requested on this article" },
+    "takes":           { "hasMany": "article_takes",     "via": "articleId", "description": "cached LLM reframings (TL;DR / ELI5 / why-this-matters) generated for this article" },
     "annotations":     { "hasMany": "annotations",        "via": "articleId", "description": "the highlights and notes readers/agents have attached to this article" },
     "collectionItems": { "hasMany": "collection_items",   "via": "articleId", "description": "the collection memberships this article has been filed into" },
     "alerts":          { "hasMany": "alerts",             "via": "articleId", "description": "the subscription alerts this article has triggered" }

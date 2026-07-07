@@ -1,11 +1,21 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { Research } from '@app/types';
 import { useApi, useApiMutation, Chat, Link } from '@app/runtime';
 import { Spinner } from '../../../components/Spinner';
+import { MarkdownBody } from '../../../components/MarkdownBody';
 
 export default function ResearchPage({ params }: { params: { articleId: string } }) {
   const { articleId } = params;
   const { data: research, isLoading, error, refetch } = useApi<Research[]>('getResearch', { id: articleId });
+
+  // Stream-in effect (§2.1): while a deep-dive is still pending, poll so the
+  // report appears to compose live rather than the user watching a static badge.
+  const anyPending = (research ?? []).some((r) => r.status === 'pending');
+  useEffect(() => {
+    if (!anyPending) return;
+    const id = setInterval(() => refetch?.(), 3000);
+    return () => clearInterval(id);
+  }, [anyPending, refetch]);
 
   const requestResearch = useApiMutation<{ researchId: string; status: string }>('requestResearch', {
     invalidates: ['getResearch'],
@@ -81,14 +91,29 @@ export default function ResearchPage({ params }: { params: { articleId: string }
 
         <div className="space-y-3">
           {(research ?? []).map((r) => (
-            <div key={r.id} className="rounded-lg border border-border bg-card p-4 space-y-1.5">
-              <div className="flex items-center justify-between">
+            <div key={r.id} className="rounded-lg border border-border bg-card p-4 space-y-2">
+              <div className="flex items-center justify-between gap-2">
                 <span className="font-medium text-foreground">{r.topic}</span>
-                <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
-                  {r.status}
+                <span
+                  className={
+                    r.status === 'pending'
+                      ? 'inline-flex items-center gap-1.5 rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground'
+                      : 'rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground'
+                  }
+                >
+                  {r.status === 'pending' ? (
+                    <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-primary" />
+                  ) : null}
+                  {r.status === 'pending' ? 'composing…' : r.status}
                 </span>
               </div>
-              {r.body ? <p className="text-sm text-muted-foreground whitespace-pre-wrap">{r.body}</p> : null}
+              {r.body ? (
+                <div className="text-sm">
+                  <MarkdownBody markdown={r.body} />
+                </div>
+              ) : r.status === 'pending' ? (
+                <p className="text-sm text-muted-foreground">The researcher is surveying sources…</p>
+              ) : null}
             </div>
           ))}
         </div>
@@ -97,6 +122,15 @@ export default function ResearchPage({ params }: { params: { articleId: string }
       <section className="space-y-3 border-t border-border pt-6">
         <h2 className="text-sm font-bold uppercase text-muted-foreground">Ask the researcher</h2>
         <Chat agent="newsroom/researcher" />
+      </section>
+
+      <section className="space-y-3 border-t border-border pt-6">
+        <h2 className="text-sm font-bold uppercase text-muted-foreground">Fact-check a claim</h2>
+        <p className="text-sm text-muted-foreground">
+          Paste a claim from this article and the fact-checker will triage and verify it against
+          real sources.
+        </p>
+        <Chat agent="research/fact-checker" />
       </section>
     </main>
   );

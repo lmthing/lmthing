@@ -23,7 +23,7 @@ const REPO = join(APP, '..', '..', '..'); // monorepo root
 const CORE = join(REPO, 'sdk', 'org', 'libs', 'core', 'dist', 'index.js');
 
 // ── Schemas — real engine validation ────────────────────────────────────────
-test('all 18 database schemas pass the engine validateSchemaSet (fail-loud)', async () => {
+test('all 19 database schemas pass the engine validateSchemaSet (fail-loud)', async () => {
   assert.ok(existsSync(CORE), `built @lmthing/core not found at ${CORE} — run \`pnpm --filter @lmthing/core build\` in sdk/org`);
   const { validateSchemaSet } = await import(CORE);
   const dbDir = join(APP, 'database');
@@ -36,7 +36,7 @@ test('all 18 database schemas pass the engine validateSchemaSet (fail-loud)', as
     // round 1: articles citations raw_items research settings sources
     // round 2: digest_items digests newsletters reading_events topics
     // round 3: alerts annotations briefings collection_items collections source_health subscriptions
-    ['alerts', 'annotations', 'articles', 'briefings', 'citations', 'collection_items', 'collections', 'digest_items', 'digests', 'newsletters', 'raw_items', 'reading_events', 'research', 'settings', 'source_health', 'sources', 'subscriptions', 'topics'],
+    ['alerts', 'annotations', 'article_takes', 'articles', 'briefings', 'citations', 'collection_items', 'collections', 'digest_items', 'digests', 'newsletters', 'raw_items', 'reading_events', 'research', 'settings', 'source_health', 'sources', 'subscriptions', 'topics'],
   );
   // Throws (fail-loud) on a missing description, dup/absent PK, or a dangling FK/relation.
   assert.doesNotThrow(() => validateSchemaSet(tables));
@@ -286,9 +286,9 @@ function assertFullFormatSpace(spaceName, expectedAgents) {
   assert.ok(fnFiles.length >= 1, `${spaceName}: needs >=1 function`);
 }
 
-test('the app has >=3 project-scoped spaces (newsroom + editorial + research)', () => {
+test('the app has >=4 project-scoped spaces (assistant + newsroom + editorial + research)', () => {
   const spaces = readdirSync(join(APP, 'spaces'), { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name).sort();
-  assert.deepEqual(spaces, ['editorial', 'newsroom', 'research']);
+  assert.deepEqual(spaces, ['assistant', 'editorial', 'newsroom', 'research']);
 });
 
 test('research is a full-format space with 3 least-privilege agents', () => {
@@ -309,7 +309,7 @@ test('newsroom is remediated to the full space format', () => {
 });
 
 test('editorial is a full-format space with 3 least-privilege agents', () => {
-  assertFullFormatSpace('editorial', ['curator', 'digest-writer', 'personalizer']);
+  assertFullFormatSpace('editorial', ['curator', 'digest-writer', 'explainer', 'personalizer']);
   const agentsDir = join(APP, 'spaces', 'editorial', 'agents');
   for (const a of readdirSync(agentsDir)) {
     const src = readFileSync(join(agentsDir, a, 'instruct.md'), 'utf8');

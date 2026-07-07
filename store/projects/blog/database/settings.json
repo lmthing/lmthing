@@ -5,6 +5,7 @@
     "id":              { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
     "tier":            { "type": "string", "description": "'free' or 'subscription' — gates deep research and the source cap", "default": "free" },
     "weeklyBudgetUsd": { "type": "number", "description": "newsroom spend allowance per week (tier-driven)", "default": 1 },
-    "maxFreeSources":  { "type": "number", "description": "how many sources a free-tier user may add before addSource returns 402", "default": 5 }
+    "maxFreeSources":  { "type": "number", "description": "how many sources a free-tier user may add before addSource returns 402", "default": 5 },
+    "deliveryEmail":   { "type": "string", "description": "email address the rendered newsletter is delivered to (null until the reader sets one)" }
   }
 }

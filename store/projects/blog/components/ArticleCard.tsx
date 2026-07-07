@@ -1,7 +1,20 @@
 import React from 'react';
 import type { Article } from '@app/types';
 import { Link } from '@app/runtime';
+import { Icon } from './icons';
+import { RelevanceMeter } from './RelevanceMeter';
+import { relativeTime, hostLabel } from './format';
 
+interface CitationLite {
+  source?: string;
+  url?: string;
+}
+
+/**
+ * A scannable editorial feed card: optional hero thumbnail (token placeholder
+ * when null), headline + deck, a source/time signal row, a relevance meter, a
+ * pinned ribbon, the editor's note callout, and keyboard-reachable hover actions.
+ */
 export function ArticleCard({
   article,
   onPin,
@@ -15,6 +28,11 @@ export function ArticleCard({
   const annotationCount = (article as { annotationCount?: number }).annotationCount ?? 0;
   const collectionCount = (article as { collectionCount?: number }).collectionCount ?? 0;
   const editorNote = (article as { editorNote?: string }).editorNote;
+  const createdAt = (article as { createdAt?: string }).createdAt;
+  const citations = (article as { citations?: CitationLite[] }).citations ?? [];
+  const firstSource =
+    citations.find((c) => c.source)?.source ?? hostLabel(citations.find((c) => c.url)?.url);
+  const rel = relativeTime(createdAt);
 
   return (
     <article
@@ -22,22 +40,26 @@ export function ArticleCard({
         article.pinned ? 'border-primary' : 'border-border'
       }`}
     >
-      {article.imageUrl ? (
-        <Link href={`/feed/${article.id}`} className="shrink-0">
+      <Link href={`/feed/${article.id}`} className="shrink-0" aria-hidden={!article.imageUrl}>
+        {article.imageUrl ? (
           <img
             src={article.imageUrl}
             alt=""
             className="h-24 w-24 rounded-lg border border-border object-cover"
           />
-        </Link>
-      ) : null}
+        ) : (
+          <span className="flex h-24 w-24 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground">
+            <Icon name="feed" className="h-6 w-6" />
+          </span>
+        )}
+      </Link>
 
       <div className="min-w-0 flex-1 space-y-2">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 space-y-1">
             {article.pinned ? (
               <span className="inline-flex items-center gap-1 text-[0.7rem] font-semibold uppercase tracking-wide text-primary">
-                📌 Pinned
+                <Icon name="pin" className="h-3.5 w-3.5" filled /> Pinned
               </span>
             ) : null}
             <Link
@@ -49,7 +71,8 @@ export function ArticleCard({
               {article.title}
             </Link>
           </div>
-          <div className="flex shrink-0 items-center gap-1.5 pt-0.5">
+          <div className="flex shrink-0 items-center gap-2 pt-0.5">
+            <RelevanceMeter score={article.score} />
             {!article.read ? (
               <span
                 className="inline-block h-2 w-2 rounded-full bg-primary"
@@ -58,8 +81,8 @@ export function ArticleCard({
               />
             ) : null}
             {article.saved ? (
-              <span className="text-sm text-primary" title="Saved" aria-label="Saved">
-                ★
+              <span className="text-primary" title="Saved" aria-label="Saved">
+                <Icon name="save" className="h-4 w-4" filled />
               </span>
             ) : null}
           </div>
@@ -69,8 +92,21 @@ export function ArticleCard({
           {article.summary}
         </p>
 
+        {/* Signal row: source chip + relative time */}
+        {firstSource || rel ? (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            {firstSource ? (
+              <span className="rounded-full border border-border bg-background px-2 py-0.5">
+                {firstSource}
+              </span>
+            ) : null}
+            {rel ? <span>{rel}</span> : null}
+          </div>
+        ) : null}
+
         {editorNote ? (
           <p className="border-l-2 border-primary pl-2 text-xs italic text-muted-foreground">
+            <span className="font-semibold not-italic text-foreground">Editor's note: </span>
             {editorNote}
           </p>
         ) : null}
@@ -97,32 +133,37 @@ export function ArticleCard({
           ) : null}
         </div>
 
-        {onPin || onDismiss ? (
-          <div className="flex items-center gap-2 pt-1">
-            {onPin ? (
-              <button
-                type="button"
-                onClick={onPin}
-                className={
-                  article.pinned
-                    ? 'rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground'
-                    : 'rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground hover:bg-muted'
-                }
-              >
-                {article.pinned ? 'Unpin' : 'Pin'}
-              </button>
-            ) : null}
-            {onDismiss ? (
-              <button
-                type="button"
-                onClick={onDismiss}
-                className="rounded-md border border-border bg-background px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
-              >
-                Dismiss
-              </button>
-            ) : null}
-          </div>
-        ) : null}
+        {/* Actions — always keyboard-reachable, visually promoted on hover/focus. */}
+        <div className="flex items-center gap-1.5 pt-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+          {onPin ? (
+            <button
+              type="button"
+              onClick={onPin}
+              className={
+                article.pinned
+                  ? 'inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground'
+                  : 'inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground hover:bg-muted'
+              }
+            >
+              <Icon name="pin" className="h-3.5 w-3.5" /> {article.pinned ? 'Unpin' : 'Pin'}
+            </button>
+          ) : null}
+          <Link
+            href={`/feed/${article.id}/research`}
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground hover:bg-muted"
+          >
+            <Icon name="deepDive" className="h-3.5 w-3.5" /> Deep-dive
+          </Link>
+          {onDismiss ? (
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
+            >
+              <Icon name="dismiss" className="h-3.5 w-3.5" /> Dismiss
+            </button>
+          ) : null}
+        </div>
       </div>
     </article>
   );

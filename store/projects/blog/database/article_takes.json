@@ -1,0 +1,16 @@
+{
+  "title": "Article takes",
+  "description": "A cached, LLM-generated reframing of an article — a TL;DR, an ELI5, or a personalized why-this-matters take — composed on demand by the explainer agent.",
+  "columns": {
+    "id":        { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "articleId": { "type": "string", "description": "the article this take reframes", "required": true,
+                   "references": { "table": "articles", "column": "id", "onDelete": "cascade" } },
+    "kind":      { "type": "string", "description": "which reframing: 'tldr' (3-bullet summary), 'eli5' (plain-language), or 'why-me' (why this matters to the reader given their followed topics)", "required": true },
+    "body":      { "type": "string", "description": "the generated take, markdown; empty until ready" },
+    "status":    { "type": "string", "description": "'pending' while the explainer composes it, 'ready' when done, 'error' on failure", "default": "pending" },
+    "createdAt": { "type": "date",   "description": "when the take was requested", "generated": "now" }
+  },
+  "relations": {
+    "article": { "belongsTo": "articles", "via": "articleId", "description": "the article this take reframes" }
+  }
+}

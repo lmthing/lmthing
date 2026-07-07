@@ -7,11 +7,11 @@ Apps: **blog, health, kitchen, trips, homes**. Each app's proposals live in `sto
 
 | App | P1 Ideate | P2 Implement | P3 Test/Fix |
 |---|---|---|---|
-| blog | ✅ done | ✅ done | ⏳ pending |
-| health | ✅ done | ✅ done | ⏳ pending |
-| kitchen | ✅ done | ✅ done | ⏳ pending |
-| trips | ✅ done | ✅ done | ⏳ pending |
-| homes | ✅ done | ✅ done | ⏳ pending |
+| blog | ✅ done | ✅ done | 🔵 running |
+| health | ✅ done | ✅ done | 🔵 running |
+| kitchen | ✅ done | ✅ done | 🔵 running |
+| trips | ✅ done | ✅ done | 🔵 running |
+| homes | ✅ done | ✅ done | 🔵 running |
 
 ## Log
 
@@ -26,4 +26,5 @@ Apps: **blog, health, kitchen, trips, homes**. Each app's proposals live in `sto
 - ✅ health implemented → committed. 6-section nav + mobile bar, dashboard rebuild, NL quick-log, Explain-Plainly, weekly digest, care/assistant agent+dock, wearables/OCR/notify scaffolds; 20 tests pass, clinical-safety preserved.
 - ✅ trips implemented → committed. Overview dashboard + 3-group nav, time-gutter timeline w/ gap/conflict detection, agent_runs+RunStrip, settlement redesign, schematic map, copilot/assistant agent+dock, FX/weather/geocode/ics integrations; 44 tests pass.
 - ✅ kitchen implemented → committed. Cook/Recipes/Shop/Insights IA + mobile bar, This-Week hero + coverage ribbon, paste-import, improvise flow, cooking mode, chef/concierge agent+dock, USDA/ICS/order scaffolds; 18 tests pass. **Phase 2 complete — all 5 apps.**
-- **Barrier:** regenerating store/projects/manifest.json, then **Phase 3 (test/fix + live LLM)** starts.
+- ✅ manifest.json regenerated (6 apps) → committed.
+- **Phase 3 (test/fix + live LLM)** started — 5 agents on isolated local pods (ports 8091-8095), live-testing LLM flows with sdk/org/.env creds.

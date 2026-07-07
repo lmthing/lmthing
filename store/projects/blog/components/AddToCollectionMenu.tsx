@@ -5,16 +5,18 @@ import type { CollectionLike } from './CollectionCard';
 export function AddToCollectionMenu({ articleId }: { articleId: string }) {
   const { data: collections, isLoading } = useApi<CollectionLike[]>('listCollections', {});
   const [open, setOpen] = useState(false);
-  const [addedId, setAddedId] = useState<string | null>(null);
+  const [addedIds, setAddedIds] = useState<string[]>([]);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const onAdd = async (collectionId: string) => {
     setPendingId(collectionId);
+    setError(null);
     try {
       await apiCall('addToCollection', { id: collectionId, articleId });
-      setAddedId(collectionId);
-    } catch {
-      // ignore — non-critical action
+      setAddedIds((ids) => (ids.includes(collectionId) ? ids : [...ids, collectionId]));
+    } catch (e) {
+      setError((e as { message?: string })?.message ?? 'Could not add to that collection.');
     } finally {
       setPendingId(null);
     }
@@ -36,19 +38,27 @@ export function AddToCollectionMenu({ articleId }: { articleId: string }) {
           {!isLoading && (collections ?? []).length === 0 ? (
             <p className="p-2 text-sm text-muted-foreground">No collections yet.</p>
           ) : null}
-          {(collections ?? []).map((c) => (
-            <div key={c.id} className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-muted">
-              <span className="truncate text-sm text-foreground">{c.title}</span>
-              <button
-                type="button"
-                disabled={pendingId === c.id}
-                onClick={() => onAdd(c.id)}
-                className="shrink-0 rounded-md bg-primary px-2 py-0.5 text-xs text-primary-foreground disabled:opacity-50"
-              >
-                {addedId === c.id ? 'Added' : pendingId === c.id ? 'Adding…' : 'Add'}
-              </button>
-            </div>
-          ))}
+          {(collections ?? []).map((c) => {
+            const added = addedIds.includes(c.id);
+            return (
+              <div key={c.id} className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-muted">
+                <span className="truncate text-sm text-foreground">{c.title}</span>
+                <button
+                  type="button"
+                  disabled={pendingId === c.id || added}
+                  onClick={() => onAdd(c.id)}
+                  className={
+                    added
+                      ? 'shrink-0 rounded-md border border-success px-2 py-0.5 text-xs text-success'
+                      : 'shrink-0 rounded-md bg-primary px-2 py-0.5 text-xs text-primary-foreground disabled:opacity-50'
+                  }
+                >
+                  {added ? '✓ Added' : pendingId === c.id ? 'Adding…' : 'Add'}
+                </button>
+              </div>
+            );
+          })}
+          {error ? <p className="px-2 py-1 text-xs text-destructive">{error}</p> : null}
         </div>
       ) : null}
     </div>

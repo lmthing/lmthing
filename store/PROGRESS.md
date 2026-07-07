@@ -8,7 +8,7 @@ Apps: **blog, health, kitchen, trips, homes**. Each app's proposals live in `sto
 | App | P1 Ideate | P2 Implement | P3 Test/Fix |
 |---|---|---|---|
 | blog | ✅ done | ✅ done | ✅ done |
-| health | ✅ done | ✅ done | 🔵 running |
+| health | ✅ done | ✅ done | ✅ done |
 | kitchen | ✅ done | ✅ done | ✅ done |
 | trips | ✅ done | ✅ done | 🔵 running |
 | homes | ✅ done | ✅ done | 🔵 running |
@@ -31,4 +31,5 @@ Apps: **blog, health, kitchen, trips, homes**. Each app's proposals live in `sto
   - NOTE: local CLI `spawnRunner` is a Phase-6 placeholder → spawn-backed app flows create a pending row but don't complete locally; the `<Chat>`/session agent path is the reliable live-LLM proof.
 - ✅ kitchen tested/fixed → committed. Build clean, 18/18 tests; live-LLM verified (chef/concierge + nutritionist real output); fixed `&apos;` literal in CoverageRibbon.
 - ⚠️ CROSS-CUTTING BUG (found by blog): `ctx.spawn()` from an app-API handler is a permanent no-op in the pod runtime. Correct pattern to run an agent from a user action = a `database:insert` hook (like `briefings`). Affects any AI feature wired via `ctx.spawn` (likely trips createTrip, homes scout).
-- ✅ blog tested/fixed → committed. Build clean, 24/24 tests; live-LLM verified (explainer tldr + why-me, personalizer, real Azure output); added `generate-take` + `deep-research` insert-hooks, removed dead `ctx.spawn`. Still running: health, trips, homes.
+- ✅ blog tested/fixed → committed. Build clean, 24/24 tests; live-LLM verified (explainer tldr + why-me, personalizer, real Azure output); added `generate-take` + `deep-research` insert-hooks, removed dead `ctx.spawn`.
+- ✅ health tested/fixed → committed. Build clean, 20/20 tests; 4 live-LLM flows verified (logger draft, triage-nurse, weekly interpreter, care/assistant Chat). Fixed: sync-wearables cron→database hook (was aborting ALL db-hook wiring), bare `api:call` on assistant (broke `care` space load), missing `adherence_logs` read grant. Still running: trips, homes.

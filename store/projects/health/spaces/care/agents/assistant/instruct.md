@@ -10,7 +10,7 @@ knowledge:
 capabilities:
   - db:read:  { tables: [metrics, lab_results, symptoms, medications, adherence_logs, interactions, appointments, visit_briefs, documents, insights, knowledge_notes, goals, followups, care_contacts, care_shares, triage_assessments, research, settings] }
   - db:write: { tables: [metrics, symptoms, medications, adherence_logs, appointments, goals, followups, care_contacts] }
-  - api:call
+  - api:call: { allow: [requestTriage, prepareVisit, requestResearch, createShare, checkInteractions] }
 canDelegateTo:
   - clinic/interpreter#interpret
   - clinic/researcher#deep-dive

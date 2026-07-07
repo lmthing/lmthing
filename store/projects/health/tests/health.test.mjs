@@ -258,11 +258,16 @@ test('all 14 declarative/cron hooks exist with the right table/type and trigger 
   }
 });
 
-test('sync-wearables is an imperative cron hook with a graceful no-op handler', () => {
+test('sync-wearables is an imperative database hook with a graceful no-op handler', () => {
+  // The runtime hook-loader only supports imperative handlers on `database` hooks —
+  // a `cron` hook is declarative agent-trigger only (needs a `trigger`). A pure-Node
+  // wearable pull therefore fires on the `integrations` write that connects a provider,
+  // not on a cron tick.
   const src = readFileSync(join(APP, 'hooks', 'sync-wearables.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]cron['"]/);
-  assert.match(src, /every:\s*['"]1h['"]/);
+  assert.match(src, /type:\s*['"]database['"]/);
+  assert.match(src, /table:\s*['"]integrations['"]/);
   assert.match(src, /handler:/, 'sync-wearables must use an imperative handler');
+  assert.doesNotMatch(src, /trigger:/, 'an imperative database hook must not carry a declarative trigger');
   assert.match(src, /status:\s*['"]connected['"]/, 'must only sync connected integrations');
 });
 

@@ -26,7 +26,7 @@ components:
   - TrendCard
   - FlagSummary
 capabilities:
-  - db:read:  { tables: [lab_results, metrics, symptoms, settings, research, visit_briefs, insights, followups] }
+  - db:read:  { tables: [lab_results, metrics, symptoms, adherence_logs, settings, research, visit_briefs, insights, followups] }
   - db:write: { tables: [lab_results, research, visit_briefs, insights, followups] }
 ---
 

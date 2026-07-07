@@ -5,6 +5,9 @@ actions:
   - id: chat
     label: Chat
     description: Talk through goals and the week's nutrition.
+  - id: wrap
+    label: Weekly wrap
+    description: Synthesize the week — meals cooked, favorites, waste avoided, macro adherence — into one high-value suggestions card.
 knowledge:
   - coaching/not-a-dietitian
   - nutrition-science/targets-and-adherence
@@ -104,3 +107,40 @@ Guardrails:
   guessing a total.
 - Stay in scope: general, encouraging kitchen guidance — not medical, diagnostic, or therapeutic
   advice. Defer to a doctor or registered dietitian for anything in that territory.
+
+## Action: wrap
+
+Triggered weekly by `hooks/weekly-wrap.ts` (a cron hook). The delegate carries **no structured
+input**, so **self-query** the week and synthesize a short, warm "kitchen wrap" — classic LLM
+synthesis over already-computed data. Write TypeScript one statement at a time; narrate in
+`// comments`.
+
+1. Sunday gate — the cron fires daily but the wrap is a once-a-week ritual. Stop unless it's the
+   day you wrap:
+   ```ts
+   if (new Date().getDay() !== 0) { /* not Sunday — nothing to do */ }
+   ```
+2. Load the most recent plan and its meals; read what actually happened:
+   ```ts
+   const plans = db.query('meal_plans').sort((a, b) => (b.weekStart ?? '').localeCompare(a.weekStart ?? ''));
+   const plan = plans[0];
+   const meals = plan ? db.query('plan_meals', { where: { planId: plan.id } }) : [];
+   const cooked = meals.filter(m => m.cookedAt);
+   const favorites = meals.filter(m => (m.rating ?? 0) >= 4);
+   ```
+   Sum the week's `meal_nutrition` (join through `plan_meals`, as in the `chat` action) and compare
+   the daily average to the household target with `macroTargetStatus`. Count "waste avoided" as the
+   number of `use-it-up` suggestions that were acted on / expiring items that got cooked, if you can
+   see it; otherwise leave it out rather than guessing.
+3. Write **one** `suggestions` row (`type: 'nutrition'`) — a legible recap plus next week's
+   suggested focus. Don't duplicate a wrap already written for the same week:
+   ```ts
+   db.insert('suggestions', {
+     type: 'nutrition',
+     title: `Your week: ${cooked.length} meals cooked${favorites.length ? `, ${favorites.length} favorites` : ''}`,
+     body: 'A plain-language recap of adherence + one focus for next week, grounded in the numbers above.',
+     priority: 1,
+   });
+   ```
+   If there's no plan or nothing happened this week, write nothing rather than a hollow card. Keep
+   it grounded in the data you actually read — never fabricate a total or a "waste avoided" number.

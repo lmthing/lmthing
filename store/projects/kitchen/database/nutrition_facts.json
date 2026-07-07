@@ -10,6 +10,7 @@
     "carbsPerUnit":   { "type": "number", "description": "grams of carbohydrate per one `unit`", "default": 0 },
     "fatPerUnit":     { "type": "number", "description": "grams of fat per one `unit`", "default": 0 },
     "basisNote":      { "type": "string", "description": "how the estimate was derived, e.g. 'per 1g, typical olive oil'" },
+    "source":         { "type": "string", "description": "provenance of these facts: 'estimate' (model heuristic) or a grounded id like 'usda:173410' from USDA FoodData Central; lets the UI show 'est.' vs a real source", "default": "estimate" },
     "updatedAt":      { "type": "date",   "description": "when the estimate was last refreshed", "generated": "now" }
   },
   "relations": {

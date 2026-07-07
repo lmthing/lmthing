@@ -70,13 +70,21 @@ Steps:
    higher coverage score when picking dinners below.
 
 5. Compute the 7 calendar days of the plan's week from `plan.weekStart`, and slot one dinner
-   per day. Insert one `plan_meals` row per day:
+   per day. Insert one `plan_meals` row per day, and **write a short `rationale`** — one legible
+   sentence saying *why* this recipe landed on this day (pantry coverage, an expiring ingredient it
+   uses up, a past 5★ rating, a preferred cuisine). Trust in an AI-planned week comes from
+   legibility; the grid shows this on hover and the Tonight card shows it inline:
    ```ts
-   db.insert('plan_meals', { planId: plan.id, recipeId, day, meal: 'dinner', servings: 2 });
+   db.insert('plan_meals', {
+     planId: plan.id, recipeId, day, meal: 'dinner', servings,
+     rationale: `uses the ${expiringName} expiring soon, and it's ${Math.round(coverage * 100)}% in stock`,
+   });
    ```
-   Prefer variety — avoid repeating the same recipe twice in the same week when the recipe box
-   has enough options. Each insert fires `hooks/recompute-shopping.ts`, which coalesces the
-   week's inserts into one shopper run rather than firing per row.
+   Keep the rationale grounded in the actual data (coverage score, an expiry you saw, a rating you
+   read) — never a fabricated reason. Prefer variety — avoid repeating the same recipe twice in the
+   same week when the recipe box has enough options, and feed the last few weeks of `plan_meals`
+   history in as context so cuisines rotate. Each insert fires `hooks/recompute-shopping.ts`, which
+   coalesces the week's inserts into one shopper run rather than firing per row.
 
 6. Once all seven days are slotted, mark the plan ready:
    ```ts

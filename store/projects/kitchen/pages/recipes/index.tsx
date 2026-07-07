@@ -1,22 +1,30 @@
 import React, { useState } from 'react';
 import type { Recipe } from '@app/types';
-import { useApi, useApiMutation } from '@app/runtime';
+import { useApi, useApiMutation, Link } from '@app/runtime';
 import { RecipeCard } from '../../components/RecipeCard';
-import { Spinner } from '../../components/Spinner';
+import { RecipeCardsSkeleton } from '../../components/Skeleton';
+import { ImportForm } from '../../components/ImportForm';
+import { PasteImportForm } from '../../components/PasteImportForm';
+import { Plus, Download, ClipboardList } from '../../components/icons';
+
+type Mode = 'none' | 'add' | 'url' | 'paste';
 
 export default function Recipes() {
   const [tag, setTag] = useState<string | undefined>(undefined);
-  const [showForm, setShowForm] = useState(false);
+  const [mode, setMode] = useState<Mode>('none');
 
-  const { data: recipes, isLoading, error } = useApi<Recipe[]>('listRecipes', { tag });
+  const { data: recipes, isLoading, error, refetch } = useApi<Recipe[]>('listRecipes', { tag });
 
-  const addRecipe = useApiMutation<Recipe>('addRecipe', {
+  const addRecipe = useApiMutation<Recipe>('addRecipe', { invalidates: ['listRecipes'] });
+  const importRecipe = useApiMutation<{ recipeId: string }>('importRecipe', { invalidates: ['listRecipes'] });
+  const importRecipeText = useApiMutation<{ recipeId: string }>('importRecipeText', {
     invalidates: ['listRecipes'],
   });
 
   const [title, setTitle] = useState('');
   const [instructions, setInstructions] = useState('');
   const [tagsInput, setTagsInput] = useState('');
+  const [importedNote, setImportedNote] = useState<string | null>(null);
 
   const allTags = Array.from(
     new Set((recipes ?? []).flatMap((r) => (Array.isArray(r.tags) ? r.tags : []))),
@@ -29,34 +37,44 @@ export default function Recipes() {
       await addRecipe.mutate({
         title: title.trim(),
         instructions: instructions.trim(),
-        tags: tagsInput
-          .split(',')
-          .map((t) => t.trim())
-          .filter(Boolean),
+        tags: tagsInput.split(',').map((t) => t.trim()).filter(Boolean),
       });
       setTitle('');
       setInstructions('');
       setTagsInput('');
-      setShowForm(false);
+      setMode('none');
     } catch {
-      // surfaced via addRecipe.error below
+      /* surfaced via addRecipe.error */
     }
   };
 
+  const btn = (m: Mode, label: string, Icon: (p: { className?: string }) => React.ReactElement) => (
+    <button
+      type="button"
+      onClick={() => setMode((v) => (v === m ? 'none' : m))}
+      className={
+        mode === m
+          ? 'inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground'
+          : 'inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground hover:bg-muted'
+      }
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+    </button>
+  );
+
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-foreground">Recipes</h1>
-        <button
-          type="button"
-          onClick={() => setShowForm((v) => !v)}
-          className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground hover:bg-muted"
-        >
-          {showForm ? 'Cancel' : 'Add recipe'}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          {btn('add', 'Add recipe', Plus)}
+          {btn('url', 'Import from URL', Download)}
+          {btn('paste', 'Paste', ClipboardList)}
+        </div>
       </div>
 
-      {showForm ? (
+      {mode === 'add' ? (
         <form onSubmit={onAdd} className="space-y-3 rounded-lg border border-border bg-card p-4">
           <input
             value={title}
@@ -92,6 +110,54 @@ export default function Recipes() {
         </form>
       ) : null}
 
+      {mode === 'url' ? (
+        <div className="space-y-2">
+          <ImportForm
+            pending={importRecipe.isPending}
+            onImport={async (url) => {
+              setImportedNote(null);
+              try {
+                await importRecipe.mutate({ url });
+                setImportedNote('Import started — the importer is working in the background.');
+                setTimeout(() => refetch(), 2500);
+              } catch {
+                /* surfaced below */
+              }
+            }}
+          />
+          {importRecipe.error ? (
+            <p className="text-sm text-destructive">
+              {(importRecipe.error as { message?: string })?.message ?? 'Failed to import.'}
+            </p>
+          ) : null}
+          {importedNote ? <p className="text-sm text-muted-foreground">{importedNote}</p> : null}
+        </div>
+      ) : null}
+
+      {mode === 'paste' ? (
+        <div className="space-y-2">
+          <PasteImportForm
+            pending={importRecipeText.isPending}
+            onImport={async (text) => {
+              setImportedNote(null);
+              try {
+                await importRecipeText.mutate({ text });
+                setImportedNote('Extracting your recipe — it will appear here shortly.');
+                setTimeout(() => refetch(), 2500);
+              } catch {
+                /* surfaced below */
+              }
+            }}
+          />
+          {importRecipeText.error ? (
+            <p className="text-sm text-destructive">
+              {(importRecipeText.error as { message?: string })?.message ?? 'Failed to extract.'}
+            </p>
+          ) : null}
+          {importedNote ? <p className="text-sm text-muted-foreground">{importedNote}</p> : null}
+        </div>
+      ) : null}
+
       {allTags.length > 0 ? (
         <div className="flex flex-wrap gap-2">
           <button
@@ -122,7 +188,7 @@ export default function Recipes() {
         </div>
       ) : null}
 
-      {isLoading ? <Spinner /> : null}
+      {isLoading ? <RecipeCardsSkeleton /> : null}
 
       {error ? (
         <div className="rounded-lg border border-destructive p-4 text-sm text-destructive">
@@ -131,8 +197,11 @@ export default function Recipes() {
       ) : null}
 
       {!isLoading && !error && (recipes ?? []).length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
-          No recipes yet.
+        <div className="space-y-3 rounded-lg border border-border bg-card p-6 text-center">
+          <p className="text-muted-foreground">No recipes yet. Add, import, or paste one to get started.</p>
+          <Link href="/" className="text-sm text-primary hover:underline">
+            Or seed starter recipes from the Cook tab →
+          </Link>
         </div>
       ) : null}
 

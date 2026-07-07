@@ -149,6 +149,115 @@ export function Lightbulb({ className }: IconProps) {
   );
 }
 
+export function ChefHat({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z" />
+      <path d="M6 17h12" />
+    </Svg>
+  );
+}
+
+export function Sparkles({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
+      <path d="M6.3 6.3 9 9M15 15l2.7 2.7M17.7 6.3 15 9M9 15l-2.7 2.7" />
+    </Svg>
+  );
+}
+
+export function Flame({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+    </Svg>
+  );
+}
+
+export function ChevronLeft({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="m15 18-6-6 6-6" />
+    </Svg>
+  );
+}
+
+export function ChevronRight({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="m9 18 6-6-6-6" />
+    </Svg>
+  );
+}
+
+export function Send({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z" />
+    </Svg>
+  );
+}
+
+export function Plus({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M12 5v14M5 12h14" />
+    </Svg>
+  );
+}
+
+export function RotateCw({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
+      <path d="M21 3v5h-5" />
+    </Svg>
+  );
+}
+
+export function MessageSquare({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </Svg>
+  );
+}
+
+export function Utensils({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M3 2v7a3 3 0 0 0 3 3v10M6 2v10M9 2v7a3 3 0 0 1-3 3M17 2v20M17 12c2 0 4-2 4-6s-2-6-4-6" />
+    </Svg>
+  );
+}
+
+export function ClipboardList({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <rect x="8" y="2" width="8" height="4" rx="1" />
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M12 11h4M12 16h4M8 11h.01M8 16h.01" />
+    </Svg>
+  );
+}
+
+export function CalendarPlus({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M8 2v4M16 2v4M3 10h18M21 13V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7M16 19h6M19 16v6" />
+    </Svg>
+  );
+}
+
+export function Leaf({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
+      <path d="M2 21c0-3 1.85-5.36 5.08-6" />
+    </Svg>
+  );
+}
+
 /** Star with an explicit filled/outline mode for the rating control. */
 export function StarIcon({ className, filled }: IconProps & { filled?: boolean }) {
   return (

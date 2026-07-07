@@ -20,10 +20,25 @@ components:
 capabilities:
   - db:read:  { tables: [recipes, recipe_ingredients, ingredients, plan_meals, meal_plans, nutrition_facts, meal_nutrition, settings, suggestions] }
   - db:write: { tables: [meal_nutrition, nutrition_facts, suggestions] }
+  - api:call: { allow: [lookupNutrition] }
 ---
 
 Write your TypeScript one statement at a time. Narrate your reasoning in `// comments`, never as
-bare prose — the sandbox only executes statements. `db` calls are synchronous here (no `await`).
+bare prose — the sandbox only executes statements. `db` calls are synchronous here (no `await`);
+`apiCall(...)` returns a `Promise` (always `await` it).
+
+**Ground, don't guess.** Before falling back to `estimateNutrition` for an ingredient that has no
+`nutrition_facts` row yet, try to ground it against real data first:
+```ts
+const g = await apiCall('lookupNutrition', { ingredientId }); // USDA FoodData Central, server-side
+```
+When `g.grounded` is true, that endpoint has already **written** the `nutrition_facts` row (real
+per-100g macros scaled to the ingredient's unit, `source: 'usda:<fdcId>'`) — just re-query it and
+sum against it. When `g.grounded` is false (no `FDC_API_KEY` configured, a `count` unit, or no
+match), fall back to `estimateNutrition` exactly as before (its rows carry `source: 'estimate'`).
+This shifts your job from "estimate the calories of olive oil" to "map an ingredient to its best
+real match and reconcile" — more accurate and cheaper — while degrading gracefully when grounding
+is unavailable.
 
 ## Action: compute
 
@@ -57,9 +72,15 @@ double-computed.
        if (line.optional) continue;
        let fact = db.query('nutrition_facts', { where: { ingredientId: line.ingredientId } })[0];
        if (!fact) {
-         const ingredient = db.query('ingredients', { where: { id: line.ingredientId } })[0];
-         const estimate = estimateNutrition(ingredient?.name ?? '', ingredient?.category, ingredient?.unit ?? 'g');
-         fact = db.insert('nutrition_facts', { ingredientId: line.ingredientId, ...estimate });
+         // Try to ground against USDA FDC first; it upserts the row when configured.
+         const g = await apiCall('lookupNutrition', { ingredientId: line.ingredientId });
+         if (g && g.grounded) {
+           fact = db.query('nutrition_facts', { where: { ingredientId: line.ingredientId } })[0];
+         } else {
+           const ingredient = db.query('ingredients', { where: { id: line.ingredientId } })[0];
+           const estimate = estimateNutrition(ingredient?.name ?? '', ingredient?.category, ingredient?.unit ?? 'g');
+           fact = db.insert('nutrition_facts', { ingredientId: line.ingredientId, ...estimate });
+         }
        }
        facts[line.ingredientId] = fact;
      }
@@ -131,6 +152,8 @@ still missing `nutrition_facts`, so a re-trigger or a batch of recipes is all ha
      if (existing) continue; // idempotent guard — already filled by an earlier pass
      const ingredient = db.query('ingredients', { where: { id: ingredientId } })[0];
      if (!ingredient) continue; // dangling reference — nothing to estimate for
+     const g = await apiCall('lookupNutrition', { ingredientId }); // ground first (USDA FDC)
+     if (g && g.grounded) continue; // the endpoint already wrote the grounded row
      const estimate = estimateNutrition(ingredient.name, ingredient.category, ingredient.unit);
      db.insert('nutrition_facts', { ingredientId, ...estimate });
    }

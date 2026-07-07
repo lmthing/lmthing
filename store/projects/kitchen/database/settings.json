@@ -11,6 +11,7 @@
     "maxPrepMinutes":{ "type": "number", "description": "weeknight time cap: prefer recipes at/under this prepMinutes", "default": 45 },
     "calorieTarget": { "type": "number", "description": "target calories per person per day, used by the nutrition dashboard", "default": 2000 },
     "proteinTarget": { "type": "number", "description": "target grams of protein per person per day", "default": 80 },
+    "notifyChannels":{ "type": "json",   "description": "array of opted-in reminder/notification channels for weekly wrap + meal reminders, e.g. ['in-app','email','push']; empty/unset means in-app only. External channels degrade gracefully when the gateway integration is unconfigured" },
     "updatedAt":     { "type": "date",   "description": "when the preferences were last changed", "generated": "now" }
   }
 }

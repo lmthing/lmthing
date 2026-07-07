@@ -11,7 +11,9 @@
     "meal":     { "type": "string", "description": "'breakfast' | 'lunch' | 'dinner'", "required": true },
     "servings": { "type": "number", "description": "servings to cook (scales the recipe's ingredient quantities)", "default": 2 },
     "rating":   { "type": "number", "description": "optional 1–5 rating the user gave this meal after cooking; the planner favors winners and avoids flops" },
-    "cookedAt": { "type": "date",   "description": "when the meal was actually cooked, if marked; drives ratings and variety-over-time" }
+    "cookedAt": { "type": "date",   "description": "when the meal was actually cooked, if marked; drives ratings and variety-over-time" },
+    "rationale":{ "type": "string", "description": "a short human-legible reason the planner (or concierge) chose this recipe for this slot, e.g. 'uses the coconut milk expiring Friday, and you rated it 5★'; shown on hover in the week grid" },
+    "leftoverOf":{ "type": "string", "description": "if this slot eats leftovers from an earlier cook-once-eat-twice slot, the plan_meals id it derives from; lets the planner express big-batch cooking" }
   },
   "relations": {
     "plan":      { "belongsTo": "meal_plans",    "via": "planId",   "description": "the week" },

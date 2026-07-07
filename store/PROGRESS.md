@@ -9,7 +9,7 @@ Apps: **blog, health, kitchen, trips, homes**. Each app's proposals live in `sto
 |---|---|---|---|
 | blog | ✅ done | ✅ done | ⏳ pending |
 | health | ✅ done | ✅ done | ⏳ pending |
-| kitchen | ✅ done | 🔵 running | ⏳ pending |
+| kitchen | ✅ done | ✅ done | ⏳ pending |
 | trips | ✅ done | ✅ done | ⏳ pending |
 | homes | ✅ done | ✅ done | ⏳ pending |
 
@@ -24,4 +24,6 @@ Apps: **blog, health, kitchen, trips, homes**. Each app's proposals live in `sto
 - ✅ blog implemented → committed. New IA/left-rail+mobile nav, editorial cards, reading+research surface, Editor concierge agent+chat, RSS/OPML/Resend integrations; 22 tests pass.
 - ✅ homes implemented → committed. Global alerts bell, command-center dashboard, triage cockpit, listing detail+map, concierge agent+dock, Nominatim/ICS/FX integrations; 36 tests pass.
 - ✅ health implemented → committed. 6-section nav + mobile bar, dashboard rebuild, NL quick-log, Explain-Plainly, weekly digest, care/assistant agent+dock, wearables/OCR/notify scaffolds; 20 tests pass, clinical-safety preserved.
-- ✅ trips implemented → committed. Overview dashboard + 3-group nav, time-gutter timeline w/ gap/conflict detection, agent_runs+RunStrip, settlement redesign, schematic map, copilot/assistant agent+dock, FX/weather/geocode/ics integrations; 44 tests pass. Still running: kitchen.
+- ✅ trips implemented → committed. Overview dashboard + 3-group nav, time-gutter timeline w/ gap/conflict detection, agent_runs+RunStrip, settlement redesign, schematic map, copilot/assistant agent+dock, FX/weather/geocode/ics integrations; 44 tests pass.
+- ✅ kitchen implemented → committed. Cook/Recipes/Shop/Insights IA + mobile bar, This-Week hero + coverage ribbon, paste-import, improvise flow, cooking mode, chef/concierge agent+dock, USDA/ICS/order scaffolds; 18 tests pass. **Phase 2 complete — all 5 apps.**
+- **Barrier:** regenerating store/projects/manifest.json, then **Phase 3 (test/fix + live LLM)** starts.

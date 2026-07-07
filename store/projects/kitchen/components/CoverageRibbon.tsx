@@ -33,7 +33,7 @@ export function CoverageRibbon({
           </p>
           <p className="text-xs text-muted-foreground">
             {itemsToBuy === 0
-              ? 'Nothing left to buy — you&apos;re fully stocked.'
+              ? 'Nothing left to buy — you’re fully stocked.'
               : `${itemsToBuy} item${itemsToBuy === 1 ? '' : 's'} to buy`}
           </p>
         </div>

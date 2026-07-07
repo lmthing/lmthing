@@ -9,7 +9,7 @@ Apps: **blog, health, kitchen, trips, homes**. Each app's proposals live in `sto
 |---|---|---|---|
 | blog | ✅ done | ✅ done | 🔵 running |
 | health | ✅ done | ✅ done | 🔵 running |
-| kitchen | ✅ done | ✅ done | 🔵 running |
+| kitchen | ✅ done | ✅ done | ✅ done |
 | trips | ✅ done | ✅ done | 🔵 running |
 | homes | ✅ done | ✅ done | 🔵 running |
 
@@ -28,3 +28,5 @@ Apps: **blog, health, kitchen, trips, homes**. Each app's proposals live in `sto
 - ✅ kitchen implemented → committed. Cook/Recipes/Shop/Insights IA + mobile bar, This-Week hero + coverage ribbon, paste-import, improvise flow, cooking mode, chef/concierge agent+dock, USDA/ICS/order scaffolds; 18 tests pass. **Phase 2 complete — all 5 apps.**
 - ✅ manifest.json regenerated (6 apps) → committed.
 - **Phase 3 (test/fix + live LLM)** started — 5 agents on isolated local pods (ports 8091-8095), live-testing LLM flows with sdk/org/.env creds.
+  - NOTE: local CLI `spawnRunner` is a Phase-6 placeholder → spawn-backed app flows create a pending row but don't complete locally; the `<Chat>`/session agent path is the reliable live-LLM proof.
+- ✅ kitchen tested/fixed → committed. Build clean, 18/18 tests; live-LLM verified (chef/concierge + nutritionist real output); fixed `&apos;` literal in CoverageRibbon. Still running: blog, health, trips, homes.

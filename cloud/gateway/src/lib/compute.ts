@@ -86,6 +86,9 @@ const LAST_ACTIVE_ANNOTATION = "lmthing.cloud/last-active";
 // Refuse a self-idle scale-down within this window of the last wake/heartbeat —
 // guards the (rare) wake → immediate-idle race.
 const WAKE_RACE_MS = 30_000;
+// Max time `ensureUserPod` waits for a freshly-woken pod to report ready before
+// returning. Kept well under the ingress timeout (~15s) so /ensure never 504s.
+const WAKE_READY_WAIT_MS = Number(process.env.COMPUTE_WAKE_READY_WAIT_MS) || 9_000;
 const PULL_SECRET_NAME = "acr-pull-secret";
 
 /** Parse a K8s memory quantity ("512Mi", "1Gi", "768Mi") to MiB. */
@@ -238,13 +241,21 @@ function deployment(userId: string, pod: PodConfig = DEFAULT_POD_CONFIG) {
               ],
               envFrom: [{ secretRef: { name: "user-env", optional: true } }],
               volumeMounts: [{ name: "data", mountPath: "/data" }],
-              // Readiness gates the Service so Envoy only routes to a booted pod on
-              // wake (a wake request never hits a 0-endpoint or still-booting pod).
-              readinessProbe: {
+              // STARTUP probe (not readiness): gate ONLY the boot window so Envoy
+              // doesn't route to a still-booting pod on wake. Once it first
+              // succeeds it never runs again — critical because this is a
+              // single-threaded Node server: a readinessProbe would keep probing
+              // and, whenever the event loop is busy (a QuickJS agent turn or an
+              // esbuild page build blocks it > timeoutSeconds), FAIL and yank the
+              // pod out of the Service endpoints mid-session → Envoy "connection
+              // refused" 503s under the pod's own load. A startup probe can't do
+              // that. Generous timeout/threshold so a slow cold boot isn't failed.
+              startupProbe: {
                 httpGet: { path: "/api/sessions", port: 8080 },
-                initialDelaySeconds: 2,
-                periodSeconds: 5,
-                failureThreshold: 3,
+                initialDelaySeconds: 1,
+                periodSeconds: 2,
+                timeoutSeconds: 5,
+                failureThreshold: 60, // up to ~120s to boot before giving up
               },
             },
           ],
@@ -695,11 +706,17 @@ export async function ensureUserPod(
                     },
                     { name: "NODE_OPTIONS", value: nodeOptionsFor(pod) },
                   ],
-                  readinessProbe: {
+                  // Migrate existing pods to the startup probe and REMOVE the old
+                  // readiness probe (readinessProbe: null deletes it in a
+                  // strategic-merge patch) — a readiness probe yanks a busy
+                  // single-threaded pod out of the Service under its own load.
+                  readinessProbe: null,
+                  startupProbe: {
                     httpGet: { path: "/api/sessions", port: 8080 },
-                    initialDelaySeconds: 2,
-                    periodSeconds: 5,
-                    failureThreshold: 3,
+                    initialDelaySeconds: 1,
+                    periodSeconds: 2,
+                    timeoutSeconds: 5,
+                    failureThreshold: 60,
                   },
                 },
               ],
@@ -735,6 +752,25 @@ export async function ensureUserPod(
     await annotateLastActive(userId);
   } catch (err) {
     console.warn(`Could not annotate last-active for ${userId}: ${err}`);
+  }
+
+  // Bounded wait for the pod to actually be serving before returning, so the
+  // caller (SPA) connects to a ready pod instead of racing the cold-boot window
+  // (Envoy has no ready endpoint until the startup probe passes → "connection
+  // refused" 503s). Warm pods return on the first check (~no delay). Capped well
+  // under the ~15s ingress timeout; a slower boot just returns not-ready and the
+  // client polls /status.
+  if (!LOCAL_DEV) {
+    const deadline = Date.now() + WAKE_READY_WAIT_MS;
+    while (Date.now() < deadline) {
+      try {
+        const st = await getUserPodStatus(userId);
+        if (st.ready) break;
+      } catch {
+        /* transient — keep polling */
+      }
+      await new Promise((r) => setTimeout(r, 600));
+    }
   }
 
   if (LOCAL_DEV) {

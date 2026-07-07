@@ -1,0 +1,13 @@
+{
+  "name": "@lmthing/app-homes",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "lmthing.homes — an AI-assisted home finder, as a project-application (database + pages + api + hooks + intake & scout spaces). Paste the alert emails and links you already get; agents clean every capture into one comparable record — true cost, real size, commute times — read the listing for what it hides, triangulate the fuzzed map pin, and rank everything by a taste model learned from your own saves and dismisses.",
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@lmthing/ui": "workspace:*",
+    "@lmthing/css": "workspace:*"
+  }
+}

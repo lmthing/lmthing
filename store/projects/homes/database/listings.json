@@ -1,0 +1,42 @@
+{
+  "title": "Listings",
+  "description": "THE canonical, comparable record of one home — deduped across portals, normalized to true cost and real size, analyzed, located, and scored. Everything the app knows about a place hangs off this row.",
+  "columns": {
+    "id":              { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "searchId":        { "type": "string", "description": "the search tracking this listing", "required": true,
+                         "references": { "table": "searches", "column": "id", "onDelete": "cascade" } },
+    "dedupeKey":       { "type": "string", "description": "canonical identity computed by the intake dedupeKey() function (normalized address + rooms + size band + price band) — the same unit cross-posted on two portals merges into one row", "required": true, "unique": true },
+    "title":           { "type": "string", "description": "the listing headline as captured", "required": true },
+    "url":             { "type": "string", "description": "canonical listing URL (the best of the merged duplicates)" },
+    "portal":          { "type": "string", "description": "site(s) it was seen on, comma-joined, e.g. 'idealista, imovirtual'" },
+    "priceAmount":     { "type": "number", "description": "the stated asking price — monthly rent (mode 'rent') or total price (mode 'buy')", "required": true },
+    "currency":        { "type": "string", "description": "ISO currency code of priceAmount", "default": "USD" },
+    "trueCostMonthly": { "type": "number", "description": "the all-in monthly cost the surveyor computed (rent + condo fees + utilities estimate; buy: mortgage estimate + charges). 0 = not yet computed", "default": 0 },
+    "costBreakdown":   { "type": "json",   "description": "array of { label, amount, basis:'stated'|'estimated', note } line items behind trueCostMonthly — every estimate is labelled, never silently blended" },
+    "address":         { "type": "string", "description": "the address AS STATED by the listing (often vague — the real guess lives in location_guesses)" },
+    "claimedLat":      { "type": "number", "description": "the portal's (often fuzzed) map pin latitude, if captured" },
+    "claimedLng":      { "type": "number", "description": "the portal's (often fuzzed) map pin longitude, if captured" },
+    "areaSqm":         { "type": "number", "description": "size in m² as stated by the listing", "default": 0 },
+    "measuredAreaSqm": { "type": "number", "description": "size the analyst re-derived (sum of per-room dimensions from the floor plan / listing text). 0 = not derivable", "default": 0 },
+    "rooms":           { "type": "number", "description": "total rooms as stated", "default": 0 },
+    "bedrooms":        { "type": "number", "description": "bedrooms as stated", "default": 0 },
+    "floor":           { "type": "string", "description": "floor / storey as stated, e.g. '3º, elevator'" },
+    "yearBuilt":       { "type": "number", "description": "construction year if stated (0 = unknown)", "default": 0 },
+    "description":     { "type": "string", "description": "the cleaned listing description, markdown, SANITIZED on ingest (captures are untrusted content)" },
+    "photoUrls":       { "type": "json",   "description": "array of photo/floor-plan objects as captured (with any caption text preserved alongside each: { url, caption })" },
+    "flags":           { "type": "json",   "description": "merged analysis flags, e.g. ['dated_kitchen','poor_light','size_overstated','photo_text_mismatch','fuzzed_pin'] — written by the scout analyst, rendered as chips on the feed" },
+    "score":           { "type": "number", "description": "taste-ranked relevance 0..100 written by the ranker; higher = better match. 0 = not yet ranked", "default": 0 },
+    "scoreSummary":    { "type": "string", "description": "md — WHY it scored what it did, citing the taste notes and hard constraints it hit/missed" },
+    "status":          { "type": "string", "description": "the shortlist pipeline: 'new' | 'shortlisted' | 'contacted' | 'viewing' | 'applied' | 'dismissed' | 'gone'", "default": "new" },
+    "dismissedReason": { "type": "string", "description": "the user's stated reason on dismiss — the highest-value taste evidence" },
+    "firstSeenAt":     { "type": "date",   "description": "when the listing first entered the app", "generated": "now" },
+    "lastSeenAt":      { "type": "date",   "description": "last time a capture or the refresh cron confirmed it live" }
+  },
+  "relations": {
+    "search":   { "belongsTo": "searches",         "via": "searchId",  "description": "the parent search" },
+    "analyses": { "hasMany":   "listing_analyses", "via": "listingId", "description": "scout findings for this listing" },
+    "guesses":  { "hasMany":   "location_guesses", "via": "listingId", "description": "triangulated location guesses" },
+    "commutes": { "hasMany":   "commutes",         "via": "listingId", "description": "computed commute times" },
+    "signals":  { "hasMany":   "taste_signals",    "via": "listingId", "description": "user actions on this listing" }
+  }
+}

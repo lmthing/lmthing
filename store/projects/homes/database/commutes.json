@@ -1,0 +1,17 @@
+{
+  "title": "Commutes",
+  "description": "A computed commute estimate from a listing to one of the search's commute targets. Estimates are cited and approximate (±), based on the best available location guess.",
+  "columns": {
+    "id":          { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "listingId":   { "type": "string", "description": "the listing commuted from", "required": true,
+                     "references": { "table": "listings", "column": "id", "onDelete": "cascade" } },
+    "targetLabel": { "type": "string", "description": "which search commuteTargets entry this answers (matched by label)", "required": true },
+    "mode":        { "type": "string", "description": "'transit' | 'walk' | 'bike' | 'drive'", "required": true },
+    "minutes":     { "type": "number", "description": "estimated door-to-door minutes", "required": true },
+    "basis":       { "type": "string", "description": "md — how it was estimated and from which location (guess vs claimed pin), cited", "required": true },
+    "computedAt":  { "type": "date",   "description": "when it was computed", "generated": "now" }
+  },
+  "relations": {
+    "listing": { "belongsTo": "listings", "via": "listingId", "description": "the listing" }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "title": "Home searches",
+  "description": "One home search the user is running — the brief, hard constraints, and commute targets everything else hangs off.",
+  "columns": {
+    "id":             { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "title":          { "type": "string", "description": "short name shown in the list, e.g. 'Lisbon 2-bed rental'", "required": true },
+    "brief":          { "type": "string", "description": "the user's original free-text description of what they want ('bright, quiet street, near a park…')" },
+    "mode":           { "type": "string", "description": "'rent' | 'buy' — decides how true cost is computed", "required": true },
+    "area":           { "type": "string", "description": "free-text target area(s), e.g. 'Lisbon: Arroios, Alameda, Anjos'" },
+    "budgetMax":      { "type": "number", "description": "hard budget cap — monthly all-in for rent, total price for buy", "required": true },
+    "budgetMin":      { "type": "number", "description": "optional lower bound (filters obvious mistakes / too-good-to-be-true)", "default": 0 },
+    "currency":       { "type": "string", "description": "ISO currency code for the budget, e.g. 'EUR'", "default": "USD" },
+    "minRooms":       { "type": "number", "description": "minimum number of rooms (0 = no constraint)", "default": 0 },
+    "minAreaSqm":     { "type": "number", "description": "minimum usable size in m² (0 = no constraint)", "default": 0 },
+    "mustHaves":      { "type": "json",   "description": "array of hard-requirement strings, e.g. ['elevator','pets allowed'] — a listing failing one is capped, never top-ranked" },
+    "commuteTargets": { "type": "json",   "description": "array of { label, address, mode:'transit'|'walk'|'bike'|'drive', maxMinutes } the surveyor computes commutes against" },
+    "status":         { "type": "string", "description": "'active' (ingesting + alerting) or 'paused'", "default": "active" },
+    "createdAt":      { "type": "date",   "description": "when the search was created", "generated": "now" }
+  },
+  "relations": {
+    "sources":  { "hasMany": "sources",       "via": "searchId", "description": "where this search's captures come from" },
+    "listings": { "hasMany": "listings",      "via": "searchId", "description": "the canonical listings tracked for this search" },
+    "signals":  { "hasMany": "taste_signals", "via": "searchId", "description": "the user's save/dismiss history" },
+    "notes":    { "hasMany": "taste_notes",   "via": "searchId", "description": "the learned taste statements" },
+    "alerts":   { "hasMany": "alerts",        "via": "searchId", "description": "alerts raised for this search" }
+  }
+}

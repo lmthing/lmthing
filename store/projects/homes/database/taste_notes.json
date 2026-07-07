@@ -1,0 +1,17 @@
+{
+  "title": "Taste notes",
+  "description": "The learned taste model, kept as cited natural-language statements per dimension — inspectable and editable by the user, not an opaque vector. The ranker reads these to score; the taste page shows them.",
+  "columns": {
+    "id":           { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "searchId":     { "type": "string", "description": "the search this taste belongs to", "required": true,
+                      "references": { "table": "searches", "column": "id", "onDelete": "cascade" } },
+    "dimension":    { "type": "string", "description": "'style' | 'light' | 'layout' | 'location' | 'building' | 'dealbreaker' | 'other'", "required": true },
+    "statement":    { "type": "string", "description": "md — the preference in plain language, cited to the signals that support it ('dismissed 3 ground-floor units — avoids ground floor [s12,s15,s19]')", "required": true },
+    "weight":       { "type": "number", "description": "0..1 — how strongly this shifts the score; a dealbreaker is ~1", "default": 0.5 },
+    "supportCount": { "type": "number", "description": "how many signals back this statement (evidence, not vibes)", "default": 1 },
+    "createdAt":    { "type": "date",   "description": "when the note was first written", "generated": "now" }
+  },
+  "relations": {
+    "search": { "belongsTo": "searches", "via": "searchId", "description": "the parent search" }
+  }
+}

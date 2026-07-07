@@ -1,0 +1,19 @@
+{
+  "title": "Taste signals",
+  "description": "The raw preference evidence — one user action on a listing. Saves, dismisses (with reasons), and contacts are what the ranker learns from.",
+  "columns": {
+    "id":        { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "searchId":  { "type": "string", "description": "the search the signal belongs to", "required": true,
+                   "references": { "table": "searches", "column": "id", "onDelete": "cascade" } },
+    "listingId": { "type": "string", "description": "the listing acted on (kept when the listing row is merged/removed)",
+                   "references": { "table": "listings", "column": "id", "onDelete": "setNull" } },
+    "action":    { "type": "string", "description": "'save' | 'dismiss' | 'contact' | 'viewed' | 'note'", "required": true },
+    "reason":    { "type": "string", "description": "the user's stated why ('kitchen too dark', 'love the balcony') — the highest-value learning input" },
+    "folded":    { "type": "boolean","description": "whether the ranker has folded this signal into taste_notes yet (the learn action's self-scan cursor)", "default": false },
+    "createdAt": { "type": "date",   "description": "when the action happened", "generated": "now" }
+  },
+  "relations": {
+    "search":  { "belongsTo": "searches", "via": "searchId",  "description": "the parent search" },
+    "listing": { "belongsTo": "listings", "via": "listingId", "description": "the listing acted on" }
+  }
+}

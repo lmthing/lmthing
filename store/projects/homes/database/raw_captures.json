@@ -1,0 +1,22 @@
+{
+  "title": "Raw captures",
+  "description": "One raw ingested payload — the pasted body of an alert email, the pasted text of a saved-search results page, or a pasted link. The clipper parses each into zero or more canonical listings.",
+  "columns": {
+    "id":            { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "sourceId":      { "type": "string", "description": "the source this capture came from", "required": true,
+                       "references": { "table": "sources", "column": "id", "onDelete": "cascade" } },
+    "searchId":      { "type": "string", "description": "the search this capture feeds (mirrors the source's search so agents can scan directly — db.query where is equality-only)", "required": true,
+                       "references": { "table": "searches", "column": "id", "onDelete": "cascade" } },
+    "content":       { "type": "string", "description": "the pasted text — email body, page text, or a bare URL", "required": true },
+    "sourceUrl":     { "type": "string", "description": "optional URL the clipper may webFetch for the full listing" },
+    "status":        { "type": "string", "description": "'pending' | 'parsing' | 'parsed' | 'error'", "default": "pending" },
+    "summary":       { "type": "string", "description": "md — what the clipper extracted (n listings found, m merged into existing records)" },
+    "error":         { "type": "string", "description": "why parsing failed, when status = 'error'" },
+    "listingsFound": { "type": "number", "description": "how many listings this capture yielded (new + merged)", "default": 0 },
+    "capturedAt":    { "type": "date",   "description": "when the user pasted it", "generated": "now" }
+  },
+  "relations": {
+    "source": { "belongsTo": "sources",  "via": "sourceId", "description": "where it came from" },
+    "search": { "belongsTo": "searches", "via": "searchId", "description": "the search it feeds" }
+  }
+}

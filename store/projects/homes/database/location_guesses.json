@@ -1,0 +1,18 @@
+{
+  "title": "Location guesses",
+  "description": "A triangulated guess of where the place REALLY sits, from the fuzzed pin + textual clues (street mentions, 'X min from <metro>', named amenities). Always advisory — a confidence-scored guess, never presented as the true address.",
+  "columns": {
+    "id":         { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "listingId":  { "type": "string", "description": "the listing being located", "required": true,
+                    "references": { "table": "listings", "column": "id", "onDelete": "cascade" } },
+    "lat":        { "type": "number", "description": "guessed latitude", "required": true },
+    "lng":        { "type": "number", "description": "guessed longitude", "required": true },
+    "radiusM":    { "type": "number", "description": "uncertainty radius in meters — the guess means 'within this circle'", "required": true },
+    "confidence": { "type": "number", "description": "0..1 — how much the clues agree", "required": true },
+    "method":     { "type": "string", "description": "md — the clues used and how they intersect ('pin center ∩ 2 min from Anjos metro ∩ street name in photo 2 caption'), each cited", "required": true },
+    "createdAt":  { "type": "date",   "description": "when the guess was made", "generated": "now" }
+  },
+  "relations": {
+    "listing": { "belongsTo": "listings", "via": "listingId", "description": "the listing located" }
+  }
+}

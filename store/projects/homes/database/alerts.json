@@ -1,0 +1,20 @@
+{
+  "title": "Alerts",
+  "description": "In-app alerts the assistant raises — a strong new match, a price drop on a shortlisted place, a tracked listing gone. Rendered as the bell + an alerts strip; acting fast is the point.",
+  "columns": {
+    "id":        { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "searchId":  { "type": "string", "description": "the search alerted on", "required": true,
+                   "references": { "table": "searches", "column": "id", "onDelete": "cascade" } },
+    "listingId": { "type": "string", "description": "the listing concerned, if any",
+                   "references": { "table": "listings", "column": "id", "onDelete": "setNull" } },
+    "kind":      { "type": "string", "description": "'new_match' | 'price_drop' | 'gone' | 'back_online'", "required": true },
+    "title":     { "type": "string", "description": "one-line alert headline", "required": true },
+    "body":      { "type": "string", "description": "md — the detail (what changed, why it matters, next action)" },
+    "read":      { "type": "boolean","description": "whether the user has seen it", "default": false },
+    "createdAt": { "type": "date",   "description": "when it fired", "generated": "now" }
+  },
+  "relations": {
+    "search":  { "belongsTo": "searches", "via": "searchId",  "description": "the parent search" },
+    "listing": { "belongsTo": "listings", "via": "listingId", "description": "the listing concerned" }
+  }
+}

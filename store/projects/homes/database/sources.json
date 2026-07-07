@@ -1,0 +1,23 @@
+{
+  "title": "Sources",
+  "description": "A place captures come from — an alert email the user forwards, a saved-search page, or ad-hoc pasted links. Paste-first by default; a 'saved_search' source with a URL can be opted into polite polling (robots-aware, throttled).",
+  "columns": {
+    "id":                { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "searchId":          { "type": "string", "description": "the search this source feeds", "required": true,
+                           "references": { "table": "searches", "column": "id", "onDelete": "cascade" } },
+    "kind":              { "type": "string", "description": "'alert_email' | 'saved_search' | 'pasted_link' | 'manual' — only 'saved_search' sources are pollable", "required": true },
+    "label":             { "type": "string", "description": "human name, e.g. 'Idealista daily alert'", "required": true },
+    "url":               { "type": "string", "description": "the saved-search or portal URL, if any — the ONLY thing the poller ever fetches (plus its result pages); required for polling" },
+    "pollEnabled":       { "type": "boolean","description": "opt-in: whether the poll-saved-searches cron may fetch this source's url", "default": false },
+    "pollIntervalHours": { "type": "number", "description": "hours between polls (min 6 — enforced by the clipper's politeFetchPlan)", "default": 12 },
+    "lastPolledAt":      { "type": "date",   "description": "when the poller last fetched this source" },
+    "blockedReason":     { "type": "string", "description": "why polling stopped, if it did — robots disallow, repeated fetch failures, or a block page; surfaced to the user, polling auto-disabled" },
+    "notes":             { "type": "string", "description": "anything the clipper should know about this source's format" },
+    "lastIngestedAt":    { "type": "date",   "description": "when a capture from this source was last parsed" },
+    "createdAt":         { "type": "date",   "description": "when the source was added", "generated": "now" }
+  },
+  "relations": {
+    "search":   { "belongsTo": "searches",     "via": "searchId", "description": "the parent search" },
+    "captures": { "hasMany":   "raw_captures", "via": "sourceId", "description": "raw payloads ingested from this source" }
+  }
+}

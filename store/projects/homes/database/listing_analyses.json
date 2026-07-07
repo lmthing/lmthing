@@ -1,0 +1,17 @@
+{
+  "title": "Listing analyses",
+  "description": "One scout finding about a listing — a photo/condition read, a floor-plan measurement, or a description-vs-evidence mismatch check. Always cited to what was actually observed; never invented.",
+  "columns": {
+    "id":         { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "listingId":  { "type": "string", "description": "the listing analyzed", "required": true,
+                    "references": { "table": "listings", "column": "id", "onDelete": "cascade" } },
+    "kind":       { "type": "string", "description": "'photos' (condition/light/staging read) | 'floorplan' (measured size + layout red flags) | 'mismatch' (description vs photos/plan/fields contradictions)", "required": true },
+    "body":       { "type": "string", "description": "md — the findings, each cited to its evidence ('caption on photo 4 says…', 'room dims sum to 71 m² vs 85 stated')", "required": true },
+    "flags":      { "type": "json",   "description": "machine-readable flags this analysis contributes, merged into listings.flags" },
+    "confidence": { "type": "number", "description": "0..1 — how sure the analyst is; low-confidence findings are phrased as questions to verify at a viewing, not facts", "default": 0 },
+    "createdAt":  { "type": "date",   "description": "when the analysis ran", "generated": "now" }
+  },
+  "relations": {
+    "listing": { "belongsTo": "listings", "via": "listingId", "description": "the listing analyzed" }
+  }
+}

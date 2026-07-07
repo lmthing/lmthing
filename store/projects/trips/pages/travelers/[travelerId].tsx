@@ -1,8 +1,10 @@
 import React from 'react';
 import type { Traveler, TravelerPreference, ExpenseShare } from '@app/types';
-import { useApi, useApiMutation, Link } from '@app/runtime';
+import { useApi, useApiMutation, navigate, Link } from '@app/runtime';
 import { PreferenceRow } from '../../components/PreferenceRow';
 import { Spinner } from '../../components/Spinner';
+import { formatMoney } from '../../components/format';
+import { CheckIcon, TrashIcon } from '../../components/icons';
 
 type TravelerDetail = Traveler & { preferences: TravelerPreference[]; shares: ExpenseShare[] };
 
@@ -27,10 +29,26 @@ export default function TravelerDetail({ params }: { params: { travelerId: strin
   const removePreference = useApiMutation<{ ok: boolean }>('removePreference', {
     invalidates: ['getTraveler'],
   });
+  const settleShare = useApiMutation<{ ok: boolean }>('settleShare', {
+    invalidates: ['getTraveler', 'settlement'],
+  });
+  const removeTraveler = useApiMutation<{ ok: boolean }>('removeTraveler', {
+    invalidates: ['listTravelers', 'settlement', 'tripFinances'],
+  });
 
   const preferences = data?.preferences ?? [];
   const shares = data?.shares ?? [];
   const tripId = data?.tripId;
+
+  const onRemoveTraveler = async () => {
+    if (!confirm('Remove this traveler from the trip?')) return;
+    try {
+      await removeTraveler.mutate({ id: travelerId });
+      navigate(tripId ? `/trips/${tripId}/travelers` : '/');
+    } catch {
+      // surfaced inline below
+    }
+  };
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-6">
@@ -53,9 +71,20 @@ export default function TravelerDetail({ params }: { params: { travelerId: strin
         <>
           <div className="flex items-center justify-between gap-4">
             <h1 className="text-2xl font-bold text-foreground">{data.name}</h1>
-            <span className="rounded-full border border-border bg-background px-2 py-0.5 text-xs text-muted-foreground">
-              {data.role}
-            </span>
+            <div className="flex shrink-0 items-center gap-3">
+              <span className="rounded-full border border-border bg-background px-2 py-0.5 text-xs text-muted-foreground">
+                {data.role}
+              </span>
+              <button
+                type="button"
+                onClick={onRemoveTraveler}
+                disabled={removeTraveler.isPending}
+                className="flex items-center gap-1 text-sm text-muted-foreground hover:text-destructive disabled:opacity-50"
+              >
+                <TrashIcon className="h-4 w-4" />
+                Remove
+              </button>
+            </div>
           </div>
 
           <div className="space-y-1 text-sm text-muted-foreground">
@@ -105,12 +134,31 @@ export default function TravelerDetail({ params }: { params: { travelerId: strin
                     key={share.id}
                     className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-3"
                   >
-                    <span className={share.settled ? 'text-muted-foreground' : 'text-foreground'}>
+                    <span
+                      className={
+                        share.settled
+                          ? 'flex items-center gap-1.5 text-sm text-muted-foreground'
+                          : 'text-sm text-foreground'
+                      }
+                    >
+                      {share.settled ? <CheckIcon className="h-4 w-4 text-primary" /> : null}
                       {share.settled ? 'settled' : 'outstanding'}
                     </span>
-                    <span className="font-medium text-foreground">
-                      {share.shareAmount.toFixed(2)} {share.currency}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className="font-medium text-foreground">
+                        {formatMoney(share.shareAmount, share.currency)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          settleShare.mutate({ id: share.id, settled: !share.settled })
+                        }
+                        disabled={settleShare.isPending}
+                        className="rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+                      >
+                        {share.settled ? 'Mark outstanding' : 'Mark settled'}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

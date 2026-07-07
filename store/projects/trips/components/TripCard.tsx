@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Trip } from '@app/types';
 import { Link } from '@app/runtime';
+import { formatDateRange } from './format';
 
 function statusPillClass(status: string): string {
   if (status === 'booked') {
@@ -13,7 +14,7 @@ function statusPillClass(status: string): string {
 }
 
 export function TripCard({ trip }: { trip: Trip }) {
-  const dates = [trip.startDate, trip.endDate].filter(Boolean).join(' – ');
+  const dates = formatDateRange(trip.startDate, trip.endDate);
 
   return (
     <Link

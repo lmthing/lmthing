@@ -21,7 +21,16 @@ function statusClass(status: string): string {
 
 function rowTitle(row?: Row): string | undefined {
   if (!row) return undefined;
-  return (row.title as string) ?? (row.name as string) ?? (row.topic as string) ?? (row.label as string) ?? (row.id as string);
+  return (
+    (row.title as string) ??
+    (row.name as string) ??
+    (row.topic as string) ??
+    (row.label as string) ??
+    (row.provider as string) ??
+    (row.description as string) ??
+    (row.confirmation as string) ??
+    (row.id as string)
+  );
 }
 
 export default function DocumentDetailPage({ params }: { params: { docId: string } }) {

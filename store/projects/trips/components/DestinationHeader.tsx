@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Destination } from '@app/types';
 import { Link } from '@app/runtime';
+import { formatDateRange } from './format';
 
 export function DestinationHeader({
   destination,
@@ -9,7 +10,7 @@ export function DestinationHeader({
   destination: Destination;
   tripId: string;
 }) {
-  const dates = [destination.arrivalDate, destination.departureDate].filter(Boolean).join(' – ');
+  const dates = formatDateRange(destination.arrivalDate, destination.departureDate);
 
   return (
     <div className="flex items-start justify-between gap-4 border-b border-border pb-2">

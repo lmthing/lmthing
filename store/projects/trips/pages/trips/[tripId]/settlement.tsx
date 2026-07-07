@@ -3,6 +3,7 @@ import { useApi } from '@app/runtime';
 import { TripTabs } from '../../../components/TripTabs';
 import { SettlementRow } from '../../../components/SettlementRow';
 import { Spinner } from '../../../components/Spinner';
+import { formatMoney } from '../../../components/format';
 
 interface Balance {
   travelerId: string;
@@ -65,8 +66,8 @@ export default function TripSettlement({ params }: { params: { tripId: string } 
                 <p className="font-medium text-foreground">{b.name}</p>
                 <span className={`text-sm font-medium ${b.net < 0 ? 'text-destructive' : 'text-foreground'}`}>
                   {b.net >= 0
-                    ? `owed ${b.net.toFixed(2)} ${currency}`
-                    : `owes ${Math.abs(b.net).toFixed(2)} ${currency}`}
+                    ? `owed ${formatMoney(b.net, currency)}`
+                    : `owes ${formatMoney(Math.abs(b.net), currency)}`}
                 </span>
               </div>
             ))}

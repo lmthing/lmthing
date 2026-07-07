@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatMoney } from './format';
 
 export function SettlementRow({
   fromName,
@@ -17,7 +18,7 @@ export function SettlementRow({
         <span className="font-medium">{fromName}</span> pays <span className="font-medium">{toName}</span>
       </p>
       <span className="shrink-0 font-medium text-foreground">
-        {amount.toFixed(2)} {currency}
+        {formatMoney(amount, currency)}
       </span>
     </div>
   );

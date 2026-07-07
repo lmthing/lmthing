@@ -1,5 +1,6 @@
 import React from 'react';
 import type { ItineraryItem } from '@app/types';
+import { formatDate } from './format';
 
 function urgencyClass(urgency: string): string {
   if (urgency === 'overdue') return 'text-destructive';
@@ -17,7 +18,7 @@ export function ReminderRow({
       <div className="min-w-0 space-y-0.5">
         <p className="font-medium text-foreground">{reminder.title}</p>
         {reminder.bookByDate ? (
-          <p className="text-sm text-muted-foreground">Book by {reminder.bookByDate}</p>
+          <p className="text-sm text-muted-foreground">Book by {formatDate(reminder.bookByDate)}</p>
         ) : null}
       </div>
       <div className="shrink-0 text-right">

@@ -1015,6 +1015,8 @@
         "components/TravelerCard.tsx",
         "components/TripCard.tsx",
         "components/TripTabs.tsx",
+        "components/format.ts",
+        "components/icons.tsx",
         "database/bookings.json",
         "database/currency_rates.json",
         "database/deals.json",

@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatMoney } from './format';
 
 export function FinanceBar({
   label,
@@ -18,8 +19,7 @@ export function FinanceBar({
       <div className="flex items-center justify-between gap-4 text-sm">
         <span className="text-foreground">{label}</span>
         <span className="text-muted-foreground">
-          {value.toFixed(2)}
-          {currency ? ` ${currency}` : ''}
+          {currency ? formatMoney(value, currency) : value.toFixed(2)}
         </span>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-muted">

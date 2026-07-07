@@ -1,5 +1,6 @@
 import React from 'react';
 import type { TransitLeg } from '@app/types';
+import { formatDate, formatMoney } from './format';
 
 function formatDuration(minutes?: number): string {
   if (!minutes && minutes !== 0) return '';
@@ -33,10 +34,10 @@ export function TransitLegRow({
       <p className="text-sm text-muted-foreground">
         {leg.mode}
         {leg.durationMinutes ? ` · ${formatDuration(leg.durationMinutes)}` : ''}
-        {leg.estimatedCost ? ` · ${leg.estimatedCost} ${leg.currency}` : ''}
+        {leg.estimatedCost ? ` · ${formatMoney(leg.estimatedCost, leg.currency)}` : ''}
       </p>
       {leg.bookByDate ? (
-        <p className="text-sm text-muted-foreground">Book by {leg.bookByDate}</p>
+        <p className="text-sm text-muted-foreground">Book by {formatDate(leg.bookByDate)}</p>
       ) : null}
     </div>
   );

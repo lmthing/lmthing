@@ -3,6 +3,7 @@ import { useApi } from '@app/runtime';
 import { TripTabs } from '../../../components/TripTabs';
 import { FinanceBar } from '../../../components/FinanceBar';
 import { Spinner } from '../../../components/Spinner';
+import { formatMoney } from '../../../components/format';
 
 interface CategoryTotal {
   category: string;
@@ -62,32 +63,26 @@ export default function TripFinances({ params }: { params: { tripId: string } })
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <div className="space-y-0.5">
                 <p className="text-xs uppercase text-muted-foreground">Budget</p>
-                <p className="font-medium text-foreground">
-                  {budget.toFixed(2)} {currency}
-                </p>
+                <p className="font-medium text-foreground">{formatMoney(budget, currency)}</p>
               </div>
               <div className="space-y-0.5">
                 <p className="text-xs uppercase text-muted-foreground">Booked</p>
-                <p className="font-medium text-foreground">
-                  {booked.toFixed(2)} {currency}
-                </p>
+                <p className="font-medium text-foreground">{formatMoney(booked, currency)}</p>
               </div>
               <div className="space-y-0.5">
                 <p className="text-xs uppercase text-muted-foreground">Spent</p>
-                <p className="font-medium text-foreground">
-                  {spent.toFixed(2)} {currency}
-                </p>
+                <p className="font-medium text-foreground">{formatMoney(spent, currency)}</p>
               </div>
               <div className="space-y-0.5">
                 <p className="text-xs uppercase text-muted-foreground">Remaining</p>
                 <p className={`font-medium ${remaining < 0 ? 'text-destructive' : 'text-foreground'}`}>
-                  {remaining.toFixed(2)} {currency}
+                  {formatMoney(remaining, currency)}
                 </p>
               </div>
             </div>
             <FinanceBar label="Booked + spent" value={committed} max={Math.max(budget, committed, 1)} currency={currency} />
             <p className="text-sm text-muted-foreground">
-              Estimated planned (not yet booked): {estimatedPlanned.toFixed(2)} {currency}
+              Estimated planned (not yet booked): {formatMoney(estimatedPlanned, currency)}
             </p>
           </section>
 
@@ -121,7 +116,7 @@ export default function TripFinances({ params }: { params: { tripId: string } })
                   >
                     <p className="font-medium text-foreground">{t.name}</p>
                     <span className="text-sm text-muted-foreground">
-                      {t.paid.toFixed(2)} {currency}
+                      {formatMoney(t.paid, currency)}
                     </span>
                   </div>
                 ))}

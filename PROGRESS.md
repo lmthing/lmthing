@@ -101,6 +101,21 @@ Node pool: label `lmthing.cloud/pool=user`, taint `lmthing.cloud/pool=user:NoSch
 (`enable_user_pool=true` + `make scale-up`), then set `COMPUTE_NODE_POOL=user` on the gateway and run
 the full 50→200→500 density stress. Everything is code-ready and inert until then.
 
+## Incident 2026-07-07 — pods 503 "connection refused" under load (FIXED, deployed 0124f64)
+Returning users' pods 503'd. **Root cause:** the `readinessProbe` I added (P1) on the pod.
+The compute pod is a single-threaded Node server — during a QuickJS agent turn / esbuild page
+build the event loop blocks > the probe's 1s timeout → probe "context deadline exceeded" → K8s
+**evicts the BUSY pod from the Service endpoints** → Envoy no endpoint → 503. Self-inflicted under
+its own load. Confirmed in prod: probe failed 2min post-boot, mid agent-turn.
+**Fix (gateway `compute.ts`):** `readinessProbe` → **`startupProbe`** (gates only the boot window,
+never runs after first success, so a busy event loop can't evict a running pod). `ensureUserPod`
+patch nulls the old readinessProbe on existing pods. Added a bounded (~9s, < ingress timeout)
+readiness wait in `ensureUserPod` so `/ensure` returns once the pod is serving (closes the cold-wake
+connect race). **Verified:** `GET lmthing.chat/api/sessions`→200 (was 503); busy pod stayed
+`ready 1/1` + in endpoints across an 18s agent turn (no flapping). Reporting user hot-patched for
+immediate relief. **LESSON: never put a readinessProbe on a single-threaded runtime that blocks the
+event loop — it self-yanks under load; use a startupProbe.**
+
 ## Log
 - 2026-07-06 — Plan approved. PROGRESS.md reset for this effort. Reading anchor files (gateway spine first).
 - 2026-07-07 — P1–P4 implemented, built, typechecked, unit-tested; local smoke green (inert w/o gateway env). Committed to main; CI built gateway+compute; digest-pin wired end-to-end (COMPUTE_IMAGE_DIGEST=sha256:fd03f80 in gateway.yaml + prepull, in lockstep). ArgoCD Synced/Healthy; gateway+studio rolled to 0939ead.

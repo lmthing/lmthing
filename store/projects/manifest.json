@@ -73,8 +73,10 @@
       ],
       "hooks": [
         "build-daily-digest",
+        "deep-research",
         "file-into-collections",
         "generate-briefing",
+        "generate-take",
         "personalize-on-read",
         "refresh-sources",
         "render-newsletter",
@@ -185,8 +187,10 @@
         "database/subscriptions.json",
         "database/topics.json",
         "hooks/build-daily-digest.ts",
+        "hooks/deep-research.ts",
         "hooks/file-into-collections.ts",
         "hooks/generate-briefing.ts",
+        "hooks/generate-take.ts",
         "hooks/personalize-on-read.ts",
         "hooks/refresh-sources.ts",
         "hooks/render-newsletter.ts",
@@ -747,6 +751,7 @@
         "notify-on-alert",
         "parse-new-capture",
         "poll-saved-searches",
+        "poll-source-now",
         "refresh-tracked-listings"
       ],
       "files": [
@@ -817,6 +822,7 @@
         "hooks/notify-on-alert.ts",
         "hooks/parse-new-capture.ts",
         "hooks/poll-saved-searches.ts",
+        "hooks/poll-source-now.ts",
         "hooks/refresh-tracked-listings.ts",
         "package.json",
         "pages/_app.tsx",
@@ -1236,6 +1242,7 @@
       ],
       "hooks": [
         "analyze-document",
+        "dispatch-agent-run",
         "hunt-deals",
         "plan-transit-on-destination",
         "reconcile-traveler",
@@ -1347,6 +1354,7 @@
         "database/travelers.json",
         "database/trips.json",
         "hooks/analyze-document.ts",
+        "hooks/dispatch-agent-run.ts",
         "hooks/hunt-deals.ts",
         "hooks/plan-transit-on-destination.ts",
         "hooks/reconcile-traveler.ts",

@@ -36,4 +36,11 @@ Apps: **blog, health, kitchen, trips, homes**. Each app's proposals live in `sto
 - ✅ homes tested/fixed → committed. Build clean, 41 tests (+5); 8 live-LLM flows verified (clipper/surveyor/analyst/locator/ranker/digest/concierge Chat). Fixed: locator missing `location_guesses` read grant (wrote 0 geocodes), pollSource ctx.spawn→`poll-source-now` db hook (NEW FILE), clipper action-dispatch, listing-title + phantom-listing parse quality. NOTE: new `sources.pollRequestedAt` column → existing prod pods need a migration on reinstall.
 - ✅ trips tested/fixed → committed. Build clean, 46 tests (+2); live-LLM verified (createTrip→15 real itinerary items, treasurer splits, copilot Chat). Fixed: ctx.spawn→`dispatch-agent-run` db hook (NEW FILE), several `delegate()` signature bugs (empty itineraries), FX provider exchangerate.host→open.er-api.com + cache direction, copilot apiCall workaround. **Phase 3 complete — all 5 apps.**
 - Platform gaps noted (SDK-level, worked around in-app, out of store/ scope): `ctx.spawn` app-API stub; `apiCall` global not injected into agent sessions.
-- **Barrier:** final manifest regen (new hook files across blog/homes/trips), then **Phase 4 (commit/push/deploy)**.
+- ✅ final manifest regen (registers generate-take/deep-research/poll-source-now/dispatch-agent-run) → committed & pushed.
+- **Phase 4 (deploy):** token gate clean (576 files, 0 violations). CI built `store:1750780`; the automated ArgoCD tag-bump lost a rebase race on the image line, so it was pinned manually. ArgoCD synced → `store` deployment now runs `store:1750780` (pod Running). **Live-verified**: https://lmthing.store/projects/manifest.json serves all 6 apps incl. homes + all 4 new hooks. **DONE.**
+
+## Result
+
+All 5 apps (blog, health, kitchen, trips, homes) went through ideate → implement → live test/fix and are shipped to the prod store. Every app: builds clean, app tests pass, in-app agent chat + modern UX + LLM features + integrations added, and LLM flows live-verified against a real credentialed pod.
+
+Cross-cutting SDK gaps found & worked around in-app (flagged for a platform fix): `ctx.spawn()` from app-API handlers is a no-op (use `database:insert` hooks); `apiCall` global isn't injected into agent sessions. Prod pods that already have these apps installed need a reinstall to pick up the new files/columns (e.g. homes `sources.pollRequestedAt`).

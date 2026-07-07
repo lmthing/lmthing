@@ -1,13 +1,28 @@
 import React from 'react';
 import type { Search } from '@app/types';
-import { useApi, Link } from '@app/runtime';
+import { useApi, useApiMutation, Link } from '@app/runtime';
 import { SearchCard } from '../components/SearchCard';
+import { NeedsYouNow } from '../components/NeedsYouNow';
 import { Spinner } from '../components/Spinner';
 
-type SearchWithCounts = Search & { unreadAlerts: number; newListings: number };
+type SearchWithCounts = Search & {
+  unreadAlerts: number;
+  newListings: number;
+  tracked: number;
+  shortlisted: number;
+  bestScore: number;
+  lastCaptureAt?: string;
+};
 
 export default function SearchList() {
-  const { data: searches, isLoading, error } = useApi<SearchWithCounts[]>('searchList', {});
+  const { data: searches, isLoading, error, refetch } =
+    useApi<SearchWithCounts[]>('searchList', {});
+
+  const updateSearch = useApiMutation<Search>('updateSearch', { invalidates: ['searchList'] });
+
+  const onToggleStatus = (id: string, next: string) => {
+    updateSearch.mutate({ id, status: next });
+  };
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6">
@@ -26,11 +41,20 @@ export default function SearchList() {
         </Link>
       </div>
 
+      <NeedsYouNow />
+
       {isLoading ? <Spinner label="Loading your searches…" /> : null}
 
       {error ? (
-        <div className="rounded-lg border border-destructive p-4 text-sm text-destructive">
-          Failed to load searches.
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-destructive p-4 text-sm text-destructive">
+          <span>Failed to load searches.</span>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="rounded-md border border-destructive px-2 py-1 text-xs hover:bg-muted"
+          >
+            Retry
+          </button>
         </div>
       ) : null}
 
@@ -52,7 +76,7 @@ export default function SearchList() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {(searches ?? []).map((s) => (
-          <SearchCard key={s.id} search={s} />
+          <SearchCard key={s.id} search={s} onToggleStatus={onToggleStatus} />
         ))}
       </div>
     </main>

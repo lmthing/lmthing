@@ -116,7 +116,8 @@ test('sumRoomAreas: sums per-room dimensions + direct areas', async () => {
 });
 
 test('haversine + intersectClues: distance is positive; more clues → a guess', async () => {
-  const { haversine, intersectClues } = await scoutFn('haversine');
+  const { haversine } = await scoutFn('haversine');
+  const { intersectClues } = await scoutFn('intersectClues');
   assert.ok(haversine({ lat: 38.72, lng: -9.13 }, { lat: 38.73, lng: -9.14 }) > 100);
   const g = intersectClues([{ lat: 38.72, lng: -9.13, radiusM: 120 }, { lat: 38.721, lng: -9.131, radiusM: 100 }]);
   assert.ok(g && g.confidence > 0 && g.radiusM > 0);
@@ -268,10 +269,31 @@ const frontmatterOf = (src) => {
   return m ? m[1] : '';
 };
 
-test('two project-scoped spaces present: intake + scout', () => {
+test('three project-scoped spaces present: concierge + intake + scout', () => {
   const spacesDir = join(APP, 'spaces');
   const spaces = readdirSync(spacesDir).filter((d) => statSync(join(spacesDir, d)).isDirectory()).sort();
-  assert.deepEqual(spaces, ['intake', 'scout']);
+  assert.deepEqual(spaces, ['concierge', 'intake', 'scout']);
+});
+
+test('concierge: single least-privilege app-driver agent (read-all, api:call, no authoring)', () => {
+  const instructP = join(APP, 'spaces', 'concierge', 'agents', 'concierge', 'instruct.md');
+  assert.ok(existsSync(instructP), 'concierge/concierge instruct.md missing');
+  assert.ok(existsSync(join(APP, 'spaces', 'concierge', 'agents', 'concierge', 'charter.md')), 'concierge charter.md missing');
+  const fm = frontmatterOf(readFileSync(instructP, 'utf8'));
+  assert.match(fm, /api:call/, 'concierge acts through typed handlers');
+  assert.doesNotMatch(fm, /deleteSearch/, 'destructive deleteSearch must NOT be in the allow-list');
+  for (const forbidden of ['db:schema', 'pages:write', 'api:write', 'hooks:write', 'project:manage']) {
+    assert.doesNotMatch(fm, new RegExp(forbidden), `concierge must NOT hold ${forbidden} — it uses the app, it can't rewrite it`);
+  }
+});
+
+test('daily-digest + notify-on-alert hooks are wired', () => {
+  const digest = readFileSync(join(APP, 'hooks', 'daily-digest.ts'), 'utf8');
+  assert.match(digest, /type:\s*['"]cron['"]/);
+  assert.match(digest, /trigger:\s*['"]scout\/ranker#digest['"]/);
+  const notify = readFileSync(join(APP, 'hooks', 'notify-on-alert.ts'), 'utf8');
+  assert.match(notify, /table:\s*['"]alerts['"]/);
+  assert.match(notify, /event:\s*['"]insert['"]/);
 });
 
 const AGENTS = {

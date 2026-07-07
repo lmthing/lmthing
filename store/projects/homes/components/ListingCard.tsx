@@ -65,18 +65,20 @@ export function ListingCard({
       </div>
 
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-        <span className="text-lg font-bold text-foreground">
-          {formatMoney(listing.priceAmount, listing.currency)}
-        </span>
         {listing.trueCostMonthly > 0 ? (
-          <span className="text-sm text-muted-foreground">
-            true cost{' '}
-            <span className="font-medium text-foreground">
-              {formatMoney(listing.trueCostMonthly, listing.currency)}
+          <span className="flex items-baseline gap-2">
+            <span className="text-sm text-muted-foreground line-through">
+              {formatMoney(listing.priceAmount, listing.currency)} asked
             </span>
-            /mo
+            <span className="text-lg font-bold text-foreground">
+              {formatMoney(listing.trueCostMonthly, listing.currency)} all-in
+            </span>
           </span>
-        ) : null}
+        ) : (
+          <span className="text-lg font-bold text-foreground">
+            {formatMoney(listing.priceAmount, listing.currency)}
+          </span>
+        )}
         {pricePerSqm > 0 ? (
           <span className="text-sm text-muted-foreground">
             {formatMoney(pricePerSqm, listing.currency)}/m²

@@ -4,9 +4,10 @@ import { Link } from '@app/runtime';
 
 const KIND_CLASS: Record<string, string> = {
   new_match: 'text-agent',
-  price_drop: 'text-primary',
+  price_drop: 'text-success',
   gone: 'text-muted-foreground',
   back_online: 'text-primary',
+  digest: 'text-primary',
 };
 
 const KIND_GLYPH: Record<string, string> = {
@@ -14,6 +15,7 @@ const KIND_GLYPH: Record<string, string> = {
   price_drop: '↓',
   gone: '⊘',
   back_online: '↻',
+  digest: '❋',
 };
 
 export function AlertStrip({

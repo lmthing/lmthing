@@ -96,3 +96,106 @@ export function ExternalLinkIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+export function TrendingDownIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <path d="M23 18l-9.5-9.5-5 5L1 6" />
+      <path d="M17 18h6v-6" />
+    </svg>
+  );
+}
+
+export function AlertTriangleIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+      <path d="M12 9v4M12 17h.01" />
+    </svg>
+  );
+}
+
+export function MapIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4z" />
+      <path d="M8 2v16M16 6v16" />
+    </svg>
+  );
+}
+
+export function FilterIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+    </svg>
+  );
+}
+
+export function SortIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <path d="M3 6h13M3 12h9M3 18h5" />
+      <path d="M17 8l4-4 4 4M21 4v16" transform="scale(0.72) translate(6 3)" />
+    </svg>
+  );
+}
+
+export function KeyboardIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <rect x="2" y="6" width="20" height="12" rx="2" />
+      <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8" />
+    </svg>
+  );
+}
+
+export function ChatIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+    </svg>
+  );
+}
+
+export function XIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <path d="M18 6L6 18M6 6l12 12" />
+    </svg>
+  );
+}
+
+export function CheckIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
+  );
+}
+
+export function ChevronDownIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
+export function CalendarIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <path d="M16 2v4M8 2v4M3 10h18" />
+    </svg>
+  );
+}
+
+export function SearchIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <circle cx="11" cy="11" r="8" />
+      <path d="M21 21l-4.3-4.3" />
+    </svg>
+  );
+}

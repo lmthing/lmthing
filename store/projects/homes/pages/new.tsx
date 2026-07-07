@@ -1,9 +1,21 @@
 import React, { useState } from 'react';
-import { useApiMutation, navigate } from '@app/runtime';
+import { useApiMutation, apiCall, navigate } from '@app/runtime';
+import { SparklesIcon } from '../components/icons';
 
 const MODES = ['rent', 'buy'];
 const CURRENCIES = ['EUR', 'USD', 'GBP'];
 const COMMUTE_MODES = ['transit', 'walk', 'bike', 'drive'];
+
+interface BriefDraft {
+  mode?: string;
+  area?: string;
+  budgetMax?: number;
+  currency?: string;
+  minRooms?: number;
+  minAreaSqm?: number;
+  mustHaves: string[];
+  commuteTargets: { label: string; address: string; mode: string; maxMinutes: number }[];
+}
 
 interface CommuteRow {
   label: string;
@@ -29,9 +41,53 @@ export default function NewSearch() {
   const [mustHaves, setMustHaves] = useState('');
   const [commuteTargets, setCommuteTargets] = useState<CommuteRow[]>([emptyRow()]);
 
+  const [extracting, setExtracting] = useState(false);
+  const [prefilled, setPrefilled] = useState(false);
+
   const createSearch = useApiMutation<{ id: string }>('createSearch', {
     invalidates: ['searchList'],
   });
+
+  // Brief → structured draft. Fills fields the user hasn't already set, and adds
+  // extracted must-haves / commute targets as editable chips they can correct.
+  const prefillFromBrief = async () => {
+    if (!brief.trim()) return;
+    setExtracting(true);
+    try {
+      const d = (await apiCall('extractSearchBrief', { brief: brief.trim() })) as BriefDraft;
+      if (d.mode) setMode(d.mode);
+      if (d.currency) setCurrency(d.currency);
+      if (d.budgetMax && !budgetMax) setBudgetMax(String(d.budgetMax));
+      if (d.area && !area.trim()) setArea(d.area);
+      if (d.minRooms && !minRooms) setMinRooms(String(d.minRooms));
+      if (d.minAreaSqm && !minAreaSqm) setMinAreaSqm(String(d.minAreaSqm));
+      if (d.mustHaves?.length) {
+        const existing = mustHaves.split(',').map((s) => s.trim()).filter(Boolean);
+        const merged = Array.from(new Set([...existing, ...d.mustHaves]));
+        setMustHaves(merged.join(', '));
+      }
+      if (d.commuteTargets?.length) {
+        setCommuteTargets((rows) => {
+          const real = rows.filter((r) => r.label.trim() || r.address.trim());
+          const additions = d.commuteTargets
+            .filter((t) => !real.some((r) => r.label.toLowerCase() === t.label.toLowerCase()))
+            .map((t) => ({
+              label: t.label,
+              address: t.address,
+              mode: t.mode,
+              maxMinutes: String(t.maxMinutes),
+            }));
+          const next = [...real, ...additions];
+          return next.length ? next : [emptyRow()];
+        });
+      }
+      setPrefilled(true);
+    } catch {
+      /* best-effort — the form still works fully by hand */
+    } finally {
+      setExtracting(false);
+    }
+  };
 
   const updateRow = (i: number, patch: Partial<CommuteRow>) => {
     setCommuteTargets((rows) => rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
@@ -118,6 +174,22 @@ export default function NewSearch() {
               This drives everything — the taste model starts here and sharpens with every save
               and dismiss.
             </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={prefillFromBrief}
+                disabled={extracting || !brief.trim()}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-primary hover:bg-muted disabled:opacity-50"
+              >
+                <SparklesIcon className="h-3.5 w-3.5" />
+                {extracting ? 'Reading your brief…' : 'Prefill the fields from this'}
+              </button>
+              {prefilled ? (
+                <span className="text-xs text-muted-foreground">
+                  Prefilled — review and edit everything below before starting.
+                </span>
+              ) : null}
+            </div>
           </div>
         </section>
 

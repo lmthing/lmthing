@@ -1,6 +1,7 @@
 import React from 'react';
 import type { LocationGuess } from '@app/types';
 import { MarkdownBody } from './MarkdownBody';
+import { StaticMap } from './StaticMap';
 import { MapPinIcon, ExternalLinkIcon } from './icons';
 
 export function LocationGuessPanel({ guess }: { guess: LocationGuess }) {
@@ -22,6 +23,8 @@ export function LocationGuessPanel({ guess }: { guess: LocationGuess }) {
         </span>
         {low ? ' — treat this as a rough area, not a pin' : ''}
       </p>
+
+      <StaticMap lat={guess.lat} lng={guess.lng} radiusM={guess.radiusM} />
 
       <MarkdownBody source={guess.method ?? ''} />
 

@@ -22,11 +22,7 @@ for (const r of extract_and_merge.results) {
     ? `Found ${r.found} listing${r.found === 1 ? '' : 's'}, merged ${r.merged} into existing record${r.merged === 1 ? '' : 's'}.`
     : `Found ${r.found} listing${r.found === 1 ? '' : 's'}.`;
 
-  db.update('raw_captures', capture.id, {
-    status: 'parsed',
-    summary,
-    listingsFound: r.found,
-  });
+  db.update('raw_captures', { where: { id: capture.id }, set: { status: 'parsed', summary: summary, listingsFound: r.found } });
   summarized++;
 }
 

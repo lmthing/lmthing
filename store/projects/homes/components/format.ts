@@ -63,6 +63,26 @@ export function formatDateTime(iso?: string | null): string {
   return `${date}, ${hh}:${mm}`;
 }
 
+/**
+ * Score band — turns a 0..100 match score into a word + a design token, so the
+ * badge encodes meaning (not just a number) and colorblind users get a label.
+ * <45 is "capped" (a hard constraint or dealbreaker held it down).
+ */
+export interface ScoreBand {
+  word: string;
+  /** design-token text class */
+  tone: string;
+  hint: string;
+}
+export function scoreBand(score: number): ScoreBand {
+  const v = Number.isFinite(score) ? score : 0;
+  if (v <= 0) return { word: 'scoring', tone: 'text-muted-foreground', hint: 'Not yet ranked' };
+  if (v >= 80) return { word: 'strong', tone: 'text-success', hint: 'Strong match — act fast' };
+  if (v >= 60) return { word: 'worth a look', tone: 'text-agent', hint: 'Worth a look' };
+  if (v >= 45) return { word: 'weak', tone: 'text-muted-foreground', hint: 'Weak match' };
+  return { word: 'capped', tone: 'text-destructive', hint: 'Capped by a hard constraint' };
+}
+
 /** Inline glyphs for commute modes — no icon dependency needed. */
 export const MODE_GLYPH: Record<string, string> = {
   transit: '🚆',

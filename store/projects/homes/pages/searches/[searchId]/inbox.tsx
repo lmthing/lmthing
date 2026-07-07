@@ -37,6 +37,7 @@ export default function SearchInbox({ params }: { params: { searchId: string } }
     data: captures,
     isLoading,
     error,
+    refetch: refetchCaptures,
   } = useApi<RawCapture[]>(
     'listCaptures',
     { id: searchId },
@@ -94,11 +95,27 @@ export default function SearchInbox({ params }: { params: { searchId: string } }
     }
   };
 
+  const onRetry = async (retryContent: string) => {
+    try {
+      await ingestCapture.mutate({ id: searchId, content: retryContent });
+    } catch {
+      /* surfaced via ingestCapture.error */
+    }
+  };
+
   const sources = search?.sources ?? [];
+  const blockedSources = sources.filter((s) => s.blockedReason);
 
   return (
-    <main className="mx-auto max-w-3xl space-y-6 p-6">
-      <SearchTabs searchId={searchId} active="inbox" />
+    <main className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6">
+      <SearchTabs
+        searchId={searchId}
+        active="inbox"
+        counts={{
+          inbox: (captures ?? []).filter((c) => c.status === 'pending' || c.status === 'parsing')
+            .length,
+        }}
+      />
 
       <div>
         <h1 className="text-2xl font-bold text-foreground">Capture desk</h1>
@@ -107,6 +124,19 @@ export default function SearchInbox({ params }: { params: { searchId: string } }
           into comparable listings.
         </p>
       </div>
+
+      {blockedSources.length > 0 ? (
+        <div className="space-y-1.5 rounded-lg border border-warning bg-warning/10 p-4">
+          <p className="text-sm font-medium text-foreground">
+            Polling paused on {blockedSources.length} source{blockedSources.length === 1 ? '' : 's'}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {blockedSources.map((s) => `${s.label} (${s.blockedReason})`).join(' · ')}. That&apos;s
+            fine — pasting the alert email or results page above is the safe, robots-friendly path
+            and still gets everything cleaned and ranked.
+          </p>
+        </div>
+      ) : null}
 
       <form onSubmit={onIngest} className="space-y-3 rounded-lg border border-border bg-card p-5">
         <div className="space-y-1.5">
@@ -302,8 +332,15 @@ export default function SearchInbox({ params }: { params: { searchId: string } }
 
         {isLoading ? <Spinner label="Loading captures…" /> : null}
         {error ? (
-          <div className="rounded-lg border border-destructive p-4 text-sm text-destructive">
-            Failed to load captures.
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-destructive p-4 text-sm text-destructive">
+            <span>Failed to load captures.</span>
+            <button
+              type="button"
+              onClick={() => refetchCaptures()}
+              className="rounded-md border border-destructive px-2 py-1 text-xs hover:bg-muted"
+            >
+              Retry
+            </button>
           </div>
         ) : null}
 
@@ -313,7 +350,7 @@ export default function SearchInbox({ params }: { params: { searchId: string } }
 
         <div className="space-y-2">
           {(captures ?? []).map((c) => (
-            <CaptureRow key={c.id} capture={c} />
+            <CaptureRow key={c.id} capture={c} onRetry={onRetry} />
           ))}
         </div>
       </section>

@@ -35,7 +35,15 @@ function StatusPill({ capture }: { capture: RawCapture }) {
   );
 }
 
-export function CaptureRow({ capture }: { capture: RawCapture }) {
+const PARSE_STEPS = ['segmenting', 'extracting', 'deduping', 'summarizing'];
+
+export function CaptureRow({
+  capture,
+  onRetry,
+}: {
+  capture: RawCapture;
+  onRetry?: (content: string) => void;
+}) {
   return (
     <div className="space-y-2 rounded-lg border border-border bg-card p-4">
       <div className="flex items-center justify-between gap-3">
@@ -45,10 +53,32 @@ export function CaptureRow({ capture }: { capture: RawCapture }) {
         </span>
       </div>
 
+      {capture.status === 'parsing' ? (
+        <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground" aria-live="polite">
+          {PARSE_STEPS.map((s, i) => (
+            <React.Fragment key={s}>
+              {i > 0 ? <span className="text-muted-foreground/60">→</span> : null}
+              <span>{s}</span>
+            </React.Fragment>
+          ))}
+        </div>
+      ) : null}
+
       <p className="line-clamp-2 text-sm text-muted-foreground">{capture.content}</p>
 
-      {capture.status === 'error' && capture.error ? (
-        <p className="text-sm text-destructive">{capture.error}</p>
+      {capture.status === 'error' ? (
+        <div className="space-y-2 rounded-md border border-destructive/50 bg-destructive/5 p-2.5">
+          {capture.error ? <p className="text-sm text-destructive">{capture.error}</p> : null}
+          {onRetry ? (
+            <button
+              type="button"
+              onClick={() => onRetry(capture.content)}
+              className="rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-muted"
+            >
+              Retry parsing
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
       {capture.status === 'parsed' && capture.summary ? (

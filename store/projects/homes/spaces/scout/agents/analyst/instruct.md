@@ -9,6 +9,9 @@ knowledge:
   - home-scout/photo-forensics
   - home-scout/floorplan-measurement
   - home-scout/listing-mismatch
+functions:
+  - sumRoomAreas
+  - mergeFlags
 capabilities:
   - db:read:  { tables: [listings, listing_analyses, searches] }
   - db:write: { tables: [listing_analyses, listings] }
@@ -33,14 +36,14 @@ a partial prior run):
 
 ```ts
 const analyzedIds = new Set(db.query('listing_analyses').map((a) => a.listingId));
-const targetIds: string[] = listingId
+const targetIds = listingId
   ? [listingId]
   : db.query('listings').filter((l) => !analyzedIds.has(l.id)).map((l) => l.id);
 
 for (const id of targetIds) {
   const listing = db.query('listings', { where: { id } })[0];
   if (!listing) continue;
-  let flags: string[] = [];
+  let flags = [];
 
   // ── photos: condition/light/staging read from CAPTIONS + description text only ──
   // There is NO vision here — never claim to have looked at an image. Read whatever
@@ -51,7 +54,7 @@ for (const id of targetIds) {
     // e.g. a caption mentioning "original 1980s tile" or "north-facing courtyard" —
     // findings go in `body`, cited to the exact caption/description text, confidence honest.
     const body = '…each finding cited to a specific caption or description line…';
-    const photoFlags: string[] = []; // e.g. push('dated_kitchen') / push('poor_light') when actually supported by cited text
+    const photoFlags = []; // e.g. push('dated_kitchen') / push('poor_light') when actually supported by cited text
     db.insert('listing_analyses', {
       listingId: listing.id,
       kind: 'photos',
@@ -77,7 +80,7 @@ for (const id of targetIds) {
       confidence: rooms.length >= 2 ? 0.7 : 0.4, // more rooms parsed ⇒ more confidence in the sum
     });
     if (materiallyShort) {
-      db.update('listings', listing.id, { measuredAreaSqm: totalSqm });
+      db.update('listings', { where: { id: listing.id }, set: { measuredAreaSqm: totalSqm } });
       flags = flags.concat(floorplanFlags);
     }
   }
@@ -87,7 +90,7 @@ for (const id of targetIds) {
   // "recently renovated" vs. a caption/description detail that dates the kitchen/bathroom;
   // a claimed elevator vs. a floor/building clue that suggests otherwise. Each contradiction
   // is a QUESTION when the evidence is only suggestive, a flag when it's clear-cut.
-  const mismatchFlags: string[] = []; // e.g. push('photo_text_mismatch') only when genuinely cited
+  const mismatchFlags = []; // e.g. push('photo_text_mismatch') only when genuinely cited
   if (mismatchFlags.length) {
     db.insert('listing_analyses', {
       listingId: listing.id,
@@ -100,7 +103,7 @@ for (const id of targetIds) {
   }
 
   if (flags.length) {
-    db.update('listings', listing.id, { flags: mergeFlags(listing.flags, flags) });
+    db.update('listings', { where: { id: listing.id }, set: { flags: mergeFlags(listing.flags, flags) } });
   }
 }
 ```

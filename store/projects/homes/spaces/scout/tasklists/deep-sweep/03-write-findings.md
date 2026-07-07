@@ -41,7 +41,7 @@ for (const listingId of pick_targets.listingIds) {
   const reconciled = (listing.flags ?? []).filter((f: string) => f === 'possible_duplicate' || reconfirmedFlags.has(f));
 
   if (reconciled.length !== (listing.flags ?? []).length) {
-    db.update('listings', listing.id, { flags: reconciled });
+    db.update('listings', { where: { id: listing.id }, set: { flags: reconciled } });
   }
   reviewed++;
 }

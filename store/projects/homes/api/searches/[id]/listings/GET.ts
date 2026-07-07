@@ -61,12 +61,18 @@ export interface Listing {
   dismissedReason?: string;
   firstSeenAt: string;
   lastSeenAt?: string;
+  commutes?: { id: string; targetLabel: string; mode: string; minutes: number; basis: string }[];
 }
 
 export type Output = Listing[];
 
 export default async function handler(input: Input, ctx: Ctx): Promise<Output> {
-  let listings = (await ctx.db.query('listings', { where: { searchId: input.id } })) as Listing[];
+  // include commutes so the feed can show commute chips and sort by commute
+  // without a per-card round trip.
+  let listings = (await ctx.db.query('listings', {
+    where: { searchId: input.id },
+    include: ['commutes'],
+  })) as Listing[];
 
   if (input.status !== undefined) {
     listings = listings.filter((l) => l.status === input.status);

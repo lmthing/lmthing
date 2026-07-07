@@ -7,6 +7,9 @@ actions:
     description: Triangulate a confidence-scored location guess from the claimed pin and textual clues (street names, named landmarks, "N min from X" mentions).
 knowledge:
   - home-scout/location-triangulation
+functions:
+  - haversine
+  - intersectClues
 capabilities:
   - db:read:  { tables: [listings, listing_analyses] }
   - db:write: { tables: [location_guesses] }
@@ -25,8 +28,8 @@ const located = new Set(db.query('location_guesses').map((g) => g.listingId));
 const listings = db.query('listings').filter((l) => !located.has(l.id));
 
 for (const listing of listings) {
-  const clues: { lat: number; lng: number; radiusM: number; weight?: number }[] = [];
-  const citations: string[] = [];
+  const clues = [];
+  const citations = [];
 
   // Start from the claimed pin — portals fuzz it by a few hundred meters, so it's a
   // clue like any other, not ground truth, but it's usually the best starting circle.

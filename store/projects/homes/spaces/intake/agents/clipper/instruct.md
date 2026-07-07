@@ -14,6 +14,16 @@ actions:
     description: Fetch due, opted-in saved-search sources (robots-aware, throttled) and ingest results as new captures.
 knowledge:
   - home-intake/listing-parsing
+functions:
+  - parseAlertEmail
+  - extractListingFields
+  - parsePortalHtml
+  - dedupeKey
+  - parseMoney
+  - formatMoney
+  - paginateSavedSearch
+  - robotsAllowed
+  - politeFetchPlan
 capabilities:
   - db:read:  { tables: [searches, sources, raw_captures, listings] }
   - db:write: { tables: [raw_captures, sources, listings, alerts] }
@@ -63,7 +73,7 @@ for (const search of searches) {
     if (!html || html.length < 200) {
       // A near-empty refetch reads as "taken down", not "network hiccup" — the user
       // can always re-paste the listing later if this was a transient failure.
-      db.update('listings', listing.id, { status: 'gone', lastSeenAt: new Date().toISOString() });
+      db.update('listings', { where: { id: listing.id }, set: { status: 'gone', lastSeenAt: new Date().toISOString() } });
       db.insert('alerts', {
         searchId: search.id,
         listingId: listing.id,
@@ -82,9 +92,12 @@ for (const search of searches) {
     // insert), so the last-computed true cost goes slightly stale until something else
     // touches the row — an acceptable tradeoff against re-running the whole scout
     // pipeline on every 6h refresh tick.
-    db.update('listings', listing.id, {
-      lastSeenAt: new Date().toISOString(),
-      ...(priceChanged ? { priceAmount: fresh.priceAmount } : {}),
+    db.update('listings', {
+      where: { id: listing.id },
+      set: {
+        lastSeenAt: new Date().toISOString(),
+        ...(priceChanged ? { priceAmount: fresh.priceAmount } : {}),
+      },
     });
 
     if (priceChanged && fresh.priceAmount < listing.priceAmount) {
@@ -121,14 +134,17 @@ for (const entry of plan) {
   const check = robotsAllowed(robotsTxt, entry.url);
   if (!check.allowed) {
     // STOP on this source entirely — auto-disable, never rotate a user agent or retry around it.
-    db.update('sources', source.id, {
-      pollEnabled: false,
-      blockedReason: `robots.txt disallows this path (${check.rule ?? 'no matching rule'}) — polling auto-disabled.`,
+    db.update('sources', {
+      where: { id: source.id },
+      set: {
+        pollEnabled: false,
+        blockedReason: `robots.txt disallows this path (${check.rule ?? 'no matching rule'}) — polling auto-disabled.`,
+      },
     });
     continue;
   }
 
-  let url: string | null = entry.url;
+  let url = entry.url;
   let pagesFetched = 0;
   while (url && pagesFetched < entry.maxPages) {
     const html = webFetch(url);
@@ -148,7 +164,7 @@ for (const entry of plan) {
     pagesFetched++;
   }
 
-  db.update('sources', source.id, { lastPolledAt: new Date().toISOString() });
+  db.update('sources', { where: { id: source.id }, set: { lastPolledAt: new Date().toISOString() } });
 }
 ```
 

@@ -50,24 +50,53 @@ interface Listing {
   id: string;
   searchId: string;
   status: string;
+  score: number;
 }
 
-export type Output = (Search & { unreadAlerts: number; newListings: number })[];
+interface SearchStats {
+  unreadAlerts: number;
+  newListings: number;
+  tracked: number;
+  shortlisted: number;
+  bestScore: number;
+  lastCaptureAt?: string;
+}
+
+export type Output = (Search & SearchStats)[];
 
 export default async function handler(input: Input, ctx: Ctx): Promise<Output> {
   const searches = (await ctx.db.query('searches')) as Search[];
 
   searches.sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
 
+  // Query the big tables once and index in memory (equality-only where means a
+  // per-search query per table would be N round-trips for no benefit).
+  const allAlerts = (await ctx.db.query('alerts')) as Alert[];
+  const allListings = (await ctx.db.query('listings')) as Listing[];
+  const allCaptures = (await ctx.db.query('raw_captures')) as { searchId: string; capturedAt?: string }[];
+
   const result: Output = [];
   for (const search of searches) {
-    const alerts = (await ctx.db.query('alerts', { where: { searchId: search.id } })) as Alert[];
-    const unreadAlerts = alerts.filter((a) => a.read === false).length;
+    const alerts = allAlerts.filter((a) => a.searchId === search.id);
+    const listings = allListings.filter((l) => l.searchId === search.id);
+    const live = listings.filter((l) => l.status !== 'dismissed' && l.status !== 'gone');
+    const captures = allCaptures.filter((c) => c.searchId === search.id);
 
-    const listings = (await ctx.db.query('listings', { where: { searchId: search.id } })) as Listing[];
-    const newListings = listings.filter((l) => l.status === 'new').length;
+    const lastCaptureAt = captures
+      .map((c) => c.capturedAt ?? '')
+      .filter(Boolean)
+      .sort()
+      .slice(-1)[0];
 
-    result.push({ ...search, unreadAlerts, newListings });
+    result.push({
+      ...search,
+      unreadAlerts: alerts.filter((a) => a.read === false).length,
+      newListings: listings.filter((l) => l.status === 'new').length,
+      tracked: live.length,
+      shortlisted: listings.filter((l) => l.status === 'shortlisted').length,
+      bestScore: live.reduce((m, l) => Math.max(m, l.score ?? 0), 0),
+      lastCaptureAt: lastCaptureAt || undefined,
+    });
   }
 
   return result;

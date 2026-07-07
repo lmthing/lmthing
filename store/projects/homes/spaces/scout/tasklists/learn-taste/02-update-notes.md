@@ -31,10 +31,13 @@ for (const signalId of load_signals.signalIds) {
     if (existing) {
       // MERGE — append this signal's evidence and strengthen the existing statement rather
       // than writing a second competing note for the same dimension.
-      db.update('taste_notes', existing.id, {
-        statement: `${existing.statement} Also dismissed citing "${signal.reason}".`,
-        supportCount: existing.supportCount + 1,
-        weight: Math.min(1, existing.weight + 0.05),
+      db.update('taste_notes', {
+        where: { id: existing.id },
+        set: {
+          statement: `${existing.statement} Also dismissed citing "${signal.reason}".`,
+          supportCount: existing.supportCount + 1,
+          weight: Math.min(1, existing.weight + 0.05),
+        },
       });
     } else {
       db.insert('taste_notes', {
@@ -52,7 +55,7 @@ for (const signalId of load_signals.signalIds) {
     // distinguishing trait usually isn't enough on its own to justify a new note.
   }
 
-  db.update('taste_signals', signal.id, { folded: true });
+  db.update('taste_signals', { where: { id: signal.id }, set: { folded: true } });
 }
 
 currentTask.resolve({ touchedListingIds: Array.from(touchedListingIds) });

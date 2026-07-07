@@ -49,9 +49,12 @@ for (const listingId of update_notes.touchedListingIds) {
     violatesHardConstraint: dealbreakerViolated,
   });
 
-  db.update('listings', listing.id, {
-    score: result.score,
-    scoreSummary: result.components.map((c) => `${c.delta >= 0 ? '+' : '−'} ${c.label} (${c.delta})`).join('\n'),
+  db.update('listings', {
+    where: { id: listing.id },
+    set: {
+      score: result.score,
+      scoreSummary: result.components.map((c) => `${c.delta >= 0 ? '+' : '−'} ${c.label} (${c.delta})`).join('\n'),
+    },
   });
   rescored++;
 }

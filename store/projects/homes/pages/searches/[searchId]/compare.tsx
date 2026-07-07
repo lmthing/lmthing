@@ -4,6 +4,7 @@ import { useApi } from '@app/runtime';
 import { SearchTabs } from '../../../components/SearchTabs';
 import { CompareTable } from '../../../components/CompareTable';
 import { Spinner } from '../../../components/Spinner';
+import { ChatIcon } from '../../../components/icons';
 import { formatMoney } from '../../../components/format';
 
 interface CompareRow {
@@ -15,9 +16,19 @@ interface CompareResult {
   rows: CompareRow[];
 }
 
+function toMarkdown(res: CompareResult): string {
+  const header = `| Attribute | ${res.titles.join(' | ')} |`;
+  const sep = `| --- | ${res.titles.map(() => '---').join(' | ')} |`;
+  const body = res.rows
+    .map((r) => `| ${r.attribute} | ${r.values.map((v) => String(v)).join(' | ')} |`)
+    .join('\n');
+  return `${header}\n${sep}\n${body}\n`;
+}
+
 export default function SearchCompare({ params }: { params: { searchId: string } }) {
   const { searchId } = params;
   const [selected, setSelected] = useState<string[]>([]);
+  const [copied, setCopied] = useState(false);
 
   const { data: listings, isLoading, error } = useApi<Listing[]>('listingFeed', { id: searchId });
 
@@ -37,14 +48,33 @@ export default function SearchCompare({ params }: { params: { searchId: string }
     });
   };
 
+  const onExport = async () => {
+    if (!compared) return;
+    const md = toMarkdown(compared);
+    try {
+      await navigator.clipboard.writeText(md);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback: download as a file.
+      const blob = new Blob([md], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'compare.md';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  };
+
   return (
-    <main className="mx-auto max-w-5xl space-y-6 p-6">
+    <main className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
       <SearchTabs searchId={searchId} active="compare" />
 
       <div>
         <h1 className="text-2xl font-bold text-foreground">Compare</h1>
         <p className="text-sm text-muted-foreground">
-          Pick 2 to 4 listings to line up side by side.
+          Pick 2 to 4 listings to line up side by side — the best cell in each row is starred.
         </p>
       </div>
 
@@ -98,7 +128,28 @@ export default function SearchCompare({ params }: { params: { searchId: string }
 
       {comparing ? <Spinner label="Comparing…" /> : null}
 
-      {compared ? <CompareTable titles={compared.titles} rows={compared.rows} /> : null}
+      {compared ? (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={onExport}
+              className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground hover:bg-muted"
+            >
+              {copied ? 'Copied ✓' : 'Copy as markdown'}
+            </button>
+          </div>
+          <CompareTable titles={compared.titles} rows={compared.rows} />
+          <div className="flex items-start gap-2.5 rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+            <ChatIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <span>
+              Want a verdict? Ask the <span className="font-medium text-foreground">Concierge</span>{' '}
+              (bottom-right): “review these and suggest a viewing order” — it delegates to the ranker
+              and weighs them against your learned taste.
+            </span>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

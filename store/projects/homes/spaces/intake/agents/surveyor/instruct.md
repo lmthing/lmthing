@@ -11,6 +11,10 @@ actions:
 knowledge:
   - home-intake/true-cost
   - home-intake/commute-estimation
+functions:
+  - trueCost
+  - parseMoney
+  - formatMoney
 capabilities:
   - db:read:  { tables: [searches, listings, commutes] }
   - db:write: { tables: [listings, commutes] }
@@ -42,9 +46,12 @@ for (const listing of listings) {
     rateSource: 'ECB reference mortgage rate survey, cited at compute time',
   });
 
-  db.update('listings', listing.id, {
-    trueCostMonthly: result.trueCostMonthly,
-    costBreakdown: result.breakdown,
+  db.update('listings', {
+    where: { id: listing.id },
+    set: {
+      trueCostMonthly: result.trueCostMonthly,
+      costBreakdown: result.breakdown,
+    },
   });
 
   // Round 1: fold commute computation into the same loop pass as normalize.

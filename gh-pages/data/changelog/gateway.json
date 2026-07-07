@@ -1,5 +1,15 @@
 [
   {
+    "hash": "0124f64f",
+    "full_hash": "0124f64f5f8502b27c0f51937739b53de020c1c7",
+    "type": "fix",
+    "scope": "gateway",
+    "subject": "startupProbe not readinessProbe on user pods (fixes 503 under load)",
+    "author": "Vasilis Kefallinos",
+    "date": "2026-07-07 07:57:40 +0300",
+    "url": "https://github.com/lmthing/lmthing/commit/0124f64f5f8502b27c0f51937739b53de020c1c7"
+  },
+  {
     "hash": "c9e53f08",
     "full_hash": "c9e53f083a8cf7b2461c3a0e87c92c1118f72e84",
     "type": "fix",
@@ -488,15 +498,5 @@
     "author": "Vasilis Kefallinos",
     "date": "2026-04-29 16:00:43 +0300",
     "url": "https://github.com/lmthing/lmthing/commit/948193ea2a5932a2b0f4f042ba91abd8e522283c"
-  },
-  {
-    "hash": "df968dce",
-    "full_hash": "df968dceb7381f63e1fdca3e43358249a4b14ef9",
-    "type": "feat",
-    "scope": "",
-    "subject": "integrate Zitadel for authentication and user management",
-    "author": "Vasilis Kefallinos",
-    "date": "2026-04-22 17:28:10 +0300",
-    "url": "https://github.com/lmthing/lmthing/commit/df968dceb7381f63e1fdca3e43358249a4b14ef9"
   }
 ]

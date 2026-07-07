@@ -5,6 +5,10 @@
     "id":                 { "type": "string",  "description": "unique id", "primaryKey": true, "generated": "uuid" },
     "tier":               { "type": "string",  "description": "'free' or 'subscription' — gates deep research", "default": "free" },
     "weeklyBudgetUsd":    { "type": "number",  "description": "clinic research spend allowance per week (tier-driven)", "default": 1 },
-    "acceptedDisclaimer": { "type": "boolean", "description": "whether the user acknowledged this is not medical advice", "default": false }
+    "acceptedDisclaimer": { "type": "boolean", "description": "whether the user acknowledged this is not medical advice", "default": false },
+    "pinnedMetrics":      { "type": "json",    "description": "array of metric kinds the user pins to the dashboard Trends section (e.g. ['weight','resting_hr','sleep_hours']); falls back to a sensible default when empty" },
+    "notifyChannel":      { "type": "string",  "description": "where reminder crons deliver: 'in_app' (default) | 'email' | 'telegram'. External channels require the matching server credentials to actually send (graceful no-op otherwise)", "default": "in_app" },
+    "notifyEmail":        { "type": "string",  "description": "destination email for reminders when notifyChannel = 'email'" },
+    "notifyTelegramChatId":{ "type": "string", "description": "Telegram chat id for reminders when notifyChannel = 'telegram'" }
   }
 }

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { Medication } from '@app/types';
 import { useApi, useApiMutation } from '@app/runtime';
 import { MedicationRow } from '../components/MedicationRow';
-import { Spinner } from '../components/Spinner';
+import { SkeletonList, EmptyState, ErrorNote } from '../components/states';
 
 function nowLocal() {
   const d = new Date();
@@ -11,7 +11,7 @@ function nowLocal() {
 }
 
 export default function Medications() {
-  const { data: medications, isLoading, error } = useApi<Medication[]>('listMedications', {});
+  const { data: medications, isLoading, error, refetch } = useApi<Medication[]>('listMedications', {});
 
   const addMedication = useApiMutation<Medication>('addMedication', {
     invalidates: ['listMedications'],
@@ -82,9 +82,9 @@ export default function Medications() {
             {addMedication.isPending ? 'Adding…' : 'Add medication'}
           </button>
           {addMedication.error ? (
-            <p className="text-sm text-destructive">
-              {(addMedication.error as { message?: string })?.message ?? 'Failed to add medication.'}
-            </p>
+            <ErrorNote
+              message={(addMedication.error as { message?: string })?.message ?? 'Failed to add medication.'}
+            />
           ) : null}
         </form>
       </section>
@@ -92,18 +92,15 @@ export default function Medications() {
       <section className="space-y-3">
         <h2 className="text-sm font-bold uppercase text-muted-foreground">Current & past medications</h2>
 
-        {isLoading ? <Spinner /> : null}
+        {isLoading ? <SkeletonList rows={3} /> : null}
 
-        {error ? (
-          <div className="rounded-lg border border-destructive p-4 text-sm text-destructive">
-            Failed to load medications.
-          </div>
-        ) : null}
+        {error ? <ErrorNote message="Failed to load medications." onRetry={refetch} /> : null}
 
         {!isLoading && !error && (medications ?? []).length === 0 ? (
-          <div className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
-            No medications logged yet.
-          </div>
+          <EmptyState
+            title="No medications logged yet"
+            hint="Add your first medication to track doses and check interactions."
+          />
         ) : null}
 
         <div className="space-y-2">

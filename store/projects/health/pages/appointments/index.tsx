@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { Appointment } from '@app/types';
 import { useApi, useApiMutation } from '@app/runtime';
 import { AppointmentRow } from '../../components/AppointmentRow';
-import { Spinner } from '../../components/Spinner';
+import { SkeletonList, EmptyState, ErrorNote } from '../../components/states';
 
 function nowLocal() {
   const d = new Date();
@@ -11,7 +11,7 @@ function nowLocal() {
 }
 
 export default function Appointments() {
-  const { data: appointments, isLoading, error } = useApi<Appointment[]>('listAppointments', {});
+  const { data: appointments, isLoading, error, refetch } = useApi<Appointment[]>('listAppointments', {});
 
   const addAppointment = useApiMutation<Appointment>('addAppointment', {
     invalidates: ['listAppointments'],
@@ -89,9 +89,9 @@ export default function Appointments() {
             {addAppointment.isPending ? 'Adding…' : 'Add appointment'}
           </button>
           {addAppointment.error ? (
-            <p className="text-sm text-destructive">
-              {(addAppointment.error as { message?: string })?.message ?? 'Failed to add appointment.'}
-            </p>
+            <ErrorNote
+              message={(addAppointment.error as { message?: string })?.message ?? 'Failed to add appointment.'}
+            />
           ) : null}
         </form>
       </section>
@@ -99,18 +99,15 @@ export default function Appointments() {
       <section className="space-y-3">
         <h2 className="text-sm font-bold uppercase text-muted-foreground">Upcoming & past</h2>
 
-        {isLoading ? <Spinner /> : null}
+        {isLoading ? <SkeletonList rows={3} /> : null}
 
-        {error ? (
-          <div className="rounded-lg border border-destructive p-4 text-sm text-destructive">
-            Failed to load appointments.
-          </div>
-        ) : null}
+        {error ? <ErrorNote message="Failed to load appointments." onRetry={refetch} /> : null}
 
         {!isLoading && !error && (appointments ?? []).length === 0 ? (
-          <div className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
-            No appointments yet.
-          </div>
+          <EmptyState
+            title="No appointments yet"
+            hint="Add an appointment above to track upcoming visits and prepare a brief for each one."
+          />
         ) : null}
 
         <div className="space-y-2">

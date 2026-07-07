@@ -8,6 +8,9 @@ actions:
   - id: digest
     label: Daily digest
     description: summarise recent flagged labs, active symptoms, and metric trends each morning
+  - id: weekly
+    label: Weekly narrative
+    description: write a short "Your week in health" narrative insight synthesising the week's flagged labs, trends, and adherence — a paragraph the user actually reads
   - id: prep
     label: Appointment prep brief
     description: compile a one-page visit brief from flagged labs, active symptoms, trends, and ready research, ending in questions to ask
@@ -200,6 +203,43 @@ Steps:
    Nothing watches `insights` for the interpreter's own re-trigger, so this stays bounded to one
    pass per morning run; the `display(...)` summary above still stays short even though the detail
    now also lives in `insights`.
+
+## Action: weekly
+
+Triggered weekly by `hooks/weekly-digest.ts`. Write a single short **narrative** "Your week in
+health" `insights` row (`kind: 'weekly'`) — one readable paragraph, not a bullet dump — synthesising
+the week's flagged labs, notable metric trends, and medication adherence. Framed as observations for
+the user to discuss with their clinician, never a diagnosis.
+
+Write your TypeScript one statement at a time; narrate reasoning in `// comments`. `db` is
+synchronous.
+
+Steps:
+
+1. Don't write two weekly narratives for the same week — check first, and stop if one exists:
+   ```ts
+   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+   const recentWeekly = db.query('insights', {}).filter((i) => i.kind === 'weekly' && String(i.createdAt ?? '') >= weekAgo);
+   ```
+   If `recentWeekly.length > 0`, stop.
+
+2. Gather the week's signals:
+   ```ts
+   const flagged = db.query('lab_results', {}).filter((l) => l.flag && l.flag !== 'normal');
+   const trends = metricTrends(db.query('metrics', {}));
+   const doses = db.query('adherence_logs', {});
+   const scored = doses.filter((d) => d.status === 'taken' || d.status === 'missed' || d.status === 'skipped');
+   const adherencePct = scored.length ? Math.round((scored.filter((d) => d.status === 'taken').length / scored.length) * 100) : null;
+   ```
+
+3. Compose one plain-language paragraph and persist it as a single insights row:
+   ```ts
+   const moves = trends.filter((t) => t.points >= 2 && Math.abs(t.changePct) >= 5).map((t) => `${t.metricKind.replace(/_/g, ' ')} ${t.changePct > 0 ? 'up' : 'down'} ~${Math.abs(t.changePct)}%`);
+   const body = `**Your week in health.** ${flagged.length ? `${flagged.length} lab result(s) remain outside range` : 'No labs outside range'}${moves.length ? `; ${moves.join(', ')}` : ''}${adherencePct != null ? `; medication adherence ~${adherencePct}%` : ''}. These are observations from your own data to discuss with your clinician — not a diagnosis.`;
+   db.insert('insights', { kind: 'weekly', body });
+   ```
+   Nothing watches `insights` for the interpreter's own re-trigger, so this stays bounded to one
+   pass per weekly run.
 
 Guardrails:
 

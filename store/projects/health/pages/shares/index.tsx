@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import type { CareShare } from '@app/types';
 import { useApi, useApiMutation } from '@app/runtime';
 import { CareShareCard } from '../../components/CareShareCard';
-import { Spinner } from '../../components/Spinner';
+import { SkeletonList, EmptyState, ErrorNote } from '../../components/states';
 
 export default function Shares() {
-  const { data: shares, isLoading, error } = useApi<CareShare[]>('listShares', {});
+  const { data: shares, isLoading, error, refetch } = useApi<CareShare[]>('listShares', {});
 
   const createShare = useApiMutation<CareShare>('createShare', {
     invalidates: ['listShares'],
@@ -27,6 +27,8 @@ export default function Shares() {
       // surfaced via createShare.error below
     }
   };
+
+  const list = shares ?? [];
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-6">
@@ -61,9 +63,9 @@ export default function Shares() {
             {createShare.isPending ? 'Creating…' : 'Create summary'}
           </button>
           {createShare.error ? (
-            <p className="text-sm text-destructive">
-              {(createShare.error as { message?: string })?.message ?? 'Failed to create summary.'}
-            </p>
+            <ErrorNote
+              message={(createShare.error as { message?: string })?.message ?? 'Failed to create summary.'}
+            />
           ) : null}
         </form>
       </section>
@@ -71,22 +73,18 @@ export default function Shares() {
       <section className="space-y-3">
         <h2 className="text-sm font-bold uppercase text-muted-foreground">Your summaries</h2>
 
-        {isLoading ? <Spinner /> : null}
+        {isLoading ? <SkeletonList rows={3} /> : null}
+        {error ? <ErrorNote message="Failed to load summaries." onRetry={refetch} /> : null}
 
-        {error ? (
-          <div className="rounded-lg border border-destructive p-4 text-sm text-destructive">
-            Failed to load summaries.
-          </div>
-        ) : null}
-
-        {!isLoading && !error && (shares ?? []).length === 0 ? (
-          <div className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
-            No care summaries yet.
-          </div>
+        {!isLoading && !error && list.length === 0 ? (
+          <EmptyState
+            title="No care summaries yet"
+            hint="Create a shareable summary of your record — the coordinator compiles it, then you can print or hand it to a clinician."
+          />
         ) : null}
 
         <div className="space-y-2">
-          {(shares ?? []).map((s) => (
+          {list.map((s) => (
             <CareShareCard key={s.id} share={s} />
           ))}
         </div>

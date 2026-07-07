@@ -2,10 +2,10 @@ import React from 'react';
 import type { VisitBrief } from '@app/types';
 import { useApi, useApiMutation } from '@app/runtime';
 import { VisitBriefCard } from '../components/VisitBriefCard';
-import { Spinner } from '../components/Spinner';
+import { SkeletonList, EmptyState, ErrorNote, AIWorking } from '../components/states';
 
 export default function Visits() {
-  const { data: briefs, isLoading, error } = useApi<VisitBrief[]>('listVisitBriefs', {});
+  const { data: briefs, isLoading, error, refetch } = useApi<VisitBrief[]>('listVisitBriefs', {});
 
   const prepareVisit = useApiMutation<VisitBrief>('prepareVisit', {
     invalidates: ['listVisitBriefs'],
@@ -26,30 +26,37 @@ export default function Visits() {
       </div>
 
       {prepareVisit.error ? (
-        <p className="text-sm text-destructive">
-          {(prepareVisit.error as { message?: string })?.message ?? 'Failed to prepare visit brief.'}
-        </p>
+        <ErrorNote
+          message={(prepareVisit.error as { message?: string })?.message ?? 'Failed to prepare visit brief.'}
+        />
       ) : null}
 
       <section className="space-y-3">
-        {isLoading ? <Spinner /> : null}
+        {isLoading ? <SkeletonList rows={2} /> : null}
 
-        {error ? (
-          <div className="rounded-lg border border-destructive p-4 text-sm text-destructive">
-            Failed to load visit briefs.
-          </div>
-        ) : null}
+        {error ? <ErrorNote message="Failed to load visit briefs." onRetry={refetch} /> : null}
 
         {!isLoading && !error && (briefs ?? []).length === 0 ? (
-          <div className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
-            No visit briefs yet.
-          </div>
+          <EmptyState
+            title="No visit briefs yet"
+            hint="Prepare a brief and the interpreter will summarize your recent labs, meds, and symptoms for your next visit."
+            actions={[
+              {
+                label: prepareVisit.isPending ? 'Preparing…' : 'Prepare a new brief',
+                onClick: () => prepareVisit.mutate({}),
+              },
+            ]}
+          />
         ) : null}
 
         <div className="space-y-3">
-          {(briefs ?? []).map((b) => (
-            <VisitBriefCard key={b.id} brief={b} />
-          ))}
+          {(briefs ?? []).map((b) =>
+            b.status === 'pending' ? (
+              <AIWorking key={b.id} agent="The interpreter" label="Preparing brief…" />
+            ) : (
+              <VisitBriefCard key={b.id} brief={b} />
+            ),
+          )}
         </div>
       </section>
     </main>

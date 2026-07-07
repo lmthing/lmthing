@@ -33,11 +33,13 @@ const EXPECTED_TABLES = [
   'followups',
   'goals',
   'insights',
+  'integrations',
   'interactions',
   'knowledge_notes',
   'lab_results',
   'medications',
   'metrics',
+  'quicklog_drafts',
   'research',
   'settings',
   'sources',
@@ -46,7 +48,7 @@ const EXPECTED_TABLES = [
   'visit_briefs',
 ];
 
-test('all 20 database schemas pass the engine validateSchemaSet (fail-loud)', async () => {
+test('all 22 database schemas pass the engine validateSchemaSet (fail-loud)', async () => {
   assert.ok(
     existsSync(CORE),
     `built @lmthing/core not found at ${CORE} — run \`pnpm --filter @lmthing/core build\` in sdk/org`,
@@ -176,9 +178,19 @@ const EXPECTED_ENDPOINTS = [
   ['triage/POST.ts', 'requestTriage'],
   ['triage/GET.ts', 'listTriage'],
   ['triage/[id]/GET.ts', 'getTriage'],
+  // round 4 — dashboard, quick-log, integrations, notifications, settings
+  ['attention/GET.ts', 'getAttention'],
+  ['quick-log/POST.ts', 'quickLog'],
+  ['quick-log/[id]/GET.ts', 'getQuickLogDraft'],
+  ['quick-log/commit/POST.ts', 'commitQuickLog'],
+  ['settings/PATCH.ts', 'updateSettings'],
+  ['notify/POST.ts', 'sendNotification'],
+  ['integrations/GET.ts', 'listIntegrations'],
+  ['integrations/connect/POST.ts', 'connectIntegration'],
+  ['documents/ingest/POST.ts', 'ingestDocumentFile'],
 ];
 
-test('all 44 api handlers exist and export name / Input / Output / default handler', () => {
+test('all 53 api handlers exist and export name / Input / Output / default handler', () => {
   for (const [rel, name] of EXPECTED_ENDPOINTS) {
     const p = join(APP, 'api', rel);
     assert.ok(existsSync(p), `missing handler ${rel}`);
@@ -233,14 +245,32 @@ const EXPECTED_HOOKS = [
   ['triage-symptom.ts', /table:\s*['"]triage_assessments['"]/, /care\/triage-nurse#assess/],
   ['dose-reminders.ts', /type:\s*['"]cron['"]/, /pharmacy\/pharmacist#reminders/],
   ['appointment-reminders.ts', /type:\s*['"]cron['"]/, /care\/coordinator#reminders/],
+  // round 4 — natural-language quick-log parse (declarative → logger draft action)
+  ['parse-quicklog.ts', /table:\s*['"]quicklog_drafts['"]/, /clinic\/logger#draft/],
+  ['weekly-digest.ts', /type:\s*['"]cron['"]/, /clinic\/interpreter#weekly/],
 ];
 
-test('all 12 hooks exist with the right table/type and trigger target', () => {
+test('all 14 declarative/cron hooks exist with the right table/type and trigger target', () => {
   for (const [file, shape, target] of EXPECTED_HOOKS) {
     const src = readFileSync(join(APP, 'hooks', file), 'utf8');
     assert.match(src, shape, `${file}: wrong shape`);
     assert.match(src, target, `${file}: wrong trigger target`);
   }
+});
+
+test('sync-wearables is an imperative cron hook with a graceful no-op handler', () => {
+  const src = readFileSync(join(APP, 'hooks', 'sync-wearables.ts'), 'utf8');
+  assert.match(src, /type:\s*['"]cron['"]/);
+  assert.match(src, /every:\s*['"]1h['"]/);
+  assert.match(src, /handler:/, 'sync-wearables must use an imperative handler');
+  assert.match(src, /status:\s*['"]connected['"]/, 'must only sync connected integrations');
+});
+
+test('parse-quicklog is an insert-triggered declarative hook to the logger', () => {
+  const src = readFileSync(join(APP, 'hooks', 'parse-quicklog.ts'), 'utf8');
+  assert.match(src, /type:\s*['"]database['"]/);
+  assert.match(src, /event:\s*['"]insert['"]/);
+  assert.match(src, /trigger:\s*['"]clinic\/logger#draft['"]/);
 });
 
 test('the two round-2 database hooks are declarative triggers (self-query pattern)', () => {
@@ -258,7 +288,7 @@ const SPACES = {
   records: ['analyst', 'librarian'],
   coaching: ['coach'],
   pharmacy: ['pharmacist'],
-  care: ['coordinator', 'triage-nurse'],
+  care: ['assistant', 'coordinator', 'triage-nurse'],
 };
 
 test('five project-scoped spaces exist, each with the expected agents (charter + instruct)', () => {
@@ -300,6 +330,22 @@ test('every space is FULL format — functions/, components/, and extensive know
   }
 });
 
+test('care/assistant is an app-wide orchestrator: api:call + safe writes, no clinical-table writes', () => {
+  const src = readFileSync(join(APP, 'spaces', 'care', 'agents', 'assistant', 'instruct.md'), 'utf8');
+  const fmBlock = src.split('---')[1] ?? '';
+  // It orchestrates the pending-row pipelines via api:call…
+  assert.match(fmBlock, /api:call/, 'assistant must hold api:call to trigger specialist pipelines');
+  // …and writes ONLY the low-risk, user-authored tables — never the clinical, AI-authored ones.
+  assert.match(fmBlock, /db:write:\s*\{\s*tables:\s*\[metrics,\s*symptoms,\s*medications,\s*adherence_logs,\s*appointments,\s*goals,\s*followups,\s*care_contacts\]/);
+  for (const clinical of ['lab_results', 'research', 'interactions', 'triage_assessments', 'visit_briefs', 'care_shares', 'insights']) {
+    // none of the clinical tables appear inside the db:write grant line
+    const writeLine = (fmBlock.match(/db:write:[^\n]*/) ?? [''])[0];
+    assert.doesNotMatch(writeLine, new RegExp(clinical), `assistant must NOT db:write ${clinical}`);
+  }
+  // Confirm-before-write is stated as a hard rule.
+  assert.match(src, /[Cc]onfirm/, 'assistant must document confirm-before-write');
+});
+
 // ── Capabilities — least-privilege across all six agents ─────────────────────
 test('no operating agent holds an authoring capability (db:schema / pages/api/hooks:write)', () => {
   for (const [space, agents] of Object.entries(SPACES)) {
@@ -318,8 +364,8 @@ test('per-verb table scope holds for the extended + new agents', () => {
   // interpreter now also writes visit_briefs + insights
   const interpreter = read('clinic', 'interpreter');
   assert.match(interpreter, /db:write:\s*\{\s*tables:\s*\[lab_results,\s*research,\s*visit_briefs,\s*insights,\s*followups\]/);
-  // logger now also writes medications
-  assert.match(read('clinic', 'logger'), /db:write:\s*\{\s*tables:\s*\[metrics,\s*lab_results,\s*symptoms,\s*medications\]/);
+  // logger now also writes medications + the quicklog_drafts preview (draft action)
+  assert.match(read('clinic', 'logger'), /db:write:\s*\{\s*tables:\s*\[metrics,\s*lab_results,\s*symptoms,\s*medications,\s*quicklog_drafts\]/);
   // researcher unchanged (research only)
   assert.match(read('clinic', 'researcher'), /db:write:\s*\{\s*tables:\s*\[research\]/);
   // analyst writes the ingestion tables incl. research (queues dives) but NOT via canDelegateTo

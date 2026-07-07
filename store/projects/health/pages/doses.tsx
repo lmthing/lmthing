@@ -4,14 +4,21 @@ import { useApi, useApiMutation } from '@app/runtime';
 import { DoseChecklist } from '../components/DoseChecklist';
 import { DoseRow } from '../components/DoseRow';
 import { AdherenceBar } from '../components/AdherenceBar';
-import { Spinner } from '../components/Spinner';
+import { SkeletonList, EmptyState, ErrorNote } from '../components/states';
 
 export default function Doses() {
-  const { data: medications, isLoading: medsLoading, error: medsError } = useApi<Medication[]>(
-    'listMedications',
-    {},
-  );
-  const { data: doses, isLoading: dosesLoading, error: dosesError } = useApi<AdherenceLog[]>('listDoses', {});
+  const {
+    data: medications,
+    isLoading: medsLoading,
+    error: medsError,
+    refetch: refetchMeds,
+  } = useApi<Medication[]>('listMedications', {});
+  const {
+    data: doses,
+    isLoading: dosesLoading,
+    error: dosesError,
+    refetch: refetchDoses,
+  } = useApi<AdherenceLog[]>('listDoses', {});
 
   const logDose = useApiMutation<AdherenceLog>('logDose', {
     invalidates: ['listDoses'],
@@ -41,12 +48,16 @@ export default function Doses() {
     <main className="mx-auto max-w-3xl space-y-6 p-6">
       <h1 className="text-xl font-bold text-foreground">Today's doses</h1>
 
-      {isLoading ? <Spinner /> : null}
+      {isLoading ? <SkeletonList rows={4} /> : null}
 
       {error ? (
-        <div className="rounded-lg border border-destructive p-4 text-sm text-destructive">
-          Failed to load doses.
-        </div>
+        <ErrorNote
+          message="Failed to load doses."
+          onRetry={() => {
+            refetchMeds();
+            refetchDoses();
+          }}
+        />
       ) : null}
 
       {!isLoading && !error ? (
@@ -55,17 +66,19 @@ export default function Doses() {
             <h2 className="text-sm font-bold uppercase text-muted-foreground">Checklist</h2>
 
             {activeMedications.length === 0 ? (
-              <div className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
-                No active medications.
-              </div>
+              <EmptyState
+                title="No active medications"
+                hint="Add a medication to build today's dose checklist."
+                actions={[{ label: 'Add a medication', href: '/medications' }]}
+              />
             ) : (
               <DoseChecklist medications={activeMedications} onMark={onMark} markingId={markingId} />
             )}
 
             {logDose.error ? (
-              <p className="text-sm text-destructive">
-                {(logDose.error as { message?: string })?.message ?? 'Failed to log dose.'}
-              </p>
+              <ErrorNote
+                message={(logDose.error as { message?: string })?.message ?? 'Failed to log dose.'}
+              />
             ) : null}
           </section>
 
@@ -78,9 +91,10 @@ export default function Doses() {
             <h2 className="text-sm font-bold uppercase text-muted-foreground">Recent doses</h2>
 
             {doseList.length === 0 ? (
-              <div className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
-                No doses logged yet.
-              </div>
+              <EmptyState
+                title="No doses logged yet"
+                hint="Mark a dose on the checklist above and it will appear here with your adherence trend."
+              />
             ) : (
               <div className="space-y-2">
                 {doseList.map((d) => (

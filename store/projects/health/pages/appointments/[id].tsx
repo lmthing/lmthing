@@ -2,28 +2,35 @@ import React from 'react';
 import type { Appointment } from '@app/types';
 import { useApi, useApiMutation, Chat, Link } from '@app/runtime';
 import { AppointmentCard } from '../../components/AppointmentCard';
-import { Spinner } from '../../components/Spinner';
+import { SkeletonList, ErrorNote } from '../../components/states';
 
 const STATUSES = ['scheduled', 'completed', 'cancelled'] as const;
 
 export default function AppointmentDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;
-  const { data: appointments, isLoading, error } = useApi<Appointment[]>('listAppointments', {});
+  const { data: appointments, isLoading, error, refetch } = useApi<Appointment[]>('listAppointments', {});
 
   const updateAppointment = useApiMutation<Appointment>('updateAppointment', {
     invalidates: ['listAppointments'],
   });
 
-  if (isLoading) return <Spinner />;
+  if (isLoading) {
+    return (
+      <main className="mx-auto max-w-2xl p-6">
+        <SkeletonList rows={3} />
+      </main>
+    );
+  }
 
   const appointment = (appointments ?? []).find((a) => a.id === id);
 
   if (error || !appointment) {
     return (
-      <main className="mx-auto max-w-2xl p-6">
-        <div className="rounded-lg border border-destructive p-4 text-sm text-destructive">
-          Appointment not found.
-        </div>
+      <main className="mx-auto max-w-2xl space-y-4 p-6">
+        <Link href="/appointments" className="text-sm text-muted-foreground hover:text-primary">
+          ← All appointments
+        </Link>
+        <ErrorNote message="Appointment not found." onRetry={refetch} />
       </main>
     );
   }
@@ -54,9 +61,9 @@ export default function AppointmentDetailPage({ params }: { params: { id: string
           ))}
         </div>
         {updateAppointment.error ? (
-          <p className="text-sm text-destructive">
-            {(updateAppointment.error as { message?: string })?.message ?? 'Failed to update appointment.'}
-          </p>
+          <ErrorNote
+            message={(updateAppointment.error as { message?: string })?.message ?? 'Failed to update appointment.'}
+          />
         ) : null}
       </section>
 

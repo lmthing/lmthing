@@ -1,0 +1,16 @@
+{
+  "title": "Integrations",
+  "description": "One connected external service (a wearable, patient portal, or notification channel) the app syncs data with. Access tokens live here so the sync hooks can refresh them; nothing here is ever shown raw to the user.",
+  "columns": {
+    "id":           { "type": "string",  "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "provider":     { "type": "string",  "description": "'fitbit' | 'google_fit' | 'apple_health' | 'fhir' | 'google_calendar' — the external service key", "required": true },
+    "status":       { "type": "string",  "description": "'disconnected' | 'connected' | 'error' — whether we currently hold usable credentials", "default": "disconnected" },
+    "accessToken":  { "type": "string",  "description": "OAuth access token for the provider REST API (null until connected)" },
+    "refreshToken": { "type": "string",  "description": "OAuth refresh token used to renew the access token" },
+    "expiresAt":    { "type": "date",    "description": "when the current access token expires" },
+    "scopes":       { "type": "string",  "description": "space-separated OAuth scopes granted" },
+    "lastSyncAt":   { "type": "date",    "description": "timestamp of the last successful sync from this provider" },
+    "lastError":    { "type": "string",  "description": "the most recent sync/connect error, if any (for the settings status UI)" },
+    "createdAt":    { "type": "date",    "description": "when the integration row was created", "generated": "now" }
+  }
+}

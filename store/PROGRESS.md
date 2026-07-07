@@ -8,7 +8,7 @@ Apps: **blog, health, kitchen, trips, homes**. Each app's proposals live in `sto
 | App | P1 Ideate | P2 Implement | P3 Test/Fix |
 |---|---|---|---|
 | blog | ✅ done | ✅ done | ⏳ pending |
-| health | ✅ done | 🔵 running | ⏳ pending |
+| health | ✅ done | ✅ done | ⏳ pending |
 | kitchen | ✅ done | 🔵 running | ⏳ pending |
 | trips | ✅ done | 🔵 running | ⏳ pending |
 | homes | ✅ done | ✅ done | ⏳ pending |
@@ -22,4 +22,5 @@ Apps: **blog, health, kitchen, trips, homes**. Each app's proposals live in `sto
 - **Phase 2 (implement)** started — 5 agents implementing each app's IDEAS.
   - (session limit hit mid-phase; all 5 agents resumed in place.)
 - ✅ blog implemented → committed. New IA/left-rail+mobile nav, editorial cards, reading+research surface, Editor concierge agent+chat, RSS/OPML/Resend integrations; 22 tests pass.
-- ✅ homes implemented → committed. Global alerts bell, command-center dashboard, triage cockpit, listing detail+map, concierge agent+dock, Nominatim/ICS/FX integrations; 36 tests pass. Still running: health (resumed), kitchen, trips.
+- ✅ homes implemented → committed. Global alerts bell, command-center dashboard, triage cockpit, listing detail+map, concierge agent+dock, Nominatim/ICS/FX integrations; 36 tests pass.
+- ✅ health implemented → committed. 6-section nav + mobile bar, dashboard rebuild, NL quick-log, Explain-Plainly, weekly digest, care/assistant agent+dock, wearables/OCR/notify scaffolds; 20 tests pass, clinical-safety preserved. Still running: kitchen, trips.

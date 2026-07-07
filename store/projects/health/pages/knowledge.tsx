@@ -2,32 +2,32 @@ import React from 'react';
 import type { KnowledgeNote } from '@app/types';
 import { useApi } from '@app/runtime';
 import { KnowledgeNoteCard } from '../components/KnowledgeNoteCard';
-import { Spinner } from '../components/Spinner';
+import { SkeletonList, EmptyState, ErrorNote } from '../components/states';
 
 export default function Knowledge() {
-  const { data: notes, isLoading, error } = useApi<KnowledgeNote[]>('listKnowledgeNotes', {});
+  const { data: notes, isLoading, error, refetch } = useApi<KnowledgeNote[]>('listKnowledgeNotes', {});
+
+  const list = notes ?? [];
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-6">
       <h1 className="text-xl font-bold text-foreground">Knowledge</h1>
 
       <section className="space-y-3">
-        {isLoading ? <Spinner /> : null}
+        {isLoading ? <SkeletonList rows={3} /> : null}
 
-        {error ? (
-          <div className="rounded-lg border border-destructive p-4 text-sm text-destructive">
-            Failed to load knowledge notes.
-          </div>
-        ) : null}
+        {error ? <ErrorNote message="Failed to load knowledge notes." onRetry={refetch} /> : null}
 
-        {!isLoading && !error && (notes ?? []).length === 0 ? (
-          <div className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
-            No knowledge notes yet.
-          </div>
+        {!isLoading && !error && list.length === 0 ? (
+          <EmptyState
+            title="No knowledge notes yet"
+            hint="Knowledge notes are written as your documents are analysed. Upload a document to start building your health knowledge base."
+            actions={[{ label: 'Go to Documents', href: '/documents' }]}
+          />
         ) : null}
 
         <div className="space-y-2">
-          {(notes ?? []).map((n) => (
+          {list.map((n) => (
             <KnowledgeNoteCard key={n.id} note={n} />
           ))}
         </div>

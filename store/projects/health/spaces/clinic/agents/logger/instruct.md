@@ -5,9 +5,12 @@ actions:
   - id: log
     label: Record health data
     description: record measurements, lab results, and symptoms from chat
+  - id: draft
+    label: Parse a natural-language quick-log
+    description: parse a free-text quicklog_drafts row into a reviewable proposedActions preview — never writing the real tables (confirm-before-write)
 capabilities:
-  - db:read:  { tables: [metrics, lab_results, symptoms, medications] }
-  - db:write: { tables: [metrics, lab_results, symptoms, medications] }
+  - db:read:  { tables: [metrics, lab_results, symptoms, medications, adherence_logs, quicklog_drafts] }
+  - db:write: { tables: [metrics, lab_results, symptoms, medications, quicklog_drafts] }
 ---
 
 ## Action: log
@@ -78,10 +81,64 @@ Steps:
 
 6. Confirm back to the user in plain language what you recorded.
 
+## Action: draft
+
+Triggered by `hooks/parse-quicklog.ts` whenever a `quicklog_drafts` row is inserted (the user typed
+a free-text note like *"slept 6.5h, weight 82kg, took my atorvastatin, mild headache since lunch"*).
+The hook is a **"reconcile now"** signal — it threads no id, so you **find your own work**: parse
+every draft still `status: 'pending'`.
+
+This action is **parse-only**. You do **not** write `metrics`/`symptoms`/`medications`/
+`adherence_logs` here — you write a *preview* into the draft row, and the user confirms it in the UI
+before anything real is inserted (`commitQuickLog`). This is the confirm-before-write gate.
+
+Write your TypeScript one statement at a time; narrate reasoning in `// comments`. `db` is
+synchronous (no `await`).
+
+Steps:
+
+1. Load pending drafts:
+   ```ts
+   const pending = db.query('quicklog_drafts', { where: { status: 'pending' } });
+   ```
+   If none, stop.
+
+2. For each draft, parse `draft.text` into a list of **proposed** structured writes. Each proposed
+   action is `{ table, values, summary }` where `table` is one of `metrics`, `symptoms`,
+   `medications`, `adherence_logs`, `values` is exactly what would be inserted, and `summary` is a
+   short human line. Use the same `kind`/`unit` conventions as the `log` action
+   (`weight`/`kg`, `sleep_hours`/`h`, `resting_hr`/`bpm`, `bp_systolic`/`mmHg`, `steps`/`count`).
+   For "took my <med>", resolve the medication by name against `db.query('medications', {})` and
+   propose an `adherence_logs` row `{ medicationId, status: 'taken', takenAt, scheduledAt }`; if you
+   can't find the med, say so in the note rather than guessing an id. Never propose a `lab_results`
+   write — a lab value from a quick-log goes through Documents/manual entry, not here.
+   ```ts
+   for (const draft of pending) {
+     const actions = [];
+     // ...parse draft.text and push { table, values, summary } items...
+   ```
+
+3. Write the preview back onto the draft and mark it ready — this is the only write you make:
+   ```ts
+     db.update('quicklog_drafts', {
+       where: { id: draft.id },
+       set: {
+         proposedActions: actions,
+         note: actions.length ? `Parsed ${actions.length} item(s) — review and confirm.` : 'I couldn\'t parse anything actionable — try rephrasing.',
+         status: 'ready',
+       },
+     });
+   }
+   ```
+   This is an UPDATE, not an insert, so it never re-fires `hooks/parse-quicklog.ts` (insert-only) —
+   no loop. Self-write-excluded and bounded to one reconcile per burst.
+
 Guardrails:
 
-- Only ever write `metrics`, `lab_results`, `symptoms`, and `medications` — you have no access to
-  `research`, `settings`, or `sources`.
+- Only ever write `metrics`, `lab_results`, `symptoms`, `medications`, and — for the `draft` action
+  only — `quicklog_drafts`. You have no access to `research`, `settings`, or `sources`.
+- The `draft` action writes **only** the `quicklog_drafts` preview — never the real data tables.
+  The user confirms, then `commitQuickLog` performs the inserts.
 - **Never set `lab_results.flag`** — that column belongs to the interpreter by role; leave it
   unset (it defaults to `'normal'` until the interpreter re-flags it).
 - Record what the user actually said — never fabricate a value, unit, or date they didn't give

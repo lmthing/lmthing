@@ -1,105 +1,98 @@
-import React, { useState } from 'react';
-import type { Metric } from '@app/types';
-import { useApi, useApiMutation } from '@app/runtime';
+import React from 'react';
+import type { Metric, Insight, Setting } from '@app/types';
+import { useApi, Link } from '@app/runtime';
 import { HealthStats, type Stats } from '../components/HealthStats';
 import { MetricChart } from '../components/MetricChart';
-import { Spinner } from '../components/Spinner';
+import { AttentionStrip } from '../components/AttentionStrip';
+import { TodayPlan } from '../components/TodayPlan';
+import { QuickLogCard } from '../components/QuickLogCard';
+import { InsightCard } from '../components/InsightCard';
+import { SkeletonList, ErrorNote } from '../components/states';
+import { ArrowRightIcon } from '../components/icons';
 
-const TRACKED_KINDS = ['weight', 'resting_hr', 'sleep_hours'];
+interface AttentionItem {
+  kind: 'lab' | 'followup' | 'dose' | 'appointment' | 'triage';
+  severity: 'emergency' | 'urgent' | 'routine';
+  title: string;
+  detail: string;
+  href: string;
+  count?: number;
+}
+
+const DEFAULT_TRACKED = ['weight', 'resting_hr', 'sleep_hours'];
 
 function MetricSection({ kind }: { kind: string }) {
-  const { data, isLoading } = useApi<Metric[]>('listMetrics', { kind });
-
-  if (isLoading) return <Spinner />;
-
+  const { data } = useApi<Metric[]>('listMetrics', { kind });
   return <MetricChart kind={kind} points={data ?? []} />;
 }
 
+function SectionHeading({ title, href, linkLabel }: { title: string; href?: string; linkLabel?: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <h2 className="text-sm font-bold uppercase text-muted-foreground">{title}</h2>
+      {href ? (
+        <Link href={href} className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+          {linkLabel ?? 'See all'} <ArrowRightIcon className="h-3.5 w-3.5" />
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
 export default function Dashboard() {
-  const { data: stats, isLoading: statsLoading } = useApi<Stats>('healthStats', {});
+  const { data: stats } = useApi<Stats>('healthStats', {});
+  const attention = useApi<{ items: AttentionItem[]; total: number }>('getAttention', {});
+  const { data: settings } = useApi<Setting>('getSettings', {});
+  const { data: insights } = useApi<Insight[]>('listInsights', {});
 
-  const logMetric = useApiMutation<Metric>('logMetric', {
-    invalidates: ['healthStats', 'listMetrics'],
-  });
-
-  const [kind, setKind] = useState('weight');
-  const [value, setValue] = useState('');
-  const [unit, setUnit] = useState('kg');
-
-  const onLog = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!value.trim() || !unit.trim()) return;
-    try {
-      await logMetric.mutate({
-        kind,
-        value: Number(value),
-        unit: unit.trim(),
-      });
-      setValue('');
-    } catch {
-      // surfaced via logMetric.error below
-    }
-  };
+  const pinned =
+    Array.isArray(settings?.pinnedMetrics) && settings!.pinnedMetrics!.length > 0
+      ? (settings!.pinnedMetrics as string[])
+      : DEFAULT_TRACKED;
+  const latestInsight = (insights ?? [])[0];
 
   return (
-    <main className="mx-auto max-w-4xl space-y-6 p-6">
-      <h1 className="text-xl font-bold text-foreground">Dashboard</h1>
+    <main className="mx-auto max-w-4xl space-y-8 p-6">
+      <h1 className="text-xl font-bold text-foreground">Today</h1>
 
-      {statsLoading ? <Spinner /> : null}
+      <section className="space-y-3">
+        <SectionHeading title="Needs attention" />
+        {attention.isLoading ? (
+          <SkeletonList rows={1} />
+        ) : attention.error ? (
+          <ErrorNote message="Couldn't load your attention items." onRetry={attention.refetch} />
+        ) : (
+          <AttentionStrip items={attention.data?.items ?? []} />
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <SectionHeading title="Today's plan" />
+        <TodayPlan />
+      </section>
+
+      <QuickLogCard onCommitted={() => attention.refetch()} />
+
       {stats ? <HealthStats stats={stats} /> : null}
 
       <section className="space-y-3">
-        <h2 className="text-sm font-bold uppercase text-muted-foreground">Trends</h2>
+        <SectionHeading title="Trends" href="/insights" linkLabel="Insights" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {TRACKED_KINDS.map((k) => (
+          {pinned.map((k) => (
             <MetricSection key={k} kind={k} />
           ))}
         </div>
+        <p className="text-xs text-muted-foreground">
+          Pin the metrics you care about in <Link href="/settings" className="text-primary hover:underline">Settings</Link>.
+        </p>
       </section>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-bold uppercase text-muted-foreground">Log a measurement</h2>
-        <form onSubmit={onLog} className="space-y-3 rounded-lg border border-border bg-card p-4">
-          <div className="flex gap-3">
-            <select
-              value={kind}
-              onChange={(e) => setKind(e.target.value)}
-              className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground"
-            >
-              <option value="weight">Weight</option>
-              <option value="resting_hr">Resting heart rate</option>
-              <option value="sleep_hours">Sleep hours</option>
-              <option value="bp_systolic">Blood pressure (systolic)</option>
-              <option value="steps">Steps</option>
-            </select>
-            <input
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder="Value"
-              type="number"
-              className="w-32 rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground"
-            />
-            <input
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-              placeholder="Unit"
-              className="w-24 rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={logMetric.isPending || !value.trim() || !unit.trim()}
-            className="rounded-md bg-primary px-4 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
-          >
-            {logMetric.isPending ? 'Logging…' : 'Log measurement'}
-          </button>
-          {logMetric.error ? (
-            <p className="text-sm text-destructive">
-              {(logMetric.error as { message?: string })?.message ?? 'Failed to log measurement.'}
-            </p>
-          ) : null}
-        </form>
-      </section>
+      {latestInsight ? (
+        <section className="space-y-3">
+          <SectionHeading title="Latest insight" href="/insights" />
+          <InsightCard insight={latestInsight} />
+        </section>
+      ) : null}
     </main>
   );
 }

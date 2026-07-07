@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import type { CareContact } from '@app/types';
 import { useApi, useApiMutation } from '@app/runtime';
 import { ContactCard } from '../components/ContactCard';
-import { Spinner } from '../components/Spinner';
+import { SkeletonList, EmptyState, ErrorNote } from '../components/states';
 
 export default function Contacts() {
-  const { data: contacts, isLoading, error } = useApi<CareContact[]>('listContacts', {});
+  const { data: contacts, isLoading, error, refetch } = useApi<CareContact[]>('listContacts', {});
 
   const addContact = useApiMutation<CareContact>('addContact', {
     invalidates: ['listContacts'],
@@ -92,9 +92,9 @@ export default function Contacts() {
             {addContact.isPending ? 'Adding…' : 'Add contact'}
           </button>
           {addContact.error ? (
-            <p className="text-sm text-destructive">
-              {(addContact.error as { message?: string })?.message ?? 'Failed to add contact.'}
-            </p>
+            <ErrorNote
+              message={(addContact.error as { message?: string })?.message ?? 'Failed to add contact.'}
+            />
           ) : null}
         </form>
       </section>
@@ -102,18 +102,15 @@ export default function Contacts() {
       <section className="space-y-3">
         <h2 className="text-sm font-bold uppercase text-muted-foreground">Your care team</h2>
 
-        {isLoading ? <Spinner /> : null}
+        {isLoading ? <SkeletonList rows={2} /> : null}
 
-        {error ? (
-          <div className="rounded-lg border border-destructive p-4 text-sm text-destructive">
-            Failed to load contacts.
-          </div>
-        ) : null}
+        {error ? <ErrorNote message="Failed to load contacts." onRetry={refetch} /> : null}
 
         {!isLoading && !error && (contacts ?? []).length === 0 ? (
-          <div className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
-            No contacts yet.
-          </div>
+          <EmptyState
+            title="No contacts yet"
+            hint="Add your doctors, pharmacy, and emergency contacts so they're one tap away and ready to include in a care summary."
+          />
         ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2">

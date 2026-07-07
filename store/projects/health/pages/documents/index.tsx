@@ -3,12 +3,13 @@ import type { Document } from '@app/types';
 import { useApi } from '@app/runtime';
 import { DocumentRow } from '../../components/DocumentRow';
 import { UploadForm } from '../../components/UploadForm';
-import { Spinner } from '../../components/Spinner';
+import { SkeletonList, EmptyState, ErrorNote, AIWorking } from '../../components/states';
 
 export default function Documents() {
   const { data: documents, isLoading, error, refetch } = useApi<Document[]>('listDocuments', {});
 
-  const pending = (documents ?? []).some((d) => d.status === 'pending' || d.status === 'analyzing');
+  const list = documents ?? [];
+  const isPending = (d: Document) => d.status === 'pending' || d.status === 'analyzing';
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-6">
@@ -22,31 +23,30 @@ export default function Documents() {
       <section className="space-y-3">
         <h2 className="text-sm font-bold uppercase text-muted-foreground">Your documents</h2>
 
-        {pending ? (
-          <p className="text-sm text-muted-foreground">
-            Some documents are still being analysed in the background — this page will update
-            automatically.
-          </p>
-        ) : null}
+        {isLoading ? <SkeletonList rows={3} /> : null}
 
-        {isLoading ? <Spinner /> : null}
+        {error ? <ErrorNote message="Failed to load documents." onRetry={refetch} /> : null}
 
-        {error ? (
-          <div className="rounded-lg border border-destructive p-4 text-sm text-destructive">
-            Failed to load documents.
-          </div>
-        ) : null}
-
-        {!isLoading && !error && (documents ?? []).length === 0 ? (
-          <div className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
-            No documents uploaded yet.
-          </div>
+        {!isLoading && !error && list.length === 0 ? (
+          <EmptyState
+            title="No documents uploaded yet"
+            hint="Upload a lab PDF, discharge summary or visit note above and the analyst will extract results and write plain-language notes for you."
+          />
         ) : null}
 
         <div className="space-y-2">
-          {(documents ?? []).map((d) => (
-            <DocumentRow key={d.id} document={d} />
-          ))}
+          {list.map((d) =>
+            isPending(d) ? (
+              <AIWorking
+                key={d.id}
+                agent="The analyst"
+                label="Analyzing…"
+                hint={`Reading “${d.filename}” — extractions and notes will appear here automatically.`}
+              />
+            ) : (
+              <DocumentRow key={d.id} document={d} />
+            ),
+          )}
         </div>
       </section>
     </main>

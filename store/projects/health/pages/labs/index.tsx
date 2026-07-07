@@ -2,31 +2,31 @@ import React from 'react';
 import type { LabResult } from '@app/types';
 import { useApi } from '@app/runtime';
 import { LabRow } from '../../components/LabRow';
-import { Spinner } from '../../components/Spinner';
+import { SkeletonList, EmptyState, ErrorNote } from '../../components/states';
 
 export default function Labs() {
-  const { data: labs, isLoading, error } = useApi<LabResult[]>('listLabs', {});
+  const { data: labs, isLoading, error, refetch } = useApi<LabResult[]>('listLabs', {});
+
+  const list = labs ?? [];
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-6">
       <h1 className="text-xl font-bold text-foreground">Lab results</h1>
 
-      {isLoading ? <Spinner /> : null}
+      {isLoading ? <SkeletonList rows={4} /> : null}
 
-      {error ? (
-        <div className="rounded-lg border border-destructive p-4 text-sm text-destructive">
-          Failed to load lab results.
-        </div>
-      ) : null}
+      {error ? <ErrorNote message="Failed to load lab results." onRetry={refetch} /> : null}
 
-      {!isLoading && !error && (labs ?? []).length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
-          No lab results yet.
-        </div>
+      {!isLoading && !error && list.length === 0 ? (
+        <EmptyState
+          title="No lab results yet"
+          hint="No lab results yet. Upload a lab PDF in Documents, or add one manually."
+          actions={[{ label: 'Go to Documents', href: '/documents' }]}
+        />
       ) : null}
 
       <div className="space-y-2">
-        {(labs ?? []).map((lab) => (
+        {list.map((lab) => (
           <LabRow key={lab.id} lab={lab} />
         ))}
       </div>

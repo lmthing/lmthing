@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import type { Goal } from '@app/types';
 import { useApi, useApiMutation, Chat } from '@app/runtime';
 import { GoalCard } from '../components/GoalCard';
-import { Spinner } from '../components/Spinner';
+import { SkeletonList, EmptyState, ErrorNote } from '../components/states';
 
 export default function Goals() {
-  const { data: goals, isLoading, error } = useApi<Goal[]>('listGoals', {});
+  const { data: goals, isLoading, error, refetch } = useApi<Goal[]>('listGoals', {});
 
   const createGoal = useApiMutation<Goal>('createGoal', {
     invalidates: ['listGoals'],
@@ -68,9 +68,9 @@ export default function Goals() {
             {createGoal.isPending ? 'Creating…' : 'Create goal'}
           </button>
           {createGoal.error ? (
-            <p className="text-sm text-destructive">
-              {(createGoal.error as { message?: string })?.message ?? 'Failed to create goal.'}
-            </p>
+            <ErrorNote
+              message={(createGoal.error as { message?: string })?.message ?? 'Failed to create goal.'}
+            />
           ) : null}
         </form>
       </section>
@@ -78,18 +78,15 @@ export default function Goals() {
       <section className="space-y-3">
         <h2 className="text-sm font-bold uppercase text-muted-foreground">Your goals</h2>
 
-        {isLoading ? <Spinner /> : null}
+        {isLoading ? <SkeletonList rows={2} /> : null}
 
-        {error ? (
-          <div className="rounded-lg border border-destructive p-4 text-sm text-destructive">
-            Failed to load goals.
-          </div>
-        ) : null}
+        {error ? <ErrorNote message="Failed to load goals." onRetry={refetch} /> : null}
 
         {!isLoading && !error && (goals ?? []).length === 0 ? (
-          <div className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
-            No goals yet.
-          </div>
+          <EmptyState
+            title="No goals yet"
+            hint="Set a measurable goal above — like lowering your resting heart rate — and the coach can help you track progress."
+          />
         ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2">

@@ -3,7 +3,7 @@ import type { Document, DocumentExtraction, KnowledgeNote } from '@app/types';
 import { useApi, Link } from '@app/runtime';
 import { ExtractionList } from '../../components/ExtractionList';
 import { KnowledgeNoteCard } from '../../components/KnowledgeNoteCard';
-import { Spinner } from '../../components/Spinner';
+import { SkeletonList, ErrorNote, AIWorking } from '../../components/states';
 import { fmtDate } from '../../components/format';
 
 type DocumentDetail = Document & { extractions: DocumentExtraction[]; notes: KnowledgeNote[] };
@@ -20,14 +20,23 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
     return () => clearInterval(interval);
   }, [document?.status, refetch]);
 
-  if (isLoading) return <Spinner />;
+  if (isLoading) {
+    return (
+      <main className="mx-auto max-w-3xl space-y-6 p-6">
+        <SkeletonList rows={3} />
+      </main>
+    );
+  }
 
   if (error || !document) {
     return (
-      <main className="mx-auto max-w-3xl p-6">
-        <div className="rounded-lg border border-destructive p-4 text-sm text-destructive">
-          Document not found.
+      <main className="mx-auto max-w-3xl space-y-4 p-6">
+        <div>
+          <Link href="/documents" className="text-sm text-muted-foreground hover:text-primary">
+            ← All documents
+          </Link>
         </div>
+        <ErrorNote message="Document not found." onRetry={refetch} />
       </main>
     );
   }
@@ -54,12 +63,11 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
       </div>
 
       {document.status === 'pending' || document.status === 'analyzing' ? (
-        <div className="space-y-3 rounded-lg border border-border bg-card p-6 text-center">
-          <Spinner label="Analysing document…" />
-          <p className="text-sm text-muted-foreground">
-            This page will update automatically once analysis completes.
-          </p>
-        </div>
+        <AIWorking
+          agent="The analyst"
+          label="Analyzing…"
+          hint="Reading your document and extracting results. This page updates automatically once analysis completes."
+        />
       ) : null}
 
       {document.status === 'error' && document.error ? (

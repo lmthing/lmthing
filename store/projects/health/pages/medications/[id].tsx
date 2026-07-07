@@ -4,26 +4,34 @@ import { useApi, useApiMutation, Chat, Link } from '@app/runtime';
 import { MedicationDetail } from '../../components/MedicationDetail';
 import { AdherenceBar } from '../../components/AdherenceBar';
 import { InteractionCard } from '../../components/InteractionCard';
-import { Spinner } from '../../components/Spinner';
+import { SkeletonList, EmptyState, ErrorNote, AIWorking } from '../../components/states';
+import { ExplainPlainly } from '../../components/ExplainPlainly';
 
 type MedicationRecord = Medication & { doses: AdherenceLog[]; interactions: Interaction[] };
 
 export default function MedicationDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;
-  const { data: medication, isLoading, error } = useApi<MedicationRecord>('getMedication', { id });
+  const { data: medication, isLoading, error, refetch } = useApi<MedicationRecord>('getMedication', { id });
 
   const checkInteractions = useApiMutation<{ interactionId: string; status: string }>('checkInteractions', {
     invalidates: ['getMedication', 'listInteractions'],
   });
 
-  if (isLoading) return <Spinner />;
+  if (isLoading) {
+    return (
+      <main className="mx-auto max-w-2xl p-6">
+        <SkeletonList rows={4} />
+      </main>
+    );
+  }
 
   if (error || !medication) {
     return (
-      <main className="mx-auto max-w-2xl p-6">
-        <div className="rounded-lg border border-destructive p-4 text-sm text-destructive">
-          Medication not found.
-        </div>
+      <main className="mx-auto max-w-2xl space-y-4 p-6">
+        <Link href="/medications" className="text-sm text-muted-foreground hover:text-primary">
+          ← All medications
+        </Link>
+        <ErrorNote message="Medication not found." onRetry={refetch} />
       </main>
     );
   }
@@ -60,19 +68,32 @@ export default function MedicationDetailPage({ params }: { params: { id: string 
         </div>
 
         {checkInteractions.error ? (
-          <p className="text-sm text-destructive">
-            {(checkInteractions.error as { message?: string })?.message ?? 'Failed to check interactions.'}
-          </p>
+          <ErrorNote
+            message={(checkInteractions.error as { message?: string })?.message ?? 'Failed to check interactions.'}
+          />
         ) : null}
 
         {interactions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No interaction findings yet.</p>
+          <EmptyState
+            title="No interaction findings yet"
+            hint="Run “Check interactions” and the pharmacist will screen this medication against your others."
+          />
         ) : (
-          <div className="space-y-2">
-            {interactions.map((i) => (
-              <InteractionCard key={i.id} interaction={i} />
-            ))}
-          </div>
+          <>
+            <div className="space-y-2">
+              {interactions.map((i) =>
+                i.status === 'pending' ? (
+                  <AIWorking key={i.id} agent="The pharmacist" />
+                ) : (
+                  <InteractionCard key={i.id} interaction={i} />
+                ),
+              )}
+            </div>
+            <ExplainPlainly
+              agent="pharmacy/pharmacist"
+              suggestion="Explain this interaction in plain language."
+            />
+          </>
         )}
       </section>
 

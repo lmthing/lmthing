@@ -1,0 +1,12 @@
+{
+  "title": "Quick-log drafts",
+  "description": "A natural-language quick-log the user typed (e.g. 'slept 6.5h, weight 82kg, took atorvastatin, mild headache'). The logger parses it into a structured, reviewable set of proposedActions; nothing is written to the real tables until the user confirms in the UI (confirm-before-write).",
+  "columns": {
+    "id":              { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "text":            { "type": "string", "description": "the raw free-text the user typed or dictated", "required": true },
+    "status":          { "type": "string", "description": "'pending' (awaiting parse) | 'ready' (parsed, awaiting user confirm) | 'committed' | 'cancelled' | 'error'", "default": "pending" },
+    "proposedActions": { "type": "json",   "description": "array of structured writes the logger parsed out, each { table, values, summary } — a preview only, never auto-applied" },
+    "note":            { "type": "string", "description": "the logger's plain-language summary of what it understood, or an error/clarification message" },
+    "createdAt":       { "type": "date",   "description": "when the draft was submitted", "generated": "now" }
+  }
+}

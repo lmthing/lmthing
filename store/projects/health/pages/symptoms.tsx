@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { Symptom } from '@app/types';
 import { useApi, useApiMutation } from '@app/runtime';
 import { SymptomRow } from '../components/SymptomRow';
-import { Spinner } from '../components/Spinner';
+import { SkeletonList, EmptyState, ErrorNote } from '../components/states';
 
 function nowLocal() {
   const d = new Date();
@@ -11,7 +11,7 @@ function nowLocal() {
 }
 
 export default function Symptoms() {
-  const { data: symptoms, isLoading, error } = useApi<Symptom[]>('listSymptoms', {});
+  const { data: symptoms, isLoading, error, refetch } = useApi<Symptom[]>('listSymptoms', {});
 
   const logSymptom = useApiMutation<Symptom>('logSymptom', {
     invalidates: ['listSymptoms'],
@@ -78,9 +78,9 @@ export default function Symptoms() {
             {logSymptom.isPending ? 'Logging…' : 'Log symptom'}
           </button>
           {logSymptom.error ? (
-            <p className="text-sm text-destructive">
-              {(logSymptom.error as { message?: string })?.message ?? 'Failed to log symptom.'}
-            </p>
+            <ErrorNote
+              message={(logSymptom.error as { message?: string })?.message ?? 'Failed to log symptom.'}
+            />
           ) : null}
         </form>
       </section>
@@ -88,18 +88,15 @@ export default function Symptoms() {
       <section className="space-y-3">
         <h2 className="text-sm font-bold uppercase text-muted-foreground">History</h2>
 
-        {isLoading ? <Spinner /> : null}
+        {isLoading ? <SkeletonList rows={3} /> : null}
 
-        {error ? (
-          <div className="rounded-lg border border-destructive p-4 text-sm text-destructive">
-            Failed to load symptoms.
-          </div>
-        ) : null}
+        {error ? <ErrorNote message="Failed to load symptoms." onRetry={refetch} /> : null}
 
         {!isLoading && !error && (symptoms ?? []).length === 0 ? (
-          <div className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
-            No symptoms logged yet.
-          </div>
+          <EmptyState
+            title="No symptoms logged yet"
+            hint="Log a symptom above to build a timeline. Patterns here feed your triage and insights."
+          />
         ) : null}
 
         <div className="space-y-2">

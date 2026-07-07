@@ -2,27 +2,37 @@ import React from 'react';
 import type { LabResult, Research } from '@app/types';
 import { useApi, useApiMutation, Link } from '@app/runtime';
 import { FlagBadge } from '../../components/FlagBadge';
-import { Spinner } from '../../components/Spinner';
+import { SkeletonList, ErrorNote, AIWorking } from '../../components/states';
+import { ExplainPlainly } from '../../components/ExplainPlainly';
 import { fmtDate } from '../../components/format';
 
 type LabDetail = LabResult & { research: Research[] };
 
 export default function LabDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;
-  const { data: lab, isLoading, error } = useApi<LabDetail>('getLab', { id });
+  const { data: lab, isLoading, error, refetch } = useApi<LabDetail>('getLab', { id });
 
   const requestResearch = useApiMutation<{ researchId: string; status: string }>('requestResearch', {
     invalidates: ['getLab'],
   });
 
-  if (isLoading) return <Spinner />;
+  if (isLoading) {
+    return (
+      <main className="mx-auto max-w-2xl space-y-6 p-6">
+        <SkeletonList rows={3} />
+      </main>
+    );
+  }
 
   if (error || !lab) {
     return (
-      <main className="mx-auto max-w-2xl p-6">
-        <div className="rounded-lg border border-destructive p-4 text-sm text-destructive">
-          Lab result not found.
+      <main className="mx-auto max-w-2xl space-y-4 p-6">
+        <div>
+          <Link href="/labs" className="text-sm text-muted-foreground hover:text-primary">
+            ← All labs
+          </Link>
         </div>
+        <ErrorNote message="Lab result not found." onRetry={refetch} />
       </main>
     );
   }
@@ -52,6 +62,11 @@ export default function LabDetailPage({ params }: { params: { id: string } }) {
         </p>
         <p className="text-sm text-muted-foreground">Taken {fmtDate(lab.takenAt)}</p>
         {lab.note ? <p className="text-sm text-foreground">{lab.note}</p> : null}
+
+        <ExplainPlainly
+          agent="clinic/interpreter"
+          suggestion={`What does my ${lab.analyte} result mean for me?`}
+        />
       </div>
 
       <section className="space-y-3 border-t border-border pt-4">
@@ -73,28 +88,39 @@ export default function LabDetailPage({ params }: { params: { id: string } }) {
         </div>
 
         {requestResearch.error ? (
-          <p className="text-sm text-destructive">
-            {(requestResearch.error as { message?: string })?.message ??
-              'Failed to request research.'}
-          </p>
+          <ErrorNote
+            message={
+              (requestResearch.error as { message?: string })?.message ??
+              'Failed to request research.'
+            }
+          />
         ) : null}
 
         {research.length === 0 ? (
           <p className="text-sm text-muted-foreground">No research yet for this result.</p>
         ) : (
           <div className="space-y-2">
-            {research.map((r) => (
-              <Link
-                key={r.id}
-                href={`/research/${r.id}`}
-                className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 hover:bg-muted transition-colors"
-              >
-                <span className="min-w-0 flex-1 truncate text-foreground">{r.topic}</span>
-                <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-xs uppercase text-muted-foreground">
-                  {r.status}
-                </span>
-              </Link>
-            ))}
+            {research.map((r) =>
+              r.status === 'pending' ? (
+                <AIWorking
+                  key={r.id}
+                  agent="The researcher"
+                  label="Researching…"
+                  hint={`Digging into “${r.topic}”. This page updates automatically.`}
+                />
+              ) : (
+                <Link
+                  key={r.id}
+                  href={`/research/${r.id}`}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 hover:bg-muted transition-colors"
+                >
+                  <span className="min-w-0 flex-1 truncate text-foreground">{r.topic}</span>
+                  <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-xs uppercase text-muted-foreground">
+                    {r.status}
+                  </span>
+                </Link>
+              ),
+            )}
           </div>
         )}
       </section>

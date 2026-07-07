@@ -2,7 +2,8 @@ import React, { useEffect } from 'react';
 import type { Research } from '@app/types';
 import { useApi, Chat, Link } from '@app/runtime';
 import { MarkdownBody } from '../../components/MarkdownBody';
-import { Spinner } from '../../components/Spinner';
+import { ExplainPlainly } from '../../components/ExplainPlainly';
+import { AIWorking, ErrorNote, SkeletonList } from '../../components/states';
 
 export default function ResearchDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;
@@ -16,14 +17,15 @@ export default function ResearchDetailPage({ params }: { params: { id: string } 
     return () => clearInterval(interval);
   }, [research?.status, refetch]);
 
-  if (isLoading) return <Spinner />;
+  if (isLoading) return <main className="mx-auto max-w-3xl p-6"><SkeletonList rows={3} /></main>;
 
   if (error || !research) {
     return (
-      <main className="mx-auto max-w-3xl p-6">
-        <div className="rounded-lg border border-destructive p-4 text-sm text-destructive">
-          Research report not found.
-        </div>
+      <main className="mx-auto max-w-3xl space-y-4 p-6">
+        <Link href="/labs" className="text-sm text-muted-foreground hover:text-primary">
+          ← All labs
+        </Link>
+        <ErrorNote message="Research report not found." onRetry={refetch} />
       </main>
     );
   }
@@ -44,14 +46,19 @@ export default function ResearchDetailPage({ params }: { params: { id: string } 
       </div>
 
       {research.status === 'pending' ? (
-        <div className="space-y-3 rounded-lg border border-border bg-card p-6 text-center">
-          <Spinner label="Researching…" />
-          <p className="text-sm text-muted-foreground">
-            The researcher is reading the literature. This page will update automatically.
-          </p>
-        </div>
+        <AIWorking
+          agent="The researcher"
+          label="Researching…"
+          hint="Reading the literature and citing sources — this page updates automatically."
+        />
       ) : (
-        <MarkdownBody markdown={research.body ?? ''} />
+        <>
+          <MarkdownBody markdown={research.body ?? ''} />
+          <ExplainPlainly
+            agent="clinic/researcher"
+            suggestion="Summarise this research in 2–3 plain sentences for me."
+          />
+        </>
       )}
 
       <section className="space-y-3 border-t border-border pt-4">

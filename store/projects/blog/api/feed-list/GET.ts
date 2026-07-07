@@ -30,6 +30,10 @@ export interface Article {
   score: number;
   read: boolean;
   saved: boolean;
+  pinned: boolean;
+  editorNote: string;
+  annotationCount: number;
+  collectionCount: number;
   createdAt: string;
 }
 
@@ -51,6 +55,10 @@ export default async function handler(input: Input, ctx: Ctx): Promise<Output> {
   }
 
   articles.sort((a, b) => {
+    // Pinned articles are always surfaced first (curator "top of feed" promise),
+    // then by personalization score, then most-recent.
+    const pinDiff = (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
+    if (pinDiff !== 0) return pinDiff;
     const scoreDiff = (b.score ?? 0) - (a.score ?? 0);
     if (scoreDiff !== 0) return scoreDiff;
     return (b.createdAt ?? '').localeCompare(a.createdAt ?? '');

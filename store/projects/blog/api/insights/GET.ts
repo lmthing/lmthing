@@ -29,6 +29,7 @@ interface Article {
   id: string;
   read: boolean;
   saved: boolean;
+  tags: string[];
 }
 
 interface ReadingEvent {
@@ -55,14 +56,27 @@ export default async function handler(input: Input, ctx: Ctx): Promise<Output> {
   const totalSaved = articles.filter((a) => a.saved === true).length;
   const totalDismissed = events.filter((e) => e.kind === 'dismiss').length;
 
+  // Engagement by tag — derived from the articles the reader actually engaged
+  // with (read or saved), exploded across each article's tags. This reflects
+  // real interest even before the tagged reading-event stream fills in, and
+  // still incorporates any tags carried on explicit reading events.
   const tagCounts = new Map<string, number>();
+  for (const a of articles) {
+    if (a.read !== true && a.saved !== true) continue;
+    const tags = Array.isArray(a.tags) ? a.tags : [];
+    for (const tag of tags) {
+      if (!tag) continue;
+      tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
+    }
+  }
   for (const e of events) {
     if (!e.tag) continue;
     tagCounts.set(e.tag, (tagCounts.get(e.tag) ?? 0) + 1);
   }
   const byTag = [...tagCounts.entries()]
     .map(([tag, count]) => ({ tag, count }))
-    .sort((a, b) => b.count - a.count);
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 12);
 
   const dayCounts = new Map<string, number>();
   for (const e of events) {

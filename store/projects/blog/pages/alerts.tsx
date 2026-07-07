@@ -1,5 +1,5 @@
 import React from 'react';
-import { useApi, apiCall } from '@app/runtime';
+import { useApi, apiCall, Link } from '@app/runtime';
 import { AlertRow, type AlertLike } from '../components/AlertRow';
 import { Spinner } from '../components/Spinner';
 
@@ -21,12 +21,20 @@ export default function Alerts() {
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">Alerts</h1>
-        <span className="rounded-full border border-border bg-card px-2 py-0.5 text-xs text-muted-foreground">
-          {unreadCount} unread
-        </span>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-bold text-foreground">Alerts</h1>
+          <span className="rounded-full border border-border bg-card px-2 py-0.5 text-xs text-muted-foreground">
+            {unreadCount} unread
+          </span>
+        </div>
+        <Link href="/subscriptions" className="text-sm text-primary hover:underline">
+          Manage subscriptions →
+        </Link>
       </div>
+      <p className="-mt-3 text-sm text-muted-foreground">
+        Alerts are raised by your subscriptions when a new article matches.
+      </p>
 
       {isLoading ? <Spinner /> : null}
 

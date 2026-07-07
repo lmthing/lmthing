@@ -23,9 +23,29 @@ export interface Output {
 }
 
 export default async function handler(input: Input, ctx: Ctx): Promise<Output> {
+  // Read the article first so we can log a tagged engagement event exactly once —
+  // on the unread→read transition — feeding the Insights timeline & personalization.
+  const rows = (await ctx.db.query('articles', { where: { id: input.id } })) as {
+    read?: boolean;
+    tags?: string[];
+  }[];
+  const article = rows[0];
+  const wasUnread = article ? article.read !== true : false;
+
   const count = await ctx.db.update('articles', {
     where: { id: input.id },
     set: { read: true },
   });
+
+  if (wasUnread && count > 0) {
+    const tags = Array.isArray(article?.tags) ? article!.tags : [];
+    await ctx.db.insert('reading_events', {
+      articleId: input.id,
+      kind: 'open',
+      tag: tags[0] ?? null,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
   return { ok: count > 0 };
 }

@@ -9,11 +9,13 @@ export interface Stats {
   tags: { tag: string; count: number }[];
 }
 
-function Tile({ label, value }: { label: string; value: number }) {
+function Tile({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
   return (
-    <div className="flex flex-1 flex-col items-center rounded-lg border border-border bg-card px-4 py-3">
-      <span className="text-2xl font-bold text-foreground">{value}</span>
-      <span className="text-xs text-muted-foreground">{label}</span>
+    <div className="flex flex-1 flex-col items-center rounded-xl border border-border bg-card px-4 py-3">
+      <span className={`text-2xl font-bold ${accent && value > 0 ? 'text-primary' : 'text-foreground'}`}>
+        {value}
+      </span>
+      <span className="text-xs uppercase tracking-wide text-muted-foreground">{label}</span>
     </div>
   );
 }
@@ -24,7 +26,7 @@ export function StatsStrip({ stats }: { stats: Stats }) {
   return (
     <div className="space-y-3">
       <div className="flex gap-3">
-        <Tile label="Unread" value={stats.unread ?? 0} />
+        <Tile label="Unread" value={stats.unread ?? 0} accent />
         <Tile label="Saved" value={stats.saved ?? 0} />
         <Tile label="Total" value={stats.total ?? 0} />
         <Tile label="Sources" value={stats.sources ?? 0} />

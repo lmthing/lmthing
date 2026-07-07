@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from '@app/runtime';
 
 export interface TopicLike {
   id: string;
@@ -30,10 +31,19 @@ export function TopicChip({
     <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3">
       <div className="min-w-0 flex-1 space-y-1.5">
         <div className="flex items-center gap-2">
-          <span className="truncate font-medium text-foreground">{topic.label || topic.slug}</span>
-          <span className="rounded-full border border-border bg-background px-2 py-0.5 text-xs text-muted-foreground">
+          <Link
+            href={`/tag/${topic.slug}`}
+            className="truncate font-medium text-foreground hover:text-primary"
+            title={`View articles tagged #${topic.slug}`}
+          >
+            {topic.label || topic.slug}
+          </Link>
+          <Link
+            href={`/tag/${topic.slug}`}
+            className="rounded-full border border-border bg-background px-2 py-0.5 text-xs text-muted-foreground hover:border-primary hover:text-primary"
+          >
             #{topic.slug}
-          </span>
+          </Link>
           {topic.muted ? (
             <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
               muted

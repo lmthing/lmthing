@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useApi, useApiMutation } from '@app/runtime';
+import { useApi, useApiMutation, Link } from '@app/runtime';
 import { SubscriptionRow, type SubscriptionLike } from '../components/SubscriptionRow';
 import { Spinner } from '../components/Spinner';
 
@@ -46,7 +46,15 @@ export default function Subscriptions() {
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-6">
-      <h1 className="text-xl font-bold text-foreground">Subscriptions</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl font-bold text-foreground">Subscriptions</h1>
+        <Link href="/alerts" className="text-sm text-primary hover:underline">
+          View alerts →
+        </Link>
+      </div>
+      <p className="-mt-3 text-sm text-muted-foreground">
+        Saved searches that raise an alert whenever a new article matches.
+      </p>
 
       <section className="space-y-3">
         <h2 className="text-sm font-bold uppercase text-muted-foreground">New subscription</h2>

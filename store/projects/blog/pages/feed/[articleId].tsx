@@ -8,6 +8,7 @@ import { AddToCollectionMenu } from '../../components/AddToCollectionMenu';
 
 interface Citation {
   id?: string;
+  quote?: string;
   title?: string;
   url?: string;
   source?: string;
@@ -121,20 +122,36 @@ export default function ArticleDetail({ params }: { params: { articleId: string 
       <MarkdownBody markdown={article.body ?? ''} />
 
       {citations.length > 0 ? (
-        <div className="space-y-2 border-t border-border pt-4">
-          <h2 className="text-sm font-bold uppercase text-muted-foreground">Citations</h2>
-          <ul className="space-y-1">
-            {citations.map((c, i) => (
-              <li key={c.id ?? i} className="text-sm">
-                {c.url ? (
-                  <a href={c.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">
-                    {c.title || c.url}
-                  </a>
-                ) : (
-                  <span className="text-muted-foreground">{c.title || c.source}</span>
-                )}
-              </li>
-            ))}
+        <div className="space-y-3 border-t border-border pt-5">
+          <h2 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            Sources · {citations.length}
+          </h2>
+          <ul className="space-y-2">
+            {citations.map((c, i) => {
+              const label = c.title || c.source || c.url;
+              return (
+                <li
+                  key={c.id ?? i}
+                  className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
+                >
+                  {c.quote ? (
+                    <p className="leading-relaxed text-foreground">“{c.quote}”</p>
+                  ) : null}
+                  {c.url ? (
+                    <a
+                      href={c.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-primary hover:underline"
+                    >
+                      {label} ↗
+                    </a>
+                  ) : label && !c.quote ? (
+                    <span className="text-muted-foreground">{label}</span>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         </div>
       ) : null}

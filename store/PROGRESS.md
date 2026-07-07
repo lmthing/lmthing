@@ -9,7 +9,7 @@ Apps: **blog, health, kitchen, trips, homes**. Each app's proposals live in `sto
 |---|---|---|---|
 | blog | ✅ done | ⏳ pending | ⏳ pending |
 | health | ✅ done | ⏳ pending | ⏳ pending |
-| kitchen | 🔵 running | ⏳ pending | ⏳ pending |
+| kitchen | ✅ done | ⏳ pending | ⏳ pending |
 | trips | ✅ done | ⏳ pending | ⏳ pending |
 | homes | 🔵 running | ⏳ pending | ⏳ pending |
 
@@ -17,4 +17,5 @@ Apps: **blog, health, kitchen, trips, homes**. Each app's proposals live in `sto
 
 - **Phase 1 (ideate)** started — 5 agents writing `IDEAS.md`.
 - ✅ blog / health / trips IDEAS.md done → committed.
-- 🔵 Now running: kitchen, homes IDEAS.md.
+- ✅ kitchen IDEAS.md done → committed.
+- 🔵 Now running: homes IDEAS.md (last of Phase 1).

@@ -7,7 +7,7 @@ Apps: **blog, health, kitchen, trips, homes**. Each app's proposals live in `sto
 
 | App | P1 Ideate | P2 Implement | P3 Test/Fix |
 |---|---|---|---|
-| blog | ✅ done | ✅ done | 🔵 running |
+| blog | ✅ done | ✅ done | ✅ done |
 | health | ✅ done | ✅ done | 🔵 running |
 | kitchen | ✅ done | ✅ done | ✅ done |
 | trips | ✅ done | ✅ done | 🔵 running |
@@ -29,4 +29,6 @@ Apps: **blog, health, kitchen, trips, homes**. Each app's proposals live in `sto
 - ✅ manifest.json regenerated (6 apps) → committed.
 - **Phase 3 (test/fix + live LLM)** started — 5 agents on isolated local pods (ports 8091-8095), live-testing LLM flows with sdk/org/.env creds.
   - NOTE: local CLI `spawnRunner` is a Phase-6 placeholder → spawn-backed app flows create a pending row but don't complete locally; the `<Chat>`/session agent path is the reliable live-LLM proof.
-- ✅ kitchen tested/fixed → committed. Build clean, 18/18 tests; live-LLM verified (chef/concierge + nutritionist real output); fixed `&apos;` literal in CoverageRibbon. Still running: blog, health, trips, homes.
+- ✅ kitchen tested/fixed → committed. Build clean, 18/18 tests; live-LLM verified (chef/concierge + nutritionist real output); fixed `&apos;` literal in CoverageRibbon.
+- ⚠️ CROSS-CUTTING BUG (found by blog): `ctx.spawn()` from an app-API handler is a permanent no-op in the pod runtime. Correct pattern to run an agent from a user action = a `database:insert` hook (like `briefings`). Affects any AI feature wired via `ctx.spawn` (likely trips createTrip, homes scout).
+- ✅ blog tested/fixed → committed. Build clean, 24/24 tests; live-LLM verified (explainer tldr + why-me, personalizer, real Azure output); added `generate-take` + `deep-research` insert-hooks, removed dead `ctx.spawn`. Still running: health, trips, homes.

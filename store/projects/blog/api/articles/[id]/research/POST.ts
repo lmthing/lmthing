@@ -14,7 +14,7 @@ type Ctx = {
 import { HttpError } from '@app/runtime';
 
 export const name = 'requestResearch';
-export const description = 'Request deep research on an article topic (subscription-only feature); spawns a researcher run.';
+export const description = 'Request deep research on an article topic (subscription-only feature); seeds a pending research row (the deep-research hook drives the researcher on insert).';
 
 export interface Input {
   id: string;
@@ -53,20 +53,14 @@ export default async function handler(input: Input, ctx: Ctx): Promise<Output> {
     throw new HttpError(402, 'Deep research is a subscription feature');
   }
 
+  // Seed the pending row. Inserting it fires the `deep-research` database hook, which runs the
+  // researcher's deep-dive tasklist to fill the report + mark it ready — the app-API `ctx.spawn`
+  // seam does not execute an agent in the pod runtime, so the hook (not a spawn here) drives the LLM.
   const r = (await ctx.db.insert('research', {
     articleId: input.id,
     topic: input.topic,
     status: 'pending',
   })) as Research;
-
-  await ctx.spawn(
-    'newsroom/researcher#deep-dive',
-    { researchId: r.id },
-    {
-      onError: () =>
-        ctx.db.update('research', { where: { id: r.id }, set: { status: 'error' } }),
-    },
-  );
 
   return { researchId: r.id, status: 'pending' };
 }

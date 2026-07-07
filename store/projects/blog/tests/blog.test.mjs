@@ -123,10 +123,13 @@ test('all 47 api handlers exist and export name / Input / Output / default handl
   }
 });
 
-test('requestResearch tier-gates with a 402 HttpError', () => {
+test('requestResearch tier-gates with a 402 HttpError and seeds a pending row (hook-driven)', () => {
   const src = readFileSync(join(APP, 'api', 'articles', '[id]', 'research', 'POST.ts'), 'utf8');
   assert.match(src, /HttpError\(\s*402/, 'requestResearch must throw HttpError(402) for the free tier');
-  assert.match(src, /ctx\.spawn\(/, 'requestResearch must spawn the researcher fire-and-forget');
+  // The app-API `ctx.spawn` seam is a no-op in the pod runtime, so requestResearch seeds a pending
+  // `research` row and the `deep-research` database:insert hook drives the researcher (see below).
+  assert.match(src, /['"]pending['"]/, 'must seed a pending status');
+  assert.match(src, /db\.insert\(\s*['"]research['"]/, 'must insert a research row for the hook to pick up');
 });
 
 test('addSource enforces the free-tier source cap', () => {
@@ -205,6 +208,24 @@ test('file-into-collections is an articles:insert hook delegating to the librari
   assert.match(src, /table:\s*['"]articles['"]/);
   assert.match(src, /event:\s*['"]insert['"]/);
   assert.match(src, /delegate\(\s*['"]research\/librarian['"]\s*,\s*['"]file['"]/, 'must delegate file');
+});
+
+test('generate-take is an article_takes:insert hook delegating to the explainer with a pending guard', () => {
+  const src = readFileSync(join(APP, 'hooks', 'generate-take.ts'), 'utf8');
+  assert.match(src, /type:\s*['"]database['"]/);
+  assert.match(src, /table:\s*['"]article_takes['"]/);
+  assert.match(src, /event:\s*['"]insert['"]/);
+  assert.match(src, /delegate\(\s*['"]editorial\/explainer['"]\s*,\s*['"]explain['"]/, 'must delegate explain');
+  assert.match(src, /pending/, 'must guard on the pending status (idempotence)');
+});
+
+test('deep-research is a research:insert hook delegating to the researcher with a pending guard', () => {
+  const src = readFileSync(join(APP, 'hooks', 'deep-research.ts'), 'utf8');
+  assert.match(src, /type:\s*['"]database['"]/);
+  assert.match(src, /table:\s*['"]research['"]/);
+  assert.match(src, /event:\s*['"]insert['"]/);
+  assert.match(src, /delegate\(\s*['"]newsroom\/researcher['"]\s*,\s*['"]deep-dive['"]/, 'must delegate deep-dive');
+  assert.match(src, /pending/, 'must guard on the pending status (idempotence)');
 });
 
 test('track-source-health is a pure-db raw_items:insert hook (no delegate)', () => {

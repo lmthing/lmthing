@@ -14,7 +14,7 @@ type Ctx = {
 import { HttpError } from '@app/runtime';
 
 export const name = 'requestTake';
-export const description = 'Request a cached LLM reframing (TL;DR / ELI5 / why-this-matters) of an article; returns a cached take when one exists, otherwise seeds a pending row and spawns the explainer.';
+export const description = 'Request a cached LLM reframing (TL;DR / ELI5 / why-this-matters) of an article; returns a cached take when one exists, otherwise seeds a pending row (the generate-take hook drives the explainer on insert).';
 
 const KINDS = ['tldr', 'eli5', 'why-me'] as const;
 type Kind = (typeof KINDS)[number];
@@ -58,22 +58,16 @@ export default async function handler(input: Input, ctx: Ctx): Promise<Output> {
   const pending = forKind.find((t) => t.status === 'pending');
   if (pending) return pending;
 
+  // Seed the pending row. Inserting it fires the `generate-take` database hook, which runs the
+  // explainer to fill `body` + mark it `ready` — the app-API `ctx.spawn` seam does not execute an
+  // agent in the pod runtime, so the hook (not a spawn here) is what drives the LLM. The client
+  // polls `GET .../takes` until this row flips to `ready`.
   const row = (await ctx.db.insert('article_takes', {
     articleId: input.id,
     kind: input.kind,
     status: 'pending',
     body: '',
   })) as Take;
-
-  await ctx.spawn(
-    'editorial/explainer#explain',
-    { articleId: input.id, kind: input.kind },
-    {
-      onError: async () => {
-        await ctx.db.update('article_takes', { where: { id: row.id }, set: { status: 'error' } });
-      },
-    },
-  );
 
   return row;
 }

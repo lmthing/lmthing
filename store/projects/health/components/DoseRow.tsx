@@ -1,5 +1,6 @@
 import React from 'react';
 import type { AdherenceLog } from '@app/types';
+import { fmtDateTime } from './format';
 
 function statusClasses(status: string) {
   if (status === 'taken') return 'bg-success text-success-foreground';
@@ -14,8 +15,8 @@ export function DoseRow({ dose, medicationName }: { dose: AdherenceLog; medicati
       <div className="min-w-0 flex-1">
         <p className="font-medium text-foreground">{medicationName}</p>
         <p className="text-sm text-muted-foreground">
-          Scheduled {dose.scheduledAt}
-          {dose.takenAt ? ` · taken ${dose.takenAt}` : ''}
+          Scheduled {fmtDateTime(dose.scheduledAt)}
+          {dose.takenAt ? ` · taken ${fmtDateTime(dose.takenAt)}` : ''}
         </p>
         {dose.note ? <p className="text-sm text-foreground">{dose.note}</p> : null}
       </div>

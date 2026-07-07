@@ -482,6 +482,7 @@
         "components/UploadForm.tsx",
         "components/UrgencyBadge.tsx",
         "components/VisitBriefCard.tsx",
+        "components/format.ts",
         "database/adherence_logs.json",
         "database/appointments.json",
         "database/care_contacts.json",

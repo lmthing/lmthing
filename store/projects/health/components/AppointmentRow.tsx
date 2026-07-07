@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Appointment } from '@app/types';
 import { Link } from '@app/runtime';
+import { fmtDateTime } from './format';
 
 function statusClasses(status: string) {
   if (status === 'completed') return 'bg-success text-success-foreground';
@@ -18,7 +19,7 @@ export function AppointmentRow({ appointment }: { appointment: Appointment }) {
         <p className="font-medium text-foreground">{appointment.title}</p>
         <p className="text-sm text-muted-foreground">
           {appointment.provider ? `${appointment.provider} · ` : ''}
-          {appointment.kind} · {appointment.scheduledAt}
+          {appointment.kind} · {fmtDateTime(appointment.scheduledAt)}
         </p>
       </div>
       <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold uppercase ${statusClasses(appointment.status)}`}>

@@ -8,7 +8,9 @@ export function InteractionCard({ interaction }: { interaction: Interaction }) {
   return (
     <div className="space-y-2 rounded-lg border border-border bg-card p-4">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="font-medium text-foreground">{interaction.otherName}</h3>
+        <h3 className="font-medium text-foreground">
+          {interaction.otherName?.trim() ? interaction.otherName : 'Checking interaction…'}
+        </h3>
         <SeverityBadge severity={interaction.severity} />
       </div>
 

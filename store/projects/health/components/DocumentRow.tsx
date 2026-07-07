@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Document } from '@app/types';
 import { Link } from '@app/runtime';
+import { fmtDate } from './format';
 
 function statusClasses(status: string) {
   if (status === 'analyzed') return 'bg-success text-success-foreground';
@@ -25,7 +26,7 @@ export function DocumentRow({ document }: { document: Document }) {
             {kindLabel(document.kind)}
           </span>
         </div>
-        <p className="text-sm text-muted-foreground">Uploaded {document.uploadedAt}</p>
+        <p className="text-sm text-muted-foreground">Uploaded {fmtDate(document.uploadedAt)}</p>
       </div>
       <span
         className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold uppercase ${statusClasses(document.status)}`}

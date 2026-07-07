@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Symptom } from '@app/types';
+import { fmtDate } from './format';
 
 export function SymptomRow({ symptom }: { symptom: Symptom }) {
   const ongoing = !symptom.endedAt;
@@ -16,8 +17,8 @@ export function SymptomRow({ symptom }: { symptom: Symptom }) {
           ) : null}
         </div>
         <p className="text-sm text-muted-foreground">
-          started {symptom.startedAt}
-          {symptom.endedAt ? ` · ended ${symptom.endedAt}` : ''}
+          started {fmtDate(symptom.startedAt)}
+          {symptom.endedAt ? ` · ended ${fmtDate(symptom.endedAt)}` : ''}
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-1" title={`Severity ${symptom.severity}/5`}>

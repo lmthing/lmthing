@@ -7,7 +7,7 @@ import { Spinner } from '../../components/Spinner';
 export default function Triage() {
   const { data: assessments, isLoading, error } = useApi<TriageAssessment[]>('listTriage', {});
 
-  const requestTriage = useApiMutation<TriageAssessment>('requestTriage', {
+  const requestTriage = useApiMutation<{ triageId: string; status: string }>('requestTriage', {
     invalidates: ['listTriage'],
   });
 
@@ -19,7 +19,7 @@ export default function Triage() {
     try {
       const created = await requestTriage.mutate({ question: question.trim() });
       setQuestion('');
-      navigate(`/triage/${created.id}`);
+      navigate(`/triage/${created.triageId}`);
     } catch {
       // surfaced via requestTriage.error below
     }

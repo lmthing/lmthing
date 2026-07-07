@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Medication } from '@app/types';
+import { fmtDate } from './format';
 
 export function MedicationDetail({ medication }: { medication: Medication }) {
   const ongoing = !medication.endedAt;
@@ -23,8 +24,8 @@ export function MedicationDetail({ medication }: { medication: Medication }) {
         {medication.schedule ?? ''}
       </p>
       <p className="text-sm text-muted-foreground">
-        Started {medication.startedAt}
-        {medication.endedAt ? ` · ended ${medication.endedAt}` : ''}
+        Started {fmtDate(medication.startedAt)}
+        {medication.endedAt ? ` · ended ${fmtDate(medication.endedAt)}` : ''}
       </p>
       {medication.refillsRemaining != null ? (
         <p className="text-sm text-muted-foreground">Refills remaining: {medication.refillsRemaining}</p>

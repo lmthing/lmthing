@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Followup } from '@app/types';
+import { fmtDate } from './format';
 
 export function FollowupRow({
   followup,
@@ -24,7 +25,7 @@ export function FollowupRow({
           )}
         </div>
         {followup.reason ? <p className="text-sm text-muted-foreground">{followup.reason}</p> : null}
-        <p className="text-sm text-muted-foreground">Due {followup.dueAt}</p>
+        <p className="text-sm text-muted-foreground">Due {fmtDate(followup.dueAt)}</p>
       </div>
       <button
         type="button"

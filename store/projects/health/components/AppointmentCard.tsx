@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Appointment } from '@app/types';
+import { fmtDateTime } from './format';
 
 function statusClasses(status: string) {
   if (status === 'completed') return 'bg-success text-success-foreground';
@@ -19,7 +20,7 @@ export function AppointmentCard({ appointment }: { appointment: Appointment }) {
       <p className="text-sm uppercase text-muted-foreground">{appointment.kind}</p>
       {appointment.provider ? <p className="text-foreground">{appointment.provider}</p> : null}
       {appointment.location ? <p className="text-sm text-muted-foreground">{appointment.location}</p> : null}
-      <p className="text-sm text-muted-foreground">Scheduled {appointment.scheduledAt}</p>
+      <p className="text-sm text-muted-foreground">Scheduled {fmtDateTime(appointment.scheduledAt)}</p>
       {appointment.note ? <p className="text-sm text-foreground">{appointment.note}</p> : null}
     </div>
   );

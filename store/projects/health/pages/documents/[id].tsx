@@ -4,6 +4,7 @@ import { useApi, Link } from '@app/runtime';
 import { ExtractionList } from '../../components/ExtractionList';
 import { KnowledgeNoteCard } from '../../components/KnowledgeNoteCard';
 import { Spinner } from '../../components/Spinner';
+import { fmtDate } from '../../components/format';
 
 type DocumentDetail = Document & { extractions: DocumentExtraction[]; notes: KnowledgeNote[] };
 
@@ -49,7 +50,7 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
             {document.status}
           </span>
         </div>
-        <p className="text-sm text-muted-foreground">Uploaded {document.uploadedAt}</p>
+        <p className="text-sm text-muted-foreground">Uploaded {fmtDate(document.uploadedAt)}</p>
       </div>
 
       {document.status === 'pending' || document.status === 'analyzing' ? (

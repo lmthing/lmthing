@@ -1,5 +1,7 @@
 import React from 'react';
 import type { Insight } from '@app/types';
+import { MarkdownBody } from './MarkdownBody';
+import { fmtDate } from './format';
 
 function kindClasses(kind: string) {
   if (kind === 'trend') return 'bg-accent text-accent-foreground';
@@ -19,8 +21,10 @@ export function InsightCard({ insight }: { insight: Insight }) {
           <span className="text-xs uppercase text-muted-foreground">{insight.metricKind}</span>
         ) : null}
       </div>
-      <p className="text-sm text-foreground">{insight.body}</p>
-      <p className="text-xs text-muted-foreground">{insight.createdAt}</p>
+      <div className="text-sm">
+        <MarkdownBody markdown={insight.body ?? ''} />
+      </div>
+      <p className="text-xs text-muted-foreground">{fmtDate(insight.createdAt)}</p>
     </div>
   );
 }

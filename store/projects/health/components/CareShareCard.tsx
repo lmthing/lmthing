@@ -1,6 +1,7 @@
 import React from 'react';
 import type { CareShare } from '@app/types';
 import { Link } from '@app/runtime';
+import { fmtDate } from './format';
 
 function statusClasses(status: string) {
   if (status === 'ready') return 'bg-success text-success-foreground';
@@ -16,7 +17,7 @@ export function CareShareCard({ share }: { share: CareShare }) {
       <div className="min-w-0 flex-1">
         <p className="font-medium text-foreground">{share.title}</p>
         <p className="text-sm text-muted-foreground">
-          {share.scope} · {share.createdAt}
+          {share.scope} · {fmtDate(share.createdAt)}
         </p>
       </div>
       <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold uppercase ${statusClasses(share.status)}`}>

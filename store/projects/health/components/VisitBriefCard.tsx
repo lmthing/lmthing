@@ -1,5 +1,7 @@
 import React from 'react';
 import type { VisitBrief } from '@app/types';
+import { MarkdownBody } from './MarkdownBody';
+import { fmtDate } from './format';
 
 function statusClasses(status: string) {
   if (status === 'ready') return 'bg-success text-success-foreground';
@@ -29,10 +31,12 @@ export function VisitBriefCard({ brief }: { brief: VisitBrief }) {
       </div>
       {brief.periodFrom || brief.periodTo ? (
         <p className="text-sm text-muted-foreground">
-          {brief.periodFrom ?? '—'} – {brief.periodTo ?? '—'}
+          {brief.periodFrom ? fmtDate(brief.periodFrom) : '—'} – {brief.periodTo ? fmtDate(brief.periodTo) : '—'}
         </p>
       ) : null}
-      <div className="whitespace-pre-wrap text-sm text-foreground">{brief.body}</div>
+      <div className="text-sm">
+        <MarkdownBody markdown={brief.body ?? ''} />
+      </div>
     </div>
   );
 }

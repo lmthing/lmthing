@@ -14,7 +14,7 @@ export function ImportForm({ onImported }: { onImported?: () => void }) {
     e.preventDefault();
     if (!csv.trim()) return;
     try {
-      const result = await importMetrics.mutate({ format, csv });
+      const result = await importMetrics.mutate({ format, payload: csv });
       setImported(result?.imported ?? 0);
       setCsv('');
       onImported?.();

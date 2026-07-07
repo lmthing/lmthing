@@ -19,7 +19,7 @@ export default function Dashboard() {
   const { data: stats, isLoading: statsLoading } = useApi<Stats>('healthStats', {});
 
   const logMetric = useApiMutation<Metric>('logMetric', {
-    invalidates: ['healthStats'],
+    invalidates: ['healthStats', 'listMetrics'],
   });
 
   const [kind, setKind] = useState('weight');

@@ -3,6 +3,7 @@ import type { LabResult, Research } from '@app/types';
 import { useApi, useApiMutation, Link } from '@app/runtime';
 import { FlagBadge } from '../../components/FlagBadge';
 import { Spinner } from '../../components/Spinner';
+import { fmtDate } from '../../components/format';
 
 type LabDetail = LabResult & { research: Research[] };
 
@@ -10,8 +11,8 @@ export default function LabDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;
   const { data: lab, isLoading, error } = useApi<LabDetail>('getLab', { id });
 
-  const requestResearch = useApiMutation<Research>('requestResearch', {
-    invalidates: [],
+  const requestResearch = useApiMutation<{ researchId: string; status: string }>('requestResearch', {
+    invalidates: ['getLab'],
   });
 
   if (isLoading) return <Spinner />;
@@ -49,7 +50,7 @@ export default function LabDetailPage({ params }: { params: { id: string } }) {
           {lab.value} {lab.unit}
           {hasLow || hasHigh ? ` (ref ${hasLow ? lab.refLow : '—'}–${hasHigh ? lab.refHigh : '—'})` : ''}
         </p>
-        <p className="text-sm text-muted-foreground">Taken {lab.takenAt}</p>
+        <p className="text-sm text-muted-foreground">Taken {fmtDate(lab.takenAt)}</p>
         {lab.note ? <p className="text-sm text-foreground">{lab.note}</p> : null}
       </div>
 

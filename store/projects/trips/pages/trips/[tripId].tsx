@@ -1,133 +1,128 @@
-import React, { useEffect, useState } from 'react';
-import type { Trip, Destination, ItineraryItem, Booking } from '@app/types';
+import React from 'react';
 import { useApi, useApiMutation, navigate, Link } from '@app/runtime';
-import { DestinationHeader } from '../../components/DestinationHeader';
-import { DayColumn } from '../../components/DayColumn';
-import { BookingRow } from '../../components/BookingRow';
 import { BudgetStrip } from '../../components/BudgetStrip';
-import { Spinner } from '../../components/Spinner';
+import { FinanceBar } from '../../components/FinanceBar';
+import { RunStrip } from '../../components/RunStrip';
+import { CopilotDock } from '../../components/CopilotDock';
+import { SkeletonList, Skeleton } from '../../components/Skeleton';
+import { EmptyState } from '../../components/EmptyState';
+import { ErrorState } from '../../components/ErrorState';
 import { TripTabs } from '../../components/TripTabs';
-import { PlusIcon, TrashIcon } from '../../components/icons';
+import { formatDate, formatDateRange, formatMoney } from '../../components/format';
+import { kindStyle } from '../../components/kind';
+import {
+  MapPinIcon,
+  BellIcon,
+  TagIcon,
+  FileIcon,
+  ScaleIcon,
+  ClockIcon,
+  TrashIcon,
+  CalendarIcon,
+} from '../../components/icons';
 
-type FullTrip = Trip & {
-  homeCurrency?: string;
-  destinations: (Destination & { items: ItineraryItem[] })[];
-  bookings: Booking[];
-};
-
-const STATUSES = ['planning', 'booked', 'complete'];
-const BOOKING_KINDS = ['flight', 'hotel', 'car', 'activity'];
-
-function groupByDay(items: ItineraryItem[]): { day: string; items: ItineraryItem[] }[] {
-  const map = new Map<string, ItineraryItem[]>();
-  for (const item of items) {
-    const day = item.day ?? '';
-    const bucket = map.get(day);
-    if (bucket) bucket.push(item);
-    else map.set(day, [item]);
-  }
-  return Array.from(map.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([day, dayItems]) => ({ day, items: dayItems }));
+interface TripItem {
+  id: string;
+  destinationId: string;
+  day: string;
+  startTime?: string;
+  kind: string;
+  title: string;
+  location?: string;
+}
+interface TripDest {
+  id: string;
+  name: string;
+  items: TripItem[];
+}
+interface FullTrip {
+  id: string;
+  title: string;
+  brief: string;
+  startDate?: string;
+  endDate?: string;
+  status: string;
+  destinations: TripDest[];
+}
+interface Traveler {
+  id: string;
+  name: string;
+}
+interface Reminder {
+  id: string;
+  title: string;
+  bookByDate?: string;
+  daysLeft: number | null;
+  urgency: string;
+}
+interface Deal {
+  id: string;
+  title: string;
+  estimatedSavings: number;
+  currency: string;
+  status: string;
+}
+interface DocRow {
+  id: string;
+  filename?: string;
+  status: string;
+}
+interface Finances {
+  homeCurrency: string;
+  budget: number;
+  booked: number;
+  spent: number;
+  remaining: number;
+}
+interface Settlement {
+  transfers: { fromName: string; toName: string; amount: number }[];
+  currency: string;
 }
 
-export default function TripTimeline({ params }: { params: { tripId: string } }) {
-  const { tripId } = params;
-  const [polling, setPolling] = useState(false);
-  const [showAddDest, setShowAddDest] = useState(false);
-  const [showAddBooking, setShowAddBooking] = useState(false);
+function countdown(startDate?: string, status?: string): string {
+  if (status === 'complete') return 'Completed';
+  if (!startDate) return status === 'booked' ? 'Booked' : 'Planning';
+  const days = Math.ceil((new Date(startDate).getTime() - Date.now()) / 86400000);
+  if (days > 1) return `in ${days} days`;
+  if (days === 1) return 'tomorrow';
+  if (days === 0) return 'today';
+  return 'in progress';
+}
 
-  const [destName, setDestName] = useState('');
-  const [destArrival, setDestArrival] = useState('');
-  const [destDeparture, setDestDeparture] = useState('');
-
-  const [bkKind, setBkKind] = useState('flight');
-  const [bkProvider, setBkProvider] = useState('');
-  const [bkConfirmation, setBkConfirmation] = useState('');
-  const [bkCost, setBkCost] = useState('');
-
-  const {
-    data: trip,
-    isLoading,
-    error,
-  } = useApi<FullTrip>(
-    'getTrip',
-    { id: tripId },
-    { refetchInterval: polling ? 4000 : undefined },
+function Avatars({ travelers }: { travelers: Traveler[] }) {
+  if (travelers.length === 0) return null;
+  return (
+    <div className="flex -space-x-2">
+      {travelers.slice(0, 5).map((t) => (
+        <span
+          key={t.id}
+          title={t.name}
+          className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-card bg-muted text-xs font-medium text-foreground"
+        >
+          {t.name.slice(0, 2).toUpperCase()}
+        </span>
+      ))}
+      {travelers.length > 5 ? (
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-card bg-muted text-xs text-muted-foreground">
+          +{travelers.length - 5}
+        </span>
+      ) : null}
+    </div>
   );
+}
 
-  const updateTrip = useApiMutation<Trip>('updateTrip', {
-    invalidates: ['getTrip', 'tripList'],
-  });
-  const deleteTrip = useApiMutation<{ ok: boolean }>('deleteTrip', {
-    invalidates: ['tripList'],
-  });
-  const addDestination = useApiMutation<Destination>('addDestination', {
-    invalidates: ['getTrip'],
-  });
-  const addBooking = useApiMutation<Booking>('addBooking', {
-    invalidates: ['getTrip', 'tripBudget', 'tripFinances'],
-  });
+export default function TripOverview({ params }: { params: { tripId: string } }) {
+  const { tripId } = params;
+  const { data: trip, isLoading, error, refetch } = useApi<FullTrip>('getTrip', { id: tripId });
+  const { data: travelersRes } = useApi<{ travelers: Traveler[] }>('listTravelers', { id: tripId });
+  const { data: remindersRes } = useApi<{ reminders: Reminder[] }>('tripReminders', { id: tripId });
+  const { data: dealsRes } = useApi<{ deals: Deal[] }>('listDeals', { id: tripId });
+  const { data: docsRes } = useApi<{ documents: DocRow[] }>('listDocuments', { id: tripId });
+  const { data: finances } = useApi<Finances>('tripFinances', { id: tripId });
+  const { data: settlement } = useApi<Settlement>('settlement', { id: tripId });
 
-  useEffect(() => {
-    setPolling(trip?.status === 'planning');
-  }, [trip?.status]);
-
-  const current = trip;
-  const currency = current?.homeCurrency ?? 'USD';
-
-  if (isLoading && !current) return <Spinner />;
-
-  if (error || !current) {
-    return (
-      <main className="mx-auto max-w-3xl p-6">
-        <div className="rounded-lg border border-destructive p-4 text-sm text-destructive">
-          Failed to load trip.
-        </div>
-      </main>
-    );
-  }
-
-  const onAddDestination = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!destName.trim()) return;
-    try {
-      await addDestination.mutate({
-        id: tripId,
-        name: destName.trim(),
-        arrivalDate: destArrival || undefined,
-        departureDate: destDeparture || undefined,
-        orderIndex: current.destinations?.length ?? 0,
-      });
-      setDestName('');
-      setDestArrival('');
-      setDestDeparture('');
-      setShowAddDest(false);
-    } catch {
-      // surfaced via addDestination.error below
-    }
-  };
-
-  const onAddBooking = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!bkProvider.trim()) return;
-    try {
-      await addBooking.mutate({
-        tripId,
-        kind: bkKind,
-        provider: bkProvider.trim(),
-        confirmation: bkConfirmation.trim() || undefined,
-        cost: bkCost ? Number(bkCost) : undefined,
-      });
-      setBkProvider('');
-      setBkConfirmation('');
-      setBkCost('');
-      setBkKind('flight');
-      setShowAddBooking(false);
-    } catch {
-      // surfaced via addBooking.error below
-    }
-  };
+  const deleteTrip = useApiMutation<{ ok: boolean }>('deleteTrip', { invalidates: ['tripList'] });
+  const updateTrip = useApiMutation<unknown>('updateTrip', { invalidates: ['getTrip', 'tripList'] });
 
   const onDelete = async () => {
     if (!confirm('Delete this trip and everything in it? This cannot be undone.')) return;
@@ -135,246 +130,240 @@ export default function TripTimeline({ params }: { params: { tripId: string } })
       await deleteTrip.mutate({ id: tripId });
       navigate('/');
     } catch {
-      // surfaced via deleteTrip.error below
+      /* surfaced below */
     }
   };
 
+  const currency = finances?.homeCurrency ?? 'USD';
+  const travelers = travelersRes?.travelers ?? [];
+
+  // Next up — 3 nearest scheduled items.
+  const destName = new Map((trip?.destinations ?? []).map((d) => [d.id, d.name]));
+  const allItems = (trip?.destinations ?? []).flatMap((d) => d.items ?? []);
+  const nextUp = allItems
+    .filter((i) => i.day)
+    .sort((a, b) => (a.day + (a.startTime ?? '')).localeCompare(b.day + (b.startTime ?? '')))
+    .slice(0, 3);
+
+  // Needs attention — merged feed.
+  const urgentReminders = (remindersRes?.reminders ?? []).filter(
+    (r) => r.urgency === 'soon' || r.urgency === 'overdue',
+  );
+  const activeDeals = (dealsRes?.deals ?? []).filter(
+    (d) => d.status !== 'taken' && d.status !== 'expired',
+  );
+  const pendingDocs = (docsRes?.documents ?? []).filter(
+    (d) => d.status === 'analyzing' || d.status === 'error',
+  );
+  const transfers = settlement?.transfers ?? [];
+  const attentionCount =
+    urgentReminders.length + activeDeals.length + pendingDocs.length + transfers.length;
+
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-6">
-      <TripTabs tripId={tripId} active="timeline" />
+      <TripTabs tripId={tripId} active="overview" />
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-foreground">{current.title}</h1>
-          {current.brief ? (
-            <p className="text-sm text-muted-foreground">{current.brief}</p>
-          ) : null}
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <select
-            value={current.status}
-            onChange={(e) => updateTrip.mutate({ id: tripId, status: e.target.value })}
-            disabled={updateTrip.isPending}
-            title="Trip status"
-            className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground disabled:opacity-50"
-          >
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          <Link
-            href={`/trips/${tripId}/plan`}
-            className="rounded-md px-2 py-1.5 text-sm text-primary hover:underline"
-          >
-            Refine in chat
-          </Link>
-          <button
-            type="button"
-            onClick={onDelete}
-            disabled={deleteTrip.isPending}
-            title="Delete trip"
-            className="rounded-md border border-border p-1.5 text-muted-foreground hover:border-destructive hover:text-destructive disabled:opacity-50"
-          >
-            <TrashIcon className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      <BudgetStrip tripId={tripId} currency={currency} />
-
-      {current.status === 'planning' ? (
-        <div className="rounded-lg border border-border bg-muted px-4 py-2 text-sm text-muted-foreground">
-          The concierge is planning your trip…
-        </div>
-      ) : null}
-
-      {/* Destinations */}
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
-          Itinerary
-        </h2>
-        <button
-          type="button"
-          onClick={() => setShowAddDest((v) => !v)}
-          className="flex items-center gap-1 text-sm text-primary hover:underline"
-        >
-          <PlusIcon className="h-4 w-4" />
-          Add destination
-        </button>
-      </div>
-
-      {showAddDest ? (
-        <form
-          onSubmit={onAddDestination}
-          className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-4"
-        >
-          <div className="flex-1 space-y-1.5">
-            <label className="text-sm font-medium text-foreground" htmlFor="dest-name">
-              Destination
-            </label>
-            <input
-              id="dest-name"
-              value={destName}
-              onChange={(e) => setDestName(e.target.value)}
-              placeholder="Lisbon"
-              className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground" htmlFor="dest-arrival">
-              Arrival
-            </label>
-            <input
-              id="dest-arrival"
-              type="date"
-              value={destArrival}
-              onChange={(e) => setDestArrival(e.target.value)}
-              className="rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground" htmlFor="dest-departure">
-              Departure
-            </label>
-            <input
-              id="dest-departure"
-              type="date"
-              value={destDeparture}
-              onChange={(e) => setDestDeparture(e.target.value)}
-              className="rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={addDestination.isPending || !destName.trim()}
-            className="rounded-md bg-primary px-4 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
-          >
-            Add
-          </button>
-        </form>
-      ) : null}
-
-      {(current.destinations ?? []).length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
-          No destinations yet. Add one above or refine with the concierge.
-        </div>
-      ) : null}
-
-      <div className="space-y-8">
-        {(current.destinations ?? []).map((dest) => (
-          <div key={dest.id} className="space-y-4">
-            <DestinationHeader destination={dest} tripId={tripId} />
-            {(dest.items ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">No items scheduled here yet.</p>
-            ) : null}
-            <div className="space-y-4">
-              {groupByDay(dest.items ?? []).map((group) => (
-                <DayColumn key={group.day} date={group.day} items={group.items} />
-              ))}
+      {isLoading && !trip ? (
+        <SkeletonList count={3} lines={4} />
+      ) : error || !trip ? (
+        <ErrorState message="Failed to load trip." onRetry={refetch} />
+      ) : (
+        <>
+          {/* Header card */}
+          <section className="space-y-3 rounded-lg border border-border bg-card p-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0 space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-2xl font-bold text-foreground">{trip.title}</h1>
+                  <select
+                    value={trip.status}
+                    onChange={(e) => updateTrip.mutate({ id: tripId, status: e.target.value })}
+                    disabled={updateTrip.isPending}
+                    title="Trip status"
+                    aria-label="Trip status"
+                    className="rounded-full border border-border bg-background px-2 py-0.5 text-xs capitalize text-muted-foreground disabled:opacity-50"
+                  >
+                    {['planning', 'booked', 'complete'].map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {trip.startDate || trip.endDate ? (
+                  <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <CalendarIcon className="h-4 w-4" />
+                    {formatDateRange(trip.startDate, trip.endDate)}
+                    <span className="text-foreground">· {countdown(trip.startDate, trip.status)}</span>
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{countdown(trip.startDate, trip.status)}</p>
+                )}
+                {trip.brief ? <p className="text-sm text-muted-foreground">{trip.brief}</p> : null}
+              </div>
+              <div className="flex shrink-0 flex-col items-end gap-2">
+                <Avatars travelers={travelers} />
+                <button
+                  type="button"
+                  onClick={onDelete}
+                  disabled={deleteTrip.isPending}
+                  title="Delete trip"
+                  aria-label="Delete trip"
+                  className="rounded-md border border-border p-1.5 text-muted-foreground hover:border-destructive hover:text-destructive disabled:opacity-50"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+            <BudgetStrip tripId={tripId} currency={currency} />
+          </section>
 
-      {/* Bookings */}
-      <div className="space-y-3 border-t border-border pt-6">
-        <div className="flex items-center justify-between gap-4">
-          <h2 className="text-sm font-bold uppercase text-muted-foreground">Bookings</h2>
-          <button
-            type="button"
-            onClick={() => setShowAddBooking((v) => !v)}
-            className="flex items-center gap-1 text-sm text-primary hover:underline"
-          >
-            <PlusIcon className="h-4 w-4" />
-            Add booking
-          </button>
-        </div>
+          <RunStrip tripId={tripId} />
 
-        {showAddBooking ? (
-          <form
-            onSubmit={onAddBooking}
-            className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-4"
-          >
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground" htmlFor="bk-kind">
-                Kind
-              </label>
-              <select
-                id="bk-kind"
-                value={bkKind}
-                onChange={(e) => setBkKind(e.target.value)}
-                className="rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground"
-              >
-                {BOOKING_KINDS.map((k) => (
-                  <option key={k} value={k}>
-                    {k}
-                  </option>
+          {/* Needs attention — the single most valuable screen. */}
+          <section className="space-y-3">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
+              Needs attention {attentionCount > 0 ? `(${attentionCount})` : ''}
+            </h2>
+            {attentionCount === 0 ? (
+              <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+                All clear — nothing needs your attention right now.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {urgentReminders.map((r) => (
+                  <Link
+                    key={r.id}
+                    href={`/trips/${tripId}/reminders`}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 hover:border-primary"
+                  >
+                    <span className="flex items-center gap-2 text-sm text-foreground">
+                      <BellIcon className="h-4 w-4 text-warning" />
+                      Book {r.title}
+                      {r.bookByDate ? ` by ${formatDate(r.bookByDate)}` : ''}
+                    </span>
+                    <span className={`text-xs ${r.urgency === 'overdue' ? 'text-destructive' : 'text-muted-foreground'}`}>
+                      {r.urgency === 'overdue' ? 'overdue' : r.daysLeft != null ? `${r.daysLeft}d left` : ''}
+                    </span>
+                  </Link>
                 ))}
-              </select>
-            </div>
-            <div className="flex-1 space-y-1.5">
-              <label className="text-sm font-medium text-foreground" htmlFor="bk-provider">
-                Provider
-              </label>
-              <input
-                id="bk-provider"
-                value={bkProvider}
-                onChange={(e) => setBkProvider(e.target.value)}
-                placeholder="TAP Air Portugal"
-                className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground" htmlFor="bk-confirmation">
-                Confirmation
-              </label>
-              <input
-                id="bk-confirmation"
-                value={bkConfirmation}
-                onChange={(e) => setBkConfirmation(e.target.value)}
-                placeholder="ABC123"
-                className="rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground"
-              />
-            </div>
-            <div className="w-28 space-y-1.5">
-              <label className="text-sm font-medium text-foreground" htmlFor="bk-cost">
-                Cost
-              </label>
-              <input
-                id="bk-cost"
-                type="number"
-                min="0"
-                step="0.01"
-                value={bkCost}
-                onChange={(e) => setBkCost(e.target.value)}
-                placeholder="0.00"
-                className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={addBooking.isPending || !bkProvider.trim()}
-              className="rounded-md bg-primary px-4 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
-            >
-              Add
-            </button>
-          </form>
-        ) : null}
+                {activeDeals.map((d) => (
+                  <Link
+                    key={d.id}
+                    href={`/trips/${tripId}/deals`}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 hover:border-primary"
+                  >
+                    <span className="flex items-center gap-2 text-sm text-foreground">
+                      <TagIcon className="h-4 w-4 text-success" />
+                      {d.title}
+                    </span>
+                    {d.estimatedSavings > 0 ? (
+                      <span className="text-xs text-success">save {formatMoney(d.estimatedSavings, d.currency)}</span>
+                    ) : null}
+                  </Link>
+                ))}
+                {pendingDocs.map((d) => (
+                  <Link
+                    key={d.id}
+                    href={`/trips/${tripId}/documents`}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 hover:border-primary"
+                  >
+                    <span className="flex items-center gap-2 text-sm text-foreground">
+                      <FileIcon className="h-4 w-4 text-muted-foreground" />
+                      {d.filename || 'Document'}
+                    </span>
+                    <span className={`text-xs ${d.status === 'error' ? 'text-destructive' : 'text-muted-foreground'}`}>
+                      {d.status}
+                    </span>
+                  </Link>
+                ))}
+                {transfers.length > 0 ? (
+                  <Link
+                    href={`/trips/${tripId}/settlement`}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 hover:border-primary"
+                  >
+                    <span className="flex items-center gap-2 text-sm text-foreground">
+                      <ScaleIcon className="h-4 w-4 text-muted-foreground" />
+                      {transfers.length} payment{transfers.length === 1 ? '' : 's'} to settle
+                    </span>
+                    <span className="text-xs text-muted-foreground">Open settlement</span>
+                  </Link>
+                ) : null}
+              </div>
+            )}
+          </section>
 
-        {(current.bookings ?? []).length === 0 ? (
-          <div className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
-            No bookings yet.
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {current.bookings.map((b) => (
-              <BookingRow key={b.id} booking={b} currency={currency} />
-            ))}
-          </div>
-        )}
-      </div>
+          {/* Next up */}
+          <section className="space-y-3">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Next up</h2>
+            {trip.destinations.length === 0 ? (
+              <EmptyState
+                icon={MapPinIcon}
+                title="Nothing planned yet"
+                hint="Let the concierge draft an itinerary, or add stops on the timeline."
+                actionLabel="Start planning"
+                actionHref={`/trips/${tripId}/plan`}
+              />
+            ) : nextUp.length === 0 ? (
+              <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+                No scheduled items yet.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {nextUp.map((it) => {
+                  const s = kindStyle(it.kind);
+                  return (
+                    <Link
+                      key={it.id}
+                      href={`/trips/${tripId}/timeline`}
+                      className="flex items-center gap-3 rounded-lg border border-l-4 border-border bg-card p-3 hover:border-primary"
+                      style={{ borderLeftColor: s.colorVar }}
+                    >
+                      <span className="flex items-center gap-1 text-xs tabular-nums text-muted-foreground">
+                        <ClockIcon className="h-3.5 w-3.5" />
+                        {formatDate(it.day)}
+                        {it.startTime ? ` ${it.startTime}` : ''}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm text-foreground">{it.title}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{destName.get(it.destinationId)}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          {/* Money at a glance */}
+          <section className="space-y-3">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Money at a glance</h2>
+            {finances ? (
+              <div className="space-y-3 rounded-lg border border-border bg-card p-4">
+                <FinanceBar
+                  label="Booked + spent"
+                  value={finances.booked + finances.spent}
+                  max={Math.max(finances.budget, finances.booked + finances.spent, 1)}
+                  currency={currency}
+                />
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <span className="text-muted-foreground">
+                    Remaining{' '}
+                    <span className={finances.remaining < 0 ? 'font-medium text-destructive' : 'font-medium text-foreground'}>
+                      {formatMoney(finances.remaining, currency)}
+                    </span>
+                  </span>
+                  <Link href={`/trips/${tripId}/finances`} className="text-primary hover:underline">
+                    Full finances →
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <Skeleton className="h-24 w-full" />
+            )}
+          </section>
+        </>
+      )}
+
+      <CopilotDock tripId={tripId} tripTitle={trip?.title} />
     </main>
   );
 }

@@ -1,0 +1,18 @@
+{
+  "title": "Agent runs",
+  "description": "One record of a background specialist-agent run kicked off for a trip (planning, deal-hunting, packing, transit, research). Powers the live RunStrip so long-running agent work is visible while it happens instead of finishing invisibly.",
+  "columns": {
+    "id":        { "type": "string", "description": "unique id", "primaryKey": true, "generated": "uuid" },
+    "tripId":    { "type": "string", "description": "the trip this run is working on", "required": true,
+                   "references": { "table": "trips", "column": "id", "onDelete": "cascade" } },
+    "kind":      { "type": "string", "description": "which pipeline: 'plan' | 'deals' | 'packing' | 'transit' | 'research' | 'assist'", "required": true },
+    "label":     { "type": "string", "description": "short human label shown as a live pill, e.g. 'Planning your trip'" },
+    "status":    { "type": "string", "description": "'running' while in flight, 'done' when the work landed, 'error' on failure", "default": "running" },
+    "detail":    { "type": "string", "description": "optional one-line progress detail or error message" },
+    "startedAt": { "type": "date",   "description": "when the run started", "generated": "now" },
+    "endedAt":   { "type": "date",   "description": "when the run finished (done or error); null while running" }
+  },
+  "relations": {
+    "trip": { "belongsTo": "trips", "via": "tripId", "description": "the parent trip" }
+  }
+}

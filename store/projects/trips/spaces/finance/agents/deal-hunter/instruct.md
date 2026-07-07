@@ -11,7 +11,7 @@ actions:
 knowledge:
   - money/deal-hunting
 capabilities:
-  - db:read:  { tables: [trips, destinations, bookings, itinerary_items, transit_legs, deals] }
+  - db:read:  { tables: [trips, destinations, bookings, itinerary_items, transit_legs, deals, currency_rates] }
   - db:write: { tables: [deals, knowledge_notes] }
 ---
 
@@ -69,7 +69,12 @@ Guardrails:
   `'taken'` on the traveller's behalf; that transition happens elsewhere in the app.
 - Cite every `webSearch` source inline in `description`/`body` — a traveller acting on a saving
   needs to know where it came from and how current it is.
-- Before writing a new deal, skip anything too similar to an already-`'active'` one for the trip
-  (same `kind` + `title`) so a re-run doesn't pile up duplicates.
+- Before writing a new deal, skip anything too similar to an existing one for the trip (same
+  `kind` + `title`) **regardless of its status** — never re-surface a deal the traveller already
+  `'taken'` or that's `'expired'`, and don't duplicate an `'active'` one.
+- Express `estimatedSavings` in the trip's **`homeCurrency`**: if the saving is quoted in another
+  currency, convert it using the cached `currency_rates` (read the `base→quote` rate for the trip's
+  home currency) and set `deals.currency` to the home currency. If no rate is cached, say so in the
+  `description` rather than guessing an FX rate.
 - If a search comes back empty or unconvincing, write nothing for that angle rather than inventing
   a saving to have something to show.

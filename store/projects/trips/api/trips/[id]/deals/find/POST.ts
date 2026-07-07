@@ -24,6 +24,20 @@ export interface Output {
 }
 
 export default async function handler(input: Input, ctx: Ctx): Promise<Output> {
-  const { runId } = await ctx.spawn('finance/deal-hunter#hunt', { tripId: input.id });
+  const run = (await ctx.db.insert('agent_runs', {
+    tripId: input.id,
+    kind: 'deals',
+    label: 'Hunting deals',
+    status: 'running',
+    detail: 'Scanning flights, lodging and activities for savings…',
+  })) as { id: string };
+  const { runId } = await ctx.spawn('finance/deal-hunter#hunt', { tripId: input.id }, {
+    onError: async () => {
+      await ctx.db.update('agent_runs', {
+        where: { id: run.id },
+        set: { status: 'error', detail: 'Deal hunt failed.', endedAt: new Date().toISOString() },
+      });
+    },
+  });
   return { ok: true, runId };
 }

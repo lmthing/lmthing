@@ -3,6 +3,7 @@ import type { Trip, Destination, ItineraryItem, Booking } from '@app/types';
 import { useApi, Chat, Link } from '@app/runtime';
 import { Spinner } from '../../../components/Spinner';
 import { TripTabs } from '../../../components/TripTabs';
+import { RunStrip } from '../../../components/RunStrip';
 
 type FullTrip = Trip & {
   destinations: (Destination & { items: ItineraryItem[] })[];
@@ -28,6 +29,8 @@ export default function PlanTrip({ params }: { params: { tripId: string } }) {
             {trip ? trip.title : 'Plan your trip'}
           </h1>
         </div>
+
+        <RunStrip tripId={tripId} />
 
         {isLoading ? <Spinner /> : null}
 

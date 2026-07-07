@@ -64,6 +64,10 @@ export interface Output {
   balances: Balance[];
   transfers: Transfer[];
   currency: string;
+  /** Count of expense_shares already settled — drives the "% settled" progress ring. */
+  settledShares: number;
+  /** Total expense_shares on the trip. */
+  totalShares: number;
 }
 
 export default async function handler(input: Input, ctx: Ctx): Promise<Output> {
@@ -97,7 +101,10 @@ export default async function handler(input: Input, ctx: Ctx): Promise<Output> {
 
   const transfers = minimizeTransfers(balances);
 
-  return { balances, transfers, currency };
+  const settledShares = shares.filter((s) => s.settled).length;
+  const totalShares = shares.length;
+
+  return { balances, transfers, currency, settledShares, totalShares };
 }
 
 // Greedy minimal-transfer settlement: repeatedly match the largest creditor

@@ -24,6 +24,20 @@ export interface Output {
 }
 
 export default async function handler(input: Input, ctx: Ctx): Promise<Output> {
-  const { runId } = await ctx.spawn('logistics/navigator#plan-transit', { tripId: input.id });
+  const run = (await ctx.db.insert('agent_runs', {
+    tripId: input.id,
+    kind: 'transit',
+    label: 'Planning transit',
+    status: 'running',
+    detail: 'Sequencing the legs between your destinations…',
+  })) as { id: string };
+  const { runId } = await ctx.spawn('logistics/navigator#plan-transit', { tripId: input.id }, {
+    onError: async () => {
+      await ctx.db.update('agent_runs', {
+        where: { id: run.id },
+        set: { status: 'error', detail: 'Transit planning failed.', endedAt: new Date().toISOString() },
+      });
+    },
+  });
   return { ok: true, runId };
 }

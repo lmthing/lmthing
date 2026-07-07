@@ -9,7 +9,9 @@
     "arrivalDate":   { "type": "date",   "description": "day the traveller arrives here" },
     "departureDate": { "type": "date",   "description": "day the traveller leaves" },
     "orderIndex":    { "type": "number", "description": "position in the trip sequence; lower comes first", "default": 0 },
-    "notes":         { "type": "string", "description": "planner notes about why this stop and what to prioritise" }
+    "notes":         { "type": "string", "description": "planner notes about why this stop and what to prioritise" },
+    "lat":           { "type": "number", "description": "geocoded latitude (Nominatim), used for the map and weather forecast; null until geocoded" },
+    "lng":           { "type": "number", "description": "geocoded longitude (Nominatim), used for the map and weather forecast; null until geocoded" }
   },
   "relations": {
     "trip":     { "belongsTo": "trips",           "via": "tripId",        "description": "the parent trip" },

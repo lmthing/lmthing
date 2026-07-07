@@ -11,33 +11,38 @@ type Ctx = {
   apiCall: (name: string, input?: unknown) => Promise<unknown>;
 };
 
-export const name = 'generatePacking';
-export const description = 'Kick off the logistics packer agent to (re)generate the packing list for a trip.';
+export const name = 'settleBetween';
+export const description =
+  'Mark a whole settlement edge paid: settle every unsettled expense_share owed by `fromTravelerId` on expenses paid by `toTravelerId` for this trip. Backs the "Mark paid" button on a transfer row.';
 
 export interface Input {
   id: string;
+  fromTravelerId: string;
+  toTravelerId: string;
 }
 
 export interface Output {
-  ok: true;
-  runId: string;
+  settled: number;
+}
+
+interface Expense {
+  id: string;
+  paidByTravelerId?: string;
 }
 
 export default async function handler(input: Input, ctx: Ctx): Promise<Output> {
-  const run = (await ctx.db.insert('agent_runs', {
-    tripId: input.id,
-    kind: 'packing',
-    label: 'Building packing list',
-    status: 'running',
-    detail: 'Matching gear to your activities and the forecast…',
-  })) as { id: string };
-  const { runId } = await ctx.spawn('logistics/packer#pack', { tripId: input.id }, {
-    onError: async () => {
-      await ctx.db.update('agent_runs', {
-        where: { id: run.id },
-        set: { status: 'error', detail: 'Packing build failed.', endedAt: new Date().toISOString() },
-      });
-    },
-  });
-  return { ok: true, runId };
+  const expenses = (await ctx.db.query('expenses', {
+    where: { tripId: input.id, paidByTravelerId: input.toTravelerId },
+  })) as Expense[];
+
+  const settledAt = new Date().toISOString();
+  let settled = 0;
+  for (const exp of expenses) {
+    const n = await ctx.db.update('expense_shares', {
+      where: { expenseId: exp.id, travelerId: input.fromTravelerId, settled: false },
+      set: { settled: true, settledAt },
+    });
+    settled += n;
+  }
+  return { settled };
 }

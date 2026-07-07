@@ -30,9 +30,11 @@ const EXPECTED_TABLES = [
   'documents', 'document_extractions', 'knowledge_notes', 'packing_items', 'transit_legs',
   // round 3 — Money & People
   'travelers', 'traveler_preferences', 'expenses', 'expense_shares', 'deals', 'currency_rates',
+  // round 4 — live agent activity (RunStrip)
+  'agent_runs',
 ];
 
-test('all 16 database schemas pass the engine validateSchemaSet (fail-loud)', async () => {
+test('all database schemas pass the engine validateSchemaSet (fail-loud)', async () => {
   assert.ok(existsSync(CORE), `built @lmthing/core not found at ${CORE} — run \`pnpm --filter @lmthing/core build\` in sdk/org`);
   const { validateSchemaSet } = await import(CORE);
   const dbDir = join(APP, 'database');
@@ -160,6 +162,14 @@ const EXPECTED_ENDPOINTS = [
   ['trips/[id]/deals/GET.ts', 'listDeals'],
   ['trips/[id]/deals/find/POST.ts', 'findDeals'],
   ['deals/[id]/PATCH.ts', 'updateDeal'],
+  // ── round-4 endpoints (live activity, NL capture, integrations, settlement edge) ──
+  ['trips/[id]/activity/GET.ts', 'getTripActivity'],
+  ['trips/[id]/expenses/parse/POST.ts', 'parseExpense'],
+  ['trips/[id]/settle-between/POST.ts', 'settleBetween'],
+  ['trips/[id]/rates/POST.ts', 'refreshRates'],
+  ['trips/[id]/weather/POST.ts', 'refreshWeather'],
+  ['trips/[id]/calendar/GET.ts', 'tripCalendar'],
+  ['geocode/GET.ts', 'geocode'],
 ];
 
 test('all api handlers exist and export name / Input / Output / default handler', () => {
@@ -296,10 +306,36 @@ const frontmatterOf = (src) => {
   return m ? m[1] : '';
 };
 
-test('project has ≥2 project-scoped spaces (concierge + records + logistics + finance + companions)', () => {
+test('project has ≥2 project-scoped spaces (concierge + records + logistics + finance + companions + copilot)', () => {
   const spacesDir = join(APP, 'spaces');
   const spaces = readdirSync(spacesDir).filter((d) => statSync(join(spacesDir, d)).isDirectory()).sort();
-  assert.deepEqual(spaces, ['companions', 'concierge', 'finance', 'logistics', 'records']);
+  assert.deepEqual(spaces, ['companions', 'concierge', 'copilot', 'finance', 'logistics', 'records']);
+});
+
+test('copilot/assistant is the write-capable orchestrator: db:read + db:write + api:call + delegation, no authoring caps', () => {
+  const instructP = join(APP, 'spaces', 'copilot', 'agents', 'assistant', 'instruct.md');
+  assert.ok(existsSync(instructP), 'copilot/assistant instruct.md missing');
+  assert.ok(existsSync(join(APP, 'spaces', 'copilot', 'agents', 'assistant', 'charter.md')), 'copilot/assistant charter.md missing');
+  const fm = frontmatterOf(readFileSync(instructP, 'utf8'));
+  assert.match(fm, /db:read/, 'copilot must read to ground itself');
+  assert.match(fm, /db:write/, 'copilot must make low-risk direct edits');
+  assert.match(fm, /api:call/, 'copilot must call typed endpoints (so hooks fire)');
+  assert.match(fm, /canDelegateTo/, 'copilot must delegate to the specialists');
+  for (const forbidden of ['db:schema', 'pages:write', 'api:write', 'hooks:write']) {
+    assert.doesNotMatch(fm, new RegExp(forbidden), `copilot must NOT hold authoring cap ${forbidden}`);
+  }
+});
+
+test('agent_runs carries the RunStrip columns', () => {
+  const s = JSON.parse(readFileSync(join(APP, 'database', 'agent_runs.json'), 'utf8'));
+  for (const c of ['tripId', 'kind', 'status', 'startedAt']) {
+    assert.ok(s.columns[c], `agent_runs.${c} missing`);
+  }
+});
+
+test('destinations carries additive lat/lng columns (geocoding + weather + map)', () => {
+  const s = JSON.parse(readFileSync(join(APP, 'database', 'destinations.json'), 'utf8'));
+  assert.ok(s.columns.lat && s.columns.lng, 'destinations.lat/lng missing');
 });
 
 // Generic FULL-space-format checker applied to each round-2 AND round-3 space.

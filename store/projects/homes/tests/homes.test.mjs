@@ -136,6 +136,33 @@ test('parseAlertEmail → extractListingFields: 3-listing digest → 3 aligned c
   assert.match(f0.title, /Arroios/);
 });
 
+test('parseAlertEmail: drops the digest subject/summary line (budget figure ≠ a listing)', async () => {
+  const { parseAlertEmail } = await intakeFn('parseAlertEmail');
+  // The subject line carries a BUDGET figure ("under €1,600") that trips the price
+  // anchor, but it is not a listing card — it has no link, size, or room spec.
+  const email =
+    'New match for your saved search — Lisbon rentals under €1,600\n\n' +
+    'Bright 2-bedroom apartment in Estrela\n€1,450/month\n78 m²\nhttps://idealista.pt/1\n\n' +
+    'Also new:\nT2 near Marquês de Pombal, €1,590/month, 65 m²\nhttps://idealista.pt/2';
+  const blocks = parseAlertEmail(email);
+  assert.equal(blocks.length, 2, 'the summary/subject header is dropped; two real cards remain');
+  assert.ok(!blocks.some((b) => /saved search/i.test(b)), 'no phantom card from the subject line');
+});
+
+test('extractListingFields.title: real title beats a connective header; run-on blob is trimmed', async () => {
+  const { extractListingFields } = await intakeFn('extractListingFields');
+  // A connective header ("Also new:") must not win over the listing line beneath it.
+  const withHeader = extractListingFields('Also new:\nT2 near Marquês de Pombal, €1,590/month, 65 m²');
+  assert.match(withHeader.title, /Marqu.s de Pombal/, 'picks the property line, not "Also new:"');
+  assert.doesNotMatch(withHeader.title, /^Also new/i);
+  // A single-line pasted blob must not become a 140-char run-on title.
+  const blob = extractListingFields(
+    'Apartamento T2 para arrendar em Campo de Ourique, Lisboa. 1.500 EUR por mês. 80 m2, 2 quartos, muito luminoso.',
+  );
+  assert.equal(blob.title, 'Apartamento T2 para arrendar em Campo de Ourique, Lisboa', 'trimmed to the first sentence');
+  assert.ok(blob.title.length <= 90);
+});
+
 test('parsePortalHtml: JSON-LD wins over scraped fields', async () => {
   const { parsePortalHtml } = await intakeFn('parsePortalHtml');
   const html = '<html><head><meta property="og:title" content="WRONG"></head><script type="application/ld+json">{"@type":"Residence","name":"T2 Arroios","numberOfBedrooms":2,"floorSize":{"value":84},"offers":{"price":"1600","priceCurrency":"EUR"},"image":["https://x/1.jpg"]}</script></html>';
@@ -177,6 +204,23 @@ test('politeFetchPlan: only due+enabled sources; interval floored at 6h', async 
   assert.ok(!ids.includes('s4'), 'recently-polled source not yet due');
 });
 
+test('politeFetchPlan: a pending "Check now" is polled once even when disabled / not yet due', async () => {
+  const { politeFetchPlan } = await intakeFn('politeFetchPlan');
+  const now = Date.now();
+  const plan = politeFetchPlan([
+    // Disabled recurring polling, but an explicit manual request after the last poll → due once.
+    { id: 'm1', url: 'https://idealista.pt/m', pollEnabled: false, lastPolledAt: new Date(now - 600_000).toISOString(), pollRequestedAt: new Date(now - 1_000).toISOString() },
+    // Manual request already serviced (lastPolledAt after pollRequestedAt) → NOT re-polled (loop-safe).
+    { id: 'm2', url: 'https://x.com/m', pollEnabled: false, pollRequestedAt: new Date(now - 60_000).toISOString(), lastPolledAt: new Date(now - 1_000).toISOString() },
+    // Manual request but robots-blocked → still skipped.
+    { id: 'm3', url: 'https://y.com/m', pollEnabled: true, blockedReason: 'robots', pollRequestedAt: new Date(now).toISOString() },
+  ], now);
+  const ids = plan.map((p) => p.sourceId);
+  assert.ok(ids.includes('m1'), 'a fresh manual request bypasses the pollEnabled opt-in and interval');
+  assert.ok(!ids.includes('m2'), 'a serviced manual request does not re-poll (no loop)');
+  assert.ok(!ids.includes('m3'), 'a blocked source is never polled, even on manual request');
+});
+
 // ── API handlers — the 19 named, typed endpoints ─────────────────────────────
 const EXPECTED_ENDPOINTS = [
   ['searches/GET.ts', 'searchList'],
@@ -216,6 +260,24 @@ test('ingestCapture inserts a raw_capture and does NOT spawn (the hook drives it
   const src = readFileSync(join(APP, 'api', 'searches', '[id]', 'captures', 'POST.ts'), 'utf8');
   assert.match(src, /db\.insert\(\s*['"]raw_captures['"]/, 'ingestCapture must insert raw_captures');
   assert.doesNotMatch(src, /ctx\.spawn\(/, 'ingestCapture returns immediately — the parse hook fires on insert');
+});
+
+test('pollSource stamps a manual request and does NOT spawn (the poll-source-now hook drives it)', () => {
+  const src = readFileSync(join(APP, 'api', 'sources', '[id]', 'poll', 'POST.ts'), 'utf8');
+  // ctx.spawn is a permanent no-op in the pod runtime — a spawned agent never runs.
+  assert.doesNotMatch(src, /ctx\.spawn\(/, 'pollSource must not rely on the no-op ctx.spawn');
+  assert.match(src, /pollRequestedAt/, 'pollSource stamps a manual-poll request');
+  assert.match(src, /db\.update\(\s*['"]sources['"]/, 'the request is a sources update the hook fires on');
+});
+
+test('poll-source-now: database:update on sources → intake/clipper#poll trigger', () => {
+  const src = readFileSync(join(APP, 'hooks', 'poll-source-now.ts'), 'utf8');
+  assert.match(src, /type:\s*['"]database['"]/);
+  assert.match(src, /table:\s*['"]sources['"]/);
+  assert.match(src, /event:\s*['"]update['"]/);
+  // Declarative trigger (not the terse handler-delegate) so the clipper reliably routes to
+  // its `poll` action; the pending-request eligibility gate lives in politeFetchPlan.
+  assert.match(src, /trigger:\s*['"]intake\/clipper#poll['"]/);
 });
 
 test('saveListing / dismissListing write the taste signal', () => {

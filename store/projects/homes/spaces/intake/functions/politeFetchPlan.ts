@@ -18,6 +18,9 @@ export interface PollableSource {
   pollIntervalHours?: number;
   lastPolledAt?: string | null;
   blockedReason?: string | null;
+  /** A one-off "Check now" request; a pending one (after lastPolledAt) is polled once
+   *  regardless of pollEnabled/interval — the user's explicit consent for this fetch. */
+  pollRequestedAt?: string | null;
 }
 
 export interface FetchPlanEntry {
@@ -40,11 +43,19 @@ export function politeFetchPlan(
 ): FetchPlanEntry[] {
   const jitter = opts?.jitterMs ?? 5_000;
   const due = (sources ?? []).filter((s) => {
-    if (!s.pollEnabled || !s.url || s.blockedReason) return false;
+    if (!s.url || s.blockedReason) return false;
+    const lastMs = s.lastPolledAt ? Date.parse(s.lastPolledAt) : NaN;
+    // A pending one-off "Check now" (pollRequestedAt after the last poll) is always due —
+    // explicit user consent bypasses the recurring opt-in and the interval, but NOT robots
+    // (the clipper still robots-checks each host) or the per-host spacing/page caps below.
+    if (s.pollRequestedAt) {
+      const reqMs = Date.parse(s.pollRequestedAt);
+      if (Number.isFinite(reqMs) && (!Number.isFinite(lastMs) || reqMs > lastMs)) return true;
+    }
+    if (!s.pollEnabled) return false;
     const interval = Math.max(MIN_INTERVAL_HOURS, s.pollIntervalHours ?? 12) * 3_600_000;
     if (!s.lastPolledAt) return true;
-    const last = Date.parse(s.lastPolledAt);
-    return !Number.isFinite(last) || now - last >= interval;
+    return !Number.isFinite(lastMs) || now - lastMs >= interval;
   });
 
   const lastHostAt = new Map<string, number>();

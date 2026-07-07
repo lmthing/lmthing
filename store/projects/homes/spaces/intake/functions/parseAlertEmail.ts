@@ -51,8 +51,25 @@ export function parseAlertEmail(body: string): string[] {
     if (priceCount > 1) blocks = splitOnPriceAnchor(merged);
   }
 
-  return blocks.filter((b) => b.length > 0 && PRICE_ANCHOR.test(b));
+  return blocks.filter((b) => {
+    if (!(b.length > 0 && PRICE_ANCHOR.test(b))) return false;
+    // Drop a digest subject/summary line that only tripped the price anchor via a BUDGET
+    // figure ("…rentals under €1,600", "N new matches for your saved search") — it reads
+    // as a card but has none of a real card's evidence (a link, a size, or a room spec),
+    // and would otherwise become a phantom listing that pollutes the feed, the ranking,
+    // and the daily digest's "best option".
+    if (SUMMARY_HEADER.test(b) && !CARD_EVIDENCE.test(b)) return false;
+    return true;
+  });
 }
+
+// A line that announces the digest itself rather than a listing in it.
+const SUMMARY_HEADER =
+  /\b(saved search|new match(?:es)?|match(?:es)? your|match for your|results? for|listings? that match|your (?:search|alert))\b/i;
+// The structural evidence a genuine listing card carries — a link, a size, a room spec,
+// or a recurring-cost marker. A summary header has a price but none of these.
+const CARD_EVIDENCE =
+  /(https?:\/\/|\bm²|\bm2\b|\bsqm\b|\/m[êe]s\b|\/month\b|\bpcm\b|\bper month\b|\bT\d\b|\d+\s?(?:bed|bedrooms?|quartos?))/i;
 
 function splitOnPriceAnchor(text: string): string[] {
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);

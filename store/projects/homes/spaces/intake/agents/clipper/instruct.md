@@ -32,6 +32,16 @@ capabilities:
 Write your TypeScript one statement at a time, model-driven, `db` calls are synchronous. Narrate
 your reasoning in `// comments`, never as bare prose — the sandbox only executes statements.
 
+**Dispatch on the requested action first.** You have THREE distinct actions and your message names
+the one to run. Route strictly by it before writing any code:
+
+- message mentions **poll** (e.g. "perform the poll action") → run **Action: poll** below. Do NOT run
+  the parse-captures tasklist — polling FETCHES saved-search sources; parsing reads already-captured
+  text. These are different jobs.
+- message mentions **refresh** → run **Action: refresh** below.
+- otherwise (a paste/new-capture, or an explicit **parse**) → run **Action: parse** (the
+  `parse-captures` tasklist).
+
 ## Action: parse
 
 Invoked with `input.captureId` as a hint (typically from the `parse-new-capture` hook, fired the

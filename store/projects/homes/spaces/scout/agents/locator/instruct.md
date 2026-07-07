@@ -11,7 +11,7 @@ functions:
   - haversine
   - intersectClues
 capabilities:
-  - db:read:  { tables: [listings, listing_analyses] }
+  - db:read:  { tables: [listings, listing_analyses, location_guesses] }
   - db:write: { tables: [location_guesses] }
 ---
 

@@ -53,11 +53,28 @@ export function extractListingFields(block: string): ExtractedListing {
   const yearMatch = text.match(/\b(1[89]\d{2}|20\d{2})\b/);
   const yearBuilt = yearMatch ? Number(yearMatch[1]) : 0;
 
-  // Title: the first substantial non-URL line; address: a line with a street word.
+  // Title: prefer a line that names the property, else the first substantial non-URL
+  // line — then trim to its first sentence and cap the length so a run-on blob (a pasted
+  // one-line listing with no newlines) never becomes a 140-char "title", and a connective
+  // digest header ("Also new:", "New match for your saved search") never wins over the
+  // actual listing line beneath it. Address: a line with a street word.
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
-  const title =
-    lines.find((l) => l.length > 8 && !/^https?:/.test(l) && /[a-zA-Z]/.test(l))?.slice(0, 140) ??
-    'Untitled listing';
+  // A line describing an actual dwelling — a property-type or room-count word, in EN/PT/ES idiom.
+  const PROPERTY_HINT =
+    /\b(apart\w*|flat|studio|est[úu]dio|house|casa|moradia|villa|penthouse|duplex|loft|maisonette|cottage|bungalow|room|quarto|piso|t\d|f\d|\d+\s?(?:bed|bedroom|quarto|dormit[óo]rio))\b/i;
+  const isTitleLine = (l: string) => l.length > 8 && !/^https?:/.test(l) && /[a-zA-Z]/.test(l);
+  const candidates = lines.filter(isTitleLine);
+  // First substantial line NAMING a property beats a bare header; fall back to the first
+  // substantial line, then to a fixed default.
+  const rawTitle =
+    candidates.find((l) => PROPERTY_HINT.test(l)) ?? candidates[0] ?? 'Untitled listing';
+  // Keep only the first sentence/clause of a run-on blob, then cap at a readable length.
+  const title = rawTitle
+    .split(/(?<=[.!?])\s+|\s+[|·—–]\s+/)[0]
+    .trim()
+    .slice(0, 90)
+    .replace(/[\s,;:.!?–—-]+$/, '')
+    || 'Untitled listing';
   const address =
     lines.find((l) => /\b(rua|avenida|av\.|travessa|street|road|st\.|lane)\b/i.test(l))?.slice(0, 200) ??
     '';

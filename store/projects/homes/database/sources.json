@@ -11,6 +11,7 @@
     "pollEnabled":       { "type": "boolean","description": "opt-in: whether the poll-saved-searches cron may fetch this source's url", "default": false },
     "pollIntervalHours": { "type": "number", "description": "hours between polls (min 6 — enforced by the clipper's politeFetchPlan)", "default": 12 },
     "lastPolledAt":      { "type": "date",   "description": "when the poller last fetched this source" },
+    "pollRequestedAt":   { "type": "date",   "description": "when the user last hit 'Check now' for a one-off manual poll — a pending request (pollRequestedAt after lastPolledAt) is polled once on the next clipper#poll run regardless of the recurring pollEnabled toggle or interval, then cleared by lastPolledAt advancing past it" },
     "blockedReason":     { "type": "string", "description": "why polling stopped, if it did — robots disallow, repeated fetch failures, or a block page; surfaced to the user, polling auto-disabled" },
     "notes":             { "type": "string", "description": "anything the clipper should know about this source's format" },
     "lastIngestedAt":    { "type": "date",   "description": "when a capture from this source was last parsed" },

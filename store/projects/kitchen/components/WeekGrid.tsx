@@ -1,20 +1,19 @@
 import React from 'react';
 import { MealCell, type MealWithRecipe } from './MealCell';
+import { formatDay } from './format';
 
 const MEAL_SLOTS: Array<'breakfast' | 'lunch' | 'dinner'> = ['breakfast', 'lunch', 'dinner'];
-
-function formatDay(day: string): string {
-  const d = new Date(day);
-  if (Number.isNaN(d.getTime())) return day;
-  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-}
 
 export function WeekGrid({
   meals,
   onRemoveMeal,
+  onRateMeal,
+  onCookMeal,
 }: {
   meals: MealWithRecipe[];
   onRemoveMeal?: (id: string) => void;
+  onRateMeal?: (id: string, rating: number) => void;
+  onCookMeal?: (id: string) => void;
 }) {
   const list = meals ?? [];
   const days = Array.from(new Set(list.map((m) => m.day))).sort();
@@ -55,6 +54,8 @@ export function WeekGrid({
                   key={`${day}:${slot}`}
                   meal={meal}
                   onRemove={meal && onRemoveMeal ? () => onRemoveMeal(meal.id) : undefined}
+                  onRate={meal && onRateMeal ? (rating) => onRateMeal(meal.id, rating) : undefined}
+                  onCook={meal && onCookMeal ? () => onCookMeal(meal.id) : undefined}
                 />
               );
             })}

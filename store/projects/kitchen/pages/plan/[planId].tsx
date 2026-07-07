@@ -14,6 +14,14 @@ export default function PlanDetail({ params }: { params: { planId: string } }) {
     invalidates: ['currentPlan'],
   });
 
+  const rateMeal = useApiMutation<PlanMeal>('rateMeal', {
+    invalidates: ['currentPlan'],
+  });
+
+  const markCooked = useApiMutation<PlanMeal>('markCooked', {
+    invalidates: ['currentPlan'],
+  });
+
   const plan = data?.plan ?? null;
 
   if (isLoading) return <Spinner />;
@@ -34,12 +42,22 @@ export default function PlanDetail({ params }: { params: { planId: string } }) {
         <h1 className="text-xl font-bold text-foreground">
           Plan {planId === plan.id ? `· week of ${plan.weekStart}` : `· ${planId}`}
         </h1>
-        <Link href="/shopping" className="text-sm text-primary hover:underline">
-          View shopping list →
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link href={`/trip/${plan.id}`} className="text-sm text-muted-foreground hover:text-primary">
+            Organize by aisle →
+          </Link>
+          <Link href="/shopping" className="text-sm text-primary hover:underline">
+            View shopping list →
+          </Link>
+        </div>
       </div>
 
-      <WeekGrid meals={plan.meals} onRemoveMeal={(id) => removeMeal.mutate({ id })} />
+      <WeekGrid
+        meals={plan.meals}
+        onRemoveMeal={(id) => removeMeal.mutate({ id })}
+        onRateMeal={(id, rating) => rateMeal.mutate({ id, rating })}
+        onCookMeal={(id) => markCooked.mutate({ id })}
+      />
     </main>
   );
 }

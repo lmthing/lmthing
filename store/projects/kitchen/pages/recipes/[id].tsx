@@ -2,7 +2,7 @@ import React from 'react';
 import type { Recipe, RecipeIngredient, Ingredient } from '@app/types';
 import { useApi, Link } from '@app/runtime';
 import { IngredientRow } from '../../components/IngredientRow';
-import { MarkdownBody } from '../../components/MarkdownBody';
+import { MarkdownBody, renderInline } from '../../components/MarkdownBody';
 import { Spinner } from '../../components/Spinner';
 
 type RecipeDetail = Recipe & {
@@ -59,6 +59,12 @@ export default function RecipeDetailPage({ params }: { params: { id: string } })
         ) : null}
 
         <h1 className="text-2xl font-bold text-foreground">{recipe.title}</h1>
+
+        {recipe.description ? (
+          <p className="text-base leading-relaxed text-muted-foreground">
+            {renderInline(recipe.description)}
+          </p>
+        ) : null}
 
         <p className="text-sm text-muted-foreground">
           {recipe.servings ?? 2} servings · {recipe.prepMinutes ?? 30} min

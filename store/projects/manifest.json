@@ -743,6 +743,8 @@
         "components/StatsStrip.tsx",
         "components/SuggestionCard.tsx",
         "components/WeekGrid.tsx",
+        "components/format.ts",
+        "components/icons.tsx",
         "database/ingredients.json",
         "database/meal_nutrition.json",
         "database/meal_plans.json",

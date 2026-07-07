@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Recipe } from '@app/types';
 import { Link } from '@app/runtime';
+import { renderInline } from './MarkdownBody';
 
 export function RecipeCard({ recipe }: { recipe: Recipe }) {
   const tags = Array.isArray(recipe.tags) ? recipe.tags : [];
@@ -21,7 +22,9 @@ export function RecipeCard({ recipe }: { recipe: Recipe }) {
         </Link>
 
         {recipe.description ? (
-          <p className="text-sm text-muted-foreground line-clamp-2">{recipe.description}</p>
+          <p className="text-sm text-muted-foreground line-clamp-2">
+            {renderInline(recipe.description)}
+          </p>
         ) : null}
 
         <p className="text-xs text-muted-foreground">

@@ -5,6 +5,7 @@ import { StatsStrip, type Stats } from '../components/StatsStrip';
 import { WeekGrid } from '../components/WeekGrid';
 import { Spinner } from '../components/Spinner';
 import { SuggestionCard, type SuggestionWithRefs } from '../components/SuggestionCard';
+import { formatDay } from '../components/format';
 
 type PlanWithMeals = MealPlan & { meals: (PlanMeal & { recipe: Recipe | null })[] };
 
@@ -29,6 +30,14 @@ export default function ThisWeek() {
 
   const removeMeal = useApiMutation<{ ok: boolean }>('removeMeal', {
     invalidates: ['currentPlan', 'kitchenStats'],
+  });
+
+  const rateMeal = useApiMutation<PlanMeal>('rateMeal', {
+    invalidates: ['currentPlan'],
+  });
+
+  const markCooked = useApiMutation<PlanMeal>('markCooked', {
+    invalidates: ['currentPlan'],
   });
 
   const plan = data?.plan ?? null;
@@ -91,12 +100,32 @@ export default function ThisWeek() {
       {plan ? (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold text-foreground">Week of {plan.weekStart}</h1>
-            <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
-              {plan.status}
+            <h1 className="text-xl font-bold text-foreground">
+              Week of {formatDay(plan.weekStart)}
+            </h1>
+            <span
+              className={
+                plan.status === 'ready'
+                  ? 'inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary'
+                  : 'inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground'
+              }
+            >
+              <span
+                className={
+                  plan.status === 'planning'
+                    ? 'inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-muted-foreground'
+                    : 'inline-block h-1.5 w-1.5 rounded-full bg-primary'
+                }
+              />
+              {plan.status === 'ready' ? 'Ready' : plan.status === 'planning' ? 'Planning…' : plan.status}
             </span>
           </div>
-          <WeekGrid meals={plan.meals} onRemoveMeal={(id) => removeMeal.mutate({ id })} />
+          <WeekGrid
+            meals={plan.meals}
+            onRemoveMeal={(id) => removeMeal.mutate({ id })}
+            onRateMeal={(id, rating) => rateMeal.mutate({ id, rating })}
+            onCookMeal={(id) => markCooked.mutate({ id })}
+          />
         </div>
       ) : null}
     </main>

@@ -118,17 +118,20 @@ export default function Pantry() {
         <div className="space-y-2">
           {(pantry ?? []).map((ing) => (
             <IngredientRow key={ing.id} unit={ing.unit} name={ing.name}>
-              <input
-                type="number"
-                defaultValue={ing.quantity}
-                onBlur={(e) => {
-                  const next = Number(e.target.value);
-                  if (!Number.isNaN(next) && next !== ing.quantity) {
-                    updatePantry.mutate({ id: ing.id, quantity: next });
-                  }
-                }}
-                className="w-20 rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
-              />
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  defaultValue={ing.quantity}
+                  onBlur={(e) => {
+                    const next = Number(e.target.value);
+                    if (!Number.isNaN(next) && next !== ing.quantity) {
+                      updatePantry.mutate({ id: ing.id, quantity: next });
+                    }
+                  }}
+                  className="w-20 rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
+                />
+                <span className="w-10 text-xs text-muted-foreground">{ing.unit}</span>
+              </div>
             </IngredientRow>
           ))}
         </div>

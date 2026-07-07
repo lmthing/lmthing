@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star } from 'lucide-react';
+import { StarIcon } from './icons';
 
 export function RatingStars({
   value,
@@ -21,8 +21,9 @@ export function RatingStars({
           className={onRate ? 'cursor-pointer' : 'cursor-default'}
           aria-label={`${n} star${n === 1 ? '' : 's'}`}
         >
-          <Star
-            className={n <= current ? 'h-4 w-4 fill-current text-primary' : 'h-4 w-4 text-muted-foreground'}
+          <StarIcon
+            filled={n <= current}
+            className={n <= current ? 'h-3.5 w-3.5 text-primary' : 'h-3.5 w-3.5 text-muted-foreground'}
           />
         </button>
       ))}

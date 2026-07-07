@@ -3,6 +3,7 @@ import type { MealPlan, PlanMeal, Recipe } from '@app/types';
 import { useApi, Link } from '@app/runtime';
 import { MacroBar } from '../components/MacroBar';
 import { Spinner } from '../components/Spinner';
+import { formatDay } from '../components/format';
 
 type PlanWithMeals = MealPlan & { meals: (PlanMeal & { recipe: Recipe | null })[] };
 
@@ -113,7 +114,7 @@ export default function Nutrition() {
             </p>
             {(planNutrition.days ?? []).map((day) => (
               <div key={day.day} className="space-y-2 rounded-lg border border-border bg-card p-4">
-                <p className="text-sm font-medium text-foreground">{day.day}</p>
+                <p className="text-sm font-medium text-foreground">{formatDay(day.day)}</p>
                 <MacroBar
                   label="Calories"
                   value={day.calories}

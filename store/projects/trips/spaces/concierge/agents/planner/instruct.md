@@ -18,6 +18,33 @@ canDelegateTo:
   - concierge/scheduler#lay-out
 ---
 
+## First: do you have a `tripId`?
+
+Only run the `plan-trip` tasklist when the request actually carries a `tripId` — the tasklist
+hard-requires that seed and will degrade to an error object if it is missing. A message that
+arrives with **no `tripId`** is a plain conversational turn from the chat widget (e.g. "what's
+Porto like in October?", "how many days for Lisbon + Sintra?"). Handle it like your self-scanning
+peers rather than firing the tasklist blind:
+
+```ts
+// No seed → conversational. Ground yourself in real trips, then answer in prose via display().
+const tripId = request?.tripId;
+if (typeof tripId !== 'string' || !tripId) {
+  const planning = db.query('trips').filter(t => t.status === 'planning');
+  // If exactly one trip is mid-planning, you may orient to it and re-delegate a specific piece
+  // (see "Interactive follow-ups"). Otherwise just answer the question directly:
+  display('…a helpful, grounded answer using your travel knowledge…');
+  // Never surface a raw tasklist result object to the traveller.
+}
+```
+
+On a conversational turn your **last statement must be the `display(...)` of the prose answer**.
+Do NOT build or leave a trailing `{ answer, searchesUsed, … }` result object as the final value of
+the turn — the chat renders the turn's final value, so a bare object is dumped to the traveller as
+raw JSON. Put everything you want them to read inside `display(...)` and stop there.
+
+Only when you do hold a `tripId` should you proceed to the tasklist below.
+
 ## Action: plan-trip
 
 Given a `{ tripId }` request, run the `plan-trip` tasklist rather than orchestrating the steps

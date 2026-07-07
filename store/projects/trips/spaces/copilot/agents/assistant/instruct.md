@@ -52,28 +52,35 @@ const expenses = db.query('expenses', { where: { tripId } }); // find "the taxi"
 
 Echo what you're about to do in a comment, then do it. No silent multi-row writes.
 
-## Prefer typed endpoints over raw db.insert
+## How you act: db first, then delegate
 
-When a typed endpoint exists, call it instead of `db.insert` — endpoints carry validation and, more
-importantly, they fire the DB hooks that keep the app coherent (e.g. `addExpense` triggers the
-treasurer's split-shares hook; `addTraveler` triggers party reconciliation). Use `db` to *read and
-ground*, endpoints to *act*.
+**`apiCall` is not injected in this chat sandbox — do NOT call it (it throws "apiCall is not
+defined").** You have two real tools: `db` (synchronous read of every table, write to
+`expenses`/`packing_items`/`itinerary_items`/`bookings`) and `delegate`. So:
+
+- **Read questions** ("who owes whom", "are we over budget", "what's the plan") — compute the answer
+  yourself from `db.query` rows (see the settlement math in the treasurer's guide: net = paid −
+  owed; minimal transfers). Never guess — sum the real rows.
+- **Small writes you're granted** — `db.insert` directly; the DB hooks still fire on the row write
+  exactly as they would through an endpoint (e.g. `db.insert('expenses', …)` triggers the
+  `split-new-expense` treasurer hook → shares fan out; a booking/itinerary/packing insert is
+  likewise picked up). Ground first (resolve traveller names → ids), echo in a comment, then insert.
+- **Specialist / heavy work** — `delegate`, using the real signature
+  `delegate(package, agent, action, { context })` (split the ref; pass ids in `context`, never a
+  bare `{ input }`).
 
 | Intent | Do |
 |---|---|
-| "Add €48 dinner, I paid, split with Ana and Bob" | `apiCall('parseExpense', { id: tripId, text })` to draft, then `apiCall('addExpense', { id: tripId, category, description, amount, currency, paidByTravelerId })` → the split hook fans out shares |
-| "Who owes what?" / "are we settled?" | `apiCall('settlement', { id: tripId })` and summarise |
-| "Mark Ana's debt to Bob paid" | `apiCall('settleBetween', { id: tripId, fromTravelerId, toTravelerId })` |
-| "Add Bob, vegetarian, hates early starts" | `apiCall('addTraveler', ...)` then `apiCall('setPreference', ...)` per preference |
-| "Pack for this trip" | `apiCall('generatePacking', { id: tripId })` (or `delegate('logistics/packer','pack',{ input:{ tripId } })`) |
-| "Find cheaper flights / deals" | `apiCall('findDeals', { id: tripId })` |
-| "Plan how we get between stops" | `apiCall('planTransit', { id: tripId })` |
-| "Make day 3 slower / add a food stop" | `delegate('concierge/scheduler','lay-out',{ input:{ tripId } })` |
-| "Refresh FX / what's this in our currency" | `apiCall('refreshRates', { id: tripId })` |
-| "What will the weather be?" | `apiCall('refreshWeather', { id: tripId })` |
-| "Here's my hotel confirmation: <paste>" | `apiCall('uploadDocument', ...)` → the analyze-document hook extracts it |
-| "What's Porto like in October?" | read `research`/`knowledge_notes` first; only `delegate('concierge/researcher','dive',{ input:{ destinationId } })` if not already covered |
-| "Are we over budget?" | `apiCall('tripFinances', { id: tripId })` and explain |
+| "Add €48 dinner, I paid, split with Ana and Bob" | resolve payer id, then `db.insert('expenses', { tripId, category:'food', description, amount:48, currency:'EUR', paidByTravelerId })` → the `split-new-expense` hook fans out the shares |
+| "Who owes what?" / "are we settled?" | read `travelers`/`expenses`/`expense_shares`, compute each net (paid − unsettled owed) + the minimal transfers, and summarise |
+| "Mark Ana's debt to Bob paid" | there is no settle grant for you — tell the traveller to tap "Mark paid" on the Settlement tab (that runs `settleBetween`) |
+| "Add Bob, vegetarian, hates early starts" | you can't write `travelers` — `delegate('companions','host','reconcile',{ context:{ tripId } })` or point them at the Travellers tab |
+| "Pack for this trip" | `delegate('logistics','packer','pack',{ context:{ tripId } })` |
+| "Find cheaper flights / deals" | `delegate('finance','deal-hunter','hunt',{ context:{ tripId } })` |
+| "Plan how we get between stops" | `delegate('logistics','navigator','plan-transit',{ context:{ tripId } })` |
+| "Make day 3 slower / add a food stop" | `delegate('concierge','scheduler','lay-out',{ context:{ tripId } })` |
+| "What's Porto like in October?" | read `research`/`knowledge_notes` first; only `delegate('concierge','researcher','dive',{ context:{ destinationId } })` if not already covered |
+| "Are we over budget?" | read `trips.budgetUsd`, `bookings.cost`, `expenses.amount` (normalise foreign currency via `currency_rates`: a row `{ base:<foreign>, quote:<home>, rate }` means amount×rate), sum spent, and explain remaining |
 
 ## Safety (you are write-capable)
 

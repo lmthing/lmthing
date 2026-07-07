@@ -13,7 +13,7 @@ type Ctx = {
 
 export const name = 'refreshRates';
 export const description =
-  'Fetch live FX rates from exchangerate.host (free, keyless) for every currency present on the trip and cache them in currency_rates. Falls back to the cached rates when the network is unavailable so finances always have a number.';
+  'Fetch live FX rates from open.er-api.com (free, keyless) for every currency present on the trip and cache them in currency_rates. Falls back to the cached rates when the network is unavailable so finances always have a number.';
 
 export interface Input {
   id: string;
@@ -57,26 +57,35 @@ export default async function handler(input: Input, ctx: Ctx): Promise<Output> {
 
   const fetchedAt = new Date().toISOString();
   try {
-    const url = `https://api.exchangerate.host/latest?base=${encodeURIComponent(base)}&symbols=${quotes.join(',')}`;
+    // open.er-api.com is free + keyless: GET /v6/latest/<base> → { result, rates: { QUOTE: n } }.
+    // (exchangerate.host went key-only in 2024, so it can no longer be used unauthenticated.)
+    const url = `https://open.er-api.com/v6/latest/${encodeURIComponent(base)}`;
     const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) throw new Error(`FX ${res.status}`);
-    const body = (await res.json()) as { rates?: Record<string, number> };
+    const body = (await res.json()) as { result?: string; rates?: Record<string, number> };
+    if (body.result && body.result !== 'success') throw new Error(`FX result ${body.result}`);
+    // The API returns home→foreign rates (1 <base> = N <quote>). We cache the
+    // INVERSE — foreign→home (base=<quote>, quote=<home>, rate = 1/N) — because that
+    // is the direction tripFinances/convertAmount and the treasurer read to normalize
+    // a foreign-currency expense back into the trip's home currency.
     const map = body.rates ?? {};
     const out: Rate[] = [];
-    for (const quote of quotes) {
-      const rate = Number(map[quote]);
-      if (!Number.isFinite(rate) || rate <= 0) continue;
+    for (const foreign of quotes) {
+      const perHome = Number(map[foreign]); // 1 home = perHome foreign
+      if (!Number.isFinite(perHome) || perHome <= 0) continue;
+      const rate = 1 / perHome; // 1 foreign = rate home
       // Upsert: remove any prior cached pair, then insert the fresh one.
-      await ctx.db.remove('currency_rates', { where: { base, quote } });
-      await ctx.db.insert('currency_rates', { base, quote, rate, source: 'exchangerate.host', fetchedAt });
-      out.push({ base, quote, rate, source: 'exchangerate.host', fetchedAt });
+      await ctx.db.remove('currency_rates', { where: { base: foreign, quote: base } });
+      await ctx.db.insert('currency_rates', { base: foreign, quote: base, rate, source: 'open.er-api.com', fetchedAt });
+      out.push({ base: foreign, quote: base, rate, source: 'open.er-api.com', fetchedAt });
     }
     if (out.length) return { base, rates: out, live: true };
   } catch {
     // Fall through to cached values below.
   }
 
-  // Graceful fallback — return whatever we already cached so the UI still has rates.
-  const cached = (await ctx.db.query('currency_rates', { where: { base } })) as unknown as Rate[];
+  // Graceful fallback — return whatever we already cached (foreign→home rows all
+  // share quote=<home>) so the UI still has rates.
+  const cached = (await ctx.db.query('currency_rates', { where: { quote: base } })) as unknown as Rate[];
   return { base, rates: cached, live: false };
 }

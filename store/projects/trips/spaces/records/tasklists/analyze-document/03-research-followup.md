@@ -18,7 +18,7 @@ destination ids from the provenance rows `extract` wrote (`document_extractions`
 const provenance = db.query('document_extractions', { where: { documentId } });
 const newDestIds = provenance.filter(p => p.table === 'destinations').map(p => p.rowId);
 for (const destinationId of newDestIds) {
-  await delegate('concierge/researcher', 'dive', { input: { destinationId } });
+  await delegate('concierge', 'researcher', 'dive', { context: { destinationId } });
 }
 currentTask.resolve({ ok: true });
 ```

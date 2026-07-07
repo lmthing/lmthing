@@ -47,29 +47,19 @@ export default async function handler(input: Input, ctx: Ctx): Promise<Output> {
     budgetUsd: input.budgetUsd ?? 0,
   })) as Trip;
 
-  // Record a visible "running" run so the RunStrip on Overview/Timeline can show
-  // that the concierge is working (getTripActivity reconciles it to 'done' once
-  // itinerary items land, or 'error' via the spawn onError below).
-  const run = (await ctx.db.insert('agent_runs', {
+  // Record a visible "running" run. Inserting this agent_runs row is what actually
+  // kicks off planning: the `dispatch-agent-run` database:insert hook maps kind
+  // 'plan' → concierge/planner#plan-trip and delegates to it (an api handler's
+  // ctx.spawn is a no-op stub in the pod runtime, so we must NOT rely on it). The
+  // RunStrip on Overview/Timeline shows this row; getTripActivity + the hook
+  // reconcile it to 'done'/'error'.
+  await ctx.db.insert('agent_runs', {
     tripId: trip.id,
     kind: 'plan',
     label: 'Planning your trip',
     status: 'running',
     detail: 'Proposing destinations and laying out the days…',
-  })) as { id: string };
-
-  await ctx.spawn(
-    'concierge/planner#plan-trip',
-    { tripId: trip.id },
-    {
-      onError: async () => {
-        await ctx.db.update('agent_runs', {
-          where: { id: run.id },
-          set: { status: 'error', detail: 'Planning failed — try refining in chat.', endedAt: new Date().toISOString() },
-        });
-      },
-    },
-  );
+  });
 
   return { tripId: trip.id, status: 'planning' };
 }

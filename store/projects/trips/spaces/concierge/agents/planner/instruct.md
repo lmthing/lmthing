@@ -18,32 +18,35 @@ canDelegateTo:
   - concierge/scheduler#lay-out
 ---
 
-## First: do you have a `tripId`?
+## First: resolve the trip to plan
 
-Only run the `plan-trip` tasklist when the request actually carries a `tripId` — the tasklist
-hard-requires that seed and will degrade to an error object if it is missing. A message that
-arrives with **no `tripId`** is a plain conversational turn from the chat widget (e.g. "what's
-Porto like in October?", "how many days for Lisbon + Sintra?"). Handle it like your self-scanning
-peers rather than firing the tasklist blind:
+You are started **headless by the `dispatch-agent-run` hook the instant a trip is created** (kind
+`plan`), and also conversationally from chat. Neither path reliably hands you a structured
+`tripId` — hook delegation drops its input — so **resolve the trip yourself** before deciding what
+to do. A freshly-created trip awaiting its plan is one with `status: 'planning'` and **no
+destinations written yet**:
 
 ```ts
-// No seed → conversational. Ground yourself in real trips, then answer in prose via display().
-const tripId = request?.tripId;
-if (typeof tripId !== 'string' || !tripId) {
-  const planning = db.query('trips').filter(t => t.status === 'planning');
-  // If exactly one trip is mid-planning, you may orient to it and re-delegate a specific piece
-  // (see "Interactive follow-ups"). Otherwise just answer the question directly:
-  display('…a helpful, grounded answer using your travel knowledge…');
-  // Never surface a raw tasklist result object to the traveller.
+// A tripId in the seed wins; otherwise find the newest planning trip that has no destinations yet
+// (newest-first, so two back-to-back creates each pick their own).
+const seedTripId = typeof request?.tripId === 'string' ? request.tripId : undefined;
+let tripId = seedTripId;
+if (!tripId) {
+  const unplanned = db.query('trips')
+    .filter((t: any) => t.status === 'planning')
+    .filter((t: any) => db.query('destinations', { where: { tripId: t.id } }).length === 0)
+    .sort((a: any, b: any) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')));
+  tripId = unplanned[0]?.id;
 }
 ```
 
-On a conversational turn your **last statement must be the `display(...)` of the prose answer**.
-Do NOT build or leave a trailing `{ answer, searchesUsed, … }` result object as the final value of
-the turn — the chat renders the turn's final value, so a bare object is dumped to the traveller as
-raw JSON. Put everything you want them to read inside `display(...)` and stop there.
-
-Only when you do hold a `tripId` should you proceed to the tasklist below.
+**If you resolved a `tripId`, proceed to the `plan-trip` tasklist below** — that is the whole job on
+the dispatch path. Only when there is genuinely nothing to plan (no seed AND no planning trip
+without destinations) is this a plain conversational turn (e.g. "what's Porto like in October?"):
+answer in prose and make your **last statement the `display(...)` of that answer**. Never fire the
+tasklist with an empty/missing seed (it degrades to an error object), and never surface a raw
+tasklist/`{ answer, … }` result object to the traveller — the chat renders the turn's final value,
+so put everything you want them to read inside `display(...)` and stop there.
 
 ## Action: plan-trip
 
@@ -67,10 +70,11 @@ stop in the south", "re-check prices for this trip"), don't re-run the whole tas
 the specific piece:
 
 ```ts
-// Slow down / reshuffle an existing trip's days:
-await delegate('concierge/scheduler', 'lay-out', { input: { tripId } });
+// Slow down / reshuffle an existing trip's days (delegate is
+// delegate(package, agent, action, { context }) — split the ref, pass ids via context):
+await delegate('concierge', 'scheduler', 'lay-out', { context: { tripId } });
 // Look into one more place before deciding to add it:
-await delegate('concierge/researcher', 'dive', { input: { destinationId } });
+await delegate('concierge', 'researcher', 'dive', { context: { destinationId } });
 ```
 
 Guardrails:

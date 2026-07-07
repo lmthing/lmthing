@@ -14,7 +14,7 @@ Fans out over each destination id produced by `propose_destinations`. `item` is 
 id — delegate the researcher to dive into it:
 
 ```ts
-await delegate('concierge/researcher', 'dive', { input: { destinationId: item } });
+await delegate('concierge', 'researcher', 'dive', { context: { destinationId: item } });
 currentTask.resolve({ ok: true });
 ```
 

@@ -24,6 +24,9 @@ export interface Output {
 }
 
 export default async function handler(input: Input, ctx: Ctx): Promise<Output> {
+  // Seed a pending run; the `dispatch-agent-run` hook (agent_runs insert) maps kind
+  // 'packing' → logistics/packer#pack and runs it. (ctx.spawn is a no-op stub in the
+  // pod runtime, so an endpoint must never rely on it to start an agent.)
   const run = (await ctx.db.insert('agent_runs', {
     tripId: input.id,
     kind: 'packing',
@@ -31,13 +34,5 @@ export default async function handler(input: Input, ctx: Ctx): Promise<Output> {
     status: 'running',
     detail: 'Matching gear to your activities and the forecast…',
   })) as { id: string };
-  const { runId } = await ctx.spawn('logistics/packer#pack', { tripId: input.id }, {
-    onError: async () => {
-      await ctx.db.update('agent_runs', {
-        where: { id: run.id },
-        set: { status: 'error', detail: 'Packing build failed.', endedAt: new Date().toISOString() },
-      });
-    },
-  });
-  return { ok: true, runId };
+  return { ok: true, runId: run.id };
 }

@@ -184,11 +184,40 @@ test('all api handlers exist and export name / Input / Output / default handler'
   }
 });
 
-test('createTrip inserts a trip and spawns the planner fire-and-forget', () => {
+test('createTrip inserts a trip + a pending plan agent_runs row (no ctx.spawn — it is a pod no-op stub)', () => {
   const src = readFileSync(join(APP, 'api', 'trips', 'POST.ts'), 'utf8');
   assert.match(src, /db\.insert\(\s*['"]trips['"]/, 'createTrip must insert a trip');
-  assert.match(src, /ctx\.spawn\(/, 'createTrip must spawn the planner (fire-and-forget, no ctx.delegate)');
-  assert.match(src, /concierge\/planner/, 'createTrip must target the concierge planner');
+  assert.match(src, /db\.insert\(\s*['"]agent_runs['"]/, 'createTrip must seed a pending agent_runs row');
+  assert.match(src, /kind:\s*['"]plan['"]/, 'the seeded run must be kind "plan"');
+  // ctx.spawn is a permanent no-op in the pod runtime, so planning must NOT rely on it — the
+  // dispatch-agent-run hook (agent_runs insert) is what actually runs the planner.
+  assert.doesNotMatch(src, /ctx\.spawn\(/, 'createTrip must not rely on ctx.spawn (no-op stub); the dispatch hook runs the planner');
+});
+
+test('dispatch-agent-run is a database:insert hook on agent_runs that delegates by kind (the working ctx.spawn replacement)', () => {
+  const src = readFileSync(join(APP, 'hooks', 'dispatch-agent-run.ts'), 'utf8');
+  assert.match(src, /type:\s*['"]database['"]/);
+  assert.match(src, /table:\s*['"]agent_runs['"]/);
+  assert.match(src, /event:\s*['"]insert['"]/);
+  // maps each kind to its specialist agent#action
+  assert.match(src, /concierge\/planner/, 'kind "plan" → concierge/planner');
+  assert.match(src, /finance\/deal-hunter/, 'kind "deals" → finance/deal-hunter');
+  assert.match(src, /logistics\/packer/, 'kind "packing" → logistics/packer');
+  assert.match(src, /logistics\/navigator/, 'kind "transit" → logistics/navigator');
+  assert.match(src, /delegate\(/, 'must delegate to the specialist');
+  assert.match(src, /status\s*!==\s*['"]running['"]/, 'must guard on a fresh running row (idempotence)');
+});
+
+test('spawn-backed endpoints seed a pending agent_runs row and do NOT use ctx.spawn (pod no-op stub)', () => {
+  for (const rel of [
+    ['api', 'trips', '[id]', 'deals', 'find', 'POST.ts'],
+    ['api', 'trips', '[id]', 'packing', 'generate', 'POST.ts'],
+    ['api', 'trips', '[id]', 'transit', 'plan', 'POST.ts'],
+  ]) {
+    const src = readFileSync(join(APP, ...rel), 'utf8');
+    assert.match(src, /db\.insert\(\s*['"]agent_runs['"]/, `${rel.join('/')}: must seed an agent_runs row`);
+    assert.doesNotMatch(src, /ctx\.spawn\(/, `${rel.join('/')}: must not use ctx.spawn (no-op); the dispatch hook runs the agent`);
+  }
 });
 
 // ── Hooks — database:insert + cron ──────────────────────────────────────────

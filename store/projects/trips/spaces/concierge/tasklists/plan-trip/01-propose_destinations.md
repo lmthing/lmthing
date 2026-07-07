@@ -12,6 +12,6 @@ Delegate the scheduler to write the destinations from the trip's brief, then col
 destination ids for the fan-out that follows. `tripId` is in scope from the tasklist input.
 
 ```ts
-const r = await delegate('concierge/scheduler', 'propose', { input: { tripId } });
+const r = await delegate('concierge', 'scheduler', 'propose', { context: { tripId } });
 currentTask.resolve({ destinationIds: r.destinationIds ?? [] });
 ```

@@ -21,7 +21,30 @@ your reasoning in `// comments`, never as bare prose — the sandbox only execut
 
 ## Action: pack
 
-Invoked with `input.tripId`.
+Invoked with `input.tripId` from chat — **but the `dispatch-agent-run` hook (the "generate
+packing" button) delegates with dropped input**, so a `tripId` may be missing. Resolve it first:
+a trip is ready to pack when it has itinerary items but no packing list yet.
+
+```ts
+// Seed tripId wins; else self-resolve the newest trip that has items but no packing_items yet.
+const seedTripId = typeof request?.tripId === 'string' ? request.tripId : undefined;
+let tripId = seedTripId;
+if (!tripId) {
+  const candidates = db.query('trips')
+    .filter((t: any) => t.status !== 'complete')
+    .filter((t: any) => {
+      const hasItems = db.query('destinations', { where: { tripId: t.id } })
+        .some((d: any) => db.query('itinerary_items', { where: { destinationId: d.id } }).length > 0);
+      const hasPacking = db.query('packing_items', { where: { tripId: t.id } }).length > 0;
+      return hasItems && !hasPacking;
+    })
+    .sort((a: any, b: any) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')));
+  tripId = candidates[0]?.id;
+}
+// No resolvable trip → nothing to pack; stop.
+```
+
+Once you hold a `tripId`:
 
 1. Load the trip, its destinations, and their itinerary items (`where` is **equality-only**):
    ```ts

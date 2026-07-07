@@ -12,7 +12,7 @@ Delegate the scheduler to lay out the per-day itinerary once destinations exist 
 researched:
 
 ```ts
-await delegate('concierge/scheduler', 'lay-out', { input: { tripId } });
+await delegate('concierge', 'scheduler', 'lay-out', { context: { tripId } });
 currentTask.resolve({ ok: true });
 ```
 

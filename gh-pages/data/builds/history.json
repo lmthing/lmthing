@@ -1,6 +1,17 @@
 [
   {
     "image": "store",
+    "sha": "c8a9c15",
+    "digest": "sha256:b3f4cf92a0d2b4b433354ad7b2dad4c3d92677a024c2e5cf022ede4082ca9555",
+    "run_id": "28902077694",
+    "run_number": 229,
+    "run_url": "https://github.com/\\lmthing/lmthing/actions/runs/28902077694",
+    "status": "completed",
+    "conclusion": "success",
+    "updated_at": "2026-07-07T22:09:49.760359+00:00"
+  },
+  {
+    "image": "store",
     "sha": "ddddd85",
     "digest": "sha256:3ee106ed9bfa0d08877ea6bcc450093224eaf1c78d76c64be2692c27105eb24f",
     "run_id": "28901924755",
@@ -524,15 +535,5 @@
     "status": "completed",
     "conclusion": "success",
     "updated_at": "2026-07-06T20:57:58.343974+00:00"
-  },
-  {
-    "image": "social",
-    "sha": "e87ea91",
-    "run_id": "28822724135",
-    "run_number": 210,
-    "run_url": "https://github.com/\\lmthing/lmthing/actions/runs/28822724135",
-    "status": "completed",
-    "conclusion": "success",
-    "updated_at": "2026-07-06T20:58:08.765403+00:00"
   }
 ]

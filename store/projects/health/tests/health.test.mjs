@@ -237,20 +237,20 @@ const EXPECTED_HOOKS = [
   ['daily-digest.ts', /type:\s*['"]cron['"]/, /clinic\/interpreter#digest/],
   ['analyze-document.ts', /table:\s*['"]documents['"]/, /records\/analyst#analyze/],
   ['prepare-visit-brief.ts', /table:\s*['"]visit_briefs['"]/, /clinic\/interpreter#prep/],
-  ['followup-reminders.ts', /type:\s*['"]cron['"]/, /coaching\/coach#reminders/],
   ['goal-checkin.ts', /type:\s*['"]cron['"]/, /coaching\/coach#checkin/],
   // round 3
   ['check-interactions.ts', /table:\s*['"]interactions['"]/, /pharmacy\/pharmacist#review/],
   ['compile-care-share.ts', /table:\s*['"]care_shares['"]/, /care\/coordinator#compile/],
   ['triage-symptom.ts', /table:\s*['"]triage_assessments['"]/, /care\/triage-nurse#assess/],
-  ['dose-reminders.ts', /type:\s*['"]cron['"]/, /pharmacy\/pharmacist#reminders/],
   ['appointment-reminders.ts', /type:\s*['"]cron['"]/, /care\/coordinator#reminders/],
   // round 4 — natural-language quick-log parse (declarative → logger draft action)
   ['parse-quicklog.ts', /table:\s*['"]quicklog_drafts['"]/, /clinic\/logger#draft/],
   ['weekly-digest.ts', /type:\s*['"]cron['"]/, /clinic\/interpreter#weekly/],
+  // dose-reminders.ts and followup-reminders.ts were converted to imperative cron
+  // handlers (see the dedicated test below) — they no longer carry a `trigger`.
 ];
 
-test('all 14 declarative/cron hooks exist with the right table/type and trigger target', () => {
+test('all 12 declarative hooks exist with the right table/type and trigger target', () => {
   for (const [file, shape, target] of EXPECTED_HOOKS) {
     const src = readFileSync(join(APP, 'hooks', file), 'utf8');
     assert.match(src, shape, `${file}: wrong shape`);
@@ -259,16 +259,38 @@ test('all 14 declarative/cron hooks exist with the right table/type and trigger 
 });
 
 test('sync-wearables is an imperative database hook with a graceful no-op handler', () => {
-  // The runtime hook-loader only supports imperative handlers on `database` hooks —
-  // a `cron` hook is declarative agent-trigger only (needs a `trigger`). A pure-Node
-  // wearable pull therefore fires on the `integrations` write that connects a provider,
-  // not on a cron tick.
+  // Imperative handlers are supported on BOTH `database` and `cron` hooks (see the
+  // dose-reminders/followup-reminders cron-handler test below) — a pure-Node
+  // wearable pull specifically fires on the `integrations` write that connects a
+  // provider, not on a cron tick, because a wearable is only worth syncing right
+  // after it connects.
   const src = readFileSync(join(APP, 'hooks', 'sync-wearables.ts'), 'utf8');
   assert.match(src, /type:\s*['"]database['"]/);
   assert.match(src, /table:\s*['"]integrations['"]/);
   assert.match(src, /handler:/, 'sync-wearables must use an imperative handler');
   assert.doesNotMatch(src, /trigger:/, 'an imperative database hook must not carry a declarative trigger');
   assert.match(src, /status:\s*['"]connected['"]/, 'must only sync connected integrations');
+});
+
+test('dose-reminders and followup-reminders are imperative cron handlers (no LLM)', () => {
+  // Both used to delegate to an agent action (pharmacy/pharmacist#reminders,
+  // coaching/coach#reminders) that only read data and display()-ed a summary —
+  // pure date/threshold arithmetic, wasted agent credits. Converted to imperative
+  // `handler`s that run in-proc with no agent session and no LLM tokens; the
+  // schedule (`daily:`) is unchanged and neither carries a `trigger` anymore.
+  const dose = readFileSync(join(APP, 'hooks', 'dose-reminders.ts'), 'utf8');
+  assert.match(dose, /type:\s*['"]cron['"]/);
+  assert.match(dose, /daily:\s*['"]09:00['"]/);
+  assert.match(dose, /handler:/, 'dose-reminders must use an imperative handler');
+  assert.doesNotMatch(dose, /trigger:/, 'dose-reminders must not carry a declarative trigger');
+  assert.doesNotMatch(dose, /delegate\(/, 'dose-reminders must never call delegate() — no LLM');
+
+  const followup = readFileSync(join(APP, 'hooks', 'followup-reminders.ts'), 'utf8');
+  assert.match(followup, /type:\s*['"]cron['"]/);
+  assert.match(followup, /daily:\s*['"]07:30['"]/);
+  assert.match(followup, /handler:/, 'followup-reminders must use an imperative handler');
+  assert.doesNotMatch(followup, /trigger:/, 'followup-reminders must not carry a declarative trigger');
+  assert.doesNotMatch(followup, /delegate\(/, 'followup-reminders must never call delegate() — no LLM');
 });
 
 test('parse-quicklog is an insert-triggered declarative hook to the logger', () => {

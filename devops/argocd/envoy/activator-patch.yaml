@@ -1,0 +1,48 @@
+# Activator cluster for the pod-wake path.
+#
+# The per-user Lua routing policies (computer/studio/chat/app-policies.yaml) add an
+# `envoy_on_response` that, when a request hits a scaled-to-zero pod (Envoy has no
+# Service endpoint → a locally-generated 503/504), fires a fire-and-forget
+# `httpCall("gateway-activator", …)` to POST /api/compute/wake on the always-on
+# gateway, which scales the pod 0→1. Envoy Lua `httpCall` can only target a named
+# CLUSTER, and Envoy Gateway does not mint a stable-named cluster for the gateway
+# Service usable from Lua — so this EnvoyPatchPolicy injects one directly into the
+# generated xDS. The call goes straight to the gateway ClusterIP (in-cluster),
+# bypassing the public edge; authMiddleware verifies the JWT the Lua forwards.
+#
+# Requires `extensionApis.enableEnvoyPatchPolicy: true` on the Envoy Gateway config
+# (devops/ansible/roles/envoy_gateway/tasks/main.yml). Applied to the shared
+# lmthing-gw Gateway so the cluster is visible to every listener's Lua.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyPatchPolicy
+metadata:
+  name: gateway-activator-cluster
+  namespace: gateway
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: lmthing-gw
+  type: JSONPatch
+  jsonPatches:
+    - type: "type.googleapis.com/envoy.config.cluster.v3.Cluster"
+      # Name the patch targets/creates. A cluster with this name does not exist
+      # yet, so the op is an "add" of a whole cluster resource.
+      name: gateway-activator
+      operation:
+        op: add
+        path: ""
+        value:
+          name: gateway-activator
+          type: STRICT_DNS
+          connect_timeout: 2s
+          lb_policy: ROUND_ROBIN
+          load_assignment:
+            cluster_name: gateway-activator
+            endpoints:
+              - lb_endpoints:
+                  - endpoint:
+                      address:
+                        socket_address:
+                          address: gateway.lmthing.svc.cluster.local
+                          port_value: 3000

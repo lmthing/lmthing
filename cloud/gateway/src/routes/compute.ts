@@ -5,6 +5,7 @@ import {
   getEnvVars,
   setEnvVars,
   ensureUserPod,
+  wakeUserPod,
   restartUserPod,
   reportPodActivity,
   COMPUTE_IMAGE_TAG,
@@ -195,6 +196,26 @@ compute.post("/ensure", authMiddleware, async (c) => {
   } catch (err) {
     console.error(`Failed to ensure pod for ${user.id}:`, err);
     return c.json({ error: "Failed to provision compute pod" }, 500);
+  }
+});
+
+// POST /wake — the Envoy activator calls this when a request hits a scaled-to-
+// zero pod (no Service endpoints → Envoy 503). The activator forwards the
+// request's already-validated gateway JWT, so `authMiddleware` authenticates it
+// exactly like /ensure — a caller can only wake its OWN pod (no new attack
+// surface, no shared secret). Fire-and-forget: scale 0→1 without the readiness
+// wait and return 202 immediately; the original caller retries into the waking
+// pod. Idempotent + cheap, so every retry in the wake window is safe.
+compute.post("/wake", authMiddleware, async (c) => {
+  const user = c.get("user");
+  const tierName = await resolveUserTier(user.id);
+  const tier = getTierByName(tierName) ?? getTierByName("free")!;
+  try {
+    await wakeUserPod(user.id, tier.pod);
+    return c.json({ ok: true, waking: true }, 202);
+  } catch (err) {
+    console.error(`[activator] wake failed for ${user.id}:`, err);
+    return c.json({ error: "wake failed" }, 500);
   }
 });
 

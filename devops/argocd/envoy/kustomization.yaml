@@ -15,6 +15,7 @@ resources:
   - studio-policies.yaml
   - app-routes.yaml
   - app-policies.yaml
+  - activator-patch.yaml
   - spa-routes.yaml
 
 replacements:

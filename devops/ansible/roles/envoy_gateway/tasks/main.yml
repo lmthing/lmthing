@@ -22,6 +22,9 @@
         envoyGateway:
           extensionApis:
             enableBackend: true
+            # Required for activator-patch.yaml (EnvoyPatchPolicy that injects the
+            # `gateway-activator` cluster the pod-wake Lua httpCall targets).
+            enableEnvoyPatchPolicy: true
 
 - name: Wait for Envoy Gateway controller to be ready
   kubernetes.core.k8s_info:

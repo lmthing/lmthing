@@ -253,9 +253,9 @@ function deployment(userId: string, pod: PodConfig = DEFAULT_POD_CONFIG) {
               startupProbe: {
                 httpGet: { path: "/api/sessions", port: 8080 },
                 initialDelaySeconds: 1,
-                periodSeconds: 2,
+                periodSeconds: 1, // poll every 1s so a booted pod is routable ~1s sooner
                 timeoutSeconds: 5,
-                failureThreshold: 60, // up to ~120s to boot before giving up
+                failureThreshold: 120, // up to ~120s to boot before giving up
               },
             },
           ],
@@ -714,9 +714,9 @@ export async function ensureUserPod(
                   startupProbe: {
                     httpGet: { path: "/api/sessions", port: 8080 },
                     initialDelaySeconds: 1,
-                    periodSeconds: 2,
+                    periodSeconds: 1,
                     timeoutSeconds: 5,
-                    failureThreshold: 60,
+                    failureThreshold: 120,
                   },
                 },
               ],
@@ -769,7 +769,7 @@ export async function ensureUserPod(
       } catch {
         /* transient — keep polling */
       }
-      await new Promise((r) => setTimeout(r, 600));
+      await new Promise((r) => setTimeout(r, 300));
     }
   }
 
@@ -786,6 +786,36 @@ export async function ensureUserPod(
     host: `lmthing.${ns}.svc.cluster.local`,
     port: 8080,
   };
+}
+
+/**
+ * Fast wake — used by the Envoy activator (`POST /api/compute/wake`), which fires
+ * on ANY request that hits a scaled-to-zero pod (Envoy has no Service endpoint →
+ * 503). Unlike `ensureUserPod` this SKIPS the bounded readiness wait and the
+ * LiteLLM env re-injection: it must return immediately because the original
+ * caller is already going to retry into the waking pod. A scaled-to-zero pod
+ * already carries its correct shape/env from the last `ensureUserPod`, so a plain
+ * `scaleUserPod(1)` is enough; only a never-provisioned user needs the full
+ * `createUserPod`. Idempotent + cheap, so every retry in the wake window is safe.
+ */
+export async function wakeUserPod(userId: string, pod: PodConfig): Promise<void> {
+  const ns = `user-${userId}`;
+  const dep = await k8s(
+    `/apis/apps/v1/namespaces/${ns}/deployments/lmthing`,
+    "GET",
+  );
+  if (!dep) {
+    await createUserPod(userId, pod);
+  } else if ((dep.spec?.replicas ?? 0) === 0) {
+    await scaleUserPod(userId, 1);
+    console.log(`[activator] woke scaled-to-zero pod for user ${userId}`);
+  }
+  // Stamp the idle-sweep backstop clock — a wake means the user is active.
+  try {
+    await annotateLastActive(userId);
+  } catch (err) {
+    console.warn(`Could not annotate last-active for ${userId}: ${err}`);
+  }
 }
 
 /**

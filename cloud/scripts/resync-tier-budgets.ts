@@ -145,6 +145,10 @@ async function main() {
         await api("/key/update", "POST", {
           key: key.token,
           budget_limits: budgetLimits,
+          // Also re-apply the model allowlist so keys minted before a model was
+          // added (e.g. whisper-1 for transcription) gain access without a
+          // tier change — otherwise LiteLLM 403s "key_model_access_denied".
+          ...(tier.models.length > 0 ? { models: tier.models } : {}),
         });
         keysUpdated++;
       } catch (e) {

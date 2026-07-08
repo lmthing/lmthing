@@ -11,6 +11,16 @@ export const ENABLED_MODELS = [
   "gpt-5.5",
 ] as const;
 
+/** Transcription models every tier's key may call (audio → text for the chat
+ *  vision/audio feature). Kept separate from ENABLED_MODELS so chat-model logic
+ *  (pricing/model lists) stays chat-only; these must exist in litellm.yaml's
+ *  model_list. A user key's `models` must include these or LiteLLM 403s
+ *  ("key_model_access_denied") on /audio/transcriptions. */
+export const TRANSCRIBE_MODELS = ["whisper-1"] as const;
+
+/** The full model allowlist stamped onto each tier's LiteLLM key. */
+export const TIER_MODELS = [...ENABLED_MODELS, ...TRANSCRIBE_MODELS];
+
 /** One LiteLLM budget window: a spend cap that resets on its own cadence.
  *  `duration` uses LiteLLM's format ("1d", "7d", "30d"). */
 export interface BudgetWindow {
@@ -83,7 +93,7 @@ export const TIERS: Record<string, Tier> = {
       { duration: "7d", maxBudget: 50 },
       { duration: "30d", maxBudget: 150 },
     ],
-    models: [...ENABLED_MODELS],
+    models: [...TIER_MODELS],
     tpmLimit: 1_000_000,
     rpmLimit: 5_000,
     // Burstable: the scheduler packs by the small requests (memRequest is the
@@ -108,7 +118,7 @@ export const TIERS: Record<string, Tier> = {
       { duration: "7d", maxBudget: 4 },
       { duration: "30d", maxBudget: 10 },
     ],
-    models: [...ENABLED_MODELS],
+    models: [...TIER_MODELS],
     tpmLimit: 1_000_000,
     rpmLimit: 5_000,
     pod: { cpu: "500m", mem: "768Mi", idleTtlMinutes: 30, maxSessions: 3 },
@@ -122,7 +132,7 @@ export const TIERS: Record<string, Tier> = {
       { duration: "7d", maxBudget: 10 },
       { duration: "30d", maxBudget: 20 },
     ],
-    models: [...ENABLED_MODELS],
+    models: [...TIER_MODELS],
     tpmLimit: 1_000_000,
     rpmLimit: 5_000,
     pod: { cpu: "500m", mem: "1Gi", idleTtlMinutes: 60, maxSessions: 5 },
@@ -136,7 +146,7 @@ export const TIERS: Record<string, Tier> = {
       { duration: "7d", maxBudget: 30 },
       { duration: "30d", maxBudget: 100 },
     ],
-    models: [...ENABLED_MODELS],
+    models: [...TIER_MODELS],
     tpmLimit: 1_000_000,
     rpmLimit: 5_000,
     pod: { cpu: "1000m", mem: "2Gi", idleTtlMinutes: 120, maxSessions: 10 },

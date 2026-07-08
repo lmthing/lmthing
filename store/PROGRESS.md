@@ -5,13 +5,15 @@ Apps: **blog, health, kitchen, trips, homes**. Each app's proposals live in `sto
 
 ## Status
 
-| App | P1 Ideate | P2 Implement | P3 Test/Fix |
-|---|---|---|---|
-| blog | ✅ done | ✅ done | ✅ done |
-| health | ✅ done | ✅ done | ✅ done |
-| kitchen | ✅ done | ✅ done | ✅ done |
-| trips | ✅ done | ✅ done | ✅ done |
-| homes | ✅ done | ✅ done | ✅ done |
+| App | P1 Ideate | P2 Implement | P3 Test/Fix | R2 spawn+apiCall |
+|---|---|---|---|---|
+| blog | ✅ done | ✅ done | ✅ done | 🔵 running |
+| health | ✅ done | ✅ done | ✅ done | 🔵 running |
+| kitchen | ✅ done | ✅ done | ✅ done | 🔵 running |
+| trips | ✅ done | ✅ done | ✅ done | 🔵 running |
+| homes | ✅ done | ✅ done | ✅ done | 🔵 running |
+
+**Round 2** (2026-07-08): the SDK gaps are fixed (sdk/org 65ad314 / parent a4aab055) — `ctx.spawn` from an api handler now runs a real headless agent, and `apiCall` is injected into agent sessions. Each app is being updated to leverage these: the in-app concierge/assistant now acts **through validated endpoints via `apiCall`** (capability-model intent) instead of the db-first workaround, and adopts real `ctx.spawn` where cleaner (keeping the robust insert-hooks). Live-tested on the rebuilt local CLI dist.
 
 ## Log
 

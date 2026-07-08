@@ -122,6 +122,23 @@ async function main() {
     const tier: Tier = TIERS[tierName];
     const budgetLimits = toBudgetLimits(tier);
 
+    // LiteLLM enforces model access at BOTH the user and key level. Re-apply the
+    // model allowlist to the user object too, else a newly-added model (whisper-1)
+    // 403s "user_model_access_denied" even after keys are updated.
+    if (APPLY && tier.models.length > 0) {
+      try {
+        await api("/user/update", "POST", {
+          user_id: u.user_id,
+          models: tier.models,
+          tpm_limit: tier.tpmLimit,
+          rpm_limit: tier.rpmLimit,
+        });
+      } catch (e) {
+        console.error(`  ! user update ${u.user_id}: ${(e as Error).message}`);
+        errors++;
+      }
+    }
+
     let keys: LiteLLMKey[];
     try {
       keys = await keysFor(u.user_id);
@@ -149,6 +166,11 @@ async function main() {
           // added (e.g. whisper-1 for transcription) gain access without a
           // tier change — otherwise LiteLLM 403s "key_model_access_denied".
           ...(tier.models.length > 0 ? { models: tier.models } : {}),
+          // Re-apply rate limits too, so keys minted under an older, lower tpm/rpm
+          // are lifted to the current tier (a stale 10k tpm 429s THING's large
+          // system prompt on the first turn).
+          tpm_limit: tier.tpmLimit,
+          rpm_limit: tier.rpmLimit,
         });
         keysUpdated++;
       } catch (e) {

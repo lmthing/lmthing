@@ -259,10 +259,14 @@ test('regenerate-packing is a cron hook triggering logistics/packer#pack-due', (
   assert.match(src, /trigger:\s*['"]logistics\/packer#pack-due['"]/);
 });
 
-test('to-book-reminders is a cron hook triggering logistics/navigator#booking-windows', () => {
+test('to-book-reminders is an imperative (no-LLM) cron handler writing knowledge_notes reminders', () => {
   const src = readFileSync(join(APP, 'hooks', 'to-book-reminders.ts'), 'utf8');
   assert.match(src, /type:\s*['"]cron['"]/);
-  assert.match(src, /trigger:\s*['"]logistics\/navigator#booking-windows['"]/);
+  assert.match(src, /handler:\s*async/, 'must be an imperative handler, not a trigger');
+  assert.doesNotMatch(src, /trigger:\s*['"]/, 'must not delegate to an agent — no LLM tokens for this housekeeping cron');
+  assert.match(src, /needsBooking/, 'must scan itinerary_items.needsBooking');
+  assert.match(src, /bookByDate/, 'must scan bookByDate deadlines');
+  assert.match(src, /db\.insert\(\s*['"]knowledge_notes['"]/, 'must write knowledge_notes reminders');
 });
 
 // ── Concierge space — least-privilege + FULL space format ────────────────────
@@ -519,8 +523,11 @@ test('hunt-deals is a cron hook triggering finance/deal-hunter#hunt', () => {
   assert.match(src, /trigger:\s*['"]finance\/deal-hunter#hunt['"]/);
 });
 
-test('refresh-currency-rates is a cron hook triggering finance/treasurer#refresh-rates', () => {
+test('refresh-currency-rates is an imperative (no-LLM) cron handler fetching FX from open.er-api.com', () => {
   const src = readFileSync(join(APP, 'hooks', 'refresh-currency-rates.ts'), 'utf8');
   assert.match(src, /type:\s*['"]cron['"]/);
-  assert.match(src, /trigger:\s*['"]finance\/treasurer#refresh-rates['"]/);
+  assert.match(src, /handler:\s*async/, 'must be an imperative handler, not a trigger');
+  assert.doesNotMatch(src, /trigger:\s*['"]/, 'must not delegate to an agent — no LLM tokens for this housekeeping cron');
+  assert.match(src, /open\.er-api\.com/, 'must fetch FX rates directly, not via webSearch');
+  assert.match(src, /db\.insert\(\s*['"]currency_rates['"]|db\.update\(\s*['"]currency_rates['"]/, 'must upsert currency_rates');
 });

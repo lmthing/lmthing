@@ -284,6 +284,54 @@ test('per-verb table scope: planner (+suggestions), shopper, pantry-keeper stay 
   assert.match(keeper, /db:write:\s*\{\s*tables:\s*\[ingredients\]/);
 });
 
+test('the concierge acts through endpoints: db:read + an api:call allowlist of REAL endpoint names, no db:write', () => {
+  // The concierge (chef/concierge) reads the db directly for context but makes every change
+  // through the app's own validated endpoints via apiCall — so handler logic + hook fan-out
+  // stay correct. This asserts the acting front-door is wired and least-privilege.
+  const src = readFileSync(join(APP, 'spaces', 'chef', 'agents', 'concierge', 'instruct.md'), 'utf8');
+  assert.match(src, /db:read:/, 'concierge must read the db directly for context');
+  assert.doesNotMatch(src, /db:write:/, 'concierge holds NO direct table-write power — it acts through apiCall');
+
+  // Every name in the api:call allowlist must be a real endpoint (export const name = '...').
+  const m = src.match(/api:call:\s*\{\s*allow:\s*\[([^\]]*)\]/);
+  assert.ok(m, 'concierge must declare api:call: { allow: [...] }');
+  const allow = m[1].split(',').map((s) => s.trim()).filter(Boolean);
+  assert.ok(allow.length >= 20, `concierge allowlist looks too small (${allow.length})`);
+
+  // Collect the real endpoint names the runtime exposes.
+  const apiDir = join(APP, 'api');
+  const names = new Set();
+  const walk = (dir) => {
+    for (const e of readdirSync(dir)) {
+      const p = join(dir, e);
+      if (statSync(p).isDirectory()) walk(p);
+      else if (e.endsWith('.ts')) {
+        const nm = readFileSync(p, 'utf8').match(/export const name = ['"]([^'"]+)['"]/);
+        if (nm) names.add(nm[1]);
+      }
+    }
+  };
+  walk(apiDir);
+  for (const a of allow) {
+    assert.ok(names.has(a), `concierge api:call allowlists '${a}', which is not a real endpoint name`);
+  }
+  // The spawn-backed action-through-endpoint names the concierge relies on must be allowlisted.
+  for (const needed of ['generatePlan', 'importRecipe', 'importRecipeText', 'updateSettings', 'orderGroceries']) {
+    assert.ok(allow.includes(needed), `concierge allowlist must include '${needed}'`);
+  }
+});
+
+test('spawn flows are real (not stubs): importer instruct no longer claims spawn is a no-op', () => {
+  // Both api spawn callers must invoke the now-real ctx.spawn, and the importer instruct must not
+  // still tell the agent spawn does nothing (which would make it skip finishing the stub).
+  const paste = readFileSync(join(APP, 'api', 'recipes', 'paste', 'POST.ts'), 'utf8');
+  assert.match(paste, /ctx\.spawn\(/);
+  assert.match(paste, /sourcing\/importer#paste/);
+  const imp = readFileSync(join(APP, 'spaces', 'sourcing', 'agents', 'importer', 'instruct.md'), 'utf8');
+  assert.doesNotMatch(imp, /no-op/i, 'importer instruct must not describe spawn as a no-op anymore');
+  assert.doesNotMatch(imp, /spawn does not actually invoke agents/i, 'stale spawn-is-a-stub prose must be gone');
+});
+
 test('the importer reaches the web via its task-level functions allowlist, not agent frontmatter', () => {
   // Engine truth: webFetch/webSearch/fetch are UNIVERSAL system globals. Listing them in an
   // agent's `functions:` frontmatter makes the space loader fail-loud ("not found in functions/"),

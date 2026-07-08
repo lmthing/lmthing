@@ -23,17 +23,19 @@ capabilities:
 
 ## Action: import
 
-Turn a recipe web page into a real recipe in the box. This is reachable two ways:
+Turn a recipe web page into a real recipe in the box. This is reachable two ways, and **both run
+for real**:
 
-- **Live path — chat.** The user opens `<Chat agent="sourcing/importer">` and pastes a URL
-  ("import this: https://example.com/recipes/lemon-chicken"). This is the path that actually runs
-  today.
-- **API path — currently a no-op.** `api/recipes/import/POST.ts` (`importRecipe`) inserts a stub
-  `recipes` row (`title: 'Importing…'`, `instructions: ''`, `source: <url>`) and calls
-  `ctx.spawn('sourcing/importer#import', { recipeId, url })` to fill it in. `spawn` does not
-  actually invoke agents yet, so a stub created this way sits unfinished until this agent is run
-  by hand against it — treat the self-query fallback below as how that gets picked up once spawn
-  starts working, not as the primary flow today.
+- **Chat path.** The user opens `<Chat agent="sourcing/importer">` and pastes a URL
+  ("import this: https://example.com/recipes/lemon-chicken"). Here the URL is in the conversation.
+- **Spawn path (the automated front door).** `api/recipes/import/POST.ts` (`importRecipe`) inserts a
+  stub `recipes` row (`title: 'Importing…'`, `instructions: ''`, `source: <url>`) and calls
+  `ctx.spawn('sourcing/importer#import', { recipeId, url })`, which now starts a **real
+  fire-and-forget headless run of you** — this is how the app imports a recipe end to end. When you
+  are spawned this way your kickoff message names the `import` action and carries the input JSON
+  (`{ recipeId, url }`); read `recipeId`/`url` out of that message, then follow the self-query
+  fallback below to resolve the stub. Finishing the stub is your job, not something left for a
+  human to run by hand.
 
 **You already have `webFetch` and a `db` global injected — do NOT explore the filesystem or go
 looking for the page some other way. Call `webFetch` directly as your first statement.**
@@ -69,24 +71,23 @@ Steps:
    ingredients.
 
 4. Find-or-create each parsed ingredient against the existing pantry, rather than blindly
-   inserting a duplicate every time a recipe calls for something already tracked:
+   inserting a duplicate every time a recipe calls for something already tracked. Build the whole
+   `lines` array in **one** `.map` statement — a single fully-initialized `const`, so the sandbox
+   (which runs one statement at a time) never sees a half-written declaration:
    ```ts
    const existing = db.query('ingredients');
-   const lines: { ingredientId: string; quantity: number; unit: string }[] = [];
-   for (const line of parsed.ingredients) {
+   const lines = parsed.ingredients.map((line: { name: string; quantity: number; unit: string }) => {
      let id = matchIngredient(line.name, existing);
      if (!id) {
-       const created = db.insert('ingredients', {
-         name: line.name,
-         unit: line.unit,
-         quantity: 0,
-       });
+       const created = db.insert('ingredients', { name: line.name, unit: line.unit, quantity: 0 });
        id = created.id;
        existing.push({ id, name: line.name }); // so later lines in this same page can match it too
      }
-     lines.push({ ingredientId: id, quantity: line.quantity, unit: line.unit });
-   }
+     return { ingredientId: id, quantity: line.quantity, unit: line.unit };
+   });
    ```
+   Write each `const` on its own line — never combine `existing` and `lines` into one
+   comma-separated declaration, and never emit a `const` without its initializer.
 
 5. Write the recipe. If this run is filling in a stub (step 1 found one), update it in place so
    the "Importing…" placeholder resolves into the real recipe; otherwise insert a fresh row:
@@ -125,10 +126,13 @@ Steps:
 ## Action: paste
 
 The paste-anything counterpart to `import`: turn **free text** the user pasted — a WhatsApp
-message, a photo caption, an OCR'd screenshot — into a real recipe. Reachable two ways: the user
-pastes into `<Chat agent="sourcing/importer">`, or `api/recipes/paste/POST.ts` (`importRecipeText`)
-inserts a stub `recipes` row (`source: 'pasted'`, empty `instructions`) and spawns
-`sourcing/importer#paste` with `{ recipeId, text }`.
+message, a photo caption, an OCR'd screenshot — into a real recipe. Reachable two ways, **both
+run for real**: the user pastes into `<Chat agent="sourcing/importer">`, or
+`api/recipes/paste/POST.ts` (`importRecipeText`) inserts a stub `recipes` row (`source: 'pasted'`,
+empty `instructions`) and spawns `sourcing/importer#paste` with `{ recipeId, text }` — a real
+fire-and-forget headless run of you. On the spawn path your kickoff message names the `paste`
+action and carries the input JSON; read `recipeId`/`text` out of that message and resolve the stub
+in place. This is the primary way pasted recipes get normalized — completing the stub is your job.
 
 There is **no page to fetch** here — do NOT call `webFetch`. The text is the source of truth; you
 extract structure from it with your own reading. Write TypeScript one statement at a time; narrate

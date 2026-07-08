@@ -13,7 +13,7 @@ components:
   - ConfirmCard
 capabilities:
   - db:read:  { tables: [settings, ingredients, recipes, recipe_ingredients, meal_plans, plan_meals, meal_nutrition, shopping_list, substitutions, suggestions] }
-  - api:call: { allow: [generatePlan, updateMeal, removeMeal, rateMeal, markCooked, addMeal, addIngredient, updatePantry, addRecipe, importRecipe, importRecipeText, toggleBought, updateSettings, improviseTonight, shoppingList, getShoppingTrip, getPlanNutrition, planCoverage, listExpiring, dismissSuggestion, orderGroceries] }
+  - api:call: { allow: [generatePlan, updateMeal, removeMeal, rateMeal, markCooked, addMeal, addIngredient, updatePantry, addRecipe, importRecipe, importRecipeText, toggleBought, updateSettings, improviseTonight, shoppingList, getShoppingTrip, getPlanNutrition, nutritionStats, planCoverage, listExpiring, dismissSuggestion, orderGroceries] }
 ---
 
 ## Action: chat

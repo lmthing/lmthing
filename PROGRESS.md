@@ -116,7 +116,54 @@ connect race). **Verified:** `GET lmthing.chat/api/sessions`→200 (was 503); bu
 immediate relief. **LESSON: never put a readinessProbe on a single-threaded runtime that blocks the
 event loop — it self-yanks under load; use a startupProbe.**
 
+## Follow-on 2026-07-08 — Instant, universal pod wake (SHIPPED + live-verified, gateway `0cbd977`)
+
+Two gaps after scale-to-zero: (1) only the SPA's explicit `/ensure` (and cron) woke a pod — a
+DIRECT request (lmthing.app page nav, WS, external, or an SPA call before the gate) hit `replicas:0`
+→ Envoy 503 with no wake; (2) the SPA gate flipped "ready" on the `/ensure` 200 without checking
+`pod.ready`, so children could mount against a still-booting pod → 503s.
+
+Shipped (plan `~/.claude/plans/with-all-that-context-validated-sky.md`):
+- **Envoy activator** (computer/studio/chat/app `-policies.yaml`): `envoy_on_request` stashes the
+  validated JWT + document-nav flag in dynamic metadata; `envoy_on_response` detects an Envoy
+  no-endpoint 503/504 (discriminator: **absent `x-envoy-upstream-service-time`** ⇒ Envoy-generated,
+  not a pod-origin 503), fires a fire-and-forget `httpCall("gateway-activator", …)` →
+  `POST /api/compute/wake`, and returns a self-healing "waking…" response (auto-reloading HTML for
+  document navs, `{waking:true}` JSON for XHR/WS). `activator-patch.yaml` (EnvoyPatchPolicy) injects
+  the `gateway-activator` STRICT_DNS cluster → `gateway.lmthing.svc:3000`; needs
+  `enableEnvoyPatchPolicy: true` (added to the ansible envoy_gateway role; patched live on the
+  controller ConfigMap + restarted).
+- **Gateway**: `wakeUserPod()` (fast scale 0→1, no readiness wait / no env re-inject); `POST
+  /api/compute/wake` (authMiddleware — the activator forwards the JWT, so a caller can only wake its
+  OWN pod; no shared secret, no public-edge exposure); startupProbe `periodSeconds 2→1`
+  (`failureThreshold 60→120`), ensure readiness poll `600→300ms`.
+- **SPA** (`gates.tsx`): after `/ensure`, poll `/api/compute/status` until real `pod.ready` before
+  mounting children; copy → "Waking your workspace…". **`authFetch`** (`@lmthing/auth`): transparently
+  retry on the activator's `{waking:true}` 503 (a no-endpoint 503 = request never reached the pod =
+  zero side effects, so retrying even a POST is safe).
+- **Compute boot** (`bin.ts`): defer `syncSystemSpaces` (system-spaces hashDir walk) until AFTER the
+  HTTP server is listening; keep only materialize-if-needed pre-`listen` — removes a per-boot hash
+  walk from the cold-wake time-to-serve path.
+
+**Live-verified (prod, test user 379847043318834826):**
+- Direct XHR to a scaled-to-zero pod → `503` `retry-after:2` `{"waking":true}`; direct document nav →
+  `503` self-healing "Waking your workspace…" HTML; **the pod scaled 0→1** (activator httpCall). ✓
+- Warm-image cold wake **~6s** (503 `{waking:true}` throughout the window → 200); a still-terminating
+  pod and a warm pod both returned **200** (activator never hijacks a real pod response). ✓ (The very
+  first wake after the digest bump took ~118s = one-time cold pull of the OLD digest; now cached.)
+- SPA (browser): cold lmthing.chat showed "Waking your workspace…", then landed on the full THING
+  chat UI with **zero 503s** across all pod calls (`/api/projects`, `…/sessions`, `…/spaces` all 200). ✓
+- `EnvoyPatchPolicy` Accepted+Programmed; `gateway-activator` cluster present in Envoy config;
+  `lmthing-core` + `lmthing-envoy` Synced/Healthy; gateway/chat/studio/computer on `0cbd977`,
+  compute digest `6d5591…`.
+
+Note: true sub-second wake was explicitly NOT targeted (needs a warm-pool / stateless-pod redesign,
+deferred P5). "Fast + never-broken" (~6s, always self-healing, never a dead 503) was the agreed goal.
+
 ## Log
+- 2026-07-08 — Instant/universal pod wake implemented, built, typechecked (gateway+cli+web),
+  cli tests green (92), committed (top `0cbd977`→CI `fc5aab1a`, sdk/org `131dec1`), deployed via
+  CI/ArgoCD + a live controller patch for `enableEnvoyPatchPolicy`, and live-verified end-to-end.
 - 2026-07-06 — Plan approved. PROGRESS.md reset for this effort. Reading anchor files (gateway spine first).
 - 2026-07-07 — P1–P4 implemented, built, typechecked, unit-tested; local smoke green (inert w/o gateway env). Committed to main; CI built gateway+compute; digest-pin wired end-to-end (COMPUTE_IMAGE_DIGEST=sha256:fd03f80 in gateway.yaml + prepull, in lockstep). ArgoCD Synced/Healthy; gateway+studio rolled to 0939ead.
 - 2026-07-07 — **Prod verify (minted user prodtestpods1):** ✅ Burstable podConfig live (50m/256Mi); pod runs digest image + IfNotPresent (P4), Burstable resources + NODE_OPTIONS=307 (P3), 45s grace + /api/sessions readiness + last-active annotation (P1); pod boot log shows `[self-idle] watchdog started` + `[mem-watchdog] started`. ✅ **Scale-to-zero cycle**: /self-idle{idle:true} → replicas=0; /ensure → wake replicas=1 (fast, digest cached). ✅ Gateway: both replicas "refresher + controllers started"; `[sweep]` tick live.

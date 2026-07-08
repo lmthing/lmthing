@@ -28,7 +28,7 @@ const PRICES_PATH = join(
 );
 
 /** Models exposed by the provider — must match gateway ENABLED_MODELS + tiers.ts. */
-const ENABLED_MODELS = ['DeepSeek-V4-Flash', 'DeepSeek-V4-Pro', 'Kimi-K2.6', 'gpt-5.5'];
+const ENABLED_MODELS = ['DeepSeek-V4-Flash', 'DeepSeek-V4-Pro', 'Kimi-K2.6', 'gpt-5.5', 'gpt-5.4-mini'];
 
 const API_VERSION = '2024-12-01-preview';
 

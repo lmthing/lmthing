@@ -54,6 +54,18 @@ data:
           input_cost_per_token: 0.00000545238
           output_cost_per_token: 0.0000327019
           cache_read_input_token_cost: 0.00000054648
+      # gpt-5.4-mini — cheap VISION-capable model used by the system-vision space
+      # agent (image analysis). ~20x cheaper than gpt-5.5.
+      - model_name: gpt-5.4-mini
+        litellm_params:
+          model: azure/gpt-5.4-mini
+          api_base: os.environ/AZURE_API_BASE
+          api_key: os.environ/AZURE_API_KEY
+          api_version: "2024-12-01-preview"
+        model_info:
+          # 15% markup over Azure base price (azure_per_1K / 1000 * 1.15)
+          input_cost_per_token: 0.0000002875
+          output_cost_per_token: 0.0000023
       # Audio transcription for the chat vision/audio feature. `whisper` deployment
       # on the same Azure resource; billed per-minute (LiteLLM uses its built-in
       # azure/whisper cost map), so no per-token model_info here. Pods reach this

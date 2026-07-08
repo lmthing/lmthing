@@ -353,6 +353,9 @@ function litellmEnvDefaults(litellmKey: string): Record<string, string> {
     LM_MODEL_L: "lmthingcloud:gpt-5.5",
     LM_MODEL_M_R: "lmthingcloud:DeepSeek-V4-Pro",
     LM_MODEL_L_R: "lmthingcloud:Kimi-K2.6",
+    // Vision model for the system-vision space agent (image analysis). Cheap,
+    // vision-capable; THING (a text model) delegates images to it.
+    LM_MODEL_VISION: "lmthingcloud:gpt-5.4-mini",
     // Audio transcription (chat vision/audio feature) routed through LiteLLM so
     // Azure creds stay off the pod and usage bills against the user's own key.
     // `whisper-1` is registered in devops/argocd/core/litellm.yaml → azure/whisper.

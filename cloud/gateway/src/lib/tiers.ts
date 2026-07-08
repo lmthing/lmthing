@@ -9,6 +9,9 @@ export const ENABLED_MODELS = [
   "DeepSeek-V4-Pro",
   "Kimi-K2.6",
   "gpt-5.5",
+  // Cheap vision-capable model — the system-vision space agent analyzes images
+  // on this (delegated from THING); also usable directly as a low-cost model.
+  "gpt-5.4-mini",
 ] as const;
 
 /** Transcription models every tier's key may call (audio → text for the chat

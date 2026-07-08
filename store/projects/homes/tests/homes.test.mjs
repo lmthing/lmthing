@@ -264,8 +264,9 @@ test('ingestCapture inserts a raw_capture and does NOT spawn (the hook drives it
 
 test('pollSource stamps a manual request and does NOT spawn (the poll-source-now hook drives it)', () => {
   const src = readFileSync(join(APP, 'api', 'sources', '[id]', 'poll', 'POST.ts'), 'utf8');
-  // ctx.spawn is a permanent no-op in the pod runtime — a spawned agent never runs.
-  assert.doesNotMatch(src, /ctx\.spawn\(/, 'pollSource must not rely on the no-op ctx.spawn');
+  // pollSource deliberately drives the poll through the poll-source-now db-hook (a
+  // `sources` UPDATE) rather than `ctx.spawn` — the reliably-routed, per-source-gated path.
+  assert.doesNotMatch(src, /ctx\.spawn\(/, 'pollSource drives the poll via the db-hook, not ctx.spawn');
   assert.match(src, /pollRequestedAt/, 'pollSource stamps a manual-poll request');
   assert.match(src, /db\.update\(\s*['"]sources['"]/, 'the request is a sources update the hook fires on');
 });
@@ -346,6 +347,51 @@ test('concierge: single least-privilege app-driver agent (read-all, api:call, no
   assert.doesNotMatch(fm, /deleteSearch/, 'destructive deleteSearch must NOT be in the allow-list');
   for (const forbidden of ['db:schema', 'pages:write', 'api:write', 'hooks:write', 'project:manage']) {
     assert.doesNotMatch(fm, new RegExp(forbidden), `concierge must NOT hold ${forbidden} — it uses the app, it can't rewrite it`);
+  }
+});
+
+// Every real api endpoint name (`export const name = '...'`) by walking api/.
+function collectEndpointNames() {
+  const names = [];
+  const walk = (dir) => {
+    for (const e of readdirSync(dir)) {
+      const p = join(dir, e);
+      if (statSync(p).isDirectory()) walk(p);
+      else if (/^(GET|POST|PATCH|PUT|DELETE)\.ts$/.test(e)) {
+        const m = readFileSync(p, 'utf8').match(/export const name = ['"]([^'"]+)['"]/);
+        if (m) names.push(m[1]);
+      }
+    }
+  };
+  walk(join(APP, 'api'));
+  return names;
+}
+
+// The concierge's `api:call` allow-list, parsed from its instruct.md frontmatter.
+function conciergeAllowList() {
+  const fm = frontmatterOf(readFileSync(join(APP, 'spaces', 'concierge', 'agents', 'concierge', 'instruct.md'), 'utf8'));
+  const m = fm.match(/api:call:\s*\{\s*allow:\s*\[([^\]]*)\]/);
+  assert.ok(m, 'concierge api:call allow-list must be present in frontmatter');
+  return m[1].split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+test('concierge api:call allow-list: every entry resolves to a real endpoint; deleteSearch excluded; act endpoints granted', () => {
+  const endpoints = new Set(collectEndpointNames());
+  // Sanity: the walker found the endpoints (matches the count the structural test asserts).
+  assert.ok(endpoints.size >= EXPECTED_ENDPOINTS.length, `expected ≥${EXPECTED_ENDPOINTS.length} endpoints, found ${endpoints.size}`);
+  const allow = conciergeAllowList();
+  assert.ok(allow.length > 0, 'allow-list must be non-empty (there is no "call anything")');
+  // Every allowed name must map to an actual `api/` handler — no phantom/typo names the
+  // typed apiCall DTS could never surface (which would silently strand the concierge).
+  for (const name of allow) {
+    assert.ok(endpoints.has(name), `concierge allows "${name}" which is not a real api/ endpoint name`);
+  }
+  // The one destructive, cascading endpoint stays OUT of the allow-list (safety contract).
+  assert.ok(!allow.includes('deleteSearch'), 'destructive deleteSearch must NEVER be in the allow-list');
+  // The reversible/act endpoints the concierge is designed to drive must be granted, or it
+  // could read but never act through the app's typed handlers.
+  for (const need of ['saveListing', 'dismissListing', 'updateSearch', 'updateListing', 'createSearch', 'addSource', 'pollSource']) {
+    assert.ok(allow.includes(need), `concierge must be allowed to call ${need} (it acts through typed handlers)`);
   }
 });
 

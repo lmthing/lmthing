@@ -40,12 +40,14 @@ export default async function handler(input: Input, ctx: Ctx): Promise<Output> {
     throw new HttpError(404, 'source has no url to poll');
   }
 
-  // NOTE: the runtime's `spawn()` seam is a permanent no-op in the pod (the headless agent
-  // runner is a deferred stub), so spawning would silently never run the clipper. The working
-  // pattern is a `database` hook that `delegate`s on a write: we stamp a manual-poll
-  // request (`pollRequestedAt`), which fires the `poll-source-now` hook → `clipper#poll`.
-  // `politeFetchPlan` treats a pending request as eligible for one poll (bypassing the
-  // recurring `pollEnabled`/interval), then it's cleared as `lastPolledAt` advances past it.
+  // The poll is driven by a `database` hook, NOT `ctx.spawn`: stamping a manual-poll
+  // request (`pollRequestedAt`) is a `sources` UPDATE that fires the `poll-source-now`
+  // hook → `intake/clipper#poll` (its declarative trigger — the same reliably-routed
+  // path the poll cron uses). `politeFetchPlan` treats a pending request as eligible for
+  // one poll (bypassing the recurring `pollEnabled`/interval), then clears it as
+  // `lastPolledAt` advances past it. (The runtime's `spawn()` seam is a real
+  // fire-and-forget agent runner now, but this decoupled write-driven path is the tested,
+  // per-source-gated one — kept deliberately over a bare spawn.)
   await ctx.db.update('sources', {
     where: { id: input.id },
     set: { pollRequestedAt: new Date().toISOString() },

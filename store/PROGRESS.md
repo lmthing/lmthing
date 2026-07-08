@@ -11,12 +11,13 @@ Apps: **blog, health, kitchen, trips, homes**. Each app's proposals live in `sto
 | health | ✅ done | ✅ done | ✅ done | 🔵 running |
 | kitchen | ✅ done | ✅ done | ✅ done | 🔵 running |
 | trips | ✅ done | ✅ done | ✅ done | 🔵 running |
-| homes | ✅ done | ✅ done | ✅ done | 🔵 running |
+| homes | ✅ done | ✅ done | ✅ done | ✅ done |
 
 **Round 2** (2026-07-08): the SDK gaps are fixed (sdk/org 65ad314 / parent a4aab055) — `ctx.spawn` from an api handler now runs a real headless agent, and `apiCall` is injected into agent sessions. Each app is being updated to leverage these: the in-app concierge/assistant now acts **through validated endpoints via `apiCall`** (capability-model intent) instead of the db-first workaround, and adopts real `ctx.spawn` where cleaner (keeping the robust insert-hooks). Live-tested on the rebuilt local CLI dist.
 
 ### Round 2 log
-- ✅ blog → committed. Fixed editor `api:call` key bug (`names`→`allow`, never parsed before), removed its `db:write` (now mutation-through-endpoints only), 15-endpoint allowlist. Live-verified: `pinArticle` via apiCall flipped DB; `requestTake` via apiCall→hook→real AI. 28/28 tests, no new files. Still running: health, kitchen, trips, homes.
+- ✅ blog → committed. Fixed editor `api:call` key bug (`names`→`allow`, never parsed before), removed its `db:write` (now mutation-through-endpoints only), 15-endpoint allowlist. Live-verified: `pinArticle` via apiCall flipped DB; `requestTake` via apiCall→hook→real AI. 28/28 tests, no new files.
+- ✅ homes → committed. Concierge already correct (`allow` allowlist, 21 endpoints, no `deleteSearch`); verified end-to-end (`apiCall('saveListing')` → listing `new→shortlisted` + taste_signal row), safety confirmed (refused deleteSearch), added allowlist regression test + fixed stale comments. 42/42 tests, no new files. Still running: health, kitchen, trips.
 
 ## Log
 

@@ -139,10 +139,18 @@ test('addSource enforces the free-tier source cap', () => {
 });
 
 // ── Hooks — cron + database:insert loop ─────────────────────────────────────
-test('refresh-sources is a cron hook that triggers the fetcher', () => {
+test('refresh-sources is an imperative cron handler (no LLM/agent trigger)', () => {
   const src = readFileSync(join(APP, 'hooks', 'refresh-sources.ts'), 'utf8');
   assert.match(src, /type:\s*['"]cron['"]/);
-  assert.match(src, /newsroom\/fetcher#refresh/);
+  assert.match(src, /every:\s*['"]30m['"]/, 'must keep the existing 30-minute schedule');
+  assert.match(src, /handler:\s*async/, 'must be an imperative handler, not a declarative trigger');
+  assert.doesNotMatch(src, /trigger:/, 'must not carry a `trigger` — this hook no longer delegates to an agent');
+  assert.doesNotMatch(src, /delegate\(/, 'must never call delegate() — that would re-introduce the LLM');
+  // Deterministic fetch/parse/dedupe/insert logic inlined from spaces/newsroom/functions/.
+  assert.match(src, /function parseFeedEntries/, 'must inline parseFeedEntries');
+  assert.match(src, /function dedupeByUrl/, 'must inline dedupeByUrl');
+  assert.match(src, /function extractImage/, 'must inline extractImage');
+  assert.match(src, /db\.insert\(\s*['"]raw_items['"]/, 'must insert new raw_items directly');
 });
 
 test('synthesize-new is a database:insert hook with an idempotence guard + delegate', () => {

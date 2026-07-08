@@ -16,7 +16,7 @@ budget. All tiers can call all four enabled models.
 
 | Tier    | Price      | Budget (1d / 7d / 30d) | Rate Limits          |
 |---------|------------|------------------------|----------------------|
-| Free    | $0         | $0.30 / $2 / $6        | 10K tpm / 60 rpm     |
+| Free    | $0         | $10 / $50 / $150       | 10K tpm / 60 rpm     |
 | Basic   | $10/month  | $1 / $4 / $10          | 50K tpm / 300 rpm    |
 | Pro     | $20/month  | $3 / $10 / $20         | 100K tpm / 1K rpm    |
 | Max     | $100/month | $10 / $30 / $100       | 1M tpm / 5K rpm      |

@@ -165,7 +165,7 @@ multiple-budget-windows feature. A request is rejected once any window is exhaus
 
 | Tier | Price | Budget (1d / 7d / 30d) | Rate Limits | Compute |
 |------|-------|------------------------|-------------|---------|
-| Free | $0 | $3 / $20 / $60 | 10K tpm / 60 rpm | Yes |
+| Free | $0 | $10 / $50 / $150 | 10K tpm / 60 rpm | Yes |
 | Basic | $10/mo | $1 / $4 / $10 | 50K tpm / 300 rpm | Yes |
 | Pro | $20/mo | $3 / $10 / $20 | 100K tpm / 1K rpm | Yes |
 | Max | $100/mo | $10 / $30 / $100 | 1M tpm / 5K rpm | Yes |

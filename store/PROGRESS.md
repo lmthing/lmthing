@@ -9,8 +9,8 @@ Apps: **blog, health, kitchen, trips, homes**. Each app's proposals live in `sto
 |---|---|---|---|---|
 | blog | ✅ done | ✅ done | ✅ done | ✅ done |
 | health | ✅ done | ✅ done | ✅ done | ✅ done |
-| kitchen | ✅ done | ✅ done | ✅ done | 🔵 running |
-| trips | ✅ done | ✅ done | ✅ done | 🔵 running |
+| kitchen | ✅ done | ✅ done | ✅ done | ✅ done |
+| trips | ✅ done | ✅ done | ✅ done | ✅ done |
 | homes | ✅ done | ✅ done | ✅ done | ✅ done |
 
 **Round 2** (2026-07-08): the SDK gaps are fixed (sdk/org 65ad314 / parent a4aab055) — `ctx.spawn` from an api handler now runs a real headless agent, and `apiCall` is injected into agent sessions. Each app is being updated to leverage these: the in-app concierge/assistant now acts **through validated endpoints via `apiCall`** (capability-model intent) instead of the db-first workaround, and adopts real `ctx.spawn` where cleaner (keeping the robust insert-hooks). Live-tested on the rebuilt local CLI dist.
@@ -18,7 +18,11 @@ Apps: **blog, health, kitchen, trips, homes**. Each app's proposals live in `sto
 ### Round 2 log
 - ✅ blog → committed. Fixed editor `api:call` key bug (`names`→`allow`, never parsed before), removed its `db:write` (now mutation-through-endpoints only), 15-endpoint allowlist. Live-verified: `pinArticle` via apiCall flipped DB; `requestTake` via apiCall→hook→real AI. 28/28 tests, no new files.
 - ✅ homes → committed. Concierge already correct (`allow` allowlist, 21 endpoints, no `deleteSearch`); verified end-to-end (`apiCall('saveListing')` → listing `new→shortlisted` + taste_signal row), safety confirmed (refused deleteSearch), added allowlist regression test + fixed stale comments. 42/42 tests, no new files.
-- ✅ health → committed. `care/assistant` now mutates only via `apiCall` (dropped `db:write`, 15-endpoint allowlist); clinical single-author preserved. Live-verified `logMetric` via apiCall created row; `requestTriage` → pending row → hook → triage-nurse authored. 21/21 tests, no new files. Still running: kitchen, trips.
+- ✅ health → committed. `care/assistant` now mutates only via `apiCall` (dropped `db:write`, 15-endpoint allowlist); clinical single-author preserved. Live-verified `logMetric` via apiCall created row; `requestTriage` → pending row → hook → triage-nurse authored. 21/21 tests, no new files.
+- ✅ kitchen → committed. Concierge allowlist completed (`nutritionStats`); importer instruct de-stubbed + fixed a find-or-create example that looped forever now that spawn is real. Live-verified: `apiCall('updatePantry')` 0→2000g; **paste-import `ctx.spawn` now completes** (importer produced a 7-ingredient recipe). 20/20 tests, no new files.
+- ✅ trips → committed. `copilot/assistant` now `apiCall`-first (39-endpoint allowlist, prefers computed endpoints; dropped the "not injected" workaround; fixed a multi-line YAML allowlist that broke frontmatter parsing). Live-verified: `apiCall('addExpense')` → expense + 3 €20 `expense_shares` via the treasurer hook; createTrip → `agent_runs` hook → 14 real itinerary items. 48/48 tests, no new files.
+
+**Round 2 COMPLETE — all 5 apps' concierge/assistant act through validated endpoints via `apiCall`, live-verified.** No new files across any app → manifest unchanged. The kitchen paste-import proves real `ctx.spawn` end-to-end.
 
 ## Log
 

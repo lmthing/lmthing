@@ -355,6 +355,49 @@ test('copilot/assistant is the write-capable orchestrator: db:read + db:write + 
   }
 });
 
+test('copilot api:call allow-list only references REAL endpoint names, and covers the actions it drives', () => {
+  const instructP = join(APP, 'spaces', 'copilot', 'agents', 'assistant', 'instruct.md');
+  const fm = frontmatterOf(readFileSync(instructP, 'utf8'));
+  // Extract the api:call allow list (spans multiple lines).
+  const m = fm.match(/api:call:\s*\{\s*allow:\s*\[([\s\S]*?)\]\s*\}/);
+  assert.ok(m, 'copilot must declare api:call: { allow: [...] }');
+  const allow = m[1]
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  assert.ok(allow.length >= 20, `expected a rich allow-list, found ${allow.length}`);
+  // Every allowed name must be a real endpoint `name` in api/.
+  const realNames = new Set(EXPECTED_ENDPOINTS.map(([, name]) => name));
+  for (const name of allow) {
+    assert.ok(realNames.has(name), `api:call allow references unknown endpoint "${name}"`);
+  }
+  // Must cover the core write actions the copilot legitimately drives via apiCall.
+  for (const required of [
+    'addExpense', 'settleBetween', 'addTraveler', 'setPreference', 'addDestination',
+    'updateTrip', 'createTrip', 'findDeals', 'generatePacking', 'planTransit',
+    'refreshRates', 'refreshWeather',
+  ]) {
+    assert.ok(allow.includes(required), `api:call allow must include "${required}"`);
+  }
+  // Guardrail: no delete/destructive endpoint is in the allow-list (confirm-in-UI only).
+  for (const forbidden of ['deleteTrip', 'removeExpense', 'removeTraveler', 'removeItem', 'removeBooking', 'removePackingItem', 'removePreference']) {
+    assert.ok(!allow.includes(forbidden), `api:call allow must NOT include destructive "${forbidden}"`);
+  }
+});
+
+test('copilot instruct now PREFERS apiCall for actions (the old "apiCall is not injected — do NOT call it" workaround is gone)', () => {
+  const src = readFileSync(join(APP, 'spaces', 'copilot', 'agents', 'assistant', 'instruct.md'), 'utf8');
+  assert.match(src, /apiCall\(/, 'instruct must show apiCall(...) usage');
+  // The previous round explicitly forbade apiCall; that instruction must be removed.
+  assert.doesNotMatch(src, /apiCall`?\s+is not\s+(injected|defined)/i, 'must not tell the agent apiCall is unavailable');
+  assert.doesNotMatch(src, /do NOT call it/i, 'must not forbid apiCall');
+  // Still keeps the non-negotiable rules.
+  assert.match(src, /[Nn]ever fabricate a booking/, 'must keep the never-fabricate-a-booking rule');
+  assert.match(src, /[Cc]onfirm before destructive/, 'must keep confirm-before-destructive');
+  assert.match(src, /delegate\(/, 'must keep delegate for the specialists');
+  assert.match(src, /db\.query\(/, 'must keep db.query for reads');
+});
+
 test('agent_runs carries the RunStrip columns', () => {
   const s = JSON.parse(readFileSync(join(APP, 'database', 'agent_runs.json'), 'utf8'));
   for (const c of ['tripId', 'kind', 'status', 'startedAt']) {

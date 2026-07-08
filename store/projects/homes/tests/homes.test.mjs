@@ -317,13 +317,19 @@ test('learn-from-signal: database:insert on taste_signals → ranker#learn, fold
   assert.match(src, /folded/);
 });
 
-test('refresh + poll are cron hooks with declarative triggers', () => {
+test('refresh + poll are cron hooks with imperative (no-LLM) handlers', () => {
   const refresh = readFileSync(join(APP, 'hooks', 'refresh-tracked-listings.ts'), 'utf8');
   assert.match(refresh, /type:\s*['"]cron['"]/);
-  assert.match(refresh, /trigger:\s*['"]intake\/clipper#refresh['"]/);
+  assert.match(refresh, /every:\s*['"]6h['"]/);
+  assert.match(refresh, /handler:\s*async/, 'refresh must be an imperative handler, not a trigger');
+  assert.doesNotMatch(refresh, /trigger:/, 'refresh must not declare a trigger');
+  assert.doesNotMatch(refresh, /delegate\(/, 'refresh must never call delegate() — no LLM');
   const poll = readFileSync(join(APP, 'hooks', 'poll-saved-searches.ts'), 'utf8');
   assert.match(poll, /type:\s*['"]cron['"]/);
-  assert.match(poll, /trigger:\s*['"]intake\/clipper#poll['"]/);
+  assert.match(poll, /every:\s*['"]6h['"]/);
+  assert.match(poll, /handler:\s*async/, 'poll must be an imperative handler, not a trigger');
+  assert.doesNotMatch(poll, /trigger:/, 'poll must not declare a trigger');
+  assert.doesNotMatch(poll, /delegate\(/, 'poll must never call delegate() — no LLM');
 });
 
 // ── Spaces — least-privilege + FULL space format ─────────────────────────────

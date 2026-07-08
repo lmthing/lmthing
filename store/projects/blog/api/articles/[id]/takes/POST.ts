@@ -59,9 +59,10 @@ export default async function handler(input: Input, ctx: Ctx): Promise<Output> {
   if (pending) return pending;
 
   // Seed the pending row. Inserting it fires the `generate-take` database hook, which runs the
-  // explainer to fill `body` + mark it `ready` — the app-API `ctx.spawn` seam does not execute an
-  // agent in the pod runtime, so the hook (not a spawn here) is what drives the LLM. The client
-  // polls `GET .../takes` until this row flips to `ready`.
+  // explainer to fill `body` + mark it `ready`. We drive the LLM through the insert-hook (rather than
+  // a direct `ctx.spawn`) on purpose: the pending row is the idempotence cache — a concurrent request
+  // for the same take reuses it instead of spawning a second run. The client polls `GET .../takes`
+  // until this row flips to `ready`.
   const row = (await ctx.db.insert('article_takes', {
     articleId: input.id,
     kind: input.kind,

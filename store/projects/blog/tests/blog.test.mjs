@@ -126,8 +126,8 @@ test('all 47 api handlers exist and export name / Input / Output / default handl
 test('requestResearch tier-gates with a 402 HttpError and seeds a pending row (hook-driven)', () => {
   const src = readFileSync(join(APP, 'api', 'articles', '[id]', 'research', 'POST.ts'), 'utf8');
   assert.match(src, /HttpError\(\s*402/, 'requestResearch must throw HttpError(402) for the free tier');
-  // The app-API `ctx.spawn` seam is a no-op in the pod runtime, so requestResearch seeds a pending
-  // `research` row and the `deep-research` database:insert hook drives the researcher (see below).
+  // requestResearch seeds a pending `research` row and the `deep-research` database:insert hook drives
+  // the researcher (see below) — the pending row doubles as the idempotence guard.
   assert.match(src, /['"]pending['"]/, 'must seed a pending status');
   assert.match(src, /db\.insert\(\s*['"]research['"]/, 'must insert a research row for the hook to pick up');
 });
@@ -340,4 +340,69 @@ test('editorial is a full-format space with 3 least-privilege agents', () => {
       assert.doesNotMatch(src, new RegExp(forbidden), `${a}: must NOT hold ${forbidden}`);
     }
   }
+});
+
+// ── assistant/editor concierge — acts through validated endpoints via apiCall ──
+// The editor is the in-app concierge: it READS with db:read and MUTATES only through
+// the app's own `api/` endpoints via `apiCall(...)` (capability-model intent), so every
+// action runs the real validators + fires the same database hooks as the UI. It holds
+// NO db:write — raw writes would bypass that validation/fan-out.
+test('editor declares api:call with an "allow" list (not the invalid "names" key)', () => {
+  const src = readFileSync(join(APP, 'spaces', 'assistant', 'agents', 'editor', 'instruct.md'), 'utf8');
+  assert.match(src, /api:call:\s*\{\s*allow:\s*\[/, 'editor must use api:call: { allow: [...] } — the engine rejects any other config key');
+  assert.doesNotMatch(src, /api:call:\s*\{\s*names:/, 'the "names" key is invalid and fails capability parsing at load');
+});
+
+test('editor holds db:read + api:call but NOT db:write (mutations route through apiCall)', () => {
+  const src = readFileSync(join(APP, 'spaces', 'assistant', 'agents', 'editor', 'instruct.md'), 'utf8');
+  assert.match(src, /-\s*db:read:/, 'editor must keep db:read for grounded answers');
+  assert.match(src, /-\s*api:call:/, 'editor must hold api:call to act through endpoints');
+  assert.doesNotMatch(src, /-\s*db:write/, 'editor must NOT hold db:write — every mutation goes through a validated endpoint');
+  // and, like every operating agent, no authoring/schema caps.
+  for (const forbidden of ['db:schema', 'pages:write', 'api:write', 'hooks:write']) {
+    assert.doesNotMatch(src, new RegExp(forbidden), `editor: must NOT hold ${forbidden}`);
+  }
+});
+
+test('every endpoint in the editor api:call allow-list resolves to a real, named api handler', () => {
+  const src = readFileSync(join(APP, 'spaces', 'assistant', 'agents', 'editor', 'instruct.md'), 'utf8');
+  const m = src.match(/api:call:\s*\{\s*allow:\s*\[([^\]]*)\]/);
+  assert.ok(m, 'could not find the api:call allow-list');
+  const allow = m[1].split(',').map((s) => s.trim()).filter(Boolean);
+  assert.ok(allow.length >= 10, `expected a substantial allow-list, got ${allow.length}`);
+  // Derive the real endpoint names by scanning every api/**/{GET,POST,PATCH,DELETE}.ts for its
+  // `export const name` (the identifier `apiCall(name, …)` resolves against at runtime).
+  const realNames = new Set();
+  const walk = (dir) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const p = join(dir, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (e.name.endsWith('.ts')) {
+        const nm = readFileSync(p, 'utf8').match(/export const name\s*=\s*['"]([^'"]+)['"]/);
+        if (nm) realNames.add(nm[1]);
+      }
+    }
+  };
+  walk(join(APP, 'api'));
+  for (const name of allow) {
+    assert.ok(realNames.has(name), `allow-list names "${name}" which is not a real api endpoint`);
+  }
+  // The concierge must be able to do the core reversible actions through endpoints.
+  for (const must of ['pinArticle', 'saveArticle', 'dismissArticle', 'followTopic', 'updateTopic', 'createCollection', 'addToCollection', 'createSubscription', 'addSource', 'requestTake']) {
+    assert.ok(allow.includes(must), `editor allow-list must include ${must}`);
+  }
+  // Budget-heavy content generation is DELEGATED to the specialist desks, not apiCall'd directly.
+  for (const delegated of ['requestBriefing', 'requestResearch', 'buildDigest']) {
+    assert.ok(!allow.includes(delegated), `${delegated} should be delegated to a specialist desk, not in the editor's apiCall allow-list`);
+  }
+});
+
+test('editor instruct prefers apiCall for actions and delegate for content generation', () => {
+  const src = readFileSync(join(APP, 'spaces', 'assistant', 'agents', 'editor', 'instruct.md'), 'utf8');
+  assert.match(src, /apiCall\(\s*['"]pinArticle['"]/, 'must show pin via apiCall');
+  assert.match(src, /apiCall\(\s*['"]dismissArticle['"]/, 'must show dismiss via apiCall');
+  assert.match(src, /apiCall\(\s*['"]requestTake['"]/, 'must show take via apiCall');
+  assert.match(src, /delegate\(\s*['"]research\/analyst#brief['"]/, 'must delegate briefings');
+  // No raw db mutation verbs — the editor never writes directly.
+  assert.doesNotMatch(src, /db\.(insert|update|remove)\(/, 'editor must not perform raw db writes');
 });

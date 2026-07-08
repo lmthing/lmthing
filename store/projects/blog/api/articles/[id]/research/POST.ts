@@ -54,8 +54,9 @@ export default async function handler(input: Input, ctx: Ctx): Promise<Output> {
   }
 
   // Seed the pending row. Inserting it fires the `deep-research` database hook, which runs the
-  // researcher's deep-dive tasklist to fill the report + mark it ready — the app-API `ctx.spawn`
-  // seam does not execute an agent in the pod runtime, so the hook (not a spawn here) drives the LLM.
+  // researcher's deep-dive tasklist to fill the report + mark it ready. We drive this through the
+  // insert-hook (rather than a direct `ctx.spawn`) on purpose: the pending row is the idempotence
+  // guard, so a duplicate request reuses it instead of launching a second deep-dive.
   const r = (await ctx.db.insert('research', {
     articleId: input.id,
     topic: input.topic,

@@ -335,20 +335,64 @@ test('every space is FULL format — functions/, components/, and extensive know
   }
 });
 
-test('care/assistant is an app-wide orchestrator: api:call + safe writes, no clinical-table writes', () => {
+// The assistant ACTS THROUGH the app's own validated endpoints via apiCall (which run
+// input validation + fire the database hooks) — it holds NO db:write at all, so it can
+// never author a raw row (clinical or otherwise). Reads stay on db:read; specialists on
+// delegate. The api:call allow-list is EXACTLY the safe user-owned + specialist-request
+// endpoints the instruct references.
+const ASSISTANT_APICALL_ALLOW = [
+  // safe, user-owned mutations (each = what a page's form does)
+  'logMetric', 'logSymptom', 'logDose', 'quickLog',
+  'addAppointment', 'updateAppointment', 'createGoal', 'updateGoal',
+  'completeFollowup', 'addContact',
+  // specialist / clinical-artifact request endpoints (insert a pending row → fire the hook)
+  'requestTriage', 'prepareVisit', 'requestResearch', 'createShare', 'checkInteractions',
+];
+
+test('care/assistant acts through validated apiCall endpoints — api:call allow-list, NO db:write', () => {
   const src = readFileSync(join(APP, 'spaces', 'care', 'agents', 'assistant', 'instruct.md'), 'utf8');
   const fmBlock = src.split('---')[1] ?? '';
-  // It orchestrates the pending-row pipelines via api:call…
-  assert.match(fmBlock, /api:call/, 'assistant must hold api:call to trigger specialist pipelines');
-  // …and writes ONLY the low-risk, user-authored tables — never the clinical, AI-authored ones.
-  assert.match(fmBlock, /db:write:\s*\{\s*tables:\s*\[metrics,\s*symptoms,\s*medications,\s*adherence_logs,\s*appointments,\s*goals,\s*followups,\s*care_contacts\]/);
-  for (const clinical of ['lab_results', 'research', 'interactions', 'triage_assessments', 'visit_briefs', 'care_shares', 'insights']) {
-    // none of the clinical tables appear inside the db:write grant line
-    const writeLine = (fmBlock.match(/db:write:[^\n]*/) ?? [''])[0];
-    assert.doesNotMatch(writeLine, new RegExp(clinical), `assistant must NOT db:write ${clinical}`);
+  // Holds api:call with an explicit allow-list…
+  assert.match(fmBlock, /api:call:\s*\{\s*allow:\s*\[/, 'assistant must hold api:call with an allow-list');
+  const allowLine = (fmBlock.match(/api:call:[^\n]*/) ?? [''])[0];
+  for (const ep of ASSISTANT_APICALL_ALLOW) {
+    assert.match(allowLine, new RegExp(`\\b${ep}\\b`), `api:call allow-list must include ${ep}`);
   }
+  // …and does NOT include any endpoint the instruct doesn't use.
+  const listed = (allowLine.match(/\[([^\]]*)\]/) ?? ['', ''])[1].split(',').map((s) => s.trim()).filter(Boolean);
+  assert.deepEqual(listed.sort(), [...ASSISTANT_APICALL_ALLOW].sort(), 'allow-list must match precisely the referenced endpoints');
+  // No raw write surface at all — the whole point of routing through apiCall.
+  assert.doesNotMatch(fmBlock, /db:write/, 'assistant must NOT hold db:write — it writes ONLY through apiCall');
+  // Reads still granted; specialists still delegated.
+  assert.match(fmBlock, /db:read/, 'assistant keeps db:read for answering questions');
+  assert.match(fmBlock, /canDelegateTo/, 'assistant keeps delegate for specialists');
+  // Every mutating action is performed via apiCall, never a raw db.insert/db.update.
+  const body = src.split('---').slice(2).join('---');
+  assert.doesNotMatch(body, /\bdb\.insert\(/, 'assistant must not raw db.insert — route through apiCall');
+  assert.doesNotMatch(body, /\bdb\.update\(/, 'assistant must not raw db.update — route through apiCall');
+  assert.match(body, /apiCall\(/, 'assistant must act through apiCall');
   // Confirm-before-write is stated as a hard rule.
   assert.match(src, /[Cc]onfirm/, 'assistant must document confirm-before-write');
+});
+
+test('care/assistant never requests a raw clinical write — clinical tables stay single-author', () => {
+  // The only clinical-facing endpoints it may call are the *request* kick-offs, which insert a
+  // PENDING row and hand authorship to the accountable specialist via that table's hook.
+  const clinicalRequests = ['requestTriage', 'prepareVisit', 'requestResearch', 'createShare', 'checkInteractions'];
+  for (const ep of clinicalRequests) assert.ok(ASSISTANT_APICALL_ALLOW.includes(ep));
+  // Those endpoints each insert a `pending` row (not a finished artifact) — the single-author gate.
+  const map = {
+    requestTriage: ['triage', 'POST.ts', 'triage_assessments'],
+    prepareVisit: ['visit-brief', 'POST.ts', 'visit_briefs'],
+    requestResearch: ['research', 'POST.ts', 'research'],
+    createShare: ['shares', 'POST.ts', 'care_shares'],
+    checkInteractions: ['interactions', 'POST.ts', 'interactions'],
+  };
+  for (const [, [dir, file, table]] of Object.entries(map)) {
+    const s = readFileSync(join(APP, 'api', dir, file), 'utf8');
+    assert.match(s, new RegExp(`insert\\(\\s*['"]${table}['"]`), `${dir}/${file} must insert the ${table} row`);
+    assert.match(s, /status:\s*['"]pending['"]/, `${dir}/${file} must insert a PENDING row (specialist authors the rest)`);
+  }
 });
 
 // ── Capabilities — least-privilege across all six agents ─────────────────────

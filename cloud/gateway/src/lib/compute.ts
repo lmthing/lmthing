@@ -353,6 +353,10 @@ function litellmEnvDefaults(litellmKey: string): Record<string, string> {
     LM_MODEL_L: "lmthingcloud:gpt-5.5",
     LM_MODEL_M_R: "lmthingcloud:DeepSeek-V4-Pro",
     LM_MODEL_L_R: "lmthingcloud:Kimi-K2.6",
+    // Audio transcription (chat vision/audio feature) routed through LiteLLM so
+    // Azure creds stay off the pod and usage bills against the user's own key.
+    // `whisper-1` is registered in devops/argocd/core/litellm.yaml → azure/whisper.
+    LM_TRANSCRIBE_MODEL: "lmthingcloud:whisper-1",
   };
 }
 

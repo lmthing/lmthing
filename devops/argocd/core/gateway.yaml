@@ -164,6 +164,50 @@ spec:
                 secretKeyRef:
                   name: lmthing-secrets
                   key: GITHUB_ISSUES_TOKEN
+            # OAuth integrations (Connections) — optional so a blank/absent key
+            # never crashes the pod; a provider without creds reports configured:false.
+            - name: CONNECTIONS_ENC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: CONNECTIONS_ENC_KEY
+                  optional: true
+            - name: GOOGLE_OAUTH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: GOOGLE_OAUTH_CLIENT_ID
+                  optional: true
+            - name: GOOGLE_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: GOOGLE_OAUTH_CLIENT_SECRET
+                  optional: true
+            - name: SLACK_OAUTH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: SLACK_OAUTH_CLIENT_ID
+                  optional: true
+            - name: SLACK_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: SLACK_OAUTH_CLIENT_SECRET
+                  optional: true
+            - name: GITHUB_OAUTH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: GITHUB_OAUTH_CLIENT_ID
+                  optional: true
+            - name: GITHUB_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: GITHUB_OAUTH_CLIENT_SECRET
+                  optional: true
             - name: GITHUB_ISSUES_REPO
               value: "lmthing/bug-reports"
             - name: GITHUB_BUGREPORT_REPO

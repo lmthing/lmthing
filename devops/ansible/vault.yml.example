@@ -61,6 +61,25 @@ vault_github_app_private_key: ""
 # GITHUB_BUGREPORT_REPO env in argocd/core/gateway.yaml (default lmthing/bug-reports).
 vault_github_issues_token: ""
 
+# ── OAuth integrations (Connections: Google / Slack / GitHub) ──
+# Per-provider OAuth *client* creds (distinct from the workspace-backup GitHub
+# App above). Each provider's redirect URI must be
+# https://lmthing.cloud/api/connections/callback. A provider left blank reports
+# configured:false and is simply not connectable (no breakage).
+#   Google : Google Cloud Console → Credentials → OAuth client (Web); enable Gmail + Calendar
+#   Slack  : api.slack.com/apps → OAuth & Permissions (bot scopes chat:write,channels:read,search:read)
+#   GitHub : github.com/settings/developers → OAuth Apps (NOT a GitHub App)
+vault_google_oauth_client_id: ""
+vault_google_oauth_client_secret: ""
+vault_slack_oauth_client_id: ""
+vault_slack_oauth_client_secret: ""
+vault_github_oauth_client_id: ""
+vault_github_oauth_client_secret: ""
+# AES-256-GCM key that encrypts stored OAuth tokens at rest. REQUIRED for any
+# connection to work (blank ⇒ connect/token-mint throw). Generate:
+#   openssl rand -base64 32
+vault_connections_enc_key: ""
+
 # ── Stripe ────────────────────────────────────────────────────
 vault_stripe_secret_key: sk_live_xxx
 vault_stripe_webhook_secret: whsec_xxx

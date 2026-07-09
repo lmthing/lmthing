@@ -7,6 +7,7 @@ import billing from "./routes/billing.js";
 import webhook from "./routes/webhook.js";
 import compute from "./routes/compute.js";
 import backup from "./routes/backup.js";
+import connections from "./routes/connections.js";
 import status from "./routes/status.js";
 import issues from "./routes/issues.js";
 import { podProxy, attachWsProxy } from "./lib/pod-proxy.js";
@@ -32,6 +33,7 @@ app.route("/api/billing", billing);
 app.route("/api/stripe/webhook", webhook);
 app.route("/api/compute", compute);
 app.route("/api/backup", backup);
+app.route("/api/connections", connections);
 app.route("/api/status", status);
 app.route("/api/issues", issues);
 
@@ -44,7 +46,7 @@ if (process.env.LOCAL_DEV === "true") {
 // Self-heal the gateway's own DB schema before serving traffic. Idempotent;
 // logs and continues on failure so a DB blip can't wedge the whole gateway.
 await ensureSchema().then(
-  () => console.log("DB schema ensured (profiles, sso_codes, backup_config)"),
+  () => console.log("DB schema ensured (profiles, sso_codes, backup_config, connections)"),
   (err) => console.error("ensureSchema failed (continuing):", err),
 );
 

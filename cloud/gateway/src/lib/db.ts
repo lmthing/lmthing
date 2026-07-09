@@ -155,6 +155,24 @@ export async function ensureSchema(): Promise<void> {
       last_run_at timestamptz NOT NULL DEFAULT now()
     )
   `;
+  // User-connectable OAuth integrations (Google/Slack/GitHub, generic). Tokens
+  // are stored ENCRYPTED (AES-256-GCM, lib/crypto.ts) — never plaintext.
+  // Mirror of cloud/migrations/007_connections.sql.
+  await sql`
+    CREATE TABLE IF NOT EXISTS public.connections (
+      user_id text NOT NULL,
+      provider text NOT NULL,
+      access_token text,
+      refresh_token text,
+      expires_at timestamptz,
+      scopes text,
+      status text,
+      error text,
+      connected_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY (user_id, provider)
+    )
+  `;
 }
 
 export interface BackupConfig {
@@ -207,6 +225,132 @@ export async function setBackupSettings(
       SET repo = ${repo}, auto = ${auto},
           interval_minutes = ${intervalMinutes}, updated_at = now()
   `;
+}
+
+// ─── Connections (OAuth integrations) ────────────────────────────────────────
+
+export interface Connection {
+  user_id: string;
+  provider: string;
+  /** Encrypted (iv:tag:ct base64). Decrypt with lib/crypto.ts before use. */
+  access_token: string | null;
+  /** Encrypted (iv:tag:ct base64). */
+  refresh_token: string | null;
+  expires_at: string | null;
+  scopes: string | null;
+  status: string | null;
+  error: string | null;
+  connected_at: string;
+  updated_at: string;
+}
+
+/** Fields an upsert writes. Tokens must already be ENCRYPTED by the caller. */
+export interface ConnectionUpsert {
+  access_token: string | null;
+  refresh_token: string | null;
+  expires_at: Date | null;
+  scopes: string | null;
+  status: string;
+  error?: string | null;
+}
+
+export async function getConnection(
+  userId: string,
+  provider: string,
+): Promise<Connection | null> {
+  const rows = await sql<Connection[]>`
+    SELECT * FROM connections
+    WHERE user_id = ${userId} AND provider = ${provider}
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+export async function listConnections(userId: string): Promise<Connection[]> {
+  return await sql<Connection[]>`
+    SELECT * FROM connections WHERE user_id = ${userId}
+  `;
+}
+
+/** Insert or update a user's connection (tokens must already be encrypted). */
+export async function upsertConnection(
+  userId: string,
+  provider: string,
+  data: ConnectionUpsert,
+): Promise<void> {
+  await sql`
+    INSERT INTO connections
+      (user_id, provider, access_token, refresh_token, expires_at, scopes,
+       status, error, connected_at, updated_at)
+    VALUES (
+      ${userId}, ${provider}, ${data.access_token}, ${data.refresh_token},
+      ${data.expires_at ? data.expires_at.toISOString() : null}, ${data.scopes},
+      ${data.status}, ${data.error ?? null}, now(), now()
+    )
+    ON CONFLICT (user_id, provider) DO UPDATE
+      SET access_token = ${data.access_token},
+          refresh_token = ${data.refresh_token},
+          expires_at = ${data.expires_at ? data.expires_at.toISOString() : null},
+          scopes = ${data.scopes},
+          status = ${data.status},
+          error = ${data.error ?? null},
+          updated_at = now()
+  `;
+}
+
+export async function deleteConnection(
+  userId: string,
+  provider: string,
+): Promise<void> {
+  await sql`
+    DELETE FROM connections WHERE user_id = ${userId} AND provider = ${provider}
+  `;
+}
+
+/**
+ * Run `fn` with a (user, provider) connection row locked FOR UPDATE inside a
+ * transaction. Serializes concurrent proxy calls so a one-time refresh token
+ * isn't double-spent (some providers rotate + invalidate on refresh). `fn` gets
+ * the locked row (or null) and a transaction-scoped `tx` to persist rotated
+ * tokens within the same lock; the whole callback runs in one transaction.
+ */
+export async function getConnectionForUpdate<T>(
+  userId: string,
+  provider: string,
+  fn: (
+    row: Connection | null,
+    tx: {
+      updateConnection(data: ConnectionUpsert): Promise<void>;
+    },
+  ) => Promise<T>,
+): Promise<T> {
+  const result = await sql.begin(async (t) => {
+    const rows = await t<Connection[]>`
+      SELECT * FROM connections
+      WHERE user_id = ${userId} AND provider = ${provider}
+      FOR UPDATE
+    `;
+    const row = rows[0] ?? null;
+    const tx = {
+      async updateConnection(data: ConnectionUpsert): Promise<void> {
+        await t`
+          UPDATE connections
+          SET access_token = ${data.access_token},
+              refresh_token = ${data.refresh_token},
+              expires_at = ${data.expires_at ? data.expires_at.toISOString() : null},
+              scopes = ${data.scopes},
+              status = ${data.status},
+              error = ${data.error ?? null},
+              updated_at = now()
+          WHERE user_id = ${userId} AND provider = ${provider}
+        `;
+      },
+    };
+    return await fn(row, tx);
+  });
+  // `sql.begin` widens the callback return to UnwrapPromiseArray<T>; our fn
+  // returns a plain T (never a query array), so this cast is safe.
+  return result as T;
 }
 
 export interface SsoCode {

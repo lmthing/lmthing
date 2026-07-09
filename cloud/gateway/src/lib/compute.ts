@@ -347,6 +347,11 @@ function litellmEnvDefaults(litellmKey: string): Record<string, string> {
     // In-cluster gateway — the pod's /api/budget forwards here (the gateway
     // computes budgets with the master key, which an over-budget user key can't).
     LMTHING_GATEWAY_URL: "http://gateway.lmthing.svc.cluster.local:3000",
+    // In-cluster headless-browser render service — the system-global webSearch google
+    // provider POSTs Google's results URL here to get JS-rendered HTML. ClusterIP-only,
+    // token-gated (RENDER_SERVICE_TOKEN below); reachable only from compute pods.
+    RENDER_SERVICE_URL: "http://render.lmthing.svc.cluster.local:3000",
+    RENDER_SERVICE_TOKEN: process.env.RENDER_SERVICE_TOKEN ?? "",
     LM_MODEL_XS: "lmthingcloud:DeepSeek-V4-Flash",
     LM_MODEL_S: "lmthingcloud:DeepSeek-V4-Flash",
     LM_MODEL_M: "lmthingcloud:DeepSeek-V4-Pro",
@@ -377,6 +382,10 @@ async function injectLiteLLMEnv(
   const merged: Record<string, string> = { ...defaults, ...existing };
   // The user's subscription key is authoritative — never let a stale value win.
   merged.LMTHINGCLOUD_API_KEY = litellmKey;
+  // The in-cluster render service URL/token are cluster-owned — always authoritative so a
+  // stale or user-set value can't misroute or break the webSearch google provider.
+  merged.RENDER_SERVICE_URL = defaults.RENDER_SERVICE_URL!;
+  merged.RENDER_SERVICE_TOKEN = defaults.RENDER_SERVICE_TOKEN!;
   // Only update if something actually changed
   const needsUpdate = Object.keys(defaults).some(
     (k) => existing[k] !== merged[k],

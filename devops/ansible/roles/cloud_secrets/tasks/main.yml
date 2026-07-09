@@ -54,6 +54,10 @@
         GITHUB_OAUTH_CLIENT_ID: "{{ vault_github_oauth_client_id | default('') }}"
         GITHUB_OAUTH_CLIENT_SECRET: "{{ vault_github_oauth_client_secret | default('') }}"
         CONNECTIONS_ENC_KEY: "{{ vault_connections_enc_key | default('') }}"
+        # Shared token authenticating requests to the in-cluster headless-browser
+        # render service (browserless). Consumed by the `render` Deployment as TOKEN
+        # and injected by the gateway into each pod's user-env as RENDER_SERVICE_TOKEN.
+        RENDER_SERVICE_TOKEN: "{{ vault_render_service_token | default('') }}"
         ACR_REGISTRY: "{{ vault_acr_registry }}"
         ACR_USERNAME: "{{ vault_acr_username }}"
         ACR_PASSWORD: "{{ vault_acr_password }}"

@@ -6,6 +6,7 @@ resources:
   - postgres.yaml
   - zitadel.yaml
   - litellm.yaml
+  - render.yaml
   - gateway.yaml
   - computer.yaml
   - compute-pod-template.yaml

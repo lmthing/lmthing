@@ -164,6 +164,15 @@ spec:
                 secretKeyRef:
                   name: lmthing-secrets
                   key: GITHUB_ISSUES_TOKEN
+            # Render-service token — the gateway injects this into each pod's user-env as
+            # RENDER_SERVICE_TOKEN so the webSearch google provider can authenticate to the
+            # in-cluster render service. Optional so a blank/absent key never crashes the pod.
+            - name: RENDER_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: RENDER_SERVICE_TOKEN
+                  optional: true
             # OAuth integrations (Connections) — optional so a blank/absent key
             # never crashes the pod; a provider without creds reports configured:false.
             - name: CONNECTIONS_ENC_KEY

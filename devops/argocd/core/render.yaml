@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: render
+  namespace: lmthing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: render
+  template:
+    metadata:
+      labels:
+        app: render
+    spec:
+      containers:
+        - name: render
+          # Headless-Chromium render service (browserless v2). Used by the system-global
+          # `webSearch` google provider to render Google's results page WITH JavaScript and
+          # scrape the rendered DOM. Public upstream image, pulled directly (no ACR pull
+          # secret, like litellm), pinned to a concrete tag — a floating tag + IfNotPresent
+          # would serve a stale cached image (see litellm.yaml). Confirm the tag against
+          # ghcr.io/browserless/chromium before bumping.
+          image: ghcr.io/browserless/chromium:2.24.3
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            - name: CONCURRENT
+              value: "5"
+            - name: TIMEOUT
+              value: "30000"
+            # Shared token — every /content request must present `?token=`. Sourced from
+            # lmthing-secrets (managed by the cloud_secrets Ansible role, outside ArgoCD);
+            # the gateway injects the SAME value into each pod's user-env as
+            # RENDER_SERVICE_TOKEN. Required (not optional): fail-closed — the pod won't
+            # start until `make deploy-secrets` has populated the key.
+            - name: TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: RENDER_SERVICE_TOKEN
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1500m"
+          volumeMounts:
+            # Chromium needs more shared memory than the default 64Mi container /dev/shm.
+            - name: dshm
+              mountPath: /dev/shm
+          # TCP probes (not httpGet): when TOKEN is set, browserless gates its HTTP routes,
+          # so a token-less kubelet probe to /json/version would 401 and never go Ready.
+          readinessProbe:
+            tcpSocket:
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 512Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: render
+  namespace: lmthing
+spec:
+  selector:
+    app: render
+  ports:
+    - port: 3000
+      targetPort: 3000
+  # ClusterIP only — no Envoy HTTPRoute references this Service, so it is never reachable
+  # from outside the cluster.
+  type: ClusterIP
+
+---
+# In-cluster-only hardening: selecting the render pod flips it to default-deny ingress,
+# admitting traffic ONLY from compute-pod namespaces (every gateway-created `user-<id>`
+# namespace carries the `lmthing.cloud/type: compute` label, and no other namespace does).
+# Calico enforces standard NetworkPolicy. Kubelet health probes still work — they originate
+# from the node, not a pod, so they are not subject to this policy.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: render-allow-compute
+  namespace: lmthing
+spec:
+  podSelector:
+    matchLabels:
+      app: render
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              lmthing.cloud/type: compute
+      ports:
+        - protocol: TCP
+          port: 3000

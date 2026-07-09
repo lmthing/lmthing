@@ -80,6 +80,11 @@ vault_github_oauth_client_secret: ""
 #   openssl rand -base64 32
 vault_connections_enc_key: ""
 
+# ── Render service (in-cluster headless-browser used by webSearch google provider) ──
+# Shared bearer token authenticating pod → render service requests. Generate:
+#   openssl rand -base64 32
+vault_render_service_token: ""
+
 # ── Stripe ────────────────────────────────────────────────────
 vault_stripe_secret_key: sk_live_xxx
 vault_stripe_webhook_secret: whsec_xxx

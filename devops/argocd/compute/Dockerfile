@@ -134,6 +134,9 @@ COPY --from=builder /build/libs/cli/node_modules  ./libs/cli/node_modules
 # resolves at runtime even if a bundle chunk still references it.
 COPY --from=builder /build/libs/openclaw-compat/dist         ./libs/openclaw-compat/dist
 COPY --from=builder /build/libs/openclaw-compat/package.json ./libs/openclaw-compat/package.json
+# openclaw-compat's dist imports esbuild at runtime (the plugin-TS transpiler);
+# ship its node_modules so the pnpm esbuild symlink resolves from its own context.
+COPY --from=builder /build/libs/openclaw-compat/node_modules  ./libs/openclaw-compat/node_modules
 # Project-app pages build (buildProjectPages → resolveEnv) aliases `@app/runtime`
 # to the cli's runtime SOURCE at <cliRoot>/src/app/runtime/index.ts and esbuild-
 # bundles it (TS/TSX). The bundled dist has no standalone runtime module, so the

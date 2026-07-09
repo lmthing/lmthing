@@ -21,7 +21,7 @@ spec:
           # secret, like litellm), pinned to a concrete tag — a floating tag + IfNotPresent
           # would serve a stale cached image (see litellm.yaml). Confirm the tag against
           # ghcr.io/browserless/chromium before bumping.
-          image: ghcr.io/browserless/chromium:2.24.3
+          image: ghcr.io/browserless/chromium:v2.38.1
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000

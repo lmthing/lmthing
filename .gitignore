@@ -63,4 +63,5 @@ devops/ansible/k8s/envoy/computer-routes.yaml
 devops/ansible/k8s/envoy/tls-certificates.yaml
 .etc/.vault-pass
 .etc/.gateway-secret.json
+.etc/.*
 .lmthing/

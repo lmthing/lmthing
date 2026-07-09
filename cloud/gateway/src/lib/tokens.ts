@@ -238,3 +238,41 @@ export async function verifyConnectionsToken(
     return null;
   }
 }
+
+// --- Inbound webhooks ---
+//
+// The inbound mirror of the connections broker: instead of the pod calling OUT
+// to a provider, a provider calls IN to a per-user public URL
+// (`<BASE_URL>/api/inbound/<token>/<path>`). The token embeds the userId (as the
+// verified JWT subject, never trusted from the URL shape) so the public route
+// can resolve which pod to wake + forward into without a session. Long-lived,
+// like the connections/compute/backup tokens — it's handed to external
+// providers (as part of a URL) rather than the pod, so it never needs rotation
+// on its own; disabling a binding is a `webhook_bindings` row operation, not a
+// token operation.
+
+const INBOUND_TTL = "365d";
+
+export async function signInboundToken(userId: string): Promise<string> {
+  return new SignJWT({})
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject(userId)
+    .setAudience("inbound")
+    .setIssuedAt()
+    .setExpirationTime(INBOUND_TTL)
+    .sign(secret);
+}
+
+export async function verifyInboundToken(
+  token: string,
+): Promise<{ userId: string } | null> {
+  try {
+    const { payload } = await jwtVerify(token, secret, {
+      audience: "inbound",
+    });
+    if (!payload.sub) return null;
+    return { userId: payload.sub };
+  } catch {
+    return null;
+  }
+}

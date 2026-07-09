@@ -13,7 +13,12 @@ import {
 import * as litellm from "../lib/litellm.js";
 import { getTierByName } from "../lib/tiers.js";
 import { verifyComputeToken } from "../lib/tokens.js";
-import { replaceCronManifest, type CronManifestJob } from "../lib/db.js";
+import {
+  replaceCronManifest,
+  type CronManifestJob,
+  upsertWebhookBindings,
+  type WebhookBinding,
+} from "../lib/db.js";
 import type { Env } from "../types.js";
 
 const compute = new Hono<Env>();
@@ -124,6 +129,49 @@ compute.post("/cron-manifest", async (c) => {
   } catch (err) {
     console.error(`cron-manifest failed for ${userId}:`, err);
     return c.json({ error: "cron-manifest failed" }, 500);
+  }
+});
+
+// POST /webhook-manifest — the pod publishes the full set of project-app
+// webhook hooks it currently has registered. Body
+// `{ bindings: [{ projectId, path, provider, agentRef }] }`. Sibling of
+// /cron-manifest: same compute-JWT auth, same replace-all-for-this-user
+// persistence, so the public inbound broker (routes/inbound.ts) can resolve a
+// path without asking the pod, and the UI (GET /api/inbound) can list them.
+compute.post("/webhook-manifest", async (c) => {
+  const userId = await computeUser(c);
+  if (!userId) return c.json({ error: "Invalid compute token" }, 401);
+
+  let body: { bindings?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON" }, 400);
+  }
+  const rawBindings = Array.isArray(body.bindings) ? body.bindings : [];
+
+  const seen = new Set<string>();
+  const bindings: WebhookBinding[] = [];
+  for (const raw of rawBindings) {
+    if (!raw || typeof raw !== "object") continue;
+    const b = raw as Record<string, unknown>;
+    const path = typeof b.path === "string" ? b.path : "";
+    if (!path || seen.has(path)) continue;
+    seen.add(path);
+    bindings.push({
+      path,
+      provider: typeof b.provider === "string" ? b.provider : null,
+      agentRef: typeof b.agentRef === "string" ? b.agentRef : null,
+      projectId: typeof b.projectId === "string" ? b.projectId : null,
+    });
+  }
+
+  try {
+    await upsertWebhookBindings(userId, bindings);
+    return c.json({ ok: true, accepted: bindings.length });
+  } catch (err) {
+    console.error(`webhook-manifest failed for ${userId}:`, err);
+    return c.json({ error: "webhook-manifest failed" }, 500);
   }
 });
 

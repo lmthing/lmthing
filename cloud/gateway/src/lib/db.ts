@@ -173,6 +173,21 @@ export async function ensureSchema(): Promise<void> {
       PRIMARY KEY (user_id, provider)
     )
   `;
+  // Inbound webhook bindings — the pod publishes its registered webhook hooks
+  // (POST /api/compute/webhook-manifest) so the public inbound broker
+  // (/api/inbound/:userToken/:path) can list them for the UI. Mirror of
+  // cloud/migrations/008_webhook_bindings.sql.
+  await sql`
+    CREATE TABLE IF NOT EXISTS public.webhook_bindings (
+      user_id text NOT NULL,
+      path text NOT NULL,
+      provider text,
+      agent_ref text,
+      project_id text,
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY (user_id, path)
+    )
+  `;
 }
 
 export interface BackupConfig {
@@ -503,4 +518,70 @@ export async function markCronWoken(userId: string): Promise<void> {
 /** Drop all cron rows for a user (e.g. on pod deletion). */
 export async function deleteCronJobs(userId: string): Promise<void> {
   await sql`DELETE FROM user_cron_jobs WHERE user_id = ${userId}`;
+}
+
+// ─── Inbound webhook bindings (webhook_bindings) ──────────────────────────────
+
+/** One inbound webhook binding as published by a pod's manifest. */
+export interface WebhookBinding {
+  path: string;
+  provider: string | null;
+  agentRef: string | null;
+  projectId: string | null;
+}
+
+/** A stored binding row, as returned to the UI (GET /api/inbound). */
+export interface WebhookBindingRow {
+  user_id: string;
+  path: string;
+  provider: string | null;
+  agent_ref: string | null;
+  project_id: string | null;
+  updated_at: string;
+}
+
+/**
+ * Replace a user's ENTIRE webhook-binding set atomically: upsert every binding
+ * in `bindings` and delete any of that user's rows no longer present (a hook
+ * was removed / app uninstalled). Mirrors {@link replaceCronManifest}.
+ */
+export async function upsertWebhookBindings(
+  userId: string,
+  bindings: WebhookBinding[],
+): Promise<void> {
+  await sql.begin(async (tx) => {
+    for (const b of bindings) {
+      await tx`
+        INSERT INTO webhook_bindings
+          (user_id, path, provider, agent_ref, project_id, updated_at)
+        VALUES (
+          ${userId}, ${b.path}, ${b.provider}, ${b.agentRef}, ${b.projectId}, now()
+        )
+        ON CONFLICT (user_id, path) DO UPDATE
+          SET provider = EXCLUDED.provider,
+              agent_ref = EXCLUDED.agent_ref,
+              project_id = EXCLUDED.project_id,
+              updated_at = now()
+      `;
+    }
+    const keep = bindings.map((b) => b.path);
+    if (keep.length === 0) {
+      await tx`DELETE FROM webhook_bindings WHERE user_id = ${userId}`;
+    } else {
+      await tx`
+        DELETE FROM webhook_bindings
+        WHERE user_id = ${userId}
+          AND path <> ALL(${keep})
+      `;
+    }
+  });
+}
+
+/** List a user's currently-registered inbound webhook bindings. */
+export async function listWebhookBindings(
+  userId: string,
+): Promise<WebhookBindingRow[]> {
+  return await sql<WebhookBindingRow[]>`
+    SELECT * FROM webhook_bindings WHERE user_id = ${userId}
+  `;
 }

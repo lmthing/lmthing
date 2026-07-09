@@ -8,6 +8,7 @@ import webhook from "./routes/webhook.js";
 import compute from "./routes/compute.js";
 import backup from "./routes/backup.js";
 import connections from "./routes/connections.js";
+import inbound from "./routes/inbound.js";
 import status from "./routes/status.js";
 import issues from "./routes/issues.js";
 import { podProxy, attachWsProxy } from "./lib/pod-proxy.js";
@@ -34,6 +35,7 @@ app.route("/api/stripe/webhook", webhook);
 app.route("/api/compute", compute);
 app.route("/api/backup", backup);
 app.route("/api/connections", connections);
+app.route("/api/inbound", inbound);
 app.route("/api/status", status);
 app.route("/api/issues", issues);
 

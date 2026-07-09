@@ -767,18 +767,7 @@ export async function ensureUserPod(
   // refused" 503s). Warm pods return on the first check (~no delay). Capped well
   // under the ~15s ingress timeout; a slower boot just returns not-ready and the
   // client polls /status.
-  if (!LOCAL_DEV) {
-    const deadline = Date.now() + WAKE_READY_WAIT_MS;
-    while (Date.now() < deadline) {
-      try {
-        const st = await getUserPodStatus(userId);
-        if (st.ready) break;
-      } catch {
-        /* transient — keep polling */
-      }
-      await new Promise((r) => setTimeout(r, 300));
-    }
-  }
+  await waitForPodReady(userId, WAKE_READY_WAIT_MS);
 
   if (LOCAL_DEV) {
     // Resolve the NodePort assigned to the user's service so the gateway proxy can reach it
@@ -844,6 +833,22 @@ export async function getPodProxyUrl(userId: string): Promise<string | null> {
   if (!nodePort) return null;
   const minikubeIp = process.env.MINIKUBE_IP ?? "192.168.49.2";
   return `http://${minikubeIp}:${nodePort}`;
+}
+
+/**
+ * Base URL the GATEWAY itself uses to reach a user's pod (as opposed to
+ * {@link getPodProxyUrl}, which is for a browser/host process in LOCAL_DEV).
+ * Used by the inbound-webhook broker to forward a request into the pod.
+ * In production, the gateway runs in-cluster, so it dials the same DNS name
+ * `ensureUserPod` hands back as `host` — `lmthing.user-<userId>.svc.cluster.local`
+ * on port 8080. In LOCAL_DEV the gateway runs on the host, so it reuses
+ * `getPodProxyUrl`'s NodePort resolution.
+ */
+export async function getPodInternalBaseUrl(
+  userId: string,
+): Promise<string | null> {
+  if (LOCAL_DEV) return getPodProxyUrl(userId);
+  return `http://lmthing.user-${userId}.svc.cluster.local:8080`;
 }
 
 /**
@@ -963,6 +968,32 @@ export async function getUserPodStatus(userId: string): Promise<PodStatus> {
     phase,
     ...(computeTag ? { computeTag } : {}),
   };
+}
+
+/**
+ * Bounded poll for a pod to report ready, capped at `timeoutMs`. Extracted out
+ * of `ensureUserPod` so other short-lived callers that need a "wake, then wait
+ * a modest bit" flow — e.g. the inbound-webhook broker (routes/inbound.ts),
+ * which must still return to the caller quickly — can reuse the exact same
+ * poll instead of duplicating it. No-ops (returns true immediately) in
+ * LOCAL_DEV, matching `ensureUserPod`'s prior behaviour.
+ */
+export async function waitForPodReady(
+  userId: string,
+  timeoutMs: number,
+): Promise<boolean> {
+  if (LOCAL_DEV) return true;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const st = await getUserPodStatus(userId);
+      if (st.ready) return true;
+    } catch {
+      /* transient — keep polling */
+    }
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  return false;
 }
 
 /**

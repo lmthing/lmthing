@@ -938,12 +938,103 @@ export async function deleteUserPod(userId: string): Promise<void> {
   );
 }
 
+/**
+ * Fine-grained cold-boot milestones, ordered. Derived from the pod's K8s
+ * conditions + container state so the wake screen can show *real* progress
+ * (not a cosmetic loop). K8s doesn't expose image-pull byte progress, so this
+ * is a monotonic sequence of observable milestones, not a smooth percentage.
+ */
+export type PodStage =
+  | "absent" // no deployment at all
+  | "scheduling" // pod not yet placed on a node
+  | "pulling" // pulling the compute image (the long pole on a cold node)
+  | "starting" // image local, container created/initializing
+  | "probing" // container process running, startup/readiness probe not green yet
+  | "ready"; // serving
+
+// Weighted progress per milestone (0..1). Image pull dominates cold-boot
+// wall-clock, so it carries the widest span.
+const STAGE_PROGRESS: Record<PodStage, number> = {
+  absent: 0,
+  scheduling: 0.08,
+  pulling: 0.4,
+  starting: 0.75,
+  probing: 0.9,
+  ready: 1,
+};
+
 export interface PodStatus {
   exists: boolean;
   ready: boolean;
   phase: string | null;
+  /** Fine-grained boot milestone (drives the wake screen's progress bar). */
+  stage?: PodStage;
+  /** Weighted boot progress 0..1 — monotonic, milestone-based (not byte-level). */
+  progress?: number;
   /** The compute image tag that was set when the pod was last created or upgraded. */
   computeTag?: string;
+}
+
+interface K8sPodCondition {
+  type: string;
+  status: string;
+}
+interface K8sContainerStatus {
+  ready?: boolean;
+  state?: {
+    waiting?: { reason?: string };
+    running?: { startedAt?: string };
+    terminated?: unknown;
+  };
+}
+interface K8sPod {
+  metadata?: { creationTimestamp?: string; deletionTimestamp?: string };
+  status?: {
+    conditions?: K8sPodCondition[];
+    containerStatuses?: K8sContainerStatus[];
+  };
+}
+
+/**
+ * Inspect the user's compute pod and classify how far its cold boot has gotten.
+ * Reads pod conditions + the container's `state.waiting.reason`. Returns
+ * "scheduling" if no pod exists yet (deployment just scaled up). Throws only on
+ * an unexpected K8s error — callers fall back to the coarse deployment phase.
+ */
+async function readPodMilestone(ns: string): Promise<PodStage> {
+  const list = await k8s(
+    `/api/v1/namespaces/${ns}/pods?labelSelector=${encodeURIComponent("app=compute")}`,
+    "GET",
+  );
+  const items: K8sPod[] = list?.items ?? [];
+  if (items.length === 0) return "scheduling";
+
+  // During a rolling upgrade an old pod lingers with a deletionTimestamp; the
+  // wake progress we care about is the newest, non-terminating replica.
+  const live = items.filter((p) => !p.metadata?.deletionTimestamp);
+  const pool = live.length ? live : items;
+  pool.sort((a, b) =>
+    (b.metadata?.creationTimestamp ?? "").localeCompare(
+      a.metadata?.creationTimestamp ?? "",
+    ),
+  );
+  const pod = pool[0];
+
+  const conds = pod.status?.conditions ?? [];
+  const cond = (t: string) => conds.find((c) => c.type === t)?.status === "True";
+  const cs = pod.status?.containerStatuses?.[0];
+
+  if (cond("Ready")) return "ready";
+  if (!cond("PodScheduled")) return "scheduling";
+
+  const waiting = cs?.state?.waiting?.reason;
+  if (waiting && /ImagePull|ErrImage|ContainerCreating/.test(waiting)) {
+    return "pulling";
+  }
+  // Scheduled, image local; container not yet executing its process.
+  if (!cs?.state?.running) return "starting";
+  // Process is up but the startup/readiness probe hasn't gone green.
+  return "probing";
 }
 
 export async function getUserPodStatus(userId: string): Promise<PodStatus> {
@@ -955,26 +1046,48 @@ export async function getUserPodStatus(userId: string): Promise<PodStatus> {
   );
 
   if (!dep) {
-    return { exists: false, ready: false, phase: null };
+    return { exists: false, ready: false, phase: null, stage: "absent", progress: 0 };
   }
 
   const readyReplicas = dep.status?.readyReplicas ?? 0;
-  const phase =
-    readyReplicas > 0
-      ? "running"
-      : dep.status?.conditions?.find(
-            (c: { type: string }) => c.type === "Progressing",
-          )
-        ? "starting"
-        : "pending";
-
   const computeTag: string | undefined =
     dep.spec?.template?.metadata?.annotations?.["lmthing.cloud/compute-tag"];
 
+  // Fully up — no need to inspect the pod; the aggregate is authoritative.
+  if (readyReplicas > 0) {
+    return {
+      exists: true,
+      ready: true,
+      phase: "running",
+      stage: "ready",
+      progress: 1,
+      ...(computeTag ? { computeTag } : {}),
+    };
+  }
+
+  // Not ready yet — derive a fine-grained milestone from the pod for progress UI.
+  let stage: PodStage = dep.status?.conditions?.find(
+    (c: { type: string }) => c.type === "Progressing",
+  )
+    ? "starting"
+    : "scheduling";
+  try {
+    stage = await readPodMilestone(ns);
+  } catch {
+    /* pod read failed — keep the coarse deployment-derived stage above */
+  }
+
+  // Readiness stays tied to the deployment aggregate (the Service endpoint the
+  // SPA connects to only populates then), so never report 100% until it flips.
+  const progress =
+    stage === "ready" ? 0.95 : STAGE_PROGRESS[stage];
+
   return {
     exists: true,
-    ready: readyReplicas > 0,
-    phase,
+    ready: false,
+    phase: readyReplicas > 0 ? "running" : stage === "scheduling" ? "pending" : "starting",
+    stage,
+    progress,
     ...(computeTag ? { computeTag } : {}),
   };
 }

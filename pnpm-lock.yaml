@@ -449,6 +449,9 @@ importers:
       '@lmthing/css':
         specifier: workspace:*
         version: link:../css
+      '@lmthing/openclaw-compat':
+        specifier: workspace:*
+        version: link:../openclaw-compat
       '@lmthing/ui':
         specifier: workspace:*
         version: link:../ui
@@ -599,6 +602,28 @@ importers:
       eslint:
         specifier: ^9.0.0
         version: 9.39.3(jiti@2.7.0)
+
+  sdk/org/libs/openclaw-compat:
+    dependencies:
+      esbuild:
+        specifier: ^0.28.0
+        version: 0.28.1
+    devDependencies:
+      '@lmthing/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.3(jiti@2.7.0)
+      tsup:
+        specifier: ^8.1.0
+        version: 8.5.1(@swc/core@1.15.18)(jiti@2.7.0)(postcss@8.5.8)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
 
   sdk/org/libs/state:
     devDependencies:
@@ -4586,9 +4611,6 @@ packages:
   flat-cache@4.0.1:
     resolution: {integrity: sha512-f7ccFPK3SXFHpx15UIGyRJ/FJQctuKZ0zVuN3frBo4HnK3cay9VEW0R6yPYFHC0AgqhukPzKjq22t5DmAyqGyw==}
     engines: {node: '>=16'}
-
-  flatted@3.3.3:
-    resolution: {integrity: sha512-GX+ysw4PBCz0PzosHDepZGANEuFCMLrnRTiEy9McGjmkCQYwRq4A/X786G/fjM/+OjsWSU1ZrY5qyARZmO/uwg==}
 
   flatted@3.4.0:
     resolution: {integrity: sha512-kC6Bb+ooptOIvWj5B63EQWkF0FEnNjV2ZNkLMLZRDDduIiWeFF4iKnslwhiWxjAdbg4NzTNo6h0qLuvFrcx+Sw==}
@@ -10055,10 +10077,8 @@ snapshots:
 
   flat-cache@4.0.1:
     dependencies:
-      flatted: 3.3.3
+      flatted: 3.4.0
       keyv: 4.5.4
-
-  flatted@3.3.3: {}
 
   flatted@3.4.0: {}
 

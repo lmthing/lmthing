@@ -17,7 +17,7 @@ spec:
         - name: acr-pull-secret
       containers:
         - name: studio
-          image: lmthingacr.azurecr.io/studio:9803884
+          image: lmthingacr.azurecr.io/studio:1f1f375
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

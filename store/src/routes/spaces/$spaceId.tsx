@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ArrowLeft, Plug, KeyRound } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ArrowLeft, Plug, KeyRound, BookOpen } from 'lucide-react'
 import { Card, CardBody, CardHeader } from '@lmthing/ui/elements/content/card'
 import { Heading } from '@lmthing/ui/elements/typography/heading'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
 import { Badge } from '@lmthing/ui/elements/content/badge'
 import { Button } from '@lmthing/ui/elements/forms/button'
+import { Markdown } from '@lmthing/ui/elements/content/markdown'
 import { Page, PageHeader, PageBody } from '@lmthing/ui/elements/layouts/page'
 import { Stack } from '@lmthing/ui/elements/layouts/stack'
 import { getCatalogSpace } from '@/lib/apps-manifest'
@@ -22,6 +24,27 @@ interface SettingsSchema {
 function SpaceDetail() {
   const { spaceId } = Route.useParams()
   const space = getCatalogSpace(spaceId)
+
+  // The space's setup guide ships as a static README.md alongside the space files
+  // (copied into the store dist at `/spaces/<id>/README.md`). Fetch + render it so
+  // users see the key-acquisition steps before installing.
+  const [readme, setReadme] = useState<string | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    fetch(`/spaces/${encodeURIComponent(spaceId)}/README.md`)
+      .then((r) => (r.ok ? r.text() : ''))
+      .then((text) => {
+        if (cancelled) return
+        // A missing file on this SPA can resolve to index.html — guard against that.
+        setReadme(text && !text.trimStart().startsWith('<') ? text : '')
+      })
+      .catch(() => {
+        if (!cancelled) setReadme('')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [spaceId])
 
   // The public store can't reach a user's authenticated pod. Installing hands off to
   // the lmthing.app install page, which runs in the user's pod context, lets them
@@ -118,6 +141,20 @@ function SpaceDetail() {
               )}
             </CardBody>
           </Card>
+
+          {readme ? (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+                  <Heading level={4}>Setup guide — how to get your keys</Heading>
+                </div>
+              </CardHeader>
+              <CardBody>
+                <Markdown source={readme} />
+              </CardBody>
+            </Card>
+          ) : null}
         </Stack>
       </PageBody>
     </Page>

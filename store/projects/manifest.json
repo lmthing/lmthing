@@ -1529,6 +1529,7 @@
         ]
       },
       "files": [
+        "README.md",
         "agents/github/charter.md",
         "agents/github/instruct.md",
         "functions/githubCreateIssue.ts",
@@ -1563,6 +1564,7 @@
         ]
       },
       "files": [
+        "README.md",
         "agents/google/charter.md",
         "agents/google/instruct.md",
         "functions/calendarCreateEvent.ts",
@@ -1604,6 +1606,7 @@
         ]
       },
       "files": [
+        "README.md",
         "SLACK_APP_SETUP.md",
         "agents/handler/charter.md",
         "agents/handler/instruct.md",

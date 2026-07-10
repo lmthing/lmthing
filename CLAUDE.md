@@ -63,6 +63,9 @@ Load the matching file when working on:
 | **any frontend styling** — colors, Tailwind classes, component CSS, theming (MANDATORY, enforced) | `@.claude/skills/design-system.md` |
 | cloud gateway / LiteLLM / billing / tiers / API routes / webhooks | `@.claude/skills/cloud-backend.md` |
 | agent web search — `webSearch`/`webFetch`, Tavily/Bing/DuckDuckGo providers, the render service | `@.claude/skills/web-search.md` |
+| inbound Triggers — authoring an inbound binding (`triggers:` frontmatter / `type:'webhook'` hook), the binding manifest, Triggers settings tab | `@.claude/skills/triggers.md` |
+| inbound webhook plumbing — gateway `/api/inbound` broker, pod dispatcher, provider verifiers (slack/github HMAC), inbound tokens, secrets, threading, deploy/verify | `@.claude/skills/webhooks.md` |
+| running OpenClaw plugins as-is — `@lmthing/openclaw-compat` host, `.openclaw-plugins/`, the `tool()` global, plugin HTTP routes on the Triggers ingress | `@.claude/skills/openclaw-compat.md` |
 | running the local dev stack (ports, `make`, nginx proxy, demo auth) | `@.claude/skills/local-dev.md` |
 | adding a pricing tier (cross-cutting checklist) | `@.claude/skills/add-tier.md` |
 | auth flows / SSO / gateway routes | `@.claude/skills/authentication.md` |

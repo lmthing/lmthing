@@ -1,7 +1,0 @@
----
-label: Canine Characteristics
-description: Information about the dog breed, age, and health status
-icon: "🐕"
-color: "#d59ec8"
-renderAs: section
----

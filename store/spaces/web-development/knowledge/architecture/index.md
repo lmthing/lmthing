@@ -1,7 +1,0 @@
----
-label: "Architecture & Patterns"
-description: "Architectural patterns, design principles, and best practices"
-icon: "🏗️"
-color: "#f38358"
-renderAs: section
----

@@ -17,8 +17,8 @@ It takes about 5 minutes. Follow every step.
 
 | Field on this page | What it is | Looks like |
 |---|---|---|
-| **Nextcloud URL** (`NEXTCLOUD_BASE_URL`) | The web address of your Nextcloud site | `https://cloud.example.com` |
-| **Bot secret** (`NEXTCLOUD_TALK_BOT_SECRET`) | A long random secret you invent; it lets your server and THING trust each other | a 40+ character random string |
+| **Nextcloud URL** (`INTEGRATION_NEXTCLOUD_TALK_BASE_URL`) | The web address of your Nextcloud site | `https://cloud.example.com` |
+| **Bot secret** (`INTEGRATION_NEXTCLOUD_TALK_BOT_SECRET`) | A long random secret you invent; it lets your server and THING trust each other | a 40+ character random string |
 
 You'll also need, from **this page**, the **inbound URL** (see step 3) — it looks like
 `https://lmthing.cloud/api/inbound/<your-token>/nextcloud`.
@@ -86,8 +86,8 @@ message in an enabled Talk conversation — THING will reply in-thread. You can 
 
 | This page (Settings → Integrations) | Where it comes from |
 |---|---|
-| **Nextcloud URL** (`NEXTCLOUD_BASE_URL`) | Your Nextcloud site address, e.g. `https://cloud.example.com`. |
-| **Bot secret** (`NEXTCLOUD_TALK_BOT_SECRET`) | The long random string you invented in step 2 — the SAME value you passed to `occ talk:bot:install`. |
+| **Nextcloud URL** (`INTEGRATION_NEXTCLOUD_TALK_BASE_URL`) | Your Nextcloud site address, e.g. `https://cloud.example.com`. |
+| **Bot secret** (`INTEGRATION_NEXTCLOUD_TALK_BOT_SECRET`) | The long random string you invented in step 2 — the SAME value you passed to `occ talk:bot:install`. |
 | Inbound URL (shown on this page, ends in `/nextcloud`) | You give this to `occ talk:bot:install` as the bot's webhook URL (step 4). It is not a field you fill in. |
 
 The **same bot secret** signs both directions: THING signs the messages it sends, and Nextcloud signs

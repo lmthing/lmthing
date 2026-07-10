@@ -13,9 +13,9 @@ server (or ask your admin to do the admin steps).
 
 | Field on this page | What it is | Looks like |
 |---|---|---|
-| **Server URL** (`MATTERMOST_BASE_URL`) | The web address of your Mattermost server | `https://mattermost.example.com` |
-| **Bot / access token** (`MATTERMOST_TOKEN`) | Lets THING act as a bot on your server | a 26-character string |
-| **Outgoing webhook token** (`MATTERMOST_OUTGOING_TOKEN`) | Lets us verify messages Mattermost sends back are genuine | a 26-character string |
+| **Server URL** (`INTEGRATION_MATTERMOST_BASE_URL`) | The web address of your Mattermost server | `https://mattermost.example.com` |
+| **Bot / access token** (`INTEGRATION_MATTERMOST_TOKEN`) | Lets THING act as a bot on your server | a 26-character string |
+| **Outgoing webhook token** (`INTEGRATION_MATTERMOST_OUTGOING_TOKEN`) | Lets us verify messages Mattermost sends back are genuine | a 26-character string |
 
 > Enter the **Server URL** exactly as you open Mattermost in your browser (starts with `https://`),
 > with **no** trailing slash and **no** `/api/v4` — we add that for you.
@@ -83,9 +83,9 @@ thread. You can also just ask THING here to *"post a hello to the #general chann
 
 | This page's field | Where to copy it from on Mattermost |
 |---|---|
-| **Server URL** (`MATTERMOST_BASE_URL`) | Your browser's address bar when viewing Mattermost (e.g. `https://mattermost.example.com`). |
-| **Bot / access token** (`MATTERMOST_TOKEN`) | Product menu → **Integrations → Bot Accounts** → your bot's generated **token** (shown once at creation). Or a **Personal Access Token** from **Profile → Security**. |
-| **Outgoing webhook token** (`MATTERMOST_OUTGOING_TOKEN`) | Product menu → **Integrations → Outgoing Webhooks** → your webhook's **Token** (shown after you save it). |
+| **Server URL** (`INTEGRATION_MATTERMOST_BASE_URL`) | Your browser's address bar when viewing Mattermost (e.g. `https://mattermost.example.com`). |
+| **Bot / access token** (`INTEGRATION_MATTERMOST_TOKEN`) | Product menu → **Integrations → Bot Accounts** → your bot's generated **token** (shown once at creation). Or a **Personal Access Token** from **Profile → Security**. |
+| **Outgoing webhook token** (`INTEGRATION_MATTERMOST_OUTGOING_TOKEN`) | Product menu → **Integrations → Outgoing Webhooks** → your webhook's **Token** (shown after you save it). |
 | The **Callback URL** you paste INTO Mattermost's outgoing webhook | This project's **Settings → Integrations** → the Mattermost **inbound URL** (`https://lmthing.cloud/api/inbound/<your-token>/mattermost`). |
 
 ---

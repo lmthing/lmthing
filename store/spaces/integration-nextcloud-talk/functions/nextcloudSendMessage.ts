@@ -2,7 +2,7 @@
  * Send a message into a Nextcloud Talk conversation as the bot
  * (POST /bot/{roomToken}/message on the Talk/Spreed bot API).
  *
- * The pod pins the base to `<NEXTCLOUD_BASE_URL>/ocs/v2.php/apps/spreed/api/v1` and HMAC-signs the
+ * The pod pins the base to `<INTEGRATION_NEXTCLOUD_TALK_BASE_URL>/ocs/v2.php/apps/spreed/api/v1` and HMAC-signs the
  * request (nextcloud-bot auth) — you pass only the relative method path and the message body.
  *
  * @param roomToken  The conversation (room) token, e.g. "a1b2c3d4".

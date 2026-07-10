@@ -6,8 +6,8 @@ description: The Mattermost REST v4 API surface reached via callConnection('matt
 # Mattermost REST v4 API cheat-sheet
 
 The agent talks to the Mattermost REST v4 API through `callConnection('mattermost', req)`. The pod
-pins the base URL to **`<MATTERMOST_BASE_URL>/api/v4`** (the user's own server) and attaches the
-user's own `MATTERMOST_TOKEN` as a `Bearer` credential — the agent passes only a RELATIVE `path`
+pins the base URL to **`<INTEGRATION_MATTERMOST_BASE_URL>/api/v4`** (the user's own server) and attaches the
+user's own `INTEGRATION_MATTERMOST_TOKEN` as a `Bearer` credential — the agent passes only a RELATIVE `path`
 (a leading-slash resource like `/posts`) and never handles credentials.
 
 Wrapped methods:

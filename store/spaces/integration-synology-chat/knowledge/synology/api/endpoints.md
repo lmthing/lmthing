@@ -1,6 +1,6 @@
 # Endpoints used by the wrappers
 
-Base URL (pinned by the pod): the user's `SYNOLOGY_CHAT_BASE_URL`, e.g. `https://nas.example.com:5001`.
+Base URL (pinned by the pod): the user's `INTEGRATION_SYNOLOGY_CHAT_BASE_URL`, e.g. `https://nas.example.com:5001`.
 There is a single outbound endpoint — the **incoming webhook** — and all three wrapper functions POST
 to it, differing only by the JSON they place in the `payload=` form field.
 
@@ -11,7 +11,7 @@ headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
 body: 'payload=' + encodeURIComponent(JSON.stringify(payloadObject))
 ```
 
-The pod appends `?token=<SYNOLOGY_CHAT_TOKEN>` to the query automatically. `Buffer` and
+The pod appends `?token=<INTEGRATION_SYNOLOGY_CHAT_TOKEN>` to the query automatically. `Buffer` and
 `URLSearchParams` are NOT available in the sandbox, so the body string is built by hand with
 `encodeURIComponent`. Every call returns `{ success: boolean, error?: { code, errors? } }`.
 
@@ -35,6 +35,6 @@ The pod appends `?token=<SYNOLOGY_CHAT_TOKEN>` to the query automatically. `Buff
 
 The NAS's **outgoing webhook** POSTs a form-encoded body when a user messages the bot. Fields:
 `token`, `channel_id`, `channel_name`, `user_id`, `username`, `post_id`, `text`, `timestamp`. The pod
-verifies `token` against `SYNOLOGY_CHAT_OUTGOING_TOKEN`, then delivers the raw body to the `handler`
+verifies `token` against `INTEGRATION_SYNOLOGY_CHAT_OUTGOING_TOKEN`, then delivers the raw body to the `handler`
 agent, which reads `user_id` (reply target) and `text` (the request), and replies via
 `synologySendToUser(user_id, answer)`. There is no channel-reply or threading API — replies are DMs.

@@ -6,8 +6,8 @@ description: The Synology Chat External API surface reached via callConnection('
 # Synology Chat External API cheat-sheet
 
 The agent talks to the user's own Synology NAS through `callConnection('synology', req)`. The pod pins
-the base URL to the user's **`SYNOLOGY_CHAT_BASE_URL`** (e.g. `https://nas.example.com:5001`) and
-appends `?token=<SYNOLOGY_CHAT_TOKEN>` (the incoming-webhook token) automatically — the agent passes
+the base URL to the user's **`INTEGRATION_SYNOLOGY_CHAT_BASE_URL`** (e.g. `https://nas.example.com:5001`) and
+appends `?token=<INTEGRATION_SYNOLOGY_CHAT_TOKEN>` (the incoming-webhook token) automatically — the agent passes
 only a RELATIVE `path` and never handles credentials.
 
 Synology Chat's bot surface is intentionally small. There is **one outbound endpoint** — the

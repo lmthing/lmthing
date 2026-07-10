@@ -66,6 +66,6 @@ From the chosen message object read:
 
 - Keep replies concise. Telegram sends plain text by default; avoid Markdown/HTML unless you know a
   parse mode is set.
-- If `callConnection` throws "not configured — set TELEGRAM_BOT_TOKEN …", stop — the user must add
+- If `callConnection` throws "not configured — set INTEGRATION_TELEGRAM_BOT_TOKEN …", stop — the user must add
   their Telegram bot token in **the project's Settings → Integrations** first.
 - Do not echo the raw Update JSON or the `[inbound-context]` line back to Telegram.

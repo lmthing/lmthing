@@ -11,21 +11,21 @@
     "settings": {
       "type": "object",
       "properties": {
-        "DEMO_BASE_URL": { "type": "string", "title": "Echo endpoint base URL (e.g. https://webhook.site/<your-id>)" },
-        "DEMO_API_TOKEN": { "type": "string", "title": "API token (sent as a Bearer header)", "format": "password" },
-        "DEMO_WEBHOOK_SECRET": { "type": "string", "title": "Inbound signing secret (HMAC-SHA256)", "format": "password" }
+        "INTEGRATION_DEMO_BASE_URL": { "type": "string", "title": "Echo endpoint base URL (e.g. https://webhook.site/<your-id>)" },
+        "INTEGRATION_DEMO_API_TOKEN": { "type": "string", "title": "API token (sent as a Bearer header)", "format": "password" },
+        "INTEGRATION_DEMO_WEBHOOK_SECRET": { "type": "string", "title": "Inbound signing secret (HMAC-SHA256)", "format": "password" }
       },
-      "required": ["DEMO_BASE_URL", "DEMO_API_TOKEN", "DEMO_WEBHOOK_SECRET"]
+      "required": ["INTEGRATION_DEMO_BASE_URL", "INTEGRATION_DEMO_API_TOKEN", "INTEGRATION_DEMO_WEBHOOK_SECRET"]
     },
     "connection": {
       "provider": "demo",
-      "apiBase": { "env": "DEMO_BASE_URL" },
-      "tokenEnv": "DEMO_API_TOKEN",
+      "apiBase": { "env": "INTEGRATION_DEMO_BASE_URL" },
+      "tokenEnv": "INTEGRATION_DEMO_API_TOKEN",
       "auth": { "kind": "bearer" }
     },
     "webhook": {
       "provider": "demo",
-      "secretEnv": "DEMO_WEBHOOK_SECRET",
+      "secretEnv": "INTEGRATION_DEMO_WEBHOOK_SECRET",
       "verify": { "type": "hmac", "algo": "sha256", "encoding": "hex", "header": "x-demo-signature", "prefix": "sha256=" },
       "thread": { "from": "body", "path": "message.chat.id", "prefix": "demo" }
     }

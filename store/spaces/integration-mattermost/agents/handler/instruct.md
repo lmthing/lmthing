@@ -55,7 +55,7 @@ Read `channel_id`, `post_id`, and `text` out of the body. Never guess a channel 
 4. **Check the result.** On success the returned post has an `id` and `create_at`. If instead it is
    an error object `{ id, message, status_code }` (e.g. 403/404), report the Mattermost error
    verbatim — do NOT claim success. A 403 usually means the bot isn't a member of that channel.
-5. If `callConnection` throws "not configured — set MATTERMOST_TOKEN …", stop — the user must add
+5. If `callConnection` throws "not configured — set INTEGRATION_MATTERMOST_TOKEN …", stop — the user must add
    their Mattermost server URL and token in **the project's Settings → Integrations** first.
 
 ## Notes

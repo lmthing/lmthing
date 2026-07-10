@@ -21,9 +21,9 @@ It takes about 10 minutes. Follow every step.
 
 | Field on this page | What it is | Looks like |
 |---|---|---|
-| **Bot token** (`DISCORD_BOT_TOKEN`) | Lets THING act as your bot on Discord | `MTI3ND5...` (long) |
-| **Public key** (`DISCORD_PUBLIC_KEY`) | Lets us verify that interactions Discord sends are genuine | a 64-character hex string |
-| **Application ID** (`DISCORD_APPLICATION_ID`) | Your app's numeric id | `1012345678901234567` |
+| **Bot token** (`INTEGRATION_DISCORD_BOT_TOKEN`) | Lets THING act as your bot on Discord | `MTI3ND5...` (long) |
+| **Public key** (`INTEGRATION_DISCORD_PUBLIC_KEY`) | Lets us verify that interactions Discord sends are genuine | a 64-character hex string |
+| **Application ID** (`INTEGRATION_DISCORD_APPLICATION_ID`) | Your app's numeric id | `1012345678901234567` |
 
 ---
 
@@ -83,9 +83,9 @@ If you also want THING to **answer slash commands** people run in your server:
 
 | This page (Settings → Integrations) | Copy it from the Discord Developer Portal |
 |---|---|
-| **Bot token** (`DISCORD_BOT_TOKEN`) | Your app → **Bot** → **Reset Token** / **Copy** |
-| **Public key** (`DISCORD_PUBLIC_KEY`) | Your app → **General Information** → **Public Key** |
-| **Application ID** (`DISCORD_APPLICATION_ID`) | Your app → **General Information** → **Application ID** |
+| **Bot token** (`INTEGRATION_DISCORD_BOT_TOKEN`) | Your app → **Bot** → **Reset Token** / **Copy** |
+| **Public key** (`INTEGRATION_DISCORD_PUBLIC_KEY`) | Your app → **General Information** → **Public Key** |
+| **Application ID** (`INTEGRATION_DISCORD_APPLICATION_ID`) | Your app → **General Information** → **Application ID** |
 | **Interactions Endpoint URL** (on Discord's side) | The inbound URL shown here, ending in `/discord` |
 
 ---

@@ -1,6 +1,6 @@
 /**
  * Health-check the demo echo endpoint (GET /health). Useful to confirm the
- * `DEMO_BASE_URL` + `DEMO_API_TOKEN` are configured and reachable.
+ * `INTEGRATION_DEMO_BASE_URL` + `INTEGRATION_DEMO_API_TOKEN` are configured and reachable.
  *
  * @returns Whatever the echo endpoint returns for `/health`.
  */

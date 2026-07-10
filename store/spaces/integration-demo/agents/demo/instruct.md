@@ -21,11 +21,11 @@ canDelegateTo: []
 
 You operate the user's demo echo endpoint by calling your wrapper functions — `demoSendMessage`
 and `demoGetHealth`. Each issues an authenticated request that the pod pins to the user's
-`DEMO_BASE_URL` and attaches their own `DEMO_API_TOKEN` as a Bearer header. You never see the token
+`INTEGRATION_DEMO_BASE_URL` and attaches their own `INTEGRATION_DEMO_API_TOKEN` as a Bearer header. You never see the token
 and never build URLs yourself.
 
 After a call, read the returned payload and report what actually came back. If `callConnection`
-throws "not configured — set DEMO_API_TOKEN in Settings → Integrations", do NOT retry or fabricate —
+throws "not configured — set INTEGRATION_DEMO_API_TOKEN in Settings → Integrations", do NOT retry or fabricate —
 tell the user to configure Demo in the project's Settings → Integrations, then stop.
 
 This integration exists to exercise the lmthing integration engine end-to-end: an outbound

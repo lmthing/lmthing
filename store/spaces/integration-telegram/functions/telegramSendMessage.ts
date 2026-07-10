@@ -2,7 +2,7 @@
  * Send a text message to a Telegram chat (POST /sendMessage on the Telegram Bot API).
  *
  * The gateway pins the base to `https://api.telegram.org/bot<token>` (the bot token is part of the
- * base, resolved from the user's `TELEGRAM_BOT_TOKEN`), so the path is just the leading-slash method
+ * base, resolved from the user's `INTEGRATION_TELEGRAM_BOT_TOKEN`), so the path is just the leading-slash method
  * name. Telegram accepts a JSON body.
  *
  * @param chatId            Target chat id (e.g. `123456789` or a negative group/channel id). This is

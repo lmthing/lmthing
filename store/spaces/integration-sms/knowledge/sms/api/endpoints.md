@@ -1,6 +1,6 @@
 # Methods used by the wrappers
 
-Base URL (pinned by the pod): `https://api.twilio.com/2010-04-01/Accounts/<TWILIO_ACCOUNT_SID>`. All
+Base URL (pinned by the pod): `https://api.twilio.com/2010-04-01/Accounts/<INTEGRATION_SMS_ACCOUNT_SID>`. All
 paths below are the RELATIVE `path` (a leading-slash resource) you pass to
 `callConnection('sms', { method, path, headers?, body? })`. **Writes are FORM-encoded**: build the
 body as a hand-rolled `application/x-www-form-urlencoded` string (`Key=` + `encodeURIComponent(value)`
@@ -28,7 +28,7 @@ joined by `&`) and set `Content-Type: application/x-www-form-urlencoded`. Respon
   delivery `status` of a message you sent.
 
 ## Common error `code`s
-- `20003` — authentication failed (bad `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`).
+- `20003` — authentication failed (bad `INTEGRATION_SMS_ACCOUNT_SID`/`INTEGRATION_SMS_AUTH_TOKEN`).
 - `21211` — invalid `To` phone number (not valid E.164).
 - `21606` / `21659` — the `From` isn't a Twilio number you own / isn't SMS-capable for that
   destination.

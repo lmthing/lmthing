@@ -60,6 +60,6 @@ There is no pre-parsed reply-target line — you parse the JSON yourself.
 
 - Reply plain text; keep it concise. LINE text messages have a 5000-character limit.
 - Never reuse a reply token across events — each event has its own.
-- If `callConnection` throws "not configured — set LINE_CHANNEL_ACCESS_TOKEN …", stop — the user
+- If `callConnection` throws "not configured — set INTEGRATION_LINE_CHANNEL_ACCESS_TOKEN …", stop — the user
   must add their LINE channel access token in **the project's Settings → Integrations** first.
 - Do not echo the raw webhook JSON back to LINE.

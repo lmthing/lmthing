@@ -6,7 +6,7 @@ description: The Nextcloud Talk (Spreed) bot API surface reached via callConnect
 # Nextcloud Talk (Spreed) bot API cheat-sheet
 
 The agent talks to the Nextcloud Talk **bot API** through `callConnection('nextcloud', req)`. The pod
-pins the base URL to **`<NEXTCLOUD_BASE_URL>/ocs/v2.php/apps/spreed/api/v1`** and signs each request
+pins the base URL to **`<INTEGRATION_NEXTCLOUD_TALK_BASE_URL>/ocs/v2.php/apps/spreed/api/v1`** and signs each request
 with the user's own bot secret — the agent passes only a RELATIVE `path` (a leading-slash method like
 `/bot/{roomToken}/message`), the required headers, and a body. The agent never handles the secret and
 never signs anything.

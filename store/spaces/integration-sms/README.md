@@ -12,9 +12,9 @@ It takes about 10 minutes. Follow every step.
 
 | Field on this page | What it is | Looks like |
 |---|---|---|
-| **Account SID** (`TWILIO_ACCOUNT_SID`) | Your Twilio account id | `ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` |
-| **Auth Token** (`TWILIO_AUTH_TOKEN`) | The secret that authorizes API calls **and** verifies inbound webhooks | a 32-character string |
-| **Your Twilio number** (`TWILIO_FROM_NUMBER`) | The phone number you send from, in E.164 | `+15551234567` |
+| **Account SID** (`INTEGRATION_SMS_ACCOUNT_SID`) | Your Twilio account id | `ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` |
+| **Auth Token** (`INTEGRATION_SMS_AUTH_TOKEN`) | The secret that authorizes API calls **and** verifies inbound webhooks | a 32-character string |
+| **Your Twilio number** (`INTEGRATION_SMS_FROM_NUMBER`) | The phone number you send from, in E.164 | `+15551234567` |
 
 E.164 just means: a `+`, the country code, then the number, with **no spaces or dashes** (e.g.
 `+15551234567`, `+447700900123`).
@@ -66,9 +66,9 @@ Now text your Twilio number from your phone — THING should reply within a few 
 
 | Where in Twilio | Copy into this page |
 |---|---|
-| Console dashboard → **Account Info** → Account SID | **Account SID** (`TWILIO_ACCOUNT_SID`) |
-| Console dashboard → **Account Info** → Auth Token (click *Show*) | **Auth Token** (`TWILIO_AUTH_TOKEN`) |
-| Phone Numbers → Manage → **Active numbers** → your number (E.164) | **Your Twilio number** (`TWILIO_FROM_NUMBER`) |
+| Console dashboard → **Account Info** → Account SID | **Account SID** (`INTEGRATION_SMS_ACCOUNT_SID`) |
+| Console dashboard → **Account Info** → Auth Token (click *Show*) | **Auth Token** (`INTEGRATION_SMS_AUTH_TOKEN`) |
+| Phone Numbers → Manage → **Active numbers** → your number (E.164) | **Your Twilio number** (`INTEGRATION_SMS_FROM_NUMBER`) |
 | This page's **inbound URL** (`…/sms`) → paste into the number's **"A message comes in"** webhook (HTTP POST) | *(no field — configured in Twilio)* |
 
 ---
@@ -85,7 +85,7 @@ Now text your Twilio number from your phone — THING should reply within a few 
 - **Error `21211`** — the recipient number isn't valid E.164. Use `+`, country code, then digits, no
   spaces/dashes.
 - **Error `21606` / `21659`** — the "from" number isn't an SMS-capable Twilio number you own. Check
-  `TWILIO_FROM_NUMBER` matches a number under **Active numbers** with the SMS capability.
+  `INTEGRATION_SMS_FROM_NUMBER` matches a number under **Active numbers** with the SMS capability.
 - **Incoming texts don't reach THING** —
   - Confirm the number's **"A message comes in"** webhook is set to your `…/sms` inbound URL with
     method **HTTP POST** (step 5), and that you clicked **Save configuration**.

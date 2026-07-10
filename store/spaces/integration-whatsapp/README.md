@@ -13,10 +13,10 @@ It takes about 10–15 minutes. Follow every step.
 
 | Field on this page | What it is | Looks like |
 |---|---|---|
-| **Access token** (`WHATSAPP_TOKEN`) | Lets THING send messages as your business number | a long `EAAG...` string |
-| **Phone number ID** (`WHATSAPP_PHONE_ID`) | Which WhatsApp number to send from (NOT the phone number itself) | a 15-digit number like `123456789012345` |
-| **App secret** (`WHATSAPP_APP_SECRET`) | Lets us verify that incoming messages really come from Meta | a 32-character hex string |
-| **Webhook verify token** (`WHATSAPP_VERIFY_TOKEN`) | A password YOU invent; you type the same value into Meta | anything random, e.g. `my-lmthing-2026-abc` |
+| **Access token** (`INTEGRATION_WHATSAPP_TOKEN`) | Lets THING send messages as your business number | a long `EAAG...` string |
+| **Phone number ID** (`INTEGRATION_WHATSAPP_PHONE_ID`) | Which WhatsApp number to send from (NOT the phone number itself) | a 15-digit number like `123456789012345` |
+| **App secret** (`INTEGRATION_WHATSAPP_APP_SECRET`) | Lets us verify that incoming messages really come from Meta | a 32-character hex string |
+| **Webhook verify token** (`INTEGRATION_WHATSAPP_VERIFY_TOKEN`) | A password YOU invent; you type the same value into Meta | anything random, e.g. `my-lmthing-2026-abc` |
 
 ---
 

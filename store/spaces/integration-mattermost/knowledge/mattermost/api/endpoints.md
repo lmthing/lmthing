@@ -1,6 +1,6 @@
 # Methods used by the wrappers
 
-Base URL (pinned by the pod): `<MATTERMOST_BASE_URL>/api/v4`. All paths below are the RELATIVE
+Base URL (pinned by the pod): `<INTEGRATION_MATTERMOST_BASE_URL>/api/v4`. All paths below are the RELATIVE
 `path` (a leading-slash resource) you pass to
 `callConnection('mattermost', { method, path, query?, body? })`. On success each returns the
 requested object/array; on failure it returns `{ id, message, status_code }`.

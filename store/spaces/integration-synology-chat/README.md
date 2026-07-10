@@ -19,9 +19,9 @@ You will create **two** webhooks in Synology Chat:
 
 | Field on this page | What it is | Where it comes from |
 |---|---|---|
-| **NAS base URL** (`SYNOLOGY_CHAT_BASE_URL`) | The address of your NAS | The **start** of the Incoming Webhook URL — everything before `/webapi/...` (e.g. `https://nas.example.com:5001`) |
-| **Incoming webhook token** (`SYNOLOGY_CHAT_TOKEN`) | Lets THING send messages in | The `token=` value at the **end** of the Incoming Webhook URL |
-| **Outgoing webhook token** (`SYNOLOGY_CHAT_OUTGOING_TOKEN`) | Lets us verify messages Synology sends back are genuine | The **token** shown when you create the Outgoing Webhook |
+| **NAS base URL** (`INTEGRATION_SYNOLOGY_CHAT_BASE_URL`) | The address of your NAS | The **start** of the Incoming Webhook URL — everything before `/webapi/...` (e.g. `https://nas.example.com:5001`) |
+| **Incoming webhook token** (`INTEGRATION_SYNOLOGY_CHAT_TOKEN`) | Lets THING send messages in | The `token=` value at the **end** of the Incoming Webhook URL |
+| **Outgoing webhook token** (`INTEGRATION_SYNOLOGY_CHAT_OUTGOING_TOKEN`) | Lets us verify messages Synology sends back are genuine | The **token** shown when you create the Outgoing Webhook |
 
 ---
 

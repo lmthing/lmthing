@@ -12,8 +12,8 @@ It takes about 10 minutes. Follow every step.
 
 | Field on this page | What it is | Looks like |
 |---|---|---|
-| **Channel access token** (`LINE_CHANNEL_ACCESS_TOKEN`) | Lets THING send messages as your LINE account | a long string, often 150+ characters |
-| **Channel secret** (`LINE_CHANNEL_SECRET`) | Lets us verify that inbound messages really came from LINE | a 32-character hex string |
+| **Channel access token** (`INTEGRATION_LINE_CHANNEL_ACCESS_TOKEN`) | Lets THING send messages as your LINE account | a long string, often 150+ characters |
+| **Channel secret** (`INTEGRATION_LINE_CHANNEL_SECRET`) | Lets us verify that inbound messages really came from LINE | a 32-character hex string |
 
 ---
 

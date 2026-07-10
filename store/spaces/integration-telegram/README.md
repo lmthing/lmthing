@@ -12,8 +12,8 @@ It takes about 5 minutes. Follow every step.
 
 | Field on this page | What it is | Looks like |
 |---|---|---|
-| **Bot token** (`TELEGRAM_BOT_TOKEN`) | Lets THING act as your Telegram bot | `123456789:AAExampleToken...` |
-| **Webhook secret token** (`TELEGRAM_WEBHOOK_SECRET`) | A secret word YOU invent, so we can verify updates Telegram sends back are genuine | any random string, e.g. `s7Kd9_QpZ2` (1–256 chars, letters/digits/`_`/`-`) |
+| **Bot token** (`INTEGRATION_TELEGRAM_BOT_TOKEN`) | Lets THING act as your Telegram bot | `123456789:AAExampleToken...` |
+| **Webhook secret token** (`INTEGRATION_TELEGRAM_WEBHOOK_SECRET`) | A secret word YOU invent, so we can verify updates Telegram sends back are genuine | any random string, e.g. `s7Kd9_QpZ2` (1–256 chars, letters/digits/`_`/`-`) |
 
 ---
 

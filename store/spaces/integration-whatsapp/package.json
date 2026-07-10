@@ -11,24 +11,24 @@
     "settings": {
       "type": "object",
       "properties": {
-        "WHATSAPP_TOKEN": { "type": "string", "title": "Access token", "format": "password" },
-        "WHATSAPP_PHONE_ID": { "type": "string", "title": "Phone number ID", "format": "password" },
-        "WHATSAPP_APP_SECRET": { "type": "string", "title": "App secret", "format": "password" },
-        "WHATSAPP_VERIFY_TOKEN": { "type": "string", "title": "Webhook verify token", "format": "password" }
+        "INTEGRATION_WHATSAPP_TOKEN": { "type": "string", "title": "Access token", "format": "password" },
+        "INTEGRATION_WHATSAPP_PHONE_ID": { "type": "string", "title": "Phone number ID", "format": "password" },
+        "INTEGRATION_WHATSAPP_APP_SECRET": { "type": "string", "title": "App secret", "format": "password" },
+        "INTEGRATION_WHATSAPP_VERIFY_TOKEN": { "type": "string", "title": "Webhook verify token", "format": "password" }
       },
-      "required": ["WHATSAPP_TOKEN", "WHATSAPP_PHONE_ID", "WHATSAPP_APP_SECRET", "WHATSAPP_VERIFY_TOKEN"]
+      "required": ["INTEGRATION_WHATSAPP_TOKEN", "INTEGRATION_WHATSAPP_PHONE_ID", "INTEGRATION_WHATSAPP_APP_SECRET", "INTEGRATION_WHATSAPP_VERIFY_TOKEN"]
     },
     "connection": {
       "provider": "whatsapp",
-      "apiBase": "https://graph.facebook.com/v20.0/{env:WHATSAPP_PHONE_ID}",
-      "tokenEnv": "WHATSAPP_TOKEN",
+      "apiBase": "https://graph.facebook.com/v20.0/{env:INTEGRATION_WHATSAPP_PHONE_ID}",
+      "tokenEnv": "INTEGRATION_WHATSAPP_TOKEN",
       "auth": { "kind": "bearer" }
     },
     "webhook": {
       "provider": "whatsapp",
-      "secretEnv": "WHATSAPP_APP_SECRET",
+      "secretEnv": "INTEGRATION_WHATSAPP_APP_SECRET",
       "verify": { "type": "hmac", "algo": "sha256", "encoding": "hex", "header": "x-hub-signature-256", "prefix": "sha256=" },
-      "challenge": { "type": "hub-challenge", "verifyTokenEnv": "WHATSAPP_VERIFY_TOKEN" },
+      "challenge": { "type": "hub-challenge", "verifyTokenEnv": "INTEGRATION_WHATSAPP_VERIFY_TOKEN" },
       "thread": { "from": "body", "path": "entry.0.changes.0.value.messages.0.from", "prefix": "whatsapp" }
     }
   }

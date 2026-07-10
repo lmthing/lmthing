@@ -1,7 +1,7 @@
 /**
  * Get the bot's own identity (GET /getMe on the Telegram Bot API).
  *
- * A cheap way to confirm the `TELEGRAM_BOT_TOKEN` is valid and see the bot's username. The gateway
+ * A cheap way to confirm the `INTEGRATION_TELEGRAM_BOT_TOKEN` is valid and see the bot's username. The gateway
  * pins the base to `https://api.telegram.org/bot<token>`, so the path is just the leading-slash
  * method name.
  *

@@ -1,6 +1,6 @@
 # Operations used by the wrappers
 
-Base URL (pinned by the pod): `https://graph.facebook.com/v20.0/<WHATSAPP_PHONE_ID>`. All wrappers
+Base URL (pinned by the pod): `https://graph.facebook.com/v20.0/<INTEGRATION_WHATSAPP_PHONE_ID>`. All wrappers
 POST to the RELATIVE path `/messages` and pass a JSON `body`. Recipient numbers (`to`) are in
 international format WITHOUT a leading `+` (e.g. `15551234567`).
 
@@ -50,7 +50,7 @@ value }] }] }`. Inside `value`:
 
 ## Common error codes
 
-- `190` — access token expired or invalid → regenerate `WHATSAPP_TOKEN`.
+- `190` — access token expired or invalid → regenerate `INTEGRATION_WHATSAPP_TOKEN`.
 - `131047` — message failed because it's outside the 24-hour window → use an approved template.
 - `100` — invalid parameter (e.g. malformed `to` number or missing field).
 - `131030` — recipient number not in the allowed list (test numbers only, before the number is live).

@@ -5,7 +5,7 @@
  * Synology fetches the file itself from the supplied `file_url` (which must be reachable from the
  * NAS) and posts it alongside the text into the webhook's channel.
  *
- * The pod pins the base to `SYNOLOGY_CHAT_BASE_URL` and appends `?token=<SYNOLOGY_CHAT_TOKEN>`.
+ * The pod pins the base to `INTEGRATION_SYNOLOGY_CHAT_BASE_URL` and appends `?token=<INTEGRATION_SYNOLOGY_CHAT_TOKEN>`.
  * The form body is `payload=<url-encoded JSON>` built by hand (no Buffer/URLSearchParams).
  *
  * @param text     Message text to accompany the file.

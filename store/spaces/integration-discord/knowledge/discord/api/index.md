@@ -7,7 +7,7 @@ description: The Discord REST v10 API surface reached via callConnection('discor
 
 The agent talks to the Discord REST API through `callConnection('discord', req)`. The pod pins the
 base URL **`https://discord.com/api/v10`** and attaches the user's own bot token as an
-`Authorization: Bot <DISCORD_BOT_TOKEN>` header — the agent passes only a RELATIVE `path` (a
+`Authorization: Bot <INTEGRATION_DISCORD_BOT_TOKEN>` header — the agent passes only a RELATIVE `path` (a
 leading-slash route like `/channels/{id}/messages`) and never handles credentials.
 
 ## Wrapped endpoints (outbound — fully supported)

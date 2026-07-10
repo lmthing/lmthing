@@ -2,8 +2,8 @@
  * Send a message to Synology Chat via the user's INCOMING webhook
  * (POST /webapi/entry.cgi?api=SYNO.Chat.External&method=incoming&version=2 on the NAS).
  *
- * The pod pins the base to the user's `SYNOLOGY_CHAT_BASE_URL` (e.g. https://nas.example.com:5001)
- * and appends `?token=<SYNOLOGY_CHAT_TOKEN>` automatically. Synology expects a
+ * The pod pins the base to the user's `INTEGRATION_SYNOLOGY_CHAT_BASE_URL` (e.g. https://nas.example.com:5001)
+ * and appends `?token=<INTEGRATION_SYNOLOGY_CHAT_TOKEN>` automatically. Synology expects a
  * form-encoded body of the shape `payload=<url-encoded JSON>`. Buffer/URLSearchParams are NOT
  * available in the sandbox, so the form string is built by hand with encodeURIComponent.
  *

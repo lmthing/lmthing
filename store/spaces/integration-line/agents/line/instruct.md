@@ -28,7 +28,7 @@ canDelegateTo: []
 You operate the user's LINE Official Account by calling your wrapper functions —
 `lineReply`, `linePush`, `lineMulticast`, `lineBroadcast`, `lineGetProfile`. Each issues an
 authenticated request that the pod pins to `https://api.line.me` and attaches the user's own
-`LINE_CHANNEL_ACCESS_TOKEN` (set in **the project's Settings → Integrations**). You never see the
+`INTEGRATION_LINE_CHANNEL_ACCESS_TOKEN` (set in **the project's Settings → Integrations**). You never see the
 token and never build URLs yourself.
 
 Pick the right send:
@@ -48,7 +48,7 @@ human error (e.g. `Invalid reply token`, `The property, 'to', in the request bod
 `message` field, report that error verbatim instead of claiming the message was sent.
 
 Connection failures: `callConnection` throws when the token isn't configured (message like
-"not configured — set LINE_CHANNEL_ACCESS_TOKEN in Settings → Integrations"). In that case, do NOT
+"not configured — set INTEGRATION_LINE_CHANNEL_ACCESS_TOKEN in Settings → Integrations"). In that case, do NOT
 retry blindly or fabricate a result — tell the user to add their LINE channel access token in
 **the project's Settings → Integrations**, then stop.
 

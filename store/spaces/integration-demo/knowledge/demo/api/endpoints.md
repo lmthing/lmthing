@@ -1,6 +1,6 @@
 # Demo endpoints
 
-Base URL is your `DEMO_BASE_URL` (host-pinned by the pod). Paths below are relative.
+Base URL is your `INTEGRATION_DEMO_BASE_URL` (host-pinned by the pod). Paths below are relative.
 
 ## POST /messages — send a message (`demoSendMessage`)
 
@@ -26,6 +26,6 @@ The demo endpoint (or a test harness) POSTs a signed JSON body to the lmthing in
 { "message": { "chat": { "id": "c1" }, "text": "hello there" } }
 ```
 
-Signed with `x-demo-signature: sha256=<hex HMAC-SHA256(DEMO_WEBHOOK_SECRET, rawBody)>`. The pod
+Signed with `x-demo-signature: sha256=<hex HMAC-SHA256(INTEGRATION_DEMO_WEBHOOK_SECRET, rawBody)>`. The pod
 verifies the signature, derives the thread key from `message.chat.id`, and delivers the raw payload
 to the Demo Channel agent, which replies via `demoSendMessage(message.chat.id, answer)`.

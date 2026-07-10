@@ -6,8 +6,8 @@ description: The WhatsApp Cloud API (Meta Graph) surface reached via callConnect
 # WhatsApp Cloud API cheat-sheet
 
 The agent talks to the **WhatsApp Cloud API** (Meta Graph API) through `callConnection('whatsapp',
-req)`. The pod pins the base URL to **`https://graph.facebook.com/v20.0/<WHATSAPP_PHONE_ID>`** — the
-business phone number's node — and attaches the user's own `WHATSAPP_TOKEN` as a bearer token. The
+req)`. The pod pins the base URL to **`https://graph.facebook.com/v20.0/<INTEGRATION_WHATSAPP_PHONE_ID>`** — the
+business phone number's node — and attaches the user's own `INTEGRATION_WHATSAPP_TOKEN` as a bearer token. The
 agent passes only a RELATIVE `path` (the base already includes the phone-number id, so it is just
 `/messages`) and never handles credentials or the phone number id.
 

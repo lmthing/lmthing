@@ -11,20 +11,20 @@
     "settings": {
       "type": "object",
       "properties": {
-        "NEXTCLOUD_BASE_URL": { "type": "string", "title": "Nextcloud URL" },
-        "NEXTCLOUD_TALK_BOT_SECRET": { "type": "string", "title": "Bot secret", "format": "password" }
+        "INTEGRATION_NEXTCLOUD_TALK_BASE_URL": { "type": "string", "title": "Nextcloud URL" },
+        "INTEGRATION_NEXTCLOUD_TALK_BOT_SECRET": { "type": "string", "title": "Bot secret", "format": "password" }
       },
-      "required": ["NEXTCLOUD_BASE_URL", "NEXTCLOUD_TALK_BOT_SECRET"]
+      "required": ["INTEGRATION_NEXTCLOUD_TALK_BASE_URL", "INTEGRATION_NEXTCLOUD_TALK_BOT_SECRET"]
     },
     "connection": {
       "provider": "nextcloud",
-      "apiBase": { "env": "NEXTCLOUD_BASE_URL", "suffix": "/ocs/v2.php/apps/spreed/api/v1" },
-      "tokenEnv": "NEXTCLOUD_TALK_BOT_SECRET",
+      "apiBase": { "env": "INTEGRATION_NEXTCLOUD_TALK_BASE_URL", "suffix": "/ocs/v2.php/apps/spreed/api/v1" },
+      "tokenEnv": "INTEGRATION_NEXTCLOUD_TALK_BOT_SECRET",
       "auth": { "kind": "nextcloud-bot" }
     },
     "webhook": {
       "provider": "nextcloud",
-      "secretEnv": "NEXTCLOUD_TALK_BOT_SECRET",
+      "secretEnv": "INTEGRATION_NEXTCLOUD_TALK_BOT_SECRET",
       "verify": {
         "type": "hmac",
         "algo": "sha256",

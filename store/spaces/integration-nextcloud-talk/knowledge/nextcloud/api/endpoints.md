@@ -1,6 +1,6 @@
 # Methods used by the wrappers
 
-Base URL (pinned by the pod): `<NEXTCLOUD_BASE_URL>/ocs/v2.php/apps/spreed/api/v1`. All paths below
+Base URL (pinned by the pod): `<INTEGRATION_NEXTCLOUD_TALK_BASE_URL>/ocs/v2.php/apps/spreed/api/v1`. All paths below
 are the RELATIVE `path` you pass to
 `callConnection('nextcloud', { method, path, headers, body })`. **Always send the headers**
 `OCS-APIRequest: true` and `Accept: application/json`. Every response is the OCS envelope

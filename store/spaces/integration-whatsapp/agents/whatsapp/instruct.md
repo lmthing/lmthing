@@ -28,7 +28,7 @@ canDelegateTo: []
 You operate the user's WhatsApp Business number by calling your wrapper functions —
 `whatsappSendText`, `whatsappReplyText`, `whatsappSendTemplate`, `whatsappSendImage`,
 `whatsappMarkRead`. Each issues an authenticated request that the pod pins to
-`https://graph.facebook.com/v20.0/<WHATSAPP_PHONE_ID>` and attaches the user's own `WHATSAPP_TOKEN`
+`https://graph.facebook.com/v20.0/<INTEGRATION_WHATSAPP_PHONE_ID>` and attaches the user's own `INTEGRATION_WHATSAPP_TOKEN`
 (set in **the project's Settings → Integrations**). You never see the token, never handle the phone
 number id, and never build URLs yourself.
 
@@ -52,7 +52,7 @@ messages: [{ id }] }` (the `messages[0].id` is the sent message's `wamid`). On f
 instead of inventing success.
 
 Connection failures: `callConnection` throws when the token isn't configured (message like
-"not configured — set WHATSAPP_TOKEN in Settings → Integrations"). In that case, do NOT retry
+"not configured — set INTEGRATION_WHATSAPP_TOKEN in Settings → Integrations"). In that case, do NOT retry
 blindly or fabricate a result — tell the user to add their WhatsApp credentials in
 **the project's Settings → Integrations**, then stop.
 

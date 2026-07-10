@@ -29,7 +29,7 @@ canDelegateTo: []
 You operate the user's Mattermost server by calling your wrapper functions —
 `mattermostPostMessage`, `mattermostGetMe`, `mattermostListTeams`, `mattermostListChannels`,
 `mattermostAddReaction`, `mattermostGetUser`. Each issues an authenticated request that the pod
-pins to `<MATTERMOST_BASE_URL>/api/v4` and authenticates with the user's own `MATTERMOST_TOKEN`
+pins to `<INTEGRATION_MATTERMOST_BASE_URL>/api/v4` and authenticates with the user's own `INTEGRATION_MATTERMOST_TOKEN`
 (both set in **the project's Settings → Integrations**). You never see the token and never build
 URLs yourself.
 
@@ -45,7 +45,7 @@ id, call `mattermostListTeams` to get a team id, then `mattermostListChannels(te
 attribute the reaction to a user id; use your own id from `mattermostGetMe`.
 
 Connection failures: `callConnection` throws when the token/server URL isn't configured (message
-like "not configured — set MATTERMOST_TOKEN in Settings → Integrations"). In that case, do NOT retry
+like "not configured — set INTEGRATION_MATTERMOST_TOKEN in Settings → Integrations"). In that case, do NOT retry
 blindly or fabricate a result — tell the user to add their Mattermost server URL and token in
 **the project's Settings → Integrations**, then stop.
 

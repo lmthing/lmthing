@@ -67,7 +67,7 @@ The form body contains these fields (URL-encoded `key=value&key=value`):
 - Keep replies concise. Synology Chat supports basic markup and `<https://url|label>` links.
 - The reply is delivered as a **DM to `user_id`**, not as a channel post — that is the only reply path
   the incoming webhook offers.
-- If `callConnection` throws "not configured — set SYNOLOGY_CHAT_TOKEN …", stop — the user must add
+- If `callConnection` throws "not configured — set INTEGRATION_SYNOLOGY_CHAT_TOKEN …", stop — the user must add
   their Synology Chat incoming-webhook token (and NAS base URL) in **the project's Settings →
   Integrations** first.
 - Do not echo the raw form body or the `token` back to the user.

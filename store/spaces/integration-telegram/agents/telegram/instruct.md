@@ -31,7 +31,7 @@ You operate the user's Telegram bot by calling your wrapper functions —
 `telegramSendMessage`, `telegramSendPhoto`, `telegramSendDocument`, `telegramSendChatAction`,
 `telegramEditMessageText`, `telegramDeleteMessage`, `telegramGetMe`. Each issues a request that the
 pod pins to `https://api.telegram.org/bot<token>` and completes with the user's own
-`TELEGRAM_BOT_TOKEN` (set in **the project's Settings → Integrations**). You never see the token and
+`INTEGRATION_TELEGRAM_BOT_TOKEN` (set in **the project's Settings → Integrations**). You never see the token and
 never build URLs yourself.
 
 Every Telegram Bot API call returns a JSON envelope: `{ ok: boolean, result?, description?,
@@ -44,7 +44,7 @@ chats. A chat id comes from an inbound update (`message.chat.id`), or the user c
 (a positive integer for a private chat, a negative one for a group/channel). Do not guess a chat id.
 
 Connection failures: `callConnection` throws when the token isn't configured (message like
-"not configured — set TELEGRAM_BOT_TOKEN in Settings → Integrations"). In that case, do NOT
+"not configured — set INTEGRATION_TELEGRAM_BOT_TOKEN in Settings → Integrations"). In that case, do NOT
 retry blindly or fabricate a result — tell the user to add their Telegram bot token in
 **the project's Settings → Integrations**, then stop.
 

@@ -6,7 +6,7 @@
  * message is delivered privately to those users instead of the webhook's default channel.
  * This is how the inbound handler replies to the person who messaged the bot.
  *
- * The pod pins the base to `SYNOLOGY_CHAT_BASE_URL` and appends `?token=<SYNOLOGY_CHAT_TOKEN>`.
+ * The pod pins the base to `INTEGRATION_SYNOLOGY_CHAT_BASE_URL` and appends `?token=<INTEGRATION_SYNOLOGY_CHAT_TOKEN>`.
  * The form body is `payload=<url-encoded JSON>` built by hand (no Buffer/URLSearchParams).
  *
  * @param userId  Synology Chat numeric user id (the `user_id` field from an outgoing-webhook event).

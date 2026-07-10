@@ -1,7 +1,7 @@
 /**
  * Send a plain-text WhatsApp message (POST /messages on the Meta Cloud API).
  *
- * The gateway pins the base to `https://graph.facebook.com/v20.0/<WHATSAPP_PHONE_ID>`, so the path
+ * The gateway pins the base to `https://graph.facebook.com/v20.0/<INTEGRATION_WHATSAPP_PHONE_ID>`, so the path
  * is the leading-slash `/messages` endpoint of your business phone number. A text message can only
  * be sent freely inside the 24-hour customer-service window (a reply to a recent inbound message);
  * outside it you must use an approved template — see `whatsappSendTemplate`.

@@ -23,7 +23,7 @@ verbatim, then an `[inbound-context]` line. You must parse the raw JSON yourself
 pre-parsed reply-target line.
 
 The GET subscription verification (`hub.challenge`) is handled automatically by the pod using
-`WHATSAPP_VERIFY_TOKEN`; you only ever see real POST message events.
+`INTEGRATION_WHATSAPP_VERIFY_TOKEN`; you only ever see real POST message events.
 
 ## Parse the payload
 
@@ -92,6 +92,6 @@ Steps:
 - You are replying INSIDE the 24-hour customer-service window (the user just messaged you), so plain
   `text` is allowed — no template needed.
 - WhatsApp text supports light markdown: `*bold*`, `_italic_`, `~strikethrough~`, `` ```code``` ``.
-- If `callConnection` throws "not configured — set WHATSAPP_TOKEN …", stop — the user must add their
+- If `callConnection` throws "not configured — set INTEGRATION_WHATSAPP_TOKEN …", stop — the user must add their
   WhatsApp credentials in **the project's Settings → Integrations** first.
 - Do not echo the raw webhook JSON or the `[inbound-context]` line back to the sender.

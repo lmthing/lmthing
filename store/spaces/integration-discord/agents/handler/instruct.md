@@ -74,6 +74,6 @@ From the raw JSON read:
 
 - Keep replies concise; Discord markdown (`**bold**`, `*italic*`, `` `code` ``) is supported; max 2000
   chars.
-- If `callConnection` throws "not configured — set DISCORD_BOT_TOKEN …", stop — the user must add their
+- If `callConnection` throws "not configured — set INTEGRATION_DISCORD_BOT_TOKEN …", stop — the user must add their
   Discord bot token in **the project's Settings → Integrations** first.
 - Do not echo the raw interaction JSON or the `[inbound-context]` line back to Discord.

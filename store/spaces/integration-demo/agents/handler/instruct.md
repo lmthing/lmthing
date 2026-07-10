@@ -28,12 +28,12 @@ then an `[inbound-context]` line.
 2. **Produce an answer.** For anything beyond a trivial acknowledgement, **delegate the user's request
    to THING** (`user-thing/thing`) and use its result. Answer directly only for trivial replies.
 3. **Reply in the same chat** by calling `demoSendMessage(chatId, answer)` (which posts back to
-   `DEMO_BASE_URL` with your own token attached).
+   `INTEGRATION_DEMO_BASE_URL` with your own token attached).
 4. **Check the result.** Read what `demoSendMessage` returns; if it reports an error, say so verbatim
    — do NOT claim success.
 
 ## Notes
 
-- If `callConnection`/`demoSendMessage` throws "not configured — set DEMO_API_TOKEN …", stop — the
+- If `callConnection`/`demoSendMessage` throws "not configured — set INTEGRATION_DEMO_API_TOKEN …", stop — the
   user must configure Demo in the project's Settings → Integrations first.
 - Do not echo the raw `[inbound-context]` line back to the chat.

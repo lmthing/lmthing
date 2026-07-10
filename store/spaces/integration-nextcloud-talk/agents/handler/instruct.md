@@ -65,6 +65,6 @@ Ignore everything else — reactions (`type: "Like"`), system messages, bot join
 ## Notes
 
 - Never guess a room token — always use `target.id` from the event.
-- If `callConnection` throws "not configured — set NEXTCLOUD_TALK_BOT_SECRET …", stop — the user must
+- If `callConnection` throws "not configured — set INTEGRATION_NEXTCLOUD_TALK_BOT_SECRET …", stop — the user must
   add their Nextcloud URL and bot secret in **the project's Settings → Integrations** first.
 - Do not echo the raw event JSON or the `[inbound-context]` line back into Talk.

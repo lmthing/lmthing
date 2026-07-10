@@ -7,7 +7,7 @@ description: The Telegram Bot API surface reached via callConnection('telegram',
 
 The agent talks to the Telegram Bot API through `callConnection('telegram', req)`. The pod pins the
 base URL **`https://api.telegram.org/bot<token>`** — the bot token is already part of the base
-(resolved from the user's own `TELEGRAM_BOT_TOKEN`), so the agent passes only a RELATIVE `path` (a
+(resolved from the user's own `INTEGRATION_TELEGRAM_BOT_TOKEN`), so the agent passes only a RELATIVE `path` (a
 leading-slash method name like `/sendMessage`) and never handles the token.
 
 Wrapped methods:

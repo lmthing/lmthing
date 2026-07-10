@@ -7,7 +7,7 @@
  *
  * @param to    Recipient number in E.164 (e.g. "+15551234567").
  * @param body  Message text. Keep it short — long text is split into billed 160-char segments.
- * @param from  The sender: one of YOUR Twilio numbers in E.164 (typically TWILIO_FROM_NUMBER; when
+ * @param from  The sender: one of YOUR Twilio numbers in E.164 (typically INTEGRATION_SMS_FROM_NUMBER; when
  *              replying to an inbound message, pass the inbound `To` field instead).
  * @returns The Twilio message resource: { sid, status, to, from, body, ... } on success, or an
  *          error object { code, message, status, more_info } on failure.

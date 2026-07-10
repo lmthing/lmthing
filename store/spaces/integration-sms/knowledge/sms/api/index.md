@@ -6,8 +6,8 @@ description: The Twilio Programmable Messaging REST API surface reached via call
 # Twilio Messaging API cheat-sheet
 
 The agent sends and reads texts through `callConnection('sms', req)`. The pod pins the base URL to
-**`https://api.twilio.com/2010-04-01/Accounts/<TWILIO_ACCOUNT_SID>`** and authenticates with the
-user's own `TWILIO_ACCOUNT_SID` + `TWILIO_AUTH_TOKEN` (HTTP Basic). The agent passes only a RELATIVE
+**`https://api.twilio.com/2010-04-01/Accounts/<INTEGRATION_SMS_ACCOUNT_SID>`** and authenticates with the
+user's own `INTEGRATION_SMS_ACCOUNT_SID` + `INTEGRATION_SMS_AUTH_TOKEN` (HTTP Basic). The agent passes only a RELATIVE
 `path` (a leading-slash resource like `/Messages.json`) and never handles credentials.
 
 **Twilio is FORM-encoded, not JSON.** For writes (`POST`), send the body as an

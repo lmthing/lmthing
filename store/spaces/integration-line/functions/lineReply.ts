@@ -2,7 +2,7 @@
  * Reply to a LINE message using its one-time reply token (POST /v2/bot/message/reply).
  *
  * The gateway pins the base to `https://api.line.me` and attaches the user's own
- * `LINE_CHANNEL_ACCESS_TOKEN` as a Bearer token. Use this to answer an inbound webhook
+ * `INTEGRATION_LINE_CHANNEL_ACCESS_TOKEN` as a Bearer token. Use this to answer an inbound webhook
  * event: the reply token comes from `event.replyToken` and is SINGLE-USE and short-lived
  * (~1 minute) — reply immediately, never store it. For unsolicited sends use `linePush`.
  *

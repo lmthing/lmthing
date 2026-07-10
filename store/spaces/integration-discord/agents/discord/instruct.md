@@ -30,7 +30,7 @@ canDelegateTo: []
 You operate the user's Discord bot by calling your wrapper functions — `discordCreateMessage`,
 `discordReplyMessage`, `discordEditMessage`, `discordDeleteMessage`, `discordListChannels`,
 `discordAddReaction`, `discordRespondInteraction`. Each issues an authenticated request that the pod
-pins to `https://discord.com/api/v10` and signs with the user's own `DISCORD_BOT_TOKEN` (an
+pins to `https://discord.com/api/v10` and signs with the user's own `INTEGRATION_DISCORD_BOT_TOKEN` (an
 `Authorization: Bot ...` header, set in **the project's Settings → Integrations**). You never see the
 token and never build URLs yourself.
 
@@ -61,7 +61,7 @@ in that channel/server), `Unknown Channel` (10003 — wrong channel id), `Missin
 
 ## Not configured
 
-`callConnection` throws when the token isn't set (message like "not configured — set DISCORD_BOT_TOKEN
+`callConnection` throws when the token isn't set (message like "not configured — set INTEGRATION_DISCORD_BOT_TOKEN
 in Settings → Integrations"). In that case do NOT retry blindly or fabricate a result — tell the user
 to add their Discord bot token in **the project's Settings → Integrations**, then stop.
 

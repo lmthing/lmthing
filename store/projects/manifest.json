@@ -1515,25 +1515,25 @@
       "settings": {
         "type": "object",
         "properties": {
-          "DEMO_BASE_URL": {
+          "INTEGRATION_DEMO_BASE_URL": {
             "type": "string",
             "title": "Echo endpoint base URL (e.g. https://webhook.site/<your-id>)"
           },
-          "DEMO_API_TOKEN": {
+          "INTEGRATION_DEMO_API_TOKEN": {
             "type": "string",
             "title": "API token (sent as a Bearer header)",
             "format": "password"
           },
-          "DEMO_WEBHOOK_SECRET": {
+          "INTEGRATION_DEMO_WEBHOOK_SECRET": {
             "type": "string",
             "title": "Inbound signing secret (HMAC-SHA256)",
             "format": "password"
           }
         },
         "required": [
-          "DEMO_BASE_URL",
-          "DEMO_API_TOKEN",
-          "DEMO_WEBHOOK_SECRET"
+          "INTEGRATION_DEMO_BASE_URL",
+          "INTEGRATION_DEMO_API_TOKEN",
+          "INTEGRATION_DEMO_WEBHOOK_SECRET"
         ]
       },
       "files": [
@@ -1563,26 +1563,26 @@
       "settings": {
         "type": "object",
         "properties": {
-          "DISCORD_BOT_TOKEN": {
+          "INTEGRATION_DISCORD_BOT_TOKEN": {
             "type": "string",
             "title": "Bot token",
             "format": "password"
           },
-          "DISCORD_PUBLIC_KEY": {
+          "INTEGRATION_DISCORD_PUBLIC_KEY": {
             "type": "string",
             "title": "Public key",
             "format": "password"
           },
-          "DISCORD_APPLICATION_ID": {
+          "INTEGRATION_DISCORD_APPLICATION_ID": {
             "type": "string",
             "title": "Application ID",
             "format": "password"
           }
         },
         "required": [
-          "DISCORD_BOT_TOKEN",
-          "DISCORD_PUBLIC_KEY",
-          "DISCORD_APPLICATION_ID"
+          "INTEGRATION_DISCORD_BOT_TOKEN",
+          "INTEGRATION_DISCORD_PUBLIC_KEY",
+          "INTEGRATION_DISCORD_APPLICATION_ID"
         ]
       },
       "files": [
@@ -1693,20 +1693,20 @@
       "settings": {
         "type": "object",
         "properties": {
-          "LINE_CHANNEL_ACCESS_TOKEN": {
+          "INTEGRATION_LINE_CHANNEL_ACCESS_TOKEN": {
             "type": "string",
             "title": "Channel access token",
             "format": "password"
           },
-          "LINE_CHANNEL_SECRET": {
+          "INTEGRATION_LINE_CHANNEL_SECRET": {
             "type": "string",
             "title": "Channel secret",
             "format": "password"
           }
         },
         "required": [
-          "LINE_CHANNEL_ACCESS_TOKEN",
-          "LINE_CHANNEL_SECRET"
+          "INTEGRATION_LINE_CHANNEL_ACCESS_TOKEN",
+          "INTEGRATION_LINE_CHANNEL_SECRET"
         ]
       },
       "files": [
@@ -1739,25 +1739,25 @@
       "settings": {
         "type": "object",
         "properties": {
-          "MATTERMOST_BASE_URL": {
+          "INTEGRATION_MATTERMOST_BASE_URL": {
             "type": "string",
             "title": "Server URL"
           },
-          "MATTERMOST_TOKEN": {
+          "INTEGRATION_MATTERMOST_TOKEN": {
             "type": "string",
             "title": "Bot / access token",
             "format": "password"
           },
-          "MATTERMOST_OUTGOING_TOKEN": {
+          "INTEGRATION_MATTERMOST_OUTGOING_TOKEN": {
             "type": "string",
             "title": "Outgoing webhook token",
             "format": "password"
           }
         },
         "required": [
-          "MATTERMOST_BASE_URL",
-          "MATTERMOST_TOKEN",
-          "MATTERMOST_OUTGOING_TOKEN"
+          "INTEGRATION_MATTERMOST_BASE_URL",
+          "INTEGRATION_MATTERMOST_TOKEN",
+          "INTEGRATION_MATTERMOST_OUTGOING_TOKEN"
         ]
       },
       "files": [
@@ -1791,19 +1791,19 @@
       "settings": {
         "type": "object",
         "properties": {
-          "NEXTCLOUD_BASE_URL": {
+          "INTEGRATION_NEXTCLOUD_TALK_BASE_URL": {
             "type": "string",
             "title": "Nextcloud URL"
           },
-          "NEXTCLOUD_TALK_BOT_SECRET": {
+          "INTEGRATION_NEXTCLOUD_TALK_BOT_SECRET": {
             "type": "string",
             "title": "Bot secret",
             "format": "password"
           }
         },
         "required": [
-          "NEXTCLOUD_BASE_URL",
-          "NEXTCLOUD_TALK_BOT_SECRET"
+          "INTEGRATION_NEXTCLOUD_TALK_BASE_URL",
+          "INTEGRATION_NEXTCLOUD_TALK_BOT_SECRET"
         ]
       },
       "files": [
@@ -1880,25 +1880,25 @@
       "settings": {
         "type": "object",
         "properties": {
-          "TWILIO_ACCOUNT_SID": {
+          "INTEGRATION_SMS_ACCOUNT_SID": {
             "type": "string",
             "title": "Account SID",
             "format": "password"
           },
-          "TWILIO_AUTH_TOKEN": {
+          "INTEGRATION_SMS_AUTH_TOKEN": {
             "type": "string",
             "title": "Auth Token",
             "format": "password"
           },
-          "TWILIO_FROM_NUMBER": {
+          "INTEGRATION_SMS_FROM_NUMBER": {
             "type": "string",
             "title": "Your Twilio number, E.164 e.g. +15551234567"
           }
         },
         "required": [
-          "TWILIO_ACCOUNT_SID",
-          "TWILIO_AUTH_TOKEN",
-          "TWILIO_FROM_NUMBER"
+          "INTEGRATION_SMS_ACCOUNT_SID",
+          "INTEGRATION_SMS_AUTH_TOKEN",
+          "INTEGRATION_SMS_FROM_NUMBER"
         ]
       },
       "files": [
@@ -1929,25 +1929,25 @@
       "settings": {
         "type": "object",
         "properties": {
-          "SYNOLOGY_CHAT_BASE_URL": {
+          "INTEGRATION_SYNOLOGY_CHAT_BASE_URL": {
             "type": "string",
             "title": "NAS base URL"
           },
-          "SYNOLOGY_CHAT_TOKEN": {
+          "INTEGRATION_SYNOLOGY_CHAT_TOKEN": {
             "type": "string",
             "title": "Incoming webhook token",
             "format": "password"
           },
-          "SYNOLOGY_CHAT_OUTGOING_TOKEN": {
+          "INTEGRATION_SYNOLOGY_CHAT_OUTGOING_TOKEN": {
             "type": "string",
             "title": "Outgoing webhook token",
             "format": "password"
           }
         },
         "required": [
-          "SYNOLOGY_CHAT_BASE_URL",
-          "SYNOLOGY_CHAT_TOKEN",
-          "SYNOLOGY_CHAT_OUTGOING_TOKEN"
+          "INTEGRATION_SYNOLOGY_CHAT_BASE_URL",
+          "INTEGRATION_SYNOLOGY_CHAT_TOKEN",
+          "INTEGRATION_SYNOLOGY_CHAT_OUTGOING_TOKEN"
         ]
       },
       "files": [
@@ -1978,20 +1978,20 @@
       "settings": {
         "type": "object",
         "properties": {
-          "TELEGRAM_BOT_TOKEN": {
+          "INTEGRATION_TELEGRAM_BOT_TOKEN": {
             "type": "string",
             "title": "Bot token",
             "format": "password"
           },
-          "TELEGRAM_WEBHOOK_SECRET": {
+          "INTEGRATION_TELEGRAM_WEBHOOK_SECRET": {
             "type": "string",
             "title": "Webhook secret token",
             "format": "password"
           }
         },
         "required": [
-          "TELEGRAM_BOT_TOKEN",
-          "TELEGRAM_WEBHOOK_SECRET"
+          "INTEGRATION_TELEGRAM_BOT_TOKEN",
+          "INTEGRATION_TELEGRAM_WEBHOOK_SECRET"
         ]
       },
       "files": [
@@ -2026,32 +2026,32 @@
       "settings": {
         "type": "object",
         "properties": {
-          "WHATSAPP_TOKEN": {
+          "INTEGRATION_WHATSAPP_TOKEN": {
             "type": "string",
             "title": "Access token",
             "format": "password"
           },
-          "WHATSAPP_PHONE_ID": {
+          "INTEGRATION_WHATSAPP_PHONE_ID": {
             "type": "string",
             "title": "Phone number ID",
             "format": "password"
           },
-          "WHATSAPP_APP_SECRET": {
+          "INTEGRATION_WHATSAPP_APP_SECRET": {
             "type": "string",
             "title": "App secret",
             "format": "password"
           },
-          "WHATSAPP_VERIFY_TOKEN": {
+          "INTEGRATION_WHATSAPP_VERIFY_TOKEN": {
             "type": "string",
             "title": "Webhook verify token",
             "format": "password"
           }
         },
         "required": [
-          "WHATSAPP_TOKEN",
-          "WHATSAPP_PHONE_ID",
-          "WHATSAPP_APP_SECRET",
-          "WHATSAPP_VERIFY_TOKEN"
+          "INTEGRATION_WHATSAPP_TOKEN",
+          "INTEGRATION_WHATSAPP_PHONE_ID",
+          "INTEGRATION_WHATSAPP_APP_SECRET",
+          "INTEGRATION_WHATSAPP_VERIFY_TOKEN"
         ]
       },
       "files": [

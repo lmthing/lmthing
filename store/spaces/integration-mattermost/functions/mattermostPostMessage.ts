@@ -1,7 +1,7 @@
 /**
  * Post a message to a Mattermost channel (POST /posts on the Mattermost REST v4 API).
  *
- * The pod pins the base to `<MATTERMOST_BASE_URL>/api/v4`, so the path is the leading-slash
+ * The pod pins the base to `<INTEGRATION_MATTERMOST_BASE_URL>/api/v4`, so the path is the leading-slash
  * resource. Mattermost accepts a JSON body for creating a post.
  *
  * @param channelId  The channel id (e.g. "4xp9fdt77pncbef59f4k1qe83o"). Resolve names via

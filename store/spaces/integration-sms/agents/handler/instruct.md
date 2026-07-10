@@ -65,6 +65,6 @@ payload is a status callback rather than an actual inbound message, do nothing.
 - SMS is plain text — no markdown/formatting. Keep it to one short message.
 - Signature verification is handled pod-side (Twilio's `X-Twilio-Signature` over the request URL +
   params). You do not verify anything yourself.
-- If `callConnection`/`smsSend` throws "not configured — set TWILIO_AUTH_TOKEN …", stop — the user
+- If `callConnection`/`smsSend` throws "not configured — set INTEGRATION_SMS_AUTH_TOKEN …", stop — the user
   must add their Twilio credentials in **the project's Settings → Integrations** first.
 - Do not echo the raw form payload or the `[inbound-context]` line back to the sender.

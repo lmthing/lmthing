@@ -25,8 +25,8 @@ canDelegateTo: []
 
 You send into the user's Synology Chat by calling your wrapper functions —
 `synologySendMessage`, `synologySendToUser`, `synologySendFile`. Each issues an authenticated request
-that the pod pins to the user's NAS (`SYNOLOGY_CHAT_BASE_URL`, e.g. `https://nas.example.com:5001`) and
-appends their own incoming-webhook token `SYNOLOGY_CHAT_TOKEN` (set in **the project's Settings →
+that the pod pins to the user's NAS (`INTEGRATION_SYNOLOGY_CHAT_BASE_URL`, e.g. `https://nas.example.com:5001`) and
+appends their own incoming-webhook token `INTEGRATION_SYNOLOGY_CHAT_TOKEN` (set in **the project's Settings →
 Integrations**). You never see the token and never build URLs yourself.
 
 Synology Chat's bot surface is deliberately limited: an **incoming webhook** lets you push text or a
@@ -43,7 +43,7 @@ if the user asks you to message a channel other than the webhook's channel, expl
 webhook is bound to a single channel and a new webhook/token would be needed.
 
 Connection failures: `callConnection` throws when the token or base URL isn't configured (message like
-"not configured — set SYNOLOGY_CHAT_TOKEN in Settings → Integrations"). In that case, do NOT retry
+"not configured — set INTEGRATION_SYNOLOGY_CHAT_TOKEN in Settings → Integrations"). In that case, do NOT retry
 blindly or fabricate a result — tell the user to add their Synology Chat details in **the project's
 Settings → Integrations**, then stop.
 

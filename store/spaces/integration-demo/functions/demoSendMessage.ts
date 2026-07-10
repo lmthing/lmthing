@@ -1,7 +1,7 @@
 /**
  * Send a message to the demo echo endpoint (POST /messages).
  *
- * The pod pins the base to your `DEMO_BASE_URL` and attaches your `DEMO_API_TOKEN`
+ * The pod pins the base to your `INTEGRATION_DEMO_BASE_URL` and attaches your `INTEGRATION_DEMO_API_TOKEN`
  * as an `Authorization: Bearer` header — you pass only a relative path + body.
  *
  * @param chatId  The conversation/chat id to send to (echoed back as `chat_id`).

@@ -8,7 +8,7 @@ import { Button } from '@lmthing/ui/elements/forms/button'
 import { Page, PageHeader, PageBody } from '@lmthing/ui/elements/layouts/page'
 import { Stack } from '@lmthing/ui/elements/layouts/stack'
 import { getCatalogSpace } from '@/lib/apps-manifest'
-import { studioInstallUrlForSpace } from '@/lib/pod-api'
+import { installUrlForSpace } from '@/lib/pod-api'
 
 export const Route = createFileRoute('/spaces/$spaceId')({
   component: SpaceDetail,
@@ -23,10 +23,11 @@ function SpaceDetail() {
   const { spaceId } = Route.useParams()
   const space = getCatalogSpace(spaceId)
 
-  // The public store can't reach a user's authenticated pod. Integrations install
-  // per-project from Studio's in-app install panel, so hand off to lmthing.studio.
+  // The public store can't reach a user's authenticated pod. Installing hands off to
+  // the lmthing.app install page, which runs in the user's pod context, lets them
+  // pick a project, and performs it.
   function handleInstall() {
-    window.location.href = studioInstallUrlForSpace(spaceId)
+    window.location.href = installUrlForSpace(spaceId)
   }
 
   if (!space) {
@@ -76,16 +77,16 @@ function SpaceDetail() {
         <Stack gap="lg">
           <Card>
             <CardHeader>
-              <Heading level={3}>Install in Studio</Heading>
+              <Heading level={3}>Install to my pod</Heading>
               <Caption muted>
-                Opens <code className="rounded bg-muted px-1 py-0.5">lmthing.studio</code>, signed in to your own
-                workspace, where you install <span className="font-medium">{space.title}</span> into a project from its
-                install panel — then paste your own token in that project&apos;s Settings → Integrations. Integrations
-                are per-project, so the install happens there rather than on this public store.
+                Takes you to <code className="rounded bg-muted px-1 py-0.5">lmthing.app</code>, signed in to your own
+                workspace, to install <span className="font-medium">{space.title}</span> into a project you choose —
+                then add your own token in that project&apos;s Settings → Integrations. The public store can&apos;t
+                reach your private pod, so the install happens there.
               </Caption>
             </CardHeader>
             <CardBody>
-              <Button onClick={handleInstall}>Install in Studio</Button>
+              <Button onClick={handleInstall}>Install to my pod</Button>
             </CardBody>
           </Card>
 

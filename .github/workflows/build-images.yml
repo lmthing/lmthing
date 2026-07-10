@@ -28,6 +28,10 @@ on:
       - 'package.json'
       - 'pnpm-workspace.yaml'
       - 'tsconfig.base.json'
+      # The root Docker build context is filtered by root .dockerignore, so a
+      # change to it alters what every root-context image sees (e.g. which store
+      # catalog files ship). Must trigger a rebuild.
+      - '.dockerignore'
 
 # Serialize whole runs on the same branch: the manifest/build-data commits push
 # to main, so overlapping runs would race on the ref. Queue rather than cancel —
@@ -64,6 +68,8 @@ jobs:
               - 'package.json'
               - 'pnpm-workspace.yaml'
               - 'tsconfig.base.json'
+              # Root .dockerignore filters every root-context build's context.
+              - '.dockerignore'
             gateway:
               - *root
               - 'cloud/gateway/**'

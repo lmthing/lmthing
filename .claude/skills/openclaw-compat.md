@@ -26,12 +26,35 @@ Canonical gap analysis: `sdk/org/libs/openclaw-compat/COMPAT.md`.
   `UnsupportedCompatError`; a later increment). `@openclaw/slack` is **Socket Mode** (persistent WS) ⇒
   **warm-pod-only**, incompatible with scale-to-zero.
 
+## Compatibility matrix (all 145 extensions, audited 2026-07-10)
+
+Verdict is a pure function of the entry **shape** + which `api.register*` methods `register()` calls.
+
+| Verdict | Count | What it means |
+|---|--:|---|
+| ✅ Functional | ~10 | Loads *and* does real work: `registerTool` / `registerHttpRoute` plugins, **plus** (post-win-#2) `registerWebSearchProvider`/`registerWebFetchProvider` plugins exposed as tools |
+| 🟡 Inert | ~15 | Loads clean, registration not wired to a pipeline (model providers via `registerProvider`; no-op `register()` bodies) |
+| ⛔ Rejected→loadable | 25 | `defineBundledChannelEntry` messaging channels — **now loaded** (win #3) in webhook-mode; Socket-Mode runtime still deferred |
+| ❌ Throws | ~86 | Calls an unimplemented `register*` (media/speech/image/video/embedding/model-catalog providers, `registerCli`/`registerCommand`/`registerService`/`registerMemoryCapability`/`registerAgentHarness`, …) → skipped |
+| ⚙️ Core lib | 4 | No plugin entry (`image/media/video-generation-core`, `test-support`) |
+
+Baseline functional (pre-wins): **tavily, firecrawl, admin-http-rpc, llm-task**. Deciding factors worth remembering: every `defineSingleProviderPluginEntry` provider (openai, google, deepseek, cerebras, mistral, …) throws because that wrapper always calls `registerModelCatalogProvider`; there is **no `api.registerWebhookRoutes` method** (OpenClaw's `webhooks` extension uses a *local* helper of that name that calls `api.registerHttpRoute`). Full per-extension verdicts: `scratchpad/oc-final2.tsv` (regenerate by fetching each `extensions/<x>/index.ts` and matching `.register[A-Z]\w*(` against the implemented set).
+
+## Coverage-widening capabilities (the "3 wins", shipped 2026-07-10)
+
+1. **Broader HTTP-route loadability** (`api.ts`) — added `api.logger.{info,warn,error,debug,trace,log}` (→ `host.log`), made `registerHttpRoute` tolerate OpenClaw's **method-less** route shape (defaults `POST`; still requires `path`+`handler`), and added read-only **`api.pluginConfig`/`api.config`** (default `{}`, override via `createCompatApi(host, registry, { pluginConfig, config })`). Effect: config-reading route plugins (OpenClaw `webhooks`, which early-returns when it finds no routes) load instead of hitting a throwing proxy.
+2. **Search/fetch providers → agent tools** (`recordProvider`→`exposeProviderAsTool`) — a recorded `webSearch`/`webFetch` provider carrying a `createTool(ctx)` factory (Brave/Exa/Firecrawl shape) is **also** registered as a `tool()`-callable tool. The provider tool's `execute(args)` is adapted to the host's `(toolCallId, params)` signature. Best-effort (bad shape / dup name / throwing factory → logged + skipped). Unlocks brave, exa, searxng, perplexity, parallel, duckduckgo as tools (execution still needs the provider's keys/runtime).
+3. **Bundled-channel loading** (`plugin-sdk-shim.ts` `defineBundledChannelEntry` + `applyBundledChannelDescriptor`; `loader.ts` no longer rejects) — a `defineBundledChannelEntry(descriptor)` entry now **records the channel** and runs its **`registerFull(api)`** webhook-mode hook (mounting the channel's HTTP routes onto the Triggers ingress). The `plugin`/`runtime` **specifier modules (Socket-Mode / native runtime) are deliberately NOT loaded** — that stays warm-pod/Phase-later. `loader.ts` also has a raw-descriptor fallback (entry with `plugin.specifier` but no `register`). Builtin module shims resolve `openclaw/plugin-sdk/{plugin-entry,channel-entry-contract}` without npm egress.
+
+**Caveats:** provider tools and bundled channels *load*, but end-to-end execution still needs the plugin's own deps/keys (and, for real socket channels, a warm pod + the deferred runtime). Real `@openclaw/slack` etc. remain skipped (their `registerFull` touches `api.runtime.tasks` + native deps).
+
 ## Structural shim, fail-loud
 
-The api is a **Proxy** (`src/api.ts`): only `IMPLEMENTED_TOP_LEVEL` = `{registerTool,
-registerHttpRoute, registerChannel}` + `api.runtime.subagent.run` are real. **Everything else returns
-a `makeUnsupportedProxy` that throws `UnsupportedCompatError` on call/deep-access** — never a silent
-no-op, never an opaque `TypeError`. `registerChannel` and the four `register*Provider` methods are
+The api is a **Proxy** (`src/api.ts`): `IMPLEMENTED_TOP_LEVEL` = `{registerTool, registerHttpRoute,
+registerChannel, registerWebSearchProvider, registerProvider, registerEmbeddingProvider,
+registerWebFetchProvider, runtime, log, logVerbose, logger, pluginConfig, config}` (+
+`api.runtime.subagent.run`). **Everything else returns a `makeUnsupportedProxy` that throws
+`UnsupportedCompatError` on call/deep-access** — never a silent no-op, never an opaque `TypeError`. `registerChannel` and the four `register*Provider` methods are
 **record-only** (stored in `PluginRegistry`, not yet wired to any lmthing pipeline).
 
 - `registerTool` accepts both **object form** `registerTool({name, execute})` and **factory form**
@@ -122,7 +145,8 @@ turn and resumes when the host resolves the call against the loaded `PluginRegis
 | `sdk/org/libs/openclaw-compat/src/api.ts` | Proxy-backed api: `IMPLEMENTED_TOP_LEVEL`, `registerTool` (object+factory), `registerHttpRoute`, `registerChannel`, `runtime.subagent.run`, `makeUnsupportedProxy` |
 | `sdk/org/libs/openclaw-compat/src/types.ts` | `CompatHost`, `CompatHttpRequest/Response`, `RegisteredTool/HttpRoute/Channel/Provider`, `UnsupportedCompatError` |
 | `sdk/org/libs/openclaw-compat/src/registry.ts` | `PluginRegistry` (tools map, httpRoutes, channels, providers) |
-| `sdk/org/libs/openclaw-compat/src/plugin-sdk-shim.ts` | `definePluginEntry` identity shim |
+| `sdk/org/libs/openclaw-compat/src/plugin-sdk-shim.ts` | `definePluginEntry` identity shim + `defineBundledChannelEntry`/`applyBundledChannelDescriptor` (win #3) |
+| `sdk/org/libs/openclaw-compat/src/wins.test.ts` + `test/{bundled-channel,raw-bundled}/` | tests + fixtures for the 3 coverage wins |
 | `sdk/org/libs/openclaw-compat/COMPAT.md` | Full gap analysis + roadmap |
 | `sdk/org/libs/cli/src/server/openclaw-host.ts` | `createComputeCompatHost`, `loadOpenClawPlugins`, `deterministicUuidFromKey`, `parseOpenClawAgentEnv`, `OpenClawRouteTable` |
 | `sdk/org/libs/cli/src/server/serve.ts` | Boot-load `.openclaw-plugins/` + `setToolRegistry` + inbound handler wiring |

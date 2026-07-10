@@ -25,16 +25,12 @@ cloud/
 │       │   ├── compute.ts          # K8s API client — per-user namespaces, deployments, services, secrets
 │       │   ├── github-app.ts       # GitHub App client — installation tokens for workspace backup
 │       │   ├── github-issues.ts    # GitHub Issues client — PAT-based, files bug reports + uploads artifacts
-│       │   ├── connections-registry.ts # OAuth provider registry (google/slack/github; generic config)
-│       │   ├── crypto.ts           # AES-256-GCM encrypt/decrypt for OAuth tokens at rest
-│       │   └── oauth-client.ts     # generic OAuth2+PKCE client — authorize URL, code exchange, refresh (access tokens minted for the pod)
 │       └── routes/
 │           ├── auth.ts             # Register, login, OAuth, provision, me, refresh, SSO
 │           ├── billing.ts          # Checkout, portal, usage, checkout status
 │           ├── keys.ts             # List, create, revoke API keys
 │           ├── webhook.ts          # Stripe webhook — tier changes, compute pod lifecycle
 │           ├── compute.ts          # Pod status, env var get/set
-│           ├── connections.ts      # OAuth integrations broker + pod access-token mint (google/slack/github)
 │           └── issues.ts           # File a GitHub issue (bug report) in the org repo
 ├── migrations/                     # applied by Ansible cloud_secrets; also self-healed
 │   │                               # on gateway boot via db.ts ensureSchema()
@@ -44,7 +40,7 @@ cloud/
 │   ├── 004_sso_codes_user_id_text.sql # idempotent: alters user_id uuid→text if needed
 │   ├── 005_backup_config.sql          # backup_config table (GitHub workspace backup)
 │   ├── 006_user_cron_jobs.sql         # externalized cron for scale-to-zero pods
-│   └── 007_connections.sql            # connections table (OAuth integrations; tokens encrypted at rest)
+│   └── 007_connections.sql            # (dropped by 009_drop_connections.sql — BYO integrations)
 └── scripts/
     └── create-stripe-products.ts   # Idempotent Stripe product/price creation
 ```
@@ -107,32 +103,19 @@ The gateway issues its own **HS256 JWTs** (via `lib/tokens.ts`) signed with `GAT
 | `/api/compute/env` | GET | JWT | List user pod env vars — requires pro/max tier |
 | `/api/compute/env` | PUT | JWT | Set env vars + trigger pod restart — requires pro/max tier |
 
-### Connections (`/api/connections/*`) — user-connectable OAuth integrations
+### Integrations — bring-your-own-token (no gateway broker)
 
-Generic OAuth2 broker (Google / Slack / GitHub; registry is pure config in
-`lib/connections-registry.ts`). A user connects a provider once via OAuth; the
-gateway stays the sole custodian of the long-lived **refresh token** (never handed
-out). It **mints short-lived access tokens** for the user's pod on demand; the pod
-holds the access token briefly and makes the provider REST call **directly** (the
-raw request does not round-trip through the gateway — the pod host-pins the URL to
-the returned `apiBase`). Tokens are **encrypted at rest** (AES-256-GCM,
-`lib/crypto.ts`) and **refreshed under a row lock** (rotated refresh tokens are
-persisted). Generalizes the GitHub-backup pattern.
+lmthing does **not** broker third-party OAuth or store provider tokens. Users create their
+own app / API key for a provider and paste the token into their pod env via **Settings →
+Integrations** (`PUT /api/compute/env`). The pod's `callConnection(provider, req)` resolver
+(`sdk/org/libs/cli/src/server/connections.ts`) reads that token from `process.env` by a
+per-provider `tokenEnv` (`slack`→`SLACK_BOT_TOKEN`, `github`→`GITHUB_TOKEN`,
+`google`→`GOOGLE_ACCESS_TOKEN`), host-pins the request to the provider `apiBase`, and calls
+the provider **directly** — no gateway round-trip, no encrypted-token storage.
 
-| Route | Method | Auth | Purpose |
-|-------|--------|------|---------|
-| `/api/connections` | GET | JWT | List registry providers + per-user status `{id,label,configured,connected,status,scopes}` (never returns tokens) |
-| `/api/connections/:provider/connect` | GET | JWT | PKCE + signed state → returns `{url}` (the provider authorize URL) |
-| `/api/connections/callback` | GET | **public** | Provider redirect target — verifies signed state, exchanges code, stores encrypted tokens, injects `LMTHING_CONNECTIONS_JWT` into the pod's `user-env`, redirects back |
-| `/api/connections/:provider` | DELETE | JWT | Disconnect (`deleteConnection`) |
-| `/api/connections/:provider/token` | POST | **connections JWT** | Mint a short-lived access token for the pod — refreshes if expired or `{refresh:true}` (under lock), returns `{accessToken,apiBase,expiresAt}` |
-
-**Token-mint contract** (the pod caller must match): request body (optional)
-`{ refresh?: boolean }` (`true` forces a refresh after a provider 401); success
-response `{ accessToken: string, apiBase: string, expiresAt: number | null }`;
-auth header `Authorization: Bearer <LMTHING_CONNECTIONS_JWT>` (JWT `aud:"connections"`,
-`sub:<userId>`). The pod caches the access token until just before `expiresAt`,
-host-pins its own request path to `apiBase`, and calls the provider directly.
+There are **no `/api/connections/*` gateway routes** (removed 2026-07-10; the `connections`
+table is dropped by migration `009_drop_connections.sql`). Inbound webhook verification for a
+channel (e.g. Slack Events `SLACK_SIGNING_SECRET`) is likewise a pod-env secret.
 
 ### Issues (`/api/issues`)
 
@@ -153,10 +136,7 @@ host-pins its own request path to `apiBase`, and calls the provider directly.
 - **`litellm.ts`** — HTTP client for LiteLLM admin API (`http://litellm:4000`). Functions: `createUser`, `generateKey`, `updateUserTier`, `listKeys`, `deleteKey`, `getUserInfo`, `getKeyInfo`.
 - **`stripe.ts`** — Stripe client init from `STRIPE_SECRET_KEY`.
 - **`zitadel.ts`** — Zitadel v2 API client using a machine user Personal Access Token (`ZITADEL_SERVICE_PAT`). Functions: `createUser`, `getUserById`, `getUserByEmail`, `loginWithPassword`, `startIdpIntent`, `resolveIdpIntent`. GitHub IDP ID is auto-discovered from Zitadel on first call and cached (override with `ZITADEL_GITHUB_IDP_ID`).
-- **`db.ts`** — Postgres client (`postgres` package) for the `sso_codes` table. Functions: `insertSsoCode`, `findAndConsumeSsoCode`, and `ensureSchema()` — called on gateway startup (`index.ts`) to idempotently create the gateway's own tables (`profiles`, `sso_codes`), so a fresh or half-migrated DB self-heals without depending on the Ansible migration step. Keep it in sync with `migrations/*.sql`. Also owns the `backup_config`, `user_cron_jobs`, and `connections` tables + accessors — connections: `getConnection`, `listConnections`, `upsertConnection`, `deleteConnection`, and `getConnectionForUpdate` (runs a callback under a `SELECT … FOR UPDATE` row lock for refresh-under-lock).
-- **`connections-registry.ts`** — Provider registry for OAuth integrations. One `ProviderConfig` per provider (`{id,label,authorizeUrl,tokenUrl,apiBase,scopes,clientIdEnv,clientSecretEnv,refreshable,extraAuthParams}`). Ships `google` (Gmail+Calendar; `access_type=offline&prompt=consent`, refreshable), `slack` (`chat:write,channels:read,search:read`), `github` (`repo,read:user`). `isProviderConfigured(id)` reports whether the client id/secret env vars are set (graceful degradation, like `isGithubAppConfigured()`).
-- **`crypto.ts`** — AES-256-GCM `encrypt`/`decrypt` for OAuth tokens at rest, keyed by base64 `CONNECTIONS_ENC_KEY` (32 bytes). Stored form `iv:tag:ciphertext` (all base64). Throws a clear error if the key is unset/misshapen.
-- **`oauth-client.ts`** — Generic OAuth2 authorization_code + PKCE (S256) client. `buildAuthorizeUrl`, `exchangeCode`, `refreshToken` (returns rotated refresh token so the caller can persist it). The gateway mints short-lived access tokens for the pod (via `POST /:provider/token`); the pod makes the provider REST call itself (host-pinning lives pod-side now, in `libs/cli/src/server/connections.ts`). Handles Slack's differing token-response shape.
+- **`db.ts`** — Postgres client (`postgres` package) for the `sso_codes` table. Functions: `insertSsoCode`, `findAndConsumeSsoCode`, and `ensureSchema()` — called on gateway startup (`index.ts`) to idempotently create the gateway's own tables (`profiles`, `sso_codes`), so a fresh or half-migrated DB self-heals without depending on the Ansible migration step. Keep it in sync with `migrations/*.sql`. Also owns the `backup_config`, `user_cron_jobs`, and `webhook_bindings` tables + accessors.
 - **`compute.ts`** — K8s in-cluster API client. Creates per-user namespaces (`user-{userId}`), ACR pull secrets, deployments (image from `lmthingacr.azurecr.io/compute`, tier-sized via `pod`), services (port 8080), and `user-env` secrets. Into `user-env` it injects the `lmthingcloud` provider config (`litellmEnvDefaults`): `LMTHINGCLOUD_API_KEY` = the user's own LiteLLM key (carries their tier budget windows), `LMTHINGCLOUD_BASE_URL` = in-cluster LiteLLM `/v1`, and the size/role model aliases `LM_MODEL_{XS,S,M,L,M_R,L_R}` → `lmthingcloud:<model>` (XS/S=DeepSeek-V4-Flash, M/M_R=DeepSeek-V4-Pro, L=gpt-5.5, L_R=Kimi-K2.6). The merge preserves user-set vars but always refreshes the API key.
 
 ## Middleware
@@ -192,10 +172,6 @@ host-pins its own request path to `apiBase`, and calls the provider directly.
 | `GITHUB_ISSUES_TOKEN` | `lmthing-secrets` | GitHub PAT (`repo` scope, or fine-grained Issues:write + Contents:write) for filing bug-report issues; unset disables `/api/issues` (501) |
 | `GITHUB_ISSUES_REPO` | plain value (prod `lmthing/bug-reports`; code default `lmthing/org`) | Repo issues are filed in |
 | `GITHUB_BUGREPORT_REPO` | plain value, default = `GITHUB_ISSUES_REPO` | Repo trace/screenshot artifacts are committed to |
-| `CONNECTIONS_ENC_KEY` | `lmthing-secrets` | Base64-encoded 32-byte AES-256-GCM key encrypting OAuth connection tokens at rest; unset ⇒ connect/token-mint throw |
-| `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | `lmthing-secrets` (optional) | Google OAuth app creds; unset ⇒ provider reports `configured:false` |
-| `SLACK_OAUTH_CLIENT_ID` / `SLACK_OAUTH_CLIENT_SECRET` | `lmthing-secrets` (optional) | Slack OAuth app creds; unset ⇒ `configured:false` |
-| `GITHUB_OAUTH_CLIENT_ID` / `GITHUB_OAUTH_CLIENT_SECRET` | `lmthing-secrets` (optional) | GitHub OAuth app creds (distinct from the backup GitHub **App**); unset ⇒ `configured:false` |
 
 ## Tiers
 

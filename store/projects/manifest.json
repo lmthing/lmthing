@@ -1502,6 +1502,55 @@
   ],
   "spaces": [
     {
+      "id": "integration-demo",
+      "title": "Demo (Echo)",
+      "description": "A self-contained demo integration for trying the lmthing integration engine end-to-end against your own echo endpoint (e.g. webhook.site) — no real provider account needed.",
+      "icon": "🧪",
+      "tags": [
+        "integration",
+        "messaging",
+        "demo"
+      ],
+      "kind": "integration",
+      "settings": {
+        "type": "object",
+        "properties": {
+          "DEMO_BASE_URL": {
+            "type": "string",
+            "title": "Echo endpoint base URL (e.g. https://webhook.site/<your-id>)"
+          },
+          "DEMO_API_TOKEN": {
+            "type": "string",
+            "title": "API token (sent as a Bearer header)",
+            "format": "password"
+          },
+          "DEMO_WEBHOOK_SECRET": {
+            "type": "string",
+            "title": "Inbound signing secret (HMAC-SHA256)",
+            "format": "password"
+          }
+        },
+        "required": [
+          "DEMO_BASE_URL",
+          "DEMO_API_TOKEN",
+          "DEMO_WEBHOOK_SECRET"
+        ]
+      },
+      "files": [
+        "README.md",
+        "agents/demo/charter.md",
+        "agents/demo/instruct.md",
+        "agents/handler/charter.md",
+        "agents/handler/instruct.md",
+        "functions/demoGetHealth.ts",
+        "functions/demoSendMessage.ts",
+        "knowledge/demo/api/auth.md",
+        "knowledge/demo/api/endpoints.md",
+        "knowledge/demo/api/index.md",
+        "package.json"
+      ]
+    },
+    {
       "id": "integration-discord",
       "title": "Discord",
       "description": "Control a Discord bot from THING — post, edit, reply, and react in your server, and answer slash commands.",

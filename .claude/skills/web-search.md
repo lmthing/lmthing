@@ -38,7 +38,8 @@ Google is ever required, use a SERP API / residential proxy, not the render serv
 ## The render service (self-hosted headless Chromium)
 
 The compute pod's QuickJS sandbox has only `fetch` — no browser engine. To get a JS-rendered DOM,
-`webSearchBing` POSTs to an in-cluster **browserless/chromium** service:
+`webSearchBing` (and `webFetch`'s dynamic-page fallback, see the file map) POSTs to an in-cluster
+**browserless/chromium** service:
 
 ```
 POST ${RENDER_SERVICE_URL}/content?token=${RENDER_SERVICE_TOKEN}
@@ -67,7 +68,7 @@ The gateway injects `RENDER_SERVICE_URL` + `RENDER_SERVICE_TOKEN` into each pod'
 | File | Role |
 |---|---|
 | `sdk/org/libs/core/system-spaces/system-global/functions/webSearch.ts` | `webSearch` dispatch + `auto` chain; `webSearchTavily` / `webSearchBing` / `webSearchDuckDuckGo`; Bing markup parser (`<li class="b_algo">` → `<h2><a>` title, `ck/a?…&u=a1<base64url>` redirect decode, first-`<p>` snippet) + dependency-free `base64UrlDecode` (no atob/Buffer in the sandbox) |
-| `sdk/org/libs/core/system-spaces/system-global/functions/webFetch.ts` | Companion `webFetch(url)` — fetch a page, reduce HTML → text/markdown (regex `htmlToText`/`htmlToMarkdown`) |
+| `sdk/org/libs/core/system-spaces/system-global/functions/webFetch.ts` | Companion `webFetch(url)` — fetch a page, reduce HTML → text/markdown (regex `htmlToText`/`htmlToMarkdown`). `render` opt (`'auto'` default / `'force'` / `'off'`): in `auto`, when the plain fetch looks **dynamic** (thin readable text + an SPA-root/`<noscript>` shell — `looksDynamic`) or is bot-walled (403/429), it re-fetches through the **render service** (`renderViaService`, same `/content` endpoint as Bing) and keeps whichever yields more text; returns `rendered?: boolean`. No-op when `RENDER_SERVICE_URL` unset. |
 | `sdk/org/libs/core/src/spaces/system-functions.test.ts` | `webSearch`/`webFetch` unit tests (fetch stubbed via `injectGlobal`; Bing parse, ck/a decode, internal-link skip, auto-selection, auto→DDG fallback, unset-URL `ok:false`) |
 | `devops/argocd/core/render.yaml` | Render service Deployment (`ghcr.io/browserless/chromium:v2.38.1`, `/dev/shm` emptyDir, tcpSocket probes) + ClusterIP Service + NetworkPolicy |
 | `devops/argocd/core/kustomization.yaml` | Registers `render.yaml` with the `lmthing-core` ArgoCD app |

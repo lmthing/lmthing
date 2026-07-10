@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { authMiddleware } from "../middleware/auth.js";
 import { signInboundToken, verifyInboundToken } from "../lib/tokens.js";
 import { listWebhookBindings } from "../lib/db.js";
@@ -15,6 +16,14 @@ const inbound = new Hono<Env>();
 /** Our public inbound-webhook base URL, mirroring connections.ts's redirectUri(). */
 function baseUrl(): string {
   return (process.env.BASE_URL ?? "").replace(/\/+$/, "");
+}
+
+/** The full public URL an external provider posts to for one binding. Forwarded
+ *  to the pod as `x-lmthing-inbound-url` so a provider whose signature is
+ *  computed over the request URL (Twilio) can reconstruct the signing base
+ *  pod-side — the pod never sees the original gateway URL otherwise. */
+function inboundUrl(userToken: string, path: string): string {
+  return `${baseUrl()}/api/inbound/${userToken}/${path}`;
 }
 
 // Bounded wait for a woken pod before we fire the forward — modest, since we
@@ -83,6 +92,7 @@ inbound.post("/:userToken/:path", async (c) => {
 
   const body = await c.req.arrayBuffer();
   const headers = forwardHeaders(c.req.raw.headers);
+  headers.set("x-lmthing-inbound-url", inboundUrl(userToken, path));
 
   const podBase = await getPodInternalBaseUrl(userId);
   if (!podBase) {
@@ -100,6 +110,51 @@ inbound.post("/:userToken/:path", async (c) => {
   }
 
   return c.json({ ok: true, accepted: true }, 202);
+});
+
+// GET /:userToken/:path — a provider's SUBSCRIPTION-VERIFICATION handshake
+// (WhatsApp/Meta `?hub.mode=subscribe&hub.verify_token=…&hub.challenge=…`). Unlike
+// the POST broker, this must be answered SYNCHRONOUSLY with the pod's response
+// (the provider expects the challenge echoed back), so we await the forward and
+// relay the pod's status/body verbatim. The pod matches `hub.verify_token`
+// against the space's configured verify-token env and echoes `hub.challenge`.
+inbound.get("/:userToken/:path", async (c) => {
+  const userToken = c.req.param("userToken") ?? "";
+  const path = c.req.param("path") ?? "";
+
+  const verified = await verifyInboundToken(userToken);
+  if (!verified) {
+    return c.json({ error: "invalid token" }, 401);
+  }
+  const userId = verified.userId;
+
+  try {
+    const pod = await resolvePodConfig(userId);
+    await wakeUserPod(userId, pod);
+    await waitForPodReady(userId, INBOUND_WAKE_WAIT_MS);
+  } catch (err) {
+    console.error(`[inbound] wake failed for ${userId}:`, err);
+  }
+
+  const podBase = await getPodInternalBaseUrl(userId);
+  if (!podBase) {
+    return c.json({ error: "pod unavailable" }, 503);
+  }
+
+  const search = new URL(c.req.url).search; // preserve hub.* query params
+  try {
+    const r = await fetch(`${podBase}/api/inbound/${path}${search}`, {
+      method: "GET",
+      headers: { "x-lmthing-inbound-url": inboundUrl(userToken, path) },
+    });
+    const text = await r.text();
+    return c.body(text, r.status as ContentfulStatusCode, {
+      "content-type": r.headers.get("content-type") ?? "text/plain",
+    });
+  } catch (err) {
+    console.warn(`[inbound] challenge forward failed for ${userId}/${path}:`, err);
+    return c.json({ error: "forward failed" }, 502);
+  }
 });
 
 export default inbound;

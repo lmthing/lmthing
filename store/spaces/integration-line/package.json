@@ -1,0 +1,32 @@
+{
+  "name": "integration-line",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "integration",
+    "title": "LINE",
+    "tags": ["integration", "messaging"],
+    "icon": "💬",
+    "description": "Send LINE messages and reply to inbound LINE chats via THING.",
+    "settings": {
+      "type": "object",
+      "properties": {
+        "LINE_CHANNEL_ACCESS_TOKEN": { "type": "string", "title": "Channel access token", "format": "password" },
+        "LINE_CHANNEL_SECRET": { "type": "string", "title": "Channel secret", "format": "password" }
+      },
+      "required": ["LINE_CHANNEL_ACCESS_TOKEN", "LINE_CHANNEL_SECRET"]
+    },
+    "connection": {
+      "provider": "line",
+      "apiBase": "https://api.line.me",
+      "tokenEnv": "LINE_CHANNEL_ACCESS_TOKEN",
+      "auth": { "kind": "bearer" }
+    },
+    "webhook": {
+      "provider": "line",
+      "secretEnv": "LINE_CHANNEL_SECRET",
+      "verify": { "type": "hmac", "algo": "sha256", "encoding": "base64", "header": "x-line-signature" },
+      "thread": { "from": "body", "path": "events.0.source.userId", "prefix": "line" }
+    }
+  }
+}

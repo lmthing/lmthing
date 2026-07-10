@@ -1,0 +1,33 @@
+{
+  "name": "integration-mattermost",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "integration",
+    "title": "Mattermost",
+    "tags": ["integration", "messaging"],
+    "icon": "🟦",
+    "description": "Post to Mattermost and receive Mattermost messages via THING.",
+    "settings": {
+      "type": "object",
+      "properties": {
+        "MATTERMOST_BASE_URL": { "type": "string", "title": "Server URL" },
+        "MATTERMOST_TOKEN": { "type": "string", "title": "Bot / access token", "format": "password" },
+        "MATTERMOST_OUTGOING_TOKEN": { "type": "string", "title": "Outgoing webhook token", "format": "password" }
+      },
+      "required": ["MATTERMOST_BASE_URL", "MATTERMOST_TOKEN", "MATTERMOST_OUTGOING_TOKEN"]
+    },
+    "connection": {
+      "provider": "mattermost",
+      "apiBase": { "env": "MATTERMOST_BASE_URL", "suffix": "/api/v4" },
+      "tokenEnv": "MATTERMOST_TOKEN",
+      "auth": { "kind": "bearer" }
+    },
+    "webhook": {
+      "provider": "mattermost",
+      "secretEnv": "MATTERMOST_OUTGOING_TOKEN",
+      "verify": { "type": "body-token", "field": "token", "bodyType": "form" },
+      "thread": { "from": "form", "field": "channel_id", "prefix": "mattermost" }
+    }
+  }
+}

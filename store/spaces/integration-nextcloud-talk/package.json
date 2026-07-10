@@ -1,0 +1,38 @@
+{
+  "name": "integration-nextcloud-talk",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "integration",
+    "title": "Nextcloud Talk",
+    "tags": ["integration", "messaging"],
+    "icon": "☁️",
+    "description": "Send and receive Nextcloud Talk (Spreed) messages via THING using a Talk bot.",
+    "settings": {
+      "type": "object",
+      "properties": {
+        "NEXTCLOUD_BASE_URL": { "type": "string", "title": "Nextcloud URL" },
+        "NEXTCLOUD_TALK_BOT_SECRET": { "type": "string", "title": "Bot secret", "format": "password" }
+      },
+      "required": ["NEXTCLOUD_BASE_URL", "NEXTCLOUD_TALK_BOT_SECRET"]
+    },
+    "connection": {
+      "provider": "nextcloud",
+      "apiBase": { "env": "NEXTCLOUD_BASE_URL", "suffix": "/ocs/v2.php/apps/spreed/api/v1" },
+      "tokenEnv": "NEXTCLOUD_TALK_BOT_SECRET",
+      "auth": { "kind": "nextcloud-bot" }
+    },
+    "webhook": {
+      "provider": "nextcloud",
+      "secretEnv": "NEXTCLOUD_TALK_BOT_SECRET",
+      "verify": {
+        "type": "hmac",
+        "algo": "sha256",
+        "encoding": "hex",
+        "header": "x-nextcloud-talk-signature",
+        "signed": [{ "header": "x-nextcloud-talk-random" }, "body"]
+      },
+      "thread": { "from": "body", "path": "target.id", "prefix": "nextcloud" }
+    }
+  }
+}

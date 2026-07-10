@@ -1,0 +1,32 @@
+{
+  "name": "integration-telegram",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "integration",
+    "title": "Telegram",
+    "tags": ["integration", "messaging"],
+    "icon": "✈️",
+    "description": "Send Telegram messages and receive Telegram chats via THING.",
+    "settings": {
+      "type": "object",
+      "properties": {
+        "TELEGRAM_BOT_TOKEN": { "type": "string", "title": "Bot token", "format": "password" },
+        "TELEGRAM_WEBHOOK_SECRET": { "type": "string", "title": "Webhook secret token", "format": "password" }
+      },
+      "required": ["TELEGRAM_BOT_TOKEN", "TELEGRAM_WEBHOOK_SECRET"]
+    },
+    "connection": {
+      "provider": "telegram",
+      "apiBase": "https://api.telegram.org/bot{token}",
+      "tokenEnv": "TELEGRAM_BOT_TOKEN",
+      "auth": { "kind": "none" }
+    },
+    "webhook": {
+      "provider": "telegram",
+      "secretEnv": "TELEGRAM_WEBHOOK_SECRET",
+      "verify": { "type": "header-equals", "header": "x-telegram-bot-api-secret-token" },
+      "thread": { "from": "body", "path": "message.chat.id", "prefix": "telegram" }
+    }
+  }
+}

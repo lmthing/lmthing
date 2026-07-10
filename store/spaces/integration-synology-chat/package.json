@@ -1,0 +1,33 @@
+{
+  "name": "integration-synology-chat",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "integration",
+    "title": "Synology Chat",
+    "tags": ["integration", "messaging"],
+    "icon": "🗄️",
+    "description": "Send messages to Synology Chat and reply to Synology Chat messages via THING.",
+    "settings": {
+      "type": "object",
+      "properties": {
+        "SYNOLOGY_CHAT_BASE_URL": { "type": "string", "title": "NAS base URL" },
+        "SYNOLOGY_CHAT_TOKEN": { "type": "string", "title": "Incoming webhook token", "format": "password" },
+        "SYNOLOGY_CHAT_OUTGOING_TOKEN": { "type": "string", "title": "Outgoing webhook token", "format": "password" }
+      },
+      "required": ["SYNOLOGY_CHAT_BASE_URL", "SYNOLOGY_CHAT_TOKEN", "SYNOLOGY_CHAT_OUTGOING_TOKEN"]
+    },
+    "connection": {
+      "provider": "synology",
+      "apiBase": { "env": "SYNOLOGY_CHAT_BASE_URL" },
+      "tokenEnv": "SYNOLOGY_CHAT_TOKEN",
+      "auth": { "kind": "query-token", "param": "token" }
+    },
+    "webhook": {
+      "provider": "synology",
+      "secretEnv": "SYNOLOGY_CHAT_OUTGOING_TOKEN",
+      "verify": { "type": "body-token", "field": "token", "bodyType": "form" },
+      "thread": { "from": "form", "field": "user_id", "prefix": "synology" }
+    }
+  }
+}

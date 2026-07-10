@@ -1,0 +1,33 @@
+{
+  "name": "integration-sms",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "integration",
+    "title": "SMS",
+    "tags": ["integration", "messaging"],
+    "icon": "📱",
+    "description": "Send and receive text messages (SMS/MMS) through your own Twilio number via THING.",
+    "settings": {
+      "type": "object",
+      "properties": {
+        "TWILIO_ACCOUNT_SID": { "type": "string", "title": "Account SID", "format": "password" },
+        "TWILIO_AUTH_TOKEN": { "type": "string", "title": "Auth Token", "format": "password" },
+        "TWILIO_FROM_NUMBER": { "type": "string", "title": "Your Twilio number, E.164 e.g. +15551234567" }
+      },
+      "required": ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER"]
+    },
+    "connection": {
+      "provider": "sms",
+      "apiBase": "https://api.twilio.com/2010-04-01/Accounts/{env:TWILIO_ACCOUNT_SID}",
+      "tokenEnv": "TWILIO_AUTH_TOKEN",
+      "auth": { "kind": "basic", "userEnv": "TWILIO_ACCOUNT_SID" }
+    },
+    "webhook": {
+      "provider": "sms",
+      "secretEnv": "TWILIO_AUTH_TOKEN",
+      "verify": { "type": "twilio" },
+      "thread": { "from": "form", "field": "From", "prefix": "twilio" }
+    }
+  }
+}

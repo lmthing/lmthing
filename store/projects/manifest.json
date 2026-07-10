@@ -1502,6 +1502,60 @@
   ],
   "spaces": [
     {
+      "id": "integration-discord",
+      "title": "Discord",
+      "description": "Control a Discord bot from THING — post, edit, reply, and react in your server, and answer slash commands.",
+      "icon": "🎮",
+      "tags": [
+        "integration",
+        "messaging"
+      ],
+      "kind": "integration",
+      "settings": {
+        "type": "object",
+        "properties": {
+          "DISCORD_BOT_TOKEN": {
+            "type": "string",
+            "title": "Bot token",
+            "format": "password"
+          },
+          "DISCORD_PUBLIC_KEY": {
+            "type": "string",
+            "title": "Public key",
+            "format": "password"
+          },
+          "DISCORD_APPLICATION_ID": {
+            "type": "string",
+            "title": "Application ID",
+            "format": "password"
+          }
+        },
+        "required": [
+          "DISCORD_BOT_TOKEN",
+          "DISCORD_PUBLIC_KEY",
+          "DISCORD_APPLICATION_ID"
+        ]
+      },
+      "files": [
+        "README.md",
+        "agents/discord/charter.md",
+        "agents/discord/instruct.md",
+        "agents/handler/charter.md",
+        "agents/handler/instruct.md",
+        "functions/discordAddReaction.ts",
+        "functions/discordCreateMessage.ts",
+        "functions/discordDeleteMessage.ts",
+        "functions/discordEditMessage.ts",
+        "functions/discordListChannels.ts",
+        "functions/discordReplyMessage.ts",
+        "functions/discordRespondInteraction.ts",
+        "knowledge/discord/api/auth.md",
+        "knowledge/discord/api/endpoints.md",
+        "knowledge/discord/api/index.md",
+        "package.json"
+      ]
+    },
+    {
       "id": "integration-github",
       "title": "GitHub",
       "description": "Create issues, search code, and list PRs on GitHub.",
@@ -1578,6 +1632,148 @@
       ]
     },
     {
+      "id": "integration-line",
+      "title": "LINE",
+      "description": "Send LINE messages and reply to inbound LINE chats via THING.",
+      "icon": "💬",
+      "tags": [
+        "integration",
+        "messaging"
+      ],
+      "kind": "integration",
+      "settings": {
+        "type": "object",
+        "properties": {
+          "LINE_CHANNEL_ACCESS_TOKEN": {
+            "type": "string",
+            "title": "Channel access token",
+            "format": "password"
+          },
+          "LINE_CHANNEL_SECRET": {
+            "type": "string",
+            "title": "Channel secret",
+            "format": "password"
+          }
+        },
+        "required": [
+          "LINE_CHANNEL_ACCESS_TOKEN",
+          "LINE_CHANNEL_SECRET"
+        ]
+      },
+      "files": [
+        "README.md",
+        "agents/handler/charter.md",
+        "agents/handler/instruct.md",
+        "agents/line/charter.md",
+        "agents/line/instruct.md",
+        "functions/lineBroadcast.ts",
+        "functions/lineGetProfile.ts",
+        "functions/lineMulticast.ts",
+        "functions/linePush.ts",
+        "functions/lineReply.ts",
+        "knowledge/line/api/auth.md",
+        "knowledge/line/api/endpoints.md",
+        "knowledge/line/api/index.md",
+        "package.json"
+      ]
+    },
+    {
+      "id": "integration-mattermost",
+      "title": "Mattermost",
+      "description": "Post to Mattermost and receive Mattermost messages via THING.",
+      "icon": "🟦",
+      "tags": [
+        "integration",
+        "messaging"
+      ],
+      "kind": "integration",
+      "settings": {
+        "type": "object",
+        "properties": {
+          "MATTERMOST_BASE_URL": {
+            "type": "string",
+            "title": "Server URL"
+          },
+          "MATTERMOST_TOKEN": {
+            "type": "string",
+            "title": "Bot / access token",
+            "format": "password"
+          },
+          "MATTERMOST_OUTGOING_TOKEN": {
+            "type": "string",
+            "title": "Outgoing webhook token",
+            "format": "password"
+          }
+        },
+        "required": [
+          "MATTERMOST_BASE_URL",
+          "MATTERMOST_TOKEN",
+          "MATTERMOST_OUTGOING_TOKEN"
+        ]
+      },
+      "files": [
+        "README.md",
+        "agents/handler/charter.md",
+        "agents/handler/instruct.md",
+        "agents/mattermost/charter.md",
+        "agents/mattermost/instruct.md",
+        "functions/mattermostAddReaction.ts",
+        "functions/mattermostGetMe.ts",
+        "functions/mattermostGetUser.ts",
+        "functions/mattermostListChannels.ts",
+        "functions/mattermostListTeams.ts",
+        "functions/mattermostPostMessage.ts",
+        "knowledge/mattermost/api/auth.md",
+        "knowledge/mattermost/api/endpoints.md",
+        "knowledge/mattermost/api/index.md",
+        "package.json"
+      ]
+    },
+    {
+      "id": "integration-nextcloud-talk",
+      "title": "Nextcloud Talk",
+      "description": "Send and receive Nextcloud Talk (Spreed) messages via THING using a Talk bot.",
+      "icon": "☁️",
+      "tags": [
+        "integration",
+        "messaging"
+      ],
+      "kind": "integration",
+      "settings": {
+        "type": "object",
+        "properties": {
+          "NEXTCLOUD_BASE_URL": {
+            "type": "string",
+            "title": "Nextcloud URL"
+          },
+          "NEXTCLOUD_TALK_BOT_SECRET": {
+            "type": "string",
+            "title": "Bot secret",
+            "format": "password"
+          }
+        },
+        "required": [
+          "NEXTCLOUD_BASE_URL",
+          "NEXTCLOUD_TALK_BOT_SECRET"
+        ]
+      },
+      "files": [
+        "README.md",
+        "agents/handler/charter.md",
+        "agents/handler/instruct.md",
+        "agents/nextcloud/charter.md",
+        "agents/nextcloud/instruct.md",
+        "functions/nextcloudAddReaction.ts",
+        "functions/nextcloudRemoveReaction.ts",
+        "functions/nextcloudReplyMessage.ts",
+        "functions/nextcloudSendMessage.ts",
+        "knowledge/nextcloud/api/auth.md",
+        "knowledge/nextcloud/api/endpoints.md",
+        "knowledge/nextcloud/api/index.md",
+        "package.json"
+      ]
+    },
+    {
       "id": "integration-slack",
       "title": "Slack",
       "description": "Post to Slack and receive Slack messages via THING.",
@@ -1620,6 +1816,210 @@
         "knowledge/slack/api/index.md",
         "package.json",
         "slack-app-manifest.yaml"
+      ]
+    },
+    {
+      "id": "integration-sms",
+      "title": "SMS",
+      "description": "Send and receive text messages (SMS/MMS) through your own Twilio number via THING.",
+      "icon": "📱",
+      "tags": [
+        "integration",
+        "messaging"
+      ],
+      "kind": "integration",
+      "settings": {
+        "type": "object",
+        "properties": {
+          "TWILIO_ACCOUNT_SID": {
+            "type": "string",
+            "title": "Account SID",
+            "format": "password"
+          },
+          "TWILIO_AUTH_TOKEN": {
+            "type": "string",
+            "title": "Auth Token",
+            "format": "password"
+          },
+          "TWILIO_FROM_NUMBER": {
+            "type": "string",
+            "title": "Your Twilio number, E.164 e.g. +15551234567"
+          }
+        },
+        "required": [
+          "TWILIO_ACCOUNT_SID",
+          "TWILIO_AUTH_TOKEN",
+          "TWILIO_FROM_NUMBER"
+        ]
+      },
+      "files": [
+        "README.md",
+        "agents/handler/charter.md",
+        "agents/handler/instruct.md",
+        "agents/sms/charter.md",
+        "agents/sms/instruct.md",
+        "functions/smsListMessages.ts",
+        "functions/smsSend.ts",
+        "functions/smsSendMms.ts",
+        "knowledge/sms/api/auth.md",
+        "knowledge/sms/api/endpoints.md",
+        "knowledge/sms/api/index.md",
+        "package.json"
+      ]
+    },
+    {
+      "id": "integration-synology-chat",
+      "title": "Synology Chat",
+      "description": "Send messages to Synology Chat and reply to Synology Chat messages via THING.",
+      "icon": "🗄️",
+      "tags": [
+        "integration",
+        "messaging"
+      ],
+      "kind": "integration",
+      "settings": {
+        "type": "object",
+        "properties": {
+          "SYNOLOGY_CHAT_BASE_URL": {
+            "type": "string",
+            "title": "NAS base URL"
+          },
+          "SYNOLOGY_CHAT_TOKEN": {
+            "type": "string",
+            "title": "Incoming webhook token",
+            "format": "password"
+          },
+          "SYNOLOGY_CHAT_OUTGOING_TOKEN": {
+            "type": "string",
+            "title": "Outgoing webhook token",
+            "format": "password"
+          }
+        },
+        "required": [
+          "SYNOLOGY_CHAT_BASE_URL",
+          "SYNOLOGY_CHAT_TOKEN",
+          "SYNOLOGY_CHAT_OUTGOING_TOKEN"
+        ]
+      },
+      "files": [
+        "README.md",
+        "agents/handler/charter.md",
+        "agents/handler/instruct.md",
+        "agents/synology/charter.md",
+        "agents/synology/instruct.md",
+        "functions/synologySendFile.ts",
+        "functions/synologySendMessage.ts",
+        "functions/synologySendToUser.ts",
+        "knowledge/synology/api/auth.md",
+        "knowledge/synology/api/endpoints.md",
+        "knowledge/synology/api/index.md",
+        "package.json"
+      ]
+    },
+    {
+      "id": "integration-telegram",
+      "title": "Telegram",
+      "description": "Send Telegram messages and receive Telegram chats via THING.",
+      "icon": "✈️",
+      "tags": [
+        "integration",
+        "messaging"
+      ],
+      "kind": "integration",
+      "settings": {
+        "type": "object",
+        "properties": {
+          "TELEGRAM_BOT_TOKEN": {
+            "type": "string",
+            "title": "Bot token",
+            "format": "password"
+          },
+          "TELEGRAM_WEBHOOK_SECRET": {
+            "type": "string",
+            "title": "Webhook secret token",
+            "format": "password"
+          }
+        },
+        "required": [
+          "TELEGRAM_BOT_TOKEN",
+          "TELEGRAM_WEBHOOK_SECRET"
+        ]
+      },
+      "files": [
+        "README.md",
+        "agents/handler/charter.md",
+        "agents/handler/instruct.md",
+        "agents/telegram/charter.md",
+        "agents/telegram/instruct.md",
+        "functions/telegramDeleteMessage.ts",
+        "functions/telegramEditMessageText.ts",
+        "functions/telegramGetMe.ts",
+        "functions/telegramSendChatAction.ts",
+        "functions/telegramSendDocument.ts",
+        "functions/telegramSendMessage.ts",
+        "functions/telegramSendPhoto.ts",
+        "knowledge/telegram/api/auth.md",
+        "knowledge/telegram/api/endpoints.md",
+        "knowledge/telegram/api/index.md",
+        "package.json"
+      ]
+    },
+    {
+      "id": "integration-whatsapp",
+      "title": "WhatsApp",
+      "description": "Send WhatsApp messages and reply to incoming WhatsApp chats via THING (Meta Cloud API).",
+      "icon": "🟢",
+      "tags": [
+        "integration",
+        "messaging"
+      ],
+      "kind": "integration",
+      "settings": {
+        "type": "object",
+        "properties": {
+          "WHATSAPP_TOKEN": {
+            "type": "string",
+            "title": "Access token",
+            "format": "password"
+          },
+          "WHATSAPP_PHONE_ID": {
+            "type": "string",
+            "title": "Phone number ID",
+            "format": "password"
+          },
+          "WHATSAPP_APP_SECRET": {
+            "type": "string",
+            "title": "App secret",
+            "format": "password"
+          },
+          "WHATSAPP_VERIFY_TOKEN": {
+            "type": "string",
+            "title": "Webhook verify token",
+            "format": "password"
+          }
+        },
+        "required": [
+          "WHATSAPP_TOKEN",
+          "WHATSAPP_PHONE_ID",
+          "WHATSAPP_APP_SECRET",
+          "WHATSAPP_VERIFY_TOKEN"
+        ]
+      },
+      "files": [
+        "README.md",
+        "agents/handler/charter.md",
+        "agents/handler/instruct.md",
+        "agents/whatsapp/charter.md",
+        "agents/whatsapp/instruct.md",
+        "functions/whatsappMarkRead.ts",
+        "functions/whatsappReplyText.ts",
+        "functions/whatsappSendImage.ts",
+        "functions/whatsappSendTemplate.ts",
+        "functions/whatsappSendText.ts",
+        "knowledge/whatsapp/api/auth.md",
+        "knowledge/whatsapp/api/endpoints.md",
+        "knowledge/whatsapp/api/index.md",
+        "package.json"
       ]
     }
   ]

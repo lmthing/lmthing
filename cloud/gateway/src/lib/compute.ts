@@ -252,7 +252,8 @@ function deployment(userId: string, pod: PodConfig = DEFAULT_POD_CONFIG) {
               // that. Generous timeout/threshold so a slow cold boot isn't failed.
               startupProbe: {
                 httpGet: { path: "/api/sessions", port: 8080 },
-                initialDelaySeconds: 1,
+                initialDelaySeconds: 0, // probe immediately — a warm-cached image
+                // + burst CPU can listen sub-second; don't make the probe the floor.
                 periodSeconds: 1, // poll every 1s so a booted pod is routable ~1s sooner
                 timeoutSeconds: 5,
                 failureThreshold: 120, // up to ~120s to boot before giving up
@@ -729,7 +730,7 @@ export async function ensureUserPod(
                   readinessProbe: null,
                   startupProbe: {
                     httpGet: { path: "/api/sessions", port: 8080 },
-                    initialDelaySeconds: 1,
+                    initialDelaySeconds: 0,
                     periodSeconds: 1,
                     timeoutSeconds: 5,
                     failureThreshold: 120,
@@ -743,23 +744,41 @@ export async function ensureUserPod(
       "application/strategic-merge-patch+json",
     );
 
-    // Ensure LiteLLM + compute env are present (idempotent merges).
-    try {
-      const litellmKey = await getLiteLLMKey(userId);
-      await injectLiteLLMEnv(userId, litellmKey);
-    } catch (err) {
-      console.warn(`Could not inject LiteLLM env for ${userId}: ${err}`);
-    }
-    try {
-      await injectComputeEnv(userId);
-    } catch (err) {
-      console.warn(`Could not inject compute env for ${userId}: ${err}`);
-    }
-
+    // Scale FIRST so the kubelet starts pulling/creating the pod in parallel with
+    // the (idempotent, non-rolling) env work below — the env injectors don't roll
+    // a running pod on steady state, and a freshly-scaled pod reads its env from
+    // the user-env secret (envFrom) at container start, seeded by a prior ensure.
     const currentReplicas = dep.spec?.replicas ?? 0;
     if (currentReplicas === 0) {
       await scaleUserPod(userId, 1);
       console.log(`Woke up scaled-to-zero pod for user ${userId}`);
+    }
+
+    // Ensure LiteLLM + compute env are present (idempotent merges). On a steady-
+    // state wake all creds already live in user-env from a prior ensure, so skip
+    // the LiteLLM round-trips + extra k8s GETs entirely — they no-op but cost real
+    // gateway↔LiteLLM latency on the blocking /ensure the SPA awaits.
+    let envComplete = false;
+    try {
+      const env = await getEnvVars(userId);
+      envComplete = Boolean(
+        env.LMTHINGCLOUD_API_KEY && env.LMTHING_COMPUTE_JWT && env.LMTHING_SELF_IDLE,
+      );
+    } catch {
+      /* couldn't read env — fall through to the full (idempotent) inject path */
+    }
+    if (!envComplete) {
+      try {
+        const litellmKey = await getLiteLLMKey(userId);
+        await injectLiteLLMEnv(userId, litellmKey);
+      } catch (err) {
+        console.warn(`Could not inject LiteLLM env for ${userId}: ${err}`);
+      }
+      try {
+        await injectComputeEnv(userId);
+      } catch (err) {
+        console.warn(`Could not inject compute env for ${userId}: ${err}`);
+      }
     }
   }
 
@@ -821,6 +840,35 @@ export async function wakeUserPod(userId: string, pod: PodConfig): Promise<void>
   } catch (err) {
     console.warn(`Could not annotate last-active for ${userId}: ${err}`);
   }
+}
+
+// Short cache of "pod is serving" so the lmthing.app wake-wait (B1) — which Envoy
+// may call on every document navigation — costs ~0 k8s reads / LiteLLM round-trips
+// on a warm pod. TTL is deliberately short so a pod that scaled to zero in between
+// is re-checked promptly.
+const READY_CACHE_TTL_MS = 5_000;
+const readyCache = new Map<string, number>(); // userId → epoch-ms last seen ready
+
+/**
+ * Wake the user's pod and BLOCK until it's serving (bounded by `timeoutMs`).
+ * Returns true if the pod became ready. Backs `POST /api/compute/wake-wait`, which
+ * lets a lmthing.app document navigation hold at the edge and render the real page
+ * directly instead of bouncing through the reload-loop waking screen. A warm pod
+ * short-circuits via the ready cache — no wake, no k8s poll, no tier lookup — so
+ * repeated doc navs stay cheap. Tier/pod config is resolved lazily only on a miss.
+ */
+export async function wakeAndWaitUserPod(
+  userId: string,
+  timeoutMs: number,
+): Promise<boolean> {
+  const cached = readyCache.get(userId);
+  if (cached && Date.now() - cached < READY_CACHE_TTL_MS) return true;
+  const pod = await resolvePodConfig(userId);
+  await wakeUserPod(userId, pod);
+  const ready = await waitForPodReady(userId, timeoutMs);
+  if (ready) readyCache.set(userId, Date.now());
+  else readyCache.delete(userId);
+  return ready;
 }
 
 /**

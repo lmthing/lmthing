@@ -6,6 +6,7 @@ import {
   setEnvVars,
   ensureUserPod,
   wakeUserPod,
+  wakeAndWaitUserPod,
   restartUserPod,
   reportPodActivity,
   COMPUTE_IMAGE_TAG,
@@ -264,6 +265,25 @@ compute.post("/wake", authMiddleware, async (c) => {
   } catch (err) {
     console.error(`[activator] wake failed for ${user.id}:`, err);
     return c.json({ error: "wake failed" }, 500);
+  }
+});
+
+// POST /wake-wait — like /wake but BLOCKS until the pod is serving (bounded).
+// Backs the lmthing.app zero-reload wake: Envoy issues a synchronous httpCall to
+// this on a cold document navigation, then lets the original request through to
+// the now-ready pod — no waking-screen reload loop. Returns 200 when ready, 202
+// if it didn't come up within the bound (Envoy then falls back to the waking
+// HTML). A warm pod short-circuits via the ready cache (no k8s / LiteLLM cost).
+compute.post("/wake-wait", authMiddleware, async (c) => {
+  const user = c.get("user");
+  try {
+    // 8s bound: under both the ~9s Envoy httpCall timeout and the ~15s ingress
+    // timeout, so this route always returns before either fires.
+    const ready = await wakeAndWaitUserPod(user.id, 8000);
+    return c.json({ ok: true, ready }, ready ? 200 : 202);
+  } catch (err) {
+    console.error(`[wake-wait] failed for ${user.id}:`, err);
+    return c.json({ error: "wake-wait failed" }, 500);
   }
 });
 

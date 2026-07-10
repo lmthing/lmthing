@@ -80,9 +80,29 @@ spec:
           if token == nil then
             token = string.match(request_handle:headers():get(":path"), "[?&]access_token=([^&]+)")
           end
+          local is_doc = request_handle:headers():get("sec-fetch-dest") == "document"
           local rmd = request_handle:streamInfo():dynamicMetadata()
           if token ~= nil then rmd:set("activator", "token", token) end
-          rmd:set("activator", "doc", request_handle:headers():get("sec-fetch-dest") == "document")
+          rmd:set("activator", "doc", is_doc)
+
+          -- Zero-reload cold wake for document navigations: SYNCHRONOUSLY wake the
+          -- pod and hold this request at the edge until it's serving, then let it
+          -- route through to the ready pod — no 503 → waking-HTML reload loop, the
+          -- page renders directly. A warm pod returns ~instantly (gateway ready-
+          -- cache; no k8s/LiteLLM cost). Best-effort: on timeout/not-ready the
+          -- request just proceeds, 503s, and the response-phase activator serves
+          -- the waking screen exactly as before. 5th arg false = synchronous.
+          if is_doc and token ~= nil then
+            request_handle:httpCall(
+              "gateway-activator",
+              {
+                [":method"] = "POST",
+                [":path"] = "/api/compute/wake-wait",
+                [":authority"] = "gateway",
+                ["authorization"] = "Bearer " .. token,
+              },
+              "", 9000, false)
+          end
         end
 
         -- The user's pod is scaled to zero (Envoy has no Service endpoint → a
@@ -119,7 +139,7 @@ spec:
             -- orbiting orbs + a pulsing core + rotating playful status lines. No design
             -- tokens available here (this HTML ships to a not-yet-woken pod's origin),
             -- so colors are literal; keep the vibe in sync with the React component.
-            local html = [[<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Waking your workspace…</title><style>html{color-scheme:light dark}body{margin:0;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:system-ui,-apple-system,sans-serif;gap:2rem}.o{position:relative;width:128px;height:128px;animation:spin 2.4s linear infinite}.c{position:absolute;top:50%;left:50%;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;background:#6366f1;box-shadow:0 0 24px 4px #6366f1;animation:pulse 1.8s ease-in-out infinite}.d{position:absolute;top:50%;left:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%}.d1{background:#22d3ee;transform:rotate(0deg) translateX(56px)}.d2{background:#f472b6;transform:rotate(120deg) translateX(56px)}.d3{background:#fbbf24;transform:rotate(240deg) translateX(56px)}.t{text-align:center;display:flex;flex-direction:column;gap:.4rem}h1{margin:0;font-size:1.05rem;font-weight:600}p{margin:0;opacity:.65;font-size:.9rem;animation:fade .5s ease}.bar{position:relative;width:200px;height:4px;border-radius:999px;overflow:hidden;background:rgba(128,128,128,.25)}.bar i{position:absolute;top:0;left:0;height:100%;width:25%;border-radius:999px;background:#6366f1;animation:slide 1.6s ease-in-out infinite}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.28);opacity:.45}}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:.65;transform:none}}@keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}@media(prefers-reduced-motion:reduce){.o,.c,.bar i{animation:none}}</style><div class=o><div class=c></div><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span></div><div class=t><h1>Waking your workspace</h1><p id=m>Booting your app…</p></div><div class=bar><i></i></div><script>var t=Date.now(),d={n:0,t:0};try{d=JSON.parse(sessionStorage.lm_wake)}catch(e){}if(t-d.t>30000){d.n=0}d.n++;d.t=t;sessionStorage.lm_wake=JSON.stringify(d);var m=document.getElementById('m');if(d.n>15){sessionStorage.lm_wake='';m.textContent='Still waking — tap to retry';document.body.style.cursor='pointer';document.body.onclick=function(){location.reload()}}else{var M=['Booting your app…','Warming up the sandbox…','Summoning THING…','Loading your spaces…','Spinning up QuickJS…','Teaching electrons to think…','Brewing fresh tokens…','Reticulating splines…','Feeding the hamsters…','Almost there…'],i=0;setInterval(function(){i=(i+1)%M.length;m.textContent=M[i]},2400);setTimeout(function(){location.reload()},1500)}</script>]]
+            local html = [[<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Waking your workspace…</title><style>html{color-scheme:light dark}body{margin:0;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:system-ui,-apple-system,sans-serif;gap:2rem}.o{position:relative;width:128px;height:128px;animation:spin 2.4s linear infinite}.c{position:absolute;top:50%;left:50%;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;background:#6366f1;box-shadow:0 0 24px 4px #6366f1;animation:pulse 1.8s ease-in-out infinite}.d{position:absolute;top:50%;left:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%}.d1{background:#22d3ee;transform:rotate(0deg) translateX(56px)}.d2{background:#f472b6;transform:rotate(120deg) translateX(56px)}.d3{background:#fbbf24;transform:rotate(240deg) translateX(56px)}.t{text-align:center;display:flex;flex-direction:column;gap:.4rem}h1{margin:0;font-size:1.05rem;font-weight:600}p{margin:0;opacity:.65;font-size:.9rem;animation:fade .5s ease}.bar{position:relative;width:200px;height:4px;border-radius:999px;overflow:hidden;background:rgba(128,128,128,.25)}.bar i{position:absolute;top:0;left:0;height:100%;width:25%;border-radius:999px;background:#6366f1;animation:slide 1.6s ease-in-out infinite}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.28);opacity:.45}}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:.65;transform:none}}@keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}@media(prefers-reduced-motion:reduce){.o,.c,.bar i{animation:none}}</style><div class=o><div class=c></div><span class="d d1"></span><span class="d d2"></span><span class="d d3"></span></div><div class=t><h1>Waking your workspace</h1><p id=m>Booting your app…</p></div><div class=bar><i></i></div><script>var t=Date.now(),d={n:0,t:0};try{d=JSON.parse(sessionStorage.lm_wake)}catch(e){}if(t-d.t>30000){d.n=0}d.n++;d.t=t;sessionStorage.lm_wake=JSON.stringify(d);var m=document.getElementById('m');if(d.n>28){sessionStorage.lm_wake='';m.textContent='Still waking — tap to retry';document.body.style.cursor='pointer';document.body.onclick=function(){location.reload()}}else{var M=['Booting your app…','Warming up the sandbox…','Summoning THING…','Loading your spaces…','Spinning up QuickJS…','Teaching electrons to think…','Brewing fresh tokens…','Reticulating splines…','Feeding the hamsters…','Almost there…'],i=0;setInterval(function(){i=(i+1)%M.length;m.textContent=M[i]},2400);setTimeout(function(){location.reload()},900)}</script>]]
             response_handle:headers():replace("content-type", "text/html; charset=utf-8")
             response_handle:body(true):setBytes(html)
           else

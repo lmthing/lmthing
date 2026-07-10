@@ -102,8 +102,12 @@ export const TIERS: Record<string, Tier> = {
     // Burstable: the scheduler packs by the small requests (memRequest is the
     // binding constraint at ~110 pods/node), while the limits cap a busy pod. The
     // in-pod memory watchdog sheds idle sessions before the limit OOMKills.
+    // CPU limit is intentionally HIGH (1500m) while the request stays tiny (50m):
+    // cold-boot is single-threaded-Node CPU-bound, so letting a waking pod burst
+    // into the node's idle cores cuts wake time ~linearly. QoS stays Burstable and
+    // packing density is unchanged (governed by the 50m request), so this is free.
     pod: {
-      cpu: "250m",
+      cpu: "1500m",
       mem: "512Mi",
       cpuRequest: "50m",
       memRequest: "256Mi",

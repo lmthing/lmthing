@@ -180,6 +180,18 @@ COPY --from=builder /build/libs/core/package.json ./libs/core/package.json
 COPY --from=builder /build/libs/cli/package.json  ./libs/cli/package.json
 COPY --from=builder /build/libs/ui/package.json   ./libs/ui/package.json
 
+# V8 compile cache (Node ≥ 22): the first boot compiles the entire tsup bundle +
+# node_modules; caching the bytecode turns every subsequent cold wake's parse/
+# compile into a fast deserialize. The cache key is file path + content + V8
+# version — all identical inside one image — so BAKE it at build time with a
+# throwaway warm-up boot. cwd=/tmp/warm so the throwaway .lmthing materialization
+# doesn't pollute /app (and /data is PVC-shadowed at runtime anyway). Best-effort:
+# a runtime cache miss just recompiles normally, so `|| true` keeps the build green.
+ENV NODE_COMPILE_CACHE=/app/.node-compile-cache
+RUN mkdir -p /app/.node-compile-cache /tmp/warm && cd /tmp/warm \
+ && (timeout 25s node /app/libs/cli/dist/cli/bin.js serve --port 18080 || true) \
+ && rm -rf /tmp/warm
+
 # Runtime root.
 # The server runs with its cwd set to /data so `lmthingRoot` resolves to
 # /data/.lmthing — the single source of truth for projects, spaces, and

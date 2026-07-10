@@ -1,0 +1,20 @@
+{
+  "name": "integration-slack",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "integration",
+    "title": "Slack",
+    "tags": ["integration"],
+    "icon": "🔌",
+    "description": "Post to Slack and receive Slack messages via THING.",
+    "settings": {
+      "type": "object",
+      "properties": {
+        "SLACK_BOT_TOKEN": { "type": "string", "title": "Bot token", "format": "password" },
+        "SLACK_SIGNING_SECRET": { "type": "string", "title": "Signing secret", "format": "password" }
+      },
+      "required": ["SLACK_BOT_TOKEN", "SLACK_SIGNING_SECRET"]
+    }
+  }
+}

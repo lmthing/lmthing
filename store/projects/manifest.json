@@ -1499,5 +1499,125 @@
         "tsconfig.json"
       ]
     }
+  ],
+  "spaces": [
+    {
+      "id": "integration-github",
+      "title": "GitHub",
+      "description": "Create issues, search code, and list PRs on GitHub.",
+      "icon": "🐙",
+      "tags": [
+        "integration"
+      ],
+      "kind": "integration",
+      "settings": {
+        "type": "object",
+        "properties": {
+          "GITHUB_TOKEN": {
+            "type": "string",
+            "title": "Personal access token",
+            "format": "password"
+          },
+          "GITHUB_WEBHOOK_SECRET": {
+            "type": "string",
+            "title": "Webhook secret",
+            "format": "password"
+          }
+        },
+        "required": [
+          "GITHUB_TOKEN"
+        ]
+      },
+      "files": [
+        "agents/github/charter.md",
+        "agents/github/instruct.md",
+        "functions/githubCreateIssue.ts",
+        "functions/githubListPullRequests.ts",
+        "functions/githubSearchCode.ts",
+        "knowledge/github/api/auth.md",
+        "knowledge/github/api/endpoints.md",
+        "knowledge/github/api/index.md",
+        "package.json"
+      ]
+    },
+    {
+      "id": "integration-google",
+      "title": "Google",
+      "description": "Google Calendar and Gmail via your own access token.",
+      "icon": "📅",
+      "tags": [
+        "integration"
+      ],
+      "kind": "integration",
+      "settings": {
+        "type": "object",
+        "properties": {
+          "GOOGLE_ACCESS_TOKEN": {
+            "type": "string",
+            "title": "Access token",
+            "format": "password"
+          }
+        },
+        "required": [
+          "GOOGLE_ACCESS_TOKEN"
+        ]
+      },
+      "files": [
+        "agents/google/charter.md",
+        "agents/google/instruct.md",
+        "functions/calendarCreateEvent.ts",
+        "functions/calendarListEvents.ts",
+        "functions/gmailListMessages.ts",
+        "functions/gmailSend.ts",
+        "knowledge/google/api/auth.md",
+        "knowledge/google/api/endpoints.md",
+        "knowledge/google/api/index.md",
+        "package.json"
+      ]
+    },
+    {
+      "id": "integration-slack",
+      "title": "Slack",
+      "description": "Post to Slack and receive Slack messages via THING.",
+      "icon": "🔌",
+      "tags": [
+        "integration"
+      ],
+      "kind": "integration",
+      "settings": {
+        "type": "object",
+        "properties": {
+          "SLACK_BOT_TOKEN": {
+            "type": "string",
+            "title": "Bot token",
+            "format": "password"
+          },
+          "SLACK_SIGNING_SECRET": {
+            "type": "string",
+            "title": "Signing secret",
+            "format": "password"
+          }
+        },
+        "required": [
+          "SLACK_BOT_TOKEN",
+          "SLACK_SIGNING_SECRET"
+        ]
+      },
+      "files": [
+        "SLACK_APP_SETUP.md",
+        "agents/handler/charter.md",
+        "agents/handler/instruct.md",
+        "agents/slack/charter.md",
+        "agents/slack/instruct.md",
+        "functions/slackListChannels.ts",
+        "functions/slackPostMessage.ts",
+        "functions/slackSearchMessages.ts",
+        "knowledge/slack/api/auth.md",
+        "knowledge/slack/api/endpoints.md",
+        "knowledge/slack/api/index.md",
+        "package.json",
+        "slack-app-manifest.yaml"
+      ]
+    }
   ]
 }

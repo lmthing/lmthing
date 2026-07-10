@@ -1,0 +1,20 @@
+{
+  "name": "integration-github",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "integration",
+    "title": "GitHub",
+    "tags": ["integration"],
+    "icon": "🐙",
+    "description": "Create issues, search code, and list PRs on GitHub.",
+    "settings": {
+      "type": "object",
+      "properties": {
+        "GITHUB_TOKEN": { "type": "string", "title": "Personal access token", "format": "password" },
+        "GITHUB_WEBHOOK_SECRET": { "type": "string", "title": "Webhook secret", "format": "password" }
+      },
+      "required": ["GITHUB_TOKEN"]
+    }
+  }
+}

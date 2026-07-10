@@ -26,11 +26,32 @@ export interface CatalogApp {
   hooks: string[]
 }
 
-export interface AppsManifest {
-  apps: CatalogApp[]
+/** One `store/spaces/<id>/` catalog entry — a standalone/installable space (e.g. `integration-*`). */
+export interface CatalogSpace {
+  /** Directory name under `store/spaces/`. */
+  id: string
+  /** `lmthing.title` from `package.json`, or a humanized fallback of `id`. */
+  title: string
+  /** `lmthing.description` from `package.json`, or `pkg.description`, or `''`. */
+  description: string
+  /** Free-form catalog icon (emoji or short glyph) from `lmthing.icon`; `null` when unset. */
+  icon: string | null
+  /** `lmthing.tags` from `package.json` (e.g. `['integration']`); `[]` when unset. */
+  tags: string[]
+  /** `lmthing.kind` from `package.json` (e.g. `'integration'`); `null` when unset. */
+  kind: string | null
+  /** `lmthing.settings` — a JSON Schema describing the space's configurable env vars; `null` when unset. */
+  settings: unknown | null
+  /** ALL file paths under the space dir, relative to it (`/`-joined, sorted). */
+  files: string[]
 }
 
-export const appsManifest = manifestData as AppsManifest
+export interface AppsManifest {
+  apps: CatalogApp[]
+  spaces: CatalogSpace[]
+}
+
+export const appsManifest = { spaces: [], ...(manifestData as AppsManifest) } as AppsManifest
 
 /** All published catalog apps. */
 export function listCatalogApps(): CatalogApp[] {
@@ -40,4 +61,19 @@ export function listCatalogApps(): CatalogApp[] {
 /** One catalog app by id, or `undefined` when not published. */
 export function getCatalogApp(appId: string): CatalogApp | undefined {
   return appsManifest.apps.find((app) => app.id === appId)
+}
+
+/** All published catalog spaces (standalone/installable spaces, e.g. `integration-*`). */
+export function listCatalogSpaces(): CatalogSpace[] {
+  return appsManifest.spaces
+}
+
+/** Published catalog spaces tagged `integration` — the store-installable integrations. */
+export function listCatalogIntegrations(): CatalogSpace[] {
+  return appsManifest.spaces.filter((space) => space.tags.includes('integration'))
+}
+
+/** One catalog space by id, or `undefined` when not published. */
+export function getCatalogSpace(spaceId: string): CatalogSpace | undefined {
+  return appsManifest.spaces.find((space) => space.id === spaceId)
 }

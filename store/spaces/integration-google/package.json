@@ -1,0 +1,19 @@
+{
+  "name": "integration-google",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "integration",
+    "title": "Google",
+    "tags": ["integration"],
+    "icon": "📅",
+    "description": "Google Calendar and Gmail via your own access token.",
+    "settings": {
+      "type": "object",
+      "properties": {
+        "GOOGLE_ACCESS_TOKEN": { "type": "string", "title": "Access token", "format": "password" }
+      },
+      "required": ["GOOGLE_ACCESS_TOKEN"]
+    }
+  }
+}

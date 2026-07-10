@@ -1,0 +1,36 @@
+# Slack app manifest for the native lmthing Slack channel.
+# Create the app at https://api.slack.com/apps → "From an app manifest", paste this,
+# then:
+#   • replace the Event Subscriptions request_url with YOUR Triggers URL
+#     (GET https://lmthing.cloud/api/inbound → use `<baseUrl>/slack`);
+#   • install to your workspace and invite the bot to a test channel;
+#   • in Settings → Integrations (Slack), paste the Bot User OAuth Token
+#     (SLACK_BOT_TOKEN, outbound) and the app's Signing Secret
+#     (SLACK_SIGNING_SECRET, inbound verification). Bring-your-own-token —
+#     lmthing does not broker Slack OAuth.
+display_information:
+  name: lmthing
+  description: Talk to your lmthing assistant from Slack.
+features:
+  bot_user:
+    display_name: lmthing
+    always_online: true
+oauth_config:
+  scopes:
+    bot:
+      - chat:write
+      - channels:read
+      - channels:history
+      - app_mentions:read
+settings:
+  event_subscriptions:
+    # REPLACE the token below with your own (GET /api/inbound → token).
+    request_url: https://lmthing.cloud/api/inbound/REPLACE_WITH_YOUR_INBOUND_TOKEN/slack
+    bot_events:
+      - app_mention
+      - message.channels
+  interactivity:
+    is_enabled: false
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false

@@ -36,6 +36,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 /** `store/projects/` — the catalog dir (project-apps live here, incl. the ones the
  *  autonomous app-builder ships). */
 export const APPS_DIR = path.resolve(__dirname, '..', 'projects')
+/** `store/spaces/` — the catalog dir for standalone/installable spaces (incl. `integration-*`). */
+export const SPACES_DIR = path.resolve(__dirname, '..', 'spaces')
 /** `store/projects/manifest.json` — the generated static browse index. */
 export const MANIFEST_PATH = path.join(APPS_DIR, 'manifest.json')
 
@@ -170,8 +172,33 @@ async function loadAppEntry(appDir, appId) {
   }
 }
 
-/** Build the `{ apps: [...] }` manifest object from `appsDir` (no disk writes). */
-export async function buildManifest(appsDir = APPS_DIR) {
+/**
+ * Load one `store/spaces/<spaceId>/` into a `CatalogSpace` manifest entry, or `null` to skip
+ * (no `lmthing` block in `package.json` — e.g. the plain demo workspaces `dog`, `google-sheets`).
+ */
+async function loadSpaceEntry(spaceDir, spaceId) {
+  const pkg = await readJson(path.join(spaceDir, 'package.json'))
+  const lmthing = pkg?.lmthing
+  if (!lmthing) return null
+
+  const files = await listAllFiles(spaceDir)
+
+  return {
+    id: spaceId,
+    title: lmthing.title ?? humanizeId(spaceId),
+    description: lmthing.description ?? pkg?.description ?? '',
+    icon: lmthing.icon ?? null,
+    tags: lmthing.tags ?? [],
+    kind: lmthing.kind ?? null,
+    settings: lmthing.settings ?? null,
+    // Full download list — every space file, so a pod's install endpoint can fetch each
+    // from `<store>/spaces/<id>/<relpath>` (no server-side catalog needed).
+    files,
+  }
+}
+
+/** Build the `{ apps: [...], spaces: [...] }` manifest object (no disk writes). */
+export async function buildManifest(appsDir = APPS_DIR, spacesDir = SPACES_DIR) {
   const apps = []
   if (await dirExists(appsDir)) {
     const entries = await safeReaddir(appsDir)
@@ -182,12 +209,24 @@ export async function buildManifest(appsDir = APPS_DIR) {
     }
   }
   apps.sort((a, b) => a.id.localeCompare(b.id))
-  return { apps }
+
+  const spaces = []
+  if (await dirExists(spacesDir)) {
+    const entries = await safeReaddir(spacesDir)
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      const space = await loadSpaceEntry(path.join(spacesDir, entry.name), entry.name)
+      if (space) spaces.push(space)
+    }
+  }
+  spaces.sort((a, b) => a.id.localeCompare(b.id))
+
+  return { apps, spaces }
 }
 
 /** Build the manifest and write it to `manifestPath`. Returns the manifest object. */
-export async function generateManifestFile(appsDir = APPS_DIR, manifestPath = MANIFEST_PATH) {
-  const manifest = await buildManifest(appsDir)
+export async function generateManifestFile(appsDir = APPS_DIR, manifestPath = MANIFEST_PATH, spacesDir = SPACES_DIR) {
+  const manifest = await buildManifest(appsDir, spacesDir)
   await mkdir(path.dirname(manifestPath), { recursive: true })
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8')
   return manifest
@@ -197,35 +236,63 @@ export async function generateManifestFile(appsDir = APPS_DIR, manifestPath = MA
  * Copy each app template (excluding `.data/`/`types/`/`node_modules/`) plus
  * `manifest.json` into `<distDir>/projects/` — the static assets nginx serves
  * alongside the SPA (`store/nginx.conf`), and what a pod's install endpoint
- * fetches in prod.
+ * fetches in prod. Also copies each `store/spaces/<id>/` into `<distDir>/spaces/<id>/`
+ * (same exclusions) — a pod's `/api/store/spaces/install` fetches a space's files from
+ * `<store>/spaces/<id>/<relpath>` in prod, so those static assets must land under dist
+ * `/spaces/` too.
  */
-export async function copyAppsToDist(distDir, appsDir = APPS_DIR, manifestPath = MANIFEST_PATH) {
+export async function copyAppsToDist(distDir, appsDir = APPS_DIR, manifestPath = MANIFEST_PATH, spacesDir = SPACES_DIR) {
   const destApps = path.join(distDir, 'projects')
   await mkdir(destApps, { recursive: true })
   if (existsSync(manifestPath)) {
     await cp(manifestPath, path.join(destApps, 'manifest.json'))
   }
-  if (!(await dirExists(appsDir))) return
-  const entries = await safeReaddir(appsDir)
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue
-    const srcAppDir = path.join(appsDir, entry.name)
-    const destAppDir = path.join(destApps, entry.name)
-    await cp(srcAppDir, destAppDir, {
-      recursive: true,
-      filter: (src) => {
-        const rel = path.relative(srcAppDir, src)
-        if (rel === '') return true
-        const top = rel.split(path.sep)[0]
-        return !EXCLUDED_DIRS.has(top)
-      },
-    })
+  if (await dirExists(appsDir)) {
+    const entries = await safeReaddir(appsDir)
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      const srcAppDir = path.join(appsDir, entry.name)
+      const destAppDir = path.join(destApps, entry.name)
+      await cp(srcAppDir, destAppDir, {
+        recursive: true,
+        filter: (src) => {
+          const rel = path.relative(srcAppDir, src)
+          if (rel === '') return true
+          const top = rel.split(path.sep)[0]
+          return !EXCLUDED_DIRS.has(top)
+        },
+      })
+    }
+  }
+
+  if (await dirExists(spacesDir)) {
+    const destSpaces = path.join(distDir, 'spaces')
+    await mkdir(destSpaces, { recursive: true })
+    const entries = await safeReaddir(spacesDir)
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      const srcSpaceDir = path.join(spacesDir, entry.name)
+      const destSpaceDir = path.join(destSpaces, entry.name)
+      await cp(srcSpaceDir, destSpaceDir, {
+        recursive: true,
+        filter: (src) => {
+          const rel = path.relative(srcSpaceDir, src)
+          if (rel === '') return true
+          const top = rel.split(path.sep)[0]
+          return !EXCLUDED_DIRS.has(top)
+        },
+      })
+    }
   }
 }
 
 // CLI entry point — `node scripts/gen-apps-manifest.mjs` regenerates the manifest.
 if (import.meta.url === `file://${process.argv[1]}`) {
   const manifest = await generateManifestFile()
-  const count = manifest.apps.length
-  console.log(`[gen-apps-manifest] wrote ${path.relative(process.cwd(), MANIFEST_PATH)} (${count} app${count === 1 ? '' : 's'})`)
+  const appCount = manifest.apps.length
+  const spaceCount = manifest.spaces.length
+  console.log(
+    `[gen-apps-manifest] wrote ${path.relative(process.cwd(), MANIFEST_PATH)} ` +
+      `(${appCount} app${appCount === 1 ? '' : 's'}, ${spaceCount} space${spaceCount === 1 ? '' : 's'})`,
+  )
 }

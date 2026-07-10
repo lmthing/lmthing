@@ -1,11 +1,11 @@
 {
   "image": "compute",
-  "sha": "84b24be",
-  "digest": "",
-  "run_id": "29095549984",
-  "run_number": 287,
-  "run_url": "https://github.com/\\lmthing/lmthing/actions/runs/29095549984",
+  "sha": "57d540e",
+  "digest": "sha256:e5baea4484a3e8c663418234f20a15aabc72f37c96d073c787b8cc70b1cc864b",
+  "run_id": "29095783758",
+  "run_number": 288,
+  "run_url": "https://github.com/\\lmthing/lmthing/actions/runs/29095783758",
   "status": "completed",
-  "conclusion": "failure",
-  "updated_at": "2026-07-10T13:19:38.459687+00:00"
+  "conclusion": "success",
+  "updated_at": "2026-07-10T13:24:23.727678+00:00"
 }

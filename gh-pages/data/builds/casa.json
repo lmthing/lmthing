@@ -1,11 +1,11 @@
 {
   "image": "casa",
-  "sha": "1f1f375",
-  "digest": "sha256:3e748910c7e04d32b84682bc9ed95b8112ae483690df20959f2d5a9687de9ab3",
-  "run_id": "29107235766",
-  "run_number": 291,
-  "run_url": "https://github.com/\\lmthing/lmthing/actions/runs/29107235766",
+  "sha": "a616e25",
+  "digest": "sha256:d71829f14d63bc478ed4f41d2b78b695081d94f03251087641bcc714a8ad4a4d",
+  "run_id": "29108185930",
+  "run_number": 292,
+  "run_url": "https://github.com/\\lmthing/lmthing/actions/runs/29108185930",
   "status": "completed",
   "conclusion": "success",
-  "updated_at": "2026-07-10T16:25:18.780600+00:00"
+  "updated_at": "2026-07-10T16:41:12.835411+00:00"
 }

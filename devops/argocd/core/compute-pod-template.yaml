@@ -36,7 +36,7 @@ data:
         spec:
           containers:
             - name: compute
-              image: lmthingacr.azurecr.io/compute:57d540e
+              image: lmthingacr.azurecr.io/compute:bdbb577
               imagePullPolicy: IfNotPresent
               ports:
                 - containerPort: 8080

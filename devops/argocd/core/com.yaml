@@ -17,7 +17,7 @@ spec:
         - name: acr-pull-secret
       containers:
         - name: com
-          image: lmthingacr.azurecr.io/com:8e53bb9
+          image: lmthingacr.azurecr.io/com:dbac404
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

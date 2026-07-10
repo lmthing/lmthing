@@ -68,7 +68,8 @@ The gateway injects `RENDER_SERVICE_URL` + `RENDER_SERVICE_TOKEN` into each pod'
 | File | Role |
 |---|---|
 | `sdk/org/libs/core/system-spaces/system-global/functions/webSearch.ts` | `webSearch` dispatch + `auto` chain; `webSearchTavily` / `webSearchBing` / `webSearchDuckDuckGo`; Bing markup parser (`<li class="b_algo">` → `<h2><a>` title, `ck/a?…&u=a1<base64url>` redirect decode, first-`<p>` snippet) + dependency-free `base64UrlDecode` (no atob/Buffer in the sandbox) |
-| `sdk/org/libs/core/system-spaces/system-global/functions/webFetch.ts` | Companion `webFetch(url)` — fetch a page, reduce HTML → text/markdown (regex `htmlToText`/`htmlToMarkdown`). `render` opt (`'auto'` default / `'force'` / `'off'`): in `auto`, when the plain fetch looks **dynamic** (thin readable text + an SPA-root/`<noscript>` shell — `looksDynamic`) or is bot-walled (403/429), it re-fetches through the **render service** (`renderViaService`, same `/content` endpoint as Bing) and keeps whichever yields more text; returns `rendered?: boolean`. No-op when `RENDER_SERVICE_URL` unset. |
+| `sdk/org/libs/core/system-spaces/system-global/functions/webFetch.ts` | Companion `webFetch(url)` — fetch a page, reduce HTML → text/markdown (regex `htmlToText`/`htmlToMarkdown`). `render` opt (`'auto'` default / `'force'` / `'off'`): in `auto`, when the plain fetch looks **dynamic** (`looksDynamic`: thin readable text + a JS-shell signal — SPA-root `id=root/app/__next`·`data-reactroot`·`ng-app`, `<noscript>`, near-empty+script, OR **inline-`<script>` bytes ≫ visible text**, the data-injection case like `quotes.toscrape.com/js/`) or is bot-walled (403/429), it re-fetches through the **render service** (`renderViaService`, same `/content` endpoint as Bing) and **adopts the render only if it yields more text**; returns `rendered?: boolean`. No-op when `RENDER_SERVICE_URL` unset. |
+| `sdk/org/libs/core/src/eval/turn-loop.ts` | Runtime dependency of webFetch's auto path: the yield-servicing loop drains `vm.pendingYields` until the statement fully returns, so a helper that awaits host calls **sequentially** (webFetch's plain fetch → render fetch = two yields) completes both. Before this fix only the first was serviced and the caller bound the raw first `Response`. Bounded by `MAX_SEQUENTIAL_YIELDS`. |
 | `sdk/org/libs/core/src/spaces/system-functions.test.ts` | `webSearch`/`webFetch` unit tests (fetch stubbed via `injectGlobal`; Bing parse, ck/a decode, internal-link skip, auto-selection, auto→DDG fallback, unset-URL `ok:false`) |
 | `devops/argocd/core/render.yaml` | Render service Deployment (`ghcr.io/browserless/chromium:v2.38.1`, `/dev/shm` emptyDir, tcpSocket probes) + ClusterIP Service + NetworkPolicy |
 | `devops/argocd/core/kustomization.yaml` | Registers `render.yaml` with the `lmthing-core` ArgoCD app |
@@ -81,6 +82,15 @@ The gateway injects `RENDER_SERVICE_URL` + `RENDER_SERVICE_TOKEN` into each pod'
 - **`webSearchBing` can't run in plain Node.** It relies on the sandbox's *synchronous*
   `response.text()`; real Node `fetch().text()` is a Promise. Test it through the runtime, or by
   fetching HTML separately and running the pure parser against it.
+- **A single `webFetch`/`webSearch` call may do TWO sequential host fetches** (webFetch auto:
+  plain→render; webSearch auto: Tavily→Bing→DDG). The turn loop MUST loop-service yields until the
+  statement returns (`turn-loop.ts`) or the caller binds the raw first `Response` — a real bug found
+  live on a pod (the render fetch was left dangling). `resolveFetchYield` never rejects, so these
+  sequential fetches always run to completion.
+- **Live-testing a system-global fn on a pod:** drive it with the CLI's `--mock` (a MockHandler
+  `.mjs`); `console` is NOT in the agent DTS, so surface results via `writeFileRaw("/tmp/…")` and
+  read them back. `--request` is single-shot — it only keeps resuming while a statement yields, so
+  chain each non-yielding write with the next fetching call.
 - **Browserless ghcr tags are `v`-prefixed** (`v2.38.1`), and pinned (a floating tag + `IfNotPresent`
   serves stale). Confirm the tag exists on ghcr before bumping.
 - **`RENDER_SERVICE_URL` unset** (e.g. local dev) ⇒ `webSearchBing` returns `ok:false` and `auto`

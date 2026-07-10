@@ -62,6 +62,7 @@ Load the matching file when working on:
 |---|---|
 | **any frontend styling** — colors, Tailwind classes, component CSS, theming (MANDATORY, enforced) | `@.claude/skills/design-system.md` |
 | cloud gateway / LiteLLM / billing / tiers / API routes / webhooks | `@.claude/skills/cloud-backend.md` |
+| agent web search — `webSearch`/`webFetch`, Tavily/Bing/DuckDuckGo providers, the render service | `@.claude/skills/web-search.md` |
 | running the local dev stack (ports, `make`, nginx proxy, demo auth) | `@.claude/skills/local-dev.md` |
 | adding a pricing tier (cross-cutting checklist) | `@.claude/skills/add-tier.md` |
 | auth flows / SSO / gateway routes | `@.claude/skills/authentication.md` |
@@ -83,7 +84,7 @@ ssh -i ~/GEANT/lmthing/devops/terraform/generated/lmthing-test-key.pem \
 
 | Namespace | What lives there |
 |---|---|
-| `lmthing` | All product deployments — `gateway`, `litellm`, `chat`, `studio`, `computer`, `com`, `social`, `team`, `store`, `space`, `blog`, `casa`, `zitadel` |
+| `lmthing` | All product deployments — `gateway`, `litellm`, `render` (in-cluster headless-Chromium for `webSearch`), `chat`, `studio`, `computer`, `com`, `social`, `team`, `store`, `space`, `blog`, `casa`, `zitadel` |
 | `user-<id>` | One namespace per user; contains a single `lmthing` deployment (the compute pod, image `lmthingacr.azurecr.io/compute:latest`) |
 | `argocd` | ArgoCD — GitOps controller, repo server, dex SSO, Redis |
 | `cert-manager` | TLS certificate management |

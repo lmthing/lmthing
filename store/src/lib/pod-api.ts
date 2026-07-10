@@ -16,3 +16,21 @@ export const APP_BASE_URL: string = import.meta.env.VITE_APP_BASE_URL ?? 'https:
 export function installUrlForApp(appId: string): string {
   return `${APP_BASE_URL}/install?appId=${encodeURIComponent(appId)}`
 }
+
+/**
+ * lmthing.studio base — where integration *spaces* are installed. Unlike
+ * project-apps (installed on lmthing.app), integrations are installed
+ * **per-project** from the Studio project view's in-app install panel (it runs
+ * in the user's authenticated pod context, which this public store can't reach).
+ * The store's role for spaces is discovery + a hand-off to Studio. Overridable at
+ * build time via `VITE_STUDIO_BASE_URL` (defaults to `https://lmthing.studio`).
+ */
+export const STUDIO_BASE_URL: string = import.meta.env.VITE_STUDIO_BASE_URL ?? 'https://lmthing.studio'
+
+/** Open Studio to install `spaceId`. Studio's project view carries the in-app
+ *  install panel that lists every store integration (including this one) and
+ *  installs it into the selected project. The `install` query param is a
+ *  forward-looking hint for surfacing this specific integration. */
+export function studioInstallUrlForSpace(spaceId: string): string {
+  return `${STUDIO_BASE_URL}/studio?install=${encodeURIComponent(spaceId)}`
+}

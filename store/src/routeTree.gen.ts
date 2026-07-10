@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as PublishRouteImport } from './routes/publish'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SpacesIndexRouteImport } from './routes/spaces/index'
 import { Route as ProjectsIndexRouteImport } from './routes/projects/index'
+import { Route as SpacesSpaceIdRouteImport } from './routes/spaces/$spaceId'
 import { Route as ProjectsAppIdRouteImport } from './routes/projects/$appId'
 import { Route as CategoryCategoryIdRouteImport } from './routes/category/$categoryId'
 import { Route as AgentAgentIdRouteImport } from './routes/agent/$agentId'
@@ -26,9 +28,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SpacesIndexRoute = SpacesIndexRouteImport.update({
+  id: '/spaces/',
+  path: '/spaces/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
   id: '/projects/',
   path: '/projects/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SpacesSpaceIdRoute = SpacesSpaceIdRouteImport.update({
+  id: '/spaces/$spaceId',
+  path: '/spaces/$spaceId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProjectsAppIdRoute = ProjectsAppIdRouteImport.update({
@@ -53,7 +65,9 @@ export interface FileRoutesByFullPath {
   '/agent/$agentId': typeof AgentAgentIdRoute
   '/category/$categoryId': typeof CategoryCategoryIdRoute
   '/projects/$appId': typeof ProjectsAppIdRoute
+  '/spaces/$spaceId': typeof SpacesSpaceIdRoute
   '/projects/': typeof ProjectsIndexRoute
+  '/spaces/': typeof SpacesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -61,7 +75,9 @@ export interface FileRoutesByTo {
   '/agent/$agentId': typeof AgentAgentIdRoute
   '/category/$categoryId': typeof CategoryCategoryIdRoute
   '/projects/$appId': typeof ProjectsAppIdRoute
+  '/spaces/$spaceId': typeof SpacesSpaceIdRoute
   '/projects': typeof ProjectsIndexRoute
+  '/spaces': typeof SpacesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -70,7 +86,9 @@ export interface FileRoutesById {
   '/agent/$agentId': typeof AgentAgentIdRoute
   '/category/$categoryId': typeof CategoryCategoryIdRoute
   '/projects/$appId': typeof ProjectsAppIdRoute
+  '/spaces/$spaceId': typeof SpacesSpaceIdRoute
   '/projects/': typeof ProjectsIndexRoute
+  '/spaces/': typeof SpacesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -80,7 +98,9 @@ export interface FileRouteTypes {
     | '/agent/$agentId'
     | '/category/$categoryId'
     | '/projects/$appId'
+    | '/spaces/$spaceId'
     | '/projects/'
+    | '/spaces/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -88,7 +108,9 @@ export interface FileRouteTypes {
     | '/agent/$agentId'
     | '/category/$categoryId'
     | '/projects/$appId'
+    | '/spaces/$spaceId'
     | '/projects'
+    | '/spaces'
   id:
     | '__root__'
     | '/'
@@ -96,7 +118,9 @@ export interface FileRouteTypes {
     | '/agent/$agentId'
     | '/category/$categoryId'
     | '/projects/$appId'
+    | '/spaces/$spaceId'
     | '/projects/'
+    | '/spaces/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -105,7 +129,9 @@ export interface RootRouteChildren {
   AgentAgentIdRoute: typeof AgentAgentIdRoute
   CategoryCategoryIdRoute: typeof CategoryCategoryIdRoute
   ProjectsAppIdRoute: typeof ProjectsAppIdRoute
+  SpacesSpaceIdRoute: typeof SpacesSpaceIdRoute
   ProjectsIndexRoute: typeof ProjectsIndexRoute
+  SpacesIndexRoute: typeof SpacesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -124,11 +150,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/spaces/': {
+      id: '/spaces/'
+      path: '/spaces'
+      fullPath: '/spaces/'
+      preLoaderRoute: typeof SpacesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/projects/': {
       id: '/projects/'
       path: '/projects'
       fullPath: '/projects/'
       preLoaderRoute: typeof ProjectsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/spaces/$spaceId': {
+      id: '/spaces/$spaceId'
+      path: '/spaces/$spaceId'
+      fullPath: '/spaces/$spaceId'
+      preLoaderRoute: typeof SpacesSpaceIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/projects/$appId': {
@@ -161,7 +201,9 @@ const rootRouteChildren: RootRouteChildren = {
   AgentAgentIdRoute: AgentAgentIdRoute,
   CategoryCategoryIdRoute: CategoryCategoryIdRoute,
   ProjectsAppIdRoute: ProjectsAppIdRoute,
+  SpacesSpaceIdRoute: SpacesSpaceIdRoute,
   ProjectsIndexRoute: ProjectsIndexRoute,
+  SpacesIndexRoute: SpacesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

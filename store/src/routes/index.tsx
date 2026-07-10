@@ -1,11 +1,11 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { Database, LayoutGrid, Webhook, ArrowRight } from 'lucide-react'
+import { Database, LayoutGrid, Webhook, ArrowRight, Plug } from 'lucide-react'
 import { CozyThingText } from '@lmthing/ui/elements/branding/cozy-text'
 import { Button } from '@lmthing/ui/elements/forms/button'
 import { Card, CardBody } from '@lmthing/ui/elements/content/card'
 import { Heading } from '@lmthing/ui/elements/typography/heading'
 import { Caption } from '@lmthing/ui/elements/typography/caption'
-import { listCatalogApps } from '@/lib/apps-manifest'
+import { listCatalogApps, listCatalogIntegrations } from '@/lib/apps-manifest'
 
 export const Route = createFileRoute('/')({
   component: Landing,
@@ -32,6 +32,7 @@ const FEATURES = [
 function Landing() {
   const navigate = useNavigate()
   const count = listCatalogApps().length
+  const integrationCount = listCatalogIntegrations().length
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center px-6">
@@ -49,10 +50,14 @@ function Landing() {
             Browse projects
             <ArrowRight className="ml-1.5 h-4 w-4" strokeWidth={2} />
           </Button>
-          <Caption muted>
-            {count} app{count === 1 ? '' : 's'} available
-          </Caption>
+          <Button variant="secondary" onClick={() => navigate({ to: '/spaces' })}>
+            <Plug className="mr-1.5 h-4 w-4" strokeWidth={2} />
+            Integrations
+          </Button>
         </div>
+        <Caption muted>
+          {count} app{count === 1 ? '' : 's'} · {integrationCount} integration{integrationCount === 1 ? '' : 's'}
+        </Caption>
       </section>
 
       {/* What a project-app is */}

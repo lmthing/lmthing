@@ -242,7 +242,7 @@ spec:
                   name: lmthing-secrets
                   key: ACR_PASSWORD
             - name: COMPUTE_IMAGE_TAG
-              value: "d339173"
+              value: "6a84782"
             # Phase 4 fast cold-start: when set (bare "sha256:...", no
             # "compute@" prefix), the gateway builds
             # ${ACR_REGISTRY}/compute@${COMPUTE_IMAGE_DIGEST} with
@@ -252,7 +252,7 @@ spec:
             # next successful compute image build, in lockstep with
             # COMPUTE_IMAGE_TAG and the compute-prepull DaemonSet image.
             - name: COMPUTE_IMAGE_DIGEST
-              value: "sha256:070f034d989836f7e6a309640ed698c66b8734abb72975bb775fac2ad3790d1a"
+              value: "sha256:48878aea6093cb1db332d3cc46e5034206c5ec2561434d51eb99d123a2228e22"
           resources:
             requests:
               memory: "128Mi"

@@ -64,6 +64,46 @@ inbound.get("/", authMiddleware, async (c) => {
   }
 });
 
+// ── inbound rate limiting (per user, in-memory) ───────────────────────────
+// A leaked long-lived inbound token could be used to spam the public broker and
+// wake the user's pod over and over (cost / resource DoS). A per-user token bucket
+// caps that BEFORE we wake the pod. Deliberately generous so real provider webhook
+// bursts pass untouched; env-tunable. In-memory per gateway replica (an adequate
+// per-instance cap) and keyed by the VERIFIED userId, so one user can't throttle
+// another. Fail-open: any internal error allows the request.
+const RATE_CAPACITY = Number(process.env.INBOUND_RATE_CAPACITY) || 120;
+const RATE_REFILL_PER_SEC = Number(process.env.INBOUND_RATE_REFILL_PER_SEC) || 2;
+const RATE_IDLE_EVICT_MS = 60 * 60_000;
+
+interface RateBucket {
+  tokens: number;
+  last: number;
+}
+const rateBuckets = new Map<string, RateBucket>();
+let lastRateEvict = 0;
+
+function allowInbound(userId: string): boolean {
+  try {
+    const now = Date.now();
+    if (now - lastRateEvict > RATE_IDLE_EVICT_MS) {
+      lastRateEvict = now;
+      for (const [k, b] of rateBuckets) if (now - b.last > RATE_IDLE_EVICT_MS) rateBuckets.delete(k);
+    }
+    let b = rateBuckets.get(userId);
+    if (!b) {
+      b = { tokens: RATE_CAPACITY, last: now };
+      rateBuckets.set(userId, b);
+    }
+    b.tokens = Math.min(RATE_CAPACITY, b.tokens + ((now - b.last) / 1000) * RATE_REFILL_PER_SEC);
+    b.last = now;
+    if (b.tokens < 1) return false;
+    b.tokens -= 1;
+    return true;
+  } catch {
+    return true; // never let the limiter itself drop a legitimate event
+  }
+}
+
 // POST /:userToken/:path — the public broker endpoint external providers POST
 // to. No authMiddleware — the long-lived `userToken` (aud:"inbound") IS the
 // auth, mirroring the connections `/callback` and the Stripe webhook. Wakes
@@ -79,6 +119,10 @@ inbound.post("/:userToken/:path", async (c) => {
     return c.json({ error: "invalid token" }, 401);
   }
   const userId = verified.userId;
+
+  if (!allowInbound(userId)) {
+    return c.json({ error: "rate limited" }, 429);
+  }
 
   try {
     const pod = await resolvePodConfig(userId);
@@ -127,6 +171,10 @@ inbound.get("/:userToken/:path", async (c) => {
     return c.json({ error: "invalid token" }, 401);
   }
   const userId = verified.userId;
+
+  if (!allowInbound(userId)) {
+    return c.json({ error: "rate limited" }, 429);
+  }
 
   try {
     const pod = await resolvePodConfig(userId);

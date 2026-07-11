@@ -1536,6 +1536,38 @@
           "INTEGRATION_DEMO_WEBHOOK_SECRET"
         ]
       },
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "demoGetHealth",
+          "summary": "Health-check the demo echo endpoint (GET /health). Useful to confirm the",
+          "signature": "demoGetHealth(): Promise<any>"
+        },
+        {
+          "name": "demoSendMessage",
+          "summary": "Send a message to the demo echo endpoint (POST /messages).",
+          "signature": "demoSendMessage(chatId: string, text: string): Promise<any>"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "demo",
+          "actions": [
+            "assist",
+            "send"
+          ]
+        },
+        {
+          "slug": "handler",
+          "actions": [
+            "handle"
+          ],
+          "triggers": [
+            "webhook"
+          ]
+        }
+      ],
       "files": [
         "README.md",
         "agents/demo/charter.md",
@@ -1585,6 +1617,64 @@
           "INTEGRATION_DISCORD_APPLICATION_ID"
         ]
       },
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "discordAddReaction",
+          "summary": "Add the bot's reaction to a message",
+          "signature": "discordAddReaction(channelId: string, messageId: string, emoji: string): Promise<any>"
+        },
+        {
+          "name": "discordCreateMessage",
+          "summary": "Post a message to a Discord channel (POST /channels/{channelId}/messages on the Discord REST v10 API).",
+          "signature": "discordCreateMessage(channelId: string, content: string): Promise<any>"
+        },
+        {
+          "name": "discordDeleteMessage",
+          "summary": "Delete a message (DELETE /channels/{channelId}/messages/{messageId}).",
+          "signature": "discordDeleteMessage(channelId: string, messageId: string): Promise<any>"
+        },
+        {
+          "name": "discordEditMessage",
+          "summary": "Edit a message the bot previously sent (PATCH /channels/{channelId}/messages/{messageId}).",
+          "signature": "discordEditMessage(channelId: string, messageId: string, content: string): Promise<any>"
+        },
+        {
+          "name": "discordListChannels",
+          "summary": "List the channels in a Discord server / guild (GET /guilds/{guildId}/channels).",
+          "signature": "discordListChannels(guildId: string): Promise<any>"
+        },
+        {
+          "name": "discordReplyMessage",
+          "summary": "Reply to an existing Discord message (POST /channels/{channelId}/messages with a message_reference).",
+          "signature": "discordReplyMessage(channelId: string, content: string, messageId: string): Promise<any>"
+        },
+        {
+          "name": "discordRespondInteraction",
+          "summary": "Respond to a slash-command interaction with a channel message",
+          "signature": "discordRespondInteraction(interactionId: string, interactionToken: string, content: string): Promise<any>"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "discord",
+          "actions": [
+            "assist",
+            "post",
+            "react"
+          ]
+        },
+        {
+          "slug": "handler",
+          "actions": [
+            "handle"
+          ],
+          "triggers": [
+            "webhook"
+          ]
+        }
+      ],
       "files": [
         "README.md",
         "agents/discord/charter.md",
@@ -1631,6 +1721,35 @@
           "GITHUB_TOKEN"
         ]
       },
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "githubCreateIssue",
+          "summary": "Open a new issue on a repository (POST /repos/{owner}/{repo}/issues).",
+          "signature": "githubCreateIssue(repo: string, title: string, body?: string): Promise<any>"
+        },
+        {
+          "name": "githubListPullRequests",
+          "summary": "List a repository's pull requests (GET /repos/{owner}/{repo}/pulls).",
+          "signature": "githubListPullRequests(repo: string, state?: string): Promise<any>"
+        },
+        {
+          "name": "githubSearchCode",
+          "summary": "Search code across repositories the user can access (GET /search/code).",
+          "signature": "githubSearchCode(query: string): Promise<any>"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "github",
+          "actions": [
+            "assist",
+            "issue",
+            "pulls"
+          ]
+        }
+      ],
       "files": [
         "README.md",
         "agents/github/charter.md",
@@ -1666,6 +1785,40 @@
           "GOOGLE_ACCESS_TOKEN"
         ]
       },
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "calendarCreateEvent",
+          "summary": "Create a timed event on the user's primary Google Calendar",
+          "signature": "calendarCreateEvent(summary: string, startISO: string, endISO: string): Promise<any>"
+        },
+        {
+          "name": "calendarListEvents",
+          "summary": "List events on the user's primary Google Calendar",
+          "signature": "calendarListEvents(timeMin?: string, timeMax?: string): Promise<any>"
+        },
+        {
+          "name": "gmailListMessages",
+          "summary": "List message ids in the user's Gmail mailbox (GET /gmail/v1/users/me/messages).",
+          "signature": "gmailListMessages(query?: string, maxResults?: number): Promise<any>"
+        },
+        {
+          "name": "gmailSend",
+          "summary": "Send a plain-text email from the user's Gmail account",
+          "signature": "gmailSend(to: string, subject: string, body: string): Promise<any>"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "google",
+          "actions": [
+            "assist",
+            "mail",
+            "calendar"
+          ]
+        }
+      ],
       "files": [
         "README.md",
         "agents/google/charter.md",
@@ -1709,6 +1862,54 @@
           "INTEGRATION_LINE_CHANNEL_SECRET"
         ]
       },
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "lineBroadcast",
+          "summary": "Broadcast a message to every user who has added the LINE Official Account as a friend",
+          "signature": "lineBroadcast(text: string): Promise<any>"
+        },
+        {
+          "name": "lineGetProfile",
+          "summary": "Fetch a LINE user's display profile (GET /v2/bot/profile/{userId}).",
+          "signature": "lineGetProfile(userId: string): Promise<any>"
+        },
+        {
+          "name": "lineMulticast",
+          "summary": "Send the same message to multiple LINE users at once (POST /v2/bot/message/multicast).",
+          "signature": "lineMulticast(to: string[], text: string): Promise<any>"
+        },
+        {
+          "name": "linePush",
+          "summary": "Push a message to a single LINE user, group, or room (POST /v2/bot/message/push).",
+          "signature": "linePush(to: string, text: string): Promise<any>"
+        },
+        {
+          "name": "lineReply",
+          "summary": "Reply to a LINE message using its one-time reply token (POST /v2/bot/message/reply).",
+          "signature": "lineReply(replyToken: string, text: string): Promise<any>"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "handler",
+          "actions": [
+            "handle"
+          ],
+          "triggers": [
+            "webhook"
+          ]
+        },
+        {
+          "slug": "line",
+          "actions": [
+            "assist",
+            "push",
+            "broadcast"
+          ]
+        }
+      ],
       "files": [
         "README.md",
         "agents/handler/charter.md",
@@ -1723,6 +1924,81 @@
         "knowledge/line/api/auth.md",
         "knowledge/line/api/endpoints.md",
         "knowledge/line/api/index.md",
+        "package.json"
+      ]
+    },
+    {
+      "id": "integration-lmthing",
+      "title": "lmthing",
+      "description": "Subscribe to lmthing's OWN runtime events — session completions, space installs, hook fires, document writes, project creations — and publish your own custom events. Needs no API keys.",
+      "icon": "🔁",
+      "tags": [
+        "integration"
+      ],
+      "kind": "integration",
+      "settings": null,
+      "events": {
+        "document.written": {
+          "payload": {
+            "projectId": "string",
+            "path": "string"
+          }
+        },
+        "hook.fired": {
+          "payload": {
+            "projectId": "string",
+            "slug": "string",
+            "hookType": "string"
+          }
+        },
+        "project.created": {
+          "payload": {
+            "projectId": "string"
+          }
+        },
+        "session.completed": {
+          "payload": {
+            "projectId": "string",
+            "agent": "string",
+            "sessionId": "string",
+            "ok": "boolean",
+            "durationMs": "number"
+          }
+        },
+        "space.installed": {
+          "payload": {
+            "projectId": "string",
+            "spaceId": "string"
+          }
+        }
+      },
+      "inbound": [],
+      "functions": [
+        {
+          "name": "publishEvent",
+          "summary": "Publish a CUSTOM `integration-lmthing/*` event that this project's hooks can",
+          "signature": "publishEvent(name: string, payload: Record<string, unknown>): Promise<void>"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "publisher",
+          "actions": [
+            "publish",
+            "explain"
+          ]
+        }
+      ],
+      "files": [
+        "README.md",
+        "agents/publisher/charter.md",
+        "agents/publisher/instruct.md",
+        "events/document-written.ts",
+        "events/hook-fired.ts",
+        "events/project-created.ts",
+        "events/session-completed.ts",
+        "events/space-installed.ts",
+        "functions/publishEvent.ts",
         "package.json"
       ]
     },
@@ -1760,6 +2036,59 @@
           "INTEGRATION_MATTERMOST_OUTGOING_TOKEN"
         ]
       },
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "mattermostAddReaction",
+          "summary": "Add an emoji reaction to a post (POST /reactions on the Mattermost REST v4 API).",
+          "signature": "mattermostAddReaction(userId: string, postId: string, emojiName: string): Promise<any>"
+        },
+        {
+          "name": "mattermostGetMe",
+          "summary": "Get the authenticated bot/user account (GET /users/me on the Mattermost REST v4 API).",
+          "signature": "mattermostGetMe(): Promise<any>"
+        },
+        {
+          "name": "mattermostGetUser",
+          "summary": "Get a user by id (GET /users/{userId} on the Mattermost REST v4 API).",
+          "signature": "mattermostGetUser(userId: string): Promise<any>"
+        },
+        {
+          "name": "mattermostListChannels",
+          "summary": "List the channels the authenticated bot/user belongs to within a team",
+          "signature": "mattermostListChannels(teamId: string): Promise<any>"
+        },
+        {
+          "name": "mattermostListTeams",
+          "summary": "List the teams the authenticated bot/user belongs to (GET /users/me/teams on the Mattermost",
+          "signature": "mattermostListTeams(): Promise<any>"
+        },
+        {
+          "name": "mattermostPostMessage",
+          "summary": "Post a message to a Mattermost channel (POST /posts on the Mattermost REST v4 API).",
+          "signature": "mattermostPostMessage(channelId: string, message: string, rootId?: string): Promise<any>"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "handler",
+          "actions": [
+            "handle"
+          ],
+          "triggers": [
+            "webhook"
+          ]
+        },
+        {
+          "slug": "mattermost",
+          "actions": [
+            "assist",
+            "post",
+            "react"
+          ]
+        }
+      ],
       "files": [
         "README.md",
         "agents/handler/charter.md",
@@ -1806,6 +2135,49 @@
           "INTEGRATION_NEXTCLOUD_TALK_BOT_SECRET"
         ]
       },
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "nextcloudAddReaction",
+          "summary": "Add an emoji reaction to a message in a Nextcloud Talk conversation as the bot",
+          "signature": "nextcloudAddReaction(roomToken: string, messageId: number | string, reaction: string,): Promise<any>"
+        },
+        {
+          "name": "nextcloudRemoveReaction",
+          "summary": "Remove an emoji reaction the bot previously added to a message in a Nextcloud Talk conversation",
+          "signature": "nextcloudRemoveReaction(roomToken: string, messageId: number | string, reaction: string,): Promise<any>"
+        },
+        {
+          "name": "nextcloudReplyMessage",
+          "summary": "Reply to a specific message in a Nextcloud Talk conversation as the bot",
+          "signature": "nextcloudReplyMessage(roomToken: string, message: string, replyToMessageId: number | string,): Promise<any>"
+        },
+        {
+          "name": "nextcloudSendMessage",
+          "summary": "Send a message into a Nextcloud Talk conversation as the bot",
+          "signature": "nextcloudSendMessage(roomToken: string, message: string): Promise<any>"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "handler",
+          "actions": [
+            "handle"
+          ],
+          "triggers": [
+            "webhook"
+          ]
+        },
+        {
+          "slug": "nextcloud",
+          "actions": [
+            "assist",
+            "post",
+            "react"
+          ]
+        }
+      ],
       "files": [
         "README.md",
         "agents/handler/charter.md",
@@ -1850,6 +2222,44 @@
           "SLACK_SIGNING_SECRET"
         ]
       },
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "slackListChannels",
+          "summary": "List channels in the user's Slack workspace (GET /conversations.list on the Slack Web API).",
+          "signature": "slackListChannels(): Promise<any>"
+        },
+        {
+          "name": "slackPostMessage",
+          "summary": "Post a message to a Slack channel (POST /chat.postMessage on the Slack Web API).",
+          "signature": "slackPostMessage(channel: string, text: string, threadTs?: string): Promise<any>"
+        },
+        {
+          "name": "slackSearchMessages",
+          "summary": "Search messages across the user's Slack workspace (GET /search.messages on the Slack Web API).",
+          "signature": "slackSearchMessages(query: string): Promise<any>"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "handler",
+          "actions": [
+            "handle"
+          ],
+          "triggers": [
+            "webhook"
+          ]
+        },
+        {
+          "slug": "slack",
+          "actions": [
+            "assist",
+            "post",
+            "search"
+          ]
+        }
+      ],
       "files": [
         "README.md",
         "SLACK_APP_SETUP.md",
@@ -1901,6 +2311,44 @@
           "INTEGRATION_SMS_FROM_NUMBER"
         ]
       },
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "smsListMessages",
+          "summary": "List recent messages on the user's Twilio account (GET /Messages.json on the Twilio REST API).",
+          "signature": "smsListMessages(): Promise<any>"
+        },
+        {
+          "name": "smsSend",
+          "summary": "Send an SMS text message (POST /Messages.json on the Twilio REST API).",
+          "signature": "smsSend(to: string, body: string, from: string): Promise<any>"
+        },
+        {
+          "name": "smsSendMms",
+          "summary": "Send an MMS message with a media attachment (POST /Messages.json on the Twilio REST API).",
+          "signature": "smsSendMms(to: string, body: string, mediaUrl: string, from: string): Promise<any>"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "handler",
+          "actions": [
+            "handle"
+          ],
+          "triggers": [
+            "webhook"
+          ]
+        },
+        {
+          "slug": "sms",
+          "actions": [
+            "assist",
+            "send",
+            "mms"
+          ]
+        }
+      ],
       "files": [
         "README.md",
         "agents/handler/charter.md",
@@ -1950,6 +2398,44 @@
           "INTEGRATION_SYNOLOGY_CHAT_OUTGOING_TOKEN"
         ]
       },
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "synologySendFile",
+          "summary": "Send a message with an attached file to Synology Chat via the INCOMING webhook",
+          "signature": "synologySendFile(text: string, fileUrl: string): Promise<any>"
+        },
+        {
+          "name": "synologySendMessage",
+          "summary": "Send a message to Synology Chat via the user's INCOMING webhook",
+          "signature": "synologySendMessage(text: string): Promise<any>"
+        },
+        {
+          "name": "synologySendToUser",
+          "summary": "Send a direct message to specific Synology Chat user(s) via the INCOMING webhook",
+          "signature": "synologySendToUser(userId: string | number, text: string): Promise<any>"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "handler",
+          "actions": [
+            "handle"
+          ],
+          "triggers": [
+            "webhook"
+          ]
+        },
+        {
+          "slug": "synology",
+          "actions": [
+            "assist",
+            "send",
+            "dm"
+          ]
+        }
+      ],
       "files": [
         "README.md",
         "agents/handler/charter.md",
@@ -1994,6 +2480,64 @@
           "INTEGRATION_TELEGRAM_WEBHOOK_SECRET"
         ]
       },
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "telegramDeleteMessage",
+          "summary": "Delete a message from a Telegram chat (POST /deleteMessage on the Telegram Bot API).",
+          "signature": "telegramDeleteMessage(chatId: number | string, messageId: number | string): Promise<any>"
+        },
+        {
+          "name": "telegramEditMessageText",
+          "summary": "Edit the text of a message the bot previously sent (POST /editMessageText on the Telegram Bot API).",
+          "signature": "telegramEditMessageText(chatId: number | string, messageId: number | string, text: string): Promise<any>"
+        },
+        {
+          "name": "telegramGetMe",
+          "summary": "Get the bot's own identity (GET /getMe on the Telegram Bot API).",
+          "signature": "telegramGetMe(): Promise<any>"
+        },
+        {
+          "name": "telegramSendChatAction",
+          "summary": "Show a chat action / status in a Telegram chat (POST /sendChatAction on the Telegram Bot API).",
+          "signature": "telegramSendChatAction(chatId: number | string, action: string): Promise<any>"
+        },
+        {
+          "name": "telegramSendDocument",
+          "summary": "Send a document/file to a Telegram chat (POST /sendDocument on the Telegram Bot API).",
+          "signature": "telegramSendDocument(chatId: number | string, documentUrl: string, caption?: string): Promise<any>"
+        },
+        {
+          "name": "telegramSendMessage",
+          "summary": "Send a text message to a Telegram chat (POST /sendMessage on the Telegram Bot API).",
+          "signature": "telegramSendMessage(chatId: number | string, text: string, replyToMessageId?: number | string): Promise<any>"
+        },
+        {
+          "name": "telegramSendPhoto",
+          "summary": "Send a photo to a Telegram chat (POST /sendPhoto on the Telegram Bot API).",
+          "signature": "telegramSendPhoto(chatId: number | string, photoUrl: string, caption?: string): Promise<any>"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "handler",
+          "actions": [
+            "handle"
+          ],
+          "triggers": [
+            "webhook"
+          ]
+        },
+        {
+          "slug": "telegram",
+          "actions": [
+            "assist",
+            "send",
+            "media"
+          ]
+        }
+      ],
       "files": [
         "README.md",
         "agents/handler/charter.md",
@@ -2054,6 +2598,54 @@
           "INTEGRATION_WHATSAPP_VERIFY_TOKEN"
         ]
       },
+      "events": {},
+      "inbound": [],
+      "functions": [
+        {
+          "name": "whatsappMarkRead",
+          "summary": "Mark an inbound WhatsApp message as read (POST /messages with status \"read\").",
+          "signature": "whatsappMarkRead(messageId: string): Promise<any>"
+        },
+        {
+          "name": "whatsappReplyText",
+          "summary": "Reply to a specific inbound WhatsApp message, quoting it (POST /messages with a `context`).",
+          "signature": "whatsappReplyText(to: string, body: string, contextMessageId: string): Promise<any>"
+        },
+        {
+          "name": "whatsappSendImage",
+          "summary": "Send an image by public link with an optional caption (POST /messages, type \"image\").",
+          "signature": "whatsappSendImage(to: string, imageLink: string, caption?: string): Promise<any>"
+        },
+        {
+          "name": "whatsappSendTemplate",
+          "summary": "Send an approved WhatsApp message template (POST /messages, type \"template\").",
+          "signature": "whatsappSendTemplate(to: string, templateName: string, languageCode: string, components?: any[],): Promise<any>"
+        },
+        {
+          "name": "whatsappSendText",
+          "summary": "Send a plain-text WhatsApp message (POST /messages on the Meta Cloud API).",
+          "signature": "whatsappSendText(to: string, body: string): Promise<any>"
+        }
+      ],
+      "agents": [
+        {
+          "slug": "handler",
+          "actions": [
+            "handle"
+          ],
+          "triggers": [
+            "webhook"
+          ]
+        },
+        {
+          "slug": "whatsapp",
+          "actions": [
+            "assist",
+            "send",
+            "template"
+          ]
+        }
+      ],
       "files": [
         "README.md",
         "agents/handler/charter.md",

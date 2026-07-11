@@ -26,10 +26,12 @@
  * always regenerates + copies without a separate script-chaining step.
  */
 
-import { cp, mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { randomUUID } from 'node:crypto'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -172,6 +174,270 @@ async function loadAppEntry(appDir, appId) {
   }
 }
 
+// ── Catalog ENRICHMENT (S12) ────────────────────────────────────────────────
+//
+// A CatalogSpace carries a lifted summary of the space's producer/consumer
+// surface so THING's `system-store` can fit-check an install from catalog data
+// alone (does this space emit the events / expose the functions the user's
+// automation needs?), without downloading it. Four lifted fields:
+//   • events    — the union of every `events/*.ts` emitter def's `emits`.
+//   • functions — the exported wrappers in `functions/*.ts` (name + summary + sig).
+//   • agents    — each agent's frontmatter (slug + declared actions + triggers).
+//   • inbound   — the public inbound path(s) of any `webhook` emitter def.
+//
+// `events` is the LOAD-BEARING one: it is produced by TRANSPILE+IMPORTING each
+// def (trusted repo content, at CI build time) and running the shared emitter
+// validator, so a MALFORMED def FAILS THE STORE BUILD LOUDLY. (Third-party
+// submissions would instead need the pod's worker-isolated scanner —
+// `server/emitter-manifests.ts` — never this in-process import.)
+
+/** Lazily-loaded TypeScript compiler (a store devDependency; resolves from the
+ *  workspace root). Used only to transpile emitter defs for import — kept lazy so
+ *  the manifest can still regenerate if a caller has no `events/` dirs at all. */
+let _ts
+async function getTs() {
+  if (!_ts) _ts = (await import('typescript')).default
+  return _ts
+}
+
+/**
+ * Vendored emitter-def validator — a faithful subset of the shared
+ * `validateEmitterDef` in `sdk/org/libs/core/src/spaces/emitter-load.ts`. We
+ * vendor rather than import from the built `@lmthing/core` because the store's
+ * Docker build (`store/Dockerfile`) does NOT build core — only `@lmthing/store` —
+ * so its dist is absent at store-build time. KEEP THIS IN LOCKSTEP with the core
+ * validator: it enforces the discriminated `type`, the inline `emits` schema
+ * (event-name + payload typeStrings), and the per-kind key checks. Throws
+ * fail-loud (which fails the store build) on any malformed def.
+ */
+const EMITTER_TYPESTRINGS = new Set(['string', 'number', 'boolean', 'object', 'array', 'any'])
+const EMITTER_EVENT_NAME_RE = /^[a-z0-9]+(?:_[a-z0-9]+)*(?:\.[a-z0-9]+(?:_[a-z0-9]+)*)*$/
+const EMITTER_PATH_RE = /^[A-Za-z0-9_-]+$/
+const EMITTER_VERIFY_TYPES = new Set(['none', 'header-equals', 'body-token', 'hmac', 'ed25519', 'twilio'])
+
+function validateEmitsVendored(where, raw) {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new Error(`${where}: \`emits\` must be an object mapping event name → { payload }`)
+  }
+  const entries = Object.entries(raw)
+  if (entries.length === 0) throw new Error(`${where}: \`emits\` must declare at least one event`)
+  const emits = {}
+  for (const [event, spec] of entries) {
+    if (!EMITTER_EVENT_NAME_RE.test(event)) {
+      throw new Error(`${where}: invalid event name "${event}" (expected dot-separated lowercase segments)`)
+    }
+    if (spec === null || typeof spec !== 'object' || Array.isArray(spec)) {
+      throw new Error(`${where}: event "${event}" must be an object \`{ payload }\``)
+    }
+    const payload = spec.payload
+    if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
+      throw new Error(`${where}: event "${event}" needs a \`payload\` object (field → typeString)`)
+    }
+    const fields = {}
+    for (const [field, type] of Object.entries(payload)) {
+      if (typeof type !== 'string' || !EMITTER_TYPESTRINGS.has(type)) {
+        throw new Error(`${where}: event "${event}" field "${field}" has an invalid typeString ${JSON.stringify(type)}`)
+      }
+      fields[field] = type
+    }
+    emits[event] = { payload: fields }
+  }
+  return emits
+}
+
+function validateEmitterDefVendored(raw, where) {
+  if (raw === null || typeof raw !== 'object') {
+    throw new Error(`${where}: default export must be an emitter def object`)
+  }
+  if (typeof raw.emit !== 'function') throw new Error(`${where}: an emitter def needs an \`emit\` function`)
+  const emits = validateEmitsVendored(where, raw.emits)
+
+  if (raw.type === 'webhook') {
+    if (typeof raw.path !== 'string' || !EMITTER_PATH_RE.test(raw.path)) {
+      throw new Error(`${where}: a webhook emitter needs a URL-safe \`path\``)
+    }
+    const v = raw.verify
+    if (v === null || typeof v !== 'object') throw new Error(`${where}: a webhook emitter needs a \`verify\` spec`)
+    if (v.type === 'builtin') {
+      if (v.provider !== 'slack' && v.provider !== 'github') {
+        throw new Error(`${where}: \`verify: { type: 'builtin' }\` needs provider 'slack' | 'github'`)
+      }
+    } else if (!EMITTER_VERIFY_TYPES.has(v.type)) {
+      throw new Error(`${where}: invalid \`verify\` spec ${JSON.stringify(v.type)}`)
+    }
+    return { type: 'webhook', path: raw.path, verify: v, emits }
+  }
+  if (raw.type === 'cron') {
+    const hasEvery = typeof raw.every === 'string'
+    const hasDaily = typeof raw.daily === 'string'
+    if (hasEvery === hasDaily) throw new Error(`${where}: a cron emitter needs exactly one of \`every\` or \`daily\``)
+    return { type: 'cron', emits }
+  }
+  if (raw.type === 'db') {
+    const on = raw.on
+    if (!on || typeof on.table !== 'string' || !on.table) throw new Error(`${where}: a db emitter needs \`on: { table, event }\``)
+    if (on.event !== 'insert' && on.event !== 'update' && on.event !== 'remove') {
+      throw new Error(`${where}: \`on.event\` must be 'insert' | 'update' | 'remove'`)
+    }
+    return { type: 'db', on: { table: on.table, event: on.event }, emits }
+  }
+  if (raw.type === 'internal') {
+    const on = raw.on
+    if (!on || typeof on.signal !== 'string' || !on.signal) throw new Error(`${where}: an internal emitter needs \`on: { signal }\``)
+    return { type: 'internal', on: { signal: on.signal }, emits }
+  }
+  throw new Error(`${where}: \`type\` must be 'webhook' | 'cron' | 'db' | 'internal' (got ${JSON.stringify(raw.type)})`)
+}
+
+/**
+ * Transpile+import one `events/*.ts` emitter def and return its VALIDATED shape.
+ * Type-only imports (`import type … from '@lmthing/core'`) are elided by the TS
+ * transpile, so the emitted module has no runtime dependency — it imports
+ * cleanly in isolation. Throws (failing the build) on a transpile or validation
+ * error. `emit` is never CALLED here (we only lift `type`/`emits`/`path`/etc.).
+ */
+async function loadEmitterDef(file) {
+  const ts = await getTs()
+  const src = await readFile(file, 'utf8')
+  const { outputText } = ts.transpileModule(src, {
+    fileName: file,
+    compilerOptions: {
+      module: ts.ModuleKind.ESNext,
+      target: ts.ScriptTarget.ES2022,
+      isolatedModules: true,
+    },
+  })
+  const tmp = path.join(tmpdir(), `emitter-${randomUUID()}.mjs`)
+  await writeFile(tmp, outputText, 'utf8')
+  try {
+    const mod = await import(pathToFileURL(tmp).href)
+    return validateEmitterDefVendored(mod.default, path.basename(file))
+  } finally {
+    await rm(tmp, { force: true })
+  }
+}
+
+/**
+ * Lift a space's `events/*.ts` defs into `{ events, inbound }`:
+ *   • `events`  — union of every def's `emits` (event name → { payload }); a
+ *     duplicate event name across two defs in the SAME space FAILS the build.
+ *   • `inbound` — `[{ path, verify }]` for every `webhook` def (its public
+ *     inbound path + the verify kind: the builtin provider or the spec `type`).
+ * Empty (`{ events: {}, inbound: [] }`) when the space has no `events/` dir.
+ */
+async function loadSpaceEvents(spaceDir, spaceId) {
+  const eventsDir = path.join(spaceDir, 'events')
+  const names = await listNamesWithExt(eventsDir, '.ts')
+  const events = {}
+  const owner = {}
+  const inbound = []
+  for (const name of names) {
+    const def = await loadEmitterDef(path.join(eventsDir, `${name}.ts`))
+    for (const [event, spec] of Object.entries(def.emits)) {
+      if (owner[event] !== undefined) {
+        throw new Error(
+          `[gen-apps-manifest] ${spaceId}: duplicate event "${event}" declared by "${owner[event]}" and "${name}" — event names must be unique within a space`,
+        )
+      }
+      owner[event] = name
+      events[event] = spec
+    }
+    if (def.type === 'webhook') {
+      const verify = def.verify?.type === 'builtin' ? def.verify.provider : def.verify?.type
+      inbound.push({ path: def.path, verify: String(verify) })
+    }
+  }
+  inbound.sort((a, b) => a.path.localeCompare(b.path))
+  return { events, inbound }
+}
+
+/**
+ * Lift a space's `functions/*.ts` into `[{ name, summary?, signature? }]` via a
+ * CHEAP static parse (no transpile): the exported function name, its declaration
+ * line as the signature, and the first line of any leading block comment as the
+ * summary. Best-effort — a function whose export we can't spot is simply skipped.
+ */
+async function loadSpaceFunctions(spaceDir) {
+  const fnDir = path.join(spaceDir, 'functions')
+  const names = await listNamesWithExt(fnDir, '.ts')
+  const out = []
+  for (const name of names) {
+    const src = await readFile(path.join(fnDir, `${name}.ts`), 'utf8')
+    const m = src.match(/export\s+(?:async\s+)?function\s+([A-Za-z0-9_$]+)\s*\(([^)]*)\)(\s*:\s*[^\{]+)?/)
+    if (!m) {
+      out.push({ name })
+      continue
+    }
+    const fnName = m[1]
+    const signature = `${fnName}(${m[2].replace(/\s+/g, ' ').trim()})${(m[3] ?? '').replace(/\s+/g, ' ').trimEnd()}`
+    // Summary = first non-empty line of the block comment immediately above `export`.
+    const before = src.slice(0, m.index)
+    const comment = before.match(/\/\*\*([\s\S]*?)\*\/\s*$/)
+    let summary
+    if (comment) {
+      const line = comment[1]
+        .split('\n')
+        .map((l) => l.replace(/^\s*\*?\s?/, '').trim())
+        .find((l) => l.length > 0)
+      if (line) summary = line
+    }
+    out.push({ name: fnName, ...(summary ? { summary } : {}), signature })
+  }
+  return out
+}
+
+/** Extract the YAML frontmatter block (between the first pair of `---` lines). */
+function frontmatterBlock(src) {
+  const m = src.match(/^---\n([\s\S]*?)\n---/)
+  return m ? m[1] : ''
+}
+
+/**
+ * Lift a space's `agents/<slug>/` into `[{ slug, actions?, triggers? }]` from
+ * each agent's `instruct.md` (falling back to `charter.md`) frontmatter — a
+ * light parse (no YAML dep): `actions` = the `- id: <x>` entries under
+ * `actions:`; `triggers` = the trigger kinds listed under `triggers:`.
+ */
+async function loadSpaceAgents(spaceDir) {
+  const agentsDir = path.join(spaceDir, 'agents')
+  const slugs = await listDirNames(agentsDir)
+  const out = []
+  for (const slug of slugs) {
+    const instruct = path.join(agentsDir, slug, 'instruct.md')
+    const charter = path.join(agentsDir, slug, 'charter.md')
+    const file = existsSync(instruct) ? instruct : existsSync(charter) ? charter : null
+    if (!file) {
+      out.push({ slug })
+      continue
+    }
+    const fm = frontmatterBlock(await readFile(file, 'utf8'))
+    const actions = []
+    const triggers = []
+    let section = null
+    for (const rawLine of fm.split('\n')) {
+      const line = rawLine.replace(/\t/g, '  ')
+      const top = line.match(/^([a-zA-Z0-9_]+):\s*(.*)$/)
+      if (top && !line.startsWith(' ') && !line.startsWith('-')) {
+        section = top[1]
+        continue
+      }
+      if (section === 'actions') {
+        const id = line.match(/^\s*-\s*id:\s*([A-Za-z0-9_-]+)/)
+        if (id) actions.push(id[1])
+      } else if (section === 'triggers') {
+        const t = line.match(/^\s*-\s*([A-Za-z0-9_]+)\s*:/)
+        if (t) triggers.push(t[1])
+      }
+    }
+    out.push({
+      slug,
+      ...(actions.length ? { actions } : {}),
+      ...(triggers.length ? { triggers } : {}),
+    })
+  }
+  return out
+}
+
 /**
  * Load one `store/spaces/<spaceId>/` into a `CatalogSpace` manifest entry, or `null` to skip
  * (no `lmthing` block in `package.json` — e.g. the plain demo workspaces `dog`, `google-sheets`).
@@ -181,7 +447,12 @@ async function loadSpaceEntry(spaceDir, spaceId) {
   const lmthing = pkg?.lmthing
   if (!lmthing) return null
 
-  const files = await listAllFiles(spaceDir)
+  const [files, { events, inbound }, functions, agents] = await Promise.all([
+    listAllFiles(spaceDir),
+    loadSpaceEvents(spaceDir, spaceId),
+    loadSpaceFunctions(spaceDir),
+    loadSpaceAgents(spaceDir),
+  ])
 
   return {
     id: spaceId,
@@ -191,6 +462,13 @@ async function loadSpaceEntry(spaceDir, spaceId) {
     tags: lmthing.tags ?? [],
     kind: lmthing.kind ?? null,
     settings: lmthing.settings ?? null,
+    // Lifted producer/consumer surface (S12) — lets `system-store` fit-check an
+    // install from catalog data alone. `events` is transpile-validated (a
+    // malformed emitter def fails the store build).
+    events,
+    inbound,
+    functions,
+    agents,
     // Full download list — every space file, so a pod's install endpoint can fetch each
     // from `<store>/spaces/<id>/<relpath>` (no server-side catalog needed).
     files,

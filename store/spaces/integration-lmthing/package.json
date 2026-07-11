@@ -1,0 +1,12 @@
+{
+  "name": "integration-lmthing",
+  "version": "1.0.0",
+  "private": true,
+  "lmthing": {
+    "kind": "integration",
+    "title": "lmthing",
+    "tags": ["integration"],
+    "icon": "🔁",
+    "description": "Subscribe to lmthing's OWN runtime events — session completions, space installs, hook fires, document writes, project creations — and publish your own custom events. Needs no API keys."
+  }
+}

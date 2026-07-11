@@ -1617,8 +1617,24 @@
           "INTEGRATION_DISCORD_APPLICATION_ID"
         ]
       },
-      "events": {},
-      "inbound": [],
+      "events": {
+        "message.received": {
+          "payload": {
+            "text": "string",
+            "from": "string",
+            "chatId": "string",
+            "threadKey": "string?",
+            "userName": "string?",
+            "raw": "object"
+          }
+        }
+      },
+      "inbound": [
+        {
+          "path": "discord",
+          "verify": "ed25519"
+        }
+      ],
       "functions": [
         {
           "name": "discordAddReaction",
@@ -1664,23 +1680,13 @@
             "post",
             "react"
           ]
-        },
-        {
-          "slug": "handler",
-          "actions": [
-            "handle"
-          ],
-          "triggers": [
-            "webhook"
-          ]
         }
       ],
       "files": [
         "README.md",
         "agents/discord/charter.md",
         "agents/discord/instruct.md",
-        "agents/handler/charter.md",
-        "agents/handler/instruct.md",
+        "events/messages.ts",
         "functions/discordAddReaction.ts",
         "functions/discordCreateMessage.ts",
         "functions/discordDeleteMessage.ts",
@@ -1862,8 +1868,24 @@
           "INTEGRATION_LINE_CHANNEL_SECRET"
         ]
       },
-      "events": {},
-      "inbound": [],
+      "events": {
+        "message.received": {
+          "payload": {
+            "text": "string",
+            "from": "string",
+            "chatId": "string",
+            "threadKey": "string?",
+            "userName": "string?",
+            "raw": "object"
+          }
+        }
+      },
+      "inbound": [
+        {
+          "path": "line",
+          "verify": "hmac"
+        }
+      ],
       "functions": [
         {
           "name": "lineBroadcast",
@@ -1893,15 +1915,6 @@
       ],
       "agents": [
         {
-          "slug": "handler",
-          "actions": [
-            "handle"
-          ],
-          "triggers": [
-            "webhook"
-          ]
-        },
-        {
           "slug": "line",
           "actions": [
             "assist",
@@ -1912,10 +1925,9 @@
       ],
       "files": [
         "README.md",
-        "agents/handler/charter.md",
-        "agents/handler/instruct.md",
         "agents/line/charter.md",
         "agents/line/instruct.md",
+        "events/messages.ts",
         "functions/lineBroadcast.ts",
         "functions/lineGetProfile.ts",
         "functions/lineMulticast.ts",
@@ -2037,8 +2049,24 @@
           "INTEGRATION_MATTERMOST_OUTGOING_TOKEN"
         ]
       },
-      "events": {},
-      "inbound": [],
+      "events": {
+        "message.received": {
+          "payload": {
+            "text": "string",
+            "from": "string",
+            "chatId": "string",
+            "threadKey": "string?",
+            "userName": "string?",
+            "raw": "object"
+          }
+        }
+      },
+      "inbound": [
+        {
+          "path": "mattermost",
+          "verify": "body-token"
+        }
+      ],
       "functions": [
         {
           "name": "mattermostAddReaction",
@@ -2073,15 +2101,6 @@
       ],
       "agents": [
         {
-          "slug": "handler",
-          "actions": [
-            "handle"
-          ],
-          "triggers": [
-            "webhook"
-          ]
-        },
-        {
           "slug": "mattermost",
           "actions": [
             "assist",
@@ -2092,10 +2111,9 @@
       ],
       "files": [
         "README.md",
-        "agents/handler/charter.md",
-        "agents/handler/instruct.md",
         "agents/mattermost/charter.md",
         "agents/mattermost/instruct.md",
+        "events/messages.ts",
         "functions/mattermostAddReaction.ts",
         "functions/mattermostGetMe.ts",
         "functions/mattermostGetUser.ts",
@@ -2136,8 +2154,24 @@
           "INTEGRATION_NEXTCLOUD_TALK_BOT_SECRET"
         ]
       },
-      "events": {},
-      "inbound": [],
+      "events": {
+        "message.received": {
+          "payload": {
+            "text": "string",
+            "from": "string",
+            "chatId": "string",
+            "threadKey": "string?",
+            "userName": "string?",
+            "raw": "object"
+          }
+        }
+      },
+      "inbound": [
+        {
+          "path": "nextcloud",
+          "verify": "hmac"
+        }
+      ],
       "functions": [
         {
           "name": "nextcloudAddReaction",
@@ -2162,15 +2196,6 @@
       ],
       "agents": [
         {
-          "slug": "handler",
-          "actions": [
-            "handle"
-          ],
-          "triggers": [
-            "webhook"
-          ]
-        },
-        {
           "slug": "nextcloud",
           "actions": [
             "assist",
@@ -2181,10 +2206,9 @@
       ],
       "files": [
         "README.md",
-        "agents/handler/charter.md",
-        "agents/handler/instruct.md",
         "agents/nextcloud/charter.md",
         "agents/nextcloud/instruct.md",
+        "events/messages.ts",
         "functions/nextcloudAddReaction.ts",
         "functions/nextcloudRemoveReaction.ts",
         "functions/nextcloudReplyMessage.ts",
@@ -2223,8 +2247,24 @@
           "SLACK_SIGNING_SECRET"
         ]
       },
-      "events": {},
-      "inbound": [],
+      "events": {
+        "message.received": {
+          "payload": {
+            "text": "string",
+            "from": "string",
+            "chatId": "string",
+            "threadKey": "string?",
+            "userName": "string?",
+            "raw": "object"
+          }
+        }
+      },
+      "inbound": [
+        {
+          "path": "slack",
+          "verify": "slack"
+        }
+      ],
       "functions": [
         {
           "name": "slackListChannels",
@@ -2244,15 +2284,6 @@
       ],
       "agents": [
         {
-          "slug": "handler",
-          "actions": [
-            "handle"
-          ],
-          "triggers": [
-            "webhook"
-          ]
-        },
-        {
           "slug": "slack",
           "actions": [
             "assist",
@@ -2264,10 +2295,9 @@
       "files": [
         "README.md",
         "SLACK_APP_SETUP.md",
-        "agents/handler/charter.md",
-        "agents/handler/instruct.md",
         "agents/slack/charter.md",
         "agents/slack/instruct.md",
+        "events/messages.ts",
         "functions/slackListChannels.ts",
         "functions/slackPostMessage.ts",
         "functions/slackSearchMessages.ts",
@@ -2312,8 +2342,24 @@
           "INTEGRATION_SMS_FROM_NUMBER"
         ]
       },
-      "events": {},
-      "inbound": [],
+      "events": {
+        "message.received": {
+          "payload": {
+            "text": "string",
+            "from": "string",
+            "chatId": "string",
+            "threadKey": "string?",
+            "userName": "string?",
+            "raw": "object"
+          }
+        }
+      },
+      "inbound": [
+        {
+          "path": "sms",
+          "verify": "twilio"
+        }
+      ],
       "functions": [
         {
           "name": "smsListMessages",
@@ -2333,15 +2379,6 @@
       ],
       "agents": [
         {
-          "slug": "handler",
-          "actions": [
-            "handle"
-          ],
-          "triggers": [
-            "webhook"
-          ]
-        },
-        {
           "slug": "sms",
           "actions": [
             "assist",
@@ -2352,10 +2389,9 @@
       ],
       "files": [
         "README.md",
-        "agents/handler/charter.md",
-        "agents/handler/instruct.md",
         "agents/sms/charter.md",
         "agents/sms/instruct.md",
+        "events/messages.ts",
         "functions/smsListMessages.ts",
         "functions/smsSend.ts",
         "functions/smsSendMms.ts",
@@ -2399,8 +2435,24 @@
           "INTEGRATION_SYNOLOGY_CHAT_OUTGOING_TOKEN"
         ]
       },
-      "events": {},
-      "inbound": [],
+      "events": {
+        "message.received": {
+          "payload": {
+            "text": "string",
+            "from": "string",
+            "chatId": "string",
+            "threadKey": "string?",
+            "userName": "string?",
+            "raw": "object"
+          }
+        }
+      },
+      "inbound": [
+        {
+          "path": "synology",
+          "verify": "body-token"
+        }
+      ],
       "functions": [
         {
           "name": "synologySendFile",
@@ -2420,15 +2472,6 @@
       ],
       "agents": [
         {
-          "slug": "handler",
-          "actions": [
-            "handle"
-          ],
-          "triggers": [
-            "webhook"
-          ]
-        },
-        {
           "slug": "synology",
           "actions": [
             "assist",
@@ -2439,10 +2482,9 @@
       ],
       "files": [
         "README.md",
-        "agents/handler/charter.md",
-        "agents/handler/instruct.md",
         "agents/synology/charter.md",
         "agents/synology/instruct.md",
+        "events/messages.ts",
         "functions/synologySendFile.ts",
         "functions/synologySendMessage.ts",
         "functions/synologySendToUser.ts",
@@ -2481,8 +2523,24 @@
           "INTEGRATION_TELEGRAM_WEBHOOK_SECRET"
         ]
       },
-      "events": {},
-      "inbound": [],
+      "events": {
+        "message.received": {
+          "payload": {
+            "text": "string",
+            "from": "string",
+            "chatId": "string",
+            "threadKey": "string?",
+            "userName": "string?",
+            "raw": "object"
+          }
+        }
+      },
+      "inbound": [
+        {
+          "path": "telegram",
+          "verify": "header-equals"
+        }
+      ],
       "functions": [
         {
           "name": "telegramDeleteMessage",
@@ -2522,15 +2580,6 @@
       ],
       "agents": [
         {
-          "slug": "handler",
-          "actions": [
-            "handle"
-          ],
-          "triggers": [
-            "webhook"
-          ]
-        },
-        {
           "slug": "telegram",
           "actions": [
             "assist",
@@ -2541,10 +2590,9 @@
       ],
       "files": [
         "README.md",
-        "agents/handler/charter.md",
-        "agents/handler/instruct.md",
         "agents/telegram/charter.md",
         "agents/telegram/instruct.md",
+        "events/messages.ts",
         "functions/telegramDeleteMessage.ts",
         "functions/telegramEditMessageText.ts",
         "functions/telegramGetMe.ts",
@@ -2599,8 +2647,24 @@
           "INTEGRATION_WHATSAPP_VERIFY_TOKEN"
         ]
       },
-      "events": {},
-      "inbound": [],
+      "events": {
+        "message.received": {
+          "payload": {
+            "text": "string",
+            "from": "string",
+            "chatId": "string",
+            "threadKey": "string?",
+            "userName": "string?",
+            "raw": "object"
+          }
+        }
+      },
+      "inbound": [
+        {
+          "path": "whatsapp",
+          "verify": "hmac"
+        }
+      ],
       "functions": [
         {
           "name": "whatsappMarkRead",
@@ -2630,15 +2694,6 @@
       ],
       "agents": [
         {
-          "slug": "handler",
-          "actions": [
-            "handle"
-          ],
-          "triggers": [
-            "webhook"
-          ]
-        },
-        {
           "slug": "whatsapp",
           "actions": [
             "assist",
@@ -2649,10 +2704,9 @@
       ],
       "files": [
         "README.md",
-        "agents/handler/charter.md",
-        "agents/handler/instruct.md",
         "agents/whatsapp/charter.md",
         "agents/whatsapp/instruct.md",
+        "events/messages.ts",
         "functions/whatsappMarkRead.ts",
         "functions/whatsappReplyText.ts",
         "functions/whatsappSendImage.ts",

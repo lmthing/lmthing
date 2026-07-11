@@ -74,12 +74,36 @@ Click **Save & Restart Pod** at the bottom. Wait ~30 seconds for the pod to rest
 
 ---
 
-## How replies work
+## How inbound messages work
 
-Synology Chat's bot surface is limited: an incoming webhook can only push into one channel, and there
-is no "reply in thread" API. So when someone messages your bot, THING answers with a **private direct
-message to that person** (using their `user_id` from the outgoing-webhook event). That's expected — it
-is the only reply path Synology offers.
+When someone messages your bot's channel, Synology's **Outgoing Webhook** POSTs the message to your
+pod. After verifying the shared outgoing-webhook `token`, this integration emits a normalized event
+your project can react to:
+
+- **Event:** `integration-synology-chat/message.received`
+- **Payload:**
+  - `text` — the message the person typed
+  - `from` — their display name (`username`, falling back to `user_id`)
+  - `chatId` — the channel id the message came from (`channel_id`)
+  - `userName` — their display name (optional)
+  - `raw` — all outgoing-webhook form fields (incl. `user_id`, `channel_name`, `post_id`, `timestamp`)
+  - `threadKey` — the originating `post_id` (optional)
+
+Posts with no `text`, and the bot's own/system posts, are ignored.
+
+### Automating a reply
+
+Add a **project event hook** subscribed to `integration-synology-chat/message.received`, produce an
+answer (delegate the request to THING if you like), and reply with `callConnection('synology-chat', …)`
+posting to `input.chatId`.
+
+Synology Chat's bot surface is limited: an incoming webhook can only push into one channel and there is
+no "reply in thread" API, so a reply is delivered into the channel (or as a direct message to the
+sender via their `raw.user_id`) — that is the only reply path Synology offers.
+
+All three values (NAS base URL, incoming-webhook token, and the outgoing-webhook token) are still
+required — the outgoing-webhook token verifies inbound messages, and the base URL + incoming token
+send replies.
 
 ## Troubleshooting
 

@@ -101,3 +101,49 @@ To let THING **reply when people message your account**, point LINE's webhook at
 - **The account replies with a canned message instead of THING** — auto-reply is still on; disable
   it in the LINE Official Account Manager (step 6).
 - Tokens are stored as private environment variables on your pod and never leave it.
+
+---
+
+## For automations — the `message.received` event
+
+Once connected (channel access token + channel secret saved, and the webhook URL registered under
+**Receiving LINE messages** above), every inbound LINE **text** message this space emits an event you
+can hook from any project:
+
+**`integration-line/message.received`**
+
+| Payload field | Type | Value |
+|---|---|---|
+| `text` | `string` | The message text the user sent. |
+| `from` | `string` | The sender's LINE `userId` (empty string if LINE omits it). |
+| `chatId` | `string` | Where to reply — the `groupId`, else `roomId`, else `userId` of the source. |
+| `userName` | `string?` | Reserved (LINE's webhook carries no display name; use `lineGetProfile` if needed). |
+| `threadKey` | `string?` | Not set — LINE has no threading model. |
+| `raw` | `object` | `{ event, replyToken }` — the raw LINE event plus its **single-use reply token**. |
+
+A single LINE webhook delivery can carry several events, so this space emits **one event per text
+message**. Only real, incoming **text** messages are emitted — follow / unfollow / join / leave /
+postback events and non-text messages (stickers, images, …) are ignored.
+
+**`raw.replyToken` is how you reply.** It is single-use and expires ~1 minute after the message
+arrives, so reply immediately; if it has expired, fall back to `linePush(chatId, …)`.
+
+### Automate "when a LINE message arrives, do X"
+
+Ask THING something like *"when a LINE message arrives, reply with a summary"* and the automator
+writes a project event hook subscribed to this event. The hook reads `ctx.input` and replies via the
+space's functions (which wrap `callConnection('line', …)`):
+
+```ts
+// hooks/line-reply.ts — on:{ event: 'integration-line/message.received' }
+export default async function (ctx) {
+  const input = ctx.input; // { text, from, chatId, raw: { event, replyToken } }
+  const answer = `You said: ${input.text}`;
+  // reply using the single-use reply token; fall back to a push if it has expired
+  const res = await lineReply(input.raw.replyToken, answer);
+  if (res && res.message) await linePush(input.chatId, answer);
+}
+```
+
+Keys (channel access token + channel secret) and a registered webhook URL are still required for
+events to flow — follow the steps above first.

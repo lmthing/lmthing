@@ -57,7 +57,29 @@ Click **Save & Restart Pod** at the bottom. Wait ~30 seconds for the pod to rest
 
 ## Optional: receiving Slack messages
 
-If you also want THING to **react to incoming Slack events**, point your Slack app's **Event Subscriptions → Request URL** at the Slack trigger URL shown in your project's **Triggers** settings tab. The **Signing secret** you already entered is what verifies those events.
+If you also want THING to **react to incoming Slack messages**, point your Slack app's **Event
+Subscriptions → Request URL** at the Slack inbound URL shown in your project's **Triggers** settings
+tab, and subscribe to the `message.channels` / `app_mention` events. The **Signing secret** you
+already entered is what verifies those events (the built-in Slack verifier checks it).
+
+Each genuine message the bot can see is emitted as an **`integration-slack/message.received`** event
+with this payload:
+
+| field | what it is |
+|---|---|
+| `text` | the message text |
+| `from` | the Slack **user id** |
+| `chatId` | the Slack **channel id** (where to reply) |
+| `threadKey` | the thread to reply in (`thread_ts`, or the message `ts`) |
+| `raw` | the full Slack event JSON |
+
+Bot messages and edited/deleted/system messages are ignored automatically.
+
+**To act on these messages, just tell THING what you want** — e.g. *"when a Slack message arrives,
+summarize it and reply in-thread."* THING writes a small **event hook** in your project that listens
+for `integration-slack/message.received`, reads the payload, and posts a reply back to Slack with
+your bot token (via `callConnection('slack', …)` → `POST /chat.postMessage`). No coding required on
+your side.
 
 ## Troubleshooting
 

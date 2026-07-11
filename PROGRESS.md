@@ -22,7 +22,7 @@ green suite is the only gate. Execution: one opus subagent per step, waves per d
 | S12 | store: integration-lmthing + catalog enrichment | **done** (6 tests; manifest 13 spaces) | sdk/org 7bd1651 · parent dcad27ab |
 | S13 | ui: chat Integrations tab + auto-resume + status | **done** (30 new tests; lint:tokens clean) | sdk/org 573f47a |
 | S14 | live verification on prod | **MACHINERY VERIFIED** on prod (compute f409182): install→emitter scan→space.installed signal→sink→integration-lmthing emitter→typed event→project event-hook code handler FIRED with correct payload. Caught+fixed real prod bug (worker-load-entry tsup entry). Agent-orchestration+consent-UI flow → verify in S16 (needs consent-card renderer). Budget: test user over $10/1d | e814088·f4091820 |
-| S15 | migration fan-out: 10 integration spaces + 6 store projects | in-progress — batch A (6 store apps, 33 db hooks) running; batch B (10 integration spaces, add events/ defs) next | |
+| S15 | migration fan-out: integration spaces + store projects | batch A DONE (6 apps, 33 db hooks → event hooks, all tests green, sdk/org 591f36b, parent 53880936); batch B running (9 messaging spaces → events/messages.ts emitter + drop handler agent, standard message.received payload) | |
 | S16 | docs, skills, studio format support | waits S15 | |
 
 ## S14 verification plan (the exact user scenario, keyless via integration-lmthing)

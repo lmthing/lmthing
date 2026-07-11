@@ -89,3 +89,44 @@ incoming update, or ask THING to *"tell me the chat id of the last person who me
   `https://api.telegram.org/bot<TOKEN>/deleteWebhook` to remove the webhook.
 
 Tokens are stored as private environment variables on your pod and never leave it.
+
+---
+
+## For automations — the `message.received` event
+
+Once connected (bot token + webhook secret saved, and the webhook URL registered in step 4), every
+inbound Telegram text message this space emits an event you can hook from any project:
+
+**`integration-telegram/message.received`**
+
+| Payload field | Type | Value |
+|---|---|---|
+| `text` | `string` | The message text the user sent. |
+| `from` | `string` | The sender's Telegram user id (`String(from.id)`). |
+| `chatId` | `string` | The chat to reply in (`String(chat.id)`); positive = private, negative = group/channel. |
+| `userName` | `string?` | The sender's `@username` (absent if they have none). |
+| `threadKey` | `string?` | The originating `message_id` (Telegram has no threads). |
+| `raw` | `object` | The full raw Telegram Update JSON. |
+
+Only real, incoming **text** messages are emitted — edited messages, callback queries, service
+messages, and messages from other bots are ignored.
+
+### Automate "when a Telegram message arrives, do X"
+
+Ask THING something like *"when a telegram message arrives, reply with a summary"* and the automator
+writes a project event hook subscribed to this event. The hook reads `ctx.input` and replies in the
+same chat via the space's `telegramSendMessage` function (which wraps
+`callConnection('telegram', …)`):
+
+```ts
+// hooks/telegram-reply.ts — on:{ event: 'integration-telegram/message.received' }
+export default async function (ctx) {
+  const input = ctx.input; // { text, from, chatId, userName, threadKey, raw }
+  const answer = `You said: ${input.text}`;
+  // reply in the same chat, threaded under the original message
+  await telegramSendMessage(input.chatId, answer, input.threadKey);
+}
+```
+
+Keys (bot token + webhook secret) and a registered webhook URL are still required for events to flow —
+follow steps 1–4 above first.

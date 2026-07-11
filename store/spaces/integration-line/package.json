@@ -21,12 +21,6 @@
       "apiBase": "https://api.line.me",
       "tokenEnv": "INTEGRATION_LINE_CHANNEL_ACCESS_TOKEN",
       "auth": { "kind": "bearer" }
-    },
-    "webhook": {
-      "provider": "line",
-      "secretEnv": "INTEGRATION_LINE_CHANNEL_SECRET",
-      "verify": { "type": "hmac", "algo": "sha256", "encoding": "base64", "header": "x-line-signature" },
-      "thread": { "from": "body", "path": "events.0.source.userId", "prefix": "line" }
     }
   }
 }

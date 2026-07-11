@@ -22,12 +22,6 @@
       "apiBase": "https://api.twilio.com/2010-04-01/Accounts/{env:INTEGRATION_SMS_ACCOUNT_SID}",
       "tokenEnv": "INTEGRATION_SMS_AUTH_TOKEN",
       "auth": { "kind": "basic", "userEnv": "INTEGRATION_SMS_ACCOUNT_SID" }
-    },
-    "webhook": {
-      "provider": "sms",
-      "secretEnv": "INTEGRATION_SMS_AUTH_TOKEN",
-      "verify": { "type": "twilio" },
-      "thread": { "from": "form", "field": "From", "prefix": "twilio" }
     }
   }
 }

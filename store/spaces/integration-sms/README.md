@@ -98,5 +98,55 @@ Now text your Twilio number from your phone — THING should reply within a few 
   regions Twilio delivers an MMS as an SMS containing a link. Make sure your number has the **MMS**
   capability if you want to send images.
 
+---
+
+## For automations — the `message.received` event
+
+Once connected (Account SID + Auth Token + number saved, and your Twilio number's **"A message comes
+in"** webhook pointed at your `…/sms` inbound URL — see step 5 above), every inbound **text** message
+this space emits an event you can hook from any project:
+
+**`integration-sms/message.received`**
+
+| Payload field | Type | Value |
+|---|---|---|
+| `text` | `string` | The message body the person texted. |
+| `from` | `string` | The sender's phone number in E.164 (Twilio's `From`) — who you reply to. |
+| `chatId` | `string` | Same as `from` — SMS has no channel/room, so you reply to the sender's number. |
+| `userName` | `string?` | Not set — SMS carries no display name. |
+| `threadKey` | `string?` | Not set — SMS has no threading model (each text is one-shot). |
+| `raw` | `object` | `{ From, To, MessageSid, AccountSid }` — the key fields from Twilio's form POST. |
+
+Only real, incoming text messages are emitted. Twilio's delivery/status callbacks (which carry no
+`Body`) are ignored — `emit` returns nothing for them.
+
+Signature verification is handled pod-side: the gateway forwards the original request URL as the
+`x-lmthing-inbound-url` header, and the verify engine reconstructs Twilio's `x-twilio-signature`
+(base64 HMAC-SHA1 over that URL plus the sorted form params, keyed by your Auth Token). The space only
+declares `verify: { type: 'twilio' }` — you configure nothing.
+
+### Automate "when a text arrives, do X"
+
+Ask THING something like *"when someone texts me, reply with a short answer"* and the automator writes
+a project event hook subscribed to this event. The hook reads `ctx.input` and replies via the space's
+`smsSend` wrapper (which wraps `callConnection('sms', …)`), texting the sender back from your own
+Twilio number:
+
+```ts
+// hooks/sms-reply.ts — on:{ event: 'integration-sms/message.received' }
+export default async function (ctx) {
+  const input = ctx.input; // { text, from, chatId, raw: { From, To, MessageSid, AccountSid } }
+  const answer = `You said: ${input.text}`;
+  // reply TO the sender (input.chatId / input.from) FROM the number they texted (raw.To)
+  const res = await smsSend(input.chatId, answer, input.raw.To);
+  // on failure Twilio returns { code, message } — surface it, don't claim success
+}
+```
+
+Keys (Account SID + Auth Token + your Twilio number) and a registered SMS webhook URL are still
+required for events to flow — follow the steps above first.
+
+---
+
 Your Account SID, Auth Token, and number are stored as private environment variables on your pod and
 never leave it.

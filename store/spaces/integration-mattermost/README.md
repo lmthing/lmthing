@@ -75,7 +75,50 @@ want THING to post in.
 ### 6. Save
 Click **Save & Restart Pod** at the bottom of this page. Wait ~30 seconds for the pod to restart,
 then in your chosen channel type `thing hello` (using your trigger word). THING should reply in a
-thread. You can also just ask THING here to *"post a hello to the #general channel in Mattermost."*
+thread (once you have wired up an automation — see below). You can also just ask THING here to
+*"post a hello to the #general channel in Mattermost."*
+
+---
+
+## Receiving messages — the emitted event
+
+This integration does **not** ship a handler agent. Instead, each verified inbound Mattermost
+message is turned into a single normalized event that your **project** consumes with an event hook:
+
+- **Event:** `integration-mattermost/message.received`
+- **Payload:**
+
+  | Field | Type | Value |
+  |---|---|---|
+  | `text` | `string` | The message text, with a leading trigger word stripped. |
+  | `from` | `string` | The posting user's `user_name`. |
+  | `chatId` | `string` | The Mattermost `channel_id` — **your reply target**. |
+  | `userName` | `string?` | Same as `from` (the poster's username). |
+  | `threadKey` | `string?` | `mattermost:<channel_id>` — groups a channel's turns into one thread. |
+  | `raw` | `object` | The full parsed outgoing-webhook form fields (`channel_id`, `channel_name`, `user_id`, `user_name`, `post_id`, `text`, `trigger_word`, …). |
+
+The pod verifies each inbound POST before emitting: Mattermost's outgoing-webhook shared **token**
+(the **Outgoing webhook token** field, `INTEGRATION_MATTERMOST_OUTGOING_TOKEN`) is compared against
+the `token` form field. Bot / non-user posts (no `user_name` or no `text`) are dropped — Mattermost
+also never fires an outgoing webhook on a bot's post, so replies can't loop.
+
+### Automate a reply
+
+Add an event hook in your project that listens for `integration-mattermost/message.received` and
+posts a reply back to the channel with `callConnection`:
+
+```ts
+// project event hook on `integration-mattermost/message.received`
+const answer = /* … produce a reply from input.text, e.g. delegate to THING … */;
+await callConnection('mattermost', {
+  method: 'POST',
+  path: '/posts',
+  body: { channel_id: input.chatId, message: answer, root_id: input.raw.post_id },
+});
+```
+
+Passing `root_id: input.raw.post_id` keeps the reply threaded under the original message. (The
+`mattermostPostMessage(channelId, message, rootId)` function wraps this same call.)
 
 ---
 

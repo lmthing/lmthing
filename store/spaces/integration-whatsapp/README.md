@@ -79,8 +79,56 @@ This also activates the inbound URL you'll need next.
 1. On **API Setup**, use the **To** box to add your own personal WhatsApp number as a test recipient
    (Meta will send it a confirmation code).
 2. Message your business number from that phone.
-3. THING should reply in the same WhatsApp chat. You can also ask THING here to *"send a WhatsApp to
-   +15551234567 saying hello"* (only works within 24 hours of that person messaging you — see below).
+3. Each inbound text message emits an `integration-whatsapp/message.received` event in this project
+   (see below). Wire a project event hook to it to reply automatically. You can also ask THING here
+   to *"send a WhatsApp to +15551234567 saying hello"* (only works within 24 hours of that person
+   messaging you — see below).
+
+---
+
+## Incoming messages: the `message.received` event
+
+Once the webhook is verified and you're subscribed to the **messages** field (step 7), every inbound
+**text** message from a WhatsApp user emits an event in this project:
+
+- **Event:** `integration-whatsapp/message.received`
+- **Payload:**
+
+  | Field | Meaning |
+  |---|---|
+  | `text` | the message body |
+  | `from` | the sender's WhatsApp number (no leading `+`) — this is your reply target |
+  | `chatId` | same as `from` (WhatsApp threads per sender) |
+  | `userName` | the sender's WhatsApp profile name, when Meta includes it |
+  | `raw.message` | the raw Cloud API message object (has `id`, the `wamid`, for quoting/read receipts) |
+  | `raw.phone_number_id` | which of your numbers received it — pass this along when you reply |
+
+Delivery/read status callbacks and non-text messages (image/audio/button/interactive) emit **nothing** —
+only real inbound text produces an event.
+
+### Automate a reply
+
+Add a **project event hook** subscribed to `integration-whatsapp/message.received`, and reply from
+inside it with `callConnection('whatsapp', …)` — the pod attaches your own
+`INTEGRATION_WHATSAPP_TOKEN` and pins to your `INTEGRATION_WHATSAPP_PHONE_ID`:
+
+```ts
+await callConnection('whatsapp', {
+  method: 'POST',
+  path: '/messages',
+  body: {
+    messaging_product: 'whatsapp',
+    to: event.payload.from,
+    type: 'text',
+    text: { body: answer },
+    context: { message_id: event.payload.raw.message.id }, // quote their message
+  },
+});
+```
+
+Replies to someone who just messaged you land inside the 24-hour customer-service window, so plain
+`text` is allowed — no template needed. Delegate the user's request to THING to produce `answer`, or
+call the `whatsapp` agent's wrapper functions (`whatsappReplyText`, `whatsappMarkRead`, …).
 
 ---
 

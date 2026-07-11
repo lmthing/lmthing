@@ -21,12 +21,6 @@
       "apiBase": "https://api.telegram.org/bot{token}",
       "tokenEnv": "INTEGRATION_TELEGRAM_BOT_TOKEN",
       "auth": { "kind": "none" }
-    },
-    "webhook": {
-      "provider": "telegram",
-      "secretEnv": "INTEGRATION_TELEGRAM_WEBHOOK_SECRET",
-      "verify": { "type": "header-equals", "header": "x-telegram-bot-api-secret-token" },
-      "thread": { "from": "body", "path": "message.chat.id", "prefix": "telegram" }
     }
   }
 }

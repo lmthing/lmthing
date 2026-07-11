@@ -79,6 +79,48 @@ If you also want THING to **answer slash commands** people run in your server:
 
 ---
 
+## For automations — the `message.received` event
+
+Once connected (bot token + public key + application id saved, and the **Interactions Endpoint URL**
+registered above), every inbound Discord message this space accepts emits an event you can hook from any
+project:
+
+**`integration-discord/message.received`**
+
+| Payload field | Type | Value |
+|---|---|---|
+| `text` | `string` | The message content the user sent (`content`). |
+| `from` | `string` | The author's Discord user id (`author.id`). |
+| `chatId` | `string` | The channel to reply in (`channel_id`). |
+| `userName` | `string?` | The author's `username` (absent if none). |
+| `threadKey` | `string?` | The originating `channel_id` (a stable per-channel thread). |
+| `raw` | `object` | The full raw Discord payload JSON. |
+
+Discord's endpoint-validation **PING** and messages from **bots** are ignored — only real, non-bot
+messages with text are emitted. (The PING is answered automatically by the pod using your **Public
+key**, before any agent wakes.)
+
+### Automate "when a Discord message arrives, do X"
+
+Ask THING something like *"when a discord message arrives, reply with a summary"* and the automator
+writes a project event hook subscribed to this event. The hook reads `ctx.input` and replies in the same
+channel via the space's `discordCreateMessage` function (which wraps `callConnection('discord', …)`):
+
+```ts
+// hooks/discord-reply.ts — on:{ event: 'integration-discord/message.received' }
+export default async function (ctx) {
+  const input = ctx.input; // { text, from, chatId, userName, threadKey, raw }
+  const answer = `You said: ${input.text}`;
+  // reply in the same channel
+  await discordCreateMessage(input.chatId, answer);
+}
+```
+
+Keys (bot token + public key + application id) and a registered **Interactions Endpoint URL** are still
+required for events to flow — follow the steps above first.
+
+---
+
 ## What goes where
 
 | This page (Settings → Integrations) | Copy it from the Discord Developer Portal |

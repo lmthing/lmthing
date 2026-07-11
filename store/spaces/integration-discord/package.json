@@ -22,13 +22,6 @@
       "apiBase": "https://discord.com/api/v10",
       "tokenEnv": "INTEGRATION_DISCORD_BOT_TOKEN",
       "auth": { "kind": "bot" }
-    },
-    "webhook": {
-      "provider": "discord",
-      "secretEnv": "INTEGRATION_DISCORD_PUBLIC_KEY",
-      "verify": { "type": "ed25519", "sigHeader": "x-signature-ed25519", "tsHeader": "x-signature-timestamp" },
-      "preflight": { "type": "json-echo", "when": { "field": "type", "equals": 1 }, "respond": { "type": 1 } },
-      "thread": { "from": "body", "path": "channel_id", "prefix": "discord" }
     }
   }
 }

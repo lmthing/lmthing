@@ -22,12 +22,6 @@
       "apiBase": { "env": "INTEGRATION_SYNOLOGY_CHAT_BASE_URL" },
       "tokenEnv": "INTEGRATION_SYNOLOGY_CHAT_TOKEN",
       "auth": { "kind": "query-token", "param": "token" }
-    },
-    "webhook": {
-      "provider": "synology",
-      "secretEnv": "INTEGRATION_SYNOLOGY_CHAT_OUTGOING_TOKEN",
-      "verify": { "type": "body-token", "field": "token", "bodyType": "form" },
-      "thread": { "from": "form", "field": "user_id", "prefix": "synology" }
     }
   }
 }

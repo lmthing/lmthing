@@ -22,12 +22,6 @@
       "apiBase": { "env": "INTEGRATION_MATTERMOST_BASE_URL", "suffix": "/api/v4" },
       "tokenEnv": "INTEGRATION_MATTERMOST_TOKEN",
       "auth": { "kind": "bearer" }
-    },
-    "webhook": {
-      "provider": "mattermost",
-      "secretEnv": "INTEGRATION_MATTERMOST_OUTGOING_TOKEN",
-      "verify": { "type": "body-token", "field": "token", "bodyType": "form" },
-      "thread": { "from": "form", "field": "channel_id", "prefix": "mattermost" }
     }
   }
 }

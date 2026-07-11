@@ -21,18 +21,6 @@
       "apiBase": { "env": "INTEGRATION_NEXTCLOUD_TALK_BASE_URL", "suffix": "/ocs/v2.php/apps/spreed/api/v1" },
       "tokenEnv": "INTEGRATION_NEXTCLOUD_TALK_BOT_SECRET",
       "auth": { "kind": "nextcloud-bot" }
-    },
-    "webhook": {
-      "provider": "nextcloud",
-      "secretEnv": "INTEGRATION_NEXTCLOUD_TALK_BOT_SECRET",
-      "verify": {
-        "type": "hmac",
-        "algo": "sha256",
-        "encoding": "hex",
-        "header": "x-nextcloud-talk-signature",
-        "signed": [{ "header": "x-nextcloud-talk-random" }, "body"]
-      },
-      "thread": { "from": "body", "path": "target.id", "prefix": "nextcloud" }
     }
   }
 }

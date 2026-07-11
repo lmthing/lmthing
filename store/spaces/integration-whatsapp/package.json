@@ -23,13 +23,6 @@
       "apiBase": "https://graph.facebook.com/v20.0/{env:INTEGRATION_WHATSAPP_PHONE_ID}",
       "tokenEnv": "INTEGRATION_WHATSAPP_TOKEN",
       "auth": { "kind": "bearer" }
-    },
-    "webhook": {
-      "provider": "whatsapp",
-      "secretEnv": "INTEGRATION_WHATSAPP_APP_SECRET",
-      "verify": { "type": "hmac", "algo": "sha256", "encoding": "hex", "header": "x-hub-signature-256", "prefix": "sha256=" },
-      "challenge": { "type": "hub-challenge", "verifyTokenEnv": "INTEGRATION_WHATSAPP_VERIFY_TOKEN" },
-      "thread": { "from": "body", "path": "entry.0.changes.0.value.messages.0.from", "prefix": "whatsapp" }
     }
   }
 }

@@ -235,7 +235,10 @@ function validateEmitsVendored(where, raw) {
     }
     const fields = {}
     for (const [field, type] of Object.entries(payload)) {
-      if (typeof type !== 'string' || !EMITTER_TYPESTRINGS.has(type)) {
+      // A trailing `?` marks the field optional; the base type must still be known.
+      // (Lockstep with core spaces/emitter-load.ts validateEmits.)
+      const base = typeof type === 'string' && type.endsWith('?') ? type.slice(0, -1) : type
+      if (typeof type !== 'string' || !EMITTER_TYPESTRINGS.has(base)) {
         throw new Error(`${where}: event "${event}" field "${field}" has an invalid typeString ${JSON.stringify(type)}`)
       }
       fields[field] = type

@@ -110,3 +110,50 @@ the events it delivers to your inbound URL — so the secret must match exactly 
 - **Nothing happens after saving** — give the pod ~30 seconds to restart, and confirm the **Nextcloud
   URL** has no trailing slash and is reachable from the internet.
 - Your secret and URL are stored as private environment variables on your pod and never leave it.
+
+---
+
+## For automations — the `message.received` event
+
+Once connected (Nextcloud URL + bot secret saved, the bot installed with `occ talk:bot:install`, and
+enabled in a conversation with `occ talk:bot:setup`), every inbound Nextcloud Talk chat message this
+space emits an event you can hook from any project:
+
+**`integration-nextcloud-talk/message.received`**
+
+| Payload field | Type | Value |
+|---|---|---|
+| `text` | `string` | The message text (parsed from `object.content`'s `.message`, falling back to the raw content). |
+| `from` | `string` | The sender's display name (`actor.name`). |
+| `chatId` | `string` | The conversation **room token** to reply in (`target.id`). |
+| `userName` | `string?` | The sender's display name (`actor.name`). |
+| `threadKey` | `string?` | `nextcloud:<room token>` — a stable per-conversation continuity key. |
+| `raw` | `object` | The full raw Nextcloud Talk bot event JSON. |
+
+Only real, incoming chat messages are emitted — non-`Create` events (reactions, joins/leaves, system
+messages), non-`Note` objects, and the bot's own messages (actor type `Application`) are ignored.
+
+### Automate "when a Nextcloud Talk message arrives, do X"
+
+Ask THING something like *"when a Nextcloud Talk message arrives, reply with a summary"* and the
+automator writes a project event hook subscribed to this event. The hook reads `ctx.input` and replies
+into the same conversation via `callConnection('nextcloud-talk', …)` (posting the reply to the
+conversation identified by `input.chatId`):
+
+```ts
+// hooks/nextcloud-reply.ts — on:{ event: 'integration-nextcloud-talk/message.received' }
+export default async function (ctx) {
+  const input = ctx.input; // { text, from, chatId, userName, threadKey, raw }
+  const answer = `You said: ${input.text}`;
+  // reply into the same conversation (room token = input.chatId)
+  await callConnection('nextcloud-talk', {
+    method: 'POST',
+    path: `/bot/${encodeURIComponent(input.chatId)}/message`,
+    headers: { 'OCS-APIRequest': 'true', Accept: 'application/json' },
+    body: { message: answer },
+  });
+}
+```
+
+Keys (bot secret + Nextcloud base URL) and an installed, conversation-enabled bot are still required
+for events to flow — follow steps 1–7 above first.

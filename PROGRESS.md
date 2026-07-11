@@ -21,7 +21,7 @@ green suite is the only gate. Execution: one opus subagent per step, waves per d
 | S11 | core: system-store space + THING/automator/engineer + live authoring | **done** (core 755; ws 8/8) | sdk/org a2c67a6 |
 | S12 | store: integration-lmthing + catalog enrichment | **done** (6 tests; manifest 13 spaces) | sdk/org 7bd1651 · parent dcad27ab |
 | S13 | ui: chat Integrations tab + auto-resume + status | **done** (30 new tests; lint:tokens clean) | sdk/org 573f47a |
-| S14 | live verification on prod | deploying — CI building compute+store images (submodule-push fix); then ArgoCD sync + pod roll + chrome-devtools verify | |
+| S14 | live verification on prod | IN PROGRESS — new compute image boots clean (no crash); event chain fires (signal→sink→emitter matched); FOUND+FIXED prod bug: worker-load-entry.js not a tsup entry → emit build 404 (e814088/f4091820); re-verifying on rebuilt image. Budget: test user over $10/1d (agent turns 429) | |
 | S15 | migration fan-out: 10 integration spaces + 6 store projects | waits S14 | |
 | S16 | docs, skills, studio format support | waits S15 | |
 

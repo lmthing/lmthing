@@ -153,12 +153,11 @@ test('refresh-sources is an imperative cron handler (no LLM/agent trigger)', () 
   assert.match(src, /db\.insert\(\s*['"]raw_items['"]/, 'must insert new raw_items directly');
 });
 
-test('synthesize-new is a database:insert hook with an idempotence guard + delegate', () => {
+test('synthesize-new is a raw_items.insert event hook with an idempotence guard + delegate', () => {
   const src = readFileSync(join(APP, 'hooks', 'synthesize-new.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /table:\s*['"]raw_items['"]/);
-  assert.match(src, /event:\s*['"]insert['"]/);
-  assert.match(src, /row\.processed/, 'must guard on row.processed (idempotence / loop guard)');
+  assert.match(src, /type:\s*['"]event['"]/);
+  assert.match(src, /event:\s*['"]project\/db\.raw_items\.insert['"]/);
+  assert.match(src, /input\.processed/, 'must guard on input.processed (idempotence / loop guard)');
   assert.match(src, /delegate\(\s*['"]newsroom\/synthesizer['"]/, 'must delegate to the synthesizer');
 });
 
@@ -170,27 +169,25 @@ test('build-daily-digest is a daily cron that triggers the curator', () => {
   assert.match(src, /editorial\/curator#digest/);
 });
 
-test('render-newsletter is a digests:insert hook with idempotence + delegate to digest-writer', () => {
+test('render-newsletter is a digests.insert event hook with idempotence + delegate to digest-writer', () => {
   const src = readFileSync(join(APP, 'hooks', 'render-newsletter.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /table:\s*['"]digests['"]/);
-  assert.match(src, /event:\s*['"]insert['"]/);
+  assert.match(src, /type:\s*['"]event['"]/);
+  assert.match(src, /event:\s*['"]project\/db\.digests\.insert['"]/);
   assert.match(src, /newsletters/, 'must check for an existing newsletter (idempotence)');
   assert.match(src, /delegate\(\s*['"]editorial\/digest-writer['"]/, 'must delegate to the digest-writer');
 });
 
-test('personalize-on-read is a reading_events:insert hook delegating to the personalizer', () => {
+test('personalize-on-read is a reading_events.insert event hook delegating to the personalizer', () => {
   const src = readFileSync(join(APP, 'hooks', 'personalize-on-read.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /table:\s*['"]reading_events['"]/);
+  assert.match(src, /type:\s*['"]event['"]/);
+  assert.match(src, /event:\s*['"]project\/db\.reading_events\.insert['"]/);
   assert.match(src, /delegate\(\s*['"]editorial\/personalizer['"]\s*,\s*['"]learn['"]/, 'must delegate learn');
 });
 
-test('rescore-on-topic-change is a topics:update hook delegating rescore', () => {
+test('rescore-on-topic-change is a topics.update event hook delegating rescore', () => {
   const src = readFileSync(join(APP, 'hooks', 'rescore-on-topic-change.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /table:\s*['"]topics['"]/);
-  assert.match(src, /event:\s*['"]update['"]/);
+  assert.match(src, /type:\s*['"]event['"]/);
+  assert.match(src, /event:\s*['"]project\/db\.topics\.update['"]/);
   assert.match(src, /delegate\(\s*['"]editorial\/personalizer['"]\s*,\s*['"]rescore['"]/, 'must delegate rescore');
 });
 
@@ -201,45 +198,41 @@ test('scan-subscriptions is a cron hook that triggers the librarian', () => {
   assert.match(src, /research\/librarian#scan/);
 });
 
-test('generate-briefing is a briefings:insert hook delegating to the analyst with a pending guard', () => {
+test('generate-briefing is a briefings.insert event hook delegating to the analyst with a pending guard', () => {
   const src = readFileSync(join(APP, 'hooks', 'generate-briefing.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /table:\s*['"]briefings['"]/);
-  assert.match(src, /event:\s*['"]insert['"]/);
+  assert.match(src, /type:\s*['"]event['"]/);
+  assert.match(src, /event:\s*['"]project\/db\.briefings\.insert['"]/);
   assert.match(src, /delegate\(\s*['"]research\/analyst['"]\s*,\s*['"]brief['"]/, 'must delegate brief');
   assert.match(src, /pending/, 'must guard on the pending status (idempotence)');
 });
 
-test('file-into-collections is an articles:insert hook delegating to the librarian', () => {
+test('file-into-collections is an articles.insert event hook delegating to the librarian', () => {
   const src = readFileSync(join(APP, 'hooks', 'file-into-collections.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /table:\s*['"]articles['"]/);
-  assert.match(src, /event:\s*['"]insert['"]/);
+  assert.match(src, /type:\s*['"]event['"]/);
+  assert.match(src, /event:\s*['"]project\/db\.articles\.insert['"]/);
   assert.match(src, /delegate\(\s*['"]research\/librarian['"]\s*,\s*['"]file['"]/, 'must delegate file');
 });
 
-test('generate-take is an article_takes:insert hook delegating to the explainer with a pending guard', () => {
+test('generate-take is an article_takes.insert event hook delegating to the explainer with a pending guard', () => {
   const src = readFileSync(join(APP, 'hooks', 'generate-take.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /table:\s*['"]article_takes['"]/);
-  assert.match(src, /event:\s*['"]insert['"]/);
+  assert.match(src, /type:\s*['"]event['"]/);
+  assert.match(src, /event:\s*['"]project\/db\.article_takes\.insert['"]/);
   assert.match(src, /delegate\(\s*['"]editorial\/explainer['"]\s*,\s*['"]explain['"]/, 'must delegate explain');
   assert.match(src, /pending/, 'must guard on the pending status (idempotence)');
 });
 
-test('deep-research is a research:insert hook delegating to the researcher with a pending guard', () => {
+test('deep-research is a research.insert event hook delegating to the researcher with a pending guard', () => {
   const src = readFileSync(join(APP, 'hooks', 'deep-research.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /table:\s*['"]research['"]/);
-  assert.match(src, /event:\s*['"]insert['"]/);
+  assert.match(src, /type:\s*['"]event['"]/);
+  assert.match(src, /event:\s*['"]project\/db\.research\.insert['"]/);
   assert.match(src, /delegate\(\s*['"]newsroom\/researcher['"]\s*,\s*['"]deep-dive['"]/, 'must delegate deep-dive');
   assert.match(src, /pending/, 'must guard on the pending status (idempotence)');
 });
 
-test('track-source-health is a pure-db raw_items:insert hook (no delegate)', () => {
+test('track-source-health is a pure-db raw_items.insert event hook (no delegate)', () => {
   const src = readFileSync(join(APP, 'hooks', 'track-source-health.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /table:\s*['"]raw_items['"]/);
+  assert.match(src, /type:\s*['"]event['"]/);
+  assert.match(src, /event:\s*['"]project\/db\.raw_items\.insert['"]/);
   assert.match(src, /source_health/, 'must upsert the source_health row');
   assert.doesNotMatch(src, /delegate\(/, 'must be a pure-db handler — no agent delegate');
 });

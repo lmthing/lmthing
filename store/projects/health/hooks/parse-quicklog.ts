@@ -1,6 +1,6 @@
 export default {
-  type: 'database',
-  on: { table: 'quicklog_drafts', event: 'insert' },
+  type: 'event',
+  on: { event: 'project/db.quicklog_drafts.insert' },
   // Declarative "reconcile now" signal — no id is threaded. The logger self-queries
   // every `pending` quicklog_drafts row, parses the free-text into a structured,
   // reviewable `proposedActions` list, and marks the draft `ready`. It writes ONLY the

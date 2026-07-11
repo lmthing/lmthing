@@ -1,6 +1,6 @@
 export default {
-  type: 'database',
-  on: { table: 'research', event: 'insert' },
+  type: 'event',
+  on: { event: 'project/db.research.insert' },
   // Declarative trigger: a hook delegate does not thread structured input to the agent, so this is
   // a plain "reconcile now" signal. research rows are inserted by the interpreter (abnormal lab +
   // subscription) or the user's requestResearch call; the researcher finds its own work — it fills

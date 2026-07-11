@@ -1,6 +1,6 @@
 export default {
-  type: 'database',
-  on: { table: 'interactions', event: 'insert' },
+  type: 'event',
+  on: { event: 'project/db.interactions.insert' },
   // Declarative trigger: a hook delegate does not thread structured input, so this is a plain
   // "reconcile now" signal. The pharmacist finds its own work — it fills every interaction row still
   // `pending` by researching the pairing in the literature (universal webSearch/webFetch) and writing

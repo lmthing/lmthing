@@ -21,8 +21,8 @@ green suite is the only gate. Execution: one opus subagent per step, waves per d
 | S11 | core: system-store space + THING/automator/engineer + live authoring | **done** (core 755; ws 8/8) | sdk/org a2c67a6 |
 | S12 | store: integration-lmthing + catalog enrichment | **done** (6 tests; manifest 13 spaces) | sdk/org 7bd1651 · parent dcad27ab |
 | S13 | ui: chat Integrations tab + auto-resume + status | **done** (30 new tests; lint:tokens clean) | sdk/org 573f47a |
-| S14 | live verification on prod | IN PROGRESS — new compute image boots clean (no crash); event chain fires (signal→sink→emitter matched); FOUND+FIXED prod bug: worker-load-entry.js not a tsup entry → emit build 404 (e814088/f4091820); re-verifying on rebuilt image. Budget: test user over $10/1d (agent turns 429) | |
-| S15 | migration fan-out: 10 integration spaces + 6 store projects | waits S14 | |
+| S14 | live verification on prod | **MACHINERY VERIFIED** on prod (compute f409182): install→emitter scan→space.installed signal→sink→integration-lmthing emitter→typed event→project event-hook code handler FIRED with correct payload. Caught+fixed real prod bug (worker-load-entry tsup entry). Agent-orchestration+consent-UI flow → verify in S16 (needs consent-card renderer). Budget: test user over $10/1d | e814088·f4091820 |
+| S15 | migration fan-out: 10 integration spaces + 6 store projects | in-progress — batch A (6 store apps, 33 db hooks) running; batch B (10 integration spaces, add events/ defs) next | |
 | S16 | docs, skills, studio format support | waits S15 | |
 
 ## S14 verification plan (the exact user scenario, keyless via integration-lmthing)
@@ -65,6 +65,14 @@ the ConsentCard descriptor, S16 adds it; for S14, verify the yield/approve round
 - 2026-07-11: S6→8df7dda (unified pipeline; {type:'database'} DELETED). S15 db-hook rewrite pattern:
   `{type:'database', on:{table,event}, handler}` → `{type:'event', on:{event:'project/db.<table>.<insert|update|remove>'}, handler}`
   where ctx.input IS the row; delegate now returns the result.
+- 2026-07-12: S12 pushed (parent dcad27ab); full integration gate green (ws typecheck 8/8, 1407 tests).
+  S14 deploy: fixed submodule-not-pushed CI checkout fail; ArgoCD synced dcad27a. Live smoke: new
+  compute image boots clean. FOUND+FIXED prod bug (worker-load-entry.js missing from tsup entries →
+  e814088/f4091820, compute f409182). MACHINERY VERIFIED live: space install → space.installed signal
+  → integration-lmthing emitter → event hook code handler fired with correct payload. Also unified
+  ctx.input=payload across db/emitter paths (591f36b). S15 batch A (6 store apps) launched. Agent-UI
+  (consent card) flow deferred to S16 verify (needs renderer). NOT YET: submodule bump for 591f36b +
+  redeploy; store manifest regen after S15; batch B integration spaces.
 - 2026-07-11: S11→a2c67a6. system-store agent slug = `finder`, delegate as
   delegate('system-store','finder',{query}). THING path 7 = discover→consent install→setup→automate.
   Project authoring globals writeProjectHook/Event/Function (hooks:write). S12 running (owns

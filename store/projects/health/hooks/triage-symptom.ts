@@ -1,6 +1,6 @@
 export default {
-  type: 'database',
-  on: { table: 'triage_assessments', event: 'insert' },
+  type: 'event',
+  on: { event: 'project/db.triage_assessments.insert' },
   // Declarative "reconcile now" signal — no id is threaded. The triage-nurse self-queries every
   // `pending` triage_assessments row and writes a conservative, knowledge-grounded urgency
   // observation (never a diagnosis). That UPDATE is self-write-excluded from this insert-only hook,

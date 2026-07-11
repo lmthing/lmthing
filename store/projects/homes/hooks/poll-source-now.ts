@@ -15,8 +15,8 @@ export default {
   //   • the dispatcher's self-write exclusion means the clipper's own `lastPolledAt` /
   //     `blockedReason` writes (made inside this hook's triggered session) never re-fire it;
   //   • the per-hook cooldown coalesces a burst of edits into one run.
-  type: 'database',
-  on: { table: 'sources', event: 'update' },
+  type: 'event',
+  on: { event: 'project/db.sources.update' },
   trigger: 'intake/clipper#poll',
   budget: { maxEpisodes: 8, maxWallClockMs: 600000 },
 };

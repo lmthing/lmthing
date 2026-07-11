@@ -191,19 +191,19 @@ test('plan-week + recompute-shopping (round 1) are intact', () => {
   assert.match(pw, /type:\s*['"]cron['"]/);
   assert.match(pw, /chef\/planner#plan/);
   const rs = readFileSync(join(APP, 'hooks', 'recompute-shopping.ts'), 'utf8');
-  assert.match(rs, /type:\s*['"]database['"]/);
-  assert.match(rs, /table:\s*['"]plan_meals['"]/);
+  assert.match(rs, /type:\s*['"]event['"]/);
+  assert.match(rs, /event:\s*['"]project\/db\.plan_meals\.insert['"]/);
   assert.match(rs, /chef\/shopper/);
 });
 
-test('round-2 hooks: 2 database (nutrition) + 2 cron, on working dispatch paths', () => {
+test('round-2 hooks: 2 event (nutrition) + 2 cron, on working dispatch paths', () => {
   const cn = readFileSync(join(APP, 'hooks', 'compute-nutrition.ts'), 'utf8');
-  assert.match(cn, /type:\s*['"]database['"]/);
-  assert.match(cn, /table:\s*['"]plan_meals['"]/);
+  assert.match(cn, /type:\s*['"]event['"]/);
+  assert.match(cn, /event:\s*['"]project\/db\.plan_meals\.insert['"]/);
   assert.match(cn, /nutrition\/nutritionist#compute/);
   const er = readFileSync(join(APP, 'hooks', 'enrich-recipe-nutrition.ts'), 'utf8');
-  assert.match(er, /type:\s*['"]database['"]/);
-  assert.match(er, /table:\s*['"]recipes['"]/);
+  assert.match(er, /type:\s*['"]event['"]/);
+  assert.match(er, /event:\s*['"]project\/db\.recipes\.insert['"]/);
   assert.match(er, /nutrition\/nutritionist#analyze-recipe/);
   const uu = readFileSync(join(APP, 'hooks', 'use-it-up.ts'), 'utf8');
   assert.match(uu, /type:\s*['"]cron['"]/);

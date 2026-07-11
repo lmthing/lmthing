@@ -271,11 +271,10 @@ test('pollSource stamps a manual request and does NOT spawn (the poll-source-now
   assert.match(src, /db\.update\(\s*['"]sources['"]/, 'the request is a sources update the hook fires on');
 });
 
-test('poll-source-now: database:update on sources → intake/clipper#poll trigger', () => {
+test('poll-source-now: event on project/db.sources.update → intake/clipper#poll trigger', () => {
   const src = readFileSync(join(APP, 'hooks', 'poll-source-now.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /table:\s*['"]sources['"]/);
-  assert.match(src, /event:\s*['"]update['"]/);
+  assert.match(src, /type:\s*['"]event['"]/);
+  assert.match(src, /event:\s*['"]project\/db\.sources\.update['"]/);
   // Declarative trigger (not the terse handler-delegate) so the clipper reliably routes to
   // its `poll` action; the pending-request eligibility gate lives in politeFetchPlan.
   assert.match(src, /trigger:\s*['"]intake\/clipper#poll['"]/);
@@ -291,28 +290,27 @@ test('saveListing / dismissListing write the taste signal', () => {
 });
 
 // ── Hooks — the ingest→enrich→learn pipeline + crons ─────────────────────────
-test('parse-new-capture: database:insert on raw_captures → clipper#parse, guarded', () => {
+test('parse-new-capture: event on project/db.raw_captures.insert → clipper#parse, guarded', () => {
   const src = readFileSync(join(APP, 'hooks', 'parse-new-capture.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /table:\s*['"]raw_captures['"]/);
-  assert.match(src, /event:\s*['"]insert['"]/);
+  assert.match(src, /type:\s*['"]event['"]/);
+  assert.match(src, /event:\s*['"]project\/db\.raw_captures\.insert['"]/);
   assert.match(src, /delegate\(\s*['"]intake\/clipper['"]/);
   assert.match(src, /status/, 'must guard on status === pending');
 });
 
-test('enrich-new-listing: one database hook running all four scout delegates sequentially', () => {
+test('enrich-new-listing: one event hook running all four scout delegates sequentially', () => {
   const src = readFileSync(join(APP, 'hooks', 'enrich-new-listing.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /table:\s*['"]listings['"]/);
+  assert.match(src, /type:\s*['"]event['"]/);
+  assert.match(src, /event:\s*['"]project\/db\.listings\.insert['"]/);
   assert.match(src, /listing_analyses/, 'idempotence guard on listing_analyses');
   for (const ref of ['intake/surveyor', 'scout/analyst', 'scout/locator', 'scout/ranker']) {
     assert.match(src, new RegExp(ref.replace('/', '\\/')), `enrich must delegate ${ref}`);
   }
 });
 
-test('learn-from-signal: database:insert on taste_signals → ranker#learn, folded guard', () => {
+test('learn-from-signal: event on project/db.taste_signals.insert → ranker#learn, folded guard', () => {
   const src = readFileSync(join(APP, 'hooks', 'learn-from-signal.ts'), 'utf8');
-  assert.match(src, /table:\s*['"]taste_signals['"]/);
+  assert.match(src, /event:\s*['"]project\/db\.taste_signals\.insert['"]/);
   assert.match(src, /delegate\(\s*['"]scout\/ranker['"]/);
   assert.match(src, /folded/);
 });
@@ -406,8 +404,8 @@ test('daily-digest + notify-on-alert hooks are wired', () => {
   assert.match(digest, /type:\s*['"]cron['"]/);
   assert.match(digest, /trigger:\s*['"]scout\/ranker#digest['"]/);
   const notify = readFileSync(join(APP, 'hooks', 'notify-on-alert.ts'), 'utf8');
-  assert.match(notify, /table:\s*['"]alerts['"]/);
-  assert.match(notify, /event:\s*['"]insert['"]/);
+  assert.match(notify, /type:\s*['"]event['"]/);
+  assert.match(notify, /event:\s*['"]project\/db\.alerts\.insert['"]/);
 });
 
 const AGENTS = {

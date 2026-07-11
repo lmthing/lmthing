@@ -194,11 +194,10 @@ test('createTrip inserts a trip + a pending plan agent_runs row (no ctx.spawn �
   assert.doesNotMatch(src, /ctx\.spawn\(/, 'createTrip must not rely on ctx.spawn (no-op stub); the dispatch hook runs the planner');
 });
 
-test('dispatch-agent-run is a database:insert hook on agent_runs that delegates by kind (the working ctx.spawn replacement)', () => {
+test('dispatch-agent-run is an event hook on project/db.agent_runs.insert that delegates by kind (the working ctx.spawn replacement)', () => {
   const src = readFileSync(join(APP, 'hooks', 'dispatch-agent-run.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /table:\s*['"]agent_runs['"]/);
-  assert.match(src, /event:\s*['"]insert['"]/);
+  assert.match(src, /type:\s*['"]event['"]/);
+  assert.match(src, /event:\s*['"]project\/db\.agent_runs\.insert['"]/);
   // maps each kind to its specialist agent#action
   assert.match(src, /concierge\/planner/, 'kind "plan" → concierge/planner');
   assert.match(src, /finance\/deal-hunter/, 'kind "deals" → finance/deal-hunter');
@@ -220,12 +219,11 @@ test('spawn-backed endpoints seed a pending agent_runs row and do NOT use ctx.sp
   }
 });
 
-// ── Hooks — database:insert + cron ──────────────────────────────────────────
-test('research-new-destination is a database:insert hook with idempotence + delegate', () => {
+// ── Hooks — event (project/db.*) + cron ─────────────────────────────────────
+test('research-new-destination is a project/db.destinations.insert event hook with idempotence + delegate', () => {
   const src = readFileSync(join(APP, 'hooks', 'research-new-destination.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /table:\s*['"]destinations['"]/);
-  assert.match(src, /event:\s*['"]insert['"]/);
+  assert.match(src, /type:\s*['"]event['"]/);
+  assert.match(src, /event:\s*['"]project\/db\.destinations\.insert['"]/);
   assert.match(src, /delegate\(\s*['"]concierge\/researcher['"]/, 'must delegate to the researcher');
 });
 
@@ -235,19 +233,18 @@ test('watch-booking-prices is a cron hook targeting the researcher', () => {
   assert.match(src, /concierge\/researcher#price-check/);
 });
 
-test('analyze-document is a database:insert hook on documents → records/analyst (idempotent)', () => {
+test('analyze-document is a project/db.documents.insert event hook → records/analyst (idempotent)', () => {
   const src = readFileSync(join(APP, 'hooks', 'analyze-document.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /table:\s*['"]documents['"]/);
-  assert.match(src, /event:\s*['"]insert['"]/);
+  assert.match(src, /type:\s*['"]event['"]/);
+  assert.match(src, /event:\s*['"]project\/db\.documents\.insert['"]/);
   assert.match(src, /delegate\(\s*['"]records\/analyst['"]/, 'must delegate to the analyst');
   assert.match(src, /document_extractions|status/, 'must have an idempotence guard');
 });
 
-test('plan-transit-on-destination is a database:insert hook on destinations → logistics/navigator', () => {
+test('plan-transit-on-destination is a project/db.destinations.insert event hook → logistics/navigator', () => {
   const src = readFileSync(join(APP, 'hooks', 'plan-transit-on-destination.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /table:\s*['"]destinations['"]/);
+  assert.match(src, /type:\s*['"]event['"]/);
+  assert.match(src, /event:\s*['"]project\/db\.destinations\.insert['"]/);
   assert.match(src, /delegate\(\s*['"]logistics\/navigator['"]/, 'must delegate to the navigator');
   assert.match(src, /transit_legs/, 'must have an idempotence guard on transit_legs');
 });
@@ -255,7 +252,7 @@ test('plan-transit-on-destination is a database:insert hook on destinations → 
 test('regenerate-packing is a cron hook triggering logistics/packer#pack-due', () => {
   const src = readFileSync(join(APP, 'hooks', 'regenerate-packing.ts'), 'utf8');
   assert.match(src, /type:\s*['"]cron['"]/);
-  // Cron hooks support a declarative `trigger` only (imperative handlers are for database hooks).
+  // Cron hooks support a declarative `trigger` only (imperative handlers are for event hooks).
   assert.match(src, /trigger:\s*['"]logistics\/packer#pack-due['"]/);
 });
 
@@ -501,19 +498,18 @@ test('companions host writes traveler_preferences/knowledge_notes only', () => {
 });
 
 // ── Round-3 hooks ────────────────────────────────────────────────────────────
-test('split-new-expense is a database:insert hook on expenses → finance/treasurer#split (idempotent)', () => {
+test('split-new-expense is a project/db.expenses.insert event hook → finance/treasurer#split (idempotent)', () => {
   const src = readFileSync(join(APP, 'hooks', 'split-new-expense.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /table:\s*['"]expenses['"]/);
-  assert.match(src, /event:\s*['"]insert['"]/);
+  assert.match(src, /type:\s*['"]event['"]/);
+  assert.match(src, /event:\s*['"]project\/db\.expenses\.insert['"]/);
   assert.match(src, /delegate\(\s*['"]finance\/treasurer['"]/, 'must delegate to the treasurer');
   assert.match(src, /expense_shares/, 'must have an idempotence guard on expense_shares');
 });
 
-test('reconcile-traveler is a database:insert hook on travelers → companions/host#reconcile', () => {
+test('reconcile-traveler is a project/db.travelers.insert event hook → companions/host#reconcile', () => {
   const src = readFileSync(join(APP, 'hooks', 'reconcile-traveler.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /table:\s*['"]travelers['"]/);
+  assert.match(src, /type:\s*['"]event['"]/);
+  assert.match(src, /event:\s*['"]project\/db\.travelers\.insert['"]/);
   assert.match(src, /delegate\(\s*['"]companions\/host['"]/, 'must delegate to the host');
 });
 

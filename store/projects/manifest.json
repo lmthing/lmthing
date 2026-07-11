@@ -1999,7 +1999,8 @@
         "events/session-completed.ts",
         "events/space-installed.ts",
         "functions/publishEvent.ts",
-        "package.json"
+        "package.json",
+        "tests/lmthing-emitters.test.mjs"
       ]
     },
     {

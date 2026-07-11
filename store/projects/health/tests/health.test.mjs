@@ -232,19 +232,19 @@ test('uploadDocument inserts a pending document and rejects empty content', () =
 
 // ── Hooks — 7 total (5 database/cron round-1 + round-2) ──────────────────────
 const EXPECTED_HOOKS = [
-  ['interpret-new-lab.ts', /table:\s*['"]lab_results['"]/, /clinic\/interpreter#interpret/],
-  ['research-deep-dive.ts', /table:\s*['"]research['"]/, /clinic\/researcher#deep-dive/],
+  ['interpret-new-lab.ts', /event:\s*['"]project\/db\.lab_results\.insert['"]/, /clinic\/interpreter#interpret/],
+  ['research-deep-dive.ts', /event:\s*['"]project\/db\.research\.insert['"]/, /clinic\/researcher#deep-dive/],
   ['daily-digest.ts', /type:\s*['"]cron['"]/, /clinic\/interpreter#digest/],
-  ['analyze-document.ts', /table:\s*['"]documents['"]/, /records\/analyst#analyze/],
-  ['prepare-visit-brief.ts', /table:\s*['"]visit_briefs['"]/, /clinic\/interpreter#prep/],
+  ['analyze-document.ts', /event:\s*['"]project\/db\.documents\.insert['"]/, /records\/analyst#analyze/],
+  ['prepare-visit-brief.ts', /event:\s*['"]project\/db\.visit_briefs\.insert['"]/, /clinic\/interpreter#prep/],
   ['goal-checkin.ts', /type:\s*['"]cron['"]/, /coaching\/coach#checkin/],
   // round 3
-  ['check-interactions.ts', /table:\s*['"]interactions['"]/, /pharmacy\/pharmacist#review/],
-  ['compile-care-share.ts', /table:\s*['"]care_shares['"]/, /care\/coordinator#compile/],
-  ['triage-symptom.ts', /table:\s*['"]triage_assessments['"]/, /care\/triage-nurse#assess/],
+  ['check-interactions.ts', /event:\s*['"]project\/db\.interactions\.insert['"]/, /pharmacy\/pharmacist#review/],
+  ['compile-care-share.ts', /event:\s*['"]project\/db\.care_shares\.insert['"]/, /care\/coordinator#compile/],
+  ['triage-symptom.ts', /event:\s*['"]project\/db\.triage_assessments\.insert['"]/, /care\/triage-nurse#assess/],
   ['appointment-reminders.ts', /type:\s*['"]cron['"]/, /care\/coordinator#reminders/],
   // round 4 — natural-language quick-log parse (declarative → logger draft action)
-  ['parse-quicklog.ts', /table:\s*['"]quicklog_drafts['"]/, /clinic\/logger#draft/],
+  ['parse-quicklog.ts', /event:\s*['"]project\/db\.quicklog_drafts\.insert['"]/, /clinic\/logger#draft/],
   ['weekly-digest.ts', /type:\s*['"]cron['"]/, /clinic\/interpreter#weekly/],
   // dose-reminders.ts and followup-reminders.ts were converted to imperative cron
   // handlers (see the dedicated test below) — they no longer carry a `trigger`.
@@ -258,17 +258,17 @@ test('all 12 declarative hooks exist with the right table/type and trigger targe
   }
 });
 
-test('sync-wearables is an imperative database hook with a graceful no-op handler', () => {
-  // Imperative handlers are supported on BOTH `database` and `cron` hooks (see the
+test('sync-wearables is an imperative event hook with a graceful no-op handler', () => {
+  // Imperative handlers are supported on BOTH `event` and `cron` hooks (see the
   // dose-reminders/followup-reminders cron-handler test below) — a pure-Node
-  // wearable pull specifically fires on the `integrations` write that connects a
-  // provider, not on a cron tick, because a wearable is only worth syncing right
+  // wearable pull specifically fires on the `integrations` update event that connects
+  // a provider, not on a cron tick, because a wearable is only worth syncing right
   // after it connects.
   const src = readFileSync(join(APP, 'hooks', 'sync-wearables.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /table:\s*['"]integrations['"]/);
+  assert.match(src, /type:\s*['"]event['"]/);
+  assert.match(src, /event:\s*['"]project\/db\.integrations\.update['"]/);
   assert.match(src, /handler:/, 'sync-wearables must use an imperative handler');
-  assert.doesNotMatch(src, /trigger:/, 'an imperative database hook must not carry a declarative trigger');
+  assert.doesNotMatch(src, /trigger:/, 'an imperative event hook must not carry a declarative trigger');
   assert.match(src, /status:\s*['"]connected['"]/, 'must only sync connected integrations');
 });
 
@@ -293,18 +293,21 @@ test('dose-reminders and followup-reminders are imperative cron handlers (no LLM
   assert.doesNotMatch(followup, /delegate\(/, 'followup-reminders must never call delegate() — no LLM');
 });
 
-test('parse-quicklog is an insert-triggered declarative hook to the logger', () => {
+test('parse-quicklog is an insert-triggered declarative event hook to the logger', () => {
   const src = readFileSync(join(APP, 'hooks', 'parse-quicklog.ts'), 'utf8');
-  assert.match(src, /type:\s*['"]database['"]/);
-  assert.match(src, /event:\s*['"]insert['"]/);
+  assert.match(src, /type:\s*['"]event['"]/);
+  assert.match(src, /event:\s*['"]project\/db\.quicklog_drafts\.insert['"]/);
   assert.match(src, /trigger:\s*['"]clinic\/logger#draft['"]/);
 });
 
-test('the two round-2 database hooks are declarative triggers (self-query pattern)', () => {
-  for (const file of ['analyze-document.ts', 'prepare-visit-brief.ts']) {
+test('the two round-2 event hooks are declarative triggers (self-query pattern)', () => {
+  for (const [file, address] of [
+    ['analyze-document.ts', /event:\s*['"]project\/db\.documents\.insert['"]/],
+    ['prepare-visit-brief.ts', /event:\s*['"]project\/db\.visit_briefs\.insert['"]/],
+  ]) {
     const src = readFileSync(join(APP, 'hooks', file), 'utf8');
-    assert.match(src, /type:\s*['"]database['"]/);
-    assert.match(src, /event:\s*['"]insert['"]/);
+    assert.match(src, /type:\s*['"]event['"]/);
+    assert.match(src, address);
     assert.match(src, /trigger:/, `${file}: must use a declarative trigger`);
   }
 });

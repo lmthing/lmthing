@@ -21,9 +21,24 @@ green suite is the only gate. Execution: one opus subagent per step, waves per d
 | S11 | core: system-store space + THING/automator/engineer + live authoring | **done** (core 755; ws 8/8) | sdk/org a2c67a6 |
 | S12 | store: integration-lmthing + catalog enrichment | **done** (6 tests; manifest 13 spaces) | sdk/org 7bd1651 · parent dcad27ab |
 | S13 | ui: chat Integrations tab + auto-resume + status | **done** (30 new tests; lint:tokens clean) | sdk/org 573f47a |
-| S14 | live verification on prod | **BUILD PHASE DONE** — integration gate green (ws typecheck 8/8, 1407 tests pass); ready to deploy+verify | |
+| S14 | live verification on prod | deploying — CI building compute+store images (submodule-push fix); then ArgoCD sync + pod roll + chrome-devtools verify | |
 | S15 | migration fan-out: 10 integration spaces + 6 store projects | waits S14 | |
 | S16 | docs, skills, studio format support | waits S15 | |
+
+## S14 verification plan (the exact user scenario, keyless via integration-lmthing)
+1. Test-user pod (379847043318834826) → mint gateway JWT → chat on lmthing.chat, ensure pod on new compute image.
+2. Ask THING: "when a space is installed in this project, post a summary into the chat."
+3. Expect: THING → delegate('system-store','finder',{query}) → recommends integration-lmthing
+   (fit from enriched catalog events) → consent card → approve → installSpace → live-registered.
+4. THING → automator writes hooks/<slug>.ts {type:'event', on:{event:'integration-lmthing/space.installed'},
+   handler} into the LIVE project → republish.
+5. Install a SECOND space (any) → space.installed signal → integration-lmthing emitter → typed event →
+   project event hook fires → summary posted to chat. Verify end-to-end.
+6. Regression smoke: a store app's cron/webhook still works; consent card renders (S13/S16 UI — card
+   may be raw ask_start until S16 renderer, acceptable).
+Deploy prereqs: compute:<newtag> rolled onto the test pod; store:<newtag> rebuilt (integration-lmthing
+in catalog). ArgoCD hard-refresh. Watch: consent card needs a renderHost.ask UI — if chat can't render
+the ConsentCard descriptor, S16 adds it; for S14, verify the yield/approve round-trips even if plain.
 
 ## Log
 - 2026-07-11: plan approved (after 6 design rounds). Wave 1 launched: S1, S2, S3 (opus, parallel).

@@ -5,6 +5,15 @@ description: Load when authoring an inbound "Trigger" — declaring that a space
 
 # Skill: Triggers (the inbound authoring surface)
 
+> **⚠️ LEGACY path.** Triggers (`triggers:` frontmatter + `type:'webhook'` hooks) predate the unified
+> **event pipeline**. The CURRENT way to author inbound is an `events/<name>.ts` **webhook emitter def**
+> (typed payload contract + pure `emit`, pre-agent filtering) consumed by a `{type:'event'}` hook —
+> `@.claude/skills/events-and-hooks.md`. Integration spaces are now event SOURCES
+> (`events/messages.ts` → `message.received`), not handler-agent bridges. This skill documents the
+> legacy binding surface, which still works and shares the same transport plumbing (`webhooks.md`);
+> reach for it only when touching that legacy surface, and prefer emitter defs + event hooks for new
+> work.
+
 **Triggers** are the inbound mirror of Connections. Connections is outbound (pod → gateway →
 provider, via `callConnection`); a **Trigger** is inbound (external → gateway → pod → **agent**). An
 OpenClaw-style messaging channel = **inbound Trigger + outbound Connection**. This skill covers how a
@@ -38,8 +47,9 @@ capabilities:
 trigger with `agentRef = <spaceId>/<agentSlug>`.
 
 ### B. Projects — a `type: 'webhook'` hook
-A third hook type next to `cron` and `database` (`sdk/org/libs/cli/src/app/hooks/loader.ts`
-`WebhookHookDef`). **Declarative only — no imperative `handler`**; every event delegates to `trigger`:
+A hook type next to `cron` and `event` (`sdk/org/libs/cli/src/app/hooks/loader.ts` `WebhookHookDef`;
+note `type:'database'` was REMOVED — db writes are now `event` hooks on `project/db.*`). **Declarative
+only — no imperative `handler`**; every event delegates to `trigger`:
 
 ```ts
 // <project>/hooks/support.ts

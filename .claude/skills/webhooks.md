@@ -5,10 +5,20 @@ description: Load when touching the inbound-webhook request flow — the gateway
 
 # Skill: Inbound Webhooks (the transport + security plumbing)
 
-The internal machinery behind Triggers. **Authoring** a binding (`triggers:` frontmatter /
-`type:'webhook'` hook) is `@.claude/skills/triggers.md`; **running OpenClaw plugins** on this same
-ingress is `@.claude/skills/openclaw-compat.md`. This skill is the three-leg request path, signature
-verification, tokens, and secrets.
+The internal machinery behind inbound webhooks. **Authoring** the CURRENT path (an `events/<name>.ts`
+**webhook emitter def** + a `{type:'event'}` hook) is `@.claude/skills/events-and-hooks.md`; the LEGACY
+binding surface (`triggers:` frontmatter / `type:'webhook'` hook) is `@.claude/skills/triggers.md`;
+**running OpenClaw plugins** on this same ingress is `@.claude/skills/openclaw-compat.md`. This skill is
+the three-leg request path, signature verification, tokens, and secrets.
+
+> **Shared by both paths.** The gateway broker, tokens, and pod dispatcher below carry BOTH a legacy
+> binding and a webhook emitter def. An emitter def brings its OWN `path` and `verify` (a declarative
+> `VerifySpec` **descriptor**, or the `{type:'builtin', provider:'slack'|'github'}` shorthand for
+> schemes the generic union can't express); the same manifest global-path-uniqueness check + the same
+> `webhook-verifiers.ts` crypto engine (`buildAdapterFromDescriptor`) apply. A verified emitter's pure
+> `emit(inbound)` produces typed events dispatched to event hooks (`server/event-dispatch.ts`) instead
+> of directly delegating to one handler agent. `VerifySpec` was lifted into `@lmthing/core`
+> (`spaces/verify-spec.ts`) so the descriptor and the emitter def share one union + one validator.
 
 ## The three legs
 

@@ -33,6 +33,25 @@ lmthing/
 - Full backend detail (routes table, tiers, libraries, K8s) → `@.claude/skills/cloud-backend.md`
 - Auth flows / SSO / tokens → `@.claude/skills/authentication.md`
 
+## Events, integrations & the store (current model)
+
+lmthing has ONE **event pipeline** with symmetric halves: **emitter defs** (`events/<name>.ts` — a
+typed `webhook`/`cron`/`db`/`internal` producer) and **event hooks** (`hooks/<slug>.ts`
+`{type:'event'}` — the consumer, code-handler-as-filter or agent `trigger`), in a project or a space.
+Full authoring guide → `@.claude/skills/events-and-hooks.md`. Consequences of this model:
+
+- **Integrations are now EVENT SOURCES, not handler-agent bridges.** A messaging integration (Slack,
+  Telegram, …) is a store SPACE whose `events/messages.ts` emits a typed `message.received` event; a
+  project subscribes with an event hook. (The old `triggers:`/webhook-descriptor path — `triggers.md`,
+  `webhooks.md` — is LEGACY.)
+- **THING installs from the store with consent.** THING delegates discovery to `system-store` (agent
+  `finder`, `store:read`), then calls the consent-marked `installSpace()` (`store:install`) — the host
+  renders a consent card and installs only on user approval; `@consent` is a generic host-enforced flag
+  for any function. Automation is authored into the LIVE project by `system-appbuilder`'s `automator`.
+- **Chat Integrations tab** — the `/chat` surface has an Integrations settings tab (schema form + public
+  inbound URL + `missingRequired`) that writes secrets to pod env via GET-merge-PUT `/api/compute/env`;
+  a save restarts the pod and auto-resumes THING with a "<id> configured" system message.
+
 ## Getting Started
 
 ```bash
@@ -63,7 +82,8 @@ Load the matching file when working on:
 | **any frontend styling** — colors, Tailwind classes, component CSS, theming (MANDATORY, enforced) | `@.claude/skills/design-system.md` |
 | cloud gateway / LiteLLM / billing / tiers / API routes / webhooks | `@.claude/skills/cloud-backend.md` |
 | agent web search — `webSearch`/`webFetch`, Tavily/Bing/DuckDuckGo providers, the render service | `@.claude/skills/web-search.md` |
-| inbound Triggers — authoring an inbound binding (`triggers:` frontmatter / `type:'webhook'` hook), the binding manifest, Triggers settings tab | `@.claude/skills/triggers.md` |
+| **the unified event pipeline (CURRENT)** — `events/<name>.ts` emitter defs (webhook/cron/db/internal), event hooks (`hooks/<slug>.ts` `{type:'event'}`), code nodes in tasklists, project functions, the `@consent` flag, `installSpace`/store globals | `@.claude/skills/events-and-hooks.md` |
+| inbound Triggers (LEGACY inbound path) — authoring an inbound binding (`triggers:` frontmatter / `type:'webhook'` hook), the binding manifest, Triggers settings tab | `@.claude/skills/triggers.md` |
 | inbound webhook plumbing — gateway `/api/inbound` broker, pod dispatcher, provider verifiers (slack/github HMAC), inbound tokens, secrets, threading, deploy/verify | `@.claude/skills/webhooks.md` |
 | running OpenClaw plugins as-is — `@lmthing/openclaw-compat` host, `.openclaw-plugins/`, the `tool()` global, plugin HTTP routes on the Triggers ingress | `@.claude/skills/openclaw-compat.md` |
 | running the local dev stack (ports, `make`, nginx proxy, demo auth) | `@.claude/skills/local-dev.md` |

@@ -3,9 +3,13 @@
 Every lmthing web surface — the studio/chat/computer app (`sdk/org/apps/web`), the shared
 component libraries (`@lmthing/css`, `@lmthing/ui`), and the product SPAs
 (`com social team store space blog casa`) — shares ONE token-driven design system in
-`@lmthing/css`. The authoritative spec is [`sdk/org/libs/css/DESIGN.md`](../../../sdk/org/libs/css/DESIGN.md);
-this page is the code-grounded operational summary: the one hard rule, the exact enforcement
-gate (and what it does **not** cover), and the change workflow.
+`@lmthing/css`. **This page is the authoritative spec** for it: the one hard rule, the exact
+enforcement gate (and what it does **not** cover), and the change workflow. Every claim below
+is grounded in the code that makes it true — the token source
+(`sdk/org/libs/css/src/tokens/tokens.json`), the generator
+(`sdk/org/libs/css/scripts/generate-theme.mjs`) and the gate
+(`sdk/org/libs/css/scripts/lint-design-tokens.mjs` — whose own docblock and failure message send
+you here, to `org/docs/design-system/`: `lint-design-tokens.mjs:11`, `:129`).
 
 See also: [tokens.md](./tokens.md) (the token set + how a token becomes a CSS var and a
 Tailwind utility) · [components.md](./components.md) (the BEM component-CSS pattern + the
@@ -16,11 +20,12 @@ generated catalog) · [../libs/ui-and-css.md](../libs/ui-and-css.md) (the packag
 Use a **design token** — the CSS var (`var(--foreground)`) or its Tailwind utility
 (`bg-primary`, `text-agent`, `border-border`). Never a hex literal, never a literal
 `rgb()/hsl()`, never a stock Tailwind color utility (`gray-*`, `blue-*`, `green-500`, …).
-This is stated as non-negotiable rule #1 in `sdk/org/libs/css/DESIGN.md:18-25` and enforced
-by the lint gate below.
+The rule is stated by the gate itself — "Fails (exit 1) when source uses colors that bypass
+the token system … Use a design token instead: `var(--foreground)`, `bg-primary`, `text-agent`"
+(`sdk/org/libs/css/scripts/lint-design-tokens.mjs:5-10`) — and enforced by it below.
 
 Two categories are **legitimately allowed** and are not flagged
-(`sdk/org/libs/css/scripts/lint-design-tokens.mjs:42-57` `funcAllowed`):
+(`sdk/org/libs/css/scripts/lint-design-tokens.mjs:44-57` `funcAllowed`):
 
 - Token-backed color functions: `rgb(var(--…))` / `hsl(var(--…))` — any function whose
   args contain `var(`.
@@ -29,8 +34,18 @@ Two categories are **legitimately allowed** and are not flagged
   and alpha < 1. No token exists for these.
 
 To change a color, or to see the full palette and its semantic roles, go to
-[tokens.md](./tokens.md). Do not hand-pick a hex to migrate a raw color — the mapping table
-(`sdk/org/libs/css/DESIGN.md:75-91`) picks a token by semantic role.
+[tokens.md](./tokens.md).
+
+**Design-system mandate (not a lint rule — the linter cannot check it):** when migrating a raw
+color, never hand-pick a replacement hex and never reach for the token that merely *looks*
+closest. Pick the token whose **semantic role** matches the usage — a page surface is
+`background`, a card is `card`, a CTA is `primary`, an error is `destructive`, a knowledge
+stream is `knowledge`, an agent stream is `agent`. Every token carries a `description` stating
+its role in `sdk/org/libs/css/src/tokens/tokens.json:30-88` (mirrored into the generated
+`tokens.manifest.json` — `generate-theme.mjs:120-128`); that description is the mapping table.
+A genuinely non-brand palette (terminal ANSI, syntax highlighting) stays raw and is marked
+`ds-lint-file-ok` (`sdk/org/libs/css/scripts/lint-design-tokens.mjs:96`, documented at
+`lint-design-tokens.mjs:17-20`).
 
 ## The enforcement gate
 
@@ -81,7 +96,7 @@ applied at `:94`) — these hold raw values by design:
   `pnpm lint:tokens` locally but is **not** gated by CI.
 
 > Note: `@lmthing/css`'s own `pnpm --filter @lmthing/css lint`/`lint:tokens`
-> (`sdk/org/libs/css/package.json:29-30`) only scans that package's `src`; the repo-wide
+> (`sdk/org/libs/css/package.json:28-29`) only scans that package's `src`; the repo-wide
 > coverage comes from the root `lint:tokens` above, which is what CI runs.
 
 ### What is NOT scanned (report honestly)
@@ -95,7 +110,9 @@ a raw color there will ship un-flagged:
   authored by `system-appbuilder` are outside the gate.
 - **Other `sdk/org/libs/*`** — only `libs/css/src` and `libs/ui/src` are scanned. `libs/state`,
   `libs/auth`, `libs/utils`, `libs/cli`, `libs/core`, `libs/openclaw-compat`, `libs/config`
-  are not (most have no web UI, but `libs/cli` ships DevTools/render web code that escapes).
+  are not. Most have no web UI, but `libs/cli` ships DevTools/render web code that escapes:
+  running the linter by hand over `sdk/org/libs/cli/src` reports 15 violations today (e.g. the
+  raw hex `#fff` in `sdk/org/libs/cli/src/web/app.tsx:144`).
 - **`sdk/org/libs/core/system-spaces/`** — system-space assets/components are not scanned
   (they sit under `libs/core`, which is not a lint root).
 - **`cloud/`** — the backend (gateway + LiteLLM). No product frontend, not scanned.
@@ -117,19 +134,24 @@ When a raw color is genuinely non-brand (terminal ANSI palettes, syntax-highligh
 
 ## Changing a color (the only supported workflow)
 
-The **single source of truth** is `sdk/org/libs/css/src/tokens/tokens.json`
-(`tokens.json:4` `$meta.description`, `DESIGN.md:7`). Never hand-edit the generated outputs.
+The **single source of truth** is `sdk/org/libs/css/src/tokens/tokens.json` — the file says so
+itself ("Single source of truth for the lmthing design system. Edit this file, then run
+`pnpm --filter @lmthing/css generate` … Do NOT hand-edit theme.css", `tokens.json:4`
+`$meta.description`), and so does the generator that consumes it (`generate-theme.mjs:5`).
+Never hand-edit the generated outputs.
 
 1. Edit `src/tokens/tokens.json` (each color has `name`, `group`, `light`, `dark`,
    `description`).
 2. Regenerate: `pnpm --filter @lmthing/css generate` — the `generate` script runs both
-   generators (`sdk/org/libs/css/package.json:27`), and `prebuild` re-runs them before any
-   build (`package.json:28`).
+   generators (`sdk/org/libs/css/package.json:26`), and `prebuild` re-runs them before any
+   build (`package.json:27`).
 3. Commit the regenerated `src/theme.css`, `tokens.manifest.json`, and `COMPONENTS.md`
    alongside the `tokens.json` change.
 
 `generate-theme.mjs` (`scripts/generate-theme.mjs`) reads `tokens.json` and writes two
-outputs (never hand-edit either — `generate-theme.mjs:6-10`, `DESIGN.md:9`):
+outputs (never hand-edit either — `generate-theme.mjs:6-8`; each emitted block is fenced with
+an `/* Auto-generated … — edit src/tokens/tokens.json, not this file */` banner,
+`generate-theme.mjs:79`):
 
 - **`src/theme.css`** — the Tailwind v4 theme: an `@theme` block for the non-color scales
   (radius, fonts), an `@theme inline` block exposing each color as a `--color-<name>` utility
@@ -152,7 +174,10 @@ utilities inside `@apply` (`generate-components-catalog.mjs:37-67`). Detail →
 
 ## Theme modes (light / dark)
 
-One theme, two modes (`DESIGN.md:40-41`). Every app imports `@lmthing/css/theme`
+One theme, two modes — `tokens.json` declares exactly `"themes": ["light", "dark"]` and one
+`darkSelector: "[data-theme=\"dark\"]"` (`sdk/org/libs/css/src/tokens/tokens.json:5-6`), and the
+generator emits both modes into the single `theme.css` (`generate-theme.mjs:91-101`). Every app
+imports `@lmthing/css/theme`
 (`sdk/org/libs/css/package.json:7`); no app redefines tokens. Mode is a `data-theme`
 attribute on `<html>`, driven by `@lmthing/ui/theme` (`sdk/org/libs/ui/src/theme/theme.ts`):
 
@@ -174,18 +199,29 @@ modes (`tokens.json` `$meta`, `spectrum.description`).
   `var(--spectrum-N)`/`var(--brand-N)` (cycling), and `spectrumColor(key)`/`brandColor(key)`
   pick a stable color from a string hash (`sdk/org/libs/ui/src/lib/spectrum.ts`). Never
   hand-pick a hex for rotation.
-- **THING wordmark is multi-color** — render with `CozyThingText`
-  (`sdk/org/libs/ui/src/elements/branding/cozy-text/index.tsx`), each letter its own brand
-  color; never a single solid color (`DESIGN.md:35-37`).
+- **THING wordmark is multi-color** — render with `CozyThingText`; it emits one `<span>` per
+  letter, each carrying its own brand class (`cozy-text--brand-1` … `--brand-5` for t/h/i/n/g,
+  with `lm` on the neutral class), never a single solid color
+  (`sdk/org/libs/ui/src/elements/branding/cozy-text/index.tsx:9-37`). The five brand tokens are
+  authored as exactly that — "THING letter 't' — yellow (sunflower)", … "letter 'g' — orchid"
+  (`sdk/org/libs/css/src/tokens/tokens.json:31-35`).
 - **Legacy `--lm-*` bridge (chat surface)** — the chat components still use `--lm-*` vars, but
   `sdk/org/libs/ui/src/chat/app/styles.css` aliases every `--lm-*` to a shared token
   (`--lm-bg: var(--background)` at `:28`, `--lm-accent: var(--agent)` at `:34`, and the matching
-  `--color-lm-*` Tailwind aliases at `:78-84`), so they are theme-aware and pass the gate;
-  `lm-*` is sanctioned, don't churn it (`DESIGN.md:110-117`).
+  `--color-lm-*` Tailwind aliases at `:78-89`), so they are theme-aware and pass the gate. The
+  stylesheet states the contract: the palette is owned by `@lmthing/css/theme.css`, "this surface
+  must NOT redeclare shared tokens — it only bridges the legacy `--lm-*` aliases … onto shared
+  tokens so they inherit light/dark automatically" (`styles.css:20-26`). `lm-*` is sanctioned;
+  don't churn it.
 - **Component styling pattern** — BEM component CSS is canonical: a stylesheet under
-  `src/{elements,components}/<name>/index.css` using `@reference` + `@apply` with tokens; the
-  React component imports it and uses the classes (`DESIGN.md:93-108`). Inline Tailwind
-  utilities are only for trivial one-off layout. Full detail → [components.md](./components.md).
+  `src/{elements,components}/<name>/index.css` that opens with `@reference "…/theme.css"` and
+  builds each class from `@apply` + token utilities (`sdk/org/libs/css/src/elements/forms/button/index.css:1-12`);
+  the React component imports that stylesheet and composes the classes
+  (`sdk/org/libs/ui/src/elements/forms/button/index.tsx:1`). The catalog generator assumes this
+  shape — it parses `.block` / `.block__element` / `.block--modifier` out of every stylesheet
+  under `src/{elements,components}` (`sdk/org/libs/css/scripts/generate-components-catalog.mjs:3-8`).
+  Inline Tailwind utilities are only for trivial one-off layout. Full detail →
+  [components.md](./components.md).
 
 ## Example: a token-only component stylesheet
 

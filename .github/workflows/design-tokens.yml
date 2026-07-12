@@ -1,7 +1,7 @@
 name: Design tokens
 
 # Hard gate: fail if any source uses a raw color instead of a design-system token.
-# See sdk/org/libs/css/DESIGN.md for the rules and escape hatches (ds-lint-ok / ds-lint-file-ok).
+# See org/docs/design-system/ for the rules and escape hatches (ds-lint-ok / ds-lint-file-ok).
 
 on:
   pull_request:

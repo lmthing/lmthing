@@ -5,163 +5,54 @@ description: Load when running OpenClaw plugin code as-is on a compute pod — t
 
 # Skill: OpenClaw Compat (run OpenClaw plugins verbatim on the pod)
 
-`@lmthing/openclaw-compat` (`sdk/org/libs/openclaw-compat/`) is a **pod-side compatibility host** that
-executes an OpenClaw plugin's own `register(api)` code as full-privilege Node **inside the user's
-single-tenant compute pod** (NOT the QuickJS sandbox — that runs model-authored TS only). It rides on
-the inbound-webhook ingress: a plugin's `registerHttpRoute(...)` becomes reachable at
-`POST /api/inbound/:path` with **zero gateway change**. Context: this closes the one OpenClaw
-extension bucket lmthing lacked a native seam for — inbound messaging channels. See
-`@.claude/skills/triggers.md` (authoring) and `@.claude/skills/webhooks.md` (ingress/transport).
-Canonical gap analysis: `sdk/org/libs/openclaw-compat/COMPAT.md`.
+Use this skill when you are touching `@lmthing/openclaw-compat` (`sdk/org/libs/openclaw-compat/`),
+its pod host (`sdk/org/libs/cli/src/server/openclaw-host.ts`), the `.openclaw-plugins/` boot path in
+`serve.ts`, the `tool()` global, or the plugin-route fallback on `POST /api/inbound/:path`. It is a
+**pod-side compatibility host**: it runs an OpenClaw plugin's own `register(api)` as full-privilege
+Node inside the user's single-tenant pod — not the QuickJS sandbox.
 
-## What OpenClaw actually is (confirmed facts)
+## Read first (the grounded truth lives here)
 
-- `openclaw` is **ONE MIT npm pkg** (v2026.6.11) whose subpath exports provide `openclaw/plugin-sdk/*`
-  (dozens of subpaths). Channel extensions are **separate `@openclaw/*` pkgs** (peer-dep `openclaw` +
-  own runtime deps like `@slack/bolt`, `ws`).
-- `OpenClawPluginApi` is a ~2953-line type with 40+ `register*` methods + nested
-  `api.session`/`api.agent`/`api.lifecycle`/`api.runtime`.
-- Two plugin shapes: **`definePluginEntry({ id, register })`** (supported) and
-  **`defineBundledChannelEntry(...)`** (identifiable by a `plugin.specifier` field — **rejected** with
-  `UnsupportedCompatError`; a later increment). `@openclaw/slack` is **Socket Mode** (persistent WS) ⇒
-  **warm-pod-only**, incompatible with scale-to-zero.
+- `org/docs/libs/openclaw-compat.md` — **the** page for this area: the fail-loud Proxy api and what
+  `IMPLEMENTED_TOP_LEVEL` actually covers, `registerTool`/`registerHttpRoute`/`registerChannel`/
+  provider recording, `runtime.subagent.run`, the loader (esbuild transpile + `moduleOverrides` +
+  `BUILTIN_SHIMS`), bundled-channel loading, `PluginRegistry`, `CompatHost` + `createComputeCompatHost`,
+  `loadOpenClawPlugins`, boot wiring, the `tool()` global and its `tools:use` capability gate,
+  packaging in the compute image, current support vs. gaps, and the file map.
+- `org/docs/cli-api/rest/webhooks.md` — the inbound ingress a plugin's HTTP route rides on
+  (bindings always win; plugin routes are the fallback).
+- `org/docs/runtime-globals/events-and-integrations.md` — the event pipeline those routes feed.
+- `org/docs/runtime-globals/README.md` — the capability model behind `tools:use`.
 
-## Compatibility matrix (all 145 extensions, audited 2026-07-10)
+Do not trust any per-extension compatibility count you remember: verdicts are a pure function of the
+entry shape plus which `api.register*` methods `register()` calls. Re-derive them against the current
+`IMPLEMENTED_TOP_LEVEL` in `src/api.ts` rather than quoting a stale table.
 
-Verdict is a pure function of the entry **shape** + which `api.register*` methods `register()` calls.
+## Procedure
 
-| Verdict | Count | What it means |
-|---|--:|---|
-| ✅ Functional | ~10 | Loads *and* does real work: `registerTool` / `registerHttpRoute` plugins, **plus** (post-win-#2) `registerWebSearchProvider`/`registerWebFetchProvider` plugins exposed as tools |
-| 🟡 Inert | ~15 | Loads clean, registration not wired to a pipeline (model providers via `registerProvider`; no-op `register()` bodies) |
-| ⛔ Rejected→loadable | 25 | `defineBundledChannelEntry` messaging channels — **now loaded** (win #3) in webhook-mode; Socket-Mode runtime still deferred |
-| ❌ Throws | ~86 | Calls an unimplemented `register*` (media/speech/image/video/embedding/model-catalog providers, `registerCli`/`registerCommand`/`registerService`/`registerMemoryCapability`/`registerAgentHarness`, …) → skipped |
-| ⚙️ Core lib | 4 | No plugin entry (`image/media/video-generation-core`, `test-support`) |
-
-Baseline functional (pre-wins): **tavily, firecrawl, admin-http-rpc, llm-task**. Deciding factors worth remembering: every `defineSingleProviderPluginEntry` provider (openai, google, deepseek, cerebras, mistral, …) throws because that wrapper always calls `registerModelCatalogProvider`; there is **no `api.registerWebhookRoutes` method** (OpenClaw's `webhooks` extension uses a *local* helper of that name that calls `api.registerHttpRoute`). Full per-extension verdicts: `scratchpad/oc-final2.tsv` (regenerate by fetching each `extensions/<x>/index.ts` and matching `.register[A-Z]\w*(` against the implemented set).
-
-## Coverage-widening capabilities (the "3 wins", shipped 2026-07-10)
-
-1. **Broader HTTP-route loadability** (`api.ts`) — added `api.logger.{info,warn,error,debug,trace,log}` (→ `host.log`), made `registerHttpRoute` tolerate OpenClaw's **method-less** route shape (defaults `POST`; still requires `path`+`handler`), and added read-only **`api.pluginConfig`/`api.config`** (default `{}`, override via `createCompatApi(host, registry, { pluginConfig, config })`). Effect: config-reading route plugins (OpenClaw `webhooks`, which early-returns when it finds no routes) load instead of hitting a throwing proxy.
-2. **Search/fetch providers → agent tools** (`recordProvider`→`exposeProviderAsTool`) — a recorded `webSearch`/`webFetch` provider carrying a `createTool(ctx)` factory (Brave/Exa/Firecrawl shape) is **also** registered as a `tool()`-callable tool. The provider tool's `execute(args)` is adapted to the host's `(toolCallId, params)` signature. Best-effort (bad shape / dup name / throwing factory → logged + skipped). Unlocks brave, exa, searxng, perplexity, parallel, duckduckgo as tools (execution still needs the provider's keys/runtime).
-3. **Bundled-channel loading** (`plugin-sdk-shim.ts` `defineBundledChannelEntry` + `applyBundledChannelDescriptor`; `loader.ts` no longer rejects) — a `defineBundledChannelEntry(descriptor)` entry now **records the channel** and runs its **`registerFull(api)`** webhook-mode hook (mounting the channel's HTTP routes onto the Triggers ingress). The `plugin`/`runtime` **specifier modules (Socket-Mode / native runtime) are deliberately NOT loaded** — that stays warm-pod/Phase-later. `loader.ts` also has a raw-descriptor fallback (entry with `plugin.specifier` but no `register`). Builtin module shims resolve `openclaw/plugin-sdk/{plugin-entry,channel-entry-contract}` without npm egress.
-
-**Caveats:** provider tools and bundled channels *load*, but end-to-end execution still needs the plugin's own deps/keys (and, for real socket channels, a warm pod + the deferred runtime). Real `@openclaw/slack` etc. remain skipped (their `registerFull` touches `api.runtime.tasks` + native deps).
-
-## Structural shim, fail-loud
-
-The api is a **Proxy** (`src/api.ts`): `IMPLEMENTED_TOP_LEVEL` = `{registerTool, registerHttpRoute,
-registerChannel, registerWebSearchProvider, registerProvider, registerEmbeddingProvider,
-registerWebFetchProvider, runtime, log, logVerbose, logger, pluginConfig, config}` (+
-`api.runtime.subagent.run`). **Everything else returns a `makeUnsupportedProxy` that throws
-`UnsupportedCompatError` on call/deep-access** — never a silent no-op, never an opaque `TypeError`. `registerChannel` and the four `register*Provider` methods are
-**record-only** (stored in `PluginRegistry`, not yet wired to any lmthing pipeline).
-
-- `registerTool` accepts both **object form** `registerTool({name, execute})` and **factory form**
-  `registerTool((ctx) => toolObject, { name })` (Tavily uses the factory form) → recorded in
-  `registry.tools` (a `Map`).
-- `registerHttpRoute({method, path, handler})` → `host.mountRoute` → the shared route table.
-- `runtime.subagent.run({ sessionKey, message })` → `host.runAgent` → a **real lmthing agent**.
-
-## The CompatHost seam (`src/types.ts`) + the pod host (`libs/cli/src/server/openclaw-host.ts`)
-
-`CompatHost = { runAgent, mountRoute, log }`. The pod implements it via `createComputeCompatHost`:
-- **`runAgent({sessionKey, message})`** → `SessionManager.runHeadlessThreaded` with `sessionId =
-  deterministicUuidFromKey(sessionKey)` (sha1→RFC-4122-shaped, so the SAME `sessionKey` always resumes
-  the SAME persisted session — one continuous conversation, not a fresh one-shot each call). Target
-  agent = `LM_OPENCLAW_AGENT` (`space/agent`, `parseOpenClawAgentEnv`) else top-level `thing`.
-- **`mountRoute(method, path, handler)`** → writes into a shared `OpenClawRouteTable` (`Map`, path
-  normalized to strip leading `/` so `/echo` keys `echo`). That same table is passed to
-  `createInboundHandler` as `pluginRoutes` → **the Triggers `POST /api/inbound/:path` dispatcher falls
-  back to a plugin route when no webhook-hook/space-trigger binding matches** (bindings always win).
-
-## Boot wiring (`libs/cli/src/server/serve.ts`)
-
-```
-openclawRoutes = new Map()                                    // shared route table
-router.add('POST', '/api/inbound/:path', createInboundHandler(manager, root, openclawRoutes))
-...
-host = createComputeCompatHost(manager, { projectId, spaceRef, agentSlug }, openclawRoutes)
-{ registry } = await loadOpenClawPlugins(join(root, '.openclaw-plugins'), host, console.log)
-manager.setToolRegistry(registry)                            // exposes plugin tools to the tool() global
+**Test**
+```bash
+pnpm --filter @lmthing/openclaw-compat test     # loader, api Proxy, tavily-load, wins
+pnpm --filter @lmthing/cli test -- openclaw     # host + boot wiring
 ```
 
-`loadOpenClawPlugins` scans `<root>/.openclaw-plugins/*` (one subdir per plugin, each needs
-`package.json` + `openclaw.plugin.json`). **No dir ⇒ no-op** — existing pods are completely unaffected.
-Each plugin is **best-effort**: a bad manifest / throwing `register()` / `UnsupportedCompatError` is
-logged and skipped so one broken plugin never blocks the others or pod boot.
+**Drive locally** — drop a plugin under `<root>/.openclaw-plugins/<name>/` (needs
+`package.json#openclaw.extensions[0]` and `openclaw.plugin.json#id`), boot a credentialed pod, then
+`POST /api/inbound/<path>`. Confirm the pod logs `[openclaw] loaded plugin "..."` and
+`mounted HTTP route ...`. No `.openclaw-plugins/` dir ⇒ the whole path is a no-op, so existing pods
+are unaffected.
 
-## The loader (`src/loader.ts`)
+**Verify in prod** — set `LM_OPENCLAW_AGENT` (`space/agent`), POST via
+`<gateway>/api/inbound/<inboundJWT>/<path>`, and read the persisted session snapshot. Idle
+scale-to-zero fights `kubectl exec`, so drive through the gateway rather than exec'ing into the pod.
 
-`loadPlugin(dir, api, opts?)`: reads `package.json#openclaw.extensions[0]` (entry file) +
-`openclaw.plugin.json#id` → transpiles the `.ts` entry with **esbuild** (`format:'cjs'`) →
-`new Function`-evals it with a `shimRequire` → calls `entry.register(api)`. (Same
-esbuild-transform-then-eval approach as the cli hook loader — plugin entries are plain `.ts` outside
-any build pipeline; **esbuild is a runtime dependency of this package**, hence its `node_modules` must
-ship — see packaging gotcha.)
+**Before shipping any change that adds/moves a runtime dependency** — `@lmthing/openclaw-compat` is a
+cli dependency and must be built and shipped by `devops/argocd/compute/Dockerfile` in dependency order
+(core → openclaw-compat → cli), including its `node_modules` (its dist imports esbuild at runtime).
+Getting this wrong crash-loops every pod on `Cannot find package`. Details:
+`org/docs/libs/openclaw-compat.md` § Packaging.
 
-- **`moduleOverrides`** (`opts.moduleOverrides`): a `Record<specifier, value>` consulted before the
-  real `require`. Lets a **vendored real entry's** `import "openclaw/plugin-sdk/..."` resolve **without
-  installing the real npm packages** — critical, because this sandbox has **no npm-registry egress**
-  (gh works). Proven against **Tavily's real `definePluginEntry` entry** (`test/tavily/`): its
-  `register(api)` runs verbatim, ending with the web-search provider + `tavily_search`/`tavily_extract`
-  tools registered (Tavily's `./src` tool factories are stubbed — real ones need `@tavily/core`).
+## Keep the docs true
 
-## The `tool()` global — exposing plugin tools to agents (`libs/core/src/globals/tool.ts`)
-
-A **value-yielding** global (like `apiCall`/`callConnection`/`fetch`): `tool(name, input)` ends the
-turn and resumes when the host resolves the call against the loaded `PluginRegistry`.
-- Injected **only** when the agent holds the **`tools:use { allow: [...] }`** capability
-  (`spaces/capabilities.ts`); the per-grant DTS (`composeToolDts`) types `name` to the allow-list, so
-  calling an undeclared tool **fails typecheck**.
-- Yield kind `'tool'` (`eval/yield.ts`) → `toolResolver` (`eval/yield-router.ts`, threaded from
-  `SessionManager` via `setToolRegistry`/`withTools`/`resolveTool`). No registry configured ⇒ the
-  yield **rejects with a clear, retryable error**, never binds undefined.
-- Mirrors `api:call` end-to-end. (Wiring shipped; a full prod verify with a tool-registering plugin +
-  a `tools:use` agent is a documented future increment.)
-
-## Hard constraints (state up front)
-
-- **npm egress** — fully-as-installed plugins (`openclaw` + `@openclaw/*` + their runtime deps) need
-  npm; this sandbox has none. Today: vendor the entry + `moduleOverrides`. Removing overrides needs the
-  real packages installed in the pod image.
-- **Socket/long-poll channels** (Slack Socket Mode, Telegram getUpdates, Discord gateway, Signal,
-  Matrix) need an **always-on process** ⇒ **warm/pinned pod (paid tier)**, incompatible with
-  scale-to-zero. Only **webhook-mode** channels fit the wake-and-forward model.
-- **`defineBundledChannelEntry`** plugins are rejected (a later increment).
-- **Trust boundary** — plugin code is full-privilege in-proc Node (not QuickJS). Single-tenant pod
-  mitigates it; a worker/subprocess boundary is a possible hardening.
-- **Packaging** — `@lmthing/openclaw-compat` is a cli dependency and **must be built + shipped in
-  `devops/argocd/compute/Dockerfile`** (mirror `@lmthing/core`): copy its `package.json` pre-install,
-  build its dist **before** the cli, and ship `dist` + `package.json` + **`node_modules`** (its dist
-  imports esbuild at runtime). Omitting this crash-loops every pod on `Cannot find package` — a real
-  prod outage we already hit. See `[[project-inbound-triggers]]`.
-
-## File map
-
-| File | Role |
-|---|---|
-| `sdk/org/libs/openclaw-compat/src/loader.ts` | `loadPlugin` (esbuild-transpile entry, `moduleOverrides`, reject bundled-channel) |
-| `sdk/org/libs/openclaw-compat/src/api.ts` | Proxy-backed api: `IMPLEMENTED_TOP_LEVEL`, `registerTool` (object+factory), `registerHttpRoute`, `registerChannel`, `runtime.subagent.run`, `makeUnsupportedProxy` |
-| `sdk/org/libs/openclaw-compat/src/types.ts` | `CompatHost`, `CompatHttpRequest/Response`, `RegisteredTool/HttpRoute/Channel/Provider`, `UnsupportedCompatError` |
-| `sdk/org/libs/openclaw-compat/src/registry.ts` | `PluginRegistry` (tools map, httpRoutes, channels, providers) |
-| `sdk/org/libs/openclaw-compat/src/plugin-sdk-shim.ts` | `definePluginEntry` identity shim + `defineBundledChannelEntry`/`applyBundledChannelDescriptor` (win #3) |
-| `sdk/org/libs/openclaw-compat/src/wins.test.ts` + `test/{bundled-channel,raw-bundled}/` | tests + fixtures for the 3 coverage wins |
-| `sdk/org/libs/openclaw-compat/COMPAT.md` | Full gap analysis + roadmap |
-| `sdk/org/libs/cli/src/server/openclaw-host.ts` | `createComputeCompatHost`, `loadOpenClawPlugins`, `deterministicUuidFromKey`, `parseOpenClawAgentEnv`, `OpenClawRouteTable` |
-| `sdk/org/libs/cli/src/server/serve.ts` | Boot-load `.openclaw-plugins/` + `setToolRegistry` + inbound handler wiring |
-| `sdk/org/libs/core/src/globals/tool.ts` | The `tool()` value-yielding global |
-| `devops/argocd/compute/Dockerfile` | Builds + ships `libs/openclaw-compat` (dist + package.json + node_modules) |
-
-## Testing
-
-- Unit: `pnpm --filter @lmthing/openclaw-compat test` (loader, api Proxy, `tavily-load.test.ts` — the
-  real Tavily entry through compat) · `pnpm --filter @lmthing/cli test -- openclaw`.
-- Local drive: drop an echo plugin under `<root>/.openclaw-plugins/echoplugin/`
-  (`package.json#openclaw.extensions[0]` + `openclaw.plugin.json#id`) that `registerHttpRoute`s
-  `POST /echo` calling `api.runtime.subagent.run(...)`; boot a credentialed pod
-  (`[[reference-local-ai-keys-env]]`); `POST /api/inbound/echo` → the agent runs and echoes.
-- Prod (live-verified 2026-07-10, compute:4a74a84): set `LM_OPENCLAW_AGENT`, POST via
-  `<gw>/api/inbound/<inboundJWT>/echo`, confirm pod log `[openclaw] loaded plugin "..."` +
-  `mounted HTTP route POST /echo` and the agent's session snapshot. Prod idle scale-to-zero fights
-  `kubectl exec` — drive via the gateway + read the persisted snapshot (`[[project-inbound-triggers]]`).
+GROUND TRUTH IS THE CODE. If you change the implementation, update the matching org/docs page in the
+same change (see `org/docs/SYNC.md`).

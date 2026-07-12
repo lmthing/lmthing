@@ -5,131 +5,63 @@ description: Load when touching the inbound-webhook request flow — the gateway
 
 # Skill: Inbound Webhooks (the transport + security plumbing)
 
-The internal machinery behind inbound webhooks. **Authoring** the CURRENT path (an `events/<name>.ts`
-**webhook emitter def** + a `{type:'event'}` hook) is `@.claude/skills/events-and-hooks.md`; the LEGACY
-binding surface (`triggers:` frontmatter / `type:'webhook'` hook) is `@.claude/skills/triggers.md`;
-**running OpenClaw plugins** on this same ingress is `@.claude/skills/openclaw-compat.md`. This skill is
-the three-leg request path, signature verification, tokens, and secrets.
+Applies when you touch the inbound-webhook **request path**: the gateway broker, the pod dispatcher,
+signature verification, dedupe, inbound tokens, per-binding secrets, or thread continuity. If instead
+you are **authoring** a webhook (an `events/<name>.ts` emitter def + a `{type:'event'}` hook), that is
+`@.claude/skills/events-and-hooks.md`; the legacy binding surface is `@.claude/skills/triggers.md`;
+plugins riding this same ingress are `@.claude/skills/openclaw-compat.md`.
 
-> **Shared by both paths.** The gateway broker, tokens, and pod dispatcher below carry BOTH a legacy
-> binding and a webhook emitter def. An emitter def brings its OWN `path` and `verify` (a declarative
-> `VerifySpec` **descriptor**, or the `{type:'builtin', provider:'slack'|'github'}` shorthand for
-> schemes the generic union can't express); the same manifest global-path-uniqueness check + the same
-> `webhook-verifiers.ts` crypto engine (`buildAdapterFromDescriptor`) apply. A verified emitter's pure
-> `emit(inbound)` produces typed events dispatched to event hooks (`server/event-dispatch.ts`) instead
-> of directly delegating to one handler agent. `VerifySpec` was lifted into `@lmthing/core`
-> (`spaces/verify-spec.ts`) so the descriptor and the emitter def share one union + one validator.
+## Read first — the grounded truth
 
-## The three legs
+This file holds **no knowledge**. Everything below lives, cited to code, in:
 
+- `org/docs/cli-api/rest/webhooks.md` — the whole request path: the gateway broker
+  (`POST /api/inbound/:userToken/:path`, rate limit, wake, fire-and-forget 202), the pod dispatcher,
+  binding resolution (all four sources), the emitter flow vs the legacy flow, verification (built-in
+  + descriptor-driven + emitter-def adapters), secret resolution, dedupe, threading, the OpenClaw
+  fallback, the full response-code table, and every env var. **Also records a known gap: the GET
+  `hub.challenge` branches are unreachable because the route is registered POST-only.**
+- `org/docs/format/space/events/webhook.md` — the producer-side format: the `webhook` emitter def
+  (`path`, `verify`, `secretEnv`, `challenge`, `emits`, the pure `emit(inbound)`).
+
+Supporting pages: `org/docs/format/space/events/README.md` (the event pipeline) ·
+`org/docs/cli-api/rest/hooks.md` (hook routes) · `org/docs/format/project/hooks/README.md` ·
+`org/docs/runtime-globals/events-and-integrations.md` · `org/docs/libs/openclaw-compat.md` ·
+`org/docs/cloud/routes.md` and `org/docs/cloud/auth.md` (gateway + token posture).
+
+## Procedures
+
+**Run the webhook tests** (from the sdk workspace root — `@lmthing/cli` has **no** `test` script; the
+runner is vitest at `sdk/org`):
+
+```bash
+cd sdk/org && pnpm vitest run libs/cli/src/server/webhook   # 7 files: inbound, verifiers, threads,
+                                                            # dedupe, descriptor, *-dispatch
+cd sdk/org && pnpm vitest run libs/cli/src/server/emitter   # emitter manifests
 ```
-external POST
-  → [leg 3] gateway  POST /api/inbound/:userToken/:path   (public, token-gated)
-        verify userToken → wakeUserPod → waitForPodReady → forward raw body+headers → 202 (async)
-  → [leg 1] pod      POST /api/inbound/:path              (in-cluster only)
-        resolveBinding → adapter.verify → adapter.preflight? → adapter.renderMessage
-        → [leg 2] threaded? runHeadlessThreaded : runHeadless
-```
 
-### Leg 3 — gateway broker (`cloud/gateway/src/routes/inbound.ts`)
-- `POST /:userToken/:path` — **public, no authMiddleware**: the long-lived `userToken`
-  (`aud:"inbound"`, `signInboundToken`/`verifyInboundToken` in `lib/tokens.ts`, HS256, key =
-  `Buffer.from(GATEWAY_JWT_SECRET, "base64")`, 365d) IS the auth — same posture as the Stripe webhook
-  and the connections `/callback`. Deep provider-signature verification runs **on the pod** (it owns
-  the binding secret + needs the raw body); the gateway token gate just stops random wake spam.
-- Flow: `resolvePodConfig` → `wakeUserPod` → `waitForPodReady(INBOUND_WAKE_WAIT_MS, default 4s)` →
-  **fire-and-forget** `fetch(<podBase>/api/inbound/:path)` → **`202 {ok,accepted}` immediately**. Does
-  NOT await pod handling — the external provider only needs delivery acceptance (async model tolerates
-  the ~6s cold-start wake).
-- `getPodInternalBaseUrl(userId)` = the **first prod gateway→pod forward** (previously podProxy was
-  `LOCAL_DEV`-only) → in-cluster DNS `lmthing.user-<id>.svc.cluster.local:8080`.
-- `forwardHeaders` relays only `content-type` + any `x-*` header (provider signatures like
-  `x-hub-signature-256`, `x-slack-signature`); Host/Authorization/routing headers are dropped.
-- `GET /api/inbound` (authed) → `{ baseUrl: <gw>/api/inbound/<token>, token, bindings }` for the UI.
-- `POST /api/compute/webhook-manifest` (compute-JWT) receives the pod's published bindings →
-  `webhook_bindings` table (migration `cloud/migrations/008_webhook_bindings.sql`, keyed
-  `(user_id, binding_id)`).
+**Prod round-trip:**
+1. Mint an inbound token — HS256, `sub=<userId>`, `aud="inbound"`, key = base64-decode of
+   `GATEWAY_JWT_SECRET` from the `lmthing-secrets` k8s secret. Exact shape:
+   `cloud/gateway/src/lib/tokens.ts`.
+2. `POST <gateway>/api/inbound/<inboundJWT>/<path>` → expect **202** `{ok,accepted}`; a tampered token
+   → 401. The broker is fire-and-forget, so the agent result never comes back on this response — read
+   the pod's persisted session snapshot instead.
+3. Drive reads **through the gateway** (it wakes the pod); `kubectl exec` fights the idle scaler.
 
-### Leg 1 — pod dispatcher (`sdk/org/libs/cli/src/server/routes/webhooks.ts`)
-`createInboundHandler(manager, lmthingRoot, pluginRoutes?)` → `POST /api/inbound/:path`:
-1. `resolveBinding(root, projects, path)` (hooks first, then `scanSpaceTriggers`). No binding **and**
-   no `pluginRoutes` match ⇒ 404. (The `pluginRoutes` fallback is the OpenClaw route table —
-   `@.claude/skills/openclaw-compat.md`. **Bindings always win**; a plugin can't shadow a real path.)
-2. `getAdapter(binding.provider)` → `adapter.verify(rawBody, headers, secret)`; fail ⇒ **401**.
-3. `adapter.preflight?(...)` — Slack `url_verification` handshake answered **before** any agent wakes.
-   **Order is verify → preflight** (a forged handshake is rejected like any forged event).
-4. `adapter.renderMessage(path, rawBody, headers)` → the agent's user message.
-5. `adapter.extractThread(...)` → key ⇒ `runHeadlessThreaded` (sessionId from `getOrCreateThreadSession`,
-   `webhook-threads.ts`), null ⇒ one-shot `runHeadless`.
+**Adding a provider/verifier:** edit `sdk/org/libs/cli/src/server/webhook-verifiers.ts`, add cases to
+`webhook-verifiers.test.ts`, then update `org/docs/cli-api/rest/webhooks.md` in the same change. Prefer
+a declarative `VerifySpec` over new per-provider code — the generic engine already covers hmac /
+header-equals / body-token / ed25519 / twilio / none.
 
-### Leg 2 — threading store (`sdk/org/libs/cli/src/server/webhook-threads.ts`)
-`getOrCreateThreadSession(projectRoot, path, threadKey)` persists `externalThreadKey → sessionId` in
-`.data/webhook-threads.json` (keyed `<path>::<threadKey>`). First event mints + records a uuid;
-later events on the same key resume that persisted session. `runHeadless` is **ephemeral** (fresh
-uuid, unpersisted) — threading REQUIRES the explicit `runHeadlessThreaded` path.
+**Deploy gotchas:**
+- New `cli`/`core` workspace deps must be added to `devops/argocd/compute/Dockerfile` — it does **not**
+  auto-include `libs/*`. A missing dep crash-loops every pod on `Cannot find package` (this has caused
+  a real prod outage).
+- Two near-simultaneous pushes race on the devops image-tag bump; the second run's update-manifests
+  fails on a rebase conflict. Fix: `gh run rerun <id> --failed`.
 
-## Provider verifiers (`sdk/org/libs/cli/src/server/webhook-verifiers.ts`)
+## Keep the docs true
 
-Registry `WEBHOOK_ADAPTERS: Record<string, WebhookAdapter>`, shaped like the gateway's
-`connections-registry.ts`. `getAdapter(provider)` falls back to `generic` for unknown providers
-(graceful, no 500). **Every method is defensive — never throws; `verify` returns `false` on any
-parse/HMAC error (safe default: reject).** Adding a provider is pure config.
-
-| Provider | `verify` (HMAC) | thread key | `preflight` | `requiresSecret` |
-|---|---|---|---|---|
-| `generic` | `x-lmthing-signature` = `sha256=HMAC(secret, body)`; **no secret ⇒ allow** | `x-lmthing-thread` header, else JSON `threadKey`/`thread` | — | false |
-| `slack` | `x-slack-signature` = `v0=HMAC(secret, "v0:"+ts+":"+body)` + **±5min replay window** | `event.thread_ts`→`ts`→`channel` | `url_verification` → `{challenge}` | true |
-| `github` | `x-hub-signature-256` = `sha256=HMAC(secret, body)` | `<repo.full_name>#<issue|pr.number>` | — | true |
-
-`safeEqual` guards `timingSafeEqual`'s length-mismatch throw (mismatch = "not equal", not error).
-
-### Secret resolution (`resolveWebhookSecret(path, provider)`)
-1. per-path override `LMTHING_WEBHOOK_SECRET_<PATH>` (path upper-cased, `-`→`_`);
-2. provider-standard env (`SLACK_SIGNING_SECRET`, `GITHUB_WEBHOOK_SECRET`);
-3. `undefined` — a `requiresSecret` adapter then rejects every request; `generic` allows unsigned.
-
-Per-binding secrets are injected into the pod's `user-env` on create (mirroring
-`LMTHING_CONNECTIONS_JWT`).
-
-## Gotchas
-
-- **`path` is globally unique per pod** — the gateway routes on `path` alone; `buildWebhookManifest`
-  is fail-loud on any duplicate across hooks + space-triggers. Don't add a second disambiguator.
-- **No provider→user reverse mapping exists** (`connections` table has no `team_id`/`chat_id`) — the
-  per-user `userToken` **in the URL** is the only routing key. Don't assume you can look a user up from
-  a Slack team id.
-- **Verify runs pod-side, not gateway-side** — the gateway can't (it doesn't hold the binding secret
-  and the fire-and-forget forward already returned 202). Keep signature logic in `webhook-verifiers.ts`.
-- **Fire-and-forget forward** — the gateway never sees the agent result; don't try to return it to the
-  caller. Replies go outbound via Connections (`@.claude/skills/triggers.md`).
-- **New cli/core workspace deps must be added to `devops/argocd/compute/Dockerfile`** — it does NOT
-  auto-include `libs/*`. This bit us: the cli's `@lmthing/openclaw-compat` dep wasn't packaged →
-  pods crash-looped on `Cannot find package` (a real prod outage). See `[[project-inbound-triggers]]`.
-
-## File map
-
-| File | Role |
-|---|---|
-| `cloud/gateway/src/routes/inbound.ts` | Public broker `POST /:userToken/:path`; `GET /`; header relay; wake+forward+202 |
-| `cloud/gateway/src/lib/tokens.ts` | `signInboundToken`/`verifyInboundToken` (`aud:"inbound"`) |
-| `cloud/gateway/src/lib/compute.ts` | `getPodInternalBaseUrl`, `wakeUserPod`, `waitForPodReady` |
-| `cloud/migrations/008_webhook_bindings.sql` | `webhook_bindings` table |
-| `sdk/org/libs/cli/src/server/routes/webhooks.ts` | Pod dispatcher `createInboundHandler` (+ `pluginRoutes` fallback) |
-| `sdk/org/libs/cli/src/server/webhook-verifiers.ts` | `WEBHOOK_ADAPTERS`, `getAdapter`, `resolveWebhookSecret` |
-| `sdk/org/libs/cli/src/server/webhook-threads.ts` | `getOrCreateThreadSession` (`.data/webhook-threads.json`) |
-| `sdk/org/libs/cli/src/server/webhook-manifest.ts` | `buildWebhookManifest`/`resolveBinding`/`publishWebhookManifest` |
-
-## Testing
-
-- Pod unit: `pnpm --filter @lmthing/cli test -- webhook` (`webhook-inbound.test.ts` handler wiring w/
-  fake req/res, `webhook-verifiers.test.ts` HMAC/replay/preflight, `webhook-threads.test.ts`).
-- **Mint an inbound token** (prod): HS256, `sub=userId`, `aud="inbound"`, key =
-  base64-decode(`GATEWAY_JWT_SECRET` from the `lmthing-secrets` k8s secret). Shape in
-  `cloud/gateway/src/lib/tokens.ts`.
-- **Prod round-trip:** `POST <gw>/api/inbound/<inboundJWT>/<path>` → expect **202** `{ok,accepted}`;
-  tampered token → 401. Then read the pod's persisted session snapshot (survives idle scale-to-zero;
-  drive via the gateway, which wakes the pod — `kubectl exec` fights the idle scaler). See the
-  live-verified runbook in memory `[[project-inbound-triggers]]` and prod-user/deploy notes
-  `[[reference-prod-test-user-and-deploy]]`.
-- **CI gotcha:** two near-simultaneous pushes race on the devops image-tag bump → the 2nd run's
-  update-manifests fails on a rebase conflict; `gh run rerun <id> --failed` fixes it.
+GROUND TRUTH IS THE CODE. If you change the implementation, update the matching org/docs page in the
+same change (see `org/docs/SYNC.md`).

@@ -5,138 +5,44 @@ description: Load when working on auth flows, SSO, GitHub OAuth, gateway auth ro
 
 # Authentication
 
-## Overview
+Use this skill when you touch anything that establishes or verifies identity: the gateway's `/api/auth/*` routes, gateway JWT signing/verification, Zitadel (users, passwords, GitHub OAuth), cross-domain SSO between the lmthing.\* SPAs, the `@lmthing/auth` client library, or the demo/local-dev auth bypass.
 
-Authentication is handled through **com/** (the central auth hub) which talks to the **cloud gateway API**. com/ has its own login/signup UI. Other lmthing.\* apps use cross-domain SSO via com/.
+This file holds **no knowledge** — the grounded, code-cited truth lives in `org/docs/`.
 
-**Identity provider**: [Zitadel](https://auth.lmthing.cloud) — stores users, handles GitHub OAuth (via IDP Intent API), and verifies passwords.
+## Read first
 
-**Token issuer**: The **gateway itself** — issues HS256 JWTs signed with `GATEWAY_JWT_SECRET`. Clients never hold Zitadel tokens.
+| You need… | Read |
+|---|---|
+| Token shape + signing, auth middleware, register/login/OAuth/refresh, SSO codes, API keys, auth env vars | **`org/docs/cloud/auth.md`** (start here — it owns this topic) |
+| The full `/api/*` route table (method, handler line, auth requirement) | `org/docs/cloud/routes.md` |
+| The `@lmthing/auth` client library — `AuthProvider`, `useAuth`, session storage, `authFetch` | `org/docs/libs/auth.md` |
+| Demo mode, the `*.test` proxy, running the stack locally | `org/docs/devops/local-dev.md` |
+| Tiers, budgets, provisioning (what `/provision` sets up) | `org/docs/cloud/billing-and-tiers.md` |
+| The backend as a whole | `org/docs/cloud/README.md` |
 
-**Auth providers**: Email/password and GitHub OAuth (GitHub-only OAuth flow, no Zitadel login UI shown to users).
+**Known-broken:** `POST /api/auth/login` fails in production (Zitadel password grant disabled). Root cause and the mint-a-JWT workaround: `.issues/zitadel-password-login-disabled.md`. Do not assume password login works when writing or testing a flow — GitHub OAuth is unaffected.
 
-## Auth Flows
+## Procedure — add auth to a new SPA
 
-### Email/password login (com/)
+1. Add the dependency:
 
-1. User submits email + password to `POST /api/auth/login`
-2. Gateway verifies credentials via Zitadel password grant
-3. Gateway looks up user ID by email (`getUserByEmail`)
-4. Gateway calls `signTokens(userId, email)` → returns gateway JWT (`access_token` 12h) + `refresh_token` (30d)
-5. com/ stores tokens, calls `/api/auth/provision` to create LiteLLM user + Stripe customer + API key
+   ```bash
+   cd your-app/
+   pnpm add "@lmthing/auth@workspace:*"
+   ```
 
-### GitHub OAuth (IDP Intent flow)
+2. Wrap the app in `AuthProvider` (`appName` is required; `callbackPath` defaults to `/`) and gate your routes on `isAuthenticated` / `isLoading` from `useAuth()`. Exact prop and context shapes: `org/docs/libs/auth.md`.
 
-1. com/ calls `GET /api/auth/oauth/url?redirect_to=...`
-2. Gateway calls Zitadel `POST /v2/idp_intents` with the GitHub IDP ID → returns a GitHub OAuth URL directly (no Zitadel UI)
-3. User authenticates on GitHub
-4. GitHub → Zitadel → `GET /api/auth/oauth/callback?id=...&token=...` (the gateway's success URL)
-5. Gateway resolves the IDP intent (`POST /v2/idp_intents/{id}`), gets or creates the Zitadel user
-6. Gateway calls `signTokens(userId, email)` → redirects to `redirect_to#access_token=...&refresh_token=...`
-7. com/ extracts tokens from hash fragment, stores them, calls `/api/auth/provision`
+3. Call cloud APIs with `authFetch` from `@lmthing/auth` — it attaches the Bearer token, refreshes on `401`, and retries the scaled-to-zero pod wake response. Do not hand-roll the `Authorization` header.
 
-### Cross-domain SSO (other apps via `@lmthing/auth`)
+4. **No Vite alias step is needed.** `@lmthing/auth` is already aliased centrally in `sdk/org/libs/utils/src/vite.mjs`; consume the shared Vite config rather than adding your own alias.
 
-1. App detects no session → redirects to `lmthing.com/auth/sso?redirect_uri=...&app=...`
-2. com/ checks for active session (redirects to `/login` if none)
-3. com/ calls `POST /api/auth/sso/create` → gateway creates a single-use code in Postgres (60s TTL)
-4. com/ redirects back to the app with `?code=...`
-5. App calls `POST /api/auth/sso/exchange` → gateway validates code, calls `signTokens()` → returns gateway JWT session
+5. Verify locally in demo mode (no real login), then against the real gateway. Setup: `org/docs/devops/local-dev.md`.
 
-### Token refresh
+## Procedure — get a session on production (testing)
 
-- `POST /api/auth/refresh` with `{ refresh_token }` → gateway verifies the refresh JWT locally → issues new token pair
+Password login is broken, so mint a gateway HS256 JWT by hand and inject it into `localStorage.lmthing_session`. Step-by-step (secret source, claim shape, session shape): the callout in `org/docs/cloud/auth.md` plus `.issues/zitadel-password-login-disabled.md`.
 
-### Backend auth (gateway middleware)
+## Keep the docs true
 
-1. Extract `Authorization: Bearer <token>`
-2. Try `verifyAccessToken(token)` — local HS256 verification, no network call
-3. If that fails, fall back to Zitadel `POST /oauth/v2/introspect` (Basic auth) for any legacy tokens
-
-## Gateway Auth Routes
-
-| Route | Method | Auth | Purpose |
-|-------|--------|------|---------|
-| `/api/auth/register` | POST | Public | Register, auto-provisions LiteLLM + Stripe, returns user info |
-| `/api/auth/login` | POST | Public | Password login — returns gateway JWT + refresh token |
-| `/api/auth/oauth/url` | GET | Public | Start GitHub OAuth via Zitadel IDP Intent |
-| `/api/auth/oauth/callback` | GET | Public | IDP Intent callback — issues gateway tokens, redirects |
-| `/api/auth/provision` | POST | JWT | Provision LiteLLM user + Stripe customer (idempotent) |
-| `/api/auth/refresh` | POST | Public | Refresh access token |
-| `/api/auth/me` | GET | JWT | User info + tier |
-| `/api/auth/sso/create` | POST | JWT | Generate SSO authorization code (60s TTL) |
-| `/api/auth/sso/exchange` | POST | Public | Exchange SSO code for gateway JWT session |
-
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| `cloud/gateway/src/lib/tokens.ts` | `signTokens`, `verifyAccessToken`, `verifyRefreshToken` — HS256 JWTs |
-| `cloud/gateway/src/lib/zitadel.ts` | Zitadel v2 API client — user CRUD, IDP Intent, password login |
-| `cloud/gateway/src/routes/auth.ts` | All auth route handlers |
-| `cloud/gateway/src/middleware/auth.ts` | Bearer token verification middleware |
-| `sdk/org/libs/auth/src/` | `@lmthing/auth` — cross-domain SSO client library |
-| `com/src/lib/cloud.ts` | JWT + refresh token management, `cloudFetch()` |
-
-## Demo mode (local development)
-
-When `VITE_DEMO_USER=true` is set (default in `sdk/org/libs/ui/apps/web/.env.development` for the unified app), `AuthProvider` skips all SSO flows and uses a hardcoded demo session (`demo-user` / `demo@lmthing.test`). No redirect to com/, no SSO exchange, no gateway calls needed.
-
-## Integrating Auth in a New Service
-
-### 1. Add the dependency
-
-```bash
-cd your-app/
-pnpm add "@lmthing/auth@workspace:*"
-```
-
-### 2. Wrap your app with AuthProvider
-
-```tsx
-import { AuthProvider, useAuth } from "@lmthing/auth";
-
-function AuthGate({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
-  if (isLoading) return null;
-  if (!isAuthenticated) return <LoginScreen />;
-  return <>{children}</>;
-}
-
-function RootComponent() {
-  return (
-    <AuthProvider appName="your-app-name">
-      <AuthGate>
-        <Outlet />
-      </AuthGate>
-    </AuthProvider>
-  );
-}
-```
-
-### 3. Use useAuth() anywhere
-
-```tsx
-const { username, isAuthenticated, isLoading, login, logout } = useAuth();
-```
-
-- `login()` — redirects to com/ for SSO login
-- `logout()` — clears the local session
-- `username` — the user's email
-- `session.accessToken` — gateway JWT for calling cloud APIs
-
-### 4. Ensure the Vite alias is registered
-
-In `sdk/libs/utils/src/vite.mjs`:
-
-```js
-'@lmthing/auth': path.resolve(dirname, '../sdk/libs/auth/src'),
-```
-
-### 5. Environment variables (optional)
-
-```
-VITE_COM_URL=https://com.test       # defaults: com.test (dev) / lmthing.com (prod)
-VITE_CLOUD_URL=https://cloud.test   # defaults: cloud.test (dev) / lmthing.cloud (prod)
-VITE_DEMO_USER=true                  # bypass auth with demo session (set in .env.development)
-```
+GROUND TRUTH IS THE CODE. If you change the implementation, update the matching org/docs page in the same change (see `org/docs/SYNC.md`).

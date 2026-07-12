@@ -112,7 +112,7 @@ Adherence is a **hard CI gate**: `pnpm lint:tokens` at repo root and the `@lmthi
 
 **Files exempt by path** — the token definitions themselves: any `theme.css`, `tokens.json`, `tokens.manifest.json`, and anything under a `scripts/` dir (`ALLOW_FILE`, `lint-design-tokens.mjs:30-34`).
 
-> There is also a CI workflow gate referenced in the repo instructions (`.github/workflows/design-tokens.yml`). Not opened here — see the design-system [README](./README.md).
+> CI runs the same linter as a hard gate: `.github/workflows/design-tokens.yml:39-43` invokes `node sdk/org/libs/css/scripts/lint-design-tokens.mjs` over the ten product `src` roots on every `pull_request` and on `push` to `main` (`design-tokens.yml:6-27`). Note it omits `org/src`, which the root `pnpm lint:tokens` does scan (`package.json:14`) — full breakdown of what is and is not gated → [README](./README.md).
 
 ---
 
@@ -121,4 +121,4 @@ Adherence is a **hard CI gate**: `pnpm lint:tokens` at repo root and the `@lmthi
 - **Use a color:** the CSS var `var(--foreground)` or its Tailwind utility `bg-primary` / `text-agent` / `border-border` (utilities exist because of the `@theme inline` `--color-*` block, `theme.css:21-121`).
 - **Change a color:** edit `sdk/org/libs/css/src/tokens/tokens.json`, run `pnpm --filter @lmthing/css generate`, commit the regenerated `theme.css` + `tokens.manifest.json`. Never touch `theme.css` by hand.
 - **Add a spectrum stop count / re-anchor:** edit `tokens.json` `spectrum` (`steps`, `from`, `to`) and regenerate; note the anchor spacing constant (`13`) in `buildSpectrum` assumes 5 anchors at 1/14/27/40/53 (`generate-theme.mjs:33-35`).
-- **Full palette table with dark values:** `tokens.manifest.json` (generated) and `sdk/org/libs/css/DESIGN.md` (the human-readable spec).
+- **Full palette table with dark values:** the authored entries in `sdk/org/libs/css/src/tokens/tokens.json:30-88` (each with a `description` naming its semantic role), or the generated flat index `sdk/org/libs/css/tokens.manifest.json` — which adds the interpolated `spectrum-1..50` and each token's `cssVar` + `utility` (`generate-theme.mjs:120-128`).

@@ -40,7 +40,7 @@ Models sometimes narrate instead of coding. `looksLikeProse` (`turn-loop.ts:L172
 
 - **A WASM module per VM.** `getWASMModule()` (`quickjs.ts:L51-L59`) instantiates a fresh module for every VM; sharing one module across a session and its concurrently-running fork/delegate VMs silently dropped host-bridge calls under load (`quickjs.ts:L39-L50`). `LM_QJS_DEBUG=1` swaps in the assertion-tracking debug variant.
 - **Sync eval, manual job driving.** `evalStatement` uses `ctx.evalCode(..., { type: 'module' })` — *not* `evalCodeAsync`, which would deadlock on a host promise that only settles after user input — then drives `executePendingJobs(1)` until either the jobs drain or a yield appears (`quickjs.ts:L90-L169`). A top-level `await` that rejected (e.g. calling a global that was never injected) is surfaced by inspecting the module promise's state instead of being swallowed as an unhandled rejection (`quickjs.ts:L121-L143`).
-- **Each statement is its own module ⇒ variables do not persist.** The turn loop appends `try { globalThis['x'] = x; } catch {}` for every bound name (`turn-loop.ts:L396-L402`), which is how the next statement sees `x`. Binding names are extracted syntactically — simple, array- and object-destructuring, multi-declarator, no-initializer, `function`/`class` declarations (`sdk/org/libs/core/src/context/variables.ts:L56-L152`).
+- **Each statement is its own module ⇒ variables do not persist.** The turn loop appends `try { globalThis['x'] = x; } catch {}` for every bound name (`turn-loop.ts:L396-L402`), which is how the next statement sees `x`. Binding names are extracted syntactically — simple, array- and object-destructuring, multi-declarator, no-initializer, `function`/`class` declarations (`sdk/org/libs/core/src/context/variables.ts:L72-L152`).
 - **Host bridge.** A host function returning a `Promise` becomes a QuickJS deferred that is disposed **on settle, not on creation** — `resolve()`/`reject()` are no-ops after `dispose()`, so eager disposal permanently neutered any `await` nested inside another async function (`sdk/org/libs/core/src/sandbox/host-bridge.ts:L63-L121`). Un-settled deferreds are force-disposed at teardown via a per-context registry (`host-bridge.ts:L12-L40`).
 - **Teardown never throws.** `dispose()` drains pending jobs, then swallows QuickJS's `list_empty(&rt->gc_obj_list)` assertion — it is catchable and benign, but propagating it turned an already-produced fork result into a spurious rejection (`quickjs.ts:L213-L247`).
 
@@ -50,13 +50,13 @@ Models sometimes narrate instead of coding. `looksLikeProse` (`turn-loop.ts:L172
 
 Every statement is typechecked **before** it is evaluated (`turn-loop.ts:L385-L391`). `runTsc` (`sdk/org/libs/core/src/typecheck/tsc.ts:L27-L97`) builds a two-file in-memory program — `__ambient__.d.ts` (the DTS) plus `__session__.tsx` = `export {};` + the accumulated context + the new statement — under `strict`, `jsx: React`, `jsxFactory: React.createElement`, and reports only diagnostics that land in the new statement's line range. A failure never reaches the VM: the loop aborts the stream and appends an ERROR block to history (`turn-loop.ts:L578-L596`).
 
-The DTS is assembled **additively from the capability profile** by `buildAmbientDts` (`sdk/org/libs/core/src/exec/bootstrap.ts:L315-L337`, whose app-grant half is `buildAppCapabilityDts`, `bootstrap.ts:L282-L313`), so "not granted ⇒ not injected **and** absent from the DTS" — a call to a global this context does not have fails typecheck (a clean, retryable model error) rather than throwing at runtime. Passing statements are transpiled with `ts.transpileModule` (`sdk/org/libs/core/src/typecheck/transpile.ts:L7-L19`), which strips types and lowers JSX to the injected `React.createElement` shim (`exec/bootstrap.ts:L217-L235`).
+The DTS is assembled **additively from the capability profile** by `buildAmbientDts` (`sdk/org/libs/core/src/exec/bootstrap.ts:L345-L369`, whose app-grant half is `buildAppCapabilityDts`, `bootstrap.ts:L311-L343`), so "not granted ⇒ not injected **and** absent from the DTS" — a call to a global this context does not have fails typecheck (a clean, retryable model error) rather than throwing at runtime. Passing statements are transpiled with `ts.transpileModule` (`sdk/org/libs/core/src/typecheck/transpile.ts:L7-L19`), which strips types and lowers JSX to the injected `React.createElement` shim (`exec/bootstrap.ts:L241-L264`).
 
 Detail → [./typecheck.md](./typecheck.md).
 
 ### Error blocks
 
-`buildErrorBlock` (`sdk/org/libs/core/src/eval/error-rewind.ts:L45-L76`) tells the model the failing statement, the message, a targeted hint when it reached for a non-existent API (`child_process`, `fs`, `axios`, `process.cwd`… → `sandboxApiHint`, `error-rewind.ts:L9-L34`), the names still in scope, and the full ALREADY-EXECUTED context. The accumulated typecheck context is deliberately **not** rolled back on error: earlier statements really did bind their variables in the VM, so rolling back would make tsc reject valid references (`turn-loop.ts:L588-L591`).
+`buildErrorBlock` (`sdk/org/libs/core/src/eval/error-rewind.ts:L45-L76`) tells the model the failing statement, the message, a targeted hint when it reached for a non-existent API (`child_process`, `fs`, `axios`, `process.cwd`… → `sandboxApiHint`, `error-rewind.ts:L9-L34`), the names still in scope, and the full ALREADY-EXECUTED context. The accumulated typecheck context is deliberately **not** rolled back on error: earlier statements really did bind their variables in the VM, so rolling back would make tsc reject valid references (`turn-loop.ts:L586-L591`).
 
 ---
 
@@ -107,7 +107,7 @@ Full detail → [./turn-loop.md](./turn-loop.md) · the globals themselves → [
 | Model stops right after binding from a **non-yielding** call | `CONTINUATION_NUDGE` re-prompt, up to `maxContinueNudges` (default 4) | `turn-loop.ts:L243-L247`, `L332-L333`, `L754-L761` |
 | A yield resolved | `attempt` resets to 0 and the loop continues | `turn-loop.ts:L738-L739` |
 
-The idle watchdog cannot fire while a *synchronous* host call (e.g. `execShell`, `sdk/org/libs/core/src/globals/host-tools.ts:L78`) blocks the Node event loop; `fetch` is a real non-blocking yield, so it is not in that category (`yield-router.ts:L184-L189`).
+The idle watchdog cannot fire while a *synchronous* host call blocks the Node event loop — `execShell` is a plain `execSync` (`sdk/org/libs/core/src/globals/host-tools.ts:L101-L117`, injected at `host-tools.ts:L186`), not a yield. `fetch` *is* a real non-blocking yield, so it is not in that category (`yield-router.ts:L184-L189`).
 
 Token usage is awaited only on a clean end and is bounded by a 10 s race — a provider that ends a stream without the final usage chunk would otherwise hang the turn forever (`turn-loop.ts:L538-L561`).
 
@@ -115,13 +115,13 @@ Token usage is awaited only on a clean end and is bounded by a 10 s race — a p
 
 ## 6. Capabilities: one profile drives injection *and* the DTS
 
-`CapabilityProfile` (`sdk/org/libs/core/src/exec/capability.ts:L47-L79`) is the single description of what a VM context may do: `ask`, `orchestrate` (`fork`+`tasklist`), `delegate`, `registerSpace`, `setSessionMeta`, `allowWrite`, and the parsed project-app grants `app` (`capabilities:` frontmatter). Three constructors:
+`CapabilityProfile` (`sdk/org/libs/core/src/exec/capability.ts:L47-L86`) is the single description of what a VM context may do: `kind`, `ask`, `orchestrate` (`fork`+`tasklist`), `delegate`, `registerSpace`, `setSessionMeta`, `allowWrite`, `scratchFs` (the engineer's `fs:scratch` code sandbox — `createScratch()` + a scratch-rooted `execShell`), and the parsed project-app grants `app` (`capabilities:` frontmatter). Three constructors:
 
-- `sessionCapabilities` — full toolkit incl. interactive `ask` (`capability.ts:L84-L86`);
-- `forkCapabilities` — headless (no `ask`), non-orchestrating (no `fork`/`tasklist`); `delegate` only when the task's `canDelegateTo` allows it; write + `registerSpace` follow the role, and read-only roles (`explore`/`plan`) get an `intersectAppCaps`-narrowed grant set (`capability.ts:L16-L28`, `L94-L97`);
-- `delegateCapabilities` — autonomous but a full orchestrator over its own actions/tasklists; no `registerSpace` (`capability.ts:L106-L108`).
+- `sessionCapabilities` — full toolkit incl. interactive `ask` (`capability.ts:L91-L93`);
+- `forkCapabilities` — headless (no `ask`), non-orchestrating (no `fork`/`tasklist`); `delegate` only when the task's `canDelegateTo` allows it; write + `registerSpace` follow the role, and read-only roles (`explore`/`plan`) get an `intersectAppCaps`-narrowed grant set (`capability.ts:L16-L28`, `L101-L105`);
+- `delegateCapabilities` — autonomous but a full orchestrator over its own actions/tasklists; no `registerSpace` (`capability.ts:L114-L116`).
 
-`createChildVM` (`exec/bootstrap.ts:L99-L243`) is the *one* implementation of VM wiring for all three contexts: seed vars → `currentTask.resolve` → space functions → host tools (console, `execShell`, `process.env`, `readFileRaw`/`writeFileRaw`, `progress()`) → app globals → the yielding globals gated by the profile → the React/JSX shim + component stubs. `buildAmbientDts` emits exactly the matching declarations (`exec/bootstrap.ts:L315-L337`), which is what keeps injection and typecheck in lockstep.
+`createChildVM` (`exec/bootstrap.ts:L100-L267`) is the *one* implementation of VM wiring for all three contexts: seed vars → `currentTask.resolve` → space functions → host tools (console, `execShell`, `process.env`, `readFileRaw`/`writeFileRaw`, `progress()`) → app globals → the `fs:scratch` sandbox when `scratchFs` (which *overrides* `execShell` with the scratch-rooted one, `bootstrap.ts:L154-L167`) → the yielding globals gated by the profile → the React/JSX shim + component stubs. `buildAmbientDts` emits exactly the matching declarations (`exec/bootstrap.ts:L345-L369`), which is what keeps injection and typecheck in lockstep — note the generic fs/shell primitives are *never* declared for an ordinary agent: `execShell`/`createScratch` are emitted only under `scratchFs`, and `readFileRaw`/`writeFileRaw` are internal-only (`bootstrap.ts:L354-L361`).
 
 ---
 
@@ -140,7 +140,7 @@ Cross-cutting session behaviour:
 
 - **Typecheck scope survives turns.** The VM keeps every variable a turn bound, but each `runTurnLoop` starts with an empty typecheck context — so the Session carries `turnContext` across turns via `initialContext` + `onContextSnapshot` (`session.ts:L146-L153`, `L219-L220`). `start()` resets it; `continue()`/`resume()` preserve it (`session.ts:L305`).
 - **History economy.** Past `maxHistoryTurns * 2` messages, old turns collapse into a deterministic digest keeping the last 6 verbatim — no extra LLM call (`session.ts:L528-L536`).
-- **Soft todos.** `beforeTurn` re-injects open items from `<spaceDir>/.lmthing/todos.json` into **every** top-level turn as a transient (never persisted) user message (`session.ts:L777-L793`, consumed at `turn-loop.ts:L345-L349`). Forks/delegates do not set it.
+- **Soft todos.** `beforeTurn` re-injects open items from `<spaceDir>/.lmthing/todos.json` into **every** top-level turn as a transient (never persisted) user message (`session.ts:L777-L793`, consumed at `turn-loop.ts:L346-L349`). Forks/delegates do not set it.
 - **`defaultAction` fast path.** If the agent declares a `defaultAction` bound to a tasklist (and `noDefaultAction` is not set), `start()` skips the model-driven loop and runs it through the delegate path, chaining a second delegate when the action returns `{spaceKey, agentSlug}` coordinates (`session.ts:L315-L350`). Host-driven, so it is exempt from the model-facing `canDelegateTo` gate.
 - **`dynamicSpaces`.** One shared `Map` written by `registerSpace()` (session `session.ts:L816-L826`, fork leaves `yield-router.ts:L355-L370`) and by a consented `installSpace()` (`yield-router.ts:L303-L310`) — so a space registered anywhere in the run is immediately reachable by later `delegate()` calls, and is advertised to the model in a "Project agents (already built & registered)" system-block section (`session.ts:L545-L568`).
 - **Attachments.** Images ride as a `MediaPart`; files carry no bytes — the session hands a text agent only an id-anchored note and the specialist fetches content itself with `readDocument(id)` (`session.ts:L71-L81`, `L940-L957`).
@@ -161,7 +161,7 @@ Detail → [./sessions.md](./sessions.md) · [./spaces-loading.md](./spaces-load
 | `maxForkDepth` | asserted before a fork spends a VM (top-level fork = depth 1) | `fork/fork.ts:L231-L236` → `budget.ts:L89-L93` |
 | `maxWallClockMs` | asserted on every episode/tool tick | `budget.ts:L96-L100` |
 
-Breaching any limit throws `BudgetExceededError` (`budget.ts:L29-L38`), which propagates out of the turn loop for the caller to dispose the VM on. Before the hard stop, `nearLimitWarning()` (≤2 turns/tool-calls remaining, or 80 % of the wall clock) is appended to the VARIABLES block so the model can wrap up and `currentTask.resolve()` (`budget.ts:L108-L131`, `turn-loop.ts:L734-L735`). The VM can *read* its own spend through the `progress()` host tool (`session.ts:L651`, `globals/host-tools.ts:L26-L29`). A fresh `Budget` is minted per `start()`/`continue()`/`resume()` (`session.ts:L203`, `L304`, `L487`) and per fork (`fork/fork.ts:L231`).
+Breaching any limit throws `BudgetExceededError` (`budget.ts:L29-L38`), which propagates out of the turn loop for the caller to dispose the VM on. Before the hard stop, `nearLimitWarning()` — ≤2 LLM turns remaining, or ≥80 % of the tool-call allowance consumed, or ≥80 % of the wall clock elapsed (`budget.ts:L108-L131`) — is appended to the VARIABLES block so the model can wrap up and `currentTask.resolve()` (`turn-loop.ts:L734-L735`). The VM can *read* its own spend through the `progress()` host tool (`session.ts:L651`, `globals/host-tools.ts:L26-L29`). A fresh `Budget` is minted per `start()`/`continue()`/`resume()` (`session.ts:L203`, `L304`, `L487`) and per fork (`fork/fork.ts:L231`).
 
 ---
 

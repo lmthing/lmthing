@@ -63,7 +63,10 @@ Consequences worth knowing:
 - `/computer/terminal` destructures `tier` from `useComputer()` `sdk/org/apps/web/src/routes/computer/terminal.tsx:13` and passes it to `<BootProgress tier={tier}>` `:42-46`, but `ComputerContextValue` declares no `tier` field `sdk/org/apps/web/src/lib/runtime/ComputerContext.tsx:14-26` — so `undefined` is passed while booting. It is not caught at build time because `apps/web`'s scripts are only `dev/build/preview/lint*/format` — there is no `typecheck` script `sdk/org/apps/web/package.json:7-14`.
 - `/computer/dashboard` hardcodes `tier="flyio"` for both `<BootProgress>` and `<ComputerDashboard>` `sdk/org/apps/web/src/routes/computer/dashboard.tsx:24-42`, and derives uptime client-side from a `useRef(Date.now())` at first render `:19-20` — it is not pod uptime.
 
-> UNVERIFIED: whether `/computer/login` and the `spaces/*` placeholder routes are intentionally retained (searched `rg -n "computer/login|computer/spaces" sdk/org` — only the nav-item and route definitions above; no issue file or TODO explains them).
+The two kinds of empty route are not equally removable:
+
+- The `spaces/*` stubs are load-bearing for navigation. Both shells' nav items are plain path strings `sdk/org/libs/ui/src/computer/computer-layout.tsx:22-27` · `sdk/org/libs/ui/src/computer/ide-layout.tsx:48-52`, and both call sites hand them straight to the router — `onNavigate={(path) => router.navigate({ to: path })}` `sdk/org/apps/web/src/routes/computer/route.tsx:72` · `sdk/org/apps/web/src/routes/computer/index.tsx:34`. The "Spaces" button therefore resolves only because these four files exist; deleting them would leave a nav item pointing at a non-existent route.
+- `/computer/login` is orphaned. It has no inbound reference anywhere in the repo: no nav item lists it, nothing links or redirects to it, and its only occurrence outside the generated route tree (`sdk/org/apps/web/src/routeTree.gen.ts:730-736`) is its own `createFileRoute('/computer/login')` `sdk/org/apps/web/src/routes/computer/login.tsx:4-6`. Unauthenticated users never reach it either, because `AuthGate` renders `<LoginScreen/>` itself before any child route mounts `sdk/org/apps/web/src/lib/gates.tsx:18-23`. It is reachable only by typing the URL, and it renders nothing when you do `sdk/org/apps/web/src/routes/computer/login.tsx:8-13`.
 
 ## Cross-links
 

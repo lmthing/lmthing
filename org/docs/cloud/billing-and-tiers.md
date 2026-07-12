@@ -274,10 +274,10 @@ Check the math: `0.00019 / 1000 × 1.15 = 2.185e-7` → the deployed
 built-in `azure/whisper` cost map — i.e. the 15% markup does **not** apply to transcription
 (`devops/argocd/core/litellm.yaml:69-79`).
 
-> Correction: `Architecture.md:154`, `space/README.md:43` and `team/README.md:21` say **10%**
-> markup ("Stripe AI Gateway"). The code says **15%** and there is no Stripe AI Gateway in the
-> repo — LiteLLM does the metering. `com/README.md:27` and `com/src/routes/pricing.tsx:25`
-> (15%) are correct.
+> Correction: `space/README.md:43` and `team/README.md:21` say **10%** markup ("Stripe AI Gateway"),
+> as did the since-deleted root `Architecture.md`. The code says **15%** and there is no Stripe AI
+> Gateway in the repo — LiteLLM does the metering. `com/README.md:27` and
+> `com/src/routes/pricing.tsx:25` (15%) are correct.
 
 ---
 

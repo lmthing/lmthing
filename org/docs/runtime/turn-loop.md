@@ -20,7 +20,7 @@ Related: [typecheck](./typecheck.md) · [runtime globals](../runtime-globals/REA
 `sdk/org/libs/core/src/eval/turn-loop.ts:300`. It is the *only* loop: the session, every fork and
 every delegate call the same function with different `deps`
 (`sdk/org/libs/core/src/session/session.ts:353` — `start`, `:206` — `continue`, `:490` — `resume`;
-`sdk/org/libs/core/src/fork/fork.ts:530` — a fork's own loop, and again at `:557` for the
+`sdk/org/libs/core/src/fork/fork.ts:536` — a fork's own loop, and again at `:563` for the
 forced-resolve nudge).
 
 Key `TurnLoopDeps` fields (`turn-loop.ts:195-236`):
@@ -114,7 +114,7 @@ while (attempt < maxRetries)                       // turn-loop.ts:335
   assertion-tracking `DEBUG_ASYNC` variant, whose `dispose()` throws a descriptive handle-leak error.
 - **Limits** — memory `64 MiB`, per-statement interrupt deadline `5000 ms`
   (`quickjs.ts:62-63`, applied via `shouldInterruptAfterDeadline`, `:92`). `createChildVM` calls
-  `createVM()` with no overrides (`exec/bootstrap.ts:101`), so those defaults are what every session /
+  `createVM()` with no overrides (`exec/bootstrap.ts:102`), so those defaults are what every session /
   fork / delegate VM runs with.
 - **Sync eval, not `evalCodeAsync`** — `evalStatement` uses `ctx.evalCode(code, '_session.tsx',
   { type: 'module' })` (`quickjs.ts:97`) and then drives jobs manually. `evalCodeAsync` would block the
@@ -170,8 +170,8 @@ const pushYield = (req: YieldRequest) => {
   vm.pendingYields.push(req);
 };
 ```
-`sdk/org/libs/core/src/exec/bootstrap.ts:151-153`; the globals are injected right below it
-(`bootstrap.ts:155-211`), each gated by the capability profile. Example producer —
+`sdk/org/libs/core/src/exec/bootstrap.ts:175-177`; the globals are injected right below it
+(`bootstrap.ts:179-235`), each gated by the capability profile. Example producer —
 `createAskGlobal` (`globals/ask.ts:64-92`) validates the JSX descriptor, mints an id, and returns
 `new Promise((resolve, reject) => pushYield({ kind: 'ask', args: [id, descriptor], deferred: { resolve, reject }, vmPromiseHandle: undefined }))`.
 
@@ -317,10 +317,10 @@ Notes:
   call `currentTask.resolve()` now" message when ≤2 episodes remain or ≥80 % of the tool-call /
   wall-clock cap is spent; the turn loop appends it to the `VARIABLES` block (`turn-loop.ts:734-735`).
 - `snapshot()` (`budget.ts:134-136`) backs the in-VM `progress()` global (`session.ts:651`,
-  `exec/bootstrap.ts:75`).
-- Forks catch `BudgetExceededError` from their *nudge* loop only (`fork/fork.ts:563-566`); a breach in
+  `exec/bootstrap.ts:73-76`).
+- Forks catch `BudgetExceededError` from their *nudge* loop only (`fork/fork.ts:569-572`); a breach in
   the main fork loop propagates and rejects, and the VM is disposed after the loop exits
-  (`fork.ts:592-594`).
+  (`fork.ts:599-600`).
 
 ---
 
@@ -354,13 +354,17 @@ ERROR (attempt 2 of 3)
 ```
 
 `sandboxApiHint(message)` (`error-rewind.ts:9-34`) maps the model's recurring dead ends to the real
-host primitives: `child_process`/Bun/Deno/`require(` → `execShell(cmd)`; `axios`/`node-fetch` →
-`await fetch(url, opts?)`; `node:fs` → `readFile`/`writeFile`/`readFileRaw`/`writeFileRaw`;
-`TextDecoder`/`Buffer` → not available; `process.cwd` → `process` is an env-only shim.
+host primitives: `child_process`/Bun/Deno/`execSync`/`require(` → *there is no generic shell* — running
+code is only possible inside the engineer's scratch sandbox (`execShell` there, after `createScratch()`),
+otherwise delegate to the engineer and persist what it returns (`error-rewind.ts:12-16`);
+`axios`/`node-fetch`/a missing `fetch` → `await fetch(url, opts?)` (`:18-20`); `node:fs` →
+`readFile`/`writeFile`/`editFile` or the host globals `readFileRaw`/`writeFileRaw` (`:22-24`);
+`TextDecoder`/`TextEncoder`/`Buffer` → not available (`:26-28`); `process.cwd` → `process` is an
+env-only shim (`:30-32`).
 
 **No rewind of `accumulatedContext`.** Statements that ran earlier in the turn already bound their
 variables in the VM and persist into the retry, so removing them from the typecheck context would make
-`tsc` reject valid references with "Cannot find name" (`turn-loop.ts:588-591`, `error-rewind.ts:36-43`).
+`tsc` reject valid references with "Cannot find name" (`turn-loop.ts:586-591`, `error-rewind.ts:36-44`).
 The failing statement was never appended (it errors before the commit), so nothing partial is left.
 
 **Yield-error scope preservation.** When a yield throws, the failed statement is *not* committed, so a

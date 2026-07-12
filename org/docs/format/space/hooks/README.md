@@ -8,7 +8,7 @@ No store space currently ships a `hooks/` directory — every `store/spaces/inte
 
 A space's own `hooks/` dir is only meaningful when the consumer is part of the space's own behavior; the loader supports it `sdk/org/libs/cli/src/app/hooks/loader.ts:271-298`, but the shipped catalog does not exercise it `store/spaces/integration-slack/` (no `hooks/` entry).
 
-> UNVERIFIED: I searched every space on disk for a `hooks/` dir (`find . -path '*/spaces/*/hooks' -type d`, plus `store/spaces/*`, `sdk/org/system-spaces/*`, `.lmthing/*/spaces/*`) and found none — so there is no real on-disk *space* hook to cite as a worked example. The example below is adapted from a real **project** event hook (`store/projects/demo-feed/hooks/enrich-on-add.ts`); the file shape is identical for a space hook.
+No *shipped* space carries a `hooks/` dir — neither the store integrations `store/spaces/integration-slack/` (no `hooks/` entry) nor the system spaces `sdk/org/libs/core/system-spaces/system-architect/` (only `agents/ functions/ knowledge/ tasklists/`). The only space hooks that exist in-tree are the loader's worker-isolation test fixtures: a **`trigger`** space hook on `integration-slack/message.posted` `sdk/org/libs/cli/src/app/hooks/space-hooks.test.ts:43-48` and a **`handler`** space hook on `integration-demo/ping` `sdk/org/libs/cli/src/app/hooks/space-hooks.test.ts:68-80` — loaded from `spaces/<spaceId>/hooks/<name>.ts` and namespaced `<spaceId>:<basename>` `sdk/org/libs/cli/src/app/hooks/space-hooks.test.ts:33-37`, `sdk/org/libs/cli/src/app/hooks/space-hooks.test.ts:54-55`. The **file shape is identical** in both scopes: the project loader and the space loader validate the raw default export through the *same* `validateHook` `sdk/org/libs/cli/src/app/hooks/loader.ts:241`, `sdk/org/libs/cli/src/app/hooks/loader.ts:298`, `sdk/org/libs/cli/src/app/hooks/loader.ts:384-482` — only the *loading* differs (in-proc vs worker, below).
 
 ## How a space hook differs at load time
 
@@ -32,7 +32,7 @@ An optional `budget` object is validated by `validateBudget`, which accepts only
 
 ## Worked example
 
-Adapted from the real on-disk **project** hook `store/projects/demo-feed/hooks/enrich-on-add.ts` (no store space ships a `hooks/` dir — the file shape is identical for a space). A handler-as-filter subscribing to a source-qualified event and reacting only when a condition holds:
+Taken from the real on-disk **project** hook `store/projects/demo-feed/hooks/enrich-on-add.ts:14-29` — no shipped space ships a `hooks/` dir, and the file shape is identical in either scope (same `validateHook` `sdk/org/libs/cli/src/app/hooks/loader.ts:241`, `sdk/org/libs/cli/src/app/hooks/loader.ts:298`). A handler-as-filter subscribing to a source-qualified event and reacting only when a condition holds:
 
 ```ts
 // hooks/enrich-on-add.ts — event hook, code-as-filter

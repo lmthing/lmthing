@@ -245,8 +245,9 @@ a given **tasklist task** may call them is set by frontmatter, host-enforced:
   and `research/01-answer.md:9-11` list `webSearch` + `webFetch`; `deep_research/01-scope.md:11-12`
   lists `webSearch` only.
 - For **project-app agents**, a `tools:use: { allow: [...] }` capability in `instruct.md`
-  frontmatter is the host-tool allowlist — `allow` must be a non-empty list, there is no "use
-  anything" (`sdk/org/libs/core/src/spaces/capabilities.ts:188-206`).
+  frontmatter is the host-tool allowlist — `parseToolsConfig` rejects anything but a non-empty
+  `allow` list of strings ("there is no 'use anything'")
+  (`sdk/org/libs/core/src/spaces/capabilities.ts:197-215`, the check at `capabilities.ts:210-214`).
 
 ---
 
@@ -255,9 +256,12 @@ a given **tasklist task** may call them is set by frontmatter, host-enforced:
 A single `webSearch`/`webFetch` `auto` call can make **two sequential host `fetch`es** (webFetch:
 plain → render; webSearch: Tavily → Bing → DDG). The turn loop's yield-servicing loop drains
 `vm.pendingYields` until the statement fully returns, so both complete
-(`sdk/org/libs/core/src/eval/turn-loop.ts:617-651`, bounded by `MAX_SEQUENTIAL_YIELDS = 64`,
+(`sdk/org/libs/core/src/eval/turn-loop.ts:617-652`, bounded by `MAX_SEQUENTIAL_YIELDS = 64`,
 `turn-loop.ts:28`). Before this loop existed, only the first yield was serviced and the caller
-bound the raw first `Response` — a real bug where the render fetch was left dangling. This is why
+bound the raw first `Response` — a real bug where the render fetch was left dangling
+(`turn-loop.ts:608-613`). The loop stops early if a yield *errors*, but `fetch` never rejects — it
+resolves `{ok:false}` — so these sequential fetches always run to completion (`turn-loop.ts:646-650`).
+This is why
 `webSearchBing`/`renderViaService` rely on the sandbox's **synchronous** `response.text()` and
 cannot be exercised in plain Node (`webFetch.ts:79-80`, `webSearch.ts:136`).
 
@@ -268,18 +272,23 @@ cannot be exercised in plain Node (`webFetch.ts:79-80`, `webSearch.ts:136`).
 `sdk/org/libs/core/src/spaces/system-functions.test.ts` exercises both functions through the
 runtime (fetch stubbed via `injectGlobal`):
 
-- **webFetch** (`system-functions.test.ts:174-334`): tag/script/style stripping + entity decode;
+- **webFetch** (`system-functions.test.ts:209-369`): tag/script/style stripping + entity decode;
   `format:'html'`/`'markdown'`; `render:'auto'` on a JS-shell page, a data-injection page, and a
   403 bot-wall; `render:'auto'` NOT rendering a content-rich static page; `render:'off'` never
   rendering; `render:'force'` always rendering; graceful degrade when `RENDER_SERVICE_URL` unset.
-- **webSearch** (`system-functions.test.ts:336-485`): DuckDuckGo fallback with redirect decode;
+- **webSearch** (`system-functions.test.ts:371-520`): DuckDuckGo fallback with redirect decode;
   Tavily when keyed; `provider:'duckduckgo'` forcing the scrape; `provider:'bing'` render + parse
   + `ck/a` decode + internal-link skip; `auto` choosing Bing over DDG when `RENDER_SERVICE_URL`
   is set; `auto` falling through to DDG when Bing renders no results; `provider:'bing'` returning
   `ok:false` when `RENDER_SERVICE_URL` unset.
 
-Run: `pnpm --filter @lmthing/core test -- system-functions` · typecheck:
-`pnpm --filter @lmthing/core typecheck`.
+Run from `sdk/org` — **not** the repo root, and **not** `pnpm --filter @lmthing/core test`, which is
+a silent no-op (`@lmthing/core` has no `test` script; `sdk/org/libs/core/package.json:scripts`):
+
+```bash
+cd sdk/org && pnpm test libs/core/src/spaces/system-functions.test.ts
+pnpm --filter @lmthing/core typecheck
+```
 
 ### Live/prod checks
 

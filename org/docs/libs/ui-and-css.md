@@ -11,7 +11,7 @@ The **rules** for using this system (never a raw color, stone-not-grey, brand-le
 
 ## `@lmthing/css` — the design system package
 
-Pure CSS + Node build scripts. No runtime code. Entry points (`sdk/org/libs/css/package.json:8-14`):
+Pure CSS + Node build scripts. No runtime code. Entry points (`sdk/org/libs/css/package.json:6-12`):
 
 | Export | Resolves to | Purpose |
 |---|---|---|
@@ -21,51 +21,51 @@ Pure CSS + Node build scripts. No runtime code. Entry points (`sdk/org/libs/css/
 | `@lmthing/css/elements/*` | `src/elements/*` | Per-primitive BEM stylesheet. |
 | `@lmthing/css/components/*` | `src/components/*` | Per-composite-component stylesheet. |
 
-> Note: the `exports` map (`sdk/org/libs/css/package.json:12-13`) points `./elements/*` → `./src/elements/*` and `./components/*` → `./src/components/*`.
+> Note: the `exports` map (`sdk/org/libs/css/package.json:10-11`) points `./elements/*` → `./src/elements/*` and `./components/*` → `./src/components/*`.
 
-Peer deps are `tailwindcss ^4` and `tw-animate-css` (`sdk/org/libs/css/package.json:33-36`) — the theme is a Tailwind v4 `@theme` stylesheet. A `bin` entry ships the token linter as `lmthing-lint-tokens` (`sdk/org/libs/css/package.json:16-18`).
+Peer deps are `tailwindcss ^4` and `tw-animate-css` (`sdk/org/libs/css/package.json:36-38`) — the theme is a Tailwind v4 `@theme` stylesheet. A `bin` entry ships the token linter as `lmthing-lint-tokens` (`sdk/org/libs/css/package.json:13-15`).
 
 ### The token source: `tokens.json`
 
 Everything derives from `src/tokens/tokens.json` (`sdk/org/libs/css/src/tokens/tokens.json:1`). Four top-level keys:
 
-- **`$meta`** — name, `themes: ["light","dark"]`, `darkSelector: "[data-theme=\"dark\"]"` (`tokens.json:6-8`).
-- **`theme`** — non-color scales: `radius-*` and `font-*` (`tokens.json:12-21`).
-- **`spectrum`** — a generation spec: interpolate `steps: 50` stops from `brand-1` to `brand-5` (`tokens.json:24-30`).
-- **`colors`** — the authored color tokens, each `{ name, group, light, dark, description }` (`tokens.json:33`+). Groups: `brand`, `neutral`, `surface`, `intent`, `functional`, `status`, `state`, `sidebar`.
+- **`$meta`** — name, `themes: ["light","dark"]`, `darkSelector: "[data-theme=\"dark\"]"` (`tokens.json:2-8`).
+- **`theme`** — non-color scales: `radius-*` and `font-*` (`tokens.json:10-20`).
+- **`spectrum`** — a generation spec: interpolate `steps: 50` stops from `brand-1` to `brand-5` (`tokens.json:22-28`).
+- **`colors`** — the authored color tokens, each `{ name, group, light, dark, description }` (`tokens.json:30-88`). Groups: `brand`, `neutral`, `surface`, `intent`, `functional`, `status`, `state`, `sidebar`.
 
-Key anchors (`tokens.json:34-38`): the five brand letters `brand-1..5` = `#f5c815 #f9a94a #f38358 #ed92a1 #d59ec8` (yellow→amber→coral→rose→orchid), identical in light and dark. `primary`/`ring` = coral `#f38358` (brand-3). Functional colors `knowledge` (sage), `agent` (plum), `success` (green), `warning` (amber) are saturated.
+Key anchors: the five brand letters `brand-1..5` = `#f5c815 #f9a94a #f38358 #ed92a1 #d59ec8` (yellow→amber→coral→rose→orchid), identical in light and dark (`tokens.json:31-35`). `primary` (`:47`) and `ring` (`:61`) are both coral `#f38358` (brand-3), in both modes. Functional/status colors are saturated: `knowledge` sage, `agent` plum (`tokens.json:63,65`), `success` green, `warning` amber (`tokens.json:68,70`).
 
 ### The generator: `generate-theme.mjs`
 
-`scripts/generate-theme.mjs` reads `tokens.json` and emits **two generated files — never hand-edit either** (`sdk/org/libs/css/scripts/generate-theme.mjs:3-13`):
+`scripts/generate-theme.mjs` reads `tokens.json` and emits **two generated files — never hand-edit either** (`sdk/org/libs/css/scripts/generate-theme.mjs:6-8`):
 
-1. **`src/theme.css`** — a Tailwind v4 theme with four generated sections (`generate-theme.mjs:78-108`):
-   - `@custom-variant dark (&:is([data-theme="dark"] *))` — the dark variant wired to the `$meta.darkSelector`.
-   - `@theme { … }` — the `--radius-*` / `--font-*` scales.
-   - `@theme inline { --color-<name>: var(--<name>); }` — exposes every color token as a **Tailwind color utility** (`bg-primary`, `text-agent`, `border-border`, …).
-   - `:root { --<name>: <light>; }` and `[data-theme="dark"] { --<name>: <dark>; }` — the light values, then only the tokens whose `dark !== light` as overrides (`generate-theme.mjs:71-75`).
-2. **`tokens.manifest.json`** — a flat, machine-readable index of scales + colors with `cssVar`, `utility`, light/dark, description (`generate-theme.mjs:111-137`).
+1. **`src/theme.css`** — a Tailwind v4 theme with four generated sections (`generate-theme.mjs:74-102`):
+   - `@custom-variant dark (&:is([data-theme="dark"] *))` — the dark variant wired to the `$meta.darkSelector` (`generate-theme.mjs:73,77`).
+   - `@theme { … }` — the `--radius-*` / `--font-*` scales (`generate-theme.mjs:66,80-82`).
+   - `@theme inline { --color-<name>: var(--<name>); }` — exposes every color token as a **Tailwind color utility** (`bg-primary`, `text-agent`, `border-border`, …) (`generate-theme.mjs:67,86-88`).
+   - `:root { --<name>: <light>; }` and `[data-theme="dark"] { --<name>: <dark>; }` — the light values, then only the tokens whose `dark !== light` as overrides (`generate-theme.mjs:68-71,92-100`).
+2. **`tokens.manifest.json`** — a flat, machine-readable index of scales + colors with `cssVar`, `utility`, light/dark, description (`generate-theme.mjs:106-130`).
 
-**Spectrum interpolation** (`generate-theme.mjs:20-51`): the 50-stop ramp places the five brand anchors at indices 1, 14, 27, 40, 53 (spacing 13) and does a linear RGB lerp between consecutive anchors, rounded to hex. The result is appended to the color list as `spectrum-1..50` (same in light and dark) so `--spectrum-N` / `--color-spectrum-N` utilities exist.
+**Spectrum interpolation** (`buildSpectrum`, `generate-theme.mjs:32-47`): the 50-stop ramp places the five brand anchors at indices 1, 14, 27, 40, 53 (spacing 13) and does a linear RGB lerp between consecutive anchors, rounded to hex. The result is appended to the color list as `spectrum-1..50` (same in light and dark, `generate-theme.mjs:54-63`) so `--spectrum-N` / `--color-spectrum-N` utilities exist.
 
-Run it with `pnpm --filter @lmthing/css generate` — which runs `generate-theme.mjs` **then** `generate-components-catalog.mjs`; it also runs on `prebuild` (`sdk/org/libs/css/package.json:23-24`).
+Run it with `pnpm --filter @lmthing/css generate` — which runs `generate-theme.mjs` **then** `generate-components-catalog.mjs`; it also runs on `prebuild` (`sdk/org/libs/css/package.json:26-27`).
 
 ### The catalog generator: `generate-components-catalog.mjs`
 
-`scripts/generate-components-catalog.mjs` scans every `*.css` under `src/{elements,components}` (excluding `theme.css`) and emits **`COMPONENTS.md`** — for each stylesheet, its class API grouped by BEM block (`.block` / `.block__element` / `.block--modifier`) and the design tokens it references (`generate-components-catalog.mjs:3-8, 76-78`). It lets a human or LLM use the class API without reading the CSS. `COMPONENTS.md` is generated — do not hand-edit (`sdk/org/libs/css/COMPONENTS.md:3`).
+`scripts/generate-components-catalog.mjs` scans every `*.css` under `src/{elements,components}` (excluding `theme.css` — `generate-components-catalog.mjs:18-26,70`) and emits **`COMPONENTS.md`** — for each stylesheet, its class API grouped by BEM block (`.block` / `.block__element` / `.block--modifier`) and the design tokens it references (`generate-components-catalog.mjs:3-8,71-73`). It lets a human or LLM use the class API without reading the CSS. `COMPONENTS.md` is generated — do not hand-edit (`sdk/org/libs/css/COMPONENTS.md:3`).
 
 ### The gate: `lint-design-tokens.mjs`
 
-`scripts/lint-design-tokens.mjs` is the **design-system adherence gate** — it fails (exit 1) on colors that bypass the token system (`sdk/org/libs/css/scripts/lint-design-tokens.mjs:3-24`):
+`scripts/lint-design-tokens.mjs` is the **design-system adherence gate** — it fails (exit 1) on colors that bypass the token system (`sdk/org/libs/css/scripts/lint-design-tokens.mjs:2-23`, `:120-131`):
 
-- **`raw-hex`** — `#rgb/#rrggbb/#rrggbbaa` literals (`lint-design-tokens.mjs:44`).
-- **`stock-tailwind-color`** — stock family utilities like `bg-blue-500`, `text-gray-700`, with variant/opacity prefixes (`lint-design-tokens.mjs:42-43`).
-- **`raw-color-fn`** — `rgb()/hsl()` with literal channels (`lint-design-tokens.mjs:45`).
+- **`raw-hex`** — `#rgb/#rrggbb/#rrggbbaa` literals (`HEX_RE`, `lint-design-tokens.mjs:39,108`).
+- **`stock-tailwind-color`** — stock family utilities like `bg-blue-500`, `text-gray-700`, with variant/opacity prefixes (`STOCK`/`STOCK_RE`, `lint-design-tokens.mjs:36-38,107`).
+- **`raw-color-fn`** — `rgb()/hsl()` with literal channels (`FUNC_RE`, `lint-design-tokens.mjs:40,110-116`).
 
-Allowed (not flagged): token-based `rgb/hsl(var(--…))`, and **achromatic** overlays/scrims/shadows (grey/black/white) with alpha < 1 (`funcAllowed`, `lint-design-tokens.mjs:49-62`). Escape hatches: `ds-lint-ok` on a line skips that line; `ds-lint-file-ok` anywhere skips the whole file (for terminal ANSI palettes, syntax themes) (`lint-design-tokens.mjs:16-19`). The token-definition files themselves (`theme.css`, `tokens.json`, `tokens.manifest.json`, anything under `scripts/`) are always exempt (`ALLOW_FILE`, `lint-design-tokens.mjs:29-33`).
+Allowed (not flagged): token-based `rgb/hsl(var(--…))`, and **achromatic** overlays/scrims/shadows (grey/black/white) with alpha < 1 (`funcAllowed`, `lint-design-tokens.mjs:44-57`). Escape hatches: `ds-lint-ok` on a line skips that line (`:99`); `ds-lint-file-ok` anywhere skips the whole file (`:96`) — for terminal ANSI palettes, syntax themes (`lint-design-tokens.mjs:17-20`). The token-definition files themselves (`theme.css`, `tokens.json`, `tokens.manifest.json`, anything under `scripts/`) are always exempt (`ALLOW_FILE`, `lint-design-tokens.mjs:30-34`).
 
-Exposed as the `lmthing-lint-tokens` bin and run at the repo root via `pnpm lint:tokens` and in CI (`.github/workflows/design-tokens.yml`).
+Exposed as the `lmthing-lint-tokens` bin (`sdk/org/libs/css/package.json:13-15`) and run at the repo root via `pnpm lint:tokens` over eleven `src` roots (`package.json:14`) and in CI over ten of them (`.github/workflows/design-tokens.yml:39-43`). What is and is not gated → [../design-system/README.md](../design-system/README.md).
 
 ### The stylesheet convention
 
@@ -163,7 +163,7 @@ The `Button` (`src/elements/forms/button/index.tsx:11-46`) is representative: va
 - **`applyThemeTokens(tokens)`** — override individual `--lm-*` tokens at runtime (e.g. from a space's `theme.json`), also mirrored to `--color-lm-*` (`theme.ts:41-50`).
 - Type `ThemeName = 'dark' | 'light' | (string & {})` (`theme.ts:9`).
 
-This is how DESIGN.md rule 6 ("one theme, two modes") is enforced at runtime: dark mode = `data-theme="dark"` on `<html>`, set here.
+This is how "one theme, two modes" is enforced at runtime. The token source declares exactly two themes and one selector — `"themes": ["light", "dark"]`, `"darkSelector": "[data-theme=\"dark\"]"` (`sdk/org/libs/css/src/tokens/tokens.json:5-6`) — the generator emits both into the single `theme.css`, and `applyTheme` here is what flips `data-theme="dark"` on `<html>`. The rule → [../design-system/README.md](../design-system/README.md).
 
 ### The three surface bundles
 
@@ -189,6 +189,6 @@ An app imports the theme **once** and then imports elements/components, whose mo
 
 ## See also
 
-- **[../design-system/README.md](../design-system/README.md)** — the mandatory rules for using tokens/classes (canonical spec: `sdk/org/libs/css/DESIGN.md`, catalog `sdk/org/libs/css/COMPONENTS.md`).
+- **[../design-system/README.md](../design-system/README.md)** — the canonical spec: the mandatory rules for using tokens/classes, the lint gate, and the change workflow. Also [../design-system/tokens.md](../design-system/tokens.md) (the token set) and the generated CSS-class catalog `sdk/org/libs/css/COMPONENTS.md`.
 - [../libs/README.md](./README.md) — the shared-libraries index.
 - [../chat/README.md](../chat/README.md) · [../studio/README.md](../studio/README.md) · [../computer/README.md](../computer/README.md) — the surfaces built from these components.

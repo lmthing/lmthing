@@ -2,6 +2,10 @@
 
 Central auth hub and billing surface for all lmthing.* domains.
 
+> **Source of truth:** [`org/docs/`](../org/docs/README.md) (lmthing.org) — every factual claim there
+> is cited to code. This file is an orientation index; knowledge does not live here. A code change is
+> not done until the matching `org/docs` page is updated in the same change ([SYNC.md](../org/docs/SYNC.md)).
+
 ## What This Is
 
 `com/` is the commercial landing page and the centralized authentication + billing surface. All lmthing.* apps redirect here for login/signup and cross-domain SSO. It is a static SPA — all server-side logic lives in the `cloud/` gateway API.
@@ -20,7 +24,7 @@ This SPA uses the shared lmthing design system (`@lmthing/css` tokens + `@lmthin
 **Never write a raw color** (hex, literal `rgb()/hsl()`, or stock Tailwind colors like
 `gray-*`/`blue-*`); use a token (`var(--foreground)`, `bg-primary`, `text-agent`, …). Enforced
 by `pnpm lint:tokens` (a hard CI gate). Full rules → root `@.claude/skills/design-system.md`
-(spec: [../sdk/org/libs/css/DESIGN.md](../sdk/org/libs/css/DESIGN.md)).
+(spec: [`org/docs/design-system/`](../org/docs/design-system/README.md)).
 
 ## Running Locally
 

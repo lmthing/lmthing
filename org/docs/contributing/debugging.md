@@ -345,9 +345,8 @@ turn.tokens;     // { in, out }                          (thing.mjs:324-330)
 
 Everything `ThingSession` reports is derived from `GET /api/sessions/:id/events?since=N&format=json`
 (`thing.mjs:87`) — the same spine as §2/§3. Triage discipline (harness bug vs product bug, the
-image-rebuild loop, hot-patching a system-space prompt) is in
-[`sdk/org/scenarios/PLAYBOOK.md`](../../../sdk/org/scenarios/PLAYBOOK.md); the scenario document format
-is in `sdk/org/scenarios/SCENARIO-FORMAT.md`.
+image-rebuild loop, hot-patching a system-space prompt) and the scenario document format both live in
+[`sdk/org/scenarios/README.md`](../../../sdk/org/scenarios/README.md).
 
 ---
 
@@ -373,7 +372,7 @@ emitter/hook load failures, worker-entry resolution, OOM.
 - To run a fixed image on one test pod (there is no ArgoCD auto-roll for `user-*` namespaces):
   `kubectl set image deployment/lmthing compute=lmthingacr.azurecr.io/compute:<7-char-sha> -n user-<id>`
   then `kubectl rollout status …` — the old pod serves until the new one is ready
-  (`sdk/org/scenarios/PLAYBOOK.md`, "The image loop").
+  (`sdk/org/scenarios/README.md`).
 - A **system-space prompt** can be hot-patched without a rebuild:
   `PUT /api/projects/system/spaces/<spaceId>/files/<rel>` `{content}`
   (`handlePutProjectSpaceFile`, registered at `sdk/org/libs/cli/src/server/serve.ts:183`; read back with

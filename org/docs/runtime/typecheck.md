@@ -25,7 +25,7 @@ Only the typecheck and DTS composition are covered here; the eval/yield half is 
 
 Compiler options: `strict: true`, `module: ESNext`, `moduleResolution: Bundler`, `target: ES2022`, classic JSX (`jsx: React`, `jsxFactory: React.createElement`), `skipLibCheck`, `noEmit`, `lib: ['lib.es2022.d.ts']` `tsc.ts:47-59`.
 
-> Correction — the old `@.claude/arch/typecheck.md` claimed `module: NodeNext`. The code uses `module: ESNext` + `moduleResolution: Bundler` `tsc.ts:49-50`.
+> Correction — the since-deleted `sdk/org/.claude/arch/typecheck.md` claimed `module: NodeNext`. The code uses `module: ESNext` + `moduleResolution: Bundler` `tsc.ts:49-50`.
 
 Diagnostics from both `getSyntacticDiagnostics()` and `getSemanticDiagnostics()` are collected, filtered to **only the `__session__.tsx` file** and **only lines ≥ `statementStartLine`** (so a diagnostic is attributed to the *current* statement, not accumulated context) `tsc.ts:70-94`. `statementStartLine = headerLines + contextLineCount` accounts for both the module header and the accumulated context `tsc.ts:32-40`. Line numbers in the returned diagnostics are rebased to be relative to the statement (`line - statementStartLine`) `tsc.ts:87-93`.
 
@@ -44,33 +44,33 @@ Diagnostics from both `getSyntacticDiagnostics()` and `getSemanticDiagnostics()`
 
 **`COMMON_DTS`** — declarations present in **every** VM context (session, fork leaf, delegate): `display`, `inspect`, `loadKnowledge`, `sleep`, `registerSpace`, the `JSXDescriptor`/`ForkOpts`/`DelegateOpts` interfaces, the classic-JSX `React` and `JSX` namespaces, and host-injected primitives (`fetch`, `readDocument`, `integrationStatus`, `process`, `typecheckSource`, `spacePath`, `resolveSpaceDir`, `progress`), plus `catalogDts()` (the design-system catalog as typed JSX globals) appended at the end `library-dts.ts:35-107`. Note `readFileRaw` is NO LONGER in `COMMON_DTS` — it was split out into `READ_FILE_RAW_DTS` and is not emitted on any agent's model DTS (see the write-primitives note below).
 
-> Note — `registerSpace` stays declared in `COMMON_DTS` even where the global is *not* injected (read-only fork roles, delegates), deliberately matching the pre-unification DTS where only ask/tasklist/fork/delegate were stripped `library-dts.ts:28-40`. Its injection, not its declaration, is what is gated.
+> Note — `registerSpace` stays declared in `COMMON_DTS` even where the global is *not* injected (read-only fork roles, delegates), deliberately matching the pre-unification DTS where only ask/tasklist/fork/delegate were stripped `library-dts.ts:30-34,40`. Its injection, not its declaration, is what is gated (`caps.registerSpace` at `exec/bootstrap.ts:234`; the flag is `false` for delegates and for read-only fork roles `exec/capability.ts:104,115`).
 
 **Raw fs/shell primitives** — split OUT of `COMMON_DTS` and, critically, **NO LONGER emitted on any agent's model DTS by default**: `EXEC_SHELL_DTS` (`execShell`) `library-dts.ts:119`, `WRITE_FILE_RAW_DTS` (`writeFileRaw`) `library-dts.ts:120`, and `READ_FILE_RAW_DTS` (`readFileRaw`, moved out of `COMMON_DTS`) `library-dts.ts:121`. `readFileRaw`/`writeFileRaw` are now **internal-only** host primitives — memory/todos and the architect's builder functions call them in bodies that are NOT typechecked against the model DTS — so they are never declared for the model `library-dts.ts:109-121`. `execShell` (and `SCRATCH_DTS`'s `createScratch` `library-dts.ts:131-132`) are declared **only** for an agent holding the new `fs:scratch` capability (the engineer's scratch sandbox), where `execShell` is the scratch-rooted variant `library-dts.ts:123-132`. Generic filesystem is off every other agent's model surface — a stray `readFile`/`writeFile`/`execShell` fails typecheck, and persistence goes through the typed `writeProject*`/architect builder functions instead.
 
-The two full bundles (used by `host-tools.ts`'s `typecheckSource`, which needs the full global set — so both re-append `WRITE_PRIMITIVES_DTS = [EXEC_SHELL_DTS, WRITE_FILE_RAW_DTS, READ_FILE_RAW_DTS]` `library-dts.ts:309-314`):
-- `LIBRARY_DTS` — everything incl. `ask` `library-dts.ts:317`.
-- `LIBRARY_DTS_NO_ASK` — no `ask` (fork/delegate VMs are headless; a stray `await ask(...)` there fails typecheck with `Cannot find name 'ask'` instead of blocking forever on stdin) `library-dts.ts:319-326`.
+The two full bundles both re-append `WRITE_PRIMITIVES_DTS = [EXEC_SHELL_DTS, WRITE_FILE_RAW_DTS, READ_FILE_RAW_DTS]` `library-dts.ts:309-314`, because the one runtime consumer — `typecheckSource`, which checks a standalone space-function source and so needs the FULL global set — passes `LIBRARY_DTS` to `runTsc` `sdk/org/libs/core/src/globals/host-tools.ts:266`:
+- `LIBRARY_DTS` — everything incl. `ask` `library-dts.ts:317`. The only bundle still used at runtime.
+- `LIBRARY_DTS_NO_ASK` — no `ask` (fork/delegate VMs are headless; a stray `await ask(...)` there fails typecheck with `Cannot find name 'ask'` instead of blocking forever on stdin) `library-dts.ts:319-326`. Since `buildAmbientDts` composes fork/delegate DTS additively it no longer consumes this bundle; it survives as an export referenced only by tests (`exec/bootstrap.test.ts:46`).
 
 ### App-capability fragments
 
 Project-as-application globals are declared **only when the owning agent holds the matching `capabilities:` grant** (see [../format/space/agents/capabilities.md](../format/space/agents/capabilities.md)). These fragments are the DTS half of the capability→{inject, dts} registry:
 
-- **`db.*`** — the three `db:*` verbs share ONE `db` object, so they cannot be three separate `declare const db` blocks. `composeDbDts({ read, write, schema })` unions the present member strings (`DB_READ_MEMBERS` / `DB_WRITE_MEMBERS` / `DB_SCHEMA_MEMBERS`) into a single `declare const db`, returning `''` when none are present (so a stray `db` call fails typecheck) `library-dts.ts:130-156`. In the agent sandbox `db.*` is a **synchronous** host call (non-Promise) `library-dts.ts:124-127`.
-- **`api:call`** → `API_CALL_DTS` (`apiCall`, value-yielding Promise) `library-dts.ts:160`, replaced by project-generated typed overloads when `appDts` is supplied (see below).
-- **`connections:use`** → `composeConnectionsDts(providers)` types `callConnection`'s `provider` param to the **union of granted providers**, so a call to an undeclared provider fails typecheck `library-dts.ts:170-173`.
-- **`tools:use`** → `composeToolDts(allow)` types `tool`'s `name` param to the **union of the granted allow-list** `library-dts.ts:185-188`.
+- **`db.*`** — the three `db:*` verbs share ONE `db` object, so they cannot be three separate `declare const db` blocks. `composeDbDts({ read, write, schema })` unions the present member strings (`DB_READ_MEMBERS` / `DB_WRITE_MEMBERS` / `DB_SCHEMA_MEMBERS` `library-dts.ts:145-155`) into a single `declare const db`, returning `''` when none are present (so a stray `db` call fails typecheck) `library-dts.ts:164-171`. In the agent sandbox `db.*` is a **synchronous** host call (non-Promise), unlike the value-yielding `apiCall` `library-dts.ts:140-141`.
+- **`api:call`** → `API_CALL_DTS` (`apiCall`, value-yielding Promise) `library-dts.ts:175`, replaced by project-generated typed overloads when `appDts` is supplied (see below).
+- **`connections:use`** → `composeConnectionsDts(providers)` types `callConnection`'s `provider` param to the **union of granted providers**, so a call to an undeclared provider fails typecheck `library-dts.ts:185-188`.
+- **`tools:use`** → `composeToolDts(allow)` types `tool`'s `name` param to the **union of the granted allow-list** `library-dts.ts:200-203`.
 - **`pages:write`** → `PAGES_WRITE_DTS` (`writePage`) + `PROJECT_PAGE_DTS` (`writeProjectPage`) + `PROJECT_COMPONENT_DTS` (`writeProjectComponent` — the typed writer for shared `components/<Name>.tsx`, the only surface for it now that generic fs is gone) `library-dts.ts:204,214,219,300`.
 - **`api:write`** → `API_WRITE_DTS` (`writeApi`) + `PROJECT_API_DTS` (`writeProjectApi`) `library-dts.ts:205,215,301`.
 - **`hooks:write`** → `HOOKS_WRITE_DTS` (`writeHook`) + `PROJECT_AUTHORING_DTS` (`writeProjectHook`/`writeProjectEvent`/`writeProjectFunction`) `library-dts.ts:206,228-230,302`.
 - **`db:schema`** → in addition to the `db.createTable`/`addColumn` members, the standalone `WRITE_TABLE_SCHEMA_DTS` (`writeTableSchema` — catalog template) and `PROJECT_TABLE_DTS` (`writeProjectTable` — live project, optional third arg seeds rows) `library-dts.ts:237,248`.
 - **any project-rooted session** → `PROJECT_READ_DTS` (`listProjectDir`/`readProjectFile`) — project-rooted introspection, now emitted on `projectRoot` ALONE (relaxed from "needs a db grant"): they are the only way any agent reads project files now that the space-rooted `readFile`/`listDir` wrappers are gone, so THING reads its `instructions.md`/`documents/` through them `library-dts.ts:257-258`, gated at `exec/bootstrap.ts:325`.
-- **`project:manage`** → `PROJECT_MANAGE_DTS` (`createProject`/`selectProject`) `library-dts.ts:245-246`.
-- **`store:read`** → `STORE_READ_DTS` (`storeSearch`/`storeInspect`) `library-dts.ts:252-255`.
-- **`store:install`** → `STORE_INSTALL_DTS` (`installSpace`, consent-marked) `library-dts.ts:262-263`.
-- **`events:emit`** → `EVENTS_EMIT_DTS` (`emitEvent`) `library-dts.ts:269-270`.
+- **`project:manage`** → `PROJECT_MANAGE_DTS` (`createProject`/`selectProject`) `library-dts.ts:264-265`.
+- **`store:read`** → `STORE_READ_DTS` (`storeSearch`/`storeInspect`) `library-dts.ts:271-274`.
+- **`store:install`** → `STORE_INSTALL_DTS` (`installSpace`, consent-marked) `library-dts.ts:281-282`.
+- **`events:emit`** → `EVENTS_EMIT_DTS` (`emitEvent`) `library-dts.ts:288-289`.
 
-The flat standalone map is `CAPABILITY_DTS_FRAGMENTS` `library-dts.ts:279-288`; the `db:*` trio is deliberately NOT in it (composed via `composeDbDts`), and neither are `WRITE_TABLE_SCHEMA_DTS`/`PROJECT_TABLE_DTS`/`PROJECT_READ_DTS`/`composeConnectionsDts`/`composeToolDts` (all handled explicitly in `buildAppCapabilityDts`).
+The flat standalone map is `CAPABILITY_DTS_FRAGMENTS` `library-dts.ts:298-307`; the `db:*` trio is deliberately NOT in it (composed via `composeDbDts`), and neither are `WRITE_TABLE_SCHEMA_DTS`/`PROJECT_TABLE_DTS`/`PROJECT_READ_DTS`/`composeConnectionsDts`/`composeToolDts` (all handled explicitly in `buildAppCapabilityDts`).
 
 ## Composing the per-agent DTS (`buildAmbientDts`)
 
@@ -101,9 +101,9 @@ The `capabilities` passed to `buildAmbientDts` is a `CapabilityProfile` `sdk/org
 
 `scratchFs` is derived from the `fs:scratch` app grant (`!!app['fs:scratch']`); only the engineer holds it. It — not `allowWrite` — is now what emits `EXEC_SHELL_DTS`/`SCRATCH_DTS`, so generic shell/fs is on the model DTS of the scratch sandbox alone. `intersectAppCaps` (`capability.ts:16-28`) does not keep `fs:scratch`, so a read-only fork role loses it too.
 
-So a **fork leaf** has no `ask`, no `tasklist`/`fork` (a leaf spawning its own subtree would bypass the concurrency semaphore) — those declarations are simply absent, and a stray call fails typecheck as a clean retryable error rather than passing then throwing at runtime `fork/fork.ts:325-343`. `delegate` is added back to a fork only when the task opts in via `canDelegateTo`. A read-only fork role has `app` intersected against `allowWrite` (`intersectAppCaps`, `capability.ts:16-28` — only `db:read`/`api:call`/`connections:use`/`tools:use`/`store:read` survive) so its write grants vanish from the DTS too.
+So a **fork leaf** has no `ask`, no `tasklist`/`fork` (a leaf spawning its own subtree would bypass the concurrency semaphore) — those declarations are simply absent, and a stray call fails typecheck as a clean retryable error rather than passing then throwing at runtime `fork/fork.ts:325-344`. `delegate` is added back to a fork only when the task opts in via `canDelegateTo`. A read-only fork role has `app` intersected against `allowWrite` (`intersectAppCaps`, `capability.ts:16-28` — only `db:read`/`api:call`/`connections:use`/`tools:use`/`store:read` survive) so its write grants vanish from the DTS too.
 
-Call sites: session `session/session.ts:278` (and the two rebuild/resume paths `session.ts:411,472`), fork `fork/fork.ts:338-343` (with `currentTask: true` and seed/upstream `extraDecls`; the tasklist prelude VM re-builds one at `fork.ts:482`), delegate `delegate/delegate.ts:258-263` (`currentTask: true` + `query`/`context` `extraDecls`).
+Call sites: session `session/session.ts:278` (and the two rebuild/resume paths `session.ts:411,472`), fork `fork/fork.ts:338-344` (with `currentTask: true` and seed/upstream `extraDecls`; the tasklist prelude VM re-builds one at `fork.ts:487`), delegate `delegate/delegate.ts:258-264` (`currentTask: true` + `query`/`context` `extraDecls`).
 
 ## The function/component overlay (`overlay.ts`)
 
@@ -116,7 +116,7 @@ Call sites: session `session/session.ts:278` (and the two rebuild/resume paths `
 
 ## Transpile (`transpile.ts`)
 
-After a statement passes typecheck, `transpileStatement(code)` runs `ts.transpileModule` with the **classic JSX transform** (`jsx: React`, `jsxFactory: React.createElement`, `jsxFragmentFactory: React.Fragment`, `module: ESNext`, `target: ES2022`) `sdk/org/libs/core/src/typecheck/transpile.ts:7-19`. Output is plain JS with type annotations stripped and JSX converted to `React.createElement(...)` — that JS (plus the appended `globalThis` binds) is what `vm.evalStatement` runs. `React` is declared globally in `COMMON_DTS` `library-dts.ts:49-52` and a React shim (`createElement` → a plain `JSXDescriptor`, plus a `displayName` stub per catalog/space component) is injected into every VM — sessions, forks, delegates — by `createChildVM` `sdk/org/libs/core/src/exec/bootstrap.ts:213-240`, so `<Foo/>` typechecks without an import and doesn't throw "React is not defined" at eval.
+After a statement passes typecheck, `transpileStatement(code)` runs `ts.transpileModule` with the **classic JSX transform** (`jsx: React`, `jsxFactory: React.createElement`, `jsxFragmentFactory: React.Fragment`, `module: ESNext`, `target: ES2022`) `sdk/org/libs/core/src/typecheck/transpile.ts:7-19`. Output is plain JS with type annotations stripped and JSX converted to `React.createElement(...)` — that JS (plus the appended `globalThis` binds) is what `vm.evalStatement` runs. `React` is declared globally in `COMMON_DTS` `library-dts.ts:49-52` and a React shim (`createElement` → a plain `JSXDescriptor`, plus a `displayName` stub per catalog/space component) is injected into every VM — sessions, forks, delegates — by `createChildVM` `sdk/org/libs/core/src/exec/bootstrap.ts:237-264`, so `<Foo/>` typechecks without an import and doesn't throw "React is not defined" at eval.
 
 ## The retry-on-type-error path
 
@@ -135,4 +135,4 @@ A separate mechanism handles names bound by a *yielding* statement whose yield *
 
 ## Why the gate matters (the invariant)
 
-The whole design rests on one rule, restated across the code: a capability that is **not granted** is **not injected as a global AND not declared in the DTS** — so a stray call is caught by the typechecker as `Cannot find name '…'` (a clean, retryable, model-visible error) rather than passing typecheck and either throwing at runtime (wasting a salvage) or binding `undefined` (a silent wrong result) `library-dts.ts:3-13`, `bootstrap.ts:274-281`, `capability.ts:47-79`. The gate is per-agent, per-context, and per-capability, and it is the same gate the boolean orchestration flags (`ask`/`fork`/`delegate`) and the app grants (`db:*`/`connections:use`/…) both flow through.
+The whole design rests on one rule, restated across the code: a capability that is **not granted** is **not injected as a global AND not declared in the DTS** — so a stray call is caught by the typechecker as `Cannot find name '…'` (a clean, retryable, model-visible error) rather than passing typecheck and either throwing at runtime (wasting a salvage) or binding `undefined` (a silent wrong result) `library-dts.ts:3-13`, `bootstrap.ts:303-310`, `capability.ts:47-79`. The gate is per-agent, per-context, and per-capability, and it is the same gate the boolean orchestration flags (`ask`/`fork`/`delegate`) and the app grants (`db:*`/`connections:use`/…) both flow through.

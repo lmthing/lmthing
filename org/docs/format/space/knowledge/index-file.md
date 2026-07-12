@@ -4,13 +4,13 @@ A knowledge field is a directory `knowledge/<domain>/<field>/` whose `index.md` 
 
 ## Location and role
 
-`loadKnowledge` walks `knowledge/<domain>/<field>/` and reads `index.md` (when present) as field metadata; it is not itself an aspect option (`sdk/org/libs/core/src/spaces/load.ts:271-288`). A separate domain-level `knowledge/<domain>/index.md` also exists, but only its body is read (as the domain description) — it has no `variable`/`type` frontmatter (`sdk/org/libs/core/src/spaces/load.ts:316-322`); this doc covers the **field** `index.md`.
+`loadKnowledge` walks `knowledge/<domain>/<field>/` and reads `index.md` (when present) as field metadata (`sdk/org/libs/core/src/spaces/load.ts:271-288`); it is not itself an aspect option — the option scan explicitly skips it (`optFile === 'index.md'`, `sdk/org/libs/core/src/spaces/load.ts:294`). A separate domain-level `knowledge/<domain>/index.md` also exists, but only its body is read (as the domain description) — it has no `variable`/`type` frontmatter (`sdk/org/libs/core/src/spaces/load.ts:316-322`); this doc covers the **field** `index.md`.
 
 ## Frontmatter keys
 
 The field `index.md` frontmatter is parsed for three keys, all optional (`sdk/org/libs/core/src/spaces/load.ts:283-286`):
 
-- **`variable`** — the binding name the field is exposed under; sets `KnowledgeField.variableName`, defaulting to the field's directory slug when omitted (`sdk/org/libs/core/src/spaces/load.ts:276,285`). It is returned to the agent both in the field-metadata object from `resolveKnowledge` (`sdk/org/libs/core/src/spaces/knowledge.ts:37-42`) and, when the agent loads the field `index.md` at runtime via the `loadKnowledge`/`ln` global, inside the parsed `frontmatter` object alongside the body (`sdk/org/libs/core/src/globals/load-knowledge.ts:35-45`) — telling the agent what variable name to store the loaded knowledge under.
+- **`variable`** — the binding name the field is exposed under; sets `KnowledgeField.variableName`, defaulting to the field's directory slug when omitted (`sdk/org/libs/core/src/spaces/load.ts:276,285`). It is returned to the agent both in the field-metadata object from `resolveKnowledge` (`sdk/org/libs/core/src/spaces/knowledge.ts:37-42`) and, when the agent loads the field `index.md` at runtime via the `loadKnowledge` global (injected under exactly that one name — there is no alias — at `sdk/org/libs/core/src/exec/bootstrap.ts:188`, declared `loadKnowledge(...path: string[]): Promise<any>` in the model DTS at `sdk/org/libs/core/src/typecheck/library-dts.ts:38`), inside the parsed `frontmatter` object alongside the body (`sdk/org/libs/core/src/globals/load-knowledge.ts:35-45`) — telling the agent what variable name to store the loaded knowledge under.
 - **`type`** — the field's declared value type, defaulting to `'string'`; surfaced next to the field in the system prompt (`sdk/org/libs/core/src/spaces/load.ts:275,284`, `sdk/org/libs/core/src/context/system-block.ts:301`).
 - **`default`** — an optional default value; stored on the field when present (`sdk/org/libs/core/src/spaces/load.ts:277,286,307-309`).
 

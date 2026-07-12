@@ -392,11 +392,19 @@ worker-load seam which is timeout-bounded `sdk/org/libs/cli/src/app/worker-load.
 `pages:write` can also pull npm dependencies into the pod, so dependency installs are a supply-chain
 surface that must be gated outside this layer.
 
-> UNVERIFIED — SSRF specifically. I searched `sdk/org/libs/cli/src/app/**` for outbound-request
-> allowlists/denylists (`rg -n 'ssrf|allowlist|blocklist|169\.254|localhost' sdk/org/libs/cli/src/app`)
-> and found none: an api handler runs in a Node worker with unrestricted network access, and
-> `connect-src 'self'` constrains only the *browser* page, not the server-side handler. There is no
-> egress filter in this layer.
+**Nor is SSRF: there is no egress filter, at this layer or under it.** A handler's import surface is
+the `@app/runtime` shim plus a *real*, cwd-anchored `require`, so any Node builtin (`node:http`,
+`node:net`) and any project npm dep resolves inside the worker
+`sdk/org/libs/cli/src/app/api/handler-module.ts:34-38,48-52`, and the worker is launched with no
+permission or resource restriction (`new Worker(source, { eval: true, workerData })` and nothing
+else) `sdk/org/libs/cli/src/app/api/runtime.ts:236` — so a handler reaches the cluster network, the
+node metadata endpoint and the public internet unimpeded. The CSP's `connect-src 'self'` binds the
+*browser* page only, never the server-side handler `sdk/org/libs/cli/src/app/pages-serve.ts:34-36`.
+The platform does not close it either: the cluster runs Calico and does enforce `NetworkPolicy`, but
+the only policy in the repo is a render-service **Ingress** rule
+`devops/argocd/core/render.yaml:89-112`, and pod provisioning creates a namespace, pull secret, PVC,
+env secret, Deployment and Service — no `NetworkPolicy`, no egress restriction
+`cloud/gateway/src/lib/compute.ts:543-640`.
 
 ---
 

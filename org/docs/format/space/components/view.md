@@ -55,7 +55,11 @@ export default ArticlePreview;
 
 The `synthesizer` agent lists `ArticlePreview` under its `components:` frontmatter `store/projects/blog/spaces/newsroom/agents/synthesizer/instruct.md:14-15` and its instructions describe it as "the catalog component that renders this article's `title`/`summary`/`tags` in chat" `store/projects/blog/spaces/newsroom/agents/synthesizer/instruct.md:61-62`.
 
-> UNVERIFIED: I did not find an explicit `display(<ArticlePreview .../>)` call site in the on-disk `newsroom` instruct files (searched `rg 'display\('` under `store/projects/blog/spaces/newsroom/`); the instruct prose describes the component being rendered but the concrete `display()` invocation is left to the model at runtime.
+## Who writes the `display()` call
+
+An instruct file does not have to contain the call — the model composes it at runtime from what the runtime advertises. The system prompt's `# Components` section lists each view component as a bare JSX tag carrying its props and JSDoc — `<ArticlePreview … />` — whereas form components are advertised pre-wrapped in their calling form, `await ask(<Name … />)` `sdk/org/libs/core/src/context/system-block.ts:323-335`. The separate `display(descriptor)` bullet tells the model that `display` takes a string or JSX `sdk/org/libs/core/src/context/system-block.ts:169`, and the DTS overlay declares every component as `declare function <Name>(props: <Name>Props): JSXDescriptor` so the composed call typechecks `sdk/org/libs/core/src/typecheck/overlay.ts:83-90`. The path is covered end-to-end: `display(<Banner text="hello" />)` arrives at the render host as the descriptor `{ type: 'Banner', props: { text: 'hello' } }` `sdk/org/libs/core/src/testing/harness-features.test.ts:1152-1163`.
+
+The `newsroom` instructs take exactly that route — they name `ArticlePreview` in prose and leave the invocation to the model. A space that prefers to pin the call down writes it into the instruct instead, as the kitchen `sourcing` space's importer does with `display(<ImportedRecipePreview title={parsed.title} ingredientCount={lines.length} source={targetUrl} />)` `store/projects/kitchen/spaces/sourcing/agents/importer/instruct.md:121-123`.
 
 ## See also
 

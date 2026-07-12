@@ -5,46 +5,48 @@ description: Load whenever you touch ANY frontend code (studio/chat/computer in 
 
 # lmthing design system (mandatory, enforced)
 
-One token-driven design system for every web surface. The **canonical spec** lives in the
-`sdk/org` submodule:
+Applies to any change to a web surface: `sdk/org/apps/web`, `@lmthing/css`, `@lmthing/ui`, and the
+product SPAs (`com social team store space blog casa`, plus `org`). One hard rule you must not
+break: **never write a raw color** — no hex, no literal `rgb()/hsl()`, no stock Tailwind color
+utility (`gray-*`, `blue-*`, `slate-800`, …). Use a design token. A violation fails the lint gate
+and blocks the merge.
 
-- **[sdk/org/libs/css/DESIGN.md](../../sdk/org/libs/css/DESIGN.md)** — the full rulebook + the raw→token mapping table. **Read this before styling anything.**
-- **sdk/org/libs/css/src/tokens/tokens.json** — the single source of truth for tokens (edit here).
-- **sdk/org/libs/css/tokens.manifest.json** — flat token index (name, cssVar, utility, light, dark).
-- **sdk/org/libs/css/COMPONENTS.md** — every component class + the tokens it uses.
-- In-submodule skill: `sdk/org/.claude/skills/visual-design-system.md`.
+## Read first (the grounded truth)
 
-Every app (`sdk/org/apps/web` and the root SPAs) imports `@lmthing/css/theme.css` and uses
-`@lmthing/ui`. No app defines its own colors.
+- `org/docs/design-system/README.md` — the one rule, the lint gate (what it flags, what it does
+  **not** scan, the escape hatches), the change workflow, theme modes, the BEM component-CSS pattern.
+- `org/docs/design-system/tokens.md` — the token set, the `tokens.json` → `theme.css` + manifest
+  pipeline, token groups, the spectrum ramp, light/dark.
+- `org/docs/design-system/components.md` — the **display()/ask() UI component catalog** (the
+  cross-platform primitives an agent renders). Read it when you touch `@lmthing/core`'s catalog or a
+  space component — not for CSS class names.
+- `org/docs/libs/ui-and-css.md` — the `@lmthing/css` / `@lmthing/ui` packages themselves.
+- `sdk/org/libs/css/COMPONENTS.md` and `sdk/org/libs/css/tokens.manifest.json` — generated indexes
+  (rebuilt by `pnpm --filter @lmthing/css generate`; never hand-edit): every component class and its
+  tokens; every token's CSS var, Tailwind utility, light/dark value and semantic-role `description`.
+  Grep the manifest's descriptions to pick a token by role when migrating a raw color — never
+  hand-pick a hex. Token groups are explained in `org/docs/design-system/tokens.md`.
 
-## The rules — no exceptions
+## Procedure — changing a color
 
-1. **Never use a raw color.** No hex, no literal `rgb()/hsl()`, no stock Tailwind color
-   utilities (`gray-*`, `blue-*`, `green-500`, `slate-800`, …). Use a design token: the CSS
-   var (`var(--foreground)`) or its token utility (`bg-primary`, `text-agent`, `border-border`).
-   - Allowed: `rgb/hsl(var(--…))`, and achromatic overlays/scrims/shadows with alpha < 1
-     (`rgba(0,0,0,.5)`).
-   - Genuinely non-brand color sets (terminal ANSI, code-syntax themes): put `ds-lint-file-ok`
-     in a top comment, or `ds-lint-ok` on a single line.
-2. **Stone, not grey** — neutrals are warm stone; no cool grey/slate/zinc.
-3. **Brand is an accent, never a CTA fill** — CTAs use `--primary` (stone). The cozy rainbow
-   (`--brand-1..5`, `--spectrum-*`) is for logo letters, per-product tints, hover glows.
-4. **THING is multi-color** — render the wordmark with `CozyThingText`
-   (`@lmthing/ui/elements/branding/cozy-text`), never a single solid color.
-5. **Outline icons only** (`stroke="currentColor"`, `stroke-width 1.5`, `fill="none"`); no emoji in UI.
-6. **Dark mode** = `data-theme="dark"` on `<html>` (set by `applyTheme` in `@lmthing/ui/theme`).
+1. Edit `sdk/org/libs/css/src/tokens/tokens.json` (the single source of truth).
+2. `pnpm --filter @lmthing/css generate` — regenerates `src/theme.css`, `tokens.manifest.json`,
+   and `COMPONENTS.md`. **Never hand-edit `theme.css`.**
+3. Commit the regenerated outputs alongside the `tokens.json` change.
 
-## Changing a token
+## Procedure — before you finish any frontend change
 
-Edit `sdk/org/libs/css/src/tokens/tokens.json` → `pnpm --filter @lmthing/css generate`.
-This regenerates `theme.css` (light + dark), `tokens.manifest.json`, and `COMPONENTS.md`.
-Never hand-edit `theme.css`.
+1. Run `pnpm lint:tokens` from the repo root and make it pass. (Per-package: `pnpm --filter
+   @lmthing/css lint:tokens`, or `@lmthing/ui` / `@lmthing/web-app` — these scan only that package's
+   `src`; the root script is the one CI mirrors.)
+2. Genuinely non-brand palettes (terminal ANSI, syntax-highlight themes) are the only exception —
+   mark them with `ds-lint-ok` (one line) or `ds-lint-file-ok` (whole file). See the "Escape hatches"
+   section of `org/docs/design-system/README.md`.
+3. Note the gate's blind spots (`store/projects/*/pages/*.tsx`, most `sdk/org/libs/*`, `cloud/`) —
+   listed in `org/docs/design-system/README.md`. Passing lint there does not mean the code is clean;
+   apply the rule by hand.
 
-## Enforcement (hard gate — your change fails CI if it violates)
+## Keep the docs true
 
-- Repo-wide: `pnpm lint:tokens` (from repo root).
-- Per package: `pnpm --filter @lmthing/css lint:tokens` (or `@lmthing/ui`, `@lmthing/web-app`);
-  root SPAs run the `lmthing-lint-tokens` bin on their `src`.
-- CI: `.github/workflows/design-tokens.yml` runs on every PR/push touching frontend.
-
-Before finishing any frontend change, run `pnpm lint:tokens` and make it pass.
+GROUND TRUTH IS THE CODE. If you change the implementation, update the matching org/docs page in the
+same change (see `org/docs/SYNC.md`).

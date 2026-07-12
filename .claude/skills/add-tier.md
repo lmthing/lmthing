@@ -5,73 +5,64 @@ description: Load when adding or modifying a pricing tier (the cross-cutting bac
 
 # Adding a New Tier
 
-## Overview
+Load this when you are adding a pricing tier, changing an existing tier's numbers (budgets,
+models, rate limits, pod sizing, cron policy), or touching the Stripe subscription flow. A tier is
+one entry in the `TIERS` record in `cloud/gateway/src/lib/tiers.ts`, but it is genuinely
+cross-cutting: the gateway, the Stripe account, the Ansible vault, the ArgoCD manifest and the
+marketing pricing page all have to agree.
 
-Tiers are a cross-cutting concern spanning backend, frontend, infra, knowledge base, and documentation. This is the complete checklist of every file that must be updated.
+## Read first (these hold the grounded truth — this skill holds none)
 
-## Current Tiers
+- `org/docs/contributing/add-a-tier.md` — **the checklist**: every file, field-by-field rules
+  (incl. the `name.toLowerCase() === key` trap and the required `cron` policy), and the deploy
+  sequence. Follow it, not memory.
+- `org/docs/cloud/billing-and-tiers.md` — **the reference**: the current tier table, what each
+  field does and where it is enforced, the Stripe flow (checkout → webhook → tier change), the
+  15% markup, the budget/usage endpoints.
+- `org/docs/cloud/litellm.md` — how the tier reaches LiteLLM keys, if you touch models.
+- `org/docs/contributing/add-a-provider.md` — if what you actually want is a new *model*, not a
+  new tier.
 
-Each tier carries three budget windows (1d / 7d / 30d spend caps) rather than a single
-budget. All tiers can call all four enabled models.
+Do not trust any tier numbers, rate limits, model counts or file paths you remember from an older
+version of this skill or from `com/src/config/plans.ts` marketing copy — several were wrong. The
+table in `org/docs/cloud/billing-and-tiers.md` §2 is cited line-by-line to `tiers.ts`.
 
-| Tier    | Price      | Budget (1d / 7d / 30d) | Rate Limits          |
-|---------|------------|------------------------|----------------------|
-| Free    | $0         | $10 / $50 / $150       | 10K tpm / 60 rpm     |
-| Basic   | $10/month  | $1 / $4 / $10          | 50K tpm / 300 rpm    |
-| Pro     | $20/month  | $3 / $10 / $20         | 100K tpm / 1K rpm    |
-| Max     | $100/month | $10 / $30 / $100       | 1M tpm / 5K rpm      |
+## Procedure (order matters)
 
-## Checklist
+1. **Define the tier** in `cloud/gateway/src/lib/tiers.ts`. All fields are required; `tsc` in
+   `cloud/gateway/Dockerfile` is the first gate. Field rules → `org/docs/contributing/add-a-tier.md` §1.
+2. **Create the Stripe price** — either script prints the env lines you need next:
+   ```bash
+   STRIPE_SECRET_KEY=sk_… pnpm --filter @lmthing/cloud stripe:create-products
+   # or: STRIPE_KEY=sk_… DOMAIN=lmthing.cloud devops/ansible/scripts/setup/create-stripe-prices.sh
+   ```
+   The two scripts diverge — read `org/docs/cloud/billing-and-tiers.md` §4.1 before picking one.
+3. **Plumb `STRIPE_PRICE_<TIER>`** through the four files listed in
+   `org/docs/contributing/add-a-tier.md` §3 (`.env.example` → ansible vault → `cloud_secrets` role
+   → `devops/argocd/core/gateway.yaml`). Miss the last two and the subscription is paid but the
+   tier never changes.
+4. **Add the pricing card** in `com/src/config/plans.ts` (`plan.id` must equal the `TIERS` key).
+5. **Ship**: secrets are not in git, so push them first, then merge — CI builds the image and
+   ArgoCD syncs the manifest (no manual `kubectl apply`):
+   ```bash
+   make -C devops deploy-secrets
+   ```
+6. **Backfill existing users** only if you changed an *existing* tier's numbers (they are written
+   at provisioning time and on Stripe tier changes, never retroactively):
+   ```bash
+   kubectl -n lmthing port-forward svc/litellm 4000:4000 &
+   LITELLM_MASTER_KEY=$(kubectl -n lmthing get secret lmthing-secrets \
+       -o jsonpath='{.data.LITELLM_MASTER_KEY}' | base64 -d) \
+     LITELLM_URL=http://127.0.0.1:4000 APPLY=1 \
+     pnpm --filter @lmthing/cloud litellm:resync-budgets
+   ```
+   (dry-run without `APPLY=1`; `TIER=<key>` narrows it.)
+7. **Verify** end to end: subscribe on `/pricing`, then `GET /api/billing/usage` should report the
+   new tier and its budget windows.
 
-### 1. Backend — `cloud/gateway/src/lib/tiers.ts`
+## Keep the docs true
 
-Add the tier to the `TIERS` object in order. Define `name`, `stripePriceId` (env var), `budgetLimits` (array of `{ duration, maxBudget }` windows, e.g. 1d/7d/30d), `models` (usually `[...ENABLED_MODELS]`), `tpmLimit`, `rpmLimit`, `pod`. No other backend code changes needed — routes and helpers iterate `TIERS` dynamically and `toBudgetLimits()` maps the windows to the LiteLLM payload.
-
-### 2. Backend — `cloud/scripts/create-stripe-products.ts`
-
-Add to the `TIERS` array with `lookupKey`, `amount` (cents), `label`. Add the `console.log` line for the env var output. Run the script to create the Stripe price.
-
-### 3. Backend — Env var placeholders
-
-Add `STRIPE_PRICE_YOURTIER=price_xxx` to both:
-- `cloud/.env.example`
-- `cloud/k8s/.env.secrets.example`
-
-### 4. Backend — `cloud/k8s/gateway.yaml`
-
-Add `STRIPE_PRICE_YOURTIER` env var entry referencing the `lmthing-secrets` secret.
-
-### 5. Frontend — `com/src/config/plans.ts`
-
-Add the plan to the `plans` array (renders left to right on the pricing page). Set `highlighted: true` on the recommended plan.
-
-### 6. Knowledge Base — Tier knowledge file
-
-Create `sdk/libs/thing/spaces/space-ecosystem/knowledge/billing-context/plan-tier/yourtier.md` with frontmatter (`title`, `description`, `order`) describing the tier.
-
-### 7. Knowledge Base — Tier config
-
-Add the tier slug to the `options` array in `sdk/libs/thing/spaces/space-ecosystem/knowledge/billing-context/plan-tier/config.json`.
-
-### 8. Knowledge Base — Reorder existing tiers
-
-Bump `order` in any existing tier `.md` files that come after the new one. Update adjacent tiers' upgrade/downgrade text if needed.
-
-### 9. Documentation
-
-Update tier tables and `(Free/Basic/Pro/Max)` references in:
-- `CLAUDE.md` (root)
-- `cloud/CLAUDE.md` — tier table + env var table
-- `cloud/README.md`
-- `com/CLAUDE.md` — tier count
-- `sdk/org/repl/spaces/codebase/knowledge/stack/layer/backend.md`
-
-### 10. Deploy
-
-1. Run `create-stripe-products.ts` to create the Stripe price
-2. Add price ID to `.env.secrets`
-3. Sync secrets, `gateway.yaml`, and gateway code to VM
-4. `kubectl apply` the updated manifest (a restart alone won't pick up new env var entries)
-5. Rebuild and restart gateway
-
-For detailed code examples and deploy commands, see `cloud/CLAUDE.md` section "Adding a New Tier".
+GROUND TRUTH IS THE CODE. If you change the implementation, update the matching org/docs page in
+the same change (see `org/docs/SYNC.md`). For a tier change that means
+`org/docs/cloud/billing-and-tiers.md` (tier table §2, enforcement §3, operations §7) and, if the
+procedure itself changed, `org/docs/contributing/add-a-tier.md`.

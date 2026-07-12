@@ -84,13 +84,15 @@ graph TD
 
 > The hostname → surface mapping is client-side: `surfaceForHost()` maps `lmthing.chat|studio|computer|app` to `/chat|/studio|/computer|/apps` and falls back to `/studio` for any unknown host (localhost, the `*.test` dev proxy) — `sdk/org/apps/web/src/routes/index.tsx:5-23`.
 
-### Corrections to `../Architecture.md`
+### What the old root `Architecture.md` got wrong
 
-The root `../Architecture.md` predates the current implementation. The following claims in it are **wrong** and are corrected here:
+The repo root used to carry an `Architecture.md` that predated the current implementation. It has been
+**deleted** — this page replaces it. Recorded here so the claims it spread are not believed again; each
+was contradicted by the code:
 
 - **"cloud/ = Deno, Supabase Edge Functions, @stripe/ai-sdk"** — the backend is Hono on Node.js (`cloud/gateway/package.json:11-17` — `hono`, `@hono/node-server`, `stripe`, `jose`, `postgres`; no Deno, no Supabase). See [cloud/README.md](./cloud/README.md).
 - **"studio/, chat/, computer/ are separate top-level directories"** — they are one unified SPA at `sdk/org/apps/web/`, routed client-side (`sdk/org/apps/web/src/routes/index.tsx:5-23`). No `studio/`, `chat/`, or `computer/` directory exists at the repo root.
-- **"Shared libraries live under `sdk/libs/`"** — they live under `sdk/org/libs/` (state, css, ui, auth, spaces, utils, core, cli), inside the `sdk/org` submodule so the pod image can build self-contained (`sdk/org/CLAUDE.md`).
+- **"Shared libraries live under `sdk/libs/`"** — they live under `sdk/org/libs/`, inside the `sdk/org` submodule so the pod image can build self-contained. The nine are `auth cli config core css openclaw-compat state ui utils` (`sdk/org/libs/`) — there is **no** `@lmthing/spaces` package, despite several older docs listing one.
 - **"Auth: Supabase Auth; com/ issues tokens; a private GitHub repo is created on first login to store all workspace data"** — auth is gateway-signed **HS256 JWTs** with Zitadel as the identity store and GitHub as an IDP; clients never hold a Zitadel token (`cloud/gateway/src/lib/tokens.ts:1-30`, `org/cloud/auth.md`). Workspace persistence is an **optional GitHub-App backup** of the pod's PVC (`cloud/gateway/src/routes/backup.ts`), not a mandatory repo created at login.
 - **Product-domain stacks marked "TBD"** — all seven are React 19 + Vite + TanStack Router + Tailwind 4 SPAs today.
 - Product-domain *feature* descriptions (hive mind, HA bridge, fine-tuning loop, shared-VFS collaboration, etc.) describe intended products; the current repo ships them as SPA shells against the same gateway. Treat those sections as roadmap, not implementation — see [product-spas/README.md](./product-spas/README.md).

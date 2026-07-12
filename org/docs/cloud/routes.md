@@ -28,8 +28,8 @@ The entry point builds the Hono app, applies CORS to `/api/*`, exposes a health 
 Three distinct authentication schemes appear below. Do not conflate them.
 
 1. **`authMiddleware`** (browser/user JWT) — `Authorization: Bearer <accessToken>`. Verifies a gateway-issued HS256 access token locally via `verifyAccessToken`; falls back to Zitadel introspection for legacy tokens; accepts the literal token `demo` only when `LOCAL_DEV=true`. Sets `c.get("user") = {id,email}` `cloud/gateway/src/middleware/auth.ts:16-67`. Detail → [./auth.md](./auth.md).
-2. **Scoped pod JWTs** (`aud`-pinned, 365d) — minted by the gateway and injected into the pod's `user-env` secret so the pod can call back with no user request in flight. Verified per-route (not by `authMiddleware`); the userId is always the token subject, never a request field. Audiences: `backup` (backup token mint) `cloud/gateway/src/lib/tokens.ts:56-87`, `compute` (self-idle / manifests) `cloud/gateway/src/lib/tokens.ts:89-121`, `inbound` (public broker URL) `cloud/gateway/src/lib/tokens.ts:158-194`.
-3. **Provider signatures / opaque tokens** — Stripe's `stripe-signature` HMAC (`/api/stripe/webhook`), the signed `state` param on the GitHub-App install callback, and the long-lived `userToken` embedded in the public inbound URL. No `Authorization` header.
+2. **Scoped pod JWTs** (`aud`-pinned, 365d) — minted by the gateway and injected into the pod's `user-env` secret so the pod can call back with no user request in flight. Verified per-route (not by `authMiddleware`); the userId is always the token subject, never a request field. Two audiences are injected: `compute` (self-idle / cron + webhook manifests) `cloud/gateway/src/lib/tokens.ts:89-121`, written as `LMTHING_COMPUTE_JWT` on pod create/ensure `cloud/gateway/src/lib/compute.ts:409-410`, `cloud/gateway/src/lib/compute.ts:593-596`; and `backup` (backup-token mint) `cloud/gateway/src/lib/tokens.ts:56-87`, written as `LMTHING_BACKUP_JWT` by `PUT /api/backup/config` `cloud/gateway/src/routes/backup.ts:147-155`.
+3. **Provider signatures / opaque tokens** — Stripe's `stripe-signature` HMAC (`/api/stripe/webhook`), the signed `state` param (`aud:"backup-install"`, 10min) on the GitHub-App install callback `cloud/gateway/src/lib/tokens.ts:126-156`, and the long-lived `aud:"inbound"` `userToken` embedded in the public inbound URL `cloud/gateway/src/lib/tokens.ts:158-194`. No `Authorization` header. The inbound token is **not** injected into the pod — it is minted only by `GET /api/inbound/` and handed to the UI/external providers `cloud/gateway/src/routes/inbound.ts:54`.
 
 ## Complete route table
 
@@ -136,13 +136,12 @@ Pod-callback routes (compute JWT — pod acts only on its own namespace):
 - **`POST /cron-manifest`** — body `{jobs:[{projectId,slug,cronExpr,everyMs,nextRunAt}]}`. Dedupes, clamps `everyMs` up to the tier's `minIntervalMs`, applies deterministic per-job jitter (≤5min), caps at `maxJobs`, then `replaceCronManifest` `cloud/gateway/src/routes/compute.ts:89-134`.
 - **`POST /webhook-manifest`** — body `{bindings:[{projectId,path,provider,agentRef}]}`; dedupes by `path` and `upsertWebhookBindings` so the inbound broker can resolve paths without asking the pod `cloud/gateway/src/routes/compute.ts:142-177`.
 
-Browser routes (`authMiddleware`):
-- **`GET /version`** — public (no auth on this handler); `{tag: COMPUTE_IMAGE_TAG || null}` `cloud/gateway/src/routes/compute.ts:180-182`.
+Public route (no middleware on the handler):
+- **`GET /version`** — `{tag: COMPUTE_IMAGE_TAG || null}` `cloud/gateway/src/routes/compute.ts:180-182`.
+
+Browser routes (`authMiddleware` applied per-handler, not router-wide):
 - **`POST /upgrade`** — `restartUserPod` (rolling) → `{ok:true}` `cloud/gateway/src/routes/compute.ts:186-195`.
-- **`GET /status`** — `{compute:true,tier,pod,podConfig}`; returns `compute:true` for **all tiers** (the pod may be scaled to zero) `cloud/gateway/src/routes/compute.ts:199-221`.
-
-  > Correction (stale CLAUDE.md said `/status` & `/env` require pro/max): all tiers have compute access; the source comment and code confirm no tier gate `cloud/gateway/src/routes/compute.ts:197-221`.
-
+- **`GET /status`** — `{compute:true,tier,pod,podConfig}`; returns `compute:true` for **all tiers** (the pod may be scaled to zero) and never gates on tier — a K8s error degrades to `pod:{exists:false,ready:false,phase:"error"}` rather than a 403 `cloud/gateway/src/routes/compute.ts:197-221`.
 - **`POST /ensure`** — resolve tier, `ensureUserPod(user.id, tier.pod)`, return `{ok,tier,podConfig,connection,pod}` `cloud/gateway/src/routes/compute.ts:225-249`.
 - **`POST /wake`** — Envoy activator path; `wakeUserPod` fire-and-forget, 202 `{ok,waking:true}` `cloud/gateway/src/routes/compute.ts:258-269`.
 - **`POST /wake-wait`** — `wakeAndWaitUserPod(user.id, 8000)`; 200 if ready else 202 `cloud/gateway/src/routes/compute.ts:277-288`.

@@ -48,14 +48,24 @@ names and metadata `sdk/org/libs/core/src/spaces/knowledge.ts:37-42` — never t
 
 Because each aspect is a separate on-demand file, an agent pulls in only the facet it needs rather
 than one large document — the loader deliberately splits a field across many option files keyed by
-slug `sdk/org/libs/core/src/spaces/load.ts:290-297`, and resolution fetches exactly one option body
+slug `sdk/org/libs/core/src/spaces/load.ts:290-298`, and resolution fetches exactly one option body
 per call `sdk/org/libs/core/src/spaces/knowledge.ts:44-63`.
 
-> UNVERIFIED: the specific naming/anti-pattern "do not collapse into a single `overview.md`" is not
-> stated as a rule in code — searched `sdk/org/libs/core/src/spaces/` and the example knowledge dirs
-> for `overview`; no such filename or check exists. The behavior above (per-option on-demand
-> loading) is what the code enforces; the "not collapsed" framing is the design consequence, not an
-> explicit guard.
+This is an enforced rule, not merely a convention. The architect's `validateSpace` rejects any
+knowledge field a declared agent references that has fewer than two aspect option files, with the
+error *"Put the overview in index.md and split detail across multiple options — do NOT use a single
+`overview.md`"* `sdk/org/libs/core/system-spaces/system-architect/functions/validateSpace.ts:130-134`,
+and it separately requires the field's `index.md` to carry the overview in its body — a body shorter
+than 40 characters is an error
+`sdk/org/libs/core/system-spaces/system-architect/functions/validateSpace.ts:120-125`. That check
+runs as a step of the architect's `synthesize_and_run` tasklist, before the space is registered
+`sdk/org/libs/core/system-spaces/system-architect/tasklists/synthesize_and_run/06-validate.md:9-19`.
+The same rule is put to the model while it designs the space — a field's `aspects` must be 2–4
+distinct sub-topic slugs, explicitly *not* `overview`
+`sdk/org/libs/core/system-spaces/system-architect/tasklists/synthesize_and_run/01-design.md:21-22` —
+and again while it writes the files: the overview paragraph goes into `index.md` via
+`writeKnowledgeIndex`, then one option file per aspect (>= 2) via `writeKnowledgeOption`
+`sdk/org/libs/core/system-spaces/system-architect/tasklists/synthesize_and_run/02-build_field.md:26-30`.
 
 ## What a real aspect file looks like
 

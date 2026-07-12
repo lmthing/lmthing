@@ -32,7 +32,7 @@ flowchart LR
 
 - **The database** — `database/*.json` schemas are turned into real `CREATE TABLE` statements in `<project>/.data/app.db` by the one `better-sqlite3`-backed store, opened with `PRAGMA journal_mode=WAL` and `PRAGMA foreign_keys=ON` (`sdk/org/libs/cli/src/app/store.ts:L267-L276`, `openProjectDb`). The same handle exposes **two** surfaces: a synchronous `DbApi` for the agent sandbox and a `Promise`-returning `AsyncDbApi` for Node code (`sdk/org/libs/cli/src/app/store.ts:L60-L71`, `ProjectDb`).
 - **The api runtime** — endpoints are discovered from the file tree, the handler is transpiled with esbuild and run in a fresh `worker_threads` Worker; its `db`/`apiCall`/`spawn` are `postMessage` proxies serviced by the main process, so *every db write executes main-side* — the worker is a crash boundary, not a data path (`sdk/org/libs/cli/src/app/api/runtime.ts:L1-L21`, `createApiRuntime`).
-- **The pages bundle** — `pages/` is esbuild-bundled per project into `<project>/.data/pages-dist/` with hashed assets, **on save/boot/install, never per request** (`sdk/org/libs/cli/src/app/build/pages.ts:L1-L26,L122-L147`, `buildProjectPages`).
+- **The pages bundle** — `pages/` is esbuild-bundled per project into `<project>/.data/pages-dist/` with hashed assets. The build itself is **never run per request**: it short-circuits on a content hash of `pages/`/`components/`/`lib/`/`package.json` (`sdk/org/libs/cli/src/app/build/pages.ts:L1-L26,L122-L147`, `buildProjectPages`), and the server calls it on boot/install/first-request and then caches the result for its lifetime (see [Boot](#boot)).
 - **Generated types** — `database/*.json` + the api handlers' `export interface Input/Output` are compiled into `<project>/types/generated.d.ts`, a git-ignored build artifact (`sdk/org/libs/cli/src/app/build/schema.ts:L341-L359`, `generateAppTypes`).
 - **Hooks** — a committed db write fires the store's `onWrite` listener, which the project's hook runtime turns into a synthetic `project/db.<table>.<insert|update|remove>` event whose payload *is* the row (`sdk/org/libs/cli/src/app/hooks/runtime.ts:L46-L48,L124-L136`, `ProjectHookRuntime.onDbWrite`).
 - **Project spaces** — `<project>/spaces/*` are ordinary spaces whose agents hold `db:*` capabilities over the same db → [../format/project/README.md](../format/project/README.md#capabilities-gate-who-may-author-and-touch-each-pillar).
@@ -49,7 +49,7 @@ A project with **no app layer at all** (only `spaces/` — e.g. the synthetic `s
 2. **Open the db** — WAL + foreign keys on (`sdk/org/libs/cli/src/app/boot.ts:L66-L67`).
 3. **Reconcile schemas.** `database/*.json` is the *sole source of truth*: a declared table missing live is created; a declared column missing live is added with an **additive** `ALTER TABLE ADD COLUMN`; any **non-additive** divergence — a live column the schema no longer declares (a drop/rename), a primary-key move, or a text↔numeric type conflict — **fails loud** (`sdk/org/libs/cli/src/app/boot.ts:L98-L149`, `reconcileTable`).
 
-The server boots each project's db **lazily and once**, caching the handle — and caching `null` for a spaces-only project so it is not re-probed on every session (`sdk/org/libs/cli/src/server/session-manager.ts:L515-L545`, `getProjectDb`). The api runtime is likewise created lazily and cached, and is **only** created when the project has a db — `getApiRuntime` starts at `rt = null` and only calls `createApiRuntime` inside `if (projectDb)` (`sdk/org/libs/cli/src/server/session-manager.ts:L716-L749`) — so an api-only project with no `database/*.json` has no api runtime, and `createAppApiHandler` 404s every endpoint (`sdk/org/libs/cli/src/server/routes/app-api.ts:L31-L35`).
+The server boots each project's db **lazily and once**, caching the handle — and caching `null` for a spaces-only project so it is not re-probed on every session (`sdk/org/libs/cli/src/server/session-manager.ts:L515-L545`, `getProjectDb`). The api runtime is likewise created lazily and cached, and is **only** created when the project has a db — `getApiRuntime` starts at `rt = null` and only calls `createApiRuntime` inside `if (projectDb)` (`sdk/org/libs/cli/src/server/session-manager.ts:L772-L805`) — so an api-only project with no `database/*.json` has no api runtime, and `createAppApiHandler` 404s every endpoint (`sdk/org/libs/cli/src/server/routes/app-api.ts:L31-L35`).
 
 The page bundle is built lazily on first request and cached for the server's lifetime; a build failure is logged and cached as "no page app" (`sdk/org/libs/cli/src/server/serve.ts:L292-L305`, `getOutDirForProject`).
 
@@ -127,7 +127,7 @@ The name→route bridge is `window.__APP_ENDPOINTS__`: the build projects the en
 
 ## Typed contracts: one source, four consumers
 
-TS types + JSDoc in `database/*.json` and the api handlers are the single source of truth. `generateProjectContracts` derives them once per project and caches the result (`sdk/org/libs/cli/src/app/build/contracts.ts:L9-L31`):
+TS types + JSDoc in `database/*.json` and the api handlers are the single source of truth. `generateProjectContracts` derives all four in one pass (`sdk/org/libs/cli/src/app/build/contracts.ts:L23-L34`); because it is heavy (`ts-json-schema-generator`), the server runs it **once per project** and caches the bundle — including `null` for a project with no `api/` dir (`sdk/org/libs/cli/src/server/session-manager.ts:L826-L843`, `getProjectContracts`):
 
 | Consumer | Artifact |
 |---|---|
@@ -136,7 +136,7 @@ TS types + JSDoc in `database/*.json` and the api handlers are the single source
 | pages | `generatedDts` → `types/generated.d.ts` (row types + `<Name>Input`/`<Name>Output`) |
 | the browser client | the `name → { method, routePath }` endpoint manifest |
 
-A live authoring write (`writeProjectApi` / `writeProjectPage`) invalidates the cached contracts *and* disposes the project's api runtime, so the next call re-derives from the new files; page **compilation** is deliberately not done on write — the caller POSTs a rebuild (`sdk/org/libs/cli/src/server/session-manager.ts:L596-L614`, `onAppWrite`). The authoring globals → [../runtime-globals/app-authoring.md](../runtime-globals/app-authoring.md).
+A live authoring write (`writeProjectApi` / `writeProjectPage`) invalidates the cached contracts *and* disposes the project's api runtime, so the next call re-derives from the new files; page **compilation** is deliberately not done on write — the caller POSTs a rebuild (`sdk/org/libs/cli/src/server/session-manager.ts:L648-L666`, `onAppWrite`). The authoring globals → [../runtime-globals/app-authoring.md](../runtime-globals/app-authoring.md).
 
 > The builder has its own cache-busting knob: the page build's content hash covers only the *project's* files, so a change to `@app/runtime` itself needs `BUILDER_VERSION` bumped or already-built pods keep serving the old bundle (`sdk/org/libs/cli/src/app/build/pages.ts:L76-L89`).
 

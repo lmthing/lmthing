@@ -46,14 +46,41 @@ ran last.** A root install materialises `libs/state/node_modules/vitest` as
 when a runner errors with something that looks like a bundler-internals crash rather than a test
 failure.
 
-> **UNVERIFIED (environment, not code):** on a root-installed checkout, `pnpm --filter @lmthing/state
-> test` (`vp test run`, `sdk/org/libs/state/package.json:L50`) currently fails before collecting any
-> test — `Could not find 'vitest' bin entry in …/@voidzero-dev/vite-plus-test/package.json`, and
-> `pnpm exec vitest run` in that package fails with `value "builtin:vite-wasm-fallback" does not
-> match any variant of enum BindingBuiltinPluginName`. Both `vite-plus` pins are floating
-> (`@latest`, `pnpm-workspace.yaml:L19-L21`; `"vite-plus": "latest"`, `package.json:L18`), so this is
-> a moving target rather than a repo fact. Searched: `pnpm-workspace.yaml`, root `package.json`,
-> `sdk/org/libs/state/package.json`, and both `node_modules` trees.
+### The `libs/state` scripts are broken in *both* workspaces
+
+The sharpest instance of that consequence: **`@lmthing/state`'s test scripts cannot run in either
+install.** All four of them shell out to `vp`, the vite-plus binary
+(`sdk/org/libs/state/package.json:L50-L53`) — but `vite-plus` is declared only by the repo root
+(`package.json:L17-L19`) and by `sdk/org/apps/web` (`sdk/org/apps/web/package.json:L67-L68`), never
+by `@lmthing/state` itself and never by `@lmthing/root` (`sdk/org/package.json:L15-L22`). So `vp`
+reaches a `libs/state` script's PATH only via the **root** workspace's bin dir — i.e. only on a root
+install. And on a root install the `overrides` pull the rug out: they force *every* member's `vitest`
+onto the catalog alias (`pnpm-workspace.yaml:L25-L27`), so state's declared `vitest: ^4.1.0`
+(`sdk/org/libs/state/package.json:L76`) is replaced by `npm:@voidzero-dev/vite-plus-test@latest`
+(`pnpm-workspace.yaml:L21`), locked to `@voidzero-dev/vite-plus-test@0.1.24`
+(`pnpm-lock.yaml:L85-L87`) — a package that publishes **no `bin` field**. `pnpm --filter
+@lmthing/state test` therefore dies before collecting a single test:
+
+```
+error: Failed to resolve test command: GenericFailure, Error: Could not find 'vitest' bin entry
+in …/@voidzero-dev/vite-plus-test/package.json
+```
+
+Reaching past the script doesn't help — `pnpm exec vitest run` inside the package resolves to the
+same vite-plus-test, whose vite-plus-core startup then throws `value "builtin:vite-wasm-fallback"
+does not match any variant of enum BindingBuiltinPluginName`. The two halves of vite-plus are
+aliased as **independent** floating `@latest` pins (`pnpm-workspace.yaml:L19-L21`) and have already
+drifted apart in the committed lockfile — core at `0.2.4`, test at `0.1.24` (`pnpm-lock.yaml:L79-L87`).
+
+An `sdk/org` install is no rescue either. It resolves state's `vitest` to real `vitest@4.1.9`
+(`sdk/org/pnpm-lock.yaml:L458-L460`), but it installs no `vite-plus` anywhere — so `vp test run` has
+no binary to call at all.
+
+Net effect: `libs/state` is excluded from the main runner (`sdk/org/vitest.config.ts:L19-L25`) and
+its own scripts don't work, so its **29 test files run nowhere** — the same orphaning as
+[`libs/ui`](#the-libsui-gap), with the extra twist that here a `test` script exists and *looks* like
+it runs them. Wiring up a runner that actually executes `sdk/org/libs/state/vitest.config.ts` is fair
+game.
 
 ---
 
@@ -318,9 +345,12 @@ assertions — and exists so no scenario burns an hour on a broken harness
 - `scenarios/harness/` — zero-dependency Node ESM. `provision.mjs` (`getUser`, `loadUser` —
   `:L28-L45`) plus `lib/`: `Pod` (the pod REST client, `lib/pod.mjs:L9`), `ThingSession`
   (`lib/thing.mjs:L28`), `Report` (`lib/report.mjs:L13`), `gateway.mjs`, `jwt.mjs`, `paths.mjs`.
-- `scenarios/_template/` — `cp -r _template <NN-slug>` scaffold.
-- `scenarios/SCENARIO-FORMAT.md` (the document format + feature catalog) and `PLAYBOOK.md` (the
-  run-and-fix process).
+- `scenarios/_template/` — `cp -r _template <NN-slug>` scaffold, holding just `scenario.md` +
+  `run.mjs` (`sdk/org/scenarios/_template/`).
+- `scenarios/README.md` — the document format, the authoring workflow and the run-and-fix process.
+  Each scenario dir holds a `scenario.md` (the spec) beside a `run.mjs` (the executable spec) and
+  writes `results/report.md`, whose contents are pasted back into the spec's **Actual results**
+  section — so the document is both the plan and the record (`sdk/org/scenarios/README.md:24-28`).
 
 ### The harness API
 

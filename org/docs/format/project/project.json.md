@@ -32,7 +32,9 @@ These four fields are surfaced per-app into the generated browse index `store/pr
 
 Because app-builder-authored apps ship a `package.json` but no `project.json`, the pod's install route synthesizes a **deterministic** `project.json` (`id`/`title`/`description`/`icon` from the catalog entry, no volatile fields) into the installed project directory when one is absent `sdk/org/libs/cli/src/server/routes/apps.ts:155-165`. Determinism matters because `project.json` is part of the app-template hash, so a volatile field would make every re-install look diverged `sdk/org/libs/cli/src/server/routes/apps.ts:149-153`.
 
-> UNVERIFIED: the public per-app URL form `/app/<id>/` from the prior draft. Searched `routes/apps.ts` and the manifest generator; found only the on-disk materialization path `<lmthingRoot>/<projectId ?? appId>/` and the store's static serve path `/projects/<id>/`, not an `/app/<id>/` route.
+## The `id` in the served URL
+
+The same id names the app's URL. The pod mounts every installed project's pages at `/app/<projectId>/*` and its api at `/app/<projectId>/api/*` `sdk/org/libs/cli/src/server/serve.ts:218,306`. On production `lmthing.app` the same pod *additionally* root-mounts the app at a bare `/<projectId>/*` for clean URLs — gated on `LMTHING_GATEWAY_URL`, which is present exactly when the pod sits behind the Envoy shell/pod split, because a bare `/:projectId/*` would otherwise shadow every route of the unified SPA that this server also serves in local single-serve `sdk/org/libs/cli/src/server/serve.ts:308-326`. The web app mirrors the split with `APP_PATH_PREFIX` — `''` on hostname `lmthing.app`, `'/app'` everywhere else `sdk/org/apps/web/src/lib/config.ts:28-39` — and the launcher opens `<COMPUTER_BASE_URL><APP_PATH_PREFIX>/<projectId>/` `sdk/org/apps/web/src/routes/apps/index.tsx:19-22`.
 
 ## See also
 

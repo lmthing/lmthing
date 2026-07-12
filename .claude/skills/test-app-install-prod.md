@@ -1,3 +1,8 @@
+---
+name: test-app-install-prod
+description: End-to-end runbook for testing the project-as-application install flow and an app's AI functionality against the LIVE production cluster with a disposable test user. Use when verifying a compute-image change reached prod, reproducing an install bug, or smoke-testing a newly published catalog app.
+---
+
 # Skill: Test the app-install flow on prod with a test user
 
 End-to-end runbook for exercising **project-as-application install + the app's
@@ -11,7 +16,7 @@ chrome-devtools MCP.
 > is no per-app auth. The app surface (`lmthing.app`) authenticates the user the
 > same way `studio`/`chat` do (a gateway JWT); everything under `/app/<id>/`
 > then runs in that user's own compute pod. On `localhost` the pod needs no auth
-> at all. See `sdk/org/project-as-application.md`.
+> at all. See [`org/docs/app/`](../../org/docs/app/README.md).
 
 ## When to use
 
@@ -246,11 +251,13 @@ dir in the pod if you want a clean slate for the next run.
 
 ## Related
 
-- `sdk/org/project-as-application.md` — the app model (single-user, no app auth).
+- [`org/docs/app/`](../../org/docs/app/README.md) — the app model (single-user, no app auth),
+  how a project-app is built, served and executed.
 - `sdk/org/libs/cli/src/server/routes/apps.ts` — `GET /api/apps`, `POST /api/apps/install`.
 - `store/scripts/gen-apps-manifest.mjs` — emits `/projects/manifest.json` + per-app `files`.
 - `.claude/skills/cloud-backend.md`, `reference-prod-test-user-and-deploy` memory.
 
+## Keep the docs true
 
-
-
+GROUND TRUTH IS THE CODE. If you change the implementation, update the matching
+`org/docs` page in the same change — see [`org/docs/SYNC.md`](../../org/docs/SYNC.md).

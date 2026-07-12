@@ -110,8 +110,8 @@ in Phase 1).
   handler. `hooks/*.ts` use the `cron`/`database` shapes from the spec. Agent `instruct.md`
   frontmatter uses the config-bearing `capabilities:` key with per-verb `tables` scope.
 - **Project-scoped spaces MUST follow the FULL space format — not just `agents/`.** Read the
-  canonical space format first (`org/format/space/`, `sdk/org/.claude/skills/new-space.md`,
-  `sdk/org/libs/core/system-spaces/DEVELOPMENT.md`) and mirror how the shipped system spaces
+  canonical space format first (`org/docs/format/space/`, `org/docs/system-spaces/README.md`,
+  `sdk/org/.claude/skills/new-space.md`) and mirror how the shipped system spaces
   (`sdk/org/libs/core/system-spaces/*`) are structured: `agents/<slug>/` with **both** `charter.md`
   and `instruct.md`; `tasklists/<name>/` with real frontmatter; **extensive** `knowledge/<field>/`
   (an `index.md` overview + ≥2 `<aspect>.md` deep-dives each); reusable typed `functions/`; and

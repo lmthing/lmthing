@@ -23,18 +23,20 @@ Public exports (`../../sdk/org/libs/openclaw-compat/src/index.ts:8-38`):
 | `UnsupportedCompatError` | class | Thrown by any unimplemented api surface (`src/types.ts:135`). |
 | `CompatHost`, `CompatHttpRequest/Response`, `CompatRouteHandler`, `RegisteredTool/HttpRoute/Channel/Provider`, … | types | The host seam + registry record shapes (`src/types.ts`). |
 
-The package builds with tsup, ships as ESM (`package.json:6,20`), and has **one runtime dependency: `esbuild`** (`package.json:29`) — it transpiles plugin `.ts` at runtime.
+The package builds with tsup (`package.json:21`), ships as ESM (`package.json:5,8-14`), and has **one runtime dependency: `esbuild`** (`package.json:28-30`) — it transpiles plugin `.ts` at runtime.
 
 ---
 
-## What OpenClaw is (confirmed in `COMPAT.md`)
+## What OpenClaw is — and what our shim mirrors
 
-- `openclaw` is one MIT npm package (v2026.6.11) whose subpath exports provide `openclaw/plugin-sdk/*` (dozens of subpaths — `plugin-entry`, `channel-entry-contract`, …) (`../../sdk/org/libs/openclaw-compat/COMPAT.md:12-14`).
-- Channel extensions are **separate** `@openclaw/*` packages with a `peerDependency` on `openclaw` and their own runtime deps (`@slack/bolt`, `ws`, …) (`COMPAT.md:15-17`).
-- `@openclaw/slack` is **Socket Mode** — a persistent outbound WebSocket, incompatible with scale-to-zero pods (`COMPAT.md:18-20`).
-- A plugin's runtime entry is either `definePluginEntry({ id, name, description, register(api){…} })` or `defineBundledChannelEntry({…})` (identifiable by a `plugin.specifier` field) (`COMPAT.md:21-28`).
-- `register(api)` receives `OpenClawPluginApi` — 40+ `register*` methods plus nested `api.session`/`api.agent`/`api.lifecycle`/`api.runtime` namespaces (`COMPAT.md:29-32`).
-- Package metadata: `package.json#openclaw` (`extensions: ["./index.ts"]`, optional `channel`) plus an `openclaw.plugin.json` manifest (`id`, `contracts.tools`, `configSchema`, `activation`) (`COMPAT.md:33-35`).
+The bullets below describe the **upstream `openclaw` npm package**, which lives outside this repo; they carry no lmthing citation. Each one is paired with the place in *our* code that encodes or reacts to it — that citation is the checkable part.
+
+- **Subpath exports.** `openclaw` is a single npm package whose `openclaw/plugin-sdk/*` subpaths export the entry builders (`plugin-entry`, `channel-entry-contract`, …). Our host cannot resolve them from npm (no registry egress from the pod), so `BUILTIN_SHIMS` maps exactly the two we need to local implementations (`../../sdk/org/libs/openclaw-compat/src/loader.ts:32-43`).
+- **Channel extensions are separate packages.** `@openclaw/*` channel packages peer-depend on `openclaw` and pull their own runtime deps (`@slack/bolt`, `ws`, …).
+- **`@openclaw/slack` is Socket Mode** — a persistent outbound WebSocket, which a scale-to-zero pod cannot hold open. Accordingly our shim records a bundled channel's lazy `plugin`/`runtime` module refs but **deliberately never loads them** — only the webhook-mode `registerFull` hook runs (`src/plugin-sdk-shim.ts:23-29,38-45,49-79`).
+- **Two entry shapes.** A plugin's runtime entry is either `definePluginEntry({ id, name, description, register(api){…} })` — upstream an identity function, which our shim reproduces exactly (`src/plugin-sdk-shim.ts:10-21`) — or a bundled-channel descriptor, identifiable by its `plugin.specifier` field (`src/plugin-sdk-shim.ts:31-47`; detected by `isBundledChannelDescriptor` at `src/loader.ts:118-123`).
+- **`register(api)` receives `OpenClawPluginApi`** — 40+ `register*` methods plus nested `api.session`/`api.agent`/`api.lifecycle`/`api.runtime` namespaces (~2900 lines of interface). We implement **13 top-level names** and let the Proxy fail loud on every other one (`src/api.ts:8-10,27-45,346-351`); only the record shapes we actually need are mirrored in `src/types.ts`.
+- **Package metadata.** A plugin directory carries `package.json#openclaw.extensions[0]` (the entry file) plus an `openclaw.plugin.json` manifest keyed by `id` (upstream also `contracts`, `configSchema`, `activation`). Those two files — and specifically `extensions[0]` + `id` — are exactly what `loadPlugin` reads and requires (`src/loader.ts:76-89`); a real example is the vendored Tavily extension (`../../sdk/org/libs/openclaw-compat/test/tavily/package.json:5-7`, `test/tavily/openclaw.plugin.json:1-17`).
 
 ---
 
@@ -54,7 +56,7 @@ logger · pluginConfig · config
 
 ### `registerTool` — object AND factory form
 
-`registerTool` accepts both `registerTool({ name, execute })` and OpenClaw's factory form `registerTool((ctx) => toolObject, { name })` — the factory is invoked with a minimal `ctx` (`{}`) and the resulting tool must have an `execute()` function or it throws (`src/api.ts:242-264`). Tavily's real entry uses the factory form. The name comes from `opts.name` (factory form) else `tool.name`; a missing/empty name throws (`src/api.ts:251-254`). Recorded into `registry.tools` (`src/api.ts:256-261`).
+`registerTool` accepts both `registerTool({ name, execute })` and OpenClaw's factory form `registerTool((ctx) => toolObject, { name })` — the factory is invoked with a minimal `ctx` (`{}`) and the resulting tool must have an `execute()` function or it throws (`src/api.ts:242-264`). Tavily's real (vendored, unmodified) entry uses the factory form — `api.registerTool((ctx) => createTavilySearchTool(api, ctx), { name: "tavily_search" })` (`../../sdk/org/libs/openclaw-compat/test/tavily/index.ts:19-23`). The name comes from `opts.name` (factory form) else `tool.name`; a missing/empty name throws (`src/api.ts:251-254`). Recorded into `registry.tools` (`src/api.ts:256-261`).
 
 ### `registerHttpRoute` — method-less shape tolerated
 
@@ -107,7 +109,7 @@ The one-way sink a loaded plugin writes into via the compat `api` — plugins re
 
 The socket/native runtime behind `descriptor.plugin.specifier` is **deliberately NOT loaded** — that stays warm-pod/Socket-Mode, a deferred increment (`src/plugin-sdk-shim.ts:52-56`, `:38`). `loadPlugin` also has a **raw-descriptor fallback**: an entry with `plugin.specifier` but no `register` (built against the real SDK without our shim) is detected by `isBundledChannelDescriptor` and taken through the same `applyBundledChannelDescriptor` path (`src/loader.ts:101-123`).
 
-> Note: the migrated skill (`.claude/skills/openclaw-compat.md`) and the loader's own file-header docstring (`src/loader.ts:6-11`) still describe `defineBundledChannelEntry` as **rejected** with `UnsupportedCompatError`. The **code no longer rejects it** — `loadPlugin` handles both the shim-generated `register` and the raw descriptor (`src/loader.ts:94-110`), and `plugin-sdk-shim.ts` implements the loading path. The header docstring is stale; the shipped behaviour is "loaded in webhook-mode."
+> Note: the loader's own file-header docstring (`src/loader.ts:6-11`) still describes `defineBundledChannelEntry` as **rejected** with `UnsupportedCompatError`. The **code no longer rejects it** — `loadPlugin` handles both the shim-generated `register` and the raw descriptor (`src/loader.ts:94-110`), and `plugin-sdk-shim.ts` implements the loading path. The header docstring is stale; the shipped behaviour is "loaded in webhook-mode."
 
 ---
 
@@ -200,7 +202,7 @@ Host wiring: `SessionManager.setToolRegistry(registry)` stores the registry (`..
 - `registerChannel` — recorded, no channel routing/Socket-Mode (`src/api.ts:280-307`).
 
 **Gaps / hard constraints:**
-- **Every other `register*` / namespace throws** `UnsupportedCompatError` (media/speech/image/video/embedding-catalog, `registerCli`/`registerCommand`/`registerService`/`registerMemoryCapability`/`registerAgentHarness`, `api.session`/`api.agent`/`api.lifecycle`, …) — by design (`src/api.ts:346-351`). Every `defineSingleProviderPluginEntry` model provider (openai/google/deepseek/…) throws because that wrapper always calls the unimplemented `registerModelCatalogProvider` (`COMPAT.md`).
+- **Every other `register*` / namespace throws** `UnsupportedCompatError` (media/speech/image/video/embedding-catalog, `registerCli`/`registerCommand`/`registerService`/`registerMemoryCapability`/`registerAgentHarness`, `api.session`/`api.agent`/`api.lifecycle`, …) — by design (`src/api.ts:346-351`). That includes every model-provider extension built on OpenClaw's `defineSingleProviderPluginEntry` wrapper (openai/google/deepseek/…): the wrapper calls `registerModelCatalogProvider`, which is not in `IMPLEMENTED_TOP_LEVEL` and therefore resolves to a throwing proxy (`src/api.ts:27-45,346-351`).
 - **npm egress** — fully as-installed plugins (`openclaw` + `@openclaw/*` + runtime deps) need npm, which this sandbox lacks; today you vendor the entry + use `moduleOverrides`/`BUILTIN_SHIMS` (`src/loader.ts:32-63`).
 - **Socket/long-poll channels** (Slack Socket Mode, Telegram getUpdates, Discord gateway) need an always-on process ⇒ warm/pinned pod (paid tier); only webhook-mode channels fit wake-and-forward. The `plugin`/`runtime` specifier modules are deliberately not loaded (`src/plugin-sdk-shim.ts:52-56`).
 - **Trust boundary** — plugin code is full-privilege in-proc Node, NOT QuickJS; the single-tenant pod is the mitigation (`src/index.ts:1-6`, `openclaw-host.ts` header).
@@ -210,7 +212,7 @@ Host wiring: `SessionManager.setToolRegistry(registry)` stores the registry (`..
 ## Testing
 
 - Unit (co-located vitest): `pnpm --filter @lmthing/openclaw-compat test` runs `src/loader.test.ts`, `src/tavily-load.test.ts` (the real Tavily entry through compat), and `src/wins.test.ts` (the three coverage wins, with fixtures `test/bundled-channel/` + `test/raw-bundled/`).
-- The synthetic `test/echo-plugin/index.ts` registers an `echo` tool + a `POST /echo` route whose handler calls `api.runtime.subagent.run(...)` — driving the full host↔plugin loop against a fake `CompatHost` (`COMPAT.md:41-56`).
+- The synthetic `test/echo-plugin/index.ts` registers an `echo` tool + a `POST /echo` route whose handler calls `api.runtime.subagent.run(...)` (`../../sdk/org/libs/openclaw-compat/test/echo-plugin/index.ts:22-43`) — `loader.test.ts` drives that full host↔plugin loop against a fake `CompatHost`: load → tool in the registry → route mounted → invoking the handler lands in `host.runAgent` and its result comes back as the HTTP response (`src/loader.test.ts:14-35,37-68`).
 - Local drive: drop a plugin under `<root>/.openclaw-plugins/<name>/` (needs `package.json#openclaw.extensions[0]` + `openclaw.plugin.json#id`), boot the pod, `POST /api/inbound/<path>`.
 
 ---
@@ -224,7 +226,8 @@ Host wiring: `SessionManager.setToolRegistry(registry)` stores the registry (`..
 | `../../sdk/org/libs/openclaw-compat/src/types.ts` | `CompatHost`, `CompatHttpRequest/Response`, `Registered*` record shapes, `UnsupportedCompatError` |
 | `../../sdk/org/libs/openclaw-compat/src/registry.ts` | `PluginRegistry` (tools map, httpRoutes/channels/providers) |
 | `../../sdk/org/libs/openclaw-compat/src/plugin-sdk-shim.ts` | `definePluginEntry`, `defineBundledChannelEntry`, `applyBundledChannelDescriptor` |
-| `../../sdk/org/libs/openclaw-compat/COMPAT.md` | Full gap analysis + roadmap |
+| `../../sdk/org/libs/openclaw-compat/src/tavily-load.test.ts` | The real vendored Tavily entry (`test/tavily/`) loaded through `loadPlugin` + the compat api |
+| `../../sdk/org/libs/openclaw-compat/src/loader.test.ts` | The echo fixture end-to-end + the `UnsupportedCompatError` fail-loud cases |
 | `../../sdk/org/libs/cli/src/server/openclaw-host.ts` | `createComputeCompatHost`, `loadOpenClawPlugins`, `deterministicUuidFromKey`, `parseOpenClawAgentEnv`, `OpenClawRouteTable` |
 | `../../sdk/org/libs/cli/src/server/serve.ts` | Boot-load `.openclaw-plugins/` + `setToolRegistry` + inbound-handler wiring |
 | `../../sdk/org/libs/cli/src/server/routes/webhooks.ts` | Inbound `POST /api/inbound/:path` dispatcher with `pluginRoutes` fallback |

@@ -15,6 +15,7 @@ COPY blog/package.json           blog/
 COPY casa/package.json           casa/
 COPY cloud/package.json          cloud/
 COPY com/package.json            com/
+COPY org/package.json            org/
 COPY social/package.json         social/
 COPY space/package.json          space/
 COPY store/package.json          store/

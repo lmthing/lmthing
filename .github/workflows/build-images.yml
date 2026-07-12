@@ -17,6 +17,7 @@ on:
       - 'com/**'
       - 'social/**'
       - 'store/**'
+      - 'org/**'
       - 'space/**'
       - 'team/**'
       - 'blog/**'
@@ -104,6 +105,11 @@ jobs:
               - 'store/**'
               - 'sdk/org'
               - 'sdk/org/**'
+            org:
+              - *root
+              - 'org/**'
+              - 'sdk/org'
+              - 'sdk/org/**'
             space:
               - *root
               - 'space/**'
@@ -142,6 +148,7 @@ jobs:
           COM: ${{ steps.changes.outputs.com }}
           SOCIAL: ${{ steps.changes.outputs.social }}
           STORE: ${{ steps.changes.outputs.store }}
+          ORG: ${{ steps.changes.outputs.org }}
           SPACE: ${{ steps.changes.outputs.space }}
           TEAM: ${{ steps.changes.outputs.team }}
           BLOG: ${{ steps.changes.outputs.blog }}
@@ -167,6 +174,7 @@ jobs:
             {"image": "com",      "dockerfile": "com/Dockerfile",                  "context": ".",             "manifest": "devops/argocd/core/com.yaml",                  "changed": changed("com")},
             {"image": "social",   "dockerfile": "social/Dockerfile",               "context": ".",             "manifest": "devops/argocd/core/social.yaml",               "changed": changed("social")},
             {"image": "store",    "dockerfile": "store/Dockerfile",                "context": ".",             "manifest": "devops/argocd/core/store.yaml",                "changed": changed("store")},
+            {"image": "org",      "dockerfile": "org/Dockerfile",                  "context": ".",             "manifest": "devops/argocd/core/org.yaml",                  "changed": changed("org")},
             {"image": "space",    "dockerfile": "space/Dockerfile",                "context": ".",             "manifest": "devops/argocd/core/space.yaml",                "changed": changed("space")},
             {"image": "team",     "dockerfile": "team/Dockerfile",                 "context": ".",             "manifest": "devops/argocd/core/team.yaml",                 "changed": changed("team")},
             {"image": "blog",     "dockerfile": "blog/Dockerfile",                 "context": ".",             "manifest": "devops/argocd/core/blog.yaml",                 "changed": changed("blog")},

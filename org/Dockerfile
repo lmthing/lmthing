@@ -32,14 +32,14 @@ COPY sdk/org/apps/web/package.json    sdk/org/apps/web/
 
 RUN pnpm install --frozen-lockfile
 
-# Copy source for casa and its workspace dependencies
-COPY casa/ casa/
+# Copy source for org and its workspace dependencies
+COPY org/ org/
 COPY sdk/org/ sdk/org/
 
-RUN pnpm --filter @lmthing/casa build
+RUN pnpm --filter @lmthing/org build
 
 # ── Stage 2: Serve with nginx ────────────────────────────────────────────────
 FROM nginx:alpine
-COPY --from=builder /repo/casa/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=builder /repo/casa/dist/      /usr/share/nginx/html/
+COPY --from=builder /repo/org/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /repo/org/dist/       /usr/share/nginx/html/
 EXPOSE 80

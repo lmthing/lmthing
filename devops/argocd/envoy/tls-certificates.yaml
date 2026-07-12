@@ -154,6 +154,21 @@ spec:
     - lmthing.store
 
 ---
+# TLS certificate for lmthing.org
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: lmthing-org-tls
+  namespace: gateway
+spec:
+  secretName: lmthing-org-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - lmthing.org
+
+---
 # TLS certificate for lmthing.space
 apiVersion: cert-manager.io/v1
 kind: Certificate

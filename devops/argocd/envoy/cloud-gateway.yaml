@@ -197,6 +197,27 @@ spec:
       allowedRoutes:
         namespaces:
           from: Same
+    # ── lmthing.org ────────────────────────────────────────────
+    - name: org-http
+      hostname: lmthing.org
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: org-https
+      hostname: lmthing.org
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: lmthing-org-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
     # ── lmthing.space ──────────────────────────────────────────
     - name: space-http
       hostname: lmthing.space

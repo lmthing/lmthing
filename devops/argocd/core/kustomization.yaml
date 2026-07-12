@@ -16,6 +16,7 @@ resources:
   - com.yaml
   - social.yaml
   - store.yaml
+  - org.yaml
   - space.yaml
   - team.yaml
   - blog.yaml

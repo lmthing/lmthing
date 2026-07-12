@@ -1,7 +1,5 @@
 ---
 title: Demo Channel
-triggers:
-  - webhook: { path: demo, provider: demo }
 capabilities:
   - connections:use: { providers: [demo] }
 functions:

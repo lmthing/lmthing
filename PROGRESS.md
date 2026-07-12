@@ -24,11 +24,11 @@ Started 2026-07-12 ~04:20 local. Budget: 24 h.
 
 | # | Scenario | Verdict | Notes |
 |---|---|---|---|
-| 01 | Newsroom | ⏳ running | landed a real fix: live-project table authoring + hook/db hot-reload |
+| 01 | Newsroom | 🔁 re-verifying | first run FAIL 46/51 traced to ONE root cause (automator tangle + a per-hook load failure); fixes landed + deployed; re-running on `compute:6c9f34f` |
 | 02 | Consent & Store | ✅ **PASS 71/71** | security P0 verified by observation; 2 non-security bugs fixed |
-| 03 | Resilience | ⏳ running | |
+| 03 | Resilience | ✅ **PASS 46/46** | loop guard held under a 200-delivery storm; found + fixed a real coalescing bug |
 | 04 | Signals & Code nodes | ✅ **PASS** (feature-verified) | 2 bugs fixed; 1 major gap found (no specialist can author a code node) |
-| 05 | Latin America | ⏳ running | resumed after it parked on Monitors |
+| 05 | Latin America | ⏳ Act IV | reached Act III (app + hooks) live; Act I over-scaffold fix verified live; finishing Act IV edges |
 
 **⚠️ Deploy caveat (applies to every prompting fix this campaign).** Agents patch THING/specialist
 `instruct.md` in `sdk/org` source and hot-patch their own test pod to verify live, but a system-space
@@ -105,6 +105,46 @@ undeclared `callConnection` throws, a throwing code node fails the task loudly);
 - Caveat: post-fix live re-confirmation of B1 was inconclusive — after re-imaging, the heavily-churned
   disposable pod's write path regressed for *all* signals (a pod-state issue, not the one-line routing
   fix). B1 rests on the crisp pre-fix live evidence + green regression tests.
+
+### Scenario 03 — Resilience: PASS 46/46 (loop-guard fix `sdk/org abd11c0`)
+
+The loop guard held under everything the spec threw at it, live: **200 signed deliveries → exactly
+200 rows, counter +200 (no lost increments under concurrency of 20), 0 LLM calls, 0 5xx**, and a
+THING turn issued *during* the storm still completed (event loop not starved). A 10× replay deduped
+to one row (9/10 `{deduped:true}`). Coalescing collapsed a 30-write burst to **1 fire (30:1)** with
+self-write exclusion; the A↔B cycle terminated at **cap depth 3** with a cap warning and a healthy
+pod; a throwing/hanging space emitter was worker-contained. Post-restart the session resumed with
+history + a system message and durable data intact. Perf: delivery p50 811ms / p95 1790ms; storm
+13.6/s; cold-wake→first-byte **3.4s**.
+
+- **Bug (fixed): coalescing DROPPED a burst's trailing events instead of deferring them.** After a
+  coalesced fire, 29 of 232 rows stayed untagged — events suppressed by the per-hook cooldown *at
+  enqueue time* were discarded, so inserts arriving during the fire's cooldown window never got a
+  catch-up fire. Coalescing must debounce the trailing edge, not drop it. **Fixed** in
+  `libs/cli/src/app/hooks/dispatcher.ts` (deferred map + `promoteDeferred`/`nextDeferredDelay`) and
+  `runtime.ts` (`scheduleDeferredDrain`), with 16 dispatcher unit tests. In `compute:6c9f34f`.
+- **Perf note (not a bug): a pod RESTART (container recreate) took ~313s to serve**, far over the 60s
+  target — but that is the K8s image-pull/schedule path on the free-tier node, NOT the optimized
+  scale-to-zero wake (3.4s). All correctness guarantees (resume, history, durable data, system
+  message) held; only the restart-latency target is missed. Flagged for the pod-lifecycle owners.
+
+### Scenario 01 — Newsroom: first run FAIL 46/51 → fixes landed, re-verifying
+
+The first live run exposed the automator producing a **tangle** — 7 automator delegations, 3
+overlapping tip tables (`tips` / `story_tips` / `automation_audits`), 2 intake hooks — and, downstream,
+a code-handler hook that emitted `{events:1}` but **committed no row** (so Steps 4/7/8 failed on the
+side effects even though the event plumbing worked). Also confirmed cleanly on the first run: THING
+correctly **declines to create a sibling project** (that's a UI action by design) rather than
+mis-scaffolding; all four emitter kinds went live; consent gated both installs; and the webhook edges
+(bad HMAC→401, unknown path→404, malformed→`{events:0}`) all behaved.
+
+Fixes landed by the S01 agent, now in `compute:6c9f34f`:
+- **`f957459` automator prompting** — an explicit ONE-hook direct-insert pattern for inbound→store,
+  and a ban on fabricated relay events + redundant tables (kills the 3-table/2-hook tangle).
+- **`056603c` isolate per-hook load failures** — one broken hook file no longer sinks a project's
+  *entire* automation (which is why healthy hooks silently stored nothing).
+
+Re-verification on the deployed image is in progress.
 
 ### 1. `integration-demo` was stranded on the legacy webhook path — **FIXED**
 

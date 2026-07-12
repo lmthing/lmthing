@@ -41,7 +41,9 @@ highest-impact ones:
 
 **Deliverables:** the five scenario specs + live results in `sdk/org/scenarios/*.md`; a reusable
 zero-dependency live-prod test harness in `sdk/org/scenarios/harness/`; per-scenario reports + raw
-traces in `sdk/org/scenarios/results/`.
+traces in `sdk/org/scenarios/results/`; and a **repeatable workflow** — `sdk/org/scenarios/PLAYBOOK.md`
++ `_template/run.mjs` — distilled from the campaign so the whole find→fix→verify→report loop can be
+re-run on any subject.
 
 **Known follow-ups (documented, not blockers):** `writeCodeNode` (code-node *authoring* — runtime
 works, primitive missing); converge `app-architect/build_app` onto the live project (it still builds a
@@ -70,7 +72,7 @@ below.
 | 02 | Consent & Store | ✅ **PASS 71/71** | security P0 verified by observation; 2 non-security bugs fixed |
 | 03 | Resilience | ✅ **PASS 46/46** | loop guard held under a 200-delivery storm; found + fixed a real coalescing bug |
 | 04 | Signals & Code nodes | ✅ **PASS** (feature-verified) | 2 bugs fixed; 1 major gap found (no specialist can author a code node) |
-| 05 | Latin America | 🟡 **CONDITIONAL PASS** | full lifecycle works live — 9 spaces → consented integration → **a real app that builds+serves at `/app/latam/`**; webhook+internal emitters fire; impossible request refused; 6 product bugs fixed. *Conditional:* db/cron emitters still gated by automator authoring reliability on loose compound asks (re-verifying on the final image) |
+| 05 | Latin America | 🟡 **CONDITIONAL PASS** | full lifecycle works live — 9 spaces → consented integration → **a real app that builds+serves at `/app/latam/`**; webhook+internal emitters fire; impossible request refused; 6 product bugs fixed. *Conditional:* the db/cron agent-trigger chain's final re-verify was **inconclusive** — the pod kept crashing on the `build_app`→catalog turn (see follow-up #2); everything else in 05 is verified + committed |
 
 **Deploy state.** All fixes are committed to `main` and imaged; prod compute has rolled forward across
 the campaign (…`6c9f34f` → `25f5ec2` → `7a2a3a1` → `1345229`/`2b861be5`). The final verification of the

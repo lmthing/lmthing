@@ -24,7 +24,7 @@
 > The project-app **engine** (db/api/typed-contracts/pages/hooks/chat + the Studio management
 > API) is fully built and validated locally (`localhost:8080/{studio, app/<project>, api}` all
 > coexist, browser-verified). This task stands up the two public domains that proxy the SAME pod,
-> per `sdk/org/project-as-application.md` §"Serving & domains". Per the plan: **build the engine
+> per `org/app/routes.md` (serving & domains). Per the plan: **build the engine
 > locally first (done); stand up the domains last.**
 
 ## Goal — one pod, two Host-anchored TLD aliases (both proxy the same pod)
@@ -59,7 +59,7 @@
    top-level `/api/*` 404s; `lmthing.studio/app/<project>/` renders byte-identical to the CLI.
 
 ## Reference
-- Engine + route table: `sdk/org/project-as-application.md` §"Serving & domains".
+- Engine + route table: `org/app/routes.md` (serving & domains).
 - CLI serve router (already mounts `/app/<project>/api/*`, `/app/<project>/*`, `/api/projects/<project>/app…`):
   `sdk/org/libs/cli/src/server/serve.ts`.
 - Per-domain routing precedent: the existing `chat`/`studio`/`computer` domain nginx K8s images + Envoy JWT+Lua.

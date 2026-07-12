@@ -4,7 +4,7 @@ A **form component** is a single React TSX file that an agent presents to the hu
 
 ## A single TSX file (the `web.tsx`/`ink.tsx` split is gone)
 
-A form component is one `<Name>.tsx` file, exactly like a view component — the former `<Name>/{web,ink}.tsx` two-file split has been removed `sdk/org/SPACE_DEVELOPMENT.md:181`. `loadComponents` reads each `.tsx`/`.ts` entry directly under `components/form/` into `space.components.form`, keyed by the file's basename `sdk/org/libs/core/src/spaces/load.ts:229-242`. A directory entry still holding the legacy `web.tsx`/`ink.tsx` layout is read defensively (preferring `web.tsx`, else `ink.tsx`) so not-yet-migrated on-disk spaces keep loading, but the canonical shape is a single file `sdk/org/libs/core/src/spaces/load.ts:243-249`.
+A form component is one `<Name>.tsx` file, exactly like a view component — the former `<Name>/{web,ink}.tsx` two-file split has been removed. `loadComponents` reads each `.tsx`/`.ts` entry directly under `components/form/` into `space.components.form`, keyed by the file's basename `sdk/org/libs/core/src/spaces/load.ts:229-242`. A directory entry still holding the legacy `web.tsx`/`ink.tsx` layout is read defensively (preferring `web.tsx`, else `ink.tsx`) so not-yet-migrated on-disk spaces keep loading, but the canonical shape is a single file `sdk/org/libs/core/src/spaces/load.ts:243-249`.
 
 ## Availability to an agent
 

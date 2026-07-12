@@ -2,7 +2,7 @@
 
 A space's `components/` directory holds single-file React (`.tsx`/`.ts`) components that an **agent** renders into the conversation — either fire-and-forget with `display()` or interactively with `ask()`. It is loaded from `<space>/components/` by `loadComponents`, which populates two maps, `view` and `form` `sdk/org/libs/core/src/spaces/load.ts:208-253`.
 
-These are **distinct from a project's `components/`** ([`../../project/components/`](../../project/components/)): space components are model-facing chat UI resolved by the runtime, not React modules imported by an app's `pages/`.
+These are **distinct from a project's `components/`** ([`../../project/components/`](../../project/components)): space components are model-facing chat UI resolved by the runtime, not React modules imported by an app's `pages/`.
 
 ## Two kinds: `view/` vs `form/`
 
@@ -62,4 +62,4 @@ Source: `store/projects/blog/spaces/newsroom/components/view/ArticlePreview.tsx`
 - [`view.md`](./view.md) — display components + `display()`.
 - [`form.md`](./form.md) — interactive components + `ask()`.
 - [`../agents/frontmatter.md`](../agents/frontmatter.md) — the `components:` allow-list key.
-- [`../../project/components/`](../../project/components/) — a project's own React components (distinct).
+- [`../../project/components/`](../../project/components) — a project's own React components (distinct).

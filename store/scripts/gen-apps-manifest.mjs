@@ -3,7 +3,7 @@
  * Store catalog manifest generator (Phase 10 — store distribution).
  *
  * Scans `store/projects/<appId>/` (each a full project-app template per
- * `sdk/org/project-as-application-implementation.md` §0.6 — `package.json
+ * `org/format/project/package.json.md` — `package.json
  * database/ pages/ api/ hooks/ components/ lib/`, minus runtime `.data/`/
  * `types/`) and:
  *

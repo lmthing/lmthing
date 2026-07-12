@@ -1,6 +1,6 @@
 # `blog` — lmthing.blog as a project-application
 
-Personalized AI news as a [project-as-application](../../../sdk/org/project-as-application.md):
+Personalized AI news as a [project-as-application](../../../org/format/project/README.md):
 
 - **`database/`** — `sources`, `raw_items`, `articles`, `citations`, `research`, `settings`.
 - **`api/`** — 12 named, typed Node endpoints (`feedList`, `getArticle`, `markRead`,

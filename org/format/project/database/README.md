@@ -63,7 +63,7 @@ The table set is compiled into a TS `interface` per table under `<projectRoot>/t
 
 ## Every committed write auto-emits a synthetic db event
 
-A committed write to any table auto-emits the synthetic event `project/db.<table>.<insert|update|remove>` whose payload IS the written row (`rows[0]` when a burst coalesces) `sdk/org/libs/cli/src/app/hooks/runtime.ts:119-136`. Subscribe with an event hook `{ type: 'event', on: { event: 'project/db.<table>.<event>' }, handler }` — the row arrives as `ctx.input` — see [../hooks/](../hooks/) and [../hooks/database.md](../hooks/database.md).
+A committed write to any table auto-emits the synthetic event `project/db.<table>.<insert|update|remove>` whose payload IS the written row (`rows[0]` when a burst coalesces) `sdk/org/libs/cli/src/app/hooks/runtime.ts:119-136`. Subscribe with an event hook `{ type: 'event', on: { event: 'project/db.<table>.<event>' }, handler }` — the row arrives as `ctx.input` — see [../hooks/](../hooks) and [../hooks/database.md](../hooks/database.md).
 
 ## Notes
 

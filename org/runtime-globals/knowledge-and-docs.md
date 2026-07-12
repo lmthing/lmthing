@@ -1,0 +1,196 @@
+# Knowledge & documents — `loadKnowledge`, `readDocument`, `inspect`, `serialize`
+
+The four pieces of the runtime that let an agent **read something it does not already have in context**, and that decide **how much of a value the model actually sees**.
+
+| Name | Kind | Capability gate | Host resolver |
+|---|---|---|---|
+| `loadKnowledge(...path)` | value **yield** (`kind:'loadKnowledge'`) | none — injected in every VM `sdk/org/libs/core/src/exec/bootstrap.ts:164` | the session resolves it itself `sdk/org/libs/core/src/session/session.ts:806-815`; fork leaves via the router's `knowledgeSpaceDir` `sdk/org/libs/core/src/eval/yield-router.ts:345-354` |
+| `readDocument(id, opts?)` | value **yield** (`kind:'readDocument'`) | none — deliberately universal, like `fetch` `sdk/org/libs/core/src/exec/bootstrap.ts:160-163` | `YieldRouterContext.documentResolver` `sdk/org/libs/core/src/eval/yield-router.ts:92-96` |
+| `inspect(...args)` | value **yield** (`kind:'inspect'`) | none `sdk/org/libs/core/src/exec/bootstrap.ts:157` | resolved by the **session** (`req.args[0]`), never by `routeCommonYield` `sdk/org/libs/core/src/session/session.ts:802-805` |
+| `serialize(value, opts?)` | not a global — the **host-side** formatter behind every VARIABLES block | n/a | `sdk/org/libs/core/src/globals/serialize.ts:13-25` |
+
+All three globals are declared unconditionally in `COMMON_DTS`, so they typecheck in the session, in forks and in delegates `sdk/org/libs/core/src/typecheck/library-dts.ts:35-40` · `sdk/org/libs/core/src/typecheck/library-dts.ts:97`. See [./README.md](./README.md) for the full global inventory, the capability→global gate table and the resolver seam.
+
+---
+
+## `loadKnowledge(...path)` — on-demand knowledge load
+
+```ts
+declare function loadKnowledge(...path: string[]): Promise<any>;
+```
+`sdk/org/libs/core/src/typecheck/library-dts.ts:38`
+
+Injected as `createLoadKnowledgeGlobal(pushYield, opts.spaceDir + '/knowledge')` — the base dir is always **`<spaceDir>/knowledge`**, never `process.cwd()` `sdk/org/libs/core/src/exec/bootstrap.ts:164`. The path segments are `join`ed onto that base, and the yield carries the normalized `domain/field/option` string as `args[0]` `sdk/org/libs/core/src/globals/load-knowledge.ts:75-92`.
+
+```ts
+const k = await loadKnowledge('journalism', 'source-evaluation', 'credibility-signals');
+```
+
+The return type is deliberately `any` so `k.body` reads without a cast (same convention as `tasklist`/`delegate`); the system prompt tells the model exactly that `sdk/org/libs/core/src/context/system-block.ts:164-165`.
+
+### How a path resolves to a file
+
+`loadKnowledgeFile(filePath)` is the single reader `sdk/org/libs/core/src/globals/load-knowledge.ts:18-50`:
+
+1. Read `<spaceDir>/knowledge/<...path>` verbatim.
+2. On a read miss — and only when the path does **not** already end in `.md` — fall back to `<path>.md`, then `<path>/index.md` `sdk/org/libs/core/src/globals/load-knowledge.ts:52-65`. This is why the prompt can hand the model an extension-less aspect **slug** and `loadKnowledge('domain','field','aspect')` still resolves (and why a bare `loadKnowledge('domain','field')` resolves to the field's `index.md` overview).
+3. Parse:
+   - with YAML frontmatter (`---` … `---`) → `{ frontmatter, body }` (frontmatter parsed with `logLevel:'silent'`; a YAML error degrades to the raw frontmatter text) `sdk/org/libs/core/src/globals/load-knowledge.ts:35-46`;
+   - otherwise → the **raw markdown string**, trimmed. A frontmatter-less file is *never* run through the YAML parser: markdown such as `- **MMLU-Pro**: 75.9` is almost-valid YAML — the parser does not throw, it returns a mangled structure and silently corrupts the agent's knowledge `sdk/org/libs/core/src/globals/load-knowledge.ts:6-16` · `sdk/org/libs/core/src/globals/load-knowledge.ts:48-49`.
+4. Both candidates missing ⇒ `Error: loadKnowledge(): cannot read "<path>": <reason>` `sdk/org/libs/core/src/globals/load-knowledge.ts:30`.
+
+For the on-disk shape this reads (`knowledge/<domain>/<field>/index.md` + aspect files) see [../format/space/knowledge/README.md](../format/space/knowledge/README.md); the loader that builds the in-memory tree is `sdk/org/libs/core/src/spaces/load.ts:255-328` (options = every `.md` in the field dir except `index.md`, keyed by basename `sdk/org/libs/core/src/spaces/load.ts:290-299`).
+
+### Who resolves the yield
+
+- **Top-level session** — `Session.handleYield` handles `loadKnowledge` *before* consulting the router: it joins `<spaceDir>/knowledge/<rel>` and returns the parsed **content** (returning `args[0]` would bind the path string) `sdk/org/libs/core/src/session/session.ts:806-815`.
+- **Fork leaf** — the router resolves it from `ctx.knowledgeSpaceDir`, which the ForkEngine sets to the parent's space dir `sdk/org/libs/core/src/fork/fork.ts:431` · `sdk/org/libs/core/src/eval/yield-router.ts:345-354`. The host **must** return the content: the turn loop resolves the yield's deferred with whatever `processYield` returned `sdk/org/libs/core/src/eval/turn-loop.ts:628-630`, so an `undefined` there wins the race against the global's own `loadKnowledgeFile().then(resolve)` and the fork binds `k = undefined`. That was a real regression; it is now covered by a test `sdk/org/libs/core/src/fork/fork.test.ts:123-160`.
+
+> UNVERIFIED — a **delegate** builds its `YieldRouterContext` without `knowledgeSpaceDir` (`sdk/org/libs/core/src/delegate/delegate.ts:340-355`, and `rg knowledgeSpaceDir` in `libs/core/src` hits only `fork.ts:431` and the router), and its `processYield` returns `undefined` for anything the router does not handle (`sdk/org/libs/core/src/delegate/delegate.ts:383`) — i.e. exactly the shape that produced the fork bug above. I found no test exercising `loadKnowledge` inside a delegate (`rg -l loadKnowledge` over `libs/core/**/*.test.ts` hits only fork/session/bootstrap/prelude tests), so whether a delegate binds the content (via the `vm.getVar` fallback in `bindYieldResults`, `sdk/org/libs/core/src/eval/turn-loop.ts:293-295`) or `undefined` is not established by the code I read.
+
+### How knowledge *refs* reach the agent
+
+An agent's `knowledge:` frontmatter list is resolved at **prompt-build** time, not at call time `sdk/org/libs/core/src/context/system-block.ts:259-314`:
+
+- a **2-part** ref `domain/field` stays **on demand** — the system block prints the field, its `index.md` body inline as `overview:`, and the list of `aspects (load on demand)`, under the header ``Access with `loadKnowledge(domain, field, option)` `` `sdk/org/libs/core/src/context/system-block.ts:296-309`;
+- a **3-part** ref `domain/field/option` is **preloaded** — `resolvePreloadedKnowledge` resolves it up front and the option's body is injected directly into the system block, with its sibling options deliberately *not* listed: that agent has access only to the option it was bound to `sdk/org/libs/core/src/context/system-block.ts:60-79` · `sdk/org/libs/core/src/context/system-block.ts:286-294`.
+
+A real 2-part ref, from the blog store project `store/projects/blog/spaces/newsroom/agents/researcher/instruct.md:9-10`:
+
+```yaml
+knowledge:
+  - journalism/deep-dive-method
+```
+
+The two resolution paths are distinct and must not be confused: **preloads** go through `resolveKnowledge(space, path)` over the *loaded space tree* — it accepts `[domain]` / `[domain, field]` / `[domain, field, option]` and throws `Knowledge domain|field|option "…" not found` `sdk/org/libs/core/src/spaces/knowledge.ts:10-62` — while the `loadKnowledge` **global** reads the filesystem directly `sdk/org/libs/core/src/globals/load-knowledge.ts:75-92`.
+
+---
+
+## `readDocument(attachmentId, opts?)` — read an upload's text
+
+```ts
+declare function readDocument(attachmentId: string, opts?: { maxChars?: number }): Promise<{
+  ok: boolean; attachmentId: string; mediaType: string; filename?: string;
+  kind: 'text' | 'unsupported'; text?: string; truncated?: boolean; error?: string;
+}>;
+```
+`sdk/org/libs/core/src/typecheck/library-dts.ts:97` · result type `ReadDocumentResult` `sdk/org/libs/core/src/globals/read-document.ts:10-22`
+
+**Never capability-gated** — injected into every VM (session, fork, delegate) exactly like `fetch`, so any agent can read an attachment by id `sdk/org/libs/core/src/exec/bootstrap.ts:160-163` · `sdk/org/libs/core/src/globals/read-document.ts:38-50`. **The bytes never enter the sandbox**: the sandbox supplies only the id (+ optional `maxChars`); the host reads the file from the uploads dir and hands back extracted text `sdk/org/libs/core/src/globals/read-document.ts:47-49`.
+
+The host side is `YieldRouterContext.documentResolver` `sdk/org/libs/core/src/eval/yield-router.ts:92-96`. When it is absent (a bare in-memory session, no uploads dir) the yield **rejects** with a clear, retryable error rather than binding `undefined`:
+
+```
+readDocument is not available here: no document resolver configured
+```
+`sdk/org/libs/core/src/eval/yield-router.ts:225-236`
+
+### The pod resolver (extraction matrix)
+
+`SessionManager` attaches `resolveDocument` to **every** session, project-rooted or not `sdk/org/libs/cli/src/server/session-manager.ts:385-390` · `sdk/org/libs/cli/src/server/session-manager.ts:447`, backed by `resolveUploadDocument(uploadsDir, id, opts)` `sdk/org/libs/cli/src/server/uploads.ts:192-258`. It is server-authoritative (only the id is trusted; bytes + metadata are re-read from disk) and **never throws** — an unreadable file resolves to `kind:'unsupported'` with an `error` string the agent can relay `sdk/org/libs/cli/src/server/uploads.ts:184-191`.
+
+| Input | Result |
+|---|---|
+| unsafe id / no metadata | `{ok:false, kind:'unsupported', error:'invalid attachment id' \| 'attachment not found'}` `sdk/org/libs/cli/src/server/uploads.ts:198-204` |
+| `kind:'audio'` | `{ok:true, kind:'text', text: <transcript captured at upload time>}` `sdk/org/libs/cli/src/server/uploads.ts:206-209` |
+| `kind:'image'` | `{ok:false, error:'image — use system-vision instead'}` `sdk/org/libs/cli/src/server/uploads.ts:210-213` |
+| spreadsheet (xlsx/xls/xlsm/ods/csv/tsv — by media type **or** filename) | every sheet rendered to CSV via SheetJS `sdk/org/libs/cli/src/server/uploads.ts:63-92` · `sdk/org/libs/cli/src/server/uploads.ts:218-228` |
+| text media (`text/*`, json/xml/yaml/csv/js/ts/markdown/x-sh/toml), excluding the OOXML container family | utf8 decode `sdk/org/libs/cli/src/server/uploads.ts:36-43` · `sdk/org/libs/cli/src/server/uploads.ts:229-237` |
+| `application/pdf` | `unpdf` extraction; nothing extractable ⇒ `error:'no extractable text (likely a scanned/image-only PDF)'` `sdk/org/libs/cli/src/server/uploads.ts:45-61` · `sdk/org/libs/cli/src/server/uploads.ts:238-246` |
+| Word / PowerPoint / ODT / ODP | `officeparser` `sdk/org/libs/cli/src/server/uploads.ts:109-124` · `sdk/org/libs/cli/src/server/uploads.ts:247-254` |
+| anything else | `{ok:false, error:'file type not yet supported: <mediaType>'}` `sdk/org/libs/cli/src/server/uploads.ts:256-257` |
+
+Text is capped at `opts.maxChars` (default `READ_DOCUMENT_MAX_CHARS = 100_000`) and `truncated:true` is set when the cap bit `sdk/org/libs/cli/src/server/uploads.ts:181-182` · `sdk/org/libs/cli/src/server/uploads.ts:197`.
+
+### DOCUMENT CONTENTS — why the model sees the whole file
+
+The bound result would otherwise be shown through the VARIABLES serializer, whose 200-char string cap would reveal only the opening of a real document (and its `…` marker would read as real truncation). So the turn loop collects every `readDocument` yield that came back readable and appends the **full text** as its own block after VARIABLES `sdk/org/libs/core/src/eval/turn-loop.ts:40-65` · `sdk/org/libs/core/src/eval/turn-loop.ts:726-733`:
+
+```
+DOCUMENT CONTENTS (full text of the file(s) you just read — answer from THIS,
+not from the truncated `doc` preview in VARIABLES above):
+
+--- report.pdf (application/pdf) ---
+<extracted text>
+```
+`sdk/org/libs/core/src/eval/turn-loop.ts:55-64`
+
+A capped document gets ` — truncated (capped); later content was not included` appended to its header line `sdk/org/libs/core/src/eval/turn-loop.ts:57`.
+
+---
+
+## `inspect(...args)` — surface a value (or a slice of it) to the model
+
+```ts
+declare function inspect(...args: (unknown | [unknown, InspectQuery])[]): Promise<void>;
+declare interface InspectQuery {
+  path?: string; slice?: [number, number]; depth?: number; filter?: string;
+  sample?: number; keys?: boolean; count?: boolean; search?: string;
+}
+```
+`sdk/org/libs/core/src/typecheck/library-dts.ts:37` · `sdk/org/libs/core/src/typecheck/library-dts.ts:67-76`
+
+Each argument is either a bare value or a `[value, query]` pair; the query is applied **inside the global, before the yield is pushed**, so the host only ever sees the reduced value `sdk/org/libs/core/src/globals/inspect.ts:22-43`. It yields (`kind:'inspect'`) and resolves to `void`.
+
+`applyQuery` runs the operators in a fixed order — `path` → `keys` → `count` → `search` → `filter` → `slice` → `sample` `sdk/org/libs/core/src/globals/inspect.ts:53-106`:
+
+- **`path`** — dotted access, array indices included (`'items.0.title'`) `sdk/org/libs/core/src/globals/inspect.ts:108-123`
+- **`keys` / `count`** — `Object.keys(...)`, or the length of an array/string / key count of an object `sdk/org/libs/core/src/globals/inspect.ts:62-73`
+- **`search`** — case-insensitive substring match over `JSON.stringify(item)` for array items `sdk/org/libs/core/src/globals/inspect.ts:75-80`
+- **`filter`** — a restricted predicate over array items: `<dotted.path> <op> <literal>` joined by `AND` / `OR`; ops `== != > < >= <=`; literals `true|false|null|number|"quoted"|bare` `sdk/org/libs/core/src/globals/inspect.ts:125-174`
+- **`slice` / `sample`** — `[start, end]`, or `n` random items (the whole array when `n >= length`) `sdk/org/libs/core/src/globals/inspect.ts:88-103`
+- **`depth`** — *not* applied by `applyQuery`; it is a hint the serializer's truncation messages suggest (`inspect([var, { depth: 8 }])`), and today it does not change what `inspect` returns `sdk/org/libs/core/src/globals/inspect.ts:53-106` · `sdk/org/libs/core/src/globals/serialize.ts:42-51`
+
+```ts
+await inspect([results, { filter: 'score >= 0.8 AND kind == "paper"', slice: [0, 5] }]);
+await inspect([tree, { keys: true }], [rows, { count: true }]);
+```
+
+Two behaviours make `inspect` unlike every other yield:
+
+1. **The session resolves it, not the router.** `routeCommonYield` has no `'inspect'` case (its doc comment says so explicitly) — the session returns `req.args[0]` directly `sdk/org/libs/core/src/eval/yield-router.ts:123-126` · `sdk/org/libs/core/src/session/session.ts:802-805`.
+2. **Its values are surfaced without a binding.** `inspect(x)` is normally called with no `const` on the left, so the turn loop's name-binding captures nothing. The loop therefore pulls the processed args out of the yields, formats them with `formatInspectResult`, and splices those lines into the VARIABLES block the model already reads — otherwise a bare `inspect()` would surface *nothing* and the model would re-type or hallucinate the values `sdk/org/libs/core/src/eval/turn-loop.ts:696-725`.
+
+`formatInspectResult` labels each value `inspected[i]`, or `inspected[i].<path>` when the query carried a `path` `sdk/org/libs/core/src/globals/inspect.ts:179-187`:
+
+```
+VARIABLES
+inspected[0].items.0.title: "Extraction basics"
+```
+
+The turn loop also nudges the model toward `inspect` when it binds a value from a **non-**yielding call (whose result is never surfaced automatically): "If you must SEE that result before the next step, call `inspect(<var>)` — it surfaces the value and resumes you." `sdk/org/libs/core/src/eval/turn-loop.ts:243-247`
+
+---
+
+## `serialize(value, opts?)` — the capped VARIABLES formatter
+
+Not a global: it is the host-side function that renders every value the model sees, with caps chosen so one large binding cannot blow up the context `sdk/org/libs/core/src/globals/serialize.ts:13-25`.
+
+| Cap | Default | Behaviour on overflow |
+|---|---|---|
+| `byteCap` | 4096 | truncate + `` … [truncated — inspect([var, { slice: [0, 10] }]) to expand] `` `sdk/org/libs/core/src/globals/serialize.ts:6-24` |
+| `depthCap` | 6 | `[… N items, truncated — inspect([var, { depth: 8 }]) to expand]` / `{… N keys, truncated — …}` `sdk/org/libs/core/src/globals/serialize.ts:42-51` |
+| string | 200 chars | `"head… (N chars total)"` `sdk/org/libs/core/src/globals/serialize.ts:33-40` |
+| array | 20 items | `, … (N items total)` `sdk/org/libs/core/src/globals/serialize.ts:53-58` |
+| object | 20 keys | `, … (N keys total)` `sdk/org/libs/core/src/globals/serialize.ts:65-74` |
+
+`ArrayBuffer` / typed arrays render as `<ArrayBuffer N bytes>` `sdk/org/libs/core/src/globals/serialize.ts:60-63`. Every truncation message names `inspect(...)` **with the exact query to expand** — that is the designed loop: *serialize shows a capped preview; `inspect` is how the model asks for more.*
+
+Call sites: the VARIABLES block (`emitVariables` `sdk/org/libs/core/src/context/variables.ts:8-13`), the inspect fold (`formatInspectResult` `sdk/org/libs/core/src/globals/inspect.ts:184`), the trace `variables` event (`sdk/org/libs/core/src/eval/turn-loop.ts:685-691`) and the fork/task prelude's first VARIABLES snapshot (`sdk/org/libs/core/src/exec/prelude.ts:248-251`).
+
+---
+
+## Gotchas
+
+- **`inspect`, `loadKnowledge` and `readDocument` all YIELD** — they end the current turn and resume the next one with their value bound host-side. (`display` is the only fire-and-forget surface global.) See [./README.md](./README.md).
+- **`loadKnowledge` is rooted at `<spaceDir>/knowledge`** — it cannot reach outside the space's knowledge tree by construction `sdk/org/libs/core/src/exec/bootstrap.ts:164`.
+- **A knowledge aspect file is markdown, not YAML** — only a leading `---` frontmatter block is parsed; everything else comes back verbatim `sdk/org/libs/core/src/globals/load-knowledge.ts:48-49`.
+- **`readDocument` on an image fails on purpose** (`'image — use system-vision instead'`) — images go to the vision specialist `sdk/org/libs/cli/src/server/uploads.ts:210-213`.
+- **Never read a document's text out of the VARIABLES preview** — read it from the DOCUMENT CONTENTS block appended after it `sdk/org/libs/core/src/eval/turn-loop.ts:726-733`.
+- **`readDocument` needs a host resolver, not a capability** — outside a pod/CLI with an uploads dir the yield rejects with a named error `sdk/org/libs/core/src/eval/yield-router.ts:225-236`.
+
+## See also
+
+- [./README.md](./README.md) — the global inventory, capability gates and the host-resolver seam
+- [../format/space/knowledge/README.md](../format/space/knowledge/README.md) — the `knowledge/<domain>/<field>/` on-disk format these globals read
+- [./session-and-utils.md](./session-and-utils.md) — `display`, `fetch`, and the synchronous host-tools substrate

@@ -89,7 +89,7 @@ lmthing/
 ## Documentation
 
 - [Architecture](./Architecture.md) — full product & domain architecture
-- [Tech Architecture](./TechArchitecture.md) — developer onboarding & system overview
+- [Architecture](./Architecture.md) — developer onboarding & system overview
 - [Cloud Backend](./cloud/README.md) — cloud setup & deployment
 - [DevOps](./devops/README.md) — Kubernetes bootstrap and infrastructure docs
 

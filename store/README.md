@@ -16,7 +16,7 @@ Creators publish agents built in Studio. Buyers browse, preview, and acquire age
 
 Beyond single agents, the store distributes **project-applications** — a project that owns a full
 app (`database/ pages/ api/ hooks/` + its project-scoped `spaces/`) built on the pod runtime. See
-[project-as-application](../sdk/org/project-as-application.md) for the model.
+[project-as-application](../org/format/project/README.md) for the model.
 
 - Each catalog app is a complete on-disk template under `projects/<id>/` (`database/`, `pages/`,
   `api/`, `hooks/`, `components/`, `spaces/`, plus `package.json`/`project.json`). Five ship today:

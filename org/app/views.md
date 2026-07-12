@@ -1,0 +1,150 @@
+# App views — the client layer of a project-app
+
+A project-app's views are **real client-side React**. Every non-`_`-prefixed `.tsx`/`.jsx` under `<projectRoot>/pages/` is a file-routed page, bundled once (on save / boot / install — never per request) into a self-contained static bundle under `<projectRoot>/.data/pages-dist/` and served under `…/app/<project>/*` `sdk/org/libs/cli/src/app/build/pages.ts:1-26`. There is no pod-side loader and no descriptor flattening: a page is browser code that pulls its data over HTTP from the project's own `api/` endpoints through the `@app/runtime` module `sdk/org/libs/cli/src/app/runtime/index.ts:1-11`.
+
+Everything a page may import from the platform is that one module. The build aliases `@app/runtime` to the CLI package's runtime **source** (`<cliRoot>/src/app/runtime/index.ts`) and `@app/types` to the project's generated dts, so neither is a real npm package `sdk/org/libs/cli/src/app/build/pages.ts:461-473`, `sdk/org/libs/cli/src/app/build/pages.ts:249-250`.
+
+- Page/route file conventions (`index`, `[id]`, `_app`, `_layout`) → [../format/project/pages/README.md](../format/project/pages/README.md)
+- The endpoints these views call → [../format/project/api/README.md](../format/project/api/README.md)
+- The app's shared React library → [../format/project/components/README.md](../format/project/components/README.md)
+- URL mounts, serving, CSP → [./routes.md](./routes.md) · build/db/hooks behavior → [./features.md](./features.md)
+
+## The `@app/runtime` surface
+
+The barrel exports exactly these values `sdk/org/libs/cli/src/app/runtime/index.ts:13-35`:
+
+| Export | Signature | Kind |
+|---|---|---|
+| `apiCall` | `(name: string, input?: Record<string, unknown>) => Promise<unknown>` | data (bare one-shot) `…/runtime/client.ts:147` |
+| `HttpError` | `class HttpError extends Error { status: number; details?: unknown }` | error contract `…/runtime/client.ts:45-56` |
+| `resolveAppBase` | `(pathname: string, override?: string) => string` | base resolution `…/runtime/client.ts:78-83` |
+| `buildRequest` | `(entry, input, base) => { method, url, init }` | pure request builder `…/runtime/client.ts:121-139` |
+| `useApi` | `<T>(name, input?, opts?) => { data, error, isLoading, refetch }` | React query `…/runtime/hooks.tsx:70-116` |
+| `useApiMutation` | `<T>(name, { invalidates? }) => { mutate, isPending, error }` | React mutation `…/runtime/hooks.tsx:138-169` |
+| `useParams` | `<T>() => T` | routing `…/runtime/router.tsx:89-91` |
+| `Link` | `(props: { to?: string; href?: string } & AnchorHTMLAttributes) => ReactElement` | routing `…/runtime/router.tsx:143-162` |
+| `navigate` | `(to: string) => void` | routing `…/runtime/router.tsx:121-124` |
+| `mountApp` / `AppRoot` / `matchRoutes` | mount + match plumbing | used by the **generated entry**, not by page authors `…/runtime/router.tsx:217-222` |
+| `Chat` | `({ agent, projectId?, className? }) => ReactElement` | agent chat widget `…/runtime/chat.tsx:56-68` |
+
+(Paths above are under `sdk/org/libs/cli/src/app/`.) Types exported alongside: `EndpointManifest`, `EndpointManifestEntry`, `HttpErrorBody`, `QueryResult`, `UseApiOptions`, `UseApiMutationOptions`, `MutationResult`, `MountConfig`, `RouteEntry`, `PageComponent`, `WrapperComponent`, `ChatProps` `sdk/org/libs/cli/src/app/runtime/index.ts:14-36`.
+
+## Views call the api by **name**, not by URL
+
+A view addresses an endpoint by its stable exported `name` (`export const name = 'markRead'` in the handler — see [../format/project/api/README.md](../format/project/api/README.md)); the network layer addresses it by route. The bridge is the **endpoint manifest** `name → { method, routePath }`, projected at build time from the typed `EndpointContract[]` `sdk/org/libs/cli/src/app/build/pages.ts:204-208` and injected onto `window.__APP_ENDPOINTS__` by `mountApp` `sdk/org/libs/cli/src/app/runtime/router.tsx:217-218`. `apiCall` reads that manifest, and throws `HttpError(500, 'unknown endpoint "<name>"')` for an unknown name (or a 500 if the manifest was never injected) `sdk/org/libs/cli/src/app/runtime/client.ts:59-63`, `sdk/org/libs/cli/src/app/runtime/client.ts:147-149`.
+
+Request assembly is **method-aware** and mirrors the server's input assembly `sdk/org/libs/cli/src/app/runtime/client.ts:121-139`:
+
+1. `:param` segments of `routePath` are filled from `input` and those keys are marked consumed `sdk/org/libs/cli/src/app/runtime/client.ts:86-104`.
+2. For `GET`/`DELETE` the remaining keys become the query string (objects `JSON.stringify`'d, `undefined`/`null` dropped) `sdk/org/libs/cli/src/app/runtime/client.ts:106-118`.
+3. For `POST`/`PATCH`/`PUT` the remainder becomes a JSON body with `content-type: application/json` `sdk/org/libs/cli/src/app/runtime/client.ts:132-137`.
+4. The URL is `` `${base}/api${path}` ``, i.e. `…/app/<project>/api/items/42` `sdk/org/libs/cli/src/app/runtime/client.ts:127`.
+
+A non-2xx response is rethrown as `HttpError`, reusing the pod's `{ error: { status, message, details? } }` body — the same error shape the handler threw `sdk/org/libs/cli/src/app/runtime/client.ts:154-159`, `sdk/org/libs/cli/src/app/api/errors.ts` (`HttpError`, `toErrorBody`).
+
+### Base resolution (why the same bundle works on every mount)
+
+`resolveAppBase(pathname)` derives the `…/app/<project>` prefix from `window.location.pathname` with `/^(.*?\/app\/[^/]+)/`, unless `window.__APP_BASE__` overrides it `sdk/org/libs/cli/src/app/runtime/client.ts:78-83`. The override exists for the `/app`-stripped root mount (`lmthing.app/<project>/…`, where the prefix isn't in the path): the page server injects `<base href="…">` plus a nonce'd `window.__APP_BASE__ = …` bootstrap into the shell's `<head>` `sdk/org/libs/cli/src/app/pages-serve.ts:178-195`. One build, every prefix.
+
+## `useApi` — the query hook
+
+```tsx
+const { data, error, isLoading, refetch } = useApi<T>(name, input = {}, { enabled = true });
+```
+
+- Fetches on mount and re-runs whenever `[name, JSON.stringify(input)]` changes; `enabled: false` skips fetching entirely (e.g. until a param is known) `sdk/org/libs/cli/src/app/runtime/hooks.tsx:70-107`, `sdk/org/libs/cli/src/app/runtime/hooks.tsx:60-63`.
+- **Last-write-wins**: each run takes a monotonically increasing request id; a resolved response only commits if it is still the latest, so rapid input changes never flip `data` back to a stale value `sdk/org/libs/cli/src/app/runtime/hooks.tsx:82-101`.
+- Any thrown non-`HttpError` is wrapped as `HttpError(500, String(err))`, so `error` is always an `HttpError | undefined` `sdk/org/libs/cli/src/app/runtime/hooks.tsx:96-99`, `sdk/org/libs/cli/src/app/runtime/hooks.tsx:52-57`.
+- While enabled, the hook **registers its `refetch` under `name`** in an in-module `Map<string, Set<refetch>>` so a mutation can invalidate it `sdk/org/libs/cli/src/app/runtime/hooks.tsx:110-113`, `sdk/org/libs/cli/src/app/runtime/hooks.tsx:25-39`.
+
+Nothing caches across components: two `useApi('feedList')` mounts issue two fetches. There is no external query library — the whole layer is ~170 lines `sdk/org/libs/cli/src/app/runtime/hooks.tsx:1-17`.
+
+## `useApiMutation` — the mutation hook
+
+```tsx
+const { mutate, isPending, error } = useApiMutation<T>(name, { invalidates: ['feedList'] });
+await mutate({ id });   // resolves the endpoint's Output
+```
+
+`mutate(input)` calls `apiCall(name, input)`, and **on success only** re-fetches every live `useApi` query registered under each name in `invalidates` `sdk/org/libs/cli/src/app/runtime/hooks.tsx:149-166`, `sdk/org/libs/cli/src/app/runtime/hooks.tsx:41-47`. Invalidation is explicit — a name not listed is not refreshed. A failure stores an `HttpError` in `error` **and rethrows it**, so `await mutate(...)` must be guarded if the caller cares `sdk/org/libs/cli/src/app/runtime/hooks.tsx:157-160`.
+
+Real usage (`store/projects/demo-feed/pages/index.tsx:19-25`):
+
+```tsx
+const { data, isLoading, error } = useApi<FeedListOutput>('feedList', {});
+
+const addItem  = useApiMutation<FeedItem>('addItem',   { invalidates: ['feedList'] });
+const markRead = useApiMutation<{ ok: boolean }>('markRead', { invalidates: ['feedList'] });
+```
+
+`markRead` here is the `name` exported by `store/projects/blog/api/mark-read/POST.ts:14` — a rename of the *file* would not break the view; a rename of `name` would.
+
+## Routing
+
+The generated entry hands `mountApp` the route table, the wrappers and the manifest; `AppRoot` subscribes to `popstate` + the internal `lmthing:navigate` event, matches `window.location` against the table, and renders **page inside `_layout` inside `_app`** `sdk/org/libs/cli/src/app/runtime/router.tsx:179-205`, `sdk/org/libs/cli/src/app/runtime/router.tsx:167-176`.
+
+- `matchRoutes(routes, clientPath)` — segment-count match, `:param` segments captured and `decodeURIComponent`'d; first match wins `sdk/org/libs/cli/src/app/runtime/router.tsx:57-75`.
+- `clientPath(pathname)` — the pathname minus the resolved app base, so route-table paths stay base-agnostic (`/`, `/feed/:articleId`) `sdk/org/libs/cli/src/app/runtime/router.tsx:78-82`.
+- `useParams<T>()` — the matched params from React context; `{}` outside a route `sdk/org/libs/cli/src/app/runtime/router.tsx:86-91`. A page also receives them as its `params` prop (`PageComponent` is `ComponentType<{ params: Record<string,string> }>`) `sdk/org/libs/cli/src/app/runtime/router.tsx:17-18`.
+- `navigate(to)` — `history.pushState(toHref(to))` + dispatch the nav event `sdk/org/libs/cli/src/app/runtime/router.tsx:121-124`.
+- `Link` — an `<a>` whose rendered `href` carries the base (so middle-click / copy-link work) and whose plain left-click navigates client-side; modified clicks and `defaultPrevented` fall through to the browser `sdk/org/libs/cli/src/app/runtime/router.tsx:143-162`. It accepts **both `to` and `href`** (`to` wins) and pulls both out of the spread so a caller's `href` cannot override the based one `sdk/org/libs/cli/src/app/runtime/router.tsx:126-146`.
+- `toHref(to)` re-applies the `…/app/<project>` base to an app-relative path; external, protocol-relative (`//…`), hash and already-based paths pass through unchanged `sdk/org/libs/cli/src/app/runtime/router.tsx:109-114`. Without it, `navigate('/discover')` would push an origin-absolute URL and leave the app entirely.
+- No match → a token-styled `NotFound` ("No page for `<path>`") `sdk/org/libs/cli/src/app/runtime/router.tsx:207-214`.
+
+Both prop styles appear in shipped apps: `<Link href="/new" …>` (`store/projects/trips/pages/index.tsx:14-19`) and `useParams<{ searchId?: string }>()` inside a `_layout` (`store/projects/homes/pages/_layout.tsx:11`).
+
+## `<Chat>` — the one descriptor-rendering view
+
+`<Chat agent="space/agent" projectId? className? />` drops a live agent session into a page `sdk/org/libs/cli/src/app/runtime/chat.tsx:56-68`. It is the **only** place the `@lmthing/ui` catalog descriptor renderer (`DisplayBlock`/`AskBlock`/`VariablesBlock`) lives inside a page app — pages are otherwise plain React `sdk/org/libs/cli/src/app/runtime/chat.tsx:1-10`. It reuses the standard pod chat protocol verbatim: `POST /api/sessions { spaceRef, projectId }` → `useReplSession({ baseUrl, sessionId, accessToken })` → `WS /api/ws?sessionId=<id>`, with `ask()` answers round-tripping over the same socket `sdk/org/libs/cli/src/app/runtime/chat.tsx:11-21`, `sdk/org/libs/cli/src/app/runtime/chat.tsx:98-102`. `projectId` defaults to the `…/app/<project>` segment of the URL `sdk/org/libs/cli/src/app/runtime/chat.tsx:85`. The platform `@lmthing/auth` Bearer token is attached to both the session-create POST and the WS, because the pod's `/api/*` proxy is JWT-gated `sdk/org/libs/cli/src/app/runtime/chat.tsx:38-52`, `sdk/org/libs/cli/src/app/runtime/chat.tsx:95-102`. Session endpoints → [../cli-api/rest/sessions.md](../cli-api/rest/sessions.md).
+
+## `@app/types` — generated from `database/` + `api/`
+
+`generateAppTypes(projectRoot)` loads the project's tables and api routes, renders row interfaces + endpoint I/O types, and **writes `<projectRoot>/types/generated.d.ts`** — a git-ignored build artifact, regenerated on every build (`runBuild` calls it before bundling) `sdk/org/libs/cli/src/app/build/schema.ts:348-364`, `sdk/org/libs/cli/src/app/build/pages.ts:219-221`. The build aliases `@app/types` to that file, and only when it exists `sdk/org/libs/cli/src/app/build/pages.ts:249-250`.
+
+**Row types** — one `export interface` per `database/<table>.json`, tables sorted for deterministic output `sdk/org/libs/cli/src/app/build/schema.ts:95-120`:
+
+| Column `type` | TS |
+|---|---|
+| `string` | `string` |
+| `number` | `number` |
+| `boolean` | `boolean` |
+| `date` | `string` (ISO) |
+| `json` | `unknown` |
+
+(`sdk/org/libs/cli/src/app/build/schema.ts:73-79`.) A **required or primary-key** column is non-optional; every other column gets `?`; each field carries the schema's `description` as JSDoc `sdk/org/libs/cli/src/app/build/schema.ts:106-110`. Relations are appended as optional typed fields — `hasMany` → `Target[]`, `belongsTo` → `Target` — present only when the query `include`s them `sdk/org/libs/cli/src/app/build/schema.ts:112-127`. The interface name is the PascalCased table basename with its **last word singularized** (`feed_items` → `FeedItem`, `categories` → `Category`, but `status`/`address`/`axis` tails are left alone) `sdk/org/libs/cli/src/app/build/schema.ts:137-155`.
+
+**Endpoint types** — for each endpoint, the handler's `export interface Input` / `Output` are turned into JSON Schema by `ts-json-schema-generator` (one generator per handler file, `skipTypeCheck`), the root `$ref` is inlined so the schema is directly ajv-usable, and a compact TS-type string is printed `sdk/org/libs/cli/src/app/build/schema.ts:179-213`, `sdk/org/libs/cli/src/app/build/schema.ts:252-265`. Each endpoint then emits `<Name>Input` / `<Name>Output` declarations (PascalCased `name`) into the dts `sdk/org/libs/cli/src/app/build/schema.ts:382-400`. A handler with no `Input` yields an empty-object schema `sdk/org/libs/cli/src/app/build/schema.ts:162-165,197-201`.
+
+The same `EndpointContract[]` feeds three other consumers — the request validators (ajv), the agent's typed `apiCall` DTS overload, and the client endpoint manifest — so a view, a handler and an agent all see one contract `sdk/org/libs/cli/src/app/build/contracts.ts` (`generateProjectContracts`), `sdk/org/libs/cli/src/app/build/pages.ts:204-208`.
+
+A view imports row types straight from the alias:
+
+```tsx
+import type { Article } from '@app/types';
+import { useApi, useApiMutation, apiCall, Link } from '@app/runtime';
+
+export default function ArticleDetail({ params }: { params: { articleId: string } }) {
+  const { articleId } = params;
+  const { data: article, isLoading, error, refetch } = useApi<Article>('getArticle', { id: articleId });
+  const saveArticle = useApiMutation<{ ok: boolean }>('saveArticle', {
+    invalidates: ['getArticle', 'feedList', 'feedStats'],
+  });
+  // …
+}
+```
+(`store/projects/blog/pages/feed/[articleId].tsx:1-27`.)
+
+## Design tokens — the styling rule
+
+Views must style with **design tokens only** — no hex, no literal `rgb()/hsl()`, no stock Tailwind color utilities (`gray-*`/`blue-*`/`green-500`); use `bg-background`, `text-foreground`, `bg-primary`, `border-border`, `var(--destructive)`, … (root `CLAUDE.md` design-system section; canonical spec `sdk/org/libs/css/DESIGN.md`). The runtime itself obeys it: `NotFound` is `text-muted-foreground p-4` `sdk/org/libs/cli/src/app/runtime/router.tsx:207-213` and `<Chat>` styles exclusively with `var(--primary)`, `var(--border)`, `var(--destructive)`, `var(--muted-foreground)` `sdk/org/libs/cli/src/app/runtime/chat.tsx:220-294`. Shipped pages follow suit (`store/projects/trips/pages/index.tsx:13-25`).
+
+The tokens are made to *work* by the build: the generated entry imports a synthesized `app.css` that `@import`s `@lmthing/css`'s theme, declares `@source` globs over the project's `pages/`, `components/`, `lib/` plus the design-system source trees, and applies `bg-background text-foreground font-sans antialiased` to `body` `sdk/org/libs/cli/src/app/build/pages.ts:352-369`, `sdk/org/libs/cli/src/app/build/pages.ts:324-326`. A Tailwind-v4 esbuild plugin compiles it (esbuild alone cannot expand `@theme`/`@apply`) `sdk/org/libs/cli/src/app/build/pages.ts:231-236`, and `@lmthing/css` / `@lmthing/ui` are located via `resolveDesignSystem`; if they are unresolvable the build proceeds *without* the stylesheet rather than failing `sdk/org/libs/cli/src/app/build/pages.ts:542-566`. Pages may import `@lmthing/ui` elements — a build-only plugin rewrites `@lmthing/ui/elements/<dir>` to its concrete `index.*` because esbuild honors `exports` maps exactly `sdk/org/libs/cli/src/app/build/pages.ts:504-532`.
+
+> UNVERIFIED: whether the token rule is CI-enforced for project-app views. `pnpm lint:tokens` scans `sdk/org/libs/css/src sdk/org/libs/ui/src sdk/org/apps/web/src com/src social/src team/src store/src space/src blog/src casa/src` (`package.json:14`) — that list does **not** include `store/projects/` or a pod project root, and I found no token-lint step inside the page build (searched `sdk/org/libs/cli/src/app/build/**`). For views the rule appears to be an authoring mandate, not an automated gate.
+
+## Gotchas
+
+- **`mountApp` is not a page API.** It is called only by the entry the build generates in `<projectRoot>/.data/pages-build/entry.tsx`, which imports the pages + `_app`/`_layout`, embeds the route table and manifest, and mounts `AppRoot` `sdk/org/libs/cli/src/app/build/pages.ts:317-343`.
+- **Runtime-only fixes need `BUILDER_VERSION` bumped.** The build cache hashes only the project's own `pages/`/`components/`/`lib/`/`package.json`; a change to `@app/runtime` reaches already-built apps only when `BUILDER_VERSION` (currently `'4'`) changes `sdk/org/libs/cli/src/app/build/pages.ts:76-90`.
+- **Views are built, not rendered per request.** The page server only reads a cached `{ outDir, assetManifest }`; a path not in the manifest falls back to `index.html`, which is what makes dotted dynamic params route client-side `sdk/org/libs/cli/src/app/pages-serve.ts:1-46`.
+- **Inline `<script>` is blocked.** Served pages carry a strict CSP (`default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; …`), with a per-response nonce only for the `__APP_BASE__` bootstrap — so LLM-authored view content cannot inject executable script `sdk/org/libs/cli/src/app/pages-serve.ts:44-46`, `sdk/org/libs/cli/src/app/pages-serve.ts:178-195`.

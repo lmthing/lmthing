@@ -1,6 +1,6 @@
 # lmthing.trips — the `trips` project-application
 
-An AI trip planner built on the shared pod runtime (`project-as-application.md`). You describe a
+An AI trip planner built on the shared pod runtime (see `org/format/project/`). You describe a
 trip in free text; a project-scoped **`concierge`** space of agents (`planner` → `researcher` +
 `scheduler`) researches destinations and drafts a day-by-day itinerary you refine by chat. The
 itinerary stays a living document — drag items, adjust dates, watch the budget roll-up.

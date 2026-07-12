@@ -3,8 +3,8 @@
 Runs **Claude Code headless every 5 hours** to build, test, and ship the five
 project-applications described in `app-specifications/{blog,kitchen,health,trips,homes}-application.md`,
 each conforming to the two canonical architecture docs the prompt reads in full every run:
-`sdk/org/project-as-application.md` (the model + file formats) and
-`sdk/org/project-as-application-implementation.md` (the phased build/test/push contract —
+`org/format/project/` (the model + file formats) and
+`org/runtime-globals/app-authoring.md` (the authoring globals —
 §0 global protocol, live-DeepSeek test protocol, push-both-repos protocol, engine phases).
 Those two live in the `sdk/org` submodule and are **read-only ground truth**; the builder edits
 only the five app specs (in `app-specifications/`, parent repo).
@@ -21,7 +21,7 @@ round is derived from the round-robin counter in `state/` and passed into the pr
 
 Every run:
 
-1. reads `app-specifications/project-as-application.md` (the model it must abide by) + that app's spec;
+1. reads `org/format/project/` (the model it must abide by) + that app's spec;
 2. **thinks deeply and edits the spec** to add improvements / new features (staying inside
    the parent model);
 3. writes a detailed implementation plan (`PLAN.<app>.md`);

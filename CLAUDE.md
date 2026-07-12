@@ -24,7 +24,7 @@ lmthing/
 - **Studio / Computer / Chat** live together in one Vite SPA — `sdk/org/apps/web/` — as client-side routes (`/studio`, `/computer`, `/chat`). `lmthing serve` (the bare `lmthing` command) serves the pre-built SPA as a catch-all for all non-`/api` requests; all three surfaces are on one origin. In production, the same build is deployed as three separate nginx K8s images (one per domain); the hostname-based redirect at `/` picks the right surface client-side.
 - **Core runtime** lives in `sdk/org/libs/{core,cli}` — model-streamed TypeScript evaluated one statement at a time in a QuickJS WASM sandbox. See [sdk/org/CLAUDE.md](./sdk/org/CLAUDE.md).
 - **Shared libraries** in `sdk/org/libs/`: `@lmthing/state` (in-memory VFS), `@lmthing/ui`, `@lmthing/css`, `@lmthing/auth`, `@lmthing/spaces`, `@lmthing/utils`. They live **inside the sdk/org submodule** so the pod image (Docker context = `sdk/org`) can build the apps self-contained.
-- **Project-as-application** — a project can own a full **app** (`database/ pages/ api/ hooks/` at the project root, siblings of `spaces/`) built on the shared pod runtime: a project-rooted SQLite db, worker-isolated Node API handlers, client-side React pages, and in-proc db/cron hooks, all gated by an agent's `capabilities:` frontmatter. Apps are authored by the **`system-appbuilder`** space (THING delegates "build me an app" requests to its `app-architect`) and distributed via the **`store/projects/`** catalog (browsed on lmthing.store; installed by the pod's CLI server via `GET /api/apps` + `POST /api/apps/install`). Five ship today — `blog`, `health`, `kitchen`, `trips`, `demo-feed` (`store/projects/<id>/`, indexed by `store/projects/manifest.json`). Detail → [sdk/org/project-as-application.md](./sdk/org/project-as-application.md) · [sdk/org/SPACE_DEVELOPMENT.md](./sdk/org/SPACE_DEVELOPMENT.md) §7 · authoring skill [sdk/org/.claude/skills/project-app.md](./sdk/org/.claude/skills/project-app.md) · [store/README.md](./store/README.md).
+- **Project-as-application** — a project can own a full **app** (`database/ pages/ api/ hooks/` at the project root, siblings of `spaces/`) built on the shared pod runtime: a project-rooted SQLite db, worker-isolated Node API handlers, client-side React pages, and in-proc db/cron hooks, all gated by an agent's `capabilities:` frontmatter. Apps are authored by the **`system-appbuilder`** space (THING delegates "build me an app" requests to its `app-architect`) and distributed via the **`store/projects/`** catalog (browsed on lmthing.store; installed by the pod's CLI server via `GET /api/apps` + `POST /api/apps/install`). Five ship today — `blog`, `health`, `kitchen`, `trips`, `demo-feed` (`store/projects/<id>/`, indexed by `store/projects/manifest.json`). Detail → **[org/](./org/README.md)** — the on-disk format [org/format/project/](./org/format/project/README.md), the runtime/serving model [org/app/](./org/app/README.md), the authoring globals [org/runtime-globals/app-authoring.md](./org/runtime-globals/app-authoring.md) · authoring skill [sdk/org/.claude/skills/project-app.md](./sdk/org/.claude/skills/project-app.md) · [store/README.md](./store/README.md).
 
 ## Backend — important
 
@@ -90,6 +90,10 @@ Load the matching file when working on:
 | adding a pricing tier (cross-cutting checklist) | `@.claude/skills/add-tier.md` |
 | auth flows / SSO / gateway routes | `@.claude/skills/authentication.md` |
 | deploying an SPA / domain health checks | `@.claude/skills/deploy-spa.md` |
+| **the on-disk FORMAT of a project or a space** — `database/ api/ pages/ hooks/ events/` file kinds; agent `charter.md`/`instruct.md` frontmatter, capabilities, tasklists, knowledge, components | [./org/format/](./org/format/README.md) |
+| **the agent runtime globals** — `display`/`ask`/`delegate`/`fork`, `db`, `writeTableSchema`/`writeApi`/`writePage`/`writeHook`, `installSpace`, `emitEvent`, `callConnection` | [./org/runtime-globals/](./org/runtime-globals/README.md) |
+| **the `lmthing` CLI + the pod REST API** — commands/flags; every `/api/*` route the pod serves | [./org/cli-api/](./org/cli-api/README.md) |
+| **a product surface** — routes, features, views of `/chat`, `/studio`, `/computer`, and a served project-app | [./org/chat/](./org/chat/README.md) · [./org/studio/](./org/studio/README.md) · [./org/computer/](./org/computer/README.md) · [./org/app/](./org/app/README.md) |
 | full system & data-flow architecture (diagrams) | [./Architecture.md](./Architecture.md) |
 | spaces authoring / agent runtime / eval loop | [./sdk/org/CLAUDE.md](./sdk/org/CLAUDE.md) |
 | the VFS library (`@lmthing/state`) | [./sdk/org/libs/state/CLAUDE.md](./sdk/org/libs/state/CLAUDE.md) |
@@ -155,7 +159,12 @@ Open `.issues/` problems: CI/ArgoCD deploy flakiness, Zitadel login (sdk/org/.is
 
 ## Useful Links
 
+- **[org/](./org/README.md) — the code-grounded doc hub.** Every sentence cites the implementation:
+  [format/](./org/format/README.md) (project + space on-disk format) ·
+  [runtime-globals/](./org/runtime-globals/README.md) ·
+  [cli-api/](./org/cli-api/README.md) (CLI + pod REST) ·
+  [chat/](./org/chat/README.md) · [studio/](./org/studio/README.md) ·
+  [computer/](./org/computer/README.md) · [app/](./org/app/README.md) (served project-app)
 - [Architecture.md](./Architecture.md) — full product & domain architecture
-- [sdk/org/CLAUDE.md](./sdk/org/CLAUDE.md) — core runtime + served UI (studio/computer/chat routes in `apps/web/`)
 - [sdk/org/CLAUDE.md](./sdk/org/CLAUDE.md) — core runtime reference (eval loop, system spaces, sessions)
 - [devops/CLAUDE.md](./devops/CLAUDE.md) — infrastructure & deployment

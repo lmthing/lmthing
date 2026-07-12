@@ -1,7 +1,7 @@
 # lmthing.homes — the `homes` project-application
 
 An **AI-assisted home finder** for renters and buyers, built on the shared pod runtime
-(`project-as-application.md`). Hunting for a home is a second job done in the worst tooling
+(see `org/format/project/`). Hunting for a home is a second job done in the worst tooling
 imaginable — five portal tabs, an inbox full of alert emails, a spreadsheet nobody keeps up to
 date, and listings that lie a little. `homes` turns listing triage into a conversation.
 

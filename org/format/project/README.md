@@ -1,10 +1,10 @@
 # `project/` — the project-as-application format
 
-A **project** can own a full **app** built on the shared pod runtime: a project-rooted SQLite DB, worker-isolated Node API handlers, client-side React pages, in-proc hooks, and its own project-scoped spaces — the app layer lives at the project level as siblings of `spaces/` (`sdk/org/project-as-application.md` §"The model"). Apps are authored by the **`system-appbuilder`** space (THING delegates "build me an app" to its `app-architect`) and distributed via the **`store/projects/`** catalog (`sdk/org/project-as-application.md` §"The `system-appbuilder` space"; `sdk/org/libs/cli/src/server/routes/apps.ts` `handleInstallApp`). Two shipped reference apps: the full `store/projects/blog/` and the minimal hand-authored `store/projects/demo-feed/` (`store/projects/manifest.json`).
+A **project** can own a full **app** built on the shared pod runtime: a project-rooted SQLite DB, worker-isolated Node API handlers, client-side React pages, in-proc hooks, and its own project-scoped spaces — the app layer lives at the project level as siblings of `spaces/` (`org/app/README.md` (migrated design)). Apps are authored by the **`system-appbuilder`** space (THING delegates "build me an app" to its `app-architect`) and distributed via the **`store/projects/`** catalog (`org/app/README.md` (migrated design); `sdk/org/libs/cli/src/server/routes/apps.ts` `handleInstallApp`). Two shipped reference apps: the full `store/projects/blog/` and the minimal hand-authored `store/projects/demo-feed/` (`store/projects/manifest.json`).
 
 ## Directory layout
 
-The app's pillars sit at the project root, siblings of `spaces/` (`store/projects/blog/` — `api/ components/ database/ hooks/ pages/ spaces/`; `sdk/org/project-as-application.md` §"Directory layout").
+The app's pillars sit at the project root, siblings of `spaces/` (`store/projects/blog/` — `api/ components/ database/ hooks/ pages/ spaces/`; `org/app/README.md` (migrated design)).
 
 ```mermaid
 graph TD
@@ -26,7 +26,7 @@ graph TD
 - `package.json` carries npm metadata + the app's React/UI deps and drives the per-project page build (`store/projects/blog/package.json`; `sdk/org/libs/cli/src/app/build/pages.ts` `buildProjectPages`). See [package.json.md](./package.json.md).
 - `tsconfig.json` is the app's typecheck config. See [tsconfig.json.md](./tsconfig.json.md).
 - `database/`, `api/`, `pages/`, `hooks/` are the **four pillars**; `components/`, `events/`, and `spaces/` are additional (optional) siblings (`store/projects/blog/`).
-- `types/` (generated row + endpoint I/O types, `sdk/org/libs/cli/src/app/build/schema.ts` `generateAppTypes`) and `.data/app.db` (the SQLite store, `sdk/org/libs/cli/src/app/store.ts`) are build/runtime artifacts, git-ignored (`sdk/org/project-as-application.md` §"Directory layout").
+- `types/` (generated row + endpoint I/O types, `sdk/org/libs/cli/src/app/build/schema.ts` `generateAppTypes`) and `.data/app.db` (the SQLite store, `sdk/org/libs/cli/src/app/store.ts`) are build/runtime artifacts, git-ignored (`org/app/README.md` (migrated design)).
 
 ## The four pillars map to four runtime tiers
 
@@ -104,6 +104,6 @@ capabilities:
 
 ## Related
 
-- Full design & data flow → [../../sdk/org/project-as-application.md](../../sdk/org/project-as-application.md)
+- Full design, data flow & serving → [../../app/](../../app/README.md)
 - Project-scoped spaces & agents → [spaces/README.md](./spaces/README.md) · [../space/README.md](../space/README.md)
 - Capability grants (full spec) → [../space/agents/capabilities.md](../space/agents/capabilities.md)

@@ -37,4 +37,4 @@ Because app-builder-authored apps ship a `package.json` but no `project.json`, t
 ## See also
 
 - [`package.json`](./package.json.md) — the alternate identity carrier for a project-app.
-- [Project README](../README.md) — the project-app layout and distribution overview.
+- [Project README](../../README.md) — the project-app layout and distribution overview.

@@ -55,13 +55,13 @@ before doing anything else** — together they are the complete picture of how t
 their runtime engine are built. They are **read-only ground truth**: never edit them (you
 edit only the app spec in step 3).
 
-1. `sdk/org/project-as-application.md` — **the architecture / model you must abide by.**
+1. `org/format/project/` + `org/app/` — **the architecture / model you must abide by.**
    Space = agent capability; Project = the app (`database/ pages/ api/ hooks/ package.json`)
    + its project-scoped spaces; the capability-globals model (`db:*`, `pages:write`,
    `api:write`, `hooks:write`, `api:call`); the exact file formats (`database/<table>.json`,
    `api/<route>/<METHOD>.ts`, `hooks/<slug>.ts`, `pages/`); the typed-contract pipeline;
    serving; the `system-appbuilder` space. Everything you build must conform to it.
-2. `sdk/org/project-as-application-implementation.md` — **the phased implementation contract:
+2. `org/runtime-globals/app-authoring.md` — **the authoring globals contract:
    HOW it gets built, tested, and shipped.** Read it in full: §0 Global protocol (the
    Definition-of-Done gate; the **mandatory live-DeepSeek test protocol** via `sdk/org/.env`
    with `--model S`; the **push-both-repos protocol**; the backward-compatibility invariants),
@@ -92,8 +92,8 @@ edit only the app spec in step 3).
 ### Phase 1 — Improve the spec (think deeply, then edit the spec file)
 - **Think deeply** about `app-specifications/__SPEC_FILE__`: what improvements and feature
   additions would make `__APP__` a genuinely better, more valuable AI-assisted application —
-  while staying strictly inside the model in `sdk/org/project-as-application.md` and the
-  mechanics/protocol in `sdk/org/project-as-application-implementation.md` (only
+  while staying strictly inside the model in `org/format/project/` and the
+  mechanics/protocol in `org/runtime-globals/app-authoring.md` (only
   data/agents/pages/api/hooks on the shared engine, exactly as the spec's "Additional
   features" sections do — no capabilities the parent plan forbids).
 - **Edit `app-specifications/__SPEC_FILE__` in place** to fold those improvements into the spec
@@ -135,7 +135,7 @@ edit only the app spec in step 3).
   `tables` scope exactly as the spec's capability table dictates.
 - **Project-scoped spaces MUST follow the FULL space format — not just `agents/`.** A space
   with only an `agents/` dir is a **defect**. Read the canonical space format first
-  (`sdk/org/SPACE_DEVELOPMENT.md`, `sdk/org/.claude/skills/new-space.md`,
+  (`org/format/space/`, `sdk/org/.claude/skills/new-space.md`,
   `sdk/org/libs/core/system-spaces/DEVELOPMENT.md`) and mirror how the shipped system spaces
   (`sdk/org/libs/core/system-spaces/*`) are actually structured. Every project space you author
   (and every space you remediate) must include:
@@ -163,7 +163,7 @@ edit only the app spec in step 3).
   policy's SPACE-FORMAT REMEDIATION item). Re-typecheck and live-test the space after.
 - **Each project MUST have MORE THAN ONE project-scoped space (≥2).** A single-space project is
   incomplete — the architecture is explicitly multi-space ("one project can host several
-  specialized spaces… that all read/write the same tables", `project-as-application.md`). Split
+  specialized spaces… that all read/write the same tables", `org/format/project/`). Split
   the work into **distinct specialist teams** under `store/projects/__APP__/spaces/<space>/`,
   each a full-format space sharing the same project-rooted db (e.g. blog: a `newsroom` that
   fetches/synthesizes **plus** an `editorial`/`curation` space for ranking/personalization and a
@@ -274,8 +274,7 @@ stale-prone orientation only.) Do this every run.
   test across Sonnet subagents per skill Step 7 is optional — one app per run, so a single pass suffices.)
 
 ## Hard rules
-- **Read both `sdk/org/project-as-application.md` AND
-  `sdk/org/project-as-application-implementation.md` in full at the start of every run** —
+- **Read `org/format/project/` AND `org/app/` AND `org/runtime-globals/app-authoring.md` in full at the start of every run** —
   they are the complete, canonical source for how the app + engine are built, tested, and
   pushed. Abide by them. If the app spec and these architecture docs disagree, the
   architecture docs win and you fix the app spec.

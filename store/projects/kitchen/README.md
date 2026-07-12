@@ -1,6 +1,6 @@
 # lmthing.kitchen — pantry + meal planner (project-application)
 
-A concrete [project-as-application](../../../sdk/org/project-as-application.md): the `kitchen`
+A concrete [project-as-application](../../../org/format/project/README.md): the `kitchen`
 project owns an app that knows what's in your pantry, plans a week of meals from your recipes, and
 generates a shopping list for exactly what you're missing.
 

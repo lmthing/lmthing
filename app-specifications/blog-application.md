@@ -1,6 +1,6 @@
 # lmthing.blog as a Project-Application — the `blog` project
 
-> A concrete instantiation of [project-as-application.md](../sdk/org/project-as-application.md) for
+> A concrete instantiation of [the project-as-application model](../org/format/project/README.md) for
 > **lmthing.blog**: personalized AI news. The `blog` project owns the app — `database/` (sources,
 > raw items, synthesized articles, research), `pages/` (client React feed / preferences / article),
 > `api/` (named typed Node endpoints), `hooks/` (poll + synthesize), and a project-scoped
@@ -749,7 +749,7 @@ build, hooks runtime, chat) exists. Blog-specific work on top:
    later phase); replace the `blog/` static-SPA image with the pod-served `blog` app; alias
    `lmthing.blog/*` → pod `/app/blog/*`; Studio manages it under `/api/projects/blog/app`.
 7. **Tiers** — Stripe entitlement → `settings.tier` via the gateway webhook; budget-window wiring.
-8. **Docs** — fold into `SPACE_DEVELOPMENT.md` "Project apps" as the worked example.
+8. **Docs** — fold into `org/format/project/` as the worked example.
 
 ## Verification (end-to-end, local)
 
@@ -776,7 +776,7 @@ build, hooks runtime, chat) exists. Blog-specific work on top:
 
 - **Reuses the parent engine wholesale** — no blog-specific runtime; this is data + agents + pages +
   hooks on the shared project-application layer. If a mechanism is missing here, it belongs in
-  [project-as-application.md](../sdk/org/project-as-application.md), not a blog fork.
+  [the project-as-application model](../org/format/project/README.md), not a blog fork.
 - **Personalization scoring** (`articles.score`) is a synthesizer concern (rank by the user's `topics`
   / read history), not a schema one — left to the agent, kept as a plain column.
 - **The whole app stays within per-user pod isolation** — no public or cross-user surface, so no v1

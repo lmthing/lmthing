@@ -1,6 +1,6 @@
 # lmthing.health as a Project-Application — the `health` project
 
-> A concrete instantiation of [project-as-application.md](./project-as-application.md) for the
+> A concrete instantiation of [the project-as-application model](../org/format/project/README.md) for the
 > **personal health research page** the parent plan names as a motivating case. You log metrics, lab
 > results, and symptoms; a **`clinic`** space flags out-of-range results and runs literature-backed
 > deep dives; a subscription gates the deep research. The `health` project owns the app — `database/`
@@ -792,7 +792,7 @@ build, hooks runtime, chat) exists. Health-specific work on top:
 9. **Additional features** — appointment prep brief, trends/correlations, personal baselines, follow-up
    reminders, wearable import (see §"Additional features"); each is additive (new tables/endpoints/
    digest logic), shippable after the core loop.
-10. **Docs** — fold into `SPACE_DEVELOPMENT.md` "Project apps" as a worked example.
+10. **Docs** — fold into `org/format/project/` as a worked example.
 
 ## Verification (end-to-end, local)
 
@@ -827,7 +827,7 @@ build, hooks runtime, chat) exists. Health-specific work on top:
 
 - **Reuses the parent engine wholesale** — no health-specific runtime; data + agents + pages + hooks on
   the shared layer. If a mechanism is missing here, it belongs in
-  [project-as-application.md](./project-as-application.md), not a health fork.
+  [the project-as-application model](../org/format/project/README.md), not a health fork.
 - **Why it's a good AI-assisted app** — most people have health data (labs, wearables, symptoms) they
   can't interpret and won't research systematically. Turning that into understanding — flagging what
   matters, summarizing the literature, keeping context over time — is high-value work the user can't

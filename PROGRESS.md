@@ -61,6 +61,28 @@ Smoke test (live, prod, real LLM): **PASS** — THING replied in 17.8 s, 2 LLM c
 
 ---
 
+## ⭐ Cross-cutting finding (the campaign's biggest): live-project APP authoring is incomplete
+
+Two independent scenarios (04 and 05) converged on the same root gap. A project can be grown through
+THING into **spaces + consented integrations + db/cron/webhook/internal automation** — all verified
+live — but it **cannot yet be grown into a real web application in that same live project**, because
+the authoring surface is missing writers:
+
+- **`writeProjectTable` exists** (added this campaign) but its twins **`writeProjectPage` /
+  `writeProjectApi` do NOT** — the automator hit a live `typecheck_error: Cannot find name
+  'writePage'/'writeProjectPage'` (S05, Act III). Consequence: `/app/latam/` builds to an **empty
+  shell** (`built=false`, 0 pages) — a FAIL against the spec's central "an app I can open on my
+  phone" promise, and the four automations had no materialized tables to write into.
+- **No system space can author a code node** (S04, F1) — no `writeCodeNode`, no authoring knowledge
+  for `NN-<id>.ts` / `node` metadata anywhere. The code-node RUNTIME works (proved via the harness),
+  but the specialists that own tasklists can't produce one.
+
+Both are the same shape: **the runtime supports the feature; the appbuilder specialists lack the
+authoring primitive + knowledge to drive it.** This is the highest-value follow-up — queued as the
+focused final piece once scenarios 01 and 05 finish churning the shared tree. Scope: add
+`writeProjectPage`/`writeProjectApi`/`writeCodeNode` to the project-app authoring layer
+(`libs/core/src/app/*` + capability globals), their DTS, and `system-appbuilder` knowledge/prompting.
+
 ## Issues found & fixed
 
 ### Scenario 02 — Consent & Store: PASS 71/71 (fixes on `sdk/org 99e94cc`, `51a7c25`)

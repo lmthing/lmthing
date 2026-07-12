@@ -27,7 +27,7 @@ Started 2026-07-12 ~04:20 local. Budget: 24 h.
 | 01 | Newsroom | ⏳ running | landed a real fix: live-project table authoring + hook/db hot-reload |
 | 02 | Consent & Store | ✅ **PASS 71/71** | security P0 verified by observation; 2 non-security bugs fixed |
 | 03 | Resilience | ⏳ running | |
-| 04 | Signals & Code nodes | ⏳ running | landed a real fix: `project.created` fanOutAll routing |
+| 04 | Signals & Code nodes | ✅ **PASS** (feature-verified) | 2 bugs fixed; 1 major gap found (no specialist can author a code node) |
 | 05 | Latin America | ⏳ running | resumed after it parked on Monitors |
 
 **⚠️ Deploy caveat (applies to every prompting fix this campaign).** Agents patch THING/specialist
@@ -81,6 +81,30 @@ Smoke test (live, prod, real LLM): **PASS** — THING replied in 17.8 s, 2 LLM c
   (`typecheck_error: Cannot find name 'installSpace'`); store edges (unknown id, double install,
   diverged install, path traversal) all behave. The gate code these ran against is the **deployed**
   prod image; only THING's instruct was hot-patched onto the test pod for the live check.
+
+### Scenario 04 — Signals & Code nodes: PASS, feature-verified (fixes on `sdk/org 54ed659`, imaged `compute:fe7cf57`)
+
+All five internal signals emit and route with schema-exact payloads; the mixed agent→code-node DAG
+runs with code nodes at **0 tokens**, upstream keyed by node id, seed at top level; `forEach` fans
+out; a hook's `ctx.tasklist.run` returns its result; isolation edges hold (`ctx.fetch` absent,
+undeclared `callConnection` throws, a throwing code node fails the task loudly); `emitEvent` without
+`events:emit` fails at typecheck.
+
+- **B1 — `project.created` never reached the observing project (core routing bug).** The signal's
+  `projectId` names the brand-new SUBJECT project, which has no subscribers, so the default fan-out
+  delivered it to the one project that couldn't receive it (confirmed live: 4/5 signals recorded,
+  `project.created` = 0 rows). **Fixed** with a `meta.fanOutAll` flag + regression tests.
+- **B2 — `system-appbuilder/build_app` still authored the REMOVED `{type:'database'}` hook** (stale
+  prompt). Every app THING built would ship broken hooks. **Fixed:** rewritten to author current
+  `{type:'event'}` code-handler hooks.
+- **F1 (the important product gap): no system space can author a code node.** There is no
+  `writeCodeNode` writer and no knowledge/prompt describing `NN-<id>.ts` / `node` metadata anywhere —
+  so although the code-node RUNTIME works, the specialists that own tasklists cannot actually produce
+  one. The runtime was proved by writing the `digest` files through the harness. **Follow-up (queued
+  for campaign end):** add a `writeCodeNode` writer + authoring knowledge to `system-appbuilder`.
+- Caveat: post-fix live re-confirmation of B1 was inconclusive — after re-imaging, the heavily-churned
+  disposable pod's write path regressed for *all* signals (a pod-state issue, not the one-line routing
+  fix). B1 rests on the crisp pre-fix live evidence + green regression tests.
 
 ### 1. `integration-demo` was stranded on the legacy webhook path — **FIXED**
 

@@ -28,14 +28,13 @@ Started 2026-07-12 ~04:20 local. Budget: 24 h.
 | 02 | Consent & Store | ✅ **PASS 71/71** | security P0 verified by observation; 2 non-security bugs fixed |
 | 03 | Resilience | ✅ **PASS 46/46** | loop guard held under a 200-delivery storm; found + fixed a real coalescing bug |
 | 04 | Signals & Code nodes | ✅ **PASS** (feature-verified) | 2 bugs fixed; 1 major gap found (no specialist can author a code node) |
-| 05 | Latin America | ⏳ definitive run | **flagship `/app/latam/` deliverable verified building a real app live**; 4 product fixes shipped; Act IV edges + final verdict pending |
+| 05 | Latin America | 🟡 **CONDITIONAL PASS** | full lifecycle works live — 9 spaces → consented integration → **a real app that builds+serves at `/app/latam/`**; webhook+internal emitters fire; impossible request refused; 6 product bugs fixed. *Conditional:* db/cron emitters still gated by automator authoring reliability on loose compound asks (re-verifying on the final image) |
 
-**⚠️ Deploy caveat (applies to every prompting fix this campaign).** Agents patch THING/specialist
-`instruct.md` in `sdk/org` source and hot-patch their own test pod to verify live, but a system-space
-instruct change only reaches PROD pods via a **new compute image + a user-pod rollout**. Until a
-final compute image is built and users are restarted, prod THING keeps the old prompt behaviour
-(always harmless — e.g. it may raise a consent card for an unknown install id, but nothing installs
-without consent). Track a single final compute rebuild + rollout at campaign end.
+**Deploy state.** All fixes are committed to `main` and imaged; prod compute has rolled forward across
+the campaign (…`6c9f34f` → `25f5ec2` → `7a2a3a1` → `1345229`/`2b861be5`). The final verification of the
+db/cron chain (S05) is running against the latest image. Note the instruct/prompting fixes only affect
+a PROD user's pod after that pod picks up the new compute image (rolling restart); the scenario runs
+verified them on freshly-imaged disposable pods. Existing user pods adopt them on their next restart.
 
 ## The harness — `sdk/org/scenarios/harness/`
 
@@ -80,36 +79,45 @@ the authoring surface is missing writers:
 Both are the same shape: **the runtime supports the feature; the appbuilder specialists lack the
 authoring primitive + knowledge to drive it.**
 
-**Half of this is now FIXED (S05, submodule `1fe9dae` / parent `02435e7a`, imaging as `02435e7`):**
-`writeProjectPage` + `writeProjectApi` added as the live-project twins of `writeProjectTable` — core
-injection on `pages:write`/`api:write`, per-grant DTS, `onAppWrite` cache invalidation so the
-manifest + `/app/latam/` re-derive after a write; the automator granted both caps + taught the
-table→GET-api→page pattern. 68 authoring/DTS tests green (5 new) + a 167-test exec/typecheck sweep.
-Live verification pending the `02435e7` image.
+**The capability half is now FIXED and VERIFIED LIVE** (S05, `1fe9dae`/`94e23a4`, imaged & deployed):
+`writeProjectPage` + `writeProjectApi` added as the live-project twins of `writeProjectTable` (core
+injection on `pages:write`/`api:write`, per-grant DTS, `onAppWrite` cache invalidation); the automator
+granted both caps + taught the table→api→page pattern; and a project-app-build esbuild plugin
+(`94e23a4`) that resolves `@lmthing/ui/elements/*`. Result confirmed on the deployed image:
+**`/app/latam/` builds a real app** (`built:true`, real JS/CSS assets, a page route) and serves at
+~90 ms — the empty-shell FAIL is resolved. This is the flagship deliverable, working in prod.
 
-**⚠️ The deeper root cause (S05, on the fixed `02435e7` image): automator model-reliability.**
-With the capability present, the automator's MODEL now emits **malformed authoring code** — stray
-undefined identifiers (`Marques`, `rootEntries`, `projectFiles`, and the earlier `ablytypedJapgolly`)
-that fail typecheck, so `writeProjectTable`/`writeProjectPage` never execute → no tables materialize
-→ the four emitters have nothing to write to (`events:1` fired but no `bookings` table) and
-`/app/latam/` stays an empty shell. This same garbage-identifier family recurred across scenarios, so
-it is a **model-reliability problem in the automator's inline code authoring**, not a missing
-capability. Lead for the fix: the automator carries **no `model:` override** (runs the default model)
-and authors by emitting inline `writeProjectTable/Page/Api(...)` calls with structured args — so the
-highest-leverage, lowest-risk candidate is a `model:` bump to a stronger/reasoning model for the
-automator, validated against the exact malformed statements in the trace. (S05 is inspecting those on
-its final wake.)
+**The remaining half is automator authoring RELIABILITY on long, loosely-phrased compound asks** — a
+model-behaviour problem, not a missing capability, and the honest reason S05 is a *conditional* pass.
+Two concrete, fixed failure modes were the culprits (my earlier "model bump" hypothesis was wrong —
+the real fixes were prompting + host-side validation):
 
-**Residual gaps still open (final-piece candidates):**
-1. **Automator code-authoring reliability** (above) — likely a `model:` bump; evidence-driven.
-2. **`writeCodeNode`** — code-node authoring is still missing (S04-F1); the automator/appbuilder can't
-   produce an `NN-<id>.ts` node.
-3. **`app-architect/build_app` builds a catalog TEMPLATE with the wrong id, not the live project**
-   (S05 Act III.6) — so "a page per country" via the architect path still doesn't serve at
-   `/app/latam/`; only the automator path (III.7) now does, thanks to the fix above.
-4. **THING invents a capability**: asked to "book me a flight with my credit card," THING raised a
-   full flight-booking Form instead of refusing (S05 Act IV) — needs a THING instruct hardening so it
-   declines capabilities it doesn't have.
+- **The automator wrote hooks with LITERAL `\n`** (escaped `\n` in the hook source while using real
+  newlines for pages/events) → every hook file was unparseable → the whole hook pipeline died and the
+  pod destabilised. **Fixed `f37c6ff`:** validate-before-write rejects unparseable live-authoring
+  source and forces the model to retry, instead of persisting garbage.
+- **The automator hallucinated filesystem-exploration code** (it has no file tools) on loose phrasing.
+  **Fixed `b588041`:** instruct it to author directly, no fs exploration, + author a data-in insert
+  path. Measured effect: a "make an activity feed" ask went 3 typecheck errors → 0.
+
+**Residual gaps still open (candidate follow-ups — NOT blockers for the four green scenarios):**
+1. **`writeCodeNode`** — code-node authoring is still missing (S04-F1); the appbuilder can't produce
+   an `NN-<id>.ts` node. (The code-node runtime works; only the authoring primitive+knowledge is
+   absent.) Highest-value remaining follow-up.
+2. **`app-architect/build_app` builds a catalog TEMPLATE with the wrong id, not the live project**
+   (S05 Act III.6) — so "a page per country" via the *architect* path still doesn't serve at
+   `/app/latam/`; only the *automator* path now does. The two app-authoring paths should converge on
+   the live project.
+3. **Automator `db:schema` without `db:write`** (S05) — "add Antigua to my itinerary" had no path to
+   insert a row from the automator's own turn; it can define the schema but not seed data. Consider
+   granting a scoped insert path or routing data-in through a hook.
+4. **The db/cron agent-trigger chain in a long conversation** still occasionally breaks on an
+   automator schema/insert column mismatch (`no column named name`) — the same authoring-reliability
+   surface; the `f37c6ff` validation catches unparseable source but not a *valid-but-wrong* column.
+
+**Closed during the campaign:** ~~THING invents a capability (flight-booking Form)~~ — **FIXED**: on
+the deployed image THING now **refuses** ("I can't book or pay with your credit card"). And
+~~`writeProjectPage`/`writeProjectApi` missing~~ — **FIXED + live-verified** (above).
 
 ## Issues found & fixed
 

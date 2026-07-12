@@ -56,7 +56,7 @@ Four jobs, in order:
 - `docker/build-push-action@v5` pushes **two tags** per image — `:<sha>` and `:latest` — with a registry-backed build cache (`buildcache` ref, `mode=max`) `.github/workflows/build-images.yml:219-230`.
 - Records build metadata (image, sha, `sha256:` digest, run id/number/url, conclusion, timestamp) to `build-data/<image>.json` and uploads it as artifact `build-data-<image>` `.github/workflows/build-images.yml:232-277`.
 
-**3. `publish-build-data`** (`needs: [detect, build]`, `if: always()`) — downloads all `build-data-*` artifacts, writes per-service latest JSON + a rolling `history.json` (deduped by SHA, capped at 50) under `gh-pages/data/builds/`, and commits them to `main` with `[skip ci]` `.github/workflows/build-images.yml:279-353`. That commit under `gh-pages/**` is what later fires `deploy-ghpages.yml`.
+**3. `publish-build-data`** (`needs: [detect, build]`, `if: always()`) — downloads all `build-data-*` artifacts, writes per-service latest JSON + a rolling `history.json` (deduped by SHA, capped at 50) under `gh-pages/data/builds/`, rebases onto latest `origin/main`, then commits/pushes to `main` with `[skip ci]` `.github/workflows/build-images.yml:279-353`. That commit under `gh-pages/**` is what later fires `deploy-ghpages.yml`.
 
 **4. `update-manifests`** (`needs: [detect, build, publish-build-data]`) — depends on `publish-build-data` only to serialize the two jobs' pushes to `main` `.github/workflows/build-images.yml:355-365`. It:
 - Re-downloads the build-data artifacts and only rewrites manifests for images whose artifact records `conclusion == 'success'` — a failed image (e.g. compute) is skipped so its stale tag stays put `.github/workflows/build-images.yml:390-404`.

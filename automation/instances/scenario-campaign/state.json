@@ -1,5 +1,9 @@
 {
-  "tasks": {},
+  "tasks": {
+    "07-life-admin": {
+      "round": 1
+    }
+  },
   "runs": [
     {
       "task": "07-life-admin",
@@ -45,5 +49,5 @@
       "resetAt": null
     }
   ],
-  "updatedAt": "2026-07-12T21:56:09.572Z"
+  "updatedAt": "2026-07-12T21:56:09.604Z"
 }

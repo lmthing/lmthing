@@ -16,7 +16,8 @@ Started 2026-07-12 ~04:20 local. Budget: 24 h.
 | Prod readiness check | ✅ compute image `b4542e0` = the S16 events commit — the full pipeline is live |
 | Test harness | ✅ built, smoke-tested against prod with a live LLM turn |
 | Scenario specs (5) | ✅ written |
-| Scenario execution (5 Opus subagents) | ⏳ fanning out |
+| `integration-demo` fix deployed | ✅ `store:da50a48` live — the catalog now serves the demo webhook emitter (`inbound:[{path:'demo',verify:'hmac'}]`), unblocking all five scenarios |
+| Scenario execution (5 Opus subagents) | ⏳ running in parallel |
 | Issues found / fixed | 1 found, 1 fixed (see below) |
 
 ## The harness — `sdk/org/scenarios/harness/`
@@ -93,4 +94,9 @@ source they use to inject events with a secret we control.
   double-base64 secret; the env-PUT rollout race killing sessions).
 - **04:45** — Found and fixed the `integration-demo` emitter gap; added the catalog-wide regression
   guard. 8/8 space tests green; 50/50 emitter tests green.
-- **04:55** — Five scenario specs written. Fanning out one Opus subagent per scenario.
+- **04:55** — Five scenario specs written. Fanned out one Opus subagent per scenario, each with its
+  own disposable prod test user (`newsroom`, `consent`, `firehose`, `observatory`, `latam`).
+- **05:05** — CI built and ArgoCD deployed `store:da50a48`; confirmed the **live** catalog at
+  `https://lmthing.store/projects/manifest.json` now serves `integration-demo` with its webhook
+  emitter. All five scenarios unblocked — they can install the demo space into a real pod and inject
+  HMAC-signed inbound events with a secret we control.

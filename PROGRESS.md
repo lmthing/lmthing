@@ -24,11 +24,11 @@ Started 2026-07-12 ~04:20 local. Budget: 24 h.
 
 | # | Scenario | Verdict | Notes |
 |---|---|---|---|
-| 01 | Newsroom | 🔁 re-verifying | first run FAIL 46/51 traced to ONE root cause (automator tangle + a per-hook load failure); fixes landed + deployed; re-running on `compute:6c9f34f` |
+| 01 | Newsroom | ✅ **PASS 51/51** | live on `compute:25f5ec2`; 6 product bugs fixed (several shared-code); all four emitter kinds + both hook styles verified against real pod rows |
 | 02 | Consent & Store | ✅ **PASS 71/71** | security P0 verified by observation; 2 non-security bugs fixed |
 | 03 | Resilience | ✅ **PASS 46/46** | loop guard held under a 200-delivery storm; found + fixed a real coalescing bug |
 | 04 | Signals & Code nodes | ✅ **PASS** (feature-verified) | 2 bugs fixed; 1 major gap found (no specialist can author a code node) |
-| 05 | Latin America | ⏳ Act IV | reached Act III (app + hooks) live; Act I over-scaffold fix verified live; finishing Act IV edges |
+| 05 | Latin America | ⏳ definitive run | **flagship `/app/latam/` deliverable verified building a real app live**; 4 product fixes shipped; Act IV edges + final verdict pending |
 
 **⚠️ Deploy caveat (applies to every prompting fix this campaign).** Agents patch THING/specialist
 `instruct.md` in `sdk/org` source and hot-patch their own test pod to verify live, but a system-space
@@ -155,6 +155,41 @@ undeclared `callConnection` throws, a throwing code node fails the task loudly);
 - Caveat: post-fix live re-confirmation of B1 was inconclusive — after re-imaging, the heavily-churned
   disposable pod's write path regressed for *all* signals (a pod-state issue, not the one-line routing
   fix). B1 rests on the crisp pre-fix live evidence + green regression tests.
+
+### Scenario 01 — Newsroom: PASS 51/51 (live on `compute:25f5ec2`)
+
+All four emitter kinds (project `db`+`cron`, space `webhook`+`internal`), both hook styles
+(code-handler-as-filter at 0 LLM cost, and the earned agent-trigger summary path), consent-gated
+double install, and every Step-8 edge — verified against real pod DB rows + FS. Perf: inbound→row
+**0.57s**, inbound→agent-trigger summary **3.4s**, whole scenario **8.6 min**, 0 unrecovered errors.
+Six real product bugs, each with a regression test:
+
+1. **`a7a485e` — no live-project table writer** (`libs/cli`+`libs/core`). The appbuilder could only
+   write tables into the store *catalog*; a project the user is *in* could never gain a data model.
+   Added `writeProjectTable` + `SessionManager.reloadProjectDb`/`refreshProjectHooks` (a first table
+   brings a DB into being; later hooks hot-reload with no restart).
+2. **`056603c` — one broken hook file sank the whole project** (shared `app/hooks/loader.ts`).
+   `loadHooks` had no per-file isolation; one malformed automator-authored hook aborted the entire
+   load, so a correct sibling intake hook never ran (`events:1` but zero rows). Now skip-with-warn.
+3. **`71180b6` — a duplicate emitter event disabled ALL project emitters** (shared
+   `server/emitter-manifests.ts`). A redundant second `tip.added` db emitter made the whole project
+   scope fail to load, so `project/tip.added` never fired and the agent-trigger summary hook went
+   dead. Now drop the offending def (keep the first), scope stays alive. **The substantive Step 5
+   root cause** — and the right robustness posture for LLM-authored live projects.
+4. **`71180b6` — `installSpace().message` typecheck error** (THING instruct) — the `{ok,error}`
+   fallback union made `.message` non-existent; the display now reads `.error` only.
+5. **`d8c15a6` — `'db' is not defined`** (automator instruct) — it was told to call `db.tables()`,
+   but `db` isn't injected on a fresh project; switched existence checks to `listDir('database')`.
+6. **Automator prompting** (`f957459`/`fc947d1`/`cb23f1e`/`04956a5`/`b588041`) — one-hook
+   direct-insert, `primaryKey`, unique event names, real-column inserts, the cron *emitter-def*
+   pattern, and using a model for reasoning instead of hand-rolling fake summaries.
+
+Honest notes: Step 1 was reframed — project *creation* is a deliberate UI action, and THING must NOT
+mis-route it into `build_specialist` (it did: 176s + errors); the step now asserts that correct
+behaviour. Automator over-creation still happens occasionally, but the **runtime is now robust to it**
+(the isolation fixes #2/#3 are the durable answer; prompting only reduces frequency). Deploy friction
+(ArgoCD stale refs, a racing CI image-pin job, a transient ACR token EOF) needed manual reruns —
+worth hardening the image-tag CI step.
 
 ### Scenario 03 — Resilience: PASS 46/46 (loop-guard fix `sdk/org abd11c0`)
 

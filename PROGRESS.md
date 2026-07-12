@@ -18,7 +18,24 @@ Started 2026-07-12 ~04:20 local. Budget: 24 h.
 | Scenario specs (5) | ✅ written |
 | `integration-demo` fix deployed | ✅ `store:da50a48` live — the catalog now serves the demo webhook emitter (`inbound:[{path:'demo',verify:'hmac'}]`), unblocking all five scenarios |
 | Scenario execution (5 Opus subagents) | ⏳ running in parallel |
-| Issues found / fixed | 1 found, 1 fixed (see below) |
+| Issues found / fixed | see the running tally below |
+
+### Scenario scoreboard
+
+| # | Scenario | Verdict | Notes |
+|---|---|---|---|
+| 01 | Newsroom | ⏳ running | landed a real fix: live-project table authoring + hook/db hot-reload |
+| 02 | Consent & Store | ✅ **PASS 71/71** | security P0 verified by observation; 2 non-security bugs fixed |
+| 03 | Resilience | ⏳ running | |
+| 04 | Signals & Code nodes | ⏳ running | landed a real fix: `project.created` fanOutAll routing |
+| 05 | Latin America | ⏳ running | resumed after it parked on Monitors |
+
+**⚠️ Deploy caveat (applies to every prompting fix this campaign).** Agents patch THING/specialist
+`instruct.md` in `sdk/org` source and hot-patch their own test pod to verify live, but a system-space
+instruct change only reaches PROD pods via a **new compute image + a user-pod rollout**. Until a
+final compute image is built and users are restarted, prod THING keeps the old prompt behaviour
+(always harmless — e.g. it may raise a consent card for an unknown install id, but nothing installs
+without consent). Track a single final compute rebuild + rollout at campaign end.
 
 ## The harness — `sdk/org/scenarios/harness/`
 
@@ -45,6 +62,25 @@ Smoke test (live, prod, real LLM): **PASS** — THING replied in 17.8 s, 2 LLM c
 ---
 
 ## Issues found & fixed
+
+### Scenario 02 — Consent & Store: PASS 71/71 (fixes on `sdk/org 99e94cc`, `51a7c25`)
+
+- **THING raised a consent card for a non-existent install id.** Asked to install
+  `integration-does-not-exist`, THING called `installSpace(id)` directly and prompted the user to
+  approve an impossible install (nothing installed — the gate held, but the UX is wrong). **Fixed in
+  product:** gave THING `store:read` and an instruct rule to `storeInspect(id)` before calling the
+  consent-gated `installSpace` on any id the finder didn't recommend; if the id doesn't exist it says
+  so and never calls `installSpace`. Regression test in `system-store.test.ts`. Verified live.
+- **Over-strict prose assertion** in the scenario (THING names integrations by title, not raw
+  `integration-*` id) — relaxed to an observation-faithful check. Not a product bug.
+- **Security P0 — verified by observation, no exception found across 8 attack angles:** approve
+  happens only after a card; denial (and every non-approval answer — `null`, `{}`, a string, cancel)
+  installs nothing; `@consent` is generic (gates a project fn *and* a space fn identically); it
+  **fails closed** in all three headless paths (hook run, delegate, signed webhook → hook → agent)
+  with a clear refusal and no hang; an agent without `store:install` can't even express the call
+  (`typecheck_error: Cannot find name 'installSpace'`); store edges (unknown id, double install,
+  diverged install, path traversal) all behave. The gate code these ran against is the **deployed**
+  prod image; only THING's instruct was hot-patched onto the test pod for the live check.
 
 ### 1. `integration-demo` was stranded on the legacy webhook path — **FIXED**
 

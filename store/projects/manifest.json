@@ -1959,10 +1959,15 @@
     {
       "id": "integration-lmthing",
       "title": "lmthing",
-      "description": "Subscribe to lmthing's OWN runtime events — session completions, space installs, hook fires, document writes, project creations — and publish your own custom events. Needs no API keys.",
+      "description": "Subscribe to lmthing's OWN runtime events — session completions, space installs, hook fires, document writes, project creations — and publish your own custom events. Use it to build an audit trail / audit log of the automations and documents your project produces. Needs no API keys.",
       "icon": "🔁",
       "tags": [
-        "integration"
+        "integration",
+        "audit",
+        "observability",
+        "events",
+        "internal",
+        "automation"
       ],
       "kind": "integration",
       "settings": null,

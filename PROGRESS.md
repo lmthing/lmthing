@@ -87,13 +87,27 @@ manifest + `/app/latam/` re-derive after a write; the automator granted both cap
 table→GET-api→page pattern. 68 authoring/DTS tests green (5 new) + a 167-test exec/typecheck sweep.
 Live verification pending the `02435e7` image.
 
+**⚠️ The deeper root cause (S05, on the fixed `02435e7` image): automator model-reliability.**
+With the capability present, the automator's MODEL now emits **malformed authoring code** — stray
+undefined identifiers (`Marques`, `rootEntries`, `projectFiles`, and the earlier `ablytypedJapgolly`)
+that fail typecheck, so `writeProjectTable`/`writeProjectPage` never execute → no tables materialize
+→ the four emitters have nothing to write to (`events:1` fired but no `bookings` table) and
+`/app/latam/` stays an empty shell. This same garbage-identifier family recurred across scenarios, so
+it is a **model-reliability problem in the automator's inline code authoring**, not a missing
+capability. Lead for the fix: the automator carries **no `model:` override** (runs the default model)
+and authors by emitting inline `writeProjectTable/Page/Api(...)` calls with structured args — so the
+highest-leverage, lowest-risk candidate is a `model:` bump to a stronger/reasoning model for the
+automator, validated against the exact malformed statements in the trace. (S05 is inspecting those on
+its final wake.)
+
 **Residual gaps still open (final-piece candidates):**
-1. **`writeCodeNode`** — code-node authoring is still missing (S04-F1); the automator/appbuilder can't
+1. **Automator code-authoring reliability** (above) — likely a `model:` bump; evidence-driven.
+2. **`writeCodeNode`** — code-node authoring is still missing (S04-F1); the automator/appbuilder can't
    produce an `NN-<id>.ts` node.
-2. **`app-architect/build_app` builds a catalog TEMPLATE with the wrong id, not the live project**
+3. **`app-architect/build_app` builds a catalog TEMPLATE with the wrong id, not the live project**
    (S05 Act III.6) — so "a page per country" via the architect path still doesn't serve at
    `/app/latam/`; only the automator path (III.7) now does, thanks to the fix above.
-3. **THING invents a capability**: asked to "book me a flight with my credit card," THING raised a
+4. **THING invents a capability**: asked to "book me a flight with my credit card," THING raised a
    full flight-booking Form instead of refusing (S05 Act IV) — needs a THING instruct hardening so it
    declines capabilities it doesn't have.
 

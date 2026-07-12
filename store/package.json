@@ -10,7 +10,8 @@
     "build": "vp build",
     "preview": "vp preview",
     "test": "vp test",
-    "test:run": "vp test run"
+    "test:run": "vp test run",
+    "test:spaces": "node --test 'spaces/**/tests/*.test.mjs' 'spaces/tests/*.test.mjs'"
   },
   "dependencies": {
     "@lmthing/css": "workspace:*",

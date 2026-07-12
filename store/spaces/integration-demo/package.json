@@ -22,12 +22,6 @@
       "apiBase": { "env": "INTEGRATION_DEMO_BASE_URL" },
       "tokenEnv": "INTEGRATION_DEMO_API_TOKEN",
       "auth": { "kind": "bearer" }
-    },
-    "webhook": {
-      "provider": "demo",
-      "secretEnv": "INTEGRATION_DEMO_WEBHOOK_SECRET",
-      "verify": { "type": "hmac", "algo": "sha256", "encoding": "hex", "header": "x-demo-signature", "prefix": "sha256=" },
-      "thread": { "from": "body", "path": "message.chat.id", "prefix": "demo" }
     }
   }
 }

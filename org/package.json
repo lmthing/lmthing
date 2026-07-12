@@ -1,0 +1,7 @@
+{
+  "name": "@lmthing/org",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Documentation package — the on-disk format of an lmthing project and space, as a structure-mirroring doc tree."
+}

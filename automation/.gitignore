@@ -1,0 +1,5 @@
+# Ephemeral live process state — the DURABLE ledger is instances/*/state.json, which IS tracked.
+instances/*/state/
+
+# Legacy per-run logs (superseded by instances/*/rounds/<round>/<task>/attempt-*/).
+instances/*/logs/

@@ -1,0 +1,12 @@
+{
+  "tasks": {
+    "blog": { "round": 4 },
+    "kitchen": { "round": 4 },
+    "health": { "round": 4 },
+    "trips": { "round": 4 },
+    "homes": { "round": 3 }
+  },
+  "runs": [],
+  "updatedAt": null,
+  "_note": "Migrated from the legacy round-robin counter (19 completed selections over blog,kitchen,health,trips,homes). homes is behind by one → it is the next pick (round 4)."
+}

@@ -9,6 +9,48 @@ Started 2026-07-12 ~04:20 local. Budget: 24 h.
 
 ---
 
+## Campaign result (executive summary)
+
+**4 of 5 scenarios PASS outright; the 5th is a CONDITIONAL PASS whose flagship deliverable is verified
+live.** Everything ran through the real THING agent against production with a live LLM — real pods,
+real model calls, real web search, real DB rows. Assertions read the execution trace (delegations,
+consent yields, hook fires, tokens), not the model's prose.
+
+| # | Scenario | Verdict |
+|---|---|---|
+| 01 | Newsroom — all four emitter kinds + both hook styles | ✅ PASS 51/51 |
+| 02 | Consent & Store — the security gate | ✅ PASS 71/71 |
+| 03 | Resilience — 200-delivery storm + loop guard + restart | ✅ PASS 46/46 |
+| 04 | Signals & Code nodes | ✅ PASS (feature-verified) |
+| 05 | Latin America — the full 6-month lifecycle | 🟡 CONDITIONAL PASS |
+
+**~20 real product bugs found and fixed in-product, all committed to `main` and imaged to prod.** The
+highest-impact ones:
+- **The entire live-project app-authoring surface** (`writeProjectTable` / `writeProjectPage` /
+  `writeProjectApi`) did not exist — a project the user was *in* could never gain a data model or UI.
+  Added end-to-end and **verified live**: THING now grows a plain project into an app that builds and
+  serves at `/app/latam/`.
+- **Two event-pipeline robustness fixes** so imperfect LLM-authored automation can't take a project
+  down: one broken hook file no longer sinks a whole project's automation, and a duplicate emitter no
+  longer disables *all* of a project's emitters.
+- **A coalescing bug** that silently dropped a burst's trailing events (loop guard).
+- **`project.created` fan-out routing**, THING **over-scaffolding restraint** (43 LLM calls → 2 on a
+  vague opener), THING now **refuses impossible requests** instead of faking a booking form, and
+  **validate-before-write** rejects unparseable live-authoring source (pod safety).
+- Plus the `integration-demo` emitter gap that started it all, and a batch of automator prompting fixes.
+
+**Deliverables:** the five scenario specs + live results in `sdk/org/scenarios/*.md`; a reusable
+zero-dependency live-prod test harness in `sdk/org/scenarios/harness/`; per-scenario reports + raw
+traces in `sdk/org/scenarios/results/`.
+
+**Known follow-ups (documented, not blockers):** `writeCodeNode` (code-node *authoring* — runtime
+works, primitive missing); converge `app-architect/build_app` onto the live project (it still builds a
+store-catalog template); automator `db:write` for data-in; and automator authoring reliability on long
+compound asks (partially mitigated by prompting + validate-before-write). See the cross-cutting finding
+below.
+
+---
+
 ## Status
 
 | Phase | State |

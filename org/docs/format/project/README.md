@@ -73,18 +73,18 @@ Emitted/synthetic events are source-qualified `<scope>/<event>` and matched agai
 
 ## Capabilities gate who may author and touch each pillar
 
-Every authoring/data power is a **capability** granted in an agent's `instruct.md` frontmatter under the `capabilities:` key, host-injected only when the grant is present (a missing grant is also stripped from the typecheck DTS, so a stray call fails typecheck) (`sdk/org/libs/core/src/spaces/capabilities.ts` `CAPABILITY_IDS`; `sdk/org/libs/core/src/exec/app-globals.ts` `injectAppGlobals`:198-221). The full grant id set is `db:read`, `db:write`, `db:schema`, `pages:write`, `api:write`, `hooks:write`, `api:call`, `connections:use`, `tools:use`, `project:manage`, `store:read`, `store:install`, `events:emit` (`sdk/org/libs/core/src/spaces/capabilities.ts`:42-55). The pillar-relevant subset:
+Every authoring/data power is a **capability** granted in an agent's `instruct.md` frontmatter under the `capabilities:` key, host-injected only when the grant is present (a missing grant is also stripped from the typecheck DTS, so a stray call fails typecheck) (`sdk/org/libs/core/src/spaces/capabilities.ts` `CAPABILITY_IDS`; `sdk/org/libs/core/src/exec/app-globals.ts` `injectAppGlobals`:194-248). The full grant id set is `db:read`, `db:write`, `db:schema`, `pages:write`, `api:write`, `hooks:write`, `api:call`, `connections:use`, `tools:use`, `project:manage`, `store:read`, `store:install`, `events:emit`, `fs:scratch` (`sdk/org/libs/core/src/spaces/capabilities.ts`:43-58). The pillar-relevant subset:
 
 | Capability | Unlocks (project-app pillar) |
 |---|---|
-| `db:read` | `db.query`, `db.tables` (`sdk/org/libs/core/src/exec/app-globals.ts` `buildScopedDb`:122) |
-| `db:write` | `db.insert`, `db.update`, `db.remove` (`app-globals.ts`:123) |
-| `db:schema` | `db.createTable`/`addColumn`, `writeTableSchema`/`writeProjectTable` (`app-globals.ts`:124,214-218) |
-| `pages:write` | `writePage`/`writeProjectPage` (`app-globals.ts`:198,204) |
-| `api:write` | `writeApi`/`writeProjectApi` (`app-globals.ts`:199,205) |
-| `hooks:write` | `writeHook`/`writeProjectHook`/`writeProjectEvent`/`writeProjectFunction` (`app-globals.ts`:206,211-213) |
+| `db:read` | `db.query`, `db.tables` (`sdk/org/libs/core/src/exec/app-globals.ts` `buildScopedDb`:134,141) |
+| `db:write` | `db.insert`, `db.update`, `db.remove` (`app-globals.ts`:149) |
+| `db:schema` | `db.createTable`/`addColumn`, `writeTableSchema`/`writeProjectTable` (`app-globals.ts`:165,229,233) |
+| `pages:write` | `writePage`/`writeProjectPage`/`writeProjectComponent` (`app-globals.ts`:212,218,219) |
+| `api:write` | `writeApi`/`writeProjectApi` (`app-globals.ts`:213,220) |
+| `hooks:write` | `writeHook`/`writeProjectHook`/`writeProjectEvent`/`writeProjectFunction` (`app-globals.ts`:221,226-228) |
 | `api:call` | `apiCall(name, input)` — requires a non-empty `{allow:[...]}` (`sdk/org/libs/core/src/spaces/capabilities.ts` `parseApiCallConfig`) |
-| `project:manage` | `createProject`, `selectProject` (`app-globals.ts`:219-221) |
+| `project:manage` | `createProject`, `selectProject` (`app-globals.ts`:235-236) |
 
 `db:*` grants narrow to named tables via `{tables:[...]}`, enforced per-verb at every call by `assertTableAllowed` (`sdk/org/libs/core/src/exec/app-globals.ts` `assertTableAllowed`). This keeps two agents in one project in their own lanes on the shared db (`store/projects/blog/spaces/newsroom/agents/fetcher/instruct.md`). Full grant/config/fail-loud rules → [../space/agents/capabilities.md](../space/agents/capabilities.md).
 

@@ -293,8 +293,9 @@ There is **no SSRF guard on `fetch`** — the allowlist/pinning machinery above 
 ### Host-tools substrate (context)
 
 `fetch` sits alongside the synchronous host substrate injected by `injectHostTools` — `console`,
-`execShell`, `process`, `readFileRaw`, `writeFileRaw`, `progress`, `spacePath`, `resolveSpaceDir`,
-`typecheckSource` `sdk/org/libs/core/src/globals/host-tools.ts:78-249`. Two facts matter for integrations:
+`process`, `progress`, `spacePath`, `resolveSpaceDir`, `typecheckSource`, plus the now
+**internal-only** `execShell`/`readFileRaw`/`writeFileRaw` primitives (bound but absent from the
+model DTS) `sdk/org/libs/core/src/globals/host-tools.ts:150-275`. Two facts matter for integrations:
 
 - **`process.env` is a snapshot copy of the pod env** (undefined values filtered out) plus `LMTHING_SPACE_DIR`, and `LMTHING_PROJECT_SPACES_DIR` / `LMTHING_PROJECT_DIR` / `LMTHING_PROJECT_ID` when supplied `sdk/org/libs/core/src/globals/host-tools.ts:135-147`. **So `process.env` inside the sandbox DOES see integration tokens.** The "token never enters the sandbox" property is about `callConnection`/`integrationStatus` specifically, not about `process.env`. Space functions read keys from it directly — e.g. `webSearch` reads `TAVILY_API_KEY` `sdk/org/libs/core/system-spaces/system-global/functions/webSearch.ts:30`.
 - **Read-only roles lose the write primitives.** Under `allowWrite: false` (`explore`/`plan` fork roles) mutating shell commands are refused with exit code 126 and `writeFileRaw` is a no-op, with both DTS fragments withheld `sdk/org/libs/core/src/globals/host-tools.ts:58-76,114-116,190-193` · `sdk/org/libs/core/src/typecheck/library-dts.ts:110-117`.
@@ -333,7 +334,7 @@ when a plain fetch returns an empty SPA shell or is bot-walled (403/429). The fa
 
 Three distinct mechanisms — **none** of them is a `capabilities:` grant:
 
-1. **`system-global` is universal.** Only that one space's functions are injected into every agent's VM (`systemFunctionSources` filters on `GLOBAL_SPACE_NAME`) `sdk/org/libs/core/src/spaces/system.ts:26-27,87-95` · `sdk/org/libs/core/src/session/session.ts:595-624`. Every *other* system space's functions reach an agent only through the per-agent path. That is why `webSearch`/`webFetch`/`readFile`/`grep`/`todoWrite` need no declaration.
+1. **`system-global` is universal.** Only that one space's functions are injected into every agent's VM (`systemFunctionSources` filters on `GLOBAL_SPACE_NAME`) `sdk/org/libs/core/src/spaces/system.ts:26-27,87-95` · `sdk/org/libs/core/src/session/session.ts:595-624`. Every *other* system space's functions reach an agent only through the per-agent path. That is why `webSearch`/`webFetch`/`todoWrite`/`remember` need no declaration. (The generic fs wrappers `readFile`/`grep` are **no longer** in `system-global` — they moved to `system-engineer`, scoped to the engineer's `fs:scratch` sandbox.)
 2. **An agent's own space functions are opt-in** via `functions:` in `agents/<slug>/instruct.md` frontmatter: only the listed names are injected and shown in the prompt `sdk/org/libs/core/src/spaces/load.ts:474` · `sdk/org/libs/core/src/spaces/agent.ts:17-25`, and a name with no matching `functions/<name>.ts` is a fail-loud load error (`Agent "x" requires function "y" but it was not found in functions/`) `sdk/org/libs/core/src/spaces/load.ts:685-689`.
 3. **A tasklist task narrows the set for its fork.** `functions: [...]` in a task's frontmatter is an allowlist intersected against the parent agent's *injected* set `sdk/org/libs/core/src/spaces/tasklist-load.ts:30-32,136-137` · `sdk/org/libs/core/src/fork/fork.ts:247-260`. Because the parent's set is the **merged** map (system toolkit + project functions + space functions) `sdk/org/libs/core/src/session/session.ts:620-623,746-747`, **`functions: []` means no functions at all — `webSearch`/`webFetch` included.** Never forbid a tool in prose; disable it in frontmatter.
 

@@ -2,10 +2,13 @@
 
 The agent runtime is a **QuickJS WASM sandbox** into which the host injects a set of
 free-standing functions and objects — the **globals**. A model-authored statement is
-evaluated inside that VM; anything it can reach (`ask`, `db`, `execShell`, …) is a
-global the host decided to bind on `globalThis` before the turn started.
+evaluated inside that VM; anything it can reach (`ask`, `db`, `display`, …) is a
+global the host decided to bind on `globalThis` before the turn started. (Generic
+`execShell`/`readFile`/`writeFile` are **not** among them for a normal agent — they were
+removed from the model surface; see [§2](#2-capabilities-gate-injection-and-the-dts) and the
+[fs:scratch](#the-14-app-capabilities) note.)
 
-There is exactly **one injection site**: `createChildVM` (`sdk/org/libs/core/src/exec/bootstrap.ts:99-243`),
+There is exactly **one injection site**: `createChildVM` (`sdk/org/libs/core/src/exec/bootstrap.ts:100-267`),
 with exactly three non-test callers — the top-level session
 (`sdk/org/libs/core/src/session/session.ts:638`), a fork leaf
 (`sdk/org/libs/core/src/fork/fork.ts:283`), and a delegate
@@ -50,9 +53,9 @@ literal under `sdk/org/libs/core/src/globals/`: `ask`, `sleep`, `fetch`, `readDo
 
 **Non-yielding globals** are plain synchronous host calls marshalled across the QuickJS
 bridge — they do not end the turn. This is the whole host-tools substrate
-(`injectHostTools`, `sdk/org/libs/core/src/globals/host-tools.ts:78`), the project-app `db`
+(`injectHostTools`, `sdk/org/libs/core/src/globals/host-tools.ts:150`), the project-app `db`
 object and the authoring writers (`injectAppGlobals`,
-`sdk/org/libs/core/src/exec/app-globals.ts:190-242`), and `display`, which is the one
+`sdk/org/libs/core/src/exec/app-globals.ts:194-248`), and `display`, which is the one
 fire-and-forget member of the "yielding" family's neighbourhood — it calls the render host
 and returns `void`, pushing nothing (`sdk/org/libs/core/src/globals/display.ts`,
 `createDisplayGlobal`; note it has no `pushYield` parameter, unlike every other
@@ -60,10 +63,11 @@ and returns `void`, pushing nothing (`sdk/org/libs/core/src/globals/display.ts`,
 
 > Two gotchas worth internalising: `inspect` and `loadKnowledge` **do** yield
 > (`sdk/org/libs/core/src/globals/inspect.ts:33-34`, `sdk/org/libs/core/src/globals/load-knowledge.ts:81`)
-> even though they read like utilities; and `execShell` is **synchronous**, so it blocks the
+> even though they read like utilities; and `execShell` (a host primitive, model-callable
+> only in the engineer's `fs:scratch` sandbox) is **synchronous**, so it blocks the
 > single Node thread — the per-stream idle watchdog cannot fire while it runs
 > (`DEFAULT_EXEC_TIMEOUT_MS = 120_000`, `sdk/org/libs/core/src/globals/host-tools.ts:45`,
-> applied at `:118`).
+> applied at `:190`).
 > `fetch` is *not* in that category: it is a real, non-blocking yield
 > (`sdk/org/libs/core/src/globals/fetch.ts:29` → `sdk/org/libs/core/src/eval/fetch-yield.ts`).
 
@@ -71,13 +75,13 @@ and returns `void`, pushing nothing (`sdk/org/libs/core/src/globals/display.ts`,
 
 ## 2. Capabilities gate injection **and** the DTS
 
-One value — `CapabilityProfile` (`sdk/org/libs/core/src/exec/capability.ts:47-79`) — feeds
+One value — `CapabilityProfile` (`sdk/org/libs/core/src/exec/capability.ts:47-86`) — feeds
 **both** sides of the wiring:
 
-* the **inject** side, `createChildVM` (`sdk/org/libs/core/src/exec/bootstrap.ts:155-211`), which
+* the **inject** side, `createChildVM` (`sdk/org/libs/core/src/exec/bootstrap.ts:131-235`), which
   binds a global only behind an explicit `if (caps.…)`;
-* the **DTS** side, `buildAmbientDts` (`sdk/org/libs/core/src/exec/bootstrap.ts:315-337`) +
-  `buildAppCapabilityDts` (`:282-313`), which composes the agent's ambient typecheck
+* the **DTS** side, `buildAmbientDts` (`sdk/org/libs/core/src/exec/bootstrap.ts:345-369`) +
+  `buildAppCapabilityDts` (`:311-343`), which composes the agent's ambient typecheck
   declarations additively from the fragments in
   `sdk/org/libs/core/src/typecheck/library-dts.ts`.
 
@@ -94,8 +98,8 @@ That matters because a typecheck failure is a *clean, retryable, model-visible* 
 ("Cannot find name 'x'"), whereas an un-declared-but-injected global would bind `undefined`
 or throw mid-run.
 
-The profile has six boolean flags plus the parsed app grants
-(`sdk/org/libs/core/src/exec/capability.ts:47-79`):
+The profile has seven boolean flags plus the parsed app grants
+(`sdk/org/libs/core/src/exec/capability.ts:47-86`):
 
 | Flag | Session | Delegate | Fork leaf |
 |---|---|---|---|
@@ -104,26 +108,28 @@ The profile has six boolean flags plus the parsed app grants
 | `delegate` | policy | policy | only via task `canDelegateTo` |
 | `registerSpace` | ✅ | ❌ | only when `allowWrite` |
 | `setSessionMeta` | ✅ | ❌ | ❌ |
-| `allowWrite` (`execShell` mutations, `writeFileRaw`) | ✅ | ✅ | `role !== explore\|plan` |
+| `allowWrite` (mutating `execShell`, the internal `writeFileRaw` — neither on the model DTS) | ✅ | ✅ | `role !== explore\|plan` |
+| `scratchFs` (`createScratch` + a scratch-jailed `execShell` on the model DTS) | `fs:scratch` grant | `fs:scratch` grant | grant, dropped for read-only roles |
 | `app: AppCapabilities` | as granted | as granted | `intersectAppCaps(app, allowWrite)` |
 
-(`sessionCapabilities` `:84-86`, `delegateCapabilities` `:106-108`, `forkCapabilities` `:94-97`.)
+(`sessionCapabilities` `:91-93`, `delegateCapabilities` `:114-116`, `forkCapabilities` `:101-105`.)
 
 `intersectAppCaps` (`sdk/org/libs/core/src/exec/capability.ts:16-28`) is the read-only-fork
 gate: a `explore`/`plan` role keeps only `db:read`, `api:call`, `connections:use`,
 `tools:use`, `store:read`; every mutating/authoring grant (`db:write`, `db:schema`,
-`pages:write`, `api:write`, `hooks:write`, `store:install`, `events:emit`) is **dropped
-before the profile is built**, so it can neither be injected nor declared.
+`pages:write`, `api:write`, `hooks:write`, `store:install`, `events:emit`, and `fs:scratch`)
+is **dropped before the profile is built**, so it can neither be injected nor declared —
+which is why a read-only fork's `scratchFs` is false.
 
-### The 13 app capabilities
+### The 14 app capabilities
 
-`CapabilityId` (`sdk/org/libs/core/src/spaces/capabilities.ts:26-39`) —
+`CapabilityId` (`sdk/org/libs/core/src/spaces/capabilities.ts:26-40`) —
 `db:read`, `db:write`, `db:schema`, `pages:write`, `api:write`, `hooks:write`, `api:call`,
 `connections:use`, `tools:use`, `project:manage`, `store:read`, `store:install`,
-`events:emit`. Parsing is fail-loud (`parseCapabilities`, `:236-327`): an unknown id, an
-unknown config key, a config on a bare-only cap, or a bare `api:call`/`tools:use`/
-`connections:use` (their allowlists are **required** — "there is no *call anything*",
-`:181`) all throw at space load.
+`events:emit`, `fs:scratch`. Parsing is fail-loud (`parseCapabilities`, `:245-336`): an
+unknown id, an unknown config key, a config on a bare-only cap, or a bare `api:call`/
+`tools:use`/`connections:use` (their allowlists are **required** — "there is no *call
+anything*", `:190`) all throw at space load.
 
 | Capability | Config | Globals it earns | Doc |
 |---|---|---|---|
@@ -140,26 +146,30 @@ unknown config key, a config on a bare-only cap, or a bare `api:call`/`tools:use
 | `store:read` | bare | `storeSearch`, `storeInspect` | [store-and-consent.md](./store-and-consent.md) |
 | `store:install` | bare | `installSpace` (**consent-marked**) | [store-and-consent.md](./store-and-consent.md) |
 | `events:emit` | bare | `emitEvent` | [events-and-integrations.md](./events-and-integrations.md) |
+| `fs:scratch` | bare | `createScratch` + a scratch-jailed generic fs/shell (the engineer's code sandbox; the ONLY generic filesystem on the model surface) | [session-and-utils.md](./session-and-utils.md) · [../system-spaces/README.md](../system-spaces/README.md) |
 
-Injection: `sdk/org/libs/core/src/exec/bootstrap.ts:173-204` (yielding app globals) and
-`sdk/org/libs/core/src/exec/app-globals.ts:190-242` (synchronous `db` + writers).
-DTS: `CAPABILITY_DTS_FRAGMENTS` (`sdk/org/libs/core/src/typecheck/library-dts.ts:279-288`) —
-note `pages:write` maps to *both* `PAGES_WRITE_DTS` and `PROJECT_PAGE_DTS` (`:281`), etc.
+Injection: `sdk/org/libs/core/src/exec/bootstrap.ts:175-235` (yielding app globals) and
+`sdk/org/libs/core/src/exec/app-globals.ts:194-248` (synchronous `db` + writers); the
+`fs:scratch` scratch block is bootstrap step 4c (`sdk/org/libs/core/src/exec/bootstrap.ts:154-167`).
+DTS: `CAPABILITY_DTS_FRAGMENTS` (`sdk/org/libs/core/src/typecheck/library-dts.ts:298-307`) —
+note `pages:write` maps to `PAGES_WRITE_DTS` + `PROJECT_PAGE_DTS` + `PROJECT_COMPONENT_DTS`
+(`:300`), etc.; `fs:scratch`'s `EXEC_SHELL_DTS`/`SCRATCH_DTS` are emitted directly in
+`buildAmbientDts`, not via that flat map (`sdk/org/libs/core/src/exec/bootstrap.ts:360-361`).
 
 ### Gating goes beyond presence/absence
 
 * **Typed narrowing.** `composeConnectionsDts` / `composeToolDts`
-  (`sdk/org/libs/core/src/typecheck/library-dts.ts:170`, `:185`) declare `provider` / `name` as
+  (`sdk/org/libs/core/src/typecheck/library-dts.ts:185`, `:200`) declare `provider` / `name` as
   the **union of the granted values**, so calling an ungranted provider or tool fails
   *typecheck*, not just at runtime.
 * **Per-call host re-check.** The `db` object is scoped at injection (`buildScopedDb`,
-  `sdk/org/libs/core/src/exec/app-globals.ts:130-170`) *and* every call re-runs
+  `sdk/org/libs/core/src/exec/app-globals.ts:134-174`) *and* every call re-runs
   `assertTableAllowed` against the grant's `tables` list
-  (`sdk/org/libs/core/src/exec/app-globals.ts:112-121`). The DTS is a convenience; the host is
+  (`sdk/org/libs/core/src/exec/app-globals.ts:116-125`). The DTS is a convenience; the host is
   the boundary.
 * **Typed `apiCall`.** When the project supplies generated overloads (`AmbientDtsOpts.appDts`)
   they **replace** the generic `apiCall` fragment
-  (`sdk/org/libs/core/src/exec/bootstrap.ts:299`).
+  (`sdk/org/libs/core/src/exec/bootstrap.ts:329`).
 
 ### The third gate: the host resolver
 
@@ -210,15 +220,15 @@ model code must never call it directly.
 
 ## 4. Known lockstep exceptions
 
-`COMMON_DTS` (`sdk/org/libs/core/src/typecheck/library-dts.ts:35-108`) is the always-declared
+`COMMON_DTS` (`sdk/org/libs/core/src/typecheck/library-dts.ts:35-107`) is the always-declared
 set. Three names in it are declared unconditionally but **not always injected** — a stray
 call there passes typecheck and fails at runtime:
 
 | Global | Declared | Injected only when |
 |---|---|---|
-| `registerSpace` | `library-dts.ts:40` (the comment at `:29-34` says so explicitly) | `caps.registerSpace` — not for delegates, not for read-only fork roles (`bootstrap.ts:210`) |
-| `progress()` | `library-dts.ts:107` | `ChildVMOpts.progress` is supplied (`host-tools.ts:186-187`) — the delegate site passes none |
-| `integrationStatus` | `library-dts.ts:101` | `opts.projectRoot` is set (`bootstrap.ts:188`) — it has no capability seam yet, justified because it leaks only the *names* of missing env vars |
+| `registerSpace` | `library-dts.ts:40` (the comment at `:29-34` says so explicitly) | `caps.registerSpace` — not for delegates, not for read-only fork roles (`bootstrap.ts:234`) |
+| `progress()` | `library-dts.ts:106` | `ChildVMOpts.progress` is supplied (`host-tools.ts:219-220`) — the delegate site passes none |
+| `integrationStatus` | `library-dts.ts:101` | `opts.projectRoot` is set (`bootstrap.ts:212`) — it has no capability seam yet, justified because it leaks only the *names* of missing env vars |
 
 ---
 
@@ -254,11 +264,13 @@ Y = value-yielding (ends the turn). S = synchronous host call. F = fire-and-forg
 | `db.createTable` / `db.addColumn` | S | Evolve the live schema | `db:schema` | [data-db.md](./data-db.md) |
 | `writePage` / `writeApi` / `writeHook` / `writeTableSchema` | S | Author into the **store catalog** template (`store/projects/<id>/`) | `pages:write` / `api:write` / `hooks:write` / `db:schema` | [app-authoring.md](./app-authoring.md) |
 | `createProject` / `selectProject` | S | Scaffold or bind the catalog app the writers target | `project:manage` | [app-authoring.md](./app-authoring.md) |
-| `writeProjectPage` / `writeProjectApi` / `writeProjectTable` / `writeProjectHook` / `writeProjectEvent` / `writeProjectFunction` | S | Author into the **live project** and republish/rebuild | same grants as above **and** a host impl (project-rooted session) | [app-authoring.md](./app-authoring.md) |
+| `writeProjectPage` / `writeProjectApi` / `writeProjectComponent` / `writeProjectTable` / `writeProjectHook` / `writeProjectEvent` / `writeProjectFunction` | S | Author into the **live project** and republish/rebuild | same grants as above **and** a host impl (project-rooted session); `writeProjectComponent` on `pages:write` | [app-authoring.md](./app-authoring.md) |
+| `listProjectDir(dir)` / `readProjectFile(path)` | S | List/read project files, rooted at `projectRoot` — the **only** way an agent reads project files now | `projectRoot` set (**not** a capability) | [app-authoring.md](./app-authoring.md) · [../format/project/README.md](../format/project/README.md) |
 | `console.log/warn/error` | S | Log via the render host | none | [session-and-utils.md](./session-and-utils.md) |
-| `execShell(cmd, opts?)` | S | Run a shell command (cwd = `spaceDir`); **blocks the Node event loop** | always injected, but mutating commands are refused (`exitCode: 126`) under a read-only role, and `EXEC_SHELL_DTS` is gated on `allowWrite` | [session-and-utils.md](./session-and-utils.md) |
-| `readFileRaw(path, opts?)` | S | Read a file (binary-safe, 256 KB cap) | none | [session-and-utils.md](./session-and-utils.md) |
-| `writeFileRaw(path, content)` | S | Write a file (mkdir -p) | `allowWrite` — a read-only role gets a no-op `{ok:false}` and no DTS | [session-and-utils.md](./session-and-utils.md) |
+| `execShell(cmd, opts?)` | S | Run a shell command; **blocks the Node event loop** | injected on every VM but **on the model DTS only under `fs:scratch`** (engineer scratch sandbox, scratch-rooted); mutating commands refused (`exitCode: 126`) under a read-only role | [session-and-utils.md](./session-and-utils.md) |
+| `createScratch()` | S | Create (once) the throwaway `.lmthing/scratch/<random>` sandbox and return its path | `scratchFs` (the `fs:scratch` grant) — the engineer only | [session-and-utils.md](./session-and-utils.md) |
+| `readFileRaw(path, opts?)` | S | Read a file (binary-safe, 256 KB cap) | **internal-only** — injected but not on any model DTS | [session-and-utils.md](./session-and-utils.md) |
+| `writeFileRaw(path, content)` | S | Write a file (mkdir -p) | **internal-only** — not on any model DTS; `allowWrite` still gates the write (else a no-op `{ok:false}`) | [session-and-utils.md](./session-and-utils.md) |
 | `process.env` / `process.exit` | S | Frozen env copy + the `LMTHING_*` vars | none | [session-and-utils.md](./session-and-utils.md) |
 | `progress()` | S | `{episodes, toolCalls, elapsedMs}` snapshot of the run budget | `ChildVMOpts.progress` supplied | [session-and-utils.md](./session-and-utils.md) |
 | `spacePath(...parts)` / `resolveSpaceDir(space)` | S | `path.join` / space-dir resolution inside QuickJS | none | [session-and-utils.md](./session-and-utils.md) |
@@ -266,29 +278,38 @@ Y = value-yielding (ends the turn). S = synchronous host call. F = fire-and-forg
 | `currentTask.resolve(value)` | S | The fork/delegate result-capture channel | `ChildVMOpts.currentTaskResolve` (fork + delegate only) | [delegation.md](./delegation.md) |
 | `React` + component stubs | S | Classic-transform JSX shim returning a `JSXDescriptor`, plus one stub per catalog/space component | none (every VM) | [conversation.md](./conversation.md) |
 
-**Not globals.** `webSearch`, `webFetch`, `todoWrite`, `todoRead`, `readFile`, `grep` are
-**space functions** in `sdk/org/libs/core/system-spaces/system-global/functions/`, injected via
-`injectSpaceFunctions` (`sdk/org/libs/core/src/exec/bootstrap.ts:122`) and built *on top of*
-the `fetch`/`readFileRaw`/`writeFileRaw` globals. Their declarations come from the function
-overlay, not `library-dts.ts`.
+**Not globals.** `webSearch`, `webFetch`, `todoWrite`, `todoRead`, `remember`/`recall`/
+`recallAll`/`forget` are **space functions** in
+`sdk/org/libs/core/system-spaces/system-global/functions/` (the universal 8), injected via
+`injectSpaceFunctions` (`sdk/org/libs/core/src/exec/bootstrap.ts:123`) and built *on top of*
+the `fetch`/`readFileRaw`/`writeFileRaw` primitives. The generic fs wrappers `readFile`/
+`writeFile`/`editFile`/`listDir`/`glob`/`grep` are **no longer** in `system-global` — they
+moved to `sdk/org/libs/core/system-spaces/system-engineer/functions/`, scoped to the engineer
+(its `functions:` frontmatter) and jailed to the `fs:scratch` sandbox. All of these declare
+via the function overlay, not `library-dts.ts`.
 
 ---
 
 ## 6. Bootstrap order
 
-`createChildVM` runs a fixed six-step sequence (`sdk/org/libs/core/src/exec/bootstrap.ts:99-243`):
+`createChildVM` runs a fixed sequence (`sdk/org/libs/core/src/exec/bootstrap.ts:100-267`):
 
 1. **Seed vars** — fork seed + upstream outputs, delegate query/context, session resume scope
-   (`:106-108`).
-2. **`currentTask`** — only when `opts.currentTaskResolve` is supplied (`:114-119`).
+   (`:107-109`).
+2. **`currentTask`** — only when `opts.currentTaskResolve` is supplied (`:115-120`).
 3. **`injectSpaceFunctions`** — space/project functions as globals; an `@consent` pragma
-   wraps the function (`:122`).
-4. **`injectHostTools`** — the synchronous substrate, with `profile.allowWrite` taken from the
-   capability profile (`:130-138`).
-   4b. **`injectAppGlobals`** — `db` + the authoring writers (`:143`).
-5. **The yielding globals**, each behind an explicit `if (caps.…)` (`:151-211`).
+   wraps the function (`:123`).
+4. **`injectHostTools`** — the synchronous substrate (incl. the internal `execShell`/
+   `readFileRaw`/`writeFileRaw` primitives), with `profile.allowWrite` taken from the
+   capability profile (`:131-139`).
+   4b. **`injectAppGlobals`** — `db` + the authoring writers + (on `projectRoot`) the
+   `listProjectDir`/`readProjectFile` reads (`:144`).
+   4c. **The `fs:scratch` scratch sandbox** — only when `caps.scratchFs`: injects
+   `createScratch` + the internal scratch primitives and OVERRIDES `execShell` with the
+   scratch-rooted variant (`:154-167`).
+5. **The yielding globals**, each behind an explicit `if (caps.…)` (`:169-235`).
 6. **The JSX runtime** — the `React` shim plus one stub global per `CATALOG_NAMES` and per
-   caller-supplied component name; space components override on collision (`:217-240`).
+   caller-supplied component name; space components override on collision (`:241-264`).
 
 ---
 
@@ -357,14 +378,16 @@ cannot even name it without failing typecheck.
    fetch) via bindYieldResults' getVar preference"
    (`sdk/org/libs/core/src/exec/prelude.test.ts:132`). The same helper is reused by the
    host-executed prelude (`sdk/org/libs/core/src/exec/prelude.ts:181`, `:230`).
-3. **App globals root at `projectRoot`, never `LMTHING_SPACE_DIR`.** `execShell`/`readFileRaw`/
-   `writeFileRaw` resolve relative paths against the space dir
-   (`sdk/org/libs/core/src/globals/host-tools.ts:137`, `LMTHING_SPACE_DIR`), while `db` and the
-   `writeProject*` writers resolve against the project root
-   (`sdk/org/libs/core/src/exec/bootstrap.ts:143`; `LMTHING_PROJECT_DIR` at
-   `sdk/org/libs/core/src/globals/host-tools.ts:142`). A session with no `projectRoot` gets no
-   `db` at all (`sdk/org/libs/core/src/exec/app-globals.ts:201`).
+3. **App globals root at `projectRoot`, never `LMTHING_SPACE_DIR`.** The internal
+   `execShell`/`readFileRaw`/`writeFileRaw` primitives resolve relative paths against the space
+   dir (`sdk/org/libs/core/src/globals/host-tools.ts:170-171`, `LMTHING_SPACE_DIR`), while `db`,
+   the `writeProject*` writers, and the `listProjectDir`/`readProjectFile` reads resolve against
+   the project root (`sdk/org/libs/core/src/exec/bootstrap.ts:144`; `LMTHING_PROJECT_DIR` at
+   `sdk/org/libs/core/src/globals/host-tools.ts:199-201`). This split — space-rooted internal fs
+   vs project-rooted typed reads/writes — is why an agent reads project files through
+   `readProjectFile`/`listProjectDir`, not the (now internal) `readFileRaw`. A session with no
+   `projectRoot` gets no `db` at all (`sdk/org/libs/core/src/exec/app-globals.ts:205`).
 4. **Two execution regimes for the same data model.** In the agent sandbox `db.*` is a
-   **synchronous** host call (`sdk/org/libs/core/src/exec/app-globals.ts:130-170`); the same
+   **synchronous** host call (`sdk/org/libs/core/src/exec/app-globals.ts:134-174`); the same
    methods are `Promise`-returning (`AsyncDbApi`) on the Node `api/`/`hooks/` side. One
    schema, two typed surfaces — see [data-db.md](./data-db.md).

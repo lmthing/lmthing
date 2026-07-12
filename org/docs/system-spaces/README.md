@@ -1,6 +1,6 @@
 # `system-spaces/` — the shipped system spaces
 
-The **ten** spaces that ship inside `@lmthing/core` and are loaded into **every** session, fork and delegate. They are what makes an empty project already able to think: THING orchestrates, the architect builds new agents, the appbuilder builds apps, the researcher searches, the engineer codes, and a universal function toolkit (`readFile`/`grep`/`webSearch`/…) is in scope everywhere.
+The **ten** spaces that ship inside `@lmthing/core` and are loaded into **every** session, fork and delegate. They are what makes an empty project already able to think: THING orchestrates, the architect builds new agents, the appbuilder builds apps, the researcher searches, the engineer codes, and a universal function toolkit (`webSearch`/`remember`/`todoWrite`/…) is in scope everywhere.
 
 They live at `sdk/org/libs/core/system-spaces/<name>/` — **not** under `src/`; they are read from disk at runtime, so editing an `.md` or a builder `.ts` needs no rebuild of `@lmthing/core` (`sdk/org/libs/core/src/spaces/system.ts:L50-L58` resolves the dir relative to the built/`src` layout).
 
@@ -27,19 +27,19 @@ Two more rules that only matter here:
 - **Function-only spaces are legal.** `loadSystemSpaces` calls `loadSpace(dir, { requireAgents: false })`, so a space with no `agents/` (i.e. `system-global`) loads instead of throwing (`sdk/org/libs/core/src/spaces/system.ts:L60-L70`).
 - **The user space wins on a name collision — except empty placeholders.** `mergeSystemInto` overlays the user space on top of the system spaces, but an *empty* user agent (an `agents/<slug>/` dir with no `instruct.md` ⇒ no `instructBody`, no actions) or an *empty* user tasklist dir (no `.md` files) does **not** shadow the real system one (`sdk/org/libs/core/src/spaces/system.ts:L140-L155`). That silent shadowing once stripped the system `architect` of its instructions, actions and `defaultAction`.
 
-**Capabilities are spaces, not ad-hoc core globals.** The runtime stays a thin substrate; the host primitives the system functions wrap (`readFileRaw`, `writeFileRaw`, `execShell`, `fetch`) are injected separately by `host-tools.ts` (`sdk/org/libs/core/src/spaces/system.ts:L7-L21`).
+**Capabilities are spaces, not ad-hoc core globals.** The runtime stays a thin substrate; the host primitives the system functions wrap (`readFileRaw`, `writeFileRaw`, `execShell`, `fetch`) are injected separately by `host-tools.ts` (`sdk/org/libs/core/src/spaces/system.ts:L7-L21`) — but as **internal** primitives, absent from every agent's model DTS; the only one that reaches model code is `execShell`, and only under the engineer's `fs:scratch` scratch sandbox (`sdk/org/libs/core/src/exec/bootstrap.ts:L146-L167`).
 
 ---
 
 ## 2. The ten spaces
 
-`SYSTEM_SPACE_NAMES` (`sdk/org/libs/core/src/spaces/system.ts:L30-L41`), asserted to be exactly ten by `sdk/org/libs/core/src/spaces/system.test.ts:L53`:
+`SYSTEM_SPACE_NAMES` (`sdk/org/libs/core/src/spaces/system.ts:L30-L41`), asserted to be exactly ten by `sdk/org/libs/core/src/spaces/system.test.ts:L60`:
 
 | Space | Agent(s) | Actions | What it is for |
 |---|---|---|---|
-| **`system-global`** | *(none — function-only)* | — | The **universally injected toolkit**: 14 functions, in scope in every agent, fork and delegate (§3). |
-| **`system-engineer`** | `engineer` | *(none — model-driven)* | Writes/fixes/verifies code in a real repo: `grep` → `readFile` → `editFile`/`writeFile` → `execShell` to run tests, with `fork({role:'explore'\|'plan'})` for heavy investigation (`sdk/org/libs/core/system-spaces/system-engineer/agents/engineer/instruct.md:L19-L45`). Also authors **project functions** via `writeProjectFunction(name, src)` when an installed space doesn't expose a needed service op (`:L46-L70`). |
-| **`system-architect`** | `architect` | `synthesize_and_run` *(default)*, `iterate_space` | The **meta-agent that builds other agents**. Its two jobs are two fixed 2-statement programs; the real work happens inside the tasklists (§6). Owns 8 scoped builder functions: `writeAgentFile`, `writeTaskFile`, `writeKnowledgeIndex`, `writeKnowledgeOption`, `writeFunctionFile`, `writeComponentFile`, `validateSpace`, `listScaffoldedSpaces` (`sdk/org/libs/core/system-spaces/system-architect/agents/architect/instruct.md:L5-L13`). Knowledge: `space_format/frontmatter`. |
+| **`system-global`** | *(none — function-only)* | — | The **universally injected toolkit**: 8 functions, in scope in every agent, fork and delegate (§3). |
+| **`system-engineer`** | `engineer` | *(none — model-driven)* | Drafts/fixes/**verifies** code in a private **scratch sandbox** — `createScratch()` first, then a jailed `readFile`/`writeFile`/`editFile`/`listDir`/`glob`/`grep` + `execShell` (absolute/`..` paths rejected), with `fork({role:'explore'\|'plan'})` for heavy investigation (`sdk/org/libs/core/system-spaces/system-engineer/agents/engineer/instruct.md:L28-L45`). It does **not** read or write the live project; it **returns** the finished code to its caller via `currentTask.resolve({ ok, kind:'projectFunction'\|'code', code, suggestedName?, notes? })`, and the caller persists it with a typed writer (`:L73-L98`). Holds `fs:scratch` only — no `writeProjectFunction`. |
+| **`system-architect`** | `architect` | `synthesize_and_run` *(default)*, `iterate_space` | The **meta-agent that builds other agents**. Its two jobs are two fixed 2-statement programs; the real work happens inside the tasklists (§6). Owns 13 scoped builder functions: `writeAgentFile`, `writeTaskFile`, `writeKnowledgeIndex`, `writeKnowledgeOption`, `writeFunctionFile`, `writeComponentFile`, `writeEventFile`, `writeHookFile`, `writeManifest`, `readSpaceFile`, `listSpaceDir`, `validateSpace`, `listScaffoldedSpaces` (`sdk/org/libs/core/system-spaces/system-architect/agents/architect/instruct.md:L5-L18`). Knowledge: `space_format/frontmatter`. |
 | **`system-research`** | `researcher` | `research` *(default)*, `deep_research` | Web research. `research` = one search + one fetch + a concise sourced answer; `deep_research` = a 5-stage cited-report pipeline (`sdk/org/libs/core/system-spaces/system-research/agents/researcher/instruct.md:L6-L16`). Ships **no functions of its own** — its tasks reach the web through `system-global`'s `webSearch`/`webFetch`, allow-listed per task. |
 | **`system-appbuilder`** | `app-architect` | `build_app` *(default)* | Builds a whole application — **the store-catalog template path**. Runs the `build_app` tasklist and reports; may delegate one slice to a specialist (`sdk/org/libs/core/system-spaces/system-appbuilder/agents/app-architect/instruct.md:L29-L54`). |
 | | `automator` | *(none — model-driven)* | Builds/extends the app **in the LIVE project**: `writeProjectTable` (with a third `rows` arg that seeds data at creation), `writeProjectHook`, `writeProjectEvent`, `writeProjectApi`, `writeProjectPage` (`sdk/org/libs/core/system-spaces/system-appbuilder/agents/automator/instruct.md:L16-L33`). This is THING's default app path. |
@@ -62,16 +62,10 @@ Every agent above ships both `charter.md` (fork-safe identity + a never-fabricat
 
 ## 3. `system-global` — the universal toolkit
 
-The one function-only space. Its 14 functions are injected into every session, delegate and fork VM, and into their typecheck overlays; the exact set is pinned by `sdk/org/libs/core/src/spaces/system.test.ts:L24-L27`:
+The one function-only space. Its 8 functions are injected into every session, delegate and fork VM, and into their typecheck overlays; the exact set is pinned by `sdk/org/libs/core/src/spaces/system.test.ts:L24-L30`:
 
 | Function | What it does |
 |---|---|
-| `readFile(path, opts?)` | Read a text file; `content` is line-numbered, `raw` is unmodified (`system-global/functions/readFile.ts:L1-L2`) |
-| `writeFile(path, content)` | Create/overwrite, binary-safe, no shell quoting (`writeFile.ts:L1`) |
-| `editFile(path, oldString, newString, …)` | Exact-string replace; fails if missing or non-unique unless `replaceAll` (`editFile.ts:L1`) |
-| `glob(pattern, opts?)` | Glob (`**`/`*`), skipping `node_modules` and `.git` (`glob.ts:L1`) |
-| `grep(pattern, …)` | ripgrep with a `grep -rn` fallback; returns file/line/text matches (`grep.ts:L1`) |
-| `listDir(path)` | List entries of a directory (`listDir.ts:L1`) |
 | `webSearch(query, opts?)` | Ranked web results (Tavily / Bing-render / DuckDuckGo; `provider: 'auto'` by default) (`webSearch.ts:L1-L3`) |
 | `webFetch(url, opts?)` | Fetch a URL; HTML reduced to text, or `{format:'markdown'}` to keep structure (`webFetch.ts:L1-L3`) |
 | `remember(key, value)` / `recall(key)` / `recallAll()` / `forget(key)` | Durable JSON facts at `<spaceDir>/.lmthing/memory.json` (`remember.ts:L1-L3`) |
@@ -137,7 +131,7 @@ Path 7's flow, once per distinct need (the finder returns ONE space per call, so
 **(b)** `await installSpace(rec.spaceId)` — **consent-marked**: the host renders a consent card and installs only on approval; on success the space is live-registered for `delegate()` in the same session (`:L315-L325`). An id that did **not** come from a finder recommendation must be verified with `storeInspect` first — calling `installSpace` on a non-existent id would interrupt the user with an unfulfillable consent card (`:L327-L340`).
 **(c)** `await integrationStatus(rec.spaceId)` → `{ ready, missingRequired }` (presence-only, never secret values); point the user at the chat **Integrations** tab. Their save restarts the pod and **auto-resumes THING** with a "`<id>` configured" system message — never poll (`:L342-L354`).
 **(d)** `delegate('system-appbuilder','automator', …)` to author the event hook + emitter def (`:L356-L363`).
-**(e)** If the automation needs a service call the installed space does not expose → the engineer authors a **project function** (path 5) (`:L365-L366`).
+**(e)** If the automation needs a service call the installed space does not expose → the engineer **drafts** the **project function** code and returns it (path 5); the automator persists it via `writeProjectFunction` (the engineer no longer persists) (`:L365-L366`).
 
 ### 4.3 Standing behaviour (before triage)
 
@@ -162,7 +156,7 @@ Path 7's flow, once per distinct need (the finder returns ONE space per call, so
 | `system-appbuilder/data-modeler` | `db:schema`, `db:read` | `writeTableSchema` (`system-appbuilder/agents/data-modeler/instruct.md:L7-L9`) |
 | `system-appbuilder/page-builder` | `pages:write`, `db:read` | `writePage` (`system-appbuilder/agents/page-builder/instruct.md:L7-L9`) |
 | `system-appbuilder/api-author` | `api:write`, `db:read` | `writeApi` (`system-appbuilder/agents/api-author/instruct.md:L7-L9`) |
-| `system-engineer/engineer` | `hooks:write` | `writeProjectFunction` (and the other `hooks:write` writers) — `hooks:write` is the grant that gates all three project writers (`sdk/org/libs/core/src/exec/app-globals.ts:L221-L223`; `system-engineer/agents/engineer/instruct.md:L6-L7`) |
+| `system-engineer/engineer` | `fs:scratch` | `createScratch` + a sandboxed generic fs/shell (`readFile`/`writeFile`/`editFile`/`listDir`/`glob`/`grep` + `execShell`, jailed to a throwaway `.lmthing/scratch/<random>` dir) — the engineer's scratch workbench; the ONLY grant that earns any generic filesystem access, and it persists nothing (`sdk/org/libs/core/src/spaces/capabilities.ts:L93-L97`; `sdk/org/libs/core/src/exec/bootstrap.ts:L146-L167`; `system-engineer/agents/engineer/instruct.md:L12-L13`) |
 | `system-store/finder` | `store:read` | `storeSearch`, `storeInspect` (`sdk/org/libs/core/src/exec/bootstrap.ts:L189-L193`; `system-store/agents/finder/instruct.md:L4-L5`) |
 | `user-thing/thing` | `store:read`, `store:install` | `storeSearch`/`storeInspect` **plus** the consent-marked `installSpace` (`sdk/org/libs/core/src/exec/bootstrap.ts:L195-L198`; `user-thing/agents/thing/instruct.md:L6-L8`) |
 
@@ -319,9 +313,9 @@ The **file formats** (agent frontmatter keys, tasklist node fields, knowledge la
 
 What is **specific to a system space**:
 
-1. **Create `sdk/org/libs/core/system-spaces/<name>/`**, then add `<name>` to `SYSTEM_SPACE_NAMES` (`sdk/org/libs/core/src/spaces/system.ts:L30-L41`). A dir that is not in that list is never materialized and never loaded. Update `sdk/org/libs/core/src/spaces/system.test.ts:L53`, which asserts the exact count.
+1. **Create `sdk/org/libs/core/system-spaces/<name>/`**, then add `<name>` to `SYSTEM_SPACE_NAMES` (`sdk/org/libs/core/src/spaces/system.ts:L30-L41`). A dir that is not in that list is never materialized and never loaded. Update `sdk/org/libs/core/src/spaces/system.test.ts:L60`, which asserts the exact count.
 2. **A function-only space is fine** (no `agents/`) — `loadSystemSpaces` passes `requireAgents: false` (`sdk/org/libs/core/src/spaces/system.ts:L60-L70`). But its functions are **only** universal if the space is literally named `system-global` (`:L27`, `:L73-L76`); any other space's functions must be declared in an agent's `functions:` frontmatter to reach anything.
-3. **Adding a function to `system-global`** means adding a universal global: one file per function, named exactly like the file, with an explicit return type and a leading doc comment (both are surfaced to the model). It runs inside the QuickJS VM and may use the host primitives, but **may not** call value-yielding globals other than the ones already bridged. Update `sdk/org/libs/core/src/spaces/system.test.ts:L24-L27`, which pins the exact function list.
+3. **Adding a function to `system-global`** means adding a universal global: one file per function, named exactly like the file, with an explicit return type and a leading doc comment (both are surfaced to the model). It runs inside the QuickJS VM and may use the host primitives, but **may not** call value-yielding globals other than the ones already bridged. Update `sdk/org/libs/core/src/spaces/system.test.ts:L24-L30`, which pins the exact function list.
 4. **Grants**: if the agent needs a project-app global, declare it in `capabilities:` — and extend the cap-bearing predicate in `sdk/org/libs/core/src/spaces/capabilities.test.ts:L126-L131`, which otherwise asserts your new agent's capabilities are `{}`.
 5. **After editing**: a source `.md`/builder-`.ts` edit needs **no rebuild**, but an already-materialized pod root only picks it up via the pristine auto-adopt (§7.2). A locally-edited copy on that root holds back until `--adopt-system-spaces`.
 6. **Never forbid a tool in prose.** Disable it structurally: `role: explore` for a read-only task, `functions: []` for a no-tools task, an explicit `functions:` allowlist otherwise. Prose restrictions are advisory; frontmatter is host-enforced (`sdk/org/libs/core/src/exec/app-globals.ts:L208-L226` for capabilities; [`../runtime/fork-and-tasklists.md`](../runtime/fork-and-tasklists.md) for task roles/allowlists).

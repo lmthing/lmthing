@@ -1,11 +1,11 @@
 {
-  "image": "team",
+  "image": "org",
   "sha": "3835c91",
-  "digest": "sha256:2fc6d8e0963b35c45774165b43a0a23d593522cdf59264830dfc52338e5ee118",
+  "digest": "sha256:c9281d4a4edab922e1d38f16afb26189b85ce275718745c2cf523f3fe1d513d8",
   "run_id": "29195762758",
   "run_number": 326,
   "run_url": "https://github.com/\\lmthing/lmthing/actions/runs/29195762758",
   "status": "completed",
   "conclusion": "success",
-  "updated_at": "2026-07-12T14:12:56.235779+00:00"
+  "updated_at": "2026-07-12T14:13:16.909406+00:00"
 }

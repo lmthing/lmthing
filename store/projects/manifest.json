@@ -1536,8 +1536,24 @@
           "INTEGRATION_DEMO_WEBHOOK_SECRET"
         ]
       },
-      "events": {},
-      "inbound": [],
+      "events": {
+        "message.received": {
+          "payload": {
+            "text": "string",
+            "from": "string",
+            "chatId": "string",
+            "threadKey": "string?",
+            "userName": "string?",
+            "raw": "object"
+          }
+        }
+      },
+      "inbound": [
+        {
+          "path": "demo",
+          "verify": "hmac"
+        }
+      ],
       "functions": [
         {
           "name": "demoGetHealth",
@@ -1574,6 +1590,7 @@
         "agents/demo/instruct.md",
         "agents/handler/charter.md",
         "agents/handler/instruct.md",
+        "events/messages.ts",
         "functions/demoGetHealth.ts",
         "functions/demoSendMessage.ts",
         "knowledge/demo/api/auth.md",

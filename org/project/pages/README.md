@@ -1,60 +1,72 @@
-# `pages/<route>.tsx` — client-side React route
+# `pages/` — client-side React routes
 
-File-routed client pages. Written by `writePage(route, src)` (granted by `pages:write`). `route`
-is `index` (root) or a path like `feed/[articleId]` — a `[seg]` is a dynamic param read via
-`useParams`.
+A project-app's `pages/` directory holds **real client-side React** — each non-`_`-prefixed `.tsx`/`.jsx` file is a file-routed page, built once on save/boot (never per request) into a self-contained static bundle under `<projectRoot>/.data/pages-dist/` and served under `…/app/<project>/*` (`sdk/org/libs/cli/src/app/build/pages.ts:1-26`). Pages are pure browser code — there is no pod-side loader; they pull data over HTTP through `@app/runtime` (`sdk/org/CLAUDE.md` "pages/ are real client-side React").
+
+Pages are written by the capability-gated `writePage(route, src)` global (catalog authoring) and its live-project twin `writeProjectPage(route, src)`, both injected only when the agent holds the `pages:write` grant (`sdk/org/libs/cli/src/app/authoring/globals.ts:185-196`, `sdk/org/libs/cli/src/app/authoring/globals.ts:376-395`; DTS gated at `sdk/org/libs/core/src/typecheck/library-dts.ts:268`). See [capabilities.md](../../space/agents/capabilities.md) for the grant model.
+
+## File routing
+
+Route discovery walks `pages/`; every non-`_`-prefixed `.tsx`/`.jsx` file becomes a route (`sdk/org/libs/cli/src/app/build/pages.ts:155-182`). The route pattern is the file's path relative to `pages/`, with two rules: an `index` basename collapses to its directory's path, and a `[id]` segment becomes a `:id` dynamic param (`sdk/org/libs/cli/src/app/build/pages.ts:184-194`).
 
 ```
-pages/index.tsx                →  /
-pages/feed/[articleId].tsx     →  /feed/:articleId
+pages/index.tsx                      →  /
+pages/discover.tsx                   →  /discover
+pages/feed/[articleId].tsx           →  /feed/:articleId
 pages/feed/[articleId]/research.tsx  →  /feed/:articleId/research
 ```
 
-**Special files:** `_app.tsx` (root wrapper) and `_layout.tsx` (shared layout).
+The route table above is grounded in `routePathFor` (`sdk/org/libs/cli/src/app/build/pages.ts:184-194`) and the matcher `matchRoutes`, which splits both request and pattern into segments and captures `:param` segments (`sdk/org/libs/cli/src/app/runtime/router.tsx:57-75`). Dynamic-segment authoring uses `[seg]` wrapped in brackets and the writer accepts it as a valid path segment (`sdk/org/libs/cli/src/app/authoring/globals.ts:53`). Directories named `components/` and `lib/` under `pages/` hold shared code, not routes, and are skipped during discovery (`sdk/org/libs/cli/src/app/build/pages.ts:173`).
 
-## Format
+## Special files: `_app` / `_layout`
 
-Default-export a component; pull data from `@app/runtime`:
+Two `_`-prefixed basenames are wrappers, not routes: `_app.tsx` (root wrapper — providers/context) and `_layout.tsx` (persistent chrome/shared layout), both optional (`sdk/org/libs/cli/src/app/build/pages.ts:152`, `sdk/org/libs/cli/src/app/build/pages.ts:305-314`). The router wraps the matched page as page-in-`_layout`-in-`_app` (`sdk/org/libs/cli/src/app/runtime/router.tsx:167-176`). Details → [app-file.md](./app-file.md) and [layout-file.md](./layout-file.md).
 
-```tsx
-import React, { useState } from 'react';
-import type { Article } from '@app/types';                     // generated from db schemas
-import { useApi, useApiMutation, apiCall, Link, navigate } from '@app/runtime';
-import { ArticleCard } from '../components/ArticleCard';
+## `@app/runtime` — data hooks + routing
 
-export default function Feed() {
-  const { data: articles, isLoading, error, refetch } = useApi<Article[]>('feedList', {});
-  const markAllRead = useApiMutation<{ count: number }>('markAllRead', { invalidates: ['feedList'] });
-  // …render with design tokens ONLY (see the design-system gate)
-}
-```
+A page default-exports a React component and imports data/routing helpers from `@app/runtime`; the build aliases `@app/runtime` to this package's runtime source and `@app/types` to the project's generated dts (`sdk/org/libs/cli/src/app/build/pages.ts:472-473`, `sdk/org/libs/cli/src/app/build/pages.ts:249-250`).
 
-The minimal `_app.tsx` is just a pass-through wrapper:
+| Import | Purpose | Returns |
+|---|---|---|
+| `useApi(name, input?, opts?)` | query an endpoint (GET/DELETE reads); refetches when `[name, JSON.stringify(input)]` changes | `{ data, error, isLoading, refetch }` (`sdk/org/libs/cli/src/app/runtime/hooks.tsx:70-116`) |
+| `useApiMutation(name, { invalidates? })` | mutate via an endpoint (POST/PATCH/PUT) | `{ mutate, isPending, error }` (`sdk/org/libs/cli/src/app/runtime/hooks.tsx:138-169`) |
+| `apiCall(name, input?)` | imperative one-shot call | `Promise<unknown>` (parsed JSON body) (`sdk/org/libs/cli/src/app/runtime/client.ts:147-161`) |
+| `Link`, `navigate`, `useParams` | client-side routing | — (`sdk/org/libs/cli/src/app/runtime/router.tsx:143`, `:121`, `:89`) |
+
+`name` is the endpoint's stable exported name; `apiCall` looks it up in the injected endpoint manifest (`window.__APP_ENDPOINTS__`), fills `:param` segments from `input`, and routes GET/DELETE remainders to the query string and POST/PATCH/PUT remainders to the JSON body (`sdk/org/libs/cli/src/app/runtime/client.ts:8-14`, `sdk/org/libs/cli/src/app/runtime/client.ts:121-139`). See endpoint authoring → [../api/README.md](../api/README.md).
+
+`useApi` re-fetches on mount and on input change, discards stale in-flight responses (last-write-wins via a request-id ref), and registers its refetch under `name` so a mutation can invalidate it (`sdk/org/libs/cli/src/app/runtime/hooks.tsx:82-116`). `useApiMutation`'s `mutate(input)` resolves the endpoint output and, on success, re-fetches every live query named in `invalidates` (`sdk/org/libs/cli/src/app/runtime/hooks.tsx:149-166`, `sdk/org/libs/cli/src/app/runtime/hooks.tsx:41-47`).
+
+Routing uses the History API: `navigate(to)` pushes state and re-renders (`sdk/org/libs/cli/src/app/runtime/router.tsx:121-124`); `<Link>` is an anchor that navigates client-side on a plain left-click and accepts both `to` and `href` (`sdk/org/libs/cli/src/app/runtime/router.tsx:126-162`); `useParams()` reads the matched route's params (`sdk/org/libs/cli/src/app/runtime/router.tsx:89-91`). Route-table paths are authored base-agnostically (`/`, `/discover`); `Link`/`navigate` re-apply the `…/app/<project>` base via `toHref` so navigation stays inside the app (`sdk/org/libs/cli/src/app/runtime/router.tsx:96-114`).
+
+## Styling — tokens-only hard gate
+
+Pages must use the shared design-system tokens only — **never a raw color** (no hex, no literal `rgb()`/`hsl()`, no stock Tailwind color utilities like `gray-*`/`blue-500`); use `var(--foreground)`, `bg-primary`, `text-agent`, etc. (`sdk/org/libs/css/scripts/lint-design-tokens.mjs:1-11`). The lint flags raw hex/`rgb()`/`hsl()` literals and stock Tailwind color-family utilities, allowing only token-based color functions (`rgb/hsl(var(--…))`) and achromatic overlay/scrim/shadow alphas (`sdk/org/libs/css/scripts/lint-design-tokens.mjs:36-56`). It is a hard gate: the `lint:tokens` script (`package.json:14`) and the `design-tokens.yml` CI workflow (`.github/workflows/design-tokens.yml:39-43`) fail on any violation. Escape hatches are `ds-lint-ok` (per-line) and `ds-lint-file-ok` (per-file) (`sdk/org/libs/css/scripts/lint-design-tokens.mjs:17-20`).
+
+> UNVERIFIED (scope caveat): the `lint:tokens` scan list in both `package.json:14` and `.github/workflows/design-tokens.yml:41-43` names the shared frontend trees and product SPAs (`sdk/org/libs/css/src`, `.../ui/src`, `apps/web/src`, `com/src`…`casa/src`) — it does **not** include the store's project-app template dirs (`store/projects/<id>/pages`), so those template pages are not directly scanned by CI even though the token-only rule is mandatory design-system policy for them. Searched: the two scan-list definitions above; found no `store/projects` entry.
+
+Shared page components live in [../components/README.md](../components/README.md).
+
+## Worked example
+
+Adapted from the real `store/projects/blog/pages/index.tsx` (`store/projects/blog/pages/index.tsx:1-27`) — a page that reads with `useApi`, mutates with `useApiMutation`, and fires a one-shot `apiCall`:
 
 ```tsx
 import React from 'react';
-export default function App({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+import type { Article } from '@app/types';                 // generated from database/ schemas
+import { useApi, useApiMutation, apiCall } from '@app/runtime';
+
+export default function Feed() {
+  const { data: articles, isLoading, error, refetch } = useApi<Article[]>('feedList', {});
+  const markAllRead = useApiMutation<{ count: number }>('markAllRead', {
+    invalidates: ['feedList', 'feedStats'],
+  });
+
+  const onPin = async (a: Article) => {
+    await apiCall('pinArticle', { id: a.id, pinned: !a.pinned });
+    refetch?.();
+  };
+  // …render with design tokens ONLY (bg-primary, text-muted-foreground, …)
 }
 ```
 
-## `@app/runtime` data hooks
-
-| API | Verbs | Returns |
-|---|---|---|
-| `useApi(name, input?, opts?)` | GET / DELETE reads | `{ data, error, isLoading, refetch }` |
-| `useApiMutation(name, { invalidates? })` | POST / PATCH / PUT | `{ mutate }` |
-| `apiCall(name, input)` | imperative one-shot call | `Promise<Output>` |
-| `Link`, `navigate`, `useParams` | routing | — |
-
-`name` is the endpoint's exported `name` (see [../api/](../api/)); `invalidates` lists query keys
-to refetch after a mutation.
-
-## Styling — a hard gate
-
-> **No raw colors anywhere** — only design tokens (`var(--foreground)`, `bg-primary`,
-> `text-agent`, …). No hex, no literal `rgb()/hsl()`, no stock Tailwind colors (`gray-*`,
-> `blue-500`). Enforced by `pnpm lint:tokens` + CI. Shared components live in
-> [../components/](../components/).
-
-Real example: `store/projects/blog/pages/index.tsx` (and `pages/_app.tsx`).
+The minimal `_app.tsx` root wrapper is a pass-through (`store/projects/blog/pages/_app.tsx:1-5`); see [app-file.md](./app-file.md).

@@ -1,121 +1,82 @@
-# `events/<name>.ts` — typed emitter def (four kinds)
+# `events/` — emitter defs (the event SOURCE)
 
-The **canonical** emitter-def reference (the format is identical in a space and a project — see the
-project-scope notes at [../../project/events/](../../project/events/)). An emitter def makes a space
-(or project) an **event SOURCE**: a typed producer of events on the bus. Its consumers are
-[event hooks](../hooks/).
+An `events/` directory in a **space** or a **project** holds named `.ts` files, each default-exporting one typed `EmitterDef` — the **PRODUCER** side of the one unified event pipeline, symmetric with hooks (the consumer side) `sdk/org/libs/core/src/spaces/emitter-def.ts:1-22`. A def makes its scope an **event SOURCE**: a typed producer of events on the bus `sdk/org/libs/core/src/spaces/emitter-def.ts:1-6`. Its consumers are [event hooks](../hooks/README.md), which subscribe by address `sdk/org/libs/cli/src/server/event-dispatch.ts:184-185`.
 
-`emits` maps `<event name> → { payload: { <field>: <typeString> } }`. typeStrings are
-`string | number | boolean | object | array | any`, and a **trailing `?`** marks a field optional
-(`threadKey: 'string?'`) — the generated DTS emits an optional member and runtime validation
-tolerates its absence. Event names are dot-separated lowercase (`message.received`,
-`db.raw_items.insert`). Duplicate event names within one scope fail the whole scope loudly.
+The def format is **identical in a space and a project** — see the project-scope notes at [../../project/events/README.md](../../project/events/README.md) `sdk/org/libs/core/src/spaces/emitter-def.ts:3-6`.
 
----
+## The `emits` schema
 
-## a. `webhook` — an inbound HTTP producer
+Every def declares the payload schema of every event it produces INLINE in `emits`: a map of `<event name> → { payload: { <field>: <typeString> } }` `sdk/org/libs/core/src/spaces/emitter-def.ts:37-42`. typeStrings are `string | number | boolean | object | array | any` — the SAME vocabulary as a tasklist node's `output` `sdk/org/libs/core/src/spaces/emitter-load.ts:36-39`. `emits` must be an object declaring at least one event, or validation throws fail-loud `sdk/org/libs/core/src/spaces/emitter-load.ts:42-49`.
 
-Its own inbound path; a `verify` union or the `{ type:'builtin', provider }` shorthand (resolved
-pod-side to the inline adapter, e.g. Slack HMAC + handshake); a **pure** `emit` that parses the
-request into events.
+A **trailing `?`** on a typeString marks the field optional (`threadKey: 'string?'`): the base type is checked after stripping the `?`, the `?` is preserved in the stored schema, the generated DTS emits an optional member, and runtime validation tolerates the field's absence `sdk/org/libs/core/src/spaces/emitter-load.ts:64-77`. An invalid base typeString (with or without the `?`) throws `sdk/org/libs/core/src/spaces/emitter-load.ts:71-76`. The DTS `EventPayloads` map that consumers typecheck against is built from a scope's merged emits, with the `?` reapplied to the member `sdk/org/libs/core/src/spaces/emitter-load.ts:256-272`.
+
+Emitted payloads are validated against this schema at dispatch time `sdk/org/libs/core/src/spaces/emitter-def.ts:15-17`.
+
+## Event naming
+
+Event names are **dot-separated lowercase segments** (`message.posted`, `db.raw_items.insert`), enforced by `EVENT_NAME_RE`; a non-matching name throws fail-loud `sdk/org/libs/core/src/spaces/emitter-load.ts:32-34,52-55`. Segments may include digits and underscores but the name is lowercase only `sdk/org/libs/core/src/spaces/emitter-load.ts:34`.
+
+**Duplicate event names within one scope fail the whole scope loudly** — merging the emits of every def in a scope throws when two defs declare the same event name `sdk/org/libs/core/src/spaces/emitter-load.ts:210-226`.
+
+## The four producer kinds
+
+The kind is discriminated on `type`; `validateEmitterDef` fail-loud validates a raw default export into a typed `EmitterDef` and throws on any `type` outside the four `sdk/org/libs/core/src/spaces/emitter-load.ts:108-202`. Every kind needs an `emit` function `sdk/org/libs/core/src/spaces/emitter-load.ts:114-116`.
+
+| Kind | Fires on | `emit` receives | Detail |
+|---|---|---|---|
+| `webhook` | an external caller `POST`s to the def's own `path` | the verified `WebhookInbound` | [webhook.md](./webhook.md) `sdk/org/libs/core/src/spaces/emitter-def.ts:72-86` |
+| `cron` | the def's schedule (exactly one of `every`/`daily`) | a gated `CronEmitterCtx` | [cron.md](./cron.md) `sdk/org/libs/core/src/spaces/emitter-def.ts:105-117` |
+| `db` | a project-db write to `on.table`/`on.event` | the written `DbEmitterRow` | [db.md](./db.md) `sdk/org/libs/core/src/spaces/emitter-def.ts:134-141` |
+| `internal` | an lmthing runtime signal (`on.signal`) | the `InternalSignal` | [internal.md](./internal.md) `sdk/org/libs/core/src/spaces/emitter-def.ts:154-161` |
+
+## Event addressing
+
+Every emitted event is source-qualified into an address `<sourceScope>/<event>` at dispatch: the project scope is literally `project`, a space scope its id `sdk/org/libs/cli/src/server/event-dispatch.ts:183-185`. Consumers match on the full address via `on.event`, whose form is enforced by `EVENT_ADDR_RE` `sdk/org/libs/cli/src/app/hooks/loader.ts:190`.
+
+| Source | Address form | Example |
+|---|---|---|
+| the project's own defs | `project/<event>` | `project/item.added` |
+| a synthetic db write (every committed write auto-emits) | `project/db.<table>.<insert\|update\|remove>` | `project/db.orders.insert` |
+| an installed space's defs | `<spaceId>/<event>` | `integration-slack/message.received` |
+
+The synthetic `project/db.<table>.<event>` is built at runtime with the written row as its payload `sdk/org/libs/cli/src/app/hooks/runtime.ts:130-135`. Consumers subscribe by address with an [event hook](../hooks/README.md) `sdk/org/libs/cli/src/server/event-dispatch.ts:184-186`.
+
+## Integrations are event SOURCES
+
+An integration (Slack, Telegram, …) is a store space whose `events/<name>.ts` emits a typed event — **not** a handler-agent bridge. A messaging integration's def emits a normalized `message.received`, and a project subscribes with an event hook `store/spaces/integration-slack/events/messages.ts:1-8`. The `integration-lmthing` space normalizes the curated runtime signals (`session.started`, `session.completed`, `agent.delegated`, `space.installed`, `hook.fired`, `document.written`, `project.created`) into typed events plus a `publishEvent(name, payload)` function `sdk/org/libs/cli/src/server/internal-signals.ts:20-28` `store/spaces/integration-lmthing/functions/publishEvent.ts`.
+
+## A real def (webhook)
+
+Adapted from `store/spaces/integration-slack/events/messages.ts` — a `webhook` emitter with the `{ type:'builtin', provider:'slack' }` shorthand and a `threadKey?` optional field `store/spaces/integration-slack/events/messages.ts:37-88`:
 
 ```ts
 import type { Emitted, WebhookEmitterDef, WebhookInbound } from '@lmthing/core';
 
 const def: WebhookEmitterDef = {
   type: 'webhook',
-  path: 'slack',
-  verify: { type: 'builtin', provider: 'slack' },          // HMAC/handshake resolved pod-side
-  emits: { 'message.received': { payload: { text: 'string', from: 'string', chatId: 'string', threadKey: 'string?', raw: 'object' } } },
-  emit(inbound: WebhookInbound): Emitted[] {
+  path: 'slack',                                   // this def's OWN inbound path
+  verify: { type: 'builtin', provider: 'slack' },  // HMAC + handshake resolved pod-side
+  emits: {
+    'message.received': {
+      payload: { text: 'string', from: 'string', chatId: 'string', threadKey: 'string?', raw: 'object' },
+    },
+  },
+  emit(inbound: WebhookInbound): Emitted[] {       // PURE: verified request → events
     const event = (inbound.json as any)?.event;
-    if (!event || event.type !== 'message' || event.bot_id || event.subtype) return [];  // drop echoes/subtypes
-    return [{ event: 'message.received', payload: { text: event.text, from: event.user, chatId: event.channel, raw: inbound.json }, threadKey: event.thread_ts ?? event.ts }];
+    if (!event || event.type !== 'message' || event.bot_id || event.subtype) return []; // drop echoes/subtypes
+    const threadKey = event.thread_ts ?? event.ts;
+    return [{
+      event: 'message.received',
+      payload: { text: event.text, from: event.user, chatId: event.channel, raw: inbound.json },
+      ...(threadKey ? { threadKey } : {}),
+    }];
   },
 };
 export default def;
 ```
 
-## b. `cron` — a scheduled poll with a gated ctx
+## See also
 
-`callConnection` is locked to the space's own provider(s) (a project def uses its declared
-`connections:`); `ctx.state` is a non-executable, size-capped JSON KV persisted per def
-(poll cursors, dedupe marks).
-
-```ts
-import type { CronEmitterCtx, CronEmitterDef, Emitted } from '@lmthing/core';
-
-const def: CronEmitterDef = {
-  type: 'cron',
-  every: '30m',                              // exactly one of `every` (<n>m|h|d) or `daily` ('HH:MM')
-  connections: ['gmail'],
-  emits: { 'mail.arrived': { payload: { id: 'string', subject: 'string' } } },
-  async emit(ctx: CronEmitterCtx): Promise<Emitted[]> {
-    const since = (ctx.state?.['lastId'] as string) ?? '0';
-    const res = await ctx.callConnection!('gmail', { since });
-    // … map results → Emitted[], write ctx.state['lastId'] back so the next tick resumes
-    return [];
-  },
-};
-export default def;
-```
-
-## c. `db` — fires on a project-db write
-
-A **pure** map from a written row to a curated, named event. Distinct from the automatic synthetic
-`project/db.<table>.<event>` (which every write emits anyway) — use a `db` emitter when you want a
-domain event with a curated payload instead of the raw row.
-
-```ts
-import type { DbEmitterDef, DbEmitterRow, Emitted } from '@lmthing/core';
-
-const def: DbEmitterDef = {
-  type: 'db',
-  on: { table: 'feed_items', event: 'insert' },            // event ∈ insert | update | remove
-  emits: { 'item.added': { payload: { id: 'string', title: 'string' } } },
-  emit(row: DbEmitterRow): Emitted[] {
-    return [{ event: 'item.added', payload: { id: String(row.row['id']), title: String(row.row['title'] ?? '') } }];
-  },
-};
-export default def;
-```
-
-## d. `internal` — an lmthing runtime signal
-
-A **pure** map from a curated runtime signal to events. Signals are fire-and-forget — a
-throwing/hanging internal def is worker-contained and never breaks the instrumented path.
-
-```ts
-import type { Emitted, InternalEmitterDef, InternalSignal } from '@lmthing/core';
-
-const def: InternalEmitterDef = {
-  type: 'internal',
-  on: { signal: 'space.installed' },
-  emits: { 'space.installed': { payload: { projectId: 'string', spaceId: 'string' } } },
-  emit(signal: InternalSignal): Emitted[] { /* … pure */ return []; },
-};
-export default def;
-```
-
-Curated signal set: `session.started`, `session.completed`, `agent.delegated`, `space.installed`,
-`hook.fired`, `document.written`, `project.created`. The `integration-lmthing` space normalizes the
-whole set into typed events + a `publishEvent(name, payload)` function.
-
----
-
-## Event addressing
-
-Every emitted event is addressed `<sourceId>/<name>`:
-
-| Source | Address form | Example |
-|---|---|---|
-| the project's own defs | `project/<event>` | `project/item.added` |
-| a synthetic db write | `project/db.<table>.<insert\|update\|remove>` | `project/db.orders.insert` |
-| an installed space's defs | `<spaceId>/<event>` | `integration-slack/message.received` |
-
-Consumers subscribe by address with an [event hook](../hooks/). Integrations are **event sources**,
-not handler-agent bridges: a messaging integration's `events/messages.ts` emits a typed
-`message.received`, and a project subscribes with an event hook.
-
-Real example: `store/spaces/integration-slack/events/messages.ts` (a `webhook` emitter with the
-`{ type:'builtin', provider:'slack' }` shorthand).
+- [webhook.md](./webhook.md) · [cron.md](./cron.md) · [db.md](./db.md) · [internal.md](./internal.md) — the four kinds in detail.
+- [../hooks/README.md](../hooks/README.md) — event hooks, the CONSUMER side of the pipeline.
+- [../../project/events/README.md](../../project/events/README.md) — the same def format in project scope.

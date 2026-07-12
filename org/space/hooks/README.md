@@ -1,47 +1,61 @@
 # `hooks/<slug>.ts` — event-hook consumers (in a space)
 
-The unified event pipeline has two halves: **emitter defs** ([events/](../events/), the producer)
-and **event hooks** (`hooks/<slug>.ts` with `{ type: 'event' }`, the consumer). Per the current
-model, an event hook can live **in a project or a space**.
+The unified event pipeline has two symmetric halves — **emitter defs** (the producer, `events/<name>.ts`) and **event hooks** (the consumer, `hooks/<slug>.ts` with `{ type: 'event' }`) — and that model applies to both projects and spaces (project CLAUDE.md "Events, integrations & the store"; `/home/vasilis/LMTHING/lmthing/CLAUDE.md`). The loader that discovers a space's hooks reads them from `<projectRoot>/spaces/<spaceId>/hooks/` `sdk/org/libs/cli/src/app/hooks/loader.ts:271-298`, so a space CAN carry its own `hooks/` dir alongside a project's own `<projectRoot>/hooks/` `sdk/org/libs/cli/src/app/hooks/loader.ts:168-170`.
 
-In practice, a store integration space is usually just an **event source** — it ships
-[events/](../events/) emitter defs, and the *consumer* hook lives in the LIVE project (authored by
-`system-appbuilder`'s `automator`). A space carries its own `hooks/` only when the consumer is part
-of the space's own behavior.
+## In practice: spaces EMIT, the project consumes
+
+No store space currently ships a `hooks/` directory — every `store/spaces/integration-*` space contains only `events/`, `agents/`, `functions/`, and `knowledge/`, never `hooks/` `store/spaces/integration-slack/` (directory listing). A store integration is therefore an **event source**: e.g. `integration-slack` ships an emitter def that normalizes inbound Slack callbacks into a `message.received` event `store/spaces/integration-slack/events/messages.ts:8`, `store/spaces/integration-slack/events/messages.ts:41-73`. The *consumer* event hook that reacts to it lives in the LIVE project's own `hooks/` dir, subscribing to the source-qualified address `integration-slack/message.received` (see [events addressing](../events/README.md) and the project-side consumer doc [../../project/hooks/event.md](../../project/hooks/event.md)).
+
+A space's own `hooks/` dir is only meaningful when the consumer is part of the space's own behavior; the loader supports it `sdk/org/libs/cli/src/app/hooks/loader.ts:271-298`, but the shipped catalog does not exercise it `store/spaces/integration-slack/` (no `hooks/` entry).
+
+> UNVERIFIED: I searched every space on disk for a `hooks/` dir (`find . -path '*/spaces/*/hooks' -type d`, plus `store/spaces/*`, `sdk/org/system-spaces/*`, `.lmthing/*/spaces/*`) and found none — so there is no real on-disk *space* hook to cite as a worked example. The example below is adapted from a real **project** event hook (`store/projects/demo-feed/hooks/enrich-on-add.ts`); the file shape is identical for a space hook.
+
+## How a space hook differs at load time
+
+Space hooks are store-downloaded code, so — unlike project hooks, which are `require()`d in-proc — a space hook module is **never run in-proc**: its default-export data is extracted in a worker, and an imperative `handler` is replaced by a shim that runs the real handler worker-isolated `sdk/org/libs/cli/src/app/hooks/loader.ts:262-298`. Each space hook's slug is namespaced `<spaceId>:<basename>` and its `owner` is the spaceId `sdk/org/libs/cli/src/app/hooks/loader.ts:276-295`. `loadAllHooks` composes project hooks (in-proc) with every installed space's hooks (worker-isolated) into one flat list, skipping a single space fail-soft if its hooks fail to load `sdk/org/libs/cli/src/app/hooks/loader.ts:300-326`.
 
 ## Format
 
-Default-exports `{ type: 'event', on: { event: '<address>' }, … }` subscribing to ONE
-source-qualified event address, with **exactly one** of `handler` (imperative, code-as-filter) or
-`trigger` (`'space/agent#action'` — delegate to an agent):
+An event hook default-exports `{ type: 'event', on: { event: '<address>' }, … }` `sdk/org/libs/cli/src/app/hooks/loader.ts:420-445`. `on.event` is required and must be a **source-qualified** address matching `EVENT_ADDR_RE` (`<sourceId>/<name>`, dotted names allowed) — otherwise validation throws fail-loud `sdk/org/libs/cli/src/app/hooks/loader.ts:190`, `sdk/org/libs/cli/src/app/hooks/loader.ts:422-429`. The hook must carry **exactly one** of `handler` or `trigger`; supplying both or neither throws `sdk/org/libs/cli/src/app/hooks/loader.ts:430-436`.
+
+### `handler` — code-as-filter
+
+A `handler` is an imperative async function `sdk/org/libs/cli/src/app/hooks/loader.ts:431`; it receives `ctx.input` carrying the event payload (for a synthetic db event, the written row) `sdk/org/libs/cli/src/server/event-dispatch.ts:208-221`. The handler itself *is* the filter — there is no separate filter DSL; a code handler that decides not to react simply returns early `store/projects/demo-feed/hooks/enrich-on-add.ts` (the `if (!input?.id) return;` guard).
+
+### `trigger` — delegate to an agent
+
+A `trigger` is a `'space/agent#action'` string `sdk/org/libs/cli/src/app/hooks/loader.ts:430`; it is parsed by splitting on `#` (everything before `#` is the space/agent ref, everything after is the action; the agent slug is the last `/`-segment of the ref) `sdk/org/libs/cli/src/server/routes/hooks.ts:177-183`. On a matching event a trigger hook is dispatched straight to a headless agent run (not through the handler path) `sdk/org/libs/cli/src/server/event-dispatch.ts:197-206`.
+
+## `budget`
+
+An optional `budget` object is validated by `validateBudget`, which accepts only `maxEpisodes` and `maxWallClockMs` (each a non-negative number, else throw) `sdk/org/libs/cli/src/app/hooks/loader.ts` `validateBudget`, and is attached to every hook kind `sdk/org/libs/cli/src/app/hooks/loader.ts:437-444`. The budget is forwarded verbatim into the headless run a trigger hook kicks off `sdk/org/libs/cli/src/server/routes/hooks.ts:283`.
+
+## Worked example
+
+Adapted from the real on-disk **project** hook `store/projects/demo-feed/hooks/enrich-on-add.ts` (no store space ships a `hooks/` dir — the file shape is identical for a space). A handler-as-filter subscribing to a source-qualified event and reacting only when a condition holds:
 
 ```ts
-// code handler as filter — no agent, cheap
+// hooks/enrich-on-add.ts — event hook, code-as-filter
 export default {
   type: 'event' as const,
-  on: { event: 'integration-slack/message.received' },
-  handler: async ({ input }: { input: { text: string; chatId: string } }): Promise<void> => {
-    if (!input?.text) return;                 // filter in code
-    // … react to the message
+  on: { event: 'project/db.feed_items.insert' },   // source-qualified address
+  handler: async ({ input, db }: {
+    input: { id: string; title?: string; summary?: string };
+    db: { update(table: string, opts: { where: Record<string, unknown>; set: Record<string, unknown> }): Promise<number> };
+  }): Promise<void> => {
+    if (!input?.id) return;                          // filter, in code
+    if (!input.summary || input.summary.trim() === '') {
+      await db.update('feed_items', {
+        where: { id: input.id },
+        set: { summary: `Saved: ${input.title ?? 'untitled'}` },
+      });
+    }
   },
-};
-
-// or delegate to an agent action, seeded with the event payload
-export default {
-  type: 'event',
-  on: { event: 'integration-slack/message.received' },
-  trigger: 'support/triager#handle',
-  budget: { maxEpisodes: 8, maxWallClockMs: 300000 },
 };
 ```
 
-## Notes
+## See also
 
-- **`on.event`** is a source-qualified address (`<sourceId>/<name>`) — see the addressing table in
-  [events/](../events/) and the project-side consumer doc at [../../project/hooks/](../../project/hooks/).
-- **`handler`** receives `ctx.input` (the event payload; for a synthetic db event, the written row).
-  The handler *is* the filter — no separate DSL.
-- **`trigger`** delegates to `space/agent#action`, seeded with the payload; `budget` (optional) is
-  forwarded to the headless run.
-
-Full producer/consumer walkthrough → `@.claude/skills/events-and-hooks.md`.
+- [../events/README.md](../events/README.md) — the emitter-def PRODUCER side and the event-address table.
+- [../../project/hooks/event.md](../../project/hooks/event.md) — the project-side consumer, where integration hooks live in practice.
+- Full producer/consumer walkthrough → `@.claude/skills/events-and-hooks.md`.

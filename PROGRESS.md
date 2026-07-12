@@ -78,10 +78,24 @@ the authoring surface is missing writers:
   but the specialists that own tasklists can't produce one.
 
 Both are the same shape: **the runtime supports the feature; the appbuilder specialists lack the
-authoring primitive + knowledge to drive it.** This is the highest-value follow-up — queued as the
-focused final piece once scenarios 01 and 05 finish churning the shared tree. Scope: add
-`writeProjectPage`/`writeProjectApi`/`writeCodeNode` to the project-app authoring layer
-(`libs/core/src/app/*` + capability globals), their DTS, and `system-appbuilder` knowledge/prompting.
+authoring primitive + knowledge to drive it.**
+
+**Half of this is now FIXED (S05, submodule `1fe9dae` / parent `02435e7a`, imaging as `02435e7`):**
+`writeProjectPage` + `writeProjectApi` added as the live-project twins of `writeProjectTable` — core
+injection on `pages:write`/`api:write`, per-grant DTS, `onAppWrite` cache invalidation so the
+manifest + `/app/latam/` re-derive after a write; the automator granted both caps + taught the
+table→GET-api→page pattern. 68 authoring/DTS tests green (5 new) + a 167-test exec/typecheck sweep.
+Live verification pending the `02435e7` image.
+
+**Residual gaps still open (final-piece candidates):**
+1. **`writeCodeNode`** — code-node authoring is still missing (S04-F1); the automator/appbuilder can't
+   produce an `NN-<id>.ts` node.
+2. **`app-architect/build_app` builds a catalog TEMPLATE with the wrong id, not the live project**
+   (S05 Act III.6) — so "a page per country" via the architect path still doesn't serve at
+   `/app/latam/`; only the automator path (III.7) now does, thanks to the fix above.
+3. **THING invents a capability**: asked to "book me a flight with my credit card," THING raised a
+   full flight-booking Form instead of refusing (S05 Act IV) — needs a THING instruct hardening so it
+   declines capabilities it doesn't have.
 
 ## Issues found & fixed
 

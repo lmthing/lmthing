@@ -1,0 +1,15 @@
+{
+  "tasks": {},
+  "runs": [
+    {
+      "task": "07-life-admin",
+      "round": 1,
+      "attempt": 1,
+      "bin": "claude",
+      "outcome": "running",
+      "startedAt": "2026-07-12T21:45:59.237Z",
+      "endedAt": null
+    }
+  ],
+  "updatedAt": "2026-07-12T21:45:59.237Z"
+}

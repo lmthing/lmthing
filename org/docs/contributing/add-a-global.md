@@ -224,7 +224,11 @@ Two levels:
   multiset per context via `runTsc`; a new gated global must appear in (and only in) the
   contexts that inject it.
 
-Run `pnpm --filter @lmthing/core test` and `pnpm typecheck`.
+Run `cd sdk/org && pnpm test libs/core && pnpm typecheck`. (**Not**
+`pnpm --filter @lmthing/core test` — `@lmthing/core` declares no `test` script
+(`sdk/org/libs/core/package.json`), so pnpm exits 0 having run nothing; the runner is
+`vitest run` at `sdk/org/package.json:L9` with a path filter. See
+[`testing.md`](./testing.md).)
 
 ---
 

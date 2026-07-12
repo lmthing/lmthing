@@ -207,7 +207,7 @@ The repo is organized by TLD — one top-level directory per `lmthing.*` surface
 ```
 lmthing/
 ├── sdk/org/                # submodule: runtime + unified SPA + shared libs
-│   ├── libs/{core,cli,state,spaces,css,ui,auth,utils}   # @lmthing/*
+│   ├── libs/{core,cli,state,css,ui,auth,utils,config,openclaw-compat}   # @lmthing/*
 │   ├── apps/web/           # the unified SPA (/studio /computer /chat /apps)
 │   └── common/
 ├── cloud/                  # THE backend — gateway/ (Hono/Node) + litellm/render/zitadel k8s config
@@ -233,4 +233,3 @@ lmthing/
 - The pod CLI + REST/WS API → [cli-api/README.md](./cli-api/README.md)
 - Authoring format (project + space) → [format/README.md](./format/README.md)
 - The served project-application → [app/README.md](./app/README.md)
-```

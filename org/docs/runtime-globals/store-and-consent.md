@@ -21,7 +21,7 @@ This page also covers `registerSpace()`, because `installSpace` reuses its live-
 
 All three are **value-yielding** globals: each pushes a yield (`kind: 'storeSearch' | 'storeInspect' | 'installSpace'`) and the host resolves it, so the call ends the turn `sdk/org/libs/core/src/globals/store.ts:75-122`.
 
-Catalog entries pass through **verbatim** — nothing in core picks or reshapes fields, which is why both readers are typed `any`/`any[]` and you can read `entry.field` without a cast `sdk/org/libs/core/src/globals/store.ts:20-22` · `sdk/org/libs/core/src/typecheck/library-dts.ts:239-242`.
+Catalog entries pass through **verbatim** — nothing in core picks or reshapes fields, which is why both readers are typed `any`/`any[]` and you can read `entry.field` without a cast `sdk/org/libs/core/src/globals/store.ts:21-22` · `sdk/org/libs/core/src/typecheck/library-dts.ts:248-255`.
 
 ### Injection gate
 
@@ -38,13 +38,13 @@ if (caps.app['store:install']) injectGlobal(ctx, 'installSpace', createInstallSp
 
 `sdk/org/libs/core/src/exec/bootstrap.ts:189-198`
 
-The DTS side reads the *same* grant map: `store:read` → `STORE_READ_DTS`, `store:install` → `STORE_INSTALL_DTS`, emitted by the `CAPABILITY_DTS_FRAGMENTS` loop `sdk/org/libs/core/src/typecheck/library-dts.ts:266-275` · `sdk/org/libs/core/src/exec/bootstrap.ts:302-307`. Not granted ⇒ not injected **and** not declared, so a stray `installSpace(...)` fails typecheck ("Cannot find name") rather than throwing at runtime.
+The DTS side reads the *same* grant map: `store:read` → `STORE_READ_DTS`, `store:install` → `STORE_INSTALL_DTS`, emitted by the `CAPABILITY_DTS_FRAGMENTS` loop `sdk/org/libs/core/src/typecheck/library-dts.ts:279-288` · `sdk/org/libs/core/src/exec/bootstrap.ts:306-311`. Not granted ⇒ not injected **and** not declared, so a stray `installSpace(...)` fails typecheck ("Cannot find name") rather than throwing at runtime.
 
-Both ids are registered in `CAPABILITY_IDS` `sdk/org/libs/core/src/spaces/capabilities.ts:41-55` and are **bare-only** — passing a config map is a load error `sdk/org/libs/core/src/spaces/capabilities.ts:65-74`.
+Both ids are registered in `CAPABILITY_IDS` `sdk/org/libs/core/src/spaces/capabilities.ts:41-56` and are **bare-only** — passing a config map is a load error `sdk/org/libs/core/src/spaces/capabilities.ts:65-74`.
 
 ### Read-only fork roles
 
-`intersectAppCaps(app, allowWrite=false)` keeps `store:read` (pure catalog discovery) and **drops `store:install`** along with every other mutating grant, so an `explore`/`plan` fork can neither inject nor declare `installSpace` `sdk/org/libs/core/src/exec/capability.ts:16-29`.
+`intersectAppCaps(app, allowWrite=false)` keeps `store:read` (pure catalog discovery) and **drops `store:install`** along with every other mutating grant, so an `explore`/`plan` fork can neither inject nor declare `installSpace` `sdk/org/libs/core/src/exec/capability.ts:16-28`.
 
 ### The host resolver (the third gate)
 
@@ -77,7 +77,7 @@ On the pod, `SessionManager.withStore` builds the resolver — but **only when t
 declare function installSpace(spaceId: string): Promise<{ ok: boolean; spaceId: string; projectId?: string; spaceKey?: string; agentSlug?: string; diverged?: boolean; message?: string; error?: string }>;
 ```
 
-`sdk/org/libs/core/src/typecheck/library-dts.ts:249-250` (shape: `InstallSpaceResult`, `sdk/org/libs/core/src/globals/store.ts:61-72`)
+`sdk/org/libs/core/src/typecheck/library-dts.ts:262-263` (shape: `InstallSpaceResult`, `sdk/org/libs/core/src/globals/store.ts:61-72`)
 
 ### Router order: consent → install → register → republish
 
@@ -90,12 +90,12 @@ The `installSpace` case in the yield router does four things, in that order `sdk
 
 Two failure shapes matter:
 
-- **Divergence / install failure** is returned as a **value**, not a throw — `{ ok: false, diverged?: true, message?, error? }` — precisely so the agent can relay the "local edits held back" message verbatim `sdk/org/libs/core/src/eval/yield-router.ts:290-302`. The pod's pristine-vs-diverged hash guard produces that branch `sdk/org/libs/cli/src/server/routes/store-spaces.ts:196-198,249-259`.
+- **Divergence / install failure** is returned as a **value**, not a throw — `{ ok: false, diverged?: true, message?, error? }` — precisely so the agent can relay the "local edits held back" message verbatim `sdk/org/libs/core/src/eval/yield-router.ts:290-302`. The pod's pristine-vs-diverged hash guard produces that branch `sdk/org/libs/cli/src/server/routes/store-spaces.ts:196-198,254-258`.
 - **Install succeeded but live registration failed** ⇒ still `ok: true`, with `error: "installed, but live registration failed: …"`. The files *are* on disk, so reporting failure would be wrong; the agent just learns that `delegate()` needs a session restart `sdk/org/libs/core/src/eval/yield-router.ts:312-317`.
 
 ### Real usage (the shipped THING agent)
 
-THING holds both store grants `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:6-8`, delegates discovery to `system-store`'s `finder` (which holds only `store:read`, so it recommends but can never install) `sdk/org/libs/core/system-spaces/system-store/agents/finder/instruct.md:3-6`, and then installs behind the consent card:
+THING holds both store grants `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:6-8`, delegates discovery to `system-store`'s `finder` (which holds only `store:read`, so it recommends but can never install) `sdk/org/libs/core/system-spaces/system-store/agents/finder/instruct.md:4-6`, and then installs behind the consent card:
 
 ````md
    **(b) Install it (consent-gated).** Present the recommendation briefly, then call
@@ -109,9 +109,9 @@ THING holds both store grants `sdk/org/libs/core/system-spaces/user-thing/agents
    A denied card rejects — do not retry unless the user asks again.
 ````
 
-`sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:252-263` (the `…` elides three comment lines about reading `inst.error` only)
+`sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:315-325` (the `…` elides three comment lines about reading `inst.error` only)
 
-The same instruct carries a rule that follows directly from the consent model: **never call `installSpace` on an unverified id** — because the call is consent-gated it *always* interrupts the user with a card, and asking someone to approve installing something that cannot exist is a bug. Verify with `storeInspect` first (`undefined` ⇒ not in the catalog) `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:264-277`.
+The same instruct carries a rule that follows directly from the consent model: **never call `installSpace` on an unverified id** — because the call is consent-gated it *always* interrupts the user with a card, and asking someone to approve installing something that cannot exist is a bug. Verify with `storeInspect` first (`undefined` ⇒ not in the catalog) `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:327-340`. A multi-service request runs the whole find → install → configure sequence **once per distinct integration**, so each install raises its own consent card `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:299-301`.
 
 ---
 
@@ -149,6 +149,8 @@ Adding another kind to this set is the entire opt-in — that is the "consent fl
 
 A `functions/<name>.ts` whose **leading comment** (a JSDoc block or a `//` line, before any code) carries `@consent` opts into the same gate `sdk/org/libs/core/src/globals/consent.ts:102-130`. Function files have no frontmatter, so the leading-comment pragma is where function metadata lives; detection always runs on the **original TS source**, because bundling may strip comments `sdk/org/libs/core/src/sandbox/inject-functions.ts:50-53`. An `@consent` *inside* the function body does not count `sdk/org/libs/core/src/globals/consent.ts:107-108` · `sdk/org/libs/core/src/globals/consent.test.ts:69-71`.
 
+Despite the "space function" naming, the pragma is not space-only: the session merges system, **project** (`<project>/functions/*.ts`) and space functions into one name-disjoint map `sdk/org/libs/core/src/session/session.ts:595-624` and hands it to a single `injectSpaceFunctions` call `sdk/org/libs/core/src/exec/bootstrap.ts:121-122`, so a project function carrying `@consent` is wrapped identically.
+
 At injection such a function is not bound directly — it is wrapped, hiding the implementation in a closure the sandbox can never reach:
 
 ```ts
@@ -185,7 +187,7 @@ export default function (target) { globalThis.__ran = target; return "done:" + t
 
 `sdk/org/libs/core/src/globals/consent.test.ts:239`
 
-> UNVERIFIED: **no shipped space function currently carries the `@consent` pragma.** `rg -l '@consent'` over `sdk/org/libs/core/system-spaces/` and `store/` returns no matches (the only `@consent` hits in the tree are the core implementation/tests, the `libs/ui` ConsentCard renderer, and the studio functions editor's browser-side mirror). The space-function path is exercised by `globals/consent.test.ts`; today's only production consumer of consent is `installSpace`.
+**No shipped function carries the pragma today.** `rg -n '@consent' sdk/org/libs/core/system-spaces store` returns exactly one hit — a doc cross-link in `store/CLAUDE.md:49` — so none of the ~14 system-space functions (`system-global/functions/`, `system-architect/functions/`) and none of the store spaces' or store projects' `functions/*.ts` opt in. The pragma path is therefore covered only by tests: the unit suite `sdk/org/libs/core/src/globals/consent.test.ts:238-239` (injection-time wrapper in a real VM) and the live scenario, which *authors* both a project function and a space function with the pragma at run time and asserts they gate — and that they never execute from a hook, a delegate or a webhook `sdk/org/scenarios/02-consent/run.mjs:63,76,628-684`. In production, `installSpace` is consent's only consumer.
 
 ### 3c. The enforcement primitive
 
@@ -240,7 +242,7 @@ return isConsentApproval(value);
 
 Approval is deliberately narrow: `true`, `'approve'`, `{ approved: true }` or `{ approve: true }` count — **anything else, including the `null` of a cancelled ask, is a denial** `sdk/org/libs/core/src/globals/consent.ts:161-171`.
 
-The web renderer honours that contract: the chat/Studio transcript detects the descriptor with `isConsentDescriptor` and renders `<ConsentCard>`, whose Approve submits `true` and Deny submits `false` through the ordinary form-submit path `sdk/org/libs/ui/src/chat/app/Message.tsx:60-66` · `sdk/org/libs/ui/src/chat/components/ConsentCard.tsx:5-25`. **Both** choices *resolve* the ask, so a denied or dismissed card never leaves the agent hanging `sdk/org/libs/ui/src/chat/components/ConsentCard.tsx:16-18`.
+The web renderer honours that contract: the chat/Studio transcript detects the descriptor with `isConsentDescriptor` (`d.type === 'ConsentCard'`) `sdk/org/libs/ui/src/chat/components/ConsentCard.tsx:23-25` and renders `<ConsentCard>` with `onApprove={() => onSubmit(true)}` / `onDeny={() => onSubmit(false)}` — the ordinary form-submit path `sdk/org/libs/ui/src/chat/app/Message.tsx:60-66`. **Both** choices *resolve* the ask, so a denied or dismissed card never leaves the agent hanging `sdk/org/libs/ui/src/chat/components/ConsentCard.tsx:13-19`.
 
 ---
 
@@ -279,7 +281,7 @@ Injection is one line: `if (caps.registerSpace) injectGlobal(ctx, 'registerSpace
 - The **top-level session** resolves its own `registerSpace` yield (`loadSpace` → `this.dynamicSpaces.set(dir, space)`) `sdk/org/libs/core/src/session/session.ts:816-826`.
 - The **yield router**'s `registerSpace` case is **fork-leaf-only** — gated on `ctx.resolveRegisterSpace`, which the session never sets `sdk/org/libs/core/src/eval/yield-router.ts:355-370` · `sdk/org/libs/core/src/session/session.ts:888-892`.
 
-Both write the **same shared `Map` reference**, which is why a space registered inside a fork is visible to the parent's later `delegate()` `sdk/org/libs/core/src/session/session.ts:107-112` · `sdk/org/libs/core/src/eval/yield-router.ts:66-71`. Step 3 of the `installSpace` flow (§2) reuses exactly this mechanism.
+Both write the **same shared `Map` reference**, which is why a space registered inside a fork is visible to the parent's later `delegate()` `sdk/org/libs/core/src/session/session.ts:108-113` · `sdk/org/libs/core/src/eval/yield-router.ts:66-71`. Step 3 of the `installSpace` flow (§2) reuses exactly this mechanism.
 
 ---
 
@@ -288,6 +290,6 @@ Both write the **same shared `Map` reference**, which is why a space registered 
 | Space / agent | `capabilities:` | Source |
 |---|---|---|
 | `user-thing` / `thing` | `store:read`, `store:install` | `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:6-8` |
-| `system-store` / `finder` | `store:read` only — it recommends, it never installs | `sdk/org/libs/core/system-spaces/system-store/agents/finder/instruct.md:3-6` |
+| `system-store` / `finder` | `store:read` only — it recommends, it never installs | `sdk/org/libs/core/system-spaces/system-store/agents/finder/instruct.md:4-6` |
 
 That split is the design: discovery is delegated to a read-only agent, while the consent-marked install stays with the top-level interactive agent — the only context that *has* a user to ask.

@@ -27,8 +27,11 @@ returns `{ content: '' }` (ENOENT swallowed, other errors rethrown) `sdk/org/lib
 
 > This route returns **secret VALUES in clear text**. It has no auth of its own — the pod
 > server authenticates nothing; it is protected only by its network position (one pod per
-> user namespace, behind the Envoy JWT policy). Only three pod routes touch auth at all, and
-> `/api/env` is not one of them.
+> user namespace, behind the Envoy JWT policy). Exactly **two** pod routes so much as read an
+> `Authorization` header — `/api/report-bug` `sdk/org/libs/cli/src/server/routes/report-bug.ts:48-56`
+> and `/api/budget` `sdk/org/libs/cli/src/server/routes/budget.ts:24-32` — and both merely
+> *forward* the caller's bearer token upstream to the gateway rather than verifying it.
+> `/api/env` does not even do that.
 
 Because it is cheap and always answers once the process is up, `GET /api/env` doubles as the
 pod's **liveness probe** in the UI: the chat restart button polls it every 800 ms until it
@@ -60,7 +63,7 @@ Semantics `sdk/org/libs/cli/src/server/routes/env.ts:37-53`:
 
 The same file is applied on every boot, twice: once at CLI module load
 (`loadEnv()` at `sdk/org/libs/cli/src/cli/bin.ts:16-30`, which trims the value) and once by
-the server after it starts (`sdk/org/libs/cli/src/server/serve.ts:96-107`). Both assign
+the server after it starts (`sdk/org/libs/cli/src/server/serve.ts:96-106`). Both assign
 **unconditionally**, so a key present in `.env` **overrides** the k8s-injected variable of
 the same name — deliberate, so the file written by `PUT /api/env` supersedes the pod's
 injected env.
@@ -101,10 +104,13 @@ Then `setEnvVars(userId, validated)` `cloud/gateway/src/lib/compute.ts:502-541`:
 > Saving here **always restarts the pod**. That is the difference from `PUT /api/env`, which
 > applies live.
 
-> UNVERIFIED: `cloud/CLAUDE.md` documents `/api/compute/env` as "requires pro/max tier". No
-> tier check exists on either handler in `cloud/gateway/src/routes/compute.ts` (only
-> `authMiddleware`), and a sibling comment says "All tiers now have compute access"
-> (`cloud/gateway/src/routes/compute.ts:198`). Searched: `rg -n "requireTier|tier" cloud/gateway/src/routes/compute.ts`.
+**No tier gate.** Both handlers are mounted with `authMiddleware` and nothing else
+`cloud/gateway/src/routes/compute.ts:291,306` — any authenticated user, free tier included, can
+read and write their pod env. Neither handler calls `resolveUserTier`/`getTierByName` (the tier
+helpers the file *does* use, for `/status`, `/ensure` and the cron policy), and the sibling
+`/status` route carries the comment "All tiers now have compute access"
+`cloud/gateway/src/routes/compute.ts:197-198`. An older `cloud/CLAUDE.md` claimed these routes
+"require pro/max tier"; that claim is gone from the current file and was never true of the code.
 
 ---
 
@@ -117,9 +123,9 @@ do exactly this:
 | Caller | Owns | Merge |
 |---|---|---|
 | Chat Integrations tab | one integration's schema keys | `overlayEnvKeys(current, keys, fields)` `sdk/org/libs/ui/src/chat/app/auto-resume.ts:12-20` |
-| Studio project settings | the page's integration keys | re-read + overlay `sdk/org/libs/ui/src/studio/shell/project-settings-view/index.tsx:112-131` |
+| Studio project settings | the page's integration keys | re-read + overlay `sdk/org/libs/ui/src/studio/shell/project-settings-view/index.tsx:108-132` |
 | Settings → Environment | all non-`LM_MODEL*` vars | re-reads and preserves the model aliases `sdk/org/libs/ui/src/elements/settings/env-vars/index.tsx:59-84` |
-| Settings → Models | the `LM_MODEL*` aliases | re-reads and preserves everything else `sdk/org/libs/ui/src/elements/settings/models/index.tsx:96-130` |
+| Settings → Models | the `LM_MODEL*` aliases | re-reads and preserves everything else `sdk/org/libs/ui/src/elements/settings/models/index.tsx:96-132` |
 
 `overlayEnvKeys` maps an absent field to `''` (an explicit unset) rather than dropping the key
 `sdk/org/libs/ui/src/chat/app/auto-resume.ts:12-20`:
@@ -152,7 +158,7 @@ Flow `sdk/org/libs/ui/src/chat/app/IntegrationsTab.tsx:104-213`:
 
 1. **Prefill** — `GET {CLOUD}/api/compute/env` fills the form fields for the schema's keys
    (lines 104-120).
-2. **Save** — GET-merge-PUT `{CLOUD}/api/compute/env` with `overlayEnvKeys(...)` (lines 182-203).
+2. **Save** — GET-merge-PUT `{CLOUD}/api/compute/env` with `overlayEnvKeys(...)` (lines 182-205).
 3. **Wait** — the PUT restarted the pod, so `waitForPodReady` polls: a 1.5 s initial grace
    (the *old* pod still answers for a beat), then `GET /api/env` OK **and** the chat socket
    `open`, at 1 s intervals up to 90 s; on timeout it **throws** so the UI shows a Retry
@@ -166,5 +172,7 @@ Flow `sdk/org/libs/ui/src/chat/app/IntegrationsTab.tsx:104-213`:
    `sdk/org/libs/ui/src/chat/app/IntegrationsTab.tsx:163-171`.
 
 Secret **values never enter the LLM context** — the agent only ever sees the NAMES of missing
-required keys (via `integrationStatus`, backed by the same `required` → `process.env` logic)
-`sdk/org/libs/cli/src/server/routes/store-spaces.ts:484-499`.
+required keys, via `integrationStatus` → `integrationStatusFor()`, which returns only
+`{ ready, missingRequired }` off the very same `requiredEnvKeys` → `missingRequiredEnv` pair the
+`/integrations` route uses, so the agent's view and the UI's badge cannot diverge
+`sdk/org/libs/cli/src/server/routes/store-spaces.ts:501-518`.

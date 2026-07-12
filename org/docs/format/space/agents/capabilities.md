@@ -1,6 +1,6 @@
 # The `capabilities:` frontmatter grant model
 
-`capabilities:` is one of the allow-listed keys of an agent's `instruct.md` frontmatter (`sdk/org/libs/core/src/spaces/load.ts:422`), parsed by `parseCapabilities(data['capabilities'], { agentId, knownTables })` during `loadAgent` (`sdk/org/libs/core/src/spaces/load.ts:468`). It declares which **project-app globals** the agent may call; every other frontmatter key is covered in [frontmatter.md](./frontmatter.md). This is a least-privilege model: an agent receives exactly the globals its grants earn, and a grant that is absent is absent from BOTH the injected globals AND the typecheck DTS, so a stray call fails typecheck instead of reaching the engine (`.lmthing/system/spaces/system-appbuilder/knowledge/app_building/model/capability-model.md:3-6`).
+`capabilities:` is one of the allow-listed keys of an agent's `instruct.md` frontmatter (`sdk/org/libs/core/src/spaces/load.ts:422`), parsed by `parseCapabilities(data['capabilities'], { agentId, knownTables })` during `loadAgent` (`sdk/org/libs/core/src/spaces/load.ts:468`). It declares which **project-app globals** the agent may call; every other frontmatter key is covered in [frontmatter.md](./frontmatter.md). This is a least-privilege model: an agent receives exactly the globals its grants earn, and a grant that is absent is absent from BOTH the injected globals AND the typecheck DTS, so a stray call fails typecheck instead of reaching the engine (`sdk/org/libs/core/system-spaces/system-appbuilder/knowledge/app_building/model/capability-model.md:3-6`).
 
 ## The grants and what they unlock
 
@@ -22,23 +22,25 @@ There are 13 recognized capability ids, enumerated in `CapabilityId` / `CAPABILI
 | `store:install` | `installSpace` (consent-marked) | bare |
 | `events:emit` | `emitEvent` | bare |
 
-The `db:*` grants map to the scoped `db` verbs shown above (`sdk/org/libs/core/src/exec/app-globals.ts:126-158`); `db:schema` additionally earns the standalone catalog writer `writeTableSchema` plus its live-project twin `writeProjectTable` (`sdk/org/libs/core/src/exec/app-globals.ts:214-218`). `pages:write`/`api:write` earn the catalog writer AND the live-project twin (`writeProjectPage`/`writeProjectApi`) (`sdk/org/libs/core/src/exec/app-globals.ts:198-205`); `hooks:write` earns `writeHook` plus the live-project `writeProjectHook`/`writeProjectEvent`/`writeProjectFunction` (`sdk/org/libs/core/src/exec/app-globals.ts:206-213`). `project:manage` earns `createProject`/`selectProject` (`sdk/org/libs/core/src/exec/app-globals.ts:219-222`). `api:call`, `connections:use`, `tools:use`, `store:read`, `store:install`, and `events:emit` are value-yielding globals wired through the yield router in `createChildVM` rather than by `injectAppGlobals` — `apiCall` is injected only when `api:call` is granted (`sdk/org/libs/core/src/exec/bootstrap.ts:173`).
+Any `db:*` grant ALSO earns the project-rooted introspection reads `listProjectDir`/`readProjectFile`, but only in a project-rooted session — they are gated on `projectRoot` + any db grant, exactly like `db` itself (`sdk/org/libs/core/src/exec/app-globals.ts:238-241`, DTS at `sdk/org/libs/core/src/exec/bootstrap.ts:295`).
 
-> UNVERIFIED: I confirmed `apiCall` is grant-gated at `bootstrap.ts:173` but did not open the exact injection lines for `callConnection`/`tool`/`store`/`emitEvent`; the grounding-map notes and their DTS composers (below) attest they are wired the same way through the yield router.
+The `db:*` grants map to the scoped `db` verbs shown above (`sdk/org/libs/core/src/exec/app-globals.ts:130-170`); `db:schema` additionally earns the standalone catalog writer `writeTableSchema` plus its live-project twin `writeProjectTable` (`sdk/org/libs/core/src/exec/app-globals.ts:224-228`). `pages:write`/`api:write` earn the catalog writer AND the live-project twin (`writeProjectPage`/`writeProjectApi`) (`sdk/org/libs/core/src/exec/app-globals.ts:208-215`); `hooks:write` earns `writeHook` plus the live-project `writeProjectHook`/`writeProjectEvent`/`writeProjectFunction` (`sdk/org/libs/core/src/exec/app-globals.ts:216-223`). `project:manage` earns `createProject`/`selectProject` (`sdk/org/libs/core/src/exec/app-globals.ts:229-232`).
+
+`api:call`, `connections:use`, `tools:use`, `store:read`, `store:install`, and `events:emit` are value-yielding globals wired through the yield router in `createChildVM` rather than by `injectAppGlobals`, and each is injected on its own grant in one contiguous block: `apiCall` on `api:call` (`sdk/org/libs/core/src/exec/bootstrap.ts:173`), `callConnection` on `connections:use` (`:177`), `tool` on `tools:use` (`:182`), `storeSearch`+`storeInspect` on `store:read` (`:191-194`), `installSpace` on `store:install` (`:198`), and `emitEvent` on `events:emit` (`:202-204`) — the last with its emitting scope derived HOST-side at injection (`deriveEventScope(spaceDir, projectRoot)`), so sandbox code cannot spoof another scope's events (`sdk/org/libs/core/src/exec/bootstrap.ts:199-204`).
 
 ## Host-injected only when granted; stripped from the DTS when absent
 
 The capability model has two cooperating sides kept in lockstep by `AppCapabilities` (`sdk/org/libs/core/src/spaces/capabilities.ts:91-105`).
 
-**Inject side (host-enforced security boundary).** `injectAppGlobals(vm, { app, projectRoot, appGlobals })` injects a global onto the VM only when its grant is present in `app` (`sdk/org/libs/core/src/exec/app-globals.ts:180-223`). The host hands in UNSCOPED engine impls; core wraps each in a capability-scope check, so the boundary is host-side and enforced on EVERY call, not just at injection time (`sdk/org/libs/core/src/exec/app-globals.ts:13-27`). The `db` global is additionally gated on `projectRoot` — a session/fork/delegate running outside a project receives no `db` (`sdk/org/libs/core/src/exec/app-globals.ts:189-195`). The authoring globals are gated on the capability grant ALONE (not `projectRoot`), because the appbuilder legitimately has no project until `createProject` establishes one (`sdk/org/libs/core/src/exec/app-globals.ts:197-222`).
+**Inject side (host-enforced security boundary).** `injectAppGlobals(vm, { app, projectRoot, appGlobals })` injects a global onto the VM only when its grant is present in `app` (`sdk/org/libs/core/src/exec/app-globals.ts:190-242`). The host hands in UNSCOPED engine impls; core wraps each in a capability-scope check, so the boundary is host-side and enforced on EVERY call, not just at injection time (`sdk/org/libs/core/src/exec/app-globals.ts:13-28`). The `db` global is additionally gated on `projectRoot` — a session/fork/delegate running outside a project receives no `db` (`sdk/org/libs/core/src/exec/app-globals.ts:199-205`). The authoring globals are gated on the capability grant ALONE (not `projectRoot`), because the appbuilder legitimately has no project until `createProject` establishes one (`sdk/org/libs/core/src/exec/app-globals.ts:207-232`). A second, independent gate is the host itself: each `writeProject*` impl is supplied only by a project-rooted session, so a catalog-only appbuilder session leaves it absent even with the grant (`sdk/org/libs/core/src/exec/app-globals.ts:210-213`).
 
-**DTS side (typecheck).** `buildAppCapabilityDts(app, appDts)` emits exactly the declarations the grants earned; a grant that is absent is absent from the DTS, so a stray call fails typecheck — the same "not listed ⇒ not injected AND absent from the DTS" invariant enforced for `ask`/`fork`/`delegate` (`sdk/org/libs/core/src/exec/bootstrap.ts:274-309`). The three `db:*` verbs share one `db` object composed by `composeDbDts({ read, write, schema })`, which pushes only the granted verb-member blocks and returns `''` when no db cap is present (`sdk/org/libs/core/src/typecheck/library-dts.ts:149-158`). The standalone globals are pulled from `CAPABILITY_DTS_FRAGMENTS` keyed by id (`sdk/org/libs/core/src/typecheck/library-dts.ts:266-275`).
+**DTS side (typecheck).** `buildAppCapabilityDts(app, appDts)` emits exactly the declarations the grants earned; a grant that is absent is absent from the DTS, so a stray call fails typecheck — the same "not listed ⇒ not injected AND absent from the DTS" invariant enforced for `ask`/`fork`/`delegate` (`sdk/org/libs/core/src/exec/bootstrap.ts:274-313`). The three `db:*` verbs share one `db` object composed by `composeDbDts({ read, write, schema })`, which pushes only the granted verb-member blocks and returns `''` when no db cap is present (`sdk/org/libs/core/src/typecheck/library-dts.ts:149-156`). The standalone globals are pulled from `CAPABILITY_DTS_FRAGMENTS` keyed by id (`sdk/org/libs/core/src/typecheck/library-dts.ts:279-288`).
 
 ## `{ tables: [...] }` narrowing per verb
 
-Each `db:*` grant carries an optional `{ tables?: string[] }` narrowing (`sdk/org/libs/core/src/spaces/capabilities.ts:92-94`); an omitted `tables` means all tables (`sdk/org/libs/core/src/spaces/capabilities.ts:288-292`). At runtime, `buildScopedDb` wraps each granted verb, and `assertTableAllowed` throws when a verb targets a table outside its grant's `tables` list (`sdk/org/libs/core/src/exec/app-globals.ts:99-159`). The narrowing is per-VERB — `db:read: { tables: [items] }` scopes reads independently of `db:write`'s tables (`sdk/org/libs/core/src/exec/app-globals.ts:120-147`). Two verbs are not per-table narrowed: `db.tables()` lists the schema, not row data (`sdk/org/libs/core/src/exec/app-globals.ts:131-132`), and `db.createTable` names a NEW table so the grant's list only pre-authorizes creation (`sdk/org/libs/core/src/exec/app-globals.ts:149-153`).
+Each `db:*` grant carries an optional `{ tables?: string[] }` narrowing (`sdk/org/libs/core/src/spaces/capabilities.ts:92-94`); an omitted `tables` means all tables (`sdk/org/libs/core/src/spaces/capabilities.ts:288-292`). At runtime, `buildScopedDb` wraps each granted verb, and `assertTableAllowed` throws when a verb targets a table outside its grant's `tables` list (`sdk/org/libs/core/src/exec/app-globals.ts:109-170`). The narrowing is per-VERB — `db:read: { tables: [items] }` scopes reads independently of `db:write`'s tables (`sdk/org/libs/core/src/exec/app-globals.ts:136-157`). Two verbs are not per-table narrowed: `db.tables()` lists the schema, not row data (`sdk/org/libs/core/src/exec/app-globals.ts:141-142`), and `db.createTable` names a NEW table so the grant's list only pre-authorizes creation (`sdk/org/libs/core/src/exec/app-globals.ts:159-163`).
 
-Note that the `api:call` `allow` list is enforced only through the typed DTS overloads (typecheck), NOT by a separate host-side runtime assertion — the db `tables` check is the only runtime table/scope assertion in `app-globals.ts` (`sdk/org/libs/core/src/exec/app-globals.ts:99-159`).
+Note that the `api:call` `allow` list (and `tools:use`'s `allow` / `connections:use`'s `providers`) is enforced only through the narrowed DTS (typecheck), NOT by a host-side runtime assertion — the db `tables` check is the only runtime table/scope assertion in `app-globals.ts` (`sdk/org/libs/core/src/exec/app-globals.ts:109-170`), and the yield router that resolves `apiCall`/`tool`/`callConnection` re-checks no allow-list.
 
 ## `api:call` (and `connections:use`/`tools:use`) require config
 
@@ -62,13 +64,24 @@ Read-only fork roles (`explore`/`plan`) can never receive a mutating/authoring g
 
 ## Least-privilege split across specialist agents
 
-In the `system-appbuilder` space each specialist holds only the slice its job needs (`.lmthing/system/spaces/system-appbuilder/knowledge/app_building/model/capability-model.md:41-48`). The real on-disk frontmatter: `data-modeler` = `db:schema` + `db:read`; `page-builder` = `pages:write` + `db:read`; `api-author` = `api:write` + `db:read`; `app-architect` holds the full authoring set (`project:manage`, `db:schema`, `db:read`, `pages:write`, `api:write`, `hooks:write`) (`sdk/org/libs/core/system-spaces/system-appbuilder/agents/app-architect/instruct.md`, `.../data-modeler/instruct.md`, `.../page-builder/instruct.md`, `.../api-author/instruct.md`). A page-builder cannot write a table; a data-modeler cannot write a page. The `system-engineer`'s `engineer` holds only `hooks:write` (`sdk/org/libs/core/system-spaces/system-engineer/agents/engineer/instruct.md`).
+In the `system-appbuilder` space each specialist holds only the slice its job needs (`sdk/org/libs/core/system-spaces/system-appbuilder/knowledge/app_building/model/capability-model.md:41-48`). The real on-disk frontmatter:
 
-> UNVERIFIED: the canonical `capability-model.md` grant table is STALE — it omits `connections:use`, `tools:use`, `store:read`, `store:install`, and `events:emit` (its "automator = hooks:write" line is also narrower than the on-disk automator, which holds `hooks:write`+`db:schema`+`db:read`+`pages:write`+`api:write`). This doc's table above reflects the code (`sdk/org/libs/core/src/spaces/capabilities.ts:42-56`) and the live `automator/instruct.md`, not the stale knowledge doc.
+| Agent | `capabilities:` |
+|---|---|
+| `app-architect` | `project:manage`, `db:schema`, `db:read`, `pages:write`, `api:write`, `hooks:write` (`.../app-architect/instruct.md:7-13`) |
+| `data-modeler` | `db:schema`, `db:read` (`.../data-modeler/instruct.md:7-9`) |
+| `page-builder` | `pages:write`, `db:read` (`.../page-builder/instruct.md:7-9`) |
+| `api-author` | `api:write`, `db:read` (`.../api-author/instruct.md:7-9`) |
+| `automator` | `hooks:write`, `db:schema`, `db:read`, `db:write`, `pages:write`, `api:write` (`.../automator/instruct.md:7-13`) |
+| `engineer` (`system-engineer`) | `hooks:write` only (`sdk/org/libs/core/system-spaces/system-engineer/agents/engineer/instruct.md:6-7`) |
+
+(all paths relative to `sdk/org/libs/core/system-spaces/system-appbuilder/agents/` unless stated). A page-builder cannot write a table; a data-modeler cannot write a page. The `automator` is the broad one — it authors the LIVE project (data model + automation + UI), so it holds every authoring grant except `project:manage`.
+
+**The canonical `capability-model.md` knowledge doc is STALE — do not treat it as the grant list.** Its table stops at `api:call` and omits `connections:use`, `tools:use`, `store:read`, `store:install`, and `events:emit` (`sdk/org/libs/core/system-spaces/system-appbuilder/knowledge/app_building/model/capability-model.md:10-19`, vs. the 13 ids in `sdk/org/libs/core/src/spaces/capabilities.ts:42-56`); it also lists the catalog writers only (`pages:write` → `writePage`), omitting the live-project twins; and its "`automator` = `hooks:write`" line (`capability-model.md:45`) is far narrower than the on-disk automator's six grants above. The table at the top of THIS page reflects the code.
 
 ## Worked example
 
-An integration space's outbound agent declares a single narrowed capability — the Slack agent grants only `connections:use` scoped to the `slack` provider (from `store/spaces/integration-slack/agents/slack/instruct.md`):
+An integration space's outbound agent declares a single narrowed capability — the Slack agent grants only `connections:use` scoped to the `slack` provider (`store/spaces/integration-slack/agents/slack/instruct.md:1-24`, abridged):
 
 ````yaml
 ---
@@ -77,8 +90,15 @@ knowledge:
   - slack/api
 functions:
   - slackPostMessage
+  - slackListChannels
+  - slackSearchMessages
+components: []
 capabilities:
   - connections:use: { providers: [slack] }
+actions:
+  - id: assist
+    label: Slack assistant
+    # … post / search actions omitted
 canDelegateTo: []
 ---
 ````

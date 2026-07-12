@@ -22,14 +22,14 @@ Fetches `${storeUrl}/projects/manifest.json` and returns its `spaces[]` array `s
 
 A `CatalogSpace` carries `id/title/description/icon/tags/kind/settings`, the full download list `files[]`, and the lifted producer/consumer surface `events`/`functions`/`agents`/`inbound` (generated at store build time so an agent can fit-check an install from catalog data alone) `sdk/org/libs/cli/src/server/routes/store-spaces.ts:63-81`.
 
-The same module exports the agent-facing halves of the catalog readers: `searchCatalog(query?)` (case-insensitive substring over id/title/description/tags/kind; empty query ⇒ whole catalog) and `inspectCatalogSpace(spaceId)` `sdk/org/libs/cli/src/server/routes/store-spaces.ts:100-120`. These **throw** when the store is unreachable — unlike the listing route, so the agent's yield surfaces a clear retryable error `sdk/org/libs/cli/src/server/routes/store-spaces.ts:96-99`.
+The same module exports the agent-facing halves of the catalog readers: `searchCatalog(query?)` (case-insensitive substring over id/title/description/tags/kind; empty query ⇒ whole catalog) and `inspectCatalogSpace(spaceId)` `sdk/org/libs/cli/src/server/routes/store-spaces.ts:100-120`. These **throw** when the store is unreachable (the shared `fetchStoreSpaces` throws on a non-OK manifest response) — unlike the listing route, so the agent's yield surfaces a clear retryable error `sdk/org/libs/cli/src/server/routes/store-spaces.ts:85-86,96-99`.
 
 ## `POST /api/store/spaces/install`
 
 Body: `{ spaceId: string, projectId?: string, force?: boolean }` `sdk/org/libs/cli/src/server/routes/store-spaces.ts:171-175`.
 
 - `projectId` defaults to `DEFAULT_PROJECT_ID` = `'user'` `sdk/org/libs/cli/src/server/routes/store-spaces.ts:312-314` · `sdk/org/libs/cli/src/server/projects.ts:22`.
-- `spaceId` and `projectId` are both validated with `safeProjectId` (URL-safe slug, no `/`, `\`, NUL, `.`/`..`) `sdk/org/libs/cli/src/server/projects.ts:58-62`, and `projectId` must not be in `RESERVED_PROJECT_IDS` (`system`, `api`, `assets`, `install`) `sdk/org/libs/cli/src/server/routes/store-spaces.ts:307-318` · `sdk/org/libs/cli/src/server/projects.ts:39-44`.
+- `spaceId` and `projectId` are both validated with `safeProjectId` (non-empty, ≤200 chars, no `/`, `\`, NUL, not `.`/`..`, and `^[a-zA-Z0-9_-]+$`) `sdk/org/libs/cli/src/server/projects.ts:58-65`, and `projectId` must not be in `RESERVED_PROJECT_IDS` (`system`, `api`, `assets`, `install`) `sdk/org/libs/cli/src/server/routes/store-spaces.ts:307-318` · `sdk/org/libs/cli/src/server/projects.ts:39-44`.
 - Invalid JSON body ⇒ `400 { error: 'invalid JSON body' }` `sdk/org/libs/cli/src/server/routes/store-spaces.ts:299-305`; no project root configured ⇒ `404 { error: 'no project root configured' }` `sdk/org/libs/cli/src/server/routes/store-spaces.ts:320-323`.
 
 The route is a thin face over the **pure** engine `installStoreSpace(opts)` `sdk/org/libs/cli/src/server/routes/store-spaces.ts:215-280`, which returns a discriminated result the route maps to statuses `sdk/org/libs/cli/src/server/routes/store-spaces.ts:192-198,333-346`.
@@ -50,7 +50,7 @@ curl -sX POST http://localhost:8080/api/store/spaces/install \
 5. **Write the install marker** `.installed.json` = `{ spaceId, sourceHash, installedAt }` inside the space dir `sdk/org/libs/cli/src/server/routes/store-spaces.ts:271,415-435`.
 6. Staging is always cleaned up in `finally` `sdk/org/libs/cli/src/server/routes/store-spaces.ts:277-279`.
 
-The engine **validates its own inputs and never throws** (agent-supplied ids reach it directly) and deliberately does **not** republish or notify — each caller owns its post-install effects `sdk/org/libs/cli/src/server/routes/store-spaces.ts:212-213`.
+The engine **validates its own inputs and never throws** (agent-supplied ids reach it directly) and deliberately does **not** republish or notify — each caller owns its post-install effects `sdk/org/libs/cli/src/server/routes/store-spaces.ts:212-214`.
 
 ### Pristine vs diverged (the overwrite guard)
 
@@ -72,7 +72,7 @@ The HTTP route returns divergence as **`200`**, not an error status, so it is a 
 }
 ```
 
-The web installer relies on exactly that shape: `POST {pod}/api/store/spaces/install { spaceId, projectId, force }` and `classifyInstallResponse(res.ok, res.status, body)` turns a 200 + `diverged:true` into the "Upgrade & replace files" branch (a re-POST with `force:true`) `sdk/org/apps/web/src/routes/install.tsx:270-284`.
+The web installer relies on exactly that shape: `POST {pod}/api/store/spaces/install { spaceId, projectId, force }` `sdk/org/apps/web/src/routes/install.tsx:269-285` and `classifyInstallResponse(res.ok, res.status, body)` turns a 200 + `diverged:true` into the "Upgrade & replace files" branch (a re-POST with `force:true`) `sdk/org/apps/web/src/routes/install.tsx:71-79`.
 
 ### Post-install effects
 
@@ -95,7 +95,7 @@ agent  installSpace(spaceId)  ──yield──▶ routeCommonYield
                                           └─ storeResolver.republish?()
 ```
 
-- The global is created in `sdk/org/libs/core/src/globals/store.ts:109-122` (`createInstallSpaceGlobal`, yield kind `installSpace`) and gated on the bare capability `store:install` at injection `sdk/org/libs/core/src/exec/bootstrap.ts:195-198` · `sdk/org/libs/core/src/spaces/capabilities.ts:37-38`, with a matching DTS fragment so an ungranted call fails typecheck `sdk/org/libs/core/src/typecheck/library-dts.ts:249-251,272-273`.
+- The global is created in `sdk/org/libs/core/src/globals/store.ts:109-122` (`createInstallSpaceGlobal`, yield kind `installSpace`) and gated on the bare capability `store:install` at injection `sdk/org/libs/core/src/exec/bootstrap.ts:195-198` · `sdk/org/libs/core/src/spaces/capabilities.ts:37-38`, with a matching DTS fragment (`STORE_INSTALL_DTS`, registered under `store:install` in `CAPABILITY_DTS_FRAGMENTS`) so an ungranted call fails typecheck `sdk/org/libs/core/src/typecheck/library-dts.ts:262-263,286`.
 - The pod resolver is `createStoreResolver` `sdk/org/libs/cli/src/server/store-resolver.ts:39-74`, folded into `AppGlobalImpls.store` per project by the SessionManager `sdk/org/libs/cli/src/server/session-manager.ts:404-425`. It calls `installStoreSpace` **without `force`** — the agent path always respects the divergence guard; overwriting local edits stays a deliberate HTTP/UI action `sdk/org/libs/cli/src/server/store-resolver.ts:43-51`.
 - The router then does what the HTTP route does not: **live-registers** the installed dir into the shared `dynamicSpaces` map (`registerSpace` mechanics) so `delegate(spaceKey, agentSlug, …)` reaches it in the same session, then calls `republish()`. Order is `consent → install → register → republish` `sdk/org/libs/core/src/eval/yield-router.ts:279-331`. If registration fails the files are still installed and the result is `ok:true` with the registration error attached `sdk/org/libs/core/src/eval/yield-router.ts:312-317`.
 - Divergence is returned to the agent as a **value**, not a throw, so it can relay the message verbatim `sdk/org/libs/core/src/eval/yield-router.ts:290-302`.
@@ -113,9 +113,17 @@ export const CONSENT_MARKED_YIELD_KINDS: ReadonlySet<string> = new Set(['install
 
 `routeCommonYield` runs `enforceConsent` **before the switch**, so no resolver can execute unapproved `sdk/org/libs/core/src/eval/yield-router.ts:135-145`. `enforceConsent` **fails closed**: no prompter ⇒ throw `"<fn>" requires user consent — run it from an interactive session (this context has no user to ask, so the call is refused)`; a declined card ⇒ `consent denied: the user declined "<fn>" — do not retry it unless the user explicitly asks for it` `sdk/org/libs/core/src/globals/consent.ts:75-100`. The prompter rides `renderHost.ask` as a `ConsentCard` descriptor `sdk/org/libs/core/src/globals/consent.ts:180-193` and is wired **only for interactive sessions** — headless runs, forks, delegates and hooks get none `sdk/org/libs/cli/src/server/session-manager.ts:448-452`.
 
-Consequence for this endpoint: **the HTTP route has no consent gate of its own** — it is the human's own action (the `/install` page, `sdk/org/apps/web/src/routes/install.tsx:270-284`), whereas the agent's `installSpace()` must first surface a card the user approves. In the shipped system spaces this is the split between discovery and install: `system-store`'s `finder` agent holds only `store:read` and explicitly "does NOT install — you recommend; THING installs behind a consent card" `sdk/org/libs/core/system-spaces/system-store/agents/finder/instruct.md:1-16`, while THING holds both `store:read` and `store:install` `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:6-8`.
+Consequence for this endpoint: **the HTTP route has no consent gate of its own** — it is the human's own action (the `/install` page, `sdk/org/apps/web/src/routes/install.tsx:269-285`), whereas the agent's `installSpace()` must first surface a card the user approves. In the shipped system spaces this is the split between discovery and install: `system-store`'s `finder` agent holds only `store:read` and explicitly "does NOT install — you recommend; THING installs behind a consent card" `sdk/org/libs/core/system-spaces/system-store/agents/finder/instruct.md:1-16`, while THING holds both `store:read` and `store:install` `sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:6-8`.
 
-> UNVERIFIED: whether any authentication/authorization is applied to `POST /api/store/spaces/install` upstream of the pod. The route module itself performs no auth check (searched `store-spaces.ts` for token/JWT/Authorization handling — there is none); protection appears to be the pod's network position, which is outside this file's scope.
+### Auth: none in the pod, JWT at the edge
+
+Neither this route module nor the pod server authenticates the caller — `createServer` hands every request straight to the `Router`, with no auth middleware anywhere in the chain `sdk/org/libs/cli/src/server/serve.ts:343-370`. Authentication lives at the **Envoy edge**, which is also what makes the request reach *your* pod at all:
+
+- the `computer.*` host's `/api` prefix is an `HTTPRoute` (`computer-api-proxy`) onto a `DynamicResolver` per-user backend `devops/argocd/envoy/computer-routes.yaml:27-58`;
+- a `SecurityPolicy` on that route validates the gateway-issued HS256 JWT (local JWKS from the `gateway-jwt-jwks` ConfigMap) and projects its `sub` claim into an `x-user-id` header `devops/argocd/envoy/computer-policies.yaml:120-152`;
+- a Lua `EnvoyExtensionPolicy` then **401s** a request with no `x-user-id` claim, rejects a non-slug id with 400, and rewrites the upstream host to `lmthing.user-<id>.svc.cluster.local:8080` `devops/argocd/envoy/computer-policies.yaml:38-59`.
+
+So a caller can only ever reach the pod of the user its token names; the browser attaches that token via `@lmthing/auth`'s `authFetch` (`Authorization: Bearer <token>`, with a 401-refresh retry) `sdk/org/libs/auth/src/client.ts:174-193`, which is what the `/install` page uses for this POST `sdk/org/apps/web/src/routes/install.tsx:269-285`. Under local `lmthing serve` there is no edge and therefore no auth — the pod is protected only by its network position.
 
 ## `GET /api/projects/:projectId/integrations`
 
@@ -127,4 +135,4 @@ Secrets themselves are written to pod env through the gateway, not here — see 
 
 ## Tests
 
-`sdk/org/libs/cli/src/server/store-spaces.test.ts` covers the catalog listing (including the unreachable-store `[]` degradation), the install route (404 for an unknown space, path-traversal refusal, 404 for a missing project, default-project install, pristine re-sync, `diverged:true` hold-back preserving the edit, `force:true` overwrite, `onInstalled` firing) and the pure engine + catalog helpers `sdk/org/libs/cli/src/server/store-spaces.test.ts:206-403`.
+`sdk/org/libs/cli/src/server/store-spaces.test.ts` covers the catalog listing (including the unreachable-store `[]` degradation), the install route (404 for an unknown space, path-traversal refusal, 404 for a missing project, default-project install, pristine re-sync, `diverged:true` hold-back preserving the edit, `force:true` overwrite, `onInstalled` firing) and the pure engine + catalog helpers (incl. `searchCatalog` throwing on an unreachable store) `sdk/org/libs/cli/src/server/store-spaces.test.ts:206-418`, plus the integrations listing + `integrationStatusFor` (missing-required names, `configured:true` once the env var is set, unsafe-id rejection) `sdk/org/libs/cli/src/server/store-spaces.test.ts:420-527`.

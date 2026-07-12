@@ -24,7 +24,7 @@ Every factual sentence in `org/` ends with a citation to the code that makes it 
 
 ```md
 An event hook must carry **exactly one** of `handler` or `trigger`; supplying both or neither
-throws `sdk/org/libs/cli/src/app/hooks/loader.ts:430-436`.
+throws `sdk/org/libs/cli/src/app/hooks/loader.ts:438-444`.
 ```
 
 The citation is `path:Lstart-Lend`, or `path` plus a symbol name when lines are unstable. Cite the

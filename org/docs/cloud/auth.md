@@ -50,7 +50,7 @@ Validates email + password (≥8 chars), creates a Zitadel human user via `zitad
 
 The handler verifies the password via `zitadel.loginWithPassword`, looks up the user id via `zitadel.getUserByEmail`, then issues the gateway pair `{ access_token, refresh_token, expires_at }` `cloud/gateway/src/routes/auth.ts:94-118`. `loginWithPassword` uses the OIDC `grant_type=password` flow against `/oauth/v2/token` `cloud/gateway/src/lib/zitadel.ts:104-138`.
 
-> **Known broken**: on production this returns `{"error":"password not supported"}` — the Zitadel OIDC client has no password grant enabled, so there is no email/password path to a gateway JWT even though `/register` succeeds. Root cause + the mint-a-JWT workaround are in [../../.issues/zitadel-password-login-disabled.md](../../.issues/zitadel-password-login-disabled.md). GitHub OAuth (below) is unaffected.
+> **Known broken**: on production this returns `{"error":"password not supported"}` — the Zitadel OIDC client has no password grant enabled, so there is no email/password path to a gateway JWT even though `/register` succeeds. Root cause + the mint-a-JWT workaround are in [../../.issues/zitadel-password-login-disabled.md](../../../.issues/zitadel-password-login-disabled.md). GitHub OAuth (below) is unaffected.
 
 ### GitHub OAuth — Zitadel IDP Intent (bypasses the Zitadel UI)
 

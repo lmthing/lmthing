@@ -1,6 +1,6 @@
 # Running the local stack
 
-Everything you need to bring up lmthing on your machine: the frontend dev servers, the `*.test` HTTPS reverse proxy, local demo auth, and (optionally) a full local backend + compute pod on minikube. All targets are defined in the root [`Makefile`](../../Makefile) and driven by [`services.yaml`](../../services.yaml). For test-writing conventions once the stack is up, see [../contributing/testing.md](../contributing/testing.md).
+Everything you need to bring up lmthing on your machine: the frontend dev servers, the `*.test` HTTPS reverse proxy, local demo auth, and (optionally) a full local backend + compute pod on minikube. All targets are defined in the root [`Makefile`](../../../Makefile) and driven by [`services.yaml`](../../../services.yaml). For test-writing conventions once the stack is up, see [../contributing/testing.md](../contributing/testing.md).
 
 ## Quick start (frontend only)
 
@@ -18,13 +18,13 @@ To run just the unified Studio/Computer/Chat SPA without the proxy or the rest o
 cd sdk/org/apps/web && pnpm dev
 ```
 
-The unified app's package is `@lmthing/web-app` (`sdk/org/apps/web/package.json:2`); its `dev` script is `vp dev` (vite-plus) (`sdk/org/apps/web/package.json:8`). `/studio`, `/computer`, and `/chat` are client-side routes of this single SPA, not separate packages (see [CLAUDE.md](../../CLAUDE.md) Repository Structure and [../../sdk/org/CLAUDE.md](../../sdk/org/CLAUDE.md) "App Surfaces").
+The unified app's package is `@lmthing/web-app` (`sdk/org/apps/web/package.json:2`); its `dev` script is `vp dev` (vite-plus) (`sdk/org/apps/web/package.json:8`). `/studio`, `/computer`, and `/chat` are client-side routes of this single SPA, not separate packages (see [CLAUDE.md](../../../CLAUDE.md) Repository Structure and [../../sdk/org/CLAUDE.md](../../../sdk/org/CLAUDE.md) "App Surfaces").
 
 > UNVERIFIED (searched `services.yaml`, `Makefile`, repo root `ls`): `services.yaml` lists `studio`/`chat`/`computer` as `type: vite` services on ports 3000/3001/3010, and `make up` runs `cd <name> && pnpm dev` for each (`Makefile:23`) — but there are **no** top-level `studio/`, `chat/`, or `computer/` directories in the repo (the unified SPA lives at `sdk/org/apps/web/`). So `make up`'s `cd studio` etc. cannot start those three, and the root `package.json` `dev`/`build` scripts (`pnpm --filter ./studio …`, `package.json:8-14`) reference a non-existent `./studio` filter. Run the unified SPA directly via `cd sdk/org/apps/web && pnpm dev`. How the three proxied domains are meant to map onto the one unified dev server locally is not resolved in code.
 
 ## Service ports & domains
 
-Defined in [`services.yaml`](../../services.yaml). Each entry has a `name`, `type`, production `domain`, local `.test` domain, and `port`.
+Defined in [`services.yaml`](../../../services.yaml). Each entry has a `name`, `type`, production `domain`, local `.test` domain, and `port`.
 
 | Service | Type | Port | Local domain | Prod domain | Source |
 |---|---|---|---|---|---|
@@ -70,7 +70,7 @@ Notes grounded in the config:
 
 ## The `*.test` nginx proxy
 
-`make proxy` runs [`.etc/scripts/local-proxy.sh`](../../.etc/scripts/local-proxy.sh), a 5-step setup that reads `services.yaml` and maps each `local` domain to its `port` over **HTTPS** (not plain HTTP). It parses each service's `name`/`domain`/`local`/`port`/`api_gateway_port`/`headers` from the YAML (`local-proxy.sh:38-78`).
+`make proxy` runs [`.etc/scripts/local-proxy.sh`](../../../.etc/scripts/local-proxy.sh), a 5-step setup that reads `services.yaml` and maps each `local` domain to its `port` over **HTTPS** (not plain HTTP). It parses each service's `name`/`domain`/`local`/`port`/`api_gateway_port`/`headers` from the YAML (`local-proxy.sh:38-78`).
 
 1. **nginx** — installs it if missing (`apt-get` on Linux, `brew` on macOS) (`local-proxy.sh:152-171`).
 2. **TLS via mkcert** — installs `mkcert` if absent, installs the local CA into the system trust store, and generates one certificate covering all `.test` domains at `.etc/certs/local.pem` (regenerated when the domain set changes) (`local-proxy.sh:173-230`).
@@ -102,7 +102,7 @@ In dev, `AuthProvider` also points the com/cloud URLs at the local proxy: `com.t
 
 ## Full local backend + compute pod (minikube)
 
-For work that needs the real gateway, Postgres, LiteLLM, and a compute pod, use the `local-*` targets. Config lives in [`devops/local/`](../../devops/local/).
+For work that needs the real gateway, Postgres, LiteLLM, and a compute pod, use the `local-*` targets. Config lives in [`devops/local/`](../../../devops/local).
 
 One-time / rebuild steps:
 
@@ -119,7 +119,7 @@ Run the stack:
 make local-up      # Postgres+LiteLLM (compose), kubectl proxy :8001, gateway :3009, all Vite apps
 ```
 
-`local-up` brings up Docker Compose ([`devops/local/docker-compose.yml`](../../devops/local/docker-compose.yml)) — `postgres:16-alpine` on 5432 (seeded from `cloud/migrations/`) and `litellm v1.90.0` on 4000 (configured by `devops/local/litellm-config.yaml`, keyed from `devops/local/.env.local`) — then `kubectl proxy --port=8001`, then the gateway (`cd cloud/gateway && . ./.env.local && PORT=3009 pnpm dev`), then `make up` (`Makefile:82-90`, `devops/local/docker-compose.yml`).
+`local-up` brings up Docker Compose ([`devops/local/docker-compose.yml`](../../../devops/local/docker-compose.yml)) — `postgres:16-alpine` on 5432 (seeded from `cloud/migrations/`) and `litellm v1.90.0` on 4000 (configured by `devops/local/litellm-config.yaml`, keyed from `devops/local/.env.local`) — then `kubectl proxy --port=8001`, then the gateway (`cd cloud/gateway && . ./.env.local && PORT=3009 pnpm dev`), then `make up` (`Makefile:82-90`, `devops/local/docker-compose.yml`).
 
 Two ways to serve compute, selected in `cloud/gateway/.env.local`:
 

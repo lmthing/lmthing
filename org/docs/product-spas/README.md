@@ -18,11 +18,11 @@ Every SPA has the identical stack and build, differing only in `name` and routes
 
 - **Stack** — React 19 + Vite 8 + TanStack Router (file-based) + Tailwind CSS v4 via
   `@tailwindcss/vite`; scripts run through `vite-plus` (`vp dev|build|preview|test`). See any
-  `package.json`, e.g. `com/package.json:7-13,17-38`. Routes are files under `src/routes/`, compiled
+  `package.json`, e.g. `com/package.json:7-13,14-40`. Routes are files under `src/routes/`, compiled
   to `src/routeTree.gen.ts` by `@tanstack/router-plugin`.
 - **Shared workspace libs** — all depend on `@lmthing/{css,state,ui}` (`workspace:*`); `space`
   additionally depends on `@lmthing/auth` and the `@xterm/*` terminal packages
-  (`space/package.json:12-30`). `@lmthing/utils` (dev dep) supplies the shared Vite config.
+  (`space/package.json:14-31`). `@lmthing/utils` (dev dep) supplies the shared Vite config.
 - **One Vite config** — each `vite.config.ts` is just `createViteConfig(__dirname)`
   (`com/vite.config.ts`), the shared factory in `sdk/org/libs/utils/src/vite.mjs`. It wires the
   TanStack router plugin, React, Tailwind, a shared-favicon plugin, a GitHub-Pages `404.html` copy,
@@ -81,30 +81,49 @@ Routes (`com/src/routeTree.gen.ts`):
 | `/` | Landing page (`index.tsx`) |
 | `/about`, `/docs` | About + documentation |
 | `/pricing` | Plan comparison, 4 tiers (`pricing.tsx`, data from `src/config/plans.ts`) |
-| `/login`, `/signup` | Email/password + GitHub/Google OAuth |
-| `/forgot-password`, `/reset-password` | Password reset request + set-new-password |
-| `/callback` | OAuth callback (extracts tokens from provider hash redirect) |
+| `/login`, `/signup` | **GitHub OAuth only** — a single "Continue with GitHub" button; no email/password form is rendered (`com/src/routes/login.tsx:10,38-43`, `com/src/routes/signup.tsx:10,33`) |
+| `/forgot-password`, `/reset-password` | **Redirect stubs** — both `useEffect`-navigate to `/login` ("Password reset is not available with GitHub-only authentication"), `com/src/routes/forgot-password.tsx:8-17`, `com/src/routes/reset-password.tsx:8-17` |
+| `/callback` | OAuth callback — reads `#access_token/refresh_token/expires_at` from the hash, stores them, then calls `provision()` (`com/src/routes/callback.tsx:15-36`) |
 | `/auth/sso` | Cross-domain SSO code issuer (`redirect_uri`/`app`/`state` params) |
 | `/onboarding` | Post-signup repo + PIN setup |
 | `/checkout` | Stripe Embedded Checkout (`@stripe/react-stripe-js`) |
 | `/account`, `/account/keys` | Profile + API-key management (protected) |
 | `/billing`, `/billing/usage` | Subscription status + token-budget usage (protected) |
 
-- **`src/lib/cloud.ts`** — typed gateway client with JWT storage + automatic refresh
-  (`cloud/api/auth/refresh`), split into `cloudFetch()` (authed) and `cloudFetchPublic()`
-  (`com/src/lib/cloud.ts:1,46,68,87`). Wraps auth, provision, SSO, billing/checkout, usage, and
-  API-key endpoints (`com/CLAUDE.md` "Cloud API Endpoints Used" — verify individual routes against
-  [../cloud/routes.md](../cloud/routes.md)).
-- **`src/lib/auth/AuthProvider.tsx`** — `useAuth()` context (`user`, `signIn`, `signUp`, `signOut`,
-  `signInWithGitHub/Google`, `setSessionFromOAuth`) built on `cloud.ts`; `com` does **not** use the
-  shared `@lmthing/auth` package (it is not in `com/package.json`).
+- **`src/lib/cloud.ts`** — typed gateway client with JWT storage (`lmt_access_token` /
+  `lmt_refresh_token` / `lmt_expires_at` in `localStorage`) and automatic refresh via
+  `POST /api/auth/refresh` on a 60s-buffered expiry check; split into `cloudFetch()` (authed) and
+  `cloudFetchPublic()` (`com/src/lib/cloud.ts:1,4-6,28-32,46,65,86`). It wraps 15 gateway endpoints,
+  every one of which resolves to a real handler on the gateway routers:
+
+  | `cloud.ts` wrapper | Endpoint | Gateway | Reached from |
+  |---|---|---|---|
+  | `register()` | `POST /api/auth/register` | `cloud/gateway/src/routes/auth.ts:62` | `AuthProvider.signUp` — **no UI caller** |
+  | `login()` | `POST /api/auth/login` | `auth.ts:94` | `AuthProvider.signIn` — **no UI caller** |
+  | `getOAuthUrl()` | `GET /api/auth/oauth/url` | `auth.ts:121` | `signInWithGitHub` (`/login`, `/signup`) |
+  | `provision()` | `POST /api/auth/provision` | `auth.ts:173` | `/callback` |
+  | `getMe()` | `GET /api/auth/me` | `auth.ts:186` | `AuthProvider` |
+  | (inline refresh) | `POST /api/auth/refresh` | `auth.ts:208` | `ensureValidToken()` |
+  | `createSsoCode()` | `POST /api/auth/sso/create` | `auth.ts:236` | `/auth/sso` |
+  | `exchangeSsoCode()` | `POST /api/auth/sso/exchange` | `auth.ts:261` | **unused in `com`** — other SPAs exchange via `sdk/org/libs/auth/src/client.ts:63` |
+  | `listApiKeys/createApiKey/revokeApiKey()` | `GET/POST /api/keys`, `DELETE /api/keys/:token` | `keys.ts:12,32,62` | `/account/keys` |
+  | `createCheckout/getCheckoutStatus()` | `POST /api/billing/checkout`, `GET /api/billing/checkout/status` | `billing.ts:63,205` | `/checkout` |
+  | `billingPortal()` | `POST /api/billing/portal` | `billing.ts:99` | `/billing` |
+  | `getUsage()` | `GET /api/billing/usage` | `billing.ts:115` | `/billing/usage` |
+
+  Two wrappers are **dead code today**: `register()`/`login()` (email/password) are exposed through
+  `AuthProvider.signUp`/`signIn` but no route renders a password form (`/login` and `/signup` are
+  GitHub-only, above), and `exchangeSsoCode()` has no importer in `com`. Route-level detail →
+  [../cloud/routes.md](../cloud/routes.md).
+- **`src/lib/auth/AuthProvider.tsx`** — `useAuth()` context (`user`, `loading`, `signIn`, `signUp`,
+  `signOut`, `signInWithGitHub/Google`, `setSessionFromOAuth`) built on `cloud.ts`
+  (`com/src/lib/auth/AuthProvider.tsx:2-9,20-24,52-77`); `com` does **not** use the shared
+  `@lmthing/auth` package (it is not in `com/package.json`). `signInWithGoogle` is implemented
+  (`AuthProvider.tsx:75-77`) but no route renders a Google button — only `signInWithGitHub` is
+  destructured by `/login` and `/signup`.
 - **`src/config/plans.ts`** — frontend plan metadata for 4 tiers (Free/Basic/Pro/Max) with budget
   windows; a display mirror of `cloud/gateway/src/lib/tiers.ts` and only one of ~10 files a new tier
   touches (`com/src/config/plans.ts:1-2,14`). Tier checklist → [../cloud/billing-and-tiers.md](../cloud/billing-and-tiers.md).
-
-> UNVERIFIED: the exact route-by-route endpoint mapping in `com/CLAUDE.md` was not re-verified call
-> by call against `cloud.ts`; treat the gateway routes doc as authoritative
-> ([../cloud/routes.md](../cloud/routes.md)). Searched: `com/src/lib/cloud.ts` (URL constants only).
 
 ## `store` — lmthing.store (catalog)
 
@@ -156,8 +175,9 @@ Routes (`space/src/routeTree.gen.ts`), all space-scoped routes nested under `/$s
 | `/$spaceSlug/admin/terminal` | PTY over WebSocket (`@xterm/*`) |
 
 - **`src/lib/api.ts`** — typed client hitting the gateway's edge-function base `…/functions/v1`
-  (`listSpaces`/`getSpace`/`createSpace`/`updateSpace`/`deleteSpace`, e.g. `/list-spaces`,
-  `/create-space`) with `@lmthing/auth`'s `getAuthHeaders()` (`space/src/lib/api.ts:1,4-5,26-64`).
+  (`listSpaces`/`getSpace`/`createSpace`/`updateSpace`/`deleteSpace`/`startSpace`/`stopSpace`, e.g.
+  `/list-spaces`, `/create-space`) with `@lmthing/auth`'s `getAuthHeaders()`
+  (`space/src/lib/api.ts:1,4-5,11,26-76`).
 - **`src/lib/auth.ts`** re-exports `useAuth` from `@lmthing/auth` (`space/src/lib/auth.ts:1`);
   `SpaceContext.tsx` + `types.ts` carry the `Space` shape (statuses: `created`/`provisioning`/
   `running`/`stopped`/`failed`/`destroyed`, `space/src/routes/index.tsx:11-17`).
@@ -168,7 +188,10 @@ Routes (`space/src/routeTree.gen.ts`), all space-scoped routes nested under `/$s
 
 These have real TanStack route trees but placeholder page bodies (each renders a
 `<CozyThingText>` title or a stub `<h1>`); no backend calls or feature logic yet. Documented so the
-route inventory is complete.
+route inventory is complete. A `rg` for `fetch(`, `@lmthing/state`, `@lmthing/auth`, `useAuth` and
+`VITE_CLOUD_URL` across `social/src team/src blog/src casa/src` returns **zero hits** — the four
+SPAs are 6–8 source files each (route stubs plus `__root.tsx`/`main.tsx`), so there is no VFS, no
+auth, and no gateway call anywhere in them.
 
 - **`social`** (lmthing.social) — routes `/`, `/explore`, `/explore/$explorationId`,
   `/profile/$username` (`social/src/routeTree.gen.ts`). Home renders the `lmthing.social` title
@@ -182,9 +205,20 @@ route inventory is complete.
   (`casa/src/routeTree.gen.ts`); stub pages (`casa/src/routes/index.tsx`,
   `casa/src/routes/settings.tsx`).
 
-> UNVERIFIED: the intended feature designs in `social/README.md`, `team/README.md`, `blog/README.md`,
-> `casa/README.md` (shared VFS, room context, personalized news, HA bridge) are product plans with no
-> corresponding code today. Searched their full `src/routes/` trees — only scaffold components exist.
+**The per-domain `README.md` files are product plans, not descriptions of code.** `social/README.md`
+(shared-VFS "hive mind"), `team/README.md` (private room context), `blog/README.md` (RSS/web-search
+agent), and `casa/README.md` (Home Assistant bridge + SLM fine-tuning) each specify a feature set and
+a mermaid route tree that **no shipped code implements** — and the planned routes do not even match
+the generated ones. Compare (README plan → `routeTree.gen.ts` reality):
+
+| SPA | README mermaid routes | Shipped routes |
+|---|---|---|
+| `social` | `/feed`, `/feed/$explorationId`, `/$agentId`, `/$agentId/activity` | `/`, `/explore`, `/explore/$explorationId`, `/profile/$username` |
+| `team` | `/rooms`, `/rooms/$roomId`, `/members`, `/context` | `/`, `/create`, `/room/$roomId`, `/room/$roomId/members`, `/room/$roomId/settings` |
+| `blog` | `/feed`, `/preferences`, `/$username`, `/$articleId`, `/research`, `/publish` | `/`, `/post/$slug`, `/tag/$tag` |
+| `casa` | `/dashboard`, `/devices`, `/automations`, `/learning`, `/ha` | `/`, `/notifications`, `/profile`, `/settings` |
+
+Treat those four READMEs as roadmap documents; the tables in this section are the code.
 
 ## See also
 

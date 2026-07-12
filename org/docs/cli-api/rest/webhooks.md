@@ -42,12 +42,13 @@ the resolver, checked in this order:
 | project-app `hooks/*.ts` `{type:'webhook'}` | `loadHooks` | `legacy` `sdk/org/libs/cli/src/server/webhook-manifest.ts:268-286` |
 | installed space `hooks/*.ts` `{type:'webhook'}` (worker-extracted) | `scanSpaceHookWebhooks` | `legacy` `sdk/org/libs/cli/src/server/webhook-manifest.ts:94-119` |
 | space agent `triggers:` frontmatter | `scanSpaceTriggers` | `legacy` `sdk/org/libs/cli/src/server/webhook-manifest.ts:62-85` |
-| `events/<name>.ts` `{type:'webhook'}` emitter def | `scanEmitterDefs` (worker-isolated) | `emitter` `sdk/org/libs/cli/src/server/webhook-manifest.ts:129-150` |
+| `events/<name>.ts` `{type:'webhook'}` emitter def | `scanEmitterWebhookBindings` (wraps the worker-isolated `scanEmitterDefs`) | `emitter` `sdk/org/libs/cli/src/server/webhook-manifest.ts:129-150` |
 
 `resolveBinding` returns a discriminated `ResolvedBinding`: `{kind:'legacy', projectId, agentRef, provider, budget?}`
 or `{kind:'emitter', projectId, scope, defFile, defName}` `sdk/org/libs/cli/src/server/webhook-manifest.ts:50-52`,`sdk/org/libs/cli/src/server/webhook-manifest.ts:260-320`.
-Disabled hooks (`effectiveDisabled`) are invisible to both the manifest and the resolver
-`sdk/org/libs/cli/src/server/webhook-manifest.ts:275-276`.
+Disabled hooks (`effectiveDisabled`) are invisible to both the manifest
+`sdk/org/libs/cli/src/server/webhook-manifest.ts:180` and the resolver
+`sdk/org/libs/cli/src/server/webhook-manifest.ts:274-276`.
 
 **Path collisions are fail-loud at manifest build.** Any collision involving an emitter def (either
 side), in any project, throws; two legacy bindings still throw across projects but same-project
@@ -190,7 +191,7 @@ verify in both flows, so the set cannot be poisoned without a valid signature
 `randomUUID()` session id, persisted at `<projectRoot>/.data/webhook-threads.json`
 `sdk/org/libs/cli/src/server/webhook-threads.ts:22-28`,`sdk/org/libs/cli/src/server/webhook-threads.ts:70-80`.
 Namespacing by `path` means two bindings never collide even when a provider reuses key values
-`sdk/org/libs/cli/src/server/webhook-threads.ts:8-11`. The file is a cache, not the source of truth (the
+`sdk/org/libs/cli/src/server/webhook-threads.ts:4-6`. The file is a cache, not the source of truth (the
 session snapshot is): a missing or corrupt file is treated as empty
 `sdk/org/libs/cli/src/server/webhook-threads.ts:31-51`. The read-modify-write is unlocked; a lost update can
 only mint two ids for two near-simultaneous *first* events on a brand-new thread, never corrupt an
@@ -250,15 +251,30 @@ The pod's chain for that request: `resolveBinding` → `kind:'emitter'` → `ada
 `slack` verify) → dedupe → worker-isolated `emit(inbound)` → `validateEmitted` → `dispatchEmittedEvents`
 to every event hook subscribing to `<spaceId>/<event>` `sdk/org/libs/cli/src/server/routes/webhooks.ts:262-339`.
 
-## Known gap
+## Known gap — the GET `hub.challenge` branches are unreachable over HTTP
 
-> UNVERIFIED (contradiction, not a missing fact): the handler implements a **GET** branch for both flows
-> (`hub.challenge` handshakes) `sdk/org/libs/cli/src/server/routes/webhooks.ts:176-186`,`sdk/org/libs/cli/src/server/routes/webhooks.ts:275-285`,
-> and the gateway forwards a provider's GET handshake to `{podBase}/api/inbound/<path>`
-> `cloud/gateway/src/routes/inbound.ts:194-197` — but `serve.ts` registers the route for **POST only**
-> (`router.add('POST', '/api/inbound/:path', …)`) `sdk/org/libs/cli/src/server/serve.ts:236`, and the
-> `Router` skips a route whose method does not match `sdk/org/libs/cli/src/server/router.ts:66`. So a GET
-> to a bound path appears to fall through to the pod's generic `/api/*` 404 rather than the challenge
-> branch. Searched: `rg "api/inbound" sdk/org/libs/cli/src/server/serve.ts` (only line 236 registers it),
-> `router.ts` `dispatch`. Either the GET registration is missing, or GET handshakes are answered by some
-> path I did not find.
+**The pod never serves a GET to `/api/inbound/:path`.** Every ingredient of the handshake exists except
+the route registration:
+
+- Both flows implement a GET `hub.challenge` branch — legacy
+  `sdk/org/libs/cli/src/server/routes/webhooks.ts:176-186`, emitter
+  `sdk/org/libs/cli/src/server/routes/webhooks.ts:275-285` — and `resolveChallenge` is fully implemented
+  `sdk/org/libs/cli/src/server/webhook-verifiers.ts:472-486`.
+- The gateway forwards a provider's GET handshake **synchronously**, preserving the `hub.*` query string,
+  and relays the pod's status/body verbatim `cloud/gateway/src/routes/inbound.ts:165-206`.
+- But `serve.ts` registers the ingress for **POST only** —
+  `router.add('POST', '/api/inbound/:path', createInboundHandler(…))`
+  `sdk/org/libs/cli/src/server/serve.ts:236` (the sole registration in the file) — and `Router.dispatch`
+  skips any route whose method does not match `sdk/org/libs/cli/src/server/router.ts:65-66`.
+
+So a GET to a bound path falls through to the pod's catch-all reserved-`/api/*` 404,
+`{ error: 'unknown API route GET /api/inbound/<path>' }` `sdk/org/libs/cli/src/server/serve.ts:360-366`,
+which the gateway then relays to the provider as a 404 `cloud/gateway/src/routes/inbound.ts:198-201`. A
+Meta/WhatsApp-style subscription verification therefore cannot succeed against a live pod, and neither
+challenge branch is reachable in production.
+
+The unit tests do not catch this because they call `createInboundHandler` **directly** with a fake `GET`
+request, bypassing the `Router` entirely
+`sdk/org/libs/cli/src/server/webhook-descriptor-dispatch.test.ts:171-202`. The fix is a one-line
+registration (`GET`, or `'*'`, on the same handler) plus a test that exercises the route through
+`Router.dispatch`.

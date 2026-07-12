@@ -68,4 +68,4 @@ Throw `new HttpError(status, message, details?)` (imported from `@app/runtime`) 
 - [`project/pages/README.md`](../pages/README.md) — the client React pages that call these endpoints.
 - [`space/agents/capabilities.md`](../../space/agents/capabilities.md) — the `api:write` / `api:call` / `db:*` grants that gate authoring and calling.
 
-Real examples: [`store/projects/blog/api/articles/[id]/GET.ts`](../../../../store/projects/blog/api/articles/[id]/GET.ts), [`store/projects/blog/api/sources/POST.ts`](../../../../store/projects/blog/api/sources/POST.ts).
+Real examples: [`store/projects/blog/api/articles/[id]/GET.ts`](../../../../../store/projects/blog/api/articles/[id]/GET.ts), [`store/projects/blog/api/sources/POST.ts`](../../../../../store/projects/blog/api/sources/POST.ts).

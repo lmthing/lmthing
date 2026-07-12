@@ -62,9 +62,9 @@ So: `auto` → Tavily (if keyed) → Bing (if `RENDER_SERVICE_URL` set) → Duck
 falls through on failure/empty, so a missing key, an unset render URL, or an empty/blocked Bing
 page degrades gracefully to the next provider.
 
-> **Correction (code vs. stale infra comments):** two deploy-side comments still call this the
-> "google provider" that renders "Google's results page" — `devops/argocd/core/render.yaml:18-23`
-> and `cloud/gateway/src/lib/compute.ts:351-353`. The **code uses Bing, not Google**
+> **Correction (code vs. stale infra comments):** the deploy-side comments still call this the
+> "google provider" that renders "Google's results page" — `devops/argocd/core/render.yaml:18-23`,
+> `cloud/gateway/src/lib/compute.ts:351-353` and `compute.ts:386-387`. The **code uses Bing, not Google**
 > (`webSearch.ts:112-156`, function `webSearchBing`). Google was abandoned: it serves datacenter
 > IPs a consent/bot **redirect loop** that never settles, so the headless browser times out on
 > every wait strategy — an **IP-based** block that rendering cannot fix. Bing renders cleanly
@@ -236,14 +236,17 @@ fallback no-ops (→ plain fetch). Neither crashes.
 `webSearch`/`webFetch` are `system-global`, so they exist in every agent's DTS by default. Whether
 a given **tasklist task** may call them is set by frontmatter, host-enforced:
 
-- A task's `functions:` allowlist names the functions it may use;
-  **`functions: []` = no functions at all, including `webSearch`/`webFetch`**; omitting the key =
-  all. The `system-research` tasklists opt in explicitly — e.g.
+- The system spaces' functions are merged into the agent's function set
+  (`sdk/org/libs/core/src/spaces/system.ts:112-136`), and a fork's function injection is scoped by
+  the task's `functions:` allowlist (`sdk/org/libs/core/src/fork/fork.ts:247-260`): omitting the key
+  = all functions; **`functions: []` = no functions at all, including `webSearch`/`webFetch`**. The
+  `system-research` tasklists opt in explicitly —
   `sdk/org/libs/core/system-spaces/system-research/tasklists/deep_research/03-investigate.md:13-15`
-  lists `webSearch`/`webFetch`, and `01-scope.md`/`research/01-answer.md` do likewise.
+  and `research/01-answer.md:9-11` list `webSearch` + `webFetch`; `deep_research/01-scope.md:11-12`
+  lists `webSearch` only.
 - For **project-app agents**, a `tools:use: { allow: [...] }` capability in `instruct.md`
-  frontmatter is the host-tool allowlist (`sdk/org/libs/core/src/spaces/capabilities.ts:14`,
-  `allow` is required — there is no "use anything").
+  frontmatter is the host-tool allowlist — `allow` must be a non-empty list, there is no "use
+  anything" (`sdk/org/libs/core/src/spaces/capabilities.ts:188-206`).
 
 ---
 
@@ -269,7 +272,7 @@ runtime (fetch stubbed via `injectGlobal`):
   `format:'html'`/`'markdown'`; `render:'auto'` on a JS-shell page, a data-injection page, and a
   403 bot-wall; `render:'auto'` NOT rendering a content-rich static page; `render:'off'` never
   rendering; `render:'force'` always rendering; graceful degrade when `RENDER_SERVICE_URL` unset.
-- **webSearch** (`system-functions.test.ts:336-486`): DuckDuckGo fallback with redirect decode;
+- **webSearch** (`system-functions.test.ts:336-485`): DuckDuckGo fallback with redirect decode;
   Tavily when keyed; `provider:'duckduckgo'` forcing the scrape; `provider:'bing'` render + parse
   + `ck/a` decode + internal-link skip; `auto` choosing Bing over DDG when `RENDER_SERVICE_URL`
   is set; `auto` falling through to DDG when Bing renders no results; `provider:'bing'` returning

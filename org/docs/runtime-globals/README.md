@@ -6,10 +6,13 @@ evaluated inside that VM; anything it can reach (`ask`, `db`, `execShell`, …) 
 global the host decided to bind on `globalThis` before the turn started.
 
 There is exactly **one injection site**: `createChildVM` (`sdk/org/libs/core/src/exec/bootstrap.ts:99-243`),
-with exactly three callers — the top-level session, a fork leaf, and a delegate
-(`sdk/org/libs/core/src/exec/capability.ts:31-46`). Before this file existed the wiring was
-copy-pasted across those three sites and drifted apart (the "A1 delegate-nesting bug"),
-which is why the doc below can talk about *one* rule set rather than three.
+with exactly three non-test callers — the top-level session
+(`sdk/org/libs/core/src/session/session.ts:638`), a fork leaf
+(`sdk/org/libs/core/src/fork/fork.ts:283`), and a delegate
+(`sdk/org/libs/core/src/delegate/delegate.ts:193`). Before this file existed the wiring was
+copy-pasted across those three sites and drifted apart (the "A1 delegate-nesting bug" — see
+the `CapabilityProfile` doc comment, `sdk/org/libs/core/src/exec/capability.ts:30-46`), which
+is why the doc below can talk about *one* rule set rather than three.
 
 Sub-docs, by global family:
 
@@ -37,18 +40,19 @@ Two mechanically different kinds of global:
 (`sdk/org/libs/core/src/exec/bootstrap.ts:151-153`, `pushYield`). Pushing a yield **ends the
 turn**: the host stops the model stream, resolves the request (`routeCommonYield`,
 `sdk/org/libs/core/src/eval/yield-router.ts:131-374`), binds the resolved value host-side, and
-the next turn resumes with it in scope. There are 21 yield kinds today — one per
-`kind: '…'` literal under `sdk/org/libs/core/src/globals/`: `ask`, `sleep`, `fetch`,
-`readDocument`, `loadKnowledge`, `inspect`, `fork`, `tasklist`, `delegate`, `registerSpace`,
-`setSessionMeta`, `apiCall`, `callConnection`, `tool`, `integrationStatus`, `storeSearch`,
-`storeInspect`, `installSpace`, `emitEvent`, and the internal `consent`
+the next turn resumes with it in scope. There are **20** yield kinds today — the
+`YieldRequest['kind']` union (`sdk/org/libs/core/src/eval/yield.ts:4`), one per `kind: '…'`
+literal under `sdk/org/libs/core/src/globals/`: `ask`, `sleep`, `fetch`, `readDocument`,
+`loadKnowledge`, `inspect`, `fork`, `tasklist`, `delegate`, `registerSpace`, `setSessionMeta`,
+`apiCall`, `callConnection`, `tool`, `integrationStatus`, `storeSearch`, `storeInspect`,
+`installSpace`, `emitEvent`, and the internal `consent`
 (`sdk/org/libs/core/src/globals/consent.ts:152`).
 
 **Non-yielding globals** are plain synchronous host calls marshalled across the QuickJS
 bridge — they do not end the turn. This is the whole host-tools substrate
 (`injectHostTools`, `sdk/org/libs/core/src/globals/host-tools.ts:78`), the project-app `db`
 object and the authoring writers (`injectAppGlobals`,
-`sdk/org/libs/core/src/exec/app-globals.ts:180-223`), and `display`, which is the one
+`sdk/org/libs/core/src/exec/app-globals.ts:190-242`), and `display`, which is the one
 fire-and-forget member of the "yielding" family's neighbourhood — it calls the render host
 and returns `void`, pushing nothing (`sdk/org/libs/core/src/globals/display.ts`,
 `createDisplayGlobal`; note it has no `pushYield` parameter, unlike every other
@@ -58,7 +62,8 @@ and returns `void`, pushing nothing (`sdk/org/libs/core/src/globals/display.ts`,
 > (`sdk/org/libs/core/src/globals/inspect.ts:33-34`, `sdk/org/libs/core/src/globals/load-knowledge.ts:81`)
 > even though they read like utilities; and `execShell` is **synchronous**, so it blocks the
 > single Node thread — the per-stream idle watchdog cannot fire while it runs
-> (`sdk/org/libs/core/src/globals/host-tools.ts:118`, `DEFAULT_EXEC_TIMEOUT_MS = 120_000`).
+> (`DEFAULT_EXEC_TIMEOUT_MS = 120_000`, `sdk/org/libs/core/src/globals/host-tools.ts:45`,
+> applied at `:118`).
 > `fetch` is *not* in that category: it is a real, non-blocking yield
 > (`sdk/org/libs/core/src/globals/fetch.ts:29` → `sdk/org/libs/core/src/eval/fetch-yield.ts`).
 
@@ -71,16 +76,19 @@ One value — `CapabilityProfile` (`sdk/org/libs/core/src/exec/capability.ts:47-
 
 * the **inject** side, `createChildVM` (`sdk/org/libs/core/src/exec/bootstrap.ts:155-211`), which
   binds a global only behind an explicit `if (caps.…)`;
-* the **DTS** side, `buildAmbientDts` (`sdk/org/libs/core/src/exec/bootstrap.ts:311-333`) +
-  `buildAppCapabilityDts` (`:282-309`), which composes the agent's ambient typecheck
+* the **DTS** side, `buildAmbientDts` (`sdk/org/libs/core/src/exec/bootstrap.ts:315-337`) +
+  `buildAppCapabilityDts` (`:282-313`), which composes the agent's ambient typecheck
   declarations additively from the fragments in
   `sdk/org/libs/core/src/typecheck/library-dts.ts`.
 
-The invariant this buys (stated in the profile's own doc comment,
-`sdk/org/libs/core/src/exec/capability.ts:36-40`):
+The invariant this buys, verbatim from the profile's own doc comment
+(`sdk/org/libs/core/src/exec/capability.ts:37-40`) — "not listed ⇒ not injected AND absent
+from the DTS":
 
-> A capability not listed is not injected as a global, and is stripped from the agent's
-> typecheck DTS — a stray call fails typecheck, not just at runtime.
+> - which value-yielding globals `createChildVM` injects (exec/bootstrap.ts)
+> - which ambient declarations `buildAmbientDts` emits, so a call to a global that is not
+>   injected fails typecheck (a clean retryable error) instead of passing typecheck and
+>   throwing at runtime.
 
 That matters because a typecheck failure is a *clean, retryable, model-visible* error
 ("Cannot find name 'x'"), whereas an un-declared-but-injected global would bind `undefined`
@@ -134,24 +142,24 @@ unknown config key, a config on a bare-only cap, or a bare `api:call`/`tools:use
 | `events:emit` | bare | `emitEvent` | [events-and-integrations.md](./events-and-integrations.md) |
 
 Injection: `sdk/org/libs/core/src/exec/bootstrap.ts:173-204` (yielding app globals) and
-`sdk/org/libs/core/src/exec/app-globals.ts:190-222` (synchronous `db` + writers).
-DTS: `CAPABILITY_DTS_FRAGMENTS` (`sdk/org/libs/core/src/typecheck/library-dts.ts:266-276`) —
-note `pages:write` maps to *both* `PAGES_WRITE_DTS` and `PROJECT_PAGE_DTS`, etc.
+`sdk/org/libs/core/src/exec/app-globals.ts:190-242` (synchronous `db` + writers).
+DTS: `CAPABILITY_DTS_FRAGMENTS` (`sdk/org/libs/core/src/typecheck/library-dts.ts:279-288`) —
+note `pages:write` maps to *both* `PAGES_WRITE_DTS` and `PROJECT_PAGE_DTS` (`:281`), etc.
 
 ### Gating goes beyond presence/absence
 
 * **Typed narrowing.** `composeConnectionsDts` / `composeToolDts`
-  (`sdk/org/libs/core/src/typecheck/library-dts.ts:172`, `:187`) declare `provider` / `name` as
+  (`sdk/org/libs/core/src/typecheck/library-dts.ts:170`, `:185`) declare `provider` / `name` as
   the **union of the granted values**, so calling an ungranted provider or tool fails
   *typecheck*, not just at runtime.
 * **Per-call host re-check.** The `db` object is scoped at injection (`buildScopedDb`,
-  `sdk/org/libs/core/src/exec/app-globals.ts:120-160`) *and* every call re-runs
+  `sdk/org/libs/core/src/exec/app-globals.ts:130-170`) *and* every call re-runs
   `assertTableAllowed` against the grant's `tables` list
-  (`sdk/org/libs/core/src/exec/app-globals.ts:102-111`). The DTS is a convenience; the host is
+  (`sdk/org/libs/core/src/exec/app-globals.ts:112-121`). The DTS is a convenience; the host is
   the boundary.
 * **Typed `apiCall`.** When the project supplies generated overloads (`AmbientDtsOpts.appDts`)
   they **replace** the generic `apiCall` fragment
-  (`sdk/org/libs/core/src/exec/bootstrap.ts:295`).
+  (`sdk/org/libs/core/src/exec/bootstrap.ts:299`).
 
 ### The third gate: the host resolver
 
@@ -167,7 +175,7 @@ tool() is not available here: no tool registry configured                       
 readDocument is not available here: no document resolver configured              (:231)
 integrationStatus is not available here: no project scope configured             (:244)
 storeSearch is not available here: no store resolver configured                  (:264)
-storeInspect is not available here: no store resolver configured                 (:272)
+storeInspect is not available here: no store resolver configured                 (:273)
 installSpace is not available here: no store resolver configured                 (:286)
 emitEvent is not available here: no event resolver configured (project-rooted sessions only)  (:339)
 ```
@@ -202,7 +210,7 @@ model code must never call it directly.
 
 ## 4. Known lockstep exceptions
 
-`COMMON_DTS` (`sdk/org/libs/core/src/typecheck/library-dts.ts:35-114`) is the always-declared
+`COMMON_DTS` (`sdk/org/libs/core/src/typecheck/library-dts.ts:35-108`) is the always-declared
 set. Three names in it are declared unconditionally but **not always injected** — a stray
 call there passes typecheck and fails at runtime:
 
@@ -300,7 +308,7 @@ with space/system winning on a name collision
 of frontmatter.
 
 **Task `functions:` frontmatter** (tasklist nodes) is a *narrowing allowlist over the parent
-agent's* set, with three-way semantics (`sdk/org/libs/core/src/fork/fork.ts:247-260`):
+agent's* set, with three-way semantics (`sdk/org/libs/core/src/fork/fork.ts:252-260`):
 
 ```ts
 const fnAllow = task.functions;
@@ -316,9 +324,10 @@ So: **omit** = inherit everything the parent agent had; **`[...]`** = exactly th
 **`[]`** = none at all — including `webSearch`/`webFetch`. Never forbid a tool in prose;
 disable it in frontmatter.
 
-The DTS follows the same rule: the function overlay is built from the *injected* set
-(`sdk/org/libs/core/src/fork/fork.ts:329-340`), so a task that dropped `webSearch` cannot even
-name it without failing typecheck.
+The DTS follows the same rule: the function overlay is built from the *injected* set —
+`buildOverlay(agentFunctions, …)`, i.e. the already-narrowed map, fed to `buildAmbientDts`
+(`sdk/org/libs/core/src/fork/fork.ts:329-331`, `:338-343`) — so a task that dropped `webSearch`
+cannot even name it without failing typecheck.
 
 ---
 
@@ -327,20 +336,35 @@ name it without failing typecheck.
 1. **Sync eval loop.** Statements are evaluated one at a time; a yield's result is injected
    as a global variable for subsequent turns.
 2. **Host-side yield binding.** `const x = await ask()` does **not** resume via a QuickJS
-   Promise continuation — the turn loop resolves the yield and binds `x` host-side
-   (`extractBindingPattern` + `vm.setVar`), falling back to `vm.getVar` when the yield is
-   nested inside another async function (the `webSearch()`-awaiting-`fetch()` case).
-   > UNVERIFIED — I did not open `eval/turn-loop.ts` to pin `extractBindingPattern`/`vm.setVar`
-   > line numbers; this restates `sdk/org/CLAUDE.md` ("Yield-result binding is host-side") and
-   > the (now-removed) SPACE_DEVELOPMENT §4, whose content was migrated into this hub.
+   Promise continuation — the turn loop resolves the yield and binds `x` host-side. The
+   yielding statement's LHS is parsed by `extractBindingPattern`
+   (`sdk/org/libs/core/src/context/variables.ts:56-65`) into a
+   `simple`/`array`/`object`/`none` pattern (`sdk/org/libs/core/src/eval/turn-loop.ts:600`);
+   `bindYieldResults` (`sdk/org/libs/core/src/eval/turn-loop.ts:271-298`) maps the resolved
+   values onto those names — `yieldCount > 1` ⟹ the statement awaited a combinator
+   (`Promise.all`) and the array of values in source order is the awaited result, `1` ⟹ the
+   single value (`:281`) — and the turn loop then writes each name back with `vm.setVar`
+   (`sdk/org/libs/core/src/eval/turn-loop.ts:679-682`), "inject into VM scope + host scope for
+   the next turn".
+   The **`vm.getVar` preference** (`sdk/org/libs/core/src/eval/turn-loop.ts:293-296`) is the
+   nested-yield fix: for every bound name, the VM's own computed value wins over the raw
+   resolved value whenever the VM reports it as defined. The two agree when the yielding call
+   *is* the directly-awaited expression (every yield kind today); they diverge when the yield
+   is nested inside another async function the model awaited instead — `webSearch()` awaiting
+   `fetch()` internally — where the raw resolved value is the *inner* yield's value, while the
+   VM's bytecode (continued via `drivePendingJobs()`) already computed the outer call's real
+   return value. Regression test: "binds a NESTED yield (space function internally awaiting
+   fetch) via bindYieldResults' getVar preference"
+   (`sdk/org/libs/core/src/exec/prelude.test.ts:132`). The same helper is reused by the
+   host-executed prelude (`sdk/org/libs/core/src/exec/prelude.ts:181`, `:230`).
 3. **App globals root at `projectRoot`, never `LMTHING_SPACE_DIR`.** `execShell`/`readFileRaw`/
    `writeFileRaw` resolve relative paths against the space dir
    (`sdk/org/libs/core/src/globals/host-tools.ts:137`, `LMTHING_SPACE_DIR`), while `db` and the
    `writeProject*` writers resolve against the project root
    (`sdk/org/libs/core/src/exec/bootstrap.ts:143`; `LMTHING_PROJECT_DIR` at
    `sdk/org/libs/core/src/globals/host-tools.ts:142`). A session with no `projectRoot` gets no
-   `db` at all (`sdk/org/libs/core/src/exec/app-globals.ts:191`).
+   `db` at all (`sdk/org/libs/core/src/exec/app-globals.ts:201`).
 4. **Two execution regimes for the same data model.** In the agent sandbox `db.*` is a
-   **synchronous** host call (`sdk/org/libs/core/src/exec/app-globals.ts:127-157`); the same
+   **synchronous** host call (`sdk/org/libs/core/src/exec/app-globals.ts:130-170`); the same
    methods are `Promise`-returning (`AsyncDbApi`) on the Node `api/`/`hooks/` side. One
    schema, two typed surfaces — see [data-db.md](./data-db.md).

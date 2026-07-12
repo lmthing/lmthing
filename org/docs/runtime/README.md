@@ -21,7 +21,7 @@ budget.tickEpisode()                         turn-loop.ts:L341
         transpileStatement + globalThis propagation  turn-loop.ts:L396-L402
         vm.evalStatement(js)                 turn-loop.ts:L403
         vm.pendingYields.length > 0 ? yield  turn-loop.ts:L410-L416
-  → on yield / error: stream.abort()         turn-loop.ts:L474, L482, L488
+  → on yield / error: stream.abort()         turn-loop.ts:L474, L481, L488
   → resolve yields, bind results, append VARIABLES, attempt = 0, loop  turn-loop.ts:L598-L739
   → no statements at all → 'done'            turn-loop.ts:L742-L746
 ```
@@ -50,7 +50,7 @@ Models sometimes narrate instead of coding. `looksLikeProse` (`turn-loop.ts:L172
 
 Every statement is typechecked **before** it is evaluated (`turn-loop.ts:L385-L391`). `runTsc` (`sdk/org/libs/core/src/typecheck/tsc.ts:L27-L97`) builds a two-file in-memory program — `__ambient__.d.ts` (the DTS) plus `__session__.tsx` = `export {};` + the accumulated context + the new statement — under `strict`, `jsx: React`, `jsxFactory: React.createElement`, and reports only diagnostics that land in the new statement's line range. A failure never reaches the VM: the loop aborts the stream and appends an ERROR block to history (`turn-loop.ts:L578-L596`).
 
-The DTS is assembled **additively from the capability profile** by `buildAmbientDts` (`sdk/org/libs/core/src/exec/bootstrap.ts:L311-L333`), so "not granted ⇒ not injected **and** absent from the DTS" — a call to a global this context does not have fails typecheck (a clean, retryable model error) rather than throwing at runtime. Passing statements are transpiled with `ts.transpileModule` (`sdk/org/libs/core/src/typecheck/transpile.ts:L7-L19`), which strips types and lowers JSX to the injected `React.createElement` shim (`exec/bootstrap.ts:L217-L235`).
+The DTS is assembled **additively from the capability profile** by `buildAmbientDts` (`sdk/org/libs/core/src/exec/bootstrap.ts:L315-L337`, whose app-grant half is `buildAppCapabilityDts`, `bootstrap.ts:L282-L313`), so "not granted ⇒ not injected **and** absent from the DTS" — a call to a global this context does not have fails typecheck (a clean, retryable model error) rather than throwing at runtime. Passing statements are transpiled with `ts.transpileModule` (`sdk/org/libs/core/src/typecheck/transpile.ts:L7-L19`), which strips types and lowers JSX to the injected `React.createElement` shim (`exec/bootstrap.ts:L217-L235`).
 
 Detail → [./typecheck.md](./typecheck.md).
 
@@ -121,7 +121,7 @@ Token usage is awaited only on a clean end and is bounded by a 10 s race — a p
 - `forkCapabilities` — headless (no `ask`), non-orchestrating (no `fork`/`tasklist`); `delegate` only when the task's `canDelegateTo` allows it; write + `registerSpace` follow the role, and read-only roles (`explore`/`plan`) get an `intersectAppCaps`-narrowed grant set (`capability.ts:L16-L28`, `L94-L97`);
 - `delegateCapabilities` — autonomous but a full orchestrator over its own actions/tasklists; no `registerSpace` (`capability.ts:L106-L108`).
 
-`createChildVM` (`exec/bootstrap.ts:L99-L243`) is the *one* implementation of VM wiring for all three contexts: seed vars → `currentTask.resolve` → space functions → host tools (console, `execShell`, `process.env`, `readFileRaw`/`writeFileRaw`, `progress()`) → app globals → the yielding globals gated by the profile → the React/JSX shim + component stubs. `buildAmbientDts` emits exactly the matching declarations (`exec/bootstrap.ts:L311-L333`), which is what keeps injection and typecheck in lockstep.
+`createChildVM` (`exec/bootstrap.ts:L99-L243`) is the *one* implementation of VM wiring for all three contexts: seed vars → `currentTask.resolve` → space functions → host tools (console, `execShell`, `process.env`, `readFileRaw`/`writeFileRaw`, `progress()`) → app globals → the yielding globals gated by the profile → the React/JSX shim + component stubs. `buildAmbientDts` emits exactly the matching declarations (`exec/bootstrap.ts:L315-L337`), which is what keeps injection and typecheck in lockstep.
 
 ---
 

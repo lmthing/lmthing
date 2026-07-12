@@ -4,7 +4,7 @@ What the Computer surface actually does, and which pod / gateway endpoint each f
 
 `/computer` is **a browser IDE over the user's compute pod** — a pod-rooted file tree + Monaco editor + xterm terminals — plus a runtime dashboard, a settings page, and four placeholder "spaces" routes. See [routes.md](./routes.md) for the route tree and [views.md](./views.md) for the component layout.
 
-> UNVERIFIED (doc drift, not code): `sdk/org/CLAUDE.md` §"App Surfaces" describes `/computer` as an "autonomous computer-use surface" where "the agent controls a browser/desktop environment … with screen captures streamed back in real time". Nothing under `sdk/org/apps/web/src/routes/computer/**` or `sdk/org/libs/ui/src/computer/**` implements browser/desktop control or screen capture (searched: `rg -i 'screenshot|screencast|capture|vnc|cdp|playwright|puppeteer'` over both trees). Treat that blurb as superseded by this page.
+**Doc drift, not code:** two marketing blurbs still call `/computer` an "autonomous computer-use surface" where "the agent executes it with screen captures streamed back in real time" (`sdk/org/README.md:64`, and the same copy on the docs-site card in `org/src/routes/index.tsx:64`). No such thing is implemented: a `grep -riE 'screenshot|screencast|capture|vnc|cdp|playwright|puppeteer|xdotool|desktop'` over `sdk/org/apps/web/src/routes/computer/**` and `sdk/org/libs/ui/src/computer/**` returns zero hits — the whole surface is the file/terminal/dashboard/settings set described below. Treat those blurbs as superseded by this page.
 
 Two origins are in play. `COMPUTER_BASE_URL` is the **pod** (same-origin in production and under `pnpm thing`; `computer.test` only behind the `*.test` proxy) — `sdk/org/apps/web/src/lib/config.ts:18-20`. `CLOUD_BASE_URL` is the **gateway** — `config.ts:23-26`. Every pod route below is documented in [../cli-api/rest/README.md](../cli-api/rest/README.md).
 
@@ -14,10 +14,10 @@ Two origins are in play. `COMPUTER_BASE_URL` is the **pod** (same-origin in prod
 
 Pod REST goes through one of two clients, both of which attach the gateway JWT as `Authorization: Bearer …` and retry once after a `401` → `refresh()`:
 
-- `PodTransport` (`sdk/org/libs/state/src/lib/pod/transport.ts:68-71`), mounted by `AppProvider` in the `/computer` layout (`sdk/org/apps/web/src/routes/computer/route.tsx:88-94`) — used by the IDE's file APIs and terminal sockets.
+- `PodTransport` (`Bearer` header at `sdk/org/libs/state/src/lib/pod/transport.ts:52-54`, the `401` → `refresh()` → single retry at `transport.ts:69-72`), mounted by `AppProvider` in the `/computer` layout (`sdk/org/apps/web/src/routes/computer/route.tsx:88-94`) — used by the IDE's file APIs and terminal sockets.
 - `useAuth().authFetch` — used by the restart hook (`sdk/org/apps/web/src/routes/computer/use-pod-restart.ts:17-21`) and every settings card.
 
-WebSockets cannot send headers, so the token rides as a query param: `?access_token=<jwt>` on both `WS /api/ws` (`sdk/org/apps/web/src/lib/runtime/pod-connection.ts:64-70`) and `WS /api/terminals/:termId` (`transport.ts:198-204`).
+WebSockets cannot send headers, so the token rides as a query param: `?access_token=<jwt>` on both `WS /api/ws` (`sdk/org/apps/web/src/lib/runtime/pod-connection.ts:69-71`) and `WS /api/terminals/:termId` (`transport.ts:198-204`).
 
 ---
 
@@ -27,13 +27,13 @@ The `/computer` layout wraps everything in the shared `PodEnsureGate` (`route.ts
 
 - POSTs `{CLOUD}/api/compute/ensure` to cold-wake the pod (`gates.tsx:48`);
 - polls `GET {CLOUD}/api/compute/status` for monotonic boot progress (`gates.tsx:99`);
-- probes the **pod edge** with same-origin `GET /api/sessions` until it stops returning an Envoy 503/504 (`gates.tsx:119-143`) → [../cli-api/rest/sessions.md](../cli-api/rest/sessions.md);
+- probes the **pod edge** with same-origin `GET /api/sessions` until it stops returning an Envoy 503/504 (`waitForPodEdge`, `gates.tsx:132-149`) → [../cli-api/rest/sessions.md](../cli-api/rest/sessions.md);
 - compares the running tag against `GET {CLOUD}/api/compute/version` (`gates.tsx:61`) and offers `POST {CLOUD}/api/compute/upgrade` (`gates.tsx:75`), re-polling every 60 s while live (`UPGRADE_POLL_MS = 60_000`, `gates.tsx:197`);
 - POSTs `/api/keepalive` every 5 min while the tab is visible (`KEEPALIVE_MS = 5 * 60_000`, `gates.tsx:202,339-350`) → [../cli-api/rest/misc.md](../cli-api/rest/misc.md).
 
 ### RepoSyncGate
 
-Outside the pod gate sits `RepoSyncGate` (`route.tsx:11-27`), which calls `useRepoSync` — it pulls `package.json`, `lmthing.json`, `.env*`, `agents/`, `flows/`, `knowledge/` blobs straight from the GitHub API when the session carries a `githubRepo` (`sdk/org/libs/auth/src/useRepoSync.ts:34,81-103`) and hands the file map to `onFilesLoaded`. On `/computer` that callback only `console.log`s the file count (`route.tsx:15-17`) — despite the gate's doc comment, **nothing is written to the pod filesystem**.
+Outside the pod gate sits `RepoSyncGate` (`route.tsx:11-27`), which calls `useRepoSync` — it pulls `package.json`, `lmthing.json`, `.env*`, `agents/`, `flows/`, `knowledge/` blobs straight from the GitHub API when the session carries a `githubRepo` (gate `sdk/org/libs/auth/src/useRepoSync.ts:34`, path filter `:84-89`, blob fetches `:94-103`) and hands the file map to `onFilesLoaded` (`useRepoSync.ts:105`). On `/computer` that callback only `console.log`s the file count (`route.tsx:15-17`) — despite the gate's doc comment, **nothing is written to the pod filesystem**.
 
 ---
 
@@ -43,7 +43,7 @@ Outside the pod gate sits `RepoSyncGate` (`route.tsx:11-27`), which calls `useRe
 
 On open, `PodRuntime` sends `{type:'subscribe', channels:['metrics','processes','agents','logs','network']}` (`sdk/org/apps/web/src/lib/runtime/pod.ts:54-59`).
 
-> **Gap:** the pod's control socket implements only `terminal.open` / `terminal.input` / `terminal.resize` / `terminal.close` (`ws/agent.ts:27-46`) — there is **no `subscribe` handler and no metrics/processes/agents/network emitter anywhere in the pod server**. The subscription is silently ignored, so those dashboard panels can never populate from the pod (see *Dashboard* below).
+> **Gap:** the pod's control socket implements only `terminal.open` / `terminal.input` / `terminal.resize` / `terminal.close` (`ws/agent.ts:27-46`) — `subscribe` is not even in the pod's `ClientMessage` union (`sdk/org/libs/cli/src/rpc/events.ts:44-54`, whose only non-terminal members are `sendMessage`/`submitForm`/`cancelAsk`/`subscribeTrace`), and no metrics/processes/agents/network emitter exists anywhere in the pod server. The subscription is silently dropped by the `switch`'s missing default, so those dashboard panels can never populate from the pod (see *Dashboard* below).
 
 ---
 
@@ -69,6 +69,7 @@ Full endpoint reference → [../cli-api/rest/fs.md](../cli-api/rest/fs.md).
 Facts worth pinning:
 
 - **Autosave is debounced 1500 ms per path** — each keystroke resets that path's timer, then a single `PUT /api/fs/write` fires (`use-ide-files.ts:29-38`). There is no explicit Save button.
+- **The pod registers exactly three `fs` routes** — `GET /api/fs/tree`, `GET /api/fs/read`, `PUT /api/fs/write` (`sdk/org/libs/cli/src/server/serve.ts:201-203`). There is no mkdir and no delete.
 - **There is no "new directory" endpoint.** A folder is created by writing an empty `<dir>/.gitkeep`, which the pod's `handleFsWrite` materializes with `mkdir -p` (`sdk/org/libs/cli/src/server/routes/fs.ts:71-73`).
 - **Delete is local-only.** `handleDelete` prunes client state and closes the tab with the comment *"Optimistically remove from local state; no delete API yet"* (`use-ide-files.ts:108-110`) — the file remains on the pod, and it reappears on the next `GET /api/fs/tree`.
 - **The tree is the whole pod workspace**, rooted at `ctx.effectiveLmthingRoot` (the `.lmthing` runtime root), excluding `.git`, `node_modules`, `.cache` (`fs.ts:14-32`). That root contains the projects and their spaces, so the IDE is a raw editor over the on-disk space format described in [../format/space/README.md](../format/space/README.md) — unlike Studio, it does **not** go through the space-file API, so nothing here is validated or normalized.
@@ -92,7 +93,7 @@ Note this is a **different transport** from `/computer/terminal` (below), which 
 
 ### Restart
 
-The IDE header's ⏻ button calls `usePodRestart` (`use-pod-restart.ts:13-27`): `POST {POD}/api/restart` (the connection error is expected — the process exits), then poll `GET {POD}/api/env` every 800 ms until it answers `200`, then `window.location.reload()`. Both routes → [../cli-api/rest/misc.md](../cli-api/rest/misc.md) and [../cli-api/rest/env.md](../cli-api/rest/env.md). The sidebar shell has the same button (`sdk/org/libs/ui/src/computer/computer-layout.tsx:61-67`) wired to a duplicate copy of the same logic inside `ComputerShell` (`route.tsx:46-60`).
+The IDE header's ⏻ button calls `usePodRestart` (`use-pod-restart.ts:13-27`): `POST {POD}/api/restart` (the connection error is expected — the process exits), then poll `GET {POD}/api/env` every 800 ms until it answers `200`, then `window.location.reload()`. Both routes → [../cli-api/rest/misc.md](../cli-api/rest/misc.md) and [../cli-api/rest/env.md](../cli-api/rest/env.md). The sidebar shell has the same button (`sdk/org/libs/ui/src/computer/computer-layout.tsx:61-69`) wired to a duplicate copy of the same logic inside `ComputerShell` (`route.tsx:46-60`).
 
 > **Dead state:** `IdeLayout` renders "Booting…" / "Installing dependencies…" from `store.isBooting` / `store.isInstalling` (`sdk/org/libs/ui/src/computer/ide-layout.tsx:71-74`, `sdk/org/apps/web/src/routes/computer/index.tsx:16-17`). Those flags and their setters exist in the IDE store (`sdk/org/apps/web/src/lib/store.ts:19-22,56-63`) but **nothing ever sets them** (leftover from the WebContainer era) — in practice only `files.isLoading` drives the spinner.
 
@@ -107,15 +108,15 @@ In practice:
 - **Metrics / processes / agents / network are always empty** — the pod never answers the `subscribe` message (see *The control WebSocket* above). The only rows that ever appear are the client-generated log lines from `PodRuntime.emitLog` ("Connected to compute pod", "Connection lost…") (`pod.ts:220-223`, `pod-connection.ts:95,125,151`), capped at 500 logs / 200 network entries (`ComputerContext.tsx:49-50`).
 - **Uptime is client-side** — `Date.now()` at first render, not pod uptime (`dashboard.tsx:19-20`).
 - **The tier is hardcoded `"flyio"`** (`dashboard.tsx:25,34`) even though the actual runtime reports `tier = 'pod'` (`pod.ts:36`); the UI's `RuntimeTier` union is still the legacy `'webcontainer' | 'flyio'` (`sdk/org/libs/ui/src/computer/status-card.tsx:9`).
-- **The route is unreachable from the UI.** `ComputerLayout`'s nav labels `/computer` (the IDE) as "Dashboard" and never links `/computer/dashboard` (`computer-layout.tsx:22-27`); `IdeLayout`'s nav omits it entirely (`sdk/org/libs/ui/src/computer/ide-layout.tsx:48-51`). You reach it only by typing the URL.
+- **The route is unreachable from the UI.** `ComputerLayout`'s nav labels `/computer` (the IDE) as "Dashboard" and never links `/computer/dashboard` (`computer-layout.tsx:22-27`); `IdeLayout`'s nav omits it entirely (`sdk/org/libs/ui/src/computer/ide-layout.tsx:48-52`). You reach it only by typing the URL.
 
 ---
 
 ## Terminal (`/computer/terminal`)
 
-A single full-page xterm session (`sdk/org/apps/web/src/routes/computer/terminal.tsx:12-50`). It calls `createTerminalSession()` from `ComputerContext`, which sends `{type:'terminal.open', sessionId}` over the **control socket** and wraps `terminal.input`/`terminal.resize`/`terminal.close` sends plus `terminal.data` receives into a `TerminalSession` (`pod.ts:93-122`). The pod services those messages by lazily constructing a `TerminalManager` on the control socket (`ws/agent.ts:28-46`), rooted at the same `terminalCwd` (`serve.ts:373`).
+A single full-page xterm session (`sdk/org/apps/web/src/routes/computer/terminal.tsx:12-50`). It calls `createTerminalSession()` from `ComputerContext`, which sends `{type:'terminal.open', sessionId}` over the **control socket** and wraps `terminal.input`/`terminal.resize`/`terminal.close` sends plus `terminal.data` receives into a `TerminalSession` (`pod.ts:93-122`). The pod services those messages by lazily constructing a `TerminalManager` on the control socket (`ensureTerminals`, `ws/agent.ts:17-22`; the message `switch`, `ws/agent.ts:27-46`), rooted at the same `terminalCwd` (`serve.ts:373`).
 
-> **Bug:** `TerminalRoute` destructures `tier` from `useComputer()` (`terminal.tsx:13`), but `ComputerContextValue` has no `tier` field (`ComputerContext.tsx:14-26`). `<BootProgress tier={undefined}>` therefore falls back to the webcontainer step list (`terminal.tsx:42-46`). `apps/web` ships no `typecheck` script, so this is not caught in CI.
+> **Bug:** `TerminalRoute` destructures `tier` from `useComputer()` (`terminal.tsx:13`), but `ComputerContextValue` has no `tier` field (`ComputerContext.tsx:14-26`). `<BootProgress tier={undefined}>` (`terminal.tsx:42-46`) therefore falls back to the webcontainer step list, since `BootProgress` picks `tier === 'flyio' ? flyioSteps : webcontainerSteps` (`sdk/org/libs/ui/src/computer/boot-progress.tsx:33`). `apps/web` ships no `typecheck` script (`sdk/org/apps/web/package.json:7-14` — only `dev`/`build`/`preview`/`lint`/`lint:tokens`/`format`), so this is not caught in CI.
 
 ---
 
@@ -158,7 +159,7 @@ Same for `/computer/spaces/$spaceId`, `…/config` and `…/logs` (`spaces/$spac
 
 ## Providers mounted by the layout (a hidden cost)
 
-`PodReadyTree` wraps the surface in `ComputerProvider` + `AppProvider` + `ProjectProvider(projectId="user")` + `SpaceProvider(spaceId="default")` with **hardcoded ids** (`route.tsx:84-103`). Merely visiting `/computer` therefore also fires `GET /api/projects`, `GET /api/projects/user/spaces` and `GET /api/projects/user/spaces/default/files` — and `SpaceProvider` will debounce-`PUT` that space's files back. The IDE itself uses none of those providers except for the `transport` handle (`use-ide.ts:15`). Endpoints → [../cli-api/rest/projects.md](../cli-api/rest/projects.md) and [../cli-api/rest/spaces.md](../cli-api/rest/spaces.md).
+`PodReadyTree` wraps the surface in `ComputerProvider` + `AppProvider` + `ProjectProvider(projectId="user")` + `SpaceProvider(spaceId="default")` with **hardcoded ids** (`route.tsx:84-103`). Merely visiting `/computer` therefore also fires `GET /api/projects` (`AppProvider`'s mount effect `sdk/org/libs/state/src/lib/contexts/AppContext.tsx:139-145` → `transport.listProjects()` at `:121`), `GET /api/projects/user/spaces` (`ProjectContext.tsx:61`, from the mount effect at `:72-78`) and `GET /api/projects/user/spaces/default/files` (the hydrate-on-entry effect `SpaceContext.tsx:67-92`, which fetches only when nothing under the prefix is cached yet) — and `SpaceProvider` then subscribes to that prefix and debounce-`PUT`s the space's files back on any change under it (`SpaceContext.tsx:126-165`). The IDE itself uses none of those providers except for the `transport` handle (`use-ide.ts:15`). Endpoints → [../cli-api/rest/projects.md](../cli-api/rest/projects.md) and [../cli-api/rest/spaces.md](../cli-api/rest/spaces.md).
 
 ---
 

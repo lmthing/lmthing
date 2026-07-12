@@ -86,7 +86,7 @@ It returns the raw `Response`; callers check `res.ok`.
 
 ### Demo / local mode
 
-`isDemo` is true when **either** `VITE_DEMO_USER === 'true'` (build-time) **or** `isLocalRun()` (`sdk/org/libs/auth/src/AuthProvider.tsx:39`). `isLocalRun()` returns true for `localhost`/`127.0.0.1`/`0.0.0.0`/`*.test` hostnames — where the pod serves the app itself and enforces no gateway auth — and false for production `lmthing.*` hosts (`sdk/org/libs/auth/src/client.ts:241-252`). In demo mode the provider starts with a hardcoded `DEMO_SESSION` (`accessToken:'demo'`, `userId:'demo-user'`, `email:'demo@lmthing.local'`), `isLoading:false`, and **all SSO/pin logic is skipped** — every effect and `login`/`logout` early-returns on `isDemo` (`AuthProvider.tsx:27-40`, `47`, `60`, `122`, `128`, `149`, `159`).
+`isDemo` is true when **either** `VITE_DEMO_USER === 'true'` (build-time) **or** `isLocalRun()` (`sdk/org/libs/auth/src/AuthProvider.tsx:39`). `isLocalRun()` returns true for `localhost`/`127.0.0.1`/`0.0.0.0`/`*.test` hostnames — where the pod serves the app itself and enforces no gateway auth — and false for production `lmthing.*` hosts (`sdk/org/libs/auth/src/client.ts:248-252`). In demo mode the provider starts with a hardcoded `DEMO_SESSION` (`accessToken:'demo'`, `userId:'demo-user'`, `email:'demo@lmthing.local'`), `isLoading:false`, and **all SSO/pin logic is skipped** — every effect and `login`/`logout` early-returns on `isDemo` (`AuthProvider.tsx:27-40`, `47`, `60`, `121`, `128`, `149`, `159`).
 
 ### Mount lifecycle (non-demo)
 
@@ -94,18 +94,20 @@ Three effects drive the session on mount (`sdk/org/libs/auth/src/AuthProvider.ts
 
 1. **Parent-frame session injection** — listens for `postMessage {type:'lmthing:session', session}` (e.g. lmthing.chat injecting into a lmthing.computer iframe), stores it, and clears loading (`AuthProvider.tsx:46-57`).
 2. **Bootstrap** (`AuthProvider.tsx:59-114`):
-   - If a pod-injected token exists (`getPodInjectedToken()`), build a `pod-user` session from it and finish — this is the embedded-pod case.
+   - If a pod-injected token exists (`getPodInjectedToken()`), build a `pod-user` session from it and finish (`AuthProvider.tsx:61-74`) — the embedded-pod case, which is **dead today**: nothing in the repo produces that token (see [Pod embedding](#pod-embedding-vestigial--no-producer-today)).
    - Else if the URL has `?code`, run `handleAuthCallback`, then strip `code`/`state` from the URL via `history.replaceState` and clear loading.
    - Else a cold reload: if the stored session is expired **and** has a refresh token, `refreshSession` **before** unblocking the UI (so the app's first requests don't fly out with a stale token and 401); otherwise just adopt the stored session.
 3. **Out-of-band sync** — subscribe to `onSessionChange` (`AuthProvider.tsx:120-123`).
 
 A fourth effect is the **proactive refresh timer**: when a session has both `refreshToken` and `expiresAt`, it schedules a `refreshSession` `5*60`s before expiry (immediately if already past), and force-logs-out if that refresh returns null (`AuthProvider.tsx:127-146`).
 
-### Pod embedding
+### Pod embedding (vestigial — no producer today)
 
-`getPodInjectedToken()` reads `window.__LM_ACCESS_TOKEN__` (a token the pod bootstrap injects), returning it or `null`; `isPodEmbedded()` is `getPodInjectedToken() !== null` (`sdk/org/libs/auth/src/client.ts:229-239`). When present, the provider skips SSO entirely and runs as `pod-user` with `email:''` (`AuthProvider.tsx:61-73`).
+`getPodInjectedToken()` reads `window.__LM_ACCESS_TOKEN__`, returning it or `null`; `isPodEmbedded()` is `getPodInjectedToken() !== null` (`sdk/org/libs/auth/src/client.ts:229-239`). When present, the provider skips SSO entirely and runs as `pod-user` with `email:''` (`AuthProvider.tsx:61-74`).
 
-> UNVERIFIED: the **producer** of `window.__LM_ACCESS_TOKEN__` — the pod bootstrap/index.html that injects it — was not located. Searched `grep -rn "__LM_ACCESS_TOKEN__"` and `-i "ACCESS_TOKEN"` across the repo (excluding `node_modules`/`dist`); the only source hits are the reader in `sdk/org/libs/auth/src/client.ts`. The injection likely happens in the compute-pod's served HTML template.
+**Nothing in the repo ever sets that global.** The pod's static-app server serves the SPA's `index.html` byte-for-byte from disk — read once, cached, no bootstrap injection — and says so explicitly: *"The unified app self-authenticates via @lmthing/auth (token in localStorage) and computes its own WS URL, so its index.html is served verbatim — no bootstrap injection is needed"* (`sdk/org/libs/cli/src/server/static-apps.ts:32-34`; `getIndexHtml` just `readFile`s and caches the raw string, never rewriting it — `:75-88`). The shipped `index.html` contains only the wake-beacon script and the module entry — no token injection (`sdk/org/apps/web/index.html:6-39`, `55`). So in the current codebase `getPodInjectedToken()` always returns `null`, `isPodEmbedded()` is always `false`, and the `pod-user` branch of the bootstrap effect is dead code.
+
+The case it was meant to cover — *the app being served by the user's own pod* — is instead handled by **`isLocalRun()`** (hostname-based), which is why the two are always used together: `PodEnsureGate` short-circuits on `isPodEmbedded() || isLocalRun()` (`sdk/org/apps/web/src/lib/gates.tsx:219`) and `isDemo` is `VITE_DEMO_USER || isLocalRun()` (`AuthProvider.tsx:39`). Today only the `isLocalRun()` half ever fires.
 
 ### `AuthContextValue`
 
@@ -148,9 +150,25 @@ A hook that fetches the user's GitHub repo files **once per session** on login (
 - Filters blobs to `package.json`, `lmthing.json`, any `.env*` file, and anything under `agents/`, `flows/`, `knowledge/` (`useRepoSync.ts:80-90`).
 - Fetches each blob and base64-decodes it as UTF-8 (`decodeBase64Utf8`, `useRepoSync.ts:92-103`, `127-132`), then calls `onFilesLoaded(files)`.
 
-State is `RepoSyncState { isSyncing, lastSynced, error, fileCount }` (`useRepoSync.ts:4-9`). In the unified app it is used by the computer surface (`sdk/org/apps/web/src/routes/computer/route.tsx`).
+State is `RepoSyncState { isSyncing, lastSynced, error, fileCount }` (`useRepoSync.ts:4-9`).
 
-> UNVERIFIED: the doc comment says `githubToken` comes "from GithubContext device flow or Supabase provider token" (`useRepoSync.ts:14`) — the Supabase reference appears stale (this codebase's identity provider is Zitadel, per [../cloud/auth.md](../cloud/auth.md)); the token source in the current app was not traced.
+### Where `githubToken` comes from — nowhere (the hook is inert)
+
+The hook's only caller is `RepoSyncGate` on the computer surface, which sources the token as
+`localStorage.getItem('github_token')` and whose `onFilesLoaded` is just a `console.log` of the file count
+(`sdk/org/apps/web/src/routes/computer/route.tsx:11-27`, token read at `:13`). **No code in this repo ever
+writes `github_token`** — a repo-wide search for `setItem(` turns up only `lmthing_session`, `sso_state`,
+`lmthing_pin_hash`/`lmthing_pin_set`, the theme/sidebar/wake-beacon keys and the pending-install keys; none
+is `github_token`. Since the effect bails on `!githubToken` (`useRepoSync.ts:34`), `useRepoSync` never
+fetches anything in the shipped app — it is dead wiring kept behind an always-null token.
+
+The `githubToken` doc comment ("from GithubContext device flow or Supabase provider token",
+`useRepoSync.ts:14`) is **stale**: there is no `GithubContext` and no Supabase client anywhere in the repo
+(the only Supabase mentions are legacy `plan.md` design notes and a Makefile variable), and the real
+identity provider is Zitadel — see [../cloud/auth.md](../cloud/auth.md). The nearest live analogue is
+`com`'s onboarding, which reads a `github_provider_token` from `sessionStorage`
+(`com/src/routes/onboarding.tsx:42-63`) — also never written in this repo. GitHub linkage that *does* work
+flows through the gateway and lands on the session as `githubRepo`/`githubUsername`.
 
 ## Environment variables
 

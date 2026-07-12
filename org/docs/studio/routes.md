@@ -1,6 +1,6 @@
 # Studio — route tree
 
-Every URL of the `/studio` surface, plus the `/apps` launcher and the top-level `/install` route, mapped to the file that declares it. Studio is not its own SPA: it is a subtree of the one unified Vite app at `sdk/org/apps/web`, whose routes are TanStack file routes generated into `sdk/org/apps/web/src/routeTree.gen.ts`. The generated tree is the authoritative file → URL mapping and confirms every path below (`sdk/org/apps/web/src/routeTree.gen.ts:747-985`).
+Every URL of the `/studio` surface, plus the `/apps` launcher and the top-level `/install` route, mapped to the file that declares it. Studio is not its own SPA: it is a subtree of the one unified Vite app at `sdk/org/apps/web`, whose routes are TanStack file routes generated into `sdk/org/apps/web/src/routeTree.gen.ts`. The generated tree is the authoritative file → URL mapping and confirms every path below — the `/studio` declarations run from `'/studio'` to the deepest agent-chat leaf (`sdk/org/apps/web/src/routeTree.gen.ts:653-988`).
 
 - What each page renders → [./views.md](./views.md)
 - What each page *does* (persistence, pod calls, gates) → [./features.md](./features.md)
@@ -52,7 +52,7 @@ Unknown hosts (localhost, the `*.test` proxy) fall back to `/studio` `sdk/org/ap
 | `studio/$projectId/$spaceId/agent/new/index.tsx` | `…/$spaceId/agent/new` | `AgentBuilder` (create) `…/$spaceId/agent/new/index.tsx:4-6` |
 | `studio/$projectId/$spaceId/agent/$agentId/index.tsx` | `…/$spaceId/agent/$agentId` | `AgentBuilder` (edit) `…/$spaceId/agent/$agentId/index.tsx:4-6` |
 | `studio/$projectId/$spaceId/agent/$agentId/chat/index.tsx` | `…/agent/$agentId/chat` | sync-space + run the agent `…/agent/$agentId/chat/index.tsx:310-312` |
-| `studio/$projectId/$spaceId/agent/$agentId/chat/$conversationId/index.tsx` | `…/agent/$agentId/chat/$conversationId` | stub `…/chat/$conversationId/index.tsx:18-22` |
+| `studio/$projectId/$spaceId/agent/$agentId/chat/$conversationId/index.tsx` | `…/agent/$agentId/chat/$conversationId` | stub `…/chat/$conversationId/index.tsx:17-21` |
 | `studio/$projectId/$spaceId/agent/$agentId/workflow/$workflowId/index.tsx` | `…/agent/$agentId/workflow/$workflowId` | `TasklistEditor` (agent-scoped) `…/agent/$agentId/workflow/$workflowId/index.tsx:29-33` |
 | `studio/$projectId/$spaceId/workflow/index.tsx` | `…/$spaceId/workflow` | tasklist list `…/$spaceId/workflow/index.tsx:59-61` |
 | `studio/$projectId/$spaceId/workflow/new/index.tsx` | `…/$spaceId/workflow/new` | create-tasklist modal `…/$spaceId/workflow/new/index.tsx:35-37` |
@@ -87,7 +87,7 @@ __root                              AuthProvider → AuthGate → PinGate
             ├── agent/ · workflow/ · knowledge/ · functions/ · components/ · raw/ · settings/
 ```
 
-The pod-readiness gate and the pod REST transport are mounted once, at the `/studio` layout `sdk/org/apps/web/src/routes/studio/route.tsx:11-25`:
+The pod-readiness gate and the pod REST transport are mounted once, at the `/studio` layout `sdk/org/apps/web/src/routes/studio/route.tsx:11-26`:
 
 ```tsx
 function StudioLayout() {
@@ -106,7 +106,7 @@ function StudioLayout() {
 
 | Param | Where it comes from | Notes |
 |---|---|---|
-| `$projectId` | `GET /api/projects` on the pod | the id, not the display name. Includes the synthetic `system` project, which the pod prepends when `<root>/system/spaces/` is non-empty `sdk/org/libs/cli/src/server/projects.ts` `listProjects` / `SYSTEM_PROJECT_ID` — so `/studio/system/<space>` edits the system spaces through the ordinary routes. See [../cli-api/rest/projects.md](../cli-api/rest/projects.md). |
+| `$projectId` | `GET /api/projects` on the pod | the id, not the display name. Includes the synthetic `system` project (`SYSTEM_PROJECT_ID`, `sdk/org/libs/cli/src/server/projects.ts:31`), which `listProjects` prepends when `<root>/system/spaces/` is non-empty `sdk/org/libs/cli/src/server/projects.ts:305-326` — so `/studio/system/<space>` edits the system spaces through the ordinary routes. See [../cli-api/rest/projects.md](../cli-api/rest/projects.md). |
 | `$spaceId` | `GET /api/projects/:id/spaces` | the space directory name. |
 | `$agentId` | the space VFS (`agents/<slug>/`) | agent slug; navigation encodes it (`encodeURIComponent`) `…/$spaceId/agent/index.tsx:51`. See [../format/space/agents/README.md](../format/space/agents/README.md). |
 | `$workflowId` | the space VFS (`tasklists/<name>/`) | the tasklist *name*, passed straight to `<TasklistEditor name={workflowId}/>` `…/$spaceId/workflow/$workflowId/index.tsx:20-22`. See [../format/space/tasklists/README.md](../format/space/tasklists/README.md). |
@@ -120,9 +120,18 @@ function StudioLayout() {
 - `/studio/` → `buildProjectPath(projects.find(p => p.id === 'user') ?? projects[0])` — i.e. `/studio/user` on a normal pod `sdk/org/apps/web/src/routes/studio/index.tsx:11-19`, `sdk/org/libs/ui/src/lib/space-path.ts:22-25`.
 - `…/$spaceId/settings` → `…/$spaceId/settings/env`. This is **not** in the route file — `StudioLayout` (the shell) does it on every render whose pathname ends in `/settings` `sdk/org/libs/ui/src/studio/shell/studio-layout/index.tsx:54-58`. Because the project-app subtree does not use `StudioLayout`, `/studio/$projectId/settings` is untouched by it.
 - `…/workflow/$workflowId/step/$stepId` → `…/workflow/$workflowId` (or the tasklist list when `workflowId` is missing) `…/workflow/$workflowId/step/$stepId/index.tsx:15-24`.
-- `…/knowledge/$fieldId/$subjectId/$topicId` → a `beforeLoad` `redirect()` back to the field page `…/knowledge/$fieldId/$subjectId/$topicId/index.tsx:6-12`.
+- `…/knowledge/$fieldId/$subjectId/$topicId` → a `beforeLoad` `redirect()` back to the field page `…/knowledge/$fieldId/$subjectId/$topicId/index.tsx:6-12`. Its `to` is **missing the `/studio` prefix** — it survives only by accident of the prefixed history; see below.
 
-> UNVERIFIED (behaviour at runtime): the legacy knowledge redirect targets `to: '/$projectId/$spaceId/knowledge/$fieldId'` — with **no `/studio` prefix** `…/knowledge/$fieldId/$subjectId/$topicId/index.tsx:9`. No such route exists in the generated tree (every studio path is `/studio/$projectId/…`, `sdk/org/apps/web/src/routeTree.gen.ts:929`), so this redirect looks broken. I did not exercise it in a browser; searched `routeTree.gen.ts` for a bare `/$projectId` route and found none.
+### The legacy knowledge redirect is prefix-dependent (latent bug)
+
+The redirect passes `to: '/$projectId/$spaceId/knowledge/$fieldId'` — no `/studio` `…/knowledge/$fieldId/$subjectId/$topicId/index.tsx:8-11` — unlike its sibling step redirect, which builds the path by hand *with* the prefix `…/workflow/$workflowId/step/$stepId/index.tsx:16-18`. TanStack interpolates that `to` literally, so the target pathname is `/<projectId>/<spaceId>/knowledge/<fieldId>`, and **no such route exists**: every studio path in the generated tree is `/studio/$projectId/…` `sdk/org/apps/web/src/routeTree.gen.ts:926-929`. Whether that dead-ends depends entirely on which history is installed `sdk/org/apps/web/src/main.tsx:66-69`:
+
+- **localhost / the `*.test` proxy** — plain `createBrowserHistory`. The navigation matches only `__root__`, and no not-found route is registered, so the page goes blank. **Broken.**
+- **`lmthing.studio`** — the only host where these routes are reachable, and a `DOMAIN_HOST`, so the history is `createPrefixedHistory(surfaceForHost('lmthing.studio'))` = `createPrefixedHistory('/studio')` `sdk/org/apps/web/src/main.tsx:8,67-68` · `sdk/org/apps/web/src/routes/index.tsx:5-10`. It re-adds the prefix on every location *read* `sdk/org/apps/web/src/main.tsx:48-52` while `push` strips it again `sdk/org/apps/web/src/main.tsx:60`. The router therefore sees `/studio/<projectId>/<spaceId>/knowledge/<fieldId>` and lands on the field page, and the browser URL is byte-identical to what the correct `to` would have produced. **Invisible in production.**
+
+Verified by driving `@tanstack/react-router` 1.166.2 with a route tree mirroring the real nesting and both histories: under the plain history the navigation matches `['__root__']`; under the prefixed history it matches through to `/studio/$projectId/$spaceId/knowledge/$fieldId`, with the same browser pathname either way.
+
+TypeScript *does* catch the missing prefix — `tsc -p tsconfig.app.json` reports, on line 9, `TS2820: Type '"/$projectId/$spaceId/knowledge/$fieldId"' is not assignable … Did you mean '"/studio/$projectId/$spaceId/knowledge/$fieldId"'?` — but nothing runs it: `apps/web` declares **no `typecheck` script** `sdk/org/apps/web/package.json:7-13`, so `pnpm typecheck` (`turbo run typecheck`) skips the package, and `vp build` (vite-plus) transpiles without type-checking.
 
 ---
 
@@ -144,7 +153,7 @@ function openApp(id: string) {
 }
 ```
 
-`APP_PATH_PREFIX` is `''` on `lmthing.app` (apps served at the root by the pod) and `'/app'` everywhere else `sdk/org/apps/web/src/lib/config.ts:28-40`. The served surface itself is documented in [../app/routes.md](../app/routes.md).
+`APP_PATH_PREFIX` is `''` on `lmthing.app` (apps served at the root by the pod) and `'/app'` everywhere else `sdk/org/apps/web/src/lib/config.ts:28-39`. The served surface itself is documented in [../app/routes.md](../app/routes.md).
 
 The SPA route is deliberately `/apps`, never `/app` — `/app/<project>/` is the pod's app mount on localhost `sdk/org/apps/web/src/routes/apps/route.tsx:13-15`.
 

@@ -1,31 +1,52 @@
 # store/ — lmthing.store
 
-Agent marketplace **and project-app catalog**. A static SPA; all server-side logic lives in the `cloud/` gateway API (and, for app install, on the user's compute pod — see below).
+The public **catalog SPA**: browse the project-app catalog (`projects/`) and the integration-space
+catalog (`spaces/`). Static site — no server here; install and publish are authenticated and happen
+on the user's compute pod, not in this app.
 
-## Project-app catalog (`projects/`)
+## Source of truth
 
-The store distributes **project-applications** (a project's `database/ pages/ api/ hooks/` + `spaces/` app — see [../org/format/project/](../org/format/project/README.md) and [../org/app/](../org/app/README.md)):
+**[org/docs/](../org/docs/README.md) (published at lmthing.org) is the single source of truth.**
+This file is an orientation index and a place for local procedure — it holds no knowledge of its own.
+When it disagrees with `org/docs`, `org/docs` wins; when `org/docs` disagrees with the code, the code
+wins and the doc must be fixed.
 
-- `projects/<id>/` — one full app template each (`blog`, `health`, `kitchen`, `trips`, `demo-feed`), with `database/ pages/ api/ hooks/ components/ spaces/` + `package.json`/`project.json`.
-- `projects/manifest.json` — generated browse index (`{ apps: [{ id, title, description, icon, tables, pages, endpoints, hooks, files }] }`). **Never hand-edit it** — regenerate via `scripts/gen-apps-manifest.mjs` (auto-run by the `lmthing-apps-manifest` Vite plugin in `vite.config.ts`, which also copies templates into the dist output for static serving at `/projects/<id>/`).
-- `src/lib/apps-manifest.ts` — typed accessor (`listCatalogApps()`, `getCatalogApp(id)`, `CatalogApp`) over the inlined manifest. `src/routes/projects/` — catalog browse + `$appId` detail.
-- **Install is not done here.** The static store only browses; `src/lib/pod-api.ts` hands off to the lmthing.app install page, which calls the pod CLI server's `POST /api/apps/install {appId}` (the pod's `GET /api/apps` serves this same public catalog). App authoring is done by THING via the `system-appbuilder` space, not in the store.
+> **A code change is not done until the matching `org/docs` page is updated in the same change.**
+> → [org/docs/SYNC.md](../org/docs/SYNC.md)
 
-## Stack
-
-React 19 + Vite 7 + TanStack Router (file-based routing) · Tailwind CSS v4 via `@tailwindcss/vite` · shared libs `@lmthing/ui`, `@lmthing/css`, `@lmthing/state`, `lmthing` · Vite config from `@lmthing/utils/vite`.
-
-## Design system (mandatory)
-
-Uses the shared lmthing design system (`@lmthing/css` tokens + `@lmthing/ui`). **Never write a
-raw color** (hex, literal `rgb()/hsl()`, or stock Tailwind colors like `gray-*`/`blue-*`/`green-500`);
-use a token (`var(--foreground)`, `bg-primary`, `text-agent`, …). To change a color, edit
-`sdk/org/libs/css/src/tokens/tokens.json` then `pnpm --filter @lmthing/css generate`. Enforced by
-`pnpm lint:tokens` (hard CI gate). Full rules → root `@.claude/skills/design-system.md`
-(spec: [../sdk/org/libs/css/DESIGN.md](../sdk/org/libs/css/DESIGN.md)).
-
-## Running Locally
+## Running locally
 
 ```bash
-cd store && pnpm dev
+cd store
+pnpm dev                # vite-plus dev server
+pnpm build              # regenerates projects/manifest.json, copies templates into dist/
+pnpm test               # vitest (unit)
+pnpm test:spaces        # node --test over spaces/**/tests/
+pnpm gen:apps-manifest  # regenerate projects/manifest.json only
 ```
+
+## Local procedure — the catalog
+
+- `projects/<id>/` — one on-disk project-app template each. **Six ship today**: `blog`, `demo-feed`,
+  `health`, `homes`, `kitchen`, `trips`.
+- `spaces/<id>/` — installable store spaces (the `integration-*` event sources).
+- `projects/manifest.json` — the generated browse index (`{ apps, spaces }`). **Never hand-edit it.**
+  Regenerate with `pnpm gen:apps-manifest`; the `lmthing-apps-manifest` Vite plugin
+  (`vite.config.ts` → `scripts/gen-apps-manifest.mjs`) also runs it on every build and copies the
+  templates into `dist/` for static serving.
+- Adding or changing a template means changing its files under `projects/<id>/` (or `spaces/<id>/`),
+  then rebuilding — the manifest follows from disk.
+
+## Task Index
+
+| Working on… | Read |
+|---|---|
+| this SPA — its routes, stack, build, install hand-off, nginx caveat | [org/docs/product-spas/README.md](../org/docs/product-spas/README.md) (`store` section) |
+| the on-disk format of a project-app (`database/ api/ pages/ hooks/ events/ components/ spaces/`) | [org/docs/format/project/](../org/docs/format/project/README.md) |
+| the on-disk format of a store space (agents, events, functions, hooks) | [org/docs/format/space/](../org/docs/format/space/README.md) |
+| how the pod boots, builds and serves an installed app | [org/docs/app/](../org/docs/app/README.md) |
+| the pod REST routes that list/install apps and store spaces | [org/docs/cli-api/rest/apps.md](../org/docs/cli-api/rest/apps.md) · [org/docs/cli-api/rest/store-spaces.md](../org/docs/cli-api/rest/store-spaces.md) |
+| the agent globals for discovery + consented install (`installSpace`, `@consent`) | [org/docs/runtime-globals/store-and-consent.md](../org/docs/runtime-globals/store-and-consent.md) |
+| integrations as event sources (emitter defs + event hooks) | [org/docs/runtime-globals/events-and-integrations.md](../org/docs/runtime-globals/events-and-integrations.md) |
+| who authors apps and store listings (`system-appbuilder`, `system-store`) | [org/docs/system-spaces/](../org/docs/system-spaces/README.md) |
+| **any styling** — tokens, never a raw color (hard CI gate: `pnpm lint:tokens`) | [org/docs/design-system/](../org/docs/design-system/README.md) |

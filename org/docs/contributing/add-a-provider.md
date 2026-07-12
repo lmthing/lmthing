@@ -116,7 +116,7 @@ Constraints for the sandbox: use only `fetch`; `response.text()`/`response.json(
 
 **4. Inject any secret/URL into the pod env.** Providers read config from `process.env`. Cluster-wide values (`RENDER_SERVICE_URL`/`RENDER_SERVICE_TOKEN`, `TAVILY_API_KEY`) are stamped into each pod's `user-env` by the Gateway's `litellmEnvDefaults`/`injectLiteLLMEnv` (`cloud/gateway/src/lib/compute.ts`); a new key follows the same path. See [../cloud/render.md](../cloud/render.md).
 
-**5. Test.** Unit tests stub `fetch` and exercise the parsers + `auto` selection: `pnpm --filter @lmthing/core test -- system-functions` (`sdk/org/libs/core/src/spaces/system-functions.test.ts`). `webSearchBing` **cannot run in plain Node** — it depends on the sandbox's synchronous `response.text()`; test it through the runtime or against pre-fetched HTML.
+**5. Test.** Unit tests stub `fetch` and exercise the parsers + `auto` selection: `cd sdk/org && pnpm test libs/core/src/spaces/system-functions` (`sdk/org/libs/core/src/spaces/system-functions.test.ts`; the runner is `vitest run`, `sdk/org/package.json:L9`, and takes a path substring — `pnpm --filter @lmthing/core test` is a silent no-op because that package has no `test` script, see [`testing.md`](./testing.md)). `webSearchBing` **cannot run in plain Node** — it depends on the sandbox's synchronous `response.text()`; test it through the runtime or against pre-fetched HTML.
 
 ---
 

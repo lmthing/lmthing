@@ -34,11 +34,11 @@ https://lmthing.app/blog/
 https://lmthing.app/blog/api/feed-list
 ```
 
-Not part of the app's own surface: the reserved top-level `/api/projects/:projectId/app/*` **management** routes (manifest, data browser, app-file editor, build status/rebuild) — see [`../cli-api/rest/apps.md`](../cli-api/rest/apps.md) and `sdk/org/libs/cli/src/server/serve.ts:238-246`. Any unmatched path that starts with `/api/` 404s as JSON before the SPA catch-all `sdk/org/libs/cli/src/server/serve.ts:360-366`.
+Not part of the app's own surface: the reserved top-level `/api/projects/:projectId/app/*` **management** routes (manifest, data browser, app-file editor, build status/rebuild) — see [`../cli-api/rest/apps.md`](../cli-api/rest/apps.md) and `sdk/org/libs/cli/src/server/serve.ts:240-246`. Any unmatched path that starts with `/api/` 404s as JSON before the SPA catch-all `sdk/org/libs/cli/src/server/serve.ts:360-366`.
 
 ## API routes — file → URL
 
-Discovery walks `<projectRoot>/api/`. **The route is the directory; the HTTP method is the filename** — one of `GET|POST|PUT|PATCH|DELETE` (`.ts`) `sdk/org/libs/cli/src/app/api/loader.ts:30-32`, `sdk/org/libs/cli/src/app/api/loader.ts:114-116`. A `[id]` directory segment becomes a `:id` param `sdk/org/libs/cli/src/app/api/loader.ts:130-142`. Non-method `.ts` files in a route dir (helpers, `types.ts`) are ignored `sdk/org/libs/cli/src/app/api/loader.ts:115`. The api root dir maps to the pattern `/` `sdk/org/libs/cli/src/app/api/loader.ts:38`.
+Discovery walks `<projectRoot>/api/`. **The route is the directory; the HTTP method is the filename** — one of `GET|POST|PUT|PATCH|DELETE` (`.ts`) `sdk/org/libs/cli/src/app/api/loader.ts:30-32`, `sdk/org/libs/cli/src/app/api/loader.ts:114-116`. A `[id]` directory segment becomes a `:id` param `sdk/org/libs/cli/src/app/api/loader.ts:130-142`. Non-method `.ts` files in a route dir (helpers, `types.ts`) are ignored `sdk/org/libs/cli/src/app/api/loader.ts:115`. The api root dir has no segments, so its pattern is `/` `sdk/org/libs/cli/src/app/api/loader.ts:141`.
 
 Real endpoints from the shipped `blog` app:
 
@@ -72,7 +72,7 @@ Error contract (`{ error: { status, message, details? } }`), validation and work
 
 ## Page routes — file → URL
 
-Route discovery walks `pages/`; every non-`_`-prefixed `.tsx`/`.jsx` file is a route. An `index` basename collapses to its directory's path and a `[id]` segment becomes `:id` `sdk/org/libs/cli/src/app/build/pages.ts:155-194`. Directories named `components/` or `lib/` under `pages/` (and any `_`-prefixed dir) hold shared code and are skipped `sdk/org/libs/cli/src/app/build/pages.ts:173-179`. `_app.tsx` and `_layout.tsx` are wrappers, not routes `sdk/org/libs/cli/src/app/build/pages.ts:152`, `sdk/org/libs/cli/src/app/build/pages.ts:306-314`.
+Route discovery walks `pages/`; every non-`_`-prefixed `.tsx`/`.jsx` file is a route. An `index` basename collapses to its directory's path and a `[id]` segment becomes `:id` `sdk/org/libs/cli/src/app/build/pages.ts:155-194`. Directories named `components/` or `lib/` under `pages/` (and any `_`-prefixed dir) hold shared code and are skipped `sdk/org/libs/cli/src/app/build/pages.ts:172-179`. `_app.tsx` and `_layout.tsx` are wrappers, not routes `sdk/org/libs/cli/src/app/build/pages.ts:152`, `sdk/org/libs/cli/src/app/build/pages.ts:306-314`.
 
 Real pages from the shipped `blog` app:
 
@@ -93,7 +93,7 @@ The same patterns are matched **client-side** at runtime: `matchRoutes` splits p
 
 The route table is authored base-agnostically (`/`, `/discover`, `/feed/:articleId`). The client computes the app's server root at call time: `resolveAppBase(pathname)` returns the first `…/app/<project>` prefix in the pathname, unless `window.__APP_BASE__` overrides it (the `/app`-stripped root mount, where the prefix is not in the path at all) `sdk/org/libs/cli/src/app/runtime/client.ts:70-83`. `clientPath()` strips that base before matching `sdk/org/libs/cli/src/app/runtime/router.tsx:77-82`, and `toHref()` re-applies it on `Link`/`navigate` so an in-app link never escapes to the origin root `sdk/org/libs/cli/src/app/runtime/router.tsx:96-124`.
 
-API URLs are built the same way: `apiCall(name, input)` looks the name up in the injected manifest, fills `:param` segments from `input`, and fetches `<base>/api<routePath>` — query string for `GET`/`DELETE`, JSON body otherwise `sdk/org/libs/cli/src/app/runtime/client.ts:121-161`. The manifest (`name → { method, routePath }`) is put on `window.__APP_ENDPOINTS__` by `mountApp` `sdk/org/libs/cli/src/app/runtime/router.tsx:216-222`, projected at build time from the typed endpoint contracts (`routePath` is exactly the loader's `pattern`) `sdk/org/libs/cli/src/app/build/pages.ts:200-209`, `sdk/org/libs/cli/src/app/build/schema.ts:204-206`.
+API URLs are built the same way: `apiCall(name, input)` looks the name up in the injected manifest, fills `:param` segments from `input`, and fetches `<base>/api<routePath>` — query string for `GET`/`DELETE`, JSON body otherwise `sdk/org/libs/cli/src/app/runtime/client.ts:121-161`. The manifest (`name → { method, routePath }`) is put on `window.__APP_ENDPOINTS__` by `mountApp` `sdk/org/libs/cli/src/app/runtime/router.tsx:216-222`, projected at build time from the typed endpoint contracts (`routePath` is exactly the loader's `pattern`) `sdk/org/libs/cli/src/app/build/pages.ts:203-208`, `sdk/org/libs/cli/src/app/build/schema.ts:204-206`.
 
 ## How pages are built
 
@@ -102,7 +102,7 @@ API URLs are built the same way: `apiCall(name, input)` looks the name up in the
 1. No `pages/` dir → `{ built:false, routes:[], assetManifest:[] }` (a db/api-only project has no page surface) `sdk/org/libs/cli/src/app/build/pages.ts:126-131`.
 2. Discover routes, hash the project's sources, and short-circuit on a cache hit (`.data/pages-cache.json` + an existing `index.html`) `sdk/org/libs/cli/src/app/build/pages.ts:133-142`.
 3. Generate an entry in `<projectRoot>/.data/pages-build/` that imports the pages + wrappers and calls `mountApp` with the route table and the endpoint manifest `sdk/org/libs/cli/src/app/build/pages.ts:14-21`, `sdk/org/libs/cli/src/app/build/pages.ts:239-243`.
-4. esbuild-bundle into `<projectRoot>/.data/pages-dist/` with hashed assets (`assets/[name]-[hash]`) and an `index.html` that references them with **relative** URLs `sdk/org/libs/cli/src/app/build/pages.ts:248-302`, `sdk/org/libs/cli/src/app/build/pages.ts:417-432`. `@app/runtime` aliases to the CLI's runtime source and `@app/types` to the project's `types/generated.d.ts` `sdk/org/libs/cli/src/app/build/pages.ts:249-250`.
+4. esbuild-bundle into `<projectRoot>/.data/pages-dist/` with hashed assets (`assets/[name]-[hash]`) and an `index.html` that references them with **relative** URLs `sdk/org/libs/cli/src/app/build/pages.ts:248-302`, `sdk/org/libs/cli/src/app/build/pages.ts:417-432`. `@app/runtime` aliases to the CLI's own runtime source (`resolveEnv` walks up to the `@lmthing/cli` package root) `sdk/org/libs/cli/src/app/build/pages.ts:461-473`, and `@app/types` to the project's `types/generated.d.ts` `sdk/org/libs/cli/src/app/build/pages.ts:249-250`.
 5. The **asset manifest** = every emitted file relative to `outDir`, including `index.html` `sdk/org/libs/cli/src/app/build/pages.ts:300-302`.
 
 Builds are serialized process-wide and deferred under memory pressure (each build peaks ~100 MB) `sdk/org/libs/cli/src/app/build/pages.ts:96-118`, `sdk/org/libs/cli/src/app/build/pages.ts:281-286`.
@@ -143,7 +143,7 @@ connect-src 'self'; img-src 'self' data: https:; base-uri 'self'; frame-ancestor
 
 Rationale (LLM-authored pages render fetched third-party content, an XSS surface): no inline script, so injected markup cannot execute; `connect-src 'self'` means even a self-XSS cannot exfiltrate or reach the top-level admin `/api/*` — the page can only talk to its own `…/app/<project>/api/*`; `frame-ancestors 'self'` allows the Studio same-origin preview iframe while blocking cross-origin framing `sdk/org/libs/cli/src/app/pages-serve.ts:23-42`. The shell response is the one exception: it adds a **per-request random nonce** to `script-src` purely so the `__APP_BASE__` bootstrap can run `sdk/org/libs/cli/src/app/pages-serve.ts:178-195`.
 
-> UNVERIFIED: the CSP is not extended per project (no way for a project to declare extra `connect-src`/`img-src` origins) — searched `pages-serve.ts` and `build/pages.ts` for any CSP override/config hook and found none. Stated as an observation, not a documented policy.
+**The policy is fixed — a project cannot extend it.** `CSP` is a module-level constant `sdk/org/libs/cli/src/app/pages-serve.ts:44-46`; the only parameters `createPageServeHandler` takes are `getOutDirForProject` and `mountPrefix` `sdk/org/libs/cli/src/app/pages-serve.ts:91-96`, and the only per-response variation is the nonce substitution on the shell `sdk/org/libs/cli/src/app/pages-serve.ts:195`. Nothing in the build (`build/pages.ts`) or the app manifest carries a CSP field — a project therefore cannot declare extra `connect-src`/`img-src` origins. A page that must reach a third-party origin goes through its own `api/` handler instead — that runs server-side in a plain `node:worker_threads` worker `sdk/org/libs/cli/src/app/api/runtime.ts:23`, `sdk/org/libs/cli/src/app/api/worker.ts:1-23`, where no browser CSP applies. Remote **images** are the one thing a page may load directly (`img-src … https:`).
 
 ## Related
 

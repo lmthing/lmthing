@@ -28,7 +28,7 @@ The entry point builds the Hono app, applies CORS to `/api/*`, exposes a health 
 Three distinct authentication schemes appear below. Do not conflate them.
 
 1. **`authMiddleware`** (browser/user JWT) — `Authorization: Bearer <accessToken>`. Verifies a gateway-issued HS256 access token locally via `verifyAccessToken`; falls back to Zitadel introspection for legacy tokens; accepts the literal token `demo` only when `LOCAL_DEV=true`. Sets `c.get("user") = {id,email}` `cloud/gateway/src/middleware/auth.ts:16-67`. Detail → [./auth.md](./auth.md).
-2. **Scoped pod JWTs** (`aud`-pinned, 365d) — minted by the gateway and injected into the pod's `user-env` secret so the pod can call back with no user request in flight. Verified per-route (not by `authMiddleware`); the userId is always the token subject, never a request field. Audiences: `compute` (self-idle / manifests), `backup` (backup token mint), `inbound` (public broker URL) `cloud/gateway/src/lib/tokens.ts:99-194`.
+2. **Scoped pod JWTs** (`aud`-pinned, 365d) — minted by the gateway and injected into the pod's `user-env` secret so the pod can call back with no user request in flight. Verified per-route (not by `authMiddleware`); the userId is always the token subject, never a request field. Audiences: `backup` (backup token mint) `cloud/gateway/src/lib/tokens.ts:56-87`, `compute` (self-idle / manifests) `cloud/gateway/src/lib/tokens.ts:89-121`, `inbound` (public broker URL) `cloud/gateway/src/lib/tokens.ts:158-194`.
 3. **Provider signatures / opaque tokens** — Stripe's `stripe-signature` HMAC (`/api/stripe/webhook`), the signed `state` param on the GitHub-App install callback, and the long-lived `userToken` embedded in the public inbound URL. No `Authorization` header.
 
 ## Complete route table
@@ -121,7 +121,7 @@ Router `cloud/gateway/src/routes/auth.ts`. The shared `provisionUser(userId,emai
 
 ## Stripe webhook — `/api/stripe/webhook`
 
-`POST /` verifies the `stripe-signature` HMAC against `STRIPE_WEBHOOK_SECRET` (400 on failure), then switches on event type `cloud/gateway/src/routes/webhook.ts:9-30`:
+`POST /` verifies the `stripe-signature` HMAC against `STRIPE_WEBHOOK_SECRET` (400 on failure), then switches on event type `cloud/gateway/src/routes/webhook.ts:9-32`:
 
 - `customer.subscription.created` / `.updated` → resolve tier by price id (`getTierByPriceId`), `updateUserTier`, then idempotent `ensureUserPod` (handles upgrade/downgrade resizing) `cloud/gateway/src/routes/webhook.ts:33-74`.
 - `customer.subscription.deleted` → downgrade to free + `deleteUserPod` (full namespace teardown) `cloud/gateway/src/routes/webhook.ts:76-103`.
@@ -180,7 +180,7 @@ Router `cloud/gateway/src/routes/status.ts`; all routes IP-rate-limited (`status
 
 ## Local-dev pod proxy
 
-Mounted only when `LOCAL_DEV=true` `cloud/gateway/src/index.ts:42-44`. In production, Envoy Gateway (Lua + JWT extraction) handles this routing to the pod instead. The catch-all `podProxy.all("*")` serves only the pod-owned path prefixes — `/api/{sessions,spaces,state,events,asks,message,help,node}` — 404-ing anything else `cloud/gateway/src/lib/pod-proxy.ts:20-49`. It resolves the token (`Authorization` header or `?access_token` query), maps to the user's pod URL, and streams the proxied response `cloud/gateway/src/lib/pod-proxy.ts:38-67`. `attachWsProxy` additionally upgrades `wss://…/api/ws?access_token=<JWT>` to the pod's NodePort `cloud/gateway/src/lib/pod-proxy.ts:71` (wired from `index.ts:58-60`). These pod-served endpoints are documented under [../cli-api/rest/README.md](../cli-api/rest/README.md).
+Mounted only when `LOCAL_DEV=true` `cloud/gateway/src/index.ts:42-44`. In production, Envoy Gateway (Lua + JWT extraction) handles this routing to the pod instead. The catch-all `podProxy.all("*")` serves only the pod-owned path prefixes — `/api/{sessions,spaces,state,events,asks,message,help,node}` — 404-ing anything else `cloud/gateway/src/lib/pod-proxy.ts:22-39`. It resolves the token (`?access_token` query first, else the `Authorization` header; `demo` accepted in LOCAL_DEV), maps to the user's pod URL (503 if not ready), and streams the proxied response `cloud/gateway/src/lib/pod-proxy.ts:41-68`. `attachWsProxy` additionally upgrades `wss://…/api/ws?access_token=<JWT>` to the pod's NodePort by piping raw TCP sockets `cloud/gateway/src/lib/pod-proxy.ts:76-136` (wired from `cloud/gateway/src/index.ts:58-60`). These pod-served endpoints are documented under [../cli-api/rest/README.md](../cli-api/rest/README.md).
 
 ## Cross-references
 

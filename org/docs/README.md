@@ -119,4 +119,4 @@ Unknown hosts (localhost, the `*.test` dev proxy) fall back to `/studio` (`sdk/o
 - **Changing a UI?** → [chat/](./chat/README.md) · [studio/](./studio/README.md) · [computer/](./computer/README.md)
 - **Building the app layer (db, api, pages, hooks)?** → [app/](./app/README.md) + [format/project/api/README.md](./format/project/api/README.md) + [format/project/pages/README.md](./format/project/pages/README.md)
 
-For system-wide data flow and deployment topology (not covered here) see [../Architecture.md](../Architecture.md) and [../devops/CLAUDE.md](../devops/CLAUDE.md).
+For system-wide data flow and deployment topology (not covered here) see [../Architecture.md](../../Architecture.md) and [../devops/CLAUDE.md](../../devops/CLAUDE.md).

@@ -7,7 +7,7 @@ Everything under `devops/` provisions and operates the single production cluster
 - **[local-dev.md](./local-dev.md)** — running the stack on a laptop.
 - **[../cloud/README.md](../cloud/README.md)** — the backend services (Gateway/Hono + LiteLLM) that these manifests deploy.
 
-The authoritative, still-maintained long-form guide lives at [`devops/CLAUDE.md`](../../devops/CLAUDE.md); the manifests it describes are ground truth under `devops/argocd/`, `devops/terraform/`, and `devops/ansible/`.
+The authoritative, still-maintained long-form guide lives at [`devops/CLAUDE.md`](../../../devops/CLAUDE.md); the manifests it describes are ground truth under `devops/argocd/`, `devops/terraform/`, and `devops/ansible/`.
 
 ## The stack at a glance
 

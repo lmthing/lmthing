@@ -5,9 +5,10 @@ token markup, and the budget/usage surfaces. The tier table is defined **once** 
 `cloud/gateway/src/lib/tiers.ts` and consumed by the gateway routes, the K8s pod spec, and
 the cron scheduler. There is **no credits ledger and no metered/usage-based Stripe billing** —
 a subscription buys a *tier*, and the tier's spend caps are enforced by LiteLLM on the user's
-API key (grep for `stripe.` shows only `customers.create`, `checkout.sessions`,
-`billingPortal.sessions`, `webhooks.constructEvent` — `cloud/gateway/src/routes/billing.ts:35-108`,
-`cloud/gateway/src/routes/webhook.ts:19-23`, `cloud/gateway/src/routes/auth.ts:32-35`).
+API key (grep for `stripe.` shows only `customers.create`, `checkout.sessions.{create,retrieve}`,
+`billingPortal.sessions.create`, `webhooks.constructEvent` — `cloud/gateway/src/routes/billing.ts:35`,
+`:78`, `:103`, `:211`; `cloud/gateway/src/routes/webhook.ts:19-23`;
+`cloud/gateway/src/routes/auth.ts:32-35`).
 
 Related: [routes.md](./routes.md) (full route table) · [litellm.md](./litellm.md) ·
 [../contributing/add-a-tier.md](../contributing/add-a-tier.md) (checklist) ·
@@ -27,6 +28,8 @@ Related: [routes.md](./routes.md) (full route table) · [litellm.md](./litellm.m
 | `cloud/gateway/src/lib/budget-math.ts` | Pure rolling-window spend math for `/api/billing/budget` |
 | `cloud/gateway/src/lib/compute.ts` | Turns `tier.pod` into a K8s Deployment |
 | `cloud/scripts/create-stripe-products.ts` | Idempotent Stripe product/price creation (`pnpm stripe:create-products`) |
+| `devops/ansible/scripts/setup/create-stripe-prices.sh` | The **other** Stripe setup script — also creates prices, and is the only thing that registers the webhook endpoint (see §4.1) |
+| `devops/ansible/roles/cloud_secrets/tasks/main.yml` | Templates `STRIPE_*` into the `lmthing-secrets` K8s secret from the Ansible vault (`:35-39`) |
 | `cloud/scripts/generate-litellm-models.ts` | Emits the marked-up `model_list` (`pnpm litellm:generate-models`) |
 | `cloud/scripts/resync-tier-budgets.ts` | Backfills changed budget windows onto existing keys (`pnpm litellm:resync-budgets`) |
 | `devops/argocd/core/litellm.yaml` | The deployed `model_list` with the marked-up per-token prices |
@@ -38,7 +41,7 @@ Script names: `cloud/package.json:6-10`.
 
 ## 2. The tiers (verbatim from code)
 
-`cloud/gateway/src/lib/tiers.ts:L88-L163`. Prices come from the Stripe setup script
+`cloud/gateway/src/lib/tiers.ts:L90-L162`. Prices come from the Stripe setup script
 (`cloud/scripts/create-stripe-products.ts:L23-L27`, amounts in cents).
 
 | Tier | Stripe price | Budget windows (1d / 7d / 30d, USD) | tpm | rpm | Pod (cpu/mem limit) | Pod requests | Idle TTL | Max sessions | Cron floor / max jobs |
@@ -51,18 +54,18 @@ Script names: `cloud/package.json:6-10`.
 Two things the old docs got wrong and the code is unambiguous about:
 
 - **Rate limits are identical on every tier** — `tpmLimit: 1_000_000, rpmLimit: 5_000` for all
-  four (`cloud/gateway/src/lib/tiers.ts:L98-L99,L118-L119,L134-L135,L149-L150`). The
-  "10K tpm / 60 rpm … 1M tpm / 5K rpm" ladder in `cloud/CLAUDE.md`, `.claude/skills/add-tier.md`
-  and `com/src/config/plans.ts` is **not** what the gateway stamps on a key.
+  four (`cloud/gateway/src/lib/tiers.ts:L100-L101,L129-L130,L143-L144,L157-L158`). The
+  "10K tpm / 60 rpm … 1M tpm / 5K rpm" ladder still printed by `.claude/skills/add-tier.md:19-22`
+  and `com/src/config/plans.ts:26,39,52,67` is **not** what the gateway stamps on a key.
 - **Free currently has the *largest* budget windows** (10/50/150) — larger than Basic, Pro and
   even Max's 30-day cap. That is what `TIERS.free.budgetLimits` says
-  (`cloud/gateway/src/lib/tiers.ts:L92-L96`); tiers differ meaningfully today by **pod sizing,
+  (`cloud/gateway/src/lib/tiers.ts:L94-L98`); tiers differ meaningfully today by **pod sizing,
   session count, idle TTL and cron floor**, not by spend headroom.
 
 ### Models
 
 Every tier gets the same allowlist — `TIER_MODELS = [...ENABLED_MODELS, ...TRANSCRIBE_MODELS]`
-(`cloud/gateway/src/lib/tiers.ts:L6-L26`):
+(`cloud/gateway/src/lib/tiers.ts:L7-L25`):
 
 ```ts
 export const ENABLED_MODELS = [
@@ -78,10 +81,10 @@ export const ENABLED_MODELS = [
 export const TRANSCRIBE_MODELS = ["whisper-1"] as const;
 ```
 
-That is **five** chat models plus `whisper-1` — not "four models" as `cloud/CLAUDE.md:178`,
-`.claude/skills/add-tier.md` and `com/src/config/plans.ts:15` still claim. `whisper-1` must be in
-the key's `models` list or LiteLLM 403s `key_model_access_denied` on `/audio/transcriptions`
-(`cloud/gateway/src/lib/tiers.ts:L18-L24`).
+That is **five** chat models plus `whisper-1` — not "four models" as
+`com/src/config/plans.ts:15,25,38,51,64` still claims. `whisper-1` must be in the key's `models`
+list or LiteLLM 403s `key_model_access_denied` on `/audio/transcriptions`
+(`cloud/gateway/src/lib/tiers.ts:L17-L22`).
 
 The pod's model aliases are pinned to these names in the `user-env` secret
 (`cloud/gateway/src/lib/compute.ts:L343-L369`): `LM_MODEL_XS/S → DeepSeek-V4-Flash`,
@@ -98,18 +101,18 @@ The pod's model aliases are pinned to these names in the `user-env` secret
 | `models` | LiteLLM key `models` allowlist (same three calls) | `cloud/gateway/src/lib/litellm.ts:L33,L47,L74` |
 | `tpmLimit` / `rpmLimit` | LiteLLM user + key `tpm_limit` / `rpm_limit` | `cloud/gateway/src/lib/litellm.ts:L34-L35,L49-L50,L76-L77` |
 | `pod.cpu` / `pod.mem` / `pod.cpuRequest` / `pod.memRequest` | The K8s Deployment's `resources` (Burstable when `*Request < limit`, Guaranteed otherwise); `NODE_OPTIONS=--max-old-space-size=` is derived as 60% of the mem limit | `cloud/gateway/src/lib/compute.ts:L226-L241`, `L110-L113` |
-| `pod.maxSessions` | Injected as `MAX_SESSIONS` env → the pod's `SessionManager` (`this.maxSessions`), which refuses a new session when all resident sessions are busy | `cloud/gateway/src/lib/compute.ts:L237`; `sdk/org/libs/cli/src/server/session-manager.ts:278`, `:830`, `:943` |
+| `pod.maxSessions` | Injected as `MAX_SESSIONS` env → the pod's `SessionManager` (`this.maxSessions`), which refuses a new session when all resident sessions are busy | `cloud/gateway/src/lib/compute.ts:L237`; `sdk/org/libs/cli/src/server/session-manager.ts:278`, `:832`, `:945` |
 | `pod.idleTtlMinutes` | Injected as `IDLE_TTL_MINUTES` env → `SessionManager.idleTtlMs` (and the pod's self-idle → scale-to-zero) | `cloud/gateway/src/lib/compute.ts:L238`; `sdk/org/libs/cli/src/server/session-manager.ts:280`; `cloud/gateway/src/routes/compute.ts:L65-L82` |
 | `cron.minIntervalMs` | `POST /api/compute/cron-manifest` clamps every published job's interval **up** to the floor, and the DB upsert re-enforces it (`next_run_at = GREATEST(next_run_at, last_woken_at + floor)`) | `cloud/gateway/src/routes/compute.ts:L101-L124`; `cloud/gateway/src/lib/db.ts:L299-L324` |
 | `cron.maxJobs` | Same route — jobs past the cap are dropped (`if (jobs.length >= policy.maxJobs) break;`) | `cloud/gateway/src/routes/compute.ts:L124` |
-| `stripePriceId` | `getTierByPriceId()` in the Stripe webhook; `TIERS[tier].stripePriceId` in `/api/billing/checkout` | `cloud/gateway/src/lib/tiers.ts:L165-L172`; `cloud/gateway/src/routes/webhook.ts:L44`; `cloud/gateway/src/routes/billing.ts:L70-L82` |
+| `stripePriceId` | `getTierByPriceId()` in the Stripe webhook; `TIERS[tier].stripePriceId` in `/api/billing/checkout` | `cloud/gateway/src/lib/tiers.ts:L164-L171`; `cloud/gateway/src/routes/webhook.ts:L44`; `cloud/gateway/src/routes/billing.ts:L70-L82` |
 
 The tier name itself lives in **LiteLLM user metadata** (`metadata.tier`), written by
 `createUser`/`updateUserTier` (`cloud/gateway/src/lib/litellm.ts:L36,L67`) and read back by
 `resolveUserTier()` in the compute route (`cloud/gateway/src/routes/compute.ts:L27-L35`),
 `resolvePodConfig()` (`cloud/gateway/src/lib/compute.ts:L437-L447`), `/api/billing/usage`
 (`cloud/gateway/src/routes/billing.ts:L138`), `/api/billing/budget` (`:L167`), `/api/keys` POST
-(`cloud/gateway/src/routes/keys.ts:L38-L45`) and `/api/auth/me`
+(`cloud/gateway/src/routes/keys.ts:L37-L45`) and `/api/auth/me`
 (`cloud/gateway/src/routes/auth.ts:L194`). There is no `tier` column in the gateway's own
 Postgres schema.
 
@@ -119,10 +122,9 @@ Postgres schema.
 `upgrade`, `env` (GET **and** PUT) are behind `authMiddleware` only; the tier is used solely to
 *size* the pod (`cloud/gateway/src/routes/compute.ts:L186-L195`, `L199-L221`, `L225-L249`,
 `L258-L269`, `L291-L301`, `L306-L340`). Every tier — including `free` — gets a pod
-(`cloud/gateway/src/lib/tiers.ts:L44` "Every tier now gets a pod"; route comment
-`cloud/gateway/src/routes/compute.ts:L198` "All tiers now have compute access"). The
-`cloud/CLAUDE.md:101-104` claim that `/api/compute/status` and `/api/compute/env` "require
-pro/max tier" is **stale**. `PUT /api/compute/env` validates key syntax
+(`cloud/gateway/src/lib/tiers.ts:L36` "Every tier now gets a pod"; `:L82-L84` "All tiers now
+receive an ephemeral pod"; route comment `cloud/gateway/src/routes/compute.ts:L198` "All tiers
+now have compute access"). `PUT /api/compute/env` validates key syntax
 (`/^[A-Za-z_][A-Za-z0-9_]*$/`), string values, and a **max of 100 vars** — no tier check
 (`cloud/gateway/src/routes/compute.ts:L303-L339`).
 
@@ -131,22 +133,38 @@ Nor do `/api/backup`, `/api/inbound`, `/api/status`, `/api/issues` or `/api/keys
 `billing.ts`, `keys.ts` (POST, to *inherit* limits), `compute.ts`, `webhook.ts`, `auth.ts`,
 `lib/compute.ts`, `lib/litellm.ts`).
 
-The gateway's own IP rate limiter is a fixed 60 req/min token bucket used only by the status
-route — it is not tier-aware (`cloud/gateway/src/middleware/rate-limit.ts:L9-L11,L32`).
+The gateway's own IP rate limiter is a fixed 60 req/min token bucket applied only by the status
+router (`status.use("/*", statusRateLimit())`) — it is not tier-aware
+(`cloud/gateway/src/middleware/rate-limit.ts:L9-L11,L32`; `cloud/gateway/src/routes/status.ts:25`).
 
 ---
 
 ## 4. Stripe integration
 
-### 4.1 Products & prices (one-time setup)
+### 4.1 Products & prices (one-time setup) — **two divergent scripts**
 
-`cloud/scripts/create-stripe-products.ts` is idempotent: it looks up prices by `lookup_key`
-(`lmthing_basic` / `lmthing_pro` / `lmthing_max`), finds-or-creates the single product
-`"LMThing API Gateway"`, creates monthly recurring USD prices, and prints the
-`STRIPE_PRICE_*` env values to paste into secrets (`:L23-L27`, `:L50-L89`). Run with
-`pnpm --filter @lmthing/cloud stripe:create-products` (`cloud/package.json:6`).
+The repo contains **two** Stripe setup scripts. They do not agree, and only one of them
+registers the webhook endpoint.
 
-The three price IDs and the Stripe keys reach the gateway as env from the `lmthing-secrets`
+| | `cloud/scripts/create-stripe-products.ts` | `devops/ansible/scripts/setup/create-stripe-prices.sh` |
+|---|---|---|
+| Run as | `pnpm --filter @lmthing/cloud stripe:create-products` (`cloud/package.json:6`) | `STRIPE_KEY=sk_… DOMAIN=lmthing.cloud ./create-stripe-prices.sh` (`:L3`) |
+| Idempotent? | **Yes** — looks prices up by `lookup_key`, early-returns if all three exist, else finds-or-creates the product and only the missing prices (`:L33-L48`, `:L51-L62`, `:L67-L84`) | **No** — every run creates brand-new products *and* prices (`:L25-L44`, `:L48-L50`) |
+| Products | **One**, `"LMThing API Gateway"` (`:L52-L58`) | **Three**, `lmthing Basic` / `lmthing Pro` / `lmthing Max` (`:L31`) |
+| `lookup_key` | `lmthing_basic` / `lmthing_pro` / `lmthing_max` (`:L23-L27`) | none |
+| Webhook endpoint | **not created** | **created** — `https://$DOMAIN/api/stripe/webhook`, subscribing exactly the three events the handler switches on (`:L54-L59`) |
+| Prints | `STRIPE_PRICE_BASIC=…` env lines (`:L86-L89`) | `vault_stripe_price_*` + `vault_stripe_webhook_secret` vault lines (`:L62-L68`) |
+
+Both charge the same amounts — 1000 / 2000 / 10000 cents
+(`cloud/scripts/create-stripe-products.ts:L23-L27`; `devops/ansible/scripts/setup/create-stripe-prices.sh:L48-L50`).
+
+**The deployed values come from the Ansible vault, not from the TS script.** The
+`lmthing-secrets` K8s secret is templated from `vault_stripe_price_{basic,pro,max}` +
+`vault_stripe_webhook_secret` (`devops/ansible/roles/cloud_secrets/tasks/main.yml:35-39`) — the
+exact variable names the **shell** script prints. The TS script's `lookup_key`s therefore have no
+consumer in this repo; nothing reads a price back by lookup key.
+
+The three price IDs and the Stripe keys reach the gateway as env from that `lmthing-secrets`
 K8s secret: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_BASIC`,
 `STRIPE_PRICE_PRO`, `STRIPE_PRICE_MAX` (`devops/argocd/core/gateway.yaml:90-114`;
 placeholders in `cloud/.env.example:17-21`). `tiers.ts` reads them at module load —
@@ -154,7 +172,7 @@ placeholders in `cloud/.env.example:17-21`). `tiers.ts` reads them at module loa
 so a **missing env var silently makes that tier un-checkout-able**: `/api/billing/checkout`
 rejects it with `400 Invalid tier` because `stripePriceId` is falsy
 (`cloud/gateway/src/routes/billing.ts:L70-L73`), and `getTierByPriceId()` skips tiers with an
-empty price id (`cloud/gateway/src/lib/tiers.ts:L167`).
+empty price id (`cloud/gateway/src/lib/tiers.ts:L166`).
 
 ### 4.2 Customer creation
 
@@ -208,7 +226,12 @@ request body** — the `return_url` some callers post is not used.
 
 `POST /api/stripe/webhook` (mounted at `cloud/gateway/src/index.ts:33`) verifies the signature
 with `STRIPE_WEBHOOK_SECRET` over the **raw body** and handles three events
-(`cloud/gateway/src/routes/webhook.ts:L9-L110`):
+(`cloud/gateway/src/routes/webhook.ts:L9-L110`). The endpoint itself — URL and the exact
+event subscription — is registered by the Ansible setup script, which subscribes precisely these
+three and no others (`devops/ansible/scripts/setup/create-stripe-prices.sh:L54-L59`); its printed
+`vault_stripe_webhook_secret` is what becomes `STRIPE_WEBHOOK_SECRET`
+(`devops/ansible/roles/cloud_secrets/tasks/main.yml:36`). Anything else Stripe sends falls
+through to `default:` and is logged only (`:L105-L106`):
 
 | Event | Action |
 |---|---|
@@ -278,11 +301,11 @@ reads** — exactly when you need the number. So the gateway computes it with th
 1. read the user's tier + `created_at` (`cloud/gateway/src/routes/billing.ts:L165-L172`);
 2. for each window, compute the current period with `windowBounds(createdAt, now, nDays)` —
    windows are anchored to the user's **first day**, repeating every `nDays`, not to LiteLLM's
-   calendar-aligned `reset_at` (`cloud/gateway/src/lib/budget-math.ts:L38-L56`);
+   calendar-aligned `reset_at` (`cloud/gateway/src/lib/budget-math.ts:L40-L56`);
 3. pull `/user/daily/activity` (paginated, master key) into a `YYYY-MM-DD → spend` map
    (`cloud/gateway/src/lib/litellm.ts:L103-L131`);
 4. `sumSpend()` over the window and `remainingPct()` clamped to 0–100
-   (`cloud/gateway/src/lib/budget-math.ts:L58-L79`).
+   (`cloud/gateway/src/lib/budget-math.ts:L58-L77`).
 
 Response: `{ windows: [{ duration, label, remainingPct, resetsAt }] }`, sorted shortest window
 first, labels `Today` / `Week` / `Month`
@@ -314,7 +337,7 @@ that inherits the user's *current* tier (models + budget windows + tpm/rpm)
 (`cloud/gateway/src/routes/keys.ts:L32-L59`); `GET /api/keys` lists them with `spend` and
 `max_budget` (`:L12-L29`). Every key carries its own budget windows — which is why
 `resync-tier-budgets.ts` iterates **all** of a user's keys
-(`cloud/scripts/resync-tier-budgets.ts:L9-L13`).
+(`cloud/scripts/resync-tier-budgets.ts:L10-L12`).
 
 ---
 
@@ -323,8 +346,9 @@ that inherits the user's *current* tier (models + budget windows + tpm/rpm)
 - **Changing a tier's numbers** in `tiers.ts` does **not** touch existing users: budget windows
   are only (re)written on provisioning and on a Stripe tier change. Backfill with
   `LITELLM_MASTER_KEY=… APPLY=1 pnpm --filter @lmthing/cloud litellm:resync-budgets`
-  (dry-run by default; `TIER=free` restricts it; it imports `TIERS` from the gateway lib so it
-  cannot drift) (`cloud/scripts/resync-tier-budgets.ts:L1-L33,L107-L123`).
+  (dry-run unless `APPLY=1`; `TIER=free` restricts it; it imports `TIERS` from the gateway lib so
+  it cannot drift) (`cloud/scripts/resync-tier-budgets.ts:L17-L22`, `:L33`, `:L37-L38`,
+  `:L104-L108`).
 - **Changing prices/markup**: edit `azure.json` (or re-fetch), run
   `pnpm litellm:generate-models`, paste into `devops/argocd/core/litellm.yaml`, let ArgoCD sync
   (`cloud/scripts/generate-litellm-models.ts:L10-L15`; `devops/argocd/core/litellm.yaml:8-12`).
@@ -340,35 +364,75 @@ that inherits the user's *current* tier (models + budget windows + tpm/rpm)
 
 ## 8. Known drift between code and callers
 
-1. **`cloud/CLAUDE.md:101-104`** — "requires pro/max tier" on `/api/compute/status|env`. False;
-   see §3. All tiers get compute.
-2. **Per-tier rate limits** in `cloud/CLAUDE.md:183-188`, `.claude/skills/add-tier.md` and
-   `com/src/config/plans.ts:23-68` — the gateway stamps 1M tpm / 5K rpm on *every* tier.
-3. **"All 4 models"** (`cloud/CLAUDE.md:178`, `com/src/config/plans.ts:15`) — five chat models
-   + `whisper-1`.
-4. **`com/src/routes/billing/usage.tsx:6-13,50-55`** still reads the *old* flat
+`cloud/CLAUDE.md` is **no longer** a source of drift: it has been reduced to a 65-line
+orientation index that points here and holds no tier/model/rate-limit claims of its own
+(`cloud/CLAUDE.md:59`, `:62`). The remaining callers that still disagree with the code:
+
+1. **Per-tier rate limits** in `.claude/skills/add-tier.md:19-22` and
+   `com/src/config/plans.ts:26,39,52,67` ("10K tokens/min, 60 req/min" … "1M tokens/min, 5K
+   req/min") — the gateway stamps 1M tpm / 5K rpm on *every* tier
+   (`cloud/gateway/src/lib/tiers.ts:L100-L101,L129-L130,L143-L144,L157-L158`).
+2. **"All 4 models"** (`com/src/config/plans.ts:15,25,38,51,64`) — five chat models
+   + `whisper-1` (`cloud/gateway/src/lib/tiers.ts:L7-L25`).
+3. **`com/src/routes/billing/usage.tsx:6-13,50-55`** still reads the *old* flat
    `{ max_budget, budget_duration, budget_reset_at }` shape; `/api/billing/usage` now returns a
    `budgets[]` array (`cloud/gateway/src/routes/billing.ts:L140-L145`) — so the page renders
    `$x / $undefined` and a `NaN%` bar.
-5. **`sdk/org/libs/ui/src/elements/settings/billing/index.tsx:20-21`** destructures
+4. **`sdk/org/libs/ui/src/elements/settings/billing/index.tsx:20-21`** destructures
    `{ portal_url }` from `POST /api/billing/portal`, but the gateway returns `{ url }`
    (`cloud/gateway/src/routes/billing.ts:L108`) → `window.location.href = undefined`. The `com`
    copy is correct: `const { url } = await billingPortal()`
    (`com/src/routes/billing.tsx:25`).
-6. **`.claude/skills/add-tier.md`** points at paths that no longer exist: `cloud/k8s/gateway.yaml`
-   + `cloud/k8s/.env.secrets.example` (the manifest is `devops/argocd/core/gateway.yaml`; there is
-   no `cloud/k8s/` directory) and the tier knowledge base under
-   `sdk/libs/thing/spaces/space-ecosystem/knowledge/billing-context/` (no `billing-context`
-   directory exists anywhere under `sdk/`).
+5. **`.claude/skills/add-tier.md`** points at paths that no longer exist: `cloud/k8s/gateway.yaml`
+   (`:40`) + `cloud/k8s/.env.secrets.example` (`:38`) — the manifest is
+   `devops/argocd/core/gateway.yaml`; there is no `cloud/k8s/` directory — and the tier knowledge
+   base under `sdk/libs/thing/spaces/space-ecosystem/knowledge/billing-context/` (`:50`, `:54`;
+   no `billing-context` directory exists anywhere under `sdk/`). The replacement procedure is
+   [../contributing/add-a-tier.md](../contributing/add-a-tier.md), which documents the same
+   corrections.
+6. **Two divergent Stripe setup scripts** (§4.1). `cloud/scripts/create-stripe-products.ts` is
+   idempotent, makes one product with `lookup_key`s, and never registers the webhook;
+   `devops/ansible/scripts/setup/create-stripe-prices.sh` is non-idempotent, makes three
+   `lookup_key`-less products, and *does* register the webhook. Only the latter's output feeds
+   the vault vars the K8s secret is actually built from
+   (`devops/ansible/roles/cloud_secrets/tasks/main.yml:35-39`), so running
+   `pnpm stripe:create-products` against the live account creates a **second, unused** product +
+   price set. [../contributing/add-a-tier.md](../contributing/add-a-tier.md) documents both paths
+   (`:114-142`) and tells you to edit whichever you use — but the two are never reconciled, and
+   nothing in the repo reads a price back by `lookup_key`.
 
-> UNVERIFIED: whether the Stripe products/prices, the `STRIPE_PRICE_*` secret values, and the
-> webhook endpoint actually exist in the live Stripe account — that is account state, not repo
-> state (searched `cloud/scripts/create-stripe-products.ts`, `devops/argocd/core/gateway.yaml`,
-> `cloud/.env.example`).
+---
 
-> UNVERIFIED: LiteLLM's *internal* enforcement semantics for `budget_limits`, `tpm_limit`,
-> `rpm_limit` and the `azure/whisper` per-minute cost map — these live in the upstream LiteLLM
-> image, not in this repo (searched `devops/argocd/core/litellm.yaml`, `cloud/gateway/src/lib/litellm.ts`).
-> Everything here describes what the gateway *sends*; the "rejected once any window is exhausted"
-> behaviour is asserted by `cloud/gateway/src/lib/tiers.ts:L71-L75` and mirrored client-side by
-> `BudgetWindows`.
+## 9. What cannot be settled from this repo
+
+Two things this page asserts are **not** decidable from the source tree. Both are recorded here
+rather than silently stated as fact.
+
+**Live Stripe account state.** *Which* products, prices and webhook endpoint exist in the live
+account — and therefore which of the two setup scripts (§4.1) was actually run — is **external
+account state**. Everything in the repo is either a *creator*
+(`cloud/scripts/create-stripe-products.ts`, `devops/ansible/scripts/setup/create-stripe-prices.sh`)
+or a *consumer* (`devops/ansible/roles/cloud_secrets/tasks/main.yml:35-39` →
+`devops/argocd/core/gateway.yaml:90-114` → `cloud/gateway/src/lib/tiers.ts:L122,L136,L150`). The
+real ids live only in the encrypted `devops/ansible/vault.yml`; git has just the placeholders
+(`cloud/.env.example:17-21` — `STRIPE_PRICE_BASIC=price_xxx`, …). A repo-wide grep for
+`price_[a-zA-Z0-9]` returns no real price id. Settle it against the live account
+(`stripe prices list`, `stripe webhook_endpoints list`) or the cluster
+(`kubectl -n lmthing get secret lmthing-secrets -o jsonpath='{.data.STRIPE_PRICE_PRO}' | base64 -d`).
+What *is* settled from the code: the webhook endpoint's URL and its exact three-event
+subscription, if it was created by the Ansible script
+(`devops/ansible/scripts/setup/create-stripe-prices.sh:L54-L59`).
+
+**LiteLLM's internal enforcement semantics.** How LiteLLM *interprets* `budget_limits`,
+`tpm_limit` and `rpm_limit`, and the `azure/whisper` per-minute cost map, live in the upstream
+image `ghcr.io/berriai/litellm:v1.90.0` (`devops/argocd/core/litellm.yaml:113`) — a Python
+service whose source is **not vendored** anywhere in this repo (grep for
+`model_prices_and_context_window` hits only YAML/docs, never code). Everything §3 and §5 state is
+what the gateway *sends* (`cloud/gateway/src/lib/litellm.ts:L25-L81`) and what the deployed
+config *declares* (`devops/argocd/core/litellm.yaml:13-79`). The "a request is rejected once
+**any** window is exhausted" rule is the gateway's own documented assumption
+(`cloud/gateway/src/lib/tiers.ts:L71-L75`), relied on by the budget endpoint's design comment
+(`cloud/gateway/src/lib/budget-math.ts:L1-L8`, "an over-budget key 429s even on reads") and
+mirrored client-side by `BudgetWindows` blocking at 0%
+(`sdk/org/libs/ui/src/chat/app/BudgetWindows.tsx:L28-L34`). Settle it against a running LiteLLM,
+not the code.

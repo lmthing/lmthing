@@ -3,7 +3,7 @@
 Every lmthing web surface — the studio/chat/computer app (`sdk/org/apps/web`), the shared
 component libraries (`@lmthing/css`, `@lmthing/ui`), and the product SPAs
 (`com social team store space blog casa`) — shares ONE token-driven design system in
-`@lmthing/css`. The authoritative spec is [`sdk/org/libs/css/DESIGN.md`](../../sdk/org/libs/css/DESIGN.md);
+`@lmthing/css`. The authoritative spec is [`sdk/org/libs/css/DESIGN.md`](../../../sdk/org/libs/css/DESIGN.md);
 this page is the code-grounded operational summary: the one hard rule, the exact enforcement
 gate (and what it does **not** cover), and the change workflow.
 
@@ -61,18 +61,24 @@ applied at `:94`) — these hold raw values by design:
 
 ### The two triggers that run it
 
-- **Root script**: `pnpm lint:tokens` — `package.json:11` runs the linter over EXACTLY these
-  ten roots:
+- **Root script**: `pnpm lint:tokens` — `package.json:14` runs the linter over EXACTLY these
+  eleven roots:
 
   ```
   sdk/org/libs/css/src  sdk/org/libs/ui/src  sdk/org/apps/web/src
   com/src  social/src  team/src  store/src  space/src  blog/src  casa/src
+  org/src
   ```
 
-- **CI hard gate**: `.github/workflows/design-tokens.yml` runs the identical command
+- **CI hard gate**: `.github/workflows/design-tokens.yml` runs the same linter
   (`design-tokens.yml:39-43`) on every `pull_request` and on `push` to `main`
   (`design-tokens.yml:6-27`), but only when files under `sdk/org/**`, `com/** … casa/**`
   change (the path filter). A violation fails the check and blocks the merge.
+
+  **CI and the root script are not identical**: the workflow passes only the ten
+  product roots (`design-tokens.yml:41-43`) — it omits `org/src`, and `org/**` is not in
+  the path filter (`design-tokens.yml:6-27`). So the lmthing.org docs SPA is linted by
+  `pnpm lint:tokens` locally but is **not** gated by CI.
 
 > Note: `@lmthing/css`'s own `pnpm --filter @lmthing/css lint`/`lint:tokens`
 > (`sdk/org/libs/css/package.json:29-30`) only scans that package's `src`; the repo-wide
@@ -80,19 +86,22 @@ applied at `:94`) — these hold raw values by design:
 
 ### What is NOT scanned (report honestly)
 
-The gate covers only the ten `src` roots listed above. Everything else is invisible to it —
+The gate covers only the `src` roots listed above. Everything else is invisible to it —
 a raw color there will ship un-flagged:
 
 - **`store/projects/<id>/pages/*.tsx`** — the client-side React pages of the shipped
-  project-apps (`blog health kitchen trips demo-feed homes`). The gate scans `store/src`
-  (the lmthing.store SPA), **not** `store/projects/`. Project-app pages authored by
-  `system-appbuilder` are outside the gate.
+  project-apps (`blog health kitchen trips demo-feed homes` — `store/projects/`). The gate
+  scans `store/src` (the lmthing.store SPA), **not** `store/projects/`. Project-app pages
+  authored by `system-appbuilder` are outside the gate.
 - **Other `sdk/org/libs/*`** — only `libs/css/src` and `libs/ui/src` are scanned. `libs/state`,
   `libs/auth`, `libs/utils`, `libs/cli`, `libs/core`, `libs/openclaw-compat`, `libs/config`
   are not (most have no web UI, but `libs/cli` ships DevTools/render web code that escapes).
-- **`sdk/org/system-spaces/`** — system-space assets/components are not scanned.
+- **`sdk/org/libs/core/system-spaces/`** — system-space assets/components are not scanned
+  (they sit under `libs/core`, which is not a lint root).
 - **`cloud/`** — the backend (gateway + LiteLLM). No product frontend, not scanned.
-- **`devops/ org/ gh-pages/ automation/ app-specifications/ scratch/ src/`** — not scanned.
+- **`devops/ gh-pages/ automation/ app-specifications/ scratch/`** — not scanned.
+- **`org/src`** — scanned by the root `pnpm lint:tokens` (`package.json:14`) but **not** by CI
+  (`design-tokens.yml:41-43`), so violations there only surface if someone runs the script.
 - **Non-`src` subtrees of a scanned product** — e.g. `com/public/…`; only `com/src` is walked.
 - **Extensions other than `.css .tsx .ts .jsx`** — e.g. inline `<style>` in `.html`,
   `.mjs` config (`lint-design-tokens.mjs:27`).
@@ -109,7 +118,7 @@ When a raw color is genuinely non-brand (terminal ANSI palettes, syntax-highligh
 ## Changing a color (the only supported workflow)
 
 The **single source of truth** is `sdk/org/libs/css/src/tokens/tokens.json`
-(`tokens.json:6-8`, `DESIGN.md:7`). Never hand-edit the generated outputs.
+(`tokens.json:4` `$meta.description`, `DESIGN.md:7`). Never hand-edit the generated outputs.
 
 1. Edit `src/tokens/tokens.json` (each color has `name`, `group`, `light`, `dark`,
    `description`).
@@ -134,9 +143,12 @@ The generator also **interpolates the spectrum**: `--spectrum-1..50`, a 50-stop 
 ramp between the five brand anchors `brand-1..5` (`generate-theme.mjs:22-63`,
 `tokens.json` `spectrum`). Detail on the token set → [tokens.md](./tokens.md).
 
-`generate-components-catalog.mjs` regenerates `COMPONENTS.md`, scanning every component
-stylesheet under `src/{elements,components}/**` and listing its BEM classes and the tokens it
-references (`scripts/generate-components-catalog.mjs:1-24`). Detail → [components.md](./components.md).
+`generate-components-catalog.mjs` regenerates `COMPONENTS.md`: it walks `src/elements` and
+`src/components` for every `.css` file except `theme.css`
+(`scripts/generate-components-catalog.mjs:18-26`, `:70`) and, per stylesheet, lists the BEM
+classes grouped by block plus the tokens it references — both `var(--token)` uses and token
+utilities inside `@apply` (`generate-components-catalog.mjs:37-67`). Detail →
+[components.md](./components.md).
 
 ## Theme modes (light / dark)
 
@@ -166,9 +178,10 @@ modes (`tokens.json` `$meta`, `spectrum.description`).
   (`sdk/org/libs/ui/src/elements/branding/cozy-text/index.tsx`), each letter its own brand
   color; never a single solid color (`DESIGN.md:35-37`).
 - **Legacy `--lm-*` bridge (chat surface)** — the chat components still use `--lm-*` vars, but
-  `chat/app/styles.css` aliases every `--lm-*` to a shared token (`--lm-bg: var(--background)`,
-  …), so they are theme-aware and pass the gate; `lm-*` is sanctioned, don't churn it
-  (`DESIGN.md:110-117`).
+  `sdk/org/libs/ui/src/chat/app/styles.css` aliases every `--lm-*` to a shared token
+  (`--lm-bg: var(--background)` at `:28`, `--lm-accent: var(--agent)` at `:34`, and the matching
+  `--color-lm-*` Tailwind aliases at `:78-84`), so they are theme-aware and pass the gate;
+  `lm-*` is sanctioned, don't churn it (`DESIGN.md:110-117`).
 - **Component styling pattern** — BEM component CSS is canonical: a stylesheet under
   `src/{elements,components}/<name>/index.css` using `@reference` + `@apply` with tokens; the
   React component imports it and uses the classes (`DESIGN.md:93-108`). Inline Tailwind

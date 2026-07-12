@@ -34,7 +34,7 @@ aborted, the host resolves the yield and binds the value back host-side for the 
 ```ts
 declare function emitEvent(name: string, payload: Record<string, unknown>): Promise<{ ok: boolean; event: string }>;
 ```
-`sdk/org/libs/core/src/typecheck/library-dts.ts:256-257` (`EVENTS_EMIT_DTS`)
+`sdk/org/libs/core/src/typecheck/library-dts.ts:269-270` (`EVENTS_EMIT_DTS`)
 
 `emitEvent` publishes an event **the calling scope already declared** in one of its `events/<name>.ts`
 emitter defs (`emits`) — the same contract webhook/cron/db emitters are held to. It resolves to
@@ -102,7 +102,7 @@ declare function callConnection(provider: 'discord', req: { method: string; path
 
 The `provider` parameter is typed to the **union of the granted providers**, so a call to a provider the
 agent did not declare fails *typecheck*, not at runtime `sdk/org/libs/core/src/typecheck/library-dts.ts:170-173`
-· `sdk/org/libs/core/src/exec/bootstrap.ts:296-298`. The grant's `providers` list is **required** — a bare
+· `sdk/org/libs/core/src/exec/bootstrap.ts:300-302`. The grant's `providers` list is **required** — a bare
 `connections:use` is a fail-loud space-load error ("there is no 'connect to anything'")
 `sdk/org/libs/core/src/spaces/capabilities.ts:210-229,296-304`.
 
@@ -231,7 +231,7 @@ declare function tool(name: 'searchIssues', input?: any): Promise<any>;
 
 Like `callConnection`, `name` is narrowed to the granted **allow-list union**, so calling an undeclared
 tool fails typecheck `sdk/org/libs/core/src/typecheck/library-dts.ts:175-188` ·
-`sdk/org/libs/core/src/exec/bootstrap.ts:299-301`. The `allow` list is required — a bare `tools:use` is a
+`sdk/org/libs/core/src/exec/bootstrap.ts:303-305`. The `allow` list is required — a bare `tools:use` is a
 fail-loud error ("there is no 'use anything'") `sdk/org/libs/core/src/spaces/capabilities.ts:188-207,306-315`:
 
 ```yaml
@@ -251,11 +251,20 @@ the registry, so `withTools` leaves the field absent and the yield rejects with
 `tool() is not available here: no tool registry configured`
 `sdk/org/libs/cli/src/server/session-manager.ts:376-383` · `sdk/org/libs/core/src/eval/yield-router.ts:218-220`.
 
-> UNVERIFIED: the `@lmthing/openclaw-compat` plugin API itself (how a plugin *registers* a tool, the
-> plugin manifest shape) is out of scope here — I traced only the pod host
-> (`sdk/org/libs/cli/src/server/openclaw-host.ts`) and the registry hand-off. Searched:
-> `rg 'PluginRegistry|registerTool' sdk/org/libs/cli/src`. Detail lives in the repo skill
-> `.claude/skills/openclaw-compat.md`.
+**What the pod dispatches *to*.** A plugin directory needs a `package.json` whose `openclaw.extensions[0]`
+names the entry file, plus an `openclaw.plugin.json` carrying an `id` — either one missing is a fail-loud
+load error `sdk/org/libs/openclaw-compat/src/loader.ts:76-89`. `loadPlugin` transpiles the entry, takes its
+default export, and calls `register(api)` on it (the `definePluginEntry({ id, register })` shape)
+`sdk/org/libs/openclaw-compat/src/loader.ts:91-99`. Inside `register`, a tool is declared with
+`api.registerTool({ name, execute })` — OpenClaw's factory form `registerTool((ctx) => tool, { name })` is
+also accepted; a tool with no `execute()` function, or with no resolvable name, throws
+`sdk/org/libs/openclaw-compat/src/api.ts:242-264`. The call records `{ name, description, parameters,
+execute }` into the `PluginRegistry`, which **rejects a duplicate tool name**
+`sdk/org/libs/openclaw-compat/src/registry.ts:17-23` — and that registry's `getTool(name)` is exactly what
+the pod's `resolveTool` looks up `sdk/org/libs/cli/src/server/session-manager.ts:368-374`.
+
+Full library reference (the fail-loud `api` Proxy, `registerHttpRoute`, channels, providers, the
+`CompatHost` seam) → [../libs/openclaw-compat.md](../libs/openclaw-compat.md).
 
 ---
 
@@ -285,7 +294,7 @@ There is **no SSRF guard on `fetch`** — the allowlist/pinning machinery above 
 
 `fetch` sits alongside the synchronous host substrate injected by `injectHostTools` — `console`,
 `execShell`, `process`, `readFileRaw`, `writeFileRaw`, `progress`, `spacePath`, `resolveSpaceDir`,
-`typecheckSource` `sdk/org/libs/core/src/globals/host-tools.ts:78-243`. Two facts matter for integrations:
+`typecheckSource` `sdk/org/libs/core/src/globals/host-tools.ts:78-249`. Two facts matter for integrations:
 
 - **`process.env` is a snapshot copy of the pod env** (undefined values filtered out) plus `LMTHING_SPACE_DIR`, and `LMTHING_PROJECT_SPACES_DIR` / `LMTHING_PROJECT_DIR` / `LMTHING_PROJECT_ID` when supplied `sdk/org/libs/core/src/globals/host-tools.ts:135-147`. **So `process.env` inside the sandbox DOES see integration tokens.** The "token never enters the sandbox" property is about `callConnection`/`integrationStatus` specifically, not about `process.env`. Space functions read keys from it directly — e.g. `webSearch` reads `TAVILY_API_KEY` `sdk/org/libs/core/system-spaces/system-global/functions/webSearch.ts:30`.
 - **Read-only roles lose the write primitives.** Under `allowWrite: false` (`explore`/`plan` fork roles) mutating shell commands are refused with exit code 126 and `writeFileRaw` is a no-op, with both DTS fragments withheld `sdk/org/libs/core/src/globals/host-tools.ts:58-76,114-116,190-193` · `sdk/org/libs/core/src/typecheck/library-dts.ts:110-117`.
@@ -326,7 +335,7 @@ Three distinct mechanisms — **none** of them is a `capabilities:` grant:
 
 1. **`system-global` is universal.** Only that one space's functions are injected into every agent's VM (`systemFunctionSources` filters on `GLOBAL_SPACE_NAME`) `sdk/org/libs/core/src/spaces/system.ts:26-27,87-95` · `sdk/org/libs/core/src/session/session.ts:595-624`. Every *other* system space's functions reach an agent only through the per-agent path. That is why `webSearch`/`webFetch`/`readFile`/`grep`/`todoWrite` need no declaration.
 2. **An agent's own space functions are opt-in** via `functions:` in `agents/<slug>/instruct.md` frontmatter: only the listed names are injected and shown in the prompt `sdk/org/libs/core/src/spaces/load.ts:474` · `sdk/org/libs/core/src/spaces/agent.ts:17-25`, and a name with no matching `functions/<name>.ts` is a fail-loud load error (`Agent "x" requires function "y" but it was not found in functions/`) `sdk/org/libs/core/src/spaces/load.ts:685-689`.
-3. **A tasklist task narrows the set for its fork.** `functions: [...]` in a task's frontmatter is an allowlist intersected against the parent agent's *injected* set `sdk/org/libs/core/src/spaces/tasklist-load.ts:30-31,136-137` · `sdk/org/libs/core/src/fork/fork.ts:247-260`. Because the parent's set is the **merged** map (system toolkit + project functions + space functions) `sdk/org/libs/core/src/session/session.ts:620-623,746-747`, **`functions: []` means no functions at all — `webSearch`/`webFetch` included.** Never forbid a tool in prose; disable it in frontmatter.
+3. **A tasklist task narrows the set for its fork.** `functions: [...]` in a task's frontmatter is an allowlist intersected against the parent agent's *injected* set `sdk/org/libs/core/src/spaces/tasklist-load.ts:30-32,136-137` · `sdk/org/libs/core/src/fork/fork.ts:247-260`. Because the parent's set is the **merged** map (system toolkit + project functions + space functions) `sdk/org/libs/core/src/session/session.ts:620-623,746-747`, **`functions: []` means no functions at all — `webSearch`/`webFetch` included.** Never forbid a tool in prose; disable it in frontmatter.
 
 ---
 
@@ -362,7 +371,7 @@ capabilities:
 ```
 `sdk/org/libs/core/src/spaces/capabilities.ts:8-16,66-74`
 
-- Not granted ⇒ **not injected AND absent from the DTS** — a stray call is a typecheck error ("Cannot find name"), not a runtime throw `sdk/org/libs/core/src/exec/bootstrap.ts:170-204,282-309`.
+- Not granted ⇒ **not injected AND absent from the DTS** — a stray call is a typecheck error ("Cannot find name"), not a runtime throw `sdk/org/libs/core/src/exec/bootstrap.ts:170-204,282-313`.
 - Read-only fork roles (`explore`/`plan`) **keep** `connections:use` + `tools:use` (treated as outbound, like `api:call`) but **lose `events:emit`** `sdk/org/libs/core/src/exec/capability.ts:4-28`.
 - `integrationStatus` and `fetch` have **no capability** at all.
 

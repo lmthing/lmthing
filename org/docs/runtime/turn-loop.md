@@ -19,7 +19,7 @@ Related: [typecheck](./typecheck.md) · [runtime globals](../runtime-globals/REA
 `runTurnLoop(deps: TurnLoopDeps): Promise<'done' | 'error'>` —
 `sdk/org/libs/core/src/eval/turn-loop.ts:300`. It is the *only* loop: the session, every fork and
 every delegate call the same function with different `deps`
-(`sdk/org/libs/core/src/session/session.ts:206,353,490` — `start`/`continue`/`resume`;
+(`sdk/org/libs/core/src/session/session.ts:353` — `start`, `:206` — `continue`, `:490` — `resume`;
 `sdk/org/libs/core/src/fork/fork.ts:530` — a fork's own loop, and again at `:557` for the
 forced-resolve nudge).
 
@@ -93,7 +93,7 @@ while (attempt < maxRetries)                       // turn-loop.ts:335
 
 - `BoundaryDetector` (`sandbox/boundary.ts:9-91`) accumulates chunks and emits a statement only when
   TS parses it as complete: it must end in `;` or `}` and contain no missing/synthetic tokens
-  (`boundary.ts:78-88`). A prose guard stops it carving a bare identifier out of `I'll start by…` —
+  (`boundary.ts:78-84`, `hasMissingOrErrorTokens` at `:97-104`). A prose guard stops it carving a bare identifier out of `I'll start by…` —
   it returns the whole physical line instead so the prose-drop can discard it (`boundary.ts:66-70`).
 - `FenceLineFilter` (`turn-loop.ts:111-150`) strips markdown fences from the live stream, making drop
   decisions **only on complete lines** so a mid-statement token that arrives as its own chunk
@@ -137,9 +137,10 @@ while (attempt < maxRetries)                       // turn-loop.ts:335
 ### Host bridge
 
 A host function marshalled into the VM (`marshalToQuickJS`, `sandbox/host-bridge.ts:46`) that returns
-a `Promise` gets a QuickJS deferred (`ctx.newPromise()`, `:71`), which is **disposed on settle, never
+a `Promise` gets a QuickJS deferred (`ctx.newPromise()`, `:68`), which is **disposed on settle, never
 eagerly** — `resolve`/`reject` are no-ops after `dispose()` in quickjs-emscripten, so an early dispose
-permanently neuters a promise a *nested* `await` depends on (`host-bridge.ts:73-115`). Un-settled
+permanently neuters a promise a *nested* `await` depends on (`host-bridge.ts:67-118`; the dispose fires
+in the `finally` of each settle handler, `:96,111`). Un-settled
 deferreds are tracked per context (`pendingDeferreds`, `:12-25`) so VM teardown can free them
 (`disposePendingDeferreds`, `:31-40`).
 
@@ -171,7 +172,7 @@ const pushYield = (req: YieldRequest) => {
 ```
 `sdk/org/libs/core/src/exec/bootstrap.ts:151-153`; the globals are injected right below it
 (`bootstrap.ts:155-211`), each gated by the capability profile. Example producer —
-`createAskGlobal` (`globals/ask.ts:69-91`) validates the JSX descriptor, mints an id, and returns
+`createAskGlobal` (`globals/ask.ts:64-92`) validates the JSX descriptor, mints an id, and returns
 `new Promise((resolve, reject) => pushYield({ kind: 'ask', args: [id, descriptor], deferred: { resolve, reject }, vmPromiseHandle: undefined }))`.
 
 Adding a kind → [contributing/add-a-global.md](../contributing/add-a-global.md); the full catalogue of
@@ -218,9 +219,9 @@ re-run the binding, so `bindYieldResults` (`turn-loop.ts:271-298`, exported) map
 statement's binding pattern (`extractBindingPattern`, `context/variables.ts:56-65`):
 
 - `simple` (`const x = …`) → the single resolved value, or the **array** of values when the statement
-  yielded more than once (it awaited a combinator like `Promise.all`) — `turn-loop.ts:281`;
-- `array` (`const [a, b] = …`) → positional;
-- `object` (`const { a, b } = …`) → by key.
+  yielded more than once (it awaited a combinator like `Promise.all`) — `turn-loop.ts:281,290-292`;
+- `array` (`const [a, b] = …`) → positional (`turn-loop.ts:284-286`);
+- `object` (`const { a, b } = …`) → by key (`turn-loop.ts:287-289`).
 
 Then, for every bound name, the VM's **own** computed value wins where it diverges:
 
@@ -300,9 +301,9 @@ lift its own ceiling. The Session mints a fresh one per run (`session.ts:203,304
 | limit | ticked where | on breach |
 |---|---|---|
 | `maxEpisodes` | `tickEpisode()` once per LLM request, **before** the stream (`turn-loop.ts:341`) | `BudgetExceededError('episodes', …)` |
-| `maxToolCalls` | `tickToolCalls(batch.length)` per resolved yield batch (`turn-loop.ts:622`) | `BudgetExceededError('toolCalls', …)` |
+| `maxToolCalls` | `tickToolCalls(batch.length)` per resolved yield batch (`turn-loop.ts:623`) | `BudgetExceededError('toolCalls', …)` |
 | `maxForkDepth` | `assertForkDepth(depth)` from the fork engine (`budget.ts:89-93`) | `BudgetExceededError('forkDepth', …)` |
-| `maxWallClockMs` | asserted inside both ticks (`budget.ts:72,82`) | `BudgetExceededError('wallClock', …)` |
+| `maxWallClockMs` | `assertWallClock()` inside both ticks (`budget.ts:73,82`, impl `:96-100`) | `BudgetExceededError('wallClock', …)` |
 
 Notes:
 
@@ -380,8 +381,8 @@ stranded mid-program. `lastStmtNonYieldBinding` — "bound a name AND the statem
 (`:420`) — triggers a `user` message telling it to `inspect(<var>)` if it must see the value, or else
 keep emitting statements. Bounded by `maxContinueNudges` (default 4); `attempt` resets to 0.
 
-**Todo reminder** (`beforeTurn`). The top-level session passes `readTodoReminder()`
-(`session.ts:222,369`, impl `session.ts:780-793`), which reads open items from `.lmthing/todos.json`
+**Todo reminder** (`beforeTurn`). The top-level session passes `readTodoReminder()` on all three of
+`continue`/`start`/`resume` (`session.ts:222,369,506`; impl `session.ts:777-793`), which reads open items from `.lmthing/todos.json`
 and returns an "Open todos …" block. It is appended to **this request only** and never written to
 history (`turn-loop.ts:345-349`), so it is re-evaluated fresh each turn and never duplicates. Forks and
 delegates do not set it.

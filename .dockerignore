@@ -17,4 +17,9 @@ devops/
 #   store/projects/** — project-apps · store/spaces/** — installable spaces (incl. integration-*)
 !store/projects/**/*.md
 !store/spaces/**/*.md
+# …and the docs site IS markdown: org/ (lmthing.org) bundles every doc into the
+# SPA at build time via `import.meta.glob('/docs/**/*.md', ?raw)`. With `**/*.md`
+# excluded from the build context the glob resolved to {} and the shipped image
+# rendered "Page not found" on every route.
+!org/docs/**/*.md
 sdk/org/docs/

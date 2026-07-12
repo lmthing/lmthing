@@ -179,12 +179,19 @@ authoritative check is `POST /app/build` + real assets in `assetManifest`.
    healthy. Load integration/env secrets via `mergePodEnv` **before** the first session (a `PUT env`
    rolls the pod). Keep the conversation realistic — drift, incremental, unrelated chatter between
    load-bearing turns; a promise that only holds under a scripted happy path isn't kept.
-2. **Run Act by Act, babysat.** Drive `node {{RUN_MJS}}` as a **`run_in_background: true` Bash
-   process** — that is the ONLY mechanism that re-wakes you on exit. `Monitor`/poll/"I'll wait" do
-   NOT and will stall forever. A 5-minute heartbeat watchdog is a background loop that `sleep`s,
-   probes pod + run liveness, and **exits** (waking you) each cycle; relaunch it each wake. Between
-   wakes, make progress (read traces, prepare the next fix). (zsh: `status` is read-only — use
-   another name.) Checkpoint after each Act.
+2. **Run Act by Act, in the FOREGROUND.** You are a **headless `claude -p` session**: when you stop
+   emitting tool calls your turn ENDS, your session dies, and every background process you spawned is
+   orphaned and killed. So there is **no "wake me when it finishes"** here — do **NOT** launch the
+   runner in the background and "wait", and do **NOT** rely on a watcher/heartbeat to re-invoke you
+   (that pattern is for the interactive Claude Code harness, not for headless). Instead **run the
+   runner as a single blocking foreground command with a long timeout** so your turn stays alive
+   until it exits, e.g. `cd sdk/org/scenarios/harness && node {{RUN_MJS}} --acts=1` with the Bash
+   `timeout` set to ~1500000 ms (25 min); when it returns, read its output, then run the next Act(s)
+   the same way. Because the runner **checkpoints after every Act** to `results/checkpoint.json` and
+   resumes with `--acts=`, a run that gets cut off is resumable next time — but within THIS turn,
+   keep the foreground call blocking until each Act batch completes. Never say "waiting for the run
+   to finish" and stop — that silently ends the whole session with the mission unfinished.
+   (zsh: `status` is read-only — use another name.)
 3. **Triage every failure BEFORE changing anything** — is it a harness bug or a product bug? Read the
    trace (`GET /api/sessions/:id/events`) for the exact `eval_error`/`typecheck_error` **statement**,
    and pod logs (`kubectl logs`) for boot/hook-load failures. **Reproduce minimally** — a direct

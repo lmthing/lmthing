@@ -349,7 +349,7 @@ assertions — and exists so no scenario burns an hour on a broken harness
 
 - `scenarios/<NN>-<slug>/run.mjs` — the **executable spec**. It writes
   `scenarios/<NN>-<slug>/results/report.md` plus a raw trace JSON `results/trace.json`
-  (`sdk/org/scenarios/05-latam/run.mjs:L28`, `:L650-L651`; `Report.save`/`Report.saveTrace`,
+  (`sdk/org/scenarios/05-latam/run.mjs#RESULTS`, `:L650-L651`; `Report.save`/`Report.saveTrace`,
   `sdk/org/scenarios/harness/lib/report.mjs:L109-L121`).
 - `scenarios/harness/` — zero-dependency Node ESM. `provision.mjs` (`getUser`, `loadUser` —
   `:L28-L45`) plus `lib/`: `Pod` (the pod REST client, `lib/pod.mjs:L9`), `ThingSession`
@@ -405,7 +405,7 @@ that only checks the final message is a scenario that passes when the system is 
   `base64 -d` once when fetching and let `jwt.mjs` do the second decode
   (`sdk/org/scenarios/harness/lib/jwt.mjs:L1-L40`).
 - Endpoints default to `https://lmthing.cloud` (`LM_GATEWAY`) and `https://lmthing.chat`
-  (`LM_POD_BASE`) (`sdk/org/scenarios/harness/lib/gateway.mjs:L16`, `:L199`).
+  (`LM_POD_BASE`) (`sdk/org/scenarios/harness/lib/gateway.mjs#GATEWAY`, `:L199`).
 
 Scenario users are disposable — provisioned state is cached under `scenarios/harness/.state/users/`
 (`sdk/org/scenarios/harness/lib/paths.mjs:L11`; `provision.mjs:L1-L25`) and each gets its own

@@ -1,6 +1,6 @@
 # The `tasklists/` directory — a DAG workflow
 
-A **tasklist** is a directory `tasklists/<slug>/` inside a space that holds a multi-step workflow: one `index.md` header plus numbered step files, executed as a dependency DAG of subagent forks (`sdk/org/libs/core/src/spaces/load.ts` `loadTasklists` :355-399). The runtime discovers tasklists per space (slug → `TasklistDir`) and each `TasklistDir` records the sorted node files, the `index.md` body, and its declared `input`/`connections` (`sdk/org/libs/core/src/spaces/load.ts:91-101`).
+A **tasklist** is a directory `tasklists/<slug>/` inside a space that holds a multi-step workflow: one `index.md` header plus numbered step files, executed as a dependency DAG of subagent forks (`sdk/org/libs/core/src/spaces/load.ts` `loadTasklists` :355-399). The runtime discovers tasklists per space (slug → `TasklistDir`) and each `TasklistDir` records the sorted node files, the `index.md` body, and its declared `input`/`connections` (`sdk/org/libs/core/src/spaces/load.ts#TasklistDir`).
 
 ## Directory shape
 
@@ -10,7 +10,7 @@ Step files are collected and **sorted lexically** (`.sort()`), so the `NN` numer
 
 ## How steps execute — the DAG
 
-Steps are **not** run in file order; file order only fixes the id sequence and the fallback goal. Execution follows the `dependsOn` DAG: each step declares the task ids that must resolve before it, and the orchestrator repeatedly finds ready tasks (all deps done or skipped) and runs them in parallel (`sdk/org/libs/core/src/tasklist/orchestrator.ts:145-179`, `findReadyTasks` `sdk/org/libs/core/src/tasklist/dag.ts:93-127`). Before running, `validateDag` checks every `dependsOn` reference resolves, that any `forEach` head is also a dependency, and that there are no cycles (DFS three-colour) or multiple explicit goals (`sdk/org/libs/core/src/tasklist/dag.ts:4-59`).
+Steps are **not** run in file order; file order only fixes the id sequence and the fallback goal. Execution follows the `dependsOn` DAG: each step declares the task ids that must resolve before it, and the orchestrator repeatedly finds ready tasks (all deps done or skipped) and runs them in parallel (`sdk/org/libs/core/src/tasklist/orchestrator.ts:145-179`, `findReadyTasks` `sdk/org/libs/core/src/tasklist/dag.ts#findReadyTasks`). Before running, `validateDag` checks every `dependsOn` reference resolves, that any `forEach` head is also a dependency, and that there are no cycles (DFS three-colour) or multiple explicit goals (`sdk/org/libs/core/src/tasklist/dag.ts#validateDag`).
 
 Each agent node runs as a subagent **fork** over the step's markdown body as its instruction, with the step's `output` schema; the fork resolves by calling `currentTask.resolve({...})` (`sdk/org/libs/core/src/tasklist/orchestrator.ts:229-282`, `sdk/org/libs/core/src/fork/fork.ts:268-320`). `currentTask.resolve` is the fork's completion global: it records the value only after `validateOutput` confirms it matches the declared `output` schema, else it fails the fork (`sdk/org/libs/core/src/fork/fork.ts:268-276`). The user message handed to the fork appends the output schema and the instruction `When done, call: currentTask.resolve({ ...output })` (`sdk/org/libs/core/src/fork/fork.ts:319-320`).
 
@@ -20,13 +20,13 @@ Downstream tasks read an upstream task's resolved output by the upstream **task 
 
 ## Goal, salvage, and the result envelope
 
-The tasklist's **goal task** is the one marked `goal: true`, or the last task in file order when none is marked (`resolveGoalTask` `sdk/org/libs/core/src/tasklist/dag.ts:67-72`). `runTasklist` returns a `TaskEnvelope` wrapping the goal task's output: `{ ok, degraded, data, reason?, degradedTasks? }`, where `ok` is false if the goal task itself salvaged and `degraded` is true if any task or `forEach` element salvaged (`sdk/org/libs/core/src/tasklist/orchestrator.ts:333-347`). An `optional: true` step that fails is skipped rather than sinking the run; a non-optional failure throws `Required task "…" failed` (`sdk/org/libs/core/src/tasklist/orchestrator.ts:293-306`).
+The tasklist's **goal task** is the one marked `goal: true`, or the last task in file order when none is marked (`resolveGoalTask` `sdk/org/libs/core/src/tasklist/dag.ts#resolveGoalTask`). `runTasklist` returns a `TaskEnvelope` wrapping the goal task's output: `{ ok, degraded, data, reason?, degradedTasks? }`, where `ok` is false if the goal task itself salvaged and `degraded` is true if any task or `forEach` element salvaged (`sdk/org/libs/core/src/tasklist/orchestrator.ts:333-347`). An `optional: true` step that fails is skipped rather than sinking the run; a non-optional failure throws `Required task "…" failed` (`sdk/org/libs/core/src/tasklist/orchestrator.ts:293-306`).
 
 The runtime **seed** is validated against the tasklist's declared `input` schema, and when a schema is declared the fork receives ONLY the declared keys (a hard filter of stray baggage) (`sdk/org/libs/core/src/tasklist/orchestrator.ts:75-99`). See [index-file.md](./index-file.md) for the `input`/`connections` header fields.
 
 ## Opting in — an agent action
 
-A tasklist is not invoked directly by name from a step; an agent **opts into** it by declaring an `actions[]` entry whose `tasklist:` names the directory slug (`ActionDef` `sdk/org/libs/core/src/spaces/load.ts:70-75`, parsed from `actions:` frontmatter at `sdk/org/libs/core/src/spaces/load.ts:493-505`). Loading fails loudly if an action names a tasklist that does not exist (`sdk/org/libs/core/src/spaces/load.ts:662-670`). The action is declared in the agent's `instruct.md` frontmatter — see [../agents/instruct-file.md](../agents/instruct-file.md).
+A tasklist is not invoked directly by name from a step; an agent **opts into** it by declaring an `actions[]` entry whose `tasklist:` names the directory slug (`ActionDef` `sdk/org/libs/core/src/spaces/load.ts#ActionDef`, parsed from `actions:` frontmatter at `sdk/org/libs/core/src/spaces/load.ts:493-505`). Loading fails loudly if an action names a tasklist that does not exist (`sdk/org/libs/core/src/spaces/load.ts:662-670`). The action is declared in the agent's `instruct.md` frontmatter — see [../agents/instruct-file.md](../agents/instruct-file.md).
 
 ## Worked example
 

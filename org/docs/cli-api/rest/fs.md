@@ -8,30 +8,30 @@ Three routes over the pod's workspace root: list every file, read one file, writ
 | `GET` | `/api/fs/read?path=<rel>` | `handleFsRead` `sdk/org/libs/cli/src/server/serve.ts:202` |
 | `PUT` | `/api/fs/write` | `handleFsWrite` `sdk/org/libs/cli/src/server/serve.ts:203` |
 
-All three are implemented in `sdk/org/libs/cli/src/server/routes/fs.ts` and reply with JSON via the shared `sendJson(res, status, obj)` helper `sdk/org/libs/cli/src/server/routes/utils.ts:9-12`.
+All three are implemented in `sdk/org/libs/cli/src/server/routes/fs.ts` and reply with JSON via the shared `sendJson(res, status, obj)` helper `sdk/org/libs/cli/src/server/routes/utils.ts#sendJson`.
 
 > **There is no delete route.** `rg 'api/fs' sdk/org/libs sdk/org/apps` returns only these three. The IDE's "delete" is a client-side optimistic removal with the comment `// Optimistically remove from local state; no delete API yet` `sdk/org/apps/web/src/routes/computer/use-ide-files.ts:108-110`. The only server-side deletion path for the raw workspace is the terminal PTY, whose cwd is the *same* root (`terminalCwd = effectiveLmthingRoot ?? process.cwd()` `sdk/org/libs/cli/src/server/serve.ts:373`, opened at `WS /api/terminals/:termId` `sdk/org/libs/cli/src/server/serve.ts:382-384`). Per-file `DELETE` does exist for *space* files — a different API (`DELETE /api/projects/:projectId/spaces/:spaceId/files/*`, see [`./projects.md`](./projects.md)).
 
 ## The root
 
-Every handler resolves paths against one root: `resolve(ctx.effectiveLmthingRoot ?? process.cwd())` `sdk/org/libs/cli/src/server/routes/fs.ts:14` (also `:42`, `:62`). `effectiveLmthingRoot` is threaded through the router's `ServerContext` `sdk/org/libs/cli/src/server/router.ts:6-11` and computed once at boot as `manager.lmthingRoot ?? opts.lmthingRoot` `sdk/org/libs/cli/src/server/serve.ts:109` — i.e. the pod runtime root (`LMTHING_ROOT`, prod `/data/.lmthing`; else `<cwd>/.lmthing`). When the server runs outside project mode the root falls back to the process cwd `sdk/org/libs/cli/src/server/routes/fs.ts:14`.
+Every handler resolves paths against one root: `resolve(ctx.effectiveLmthingRoot ?? process.cwd())` `sdk/org/libs/cli/src/server/routes/fs.ts#handleFsTree` (also `:42`, `:62`). `effectiveLmthingRoot` is threaded through the router's `ServerContext` `sdk/org/libs/cli/src/server/router.ts#ServerContext` and computed once at boot as `manager.lmthingRoot ?? opts.lmthingRoot` `sdk/org/libs/cli/src/server/serve.ts:109` — i.e. the pod runtime root (`LMTHING_ROOT`, prod `/data/.lmthing`; else `<cwd>/.lmthing`). When the server runs outside project mode the root falls back to the process cwd `sdk/org/libs/cli/src/server/routes/fs.ts#handleFsTree`.
 
 ## Path safety
 
-`GET /api/fs/read` and `PUT /api/fs/write` apply the same two-step guard `sdk/org/libs/cli/src/server/routes/fs.ts:45-47` / `:68-70`:
+`GET /api/fs/read` and `PUT /api/fs/write` apply the same two-step guard `sdk/org/libs/cli/src/server/routes/fs.ts#handleFsRead` / `:68-70`:
 
-1. `isSafeRelPath(p)` — rejects a non-string, the empty string, any leading `/`, a `\0`, and any `''` / `.` / `..` segment `sdk/org/libs/cli/src/server/projects.ts:71-74`. Failure ⇒ `400 { "error": "invalid path" }`.
-2. A resolved-prefix check: `abs = resolve(fsRoot, filePath)` must equal `fsRoot` or start with `fsRoot + sep` `sdk/org/libs/cli/src/server/routes/fs.ts:46-47`. Failure ⇒ `400 { "error": "path traversal" }`.
+1. `isSafeRelPath(p)` — rejects a non-string, the empty string, any leading `/`, a `\0`, and any `''` / `.` / `..` segment `sdk/org/libs/cli/src/server/projects.ts#isSafeRelPath`. Failure ⇒ `400 { "error": "invalid path" }`.
+2. A resolved-prefix check: `abs = resolve(fsRoot, filePath)` must equal `fsRoot` or start with `fsRoot + sep` `sdk/org/libs/cli/src/server/routes/fs.ts#handleFsRead`. Failure ⇒ `400 { "error": "path traversal" }`.
 
-The check uses `path.resolve`, not `fs.realpath` `sdk/org/libs/cli/src/server/routes/fs.ts:46` — a symlink *inside* the root that points outside it is not detected. The pod itself is the security boundary (one pod per user namespace); these routes carry no auth of their own.
+The check uses `path.resolve`, not `fs.realpath` `sdk/org/libs/cli/src/server/routes/fs.ts#handleFsRead` — a symlink *inside* the root that points outside it is not detected. The pod itself is the security boundary (one pod per user namespace); these routes carry no auth of their own.
 
 ## `GET /api/fs/tree`
 
-Recursively walks the root and returns every **file** path, relative, `/`-joined `sdk/org/libs/cli/src/server/routes/fs.ts:18-33`.
+Recursively walks the root and returns every **file** path, relative, `/`-joined `sdk/org/libs/cli/src/server/routes/fs.ts#handleFsTree`.
 
-- Excluded directories: `.git`, `node_modules`, `.cache` `sdk/org/libs/cli/src/server/routes/fs.ts:16,24`.
-- Directories are not listed — only entries where `entry.isFile()` `sdk/org/libs/cli/src/server/routes/fs.ts:26-28`. An empty directory is therefore invisible to the tree (hence the IDE's `.gitkeep` trick, below). A `Dirent` that is neither a file nor a directory (e.g. a symlink) is skipped.
-- A `readdir` failure on a subdirectory is swallowed and that subtree is skipped `sdk/org/libs/cli/src/server/routes/fs.ts:20`.
+- Excluded directories: `.git`, `node_modules`, `.cache` `sdk/org/libs/cli/src/server/routes/fs.ts#handleFsTree,24`.
+- Directories are not listed — only entries where `entry.isFile()` `sdk/org/libs/cli/src/server/routes/fs.ts#handleFsTree`. An empty directory is therefore invisible to the tree (hence the IDE's `.gitkeep` trick, below). A `Dirent` that is neither a file nor a directory (e.g. a symlink) is skipped.
+- A `readdir` failure on a subdirectory is swallowed and that subtree is skipped `sdk/org/libs/cli/src/server/routes/fs.ts#handleFsTree`.
 - No depth cap, no pagination, no mtime/size — the response is a flat string array.
 
 ```
@@ -41,7 +41,7 @@ GET /api/fs/tree
 
 ## `GET /api/fs/read?path=<rel>`
 
-Reads the file as **utf8** and returns its text `sdk/org/libs/cli/src/server/routes/fs.ts:48-53`.
+Reads the file as **utf8** and returns its text `sdk/org/libs/cli/src/server/routes/fs.ts#handleFsRead`.
 
 | Outcome | Status / body |
 |---|---|
@@ -51,16 +51,16 @@ Reads the file as **utf8** and returns its text `sdk/org/libs/cli/src/server/rou
 | `ENOENT` | `404 { "error": "file not found" }` |
 | any other read error | `400 { "error": "cannot read file (binary or unreadable)" }` |
 
-There is no binary mode: the handler is text-only (`readFile(abs, 'utf8')` `sdk/org/libs/cli/src/server/routes/fs.ts:49`). A missing `path` query param becomes `''`, which fails `isSafeRelPath` ⇒ `400 invalid path` `sdk/org/libs/cli/src/server/routes/fs.ts:44-45`. Note the router matches on `pathname` only, so the query string never affects route matching `sdk/org/libs/cli/src/server/router.ts:62`.
+There is no binary mode: the handler is text-only (`readFile(abs, 'utf8')` `sdk/org/libs/cli/src/server/routes/fs.ts#handleFsRead`). A missing `path` query param becomes `''`, which fails `isSafeRelPath` ⇒ `400 invalid path` `sdk/org/libs/cli/src/server/routes/fs.ts#handleFsRead`. Note the router matches on `pathname` only, so the query string never affects route matching `sdk/org/libs/cli/src/server/router.ts#Router.dispatch`.
 
 ## `PUT /api/fs/write`
 
-Body: JSON `{ path, content }` `sdk/org/libs/cli/src/server/routes/fs.ts:63-67`.
+Body: JSON `{ path, content }` `sdk/org/libs/cli/src/server/routes/fs.ts#handleFsWrite`.
 
-- A body that is not valid JSON ⇒ `400 { "error": "invalid JSON body" }` `sdk/org/libs/cli/src/server/routes/fs.ts:64-65`.
-- A non-string `path` degrades to `''` and then fails the safety check (`400 invalid path`); a non-string/absent `content` degrades to `''` — i.e. **a write with no `content` truncates the file** `sdk/org/libs/cli/src/server/routes/fs.ts:66-67`.
-- Parent directories are created (`mkdir(dirname(abs), { recursive: true })`) before the utf8 write `sdk/org/libs/cli/src/server/routes/fs.ts:72-73`. Create-file and overwrite are the same call; there is no `If-Match`/mtime check, so concurrent writers are last-write-wins.
-- Any fs error ⇒ `500 { "error": "<message>" }` `sdk/org/libs/cli/src/server/routes/fs.ts:74-76`; success ⇒ `200 { "ok": true }` `sdk/org/libs/cli/src/server/routes/fs.ts:77`.
+- A body that is not valid JSON ⇒ `400 { "error": "invalid JSON body" }` `sdk/org/libs/cli/src/server/routes/fs.ts#handleFsWrite`.
+- A non-string `path` degrades to `''` and then fails the safety check (`400 invalid path`); a non-string/absent `content` degrades to `''` — i.e. **a write with no `content` truncates the file** `sdk/org/libs/cli/src/server/routes/fs.ts#handleFsWrite`.
+- Parent directories are created (`mkdir(dirname(abs), { recursive: true })`) before the utf8 write `sdk/org/libs/cli/src/server/routes/fs.ts#handleFsWrite`. Create-file and overwrite are the same call; there is no `If-Match`/mtime check, so concurrent writers are last-write-wins.
+- Any fs error ⇒ `500 { "error": "<message>" }` `sdk/org/libs/cli/src/server/routes/fs.ts#handleFsWrite`; success ⇒ `200 { "ok": true }` `sdk/org/libs/cli/src/server/routes/fs.ts#handleFsWrite`.
 
 ```bash
 curl -X PUT http://localhost:8080/api/fs/write \

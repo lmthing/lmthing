@@ -22,7 +22,7 @@ Related: the route index → [./README.md](./README.md) · what a space *is* on 
 | GET | `/api/projects/:projectId/spaces/:spaceId/sessions` | `handleListSpaceSessions` `routes/projects.ts:153-170` | `200 { sessions: PersistedSessionMeta[] }` |
 | POST | `/api/spaces` | `handleCreateSpace` `routes/spaces.ts:22-56` | `201 { spaceDir: string }` |
 
-All eight are registered in the one `Router`, first-match-wins in registration order `sdk/org/libs/cli/src/server/serve.ts:179-190` · `sdk/org/libs/cli/src/server/router.ts:48-56`. The bulk `…/files` route is registered *before* the per-file `…/files/*` route, which matters because a trailing `/*` pattern compiles to `(?:/(.*))?` and therefore also matches the prefix with no rest segment `sdk/org/libs/cli/src/server/router.ts:33-46`.
+All eight are registered in the one `Router`, first-match-wins in registration order `sdk/org/libs/cli/src/server/serve.ts:179-190` · `sdk/org/libs/cli/src/server/router.ts:48-56`. The bulk `…/files` route is registered *before* the per-file `…/files/*` route, which matters because a trailing `/*` pattern compiles to `(?:/(.*))?` and therefore also matches the prefix with no rest segment `sdk/org/libs/cli/src/server/router.ts#compilePattern`.
 
 The pod itself performs **no authentication** on these routes — there is no token check in `router.ts` or the space handlers; the pod is protected by its network position (one pod per user namespace behind the gateway). See [./README.md](./README.md).
 
@@ -30,11 +30,11 @@ The pod itself performs **no authentication** on these routes — there is no to
 
 ## How a space maps onto disk
 
-A space is a directory: `<lmthingRoot>/<projectId>/spaces/<spaceId>/` `sdk/org/libs/cli/src/server/projects.ts:157-159`. `:spaceId` is the **directory basename** — the same id the space format doc calls the space id ([../../format/space/README.md](../../format/space/README.md)) — and its contents are the `agents/ functions/ knowledge/ tasklists/ components/ events/ hooks/` tree that `loadSpace` reads.
+A space is a directory: `<lmthingRoot>/<projectId>/spaces/<spaceId>/` `sdk/org/libs/cli/src/server/projects.ts#projectSpaceDir`. `:spaceId` is the **directory basename** — the same id the space format doc calls the space id ([../../format/space/README.md](../../format/space/README.md)) — and its contents are the `agents/ functions/ knowledge/ tasklists/ components/ events/ hooks/` tree that `loadSpace` reads.
 
 The **system spaces are reachable through the same routes**: `<root>/system/spaces/<id>` matches the generic `<root>/<projectId>/spaces/<id>` shape, so the pod surfaces a synthetic project id `system` (`SYSTEM_PROJECT_ID`) and Studio browses/edits `system-global`, `user-thing`, … via `/api/projects/system/spaces/<id>/files` with no special-casing in the space routes `sdk/org/libs/cli/src/server/projects.ts:10-31`. `system` is reserved — it cannot be created or deleted as a normal project `sdk/org/libs/cli/src/server/projects.ts:33-43`.
 
-Both `:projectId` and `:spaceId` are validated with `safeProjectId` — single segment, ≤200 chars, `^[a-zA-Z0-9_-]+$`; anything else is a `400` `sdk/org/libs/cli/src/server/projects.ts:58-67` · `routes/projects.ts:179-182`. Every relative file path is validated with `isSafeRelPath` — relative, no empty/`.`/`..` segment, no NUL `sdk/org/libs/cli/src/server/projects.ts:71-74` — and re-checked with a resolved-under-target assertion before any write (`assertUnder`, `sdk/org/libs/cli/src/server/projects.ts:127-133`).
+Both `:projectId` and `:spaceId` are validated with `safeProjectId` — single segment, ≤200 chars, `^[a-zA-Z0-9_-]+$`; anything else is a `400` `sdk/org/libs/cli/src/server/projects.ts:58-67` · `routes/projects.ts:179-182`. Every relative file path is validated with `isSafeRelPath` — relative, no empty/`.`/`..` segment, no NUL `sdk/org/libs/cli/src/server/projects.ts#isSafeRelPath` — and re-checked with a resolved-under-target assertion before any write (`assertUnder`, `sdk/org/libs/cli/src/server/projects.ts#assertUnder`).
 
 ---
 
@@ -43,7 +43,7 @@ Both `:projectId` and `:spaceId` are validated with `safeProjectId` — single s
 Scans `<root>/<projectId>/spaces/*`, `loadSpace(dir, { requireAgents: false })`s each one, and summarizes it. Spaces that fail to load are **skipped**, not fatal; the list is id-sorted `sdk/org/libs/cli/src/server/session-manager.ts:2052-2083`.
 
 ```ts
-// sdk/org/libs/cli/src/server/session-manager.ts:72-83
+// sdk/org/libs/cli/src/server/session-manager.ts#SpaceMeta
 export interface SpaceMeta {
   id: string;            // dir basename — the stable id within the project
   name: string;          // first agent's title, else package name, else id
@@ -55,7 +55,7 @@ export interface SpaceMeta {
 }
 ```
 
-Every field is derived from the space format, not stored anywhere: `name` falls back first-agent-title → `package.json` name → dir basename; `description` is `describeSpace(instructBody)`, the first non-`#` line truncated to 140 chars `sdk/org/libs/cli/src/server/session-manager.ts:2060-2077,2246-2255`. `componentCount` sums `components/view` + `components/form`, and `hasKnowledge` is "the space declares ≥1 knowledge domain" `sdk/org/libs/cli/src/server/session-manager.ts:2074-2076`.
+Every field is derived from the space format, not stored anywhere: `name` falls back first-agent-title → `package.json` name → dir basename; `description` is `describeSpace(instructBody)`, the first non-`#` line truncated to 140 chars `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.listProjectSessions,2246-2255`. `componentCount` sums `components/view` + `components/form`, and `hasKnowledge` is "the space declares ≥1 knowledge domain" `sdk/org/libs/cli/src/server/session-manager.ts:2074-2076`.
 
 The same agent/action tree also feeds `GET /api/projects/:projectId/completions`, which flattens it into `@space`, `@space.agent`, `@space.agent.action` words for the chat composer `sdk/org/libs/cli/src/server/session-manager.ts:2085-2100`.
 
@@ -63,7 +63,7 @@ The same agent/action tree also feeds `GET /api/projects/:projectId/completions`
 
 ## `GET …/spaces/:spaceId/files` — read the whole space
 
-Returns a flat `{ relPath: content }` map of every UTF-8 file under the space dir (forward-slash paths, `{}` if the dir does not exist) `sdk/org/libs/cli/src/server/projects.ts:167-193`. Three things are **excluded from the read**:
+Returns a flat `{ relPath: content }` map of every UTF-8 file under the space dir (forward-slash paths, `{}` if the dir does not exist) `sdk/org/libs/cli/src/server/projects.ts#readSpaceFiles`. Three things are **excluded from the read**:
 
 - a **top-level** `sessions/` dir `projects.ts:177`
 - any `conversations/` dir **at any depth** `projects.ts:178`
@@ -125,7 +125,7 @@ Body `{ name, files }`. `name` must be a single safe segment (no `/`, `\`, NUL, 
 
 The target root is not the caller's project: `spacesRoot` is `<lmthingRoot>/user/spaces` when the server runs in project mode, else `$SPACES_DIR` (default `/data/spaces`) `sdk/org/libs/cli/src/server/serve.ts:111-114` · `sdk/org/libs/cli/src/server/router.ts:5-11`.
 
-This is the "edit in the browser, run it now" path used by `ReplRpcClient.syncSpace` before `createSession` (Studio's agent-chat route and the embeddable `AgentChatPanel` in `sync` mode) `sdk/org/libs/ui/src/chat/client/rpc-client.ts:48-62`.
+This is the "edit in the browser, run it now" path used by `ReplRpcClient.syncSpace` before `createSession` (Studio's agent-chat route and the embeddable `AgentChatPanel` in `sync` mode) `sdk/org/libs/ui/src/chat/client/rpc-client.ts#ReplRpcClient.syncSpace`.
 
 ```bash
 curl -X POST localhost:8080/api/spaces -H 'content-type: application/json' \
@@ -140,7 +140,7 @@ curl -X POST localhost:8080/api/spaces -H 'content-type: application/json' \
 | Origin | Mechanism |
 |---|---|
 | Shipped system spaces | `materializeRuntime` copies each `defaultSystemSpaceDirs()` entry into `<root>/system/spaces/<name>/` on boot `sdk/org/libs/cli/src/cli/runtime-init.ts` — see [../commands.md](../commands.md) |
-| Store install | `POST /api/store/spaces/install` writes `<root>/<projectId>/spaces/<spaceId>/` `sdk/org/libs/cli/src/server/routes/store-spaces.ts:215-229` — see [./store-spaces.md](./store-spaces.md) |
+| Store install | `POST /api/store/spaces/install` writes `<root>/<projectId>/spaces/<spaceId>/` `sdk/org/libs/cli/src/server/routes/store-spaces.ts#installStoreSpace` — see [./store-spaces.md](./store-spaces.md) |
 | Studio authoring | the space-file routes above |
 | Browser scratch sync | `POST /api/spaces` (always into the `user` project's `spaces/`) |
 | Agent authoring | the `registerSpace` / `installSpace` runtime globals — see [../../runtime-globals/store-and-consent.md](../../runtime-globals/store-and-consent.md) |

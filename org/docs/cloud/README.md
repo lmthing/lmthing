@@ -35,7 +35,7 @@ gateway**, and every gateway route lives under `/api`.
 |---|---|---|
 | Code | `cloud/gateway/` (this repo) | upstream LiteLLM image + config `devops/argocd/core/litellm.yaml` |
 | Language | Hono on Node 24 (`cloud/gateway/Dockerfile:1,9`) | Python (upstream) |
-| Port | `PORT` default `3000` (`cloud/gateway/src/index.ts:53`, `Dockerfile:15`) | `4000` |
+| Port | `PORT` default `3000` (`cloud/gateway/src/index.ts#port`, `Dockerfile:15`) | `4000` |
 | Role | control plane: identity, keys, billing, pods | data plane: OpenAI-compatible model proxy to Azure AI Foundry |
 | Auth | gateway HS256 JWT / API key (`middleware/auth.ts`) | LiteLLM virtual key = the user's own key, tier budgets enforced |
 

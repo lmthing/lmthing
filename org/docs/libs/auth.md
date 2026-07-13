@@ -11,7 +11,7 @@ The package is a source-only workspace lib: `main`/`exports` point at `./src/ind
 
 ## Session model
 
-A session is the `AuthSession` shape (`sdk/org/libs/auth/src/types.ts:1-9`):
+A session is the `AuthSession` shape (`sdk/org/libs/auth/src/types.ts#AuthSession`):
 
 ```ts
 interface AuthSession {
@@ -25,11 +25,11 @@ interface AuthSession {
 }
 ```
 
-It is persisted as JSON in `localStorage` under the **single constant key** `lmthing_session` (`sdk/org/libs/auth/src/client.ts:3`). Because the key is constant and not namespaced per app, a single logical session is shared across every surface that mounts an `AuthProvider` — the unified web app deliberately mounts one `AuthProvider appName="studio"` at the root so studio/computer/chat all read the same stored session (`sdk/org/apps/web/src/routes/__root.tsx:12-17`).
+It is persisted as JSON in `localStorage` under the **single constant key** `lmthing_session` (`sdk/org/libs/auth/src/client.ts#SESSION_KEY`). Because the key is constant and not namespaced per app, a single logical session is shared across every surface that mounts an `AuthProvider` — the unified web app deliberately mounts one `AuthProvider appName="studio"` at the root so studio/computer/chat all read the same stored session (`sdk/org/apps/web/src/routes/__root.tsx:12-17`).
 
 Accessors:
 
-- `getSession()` reads + `JSON.parse`s the key, returning `null` on absence or parse error (`sdk/org/libs/auth/src/client.ts:218-227`).
+- `getSession()` reads + `JSON.parse`s the key, returning `null` on absence or parse error (`sdk/org/libs/auth/src/client.ts#getSession`).
 - `storeSession(session)` writes the key and fires listeners (`client.ts:259-262`).
 - `clearSession()` removes the key and fires listeners with `null` (`client.ts:254-257`).
 - `getAuthHeaders()` returns `{ Authorization: 'Bearer <accessToken>' }` straight from storage, or `{}` (`client.ts:206-216`).
@@ -57,13 +57,13 @@ Two constants govern timing:
 
 Primitives:
 
-- **`refreshSession(config)`** — no-op returning `null` if there's no `refreshToken`. Otherwise `POST`s `{ refresh_token }` to `${cloudUrl}/api/auth/refresh`; on non-OK returns `null`; on success merges `access_token`/`refresh_token`/`expires_at` into the existing session (keeping the old refresh token if the response omits one), stores it, and emits (`sdk/org/libs/auth/src/client.ts:93-116`).
+- **`refreshSession(config)`** — no-op returning `null` if there's no `refreshToken`. Otherwise `POST`s `{ refresh_token }` to `${cloudUrl}/api/auth/refresh`; on non-OK returns `null`; on success merges `access_token`/`refresh_token`/`expires_at` into the existing session (keeping the old refresh token if the response omits one), stores it, and emits (`sdk/org/libs/auth/src/client.ts#refreshSession`).
 - **`isSessionExpired(session, bufferSec = 60)`** — `false` if there's no `expiresAt` (i.e. non-expiring sessions like demo/pod never look expired); otherwise `now >= expiresAt - buffer` (`client.ts:118-122`).
 - **`ensureValidToken(config)`** — the "give me a usable token now" path: throws `Not authenticated` with no session; returns the current token if not near expiry; otherwise refreshes, and on failure `clearSession()`s and throws `Session expired` (callers treat the throw as force-re-login) (`client.ts:124-145`).
 
 ### `authFetch` — the workhorse
 
-`authFetch(config, url, options)` is the authenticated fetch used by SPAs (`sdk/org/libs/auth/src/client.ts:174-204`):
+`authFetch(config, url, options)` is the authenticated fetch used by SPAs (`sdk/org/libs/auth/src/client.ts#authFetch`):
 
 1. Calls `ensureValidToken` (proactive refresh) and sets `Authorization: Bearer <token>`.
 2. On a **401**, force-`refreshSession` once and retry with the new token; if refresh fails, `clearSession()` (`client.ts:185-193`). This is what keeps long-lived tabs working after the 12h access token expires.
@@ -73,11 +73,11 @@ It returns the raw `Response`; callers check `res.ok`.
 
 ## `AuthProvider` / `useAuth`
 
-`AuthProvider({ appName, callbackPath = '/', children })` (`sdk/org/libs/auth/src/AuthProvider.tsx:35`) builds an `AuthConfig` via `resolveConfig` and provides `AuthContextValue`. `useAuth()` reads the context and throws if used outside a provider (`AuthProvider.tsx:226-230`).
+`AuthProvider({ appName, callbackPath = '/', children })` (`sdk/org/libs/auth/src/AuthProvider.tsx#AuthProvider`) builds an `AuthConfig` via `resolveConfig` and provides `AuthContextValue`. `useAuth()` reads the context and throws if used outside a provider (`AuthProvider.tsx:226-230`).
 
 ### Config resolution
 
-`resolveConfig(appName, callbackPath)` picks `comUrl`/`cloudUrl` from Vite env with dev/prod fallbacks (`sdk/org/libs/auth/src/AuthProvider.tsx:7-19`):
+`resolveConfig(appName, callbackPath)` picks `comUrl`/`cloudUrl` from Vite env with dev/prod fallbacks (`sdk/org/libs/auth/src/AuthProvider.tsx#resolveConfig`):
 
 - `comUrl` = `VITE_COM_URL` || (dev ? `<protocol>//com.test` : `https://lmthing.com`).
 - `cloudUrl` = `VITE_CLOUD_URL` || (dev ? `<protocol>//cloud.test` : `https://lmthing.cloud`).
@@ -86,11 +86,11 @@ It returns the raw `Response`; callers check `res.ok`.
 
 ### Demo / local mode
 
-`isDemo` is true when **either** `VITE_DEMO_USER === 'true'` (build-time) **or** `isLocalRun()` (`sdk/org/libs/auth/src/AuthProvider.tsx:39`). `isLocalRun()` returns true for `localhost`/`127.0.0.1`/`0.0.0.0`/`*.test` hostnames — where the pod serves the app itself and enforces no gateway auth — and false for production `lmthing.*` hosts (`sdk/org/libs/auth/src/client.ts:248-252`). In demo mode the provider starts with a hardcoded `DEMO_SESSION` (`accessToken:'demo'`, `userId:'demo-user'`, `email:'demo@lmthing.local'`), `isLoading:false`, and **all SSO/pin logic is skipped** — every effect and `login`/`logout` early-returns on `isDemo` (`AuthProvider.tsx:27-40`, `47`, `60`, `121`, `128`, `149`, `159`).
+`isDemo` is true when **either** `VITE_DEMO_USER === 'true'` (build-time) **or** `isLocalRun()` (`sdk/org/libs/auth/src/AuthProvider.tsx:39`). `isLocalRun()` returns true for `localhost`/`127.0.0.1`/`0.0.0.0`/`*.test` hostnames — where the pod serves the app itself and enforces no gateway auth — and false for production `lmthing.*` hosts (`sdk/org/libs/auth/src/client.ts#isLocalRun`). In demo mode the provider starts with a hardcoded `DEMO_SESSION` (`accessToken:'demo'`, `userId:'demo-user'`, `email:'demo@lmthing.local'`), `isLoading:false`, and **all SSO/pin logic is skipped** — every effect and `login`/`logout` early-returns on `isDemo` (`AuthProvider.tsx:27-40`, `47`, `60`, `121`, `128`, `149`, `159`).
 
 ### Mount lifecycle (non-demo)
 
-Three effects drive the session on mount (`sdk/org/libs/auth/src/AuthProvider.tsx:46-146`):
+Three effects drive the session on mount (`sdk/org/libs/auth/src/AuthProvider.tsx#AuthProvider`):
 
 1. **Parent-frame session injection** — listens for `postMessage {type:'lmthing:session', session}` (e.g. lmthing.chat injecting into a lmthing.computer iframe), stores it, and clears loading (`AuthProvider.tsx:46-57`).
 2. **Bootstrap** (`AuthProvider.tsx:59-114`):
@@ -111,7 +111,7 @@ The case it was meant to cover — *the app being served by the user's own pod* 
 
 ### `AuthContextValue`
 
-The context exposes (`sdk/org/libs/auth/src/types.ts:18-41`, wired in `AuthProvider.tsx:196-220`):
+The context exposes (`sdk/org/libs/auth/src/types.ts#AuthContextValue`, wired in `AuthProvider.tsx:196-220`):
 
 | Member | Meaning |
 |---|---|
@@ -172,7 +172,7 @@ flows through the gateway and lands on the session as `githubRepo`/`githubUserna
 
 ## Environment variables
 
-Consumed at build time by `resolveConfig` (`sdk/org/libs/auth/src/AuthProvider.tsx:12-15`, `39`):
+Consumed at build time by `resolveConfig` (`sdk/org/libs/auth/src/AuthProvider.tsx#resolveConfig`, `39`):
 
 | Var | Effect | Default |
 |---|---|---|
@@ -182,7 +182,7 @@ Consumed at build time by `resolveConfig` (`sdk/org/libs/auth/src/AuthProvider.t
 
 ## Integrating in a new SPA
 
-Add `@lmthing/auth` (workspace dep), wrap the app once in `<AuthProvider appName="…">`, gate on `useAuth().isAuthenticated`/`isLoading`, and call `login()`/`logout()` — mirroring the unified app's root (`sdk/org/apps/web/src/routes/__root.tsx:15-25`). For calling gateway APIs use the context's `authFetch` (auto-refresh + 401 retry + pod-wake retry) rather than raw `fetch`.
+Add `@lmthing/auth` (workspace dep), wrap the app once in `<AuthProvider appName="…">`, gate on `useAuth().isAuthenticated`/`isLoading`, and call `login()`/`logout()` — mirroring the unified app's root (`sdk/org/apps/web/src/routes/__root.tsx#RootComponent`). For calling gateway APIs use the context's `authFetch` (auto-refresh + 401 retry + pod-wake retry) rather than raw `fetch`.
 
 ## See also
 

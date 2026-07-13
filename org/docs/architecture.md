@@ -8,7 +8,7 @@ For the doc hub and the authoring/runtime/serving planes, start at [README.md](.
 
 ## The shape of the system, in one paragraph
 
-lmthing is a fleet of **static single-page apps** plus **one shared backend** plus **one runtime per user**. Seven product SPAs (`com/ social/ team/ store/ space/ blog/ casa/`) and one *unified* SPA (`sdk/org/apps/web/`, which is the chat + studio + computer surfaces in a single build) are all React 19 / Vite / TanStack Router / Tailwind 4 bundles served by nginx (e.g. `com/package.json`, `store/package.json` — `react ^19`, `vite ^8`, `@tanstack/react-router`, `tailwindcss ^4`). None of them hold server code. Everything server-side — auth, billing, LLM proxying, compute-pod control, backups, inbound webhooks — lives in `cloud/`, a Hono/Node **Gateway** plus an upstream **LiteLLM** proxy on Kubernetes (`cloud/gateway/src/index.ts:28-38`). Each logged-in user gets a private, single-tenant **compute pod** (`@lmthing/cli`, image `compute:latest`) that the gateway provisions into a `user-<id>` namespace (`cloud/gateway/src/lib/compute.ts:543` `createUserPod`); that pod is where the THING agent's model-authored TypeScript actually runs, in a QuickJS WASM sandbox, and it also serves the unified SPA and any installed project-app.
+lmthing is a fleet of **static single-page apps** plus **one shared backend** plus **one runtime per user**. Seven product SPAs (`com/ social/ team/ store/ space/ blog/ casa/`) and one *unified* SPA (`sdk/org/apps/web/`, which is the chat + studio + computer surfaces in a single build) are all React 19 / Vite / TanStack Router / Tailwind 4 bundles served by nginx (e.g. `com/package.json`, `store/package.json` — `react ^19`, `vite ^8`, `@tanstack/react-router`, `tailwindcss ^4`). None of them hold server code. Everything server-side — auth, billing, LLM proxying, compute-pod control, backups, inbound webhooks — lives in `cloud/`, a Hono/Node **Gateway** plus an upstream **LiteLLM** proxy on Kubernetes (`cloud/gateway/src/index.ts:28-38`). Each logged-in user gets a private, single-tenant **compute pod** (`@lmthing/cli`, image `compute:latest`) that the gateway provisions into a `user-<id>` namespace (`cloud/gateway/src/lib/compute.ts#createUserPod` `createUserPod`); that pod is where the THING agent's model-authored TypeScript actually runs, in a QuickJS WASM sandbox, and it also serves the unified SPA and any installed project-app.
 
 ---
 
@@ -71,7 +71,7 @@ graph TD
 | **lmthing.chat** | unified SPA `/chat` | THING conversation + live WS trace + integrations config (`sdk/org/apps/web/src/routes/chat/**`) → [chat/](./chat/README.md) |
 | **lmthing.studio** | unified SPA `/studio` | Project/space IDE + project-app admin (`sdk/org/apps/web/src/routes/studio/**`) → [studio/](./studio/README.md) |
 | **lmthing.computer** | unified SPA `/computer` | Pod-filesystem IDE + terminals + runtime dashboard (`sdk/org/apps/web/src/routes/computer/**`) → [computer/](./computer/README.md) |
-| **lmthing.app** | unified SPA `/apps` | Installed project-app launcher (`sdk/org/apps/web/src/routes/index.tsx:9`) → [app/](./app/README.md) |
+| **lmthing.app** | unified SPA `/apps` | Installed project-app launcher (`sdk/org/apps/web/src/routes/index.tsx#HOST_SURFACE`) → [app/](./app/README.md) |
 | **lmthing.com** | `com/` SPA | Commercial landing / marketing → [product-spas/README.md](./product-spas/README.md) |
 | **lmthing.store** | `store/` SPA | Catalog of project-app templates + integration spaces → [product-spas/README.md](./product-spas/README.md) |
 | **lmthing.space** | `space/` SPA | Space deploy / agent publish surface → [product-spas/README.md](./product-spas/README.md) |
@@ -107,9 +107,9 @@ The tier table is defined once in `cloud/gateway/src/lib/tiers.ts` and consumed 
 
 Every logged-in user gets a single-tenant runtime — **not** a shared backend. The gateway provisions it into a dedicated `user-<id>` namespace on first use:
 
-- `createUserPod(userId, pod)` creates the namespace, an image-pull secret, a **1Gi** PersistentVolumeClaim, a `user-env` secret, a Deployment named `lmthing`, and a Service (`cloud/gateway/src/lib/compute.ts:543-660`). Default pod size is `500m` CPU / `1Gi` memory (`cloud/gateway/src/lib/compute.ts:182-183`, sized per tier).
-- `ensureUserPod(userId, pod)` is the idempotent entry point: it creates everything on first use, else scales/updates the existing Deployment (`cloud/gateway/src/lib/compute.ts:678-691`).
-- The image is `lmthingacr.azurecr.io/compute:latest` (`cloud/gateway/src/lib/compute.ts:53,69`), a build of `@lmthing/cli`.
+- `createUserPod(userId, pod)` creates the namespace, an image-pull secret, a **1Gi** PersistentVolumeClaim, a `user-env` secret, a Deployment named `lmthing`, and a Service (`cloud/gateway/src/lib/compute.ts:543-660`). Default pod size is `500m` CPU / `1Gi` memory (`cloud/gateway/src/lib/compute.ts#DEFAULT_POD_CONFIG`, sized per tier).
+- `ensureUserPod(userId, pod)` is the idempotent entry point: it creates everything on first use, else scales/updates the existing Deployment (`cloud/gateway/src/lib/compute.ts#ensureUserPod`).
+- The image is `lmthingacr.azurecr.io/compute:latest` (`cloud/gateway/src/lib/compute.ts#ACR_REGISTRY,69`), a build of `@lmthing/cli`.
 
 Inside the pod, `lmthing serve` (the bare `lmthing` command) runs one HTTP+WS server that:
 
@@ -139,7 +139,7 @@ store/
 Two install paths, both on the pod:
 
 - **Apps** — `GET /api/apps` lists the catalog, `POST /api/apps/install { appId, projectId?, force? }` materializes an app, boots its DB, and builds its pages (`sdk/org/libs/cli/src/server/routes/apps.ts`; registered `serve.ts:L258-L259`).
-- **Spaces** — `POST /api/store/spaces/install { spaceId, projectId?, force? }` (`sdk/org/libs/cli/src/server/routes/store-spaces.ts`; `serve.ts:L271-L272`), or the agent-facing consent-gated `installSpace()` global (`sdk/org/libs/core/src/globals/store.ts`; consent-marked at `sdk/org/libs/core/src/globals/consent.ts:L54`).
+- **Spaces** — `POST /api/store/spaces/install { spaceId, projectId?, force? }` (`sdk/org/libs/cli/src/server/routes/store-spaces.ts`; `serve.ts:L271-L272`), or the agent-facing consent-gated `installSpace()` global (`sdk/org/libs/core/src/globals/store.ts`; consent-marked at `sdk/org/libs/core/src/globals/consent.ts#CONSENT_MARKED_YIELD_KINDS`).
 
 Both apply a pristine-vs-diverged hash guard: an already-installed, locally-edited target answers `{ ok:false, diverged:true }` (HTTP 200) unless `force:true`. Detail: [cli-api/rest/](./cli-api/rest/README.md), [runtime-globals/](./runtime-globals/README.md).
 

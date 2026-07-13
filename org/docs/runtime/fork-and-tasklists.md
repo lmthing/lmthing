@@ -10,7 +10,7 @@ Both `fork()` and `tasklist()` are value-yielding globals injected **only** into
 
 ### The global
 
-`fork(opts)` and `tasklist(name, seed?)` are thin yield-pushers that abort the current turn and hand control to the host (`sdk/org/libs/core/src/globals/fork.ts:18-31`, `sdk/org/libs/core/src/globals/tasklist.ts:7-20`). The yield router resolves them against a lazily-built `ForkEngine`:
+`fork(opts)` and `tasklist(name, seed?)` are thin yield-pushers that abort the current turn and hand control to the host (`sdk/org/libs/core/src/globals/fork.ts#createForkGlobal`, `sdk/org/libs/core/src/globals/tasklist.ts#createTasklistGlobal`). The yield router resolves them against a lazily-built `ForkEngine`:
 
 ```ts
 case 'fork': {
@@ -23,7 +23,7 @@ case 'fork': {
 }
 ```
 
-`sdk/org/libs/core/src/eval/yield-router.ts:155-172`. A single `ForkEngine` is memoized per session (`sdk/org/libs/core/src/session/session.ts:728-736`).
+`sdk/org/libs/core/src/eval/yield-router.ts:155-172`. A single `ForkEngine` is memoized per session (`sdk/org/libs/core/src/session/session.ts#Session.getForkEngine`).
 
 Model-facing DTS (present only when `capabilities.orchestrate` is true):
 
@@ -31,15 +31,15 @@ Model-facing DTS (present only when `capabilities.orchestrate` is true):
 declare function fork<T>(opts: ForkOpts<T>): Promise<T>;
 ```
 
-with `ForkOpts` = `{ instruction; output: Record<string,string>; seed?; timeout?; role? }` (`sdk/org/libs/core/src/typecheck/library-dts.ts:24`, `:78-85`). The DTS surface is deliberately smaller than the internal `ForkTask` (`sdk/org/libs/core/src/fork/fork.ts:36-67`): fields like `functions`, `canDelegateTo`, `prelude`, `upstreamOutputs`, `taskId`, `tasklistDescription`, `parentScope` are set by the **orchestrator**, not written by the model in a bare `fork()` call.
+with `ForkOpts` = `{ instruction; output: Record<string,string>; seed?; timeout?; role? }` (`sdk/org/libs/core/src/typecheck/library-dts.ts#FORK_DTS`, `:78-85`). The DTS surface is deliberately smaller than the internal `ForkTask` (`sdk/org/libs/core/src/fork/fork.ts#ForkTask`): fields like `functions`, `canDelegateTo`, `prelude`, `upstreamOutputs`, `taskId`, `tasklistDescription`, `parentScope` are set by the **orchestrator**, not written by the model in a bare `fork()` call.
 
 ### ForkEngine — concurrency semaphore
 
-`ForkEngine` gates every fork through a counting semaphore capped at `maxConcurrentForks` (default 4; `sdk/org/libs/core/src/session/session.ts:737`). A fork over the cap is queued and released FIFO as slots free (`sdk/org/libs/core/src/fork/fork.ts:166-189`). The scope is minted `'queued'` *before* `acquireSlot()` so wait time is visible in the trace, then `activate`d once the slot is held (`sdk/org/libs/core/src/fork/fork.ts:143-162`).
+`ForkEngine` gates every fork through a counting semaphore capped at `maxConcurrentForks` (default 4; `sdk/org/libs/core/src/session/session.ts:737`). A fork over the cap is queued and released FIFO as slots free (`sdk/org/libs/core/src/fork/fork.ts:166-189`). The scope is minted `'queued'` *before* `acquireSlot()` so wait time is visible in the trace, then `activate`d once the slot is held (`sdk/org/libs/core/src/fork/fork.ts#ForkEngine.forkWithMeta`).
 
 ### Depth accounting & budget
 
-Each fork asserts nesting depth **before** spending anything on a VM: `budget.assertForkDepth(depth)` throws `BudgetExceededError('forkDepth', …)` when `forkDepth > maxForkDepth` (`sdk/org/libs/core/src/fork/fork.ts:231-237`, `sdk/org/libs/core/src/eval/budget.ts:89-92`). A session's top-level forks default to depth 1 (`sdk/org/libs/core/src/session/session.ts:749-750`). Each fork runs its own fresh `Budget` from `budgetLimits` (`sdk/org/libs/core/src/fork/fork.ts:231`); the budget is a **hard** cost ceiling — a `BudgetExceededError` propagates and rejects the fork rather than salvaging (`sdk/org/libs/core/src/fork/fork.ts:528-530`).
+Each fork asserts nesting depth **before** spending anything on a VM: `budget.assertForkDepth(depth)` throws `BudgetExceededError('forkDepth', …)` when `forkDepth > maxForkDepth` (`sdk/org/libs/core/src/fork/fork.ts:231-237`, `sdk/org/libs/core/src/eval/budget.ts#Budget.assertForkDepth`). A session's top-level forks default to depth 1 (`sdk/org/libs/core/src/session/session.ts:749-750`). Each fork runs its own fresh `Budget` from `budgetLimits` (`sdk/org/libs/core/src/fork/fork.ts:231`); the budget is a **hard** cost ceiling — a `BudgetExceededError` propagates and rejects the fork rather than salvaging (`sdk/org/libs/core/src/fork/fork.ts:528-530`).
 
 ### What a fork VM contains
 
@@ -49,7 +49,7 @@ The fork's user message is assembled from the task `instruction`, a seed-variabl
 
 ### Roles
 
-`role` selects a read-only preamble + host-tools profile (`sdk/org/libs/core/src/fork/roles.ts:31-54`):
+`role` selects a read-only preamble + host-tools profile (`sdk/org/libs/core/src/fork/roles.ts#PREAMBLES`):
 
 | role | write? | preamble |
 |---|---|---|
@@ -57,7 +57,7 @@ The fork's user message is assembled from the task `instruction`, a seed-variabl
 | `plan` | no | read-only architect; design a plan, don't implement (`roles.ts:41-48`) |
 | `general` (default) | yes | full toolkit (`roles.ts:49-53`) |
 
-Read-only is enforced physically: `roleProfile(role).allowWrite` is false for explore/plan (`sdk/org/libs/core/src/fork/roles.ts:79-82`), which blocks the internal `writeFileRaw` host write and rejects mutating shell commands at injection (`sdk/org/libs/core/src/globals/host-tools.ts:223-228`, `:186-187`). Those raw primitives are internal-only — never on any agent's model DTS regardless of role — so there is no model declaration to drop; a fork's generic scratch fs/shell is instead gated on `fs:scratch` (above). Read-only roles also lose `registerSpace` and get the `allowWrite`-intersected subset of app capabilities — every mutating grant (`db:write`/`pages:write`/…) is dropped, and because `intersectAppCaps` does not keep `fs:scratch` a read-only fork drops scratch too (`scratchFs:false`) (`sdk/org/libs/core/src/exec/capability.ts:16-28`, `:101-105`). Per-role model assignment (`roleModels`) lets cheap explore/plan forks run on a cheaper model (`sdk/org/libs/core/src/fork/roles.ts:60-71`).
+Read-only is enforced physically: `roleProfile(role).allowWrite` is false for explore/plan (`sdk/org/libs/core/src/fork/roles.ts#roleProfile`), which blocks the internal `writeFileRaw` host write and rejects mutating shell commands at injection (`sdk/org/libs/core/src/globals/host-tools.ts:223-228`, `:186-187`). Those raw primitives are internal-only — never on any agent's model DTS regardless of role — so there is no model declaration to drop; a fork's generic scratch fs/shell is instead gated on `fs:scratch` (above). Read-only roles also lose `registerSpace` and get the `allowWrite`-intersected subset of app capabilities — every mutating grant (`db:write`/`pages:write`/…) is dropped, and because `intersectAppCaps` does not keep `fs:scratch` a read-only fork drops scratch too (`scratchFs:false`) (`sdk/org/libs/core/src/exec/capability.ts#intersectAppCaps`, `:101-105`). Per-role model assignment (`roleModels`) lets cheap explore/plan forks run on a cheaper model (`sdk/org/libs/core/src/fork/roles.ts:60-71`).
 
 ### `prelude` — host-executed setup
 
@@ -79,7 +79,7 @@ const currentTaskResolve = (value: unknown): void => {
 };
 ```
 
-`validateOutput` checks each declared field's type (`string`/`number`/`boolean`/`object`/`array`/`any`), with a trailing `?` marking a field optional (`sdk/org/libs/core/src/tasklist/schema.ts:75-121`). It deliberately does **not** call `vm.dispose()` — the VM is disposed only after the turn loop exits, because disposing mid-QuickJS-call-frame aborts `JS_FreeRuntime` (`sdk/org/libs/core/src/fork/fork.ts:262-266`, `:592-594`).
+`validateOutput` checks each declared field's type (`string`/`number`/`boolean`/`object`/`array`/`any`), with a trailing `?` marking a field optional (`sdk/org/libs/core/src/tasklist/schema.ts#validateOutput`). It deliberately does **not** call `vm.dispose()` — the VM is disposed only after the turn loop exits, because disposing mid-QuickJS-call-frame aborts `JS_FreeRuntime` (`sdk/org/libs/core/src/fork/fork.ts:262-266`, `:592-594`).
 
 ### Salvage guarantee
 
@@ -99,7 +99,7 @@ A fork has **no** `delegate()` unless the task opts in via `canDelegateTo` **and
 
 ## Tasklist DAG execution
 
-`runTasklist(opts)` loads the tasklist, validates the DAG, and runs it to a `TaskEnvelope` (`sdk/org/libs/core/src/tasklist/orchestrator.ts:67-352`). Task node shape and on-disk format → [../format/space/tasklists/step-file.md](../format/space/tasklists/step-file.md).
+`runTasklist(opts)` loads the tasklist, validates the DAG, and runs it to a `TaskEnvelope` (`sdk/org/libs/core/src/tasklist/orchestrator.ts#runTasklist`). Task node shape and on-disk format → [../format/space/tasklists/step-file.md](../format/space/tasklists/step-file.md).
 
 ### Seed validation & input hard-filter
 
@@ -107,7 +107,7 @@ If the tasklist declares an `input` schema (`tasklists/<name>/index.md` frontmat
 
 ### DAG validation
 
-`validateDag` enforces (`sdk/org/libs/core/src/tasklist/dag.ts:4-59`):
+`validateDag` enforces (`sdk/org/libs/core/src/tasklist/dag.ts#validateDag`):
 - **At most one** explicit `goal: true` task (`:8-11`).
 - Every `dependsOn` entry references a known task (`:15-23`).
 - A `forEach` reference's head segment names a known task that is **also** in `dependsOn` (`:26-34`).
@@ -121,7 +121,7 @@ If the tasklist declares an `input` schema (`tasklists/<name>/index.md` frontmat
 
 The orchestrator loops until `done + skipped` covers all tasks (`sdk/org/libs/core/src/tasklist/orchestrator.ts:145`):
 
-1. **`findReadyTasks`** returns every not-done/not-skipped task whose deps are all `done`-or-`skipped` AND whose `condition` (if any) evaluates true (`sdk/org/libs/core/src/tasklist/dag.ts:93-127`). A condition that throws is treated as not-met (`:112-120`).
+1. **`findReadyTasks`** returns every not-done/not-skipped task whose deps are all `done`-or-`skipped` AND whose `condition` (if any) evaluates true (`sdk/org/libs/core/src/tasklist/dag.ts#findReadyTasks`). A condition that throws is treated as not-met (`:112-120`).
 2. All ready tasks run **in parallel** via `Promise.allSettled` (bounded further by the fork semaphore) (`sdk/org/libs/core/src/tasklist/orchestrator.ts:179-284`).
 3. If **no** task is ready but tasks remain, any remaining task whose deps are satisfied and that is `optional` or has a `condition` is **skipped** (its condition/optional prerequisite can't be met). If nothing gets skipped, the tasklist is **stuck** and throws (`sdk/org/libs/core/src/tasklist/orchestrator.ts:148-171`).
 
@@ -154,7 +154,7 @@ literal = string | number | true | false | null
 
 ### Code nodes (`kind: 'code'`)
 
-A tasklist node can be an `NN-<id>.ts` file exporting `const node = {…}` metadata + an async `run(ctx, inputs)`. Core **never** imports or executes the module — `loadTasklist` statically AST-extracts the `node` literal and confirms a `run` export (`sdk/org/libs/core/src/spaces/tasklist-load.ts:47-84`, `:161-233`); the metadata goes through the same field validators as md frontmatter (`buildTaskNode`, `:92-159`). The host runs `run(ctx, inputs)` via an injected `codeNodeCtxFactory`; when that factory is **absent**, encountering a code node fails that task as a required-task error (`sdk/org/libs/core/src/tasklist/orchestrator.ts:36-57`, `:200-227`). A code node's `inputs` mirror exactly what an agent fork would receive (seed-filtered input + upstream outputs + `item`/`index`); it has **no salvage path** — `run` either returns or throws. `forEach` can fan out over a code node (`:210-224`).
+A tasklist node can be an `NN-<id>.ts` file exporting `const node = {…}` metadata + an async `run(ctx, inputs)`. Core **never** imports or executes the module — `loadTasklist` statically AST-extracts the `node` literal and confirms a `run` export (`sdk/org/libs/core/src/spaces/tasklist-load.ts#loadTasklist`, `:161-233`); the metadata goes through the same field validators as md frontmatter (`buildTaskNode`, `:92-159`). The host runs `run(ctx, inputs)` via an injected `codeNodeCtxFactory`; when that factory is **absent**, encountering a code node fails that task as a required-task error (`sdk/org/libs/core/src/tasklist/orchestrator.ts:36-57`, `:200-227`). A code node's `inputs` mirror exactly what an agent fork would receive (seed-filtered input + upstream outputs + `item`/`index`); it has **no salvage path** — `run` either returns or throws. `forEach` can fan out over a code node (`:210-224`).
 
 ### `TaskEnvelope` — the boundary result
 
@@ -170,7 +170,7 @@ const envelope: TaskEnvelope = {
 };
 ```
 
-The model-facing DTS declares `tasklist()` as `Promise<any>` (branch on `r.ok`/`r.degraded`; payload is `r.data`) (`sdk/org/libs/core/src/typecheck/library-dts.ts:22-23`).
+The model-facing DTS declares `tasklist()` as `Promise<any>` (branch on `r.ok`/`r.degraded`; payload is `r.data`) (`sdk/org/libs/core/src/typecheck/library-dts.ts#TASKLIST_DTS`).
 
 **Hard failures still throw** (surfacing as retryable yield errors, not envelopes): invalid seed, stuck DAG, a required task failing, budget/timeout rejects, and a **skipped goal task**. A skipped goal means the pipeline short-circuited on an unmet upstream condition; the orchestrator fails loudly, folding in any upstream `errors`/`error` fields so the model sees *why* (`sdk/org/libs/core/src/tasklist/orchestrator.ts:310-331`) — this replaced the old silent-`null` failure mode.
 

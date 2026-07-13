@@ -32,7 +32,7 @@ authoring family (app authoring).
 
 | Global | Kind | Gate | Injected in |
 |---|---|---|---|
-| `setSessionMeta(meta)` | value-yield (`kind:'setSessionMeta'`) | `CapabilityProfile.setSessionMeta` | top-level session ONLY `sdk/org/libs/core/src/exec/capability.ts:92,104,115` |
+| `setSessionMeta(meta)` | value-yield (`kind:'setSessionMeta'`) | `CapabilityProfile.setSessionMeta` | top-level session ONLY `sdk/org/libs/core/src/exec/capability.ts#sessionCapabilities,104,115` |
 | `sleep(duration)` | value-yield (`kind:'sleep'`) | none | every VM `sdk/org/libs/core/src/exec/bootstrap.ts:182` |
 | `fetch(url, opts?)` | value-yield (`kind:'fetch'`) | none | every VM `sdk/org/libs/core/src/exec/bootstrap.ts:183` |
 | `registerSpace(dir)` | value-yield (`kind:'registerSpace'`) | `CapabilityProfile.registerSpace` | session; write-capable forks; **never** delegates `sdk/org/libs/core/src/exec/bootstrap.ts:234` |
@@ -49,7 +49,7 @@ authoring family (app authoring).
 | `currentTask.resolve(v)` | synchronous | only when `ChildVMOpts.currentTaskResolve` is supplied | fork + delegate `sdk/org/libs/core/src/exec/bootstrap.ts:115-120` |
 
 All of the above are bound at the one injection site, `createChildVM`
-`sdk/org/libs/core/src/exec/bootstrap.ts:100` — called from exactly three places:
+`sdk/org/libs/core/src/exec/bootstrap.ts#createChildVM` — called from exactly three places:
 `session/session.ts:638`, `fork/fork.ts:283`, `delegate/delegate.ts:193`.
 
 ---
@@ -58,8 +58,8 @@ All of the above are bound at the one injection site, `createChildVM`
 
 The agent names its own conversation. Returns `Promise<{ ok: boolean }>` and **ends the
 turn** (it is a value yield, `kind:'setSessionMeta'`)
-`sdk/org/libs/core/src/globals/set-session-meta.ts:25-38`. Both fields are optional
-`sdk/org/libs/core/src/globals/set-session-meta.ts:5-10`.
+`sdk/org/libs/core/src/globals/set-session-meta.ts#createSetSessionMetaGlobal`. Both fields are optional
+`sdk/org/libs/core/src/globals/set-session-meta.ts#SessionMetaInput`.
 
 ```ts
 await setSessionMeta({ title: 'Pasta night', slug: 'pasta-night' });
@@ -68,11 +68,11 @@ await setSessionMeta({ title: 'Pasta night', slug: 'pasta-night' });
 
 **Gate — top-level session only.** `sessionCapabilities()` sets `setSessionMeta: true`;
 `forkCapabilities()` and `delegateCapabilities()` set it to `false`
-`sdk/org/libs/core/src/exec/capability.ts:92,104,115` — forks/delegates are headless
+`sdk/org/libs/core/src/exec/capability.ts#sessionCapabilities,104,115` — forks/delegates are headless
 sub-runs with no session identity to name `sdk/org/libs/core/src/exec/capability.ts:66-69`.
 Injection is `if (caps.setSessionMeta)` `sdk/org/libs/core/src/exec/bootstrap.ts:235`, and
 the DTS fragment is emitted on the same flag, `caps.setSessionMeta ? SET_SESSION_META_DTS : ''`
-`sdk/org/libs/core/src/exec/bootstrap.ts:349` — so in a fork/delegate a stray
+`sdk/org/libs/core/src/exec/bootstrap.ts#buildAmbientDts` — so in a fork/delegate a stray
 `setSessionMeta(...)` fails **typecheck**, not at runtime
 (`SET_SESSION_META_DTS`, `sdk/org/libs/core/src/typecheck/library-dts.ts:15-18`).
 
@@ -98,7 +98,7 @@ Core stays persistence-free: it only writes a `session_meta` **trace event**
 
 - The pod's `SessionManager` subscribes to the tracer and, on `session_meta`, adopts
   `title`/`slug` onto the live `SessionEntry` and **persists** it so the name survives
-  eviction/restart `sdk/org/libs/cli/src/server/session-manager.ts:312-318`; those are the
+  eviction/restart `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.wireTracer`; those are the
   `title` / `slug` fields of the entry `sdk/org/libs/cli/src/server/session-manager.ts:103-107`,
   surfaced by the session-listing REST routes → [../cli-api/rest/sessions.md](../cli-api/rest/sessions.md)
   and [../cli-api/rest/projects.md](../cli-api/rest/projects.md).
@@ -115,14 +115,14 @@ Core stays persistence-free: it only writes a `session_meta` **trace event**
 ## `sleep(duration)`
 
 Pauses the run: a value yield (`kind:'sleep'`) that resolves to `void` after the parsed
-delay `sdk/org/libs/core/src/globals/sleep.ts:35-57`. **Ungated** — injected
+delay `sdk/org/libs/core/src/globals/sleep.ts#createSleepGlobal`. **Ungated** — injected
 unconditionally into every VM `sdk/org/libs/core/src/exec/bootstrap.ts:182` and declared
 in `COMMON_DTS` `sdk/org/libs/core/src/typecheck/library-dts.ts:39`.
 
 Duration grammar — `parseDuration` accepts `<number><unit>` (decimals allowed, optional
 whitespace, case-insensitive) with units `ms | s | m | min | h | hr | hrs`; anything else
 **throws** `sleep(): cannot parse duration "<input>"`
-`sdk/org/libs/core/src/globals/sleep.ts:8-29`:
+`sdk/org/libs/core/src/globals/sleep.ts#parseDuration`:
 
 ```ts
 await sleep('500ms');   // 500
@@ -133,10 +133,10 @@ await sleep('3h');      // 10_800_000 ('3hr'/'3hrs' too)
 
 Parsing happens **before** the yield is pushed, so a bad duration throws inside the sandbox
 (a normal statement error the model sees and can fix) rather than becoming a failed yield
-`sdk/org/libs/core/src/globals/sleep.ts:44-51`.
+`sdk/org/libs/core/src/globals/sleep.ts#createSleepGlobal`.
 
 The global pushes `args: [duration, ms]` — the pre-parsed milliseconds
-`sdk/org/libs/core/src/globals/sleep.ts:50-51` — and the **shared yield router** does the
+`sdk/org/libs/core/src/globals/sleep.ts#createSleepGlobal` — and the **shared yield router** does the
 waiting, using an injectable clock when one is supplied (test-friendly) and plain
 `setTimeout` otherwise `sdk/org/libs/core/src/eval/yield-router.ts:147-154`. Because
 `routeCommonYield` is the fork leaf's and the delegate's resolver too
@@ -153,16 +153,16 @@ Real, **non-blocking** HTTP as a value yield (`kind:'fetch'`) — it is *not* th
 `sdk/org/libs/core/src/exec/bootstrap.ts:183`, declared in `COMMON_DTS`
 `sdk/org/libs/core/src/typecheck/library-dts.ts:96`.
 
-Resolved host-side by `resolveFetchYield` `sdk/org/libs/core/src/eval/fetch-yield.ts:9-30`:
+Resolved host-side by `resolveFetchYield` `sdk/org/libs/core/src/eval/fetch-yield.ts#resolveFetchYield`:
 
 - method defaults to `GET`; `headers`/`body` pass through
-  `sdk/org/libs/core/src/eval/fetch-yield.ts:11-15`.
+  `sdk/org/libs/core/src/eval/fetch-yield.ts#resolveFetchYield`.
 - hard **25 s** timeout (`AbortSignal.timeout(25_000)`) so a hung endpoint cannot stall a
-  turn `sdk/org/libs/core/src/eval/fetch-yield.ts:15`.
+  turn `sdk/org/libs/core/src/eval/fetch-yield.ts#resolveFetchYield`.
 - the body is buffered once and handed back with **synchronous** accessors
-  `{ ok, status, text(), json() }` `sdk/org/libs/core/src/eval/fetch-yield.ts:20-26`.
+  `{ ok, status, text(), json() }` `sdk/org/libs/core/src/eval/fetch-yield.ts#resolveFetchYield`.
 - any failure (network error, timeout) degrades to `{ ok:false, status:0, text:()=>'',
-  json:()=>({}) }` rather than throwing `sdk/org/libs/core/src/eval/fetch-yield.ts:27-29`.
+  json:()=>({}) }` rather than throwing `sdk/org/libs/core/src/eval/fetch-yield.ts#resolveFetchYield`.
 
 > `webSearch` / `webFetch` are **space functions** in `system-global`, built on top of this
 > global — not runtime globals.
@@ -187,7 +187,7 @@ const result = await delegate(reg.spaceKey, reg.agentSlug, 'run', { query: '...'
 
 **Gate:** `registerSpace: true` for sessions; for a fork it follows the role's write
 capability (`registerSpace: allowWrite` — read-only `explore`/`plan` roles lose it); a
-delegate never gets it `sdk/org/libs/core/src/exec/capability.ts:92,104,115` — it mutates
+delegate never gets it `sdk/org/libs/core/src/exec/capability.ts#sessionCapabilities,104,115` — it mutates
 shared session state, so it is withheld exactly like `writeFileRaw`
 `sdk/org/libs/core/src/exec/capability.ts:61-64`. See the DTS caveat in
 [Gotchas](#gotchas) below.
@@ -197,7 +197,7 @@ shared session state, so it is withheld exactly like `writeFileRaw`
 ## The synchronous host substrate (`injectHostTools`)
 
 One function injects the whole substrate into every VM
-`sdk/org/libs/core/src/globals/host-tools.ts:150`, called as bootstrap step 4 with
+`sdk/org/libs/core/src/globals/host-tools.ts#injectHostTools`, called as bootstrap step 4 with
 `profile: { allowWrite: caps.allowWrite }` `sdk/org/libs/core/src/exec/bootstrap.ts:131-139`.
 None of these yield — they are direct host calls that return immediately.
 
@@ -240,9 +240,9 @@ supplied `sdk/org/libs/core/src/globals/host-tools.ts:194-205`:
 
 The underlying shell is `execSync` with `maxBuffer: 8 MB` and a default timeout of
 **120 000 ms** (`DEFAULT_EXEC_TIMEOUT_MS`, generous so a first-run `npm install` isn't
-killed), overridable per call via `opts.timeout` `sdk/org/libs/core/src/globals/host-tools.ts:45,101-117`.
+killed), overridable per call via `opts.timeout` `sdk/org/libs/core/src/globals/host-tools.ts#DEFAULT_EXEC_TIMEOUT_MS,101-117`.
 `exitCode` lets the model distinguish failure modes (`127` not-found, `126` denied, …); on a
-signal/timeout it is `1` `sdk/org/libs/core/src/globals/host-tools.ts:106-116`.
+signal/timeout it is `1` `sdk/org/libs/core/src/globals/host-tools.ts#runShell`.
 
 **Read-only roles:** when `allowWrite` is false, a *mutating* command is refused with
 `{ ok:false, exitCode:126, stderr:'read-only role: command "<head>" is blocked' }`
@@ -251,11 +251,11 @@ of `rm mv cp mkdir rmdir touch tee dd truncate chmod chown ln install sed npm pn
 **or** the command contains a `>`/`>>` redirect
 `sdk/org/libs/core/src/globals/host-tools.ts:124-141`. Read-only `git` subcommands are
 explicitly allowed: `status log diff show branch rev-parse ls-files blame cat-file`
-`sdk/org/libs/core/src/globals/host-tools.ts:135`. (The scratch-rooted engineer variant is
+`sdk/org/libs/core/src/globals/host-tools.ts#isReadOnlyCommand`. (The scratch-rooted engineer variant is
 already jailed to scratch and applies no read-only gate `sdk/org/libs/core/src/globals/scratch.ts:82-85`.)
 
 Its declaration (`EXEC_SHELL_DTS`) is emitted only under `caps.scratchFs`
-`sdk/org/libs/core/src/exec/bootstrap.ts:360`, so for every agent except the engineer a
+`sdk/org/libs/core/src/exec/bootstrap.ts#buildAmbientDts`, so for every agent except the engineer a
 stray `execShell(...)` fails typecheck.
 
 ### `readFileRaw(path, opts?)` → `{ ok, content, lines, truncated, error? }` — internal-only
@@ -264,17 +264,17 @@ stray `execShell(...)` fails typecheck.
 which `buildAmbientDts` never emits) — an internal primitive for host/space-function callers.
 Node `fs` read (no shell-quoting hazards) via the shared `readFileRawAt`. Binary-safe: a NUL
 byte in the first **8192** bytes ⇒ `{ ok:false, error:'binary file' }`
-`sdk/org/libs/core/src/globals/host-tools.ts:42,59-67`. Optional `offset`/`limit` slice
-on **line** boundaries `sdk/org/libs/core/src/globals/host-tools.ts:70-75`. Content is
+`sdk/org/libs/core/src/globals/host-tools.ts#BINARY_SCAN_BYTES,59-67`. Optional `offset`/`limit` slice
+on **line** boundaries `sdk/org/libs/core/src/globals/host-tools.ts#readFileRawAt`. Content is
 capped at `READ_BYTE_CAP` = **256 KB**, setting `truncated: true`
-`sdk/org/libs/core/src/globals/host-tools.ts:41,76-79`. Errors are returned, never thrown
-`sdk/org/libs/core/src/globals/host-tools.ts:82-84`. The model reads project files through
+`sdk/org/libs/core/src/globals/host-tools.ts#READ_BYTE_CAP,76-79`. Errors are returned, never thrown
+`sdk/org/libs/core/src/globals/host-tools.ts#readFileRawAt`. The model reads project files through
 the typed `readProjectFile`/`listProjectDir` instead (see [./README.md](./README.md)).
 
 ### `writeFileRaw(path, content)` → `{ ok, bytes, error? }` — internal-only
 
 **Never on the model DTS** — an internal primitive. Creates parent dirs (`mkdir -p`) then
-writes utf8 via the shared `writeFileRawAt` `sdk/org/libs/core/src/globals/host-tools.ts:88-96`.
+writes utf8 via the shared `writeFileRawAt` `sdk/org/libs/core/src/globals/host-tools.ts#writeFileRawAt`.
 Under a read-only profile the injected wrapper is a **no-op** returning
 `{ ok:false, bytes:0, error:'read-only role: writeFileRaw is blocked' }`
 `sdk/org/libs/core/src/globals/host-tools.ts:224-228`. The model persists through the typed
@@ -290,8 +290,8 @@ engineer's generic `readFile`/`writeFile`/`editFile`/`listDir`/`glob`/`grep` wra
 `execShell` all resolve **inside** that dir — an absolute path or a `..` escape is rejected by
 `safeResolve` `sdk/org/libs/core/src/globals/scratch.ts:58-64`. That guard IS the sandbox; it
 is the only generic filesystem in the runtime. Declared by `SCRATCH_DTS`, emitted alongside
-`EXEC_SHELL_DTS` under `caps.scratchFs` `sdk/org/libs/core/src/exec/bootstrap.ts:361`,
-`sdk/org/libs/core/src/typecheck/library-dts.ts:131-132`.
+`EXEC_SHELL_DTS` under `caps.scratchFs` `sdk/org/libs/core/src/exec/bootstrap.ts#buildAmbientDts`,
+`sdk/org/libs/core/src/typecheck/library-dts.ts#SCRATCH_DTS`.
 
 ### `progress()` → `{ episodes, toolCalls, elapsedMs }`
 
@@ -337,7 +337,7 @@ The result-capture channel for child contexts: injected as bootstrap step 2 **on
 `ChildVMOpts.currentTaskResolve` is supplied — i.e. fork leaves and delegates, never the
 top-level session `sdk/org/libs/core/src/exec/bootstrap.ts:115-120`, declared by
 `CURRENT_TASK_DTS` on the same condition
-`sdk/org/libs/core/src/exec/bootstrap.ts:270,364`. Implementations must not dispose the VM
+`sdk/org/libs/core/src/exec/bootstrap.ts#CURRENT_TASK_DTS,364`. Implementations must not dispose the VM
 from inside the callback `sdk/org/libs/core/src/exec/bootstrap.ts:111-114`. Details →
 [./delegation.md](./delegation.md).
 
@@ -348,10 +348,10 @@ Every VM — session, fork, delegate — also gets a classic-transform `React.cr
 one stub global per design-system catalog component (`CATALOG_NAMES`) and per
 caller-supplied `componentNames` (space components override on collision, being injected
 after) `sdk/org/libs/core/src/exec/bootstrap.ts:241-264`, `CATALOG_NAMES`
-`sdk/org/libs/core/src/ui/catalog.ts:134`. That is why `display(<Stack>…</Stack>)` works in
+`sdk/org/libs/core/src/ui/catalog.ts#CATALOG_NAMES`. That is why `display(<Stack>…</Stack>)` works in
 a fork, not just in chat. The matching typed declarations come from `catalogDts()`
 (one `declare function <Component>(props?: {...}): JSXDescriptor` per catalog entry)
-`sdk/org/libs/core/src/ui/catalog.ts:181-192`, appended to `COMMON_DTS`
+`sdk/org/libs/core/src/ui/catalog.ts#catalogDts`, appended to `COMMON_DTS`
 `sdk/org/libs/core/src/typecheck/library-dts.ts:107`; the `React` / `JSX` namespaces are
 declared in `COMMON_DTS` itself `sdk/org/libs/core/src/typecheck/library-dts.ts:48-65`.
 
@@ -362,7 +362,7 @@ declared in `COMMON_DTS` itself `sdk/org/libs/core/src/typecheck/library-dts.ts:
 - **`console` is injected but NOT declared.** `console.log/warn/error` route through
   `renderHost.log` `sdk/org/libs/core/src/globals/host-tools.ts:174-178`, but no DTS
   fragment declares `console` (it is absent from `COMMON_DTS`
-  `sdk/org/libs/core/src/typecheck/library-dts.ts:35-107`) and the typechecker runs with
+  `sdk/org/libs/core/src/typecheck/library-dts.ts#COMMON_DTS`) and the typechecker runs with
   `lib: ['lib.es2022.d.ts']` only — no DOM, no Node types
   `sdk/org/libs/core/src/typecheck/tsc.ts:46-59`. A model statement calling `console.log(...)`
   therefore fails typecheck with **TS2584 `Cannot find name 'console'`** (verified by
@@ -377,7 +377,7 @@ declared in `COMMON_DTS` itself `sdk/org/libs/core/src/typecheck/library-dts.ts:
   runtime — the one place inject/DTS are not in lockstep, along with `progress` (declared at
   `sdk/org/libs/core/src/typecheck/library-dts.ts:106`, not injected in delegates).
 - **`execShell` blocks the Node event loop.** It is `execSync`
-  `sdk/org/libs/core/src/globals/host-tools.ts:104`, so the per-stream idle watchdog cannot
+  `sdk/org/libs/core/src/globals/host-tools.ts#runShell`, so the per-stream idle watchdog cannot
   fire while it runs. `fetch` is **not** in this category — it is a real yield
   `sdk/org/libs/core/src/globals/fetch.ts:16-21`.
 - **`setSessionMeta` ends the turn.** Like every value yield it aborts the statement stream;

@@ -26,15 +26,15 @@ pnpm thing                                            # single port: CLI serves 
 cd sdk/org/apps/web && pnpm dev                       # Vite dev server only (no /api backend)
 ```
 
-`pnpm thing` runs `sdk/org/scripts/thing-dev.mjs`: `pnpm --filter @lmthing/cli dev` (i.e. `tsup --watch`, `sdk/org/libs/cli/package.json:19`) rebuilds the CLI on every source change (`:63-65`), then `lmthing serve --port $THING_PORT` is spawned with `LM_DEV_WEB=<sdk/org/apps/web>` and auto-restarted whenever `libs/cli/dist` changes (`:71-77`, `:103-105`). That env var makes the CLI start Vite **in-process** (`middlewareMode: true`, HMR attached to the CLI's own HTTP server) so the web app, `/api` and the agent WS are all served from **one** port — `http://localhost:8080` by default, overridable with `THING_PORT` (`sdk/org/scripts/thing-dev.mjs:41`; `sdk/org/libs/cli/src/server/serve.ts:389-393`; `sdk/org/libs/cli/src/server/dev-web.ts:17`, `:27-36`; the CLI's own fallback port is also 8080, `sdk/org/libs/cli/src/cli/bin.ts:337`). This is the only local mode that gives the SPA a working backend without the gateway.
+`pnpm thing` runs `sdk/org/scripts/thing-dev.mjs`: `pnpm --filter @lmthing/cli dev` (i.e. `tsup --watch`, `sdk/org/libs/cli/package.json:19`) rebuilds the CLI on every source change (`:63-65`), then `lmthing serve --port $THING_PORT` is spawned with `LM_DEV_WEB=<sdk/org/apps/web>` and auto-restarted whenever `libs/cli/dist` changes (`:71-77`, `:103-105`). That env var makes the CLI start Vite **in-process** (`middlewareMode: true`, HMR attached to the CLI's own HTTP server) so the web app, `/api` and the agent WS are all served from **one** port — `http://localhost:8080` by default, overridable with `THING_PORT` (`sdk/org/scripts/thing-dev.mjs#SERVE_PORT`; `sdk/org/libs/cli/src/server/serve.ts:389-393`; `sdk/org/libs/cli/src/server/dev-web.ts:17`, `:27-36`; the CLI's own fallback port is also 8080, `sdk/org/libs/cli/src/cli/bin.ts:337`). This is the only local mode that gives the SPA a working backend without the gateway.
 
 The unified app's package is `@lmthing/web-app` (`sdk/org/apps/web/package.json:2`); its `dev` script is `vp dev` (vite-plus) (`sdk/org/apps/web/package.json:8`). `/studio`, `/computer`, and `/chat` are client-side routes of this single SPA, not separate packages — their route trees live under `sdk/org/apps/web/src/routes/` alongside `apps/` and the surface picker (`sdk/org/apps/web/src/routes/index.tsx:5-23`).
 
 ### How a hostname picks a surface
 
-The unified SPA chooses its surface **client-side, from `window.location.hostname`**. `surfaceForHost()` maps only the four production hosts — `lmthing.chat` → `/chat`, `lmthing.studio` → `/studio`, `lmthing.computer` → `/computer`, `lmthing.app` → `/apps` — and **every other host (including `localhost` and any `*.test` proxy domain) falls back to `/studio`** (`sdk/org/apps/web/src/routes/index.tsx:5-23`). The prefixed-history wrapper that hides the surface segment from the URL bar is likewise gated on that same production-host set (`sdk/org/apps/web/src/main.tsx:8`, `:66-69`).
+The unified SPA chooses its surface **client-side, from `window.location.hostname`**. `surfaceForHost()` maps only the four production hosts — `lmthing.chat` → `/chat`, `lmthing.studio` → `/studio`, `lmthing.computer` → `/computer`, `lmthing.app` → `/apps` — and **every other host (including `localhost` and any `*.test` proxy domain) falls back to `/studio`** (`sdk/org/apps/web/src/routes/index.tsx:5-23`). The prefixed-history wrapper that hides the surface segment from the URL bar is likewise gated on that same production-host set (`sdk/org/apps/web/src/main.tsx#DOMAIN_HOSTS`, `:66-69`).
 
-So locally there is no per-domain surface routing: you reach Chat/Computer/Studio by **path** (`/chat`, `/computer`, `/studio`) on whichever origin serves the app. What the `.test` hostnames *do* still control is the **data-plane origin**: on a `.test` host the app targets `https://computer.test` for the pod and `https://cloud.test` for the gateway; on `localhost` (i.e. `pnpm thing`) everything is same-origin; in production the pod is same-origin and the gateway is `https://lmthing.cloud` (`sdk/org/apps/web/src/lib/origins.ts:26-37`, consumed by `sdk/org/apps/web/src/lib/config.ts:16-26`). That is why `computer.test` gets the `/api/*` → gateway split block in nginx (see below) — running the unified SPA on port 3010 (`cd sdk/org/apps/web && pnpm dev --port 3010 --strictPort`) puts it behind `computer.test` with a working `/api`.
+So locally there is no per-domain surface routing: you reach Chat/Computer/Studio by **path** (`/chat`, `/computer`, `/studio`) on whichever origin serves the app. What the `.test` hostnames *do* still control is the **data-plane origin**: on a `.test` host the app targets `https://computer.test` for the pod and `https://cloud.test` for the gateway; on `localhost` (i.e. `pnpm thing`) everything is same-origin; in production the pod is same-origin and the gateway is `https://lmthing.cloud` (`sdk/org/apps/web/src/lib/origins.ts#resolveApiOrigin`, consumed by `sdk/org/apps/web/src/lib/config.ts:16-26`). That is why `computer.test` gets the `/api/*` → gateway split block in nginx (see below) — running the unified SPA on port 3010 (`cd sdk/org/apps/web && pnpm dev --port 3010 --strictPort`) puts it behind `computer.test` with a working `/api`.
 
 ## Service ports & domains
 
@@ -99,7 +99,7 @@ The script is idempotent (re-running skips already-added hosts entries but alway
 
 ## Local demo / no-auth mode
 
-There is **no** `.env.development` / `VITE_DEMO_USER` file shipped in the app — demo auth is automatic. `@lmthing/auth`'s `AuthProvider` treats the session as demo when either the build-time `VITE_DEMO_USER === 'true'` **or** `isLocalRun()` is true (`sdk/org/libs/auth/src/AuthProvider.tsx:37-41`). `isLocalRun()` returns true when the page hostname is `localhost`, `127.0.0.1`, `0.0.0.0`, or ends with `.test` (`sdk/org/libs/auth/src/client.ts:248-252`). So visiting any `*.test` proxy domain (or `localhost`) skips the SSO wall and the pod-ensure gate, and a hardcoded demo session is used:
+There is **no** `.env.development` / `VITE_DEMO_USER` file shipped in the app — demo auth is automatic. `@lmthing/auth`'s `AuthProvider` treats the session as demo when either the build-time `VITE_DEMO_USER === 'true'` **or** `isLocalRun()` is true (`sdk/org/libs/auth/src/AuthProvider.tsx#AuthProvider`). `isLocalRun()` returns true when the page hostname is `localhost`, `127.0.0.1`, `0.0.0.0`, or ends with `.test` (`sdk/org/libs/auth/src/client.ts#isLocalRun`). So visiting any `*.test` proxy domain (or `localhost`) skips the SSO wall and the pod-ensure gate, and a hardcoded demo session is used:
 
 ```ts
 const DEMO_SESSION: AuthSession = {
@@ -111,9 +111,9 @@ const DEMO_SESSION: AuthSession = {
 }
 ```
 
-(`sdk/org/libs/auth/src/AuthProvider.tsx:27-33`.) Tier detection likewise short-circuits when `accessToken === 'demo'` or `VITE_DEMO_USER` is set — it swaps the demo token for a real short-lived one from `GET /api/auth/demo-token` on the same origin (`sdk/org/apps/web/src/lib/runtime/use-tier-detection.ts:10`, `:34-45`). Production hostnames (`lmthing.*`) match none of the four local cases, so `isLocalRun()` returns `false` and real gateway auth is unaffected (`sdk/org/libs/auth/src/client.ts:248-252`).
+(`sdk/org/libs/auth/src/AuthProvider.tsx#DEMO_SESSION`.) Tier detection likewise short-circuits when `accessToken === 'demo'` or `VITE_DEMO_USER` is set — it swaps the demo token for a real short-lived one from `GET /api/auth/demo-token` on the same origin (`sdk/org/apps/web/src/lib/runtime/use-tier-detection.ts#DEMO_USER`, `:34-45`). Production hostnames (`lmthing.*`) match none of the four local cases, so `isLocalRun()` returns `false` and real gateway auth is unaffected (`sdk/org/libs/auth/src/client.ts#isLocalRun`).
 
-In dev, `AuthProvider` also points the com/cloud URLs at the local proxy: `com.test` / `cloud.test` when `import.meta.env.DEV` (overridable with `VITE_COM_URL` / `VITE_CLOUD_URL`) (`sdk/org/libs/auth/src/AuthProvider.tsx:11-18`).
+In dev, `AuthProvider` also points the com/cloud URLs at the local proxy: `com.test` / `cloud.test` when `import.meta.env.DEV` (overridable with `VITE_COM_URL` / `VITE_CLOUD_URL`) (`sdk/org/libs/auth/src/AuthProvider.tsx#resolveConfig`).
 
 ## Full local backend + compute pod (minikube)
 
@@ -149,7 +149,7 @@ Relevant gateway env (from `cloud/gateway/.env.local.example`): `DATABASE_URL=po
 
 ## Stack summary
 
-All frontend apps share React 19 + Vite (vite-plus) + TanStack Router + Tailwind v4, wired by `createViteConfig` (`sdk/org/libs/utils/src/vite.mjs:96-169`): it collapses React to one copy (`dedupe`), aliases the workspace `@lmthing/{ui,css,state,auth,core}` libs to source, injects a shared-favicon plugin, stubs the `@ai-sdk/*` provider packages for the browser, and sets `server.allowedHosts: ['.test']`. The unified SPA depends on `@lmthing/{auth,css,state,ui}` as `workspace:*` (`sdk/org/apps/web/package.json:15-19`).
+All frontend apps share React 19 + Vite (vite-plus) + TanStack Router + Tailwind v4, wired by `createViteConfig` (`sdk/org/libs/utils/src/vite.mjs#createViteConfig`): it collapses React to one copy (`dedupe`), aliases the workspace `@lmthing/{ui,css,state,auth,core}` libs to source, injects a shared-favicon plugin, stubs the `@ai-sdk/*` provider packages for the browser, and sets `server.allowedHosts: ['.test']`. The unified SPA depends on `@lmthing/{auth,css,state,ui}` as `workspace:*` (`sdk/org/apps/web/package.json:15-19`).
 
 ## See also
 

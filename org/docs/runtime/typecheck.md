@@ -18,7 +18,7 @@ Only the typecheck and DTS composition are covered here; the eval/yield half is 
 
 ## The checker (`tsc.ts`)
 
-`runTsc({ ambientDts, sessionContext, statement })` builds an **in-memory two-file TypeScript program** and returns `{ ok, diagnostics }` `sdk/org/libs/core/src/typecheck/tsc.ts:27-97`:
+`runTsc({ ambientDts, sessionContext, statement })` builds an **in-memory two-file TypeScript program** and returns `{ ok, diagnostics }` `sdk/org/libs/core/src/typecheck/tsc.ts#runTsc`:
 
 - **`__ambient__.d.ts`** ← the per-agent `ambientDts` (all declarations).
 - **`__session__.tsx`** ← `export {};\n` (MODULE_HEADER — makes the file a module so **top-level `await`** is allowed) + the accumulated prior successful statements + the new statement `tsc.ts:30-45`. The `.tsx` extension enables JSX syntax `tsc.ts:25`.
@@ -89,7 +89,7 @@ The flat standalone map is `CAPABILITY_DTS_FRAGMENTS` `library-dts.ts:298-307`; 
 
 ### Which context gets what
 
-The `capabilities` passed to `buildAmbientDts` is a `CapabilityProfile` `sdk/org/libs/core/src/exec/capability.ts:47-86`, built by one of three factories:
+The `capabilities` passed to `buildAmbientDts` is a `CapabilityProfile` `sdk/org/libs/core/src/exec/capability.ts#CapabilityProfile`, built by one of three factories:
 
 | Factory | `ask` | `orchestrate` (tasklist/fork) | `delegate` | `setSessionMeta` | `allowWrite` | `scratchFs` (`execShell`+`createScratch` DTS) | `app` |
 |---|---|---|---|---|---|---|---|
@@ -105,7 +105,7 @@ Call sites: session `session/session.ts:278` (and the two rebuild/resume paths `
 
 ## The function/component overlay (`overlay.ts`)
 
-`buildOverlay(functions, components, onWarn?)` generates ambient declarations for the agent's **own** space functions and components `sdk/org/libs/core/src/typecheck/overlay.ts:63-95`:
+`buildOverlay(functions, components, onWarn?)` generates ambient declarations for the agent's **own** space functions and components `sdk/org/libs/core/src/typecheck/overlay.ts#buildOverlay`:
 
 - **Functions** → `extractFunctionSignature(name, src)` parses the source, prepends any local `interface`/`type` declarations the params reference, and re-emits the exported function as a `declare` with its real parameter/return types `overlay.ts:189-232`. A function with **no explicit return type** is declared `: any` (not `unknown`) — the model often omits the annotation, and `unknown` would force every `result.field` access to fail typecheck and burn a retry `overlay.ts:220-222`.
 - **Components** → the `Props` interface is extracted and renamed `<Name>Props`, with all **function-typed props made optional** (the render surface injects the callbacks — the model must not pass them) `overlay.ts:23-56,83-92`; fallback `declare function Name(props?: Record<string, unknown>): JSXDescriptor` when no `Props` is found `overlay.ts:89`.
@@ -114,7 +114,7 @@ Call sites: session `session/session.ts:278` (and the two rebuild/resume paths `
 
 ## Transpile (`transpile.ts`)
 
-After a statement passes typecheck, `transpileStatement(code)` runs `ts.transpileModule` with the **classic JSX transform** (`jsx: React`, `jsxFactory: React.createElement`, `jsxFragmentFactory: React.Fragment`, `module: ESNext`, `target: ES2022`) `sdk/org/libs/core/src/typecheck/transpile.ts:7-19`. Output is plain JS with type annotations stripped and JSX converted to `React.createElement(...)` — that JS (plus the appended `globalThis` binds) is what `vm.evalStatement` runs. `React` is declared globally in `COMMON_DTS` `library-dts.ts:49-52` and a React shim (`createElement` → a plain `JSXDescriptor`, plus a `displayName` stub per catalog/space component) is injected into every VM — sessions, forks, delegates — by `createChildVM` `sdk/org/libs/core/src/exec/bootstrap.ts:237-264`, so `<Foo/>` typechecks without an import and doesn't throw "React is not defined" at eval.
+After a statement passes typecheck, `transpileStatement(code)` runs `ts.transpileModule` with the **classic JSX transform** (`jsx: React`, `jsxFactory: React.createElement`, `jsxFragmentFactory: React.Fragment`, `module: ESNext`, `target: ES2022`) `sdk/org/libs/core/src/typecheck/transpile.ts#transpileStatement`. Output is plain JS with type annotations stripped and JSX converted to `React.createElement(...)` — that JS (plus the appended `globalThis` binds) is what `vm.evalStatement` runs. `React` is declared globally in `COMMON_DTS` `library-dts.ts:49-52` and a React shim (`createElement` → a plain `JSXDescriptor`, plus a `displayName` stub per catalog/space component) is injected into every VM — sessions, forks, delegates — by `createChildVM` `sdk/org/libs/core/src/exec/bootstrap.ts:237-264`, so `<Foo/>` typechecks without an import and doesn't throw "React is not defined" at eval.
 
 ## The retry-on-type-error path
 
@@ -125,7 +125,7 @@ A `typecheck_error` outcome is surfaced to the model as a **retryable** error, n
 
 `accumulatedContext` is **not rolled back** on error: statements that succeeded earlier in the turn already bound their variables in the VM (`globalThis`) and persist into the retry, so keeping them in the typecheck context matches VM reality — rolling back would make tsc reject valid references with "Cannot find name" `turn-loop.ts:586-591`. The failing statement itself was never appended (it errors before accumulation).
 
-`buildErrorBlock` `sdk/org/libs/core/src/eval/error-rewind.ts:45-76` emits: the attempt counter, the commented-out failing statement, the diagnostic message, an optional actionable `sandboxApiHint` (mapping e.g. a `Cannot find name 'fetch'`/`child_process`/`fs` reach for a sandbox-unavailable API to the right host global `error-rewind.ts:9-34`), the still-in-scope names (do NOT redeclare), and the already-executed context.
+`buildErrorBlock` `sdk/org/libs/core/src/eval/error-rewind.ts#buildErrorBlock` emits: the attempt counter, the commented-out failing statement, the diagnostic message, an optional actionable `sandboxApiHint` (mapping e.g. a `Cannot find name 'fetch'`/`child_process`/`fs` reach for a sandbox-unavailable API to the right host global `error-rewind.ts:9-34`), the still-in-scope names (do NOT redeclare), and the already-executed context.
 
 ### Forward-reference repair for errored yields
 

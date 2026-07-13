@@ -19,7 +19,7 @@ Both are **full-replace**: a PUT overwrites the entire set, so every caller must
 
 Registered at `sdk/org/libs/cli/src/server/serve.ts:160`. Returns the raw text of the
 `.env` file resolved against `process.cwd()`; a missing file is **not** an error — it
-returns `{ content: '' }` (ENOENT swallowed, other errors rethrown) `sdk/org/libs/cli/src/server/routes/env.ts:23-35`.
+returns `{ content: '' }` (ENOENT swallowed, other errors rethrown) `sdk/org/libs/cli/src/server/routes/env.ts#handleEnvGet`.
 
 ```json
 { "content": "AZURE_API_KEY=sk-...\nSLACK_BOT_TOKEN=xoxb-...\n" }
@@ -29,7 +29,7 @@ returns `{ content: '' }` (ENOENT swallowed, other errors rethrown) `sdk/org/lib
 > server authenticates nothing; it is protected only by its network position (one pod per
 > user namespace, behind the Envoy JWT policy). Exactly **two** pod routes so much as read an
 > `Authorization` header — `/api/report-bug` `sdk/org/libs/cli/src/server/routes/report-bug.ts:48-56`
-> and `/api/budget` `sdk/org/libs/cli/src/server/routes/budget.ts:24-32` — and both merely
+> and `/api/budget` `sdk/org/libs/cli/src/server/routes/budget.ts#handleBudget` — and both merely
 > *forward* the caller's bearer token upstream to the gateway rather than verifying it.
 > `/api/env` does not even do that.
 
@@ -43,7 +43,7 @@ Integrations tab's readiness probe requires it to be OK *and* the chat WS to be 
 
 Registered at `sdk/org/libs/cli/src/server/serve.ts:161`. Body `{ content: string }` — a
 non-string `content` degrades to `''`; an unparseable body is `400 {error:'invalid JSON body'}`
-`sdk/org/libs/cli/src/server/routes/env.ts:37-53`.
+`sdk/org/libs/cli/src/server/routes/env.ts#handleEnvPut`.
 
 ```bash
 curl -X PUT http://localhost:8080/api/env \
@@ -52,12 +52,12 @@ curl -X PUT http://localhost:8080/api/env \
 # → {"ok":true}
 ```
 
-Semantics `sdk/org/libs/cli/src/server/routes/env.ts:37-53`:
+Semantics `sdk/org/libs/cli/src/server/routes/env.ts#handleEnvPut`:
 
 1. **Replace** — `writeFileSync(<cwd>/.env, content)`. Anything not in `content` is gone.
 2. **Apply in place** — `applyEnvContent(content)` parses `KEY=VALUE` lines (blank lines and
    `#` comments skipped; the value is everything after the first `=`, unquoted, un-trimmed)
-   and assigns them onto `process.env` `sdk/org/libs/cli/src/server/routes/env.ts:11-21`.
+   and assigns them onto `process.env` `sdk/org/libs/cli/src/server/routes/env.ts#applyEnvContent`.
    **No pod restart is needed** — the running process sees the new values immediately, which
    is why the model cache re-reads env per stream call.
 
@@ -69,7 +69,7 @@ the same name — deliberate, so the file written by `PUT /api/env` supersedes t
 injected env.
 
 The chat project-settings drawer edits this file directly as raw text (Env tab: `apiGet('/api/env')`
-/ `apiPut('/api/env', { content })`) `sdk/org/libs/ui/src/chat/app/ProjectSettings.tsx:23-48`.
+/ `apiPut('/api/env', { content })`) `sdk/org/libs/ui/src/chat/app/ProjectSettings.tsx#EnvTab`.
 
 ## Gateway: `GET /api/compute/env`
 
@@ -80,7 +80,7 @@ code. Returns the decoded k8s `user-env` Secret for the caller's namespace:
 { "vars": { "SLACK_BOT_TOKEN": "xoxb-…", "LM_MODEL_M": "lmthingcloud:DeepSeek-V4-Pro" } }
 ```
 
-The secret is base64-decoded key-by-key; a missing Secret yields `{}` `cloud/gateway/src/lib/compute.ts:487-500`.
+The secret is base64-decoded key-by-key; a missing Secret yields `{}` `cloud/gateway/src/lib/compute.ts#getEnvVars`.
 
 ## Gateway: `PUT /api/compute/env`
 
@@ -88,15 +88,15 @@ The secret is base64-decoded key-by-key; a missing Secret yields `{}` `cloud/gat
 Validation, all fail-loud with `400`:
 
 - `vars` must be a non-array object `cloud/gateway/src/routes/compute.ts:316-319`
-- every key must match `/^[A-Za-z_][A-Za-z0-9_]*$/` `cloud/gateway/src/routes/compute.ts:303,322-330`
+- every key must match `/^[A-Za-z_][A-Za-z0-9_]*$/` `cloud/gateway/src/routes/compute.ts#KEY_RE,322-330`
 - every value must be a string `cloud/gateway/src/routes/compute.ts:331-333`
 - at most **100** variables `cloud/gateway/src/routes/compute.ts:337-339`
 
-Then `setEnvVars(userId, validated)` `cloud/gateway/src/lib/compute.ts:502-541`:
+Then `setEnvVars(userId, validated)` `cloud/gateway/src/lib/compute.ts#setEnvVars`:
 
 1. **REPLACE** the `user-env` Secret (PUT if it exists, POST if not) with exactly the vars
    supplied — `envSecret()` builds `data` only from the request, so **omitted keys are
-   deleted** `cloud/gateway/src/lib/compute.ts:292-304,507-523`.
+   deleted** `cloud/gateway/src/lib/compute.ts#envSecret,507-523`.
 2. **Rolling restart** — merge-patch the `lmthing` Deployment with a
    `kubectl.kubernetes.io/restartedAt: <ISO now>` annotation, so the pod comes back with the
    new env `cloud/gateway/src/lib/compute.ts:524-540`.
@@ -122,13 +122,13 @@ do exactly this:
 
 | Caller | Owns | Merge |
 |---|---|---|
-| Chat Integrations tab | one integration's schema keys | `overlayEnvKeys(current, keys, fields)` `sdk/org/libs/ui/src/chat/app/auto-resume.ts:12-20` |
+| Chat Integrations tab | one integration's schema keys | `overlayEnvKeys(current, keys, fields)` `sdk/org/libs/ui/src/chat/app/auto-resume.ts#overlayEnvKeys` |
 | Studio project settings | the page's integration keys | re-read + overlay `sdk/org/libs/ui/src/studio/shell/project-settings-view/index.tsx:108-132` |
 | Settings → Environment | all non-`LM_MODEL*` vars | re-reads and preserves the model aliases `sdk/org/libs/ui/src/elements/settings/env-vars/index.tsx:59-84` |
 | Settings → Models | the `LM_MODEL*` aliases | re-reads and preserves everything else `sdk/org/libs/ui/src/elements/settings/models/index.tsx:96-132` |
 
 `overlayEnvKeys` maps an absent field to `''` (an explicit unset) rather than dropping the key
-`sdk/org/libs/ui/src/chat/app/auto-resume.ts:12-20`:
+`sdk/org/libs/ui/src/chat/app/auto-resume.ts#overlayEnvKeys`:
 
 ```ts
 export function overlayEnvKeys(
@@ -152,7 +152,7 @@ computes `missingRequired` by testing those `required[]` names against `process.
 returns **NAMES ONLY, never values** `sdk/org/libs/cli/src/server/routes/store-spaces.ts:477-491`.
 The same values are what `callConnection` reads at runtime via each provider's `tokenEnv`
 (`slack`→`SLACK_BOT_TOKEN`, `github`→`GITHUB_TOKEN`, `google`→`GOOGLE_ACCESS_TOKEN`)
-`sdk/org/libs/cli/src/server/connections.ts:42-44,349-352`.
+`sdk/org/libs/cli/src/server/connections.ts#BUILTIN_PROVIDERS,349-352`.
 
 Flow `sdk/org/libs/ui/src/chat/app/IntegrationsTab.tsx:104-213`:
 
@@ -162,11 +162,11 @@ Flow `sdk/org/libs/ui/src/chat/app/IntegrationsTab.tsx:104-213`:
 3. **Wait** — the PUT restarted the pod, so `waitForPodReady` polls: a 1.5 s initial grace
    (the *old* pod still answers for a beat), then `GET /api/env` OK **and** the chat socket
    `open`, at 1 s intervals up to 90 s; on timeout it **throws** so the UI shows a Retry
-   instead of silently dropping the nudge `sdk/org/libs/ui/src/chat/app/auto-resume.ts:45-56`,
+   instead of silently dropping the nudge `sdk/org/libs/ui/src/chat/app/auto-resume.ts#waitForPodReady`,
    `sdk/org/libs/ui/src/chat/app/IntegrationsTab.tsx:145-160`.
 4. **Resume** — exactly one message is posted into the live chat:
    `Integration "<spaceId>" is now configured — please continue.`
-   `sdk/org/libs/ui/src/chat/app/auto-resume.ts:60-62`; an in-flight `Set` guards double-posts
+   `sdk/org/libs/ui/src/chat/app/auto-resume.ts#resumeMessage`; an in-flight `Set` guards double-posts
    `sdk/org/libs/ui/src/chat/app/IntegrationsTab.tsx:184-185,215-219`.
 5. **Refresh** — re-fetch `/api/projects/:id/integrations` so the badge flips to "configured"
    `sdk/org/libs/ui/src/chat/app/IntegrationsTab.tsx:163-171`.
@@ -175,4 +175,4 @@ Secret **values never enter the LLM context** — the agent only ever sees the N
 required keys, via `integrationStatus` → `integrationStatusFor()`, which returns only
 `{ ready, missingRequired }` off the very same `requiredEnvKeys` → `missingRequiredEnv` pair the
 `/integrations` route uses, so the agent's view and the UI's badge cannot diverge
-`sdk/org/libs/cli/src/server/routes/store-spaces.ts:501-518`.
+`sdk/org/libs/cli/src/server/routes/store-spaces.ts#integrationStatusFor`.

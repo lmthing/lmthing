@@ -4,9 +4,9 @@
 
 ## Not file-routed; one typed live-project writer
 
-Unlike pages, components are **not** discovered as routes: the page-build route walker skips any `components/`/`lib/` directory and any `_`-prefixed file (`sdk/org/libs/cli/src/app/build/pages.ts:172-173`, comment "hold shared code, not routes"). Only non-`_`-prefixed `.tsx`/`.jsx` files under `pages/` become routes (`sdk/org/libs/cli/src/app/build/pages.ts:11-12`).
+Unlike pages, components are **not** discovered as routes: the page-build route walker skips any `components/`/`lib/` directory and any `_`-prefixed file (`sdk/org/libs/cli/src/app/build/pages.ts#walkPages`, comment "hold shared code, not routes"). Only non-`_`-prefixed `.tsx`/`.jsx` files under `pages/` become routes (`sdk/org/libs/cli/src/app/build/pages.ts:11-12`).
 
-There is **no *catalog* component writer** — the catalog authoring surface targeting `store/projects/<id>/` exposes only `writePage`/`writeApi`/`writeHook`/`writeTableSchema` (`sdk/org/libs/cli/src/app/authoring/globals.ts:197,210,223,243`), none of which touches `components/`. But the **live project** does have a typed shared-component writer: **`writeProjectComponent(name, src)`** writes `<projectRoot>/components/<Name>.tsx` and rebuilds the served app so a page can import it (`sdk/org/libs/cli/src/app/authoring/globals.ts:496-514`); the `<Name>` is **PascalCase** and `.tsx` is enforced (`COMPONENT_NAME_RE` at `sdk/org/libs/cli/src/app/authoring/globals.ts:75`). It is declared in the model DTS as `PROJECT_COMPONENT_DTS` (`sdk/org/libs/core/src/typecheck/library-dts.ts:219`) and earned by the **`pages:write`** capability, injected on the `pages:write` grant of a project-rooted session (`sdk/org/libs/core/src/exec/app-globals.ts:219`) — it is the typed surface for shared UI now that the space-rooted fs writers are gone. A component may still also be an ordinary source file imported by the generated pages.
+There is **no *catalog* component writer** — the catalog authoring surface targeting `store/projects/<id>/` exposes only `writePage`/`writeApi`/`writeHook`/`writeTableSchema` (`sdk/org/libs/cli/src/app/authoring/globals.ts:197,210,223,243`), none of which touches `components/`. But the **live project** does have a typed shared-component writer: **`writeProjectComponent(name, src)`** writes `<projectRoot>/components/<Name>.tsx` and rebuilds the served app so a page can import it (`sdk/org/libs/cli/src/app/authoring/globals.ts:496-514`); the `<Name>` is **PascalCase** and `.tsx` is enforced (`COMPONENT_NAME_RE` at `sdk/org/libs/cli/src/app/authoring/globals.ts#COMPONENT_NAME_RE`). It is declared in the model DTS as `PROJECT_COMPONENT_DTS` (`sdk/org/libs/core/src/typecheck/library-dts.ts#PROJECT_COMPONENT_DTS`) and earned by the **`pages:write`** capability, injected on the `pages:write` grant of a project-rooted session (`sdk/org/libs/core/src/exec/app-globals.ts:219`) — it is the typed surface for shared UI now that the space-rooted fs writers are gone. A component may still also be an ordinary source file imported by the generated pages.
 
 ## Imported by pages via a relative path
 
@@ -22,7 +22,7 @@ CI does not cover these files either. The `lint-design-tokens` gate walks exactl
 
 ## What a real one looks like
 
-Adapted from `store/projects/blog/components/EmptyState.tsx:10-53` (tokens only, `@app/runtime` `Link`):
+Adapted from `store/projects/blog/components/EmptyState.tsx#EmptyState` (tokens only, `@app/runtime` `Link`):
 
 ```tsx
 import React from 'react';

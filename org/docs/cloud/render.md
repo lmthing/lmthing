@@ -114,7 +114,7 @@ score, no `answer`, no render service — the always-available fallback.
 
 ## `webFetch()`
 
-`webFetch(url, opts)` (`sdk/org/libs/core/system-spaces/system-global/functions/webFetch.ts:16-62`)
+`webFetch(url, opts)` (`sdk/org/libs/core/system-spaces/system-global/functions/webFetch.ts#webFetch`)
 fetches a single URL and reduces the body to readable content.
 
 Signature (`webFetch.ts:16-19`):
@@ -214,7 +214,7 @@ The compute pod reads `RENDER_SERVICE_URL` and `RENDER_SERVICE_TOKEN` from `proc
 (`webSearch.ts:113,117` · `webFetch.ts:82,84`). The gateway injects both into every pod's
 `user-env` secret.
 
-- **Defaults** — `litellmEnvDefaults` (`cloud/gateway/src/lib/compute.ts:343-370`) sets
+- **Defaults** — `litellmEnvDefaults` (`cloud/gateway/src/lib/compute.ts#litellmEnvDefaults`) sets
   `RENDER_SERVICE_URL = "http://render.lmthing.svc.cluster.local:3000"` (the in-cluster Service
   DNS name) and `RENDER_SERVICE_TOKEN = process.env.RENDER_SERVICE_TOKEN ?? ""` (the gateway's own
   copy of the same `lmthing-secrets` key) (`compute.ts:354-355`).
@@ -234,7 +234,7 @@ fallback no-ops (→ plain fetch). Neither crashes.
 a given **tasklist task** may call them is set by frontmatter, host-enforced:
 
 - The system spaces' functions are merged into the agent's function set
-  (`sdk/org/libs/core/src/spaces/system.ts:112-136`), and a fork's function injection is scoped by
+  (`sdk/org/libs/core/src/spaces/system.ts#mergeSystemInto`), and a fork's function injection is scoped by
   the task's `functions:` allowlist (`sdk/org/libs/core/src/fork/fork.ts:247-260`): omitting the key
   = all functions; **`functions: []` = no functions at all, including `webSearch`/`webFetch`**. The
   `system-research` tasklists opt in explicitly —
@@ -244,7 +244,7 @@ a given **tasklist task** may call them is set by frontmatter, host-enforced:
 - For **project-app agents**, a `tools:use: { allow: [...] }` capability in `instruct.md`
   frontmatter is the host-tool allowlist — `parseToolsConfig` rejects anything but a non-empty
   `allow` list of strings ("there is no 'use anything'")
-  (`sdk/org/libs/core/src/spaces/capabilities.ts:197-215`, the check at `capabilities.ts:210-214`).
+  (`sdk/org/libs/core/src/spaces/capabilities.ts#parseToolsConfig`, the check at `capabilities.ts:210-214`).
 
 ---
 

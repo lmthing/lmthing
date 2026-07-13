@@ -27,8 +27,8 @@ The entry point builds the Hono app, applies CORS to `/api/*`, exposes a health 
 
 Three distinct authentication schemes appear below. Do not conflate them.
 
-1. **`authMiddleware`** (browser/user JWT) — `Authorization: Bearer <accessToken>`. Verifies a gateway-issued HS256 access token locally via `verifyAccessToken`; falls back to Zitadel introspection for legacy tokens; accepts the literal token `demo` only when `LOCAL_DEV=true`. Sets `c.get("user") = {id,email}` `cloud/gateway/src/middleware/auth.ts:16-67`. Detail → [./auth.md](./auth.md).
-2. **Scoped pod JWTs** (`aud`-pinned, 365d) — minted by the gateway and injected into the pod's `user-env` secret so the pod can call back with no user request in flight. Verified per-route (not by `authMiddleware`); the userId is always the token subject, never a request field. Two audiences are injected: `compute` (self-idle / cron + webhook manifests) `cloud/gateway/src/lib/tokens.ts:89-121`, written as `LMTHING_COMPUTE_JWT` on pod create/ensure `cloud/gateway/src/lib/compute.ts:409-410`, `cloud/gateway/src/lib/compute.ts:593-596`; and `backup` (backup-token mint) `cloud/gateway/src/lib/tokens.ts:56-87`, written as `LMTHING_BACKUP_JWT` by `PUT /api/backup/config` `cloud/gateway/src/routes/backup.ts:147-155`.
+1. **`authMiddleware`** (browser/user JWT) — `Authorization: Bearer <accessToken>`. Verifies a gateway-issued HS256 access token locally via `verifyAccessToken`; falls back to Zitadel introspection for legacy tokens; accepts the literal token `demo` only when `LOCAL_DEV=true`. Sets `c.get("user") = {id,email}` `cloud/gateway/src/middleware/auth.ts#authMiddleware`. Detail → [./auth.md](./auth.md).
+2. **Scoped pod JWTs** (`aud`-pinned, 365d) — minted by the gateway and injected into the pod's `user-env` secret so the pod can call back with no user request in flight. Verified per-route (not by `authMiddleware`); the userId is always the token subject, never a request field. Two audiences are injected: `compute` (self-idle / cron + webhook manifests) `cloud/gateway/src/lib/tokens.ts:89-121`, written as `LMTHING_COMPUTE_JWT` on pod create/ensure `cloud/gateway/src/lib/compute.ts#injectComputeEnv`, `cloud/gateway/src/lib/compute.ts:593-596`; and `backup` (backup-token mint) `cloud/gateway/src/lib/tokens.ts:56-87`, written as `LMTHING_BACKUP_JWT` by `PUT /api/backup/config` `cloud/gateway/src/routes/backup.ts:147-155`.
 3. **Provider signatures / opaque tokens** — Stripe's `stripe-signature` HMAC (`/api/stripe/webhook`), the signed `state` param (`aud:"backup-install"`, 10min) on the GitHub-App install callback `cloud/gateway/src/lib/tokens.ts:126-156`, and the long-lived `aud:"inbound"` `userToken` embedded in the public inbound URL `cloud/gateway/src/lib/tokens.ts:158-194`. No `Authorization` header. The inbound token is **not** injected into the pod — it is minted only by `GET /api/inbound/` and handed to the UI/external providers `cloud/gateway/src/routes/inbound.ts:54`.
 
 ## Complete route table
@@ -85,7 +85,7 @@ Three distinct authentication schemes appear below. Do not conflate them.
 
 ## Auth — `/api/auth/*`
 
-Router `cloud/gateway/src/routes/auth.ts`. The shared `provisionUser(userId,email)` helper is idempotent: it returns early if the LiteLLM user already exists, otherwise creates a Stripe customer, a free-tier LiteLLM user, and an API key `cloud/gateway/src/routes/auth.ts:15-55`.
+Router `cloud/gateway/src/routes/auth.ts`. The shared `provisionUser(userId,email)` helper is idempotent: it returns early if the LiteLLM user already exists, otherwise creates a Stripe customer, a free-tier LiteLLM user, and an API key `cloud/gateway/src/routes/auth.ts#provisionUser`.
 
 - **`POST /register`** — requires `email`+`password` (≥8 chars); creates the Zitadel user then provisions. 400 on validation/Zitadel failure, 500 on provisioning failure (returns `user_id`) `cloud/gateway/src/routes/auth.ts:62-91`.
 - **`POST /login`** — verifies credentials via `zitadel.loginWithPassword`, then issues the gateway's OWN token pair (`signTokens`) rather than a Zitadel token; 401 on failure `cloud/gateway/src/routes/auth.ts:94-118`.
@@ -111,7 +111,7 @@ Router `cloud/gateway/src/routes/auth.ts`. The shared `provisionUser(userId,emai
 
 ## Billing — `/api/billing/*`
 
-`authMiddleware` on the whole router `cloud/gateway/src/routes/billing.ts:21`. `ensureStripeCustomer` lazily creates+stores a Stripe customer id in LiteLLM metadata `cloud/gateway/src/routes/billing.ts:24-60`. Full tier/budget model → [./billing-and-tiers.md](./billing-and-tiers.md).
+`authMiddleware` on the whole router `cloud/gateway/src/routes/billing.ts:21`. `ensureStripeCustomer` lazily creates+stores a Stripe customer id in LiteLLM metadata `cloud/gateway/src/routes/billing.ts#ensureStripeCustomer`. Full tier/budget model → [./billing-and-tiers.md](./billing-and-tiers.md).
 
 - **`POST /checkout`** — validates `tier` has a `stripePriceId`, creates an **embedded** (`ui_mode:"embedded"`) subscription Checkout session with `user_id`+`tier` metadata, returns `client_secret` `cloud/gateway/src/routes/billing.ts:63-96`.
 - **`POST /portal`** — Customer Portal session → `{url}` `cloud/gateway/src/routes/billing.ts:99-109`.
@@ -129,7 +129,7 @@ Router `cloud/gateway/src/routes/auth.ts`. The shared `provisionUser(userId,emai
 
 ## Compute — `/api/compute/*`
 
-Router `cloud/gateway/src/routes/compute.ts`. Backed by the K8s client in `lib/compute.ts`. Two distinct auth regimes: pod-callback routes use the **compute JWT** (`computeUser()` extracts+verifies the `aud:"compute"` token → userId `cloud/gateway/src/routes/compute.ts:40-47`); browser routes use `authMiddleware`. `resolveUserTier()` reads the tier from LiteLLM metadata, defaulting to `free` `cloud/gateway/src/routes/compute.ts:28-35`.
+Router `cloud/gateway/src/routes/compute.ts`. Backed by the K8s client in `lib/compute.ts`. Two distinct auth regimes: pod-callback routes use the **compute JWT** (`computeUser()` extracts+verifies the `aud:"compute"` token → userId `cloud/gateway/src/routes/compute.ts#computeUser`); browser routes use `authMiddleware`. `resolveUserTier()` reads the tier from LiteLLM metadata, defaulting to `free` `cloud/gateway/src/routes/compute.ts#resolveUserTier`.
 
 Pod-callback routes (compute JWT — pod acts only on its own namespace):
 - **`POST /self-idle`** — body `{idle?}` (empty body ⇒ idle); `reportPodActivity` scales to zero or heartbeats `cloud/gateway/src/routes/compute.ts:65-82`.
@@ -179,7 +179,7 @@ Router `cloud/gateway/src/routes/status.ts`; all routes IP-rate-limited (`status
 
 ## Local-dev pod proxy
 
-Mounted only when `LOCAL_DEV=true` `cloud/gateway/src/index.ts:42-44`. In production, Envoy Gateway (Lua + JWT extraction) handles this routing to the pod instead. The catch-all `podProxy.all("*")` serves only the pod-owned path prefixes — `/api/{sessions,spaces,state,events,asks,message,help,node}` — 404-ing anything else `cloud/gateway/src/lib/pod-proxy.ts:22-39`. It resolves the token (`?access_token` query first, else the `Authorization` header; `demo` accepted in LOCAL_DEV), maps to the user's pod URL (503 if not ready), and streams the proxied response `cloud/gateway/src/lib/pod-proxy.ts:41-68`. `attachWsProxy` additionally upgrades `wss://…/api/ws?access_token=<JWT>` to the pod's NodePort by piping raw TCP sockets `cloud/gateway/src/lib/pod-proxy.ts:76-136` (wired from `cloud/gateway/src/index.ts:58-60`). These pod-served endpoints are documented under [../cli-api/rest/README.md](../cli-api/rest/README.md).
+Mounted only when `LOCAL_DEV=true` `cloud/gateway/src/index.ts:42-44`. In production, Envoy Gateway (Lua + JWT extraction) handles this routing to the pod instead. The catch-all `podProxy.all("*")` serves only the pod-owned path prefixes — `/api/{sessions,spaces,state,events,asks,message,help,node}` — 404-ing anything else `cloud/gateway/src/lib/pod-proxy.ts:22-39`. It resolves the token (`?access_token` query first, else the `Authorization` header; `demo` accepted in LOCAL_DEV), maps to the user's pod URL (503 if not ready), and streams the proxied response `cloud/gateway/src/lib/pod-proxy.ts:41-68`. `attachWsProxy` additionally upgrades `wss://…/api/ws?access_token=<JWT>` to the pod's NodePort by piping raw TCP sockets `cloud/gateway/src/lib/pod-proxy.ts#attachWsProxy` (wired from `cloud/gateway/src/index.ts:58-60`). These pod-served endpoints are documented under [../cli-api/rest/README.md](../cli-api/rest/README.md).
 
 ## Cross-references
 

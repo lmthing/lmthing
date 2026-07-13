@@ -16,10 +16,10 @@ External providers never reach the pod directly. They POST to the cloud gateway'
 IS the auth — no `authMiddleware` `cloud/gateway/src/routes/inbound.ts:107-120`. The gateway
 rate-limits per verified user (token bucket, default capacity 120 / refill 2/s, fail-open)
 `cloud/gateway/src/routes/inbound.ts:74-105`,`cloud/gateway/src/routes/inbound.ts:123-125`, wakes a
-scaled-to-zero pod (bounded wait, default 4 s) `cloud/gateway/src/routes/inbound.ts:32`,`cloud/gateway/src/routes/inbound.ts:127-135`,
+scaled-to-zero pod (bounded wait, default 4 s) `cloud/gateway/src/routes/inbound.ts#INBOUND_WAKE_WAIT_MS`,`cloud/gateway/src/routes/inbound.ts:127-135`,
 forwards `content-type` + every `x-*` header plus `x-lmthing-inbound-url` to
 `{podBase}/api/inbound/:path` **fire-and-forget**, and answers the provider `202 {ok:true, accepted:true}`
-immediately so a slow agent run never times the provider out `cloud/gateway/src/routes/inbound.ts:38-46`,`cloud/gateway/src/routes/inbound.ts:137-156`.
+immediately so a slow agent run never times the provider out `cloud/gateway/src/routes/inbound.ts#forwardHeaders`,`cloud/gateway/src/routes/inbound.ts:137-156`.
 
 `x-lmthing-inbound-url` exists because Twilio-style signatures are computed over the request URL,
 which the pod otherwise never sees `cloud/gateway/src/routes/inbound.ts:21-27` (consumed by the
@@ -28,7 +28,7 @@ which the pod otherwise never sees `cloud/gateway/src/routes/inbound.ts:21-27` (
 The UI's webhook URLs come from `GET /api/inbound` on the gateway → `{ baseUrl, token, bindings }`,
 where `bindings` is what the pod last published `cloud/gateway/src/routes/inbound.ts:51-65`. The pod
 publishes that list by POSTing its manifest to `{gateway}/api/compute/webhook-manifest`
-(compute-JWT authed, best-effort) `sdk/org/libs/cli/src/server/webhook-manifest.ts:227-250`.
+(compute-JWT authed, best-effort) `sdk/org/libs/cli/src/server/webhook-manifest.ts#publishWebhookManifest`.
 
 ## Binding resolution
 
@@ -40,12 +40,12 @@ the resolver, checked in this order:
 | Source | Scanner | Binding kind |
 |---|---|---|
 | project-app `hooks/*.ts` `{type:'webhook'}` | `loadHooks` | `legacy` `sdk/org/libs/cli/src/server/webhook-manifest.ts:268-286` |
-| installed space `hooks/*.ts` `{type:'webhook'}` (worker-extracted) | `scanSpaceHookWebhooks` | `legacy` `sdk/org/libs/cli/src/server/webhook-manifest.ts:94-119` |
-| space agent `triggers:` frontmatter | `scanSpaceTriggers` | `legacy` `sdk/org/libs/cli/src/server/webhook-manifest.ts:62-85` |
-| `events/<name>.ts` `{type:'webhook'}` emitter def | `scanEmitterWebhookBindings` (wraps the worker-isolated `scanEmitterDefs`) | `emitter` `sdk/org/libs/cli/src/server/webhook-manifest.ts:129-150` |
+| installed space `hooks/*.ts` `{type:'webhook'}` (worker-extracted) | `scanSpaceHookWebhooks` | `legacy` `sdk/org/libs/cli/src/server/webhook-manifest.ts#scanSpaceHookWebhooks` |
+| space agent `triggers:` frontmatter | `scanSpaceTriggers` | `legacy` `sdk/org/libs/cli/src/server/webhook-manifest.ts#scanSpaceTriggers` |
+| `events/<name>.ts` `{type:'webhook'}` emitter def | `scanEmitterWebhookBindings` (wraps the worker-isolated `scanEmitterDefs`) | `emitter` `sdk/org/libs/cli/src/server/webhook-manifest.ts#scanEmitterWebhookBindings` |
 
 `resolveBinding` returns a discriminated `ResolvedBinding`: `{kind:'legacy', projectId, agentRef, provider, budget?}`
-or `{kind:'emitter', projectId, scope, defFile, defName}` `sdk/org/libs/cli/src/server/webhook-manifest.ts:50-52`,`sdk/org/libs/cli/src/server/webhook-manifest.ts:260-320`.
+or `{kind:'emitter', projectId, scope, defFile, defName}` `sdk/org/libs/cli/src/server/webhook-manifest.ts#ResolvedBinding`,`sdk/org/libs/cli/src/server/webhook-manifest.ts#resolveBinding`.
 Disabled hooks (`effectiveDisabled`) are invisible to both the manifest
 `sdk/org/libs/cli/src/server/webhook-manifest.ts:180` and the resolver
 `sdk/org/libs/cli/src/server/webhook-manifest.ts:274-276`.
@@ -75,7 +75,7 @@ worker-isolated `scanEmitterDefs` cache (never in-proc) and 404s if it is missin
    `sdk/org/libs/cli/src/server/routes/webhooks.ts:230-232`,`sdk/org/libs/cli/src/server/routes/webhooks.ts:307-316`.
    `inbound` is `{ json, raw, headers, path }` `sdk/org/libs/cli/src/server/routes/webhooks.ts:307`.
 6. **validate** → every emitted item must name a declared `emits` key and carry a payload matching its
-   schema; anything else is dropped-with-warn `sdk/org/libs/cli/src/server/event-dispatch.ts:243-277`.
+   schema; anything else is dropped-with-warn `sdk/org/libs/cli/src/server/event-dispatch.ts#validateEmitted`.
 7. **dispatch** → `dispatchEmittedEvents` is fired **without await**, and the provider gets
    `200 { ok:true, events: <n> }` `sdk/org/libs/cli/src/server/routes/webhooks.ts:326-339`.
 
@@ -90,10 +90,10 @@ forgeries, and store-authored code only ever touches a request proven authentic
 `'project'`), matches subscribing event hooks across the project and every installed space
 (`loadAllHooks` + `matchEventHooks`), and runs each one: a `trigger` hook becomes a headless agent run,
 a `handler` hook goes through `runHook` with the event **payload** as `ctx.input`
-`sdk/org/libs/cli/src/server/event-dispatch.ts:169-233`. A failing subscriber is logged and skipped
+`sdk/org/libs/cli/src/server/event-dispatch.ts#dispatchEmittedEvents`. A failing subscriber is logged and skipped
 `sdk/org/libs/cli/src/server/event-dispatch.ts:225-230`. An emitted event carrying `threadKey` continues one
 persisted session per `(event:<address>, threadKey)` — the same continuity mechanism as inbound
-webhook threading, namespaced by address `sdk/org/libs/cli/src/server/event-dispatch.ts:150-158`.
+webhook threading, namespaced by address `sdk/org/libs/cli/src/server/event-dispatch.ts#runTriggerHook`.
 Webhook-originated dispatch is **direct and sequential** (only db-write dispatch uses the coalescing
 queue) `sdk/org/libs/cli/src/server/event-dispatch.ts:24-31`.
 
@@ -109,7 +109,7 @@ For `kind:'legacy'` the handler resolves the owning space's declarative `lmthing
   (`200 {ok:true, deduped:true}`) `sdk/org/libs/cli/src/server/routes/webhooks.ts:188-207`.
 - **render** the raw body into an agent message via `adapter.renderMessage`, parse the binding's
   `space/agent#action` into `{spaceRef, agentSlug}`, and dispatch
-  `sdk/org/libs/cli/src/server/routes/webhooks.ts:75-81`,`sdk/org/libs/cli/src/server/routes/webhooks.ts:209-211`.
+  `sdk/org/libs/cli/src/server/routes/webhooks.ts#parseTrigger`,`sdk/org/libs/cli/src/server/routes/webhooks.ts:209-211`.
 - **thread** — `adapter.extractThread` returning `null` → a one-shot `manager.runHeadless`; a thread key →
   `manager.runHeadlessThreaded` on the stable session id from `getOrCreateThreadSession`
   `sdk/org/libs/cli/src/server/routes/webhooks.ts:213-224`. The binding's `budget` (webhook-hook defs only)
@@ -123,29 +123,29 @@ Two adapter sources, one `WebhookAdapter` surface
 `sdk/org/libs/cli/src/server/webhook-verifiers.ts:4-16`.
 
 **Built-in adapters** — `WEBHOOK_ADAPTERS = { generic, slack, github }`
-`sdk/org/libs/cli/src/server/webhook-verifiers.ts:189`:
+`sdk/org/libs/cli/src/server/webhook-verifiers.ts#WEBHOOK_ADAPTERS`:
 
 - `generic` — `requiresSecret:false`; with no secret configured it **accepts unsigned requests**, otherwise
   HMAC-SHA256 over the body compared against `x-lmthing-signature: sha256=<hex>`
-  `sdk/org/libs/cli/src/server/webhook-verifiers.ts:38-64`. Thread key from `x-lmthing-thread`, else body
-  `threadKey`/`thread` `sdk/org/libs/cli/src/server/webhook-verifiers.ts:51-60`.
+  `sdk/org/libs/cli/src/server/webhook-verifiers.ts#generic`. Thread key from `x-lmthing-thread`, else body
+  `threadKey`/`thread` `sdk/org/libs/cli/src/server/webhook-verifiers.ts#generic`.
 - `slack` — `v0=` HMAC over `v0:<ts>:<body>` with `x-slack-signature`, plus a ±5-minute
   `x-slack-request-timestamp` skew replay guard; POST `url_verification` preflight echoes `challenge`;
   thread key = `event.thread_ts` → `event.ts` → `event.channel`; the rendered message carries a
   `[slack-reply-target]` JSON blob so the agent can answer via `callConnection('slack', …)`
   `sdk/org/libs/cli/src/server/webhook-verifiers.ts:68-135`.
 - `github` — `sha256=` HMAC over the body against `x-hub-signature-256`; thread key
-  `<repo.full_name>#<issue|pr number>` `sdk/org/libs/cli/src/server/webhook-verifiers.ts:139-187`.
+  `<repo.full_name>#<issue|pr number>` `sdk/org/libs/cli/src/server/webhook-verifiers.ts#github`.
 
 Unknown provider → `generic`, so a stale manifest entry degrades gracefully rather than throwing
-`sdk/org/libs/cli/src/server/webhook-verifiers.ts:375-378`.
+`sdk/org/libs/cli/src/server/webhook-verifiers.ts#getAdapter`.
 
 **Descriptor-driven adapters** — a space's declarative `lmthing.webhook` block is compiled into an
 adapter at dispatch time (`buildAdapterFromDescriptor`), so an integration space carries its own
 verify/thread/preflight/challenge **spec** and the pod interprets it with generic crypto primitives — no
-per-provider code `sdk/org/libs/cli/src/server/webhook-verifiers.ts:355-365`. Supported `VerifySpec`
+per-provider code `sdk/org/libs/cli/src/server/webhook-verifiers.ts#buildAdapterFromDescriptor`. Supported `VerifySpec`
 types: `none`, `header-equals`, `body-token`, `hmac` (algo/encoding/prefix/signed-parts + optional skew
-header), `ed25519`, `twilio` `sdk/org/libs/cli/src/server/webhook-verifiers.ts:226-294`. An
+header), `ed25519`, `twilio` `sdk/org/libs/cli/src/server/webhook-verifiers.ts#verifyFromSpec`. An
 unauthenticated (`verify:{type:'none'}`) descriptor **fails closed** unless it explicitly sets
 `allowUnauthenticated: true` `sdk/org/libs/cli/src/server/webhook-verifiers.ts:349-360`. Every adapter
 method is defensive — a malformed body/header never throws out of `verify`; the worst case is `false`
@@ -155,7 +155,7 @@ method is defensive — a malformed body/header never throws out of `verify`; th
 `{type:'builtin', provider}` reuses the shipped `slack`/`github` adapter (and its GET challenge is always
 `null`, because builtins handshake via a POST preflight), while a declarative spec is fed through
 `buildAdapterFromDescriptor` from a synthesized descriptor
-`sdk/org/libs/cli/src/server/webhook-verifiers.ts:417-442`.
+`sdk/org/libs/cli/src/server/webhook-verifiers.ts#adapterForEmitterDef`.
 
 ### Secret resolution
 
@@ -164,7 +164,7 @@ method is defensive — a malformed body/header never throws out of `verify`; th
 
 1. the per-path override `LMTHING_WEBHOOK_SECRET_<PATH>` (upper-cased, `-` → `_`);
 2. the descriptor's / def's `secretEnv`, else the provider-standard env — `SLACK_SIGNING_SECRET`,
-   `GITHUB_WEBHOOK_SECRET` `sdk/org/libs/cli/src/server/webhook-verifiers.ts:193-196`;
+   `GITHUB_WEBHOOK_SECRET` `sdk/org/libs/cli/src/server/webhook-verifiers.ts#PROVIDER_SECRET_ENV`;
 3. `undefined` — a `requiresSecret` adapter then rejects everything; `generic` lets unsigned requests through.
 
 ### GET subscription-verification (`hub.challenge`)
@@ -181,7 +181,7 @@ otherwise `null` → the caller `403`s `sdk/org/libs/cli/src/server/webhook-veri
 `sdk/org/libs/cli/src/server/webhook-dedupe.ts:20-51`. Hashing the raw bytes is provider-agnostic and
 never collapses *distinct* messages (real events differ in their embedded id/timestamp) — only
 byte-identical replays and provider retries collide `sdk/org/libs/cli/src/server/webhook-dedupe.ts:8-13`.
-An empty body is never deduped `sdk/org/libs/cli/src/server/webhook-dedupe.ts:43`. It runs **after**
+An empty body is never deduped `sdk/org/libs/cli/src/server/webhook-dedupe.ts#isDuplicateInbound`. It runs **after**
 verify in both flows, so the set cannot be poisoned without a valid signature
 `sdk/org/libs/cli/src/server/webhook-dedupe.ts:14-16`.
 
@@ -189,11 +189,11 @@ verify in both flows, so the set cannot be poisoned without a valid signature
 
 `getOrCreateThreadSession(projectRoot, path, threadKey)` maps `"<path>::<threadKey>"` → a stable
 `randomUUID()` session id, persisted at `<projectRoot>/.data/webhook-threads.json`
-`sdk/org/libs/cli/src/server/webhook-threads.ts:22-28`,`sdk/org/libs/cli/src/server/webhook-threads.ts:70-80`.
+`sdk/org/libs/cli/src/server/webhook-threads.ts:22-28`,`sdk/org/libs/cli/src/server/webhook-threads.ts#getOrCreateThreadSession`.
 Namespacing by `path` means two bindings never collide even when a provider reuses key values
 `sdk/org/libs/cli/src/server/webhook-threads.ts:4-6`. The file is a cache, not the source of truth (the
 session snapshot is): a missing or corrupt file is treated as empty
-`sdk/org/libs/cli/src/server/webhook-threads.ts:31-51`. The read-modify-write is unlocked; a lost update can
+`sdk/org/libs/cli/src/server/webhook-threads.ts#loadWebhookThreads`. The read-modify-write is unlocked; a lost update can
 only mint two ids for two near-simultaneous *first* events on a brand-new thread, never corrupt an
 existing mapping `sdk/org/libs/cli/src/server/webhook-threads.ts:60-69`.
 
@@ -229,11 +229,11 @@ middleware; the gateway's `userToken` gates the public edge
 
 | Var | Effect |
 |---|---|
-| `LMTHING_WEBHOOK_SECRET_<PATH>` | per-binding secret override `sdk/org/libs/cli/src/server/webhook-verifiers.ts:454-456` |
-| `SLACK_SIGNING_SECRET`, `GITHUB_WEBHOOK_SECRET` | built-in provider secrets `sdk/org/libs/cli/src/server/webhook-verifiers.ts:193-196` |
-| `LMTHING_WEBHOOK_DEDUPE_TTL_MS` | dedupe window (default 600000) `sdk/org/libs/cli/src/server/webhook-dedupe.ts:20` |
-| `LMTHING_EMITTER_EMIT_TIMEOUT_MS` | emitter `emit()` wall-clock cap (default 5000) `sdk/org/libs/cli/src/server/routes/webhooks.ts:232` |
-| gateway `INBOUND_RATE_CAPACITY`, `INBOUND_RATE_REFILL_PER_SEC`, `INBOUND_WAKE_WAIT_MS` | broker rate limit + pod-wake wait `cloud/gateway/src/routes/inbound.ts:32`,`cloud/gateway/src/routes/inbound.ts:74-76` |
+| `LMTHING_WEBHOOK_SECRET_<PATH>` | per-binding secret override `sdk/org/libs/cli/src/server/webhook-verifiers.ts#resolveWebhookSecret` |
+| `SLACK_SIGNING_SECRET`, `GITHUB_WEBHOOK_SECRET` | built-in provider secrets `sdk/org/libs/cli/src/server/webhook-verifiers.ts#PROVIDER_SECRET_ENV` |
+| `LMTHING_WEBHOOK_DEDUPE_TTL_MS` | dedupe window (default 600000) `sdk/org/libs/cli/src/server/webhook-dedupe.ts#TTL_MS` |
+| `LMTHING_EMITTER_EMIT_TIMEOUT_MS` | emitter `emit()` wall-clock cap (default 5000) `sdk/org/libs/cli/src/server/routes/webhooks.ts#EMIT_TIMEOUT_MS` |
+| gateway `INBOUND_RATE_CAPACITY`, `INBOUND_RATE_REFILL_PER_SEC`, `INBOUND_WAKE_WAIT_MS` | broker rate limit + pod-wake wait `cloud/gateway/src/routes/inbound.ts#INBOUND_WAKE_WAIT_MS`,`cloud/gateway/src/routes/inbound.ts:74-76` |
 
 ## Example — a verified inbound POST reaching an emitter def
 
@@ -249,7 +249,7 @@ curl -X POST http://localhost:8080/api/inbound/slack-events \
 
 The pod's chain for that request: `resolveBinding` → `kind:'emitter'` → `adapterForEmitterDef` (builtin
 `slack` verify) → dedupe → worker-isolated `emit(inbound)` → `validateEmitted` → `dispatchEmittedEvents`
-to every event hook subscribing to `<spaceId>/<event>` `sdk/org/libs/cli/src/server/routes/webhooks.ts:262-339`.
+to every event hook subscribing to `<spaceId>/<event>` `sdk/org/libs/cli/src/server/routes/webhooks.ts#handleEmitterInbound`.
 
 ## Known gap — the GET `hub.challenge` branches are unreachable over HTTP
 
@@ -259,13 +259,13 @@ the route registration:
 - Both flows implement a GET `hub.challenge` branch — legacy
   `sdk/org/libs/cli/src/server/routes/webhooks.ts:176-186`, emitter
   `sdk/org/libs/cli/src/server/routes/webhooks.ts:275-285` — and `resolveChallenge` is fully implemented
-  `sdk/org/libs/cli/src/server/webhook-verifiers.ts:472-486`.
+  `sdk/org/libs/cli/src/server/webhook-verifiers.ts#resolveChallenge`.
 - The gateway forwards a provider's GET handshake **synchronously**, preserving the `hub.*` query string,
   and relays the pod's status/body verbatim `cloud/gateway/src/routes/inbound.ts:165-206`.
 - But `serve.ts` registers the ingress for **POST only** —
   `router.add('POST', '/api/inbound/:path', createInboundHandler(…))`
   `sdk/org/libs/cli/src/server/serve.ts:236` (the sole registration in the file) — and `Router.dispatch`
-  skips any route whose method does not match `sdk/org/libs/cli/src/server/router.ts:65-66`.
+  skips any route whose method does not match `sdk/org/libs/cli/src/server/router.ts#Router.dispatch`.
 
 So a GET to a bound path falls through to the pod's catch-all reserved-`/api/*` 404,
 `{ error: 'unknown API route GET /api/inbound/<path>' }` `sdk/org/libs/cli/src/server/serve.ts:360-366`,

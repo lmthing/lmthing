@@ -4,8 +4,8 @@ Two small read-only pod routes back everything the UI knows about **money**:
 
 | Route | Handler | Source of truth | Auth |
 |---|---|---|---|
-| `GET /api/prices/azure` | `handlePricesAzure` `sdk/org/libs/cli/src/server/routes/prices.ts:8-24` | a JSON file shipped inside the CLI package (`libs/cli/prices/azure.json`) | none |
-| `GET /api/budget` | `handleBudget` `sdk/org/libs/cli/src/server/routes/budget.ts:20-39` | **relayed** to the cloud gateway's `GET /api/billing/budget` | relays the caller's `Authorization` header |
+| `GET /api/prices/azure` | `handlePricesAzure` `sdk/org/libs/cli/src/server/routes/prices.ts#handlePricesAzure` | a JSON file shipped inside the CLI package (`libs/cli/prices/azure.json`) | none |
+| `GET /api/budget` | `handleBudget` `sdk/org/libs/cli/src/server/routes/budget.ts#handleBudget` | **relayed** to the cloud gateway's `GET /api/billing/budget` | relays the caller's `Authorization` header |
 
 Both are registered first in the pod router `sdk/org/libs/cli/src/server/serve.ts:137,140`:
 
@@ -27,10 +27,10 @@ LiteLLM's rolling spend windows on the user's key (cloud-side, the thing `/api/b
 ## `GET /api/prices/azure`
 
 Streams `libs/cli/prices/azure.json` verbatim with `Content-Type: application/json`; any read
-failure is `404 {error:'prices not available'}` `sdk/org/libs/cli/src/server/routes/prices.ts:12-23`.
+failure is `404 {error:'prices not available'}` `sdk/org/libs/cli/src/server/routes/prices.ts#handlePricesAzure`.
 The path is resolved **relative to the module** (`../prices/azure.json` from `dist/`), never
 against `process.cwd()`, because tsup flattens every chunk into `dist/`
-`sdk/org/libs/cli/src/server/routes/prices.ts:13-17`.
+`sdk/org/libs/cli/src/server/routes/prices.ts#handlePricesAzure`.
 
 ```bash
 curl -s http://localhost:8080/api/prices/azure
@@ -45,7 +45,7 @@ curl -s http://localhost:8080/api/prices/azure
 ```
 
 (shape: `sdk/org/libs/cli/prices/azure.json:1-14`; type `ModelPricing`
-`sdk/org/libs/cli/src/server/pricing.ts:6-9`.)
+`sdk/org/libs/cli/src/server/pricing.ts#ModelPricing`.)
 
 ### Where the numbers come from
 
@@ -66,13 +66,13 @@ is 15% higher.
 
 | Consumer | Use |
 |---|---|
-| Pod `SessionManager` | loads the table once at construction (`loadAzurePrices()`) `sdk/org/libs/cli/src/server/session-manager.ts:267-268` and accumulates `entry.totalCostUsd` per `llm_response` trace event `sdk/org/libs/cli/src/server/session-manager.ts:303-311` |
+| Pod `SessionManager` | loads the table once at construction (`loadAzurePrices()`) `sdk/org/libs/cli/src/server/session-manager.ts:267-268` and accumulates `entry.totalCostUsd` per `llm_response` trace event `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.wireTracer` |
 | Pod `SessionLedger` | same table, same formula — per-session and per-delegate token/cost attribution `sdk/org/libs/cli/src/server/session-ledger.ts:178-190` (surfaced by `GET /api/session-ledger`, see [`./sessions.md`](./sessions.md)) |
-| Chat sidebar | `GET /api/prices/azure` → `store.prices` → live per-token session cost `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:124-127`; client-side formula mirrors the server one `sdk/org/libs/ui/src/chat/store/pricing-slice.ts:10-18` |
+| Chat sidebar | `GET /api/prices/azure` → `store.prices` → live per-token session cost `sdk/org/libs/ui/src/chat/app/Sidebar.tsx:124-127`; client-side formula mirrors the server one `sdk/org/libs/ui/src/chat/store/pricing-slice.ts#computeEventCost` |
 | Settings → Models | uses the table's keys as the selectable model list `sdk/org/libs/ui/src/elements/settings/models/index.tsx:73,80` |
 
 The cost formula is one line, shared by both sides — a `provider:modelId` spec is reduced to its
-`modelId`, and an **unknown model costs 0** `sdk/org/libs/cli/src/server/pricing.ts:25-36`:
+`modelId`, and an **unknown model costs 0** `sdk/org/libs/cli/src/server/pricing.ts#computeTurnCost`:
 
 ```ts
 export function computeTurnCost(
@@ -103,7 +103,7 @@ over-budget key is 429'd by LiteLLM on *all* calls — including reads — i.e. 
 indicator matters most. So the pod **forwards** the request to the gateway, which computes it
 with the master key `sdk/org/libs/cli/src/server/routes/budget.ts:5-16`.
 
-Behaviour `sdk/org/libs/cli/src/server/routes/budget.ts:20-39`:
+Behaviour `sdk/org/libs/cli/src/server/routes/budget.ts#handleBudget`:
 
 1. **No `Authorization` header ⇒ `404 {error:'budget not available'}`** (lines 24-28). Envoy
    validates the gateway JWT and forwards the header to the pod, so on a local/off-cloud pod
@@ -139,7 +139,7 @@ curl -s http://localhost:8080/api/budget -H "authorization: Bearer $JWT"
    `created_at` (lines 165-172).
 2. The tier's configured windows come from `TIERS[...].budgetLimits` — an array of independent
    rolling `{duration, maxBudget}` caps; **a request is rejected once ANY window is exhausted**
-   `cloud/gateway/src/lib/tiers.ts:71-76`. Free = `$10/1d, $50/7d, $150/30d`
+   `cloud/gateway/src/lib/tiers.ts#Tier`. Free = `$10/1d, $50/7d, $150/30d`
    `cloud/gateway/src/lib/tiers.ts:94-98`; Basic `$1/$4/$10` (`:123-127`); Pro `$3/$10/$20`
    (`:137-141`); Max `$10/$30/$100` (`:151-155`).
 3. LiteLLM does **not** expose per-window spend, so the gateway sums `/user/daily/activity`
@@ -149,7 +149,7 @@ curl -s http://localhost:8080/api/budget -H "authorization: Bearer $JWT"
    `cloud/gateway/src/lib/budget-math.ts:20-79` (lines 175-195 of the route).
 4. `remainingPct` is clamped to `0…100`, so over-spend reads as **0**, never negative, and an
    invalid cap reads as `null` `cloud/gateway/src/lib/budget-math.ts:74-78`.
-5. Labels: `1d → Today`, `7d → Week`, `30d → Month` `cloud/gateway/src/lib/budget-math.ts:13-17`.
+5. Labels: `1d → Today`, `7d → Week`, `30d → Month` `cloud/gateway/src/lib/budget-math.ts#WINDOW_LABELS`.
 6. Any failure ⇒ `502 {error:'budget unavailable'}` (lines 198-201) — which the pod relay then
    flattens to its own 404.
 
@@ -165,7 +165,7 @@ curl -s http://localhost:8080/api/budget -H "authorization: Bearer $JWT"
 - Below 15% remaining the figure turns `text-destructive` (line 68).
 - **A window at exactly 0% sets `store.budgetBlocked`** (lines 28-34), which hard-disables the
   composer (`isDisabled`, placeholder *"Budget reached — try again after it resets"*)
-  `sdk/org/libs/ui/src/chat/app/Composer.tsx:50,66,372` and short-circuits send
+  `sdk/org/libs/ui/src/chat/app/Composer.tsx#Composer,66,372` and short-circuits send
   `sdk/org/libs/ui/src/chat/app/ChatView.tsx:119`. This is pre-emptive mirroring of LiteLLM's
   429 — the send would fail anyway.
 
@@ -178,7 +178,7 @@ curl -s http://localhost:8080/api/budget -H "authorization: Bearer $JWT"
 ### 1. Spend caps (cloud, per user key)
 
 LiteLLM enforces the tier's rolling windows on the user's single API key
-(`budgetLimits` → LiteLLM's multiple-budget-windows feature) `cloud/gateway/src/lib/tiers.ts:71-76`.
+(`budgetLimits` → LiteLLM's multiple-budget-windows feature) `cloud/gateway/src/lib/tiers.ts#Tier`.
 Once any window is exhausted the key 429s on **every** call. Nothing in the pod is consulted —
 which is precisely why the budget indicator has to be computed with the master key.
 
@@ -187,7 +187,7 @@ which is precisely why the budget indicator has to be computed with the master k
 `sdk/org/libs/core/src/eval/budget.ts` is a host-side counter set by the **caller** (session /
 fork engine), never by code inside the VM, so a model cannot lift its own ceiling
 `sdk/org/libs/core/src/eval/budget.ts:1-14`. Four coarse limits
-`sdk/org/libs/core/src/eval/budget.ts:16-25`:
+`sdk/org/libs/core/src/eval/budget.ts#BudgetLimits`:
 
 | Limit | Meaning | Ticked at |
 |---|---|---|
@@ -197,7 +197,7 @@ fork engine), never by code inside the VM, so a model cannot lift its own ceilin
 | `maxWallClockMs` | wall clock for the run | asserted on every episode/tool tick `sdk/org/libs/core/src/eval/budget.ts:95-100` |
 
 Breaching any of them throws a structured `BudgetExceededError(kind, limit, used)`, which the
-caller turns into a clean stop + VM disposal `sdk/org/libs/core/src/eval/budget.ts:29-38`.
+caller turns into a clean stop + VM disposal `sdk/org/libs/core/src/eval/budget.ts#BudgetExceededError`.
 Before the hard stop, `nearLimitWarning()` (within 2 steps of the episode/tool cap, or ≥80% of
 the wall clock) is injected into the VARIABLES block so the model can wrap up
 `sdk/org/libs/core/src/eval/budget.ts:102-131` · `sdk/org/libs/core/src/eval/turn-loop.ts:734`.
@@ -206,7 +206,7 @@ The same counters back the `progress()` global via `snapshot()`
 (see [`../../runtime-globals/session-and-utils.md`](../../runtime-globals/session-and-utils.md)).
 
 A `Session` builds a **fresh `Budget` per run** from `opts.budget` — on `start()`, `continue()`
-and `resume()` alike `sdk/org/libs/core/src/session/session.ts:144,203,304,487` — and forwards the
+and `resume()` alike `sdk/org/libs/core/src/session/session.ts#Session.budget,203,304,487` — and forwards the
 same limits to its forks/delegates `sdk/org/libs/core/src/session/session.ts:716,748,982`.
 
 **Where the limits are set.** Two entry points, both optional — **omit ⇒ unbounded**:
@@ -219,7 +219,7 @@ same limits to its forks/delegates `sdk/org/libs/core/src/session/session.ts:716
   [`../commands.md`](../commands.md).
 - **`POST /api/sessions`** — an optional `budget:{maxEpisodes,maxToolCalls,maxForkDepth,maxWallClockMs}`
   in the body `sdk/org/libs/cli/src/server/routes/sessions.ts:21-32`, threaded through
-  `SessionManager.createSession` `sdk/org/libs/cli/src/server/session-manager.ts:144,436` into the
+  `SessionManager.createSession` `sdk/org/libs/cli/src/server/session-manager.ts#BuildSessionArgs.budget,436` into the
   core `Session`'s `budgetLimits` `sdk/org/libs/cli/src/server/session-manager.ts:1766`. See
   [`./sessions.md`](./sessions.md).
 
@@ -246,9 +246,9 @@ gets no push signal when the budget window rolls
 ## Auth & gating summary
 
 - `/api/prices/azure` — no auth, no gating, no dependency on a project root; it just streams a
-  static file the pod ships `sdk/org/libs/cli/src/server/routes/prices.ts:12-23`.
+  static file the pod ships `sdk/org/libs/cli/src/server/routes/prices.ts#handlePricesAzure`.
 - `/api/budget` — one of the **three** pod routes that touch auth at all, and it only *relays*
-  the header; it verifies nothing `sdk/org/libs/cli/src/server/routes/budget.ts:24-32`. See
+  the header; it verifies nothing `sdk/org/libs/cli/src/server/routes/budget.ts#handleBudget`. See
   [`./README.md`](./README.md) for the pod's (absent) auth model.
 - Off-cloud, in local `lmthing serve`, and in any request without a JWT, `/api/budget` 404s and
   the budget UI simply disappears `sdk/org/libs/cli/src/server/routes/budget.ts:14-15,26` ·

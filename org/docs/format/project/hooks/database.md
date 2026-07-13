@@ -8,7 +8,7 @@ A committed project db write **auto-emits** a synthetic event `project/db.<table
 
 ## Shape
 
-Because it is now an event hook, the file default-exports `{type:'event', on:{event}}` — not `{type:'database', on:{table,event}}` `sdk/org/libs/cli/src/app/hooks/loader.ts:135-137`. The `on.event` address is **source-qualified** `<sourceId>/<name>`; for a db subscription the source is the literal `project` and the name is `db.<table>.<event>`, validated against `EVENT_ADDR_RE` `sdk/org/libs/cli/src/app/hooks/loader.ts:189-190,420-429`.
+Because it is now an event hook, the file default-exports `{type:'event', on:{event}}` — not `{type:'database', on:{table,event}}` `sdk/org/libs/cli/src/app/hooks/loader.ts:135-137`. The `on.event` address is **source-qualified** `<sourceId>/<name>`; for a db subscription the source is the literal `project` and the name is `db.<table>.<event>`, validated against `EVENT_ADDR_RE` `sdk/org/libs/cli/src/app/hooks/loader.ts#LoadedHook,420-429`.
 
 ## Exactly one of `trigger` | `handler`
 
@@ -24,7 +24,7 @@ When a hook has a `handler`, `runHook` invokes `hook.handler(ctx)` **directly** 
 
 ## Dispatch path, coalescing & loop guards
 
-The project db `onWrite` seam feeds `ProjectHookRuntime.onDbWrite`, which enqueues the synthetic `project/db.<table>.<event>` event (payload = `rows[0]`) into the coalescing `HookDispatcher` **synchronously**, then drains on the next `setImmediate` tick — a committed write enqueues and returns, never re-entrant `sdk/org/libs/cli/src/app/hooks/runtime.ts:119-146,198-205`. Db-write dispatch is the one path that goes through this coalescing queue; other event kinds (webhook/cron/internal) dispatch directly `sdk/org/libs/cli/src/app/hooks/runtime.ts:37-62`. Three pure firing guards bound the cascade: a depth cap of 3, self-write exclusion (a hook never fires on an event produced by its own triggered session), and a per-hook cooldown that coalesces a burst to one fire `sdk/org/libs/cli/src/app/hooks/loop-guard.ts:51-100`. Subscribers are matched by `matchEventHooks` on the source-qualified address `sdk/org/libs/cli/src/app/hooks/loop-guard.ts:109-111`.
+The project db `onWrite` seam feeds `ProjectHookRuntime.onDbWrite`, which enqueues the synthetic `project/db.<table>.<event>` event (payload = `rows[0]`) into the coalescing `HookDispatcher` **synchronously**, then drains on the next `setImmediate` tick — a committed write enqueues and returns, never re-entrant `sdk/org/libs/cli/src/app/hooks/runtime.ts:119-146,198-205`. Db-write dispatch is the one path that goes through this coalescing queue; other event kinds (webhook/cron/internal) dispatch directly `sdk/org/libs/cli/src/app/hooks/runtime.ts:37-62`. Three pure firing guards bound the cascade: a depth cap of 3, self-write exclusion (a hook never fires on an event produced by its own triggered session), and a per-hook cooldown that coalesces a burst to one fire `sdk/org/libs/cli/src/app/hooks/loop-guard.ts:51-100`. Subscribers are matched by `matchEventHooks` on the source-qualified address `sdk/org/libs/cli/src/app/hooks/loop-guard.ts#matchEventHooks`.
 
 ## Worked example
 

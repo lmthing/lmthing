@@ -39,9 +39,9 @@ Every SPA has the identical stack and build, differing only in `name` and routes
   `sdk/org/libs/auth/src/index.ts:1-5`). Cross-domain SSO bounces through `com`'s `/auth/sso`
   handler. Full flows → [../cloud/README.md](../cloud/README.md), [../libs/auth.md](../libs/auth.md).
 - **Backend target** — the gateway base URL comes from `VITE_CLOUD_URL`, defaulting to
-  `https://lmthing.cloud` (`com/src/lib/cloud.ts:1`). `space` targets the Supabase-style edge-function
+  `https://lmthing.cloud` (`com/src/lib/cloud.ts#CLOUD_URL`). `space` targets the Supabase-style edge-function
   base `…/functions/v1` (dev `cloud.test`, prod `lmthing.cloud`) instead
-  (`space/src/lib/api.ts:4-5`).
+  (`space/src/lib/api.ts#CLOUD_URL`).
 - **Static serving** — each SPA builds to `dist/` and ships as an nginx image (multi-stage
   `Dockerfile`, `com/Dockerfile`). nginx serves `/index.html` with `no-cache` and hashed `/assets/`
   with a 1-year immutable cache, falling back all unknown paths to the SPA shell (`com/nginx.conf`).
@@ -71,7 +71,7 @@ redirect here for login/signup and cross-domain SSO (`com/CLAUDE.md` "What This 
 of the unified app come first — `studio` ("Build AI agents visually"), `chat` ("Your personal
 THING"), `computer` ("Full runtime, zero setup") — then `space` and `store`; `social`, `team`,
 `blog`, `casa` render as `upcoming: true` ("coming soon") cards
-(`com/src/routes/index.tsx:15-121,236`).
+(`com/src/routes/index.tsx#services,236`).
 
 Routes (`com/src/routeTree.gen.ts`):
 
@@ -80,7 +80,7 @@ Routes (`com/src/routeTree.gen.ts`):
 | `/` | Landing page (`index.tsx`) |
 | `/about`, `/docs` | About + documentation |
 | `/pricing` | Plan comparison, 4 tiers (`pricing.tsx`, data from `src/config/plans.ts`) |
-| `/login`, `/signup` | **GitHub OAuth only** — a single "Continue with GitHub" button; no email/password form is rendered (`com/src/routes/login.tsx:10,38-43`, `com/src/routes/signup.tsx:10,33`) |
+| `/login`, `/signup` | **GitHub OAuth only** — a single "Continue with GitHub" button; no email/password form is rendered (`com/src/routes/login.tsx#Login,38-43`, `com/src/routes/signup.tsx#Signup,33`) |
 | `/forgot-password`, `/reset-password` | **Redirect stubs** — both `useEffect`-navigate to `/login` ("Password reset is not available with GitHub-only authentication"), `com/src/routes/forgot-password.tsx:8-17`, `com/src/routes/reset-password.tsx:8-17` |
 | `/callback` | OAuth callback — reads `#access_token/refresh_token/expires_at` from the hash, stores them, then calls `provision()` (`com/src/routes/callback.tsx:15-36`) |
 | `/auth/sso` | Cross-domain SSO code issuer (`redirect_uri`/`app`/`state` params) |
@@ -92,7 +92,7 @@ Routes (`com/src/routeTree.gen.ts`):
 - **`src/lib/cloud.ts`** — typed gateway client with JWT storage (`lmt_access_token` /
   `lmt_refresh_token` / `lmt_expires_at` in `localStorage`) and automatic refresh via
   `POST /api/auth/refresh` on a 60s-buffered expiry check; split into `cloudFetch()` (authed) and
-  `cloudFetchPublic()` (`com/src/lib/cloud.ts:1,4-6,28-32,46,65,86`). It wraps 15 gateway endpoints,
+  `cloudFetchPublic()` (`com/src/lib/cloud.ts#CLOUD_URL,4-6,28-32,46,65,86`). It wraps 15 gateway endpoints,
   every one of which resolves to a real handler on the gateway routers:
 
   | `cloud.ts` wrapper | Endpoint | Gateway | Reached from |
@@ -179,7 +179,7 @@ Routes (`space/src/routeTree.gen.ts`), all space-scoped routes nested under `/$s
   (`space/src/lib/api.ts:1,4-5,11,26-76`).
 - **`src/lib/auth.ts`** re-exports `useAuth` from `@lmthing/auth` (`space/src/lib/auth.ts:1`);
   `SpaceContext.tsx` + `types.ts` carry the `Space` shape (statuses: `created`/`provisioning`/
-  `running`/`stopped`/`failed`/`destroyed`, `space/src/routes/index.tsx:11-17`).
+  `running`/`stopped`/`failed`/`destroyed`, `space/src/routes/index.tsx#StatusBadge`).
 - **Terminal** — the admin terminal opens a `wss://<appHost>/ws?token=…&spaceId=…` WebSocket for a
   live PTY session (`space/src/routes/$spaceSlug/admin/terminal.tsx:88`).
 

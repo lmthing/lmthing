@@ -8,7 +8,7 @@
 | Let the runtime call a **new LLM vendor via an API key** (Groq, Bedrock, a BYO-key path) | `resolveModel` in `sdk/org/libs/cli/src/providers/resolve.ts` | [B](#b-add-a-raw-ai-sdk-llm-provider-resolvets) |
 | Add a **web-search backend** for the agent `webSearch()` global | the `auto` chain in `webSearch.ts` | [C](#c-add-a-web-search-provider) |
 
-The runtime resolves a model from a `provider:modelId` spec (`sdk/org/libs/cli/src/providers/resolve.ts:18-31`). The `provider` slice selects the AI-SDK adapter; `modelId` is passed through verbatim. So `lmthingcloud:DeepSeek-V4-Flash` (A) and `groq:llama-3.3-70b` (B) both flow through the same `resolveModel` switch — the difference is which `case` handles them.
+The runtime resolves a model from a `provider:modelId` spec (`sdk/org/libs/cli/src/providers/resolve.ts#resolveModel`). The `provider` slice selects the AI-SDK adapter; `modelId` is passed through verbatim. So `lmthingcloud:DeepSeek-V4-Flash` (A) and `groq:llama-3.3-70b` (B) both flow through the same `resolveModel` switch — the difference is which `case` handles them.
 
 ---
 
@@ -18,7 +18,7 @@ This is the common case: expose one more Azure AI Foundry deployment to all user
 
 ### 1. Add the deployment to `ENABLED_MODELS` (two lists that must match)
 
-- **Gateway** — `cloud/gateway/src/lib/tiers.ts:7-15`. Every tier's LiteLLM key allowlist is `TIER_MODELS = [...ENABLED_MODELS, ...TRANSCRIBE_MODELS]` (`tiers.ts:25`); a key missing a model gets a `key_model_access_denied` 403 (`tiers.ts` comment `:17-21`).
+- **Gateway** — `cloud/gateway/src/lib/tiers.ts#ENABLED_MODELS`. Every tier's LiteLLM key allowlist is `TIER_MODELS = [...ENABLED_MODELS, ...TRANSCRIBE_MODELS]` (`tiers.ts:25`); a key missing a model gets a `key_model_access_denied` 403 (`tiers.ts` comment `:17-21`).
 - **Pricing generator** — `cloud/scripts/generate-litellm-models.ts:30-31`. Its `ENABLED_MODELS` "must match gateway ENABLED_MODELS + tiers.ts" (comment at `:29`).
 
 ### 2. Add the base price
@@ -37,7 +37,7 @@ The script reads `azure.json`, applies the **15% gateway markup** (`input_cost_p
 
 ### 4. (Optional) Wire it to a size/role alias
 
-The Gateway stamps `LM_MODEL_{XS,S,M,L,M_R,L_R}` / `LM_MODEL_VISION` / `LM_TRANSCRIBE_MODEL` into every pod's `user-env` via `litellmEnvDefaults()` (`cloud/gateway/src/lib/compute.ts:345-368`). To make the runtime *pick* the new model for a size class, point one of those aliases at `lmthingcloud:<model>` there.
+The Gateway stamps `LM_MODEL_{XS,S,M,L,M_R,L_R}` / `LM_MODEL_VISION` / `LM_TRANSCRIBE_MODEL` into every pod's `user-env` via `litellmEnvDefaults()` (`cloud/gateway/src/lib/compute.ts#litellmEnvDefaults`). To make the runtime *pick* the new model for a size class, point one of those aliases at `lmthingcloud:<model>` there.
 
 ### Transcription (Whisper-style) models
 
@@ -47,7 +47,7 @@ Audio models live in a separate list: `TRANSCRIBE_MODELS` (`tiers.ts:22`, e.g. `
 
 ## B. Add a raw AI-SDK LLM provider (`resolve.ts`)
 
-Use this to let the runtime call a vendor **directly with its own API key** (not through LiteLLM) — e.g. running the CLI locally against Groq, or a BYO-key deployment. Each provider is one `case` in the `resolveModel` switch that lazy-loads a Vercel AI-SDK adapter (`sdk/org/libs/cli/src/providers/resolve.ts:33-97`).
+Use this to let the runtime call a vendor **directly with its own API key** (not through LiteLLM) — e.g. running the CLI locally against Groq, or a BYO-key deployment. Each provider is one `case` in the `resolveModel` switch that lazy-loads a Vercel AI-SDK adapter (`sdk/org/libs/cli/src/providers/resolve.ts#resolveModel`).
 
 The switch implements exactly **six** cases — `openai` (`resolve.ts:34`), `anthropic` (`:45`), `lmthingcloud` (`:49`), `google` (`:58`), `mistral` (`:62`) and `azure` (`:66`) — and the `default` throws listing exactly those six (`resolve.ts:93-96`). Any other `provider` slice (groq, cohere, bedrock, a generic openai-compatible endpoint, …) does **not** resolve until you add its case.
 
@@ -75,7 +75,7 @@ case 'anthropic': {
 - **Fail loudly on missing creds** — throw naming the required env var, as the `azure`/`lmthingcloud` cases do (`resolve.ts:52`, `:69-70`).
 - **Update the `default` error string** (`resolve.ts:93-96`) and, if you like, the header docstring (`resolve.ts:3-16`).
 
-**3. Add the transcription case too** *(only if the provider serves audio)* — the transcription path is a **separate** switch in `sdk/org/libs/cli/src/providers/transcribe.ts:22-58` (`openai`/`lmthingcloud`/`azure`), each returning `create…().transcription(modelId)`. It mirrors `resolve.ts`'s env handling (`transcribe.ts:16-18`). The default transcription model is `openai:whisper-1`, overridable via `LM_TRANSCRIBE_MODEL` (`transcribe.ts:4-5`, `:63-64`).
+**3. Add the transcription case too** *(only if the provider serves audio)* — the transcription path is a **separate** switch in `sdk/org/libs/cli/src/providers/transcribe.ts#resolveTranscriptionModel` (`openai`/`lmthingcloud`/`azure`), each returning `create…().transcription(modelId)`. It mirrors `resolve.ts`'s env handling (`transcribe.ts:16-18`). The default transcription model is `openai:whisper-1`, overridable via `LM_TRANSCRIBE_MODEL` (`transcribe.ts:4-5`, `:63-64`).
 
 **4. Point a model alias at it.** No code change is needed to *define* an alias — there is no union type of alias letters and no env-var map. `resolveAlias(alias)` (`sdk/org/libs/cli/src/providers/aliases.ts`) is fully generic: it reads `process.env['LM_MODEL_' + alias.toUpperCase().replace(/[^A-Z0-9]/g,'_')]` and falls back to returning the string unchanged, so **any** `LM_MODEL_<NAME>` works with zero code changes. Just set the env var:
 

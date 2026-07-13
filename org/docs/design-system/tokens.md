@@ -19,7 +19,7 @@ src/tokens/tokens.json   ── node scripts/generate-theme.mjs ──▶  src/t
 
 ### What the generator emits into `theme.css`
 
-`generate-theme.mjs` assembles the file from four token sections plus two `@import`s and a dark `@custom-variant` (`sdk/org/libs/css/scripts/generate-theme.mjs:74-102`):
+`generate-theme.mjs` assembles the file from four token sections plus two `@import`s and a dark `@custom-variant` (`sdk/org/libs/css/scripts/generate-theme.mjs#css`):
 
 1. `@import "tailwindcss";` and `@import "tw-animate-css";` (`theme.css:1-2`; both are `peerDependencies` in `package.json`).
 2. `@custom-variant dark (&:is([data-theme="dark"] *));` — derived from `$meta.darkSelector` (`generate-theme.mjs:73,77`). This makes Tailwind's `dark:` variant key off the `data-theme` attribute rather than the OS preference.
@@ -84,7 +84,7 @@ Because anchors are placed at index 53 but only 50 steps are emitted, `spectrum-
 
 **One theme, two modes.** Both modes are defined in the single generated `theme.css`: `:root` holds light, `[data-theme="dark"]` holds the dark overrides (`theme.css:124,227`). There is no second stylesheet and no app-level token redefinition.
 
-- **Mode selector.** Dark mode is the presence of `data-theme="dark"` on `<html>`. `applyTheme(theme)` sets that attribute and persists the choice to `localStorage` under key `lm-theme` (`sdk/org/libs/ui/src/theme/theme.ts:12,19-27`). `initTheme(fallback='light')` reads the stored value and applies it on boot (`theme.ts:29-38`); `currentTheme()` reads the attribute (`theme.ts:14-17`); `useTheme()` is a React hook returning `[theme, setTheme, toggle]` (`theme.ts:51-61`). These are re-exported from `@lmthing/ui/theme` (`sdk/org/libs/ui/src/theme/index.ts:1`).
+- **Mode selector.** Dark mode is the presence of `data-theme="dark"` on `<html>`. `applyTheme(theme)` sets that attribute and persists the choice to `localStorage` under key `lm-theme` (`sdk/org/libs/ui/src/theme/theme.ts#STORAGE_KEY,19-27`). `initTheme(fallback='light')` reads the stored value and applies it on boot (`theme.ts:29-38`); `currentTheme()` reads the attribute (`theme.ts:14-17`); `useTheme()` is a React hook returning `[theme, setTheme, toggle]` (`theme.ts:51-61`). These are re-exported from `@lmthing/ui/theme` (`sdk/org/libs/ui/src/theme/index.ts:1`).
 - **Which tokens change in dark.** Only colors with a distinct `dark` value are emitted into the dark block (`generate-theme.mjs:69-71`). Surfaces, text, functional/status colors, state overlays, and sidebar chrome all flip (`theme.css:227-266`). Notably **unchanged** across modes (absent from the dark block): all `brand-*`, all `spectrum-*`, and the coral anchors `primary`, `primary-foreground`, `ring`, `sidebar-primary`, `sidebar-primary-foreground`, `sidebar-ring` — the CTA/ring stays coral in both modes.
 - **Runtime token override.** A space may inject a custom token block at runtime via `applyThemeTokens(tokens)`, which sets `--lm-*` (and mirrored `--color-lm-*`) properties on `<html>` from a space's optional `theme.json` (`theme.ts:41-49`).
 

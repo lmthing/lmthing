@@ -1,0 +1,14 @@
+{
+  "name": "@lmthing/docs-sync",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "description": "Symbol-anchored citation resolver + migration for org/docs (the SYNC contract).",
+  "bin": {
+    "docs-check": "./check.mjs",
+    "docs-migrate": "./migrate.mjs"
+  },
+  "dependencies": {
+    "typescript": "^5.6.0"
+  }
+}

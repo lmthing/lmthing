@@ -16,7 +16,7 @@ Route index → [`./README.md`](./README.md). The agent-side half of uploads →
 
 Registered at `sdk/org/libs/cli/src/server/serve.ts:197`. Body is JSON — the file is sent
 **base64** (a bare base64 string or a full `data:<mime>;base64,…` URL; the `data:` prefix is
-stripped before the first comma) `sdk/org/libs/cli/src/server/routes/uploads.ts:8-11,34`.
+stripped before the first comma) `sdk/org/libs/cli/src/server/routes/uploads.ts#decodeBase64,34`.
 
 ```bash
 curl -X POST http://localhost:8080/api/uploads \
@@ -26,7 +26,7 @@ curl -X POST http://localhost:8080/api/uploads \
 #         "filename":"report.pdf","text":"…extracted…","url":"/api/uploads/<id>"}
 ```
 
-Validation, all before anything is written `sdk/org/libs/cli/src/server/routes/uploads.ts:16-44`:
+Validation, all before anything is written `sdk/org/libs/cli/src/server/routes/uploads.ts#handleUpload`:
 
 | Condition | Response |
 |---|---|
@@ -47,35 +47,35 @@ rule) `sdk/org/libs/ui/src/chat/app/Composer.tsx:28-46`.
 `sdk/org/libs/cli/src/server/session-manager.ts:1255-1283`:
 
 1. `classifyKind(mediaType)` → `image` (`image/*`) · `audio` (`audio/*`) · `file` (everything
-   else) `sdk/org/libs/cli/src/server/uploads.ts:30-34`.
+   else) `sdk/org/libs/cli/src/server/uploads.ts#classifyKind`.
 2. **audio ⇒ transcribe on ingest** — `transcribeAudio(bytes)` via the model spec in
    `LM_TRANSCRIBE_MODEL` (`provider:modelId`; `openai` / `lmthingcloud` / `azure`, default
    `openai:whisper-1`) `sdk/org/libs/cli/src/providers/transcribe.ts:3-5,17-67`. A failure is **non-fatal**: it warns and
    stores the file without a transcript `sdk/org/libs/cli/src/server/session-manager.ts:1262-1270`.
 3. **file ⇒ best-effort PDF text extraction** at upload time (`extractDocumentText`, `unpdf`,
-   lazily imported) `sdk/org/libs/cli/src/server/uploads.ts:49-61`,
+   lazily imported) `sdk/org/libs/cli/src/server/uploads.ts#extractDocumentText`,
    `sdk/org/libs/cli/src/server/session-manager.ts:1271-1279`.
 4. `saveUpload(uploadsDir, …)` writes **two files** and returns the meta
-   `sdk/org/libs/cli/src/server/uploads.ts:144-161`.
+   `sdk/org/libs/cli/src/server/uploads.ts#saveUpload`.
 
 The response is `AttachmentRef = UploadMeta & { url }`, i.e.
 `{ id, kind, mediaType, filename?, transcript?, text?, url }`
 `sdk/org/libs/cli/src/server/uploads.ts:11-28`, with `url = /api/uploads/<id>`
-`sdk/org/libs/cli/src/server/uploads.ts:140-142`.
+`sdk/org/libs/cli/src/server/uploads.ts#uploadUrl`.
 
 ## `GET /api/uploads/:id`
 
 Registered at `sdk/org/libs/cli/src/server/serve.ts:198`. Serves the raw bytes with the stored
 `Content-Type`, `Content-Length`, and `Cache-Control: private, max-age=31536000, immutable`
 (ids are random, so the content is immutable); an unknown/unsafe id is
-`404 {error:'upload not found'}` `sdk/org/libs/cli/src/server/routes/uploads.ts:48-62`,
+`404 {error:'upload not found'}` `sdk/org/libs/cli/src/server/routes/uploads.ts#handleServeUpload`,
 `sdk/org/libs/cli/src/server/session-manager.ts:1285-1292`.
 
 This is the URL `<img>` / `<audio>` / `<a>` elements in the chat transcript point at. Because
 those elements cannot send an `Authorization` header, the client appends the JWT as a query
 param — `withAuthToken(att.url)` → `/api/uploads/<id>?access_token=…`
 `sdk/org/libs/ui/src/chat/app/Message.tsx:147-153,164,175`,
-`sdk/org/libs/ui/src/chat/app/auth.ts:37-42`. The pod itself performs **no** auth check on this
+`sdk/org/libs/ui/src/chat/app/auth.ts#withAuthToken`. The pod itself performs **no** auth check on this
 route; the token is what routes the request to the right pod at the edge.
 
 ---
@@ -94,7 +94,7 @@ route; the token is what routes the request to the right pod at the edge.
 `sdk/org/libs/cli/src/server/uploads.ts:126-130,144-161` · the uploads dir is **pod-global, not
 per-project** — `SessionManager.uploadsDir` is derived from `lmthingRoot` alone
 `sdk/org/libs/cli/src/server/session-manager.ts:1250-1253`. The directory is created lazily
-(`mkdir -p`) on the first upload `sdk/org/libs/cli/src/server/uploads.ts:148`.
+(`mkdir -p`) on the first upload `sdk/org/libs/cli/src/server/uploads.ts#saveUpload`.
 
 Ids are `randomUUID()` and every read re-validates the id against the UUID regex before touching
 the filesystem — that (not path normalization) is the traversal guard
@@ -112,7 +112,7 @@ re-read from disk server-side, so a client cannot lie about an attachment
 `sdk/org/libs/cli/src/server/session-manager.ts:1294-1317`.
 
 `assembleAttachments` → `assembleParts` then splits by kind
-`sdk/org/libs/cli/src/server/uploads.ts:277-312`:
+`sdk/org/libs/cli/src/server/uploads.ts#assembleParts`:
 
 | Kind | What the model gets |
 |---|---|
@@ -164,7 +164,7 @@ session (project-independent) `sdk/org/libs/cli/src/server/session-manager.ts:38
 
 ### Extraction table (`resolveUploadDocument`)
 
-`sdk/org/libs/cli/src/server/uploads.ts:192-258` — server-authoritative (only the id is trusted),
+`sdk/org/libs/cli/src/server/uploads.ts#resolveUploadDocument` — server-authoritative (only the id is trusted),
 never throws, and caps text at `opts.maxChars` (default **100 000** chars, `truncated: true` when
 cut) `sdk/org/libs/cli/src/server/uploads.ts:181-182,224-225`:
 
@@ -206,12 +206,12 @@ A separate, much simpler surface: named text files under a project.
 
 | Route | Handler | Behaviour |
 |---|---|---|
-| `GET /api/projects/:projectId/documents` | `handleListDocuments` `sdk/org/libs/cli/src/server/routes/projects.ts:98-111` | `{ documents: string[] }` — the **file names** in `<root>/<id>/documents/`, sorted; a missing dir yields `[]` `sdk/org/libs/cli/src/server/projects.ts:362-368` |
-| `POST /api/projects/:projectId/documents` | `handleCreateDocument` `sdk/org/libs/cli/src/server/routes/projects.ts:113-136` | body `{ name, content? }` → `201 {ok:true}`; a non-empty string `name` is required, `content` defaults to `''` |
+| `GET /api/projects/:projectId/documents` | `handleListDocuments` `sdk/org/libs/cli/src/server/routes/projects.ts#handleListDocuments` | `{ documents: string[] }` — the **file names** in `<root>/<id>/documents/`, sorted; a missing dir yields `[]` `sdk/org/libs/cli/src/server/projects.ts:362-368` |
+| `POST /api/projects/:projectId/documents` | `handleCreateDocument` `sdk/org/libs/cli/src/server/routes/projects.ts#handleCreateDocument` | body `{ name, content? }` → `201 {ok:true}`; a non-empty string `name` is required, `content` defaults to `''` |
 
 Registered at `sdk/org/libs/cli/src/server/serve.ts:176-177`. The name must be a single safe
 segment — ≤200 chars, no `/`, `\`, NUL, `.` or `..` (`safeDocumentName`)
-`sdk/org/libs/cli/src/server/projects.ts:80-85`, re-checked against a resolved-under-dir test in
+`sdk/org/libs/cli/src/server/projects.ts#safeDocumentName`, re-checked against a resolved-under-dir test in
 `addDocument` `sdk/org/libs/cli/src/server/projects.ts:370-381`. Both handlers answer `400` with
 the thrown message on an invalid project/document id
 `sdk/org/libs/cli/src/server/session-manager.ts:1922-1945`. Content is written as UTF-8 text —
@@ -219,7 +219,7 @@ there is no base64 path, so binary "documents" are not supported here (the chat 
 reads the picked file as text before POSTing) `sdk/org/libs/ui/src/chat/app/ProjectSettings.tsx:116-127`.
 
 The directory is scaffolded with the project (`<root>/<id>/documents/`)
-`sdk/org/libs/cli/src/server/projects.ts:109-110,263`, `sdk/org/libs/cli/src/cli/runtime-init.ts:115`.
+`sdk/org/libs/cli/src/server/projects.ts#documentsDir,263`, `sdk/org/libs/cli/src/cli/runtime-init.ts:115`.
 A write also emits the internal signal `document.written` `{projectId, path}` — the project-document
 write choke point (generic `PUT /api/fs/write` writes are deliberately **not** classified as
 documents) `sdk/org/libs/cli/src/server/session-manager.ts:1934-1945`.
@@ -240,8 +240,8 @@ documents) `sdk/org/libs/cli/src/server/session-manager.ts:1934-1945`.
 | Caller | Endpoint |
 |---|---|
 | Chat composer — attach / voice record (`MediaRecorder` → data URL) | `POST /api/uploads` `sdk/org/libs/ui/src/chat/app/Composer.tsx:108-127` |
-| Chat transcript — render image/audio/file attachments | `GET /api/uploads/:id?access_token=…` `sdk/org/libs/ui/src/chat/app/Message.tsx:147-176` |
-| Chat project-settings → Documents tab | `GET`/`POST /api/projects/:id/documents` `sdk/org/libs/ui/src/chat/app/ProjectSettings.tsx:114-133` |
+| Chat transcript — render image/audio/file attachments | `GET /api/uploads/:id?access_token=…` `sdk/org/libs/ui/src/chat/app/Message.tsx#UserAttachment` |
+| Chat project-settings → Documents tab | `GET`/`POST /api/projects/:id/documents` `sdk/org/libs/ui/src/chat/app/ProjectSettings.tsx#DocumentsTab` |
 | Agent (any VM) | the `readDocument` yield → `documentResolver` → the uploads dir |
 
 Related: [`../../runtime-globals/knowledge-and-docs.md`](../../runtime-globals/knowledge-and-docs.md)

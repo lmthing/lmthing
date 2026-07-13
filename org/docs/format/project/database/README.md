@@ -1,6 +1,6 @@
 # `database/<table>.json` — table schema
 
-One JSON file per table, keyed by the file **basename** (`database/articles.json` → table `articles`); the table name is NOT stored inside the JSON `sdk/org/libs/core/src/db/schema.ts:93-107`. A schema file is a **declarative table definition**, not seed data — it is compiled into a real SQLite `CREATE TABLE` statement at boot `sdk/org/libs/cli/src/app/store.ts:230-242`. Written by the authoring globals `writeTableSchema(name, schema)` (catalog templates) and `writeProjectTable(name, schema)` (the live project), both gated by the `db:schema` capability `sdk/org/libs/cli/src/app/authoring/globals.ts:172-183` `sdk/org/libs/cli/src/app/authoring/globals.ts:349-365`. Table names are snake_case (`^[a-z][a-z0-9_]*$`), used verbatim in `CREATE TABLE <name>` `sdk/org/libs/cli/src/app/authoring/globals.ts:45`.
+One JSON file per table, keyed by the file **basename** (`database/articles.json` → table `articles`); the table name is NOT stored inside the JSON `sdk/org/libs/core/src/db/schema.ts:93-107`. A schema file is a **declarative table definition**, not seed data — it is compiled into a real SQLite `CREATE TABLE` statement at boot `sdk/org/libs/cli/src/app/store.ts#schemaToCreateTableSql`. Written by the authoring globals `writeTableSchema(name, schema)` (catalog templates) and `writeProjectTable(name, schema)` (the live project), both gated by the `db:schema` capability `sdk/org/libs/cli/src/app/authoring/globals.ts:172-183` `sdk/org/libs/cli/src/app/authoring/globals.ts:349-365`. Table names are snake_case (`^[a-z][a-z0-9_]*$`), used verbatim in `CREATE TABLE <name>` `sdk/org/libs/cli/src/app/authoring/globals.ts#AppAuthoringGlobals`.
 
 ## Format
 
@@ -26,25 +26,25 @@ Adapted from `store/projects/blog/database/articles.json` (a real catalog templa
 
 ## Top-level fields
 
-- **`title`** — a display title for the table `sdk/org/libs/core/src/db/schema.ts:99`.
-- **`description`** — required and fail-loud; a missing/blank one throws `<table>: table is missing required "description"` `sdk/org/libs/core/src/db/validate.ts:46-48`.
+- **`title`** — a display title for the table `sdk/org/libs/core/src/db/schema.ts#TableSchema`.
+- **`description`** — required and fail-loud; a missing/blank one throws `<table>: table is missing required "description"` `sdk/org/libs/core/src/db/validate.ts#validateTableSchema`.
 - **`columns`** — a required, non-empty map; a missing map or zero columns throws `sdk/org/libs/core/src/db/validate.ts:50-57`.
-- **`relations`** — optional navigable links to other tables `sdk/org/libs/core/src/db/schema.ts:105-106`.
+- **`relations`** — optional navigable links to other tables `sdk/org/libs/core/src/db/schema.ts#TableSchema`.
 
 ## Column fields
 
-Each column carries a required `type` and `description`; the rest are optional per-column flags `sdk/org/libs/core/src/db/schema.ts:42-59`.
+Each column carries a required `type` and `description`; the rest are optional per-column flags `sdk/org/libs/core/src/db/schema.ts#ColumnSchema`.
 
 | Field | Meaning |
 |---|---|
-| `type` | One of `string \| number \| boolean \| date \| json`; anything else throws `unknown column type` `sdk/org/libs/core/src/db/validate.ts:21-27` `sdk/org/libs/core/src/db/validate.ts:98-102`. `date` is an ISO string, `json` an arbitrary JSON value `sdk/org/libs/core/src/db/schema.ts:12-13`. |
-| `description` | **Required** on every column; blank/missing throws `<table>.<col>: column is missing required "description"` `sdk/org/libs/core/src/db/validate.ts:94-97`. |
-| `primaryKey` | Marks the primary key; **exactly one** column per table must set it, else `must have exactly one primaryKey column` throws `sdk/org/libs/core/src/db/validate.ts:59-69`. Emits `PRIMARY KEY` `sdk/org/libs/cli/src/app/store.ts:207`. |
-| `generated` | `uuid` or `now` — auto-fills the value on insert when none is supplied; any other kind throws `sdk/org/libs/core/src/db/validate.ts:29` `sdk/org/libs/core/src/db/validate.ts:103-107`. Applied at insert time (`randomUUID()` / ISO `now`) `sdk/org/libs/cli/src/app/store.ts:358-363`. |
-| `required` | Emits `NOT NULL` (skipped on the PK) `sdk/org/libs/cli/src/app/store.ts:208`. |
-| `unique` | Emits `UNIQUE` (skipped on the PK) `sdk/org/libs/cli/src/app/store.ts:209`. |
-| `default` | A literal default; emits `DEFAULT <literal>` `sdk/org/libs/cli/src/app/store.ts:210-212`. |
-| `references` | `{ table, column?, onDelete? }` → a real SQLite `FOREIGN KEY … REFERENCES` `sdk/org/libs/core/src/db/schema.ts:28-36` `sdk/org/libs/cli/src/app/store.ts:234-239`. `column` defaults to the target's primary key `sdk/org/libs/core/src/db/validate.ts:146`; `onDelete` ∈ `cascade \| setNull \| restrict` (default `restrict`) `sdk/org/libs/core/src/db/schema.ts:26` `sdk/org/libs/cli/src/app/store.ts:183-200`. |
+| `type` | One of `string \| number \| boolean \| date \| json`; anything else throws `unknown column type` `sdk/org/libs/core/src/db/validate.ts#COLUMN_TYPES` `sdk/org/libs/core/src/db/validate.ts#validateColumn`. `date` is an ISO string, `json` an arbitrary JSON value `sdk/org/libs/core/src/db/schema.ts:12-13`. |
+| `description` | **Required** on every column; blank/missing throws `<table>.<col>: column is missing required "description"` `sdk/org/libs/core/src/db/validate.ts#validateColumn`. |
+| `primaryKey` | Marks the primary key; **exactly one** column per table must set it, else `must have exactly one primaryKey column` throws `sdk/org/libs/core/src/db/validate.ts:59-69`. Emits `PRIMARY KEY` `sdk/org/libs/cli/src/app/store.ts#columnDefSql`. |
+| `generated` | `uuid` or `now` — auto-fills the value on insert when none is supplied; any other kind throws `sdk/org/libs/core/src/db/validate.ts#GENERATED_KINDS` `sdk/org/libs/core/src/db/validate.ts#validateColumn`. Applied at insert time (`randomUUID()` / ISO `now`) `sdk/org/libs/cli/src/app/store.ts:358-363`. |
+| `required` | Emits `NOT NULL` (skipped on the PK) `sdk/org/libs/cli/src/app/store.ts#columnDefSql`. |
+| `unique` | Emits `UNIQUE` (skipped on the PK) `sdk/org/libs/cli/src/app/store.ts#columnDefSql`. |
+| `default` | A literal default; emits `DEFAULT <literal>` `sdk/org/libs/cli/src/app/store.ts#columnDefSql`. |
+| `references` | `{ table, column?, onDelete? }` → a real SQLite `FOREIGN KEY … REFERENCES` `sdk/org/libs/core/src/db/schema.ts:28-36` `sdk/org/libs/cli/src/app/store.ts#schemaToCreateTableSql`. `column` defaults to the target's primary key `sdk/org/libs/core/src/db/validate.ts:146`; `onDelete` ∈ `cascade \| setNull \| restrict` (default `restrict`) `sdk/org/libs/core/src/db/schema.ts#OnDelete` `sdk/org/libs/cli/src/app/store.ts:183-200`. |
 
 ## Relations
 
@@ -52,14 +52,14 @@ Relations are declared under `relations`, discriminated by which key is present 
 
 | Form | Meaning |
 |---|---|
-| `belongsTo` | This table holds the foreign key; `via` is the FK column on **this** table `sdk/org/libs/core/src/db/schema.ts:65-72`. |
-| `hasMany` | The target table holds the FK back; `via` is the FK column on the **target** table — the "many" side expandable via `db.query(..., { include })` `sdk/org/libs/core/src/db/schema.ts:78-85`. |
+| `belongsTo` | This table holds the foreign key; `via` is the FK column on **this** table `sdk/org/libs/core/src/db/schema.ts#BelongsToRelation`. |
+| `hasMany` | The target table holds the FK back; `via` is the FK column on the **target** table — the "many" side expandable via `db.query(..., { include })` `sdk/org/libs/core/src/db/schema.ts#HasManyRelation`. |
 
-`validateTableSchema` (called by the single-file writers) validates one table in isolation; cross-table resolution — a `references`/relation `via` naming an unknown table or column — is checked by `validateSchemaSet` over the full set at load `sdk/org/libs/core/src/db/validate.ts:119-175`.
+`validateTableSchema` (called by the single-file writers) validates one table in isolation; cross-table resolution — a `references`/relation `via` naming an unknown table or column — is checked by `validateSchemaSet` over the full set at load `sdk/org/libs/core/src/db/validate.ts#validateSchemaSet`.
 
 ## Drives `@app/types`
 
-The table set is compiled into a TS `interface` per table under `<projectRoot>/types/generated.d.ts` (the `@app/types` module) `sdk/org/libs/cli/src/app/build/schema.ts:348-364`. Each column maps by kind (`date→string`, `json→unknown`) `sdk/org/libs/cli/src/app/build/schema.ts:73-79`; a `required` or `primaryKey` column is non-optional, everything else optional `sdk/org/libs/cli/src/app/build/schema.ts:107-109`; each field is JSDoc'd from its `description` `sdk/org/libs/cli/src/app/build/schema.ts:108-109`. Relations become typed fields (`hasMany` → `Target[]`, `belongsTo` → `Target`, both optional) `sdk/org/libs/cli/src/app/build/schema.ts:112-127`. The interface name PascalCases the basename and singularizes its last word (`feed_items` → `FeedItem`) `sdk/org/libs/cli/src/app/build/schema.ts:137-155`. Pages and handlers consume it as `import type { Article } from '@app/types'`.
+The table set is compiled into a TS `interface` per table under `<projectRoot>/types/generated.d.ts` (the `@app/types` module) `sdk/org/libs/cli/src/app/build/schema.ts#generateAppTypes`. Each column maps by kind (`date→string`, `json→unknown`) `sdk/org/libs/cli/src/app/build/schema.ts#COLUMN_TS`; a `required` or `primaryKey` column is non-optional, everything else optional `sdk/org/libs/cli/src/app/build/schema.ts#renderRowInterface`; each field is JSDoc'd from its `description` `sdk/org/libs/cli/src/app/build/schema.ts#renderRowInterface`. Relations become typed fields (`hasMany` → `Target[]`, `belongsTo` → `Target`, both optional) `sdk/org/libs/cli/src/app/build/schema.ts:112-127`. The interface name PascalCases the basename and singularizes its last word (`feed_items` → `FeedItem`) `sdk/org/libs/cli/src/app/build/schema.ts:137-155`. Pages and handlers consume it as `import type { Article } from '@app/types'`.
 
 ## Every committed write auto-emits a synthetic db event
 

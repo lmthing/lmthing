@@ -8,7 +8,7 @@ For the project *format* on disk (the app layer: `database/ api/ pages/ hooks/`)
 
 ## Route table
 
-Every route below is registered on the pod's `Router` in `sdk/org/libs/cli/src/server/serve.ts:171-187`. `:param` matches one non-slash segment; a trailing `/*` captures the remainder as `params.rest` (`sdk/org/libs/cli/src/server/router.ts:33-47`). First match wins, in registration order (`sdk/org/libs/cli/src/server/router.ts:61-82`).
+Every route below is registered on the pod's `Router` in `sdk/org/libs/cli/src/server/serve.ts:171-187`. `:param` matches one non-slash segment; a trailing `/*` captures the remainder as `params.rest` (`sdk/org/libs/cli/src/server/router.ts#compilePattern`). First match wins, in registration order (`sdk/org/libs/cli/src/server/router.ts#Router.dispatch`).
 
 | Method | Path | Handler | Success |
 |---|---|---|---|
@@ -54,34 +54,34 @@ Everything here is rooted at the CLI's `lmthingRoot` (`LMTHING_ROOT`, else `<cwd
 ```
 
 - `<root>/<projectId>/{spaces,documents,instructions.md,project.json}` is the whole project skeleton (`sdk/org/libs/cli/src/server/projects.ts:101-119`, `scaffoldProject` at `:257-269`).
-- Project sessions live at `<root>/<projectId>/sessions/` (`sdk/org/libs/cli/src/server/projects.ts:424-426`); a session bound to a project **space** lives at `<root>/<projectId>/spaces/<spaceId>/sessions/` instead (`sdk/org/libs/cli/src/server/projects.ts:455-457`) — hence the two separate session-listing routes.
+- Project sessions live at `<root>/<projectId>/sessions/` (`sdk/org/libs/cli/src/server/projects.ts#sessionsDir`); a session bound to a project **space** lives at `<root>/<projectId>/spaces/<spaceId>/sessions/` instead (`sdk/org/libs/cli/src/server/projects.ts#spaceSessionsDir`) — hence the two separate session-listing routes.
 - The app layer (`database/ api/ pages/ hooks/ …`) is a set of *additional* siblings inside `<root>/<projectId>/` — see [../../format/project/README.md](../../format/project/README.md).
-- The root is materialized on first boot by `materializeRuntime(root)`, which copies the shipped system spaces into `<root>/system/spaces/` and creates the `user` skeleton (`sdk/org/libs/cli/src/cli/runtime-init.ts:89-130`).
+- The root is materialized on first boot by `materializeRuntime(root)`, which copies the shipped system spaces into `<root>/system/spaces/` and creates the `user` skeleton (`sdk/org/libs/cli/src/cli/runtime-init.ts#materializeRuntime`).
 
 ---
 
 ## The default `user` project
 
-`DEFAULT_PROJECT_ID = 'user'` (`sdk/org/libs/cli/src/server/projects.ts:22`). Two code paths create it, and they disagree on the display name:
+`DEFAULT_PROJECT_ID = 'user'` (`sdk/org/libs/cli/src/server/projects.ts#DEFAULT_PROJECT_ID`). Two code paths create it, and they disagree on the display name:
 
 - `materializeRuntime` writes `project.json` as `{ id: 'user', name: 'user', createdAt: <ISO string> }` (`sdk/org/libs/cli/src/cli/runtime-init.ts:120-127`).
-- `ensureDefaultProject` — called by the server at boot in project mode (`sdk/org/libs/cli/src/server/serve.ts:115-121`) — scaffolds it with the display name **`'Personal'`**, but only when `project.json` is absent (`sdk/org/libs/cli/src/server/projects.ts:390-400`). `materializeRuntime` runs first on every `bin.ts` path, so `'user'` is the name you normally see.
+- `ensureDefaultProject` — called by the server at boot in project mode (`sdk/org/libs/cli/src/server/serve.ts:115-121`) — scaffolds it with the display name **`'Personal'`**, but only when `project.json` is absent (`sdk/org/libs/cli/src/server/projects.ts#ensureDefaultProject`). `materializeRuntime` runs first on every `bin.ts` path, so `'user'` is the name you normally see.
 
-Note the `createdAt` type mismatch: `ProjectMeta.createdAt` is a **number** (epoch ms) (`sdk/org/libs/cli/src/server/projects.ts:46-50`), but `materializeRuntime` writes an ISO **string**. `readProjectMeta` therefore ignores the non-numeric value and falls back to the file's own `mtimeMs` (`sdk/org/libs/cli/src/server/projects.ts:286-291`). It also normalizes the display name `name → title → id`, because store-installed apps synthesize a `project.json` carrying `title` rather than `name` (`sdk/org/libs/cli/src/server/projects.ts:271-297`).
+Note the `createdAt` type mismatch: `ProjectMeta.createdAt` is a **number** (epoch ms) (`sdk/org/libs/cli/src/server/projects.ts#ProjectMeta`), but `materializeRuntime` writes an ISO **string**. `readProjectMeta` therefore ignores the non-numeric value and falls back to the file's own `mtimeMs` (`sdk/org/libs/cli/src/server/projects.ts#readProjectMeta`). It also normalizes the display name `name → title → id`, because store-installed apps synthesize a `project.json` carrying `title` rather than `name` (`sdk/org/libs/cli/src/server/projects.ts:271-297`).
 
-`DELETE /api/projects/user` is refused with `400 { error: 'cannot delete the default project' }` — the route compares the raw id against the literal `'user'` before touching the manager (`sdk/org/libs/cli/src/server/routes/projects.ts:49-52`).
+`DELETE /api/projects/user` is refused with `400 { error: 'cannot delete the default project' }` — the route compares the raw id against the literal `'user'` before touching the manager (`sdk/org/libs/cli/src/server/routes/projects.ts#handleDeleteProject`).
 
 ---
 
 ## The synthetic `system` project
 
-`listProjects` prepends a synthetic `{ id: 'system', name: 'System', createdAt: 0 }` entry whenever `<root>/system/spaces/` is non-empty, and skips the real `system/` directory in the normal scan (`sdk/org/libs/cli/src/server/projects.ts:305-326`). Because `<root>/system/spaces/<id>` matches the generic `<root>/<projectId>/spaces/<id>` shape, **no space/file route needs a special case** — Studio browses and edits the system spaces through the ordinary `/api/projects/system/spaces/...` endpoints (`sdk/org/libs/cli/src/server/projects.ts:10-16`).
+`listProjects` prepends a synthetic `{ id: 'system', name: 'System', createdAt: 0 }` entry whenever `<root>/system/spaces/` is non-empty, and skips the real `system/` directory in the normal scan (`sdk/org/libs/cli/src/server/projects.ts#listProjects`). Because `<root>/system/spaces/<id>` matches the generic `<root>/<projectId>/spaces/<id>` shape, **no space/file route needs a special case** — Studio browses and edits the system spaces through the ordinary `/api/projects/system/spaces/...` endpoints (`sdk/org/libs/cli/src/server/projects.ts:10-16`).
 
-`system` is reserved: `deleteProject` throws `the system project cannot be deleted` (`sdk/org/libs/cli/src/server/projects.ts:334-341`) and `createProject` skips it when picking a slug — if the candidate equals `SYSTEM_PROJECT_ID` it is bumped to `<slug>-1`, `<slug>-2`, … instead (`sdk/org/libs/cli/src/server/session-manager.ts:1917-1921`).
+`system` is reserved: `deleteProject` throws `the system project cannot be deleted` (`sdk/org/libs/cli/src/server/projects.ts#deleteProject`) and `createProject` skips it when picking a slug — if the candidate equals `SYSTEM_PROJECT_ID` it is bumped to `<slug>-1`, `<slug>-2`, … instead (`sdk/org/libs/cli/src/server/session-manager.ts:1917-1921`).
 
 `RESERVED_PROJECT_IDS = { system, api, assets, install }` exists to keep an app from shadowing a reserved lmthing.app URL path at the production root mount (`sdk/org/libs/cli/src/server/projects.ts:33-44`). It is enforced at **install** time only — `POST /api/apps/install` (`sdk/org/libs/cli/src/server/routes/apps.ts:206-211`) and `POST /api/store/spaces/install` (`sdk/org/libs/cli/src/server/routes/store-spaces.ts:220`, `:315`).
 
-`POST /api/projects` does **not** check `RESERVED_PROJECT_IDS`. `handleCreateProject` validates only that `name` is a non-empty string (`sdk/org/libs/cli/src/server/routes/projects.ts:32-34`), and `createProject` guards the slug loop against `SYSTEM_PROJECT_ID` alone (`sdk/org/libs/cli/src/server/session-manager.ts:1907-1940`) — the set is imported only by `routes/apps.ts:39` and `routes/store-spaces.ts:37`, never by the create path. So `{"name":"api"}` is accepted and creates the project id `api`, while `{"name":"system"}` is deflected to `system-1`.
+`POST /api/projects` does **not** check `RESERVED_PROJECT_IDS`. `handleCreateProject` validates only that `name` is a non-empty string (`sdk/org/libs/cli/src/server/routes/projects.ts#handleCreateProject`), and `createProject` guards the slug loop against `SYSTEM_PROJECT_ID` alone (`sdk/org/libs/cli/src/server/session-manager.ts:1907-1940`) — the set is imported only by `routes/apps.ts:39` and `routes/store-spaces.ts:37`, never by the create path. So `{"name":"api"}` is accepted and creates the project id `api`, while `{"name":"system"}` is deflected to `system-1`.
 
 ---
 
@@ -89,7 +89,7 @@ Note the `createdAt` type mismatch: `ProjectMeta.createdAt` is a **number** (epo
 
 ### `GET /api/projects`
 
-Delegates to `manager.listProjects()` → `listProjects(root)`: every sub-directory of `<root>` that has a readable `project.json`, sorted by `createdAt` ascending, with the synthetic `system` entry unshifted to the front (`sdk/org/libs/cli/src/server/projects.ts:305-326`). Any throw — notably `lmthingRoot not configured` when the server runs without a project root (`requireRoot`, `sdk/org/libs/cli/src/server/session-manager.ts:1887-1890`) — is answered **`503`**, not 400 (`sdk/org/libs/cli/src/server/routes/projects.ts:12-17`).
+Delegates to `manager.listProjects()` → `listProjects(root)`: every sub-directory of `<root>` that has a readable `project.json`, sorted by `createdAt` ascending, with the synthetic `system` entry unshifted to the front (`sdk/org/libs/cli/src/server/projects.ts#listProjects`). Any throw — notably `lmthingRoot not configured` when the server runs without a project root (`requireRoot`, `sdk/org/libs/cli/src/server/session-manager.ts:1887-1890`) — is answered **`503`**, not 400 (`sdk/org/libs/cli/src/server/routes/projects.ts#handleListProjects`).
 
 ```json
 { "projects": [
@@ -101,7 +101,7 @@ Delegates to `manager.listProjects()` → `listProjects(root)`: every sub-direct
 
 ### `POST /api/projects`
 
-Body `{ name: string }` — a **display name**, not an id. Rejected with `400` when it is not a non-empty string (`sdk/org/libs/cli/src/server/routes/projects.ts:32-34`). The id is derived by `slugify(name)` (lower-case, non-alphanumeric runs → `-`, trimmed, capped at 60 chars, `'project'` as the fallback — `sdk/org/libs/cli/src/server/projects.ts:91-97`) and made unique by appending `-1`, `-2`, … until `readProjectMeta` fails for that id, i.e. no `project.json` exists (`sdk/org/libs/cli/src/server/session-manager.ts:1912-1931`). The scaffold creates `spaces/`, `documents/`, `project.json` and an empty `instructions.md` (`sdk/org/libs/cli/src/server/projects.ts:257-269`), then emits the internal signal `project.created` with `fanOutAll: true` (`sdk/org/libs/cli/src/server/session-manager.ts:1938`).
+Body `{ name: string }` — a **display name**, not an id. Rejected with `400` when it is not a non-empty string (`sdk/org/libs/cli/src/server/routes/projects.ts#handleCreateProject`). The id is derived by `slugify(name)` (lower-case, non-alphanumeric runs → `-`, trimmed, capped at 60 chars, `'project'` as the fallback — `sdk/org/libs/cli/src/server/projects.ts#slugify`) and made unique by appending `-1`, `-2`, … until `readProjectMeta` fails for that id, i.e. no `project.json` exists (`sdk/org/libs/cli/src/server/session-manager.ts:1912-1931`). The scaffold creates `spaces/`, `documents/`, `project.json` and an empty `instructions.md` (`sdk/org/libs/cli/src/server/projects.ts#scaffoldProject`), then emits the internal signal `project.created` with `fanOutAll: true` (`sdk/org/libs/cli/src/server/session-manager.ts:1938`).
 
 ```bash
 curl -sX POST localhost:8080/api/projects \
@@ -112,16 +112,16 @@ curl -sX POST localhost:8080/api/projects \
 
 ### `DELETE /api/projects/:projectId`
 
-`204` on success; the whole `<root>/<projectId>/` tree is `rm -rf`'d (`sdk/org/libs/cli/src/server/projects.ts:334-341`). `400` for `user` (route-level guard, above) and `400` for `system` (thrown by `deleteProject`, surfaced by the route's catch — `sdk/org/libs/cli/src/server/routes/projects.ts:53-58`). An invalid id (see *Path safety*) is also `400` (`sdk/org/libs/cli/src/server/session-manager.ts:1948-1949`).
+`204` on success; the whole `<root>/<projectId>/` tree is `rm -rf`'d (`sdk/org/libs/cli/src/server/projects.ts#deleteProject`). `400` for `user` (route-level guard, above) and `400` for `system` (thrown by `deleteProject`, surfaced by the route's catch — `sdk/org/libs/cli/src/server/routes/projects.ts#handleDeleteProject`). An invalid id (see *Path safety*) is also `400` (`sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.requireRoot`).
 
 ---
 
 ## Instructions & documents
 
-- `GET .../instructions` reads `<root>/<id>/instructions.md`, returning `{ content: '' }` when the file does not exist (`sdk/org/libs/cli/src/server/projects.ts:344-351`).
-- `PUT .../instructions` takes `{ content }`; a missing or non-string `content` degrades to `''` rather than erroring (`sdk/org/libs/cli/src/server/routes/projects.ts:89`), and the parent dir is `mkdir -p`'d (`sdk/org/libs/cli/src/server/projects.ts:354-358`).
-- `GET .../documents` lists the **file names** (not contents) in `<root>/<id>/documents/`, sorted (`sdk/org/libs/cli/src/server/projects.ts:363-368`).
-- `POST .../documents` takes `{ name, content? }` → writes `<root>/<id>/documents/<name>`. `name` must be a non-empty string at the route (`sdk/org/libs/cli/src/server/routes/projects.ts:126-128`) and a safe single segment at the manager (`safeDocumentName` — `sdk/org/libs/cli/src/server/projects.ts:80-85`, enforced at `session-manager.ts:1985-1986`); the write additionally re-asserts the resolved path stays under `documents/` (`sdk/org/libs/cli/src/server/projects.ts:376-379`). A successful write emits the `document.written` internal signal (`sdk/org/libs/cli/src/server/session-manager.ts:1991`).
+- `GET .../instructions` reads `<root>/<id>/instructions.md`, returning `{ content: '' }` when the file does not exist (`sdk/org/libs/cli/src/server/projects.ts#getInstructions`).
+- `PUT .../instructions` takes `{ content }`; a missing or non-string `content` degrades to `''` rather than erroring (`sdk/org/libs/cli/src/server/routes/projects.ts#handlePutProjectInstructions`), and the parent dir is `mkdir -p`'d (`sdk/org/libs/cli/src/server/projects.ts#setInstructions`).
+- `GET .../documents` lists the **file names** (not contents) in `<root>/<id>/documents/`, sorted (`sdk/org/libs/cli/src/server/projects.ts#listDocuments`).
+- `POST .../documents` takes `{ name, content? }` → writes `<root>/<id>/documents/<name>`. `name` must be a non-empty string at the route (`sdk/org/libs/cli/src/server/routes/projects.ts#handleCreateDocument`) and a safe single segment at the manager (`safeDocumentName` — `sdk/org/libs/cli/src/server/projects.ts#safeDocumentName`, enforced at `session-manager.ts:1985-1986`); the write additionally re-asserts the resolved path stays under `documents/` (`sdk/org/libs/cli/src/server/projects.ts#addDocument`). A successful write emits the `document.written` internal signal (`sdk/org/libs/cli/src/server/session-manager.ts:1991`).
 
 ---
 
@@ -129,10 +129,10 @@ curl -sX POST localhost:8080/api/projects \
 
 Both session routes read the persisted `meta.json` of each session dir and then **overlay live in-memory status** (`status`, `lastActivity`, `title`, `slug`, `messageCount`, `totalCostUsd`) for any session currently held by the manager, plus unshift live sessions that have not been persisted yet (a session created but not yet messaged). Result is newest-first by `lastActivity` (`sdk/org/libs/cli/src/server/session-manager.ts:1998-2041` and `:2048-2092`).
 
-- `GET .../sessions` → `<root>/<projectId>/sessions/` (`sdk/org/libs/cli/src/server/projects.ts:432-450`). Live space-bound sessions are deliberately excluded from this list (`sdk/org/libs/cli/src/server/session-manager.ts:2022`).
-- `GET .../spaces/:spaceId/sessions` → `<root>/<projectId>/spaces/<spaceId>/sessions/` (`sdk/org/libs/cli/src/server/projects.ts:464-483`).
+- `GET .../sessions` → `<root>/<projectId>/sessions/` (`sdk/org/libs/cli/src/server/projects.ts#listProjectSessions`). Live space-bound sessions are deliberately excluded from this list (`sdk/org/libs/cli/src/server/session-manager.ts:2022`).
+- `GET .../spaces/:spaceId/sessions` → `<root>/<projectId>/spaces/<spaceId>/sessions/` (`sdk/org/libs/cli/src/server/projects.ts#listSpaceSessions`).
 
-`PersistedSessionMeta` is `{ sessionId, projectId, agentSlug, spaceDir, spaceId?, title, slug?, createdAt, lastActivity, messageCount, status, totalCostUsd? }` (`sdk/org/libs/cli/src/server/projects.ts:405-421`).
+`PersistedSessionMeta` is `{ sessionId, projectId, agentSlug, spaceDir, spaceId?, title, slug?, createdAt, lastActivity, messageCount, status, totalCostUsd? }` (`sdk/org/libs/cli/src/server/projects.ts#PersistedSessionMeta`).
 
 ---
 
@@ -140,7 +140,7 @@ Both session routes read the persisted `meta.json` of each session dir and then 
 
 `GET /api/projects/:projectId/spaces` loads every dir under `<root>/<projectId>/spaces/` with `loadSpace(dir, { requireAgents: false })` and summarizes it. A space that fails to load is **skipped**, not fatal; the list is id-sorted (`sdk/org/libs/cli/src/server/session-manager.ts:2099-2130`).
 
-`SpaceMeta` — every field is required in code, despite client-side types marking some optional (`sdk/org/libs/cli/src/server/session-manager.ts:72-83`):
+`SpaceMeta` — every field is required in code, despite client-side types marking some optional (`sdk/org/libs/cli/src/server/session-manager.ts#SpaceMeta`):
 
 | Field | Derivation |
 |---|---|
@@ -160,7 +160,7 @@ This is how every Studio editor persists: the client hydrates the whole space fi
 
 ### `GET .../spaces/:spaceId/files` → `{ files: Record<relPath, string> }`
 
-Walks the space dir into a flat map with forward-slash keys. **Excluded on read**: a *top-level* `sessions/` dir, any `conversations/` dir at any depth, and the exact filename `.env`. Unreadable files are skipped; a missing dir yields `{}` (`sdk/org/libs/cli/src/server/projects.ts:167-193`).
+Walks the space dir into a flat map with forward-slash keys. **Excluded on read**: a *top-level* `sessions/` dir, any `conversations/` dir at any depth, and the exact filename `.env`. Unreadable files are skipped; a missing dir yields `{}` (`sdk/org/libs/cli/src/server/projects.ts#readSpaceFiles`).
 
 ### `PUT .../spaces/:spaceId/files` — wipe-and-rewrite
 
@@ -170,9 +170,9 @@ Body `{ files: Record<relPath, string> }` (non-object → `400 files must be an 
 
 ### Per-file routes
 
-- `POST .../files` — body `{ path, content }`, `201`. `path` must be a non-empty string at the route (`sdk/org/libs/cli/src/server/routes/projects.ts:244-246`).
-- `PUT .../files/<rel/path>` — the rel path comes from the wildcard `params.rest`. The body is parsed as `{ content }`; **if it is not JSON (or has no string `content`) the raw body is used verbatim as the file content** (`sdk/org/libs/cli/src/server/routes/projects.ts:268-276`).
-- `DELETE .../files/<rel/path>` — `204`; an `ENOENT` from the fs is mapped to `404 { error: 'file not found: <rel>' }`, anything else to `400` (`sdk/org/libs/cli/src/server/routes/projects.ts:297-308`).
+- `POST .../files` — body `{ path, content }`, `201`. `path` must be a non-empty string at the route (`sdk/org/libs/cli/src/server/routes/projects.ts#handlePostProjectSpaceFile`).
+- `PUT .../files/<rel/path>` — the rel path comes from the wildcard `params.rest`. The body is parsed as `{ content }`; **if it is not JSON (or has no string `content`) the raw body is used verbatim as the file content** (`sdk/org/libs/cli/src/server/routes/projects.ts#handlePutProjectSpaceFile`).
+- `DELETE .../files/<rel/path>` — `204`; an `ENOENT` from the fs is mapped to `404 { error: 'file not found: <rel>' }`, anything else to `400` (`sdk/org/libs/cli/src/server/routes/projects.ts#handleDeleteProjectSpaceFile`).
 
 All three go through `writeProjectSpaceFile` / `deleteProjectSpaceFile`, which reject an unsafe rel path (`unsafe file path`) **and** an excluded one — any `conversations/` segment, a top-level `sessions/`, or a `.env`-prefixed basename (`excluded file path`) (`sdk/org/libs/cli/src/server/projects.ts:219-252`).
 
@@ -201,9 +201,9 @@ curl -sX DELETE localhost:8080/api/projects/user/spaces/cooking/files/functions/
 
 ## Path safety & validation
 
-- `safeProjectId(id)` — non-empty, ≤200 chars, no `/`, `\`, NUL, not `.`/`..`, and matching `^[a-zA-Z0-9_-]+$` (`sdk/org/libs/cli/src/server/projects.ts:58-65`). Applied to `:spaceId` **at the route** for every space route (`400 invalid space id: <id>`) and to `:projectId` **inside the manager**, whose throw the route catches as `400 invalid project id: <id>`.
-- `isSafeRelPath(p)` — relative, no NUL, and no empty / `.` / `..` segment (`sdk/org/libs/cli/src/server/projects.ts:71-74`).
-- `assertUnder(base, sub)` — every write additionally re-resolves the path and throws `path traversal detected` if it escapes the base (`sdk/org/libs/cli/src/server/projects.ts:127-133`).
+- `safeProjectId(id)` — non-empty, ≤200 chars, no `/`, `\`, NUL, not `.`/`..`, and matching `^[a-zA-Z0-9_-]+$` (`sdk/org/libs/cli/src/server/projects.ts#safeProjectId`). Applied to `:spaceId` **at the route** for every space route (`400 invalid space id: <id>`) and to `:projectId` **inside the manager**, whose throw the route catches as `400 invalid project id: <id>`.
+- `isSafeRelPath(p)` — relative, no NUL, and no empty / `.` / `..` segment (`sdk/org/libs/cli/src/server/projects.ts#isSafeRelPath`).
+- `assertUnder(base, sub)` — every write additionally re-resolves the path and throws `path traversal detected` if it escapes the base (`sdk/org/libs/cli/src/server/projects.ts#assertUnder`).
 
 ## Auth
 
@@ -218,7 +218,7 @@ Every failure is `{ error: string }` via `sendJson` (`sdk/org/libs/cli/src/serve
 | `400` | invalid JSON body; missing/blank `name`/`path`; invalid project or space id; unsafe or excluded rel path; delete of `user` or `system` |
 | `404` | `DELETE .../files/*` on a missing file (`ENOENT`) |
 | `503` | `GET /api/projects` when the server has no `lmthingRoot` (non-project mode) |
-| `500` | an unhandled handler rejection, injected by the router (`sdk/org/libs/cli/src/server/router.ts:73-78`) |
+| `500` | an unhandled handler rejection, injected by the router (`sdk/org/libs/cli/src/server/router.ts#Router.dispatch`) |
 
 ---
 

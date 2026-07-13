@@ -4,7 +4,7 @@
 
 Two seams connect a loaded plugin to the rest of lmthing:
 - a plugin's `registerHttpRoute(...)` becomes reachable at `POST /api/inbound/:path` with zero gateway change, via the Triggers inbound ingress's plugin-route fallback (`../../sdk/org/libs/cli/src/server/routes/webhooks.ts:134-156`);
-- a plugin's registered `tool()`s are dispatchable by lmthing agents through the value-yielding `tool()` global (`../../sdk/org/libs/core/src/globals/tool.ts:19-28`).
+- a plugin's registered `tool()`s are dispatchable by lmthing agents through the value-yielding `tool()` global (`../../sdk/org/libs/core/src/globals/tool.ts#createToolGlobal`).
 
 Related: the unified event pipeline these routes ride on is documented in [../runtime-globals/events-and-integrations.md](../runtime-globals/events-and-integrations.md); the inbound ingress plumbing in [../cli-api/rest/webhooks.md](../cli-api/rest/webhooks.md).
 
@@ -122,7 +122,7 @@ mountRoute(method, path, handler) → void
 log(msg) → void
 ```
 
-The pod implements it via `createComputeCompatHost(manager, opts, routeTable)` (`../../sdk/org/libs/cli/src/server/openclaw-host.ts:105-133`):
+The pod implements it via `createComputeCompatHost(manager, opts, routeTable)` (`../../sdk/org/libs/cli/src/server/openclaw-host.ts#createComputeCompatHost`):
 
 - **`runAgent({ sessionKey, message })`** → `manager.runHeadlessThreaded` with `sessionId = deterministicUuidFromKey(sessionKey)` (`openclaw-host.ts:112-121`). `deterministicUuidFromKey` sha1-hashes the key and stamps RFC-4122 version/variant nibbles + 8-4-4-4-12 dashes, so the **same `sessionKey` always resumes the same persisted session** (one continuous conversation, not a fresh one-shot) (`openclaw-host.ts:87-93`; rationale `:72-86`). It is NOT a byte-exact v5 UUID (`openclaw-host.ts:82-86`). The target agent = `opts.spaceRef`/`opts.agentSlug`.
 - **`mountRoute(method, path, handler)`** → writes into the shared `OpenClawRouteTable` (`Map<string, {method, handler}>`), normalizing the path to strip a leading `/` so `/echo` keys `echo` — matching the inbound dispatcher's `:path` param (`openclaw-host.ts:126-128`, `normalizePath` `:68-70`).
@@ -162,20 +162,20 @@ manager.setToolRegistry(registry);   // exposes plugin tools to the tool() globa
 
 ### The inbound-ingress fallback
 
-`createInboundHandler(manager, lmthingRoot, pluginRoutes?)` resolves a webhook/emitter/space-trigger `binding` first; **only when no binding matches** does it consult `pluginRoutes.get(path)`, normalize the raw request into a `CompatHttpRequest` (method, path, headers, body, parsed query), invoke the plugin handler, and send its `{ status, body }` (`../../sdk/org/libs/cli/src/server/routes/webhooks.ts:111-158`). **Bindings always win** — a plugin can't shadow a real webhook-hook/space-trigger path (`webhooks.ts:108-109`). No plugin route and no binding ⇒ 404 (`webhooks.ts:157`).
+`createInboundHandler(manager, lmthingRoot, pluginRoutes?)` resolves a webhook/emitter/space-trigger `binding` first; **only when no binding matches** does it consult `pluginRoutes.get(path)`, normalize the raw request into a `CompatHttpRequest` (method, path, headers, body, parsed query), invoke the plugin handler, and send its `{ status, body }` (`../../sdk/org/libs/cli/src/server/routes/webhooks.ts#createInboundHandler`). **Bindings always win** — a plugin can't shadow a real webhook-hook/space-trigger path (`webhooks.ts:108-109`). No plugin route and no binding ⇒ 404 (`webhooks.ts:157`).
 
 ---
 
 ## The `tool()` global — exposing plugin tools to agents
 
-`tool(name, input?)` is a **value-yielding** global (like `apiCall`/`callConnection`/`fetch`): it ends the current turn and resumes once the host resolves the call (`../../sdk/org/libs/core/src/globals/tool.ts:16-28`, yield `kind:'tool'` in `eval/yield.ts:4`).
+`tool(name, input?)` is a **value-yielding** global (like `apiCall`/`callConnection`/`fetch`): it ends the current turn and resumes once the host resolves the call (`../../sdk/org/libs/core/src/globals/tool.ts#createToolGlobal`, yield `kind:'tool'` in `eval/yield.ts:4`).
 
 - **Injected only when the agent holds `tools:use { allow: [...] }`** (`spaces/capabilities.ts:35,100`). That capability **requires a non-empty `allow` list** — there is no "use anything" (`../../sdk/org/libs/core/src/spaces/capabilities.ts:187-203,306-313`).
-- The per-grant DTS `composeToolDts(allow)` types `name` to a union of the allow-list literals, so calling an undeclared tool **fails typecheck** (`../../sdk/org/libs/core/src/typecheck/library-dts.ts:185-188`); `input`/return are `any`.
+- The per-grant DTS `composeToolDts(allow)` types `name` to a union of the allow-list literals, so calling an undeclared tool **fails typecheck** (`../../sdk/org/libs/core/src/typecheck/library-dts.ts#composeConnectionsDts`); `input`/return are `any`.
 - The yield is resolved by `YieldRouterContext.toolResolver`; if absent (no pod tool registry configured), the `'tool'` case **throws a clear, retryable error** rather than binding undefined (`../../sdk/org/libs/core/src/eval/yield-router.ts:81-85,214-222`).
 - The resolver is threaded into every session/fork/delegate from `appGlobals.tool` (`session.ts:879`, `fork/fork.ts:436`, `delegate/delegate.ts:347`).
 
-Host wiring: `SessionManager.setToolRegistry(registry)` stores the registry (`../../sdk/org/libs/cli/src/server/session-manager.ts:347-349`); `withTools(appGlobals)` folds in a `tool` resolver **only when a registry is set** (else the field stays absent so the router emits the clear error) (`session-manager.ts:380-383`); `resolveTool(name, input)` dispatches to `registry.getTool(name)` — an unknown name throws (fail loud), a hit's `execute(randomUUID(), input ?? {})` result is returned verbatim (`session-manager.ts:364-374`).
+Host wiring: `SessionManager.setToolRegistry(registry)` stores the registry (`../../sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.setToolRegistry`); `withTools(appGlobals)` folds in a `tool` resolver **only when a registry is set** (else the field stays absent so the router emits the clear error) (`session-manager.ts:380-383`); `resolveTool(name, input)` dispatches to `registry.getTool(name)` — an unknown name throws (fail loud), a hit's `execute(randomUUID(), input ?? {})` result is returned verbatim (`session-manager.ts:364-374`).
 
 ---
 

@@ -1,6 +1,6 @@
 # The `lmthing` CLI — commands & flags
 
-The `lmthing` binary is `@lmthing/cli`: `"bin": { "lmthing": "./dist/cli/bin.js" }` `sdk/org/libs/cli/package.json:4-6`. Everything below is parsed by one hand-rolled parser (`parseArgs`, `sdk/org/libs/cli/src/cli/args.ts:53-244`) and dispatched by one `main()` (`sdk/org/libs/cli/src/cli/bin.ts:279-621`).
+The `lmthing` binary is `@lmthing/cli`: `"bin": { "lmthing": "./dist/cli/bin.js" }` `sdk/org/libs/cli/package.json:4-6`. Everything below is parsed by one hand-rolled parser (`parseArgs`, `sdk/org/libs/cli/src/cli/args.ts#parseArgs`) and dispatched by one `main()` (`sdk/org/libs/cli/src/cli/bin.ts#main`).
 
 Uninstalled, the same binary is `node libs/cli/dist/cli/bin.js …` — the invocation form used throughout the repo (e.g. `Makefile:135`).
 
@@ -10,7 +10,7 @@ Related: the HTTP surface the server modes expose → [./rest/README.md](./rest/
 
 ## Modes at a glance
 
-`main()` dispatches in this order — the first match wins `sdk/org/libs/cli/src/cli/bin.ts:279-621`:
+`main()` dispatches in this order — the first match wins `sdk/org/libs/cli/src/cli/bin.ts#main`:
 
 | # | Condition | Mode | Ends in |
 |---|---|---|---|
@@ -68,7 +68,7 @@ With no `--space`, no positional message, and none of `--repl` / `--web` / `--re
 
 ## Flags
 
-Every flag is a case in the `while (args.shift())` switch `sdk/org/libs/cli/src/cli/args.ts:67-203`. A non-`-` token becomes the positional `message`; an unrecognized `-`-prefixed token throws `Unknown option: <arg>` `args.ts:193-201`. Numeric flags go through `parseNumericFlag` (finite, non-negative, else throw) `args.ts:45-51`.
+Every flag is a case in the `while (args.shift())` switch `sdk/org/libs/cli/src/cli/args.ts#parseArgs`. A non-`-` token becomes the positional `message`; an unrecognized `-`-prefixed token throws `Unknown option: <arg>` `args.ts:193-201`. Numeric flags go through `parseNumericFlag` (finite, non-negative, else throw) `args.ts:45-51`.
 
 ### Target selection
 
@@ -94,7 +94,7 @@ Every flag is a case in the `while (args.shift())` switch `sdk/org/libs/cli/src/
 | `--dump-system-prompt <file>` | keyless: write the resolved system prompt + ambient DTS, exit | `args.ts:176-181`, `bin.ts:256-277` |
 | `--mock <module.mjs>` | scripted provider — **no API key needed** | `args.ts:164-169`, `bin.ts:189-201`, `bin.ts:305-307` |
 
-`--web` is a *different server* from `serve`: `startWebServer` esbuild-bundles the `@lmthing/ui` chat app, serves HTTP+WS for **one** session, exposes `/api/help`, and auto-opens the browser (`xdg-open`/`open`/`start`) `sdk/org/libs/cli/src/web/serve.ts:154`, `web/serve.ts:280-286`.
+`--web` is a *different server* from `serve`: `startWebServer` esbuild-bundles the `@lmthing/ui` chat app, serves HTTP+WS for **one** session, exposes `/api/help`, and auto-opens the browser (`xdg-open`/`open`/`start`) `sdk/org/libs/cli/src/web/serve.ts#startWebServer`, `web/serve.ts:280-286`.
 
 `--dump-system-prompt` builds the prompt with a stub `streamFn` and a no-op render host — it never calls the model. Output = `# System prompt — space/agent` header, the system block, an 80-`=` separator, then the ambient DTS `bin.ts:256-277`.
 
@@ -107,7 +107,7 @@ Every flag is a case in the `while (args.shift())` switch `sdk/org/libs/cli/src/
 | `--snapshots-dir <dir>` | session-snapshot output dir | `args.ts:81-86`, `bin.ts:363` |
 | `--project <name>`, `-p` | **DEAD FLAG** — parsed into `CliArgs.project` and never read | `args.ts:87-93`, `args.ts:38-39` |
 
-> `--project` is verifiably dead: `rg '\.project\b' sdk/org/libs/cli/src` matches only the assignment at `args.ts:91`. The active project is always `user` (`DEFAULT_PROJECT_ID`, `sdk/org/libs/cli/src/server/projects.ts:22`) unless a route or session says otherwise.
+> `--project` is verifiably dead: `rg '\.project\b' sdk/org/libs/cli/src` matches only the assignment at `args.ts:91`. The active project is always `user` (`DEFAULT_PROJECT_ID`, `sdk/org/libs/cli/src/server/projects.ts#DEFAULT_PROJECT_ID`) unless a route or session says otherwise.
 
 ### System spaces
 
@@ -119,7 +119,7 @@ Every flag is a case in the `while (args.shift())` switch `sdk/org/libs/cli/src/
 
 ### Budget caps
 
-All four are optional; **undefined ⇒ unbounded** `sdk/org/libs/cli/src/cli/bin.ts:159-181`.
+All four are optional; **undefined ⇒ unbounded** `sdk/org/libs/cli/src/cli/bin.ts#readBudget`.
 
 | Flag | Env equivalent | Source |
 |---|---|---|
@@ -143,7 +143,7 @@ node libs/cli/dist/cli/bin.js --space ./fixtures/<space-slug> --web 3000
 node libs/cli/dist/cli/bin.js --space ./fixtures/<space-slug> --mock ./fixtures/mock.mjs "hello"
 ```
 
-The mock module is an ESM file whose default export is either a `MockHandler` function or a `string[]` (wrapped in `mockScript`); anything else throws `sdk/org/libs/cli/src/cli/bin.ts:189-201`. Mock mode skips `resolveModel`/`createStream` entirely, so **no API key is required** `bin.ts:305-307`.
+The mock module is an ESM file whose default export is either a `MockHandler` function or a `string[]` (wrapped in `mockScript`); anything else throws `sdk/org/libs/cli/src/cli/bin.ts#loadMockStreamFn`. Mock mode skips `resolveModel`/`createStream` entirely, so **no API key is required** `bin.ts:305-307`.
 
 ### `--request` (headless single-shot)
 
@@ -174,7 +174,7 @@ The mock module is an ESM file whose default export is either a `MockHandler` fu
 
 ## Runtime materialization (`runtime-init.ts`)
 
-`materializeRuntime(root)` `sdk/org/libs/cli/src/cli/runtime-init.ts:89-130` copies every dir from core's `defaultSystemSpaceDirs()` into `<root>/system/spaces/<name>/`, records each shipped dir's content hash into `<root>/system/.shipped.json`, then creates the default `user` project skeleton:
+`materializeRuntime(root)` `sdk/org/libs/cli/src/cli/runtime-init.ts#materializeRuntime` copies every dir from core's `defaultSystemSpaceDirs()` into `<root>/system/spaces/<name>/`, records each shipped dir's content hash into `<root>/system/.shipped.json`, then creates the default `user` project skeleton:
 
 ```
 <root>/                                  # LMTHING_ROOT, else <cwd>/.lmthing
@@ -191,7 +191,7 @@ The mock module is an ESM file whose default export is either a `MockHandler` fu
     project.json                         # {id:'user', name:'user', createdAt:<ISO>}
 ```
 
-The ten names are `SYSTEM_SPACE_NAMES` `sdk/org/libs/core/src/spaces/system.ts:30-41`; their source dirs are probed by `defaultSystemSpaceDirs()` (dist layout, then src layout) `system.ts:49-57`, and overridable by the caller via `--system-spaces` / `LM_SYSTEM_SPACES`.
+The ten names are `SYSTEM_SPACE_NAMES` `sdk/org/libs/core/src/spaces/system.ts#SYSTEM_SPACE_NAMES`; their source dirs are probed by `defaultSystemSpaceDirs()` (dist layout, then src layout) `system.ts:49-57`, and overridable by the caller via `--system-spaces` / `LM_SYSTEM_SPACES`.
 
 `instructions.md` and `project.json` are only written **if absent** `runtime-init.ts:117-127`.
 
@@ -201,7 +201,7 @@ The ten names are `SYSTEM_SPACE_NAMES` `sdk/org/libs/core/src/spaces/system.ts:3
 
 ### System-space sync (`syncSystemSpaces`)
 
-Per space, using `.shipped.json` and mtime-independent content hashes (`hashDir`, sha256 over sorted relpath + bytes) `sdk/org/libs/cli/src/cli/runtime-init.ts:29-49`, `runtime-init.ts:159-214`:
+Per space, using `.shipped.json` and mtime-independent content hashes (`hashDir`, sha256 over sorted relpath + bytes) `sdk/org/libs/cli/src/cli/runtime-init.ts#hashDir`, `runtime-init.ts:159-214`:
 
 | State | Action |
 |---|---|
@@ -212,7 +212,7 @@ Per space, using `.shipped.json` and mtime-independent content hashes (`hashDir`
 | locally modified, or legacy (no recorded hash) | **hold back**, record a baseline, warn `runtime-init.ts:204-209` |
 | …with `adopt` | rename to `<name>.bak-<Date.now()>`, then overwrite `runtime-init.ts:199-203` |
 
-Held-back spaces are reported on stderr with the fix (`re-run with --adopt-system-spaces`) `sdk/org/libs/cli/src/cli/bin.ts:231-236`, `bin.ts:381-386`.
+Held-back spaces are reported on stderr with the fix (`re-run with --adopt-system-spaces`) `sdk/org/libs/cli/src/cli/bin.ts#ensureRuntime`, `bin.ts:381-386`.
 
 ---
 
@@ -223,7 +223,7 @@ Held-back spaces are reported on stderr with the fix (`re-run with --adopt-syste
 | **8080** | `lmthing serve` / bare `lmthing` (`--port`) | `bin.ts:337`, `bin.ts:405` |
 | **3000** | `--web` DevTools UI | `args.ts:189` |
 | **18080** | the repo's local-dev serve target | `Makefile:135` |
-| `THING_PORT` (default 8080) | `pnpm thing` — one port for `/api` + agent WS + Vite HMR | `sdk/org/scripts/thing-dev.mjs:41`, `thing-dev.mjs:73-76` |
+| `THING_PORT` (default 8080) | `pnpm thing` — one port for `/api` + agent WS + Vite HMR | `sdk/org/scripts/thing-dev.mjs#SERVE_PORT`, `thing-dev.mjs:73-76` |
 
 `pnpm thing` runs `tsup --watch` on `@lmthing/cli` plus `lmthing serve --port $THING_PORT` with `LM_DEV_WEB` pointing at `apps/web`, so the CLI serves the API, the agent WebSocket and the HMR web app on a single origin `sdk/org/scripts/thing-dev.mjs:67-77`.
 
@@ -251,6 +251,6 @@ The static SPA server (`createStaticApps(resolveAppDist())`, `sdk/org/libs/cli/s
 
 - **`--project` / `-p` is dead** — parsed, typed, never read (see above).
 - **Two different default-project display names race.** `materializeRuntime` writes `project.json` with `name: 'user'` `runtime-init.ts:120-127`, while the server's `ensureDefaultProject` scaffolds it as **`'Personal'`** if `project.json` is absent `sdk/org/libs/cli/src/server/projects.ts:384-400`. Whichever runs first on a fresh root wins — and `materializeRuntime` runs first in every `bin.ts` path, so `user` is what you normally see.
-- **The synthetic `system` project.** `<root>/system/spaces/<id>` matches the generic `<root>/<projectId>/spaces/<id>` shape, so `listProjects` prepends `{ id: 'system', name: 'System', createdAt: 0 }` when the system spaces dir is non-empty `sdk/org/libs/cli/src/server/projects.ts:321-323` — that is how Studio edits system spaces through the ordinary project routes. `system` is reserved and cannot be created or deleted `projects.ts:31-41`, `projects.ts:330-336`.
+- **The synthetic `system` project.** `<root>/system/spaces/<id>` matches the generic `<root>/<projectId>/spaces/<id>` shape, so `listProjects` prepends `{ id: 'system', name: 'System', createdAt: 0 }` when the system spaces dir is non-empty `sdk/org/libs/cli/src/server/projects.ts#listProjects` — that is how Studio edits system spaces through the ordinary project routes. `system` is reserved and cannot be created or deleted `projects.ts:31-41`, `projects.ts:330-336`.
 - **`.env` in `<cwd>` beats the process env** — always, for every key present `bin.ts:16-30`.
 - **A missing tsup dist entry ships a broken image.** `worker` and `worker-load-entry` must stay in the CLI's tsup `entry` list; they are resolved as siblings of the bundled module at runtime `sdk/org/libs/cli/tsup.config.ts:12-17`.

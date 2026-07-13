@@ -1,18 +1,18 @@
 # Pod REST API — full route index
 
-Every HTTP route and WebSocket upgrade served by the pod's CLI server (`lmthing serve` / bare `lmthing`). The one entry point is `startSessionServer(opts)` `sdk/org/libs/cli/src/server/serve.ts:L79-L567`; it builds a `Router`, dispatches, and falls through to the unified SPA. See [../commands.md](../commands.md) for how the server is started and [../README.md](../README.md) for the CLI package overview.
+Every HTTP route and WebSocket upgrade served by the pod's CLI server (`lmthing serve` / bare `lmthing`). The one entry point is `startSessionServer(opts)` `sdk/org/libs/cli/src/server/serve.ts#startSessionServer`; it builds a `Router`, dispatches, and falls through to the unified SPA. See [../commands.md](../commands.md) for how the server is started and [../README.md](../README.md) for the CLI package overview.
 
 ---
 
 ## The dispatcher
 
-Routing is a hand-rolled first-match-wins table, not a framework `sdk/org/libs/cli/src/server/router.ts:L49-L83`:
+Routing is a hand-rolled first-match-wins table, not a framework `sdk/org/libs/cli/src/server/router.ts#Router`:
 
-- `Router.add(method, pattern, handler)` compiles the pattern to a RegExp `sdk/org/libs/cli/src/server/router.ts:L52-L55`.
-- `:param` matches exactly one non-slash segment `sdk/org/libs/cli/src/server/router.ts:L43`.
-- A trailing `/*` captures the remainder of the path (slashes included) as `params.rest` `sdk/org/libs/cli/src/server/router.ts:L37-L41`.
-- Method `'*'` matches any verb `sdk/org/libs/cli/src/server/router.ts:L66`.
-- `dispatch()` walks the routes **in registration order** and returns on the first match `sdk/org/libs/cli/src/server/router.ts:L65-L81`; a handler rejection is turned into a `500 {error}` JSON body `sdk/org/libs/cli/src/server/router.ts:L73-L78`.
+- `Router.add(method, pattern, handler)` compiles the pattern to a RegExp `sdk/org/libs/cli/src/server/router.ts#Router.add`.
+- `:param` matches exactly one non-slash segment `sdk/org/libs/cli/src/server/router.ts#compilePattern`.
+- A trailing `/*` captures the remainder of the path (slashes included) as `params.rest` `sdk/org/libs/cli/src/server/router.ts#compilePattern`.
+- Method `'*'` matches any verb `sdk/org/libs/cli/src/server/router.ts#Router.dispatch`.
+- `dispatch()` walks the routes **in registration order** and returns on the first match `sdk/org/libs/cli/src/server/router.ts#Router.dispatch`; a handler rejection is turned into a `500 {error}` JSON body `sdk/org/libs/cli/src/server/router.ts#Router.dispatch`.
 - Every handler has the shape `(req, res, params, ctx) => Promise<void>` with `ctx = { manager, spacesRoot, effectiveLmthingRoot, broadcastUiControl }` `sdk/org/libs/cli/src/server/router.ts:L6-L18`.
 
 Two shared helpers back nearly every module: `readBody(req)` and `sendJson(res, status, obj)` `sdk/org/libs/cli/src/server/routes/utils.ts`.
@@ -33,7 +33,7 @@ Two shared helpers back nearly every module: `readBody(req)` and `sendJson(res, 
 
 | Route | What it does with auth |
 |---|---|
-| `GET /api/budget` | Relays the caller's `Authorization` header to the gateway's `/api/billing/budget`; **no header ⇒ 404** `sdk/org/libs/cli/src/server/routes/budget.ts:L24-L37` |
+| `GET /api/budget` | Relays the caller's `Authorization` header to the gateway's `/api/billing/budget`; **no header ⇒ 404** `sdk/org/libs/cli/src/server/routes/budget.ts#handleBudget` |
 | `POST /api/report-bug` | Relays the caller's `Authorization` header to the gateway's issue broker `sdk/org/libs/cli/src/server/routes/report-bug.ts:L48`, `sdk/org/libs/cli/src/server/report-bug.ts:L38` |
 | `POST /api/inbound/:path` | Per-provider **HMAC signature verification** (401 on failure) — this is the one endpoint reachable from the public internet `sdk/org/libs/cli/src/server/routes/webhooks.ts:L191`, `L288` |
 
@@ -44,7 +44,7 @@ Other gates that change whether a route *exists* or what it returns:
 | `effectiveLmthingRoot` (`manager.lmthingRoot ?? opts.lmthingRoot`) `sdk/org/libs/cli/src/server/serve.ts:L109` | Project/app/hook/store routes 404 or return empty without it (e.g. `{hooks: []}` `sdk/org/libs/cli/src/server/routes/hooks.ts:L500-L503`; `{integrations: []}` `sdk/org/libs/cli/src/server/routes/store-spaces.ts:L543-L546`; hook-run `404 no project root configured` `sdk/org/libs/cli/src/server/routes/hooks.ts:L409-L412`) |
 | `LMTHING_GATEWAY_URL` | When set (prod pods only), the two **root mounts** `/:projectId/api/*` and `/:projectId/*` are additionally registered `sdk/org/libs/cli/src/server/serve.ts:L322-L326` |
 | Memory pressure (`isUnderMemoryPressure()`) | `POST /api/sessions` answers `503` + `Retry-After: 5` `sdk/org/libs/cli/src/server/routes/sessions.ts:L15-L19` |
-| `LM_ENABLE_CRONTAB=1` | The **only** way the system crontab is written; otherwise an in-process tick drives cron hooks `sdk/org/libs/cli/src/server/routes/hooks.ts:L582-L595` |
+| `LM_ENABLE_CRONTAB=1` | The **only** way the system crontab is written; otherwise an in-process tick drives cron hooks `sdk/org/libs/cli/src/server/routes/hooks.ts#crontabUnavailable` |
 | `LM_DEV_WEB` / `LM_APP_DIST` | Swap the SPA catch-all for Vite HMR / override the SPA dist `sdk/org/libs/cli/src/server/serve.ts:L368-L369`, `sdk/org/libs/cli/src/server/static-apps.ts` |
 
 Mutating requests (anything not GET/HEAD/OPTIONS) bump `lastMutatingRequestAt` for the self-idle watchdog; GETs deliberately do not, so the K8s readiness probe (`GET /api/sessions`) can't keep an idle pod awake `sdk/org/libs/cli/src/server/serve.ts:L328-L357`.
@@ -121,7 +121,7 @@ All route-module paths above are relative to `sdk/org/libs/cli/src/server/`.
 
 ### Per-session sub-routes (via `* /api/sessions/:id/*`)
 
-`handleSessionSubRoute` rewrites the path to `/api/<rest>` and hands it to `handleAgentApi` with a session-bound context; an unknown session id is `404` before the handoff `sdk/org/libs/cli/src/server/routes/sessions.ts:L69-L86`. `?format=json` switches every GET from the text renderer to JSON `sdk/org/libs/cli/src/web/agent-api.ts:L244-L245`.
+`handleSessionSubRoute` rewrites the path to `/api/<rest>` and hands it to `handleAgentApi` with a session-bound context; an unknown session id is `404` before the handoff `sdk/org/libs/cli/src/server/routes/sessions.ts#handleSessionSubRoute`. `?format=json` switches every GET from the text renderer to JSON `sdk/org/libs/cli/src/web/agent-api.ts:L244-L245`.
 
 | Method | Path | Purpose | Source |
 |---|---|---|---|
@@ -145,10 +145,10 @@ WS endpoints are **not** in the `Router` — they are matched in the `upgrade` l
 | Endpoint | Purpose | Handler |
 |---|---|---|
 | `WS /api/terminals/:termId?command=` | One PTY per terminal tab; cwd = `effectiveLmthingRoot` | `handleTerminalWsUpgrade` `sdk/org/libs/cli/src/server/ws/terminal.ts:L24-L47` (matched by regex `serve.ts:L381-L385`) |
-| `WS /api/ws?sessionId=<id>` | Agent event stream + RPC for one session | `handleAgentWsUpgrade` `sdk/org/libs/cli/src/server/ws/agent.ts:L129-L143` |
-| `WS /api/ws` (no `sessionId`) | Control socket (terminal multiplexing) used by `/computer` | `registerControlSocket` `sdk/org/libs/cli/src/server/ws/agent.ts:L131-L135` |
+| `WS /api/ws?sessionId=<id>` | Agent event stream + RPC for one session | `handleAgentWsUpgrade` `sdk/org/libs/cli/src/server/ws/agent.ts#handleAgentWsUpgrade` |
+| `WS /api/ws` (no `sessionId`) | Control socket (terminal multiplexing) used by `/computer` | `registerControlSocket` `sdk/org/libs/cli/src/server/ws/agent.ts#handleAgentWsUpgrade` |
 
-Any other upgrade pathname is destroyed `sdk/org/libs/cli/src/server/ws/agent.ts:L129`.
+Any other upgrade pathname is destroyed `sdk/org/libs/cli/src/server/ws/agent.ts#handleAgentWsUpgrade`.
 
 ---
 
@@ -176,14 +176,14 @@ curl -s -XDELETE localhost:8080/api/sessions/<id>
 
 ## Gotchas
 
-- **`PUT /api/env` is full-replace**, not a merge — it writes whatever `{content}` you send over the entire file and applies it to `process.env` `sdk/org/libs/cli/src/server/routes/env.ts:L37-L53`. Callers must GET-merge-PUT. Same for the bulk space-file `PUT`, which wipes the space dir first `sdk/org/libs/cli/src/server/routes/projects.ts:L191-L225`.
+- **`PUT /api/env` is full-replace**, not a merge — it writes whatever `{content}` you send over the entire file and applies it to `process.env` `sdk/org/libs/cli/src/server/routes/env.ts#handleEnvPut`. Callers must GET-merge-PUT. Same for the bulk space-file `PUT`, which wipes the space dir first `sdk/org/libs/cli/src/server/routes/projects.ts#handlePutProjectSpaceFiles`.
 - **`POST /api/restart` answers before it exits** — `200 {ok:true}` is written, then `process.exit(0)` fires 100 ms later `sdk/org/libs/cli/src/server/serve.ts:L143-L147`. Clients poll `GET /api/env` to detect the new process.
 - **`GET /api/inbound/:path` is not routed.** Only `POST` is registered `sdk/org/libs/cli/src/server/serve.ts:L236`, yet the handler implements a provider `hub.challenge` GET branch `sdk/org/libs/cli/src/server/routes/webhooks.ts:L176`, `L275` and the gateway does forward GET handshakes to the pod at `${podBase}/api/inbound/${path}` `cloud/gateway/src/routes/inbound.ts:L194-L195`. As registered, such a GET falls into the unknown-`/api/*` JSON 404 `sdk/org/libs/cli/src/server/serve.ts:L361-L366` and never reaches the handshake branch.
 - **Two anonymous inline handlers** (no module, no exported symbol): `POST /api/restart` and `POST /api/keepalive` `sdk/org/libs/cli/src/server/serve.ts:L143-L157`.
 - **`routes/utils.ts` is not a route module** — it only exports `readBody` / `sendJson`. There is likewise no `routes/cron-emitter.ts`; `routes/cron-emitter.test.ts` tests emitter code that lives in `routes/hooks.ts`.
 - **A `@emitter:<scope>:<name>` pseudo-slug** on the hook-run route is not a hook — it routes to `runNamedCronEmitter` `sdk/org/libs/cli/src/server/routes/hooks.ts:L418-L424`.
 - **App-file routes are path-scoped**: only `database|pages|api|hooks|components|lib` dirs plus `package.json`/`tsconfig.json`; `.data/` and `types/` are `403` `sdk/org/libs/cli/src/server/routes/app-admin.ts:L60-L98`.
-- **Store listing degrades to empty, never errors** — an unreachable store yields `{apps: []}` / `{spaces: []}` `sdk/org/libs/cli/src/server/routes/apps.ts:L103-L112`, `sdk/org/libs/cli/src/server/routes/store-spaces.ts:L126-L135`.
+- **Store listing degrades to empty, never errors** — an unreachable store yields `{apps: []}` / `{spaces: []}` `sdk/org/libs/cli/src/server/routes/apps.ts#handleListApps`, `sdk/org/libs/cli/src/server/routes/store-spaces.ts#handleListStoreSpaces`.
 - **`/api/projects/:projectId/app/*` (admin) is a different surface** from `/app/:projectId/api/*` (the app's own runtime). The first is Studio's management API; the second is what the browser and the agent's `apiCall` hit `sdk/org/libs/cli/src/server/routes/app-api.ts:L8-L20`.
 
 ---

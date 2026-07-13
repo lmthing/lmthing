@@ -2,7 +2,7 @@
 
 A **space** is a directory bundle of agents plus the tooling they reference — `functions/`,
 `knowledge/`, `tasklists/`, `components/`, `events/` — read into a `Space` record by
-`loadSpace(dir)` (`sdk/org/libs/core/src/spaces/load.ts:583-722`). This page is the procedure for
+`loadSpace(dir)` (`sdk/org/libs/core/src/spaces/load.ts#loadSpace`). This page is the procedure for
 **authoring one and getting the runtime to see it**. The on-disk *format* of every file kind lives
 in [../format/space/README.md](../format/space/README.md) — this page does not restate it; it tells
 you what to create, what the loader will reject, and how to register/install what you built.
@@ -20,9 +20,9 @@ The files are identical; **where the directory lives** decides how it is discove
 | Kind | Lives at | Discovered by | Section |
 |---|---|---|---|
 | **Project space** (the common case) | `<root>/<projectId>/spaces/<id>/` | scanned per session — `listProjectSpaceDirs` → `preloadSpaceDirs` (`sdk/org/libs/cli/src/server/projects.ts:148-153`, `sdk/org/libs/cli/src/server/session-manager.ts:1112-1118`) | [§5a](#5a-a-project-space) |
-| **System space** (shipped with the runtime) | `sdk/org/libs/core/system-spaces/<name>/` | must be listed in `SYSTEM_SPACE_NAMES` (`sdk/org/libs/core/src/spaces/system.ts:30-41`) | [§5b](#5b-a-system-space) |
-| **Store space** (installable integration) | `store/spaces/<id>/` | store catalog manifest + the pod's install route (`store/scripts/gen-apps-manifest.mjs:41-42`, `sdk/org/libs/cli/src/server/routes/store-spaces.ts:215-280`) | [§5c](#5c-a-store-space-integration) |
-| **Runtime-registered** (ephemeral, agent-authored) | anywhere on the pod FS | the `registerSpace(dir)` global (`sdk/org/libs/core/src/globals/register-space.ts:24-33`) | [§5d](#5d-a-runtime-registered-space) |
+| **System space** (shipped with the runtime) | `sdk/org/libs/core/system-spaces/<name>/` | must be listed in `SYSTEM_SPACE_NAMES` (`sdk/org/libs/core/src/spaces/system.ts#SYSTEM_SPACE_NAMES`) | [§5b](#5b-a-system-space) |
+| **Store space** (installable integration) | `store/spaces/<id>/` | store catalog manifest + the pod's install route (`store/scripts/gen-apps-manifest.mjs:41-42`, `sdk/org/libs/cli/src/server/routes/store-spaces.ts#installStoreSpace`) | [§5c](#5c-a-store-space-integration) |
+| **Runtime-registered** (ephemeral, agent-authored) | anywhere on the pod FS | the `registerSpace(dir)` global (`sdk/org/libs/core/src/globals/register-space.ts#createRegisterSpaceGlobal`) | [§5d](#5d-a-runtime-registered-space) |
 
 Write the space once; pick the registration path at the end.
 
@@ -62,7 +62,7 @@ Per-file-kind formats: [../format/space/agents/](../format/space/agents/README.m
 
 ## 2. Write the agent — `agents/<slug>/{charter,instruct}.md`
 
-Two files, both read by `loadAgent` (`sdk/org/libs/core/src/spaces/load.ts:431-568`):
+Two files, both read by `loadAgent` (`sdk/org/libs/core/src/spaces/load.ts#loadAgent`):
 
 - **`charter.md`** — body only, **no frontmatter required**; it is `parseFrontmatter`d and the body
   trimmed into `AgentDef.charterBody` (`load.ts:548-553`). It is injected into the top-level prompt
@@ -103,7 +103,7 @@ canDelegateTo: []
 ### The frontmatter allow-list (fail-loud)
 
 `AGENT_FRONTMATTER_ALLOWED_KEYS` is the closed set of top-level keys; **any other key throws at load**
-(`sdk/org/libs/core/src/spaces/load.ts:413-425`, `:461-466`). That gate exists precisely so a typo'd
+(`sdk/org/libs/core/src/spaces/load.ts#AGENT_FRONTMATTER_ALLOWED_KEYS`, `:461-466`). That gate exists precisely so a typo'd
 `capabilites:` can't silently grant nothing.
 
 | Key | Meaning | Grounding |
@@ -133,7 +133,7 @@ Two non-obvious behaviours worth knowing before you author:
 ### Capabilities
 
 `capabilities:` is a YAML list of bare ids or single-key config maps, parsed by `parseCapabilities`
-(`sdk/org/libs/core/src/spaces/capabilities.ts:236` — the 13 ids are at `:26-56`). Parsing is
+(`sdk/org/libs/core/src/spaces/capabilities.ts#parseConnectionsConfig` — the 13 ids are at `:26-56`). Parsing is
 fail-loud: an unknown id, an unknown config key, or a bare `api:call`/`tools:use`/`connections:use`
 (their `allow`/`providers` list is *required* — "there is no 'use anything'") all throw at space load
 (`capabilities.ts:129-144`, `:187-205`). When the loader is given `knownTables` — the project's `database/` tables —
@@ -163,7 +163,7 @@ Two extra fail-loud validators fire on the files themselves, whether or not an a
   throws. Plain markdown with no frontmatter is always valid
   (`load.ts:331-353`, `validateKnowledgeOptionFrontmatter`).
 - **Malformed YAML anywhere** — `parseFrontmatter` throws with the file path rather than silently
-  yielding an empty config (`sdk/org/libs/core/src/spaces/frontmatter.ts:11-31`).
+  yielding an empty config (`sdk/org/libs/core/src/spaces/frontmatter.ts#parseFrontmatter`).
 
 If the space has a `package.json` **with declared dependencies**, `loadSpace` runs `npm install` in
 the space dir on first load (and throws if it fails), then esbuild-bundles each function so it can
@@ -184,7 +184,7 @@ install — deliberately, so offline pods don't fail (`load.ts:617-623`).
 5. A failed **`npm install`** for a space that declares dependencies (`load.ts:625-630`).
 
 `opts.requireAgents: false` relaxes (1) and (2) — that is how **function-only** system spaces like
-`system-global` load (`load.ts:583-603`; `loadSystemSpaces` passes it, `sdk/org/libs/core/src/spaces/system.ts:60-70`).
+`system-global` load (`load.ts:583-603`; `loadSystemSpaces` passes it, `sdk/org/libs/core/src/spaces/system.ts#loadSystemSpaces`).
 `opts.onWarn` re-routes non-fatal diagnostics (default: `console.warn` with a `[spaces]` prefix,
 `load.ts:585`).
 
@@ -214,7 +214,7 @@ tolerance (`sdk/org/libs/core/src/exec/target-match.ts:24-50`).
 Two edits, both required:
 
 1. **Create** `sdk/org/libs/core/system-spaces/<name>/`.
-2. **Add `<name>` to `SYSTEM_SPACE_NAMES`** (`sdk/org/libs/core/src/spaces/system.ts:30-41`) — the
+2. **Add `<name>` to `SYSTEM_SPACE_NAMES`** (`sdk/org/libs/core/src/spaces/system.ts#SYSTEM_SPACE_NAMES`) — the
    list `defaultSystemSpaceDirs()` maps over (`system.ts:50-57`). A directory that isn't in the list
    is never loaded. Ten ship today: `system-global`, `system-engineer`, `system-architect`,
    `system-research`, `system-appbuilder`, `system-vision`, `system-files`, `system-store`,
@@ -232,7 +232,7 @@ Then know what the runtime does with it:
   (`system.ts:144-155`).
 - **Materialization.** `materializeRuntime(root)` copies every `defaultSystemSpaceDirs()` entry into
   `<root>/system/spaces/<name>/` and records a content hash per space in `<root>/system/.shipped.json`
-  (`sdk/org/libs/cli/src/cli/runtime-init.ts:89-130`). On every boot `syncSystemSpaces` reconciles:
+  (`sdk/org/libs/cli/src/cli/runtime-init.ts#materializeRuntime`). On every boot `syncSystemSpaces` reconciles:
   new → copy; recorded hash === shipped → skip; **pristine but outdated → auto-adopt**; **locally
   modified → hold back** unless `--adopt-system-spaces` / `LM_ADOPT_SYSTEM_SPACES=1` (which backs the
   old copy up to `<name>.bak-<ts>` first) (`runtime-init.ts:159-214`). So a source edit reaches an
@@ -243,7 +243,7 @@ Then know what the runtime does with it:
   `sdk/org/libs/cli/package.json:17`). **Forget this and every session fails to find the `thing`
   agent** — `materializeRuntime` warns loudly when it copies zero spaces (`runtime-init.ts:105-110`).
 - **Override for a local experiment** without touching the list: `LM_SYSTEM_SPACES=<csv of dirs>`, or
-  `--system-spaces` / `--no-system-spaces` (`sdk/org/libs/cli/src/cli/bin.ts:243-250`).
+  `--system-spaces` / `--no-system-spaces` (`sdk/org/libs/cli/src/cli/bin.ts#resolveAgentAndSpaces`).
 
 ### 5c. A store space (integration)
 
@@ -258,16 +258,16 @@ Then know what the runtime does with it:
    (`gen-apps-manifest.mjs:41-42`, `:482-505`), lifting each space's `events`/`functions`/`agents`/
    `inbound` surface plus the full `files` download list (`:453-478`). Run `pnpm --dir store gen:apps-manifest`
    (`store/package.json:9`); the `lmthing-apps-manifest` Vite plugin also runs it on every build
-   (`store/vite.config.ts:17`).
+   (`store/vite.config.ts#appsManifestPlugin`).
 3. **Install path.** The pod downloads the space's `files` from `<store>/spaces/<id>/<rel>` into
    `<root>/<projectId>/spaces/<id>/` — one pure engine, `installStoreSpace`, shared by the HTTP route
    `POST /api/store/spaces/install` and the agent-facing `installSpace` yield resolver
-   (`sdk/org/libs/cli/src/server/routes/store-spaces.ts:215-280`, `:293-297`). It applies the same
+   (`sdk/org/libs/cli/src/server/routes/store-spaces.ts#installStoreSpace`, `:293-297`). It applies the same
    pristine-vs-diverged hash guard as app install: a locally-edited copy answers
    `{ok:false, diverged:true}` unless `force:true` (`store-spaces.ts:248-267`). Route docs:
    [../cli-api/rest/store-spaces.md](../cli-api/rest/store-spaces.md).
 4. **Agent-driven install is consent-gated.** `installSpace` is the only consent-marked yield kind
-   (`CONSENT_MARKED_YIELD_KINDS`, `sdk/org/libs/core/src/globals/consent.ts:54`), and it **fails
+   (`CONSENT_MARKED_YIELD_KINDS`, `sdk/org/libs/core/src/globals/consent.ts#CONSENT_MARKED_YIELD_KINDS`), and it **fails
    closed** with no prompter — a fork/delegate/hook can never install silently. Discovery is
    delegated to `system-store`'s `finder` agent, which holds only `store:read`
    (`sdk/org/libs/core/system-spaces/system-store/agents/finder/instruct.md:1-6`). See

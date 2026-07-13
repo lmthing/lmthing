@@ -6,7 +6,7 @@ The on-disk *format* this loader parses (what a `spaces/<id>/` tree contains) is
 
 ## The `Space` object
 
-`loadSpace(dir)` returns a `Space` (`sdk/org/libs/core/src/spaces/load.ts:7-21`):
+`loadSpace(dir)` returns a `Space` (`sdk/org/libs/core/src/spaces/load.ts#Space`):
 
 | Field | What it holds |
 |---|---|
@@ -104,7 +104,7 @@ Agents from every system space are universally delegatable, but **functions are 
 
 A **project space** lives at `<root>/<projectId>/spaces/<spaceId>/`. Discovery is the CLI's job — core stays path-agnostic and only receives dirs.
 
-- `listProjectSpaceDirs(root, projectId)` (`sdk/org/libs/cli/src/server/projects.ts:152-154`) returns the absolute path of every immediate sub-directory of `<root>/<projectId>/spaces/`, or `[]` if absent. `projectSpaceDir(root, projectId, spaceId)` (`projects.ts:157-159`) resolves a single one.
+- `listProjectSpaceDirs(root, projectId)` (`sdk/org/libs/cli/src/server/projects.ts#listProjectSpaceDirs`) returns the absolute path of every immediate sub-directory of `<root>/<projectId>/spaces/`, or `[]` if absent. `projectSpaceDir(root, projectId, spaceId)` (`projects.ts:157-159`) resolves a single one.
 - The `SessionManager` scans them once per session and passes the results as two `SessionOpts`:
   - `preloadSpaceDirs` — the scanned dirs (`session-manager.ts:1114-1130`), which `Session.start`/rehydrate loads into `dynamicSpaces` up front so they are **delegatable immediately** (`session.ts:236-245`, `427-433`; one bad dir logs a warn and is isolated, it does not abort startup).
   - `projectSpacesDir` = `join(root, projectId, 'spaces')` (`session-manager.ts:1112`) — threaded through every fork/delegate (`session.ts:645, 708, 755, 976`) so nested scopes rebuild a registry that can still reach project spaces.
@@ -113,7 +113,7 @@ A **project space** lives at `<root>/<projectId>/spaces/<spaceId>/`. Discovery i
 
 ## Runtime registration — `registerSpace`
 
-`registerSpace(dir)` is a value-yielding global (`sdk/org/libs/core/src/globals/register-space.ts:21-34`) that loads a space at `dir` into the live registry so `delegate()` can reach it *this session*. It returns `{ ok, spaceKey, agentSlug, error? }` where `spaceKey === dir` (the key to pass to `delegate()`) and `agentSlug` is the first agent found.
+`registerSpace(dir)` is a value-yielding global (`sdk/org/libs/core/src/globals/register-space.ts#createRegisterSpaceGlobal`) that loads a space at `dir` into the live registry so `delegate()` can reach it *this session*. It returns `{ ok, spaceKey, agentSlug, error? }` where `spaceKey === dir` (the key to pass to `delegate()`) and `agentSlug` is the first agent found.
 
 Resolution has two sites, both writing the **same shared `dynamicSpaces` Map**:
 - **Top-level session** (`session.ts:816-826`): `loadSpace(dir)` → `this.dynamicSpaces.set(dir, space)`; on failure returns `{ ok:false, error }` rather than throwing.

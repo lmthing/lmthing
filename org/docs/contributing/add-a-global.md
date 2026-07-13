@@ -33,8 +33,8 @@ covers the synchronous variant.
 Three sites do all the work, and there is exactly one of each: injection is unified into
 `createChildVM` (`sdk/org/libs/core/src/exec/bootstrap.ts:99-243`) — session, fork and delegate all
 route through it; yields are resolved in the shared `routeCommonYield`
-(`sdk/org/libs/core/src/eval/yield-router.ts:131`); and the model-facing prose is emitted by the
-`globalsSummary` **function** (`sdk/org/libs/core/src/context/system-block.ts:137-198`).
+(`sdk/org/libs/core/src/eval/yield-router.ts#routeCommonYield`); and the model-facing prose is emitted by the
+`globalsSummary` **function** (`sdk/org/libs/core/src/context/system-block.ts#globalsSummary`).
 
 ---
 
@@ -45,7 +45,7 @@ route through it; yields are resolved in the shared `routeCommonYield`
 A factory takes `pushYield` (plus any host-derived closure values) and returns the
 function the model calls. The function returns a `Promise` and pushes a `YieldRequest`;
 pushing the yield ends the turn. `sleep` is the minimal shape
-(`sdk/org/libs/core/src/globals/sleep.ts:35-57`):
+(`sdk/org/libs/core/src/globals/sleep.ts#createSleepGlobal`):
 
 ```ts
 export function createSleepGlobal(
@@ -66,7 +66,7 @@ export function createSleepGlobal(
 }
 ```
 
-Rules, all enforced by the `YieldRequest` shape (`sdk/org/libs/core/src/eval/yield.ts:3-8`):
+Rules, all enforced by the `YieldRequest` shape (`sdk/org/libs/core/src/eval/yield.ts#YieldRequest`):
 
 - **`args` must be serializable** — strings, numbers, plain objects. The host reads them
   in the router; QuickJS handles cannot cross back.
@@ -80,7 +80,7 @@ Rules, all enforced by the `YieldRequest` shape (`sdk/org/libs/core/src/eval/yie
 
 ### 2. Add the `kind` to the `YieldRequest` union
 
-`sdk/org/libs/core/src/eval/yield.ts:4` — the `kind` literal union is the closed set of
+`sdk/org/libs/core/src/eval/yield.ts#YieldRequest.kind` — the `kind` literal union is the closed set of
 yield kinds (21 today). Add your literal:
 
 ```ts
@@ -112,7 +112,7 @@ Pick the gate that matches the global's blast radius:
   project's data/app surface (`sdk/org/libs/core/src/exec/bootstrap.ts:173-204`). See step 5.
 - A **boolean profile flag** (`caps.ask`, `caps.orchestrate`, `caps.delegate`,
   `caps.registerSpace`, `caps.setSessionMeta`) for session/fork/delegate structural gates
-  (`sdk/org/libs/core/src/exec/capability.ts:47-79`).
+  (`sdk/org/libs/core/src/exec/capability.ts#CapabilityProfile`).
 - **Ungated** (every VM) only when the global carries no authority and no secret — `sleep`,
   `fetch`, `inspect`, `readDocument`, `loadKnowledge` (`sdk/org/libs/core/src/exec/bootstrap.ts:156-164`).
 
@@ -123,7 +123,7 @@ Also `import` the factory at the top of `bootstrap.ts` (the import block is
 
 Add a `case` in `sdk/org/libs/core/src/eval/yield-router.ts:146` (the `switch (req.kind)`).
 Thread the host dependency you need through `YieldRouterContext`
-(`sdk/org/libs/core/src/eval/yield-router.ts:36-116`) rather than importing it — that keeps
+(`sdk/org/libs/core/src/eval/yield-router.ts#YieldRouterContext`) rather than importing it — that keeps
 `@lmthing/core` free of `cli`/host imports. **The host resolver is a third gate**
 (`../runtime-globals/README.md#the-third-gate-the-host-resolver`): a global can be injected
 yet have no resolver (bare unit test, session outside a project). Fail with a specific,
@@ -147,7 +147,7 @@ caller must resolve itself (`sdk/org/libs/core/src/eval/yield-router.ts:118-126`
 ### 5. Gate it by capability (if project-app scoped)
 
 If your global exposes a project-app effect it should be a **capability**, gated on both
-sides from the single `CapabilityProfile` (`sdk/org/libs/core/src/exec/capability.ts:47-79`):
+sides from the single `CapabilityProfile` (`sdk/org/libs/core/src/exec/capability.ts#CapabilityProfile`):
 
 1. **Add the id** to `CapabilityId` and `CAPABILITY_IDS`
    (`sdk/org/libs/core/src/spaces/capabilities.ts:26-45`) — there are 13 today. Parsing is
@@ -156,7 +156,7 @@ sides from the single `CapabilityProfile` (`sdk/org/libs/core/src/exec/capabilit
 2. **Inject** behind `caps.app['<id>']` (step 3).
 3. **Declare the DTS fragment** so a stray call fails *typecheck*, not runtime (step 6).
 4. **Decide read-only-fork behaviour** in `intersectAppCaps`
-   (`sdk/org/libs/core/src/exec/capability.ts:16-28`): an `explore`/`plan` fork keeps only
+   (`sdk/org/libs/core/src/exec/capability.ts#intersectAppCaps`): an `explore`/`plan` fork keeps only
    read/outbound grants; a mutating grant you add is dropped there unless you list it.
 5. **Re-check host-side** if the grant carries config (e.g. `db` re-runs
    `assertTableAllowed` on every call, `sdk/org/libs/core/src/exec/app-globals.ts:102-111`).
@@ -169,13 +169,13 @@ The capability→{globals, doc} table is authored in
 
 The typecheck DTS is composed additively from per-global fragments in
 `sdk/org/libs/core/src/typecheck/library-dts.ts`, assembled by `buildAmbientDts`
-(`sdk/org/libs/core/src/exec/bootstrap.ts:311-333`). **Declaration must stay in lockstep
+(`sdk/org/libs/core/src/exec/bootstrap.ts#buildAppCapabilityDts`). **Declaration must stay in lockstep
 with injection** — the invariant that makes an ungranted call a clean "Cannot find name"
 error (`sdk/org/libs/core/src/exec/capability.ts:36-40`). Where you add the fragment depends
 on the gate:
 
 - **Structural gate** (ask/orchestrate/delegate/setSessionMeta) — export a `*_DTS` const and
-  add a conditional line in `buildAmbientDts` (`sdk/org/libs/core/src/exec/bootstrap.ts:313-329`),
+  add a conditional line in `buildAmbientDts` (`sdk/org/libs/core/src/exec/bootstrap.ts#buildAppCapabilityDts`),
   e.g. `caps.setSessionMeta ? SET_SESSION_META_DTS : ''`.
 - **Project-app capability** — add the fragment to `CAPABILITY_DTS_FRAGMENTS`
   (`sdk/org/libs/core/src/typecheck/library-dts.ts:269-278`); `buildAppCapabilityDts`
@@ -194,7 +194,7 @@ on the gate:
 ### 7. Tell the model it exists
 
 The model learns the always-available globals from `globalsSummary`
-(`sdk/org/libs/core/src/context/system-block.ts:137-198`) — add a bullet there for a
+(`sdk/org/libs/core/src/context/system-block.ts#globalsSummary`) — add a bullet there for a
 universal global. Capability-gated globals are surfaced through the DTS + the space's
 `capabilities:` frontmatter, not this prose block, so a new capability global typically
 needs no `system-block.ts` edit.
@@ -202,11 +202,11 @@ needs no `system-block.ts` edit.
 ### 8. Consent (only if the global carries user-visible authority)
 
 To force a host consent card **before** the resolver runs, add the kind to
-`CONSENT_MARKED_YIELD_KINDS` (`sdk/org/libs/core/src/globals/consent.ts:54`, today just
+`CONSENT_MARKED_YIELD_KINDS` (`sdk/org/libs/core/src/globals/consent.ts#CONSENT_MARKED_YIELD_KINDS`, today just
 `installSpace`). The router intercepts it before the switch
 (`sdk/org/libs/core/src/eval/yield-router.ts:140-145`), and it **fails closed** with no
 prompter — forks/delegates/hooks/headless runs can never silently execute it
-(`sdk/org/libs/core/src/globals/consent.ts:93-99`). See
+(`sdk/org/libs/core/src/globals/consent.ts#enforceConsent`). See
 [../runtime-globals/README.md](../runtime-globals/README.md#3-consent-generic-host-enforced-fail-closed).
 
 ### 9. Test
@@ -261,13 +261,13 @@ those rather than `host-tools.ts` when the effect is project-rooted — see
 | # | What | Where |
 |---|---|---|
 | 1 | Factory returning the Promise-pushing function | `sdk/org/libs/core/src/globals/<name>.ts` |
-| 2 | Add `kind` to the union | `sdk/org/libs/core/src/eval/yield.ts:4` |
+| 2 | Add `kind` to the union | `sdk/org/libs/core/src/eval/yield.ts#YieldRequest.kind` |
 | 3 | Inject behind the right gate (+ import) | `sdk/org/libs/core/src/exec/bootstrap.ts:6-24`, `:145-211` |
 | 4 | Resolve the yield; thread the resolver; fail-loud if absent | `sdk/org/libs/core/src/eval/yield-router.ts` |
 | 5 | Capability id + parse + read-only-fork intersect (if project-scoped) | `sdk/org/libs/core/src/spaces/capabilities.ts`, `sdk/org/libs/core/src/exec/capability.ts` |
 | 6 | DTS fragment, in lockstep with injection | `sdk/org/libs/core/src/typecheck/library-dts.ts` + `buildAmbientDts` |
-| 7 | Model-facing bullet (universal globals only) | `sdk/org/libs/core/src/context/system-block.ts:137-198` |
-| 8 | Consent marking (if it carries authority) | `sdk/org/libs/core/src/globals/consent.ts:54` |
+| 7 | Model-facing bullet (universal globals only) | `sdk/org/libs/core/src/context/system-block.ts#globalsSummary` |
+| 8 | Consent marking (if it carries authority) | `sdk/org/libs/core/src/globals/consent.ts#CONSENT_MARKED_YIELD_KINDS` |
 | 9 | Factory test + DTS lockstep test | `globals/<name>.test.ts`, `exec/bootstrap.test.ts` |
 
 **Doc to update:** add the new global (and any new capability) to

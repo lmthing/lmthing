@@ -81,3 +81,16 @@ _Started 2026-07-12T23:56:09.625Z. The agent MUST update this file at every step
   post-deploy acts confirm the pod no longer crashes on message-to-initializing-session.
 - **Verdict: CONDITIONAL PASS** — 10/11 Acts + Edges fully green; Act VIII conditional on the known
   automator db.update reliability follow-up.
+
+## Round 1 — DONE (clean, committed, deployed, resumable)
+
+- **Committed + pushed both repos** (submodule-first): sdk/org `3a4a120` (runner + scenario.md +
+  Actual results + crashloop fix + test), parent `72a758a0` (pointer bump). Fix already shipped in
+  parent `29ddb387` → `compute:29ddb38`.
+- **Deploy verified live:** CI `build (compute)` for 29ddb38 = success; test pod on `compute:29ddb38`,
+  Running 1/1 healthy (no crashloop); Act XI (restart→auto-resume) + all post-deploy Acts pass.
+- **Definition of done:** scenario.md has 6 sections + checklist + Acts I–XI + Edges (incl. 3 new
+  Acts IX/X/XI); run.mjs reproduces the flow 1:1 with hardening kept; every assertion reads trace/real
+  state; ran e2e live → CONDITIONAL PASS; the one product bug (crashloop) fixed with a test + verified
+  live; results/report.md + trace.json present; Actual results filled with verdict, per-Act table,
+  issues+fix sha, perf table, and the honest breakdown narrative.

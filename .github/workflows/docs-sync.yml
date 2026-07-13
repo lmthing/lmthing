@@ -37,5 +37,4 @@ jobs:
         working-directory: org/docs/tools/docs-sync
         run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
       - name: Check citations resolve
-        # Baseline tolerates pre-existing drift; only NEW unresolved citations fail the build.
-        run: node org/docs/tools/docs-sync/check.mjs --baseline org/docs/tools/docs-sync/baseline.json
+        run: node org/docs/tools/docs-sync/check.mjs

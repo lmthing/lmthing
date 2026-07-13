@@ -31,8 +31,8 @@ function bodies are intentionally **not** anchors.
 Run from anywhere; paths default to this repo layout.
 
 ```bash
-# The CI gate: fail on any NEW unresolved citation (pre-existing ones live in the baseline).
-node org/docs/tools/docs-sync/check.mjs --baseline org/docs/tools/docs-sync/baseline.json
+# The CI gate: fail on any unresolved citation.
+node org/docs/tools/docs-sync/check.mjs
 node org/docs/tools/docs-sync/check.mjs --json       # machine-readable
 
 # Convert line citations to symbol anchors where a symbol is a clean fit.
@@ -44,17 +44,20 @@ Flags: `--docs <dir>` `--repo-root <dir>` `--sdk-org-root <dir>` (or `SDK_ORG_RO
 The last is only needed when the `sdk/org` submodule isn't checked out — point it at a
 standalone clone of `github.com/lmthing/org`.
 
-### The baseline
+### Baseline (escape hatch — currently unused)
 
-`baseline.json` lists citations that were already broken when the gate was introduced —
-pre-existing drift the gate now surfaces. The gate tolerates exactly these and fails only on
-**new** breakage, so it went green on day one without masking the debt. The list is the
-burn-down: fix an entry, and the gate flags it as `♻ now resolves — remove from baseline`.
-Regenerate after a burn-down or when the pinned `sdk/org` commit moves:
+The gate is a hard **zero**: every citation resolves. If a future change ever needs to land
+alongside pre-existing drift it can't fix in the same PR, `check.mjs` supports a baseline of
+tolerated failures so only *new* breakage fails:
 
 ```bash
-node org/docs/tools/docs-sync/check.mjs --update-baseline org/docs/tools/docs-sync/baseline.json
+node check.mjs --update-baseline baseline.json          # record current failures
+node check.mjs --baseline baseline.json                 # fail only on NEW ones
 ```
+
+A baselined entry that later resolves is flagged (`♻ now resolves — remove from baseline`) so the
+list only shrinks. There is no baseline file today, and adding one should be a deliberate, temporary
+choice — the contract is to fix drift in the same change, not to park it.
 
 ## What migration keeps as line anchors (by design)
 

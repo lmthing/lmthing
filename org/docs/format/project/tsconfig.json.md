@@ -27,7 +27,7 @@ Taken verbatim from `store/projects/blog/tsconfig.json:1-24`.
 
 ## Notes
 
-- **`include`** lists `pages`, `components`, `lib`, `api`, `hooks`, and `types` `store/projects/blog/tsconfig.json:23`.
+- **`include`** lists `pages`, `components`, `lib`, `api`, `hooks`, and `types` `store/projects/blog/tsconfig.json:15`.
 - The generated `types/` directory holds `types/generated.d.ts` (DB-derived row types + endpoint contracts), the artifact imported as `@app/types` `sdk/org/libs/cli/src/app/build/schema.ts#generateAppTypes`.
 - **`database/` is JSON, not TS**, so it is not in `include` — each table is a `.json` schema file (e.g. `store/projects/blog/database/articles.json`) `store/projects/blog/database/`.
 - **`jsx: "react-jsx"`** compiles the page/component tier without an explicit React import `store/projects/blog/tsconfig.json:6`.

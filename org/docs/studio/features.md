@@ -97,7 +97,7 @@ Inside a **space** route, the layout passes a `ThingDock` as `StudioLayout`'s `r
 
 It is a **toggle, not always-on**: the shell keeps `studio-shell.thing.open` (default `false`) and renders a 400 px right-hand dock only when both a `rightPanel` was supplied and the toggle is on `sdk/org/libs/ui/src/studio/shell/studio-shell/index.tsx:72`, `:129-145`. The toggle lives in the space rail's footer `sdk/org/libs/ui/src/studio/shell/studio-shell/index.tsx:106-107`.
 
-> The root `CLAUDE.md` describes an "always-on right-side THING chat dock". Verified against the code: it is off by default and only exists on `/studio/$projectId/$spaceId/*` routes — the project landing and the project-app tabs have no dock. A standalone full-page THING chat exists at `/studio/thing` `sdk/org/apps/web/src/routes/studio/thing/index.tsx:133-161`.
+> The root `CLAUDE.md` describes an "always-on right-side THING chat dock". Verified against the code: it is off by default and only exists on `/studio/$projectId/$spaceId/*` routes — the project landing and the project-app tabs have no dock. A standalone full-page THING chat exists at `/studio/thing` `sdk/org/apps/web/src/routes/studio/thing/index.tsx#ThingChatPage`.
 
 The panel itself creates a session with `POST /api/sessions` and streams over `WS /api/ws` exactly like §4 `sdk/org/libs/ui/src/chat/components/AgentChatPanel.tsx` — `AgentChatPanel`.
 

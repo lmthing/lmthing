@@ -150,7 +150,7 @@ A `Page` of five `Card`s `sdk/org/apps/web/src/routes/computer/settings.tsx#Sett
 
 | Route | Renders |
 |---|---|
-| `/computer/spaces` | only `<h1>Spaces</h1>` `sdk/org/apps/web/src/routes/computer/spaces/index.tsx:20-26` |
+| `/computer/spaces` | only `<h1>Spaces</h1>` `sdk/org/apps/web/src/routes/computer/spaces/index.tsx#SpaceList` |
 | `/computer/spaces/$spaceId` | `<h1>Space: {spaceId}</h1>` `sdk/org/apps/web/src/routes/computer/spaces/$spaceId/index.tsx:33-39` |
 | `/computer/spaces/$spaceId/config` | `<h1>Config: {spaceId}</h1>` `sdk/org/apps/web/src/routes/computer/spaces/$spaceId/config.tsx:47-53` |
 | `/computer/spaces/$spaceId/logs` | `<h1>Logs: {spaceId}</h1>` `sdk/org/apps/web/src/routes/computer/spaces/$spaceId/logs.tsx:61-67` |

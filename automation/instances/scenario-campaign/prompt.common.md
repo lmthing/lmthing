@@ -65,10 +65,47 @@ results/checkpoint.json  # generated: per-Act resume state
 Plus two trailing sections: **What this scenario is really testing**, and **Actual results** (pasted
 from `results/report.md` after a run — the document is both plan and record).
 
+## Fixtures — REAL files, found on the REAL web (every round)
+
+A scenario is only as honest as its inputs. A hand-invented fixture (`Item A — €10`) is a fixture the
+agent can *guess*: the Act goes green whether or not the file was ever actually read. **Real files —
+messy, oddly formatted, in a real person's words — are what catch the bugs.**
+
+**Every round, add at least one NEW fixture of a kind this scenario does not have yet**, sourced from
+the real web, and evolve the scenario to use it. Across rounds, work toward all five kinds:
+
+- **Images** — real photos/scans (Wikimedia Commons and the like). Exercise the vision path.
+- **PDFs** — a real invoice / quote / policy / spec sheet / leaflet, not a generated one.
+- **Spreadsheets** — a real multi-sheet `.xlsx` (build it from real open data; keep real formatting,
+  merged headers, a stray empty row — the mess is the point).
+- **Voice memos** — **generate with Azure TTS**: the `tts` deployment on `$AZURE_RESOURCE_NAME` using
+  `$AZURE_API_KEY` (both in `sdk/org/.env`) —
+  `POST https://<resource>.openai.azure.com/openai/deployments/tts/audio/speech?api-version=2024-05-01-preview`
+  with `{model:"tts", input:"<what the persona says out loud>", voice:"alloy"}`. Write a realistic
+  spoken monologue (hesitations, corrections — not a clean spec). **Verify the round-trip** by
+  transcribing the result through the whisper deployment before you rely on it. Do at least one in the
+  persona's own language (e.g. Greek) — it tests transcription + multilingual routing at once.
+- **Website links** — real, currently-HTTP-200 URLs, in `fixtures/links.md`, that the research Acts
+  actually fetch.
+
+Rules (each exists because it was violated once):
+- **Every fixture must carry at least one fact/token that appears in NO other fixture**, and an Act
+  must assert **that fact landed in real state** (a db row, a space file) — never in prose. That is the
+  only proof the file was *read* rather than *guessed*. **Check the token is disjoint** (grep across
+  `fixtures/`) before you rely on it; a token that also appears in the spreadsheet makes the audio
+  assertion worthless.
+- Fixtures are **committed and self-contained** under `{{SCENARIO_DIR}}/fixtures/`. Record where each
+  came from (source URL) in `fixtures/links.md`.
+- **Wire it into BOTH** `scenario.md` (the user flow + the Acts table) and `{{RUN_MJS}}` (uploaded,
+  asserted). A fixture nobody uploads is dead weight — delete it or use it.
+- Never overwrite an existing fixture you did not create; add alongside it.
+
 ## Feature catalog — draw every NEW Act from here
 
 Pick additional Acts that exercise catalog capabilities `{{SCENARIO_ID}}` does **not** yet cover.
-Prefer a coherent slice end-to-end over an isolated call.
+Prefer a coherent slice end-to-end over an isolated call. **Read the coverage audit below first** —
+the point of a new round is to reach a capability no scenario has ever touched, not to re-run a
+capability all four already assert.
 
 - **A. THING triage & routing** (`user-thing/agents/thing`): answer directly (no delegation);
   research (`system-research/researcher`, live `webSearch`/`webFetch`); build a specialist space
@@ -112,6 +149,75 @@ Prefer a coherent slice end-to-end over an isolated call.
 - **I. Cross-cutting** — edge cases (bad signature → 401, unknown path → 404, malformed → 0 events);
   performance (latency, tokens, throughput); multilingual; budget (runs use direct Azure keys so a
   tier cap can't halt a run).
+
+## Coverage audit — WHAT NO SCENARIO HAS EVER TESTED (draw new Acts from HERE first)
+
+Audited 2026-07-13 across all six scenarios (05, 06, 07, 08, 09, 10) — the whole documented surface in
+`org/docs/` vs what the runners actually assert.
+
+**Already well covered — do NOT spend a new Act re-proving these:** multi-attachment ingest (file/
+image/audio) and fact-grounding into real rows · per-topic space growth + no-clobber + routing into a
+built space · research → a new db row + anti-hallucination · app build + served 200 + real rows ·
+growth-must-not-delete · all four emitter kinds authored + forced-run · db-emitter → agent alert that
+sends nothing · cron → derived rows · `installSpace` consent approved AND denied · signed inbound
+(401 on bad sig, 404 unknown path, 0-cost non-matching) · restraint/refusal · multilingual (es/el/nl) ·
+memory recall · restart → auto-resume · event storm · engineer → persisted project function · the
+in-app chat dock.
+
+**Never exercised — pick 2–4 that fit `{{SCENARIO_ID}}`'s persona and build them into the story.** A
+capability nobody has run is where the bugs are; that is the whole point of this campaign.
+
+- **J. Conversation & UI surface** — a space's own `components/view/<Name>.tsx` rendered by `display()`
+  and `components/form/<Name>.tsx` rendered by `ask()` (opt-in per agent); `inspect()` and its
+  operators (`path`/`keys`/`count`/`search`/`filter`/`slice`/`sample`) on a large value; a
+  **cancelled/dismissed `ask()` resolving `null`** (the agent must cope, not hang); the `ask()`
+  security guards (a `script`/`iframe` descriptor, `dangerouslySetInnerHTML`, a `javascript:` URL are
+  all rejected — a *negative* test).
+- **K. Orchestration** — `fork()` used directly (isolated context, required output schema; `role:
+  'explore'|'plan'` is **read-only** — the write globals are absent from its DTS; the
+  `maxConcurrentForks` queue; a never-resolving fork → nudge → schema-valid salvage; an explicit
+  `timeout` rejecting instead). `tasklist()` **degraded** mode (`{ok:false, degraded:true, reason}`)
+  and its DAG features: `dependsOn`, `forEach` fan-out, the `condition` DSL, `optional` skip,
+  `prelude`. **Code nodes** in a space tasklist (`NN-<id>.ts`, `node` metadata, worker-isolated).
+  `canDelegateTo` tri-state (`[]` = none, `["*"]` = all, an allowlist) and the **denial message naming
+  the allowed targets**. The delegation depth cap (`maxDepth=5`). `registerSpace()` + `registered:*`.
+- **L. Data & the typed surface** — `db.query`'s `include` (a declared `belongsTo`/`hasMany` relation
+  expanded inline — so the app needs a real relation); **`db.createTable`/`db.addColumn`** (LIVE schema
+  migration, which is NOT the same thing as writing a schema file); **`apiCall(name, input)`** — the
+  agent calling the project's OWN api endpoint (allowlist-gated, typed overloads).
+  **Capability gating AT TYPECHECK:** an agent without a grant must fail **typecheck** (the global is
+  absent from its DTS) rather than throw at runtime — assert the `typecheck_error`, this is the
+  security model's load-bearing claim. Also `typecheckSource()`, `progress()`, `sleep()`,
+  `setSessionMeta({title,slug})`.
+- **M. Knowledge & long conversations** — `loadKnowledge`: a real knowledge tree (domain/field/option)
+  authored by the architect, 2-part **on-demand** vs 3-part **preloaded**; `readDocument` on an **image
+  failing on purpose** (it must delegate to vision instead); **history summarization** past
+  `maxHistoryTurns` (a genuinely LONG conversation — last 6 turns verbatim + a summary — does the
+  agent still know the household rule from turn 3?); `defaultAction` frontmatter fast path.
+- **N. Store, consent, integrations** — `storeSearch`/`storeInspect` **browsing before installing**;
+  the **`@consent` pragma on a space FUNCTION** (not just `installSpace`); consent **failing closed**
+  in a headless context (a fork/delegate/hook must never auto-approve); the pristine-vs-diverged hash
+  guard on re-install (`force:true`); `integrationStatus(spaceId)` + `GET /api/projects/:id/
+  integrations` reporting `missingRequired` **names, never values**; `callConnection`'s **SSRF guard**
+  (an internal host / DNS-rebind target must be refused — a negative test).
+- **O. The served app** — `<Chat agent="<space>/<agent>">` (a SPACE agent embedded in a page, not just
+  THING); the project's own `components/<Name>.tsx` + `_app`/`_layout` wrappers; `@app/types`
+  generated row/endpoint types actually used by a page; an API handler that **throws** (worker crash
+  boundary holds, pod survives; `HttpError` shape); schema reconcile — additive OK vs **non-additive
+  (drop/rename/PK move) failing loud**; the app admin surface (data browser, path-scoped file editor,
+  build status); the clean root URL and the CSP on served pages.
+- **P. Platform & resilience** — **OpenClaw compat, entirely untested**: `.openclaw-plugins/<name>/` →
+  `registerTool` → the **`tool()` global** from an agent, and `UnsupportedCompatError` on an
+  unsupported `register*`. The **loop guard** (coalescing, depth cap, self-write/self-trigger
+  exclusion, cooldown) — an event hook that writes the table it listens to must NOT loop forever.
+  **Payload validation** (undeclared/mistyped event fields dropped). The `webSearch` **provider-chain
+  fallback** (Tavily → Bing → DDG) and `webFetch` render modes. Upload limits (the 25MB cap) and
+  server-side attachment-id re-resolution. `GET /api/session-ledger` (token/cost incl. the **delegate
+  tree**). Backup/restore. `PUT /api/env` (live) vs `/api/compute/env` (rolls the pod).
+
+**One inconsistency to settle:** "zero unrecovered eval/typecheck errors across the whole session" is a
+**hard check** in some scenarios and a soft metric in others. Make it a hard check in
+`{{SCENARIO_ID}}` — recovered errors stay a metric, unrecovered ones fail the run.
 
 ## The harness (surviving references — READ these, do not re-derive)
 
@@ -313,6 +419,13 @@ Maintain the per-run progress log at **{{progressFile}}**.
 - `{{RUN_MJS}}` reproduces the literal user flow and its Acts match the `.md` table **1:1**, keeping
   the hardening patterns and the existing Acts (no regression).
 - Every assertion reads the trace or real state (no prose grading).
+- **The new Acts come from the coverage audit (J–P)** — capabilities no scenario has exercised — and
+  the report names which gap each one closed. Re-proving an already-covered capability does not count.
+- **At least one NEW real fixture, sourced from the real web** (or Azure-TTS-generated for audio), is
+  committed under `fixtures/`, uploaded by `{{RUN_MJS}}`, and asserted via a token that appears in **no
+  other fixture** landing in **real state**. Its provenance is recorded.
+- **Unrecovered eval/typecheck errors across the session = 0**, as a hard check (recovered ones stay a
+  metric).
 - **The app contract holds (if this scenario builds an app):**
   - **A1** — the app has an **always-available in-app chat agent**, and an Act proves a real change
     (row / page / table / space) landed **from inside the app**. Any feature this required was

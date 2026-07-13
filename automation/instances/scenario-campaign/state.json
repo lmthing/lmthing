@@ -9,7 +9,16 @@
       "outcome": "running",
       "startedAt": "2026-07-13T19:45:55.803Z",
       "endedAt": null
+    },
+    {
+      "task": "06-tanzania",
+      "round": 1,
+      "attempt": 1,
+      "bin": "claude",
+      "outcome": "running",
+      "startedAt": "2026-07-13T19:45:55.831Z",
+      "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-13T19:45:55.803Z"
+  "updatedAt": "2026-07-13T19:45:55.831Z"
 }

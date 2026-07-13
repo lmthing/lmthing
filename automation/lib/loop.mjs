@@ -485,6 +485,10 @@ function recordRunEnd(cfg, { task, round, attempt, bin, result, branch }) {
   commitState({
     cwd: cfg.cwd,
     paths: commitPaths(cfg, round, task),
+    // The attempt has settled, so its raw stream is closed and safe to archive. It stays gitignored
+    // while live — a tracked file that is being appended to gets its inode swapped out by any agent
+    // `git stash`/`checkout`, and the rest of the stream is written to a deleted file.
+    force: [join(relative(cfg.cwd, cfg.paths.attemptDir(round, task, attempt)), 'output.jsonl')],
     message: `chore(automation/${cfg.name}): ${task} round ${round} attempt ${attempt} ${result.outcome}`,
     expectedBranch: branch,
   });

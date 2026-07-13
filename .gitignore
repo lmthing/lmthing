@@ -65,3 +65,8 @@ devops/ansible/k8s/envoy/tls-certificates.yaml
 .etc/.gateway-secret.json
 .etc/.*
 .lmthing/
+# lmauto: the live raw event stream of an in-flight attempt. It is APPENDED TO for the whole run, in
+# a tree where autonomous agents run git commands — a stash/checkout would swap the inode out from
+# under the loop's open fd and silently lose the rest of the stream. Keep it untracked while it is
+# live; the engine force-adds it at the run-end boundary, once the stream is closed.
+automation/instances/*/rounds/**/output.jsonl

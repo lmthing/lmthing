@@ -151,9 +151,15 @@ export function currentBranch(cwd) {
  * Never switches branches; if HEAD isn't on `expectedBranch` we still commit on wherever we are
  * but report the drift.
  */
-export function commitState({ cwd, paths, message, expectedBranch }) {
+export function commitState({ cwd, paths, message, expectedBranch, force = [] }) {
   const rel = paths.filter(Boolean);
   if (rel.length === 0) return { committed: false, reason: 'no-paths' };
+
+  // `force` holds paths that are gitignored WHILE LIVE and may only be archived once finished —
+  // the raw event stream (see .gitignore). Adding one puts it in the index, which is what "tracked"
+  // means, so the path-limited commit below picks it up.
+  const forced = force.filter(Boolean);
+  if (forced.length) gitLocking(cwd, ['add', '-f', '--', ...forced]);
 
   const add = gitLocking(cwd, ['add', '--', ...rel]);
   if (add.code !== 0) return { committed: false, reason: `add-failed: ${add.stderr}` };

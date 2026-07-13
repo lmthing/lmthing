@@ -73,7 +73,7 @@ Emitted/synthetic events are source-qualified `<scope>/<event>` and matched agai
 
 ## Capabilities gate who may author and touch each pillar
 
-Every authoring/data power is a **capability** granted in an agent's `instruct.md` frontmatter under the `capabilities:` key, host-injected only when the grant is present (a missing grant is also stripped from the typecheck DTS, so a stray call fails typecheck) (`sdk/org/libs/core/src/spaces/capabilities.ts` `CAPABILITY_IDS`; `sdk/org/libs/core/src/exec/app-globals.ts` `injectAppGlobals`:194-248). The full grant id set is `db:read`, `db:write`, `db:schema`, `pages:write`, `api:write`, `hooks:write`, `api:call`, `connections:use`, `tools:use`, `project:manage`, `store:read`, `store:install`, `events:emit`, `fs:scratch` (`sdk/org/libs/core/src/spaces/capabilities.ts`:43-58). The pillar-relevant subset:
+Every authoring/data power is a **capability** granted in an agent's `instruct.md` frontmatter under the `capabilities:` key, host-injected only when the grant is present (a missing grant is also stripped from the typecheck DTS, so a stray call fails typecheck) (`sdk/org/libs/core/src/spaces/capabilities.ts` `CAPABILITY_IDS`; `sdk/org/libs/core/src/exec/app-globals.ts` `injectAppGlobals`:194-248). The full grant id set is `db:read`, `db:write`, `db:schema`, `pages:write`, `api:write`, `hooks:write`, `api:call`, `connections:use`, `project:manage`, `store:read`, `store:install`, `events:emit`, `fs:scratch` (`sdk/org/libs/core/src/spaces/capabilities.ts`:43-58). The pillar-relevant subset:
 
 | Capability | Unlocks (project-app pillar) |
 |---|---|

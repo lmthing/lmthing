@@ -30,7 +30,7 @@ The monorepo is organized by TLD — each lmthing.\* domain has its own top-leve
 ```
 lmthing/
 ├── sdk/org/            # sdk submodule (github.com/lmthing/org): runtime, shared libs, the unified web app
-│   ├── libs/           # @lmthing/{auth,cli,config,core,css,openclaw-compat,state,ui,utils}
+│   ├── libs/           # @lmthing/{auth,cli,config,core,css,state,ui,utils}
 │   └── apps/web/       # unified Vite SPA; /studio, /computer, /chat as client-side routes
 ├── cloud/              # THE backend — Hono gateway (/api/*) + LiteLLM (/v1/*)
 ├── org/                # lmthing.org SPA — org/docs/** is the source of truth
@@ -61,8 +61,7 @@ Working on… → open the `org/docs` page that owns it.
 | **a product surface** — routes, features, views | [chat/](./org/docs/chat/README.md) · [studio/](./org/docs/studio/README.md) · [computer/](./org/docs/computer/README.md) · [app/](./org/docs/app/README.md) (served project-app) |
 | **the backend** — gateway routes, auth/SSO/tokens, billing & tiers, LiteLLM, the render service | [cloud/](./org/docs/cloud/README.md) · [routes](./org/docs/cloud/routes.md) · [auth](./org/docs/cloud/auth.md) · [billing-and-tiers](./org/docs/cloud/billing-and-tiers.md) · [litellm](./org/docs/cloud/litellm.md) |
 | **agent web search** — `webSearch`/`webFetch` and the render service | [cloud/render.md](./org/docs/cloud/render.md) |
-| **shared libraries** — `@lmthing/state` (VFS), `ui`, `css`, `auth`, `openclaw-compat` | [libs/](./org/docs/libs/README.md) |
-| **running OpenClaw plugins** — the compat host, `.openclaw-plugins/`, the `tool()` global | [libs/openclaw-compat.md](./org/docs/libs/openclaw-compat.md) |
+| **shared libraries** — `@lmthing/state` (VFS), `ui`, `css`, `auth` | [libs/](./org/docs/libs/README.md) |
 | **the shipped system spaces** (THING, architect, appbuilder, …) | [system-spaces/](./org/docs/system-spaces/README.md) |
 | **a product SPA** (`com social team store space blog casa`) | [product-spas/](./org/docs/product-spas/README.md) |
 | **infra, deploy, local stack** — k8s, ArgoCD, CI, image builds | [devops/](./org/docs/devops/README.md) · [infrastructure](./org/docs/devops/infrastructure.md) · [deploy](./org/docs/devops/deploy.md) · [local-dev](./org/docs/devops/local-dev.md) |

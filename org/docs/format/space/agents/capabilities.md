@@ -4,7 +4,7 @@
 
 ## The grants and what they unlock
 
-There are 13 recognized capability ids, enumerated in `CapabilityId` / `CAPABILITY_IDS` (`sdk/org/libs/core/src/spaces/capabilities.ts:26-56`).
+There are 12 recognized capability ids, enumerated in `CapabilityId` / `CAPABILITY_IDS` (`sdk/org/libs/core/src/spaces/capabilities.ts:26-56`).
 
 | Capability | Unlocks (global) | Config |
 |---|---|---|
@@ -17,7 +17,6 @@ There are 13 recognized capability ids, enumerated in `CapabilityId` / `CAPABILI
 | `project:manage` | `createProject`, `selectProject` | bare |
 | `api:call` | `apiCall(name, input)` | required `{ allow: [...] }` |
 | `connections:use` | `callConnection(provider, req)` | required `{ providers: [...] }` |
-| `tools:use` | `tool(name, input)` | required `{ allow: [...] }` |
 | `store:read` | `storeSearch`, `storeInspect` | bare |
 | `store:install` | `installSpace` (consent-marked) | bare |
 | `events:emit` | `emitEvent` | bare |
@@ -26,7 +25,7 @@ Any `db:*` grant ALSO earns the project-rooted introspection reads `listProjectD
 
 The `db:*` grants map to the scoped `db` verbs shown above (`sdk/org/libs/core/src/exec/app-globals.ts:130-170`); `db:schema` additionally earns the standalone catalog writer `writeTableSchema` plus its live-project twin `writeProjectTable` (`sdk/org/libs/core/src/exec/app-globals.ts:224-228`). `pages:write`/`api:write` earn the catalog writer AND the live-project twin (`writeProjectPage`/`writeProjectApi`) (`sdk/org/libs/core/src/exec/app-globals.ts:208-215`); `hooks:write` earns `writeHook` plus the live-project `writeProjectHook`/`writeProjectEvent`/`writeProjectFunction` (`sdk/org/libs/core/src/exec/app-globals.ts:216-223`). `project:manage` earns `createProject`/`selectProject` (`sdk/org/libs/core/src/exec/app-globals.ts:229-232`).
 
-`api:call`, `connections:use`, `tools:use`, `store:read`, `store:install`, and `events:emit` are value-yielding globals wired through the yield router in `createChildVM` rather than by `injectAppGlobals`, and each is injected on its own grant in one contiguous block: `apiCall` on `api:call` (`sdk/org/libs/core/src/exec/bootstrap.ts:173`), `callConnection` on `connections:use` (`:177`), `tool` on `tools:use` (`:182`), `storeSearch`+`storeInspect` on `store:read` (`:191-194`), `installSpace` on `store:install` (`:198`), and `emitEvent` on `events:emit` (`:202-204`) — the last with its emitting scope derived HOST-side at injection (`deriveEventScope(spaceDir, projectRoot)`), so sandbox code cannot spoof another scope's events (`sdk/org/libs/core/src/exec/bootstrap.ts:199-204`).
+`api:call`, `connections:use`, `store:read`, `store:install`, and `events:emit` are value-yielding globals wired through the yield router in `createChildVM` rather than by `injectAppGlobals`, and each is injected on its own grant in one contiguous block: `apiCall` on `api:call` (`sdk/org/libs/core/src/exec/bootstrap.ts:173`), `callConnection` on `connections:use` (`:177`), `storeSearch`+`storeInspect` on `store:read` (`:191-194`), `installSpace` on `store:install` (`:198`), and `emitEvent` on `events:emit` (`:202-204`) — the last with its emitting scope derived HOST-side at injection (`deriveEventScope(spaceDir, projectRoot)`), so sandbox code cannot spoof another scope's events (`sdk/org/libs/core/src/exec/bootstrap.ts:199-204`).
 
 ## Host-injected only when granted; stripped from the DTS when absent
 
@@ -40,11 +39,11 @@ The capability model has two cooperating sides kept in lockstep by `AppCapabilit
 
 Each `db:*` grant carries an optional `{ tables?: string[] }` narrowing (`sdk/org/libs/core/src/spaces/capabilities.ts:92-94`); an omitted `tables` means all tables (`sdk/org/libs/core/src/spaces/capabilities.ts:288-292`). At runtime, `buildScopedDb` wraps each granted verb, and `assertTableAllowed` throws when a verb targets a table outside its grant's `tables` list (`sdk/org/libs/core/src/exec/app-globals.ts:109-170`). The narrowing is per-VERB — `db:read: { tables: [items] }` scopes reads independently of `db:write`'s tables (`sdk/org/libs/core/src/exec/app-globals.ts#buildScopedDb`). Two verbs are not per-table narrowed: `db.tables()` lists the schema, not row data (`sdk/org/libs/core/src/exec/app-globals.ts:141-142`), and `db.createTable` names a NEW table so the grant's list only pre-authorizes creation (`sdk/org/libs/core/src/exec/app-globals.ts:159-163`).
 
-Note that the `api:call` `allow` list (and `tools:use`'s `allow` / `connections:use`'s `providers`) is enforced only through the narrowed DTS (typecheck), NOT by a host-side runtime assertion — the db `tables` check is the only runtime table/scope assertion in `app-globals.ts` (`sdk/org/libs/core/src/exec/app-globals.ts:109-170`), and the yield router that resolves `apiCall`/`tool`/`callConnection` re-checks no allow-list.
+Note that the `api:call` `allow` list (and `connections:use`'s `providers`) is enforced only through the narrowed DTS (typecheck), NOT by a host-side runtime assertion — the db `tables` check is the only runtime table/scope assertion in `app-globals.ts` (`sdk/org/libs/core/src/exec/app-globals.ts:109-170`), and the yield router that resolves `apiCall`/`callConnection` re-checks no allow-list.
 
-## `api:call` (and `connections:use`/`tools:use`) require config
+## `api:call` (and `connections:use`) require config
 
-`api:call` requires a non-empty `{ allow: [...] }` allowlist of endpoint names — a bare `api:call` throws, and an empty/missing `allow` throws "there is no 'call anything'" (`sdk/org/libs/core/src/spaces/capabilities.ts:317-323`, `sdk/org/libs/core/src/spaces/capabilities.ts#parseApiCallConfig`). Likewise `connections:use` requires a non-empty `{ providers: [...] }` (`sdk/org/libs/core/src/spaces/capabilities.ts:296-302`, `sdk/org/libs/core/src/spaces/capabilities.ts#parseConnectionsConfig`) and `tools:use` requires a non-empty `{ allow: [...] }` (`sdk/org/libs/core/src/spaces/capabilities.ts:307-313`, `sdk/org/libs/core/src/spaces/capabilities.ts#parseToolsConfig`). These allow/provider lists are enforced by narrowing the DTS parameter to a union of the granted values: `composeConnectionsDts` narrows `provider` and `composeToolDts` narrows `name`, so a call to an undeclared provider/tool fails typecheck (`sdk/org/libs/core/src/typecheck/library-dts.ts:170-188`).
+`api:call` requires a non-empty `{ allow: [...] }` allowlist of endpoint names — a bare `api:call` throws, and an empty/missing `allow` throws "there is no 'call anything'" (`sdk/org/libs/core/src/spaces/capabilities.ts#parseApiCallConfig`, `sdk/org/libs/core/src/spaces/capabilities.ts#parseApiCallConfig`). Likewise `connections:use` requires a non-empty `{ providers: [...] }` (`sdk/org/libs/core/src/spaces/capabilities.ts:296-302`, `sdk/org/libs/core/src/spaces/capabilities.ts#parseConnectionsConfig`). These allow/provider lists are enforced by narrowing the DTS parameter to a union of the granted values: `composeConnectionsDts` narrows `provider`, so a call to an undeclared provider fails typecheck (`sdk/org/libs/core/src/typecheck/library-dts.ts:170-188`).
 
 ## Fail-loud validation cases
 
@@ -52,15 +51,15 @@ Note that the `api:call` `allow` list (and `tools:use`'s `allow` / `connections:
 
 - **Unknown id** → "declares unknown capability" (`sdk/org/libs/core/src/spaces/capabilities.ts:267-271`).
 - **Config on a bare-only cap** (`pages:write`/`api:write`/`hooks:write`/`project:manage`/`store:read`/`store:install`/`events:emit`, the set `BARE_ONLY_CAPABILITY_IDS`) → "takes no config (bare only)" (`sdk/org/libs/core/src/spaces/capabilities.ts:66-74`, `sdk/org/libs/core/src/spaces/capabilities.ts:278-283`).
-- **Unknown config key** on a `db:*`/`api:call`/`tools:use`/`connections:use` map → "has disallowed config key(s)" (`sdk/org/libs/core/src/spaces/capabilities.ts#parseDbConfig`).
+- **Unknown config key** on a `db:*`/`api:call`/`connections:use` map → "has disallowed config key(s)" (`sdk/org/libs/core/src/spaces/capabilities.ts#parseDbConfig`).
 - **`db:*` `tables` naming a table absent** from the project's `database/`, but only when `knownTables` is supplied — a bare cap on a system/project-agnostic space (`knownTables === undefined`) DEFERS this check to the project the space resolves into (`sdk/org/libs/core/src/spaces/capabilities.ts:150-160`).
 - **`tables` not a string list** → "must be a list of table names" (`sdk/org/libs/core/src/spaces/capabilities.ts:143-147`).
-- **Bare `api:call`/`connections:use`/`tools:use`** (their allow/providers is required) (`sdk/org/libs/core/src/spaces/capabilities.ts:296-323`).
+- **Bare `api:call`/`connections:use`** (their allow/providers is required) (`sdk/org/libs/core/src/spaces/capabilities.ts:296-323`).
 - **Duplicate capability**, a **multi-key map entry**, or a **non-string/non-map entry** all throw (`sdk/org/libs/core/src/spaces/capabilities.ts#parseCapabilities`).
 
 ## Read-only fork roles intersect grants
 
-Read-only fork roles (`explore`/`plan`) can never receive a mutating/authoring grant: `intersectAppCaps(app, allowWrite)` drops every write grant, keeping only `db:read`, `api:call`, `connections:use`, `tools:use`, and `store:read` (`sdk/org/libs/core/src/exec/capability.ts#intersectAppCaps`). This carries into `forkCapabilities`, where the intersected caps become `CapabilityProfile.app` (`sdk/org/libs/core/src/exec/capability.ts:94-96`).
+Read-only fork roles (`explore`/`plan`) can never receive a mutating/authoring grant: `intersectAppCaps(app, allowWrite)` drops every write grant, keeping only `db:read`, `api:call`, `connections:use`, and `store:read` (`sdk/org/libs/core/src/exec/capability.ts#intersectAppCaps`). This carries into `forkCapabilities`, where the intersected caps become `CapabilityProfile.app` (`sdk/org/libs/core/src/exec/capability.ts:94-96`).
 
 ## Least-privilege split across specialist agents
 

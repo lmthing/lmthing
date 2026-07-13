@@ -241,10 +241,6 @@ a given **tasklist task** may call them is set by frontmatter, host-enforced:
   `sdk/org/libs/core/system-spaces/system-research/tasklists/deep_research/03-investigate.md:13-15`
   and `research/01-answer.md:9-11` list `webSearch` + `webFetch`; `deep_research/01-scope.md:11-12`
   lists `webSearch` only.
-- For **project-app agents**, a `tools:use: { allow: [...] }` capability in `instruct.md`
-  frontmatter is the host-tool allowlist — `parseToolsConfig` rejects anything but a non-empty
-  `allow` list of strings ("there is no 'use anything'")
-  (`sdk/org/libs/core/src/spaces/capabilities.ts#parseToolsConfig`, the check at `capabilities.ts:210-214`).
 
 ---
 

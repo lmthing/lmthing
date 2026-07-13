@@ -194,7 +194,7 @@ The repo is organized by TLD — one top-level directory per `lmthing.*` surface
 ```
 lmthing/
 ├── sdk/org/                # submodule: runtime + unified SPA + shared libs
-│   ├── libs/{core,cli,state,css,ui,auth,utils,config,openclaw-compat}   # @lmthing/*
+│   ├── libs/{core,cli,state,css,ui,auth,utils,config}   # @lmthing/*
 │   ├── apps/web/           # the unified SPA (/studio /computer /chat /apps)
 │   └── common/
 ├── cloud/                  # THE backend — gateway/ (Hono/Node) + litellm/render/zitadel k8s config
@@ -205,7 +205,7 @@ lmthing/
 ├── pnpm-workspace.yaml · package.json
 ```
 
-- **Runtime + shared libs** are inside the `sdk/org` submodule (`sdk/org/libs/`), so the pod Docker image (context = `sdk/org`) builds the apps self-contained (`sdk/org/CLAUDE.md`). There are exactly **nine** packages — `auth cli config core css openclaw-compat state ui utils` (`sdk/org/libs/`); there is no `@lmthing/spaces` package. → [libs/README.md](./libs/README.md)
+- **Runtime + shared libs** are inside the `sdk/org` submodule (`sdk/org/libs/`), so the pod Docker image (context = `sdk/org`) builds the apps self-contained (`sdk/org/CLAUDE.md`). There are exactly **eight** packages — `auth cli config core css state ui utils` (`sdk/org/libs/`); there is no `@lmthing/spaces` package. → [libs/README.md](./libs/README.md)
 - **`@lmthing/core`** never imports from `cli` or `ui`; it emits events and accepts a `RenderHost` interface (`sdk/org/CLAUDE.md`).
 - Deploy topology, ArgoCD/GitOps, Envoy routing, and the cluster namespace map are in [devops/README.md](./devops/README.md).
 

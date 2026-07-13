@@ -186,7 +186,7 @@ Callers (all in-process, none of them a public route that names a session):
 
 `{ sessionId, projectId?, spaceRef?, agentSlug, message, budget? }`. Project-mode only. Bound to a **caller-supplied stable `sessionId`** so repeated inbound events on the same external thread continue ONE persisted session: if `snapshot.json` exists in the snapshot dir it `resume()`s, else it `start()`s, and either way the turn is saved back to the same dir `sdk/org/libs/cli/src/server/session-manager.ts:1609-1690`. Concurrent calls for the same `sessionId` are serialized through a per-id promise chain (`runExclusive`), so two near-simultaneous events can't race on the same snapshot file `sdk/org/libs/cli/src/server/session-manager.ts:1566-1586`.
 
-Callers: an inbound webhook **with** a thread key (session id minted by the webhook-thread store) `sdk/org/libs/cli/src/server/routes/webhooks.ts:217-224`, an OpenClaw plugin route `sdk/org/libs/cli/src/server/openclaw-host.ts#createComputeCompatHost`, and threaded event dispatch `sdk/org/libs/cli/src/server/event-dispatch.ts#runTriggerHook`.
+Callers: an inbound webhook **with** a thread key (session id minted by the webhook-thread store) `sdk/org/libs/cli/src/server/routes/webhooks.ts:217-224`, and threaded event dispatch `sdk/org/libs/cli/src/server/event-dispatch.ts#runTriggerHook`.
 
 ### From the CLI
 

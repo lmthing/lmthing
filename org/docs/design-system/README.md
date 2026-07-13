@@ -109,7 +109,7 @@ a raw color there will ship un-flagged:
   scans `store/src` (the lmthing.store SPA), **not** `store/projects/`. Project-app pages
   authored by `system-appbuilder` are outside the gate.
 - **Other `sdk/org/libs/*`** — only `libs/css/src` and `libs/ui/src` are scanned. `libs/state`,
-  `libs/auth`, `libs/utils`, `libs/cli`, `libs/core`, `libs/openclaw-compat`, `libs/config`
+  `libs/auth`, `libs/utils`, `libs/cli`, `libs/core`, `libs/config`
   are not. Most have no web UI, but `libs/cli` ships DevTools/render web code that escapes:
   running the linter by hand over `sdk/org/libs/cli/src` reports 15 violations today (e.g. the
   raw hex `#fff` in `sdk/org/libs/cli/src/web/app.tsx:144`).

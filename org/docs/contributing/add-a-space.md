@@ -133,8 +133,8 @@ Two non-obvious behaviours worth knowing before you author:
 ### Capabilities
 
 `capabilities:` is a YAML list of bare ids or single-key config maps, parsed by `parseCapabilities`
-(`sdk/org/libs/core/src/spaces/capabilities.ts#parseConnectionsConfig` — the 13 ids are at `:26-56`). Parsing is
-fail-loud: an unknown id, an unknown config key, or a bare `api:call`/`tools:use`/`connections:use`
+(`sdk/org/libs/core/src/spaces/capabilities.ts#parseConnectionsConfig` — the 12 ids are at `:26-56`). Parsing is
+fail-loud: an unknown id, an unknown config key, or a bare `api:call`/`connections:use`
 (their `allow`/`providers` list is *required* — "there is no 'use anything'") all throw at space load
 (`capabilities.ts:129-144`, `:187-205`). When the loader is given `knownTables` — the project's `database/` tables —
 a `db:*` capability naming a nonexistent table also throws; a project-agnostic (system) load omits

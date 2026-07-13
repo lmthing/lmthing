@@ -150,8 +150,8 @@ If your global exposes a project-app effect it should be a **capability**, gated
 sides from the single `CapabilityProfile` (`sdk/org/libs/core/src/exec/capability.ts#CapabilityProfile`):
 
 1. **Add the id** to `CapabilityId` and `CAPABILITY_IDS`
-   (`sdk/org/libs/core/src/spaces/capabilities.ts:26-45`) — there are 13 today. Parsing is
-   fail-loud (`parseCapabilities`): an unknown id, or a bare `api:call`/`tools:use`/
+   (`sdk/org/libs/core/src/spaces/capabilities.ts:26-45`) — there are 12 today. Parsing is
+   fail-loud (`parseCapabilities`): an unknown id, or a bare `api:call`/
    `connections:use` without its required allowlist, throws at space load.
 2. **Inject** behind `caps.app['<id>']` (step 3).
 3. **Declare the DTS fragment** so a stray call fails *typecheck*, not runtime (step 6).
@@ -181,8 +181,8 @@ on the gate:
   (`sdk/org/libs/core/src/typecheck/library-dts.ts:269-278`); `buildAppCapabilityDts`
   (`sdk/org/libs/core/src/exec/bootstrap.ts:282-309`) emits it when the grant is present. If
   the value should be **type-narrowed to the granted values** (like `callConnection`'s
-  `provider` or `tool`'s `name`), write a composer (`composeConnectionsDts`/`composeToolDts`,
-  `sdk/org/libs/core/src/typecheck/library-dts.ts:170-193`) instead of a static const.
+  `provider`), write a composer (`composeConnectionsDts`,
+  `sdk/org/libs/core/src/typecheck/library-dts.ts#composeConnectionsDts`) instead of a static const.
 - **Ungated (every VM)** — add the `declare` line to `COMMON_DTS`
   (`sdk/org/libs/core/src/typecheck/library-dts.ts:35-108`).
 

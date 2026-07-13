@@ -77,7 +77,7 @@ const CARD_META: Record<string, CardMeta> = {
   },
   libs: {
     icon: Library,
-    description: 'The shared libraries — state (VFS), ui, css, auth and the openclaw-compat host.',
+    description: 'The shared libraries — state (VFS), ui, css and auth.',
   },
   devops: {
     icon: Server,

@@ -2,8 +2,8 @@
 
 The globals an agent uses to reach **out** of the sandbox: publish an event (`emitEvent`), call a
 user-connected third-party service (`callConnection`), check whether an integration is configured
-(`integrationStatus`), dispatch to a host-registered OpenClaw plugin tool (`tool`), and make raw HTTP
-(`fetch` — plus the `webFetch`/`webSearch` **space functions** built on top of it).
+(`integrationStatus`), and make raw HTTP (`fetch` — plus the `webFetch`/`webSearch` **space functions**
+built on top of it).
 
 See [./README.md](./README.md) for the injection model, [../format/space/events/README.md](../format/space/events/README.md)
 for the emitter-def (`events/<name>.ts`) format `emitEvent` feeds, and
@@ -19,11 +19,10 @@ for the emitter-def (`events/<name>.ts`) format `emitEvent` feeds, and
 | `emitEvent(name, payload)` | value **yield** `emitEvent` `sdk/org/libs/core/src/globals/emit-event.ts#createEmitEventGlobal` | capability `events:emit` (bare) `sdk/org/libs/core/src/exec/bootstrap.ts:202-204` | `emitEventResolver` `sdk/org/libs/core/src/eval/yield-router.ts:333-344` |
 | `callConnection(provider, req)` | value **yield** `callConnection` `sdk/org/libs/core/src/globals/call-connection.ts:20-33` | capability `connections:use: { providers: [...] }` — config REQUIRED `sdk/org/libs/core/src/exec/bootstrap.ts:177` | `connectionResolver` `sdk/org/libs/core/src/eval/yield-router.ts:201-213` |
 | `integrationStatus(spaceId)` | value **yield** `integrationStatus` `sdk/org/libs/core/src/globals/integration-status.ts#createIntegrationStatusGlobal` | NOT a capability — injected whenever the VM has a `projectRoot` `sdk/org/libs/core/src/exec/bootstrap.ts:188` | `integrationStatusResolver` `sdk/org/libs/core/src/eval/yield-router.ts:237-249` |
-| `tool(name, input?)` | value **yield** `tool` `sdk/org/libs/core/src/globals/tool.ts#createToolGlobal` | capability `tools:use: { allow: [...] }` — config REQUIRED `sdk/org/libs/core/src/exec/bootstrap.ts:182` | `toolResolver` `sdk/org/libs/core/src/eval/yield-router.ts:214-224` |
 | `fetch(url, opts?)` | value **yield** `fetch` `sdk/org/libs/core/src/globals/fetch.ts#createFetchGlobal` | none — injected in **every** VM `sdk/org/libs/core/src/exec/bootstrap.ts:159` | built in (`resolveFetchYield`) `sdk/org/libs/core/src/eval/yield-router.ts:184-189` |
 | `webSearch` / `webFetch` | **space functions**, not globals `sdk/org/libs/core/system-spaces/system-global/functions/webSearch.ts` · `.../webFetch.ts` | the universal `system-global` toolkit + the `functions:` allowlists (below) | n/a — they call the `fetch` global |
 
-All five globals **end the turn**: the model writes `const r = await callConnection(...)`, the statement is
+All four globals **end the turn**: the model writes `const r = await callConnection(...)`, the statement is
 aborted, the host resolves the yield and binds the value back host-side for the next turn
 (`pushYield`, `sdk/org/libs/core/src/exec/bootstrap.ts:151-153`).
 
@@ -220,53 +219,6 @@ Chat/Studio Integrations tab writes — see [../chat/features.md](../chat/featur
 
 ---
 
-## `tool(name, input?)` — OpenClaw plugin tools
-
-```ts
-// composeToolDts(['searchIssues']) →
-declare function tool(name: 'searchIssues', input?: any): Promise<any>;
-```
-`sdk/org/libs/core/src/typecheck/library-dts.ts#composeConnectionsDts`
-
-Like `callConnection`, `name` is narrowed to the granted **allow-list union**, so calling an undeclared
-tool fails typecheck `sdk/org/libs/core/src/typecheck/library-dts.ts:175-188` ·
-`sdk/org/libs/core/src/exec/bootstrap.ts:303-305`. The `allow` list is required — a bare `tools:use` is a
-fail-loud error ("there is no 'use anything'") `sdk/org/libs/core/src/spaces/capabilities.ts:188-207,306-315`:
-
-```yaml
-capabilities:
-  - tools:use: { allow: [webSearch] }   # host-tool allowlist (required)
-```
-`sdk/org/libs/core/src/spaces/capabilities.ts:8-16`
-
-The host side is the **OpenClaw compat** registry: at boot the pod loads `<root>/.openclaw-plugins/` via
-`loadOpenClawPlugins` and hands the resulting `PluginRegistry` to `manager.setToolRegistry(registry)`
-`sdk/org/libs/cli/src/server/serve.ts:505-509` · `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.setToolRegistry`.
-`resolveTool` then dispatches by name — `tool.execute(randomUUID(), input ?? {})`, returning the plugin's
-result verbatim; an unknown name throws
-`tool("<n>") not found: no OpenClaw plugin registered a tool with that name`
-`sdk/org/libs/cli/src/server/session-manager.ts:364-374`. A pod with no `.openclaw-plugins/` dir never sets
-the registry, so `withTools` leaves the field absent and the yield rejects with
-`tool() is not available here: no tool registry configured`
-`sdk/org/libs/cli/src/server/session-manager.ts:376-383` · `sdk/org/libs/core/src/eval/yield-router.ts:218-220`.
-
-**What the pod dispatches *to*.** A plugin directory needs a `package.json` whose `openclaw.extensions[0]`
-names the entry file, plus an `openclaw.plugin.json` carrying an `id` — either one missing is a fail-loud
-load error `sdk/org/libs/openclaw-compat/src/loader.ts#loadPlugin`. `loadPlugin` transpiles the entry, takes its
-default export, and calls `register(api)` on it (the `definePluginEntry({ id, register })` shape)
-`sdk/org/libs/openclaw-compat/src/loader.ts:91-99`. Inside `register`, a tool is declared with
-`api.registerTool({ name, execute })` — OpenClaw's factory form `registerTool((ctx) => tool, { name })` is
-also accepted; a tool with no `execute()` function, or with no resolvable name, throws
-`sdk/org/libs/openclaw-compat/src/api.ts:242-264`. The call records `{ name, description, parameters,
-execute }` into the `PluginRegistry`, which **rejects a duplicate tool name**
-`sdk/org/libs/openclaw-compat/src/registry.ts:17-23` — and that registry's `getTool(name)` is exactly what
-the pod's `resolveTool` looks up `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.resolveTool`.
-
-Full library reference (the fail-loud `api` Proxy, `registerHttpRoute`, channels, providers, the
-`CompatHost` seam) → [../libs/openclaw-compat.md](../libs/openclaw-compat.md).
-
----
-
 ## `fetch(url, opts?)` — raw HTTP, universal
 
 ```ts
@@ -349,13 +301,11 @@ rather than binding `undefined`, so the model sees the message and can adapt
 | Global | Error string | Line |
 |---|---|---|
 | `callConnection` | `callConnection is not available here: no connection resolver configured` | 208 |
-| `tool` | `tool() is not available here: no tool registry configured` | 219 |
 | `integrationStatus` | `integrationStatus is not available here: no project scope configured` | 244 |
 | `emitEvent` | `emitEvent is not available here: no event resolver configured (project-rooted sessions only)` | 339 |
 
 In practice `callConnection`'s resolver is folded into **every** session (`withConnections` — the built-in
-providers work even project-less) `sdk/org/libs/cli/src/server/session-manager.ts:333-341`; `tool` exists
-only when a plugin registry loaded `sdk/org/libs/cli/src/server/session-manager.ts:376-383`; `emitEvent`
+providers work even project-less) `sdk/org/libs/cli/src/server/session-manager.ts:333-341`; `emitEvent`
 and the store resolvers only for project-rooted sessions
 `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.withStore`.
 
@@ -366,13 +316,12 @@ and the store resolvers only for project-rooted sessions
 ```yaml
 capabilities:
   - connections:use: { providers: [google, slack] }   # → callConnection, provider union typed
-  - tools:use: { allow: [webSearch] }                 # → tool, name union typed
   - events:emit                                       # → emitEvent (bare; a config is an error)
 ```
 `sdk/org/libs/core/src/spaces/capabilities.ts:8-16,66-74`
 
 - Not granted ⇒ **not injected AND absent from the DTS** — a stray call is a typecheck error ("Cannot find name"), not a runtime throw `sdk/org/libs/core/src/exec/bootstrap.ts:170-204,282-313`.
-- Read-only fork roles (`explore`/`plan`) **keep** `connections:use` + `tools:use` (treated as outbound, like `api:call`) but **lose `events:emit`** `sdk/org/libs/core/src/exec/capability.ts:4-28`.
+- Read-only fork roles (`explore`/`plan`) **keep** `connections:use` (treated as outbound, like `api:call`) but **lose `events:emit`** `sdk/org/libs/core/src/exec/capability.ts:4-28`.
 - `integrationStatus` and `fetch` have **no capability** at all.
 
 Full capability list + frontmatter rules → [../format/space/agents/capabilities.md](../format/space/agents/capabilities.md).

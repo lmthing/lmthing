@@ -24,7 +24,7 @@ Sub-docs, by global family:
 | [conversation.md](./conversation.md) | `ask`, `display`, `inspect` |
 | [delegation.md](./delegation.md) | `fork`, `tasklist`, `delegate`, `registerSpace` |
 | [knowledge-and-docs.md](./knowledge-and-docs.md) | `loadKnowledge`, `readDocument` |
-| [events-and-integrations.md](./events-and-integrations.md) | `emitEvent`, `callConnection`, `tool`, `integrationStatus` |
+| [events-and-integrations.md](./events-and-integrations.md) | `emitEvent`, `callConnection`, `integrationStatus` |
 | [store-and-consent.md](./store-and-consent.md) | `storeSearch`, `storeInspect`, `installSpace`, the `@consent` model |
 | [session-and-utils.md](./session-and-utils.md) | `setSessionMeta`, `sleep`, `fetch`, and the host-tools substrate |
 | [app-authoring.md](./app-authoring.md) | `writePage`/`writeApi`/`writeHook`/`writeTableSchema`, `createProject`/`selectProject`, the live-project `writeProject*` twins |
@@ -43,11 +43,11 @@ Two mechanically different kinds of global:
 (`sdk/org/libs/core/src/exec/bootstrap.ts:151-153`, `pushYield`). Pushing a yield **ends the
 turn**: the host stops the model stream, resolves the request (`routeCommonYield`,
 `sdk/org/libs/core/src/eval/yield-router.ts#routeCommonYield`), binds the resolved value host-side, and
-the next turn resumes with it in scope. There are **20** yield kinds today — the
+the next turn resumes with it in scope. There are **19** yield kinds today — the
 `YieldRequest['kind']` union (`sdk/org/libs/core/src/eval/yield.ts#YieldRequest.kind`), one per `kind: '…'`
 literal under `sdk/org/libs/core/src/globals/`: `ask`, `sleep`, `fetch`, `readDocument`,
 `loadKnowledge`, `inspect`, `fork`, `tasklist`, `delegate`, `registerSpace`, `setSessionMeta`,
-`apiCall`, `callConnection`, `tool`, `integrationStatus`, `storeSearch`, `storeInspect`,
+`apiCall`, `callConnection`, `integrationStatus`, `storeSearch`, `storeInspect`,
 `installSpace`, `emitEvent`, and the internal `consent`
 (`sdk/org/libs/core/src/globals/consent.ts#createConsentRequestGlobal`).
 
@@ -116,19 +116,19 @@ The profile has seven boolean flags plus the parsed app grants
 
 `intersectAppCaps` (`sdk/org/libs/core/src/exec/capability.ts#intersectAppCaps`) is the read-only-fork
 gate: a `explore`/`plan` role keeps only `db:read`, `api:call`, `connections:use`,
-`tools:use`, `store:read`; every mutating/authoring grant (`db:write`, `db:schema`,
+`store:read`; every mutating/authoring grant (`db:write`, `db:schema`,
 `pages:write`, `api:write`, `hooks:write`, `store:install`, `events:emit`, and `fs:scratch`)
 is **dropped before the profile is built**, so it can neither be injected nor declared —
 which is why a read-only fork's `scratchFs` is false.
 
-### The 14 app capabilities
+### The 13 app capabilities
 
 `CapabilityId` (`sdk/org/libs/core/src/spaces/capabilities.ts#CapabilityId`) —
 `db:read`, `db:write`, `db:schema`, `pages:write`, `api:write`, `hooks:write`, `api:call`,
-`connections:use`, `tools:use`, `project:manage`, `store:read`, `store:install`,
+`connections:use`, `project:manage`, `store:read`, `store:install`,
 `events:emit`, `fs:scratch`. Parsing is fail-loud (`parseCapabilities`, `:245-336`): an
 unknown id, an unknown config key, a config on a bare-only cap, or a bare `api:call`/
-`tools:use`/`connections:use` (their allowlists are **required** — "there is no *call
+`connections:use` (their allowlists are **required** — "there is no *call
 anything*", `:190`) all throw at space load.
 
 | Capability | Config | Globals it earns | Doc |
@@ -138,7 +138,6 @@ anything*", `:190`) all throw at space load.
 | `db:schema` | `{ tables?: [] }` | `db.createTable`, `db.addColumn`, `writeTableSchema`, `writeProjectTable` | [data-db.md](./data-db.md) · [app-authoring.md](./app-authoring.md) |
 | `api:call` | `{ allow: [] }` **required** | `apiCall` | [data-db.md](./data-db.md) |
 | `connections:use` | `{ providers: [] }` **required** | `callConnection` | [events-and-integrations.md](./events-and-integrations.md) |
-| `tools:use` | `{ allow: [] }` **required** | `tool` | [events-and-integrations.md](./events-and-integrations.md) |
 | `pages:write` | bare | `writePage`, `writeProjectPage` | [app-authoring.md](./app-authoring.md) |
 | `api:write` | bare | `writeApi`, `writeProjectApi` | [app-authoring.md](./app-authoring.md) |
 | `hooks:write` | bare | `writeHook`, `writeProjectHook`, `writeProjectEvent`, `writeProjectFunction` | [app-authoring.md](./app-authoring.md) |
@@ -158,9 +157,9 @@ note `pages:write` maps to `PAGES_WRITE_DTS` + `PROJECT_PAGE_DTS` + `PROJECT_COM
 
 ### Gating goes beyond presence/absence
 
-* **Typed narrowing.** `composeConnectionsDts` / `composeToolDts`
-  (`sdk/org/libs/core/src/typecheck/library-dts.ts#composeConnectionsDts`, `:200`) declare `provider` / `name` as
-  the **union of the granted values**, so calling an ungranted provider or tool fails
+* **Typed narrowing.** `composeConnectionsDts`
+  (`sdk/org/libs/core/src/typecheck/library-dts.ts#composeConnectionsDts`) declares `provider` as
+  the **union of the granted values**, so calling an ungranted provider fails
   *typecheck*, not just at runtime.
 * **Per-call host re-check.** The `db` object is scoped at injection (`buildScopedDb`,
   `sdk/org/libs/core/src/exec/app-globals.ts#buildScopedDb`) *and* every call re-runs
@@ -181,7 +180,6 @@ contract (`sdk/org/libs/core/src/eval/yield-router.ts`):
 ```
 apiCall is not available here: this session has no project api runtime          (:195)
 callConnection is not available here: no connection resolver configured          (:208)
-tool() is not available here: no tool registry configured                        (:219)
 readDocument is not available here: no document resolver configured              (:231)
 integrationStatus is not available here: no project scope configured             (:244)
 storeSearch is not available here: no store resolver configured                  (:264)
@@ -252,7 +250,6 @@ Y = value-yielding (ends the turn). S = synchronous host call. F = fire-and-forg
 | `fetch(url, opts?)` | Y | Real non-blocking HTTP; `{ok,status,text(),json()}` | none | [session-and-utils.md](./session-and-utils.md) |
 | `apiCall(name, input?)` | Y | Call one of the project's own `api/` endpoints by name | `api:call` (allowlist required) | [data-db.md](./data-db.md) |
 | `callConnection(provider, req)` | Y | Authenticated request to a user-connected service via the gateway egress proxy; the token never enters the sandbox | `connections:use` (providers required) | [events-and-integrations.md](./events-and-integrations.md) |
-| `tool(name, input?)` | Y | Dispatch to a host-registered OpenClaw plugin tool | `tools:use` (allowlist required) | [events-and-integrations.md](./events-and-integrations.md) |
 | `integrationStatus(spaceId)` | Y | Presence-only config check — `{ready, missingRequired[]}` (names only, never values) | `projectRoot` set (not a capability) | [events-and-integrations.md](./events-and-integrations.md) |
 | `emitEvent(name, payload)` | Y | Publish one of this scope's declared events; the source scope is derived **host-side** at injection and cannot be spoofed | `events:emit` | [events-and-integrations.md](./events-and-integrations.md) |
 | `storeSearch(query?)` | Y | Search the store's space catalog | `store:read` | [store-and-consent.md](./store-and-consent.md) |

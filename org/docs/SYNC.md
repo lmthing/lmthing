@@ -79,7 +79,7 @@ Find your change on the left; that's the doc that must move with it.
 | how an installed project-app is served, built, or executed | [`app/`](./app/README.md) |
 | a gateway route, auth, billing, a tier, LiteLLM, the render service | [`cloud/`](./cloud/README.md) |
 | a design token, the token pipeline, or the UI catalog | [`design-system/`](./design-system/README.md) |
-| a shared lib's public API (`@lmthing/state`, `ui`, `css`, `auth`, `openclaw-compat`) | [`libs/`](./libs/README.md) |
+| a shared lib's public API (`@lmthing/state`, `ui`, `css`, `auth`) | [`libs/`](./libs/README.md) |
 | k8s, CI, the image build, the local stack | [`devops/`](./devops/README.md) |
 | a shipped system space (THING, appbuilder, architect, …) | [`system-spaces/`](./system-spaces/README.md) |
 | a product SPA (`com`, `social`, `team`, `store`, `space`, `blog`, `casa`) | [`product-spas/`](./product-spas/README.md) |

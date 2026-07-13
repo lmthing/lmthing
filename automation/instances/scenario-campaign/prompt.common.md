@@ -206,9 +206,7 @@ capability nobody has run is where the bugs are; that is the whole point of this
   boundary holds, pod survives; `HttpError` shape); schema reconcile — additive OK vs **non-additive
   (drop/rename/PK move) failing loud**; the app admin surface (data browser, path-scoped file editor,
   build status); the clean root URL and the CSP on served pages.
-- **P. Platform & resilience** — **OpenClaw compat, entirely untested**: `.openclaw-plugins/<name>/` →
-  `registerTool` → the **`tool()` global** from an agent, and `UnsupportedCompatError` on an
-  unsupported `register*`. The **loop guard** (coalescing, depth cap, self-write/self-trigger
+- **P. Platform & resilience** — the **loop guard** (coalescing, depth cap, self-write/self-trigger
   exclusion, cooldown) — an event hook that writes the table it listens to must NOT loop forever.
   **Payload validation** (undeclared/mistyped event fields dropped). The `webSearch` **provider-chain
   fallback** (Tavily → Bing → DDG) and `webFetch` render modes. Upload limits (the 25MB cap) and

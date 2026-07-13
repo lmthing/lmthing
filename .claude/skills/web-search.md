@@ -20,7 +20,7 @@ find it.
   the turn loop, the test inventory, and the gotchas.
 - `org/docs/runtime-globals/events-and-integrations.md` — why `webSearch`/`webFetch` are **space
   functions, not globals**, how `system-global` injection works, and how a task's `functions:`
-  allowlist (and a project agent's `tools:use.allow`) gates who may call them.
+  allowlist gates who may call them.
 - `org/docs/system-spaces/README.md` — the `system-global` / `system-research` spaces themselves.
 
 Do not re-derive any of the above from the source; read the doc, then the cited code.

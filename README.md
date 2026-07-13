@@ -60,7 +60,7 @@ The monorepo is organized by TLD — each lmthing.\* domain has its own top-leve
 ```
 lmthing/
 ├── sdk/org/            # git submodule (github.com/lmthing/org) — the runtime + shared libs + the app
-│   ├── libs/           # @lmthing/{auth,cli,config,core,css,openclaw-compat,state,ui,utils}
+│   ├── libs/           # @lmthing/{auth,cli,config,core,css,state,ui,utils}
 │   └── apps/web/       # the unified Vite SPA: /studio, /computer, /chat
 ├── cloud/              # THE backend — Hono gateway (/api/*) + LiteLLM (/v1/*)
 ├── org/                # lmthing.org — the docs site; org/docs/** is the source of truth

@@ -1,7 +1,7 @@
 # Inbound webhooks — `POST /api/inbound/:path`
 
 The pod's single external ingress. One route, registered on the pod's `Router` as
-`POST /api/inbound/:path` and handled by `createInboundHandler(manager, effectiveLmthingRoot, openclawRoutes)`
+`POST /api/inbound/:path` and handled by `createInboundHandler(manager, effectiveLmthingRoot)`
 `sdk/org/libs/cli/src/server/serve.ts:236`. `:path` is a URL-safe segment that is **globally
 unique per pod** across every project and every binding kind, because the gateway routes on
 `path` alone `sdk/org/libs/cli/src/server/webhook-manifest.ts:14-17`.
@@ -54,7 +54,7 @@ Disabled hooks (`effectiveDisabled`) are invisible to both the manifest
 side), in any project, throws; two legacy bindings still throw across projects but same-project
 sharing is tolerated `sdk/org/libs/cli/src/server/webhook-manifest.ts:195-217`.
 
-No binding, no OpenClaw route → `404 { error: { status: 404, message: 'no webhook binding for "<path>"' } }`
+No binding → `404 { error: { status: 404, message: 'no webhook binding for "<path>"' } }`
 `sdk/org/libs/cli/src/server/routes/webhooks.ts:157`. No `lmthingRoot` → `404 no project root configured`
 `sdk/org/libs/cli/src/server/routes/webhooks.ts:119-121`.
 
@@ -72,12 +72,12 @@ worker-isolated `scanEmitterDefs` cache (never in-proc) and 404s if it is missin
 4. **dedupe** → a byte-identical replay returns `200 { ok:true, deduped:true }` `sdk/org/libs/cli/src/server/routes/webhooks.ts:299-302`.
 5. **emit** → the def's PURE `emit(inbound)` runs worker-isolated with **no ctx handlers** and a timeout
    (`LMTHING_EMITTER_EMIT_TIMEOUT_MS`, default 5000 ms); a throw/timeout is `500 emit failed: …`
-   `sdk/org/libs/cli/src/server/routes/webhooks.ts:230-232`,`sdk/org/libs/cli/src/server/routes/webhooks.ts:307-316`.
-   `inbound` is `{ json, raw, headers, path }` `sdk/org/libs/cli/src/server/routes/webhooks.ts:307`.
+   `sdk/org/libs/cli/src/server/routes/webhooks.ts:230-232`,`sdk/org/libs/cli/src/server/routes/webhooks.ts:272-281`.
+   `inbound` is `{ json, raw, headers, path }` `sdk/org/libs/cli/src/server/routes/webhooks.ts:272`.
 6. **validate** → every emitted item must name a declared `emits` key and carry a payload matching its
    schema; anything else is dropped-with-warn `sdk/org/libs/cli/src/server/event-dispatch.ts#validateEmitted`.
 7. **dispatch** → `dispatchEmittedEvents` is fired **without await**, and the provider gets
-   `200 { ok:true, events: <n> }` `sdk/org/libs/cli/src/server/routes/webhooks.ts:326-339`.
+   `200 { ok:true, events: <n> }` `sdk/org/libs/cli/src/server/routes/webhooks.ts:296-304`.
 
 The ordering (verify **before** preflight, verify **before** dedupe, both **before** `emit`) is
 deliberate: a forged handshake is rejected like any forged event, the dedupe set cannot be poisoned by
@@ -197,29 +197,19 @@ session snapshot is): a missing or corrupt file is treated as empty
 only mint two ids for two near-simultaneous *first* events on a brand-new thread, never corrupt an
 existing mapping `sdk/org/libs/cli/src/server/webhook-threads.ts:60-69`.
 
-## OpenClaw plugin fallback
-
-When no binding matches but the shared `pluginRoutes` table (mutated in place by `serve.ts` after boot,
-so post-boot registrations are visible) has an entry for `path`, the raw request is normalized into a
-`CompatHttpRequest` (`method`, `path`, `headers`, `body`, `query`) and handed to the plugin's handler; its
-`{status, body}` is returned (`200` default), a throw becomes `500`
-`sdk/org/libs/cli/src/server/routes/webhooks.ts:133-156`,`sdk/org/libs/cli/src/server/serve.ts:230-236`.
-**Bindings always win** — a plugin cannot shadow a real webhook/trigger path
-`sdk/org/libs/cli/src/server/routes/webhooks.ts:107-109`.
-
 ## Response codes
 
 | Status | Body | When |
 |---|---|---|
 | 200 | run result verbatim | legacy binding, agent run completed `sdk/org/libs/cli/src/server/routes/webhooks.ts:226` |
-| 200 | `{ ok:true, events:<n> }` | emitter def emitted `n` validated events (dispatch not awaited) `sdk/org/libs/cli/src/server/routes/webhooks.ts:339` |
+| 200 | `{ ok:true, events:<n> }` | emitter def emitted `n` validated events (dispatch not awaited) `sdk/org/libs/cli/src/server/routes/webhooks.ts:304` |
 | 200 | `{ ok:true, deduped:true }` | byte-identical replay within the TTL `sdk/org/libs/cli/src/server/routes/webhooks.ts:205`,`sdk/org/libs/cli/src/server/routes/webhooks.ts:300` |
 | 200 | adapter preflight body | e.g. Slack `url_verification` `sdk/org/libs/cli/src/server/routes/webhooks.ts:195-199` |
 | 200 | `<challenge>` (text/plain) | GET `hub-challenge` match `sdk/org/libs/cli/src/server/routes/webhooks.ts:179-182` |
 | 401 | `{error:{status:401,message:'signature verification failed'}}` | verify failed `sdk/org/libs/cli/src/server/routes/webhooks.ts:191`,`sdk/org/libs/cli/src/server/routes/webhooks.ts:288` |
 | 403 | `{error:{status:403,message:'challenge verification failed'}}` | GET, no challenge match `sdk/org/libs/cli/src/server/routes/webhooks.ts:184`,`sdk/org/libs/cli/src/server/routes/webhooks.ts:283` |
 | 404 | `no project root configured` / `no webhook binding for "<path>"` / `emitter def "…" not found or not a webhook` | `sdk/org/libs/cli/src/server/routes/webhooks.ts:120`,`sdk/org/libs/cli/src/server/routes/webhooks.ts:157`,`sdk/org/libs/cli/src/server/routes/webhooks.ts:266-268` |
-| 500 | `emit failed: <msg>` | emitter `emit()` threw / timed out `sdk/org/libs/cli/src/server/routes/webhooks.ts:312-314` |
+| 500 | `emit failed: <msg>` | emitter `emit()` threw / timed out `sdk/org/libs/cli/src/server/routes/webhooks.ts:276-280` |
 
 Auth on this route is **per-provider signature verification only** — the pod server has no JWT
 middleware; the gateway's `userToken` gates the public edge

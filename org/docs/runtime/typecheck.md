@@ -57,7 +57,6 @@ Project-as-application globals are declared **only when the owning agent holds t
 - **`db.*`** — the three `db:*` verbs share ONE `db` object, so they cannot be three separate `declare const db` blocks. `composeDbDts({ read, write, schema })` unions the present member strings (`DB_READ_MEMBERS` / `DB_WRITE_MEMBERS` / `DB_SCHEMA_MEMBERS` `library-dts.ts:145-155`) into a single `declare const db`, returning `''` when none are present (so a stray `db` call fails typecheck) `library-dts.ts:164-171`. In the agent sandbox `db.*` is a **synchronous** host call (non-Promise), unlike the value-yielding `apiCall` `library-dts.ts:140-141`.
 - **`api:call`** → `API_CALL_DTS` (`apiCall`, value-yielding Promise) `library-dts.ts:175`, replaced by project-generated typed overloads when `appDts` is supplied (see below).
 - **`connections:use`** → `composeConnectionsDts(providers)` types `callConnection`'s `provider` param to the **union of granted providers**, so a call to an undeclared provider fails typecheck `library-dts.ts:185-188`.
-- **`tools:use`** → `composeToolDts(allow)` types `tool`'s `name` param to the **union of the granted allow-list** `library-dts.ts:200-203`.
 - **`pages:write`** → `PAGES_WRITE_DTS` (`writePage`) + `PROJECT_PAGE_DTS` (`writeProjectPage`) + `PROJECT_COMPONENT_DTS` (`writeProjectComponent` — the typed writer for shared `components/<Name>.tsx`, the only surface for it now that generic fs is gone) `library-dts.ts:204,214,219,300`.
 - **`api:write`** → `API_WRITE_DTS` (`writeApi`) + `PROJECT_API_DTS` (`writeProjectApi`) `library-dts.ts:205,215,301`.
 - **`hooks:write`** → `HOOKS_WRITE_DTS` (`writeHook`) + `PROJECT_AUTHORING_DTS` (`writeProjectHook`/`writeProjectEvent`/`writeProjectFunction`) `library-dts.ts:206,228-230,302`.
@@ -68,7 +67,7 @@ Project-as-application globals are declared **only when the owning agent holds t
 - **`store:install`** → `STORE_INSTALL_DTS` (`installSpace`, consent-marked) `library-dts.ts:281-282`.
 - **`events:emit`** → `EVENTS_EMIT_DTS` (`emitEvent`) `library-dts.ts:288-289`.
 
-The flat standalone map is `CAPABILITY_DTS_FRAGMENTS` `library-dts.ts:298-307`; the `db:*` trio is deliberately NOT in it (composed via `composeDbDts`), and neither are `WRITE_TABLE_SCHEMA_DTS`/`PROJECT_TABLE_DTS`/`PROJECT_READ_DTS`/`composeConnectionsDts`/`composeToolDts` (all handled explicitly in `buildAppCapabilityDts`).
+The flat standalone map is `CAPABILITY_DTS_FRAGMENTS` `library-dts.ts:298-307`; the `db:*` trio is deliberately NOT in it (composed via `composeDbDts`), and neither are `WRITE_TABLE_SCHEMA_DTS`/`PROJECT_TABLE_DTS`/`PROJECT_READ_DTS`/`composeConnectionsDts` (all handled explicitly in `buildAppCapabilityDts`).
 
 ## Composing the per-agent DTS (`buildAmbientDts`)
 
@@ -85,7 +84,7 @@ The flat standalone map is `CAPABILITY_DTS_FRAGMENTS` `library-dts.ts:298-307`; 
 9. `opts.currentTask ? CURRENT_TASK_DTS : ''` — the fork/delegate `currentTask.resolve()` capture global `bootstrap.ts:270`
 10. `...(opts.extraDecls ?? [])` — fork seed/upstream vars, delegate query/context
 
-`buildAppCapabilityDts(app, appDts, projectRoot)` gates each app fragment per grant `bootstrap.ts:311-343`: `composeDbDts` from the three `db:*` flags; `writeTableSchema`+`writeProjectTable` on `db:schema` `bootstrap.ts:320`; `listProjectDir`/`readProjectFile` on a **project-rooted** session (`projectRoot`, no db grant required) `bootstrap.ts:325`; the project-generated typed `apiCall` overloads (`appDts`) in place of the generic fragment when `api:call` is held AND `appDts` is non-empty `bootstrap.ts:329`; `composeConnectionsDts`/`composeToolDts` on `connections:use`/`tools:use` `bootstrap.ts:332-335`; then each standalone `CAPABILITY_DTS_FRAGMENTS[id]` for the remaining grants present `bootstrap.ts:339-341`.
+`buildAppCapabilityDts(app, appDts, projectRoot)` gates each app fragment per grant `bootstrap.ts:311-343`: `composeDbDts` from the three `db:*` flags; `writeTableSchema`+`writeProjectTable` on `db:schema` `bootstrap.ts:320`; `listProjectDir`/`readProjectFile` on a **project-rooted** session (`projectRoot`, no db grant required) `bootstrap.ts:325`; the project-generated typed `apiCall` overloads (`appDts`) in place of the generic fragment when `api:call` is held AND `appDts` is non-empty `bootstrap.ts:329`; `composeConnectionsDts` on `connections:use` `bootstrap.ts:332-335`; then each standalone `CAPABILITY_DTS_FRAGMENTS[id]` for the remaining grants present `bootstrap.ts:339-341`.
 
 ### Which context gets what
 
@@ -99,7 +98,7 @@ The `capabilities` passed to `buildAmbientDts` is a `CapabilityProfile` `sdk/org
 
 `scratchFs` is derived from the `fs:scratch` app grant (`!!app['fs:scratch']`); only the engineer holds it. It — not `allowWrite` — is now what emits `EXEC_SHELL_DTS`/`SCRATCH_DTS`, so generic shell/fs is on the model DTS of the scratch sandbox alone. `intersectAppCaps` (`capability.ts:16-28`) does not keep `fs:scratch`, so a read-only fork role loses it too.
 
-So a **fork leaf** has no `ask`, no `tasklist`/`fork` (a leaf spawning its own subtree would bypass the concurrency semaphore) — those declarations are simply absent, and a stray call fails typecheck as a clean retryable error rather than passing then throwing at runtime `fork/fork.ts:325-344`. `delegate` is added back to a fork only when the task opts in via `canDelegateTo`. A read-only fork role has `app` intersected against `allowWrite` (`intersectAppCaps`, `capability.ts:16-28` — only `db:read`/`api:call`/`connections:use`/`tools:use`/`store:read` survive) so its write grants vanish from the DTS too.
+So a **fork leaf** has no `ask`, no `tasklist`/`fork` (a leaf spawning its own subtree would bypass the concurrency semaphore) — those declarations are simply absent, and a stray call fails typecheck as a clean retryable error rather than passing then throwing at runtime `fork/fork.ts:325-344`. `delegate` is added back to a fork only when the task opts in via `canDelegateTo`. A read-only fork role has `app` intersected against `allowWrite` (`intersectAppCaps`, `capability.ts:16-28` — only `db:read`/`api:call`/`connections:use`/`store:read` survive) so its write grants vanish from the DTS too.
 
 Call sites: session `session/session.ts:278` (and the two rebuild/resume paths `session.ts:411,472`), fork `fork/fork.ts:338-344` (with `currentTask: true` and seed/upstream `extraDecls`; the tasklist prelude VM re-builds one at `fork.ts:487`), delegate `delegate/delegate.ts:258-264` (`currentTask: true` + `query`/`context` `extraDecls`).
 

@@ -137,11 +137,6 @@ exist under `sdk/org/libs/ui/src/` (e.g. `sdk/org/libs/ui/src/chat/components/Co
 script runs them: **`libs/ui`'s tests are currently orphaned**. If you touch `libs/ui`, run its suite
 by hand against a jsdom config, and treat wiring one up as fair game.
 
-### `libs/openclaw-compat`
-
-Declares `"test": "vitest run"` (`sdk/org/libs/openclaw-compat/package.json:L24`) and its 3 suites
-are also picked up by the main `libs/*/src` glob, so `cd sdk/org && pnpm test` covers them.
-
 ---
 
 ## 3. Running tests
@@ -170,7 +165,7 @@ pnpm exec vitest run libs/core/src/globals/ask.test.ts   # equivalent, explicit
 > (`sdk/org/libs/core/package.json`, `sdk/org/libs/cli/package.json`, …). pnpm treats a missing
 > script in a filtered run as a no-op, so `pnpm --filter @lmthing/core test -- system-functions`
 > exits **0 with no output** — it looks green and ran nothing. Only `@lmthing/state`
-> (`:L50`) and `@lmthing/openclaw-compat` (`:L24`) define `test`. Use the path filter above instead.
+> (`:L50`) defines `test`. Use the path filter above instead.
 
 ### Turbo
 

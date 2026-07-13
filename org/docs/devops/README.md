@@ -65,7 +65,7 @@ Envoy Gateway must be started with `extensionApis.enableBackend: true` (DynamicR
 
 ## The compute pod image
 
-One image, `lmthingacr.azurecr.io/compute:<sha>`, runs every user's pod. `devops/argocd/compute/Dockerfile` is a two-stage Node 24 build: stage 1 (`corepack`/pnpm) `tsup`-builds `@lmthing/core` → `@lmthing/openclaw-compat` → `@lmthing/cli` and `vp build`s the unified web app from `sdk/org/`; stage 2 ships the dists, `node_modules`, the `system-spaces` (copied to both `libs/core/system-spaces` and `libs/cli/dist/system-spaces` so runtime path resolution finds `thing`), and `apps/web/dist`. Entrypoint: `node /app/libs/cli/dist/cli/bin.js serve --port 8080`, cwd `/data`. The image is built by CI on `sdk/org/**` changes and pinned by digest for the pre-pull DaemonSet. Runtime detail → [../cli-api/README.md](../cli-api/README.md); served app → [../app/README.md](../app/README.md).
+One image, `lmthingacr.azurecr.io/compute:<sha>`, runs every user's pod. `devops/argocd/compute/Dockerfile` is a two-stage Node 24 build: stage 1 (`corepack`/pnpm) `tsup`-builds `@lmthing/core` → `@lmthing/cli` and `vp build`s the unified web app from `sdk/org/`; stage 2 ships the dists, `node_modules`, the `system-spaces` (copied to both `libs/core/system-spaces` and `libs/cli/dist/system-spaces` so runtime path resolution finds `thing`), and `apps/web/dist`. Entrypoint: `node /app/libs/cli/dist/cli/bin.js serve --port 8080`, cwd `/data`. The image is built by CI on `sdk/org/**` changes and pinned by digest for the pre-pull DaemonSet. Runtime detail → [../cli-api/README.md](../cli-api/README.md); served app → [../app/README.md](../app/README.md).
 
 ## Per-user compute pods
 

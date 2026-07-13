@@ -105,7 +105,7 @@ Hashes are content-only (sorted relpath + bytes, sha256), so a copy's mtimes nev
 
 `lmthing serve` runs only the correctness-critical `materializeRuntime` **before** `listen`, and only when `runtimeNeedsInit` (`bin.ts:L352-L356`). The `syncSystemSpaces` hash walk is deliberately deferred until **after** the server is listening, so a scaled-to-zero cold wake never delays time-to-serve or the K8s startup probe (`bin.ts:L369-L390`). A bare `lmthing` instead calls `ensureRuntime()` (materialize **or** sync) synchronously before listen (`bin.ts:L413`; `ensureRuntime` at `bin.ts:L221-L237`).
 
-Everything else — per-project db warm, cron boot catch-up, cron/webhook manifest publish, OpenClaw plugin load, the self-idle watchdog — runs in a background block *after* `listen`, so `GET /api/sessions` (the readiness probe) is answered in ~1-2s regardless of how many apps or overdue crons exist (`serve.ts:L406-L440`).
+Everything else — per-project db warm, cron boot catch-up, cron/webhook manifest publish, the self-idle watchdog — runs in a background block *after* `listen`, so `GET /api/sessions` (the readiness probe) is answered in ~1-2s regardless of how many apps or overdue crons exist (`serve.ts:L406-L440`).
 
 Two more startup behaviours worth knowing:
 

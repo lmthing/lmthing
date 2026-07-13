@@ -28,7 +28,6 @@ a published binding / the Triggers settings tab, or you are migrating a legacy `
 | the legacy `triggers:` frontmatter key itself (shape, URL-safe path, `agentRef`) | `org/docs/format/space/agents/README.md` · `org/docs/format/space/agents/frontmatter.md` · `org/docs/runtime/spaces-loading.md` |
 | the **Triggers** settings tab (where the user copies the public URL) | `org/docs/chat/features.md` |
 | outbound replies — `callConnection`, integration spaces as event sources | `org/docs/runtime-globals/events-and-integrations.md` |
-| running OpenClaw plugin code verbatim | `org/docs/libs/openclaw-compat.md` |
 
 ## Procedure — authoring new inbound (do this)
 

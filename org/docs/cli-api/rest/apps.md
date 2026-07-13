@@ -103,11 +103,11 @@ Every handler 400s on an unsafe `:projectId` and 404s (`no project root configur
 
 ### `GET /api/projects/:projectId/app` — manifest
 
-Returns `{ project, hasApp, tables, pages, endpoints, hooks, build }` `app-admin.ts:164-172`. A **spaces-only** project (e.g. the synthetic `system` project) is tolerated: `hasApp:false` with empty arrays and `build:{built:false,assetCount:0,stale:false}` `app-admin.ts:143-155`.
+Returns `{ project, hasApp, tables, pages, endpoints, hooks, build }` (plus `endpointsError` when the contracts failed to generate) `sdk/org/libs/cli/src/server/routes/app-admin.ts#handleAppManifest`. A **spaces-only** project (e.g. the synthetic `system` project) is tolerated: `hasApp:false` with empty arrays and `build:{built:false,assetCount:0,stale:false}` `app-admin.ts:143-155`.
 
 - `tables` — `{ name, schema }` from `database/*.json` `app-admin.ts:141`.
 - `pages` — `{ routePath, file }`, discovered by a **read-only** walk that mirrors the page build (so the manifest never triggers a rebuild) `app-admin.ts:462-510`.
-- `endpoints` — `{ name, method, routePath, inputSchema, outputSchema }`, preferring the manager's cached contracts and falling back to a guarded `generateProjectContracts` (errors degrade to `[]`) `app-admin.ts:176-200`.
+- `endpoints` — `{ name, method, routePath, inputSchema, outputSchema }`, preferring the manager's cached contracts and falling back to a guarded `generateProjectContracts` `sdk/org/libs/cli/src/server/routes/app-admin.ts#loadEndpoints`. A generation failure degrades to `[]` **and sets `endpointsError`** on the manifest — "this app has no API routes" and "we could not read this app's API routes" are different facts, and reporting the first for the second makes an app with working handlers look endpoint-less (seen live in scenario 07).
 - `hooks` — `{ slug, type, on?, every?, trigger?, lastRunAt?, lastFiredAt?, pending }` merged from the hook loader and `.data/hooks-state.json` `app-admin.ts:202-240`.
 - `build` — `{ built, assetCount, stale }`, where `built` = `.data/pages-dist/index.html` exists and `stale` compares the cached content hash against a fresh hash of `package.json` + `pages/` + `components/` + `lib/` `app-admin.ts:512-562`.
 

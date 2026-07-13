@@ -1,13 +1,13 @@
-# Scenario campaign — `10-home-renovation` · round 1 (BASELINE + FIRST NEW ACTS)
+# Scenario campaign — `09-home-renovation` · round 1 (BASELINE + FIRST NEW ACTS)
 
-This is the **first round** for `10-home-renovation`. Two goals, in order:
+This is the **first round** for `09-home-renovation`. Two goals, in order:
 
 **1. Reach a green baseline.**
-- Read `sdk/org/scenarios/10-home-renovation/scenario.md`. If `sdk/org/scenarios/10-home-renovation/run.mjs` does **not** exist yet, scaffold it from
-  `sdk/org/scenarios/_template/run.mjs` and implement the Acts already described in `sdk/org/scenarios/10-home-renovation/scenario.md`
+- Read `sdk/org/scenarios/09-home-renovation/scenario.md`. If `sdk/org/scenarios/09-home-renovation/run.mjs` does **not** exist yet, scaffold it from
+  `sdk/org/scenarios/_template/run.mjs` and implement the Acts already described in `sdk/org/scenarios/09-home-renovation/scenario.md`
   (1:1 with its Acts table), reproducing the literal user flow. If it exists, read it and confirm its
-  Acts still match `sdk/org/scenarios/10-home-renovation/scenario.md`.
-- If `sdk/org/scenarios/10-home-renovation/scenario.md` itself is a stub (some scenarios only have a title/idea — check
+  Acts still match `sdk/org/scenarios/09-home-renovation/scenario.md`.
+- If `sdk/org/scenarios/09-home-renovation/scenario.md` itself is a stub (some scenarios only have a title/idea — check
   `sdk/org/scenarios/IDEAS.md` and the `_template/scenario.md` structure), first author the six
   sections into a coherent, realistic scenario with a small initial set of Acts, then build its
   runner.
@@ -15,10 +15,10 @@ This is the **first round** for `10-home-renovation`. Two goals, in order:
   are honestly recorded as failing with a triaged cause). Fix any product bug you hit, with a test.
 
 **2. Add a FIRST batch of additional Acts (2–4).**
-- Choose them from the feature catalog below — capabilities `10-home-renovation` does **not** yet cover
+- Choose them from the feature catalog below — capabilities `09-home-renovation` does **not** yet cover
   — extending the scenario naturally (same persona, same growing project, realistic drift).
-- Add each new Act to `sdk/org/scenarios/10-home-renovation/scenario.md`'s Acts table (+ any new user stories / expectations) AND to
-  `sdk/org/scenarios/10-home-renovation/run.mjs` (1:1), keeping every hardening pattern. Run the FULL scenario (old + new) live,
+- Add each new Act to `sdk/org/scenarios/09-home-renovation/scenario.md`'s Acts table (+ any new user stories / expectations) AND to
+  `sdk/org/scenarios/09-home-renovation/run.mjs` (1:1), keeping every hardening pattern. Run the FULL scenario (old + new) live,
   triage, fix in the product with a test, verify live, and report.
 
 Everything about how to do this — the artifact format, the feature catalog, the harness API and
@@ -37,17 +37,17 @@ your assumptions, and keep going until the goal for this run is reached or you h
 you cannot work around. This task fires again on a schedule, so if you run out of budget/time,
 leave everything in a clean, committed, resumable state.
 
-- **Scenario:** `10-home-renovation` (`sdk/org/scenarios/10-home-renovation`)  ·  **Round:** 1 — BASELINE + FIRST NEW ACTS  ·  **Branch:** `main`
+- **Scenario:** `09-home-renovation` (`sdk/org/scenarios/09-home-renovation`)  ·  **Round:** 1 — BASELINE + FIRST NEW ACTS  ·  **Branch:** `main`
 
 **Working directory:** you start at the **lmthing monorepo root** and have the **whole monorepo** in
 scope — both the parent repo and the `sdk/org` submodule. You will commit + push **both** (submodule
 first, then the parent pointer) to trigger CI, and you must **verify the deploy actually lands**
 (image built, pod upgraded, feature live), not merely that the push succeeded. Scenario files live at
-`sdk/org/scenarios/10-home-renovation`; the harness at `sdk/org/scenarios/harness/`.
+`sdk/org/scenarios/09-home-renovation`; the harness at `sdk/org/scenarios/harness/`.
 
 ## The mission
 
-Extend `10-home-renovation` with **additional Acts**, run the **whole scenario end-to-end against LIVE
+Extend `09-home-renovation` with **additional Acts**, run the **whole scenario end-to-end against LIVE
 production**, triage every failure, **fix real product bugs in the product (with a test)**, verify
 the fix live, and **report honestly**. A scenario is not a feature test — it is a **promise,
 exercised end-to-end through the THING agent against live prod, and asserted on real system state**
@@ -62,7 +62,7 @@ never assert on prose.
 
 ## The scenario artifact (what you are editing)
 
-A scenario is TWO files plus generated results, all under `sdk/org/scenarios/10-home-renovation`:
+A scenario is TWO files plus generated results, all under `sdk/org/scenarios/09-home-renovation`:
 
 ```
 scenario.md              # the SPEC + recorded results (structure below)
@@ -93,7 +93,7 @@ from `results/report.md` after a run — the document is both plan and record).
 
 ## Feature catalog — draw every NEW Act from here
 
-Pick additional Acts that exercise catalog capabilities `10-home-renovation` does **not** yet cover.
+Pick additional Acts that exercise catalog capabilities `09-home-renovation` does **not** yet cover.
 Prefer a coherent slice end-to-end over an isolated call.
 
 - **A. THING triage & routing** (`user-thing/agents/thing`): answer directly (no delegation);
@@ -148,7 +148,7 @@ import { Pod } from '../harness/lib/pod.mjs';               // projects, spaces,
 import { ThingSession, approveAllConsent, denyAllConsent } from '../harness/lib/thing.mjs';
 import { Report } from '../harness/lib/report.mjs';         // → Actual-results markdown + trace
 
-const user  = await getUser('10-home-renovation');            // { userId, token, pod }
+const user  = await getUser('09-home-renovation');            // { userId, token, pod }
 const pod   = new Pod({ base: user.pod, token: user.token });
 const thing = new ThingSession(pod, { projectId, onAsk: approveAllConsent, verbose: true });
 await thing.start();
@@ -166,9 +166,9 @@ await pod.appBuild(projectId)                                // { built, assetMa
 await pod.appData(projectId, 'flights')                      // real DB rows
 await pod.inbound('demo', signedBody, { 'x-demo-signature': sig })  // deliver a signed webhook
 
-const r = new Report('10-home-renovation', 'title');
+const r = new Report('09-home-renovation', 'title');
 r.step('Act VI — …', 'expected'); r.check('label', pass, actual); r.metric('turn', s, 's');
-r.save('sdk/org/scenarios/10-home-renovation/results/report.md'); r.saveTrace('sdk/org/scenarios/10-home-renovation/results/trace.json', thing);
+r.save('sdk/org/scenarios/09-home-renovation/results/report.md'); r.saveTrace('sdk/org/scenarios/09-home-renovation/results/trace.json', thing);
 ```
 
 **Runner hardening patterns — every new Act MUST keep these (each was learned from a real mid-run
@@ -200,7 +200,7 @@ authoritative check is `POST /app/build` + real assets in `assetManifest`.
 
 ## The run → triage → fix → verify → report loop
 
-1. **Provision + smoke.** `cd sdk/org/scenarios/harness && node provision.mjs 10-home-renovation`
+1. **Provision + smoke.** `cd sdk/org/scenarios/harness && node provision.mjs 09-home-renovation`
    (disposable `user-<id>` + pod + Azure keys, budget-free), then `node smoke.mjs` to prove prod is
    healthy. Load integration/env secrets via `mergePodEnv` **before** the first session (a `PUT env`
    rolls the pod). Keep the conversation realistic — drift, incremental, unrelated chatter between
@@ -211,7 +211,7 @@ authoritative check is `POST /app/build` + real assets in `assetManifest`.
    runner in the background and "wait", and do **NOT** rely on a watcher/heartbeat to re-invoke you
    (that pattern is for the interactive Claude Code harness, not for headless). Instead **run the
    runner as a single blocking foreground command with a long timeout** so your turn stays alive
-   until it exits, e.g. `cd sdk/org/scenarios/harness && node sdk/org/scenarios/10-home-renovation/run.mjs --acts=1` with the Bash
+   until it exits, e.g. `cd sdk/org/scenarios/harness && node sdk/org/scenarios/09-home-renovation/run.mjs --acts=1` with the Bash
    `timeout` set to ~1500000 ms (25 min); when it returns, read its output, then run the next Act(s)
    the same way. Because the runner **checkpoints after every Act** to `results/checkpoint.json` and
    resumes with `--acts=`, a run that gets cut off is resumable next time — but within THIS turn,
@@ -263,7 +263,7 @@ authoritative check is `POST /app/build` + real assets in `assetManifest`.
 
 ## PROGRESS protocol (MANDATORY, every step)
 
-Maintain the per-run progress log at **/home/vasilis/LMTHING/lmthing/automation/instances/scenario-campaign/rounds/1/10-home-renovation/PROGRESS.md**.
+Maintain the per-run progress log at **/home/vasilis/LMTHING/lmthing/automation/instances/scenario-campaign/rounds/1/09-home-renovation/PROGRESS.md**.
 - At **every step**, append to "Steps" what you did (provisioned, drafted Act VI, ran it, triaged,
   fixed, verified).
 - Append to "Files added to context" **the exact new files you read / added to your context** that
@@ -278,14 +278,14 @@ Maintain the per-run progress log at **/home/vasilis/LMTHING/lmthing/automation/
 
 ## Definition of done for this run
 
-- `sdk/org/scenarios/10-home-renovation/scenario.md` has all six sections + the feature checklist + the Acts table, now **including the
+- `sdk/org/scenarios/09-home-renovation/scenario.md` has all six sections + the feature checklist + the Acts table, now **including the
   new Acts** you added this round.
-- `sdk/org/scenarios/10-home-renovation/run.mjs` reproduces the literal user flow and its Acts match the `.md` table **1:1**, keeping
+- `sdk/org/scenarios/09-home-renovation/run.mjs` reproduces the literal user flow and its Acts match the `.md` table **1:1**, keeping
   the hardening patterns and the existing Acts (no regression).
 - Every assertion reads the trace or real state (no prose grading).
 - It **ran e2e live against prod** and reached a verdict; **every product bug found is fixed with a
   test** and its fix verified live (fix sha recorded).
-- `sdk/org/scenarios/10-home-renovation/results/` has the report + trace; the `.md` **Actual results** section is filled with:
+- `sdk/org/scenarios/09-home-renovation/results/` has the report + trace; the `.md` **Actual results** section is filled with:
   verdict (`PASS` / `CONDITIONAL PASS` / `FAIL`), the per-Act table, every issue + fix sha, the
   performance table, and the **honest narrative of where the product broke down**.
 - Both repos committed + pushed on `main` (submodule first, then parent pointer).

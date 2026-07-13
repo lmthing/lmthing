@@ -21,7 +21,7 @@ export default {
 
   // Each task is a scenario id under sdk/org/scenarios/. Round 1 baselines + adds the first new
   // Acts; later rounds add more. Append new scenario ids here to fold them in (they start at round 1).
-  tasks: ['07-life-admin', '08-small-shop',  '10-home-renovation', '10-family-recipes'],
+  tasks: ['07-life-admin', '08-small-shop', '09-home-renovation', '10-family-recipes'],
 
   firstRoundTemplate: 'prompt.first.md',
   nextRoundTemplate: 'prompt.next.md',
@@ -64,6 +64,6 @@ export default {
   },
 
   prePull: true,
-  interval: 18000, // 5h — live runs are long
+  interval: 10800, // 3h — live runs are long
   startDelay: 0,
 };

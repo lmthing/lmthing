@@ -1,4 +1,4 @@
-# PROGRESS — scenario-campaign · task `10-home-renovation` · round 1
+# PROGRESS — scenario-campaign · task `09-home-renovation` · round 1
 
 _Started 2026-07-13T04:36:24.819Z. The agent MUST update this file at every step._
 
@@ -12,7 +12,7 @@ _Started 2026-07-13T04:36:24.819Z. The agent MUST update this file at every step
 
 ### 2026-07-13 (opus resume) — orientation
 
-- **Naming:** campaign labels this instance `10-home-renovation`, but the repo's home-renovation
+- **Naming:** campaign labels this instance `09-home-renovation`, but the repo's home-renovation
   scenario lives at `sdk/org/scenarios/09-home-renovation` (the `10-` slot is `10-family-recipes`).
   Working on `09-home-renovation` (the real home-renovation scenario). Decision recorded.
 - Read `09-home-renovation/scenario.md` — fully authored (6 sections + Acts I–VIII + Edges), NO run.mjs

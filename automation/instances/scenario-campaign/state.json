@@ -5,6 +5,9 @@
     },
     "08-small-shop": {
       "round": 1
+    },
+    "10-home-renovation": {
+      "round": 1
     }
   },
   "runs": [
@@ -138,5 +141,5 @@
       "resetAt": null
     }
   ],
-  "updatedAt": "2026-07-13T06:34:03.100Z"
+  "updatedAt": "2026-07-13T06:34:03.162Z"
 }

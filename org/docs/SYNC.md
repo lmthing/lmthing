@@ -120,10 +120,9 @@ pnpm docs:migrate -- --write    # rewrite the clean-fit ones in place
 never invents an anchor and never silently drops precision — a specific line inside a large function
 stays a line. Run it after a refactor to re-anchor citations whose lines have shifted.
 
-Citations that were already broken when the gate was introduced live in
-`tools/docs-sync/baseline.json`. The gate tolerates exactly those and fails only on **new** breakage
-— so the list is a burn-down, not a place to hide new debt. Fix a baseline entry and the gate tells
-you to delete it.
+The gate is a hard **zero** — every citation resolves. (`check.mjs` supports a `--baseline` of
+tolerated failures as an escape hatch, but there is no baseline today and adding one should be a
+deliberate, temporary choice — the contract is to fix drift in the same change, not to park it.)
 
 ## Why this is worth the friction
 

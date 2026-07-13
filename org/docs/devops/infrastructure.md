@@ -249,9 +249,9 @@ only `helm`, `metrics_server`, `cert_manager` and `metallb` — there is no stor
 `devops/ansible/inventory/test/group_vars/all.yml:1-26`. Kubespray itself (pinned to **v2.30.0**
 `devops/ansible/scripts/setup/bootstrap.sh:7-8`) defaults `local_path_provisioner_enabled: false`
 and runs the provisioner role only `when: local_path_provisioner_enabled`, so with this inventory
-it never runs — in the clone `bootstrap.sh` fetches,
-`devops/ansible/.cache/kubespray/roles/kubespray_defaults/defaults/main/main.yml:448` and
-`devops/ansible/.cache/kubespray/roles/kubernetes-apps/external_provisioner/meta/main.yml:12-13`.
+it never runs. (Those are defaults of upstream Kubespray v2.30.0, which `bootstrap.sh` fetches into
+the gitignored `devops/ansible/.cache/kubespray/` at setup time — not committed here, so they carry
+no repo citation.)
 
 **Open infra bug — the default StorageClass exists only out-of-band.** The production cluster
 *does* have one (`local-path`, provisioner `rancher.io/local-path`, Deployment

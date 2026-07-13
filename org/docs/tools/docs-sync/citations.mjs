@@ -19,7 +19,10 @@ export const KNOWN_ROOTS = [
 ];
 
 // A repo path: known-root segment, then one or more path segments, then a code-ish extension.
-const PATH = String.raw`(?:${KNOWN_ROOTS.join('|')})(?:/[\w.@-]+)+\.(?:tsx?|mtsx?|ctsx?|jsx?|mjs|cjs|json|ya?ml|md|sh|css|html)`;
+// The root must not be glued to a preceding identifier — the negative lookbehind stops `space`
+// from matching inside `workspace` or `store` inside `system-store`. It deliberately allows a
+// leading `/` or `.` so relative-link citations (`../../sdk/org/…`) still match.
+const PATH = String.raw`(?<![\w-])(?:${KNOWN_ROOTS.join('|')})(?:/[\w.@-]+)+\.(?:tsx?|mtsx?|ctsx?|jsx?|mjs|cjs|json|ya?ml|md|sh|css|html)`;
 
 // Symbol anchor:  path#Ident(.Ident)*     — dotted qualified names allowed.
 const SYMBOL_RE = new RegExp(String.raw`(${PATH})#([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)`, 'g');

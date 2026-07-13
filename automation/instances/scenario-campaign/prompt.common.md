@@ -34,7 +34,42 @@ never assert on prose.
 
 {{subagents}}
 
+## The user is a REAL PERSON, not a product manager (hard rules)
+
+Every scenario was rewritten around these. They are the difference between testing the product and
+testing a script. Hold them in `{{SCENARIO_MD}}` and in every message `{{RUN_MJS}}` sends.
+
+1. **The user knows NO lmthing terminology. Ever.** In a verbatim user message they never say — and
+   never imply they know about — *space · project · app (as a product noun) · agent · hook · cron ·
+   emitter · event · webhook · integration · install · database · table · schema · row · column · API ·
+   endpoint · build · deploy · function · capability · consent · delegate · THING*. They talk about
+   their life: *"I keep losing track of this stuff"*, *"just tell me before I run out"*, *"can you put it
+   somewhere I can actually look at it?"*. If a message would only be written by someone who has read
+   our docs, **it is wrong** — rewrite it.
+2. **THING PROPOSES the app. The user never asks for one.** The user dumps their files and describes a
+   problem; THING must recognise it deserves a real, openable thing and **offer** it. The user's consent
+   is a plain *"yes please"*, not a specification. Assert the **offer appeared before any authoring
+   yield**, and that a bare "yes" was enough.
+3. **Research and space creation are AUTOMATIC and invisible.** The user never asks for specialists or
+   research. THING decides it needs to know things, researches them live (`webSearch`/`webFetch` yields
+   in the trace), **creates the per-topic spaces itself**, and registers them. Assert the spaces exist on
+   disk and a later plain question is answered from inside the right one — while the user never named one.
+4. **Every fixture is proved by its unique token, in REAL STATE.** `fixtures/links.md` gives each
+   fixture a token that appears in that file and nowhere else. For every fixture, an Act must assert its
+   token landed in a **db row or a space file** — never in prose. Prose can be guessed; a row cannot.
+   That is the only proof the image went through vision, the audio through transcription, the PDF/xlsx
+   through `readDocument`.
+
+**Performance targets are hang detectors, not SLOs.** Record the actual time as a metric on every Act;
+only FAIL on the ceiling — that means something is *broken*, not merely slow. (Measured on live prod:
+one authoring turn ran **8 minutes**; a cold-wake blew a 60 s budget; a full run takes hours.)
+
 ## The scenario artifact (what you are editing)
+
+> **`run.mjs` has been DELETED for every scenario.** `scenario.md` is now the spec and it has been
+> rewritten from scratch. On a scenario's round 1 your job is to **implement `run.mjs` from its
+> `scenario.md`** (start from `../_template/run.mjs`), Act by Act, and get it to a green baseline —
+> not to invent a new story. On later rounds you extend it.
 
 A scenario is TWO files plus generated results, all under `{{SCENARIO_DIR}}`:
 
@@ -412,16 +447,20 @@ Maintain the per-run progress log at **{{progressFile}}**.
 
 ## Definition of done for this run
 
-- `{{SCENARIO_MD}}` has all six sections + the feature checklist + the Acts table, now **including the
-  new Acts** you added this round.
-- `{{RUN_MJS}}` reproduces the literal user flow and its Acts match the `.md` table **1:1**, keeping
-  the hardening patterns and the existing Acts (no regression).
+- `{{SCENARIO_MD}}` has all six sections + the feature checklist + the Acts table. **Round 1: do not
+  rewrite the story** — it was authored deliberately; implement it. Later rounds: add the new Acts.
+- `{{RUN_MJS}}` **exists and implements `scenario.md` Act for Act (1:1)** — on round 1 you are writing
+  it from scratch (from `../_template/run.mjs`); later rounds keep every existing Act (no regression)
+  and the hardening patterns.
+- **The four hard rules hold** in every message the runner sends: no product jargon from the user ·
+  THING proposed the app (asserted) · spaces came from THING's own research (asserted, never asked for)
+  · every fixture's unique token asserted in real state.
 - Every assertion reads the trace or real state (no prose grading).
-- **The new Acts come from the coverage audit (J–P)** — capabilities no scenario has exercised — and
-  the report names which gap each one closed. Re-proving an already-covered capability does not count.
-- **At least one NEW real fixture, sourced from the real web** (or Azure-TTS-generated for audio), is
-  committed under `fixtures/`, uploaded by `{{RUN_MJS}}`, and asserted via a token that appears in **no
-  other fixture** landing in **real state**. Its provenance is recorded.
+- **New Acts come from the coverage audit (J–P)** — capabilities no scenario has exercised — and the
+  report names which gap each one closed. Re-proving an already-covered capability does not count.
+- **From round 2 on: at least one NEW real fixture** sourced from the real web (or Azure-TTS-generated
+  for audio), committed under `fixtures/`, uploaded by `{{RUN_MJS}}`, and asserted via a token that
+  appears in **no other fixture** landing in **real state**. Its provenance is recorded in `links.md`.
 - **Unrecovered eval/typecheck errors across the session = 0**, as a hard check (recovered ones stay a
   metric).
 - **The app contract holds (if this scenario builds an app):**

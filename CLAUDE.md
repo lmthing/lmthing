@@ -71,28 +71,30 @@ Working on… → open the `org/docs` page that owns it.
 
 ## Kubernetes cluster (production) — practical
 
-**SSH:**
+Use the helpers in `devops/scripts/` — they find the SSH key, fix its permissions, and quote
+arguments so jsonpath braces survive the trip to the remote shell.
+
 ```bash
-ssh -i ~/GEANT/lmthing/devops/terraform/generated/lmthing-test-key.pem \
-    -o StrictHostKeyChecking=no azureuser@4.223.83.5
+./devops/scripts/cluster-ssh.sh                          # interactive shell on the node
+./devops/scripts/cluster-ssh.sh 'df -h'                  # or run one command
+
+./devops/scripts/cluster-kubectl.sh get deployments --all-namespaces -o wide
+./devops/scripts/cluster-kubectl.sh get pods -n lmthing -l app=org
+
+./devops/scripts/cluster-logs.sh gateway                 # follow logs (-n lmthing)
+./devops/scripts/cluster-logs.sh org --tail=200
+
+./devops/scripts/cluster-restart.sh gateway              # restart + wait for rollout
+./devops/scripts/cluster-restart.sh --all-user-pods      # blunt fallback; prompts first
 ```
 
-**Common operations:**
-```bash
-# List all deployments
-kubectl get deployments --all-namespaces -o wide
+The key is **terraform output, so it is gitignored** and absent from a fresh clone. The scripts search
+`devops/terraform/generated/`, then `~/GEANT/lmthing/devops/terraform/generated/`, then `~/.ssh/`;
+override with `LMTHING_SSH_KEY=/path/to/key.pem` (and `LMTHING_SSH_HOST` for a different node). If none
+is found, run `terraform apply` in `devops/terraform` to regenerate it.
 
-# Restart all user compute pods (blunt fallback — normally users are prompted
-# in-app to upgrade individually; see PodEnsureGate in sdk/org/apps/web)
-kubectl get namespaces | grep ^user- | awk '{print $1}' \
-  | xargs -I{} kubectl rollout restart deployment/lmthing -n {}
-
-# Restart a specific lmthing-namespace deployment (e.g. gateway)
-kubectl rollout restart deployment/gateway -n lmthing
-
-# Tail logs for a deployment
-kubectl logs -n lmthing deployment/gateway -f
-```
+> Quote any kubectl arg containing `[` `]` or `{` `}` — **your local shell expands it first**
+> (zsh errors with `no matches found`). `-o 'jsonpath={.items[*].metadata.name}'`, not bare.
 
 What lives in which namespace, the routing model, per-user pods and scale-to-zero → [`org/docs/devops/infrastructure.md`](./org/docs/devops/infrastructure.md).
 

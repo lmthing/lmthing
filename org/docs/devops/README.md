@@ -81,4 +81,17 @@ Pod sizing (CPU/MEM/`MAX_SESSIONS`) is tier-driven and re-patched by the gateway
 
 ## Operating the cluster
 
-Day-to-day operations run through `devops/ansible/Makefile` (forwarded from `devops/Makefile`): `make cluster` (Kubespray), `make deploy` / `make deploy-secrets` / `make deploy-argocd` (Ansible roles), `make status` / `make routes` / `make argocd-apps` / `make logs-*`. SSH into a node and use `kubectl` directly for ad-hoc inspection (`ssh -i terraform/generated/lmthing-test-key.pem azureuser@<node-ip>`). Common recipes, the full Makefile matrix, and gotchas → [deploy.md](./deploy.md).
+Day-to-day operations run through `devops/ansible/Makefile` (forwarded from `devops/Makefile`): `make cluster` (Kubespray), `make deploy` / `make deploy-secrets` / `make deploy-argocd` (Ansible roles), `make status` / `make routes` / `make argocd-apps` / `make logs-*`. Common recipes, the full Makefile matrix, and gotchas → [deploy.md](./deploy.md).
+
+For ad-hoc inspection, four helpers wrap SSH + `kubectl` against the node (`devops/scripts/`):
+
+| Script | Does |
+|---|---|
+| `cluster-ssh.sh [cmd]` | interactive shell, or run one command |
+| `cluster-kubectl.sh <args…>` | `kubectl` on the node; args are `printf %q`-quoted so jsonpath survives (`devops/scripts/cluster-kubectl.sh:17-19`) |
+| `cluster-logs.sh <deploy> [flags]` | follow a deployment's logs; `NS=` overrides the `lmthing` default |
+| `cluster-restart.sh <deploy>` \| `--all-user-pods` | roll-restart + wait; the bulk form prompts first (`devops/scripts/cluster-restart.sh:19-28`) |
+
+They resolve the key themselves. It is **terraform output, so it is gitignored** and missing from a fresh clone: they try `devops/terraform/generated/lmthing-test-key.pem`, then `~/GEANT/lmthing/…`, then `~/.ssh/` (`devops/scripts/cluster-env.sh:15-26`), `chmod 600` it — a fresh terraform output can be `0644`, which ssh refuses (`devops/scripts/cluster-env.sh:36-38`) — and exit listing every path searched if none matches (`devops/scripts/cluster-env.sh:27-34`). Override with `LMTHING_SSH_HOST` / `LMTHING_SSH_KEY` (`devops/scripts/cluster-env.sh:10,16`).
+
+Two shell traps the scripts exist to absorb: the ssh invocation is held in a **bash array**, because a quoted `"$SSH"` string does not word-split under zsh and the whole command collapses into one bogus filename (`devops/scripts/cluster-env.sh:40-45`); and you must still **quote any argument containing `[`/`]`/`{`/`}` yourself** — your local shell expands it before the script ever runs (zsh: `no matches found`).

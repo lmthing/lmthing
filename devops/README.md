@@ -44,6 +44,12 @@ devops/
 
 ## Cluster access
 
+Use the helpers in [`scripts/`](./scripts/) — they locate the key (it is gitignored terraform output),
+fix its permissions, and quote args so jsonpath survives the remote shell:
+
 ```bash
-ssh -i devops/terraform/generated/lmthing-test-key.pem azureuser@4.223.83.5
+./devops/scripts/cluster-ssh.sh                 # shell on the node
+./devops/scripts/cluster-kubectl.sh get pods -n lmthing
+./devops/scripts/cluster-logs.sh gateway
+./devops/scripts/cluster-restart.sh gateway
 ```

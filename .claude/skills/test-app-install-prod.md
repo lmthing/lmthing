@@ -28,10 +28,10 @@ chrome-devtools MCP.
 ## Prerequisites
 
 - SSH to the K8s node (all `kubectl` runs **through SSH** — the node holds the
-  kubeconfig):
+  kubeconfig). Use the helper; it finds the key and quotes args for you:
   ```bash
-  ssh -i ~/GEANT/lmthing/devops/terraform/generated/lmthing-test-key.pem \
-      -o StrictHostKeyChecking=no azureuser@4.223.83.5 '<kubectl …>'
+  ./devops/scripts/cluster-kubectl.sh get pods -n lmthing
+  ./devops/scripts/cluster-ssh.sh '<any command>'
   ```
 - The **chrome-devtools MCP** (drives the browser for the UI flow).
 - No API keys needed locally — the pod already has `lmthingcloud` creds injected

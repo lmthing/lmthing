@@ -91,14 +91,19 @@ ansible-vault edit devops/ansible/vault.yml && make deploy-secrets
 make status && make argocd-apps && make routes && make logs-gateway
 ```
 
-### kubectl (SSH to the control plane first)
+### kubectl (runs on the control plane, over SSH)
+
+`devops/scripts/` wraps this: `cluster-ssh.sh`, `cluster-kubectl.sh`, `cluster-logs.sh`,
+`cluster-restart.sh`. They find the key (gitignored terraform output), `chmod 600` it, and quote args
+so jsonpath braces survive. Prefer them over a hand-rolled `ssh -i …`.
 
 ```bash
-ssh -i devops/terraform/generated/lmthing-test-key.pem azureuser@4.223.83.5
+./devops/scripts/cluster-kubectl.sh get deployments --all-namespaces -o wide
+./devops/scripts/cluster-logs.sh gateway
+./devops/scripts/cluster-restart.sh litellm            # ConfigMap edits do NOT roll pods
 
-kubectl get deployments --all-namespaces -o wide
-kubectl logs -n lmthing deployment/gateway -f
-kubectl rollout restart deployment/litellm -n lmthing   # ConfigMap edits do NOT roll pods
+# or get a shell and run kubectl directly:
+./devops/scripts/cluster-ssh.sh
 
 # roll a rebuilt compute image to one user (the /data PVC persists; next
 # POST /api/compute/ensure recreates the Deployment)
@@ -107,6 +112,8 @@ kubectl delete deployment/lmthing -n user-<id>
 # blunt fallback: restart every user compute pod
 kubectl get namespaces | grep ^user- | awk '{print $1}' \
   | xargs -I{} kubectl rollout restart deployment/lmthing -n {}
+# ...or, from your machine, with a confirmation prompt:
+#   ./devops/scripts/cluster-restart.sh --all-user-pods
 ```
 
 ### Scaling a node

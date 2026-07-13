@@ -131,6 +131,27 @@ _Started 2026-07-13T19:45:55.831Z. The agent MUST update this file at every step
 - **Wrote the honest round-1 verdict into `scenario.md` §Actual results:** FAIL, with the per-Act
   table, all 9 fixes + shas, the 2 open issues, and the performance numbers.
 
+- **Acts XI–XIV finished live.** XI: ✓ **the Greek message changed a real row** (`ZNZ-PERMIT-77`),
+  ✓ no payment side-effect, ✓ no fabricated "sent!" — ✗ but the refusal never reached the user: the
+  final reply was **`## Todos`** (same "turn ended on machinery" family → strengthened the rule,
+  `2d8e9fd`). XII: ✗ no `user-memory` delegate, ✓ **a brand-new historyless session still recalled the
+  standing preference** (promise holds; the assertion is narrower than the promise). **XIII: PASS** —
+  restart → auto-resume, **2 spaces + 97 rows survived**, app still compiles.
+- **Act XIV was FAKING ITS OWN PASS** — the one Act that exists to check the layer the user sees. It
+  read `e.pattern` (the field is **`routePath`**) → every probe collapsed to `/api/` → the SPA fallback
+  answered → and a `body.length > 20` check called that "real data". It was the HTML shell. Fixed to
+  demand real JSON + to resolve the shell's bundle **exactly as a browser does**; it now fails honestly
+  on all 5 app routes and **reproduces the blank-app bug with no browser** (`9f92d6d`).
+- **DEPLOY VERIFIED LIVE.** `compute:1c15afe` built green in CI → `kubectl set image` on the test pod →
+  **rollout succeeded**, pod runs `lmthingacr.azurecr.io/compute:1c15afe`, the app survived the roll
+  (7 tables), and the shipped prompts carry every fix (api:call grant, propose/consent, last-display,
+  automator relations/components, **zero fixture tokens**). The `api:call` enforcement's negative path
+  is covered by 3 unit tests (a live negative needs an agent with a narrow allowlist; THING holds
+  `['*']`).
+- **Shipped:** sdk/org `9f92d6d`, parent `40a6bf3b`. 10 product fixes, each with a test; 2 open issues
+  recorded honestly. **Round verdict: FAIL** — a green baseline was NOT reached, and that is the
+  truthful result.
+
 ## Files added to context
 
 - `sdk/org/scenarios/06-tanzania/scenario.md` — the spec the runner must implement 1:1.

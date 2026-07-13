@@ -17,7 +17,7 @@ spec:
         - name: acr-pull-secret
       containers:
         - name: chat
-          image: lmthingacr.azurecr.io/chat:ce62339
+          image: lmthingacr.azurecr.io/chat:bb2c1e3
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

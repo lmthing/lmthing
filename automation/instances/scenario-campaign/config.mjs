@@ -64,7 +64,8 @@ export default {
   },
 
   prePull: true,
-  interval: 10800, // 3h — a lane cools down this long after ITS run before taking the next scenario
+  interval: 1800, // 30m — a lane cools down this long after ITS run before taking the next scenario
+  //                 (long enough for the last run's CI/deploy to land, short enough to keep rounds moving)
   startDelay: 0,
 
   // Two scenarios in flight at once. Each works in its OWN sdk/org/scenarios/<id>/ and against its

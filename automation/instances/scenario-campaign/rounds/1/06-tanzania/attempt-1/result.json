@@ -1,0 +1,17 @@
+{
+  "bin": "claude",
+  "attempt": null,
+  "sessionId": "05399ff7-6b9c-4cf6-a5e3-5bb229fb64a1",
+  "model": null,
+  "outcome": "interrupted",
+  "intent": "stop",
+  "stalled": false,
+  "subtype": null,
+  "isError": false,
+  "usage": null,
+  "costUsd": null,
+  "exitCode": null,
+  "resetAt": null,
+  "startedAt": "2026-07-13T19:45:55.855Z",
+  "endedAt": "2026-07-13T20:02:30.602Z"
+}

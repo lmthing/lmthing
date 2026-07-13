@@ -84,6 +84,11 @@ export async function runLoop(cfg, opts = {}) {
   mkdirSync(paths.stateDir, { recursive: true });
   mkdirSync(paths.roundsDir, { recursive: true });
 
+  // An instance has exactly ONE loop, and it is the sole writer of the ledger. So a run still marked
+  // `running` at startup belongs to a loop that died before it could record an outcome (killed
+  // terminal, crash, reboot) — it will never be updated. Reap it, or it lies in `status` forever.
+  if (!opts.dryRun) reapAbandonedRuns(cfg);
+
   const branch = currentBranch(cfg.cwd) ?? '(detached)';
   const bins = cfg.claude.bins.map((name) => ({ name, limitedUntil: 0 }));
   const interval = (opts.interval ?? cfg.interval) * 1000;
@@ -482,6 +487,26 @@ function recordRunEnd(cfg, { task, round, attempt, bin, result, branch }) {
     paths: commitPaths(cfg, round, task),
     message: `chore(automation/${cfg.name}): ${task} round ${round} attempt ${attempt} ${result.outcome}`,
     expectedBranch: branch,
+  });
+}
+
+/** Mark every run left `running` by a previous (now-dead) loop as `abandoned`. */
+function reapAbandonedRuns(cfg) {
+  const state = loadState(cfg.paths.stateJson);
+  const stale = state.runs.filter((r) => r.outcome === 'running');
+  if (!stale.length) return;
+  const endedAt = new Date().toISOString();
+  for (const r of stale) {
+    r.outcome = 'abandoned';
+    r.endedAt = endedAt;
+  }
+  saveState(cfg.paths.stateJson, state);
+  log(`reaped ${stale.length} abandoned run(s) from a previous loop`);
+  commitState({
+    cwd: cfg.cwd,
+    paths: [relative(cfg.cwd, cfg.paths.stateJson)],
+    message: `chore(automation/${cfg.name}): reap ${stale.length} abandoned run(s)`,
+    expectedBranch: currentBranch(cfg.cwd),
   });
 }
 

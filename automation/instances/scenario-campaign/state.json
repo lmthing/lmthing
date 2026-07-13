@@ -173,18 +173,18 @@
       "round": 1,
       "attempt": 1,
       "bin": "claude",
-      "outcome": "running",
+      "outcome": "abandoned",
       "startedAt": "2026-07-13T14:55:05.016Z",
-      "endedAt": null
+      "endedAt": "2026-07-13T15:10:14.826Z"
     },
     {
       "task": "10-family-recipes",
       "round": 1,
       "attempt": 1,
       "bin": "claude",
-      "outcome": "running",
+      "outcome": "abandoned",
       "startedAt": "2026-07-13T14:55:05.048Z",
-      "endedAt": null
+      "endedAt": "2026-07-13T15:10:14.826Z"
     },
     {
       "task": "07-life-admin",
@@ -205,5 +205,5 @@
       "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-13T14:55:58.381Z"
+  "updatedAt": "2026-07-13T15:10:14.826Z"
 }

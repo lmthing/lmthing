@@ -125,7 +125,10 @@ Prefer a coherent slice end-to-end over an isolated call.
 - **F. Project-as-application** — the live writers `writeProjectTable(name, schema, rows?)` (seed
   known data), `writeProjectPage`, `writeProjectApi`, `writeProjectHook`, `writeProjectEvent`,
   `writeProjectFunction`; `db:write` for later updates; `POST /app/<id>/build` → compiled assets;
-  serving at `/app/<id>/`; the app data API (`/api/projects/<id>/app/data/<table>`).
+  serving at `/app/<id>/`; the app data API (`/api/projects/<id>/app/data/<table>`); the app's **own**
+  API routes (`/<project>/api/<route>` — the ones its pages actually fetch); the **always-available
+  in-app chat agent** and **self-evolution from inside the app** (§A1); the app **rendering correctly
+  in a real browser** (§A2). See **The app contract** — A1 and A2 are mandatory, not optional Acts.
 - **G. Attachments** (`system-files`/`system-vision`) — upload (`POST /api/uploads`); deliver WITH a
   message (WS path); `readDocument` (text/markdown/pdf); hand an attachment to a specialist via
   `attachmentIds`; vision for images, transcription for audio.
@@ -198,6 +201,59 @@ throughout a rolling update → use `waitPodSettled`; consent needs an **interac
 (`POST /api/sessions`; headless fails closed); the `built` flag is `manifest.build.built` but the
 authoritative check is `POST /app/build` + real assets in `assetManifest`.
 
+## The app contract (MANDATORY for every scenario that builds an app)
+
+An app that returns 200 and has rows in its tables is **not** a working app. Both rules below are
+hard requirements of every scenario that builds one — spec them in `scenario.md`, assert them in
+`sdk/org/scenarios/07-life-admin/run.mjs`, and if the product cannot do them yet, **implement the missing feature** (§4 fix loop:
+writer → core injection → DTS → capability → test → deploy → verify live). Never skip the
+requirement, never fake it, never weaken the assertion to go green.
+
+### A1. Every app ships an ALWAYS-AVAILABLE in-app chat agent
+
+The app is a **living surface**, not a static dashboard. Every app you build MUST embed a chat agent
+that is:
+- **Always available from every page** of the served app (a persistent panel/widget — not a link that
+  bounces the user back to `/chat`).
+- Backed by a **real THING session scoped to that project**, with full authoring capability — the
+  same agent, the same conversation.
+- Able to carry the **whole conversation AND the self-evolution from inside the app**: from that chat
+  the user can ask for a new table, a new page, a new section, a new space, a new integration, or a
+  data change — and it must **land live** in the running app (new schema bound, page served, space
+  registered), with no rebuild-by-hand and no leaving the app.
+
+**If the runtime cannot do this today, that is the gap the scenario exists to close — build it.**
+Add whatever is missing (an embeddable chat component wired to a project-scoped session, the route
+that serves it, the capability grants that let an in-app turn author, the live-rebind after an
+in-app `writeProject*`), with a test that would have caught its absence, then deploy and verify live.
+
+**Assert it on real state:** an Act must send a message **through the in-app chat** (drive it in the
+browser, §A2) and prove a **real change landed** — a new row / new page / new table / new space that
+was not there before — never that the reply "said it would".
+
+### A2. Browser verification — the app must RENDER, not just return 200
+
+You have the **chrome-devtools MCP** available in this session (already configured — a real Chrome).
+**Use it.** A scenario that only calls the data API is blind to the way apps actually break.
+
+Recipe (learned the hard way):
+- Mint the disposable user's session, then inject it on **BOTH origins** — the pod SPA
+  (`https://lmthing.chat`) **and** the served-app origin (`https://lmthing.app`, where
+  `/app/<project>/` redirects). The **served app authenticates by the `access_token` COOKIE**, not
+  just `localStorage.lmthing_session` — set both, or the app renders `Jwt is missing`.
+- Load the served app, wait out the cold-wake/rollout banners, then assert on the **rendered DOM**:
+  the real data is on screen (**non-zero counts, actual row values from the fixtures**), the in-app
+  chat (A1) is present and usable, and the page has **no console errors and no failed fetches**.
+- **Also assert the app's OWN API routes** (`GET /<project>/api/<route>`) return 200 with the right
+  shape — not just `/api/projects/<id>/app/data/<table>`.
+  > **This is not hypothetical.** A shipped scenario went green while its dashboard rendered
+  > `0` / `€0.00` for every tile: the raw `app/data/<table>` API returned all its rows, but the page's
+  > own aggregation route (`/api/stock-dashboard`) threw a **500**, so the UI silently fell back to
+  > zeros. The runner only checked the raw data API, so it never saw it. **Assert the layer the user
+  > actually sees.**
+- Put the evidence in the report: what you saw rendered (and a screenshot path), plus any console/
+  network errors. "An app that opens but is empty" is an **anti-expectation** — a FAIL, not a pass.
+
 ## The run → triage → fix → verify → report loop
 
 1. **Provision + smoke.** `cd sdk/org/scenarios/harness && node provision.mjs 07-life-admin`
@@ -205,12 +261,19 @@ authoritative check is `POST /app/build` + real assets in `assetManifest`.
    healthy. Load integration/env secrets via `mergePodEnv` **before** the first session (a `PUT env`
    rolls the pod). Keep the conversation realistic — drift, incremental, unrelated chatter between
    load-bearing turns; a promise that only holds under a scripted happy path isn't kept.
-2. **Run Act by Act, babysat.** Drive `node sdk/org/scenarios/07-life-admin/run.mjs` as a **`run_in_background: true` Bash
-   process** — that is the ONLY mechanism that re-wakes you on exit. `Monitor`/poll/"I'll wait" do
-   NOT and will stall forever. A 5-minute heartbeat watchdog is a background loop that `sleep`s,
-   probes pod + run liveness, and **exits** (waking you) each cycle; relaunch it each wake. Between
-   wakes, make progress (read traces, prepare the next fix). (zsh: `status` is read-only — use
-   another name.) Checkpoint after each Act.
+2. **Run Act by Act, in the FOREGROUND.** You are a **headless `claude -p` session**: when you stop
+   emitting tool calls your turn ENDS, your session dies, and every background process you spawned is
+   orphaned and killed. So there is **no "wake me when it finishes"** here — do **NOT** launch the
+   runner in the background and "wait", and do **NOT** rely on a watcher/heartbeat to re-invoke you
+   (that pattern is for the interactive Claude Code harness, not for headless). Instead **run the
+   runner as a single blocking foreground command with a long timeout** so your turn stays alive
+   until it exits, e.g. `cd sdk/org/scenarios/harness && node sdk/org/scenarios/07-life-admin/run.mjs --acts=1` with the Bash
+   `timeout` set to ~1500000 ms (25 min); when it returns, read its output, then run the next Act(s)
+   the same way. Because the runner **checkpoints after every Act** to `results/checkpoint.json` and
+   resumes with `--acts=`, a run that gets cut off is resumable next time — but within THIS turn,
+   keep the foreground call blocking until each Act batch completes. Never say "waiting for the run
+   to finish" and stop — that silently ends the whole session with the mission unfinished.
+   (zsh: `status` is read-only — use another name.)
 3. **Triage every failure BEFORE changing anything** — is it a harness bug or a product bug? Read the
    trace (`GET /api/sessions/:id/events`) for the exact `eval_error`/`typecheck_error` **statement**,
    and pod logs (`kubectl logs`) for boot/hook-load failures. **Reproduce minimally** — a direct
@@ -276,6 +339,14 @@ Maintain the per-run progress log at **/home/vasilis/LMTHING/lmthing/automation/
 - `sdk/org/scenarios/07-life-admin/run.mjs` reproduces the literal user flow and its Acts match the `.md` table **1:1**, keeping
   the hardening patterns and the existing Acts (no regression).
 - Every assertion reads the trace or real state (no prose grading).
+- **The app contract holds (if this scenario builds an app):**
+  - **A1** — the app has an **always-available in-app chat agent**, and an Act proves a real change
+    (row / page / table / space) landed **from inside the app**. Any feature this required was
+    implemented in the product, tested, deployed, and verified live.
+  - **A2** — the app was **opened in the chrome-devtools browser** and **renders the real data**
+    (non-zero, actual fixture values), with the in-app chat present, **no console errors, no failed
+    fetches**, and the app's **own API routes** asserted 200 + correct shape. Evidence (what rendered
+    + screenshot path) is in the report. An app that opens empty is a **FAIL**.
 - It **ran e2e live against prod** and reached a verdict; **every product bug found is fixed with a
   test** and its fix verified live (fix sha recorded).
 - `sdk/org/scenarios/07-life-admin/results/` has the report + trace; the `.md` **Actual results** section is filled with:

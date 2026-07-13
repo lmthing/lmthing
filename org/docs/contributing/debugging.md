@@ -307,7 +307,7 @@ carries a `meta.json` (title/slug/lastActivity — `projects.ts:404-450`), which
 THING session, a real LLM (`sdk/org/scenarios/README.md`). Six exist today, each a directory with a
 `run.mjs`: `05-latam`, `06-tanzania`, `07-life-admin`, `08-small-shop`, `09-home-renovation`,
 `10-family-recipes`; each writes its own `results/report.md` plus a raw trace JSON `results/trace.json`
-(`sdk/org/scenarios/05-latam/run.mjs:L650-L651`; `sdk/org/scenarios/harness/lib/report.mjs:L109-L121`).
+(`sdk/org/scenarios/_template/run.mjs#RESULTS`; `sdk/org/scenarios/harness/lib/report.mjs:L109-L121`).
 
 ```bash
 cd sdk/org/scenarios/harness

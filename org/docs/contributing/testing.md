@@ -323,18 +323,23 @@ isolation (`pnpm exec vitest run libs/cli/src/server/serve-tree-ws.test.ts`).
 Vitest stops at the process boundary. The `scenarios/` tree is the layer above: **six end-to-end
 scenarios driven against the live production cluster with a live LLM** — a disposable prod user, a
 real compute pod, a real THING chat session. Nothing is mocked
-(`sdk/org/scenarios/05-latam/run.mjs:L1-L11`). They ship as `05-latam`, `06-tanzania`,
+(`sdk/org/scenarios/_template/run.mjs:L1-L27`). They ship as `05-latam`, `06-tanzania`,
 `07-life-admin`, `08-small-shop`, `09-home-renovation` and `10-family-recipes`.
+
+Each scenario is **`scenario.md` (the spec) + `fixtures/` (real, web-sourced input files)**. Its
+`run.mjs` is **generated from that spec** by the scenario campaign
+(`automation/instances/scenario-campaign/`), starting from `_template/run.mjs` — so a scenario
+directory with no `run.mjs` yet is expected, not broken.
 
 ```bash
 cd sdk/org/scenarios/harness
 node smoke.mjs                 # prove the harness + prod are healthy first (≈1 min)
-node ../05-latam/run.mjs       # a scenario's runner writes its own report
+node ../05-latam/run.mjs       # once its runner exists, it writes its own report
 ```
 
-A long scenario **checkpoints**: `05-latam` writes `results/checkpoint.json` after every act and a
+A long scenario **checkpoints**: the runner writes `results/checkpoint.json` after every act and a
 re-run resumes the same user/project/session, so a failure in act IV doesn't cost the acts before it;
-`--acts=3,4` runs a subset and `--fresh` starts over (`sdk/org/scenarios/05-latam/run.mjs:L5`, `:L12-L15`).
+`--acts=3,4` runs a subset and `--fresh` starts over (`sdk/org/scenarios/_template/run.mjs:L43-L45`).
 
 `smoke.mjs` walks the whole chain — register → pod → env → THING session → a real LLM turn → trace
 assertions — and exists so no scenario burns an hour on a broken harness
@@ -342,9 +347,13 @@ assertions — and exists so no scenario burns an hour on a broken harness
 
 ### Layout
 
-- `scenarios/<NN>-<slug>/run.mjs` — the **executable spec**. It writes
+- `scenarios/<NN>-<slug>/scenario.md` — the **spec**: the persona, the verbatim user messages, and
+  the Acts table the runner must implement 1:1.
+- `scenarios/<NN>-<slug>/fixtures/` — the real input files (photos, PDFs, spreadsheets, voice memos)
+  and `links.md`, which names the **unique token** each fixture carries.
+- `scenarios/<NN>-<slug>/run.mjs` — the **executable spec**, generated from `scenario.md`. It writes
   `scenarios/<NN>-<slug>/results/report.md` plus a raw trace JSON `results/trace.json`
-  (`sdk/org/scenarios/05-latam/run.mjs#RESULTS`, `:L650-L651`; `Report.save`/`Report.saveTrace`,
+  (`sdk/org/scenarios/_template/run.mjs#RESULTS`; `Report.save`/`Report.saveTrace`,
   `sdk/org/scenarios/harness/lib/report.mjs:L109-L121`).
 - `scenarios/harness/` — zero-dependency Node ESM. `provision.mjs` (`getUser`, `loadUser` —
   `:L28-L45`) plus `lib/`: `Pod` (the pod REST client, `lib/pod.mjs:L9`), `ThingSession`

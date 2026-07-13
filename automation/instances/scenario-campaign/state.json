@@ -38,9 +38,43 @@
       "round": 1,
       "attempt": 1,
       "bin": "claude",
-      "outcome": "running",
+      "outcome": "done",
       "startedAt": "2026-07-13T20:02:56.150Z",
-      "endedAt": null
+      "endedAt": "2026-07-13T21:40:13.895Z",
+      "subtype": "success",
+      "isError": false,
+      "costUsd": 11.102019999999996,
+      "usage": {
+        "input_tokens": 3334,
+        "cache_creation_input_tokens": 189335,
+        "cache_read_input_tokens": 14016542,
+        "output_tokens": 86845,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 189335,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1527,
+            "cache_read_input_tokens": 196141,
+            "cache_creation_input_tokens": 557,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 557
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "resetAt": null
     },
     {
       "task": "06-tanzania",
@@ -95,5 +129,5 @@
       "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-13T21:25:14.109Z"
+  "updatedAt": "2026-07-13T21:40:14.617Z"
 }

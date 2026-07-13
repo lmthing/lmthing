@@ -1,17 +1,46 @@
 {
   "bin": "claude",
   "attempt": null,
-  "sessionId": "d35c4a3e-83c2-42b8-a385-87ce5aa607fa",
+  "sessionId": "0dd6bd1f-6246-490e-a539-28b675fe2ce9",
   "model": null,
-  "outcome": "interrupted",
-  "intent": "stop",
+  "outcome": "done",
+  "intent": null,
   "stalled": false,
-  "subtype": null,
+  "subtype": "success",
   "isError": false,
-  "usage": null,
-  "costUsd": null,
-  "exitCode": null,
+  "usage": {
+    "input_tokens": 3334,
+    "cache_creation_input_tokens": 189335,
+    "cache_read_input_tokens": 14016542,
+    "output_tokens": 86845,
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 189335,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "not_available",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 1527,
+        "cache_read_input_tokens": 196141,
+        "cache_creation_input_tokens": 557,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 557
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard"
+  },
+  "costUsd": 11.102019999999996,
+  "exitCode": 0,
   "resetAt": null,
-  "startedAt": "2026-07-13T19:45:55.828Z",
-  "endedAt": "2026-07-13T20:02:30.607Z"
+  "startedAt": "2026-07-13T20:02:56.174Z",
+  "endedAt": "2026-07-13T21:40:13.895Z"
 }

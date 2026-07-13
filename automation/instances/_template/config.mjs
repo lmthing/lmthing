@@ -49,6 +49,11 @@ export default {
   },
 
   prePull: false,     // git pull --ff-only before each run
-  interval: 18000,    // seconds between runs in loop mode (5h)
+  interval: 18000,    // seconds a slot cools down after a run before it takes the next task (5h)
   startDelay: 0,      // seconds before the FIRST run
+
+  // How many tasks may run CONCURRENTLY (one claude session each). 1 = sequential.
+  // A task never runs twice at once. Every lane SHARES this working tree — raise this only when the
+  // tasks are genuinely disjoint, or the agents will race each other's commits. See README §7.
+  maxParallel: 1,
 };

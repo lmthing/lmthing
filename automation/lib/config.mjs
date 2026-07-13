@@ -108,6 +108,12 @@ export async function loadConfig(name) {
     prePull: raw.prePull ?? false,
     interval: process.env.RUN_INTERVAL ? Number(process.env.RUN_INTERVAL) : (raw.interval ?? 18000),
     startDelay: process.env.START_DELAY ? Number(process.env.START_DELAY) : (raw.startDelay ?? 0),
+    // How many tasks may run CONCURRENTLY (one claude session each). 1 = the sequential default.
+    // Never more than one session per task: a task already running is excluded from selection.
+    maxParallel: Math.max(
+      1,
+      Math.trunc(process.env.MAX_PARALLEL ? Number(process.env.MAX_PARALLEL) : (raw.maxParallel ?? 1)) || 1,
+    ),
     paths,
   };
   return cfg;
@@ -126,15 +132,22 @@ export function resolveTasks(cfg) {
  * Pick the next task: the one with the FEWEST completed runs (ties → earliest in list order).
  * This round-robins an even list and auto-prioritizes a newly-appended task (count 0), which then
  * runs its own round 1. `forced` overrides selection but must be a member of the list.
+ *
+ * `busy` holds the tasks currently occupying a parallel slot; they are excluded so a task never runs
+ * twice at once (its round would be ambiguous and its two sessions would fight over the same files).
+ * Returns null when every task is busy — the caller leaves the free slot idle until one frees up.
  */
-export function selectTask(cfg, state, forced = null) {
+export function selectTask(cfg, state, forced = null, busy = new Set()) {
   const tasks = resolveTasks(cfg);
+  const free = tasks.filter((t) => !busy.has(t));
   let task;
   if (forced != null) {
     if (!tasks.includes(forced)) fail(`forced task "${forced}" is not in the task list [${tasks.join(', ')}]`);
+    if (busy.has(forced)) return null;
     task = forced;
   } else {
-    task = tasks.reduce((best, t) => (taskRound(state, t) < taskRound(state, best) ? t : best), tasks[0]);
+    if (free.length === 0) return null;
+    task = free.reduce((best, t) => (taskRound(state, t) < taskRound(state, best) ? t : best), free[0]);
   }
   const round = taskRound(state, task) + 1;
   return { task, round, taskIndex: tasks.indexOf(task) + 1, taskCount: tasks.length, tasks, forced: forced != null };

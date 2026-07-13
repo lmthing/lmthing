@@ -51,10 +51,25 @@ export function status(cfg) {
 
   const rt = existsSync(cfg.paths.runtime) ? readRuntime(cfg.paths.runtime) : null;
   if (rt) {
-    process.stdout.write(
-      `runtime: state=${rt.state} task=${rt.task} round=${rt.round} attempt=${rt.attempt ?? '-'} ` +
-        `bin=${rt.activeBin ?? '-'} nextRunAt=${rt.nextRunAt ?? '-'} (pid ${rt.pid})\n`,
-    );
+    if (Array.isArray(rt.slots)) {
+      const busy = rt.slots.filter((s) => s.state === 'running' || s.state === 'paused').length;
+      process.stdout.write(
+        `runtime: state=${rt.state} parallel=${busy}/${rt.maxParallel ?? 1} ` +
+          `nextRunAt=${rt.nextRunAt ?? '-'} (pid ${rt.pid})\n`,
+      );
+      for (const s of rt.slots) {
+        process.stdout.write(
+          `  [slot ${s.slot}] ${s.task ?? '—'} r${s.round ?? '-'} a${s.attempt ?? '-'} ${s.state}` +
+            ` bin=${s.activeBin ?? '-'} readyAt=${s.readyAt ?? '-'}\n`,
+        );
+      }
+    } else {
+      // A loop started before slots existed is still running and owns this file — read it as it is.
+      process.stdout.write(
+        `runtime: state=${rt.state} task=${rt.task} round=${rt.round} attempt=${rt.attempt ?? '-'} ` +
+          `bin=${rt.activeBin ?? '-'} nextRunAt=${rt.nextRunAt ?? '-'} (pid ${rt.pid}) [pre-slots loop]\n`,
+      );
+    }
     if (rt.bins?.some((b) => b.limitedUntil > Date.now())) {
       const lim = rt.bins
         .filter((b) => b.limitedUntil > Date.now())

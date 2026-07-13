@@ -49,12 +49,12 @@ function die(msg) {
 
 const USAGE = `lmauto — recurring autonomous Claude sessions
 
-  lmauto tui <instance> [task] [--attach] [--start-delay=SEC]
+  lmauto tui <instance> [task] [--attach] [--start-delay=SEC] [--parallel=N]
   lmauto run <instance> [task] [--dry-run] [--start-delay=SEC]
-  lmauto loop <instance> [--interval=SEC] [--start-delay=SEC]
-  lmauto supervise <instance> [--start-delay=SEC] [--duration=SEC] [--interval=SEC]
+  lmauto loop <instance> [--interval=SEC] [--start-delay=SEC] [--parallel=N]
+  lmauto supervise <instance> [--start-delay=SEC] [--duration=SEC] [--interval=SEC] [--parallel=N]
   lmauto schedule <instance> cron-install|cron-remove|status
-  lmauto pause|continue|skip|stop <instance>
+  lmauto pause|continue|skip|stop <instance> [task|slot#]
   lmauto status <instance>
   lmauto new <name>
   lmauto list
@@ -97,11 +97,14 @@ async function main() {
     case 'continue':
     case 'skip':
     case 'stop': {
-      const name = positionals[0] ?? die(`usage: lmauto ${cmd} <instance>`);
+      const name = positionals[0] ?? die(`usage: lmauto ${cmd} <instance> [task|slot#]`);
       const p = instancePaths(name);
       if (!existsSync(p.dir)) die(`no instance "${name}"`);
-      writeControl(p.control, cmd);
-      process.stdout.write(`sent "${cmd}" to ${name}\n`);
+      // With parallel slots a command may target ONE lane (by task id or slot number);
+      // without a target it is broadcast to every live lane. `stop` is always global.
+      const target = positionals[1] ?? null;
+      writeControl(p.control, target ? `${cmd} ${target}` : cmd);
+      process.stdout.write(`sent "${cmd}"${target ? ` (target: ${target})` : ''} to ${name}\n`);
       return;
     }
 
@@ -141,6 +144,7 @@ async function main() {
       await runLoop(cfg, {
         interval: num(flags.interval, undefined),
         startDelay: num(flags['start-delay'], undefined),
+        maxParallel: num(flags.parallel, undefined),
       });
       return;
     }
@@ -152,6 +156,7 @@ async function main() {
         startDelay: num(flags['start-delay'], undefined),
         duration: num(flags.duration, undefined),
         interval: num(flags.interval, undefined),
+        maxParallel: num(flags.parallel, undefined),
       });
       return;
     }
@@ -163,6 +168,7 @@ async function main() {
         attach: !!flags.attach,
         forcedTask: positionals[1] ?? null,
         startDelay: num(flags['start-delay'], undefined),
+        maxParallel: num(flags.parallel, undefined),
       });
       return;
     }

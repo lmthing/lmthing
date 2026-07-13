@@ -49,57 +49,69 @@ function bar(cols, ch = '─') {
   return c.gray + ch.repeat(Math.max(1, cols)) + c.reset;
 }
 
+/** One lane: its task, round/attempt, bin, cost, and what it's doing right now. */
+function renderSlot(s, w) {
+  const stateC = STATE_COLOR[s.state] ?? c.reset;
+  const lines = [];
+  const head =
+    `${c.gray}[${s.slot}]${c.reset} ${c.bold}${(s.task ?? '—').padEnd(20)}${c.reset}` +
+    ` ${c.dim}r${c.reset}${s.round ?? '-'} ${c.dim}a${c.reset}${s.attempt ?? '-'}` +
+    `  ${stateC}${s.state}${c.reset}  ${c.dim}${s.activeBin ?? ''}${c.reset}`;
+  const lr = s.lastResult;
+  const bits = [];
+  if (lr?.outcome) bits.push(`outcome=${lr.outcome}`);
+  if (lr?.costUsd != null) bits.push(`$${lr.costUsd}`);
+  if (lr?.usage?.output_tokens != null) bits.push(`out=${lr.usage.output_tokens}tok`);
+  if (lr?.tool) bits.push(`tool=${lr.tool}`);
+  lines.push(head + (bits.length ? `  ${c.dim}${bits.join(' ')}${c.reset}` : ''));
+
+  if (s.state === 'sleeping' || s.state === 'waiting-for-start') {
+    const label = s.state === 'waiting-for-start' ? 'first run' : 'next run';
+    lines.push(`    ${c.dim}${label} in${c.reset} ${fmtCountdown(s.readyAt)}`);
+  } else if (s.state === 'waiting-for-reset' && s.limit?.resetAt) {
+    lines.push(`    ${c.red}⚠ usage limit — resume in ${fmtCountdown(s.limit.resetAt)}${c.reset}`);
+  } else if (lr?.activity) {
+    lines.push(`    ${c.dim}▸${c.reset} ${String(lr.activity).replace(/\s+/g, ' ').slice(0, w - 6)}`);
+  }
+  return lines;
+}
+
 /** Build the full dashboard frame as a string. Pure — no I/O. */
 export function renderFrame(rt, { cols = 80 } = {}) {
   if (!rt) return `${c.gray}(no runtime state yet — instance has not started)${c.reset}\n`;
   const w = Math.max(40, cols);
   const lines = [];
   const stateC = STATE_COLOR[rt.state] ?? c.reset;
+  const slots = Array.isArray(rt.slots) ? rt.slots : [];
+  const busy = slots.filter((s) => s.state === 'running' || s.state === 'paused').length;
 
   // Header
   lines.push(
     `${c.bold}${c.cyan}⟳ ${rt.instance}${c.reset}  ${stateC}${c.bold}${rt.state}${c.reset}` +
-      `  ${c.dim}branch:${c.reset} ${rt.branch ?? '-'}  ${c.dim}pid:${c.reset} ${rt.pid ?? '-'}`,
+      `  ${c.dim}branch:${c.reset} ${rt.branch ?? '-'}  ${c.dim}pid:${c.reset} ${rt.pid ?? '-'}` +
+      `  ${c.dim}parallel:${c.reset} ${busy}/${rt.maxParallel ?? 1}` +
+      `  ${c.dim}tasks:${c.reset} ${rt.taskCount ?? '?'}`,
   );
-  lines.push(
-    `${c.dim}task${c.reset} ${c.bold}${rt.task ?? '-'}${c.reset}` +
-      ` (${rt.taskIndex ?? '?'}/${rt.taskCount ?? '?'})  ${c.dim}round${c.reset} ${rt.round ?? '-'}` +
-      `  ${c.dim}attempt${c.reset} ${rt.attempt ?? '-'}  ${c.dim}bin${c.reset} ${rt.activeBin ?? '-'}`,
-  );
-  lines.push(bar(w));
 
-  // Limits / bins
+  // Bins
   if (Array.isArray(rt.bins) && rt.bins.length) {
-    const parts = rt.bins.map((b) => {
-      const lim = b.limitedUntil > Date.now();
-      return lim
+    const parts = rt.bins.map((b) =>
+      b.limitedUntil > Date.now()
         ? `${c.red}${b.name}✗ ${fmtCountdown(new Date(b.limitedUntil).toISOString())}${c.reset}`
-        : `${c.green}${b.name}✓${c.reset}`;
-    });
+        : `${c.green}${b.name}✓${c.reset}`,
+    );
     lines.push(`${c.dim}bins:${c.reset} ${parts.join('  ')}`);
   }
-  if (rt.limit?.hit && rt.limit.resetAt) {
-    lines.push(`${c.red}⚠ usage limit — reset in ${fmtCountdown(rt.limit.resetAt)} (${rt.limit.resetAt})${c.reset}`);
-  }
-  if (rt.nextRunAt && (rt.state === 'sleeping' || rt.state === 'waiting-for-start' || rt.state === 'waiting-for-reset')) {
-    const label = rt.state === 'waiting-for-start' ? 'first run' : rt.state === 'waiting-for-reset' ? 'resume' : 'next run';
-    lines.push(`${c.dim}${label} in${c.reset} ${fmtCountdown(rt.nextRunAt)}  ${c.gray}(${rt.nextRunAt})${c.reset}`);
-  }
-  const lr = rt.lastResult;
-  if (lr) {
-    const bits = [];
-    if (lr.outcome) bits.push(`outcome=${lr.outcome}`);
-    if (lr.subtype) bits.push(`subtype=${lr.subtype}`);
-    if (lr.costUsd != null) bits.push(`cost=$${lr.costUsd}`);
-    if (lr.usage?.output_tokens != null) bits.push(`out=${lr.usage.output_tokens}tok`);
-    if (bits.length) lines.push(`${c.dim}last:${c.reset} ${bits.join('  ')}`);
-    if (lr.tool) lines.push(`${c.dim}tool:${c.reset} ${lr.tool}`);
-    if (lr.activity) lines.push(`${c.dim}▸${c.reset} ${String(lr.activity).replace(/\s+/g, ' ').slice(0, w - 2)}`);
-  }
+  lines.push(bar(w));
+
+  // One block per lane
+  if (!slots.length) lines.push(`${c.gray}(no slots)${c.reset}`);
+  for (const s of slots) lines.push(...renderSlot(s, w));
+
   lines.push(bar(w));
   lines.push(
     `${c.dim}keys:${c.reset} ${c.bold}p${c.reset}ause ${c.bold}c${c.reset}ontinue ${c.bold}s${c.reset}kip ${c.bold}q${c.reset}uit` +
-      `   ${c.gray}progress: ${rt.progressFile ?? '-'}${c.reset}`,
+      `   ${c.gray}(skip/pause a single lane: lmauto skip <instance> <task|slot#>)${c.reset}`,
   );
   return lines.join('\n') + '\n';
 }
@@ -163,7 +175,11 @@ export async function runTui(cfg, opts = {}) {
     await new Promise(() => {});
   } else {
     try {
-      await runLoop(cfg, { startDelay: opts.startDelay, forcedTask: opts.forcedTask });
+      await runLoop(cfg, {
+        startDelay: opts.startDelay,
+        forcedTask: opts.forcedTask,
+        maxParallel: opts.maxParallel,
+      });
     } finally {
       paint();
       cleanup();

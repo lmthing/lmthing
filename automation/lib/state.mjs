@@ -119,6 +119,25 @@ function git(cwd, args) {
   return { code: r.status ?? 1, stdout: (r.stdout || '').trim(), stderr: (r.stderr || '').trim() };
 }
 
+/**
+ * `git` that retries while the index is locked. Parallel runs (and the agents themselves) commit to
+ * the same working tree, so `index.lock` contention is expected and transient — not a real failure.
+ * Synchronous by design: spawnSync + a busy-wait keeps the whole read-modify-write of the ledger
+ * uninterruptible on the single JS thread, which is what makes concurrent slots safe without a lock.
+ */
+function gitLocking(cwd, args, { tries = 6, waitMs = 500 } = {}) {
+  let r;
+  for (let i = 0; i < tries; i++) {
+    r = git(cwd, args);
+    if (r.code === 0 || !/index\.lock|Unable to create .*\.lock/i.test(r.stderr)) return r;
+    const until = Date.now() + waitMs;
+    while (Date.now() < until) {
+      /* busy-wait: we must not yield the thread mid-ledger-update */
+    }
+  }
+  return r;
+}
+
 /** The branch currently checked out in `cwd` (or null outside a repo). */
 export function currentBranch(cwd) {
   const r = git(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
@@ -136,7 +155,7 @@ export function commitState({ cwd, paths, message, expectedBranch }) {
   const rel = paths.filter(Boolean);
   if (rel.length === 0) return { committed: false, reason: 'no-paths' };
 
-  const add = git(cwd, ['add', '--', ...rel]);
+  const add = gitLocking(cwd, ['add', '--', ...rel]);
   if (add.code !== 0) return { committed: false, reason: `add-failed: ${add.stderr}` };
 
   // Anything actually staged among these paths?
@@ -144,7 +163,7 @@ export function commitState({ cwd, paths, message, expectedBranch }) {
   if (staged.code === 0) return { committed: false, reason: 'nothing-staged' };
 
   const branch = currentBranch(cwd);
-  const commit = git(cwd, ['commit', '-m', message, '--', ...rel]);
+  const commit = gitLocking(cwd, ['commit', '-m', message, '--', ...rel]);
   if (commit.code !== 0) return { committed: false, reason: `commit-failed: ${commit.stderr}` };
 
   return {

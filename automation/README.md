@@ -42,8 +42,9 @@ node automation/lmauto.mjs run my-job --dry-run
 | `claude.flags` | `string[]` | Extra claude flags (e.g. `['--verbose']`). |
 | `claude.model` | string | `--model` for the builder. Overridden by env `CLAUDE_MODEL`. |
 | `prePull` | boolean | `git pull --ff-only` before each run. Default false. |
-| `interval` | number (s) | Seconds between runs in loop mode. Default 18000 (5h). |
+| `interval` | number (s) | Seconds a slot cools down after a run before it takes another task. Default 18000 (5h). |
 | `startDelay` | number (s) | Seconds before the FIRST run. Default 0. |
+| `maxParallel` | number | How many tasks may run **concurrently** — one `claude` session each. Default 1 (sequential). Env `MAX_PARALLEL`, CLI `--parallel=N`. See §7. |
 
 `ctx` (passed to `vars`/`subagents`) = `{ task, round, roundMode, taskIndex, taskCount, branch,
 instanceDir, repoRoot }`. **`round` is the selected task's OWN round.**
@@ -98,17 +99,19 @@ prompt**, even while the others are on round 5. It then advances through its own
 
 ```bash
 node automation/lmauto.mjs run  <name> [task] [--dry-run] [--start-delay=SEC]  # one run
-node automation/lmauto.mjs tui  <name> [task] [--attach]   [--start-delay=SEC]  # dashboard
-node automation/lmauto.mjs loop <name> [--interval=SEC]    [--start-delay=SEC]  # headless forever
-node automation/lmauto.mjs supervise <name> [--start-delay=SEC --duration=SEC --interval=SEC]
+node automation/lmauto.mjs tui  <name> [task] [--attach]   [--start-delay=SEC] [--parallel=N]
+node automation/lmauto.mjs loop <name> [--interval=SEC]    [--start-delay=SEC] [--parallel=N]
+node automation/lmauto.mjs supervise <name> [--start-delay=SEC --duration=SEC --interval=SEC --parallel=N]
 node automation/lmauto.mjs schedule <name> cron-install|cron-remove|status
-node automation/lmauto.mjs pause|continue|skip|stop <name>   # control a running loop/tui
+node automation/lmauto.mjs pause|continue|skip|stop <name> [task|slot#]   # control a running loop/tui
 node automation/lmauto.mjs status <name>
 node automation/lmauto.mjs list
 ```
 
-- **TUI** shows state, task/round/attempt, active bin, per-bin limit countdowns, live activity, and
-  countdowns to the next/first/resume run. Keys: **p**ause · **c**ontinue · **s**kip · **q**uit.
+- **TUI** shows one block per slot (task/round/attempt, state, active bin, live activity, countdown),
+  plus per-bin limit countdowns. Keys: **p**ause · **c**ontinue · **s**kip · **q**uit — they apply to
+  **every** live slot. To hit ONE lane, use the CLI with a target: `lmauto skip <name> 08-small-shop`
+  (or a slot number).
 - **Pause** SIGSTOPs the running claude immediately. On continue, if the pause was short it
   SIGCONTs; if it was long (> `PAUSE_KILL_THRESHOLD`, default 120s — the in-flight turn's socket is
   dead) it kills and `--resume`s the session.
@@ -124,10 +127,39 @@ node automation/lmauto.mjs list
 ### Env overrides
 
 `CLAUDE_BINS` (comma-sep; overrides `claude.bins`; single `CLAUDE_BIN` also honored), `CLAUDE_MODEL`,
-`RUN_INTERVAL`, `START_DELAY`, `PAUSE_KILL_THRESHOLD`, `LIMIT_BACKOFF` (fallback reset wait when the
-reset time can't be parsed, default 3600s).
+`RUN_INTERVAL`, `START_DELAY`, `MAX_PARALLEL`, `PAUSE_KILL_THRESHOLD`, `LIMIT_BACKOFF` (fallback reset
+wait when the reset time can't be parsed, default 3600s).
 
-## 7. Worked example (a 2-task toy)
+## 7. Parallel execution (`maxParallel`)
+
+The engine runs a pool of **`maxParallel` slots**. Each slot is an independent lane: it picks the
+next task (fewest completed runs), runs one `claude` session to a settled outcome, then **cools down
+for `interval`** before taking another. `maxParallel: 1` is the sequential engine (run → sleep →
+run); `N` gives N lanes that fill and refill independently.
+
+```js
+maxParallel: 3,   // three tasks in flight at once
+interval: 10800,  // …each lane waits 3h after ITS run before taking the next task
+```
+
+Guarantees:
+
+- **A task never runs twice at once.** A task occupying a slot is excluded from selection, so its
+  per-task round stays unambiguous. If every task is already in a slot, the free lanes stay `idle`
+  until one frees up — so `maxParallel` above `tasks.length` just wastes slots.
+- **The ledger is safe.** Every `state.json` read-modify-write-and-commit is fully synchronous, so on
+  Node's single thread two lanes can't interleave one. `git` index-lock contention (from a sibling
+  lane, or from the agents themselves) is retried rather than dropped.
+- **Control is centralized.** The scheduler alone read-and-clears `state/control` and fans the
+  command out; a per-worker poll would let one lane steal its siblings' commands.
+
+The thing the engine can **not** make safe for you: **all lanes share one working tree**
+(`config.cwd`). N agents committing and pushing the same repo will race. Keep `maxParallel: 1` for
+an instance whose tasks touch the same files, and raise it only when the tasks are genuinely
+disjoint (separate directories, separate remote resources) — or give each task its own git worktree
+from inside the prompt.
+
+## 8. Worked example (a 2-task toy)
 
 `instances/hello/config.mjs`:
 

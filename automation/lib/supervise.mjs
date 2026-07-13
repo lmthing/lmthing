@@ -47,7 +47,7 @@ export async function supervise(cfg, opts = {}) {
 
   // The loop's own start-delay handles the wait until startEpoch.
   const loopStartDelay = Math.max(0, startEpoch - nowS());
-  await runLoop(cfg, { startDelay: loopStartDelay, interval });
+  await runLoop(cfg, { startDelay: loopStartDelay, interval, maxParallel: opts.maxParallel });
   clearTimeout(watchdog);
   process.stdout.write(`[supervisor] done.\n`);
 }

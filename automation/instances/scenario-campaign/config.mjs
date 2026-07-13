@@ -64,6 +64,11 @@ export default {
   },
 
   prePull: true,
-  interval: 10800, // 3h — live runs are long
+  interval: 10800, // 3h — a lane cools down this long after ITS run before taking the next scenario
   startDelay: 0,
+
+  // Two scenarios in flight at once. Each works in its OWN sdk/org/scenarios/<id>/ and against its
+  // OWN prod test user + pod, so the live runs don't collide — but both lanes share this working
+  // tree, so a product-bug fix by one can land under the other's feet. Raise with care.
+  maxParallel: 2,
 };

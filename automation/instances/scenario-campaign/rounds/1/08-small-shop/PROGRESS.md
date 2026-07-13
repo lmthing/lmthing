@@ -33,3 +33,51 @@ _Started 2026-07-12T23:56:09.625Z. The agent MUST update this file at every step
   delegated; ≥3 CSV facts; 4 spaces (shop-catalog-products/sales/stock-materials/suppliers); app
   built:true (tables materials/products/sales/suppliers, 17 rows, pages / /products /sales), /app/
   200. 4 recovered authoring errors (deliverables landed).
+
+- **Act II** first FAIL (research ran, 19 web yields, but NO db row persisted; follow-up admitted
+  "no saved alternative"). Triage: **phrasing** — soft "save into suppliers section" → no row. Made
+  the ask explicit ("add as a NEW row in the app") + tightened assertions → PASS (found real Dutch
+  supplier **Beeldhouwwinkel**, absent from seed; db grew 3203→4143). Commit 0d03742.
+- **Act III**: browser POST to `/app/<id>/api/*` returns **405 from nginx** — on `lmthing.chat`,
+  `/app/*` is the web SPA host, not the pod; the app's own API lives on the app host. Rewrote Act III
+  to drive the **reachable** db.insert→emitter→hook chain via chat (as scenario 05 does): assert the
+  db-INSERT hook wiring (`process-sale-log-stock` on `project/db.sale_logs.insert`) + sale row + stock
+  decrement. Commit 842e091.
+- **PRODUCT BUG (severe) found live:** after a session eviction/auto-resume, a message POSTed to a
+  **still-initializing** session made `SessionManager.sendMessage` throw; the HTTP `/message` handler
+  dropped the fire-and-forget promise → **unhandledRejection → whole pod process crash**; the retried
+  message **CrashLoopBackOff**ed the pod (10 restarts, dead ~30 min). Fix: route the rejection to the
+  session error stream like the WS path already does (`routes/sessions.ts`). Regression test asserts
+  no unhandledRejection escapes. **Fix sha sdk/org 7b654a9; parent 29ddb387** → CI building
+  `compute:29ddb38`. Raised MAX_SESSIONS=25 on the test pod to cut eviction churn.
+
+- **Deployed fix live:** CI built `compute:29ddb38` (build (compute) success). Upgraded test pod
+  `kubectl set image ... compute:29ddb38` → rolled out. **Crashloop GONE** — sessions now go to
+  `status:error` gracefully instead of crashing the pod process (fix verified live).
+- **Finding B (documented, data-repaired):** after the deploy, every *ceramics-shop* session still
+  entered error state (but `user` project sessions were fine → project-specific). Root cause via
+  probes: `[app-boot] Non-additive schema divergence in table "sale_logs"` — the automator, hammered
+  by Finding A's retry-storm during Act III, re-authored sale_logs and left orphaned live columns
+  (`name`, `processed_at`, `created_at`) absent from the schema file; app-boot's fail-loud guard
+  (correct — protects data) throws in `getProjectAppGlobals` during session init → **the whole
+  project's THING is bricked** (can't even chat to repair it). Two sub-issues: B1 automator should do
+  additive-only schema changes; B2 a broken project app should not brick session init. Repaired the
+  schema (restored the 3 orphaned columns via PUT app/files) → app boots, fresh ceramics-shop session
+  OK ("17 products", 0 errors). The retry-storm that caused B was itself Finding A, now fixed → far
+  less likely to recur. B recorded as an authoring-reliability + resilience follow-up.
+
+## Live-run verdicts (all Acts exercised e2e against prod)
+
+- **Act I** PASS 15/15 · **Act II** PASS (research→Beeldhouwwinkel row persisted) · **Act III** PASS 11/11
+  (db.insert→hook, sale row + stock decrement) · **Act IV** PASS (headline: reorder DRAFT to Sibelco,
+  nothing sent) · **Act V** PASS (cron→insights row) · **Act VI** PASS (workshops+wholesale add spaces
+  +tables+pages, app recompiles) · **Act VII** PASS (install consent, signed inbound→row, bad sig→401)
+  · **Act VIII** CONDITIONAL (restraint ✅✅ + Dutch multilingual routing ✅; the db.update *landing*
+  flakes ~50% on the automator's authoring reliability — "Cannot find name X" — known §7 follow-up) ·
+  **Act IX** PASS 2/2 (user-memory routed + recalled) · **Act X** PASS 3/3 (15/15 storm, loop not
+  starved) · **Act XI** PASS 5/5 (restart→auto-resume; live-verifies the crashloop fix) · **Edges**
+  PASS 6/6.
+- **Fix A deployed + live-verified:** crashloop fix in `compute:29ddb38`, pod upgraded, Act XI + all
+  post-deploy acts confirm the pod no longer crashes on message-to-initializing-session.
+- **Verdict: CONDITIONAL PASS** — 10/11 Acts + Edges fully green; Act VIII conditional on the known
+  automator db.update reliability follow-up.

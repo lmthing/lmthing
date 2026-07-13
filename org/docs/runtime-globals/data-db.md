@@ -38,7 +38,7 @@ The declared signatures (verbatim from `DB_READ_MEMBERS` / `DB_WRITE_MEMBERS` / 
 
 ```ts
 declare const db: {
-  query(table: string, opts?: { where?: Record<string, unknown>; include?: string[]; orderBy?: string | { column: string; dir?: 'asc' | 'desc' }; limit?: number; offset?: number }): any[];
+  query(table: string, opts?: { where?: Record<string, unknown>; include?: string[]; orderBy?: string | { column: string; dir?: 'asc' | 'desc' } | Record<string, 'asc' | 'desc'>; limit?: number; offset?: number }): any[];
   tables(): string[];
   insert(table: string, values: Record<string, unknown> | Record<string, unknown>[]): any;
   update(table: string, opts: { where: Record<string, unknown>; set: Record<string, unknown> }): number;
@@ -58,7 +58,7 @@ There is **no operator language**. `where` is a flat equality map: each key/valu
 
 Everything else on `QueryOpts` maps straight to SQL `sdk/org/libs/cli/src/app/store.ts:427-446`:
 
-- `orderBy` — a column name, or `{ column, dir }` (`dir` defaults to `asc`).
+- `orderBy` — a column name (`'published_at'`), `{ column, dir }` (`dir` defaults to `asc`), **or the column→direction map `{ published_at: 'desc' }`** — the shape agents actually write, and the one the appbuilder's instruct teaches. All three are normalized to one `ORDER BY` (`sdk/org/libs/cli/src/app/store.ts#normalizeOrderBy`); an `orderBy` naming no column simply means no ordering. Honouring the map shape is not cosmetic: it used to fall through to an `undefined` column and throw inside `ident()`, so **every authored list route answered 500** while the raw `app/data/<table>` API — which passes no `orderBy` — looked perfectly healthy (scenario 07: 5 of 6 page routes 500ing behind a dashboard that rendered fine).
 - `limit` / `offset` — SQLite requires a `LIMIT` before `OFFSET`, so an `offset` with no `limit` emits `LIMIT -1` first `store.ts:436-440`.
 - `include` — see below.
 

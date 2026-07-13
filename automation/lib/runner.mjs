@@ -104,6 +104,34 @@ _Started ${new Date().toISOString()}. The agent MUST update this file at every s
  *   { child, live, settled(), result(), pause(), resume(), stop(), skip(), done }
  * `done` resolves to the result object once the child exits.
  */
+/**
+ * How long the child may emit NOTHING before we call it hung and kill it.
+ * A legitimate long foreground tool call (an Act batch) blocks the stream for as long as it runs, so
+ * this must exceed the longest sanctioned one (~25 min). Anything past that is a real deadlock — e.g.
+ * the agent parked on a background task waiting for a wake-up that headless never delivers.
+ */
+function stallMs() {
+  return (process.env.STALL_TIMEOUT ? Number(process.env.STALL_TIMEOUT) : 45 * 60) * 1000;
+}
+
+/**
+ * Signal the child's whole PROCESS GROUP (it is spawned `detached`, so it leads one).
+ * Signalling just the child leaves its descendants — shells, sleeps, MCP servers — alive; they keep
+ * the stdout pipe open, so `close` never fires and the run never settles. Falls back to the bare
+ * child if the group is already gone.
+ */
+function signalTree(child, sig) {
+  try {
+    process.kill(-child.pid, sig);
+  } catch {
+    try {
+      child.kill(sig);
+    } catch {
+      /* already dead */
+    }
+  }
+}
+
 export function startRun({ bin, promptText, cfg, attemptDir, resumeSessionId = null, thresholdMs }) {
   mkdirSync(attemptDir, { recursive: true });
   const argv = buildArgv({ bin, promptText, cfg, resumeSessionId });
@@ -121,12 +149,28 @@ export function startRun({ bin, promptText, cfg, attemptDir, resumeSessionId = n
   let intent = null; // 'stop' | 'skip' | 'relaunch' (set by control actions)
   let paused = false;
   let pausedAt = 0;
+  let stalled = false;
+  let lastEventAt = Date.now();
 
   const startedAt = new Date().toISOString();
-  const child = spawn(argv[0], argv.slice(1), { cwd: cfg.cwd, env: process.env });
+  // `detached` puts the child in its own process group so we can signal the WHOLE tree (see signalTree).
+  const child = spawn(argv[0], argv.slice(1), { cwd: cfg.cwd, env: process.env, detached: true });
+
+  // Stall watchdog: a live child that has emitted nothing for stallMs() is deadlocked, not working.
+  // (A paused child is SIGSTOPped and emits nothing by design — never count that as a stall.)
+  const watchdog = setInterval(() => {
+    if (paused || ctrl.settledFlag || stalled) return;
+    const idleMs = Date.now() - lastEventAt;
+    if (idleMs < stallMs()) return;
+    stalled = true;
+    logOut.write(`[stall] no output for ${Math.round(idleMs / 60000)}m — killing hung run\n`);
+    signalTree(child, 'SIGKILL');
+  }, 60_000);
+  watchdog.unref?.();
 
   const rl = createInterface({ input: child.stdout });
   rl.on('line', (line) => {
+    lastEventAt = Date.now();
     jsonlOut.write(line + '\n');
     let obj;
     try {
@@ -161,13 +205,18 @@ export function startRun({ bin, promptText, cfg, attemptDir, resumeSessionId = n
   });
 
   child.stderr.on('data', (d) => {
+    lastEventAt = Date.now();
     const s = d.toString();
     textBuf.push(s);
     logOut.write(`[stderr] ${s}`);
   });
 
   const done = new Promise((resolvePromise) => {
-    child.on('close', (code) => {
+    let finalized = false;
+    const finalize = (code) => {
+      if (finalized) return;
+      finalized = true;
+      clearInterval(watchdog);
       rl.close();
       jsonlOut.end();
       const joined = textBuf.join('\n');
@@ -177,7 +226,10 @@ export function startRun({ bin, promptText, cfg, attemptDir, resumeSessionId = n
         (code !== 0 && LIMIT_RE.test(joined));
 
       let outcome;
-      if (intent) outcome = 'interrupted';
+      // A stall is a real failure, not an operator interrupt: report it as `error` so the loop
+      // consumes the round and moves on instead of re-hanging on the same task forever.
+      if (stalled) outcome = 'error';
+      else if (intent) outcome = 'interrupted';
       else if (limitHit) outcome = 'limit';
       else if (code === 0 && !finalResult?.is_error) outcome = 'done';
       else outcome = 'error';
@@ -189,7 +241,8 @@ export function startRun({ bin, promptText, cfg, attemptDir, resumeSessionId = n
         model: cfg.claude.model,
         outcome,
         intent,
-        subtype: finalResult?.subtype ?? null,
+        stalled,
+        subtype: stalled ? 'stalled' : (finalResult?.subtype ?? null),
         isError: !!finalResult?.is_error,
         usage: live.usage,
         costUsd: live.costUsd,
@@ -204,6 +257,13 @@ export function startRun({ bin, promptText, cfg, attemptDir, resumeSessionId = n
       ctrl.result = result;
       ctrl.settledFlag = true;
       resolvePromise(result);
+    };
+
+    child.on('close', finalize);
+    // `close` waits for every stdio pipe to close — an orphaned grandchild holding stdout can stall it
+    // forever. `exit` fires on process death regardless, so settle on it after a short grace period.
+    child.on('exit', (code) => {
+      setTimeout(() => finalize(code), 5_000).unref?.();
     });
   });
 
@@ -218,34 +278,24 @@ export function startRun({ bin, promptText, cfg, attemptDir, resumeSessionId = n
     },
     pause() {
       if (paused || ctrl.settledFlag) return;
-      try {
-        child.kill('SIGSTOP');
-        paused = true;
-        pausedAt = Date.now();
-      } catch {
-        /* ignore */
-      }
+      // Freeze the whole tree — stopping only the parent leaves its shells/runners burning CPU.
+      signalTree(child, 'SIGSTOP');
+      paused = true;
+      pausedAt = Date.now();
     },
     /** Returns {relaunch:boolean}: true when the pause was too long and we killed for a resume. */
     resume() {
       if (!paused || ctrl.settledFlag) return { relaunch: false };
       const longPause = Date.now() - pausedAt >= thresholdMs;
       paused = false;
+      lastEventAt = Date.now(); // don't count the frozen window against the stall watchdog
       if (longPause) {
         intent = 'relaunch';
-        try {
-          child.kill('SIGCONT'); // must un-stop before SIGKILL can be delivered
-          child.kill('SIGKILL');
-        } catch {
-          /* ignore */
-        }
+        signalTree(child, 'SIGCONT'); // must un-stop before SIGKILL can be delivered
+        signalTree(child, 'SIGKILL');
         return { relaunch: true };
       }
-      try {
-        child.kill('SIGCONT');
-      } catch {
-        /* ignore */
-      }
+      signalTree(child, 'SIGCONT');
       return { relaunch: false };
     },
     stop() {
@@ -262,10 +312,6 @@ export function startRun({ bin, promptText, cfg, attemptDir, resumeSessionId = n
 }
 
 function hardKill(child, paused) {
-  try {
-    if (paused) child.kill('SIGCONT');
-    child.kill('SIGKILL');
-  } catch {
-    /* ignore */
-  }
+  if (paused) signalTree(child, 'SIGCONT'); // a SIGSTOPped process cannot receive SIGKILL
+  signalTree(child, 'SIGKILL');
 }

@@ -1,7 +1,7 @@
 # Slack channel (event source + Connection)
 
 A **messaging channel built natively on lmthing** — an inbound **event source** plus an outbound
-**Connection**. No OpenClaw plugin code runs; Slack is wired through lmthing's own seams:
+**Connection**. Slack is wired through lmthing's own seams:
 
 - **Inbound — this space EMITS an event.** `events/messages.ts` is a `webhook` emitter def bound to
   the `slack` inbound path. Slack's **Events API** POSTs an `event_callback` envelope; the pod

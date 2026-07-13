@@ -48,7 +48,6 @@ COPY libs/ui/package.json     ./libs/ui/package.json
 COPY libs/auth/package.json   ./libs/auth/package.json
 COPY libs/css/package.json    ./libs/css/package.json
 COPY libs/config/package.json ./libs/config/package.json
-COPY libs/openclaw-compat/package.json ./libs/openclaw-compat/package.json
 COPY libs/state/package.json  ./libs/state/package.json
 COPY libs/utils/package.json  ./libs/utils/package.json
 COPY apps/web/package.json    ./apps/web/package.json
@@ -79,16 +78,8 @@ COPY libs/cli/tsconfig.json  ./libs/cli/tsconfig.json
 # It is consumed directly from src by the CLI's esbuild bundler (--web mode)
 # and as a Vite workspace dep for the apps/web build.
 
-# Build the runtime packages in dependency order: core → openclaw-compat → cli.
+# Build the runtime packages in dependency order: core → cli.
 RUN cd libs/core && pnpm exec tsup
-# @lmthing/openclaw-compat is a cli dependency (the OpenClaw plugin host). Build
-# its dist BEFORE the cli so the cli's tsup bundle inlines it (like @lmthing/core);
-# without this the cli bundle references it as an unresolved external and the pod
-# crashes the openclaw boot step with "Cannot find package '@lmthing/openclaw-compat'".
-COPY libs/openclaw-compat/src            ./libs/openclaw-compat/src
-COPY libs/openclaw-compat/tsup.config.ts ./libs/openclaw-compat/tsup.config.ts
-COPY libs/openclaw-compat/tsconfig.json  ./libs/openclaw-compat/tsconfig.json
-RUN cd libs/openclaw-compat && pnpm exec tsup
 RUN cd libs/cli  && pnpm exec tsup
 
 # Build the unified web app (studio/computer/chat as client-side routes). It
@@ -129,14 +120,6 @@ COPY --from=builder /build/libs/core/node_modules ./libs/core/node_modules
 COPY --from=builder /build/libs/core/system-spaces ./libs/core/system-spaces
 COPY --from=builder /build/libs/cli/dist        ./libs/cli/dist
 COPY --from=builder /build/libs/cli/node_modules  ./libs/cli/node_modules
-# @lmthing/openclaw-compat — the cli bundle inlines it, but ship its dist +
-# package.json so the node_modules/@lmthing/openclaw-compat workspace symlink
-# resolves at runtime even if a bundle chunk still references it.
-COPY --from=builder /build/libs/openclaw-compat/dist         ./libs/openclaw-compat/dist
-COPY --from=builder /build/libs/openclaw-compat/package.json ./libs/openclaw-compat/package.json
-# openclaw-compat's dist imports esbuild at runtime (the plugin-TS transpiler);
-# ship its node_modules so the pnpm esbuild symlink resolves from its own context.
-COPY --from=builder /build/libs/openclaw-compat/node_modules  ./libs/openclaw-compat/node_modules
 # Project-app pages build (buildProjectPages → resolveEnv) aliases `@app/runtime`
 # to the cli's runtime SOURCE at <cliRoot>/src/app/runtime/index.ts and esbuild-
 # bundles it (TS/TSX). The bundled dist has no standalone runtime module, so the

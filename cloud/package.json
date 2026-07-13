@@ -6,6 +6,7 @@
     "stripe:create-products": "tsx scripts/create-stripe-products.ts",
     "litellm:generate-models": "tsx scripts/generate-litellm-models.ts",
     "litellm:resync-budgets": "tsx scripts/resync-tier-budgets.ts",
+    "azure:usage-cost": "tsx scripts/azure-usage-cost.ts",
     "gateway:dev": "cd gateway && npm run dev",
     "gateway:build": "cd gateway && npm run build"
   },

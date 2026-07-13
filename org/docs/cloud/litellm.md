@@ -43,16 +43,18 @@ Envoy routes `lmthing.cloud/v1/*` → the `litellm:4000` Service in `lmthing` (`
 
 ## Model routing (`model_list`)
 
-The config's `model_list` maps a public `model_name` to an Azure deployment via `litellm_params.model: azure/<deployment>` (`devops/argocd/core/litellm.yaml:13-79`). All models share `api_base: os.environ/AZURE_API_BASE` and `api_key: os.environ/AZURE_API_KEY` — the deployment name in the `azure/…` path is the only thing that differs.
+The config's `model_list` maps a public `model_name` to an Azure deployment via `litellm_params.model: azure/<deployment>` (`devops/argocd/core/litellm.yaml:13-88`). All models share `api_base: os.environ/AZURE_API_BASE` and `api_key: os.environ/AZURE_API_KEY` — the deployment name in the `azure/…` path is the only thing that differs.
 
 | `model_name` (what pods call) | Azure deployment | api_version | Notes | Citation |
 |---|---|---|---|---|
-| `DeepSeek-V4-Flash` | `azure/DeepSeek-V4-Flash` | `2024-12-01-preview` | cheapest chat model | `litellm.yaml:14-23` |
-| `DeepSeek-V4-Pro` | `azure/DeepSeek-V4-Pro` | `2024-12-01-preview` | mid chat/reasoning | `litellm.yaml:24-33` |
-| `Kimi-K2.6` | `azure/Kimi-K2.6` | `2024-12-01-preview` | large reasoning | `litellm.yaml:34-43` |
-| `gpt-5.5` | `azure/gpt-5.5` | `2024-12-01-preview` | large chat; has `cache_read_input_token_cost` | `litellm.yaml:44-56` |
-| `gpt-5.4-mini` | `azure/gpt-5.4-mini` | `2024-12-01-preview` | cheap **vision**-capable model for the `system-vision` agent | `litellm.yaml:57-68` |
-| `whisper-1` | `azure/whisper` | `2024-06-01` | audio transcription; billed per-minute (LiteLLM's built-in `azure/whisper` cost map, so no `model_info`) | `litellm.yaml:69-79` |
+| `DeepSeek-V4-Flash` | `azure/DeepSeek-V4-Flash` | `2024-12-01-preview` | cheapest chat model | `litellm.yaml:14-24` |
+| `DeepSeek-V4-Pro` | `azure/DeepSeek-V4-Pro` | `2024-12-01-preview` | mid chat/reasoning | `litellm.yaml:25-35` |
+| `Kimi-K2.6` | `azure/Kimi-K2.6` | `2024-12-01-preview` | large reasoning; **Data Zone** rates — Kimi is sold only under `Azure Fireworks Models`, which publishes no Global meter | `litellm.yaml:36-48` |
+| `gpt-5.5` | `azure/gpt-5.5` | `2024-12-01-preview` | large chat; priced at the **short-context** (`ShortCo`) tier | `litellm.yaml:53-63` |
+| `gpt-5.4-mini` | `azure/gpt-5.4-mini` | `2024-12-01-preview` | cheap **vision**-capable model for the `system-vision` agent | `litellm.yaml:66-76` |
+| `whisper-1` | `azure/whisper` | `2024-06-01` | audio transcription; billed per-minute (LiteLLM's built-in `azure/whisper` cost map, so no `model_info`) | `litellm.yaml:82-88` |
+
+All five chat/vision models carry a `cache_read_input_token_cost`, so prompt-cache reads bill at the (much lower) cached rate rather than the full input rate — DeepSeek-V4-Pro's cached rate is ~12× below its input rate (`litellm.yaml:33-35`).
 
 The five chat/vision models are the canonical enabled set, mirrored in the Gateway at `cloud/gateway/src/lib/tiers.ts#ENABLED_MODELS` (`ENABLED_MODELS`); `whisper-1` is `TRANSCRIBE_MODELS` (`tiers.ts:22`). A user key's allowlist is `TIER_MODELS = [...ENABLED_MODELS, ...TRANSCRIBE_MODELS]` (`tiers.ts:25`) — a key missing `whisper-1` gets a `key_model_access_denied` 403 on `/audio/transcriptions` (`tiers.ts:17-21`).
 
@@ -84,9 +86,24 @@ Per-token costs in `model_info` are **generated, not hand-written**. `cloud/scri
 ```
 input_cost_per_token = inputPer1K / 1000 * 1.15
 ```
-— the 15% gateway markup (`generate-litellm-models.ts:22-23`, `:42-49`). It prints a `model_list:` block to paste into `devops/argocd/core/litellm.yaml` (the ArgoCD YAML stays the source of truth; the script keeps the markup deterministic — `generate-litellm-models.ts:10-13`). Run it with `cd cloud && pnpm litellm:generate-models` (the config header, `litellm.yaml:8-12`). The script's `ENABLED_MODELS` list must match the Gateway's (`generate-litellm-models.ts:30-31`) and it emits an optional `cache_read_input_token_cost` when the source has `cachedInputPer1K` (`:75-77`), as gpt-5.5 does (`litellm.yaml:56`). `whisper-1` gets no `model_info` — LiteLLM bills it per-minute from its own cost map.
+— the 15% gateway markup (`generate-litellm-models.ts#MARKUP`, `:58-77`). It prints a `model_list:` block to paste into `devops/argocd/core/litellm.yaml` (the ArgoCD YAML stays the source of truth; the script keeps the markup deterministic — `generate-litellm-models.ts:10-13`). Run it with `cd cloud && pnpm litellm:generate-models` (the config header, `litellm.yaml:8-12`). The script's `ENABLED_MODELS` list must match the Gateway's (`generate-litellm-models.ts#ENABLED_MODELS`) and it emits a `cache_read_input_token_cost` for every model whose source entry has `cachedInputPer1K` (`:76-78`) — which, since the price refresh below, is all five. `whisper-1` gets no `model_info` — LiteLLM bills it per-minute from its own cost map.
 
-Base prices are refreshed with `pnpm fetch-azure-prices` in `sdk/org/libs/cli` (`generate-litellm-models.ts:5-6`).
+### Refreshing the base prices
+
+Base prices are refreshed with `pnpm fetch-azure-prices` in `sdk/org/libs/cli`, which reads the public Azure Retail Prices API (`sdk/org/libs/cli/scripts/fetch-azure-prices.ts#TARGETS`). Three properties of that feed make naive matching return silently wrong prices, and the script exists to absorb them:
+
+- **The meter name does not contain the model name.** gpt-5.5's meter is `5.5 ShortCo inp Gl 1M Tokens`; DeepSeek-V4-Pro's is `V4 Pro Inp glbl Tokens`. The family lives in `productName`, so every target is scoped by product and matched on a meter pattern (`fetch-azure-prices.ts#TARGETS`).
+- **The same model is sold under two products at different prices.** DeepSeek-V4-Pro exists as first-party `Azure Deepseek Models` (Global, $0.00174/1K) *and* as `Azure Fireworks Models` (`FW DeepSeek-V4-Pro`, Data-Zone only, ~10% dearer). Our deployments are the first-party GlobalStandard ones, so the product is pinned explicitly rather than taking whichever meter matches first.
+- **`serviceName` is `Foundry Models`, not `Cognitive Services`** — the latter matches zero rows today. The script therefore does not filter on `serviceName` at all, and warns loudly rather than silently keeping a stale value when a meter fails to resolve (`fetch-azure-prices.ts:main`).
+
+`whisper` and `tts` are deliberately absent from `prices/azure.json`: they are **not token-priced** (whisper bills per audio hour, tts per character), so no per-1K figure is meaningful for them. Their cost is only visible in Azure Cost Management — see below.
+
+### Auditing actual spend
+
+`cloud/scripts/azure-usage-cost.ts` (`cd cloud && pnpm azure:usage-cost`) reports per-model usage and cost as CSV, hourly or daily, from two sources:
+
+- `--source metrics` (default) — Azure Monitor token counts × `prices/azure.json`. Hourly-capable and immediate, but an **estimate**. `cacheReadInputTokens` is a subset of `InputTokens`, so billable input is `InputTokens - cacheReadInputTokens` (`azure-usage-cost.ts:1-40`).
+- `--source billing` — **actual billed cost** from Cost Management, grouped by meter and mapped back to a model (`azure-usage-cost.ts#METER_MODEL`). Day-grain only, and it lags ~48h. This is the **only** way to cost `whisper`/`tts`: their Azure Monitor audio metrics (`AudioSecondsTranscribed`, `ProcessedAudioMinutes`) stay at zero for an Azure OpenAI *deployment* even across successful requests, because those metrics belong to the Speech service.
 
 ---
 

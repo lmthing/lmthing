@@ -63,6 +63,20 @@ wall-clock occurrence of `daily`'s `HH:MM`, or the next epoch-aligned multiple o
 the `every` interval; a never-run hook (`fromMs = 0`) is due immediately
 `sdk/org/libs/cli/src/app/hooks/cron.ts#nextRunAt`.
 
+### The cadence is DECLARED — a handler must never gate on the wall clock
+
+Because the host owns dueness (and boot catch-up), express the cadence in the def and
+let the body run its work **whenever it is invoked**. A weekly job is `every: '7d'`
+`sdk/org/libs/cli/src/app/hooks/cron.ts:31-38`; it does **not** need a `daily` schedule
+plus a `if (new Date().getDay() !== 0) return;` guard in the handler. Such a guard is a
+bug: it discards every catch-up run (a Sunday slept through by a scale-to-zero pod is
+simply lost, so the job may never run at all) and silently no-ops a manual run through
+`POST /api/projects/:projectId/hooks/:slug/run`. A handler may skip work that is already
+DONE (idempotence — "this week's plan exists"), but never work it is asked to do now.
+This rule is taught to the authoring agent in
+`sdk/org/libs/core/system-spaces/system-appbuilder/agents/automator/instruct.md` and
+pinned by `sdk/org/libs/cli/src/app/hooks/cron.test.ts`.
+
 ## Dispatch: `trigger` (agent) vs `handler` (code)
 
 Every actual cron dispatch funnels through `runHook` `sdk/org/libs/cli/src/server/routes/hooks.ts:307-314`:

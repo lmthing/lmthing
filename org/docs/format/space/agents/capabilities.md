@@ -77,8 +77,6 @@ In the `system-appbuilder` space each specialist holds only the slice its job ne
 
 (all paths relative to `sdk/org/libs/core/system-spaces/system-appbuilder/agents/` unless stated). A page-builder cannot write a table; a data-modeler cannot write a page. The `automator` is the broad one — it authors the LIVE project (data model + automation + UI), so it holds every authoring grant except `project:manage`.
 
-**The canonical `capability-model.md` knowledge doc is STALE — do not treat it as the grant list.** Its table stops at `api:call` and omits `connections:use`, `tools:use`, `store:read`, `store:install`, and `events:emit` (`sdk/org/libs/core/system-spaces/system-appbuilder/knowledge/app_building/model/capability-model.md:10-19`, vs. the 13 ids in `sdk/org/libs/core/src/spaces/capabilities.ts:42-56`); it also lists the catalog writers only (`pages:write` → `writePage`), omitting the live-project twins; and its "`automator` = `hooks:write`" line (`capability-model.md:45`) is far narrower than the on-disk automator's six grants above. The table at the top of THIS page reflects the code.
-
 ## Worked example
 
 An integration space's outbound agent declares a single narrowed capability — the Slack agent grants only `connections:use` scoped to the `slack` provider (`store/spaces/integration-slack/agents/slack/instruct.md:1-24`, abridged):

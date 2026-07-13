@@ -30,14 +30,11 @@ Three mechanically different categories (`../runtime-globals/README.md#1-yieldin
 The rest of this page walks the **yielding** path (the common case) end to end, then
 covers the synchronous variant.
 
-> **Correction (stale skill).** The old `sdk/org/CLAUDE.md`-linked `new-global.md` skill
-> told you to register the global in `session/session.ts` `injectGlobals()` and handle the
-> yield in `session.ts` `handleYield()`, and to add a bullet to a `GLOBALS_SUMMARY`
-> constant. **All three are wrong now.** Injection was unified into one site —
-> `createChildVM` (`sdk/org/libs/core/src/exec/bootstrap.ts:99-243`); yields are resolved in
-> the shared `routeCommonYield` (`sdk/org/libs/core/src/eval/yield-router.ts:131`); and the
-> model-facing prose comes from `globalsSummary` (`sdk/org/libs/core/src/context/system-block.ts:137-198`),
-> a function, not a `GLOBALS_SUMMARY` constant.
+Three sites do all the work, and there is exactly one of each: injection is unified into
+`createChildVM` (`sdk/org/libs/core/src/exec/bootstrap.ts:99-243`) — session, fork and delegate all
+route through it; yields are resolved in the shared `routeCommonYield`
+(`sdk/org/libs/core/src/eval/yield-router.ts:131`); and the model-facing prose is emitted by the
+`globalsSummary` **function** (`sdk/org/libs/core/src/context/system-block.ts:137-198`).
 
 ---
 

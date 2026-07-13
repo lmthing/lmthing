@@ -61,7 +61,7 @@ const CARD_META: Record<string, CardMeta> = {
   },
   computer: {
     icon: MonitorPlay,
-    description: 'The lmthing.computer surface — autonomous computer use inside your pod.',
+    description: 'The lmthing.computer surface — a browser IDE over your pod: files, terminals, runtime dashboard.',
   },
   app: {
     icon: Blocks,

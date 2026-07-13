@@ -10,7 +10,7 @@ Start by picking the loop that matches what you're debugging — the tools diffe
 
 | What broke | Run it like this | Read it with |
 |---|---|---|
-| A statement the model wrote (typecheck / eval / yield) | `node libs/cli/dist/cli/bin.js --space ./fixtures/cooking "…"` (`bin.ts:602`) | the terminal log (§1), `--trace` + jq (§2) |
+| A statement the model wrote (typecheck / eval / yield) | `node libs/cli/dist/cli/bin.js --space <spaceDir> "…"` (`bin.ts:602`) | the terminal log (§1), `--trace` + jq (§2) |
 | A fork/delegate/tasklist deep in a tree | `lmthing serve --port 8080` + `POST /api/sessions` | the HTTP agent API (§3) |
 | Anything a human should look at | the pod's `/chat` SPA | the DevPanel (§4) |
 | A regression you must reproduce deterministically | `--mock <file>` (`args.ts:164-169`) | §5 |
@@ -81,7 +81,7 @@ every event is appended as one JSON line (`trace.ts:108-118`). The event union i
 older jq recipes still work (`trace.ts:9-18`).
 
 ```bash
-node libs/cli/dist/cli/bin.js --space ./fixtures/cooking --claude \
+node libs/cli/dist/cli/bin.js --space <spaceDir> --claude \
   --trace /tmp/run.jsonl "make pasta"
 
 jq -r '.type' /tmp/run.jsonl | sort | uniq -c                              # event histogram
@@ -160,17 +160,15 @@ curl -s localhost:8080/api/sessions/$SID/asks                        # blocked o
 This is the fastest way to answer *"why did that fork fail?"* — `tab=statements` shows the exact code
 it emitted (and the `phase` of each error), `tab=llm` shows the raw model text per `attempt`.
 
-> **Correction (doc vs code): `--web <port>` is broken today.** `AGENT.md` and the old
-> `sdk/org/.claude/skills/debug-eval.md` tell you to run `--web 3480` and curl `localhost:3480/api/*`.
-> That launcher throws before the server ever listens: `startWebServer` bundles the browser app first
-> (`sdk/org/libs/cli/src/web/serve.ts:154-160`), and `resolveUiAssets` calls
-> `require.resolve('@lmthing/ui/package.json')` (`serve.ts:37`) — a subpath the `@lmthing/ui`
-> `exports` map does not expose (`sdk/org/libs/ui/package.json:8-18`), so Node raises
-> `ERR_PACKAGE_PATH_NOT_EXPORTED`. Even past that, the bundle entry
-> `<uiRoot>/src/chat/app/main.tsx` (`serve.ts:39`) no longer exists — it was deleted in
-> `283b31d` ("remove dead chat-app code"). The **handlers are fine** (`agent-api.ts` is shared and is
-> what the pod serves); only the single-session `--web` launcher is dead. Use `lmthing serve` +
-> `/api/sessions/:id/*` as above.
+> **`--web <port>` is dead — use `lmthing serve` instead.** The single-session `--web` launcher
+> throws before the server ever listens. `startWebServer` bundles the browser app first
+> (`sdk/org/libs/cli/src/web/serve.ts:155-158`), and that bundle goes through `resolveUiAssets`
+> (`serve.ts:29`, called at `:78`), which resolves `@lmthing/ui/package.json` (`serve.ts:37`) — a
+> subpath the `@lmthing/ui` `exports` map does not expose (`sdk/org/libs/ui/package.json:8-18`), so
+> Node raises `ERR_PACKAGE_PATH_NOT_EXPORTED`. Even past that, the bundle entry
+> `<uiRoot>/src/chat/app/main.tsx` (`serve.ts:39`) no longer exists — it was deleted in `283b31d`
+> ("remove dead chat-app code"). The **handlers are fine** (`agent-api.ts` is shared and is what the
+> pod serves); only the launcher is dead.
 
 ---
 
@@ -185,18 +183,15 @@ below (`inspector.tsx`), playback bar in replay mode.
 - **Deep-link a view**: `?node=<nodeId>&tab=<tab>&follow=0` — read on load and written back on every
   selection change (`url-state.ts:6-31`), so a URL reproduces the exact inspector state. `POST /api/ui`
   drives it remotely (`agent-api.ts:338-344`).
-- **Replay a trace**: the "📂 Load trace" file picker in the chat view parses an NDJSON `--trace` file
-  (both `{seq,event}` and bare-event lines) into the store (`ChatView.tsx:200` → `replay.tsx:5-41`),
-  and `PlaybackBar` scrubs it (`replay.tsx:43-…`, mounted at `DevPanel.tsx:81-86`).
+- **Replay a trace**: replay is driven by a **file picker**, not a URL. The "📂 Load trace" control in
+  the chat view parses an NDJSON `--trace` file (both `{seq,event}` and bare-event lines) into the
+  store (`ChatView.tsx:200` → `replay.tsx:5-41`), and `PlaybackBar` scrubs it (`replay.tsx:43-…`,
+  mounted at `DevPanel.tsx:81-86`). **No component reads a `?trace=` query param** — the only
+  trace-param support is server-side, in the dead `--web` launcher, which serves the file at
+  `/trace.jsonl` (`sdk/org/libs/cli/src/web/serve.ts:191-201`).
 - **Automatable DOM**: tree rows carry `data-node-id` (`tree.tsx:35`), tabs carry
   `data-testid="inspector-tab-<name>"` (`common.tsx:74`), and the panel is landmarked
   `aside[aria-label="developer tools"]` (`DevPanel.tsx:35-36`).
-
-> **Correction (doc vs code):** `AGENT.md` advertises `http://localhost:3000/?trace=/trace.jsonl` for
-> in-browser replay. No component reads a `trace` query param — the only trace-param support is
-> server-side (`--web` serves the file at `/trace.jsonl`, `serve.ts:191-201`). Replay is a **file
-> picker**, not a URL (`replay.tsx:25-41`). Searched: `rg "loadReplay|get\('trace'\)|trace\.jsonl"`
-> across `sdk/org/libs/ui/src` and `sdk/org/apps/web/src`.
 
 ---
 
@@ -218,7 +213,7 @@ export default [
 ```
 
 ```bash
-node libs/cli/dist/cli/bin.js --space ./fixtures/cooking --claude \
+node libs/cli/dist/cli/bin.js --space <spaceDir> --claude \
   --mock /tmp/repro.mjs --trace /tmp/run.jsonl "make pasta"
 ```
 
@@ -310,13 +305,14 @@ carries a `meta.json` (title/slug/lastActivity — `projects.ts:404-450`), which
 
 `sdk/org/scenarios/` holds executable end-to-end specs — a disposable prod user, a real pod, a real
 THING session, a real LLM (`sdk/org/scenarios/README.md`). Six exist today, each a directory with a
-`run.mjs`: `01-newsroom`, `02-consent`, `03-resilience`, `04-signals`, `05-latam`, `06-tanzania`; each
-writes `sdk/org/scenarios/results/<id>-report.md` plus a raw trace JSON.
+`run.mjs`: `05-latam`, `06-tanzania`, `07-life-admin`, `08-small-shop`, `09-home-renovation`,
+`10-family-recipes`; each writes its own `results/report.md` plus a raw trace JSON `results/trace.json`
+(`sdk/org/scenarios/05-latam/run.mjs:L650-L651`; `sdk/org/scenarios/harness/lib/report.mjs:L109-L121`).
 
 ```bash
 cd sdk/org/scenarios/harness
 node smoke.mjs                 # prove harness + prod are healthy first (≈1 min) — smoke.mjs:1-50
-node ../03-resilience/run.mjs  # the runner writes its own report
+node ../05-latam/run.mjs       # the runner writes its own report
 ```
 
 The harness is zero-dependency Node ESM driving the pod's HTTP API directly (no browser). It needs a
@@ -390,7 +386,7 @@ Cluster-wide services (`gateway`, `litellm`, `render`, …) live in the `lmthing
 - Changed an **API route** on the pod (including `/api/sessions/:id/*`) →
   [../cli-api/rest/sessions.md](../cli-api/rest/sessions.md) and this file's §3 table.
 - Changed a **CLI flag** → [../cli-api/commands.md](../cli-api/commands.md).
-- Fixed `--web` (see the §3 correction) → update `sdk/org/libs/cli/src/web/AGENT.md` and delete the
-  correction block here, in the same change ([`../SYNC.md`](../SYNC.md)).
+- Fixed the **`--web` launcher** (§3) → say so here and in
+  [../cli-api/commands.md](../cli-api/commands.md), in the same change ([`../SYNC.md`](../SYNC.md)).
 </content>
 </invoke>

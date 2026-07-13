@@ -1,26 +1,32 @@
 # lmthing.casa
 
-Full Home Assistant integration. A self-learning THING instance with complete HA control.
+The static SPA shell for a smart-home (Home Assistant) product. **Today this is a route scaffold, not
+a built product** — every page renders a title placeholder, and lmthing.com flags it `upcoming: true`
+(`com/src/routes/index.tsx`). There is no Home Assistant bridge, no device integration and no
+fine-tuning service anywhere in this repo. All server-side logic would live in the `cloud/` gateway;
+this directory has no backend of its own.
 
-## Overview
+> **Source of truth:** [`org/docs/`](../org/docs/README.md) (lmthing.org). This README states nothing
+> about tiers, pricing, markup, pods or auth — those are owned by
+> [`org/docs/cloud/billing-and-tiers.md`](../org/docs/cloud/billing-and-tiers.md) and
+> [`org/docs/devops/infrastructure.md`](../org/docs/devops/infrastructure.md). The SPA shells as a
+> group → [`org/docs/product-spas/`](../org/docs/product-spas/README.md).
 
-Casa runs a THING agent on a Space node that connects to Home Assistant remotely. The dashboard shows device state, automations, and learning progress. Over time the agent learns household patterns and adapts automations through the SLM fine-tuning service on lmthing.cloud.
+## Real routes
 
-The HA bridge provides remote communication with the user's Home Assistant instance — Casa never runs on the same machine as HA, it connects over the network from its Space node.
+From `casa/src/routes/`:
 
-## Routing
+| Route | File | State |
+|---|---|---|
+| `/` | `index.tsx` | placeholder — renders the title "lmthing.casa" |
+| `/notifications` | `notifications.tsx` | placeholder |
+| `/profile` | `profile.tsx` | placeholder |
+| `/settings` | `settings.tsx` | placeholder |
 
-```mermaid
-graph TD
-    Root["/"] --> Dashboard["/dashboard<br/>Home overview"]
-    Dashboard --> Devices["/devices"]
-    Dashboard --> Automations["/automations"]
-    Dashboard --> Learning["/learning<br/>Self-learning status"]
-    Root --> HA["/ha<br/>Home Assistant bridge<br/>(remote connection)"]
-```
+## Ideas (not implemented)
 
-## Revenue Model
+The original product vision — self-learning HA agent, dashboard/devices/automations routes, a
+fine-tuning revenue line — is preserved, unimplemented and non-authoritative, in
+[`./IDEAS.md`](./IDEAS.md).
 
-- **Space subscription** — Included with Pro tier ($20/month) — dedicated compute pod running the Casa agent.
-- **Token usage** — per-token billing through the Stripe AI Gateway (10% markup) for all LLM calls.
-- **Fine-Tuning** — $10/GPU-hour for training the self-learning SLM that adapts to household patterns.
+Stack, design-system rules and local dev → [`casa/CLAUDE.md`](./CLAUDE.md).

@@ -51,8 +51,6 @@ Every **space** route mounts the dock as `StudioLayout`'s `rightPanel` — an `A
 
 It is a **toggle**, not permanently visible: `StudioShell` persists `studio-shell.thing.open` (default `false`) and renders the 400px dock only when the toggle is on and a `rightPanel` was passed (`sdk/org/libs/ui/src/studio/shell/studio-shell/index.tsx:L72`, `:L129-L145`). The toggle lives in the space rail's footer (`sdk/org/libs/ui/src/studio/shell/studio-sidebar/index.tsx:L336-L344`). Project landings and the app tabs therefore have **no** dock; `/studio/thing` is the standalone full-page equivalent (`sdk/org/apps/web/src/routes/studio/thing/index.tsx:L13-L45`).
 
-> Correction to the older prose in `sdk/org/CLAUDE.md` ("The always-on THING chat dock is present on the right side"): the dock is space-scoped and off by default.
-
 ---
 
 ## How Studio saves — there is no Save button

@@ -24,7 +24,7 @@ The client mirrors this: `APP_PATH_PREFIX` is `''` on hostname `lmthing.app` and
 Resulting public URLs for a project `blog`:
 
 ```
-# reserved-prefix mount (local `lmthing serve`, lmthing.studio preview)
+# reserved-prefix mount (local `lmthing serve`)
 http://localhost:8080/app/blog/                 → page bundle (index.html)
 http://localhost:8080/app/blog/feed/a-1         → SPA fallback → client router
 http://localhost:8080/app/blog/api/feed-list    → GET endpoint `feedList`

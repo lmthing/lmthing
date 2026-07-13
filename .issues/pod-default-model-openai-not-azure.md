@@ -22,9 +22,8 @@ Where it's set: `cloud/gateway/src/lib/compute.ts` writes the `user-env` secret
 - Combined with the per-role aliases that ARE azure DeepSeek, the *default*
   `LM_MODEL` is the odd one out, so freeform THING turns use openai/gpt while
   forks/delegates use azure — inconsistent.
-- Likely contributor to the architect-stall (see
-  `sdk/org/.issues/architect-synthesize-stall.md`) since the stalled stream was
-  on the default model.
+- Likely contributor to the observed architect synthesize-stall, since the
+  stalled stream was on the default model.
 
 ## Workaround used this session
 Manually `PUT /api/compute/env` for the test user with **azure-only** vars from

@@ -7,7 +7,7 @@ Everything under `devops/` provisions and operates the single production cluster
 - **[local-dev.md](./local-dev.md)** — running the stack on a laptop.
 - **[../cloud/README.md](../cloud/README.md)** — the backend services (Gateway/Hono + LiteLLM) that these manifests deploy.
 
-The authoritative, still-maintained long-form guide lives at [`devops/CLAUDE.md`](../../../devops/CLAUDE.md); the manifests it describes are ground truth under `devops/argocd/`, `devops/terraform/`, and `devops/ansible/`.
+Ground truth is the manifests themselves — `devops/argocd/`, `devops/terraform/`, `devops/ansible/` — and this page is cited to them.
 
 ## The stack at a glance
 
@@ -22,7 +22,7 @@ The authoritative, still-maintained long-form guide lives at [`devops/CLAUDE.md`
 | Images | Azure Container Registry (`lmthingacr.azurecr.io`), built by GitHub Actions | `.github/workflows/build-images.yml` |
 | Secrets | Ansible Vault → K8s Secrets (outside ArgoCD) | `devops/ansible/roles/cloud_secrets/tasks/main.yml` |
 
-`devops/` replaces the older single-VM K3s setup in `cloud/`: Traefik → Envoy Gateway, Fly.io machines → per-user K8s pods, shell `deploy.sh` → ArgoCD + Ansible (`devops/CLAUDE.md`, "Key Differences from K3s Setup").
+`devops/` replaces the older single-VM K3s setup: Traefik → Envoy Gateway (`devops/argocd/envoy/`), Fly.io machines → per-user K8s pods (`cloud/gateway/src/lib/compute.ts`), shell `deploy.sh` → ArgoCD + Ansible (`devops/argocd/apps/`, `devops/ansible/playbooks/services.yml`).
 
 ## Namespaces
 
@@ -32,12 +32,12 @@ The authoritative, still-maintained long-form guide lives at [`devops/CLAUDE.md`
 |---|---|---|
 | `lmthing` | Core services — `postgres`, `zitadel`, `litellm`, `render`, `gateway`, plus the SPA deployments `studio`, `computer`, `chat`, `com`, `social`, `store`, `space`, `team`, `blog`, `casa` | ArgoCD app `lmthing-core` (`devops/argocd/core/kustomization.yaml`) |
 | `gateway` | Envoy routing resources — the `lmthing-gw` Gateway, HTTPRoutes, SecurityPolicy/EnvoyExtensionPolicy/EnvoyPatchPolicy, ReferenceGrant, Certificates | ArgoCD app `lmthing-envoy` (`devops/argocd/envoy/kustomization.yaml`) |
-| `user-<id>` | One per subscribed user — a `lmthing` Deployment (the compute pod), its `Service`, a `user-data` PVC, and `acr-pull-secret` / `user-env` Secrets | The gateway, via the K8s API (`devops/argocd/compute/user-pod-template.yaml`) |
+| `user-<id>` | One per user (all tiers, lazily) — a `lmthing` Deployment (the compute pod), its `Service`, a `user-data` PVC, and `acr-pull-secret` / `user-env` Secrets | The gateway, via the K8s API (`cloud/gateway/src/lib/compute.ts:134-290`) |
 | `envoy-gateway-system` | Envoy Gateway controller | Helm, `devops/ansible/roles/envoy_gateway/tasks/main.yml` |
 | `argocd` | ArgoCD server/controller/repo-server | Helm, `devops/ansible/roles/argocd/tasks/main.yml` |
 | `cert-manager`, `metallb-system` | TLS issuer + LB, installed as Kubespray addons | `devops/ansible/inventory/test/group_vars/all.yml` |
 
-> Correction: `devops/CLAUDE.md`'s namespace table lists only LiteLLM/Gateway/Studio/Computer/Chat in `lmthing`. The live `kustomization.yaml` also deploys `postgres.yaml`, `zitadel.yaml`, `render.yaml`, and the `com/social/store/space/team/blog/casa` SPAs into `lmthing`.
+`lmthing` holds more than the backend: `devops/argocd/core/kustomization.yaml` deploys `postgres.yaml`, `zitadel.yaml`, `render.yaml` and the `com`/`social`/`store`/`space`/`team`/`blog`/`casa` SPA manifests into it alongside `litellm`, `gateway`, `studio`, `computer` and `chat`.
 
 Cross-namespace routing (HTTPRoutes in `gateway` → Services in `lmthing`) requires the `ReferenceGrant` in `devops/argocd/envoy/reference-grants.yaml`; without it routing silently fails.
 
@@ -54,7 +54,7 @@ The normal change loop: push to `main` → ArgoCD reconciles. ArgoCD is **poll-o
 
 A single shared Gateway named `lmthing-gw` in the `gateway` namespace fronts every domain (`devops/argocd/envoy/activator-patch.yaml`, `targetRef.name: lmthing-gw`; kustomization replacements all target `lmthing-gw`). Domain values (`domain`, `computerDomain`, `authDomain`, ACME email, Zitadel JWT issuer/JWKS) are held in the `lmthing-envoy-config` ConfigMap (`devops/argocd/envoy/config.yaml`) and injected into manifests via Kustomize `replacements` in `devops/argocd/envoy/kustomization.yaml`.
 
-> Correction: `devops/CLAUDE.md`'s routing diagram implies separate `cloud-gw`/`computer-gw` Gateways. The live setup uses **one** `lmthing-gw` Gateway with per-domain listeners and HTTPRoutes.
+There is exactly **one** Gateway object — not a per-domain `cloud-gw`/`computer-gw` pair. Every domain is a listener pair on `lmthing-gw`, and every HTTPRoute attaches to it (`devops/argocd/envoy/cloud-gateway.yaml:2-9`).
 
 Two routing shapes:
 
@@ -69,9 +69,9 @@ One image, `lmthingacr.azurecr.io/compute:<sha>`, runs every user's pod. `devops
 
 ## Per-user compute pods
 
-The gateway holds a `gateway` ServiceAccount bound to the `lmthing-compute-manager` ClusterRole, granting it create/delete over namespaces, deployments (+`deployments/scale`), services, secrets, configmaps, PVCs (`devops/argocd/core/gateway.yaml:10-47`). On subscription it reads `devops/argocd/compute/user-pod-template.yaml`, substitutes `USER_ID` / `CPU` / `MEM`, and applies a `user-<id>` Namespace + `user-data` PVC + `lmthing` Deployment + Service.
+The gateway holds a `gateway` ServiceAccount bound to the `lmthing-compute-manager` ClusterRole, granting it create/delete over namespaces, deployments (+`deployments/scale`), services, secrets, configmaps, PVCs (`devops/argocd/core/gateway.yaml:10-47`). It **builds every pod object inline in TypeScript** (`cloud/gateway/src/lib/compute.ts:134-290`) — namespace, `acr-pull-secret`, a **1Gi `user-data` PersistentVolumeClaim** (`compute.ts:164-179`, not an `emptyDir`), the `lmthing` Deployment and its Service — and applies them through the K8s API on `POST /api/compute/ensure`.
 
-> Correction: `devops/CLAUDE.md` says the pod is "always-on" with an `emptyDir` volume. The live template mounts a **1Gi `PersistentVolumeClaim`** (`user-data`, `devops/argocd/compute/user-pod-template.yaml:29-42`), and pods now **scale to zero**: when a request hits a scaled-down pod, Envoy Lua fires a fire-and-forget `POST /api/compute/wake` to the always-on gateway, which scales the Deployment 0→1. That path needs the `gateway-activator` cluster injected by the `EnvoyPatchPolicy` in `devops/argocd/envoy/activator-patch.yaml`. Pool-node warm-start uses the `compute-prepull` DaemonSet (`devops/argocd/core/compute-prepull.yaml`), a no-op until a node is labelled `lmthing.cloud/pool=user`.
+Pods are **lazily provisioned for every tier and scale to zero**, not always-on: the pod self-idles after `IDLE_TTL_MINUTES` and is scaled down, and when a request later hits a scaled-down pod, Envoy Lua fires a fire-and-forget `POST /api/compute/wake` at the always-on gateway, which scales the Deployment 0→1 (`cloud/gateway/src/routes/compute.ts:65-82`). That path needs the `gateway-activator` cluster injected by the `EnvoyPatchPolicy` in `devops/argocd/envoy/activator-patch.yaml:17-47`. Pool-node warm-start uses the `compute-prepull` DaemonSet (`devops/argocd/core/compute-prepull.yaml`), a no-op until a node is labelled `lmthing.cloud/pool=user`. Full spec → [infrastructure.md](./infrastructure.md#per-user-compute-pod).
 
 Pod sizing (CPU/MEM/`MAX_SESSIONS`) is tier-driven and re-patched by the gateway on every chat load, so `cloud/gateway/src/lib/tiers.ts` is the source of truth — a one-off `kubectl set env` gets reverted. `MAX_SESSIONS` defaults to 8 in the image; the gateway overrides per tier.
 

@@ -3,7 +3,7 @@
  * Idempotent — skips creation if prices with matching lookup_keys already exist.
  *
  * Adding a new tier? Add it to the TIERS array below, then add the console.log
- * for the env var output at the bottom. See root CLAUDE.md § "Adding a New Tier"
+ * for the env var output at the bottom. See org/docs/contributing/add-a-tier.md
  * for all other files that need updating.
  *
  * Usage:

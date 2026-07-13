@@ -66,10 +66,8 @@ nodes = {
 }
 ```
 
-> Correction: the old `devops/CLAUDE.md` VM-config table lists `Standard_D4s_v3` as the
-> default size; the actual default is `Standard_B4as_v2` `variables.tf:54`.
-
-Each node object accepts `role` (`"control_plane"` | `"worker"`), `vm_size`, `os_disk_size_gb`,
+The default `vm_size` is **`Standard_B4as_v2`** (a burstable ARM SKU) `variables.tf:54` — not a
+`D`-series VM. Each node object accepts `role` (`"control_plane"` | `"worker"`), `vm_size`, `os_disk_size_gb`,
 and `data_disk_size_gb` `variables.tf:50-63`.
 
 ### User pool (Phase 4, default-off)
@@ -176,9 +174,10 @@ iptables DNAT `devops/ansible/roles/ingress_iptables/tasks/main.yml:1-11`:
   ipsets and fail to restore on boot before kube-proxy runs, dropping all rules
   `ingress_iptables/tasks/main.yml:6-11,49-88`.
 
-> Correction: the old docs describe ingress as pure "MetalLB Layer 2". MetalLB is configured,
-> but the effective external-traffic path on this Azure single-node cluster is the iptables
-> DNAT + `lmthing-nat` systemd service `ingress_iptables/tasks/main.yml:1-11`.
+So the effective external-traffic path on this cluster is **iptables DNAT + the `lmthing-nat`
+systemd unit**, *not* MetalLB L2 advertisement — MetalLB is installed and allocates the
+LoadBalancer IP, but its ARP announcements never leave the Azure SDN
+`ingress_iptables/tasks/main.yml:1-11`.
 
 ---
 
@@ -188,9 +187,10 @@ Installed by the `envoy_gateway` Ansible role
 `devops/ansible/roles/envoy_gateway/tasks/main.yml`:
 
 1. Create namespace `envoy-gateway-system` `main.yml:2-9`.
-2. Helm-install the OCI chart `oci://docker.io/envoyproxy/gateway-helm`, version
-   **`v1.7.1`** (default), into `envoy-gateway-system` `main.yml:11-27`. Two extension APIs are
-   enabled and are load-bearing:
+2. Helm-install the **OCI** chart `oci://docker.io/envoyproxy/gateway-helm`, version
+   **`v1.7.1`** (default), into `envoy-gateway-system` `main.yml:11-27` — an OCI ref pulled by
+   digest-capable Helm, not a classic `charts.gateway.envoyproxy.io` repo entry. Two extension
+   APIs are enabled and are load-bearing:
    - `extensionApis.enableBackend: true` — required for the `DynamicResolver` Backend that
      powers per-user `/api/*` routing; without it those requests fail.
    - `extensionApis.enableEnvoyPatchPolicy: true` — required for `activator-patch.yaml`, the
@@ -200,9 +200,6 @@ Installed by the `envoy_gateway` Ansible role
 4. Verify the Gateway API CRDs exist `main.yml:41-44`.
 5. Create the `GatewayClass` named **`eg`** (controller
    `gateway.envoyproxy.io/gatewayclass-controller`) `main.yml:46-56`.
-
-> Corrections vs. old docs: the chart is the **OCI** `gateway-helm` at **`v1.7.1`**, not the
-> `charts.gateway.envoyproxy.io` repo at `v1.3.0`.
 
 ### The Gateway object
 
@@ -214,10 +211,10 @@ listener pair per domain — 13 pairs total: `lmthing.cloud`, `lmthing.computer`
 `lmthing.casa` (domain placeholders `DOMAIN_PLACEHOLDER` / `COMPUTER_DOMAIN_PLACEHOLDER` /
 `AUTH_DOMAIN_PLACEHOLDER` are Kustomize-replaced) `cloud-gateway.yaml:12-105+`. Each HTTPS
 listener terminates TLS with a per-domain secret (e.g. `lmthing-cloud-tls`,
-`lmthing-computer-tls`, `lmthing-auth-tls`) `cloud-gateway.yaml:26-91`.
-
-> Correction: old docs show two Gateways (`cloud-gw`, `computer-gw`). It is a single
-> `lmthing-gw` with per-domain listeners `cloud-gateway.yaml:2-9`.
+`lmthing-computer-tls`, `lmthing-auth-tls`) `cloud-gateway.yaml:26-91`. There are no separate
+`cloud-gw` / `computer-gw` Gateways — every domain, including `lmthing.computer`, is a listener
+pair on this one object, and every HTTPRoute and policy `targetRef`s it
+(`devops/argocd/envoy/activator-patch.yaml`, `targetRef.name: lmthing-gw`).
 
 The HTTPRoutes, policies (Lua per-user routing, JWT), and the pod-wake activator that hang off
 this Gateway are inventoried in [./deploy.md](./deploy.md).
@@ -256,15 +253,18 @@ it never runs — in the clone `bootstrap.sh` fetches,
 `devops/ansible/.cache/kubespray/roles/kubespray_defaults/defaults/main/main.yml:448` and
 `devops/ansible/.cache/kubespray/roles/kubernetes-apps/external_provisioner/meta/main.yml:12-13`.
 
-> Drift — the default StorageClass is out-of-band. The production cluster *does* have one
-> (`local-path`, provisioner `rancher.io/local-path`, Deployment `local-path-provisioner:v0.0.30`
-> in namespace `local-path-storage`), but it was applied by hand: it carries no Helm release, no
-> ArgoCD ownership and no Kubespray labels, its `last-applied-configuration` is the bare upstream
-> Rancher manifest, and its namespace is ~35 days younger than the rest of the cluster. **A cluster
-> rebuilt from this repo would have no default StorageClass** — the Postgres PVC and every
-> `user-data` PVC would sit `Pending` forever. Check with `kubectl get storageclass`; the fix is to
-> set `local_path_provisioner_enabled: true` in `inventory/test/group_vars/all.yml` so Kubespray
-> installs it.
+**Open infra bug — the default StorageClass exists only out-of-band.** The production cluster
+*does* have one (`local-path`, provisioner `rancher.io/local-path`, Deployment
+`local-path-provisioner:v0.0.30` in namespace `local-path-storage`), but nothing in this repo
+creates it: it carries no Helm release, no ArgoCD ownership and no Kubespray labels, its
+`last-applied-configuration` is the bare upstream Rancher manifest, and its namespace is ~35 days
+younger than the rest of the cluster. It was applied by hand. **A cluster rebuilt from this repo
+would have no default StorageClass**, and both PVCs above — the Postgres `postgres-data`
+`devops/argocd/core/postgres.yaml:88-95` and every per-user `user-data`
+`cloud/gateway/src/lib/compute.ts:164-179`, neither of which sets `storageClassName` — would sit
+`Pending` forever. Check with `kubectl get storageclass`; the fix is to set
+`local_path_provisioner_enabled: true` in `devops/ansible/inventory/test/group_vars/all.yml` so
+Kubespray installs it.
 
 ---
 
@@ -308,11 +308,12 @@ multi-session server) on port 8080 — see [./deploy.md](./deploy.md) for the im
 - `service(userId)` → Service `lmthing` (ClusterIP in prod; NodePort under `LOCAL_DEV`) targeting
   8080 `compute.ts:275-290`.
 
-> Correction: `devops/argocd/compute/user-pod-template.yaml` and the
-> `compute-pod-template` ConfigMap (`devops/argocd/core/compute-pod-template.yaml`, image pinned to
-> a stale `compute:4f2c11f`, `emptyDir` spaces) are **not** the live provisioning path — the
-> gateway does not read them. The authoritative spec is `compute.ts`. Treat those YAMLs as
-> reference/legacy.
+**Legacy YAMLs — do not edit these expecting an effect.** `devops/argocd/compute/user-pod-template.yaml`
+and the `compute-pod-template` ConfigMap (`devops/argocd/core/compute-pod-template.yaml`, still
+pinning a stale `compute:4f2c11f` image and `emptyDir` spaces) are **not** the provisioning path:
+across all of `cloud/gateway/src` the only mention of either is a stale comment
+(`compute.ts:132`, "inline — matches k8s/compute/user-pod-template.yaml"); nothing loads or
+templates them. `compute.ts` above is the authoritative spec.
 
 **Image & pull policy** `compute.ts:56-73`:
 - `COMPUTE_IMAGE_DIGEST` set (CI `sha256:…`) → image `…/compute@<digest>` + `imagePullPolicy: IfNotPresent`
@@ -347,9 +348,11 @@ at ~60% of the memory limit so V8 GCs before the cgroup OOMs `compute.ts:107-113
 - A `startupProbe` (not readiness) gates only the boot window, so a busy single-threaded Node
   event loop can't get yanked from Service endpoints mid-session `compute.ts:244-260`.
 
-> Correction: the old per-user-pod doc says pods are "Always-on … created when user subscribes
-> to Pro, destroyed on cancellation." In code they are **scale-to-zero, lazily provisioned for
-> every tier** via `/api/compute/ensure`, and reaped by the idle sweep `compute.ts:79-88,549+,912-976`.
+Pods are therefore **never always-on and never Pro-only**: every tier — `free` included — gets a
+pod, it is created on first use rather than at subscription time, and it is scaled to zero (not
+deleted) whenever it goes idle `compute.ts:79-88`, `:678`, `:912-976`. A pod is only torn down
+namespace-and-all when a Stripe subscription is *deleted* (`deleteUserPod`,
+`cloud/gateway/src/routes/webhook.ts:76-103`).
 
 **RBAC** — the gateway runs as ServiceAccount `gateway` (namespace `lmthing`) bound to ClusterRole
 `lmthing-compute-manager`, which grants create/delete on namespaces, services, configmaps, PVCs,

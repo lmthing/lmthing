@@ -45,13 +45,13 @@ doing anything else** — together they are the complete picture of how these ap
 engine are built. They are **read-only ground truth**: never edit them (you edit only the app spec
 in Phase 1).
 
-1. `org/format/project/` + `org/app/` — **the architecture / model you must abide by.**
+1. `org/docs/format/project/` + `org/docs/app/` — **the architecture / model you must abide by.**
    Space = agent capability; Project = the app (`database/ pages/ api/ hooks/ package.json`) + its
    project-scoped spaces; the capability-globals model (`db:*`, `pages:write`, `api:write`,
    `hooks:write`, `api:call`); the exact file formats (`database/<table>.json`,
    `api/<route>/<METHOD>.ts`, `hooks/<slug>.ts`, `pages/`); the typed-contract pipeline; serving;
    the `system-appbuilder` space. Everything you build must conform to it.
-2. `org/runtime-globals/app-authoring.md` — **the authoring globals contract: HOW it gets built,
+2. `org/docs/runtime-globals/app-authoring.md` — **the authoring globals contract: HOW it gets built,
    tested, and shipped.** Read it in full: §0 Global protocol (the Definition-of-Done gate; the
    **mandatory live-DeepSeek test protocol** via `sdk/org/.env` with `--model S`; the
    **push-both-repos protocol**; the backward-compatibility invariants), the Phase 1–11 engine
@@ -81,8 +81,8 @@ in Phase 1).
 ### Phase 1 — Improve the spec (think deeply, then edit the spec file)
 - **Think deeply** about `app-specifications/{{SPEC_FILE}}`: what improvements and feature additions
   would make `{{task}}` a genuinely better, more valuable AI-assisted application — while staying
-  strictly inside the model in `org/format/project/` and the mechanics/protocol in
-  `org/runtime-globals/app-authoring.md`.
+  strictly inside the model in `org/docs/format/project/` and the mechanics/protocol in
+  `org/docs/runtime-globals/app-authoring.md`.
 - **Edit `app-specifications/{{SPEC_FILE}}` in place** to fold those improvements into the spec
   (new tables/columns/endpoints/hooks/agent capabilities/pages, sharper UX, safety notes). Keep the
   document's existing structure and tone. Record what you added (and why) in the PROGRESS file.
@@ -163,7 +163,7 @@ screenshots; file a `.issues/` entry for any real defect. Deploy lag is not a ru
 functional bug is (fix + re-push).
 
 ## Hard rules
-- **Read `org/format/project/` AND `org/app/` AND `org/runtime-globals/app-authoring.md` in full at
+- **Read `org/docs/format/project/` AND `org/docs/app/` AND `org/docs/runtime-globals/app-authoring.md` in full at
   the start of every run.** If the app spec and these architecture docs disagree, the docs win.
 - Design tokens only — `pnpm lint:tokens` is a hard gate.
 - Keep `.issues/` honest: file an issue for any real bug you can't fix; delete it when fixed.

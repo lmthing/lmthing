@@ -116,9 +116,8 @@ The pod resolver (`createConnectionResolver`, `sdk/org/libs/cli/src/server/conne
 Settings → Integrations), applies the provider's auth style, and calls the REST API **directly**
 `sdk/org/libs/cli/src/server/connections.ts:9-31`.
 
-> Core's own docstring still describes a "gateway egress proxy"
-> (`sdk/org/libs/core/src/globals/call-connection.ts:16-18`). That is stale: the pod resolver makes the
-> call itself, with no gateway round-trip `sdk/org/libs/cli/src/server/connections.ts:14-16`.
+There is **no gateway egress proxy** in this path: the pod resolver makes the outbound call itself, with
+no gateway round-trip `sdk/org/libs/cli/src/server/connections.ts:14-16`.
 
 Providers resolve in two tiers `sdk/org/libs/cli/src/server/connections.ts:41-75`:
 
@@ -334,7 +333,7 @@ when a plain fetch returns an empty SPA shell or is bot-walled (403/429). The fa
 
 Three distinct mechanisms — **none** of them is a `capabilities:` grant:
 
-1. **`system-global` is universal.** Only that one space's functions are injected into every agent's VM (`systemFunctionSources` filters on `GLOBAL_SPACE_NAME`) `sdk/org/libs/core/src/spaces/system.ts:26-27,87-95` · `sdk/org/libs/core/src/session/session.ts:595-624`. Every *other* system space's functions reach an agent only through the per-agent path. That is why `webSearch`/`webFetch`/`todoWrite`/`remember` need no declaration. (The generic fs wrappers `readFile`/`grep` are **no longer** in `system-global` — they moved to `system-engineer`, scoped to the engineer's `fs:scratch` sandbox.)
+1. **`system-global` is universal.** Only that one space's functions are injected into every agent's VM (`systemFunctionSources` filters on `GLOBAL_SPACE_NAME`) `sdk/org/libs/core/src/spaces/system.ts:26-27,87-95` · `sdk/org/libs/core/src/session/session.ts:595-624`. Every *other* system space's functions reach an agent only through the per-agent path. That is why `webSearch`/`webFetch`/`todoWrite`/`remember` need no declaration. (The generic fs wrappers `readFile`/`grep` live in `system-engineer`, not `system-global` — scoped to the engineer's `fs:scratch` sandbox.)
 2. **An agent's own space functions are opt-in** via `functions:` in `agents/<slug>/instruct.md` frontmatter: only the listed names are injected and shown in the prompt `sdk/org/libs/core/src/spaces/load.ts:474` · `sdk/org/libs/core/src/spaces/agent.ts:17-25`, and a name with no matching `functions/<name>.ts` is a fail-loud load error (`Agent "x" requires function "y" but it was not found in functions/`) `sdk/org/libs/core/src/spaces/load.ts:685-689`.
 3. **A tasklist task narrows the set for its fork.** `functions: [...]` in a task's frontmatter is an allowlist intersected against the parent agent's *injected* set `sdk/org/libs/core/src/spaces/tasklist-load.ts:30-32,136-137` · `sdk/org/libs/core/src/fork/fork.ts:247-260`. Because the parent's set is the **merged** map (system toolkit + project functions + space functions) `sdk/org/libs/core/src/session/session.ts:620-623,746-747`, **`functions: []` means no functions at all — `webSearch`/`webFetch` included.** Never forbid a tool in prose; disable it in frontmatter.
 

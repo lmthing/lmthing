@@ -1,6 +1,6 @@
 # lmthing.homes as a Project-Application — the `homes` project
 
-> A concrete instantiation of [the project-as-application model](../org/format/project/README.md) for an
+> A concrete instantiation of [the project-as-application model](../org/docs/format/project/README.md) for an
 > **AI-assisted home finder** for renters and buyers: every listing you're tracking lands in one
 > place — not by scraping portals, but by ingesting the sources you already use (forwarded alert
 > emails, saved searches, links you paste). An **`intake`** space cleans each capture into a single
@@ -1703,7 +1703,7 @@ build, hooks runtime, chat) exists. Homes-specific work on top:
    Each round is strictly additive — a new full-format space + its tables/endpoints/hooks/pages —
    and lands with its own reconciliation (§Engine reconciliation) and verification pass before
    the next begins.
-8. **Docs** — fold into `org/format/project/` as a worked example.
+8. **Docs** — fold into `org/docs/format/project/` as a worked example.
 
 ## Verification (end-to-end, local)
 
@@ -1807,7 +1807,7 @@ build, hooks runtime, chat) exists. Homes-specific work on top:
 
 - **Reuses the parent engine wholesale** — no homes-specific runtime; this is data + agents + pages
   + hooks on the shared layer. If a mechanism is missing here, it belongs in
-  [the project-as-application model](../org/format/project/README.md), not a homes fork.
+  [the project-as-application model](../org/docs/format/project/README.md), not a homes fork.
 - **Why it's a good AI-assisted app** — listing triage is exactly the work models are for: reading
   many messy documents against a personal, partly-tacit preference set, cross-checking claims
   against evidence, and explaining a ranking. A static app can't learn that you'll trade size for

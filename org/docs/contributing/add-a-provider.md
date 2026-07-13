@@ -49,13 +49,11 @@ Audio models live in a separate list: `TRANSCRIBE_MODELS` (`tiers.ts:22`, e.g. `
 
 Use this to let the runtime call a vendor **directly with its own API key** (not through LiteLLM) — e.g. running the CLI locally against Groq, or a BYO-key deployment. Each provider is one `case` in the `resolveModel` switch that lazy-loads a Vercel AI-SDK adapter (`sdk/org/libs/cli/src/providers/resolve.ts:33-97`).
 
-Currently implemented cases: `openai`, `anthropic`, `lmthingcloud`, `google`, `mistral`, `azure` (`resolve.ts:34-92`). The `default` throws listing exactly these (`resolve.ts:93-96`).
-
-> **Correction (doc vs code):** the file's header docstring claims support for `groq, cohere, bedrock, openai-compatible` (`resolve.ts:5-6`), but **no such cases exist** in the switch — that comment is aspirational. Only the six above resolve.
+The switch implements exactly **six** cases — `openai` (`resolve.ts:34`), `anthropic` (`:45`), `lmthingcloud` (`:49`), `google` (`:58`), `mistral` (`:62`) and `azure` (`:66`) — and the `default` throws listing exactly those six (`resolve.ts:93-96`). Any other `provider` slice (groq, cohere, bedrock, a generic openai-compatible endpoint, …) does **not** resolve until you add its case.
 
 ### Steps
 
-**1. Install the adapter** (note: package is `@lmthing/cli`, not `@repl/cli` as an older skill said):
+**1. Install the adapter** (the package is `@lmthing/cli`):
 
 ```bash
 pnpm --filter @lmthing/cli add @ai-sdk/<provider>
@@ -79,7 +77,7 @@ case 'anthropic': {
 
 **3. Add the transcription case too** *(only if the provider serves audio)* — the transcription path is a **separate** switch in `sdk/org/libs/cli/src/providers/transcribe.ts:22-58` (`openai`/`lmthingcloud`/`azure`), each returning `create…().transcription(modelId)`. It mirrors `resolve.ts`'s env handling (`transcribe.ts:16-18`). The default transcription model is `openai:whisper-1`, overridable via `LM_TRANSCRIBE_MODEL` (`transcribe.ts:4-5`, `:63-64`).
 
-**4. Point a model alias at it.** No code change is needed to *define* an alias. `resolveAlias(alias)` (`sdk/org/libs/cli/src/providers/aliases.ts`) is fully generic: it reads `process.env['LM_MODEL_' + alias.toUpperCase().replace(/[^A-Z0-9]/g,'_')]` and falls back to returning the string unchanged. Just set the env var:
+**4. Point a model alias at it.** No code change is needed to *define* an alias — there is no union type of alias letters and no env-var map. `resolveAlias(alias)` (`sdk/org/libs/cli/src/providers/aliases.ts`) is fully generic: it reads `process.env['LM_MODEL_' + alias.toUpperCase().replace(/[^A-Z0-9]/g,'_')]` and falls back to returning the string unchanged, so **any** `LM_MODEL_<NAME>` works with zero code changes. Just set the env var:
 
 ```bash
 # .env at repo root (loaded from process.cwd())
@@ -87,13 +85,14 @@ LM_MODEL_M=<provider>:<modelId>
 LM_MODEL=M                       # default model when --model omitted
 ```
 
-> **Correction (doc vs code):** the older `new-provider` skill said to "extend the union type and the env var map in `aliases.ts`" to add an alias letter. There is **no union type and no map** — `aliases.ts` is generic string handling, so any `LM_MODEL_<NAME>` works with zero code changes.
-
 **5. Test it:**
 
 ```bash
-node sdk/org/libs/cli/dist/cli/bin.js --model <provider>:<modelId> --space ./fixtures/cooking "hello"
+node sdk/org/libs/cli/dist/cli/bin.js --model <provider>:<modelId> --space <spaceDir> "hello"
 ```
+
+(There is no reference-space tree to point `--space` at: `sdk/org/fixtures/` was deleted in commit
+`acb460a`. Use a space you author, or a system space — see [`add-a-space.md`](./add-a-space.md).)
 
 ---
 

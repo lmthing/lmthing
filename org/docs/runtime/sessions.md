@@ -154,15 +154,14 @@ export interface Snapshot {
 }
 ```
 
-> **CORRECTION — the server persists an EMPTY `scope`.** Although `Snapshot`
-> carries a `scope` field intended for VM variables, the pod's
-> `persistSession` writes `scope: {}` (`session-manager.ts:1252`), as does
-> `runHeadlessThreaded` (`session-manager.ts:1726`). Consequently a server-side
-> resume rehydrates the **message history only** — the VM starts fresh and its
-> `seedVars` are empty. Any doc claiming "VM variables are restored on resume"
-> is wrong for the pod path. (Core's `resume()` *does* pass `snapshot.scope` as
-> `seedVars` to the new VM — `session.ts:479-484` — but the server never fills
-> it, so in practice nothing is seeded.)
+> **The server persists an EMPTY `scope`.** Although `Snapshot` carries a
+> `scope` field intended for VM variables, the pod's `persistSession` writes
+> `scope: {}` (`session-manager.ts:1252`), as does `runHeadlessThreaded`
+> (`session-manager.ts:1726`). A server-side resume therefore rehydrates the
+> **message history only**: the VM starts fresh with empty `seedVars`, so VM
+> variables are **not** restored on resume for the pod path. (Core's `resume()`
+> *does* pass `snapshot.scope` as `seedVars` to the new VM —
+> `session.ts:479-484` — but the server never fills it.)
 
 ### On-disk layout (pod / project mode)
 
@@ -212,7 +211,7 @@ Two independent resume paths exist:
 `loadSnapshot(snapshotDir)`, restore `sessionId` + the space + agent, rebuild the
 history message-by-message (`session.ts:443-446`), append the new (unframed) user
 message, rebuild the system block/DTS/functions, create a fresh VM seeded with
-`snapshot.scope` (empty in practice — see the correction above), then run the turn
+`snapshot.scope` (empty in practice — see above), then run the turn
 loop. Throws if no snapshot or the agent is missing (`session.ts:417-419`,
 `438-440`).
 

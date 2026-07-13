@@ -1,6 +1,6 @@
 # lmthing.kitchen as a Project-Application — the `kitchen` project
 
-> A concrete instantiation of [the project-as-application model](../org/format/project/README.md) for a
+> A concrete instantiation of [the project-as-application model](../org/docs/format/project/README.md) for a
 > **pantry + meal planner**: the app knows what's in your pantry, plans a week of meals from your
 > recipes, and generates the shopping list for exactly what you're missing. The `kitchen` project owns
 > the app — `database/` (ingredients, recipes, the recipe⇄ingredient join, weekly plans, plan meals,
@@ -636,7 +636,7 @@ build, hooks runtime, chat) exists. Kitchen-specific work on top:
 8. **Round 2 — Nutrition, Sourcing & Kitchen Intelligence** (see §"Round 2") — the two new specialist
    teams (`nutrition`, `sourcing`), 6 new tables + 5 new columns, 13 new endpoints, 4 new hooks, 5 new
    pages, and the chef full-format remediation. Strictly additive on the round-1 core loop.
-9. **Docs** — fold into `org/format/project/` as a worked example.
+9. **Docs** — fold into `org/docs/format/project/` as a worked example.
 
 ## Verification (end-to-end, local)
 
@@ -666,7 +666,7 @@ build, hooks runtime, chat) exists. Kitchen-specific work on top:
 
 - **Reuses the parent engine wholesale** — no kitchen-specific runtime; data + agents + pages + hooks
   on the shared layer. If a mechanism is missing here, it belongs in
-  [the project-as-application model](../org/format/project/README.md), not a kitchen fork.
+  [the project-as-application model](../org/docs/format/project/README.md), not a kitchen fork.
 - **Why it's a good AI-assisted app** — meal planning is a recurring, low-reward chore with lots of
   soft constraints (what's in the pantry, who's home, dietary needs, spoilage). That's precisely what
   an assistant is good at and a person resents doing every week; the payoff is a planned week and a

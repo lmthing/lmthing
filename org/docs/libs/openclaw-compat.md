@@ -109,7 +109,7 @@ The one-way sink a loaded plugin writes into via the compat `api` — plugins re
 
 The socket/native runtime behind `descriptor.plugin.specifier` is **deliberately NOT loaded** — that stays warm-pod/Socket-Mode, a deferred increment (`src/plugin-sdk-shim.ts:52-56`, `:38`). `loadPlugin` also has a **raw-descriptor fallback**: an entry with `plugin.specifier` but no `register` (built against the real SDK without our shim) is detected by `isBundledChannelDescriptor` and taken through the same `applyBundledChannelDescriptor` path (`src/loader.ts:101-123`).
 
-> Note: the loader's own file-header docstring (`src/loader.ts:6-11`) still describes `defineBundledChannelEntry` as **rejected** with `UnsupportedCompatError`. The **code no longer rejects it** — `loadPlugin` handles both the shim-generated `register` and the raw descriptor (`src/loader.ts:94-110`), and `plugin-sdk-shim.ts` implements the loading path. The header docstring is stale; the shipped behaviour is "loaded in webhook-mode."
+Bundled-channel descriptors are therefore **applied, not rejected**: `loadPlugin` accepts both the shim-generated `register` and the raw descriptor and takes each through `applyBundledChannelDescriptor` (`src/loader.ts:94-110`). The shipped behaviour is "loaded in webhook-mode".
 
 ---
 

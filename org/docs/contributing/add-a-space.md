@@ -68,7 +68,11 @@ Two files, both read by `loadAgent` (`sdk/org/libs/core/src/spaces/load.ts:431-5
   trimmed into `AgentDef.charterBody` (`load.ts:548-553`). It is injected into the top-level prompt
   **and every fork**, so keep it to identity + guardrails (`load.ts:27-29`).
 - **`instruct.md`** — YAML frontmatter is *all* the config; the body becomes the agent's operating
-  instructions (`load.ts:456-458`). It is top-level only.
+  instructions (`load.ts:456-458`). It is top-level only. The loader does **not** require it: the
+  read sits behind a `fileExists` guard (`load.ts:456`), so an agent dir without one still loads,
+  with an empty body and its slug as its title. Don't rely on that — an agent with no `instruct.md`
+  (and no actions) counts as an **empty placeholder** and is deliberately prevented from shadowing a
+  same-slug system agent on merge (`sdk/org/libs/core/src/spaces/system.ts:139-148`). Always write one.
 
 Real example — the Slack integration agent (`store/spaces/integration-slack/agents/slack/instruct.md:1-24`):
 
@@ -294,28 +298,9 @@ specialists it just wrote; it is not the path for a space you author by hand.
 - **Run it.** `node sdk/org/libs/cli/dist/cli/bin.js --space ./my-space "<message>"`
   (`--space` is required outside serve/bare mode, `sdk/org/libs/cli/src/cli/args.ts:94-97`, `:236`).
   Add `--mock <file>` for a keyless scripted run.
-- `pnpm --filter @lmthing/core test` · `pnpm typecheck`.
-
----
-
-## Corrections (the stale `new-space` skill)
-
-`sdk/org/.claude/skills/new-space.md` is superseded by this page and by
-[../format/space/](../format/space/README.md). Three of its claims are wrong against today's code:
-
-- **"System spaces: `system-global`, `system-engineer`, `system-architect`, `system-research`,
-  `user-memory`, `user-thing`"** (skill `:163`) — there are **ten**, not six. `system-appbuilder`,
-  `system-vision`, `system-files`, and `system-store` are also in `SYSTEM_SPACE_NAMES`
-  (`sdk/org/libs/core/src/spaces/system.ts:30-41`).
-- **"`loadSpace(dir)` throws on [four things]"** (skill `:151-156`) — the fail-loud surface is much
-  wider: the frontmatter allow-list, `parseCapabilities`, the `triggers:` validator, the knowledge
-  option-frontmatter validator, unresolved `components`/`knowledge` refs, malformed YAML, and a
-  failed `npm install` all throw too (§4).
-- **"`agents/<slug>/instruct.md` ← required"** (skill `:14`) — the loader *tolerates* a missing
-  `instruct.md` (`fileExists` guard, `load.ts:456`); the agent loads with an empty body and its slug
-  as its title. That is not a feature to rely on: an agent dir with no `instruct.md` is treated as an
-  **empty placeholder** and is explicitly prevented from shadowing a same-slug system agent
-  (`system.ts:139-148`). Always write one.
+- `cd sdk/org && pnpm test libs/core/src/spaces` · `pnpm typecheck`. (**Not**
+  `pnpm --filter @lmthing/core test` — that package declares no `test` script, so the filtered run
+  exits 0 having run nothing; see [`testing.md`](./testing.md).)
 
 ---
 

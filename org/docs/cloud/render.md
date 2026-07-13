@@ -53,22 +53,19 @@ the **first that succeeds with results** (`webSearch.ts:35-48`):
    `ok`** and is NOT gated on result count — Tavily can legitimately return an `answer` with
    zero results, so `auto` returns it on `t.ok` alone (`webSearch.ts:41-44`).
 2. **`bing`** — renders `https://www.bing.com/search?…` **with JavaScript** via the render
-   service, then scrapes the rendered DOM. No key. Only "wins" in `auto` when
-   `b.ok && b.results.length > 0` (`webSearch.ts:45-46`).
+   service, then scrapes the rendered DOM (`webSearch.ts:112-156`, `webSearchBing`). No key.
+   Only "wins" in `auto` when `b.ok && b.results.length > 0` (`webSearch.ts:45-46`).
+   The rendered search engine is **Bing, and only Bing** — Google was abandoned because it serves
+   datacenter IPs a consent/bot **redirect loop** that never settles, so the headless browser times
+   out on every wait strategy; that block is **IP-based** and rendering cannot fix it. Bing renders
+   cleanly through the same service (`webSearch.ts:8-9,105-111`). Any deploy-side comment naming a
+   "google provider" describes no code path that exists.
 3. **`duckduckgo`** — plain `fetch` of the no-JS `html.duckduckgo.com` endpoint + regex scrape.
    No key, no render service. The always-available last resort (`webSearch.ts:47`).
 
 So: `auto` → Tavily (if keyed) → Bing (if `RENDER_SERVICE_URL` set) → DuckDuckGo. Each stage
 falls through on failure/empty, so a missing key, an unset render URL, or an empty/blocked Bing
 page degrades gracefully to the next provider.
-
-> **Correction (code vs. stale infra comments):** the deploy-side comments still call this the
-> "google provider" that renders "Google's results page" — `devops/argocd/core/render.yaml:18-23`,
-> `cloud/gateway/src/lib/compute.ts:351-353` and `compute.ts:386-387`. The **code uses Bing, not Google**
-> (`webSearch.ts:112-156`, function `webSearchBing`). Google was abandoned: it serves datacenter
-> IPs a consent/bot **redirect loop** that never settles, so the headless browser times out on
-> every wait strategy — an **IP-based** block that rendering cannot fix. Bing renders cleanly
-> through the same service (`webSearch.ts:8-9,105-111`). Treat the infra comments as stale.
 
 ### `tavily` provider
 

@@ -162,10 +162,10 @@ writes `github_token`** — a repo-wide search for `setItem(` turns up only `lmt
 is `github_token`. Since the effect bails on `!githubToken` (`useRepoSync.ts:34`), `useRepoSync` never
 fetches anything in the shipped app — it is dead wiring kept behind an always-null token.
 
-The `githubToken` doc comment ("from GithubContext device flow or Supabase provider token",
-`useRepoSync.ts:14`) is **stale**: there is no `GithubContext` and no Supabase client anywhere in the repo
-(the only Supabase mentions are legacy `plan.md` design notes and a Makefile variable), and the real
-identity provider is Zitadel — see [../cloud/auth.md](../cloud/auth.md). The nearest live analogue is
+The only source the hook itself accepts is that caller-supplied `githubToken` — on `/computer` it is
+`localStorage.getItem('github_token')` (`sdk/org/apps/web/src/routes/computer/route.tsx:13`), a key nothing
+writes — so in practice the token is always `null`. There is no `GithubContext` and no Supabase client
+anywhere in the repo; the real identity provider is Zitadel — see [../cloud/auth.md](../cloud/auth.md). The nearest live analogue is
 `com`'s onboarding, which reads a `github_provider_token` from `sessionStorage`
 (`com/src/routes/onboarding.tsx:42-63`) — also never written in this repo. GitHub linkage that *does* work
 flows through the gateway and lands on the session as `githubRepo`/`githubUsername`.

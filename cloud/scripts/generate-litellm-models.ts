@@ -19,7 +19,8 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-/** Gateway markup over provider (Azure) cost. Keep in sync with cloud/CLAUDE.md. */
+/** Gateway markup over provider (Azure) cost. Keep in sync with
+ *  org/docs/cloud/billing-and-tiers.md. */
 const MARKUP = 1.15;
 
 const PRICES_PATH = join(

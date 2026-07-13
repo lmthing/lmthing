@@ -283,9 +283,9 @@ Y = value-yielding (ends the turn). S = synchronous host call. F = fire-and-forg
 `sdk/org/libs/core/system-spaces/system-global/functions/` (the universal 8), injected via
 `injectSpaceFunctions` (`sdk/org/libs/core/src/exec/bootstrap.ts:123`) and built *on top of*
 the `fetch`/`readFileRaw`/`writeFileRaw` primitives. The generic fs wrappers `readFile`/
-`writeFile`/`editFile`/`listDir`/`glob`/`grep` are **no longer** in `system-global` — they
-moved to `sdk/org/libs/core/system-spaces/system-engineer/functions/`, scoped to the engineer
-(its `functions:` frontmatter) and jailed to the `fs:scratch` sandbox. All of these declare
+`writeFile`/`editFile`/`listDir`/`glob`/`grep` live in **`system-engineer`**
+(`sdk/org/libs/core/system-spaces/system-engineer/functions/`), scoped to the engineer
+(its `functions:` frontmatter) and jailed to the `fs:scratch` sandbox — not in `system-global`. All of these declare
 via the function overlay, not `library-dts.ts`.
 
 ---

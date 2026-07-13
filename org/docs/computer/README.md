@@ -10,7 +10,7 @@
 | Pod API it drives | [../cli-api/rest/fs.md](../cli-api/rest/fs.md) · [../cli-api/rest/env.md](../cli-api/rest/env.md) · [../cli-api/rest/sessions.md](../cli-api/rest/sessions.md) · [../cli-api/rest/misc.md](../cli-api/rest/misc.md) |
 | Detail pages | [routes.md](./routes.md) · [features.md](./features.md) · [views.md](./views.md) |
 
-> **The name is misleading.** `sdk/org/CLAUDE.md` describes `/computer` as an "autonomous computer-use surface … the agent controls a browser/desktop environment … with screen captures streamed back". No such code exists: there is no browser control, no desktop, and no screen capture anywhere under `sdk/org/apps/web/src/routes/computer/**` or `sdk/org/libs/ui/src/computer/**`. What ships is the IDE + dashboard + settings described here.
+> **The name promises more than the code delivers.** There is no browser control, no desktop, and no screen capture anywhere under `sdk/org/apps/web/src/routes/computer/**` or `sdk/org/libs/ui/src/computer/**`. What ships is the IDE + dashboard + settings described here.
 
 ---
 

@@ -3,8 +3,10 @@
 The reusable packages under `sdk/org/libs/`. They live **inside the `sdk/org`
 submodule** so the compute-pod Docker image (build context = `sdk/org`) can
 build the apps self-contained — see the workspace glob `sdk/org/pnpm-workspace.yaml`.
-There are **nine** packages (not the six named in the root CLAUDE.md — see
-Corrections below).
+There are exactly **nine** packages — `auth cli config core css openclaw-compat
+state ui utils` (`sdk/org/libs/`), tabled below. "Spaces" is not one of them: it is
+a runtime concept implemented inside `@lmthing/core`'s `spaces/` module
+(`sdk/org/libs/core/src/spaces/load.ts`), not a package.
 
 > Naming note: every package is `"type": "module"` (ESM). Three ship compiled
 > `dist/` (`core`, `cli`, `openclaw-compat`, `state`); the rest are consumed
@@ -61,12 +63,3 @@ openclaw-compat ► cli
 > `@lmthing/core` and `@lmthing/cli` are the runtime; their internals are
 > documented under [../runtime/README.md](../runtime/README.md) and
 > [../cli-api/README.md](../cli-api/README.md), not in a per-lib detail file here.
-
-## Corrections (docs vs. code)
-
-- The root **`CLAUDE.md`** lists the shared libs as
-  `@lmthing/{state,spaces,css,ui,auth,utils,core,cli}`. Two errors: **there is no
-  `@lmthing/spaces` package** (no `sdk/org/libs/spaces` dir, no package.json
-  referencing it — "spaces" is a runtime concept implemented inside
-  `@lmthing/core`'s `spaces/` module), and the list **omits `@lmthing/config` and
-  `@lmthing/openclaw-compat`**. The actual set is the nine packages tabled above.

@@ -1,6 +1,6 @@
 # System architecture
 
-The bird's-eye view of lmthing: the domains, the code that serves each one, the single backend behind all of them, and how a request flows end to end. Every claim here is grounded in source; the marketing-era prose in the repo-root `../Architecture.md` is **superseded by this file** wherever the two disagree (corrections are called out inline).
+The bird's-eye view of lmthing: the domains, the code that serves each one, the single backend behind all of them, and how a request flows end to end. Every claim here is grounded in source.
 
 For the doc hub and the authoring/runtime/serving planes, start at [README.md](./README.md). Deeper sections: the backend → [cloud/README.md](./cloud/README.md); the runtime → [runtime/README.md](./runtime/README.md); the static product apps → [product-spas/README.md](./product-spas/README.md); infra & deploy → [devops/README.md](./devops/README.md).
 
@@ -84,26 +84,13 @@ graph TD
 
 > The hostname → surface mapping is client-side: `surfaceForHost()` maps `lmthing.chat|studio|computer|app` to `/chat|/studio|/computer|/apps` and falls back to `/studio` for any unknown host (localhost, the `*.test` dev proxy) — `sdk/org/apps/web/src/routes/index.tsx:5-23`.
 
-### What the old root `Architecture.md` got wrong
-
-The repo root used to carry an `Architecture.md` that predated the current implementation. It has been
-**deleted** — this page replaces it. Recorded here so the claims it spread are not believed again; each
-was contradicted by the code:
-
-- **"cloud/ = Deno, Supabase Edge Functions, @stripe/ai-sdk"** — the backend is Hono on Node.js (`cloud/gateway/package.json:11-17` — `hono`, `@hono/node-server`, `stripe`, `jose`, `postgres`; no Deno, no Supabase). See [cloud/README.md](./cloud/README.md).
-- **"studio/, chat/, computer/ are separate top-level directories"** — they are one unified SPA at `sdk/org/apps/web/`, routed client-side (`sdk/org/apps/web/src/routes/index.tsx:5-23`). No `studio/`, `chat/`, or `computer/` directory exists at the repo root.
-- **"Shared libraries live under `sdk/libs/`"** — they live under `sdk/org/libs/`, inside the `sdk/org` submodule so the pod image can build self-contained. The nine are `auth cli config core css openclaw-compat state ui utils` (`sdk/org/libs/`) — there is **no** `@lmthing/spaces` package, despite several older docs listing one.
-- **"Auth: Supabase Auth; com/ issues tokens; a private GitHub repo is created on first login to store all workspace data"** — auth is gateway-signed **HS256 JWTs** with Zitadel as the identity store and GitHub as an IDP; clients never hold a Zitadel token (`cloud/gateway/src/lib/tokens.ts:1-30`, `org/cloud/auth.md`). Workspace persistence is an **optional GitHub-App backup** of the pod's PVC (`cloud/gateway/src/routes/backup.ts`), not a mandatory repo created at login.
-- **Product-domain stacks marked "TBD"** — all seven are React 19 + Vite + TanStack Router + Tailwind 4 SPAs today.
-- Product-domain *feature* descriptions (hive mind, HA bridge, fine-tuning loop, shared-VFS collaboration, etc.) describe intended products; the current repo ships them as SPA shells against the same gateway. Treat those sections as roadmap, not implementation — see [product-spas/README.md](./product-spas/README.md).
-
 ---
 
 ## The backend — `cloud/` is the only one
 
 There is **no other server** in the monorepo. `cloud/` is two processes on Kubernetes plus supporting services, all in the `lmthing` namespace:
 
-- **Gateway** (`cloud/gateway/`, Hono/Node, port 3000) mounts nine route modules under `/api/*`: `auth`, `keys`, `billing`, `stripe/webhook`, `compute`, `backup`, `inbound`, `status`, `issues` (`cloud/gateway/src/index.ts:28-38`). It is the token issuer, the Stripe integration, the LiteLLM key manager, and the compute-pod controller.
+- **Gateway** (`cloud/gateway/`, **Hono on Node 24**, port 3000 — `cloud/gateway/package.json:12-13`, `cloud/gateway/Dockerfile:1`) mounts nine route modules under `/api/*`: `auth`, `keys`, `billing`, `stripe/webhook`, `compute`, `backup`, `inbound`, `status`, `issues` (`cloud/gateway/src/index.ts:28-38`). It is the token issuer, the Stripe integration, the LiteLLM key manager, and the compute-pod controller.
 - **LiteLLM** (upstream image) proxies `/v1/*` OpenAI-compatible traffic to Azure AI Foundry and enforces per-user spend caps.
 - **render** — an in-cluster headless-Chromium service backing agent `webSearch`/`webFetch`.
 - **Zitadel** — the identity store (user records, password verification, GitHub IDP); it never mints the tokens clients carry.
@@ -112,7 +99,7 @@ Both static SPAs and every compute pod talk to the gateway over HTTP; pods addit
 
 ### Tiers and money (summary)
 
-The tier table is defined once in `cloud/gateway/src/lib/tiers.ts` and consumed by the billing routes, the K8s pod spec, and LiteLLM. A Stripe subscription buys a *tier*; the tier's rolling-window spend caps are enforced by LiteLLM on the user's key (`org/cloud/billing-and-tiers.md`). LLM cost carries a token markup and every tier shares one model allowlist (`TIER_MODELS`). The current, code-true tiers (free, pro at $20/mo, and the others) differ mainly by **pod sizing, budget windows, and cron policy** — the exact numbers live in `cloud/gateway/src/lib/tiers.ts:L88-L163`. Do not trust the "four offers / Blog Free / Fine-Tuning $10/GPU-hr" table in `../Architecture.md`; author against the code table via [cloud/billing-and-tiers.md](./cloud/billing-and-tiers.md).
+The tier table is defined once in `cloud/gateway/src/lib/tiers.ts` and consumed by the billing routes, the K8s pod spec, and LiteLLM. A Stripe subscription buys a *tier*; the tier's rolling-window spend caps are enforced by LiteLLM on the user's key (`org/cloud/billing-and-tiers.md`). LLM cost carries a token markup and every tier shares one model allowlist (`TIER_MODELS`). The current, code-true tiers (free, pro at $20/mo, and the others) differ mainly by **pod sizing, budget windows, and cron policy** — the exact numbers live in `cloud/gateway/src/lib/tiers.ts:L88-L163`. Author against that code table via [cloud/billing-and-tiers.md](./cloud/billing-and-tiers.md).
 
 ---
 
@@ -147,9 +134,7 @@ store/
     └── integration-<id>/  # a complete space template      → org/format/space/
 ```
 
-Six project-apps ship today — `blog`, `demo-feed`, `health`, `homes`, `kitchen`, `trips` (`store/projects/manifest.json` `apps[].id`; dirs under `store/projects/`). Thirteen integration spaces ship — `integration-{demo,discord,github,google,line,lmthing,mattermost,nextcloud-talk,slack,sms,synology-chat,telegram,whatsapp}` (`store/spaces/`).
-
-> Correction: `../CLAUDE.md`'s "Five ship today" project-app count is stale; the manifest lists **six** (adds `homes`).
+**Six** project-apps ship today — `blog`, `demo-feed`, `health`, `homes`, `kitchen`, `trips` (dirs under `store/projects/`; `apps[].id` in `store/projects/manifest.json`). Thirteen integration spaces ship — `integration-{demo,discord,github,google,line,lmthing,mattermost,nextcloud-talk,slack,sms,synology-chat,telegram,whatsapp}` (`store/spaces/`).
 
 Two install paths, both on the pod:
 
@@ -220,7 +205,7 @@ lmthing/
 ├── pnpm-workspace.yaml · package.json
 ```
 
-- **Runtime + shared libs** are inside the `sdk/org` submodule (`sdk/org/libs/`), so the pod Docker image (context = `sdk/org`) builds the apps self-contained (`sdk/org/CLAUDE.md`).
+- **Runtime + shared libs** are inside the `sdk/org` submodule (`sdk/org/libs/`), so the pod Docker image (context = `sdk/org`) builds the apps self-contained (`sdk/org/CLAUDE.md`). There are exactly **nine** packages — `auth cli config core css openclaw-compat state ui utils` (`sdk/org/libs/`); there is no `@lmthing/spaces` package. → [libs/README.md](./libs/README.md)
 - **`@lmthing/core`** never imports from `cli` or `ui`; it emits events and accepts a `RenderHost` interface (`sdk/org/CLAUDE.md`).
 - Deploy topology, ArgoCD/GitOps, Envoy routing, and the cluster namespace map are in [devops/README.md](./devops/README.md).
 

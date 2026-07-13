@@ -1,54 +1,66 @@
 # lmthing.store
 
-The agent marketplace. Creators publish agents, buyers discover and acquire them.
+The public **catalog SPA** for lmthing: browse the project-app catalog and the integration-space
+catalog, then hand off to your own compute pod to install. It is a **static site** — there is no server
+in this directory. Installing and publishing are authenticated and happen on the pod.
 
-## Overview
+> `org/docs/` (published at lmthing.org) is the single source of truth. This README is an orientation
+> doc; the SPA itself is documented in [org/docs/product-spas/README.md](../org/docs/product-spas/README.md)
+> (`store` section), and the install/list REST routes in
+> [org/docs/cli-api/rest/apps.md](../org/docs/cli-api/rest/apps.md) ·
+> [org/docs/cli-api/rest/store-spaces.md](../org/docs/cli-api/rest/store-spaces.md).
+>
+> Unbuilt marketplace/revenue product ideas live in [IDEAS.md](./IDEAS.md) — nothing there is
+> implemented.
 
-Store offers three distribution models for agents:
+## Routes (`src/routes/`)
 
-- **Free** — open download, no cost.
-- **Source purchase** — one-time fee for the full agent workspace (prompts, knowledge, tools, workflows).
-- **API access** — the creator hosts the agent and sets a per-token markup. Buyers call the agent through lmthing.cloud without seeing the source.
+| Route | File | What it is |
+|---|---|---|
+| `/` | `index.tsx` | Landing page; counts of catalog apps + integrations, links to `/projects` and `/spaces` |
+| `/projects` | `projects/index.tsx` | Browse the project-app catalog |
+| `/projects/$appId` | `projects/$appId.tsx` | One app's listing + the install hand-off |
+| `/spaces` | `spaces/index.tsx` | Browse installable integration spaces |
+| `/spaces/$spaceId` | `spaces/$spaceId.tsx` | One integration space's listing |
+| `/publish` | `publish.tsx` | **Stub** — renders a heading only |
+| `/agent/$agentId` | `agent/$agentId.tsx` | **Stub** — renders the id only |
+| `/category/$categoryId` | `category/$categoryId.tsx` | **Stub** — renders the id only |
 
-Creators publish agents built in Studio. Buyers browse, preview, and acquire agents — source purchases give the full workspace, API access routes calls through the Stripe AI Gateway.
+There is no `/browse`, no `/$username/dashboard`, no `/earnings`, and no purchase or billing flow in
+this app.
 
-## Project-apps (`projects/`)
+## The catalog
 
-Beyond single agents, the store distributes **project-applications** — a project that owns a full
-app (`database/ pages/ api/ hooks/` + its project-scoped `spaces/`) built on the pod runtime. See
-[project-as-application](../org/format/project/README.md) for the model.
-
-- Each catalog app is a complete on-disk template under `projects/<id>/` (`database/`, `pages/`,
-  `api/`, `hooks/`, `components/`, `spaces/`, plus `package.json`/`project.json`). Five ship today:
-  `blog`, `health`, `kitchen`, `trips`, `demo-feed`.
-- `projects/manifest.json` is the generated browse index (`{ apps: [{ id, title, description,
-  icon, tables, pages, endpoints, hooks, files }] }`). It's regenerated from the `projects/<id>/`
-  templates by `scripts/gen-apps-manifest.mjs`, wired into the Vite build (`vite.config.ts`), which
-  also copies each template into the dist output so nginx serves them as static assets at
+- **`projects/<id>/`** — one complete on-disk project-app template each (`database/`, `api/`, `pages/`,
+  `hooks/`, `components/`, `spaces/`, `package.json`, `project.json`). **Six ship today**: `blog`,
+  `demo-feed`, `health`, `homes`, `kitchen`, `trips`. The model these templates conform to →
+  [org/docs/format/project/](../org/docs/format/project/README.md).
+- **`spaces/<id>/`** — installable store spaces (the `integration-*` event sources). Format →
+  [org/docs/format/space/](../org/docs/format/space/README.md).
+- **`projects/manifest.json`** — the generated browse index (`{ apps, spaces }`), read by the SPA via
+  `src/lib/apps-manifest.ts`. **Never hand-edit it**: it is generated from the templates on disk by
+  `scripts/gen-apps-manifest.mjs`, which the `lmthing-apps-manifest` Vite plugin (`vite.config.ts`) runs
+  on every build — the same build copies each template into `dist/` so nginx serves them statically at
   `lmthing.store/projects/<id>/<path>`.
-- The static store only **browses** (`src/routes/projects/`, via `src/lib/apps-manifest.ts`).
-  Installing is authenticated and happens on the user's compute pod: the store's "Install" action
-  hands off to the lmthing.app install page (`src/lib/pod-api.ts`), which calls the pod CLI
-  server's `POST /api/apps/install {appId}` — it downloads the template, materializes it into
-  `<lmthingRoot>/<projectId>/`, boots the app, and builds its pages. The pod's `GET /api/apps`
-  lists this same public catalog.
 
-## Routing
+Adding or changing a template means changing files under `projects/<id>/` (or `spaces/<id>/`) and
+rebuilding; the manifest follows from disk.
 
-```mermaid
-graph TD
-    Root["/"] --> Browse["/browse<br/>Agent marketplace"]
-    Browse --> Listing["/$agentId<br/>Agent listing"]
-    Listing --> Free["/free<br/>Free download"]
-    Listing --> Buy["/buy<br/>Source code purchase"]
-    Listing --> API["/api<br/>API access<br/>Creator-set token markup"]
-    Root --> Seller["/$username/dashboard<br/>Seller dashboard"]
-    Seller --> Publish["/publish"]
-    Seller --> Earnings["/earnings"]
+## Install hand-off
+
+The static store only **browses**. Its "Install" action hands off (`src/lib/pod-api.ts`) to the
+authenticated app, which calls the user's pod: `POST /api/apps/install {appId}` downloads the template,
+materializes it into `<lmthingRoot>/<projectId>/`, boots the app and builds its pages; the pod's
+`GET /api/apps` lists this same public catalog. Details →
+[org/docs/cli-api/rest/apps.md](../org/docs/cli-api/rest/apps.md).
+
+## Running locally
+
+```bash
+cd store
+pnpm dev                # vite-plus dev server
+pnpm build              # regenerates projects/manifest.json, copies templates into dist/
+pnpm test               # vitest (unit)
+pnpm test:spaces        # node --test over spaces/**/tests/
+pnpm gen:apps-manifest  # regenerate projects/manifest.json only
 ```
-
-## Revenue Model
-
-- **Source purchases** — lmthing takes a platform fee on one-time source code sales.
-- **API access** — creators set their own per-token markup on top of provider costs. lmthing collects the standard 15% gateway markup plus any platform commission.
-- **Gateway traffic** — all API-access agents route through the Stripe AI Gateway, generating per-token revenue.

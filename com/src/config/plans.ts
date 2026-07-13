@@ -1,5 +1,5 @@
 // Adding a new tier? Update this file AND cloud/gateway/src/lib/tiers.ts + others.
-// See root CLAUDE.md § "Adding a New Tier" for the full checklist.
+// See org/docs/contributing/add-a-tier.md for the full checklist.
 
 export interface Plan {
   id: string
@@ -11,8 +11,16 @@ export interface Plan {
   highlighted?: boolean
 }
 
-// Budget windows (1d / 7d / 30d spend caps) mirror cloud/gateway/src/lib/tiers.ts.
-// All tiers can call all four models (DeepSeek-V4-Flash, DeepSeek-V4-Pro, Kimi-K2.6, gpt-5.5).
+// Everything here mirrors cloud/gateway/src/lib/tiers.ts — that file is the source of truth.
+//
+// Tiers differ ONLY by their budget windows (1d / 7d / 30d rolling spend caps; a request is
+// rejected once ANY window is exhausted) and by compute-pod sizing. They do NOT differ by
+// rate limit or model access: tiers.ts stamps every tier with the SAME tpmLimit (1,000,000)
+// and rpmLimit (5,000), and the same model allowlist. So the rate limit is stated once,
+// identically, on every plan rather than faked into a per-tier ladder.
+//
+// Models: all tiers get all five chat models (DeepSeek-V4-Flash, DeepSeek-V4-Pro, Kimi-K2.6,
+// gpt-5.5, gpt-5.4-mini) plus whisper-1 for transcription — tiers.ts ENABLED_MODELS/TIER_MODELS.
 export const plans: Plan[] = [
   {
     id: 'free',
@@ -22,8 +30,8 @@ export const plans: Plan[] = [
     period: 'forever',
     features: [
       'Budget: $10 / 1d · $50 / 7d · $150 / 30d',
-      'All 4 models',
-      '10K tokens/min, 60 req/min',
+      'All 5 models',
+      '1M tokens/min, 5K req/min',
       'OpenAI-compatible API',
     ],
   },
@@ -35,8 +43,8 @@ export const plans: Plan[] = [
     period: 'per month',
     features: [
       'Budget: $1 / 1d · $4 / 7d · $10 / 30d',
-      'All 4 models',
-      '50K tokens/min, 300 req/min',
+      'All 5 models',
+      '1M tokens/min, 5K req/min',
       'Priority support',
     ],
   },
@@ -48,8 +56,8 @@ export const plans: Plan[] = [
     period: 'per month',
     features: [
       'Budget: $3 / 1d · $10 / 7d · $20 / 30d',
-      'All 4 models',
-      '100K tokens/min, 1K req/min',
+      'All 5 models',
+      '1M tokens/min, 5K req/min',
       'Priority support',
     ],
     highlighted: true,
@@ -62,7 +70,7 @@ export const plans: Plan[] = [
     period: 'per month',
     features: [
       'Budget: $10 / 1d · $30 / 7d · $100 / 30d',
-      'All 4 models',
+      'All 5 models',
       '1M tokens/min, 5K req/min',
       'Dedicated support',
     ],

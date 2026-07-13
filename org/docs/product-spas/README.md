@@ -6,11 +6,10 @@ HTTP to the `cloud/` gateway — there is no per-SPA server. They are distinct f
 studio/chat/computer app (`sdk/org/apps/web/`, documented under [../studio/](../studio/README.md),
 [../chat/](../chat/README.md), [../computer/](../computer/README.md)).
 
-> Implementation reality: only **`com`, `store`, and `space`** are substantively built. **`social`,
-> `team`, `blog`, `casa`** are route scaffolds whose pages render a title placeholder — on the `com`
-> landing they are all flagged `upcoming: true` (`com/src/routes/index.tsx:82,95,108,121`). The old
-> per-domain `README.md` files describe aspirational feature sets and route trees that the code does
-> not yet implement; the tables below reflect the shipped routes (`src/routeTree.gen.ts`).
+Only **`com`, `store`, and `space`** are substantively built. **`social`, `team`, `blog`, `casa`** are
+route scaffolds whose pages render a title placeholder — on the `com` landing they are all flagged
+`upcoming: true` (`com/src/routes/index.tsx:82,95,108,121`). The tables below reflect the shipped
+routes (`src/routeTree.gen.ts`).
 
 ## Shared foundation (all seven)
 
@@ -205,20 +204,12 @@ auth, and no gateway call anywhere in them.
   (`casa/src/routeTree.gen.ts`); stub pages (`casa/src/routes/index.tsx`,
   `casa/src/routes/settings.tsx`).
 
-**The per-domain `README.md` files are product plans, not descriptions of code.** `social/README.md`
-(shared-VFS "hive mind"), `team/README.md` (private room context), `blog/README.md` (RSS/web-search
-agent), and `casa/README.md` (Home Assistant bridge + SLM fine-tuning) each specify a feature set and
-a mermaid route tree that **no shipped code implements** — and the planned routes do not even match
-the generated ones. Compare (README plan → `routeTree.gen.ts` reality):
-
-| SPA | README mermaid routes | Shipped routes |
-|---|---|---|
-| `social` | `/feed`, `/feed/$explorationId`, `/$agentId`, `/$agentId/activity` | `/`, `/explore`, `/explore/$explorationId`, `/profile/$username` |
-| `team` | `/rooms`, `/rooms/$roomId`, `/members`, `/context` | `/`, `/create`, `/room/$roomId`, `/room/$roomId/members`, `/room/$roomId/settings` |
-| `blog` | `/feed`, `/preferences`, `/$username`, `/$articleId`, `/research`, `/publish` | `/`, `/post/$slug`, `/tag/$tag` |
-| `casa` | `/dashboard`, `/devices`, `/automations`, `/learning`, `/ha` | `/`, `/notifications`, `/profile`, `/settings` |
-
-Treat those four READMEs as roadmap documents; the tables in this section are the code.
+**The unbuilt product visions live in `<domain>/IDEAS.md`.** Each scaffold's original pitch — `social`'s
+shared-VFS "hive mind", `team`'s private room context, `blog`'s RSS/web-search agent, `casa`'s Home
+Assistant bridge and SLM fine-tuning, plus their pricing models and mermaid route trees — is preserved
+there, explicitly marked as unimplemented and non-authoritative. None of it is backed by code, and the
+routes it draws do not match the generated ones. Each `<domain>/README.md` describes only what the
+shell actually is; the tables in this section are the code.
 
 ## See also
 

@@ -1,6 +1,6 @@
 # lmthing.trips as a Project-Application — the `trips` project
 
-> A concrete instantiation of [the project-as-application model](../org/format/project/README.md) for a
+> A concrete instantiation of [the project-as-application model](../org/docs/format/project/README.md) for a
 > **trip planner**: you describe a trip, a **`concierge`** space of agents researches destinations
 > and drafts a day-by-day itinerary, and you refine it by chat. The `trips` project owns the app —
 > `database/` (trips, destinations, itinerary, bookings, research), `pages/` (client React timeline /
@@ -744,7 +744,7 @@ build, hooks runtime, chat) exists. Trips-specific work on top:
 7. **Additional features** — budget roll-up, packing list, weather-aware itinerary, to-book reminders
    (see §"Additional features"); each is additive (new tables/endpoints/hook + agent caps + the
    `weatherLookup` binding), shippable after the core loop.
-8. **Docs** — fold into `org/format/project/` as a worked example.
+8. **Docs** — fold into `org/docs/format/project/` as a worked example.
 
 ## Verification (end-to-end, local)
 
@@ -777,7 +777,7 @@ build, hooks runtime, chat) exists. Trips-specific work on top:
 
 - **Reuses the parent engine wholesale** — no trips-specific runtime; this is data + agents + pages +
   hooks on the shared layer. If a mechanism is missing here, it belongs in
-  [the project-as-application model](../org/format/project/README.md), not a trips fork.
+  [the project-as-application model](../org/docs/format/project/README.md), not a trips fork.
 - **Why it's a good AI-assisted app** — planning a trip is open-ended research + synthesis a static
   app can't do and a person finds tedious: it rewards continuous digging, adapts to soft constraints
   ("we like food and walking"), and improves through conversation. The agents do the legwork; the user

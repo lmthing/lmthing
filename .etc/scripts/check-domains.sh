@@ -1,13 +1,25 @@
 #!/bin/bash
 # Health check for all lmthing.* domains
 # Checks: DNS A records, TLS certificate, HTTPS response, hosting config
+#
+# STALE — this script still encodes a legacy GitHub-Pages hosting model that no longer
+# exists. The real model (org/docs/devops/deploy.md): EVERY product SPA is a static site
+# built into a container image by CI (.github/workflows/build-images.yml), pushed to ACR,
+# and served from the K8s cluster as its own nginx Deployment (devops/argocd/core/<app>.yaml)
+# behind the single Envoy `lmthing-gw` Gateway on the VM IP below. Nothing is on GitHub
+# Pages except the build-status page, and there are no `dispatch-<app>.yml` workflows.
+# Consequently the ghpages IP / `gh api repos/<repo>/pages` / dispatch-workflow checks below
+# are all guaranteed to fail. The DNS/TLS/HTTPS, COEP/COOP and /api/* 401 checks are still
+# valid, as is VM_IP. Fixing the logic is a separate job — do not trust the Pages results.
 
 set -euo pipefail
 
 GHPAGES_IPS=("185.199.108.153" "185.199.109.153" "185.199.110.153" "185.199.111.153")
 VM_IP="4.223.83.5"
 
-# GitHub Pages domains — app:repo:domain
+# LEGACY: these seven SPAs are NOT on GitHub Pages — each is a cluster-served nginx
+# Deployment behind the Envoy Gateway at $VM_IP, like every other domain here. Kept only
+# because the loop below still drives the (now-failing) Pages checks. app:repo:domain
 GHPAGES_DOMAINS=(
   "studio:lmthing/studio:lmthing.studio"
   "chat:lmthing/chat:lmthing.chat"
@@ -18,7 +30,10 @@ GHPAGES_DOMAINS=(
   "space:lmthing/space:lmthing.space"
 )
 
-# VM-hosted domains (served via K3s on Azure VM) — app:domain
+# Cluster-hosted domains — served from the Kubespray-provisioned K8s cluster on the Azure
+# VM ($VM_IP), behind the Envoy `lmthing-gw` Gateway. (Not K3s.) These are separated from
+# the list above only because they additionally need the COEP/COOP checks below, not
+# because their hosting differs. app:domain
 VM_DOMAINS=(
   "computer:lmthing.computer"
 )
@@ -108,7 +123,7 @@ check_dns_tls_https() {
   fi
 }
 
-# --- GitHub Pages domains ---
+# --- SPA domains (LEGACY Pages checks — see header; these SPAs are cluster-served) ---
 for entry in "${GHPAGES_DOMAINS[@]}"; do
   IFS=: read -r app repo domain <<< "$entry"
   echo -e "${CYAN}${BOLD}$domain${NC} ($repo) [GitHub Pages]"
@@ -153,7 +168,7 @@ for entry in "${GHPAGES_DOMAINS[@]}"; do
   echo ""
 done
 
-# --- VM-hosted domains ---
+# --- Cluster-hosted domains (Envoy Gateway on the Azure VM) ---
 for entry in "${VM_DOMAINS[@]}"; do
   IFS=: read -r app domain <<< "$entry"
   echo -e "${CYAN}${BOLD}$domain${NC} [VM-hosted @ $VM_IP]"

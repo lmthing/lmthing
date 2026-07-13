@@ -115,9 +115,9 @@ The register/provision flow issues the first key automatically `cloud/gateway/sr
 | `LOCAL_DEV` | auth middleware, auth.ts | enables the `"demo"` token bypass + `/demo-token` `cloud/gateway/src/middleware/auth.ts:14`, `cloud/gateway/src/routes/auth.ts:308` |
 | `DATABASE_URL` | db.ts | Postgres for `sso_codes` `cloud/gateway/src/lib/db.ts` |
 
-## Corrections vs. the old `authentication` skill
+## The four things that most often trip people up
 
-- The skill's route table implied `/api/auth/login` works; in production it is **broken** (Zitadel password grant disabled) — see the issue.
-- Demo email is `demo@lmthing.local` (client) `sdk/org/libs/auth/src/AuthProvider.tsx:30` and the middleware demo user is `dev@local` `cloud/gateway/src/middleware/auth.ts:26` — not `demo@lmthing.test`.
-- Demo mode triggers on `VITE_DEMO_USER=true` **or** `isLocalRun()`, not `VITE_DEMO_USER` alone `sdk/org/libs/auth/src/AuthProvider.tsx:39`.
-- The skill omitted `GET /api/auth/demo-token` (local-dev token endpoint) `cloud/gateway/src/routes/auth.ts:307-316` and the four audience-scoped service tokens `cloud/gateway/src/lib/tokens.ts:56-194`.
+- **There is no working email/password path to a gateway JWT in production.** `/register` succeeds, but `POST /api/auth/login` returns `{"error":"password not supported"}` because the Zitadel OIDC client has no password grant — [../../.issues/zitadel-password-login-disabled.md](../../../.issues/zitadel-password-login-disabled.md). GitHub OAuth and `/sso/exchange` are the only real login paths; hand-minting a JWT (above) is the test workaround.
+- **Two different demo identities.** The client's `DEMO_SESSION` user is `demo-user` / `demo@lmthing.local` `sdk/org/libs/auth/src/AuthProvider.tsx:27-40`; the gateway middleware's `"demo"`-token bypass resolves to `local-dev-user` / `dev@local` `cloud/gateway/src/middleware/auth.ts:24-28`.
+- **Demo mode is not env-gated alone.** It engages when `import.meta.env.VITE_DEMO_USER === 'true'` **or** `isLocalRun()` (localhost/loopback/`*.test`) `sdk/org/libs/auth/src/AuthProvider.tsx:39`, `sdk/org/libs/auth/src/client.ts:248-252`.
+- **`GET /api/auth/demo-token` exists** (local dev only) `cloud/gateway/src/routes/auth.ts:307-316`, and the gateway mints **four** audience-scoped service tokens beyond the user session pair `cloud/gateway/src/lib/tokens.ts:56-194`.

@@ -187,7 +187,7 @@ export default function (target) { globalThis.__ran = target; return "done:" + t
 
 `sdk/org/libs/core/src/globals/consent.test.ts:239`
 
-**No shipped function carries the pragma today.** `rg -n '@consent' sdk/org/libs/core/system-spaces store` returns exactly one hit — a doc cross-link in `store/CLAUDE.md:49` — so none of the ~14 system-space functions (`system-global/functions/`, `system-architect/functions/`) and none of the store spaces' or store projects' `functions/*.ts` opt in. The pragma path is therefore covered only by tests: the unit suite `sdk/org/libs/core/src/globals/consent.test.ts:238-239` (injection-time wrapper in a real VM) and the live scenario, which *authors* both a project function and a space function with the pragma at run time and asserts they gate — and that they never execute from a hook, a delegate or a webhook `sdk/org/scenarios/02-consent/run.mjs:63,76,628-684`. In production, `installSpace` is consent's only consumer.
+**No shipped function carries the pragma today.** `rg -n '@consent' sdk/org/libs/core/system-spaces store` returns exactly one hit — a doc cross-link in `store/CLAUDE.md:49` — so none of the ~14 system-space functions (`system-global/functions/`, `system-architect/functions/`) and none of the store spaces' or store projects' `functions/*.ts` opt in. The pragma path is therefore covered only by the unit suite `sdk/org/libs/core/src/globals/consent.test.ts:238-239` (injection-time wrapper in a real VM); no shipped scenario exercises it (`rg -n '@consent' sdk/org/scenarios` is empty). In production, `installSpace` is consent's only consumer.
 
 ### 3c. The enforcement primitive
 

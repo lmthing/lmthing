@@ -2,8 +2,7 @@
 
 How tests actually run in this repo — the runners, the commands that work (and the ones that
 silently don't), the keyless mock-LLM harness, and the live prod scenario runner. Every claim below
-was checked against the config and the code; where the old `sdk/org/.claude/skills/writing-tests.md`
-skill disagrees, the code wins and the [Corrections](#corrections-to-the-old-skill) section says so.
+was checked against the config and the code.
 
 ---
 
@@ -128,9 +127,10 @@ Facts worth knowing:
 
 ### The `libs/ui` gap
 
-The exclude comment claims `libs/ui` has "its own jsdom config" (`sdk/org/vitest.config.ts:L17-L18`).
-**It does not.** `sdk/org/libs/ui/` contains only `package.json`, `src/`, `tsconfig.json` — no vitest
-config; `@lmthing/ui`'s scripts are `lint:tokens` / `lint` / `format` only
+`libs/ui` is excluded from the main runner because its suites need jsdom + React transforms that the
+node runner does not provide (`sdk/org/vitest.config.ts:L19-L25`) — but **it has no vitest config and
+no `test` script to run them with either**. `sdk/org/libs/ui/` contains only `package.json`, `src/`,
+`tsconfig.json`; `@lmthing/ui`'s scripts are `lint:tokens` / `lint` / `format` only
 (`sdk/org/libs/ui/package.json:L23-L27`) and it has no `vitest` devDependency. Yet **71 test files**
 exist under `sdk/org/libs/ui/src/` (e.g. `sdk/org/libs/ui/src/chat/components/ConsentCard.test.tsx`,
 `sdk/org/libs/ui/src/chat/app/auto-resume.test.ts`). They are excluded from the root runner and no
@@ -308,10 +308,13 @@ env, stdin, timeout (`:L65-L121`) returning `{ code, timedOut, stdout, stderr, t
 | `live-llm.test.ts` | Gated on **`LM_LIVE=1` and a built binary** (`describe.skipIf(!hasBin() || !LIVE)`, `:L85`; `LIVE = !!process.env['LM_LIVE']`, `:L39`). Runs the real model (Azure, keys from `sdk/org/.env`) and asserts on the trace, splitting HARD (host-generated) from SOFT (model-dependent) assertions; traces land in `sdk/org/libs/cli/.live-traces/<scenario>.jsonl` (`:L1-L18`, gitignored via `sdk/org/.gitignore:L15`). Run it with `pnpm build && LM_LIVE=1 pnpm exec vitest run libs/cli/src/testing/live-llm.test.ts` (`:L11`) |
 | `multi-session.test.ts` | Multi-session server behaviour (part of the normal run) |
 
-> **`sdk/org/fixtures/` no longer exists.** The old skill's whole "Fixtures (reference spaces)"
-> section (`cooking`, `sommelier`, `research`, `deep_research`, `engineer`, …) describes a deleted
-> tree. To re-enable the two quarantined suites you must **restore** minimal fixtures — see the fix
-> plan in `sdk/org/.issues/keyless-web-fixtures-removed.md`.
+**There is no `sdk/org/fixtures/` tree.** The reference spaces the two quarantined suites drove
+(`cooking`, `engineer`, …) were deleted in commit `acb460a`; the only `fixtures/` left in the
+submodule is `sdk/org/scenarios/06-tanzania/fixtures/` (scenario attachments). Re-enabling
+`keyless-cli.test.ts` / `web-api.test.ts` means **restoring** minimal fixtures first — fix plan in
+`sdk/org/.issues/keyless-web-fixtures-removed.md`. There is likewise **no `scripts/live-test.sh`**:
+`sdk/org/scripts/` holds only `thing-dev.mjs`, and that shell harness was ported into
+`libs/cli/src/testing/keyless-cli.test.ts` (`:L1-L3`) — which is itself now skipped.
 
 **Known flake** (same issue file): `sdk/org/libs/cli/src/server/serve-tree-ws.test.ts` intermittently
 fails a full parallel run with `ENOTEMPTY … rmdir '.../user/sessions/<id>'` — a race between an
@@ -325,13 +328,18 @@ isolation (`pnpm exec vitest run libs/cli/src/server/serve-tree-ws.test.ts`).
 Vitest stops at the process boundary. The `scenarios/` tree is the layer above: **six end-to-end
 scenarios driven against the live production cluster with a live LLM** — a disposable prod user, a
 real compute pod, a real THING chat session. Nothing is mocked
-(`sdk/org/scenarios/01-newsroom/run.mjs:L1-L11`).
+(`sdk/org/scenarios/05-latam/run.mjs:L1-L11`). They ship as `05-latam`, `06-tanzania`,
+`07-life-admin`, `08-small-shop`, `09-home-renovation` and `10-family-recipes`.
 
 ```bash
 cd sdk/org/scenarios/harness
 node smoke.mjs                 # prove the harness + prod are healthy first (≈1 min)
-node ../01-newsroom/run.mjs    # a scenario's runner writes its own report
+node ../05-latam/run.mjs       # a scenario's runner writes its own report
 ```
+
+A long scenario **checkpoints**: `05-latam` writes `results/checkpoint.json` after every act and a
+re-run resumes the same user/project/session, so a failure in act IV doesn't cost the acts before it;
+`--acts=3,4` runs a subset and `--fresh` starts over (`sdk/org/scenarios/05-latam/run.mjs:L5`, `:L12-L15`).
 
 `smoke.mjs` walks the whole chain — register → pod → env → THING session → a real LLM turn → trace
 assertions — and exists so no scenario burns an hour on a broken harness
@@ -340,8 +348,9 @@ assertions — and exists so no scenario burns an hour on a broken harness
 ### Layout
 
 - `scenarios/<NN>-<slug>/run.mjs` — the **executable spec**. It writes
-  `scenarios/results/<id>-report.md` plus a raw trace JSON
-  (`sdk/org/scenarios/01-newsroom/run.mjs:L22`, `:L527`; `sdk/org/scenarios/harness/lib/report.mjs:L109-L121`).
+  `scenarios/<NN>-<slug>/results/report.md` plus a raw trace JSON `results/trace.json`
+  (`sdk/org/scenarios/05-latam/run.mjs:L28`, `:L650-L651`; `Report.save`/`Report.saveTrace`,
+  `sdk/org/scenarios/harness/lib/report.mjs:L109-L121`).
 - `scenarios/harness/` — zero-dependency Node ESM. `provision.mjs` (`getUser`, `loadUser` —
   `:L28-L45`) plus `lib/`: `Pod` (the pod REST client, `lib/pod.mjs:L9`), `ThingSession`
   (`lib/thing.mjs:L28`), `Report` (`lib/report.mjs:L13`), `gateway.mjs`, `jwt.mjs`, `paths.mjs`.
@@ -426,22 +435,18 @@ Scenario users are disposable — provisioned state is cached under `scenarios/h
 
 ---
 
-## Corrections to the old skill
+## 9. Names and paths that are easy to get wrong
 
-`sdk/org/.claude/skills/writing-tests.md` is stale. Verified against the code, today:
-
-| Skill claim | Reality |
-|---|---|
-| "`fixtures/` holds reference spaces … `fixtures/cooking/`, `fixtures/engineer/`, …" | **`sdk/org/fixtures/` does not exist** — deleted in `acb460a`. The only `fixtures/` left is `sdk/org/scenarios/06-tanzania/fixtures/` (scenario attachments) |
-| "`scripts/live-test.sh`" (referenced twice) | **Does not exist.** `sdk/org/scripts/` contains only `thing-dev.mjs`. It was ported to `libs/cli/src/testing/keyless-cli.test.ts` (`:L1-L3`) — which is itself now `describe.skip` |
-| "Condition DSL (`condition-dsl.test.ts`)" listed alongside the eval tests | It lives at `sdk/org/libs/core/src/tasklist/condition-dsl.test.ts`, not `eval/` |
-| Imports shown as `from '@repl/core'` | The package is **`@lmthing/core`** (`sdk/org/libs/core/package.json`) |
-| `fixtures/solver/`, "the `solve()` global" | Removed; no `solve` global exists |
-| `pnpm --filter @lmthing/core test` (also in [`add-a-provider.md`](./add-a-provider.md)) | **Silent no-op** — `@lmthing/core` has no `test` script. Use `cd sdk/org && pnpm test libs/core/src/spaces/system-functions` |
-| "Run with `pnpm test`" (unqualified) | Only works **from `sdk/org`** — the repo root has no `test` script (`package.json:L8-L16`) |
-
-Also correcting the config's own comment: `sdk/org/vitest.config.ts:L17-L18` says `libs/ui` has "its
-own vitest config". It does not (see [§2](#the-libsui-gap)).
+- The runtime package is **`@lmthing/core`** (`sdk/org/libs/core/package.json`) — import from
+  `@lmthing/core`, never `@repl/core`.
+- **`pnpm --filter @lmthing/<pkg> test` is a silent no-op.** See
+  [§3](#one-package--directory--file): the libs declare no `test` script, so the filtered run exits 0
+  having run nothing. Always `cd sdk/org && pnpm test <path>`.
+- **`pnpm test` only works from `sdk/org`** — the repo root has no `test` script
+  (`package.json:L8-L16`).
+- The condition-DSL suite lives at `sdk/org/libs/core/src/tasklist/condition-dsl.test.ts` (with the
+  tasklist code), not under `eval/`.
+- There is **no `solve()` global** and no `fixtures/solver/` space.
 
 ---
 

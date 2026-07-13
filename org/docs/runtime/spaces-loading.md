@@ -85,10 +85,8 @@ For every agent (`load.ts:684-719`): each declared `functions:` entry must exist
 
 System spaces are always-loaded baseline capability spaces merged into every user space (`sdk/org/libs/core/src/spaces/system.ts:7-22`).
 
-`SYSTEM_SPACE_NAMES` (`system.ts:30-41`) — the bundled set shipped with `@lmthing/core`:
+`SYSTEM_SPACE_NAMES` (`system.ts:30-41`) — the **ten** bundled spaces shipped with `@lmthing/core`:
 `system-global, system-engineer, system-architect, system-research, system-appbuilder, system-vision, system-files, system-store, user-memory, user-thing`.
-
-> Correction: the root `CLAUDE.md` / `sdk/org/CLAUDE.md` directory maps list only seven system spaces (omitting `system-vision`, `system-files`, `system-store`). The code ships **ten** (`system.ts:30-41`).
 
 `defaultSystemSpaceDirs()` (`system.ts:50-57`) resolves the bundled directory by probing both `dist/` and `src/` layouts (`existsSync`) so the path resolves whether running compiled or under vitest, then joins each name. Overridable via `LM_SYSTEM_SPACES` (CSV of dirs), handled by the caller.
 

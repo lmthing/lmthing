@@ -4,7 +4,7 @@ What the Computer surface actually does, and which pod / gateway endpoint each f
 
 `/computer` is **a browser IDE over the user's compute pod** — a pod-rooted file tree + Monaco editor + xterm terminals — plus a runtime dashboard, a settings page, and four placeholder "spaces" routes. See [routes.md](./routes.md) for the route tree and [views.md](./views.md) for the component layout.
 
-**Doc drift, not code:** two marketing blurbs still call `/computer` an "autonomous computer-use surface" where "the agent executes it with screen captures streamed back in real time" (`sdk/org/README.md:64`, and the same copy on the docs-site card in `org/src/routes/index.tsx:64`). No such thing is implemented: a `grep -riE 'screenshot|screencast|capture|vnc|cdp|playwright|puppeteer|xdotool|desktop'` over `sdk/org/apps/web/src/routes/computer/**` and `sdk/org/libs/ui/src/computer/**` returns zero hits — the whole surface is the file/terminal/dashboard/settings set described below. Treat those blurbs as superseded by this page.
+There is no computer *use* here: a `grep -riE 'screenshot|screencast|capture|vnc|cdp|playwright|puppeteer|xdotool|desktop'` over `sdk/org/apps/web/src/routes/computer/**` and `sdk/org/libs/ui/src/computer/**` returns zero hits — the whole surface is the file/terminal/dashboard/settings set described below.
 
 Two origins are in play. `COMPUTER_BASE_URL` is the **pod** (same-origin in production and under `pnpm thing`; `computer.test` only behind the `*.test` proxy) — `sdk/org/apps/web/src/lib/config.ts:18-20`. `CLOUD_BASE_URL` is the **gateway** — `config.ts:23-26`. Every pod route below is documented in [../cli-api/rest/README.md](../cli-api/rest/README.md).
 
@@ -33,7 +33,7 @@ The `/computer` layout wraps everything in the shared `PodEnsureGate` (`route.ts
 
 ### RepoSyncGate
 
-Outside the pod gate sits `RepoSyncGate` (`route.tsx:11-27`), which calls `useRepoSync` — it pulls `package.json`, `lmthing.json`, `.env*`, `agents/`, `flows/`, `knowledge/` blobs straight from the GitHub API when the session carries a `githubRepo` (gate `sdk/org/libs/auth/src/useRepoSync.ts:34`, path filter `:84-89`, blob fetches `:94-103`) and hands the file map to `onFilesLoaded` (`useRepoSync.ts:105`). On `/computer` that callback only `console.log`s the file count (`route.tsx:15-17`) — despite the gate's doc comment, **nothing is written to the pod filesystem**.
+Outside the pod gate sits `RepoSyncGate` (`route.tsx:11-27`), which calls `useRepoSync` — it pulls `package.json`, `lmthing.json`, `.env*`, `agents/`, `flows/`, `knowledge/` blobs straight from the GitHub API when the session carries a `githubRepo` (gate `sdk/org/libs/auth/src/useRepoSync.ts:34`, path filter `:84-89`, blob fetches `:94-103`) and hands the file map to `onFilesLoaded` (`useRepoSync.ts:105`). On `/computer` that callback only `console.log`s the file count (`route.tsx:15-17`): **nothing is written to the pod filesystem**.
 
 ---
 

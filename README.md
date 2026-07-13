@@ -93,4 +93,4 @@ Hard gate: `pnpm lint:tokens` and CI. Rules → [`org/docs/design-system/`](./or
 
 ## License
 
-See [LICENSE](./LICENSE) for details.
+No license has been declared for this repository yet — all rights reserved by default.

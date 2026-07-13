@@ -1,19 +1,16 @@
-# lmthing.trips — the `trips` project-application
+# `trips` — lmthing.trips as a project-application
 
-An AI trip planner built on the shared pod runtime (see `org/format/project/`). You describe a
-trip in free text; a project-scoped **`concierge`** space of agents (`planner` → `researcher` +
-`scheduler`) researches destinations and drafts a day-by-day itinerary you refine by chat. The
-itinerary stays a living document — drag items, adjust dates, watch the budget roll-up.
+An AI trip planner. You describe a trip in free text; the project-scoped `concierge` space researches
+destinations and drafts a day-by-day itinerary you refine by chat. The itinerary stays a living
+document — reorder items, adjust dates, watch the budget roll up.
 
-- **database/** — `trips`, `destinations`, `itinerary_items`, `bookings`, `research` (project-rooted SQLite).
-- **api/** — named, typed Node handlers (`createTrip` delegates the planner fire-and-forget; `tripBudget`
-  rolls up cost; timeline/booking CRUD).
-- **hooks/** — `research-new-destination` (database:insert → researcher dive) + `watch-booking-prices` (cron).
-- **spaces/concierge/** — the specialists, in **full space format** (charter+instruct per agent,
-  `plan-trip` tasklist, `functions/`, `components/`, extensive `knowledge/`).
-- **pages/** — client-side React: trips list, new-trip form, itinerary timeline (+ budget strip), planner
-  chat, per-destination research chat. Design tokens only.
+- The model it's built on (`database/ api/ pages/ hooks/ components/ spaces/`) →
+  [org/docs/format/project/](../../../org/docs/format/project/README.md); how an app is built, served and
+  executed → [org/docs/app/](../../../org/docs/app/README.md).
+- The full behavioral spec → [`app-specifications/trips-application.md`](../../../app-specifications/trips-application.md).
+- **The authoritative inventory of tables, endpoints, pages, hooks and agents is the tree itself.**
 
 ## Run locally
+
 Materialize this dir into a pod root (`<root>/trips/`), then `lmthing serve` and open
-`localhost:8080/app/trips/`. See `automation/app-builder/PROGRESS.trips.md` for the exact harness.
+`localhost:8080/app/trips/`.

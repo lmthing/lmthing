@@ -9,17 +9,11 @@ marketing pricing page all have to agree.
 Read [../cloud/billing-and-tiers.md](../cloud/billing-and-tiers.md) first — it is the reference
 (what each field *does*, where it is enforced, the Stripe flow). This page is the **procedure**.
 
-> **The old skill is wrong — do not follow it.** `.claude/skills/add-tier.md` tells you to edit
-> `cloud/k8s/gateway.yaml` and `cloud/k8s/.env.secrets.example` (**there is no `cloud/k8s/`
-> directory**; the manifest is `devops/argocd/core/gateway.yaml`), to create tier knowledge files
-> under `sdk/libs/thing/spaces/space-ecosystem/knowledge/billing-context/` (**no `sdk/libs/`, no
-> `billing-context/` anywhere in the repo**), and to update
-> `sdk/org/repl/spaces/codebase/knowledge/stack/layer/backend.md` and `cloud/README.md`
-> (**neither path exists**). Its tier table also advertises a per-tier rate-limit ladder
-> ("10K tpm / 60 rpm" … "1M tpm / 5K rpm") that the code does **not** implement: every tier is
-> `tpmLimit: 1_000_000, rpmLimit: 5_000` (`cloud/gateway/src/lib/tiers.ts:100-101`, `:129-130`,
-> `:143-144`, `:157-158`). The same false ladder is still printed on the pricing page
-> (`com/src/config/plans.ts:26`, `:39`, `:52`, `:67`). Real checklist below.
+There is **no rate-limit ladder**: all four tiers are stamped at the same `tpmLimit: 1_000_000` /
+`rpmLimit: 5_000` (`cloud/gateway/src/lib/tiers.ts:100-101`, `:129-130`, `:143-144`, `:157-158`);
+only the budget windows, the model list and the pod/cron policy differ. The gateway's K8s manifest
+is `devops/argocd/core/gateway.yaml` (there is no `cloud/k8s/` directory), and there is no "tier
+knowledge base" anywhere in the repo.
 
 ---
 
@@ -175,9 +169,10 @@ checkout: `handleSubscribe(plan.id)` → `/checkout?tier=<id>` → `createChecko
   true` marks the recommended card (`com/src/config/plans.ts:55`).
 - **The grid is hard-coded to four columns** — `className="grid gap-6 md:grid-cols-4"`
   (`com/src/routes/pricing.tsx:28`). A fifth plan needs that changed.
-- The `features` bullets are free-text marketing copy and are **currently wrong** about rate limits
-  and model count (`com/src/config/plans.ts:26`, `:39`, `:52`, `:67`) — don't copy the lie into a new
-  card; the real numbers are in [../cloud/billing-and-tiers.md](../cloud/billing-and-tiers.md#2-the-tiers-verbatim-from-code).
+- The `features` bullets are free-text marketing copy, checked by nothing
+  (`com/src/config/plans.ts:16-70`) — take the rate limits, budgets and model count for a new card
+  from the code, i.e. from
+  [../cloud/billing-and-tiers.md](../cloud/billing-and-tiers.md#2-the-tiers-verbatim-from-code).
 
 Nothing else in the frontend hard-codes tier names: the in-app billing settings panel just opens the
 Stripe customer portal (`sdk/org/libs/ui/src/elements/settings/billing/index.tsx:7-22`), and no
@@ -195,8 +190,7 @@ Stripe customer portal (`sdk/org/libs/ui/src/elements/settings/billing/index.tsx
    (`.github/workflows/build-images.yml:13`, `:169`) and commits the new tag into
    `devops/argocd/core/gateway.yaml`; the `lmthing-core` ArgoCD Application auto-syncs
    `devops/argocd/core/` with `prune`+`selfHeal` (`devops/argocd/apps/core.yaml:10-20`). The
-   manifest change (the new `env:` entry) rolls the Deployment — **no manual `kubectl apply`**
-   (contra the old skill's step 10).
+   manifest change (the new `env:` entry) rolls the Deployment — **no manual `kubectl apply`**.
    If you changed *only* the Secret and not `gateway.yaml`, nothing restarts on its own:
    `kubectl rollout restart deploy/gateway -n lmthing`.
 3. **Backfill existing users** if you changed an *existing* tier's numbers (budgets/models/rate
@@ -233,8 +227,8 @@ Stripe customer portal (`sdk/org/libs/ui/src/elements/settings/billing/index.tsx
 | 7 | Pricing card (`plan.id` = `TIERS` key) + the `md:grid-cols-4` grid | `com/src/config/plans.ts:16-70`; `com/src/routes/pricing.tsx:28` |
 | 8 | `make -C devops deploy-secrets`, merge (CI + ArgoCD do the rest), then `litellm:resync-budgets` if you changed existing numbers | `devops/Makefile:76-77`; `cloud/scripts/resync-tier-budgets.ts` |
 
-**Not needed** (all handled dynamically): gateway route code, LiteLLM `model_list`, the studio/chat
-UI, and any "tier knowledge base" — the one the old skill names does not exist.
+**Not needed** (all handled dynamically): gateway route code, LiteLLM `model_list`, and the
+studio/chat UI.
 
 **Doc to update:** [../cloud/billing-and-tiers.md](../cloud/billing-and-tiers.md) — the tier table
 (§2), the enforcement table (§3) and §7 "Operating the tiers" — in the **same change** as the code

@@ -25,8 +25,6 @@ Only the typecheck and DTS composition are covered here; the eval/yield half is 
 
 Compiler options: `strict: true`, `module: ESNext`, `moduleResolution: Bundler`, `target: ES2022`, classic JSX (`jsx: React`, `jsxFactory: React.createElement`), `skipLibCheck`, `noEmit`, `lib: ['lib.es2022.d.ts']` `tsc.ts:47-59`.
 
-> Correction — the since-deleted `sdk/org/.claude/arch/typecheck.md` claimed `module: NodeNext`. The code uses `module: ESNext` + `moduleResolution: Bundler` `tsc.ts:49-50`.
-
 Diagnostics from both `getSyntacticDiagnostics()` and `getSemanticDiagnostics()` are collected, filtered to **only the `__session__.tsx` file** and **only lines ≥ `statementStartLine`** (so a diagnostic is attributed to the *current* statement, not accumulated context) `tsc.ts:70-94`. `statementStartLine = headerLines + contextLineCount` accounts for both the module header and the accumulated context `tsc.ts:32-40`. Line numbers in the returned diagnostics are rebased to be relative to the statement (`line - statementStartLine`) `tsc.ts:87-93`.
 
 `createInMemoryHost` overlays the two virtual files onto a real `ts.createCompilerHost` so the default `lib.*.d.ts` files still resolve; `writeFile` is a no-op (`noEmit`) `tsc.ts:99-130`.
@@ -50,7 +48,7 @@ Diagnostics from both `getSyntacticDiagnostics()` and `getSemanticDiagnostics()`
 
 The two full bundles both re-append `WRITE_PRIMITIVES_DTS = [EXEC_SHELL_DTS, WRITE_FILE_RAW_DTS, READ_FILE_RAW_DTS]` `library-dts.ts:309-314`, because the one runtime consumer — `typecheckSource`, which checks a standalone space-function source and so needs the FULL global set — passes `LIBRARY_DTS` to `runTsc` `sdk/org/libs/core/src/globals/host-tools.ts:266`:
 - `LIBRARY_DTS` — everything incl. `ask` `library-dts.ts:317`. The only bundle still used at runtime.
-- `LIBRARY_DTS_NO_ASK` — no `ask` (fork/delegate VMs are headless; a stray `await ask(...)` there fails typecheck with `Cannot find name 'ask'` instead of blocking forever on stdin) `library-dts.ts:319-326`. Since `buildAmbientDts` composes fork/delegate DTS additively it no longer consumes this bundle; it survives as an export referenced only by tests (`exec/bootstrap.test.ts:46`).
+- `LIBRARY_DTS_NO_ASK` — no `ask` (fork/delegate VMs are headless; a stray `await ask(...)` there fails typecheck with `Cannot find name 'ask'` instead of blocking forever on stdin) `library-dts.ts:319-326`. `buildAmbientDts` composes fork/delegate DTS additively and does not consume this bundle; it survives as an export referenced only by tests (`exec/bootstrap.test.ts:46`).
 
 ### App-capability fragments
 

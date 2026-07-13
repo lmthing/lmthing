@@ -1,31 +1,40 @@
 # lmthing.com
 
-The commercial landing page and home of the for-profit entity.
+The commercial landing page, and the central auth + billing surface for all lmthing.\* domains
+(login/signup, cross-domain SSO, pricing, Stripe checkout, API keys, usage). Unlike the other product
+shells, this one is built: its routes render real pages against the `cloud/` gateway. It is still a
+static SPA — no backend of its own.
 
-## Overview
+> **Source of truth:** [`org/docs/`](../org/docs/README.md) (lmthing.org). This README deliberately
+> states no numbers. Tiers, budgets, markup, Stripe checkout →
+> [`org/docs/cloud/billing-and-tiers.md`](../org/docs/cloud/billing-and-tiers.md). Auth/SSO →
+> [`org/docs/cloud/auth.md`](../org/docs/cloud/auth.md). Pods →
+> [`org/docs/devops/infrastructure.md`](../org/docs/devops/infrastructure.md). The SPA shells as a
+> group → [`org/docs/product-spas/`](../org/docs/product-spas/README.md).
+>
+> Note: `src/config/plans.ts` in this SPA is **display only** — the real tier definitions live in
+> `cloud/gateway/src/lib/tiers.ts`.
 
-lmthing.com is the commercial face of the platform. It owns and operates lmthing.cloud — the managed services that power the entire ecosystem: the Stripe-metered AI gateway, K8s compute pods, and SLM fine-tuning service.
+## Real routes
 
-The landing page presents the platform, pricing tiers, and funnels users into the product domains (Studio, Chat, Blog, Space, etc.).
+From `com/src/routes/` (there is no `/home` and no `/cloud`; the landing page is `/`):
 
-## Routing
+| Route | File |
+|---|---|
+| `/` | `index.tsx` — landing page; the service grid marks social, team, blog and casa `upcoming: true` |
+| `/about` | `about.tsx` |
+| `/docs` | `docs.tsx` |
+| `/pricing` | `pricing.tsx` |
+| `/checkout` | `checkout.tsx` |
+| `/billing` · `/billing/usage` | `billing.tsx` · `billing/usage.tsx` |
+| `/account` · `/account/keys` | `account.tsx` · `account/keys.tsx` |
+| `/login` · `/signup` · `/callback` · `/onboarding` | `login.tsx` · `signup.tsx` · `callback.tsx` · `onboarding.tsx` |
+| `/forgot-password` · `/reset-password` | `forgot-password.tsx` · `reset-password.tsx` |
+| `/auth/sso` | `auth/sso.tsx` |
 
-```mermaid
-graph TD
-    Root["/"] --> Home["/home<br/>Landing page"]
-    Root --> Pricing["/pricing<br/>Tier comparison"]
-    Root --> About["/about"]
-    Root --> Cloud["/cloud<br/>Managed services overview"]
-```
+## Ideas (not implemented)
 
-## Revenue Model
+The old margin table and managed-services pitch (compute-pod pricing, a fine-tuning service, a blog
+subscription) is preserved, unimplemented and non-authoritative, in [`./IDEAS.md`](./IDEAS.md).
 
-lmthing.com is the revenue hub. All money flows through lmthing.cloud:
-
-| Service | Price | Cost | Margin |
-|---------|-------|------|--------|
-| AI Gateway | Per-token + 15% markup | Provider cost | 15% of token spend |
-| Compute pods | $20/month | $10 K8s | $10/pod/month |
-| Fine-Tuning | $10/GPU-hour | $7 Azure H100 | $3/GPU-hour |
-| Blog subscription | $5/month | Cheap model tokens | Subscription minus token cost |
-| Store commissions | Platform fee | — | Fee on source sales + API markup |
+Stack, design-system rules, local dev and the task index → [`com/CLAUDE.md`](./CLAUDE.md).

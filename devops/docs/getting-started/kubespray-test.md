@@ -70,7 +70,7 @@ The wrapper playbook:
 SSH to the control-plane node and use the kubeconfig copied into the remote user's home:
 
 ```bash
-ssh -i "$HOME/.ssh/lmthing-vm_key.pem" azureuser@135.225.105.98
+ssh -i devops/terraform/generated/lmthing-test-key.pem azureuser@4.223.83.5
 kubectl get nodes -o wide
 kubectl get ns
 ```

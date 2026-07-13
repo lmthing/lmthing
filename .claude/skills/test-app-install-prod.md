@@ -91,7 +91,7 @@ POD_IP=$(kubectl get pod -n $TEST -l app=compute -o jsonpath='{.items[0].status.
 curl -s -m 20 http://$POD_IP:8080/api/apps | head -c 300; echo   # → {"apps":[{"id":"blog",…
 ```
 
-`GET /api/apps` returning the catalog (blog, demo-feed, health, kitchen, trips)
+`GET /api/apps` returning the catalog (blog, demo-feed, health, homes, kitchen, trips)
 means the new code is running. A missing route / 404 here ⇒ still the old image.
 
 ## Step 3 — Mint a gateway JWT for the test user
@@ -199,7 +199,8 @@ Instrument either way:
 
 - Watch `list_network_requests` for `/v1/*` (LiteLLM) calls succeeding (200, not
   429 budget / 401). A 429 ⇒ the test user's budget window is exhausted — pick a
-  fresher test user or wait for the window to roll (free tier: $3/1d, $20/7d).
+  fresher test user or wait for the window to roll (free tier: $10/1d, $50/7d,
+  $150/30d — `cloud/gateway/src/lib/tiers.ts`).
 - Confirm the DB updated via the app's own API, e.g.
   `curl http://$POD_IP:8080/app/<id>/api/<list-endpoint>` (project-app APIs mount
   at `/app/:projectId/api/*`).

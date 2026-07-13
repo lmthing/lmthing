@@ -51,12 +51,12 @@ Script names: `cloud/package.json:6-10`.
 | `pro` | `$20/mo` — `STRIPE_PRICE_PRO` | **3 / 10 / 20** | 1,000,000 | 5,000 | `500m` / `1Gi` | = limits (Guaranteed) | 60 min | 5 | 5 min / 100 |
 | `max` | `$100/mo` — `STRIPE_PRICE_MAX` | **10 / 30 / 100** | 1,000,000 | 5,000 | `1000m` / `2Gi` | = limits (Guaranteed) | 120 min | 10 | 5 min / 200 |
 
-Two things the old docs got wrong and the code is unambiguous about:
+Two properties of that table surprise most readers, and the code is unambiguous about both:
 
 - **Rate limits are identical on every tier** — `tpmLimit: 1_000_000, rpmLimit: 5_000` for all
-  four (`cloud/gateway/src/lib/tiers.ts:L100-L101,L129-L130,L143-L144,L157-L158`). The
-  "10K tpm / 60 rpm … 1M tpm / 5K rpm" ladder still printed by `.claude/skills/add-tier.md:19-22`
-  and `com/src/config/plans.ts:26,39,52,67` is **not** what the gateway stamps on a key.
+  four (`cloud/gateway/src/lib/tiers.ts:L100-L101,L129-L130,L143-L144,L157-L158`). There is no
+  per-tier tpm/rpm ladder; the gateway stamps the same limits on every key. Tiers differ by budget
+  windows, pod sizing, session count, idle TTL and cron floor — never by rate limit.
 - **Free currently has the *largest* budget windows** (10/50/150) — larger than Basic, Pro and
   even Max's 30-day cap. That is what `TIERS.free.budgetLimits` says
   (`cloud/gateway/src/lib/tiers.ts:L94-L98`); tiers differ meaningfully today by **pod sizing,
@@ -81,9 +81,8 @@ export const ENABLED_MODELS = [
 export const TRANSCRIBE_MODELS = ["whisper-1"] as const;
 ```
 
-That is **five** chat models plus `whisper-1` — not "four models" as
-`com/src/config/plans.ts:15,25,38,51,64` still claims. `whisper-1` must be in the key's `models`
-list or LiteLLM 403s `key_model_access_denied` on `/audio/transcriptions`
+That is **five** chat models plus `whisper-1`, on every tier. `whisper-1` must be in the key's
+`models` list or LiteLLM 403s `key_model_access_denied` on `/audio/transcriptions`
 (`cloud/gateway/src/lib/tiers.ts:L17-L22`).
 
 The pod's model aliases are pinned to these names in the `user-env` secret
@@ -116,7 +115,23 @@ The tier name itself lives in **LiteLLM user metadata** (`metadata.tier`), writt
 (`cloud/gateway/src/routes/auth.ts:L194`). There is no `tier` column in the gateway's own
 Postgres schema.
 
-### What is NOT tier-gated (correction)
+### Two `Tier` fields that fail silently if you get them wrong
+
+- **`cron: CronPolicy` is required, not optional** (`cloud/gateway/src/lib/tiers.ts:L58-L66`,
+  `:L87`). `POST /api/compute/cron-manifest` dereferences `tier.cron` unconditionally —
+  `const policy = tier.cron;` then `policy.minIntervalMs` / `policy.maxJobs`
+  (`cloud/gateway/src/routes/compute.ts:L101-L124`). A tier defined without it throws on every
+  manifest publish, which **silently kills every cron hook for every user on that tier**.
+- **`tier.name.toLowerCase()` must equal the `TIERS` record key.** LiteLLM stores
+  `metadata: { tier: tier.name.toLowerCase() }` (`cloud/gateway/src/lib/litellm.ts:L36,L52,L67,L78`)
+  and every read path feeds that string straight back into `getTierByName()`, which is a bare
+  `TIERS[name] || null` (`cloud/gateway/src/lib/tiers.ts:L173-L175`). A `name` that doesn't
+  lowercase to its key resolves to `null` forever after and the user **silently degrades to
+  `free`** (`cloud/gateway/src/routes/compute.ts:L27-L35,L101-L102`).
+
+Full field-by-field rules → [../contributing/add-a-tier.md](../contributing/add-a-tier.md).
+
+### What is NOT tier-gated
 
 **No `/api/compute/*` route checks the tier.** `status`, `ensure`, `wake`, `wake-wait`,
 `upgrade`, `env` (GET **and** PUT) are behind `authMiddleware` only; the tier is used solely to
@@ -274,10 +289,11 @@ Check the math: `0.00019 / 1000 × 1.15 = 2.185e-7` → the deployed
 built-in `azure/whisper` cost map — i.e. the 15% markup does **not** apply to transcription
 (`devops/argocd/core/litellm.yaml:69-79`).
 
-> Correction: `space/README.md:43` and `team/README.md:21` say **10%** markup ("Stripe AI Gateway"),
-> as did the since-deleted root `Architecture.md`. The code says **15%** and there is no Stripe AI
-> Gateway in the repo — LiteLLM does the metering. `com/README.md:27` and
-> `com/src/routes/pricing.tsx:25` (15%) are correct.
+The markup is **15%**, and it is applied in exactly one place: the model-list generator
+(`MARKUP = 1.15`, `cloud/scripts/generate-litellm-models.ts:L22-L23`). **LiteLLM** does all
+metering — there is no "Stripe AI Gateway" anywhere in the repo (grep for `stripe.` returns only
+the customer/checkout/portal/webhook calls listed at the top of this page). Any figure other than
+15%, or any claim that Stripe meters tokens, is wrong.
 
 ---
 
@@ -362,44 +378,25 @@ that inherits the user's *current* tier (models + budget windows + tpm/rpm)
 
 ---
 
-## 8. Known drift between code and callers
+## 8. Client code that disagrees with the gateway (open bugs)
 
-`cloud/CLAUDE.md` is **no longer** a source of drift: it has been reduced to a 65-line
-orientation index that points here and holds no tier/model/rate-limit claims of its own
-(`cloud/CLAUDE.md:59`, `:62`). The remaining callers that still disagree with the code:
+Two shipped frontends still call these endpoints with the wrong response shape. Both are live
+bugs, not doc drift:
 
-1. **Per-tier rate limits** in `.claude/skills/add-tier.md:19-22` and
-   `com/src/config/plans.ts:26,39,52,67` ("10K tokens/min, 60 req/min" … "1M tokens/min, 5K
-   req/min") — the gateway stamps 1M tpm / 5K rpm on *every* tier
-   (`cloud/gateway/src/lib/tiers.ts:L100-L101,L129-L130,L143-L144,L157-L158`).
-2. **"All 4 models"** (`com/src/config/plans.ts:15,25,38,51,64`) — five chat models
-   + `whisper-1` (`cloud/gateway/src/lib/tiers.ts:L7-L25`).
-3. **`com/src/routes/billing/usage.tsx:6-13,50-55`** still reads the *old* flat
-   `{ max_budget, budget_duration, budget_reset_at }` shape; `/api/billing/usage` now returns a
+1. **`com/src/routes/billing/usage.tsx:6-12,50-55`** types the response as the *old* flat
+   `{ max_budget, budget_duration, budget_reset_at }`; `/api/billing/usage` returns a
    `budgets[]` array (`cloud/gateway/src/routes/billing.ts:L140-L145`) — so the page renders
-   `$x / $undefined` and a `NaN%` bar.
-4. **`sdk/org/libs/ui/src/elements/settings/billing/index.tsx:20-21`** destructures
+   `$x / $undefined` and a `NaN%` progress bar.
+2. **`sdk/org/libs/ui/src/elements/settings/billing/index.tsx:20-21`** destructures
    `{ portal_url }` from `POST /api/billing/portal`, but the gateway returns `{ url }`
    (`cloud/gateway/src/routes/billing.ts:L108`) → `window.location.href = undefined`. The `com`
-   copy is correct: `const { url } = await billingPortal()`
-   (`com/src/routes/billing.tsx:25`).
-5. **`.claude/skills/add-tier.md`** points at paths that no longer exist: `cloud/k8s/gateway.yaml`
-   (`:40`) + `cloud/k8s/.env.secrets.example` (`:38`) — the manifest is
-   `devops/argocd/core/gateway.yaml`; there is no `cloud/k8s/` directory — and the tier knowledge
-   base under `sdk/libs/thing/spaces/space-ecosystem/knowledge/billing-context/` (`:50`, `:54`;
-   no `billing-context` directory exists anywhere under `sdk/`). The replacement procedure is
-   [../contributing/add-a-tier.md](../contributing/add-a-tier.md), which documents the same
-   corrections.
-6. **Two divergent Stripe setup scripts** (§4.1). `cloud/scripts/create-stripe-products.ts` is
-   idempotent, makes one product with `lookup_key`s, and never registers the webhook;
-   `devops/ansible/scripts/setup/create-stripe-prices.sh` is non-idempotent, makes three
-   `lookup_key`-less products, and *does* register the webhook. Only the latter's output feeds
-   the vault vars the K8s secret is actually built from
-   (`devops/ansible/roles/cloud_secrets/tasks/main.yml:35-39`), so running
-   `pnpm stripe:create-products` against the live account creates a **second, unused** product +
-   price set. [../contributing/add-a-tier.md](../contributing/add-a-tier.md) documents both paths
-   (`:114-142`) and tells you to edit whichever you use — but the two are never reconciled, and
-   nothing in the repo reads a price back by `lookup_key`.
+   copy is correct: `const { url } = await billingPortal()` (`com/src/routes/billing.tsx:25`).
+
+The **two divergent Stripe setup scripts** are the third standing hazard — see §4.1: only
+`devops/ansible/scripts/setup/create-stripe-prices.sh` feeds the vault vars the K8s secret is
+built from (`devops/ansible/roles/cloud_secrets/tasks/main.yml:35-39`), so running
+`pnpm stripe:create-products` against the live account creates a **second, unused** product +
+price set.
 
 ---
 

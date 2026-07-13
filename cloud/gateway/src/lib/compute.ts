@@ -348,8 +348,8 @@ function litellmEnvDefaults(litellmKey: string): Record<string, string> {
     // In-cluster gateway — the pod's /api/budget forwards here (the gateway
     // computes budgets with the master key, which an over-budget user key can't).
     LMTHING_GATEWAY_URL: "http://gateway.lmthing.svc.cluster.local:3000",
-    // In-cluster headless-browser render service — the system-global webSearch google
-    // provider POSTs Google's results URL here to get JS-rendered HTML. ClusterIP-only,
+    // In-cluster headless-browser render service — the system-global webSearch bing
+    // provider POSTs Bing's results URL here to get JS-rendered HTML. ClusterIP-only,
     // token-gated (RENDER_SERVICE_TOKEN below); reachable only from compute pods.
     RENDER_SERVICE_URL: "http://render.lmthing.svc.cluster.local:3000",
     RENDER_SERVICE_TOKEN: process.env.RENDER_SERVICE_TOKEN ?? "",

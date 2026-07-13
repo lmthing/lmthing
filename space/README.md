@@ -1,43 +1,35 @@
 # lmthing.space
 
-Deploy spaces to K8s containers with running agents, or publish agents for API access via the store.
+The static SPA shell for deploying spaces / publishing agents. lmthing.com does **not** flag it
+`upcoming` (`com/src/routes/index.tsx`), and unlike the other shells its routes contain real UI (a
+space directory, an admin panel with start/stop controls). But its API client
+(`space/src/lib/api.ts`) calls `<cloud>/functions/v1/list-spaces`, `get-space`, … and **no such
+handlers exist in `cloud/gateway/src`** — so the surface does not work end-to-end today. Treat it as
+an unfinished shell, not a shipped product.
 
-## Overview
+> **Source of truth:** [`org/docs/`](../org/docs/README.md) (lmthing.org). This README states nothing
+> about tiers, pricing, markup, or the pod/K8s lifecycle — those are owned by
+> [`org/docs/cloud/billing-and-tiers.md`](../org/docs/cloud/billing-and-tiers.md) and
+> [`org/docs/devops/infrastructure.md`](../org/docs/devops/infrastructure.md). What a *space* is as an
+> authored format → [`org/docs/format/space/`](../org/docs/format/space/README.md). The SPA shells as
+> a group → [`org/docs/product-spas/`](../org/docs/product-spas/README.md).
 
-Each Space is a self-contained workspace backed by a dedicated K8s pod. Spaces have three pillars: **Agents**, **Flows**, and **Knowledge**. Users get a full admin panel with terminal access, logs, agent management, and settings.
+## Real routes
 
-## Routing
+From `space/src/routes/`:
 
-```mermaid
-graph TD
-    Root["/"] --> SpaceList["Space list / Create space"]
-    Root --> Space["/$spaceSlug"]
-    Space --> App["/$spaceSlug/app<br/>End-user view"]
-    Space --> Admin["/$spaceSlug/admin<br/>Owner dashboard"]
-    Admin --> Overview["/admin<br/>Status + machine controls"]
-    Admin --> Builder["/admin/builder"]
-    Admin --> Agents["/admin/agents"]
-    Admin --> Pages["/admin/pages"]
-    Admin --> Database["/admin/database"]
-    Admin --> Users["/admin/users"]
-    Admin --> Terminal["/admin/terminal<br/>PTY via WebSocket"]
-    Admin --> Logs["/admin/logs"]
-    Admin --> Settings["/admin/settings"]
-```
+| Route | File |
+|---|---|
+| `/` | `index.tsx` — space directory + create |
+| `/$spaceSlug` | `$spaceSlug/index.tsx` (layout: `$spaceSlug/route.tsx`) |
+| `/$spaceSlug/app` · `/$spaceSlug/app/$page` | `$spaceSlug/app/index.tsx` · `app/$page.tsx` |
+| `/$spaceSlug/admin` | `$spaceSlug/admin/index.tsx` — status + start/stop |
+| `/$spaceSlug/admin/{agents,builder,database,logs,pages,settings,terminal,users}` | one file each under `$spaceSlug/admin/` |
 
-## K8s Integration
+## Ideas (not implemented)
 
-Spaces run on K8s pods, managed by the Gateway via the K8s API.
+The original vision text — the "three pillars: Agents, Flows, Knowledge" framing (the runtime has no
+"Flows" concept; it has tasklists), the K8s lifecycle narrative, and the revenue model — is preserved,
+unimplemented and non-authoritative, in [`./IDEAS.md`](./IDEAS.md).
 
-### Lifecycle
-
-1. User creates a space → Gateway provisions a K8s namespace + deployment + service
-2. Pod boots the compute runtime image (Node + @lmthing/cli)
-3. Admin panel connects via WebSocket for terminal, metrics, logs
-4. Owner can start/stop/restart from the admin overview
-5. Deleting a space destroys the namespace (cascades all resources)
-
-## Revenue Model
-
-- **Space subscription** — included with Pro tier ($20/month)
-- **Token usage** — agents running on Space consume tokens through LiteLLM (10% markup)
+Stack, design-system rules and local dev → [`space/CLAUDE.md`](./CLAUDE.md).

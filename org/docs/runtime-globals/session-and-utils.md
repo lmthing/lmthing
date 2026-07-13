@@ -5,10 +5,10 @@ runtime, and the whole **synchronous host substrate** (`console`, `process`, `pr
 `spacePath`, `resolveSpaceDir`, `typecheckSource`) that every VM — session, fork leaf,
 delegate — is bootstrapped with.
 
-> **Generic fs/shell is no longer on the model surface.** `injectHostTools` still binds
-> `execShell`/`readFileRaw`/`writeFileRaw` onto every VM, but they are now **internal-only
+> **Generic fs/shell is not on the model surface.** `injectHostTools` binds
+> `execShell`/`readFileRaw`/`writeFileRaw` onto every VM, but they are **internal-only
 > host primitives** — the things memory/todos and the architect's builder functions call in
-> bodies that are NOT typechecked against the model DTS. `buildAmbientDts` no longer declares
+> bodies that are NOT typechecked against the model DTS. `buildAmbientDts` declares none of
 > them, so model-emitted code cannot call them (a stray `readFile`/`writeFile`/`execShell`
 > fails typecheck). The **one** exception is the engineer's `fs:scratch` sandbox: there
 > `execShell` (the scratch-rooted variant) and `createScratch` ARE declared. Persistence for
@@ -202,7 +202,7 @@ One function injects the whole substrate into every VM
 None of these yield — they are direct host calls that return immediately.
 
 Three of them — `execShell`, `readFileRaw`, `writeFileRaw` — are still bound here but are
-**not part of any agent's model DTS** (`buildAmbientDts` no longer emits their declarations),
+**not part of any agent's model DTS** (`buildAmbientDts` emits no declaration for them),
 so model-emitted code cannot reach them; they exist for host/space-function callers
 (memory/todos, the architect builder functions) whose bodies are not typechecked against the
 model DTS. `execShell` is re-declared for the model only in the engineer's `fs:scratch`
@@ -320,7 +320,7 @@ under `LMTHING_PROJECT_SPACES_DIR`, defaulting to `.lmthing/user/spaces`
 
 Runs `tsc` over a standalone TS string against the **full** `LIBRARY_DTS` — which re-appends
 `WRITE_PRIMITIVES_DTS` (`execShell`/`writeFileRaw`/`readFileRaw`) so the check still sees the
-full global set even though the per-agent model DTS no longer emits them
+full global set even though the per-agent model DTS omits them
 `sdk/org/libs/core/src/globals/host-tools.ts:264-274`,
 `sdk/org/libs/core/src/typecheck/library-dts.ts:309-317`. `Cannot find name` diagnostics
 (**TS2304 / TS2552**) are dropped — an isolated function may legitimately reference sibling
@@ -378,7 +378,7 @@ declared in `COMMON_DTS` itself `sdk/org/libs/core/src/typecheck/library-dts.ts:
   `sdk/org/libs/core/src/typecheck/library-dts.ts:106`, not injected in delegates).
 - **`execShell` blocks the Node event loop.** It is `execSync`
   `sdk/org/libs/core/src/globals/host-tools.ts:104`, so the per-stream idle watchdog cannot
-  fire while it runs. `fetch` is no longer in this category — it is a real yield
+  fire while it runs. `fetch` is **not** in this category — it is a real yield
   `sdk/org/libs/core/src/globals/fetch.ts:16-21`.
 - **`setSessionMeta` ends the turn.** Like every value yield it aborts the statement stream;
   call it once, early, rather than after every message.

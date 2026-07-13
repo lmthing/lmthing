@@ -1,4 +1,4 @@
-// Adding a new tier? See CLAUDE.md § "Adding a New Tier" for the full checklist.
+// Adding a new tier? See org/docs/contributing/add-a-tier.md for the full checklist.
 // This file is one of ~10 places that need updating across the monorepo.
 
 /** The models enabled on the lmthing.cloud provider. Every tier gets all of them;

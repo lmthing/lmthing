@@ -16,9 +16,11 @@ spec:
       containers:
         - name: render
           # Headless-Chromium render service (browserless v2). Used by the system-global
-          # `webSearch` google provider to render Google's results page WITH JavaScript and
-          # scrape the rendered DOM. Public upstream image, pulled directly (no ACR pull
-          # secret, like litellm), pinned to a concrete tag — a floating tag + IfNotPresent
+          # `webSearch` bing provider to render Bing's results page WITH JavaScript and
+          # scrape the rendered DOM (Bing, not Google: Google serves datacenter IPs a
+          # consent/bot redirect loop that never renders). Public upstream image, pulled
+          # directly (no ACR pull secret, like litellm), pinned to a concrete tag — a
+          # floating tag + IfNotPresent
           # would serve a stale cached image (see litellm.yaml). Confirm the tag against
           # ghcr.io/browserless/chromium before bumping.
           image: ghcr.io/browserless/chromium:v2.38.1

@@ -166,6 +166,6 @@ Both `ComputerLayout` and `IdeLayout` link to `/computer/spaces` even though it 
 
 ---
 
-## Vocabulary drift (worth knowing when reading these files)
+## Two incompatible `RuntimeTier` types (worth knowing when reading these files)
 
 `RuntimeTier` means two different things in the two trees: `'pod'` in the app's runtime types `sdk/org/apps/web/src/lib/runtime/types.ts:3` · `sdk/org/apps/web/src/lib/runtime/pod.ts:36`, but `'webcontainer' | 'flyio'` in the UI components `sdk/org/libs/ui/src/computer/status-card.tsx:9` · `sdk/org/libs/ui/src/computer/boot-progress.tsx:8`. The routes bridge this by passing the literal `"flyio"` `sdk/org/apps/web/src/routes/computer/route.tsx:70` · `sdk/org/apps/web/src/routes/computer/dashboard.tsx:25,34`, which is why the badge reads `Computer` rather than `Free` `sdk/org/libs/ui/src/computer/status-card.tsx:45-47`.

@@ -12,7 +12,8 @@ function Callback() {
   const { setSessionFromOAuth } = useAuth()
 
   useEffect(() => {
-    // Extract tokens from Supabase implicit OAuth redirect (#access_token=...)
+    // Extract tokens from the gateway's OAuth redirect fragment (#access_token=...),
+    // built by cloud/gateway/src/routes/auth.ts after it resolves the Zitadel IDP intent.
     const hash = window.location.hash.substring(1)
     const params = new URLSearchParams(hash)
     const accessToken = params.get('access_token')

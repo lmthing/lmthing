@@ -160,8 +160,7 @@ export interface YieldRequest {
 }
 ```
 
-> Correction: the older docs list only *ask, sleep, tasklist, fork, delegate, inspect, loadKnowledge,
-> registerSpace*. The union above is the real, complete set (20 kinds).
+That union is the complete set — **20 kinds** (`sdk/org/libs/core/src/eval/yield.ts:4`).
 
 The push seam is a single closure created at VM bootstrap and handed to every global factory:
 
@@ -210,9 +209,9 @@ Each batch is resolved **in parallel** with `Promise.all`; every resolved yield 
 `budget.tickToolCalls` and emits `yield` / `yield_resolved` trace events with a per-turn `yieldId`
 (`:624-631`).
 
-> Correction: the old arch doc showed yields being awaited one-by-one in a `for` loop with an
-> `await Promise.resolve()` "microtask flush". Neither exists — resolution is a parallel `Promise.all`
-> per batch, followed by `vm.drivePendingJobs()`.
+There is no one-by-one `await` loop and no `await Promise.resolve()` microtask flush: a batch is
+resolved with a single parallel `Promise.all`, then `vm.drivePendingJobs()` drains the VM's job queue
+(`turn-loop.ts:614-652`).
 
 **Binding is host-side.** In this sync-eval model the QuickJS continuation *after* `await` does not
 re-run the binding, so `bindYieldResults` (`turn-loop.ts:271-298`, exported) maps values onto the

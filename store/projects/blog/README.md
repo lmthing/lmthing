@@ -1,22 +1,19 @@
 # `blog` — lmthing.blog as a project-application
 
-Personalized AI news as a [project-as-application](../../../org/format/project/README.md):
+Personalized AI news. The `blog` project owns an app that polls the sources you follow, synthesizes
+what's new into cited articles, and runs a deeper research dive on request — driven by a project-scoped
+`newsroom` space of agents on a cron/database hook loop.
 
-- **`database/`** — `sources`, `raw_items`, `articles`, `citations`, `research`, `settings`.
-- **`api/`** — 12 named, typed Node endpoints (`feedList`, `getArticle`, `markRead`,
-  `markAllRead`, `saveArticle`, `feedStats`, `listSources`, `addSource`, `removeSource`,
-  `getSettings`, `requestResearch`, `getResearch`).
-- **`hooks/`** — `refresh-sources` (cron 30m → fetcher) and `synthesize-new`
-  (database `raw_items:insert` → synthesizer).
-- **`pages/`** — client-side React feed / preferences / article / research / tag routes.
-- **`spaces/newsroom/`** — the project-scoped specialists (`fetcher`, `synthesizer`,
-  `researcher`) that a `cron`/`database` hook loop drives, all reading/writing the same
-  project-rooted db.
-
-The full behavioral spec is [`app-specifications/blog-application.md`](../../../app-specifications/blog-application.md).
+- The model it's built on (`database/ api/ pages/ hooks/ components/ spaces/`) →
+  [org/docs/format/project/](../../../org/docs/format/project/README.md); how an app is built, served and
+  executed → [org/docs/app/](../../../org/docs/app/README.md).
+- The full behavioral spec → [`app-specifications/blog-application.md`](../../../app-specifications/blog-application.md).
+- **The authoritative inventory of tables, endpoints, pages, hooks and agents is the tree itself** —
+  read the directories, not a list in this file.
 
 ## Run locally
-Materialize into a pod root at `<root>/blog/` and `lmthing serve`; the app serves at
+
+Materialize this dir into a pod root at `<root>/blog/` and `lmthing serve`; the app serves at
 `localhost:8080/app/blog/` and its endpoints at `localhost:8080/app/blog/api/<name>`.
 
 `types/` and `.data/` are generated/runtime and git-ignored.

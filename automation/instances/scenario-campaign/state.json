@@ -194,7 +194,16 @@
       "outcome": "running",
       "startedAt": "2026-07-13T14:55:58.326Z",
       "endedAt": null
+    },
+    {
+      "task": "10-family-recipes",
+      "round": 1,
+      "attempt": 1,
+      "bin": "claude",
+      "outcome": "running",
+      "startedAt": "2026-07-13T14:55:58.381Z",
+      "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-13T14:55:58.326Z"
+  "updatedAt": "2026-07-13T14:55:58.381Z"
 }

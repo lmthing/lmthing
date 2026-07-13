@@ -16,9 +16,9 @@ All three live under the reserved `/api/*` prefix, so they are matched by the ro
 
 ## `GET /api/hooks`
 
-Pod-global: enumerates every project (the synthetic `system` project is skipped), loads that project's hooks **and** its installed spaces' hooks via `loadAllHooks`, and returns a read-only projection — it never executes a handler (`sdk/org/libs/cli/src/server/routes/hooks.ts:L495-L534`). A project whose hooks fail to load is skipped rather than failing the whole list (`:L509-L512`). With no project root configured the response is `{ hooks: [] }` (`:L499-L502`).
+Pod-global: enumerates every project (the synthetic `system` project is skipped), loads that project's hooks **and** its installed spaces' hooks via `loadAllHooks`, and returns a read-only projection — it never executes a handler (`sdk/org/libs/cli/src/server/routes/hooks.ts#createHooksListHandler`). A project whose hooks fail to load is skipped rather than failing the whole list (`:L509-L512`). With no project root configured the response is `{ hooks: [] }` (`:L499-L502`).
 
-Each row is a `HookSummary` (`sdk/org/libs/cli/src/server/routes/hooks.ts:L462-L475`):
+Each row is a `HookSummary` (`sdk/org/libs/cli/src/server/routes/hooks.ts#HookSummary`):
 
 ```json
 {
@@ -46,7 +46,7 @@ Each row is a `HookSummary` (`sdk/org/libs/cli/src/server/routes/hooks.ts:L462-L
 }
 ```
 
-`owner` is `'project'` for a project hook, else the owning space id; a space hook's slug is namespaced `<spaceId>:<basename>` (`sdk/org/libs/cli/src/app/hooks/loader.ts:L278-L285`). `disabled` is the **effective** value — the hook's own `disabled: true` export OR the settings overlay listing its slug (`sdk/org/libs/cli/src/app/hooks/state.ts:L116-L121`, applied at `routes/hooks.ts:L528`).
+`owner` is `'project'` for a project hook, else the owning space id; a space hook's slug is namespaced `<spaceId>:<basename>` (`sdk/org/libs/cli/src/app/hooks/loader.ts:L278-L285`). `disabled` is the **effective** value — the hook's own `disabled: true` export OR the settings overlay listing its slug (`sdk/org/libs/cli/src/app/hooks/state.ts#effectiveDisabled`, applied at `routes/hooks.ts:L528`).
 
 This backs the settings dialog's Hooks tab, which fetches `${COMPUTER}/api/hooks` and groups the rows by type client-side (`sdk/org/libs/ui/src/elements/settings/hooks/index.tsx:L65-L69`).
 
@@ -62,7 +62,7 @@ curl -X POST localhost:8080/api/projects/blog/hooks/refresh-feed/disabled \
 # {"ok":true,"slug":"refresh-feed","disabled":true}
 ```
 
-`manager.republish()` is best-effort — a failure is swallowed, because every activation site already honors the overlay independently (`:L567-L572`). It runs three isolated steps: republish the webhook manifest, regenerate the crontab, clear the emitter-def scan cache (`sdk/org/libs/cli/src/server/republish.ts:L53-L61`). The overlay is enforced in three places: a disabled cron hook never comes due (`sdk/org/libs/cli/src/app/hooks/cron.ts:L86-L91`), it gets no crontab line (`routes/hooks.ts:L640`), and `runHook` refuses to dispatch it at all (`routes/hooks.ts:L330`).
+`manager.republish()` is best-effort — a failure is swallowed, because every activation site already honors the overlay independently (`:L567-L572`). It runs three isolated steps: republish the webhook manifest, regenerate the crontab, clear the emitter-def scan cache (`sdk/org/libs/cli/src/server/republish.ts#republishAll`). The overlay is enforced in three places: a disabled cron hook never comes due (`sdk/org/libs/cli/src/app/hooks/cron.ts#dueCronHooks`), it gets no crontab line (`routes/hooks.ts:L640`), and `runHook` refuses to dispatch it at all (`routes/hooks.ts:L330`).
 
 The optimistic toggle in the settings UI posts exactly this and rolls back on a non-2xx (`sdk/org/libs/ui/src/elements/settings/hooks/index.tsx:L77-L95`).
 
@@ -70,13 +70,13 @@ The optimistic toggle in the settings UI posts exactly this and rolls back on a 
 
 ## `POST /api/projects/:projectId/hooks/:slug/run`
 
-The authoritative run path. In order (`sdk/org/libs/cli/src/server/routes/hooks.ts:L404-L455`):
+The authoritative run path. In order (`sdk/org/libs/cli/src/server/routes/hooks.ts#createHookRunHandler`):
 
 1. No project root ⇒ `404 { error: { status: 404, message: 'no project root configured' } }` (`:L408-L411`).
 2. A `@emitter:<scope>:<name>` pseudo-slug is **not a hook** — it routes to the cron-emitter path and answers `200 { ok: true }` (`:L415-L420`; see [cron emitters](#cron-emitters) below).
 3. Load the project's hooks and find `:slug`; absent ⇒ `404 { error: { status: 404, message: 'hook "<slug>" not found in project "<id>"' } }` (`:L422-L435`).
 4. Fold the disable overlay into the hook so a stale crontab line for a disabled hook no-ops (`:L438-L440`).
-5. Dispatch through `runHook`, injecting the space-tasklist runner so a handler's `ctx.tasklist.run('<spaceId>/<slug>', seed)` works (`:L445-L447`; runner at `sdk/org/libs/cli/src/server/tasklist-runner.ts:L189-L196`).
+5. Dispatch through `runHook`, injecting the space-tasklist runner so a handler's `ctx.tasklist.run('<spaceId>/<slug>', seed)` works (`:L445-L447`; runner at `sdk/org/libs/cli/src/server/tasklist-runner.ts#makeHookTasklistRunner`).
 6. Record the fire in `.data/hooks-state.json` and answer (`:L449-L454`).
 
 | Outcome | Body |
@@ -108,7 +108,7 @@ curl -X POST localhost:8080/api/projects/blog/hooks/refresh-feed/run
 
 ## How a trigger hook launches a headless agent run
 
-`parseTrigger` splits `space/agent#action` on `#`; the agent slug is the last `/`-segment of the space ref (`sdk/org/libs/cli/src/server/routes/hooks.ts:L189-L195`). `runHook` then builds a kickoff message and calls `manager.runHeadless` (`:L343-L359`):
+`parseTrigger` splits `space/agent#action` on `#`; the agent slug is the last `/`-segment of the space ref (`sdk/org/libs/cli/src/server/routes/hooks.ts#parseTrigger`). `runHook` then builds a kickoff message and calls `manager.runHeadless` (`:L343-L359`):
 
 ```ts
 // routes/hooks.ts:L344-L357 (abridged)
@@ -129,7 +129,7 @@ An event hook's structured payload rides into the run as a `\nInput: <json>` suf
 - Mints a `sessionId`, builds project-mode session args, and constructs an **ephemeral** `Session` — never registered in `this.sessions`, so it does not count against `maxSessions`, is never persisted, and is isolated from the interactive session lifecycle (`:L1403-L1407`, `:L1434-L1442`).
 - Resolves the space dir from `spaceRef`: the **leading segment** under `<root>/<projectId>/spaces/<space>` (a trailing `/agent` is ignored here); with no `spaceRef` the project dir itself (`:L1526-L1535`). The run gets the project's system + preloaded spaces, project functions, app globals and typed `apiCall` DTS (`:L1536-L1564`).
 - Renders into a throwaway `WebRenderHost` that swallows `display`/`ask`/`log` — no hub is wired, so an `ask()` in a hook-driven run has nobody to answer it (`:L1406-L1407`, `:L1519`).
-- Subscribes to the session's own tracer to capture `display` descriptors, and registers the run in the session ledger under `source: 'hook:<slug>'` — which is why hook runs show up in `GET /api/session-ledger` (`:L1447-L1458`; `sdk/org/libs/cli/src/server/session-ledger.ts:L30`).
+- Subscribes to the session's own tracer to capture `display` descriptors, and registers the run in the session ledger under `source: 'hook:<slug>'` — which is why hook runs show up in `GET /api/session-ledger` (`:L1447-L1458`; `sdk/org/libs/cli/src/server/session-ledger.ts#SessionLedgerRecord`).
 - Returns `{ ok: true, result, sessionId }` where `result` is the **last `display(...)` descriptor**, falling back to the last history message's content; any throw becomes `{ ok: false, error, sessionId }` (`:L1461-L1476`).
 
 A **handler** hook reaches the same machinery through `ctx.delegate(spaceRef, action?, { input?, message? })`, which emits an `agent.delegated` signal, threads `input` into the kickoff message, calls `runHeadless` with the hook's budget and `origin: 'hook:<slug>'`, and normalizes a bare return into `{ ok: true, result }` (`sdk/org/libs/cli/src/server/routes/hooks.ts:L249-L268`). Unlike an older fire-and-forget version, it **returns** the run's result.
@@ -162,7 +162,7 @@ The host enforces four caps — `episodes`, `toolCalls`, `forkDepth`, `wallClock
 
 ## Cron: crontab, boot catch-up, fallback tick
 
-`bootCatchUpAndSchedule` is boot steps 6+7 (`sdk/org/libs/cli/src/server/routes/hooks.ts:L989-L1028`), wired in the background boot block *after* the server is listening so an overdue cron never delays the readiness probe (`sdk/org/libs/cli/src/server/serve.ts:L402-L447`). It:
+`bootCatchUpAndSchedule` is boot steps 6+7 (`sdk/org/libs/cli/src/server/routes/hooks.ts#bootCatchUpAndSchedule`), wired in the background boot block *after* the server is listening so an overdue cron never delays the readiness probe (`sdk/org/libs/cli/src/server/serve.ts:L402-L447`). It:
 
 1. **Regenerates the crontab** (guarded), one line per cron hook **and** per `{type:'cron'}` emitter def (`:L1001`, `:L630-L660`).
 2. **Runs each overdue cron hook and cron emitter once** — coalesced, dedup-safe (`:L1004-L1007`).
@@ -176,7 +176,7 @@ The crontab is **opt-in only**: `crontabUnavailable()` returns true unless `LM_E
 0 */2 * * *  curl -fsS -X POST http://localhost:8080/api/projects/blog/hooks/@emitter:integration-rss:poll/run
 ```
 
-The schedule field is built by `crontabSchedule` from `every` / `daily`, clamped to **≥5-minute granularity** (`sdk/org/libs/cli/src/app/hooks/cron.ts:L22`, `:L31-L37`, `:L106-L117`). Dueness for catch-up compares `now` against `nextRunAt(def, state.cron[slug].lastRunAt)`, so **a window missed while the pod was down runs once on boot** (`cron.ts:L85-L92`; catch-up at `routes/hooks.ts:L928-L972`). A run that throws is still marked fired — "dedup wins over retry-storming a broken hook every tick" (`routes/hooks.ts:L950-L958`).
+The schedule field is built by `crontabSchedule` from `every` / `daily`, clamped to **≥5-minute granularity** (`sdk/org/libs/cli/src/app/hooks/cron.ts#MIN_CRON_INTERVAL_MS`, `:L31-L37`, `:L106-L117`). Dueness for catch-up compares `now` against `nextRunAt(def, state.cron[slug].lastRunAt)`, so **a window missed while the pod was down runs once on boot** (`cron.ts:L85-L92`; catch-up at `routes/hooks.ts:L928-L972`). A run that throws is still marked fired — "dedup wins over retry-storming a broken hook every tick" (`routes/hooks.ts:L950-L958`).
 
 The boot catch-up drives the run **endpoint**, not `runHook` directly: `serve` injects a `runHookFn` that `fetch`es `POST /api/projects/<id>/hooks/<slug>/run` on localhost, keeping the "one authoritative path" invariant intact (`serve.ts:L442-L446`).
 

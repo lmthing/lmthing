@@ -18,7 +18,7 @@ Every pod fetch carries `authorization: Bearer <gateway JWT>` from the `@lmthing
 
 `PodEnsureGate` (shared by all four surfaces) wraps the whole `/chat` subtree (`sdk/org/apps/web/src/routes/chat/route.tsx`). It:
 
-- POSTs `{CLOUD}/api/compute/ensure` to cold-wake the pod (`sdk/org/apps/web/src/lib/gates.tsx:48`);
+- POSTs `{CLOUD}/api/compute/ensure` to cold-wake the pod (`sdk/org/apps/web/src/lib/gates.tsx#ensurePod`);
 - polls `GET {CLOUD}/api/compute/status` for monotonic boot progress (`gates.tsx:99`);
 - then probes the **pod edge** with same-origin `GET /api/sessions` until it stops returning an Envoy 503/504 — the K8s startup probe passing does not mean the Envoy route is wired yet (`gates.tsx:119-143`) → [../cli-api/rest/sessions.md](../cli-api/rest/sessions.md);
 - compares the running image tag against `GET {CLOUD}/api/compute/version` (`gates.tsx:61`) and offers `POST {CLOUD}/api/compute/upgrade` (`gates.tsx:75`), re-polling every 60 s while live (`UPGRADE_POLL_MS = 60_000`, `gates.tsx:197`);
@@ -52,19 +52,19 @@ Because the gate has already confirmed the edge is serving, `ChatShell`'s boot f
 
 Sessions are grouped Today / Yesterday / Last 7 days / Older by `lastActivity` (`Sidebar.tsx:56-72`) and each row shows its cost (`totalCostUsd`, or the live store cost for the active session) (`Sidebar.tsx:210-211`). Clicking a **space** navigates out to Studio (`crossAppOrigin('studio')` + `/studio/<projectId>/<spaceId>`, `Sidebar.tsx:179-182`). The footer is the shared `SidebarFooter` — cross-app links plus an account row that opens the global settings dialog (`Sidebar.tsx:243`; see [The shared settings dialog](#the-shared-settings-dialog-sidebar-footer) below).
 
-Both create and resume go through the same pod route — `POST /api/sessions` accepts `{spaceDir?, agentSlug?, spaceRef?, model?, projectId?, resumeSessionId?, budget?}` and answers `201 {sessionId}`; under memory pressure it answers `503` + `Retry-After: 5` (`sdk/org/libs/cli/src/server/routes/sessions.ts:15-38`) → [../cli-api/rest/sessions.md](../cli-api/rest/sessions.md).
+Both create and resume go through the same pod route — `POST /api/sessions` accepts `{spaceDir?, agentSlug?, spaceRef?, model?, projectId?, resumeSessionId?, budget?}` and answers `201 {sessionId}`; under memory pressure it answers `503` + `Retry-After: 5` (`sdk/org/libs/cli/src/server/routes/sessions.ts#handleCreateSession`) → [../cli-api/rest/sessions.md](../cli-api/rest/sessions.md).
 
 ### The live socket
 
 `switchSession(sessionId)` closes any previous connection, resets the store, opens `WS /api/ws?sessionId=<id>&access_token=<jwt>` and publishes the sender on `window.__LM_SEND__` — the seam every other component uses to talk to the agent (`Sidebar.tsx:37-46`).
 
-Server → client messages handled by the store's WS client: `hello`, `trace_snapshot` (wholesale model rebuild on connect/resume/reconnect, recovering the agent-set session title), `trace` (batched per animation frame), `ask_start` / `ask_end` / `ask_pending`, `error`, `done`, and `ui_control` — the agent can drive the UI (select a node, switch inspector tab, toggle follow, seek) (`sdk/org/libs/ui/src/chat/store/ws-client.ts:64-127`). Reconnect is exponential backoff capped at 8 s (`ws-client.ts:57`).
+Server → client messages handled by the store's WS client: `hello`, `trace_snapshot` (wholesale model rebuild on connect/resume/reconnect, recovering the agent-set session title), `trace` (batched per animation frame), `ask_start` / `ask_end` / `ask_pending`, `error`, `done`, and `ui_control` — the agent can drive the UI (select a node, switch inspector tab, toggle follow, seek) (`sdk/org/libs/ui/src/chat/store/ws-client.ts#createConnectLive`). Reconnect is exponential backoff capped at 8 s (`ws-client.ts:57`).
 
 Client → server messages accepted by the pod's agent socket: `sendMessage` (with attachment ids), `submitForm`, `cancelAsk`, `subscribeTrace` (`sdk/org/libs/cli/src/server/ws/agent.ts:86-104`).
 
 ### Transcript
 
-`ChatView` groups blocks into user messages and assistant turns (`sdk/org/libs/ui/src/chat/app/ChatView.tsx:45-69`), renders the header (title, session cost, follow toggle, connection dot, trace loader, Inspect, Report bug, theme toggle, restart) and the message list, and pins `<LiveActivity/>` above the composer (`ChatView.tsx:175-289`). `handleSend` echoes the message into the transcript (`noteUserMessage`) and pushes it over the socket — unless a budget window is exhausted, in which case the send is refused outright (`ChatView.tsx:117-123`).
+`ChatView` groups blocks into user messages and assistant turns (`sdk/org/libs/ui/src/chat/app/ChatView.tsx#groupBlocks`), renders the header (title, session cost, follow toggle, connection dot, trace loader, Inspect, Report bug, theme toggle, restart) and the message list, and pins `<LiveActivity/>` above the composer (`ChatView.tsx:175-289`). `handleSend` echoes the message into the transcript (`noteUserMessage`) and pushes it over the socket — unless a budget window is exhausted, in which case the send is refused outright (`ChatView.tsx:117-123`).
 
 The header title is whatever the agent set via `setSessionMeta` (a `session_meta` trace event), falling back to `<space/project> · <Agent>` (`ChatView.tsx:157-173`).
 
@@ -77,7 +77,7 @@ The header title is whatever the agent set via `setSessionMeta` (a `session_meta
 - voice — `MediaRecorder` captures a clip, uploads it through the same endpoint, and the returned ref carries a **server-side transcript** which is what rides to the model (`Composer.tsx:146-190`);
 - Enter sends, Shift+Enter newlines (`Composer.tsx:257-260`); the input is disabled in replay mode or when `budgetBlocked` (`Composer.tsx:66`).
 
-Rendered attachments in the transcript use `withAuthToken(att.url)` so `<img>`/`<audio>` GETs of `/api/uploads/:id` are routed to the right pod (`sdk/org/libs/ui/src/chat/app/Message.tsx:144-148`).
+Rendered attachments in the transcript use `withAuthToken(att.url)` so `<img>`/`<audio>` GETs of `/api/uploads/:id` are routed to the right pod (`sdk/org/libs/ui/src/chat/app/Message.tsx#UserAttachment`).
 
 ### Ask forms and consent cards
 
@@ -89,7 +89,7 @@ A **consent-marked** call (today `installSpace`, or any space function tagged `@
 
 Per-token pricing comes from `GET /api/prices/azure` (`Sidebar.tsx:125`); in-flight LLM cost is accumulated from `llm_request`/`llm_progress`/`llm_response` trace events in the session slice, and the header shows `sessionCostUsd + sessionCostInflight` (`ChatView.tsx:89`).
 
-`BudgetWindows` renders one muted line under the composer from same-origin `GET /api/budget` — Today / Week / Month remaining %, refreshed every 30 s and after every cost change; red under 15 % (`sdk/org/libs/ui/src/chat/app/BudgetWindows.tsx:12,36-59,66-79`) → [../cli-api/rest/budget.md](../cli-api/rest/budget.md). A window at exactly **0 %** sets `store.budgetBlocked`, which hard-disables the composer (LiteLLM would 429 the turn anyway) (`BudgetWindows.tsx:29-34`, consumed at `ChatView.tsx:118-119` and `Composer.tsx:66`). The endpoint 404s off lmthing.cloud, and the line then renders nothing (`BudgetWindows.tsx:39-42`).
+`BudgetWindows` renders one muted line under the composer from same-origin `GET /api/budget` — Today / Week / Month remaining %, refreshed every 30 s and after every cost change; red under 15 % (`sdk/org/libs/ui/src/chat/app/BudgetWindows.tsx#POLL_MS,36-59,66-79`) → [../cli-api/rest/budget.md](../cli-api/rest/budget.md). A window at exactly **0 %** sets `store.budgetBlocked`, which hard-disables the composer (LiteLLM would 429 the turn anyway) (`BudgetWindows.tsx:29-34`, consumed at `ChatView.tsx:118-119` and `Composer.tsx:66`). The endpoint 404s off lmthing.cloud, and the line then renders nothing (`BudgetWindows.tsx:39-42`).
 
 ### Restart the pod process
 
@@ -111,7 +111,7 @@ The header's ⏻ button POSTs `/api/restart`, then polls `GET /api/env` every 80
 
 ## Project settings drawer
 
-Opened from the sidebar's project row; five tabs (`sdk/org/libs/ui/src/chat/app/ProjectSettings.tsx:200-217`):
+Opened from the sidebar's project row; five tabs (`sdk/org/libs/ui/src/chat/app/ProjectSettings.tsx#ProjectSettings`):
 
 | Tab | Endpoints | Code |
 |---|---|---|
@@ -121,7 +121,7 @@ Opened from the sidebar's project row; five tabs (`sdk/org/libs/ui/src/chat/app/
 | Integrations | see below | `ProjectSettings.tsx:215` |
 | Env | `GET`/`PUT /api/env` (raw pod `.env` text) | `ProjectSettings.tsx:32,41` |
 
-Project routes → [../cli-api/rest/projects.md](../cli-api/rest/projects.md); the raw `.env` tab → [../cli-api/rest/env.md](../cli-api/rest/env.md) (note: the **pod** `PUT /api/env` replaces the whole file with `{content}` and re-applies it to `process.env`, `sdk/org/libs/cli/src/server/routes/env.ts:37-51` `handleEnvPut`). This is a different endpoint from the gateway's `PUT /api/compute/env` (a `{vars}` map) used by the Integrations tab and the shared settings dialog.
+Project routes → [../cli-api/rest/projects.md](../cli-api/rest/projects.md); the raw `.env` tab → [../cli-api/rest/env.md](../cli-api/rest/env.md) (note: the **pod** `PUT /api/env` replaces the whole file with `{content}` and re-applies it to `process.env`, `sdk/org/libs/cli/src/server/routes/env.ts#handleEnvPut` `handleEnvPut`). This is a different endpoint from the gateway's `PUT /api/compute/env` (a `{vars}` map) used by the Integrations tab and the shared settings dialog.
 
 ---
 
@@ -131,7 +131,7 @@ The tab that turns an installed integration **space** into a configured one, wit
 
 ### 1. List what's installed
 
-`GET /api/projects/:projectId/integrations` (same-origin, pod) (`IntegrationsTab.tsx:89`). The pod scans `<root>/<projectId>/spaces/*/package.json` and returns the entries whose `lmthing.kind === 'integration'` (`sdk/org/libs/cli/src/server/routes/store-spaces.ts:535-586`). Each entry carries:
+`GET /api/projects/:projectId/integrations` (same-origin, pod) (`IntegrationsTab.tsx:89`). The pod scans `<root>/<projectId>/spaces/*/package.json` and returns the entries whose `lmthing.kind === 'integration'` (`sdk/org/libs/cli/src/server/routes/store-spaces.ts#handleListProjectIntegrations`). Each entry carries:
 
 ```ts
 export interface InstalledIntegration {
@@ -164,8 +164,8 @@ The `lmthing.settings` schema lives in the space's manifest → [../format/space
 
 The save flow (`IntegrationsTab.tsx:182-219`):
 
-1. **GET-merge-PUT.** The gateway's `PUT /api/compute/env` **replaces the entire var set**, so the tab re-reads `GET {CLOUD}/api/compute/env` and overlays only this integration's keys before writing (`overlayEnvKeys` in `sdk/org/libs/ui/src/chat/app/auto-resume.ts:12-20`; call site `IntegrationsTab.tsx:191-199`). An absent field becomes `''` (an explicit unset), never a dropped key (`auto-resume.ts:18`).
-2. **The PUT restarts the pod.** The gateway writes the `user-env` K8s secret and then patches the `lmthing` deployment to force a rolling restart (`cloud/gateway/src/lib/compute.ts:502-527`, "Trigger rolling restart so pods pick up the new env vars"; route at `cloud/gateway/src/routes/compute.ts:305-306`).
+1. **GET-merge-PUT.** The gateway's `PUT /api/compute/env` **replaces the entire var set**, so the tab re-reads `GET {CLOUD}/api/compute/env` and overlays only this integration's keys before writing (`overlayEnvKeys` in `sdk/org/libs/ui/src/chat/app/auto-resume.ts#overlayEnvKeys`; call site `IntegrationsTab.tsx:191-199`). An absent field becomes `''` (an explicit unset), never a dropped key (`auto-resume.ts:18`).
+2. **The PUT restarts the pod.** The gateway writes the `user-env` K8s secret and then patches the `lmthing` deployment to force a rolling restart (`cloud/gateway/src/lib/compute.ts#setEnvVars`, "Trigger rolling restart so pods pick up the new env vars"; route at `cloud/gateway/src/routes/compute.ts:305-306`).
 3. **Wait for the pod to come back.** `waitForPodReady` polls a probe every 1 s (90 s timeout, 1.5 s initial delay — the *old* pod still answers for a beat) (`auto-resume.ts:45-56`). The probe requires **both** that same-origin `GET /api/env` is OK **and** that the chat socket is `open`, so the follow-up message can never be dropped against a closed socket (`IntegrationsTab.tsx:145-155`).
 4. **Post exactly one resume nudge.** On success the tab calls `onConfigured(spaceId, resumeMessage(spaceId))` (`IntegrationsTab.tsx:157-161`), where the message is the stable string ``Integration "<spaceId>" is now configured — please continue.`` (`auto-resume.ts:60-62`). The chat shell echoes it into the transcript **and** sends it over the live socket as a `sendMessage` — so it is a **user** message, not a system message (`sdk/org/libs/ui/src/chat/app/AppShell.tsx:30-34`).
 5. **Refresh the badge.** The integrations list is refetched so the card flips to `configured` (`IntegrationsTab.tsx:163-171`).
@@ -176,7 +176,7 @@ Failure handling is explicit rather than silent: an in-flight `Set` guards doubl
 
 ## The shared settings dialog (sidebar footer)
 
-The sidebar's footer is the shared `SidebarFooter` (`Sidebar.tsx:243`), whose account row opens the shared `SettingsDialog` — the same component studio uses, mounted with no `initialTab` so it always opens on **Account** (`sdk/org/libs/ui/src/elements/nav/sidebar-footer/index.tsx:52`; default `initialTab = 'account'`, `sdk/org/libs/ui/src/elements/nav/settings-dialog/index.tsx:113-119`).
+The sidebar's footer is the shared `SidebarFooter` (`Sidebar.tsx:243`), whose account row opens the shared `SettingsDialog` — the same component studio uses, mounted with no `initialTab` so it always opens on **Account** (`sdk/org/libs/ui/src/elements/nav/sidebar-footer/index.tsx:52`; default `initialTab = 'account'`, `sdk/org/libs/ui/src/elements/nav/settings-dialog/index.tsx#SettingsDialog`).
 
 It is side-tabbed with **eight** tabs, declared in one `TABS` array (`settings-dialog/index.tsx:32-94`); the active tab's `render()` is the only panel mounted (`settings-dialog/index.tsx:121,157-163`). Each tab is a component under `sdk/org/libs/ui/src/elements/settings/`:
 
@@ -191,7 +191,7 @@ It is side-tabbed with **eight** tabs, declared in one `TABS` array (`settings-d
 | **Hooks** | scheduled / event / webhook hooks across all projects, each with an enable-disable toggle (optimistic, rolled back on failure) | `GET {POD}/api/hooks`, `POST {POD}/api/projects/:projectId/hooks/:slug/disabled {disabled}` (`settings/hooks/index.tsx:65,85-89`; pod routes `serve.ts:225-226`) |
 | **Backup** | GitHub workspace backup: connect the App, set `repo`/`auto`/`intervalMinutes`, back up now, restore | `GET {POD}/api/backup/status`, `POST {POD}/api/backup`, `POST {POD}/api/restore`, `GET`/`PUT {CLOUD}/api/backup/config`, `GET {CLOUD}/api/backup/install-url` (`settings/backup/index.tsx:58,67,86,100,118,133`) |
 
-`{POD}` and `{CLOUD}` above are `dataPlaneOrigin('computer')` / `dataPlaneOrigin('cloud')` — in production the pod is same-origin and the gateway is `https://lmthing.cloud` (`sdk/org/libs/ui/src/lib/app-urls.ts:86-101`). Per-project integrations are deliberately **not** a tab here: env vars are pod-global while integrations are per-project, so they live in the project settings drawer (above) and in studio's `ProjectSettingsView` (`settings-dialog/index.tsx:103-112`).
+`{POD}` and `{CLOUD}` above are `dataPlaneOrigin('computer')` / `dataPlaneOrigin('cloud')` — in production the pod is same-origin and the gateway is `https://lmthing.cloud` (`sdk/org/libs/ui/src/lib/app-urls.ts#dataPlaneOrigin`). Per-project integrations are deliberately **not** a tab here: env vars are pod-global while integrations are per-project, so they live in the project settings drawer (above) and in studio's `ProjectSettingsView` (`settings-dialog/index.tsx:103-112`).
 
 ---
 
@@ -214,7 +214,7 @@ Gateway (`dataPlaneOrigin('cloud')`):
 
 | Endpoint | Feature | Source |
 |---|---|---|
-| `POST /api/compute/ensure`, `GET /api/compute/status`, `GET /api/compute/version`, `POST /api/compute/upgrade` | `PodEnsureGate` | `sdk/org/apps/web/src/lib/gates.tsx:48,61,75,99` |
+| `POST /api/compute/ensure`, `GET /api/compute/status`, `GET /api/compute/version`, `POST /api/compute/upgrade` | `PodEnsureGate` | `sdk/org/apps/web/src/lib/gates.tsx#ensurePod,61,75,99` |
 | `GET`/`PUT /api/compute/env` | Integrations save + `SettingsDialog` Models/Environment tabs (GET-merge-PUT; PUT restarts the pod) | `cloud/gateway/src/routes/compute.ts:291,305` |
 | `GET /api/inbound` | public inbound webhook URLs (Integrations tab + `SettingsDialog` Triggers tab) | `cloud/gateway/src/routes/inbound.ts:51-62` |
 | `POST /api/billing/portal`, `GET /api/backup/install-url`, `GET`/`PUT /api/backup/config` | `SettingsDialog` — Billing / Backup tabs | `cloud/gateway/src/routes/billing.ts:99`, `cloud/gateway/src/routes/backup.ts:31,64,88` |

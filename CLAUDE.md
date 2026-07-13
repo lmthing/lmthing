@@ -4,7 +4,7 @@ Welcome to lmthing. This file is an **orientation index**: what the repo is, how
 
 ## Read this first — `org/docs/` is the source of truth
 
-**[`org/docs/`](./org/docs/README.md) (published at lmthing.org) is the SINGLE SOURCE OF TRUTH for this codebase.** Every factual sentence there is cited to the implementation (`path:Lstart-Lend`). When this file, a `.claude/skill`, or any README disagrees with `org/docs/`, **`org/docs/` wins**; when `org/docs/` disagrees with the **code**, the **code** wins and the doc is a bug.
+**[`org/docs/`](./org/docs/README.md) (published at lmthing.org) is the SINGLE SOURCE OF TRUTH for this codebase.** Every factual sentence there is cited to the implementation with a symbol anchor (`path#Symbol`), falling back to a line anchor (`path:Lstart-Lend`) only where a symbol isn't appropriate. `pnpm docs:check` resolves every citation as a hard CI gate. When this file, a `.claude/skill`, or any README disagrees with `org/docs/`, **`org/docs/` wins**; when `org/docs/` disagrees with the **code**, the **code** wins and the doc is a bug.
 
 > **A code change is not done until the matching `org/docs/` page is updated in the same change.**
 

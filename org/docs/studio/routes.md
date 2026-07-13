@@ -16,7 +16,7 @@ Every URL of the `/studio` surface, plus the `/apps` launcher and the top-level 
 
 Login and the PIN gate are **not** owned by Studio — they live once in the root, because `@lmthing/auth` stores one session for all surfaces `sdk/org/apps/web/src/routes/__root.tsx:7-14`.
 
-`/` never renders content of its own: `beforeLoad` throws a redirect to `surfaceForHost(window.location.hostname)` `sdk/org/apps/web/src/routes/index.tsx:31-42`, using this map `sdk/org/apps/web/src/routes/index.tsx:5-10`:
+`/` never renders content of its own: `beforeLoad` throws a redirect to `surfaceForHost(window.location.hostname)` `sdk/org/apps/web/src/routes/index.tsx#Route`, using this map `sdk/org/apps/web/src/routes/index.tsx#HOST_SURFACE`:
 
 ```ts
 const HOST_SURFACE: Record<string, '/chat' | '/studio' | '/computer' | '/apps'> = {
@@ -27,7 +27,7 @@ const HOST_SURFACE: Record<string, '/chat' | '/studio' | '/computer' | '/apps'> 
 }
 ```
 
-Unknown hosts (localhost, the `*.test` proxy) fall back to `/studio` `sdk/org/apps/web/src/routes/index.tsx:22-24`. The one exception to the redirect is an OAuth callback (`/?code=…`): redirecting would drop `?code` before `@lmthing/auth` can exchange it, so the route renders a "Signing you in…" waiter that forwards *after* auth settles `sdk/org/apps/web/src/routes/index.tsx:32-42,47-75`.
+Unknown hosts (localhost, the `*.test` proxy) fall back to `/studio` `sdk/org/apps/web/src/routes/index.tsx#surfaceForHost`. The one exception to the redirect is an OAuth callback (`/?code=…`): redirecting would drop `?code` before `@lmthing/auth` can exchange it, so the route renders a "Signing you in…" waiter that forwards *after* auth settles `sdk/org/apps/web/src/routes/index.tsx#Route,47-75`.
 
 ---
 
@@ -87,7 +87,7 @@ __root                              AuthProvider → AuthGate → PinGate
             ├── agent/ · workflow/ · knowledge/ · functions/ · components/ · raw/ · settings/
 ```
 
-The pod-readiness gate and the pod REST transport are mounted once, at the `/studio` layout `sdk/org/apps/web/src/routes/studio/route.tsx:11-26`:
+The pod-readiness gate and the pod REST transport are mounted once, at the `/studio` layout `sdk/org/apps/web/src/routes/studio/route.tsx#StudioLayout`:
 
 ```tsx
 function StudioLayout() {
@@ -106,7 +106,7 @@ function StudioLayout() {
 
 | Param | Where it comes from | Notes |
 |---|---|---|
-| `$projectId` | `GET /api/projects` on the pod | the id, not the display name. Includes the synthetic `system` project (`SYSTEM_PROJECT_ID`, `sdk/org/libs/cli/src/server/projects.ts:31`), which `listProjects` prepends when `<root>/system/spaces/` is non-empty `sdk/org/libs/cli/src/server/projects.ts:305-326` — so `/studio/system/<space>` edits the system spaces through the ordinary routes. See [../cli-api/rest/projects.md](../cli-api/rest/projects.md). |
+| `$projectId` | `GET /api/projects` on the pod | the id, not the display name. Includes the synthetic `system` project (`SYSTEM_PROJECT_ID`, `sdk/org/libs/cli/src/server/projects.ts#SYSTEM_PROJECT_ID`), which `listProjects` prepends when `<root>/system/spaces/` is non-empty `sdk/org/libs/cli/src/server/projects.ts#listProjects` — so `/studio/system/<space>` edits the system spaces through the ordinary routes. See [../cli-api/rest/projects.md](../cli-api/rest/projects.md). |
 | `$spaceId` | `GET /api/projects/:id/spaces` | the space directory name. |
 | `$agentId` | the space VFS (`agents/<slug>/`) | agent slug; navigation encodes it (`encodeURIComponent`) `…/$spaceId/agent/index.tsx:51`. See [../format/space/agents/README.md](../format/space/agents/README.md). |
 | `$workflowId` | the space VFS (`tasklists/<name>/`) | the tasklist *name*, passed straight to `<TasklistEditor name={workflowId}/>` `…/$spaceId/workflow/$workflowId/index.tsx:20-22`. See [../format/space/tasklists/README.md](../format/space/tasklists/README.md). |
@@ -117,7 +117,7 @@ function StudioLayout() {
 
 ### Redirects inside the tree
 
-- `/studio/` → `buildProjectPath(projects.find(p => p.id === 'user') ?? projects[0])` — i.e. `/studio/user` on a normal pod `sdk/org/apps/web/src/routes/studio/index.tsx:11-19`, `sdk/org/libs/ui/src/lib/space-path.ts:22-25`.
+- `/studio/` → `buildProjectPath(projects.find(p => p.id === 'user') ?? projects[0])` — i.e. `/studio/user` on a normal pod `sdk/org/apps/web/src/routes/studio/index.tsx#StudioIndex`, `sdk/org/libs/ui/src/lib/space-path.ts#buildProjectPath`.
 - `…/$spaceId/settings` → `…/$spaceId/settings/env`. This is **not** in the route file — `StudioLayout` (the shell) does it on every render whose pathname ends in `/settings` `sdk/org/libs/ui/src/studio/shell/studio-layout/index.tsx:54-58`. Because the project-app subtree does not use `StudioLayout`, `/studio/$projectId/settings` is untouched by it.
 - `…/workflow/$workflowId/step/$stepId` → `…/workflow/$workflowId` (or the tasklist list when `workflowId` is missing) `…/workflow/$workflowId/step/$stepId/index.tsx:15-24`.
 - `…/knowledge/$fieldId/$subjectId/$topicId` → a `beforeLoad` `redirect()` back to the field page `…/knowledge/$fieldId/$subjectId/$topicId/index.tsx:6-12`. Its `to` is **missing the `/studio` prefix** — it survives only by accident of the prefixed history; see below.
@@ -127,7 +127,7 @@ function StudioLayout() {
 The redirect passes `to: '/$projectId/$spaceId/knowledge/$fieldId'` — no `/studio` `…/knowledge/$fieldId/$subjectId/$topicId/index.tsx:8-11` — unlike its sibling step redirect, which builds the path by hand *with* the prefix `…/workflow/$workflowId/step/$stepId/index.tsx:16-18`. TanStack interpolates that `to` literally, so the target pathname is `/<projectId>/<spaceId>/knowledge/<fieldId>`, and **no such route exists**: every studio path in the generated tree is `/studio/$projectId/…` `sdk/org/apps/web/src/routeTree.gen.ts:926-929`. Whether that dead-ends depends entirely on which history is installed `sdk/org/apps/web/src/main.tsx:66-69`:
 
 - **localhost / the `*.test` proxy** — plain `createBrowserHistory`. The navigation matches only `__root__`, and no not-found route is registered, so the page goes blank. **Broken.**
-- **`lmthing.studio`** — the only host where these routes are reachable, and a `DOMAIN_HOST`, so the history is `createPrefixedHistory(surfaceForHost('lmthing.studio'))` = `createPrefixedHistory('/studio')` `sdk/org/apps/web/src/main.tsx:8,67-68` · `sdk/org/apps/web/src/routes/index.tsx:5-10`. It re-adds the prefix on every location *read* `sdk/org/apps/web/src/main.tsx:48-52` while `push` strips it again `sdk/org/apps/web/src/main.tsx:60`. The router therefore sees `/studio/<projectId>/<spaceId>/knowledge/<fieldId>` and lands on the field page, and the browser URL is byte-identical to what the correct `to` would have produced. **Invisible in production.**
+- **`lmthing.studio`** — the only host where these routes are reachable, and a `DOMAIN_HOST`, so the history is `createPrefixedHistory(surfaceForHost('lmthing.studio'))` = `createPrefixedHistory('/studio')` `sdk/org/apps/web/src/main.tsx#DOMAIN_HOSTS,67-68` · `sdk/org/apps/web/src/routes/index.tsx#HOST_SURFACE`. It re-adds the prefix on every location *read* `sdk/org/apps/web/src/main.tsx:48-52` while `push` strips it again `sdk/org/apps/web/src/main.tsx:60`. The router therefore sees `/studio/<projectId>/<spaceId>/knowledge/<fieldId>` and lands on the field page, and the browser URL is byte-identical to what the correct `to` would have produced. **Invisible in production.**
 
 Verified by driving `@tanstack/react-router` 1.166.2 with a route tree mirroring the real nesting and both histories: under the plain history the navigation matches `['__root__']`; under the prefixed history it matches through to `/studio/$projectId/$spaceId/knowledge/$fieldId`, with the same browser pathname either way.
 
@@ -163,11 +163,11 @@ The SPA route is deliberately `/apps`, never `/app` — `/app/<project>/` is the
 
 | File | URL | Role |
 |---|---|---|
-| `routes/install.tsx` | `/install?appId=…` / `/install?spaceId=…` | installs a store project-app or an integration space into the user's pod `sdk/org/apps/web/src/routes/install.tsx:24-44` |
+| `routes/install.tsx` | `/install?appId=…` / `/install?spaceId=…` | installs a store project-app or an integration space into the user's pod `sdk/org/apps/web/src/routes/install.tsx#Route` |
 
 It is **top-level, not under `/apps`**, on purpose: on lmthing.app the gateway proxies `/app/*` straight to the pod, so only the static shell can serve a page that self-authenticates and calls the pod `sdk/org/apps/web/src/routes/install.tsx:20-22`.
 
-Search params are validated into two always-present strings `sdk/org/apps/web/src/routes/install.tsx:25-28`, and `beforeLoad` records the intent in `sessionStorage` **before** the auth gate can render the login screen, so a store → install → sign-in round-trip is resumed `sdk/org/apps/web/src/routes/install.tsx:29-42`:
+Search params are validated into two always-present strings `sdk/org/apps/web/src/routes/install.tsx#Route`, and `beforeLoad` records the intent in `sessionStorage` **before** the auth gate can render the login screen, so a store → install → sign-in round-trip is resumed `sdk/org/apps/web/src/routes/install.tsx#Route`:
 
 ```ts
 beforeLoad: ({ search }) => {
@@ -178,14 +178,14 @@ beforeLoad: ({ search }) => {
 
 Resume happens in **two** places, because on lmthing.app the SSO callback lands on the prefixed `/apps` and never runs the index route: `routes/index.tsx:52-66` and `routes/apps/route.tsx:36-48`.
 
-Two branches, chosen by which param is present `sdk/org/apps/web/src/routes/install.tsx:96-99`:
+Two branches, chosen by which param is present `sdk/org/apps/web/src/routes/install.tsx#InstallPage`:
 
 | Branch | Pod endpoint | After success |
 |---|---|---|
 | `?appId=` → `AppInstall` | `POST /api/apps/install {appId, force}` `install.tsx:119-126` | "Open app" → `${COMPUTER_BASE_URL}${APP_PATH_PREFIX}/<projectId>/` `install.tsx:141-146`. See [../cli-api/rest/apps.md](../cli-api/rest/apps.md). |
 | `?spaceId=` → `SpaceInstall` | `GET /api/projects` for the target picker (`system` filtered out, default `user`) `install.tsx:249-256`, then `POST /api/store/spaces/install {spaceId, projectId, force}` `install.tsx:273-277` | "Add your token in Studio" → `<studio origin>/studio/<projectId>/settings` `install.tsx:84-94`. See [../cli-api/rest/store-spaces.md](../cli-api/rest/store-spaces.md). |
 
-The install response is classified by one pure, exported, unit-tested function — HTTP 200 with `{ok:false, diverged:true}` is *not* an error, it is the "app already installed with local edits" signal that offers a forced re-install `sdk/org/apps/web/src/routes/install.tsx:71-79`:
+The install response is classified by one pure, exported, unit-tested function — HTTP 200 with `{ok:false, diverged:true}` is *not* an error, it is the "app already installed with local edits" signal that offers a forced re-install `sdk/org/apps/web/src/routes/install.tsx#classifyInstallResponse`:
 
 ```ts
 export function classifyInstallResponse(httpOk, httpStatus, body): State {
@@ -201,4 +201,4 @@ Both "upgrade" actions simply re-run the same POST with `force: true` `sdk/org/a
 
 ## 5. Sibling surfaces in the same SPA
 
-`/chat` ([../chat/routes.md](../chat/routes.md)) and `/computer` ([../computer/routes.md](../computer/routes.md)) are peers under the same `__root`, reached by hostname from `/` `sdk/org/apps/web/src/routes/index.tsx:5-10`. Studio links out to them through the shared sidebar footer; the reverse hop (clicking a space in the chat sidebar) lands on a `/studio/$projectId/$spaceId` path built by the same helpers `sdk/org/libs/ui/src/lib/space-path.ts:22-41`.
+`/chat` ([../chat/routes.md](../chat/routes.md)) and `/computer` ([../computer/routes.md](../computer/routes.md)) are peers under the same `__root`, reached by hostname from `/` `sdk/org/apps/web/src/routes/index.tsx#HOST_SURFACE`. Studio links out to them through the shared sidebar footer; the reverse hop (clicking a space in the chat sidebar) lands on a `/studio/$projectId/$spaceId` path built by the same helpers `sdk/org/libs/ui/src/lib/space-path.ts:22-41`.

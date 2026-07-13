@@ -32,13 +32,13 @@ const router = createRouter({ routeTree, history })
 
 ### The prefixed history (why lmthing.chat shows a clean `/`)
 
-`DOMAIN_HOSTS = {lmthing.computer, lmthing.chat, lmthing.studio, lmthing.app}` `sdk/org/apps/web/src/main.tsx:8`. On those hosts the surface prefix is implicit in the hostname, so `createPrefixedHistory('/chat')` wraps the browser history: it **adds** `/chat` to every pathname the router observes (`location`, `subscribe`) and **strips** it from every pathname pushed to the browser (`push`/`replace`/`createHref`) `sdk/org/apps/web/src/main.tsx:25-64`. Net effect on `lmthing.chat`: the router matches `/chat/` while the address bar reads `/`. `RESERVED_TOPLEVEL = {'/install'}` is exempt from prefixing `sdk/org/apps/web/src/main.tsx:17,29`.
+`DOMAIN_HOSTS = {lmthing.computer, lmthing.chat, lmthing.studio, lmthing.app}` `sdk/org/apps/web/src/main.tsx#DOMAIN_HOSTS`. On those hosts the surface prefix is implicit in the hostname, so `createPrefixedHistory('/chat')` wraps the browser history: it **adds** `/chat` to every pathname the router observes (`location`, `subscribe`) and **strips** it from every pathname pushed to the browser (`push`/`replace`/`createHref`) `sdk/org/apps/web/src/main.tsx#createPrefixedHistory`. Net effect on `lmthing.chat`: the router matches `/chat/` while the address bar reads `/`. `RESERVED_TOPLEVEL = {'/install'}` is exempt from prefixing `sdk/org/apps/web/src/main.tsx#RESERVED_TOPLEVEL,29`.
 
-On any other host (localhost, the `*.test` proxy) a plain `createBrowserHistory()` is used, so chat lives at the literal `/chat` `sdk/org/apps/web/src/main.tsx:67-69`.
+On any other host (localhost, the `*.test` proxy) a plain `createBrowserHistory()` is used, so chat lives at the literal `/chat` `sdk/org/apps/web/src/main.tsx#history`.
 
 ### Getting to /chat from `/`
 
-The index route redirects by hostname `sdk/org/apps/web/src/routes/index.tsx:5-10,22-24,31-42`:
+The index route redirects by hostname `sdk/org/apps/web/src/routes/index.tsx#HOST_SURFACE,22-24,31-42`:
 
 ```ts
 const HOST_SURFACE: Record<string, '/chat' | '/studio' | '/computer' | '/apps'> = {
@@ -59,13 +59,13 @@ export function surfaceForHost(host: string) { return HOST_SURFACE[host] ?? '/st
 | Route file | URL | Component | Role |
 |---|---|---|---|
 | `sdk/org/apps/web/src/routes/__root.tsx` | — (root layout) | `RootComponent` | `AuthProvider(appName="studio")` → `AuthGate` → `PinGate` → `<Outlet/>` `sdk/org/apps/web/src/routes/__root.tsx:15-29` |
-| `sdk/org/apps/web/src/routes/index.tsx` | `/` | `RootRedirect` | hostname → surface redirect; `lmthing.chat` → `/chat` `sdk/org/apps/web/src/routes/index.tsx:31-42` |
+| `sdk/org/apps/web/src/routes/index.tsx` | `/` | `RootRedirect` | hostname → surface redirect; `lmthing.chat` → `/chat` `sdk/org/apps/web/src/routes/index.tsx#Route` |
 | `sdk/org/apps/web/src/routes/chat/route.tsx` | `/chat` | `ChatLayout` | layout route: `<PodEnsureGate><Outlet/></PodEnsureGate>` `sdk/org/apps/web/src/routes/chat/route.tsx:4-14` |
 | `sdk/org/apps/web/src/routes/chat/index.tsx` | `/chat/` | `ChatPage` | renders `<ChatShell/>` `sdk/org/apps/web/src/routes/chat/index.tsx:5-11` |
 
 Those **two files are the entire `routes/chat/` directory** — there are no other route files under it, and no `$param` segments anywhere in the chat subtree.
 
-The generated tree confirms the parent/child wiring: `ChatRouteRoute` is `id:'/chat', path:'/chat'` under the root `sdk/org/apps/web/src/routeTree.gen.ts:77-81`, and `ChatIndexRoute` is `id:'/', path:'/'` with `getParentRoute: () => ChatRouteRoute` `sdk/org/apps/web/src/routeTree.gen.ts:102-106` — i.e. `fullPath: '/chat/'` `sdk/org/apps/web/src/routeTree.gen.ts:352`.
+The generated tree confirms the parent/child wiring: `ChatRouteRoute` is `id:'/chat', path:'/chat'` under the root `sdk/org/apps/web/src/routeTree.gen.ts#ChatRouteRoute`, and `ChatIndexRoute` is `id:'/', path:'/'` with `getParentRoute: () => ChatRouteRoute` `sdk/org/apps/web/src/routeTree.gen.ts#ChatIndexRoute` — i.e. `fullPath: '/chat/'` `sdk/org/apps/web/src/routeTree.gen.ts#FileRoutesByFullPath./chat/`.
 
 ### `/chat` — the layout route
 
@@ -82,7 +82,7 @@ function ChatLayout() {
 export const Route = createFileRoute('/chat')({ component: ChatLayout })
 ```
 
-`PodEnsureGate` (shared verbatim with `/studio`, `/computer`, `/apps`) short-circuits for pod-embedded / local runs (`if (isPodEmbedded() || isLocalRun()) return <>{children}</>`) `sdk/org/apps/web/src/lib/gates.tsx:216-219`; otherwise it ensures the pod, waits for its Envoy edge, offers an image upgrade, and keeps the pod warm before children mount `sdk/org/apps/web/src/lib/gates.tsx:242-301,307-362`. The endpoints it calls are listed in [features.md](./features.md).
+`PodEnsureGate` (shared verbatim with `/studio`, `/computer`, `/apps`) short-circuits for pod-embedded / local runs (`if (isPodEmbedded() || isLocalRun()) return <>{children}</>`) `sdk/org/apps/web/src/lib/gates.tsx#PodEnsureGate`; otherwise it ensures the pod, waits for its Envoy edge, offers an image upgrade, and keeps the pod warm before children mount `sdk/org/apps/web/src/lib/gates.tsx:242-301,307-362`. The endpoints it calls are listed in [features.md](./features.md).
 
 Unlike `/studio` (which also mounts `AppProvider`/`ProjectProvider`) and `/computer`, the chat layout mounts **no data providers** — chat owns its own Zustand store and fetches directly.
 
@@ -104,7 +104,7 @@ export const Route = createFileRoute('/chat/')({ component: ChatPage })
 
 Both imports are subpath exports of the ui lib: `"./chat" → ./src/chat/index.ts` and `"./chat/css" → ./src/chat/app/styles.css` `sdk/org/libs/ui/package.json` (`exports`). **The real chat source tree is `sdk/org/libs/ui/src/chat/`**, not `apps/web` — see [views.md](./views.md).
 
-`ChatShell` boots by fetching `/api/projects`, default-selecting the project with id `user` (else `projects[0]`), then wiring URL ↔ store `sdk/org/libs/ui/src/chat/app/ChatShell.tsx:13-43`, and renders `<AppShell/>`.
+`ChatShell` boots by fetching `/api/projects`, default-selecting the project with id `user` (else `projects[0]`), then wiring URL ↔ store `sdk/org/libs/ui/src/chat/app/ChatShell.tsx#ChatShell`, and renders `<AppShell/>`.
 
 ---
 
@@ -116,12 +116,12 @@ Deep-linkable querystring keys:
 
 | Key | Values | Read at | Written by |
 |---|---|---|---|
-| `node` | a trace node id | boot → `selectNode(node, true)` `sdk/org/libs/ui/src/chat/app/url-state.ts:6-15` | store subscription `sdk/org/libs/ui/src/chat/app/url-state.ts:18-31` |
-| `tab` | an `InspectorTab` | boot → `setTab(tab)` `sdk/org/libs/ui/src/chat/app/url-state.ts:9,13` | always written `sdk/org/libs/ui/src/chat/app/url-state.ts:26` |
-| `follow` | `0` disables follow-mode | boot → `setFollow(false)` `sdk/org/libs/ui/src/chat/app/url-state.ts:10,14` | written only when `follow` is off `sdk/org/libs/ui/src/chat/app/url-state.ts:27` |
+| `node` | a trace node id | boot → `selectNode(node, true)` `sdk/org/libs/ui/src/chat/app/url-state.ts#applyUrlToState` | store subscription `sdk/org/libs/ui/src/chat/app/url-state.ts#syncStateToUrl` |
+| `tab` | an `InspectorTab` | boot → `setTab(tab)` `sdk/org/libs/ui/src/chat/app/url-state.ts#applyUrlToState,13` | always written `sdk/org/libs/ui/src/chat/app/url-state.ts#syncStateToUrl` |
+| `follow` | `0` disables follow-mode | boot → `setFollow(false)` `sdk/org/libs/ui/src/chat/app/url-state.ts#applyUrlToState,14` | written only when `follow` is off `sdk/org/libs/ui/src/chat/app/url-state.ts#syncStateToUrl` |
 | `inspect` | `1` opens the DevPanel | `AppShell` mount effect `sdk/org/libs/ui/src/chat/app/AppShell.tsx:40-44` | never written back (also toggled by `Alt+I`) `sdk/org/libs/ui/src/chat/app/AppShell.tsx:68-75` |
 
-`syncStateToUrl()` subscribes to the store and rewrites the query with `history.replaceState` (no router navigation, so no remount) `sdk/org/libs/ui/src/chat/app/url-state.ts:18-31`:
+`syncStateToUrl()` subscribes to the store and rewrites the query with `history.replaceState` (no router navigation, so no remount) `sdk/org/libs/ui/src/chat/app/url-state.ts#syncStateToUrl`:
 
 ```ts
 const url = `${window.location.pathname}?${params.toString()}`;
@@ -148,4 +148,4 @@ __root.tsx        AuthProvider("studio") → AuthGate → PinGate → Outlet
     └── /chat/    <ChatShell/> → <AppShell/>                   (chat/index.tsx)
 ```
 
-Auth and the PIN gate are the root's job, not chat's `sdk/org/apps/web/src/routes/__root.tsx:15-29`; pod readiness is the layout's job `sdk/org/apps/web/src/routes/chat/route.tsx:4-10`; everything else is `ChatShell`.
+Auth and the PIN gate are the root's job, not chat's `sdk/org/apps/web/src/routes/__root.tsx:15-29`; pod readiness is the layout's job `sdk/org/apps/web/src/routes/chat/route.tsx#ChatLayout`; everything else is `ChatShell`.

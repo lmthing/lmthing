@@ -2,7 +2,7 @@
 
 A **project-scoped** space (one that lives under a project's `spaces/<id>/`) needs no `package.json` at all — the core space loader reads it only when it exists, and even then only for the npm package `name` and to install declared `dependencies` (`sdk/org/libs/core/src/spaces/load.ts:606-623`). A space with no `package.json` (or one with no dependencies) loads fine — the `if (await fileExists(pkgJsonPath))` guard skips it entirely (`sdk/org/libs/core/src/spaces/load.ts:612`).
 
-The `lmthing` block matters for **store-distributed** spaces: it describes the space for the store catalog and drives the Chat/Studio **Integrations** settings form (`store/scripts/gen-apps-manifest.mjs:448-479`, `sdk/org/libs/cli/src/server/routes/store-spaces.ts:520-526`). The core runtime never reads the `lmthing` block — it is consumed purely by the manifest generator and the pod's integration endpoints.
+The `lmthing` block matters for **store-distributed** spaces: it describes the space for the store catalog and drives the Chat/Studio **Integrations** settings form (`store/scripts/gen-apps-manifest.mjs#loadSpaceEntry`, `sdk/org/libs/cli/src/server/routes/store-spaces.ts#LmthingPackageBlock`). The core runtime never reads the `lmthing` block — it is consumed purely by the manifest generator and the pod's integration endpoints.
 
 ## Format
 
@@ -35,7 +35,7 @@ This is the on-disk example verified verbatim at `store/spaces/integration-slack
 
 ## The `lmthing` block
 
-A `package.json` with no `lmthing` block is skipped by the store manifest generator (`loadSpaceEntry` returns `null`), so it never becomes a catalog entry (`store/scripts/gen-apps-manifest.mjs:450-451`).
+A `package.json` with no `lmthing` block is skipped by the store manifest generator (`loadSpaceEntry` returns `null`), so it never becomes a catalog entry (`store/scripts/gen-apps-manifest.mjs#loadSpaceEntry`).
 
 | Field | Purpose | Grounding |
 |---|---|---|
@@ -48,7 +48,7 @@ A `package.json` with no `lmthing` block is skipped by the store manifest genera
 
 ## `settings` — the Integrations config form
 
-`settings` is a **JSON Schema** object; the Integrations tab renders it as a form (`sdk/org/libs/ui/src/studio/integrations/SettingsSchemaForm.tsx:46-79`). The form iterates `schema.properties` and renders one labeled `@lmthing/ui` `<Input>` per property (`SettingsSchemaForm.tsx:57-74`). Each property's `title` (falling back to the property key) is the field label (`SettingsSchemaForm.tsx:63`), and `description` becomes the input placeholder (`SettingsSchemaForm.tsx:71`).
+`settings` is a **JSON Schema** object; the Integrations tab renders it as a form (`sdk/org/libs/ui/src/studio/integrations/SettingsSchemaForm.tsx#SettingsSchemaForm`). The form iterates `schema.properties` and renders one labeled `@lmthing/ui` `<Input>` per property (`SettingsSchemaForm.tsx:57-74`). Each property's `title` (falling back to the property key) is the field label (`SettingsSchemaForm.tsx:63`), and `description` becomes the input placeholder (`SettingsSchemaForm.tsx:71`).
 
 **`format: "password"`** masks a secret field — the input renders as `type="password"`; any other value renders plain `type="text"` (`SettingsSchemaForm.tsx:68`). The schema handles string properties only (`SettingsSchemaForm.tsx:3-6,18-25`).
 
@@ -58,7 +58,7 @@ On save, the form writes the values to pod env via a GET-merge-PUT against the g
 
 ## The catalog entry
 
-The store manifest generator lifts each store space into a `CatalogSpace` entry in `store/projects/manifest.json` (`store/scripts/gen-apps-manifest.mjs:448-479`). The entry copies the `lmthing` block's `title`, `description`, `icon`, `tags`, `kind`, and `settings` (`store/scripts/gen-apps-manifest.mjs:462-467`), plus a lifted producer/consumer surface computed from the space's contents: `events` and `inbound` (the union of every `events/*.ts` emitter def's `emits` and each `webhook` def's public inbound path, transpile-validated), `functions` (exported `functions/*.ts` wrappers), `agents` (each agent's slug + declared actions + trigger kinds), and `files` (every space file, so a pod's install endpoint can fetch each one) (`store/scripts/gen-apps-manifest.mjs:453-478`). For `integration-slack` this yields e.g. `settings` with the two password fields and `inbound: [{ path: "slack", verify: "slack" }]` (verified in the generated `store/projects/manifest.json`).
+The store manifest generator lifts each store space into a `CatalogSpace` entry in `store/projects/manifest.json` (`store/scripts/gen-apps-manifest.mjs#loadSpaceEntry`). The entry copies the `lmthing` block's `title`, `description`, `icon`, `tags`, `kind`, and `settings` (`store/scripts/gen-apps-manifest.mjs:462-467`), plus a lifted producer/consumer surface computed from the space's contents: `events` and `inbound` (the union of every `events/*.ts` emitter def's `emits` and each `webhook` def's public inbound path, transpile-validated), `functions` (exported `functions/*.ts` wrappers), `agents` (each agent's slug + declared actions + trigger kinds), and `files` (every space file, so a pod's install endpoint can fetch each one) (`store/scripts/gen-apps-manifest.mjs#loadSpaceEntry`). For `integration-slack` this yields e.g. `settings` with the two password fields and `inbound: [{ path: "slack", verify: "slack" }]` (verified in the generated `store/projects/manifest.json`).
 
 ## Conventions
 

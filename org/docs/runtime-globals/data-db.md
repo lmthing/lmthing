@@ -13,10 +13,10 @@ The `db` global is the agent's window onto its project's SQLite database. It is 
 Three conditions must ALL hold, or the `db` name is never bound on `globalThis` `sdk/org/libs/core/src/exec/app-globals.ts:189-195`:
 
 1. the session/fork/delegate has a `projectRoot` (a project-rooted session — a bare THING session outside a project gets no `db`),
-2. the host supplied a `db` impl (`AppGlobalImpls.db`, `sdk/org/libs/core/src/exec/app-globals.ts:30-32`), and
+2. the host supplied a `db` impl (`AppGlobalImpls.db`, `sdk/org/libs/core/src/exec/app-globals.ts#AppGlobalImpls`), and
 3. the agent holds at least one of `db:read` / `db:write` / `db:schema`.
 
-The pod supplies the impl as a **stable live forwarder**, not a build-time snapshot — `db: this.liveProjectDb(projectId)` in `getProjectAppGlobals` `sdk/org/libs/cli/src/server/session-manager.ts:672`, `sdk/org/libs/cli/src/server/session-manager.ts:581-607`. Each verb resolves the project's CURRENTLY-booted SQLite handle (the `projectDbs` cache) at call time, so the impl is present for **every** project-rooted session and condition 2 reduces to conditions 1 + 3. This matters because a long-lived interactive session (THING) builds its `appGlobals` ONCE — usually before the app has any tables — and its delegates (the automator) inherit that object and inject `db` at child-VM creation; a static `db: db.db` snapshot would freeze the initial `null`, so an automator delegated after the first table was authored would find no `db` and fail a row update with `'db' is not defined` (the S06 Act V bug). On a project with **no tables yet** the forwarder's `tables()` returns `[]` (never throws) and a mutating verb throws a clear `project "…" has no database yet` — a grant is now enough to bind `db`; the emptiness surfaces as a normal value/error, not a missing global.
+The pod supplies the impl as a **stable live forwarder**, not a build-time snapshot — `db: this.liveProjectDb(projectId)` in `getProjectAppGlobals` `sdk/org/libs/cli/src/server/session-manager.ts:672`, `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.liveProjectDb`. Each verb resolves the project's CURRENTLY-booted SQLite handle (the `projectDbs` cache) at call time, so the impl is present for **every** project-rooted session and condition 2 reduces to conditions 1 + 3. This matters because a long-lived interactive session (THING) builds its `appGlobals` ONCE — usually before the app has any tables — and its delegates (the automator) inherit that object and inject `db` at child-VM creation; a static `db: db.db` snapshot would freeze the initial `null`, so an automator delegated after the first table was authored would find no `db` and fail a row update with `'db' is not defined` (the S06 Act V bug). On a project with **no tables yet** the forwarder's `tables()` returns `[]` (never throws) and a mutating verb throws a clear `project "…" has no database yet` — a grant is now enough to bind `db`; the emptiness surfaces as a normal value/error, not a missing global.
 
 `db` is not declared in `COMMON_DTS`; its declaration is composed from the same grant that drives injection `sdk/org/libs/core/src/typecheck/library-dts.ts:142-156`, so a stray `db.query(...)` in an agent with no db capability fails **typecheck** ("Cannot find name 'db'"), not at runtime.
 
@@ -32,7 +32,7 @@ The pod supplies the impl as a **stable live forwarder**, not a build-time snaps
 | `db:write` | `insert(table, values)`, `update(table, {where,set})`, `remove(table, {where})` | `DB_WRITE_MEMBERS` `library-dts.ts:134-136` |
 | `db:schema` | `createTable(schema)`, `addColumn(table, name, column)` | `DB_SCHEMA_MEMBERS` `library-dts.ts:139-140` |
 
-`db:schema` additionally earns two standalone (non-`db`) globals: `writeTableSchema` (writes a **catalog** template) and `writeProjectTable` (writes `<projectRoot>/database/<name>.json` into the LIVE project and re-derives its db) `sdk/org/libs/core/src/exec/bootstrap.ts:286-291`. See [app-authoring.md](./app-authoring.md).
+`db:schema` additionally earns two standalone (non-`db`) globals: `writeTableSchema` (writes a **catalog** template) and `writeProjectTable` (writes `<projectRoot>/database/<name>.json` into the LIVE project and re-derives its db) `sdk/org/libs/core/src/exec/bootstrap.ts#AmbientDtsOpts`. See [app-authoring.md](./app-authoring.md).
 
 The declared signatures (verbatim from `DB_READ_MEMBERS` / `DB_WRITE_MEMBERS` / `DB_SCHEMA_MEMBERS`, `sdk/org/libs/core/src/typecheck/library-dts.ts:129-140`):
 
@@ -147,7 +147,7 @@ Which methods are table-checked `sdk/org/libs/core/src/exec/app-globals.ts:126-1
 
 > The `createTable` gap is worth naming explicitly: the code comment at `sdk/org/libs/core/src/exec/app-globals.ts:149-150` says "the grant's table list (if any) pre-authorizes which tables may be created", but the implementation calls `db.createTable(tableSchema)` directly with no check. An agent holding `db:schema: { tables: [a] }` can therefore create a table named anything. `addColumn` on an existing out-of-grant table IS blocked, and `db:read`/`db:write` narrowing on the new table still applies to any subsequent read/write — but the DDL itself is unnarrowed today.
 
-The DTS gives one more layer of narrowing for free: because a verb the agent lacks is simply **absent** from `composeDbDts`'s member list, a stray `db.insert(...)` in a read-only agent fails typecheck rather than reaching the engine `sdk/org/libs/core/src/exec/app-globals.ts:116-118`.
+The DTS gives one more layer of narrowing for free: because a verb the agent lacks is simply **absent** from `composeDbDts`'s member list, a stray `db.insert(...)` in a read-only agent fails typecheck rather than reaching the engine `sdk/org/libs/core/src/exec/app-globals.ts#assertTableAllowed`.
 
 ### Read-only fork roles
 
@@ -165,9 +165,9 @@ One schema, two typed surfaces `sdk/org/libs/core/src/db/types.ts:1-11`.
 | Call style | `const rows = db.query('items')` | `const rows = await ctx.db.query('items')` |
 | Where it runs | QuickJS sandbox; a same-process host call, no turn boundary crossed | a `worker_threads` worker; each method is a `postMessage` proxy correlated back to the main process `sdk/org/libs/cli/src/app/api/worker.ts:5-20,135-137` |
 | Capability gating | per-verb + per-table, from `capabilities:` frontmatter | **none** — the handler gets the full `AsyncDbApi`; the pod is the security boundary |
-| Method set | only the granted subset | all seven (`DB_METHODS`, `sdk/org/libs/cli/src/app/api/worker.ts:57-63`) |
+| Method set | only the granted subset | all seven (`DB_METHODS`, `sdk/org/libs/cli/src/app/api/worker.ts#DB_METHODS`) |
 
-`AsyncDbApi` is a mapped type derived from `DbApi`, so the two method sets can never drift `sdk/org/libs/core/src/db/types.ts:118-120`.
+`AsyncDbApi` is a mapped type derived from `DbApi`, so the two method sets can never drift `sdk/org/libs/core/src/db/types.ts#AsyncDbApi`.
 
 The worker is a **crash boundary, not a data path**: the handler's `ctx.db` never touches SQLite directly — every call round-trips to the main process, so every write still executes in one place `sdk/org/libs/cli/src/app/api/worker.ts:12-16`. (The main-process `ProjectDb.async` mirror is currently a thin `Promise.resolve(sync)` wrapper `sdk/org/libs/cli/src/app/store.ts:564-572`; the cross-thread proxy is the worker-side `ctx.db`.)
 

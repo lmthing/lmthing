@@ -19,7 +19,7 @@ Order is load-bearing. The api route is registered **before** the page catch-all
 
 **The root mount is env-gated.** `rootMountApps = Boolean(process.env['LMTHING_GATEWAY_URL'])` — the gateway injects that var into every per-user pod and nothing else sets it, so the bare `/<project>/*` mount exists exactly when the pod sits behind the Envoy shell/pod split (clean URLs on lmthing.app). It is unset for local `lmthing serve` / `pnpm thing`, where the same server also serves the unified SPA as the non-`/api` catch-all and a bare `/:projectId/*` would shadow every SPA route — hence apps stay under `/app/<project>` locally `sdk/org/libs/cli/src/server/serve.ts:308-326`.
 
-The client mirrors this: `APP_PATH_PREFIX` is `''` on hostname `lmthing.app` and `'/app'` everywhere else `sdk/org/apps/web/src/lib/config.ts:39`.
+The client mirrors this: `APP_PATH_PREFIX` is `''` on hostname `lmthing.app` and `'/app'` everywhere else `sdk/org/apps/web/src/lib/config.ts#APP_PATH_PREFIX`.
 
 Resulting public URLs for a project `blog`:
 
@@ -38,7 +38,7 @@ Not part of the app's own surface: the reserved top-level `/api/projects/:projec
 
 ## API routes — file → URL
 
-Discovery walks `<projectRoot>/api/`. **The route is the directory; the HTTP method is the filename** — one of `GET|POST|PUT|PATCH|DELETE` (`.ts`) `sdk/org/libs/cli/src/app/api/loader.ts:30-32`, `sdk/org/libs/cli/src/app/api/loader.ts:114-116`. A `[id]` directory segment becomes a `:id` param `sdk/org/libs/cli/src/app/api/loader.ts:130-142`. Non-method `.ts` files in a route dir (helpers, `types.ts`) are ignored `sdk/org/libs/cli/src/app/api/loader.ts:115`. The api root dir has no segments, so its pattern is `/` `sdk/org/libs/cli/src/app/api/loader.ts:141`.
+Discovery walks `<projectRoot>/api/`. **The route is the directory; the HTTP method is the filename** — one of `GET|POST|PUT|PATCH|DELETE` (`.ts`) `sdk/org/libs/cli/src/app/api/loader.ts:30-32`, `sdk/org/libs/cli/src/app/api/loader.ts:114-116`. A `[id]` directory segment becomes a `:id` param `sdk/org/libs/cli/src/app/api/loader.ts:130-142`. Non-method `.ts` files in a route dir (helpers, `types.ts`) are ignored `sdk/org/libs/cli/src/app/api/loader.ts:115`. The api root dir has no segments, so its pattern is `/` `sdk/org/libs/cli/src/app/api/loader.ts#patternFromSegments`.
 
 Real endpoints from the shipped `blog` app:
 
@@ -49,15 +49,15 @@ store/projects/blog/api/articles/[id]/GET.ts    → GET    /app/blog/api/article
 store/projects/blog/api/collections/[id]/PATCH.ts → PATCH /app/blog/api/collections/:id
 ```
 
-(`export const name` is required and unique per project — a missing or duplicate name is a fail-loud throw at load `sdk/org/libs/cli/src/app/api/loader.ts:80-92`, `sdk/org/libs/cli/src/app/api/loader.ts:119-124`; `feedList`/`markRead`/`getArticle` are the real values in `store/projects/blog/api/feed-list/GET.ts:14`, `store/projects/blog/api/mark-read/POST.ts:14`, `store/projects/blog/api/articles/[id]/GET.ts:16`.)
+(`export const name` is required and unique per project — a missing or duplicate name is a fail-loud throw at load `sdk/org/libs/cli/src/app/api/loader.ts#loadApiRoutes`, `sdk/org/libs/cli/src/app/api/loader.ts:119-124`; `feedList`/`markRead`/`getArticle` are the real values in `store/projects/blog/api/feed-list/GET.ts#name`, `store/projects/blog/api/mark-read/POST.ts#name`, `store/projects/blog/api/articles/[id]/GET.ts:16`.)
 
 **Dual addressing.** The browser addresses an endpoint by route; the agent addresses the same endpoint by `name` through the `apiCall` global — both enter the same runtime (`handle(method, path, input)` vs `callByName(name, input)`) `sdk/org/libs/cli/src/app/api/runtime.ts:305-320`, `sdk/org/libs/cli/src/server/routes/app-api.ts:7-20`.
 
 ### Request handling
 
-The HTTP adapter resolves the project's cached `ApiRuntime` (a project with no `api/` dir 404s every endpoint with `{error:{status:404,message:'project "<id>" has no app api'}}`), then reads input method-aware: `GET`/`DELETE` from the query string, everything else from the JSON body (invalid JSON → 400 `invalid JSON body`), and delegates to `runtime.handle(method, '/' + rest, input)` `sdk/org/libs/cli/src/server/routes/app-api.ts:26-55`.
+The HTTP adapter resolves the project's cached `ApiRuntime` (a project with no `api/` dir 404s every endpoint with `{error:{status:404,message:'project "<id>" has no app api'}}`), then reads input method-aware: `GET`/`DELETE` from the query string, everything else from the JSON body (invalid JSON → 400 `invalid JSON body`), and delegates to `runtime.handle(method, '/' + rest, input)` `sdk/org/libs/cli/src/server/routes/app-api.ts#createAppApiHandler`.
 
-Inside the runtime, `Input` is assembled as **one object**: the method's source (query for `GET`/`DELETE`, JSON body for `POST`/`PATCH`/`PUT`) with the route's path params merged **last**, so a path param wins on key clash `sdk/org/libs/cli/src/app/api/input.ts:1-17`, `sdk/org/libs/cli/src/app/api/input.ts:40-53`. Matching is exact segment-count + `:param` capture with `decodeURIComponent` `sdk/org/libs/cli/src/app/api/loader.ts:158-181`; no route match → 404 `{error:{status:404,message:'not found'}}` `sdk/org/libs/cli/src/app/api/runtime.ts:305-310`.
+Inside the runtime, `Input` is assembled as **one object**: the method's source (query for `GET`/`DELETE`, JSON body for `POST`/`PATCH`/`PUT`) with the route's path params merged **last**, so a path param wins on key clash `sdk/org/libs/cli/src/app/api/input.ts:1-17`, `sdk/org/libs/cli/src/app/api/input.ts#assembleInput`. Matching is exact segment-count + `:param` capture with `decodeURIComponent` `sdk/org/libs/cli/src/app/api/loader.ts#matchRoute`; no route match → 404 `{error:{status:404,message:'not found'}}` `sdk/org/libs/cli/src/app/api/runtime.ts:305-310`.
 
 ```bash
 # same endpoint, both mounts
@@ -72,7 +72,7 @@ Error contract (`{ error: { status, message, details? } }`), validation and work
 
 ## Page routes — file → URL
 
-Route discovery walks `pages/`; every non-`_`-prefixed `.tsx`/`.jsx` file is a route. An `index` basename collapses to its directory's path and a `[id]` segment becomes `:id` `sdk/org/libs/cli/src/app/build/pages.ts:155-194`. Directories named `components/` or `lib/` under `pages/` (and any `_`-prefixed dir) hold shared code and are skipped `sdk/org/libs/cli/src/app/build/pages.ts:172-179`. `_app.tsx` and `_layout.tsx` are wrappers, not routes `sdk/org/libs/cli/src/app/build/pages.ts:152`, `sdk/org/libs/cli/src/app/build/pages.ts:306-314`.
+Route discovery walks `pages/`; every non-`_`-prefixed `.tsx`/`.jsx` file is a route. An `index` basename collapses to its directory's path and a `[id]` segment becomes `:id` `sdk/org/libs/cli/src/app/build/pages.ts:155-194`. Directories named `components/` or `lib/` under `pages/` (and any `_`-prefixed dir) hold shared code and are skipped `sdk/org/libs/cli/src/app/build/pages.ts#walkPages`. `_app.tsx` and `_layout.tsx` are wrappers, not routes `sdk/org/libs/cli/src/app/build/pages.ts#WRAPPERS`, `sdk/org/libs/cli/src/app/build/pages.ts#findWrappers`.
 
 Real pages from the shipped `blog` app:
 
@@ -91,34 +91,34 @@ The same patterns are matched **client-side** at runtime: `matchRoutes` splits p
 
 ### Base resolution (why the same bundle works on both mounts)
 
-The route table is authored base-agnostically (`/`, `/discover`, `/feed/:articleId`). The client computes the app's server root at call time: `resolveAppBase(pathname)` returns the first `…/app/<project>` prefix in the pathname, unless `window.__APP_BASE__` overrides it (the `/app`-stripped root mount, where the prefix is not in the path at all) `sdk/org/libs/cli/src/app/runtime/client.ts:70-83`. `clientPath()` strips that base before matching `sdk/org/libs/cli/src/app/runtime/router.tsx:76-81`, and `toHref()` re-applies it on `navigate` `sdk/org/libs/cli/src/app/runtime/router.tsx:108-123` and on `Link` `sdk/org/libs/cli/src/app/runtime/router.tsx:143-152`, so an in-app link never escapes to the origin root.
+The route table is authored base-agnostically (`/`, `/discover`, `/feed/:articleId`). The client computes the app's server root at call time: `resolveAppBase(pathname)` returns the first `…/app/<project>` prefix in the pathname, unless `window.__APP_BASE__` overrides it (the `/app`-stripped root mount, where the prefix is not in the path at all) `sdk/org/libs/cli/src/app/runtime/client.ts:70-83`. `clientPath()` strips that base before matching `sdk/org/libs/cli/src/app/runtime/router.tsx:76-81`, and `toHref()` re-applies it on `navigate` `sdk/org/libs/cli/src/app/runtime/router.tsx:108-123` and on `Link` `sdk/org/libs/cli/src/app/runtime/router.tsx#Link`, so an in-app link never escapes to the origin root.
 
-API URLs are built the same way: `apiCall(name, input)` looks the name up in the injected manifest, fills `:param` segments from `input`, and fetches `<base>/api<routePath>` — query string for `GET`/`DELETE`, JSON body otherwise `sdk/org/libs/cli/src/app/runtime/client.ts:119-161`. The manifest (`name → { method, routePath }`) is put on `window.__APP_ENDPOINTS__` by `mountApp` `sdk/org/libs/cli/src/app/runtime/router.tsx:216-222`, projected at build time from the typed endpoint contracts (`routePath` is exactly the loader's `pattern`) `sdk/org/libs/cli/src/app/build/pages.ts:203-208`, `sdk/org/libs/cli/src/app/build/schema.ts:204-206`.
+API URLs are built the same way: `apiCall(name, input)` looks the name up in the injected manifest, fills `:param` segments from `input`, and fetches `<base>/api<routePath>` — query string for `GET`/`DELETE`, JSON body otherwise `sdk/org/libs/cli/src/app/runtime/client.ts:119-161`. The manifest (`name → { method, routePath }`) is put on `window.__APP_ENDPOINTS__` by `mountApp` `sdk/org/libs/cli/src/app/runtime/router.tsx:216-222`, projected at build time from the typed endpoint contracts (`routePath` is exactly the loader's `pattern`) `sdk/org/libs/cli/src/app/build/pages.ts:203-208`, `sdk/org/libs/cli/src/app/build/schema.ts#buildContract`.
 
 ## How pages are built
 
 `buildProjectPages(projectRoot)` runs **on save / boot / install, never per request** `sdk/org/libs/cli/src/app/build/pages.ts:1-10`:
 
-1. No `pages/` dir → `{ built:false, routes:[], assetManifest:[] }` (a db/api-only project has no page surface) `sdk/org/libs/cli/src/app/build/pages.ts:126-131`.
-2. Discover routes, hash the project's sources, and short-circuit on a cache hit (`.data/pages-cache.json` + an existing `index.html`) `sdk/org/libs/cli/src/app/build/pages.ts:133-142`.
+1. No `pages/` dir → `{ built:false, routes:[], assetManifest:[] }` (a db/api-only project has no page surface) `sdk/org/libs/cli/src/app/build/pages.ts#buildProjectPages`.
+2. Discover routes, hash the project's sources, and short-circuit on a cache hit (`.data/pages-cache.json` + an existing `index.html`) `sdk/org/libs/cli/src/app/build/pages.ts#buildProjectPages`.
 3. Generate an entry in `<projectRoot>/.data/pages-build/` that imports the pages + wrappers and calls `mountApp` with the route table and the endpoint manifest `sdk/org/libs/cli/src/app/build/pages.ts:14-21`, `sdk/org/libs/cli/src/app/build/pages.ts:239-243`.
-4. esbuild-bundle into `<projectRoot>/.data/pages-dist/` with hashed assets (`assets/[name]-[hash]`) and an `index.html` that references them with **relative** URLs `sdk/org/libs/cli/src/app/build/pages.ts:248-302`, `sdk/org/libs/cli/src/app/build/pages.ts:417-432`. `@app/runtime` aliases to the CLI's own runtime source (`resolveEnv` walks up to the `@lmthing/cli` package root) `sdk/org/libs/cli/src/app/build/pages.ts:461-473`, and `@app/types` to the project's `types/generated.d.ts` `sdk/org/libs/cli/src/app/build/pages.ts:249-250`.
+4. esbuild-bundle into `<projectRoot>/.data/pages-dist/` with hashed assets (`assets/[name]-[hash]`) and an `index.html` that references them with **relative** URLs `sdk/org/libs/cli/src/app/build/pages.ts#runBuild`, `sdk/org/libs/cli/src/app/build/pages.ts:417-432`. `@app/runtime` aliases to the CLI's own runtime source (`resolveEnv` walks up to the `@lmthing/cli` package root) `sdk/org/libs/cli/src/app/build/pages.ts:461-473`, and `@app/types` to the project's `types/generated.d.ts` `sdk/org/libs/cli/src/app/build/pages.ts:249-250`.
 5. The **asset manifest** = every emitted file relative to `outDir`, including `index.html` `sdk/org/libs/cli/src/app/build/pages.ts:300-302`.
 
 Builds are serialized process-wide and deferred under memory pressure (each build peaks ~100 MB) `sdk/org/libs/cli/src/app/build/pages.ts:96-118`, `sdk/org/libs/cli/src/app/build/pages.ts:279-285`.
 
-`BUILDER_VERSION` (currently `'4'`) participates in the source hash, so a change to the builder or the bundled `@app/runtime` invalidates every cached bundle — the project-file hash alone would not `sdk/org/libs/cli/src/app/build/pages.ts:78-89`, `sdk/org/libs/cli/src/app/build/pages.ts:614-616`.
+`BUILDER_VERSION` (currently `'4'`) participates in the source hash, so a change to the builder or the bundled `@app/runtime` invalidates every cached bundle — the project-file hash alone would not `sdk/org/libs/cli/src/app/build/pages.ts:78-89`, `sdk/org/libs/cli/src/app/build/pages.ts#sourceHash`.
 
 The server caches the built bundle per project for its lifetime (`pageBuildCache`, populated lazily by `getOutDirForProject`; a build failure caches `null` and the route 404s) `sdk/org/libs/cli/src/server/serve.ts:248-305`. Installing an app or a store space **drops** that cache entry, so freshly-hashed assets are served instead of a stale manifest `sdk/org/libs/cli/src/server/serve.ts:258-287` — see [`../cli-api/rest/apps.md`](../cli-api/rest/apps.md).
 
 ## How pages are served (`pages-serve.ts`)
 
-`createPageServeHandler(getOutDirForProject, mountPrefix = '/app')` serves every non-api path under the mount `sdk/org/libs/cli/src/app/pages-serve.ts:91-96`:
+`createPageServeHandler(getOutDirForProject, mountPrefix = '/app')` serves every non-api path under the mount `sdk/org/libs/cli/src/app/pages-serve.ts#createPageServeHandler`:
 
 - **No bundle** for the project → `404 project "<id>" has no page app` (plain text) `sdk/org/libs/cli/src/app/pages-serve.ts:100-104`.
 - **Path-traversal guard** — the sub-path must resolve inside `outDir`, else `400 bad request`; nothing outside the bundle is ever served `sdk/org/libs/cli/src/app/pages-serve.ts:120-126`.
 - **Asset-manifest match** (not filesystem probing) — a sub-path present in the manifest is served as a static file; anything else falls back to `index.html`. Matching on the manifest is what lets a dynamic param containing a `.` (e.g. `/items/my.v2.id`) route client-side instead of 404-ing as a missing asset `sdk/org/libs/cli/src/app/pages-serve.ts:13-21`, `sdk/org/libs/cli/src/app/pages-serve.ts:128-152`.
-- **Caching** — hashed assets are `public, max-age=31536000, immutable`; `index.html` is `no-cache` `sdk/org/libs/cli/src/app/pages-serve.ts:139-146`, `sdk/org/libs/cli/src/app/pages-serve.ts:192-196`. An in-manifest file missing on disk (stale build) degrades to the SPA fallback rather than erroring `sdk/org/libs/cli/src/app/pages-serve.ts:134-137`.
+- **Caching** — hashed assets are `public, max-age=31536000, immutable`; `index.html` is `no-cache` `sdk/org/libs/cli/src/app/pages-serve.ts:139-146`, `sdk/org/libs/cli/src/app/pages-serve.ts#serveIndex`. An in-manifest file missing on disk (stale build) degrades to the SPA fallback rather than erroring `sdk/org/libs/cli/src/app/pages-serve.ts:134-137`.
 
 ### The SPA shell injection
 
@@ -130,20 +130,20 @@ The fallback rewrites `<head>` (idempotently — never doubles an existing `<bas
     <script nonce="…">window.__APP_BASE__ = "/app/blog";</script>
 ```
 
-`<base>` makes the shell's *relative* asset URLs (`./assets/…`) resolve at **any** route depth — without it, a deep route like `…/feed/a-1` would resolve `./assets/x` against `…/feed/`, 404 into this very fallback, and the browser would try to load `index.html` as a module `sdk/org/libs/cli/src/app/pages-serve.ts:108-117`. `window.__APP_BASE__` (the base without the trailing slash) is the client router's basename override, required on the root mount where there is no `/app/` segment to derive from `sdk/org/libs/cli/src/app/pages-serve.ts:158-167`, `sdk/org/libs/cli/src/app/pages-serve.ts:184-190`.
+`<base>` makes the shell's *relative* asset URLs (`./assets/…`) resolve at **any** route depth — without it, a deep route like `…/feed/a-1` would resolve `./assets/x` against `…/feed/`, 404 into this very fallback, and the browser would try to load `index.html` as a module `sdk/org/libs/cli/src/app/pages-serve.ts:108-117`. `window.__APP_BASE__` (the base without the trailing slash) is the client router's basename override, required on the root mount where there is no `/app/` segment to derive from `sdk/org/libs/cli/src/app/pages-serve.ts:158-167`, `sdk/org/libs/cli/src/app/pages-serve.ts#serveIndex`.
 
 ### CSP
 
-Every response — assets and the SPA shell — carries `sdk/org/libs/cli/src/app/pages-serve.ts:44-46`:
+Every response — assets and the SPA shell — carries `sdk/org/libs/cli/src/app/pages-serve.ts#CSP`:
 
 ```
 default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
 connect-src 'self'; img-src 'self' data: https:; base-uri 'self'; frame-ancestors 'self'
 ```
 
-Rationale (LLM-authored pages render fetched third-party content, an XSS surface): no inline script, so injected markup cannot execute; `connect-src 'self'` means even a self-XSS cannot exfiltrate or reach the top-level admin `/api/*` — the page can only talk to its own `…/app/<project>/api/*`; `frame-ancestors 'self'` allows the Studio same-origin preview iframe while blocking cross-origin framing `sdk/org/libs/cli/src/app/pages-serve.ts:23-42`. The shell response is the one exception: it adds a **per-request random nonce** to `script-src` purely so the `__APP_BASE__` bootstrap can run `sdk/org/libs/cli/src/app/pages-serve.ts:178-195`.
+Rationale (LLM-authored pages render fetched third-party content, an XSS surface): no inline script, so injected markup cannot execute; `connect-src 'self'` means even a self-XSS cannot exfiltrate or reach the top-level admin `/api/*` — the page can only talk to its own `…/app/<project>/api/*`; `frame-ancestors 'self'` allows the Studio same-origin preview iframe while blocking cross-origin framing `sdk/org/libs/cli/src/app/pages-serve.ts:23-42`. The shell response is the one exception: it adds a **per-request random nonce** to `script-src` purely so the `__APP_BASE__` bootstrap can run `sdk/org/libs/cli/src/app/pages-serve.ts#serveIndex`.
 
-**The policy is fixed — a project cannot extend it.** `CSP` is a module-level constant `sdk/org/libs/cli/src/app/pages-serve.ts:44-46`; the only parameters `createPageServeHandler` takes are `getOutDirForProject` and `mountPrefix` `sdk/org/libs/cli/src/app/pages-serve.ts:91-96`, and the only per-response variation is the nonce substitution on the shell `sdk/org/libs/cli/src/app/pages-serve.ts:195`. Nothing in the build (`build/pages.ts`) or the app manifest carries a CSP field — a project therefore cannot declare extra `connect-src`/`img-src` origins. A page that must reach a third-party origin goes through its own `api/` handler instead — that runs server-side in a plain `node:worker_threads` worker `sdk/org/libs/cli/src/app/api/runtime.ts:23`, `sdk/org/libs/cli/src/app/api/worker.ts:1-23`, where no browser CSP applies. Remote **images** are the one thing a page may load directly (`img-src … https:`).
+**The policy is fixed — a project cannot extend it.** `CSP` is a module-level constant `sdk/org/libs/cli/src/app/pages-serve.ts#CSP`; the only parameters `createPageServeHandler` takes are `getOutDirForProject` and `mountPrefix` `sdk/org/libs/cli/src/app/pages-serve.ts#createPageServeHandler`, and the only per-response variation is the nonce substitution on the shell `sdk/org/libs/cli/src/app/pages-serve.ts#serveIndex`. Nothing in the build (`build/pages.ts`) or the app manifest carries a CSP field — a project therefore cannot declare extra `connect-src`/`img-src` origins. A page that must reach a third-party origin goes through its own `api/` handler instead — that runs server-side in a plain `node:worker_threads` worker `sdk/org/libs/cli/src/app/api/runtime.ts:23`, `sdk/org/libs/cli/src/app/api/worker.ts:1-23`, where no browser CSP applies. Remote **images** are the one thing a page may load directly (`img-src … https:`).
 
 ## Related
 

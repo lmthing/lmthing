@@ -10,15 +10,15 @@ field's `index.md` (its frontmatter `variable`/`type`/`default` and prose body).
 ## Plain markdown, no frontmatter required
 
 An aspect file may be plain markdown with no frontmatter — that is always valid
-`sdk/org/libs/core/src/spaces/load.ts:341` (`if (Object.keys(data).length === 0) return`). The two
+`sdk/org/libs/core/src/spaces/load.ts#validateKnowledgeOptionFrontmatter` (`if (Object.keys(data).length === 0) return`). The two
 real newsroom aspect files (`credibility-signals.md`, `dedup-and-clustering.md`) are exactly this:
 plain markdown headed by an H1, no frontmatter block
 `store/projects/blog/spaces/newsroom/knowledge/journalism/source-evaluation/credibility-signals.md`.
 
 If frontmatter *is* present, it is validated against an allow-list: `description` is required and
-must be a non-empty string `sdk/org/libs/core/src/spaces/load.ts:342-344`; `icon`, `color`, and
+must be a non-empty string `sdk/org/libs/core/src/spaces/load.ts#validateKnowledgeOptionFrontmatter`; `icon`, `color`, and
 `label` are the only other permitted keys `sdk/org/libs/core/src/spaces/load.ts:317` (`KNOWLEDGE_OPTION_ALLOWED_KEYS`);
-any other key throws fail-loud at load time `sdk/org/libs/core/src/spaces/load.ts:347-352`. This
+any other key throws fail-loud at load time `sdk/org/libs/core/src/spaces/load.ts#validateKnowledgeOptionFrontmatter`. This
 validation runs both when the field is loaded `sdk/org/libs/core/src/spaces/load.ts:294` and again
 when the option is resolved `sdk/org/libs/core/src/spaces/knowledge.ts:56`.
 

@@ -8,7 +8,7 @@ For the authoring surface see [`../runtime-globals/delegation.md`](../runtime-gl
 
 ## `delegate(packageName, agentName, action?, opts?)`
 
-`delegate` is a **value-yielding** global: calling it constructs a `delegate` `YieldRequest`, pushes it onto the VM's pending queue, ends the turn, and the host binds the resolved value back for the next turn (`sdk/org/libs/core/src/globals/delegate.ts:40-48`). The child does the work; the caller sees only the returned value.
+`delegate` is a **value-yielding** global: calling it constructs a `delegate` `YieldRequest`, pushes it onto the VM's pending queue, ends the turn, and the host binds the resolved value back for the next turn (`sdk/org/libs/core/src/globals/delegate.ts#createDelegateGlobal`). The child does the work; the caller sees only the returned value.
 
 ```ts
 declare function delegate(packageName: string, agentName: string, opts?: DelegateOpts): Promise<any>;
@@ -17,8 +17,8 @@ declare function delegate(packageName: string, agentName: string, action?: strin
 (`sdk/org/libs/core/src/typecheck/library-dts.ts:26-27`, `DELEGATE_DTS`)
 
 - **`action` is optional.** With an action id the child runs that action (its tasklist, if the action declares one); without one the child runs model-driven and sees its own actions/tasklists in its system prompt (`sdk/org/libs/core/src/globals/delegate.ts:13-21`).
-- **Ergonomic overload.** `delegate(pkg, agent, opts)` is accepted: an object in the `action` slot is re-read as `opts`, with no action (`sdk/org/libs/core/src/globals/delegate.ts:33-40`).
-- **`DelegateOpts = { query?, context?, attachmentIds? }`** (`sdk/org/libs/core/src/globals/delegate.ts:3-10`; DTS twin at `sdk/org/libs/core/src/typecheck/library-dts.ts:88-94`). `attachmentIds` are upload ids the session resolves to real bytes/notes before handing them to the child — images ride as a `MediaPart`, files become an id-anchored note telling the specialist to call `readDocument(id)` (`sdk/org/libs/core/src/session/session.ts:945-960`).
+- **Ergonomic overload.** `delegate(pkg, agent, opts)` is accepted: an object in the `action` slot is re-read as `opts`, with no action (`sdk/org/libs/core/src/globals/delegate.ts#createDelegateGlobal`).
+- **`DelegateOpts = { query?, context?, attachmentIds? }`** (`sdk/org/libs/core/src/globals/delegate.ts#DelegateOpts`; DTS twin at `sdk/org/libs/core/src/typecheck/library-dts.ts:88-94`). `attachmentIds` are upload ids the session resolves to real bytes/notes before handing them to the child — images ride as a `MediaPart`, files become an id-anchored note telling the specialist to call `readDocument(id)` (`sdk/org/libs/core/src/session/session.ts:945-960`).
 - Return type is `any` by convention, so `result.field` reads without a cast.
 
 All value-yielding globals (`fork`, `tasklist`, `delegate`) route through the one shared yield router; the `delegate` case simply unpacks `[packageName, agentName, action, delegateOpts]` and calls the context's `runDelegate` (`sdk/org/libs/core/src/eval/yield-router.ts:175-184`).
@@ -49,9 +49,9 @@ return {
   allowRegistered: entries.includes(REGISTERED_WILDCARD),
 };
 ```
-(`sdk/org/libs/core/src/exec/target-match.ts:126-138`)
+(`sdk/org/libs/core/src/exec/target-match.ts#evaluateDelegatePolicy`)
 
-The tri-state — **omitted vs `[]` vs non-empty** — is what makes `[]` mean "no delegation" rather than "default". The loader deliberately preserves the distinction (raw strings only, `undefined` when the key is absent); see [`../format/space/agents/delegation.md`](../format/space/agents/delegation.md). The `DelegatePolicy` shape is `{ mode: 'none'|'unrestricted'|'allowlist', entries: string[], allowRegistered: boolean }` (`sdk/org/libs/core/src/exec/target-match.ts:97-106`). `REGISTERED_WILDCARD` is the literal string `'registered:*'` (`sdk/org/libs/core/src/exec/target-match.ts:87`).
+The tri-state — **omitted vs `[]` vs non-empty** — is what makes `[]` mean "no delegation" rather than "default". The loader deliberately preserves the distinction (raw strings only, `undefined` when the key is absent); see [`../format/space/agents/delegation.md`](../format/space/agents/delegation.md). The `DelegatePolicy` shape is `{ mode: 'none'|'unrestricted'|'allowlist', entries: string[], allowRegistered: boolean }` (`sdk/org/libs/core/src/exec/target-match.ts:97-106`). `REGISTERED_WILDCARD` is the literal string `'registered:*'` (`sdk/org/libs/core/src/exec/target-match.ts#REGISTERED_WILDCARD`).
 
 ### The policy is enforced twice, from the same value
 
@@ -96,7 +96,7 @@ Matching tolerates the ref grammar (`self` / `space/agent` / `npm:pkg/agent`, ea
 - allowlist miss →
   `delegate("<pkg>", "<agent>") is not permitted from this agent — allowed targets: <entries…>[, any space registered at runtime via registerSpace()]`
 
-The `scope` word is `this agent` at agent level, `this task` at task level (`sdk/org/libs/core/src/exec/target-match.ts:200`), and `allowRegistered` appends the human-readable `"any space registered at runtime via registerSpace()"` to the list (`:206`).
+The `scope` word is `this agent` at agent level, `this task` at task level (`sdk/org/libs/core/src/exec/target-match.ts#formatDelegateDenial`), and `allowRegistered` appends the human-readable `"any space registered at runtime via registerSpace()"` to the list (`:206`).
 
 ### Real declaration (THING)
 
@@ -129,7 +129,7 @@ export function delegateCapabilities(canDelegate = true, app: AppCapabilities = 
 ```
 (`sdk/org/libs/core/src/exec/capability.ts:106-108`)
 
-`runDelegate` (`sdk/org/libs/core/src/delegate/delegate.ts:91-441`) does, in order:
+`runDelegate` (`sdk/org/libs/core/src/delegate/delegate.ts#runDelegate`) does, in order:
 
 1. **Recursion cap.** `depth >= maxDepth` throws `Maximum delegation depth (N) exceeded at target "<pkg>/<agent>"` (`:93-98`). The session wires `depth: 0, maxDepth: 5` for a model-initiated delegate (`sdk/org/libs/core/src/session/session.ts:969-970`) and `depth: 1, maxDepth: 5` for one initiated by a task fork (`sdk/org/libs/core/src/session/session.ts:701-702`); each nested layer recurses with `depth + 1` (`sdk/org/libs/core/src/delegate/delegate.ts:284`).
 2. **Resolve the target** from a `DelegateRegistry`. The session builds it from the space, its dependent spaces, **all system spaces** (always delegatable, e.g. `system-research/researcher`), and the runtime `dynamicSpaces` map (`sdk/org/libs/core/src/session/session.ts:924-940`).
@@ -164,7 +164,7 @@ if (defAction) {
 ```
 (`sdk/org/libs/core/src/session/session.ts:315-348`)
 
-**Exempt from the model-facing `canDelegateTo` gate.** The yield-time gate fires only when `enforceDelegatePolicy` is set (`sdk/org/libs/core/src/session/session.ts:910-922`), and the fast path builds its context with the default `buildYieldContext(this.space)` — where `enforceDelegatePolicy` defaults to `false` (`sdk/org/libs/core/src/session/session.ts:870`). Both delegates in the fast path are **host policy, not model output**, so they run unchecked. That deliberately includes the *chained* delegate to the `{spaceKey, agentSlug}` coordinates a build returns (effectively a `registered:*` grant), so THING/architect build flows keep working even when the agent's own allowlist wouldn't name the freshly built space (`sdk/org/libs/core/src/session/session.ts:320-341`).
+**Exempt from the model-facing `canDelegateTo` gate.** The yield-time gate fires only when `enforceDelegatePolicy` is set (`sdk/org/libs/core/src/session/session.ts:910-922`), and the fast path builds its context with the default `buildYieldContext(this.space)` — where `enforceDelegatePolicy` defaults to `false` (`sdk/org/libs/core/src/session/session.ts#Session.buildYieldContext`). Both delegates in the fast path are **host policy, not model output**, so they run unchecked. That deliberately includes the *chained* delegate to the `{spaceKey, agentSlug}` coordinates a build returns (effectively a `registered:*` grant), so THING/architect build flows keep working even when the agent's own allowlist wouldn't name the freshly built space (`sdk/org/libs/core/src/session/session.ts:320-341`).
 
 By contrast, the normal model-driven turn loop builds its yield context with `{ enforceDelegatePolicy: true }`, so model-initiated `delegate` yields **are** gated (`sdk/org/libs/core/src/session/session.ts:845-847`).
 

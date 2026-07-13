@@ -1,6 +1,6 @@
 # The `NN-<task-id>.md` step file
 
-A tasklist step is one node in the tasklist DAG. Each `NN-<task-id>.md` (or `NN-<task-id>.ts` code node) sibling of the tasklist's `index.md` is loaded into a `TaskNode` by `loadTasklist`, which walks the interleaved node files and builds one node per file `sdk/org/libs/core/src/spaces/tasklist-load.ts:47-84`. A `.md` file is an **agent node** — its YAML frontmatter is parsed by `parseFrontmatter` and its Markdown body becomes the fork's instruction `sdk/org/libs/core/src/spaces/tasklist-load.ts:73-79`. A `.ts` file is a **code node** — its `const node = {…}` metadata literal is statically AST-extracted (never imported or executed by core) and it must export an async `run(ctx, inputs)` `sdk/org/libs/core/src/spaces/tasklist-load.ts:52-72`. Both paths feed the SAME field validator `buildTaskNode`, so a code node's `id`/`dependsOn`/`output`/… behave identically to an agent node's `sdk/org/libs/core/src/spaces/tasklist-load.ts:86-159`.
+A tasklist step is one node in the tasklist DAG. Each `NN-<task-id>.md` (or `NN-<task-id>.ts` code node) sibling of the tasklist's `index.md` is loaded into a `TaskNode` by `loadTasklist`, which walks the interleaved node files and builds one node per file `sdk/org/libs/core/src/spaces/tasklist-load.ts#loadTasklist`. A `.md` file is an **agent node** — its YAML frontmatter is parsed by `parseFrontmatter` and its Markdown body becomes the fork's instruction `sdk/org/libs/core/src/spaces/tasklist-load.ts:73-79`. A `.ts` file is a **code node** — its `const node = {…}` metadata literal is statically AST-extracted (never imported or executed by core) and it must export an async `run(ctx, inputs)` `sdk/org/libs/core/src/spaces/tasklist-load.ts#loadTasklist`. Both paths feed the SAME field validator `buildTaskNode`, so a code node's `id`/`dependsOn`/`output`/… behave identically to an agent node's `sdk/org/libs/core/src/spaces/tasklist-load.ts:86-159`.
 
 See also [`index-file.md`](./index-file.md) for the tasklist's `index.md` (goal + `input` schema), [`README.md`](./README.md) for tasklist structure, and [`../functions/README.md`](../functions/README.md) for the space functions a step's `functions:` allowlist selects from.
 
@@ -27,11 +27,11 @@ The node `id` comes from an explicit `id:` frontmatter key, else from the filena
 
 ### `dependsOn` and the DAG
 
-`dependsOn` names upstream tasks; `validateDag` rejects a reference to an unknown task and detects cycles `sdk/org/libs/core/src/tasklist/dag.ts:15-59`. A task becomes ready only once every `dependsOn` entry is done or skipped `sdk/org/libs/core/src/tasklist/dag.ts:105-108`.
+`dependsOn` names upstream tasks; `validateDag` rejects a reference to an unknown task and detects cycles `sdk/org/libs/core/src/tasklist/dag.ts#validateDag`. A task becomes ready only once every `dependsOn` entry is done or skipped `sdk/org/libs/core/src/tasklist/dag.ts:105-108`.
 
 ### `output` and its type vocabulary
 
-`output` is a `field → type` map validated at resolve time by `validateOutput`; the accepted base types are `string`, `number`, `boolean`, `object`, `array`, `any`, and a trailing `?` marks a field optional `sdk/org/libs/core/src/tasklist/schema.ts:75-121`. The output schema string is also embedded in the fork's user message so the model knows the shape to resolve `sdk/org/libs/core/src/fork/fork.ts:319-320`.
+`output` is a `field → type` map validated at resolve time by `validateOutput`; the accepted base types are `string`, `number`, `boolean`, `object`, `array`, `any`, and a trailing `?` marks a field optional `sdk/org/libs/core/src/tasklist/schema.ts#validateOutput`. The output schema string is also embedded in the fork's user message so the model knows the shape to resolve `sdk/org/libs/core/src/fork/fork.ts:319-320`.
 
 ### `role`
 
@@ -39,13 +39,13 @@ The node `id` comes from an explicit `id:` frontmatter key, else from the filena
 
 ### `functions` — an allowlist that also gates system functions
 
-When `functions` is set, the fork receives only those functions, intersected out of the engine's available set by `pickAllowed`; an empty array means no functions at all, and omitting it gives all `sdk/org/libs/core/src/fork/fork.ts:250-259`. The engine's function set is the merge of the agent's own space functions PLUS the universal **system toolkit** (`systemFunctionSources`) `sdk/org/libs/core/src/session/session.ts:599-601`. Because `webSearch` and `webFetch` are system-toolkit space functions `sdk/org/libs/core/system-spaces/system-global/functions/webSearch.ts` `sdk/org/libs/core/system-spaces/system-global/functions/webFetch.ts`, an explicit `functions:` list must include them or they are stripped from the fork — so the allowlist gates system functions, not just the agent's own.
+When `functions` is set, the fork receives only those functions, intersected out of the engine's available set by `pickAllowed`; an empty array means no functions at all, and omitting it gives all `sdk/org/libs/core/src/fork/fork.ts:250-259`. The engine's function set is the merge of the agent's own space functions PLUS the universal **system toolkit** (`systemFunctionSources`) `sdk/org/libs/core/src/session/session.ts#Session.buildInjectedFunctions`. Because `webSearch` and `webFetch` are system-toolkit space functions `sdk/org/libs/core/system-spaces/system-global/functions/webSearch.ts` `sdk/org/libs/core/system-spaces/system-global/functions/webFetch.ts`, an explicit `functions:` list must include them or they are stripped from the fork — so the allowlist gates system functions, not just the agent's own.
 
 The built-in **`fetch` global is NOT gated** by this allowlist. `pickAllowed` filters only the *space-function* record (`agentFunctions`/`agentFunctionsBundled` `sdk/org/libs/core/src/fork/fork.ts:250-260`), while `fetch` is injected into every child VM unconditionally by the shared bootstrap `sdk/org/libs/core/src/exec/bootstrap.ts:159`, and the fork's system prompt always advertises it `sdk/org/libs/core/src/fork/fork.ts:396`. There is no `functions/fetch.ts` in the system toolkit (`sdk/org/libs/core/system-spaces/system-global/functions/` holds `webFetch.ts`/`webSearch.ts`/`todoWrite.ts`/… but no `fetch`; the generic fs wrappers `readFile`/`grep` live in `system-engineer`, not here), so listing `fetch` in a `functions:` array is a harmless no-op — `pickAllowed` simply finds no such key `sdk/org/libs/core/src/fork/fork.ts:253-258`. Only `webFetch`/`webSearch` (real system-toolkit space functions) must be listed.
 
 ### `forEach` — host-driven fan-out that exposes `item`
 
-`forEach: "<task>.<field>"` names an upstream array; the host resolves it (`resolveForEachItems`) and runs this task once per element in parallel (within the fork concurrency cap), injecting the element as `item` and its position as `index`, then collects the resolved values into an array for dependents `sdk/org/libs/core/src/tasklist/orchestrator.ts:263-278` · `sdk/org/libs/core/src/tasklist/orchestrator.ts:12-20`. The `forEach` head segment must also appear in `dependsOn`, enforced by `validateDag` `sdk/org/libs/core/src/tasklist/dag.ts:26-34`. The model never writes the loop — it just uses `item`.
+`forEach: "<task>.<field>"` names an upstream array; the host resolves it (`resolveForEachItems`) and runs this task once per element in parallel (within the fork concurrency cap), injecting the element as `item` and its position as `index`, then collects the resolved values into an array for dependents `sdk/org/libs/core/src/tasklist/orchestrator.ts:263-278` · `sdk/org/libs/core/src/tasklist/orchestrator.ts#resolveForEachItems`. The `forEach` head segment must also appear in `dependsOn`, enforced by `validateDag` `sdk/org/libs/core/src/tasklist/dag.ts:26-34`. The model never writes the loop — it just uses `item`.
 
 ### `optional` — drop the branch on failure
 
@@ -61,7 +61,7 @@ If an `optional` task's fork rejects, the orchestrator marks it skipped instead 
 
 ### `prelude`
 
-`prelude` is a YAML block scalar of TypeScript statements the host runs in the fork VM BEFORE the model's first turn — deterministic setup executed with host reliability instead of being re-emitted by the model `sdk/org/libs/core/src/spaces/tasklist-load.ts:39-44`. At load time only a non-empty-string check runs; deep validation is deferred to run time through `runPrelude` `sdk/org/libs/core/src/spaces/tasklist-load.ts:145-156` · `sdk/org/libs/core/src/exec/prelude.ts:108`.
+`prelude` is a YAML block scalar of TypeScript statements the host runs in the fork VM BEFORE the model's first turn — deterministic setup executed with host reliability instead of being re-emitted by the model `sdk/org/libs/core/src/spaces/tasklist-load.ts:39-44`. At load time only a non-empty-string check runs; deep validation is deferred to run time through `runPrelude` `sdk/org/libs/core/src/spaces/tasklist-load.ts:145-156` · `sdk/org/libs/core/src/exec/prelude.ts#runPrelude`.
 
 ## The body: instruction and evaluated TS
 

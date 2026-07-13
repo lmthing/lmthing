@@ -1,0 +1,41 @@
+name: Docs sync
+
+# Hard gate for the SYNC contract (org/docs/SYNC.md): every citation in org/docs must
+# resolve against the current code. A `path#Symbol` whose symbol is gone, or a
+# `path:Lstart-Lend` out of bounds, fails the build — the doc has drifted from the code
+# (or the code moved under the doc) and must be fixed in the same change.
+
+on:
+  pull_request:
+    paths:
+      - 'org/docs/**'
+      - 'sdk/org/**'
+      - 'cloud/**'
+      - 'store/**'
+      - 'devops/**'
+      - '.github/workflows/docs-sync.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'org/docs/**'
+      - 'sdk/org/**'
+      - 'cloud/**'
+      - 'store/**'
+      - 'devops/**'
+
+jobs:
+  check-citations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install resolver deps
+        working-directory: org/docs/tools/docs-sync
+        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+      - name: Check citations resolve
+        # Baseline tolerates pre-existing drift; only NEW unresolved citations fail the build.
+        run: node org/docs/tools/docs-sync/check.mjs --baseline org/docs/tools/docs-sync/baseline.json

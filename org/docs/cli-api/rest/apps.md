@@ -22,9 +22,9 @@ Mounted with no store override `sdk/org/libs/cli/src/server/serve.ts:258`. **The
 GET ${LM_STORE_URL ?? https://lmthing.store}/projects/manifest.json  →  { apps: StoreCatalogApp[] }
 ```
 
-`sdk/org/libs/cli/src/server/routes/apps.ts:91-96`. The base URL is trailing-slash-normalised and overridable via `LM_STORE_URL` (or the handler's `storeUrl` argument, used by tests) `sdk/org/libs/cli/src/server/routes/apps.ts:46-49`.
+`sdk/org/libs/cli/src/server/routes/apps.ts#fetchStoreCatalog`. The base URL is trailing-slash-normalised and overridable via `LM_STORE_URL` (or the handler's `storeUrl` argument, used by tests) `sdk/org/libs/cli/src/server/routes/apps.ts:46-49`.
 
-Response: `{ apps }`. If the store is unreachable or non-2xx, the route **degrades to `200 { apps: [] }`** rather than erroring `sdk/org/libs/cli/src/server/routes/apps.ts:103-112`.
+Response: `{ apps }`. If the store is unreachable or non-2xx, the route **degrades to `200 { apps: [] }`** rather than erroring `sdk/org/libs/cli/src/server/routes/apps.ts#handleListApps`.
 
 A catalog entry (`StoreCatalogApp`) carries `id`, optional `title`/`description`/`icon`, the summary arrays `tables`/`pages`/`endpoints`/`hooks`, and `files` — the **full relative-path download list** used by the installer `sdk/org/libs/cli/src/server/routes/apps.ts:76-88`. Real example (`store/projects/manifest.json:1-8`):
 
@@ -47,7 +47,7 @@ A catalog entry (`StoreCatalogApp`) carries `id`, optional `title`/`description`
 
 ## 2. `POST /api/apps/install` — materialize + boot + build
 
-Body: `{ appId, projectId?, force? }` `sdk/org/libs/cli/src/server/routes/apps.ts:169-173`.
+Body: `{ appId, projectId?, force? }` `sdk/org/libs/cli/src/server/routes/apps.ts#InstallBody`.
 
 ### Validation
 
@@ -58,11 +58,11 @@ Body: `{ appId, projectId?, force? }` `sdk/org/libs/cli/src/server/routes/apps.t
 | `projectId` (defaults to `appId`) fails the same check | `400 { error: 'invalid projectId: …' }` `apps.ts:210-214` |
 | the server has no runtime root | `404 { error: 'no project root configured' }` `apps.ts:217-220` |
 
-Ids must match `^[a-zA-Z0-9_-]+$` `sdk/org/libs/cli/src/server/projects.ts:58-64`, and the reserved set is `system`, `api`, `assets`, `install` `sdk/org/libs/cli/src/server/projects.ts:39-43`.
+Ids must match `^[a-zA-Z0-9_-]+$` `sdk/org/libs/cli/src/server/projects.ts#safeProjectId`, and the reserved set is `system`, `api`, `assets`, `install` `sdk/org/libs/cli/src/server/projects.ts#RESERVED_PROJECT_IDS`.
 
 ### Steps
 
-1. **Download to staging.** A temp dir is created (`mkdtempSync`) and every path in the catalog entry's `files[]` is fetched from `${store}/projects/<appId>/<rel>`, each path rejected if it contains `..`, a NUL, an empty segment, is absolute, or resolves outside the staging dir `sdk/org/libs/cli/src/server/routes/apps.ts:120-142,227-231`. A missing entry, an empty `files[]`, or any failed fetch → `404 { error: 'app not available in store catalog: …' }` `apps.ts:232-235`. Staging is always removed in `finally` `apps.ts:302-304`.
+1. **Download to staging.** A temp dir is created (`mkdtempSync`) and every path in the catalog entry's `files[]` is fetched from `${store}/projects/<appId>/<rel>`, each path rejected if it contains `..`, a NUL, an empty segment, is absolute, or resolves outside the staging dir `sdk/org/libs/cli/src/server/routes/apps.ts#downloadStoreApp,227-231`. A missing entry, an empty `files[]`, or any failed fetch → `404 { error: 'app not available in store catalog: …' }` `apps.ts:232-235`. Staging is always removed in `finally` `apps.ts:302-304`.
 2. **Synthesize `project.json` if absent.** Apps authored by `system-appbuilder` ship only a `package.json`; a *deterministic* `{ id, title, description, icon }` is written from the catalog entry (deterministic because `project.json` is part of the install hash — a volatile `createdAt` would make every re-install look diverged) `apps.ts:144-165,236-239`.
 3. **Pristine-vs-diverged guard.** `hashAppTemplate` is a sha256 over the **template subset only** (sorted relpath + bytes), so the destination's live `.data/` and generated `types/` never affect the classification `apps.ts:361-386`. If the destination exists and its hash differs from the shipped hash, the install manifest at `<dest>/.data/.installed.json` is consulted; a copy whose hash still equals `manifest.sourceHash` is **pristine** and re-syncs silently, otherwise the install is held back `apps.ts:241-261,399-420`:
 
@@ -73,7 +73,7 @@ Ids must match `^[a-zA-Z0-9_-]+$` `sdk/org/libs/cli/src/server/projects.ts:58-64
 
    This is returned with HTTP **200**, not an error status — the installer UI treats it as the "Upgrade & replace files" branch, not a failure `apps.ts:249-258`.
 4. **Materialize.** Each template dir (`database`, `pages`, `api`, `hooks`, `components`, `lib`, `spaces`) is fully replaced (rm-then-copy, so upstream deletions do not linger) and the root files `package.json`, `project.json`, `tsconfig.json` are copied verbatim. Nothing else in the destination is touched — `.data/` (live db, build caches) and `types/` (generated) are never in the copy set `apps.ts:66-73,336-359`. Then the install manifest is written `apps.ts:264-265`.
-5. **Boot.** `manager.getProjectDb(root, projectId)` — boot goes *through* the SessionManager so the handle is cached and closed alongside every other project db `apps.ts:271-278` · `sdk/org/libs/cli/src/server/session-manager.ts:515-519`. A boot failure aborts the install with `500 { error: 'boot failed: …' }`.
+5. **Boot.** `manager.getProjectDb(root, projectId)` — boot goes *through* the SessionManager so the handle is cached and closed alongside every other project db `apps.ts:271-278` · `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.getProjectDb`. A boot failure aborts the install with `500 { error: 'boot failed: …' }`.
 6. **Best-effort builds.** Typed contracts (only if `api/` exists) and a forced page build (only if `pages/` exists); each records `{ ok, … }` or `{ ok:false, error }` and **never aborts the install** `apps.ts:280-285,308-334`.
 7. **Drop the page cache.** `onInstalled(projectId)` — `serve.ts` deletes the project's entry in `pageBuildCache`, because the rebuild wrote assets with new content hashes and a stale in-memory asset manifest would fall back to `index.html` for `assets/entry-*.js` (MIME error → blank app) `apps.ts:188-194,291-293` · `sdk/org/libs/cli/src/server/serve.ts:259-265`.
 
@@ -137,16 +137,16 @@ Returns `{ project, hasApp, tables, pages, endpoints, hooks, build }` `app-admin
 - `GET` → `{ built, stale, assetManifest }` — read-only, no rebuild `app-admin.ts:410-429`.
 - `POST` → `buildProjectPages(projectRoot, { force: true })` → `{ built, assetManifest, routes: [{ routePath, file }] }`; a build failure is `400 { error }` `app-admin.ts:431-458`.
 
-This is the explicit rebuild an agent's live page/api authoring must follow with: `onAppWrite` invalidates the contracts + api runtime caches but deliberately does **not** compile pages `sdk/org/libs/cli/src/server/session-manager.ts:591-598`.
+This is the explicit rebuild an agent's live page/api authoring must follow with: `onAppWrite` invalidates the contracts + api runtime caches but deliberately does **not** compile pages `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.liveProjectDb`.
 
 ---
 
 ## 4. App API dispatcher — `* /app/:projectId/api/*`
 
-The browser-facing surface of a project's `api/` handlers, **dual-addressed** with the agent's `apiCall` global, which enters the *same* runtime by endpoint `name` `sdk/org/libs/cli/src/server/routes/app-api.ts:7-21` · `sdk/org/libs/cli/src/app/api/runtime.ts:103-105,312-321`.
+The browser-facing surface of a project's `api/` handlers, **dual-addressed** with the agent's `apiCall` global, which enters the *same* runtime by endpoint `name` `sdk/org/libs/cli/src/server/routes/app-api.ts:7-21` · `sdk/org/libs/cli/src/app/api/runtime.ts#ApiRuntime,312-321`.
 
 ```ts
-// sdk/org/libs/cli/src/server/routes/app-api.ts:26-55 (abridged)
+// sdk/org/libs/cli/src/server/routes/app-api.ts#createAppApiHandler (abridged)
 const runtime = lmthingRoot ? await manager.getApiRuntime(lmthingRoot, projectId) : null;
 if (!runtime) { sendJson(res, 404, { error: { status: 404, message: `project "${projectId}" has no app api` } }); return; }
 let input: unknown;

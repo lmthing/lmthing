@@ -41,8 +41,8 @@ Script names: `cloud/package.json:6-10`.
 
 ## 2. The tiers (verbatim from code)
 
-`cloud/gateway/src/lib/tiers.ts:L90-L162`. Prices come from the Stripe setup script
-(`cloud/scripts/create-stripe-products.ts:L23-L27`, amounts in cents).
+`cloud/gateway/src/lib/tiers.ts#TIERS`. Prices come from the Stripe setup script
+(`cloud/scripts/create-stripe-products.ts#TIERS`, amounts in cents).
 
 | Tier | Stripe price | Budget windows (1d / 7d / 30d, USD) | tpm | rpm | Pod (cpu/mem limit) | Pod requests | Idle TTL | Max sessions | Cron floor / max jobs |
 |---|---|---|---|---|---|---|---|---|---|
@@ -86,7 +86,7 @@ That is **five** chat models plus `whisper-1`, on every tier. `whisper-1` must b
 (`cloud/gateway/src/lib/tiers.ts:L17-L22`).
 
 The pod's model aliases are pinned to these names in the `user-env` secret
-(`cloud/gateway/src/lib/compute.ts:L343-L369`): `LM_MODEL_XS/S → DeepSeek-V4-Flash`,
+(`cloud/gateway/src/lib/compute.ts#litellmEnvDefaults`): `LM_MODEL_XS/S → DeepSeek-V4-Flash`,
 `LM_MODEL_M/M_R → DeepSeek-V4-Pro`, `LM_MODEL_L → gpt-5.5`, `LM_MODEL_L_R → Kimi-K2.6`,
 `LM_MODEL_VISION → gpt-5.4-mini`, `LM_TRANSCRIBE_MODEL → lmthingcloud:whisper-1`.
 
@@ -96,18 +96,18 @@ The pod's model aliases are pinned to these names in the `user-env` secret
 
 | Field | Enforced by | Code |
 |---|---|---|
-| `budgetLimits` | **LiteLLM**, at the **key** level. `toBudgetLimits()` maps `{duration,maxBudget}` → LiteLLM's `budget_limits: [{budget_duration, max_budget}]` and it is sent on `/user/new`, `/key/generate` and `/key/update`. A request is rejected once **any** window is exhausted. | `cloud/gateway/src/lib/tiers.ts:L186-L193`; `cloud/gateway/src/lib/litellm.ts:L25-L54`, `L56-L81` |
-| `models` | LiteLLM key `models` allowlist (same three calls) | `cloud/gateway/src/lib/litellm.ts:L33,L47,L74` |
-| `tpmLimit` / `rpmLimit` | LiteLLM user + key `tpm_limit` / `rpm_limit` | `cloud/gateway/src/lib/litellm.ts:L34-L35,L49-L50,L76-L77` |
+| `budgetLimits` | **LiteLLM**, at the **key** level. `toBudgetLimits()` maps `{duration,maxBudget}` → LiteLLM's `budget_limits: [{budget_duration, max_budget}]` and it is sent on `/user/new`, `/key/generate` and `/key/update`. A request is rejected once **any** window is exhausted. | `cloud/gateway/src/lib/tiers.ts#toBudgetLimits`; `cloud/gateway/src/lib/litellm.ts:L25-L54`, `L56-L81` |
+| `models` | LiteLLM key `models` allowlist (same three calls) | `cloud/gateway/src/lib/litellm.ts#createUser,L47,L74` |
+| `tpmLimit` / `rpmLimit` | LiteLLM user + key `tpm_limit` / `rpm_limit` | `cloud/gateway/src/lib/litellm.ts#createUser,L49-L50,L76-L77` |
 | `pod.cpu` / `pod.mem` / `pod.cpuRequest` / `pod.memRequest` | The K8s Deployment's `resources` (Burstable when `*Request < limit`, Guaranteed otherwise); `NODE_OPTIONS=--max-old-space-size=` is derived as 60% of the mem limit | `cloud/gateway/src/lib/compute.ts:L226-L241`, `L110-L113` |
-| `pod.maxSessions` | Injected as `MAX_SESSIONS` env → the pod's `SessionManager` (`this.maxSessions`), which refuses a new session when all resident sessions are busy | `cloud/gateway/src/lib/compute.ts:L237`; `sdk/org/libs/cli/src/server/session-manager.ts:278`, `:832`, `:945` |
-| `pod.idleTtlMinutes` | Injected as `IDLE_TTL_MINUTES` env → `SessionManager.idleTtlMs` (and the pod's self-idle → scale-to-zero) | `cloud/gateway/src/lib/compute.ts:L238`; `sdk/org/libs/cli/src/server/session-manager.ts:280`; `cloud/gateway/src/routes/compute.ts:L65-L82` |
-| `cron.minIntervalMs` | `POST /api/compute/cron-manifest` clamps every published job's interval **up** to the floor, and the DB upsert re-enforces it (`next_run_at = GREATEST(next_run_at, last_woken_at + floor)`) | `cloud/gateway/src/routes/compute.ts:L101-L124`; `cloud/gateway/src/lib/db.ts:L299-L324` |
+| `pod.maxSessions` | Injected as `MAX_SESSIONS` env → the pod's `SessionManager` (`this.maxSessions`), which refuses a new session when all resident sessions are busy | `cloud/gateway/src/lib/compute.ts:L237`; `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.constructor`, `:832`, `:945` |
+| `pod.idleTtlMinutes` | Injected as `IDLE_TTL_MINUTES` env → `SessionManager.idleTtlMs` (and the pod's self-idle → scale-to-zero) | `cloud/gateway/src/lib/compute.ts:L238`; `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.constructor`; `cloud/gateway/src/routes/compute.ts:L65-L82` |
+| `cron.minIntervalMs` | `POST /api/compute/cron-manifest` clamps every published job's interval **up** to the floor, and the DB upsert re-enforces it (`next_run_at = GREATEST(next_run_at, last_woken_at + floor)`) | `cloud/gateway/src/routes/compute.ts:L101-L124`; `cloud/gateway/src/lib/db.ts#replaceCronManifest` |
 | `cron.maxJobs` | Same route — jobs past the cap are dropped (`if (jobs.length >= policy.maxJobs) break;`) | `cloud/gateway/src/routes/compute.ts:L124` |
-| `stripePriceId` | `getTierByPriceId()` in the Stripe webhook; `TIERS[tier].stripePriceId` in `/api/billing/checkout` | `cloud/gateway/src/lib/tiers.ts:L164-L171`; `cloud/gateway/src/routes/webhook.ts:L44`; `cloud/gateway/src/routes/billing.ts:L70-L82` |
+| `stripePriceId` | `getTierByPriceId()` in the Stripe webhook; `TIERS[tier].stripePriceId` in `/api/billing/checkout` | `cloud/gateway/src/lib/tiers.ts#getTierByPriceId`; `cloud/gateway/src/routes/webhook.ts:L44`; `cloud/gateway/src/routes/billing.ts:L70-L82` |
 
 The tier name itself lives in **LiteLLM user metadata** (`metadata.tier`), written by
-`createUser`/`updateUserTier` (`cloud/gateway/src/lib/litellm.ts:L36,L67`) and read back by
+`createUser`/`updateUserTier` (`cloud/gateway/src/lib/litellm.ts#createUser,L67`) and read back by
 `resolveUserTier()` in the compute route (`cloud/gateway/src/routes/compute.ts:L27-L35`),
 `resolvePodConfig()` (`cloud/gateway/src/lib/compute.ts:L437-L447`), `/api/billing/usage`
 (`cloud/gateway/src/routes/billing.ts:L138`), `/api/billing/budget` (`:L167`), `/api/keys` POST
@@ -123,9 +123,9 @@ Postgres schema.
   (`cloud/gateway/src/routes/compute.ts:L101-L124`). A tier defined without it throws on every
   manifest publish, which **silently kills every cron hook for every user on that tier**.
 - **`tier.name.toLowerCase()` must equal the `TIERS` record key.** LiteLLM stores
-  `metadata: { tier: tier.name.toLowerCase() }` (`cloud/gateway/src/lib/litellm.ts:L36,L52,L67,L78`)
+  `metadata: { tier: tier.name.toLowerCase() }` (`cloud/gateway/src/lib/litellm.ts#createUser,L52,L67,L78`)
   and every read path feeds that string straight back into `getTierByName()`, which is a bare
-  `TIERS[name] || null` (`cloud/gateway/src/lib/tiers.ts:L173-L175`). A `name` that doesn't
+  `TIERS[name] || null` (`cloud/gateway/src/lib/tiers.ts#getTierByName`). A `name` that doesn't
   lowercase to its key resolves to `null` forever after and the user **silently degrades to
   `free`** (`cloud/gateway/src/routes/compute.ts:L27-L35,L101-L102`).
 
@@ -171,7 +171,7 @@ registers the webhook endpoint.
 | Prints | `STRIPE_PRICE_BASIC=…` env lines (`:L86-L89`) | `vault_stripe_price_*` + `vault_stripe_webhook_secret` vault lines (`:L62-L68`) |
 
 Both charge the same amounts — 1000 / 2000 / 10000 cents
-(`cloud/scripts/create-stripe-products.ts:L23-L27`; `devops/ansible/scripts/setup/create-stripe-prices.sh:L48-L50`).
+(`cloud/scripts/create-stripe-products.ts#TIERS`; `devops/ansible/scripts/setup/create-stripe-prices.sh:L48-L50`).
 
 **The deployed values come from the Ansible vault, not from the TS script.** The
 `lmthing-secrets` K8s secret is templated from `vault_stripe_price_{basic,pro,max}` +
@@ -187,17 +187,17 @@ placeholders in `cloud/.env.example:17-21`). `tiers.ts` reads them at module loa
 so a **missing env var silently makes that tier un-checkout-able**: `/api/billing/checkout`
 rejects it with `400 Invalid tier` because `stripePriceId` is falsy
 (`cloud/gateway/src/routes/billing.ts:L70-L73`), and `getTierByPriceId()` skips tiers with an
-empty price id (`cloud/gateway/src/lib/tiers.ts:L166`).
+empty price id (`cloud/gateway/src/lib/tiers.ts#getTierByPriceId`).
 
 ### 4.2 Customer creation
 
 A Stripe customer is created at **registration** — `provisionUser()` creates the customer,
 then the LiteLLM user on the **free** tier with `metadata.stripe_customer_id`, then the user's
-first API key (`cloud/gateway/src/routes/auth.ts:L15-L55`). The customer id is stored *in
+first API key (`cloud/gateway/src/routes/auth.ts#provisionUser`). The customer id is stored *in
 LiteLLM user metadata*, not in the gateway DB. `ensureStripeCustomer()` in the billing route is
 the lazy fallback for users who predate that (read metadata → else create customer → write it
 back via `/user/new`, falling back to `/user/update` merge)
-(`cloud/gateway/src/routes/billing.ts:L24-L60`).
+(`cloud/gateway/src/routes/billing.ts#ensureStripeCustomer`).
 
 ### 4.3 Checkout (embedded)
 
@@ -224,7 +224,7 @@ const session = await stripe.checkout.sessions.create({
 hand in the Stripe dashboard) carries no `user_id` and is skipped with a warning (`:L39-L42`).
 
 Frontend: `com/src/routes/pricing.tsx` renders `plans` and navigates to `/checkout?tier=<id>`;
-`com/src/routes/checkout.tsx:39-51` mounts `<EmbeddedCheckout>` with
+`com/src/routes/checkout.tsx#CheckoutForm` mounts `<EmbeddedCheckout>` with
 `fetchClientSecret = () => createCheckout(tier).client_secret`; `com/src/lib/cloud.ts:164-176`
 wraps `POST /api/billing/checkout` and `GET /api/billing/checkout/status`. After redirect,
 `GET /api/billing/checkout/status?session_id=…` returns
@@ -260,7 +260,7 @@ failure, so a tier change that half-applied must be repaired manually (e.g. with
 
 `updateUserTier` deliberately does **not** send `budget_limits` to `/user/update` — LiteLLM's
 user table has no such column and the call 400s — so budgets are applied per-key
-(`cloud/gateway/src/lib/litellm.ts:L56-L81`).
+(`cloud/gateway/src/lib/litellm.ts#updateUserTier`).
 
 ---
 
@@ -336,13 +336,13 @@ The compute pod can't compute this itself (it only holds the user's key), so
 gateway (local/off-cloud pods), which the UI reads as "hide"
 (`sdk/org/libs/cli/src/server/routes/budget.ts:L17-L39`; route registered at
 `sdk/org/libs/cli/src/server/serve.ts:140`; `LMTHING_GATEWAY_URL` injected into `user-env` at
-`cloud/gateway/src/lib/compute.ts:L348-L350`).
+`cloud/gateway/src/lib/compute.ts#litellmEnvDefaults`).
 
 `BudgetWindows` polls that endpoint every 30s (and on every session-cost change) and renders
 the remaining percentages under the composer; **any window at exactly 0% sets `budgetBlocked`**,
 which disables the composer with "Budget reached — try again after it resets" and short-circuits
 send (`sdk/org/libs/ui/src/chat/app/BudgetWindows.tsx:L12-L55`;
-`sdk/org/libs/ui/src/chat/app/Composer.tsx:50,66,372`;
+`sdk/org/libs/ui/src/chat/app/Composer.tsx#Composer,66,372`;
 `sdk/org/libs/ui/src/chat/app/ChatView.tsx:119`).
 
 ### `/api/auth/me` and `/api/keys`
@@ -370,7 +370,7 @@ that inherits the user's *current* tier (models + budget windows + tpm/rpm)
   (`cloud/scripts/generate-litellm-models.ts:L10-L15`; `devops/argocd/core/litellm.yaml:8-12`).
 - **Pods created between upgrades keep a free-tier key.** `getLiteLLMKey()` — called from the
   pod-ensure path — always generates the `compute-<userId>` key with **`TIERS.free`**
-  (`cloud/gateway/src/lib/compute.ts:L312-L334`). That key only picks up the paid windows the
+  (`cloud/gateway/src/lib/compute.ts#getLiteLLMKey`). That key only picks up the paid windows the
   next time `updateUserTier()` runs (i.e. on the next Stripe subscription event) or when
   `resync-tier-budgets.ts` is run. LiteLLM never re-reveals a key's secret, so the function
   falls back to the value already stored in `user-env` when the alias exists (`:L325-L333`).
@@ -383,11 +383,11 @@ that inherits the user's *current* tier (models + budget windows + tpm/rpm)
 Two shipped frontends still call these endpoints with the wrong response shape. Both are live
 bugs, not doc drift:
 
-1. **`com/src/routes/billing/usage.tsx:6-12,50-55`** types the response as the *old* flat
+1. **`com/src/routes/billing/usage.tsx#UsageData,50-55`** types the response as the *old* flat
    `{ max_budget, budget_duration, budget_reset_at }`; `/api/billing/usage` returns a
    `budgets[]` array (`cloud/gateway/src/routes/billing.ts:L140-L145`) — so the page renders
    `$x / $undefined` and a `NaN%` progress bar.
-2. **`sdk/org/libs/ui/src/elements/settings/billing/index.tsx:20-21`** destructures
+2. **`sdk/org/libs/ui/src/elements/settings/billing/index.tsx#openBillingPortal`** destructures
    `{ portal_url }` from `POST /api/billing/portal`, but the gateway returns `{ url }`
    (`cloud/gateway/src/routes/billing.ts:L108`) → `window.location.href = undefined`. The `com`
    copy is correct: `const { url } = await billingPortal()` (`com/src/routes/billing.tsx:25`).
@@ -428,7 +428,7 @@ service whose source is **not vendored** anywhere in this repo (grep for
 what the gateway *sends* (`cloud/gateway/src/lib/litellm.ts:L25-L81`) and what the deployed
 config *declares* (`devops/argocd/core/litellm.yaml:13-79`). The "a request is rejected once
 **any** window is exhausted" rule is the gateway's own documented assumption
-(`cloud/gateway/src/lib/tiers.ts:L71-L75`), relied on by the budget endpoint's design comment
+(`cloud/gateway/src/lib/tiers.ts#Tier`), relied on by the budget endpoint's design comment
 (`cloud/gateway/src/lib/budget-math.ts:L1-L8`, "an over-budget key 429s even on reads") and
 mirrored client-side by `BudgetWindows` blocking at 0%
 (`sdk/org/libs/ui/src/chat/app/BudgetWindows.tsx:L28-L34`). Settle it against a running LiteLLM,

@@ -15,11 +15,11 @@ pages/feed/[articleId].tsx           →  /feed/:articleId
 pages/feed/[articleId]/research.tsx  →  /feed/:articleId/research
 ```
 
-The route table above is grounded in `routePathFor` (`sdk/org/libs/cli/src/app/build/pages.ts:184-194`) and the matcher `matchRoutes`, which splits both request and pattern into segments and captures `:param` segments (`sdk/org/libs/cli/src/app/runtime/router.tsx:57-75`). Dynamic-segment authoring uses `[seg]` wrapped in brackets and the writer accepts it as a valid path segment (`sdk/org/libs/cli/src/app/authoring/globals.ts:53`). Directories named `components/` and `lib/` under `pages/` hold shared code, not routes, and are skipped during discovery (`sdk/org/libs/cli/src/app/build/pages.ts:173`).
+The route table above is grounded in `routePathFor` (`sdk/org/libs/cli/src/app/build/pages.ts:184-194`) and the matcher `matchRoutes`, which splits both request and pattern into segments and captures `:param` segments (`sdk/org/libs/cli/src/app/runtime/router.tsx#matchRoutes`). Dynamic-segment authoring uses `[seg]` wrapped in brackets and the writer accepts it as a valid path segment (`sdk/org/libs/cli/src/app/authoring/globals.ts#AppAuthoringGlobals.currentApp`). Directories named `components/` and `lib/` under `pages/` hold shared code, not routes, and are skipped during discovery (`sdk/org/libs/cli/src/app/build/pages.ts#walkPages`).
 
 ## Special files: `_app` / `_layout`
 
-Two `_`-prefixed basenames are wrappers, not routes: `_app.tsx` (root wrapper — providers/context) and `_layout.tsx` (persistent chrome/shared layout), both optional (`sdk/org/libs/cli/src/app/build/pages.ts:152`, `sdk/org/libs/cli/src/app/build/pages.ts:305-314`). The router wraps the matched page as page-in-`_layout`-in-`_app` (`sdk/org/libs/cli/src/app/runtime/router.tsx:167-176`). Details → [app-file.md](./app-file.md) and [layout-file.md](./layout-file.md).
+Two `_`-prefixed basenames are wrappers, not routes: `_app.tsx` (root wrapper — providers/context) and `_layout.tsx` (persistent chrome/shared layout), both optional (`sdk/org/libs/cli/src/app/build/pages.ts#WRAPPERS`, `sdk/org/libs/cli/src/app/build/pages.ts:305-314`). The router wraps the matched page as page-in-`_layout`-in-`_app` (`sdk/org/libs/cli/src/app/runtime/router.tsx#wrap`). Details → [app-file.md](./app-file.md) and [layout-file.md](./layout-file.md).
 
 ## `@app/runtime` — data hooks + routing
 
@@ -27,16 +27,16 @@ A page default-exports a React component and imports data/routing helpers from `
 
 | Import | Purpose | Returns |
 |---|---|---|
-| `useApi(name, input?, opts?)` | query an endpoint (GET/DELETE reads); refetches when `[name, JSON.stringify(input)]` changes | `{ data, error, isLoading, refetch }` (`sdk/org/libs/cli/src/app/runtime/hooks.tsx:70-116`) |
-| `useApiMutation(name, { invalidates? })` | mutate via an endpoint (POST/PATCH/PUT) | `{ mutate, isPending, error }` (`sdk/org/libs/cli/src/app/runtime/hooks.tsx:138-169`) |
-| `apiCall(name, input?)` | imperative one-shot call | `Promise<unknown>` (parsed JSON body) (`sdk/org/libs/cli/src/app/runtime/client.ts:147-161`) |
-| `Link`, `navigate`, `useParams` | client-side routing | — (`sdk/org/libs/cli/src/app/runtime/router.tsx:143`, `:121`, `:89`) |
+| `useApi(name, input?, opts?)` | query an endpoint (GET/DELETE reads); refetches when `[name, JSON.stringify(input)]` changes | `{ data, error, isLoading, refetch }` (`sdk/org/libs/cli/src/app/runtime/hooks.tsx#useApi`) |
+| `useApiMutation(name, { invalidates? })` | mutate via an endpoint (POST/PATCH/PUT) | `{ mutate, isPending, error }` (`sdk/org/libs/cli/src/app/runtime/hooks.tsx#useApiMutation`) |
+| `apiCall(name, input?)` | imperative one-shot call | `Promise<unknown>` (parsed JSON body) (`sdk/org/libs/cli/src/app/runtime/client.ts#apiCall`) |
+| `Link`, `navigate`, `useParams` | client-side routing | — (`sdk/org/libs/cli/src/app/runtime/router.tsx#Link`, `:121`, `:89`) |
 
-`name` is the endpoint's stable exported name; `apiCall` looks it up in the injected endpoint manifest (`window.__APP_ENDPOINTS__`), fills `:param` segments from `input`, and routes GET/DELETE remainders to the query string and POST/PATCH/PUT remainders to the JSON body (`sdk/org/libs/cli/src/app/runtime/client.ts:8-14`, `sdk/org/libs/cli/src/app/runtime/client.ts:121-139`). See endpoint authoring → [../api/README.md](../api/README.md).
+`name` is the endpoint's stable exported name; `apiCall` looks it up in the injected endpoint manifest (`window.__APP_ENDPOINTS__`), fills `:param` segments from `input`, and routes GET/DELETE remainders to the query string and POST/PATCH/PUT remainders to the JSON body (`sdk/org/libs/cli/src/app/runtime/client.ts:8-14`, `sdk/org/libs/cli/src/app/runtime/client.ts#buildRequest`). See endpoint authoring → [../api/README.md](../api/README.md).
 
-`useApi` re-fetches on mount and on input change, discards stale in-flight responses (last-write-wins via a request-id ref), and registers its refetch under `name` so a mutation can invalidate it (`sdk/org/libs/cli/src/app/runtime/hooks.tsx:82-116`). `useApiMutation`'s `mutate(input)` resolves the endpoint output and, on success, re-fetches every live query named in `invalidates` (`sdk/org/libs/cli/src/app/runtime/hooks.tsx:149-166`, `sdk/org/libs/cli/src/app/runtime/hooks.tsx:41-47`).
+`useApi` re-fetches on mount and on input change, discards stale in-flight responses (last-write-wins via a request-id ref), and registers its refetch under `name` so a mutation can invalidate it (`sdk/org/libs/cli/src/app/runtime/hooks.tsx#useApi`). `useApiMutation`'s `mutate(input)` resolves the endpoint output and, on success, re-fetches every live query named in `invalidates` (`sdk/org/libs/cli/src/app/runtime/hooks.tsx#useApiMutation`, `sdk/org/libs/cli/src/app/runtime/hooks.tsx:41-47`).
 
-Routing uses the History API: `navigate(to)` pushes state and re-renders (`sdk/org/libs/cli/src/app/runtime/router.tsx:121-124`); `<Link>` is an anchor that navigates client-side on a plain left-click and accepts both `to` and `href` (`sdk/org/libs/cli/src/app/runtime/router.tsx:126-162`); `useParams()` reads the matched route's params (`sdk/org/libs/cli/src/app/runtime/router.tsx:89-91`). Route-table paths are authored base-agnostically (`/`, `/discover`); `Link`/`navigate` re-apply the `…/app/<project>` base via `toHref` so navigation stays inside the app (`sdk/org/libs/cli/src/app/runtime/router.tsx:96-114`).
+Routing uses the History API: `navigate(to)` pushes state and re-renders (`sdk/org/libs/cli/src/app/runtime/router.tsx#navigate`); `<Link>` is an anchor that navigates client-side on a plain left-click and accepts both `to` and `href` (`sdk/org/libs/cli/src/app/runtime/router.tsx:126-162`); `useParams()` reads the matched route's params (`sdk/org/libs/cli/src/app/runtime/router.tsx#useParams`). Route-table paths are authored base-agnostically (`/`, `/discover`); `Link`/`navigate` re-apply the `…/app/<project>` base via `toHref` so navigation stays inside the app (`sdk/org/libs/cli/src/app/runtime/router.tsx:96-114`).
 
 ## Styling — tokens-only hard gate
 

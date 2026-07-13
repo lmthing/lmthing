@@ -16,7 +16,7 @@ Both `lmthing serve` and a bare `lmthing` end in `startSessionServer({ port, man
 
 `startSessionServer` builds one route registry (`sdk/org/libs/cli/src/server/serve.ts:L134`) and one `node:http` server whose request handler does exactly three things in order (`serve.ts:L343-L370`):
 
-1. **Dispatch the router.** The `Router` is a tiny first-match-wins pattern matcher — `:param` captures one non-slash segment, a trailing `/*` captures the rest as `params.rest`, and the verb `'*'` matches any method (`sdk/org/libs/cli/src/server/router.ts:L33-L46`, `:L60-L80`). Registration order therefore *is* precedence.
+1. **Dispatch the router.** The `Router` is a tiny first-match-wins pattern matcher — `:param` captures one non-slash segment, a trailing `/*` captures the rest as `params.rest`, and the verb `'*'` matches any method (`sdk/org/libs/cli/src/server/router.ts#compilePattern`, `:L60-L80`). Registration order therefore *is* precedence.
 2. **404 unknown `/api/*`** as JSON: `{ error: "unknown API route <METHOD> <path>" }` (`serve.ts:L361-L366`).
 3. **Fall through to the SPA** for everything else — the Vite dev middleware when `LM_DEV_WEB` is set, otherwise the built dist (`serve.ts:L367-L369`).
 
@@ -57,7 +57,7 @@ The gateway injects `LMTHING_GATEWAY_URL` into every per-user pod and nothing el
 
 ## The pod root
 
-`materializeRuntime(root)` copies every dir returned by core's `defaultSystemSpaceDirs()` into `<root>/system/spaces/<name>/`, records each shipped dir's content hash into `<root>/system/.shipped.json`, and creates the default `user` project skeleton (`sdk/org/libs/cli/src/cli/runtime-init.ts:L89-L130`). The root is `LMTHING_ROOT` if set, else `<cwd>/.lmthing` (`bin.ts:L209-L213`; production pods point it at their data volume).
+`materializeRuntime(root)` copies every dir returned by core's `defaultSystemSpaceDirs()` into `<root>/system/spaces/<name>/`, records each shipped dir's content hash into `<root>/system/.shipped.json`, and creates the default `user` project skeleton (`sdk/org/libs/cli/src/cli/runtime-init.ts#materializeRuntime`). The root is `LMTHING_ROOT` if set, else `<cwd>/.lmthing` (`bin.ts:L209-L213`; production pods point it at their data volume).
 
 ```
 <root>/                              # $LMTHING_ROOT, else <cwd>/.lmthing
@@ -76,7 +76,7 @@ The gateway injects `LMTHING_GATEWAY_URL` into every per-user pod and nothing el
 
 The ten names are fixed in `SYSTEM_SPACE_NAMES` (`sdk/org/libs/core/src/spaces/system.ts:L29-L41`); `defaultSystemSpaceDirs()` probes for the `system-spaces/` dir in both the dist and src layouts (`system.ts:L49-L57`).
 
-`<root>/system/` is also surfaced by the server as a **synthetic `system` project** — `listProjects` prepends `{ id:'system', name:'System', createdAt:0 }` whenever `<root>/system/spaces/` is non-empty, so Studio edits system spaces through the ordinary `/api/projects/system/spaces/...` routes (`sdk/org/libs/cli/src/server/projects.ts:L305-L325`). `system` is reserved, along with `api`, `assets` and `install` — ids that would collide with reserved `lmthing.app` URL paths under the root mount (`projects.ts:L34-L44`). The default project id is `user` (`projects.ts:L22`).
+`<root>/system/` is also surfaced by the server as a **synthetic `system` project** — `listProjects` prepends `{ id:'system', name:'System', createdAt:0 }` whenever `<root>/system/spaces/` is non-empty, so Studio edits system spaces through the ordinary `/api/projects/system/spaces/...` routes (`sdk/org/libs/cli/src/server/projects.ts#listProjects`). `system` is reserved, along with `api`, `assets` and `install` — ids that would collide with reserved `lmthing.app` URL paths under the root mount (`projects.ts:L34-L44`). The default project id is `user` (`projects.ts:L22`).
 
 ### System-space reconciliation
 
@@ -118,7 +118,7 @@ Two more startup behaviours worth knowing:
 
 | Port | What |
 |---|---|
-| **8080** | `lmthing serve` / bare `lmthing` default (`bin.ts:L337`, `:L405`); also `pnpm thing`'s `THING_PORT` default (`sdk/org/scripts/thing-dev.mjs:L41`) |
+| **8080** | `lmthing serve` / bare `lmthing` default (`bin.ts:L337`, `:L405`); also `pnpm thing`'s `THING_PORT` default (`sdk/org/scripts/thing-dev.mjs#SERVE_PORT`) |
 | **3000** | `--web [port]` — the *single-session* DevTools UI, a different server (`sdk/org/libs/cli/src/cli/args.ts:L182-L192`) |
 | **18080** | the repo Makefile's local-dev serve port (`Makefile:L135`) |
 

@@ -11,9 +11,9 @@ All routes are registered on the pod's `Router` in `sdk/org/libs/cli/src/server/
 | `GET` | `/api/session-ledger` | `handleListSessionLedger` `sdk/org/libs/cli/src/server/serve.ts:168` |
 | `DELETE` | `/api/sessions/:id` | `handleDeleteSession` `sdk/org/libs/cli/src/server/serve.ts:193` |
 | `*` | `/api/sessions/:id/*` | `handleSessionSubRoute` (catch-all → the agent API) `sdk/org/libs/cli/src/server/serve.ts:194` |
-| `WS` | `/api/ws?sessionId=<id>` | `handleAgentWsUpgrade` `sdk/org/libs/cli/src/server/ws/agent.ts:121-149` |
+| `WS` | `/api/ws?sessionId=<id>` | `handleAgentWsUpgrade` `sdk/org/libs/cli/src/server/ws/agent.ts#handleAgentWsUpgrade` |
 
-> The pod server has no authentication of its own on these routes — none of the handlers in `routes/sessions.ts` or `router.ts` check a token. The pod is protected by its network position (one pod per user namespace, behind the gateway/Envoy). `sdk/org/libs/cli/src/server/router.ts:49-83`
+> The pod server has no authentication of its own on these routes — none of the handlers in `routes/sessions.ts` or `router.ts` check a token. The pod is protected by its network position (one pod per user namespace, behind the gateway/Envoy). `sdk/org/libs/cli/src/server/router.ts#Router`
 
 ---
 
@@ -40,20 +40,20 @@ Responses: `201 { sessionId }` on success `sdk/org/libs/cli/src/server/routes/se
 ### Three resolution paths
 
 1. **Resume** (project mode + `resumeSessionId`) — validates the id, returns immediately if the session is already resident, else locates the snapshot dir (`<project>/spaces/<spaceId>/sessions/<id>` when `spaceRef` is given, else `<project>/sessions/<id>`) and throws `no saved session found: <id>` if `snapshot.json` is absent. A placeholder entry with `needsResume: true` is registered, and the snapshot + persisted trace are loaded asynchronously. `sdk/org/libs/cli/src/server/session-manager.ts:866-937`
-2. **Project mode** (`lmthingRoot` set) — `projectId` defaults to `'user'`, `agentSlug` to `'thing'`; a `spaceRef` binds the session to `<project>/spaces/<space>` (and its `agent` segment overrides the slug) and selects the per-space snapshot dir. `sdk/org/libs/cli/src/server/session-manager.ts:954-1002`
+2. **Project mode** (`lmthingRoot` set) — `projectId` defaults to `'user'`, `agentSlug` to `'thing'`; a `spaceRef` binds the session to `<project>/spaces/<space>` (and its `agent` segment overrides the slug) and selects the per-space snapshot dir. `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.createSession`
 3. **Legacy mode** (no `lmthingRoot`) — `spaceDir` from the body or the server's `defaultSpaceDir` (throws `no spaceDir provided and no defaultSpaceDir configured`), `agentSlug` defaults to `'default'`. `sdk/org/libs/cli/src/server/session-manager.ts:1005-1019`
 
 Sessions created this way are marked `interactive: true`, which is what gates the consent prompter — headless runs deliberately leave it unset so consent-marked calls fail closed instead of hanging on an ask nobody will answer `sdk/org/libs/cli/src/server/session-manager.ts:166-169`, `sdk/org/libs/cli/src/server/session-manager.ts:1012-1018`.
 
 ### Capacity, eviction and reaping
 
-`maxSessions` (default `8`, or `MAX_SESSIONS`) bounds resident VMs `sdk/org/libs/cli/src/server/session-manager.ts:278`. On overflow the manager does **not** refuse: `ensureCapacity` evicts the least-recently-active *non-running* session, persisting it first so it resumes transparently when reopened; only when every resident session is actively running does creation throw `max sessions reached (<n>) — all active sessions are busy` `sdk/org/libs/cli/src/server/session-manager.ts:784-817`, `sdk/org/libs/cli/src/server/session-manager.ts:939-943`. A reaper disposes sessions idle beyond `idleTtlMs` (default 15 min, `IDLE_TTL_MINUTES`) on a 60 s tick `sdk/org/libs/cli/src/server/session-manager.ts:280`, `sdk/org/libs/cli/src/server/session-manager.ts:2195-2208`.
+`maxSessions` (default `8`, or `MAX_SESSIONS`) bounds resident VMs `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.constructor`. On overflow the manager does **not** refuse: `ensureCapacity` evicts the least-recently-active *non-running* session, persisting it first so it resumes transparently when reopened; only when every resident session is actively running does creation throw `max sessions reached (<n>) — all active sessions are busy` `sdk/org/libs/cli/src/server/session-manager.ts:784-817`, `sdk/org/libs/cli/src/server/session-manager.ts:939-943`. A reaper disposes sessions idle beyond `idleTtlMs` (default 15 min, `IDLE_TTL_MINUTES`) on a 60 s tick `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.constructor`, `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.getAutocompleteWords`.
 
 ---
 
 ## GET /api/sessions — list resident sessions
 
-Returns `{ sessions: SessionMeta[] }` for the **in-memory** pool only (never the persisted history) `sdk/org/libs/cli/src/server/routes/sessions.ts:42-49`, `sdk/org/libs/cli/src/server/session-manager.ts:1239-1248`:
+Returns `{ sessions: SessionMeta[] }` for the **in-memory** pool only (never the persisted history) `sdk/org/libs/cli/src/server/routes/sessions.ts#handleListSessions`, `sdk/org/libs/cli/src/server/session-manager.ts:1239-1248`:
 
 ```ts
 export interface SessionMeta {
@@ -65,7 +65,7 @@ export interface SessionMeta {
   status: SessionStatus;
 }
 ```
-`sdk/org/libs/cli/src/server/session-manager.ts:121-128`
+`sdk/org/libs/cli/src/server/session-manager.ts#SessionMeta`
 
 This route doubles as the pod's readiness probe and as the browser's "pod edge is wired" check (any status other than an Envoy 503/504 means the pod is reachable) — see [`../../chat/features.md`](../../chat/features.md).
 
@@ -75,17 +75,17 @@ Persisted (non-resident) conversations are listed elsewhere: `GET /api/projects/
 
 ## DELETE /api/sessions/:id
 
-`404 { error: 'unknown session "<id>"' }` when not resident; otherwise the session is persisted, its VM disposed, dropped from the pool, finalized in the ledger, and `200 { ok: true }` returned `sdk/org/libs/cli/src/server/routes/sessions.ts:51-62`, `sdk/org/libs/cli/src/server/session-manager.ts:1382-1394`.
+`404 { error: 'unknown session "<id>"' }` when not resident; otherwise the session is persisted, its VM disposed, dropped from the pool, finalized in the ledger, and `200 { ok: true }` returned `sdk/org/libs/cli/src/server/routes/sessions.ts#handleDeleteSession`, `sdk/org/libs/cli/src/server/session-manager.ts:1382-1394`.
 
 ---
 
 ## `* /api/sessions/:id/*` — the per-session agent API
 
-The router's trailing `/*` captures the remainder as `params.rest` `sdk/org/libs/cli/src/server/router.ts:37-42`. `handleSessionSubRoute` 404s an unknown id, then rewrites the path to `/api/<rest>` and delegates to the single-session `handleAgentApi`, so every sub-route below is the *same* code the `--web` DevTools server serves `sdk/org/libs/cli/src/server/routes/sessions.ts:69-86`.
+The router's trailing `/*` captures the remainder as `params.rest` `sdk/org/libs/cli/src/server/router.ts#compilePattern`. `handleSessionSubRoute` 404s an unknown id, then rewrites the path to `/api/<rest>` and delegates to the single-session `handleAgentApi`, so every sub-route below is the *same* code the `--web` DevTools server serves `sdk/org/libs/cli/src/server/routes/sessions.ts#handleSessionSubRoute`.
 
 | Sub-route | Behaviour |
 |---|---|
-| `GET …/help` | The agent-facing quickstart text `sdk/org/libs/cli/src/web/agent-api.ts:185-207`, `:251-254` |
+| `GET …/help` | The agent-facing quickstart text `sdk/org/libs/cli/src/web/agent-api.ts#HELP_TEXT`, `:251-254` |
 | `GET …/state` | `{ lastSeq, rootId, nodes, asks }` (JSON) or an ASCII execution tree `sdk/org/libs/cli/src/web/agent-api.ts:257-266` |
 | `GET …/node/<nodeId>?tab=&limit=&offset=` | Node detail; `tab` = `llm\|statements\|yields\|variables\|raw` (default `statements`) `sdk/org/libs/cli/src/web/agent-api.ts:269-281` |
 | `GET …/events?since=&type=&node=&limit=` | Incremental trace tail → `{ events, lastSeq }` (default limit 500) `sdk/org/libs/cli/src/web/agent-api.ts:284-300` |
@@ -106,17 +106,17 @@ curl -s -XPOST "localhost:8080/api/sessions/$SID/message" \
 curl -s "localhost:8080/api/sessions/$SID/state"
 curl -s "localhost:8080/api/sessions/$SID/events?since=0&format=json"
 ```
-(The loop above is the one documented in the pod's own `HELP_TEXT` `sdk/org/libs/cli/src/web/agent-api.ts:199-204`.)
+(The loop above is the one documented in the pod's own `HELP_TEXT` `sdk/org/libs/cli/src/web/agent-api.ts#HELP_TEXT`.)
 
 ---
 
 ## Streaming — `WS /api/ws?sessionId=<id>`
 
-The WS upgrade is matched in `serve.ts`'s `upgrade` handler, not the Router. `handleAgentWsUpgrade` destroys any socket whose pathname isn't `/api/ws`; **with no `sessionId` it registers a control socket** (terminal multiplexing, used by `/computer`); an unknown `sessionId` is refused with a raw `HTTP/1.1 404` `sdk/org/libs/cli/src/server/ws/agent.ts:121-149`.
+The WS upgrade is matched in `serve.ts`'s `upgrade` handler, not the Router. `handleAgentWsUpgrade` destroys any socket whose pathname isn't `/api/ws`; **with no `sessionId` it registers a control socket** (terminal multiplexing, used by `/computer`); an unknown `sessionId` is refused with a raw `HTTP/1.1 404` `sdk/org/libs/cli/src/server/ws/agent.ts#handleAgentWsUpgrade`.
 
 On connect the server sends, in order: `hello` (protocolVersion, sessionId, spaceName, agentSlug), a full `trace_snapshot` (events + `lastSeq` + `truncatedBefore`), and `ask_pending` when forms are open `sdk/org/libs/cli/src/server/ws/agent.ts:68-80`. Each socket is attached to that session's own `TraceHub`, so live `trace` events fan out per-session and never cross sessions `sdk/org/libs/cli/src/server/ws/agent.ts:57-66`, `sdk/org/libs/cli/src/server/session-manager.ts:85-91`.
 
-Client → server messages `sdk/org/libs/cli/src/server/ws/agent.ts:82-112`, typed in `sdk/org/libs/cli/src/rpc/events.ts:45-48`:
+Client → server messages `sdk/org/libs/cli/src/server/ws/agent.ts#registerSocket`, typed in `sdk/org/libs/cli/src/rpc/events.ts#ClientMessage`:
 
 | Message | Effect |
 |---|---|
@@ -125,11 +125,11 @@ Client → server messages `sdk/org/libs/cli/src/server/ws/agent.ts:82-112`, typ
 | `{type:'cancelAsk', id}` | Cancel an open `ask()` `sdk/org/libs/cli/src/server/ws/agent.ts:96-99` |
 | `{type:'subscribeTrace', sinceSeq?}` | Re-send a `trace_snapshot` from `sinceSeq` `sdk/org/libs/cli/src/server/ws/agent.ts:100-104` |
 
-Server → client event union (`display`, `ask_start`, `ask_end`, `variables`, `error`, `done`, `hello`, `trace`, `trace_snapshot`, `ask_pending`, `ui_control`, …) is `ServerEvent` in `sdk/org/libs/cli/src/rpc/events.ts:12-30`.
+Server → client event union (`display`, `ask_start`, `ask_end`, `variables`, `error`, `done`, `hello`, `trace`, `trace_snapshot`, `ask_pending`, `ui_control`, …) is `ServerEvent` in `sdk/org/libs/cli/src/rpc/events.ts#ServerEvent`.
 
 ### What `sendMessage` actually does
 
-First message → `session.start()`; later messages → `session.continue()`; a resumed entry (`needsResume`) → `session.resume(snapshotDir, input)` `sdk/org/libs/cli/src/server/session-manager.ts:1344-1356`. The title is taken from the first user message (first 80 chars) unless the agent overrides it with `setSessionMeta()` `sdk/org/libs/cli/src/server/session-manager.ts:1328`, `sdk/org/libs/cli/src/server/session-manager.ts:312-318`. Attachment ids are re-read from disk server-side (only the id is trusted) and audio transcripts fold into the text `sdk/org/libs/cli/src/server/session-manager.ts:1294-1317`. The user message is written into the trace as a `user_message` event so it appears in the transcript `sdk/org/libs/cli/src/server/session-manager.ts:1339-1342`. On settle the entry flips to `idle`/`error`, emits `done`/`error`, and is persisted `sdk/org/libs/cli/src/server/session-manager.ts:1364-1378`.
+First message → `session.start()`; later messages → `session.continue()`; a resumed entry (`needsResume`) → `session.resume(snapshotDir, input)` `sdk/org/libs/cli/src/server/session-manager.ts:1344-1356`. The title is taken from the first user message (first 80 chars) unless the agent overrides it with `setSessionMeta()` `sdk/org/libs/cli/src/server/session-manager.ts:1328`, `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.wireTracer`. Attachment ids are re-read from disk server-side (only the id is trusted) and audio transcripts fold into the text `sdk/org/libs/cli/src/server/session-manager.ts:1294-1317`. The user message is written into the trace as a `user_message` event so it appears in the transcript `sdk/org/libs/cli/src/server/session-manager.ts:1339-1342`. On settle the entry flips to `idle`/`error`, emits `done`/`error`, and is persisted `sdk/org/libs/cli/src/server/session-manager.ts:1364-1378`.
 
 Persistence writes three files under the session's snapshot dir — `snapshot.json` (history), `meta.json` (`PersistedSessionMeta`: title/slug/messageCount/status/totalCostUsd), `trace.json` `sdk/org/libs/cli/src/server/session-manager.ts:1198-1233`.
 
@@ -137,7 +137,7 @@ Persistence writes three files under the session's snapshot dir — `snapshot.js
 
 ## GET /api/session-ledger — token & cost accounting
 
-`{ sessions: SessionLedgerRecord[] }`, newest-first, capped at 200 `sdk/org/libs/cli/src/server/routes/session-ledger.ts:10-17`, `sdk/org/libs/cli/src/server/session-ledger.ts:243-247`. It backs the Sessions tab of the settings dialog.
+`{ sessions: SessionLedgerRecord[] }`, newest-first, capped at 200 `sdk/org/libs/cli/src/server/routes/session-ledger.ts#handleListSessionLedger`, `sdk/org/libs/cli/src/server/session-ledger.ts#SessionLedger.list`. It backs the Sessions tab of the settings dialog.
 
 The ledger is **pod-global**: it records chat sessions *and* headless runs (hook / code-node / webhook), plus every delegate each one made:
 
@@ -156,11 +156,11 @@ export interface SessionLedgerRecord {
   delegates: DelegateEntry[];  // target `pkg/agent#action`, query, tokens, costUsd, model, durationMs, status, depth
 }
 ```
-`sdk/org/libs/cli/src/server/session-ledger.ts:28-41`, `sdk/org/libs/cli/src/server/session-ledger.ts:8-23`
+`sdk/org/libs/cli/src/server/session-ledger.ts#SessionLedgerRecord`, `sdk/org/libs/cli/src/server/session-ledger.ts#DelegateEntry`
 
-How it is fed: `trackTracer` subscribes to a session's `Tracer` — chat sessions with `source:'chat'` at wire-up `sdk/org/libs/cli/src/server/session-manager.ts:295-302`, headless runs with their `origin.source` before `start()` `sdk/org/libs/cli/src/server/session-manager.ts:1452-1457`. `ingest` then folds trace events into the record: `node_start` of kind `delegate` opens a `DelegateEntry`; `llm_response` adds tokens + `computeTurnCost(...)` to the session totals **and** to the nearest enclosing delegate (walking `parentId` up the node lineage, so a nested delegate keeps its own tokens); `node_end` settles a delegate; `session_meta` adopts the title `sdk/org/libs/cli/src/server/session-ledger.ts:154-227`.
+How it is fed: `trackTracer` subscribes to a session's `Tracer` — chat sessions with `source:'chat'` at wire-up `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.wireTracer`, headless runs with their `origin.source` before `start()` `sdk/org/libs/cli/src/server/session-manager.ts:1452-1457`. `ingest` then folds trace events into the record: `node_start` of kind `delegate` opens a `DelegateEntry`; `llm_response` adds tokens + `computeTurnCost(...)` to the session totals **and** to the nearest enclosing delegate (walking `parentId` up the node lineage, so a nested delegate keeps its own tokens); `node_end` settles a delegate; `session_meta` adopts the title `sdk/org/libs/cli/src/server/session-ledger.ts:154-227`.
 
-Durability: append-only JSONL at `<lmthingRoot>/sessions-ledger.jsonl` (in-memory only when there is no `lmthingRoot`) `sdk/org/libs/cli/src/server/session-manager.ts:283-286`. On reload the latest line per `sessionId` wins and the map is trimmed to `MAX_RECORDS = 500` `sdk/org/libs/cli/src/server/session-ledger.ts:59`, `sdk/org/libs/cli/src/server/session-ledger.ts:83-110`. Flushes happen as each delegate completes, and at most every `FLUSH_THROTTLE_MS = 2000` on `turn_end` `sdk/org/libs/cli/src/server/session-ledger.ts:61`, `sdk/org/libs/cli/src/server/session-ledger.ts:194-212`. `finalize(id, status)` — called on delete, on eviction and at the end of a headless run — settles any still-running delegate and writes a final snapshot `sdk/org/libs/cli/src/server/session-ledger.ts:231-240`, `sdk/org/libs/cli/src/server/session-manager.ts:810`, `sdk/org/libs/cli/src/server/session-manager.ts:1392`, `sdk/org/libs/cli/src/server/session-manager.ts:1469-1473`.
+Durability: append-only JSONL at `<lmthingRoot>/sessions-ledger.jsonl` (in-memory only when there is no `lmthingRoot`) `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.constructor`. On reload the latest line per `sessionId` wins and the map is trimmed to `MAX_RECORDS = 500` `sdk/org/libs/cli/src/server/session-ledger.ts#MAX_RECORDS`, `sdk/org/libs/cli/src/server/session-ledger.ts:83-110`. Flushes happen as each delegate completes, and at most every `FLUSH_THROTTLE_MS = 2000` on `turn_end` `sdk/org/libs/cli/src/server/session-ledger.ts#FLUSH_THROTTLE_MS`, `sdk/org/libs/cli/src/server/session-ledger.ts:194-212`. `finalize(id, status)` — called on delete, on eviction and at the end of a headless run — settles any still-running delegate and writes a final snapshot `sdk/org/libs/cli/src/server/session-ledger.ts#SessionLedger.finalize`, `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.closeProjectDbs`, `sdk/org/libs/cli/src/server/session-manager.ts:1392`, `sdk/org/libs/cli/src/server/session-manager.ts:1469-1473`.
 
 ---
 
@@ -179,14 +179,14 @@ Callers (all in-process, none of them a public route that names a session):
 | A hook's declarative `trigger` / a hook handler's `ctx.delegate(...)` | `sdk/org/libs/cli/src/server/routes/hooks.ts:257-266`, `sdk/org/libs/cli/src/server/routes/hooks.ts:350` — reached over `POST /api/projects/:projectId/hooks/:slug/run` (see [`./hooks.md`](./hooks.md)) |
 | An inbound webhook with **no** thread key | `sdk/org/libs/cli/src/server/routes/webhooks.ts:216` |
 | An api handler's `spawn(ref, input)` (fire-and-forget; returns a `runId`) | `sdk/org/libs/cli/src/server/session-manager.ts:684-697` |
-| A tasklist **code node**'s `ctx.delegate(...)` | `sdk/org/libs/cli/src/server/session-manager.ts:490-500` |
-| An event hook dispatch | `sdk/org/libs/cli/src/server/event-dispatch.ts:151` |
+| A tasklist **code node**'s `ctx.delegate(...)` | `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.codeNodeDelegate` |
+| An event hook dispatch | `sdk/org/libs/cli/src/server/event-dispatch.ts#runTriggerHook` |
 
 ### `runHeadlessThreaded(opts)` — persisted, multi-turn
 
 `{ sessionId, projectId?, spaceRef?, agentSlug, message, budget? }`. Project-mode only. Bound to a **caller-supplied stable `sessionId`** so repeated inbound events on the same external thread continue ONE persisted session: if `snapshot.json` exists in the snapshot dir it `resume()`s, else it `start()`s, and either way the turn is saved back to the same dir `sdk/org/libs/cli/src/server/session-manager.ts:1609-1690`. Concurrent calls for the same `sessionId` are serialized through a per-id promise chain (`runExclusive`), so two near-simultaneous events can't race on the same snapshot file `sdk/org/libs/cli/src/server/session-manager.ts:1566-1586`.
 
-Callers: an inbound webhook **with** a thread key (session id minted by the webhook-thread store) `sdk/org/libs/cli/src/server/routes/webhooks.ts:217-224`, an OpenClaw plugin route `sdk/org/libs/cli/src/server/openclaw-host.ts:114`, and threaded event dispatch `sdk/org/libs/cli/src/server/event-dispatch.ts:158`.
+Callers: an inbound webhook **with** a thread key (session id minted by the webhook-thread store) `sdk/org/libs/cli/src/server/routes/webhooks.ts:217-224`, an OpenClaw plugin route `sdk/org/libs/cli/src/server/openclaw-host.ts#createComputeCompatHost`, and threaded event dispatch `sdk/org/libs/cli/src/server/event-dispatch.ts#runTriggerHook`.
 
 ### From the CLI
 

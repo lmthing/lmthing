@@ -17,7 +17,7 @@ Related: [typecheck](./typecheck.md) · [runtime globals](../runtime-globals/REA
 ## 1. Entry point and contract
 
 `runTurnLoop(deps: TurnLoopDeps): Promise<'done' | 'error'>` —
-`sdk/org/libs/core/src/eval/turn-loop.ts:300`. It is the *only* loop: the session, every fork and
+`sdk/org/libs/core/src/eval/turn-loop.ts#runTurnLoop`. It is the *only* loop: the session, every fork and
 every delegate call the same function with different `deps`
 (`sdk/org/libs/core/src/session/session.ts:353` — `start`, `:206` — `continue`, `:490` — `resume`;
 `sdk/org/libs/core/src/fork/fork.ts:536` — a fork's own loop, and again at `:563` for the
@@ -105,7 +105,7 @@ while (attempt < maxRetries)                       // turn-loop.ts:335
 
 ## 3. The sandbox
 
-`createVM()` — `sdk/org/libs/core/src/sandbox/quickjs.ts:61`.
+`createVM()` — `sdk/org/libs/core/src/sandbox/quickjs.ts#createVM`.
 
 - **One WASM module per VM** — `getWASMModule()` calls `newQuickJSAsyncWASMModule()` per VM
   (`quickjs.ts:51-59`). Sharing a module across the session VM and concurrent fork/delegate VMs
@@ -160,7 +160,7 @@ export interface YieldRequest {
 }
 ```
 
-That union is the complete set — **20 kinds** (`sdk/org/libs/core/src/eval/yield.ts:4`).
+That union is the complete set — **20 kinds** (`sdk/org/libs/core/src/eval/yield.ts#YieldRequest.kind`).
 
 The push seam is a single closure created at VM bootstrap and handed to every global factory:
 
@@ -426,7 +426,7 @@ All via `tracer.write(...)` (`sandbox/trace.ts`); `NULL_TRACER` disables. Each c
 
 A fork task's frontmatter `prelude:` is run by the **host** before the model's first turn, through the
 exact same steps (typecheck → transpile → globalThis propagation → eval → yield rounds →
-`bindYieldResults`): `sdk/org/libs/core/src/exec/prelude.ts:108-274`. It imports the turn loop's own
+`bindYieldResults`): `sdk/org/libs/core/src/exec/prelude.ts#runPrelude`. It imports the turn loop's own
 `bindYieldResults` rather than reimplementing it (`prelude.ts:8,228-234` — "the getVar preference is
 load-bearing for nested yields"), splits its trusted source with a single `ts.createSourceFile` parse
 instead of the streaming boundary heuristics (`splitPreludeStatements`, `:98-103`), drains nested yields

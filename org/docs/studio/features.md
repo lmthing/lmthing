@@ -10,15 +10,15 @@ Studio is an authoring IDE over **spaces** (agents, knowledge, tasklists, functi
 
 The `/studio` layout renders nothing until the user's pod is serving: it wraps the whole subtree in `PodEnsureGate` and then `AppProvider` (which owns the pod REST transport) `sdk/org/apps/web/src/routes/studio/route.tsx:11-30`.
 
-The gate is shared verbatim with `/chat`, `/computer` and `/apps` `sdk/org/apps/web/src/lib/gates.tsx:216`. Its sequence:
+The gate is shared verbatim with `/chat`, `/computer` and `/apps` `sdk/org/apps/web/src/lib/gates.tsx#PodEnsureGate`. Its sequence:
 
 | Step | Call | Where |
 |---|---|---|
-| Wake the pod | `POST {CLOUD}/api/compute/ensure` | `sdk/org/apps/web/src/lib/gates.tsx:48` |
-| Latest CI image tag | `GET {CLOUD}/api/compute/version` | `sdk/org/apps/web/src/lib/gates.tsx:61` |
-| Poll boot progress (~45 s cap) | `GET {CLOUD}/api/compute/status` | `sdk/org/apps/web/src/lib/gates.tsx:99` |
-| Wait for the pod's own Envoy edge | `GET /api/sessions` (same-origin) until the status is not 503/504 | `sdk/org/apps/web/src/lib/gates.tsx:143` |
-| Offer an upgrade (blocking card on boot, banner while live, 60 s poll) | `POST {CLOUD}/api/compute/upgrade` then poll `status` for the expected tag (~2 min cap) | `sdk/org/apps/web/src/lib/gates.tsx:75`, `:161-185`, `:197` |
+| Wake the pod | `POST {CLOUD}/api/compute/ensure` | `sdk/org/apps/web/src/lib/gates.tsx#ensurePod` |
+| Latest CI image tag | `GET {CLOUD}/api/compute/version` | `sdk/org/apps/web/src/lib/gates.tsx#fetchLatestTag` |
+| Poll boot progress (~45 s cap) | `GET {CLOUD}/api/compute/status` | `sdk/org/apps/web/src/lib/gates.tsx#pollUntilReady` |
+| Wait for the pod's own Envoy edge | `GET /api/sessions` (same-origin) until the status is not 503/504 | `sdk/org/apps/web/src/lib/gates.tsx#waitForPodEdge` |
+| Offer an upgrade (blocking card on boot, banner while live, 60 s poll) | `POST {CLOUD}/api/compute/upgrade` then poll `status` for the expected tag (~2 min cap) | `sdk/org/apps/web/src/lib/gates.tsx#upgradePod`, `:161-185`, `:197` |
 | Keep-warm while the tab is visible (every 5 min) | `POST /api/keepalive` | `sdk/org/apps/web/src/lib/gates.tsx:339`, `:202` |
 
 The edge probe exists because the gateway reports `ready` on `readyReplicas>0`, which precedes Envoy actually routing to the woken pod — mounting Studio then would race its first `GET /api/projects` and render empty `sdk/org/apps/web/src/lib/gates.tsx:115-131`. Pod-embedded and local runs skip the gate entirely `sdk/org/apps/web/src/lib/gates.tsx:219`.
@@ -29,18 +29,18 @@ Endpoint reference: [../cli-api/rest/sessions.md](../cli-api/rest/sessions.md) (
 
 ## 2. Project list — including the synthetic `system` project
 
-The sidebar's project list comes from `useProjects()` → `PodTransport.listProjects()` → `GET /api/projects` `sdk/org/libs/state/src/lib/pod/transport.ts:98-103`, `sdk/org/libs/ui/src/studio/shell/studio-app-sidebar/index.tsx:33`. Create and delete are wired to the same transport `sdk/org/libs/ui/src/studio/shell/studio-app-sidebar/index.tsx:55-63`:
+The sidebar's project list comes from `useProjects()` → `PodTransport.listProjects()` → `GET /api/projects` `sdk/org/libs/state/src/lib/pod/transport.ts#PodTransport.listProjects`, `sdk/org/libs/ui/src/studio/shell/studio-app-sidebar/index.tsx:33`. Create and delete are wired to the same transport `sdk/org/libs/ui/src/studio/shell/studio-app-sidebar/index.tsx:55-63`:
 
-- create → `POST /api/projects {name}` → `{ id }` `sdk/org/libs/state/src/lib/pod/transport.ts:106-111`
-- delete → `DELETE /api/projects/:id` (204) `sdk/org/libs/state/src/lib/pod/transport.ts:114-118`
+- create → `POST /api/projects {name}` → `{ id }` `sdk/org/libs/state/src/lib/pod/transport.ts#PodTransport.createProject`
+- delete → `DELETE /api/projects/:id` (204) `sdk/org/libs/state/src/lib/pod/transport.ts#PodTransport.deleteProject`
 
-**The `system` project is synthetic.** The pod's `listProjects` skips the on-disk `system/` directory in the normal scan and *prepends* `{ id: 'system', name: 'System', createdAt: 0 }` whenever `<root>/system/spaces/` is non-empty `sdk/org/libs/cli/src/server/projects.ts:305-324`. It maps to `<root>/system/`, whose `spaces/` subdir holds the system spaces — because that matches the generic `<root>/<projectId>/spaces/<id>` shape, Studio browses and edits them through the *same* `/api/projects/:id/spaces/...` routes as any other project, with no client-side special case `sdk/org/libs/cli/src/server/projects.ts:10-16`.
+**The `system` project is synthetic.** The pod's `listProjects` skips the on-disk `system/` directory in the normal scan and *prepends* `{ id: 'system', name: 'System', createdAt: 0 }` whenever `<root>/system/spaces/` is non-empty `sdk/org/libs/cli/src/server/projects.ts#listProjects`. It maps to `<root>/system/`, whose `spaces/` subdir holds the system spaces — because that matches the generic `<root>/<projectId>/spaces/<id>` shape, Studio browses and edits them through the *same* `/api/projects/:id/spaces/...` routes as any other project, with no client-side special case `sdk/org/libs/cli/src/server/projects.ts:10-16`.
 
 Guards worth knowing:
 
-- `system` cannot be deleted (`deleteProject` throws) `sdk/org/libs/cli/src/server/projects.ts:335-337`, and the default `user` project is refused at the route layer with 400 `sdk/org/libs/cli/src/server/routes/projects.ts:50-52`.
-- `RESERVED_PROJECT_IDS = { system, api, assets, install }` — ids that would shadow reserved lmthing.app URL paths `sdk/org/libs/cli/src/server/projects.ts:39-44`.
-- Studio's landing route redirects to the project with id `user`, falling back to `projects[0]` `sdk/org/apps/web/src/routes/studio/index.tsx:12-19`.
+- `system` cannot be deleted (`deleteProject` throws) `sdk/org/libs/cli/src/server/projects.ts#deleteProject`, and the default `user` project is refused at the route layer with 400 `sdk/org/libs/cli/src/server/routes/projects.ts#handleDeleteProject`.
+- `RESERVED_PROJECT_IDS = { system, api, assets, install }` — ids that would shadow reserved lmthing.app URL paths `sdk/org/libs/cli/src/server/projects.ts#RESERVED_PROJECT_IDS`.
+- Studio's landing route redirects to the project with id `user`, falling back to `projects[0]` `sdk/org/apps/web/src/routes/studio/index.tsx#StudioIndex`.
 - The `/install` space-installer filters `system` out of its target-project picker `sdk/org/apps/web/src/routes/install.tsx:252`.
 
 Endpoint reference: [../cli-api/rest/projects.md](../cli-api/rest/projects.md).
@@ -52,10 +52,10 @@ Endpoint reference: [../cli-api/rest/projects.md](../cli-api/rest/projects.md).
 **No Studio editor calls a save endpoint.** Entering a space mounts `SpaceProvider`, which hydrates the space's whole file map once and then writes it back on a debounce:
 
 - hydrate: `GET /api/projects/:id/spaces/:spaceId/files` → `Record<relPath, content>`, merged into the in-memory `AppFS` (never wiping newer local edits) `sdk/org/libs/state/src/lib/contexts/SpaceContext.tsx:91-105`
-- write-back: every change under the space prefix is coalesced into a single **wipe-and-rewrite** `PUT /api/projects/:id/spaces/:spaceId/files { files }` after `SAVE_DEBOUNCE_MS = 1500` (plus a best-effort flush on unmount) `sdk/org/libs/state/src/lib/contexts/SpaceContext.tsx:35`, `:122-170`
-- both directions filter with `isRunnableSpaceFile` — anything under a `conversations/` dir and any `.env*` basename is never round-tripped `sdk/org/libs/state/src/lib/pod/transport.ts:31-36`, `:150-159`
+- write-back: every change under the space prefix is coalesced into a single **wipe-and-rewrite** `PUT /api/projects/:id/spaces/:spaceId/files { files }` after `SAVE_DEBOUNCE_MS = 1500` (plus a best-effort flush on unmount) `sdk/org/libs/state/src/lib/contexts/SpaceContext.tsx#SAVE_DEBOUNCE_MS`, `:122-170`
+- both directions filter with `isRunnableSpaceFile` — anything under a `conversations/` dir and any `.env*` basename is never round-tripped `sdk/org/libs/state/src/lib/pod/transport.ts#isRunnableSpaceFile`, `:150-159`
 
-The space list in the sidebar comes from `ProjectProvider` → `GET /api/projects/:id/spaces` `sdk/org/libs/state/src/lib/pod/transport.ts:123-126`.
+The space list in the sidebar comes from `ProjectProvider` → `GET /api/projects/:id/spaces` `sdk/org/libs/state/src/lib/pod/transport.ts#PodTransport.listSpaces`.
 
 So every editor below is just "write a path into `spaceFS`":
 
@@ -66,7 +66,7 @@ So every editor below is just "write a path into `spaceFS`":
 | Knowledge | discovers fields from `knowledge/*/*/index.md`; the field route id is encoded `<domain>---<field>` | `sdk/org/apps/web/src/routes/studio/$projectId/$spaceId/knowledge/index.tsx:77`, `:91`, `:109-117` |
 | New knowledge domain | writes `knowledge/<slug>/<slug>/index.md` with a `type`/`variable` frontmatter | `sdk/org/libs/ui/src/studio/shell/studio-layout/index.tsx:78-91` |
 | Tasklists | form editor over `tasklists/<name>/…` (VFS-only, no pod calls) | `sdk/org/libs/ui/src/studio/workflow/workflow-editor/index.tsx` — `TasklistEditor` |
-| Functions | `functions/<name>.ts` create/rename/delete/edit; flags the `@consent` pragma with a browser-safe mirror of core's `functionRequiresConsent` | `sdk/org/libs/ui/src/studio/functions/functions-editor/index.tsx:41`, `:177`, `:259` |
+| Functions | `functions/<name>.ts` create/rename/delete/edit; flags the `@consent` pragma with a browser-safe mirror of core's `functionRequiresConsent` | `sdk/org/libs/ui/src/studio/functions/functions-editor/index.tsx#functionRequiresConsent`, `:177`, `:259` |
 | Components | `components/view/<Name>.tsx` (for `display()`) and `components/form/<Name>.tsx` (for `ask()`) | `sdk/org/libs/ui/src/studio/component-editor/index.tsx:5-6` |
 | Raw | read-only tree over `useGlobRead('**/*')` + a `<pre>` viewer | `sdk/org/apps/web/src/routes/studio/$projectId/$spaceId/raw/index.tsx:95-97` |
 
@@ -81,9 +81,9 @@ File-format reference: [../format/space/README.md](../format/space/README.md). E
 `…/agent/$agentId/chat` runs the space **as currently edited** — it does not wait for the debounced save. It reads the VFS with `useGlobRead('**/*')`, drops non-runnable files, then:
 
 1. `POST {CLOUD}/api/compute/ensure` (phase `provisioning`) `sdk/org/apps/web/src/routes/studio/$projectId/$spaceId/agent/$agentId/chat/index.tsx:15-27`, `:76-77`
-2. `ReplRpcClient.syncSpace` → `POST /api/spaces { name, files }` → `{ spaceDir }` (phase `syncing`) `sdk/org/libs/ui/src/chat/client/rpc-client.ts:48-54`
-3. `ReplRpcClient.createSession` → `POST /api/sessions { spaceDir, agentSlug }` (phase `starting`) `sdk/org/libs/ui/src/chat/client/rpc-client.ts:67-72`
-4. stream over `WS /api/ws?sessionId=…&access_token=…`; user actions go to `POST /api/sessions/:id/message` and `POST|DELETE /api/sessions/:id/ask/:askId` `sdk/org/libs/ui/src/chat/client/rpc-client.ts:91`, `:122`, `:130`, `:138`
+2. `ReplRpcClient.syncSpace` → `POST /api/spaces { name, files }` → `{ spaceDir }` (phase `syncing`) `sdk/org/libs/ui/src/chat/client/rpc-client.ts#ReplRpcClient.syncSpace`
+3. `ReplRpcClient.createSession` → `POST /api/sessions { spaceDir, agentSlug }` (phase `starting`) `sdk/org/libs/ui/src/chat/client/rpc-client.ts#ReplRpcClient.createSession`
+4. stream over `WS /api/ws?sessionId=…&access_token=…`; user actions go to `POST /api/sessions/:id/message` and `POST|DELETE /api/sessions/:id/ask/:askId` `sdk/org/libs/ui/src/chat/client/rpc-client.ts#ReplRpcClient.connect`, `:122`, `:130`, `:138`
 
 The space name is slugified to a single safe segment because the sync endpoint rejects path separators `sdk/org/apps/web/src/routes/studio/$projectId/$spaceId/agent/$agentId/chat/index.tsx:54-59`. Auto-start waits until the VFS has actually hydrated, otherwise the first run would sync an empty space `…/chat/index.tsx:105-113`. A `↻ Re-sync & restart` button re-runs the whole sequence `…/chat/index.tsx:161-168`.
 
@@ -124,11 +124,11 @@ Endpoint reference: [../cli-api/rest/store-spaces.md](../cli-api/rest/store-spac
 
 ## 7. Installing a catalog app (or an integration space)
 
-Installing is done from the **top-level `/install` route** — not under `/studio` and not under `/apps`. It lives at the top level because on lmthing.app the gateway proxies `/app/*` straight to the pod, so only the static shell at `/` can serve a page that self-authenticates and calls the pod `sdk/org/apps/web/src/routes/install.tsx:7-23`. `beforeLoad` stashes the intent in `sessionStorage` (`lmthing_pending_install` / `lmthing_pending_install_space`) so a store → install → sign-in round trip is resumed after the SSO callback `sdk/org/apps/web/src/routes/install.tsx:33-42`.
+Installing is done from the **top-level `/install` route** — not under `/studio` and not under `/apps`. It lives at the top level because on lmthing.app the gateway proxies `/app/*` straight to the pod, so only the static shell at `/` can serve a page that self-authenticates and calls the pod `sdk/org/apps/web/src/routes/install.tsx:7-23`. `beforeLoad` stashes the intent in `sessionStorage` (`lmthing_pending_install` / `lmthing_pending_install_space`) so a store → install → sign-in round trip is resumed after the SSO callback `sdk/org/apps/web/src/routes/install.tsx#Route`.
 
 **`/install?appId=<id>` — a project-app.** Auto-POSTs `{POD}/api/apps/install { appId, force }` and, on success, opens `{COMPUTER}{APP_PATH_PREFIX}/<projectId>/` after setting the pod-session cookie `sdk/org/apps/web/src/routes/install.tsx:119-128`, `:141-146`. Pod-side: `POST /api/apps/install` (with `GET /api/apps` listing the catalog) `sdk/org/libs/cli/src/server/serve.ts:258-265`; on (re)install the server drops the cached page build so the freshly-hashed assets are served `sdk/org/libs/cli/src/server/serve.ts:255-265`.
 
-**`/install?spaceId=<id>` — an integration space.** Loads `GET {POD}/api/projects` for the target picker (excluding `system`, defaulting to `user`) `sdk/org/apps/web/src/routes/install.tsx:249-256`, then `POST {POD}/api/store/spaces/install { spaceId, projectId, force }` `sdk/org/apps/web/src/routes/install.tsx:273-279` (pod route: `sdk/org/libs/cli/src/server/serve.ts:271-274`). On success it hands off to **Studio project settings** (`/studio/<project>/settings`, §6) to add the token `sdk/org/apps/web/src/routes/install.tsx:84-94`, `:345-351`.
+**`/install?spaceId=<id>` — an integration space.** Loads `GET {POD}/api/projects` for the target picker (excluding `system`, defaulting to `user`) `sdk/org/apps/web/src/routes/install.tsx:249-256`, then `POST {POD}/api/store/spaces/install { spaceId, projectId, force }` `sdk/org/apps/web/src/routes/install.tsx:273-279` (pod route: `sdk/org/libs/cli/src/server/serve.ts:271-274`). On success it hands off to **Studio project settings** (`/studio/<project>/settings`, §6) to add the token `sdk/org/apps/web/src/routes/install.tsx#studioSettingsUrl`, `:345-351`.
 
 **The divergence branch is not an error.** Both pod endpoints answer HTTP 200 with `{ ok:false, diverged:true }` when the destination already has local edits — the pod held the install back rather than clobber them. `classifyInstallResponse` (pure, exported, unit-tested) maps that to the "Upgrade & replace files" / "Reinstall & replace files" state, which re-POSTs with `force:true`:
 
@@ -142,7 +142,7 @@ export function classifyInstallResponse(
   return { status: 'error', message: body?.message ?? `Install failed (HTTP ${httpStatus}).` }
 }
 ```
-`sdk/org/apps/web/src/routes/install.tsx:71-79`
+`sdk/org/apps/web/src/routes/install.tsx#classifyInstallResponse`
 
 Endpoint reference: [../cli-api/rest/apps.md](../cli-api/rest/apps.md), [../cli-api/rest/store-spaces.md](../cli-api/rest/store-spaces.md), [../cli-api/rest/projects.md](../cli-api/rest/projects.md).
 

@@ -25,7 +25,7 @@ the token system … Use a design token instead: `var(--foreground)`, `bg-primar
 (`sdk/org/libs/css/scripts/lint-design-tokens.mjs:5-10`) — and enforced by it below.
 
 Two categories are **legitimately allowed** and are not flagged
-(`sdk/org/libs/css/scripts/lint-design-tokens.mjs:44-57` `funcAllowed`):
+(`sdk/org/libs/css/scripts/lint-design-tokens.mjs#funcAllowed` `funcAllowed`):
 
 - Token-backed color functions: `rgb(var(--…))` / `hsl(var(--…))` — any function whose
   args contain `var(`.

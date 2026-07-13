@@ -27,7 +27,7 @@ Related: [turn loop](../runtime/turn-loop.md) · [typecheck](../runtime/typechec
 
 `runTurnLoop` narrates every step through `renderHost.log()`
 (`sdk/org/libs/core/src/eval/turn-loop.ts`). In the CLI that host is `InkRenderHost`, whose `log()` is
-a plain `process.stdout.write` (`sdk/org/libs/cli/src/render/ink-renderer.tsx:347-349`) — so the log
+a plain `process.stdout.write` (`sdk/org/libs/cli/src/render/ink-renderer.tsx#InkRenderHost.log`) — so the log
 is identical with or without `--claude`; the flag only switches `ask()` from an interactive Ink form
 to direct stdin reads (`ink-renderer.tsx:272-275`, `bin.ts:464`).
 
@@ -98,7 +98,7 @@ Two gotchas, both in the code:
   `traceFile` (`bin.ts:357-363`), and `POST /api/sessions` has no `traceFile` field in its body
   (`server/routes/sessions.ts:20-24`). On a server/pod the trace lives **in memory** in a `TraceHub`
   ring (20 000 events, structural events retained under compaction —
-  `sdk/org/libs/cli/src/rpc/trace-hub.ts:36-44`, `:9-16`) and you read it over HTTP (§3).
+  `sdk/org/libs/cli/src/rpc/trace-hub.ts#TraceHub`, `:9-16`) and you read it over HTTP (§3).
 
 `buildTraceTree(events)` (`sdk/org/libs/core/src/sandbox/trace-tree.ts`, exported from `@lmthing/core`)
 rebuilds the whole node tree from a parsed array — it is what both the HTTP API and the browser use.
@@ -107,7 +107,7 @@ rebuilds the whole node tree from a parsed array — it is what both the HTTP AP
 
 ## 3. The DevTools HTTP API (no browser)
 
-The API is `handleAgentApi` (`sdk/org/libs/cli/src/web/agent-api.ts:228-352`), a plain-text-by-default
+The API is `handleAgentApi` (`sdk/org/libs/cli/src/web/agent-api.ts#handleAgentApi`), a plain-text-by-default
 HTTP surface over the `TraceHub`. It is **self-describing**: `GET /api/help` prints the whole thing
 (`agent-api.ts:185-207`). Full agent-facing quickstart: `sdk/org/libs/cli/src/web/AGENT.md`.
 
@@ -141,7 +141,7 @@ failed" signal (`retryCount`, `agent-api.ts:67-71`). The queue tag `[q:active/ma
 
 In server mode every route above is mounted **per session** under `/api/sessions/:id/*`:
 `handleSessionSubRoute` rewrites the path to `/api<rest>` and reuses the exact same handlers
-(`sdk/org/libs/cli/src/server/routes/sessions.ts:69-86`; registered at
+(`sdk/org/libs/cli/src/server/routes/sessions.ts#handleSessionSubRoute`; registered at
 `sdk/org/libs/cli/src/server/serve.ts:194`). The pod's own HTTP server has no auth (Envoy does JWT at
 the edge in prod), so locally this is just curl:
 
@@ -162,7 +162,7 @@ it emitted (and the `phase` of each error), `tab=llm` shows the raw model text p
 
 > **`--web <port>` is dead — use `lmthing serve` instead.** The single-session `--web` launcher
 > throws before the server ever listens. `startWebServer` bundles the browser app first
-> (`sdk/org/libs/cli/src/web/serve.ts:155-158`), and that bundle goes through `resolveUiAssets`
+> (`sdk/org/libs/cli/src/web/serve.ts#startWebServer`), and that bundle goes through `resolveUiAssets`
 > (`serve.ts:29`, called at `:78`), which resolves `@lmthing/ui/package.json` (`serve.ts:37`) — a
 > subpath the `@lmthing/ui` `exports` map does not expose (`sdk/org/libs/ui/package.json:8-18`), so
 > Node raises `ERR_PACKAGE_PATH_NOT_EXPORTED`. Even past that, the bundle entry
@@ -200,7 +200,7 @@ below (`inspector.tsx`), playback bar in replay mode.
 **`--mock <file>` / `LM_MOCK=<file>`** skips `resolveModel`/`createStream` entirely — no API key, fully
 deterministic (`bin.ts:301-307`, `args.ts:164-169`). The module's default export is either a
 `string[]` (one entry per turn, via `mockScript` —
-`sdk/org/libs/core/src/testing/mock-provider.ts:80-82`) or a `MockHandler`
+`sdk/org/libs/core/src/testing/mock-provider.ts#mockScript`) or a `MockHandler`
 `(opts, ctx) => string | string[] | AsyncIterable<string>` (`mock-provider.ts:31-34`, wired by
 `createMockStreamFn`, `:45-78`); anything else throws a clear error (`bin.ts:193-199`).
 
@@ -230,7 +230,7 @@ Symptoms, in the order they actually bite:
 
 **`X is not defined` on a variable from an earlier statement.** Each statement is its own module eval,
 so bindings are propagated by appending `globalThis['x'] = x` after the statement — driven by
-`extractBindingNames` (`sdk/org/libs/core/src/context/variables.ts:72`). A binding form that
+`extractBindingNames` (`sdk/org/libs/core/src/context/variables.ts#extractBindingNames`). A binding form that
 `extractBindingNames` doesn't recognize (an exotic destructuring pattern) is the usual culprit; extend
 it there.
 
@@ -261,7 +261,7 @@ component source, renames it `<ComponentName>Props`, and makes function-typed me
 (`sdk/org/libs/core/src/typecheck/overlay.ts:19-51`). A component declared with `type Props = …`
 instead of `interface Props` produces no declaration — every prop then looks wrong.
 
-**A hard cap, not a bug.** `BudgetExceededError` (`sdk/org/libs/core/src/eval/budget.ts:29-38`) is
+**A hard cap, not a bug.** `BudgetExceededError` (`sdk/org/libs/core/src/eval/budget.ts#BudgetExceededError`) is
 thrown by `Budget` on `maxEpisodes`/`maxToolCalls`/`maxForkDepth`/`maxWallClockMs`
 (`budget.ts:74-108`; CLI flags `--max-episodes`, `--max-tool-calls`, `--max-fork-depth`,
 `--max-wallclock-ms` — `args.ts:148-163`). It propagates rather than being salvaged.
@@ -349,7 +349,7 @@ image-rebuild loop, hot-patching a system-space prompt) and the scenario documen
 ## 9. Debugging a live user pod
 
 Each user gets a namespace `user-<userId>` containing exactly one Deployment named `lmthing`, one
-container `compute` on port 8080 with `/data` mounted (`cloud/gateway/src/lib/compute.ts:134`,
+container `compute` on port 8080 with `/data` mounted (`cloud/gateway/src/lib/compute.ts#namespace`,
 `:188-196`, `:221-243`).
 
 ```bash
@@ -360,7 +360,7 @@ kubectl rollout restart deploy/lmthing -n user-<id>
 
 The pod's stdout **is** the turn-loop log from §1: in `serve` mode the render host is `WebRenderHost`,
 whose `log()` writes turn-loop chatter to the server console rather than the browser
-(`sdk/org/libs/cli/src/rpc/server.ts:67-72`). Use it for what the trace can't show: process boot,
+(`sdk/org/libs/cli/src/rpc/server.ts#WebRenderHost.log`). Use it for what the trace can't show: process boot,
 emitter/hook load failures, worker-entry resolution, OOM.
 
 - The pod is scaled to zero when idle; a `GET /api/sessions` is the K8s startup probe

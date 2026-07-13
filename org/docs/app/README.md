@@ -30,26 +30,26 @@ flowchart LR
   HOOKS --> AGENT
 ```
 
-- **The database** — `database/*.json` schemas are turned into real `CREATE TABLE` statements in `<project>/.data/app.db` by the one `better-sqlite3`-backed store, opened with `PRAGMA journal_mode=WAL` and `PRAGMA foreign_keys=ON` (`sdk/org/libs/cli/src/app/store.ts:L267-L276`, `openProjectDb`). The same handle exposes **two** surfaces: a synchronous `DbApi` for the agent sandbox and a `Promise`-returning `AsyncDbApi` for Node code (`sdk/org/libs/cli/src/app/store.ts:L60-L71`, `ProjectDb`).
+- **The database** — `database/*.json` schemas are turned into real `CREATE TABLE` statements in `<project>/.data/app.db` by the one `better-sqlite3`-backed store, opened with `PRAGMA journal_mode=WAL` and `PRAGMA foreign_keys=ON` (`sdk/org/libs/cli/src/app/store.ts:L267-L276`, `openProjectDb`). The same handle exposes **two** surfaces: a synchronous `DbApi` for the agent sandbox and a `Promise`-returning `AsyncDbApi` for Node code (`sdk/org/libs/cli/src/app/store.ts#ProjectDb`, `ProjectDb`).
 - **The api runtime** — endpoints are discovered from the file tree, the handler is transpiled with esbuild and run in a fresh `worker_threads` Worker; its `db`/`apiCall`/`spawn` are `postMessage` proxies serviced by the main process, so *every db write executes main-side* — the worker is a crash boundary, not a data path (`sdk/org/libs/cli/src/app/api/runtime.ts:L1-L21`, `createApiRuntime`).
 - **The pages bundle** — `pages/` is esbuild-bundled per project into `<project>/.data/pages-dist/` with hashed assets. The build itself is **never run per request**: it short-circuits on a content hash of `pages/`/`components/`/`lib/`/`package.json` (`sdk/org/libs/cli/src/app/build/pages.ts:L1-L26,L122-L147`, `buildProjectPages`), and the server calls it on boot/install/first-request and then caches the result for its lifetime (see [Boot](#boot)).
 - **Generated types** — `database/*.json` + the api handlers' `export interface Input/Output` are compiled into `<project>/types/generated.d.ts`, a git-ignored build artifact (`sdk/org/libs/cli/src/app/build/schema.ts:L341-L359`, `generateAppTypes`).
 - **Hooks** — a committed db write fires the store's `onWrite` listener, which the project's hook runtime turns into a synthetic `project/db.<table>.<insert|update|remove>` event whose payload *is* the row (`sdk/org/libs/cli/src/app/hooks/runtime.ts:L46-L48,L124-L136`, `ProjectHookRuntime.onDbWrite`).
 - **Project spaces** — `<project>/spaces/*` are ordinary spaces whose agents hold `db:*` capabilities over the same db → [../format/project/README.md](../format/project/README.md#capabilities-gate-who-may-author-and-touch-each-pillar).
 
-A project with **no app layer at all** (only `spaces/` — e.g. the synthetic `system` project) loads to `hasApp: false` and never throws; boot skips it (`sdk/org/libs/cli/src/app/loader.ts:L56-L69`, `loadProjectApp`; `sdk/org/libs/cli/src/app/boot.ts:L50-L53`).
+A project with **no app layer at all** (only `spaces/` — e.g. the synthetic `system` project) loads to `hasApp: false` and never throws; boot skips it (`sdk/org/libs/cli/src/app/loader.ts#loadProjectApp`, `loadProjectApp`; `sdk/org/libs/cli/src/app/boot.ts#bootProjectApp`).
 
 ---
 
 ## Boot
 
-`bootProjectApp(<root>/<projectId>)` runs three ordered steps and returns the open db, or `null` when there is nothing to boot (`sdk/org/libs/cli/src/app/boot.ts:L50-L90`):
+`bootProjectApp(<root>/<projectId>)` runs three ordered steps and returns the open db, or `null` when there is nothing to boot (`sdk/org/libs/cli/src/app/boot.ts#bootProjectApp`):
 
 1. **Restore — DR only.** If `.data/app.db` is absent and `.data/app.sql` is present, rebuild from the dump. If `app.db` exists it is never touched — live PVC data is never clobbered (`sdk/org/libs/cli/src/app/boot.ts:L60-L64`).
 2. **Open the db** — WAL + foreign keys on (`sdk/org/libs/cli/src/app/boot.ts:L66-L67`).
 3. **Reconcile schemas.** `database/*.json` is the *sole source of truth*: a declared table missing live is created; a declared column missing live is added with an **additive** `ALTER TABLE ADD COLUMN`; any **non-additive** divergence — a live column the schema no longer declares (a drop/rename), a primary-key move, or a text↔numeric type conflict — **fails loud** (`sdk/org/libs/cli/src/app/boot.ts:L98-L149`, `reconcileTable`).
 
-The server boots each project's db **lazily and once**, caching the handle — and caching `null` for a spaces-only project so it is not re-probed on every session (`sdk/org/libs/cli/src/server/session-manager.ts:L515-L545`, `getProjectDb`). The api runtime is likewise created lazily and cached, and is **only** created when the project has a db — `getApiRuntime` starts at `rt = null` and only calls `createApiRuntime` inside `if (projectDb)` (`sdk/org/libs/cli/src/server/session-manager.ts:L772-L805`) — so an api-only project with no `database/*.json` has no api runtime, and `createAppApiHandler` 404s every endpoint (`sdk/org/libs/cli/src/server/routes/app-api.ts:L31-L35`).
+The server boots each project's db **lazily and once**, caching the handle — and caching `null` for a spaces-only project so it is not re-probed on every session (`sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.getProjectDb`, `getProjectDb`). The api runtime is likewise created lazily and cached, and is **only** created when the project has a db — `getApiRuntime` starts at `rt = null` and only calls `createApiRuntime` inside `if (projectDb)` (`sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.getApiRuntime`) — so an api-only project with no `database/*.json` has no api runtime, and `createAppApiHandler` 404s every endpoint (`sdk/org/libs/cli/src/server/routes/app-api.ts:L31-L35`).
 
 The page bundle is built lazily on first request and cached for the server's lifetime; a build failure is logged and cached as "no page app" (`sdk/org/libs/cli/src/server/serve.ts:L292-L305`, `getOutDirForProject`).
 
@@ -61,8 +61,8 @@ Two mounts, registered in this order — the api route **before** the page catch
 
 | Pattern | Handler | What it serves |
 |---|---|---|
-| `* /app/:projectId/api/*` | `createAppApiHandler` (`sdk/org/libs/cli/src/server/routes/app-api.ts:L22-L56`) | the project's Node endpoints |
-| `* /app/:projectId/*` | `createPageServeHandler` (`sdk/org/libs/cli/src/app/pages-serve.ts:L91-L154`) | the built React bundle |
+| `* /app/:projectId/api/*` | `createAppApiHandler` (`sdk/org/libs/cli/src/server/routes/app-api.ts#createAppApiHandler`) | the project's Node endpoints |
+| `* /app/:projectId/*` | `createPageServeHandler` (`sdk/org/libs/cli/src/app/pages-serve.ts#createPageServeHandler`) | the built React bundle |
 | `* /:projectId/api/*` · `* /:projectId/*` | the **same** handlers, mount prefix `''` | clean URLs (`lmthing.app/<project>/…`) |
 
 The bare root mount is registered **last** and only when `process.env.LMTHING_GATEWAY_URL` is set — the gateway injects it into every per-user pod, and nothing else does. Locally it is unset, because a bare `/:projectId/*` would shadow every SPA route on the single-serve origin; that is why local apps live at `localhost:8080/app/<project>` (`sdk/org/libs/cli/src/server/serve.ts:L308-L326`).
@@ -77,7 +77,7 @@ Into the shell's `<head>` the handler injects `<base href="<mountPrefix>/<projec
 
 ### CSP
 
-Every served response — assets *and* the SPA shell — carries a strict Content-Security-Policy (`sdk/org/libs/cli/src/app/pages-serve.ts:L44-L46`):
+Every served response — assets *and* the SPA shell — carries a strict Content-Security-Policy (`sdk/org/libs/cli/src/app/pages-serve.ts#CSP`):
 
 ```
 default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
@@ -99,9 +99,9 @@ api/items/[id]/GET.ts       → GET    /items/:id      (name "getItem")
 api/items/[id]/PATCH.ts     → PATCH  /items/:id      (name "updateItem")
 ```
 
-Every endpoint must `export const name` — the **stable agent-facing id**, unique per project, fail-loud on a duplicate (`sdk/org/libs/cli/src/app/api/loader.ts:L69-L95`). `name`/`description` are read by a light **static parse**, never by evaluating the module, because evaluating handler code in the main process would breach the crash boundary (`sdk/org/libs/cli/src/app/api/loader.ts:L17-L21,L148-L152`).
+Every endpoint must `export const name` — the **stable agent-facing id**, unique per project, fail-loud on a duplicate (`sdk/org/libs/cli/src/app/api/loader.ts#loadApiRoutes`). `name`/`description` are read by a light **static parse**, never by evaluating the module, because evaluating handler code in the main process would breach the crash boundary (`sdk/org/libs/cli/src/app/api/loader.ts:L17-L21,L148-L152`).
 
-Hence one endpoint, two addresses — the browser addresses it by route, the agent addresses it by name into the *same* runtime (`ApiRuntime.handle` vs `ApiRuntime.callByName`, `sdk/org/libs/cli/src/app/api/runtime.ts:L101-L110,L305-L317`). The agent's `apiCall` global → [../runtime-globals/data-db.md](../runtime-globals/data-db.md).
+Hence one endpoint, two addresses — the browser addresses it by route, the agent addresses it by name into the *same* runtime (`ApiRuntime.handle` vs `ApiRuntime.callByName`, `sdk/org/libs/cli/src/app/api/runtime.ts#ApiRuntime,L305-L317`). The agent's `apiCall` global → [../runtime-globals/data-db.md](../runtime-globals/data-db.md).
 
 **Input is one object.** Where each field travels is derived from the method, not declared per-field: path params always merge in and win on a key clash; `GET`/`DELETE` take the rest from the query string, `POST`/`PATCH`/`PUT` from the JSON body (`sdk/org/libs/cli/src/app/api/input.ts:L1-L17,L40-L53`). The assembled object is then ajv-validated with `coerceTypes` on, so a query-string `"true"` becomes a boolean (`sdk/org/libs/cli/src/app/api/runtime.ts:L200-L217`).
 
@@ -121,13 +121,13 @@ Hence one endpoint, two addresses — the browser addresses it by route, the age
 | `Chat` | a page-droppable `<Chat agent="space/agent" />` |
 | `mountApp` · `AppRoot` · `matchRoutes` · `resolveAppBase` · `buildRequest` | used by the **generated** entry, not by page authors |
 
-The name→route bridge is `window.__APP_ENDPOINTS__`: the build projects the endpoint contracts down to a `name → { method, routePath }` manifest (`sdk/org/libs/cli/src/app/build/pages.ts:L203-L208,L221`) and bakes it into the generated entry's `mountApp({ manifest, … })` call (`:L335-L336`), `mountApp` assigns it to the global (`sdk/org/libs/cli/src/app/runtime/router.tsx:L217-L218`), and `apiCall` reads it (`sdk/org/libs/cli/src/app/runtime/client.ts:L1-L22,L58-L63`). Detail → [views.md](./views.md).
+The name→route bridge is `window.__APP_ENDPOINTS__`: the build projects the endpoint contracts down to a `name → { method, routePath }` manifest (`sdk/org/libs/cli/src/app/build/pages.ts:L203-L208,L221`) and bakes it into the generated entry's `mountApp({ manifest, … })` call (`:L335-L336`), `mountApp` assigns it to the global (`sdk/org/libs/cli/src/app/runtime/router.tsx#mountApp`), and `apiCall` reads it (`sdk/org/libs/cli/src/app/runtime/client.ts:L1-L22,L58-L63`). Detail → [views.md](./views.md).
 
 ---
 
 ## Typed contracts: one source, four consumers
 
-TS types + JSDoc in `database/*.json` and the api handlers are the single source of truth. `generateProjectContracts` derives all four in one pass (`sdk/org/libs/cli/src/app/build/contracts.ts:L23-L34`); because it is heavy (`ts-json-schema-generator`), the server runs it **once per project** and caches the bundle — including `null` for a project with no `api/` dir (`sdk/org/libs/cli/src/server/session-manager.ts:L826-L843`, `getProjectContracts`):
+TS types + JSDoc in `database/*.json` and the api handlers are the single source of truth. `generateProjectContracts` derives all four in one pass (`sdk/org/libs/cli/src/app/build/contracts.ts#generateProjectContracts`); because it is heavy (`ts-json-schema-generator`), the server runs it **once per project** and caches the bundle — including `null` for a project with no `api/` dir (`sdk/org/libs/cli/src/server/session-manager.ts:L826-L843`, `getProjectContracts`):
 
 | Consumer | Artifact |
 |---|---|
@@ -146,7 +146,7 @@ A live authoring write (`writeProjectApi` / `writeProjectPage`) invalidates the 
 
 - **Studio's admin surface** lives under the reserved `/api/projects/:projectId/app/*` — manifest, data browser, path-scoped file editor, build status/rebuild (`sdk/org/libs/cli/src/server/serve.ts:L238-L246`). The file editor is scoped: only `database|pages|api|hooks|components|lib` plus `package.json`/`tsconfig.json`, and `.data/`+`types/` are blocked (`sdk/org/libs/cli/src/server/routes/app-admin.ts:L60-L101`). Endpoints → [../cli-api/rest/projects.md](../cli-api/rest/projects.md).
 - **Store install** — `POST /api/apps/install` materializes `store/projects/<id>/` into `<root>/<projectId>/`, boots the db, generates contracts, force-builds pages, and drops the cached page build (a stale asset manifest would 404 the freshly-hashed assets → a blank app) (`sdk/org/libs/cli/src/server/serve.ts:L253-L265`; `sdk/org/libs/cli/src/server/routes/apps.ts` `handleInstallApp`). Six apps ship today — `blog`, `demo-feed`, `health`, `homes`, `kitchen`, `trips` (`store/projects/manifest.json`). Endpoints → [../cli-api/rest/apps.md](../cli-api/rest/apps.md).
-- **Security boundary = the pod, not the app.** Worker isolation of api handlers is a *crash* boundary (`sdk/org/libs/cli/src/app/api/runtime.ts:L6-L12`), never an auth boundary. A project-app is **single-user and carries no auth of its own**: the pod's HTTP server has no auth middleware at all — `createServer` hands every request straight to the `Router`, which matches on method + path only and has no token/JWT/session concept (`sdk/org/libs/cli/src/server/serve.ts:L343-L369`; `sdk/org/libs/cli/src/server/router.ts:L61-L82`), and neither `createAppApiHandler` nor `createPageServeHandler` reads an `Authorization` header or cookie.
+- **Security boundary = the pod, not the app.** Worker isolation of api handlers is a *crash* boundary (`sdk/org/libs/cli/src/app/api/runtime.ts:L6-L12`), never an auth boundary. A project-app is **single-user and carries no auth of its own**: the pod's HTTP server has no auth middleware at all — `createServer` hands every request straight to the `Router`, which matches on method + path only and has no token/JWT/session concept (`sdk/org/libs/cli/src/server/serve.ts:L343-L369`; `sdk/org/libs/cli/src/server/router.ts#Router.dispatch`), and neither `createAppApiHandler` nor `createPageServeHandler` reads an `Authorization` header or cookie.
 
   The *only* auth is the **platform picking which pod a request reaches**, and it lives at the Envoy edge, not in this codebase's app layer: the `app-jwt` `SecurityPolicy` validates the gateway-issued HS256 JWT — taken from the `Authorization: Bearer` header, an `access_token` query param, **or** an `access_token` cookie (page navigations and their `<script>`/`<link>` sub-requests cannot set a header) — and projects its `sub` claim into `x-user-id` (`devops/argocd/envoy/app-policies.yaml:L154-L194`). The `app-lua-routing` Lua filter then 401s a request with no `x-user-id` and rewrites the upstream to that user's pod, `lmthing.user-<id>.svc.cluster.local:8080` (`devops/argocd/envoy/app-policies.yaml:L35-L66`). Locally there is no gateway and no auth at all.
 

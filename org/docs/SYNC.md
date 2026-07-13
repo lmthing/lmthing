@@ -24,13 +24,32 @@ Every factual sentence in `org/` ends with a citation to the code that makes it 
 
 ```md
 An event hook must carry **exactly one** of `handler` or `trigger`; supplying both or neither
-throws `sdk/org/libs/cli/src/app/hooks/loader.ts:438-444`.
+throws `sdk/org/libs/cli/src/app/hooks/loader.ts#loadHooks`.
 ```
 
-The citation is `path:Lstart-Lend`, or `path` plus a symbol name when lines are unstable. Cite the
-**implementation** — the loader, the validator, the route, the global — not another document. An
-example file (`store/projects/blog/…`) may be cited for *"what a real one looks like"*, never for
-*"this is how it behaves"*.
+### Prefer a symbol anchor; fall back to lines
+
+The citation is **`path#Symbol`** — the file path, then `#`, then the name of the declaration
+the claim is about. A symbol anchor moves with the code: it survives every edit above it and
+breaks only when the symbol is renamed or deleted — which is exactly the moment the claim needs
+re-checking. `Symbol` is any renameable declaration and may be dotted for a member:
+
+```md
+sdk/org/libs/core/src/eval/turn-loop.ts#runTurnLoop          a function
+sdk/org/libs/core/src/session/session.ts#Session.resume      a method of a class
+sdk/org/libs/core/src/eval/turn-loop.ts#TurnLoopDeps.streamFn  a field of an interface
+```
+
+Use a **`path:Lstart-Lend`** line anchor only where a symbol is not appropriate:
+
+- a non-code file — JSON / YAML / Markdown / shell / CSS (`…/tokens.json:42-58`);
+- a **precise line inside a large function** where the exact spot is the point, not the whole
+  function (`turn-loop.ts:441` — the retry-budget check inside `runTurnLoop`);
+- an **anonymous callback** with no name — e.g. a Hono route handler `app.post("/x", …)`.
+
+Both forms are checked by `pnpm docs:check` (below). Cite the **implementation** — the loader, the
+validator, the route, the global — not another document. An example file (`store/projects/blog/…`)
+may be cited for *"what a real one looks like"*, never for *"this is how it behaves"*.
 
 If you cannot ground a claim, you have two honest options, and inventing a citation is not one of
 them:
@@ -77,11 +96,34 @@ expensive kind of wrong: it sends the next reader hunting for code that isn't th
 
 Before you call a doc change done:
 
+- **Citations resolve — run the gate.** `pnpm docs:check` resolves every citation against the
+  current code: a `path#Symbol` whose symbol is gone, or a `path:Lstart-Lend` out of bounds, fails.
+  This is a hard CI gate (`.github/workflows/docs-sync.yml`), the same shape as `lint:tokens`. A
+  citation that will not resolve is not a formatting nit — it is a bug you have just discovered
+  (see below).
 - **Links resolve.** Every relative link in `org/` must point at a file that exists.
-- **Citations are real.** Open each `path:Lstart-Lend` you wrote. Line numbers drift — if you moved
-  code, you moved someone's citation.
 - **No orphan knowledge.** If you found yourself explaining behaviour inside a `CLAUDE.md`, a skill,
   a README, or a long code comment — that explanation belongs in `org/`. Put it here and link to it.
+
+### The tooling
+
+`org/docs/tools/docs-sync/` ([README](./tools/docs-sync/README.md)) resolves symbols with the
+TypeScript compiler, so anchors are exact, not guessed:
+
+```bash
+pnpm docs:check                 # the gate — fail on any unresolved citation
+pnpm docs:migrate               # dry-run: which line citations could become symbol anchors
+pnpm docs:migrate -- --write    # rewrite the clean-fit ones in place
+```
+
+`docs:migrate` only rewrites a line citation to a symbol anchor when the symbol is a clean fit; it
+never invents an anchor and never silently drops precision — a specific line inside a large function
+stays a line. Run it after a refactor to re-anchor citations whose lines have shifted.
+
+Citations that were already broken when the gate was introduced live in
+`tools/docs-sync/baseline.json`. The gate tolerates exactly those and fails only on **new** breakage
+— so the list is a burn-down, not a place to hide new debt. Fix a baseline entry and the gate tells
+you to delete it.
 
 ## Why this is worth the friction
 

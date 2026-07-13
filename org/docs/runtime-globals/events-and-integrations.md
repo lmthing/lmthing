@@ -16,11 +16,11 @@ for the emitter-def (`events/<name>.ts`) format `emitEvent` feeds, and
 
 | Global | Kind | Gate | Host resolver (absent ⇒ the yield rejects) |
 |---|---|---|---|
-| `emitEvent(name, payload)` | value **yield** `emitEvent` `sdk/org/libs/core/src/globals/emit-event.ts:56-70` | capability `events:emit` (bare) `sdk/org/libs/core/src/exec/bootstrap.ts:202-204` | `emitEventResolver` `sdk/org/libs/core/src/eval/yield-router.ts:333-344` |
+| `emitEvent(name, payload)` | value **yield** `emitEvent` `sdk/org/libs/core/src/globals/emit-event.ts#createEmitEventGlobal` | capability `events:emit` (bare) `sdk/org/libs/core/src/exec/bootstrap.ts:202-204` | `emitEventResolver` `sdk/org/libs/core/src/eval/yield-router.ts:333-344` |
 | `callConnection(provider, req)` | value **yield** `callConnection` `sdk/org/libs/core/src/globals/call-connection.ts:20-33` | capability `connections:use: { providers: [...] }` — config REQUIRED `sdk/org/libs/core/src/exec/bootstrap.ts:177` | `connectionResolver` `sdk/org/libs/core/src/eval/yield-router.ts:201-213` |
-| `integrationStatus(spaceId)` | value **yield** `integrationStatus` `sdk/org/libs/core/src/globals/integration-status.ts:27-40` | NOT a capability — injected whenever the VM has a `projectRoot` `sdk/org/libs/core/src/exec/bootstrap.ts:188` | `integrationStatusResolver` `sdk/org/libs/core/src/eval/yield-router.ts:237-249` |
-| `tool(name, input?)` | value **yield** `tool` `sdk/org/libs/core/src/globals/tool.ts:16-29` | capability `tools:use: { allow: [...] }` — config REQUIRED `sdk/org/libs/core/src/exec/bootstrap.ts:182` | `toolResolver` `sdk/org/libs/core/src/eval/yield-router.ts:214-224` |
-| `fetch(url, opts?)` | value **yield** `fetch` `sdk/org/libs/core/src/globals/fetch.ts:23-36` | none — injected in **every** VM `sdk/org/libs/core/src/exec/bootstrap.ts:159` | built in (`resolveFetchYield`) `sdk/org/libs/core/src/eval/yield-router.ts:184-189` |
+| `integrationStatus(spaceId)` | value **yield** `integrationStatus` `sdk/org/libs/core/src/globals/integration-status.ts#createIntegrationStatusGlobal` | NOT a capability — injected whenever the VM has a `projectRoot` `sdk/org/libs/core/src/exec/bootstrap.ts:188` | `integrationStatusResolver` `sdk/org/libs/core/src/eval/yield-router.ts:237-249` |
+| `tool(name, input?)` | value **yield** `tool` `sdk/org/libs/core/src/globals/tool.ts#createToolGlobal` | capability `tools:use: { allow: [...] }` — config REQUIRED `sdk/org/libs/core/src/exec/bootstrap.ts:182` | `toolResolver` `sdk/org/libs/core/src/eval/yield-router.ts:214-224` |
+| `fetch(url, opts?)` | value **yield** `fetch` `sdk/org/libs/core/src/globals/fetch.ts#createFetchGlobal` | none — injected in **every** VM `sdk/org/libs/core/src/exec/bootstrap.ts:159` | built in (`resolveFetchYield`) `sdk/org/libs/core/src/eval/yield-router.ts:184-189` |
 | `webSearch` / `webFetch` | **space functions**, not globals `sdk/org/libs/core/system-spaces/system-global/functions/webSearch.ts` · `.../webFetch.ts` | the universal `system-global` toolkit + the `functions:` allowlists (below) | n/a — they call the `fetch` global |
 
 All five globals **end the turn**: the model writes `const r = await callConnection(...)`, the statement is
@@ -44,12 +44,12 @@ emitter defs (`emits`) — the same contract webhook/cron/db emitters are held t
 **The scope cannot be spoofed.** It is derived HOST-side at injection from the VM's `spaceDir` +
 `projectRoot` and baked into the global's closure: a space dir under `<projectRoot>/spaces/<id>` emits as
 `<id>`, everything else (project agents, system/user spaces, sessions outside a project) emits as
-`'project'` `sdk/org/libs/core/src/globals/emit-event.ts:43-50`. The bootstrap passes
+`'project'` `sdk/org/libs/core/src/globals/emit-event.ts#deriveEventScope`. The bootstrap passes
 `deriveEventScope(opts.spaceDir, opts.projectRoot)` into the factory
 `sdk/org/libs/core/src/exec/bootstrap.ts:202-204`, and the yield router reads `sourceScope` out of the
 yield args — which the closure, not the sandbox, supplied `sdk/org/libs/core/src/eval/yield-router.ts:333-344`.
 
-**Host resolver — 4 steps** (`createEmitEventResolver`, `sdk/org/libs/cli/src/server/emit-event.ts:57-112`):
+**Host resolver — 4 steps** (`createEmitEventResolver`, `sdk/org/libs/cli/src/server/emit-event.ts#createEmitEventResolver`):
 
 1. **Declared-event check** against the *caller's* scope — `scanEmitterDefs(root, projectId).scopes[sourceScope].declaredEvents`; an undeclared name throws with the scope's actual contract listed `sdk/org/libs/cli/src/server/emit-event.ts:63-73`.
 2. **Payload-schema check** via the shared `validateEmitted` — a mismatch **throws** ("payload … does not match its declared schema") `sdk/org/libs/cli/src/server/emit-event.ts:75-82`.
@@ -57,7 +57,7 @@ yield args — which the closure, not the sandbox, supplied `sdk/org/libs/core/s
 4. **Dispatch** to subscribing event hooks via `dispatchEmittedEvents`, **awaited** — so the agent's `{ ok: true }` truthfully means "subscribers ran" `sdk/org/libs/cli/src/server/emit-event.ts:96-110`.
 
 The resolver is wired only for **project-rooted** sessions (`withStore` needs `lmthingRoot` + `projectId`)
-`sdk/org/libs/cli/src/server/session-manager.ts:404-425`; elsewhere the yield rejects with
+`sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.withStore`; elsewhere the yield rejects with
 `emitEvent is not available here: no event resolver configured (project-rooted sessions only)`
 `sdk/org/libs/core/src/eval/yield-router.ts:338-340`.
 
@@ -80,7 +80,7 @@ export async function publishEvent(name: string, payload: Record<string, unknown
   await emitEvent(name, payload);
 }
 ```
-`store/spaces/integration-lmthing/functions/publishEvent.ts:15-17`
+`store/spaces/integration-lmthing/functions/publishEvent.ts#publishEvent`
 
 > That function's docstring says a payload mismatch is "dropped with a warning". The pod resolver
 > **throws** on a mismatch (`sdk/org/libs/cli/src/server/emit-event.ts:77-82`) — the drop-with-warn
@@ -88,7 +88,7 @@ export async function publishEvent(name: string, payload: Record<string, unknown
 
 `events:emit` is **bare-only** — a config payload is a load error `sdk/org/libs/core/src/spaces/capabilities.ts:66-74,278-286`.
 It is also **dropped for read-only fork roles** (`explore`/`plan`), since emitting triggers hooks
-`sdk/org/libs/core/src/exec/capability.ts:16-28`.
+`sdk/org/libs/core/src/exec/capability.ts#intersectAppCaps`.
 
 ---
 
@@ -111,7 +111,7 @@ agent did not declare fails *typecheck*, not at runtime `sdk/org/libs/core/src/t
 The sandbox supplies only `provider` + `{ method, path, query?, body?, headers? }`; the pod attaches the
 credential and pins the host `sdk/org/libs/core/src/globals/call-connection.ts:16-19`.
 
-The pod resolver (`createConnectionResolver`, `sdk/org/libs/cli/src/server/connections.ts:341-381`) is
+The pod resolver (`createConnectionResolver`, `sdk/org/libs/cli/src/server/connections.ts#createConnectionResolver`) is
 **bring-your-own-token**: it looks the token up in `process.env` by the provider's `tokenEnv` (set from
 Settings → Integrations), applies the provider's auth style, and calls the REST API **directly**
 `sdk/org/libs/cli/src/server/connections.ts:9-31`.
@@ -121,7 +121,7 @@ no gateway round-trip `sdk/org/libs/cli/src/server/connections.ts:14-16`.
 
 Providers resolve in two tiers `sdk/org/libs/cli/src/server/connections.ts:41-75`:
 
-- **Built-ins** — `slack` (`https://slack.com/api`, `SLACK_BOT_TOKEN`), `github` (`https://api.github.com`, `GITHUB_TOKEN`), `google` (`https://www.googleapis.com`, `GOOGLE_ACCESS_TOKEN`); all Bearer `sdk/org/libs/cli/src/server/connections.ts:41-45`.
+- **Built-ins** — `slack` (`https://slack.com/api`, `SLACK_BOT_TOKEN`), `github` (`https://api.github.com`, `GITHUB_TOKEN`), `google` (`https://www.googleapis.com`, `GOOGLE_ACCESS_TOKEN`); all Bearer `sdk/org/libs/cli/src/server/connections.ts#BUILTIN_PROVIDERS`.
 - **Installed integration spaces** — any space whose `package.json` declares an `lmthing.connection` descriptor, discovered by scanning `<projectRoot>/spaces/` `sdk/org/libs/cli/src/server/connections.ts:60-75`. Adding a platform is a new space folder, not a code edit.
 
 Real descriptor (`store/spaces/integration-discord/package.json:20-25`):
@@ -136,11 +136,11 @@ Real descriptor (`store/spaces/integration-discord/package.json:20-25`):
 ````
 
 Auth styles: `bearer`, `bot`, `basic` (`userEnv` + token), `query-token` (`param`), `nextcloud-bot`
-(HMAC over `random + signedContent`), `none` `sdk/org/libs/cli/src/server/connections.ts:239-283`.
+(HMAC over `random + signedContent`), `none` `sdk/org/libs/cli/src/server/connections.ts#applyAuth`.
 `apiBase` may be `{ env, suffix }` (self-hosted servers) or a string with `{token}` / `{env:VAR}`
-placeholders `sdk/org/libs/cli/src/server/connections.ts:224-236`.
+placeholders `sdk/org/libs/cli/src/server/connections.ts#resolveApiBase`.
 
-A space function is the idiomatic wrapper (`store/spaces/integration-discord/functions/discordCreateMessage.ts:11-18`):
+A space function is the idiomatic wrapper (`store/spaces/integration-discord/functions/discordCreateMessage.ts#discordCreateMessage`):
 
 ````ts
 export async function discordCreateMessage(channelId: string, content: string): Promise<any> {
@@ -178,15 +178,15 @@ All in `sdk/org/libs/cli/src/server/connections.ts`:
 
 Errors are thrown, never silently bound: an unknown provider lists the supported set; an unset token gives
 `callConnection("<p>"): not configured — set <TOKEN_ENV> in Settings → Integrations`
-`sdk/org/libs/cli/src/server/connections.ts:342-354`.
+`sdk/org/libs/cli/src/server/connections.ts#createConnectionResolver`.
 
 ### Beyond the agent sandbox
 
 The same resolver backs **tasklist code nodes**, where `ctx.callConnection` is further locked to the
 tasklist's declared `connections:` **∩** the owning space's own provider(s) — an out-of-scope provider
 throws `callConnection("x"): not allowed for tasklist "<name>"`
-`sdk/org/libs/cli/src/server/tasklist-runner.ts:86-127`. Hook handlers get the same shape, gated by the
-hook def's `connections:` `sdk/org/libs/cli/src/app/hooks/loader.ts:90,116,146,500-505`.
+`sdk/org/libs/cli/src/server/tasklist-runner.ts#createCodeNodeCtxFactory`. Hook handlers get the same shape, gated by the
+hook def's `connections:` `sdk/org/libs/cli/src/app/hooks/loader.ts#HookHandlerArgs.db,116,146,500-505`.
 
 ---
 
@@ -211,7 +211,7 @@ inject ≠ DTS exceptions in [./README.md](./README.md). Outside a project the y
 
 Resolver: `integrationStatusFor(projectDir, spaceId)` reads `<projectDir>/spaces/<spaceId>/package.json`,
 requires `lmthing.kind === 'integration'`, and diffs the settings schema's `required` keys against
-`process.env` `sdk/org/libs/cli/src/server/routes/store-spaces.ts:501-518`. It is wired only for
+`process.env` `sdk/org/libs/cli/src/server/routes/store-spaces.ts#integrationStatusFor`. It is wired only for
 project-rooted sessions `sdk/org/libs/cli/src/server/session-manager.ts:453-458`. The keys it checks are
 exactly the settings-schema properties an integration space declares
 (`store/spaces/integration-discord/package.json:11-19`), which are also the pod env-var names the
@@ -226,7 +226,7 @@ Chat/Studio Integrations tab writes — see [../chat/features.md](../chat/featur
 // composeToolDts(['searchIssues']) →
 declare function tool(name: 'searchIssues', input?: any): Promise<any>;
 ```
-`sdk/org/libs/core/src/typecheck/library-dts.ts:185-188`
+`sdk/org/libs/core/src/typecheck/library-dts.ts#composeConnectionsDts`
 
 Like `callConnection`, `name` is narrowed to the granted **allow-list union**, so calling an undeclared
 tool fails typecheck `sdk/org/libs/core/src/typecheck/library-dts.ts:175-188` ·
@@ -241,7 +241,7 @@ capabilities:
 
 The host side is the **OpenClaw compat** registry: at boot the pod loads `<root>/.openclaw-plugins/` via
 `loadOpenClawPlugins` and hands the resulting `PluginRegistry` to `manager.setToolRegistry(registry)`
-`sdk/org/libs/cli/src/server/serve.ts:505-509` · `sdk/org/libs/cli/src/server/session-manager.ts:347-349`.
+`sdk/org/libs/cli/src/server/serve.ts:505-509` · `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.setToolRegistry`.
 `resolveTool` then dispatches by name — `tool.execute(randomUUID(), input ?? {})`, returning the plugin's
 result verbatim; an unknown name throws
 `tool("<n>") not found: no OpenClaw plugin registered a tool with that name`
@@ -252,7 +252,7 @@ the registry, so `withTools` leaves the field absent and the yield rejects with
 
 **What the pod dispatches *to*.** A plugin directory needs a `package.json` whose `openclaw.extensions[0]`
 names the entry file, plus an `openclaw.plugin.json` carrying an `id` — either one missing is a fail-loud
-load error `sdk/org/libs/openclaw-compat/src/loader.ts:76-89`. `loadPlugin` transpiles the entry, takes its
+load error `sdk/org/libs/openclaw-compat/src/loader.ts#loadPlugin`. `loadPlugin` transpiles the entry, takes its
 default export, and calls `register(api)` on it (the `definePluginEntry({ id, register })` shape)
 `sdk/org/libs/openclaw-compat/src/loader.ts:91-99`. Inside `register`, a tool is declared with
 `api.registerTool({ name, execute })` — OpenClaw's factory form `registerTool((ctx) => tool, { name })` is
@@ -260,7 +260,7 @@ also accepted; a tool with no `execute()` function, or with no resolvable name, 
 `sdk/org/libs/openclaw-compat/src/api.ts:242-264`. The call records `{ name, description, parameters,
 execute }` into the `PluginRegistry`, which **rejects a duplicate tool name**
 `sdk/org/libs/openclaw-compat/src/registry.ts:17-23` — and that registry's `getTool(name)` is exactly what
-the pod's `resolveTool` looks up `sdk/org/libs/cli/src/server/session-manager.ts:368-374`.
+the pod's `resolveTool` looks up `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.resolveTool`.
 
 Full library reference (the fail-loud `api` Proxy, `registerHttpRoute`, channels, providers, the
 `CompatHost` seam) → [../libs/openclaw-compat.md](../libs/openclaw-compat.md).
@@ -278,11 +278,11 @@ declare function fetch(url: string, opts?: { method?: string; headers?: Record<s
 `sdk/org/libs/core/src/exec/bootstrap.ts:159` and declared in `COMMON_DTS`. It is a real **value yield**:
 the host resolves it with non-blocking Node `fetch()`, bounded by `AbortSignal.timeout(25_000)`, buffering
 the body once so `text()`/`json()` stay *synchronous* accessors
-`sdk/org/libs/core/src/eval/fetch-yield.ts:9-30` · `sdk/org/libs/core/src/eval/yield-router.ts:184-189`.
+`sdk/org/libs/core/src/eval/fetch-yield.ts#resolveFetchYield` · `sdk/org/libs/core/src/eval/yield-router.ts:184-189`.
 
 Two behaviours worth knowing:
 
-- **It never throws.** A network failure or timeout returns `{ ok: false, status: 0, text: () => '', json: () => ({}) }` `sdk/org/libs/core/src/eval/fetch-yield.ts:27-29`.
+- **It never throws.** A network failure or timeout returns `{ ok: false, status: 0, text: () => '', json: () => ({}) }` `sdk/org/libs/core/src/eval/fetch-yield.ts#resolveFetchYield`.
 - **It replaced `execSync(curl)`.** The old primitive blocked the single Node thread for the whole request, which also defeated the per-stream idle watchdog `sdk/org/libs/core/src/globals/fetch.ts:16-22`. (`execShell` *is* still synchronous and still blocks the loop — see [./session-and-utils.md](./session-and-utils.md).)
 
 There is **no SSRF guard on `fetch`** — the allowlist/pinning machinery above is specific to
@@ -294,7 +294,7 @@ There is **no SSRF guard on `fetch`** — the allowlist/pinning machinery above 
 `fetch` sits alongside the synchronous host substrate injected by `injectHostTools` — `console`,
 `process`, `progress`, `spacePath`, `resolveSpaceDir`, `typecheckSource`, plus the now
 **internal-only** `execShell`/`readFileRaw`/`writeFileRaw` primitives (bound but absent from the
-model DTS) `sdk/org/libs/core/src/globals/host-tools.ts:150-275`. Two facts matter for integrations:
+model DTS) `sdk/org/libs/core/src/globals/host-tools.ts#injectHostTools`. Two facts matter for integrations:
 
 - **`process.env` is a snapshot copy of the pod env** (undefined values filtered out) plus `LMTHING_SPACE_DIR`, and `LMTHING_PROJECT_SPACES_DIR` / `LMTHING_PROJECT_DIR` / `LMTHING_PROJECT_ID` when supplied `sdk/org/libs/core/src/globals/host-tools.ts:135-147`. **So `process.env` inside the sandbox DOES see integration tokens.** The "token never enters the sandbox" property is about `callConnection`/`integrationStatus` specifically, not about `process.env`. Space functions read keys from it directly — e.g. `webSearch` reads `TAVILY_API_KEY` `sdk/org/libs/core/system-spaces/system-global/functions/webSearch.ts:30`.
 - **Read-only roles lose the write primitives.** Under `allowWrite: false` (`explore`/`plan` fork roles) mutating shell commands are refused with exit code 126 and `writeFileRaw` is a no-op, with both DTS fragments withheld `sdk/org/libs/core/src/globals/host-tools.ts:58-76,114-116,190-193` · `sdk/org/libs/core/src/typecheck/library-dts.ts:110-117`.
@@ -312,7 +312,7 @@ They live in the `system-global` space
 `library-dts.ts`. Format → [../format/space/functions/README.md](../format/space/functions/README.md).
 
 **`webSearch(query, opts?)`** → `{ ok, query, answer, results[], error? }`; `opts.provider` (default
-`'auto'`) `sdk/org/libs/core/system-spaces/system-global/functions/webSearch.ts:12-55`:
+`'auto'`) `sdk/org/libs/core/system-spaces/system-global/functions/webSearch.ts#webSearch`:
 
 | provider | key / service | notes |
 |---|---|---|
@@ -333,9 +333,9 @@ when a plain fetch returns an empty SPA shell or is bot-walled (403/429). The fa
 
 Three distinct mechanisms — **none** of them is a `capabilities:` grant:
 
-1. **`system-global` is universal.** Only that one space's functions are injected into every agent's VM (`systemFunctionSources` filters on `GLOBAL_SPACE_NAME`) `sdk/org/libs/core/src/spaces/system.ts:26-27,87-95` · `sdk/org/libs/core/src/session/session.ts:595-624`. Every *other* system space's functions reach an agent only through the per-agent path. That is why `webSearch`/`webFetch`/`todoWrite`/`remember` need no declaration. (The generic fs wrappers `readFile`/`grep` live in `system-engineer`, not `system-global` — scoped to the engineer's `fs:scratch` sandbox.)
-2. **An agent's own space functions are opt-in** via `functions:` in `agents/<slug>/instruct.md` frontmatter: only the listed names are injected and shown in the prompt `sdk/org/libs/core/src/spaces/load.ts:474` · `sdk/org/libs/core/src/spaces/agent.ts:17-25`, and a name with no matching `functions/<name>.ts` is a fail-loud load error (`Agent "x" requires function "y" but it was not found in functions/`) `sdk/org/libs/core/src/spaces/load.ts:685-689`.
-3. **A tasklist task narrows the set for its fork.** `functions: [...]` in a task's frontmatter is an allowlist intersected against the parent agent's *injected* set `sdk/org/libs/core/src/spaces/tasklist-load.ts:30-32,136-137` · `sdk/org/libs/core/src/fork/fork.ts:247-260`. Because the parent's set is the **merged** map (system toolkit + project functions + space functions) `sdk/org/libs/core/src/session/session.ts:620-623,746-747`, **`functions: []` means no functions at all — `webSearch`/`webFetch` included.** Never forbid a tool in prose; disable it in frontmatter.
+1. **`system-global` is universal.** Only that one space's functions are injected into every agent's VM (`systemFunctionSources` filters on `GLOBAL_SPACE_NAME`) `sdk/org/libs/core/src/spaces/system.ts:26-27,87-95` · `sdk/org/libs/core/src/session/session.ts#Session.buildInjectedFunctions`. Every *other* system space's functions reach an agent only through the per-agent path. That is why `webSearch`/`webFetch`/`todoWrite`/`remember` need no declaration. (The generic fs wrappers `readFile`/`grep` live in `system-engineer`, not `system-global` — scoped to the engineer's `fs:scratch` sandbox.)
+2. **An agent's own space functions are opt-in** via `functions:` in `agents/<slug>/instruct.md` frontmatter: only the listed names are injected and shown in the prompt `sdk/org/libs/core/src/spaces/load.ts:474` · `sdk/org/libs/core/src/spaces/agent.ts#getAgentFunctions`, and a name with no matching `functions/<name>.ts` is a fail-loud load error (`Agent "x" requires function "y" but it was not found in functions/`) `sdk/org/libs/core/src/spaces/load.ts:685-689`.
+3. **A tasklist task narrows the set for its fork.** `functions: [...]` in a task's frontmatter is an allowlist intersected against the parent agent's *injected* set `sdk/org/libs/core/src/spaces/tasklist-load.ts:30-32,136-137` · `sdk/org/libs/core/src/fork/fork.ts:247-260`. Because the parent's set is the **merged** map (system toolkit + project functions + space functions) `sdk/org/libs/core/src/session/session.ts#Session.buildInjectedFunctions,746-747`, **`functions: []` means no functions at all — `webSearch`/`webFetch` included.** Never forbid a tool in prose; disable it in frontmatter.
 
 ---
 
@@ -357,7 +357,7 @@ In practice `callConnection`'s resolver is folded into **every** session (`withC
 providers work even project-less) `sdk/org/libs/cli/src/server/session-manager.ts:333-341`; `tool` exists
 only when a plugin registry loaded `sdk/org/libs/cli/src/server/session-manager.ts:376-383`; `emitEvent`
 and the store resolvers only for project-rooted sessions
-`sdk/org/libs/cli/src/server/session-manager.ts:404-425`.
+`sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.withStore`.
 
 ---
 

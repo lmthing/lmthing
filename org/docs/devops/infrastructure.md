@@ -242,7 +242,7 @@ in the Gateway `tls-certificates.yaml:24-123+`.
 - Postgres runs as a `StatefulSet` with a `volumeClaimTemplates` PVC `postgres-data`,
   `ReadWriteOnce`, **10 Gi**, no `storageClassName` `devops/argocd/core/postgres.yaml:88-95`.
 - Each user pod gets a `user-data` PVC, `ReadWriteOnce`, **1 Gi**, likewise no `storageClassName`
-  `cloud/gateway/src/lib/compute.ts:164-179`.
+  `cloud/gateway/src/lib/compute.ts#dataPvc`.
 
 The local-path provisioner is **not** a Kubespray addon here. The inventory's addon list enables
 only `helm`, `metrics_server`, `cert_manager` and `metallb` — there is no storage toggle in it
@@ -261,7 +261,7 @@ creates it: it carries no Helm release, no ArgoCD ownership and no Kubespray lab
 younger than the rest of the cluster. It was applied by hand. **A cluster rebuilt from this repo
 would have no default StorageClass**, and both PVCs above — the Postgres `postgres-data`
 `devops/argocd/core/postgres.yaml:88-95` and every per-user `user-data`
-`cloud/gateway/src/lib/compute.ts:164-179`, neither of which sets `storageClassName` — would sit
+`cloud/gateway/src/lib/compute.ts#dataPvc`, neither of which sets `storageClassName` — would sit
 `Pending` forever. Check with `kubectl get storageclass`; the fix is to set
 `local_path_provisioner_enabled: true` in `devops/ansible/inventory/test/group_vars/all.yml` so
 Kubespray installs it.
@@ -279,7 +279,7 @@ Kubespray installs it.
 | `local-path-storage` | **nothing in this repo** — applied out-of-band | local-path PV provisioner (default StorageClass); see [Storage](#storage) `devops/ansible/inventory/test/group_vars/all.yml:1-26` |
 | `lmthing` | ArgoCD (`lmthing-core`) | LiteLLM, gateway/Hono, Postgres, Zitadel, render, and the SPA deployments (`studio` `computer` `chat` `com` `social` `team` `store` `space` `blog` `casa`) `devops/argocd/core/*.yaml`, `core/namespace.yaml:1-3` |
 | `gateway` | ArgoCD (`lmthing-envoy`) | `lmthing-gw` Gateway, HTTPRoutes, policies, ReferenceGrant, Certificates `core/namespace.yaml:5-7`, `devops/argocd/envoy/*.yaml` |
-| `user-<id>` | gateway (K8s API, live) | one compute pod per user (below) `cloud/gateway/src/lib/compute.ts:134-146` |
+| `user-<id>` | gateway (K8s API, live) | one compute pod per user (below) `cloud/gateway/src/lib/compute.ts#namespace` |
 
 `namespace.yaml` creates only `lmthing` and `gateway` `devops/argocd/core/namespace.yaml:1-7`;
 the platform namespaces are created by their Helm/addon installers (except `local-path-storage`,

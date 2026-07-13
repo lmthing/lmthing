@@ -1,6 +1,6 @@
 # `knowledge/` — load-on-demand domain docs
 
-Structured reference material an agent pulls in on demand. The loader walks `<space>/knowledge/`, treating each direct child as a **domain** slug and each of its subdirectories as a **field** slug (`knowledge/<domain>/<field>/`) `sdk/org/libs/core/src/spaces/load.ts:255-328`. Only directories are considered — a non-directory entry is skipped at both the domain and field level `sdk/org/libs/core/src/spaces/load.ts:266-273`.
+Structured reference material an agent pulls in on demand. The loader walks `<space>/knowledge/`, treating each direct child as a **domain** slug and each of its subdirectories as a **field** slug (`knowledge/<domain>/<field>/`) `sdk/org/libs/core/src/spaces/load.ts#loadKnowledge`. Only directories are considered — a non-directory entry is skipped at both the domain and field level `sdk/org/libs/core/src/spaces/load.ts:266-273`.
 
 ```
 knowledge/
@@ -28,7 +28,7 @@ The field overview body should name each sibling aspect file so the agent knows 
 
 ## Loaded on demand
 
-Nothing is read from disk at space-load time except `index.md` and each aspect's frontmatter for validation `sdk/org/libs/core/src/spaces/load.ts:280-299`. Aspect bodies are read only when the agent calls `loadKnowledge(...path)`, a value-yielding global that joins the path segments under the space's knowledge dir and reads the file `sdk/org/libs/core/src/globals/load-knowledge.ts:71-92`. The host resolver `resolveKnowledge(space, path)` maps a `[domain]`/`[domain,field]`/`[domain,field,option]` path to a value — a list of domains, a field summary, field metadata, or the resolved option content respectively `sdk/org/libs/core/src/spaces/knowledge.ts:10-62`. When an option file has frontmatter its data is returned as a structured object (with `body`); otherwise the plain body/text is returned `sdk/org/libs/core/src/spaces/knowledge.ts:56-61`.
+Nothing is read from disk at space-load time except `index.md` and each aspect's frontmatter for validation `sdk/org/libs/core/src/spaces/load.ts:280-299`. Aspect bodies are read only when the agent calls `loadKnowledge(...path)`, a value-yielding global that joins the path segments under the space's knowledge dir and reads the file `sdk/org/libs/core/src/globals/load-knowledge.ts#createLoadKnowledgeGlobal`. The host resolver `resolveKnowledge(space, path)` maps a `[domain]`/`[domain,field]`/`[domain,field,option]` path to a value — a list of domains, a field summary, field metadata, or the resolved option content respectively `sdk/org/libs/core/src/spaces/knowledge.ts#resolveKnowledge`. When an option file has frontmatter its data is returned as a structured object (with `body`); otherwise the plain body/text is returned `sdk/org/libs/core/src/spaces/knowledge.ts:56-61`.
 
 ## Worked example
 
@@ -44,7 +44,7 @@ description: Judging which sources and items are worth polling and citing, and d
 … overview body that names each aspect file (credibility-signals.md, dedup-and-clustering.md) …
 ```
 
-This field sits at `knowledge/journalism/source-evaluation/` with siblings `credibility-signals.md` and `dedup-and-clustering.md` `store/projects/blog/spaces/newsroom/knowledge/journalism/source-evaluation/credibility-signals.md:1`. An agent references it as `journalism/source-evaluation` in `knowledge:` frontmatter, then reads a specific aspect with `loadKnowledge('journalism', 'source-evaluation', 'credibility-signals')` `sdk/org/libs/core/src/globals/load-knowledge.ts:75-92`.
+This field sits at `knowledge/journalism/source-evaluation/` with siblings `credibility-signals.md` and `dedup-and-clustering.md` `store/projects/blog/spaces/newsroom/knowledge/journalism/source-evaluation/credibility-signals.md:1`. An agent references it as `journalism/source-evaluation` in `knowledge:` frontmatter, then reads a specific aspect with `loadKnowledge('journalism', 'source-evaluation', 'credibility-signals')` `sdk/org/libs/core/src/globals/load-knowledge.ts#createLoadKnowledgeGlobal`.
 
 ## See also
 

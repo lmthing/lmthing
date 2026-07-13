@@ -1,6 +1,6 @@
 # The `instruct.md` file
 
-`agents/<slug>/instruct.md` is the required-ish core file of an agent: a YAML frontmatter block followed by a Markdown operating-instructions body, both read by `loadAgent` (`sdk/org/libs/core/src/spaces/load.ts:431-568`). The file is split into `{ data, body }` by `parseFrontmatter`, which throws on malformed YAML (`sdk/org/libs/core/src/spaces/frontmatter.ts` `parseFrontmatter`). The whole file is optional — `loadAgent` guards the read with `fileExists(instructPath)` and falls back to an empty body and `title = slug` if absent (`sdk/org/libs/core/src/spaces/load.ts:440-456`).
+`agents/<slug>/instruct.md` is the required-ish core file of an agent: a YAML frontmatter block followed by a Markdown operating-instructions body, both read by `loadAgent` (`sdk/org/libs/core/src/spaces/load.ts#loadAgent`). The file is split into `{ data, body }` by `parseFrontmatter`, which throws on malformed YAML (`sdk/org/libs/core/src/spaces/frontmatter.ts` `parseFrontmatter`). The whole file is optional — `loadAgent` guards the read with `fileExists(instructPath)` and falls back to an empty body and `title = slug` if absent (`sdk/org/libs/core/src/spaces/load.ts:440-456`).
 
 ## Structure
 
@@ -25,7 +25,7 @@ Every `action.tasklist` must resolve to a loaded tasklist in the same space, or 
 
 `defaultAction` names an action `id` and is read verbatim from frontmatter (`sdk/org/libs/core/src/spaces/load.ts:471`). It is **not** a freeform fallback — it is the opposite. When a top-level session starts and the running agent declares a `defaultAction` whose action has a tasklist, the session takes a *structured*, host-driven fast path: it runs that action's tasklist via the reliable delegate path (`ctx.runDelegate`), which auto-captures the tasklist result, and then `return`s — the model-driven turn loop is never entered on that turn (`sdk/org/libs/core/src/session/session.ts:308-350`, returning at `:349`, ahead of the `runTurnLoop` call at `:352-353`). The action is resolved by matching `a.id === agent.defaultAction && a.tasklist` (`sdk/org/libs/core/src/session/session.ts:315-317`). The freeform, model-driven loop is what runs in the *other* case: when the agent declares no `defaultAction`, when the named action carries no tasklist, or when the routing is suppressed.
 
-The fast path is consulted only in `start()`. `continue()` never reads `defaultAction`, so every turn after the first runs the model-driven turn loop regardless (`sdk/org/libs/core/src/session/session.ts:187-200`).
+The fast path is consulted only in `start()`. `continue()` never reads `defaultAction`, so every turn after the first runs the model-driven turn loop regardless (`sdk/org/libs/core/src/session/session.ts#Session.continue`).
 
 Suppression is the `noDefaultAction` session option (`sdk/org/libs/core/src/session/types.ts:39-41`), and the only thing that sets it is the CLI's `--no-default-action` flag (`sdk/org/libs/cli/src/cli/args.ts:144-147`), threaded into `SessionOpts` at each session-construction site in `bin.ts` (`sdk/org/libs/cli/src/cli/bin.ts:451,473,567,611`). No web or gateway caller passes it, so on the product surfaces an agent with a tasklist-bearing `defaultAction` always takes the fast path on its first turn.
 

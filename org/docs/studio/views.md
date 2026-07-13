@@ -11,7 +11,7 @@ Two source trees are involved:
 
 ## The persistence model (why no editor has a "save to server" button)
 
-Every space editor writes to the in-memory VFS (`spaceFS.writeFile(...)`), never to an endpoint. `SpaceProvider` hydrates the whole space file map on mount and writes it back with a **1500 ms-debounced** whole-space PUT `sdk/org/libs/state/src/lib/contexts/SpaceContext.tsx:35` `sdk/org/libs/state/src/lib/contexts/SpaceContext.tsx:92` `sdk/org/libs/state/src/lib/contexts/SpaceContext.tsx:124-158`. So the "Save" buttons you see in the editors below commit a draft into the VFS; the network round-trip is the provider's job. See [../cli-api/rest/projects.md](../cli-api/rest/projects.md) for the `GET|PUT /api/projects/:id/spaces/:spaceId/files` contract those calls hit.
+Every space editor writes to the in-memory VFS (`spaceFS.writeFile(...)`), never to an endpoint. `SpaceProvider` hydrates the whole space file map on mount and writes it back with a **1500 ms-debounced** whole-space PUT `sdk/org/libs/state/src/lib/contexts/SpaceContext.tsx#SAVE_DEBOUNCE_MS` `sdk/org/libs/state/src/lib/contexts/SpaceContext.tsx:92` `sdk/org/libs/state/src/lib/contexts/SpaceContext.tsx:124-158`. So the "Save" buttons you see in the editors below commit a draft into the VFS; the network round-trip is the provider's job. See [../cli-api/rest/projects.md](../cli-api/rest/projects.md) for the `GET|PUT /api/projects/:id/spaces/:spaceId/files` contract those calls hit.
 
 The project-app tabs (`/studio/$projectId/app/*`) are the exception — they talk to the pod management API directly (see [App admin tabs](#app-admin-tabs-studioprojectidapp) below).
 
@@ -20,7 +20,7 @@ The project-app tabs (`/studio/$projectId/app/*`) are the exception — they tal
 ## Shell
 
 ### `StudioShell`
-`sdk/org/libs/ui/src/studio/shell/studio-shell/index.tsx:57-148`
+`sdk/org/libs/ui/src/studio/shell/studio-shell/index.tsx#StudioShell`
 
 The three/four-column frame for every space route:
 
@@ -36,7 +36,7 @@ With no children it renders an empty state counting knowledge fields / agents / 
 Two persisted toggles: `studio-shell.sidebar.collapsed` and `studio-shell.thing.open` (default **false** — the dock is opt-in, not always-on) `sdk/org/libs/ui/src/studio/shell/studio-shell/index.tsx:70-72`.
 
 ### `StudioLayout`
-`sdk/org/libs/ui/src/studio/shell/studio-layout/index.tsx:38-109`
+`sdk/org/libs/ui/src/studio/shell/studio-layout/index.tsx#StudioLayout`
 
 The binding of `StudioShell` used by the space layout route. It owns three behaviours:
 
@@ -45,12 +45,12 @@ The binding of `StudioShell` used by the space layout route. It owns three behav
 - **create knowledge domain** — writes `knowledge/<slug>/<slug>/index.md` with `type`/`variable` frontmatter and navigates to the encoded field id `<domain>---<field>` `…/studio-layout/index.tsx:78-91`
 
 ### `StudioAppSidebar`
-`sdk/org/libs/ui/src/studio/shell/studio-app-sidebar/index.tsx:27-73`
+`sdk/org/libs/ui/src/studio/shell/studio-app-sidebar/index.tsx#StudioAppSidebar`
 
 Feeds `useProjects()` / `useProject()` into the shared `AppSidebar` element: project dropdown (create/delete), the collapsible SPACES list, a gear that routes to project settings, and `<SidebarFooter current="studio"/>` `…/studio-app-sidebar/index.tsx:33-71`. Selecting a project navigates to `/studio/$projectId`; selecting a space to `/studio/$projectId/$spaceId` `…/studio-app-sidebar/index.tsx:49,66-68`.
 
 ### `StudioSidebar` (the inner space rail)
-`sdk/org/libs/ui/src/studio/shell/studio-sidebar/index.tsx:70-380`
+`sdk/org/libs/ui/src/studio/shell/studio-sidebar/index.tsx#StudioSidebar`
 
 Five collapsible sections, each with a live count and a create/edit affordance:
 
@@ -67,14 +67,14 @@ Footer: THING toggle (or a link to `/studio/thing` when no dock is wired), **Raw
 > Gaps in this component: a **Conversations** section renders only when an agent is active and is hard-coded to `Conversations (0)` / "No conversations yet." `sdk/org/libs/ui/src/studio/shell/studio-sidebar/index.tsx:301-316`. The **Create Tasklist** button is wired to `onCreateAgent` `sdk/org/libs/ui/src/studio/shell/studio-sidebar/index.tsx:241` — clicking it creates an agent.
 
 ### `StudioProjectView`
-`sdk/org/libs/ui/src/studio/shell/studio-project-view/index.tsx:15-37` — the `/studio/$projectId` landing: sidebar plus "Select a space to begin" with the space count.
+`sdk/org/libs/ui/src/studio/shell/studio-project-view/index.tsx#StudioProjectView` — the `/studio/$projectId` landing: sidebar plus "Select a space to begin" with the space count.
 
 ---
 
 ## Space editors
 
 ### `AgentBuilder`
-`sdk/org/libs/ui/src/studio/agent/builder/agent-builder/index.tsx:16-83`, state in `…/use-agent-form.ts:24-212`
+`sdk/org/libs/ui/src/studio/agent/builder/agent-builder/index.tsx#AgentBuilder`, state in `…/use-agent-form.ts:24-212`
 
 Edits **`agents/<slug>/instruct.md` only** `sdk/org/libs/ui/src/studio/agent/builder/agent-builder/index.tsx:1-4`. Panels, top to bottom:
 
@@ -89,26 +89,26 @@ The pickers are derived by globbing the space: function names from `functions/*.
 
 Field semantics (what each of these means to the runtime) → [../format/space/agents/README.md](../format/space/agents/README.md).
 
-`AgentCard` (used by the agent list route) renders the instruct title plus an action count `sdk/org/libs/ui/src/studio/agent/agent-card/index.tsx:12-27`.
+`AgentCard` (used by the agent list route) renders the instruct title plus an action count `sdk/org/libs/ui/src/studio/agent/agent-card/index.tsx#AgentCard`.
 
 ### `FunctionsEditor`
-`sdk/org/libs/ui/src/studio/functions/functions-editor/index.tsx:234-356`
+`sdk/org/libs/ui/src/studio/functions/functions-editor/index.tsx#FunctionsEditor`
 
 Left: the `functions/<name>.ts` list with rename (inline input) and delete; right: a raw-TypeScript `<textarea>` pane with an explicit Save and a **Cmd/Ctrl-S** shortcut `…/functions-editor/index.tsx:150-217`. Creating a function seeds a default template `…/functions-editor/index.tsx:22-28`; renaming is copy-then-delete `…/functions-editor/index.tsx:276-285`.
 
 It flags host-enforced consent: a leading `@consent` pragma in the source renders a `consent` badge on the list item, using a browser-safe mirror of core's `functionRequiresConsent` (core's version pulls in `node:crypto`, so it can't be imported into the web bundle) `sdk/org/libs/ui/src/studio/functions/functions-editor/index.tsx:34-61,113-118`. Format → [../format/space/functions/README.md](../format/space/functions/README.md).
 
 ### `ComponentEditor`
-`sdk/org/libs/ui/src/studio/component-editor/index.tsx:41-175`
+`sdk/org/libs/ui/src/studio/component-editor/index.tsx#ComponentEditor`
 
 Two lists in one pane — **View** (`components/view/<Name>.tsx`, badged `display()`) and **Form** (`components/form/<Name>.tsx`, badged `ask()`) `…/component-editor/index.tsx:111-163` — plus a create form whose `Select` chooses the kind `…/component-editor/index.tsx:93-100`, and a shared `ComponentCodeEditor` pane. Format → [../format/space/components/README.md](../format/space/components/README.md).
 
 ### `TasklistEditor`
-`sdk/org/libs/ui/src/studio/workflow/workflow-editor/index.tsx:18-114`
+`sdk/org/libs/ui/src/studio/workflow/workflow-editor/index.tsx#TasklistEditor`
 
 A **form-based** (not graph-based) editor for one tasklist. Two parts:
 
-- `ManifestSection` — the tasklist-level `index.md`: description + input schema rows `sdk/org/libs/ui/src/studio/workflow/workflow-editor/manifest-section.tsx:17-40`
+- `ManifestSection` — the tasklist-level `index.md`: description + input schema rows `sdk/org/libs/ui/src/studio/workflow/workflow-editor/manifest-section.tsx#ManifestSection`
 - one `TaskForm` card per task, with move-up/move-down/delete `…/workflow-editor/index.tsx:86-103`
 
 A task draft carries exactly `id, instruction, input[], output[], dependsOn[], goal, optional, condition` `sdk/org/libs/ui/src/studio/workflow/workflow-editor/types.ts:14-24`; schema rows are `{field, type}` over `string|number|boolean|object|array` `…/types.ts:5-11`. The hook reads/writes `tasklists/<name>/NN-<id>.md` and `tasklists/<name>/index.md` through SpaceFS `sdk/org/libs/ui/src/studio/workflow/workflow-editor/useTasklistEditor.ts:1-24`. `WorkflowEditor` is kept as an alias of the same component `…/workflow-editor/index.tsx:117`. Format → [../format/space/tasklists/README.md](../format/space/tasklists/README.md).
@@ -121,7 +121,7 @@ Three levels, all VFS-backed:
 - **Field detail** (`knowledge/$fieldId/index.tsx`) — decodes `domain---field` `…/knowledge/$fieldId/index.tsx:29-32`, lists the field's options (`*.md` minus `index.md`) in a left rail with rename/delete, and renders either `FieldIndexPanel` (for `index.md`) or `TopicEditor` (for an option) on the right `…/knowledge/$fieldId/index.tsx:249-275`. Rename is duplicate-then-delete `…/knowledge/$fieldId/index.tsx:93-104`.
 - **Domain metadata** (`knowledge/domain/$domainId`) → `DomainMetadataPanel` — label, icon, color, `renderAs` (tabs/list), description `sdk/org/libs/ui/src/studio/knowledge/domain/domain-metadata-panel/index.tsx:23-48`.
 
-`FieldIndexPanel` edits the field's frontmatter: `type`, `label`, `variable`, `default`, `fieldType`, `required`, `description` `sdk/org/libs/ui/src/studio/knowledge/field/directory-metadata-panel/index.tsx:39-56`. `fieldType` is a render hint naming a catalog control (`text`, `textarea`, `number`, `select`, `multiselect`, `combobox`, `radio`, `checkbox`, `toggle`, `slider`, `date`) `…/directory-metadata-panel/index.tsx:25-38`.
+`FieldIndexPanel` edits the field's frontmatter: `type`, `label`, `variable`, `default`, `fieldType`, `required`, `description` `sdk/org/libs/ui/src/studio/knowledge/field/directory-metadata-panel/index.tsx#FieldIndexPanel`. `fieldType` is a render hint naming a catalog control (`text`, `textarea`, `number`, `select`, `multiselect`, `combobox`, `radio`, `checkbox`, `toggle`, `slider`, `date`) `…/directory-metadata-panel/index.tsx:25-38`.
 
 `TopicEditor` splits frontmatter from the body on load and edits only the body, with a markdown toolbar, an edit/preview mode switch, a collapsible `FileMetadataPanel`, and an imperative `save()` handle `sdk/org/libs/ui/src/studio/knowledge/topic-detail/topic-editor/index.tsx:26-60`. Format → [../format/space/knowledge/README.md](../format/space/knowledge/README.md).
 
@@ -129,7 +129,7 @@ Three levels, all VFS-backed:
 `sdk/org/apps/web/src/routes/studio/$projectId/$spaceId/raw/index.tsx:1-13` — `useGlobRead('**/*')` → `buildTree` → an expandable tree plus a read-only content viewer. No writes.
 
 ### Space settings (`SettingsView`)
-`sdk/org/libs/ui/src/studio/shell/settings-view/index.tsx:33-174` — two tabs, **Environment** and **package.json** `…/settings-view/index.tsx:87-100`.
+`sdk/org/libs/ui/src/studio/shell/settings-view/index.tsx#SettingsView` — two tabs, **Environment** and **package.json** `…/settings-view/index.tsx:87-100`.
 
 > **Both tabs are stubs.** The Environment tab's Load/Save buttons only set a status string `sdk/org/libs/ui/src/studio/shell/settings-view/index.tsx:127-130`; the package.json tab's Save only `JSON.parse`-validates the draft and stamps a timestamp `…/settings-view/index.tsx:157-165`. Neither writes to the VFS or the pod.
 >
@@ -187,7 +187,7 @@ Endpoint shapes → [../format/project/api/README.md](../format/project/api/READ
 ## Project settings
 
 ### `ProjectSettingsView`
-`sdk/org/libs/ui/src/studio/shell/project-settings-view/index.tsx:53-232`
+`sdk/org/libs/ui/src/studio/shell/project-settings-view/index.tsx#ProjectSettingsView`
 
 The `/studio/$projectId/settings` landing. One section — **Integrations** — over the same sidebar shell `…/project-settings-view/index.tsx:134-137`:
 
@@ -198,4 +198,4 @@ The `/studio/$projectId/settings` landing. One section — **Integrations** — 
 
 Installing is *not* done here — the empty state links out to the store `…/project-settings-view/index.tsx:154-171`.
 
-`SettingsSchemaForm` `sdk/org/libs/ui/src/studio/integrations/SettingsSchemaForm.tsx:46-60` is a deliberately minimal JSON-Schema renderer: object-of-string properties only, `title` as the label, `format: 'password'` masked, `description` as the placeholder, `required[]` marking required fields — and **the schema's property keys ARE pod env-var names** `…/SettingsSchemaForm.tsx:1-11,19-33`.
+`SettingsSchemaForm` `sdk/org/libs/ui/src/studio/integrations/SettingsSchemaForm.tsx#SettingsSchemaForm` is a deliberately minimal JSON-Schema renderer: object-of-string properties only, `title` as the label, `format: 'password'` masked, `description` as the placeholder, `required[]` marking required fields — and **the schema's property keys ARE pod env-var names** `…/SettingsSchemaForm.tsx:1-11,19-33`.

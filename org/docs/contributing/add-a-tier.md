@@ -2,7 +2,7 @@
 
 A **tier** is one entry in the `TIERS` record in `cloud/gateway/src/lib/tiers.ts` — a bundle of
 LiteLLM spend caps, a model allowlist, rate limits, K8s pod sizing and a cron policy, optionally
-sold as a Stripe subscription (`cloud/gateway/src/lib/tiers.ts:68-88`). It is genuinely
+sold as a Stripe subscription (`cloud/gateway/src/lib/tiers.ts#Tier`). It is genuinely
 cross-cutting: the gateway, the Stripe account, the Ansible vault, the ArgoCD manifest and the
 marketing pricing page all have to agree.
 
@@ -29,7 +29,7 @@ name/price id, so **no route code changes** (`getTierByPriceId`/`getTierByName`,
 
 ## 1. Define the tier — `cloud/gateway/src/lib/tiers.ts`
 
-Add a key to `TIERS` (`cloud/gateway/src/lib/tiers.ts:90-162`). Every field of `Tier` is
+Add a key to `TIERS` (`cloud/gateway/src/lib/tiers.ts#TIERS`). Every field of `Tier` is
 **required** — TypeScript is the first gate, and `cloud/gateway/Dockerfile:7` runs `npx tsc`, so a
 malformed tier fails the CI image build (`.github/workflows/build-images.yml:169`).
 
@@ -46,7 +46,7 @@ export interface Tier {
   cron: CronPolicy;
 }
 ```
-— `cloud/gateway/src/lib/tiers.ts:68-88`. Copy the shape of an existing tier, e.g. `pro`:
+— `cloud/gateway/src/lib/tiers.ts#Tier`. Copy the shape of an existing tier, e.g. `pro`:
 
 ```ts
   pro: {
@@ -70,14 +70,14 @@ Field by field:
 
 | Field | Rules | Code |
 |---|---|---|
-| **key** (`pro`) | This is the tier's identity everywhere: the `tier` string in `POST /api/billing/checkout` (`TIERS[tier]`), the `metadata.tier` LiteLLM writes back, and the `plan.id` on the pricing page. | `cloud/gateway/src/routes/billing.ts:70`; `cloud/gateway/src/lib/tiers.ts:174` |
-| **`name`** | ⚠️ **`name.toLowerCase()` must equal the record key.** LiteLLM stores `metadata: { tier: tier.name.toLowerCase() }` (`createUser`/`generateKey`/`updateUserTier`), and every read path feeds that string back into `getTierByName()` → `TIERS[name]`. A `name: "Team Plus"` under key `team` resolves to `null` forever after and the user silently falls back to `free`. | `cloud/gateway/src/lib/litellm.ts:36`, `:52`, `:67`; `cloud/gateway/src/lib/tiers.ts:173-175`; `cloud/gateway/src/routes/compute.ts:27-35` |
+| **key** (`pro`) | This is the tier's identity everywhere: the `tier` string in `POST /api/billing/checkout` (`TIERS[tier]`), the `metadata.tier` LiteLLM writes back, and the `plan.id` on the pricing page. | `cloud/gateway/src/routes/billing.ts:70`; `cloud/gateway/src/lib/tiers.ts#getTierByName` |
+| **`name`** | ⚠️ **`name.toLowerCase()` must equal the record key.** LiteLLM stores `metadata: { tier: tier.name.toLowerCase() }` (`createUser`/`generateKey`/`updateUserTier`), and every read path feeds that string back into `getTierByName()` → `TIERS[name]`. A `name: "Team Plus"` under key `team` resolves to `null` forever after and the user silently falls back to `free`. | `cloud/gateway/src/lib/litellm.ts#createUser`, `:52`, `:67`; `cloud/gateway/src/lib/tiers.ts#getTierByName`; `cloud/gateway/src/routes/compute.ts:27-35` |
 | **`stripePriceId`** | `null` for a free tier; otherwise `process.env.STRIPE_PRICE_<TIER> \|\| ""`. `getTierByPriceId()` skips falsy ids, and `/api/billing/checkout` 400s on a tier without one. | `cloud/gateway/src/lib/tiers.ts:122`, `:164-171`; `cloud/gateway/src/routes/billing.ts:70-73` |
-| **`budgetLimits`** | Array of `{ duration, maxBudget }` rolling windows (LiteLLM duration strings, `"1d"`/`"7d"`/`"30d"`). `toBudgetLimits()` maps them onto the LiteLLM payload; a request is rejected once **any** window is exhausted. `monthlyBudget()` reads the `30d` window as the headline. | `cloud/gateway/src/lib/tiers.ts:29-34`, `:71-76`, `:179-193` |
+| **`budgetLimits`** | Array of `{ duration, maxBudget }` rolling windows (LiteLLM duration strings, `"1d"`/`"7d"`/`"30d"`). `toBudgetLimits()` maps them onto the LiteLLM payload; a request is rejected once **any** window is exhausted. `monthlyBudget()` reads the `30d` window as the headline. | `cloud/gateway/src/lib/tiers.ts#BudgetWindow`, `:71-76`, `:179-193` |
 | **`models`** | Normally `[...TIER_MODELS]` — `[...ENABLED_MODELS, ...TRANSCRIBE_MODELS]`. A model missing from a key's allowlist gets a LiteLLM `key_model_access_denied` 403. Adding a **model** (not a tier) is a different recipe → [add-a-provider.md](./add-a-provider.md#a-add-a-model-to-the-managed-lmthingcloud-provider-litellm). | `cloud/gateway/src/lib/tiers.ts:7-25` |
-| **`tpmLimit` / `rpmLimit`** | Stamped on the LiteLLM user *and* key. Today all four tiers use `1_000_000` / `5_000`; if you introduce a genuinely lower tier, know that a stale/low tpm 429s THING's large system prompt on the first turn (that is why `resync-tier-budgets.ts` re-applies them). | `cloud/gateway/src/lib/litellm.ts:34-35`, `:49-50`; `cloud/scripts/resync-tier-budgets.ts:169-174` |
-| **`pod`** | `PodConfig` → the K8s Deployment. Omit `cpuRequest`/`memRequest` to keep the pod **Guaranteed** (`request == limit`); set them below the limits for a **Burstable**, densely-packed pod (what `free` does). `idleTtlMinutes` → `IDLE_TTL_MINUTES`, `maxSessions` → `MAX_SESSIONS`. | `cloud/gateway/src/lib/tiers.ts:37-56`, `:109-116`; `cloud/gateway/src/lib/compute.ts:226-241` |
-| **`cron`** | **Required — see below.** | `cloud/gateway/src/lib/tiers.ts:60-66`, `:87` |
+| **`tpmLimit` / `rpmLimit`** | Stamped on the LiteLLM user *and* key. Today all four tiers use `1_000_000` / `5_000`; if you introduce a genuinely lower tier, know that a stale/low tpm 429s THING's large system prompt on the first turn (that is why `resync-tier-budgets.ts` re-applies them). | `cloud/gateway/src/lib/litellm.ts#createUser`, `:49-50`; `cloud/scripts/resync-tier-budgets.ts:169-174` |
+| **`pod`** | `PodConfig` → the K8s Deployment. Omit `cpuRequest`/`memRequest` to keep the pod **Guaranteed** (`request == limit`); set them below the limits for a **Burstable**, densely-packed pod (what `free` does). `idleTtlMinutes` → `IDLE_TTL_MINUTES`, `maxSessions` → `MAX_SESSIONS`. | `cloud/gateway/src/lib/tiers.ts#PodConfig`, `:109-116`; `cloud/gateway/src/lib/compute.ts:226-241` |
+| **`cron`** | **Required — see below.** | `cloud/gateway/src/lib/tiers.ts#CronPolicy`, `:87` |
 
 ### `cron` is not optional — omitting it breaks cron for every user on the tier
 
@@ -101,7 +101,7 @@ the first property read throws a `TypeError`; the route never persists the manif
 own `catch` turns the last one into `{ error: "cron-manifest failed" }`, 500 —
 `cloud/gateway/src/routes/compute.ts:130-133`). The manifest is **replace-all**, so the user's cron
 hooks stop firing entirely. `tsc` catches this (`cron: CronPolicy` is non-optional,
-`cloud/gateway/src/lib/tiers.ts:87`) — never silence it with a cast.
+`cloud/gateway/src/lib/tiers.ts#Tier.cron`) — never silence it with a cast.
 
 ---
 
@@ -118,7 +118,7 @@ const TIERS: TierConfig[] = [
   { lookupKey: "lmthing_max", amount: 10000, label: "Max $100/month" },
 ];
 ```
-— `cloud/scripts/create-stripe-products.ts:23-27`. Add your `{ lookupKey: "lmthing_<tier>", amount:
+— `cloud/scripts/create-stripe-products.ts#TIERS`. Add your `{ lookupKey: "lmthing_<tier>", amount:
 <cents>, label }` row **and** the matching `console.log` line in the final block
 (`cloud/scripts/create-stripe-products.ts:86-89`) — the script derives the env key from the lookup
 key (`STRIPE_PRICE_${lookup_key.replace("lmthing_","").toUpperCase()}`,
@@ -152,7 +152,7 @@ travels: **vault → k8s Secret → Deployment env**.
 
 Miss #3 or #4 and `stripePriceId` falls back to `""` → `getTierByPriceId()` never matches the
 Stripe webhook's price id → the subscription is paid but the tier never changes
-(`cloud/gateway/src/lib/tiers.ts:166`; `cloud/gateway/src/routes/webhook.ts:44-47` logs
+(`cloud/gateway/src/lib/tiers.ts#getTierByPriceId`; `cloud/gateway/src/routes/webhook.ts:44-47` logs
 `Unknown price_id`).
 
 ---
@@ -162,10 +162,10 @@ Stripe webhook's price id → the subscription is paid but the tier never change
 The `/pricing` route renders `plans` left-to-right and passes `plan.id` straight through to
 checkout: `handleSubscribe(plan.id)` → `/checkout?tier=<id>` → `createCheckout(tier)` → `POST
 /api/billing/checkout { tier }` → `TIERS[tier]` (`com/src/routes/pricing.tsx:13-19`, `:48`;
-`com/src/lib/cloud.ts:164-170`; `cloud/gateway/src/routes/billing.ts:65-73`). So:
+`com/src/lib/cloud.ts#createCheckout`; `cloud/gateway/src/routes/billing.ts:65-73`). So:
 
 - **`plan.id` must be the `TIERS` key** — otherwise checkout 400s `Invalid tier: <id>`.
-- Add the `Plan` object (`com/src/config/plans.ts:4-12` interface, `:16-70` the array). `highlighted:
+- Add the `Plan` object (`com/src/config/plans.ts#Plan` interface, `:16-70` the array). `highlighted:
   true` marks the recommended card (`com/src/config/plans.ts:55`).
 - **The grid is hard-coded to four columns** — `className="grid gap-6 md:grid-cols-4"`
   (`com/src/routes/pricing.tsx:28`). A fifth plan needs that changed.
@@ -175,7 +175,7 @@ checkout: `handleSubscribe(plan.id)` → `/checkout?tier=<id>` → `createChecko
   [../cloud/billing-and-tiers.md](../cloud/billing-and-tiers.md#2-the-tiers-verbatim-from-code).
 
 Nothing else in the frontend hard-codes tier names: the in-app billing settings panel just opens the
-Stripe customer portal (`sdk/org/libs/ui/src/elements/settings/billing/index.tsx:7-22`), and no
+Stripe customer portal (`sdk/org/libs/ui/src/elements/settings/billing/index.tsx#openBillingPortal`), and no
 `/api/compute/*` route is tier-gated (`../cloud/billing-and-tiers.md`, §3 "What is NOT tier-gated").
 
 ---
@@ -218,8 +218,8 @@ Stripe customer portal (`sdk/org/libs/ui/src/elements/settings/billing/index.tsx
 
 | # | What | Where |
 |---|---|---|
-| 1 | The tier object — all 8 fields, **including `cron`**; `name.toLowerCase() === key` | `cloud/gateway/src/lib/tiers.ts:90-162` |
-| 2 | Stripe product/price + the env-line `console.log` | `cloud/scripts/create-stripe-products.ts:23-27`, `:86-89` (or `devops/ansible/scripts/setup/create-stripe-prices.sh`) |
+| 1 | The tier object — all 8 fields, **including `cron`**; `name.toLowerCase() === key` | `cloud/gateway/src/lib/tiers.ts#TIERS` |
+| 2 | Stripe product/price + the env-line `console.log` | `cloud/scripts/create-stripe-products.ts#TIERS`, `:86-89` (or `devops/ansible/scripts/setup/create-stripe-prices.sh`) |
 | 3 | `STRIPE_PRICE_<TIER>` placeholder | `cloud/.env.example:19-21` |
 | 4 | `vault_stripe_price_<tier>` | `devops/ansible/vault.yml.example:91-93` + the encrypted `devops/ansible/vault.yml` |
 | 5 | Secret `stringData` entry | `devops/ansible/roles/cloud_secrets/tasks/main.yml:37-39` |

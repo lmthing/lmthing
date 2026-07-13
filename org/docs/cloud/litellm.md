@@ -54,7 +54,7 @@ The config's `model_list` maps a public `model_name` to an Azure deployment via 
 | `gpt-5.4-mini` | `azure/gpt-5.4-mini` | `2024-12-01-preview` | cheap **vision**-capable model for the `system-vision` agent | `litellm.yaml:57-68` |
 | `whisper-1` | `azure/whisper` | `2024-06-01` | audio transcription; billed per-minute (LiteLLM's built-in `azure/whisper` cost map, so no `model_info`) | `litellm.yaml:69-79` |
 
-The five chat/vision models are the canonical enabled set, mirrored in the Gateway at `cloud/gateway/src/lib/tiers.ts:7-15` (`ENABLED_MODELS`); `whisper-1` is `TRANSCRIBE_MODELS` (`tiers.ts:22`). A user key's allowlist is `TIER_MODELS = [...ENABLED_MODELS, ...TRANSCRIBE_MODELS]` (`tiers.ts:25`) — a key missing `whisper-1` gets a `key_model_access_denied` 403 on `/audio/transcriptions` (`tiers.ts:17-21`).
+The five chat/vision models are the canonical enabled set, mirrored in the Gateway at `cloud/gateway/src/lib/tiers.ts#ENABLED_MODELS` (`ENABLED_MODELS`); `whisper-1` is `TRANSCRIBE_MODELS` (`tiers.ts:22`). A user key's allowlist is `TIER_MODELS = [...ENABLED_MODELS, ...TRANSCRIBE_MODELS]` (`tiers.ts:25`) — a key missing `whisper-1` gets a `key_model_access_denied` 403 on `/audio/transcriptions` (`tiers.ts:17-21`).
 
 ### `general_settings` / `litellm_settings`
 
@@ -117,7 +117,7 @@ The turn-loop that drives these model calls is documented in [../runtime/turn-lo
 
 ### Env the Gateway injects into every pod
 
-The Gateway stamps the LiteLLM wiring into the pod's `user-env` secret via `litellmEnvDefaults()` (`cloud/gateway/src/lib/compute.ts:343-370`). Critically, pods hit LiteLLM **in-cluster**, not the public ingress:
+The Gateway stamps the LiteLLM wiring into the pod's `user-env` secret via `litellmEnvDefaults()` (`cloud/gateway/src/lib/compute.ts#litellmEnvDefaults`). Critically, pods hit LiteLLM **in-cluster**, not the public ingress:
 
 ```ts
 LMTHINGCLOUD_API_KEY:  litellmKey,   // the user's own virtual key
@@ -131,7 +131,7 @@ LM_MODEL_L_R:  "lmthingcloud:Kimi-K2.6",
 LM_MODEL_VISION:     "lmthingcloud:gpt-5.4-mini",   // system-vision agent
 LM_TRANSCRIBE_MODEL: "lmthingcloud:whisper-1",       // chat audio feature
 ```
-— `cloud/gateway/src/lib/compute.ts:345-368`.
+— `cloud/gateway/src/lib/compute.ts#litellmEnvDefaults`.
 
 `LM_MODEL_{XS,S,M,L,M_R,L_R}` are the size/role aliases the runtime resolves; the runtime picks one and passes the `lmthingcloud:<model>` value to `resolveModel`. `injectLiteLLMEnv()` merges these into the pod secret without clobbering user-set vars, **except** `LMTHINGCLOUD_API_KEY`, which always tracks the user's current subscription key (`compute.ts:377-397`, esp. `:383-385`).
 

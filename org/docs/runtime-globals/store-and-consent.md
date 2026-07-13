@@ -44,7 +44,7 @@ Both ids are registered in `CAPABILITY_IDS` `sdk/org/libs/core/src/spaces/capabi
 
 ### Read-only fork roles
 
-`intersectAppCaps(app, allowWrite=false)` keeps `store:read` (pure catalog discovery) and **drops `store:install`** along with every other mutating grant, so an `explore`/`plan` fork can neither inject nor declare `installSpace` `sdk/org/libs/core/src/exec/capability.ts:16-28`.
+`intersectAppCaps(app, allowWrite=false)` keeps `store:read` (pure catalog discovery) and **drops `store:install`** along with every other mutating grant, so an `explore`/`plan` fork can neither inject nor declare `installSpace` `sdk/org/libs/core/src/exec/capability.ts#intersectAppCaps`.
 
 ### The host resolver (the third gate)
 
@@ -59,7 +59,7 @@ export interface StoreResolver {
 }
 ```
 
-`sdk/org/libs/core/src/globals/store.ts:43-56`
+`sdk/org/libs/core/src/globals/store.ts#StoreResolver`
 
 The Session threads it into the yield-router context as `storeResolver: this.opts.appGlobals?.store` `sdk/org/libs/core/src/session/session.ts:882-883`. When it is absent (a session outside a project, a bare unit test), the yield **rejects with an actionable, retryable error** rather than binding `undefined`:
 
@@ -67,7 +67,7 @@ The Session threads it into the yield-router context as `storeResolver: this.opt
 - `storeInspect is not available here: no store resolver configured` `sdk/org/libs/core/src/eval/yield-router.ts:272-274`
 - `installSpace is not available here: no store resolver configured` `sdk/org/libs/core/src/eval/yield-router.ts:285-287`
 
-On the pod, `SessionManager.withStore` builds the resolver — but **only when there is both an `lmthingRoot` and a `projectId`** `sdk/org/libs/cli/src/server/session-manager.ts:404-425`. It maps onto exactly the same catalog functions the REST routes use — `searchCatalog`, `inspectCatalogSpace`, `installStoreSpace` `sdk/org/libs/cli/src/server/store-resolver.ts:39-74` · `sdk/org/libs/cli/src/server/routes/store-spaces.ts` (`searchCatalog`:100, `inspectCatalogSpace`:117, `installStoreSpace`:215) — so agent installs and UI installs share one engine (see [../cli-api/rest/store-spaces.md](../cli-api/rest/store-spaces.md)). Notably the **agent path never passes `force`**: overwriting locally-edited files stays a deliberate HTTP/UI action `sdk/org/libs/cli/src/server/store-resolver.ts:49-51`.
+On the pod, `SessionManager.withStore` builds the resolver — but **only when there is both an `lmthingRoot` and a `projectId`** `sdk/org/libs/cli/src/server/session-manager.ts#SessionManager.withStore`. It maps onto exactly the same catalog functions the REST routes use — `searchCatalog`, `inspectCatalogSpace`, `installStoreSpace` `sdk/org/libs/cli/src/server/store-resolver.ts#createStoreResolver` · `sdk/org/libs/cli/src/server/routes/store-spaces.ts` (`searchCatalog`:100, `inspectCatalogSpace`:117, `installStoreSpace`:215) — so agent installs and UI installs share one engine (see [../cli-api/rest/store-spaces.md](../cli-api/rest/store-spaces.md)). Notably the **agent path never passes `force`**: overwriting locally-edited files stays a deliberate HTTP/UI action `sdk/org/libs/cli/src/server/store-resolver.ts:49-51`.
 
 ---
 
@@ -77,20 +77,20 @@ On the pod, `SessionManager.withStore` builds the resolver — but **only when t
 declare function installSpace(spaceId: string): Promise<{ ok: boolean; spaceId: string; projectId?: string; spaceKey?: string; agentSlug?: string; diverged?: boolean; message?: string; error?: string }>;
 ```
 
-`sdk/org/libs/core/src/typecheck/library-dts.ts:262-263` (shape: `InstallSpaceResult`, `sdk/org/libs/core/src/globals/store.ts:61-72`)
+`sdk/org/libs/core/src/typecheck/library-dts.ts:262-263` (shape: `InstallSpaceResult`, `sdk/org/libs/core/src/globals/store.ts#InstallSpaceResult`)
 
 ### Router order: consent → install → register → republish
 
 The `installSpace` case in the yield router does four things, in that order `sdk/org/libs/core/src/eval/yield-router.ts:279-332`:
 
 1. **Consent** — enforced *before* the switch (§3), so the resolver cannot run unapproved `sdk/org/libs/core/src/eval/yield-router.ts:135-145`.
-2. **Install** — `storeResolver.install(spaceId)` materializes the space into the current project and returns a `StoreInstallOutcome` `sdk/org/libs/core/src/globals/store.ts:28-38`.
+2. **Install** — `storeResolver.install(spaceId)` materializes the space into the current project and returns a `StoreInstallOutcome` `sdk/org/libs/core/src/globals/store.ts#StoreInstallOutcome`.
 3. **Live-register** — on success (`outcome.installedDir` present) the router `loadSpace()`s the installed dir and inserts it into the **shared `dynamicSpaces` map** — the same map `registerSpace` writes and `delegate()` reads — so the freshly installed space is reachable in *this* session; `spaceKey` is the installed dir and `agentSlug` is the space's first agent `sdk/org/libs/core/src/eval/yield-router.ts:303-317` · `sdk/org/libs/core/src/session/session.ts:888-892`.
-4. **Republish** (best-effort) — `storeResolver.republish?.()` re-derives the pod's webhook manifest / crontab / emitter-scan caches; a failure here never fails a completed install `sdk/org/libs/core/src/eval/yield-router.ts:318-322` · `sdk/org/libs/core/src/globals/store.ts:53-55`.
+4. **Republish** (best-effort) — `storeResolver.republish?.()` re-derives the pod's webhook manifest / crontab / emitter-scan caches; a failure here never fails a completed install `sdk/org/libs/core/src/eval/yield-router.ts:318-322` · `sdk/org/libs/core/src/globals/store.ts#StoreResolver`.
 
 Two failure shapes matter:
 
-- **Divergence / install failure** is returned as a **value**, not a throw — `{ ok: false, diverged?: true, message?, error? }` — precisely so the agent can relay the "local edits held back" message verbatim `sdk/org/libs/core/src/eval/yield-router.ts:290-302`. The pod's pristine-vs-diverged hash guard produces that branch `sdk/org/libs/cli/src/server/routes/store-spaces.ts:196-198,254-258`.
+- **Divergence / install failure** is returned as a **value**, not a throw — `{ ok: false, diverged?: true, message?, error? }` — precisely so the agent can relay the "local edits held back" message verbatim `sdk/org/libs/core/src/eval/yield-router.ts:290-302`. The pod's pristine-vs-diverged hash guard produces that branch `sdk/org/libs/cli/src/server/routes/store-spaces.ts#InstallStoreSpaceResult,254-258`.
 - **Install succeeded but live registration failed** ⇒ still `ok: true`, with `error: "installed, but live registration failed: …"`. The files *are* on disk, so reporting failure would be wrong; the agent just learns that `delegate()` needs a session restart `sdk/org/libs/core/src/eval/yield-router.ts:312-317`.
 
 ### Real usage (the shipped THING agent)
@@ -149,7 +149,7 @@ Adding another kind to this set is the entire opt-in — that is the "consent fl
 
 A `functions/<name>.ts` whose **leading comment** (a JSDoc block or a `//` line, before any code) carries `@consent` opts into the same gate `sdk/org/libs/core/src/globals/consent.ts:102-130`. Function files have no frontmatter, so the leading-comment pragma is where function metadata lives; detection always runs on the **original TS source**, because bundling may strip comments `sdk/org/libs/core/src/sandbox/inject-functions.ts:50-53`. An `@consent` *inside* the function body does not count `sdk/org/libs/core/src/globals/consent.ts:107-108` · `sdk/org/libs/core/src/globals/consent.test.ts:69-71`.
 
-Despite the "space function" naming, the pragma is not space-only: the session merges system, **project** (`<project>/functions/*.ts`) and space functions into one name-disjoint map `sdk/org/libs/core/src/session/session.ts:595-624` and hands it to a single `injectSpaceFunctions` call `sdk/org/libs/core/src/exec/bootstrap.ts:121-122`, so a project function carrying `@consent` is wrapped identically.
+Despite the "space function" naming, the pragma is not space-only: the session merges system, **project** (`<project>/functions/*.ts`) and space functions into one name-disjoint map `sdk/org/libs/core/src/session/session.ts#Session.buildInjectedFunctions` and hands it to a single `injectSpaceFunctions` call `sdk/org/libs/core/src/exec/bootstrap.ts:121-122`, so a project function carrying `@consent` is wrapped identically.
 
 At injection such a function is not bound directly — it is wrapped, hiding the implementation in a closure the sandbox can never reach:
 
@@ -168,12 +168,12 @@ ${js}
 }
 ```
 
-`sdk/org/libs/core/src/sandbox/inject-functions.ts:30-41`, selected by `functionRequiresConsent(...)` in the injection loop `sdk/org/libs/core/src/sandbox/inject-functions.ts:70-72`.
+`sdk/org/libs/core/src/sandbox/inject-functions.ts#wrapWithConsentGate`, selected by `functionRequiresConsent(...)` in the injection loop `sdk/org/libs/core/src/sandbox/inject-functions.ts#injectSpaceFunctions`.
 
 Consequences:
 
 - The wrapper is **necessarily Promise-returning even for a synchronous source function** — consent must yield the turn `sdk/org/libs/core/src/sandbox/inject-functions.ts:27-29`.
-- `__requestConsent` is the only way in, and it is itself a value-yielding global (`kind: 'consent'`) carrying a **host-built** `ConsentCard` `sdk/org/libs/core/src/globals/consent.ts:140-159`. The router's `consent` case runs the same enforcement primitive and resolves `{ granted: true }` on approval `sdk/org/libs/core/src/eval/yield-router.ts:250-258`.
+- `__requestConsent` is the only way in, and it is itself a value-yielding global (`kind: 'consent'`) carrying a **host-built** `ConsentCard` `sdk/org/libs/core/src/globals/consent.ts#createConsentRequestGlobal`. The router's `consent` case runs the same enforcement primitive and resolves `{ granted: true }` on approval `sdk/org/libs/core/src/eval/yield-router.ts:250-258`.
 - `__requestConsent` is injected into **every** VM (session, fork, delegate) but deliberately **absent from the ambient DTS** — the inverse of the usual lockstep — because model code must never call it directly `sdk/org/libs/core/src/exec/bootstrap.ts:205-209` · `sdk/org/libs/core/src/globals/consent.ts:136-139`.
 
 A minimal marked function (from the runtime's own test corpus):
@@ -201,16 +201,16 @@ export async function enforceConsent(prompter: ConsentPrompter | undefined, card
 }
 ```
 
-`sdk/org/libs/core/src/globals/consent.ts:93-100`
+`sdk/org/libs/core/src/globals/consent.ts#enforceConsent`
 
 The two error strings are a documentable contract:
 
 | Condition | Error the agent sees |
 |---|---|
-| No prompter (**fail closed**) | `"<fn>" requires user consent — run it from an interactive session (this context has no user to ask, so the call is refused)` `sdk/org/libs/core/src/globals/consent.ts:75-79` |
-| User denied | `consent denied: the user declined "<fn>" — do not retry it unless the user explicitly asks for it` `sdk/org/libs/core/src/globals/consent.ts:82-86` |
+| No prompter (**fail closed**) | `"<fn>" requires user consent — run it from an interactive session (this context has no user to ask, so the call is refused)` `sdk/org/libs/core/src/globals/consent.ts#consentUnavailableError` |
+| User denied | `consent denied: the user declined "<fn>" — do not retry it unless the user explicitly asks for it` `sdk/org/libs/core/src/globals/consent.ts#consentDeniedError` |
 
-The card is host-built — `{ function, space?, argsSummary }` — and `argsSummary` is compact JSON **truncated to 300 chars**, so a hostile or huge payload cannot flood the approval UI `sdk/org/libs/core/src/globals/consent.ts:34-41,56-71`.
+The card is host-built — `{ function, space?, argsSummary }` — and `argsSummary` is compact JSON **truncated to 300 chars**, so a hostile or huge payload cannot flood the approval UI `sdk/org/libs/core/src/globals/consent.ts#ConsentCard,56-71`.
 
 ### 3d. Fail-closed: who actually gets a prompter
 
@@ -238,11 +238,11 @@ const value = await renderHost.ask(randomUUID(), descriptor);
 return isConsentApproval(value);
 ```
 
-`sdk/org/libs/core/src/globals/consent.ts:181-193`
+`sdk/org/libs/core/src/globals/consent.ts#createAskConsentPrompter`
 
 Approval is deliberately narrow: `true`, `'approve'`, `{ approved: true }` or `{ approve: true }` count — **anything else, including the `null` of a cancelled ask, is a denial** `sdk/org/libs/core/src/globals/consent.ts:161-171`.
 
-The web renderer honours that contract: the chat/Studio transcript detects the descriptor with `isConsentDescriptor` (`d.type === 'ConsentCard'`) `sdk/org/libs/ui/src/chat/components/ConsentCard.tsx:23-25` and renders `<ConsentCard>` with `onApprove={() => onSubmit(true)}` / `onDeny={() => onSubmit(false)}` — the ordinary form-submit path `sdk/org/libs/ui/src/chat/app/Message.tsx:60-66`. **Both** choices *resolve* the ask, so a denied or dismissed card never leaves the agent hanging `sdk/org/libs/ui/src/chat/components/ConsentCard.tsx:13-19`.
+The web renderer honours that contract: the chat/Studio transcript detects the descriptor with `isConsentDescriptor` (`d.type === 'ConsentCard'`) `sdk/org/libs/ui/src/chat/components/ConsentCard.tsx#isConsentDescriptor` and renders `<ConsentCard>` with `onApprove={() => onSubmit(true)}` / `onDeny={() => onSubmit(false)}` — the ordinary form-submit path `sdk/org/libs/ui/src/chat/app/Message.tsx:60-66`. **Both** choices *resolve* the ask, so a denied or dismissed card never leaves the agent hanging `sdk/org/libs/ui/src/chat/components/ConsentCard.tsx:13-19`.
 
 ---
 
@@ -252,7 +252,7 @@ The web renderer honours that contract: the chat/Studio transcript detects the d
 declare function registerSpace(dir: string): Promise<{ ok: boolean; spaceKey: string; agentSlug: string; error?: string }>;
 ```
 
-`sdk/org/libs/core/src/typecheck/library-dts.ts:40` (shape: `RegisterSpaceResult`, `sdk/org/libs/core/src/globals/register-space.ts:3-10`)
+`sdk/org/libs/core/src/typecheck/library-dts.ts:40` (shape: `RegisterSpaceResult`, `sdk/org/libs/core/src/globals/register-space.ts#RegisterSpaceResult`)
 
 A value-yielding global that loads the space at `dir` into the live registry so `delegate()` reaches it **immediately** `sdk/org/libs/core/src/globals/register-space.ts:12-34`:
 

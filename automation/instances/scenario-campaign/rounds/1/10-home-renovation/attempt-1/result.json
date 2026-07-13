@@ -1,0 +1,45 @@
+{
+  "bin": "claude",
+  "attempt": null,
+  "sessionId": "ce69db54-e841-4e82-af7f-8e8e8c0e71c9",
+  "model": null,
+  "outcome": "done",
+  "intent": null,
+  "subtype": "success",
+  "isError": false,
+  "usage": {
+    "input_tokens": 19383,
+    "cache_creation_input_tokens": 383007,
+    "cache_read_input_tokens": 58011099,
+    "output_tokens": 227833,
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 383007,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "not_available",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 1010,
+        "cache_read_input_tokens": 389798,
+        "cache_creation_input_tokens": 316,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 316
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard"
+  },
+  "costUsd": 38.63519350000002,
+  "exitCode": 0,
+  "resetAt": null,
+  "startedAt": "2026-07-13T04:36:24.840Z",
+  "endedAt": "2026-07-13T06:34:02.197Z"
+}

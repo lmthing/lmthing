@@ -367,6 +367,59 @@ Recipe (learned the hard way):
 - Put the evidence in the report: what you saw rendered (and a screenshot path), plus any console/
   network errors. "An app that opens but is empty" is an **anti-expectation** — a FAIL, not a pass.
 
+## Make the SYSTEM SPACES smarter (mandatory, every round)
+
+Most of what a scenario exposes is not a broken function — it is an agent **judging badly**. It
+over-scaffolds a heavyweight app on a vague hello. It answers instead of building. It says "noted!"
+and saves nothing. It waits to be told what a specialist is instead of researching and creating one.
+It claims it saved a cheaper option it never verified. **None of that is a code bug. It is a prompt
+bug**, and the fix belongs in the agent's own instructions — where it makes the product smarter for
+every user, not just for this scenario.
+
+The brains live in the repo, and you may edit them:
+
+```
+sdk/org/libs/core/system-spaces/<space>/
+  agents/<agent>/instruct.md     # the agent's judgment: when to act, when to delegate, when to refuse
+  agents/<agent>/charter.md      # fork-safe identity — injected into EVERY fork of it
+  knowledge/<domain>/<field>/    # durable know-how it can loadKnowledge() on demand
+  tasklists/                     # the DAGs it runs
+```
+`user-thing/agents/thing/instruct.md` is **THING's triage brain** and is shared by every scenario —
+changing it is powerful and dangerous. Call out any change to it loudly in the report.
+
+**Every round must land at least one improvement to a system-space prompt** (or its knowledge/
+tasklists) that makes an agent measurably smarter, with the before/after evidence in the report:
+what it used to do, what it does now, and the trace that proves it.
+
+### The one rule that keeps this honest: generalize, never overfit
+
+The improvement must be a **principle a competent colleague would agree with, stated in the abstract**
+— not a hint about this scenario.
+
+- ✅ *"When the user hands you material and describes a recurring frustration, OFFER to build them
+  something they can open and use. Do not wait to be asked — they do not know it is an option."*
+- ✅ *"Before you claim you saved something, re-read what you actually wrote. Never report a result you
+  did not verify."*
+- ✅ *"If you need domain facts you do not have, research them and keep them — do not ask the user to
+  supply what you could look up."*
+- ❌ *"If the user mentions ceramics, create a stock-tracking table with a reorder threshold."* ← This
+  is **cheating**. It teaches THING the answer to one exam question and makes it dumber everywhere
+  else. Any scenario-specific string in a system-space prompt (a persona's name, a fixture's contents,
+  a table name from this scenario) is an automatic **FAIL of this round** — remove it.
+
+If you find yourself writing the scenario's specifics into an agent's brain to get a green, **stop**:
+the green would be a lie. Report the failure honestly instead — an honest FAIL is worth more than a
+fake PASS, and it is the whole point of this campaign.
+
+### Verify a prompt change like any other change
+
+A prompt-only fix can be **hot-patched onto the running pod** without a rebuild — `PUT /api/projects/
+system/spaces/<spaceId>/files/<rel>` `{content}`, then restart to reload — so you can prove it live in
+minutes. Then commit it to source, and confirm the same behaviour after the image rolls. And because
+`instruct.md` is shared, a change there must not regress the others: re-run the Act that motivated it
+**and** one Act that depends on the behaviour you touched.
+
 ## The run → triage → fix → verify → report loop
 
 1. **Provision + smoke.** `cd sdk/org/scenarios/harness && node provision.mjs {{SCENARIO_ID}}`
@@ -394,9 +447,9 @@ Recipe (learned the hard way):
    your assertion (a *vague* ask hallucinating vs the *same* ask phrased directly authoring cleanly
    is itself the finding).
 4. **Fix in the product, surgically, with a test that would have caught it.** Most failures are
-   **prompting** — an agent `instruct.md` under `sdk/org/libs/core/system-spaces/<space>/agents/
-   <agent>/` (over/under-delegation, over-scaffolding, malformed authoring, missing capability
-   grants); THING's `instruct.md` is shared — call out any change loudly. **Runtime** fixes flow: an
+   **prompting** — the agent judged badly, so fix its brain: see **"Make the system spaces smarter"**
+   above (generalize, never overfit; a scenario-specific string in a system-space prompt fails the
+   round). **Runtime** fixes flow: an
    authoring writer (`libs/cli/src/app/authoring/globals.ts`) → core injection
    (`libs/core/src/exec/app-globals.ts`) → per-grant DTS (`libs/core/src/typecheck/library-dts.ts`) →
    session-manager wiring → the agent's `capabilities:`; rebuild `@lmthing/core`
@@ -463,6 +516,11 @@ Maintain the per-run progress log at **{{progressFile}}**.
   appears in **no other fixture** landing in **real state**. Its provenance is recorded in `links.md`.
 - **Unrecovered eval/typecheck errors across the session = 0**, as a hard check (recovered ones stay a
   metric).
+- **At least one system-space prompt got smarter** (an `instruct.md` / `charter.md` / `knowledge/` /
+  tasklist under `sdk/org/libs/core/system-spaces/`), stated as a **general principle** — with the
+  before/after behaviour and the trace that proves it, in the report. **Zero scenario-specific strings**
+  went into any agent's brain (a persona's name, a fixture's contents, this scenario's table names) —
+  that is overfitting, and it fails the round.
 - **The app contract holds (if this scenario builds an app):**
   - **A1** — the app has an **always-available in-app chat agent**, and an Act proves a real change
     (row / page / table / space) landed **from inside the app**. Any feature this required was

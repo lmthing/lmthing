@@ -82,8 +82,19 @@ runtime `sdk/org/libs/cli/src/app/api/runtime.ts:305-317`. The pipeline per call
    and a `[id]` path string becomes a number when the schema says so
    `sdk/org/libs/cli/src/app/build/validate.ts#ajv,45-51`. A mismatch → `400` before any handler runs
    `sdk/org/libs/cli/src/app/api/runtime.ts:211-213`.
-4. **Transpile** — esbuild `.ts` → CJS, cached by file mtime
-   `sdk/org/libs/cli/src/app/api/runtime.ts:170-183`.
+4. **Bundle** — esbuild `.ts` → CJS, cached by the mtimes of **every source that went into the
+   bundle** (the entry *and* its project-local imports, from the metafile), so editing an imported
+   function re-bundles a handler whose own file never changed
+   `sdk/org/libs/cli/src/app/api/runtime.ts:194-234`. It **bundles** rather than transpiles
+   because the handler is loaded from a code *string* in the worker — there is no file path, so no
+   module resolution base, and a surviving `require('../../functions/x')` dies with `Cannot find
+   module`. That is the shape the automator is told to author (persist the rule as a project
+   function, import it from the API), so it 500'd the route and rendered an empty page while the db
+   held the rows (scenario 07). `packages: 'external'` keeps bare specifiers (`node:*`, npm) as
+   `require()`; the `project-jail` plugin **rejects a relative import that resolves outside the
+   project root** — a handler composes the project's own code, not the pod's. A build failure is a
+   `500` for that route (logged server-side, generic body), never a rejected promise
+   `sdk/org/libs/cli/src/app/api/runtime.ts:268-276`.
 5. **Run in a fresh worker** — `new Worker(source, { eval: true, workerData: job })`
    `sdk/org/libs/cli/src/app/api/runtime.ts:236`. The worker entry is esbuild-bundled once per
    process into a self-contained CJS string, so it runs identically under vitest (source) and the

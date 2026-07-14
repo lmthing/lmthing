@@ -34,9 +34,14 @@
       "round": 1,
       "attempt": 1,
       "bin": "/home/vasilis/.claude-azure/launch.sh",
-      "outcome": "running",
+      "outcome": "interrupted",
       "startedAt": "2026-07-14T16:39:34.981Z",
-      "endedAt": null
+      "endedAt": "2026-07-14T16:44:58.290Z",
+      "subtype": null,
+      "isError": false,
+      "costUsd": null,
+      "usage": null,
+      "resetAt": null
     },
     {
       "task": "08-small-shop",
@@ -48,5 +53,5 @@
       "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-14T16:44:59.283Z"
+  "updatedAt": "2026-07-14T16:44:59.326Z"
 }

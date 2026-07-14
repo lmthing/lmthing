@@ -1,17 +1,46 @@
 {
   "bin": "claude",
   "attempt": null,
-  "sessionId": "981413f9-257f-4a3a-a234-94d271b0cf88",
+  "sessionId": "651cf647-c2ae-4ce8-b74e-ff4a5daa2cf2",
   "model": null,
-  "outcome": "interrupted",
-  "intent": "stop",
+  "outcome": "limit",
+  "intent": null,
   "stalled": false,
-  "subtype": null,
-  "isError": false,
-  "usage": null,
-  "costUsd": null,
-  "exitCode": null,
-  "resetAt": null,
-  "startedAt": "2026-07-14T12:59:05.208Z",
-  "endedAt": "2026-07-14T13:15:02.506Z"
+  "subtype": "success",
+  "isError": true,
+  "usage": {
+    "input_tokens": 33,
+    "cache_creation_input_tokens": 139348,
+    "cache_read_input_tokens": 1783126,
+    "output_tokens": 22332,
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 139348,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "not_available",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 1399,
+        "cache_read_input_tokens": 142868,
+        "cache_creation_input_tokens": 3843,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 3843
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard"
+  },
+  "costUsd": 7.862847,
+  "exitCode": 1,
+  "resetAt": 1784046000000,
+  "startedAt": "2026-07-14T14:29:08.434Z",
+  "endedAt": "2026-07-14T14:47:36.319Z"
 }

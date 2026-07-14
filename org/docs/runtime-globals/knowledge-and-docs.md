@@ -98,7 +98,7 @@ readDocument is not available here: no document resolver configured
 | `kind:'image'` | `{ok:false, error:'image — use system-vision instead'}` `sdk/org/libs/cli/src/server/uploads.ts:210-213` |
 | spreadsheet (xlsx/xls/xlsm/ods/csv/tsv — by media type **or** filename) | every sheet rendered to CSV via SheetJS `sdk/org/libs/cli/src/server/uploads.ts:63-92` · `sdk/org/libs/cli/src/server/uploads.ts:218-228` |
 | text media (`text/*`, json/xml/yaml/csv/js/ts/markdown/x-sh/toml), excluding the OOXML container family | utf8 decode `sdk/org/libs/cli/src/server/uploads.ts:36-43` · `sdk/org/libs/cli/src/server/uploads.ts:229-237` |
-| `application/pdf` | `unpdf` extraction; nothing extractable ⇒ `error:'no extractable text (likely a scanned/image-only PDF)'` `sdk/org/libs/cli/src/server/uploads.ts:45-61` · `sdk/org/libs/cli/src/server/uploads.ts:238-246` |
+| `application/pdf` | `unpdf` extraction. A **scan** has no text layer, so extraction yields nothing: its pages were rasterized to image uploads at save time `sdk/org/libs/cli/src/server/uploads.ts#extractPdfPageImages`, and the error **names those page ids** so the agent hands them to `system-vision` instead of dead-ending `sdk/org/libs/cli/src/server/uploads.ts#resolveUploadDocument` |
 | Word / PowerPoint / ODT / ODP | `officeparser` `sdk/org/libs/cli/src/server/uploads.ts:109-124` · `sdk/org/libs/cli/src/server/uploads.ts:247-254` |
 | anything else | `{ok:false, error:'file type not yet supported: <mediaType>'}` `sdk/org/libs/cli/src/server/uploads.ts:256-257` |
 

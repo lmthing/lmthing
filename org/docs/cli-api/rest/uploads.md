@@ -176,7 +176,7 @@ cut) `sdk/org/libs/cli/src/server/uploads.ts:181-182,224-225`:
 | `kind:'image'` | `{ok:false, kind:'unsupported', error:'image — use system-vision instead'}` |
 | spreadsheet (xlsx/xls/xlsm/ods/csv/tsv, by media type **or** filename) | SheetJS renders every sheet to CSV (`# Sheet: <name>` headers when >1) → `kind:'text'`; else `'spreadsheet could not be parsed or is empty'` |
 | plain text (`text/*`, json/xml/yaml/csv/js/ts/markdown/x-sh/toml) — but **not** the OOXML container family | utf8 decode → `kind:'text'` |
-| `application/pdf` | `unpdf` extract → `kind:'text'`; empty ⇒ `'no extractable text (likely a scanned/image-only PDF)'` |
+| `application/pdf` | `unpdf` extract → `kind:'text'`. A **scanned** PDF has no text layer: its pages are rasterized to PNG image uploads at save time (`meta.pages`), and the `unsupported` error names those page ids so they can be looked at with `system-vision` `sdk/org/libs/cli/src/server/uploads.ts#extractPdfPageImages` |
 | Word/PowerPoint/OpenDocument (docx/doc/pptx/ppt/odt/odp) | `officeparser` → `kind:'text'`; else `'office document could not be parsed or has no text'` |
 | anything else | `{ok:false, kind:'unsupported', error:'file type not yet supported: <mediaType>'}` |
 

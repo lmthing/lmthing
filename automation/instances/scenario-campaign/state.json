@@ -331,9 +331,14 @@
       "round": 1,
       "attempt": 1,
       "bin": "claude",
-      "outcome": "running",
+      "outcome": "interrupted",
       "startedAt": "2026-07-14T07:31:58.491Z",
-      "endedAt": null
+      "endedAt": "2026-07-14T07:36:32.734Z",
+      "subtype": null,
+      "isError": false,
+      "costUsd": null,
+      "usage": null,
+      "resetAt": null
     },
     {
       "task": "05-latam",
@@ -354,5 +359,5 @@
       "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-14T07:31:58.560Z"
+  "updatedAt": "2026-07-14T07:36:33.691Z"
 }

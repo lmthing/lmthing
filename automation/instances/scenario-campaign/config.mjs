@@ -1,6 +1,8 @@
 /**
- * scenario-campaign — extend the live-prod scenarios (sdk/org/scenarios/*) with additional Acts,
- * run them end-to-end against production, fix any product bug found (with a test), and report.
+ * scenario-campaign — extend the scenarios (sdk/org/scenarios/*) with additional Acts, run them
+ * end-to-end against a LOCAL `lmthing serve` (localhost:8080, budget-free Azure keys from
+ * sdk/org/.env), fix any product bug found (with a test), rebuild+restart to verify, and report.
+ * Local target = a seconds-long fix→verify loop (no CI image build / ArgoCD rollout).
  *
  * Round-robins the scenarios; each gets its OWN per-task round. Round 1 brings a scenario's runner
  * to a green baseline (scaffolding run.mjs from _template if missing) and adds a FIRST batch of new
@@ -63,20 +65,24 @@ export default {
     // Add backup accounts to keep running across a usage-limit reset, e.g.:
     // bins: ['claude', 'claude-work', 'claude-personal'],
     bins: ['claude'],
-    // cwd is the monorepo ROOT — the session already has the WHOLE lmthing monorepo (the parent
-    // repo AND the sdk/org submodule) in scope, which it needs to build, commit + push BOTH repos
-    // to trigger CI, and verify the deploy. No extra --add-dir scoping.
+    // cwd is the monorepo ROOT — the session has the WHOLE lmthing monorepo (parent repo AND the
+    // sdk/org submodule) in scope, which it needs to edit product source, `pnpm build`, restart the
+    // local server, and commit both repos. No extra --add-dir scoping.
     addDirs: [],
     flags: ['--verbose'],
+    // Pin the LOCAL target into every spawned agent (and its harness subprocesses) — carried in
+    // committed config so it survives a bare cron/watchdog restart that has no ambient env.
+    env: { SCENARIO_TARGET: 'local' },
   },
 
   prePull: true,
-  interval: 1800, // 30m — a lane cools down this long after ITS run before taking the next scenario
+  interval: 600, // 10m — a lane cools down this long after ITS run before taking the next scenario
   //                 (long enough for the last run's CI/deploy to land, short enough to keep rounds moving)
   startDelay: 0,
 
-  // Two scenarios in flight at once. Each works in its OWN sdk/org/scenarios/<id>/ and against its
-  // OWN prod test user + pod, so the live runs don't collide — but both lanes share this working
-  // tree, so a product-bug fix by one can land under the other's feet. Raise with care.
-  maxParallel: 2,
+  // Lanes in flight at once. Each works in its OWN sdk/org/scenarios/<id>/ and its OWN projectId on
+  // the ONE shared local server, so their runs don't collide on state — but they share this working
+  // tree AND the single Node event loop, so a rebuild+restart by one lane briefly drops the others'
+  // sessions (the harness re-resumes them) and a product-bug fix can land under a sibling's feet.
+  maxParallel: 3,
 };

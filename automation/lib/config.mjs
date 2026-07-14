@@ -104,6 +104,9 @@ export async function loadConfig(name) {
       addDirs: Array.isArray(claude.addDirs) ? claude.addDirs : [],
       flags: Array.isArray(claude.flags) ? claude.flags : [],
       model: process.env.CLAUDE_MODEL ?? claude.model ?? null,
+      // Extra env vars merged into every spawned claude session (over `process.env`). Lets an
+      // instance pin config its agents+subprocesses must see even after a bare cron/watchdog restart.
+      env: claude.env && typeof claude.env === 'object' ? claude.env : {},
     },
     prePull: raw.prePull ?? false,
     interval: process.env.RUN_INTERVAL ? Number(process.env.RUN_INTERVAL) : (raw.interval ?? 18000),

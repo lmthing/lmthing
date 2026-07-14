@@ -154,7 +154,11 @@ export function startRun({ bin, promptText, cfg, attemptDir, resumeSessionId = n
 
   const startedAt = new Date().toISOString();
   // `detached` puts the child in its own process group so we can signal the WHOLE tree (see signalTree).
-  const child = spawn(argv[0], argv.slice(1), { cwd: cfg.cwd, env: process.env, detached: true });
+  const child = spawn(argv[0], argv.slice(1), {
+    cwd: cfg.cwd,
+    env: { ...process.env, ...(cfg.claude.env ?? {}) },
+    detached: true,
+  });
 
   // Stall watchdog: a live child that has emitted nothing for stallMs() is deadlocked, not working.
   // (A paused child is SIGSTOPped and emits nothing by design — never count that as a stall.)

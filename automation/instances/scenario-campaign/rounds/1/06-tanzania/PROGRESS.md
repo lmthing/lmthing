@@ -9,6 +9,7 @@ _Started 2026-07-14T16:47:48.840Z. The agent MUST update this file at every step
 - 2026-07-14: Recovered and syntax-checked the last audited 17-Act runner from `sdk/org` history. Audited it against the current spec; identified that Act XIV still needs in-run real Chrome verification rather than merely emitting a browser handoff.
 - 2026-07-14: Started/attached to the local pod and ran the harness smoke test. Provisioning, catalog reads, and a real THING turn passed (27.1 seconds; three LLM calls).
 - 2026-07-14: Ran baseline Act I locally. All five inputs were correctly routed; THING offered an organized, openable result citing four real specifics with zero premature authoring/building yields. Duration 189s; two recovered file-reader typecheck slips were recorded as retry metrics.
+- 2026-07-14: Triaged the recovered reader/sheet typecheck slips as raw document/spreadsheet content leaking into generated TypeScript. Added a general system-space instruction to synthesize source data rather than paste it as code, with a prompt-contract regression test; validation is running before rebuild/restart.
 
 ## Files added to context
 
@@ -25,3 +26,5 @@ _Started 2026-07-14T16:47:48.840Z. The agent MUST update this file at every step
 - `sdk/org/scenarios/harness/smoke.mjs` — verified the local harness's smoke contract.
 - `sdk/org/scenarios/harness/.state/smoke-report.md` — local smoke outcome.
 - `sdk/org/scenarios/06-tanzania/results/{checkpoint,report,trace}.json` / `.md` — local Act I trace and result.
+- `sdk/org/libs/core/system-spaces/system-files/agents/{reader,sheet}/instruct.md` — prompt source for the recovered typecheck slips.
+- `sdk/org/libs/core/src/spaces/prompt-contract.test.ts` — prompt regression-test convention.

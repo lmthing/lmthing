@@ -774,7 +774,16 @@
       "outcome": "running",
       "startedAt": "2026-07-14T15:09:35.326Z",
       "endedAt": null
+    },
+    {
+      "task": "08-small-shop",
+      "round": 2,
+      "attempt": 1,
+      "bin": "claude-az",
+      "outcome": "running",
+      "startedAt": "2026-07-14T15:09:35.361Z",
+      "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-14T15:09:35.326Z"
+  "updatedAt": "2026-07-14T15:09:35.361Z"
 }

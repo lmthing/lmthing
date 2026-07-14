@@ -8,6 +8,9 @@
     },
     "07-life-admin": {
       "round": 1
+    },
+    "08-small-shop": {
+      "round": 1
     }
   },
   "runs": [
@@ -264,5 +267,5 @@
       "resetAt": null
     }
   ],
-  "updatedAt": "2026-07-14T06:55:22.729Z"
+  "updatedAt": "2026-07-14T06:55:22.779Z"
 }

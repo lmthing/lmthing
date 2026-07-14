@@ -2,6 +2,9 @@
   "tasks": {
     "08-small-shop": {
       "round": 1
+    },
+    "06-tanzania": {
+      "round": 1
     }
   },
   "runs": [
@@ -95,5 +98,5 @@
       "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-14T17:19:35.793Z"
+  "updatedAt": "2026-07-14T17:19:35.834Z"
 }

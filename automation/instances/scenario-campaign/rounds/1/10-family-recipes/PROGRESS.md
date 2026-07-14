@@ -218,3 +218,43 @@ thrashes.
   ASK before it stops (+ tests).
 - `53bc585` — scenario: Act XIII reads the real session layout.
 - `a4b5bc5` — architect: the design node's uncompilable `functions` example (+ test). **The big one.**
+
+## Round 1 CLOSE-OUT (2026-07-14)
+
+**Verdict: FAIL** — honestly recorded. The ingestion half of the scenario is fully proved; the app
+the scenario exists to produce did not build. Acts I–III driven live; **Acts IV–XV not yet run**
+(resumable from `results/checkpoint.json`).
+
+**Final verification run was still in flight at close** — turn 1 ran >75 min without producing a
+build (vs 200 s on the previous run). The `functions` trap errors are GONE from the trace (the
+`a4b5bc5` fix is working at the typechecker level), but **the app has not yet been observed building
+green**, so the architect fix is NOT yet end-to-end verified. That is the first thing round 2 must do:
+wipe the project, re-run `--acts=1 --fresh`, and confirm `built:true` with a `recipes` table.
+
+Also unexplained and worth watching: turn 1 got dramatically SLOWER after the prompt edits. Either the
+local server is contended by sibling lanes, or one of my `user-thing` edits (`2b96f53`) made THING
+thrash. If round 2 sees the same, **bisect `2b96f53` first** — it touches the shared triage brain.
+
+### Everything committed (sdk/org, then the parent pointer `50eedd23`)
+- `e127990` automator: keep the ATTRIBUTION material carries (+ test) — **live-confirmed 4/6 → 6/6**
+- `116c3c5` scenario: Acts XIII–XV (coverage gaps M, L, L)
+- `2b96f53` ⚠️ user-thing SHARED brain: 8 dump-teaching examples removed; ASK-then-stop rule (+ tests)
+- `53bc585` scenario: Act XIII reads the real session layout
+- `a4b5bc5` **system-architect: the design node's uncompilable `functions` example (+ test) — the big
+  one; it broke the app build in EVERY scenario**
+- `a151c56` scenario: Act III/XV bind via `spaceRef`; probes no longer crash the run
+- `b718569` scenario: round-1 Actual results + the honest narrative
+
+`pnpm test libs/core/src/spaces` → **155/155 green**. Anti-overfit scanner passes (zero scenario
+literals in any agent's brain).
+
+### For round 2, in order
+1. Re-verify `a4b5bc5` end-to-end: wipe, `--acts=1 --fresh`, expect `built:true` + a `recipes` table.
+   If turn 1 is still pathologically slow, bisect `2b96f53`.
+2. Then drive Acts IV–XV live for the first time (IV–XII baseline + the three new ones).
+3. The **missing-parent-table** bug is still OPEN and unfixed: the builder authored
+   `recipe_ingredients`/`recipe_steps` with a `recipe_id` FK and never created `recipes`. Likely a
+   general principle for the automator/data-modeler ("create the parent entity before its children; a
+   child table whose foreign key points at a table that does not exist is a broken app") — but do NOT
+   land it until it is seen again on a build that is not also poisoned by the typecheck trap, since
+   the trap is the more likely cause of the truncated build.

@@ -67,3 +67,154 @@ _Started 2026-07-14T07:25:23.012Z. The agent MUST update this file at every step
 - `sdk/org/scenarios/10-family-recipes/fixtures/*` — every fixture, inspected for real (pdftotext,
   xlsx XML dump, `file`, both images viewed, links curl'd) to ground the assertions.
 </content>
+
+## Session 3 (2026-07-14, resumed)
+
+- **Rebuilt core+cli and restarted the local server** to pick up the sibling lanes' typecheck/eval
+  rebinding fixes (`2479438`, `0229f29`) — those target exactly my Act I blocker (the 2 unrecovered
+  `Cannot assign to 'functions' because it is a constant` errors).
+- **Ran Acts II + III live** against the existing Act I build (never run before).
+  - **Act II → 14/16.** The core proof HOLDS: the mp3 upload response carries a real Whisper
+    transcript pre-turn; all 6 audio-only tokens are disjoint across fixtures; the `recipes` row for
+    the dish carries **4** audio-only tokens (μαστίχα, τσίπουρο, πράσο, άνηθο) plus `190°C`/`55 λεπτά`
+    — which the memo speaks *as words*, so they exist as digits in no fixture at all. Audio → Whisper
+    → real row is proved.
+  - **Two failures, and they are a REAL product bug, not a loose assertion:** `Δέσποινα` and
+    `Λευκάδα` never reached state. The memo says *"Το μυστικό της Θείας Δέσποινας από τη Λευκάδα"*;
+    the builder recorded the secret (μαστίχα) and threw away **who it came from**. It even chose a
+    `source` column — and filled it with `"Ηχητικό μήνυμα της μάνας"`, i.e. the CHANNEL the material
+    arrived on, not the name the material states. The user's own words were *"βοήθησέ με να μη χαθεί
+    τίποτα"*.
+  - **Act III → 17/21.** `readDocument` was never called on the image at all (`resolutions: []`), so
+    the host guard was never exercised. Cause: the runner opened the probe as **THING**, which is
+    smart enough to route an image straight to vision — good product behaviour, but it means the Act
+    tests nothing. `scenario.md` §6 specifies `agentSlug:'system-files/dispatch'`. **Runner bug**
+    (not 1:1 with the spec).
+- **Fixed both + committed (`e127990`).**
+  - Product: `system-appbuilder/automator/instruct.md` — new general principle *"Keep the ATTRIBUTION
+    the material carries — who it came from, where it originated"*, with the near-miss guard (*"the
+    transport is not the attribution"* — a `source` field filled with "from an attachment" looks done
+    and is not). **Zero scenario literals** — stated abstractly; the existing anti-overfit guard in
+    `prompt-contract.test.ts` scans for scenario strings and passes.
+  - Test: `libs/core/src/spaces/prompt-contract.test.ts` — a regression guard that would have caught
+    the absence of both the principle and the near-miss warning. 3/3 green.
+  - Runner: Act III's probe now runs as `system-files/dispatch` per the spec.
+- **Now: fresh baseline re-run of Acts I–III** on a wiped project, so the attribution fix is exercised
+  at SEED time (Act I is what seeds) and the sibling typecheck fix is confirmed.
+
+## Files added to context (this session)
+
+- `sdk/org/scenarios/10-family-recipes/results/{report.md,checkpoint.json,trace.json}` — the prior
+  attempt's Act I baseline (24/26) I resumed from.
+- `sdk/org/scenarios/10-family-recipes/run.mjs` (Acts II–VII read in full) — to triage II/III.
+- `sdk/org/scenarios/harness/lib/thing.mjs` — confirmed `attempt >= MAX_RETRIES` really means "the
+  turn loop gave up", so the unrecovered-error check is a genuine product signal, not an artifact.
+- `libs/core/src/sandbox/trace.ts` + `eval/turn-loop.ts:629` — confirmed `yield_resolved{kind,value}`
+  is a real event type, so Act III/V's resolved-value assertions are structurally sound.
+- `libs/core/system-spaces/system-appbuilder/agents/automator/instruct.md` — the seeding brain; where
+  the attribution fix landed.
+- `libs/core/src/spaces/prompt-contract.test.ts` — the existing home for load-bearing prompt
+  assertions + the anti-overfit scanner; where my regression test landed.
+- The live `recipes` row for the dish (via the app data API) — the evidence for the attribution bug.
+
+### Goal 2 — the three NEW Acts (committed `116c3c5`)
+
+Chosen from the coverage audit's never-exercised list, each extending the same persona's story:
+
+- **Act XIII — gap M (history summarization past `maxHistoryTurns`).** Vasilis states a house rule
+  ONCE, in passing, never saying "remember this" (so `user-memory`, Act IX's path, is NOT what is
+  under test). ~16 turns of ordinary kitchen chatter then push the session past `maxTurns*2`
+  messages and the runtime collapses the old turns into a **deterministic digest** (no `streamFn` is
+  passed — `summarize.ts` keeps user task lines + VARIABLES + errors, and DROPS every assistant
+  reply). Asserted on the **persisted session file** + a **CONTROL** that the rule's turn is gone
+  from the verbatim tail (without it a pass proves nothing), and finally on **a real row**: the dish
+  it puts on Sunday must have no garlic in its `recipes` row.
+- **Act XIV — gap L (`db.query`'s `include` over a declared relation).** Asserts a declared
+  `belongsTo`/`hasMany` in the on-disk schema, `include` in the **route's own source** (so a
+  hand-rolled second query can't pass), and the route returning the recipe **nested** — cross-checked
+  against the **audio-only tokens**, so the join is proved against data only the memo could supply.
+- **Act XV — gap L (capability gating AT TYPECHECK).** The security model's load-bearing claim, which
+  **no scenario has ever asserted**: not granted ⇒ absent from the DTS ⇒ the call fails **typecheck**
+  rather than throwing at runtime. Probes the cuisine agent directly, asserts it wasn't over-granted
+  `db:write` on disk, and asserts the **failure mode**, not merely that no write happened.
+
+### Baseline re-run (wiped project, rebuilt core) — TWO NEW REAL BUGS IN THING'S BRAIN
+
+Act I re-run cleanly on the ingest gate (authored nothing before the yes ✓, cited every fixture ✓),
+but **turn 1 failed the OFFER check** — and reading the trace showed why, twice over:
+
+1. **THING dumped its own plumbing at the user.** The turn's final display was a `KeyValue` panel:
+   `"seenImages type":"string"`, `"fileResults length":"11304"`. **It had been taught to** — THING's
+   `instruct.md` contained **EIGHT** `display(JSON.stringify(<raw return>, null, 2))` /
+   `display(seen)` examples. The campaign doc's warning ("an example in an agent's brain gets copied
+   into real output") is exactly what happened, verbatim.
+2. **THING reported instead of OFFERING.** It summarised the material beautifully and stopped — no
+   question. The sibling lane's authoring GATE (`2d145c2`) correctly withholds the *build* until the
+   user agrees, but nothing told THING to still **ask**. A user who doesn't know an app is an option
+   is left with nothing to say yes to, and the turn dies.
+
+**Fixed + committed (`2b96f53`) — ⚠️ this touches THING's SHARED triage brain, flagged loudly:**
+all eight dump examples now read the value and speak to the user; a general principle *"Never show
+them your plumbing"* (the test: *would this line mean anything to someone who has never seen the
+code?*); and *"a turn that has decided something ends with the plain question — ask, then stop, then
+wait"*. Regression tests in `prompt-contract.test.ts` (5/5 green) incl. a guard that the two
+dump-teaching examples never return. **Zero scenario literals** — the existing anti-overfit scanner
+passes.
+
+## Files added to context (goal 2 / baseline re-run)
+
+- `libs/core/src/session/session.ts` (`maybeSummarizeHistory`) + `libs/core/src/context/summarize.ts`
+  — the digest Act XIII tests; established it is deterministic and drops all assistant replies.
+- `libs/cli/src/server/session-manager.ts:413` — `maxHistoryTurns: 20` on the pod (so the threshold
+  Act XIII must cross is 40 messages).
+- The live session on disk (`sessions/<id>/{snapshot,trace,meta}.json`) — corrected Act XIII's
+  real-state path (sessions are DIRECTORIES, not `<id>.json`) and read turn 1's actual displays,
+  which is what exposed both THING bugs.
+- `libs/core/system-spaces/user-thing/agents/thing/instruct.md` — THING's shared triage brain.
+
+### Baseline run #3 results (wiped project, attribution fix in) — 1 fix CONFIRMED, 1 REGRESSION, 1 ROOT CAUSE FOUND
+
+**The attribution fix is CONFIRMED live.** All **6/6** audio-only tokens now reach real state —
+including `Δέσποινα` and `Λευκάδα`, which were the two that failed before the fix. Before: 4/6, the
+provenance dropped. After: 6/6. That is the before/after evidence for `e127990`.
+
+**But this build REGRESSED badly, and it exposed the real bug underneath everything.**
+
+- The app did **not build**: `built:false`, `routes:0`, `/app/family-recipes/` → **404**. The
+  anti-expectation itself.
+- The table set is `meal_plan, pantry, recipe_ingredients, recipe_steps` — **there is no `recipes`
+  table at all**, and no `shopping_list`. `recipe_ingredients.recipe_id` is a foreign key pointing at
+  a parent that was never created. A recipe book with no recipes.
+- The `functions` typecheck errors were **still unrecovered** — the sibling core commits did not fix
+  them, because they are not a core bug.
+
+**ROOT CAUSE (reproduced, not inferred) — a system prompt hands the model code that cannot compile.**
+`system-architect/tasklists/synthesize_and_run/01-design.md` told the model to write:
+
+```ts
+const functions = [];
+currentTask.resolve({ slug, goal, actionId, fields, functions });
+```
+
+A bare `[]` is an *evolving array*: push to it and TS infers the element type — but **use** it before
+anything is pushed and the type can never be determined. Checked against the repo's own `tsc
+--strict`, that exact shape fails with precisely the two errors in the live trace:
+`TS7034` + `TS7005: Variable 'functions' implicitly has an 'any[]' type`. With the annotation, clean.
+
+The model copies the example verbatim, so this fires on **every specialist build, in every scenario**.
+And the retry cascade is a **trap**: redeclaring gives *"Cannot redeclare block-scoped variable"*,
+assigning gives *"Cannot assign to 'functions' because it is a constant"*. The loop cannot escape,
+exhausts `maxRetries`, and the authoring turn is spent — which is why the app never got its pages.
+The live trace shows the model commenting *"the previous attempt redeclared `functions`"* as it
+thrashes.
+
+**Fixed + committed (`a4b5bc5`)**: annotate the type in the design node. Regression test in
+`prompt-contract.test.ts` (6/6 green) asserting the bare form never returns.
+
+### Commits so far this session
+- `e127990` — automator: keep the ATTRIBUTION material carries (+ test). **Live-confirmed 6/6.**
+- `116c3c5` — scenario: Acts XIII–XV (gaps M, L, L).
+- `2b96f53` — ⚠️ THING's SHARED brain: stop teaching it to dump raw internals (8 examples); make it
+  ASK before it stops (+ tests).
+- `53bc585` — scenario: Act XIII reads the real session layout.
+- `a4b5bc5` — architect: the design node's uncompilable `functions` example (+ test). **The big one.**

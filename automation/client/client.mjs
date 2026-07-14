@@ -13,17 +13,45 @@ import { resolve } from 'node:path'
 import { makePush } from './lib/push.mjs'
 import { makeSnapshot } from './lib/snapshot.mjs'
 import { makeTailer } from './lib/tailer.mjs'
+import { makePodSync, localProjectIds } from './lib/pod.mjs'
 import { instanceDir, scenarioDir, SCENARIOS_DIR } from './lib/paths.mjs'
 import { readJson } from './lib/mapping.mjs'
 
 function parseArgs() {
-  const out = { appUrl: process.env.DASH_APP_URL || 'http://localhost:3000', token: process.env.DASH_VIEW_TOKEN || '', instance: 'scenario-campaign', once: false }
+  const out = {
+    appUrl: process.env.DASH_APP_URL || 'http://localhost:3000',
+    token: process.env.DASH_VIEW_TOKEN || '',
+    instance: 'scenario-campaign',
+    // The local `lmthing serve` the campaign runs against (SCENARIO_TARGET=local).
+    podUrl: process.env.DASH_POD_URL || `http://localhost:${process.env.LM_LOCAL_PORT || 8080}`,
+    once: false,
+  }
   for (let i = 2; i < process.argv.length; i++) {
     const a = process.argv[i]
     if (a === '--app-url') out.appUrl = process.argv[++i]
     else if (a === '--token') out.token = process.argv[++i]
     else if (a === '--instance') out.instance = process.argv[++i]
+    else if (a === '--pod-url') out.podUrl = process.argv[++i]
     else if (a === '--once') out.once = true
+  }
+  return out
+}
+
+/** All scenario ids = ledger tasks ∪ on-disk `NN-*` scenario dirs. */
+function scenarioIdsFrom(state) {
+  const ids = new Set(Object.keys(state?.tasks ?? {}))
+  if (existsSync(SCENARIOS_DIR)) {
+    for (const f of readdirSync(SCENARIOS_DIR)) if (/^\d+-/.test(f)) ids.add(f)
+  }
+  return [...ids]
+}
+
+/** Resolve local scenarios from their checkpoints: { id, projectId, sessionId }. */
+function localScenarios(ids) {
+  const out = []
+  for (const id of ids) {
+    const cp = readJson(resolve(scenarioDir(id), 'results/checkpoint.json'))
+    if (cp?.projectId) out.push({ id, projectId: cp.projectId, sessionId: cp.sessionId })
   }
   return out
 }
@@ -52,14 +80,32 @@ async function main() {
   const push = makePush(args.appUrl, args.token)
   const snap = makeSnapshot({ instance: args.instance, push })
   const tailer = makeTailer({ instance: args.instance, push })
+  const podSync = makePodSync({ base: args.podUrl, push })
 
-  console.log(`[client] app=${args.appUrl} instance=${args.instance}`)
+  console.log(`[client] app=${args.appUrl} instance=${args.instance} pod=${args.podUrl}`)
   await snap.syncAll()
 
+  // Mirror the local pod (fs + served app + session events) for every scenario whose
+  // project exists on it. No-op when the local pod is down or all scenarios are cluster.
+  async function syncPods(ids) {
+    const localIds = await localProjectIds(args.podUrl)
+    if (!localIds.size) return
+    let n = 0
+    for (const sc of localScenarios(ids)) {
+      try {
+        if (await podSync.syncOne(sc, localIds)) n++
+      } catch (e) {
+        console.warn(`[pod] ${sc.id} sync error: ${e.message}`)
+      }
+    }
+    return n
+  }
+
   if (args.once) {
-    // one-shot: also push current transcript tails of any active run
+    // one-shot: also push current transcript tails of any active run + a pod snapshot
     const state = readJson(resolve(instanceDir(args.instance), 'state.json'))
     tailer.tailActive(state?.runs)
+    await syncPods(scenarioIdsFrom(state))
     process.exit(0)
   }
 
@@ -73,12 +119,7 @@ async function main() {
   const artifactHashes = new Map()
 
   function scenarioIds() {
-    const state = readJson(stateFile)
-    const ids = new Set(Object.keys(state?.tasks ?? {}))
-    if (existsSync(SCENARIOS_DIR)) {
-      for (const f of readdirSync(SCENARIOS_DIR)) if (/^\d+-/.test(f)) ids.add(f)
-    }
-    return [...ids]
+    return scenarioIdsFrom(readJson(stateFile))
   }
 
   // 2s: state + runtime + active transcript tail
@@ -121,7 +162,20 @@ async function main() {
   }, 500)
   tailer.tailActive(state0?.runs)
 
-  console.log('[client] watching (state/runtime 2s, artifacts 4s, transcript tail 0.5s)')
+  // 4s: mirror the local pod (fs + served app + live session events) per scenario.
+  let podBusy = false
+  setInterval(async () => {
+    if (podBusy) return
+    podBusy = true
+    try {
+      await syncPods(scenarioIds())
+    } finally {
+      podBusy = false
+    }
+  }, 4000)
+  syncPods(scenarioIds())
+
+  console.log('[client] watching (state/runtime 2s, artifacts 4s, pod 4s, transcript tail 0.5s)')
 }
 
 main().catch((e) => {

@@ -4,6 +4,7 @@ import type {
   RuntimeState,
   ScenarioData,
   AttemptArtifacts,
+  PodBundle,
 } from '../shared/types.js'
 import { emit } from './bus.js'
 
@@ -69,6 +70,55 @@ export function ensureScenario(id: string): ScenarioData {
 
 export function getScenario(id: string): ScenarioData | undefined {
   return store.scenarios.get(id)
+}
+
+/** Resolve the scenario a pod userId belongs to (pod-proxy routes are keyed by userId). */
+export function getScenarioByUserId(userId: string): ScenarioData | undefined {
+  for (const s of store.scenarios.values()) if (s.user?.userId === userId) return s
+  return undefined
+}
+
+/**
+ * Replace the fs/app parts of a local scenario's pushed pod snapshot. Events are
+ * managed separately (addPodEvents) so a full-bundle re-push doesn't drop the live
+ * event tail the SSE viewers have already seen.
+ */
+export function setPodBundle(
+  id: string,
+  b: Omit<PodBundle, 'updatedAt' | 'events'> & { events?: unknown[] },
+) {
+  const s = ensureScenario(id)
+  const prev = s.podBundle
+  s.podBundle = {
+    projectId: b.projectId,
+    tree: b.tree,
+    files: b.files,
+    manifest: b.manifest,
+    app: b.app,
+    events: b.events ?? prev?.events ?? [],
+    updatedAt: Date.now(),
+  }
+  s.updatedAt = Date.now()
+  emit(id, 'pod-bundle', { projectId: b.projectId, tree: b.tree, updatedAt: s.podBundle.updatedAt })
+}
+
+/** Append THING session-trace events to a local scenario's bundle + live-broadcast the new ones. */
+export function addPodEvents(id: string, events: unknown[]) {
+  if (!events.length) return
+  const s = ensureScenario(id)
+  const bundle: PodBundle =
+    s.podBundle ?? { projectId: s.checkpoint?.projectId ?? id, tree: [], files: {}, events: [], updatedAt: Date.now() }
+  const seen = new Set(bundle.events.map((e) => (e as { seq?: number })?.seq))
+  const fresh = events.filter((e) => {
+    const seq = (e as { seq?: number })?.seq
+    return seq === undefined || !seen.has(seq)
+  })
+  if (!fresh.length) return
+  bundle.events = [...bundle.events, ...fresh].slice(-5000)
+  bundle.updatedAt = Date.now()
+  s.podBundle = bundle
+  s.updatedAt = Date.now()
+  emit(id, 'pod-events', fresh)
 }
 
 export function listScenarios(): ScenarioData[] {

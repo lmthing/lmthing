@@ -80,7 +80,34 @@ export interface ScenarioData {
   checkpoint?: Checkpoint
   attempts: Record<string, AttemptArtifacts> // key `${round}:${attempt}`
   user?: { label?: string; userId?: string; email?: string }
+  /**
+   * For LOCAL-target scenarios (checkpoint.user.userId like `local-*`), the pod runs
+   * on the client's machine behind NAT — unreachable from the in-cluster app. The
+   * client pushes the pod's data here and the app serves it from this snapshot instead
+   * of dialing cluster DNS. Absent for real cluster pods (dashboard proxies those live).
+   */
+  podBundle?: PodBundle
   updatedAt: number
+}
+
+/** A snapshot of one local scenario's pod, pushed by the client. */
+export interface PodBundle {
+  projectId: string
+  updatedAt: number
+  /** fs tree paths under `<projectId>/` (from GET /api/fs/tree, filtered to the project). */
+  tree: string[]
+  /** path → text content (capped; binary/oversized files omitted). */
+  files: Record<string, string>
+  /** THING session trace events (GET /api/sessions/:sid/events), accumulated by seq. */
+  events: unknown[]
+  /** Project-app manifest (GET /api/projects/:id/app). */
+  manifest?: unknown
+  /** Served-app HTML at `/app/<projectId>/` + its referenced assets. */
+  app?: {
+    html: string
+    /** asset path (relative to `/app/<projectId>/`) → body + content-type. */
+    assets: Record<string, { body: string; contentType: string; base64?: boolean }>
+  }
 }
 
 /** A single line of the Claude -p stream-json transcript (output.jsonl). */

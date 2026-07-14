@@ -62,7 +62,12 @@ scenariosRouter.get('/events/:id', async (c) => {
     }
     const unsub = subscribe(id, (ev) => enqueue(ev))
 
-    if (id !== '*' && sc?.user?.userId && sc?.checkpoint?.sessionId) refPoller(id)
+    // Live-poll the pod's session trace — but ONLY for real cluster pods. Local
+    // scenarios (userId `local-*`) live behind the client's NAT; their events are
+    // pushed via /api/ingest/pod-events and re-broadcast on the bus, so polling
+    // cluster DNS for them would just fail every tick.
+    const isLocal = !!sc?.user?.userId?.startsWith('local-')
+    if (id !== '*' && !isLocal && sc?.user?.userId && sc?.checkpoint?.sessionId) refPoller(id)
 
     const abort = c.req.raw.signal
     const keep = setInterval(() => enqueue({ event: 'ping', data: String(Date.now()) }), 15000)
@@ -87,7 +92,7 @@ scenariosRouter.get('/events/:id', async (c) => {
     } finally {
       clearInterval(keep)
       unsub()
-      if (id !== '*' && sc?.user?.userId && sc?.checkpoint?.sessionId) unrefPoller(id)
+      if (id !== '*' && !isLocal && sc?.user?.userId && sc?.checkpoint?.sessionId) unrefPoller(id)
     }
   })
 })

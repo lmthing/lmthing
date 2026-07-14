@@ -159,11 +159,13 @@ function TranscriptLineView({ line }: { line: TranscriptLine }) {
 }
 
 function PodEventsView({ scenario }: { scenario: ScenarioData }) {
-  const [events, setEvents] = useState<any[]>([])
+  const [events, setEvents] = useState<any[]>((scenario as any).podBundle?.events ?? [])
   const sid = scenario.checkpoint?.sessionId
   useSse(`/scenarios/events/${encodeURIComponent(scenario.id)}`, {
     'pod-events': (data) => setEvents((p) => [...p, ...data]),
-    snapshot: () => setEvents([]),
+    // For local scenarios the snapshot carries the accumulated pushed events; for
+    // cluster pods it has none (the live poller streams them fresh).
+    snapshot: (sc: any) => setEvents(sc?.podBundle?.events ?? []),
   })
   return (
     <div className="border border-border rounded-lg bg-card overflow-auto" style={{ maxHeight: '60vh' }}>

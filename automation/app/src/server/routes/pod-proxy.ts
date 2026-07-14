@@ -2,11 +2,18 @@ import { Hono } from 'hono'
 import { Pod, PodWaking, type PodError } from '../lib/pod-client.js'
 import { config, appBaseUrl, podNeedsToken } from '../config.js'
 import { mintGatewayJwt } from '../lib/gateway.js'
+import { getScenarioByUserId } from '../store.js'
+import type { PodBundle } from '../../shared/types.js'
 
 export const podProxyRouter = new Hono<{ Variables: { userId: string } }>()
 
 function podFor(c: { req: { param: (k: string) => string } }) {
   return new Pod(c.req.param('userId'))
+}
+
+/** The client-pushed pod snapshot for this userId, if this is a local scenario. */
+function bundleFor(userId: string): PodBundle | undefined {
+  return getScenarioByUserId(userId)?.podBundle
 }
 
 function podError(c: unknown, userId: string) {
@@ -17,6 +24,8 @@ function podError(c: unknown, userId: string) {
 }
 
 podProxyRouter.get('/:userId/fs/tree', async (c) => {
+  const b = bundleFor(c.req.param('userId'))
+  if (b) return c.json(b.tree)
   try {
     const t = await podFor(c).fsTree()
     return c.json(t.files ?? [])
@@ -26,18 +35,28 @@ podProxyRouter.get('/:userId/fs/tree', async (c) => {
 })
 
 podProxyRouter.get('/:userId/fs/read', async (c) => {
+  const path = c.req.query('path') ?? ''
+  const b = bundleFor(c.req.param('userId'))
+  if (b) {
+    const content = b.files[path]
+    if (content !== undefined) return c.json({ content })
+    return c.json({ content: '', error: 'not captured in local snapshot (binary or oversized)' })
+  }
   try {
-    const path = c.req.query('path') ?? ''
-    const r = await podFor(c).readFile(path)
-    return c.json(r)
+    return c.json(await podFor(c).readFile(path))
   } catch (e) {
     return podError(e, c.req.param('userId'))
   }
 })
 
 podProxyRouter.get('/:userId/sessions/:sid/events', async (c) => {
+  const since = Number(c.req.query('since') ?? 0)
+  const b = bundleFor(c.req.param('userId'))
+  if (b) {
+    const events = b.events.filter((e) => ((e as { seq?: number })?.seq ?? 0) >= since)
+    return c.json({ events })
+  }
   try {
-    const since = Number(c.req.query('since') ?? 0)
     return c.json(await podFor(c).sessionEvents(c.req.param('sid'), since))
   } catch (e) {
     return podError(e, c.req.param('userId'))
@@ -53,6 +72,8 @@ podProxyRouter.get('/:userId/sessions/:sid/state', async (c) => {
 })
 
 podProxyRouter.get('/:userId/projects/:projectId/app', async (c) => {
+  const b = bundleFor(c.req.param('userId'))
+  if (b) return c.json(b.manifest ?? { hasApp: false, note: 'no manifest in local snapshot' })
   try {
     return c.json(await podFor(c).appManifest(c.req.param('projectId')))
   } catch (e) {
@@ -82,6 +103,27 @@ podProxyRouter.get('/:userId/app/:projectId/*', async (c) => {
   const userId = c.req.param('userId')
   const projectId = c.req.param('projectId')
   const rest = c.req.path.split(`/app/${projectId}/`)[1] ?? ''
+
+  // Local scenario: serve the client-captured HTML/assets from the pushed bundle.
+  const b = bundleFor(userId)
+  if (b) {
+    if (!b.app) {
+      // Standalone iframe document — the design-system theme CSS isn't loaded here,
+      // so this placeholder carries no color of its own (inherits the iframe default).
+      return new Response('<!doctype html><meta charset=utf-8><body style="font:14px system-ui;padding:2rem;opacity:0.6">no served app captured yet</body>', {
+        headers: { 'content-type': 'text/html' },
+      })
+    }
+    if (!rest) {
+      return new Response(b.app.html, { headers: { 'content-type': 'text/html; charset=utf-8' } })
+    }
+    const assetKey = rest.split('?')[0]
+    const asset = b.app.assets[assetKey]
+    if (!asset) return new Response('not found', { status: 404 })
+    const body = asset.base64 ? Buffer.from(asset.body, 'base64') : asset.body
+    return new Response(body, { headers: { 'content-type': asset.contentType } })
+  }
+
   const query = c.req.url.includes('?') ? `?${c.req.url.split('?')[1]}` : ''
   const podPath = `/${projectId}/${rest ? `${rest}${query}` : query || ''}`
   try {

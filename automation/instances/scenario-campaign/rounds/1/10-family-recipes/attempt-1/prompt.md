@@ -40,17 +40,37 @@ leave everything in a clean, committed, resumable state.
 - **Scenario:** `10-family-recipes` (`sdk/org/scenarios/10-family-recipes`)  ·  **Round:** 1 — BASELINE + FIRST NEW ACTS  ·  **Branch:** `main`
 
 **Working directory:** you start at the **lmthing monorepo root** and have the **whole monorepo** in
-scope — both the parent repo and the `sdk/org` submodule. You will commit + push **both** (submodule
-first, then the parent pointer) to trigger CI, and you must **verify the deploy actually lands**
-(image built, pod upgraded, feature live), not merely that the push succeeded. Scenario files live at
-`sdk/org/scenarios/10-family-recipes`; the harness at `sdk/org/scenarios/harness/`.
+scope — both the parent repo and the `sdk/org` submodule. You **commit** your work on `main`
+(submodule first, then the parent pointer) so the ledger + artifacts are durable; pushing is optional
+(there is no CI/deploy in this loop — see **Target** below). Scenario files live at `sdk/org/scenarios/10-family-recipes`;
+the harness at `sdk/org/scenarios/harness/`.
+
+## Target: a LOCAL `lmthing serve` (this is the fast loop)
+
+**You run against a local pod, not production.** One shared `lmthing serve` on `http://localhost:8080`
+(started for you by the harness, reading `sdk/org/.env` for the budget-free Azure keys) hosts every
+lane; each scenario works in its **own `projectId`**, so concurrent lanes never collide. This exists
+so the fix→verify loop is **seconds, not minutes**: a product-code fix is `pnpm build` + restart the
+local server, **not** push → CI image build → ArgoCD rollout → re-verify.
+
+- **Set `SCENARIO_TARGET=local`** in the environment of every harness command (`provision.mjs`,
+  `sdk/org/scenarios/10-family-recipes/run.mjs`, any probe). With it set, `getUser` returns `{ pod:'http://localhost:8080', token:null }`
+  and the pod does no auth — there is **no gateway JWT, no `user-<id>` namespace, no `kubectl`**.
+- **Rebuild + restart is the deploy:** after editing product source,
+  `cd sdk/org && pnpm --filter <pkg>... build && node scenarios/harness/local-server.mjs restart`,
+  then re-run the failing Act. `restart` cycles the one shared server (siblings' in-memory sessions
+  drop and auto-resume — the harness handles it). `local-server.mjs up|status|down` manage it.
+- **Anything mentioning prod below** — `kubectl`, ACR image tags, `compute:<sha>`, ArgoCD, cold-wake,
+  scale-to-zero, gateway `PUT env` rolling the pod — is **N/A locally**. Where a step says "deploy and
+  verify live", read it as "rebuild + restart the local server and re-run the Act". Cold-wake/rollout
+  banners never appear locally; if an Act waits for one, it simply proceeds.
 
 ## The mission
 
-Extend `10-family-recipes` with **additional Acts**, run the **whole scenario end-to-end against LIVE
-production**, triage every failure, **fix real product bugs in the product (with a test)**, verify
-the fix live, and **report honestly**. A scenario is not a feature test — it is a **promise,
-exercised end-to-end through the THING agent against live prod, and asserted on real system state**
+Extend `10-family-recipes` with **additional Acts**, run the **whole scenario end-to-end against the
+local pod**, triage every failure, **fix real product bugs in the product (with a test)**, verify
+the fix by rebuild+restart, and **report honestly**. A scenario is not a feature test — it is a
+**promise, exercised end-to-end through the THING agent, and asserted on real system state**
 (the execution trace of what the agent did, and the actual spaces / app / database rows it
 produced). The most valuable output is the **honest narrative of where the product broke down**, not
 a green checkmark. A scenario that only grades the model's prose passes when the system is broken —
@@ -87,8 +107,10 @@ testing a script. Hold them in `sdk/org/scenarios/10-family-recipes/scenario.md`
    through `readDocument`.
 
 **Performance targets are hang detectors, not SLOs.** Record the actual time as a metric on every Act;
-only FAIL on the ceiling — that means something is *broken*, not merely slow. (Measured on live prod:
-one authoring turn ran **8 minutes**; a cold-wake blew a 60 s budget; a full run takes hours.)
+only FAIL on the ceiling — that means something is *broken*, not merely slow. (Reference, on prod:
+one authoring turn ran **8 minutes**; a full run takes hours. Locally there is no cold-wake and no
+network hop to the pod, so wall-clock is comparable-or-faster — but the model latency dominates
+either way, so keep the same generous ceilings.)
 
 ## The scenario artifact (what you are editing)
 
@@ -332,20 +354,20 @@ failure):**
     inbound returns 401 and writes 0 rows. **Bad:** the reply "contains the word booked".
 
 **Harness resilience already built in (do NOT re-solve):** session eviction (`404`→ soft
-`sessionGone`, `#ensureAlive()` re-establishes before next send; raise `MAX_SESSIONS` with
-`kubectl set env deployment/lmthing MAX_SESSIONS=25 -n user-<id>` for session-heavy Acts); cold-wake
-504 retry; consent/asks answered by `onAsk`. **Gotchas:** gateway JWT secret is double-base64;
-`PUT /api/compute/env` **rolls the pod** → load env before the first turn; `pod.ready` is true
-throughout a rolling update → use `waitPodSettled`; consent needs an **interactive** session
-(`POST /api/sessions`; headless fails closed); the `built` flag is `manifest.build.built` but the
-authoritative check is `POST /app/build` + real assets in `assetManifest`.
+`sessionGone`, `#ensureAlive()` re-establishes before next send; raise the local server's cap with
+`--max-sessions` if a session-heavy Act needs it); consent/asks answered by `onAsk`. **Local notes:**
+no gateway JWT, no `PUT env` (keys come from `sdk/org/.env` at server start), no cold-wake/rolling-update
+— `token` is `null` and every request is unauthenticated; a `local-server.mjs restart` (yours or a
+sibling lane's) drops in-memory sessions, which the resilient `send` re-resumes. Consent still needs an
+**interactive** session (`POST /api/sessions`; headless fails closed); the `built` flag is
+`manifest.build.built` but the authoritative check is `POST /app/build` + real assets in `assetManifest`.
 
 ## The app contract (MANDATORY for every scenario that builds an app)
 
 An app that returns 200 and has rows in its tables is **not** a working app. Both rules below are
 hard requirements of every scenario that builds one — spec them in `scenario.md`, assert them in
 `sdk/org/scenarios/10-family-recipes/run.mjs`, and if the product cannot do them yet, **implement the missing feature** (§4 fix loop:
-writer → core injection → DTS → capability → test → deploy → verify live). Never skip the
+writer → core injection → DTS → capability → test → rebuild + restart → re-verify). Never skip the
 requirement, never fake it, never weaken the assertion to go green.
 
 ### A1. Every app ships an ALWAYS-AVAILABLE in-app chat agent
@@ -364,7 +386,8 @@ that is:
 **If the runtime cannot do this today, that is the gap the scenario exists to close — build it.**
 Add whatever is missing (an embeddable chat component wired to a project-scoped session, the route
 that serves it, the capability grants that let an in-app turn author, the live-rebind after an
-in-app `writeProject*`), with a test that would have caught its absence, then deploy and verify live.
+in-app `writeProject*`), with a test that would have caught its absence, then rebuild + restart the
+local server and re-verify the Act.
 
 **Assert it on real state:** an Act must send a message **through the in-app chat** (drive it in the
 browser, §A2) and prove a **real change landed** — a new row / new page / new table / new space that
@@ -450,19 +473,23 @@ fake PASS, and it is the whole point of this campaign.
 
 ### Verify a prompt change like any other change
 
-A prompt-only fix can be **hot-patched onto the running pod** without a rebuild — `PUT /api/projects/
-system/spaces/<spaceId>/files/<rel>` `{content}`, then restart to reload — so you can prove it live in
-minutes. Then commit it to source, and confirm the same behaviour after the image rolls. And because
-`instruct.md` is shared, a change there must not regress the others: re-run the Act that motivated it
-**and** one Act that depends on the behaviour you touched.
+Land the fix in **source** (`libs/core/system-spaces/**`), then `pnpm --filter @lmthing/core build &&
+node scenarios/harness/local-server.mjs restart` to make it take effect (the server adopts the rebuilt
+tree). For a quick check you can **hot-patch the running pod** first — `PUT /api/projects/system/
+spaces/<spaceId>/files/<rel>` `{content}`, then restart to reload — but the committed source is what
+makes it permanent. And because `instruct.md` is shared, a change there must not regress the others:
+re-run the Act that motivated it **and** one Act that depends on the behaviour you touched.
 
 ## The run → triage → fix → verify → report loop
 
-1. **Provision + smoke.** `cd sdk/org/scenarios/harness && node provision.mjs 10-family-recipes`
-   (disposable `user-<id>` + pod + Azure keys, budget-free), then `node smoke.mjs` to prove prod is
-   healthy. Load integration/env secrets via `mergePodEnv` **before** the first session (a `PUT env`
-   rolls the pod). Keep the conversation realistic — drift, incremental, unrelated chatter between
-   load-bearing turns; a promise that only holds under a scripted happy path isn't kept.
+1. **Bring up the local pod + smoke.** `cd sdk/org/scenarios/harness && SCENARIO_TARGET=local node
+   local-server.mjs up` (idempotent — starts or attaches to the shared `lmthing serve`), then
+   `SCENARIO_TARGET=local node provision.mjs 10-family-recipes` (returns `{ pod:'http://localhost:8080',
+   token:null }`; the server already has the budget-free Azure keys from `sdk/org/.env`), then
+   `SCENARIO_TARGET=local node smoke.mjs` to prove the pod is healthy. No `mergePodEnv`/`PUT env`
+   locally — the keys come from `.env` at server start. Keep the conversation realistic — drift,
+   incremental, unrelated chatter between load-bearing turns; a promise that only holds under a
+   scripted happy path isn't kept.
 2. **Run Act by Act, in the FOREGROUND.** You are a **headless `claude -p` session**: when you stop
    emitting tool calls your turn ENDS, your session dies, and every background process you spawned is
    orphaned and killed. So there is **no "wake me when it finishes"** here — do **NOT** launch the
@@ -478,7 +505,8 @@ minutes. Then commit it to source, and confirm the same behaviour after the imag
    (zsh: `status` is read-only — use another name.)
 3. **Triage every failure BEFORE changing anything** — is it a harness bug or a product bug? Read the
    trace (`GET /api/sessions/:id/events`) for the exact `eval_error`/`typecheck_error` **statement**,
-   and pod logs (`kubectl logs`) for boot/hook-load failures. **Reproduce minimally** — a direct
+   and the local server log (`sdk/org/scenarios/harness/.state/local-server/serve.log`, or
+   `local-server.mjs status` for its path) for boot/hook-load failures. **Reproduce minimally** — a direct
    one-turn probe on a fresh project isolates whether it's the phrasing, the agent, the runtime, or
    your assertion (a *vague* ask hallucinating vs the *same* ask phrased directly authoring cleanly
    is itself the finding).
@@ -496,28 +524,29 @@ minutes. Then commit it to source, and confirm the same behaviour after the imag
    record recovered errors as a metric + note, never hide them, never fail the whole scenario on them.
    A **harness/assertion bug** → fix the assertion to be accurate and, where possible, **stronger**,
    never merely looser to force green.
-5. **Verify the fix live.** A **prompt-only** fix to a materialized system space can be **hot-patched**
-   onto the running pod without a rebuild: `PUT /api/projects/system/spaces/<spaceId>/files/<rel>`
-   `{content}` (read back via `GET …/files`), then restart to reload. **Code** (core/cli) fixes need a
-   new compute image: push the submodule → bump the parent pointer → CI builds
-   `compute:<7-char-parent-sha>` → upgrade the test pod:
-   `kubectl set image deployment/lmthing compute=lmthingacr.azurecr.io/compute:<7-char-sha> -n user-<id>`
-   then `kubectl rollout status … --timeout=180s`, and re-run the failing Act. Watch: 8-char tag →
-   `ImagePullBackOff`; check the `build (compute …)` job directly (the post-build git jobs often fail
-   on a rebase race without the image failing); pods have **no readinessProbe** by design (hence the
-   keepalive); tolerate one early 503 after a wake; ArgoCD selfHeal can revert a manual image set on
-   `user-*` — re-set if needed.
-6. **Submodule-first commit discipline (many agents share ONE `sdk/org` working tree).** Stage only
-   YOUR files (`git add <paths>`); stash others' scenario-result edits before `git pull --rebase`;
-   retry on conflict; never force-push. Commit + push the **submodule** first, then the **parent**
-   (`git add sdk/org` + rebase + push) — pushing the parent is what triggers CI to build
-   `compute:<7-char-parent-sha>`.
-7. **Verify the deploy actually landed** (not just the push): confirm the `build (compute …)` CI job
-   went green and the tag exists in ACR, upgrade the test pod to that image (§5), roll it, and re-run
-   the affected Act live so the fix is proven **in production**. If CI/ArgoCD is flaky, retry
-   (`gh run rerun --failed`, ArgoCD hard refresh) rather than declaring success on an unverified
-   deploy. A run whose fix has NOT been verified live is not done — record the deploy status
-   honestly.
+5. **Verify the fix — rebuild + restart the local server (seconds).**
+   - **System-space prompt fix** (`libs/core/system-spaces/**` — an `instruct.md`/`charter.md`/
+     `knowledge/`/tasklist): edit the **source**, then `cd sdk/org && pnpm --filter @lmthing/core build`
+     (the build copies `system-spaces/` into the cli dist) and
+     `node scenarios/harness/local-server.mjs restart` — the server boots with `--adopt-system-spaces`,
+     so it picks up your edited tree. Then re-run the Act. (A quick one-off probe can instead
+     **hot-patch** the running pod: `PUT /api/projects/system/spaces/<spaceId>/files/<rel>` `{content}`,
+     read back via `GET …/files` — but land the real fix in source so the restart makes it permanent.)
+   - **Code fix** (`@lmthing/core`, `@lmthing/cli`, …): edit source → `pnpm --filter <pkg>... build`
+     (build the package **and its dependents** so the cli picks up new core types/output) →
+     `node scenarios/harness/local-server.mjs restart` → re-run the Act. There is **no image, no
+     `kubectl`, no ACR tag, no ArgoCD** — the restarted local server IS the deploy.
+   - If `restart` fails to come back up, read `serve.log` (path from `local-server.mjs status`): a
+     stale build error there is the usual cause — fix, rebuild, restart again.
+6. **Commit discipline (many lanes share ONE `sdk/org` working tree).** Stage only YOUR files
+   (`git add <paths>`); stash others' scenario-result edits before any `git pull --rebase`; retry on
+   conflict; never force-push. Commit the **submodule** first, then the **parent** pointer
+   (`git add sdk/org` + commit). This keeps the committed ledger + artifacts durable and replayable.
+   Pushing is optional (no CI depends on it); if you push, submodule first, then parent.
+7. **Confirm the fix holds on the restarted server** — re-run the affected Act against the freshly
+   rebuilt+restarted local pod and confirm it now passes (and that no already-passing Act regressed).
+   A run whose fix has NOT been re-verified this way is not done — record the outcome honestly, with
+   the fix's commit sha.
 
 ## PROGRESS protocol (MANDATORY, every step)
 
@@ -560,17 +589,17 @@ Maintain the per-run progress log at **/home/vasilis/LMTHING/lmthing/automation/
 - **The app contract holds (if this scenario builds an app):**
   - **A1** — the app has an **always-available in-app chat agent**, and an Act proves a real change
     (row / page / table / space) landed **from inside the app**. Any feature this required was
-    implemented in the product, tested, deployed, and verified live.
+    implemented in the product, tested, and re-verified after a rebuild + restart.
   - **A2** — the app was **opened in the chrome-devtools browser** and **renders the real data**
     (non-zero, actual fixture values), with the in-app chat present, **no console errors, no failed
     fetches**, and the app's **own API routes** asserted 200 + correct shape. Evidence (what rendered
     + screenshot path) is in the report. An app that opens empty is a **FAIL**.
-- It **ran e2e live against prod** and reached a verdict; **every product bug found is fixed with a
-  test** and its fix verified live (fix sha recorded).
+- It **ran e2e against the local pod** and reached a verdict; **every product bug found is fixed with a
+  test** and its fix re-verified after a rebuild + restart (fix sha recorded).
 - `sdk/org/scenarios/10-family-recipes/results/` has the report + trace; the `.md` **Actual results** section is filled with:
   verdict (`PASS` / `CONDITIONAL PASS` / `FAIL`), the per-Act table, every issue + fix sha, the
   performance table, and the **honest narrative of where the product broke down**.
-- Both repos committed + pushed on `main` (submodule first, then parent pointer).
+- Both repos **committed** on `main` (submodule first, then parent pointer); pushing is optional.
 
 
 Begin now: orient (read the scenario + its results + the harness), then work goals 1 then 2.

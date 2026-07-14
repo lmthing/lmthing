@@ -69,7 +69,8 @@ export default {
     // sdk/org submodule) in scope, which it needs to edit product source, `pnpm build`, restart the
     // local server, and commit both repos. No extra --add-dir scoping.
     addDirs: [],
-    flags: ['--verbose',  '--model claude-sonnet-5'],
+    flags: ['--verbose'],
+    model: 'claude-sonnet-5',
     // Pin the LOCAL target into every spawned agent (and its harness subprocesses) — carried in
     // committed config so it survives a bare cron/watchdog restart that has no ambient env.
     env: { SCENARIO_TARGET: 'local' },

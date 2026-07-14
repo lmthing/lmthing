@@ -1,4 +1,4 @@
-claude \
+claude-az \
   -p \
   <see prompt.md> \
   --dangerously-skip-permissions \

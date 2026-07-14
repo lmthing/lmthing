@@ -49,9 +49,9 @@ The app's API is registered **before** its pages, so `…/api/*` never reaches t
 |---|---|
 | `* /app/:projectId/api/*` | `createAppApiHandler` — the worker-isolated Node api runtime (`serve.ts:L217-L218`) |
 | `* /app/:projectId/*` | `createPageServeHandler` — the built React bundle + asset-manifest SPA fallback (`serve.ts:L292-L306`) |
-| `* /:projectId/api/*`, `* /:projectId/*` | the **same** handlers with no `/app` prefix — registered **only** when `LMTHING_GATEWAY_URL` is set (`serve.ts:L322-L326`) |
+| `* /:projectId/api/*`, `* /:projectId/*` | the **same** handlers with no `/app` prefix — always registered, falling through to the SPA for any segment that is not a project with a built app (`serve.ts:L336-L344`) |
 
-The gateway injects `LMTHING_GATEWAY_URL` into every per-user pod and nothing else sets it, so the clean root mount exists exactly when the pod sits behind the Envoy shell/pod split. It is **unset** under local `lmthing serve` / `pnpm thing`, where a bare `/:projectId/*` would shadow every SPA route — hence apps live at `localhost:8080/app/<project>` locally (`serve.ts:L308-L326`). Detail: [../app/README.md](../app/README.md).
+The clean root mount is **always registered** — including under local `lmthing serve` / `pnpm thing`, so an app is reachable at both `localhost:8080/app/<project>` and `localhost:8080/<project>`. A bare `/:projectId/*` does not shadow the SPA because the handler **falls through** to the web handler whenever the first segment is not a project with a built app, or is one of the `RESERVED_ROOT_SEGMENTS` this server owns (`serve.ts#RESERVED_ROOT_SEGMENTS`). It was previously gated on `LMTHING_GATEWAY_URL`, which is exactly how a pod missing that var served the SPA shell (root-absolute `/assets/*` → 404) at `/<project>/` and rendered every app blank. Detail: [../app/routes.md](../app/routes.md).
 
 ---
 

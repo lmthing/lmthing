@@ -64,7 +64,9 @@ export default {
   claude: {
     // Add backup accounts to keep running across a usage-limit reset, e.g.:
     // bins: ['claude', 'claude-work', 'claude-personal'],
-    bins: ['claude-az'],
+    // `claude-az` is a shell ALIAS (`alias claude-az=...`), not a binary on PATH — child_process.spawn
+    // can't resolve aliases (no shell involved), so it must be the script's absolute path here.
+    bins: ['/home/vasilis/.claude-azure/launch.sh'],
     // cwd is the monorepo ROOT — the session has the WHOLE lmthing monorepo (parent repo AND the
     // sdk/org submodule) in scope, which it needs to edit product source, `pnpm build`, restart the
     // local server, and commit both repos. No extra --add-dir scoping.

@@ -668,10 +668,15 @@
       "round": 2,
       "attempt": 1,
       "bin": "claude",
-      "outcome": "running",
+      "outcome": "interrupted",
       "startedAt": "2026-07-14T13:03:26.260Z",
-      "endedAt": null
+      "endedAt": "2026-07-14T13:15:02.500Z",
+      "subtype": null,
+      "isError": false,
+      "costUsd": null,
+      "usage": null,
+      "resetAt": null
     }
   ],
-  "updatedAt": "2026-07-14T13:15:03.506Z"
+  "updatedAt": "2026-07-14T13:15:03.570Z"
 }

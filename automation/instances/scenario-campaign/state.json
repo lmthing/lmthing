@@ -18,7 +18,16 @@
       "outcome": "running",
       "startedAt": "2026-07-14T16:37:06.566Z",
       "endedAt": null
+    },
+    {
+      "task": "07-life-admin",
+      "round": 1,
+      "attempt": 1,
+      "bin": "claude-az",
+      "outcome": "running",
+      "startedAt": "2026-07-14T16:37:06.594Z",
+      "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-14T16:37:06.566Z"
+  "updatedAt": "2026-07-14T16:37:06.594Z"
 }

@@ -19,7 +19,7 @@ globals reach the service.
 `webSearch(query, opts)` is a `system-global` function — injected into every agent, fork, and
 delegate — declared and dispatched in `sdk/org/libs/core/system-spaces/system-global/functions/webSearch.ts`.
 
-Signature (`webSearch.ts:12-27`):
+Signature (`webSearch.ts#webSearch`):
 
 ```ts
 webSearch(
@@ -34,14 +34,23 @@ webSearch(
 ): Promise<{
   ok: boolean;
   query: string;
+  provider: 'tavily' | 'bing' | 'duckduckgo';  // who ACTUALLY answered
   answer: string;                              // Tavily only; '' otherwise
   results: Array<{ title: string; url: string; snippet: string; score: number }>;
   error?: string;
 }>
 ```
 
-The function-level JSDoc (`webSearch.ts:1-11`) IS the model-facing type — the system-global
+The function-level JSDoc (`webSearch.ts:1-16`) IS the model-facing type — the system-global
 overlay derives the agent DTS from source, so there is no separate `.d.ts` to edit.
+
+The result **always names the `provider` that served it**, on both the `ok` and the error path
+(`webSearch.ts#webSearch`). Under `'auto'` the caller does not choose the backend, so this is the
+only way anything downstream can know where the answer came from — and it is load-bearing rather
+than decorative: **only Tavily synthesizes an `answer`**, so an empty `answer` means "a scraper
+served this", not "the web had nothing to say". It is also what makes the fallback chain
+*observable* — a caller (or a test) can prove `auto` really skipped a dead primary instead of
+silently returning a primary hit.
 
 ### The `auto` provider chain
 

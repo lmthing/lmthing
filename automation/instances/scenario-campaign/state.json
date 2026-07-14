@@ -4,7 +4,7 @@
       "round": 2
     },
     "05-latam": {
-      "round": 1
+      "round": 2
     },
     "07-life-admin": {
       "round": 1
@@ -645,5 +645,5 @@
       "resetAt": null
     }
   ],
-  "updatedAt": "2026-07-14T12:53:25.776Z"
+  "updatedAt": "2026-07-14T12:53:25.854Z"
 }

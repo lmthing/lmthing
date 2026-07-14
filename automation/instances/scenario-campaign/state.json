@@ -654,9 +654,14 @@
       "round": 2,
       "attempt": 1,
       "bin": "claude",
-      "outcome": "running",
+      "outcome": "interrupted",
       "startedAt": "2026-07-14T12:59:05.171Z",
-      "endedAt": null
+      "endedAt": "2026-07-14T13:15:02.506Z",
+      "subtype": null,
+      "isError": false,
+      "costUsd": null,
+      "usage": null,
+      "resetAt": null
     },
     {
       "task": "08-small-shop",
@@ -668,5 +673,5 @@
       "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-14T13:15:03.464Z"
+  "updatedAt": "2026-07-14T13:15:03.506Z"
 }

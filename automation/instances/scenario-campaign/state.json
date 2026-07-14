@@ -846,7 +846,16 @@
       "outcome": "running",
       "startedAt": "2026-07-14T15:16:01.903Z",
       "endedAt": null
+    },
+    {
+      "task": "05-latam",
+      "round": 3,
+      "attempt": 1,
+      "bin": "claude-az",
+      "outcome": "running",
+      "startedAt": "2026-07-14T15:16:01.929Z",
+      "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-14T15:16:01.903Z"
+  "updatedAt": "2026-07-14T15:16:01.929Z"
 }

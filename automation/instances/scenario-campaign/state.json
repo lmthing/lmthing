@@ -601,10 +601,15 @@
       "round": 2,
       "attempt": 1,
       "bin": "claude",
-      "outcome": "running",
+      "outcome": "error",
       "startedAt": "2026-07-14T12:32:58.287Z",
-      "endedAt": null
+      "endedAt": "2026-07-14T12:49:04.498Z",
+      "subtype": null,
+      "isError": false,
+      "costUsd": null,
+      "usage": null,
+      "resetAt": null
     }
   ],
-  "updatedAt": "2026-07-14T12:32:58.287Z"
+  "updatedAt": "2026-07-14T12:49:04.687Z"
 }

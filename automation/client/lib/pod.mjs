@@ -36,6 +36,18 @@ export async function localProjectIds(base) {
   }
 }
 
+/** The project's most-recently-active session id (checkpoint ids drift across re-runs). */
+async function latestSessionId(base, projectId, fallback) {
+  try {
+    const j = await getJson(`${base}/api/projects/${projectId}/sessions`)
+    const sessions = j?.sessions ?? []
+    if (!sessions.length) return fallback
+    return sessions.slice().sort((a, b) => (b.lastActivity ?? 0) - (a.lastActivity ?? 0))[0].sessionId
+  } catch {
+    return fallback
+  }
+}
+
 /** fs tree (paths under `<projectId>/`) + text file contents, size-capped. */
 async function readFs(base, projectId) {
   let tree = []
@@ -107,6 +119,8 @@ async function readApp(base, projectId) {
 export function makePodSync({ base, push }) {
   /** scenarioId → last pushed event seq (+1). */
   const sinceByScenario = new Map()
+  /** scenarioId → the session id currently being tailed (to detect a re-run's new session). */
+  const sessionByScenario = new Map()
 
   /**
    * Mirror one local scenario's pod. `sc = { id, projectId, sessionId }`.
@@ -130,11 +144,24 @@ export function makePodSync({ base, push }) {
     // trace (`sessions/<sid>/trace.json`) rather than the live /events endpoint: the
     // latter only serves in-memory sessions (an idle/persisted one 404s "unknown
     // session"), while trace.json is the on-disk source of truth for both.
-    if (sc.sessionId) {
+    //
+    // The checkpoint's sessionId drifts across rounds (a re-run starts a fresh
+    // session), so resolve the project's MOST-RECENT session from the ledger instead
+    // of trusting it.
+    const sessionId = await latestSessionId(base, sc.projectId, sc.sessionId)
+    if (sessionId) {
+      // A new session (re-run) restarts seqs at 1, which would collide with already-
+      // pushed seqs and be dropped by the app's dedup — so signal a reset and re-tail
+      // from 0 whenever the session id changes.
+      const switched = sessionByScenario.get(sc.id) !== sessionId
+      if (switched) {
+        sessionByScenario.set(sc.id, sessionId)
+        sinceByScenario.set(sc.id, 0)
+      }
       const since = sinceByScenario.get(sc.id) ?? 0
       try {
         const j = await getJson(
-          `${base}/api/fs/read?path=${encodeURIComponent(`${sc.projectId}/sessions/${sc.sessionId}/trace.json`)}`,
+          `${base}/api/fs/read?path=${encodeURIComponent(`${sc.projectId}/sessions/${sessionId}/trace.json`)}`,
         )
         const all = JSON.parse(j?.content ?? '[]')
         const events = Array.isArray(all) ? all.filter((e) => (e.seq ?? 0) >= since) : []
@@ -142,8 +169,12 @@ export function makePodSync({ base, push }) {
           let max = since
           for (const e of events) max = Math.max(max, (e.seq ?? 0) + 1)
           // Batch so a large initial backfill doesn't make one multi-MB POST body.
+          // The reset (on session switch) rides the first batch.
           for (let i = 0; i < events.length; i += 500) {
-            await push.post(`/pod-events/${sc.id}`, { events: events.slice(i, i + 500) })
+            await push.post(`/pod-events/${sc.id}`, {
+              events: events.slice(i, i + 500),
+              reset: switched && i === 0,
+            })
           }
           sinceByScenario.set(sc.id, max)
         }

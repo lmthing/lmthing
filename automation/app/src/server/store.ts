@@ -102,23 +102,28 @@ export function setPodBundle(
   emit(id, 'pod-bundle', { projectId: b.projectId, tree: b.tree, updatedAt: s.podBundle.updatedAt })
 }
 
-/** Append THING session-trace events to a local scenario's bundle + live-broadcast the new ones. */
-export function addPodEvents(id: string, events: unknown[]) {
-  if (!events.length) return
+/**
+ * Append THING session-trace events to a local scenario's bundle + live-broadcast the
+ * new ones. `reset` clears prior events first — the client sends it when the session
+ * id changes (a re-run restarts seqs at 1, which dedup would otherwise drop).
+ */
+export function addPodEvents(id: string, events: unknown[], reset = false) {
+  if (!events.length && !reset) return
   const s = ensureScenario(id)
   const bundle: PodBundle =
     s.podBundle ?? { projectId: s.checkpoint?.projectId ?? id, tree: [], files: {}, events: [], updatedAt: Date.now() }
+  if (reset) bundle.events = []
   const seen = new Set(bundle.events.map((e) => (e as { seq?: number })?.seq))
   const fresh = events.filter((e) => {
     const seq = (e as { seq?: number })?.seq
     return seq === undefined || !seen.has(seq)
   })
-  if (!fresh.length) return
   bundle.events = [...bundle.events, ...fresh].slice(-5000)
   bundle.updatedAt = Date.now()
   s.podBundle = bundle
   s.updatedAt = Date.now()
-  emit(id, 'pod-events', fresh)
+  // On reset, tell viewers to clear even if this first batch was empty.
+  if (fresh.length || reset) emit(id, 'pod-events', { events: fresh, reset })
 }
 
 export function listScenarios(): ScenarioData[] {

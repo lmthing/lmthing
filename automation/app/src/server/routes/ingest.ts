@@ -72,7 +72,7 @@ ingestRouter.post('/pod/:id', async (c) => {
 
 /** Incremental THING session-trace events for a local scenario (live-broadcast to viewers). */
 ingestRouter.post('/pod-events/:id', async (c) => {
-  const { events } = (await c.req.json()) as { events: unknown[] }
-  addPodEvents(c.req.param('id'), events ?? [])
+  const { events, reset } = (await c.req.json()) as { events: unknown[]; reset?: boolean }
+  addPodEvents(c.req.param('id'), events ?? [], !!reset)
   return c.json({ ok: true })
 })

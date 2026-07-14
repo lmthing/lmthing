@@ -162,7 +162,13 @@ function PodEventsView({ scenario }: { scenario: ScenarioData }) {
   const [events, setEvents] = useState<any[]>((scenario as any).podBundle?.events ?? [])
   const sid = scenario.checkpoint?.sessionId
   useSse(`/scenarios/events/${encodeURIComponent(scenario.id)}`, {
-    'pod-events': (data) => setEvents((p) => [...p, ...data]),
+    // Local scenarios push `{events, reset}` (reset when a re-run starts a new
+    // session); the cluster poller emits a bare array. Handle both.
+    'pod-events': (data: any) => {
+      const evs = Array.isArray(data) ? data : (data?.events ?? [])
+      if (!Array.isArray(data) && data?.reset) setEvents(evs)
+      else setEvents((p) => [...p, ...evs])
+    },
     // For local scenarios the snapshot carries the accumulated pushed events; for
     // cluster pods it has none (the live poller streams them fresh).
     snapshot: (sc: any) => setEvents(sc?.podBundle?.events ?? []),

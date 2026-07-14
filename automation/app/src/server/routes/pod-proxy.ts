@@ -115,7 +115,16 @@ podProxyRouter.get('/:userId/app/:projectId/*', async (c) => {
       })
     }
     if (!rest) {
-      return new Response(b.app.html, { headers: { 'content-type': 'text/html; charset=utf-8' } })
+      // The captured HTML is the pod's page-serve output: `<base href="/app/<pid>/">`
+      // (assets) + `window.__APP_BASE__="/app/<pid>"` (the SPA router's basename).
+      // Repoint BOTH at this proxy path, else assets 404 at the real prod origin and
+      // the router can't strip its basename → "No page for <full path>".
+      const proxyBase = `${config.PREFIX}/api/pod/${userId}/app/${projectId}/`
+      const proxyBaseNoSlash = proxyBase.replace(/\/$/, '')
+      let html = b.app.html.replace(/<base\s+href=["'][^"']*["']\s*\/?>/i, `<base href="${proxyBase}">`)
+      if (!/<base\s/i.test(b.app.html)) html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}<base href="${proxyBase}">`)
+      html = html.replace(/window\.__APP_BASE__\s*=\s*["'][^"']*["']/, `window.__APP_BASE__ = ${JSON.stringify(proxyBaseNoSlash)}`)
+      return new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8' } })
     }
     const assetKey = rest.split('?')[0]
     const asset = b.app.assets[assetKey]

@@ -325,7 +325,16 @@
       "costUsd": null,
       "usage": null,
       "resetAt": null
+    },
+    {
+      "task": "10-family-recipes",
+      "round": 1,
+      "attempt": 1,
+      "bin": "claude",
+      "outcome": "running",
+      "startedAt": "2026-07-14T07:31:58.491Z",
+      "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-14T07:31:58.333Z"
+  "updatedAt": "2026-07-14T07:31:58.491Z"
 }

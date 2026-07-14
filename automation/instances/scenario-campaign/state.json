@@ -1,5 +1,9 @@
 {
-  "tasks": {},
+  "tasks": {
+    "08-small-shop": {
+      "round": 1
+    }
+  },
   "runs": [
     {
       "task": "05-latam",
@@ -60,5 +64,5 @@
       "resetAt": null
     }
   ],
-  "updatedAt": "2026-07-14T16:55:43.805Z"
+  "updatedAt": "2026-07-14T16:55:43.894Z"
 }

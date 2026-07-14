@@ -6,9 +6,14 @@
       "round": 1,
       "attempt": 1,
       "bin": "/home/vasilis/.claude-azure/launch.sh",
-      "outcome": "running",
+      "outcome": "interrupted",
       "startedAt": "2026-07-14T16:39:34.924Z",
-      "endedAt": null
+      "endedAt": "2026-07-14T16:44:58.275Z",
+      "subtype": null,
+      "isError": false,
+      "costUsd": null,
+      "usage": null,
+      "resetAt": null
     },
     {
       "task": "06-tanzania",
@@ -38,5 +43,5 @@
       "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-14T16:39:35.010Z"
+  "updatedAt": "2026-07-14T16:44:59.249Z"
 }

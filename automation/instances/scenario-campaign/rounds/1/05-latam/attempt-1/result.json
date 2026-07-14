@@ -1,0 +1,17 @@
+{
+  "bin": "/home/vasilis/.claude-azure/launch.sh",
+  "attempt": null,
+  "sessionId": "e39c1032-a3c5-4b8b-8a2f-80801394719b",
+  "model": "claude-sonnet-5",
+  "outcome": "interrupted",
+  "intent": "stop",
+  "stalled": false,
+  "subtype": null,
+  "isError": false,
+  "usage": null,
+  "costUsd": null,
+  "exitCode": null,
+  "resetAt": null,
+  "startedAt": "2026-07-14T16:39:34.948Z",
+  "endedAt": "2026-07-14T16:44:58.275Z"
+}

@@ -22,6 +22,20 @@ function cronLine(cfg) {
   return `0 */5 * * * cd ${AUTOMATION_ROOT} && node ${LMAUTO} loop ${cfg.name} >> ${log} 2>&1 ${cronTag(cfg.name)}`;
 }
 
+/**
+ * The watchdog cron: every 2 minutes, `ensure` restarts the loop iff it has died. Idempotent — it
+ * never spawns a second loop while one is alive — so it is the right thing to run on a fast tick and
+ * the safe cure for a silent overnight death (bounds dead time to ≤2 min instead of a health check's
+ * hour). The OS cron daemon supervises it, so it survives reboot and machine sleep.
+ */
+function watchTag(name) {
+  return `# lmthing-automation-watch-${name}`;
+}
+function watchLine(cfg) {
+  const log = cfg.paths.loopLog;
+  return `*/2 * * * * cd ${AUTOMATION_ROOT} && node ${LMAUTO} ensure ${cfg.name} >> ${log} 2>&1 ${watchTag(cfg.name)}`;
+}
+
 function readCrontab() {
   const r = spawnSync('crontab', ['-l'], { encoding: 'utf8' });
   return r.status === 0 ? r.stdout.split('\n').filter(Boolean) : [];
@@ -44,10 +58,30 @@ export function cronRemove(cfg) {
   process.stdout.write(`removed cron entry for ${cfg.name}.\n`);
 }
 
+export function watchInstall(cfg) {
+  const kept = readCrontab().filter((l) => !l.includes(watchTag(cfg.name)));
+  const line = watchLine(cfg);
+  writeCrontab([...kept, line]);
+  process.stdout.write(
+    `installed watchdog (every 2 min):\n  ${line}\n` +
+      `it restarts the loop only if it has died; \`lmauto stop\` disables it (respects a clean stop).\n` +
+      `logs → ${cfg.paths.loopLog}\n`,
+  );
+}
+
+export function watchRemove(cfg) {
+  const kept = readCrontab().filter((l) => !l.includes(watchTag(cfg.name)));
+  writeCrontab(kept);
+  process.stdout.write(`removed watchdog for ${cfg.name}.\n`);
+}
+
 export function status(cfg) {
-  const cron = readCrontab().find((l) => l.includes(cronTag(cfg.name)));
+  const crontab = readCrontab();
+  const cron = crontab.find((l) => l.includes(cronTag(cfg.name)));
+  const watch = crontab.find((l) => l.includes(watchTag(cfg.name)));
   process.stdout.write(`== instance: ${cfg.name} ==\n`);
-  process.stdout.write(`cron: ${cron ?? '(none)'}\n\n`);
+  process.stdout.write(`cron:  ${cron ?? '(none)'}\n`);
+  process.stdout.write(`watch: ${watch ? 'installed (ensure every 2 min)' : '(none — `lmauto schedule ' + cfg.name + ' watch-install`)'}\n\n`);
 
   const rt = existsSync(cfg.paths.runtime) ? readRuntime(cfg.paths.runtime) : null;
   if (rt) {

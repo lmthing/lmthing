@@ -26,7 +26,8 @@ import { loadState, writeControl } from './lib/state.mjs';
 import { runLoop } from './lib/loop.mjs';
 import { runTui } from './lib/tui.mjs';
 import { supervise } from './lib/supervise.mjs';
-import { cronInstall, cronRemove, status as scheduleStatus } from './lib/schedule.mjs';
+import { cronInstall, cronRemove, watchInstall, watchRemove, status as scheduleStatus } from './lib/schedule.mjs';
+import { ensureLoop } from './lib/supervisor.mjs';
 
 function parse(argv) {
   const positionals = [];
@@ -53,7 +54,8 @@ const USAGE = `lmauto — recurring autonomous Claude sessions
   lmauto run <instance> [task] [--dry-run] [--start-delay=SEC]
   lmauto loop <instance> [--interval=SEC] [--start-delay=SEC] [--parallel=N]
   lmauto supervise <instance> [--start-delay=SEC] [--duration=SEC] [--interval=SEC] [--parallel=N]
-  lmauto schedule <instance> cron-install|cron-remove|status
+  lmauto schedule <instance> cron-install|cron-remove|watch-install|watch-remove|status
+  lmauto ensure <instance>                     # restart the loop iff it has died (idempotent; for cron)
   lmauto pause|continue|skip|stop <instance> [task|slot#]
   lmauto status <instance>
   lmauto new <name>
@@ -109,13 +111,22 @@ async function main() {
     }
 
     case 'schedule': {
-      const name = positionals[0] ?? die('usage: lmauto schedule <instance> cron-install|cron-remove|status');
+      const name = positionals[0] ?? die('usage: lmauto schedule <instance> cron-install|cron-remove|watch-install|watch-remove|status');
       const action = positionals[1] ?? 'status';
       const cfg = await loadConfig(name);
       if (action === 'cron-install') cronInstall(cfg);
       else if (action === 'cron-remove') cronRemove(cfg);
+      else if (action === 'watch-install') watchInstall(cfg);
+      else if (action === 'watch-remove') watchRemove(cfg);
       else if (action === 'status') scheduleStatus(cfg);
       else die(`unknown schedule action "${action}"`);
+      return;
+    }
+
+    case 'ensure': {
+      const name = positionals[0] ?? die('usage: lmauto ensure <instance>');
+      const cfg = await loadConfig(name);
+      ensureLoop(cfg); // idempotent: restarts the loop only if it has died
       return;
     }
 

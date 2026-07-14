@@ -84,6 +84,16 @@ export async function runLoop(cfg, opts = {}) {
   mkdirSync(paths.stateDir, { recursive: true });
   mkdirSync(paths.roundsDir, { recursive: true });
 
+  // A loop that dies silently reads as "running" forever (status just re-reads the last runtime.json).
+  // Log a clear boundary so a restart — by hand or by the watchdog — is visible in loop.log's timeline,
+  // and keep a transient fault (a rejected write, a flaky throw) from taking the whole process down:
+  // the worker attempt loop already isolates run failures, so a stray top-level fault is not fatal.
+  if (!opts.dryRun) {
+    log(`loop starting — pid ${process.pid}, instance ${cfg.name}`);
+    process.on('uncaughtException', (e) => log(`uncaughtException (continuing): ${e?.stack || e}`));
+    process.on('unhandledRejection', (e) => log(`unhandledRejection (continuing): ${e?.stack || e}`));
+  }
+
   // An instance has exactly ONE loop, and it is the sole writer of the ledger. So a run still marked
   // `running` at startup belongs to a loop that died before it could record an outcome (killed
   // terminal, crash, reboot) — it will never be updated. Reap it, or it lies in `status` forever.

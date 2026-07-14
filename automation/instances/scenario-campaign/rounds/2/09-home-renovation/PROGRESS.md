@@ -1,6 +1,6 @@
 # PROGRESS — scenario-campaign · task `09-home-renovation` · round 2
 
-_Started 2026-07-14T15:09:35.392Z. The agent MUST update this file at every step._
+_Started 2026-07-14T15:16:01.877Z. The agent MUST update this file at every step._
 
 ## Steps
 

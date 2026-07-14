@@ -11,7 +11,7 @@
     "build": "pnpm --filter ./studio build",
     "build:pages": "pnpm --filter ./studio build:pages",
     "lint": "pnpm --filter ./studio lint",
-    "lint:tokens": "node sdk/org/libs/css/scripts/lint-design-tokens.mjs sdk/org/libs/css/src sdk/org/libs/ui/src sdk/org/apps/web/src com/src social/src team/src store/src space/src blog/src casa/src org/src",
+    "lint:tokens": "node sdk/org/libs/css/scripts/lint-design-tokens.mjs sdk/org/libs/css/src sdk/org/libs/ui/src sdk/org/apps/web/src com/src social/src team/src store/src space/src blog/src casa/src org/src automation/app/src",
     "docs:check": "cd org/docs/tools/docs-sync && npm install --no-audit --no-fund --silent && node check.mjs",
     "docs:migrate": "cd org/docs/tools/docs-sync && npm install --no-audit --no-fund --silent && node migrate.mjs",
     "preview": "pnpm --filter ./studio preview"

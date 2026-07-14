@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scenario-dash
+  namespace: lmthing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scenario-dash
+  template:
+    metadata:
+      labels:
+        app: scenario-dash
+    spec:
+      serviceAccountName: scenario-dash
+      imagePullSecrets:
+        - name: acr-pull-secret
+      containers:
+        - name: scenario-dash
+          image: lmthingacr.azurecr.io/scenario-dash:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          env:
+            - name: PORT
+              value: "3000"
+            # Shared secret gating viewer + ingest. Required (fail-closed if unset).
+            - name: DASH_VIEW_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: DASH_VIEW_TOKEN
+            # Lets the app mint gateway HS256 JWTs to wake/status pods.
+            - name: GATEWAY_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: lmthing-secrets
+                  key: GATEWAY_JWT_SECRET
+            - name: GATEWAY_BASE_URL
+              value: "https://lmthing.cloud"
+          # In-cluster it dials pods directly (POD_EDGE_BASE unset → DNS); in local
+          # dev POD_EDGE_BASE/POD_APP_BASE point at lmthing.chat/lmthing.app.
+          readinessProbe:
+            httpGet:
+              path: /scenario-dash/health
+              port: 3000
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /scenario-dash/health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "20m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scenario-dash
+  namespace: lmthing
+spec:
+  selector:
+    app: scenario-dash
+  ports:
+    - port: 3000
+      targetPort: 3000
+  type: ClusterIP
+---
+# ServiceAccount used by the dashboard to read pod container logs (pods/log) —
+# the ONE k8s RBAC grant the app needs; everything else (fs/sessions/app UI) goes
+# over pod HTTP (no auth, in-cluster DNS) and pod lifecycle goes through the gateway.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: scenario-dash
+  namespace: lmthing
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: lmthing-pod-log-reader
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: scenario-dash-pod-log-reader
+subjects:
+  - kind: ServiceAccount
+    name: scenario-dash
+    namespace: lmthing
+roleRef:
+  kind: ClusterRole
+  name: lmthing-pod-log-reader
+  apiGroup: rbac.authorization.k8s.io

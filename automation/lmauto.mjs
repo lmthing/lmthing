@@ -28,6 +28,7 @@ import { runTui } from './lib/tui.mjs';
 import { supervise } from './lib/supervise.mjs';
 import { cronInstall, cronRemove, watchInstall, watchRemove, status as scheduleStatus } from './lib/schedule.mjs';
 import { ensureLoop } from './lib/supervisor.mjs';
+import { clientCommand } from './lib/client.mjs';
 
 function parse(argv) {
   const positionals = [];
@@ -58,6 +59,7 @@ const USAGE = `lmauto — recurring autonomous Claude sessions
   lmauto ensure <instance>                     # restart the loop iff it has died (idempotent; for cron)
   lmauto pause|continue|skip|stop <instance> [task|slot#]
   lmauto status <instance>
+  lmauto client up|down|status|token [--app-url URL] [--token TOK] [--instance NAME]
   lmauto new <name>
   lmauto list
 `;
@@ -120,6 +122,12 @@ async function main() {
       else if (action === 'watch-remove') watchRemove(cfg);
       else if (action === 'status') scheduleStatus(cfg);
       else die(`unknown schedule action "${action}"`);
+      return;
+    }
+
+    case 'client': {
+      const action = positionals[0] ?? die('usage: lmauto client up|down|status|token');
+      clientCommand(action, flags);
       return;
     }
 

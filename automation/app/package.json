@@ -1,0 +1,36 @@
+{
+  "name": "@lmthing/scenario-dash",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev:server": "tsx watch src/server/index.ts",
+    "dev:ui": "vp dev",
+    "dev": "pnpm run /^dev:/",
+    "build": "tsc -p tsconfig.server.json --noEmit && esbuild src/server/index.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/server-bundle.mjs && vp build",
+    "start": "node dist/server-bundle.mjs",
+    "lint:tokens": "lmthing-lint-tokens src/ui",
+    "lint": "lmthing-lint-tokens src/ui"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.14.1",
+    "@lmthing/css": "workspace:*",
+    "hono": "^4.7.10",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@lmthing/config": "workspace:*",
+    "@tailwindcss/vite": "^4.1.17",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.0",
+    "esbuild": "^0.25.0",
+    "tailwindcss": "^4.1.17",
+    "tsx": "^4.19.4",
+    "typescript": "~5.9.3",
+    "vite": "^8.0.0",
+    "vite-plus": "latest"
+  }
+}

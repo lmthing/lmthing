@@ -85,6 +85,11 @@ vault_connections_enc_key: ""
 #   openssl rand -base64 32
 vault_render_service_token: ""
 
+# ── Scenario dashboard (automation/app) ──────────────────────
+# Shared bearer token gating the dashboard viewer + the local client ingest.
+# Generate with: openssl rand -base64 32
+vault_dash_view_token: ""
+
 # ── Stripe ────────────────────────────────────────────────────
 vault_stripe_secret_key: sk_live_xxx
 vault_stripe_webhook_secret: whsec_xxx

@@ -21,3 +21,4 @@ resources:
   - team.yaml
   - blog.yaml
   - casa.yaml
+  - scenario-dash.yaml

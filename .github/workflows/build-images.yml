@@ -22,6 +22,7 @@ on:
       - 'team/**'
       - 'blog/**'
       - 'casa/**'
+      - 'automation/app/**'
       # Monorepo-root workspace files: every root-context image runs
       # `pnpm install --frozen-lockfile` against these, so a change to any of
       # them (e.g. a lockfile sync) must trigger a rebuild of the web surfaces.
@@ -130,6 +131,11 @@ jobs:
               - 'casa/**'
               - 'sdk/org'
               - 'sdk/org/**'
+            scenariodash:
+              - *root
+              - 'automation/app/**'
+              - 'sdk/org'
+              - 'sdk/org/**'
 
       - name: Set image tag
         id: tag
@@ -153,6 +159,7 @@ jobs:
           TEAM: ${{ steps.changes.outputs.team }}
           BLOG: ${{ steps.changes.outputs.blog }}
           CASA: ${{ steps.changes.outputs.casa }}
+          SCENARIODASH: ${{ steps.changes.outputs.scenariodash }}
         run: |
           python3 << 'EOF' >> $GITHUB_OUTPUT
           import json, os
@@ -179,6 +186,7 @@ jobs:
             {"image": "team",     "dockerfile": "team/Dockerfile",                 "context": ".",             "manifest": "devops/argocd/core/team.yaml",                 "changed": changed("team")},
             {"image": "blog",     "dockerfile": "blog/Dockerfile",                 "context": ".",             "manifest": "devops/argocd/core/blog.yaml",                 "changed": changed("blog")},
             {"image": "casa",     "dockerfile": "casa/Dockerfile",                 "context": ".",             "manifest": "devops/argocd/core/casa.yaml",                 "changed": changed("casa")},
+            {"image": "scenario-dash", "dockerfile": "automation/app/Dockerfile",  "context": ".",             "manifest": "devops/argocd/core/scenario-dash.yaml",        "changed": changed("scenariodash")},
           ]
 
           matrix = [

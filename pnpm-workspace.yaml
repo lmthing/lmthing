@@ -10,6 +10,7 @@ packages:
   - org
   - sdk/org/libs/*
   - sdk/org/apps/*
+  - automation/app
 
 catalog:
   '@modelcontextprotocol/sdk': 1.29.0

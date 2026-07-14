@@ -14,6 +14,7 @@ on:
       - 'space/**'
       - 'blog/**'
       - 'casa/**'
+      - 'automation/app/**'
   push:
     branches: [main]
     paths:
@@ -25,6 +26,7 @@ on:
       - 'space/**'
       - 'blog/**'
       - 'casa/**'
+      - 'automation/app/**'
 
 jobs:
   lint-tokens:
@@ -40,4 +42,4 @@ jobs:
         run: >
           node sdk/org/libs/css/scripts/lint-design-tokens.mjs
           sdk/org/libs/css/src sdk/org/libs/ui/src sdk/org/apps/web/src
-          com/src social/src team/src store/src space/src blog/src casa/src
+          com/src social/src team/src store/src space/src blog/src casa/src automation/app/src

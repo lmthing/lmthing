@@ -1,0 +1,10 @@
+{
+  "name": "@lmthing/scenario-dash-client",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "start": "node client.mjs",
+    "once": "node client.mjs --once"
+  }
+}

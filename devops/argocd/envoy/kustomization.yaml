@@ -17,6 +17,7 @@ resources:
   - app-policies.yaml
   - activator-patch.yaml
   - spa-routes.yaml
+  - scenario-dash-routes.yaml
 
 replacements:
   # ── DOMAIN → lmthing.cloud hostnames ────────────────────────

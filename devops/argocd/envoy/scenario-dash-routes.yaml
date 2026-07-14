@@ -1,0 +1,57 @@
+# ── scenario dashboard: path-prefix route on lmthing.cloud ───────────────────
+# No wildcard *.lmthing.cloud DNS exists, so the dashboard reuses the lmthing.cloud
+# hostname + cert under a /scenario-dash prefix (one HTTPRoute, no new listener/cert).
+# The ReferenceGrant in reference-grants.yaml already lets gateway-ns HTTPRoutes
+# reference Services in the lmthing namespace. The app is mounted at /scenario-dash
+# (Hono serves SPA + /api + /events under that prefix), so NO URLRewrite is needed —
+# the prefix is forwarded as-is.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: scenario-dash
+  namespace: gateway
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: lmthing-gw
+      sectionName: cloud-https
+  hostnames:
+    - lmthing.cloud
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /scenario-dash
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: scenario-dash
+          namespace: lmthing
+          port: 3000
+          weight: 1
+---
+# HTTP→HTTPS redirect for the dashboard prefix on the HTTP listener.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: scenario-dash-redirect
+  namespace: gateway
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: lmthing-gw
+      sectionName: cloud-http
+  hostnames:
+    - lmthing.cloud
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /scenario-dash
+      filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301

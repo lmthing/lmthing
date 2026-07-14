@@ -4,6 +4,17 @@ _Started 2026-07-13T21:25:14.109Z. The agent MUST update this file at every step
 
 ## Steps
 
+- **[Resume 2026-07-14]** Re-oriented. Confirmed: parent `709f67b8` CI "Build and Push Images"
+  **succeeded** → `compute:709f67b` exists in ACR and carries the seed-idempotency fix. Test pod
+  `user-381651436288632458` deployment is already on `compute:709f67b` (scaled to zero, wakes on
+  request). Committed a stray uncommitted strengthening of Act I (`run.mjs`: assert the six REAL
+  bill figures the spreadsheet states, not just row counts — a fabricated bills table must FAIL)
+  + `reset-project.mjs` (sdk/org, staged mine only; the concurrent 08-small-shop agent's edits to
+  automator/thing `instruct.md` + `05-latam/*` left untouched). Resetting `life-admin` for a clean
+  re-verify of Act I on the fixed image (the old project carries pre-fix damage). Bash tool caps
+  `timeout` at 600000ms; long Acts (Act I build turn ~8min) run via `run_in_background` — this
+  harness re-invokes on background exit, so nothing is orphaned.
+
 - **Oriented.** Read `scenario.md` — it is NOT a stub: fully authored, six sections, 14 Acts, and
   §7 already names the eight never-before-tested claims it exists to force. `run.mjs` did **not**
   exist. So round 1 = implement the 14 Acts 1:1 from the spec (the round-1 rule: "do not rewrite

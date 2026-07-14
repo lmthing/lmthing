@@ -179,9 +179,43 @@
       "round": 1,
       "attempt": 1,
       "bin": "claude",
-      "outcome": "running",
+      "outcome": "done",
       "startedAt": "2026-07-14T06:22:27.723Z",
-      "endedAt": null
+      "endedAt": "2026-07-14T06:29:42.200Z",
+      "subtype": "success",
+      "isError": false,
+      "costUsd": 3.6779545,
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 2893,
+        "cache_read_input_tokens": 248445,
+        "output_tokens": 243,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 2893,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 127,
+            "cache_read_input_tokens": 124417,
+            "cache_creation_input_tokens": 2504,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 2504
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "resetAt": null
     },
     {
       "task": "08-small-shop",
@@ -193,5 +227,5 @@
       "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-14T06:22:27.762Z"
+  "updatedAt": "2026-07-14T06:29:43.041Z"
 }

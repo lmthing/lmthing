@@ -5,6 +5,9 @@
     },
     "05-latam": {
       "round": 1
+    },
+    "07-life-admin": {
+      "round": 1
     }
   },
   "runs": [
@@ -227,5 +230,5 @@
       "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-14T06:29:43.041Z"
+  "updatedAt": "2026-07-14T06:29:43.139Z"
 }

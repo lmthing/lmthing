@@ -84,5 +84,5 @@ export default {
   // the ONE shared local server, so their runs don't collide on state — but they share this working
   // tree AND the single Node event loop, so a rebuild+restart by one lane briefly drops the others'
   // sessions (the harness re-resumes them) and a product-bug fix can land under a sibling's feet.
-  maxParallel: 3,
+  maxParallel: 1,
 };

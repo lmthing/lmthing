@@ -1,0 +1,10 @@
+claude \
+  -p \
+  <see prompt.md> \
+  --dangerously-skip-permissions \
+  --output-format \
+  stream-json \
+  --verbose \
+  --resume \
+  f280afc7-7986-474a-adb2-c8f30e5aa1b8 \
+  --verbose

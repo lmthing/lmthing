@@ -10,6 +10,7 @@ _Started 2026-07-14T16:47:48.840Z. The agent MUST update this file at every step
 - 2026-07-14: Started/attached to the local pod and ran the harness smoke test. Provisioning, catalog reads, and a real THING turn passed (27.1 seconds; three LLM calls).
 - 2026-07-14: Ran baseline Act I locally. All five inputs were correctly routed; THING offered an organized, openable result citing four real specifics with zero premature authoring/building yields. Duration 189s; two recovered file-reader typecheck slips were recorded as retry metrics.
 - 2026-07-14: Triaged the recovered reader/sheet typecheck slips as raw document/spreadsheet content leaking into generated TypeScript. Added a general system-space instruction to synthesize source data rather than paste it as code, with a prompt-contract regression test; validation is running before rebuild/restart.
+- 2026-07-14: Rebuilt/restarted and re-ran Act I. Reader/sheet raw-content syntax slips stopped, but THING failed to offer because it referenced delegate results in a later evaluator statement (`readerAnswer` / `sheetAnswer` unavailable). The Act is honestly failing pending a surgical prompt/runtime-safe composition fix.
 
 ## Files added to context
 
@@ -28,3 +29,4 @@ _Started 2026-07-14T16:47:48.840Z. The agent MUST update this file at every step
 - `sdk/org/scenarios/06-tanzania/results/{checkpoint,report,trace}.json` / `.md` — local Act I trace and result.
 - `sdk/org/libs/core/system-spaces/system-files/agents/{reader,sheet}/instruct.md` — prompt source for the recovered typecheck slips.
 - `sdk/org/libs/core/src/spaces/prompt-contract.test.ts` — prompt regression-test convention.
+- `sdk/org/scenarios/06-tanzania/results/{checkpoint,report,trace}.json` / `.md` — post-restart Act I failure evidence.

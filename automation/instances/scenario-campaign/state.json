@@ -20,9 +20,14 @@
       "round": 1,
       "attempt": 1,
       "bin": "/home/vasilis/.claude-azure/launch.sh",
-      "outcome": "running",
+      "outcome": "interrupted",
       "startedAt": "2026-07-14T16:39:34.952Z",
-      "endedAt": null
+      "endedAt": "2026-07-14T16:44:58.281Z",
+      "subtype": null,
+      "isError": false,
+      "costUsd": null,
+      "usage": null,
+      "resetAt": null
     },
     {
       "task": "07-life-admin",
@@ -43,5 +48,5 @@
       "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-14T16:44:59.249Z"
+  "updatedAt": "2026-07-14T16:44:59.283Z"
 }

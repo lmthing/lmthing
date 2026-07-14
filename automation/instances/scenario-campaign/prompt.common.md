@@ -408,6 +408,16 @@ The improvement must be a **principle a competent colleague would agree with, st
   else. Any scenario-specific string in a system-space prompt (a persona's name, a fixture's contents,
   a table name from this scenario) is an automatic **FAIL of this round** — remove it.
 
+**This holds for EXAMPLES too — positive AND negative — not just instructions.** Every table name,
+column, id, price, booking ref, or persona you write into a system-space prompt to *illustrate* a
+point must be a **generic placeholder** (`service_log` / `services`, `orders`, `<the value from the
+file>`), never a literal from any scenario (`boiler_service_log`, `household_items`, `A3932`,
+`ZZJQUU`, `Elena`). Two reasons this is not pedantry: (1) an example in an agent's brain gets **copied
+into real output** — this already happened, hardcoded `flights`/`ATH→CAI`/ref `ZZJQUU` examples were
+landing verbatim in real users' data; a "don't do this" example is one careless read from becoming a
+"do this" template. (2) A concrete scenario name in even a *negative* example is still leaking the exam
+into the answer key. Grep your own prompt diff for scenario literals before you commit it.
+
 If you find yourself writing the scenario's specifics into an agent's brain to get a green, **stop**:
 the green would be a lie. Report the failure honestly instead — an honest FAIL is worth more than a
 fake PASS, and it is the whole point of this campaign.

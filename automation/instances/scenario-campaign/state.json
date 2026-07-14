@@ -556,28 +556,28 @@
       "round": 1,
       "attempt": 1,
       "bin": "claude",
-      "outcome": "running",
+      "outcome": "abandoned",
       "startedAt": "2026-07-14T12:32:01.669Z",
-      "endedAt": null
+      "endedAt": "2026-07-14T12:32:58.193Z"
     },
     {
       "task": "05-latam",
       "round": 2,
       "attempt": 1,
       "bin": "claude",
-      "outcome": "running",
+      "outcome": "abandoned",
       "startedAt": "2026-07-14T12:32:01.716Z",
-      "endedAt": null
+      "endedAt": "2026-07-14T12:32:58.193Z"
     },
     {
       "task": "06-tanzania",
       "round": 2,
       "attempt": 1,
       "bin": "claude",
-      "outcome": "running",
+      "outcome": "abandoned",
       "startedAt": "2026-07-14T12:32:01.759Z",
-      "endedAt": null
+      "endedAt": "2026-07-14T12:32:58.193Z"
     }
   ],
-  "updatedAt": "2026-07-14T12:32:01.759Z"
+  "updatedAt": "2026-07-14T12:32:58.193Z"
 }

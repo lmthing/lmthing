@@ -1,7 +1,7 @@
 {
   "tasks": {
     "06-tanzania": {
-      "round": 1
+      "round": 2
     },
     "05-latam": {
       "round": 1
@@ -611,5 +611,5 @@
       "resetAt": null
     }
   ],
-  "updatedAt": "2026-07-14T12:49:04.687Z"
+  "updatedAt": "2026-07-14T12:49:04.789Z"
 }

@@ -496,7 +496,16 @@
         "speed": "standard"
       },
       "resetAt": "2026-07-14T11:20:00.000Z"
+    },
+    {
+      "task": "10-family-recipes",
+      "round": 1,
+      "attempt": 2,
+      "bin": "claude",
+      "outcome": "running",
+      "startedAt": "2026-07-14T11:20:00.003Z",
+      "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-14T08:44:36.813Z"
+  "updatedAt": "2026-07-14T11:20:00.003Z"
 }

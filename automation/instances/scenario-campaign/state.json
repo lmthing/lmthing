@@ -127,9 +127,9 @@
       "round": 1,
       "attempt": 1,
       "bin": "claude",
-      "outcome": "running",
+      "outcome": "abandoned",
       "startedAt": "2026-07-13T21:25:14.109Z",
-      "endedAt": null
+      "endedAt": "2026-07-14T06:22:27.685Z"
     },
     {
       "task": "08-small-shop",
@@ -175,5 +175,5 @@
       "resetAt": "2026-07-13T23:10:00.000Z"
     }
   ],
-  "updatedAt": "2026-07-13T22:38:30.677Z"
+  "updatedAt": "2026-07-14T06:22:27.686Z"
 }

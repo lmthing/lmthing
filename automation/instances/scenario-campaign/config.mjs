@@ -64,7 +64,7 @@ export default {
   claude: {
     // Add backup accounts to keep running across a usage-limit reset, e.g.:
     // bins: ['claude', 'claude-work', 'claude-personal'],
-    bins: ['claude'],
+    bins: ['claude-az'],
     // cwd is the monorepo ROOT — the session has the WHOLE lmthing monorepo (parent repo AND the
     // sdk/org submodule) in scope, which it needs to edit product source, `pnpm build`, restart the
     // local server, and commit both repos. No extra --add-dir scoping.
@@ -84,5 +84,5 @@ export default {
   // the ONE shared local server, so their runs don't collide on state — but they share this working
   // tree AND the single Node event loop, so a rebuild+restart by one lane briefly drops the others'
   // sessions (the harness re-resumes them) and a product-bug fix can land under a sibling's feet.
-  maxParallel: 1,
+  maxParallel: 5,
 };

@@ -1,6 +1,6 @@
 # PROGRESS — scenario-campaign · task `08-small-shop` · round 1
 
-_Started 2026-07-14T16:37:06.620Z. The agent MUST update this file at every step._
+_Started 2026-07-14T16:39:35.010Z. The agent MUST update this file at every step._
 
 ## Steps
 

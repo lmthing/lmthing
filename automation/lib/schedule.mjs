@@ -8,18 +8,42 @@
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname, delimiter } from 'node:path';
 import { AUTOMATION_ROOT } from './config.mjs';
 import { loadState, readRuntime } from './state.mjs';
 
 const LMAUTO = join(AUTOMATION_ROOT, 'lmauto.mjs');
+
+/** Resolve which directory on the install-time PATH holds an executable named `bin`. */
+function whichDir(bin) {
+  const r = spawnSync('command', ['-v', bin], { shell: true, encoding: 'utf8' });
+  const p = r.status === 0 ? r.stdout.trim() : '';
+  return p ? dirname(p) : '';
+}
+
+/**
+ * cron runs with a minimal PATH (typically `/usr/bin:/bin`) that omits per-user install dirs like
+ * `~/.local/bin` (where `claude` lives) and a user-local node — a loop the watchdog spawns then
+ * inherits that PATH and every agent spawn dies with `spawn claude ENOENT`. So PREPEND just the dirs
+ * that hold `node` and the configured claude bin(s) to cron's own `$PATH` (keeping it as fallback).
+ * Compact — baking the whole install-time PATH overflows crontab's per-line limit.
+ */
+function pathPrefix(cfg) {
+  const dirs = new Set([dirname(process.execPath)]); // the node running this install
+  for (const bin of cfg?.claude?.bins ?? []) {
+    const d = whichDir(bin);
+    if (d) dirs.add(d);
+  }
+  const prefix = [...dirs].filter(Boolean).join(delimiter);
+  return prefix ? `PATH="${prefix}:$PATH" ` : '';
+}
 
 function cronTag(name) {
   return `# lmthing-automation-${name}`;
 }
 function cronLine(cfg) {
   const log = cfg.paths.loopLog;
-  return `0 */5 * * * cd ${AUTOMATION_ROOT} && node ${LMAUTO} loop ${cfg.name} >> ${log} 2>&1 ${cronTag(cfg.name)}`;
+  return `0 */5 * * * cd ${AUTOMATION_ROOT} && ${pathPrefix(cfg)}node ${LMAUTO} loop ${cfg.name} >> ${log} 2>&1 ${cronTag(cfg.name)}`;
 }
 
 /**
@@ -33,7 +57,7 @@ function watchTag(name) {
 }
 function watchLine(cfg) {
   const log = cfg.paths.loopLog;
-  return `*/2 * * * * cd ${AUTOMATION_ROOT} && node ${LMAUTO} ensure ${cfg.name} >> ${log} 2>&1 ${watchTag(cfg.name)}`;
+  return `*/2 * * * * cd ${AUTOMATION_ROOT} && ${pathPrefix(cfg)}node ${LMAUTO} ensure ${cfg.name} >> ${log} 2>&1 ${watchTag(cfg.name)}`;
 }
 
 function readCrontab() {

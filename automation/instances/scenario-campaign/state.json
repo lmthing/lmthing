@@ -1,0 +1,15 @@
+{
+  "tasks": {},
+  "runs": [
+    {
+      "task": "05-latam",
+      "round": 1,
+      "attempt": 1,
+      "bin": "claude-az",
+      "outcome": "running",
+      "startedAt": "2026-07-14T16:37:06.538Z",
+      "endedAt": null
+    }
+  ],
+  "updatedAt": "2026-07-14T16:37:06.538Z"
+}

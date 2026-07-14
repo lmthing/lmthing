@@ -173,7 +173,16 @@
         "speed": "standard"
       },
       "resetAt": "2026-07-13T23:10:00.000Z"
+    },
+    {
+      "task": "07-life-admin",
+      "round": 1,
+      "attempt": 1,
+      "bin": "claude",
+      "outcome": "running",
+      "startedAt": "2026-07-14T06:22:27.723Z",
+      "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-14T06:22:27.686Z"
+  "updatedAt": "2026-07-14T06:22:27.723Z"
 }

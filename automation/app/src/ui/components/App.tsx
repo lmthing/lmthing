@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getToken } from '../lib/api.js'
+import { getToken, setToken } from '../lib/api.js'
 import { useRoute } from '../lib/router.js'
 import { TokenGate } from './TokenGate.js'
 import { ScenarioList } from './ScenarioList.js'
@@ -8,6 +8,13 @@ import { ScenarioDetail } from './ScenarioDetail.js'
 export function App() {
   const [hasToken, setHasToken] = useState(!!getToken())
   const route = useRoute()
+
+  // Re-mirror the stored token into the cookie on boot: a user who unlocked before
+  // the cookie was introduced has it in localStorage only, so the served-app iframe
+  // would 401 until they re-enter it.
+  useEffect(() => {
+    if (getToken()) setToken(getToken())
+  }, [])
 
   useEffect(() => {
     if (!hasToken) setHasToken(!!getToken())
@@ -26,7 +33,7 @@ export function App() {
           <button
             className="ml-auto text-xs text-muted-foreground hover:text-foreground"
             onClick={() => {
-              localStorage.removeItem('scenario_dash_token')
+              setToken('')
               location.reload()
             }}
           >

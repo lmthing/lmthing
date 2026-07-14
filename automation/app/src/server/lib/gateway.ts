@@ -23,10 +23,18 @@ function sign(payload: Record<string, unknown>): string {
   return `${head}.${sig}`
 }
 
-/** Mint a gateway access token for a user (sub=userId). 12h TTL. */
+/**
+ * Mint a gateway access token for a user (sub=userId). 12h TTL.
+ *
+ * The gateway's verifyAccessToken (cloud/gateway/src/lib/tokens.ts) REJECTS any
+ * token whose `email` claim isn't a string — so it must be present or every
+ * wake/status call 401s. The status/wake routes derive the userId from `sub`,
+ * never from `email`, so the value itself is immaterial; a synthetic address is
+ * fine.
+ */
 export function mintGatewayJwt(userId: string, ttlSec = 43_200): string {
   const now = Math.floor(Date.now() / 1000)
-  return sign({ sub: userId, iat: now, exp: now + ttlSec })
+  return sign({ sub: userId, email: `${userId}@scenario-dash.local`, iat: now, exp: now + ttlSec })
 }
 
 async function gwReq<T = unknown>(method: string, path: string, token: string, body?: unknown): Promise<T> {

@@ -39,6 +39,13 @@ spec:
                   key: GATEWAY_JWT_SECRET
             - name: GATEWAY_BASE_URL
               value: "https://lmthing.cloud"
+            # Trust the cluster's internal CA so Node's global fetch can reach the
+            # k8s API server (pods/log) — without this every log fetch fails TLS
+            # verification with an opaque "fetch failed". The ca.crt is auto-mounted
+            # with the ServiceAccount token; this ADDS to the trust store, so the
+            # external HTTPS gateway calls above keep working.
+            - name: NODE_EXTRA_CA_CERTS
+              value: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
           # In-cluster it dials pods directly (POD_EDGE_BASE unset → DNS); in local
           # dev POD_EDGE_BASE/POD_APP_BASE point at lmthing.chat/lmthing.app.
           readinessProbe:

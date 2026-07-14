@@ -5,38 +5,11 @@
       "task": "05-latam",
       "round": 1,
       "attempt": 1,
-      "bin": "claude-az",
+      "bin": "/home/vasilis/.claude-azure/launch.sh",
       "outcome": "running",
-      "startedAt": "2026-07-14T16:37:06.538Z",
-      "endedAt": null
-    },
-    {
-      "task": "06-tanzania",
-      "round": 1,
-      "attempt": 1,
-      "bin": "claude-az",
-      "outcome": "running",
-      "startedAt": "2026-07-14T16:37:06.566Z",
-      "endedAt": null
-    },
-    {
-      "task": "07-life-admin",
-      "round": 1,
-      "attempt": 1,
-      "bin": "claude-az",
-      "outcome": "running",
-      "startedAt": "2026-07-14T16:37:06.594Z",
-      "endedAt": null
-    },
-    {
-      "task": "08-small-shop",
-      "round": 1,
-      "attempt": 1,
-      "bin": "claude-az",
-      "outcome": "running",
-      "startedAt": "2026-07-14T16:37:06.620Z",
+      "startedAt": "2026-07-14T16:39:34.924Z",
       "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-14T16:37:06.620Z"
+  "updatedAt": "2026-07-14T16:39:34.924Z"
 }

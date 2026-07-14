@@ -523,7 +523,16 @@
       "outcome": "abandoned",
       "startedAt": "2026-07-14T11:20:00.070Z",
       "endedAt": "2026-07-14T12:24:01.342Z"
+    },
+    {
+      "task": "10-family-recipes",
+      "round": 1,
+      "attempt": 1,
+      "bin": "claude",
+      "outcome": "running",
+      "startedAt": "2026-07-14T12:24:01.371Z",
+      "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-14T12:24:01.342Z"
+  "updatedAt": "2026-07-14T12:24:01.371Z"
 }

@@ -5,6 +5,9 @@
     },
     "06-tanzania": {
       "round": 1
+    },
+    "05-latam": {
+      "round": 1
     }
   },
   "runs": [
@@ -120,5 +123,5 @@
       "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-14T17:22:53.609Z"
+  "updatedAt": "2026-07-14T17:22:53.647Z"
 }

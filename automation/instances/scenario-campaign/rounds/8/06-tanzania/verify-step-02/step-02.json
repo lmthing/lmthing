@@ -1,0 +1,177 @@
+{
+  "step": 2,
+  "verbs": [
+    "say"
+  ],
+  "expect": [
+    "SPACES GET CREATED — one per leg (Cairo, the safari/Ngorongoro leg, Zanzibar, Dar es Salaam), each with its own agent, not one generic space",
+    "MY TRIP LANDS IN THE DB — legs, dates, lodging, costs, the park fees, what I've already paid",
+    "flight reference ZZJQUU (from the notes) is a real DB row — proof the notes were parsed, not guessed",
+    "the spreadsheet's cost lines land as DB rows (the run toward the 3344.2 grand total), proof the xlsx was parsed",
+    "the NCAA park-fee data reaches state (the tariffs PDF was parsed — e.g. its Hotline +255 27 253 7046 in the safari space's knowledge or a contact field), not hallucinated",
+    "the crater voice memo reaches state — guide Emmanuel and the ~5,000-shilling ranger tip land as a note/row, proof the audio was transcribed",
+    "the Stone Town photo is recognized as Zanzibar and filed with the Zanzibar leg — something from the image itself (its capture/content, e.g. Canon PowerShot SX30 IS), not the filename, reaches state",
+    "AN APP GETS BUILT on those tables — real pages showing my real rows — and served",
+    "NO RESEARCH HAPPENS in this whole build (no webSearch/webFetch yields): everything it needed, I handed it"
+  ],
+  "turns": [],
+  "asks": [],
+  "notes": [
+    "STEP THREW: Error: turn timed out after 600000ms"
+  ],
+  "error": "Error: turn timed out after 600000ms\n    at #dispatchAndWait (file:///home/vasilis/LMTHING/lmthing/sdk/org/scenarios/harness/lib/thing.mjs:351:7)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async file:///home/vasilis/LMTHING/lmthing/sdk/org/scenarios/run-yaml.mjs:245:18",
+  "state": {
+    "spaces": [
+      "Ngorongoro Advisor",
+      "Tanzania Trip Advisor",
+      "Tanzania Trip Budget",
+      "Zanzibar Advisor",
+      "Zanzibar Trip Advisor"
+    ],
+    "appTables": {
+      "accommodations": [
+        {
+          "id": "acc-1",
+          "name": "Eileen Hotel",
+          "location": "Cairo",
+          "dates": "Aug 3–5",
+          "nights": 2,
+          "cost_usd": 102,
+          "phone": "+20 15 56434043",
+          "email": "info@eileenhotel.com",
+          "notes": "21 Youssef El-Gendy St, Abdeen, Downtown Cairo (near Tahrir Square). Late checkout Aug 5 not used for sleep — fly out Aug 4 at 22:40."
+        },
+        {
+          "id": "acc-2",
+          "name": "Serengeti Villa",
+          "location": "Arusha",
+          "dates": "Aug 5–7",
+          "nights": 2,
+          "cost_usd": 62,
+          "phone": "+255 757 757 928",
+          "email": "",
+          "notes": "Pre-safari stay."
+        },
+        {
+          "id": "acc-3",
+          "name": "Suricata Safaris (Twiga Camp Site + Jevas Hotel)",
+          "location": "Safari circuit",
+          "dates": "Aug 7–9",
+          "nights": 2,
+          "cost_usd": 1200,
+          "phone": "",
+          "email": "",
+          "notes": "Package includes Tarangire (Twiga Camp Site, FB), Lake Manyara (Twiga Camp Site, FB), Ngorongoro Crater (Jevas Hotel, HB)."
+        },
+        {
+          "id": "acc-4",
+          "name": "Kutoka Lodge",
+          "location": "Arusha",
+          "dates": "Aug 9–11",
+          "nights": 2,
+          "cost_usd": 96,
+          "phone": "",
+          "email": "",
+          "notes": "Post-safari stay."
+        },
+        {
+          "id": "acc-5",
+          "name": "Treasures of Zanzibar House",
+          "location": "Stone Town, Zanzibar",
+          "dates": "Aug 11–13",
+          "nights": 2,
+          "cost_usd": 100,
+          "phone": "",
+          "email": "",
+          "notes": ""
+        },
+        {
+          "id": "acc-6",
+          "name": "Ayla Beach House",
+          "location": "Kiwengwa, Zanzibar",
+          "dates": "Aug 13–17",
+          "nights": 4,
+          "cost_usd": 304,
+          "phone": "",
+          "email": "",
+          "notes": "Beach stay on the north-east coast."
+        },
+        {
+          "id": "acc-7",
+          "name": "Sunny Shore B&B",
+          "location": "Dar es Salaam",
+          "dates": "Aug 17–19",
+          "nights": 2,
+          "cost_usd": 200,
+          "phone": "",
+          "email": "",
+          "notes": ""
+        },
+        {
+          "id": "acc-8",
+          "name": "Ramses Hilton",
+          "location": "Cairo",
+          "dates": "Aug 19–20",
+          "nights": 1,
+          "cost_usd": 87,
+          "phone": "",
+          "email": "",
+          "notes": "Departure stopover, 1 night."
+        }
+      ]
+    },
+    "appManifest": {
+      "tables": [
+        {
+          "name": "accommodations",
+          "schema": {
+            "title": "Accommodations",
+            "description": "Every place the travelers stay during the Tanzania trip.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true
+              },
+              "name": {
+                "type": "string",
+                "description": "Hotel/lodge/house name"
+              },
+              "location": {
+                "type": "string",
+                "description": "City or area"
+              },
+              "dates": {
+                "type": "string",
+                "description": "Date range e.g. Aug 3-5"
+              },
+              "nights": {
+                "type": "number",
+                "description": "Number of nights"
+              },
+              "cost_usd": {
+                "type": "number",
+                "description": "Cost in USD"
+              },
+              "phone": {
+                "type": "string",
+                "description": "Contact phone"
+              },
+              "email": {
+                "type": "string",
+                "description": "Contact email"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Extra notes"
+              }
+            }
+          }
+        }
+      ],
+      "pages": [],
+      "built": false
+    },
+    "error": null
+  }
+}

@@ -1,0 +1,242 @@
+{
+  "step": 1,
+  "verbs": [
+    "attach",
+    "say"
+  ],
+  "expect": [
+    "all five files are actually read — the photo LOOKED AT (vision), the voice memo TRANSCRIBED, the PDF and the spreadsheet PARSED",
+    "it OFFERS to organize this without being asked, naming at least two real specifics of mine (a place, a date, a booking)",
+    "it builds NOTHING yet — no spaces, no tables, no pages, no app (the offer precedes any authoring yield)"
+  ],
+  "turns": [
+    {
+      "sent": "Ok this is getting out of hand. I've got the whole Tanzania trip spread across about six different places — a notes file, a spreadsheet with the costs, the crater park-fee PDF, a photo I liked from Stone Town, and a voice note I left myself at the crater. Attaching all of it. I don't trust myself to keep it straight on my phone once we're actually there — can you help me get on top of it?",
+      "lastText": "{\"type\":\"Stack\",\"props\":{\"gap\":2},\"children\":[{\"type\":\"Heading\",\"props\":{\"level\":2},\"children\":[\"Ok, I've read everything you sent. Here's what you're carrying:\"]},{\"type\":\"Callout\",\"props\":{\"variant\":\"info\",\"title\":\"What you handed me\"},\"children\":[{\"type\":\"List\",\"props\":{\"items\":[\"Tanzania trip notes (tanzaniamemories.md) — itinerary, contacts, logistics, the whole plan.\",\"Trip costs spreadsheet (trip-costs.xlsx) — your budget and actuals.\",\"Ngorongoro park tariff PDF — official fee schedule.\",\"Stone Town photo — a quiet courtyard scene from Zanzibar.\",\"Voice memo from the crater — Emmanuel the driver-guide, Maasai bracelets for Athena Mari (paid ~TZS 35,000), and an unmentioned ranger tip of ~TZS 5,000 you need to ask Richard about.\"]},\"children\":[]}]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"This splits naturally into a few distinct parts — Zanzibar (Stone Town), the Ngorongoro crater / safari leg, and the overall trip budget. Each has its own facts, contacts, and things to remember, and the voice memo adds details that aren't in any written file.\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"I can \",{\"type\":\"Strong\",\"props\":{},\"children\":[\"pull all of this together\"]},\" so you can open one page on your phone and see everything — your itinerary, costs, park fees, that photo, and the loose ends from the voice note — instead of digging through six places. Want me to set that up?\"]}]}",
+      "delegates": [
+        "system-files/dispatch",
+        "system-vision/vision",
+        "system-files/reader",
+        "system-files/sheet"
+      ],
+      "yieldKinds": [
+        "loadKnowledge",
+        "inspect",
+        "setSessionMeta",
+        "delegate",
+        "readDocument"
+      ],
+      "yields": [
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "instructions.md"
+          ]
+        },
+        {
+          "kind": "inspect",
+          "args": [
+            {
+              "value": {
+                "ok": true,
+                "entries": []
+              }
+            }
+          ]
+        },
+        {
+          "kind": "setSessionMeta",
+          "args": [
+            {
+              "title": "Tanzania trip — get organised",
+              "slug": "tanzania-trip-organise"
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"dispatch\",null,{\"query\":\"Summarise these documents. For each one, give me a SHORT summary (2-3 sentences) plus EVERY concrete fact it contains: all names, dates, numbers, amounts, currencies, phone numbers, addresses, reference codes, and action items. Do NOT leave out a single figure — every number and named thing matters. Files: a markdown notes file, an Excel spreadsheet, and a…"
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-vision",
+            "vision",
+            null,
+            {
+              "query": "Describe this photo in a short paragraph — what location, what the scene looks like, any notable details that would help someone remember this moment.",
+              "attachmentIds": [
+                "7ff07eaa-c308-4ac2-a60d-0d22f238cfb3"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"reader\",null,{\"query\":\"Summarise these documents. For each one, give me a SHORT summary (2-3 sentences) plus EVERY concrete fact it contains: all names, dates, numbers, amounts, currencies, phone numbers, addresses, reference codes, and action items. Do NOT leave out a single figure — every number and named thing matters.\",\"attachmentIds\":[\"96d354fe-021b-4044-a4a7-37ee15934594\",\"e…"
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-files",
+            "sheet",
+            null,
+            {
+              "query": "Summarise these documents. For each one, give me a SHORT summary (2-3 sentences) plus EVERY concrete fact it contains: all names, dates, numbers, amounts, currencies, phone numbers, addresses, reference codes, and action items. Do NOT leave out a single figure — every number and named thing matters.",
+              "attachmentIds": [
+                "515b8d5b-cc17-4107-804c-2df95ab257e8"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/tabular/spreadsheet"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/word"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/overview"
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "96d354fe-021b-4044-a4a7-37ee15934594",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "515b8d5b-cc17-4107-804c-2df95ab257e8",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "ef520cc5-b8cb-4eb8-85f7-8d505aacdc1c",
+            null
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/text"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/pdf"
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "96d354fe-021b-4044-a4a7-37ee15934594",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "515b8d5b-cc17-4107-804c-2df95ab257e8",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "ef520cc5-b8cb-4eb8-85f7-8d505aacdc1c",
+            null
+          ]
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"## Summary of Three Documents: Tanzania Trip August 2026\\n\\n---\\n\\n### Document 1: tanzaniamemories.md (Trip Planning Notes)\\n\\n**SHORT SUMMARY:** Vasileios Kefallinos and companion Athina Mari have a fully booked 18-day international trip (August 3–20, 2026) spanning Cairo, northern Tanzania safari circuit, Zanzibar, and Dar es Salaam. All flights, accommodations, the safari, and a key…"
+        },
+        {
+          "kind": "inspect",
+          "args": [
+            {
+              "query": {
+                "path": "text"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"=== FROM READER (markdown + PDF specialist) ===\\n## Summary of Three Documents: Tanzania Trip August 2026\\n\\n---\\n\\n### Document 1: tanzaniamemories.md (Trip Planning Notes)\\n\\n**SHORT SUMMARY:** Vasileios Kefallinos and companion Athina Mari have a fully booked 18-day international trip (August 3–20, 2026) spanning Cairo, northern Tanzania safari circuit, Zanzibar, and Dar es Salaam. A…"
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"=== FROM READER (markdown + PDF specialist) ===\\n## Summary of Three Documents: Tanzania Trip August 2026\\n\\n---\\n\\n### Document 1: tanzaniamemories.md (Trip Planning Notes)\\n\\n**SHORT SUMMARY:** Vasileios Kefallinos and companion Athina Mari have a fully booked 18-day international trip (August 3–20, 2026) spanning Cairo, northern Tanzania safari circuit, Zanzibar, and Dar es Salaam. A…"
+        }
+      ],
+      "errors": [],
+      "nodes": [
+        {
+          "id": "delegate_3_73ec6e1d",
+          "status": "done",
+          "ms": 8258
+        },
+        {
+          "id": "delegate_5_e44c970f",
+          "status": "done",
+          "ms": 68735
+        },
+        {
+          "id": "delegate_4_c15959e4",
+          "status": "done",
+          "ms": 75259
+        },
+        {
+          "id": "delegate_2_bf49bcf9",
+          "status": "done",
+          "ms": 90201
+        },
+        {
+          "id": "run_1_c3d9b925",
+          "status": "done",
+          "ms": 126377
+        }
+      ],
+      "tokens": {
+        "in": 76380,
+        "out": 9786
+      },
+      "durationMs": 131829,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "attached": [
+    "tanzaniamemories.md",
+    "trip-costs.xlsx",
+    "ngorongoro-conservation-area-tariffs.pdf",
+    "stone-town-zanzibar.jpg",
+    "voice-memo.mp3"
+  ],
+  "state": {
+    "spaces": [],
+    "appTables": {},
+    "appManifest": {
+      "tables": [],
+      "pages": [],
+      "built": false
+    },
+    "error": null
+  }
+}

@@ -1,0 +1,206 @@
+{
+  "step": 1,
+  "verbs": [
+    "attach",
+    "say"
+  ],
+  "expect": [
+    "all five files are actually read — the photo LOOKED AT (vision), the voice memo TRANSCRIBED, the PDF and the spreadsheet PARSED",
+    "it OFFERS to organize this without being asked, naming at least two real specifics of mine (a place, a date, a booking)",
+    "it builds NOTHING yet — no spaces, no tables, no pages, no app (the offer precedes any authoring yield)"
+  ],
+  "turns": [
+    {
+      "sent": "Ok this is getting out of hand. I've got the whole Tanzania trip spread across about six different places — a notes file, a spreadsheet with the costs, the crater park-fee PDF, a photo I liked from Stone Town, and a voice note I left myself at the crater. Attaching all of it. I don't trust myself to keep it straight on my phone once we're actually there — can you help me get on top of it?",
+      "lastText": "{\"type\":\"Stack\",\"props\":{\"gap\":2},\"children\":[{\"type\":\"Heading\",\"props\":{\"level\":2},\"children\":[\"Alright, I've read everything — here's what I can see you've got\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"You're carrying around \",{\"type\":\"Strong\",\"props\":{},\"children\":[\"five separate pieces\"]},\" of Tanzania material: a detailed planning doc with your itinerary, contacts, and tips; a spreadsheet with your costs; the official Ngorongoro park-fee PDF; a voice memo from the crater with stuff nobody told you about (like that TZS 5,000 extra ranger tip and Emmanuel the driver-guide); and a lovely photo from a Stone Town courtyard with those carved wooden balconies.\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"None of it is in one place, and once you're on the ground with your phone, digging through attachments to find one number or contact is the last thing you want to be doing.\"]},{\"type\":\"Callout\",\"props\":{\"variant\":\"info\",\"title\":\"Here's what I'd propose\"},\"children\":[\"I can build you something you can open right here — a single page on your phone with your itinerary, all your costs in one table, the key contacts, and the stuff you need to remember (like that ranger tip), pulled together from everything you just sent me. Every fact from every one of those files lands somewhere you can check it, no digging required.\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Want me to put this together for you?\"]}]}",
+      "delegates": [
+        "system-vision/vision",
+        "system-files/dispatch",
+        "system-files/reader",
+        "system-files/sheet"
+      ],
+      "yieldKinds": [
+        "delegate",
+        "loadKnowledge",
+        "readDocument",
+        "inspect",
+        "setSessionMeta"
+      ],
+      "yields": [
+        {
+          "kind": "delegate",
+          "args": [
+            "system-vision",
+            "vision",
+            null,
+            {
+              "query": "Describe this photo. What is in it, what does it show, any visible details about the location or people?",
+              "attachmentIds": [
+                "6dec2931-1fa0-4038-bed0-f03eee9010f4"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"dispatch\",null,{\"query\":\"Summarize these documents concisely. For each file, give me: (1) what kind of document it is, (2) the key facts, names, dates, figures, and specifics it contains — especially costs, places, contact info, and anything that reads like a personal note or record. Be specific with numbers, names, and labels. Do not summarize vaguely — I need the concrete detail…"
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"reader\",null,{\"query\":\"Summarize these documents concisely. For each file, give me: (1) what kind of document it is, (2) the key facts, names, dates, figures, and specifics it contains — especially costs, places, contact info, and anything that reads like a personal note or record. Be specific with numbers, names, and labels. Do not summarize vaguely — I need the concrete details.…"
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"sheet\",null,{\"query\":\"Summarize this spreadsheet. Give me: (1) what kind of document it is, (2) the key facts, names, dates, figures, and specifics it contains — especially costs, places, contact info, and anything that reads like a personal note or record. Be specific with numbers, names, and labels. Do not summarize vaguely — I need the concrete details.\",\"attachmentIds\":[\"264c0…"
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/tabular/spreadsheet"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/text"
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "511347e3-59c4-4841-98e2-a78d129be086",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "264c0f04-724b-4944-8078-317a18740f67",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "1171a930-6bab-4c07-afda-eeb7401b70d9",
+            null
+          ]
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"Purpose & context\\nVasilis is planning a fully booked international trip in August 2026, traveling with a companion named Athina Mari. The trip spans Cairo (Egypt), Arusha and the northern Tanzania safari circuit, Zanzibar, and Dar es Salaam, running August 3–20. The trip combines cultural sightseeing in Cairo, a group camping safari through Tarangire, Lake Manyara, and Ngorongoro Crate…"
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/pdf"
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "511347e3-59c4-4841-98e2-a78d129be086",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "264c0f04-724b-4944-8078-317a18740f67",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "1171a930-6bab-4c07-afda-eeb7401b70d9",
+            null
+          ]
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"SUMMARY OF THREE TRIP DOCUMENTS\\n\\n=== FILE 1: tanzaniamemories.md (Markdown — personal trip notes/planning doc) ===\\n\\nType: Personal trip planning document written by Vasilis for a fully-booked Tanzania/Egypt trip with companion Athina Mari.\\n\\nDates: August 3–20, 2026 (17 nights total).\\n\\nFull Flight Itinerary (Vasileios Kefallinos + Athina Mari, total ~€2,707):\\n- Aug 3: ATH→CAI, A…"
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"SUMMARY OF THREE TRIP DOCUMENTS\\n\\n=== FILE 1: tanzaniamemories.md (Markdown — personal trip notes/planning doc) ===\\n\\nType: Personal trip planning document written by Vasilis for a fully-booked Tanzania/Egypt trip with companion Athina Mari.\\n\\nDates: August 3–20, 2026 (17 nights total).\\n\\nFull Flight Itinerary (Vasileios Kefallinos + Athina Mari, total ~€2,707):\\n- Aug 3: ATH→CAI, A…"
+        },
+        {
+          "kind": "setSessionMeta",
+          "args": [
+            {
+              "title": "Tanzania trip organizer",
+              "slug": "tanzania-trip-organizer"
+            }
+          ]
+        }
+      ],
+      "errors": [
+        {
+          "type": "typecheck_error",
+          "message": "Expression expected.; Cannot find name 'FILE'.",
+          "statement": "=== FILE",
+          "attempt": 1
+        },
+        {
+          "type": "typecheck_error",
+          "message": "Parameter 'l' implicitly has an 'any' type.; Parameter 'l' implicitly has an 'any' type.",
+          "statement": "// The inspect didn't give me a usable variable — docsAnswer and sheetAnswer are already in scope as strings. The VARIABLES block shows truncated previews but the real values are full. I'll combine them with attribution and resolve.\nconst combined = `=== DOCUMENT 1: tanzaniamemories.md (Markdown) ===\\n` + docsAnswer.split('\\n').filter(l => l.startsWith('=== FILE 1:')).join('\\n').replace('=== FILE 1:', '').trim() + '\\n\\n' + `=== DOCUMENT 2: ngorongoro-conservation-area-tariffs.pdf (PDF) ===\\n` + docsAnswer.split('\\n').filter(l => l.includes('FILE 2:')).join('\\n').replace('=== FILE 2:', '').trim() + '\\n\\n=== DOCUMENT 3: trip-costs.xlsx (Spreadsheet) ===\\n' + sheetAnswer;",
+          "attempt": 1
+        }
+      ],
+      "nodes": [
+        {
+          "id": "delegate_2_cf5bbdec",
+          "status": "done",
+          "ms": 7826
+        },
+        {
+          "id": "delegate_5_4c90ee2a",
+          "status": "done",
+          "ms": 35267
+        },
+        {
+          "id": "delegate_4_dbe8e510",
+          "status": "done",
+          "ms": 43410
+        },
+        {
+          "id": "delegate_3_745fa99e",
+          "status": "done",
+          "ms": 77726
+        },
+        {
+          "id": "run_1_fd98b00f",
+          "status": "done",
+          "ms": 112374
+        }
+      ],
+      "tokens": {
+        "in": 57841,
+        "out": 5272
+      },
+      "durationMs": 118359,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "attached": [
+    "tanzaniamemories.md",
+    "trip-costs.xlsx",
+    "ngorongoro-conservation-area-tariffs.pdf",
+    "stone-town-zanzibar.jpg",
+    "voice-memo.mp3"
+  ],
+  "state": {
+    "spaces": [],
+    "appTables": {},
+    "appManifest": {
+      "tables": [],
+      "pages": [],
+      "built": false
+    },
+    "error": null
+  }
+}

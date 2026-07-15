@@ -1,0 +1,637 @@
+{
+  "step": 3,
+  "verbs": [
+    "open_app"
+  ],
+  "expect": [
+    "the app opens with real values on screen (non-zero counts, actual leg/cost values), not an empty shell",
+    "no console errors and no failed fetches; the app's own API routes return 200 with the right shape"
+  ],
+  "turns": [],
+  "asks": [],
+  "notes": [
+    "opened app (built + fetched root page; browser render is the judge's job)"
+  ],
+  "appBuild": {
+    "built": true,
+    "routes": [
+      {
+        "routePath": "/",
+        "file": "pages/index.tsx"
+      }
+    ],
+    "error": null
+  },
+  "appPageStatus": 200,
+  "state": {
+    "spaces": [
+      "Ngorongoro Safari Specialist",
+      "Tanzania Trip Advisor",
+      "Zanzibar Advisor"
+    ],
+    "appTables": {
+      "contacts": [
+        {
+          "id": "870d201f-111e-41d3-94ac-96f048fefe15",
+          "name": "Richard",
+          "role": "Safari contact — Suricata Safaris Ltd",
+          "phone": "+255 763 222 293",
+          "email": "info@suricatasafaris.com",
+          "notes": "Office contact for safari. Balance $960 due on arrival (cash USD, post-2009 notes) or Pesapal +5%. Ask about extra ranger tip at Ngorongoro gate."
+        },
+        {
+          "id": "9a704d2b-2460-4355-9598-1009b83d3d9a",
+          "name": "Emmanuel",
+          "role": "Driver-guide (from voice memo)",
+          "phone": "",
+          "email": "",
+          "notes": "Safari driver-guide mentioned in voice memo. With Suricata Safaris."
+        },
+        {
+          "id": "eaab12ba-d00a-4583-ab03-21415de9b54a",
+          "name": "The Rock Restaurant",
+          "role": "Dining reservation — Zanzibar",
+          "phone": "+255 776 591 360 / +255 763 070 658",
+          "email": "booking@therockrestaurantzanzibar.com",
+          "notes": "Dinner Aug 15, 18:00–20:00, 2 adults, fully paid $46. Outdoor seating for sunset."
+        },
+        {
+          "id": "f215b9a8-cfde-4f7f-81ce-e2c225c6fa74",
+          "name": "Serengeti Villa",
+          "role": "Accommodation — Arusha",
+          "phone": "+255 757 757 928",
+          "email": "",
+          "notes": "Aug 5–7, pre-safari stay."
+        },
+        {
+          "id": "d8fddf49-3f0f-41c2-b04a-cbe8011b86d0",
+          "name": "Eileen Hotel",
+          "role": "Accommodation — Cairo",
+          "phone": "+20 15 56434043",
+          "email": "info@eileenhotel.com",
+          "notes": "21 Youssef El-Gendy St, Abdeen, Downtown Cairo. Aug 3–5. Near Tahrir Square."
+        },
+        {
+          "id": "d7f99865-1fda-4dd8-9c91-ce64dc3bf8bb",
+          "name": "Ngorongoro Information Office",
+          "role": "Park authority",
+          "phone": "+255 734 160 014 / +255 734 160 015",
+          "email": "cc@ncaa.go.tz",
+          "notes": "Ngorongoro Conservation Area Authority. Website: ncaa.go.tz"
+        }
+      ],
+      "itinerary": [
+        {
+          "id": "723a8003-ccb8-4b37-bb06-af3ddaa6016c",
+          "day": 1,
+          "date": "Aug 3",
+          "location": "Athens → Cairo",
+          "description": "Aegean A3932 ATH→CAI 06:55–08:50, ref ZZJQUU. Grand Egyptian Museum & Pyramids of Giza.",
+          "accommodation": "Eileen Hotel, Cairo",
+          "flight": "Aegean A3932"
+        },
+        {
+          "id": "762ef36f-ae97-41db-9527-8eaf5ea47ad8",
+          "day": 2,
+          "date": "Aug 4",
+          "location": "Cairo → Dar es Salaam",
+          "description": "Day exploring Cairo. Evening flight: EgyptAir CAI→DAR 22:40–04:20+1.",
+          "accommodation": "Overnight flight",
+          "flight": "EgyptAir CAI→DAR"
+        },
+        {
+          "id": "539fc0be-b975-46ce-9ee9-d1e379262766",
+          "day": 3,
+          "date": "Aug 5",
+          "location": "Dar es Salaam → Arusha",
+          "description": "Arrive DAR 04:20. Precision Air TC144 DAR→ARK 10:50–12:00. Transfer to Serengeti Villa.",
+          "accommodation": "Serengeti Villa, Arusha",
+          "flight": "Precision Air TC144"
+        },
+        {
+          "id": "d427cf26-a0d6-47a9-ba8f-1876850166b4",
+          "day": 4,
+          "date": "Aug 6",
+          "location": "Arusha",
+          "description": "Free day in Arusha. Rest and prep for safari.",
+          "accommodation": "Serengeti Villa, Arusha",
+          "flight": ""
+        },
+        {
+          "id": "d44aa2fe-e656-4728-9fe5-239c85206023",
+          "day": 5,
+          "date": "Aug 7",
+          "location": "Tarangire National Park",
+          "description": "Safari day 1: Tarangire National Park. Group camping safari with Suricata Safaris.",
+          "accommodation": "Twiga Camp Site, Tarangire",
+          "flight": ""
+        },
+        {
+          "id": "4cf80439-e0c9-4345-aa47-fa5ed783cb76",
+          "day": 6,
+          "date": "Aug 8",
+          "location": "Lake Manyara",
+          "description": "Safari day 2: Lake Manyara National Park.",
+          "accommodation": "Twiga Camp Site, Lake Manyara",
+          "flight": ""
+        },
+        {
+          "id": "4542037a-c6bb-4edd-8e1e-cdbbc3275b56",
+          "day": 7,
+          "date": "Aug 9",
+          "location": "Ngorongoro Crater",
+          "description": "Safari day 3: Ngorongoro Crater descent. Transfer back to Arusha in afternoon.",
+          "accommodation": "Kutoka Lodge, Arusha",
+          "flight": ""
+        },
+        {
+          "id": "042e19a3-f538-46b8-b158-53c25562196f",
+          "day": 8,
+          "date": "Aug 10",
+          "location": "Arusha",
+          "description": "Free day / rest day post-safari.",
+          "accommodation": "Kutoka Lodge, Arusha",
+          "flight": ""
+        },
+        {
+          "id": "ae69f11a-3a01-42c2-b7e4-b5f061394b63",
+          "day": 9,
+          "date": "Aug 11",
+          "location": "Arusha → Zanzibar (Stone Town)",
+          "description": "Precision Air TC145 ARK→ZNZ 12:40–13:40. Explore Stone Town.",
+          "accommodation": "Treasures of Zanzibar House",
+          "flight": "Precision Air TC145"
+        },
+        {
+          "id": "b6d3fd43-7e1a-4975-9890-ddcea0f82de6",
+          "day": 10,
+          "date": "Aug 12",
+          "location": "Zanzibar – Stone Town",
+          "description": "Full day exploring Stone Town: markets, alleys, history.",
+          "accommodation": "Treasures of Zanzibar House",
+          "flight": ""
+        },
+        {
+          "id": "81a68483-7cb9-4d9d-a271-f4df98eef9f8",
+          "day": 11,
+          "date": "Aug 13",
+          "location": "Zanzibar – Kiwengwa",
+          "description": "Move to Ayla Beach House on the north coast (Kiwengwa). Beach time.",
+          "accommodation": "Ayla Beach House, Kiwengwa",
+          "flight": ""
+        },
+        {
+          "id": "602e1e57-ed44-437e-9e0b-d49d11f2e85a",
+          "day": 12,
+          "date": "Aug 14",
+          "location": "Zanzibar – Kiwengwa",
+          "description": "Beach day. North coast (Nungwi area) has more consistent swimming conditions.",
+          "accommodation": "Ayla Beach House, Kiwengwa",
+          "flight": ""
+        },
+        {
+          "id": "22d7b3f5-5f65-4c1e-abe9-1eb5bd940f4e",
+          "day": 13,
+          "date": "Aug 15",
+          "location": "Zanzibar – Kiwengwa",
+          "description": "The Rock Restaurant dinner, 18:00–20:00, 2 adults, outdoor seating. Tropical Passion Fruit Cheesecake included.",
+          "accommodation": "Ayla Beach House, Kiwengwa",
+          "flight": ""
+        },
+        {
+          "id": "717f4720-2de2-4567-90e7-9980c88d0145",
+          "day": 14,
+          "date": "Aug 16",
+          "location": "Zanzibar – Kiwengwa",
+          "description": "Beach day. Carry IDP + local Zanzibar Driving Permit if renting.",
+          "accommodation": "Ayla Beach House, Kiwengwa",
+          "flight": ""
+        },
+        {
+          "id": "b70fa809-371b-4ef9-8113-fcccf2b3032d",
+          "day": 15,
+          "date": "Aug 17",
+          "location": "Zanzibar → Dar es Salaam",
+          "description": "Ferry to Dar es Salaam. City exploration: Kivukoni Fish Market, Kariakoo Market.",
+          "accommodation": "Sunny Shore B&B, Dar es Salaam",
+          "flight": ""
+        },
+        {
+          "id": "30322a84-7687-4637-8d08-ee2c1c024140",
+          "day": 16,
+          "date": "Aug 18",
+          "location": "Dar es Salaam",
+          "description": "City exploration: National Museum, Coco Beach, Bongoyo Island.",
+          "accommodation": "Sunny Shore B&B, Dar es Salaam",
+          "flight": ""
+        },
+        {
+          "id": "67366b93-90c9-4382-8ee3-79cfe1e56b3a",
+          "day": 17,
+          "date": "Aug 19",
+          "location": "Dar es Salaam → Cairo",
+          "description": "Morning flight EgyptAir DAR→CAI 05:20–11:05. Islamic Cairo, Citadel, Khan el-Khalili, Coptic Cairo.",
+          "accommodation": "Ramses Hilton, Cairo",
+          "flight": "EgyptAir DAR→CAI"
+        },
+        {
+          "id": "039ed3a6-6519-4806-9e59-36f2a0da5117",
+          "day": 18,
+          "date": "Aug 20",
+          "location": "Cairo → Athens",
+          "description": "Aegean A3935 CAI→ATH 19:55–22:00, ref ZZL22S. Home!",
+          "accommodation": "",
+          "flight": "Aegean A3935"
+        }
+      ],
+      "trip_costs": [
+        {
+          "id": "a8668cfe-02d3-4920-843a-f3f154cb0200",
+          "item": "Flights — ATH-CAI-DAR-ARK-ZNZ-DAR-CAI-ATH (both travelers, 6 legs)",
+          "category": "flights",
+          "amount": 2707,
+          "currency": "EUR",
+          "payment_status": "paid",
+          "display_order": 1
+        },
+        {
+          "id": "5737fcba-ffa8-4abb-8db6-3aacd589bd06",
+          "item": "Suricata Safaris 3-day group camping safari (2 pax)",
+          "category": "safari",
+          "amount": 1200,
+          "currency": "USD",
+          "payment_status": "paid",
+          "display_order": 2
+        },
+        {
+          "id": "3ae7f2f5-25ca-4d02-9450-58301150b466",
+          "item": "  — deposit paid (20%)",
+          "category": "safari",
+          "amount": 240,
+          "currency": "USD",
+          "payment_status": "paid",
+          "display_order": 3
+        },
+        {
+          "id": "df79f531-4580-4232-8a8b-1cbf924af3b0",
+          "item": "  — balance due on arrival (cash, post-2009 USD notes)",
+          "category": "safari",
+          "amount": 960,
+          "currency": "USD",
+          "payment_status": "unpaid",
+          "display_order": 4
+        },
+        {
+          "id": "1cd1f8fe-d140-4ad1-89ed-f92c0bde1902",
+          "item": "The Rock Restaurant dinner, Zanzibar, Aug 15",
+          "category": "dining",
+          "amount": 46,
+          "currency": "USD",
+          "payment_status": "paid",
+          "display_order": 5
+        },
+        {
+          "id": "e91f877b-9830-4e32-bb42-3b9e0eb5df2e",
+          "item": "Zanzibar local driving permit (per driver, ~3mo validity)",
+          "category": "transport",
+          "amount": 15,
+          "currency": "USD",
+          "payment_status": "unpaid",
+          "display_order": 6
+        },
+        {
+          "id": "221a84d1-42d1-40cf-b0f8-ff49f246e577",
+          "item": "Tanzania e-visa (2 travelers × $50)",
+          "category": "visa",
+          "amount": 100,
+          "currency": "USD",
+          "payment_status": "unpaid",
+          "display_order": 7
+        },
+        {
+          "id": "cb525bbe-128f-4378-8edb-298b6b686ff8",
+          "item": "Egypt e-visa, multiple-entry (2 travelers × $65)",
+          "category": "visa",
+          "amount": 130,
+          "currency": "USD",
+          "payment_status": "unpaid",
+          "display_order": 8
+        },
+        {
+          "id": "f235c7cf-f87b-420d-9de5-b34ae9fd5091",
+          "item": "Zanzibar mandatory travel insurance, ZIC (2 travelers × $44)",
+          "category": "insurance",
+          "amount": 88,
+          "currency": "USD",
+          "payment_status": "unpaid",
+          "display_order": 9
+        },
+        {
+          "id": "01def3a4-dcca-430c-869f-b08597bf7a7f",
+          "item": "Ngorongoro Conservation Area entry permit (2 pax × $70.80)",
+          "category": "park fees",
+          "amount": 141.6,
+          "currency": "USD",
+          "payment_status": "unpaid",
+          "display_order": 10
+        },
+        {
+          "id": "14de63d7-15f4-4eda-9129-da74bb13186c",
+          "item": "Ngorongoro crater service fee (2 pax × $70.80)",
+          "category": "park fees",
+          "amount": 141.6,
+          "currency": "USD",
+          "payment_status": "unpaid",
+          "display_order": 11
+        },
+        {
+          "id": "6035f4dc-5add-4f95-ace7-a38686fb95b8",
+          "item": "Ngorongoro crater vehicle descent fee (per vehicle/trip)",
+          "category": "park fees",
+          "amount": 295,
+          "currency": "USD",
+          "payment_status": "unpaid",
+          "display_order": 12
+        },
+        {
+          "id": "1f2651ae-844f-4488-95d8-53aadfddf3d5",
+          "item": "Tarangire NP entrance (2 pax × $59, peak season)",
+          "category": "park fees",
+          "amount": 118,
+          "currency": "USD",
+          "payment_status": "unpaid",
+          "display_order": 13
+        },
+        {
+          "id": "050ceaf5-5760-4f7b-a696-7335c4a268e8",
+          "item": "Lake Manyara NP entrance (2 pax × $59, peak season)",
+          "category": "park fees",
+          "amount": 118,
+          "currency": "USD",
+          "payment_status": "unpaid",
+          "display_order": 14
+        },
+        {
+          "id": "9a80689c-99cc-499a-b939-a72003889991",
+          "item": "Lodging total (from legs sheet, excl. safari package)",
+          "category": "lodging",
+          "amount": 951,
+          "currency": "USD",
+          "payment_status": "paid",
+          "display_order": 15
+        },
+        {
+          "id": "80fbdd86-7a72-4379-b35d-458487a46ba3",
+          "item": "TOTAL (USD, excl. flights which are in EUR)",
+          "category": "total",
+          "amount": 3344.2,
+          "currency": "USD",
+          "payment_status": "n/a",
+          "display_order": 16
+        }
+      ],
+      "trip_notes": [
+        {
+          "id": "9df39cb6-63b3-4098-8c21-a6536a2d704c",
+          "category": "tip",
+          "note": "Extra ranger tip at Ngorongoro gate",
+          "detail": "Need to ask Richard about this. Estimated ~TZS 5,000 cash per ranger. Have small TZS notes ready.",
+          "amount": "~TZS 5,000"
+        },
+        {
+          "id": "62f7cea9-ce5f-4222-83ca-b869d9d39ee4",
+          "category": "purchase",
+          "note": "Maasai bracelet purchase",
+          "detail": "Two bracelets for Athina Mari from a Maasai lady at the Ngorongoro rim. Negotiate to ~$20-25 total or ~TZS 35,000.",
+          "amount": "~$20-25 / TZS 35,000"
+        },
+        {
+          "id": "726ed899-526f-4256-b1c9-ede3f8e9fa40",
+          "category": "reminder",
+          "note": "Safari balance payment",
+          "detail": "$960 USD balance due on arrival to Suricata Safaris. Cash (post-2009 USD notes) preferred. Pesapal online adds 5% surcharge. Confirm with Richard.",
+          "amount": "$960"
+        },
+        {
+          "id": "499dcf7c-7b98-4ab5-8410-d43c5049b3e8",
+          "category": "visa",
+          "note": "Tanzania e-visa required",
+          "detail": "Apply online at visa.immigration.go.tz. $50/person. Visa-on-arrival no longer available as of Jan 2025. Both travelers need one.",
+          "amount": "$100 total"
+        },
+        {
+          "id": "31a518e0-58fe-48c8-b22b-8e6023534b5c",
+          "category": "visa",
+          "note": "Egypt e-visa (multiple-entry)",
+          "detail": "Both travelers apply separately. $65/person. Printed copy mandatory. Must be multiple-entry for the two Cairo stopovers.",
+          "amount": "$130 total"
+        },
+        {
+          "id": "1241c054-db72-414c-8368-fdf0436e9774",
+          "category": "reminder",
+          "note": "Zanzibar mandatory travel insurance",
+          "detail": "From Zanzibar Insurance Corporation (ZIC). $44/person. Must be arranged before travel.",
+          "amount": "$88 total"
+        },
+        {
+          "id": "6c302bb3-f084-4acc-95cb-91603c22b2c2",
+          "category": "driving",
+          "note": "Zanzibar local driving permit",
+          "detail": "Vasilis has IDP. A local Zanzibar Driving Permit also required (~$15, valid up to 3 months). Most rental companies arrange with license photo 24h+ in advance. Police checkpoints are frequent — carry both permits (screenshot OK).",
+          "amount": "~$15"
+        },
+        {
+          "id": "1693998b-f49a-4a4d-a58d-2dc5a1923204",
+          "category": "packing",
+          "note": "Ngorongoro nights are cold",
+          "detail": "Bring warm layers for Ngorongoro Crater. August is cool at elevation.",
+          "amount": ""
+        },
+        {
+          "id": "262a4b8b-9961-4c78-a6b3-6f12a21cb87f",
+          "category": "packing",
+          "note": "Soft bags for Precision Air",
+          "detail": "Precision Air TC144/TC145 have luggage restrictions favouring soft bags. Pack accordingly for safari and Zanzibar legs.",
+          "amount": ""
+        },
+        {
+          "id": "8e724f41-5596-4e74-8a70-4890583b63c7",
+          "category": "packing",
+          "note": "Safari clothing & insect repellent",
+          "detail": "Decathlon (Forclaz trekking line) recommended. DEET-based insect repellent essential.",
+          "amount": ""
+        },
+        {
+          "id": "666ab292-2a4d-4cd3-ae17-29b6b8c29bf7",
+          "category": "reminder",
+          "note": "August is peak safari season",
+          "detail": "Ideal for wildlife including the Great Wildebeest Migration corridor. Expect other vehicles but great sightings.",
+          "amount": ""
+        },
+        {
+          "id": "cad00db8-cf70-4fee-90d9-1402ccef2d2a",
+          "category": "reminder",
+          "note": "Zanzibar swimming — north coast better",
+          "detail": "North coast (Nungwi area) has more consistent swimming conditions vs east/south coasts where low tide limits access.",
+          "amount": ""
+        }
+      ]
+    },
+    "appManifest": {
+      "tables": [
+        {
+          "name": "contacts",
+          "schema": {
+            "title": "Trip Contacts",
+            "description": "Key contacts for the Tanzania trip.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "name": {
+                "type": "string",
+                "description": "Full name"
+              },
+              "role": {
+                "type": "string",
+                "description": "Role / who they are"
+              },
+              "phone": {
+                "type": "string",
+                "description": "Phone number"
+              },
+              "email": {
+                "type": "string",
+                "description": "Email address"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Additional notes"
+              }
+            }
+          }
+        },
+        {
+          "name": "itinerary",
+          "schema": {
+            "title": "Itinerary",
+            "description": "Trip day-by-day schedule for the Tanzania adventure.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "day": {
+                "type": "number",
+                "description": "Day number"
+              },
+              "date": {
+                "type": "string",
+                "description": "Date or date range"
+              },
+              "location": {
+                "type": "string",
+                "description": "Location / destination"
+              },
+              "description": {
+                "type": "string",
+                "description": "What is happening on this day"
+              },
+              "accommodation": {
+                "type": "string",
+                "description": "Where we stay"
+              },
+              "flight": {
+                "type": "string",
+                "description": "Flight reference if applicable"
+              }
+            }
+          }
+        },
+        {
+          "name": "trip_costs",
+          "schema": {
+            "title": "Trip Costs",
+            "description": "All trip costs from the Tanzania 2026 trip spreadsheet. Every line item with category, amount, currency, and payment status.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "item": {
+                "type": "string",
+                "description": "Description of the cost item"
+              },
+              "category": {
+                "type": "string",
+                "description": "Category: flights, safari, dining, transport, visa, insurance, park fees, lodging, total"
+              },
+              "amount": {
+                "type": "number",
+                "description": "Monetary amount"
+              },
+              "currency": {
+                "type": "string",
+                "description": "EUR or USD"
+              },
+              "payment_status": {
+                "type": "string",
+                "description": "paid, deposit paid, unpaid, or n/a"
+              },
+              "display_order": {
+                "type": "number",
+                "description": "Sort order for display"
+              }
+            }
+          }
+        },
+        {
+          "name": "trip_notes",
+          "schema": {
+            "title": "Trip Notes & Reminders",
+            "description": "Important reminders, tips, purchases, and notes for the Tanzania trip.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "category": {
+                "type": "string",
+                "description": "Category: tip, purchase, reminder, visa, driving, packing"
+              },
+              "note": {
+                "type": "string",
+                "description": "The note / reminder text"
+              },
+              "detail": {
+                "type": "string",
+                "description": "Extra detail / context"
+              },
+              "amount": {
+                "type": "string",
+                "description": "Approximate cost if applicable"
+              }
+            }
+          }
+        }
+      ],
+      "pages": [
+        {
+          "routePath": "/",
+          "file": "pages/index.tsx"
+        }
+      ],
+      "built": true
+    },
+    "error": null
+  }
+}

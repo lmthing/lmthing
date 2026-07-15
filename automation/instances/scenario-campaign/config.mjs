@@ -1,15 +1,21 @@
 /**
- * scenario-campaign — extend the scenarios (sdk/org/scenarios/*) with additional Acts, run them
- * end-to-end against a LOCAL `lmthing serve` (localhost:8080, budget-free Azure keys from
- * sdk/org/.env), fix any product bug found (with a test), rebuild+restart to verify, and report.
- * Local target = a seconds-long fix→verify loop (no CI image build / ArgoCD rollout).
+ * scenario-campaign — run each scenario (sdk/org/scenarios/<id>/scenario.yaml) end-to-end against a
+ * LOCAL `lmthing serve` (localhost:8080, budget-free Azure keys from sdk/org/.env), JUDGE every step
+ * on the trace + real state, and on the FIRST failure fix it at the right rung (L0 scenario / L1
+ * prompt / L2 structure / L3 framework), then PROVE the fix with a fresh rerun. One failure per
+ * invocation. If a scenario is fully green, the judge authors ONE extension and stops.
  *
- * Round-robins the scenarios; each gets its OWN per-task round. Round 1 brings a scenario's runner
- * to a green baseline (scaffolding run.mjs from _template if missing) and adds a FIRST batch of new
- * Acts; round >= 2 adds ANOTHER batch, continuing from where prior rounds left off. The whole
- * PLAYBOOK + SCENARIO-FORMAT knowledge is embedded in the prompts (those two docs are being
- * deleted); the surviving references are the harness (sdk/org/scenarios/harness/), the _template,
- * and each scenario's own scenario.md.
+ * The judge NEVER commits — it leaves its changes uncommitted with a full report; a HUMAN reviews the
+ * diff against the report and commits directly to `main`. Because a human gates every commit, this
+ * instance runs SERIALLY (maxParallel 1) and is meant to be driven one scenario at a time via
+ * `node automation/lmauto.mjs run scenario-campaign` (runs one task, returns) — review + commit,
+ * then run the next. The prompts embed the whole spec: scenario-spec.md (shared) + judge.md (the
+ * run/judge/fix/verify/report loop) + create.md / extend.md (authoring). The engine's own ledger
+ * commit only touches automation artifacts, never the product diff under review.
+ *
+ * PREREQUISITES before a scenario is runnable here: (1) a generic YAML runner in the harness that
+ * plays scenario.yaml steps and exposes the trace to the judge; (2) the scenario's scenario.yaml
+ * authored (via create.md) — the old scenario.md + run.mjs pairs predate this model.
  */
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -32,34 +38,29 @@ export default {
     '10-family-recipes',
   ],
 
-  firstRoundTemplate: 'prompt.first.md',
-  nextRoundTemplate: 'prompt.next.md',
-  roundMode: (round) => (round <= 1 ? 'BASELINE + FIRST NEW ACTS' : `ADD ACTS (batch ${round})`),
+  // Every round runs the judge; it decides internally whether to FIX the first failure (and verify)
+  // or, if the scenario is fully green, author ONE extension. (create.md is a separate manual
+  // entrypoint for authoring a brand-new scenario.yaml — not part of the round loop.)
+  firstRoundTemplate: 'judge.md',
+  nextRoundTemplate: 'judge.md',
+  // Resume wrapper honoring the never-commit rule (the built-in one says "commit early & often").
+  continueTemplate: 'prompt.continue.md',
+  roundMode: (round) => `judge pass ${round} — fix one failure & verify, or extend if green`,
 
+  // A scenario is now a single declarative sdk/org/scenarios/<id>/scenario.yaml (+ fixtures/) played
+  // by the generic YAML runner — no per-scenario run.mjs, no results/ dir. The judge's report goes
+  // beside its progress log in the engine's round-artifact tree ({{progressFile}}'s dir), which the
+  // engine commits with the ledger.
   vars: (ctx) => ({
     SCENARIO_ID: ctx.task,
     SCENARIO_DIR: `sdk/org/scenarios/${ctx.task}`,
-    SCENARIO_MD: `sdk/org/scenarios/${ctx.task}/scenario.md`,
-    RUN_MJS: `sdk/org/scenarios/${ctx.task}/run.mjs`,
-    RESULTS_DIR: `sdk/org/scenarios/${ctx.task}/results`,
+    SCENARIO_YAML: `sdk/org/scenarios/${ctx.task}/scenario.yaml`,
   }),
 
-  // The live run is stateful and sequential (one pod, one growing project) — keep it a single
-  // coherent session. On expansion rounds, one READ-ONLY scout may prep the next batch in parallel;
-  // it must never open a live THING session or send turns.
-  subagents: (ctx) =>
-    ctx.round <= 1
-      ? []
-      : [
-          {
-            name: 'catalog-scout',
-            scope:
-              'READ-ONLY prep: read {{SCENARIO_DIR}}/scenario.md + {{RUN_MJS}} + {{RESULTS_DIR}} and the ' +
-              'feature catalog in this prompt; list which catalog capabilities {{SCENARIO_ID}} does NOT yet ' +
-              'cover, and propose the next 2–4 Acts (name + what each asserts on the trace/real state). ' +
-              'Do NOT provision, open a THING session, or send any turn — analysis only.',
-          },
-        ],
+  // The judge is ONE coherent session: it drives the live run, plays the persona, judges, and fixes.
+  // No parallel subagents — its work is sequential and its context must stay clean (the whole point
+  // of one-failure-per-invocation is to bound context rot).
+  subagents: (ctx) => [],
 
   claude: {
     // Add backup accounts to keep running across a usage-limit reset, e.g.:
@@ -83,9 +84,8 @@ export default {
   //                 (long enough for the last run's CI/deploy to land, short enough to keep rounds moving)
   startDelay: 0,
 
-  // Lanes in flight at once. Each works in its OWN sdk/org/scenarios/<id>/ and its OWN projectId on
-  // the ONE shared local server, so their runs don't collide on state — but they share this working
-  // tree AND the single Node event loop, so a rebuild+restart by one lane briefly drops the others'
-  // sessions (the harness re-resumes them) and a product-bug fix can land under a sibling's feet.
-  maxParallel: 4,
+  // SERIAL. A human reviews and commits each judge run's diff before the next, so there must only
+  // ever be ONE scenario's uncommitted changes in the shared working tree at a time — parallel lanes
+  // would tangle their diffs into one unreviewable blob.
+  maxParallel: 1,
 };

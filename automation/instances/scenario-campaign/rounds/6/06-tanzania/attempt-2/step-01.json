@@ -1,0 +1,247 @@
+{
+  "step": 1,
+  "verbs": [
+    "attach",
+    "say"
+  ],
+  "expect": [
+    "all five files are actually read — the photo LOOKED AT (vision), the voice memo TRANSCRIBED, the PDF and the spreadsheet PARSED",
+    "it OFFERS to organize this without being asked, naming at least two real specifics of mine (a place, a date, a booking)",
+    "it builds NOTHING yet — no spaces, no tables, no pages, no app (the offer precedes any authoring yield)"
+  ],
+  "turns": [
+    {
+      "sent": "Ok this is getting out of hand. I've got the whole Tanzania trip spread across about six different places — a notes file, a spreadsheet with the costs, the crater park-fee PDF, a photo I liked from Stone Town, and a voice note I left myself at the crater. Attaching all of it. I don't trust myself to keep it straight on my phone once we're actually there — can you help me get on top of it?",
+      "lastText": "filesAnswer is a string",
+      "delegates": [
+        "system-files/dispatch",
+        "system-vision/vision",
+        "system-files/reader",
+        "system-files/sheet"
+      ],
+      "yieldKinds": [
+        "delegate",
+        "loadKnowledge",
+        "readDocument",
+        "inspect"
+      ],
+      "yields": [
+        {
+          "kind": "delegate",
+          "args": [
+            "system-files",
+            "dispatch",
+            null,
+            {
+              "query": "Summarise these three documents, and extract key names, dates, places, costs, figures, and park-fee details from each. List each dataset (the markdown notes, the spreadsheet, the PDF) separately.",
+              "attachmentIds": [
+                "8a000b06-3c77-4abe-925b-c8dfee48a06b",
+                "e735c07e-9fde-42f7-82e2-673d3cac9b04",
+                "6c92cbc9-e8ba-4223-8de5-4347e6218c69"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-vision",
+            "vision",
+            null,
+            {
+              "query": "What is in this picture? Describe the scene, any visible details (signs, people, surroundings, colours, mood). Keep it short — one paragraph.",
+              "attachmentIds": [
+                "9b8365ec-42c6-4452-bccd-56defb81f9bd"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-files",
+            "reader",
+            null,
+            {
+              "query": "Summarise the document, and extract all key names, dates, places, costs, figures, and park-fee details. List each dataset separately.",
+              "attachmentIds": [
+                "8a000b06-3c77-4abe-925b-c8dfee48a06b",
+                "6c92cbc9-e8ba-4223-8de5-4347e6218c69"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-files",
+            "sheet",
+            null,
+            {
+              "query": "Summarise the spreadsheet, and extract all key names, dates, places, costs, figures, and park-fee details.",
+              "attachmentIds": [
+                "e735c07e-9fde-42f7-82e2-673d3cac9b04"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/text"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/pdf"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/tabular/spreadsheet"
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "8a000b06-3c77-4abe-925b-c8dfee48a06b",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "e735c07e-9fde-42f7-82e2-673d3cac9b04",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "6c92cbc9-e8ba-4223-8de5-4347e6218c69",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "8a000b06-3c77-4abe-925b-c8dfee48a06b",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "e735c07e-9fde-42f7-82e2-673d3cac9b04",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "6c92cbc9-e8ba-4223-8de5-4347e6218c69",
+            null
+          ]
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"\\nSUMMARY OF TANZANIA 2026 TRIP DOCUMENTS\\n=======================================\\n\\nDOCUMENT: tanzaniamemories.md (Trip overview & logistics)\\n----------------------------------------------------------\\nVasileios Kefallinos and companion Athina Mari are taking a fully-booked international trip from August 3–20, 2026, spanning Cairo (Egypt), northern Tanzania safari circuit, Zanzibar, …"
+        },
+        {
+          "kind": "inspect",
+          "args": [
+            {
+              "query": {
+                "path": "0"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"\\nSUMMARY OF TANZANIA 2026 TRIP DOCUMENTS\\n=======================================\\n\\nDOCUMENT: tanzaniamemories.md (Trip overview & logistics)\\n----------------------------------------------------------\\nVasileios Kefallinos and companion Athina Mari are taking a fully-booked international trip from August 3–20, 2026, spanning Cairo (Egypt), northern Tanzania safari circuit, Zanzibar, …"
+        }
+      ],
+      "errors": [
+        {
+          "type": "typecheck_error",
+          "message": "'costsText' is possibly 'undefined'.",
+          "statement": "// Parse the legs sheet and the costs sheet from the CSV.\n// The spreadsheet uses multiple sheets delimited by \"# Sheet: name\".\nconst sheetsRaw = costsText.split(/# Sheet: /g).filter(s => s.trim().length > 0);",
+          "attempt": 1
+        },
+        {
+          "type": "typecheck_error",
+          "message": "Expression expected.; Expression expected.; Cannot find name 'Document'.",
+          "statement": "---\n\n**Document",
+          "attempt": 1
+        },
+        {
+          "type": "typecheck_error",
+          "message": "Cannot find name 'legsParsed'.",
+          "statement": "for (const leg of legsParsed) {\n  summaryParts.push(`• ${leg.leg}: ${leg.dates} (${leg.nights} night${leg.nights > 1 ? 's' : ''}) — ${leg.lodging} — $${leg.cost} USD`);\n}",
+          "attempt": 1
+        },
+        {
+          "type": "typecheck_error",
+          "message": "Cannot find name 'costsDoc'.",
+          "statement": "// legsParsed was declared in a previous turn but not in scope — re-parse from the doc text.\nconst reCostsText = costsDoc.text!;",
+          "attempt": 2
+        }
+      ],
+      "nodes": [
+        {
+          "id": "delegate_3_f55bc37e",
+          "status": "done",
+          "ms": 5494
+        },
+        {
+          "id": "delegate_4_6a4a935a",
+          "status": "done",
+          "ms": 42690
+        },
+        {
+          "id": "delegate_5_92fec616",
+          "status": "done",
+          "ms": 65910
+        },
+        {
+          "id": "delegate_2_9decd273",
+          "status": "done",
+          "ms": 72955
+        },
+        {
+          "id": "run_1_1f9945ed",
+          "status": "done",
+          "ms": 104822
+        }
+      ],
+      "tokens": {
+        "in": 70687,
+        "out": 6922
+      },
+      "durationMs": 109615,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "attached": [
+    "tanzaniamemories.md",
+    "trip-costs.xlsx",
+    "ngorongoro-conservation-area-tariffs.pdf",
+    "stone-town-zanzibar.jpg",
+    "voice-memo.mp3"
+  ],
+  "state": {
+    "spaces": [],
+    "appTables": {},
+    "appManifest": {
+      "tables": [],
+      "pages": [],
+      "built": false
+    },
+    "error": null
+  }
+}

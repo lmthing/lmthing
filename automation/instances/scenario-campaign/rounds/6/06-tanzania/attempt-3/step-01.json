@@ -1,0 +1,248 @@
+{
+  "step": 1,
+  "verbs": [
+    "attach",
+    "say"
+  ],
+  "expect": [
+    "all five files are actually read — the photo LOOKED AT (vision), the voice memo TRANSCRIBED, the PDF and the spreadsheet PARSED",
+    "it OFFERS to organize this without being asked, naming at least two real specifics of mine (a place, a date, a booking)",
+    "it builds NOTHING yet — no spaces, no tables, no pages, no app (the offer precedes any authoring yield)"
+  ],
+  "turns": [
+    {
+      "sent": "Ok this is getting out of hand. I've got the whole Tanzania trip spread across about six different places — a notes file, a spreadsheet with the costs, the crater park-fee PDF, a photo I liked from Stone Town, and a voice note I left myself at the crater. Attaching all of it. I don't trust myself to keep it straight on my phone once we're actually there — can you help me get on top of it?",
+      "lastText": "{\"type\":\"Stack\",\"props\":{\"gap\":3},\"children\":[{\"type\":\"Heading\",\"props\":{\"level\":1},\"children\":[\"Here's what I found across all your material\"]},{\"type\":\"Callout\",\"props\":{\"variant\":\"info\",\"title\":\"You've got a lot — but it's all real and it all fits together\"},\"children\":[\"Notes file, cost spreadsheet, crater park-fee PDF, a Stone Town photo, and your voice memo from the crater rim. Five sources, one trip — let me pull them into one place.\"]},{\"type\":\"Heading\",\"props\":{\"level\":2},\"children\":[\"📝 From your notes (tanzaniamemories.md)\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Your written memories cover the trip narrative — places visited, people met, what stood out. Names, dates, and the personal moments that make this trip yours.\"]},{\"type\":\"Heading\",\"props\":{\"level\":2},\"children\":[\"💰 From your cost spreadsheet (trip-costs.xlsx)\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Line-by-line costs across the trip — flights, accommodation, park fees, safari, and extras. This is your budget ground truth, and it has specific figures that matter for the safari balance payment.\"]},{\"type\":\"Heading\",\"props\":{\"level\":2},\"children\":[\"🏞️ From the Ngorongoro park-fee PDF\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Official conservation-area tariffs — entry fees, vehicle fees, and any ranger-related charges. This is the official reference for what you should expect to pay at the crater.\"]},{\"type\":\"Heading\",\"props\":{\"level\":2},\"children\":[\"📸 From your Stone Town photo\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"A low-angle view looking up into the courtyard of a multi-story building with white stucco walls and Middle Eastern/Spanish-style architectural details. The scene shows several stacked dark wooden balconies with ornate carved railings, arched windows, and wooden shutters, some open. The building rises around a narrow open-air space under a bright blue sky, with strong sunlight creating sharp shadows. A striped awning and a wall-mounted lamp are visible on the left, and the overall impression is of an elegant historic hotel, residence, or courtyard complex with decorative, traditional design elements.\"]},{\"type\":\"Heading\",\"props\":{\"level\":2},\"children\":[\"🎙️ From your crater-day voice memo\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Your driver-guide Emmanuel (not Richard from the office) made it one of the best days of your life — wildlife everywhere, right up close. You bought two Maasai beaded bracelets for Athena Mari at the rim (paid roughly TZS 35,000, maybe $20–25 — you weren't sure). Emmanuel flagged an extra ranger tip at the gate (~TZS 5,000, cash, separate from park fees) that nobody told you about beforehand — you want to ask Richard about that before the safari balance payment.\"]},{\"type\":\"Divider\",\"props\":{},\"children\":[]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[{\"type\":\"Strong\",\"props\":{},\"children\":[\"Here's what I'd suggest:\"]},\" All of this — notes, costs, official fees, photos, and voice-memo reminders — can live in one app you can open on your phone, with everything searchable and in one place. Tables for costs and fees, a place for your notes and memories, and the open questions (like that ranger tip) tracked so they don't get forgotten.\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Want me to put this together for you?\"]}]}",
+      "delegates": [
+        "user-memory/memory",
+        "system-vision/vision",
+        "system-files/dispatch",
+        "system-files/reader",
+        "system-files/sheet"
+      ],
+      "yieldKinds": [
+        "delegate",
+        "setSessionMeta",
+        "loadKnowledge",
+        "readDocument",
+        "inspect"
+      ],
+      "yields": [
+        {
+          "kind": "delegate",
+          "args": [
+            "user-memory",
+            "memory",
+            null,
+            {
+              "query": "What do you know about this user and this Tanzania trip?"
+            }
+          ]
+        },
+        {
+          "kind": "setSessionMeta",
+          "args": [
+            {
+              "title": "Tanzania trip materials — getting organised",
+              "slug": "tanzania-trip-materials"
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-vision",
+            "vision",
+            null,
+            {
+              "query": "Describe this photo in detail — what and where is it, what does it show? Summarize the key visual details someone would want to remember.",
+              "attachmentIds": [
+                "342df3cc-2c7f-4af9-b49f-ce0ec6eca638"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"dispatch\",null,{\"query\":\"Summarize these three documents together. For each one, give me: (1) what it is, (2) key facts/names/figures, (3) anything actionable. I need concrete specifics — names, dates, costs, line items — not a vague overview. The documents are: a notes markdown file, a trip-costs spreadsheet, and a crater park-fee PDF.\",\"attachmentIds\":[\"393cc8f9-abf6-4aae-bf07-5…"
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-files",
+            "reader",
+            null,
+            {
+              "query": "Summarize these two documents. For each one, give: (1) what it is, (2) key facts/names/figures, (3) anything actionable. Be concrete with specifics — names, dates, costs, line items.",
+              "attachmentIds": [
+                "393cc8f9-abf6-4aae-bf07-56beb7667bc3",
+                "0242339b-9d68-4953-bd1f-a89fd8923843"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-files",
+            "sheet",
+            null,
+            {
+              "query": "Summarize this spreadsheet. Give: (1) what it is, (2) key facts/names/figures (concrete numbers, line items, totals, dates), (3) anything actionable.",
+              "attachmentIds": [
+                "3686fb16-7eca-4cf9-83c1-39e4df20bb02"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/tabular/spreadsheet"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/pdf"
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "393cc8f9-abf6-4aae-bf07-56beb7667bc3",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "3686fb16-7eca-4cf9-83c1-39e4df20bb02",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "0242339b-9d68-4953-bd1f-a89fd8923843",
+            null
+          ]
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"# Sheet: legs\\ntanzania trip 2026 - leg by leg (me + athina),,,,\\n,,,,\\nleg,dates,nights,lodging,cost (usd)\\nCairo (arrival stopover),Aug 3-5,2,Eileen Hotel,102\\nArusha (pre-safari),Aug 5-7,2,Serengeti Villa,62\\nSafari circuit - Tarangire / Lake Manyara / Ngorongoro Crater,Aug 7-9,2,\\\"Suricata Safaris (Twiga camps + Jevas Hotel, package)\\\",1200\\nArusha (post-safari),Aug 9-11,2,Kutoka Lo…"
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/overview"
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "393cc8f9-abf6-4aae-bf07-56beb7667bc3",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "3686fb16-7eca-4cf9-83c1-39e4df20bb02",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "0242339b-9d68-4953-bd1f-a89fd8923843",
+            null
+          ]
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"A low-angle view looking up into the courtyard of a multi-story building with white stucco walls and Middle Eastern/Spanish-style architectural details. The scene shows several stacked dark wooden balconies with ornate carved railings, arched windows, and wooden shutters, some open. The building rises around a narrow open-air space under a bright blue sky, with strong sunlight creating …"
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"SUMMARY OF THREE TRIP DOCUMENTS\\n\\n============================================================\\nDOCUMENT 1: tanzaniamemories.md\\n============================================================\\n(1) WHAT IT IS: A comprehensive trip-planning document for Vasilis (Vasileios Kefallinos) and companion Athina Mari — a fully booked 18-day international trip across Egypt and Tanzania in August 20…"
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"SUMMARY OF THREE TRIP DOCUMENTS\\n\\n============================================================\\nDOCUMENT 1: tanzaniamemories.md\\n============================================================\\n(1) WHAT IT IS: A comprehensive trip-planning document for Vasilis (Vasileios Kefallinos) and companion Athina Mari — a fully booked 18-day international trip across Egypt and Tanzania in August 20…"
+        }
+      ],
+      "errors": [
+        {
+          "type": "typecheck_error",
+          "message": "Expression expected.; Cannot find name 'DOCUMENT'.",
+          "statement": "--- DOCUMENT",
+          "attempt": 1
+        },
+        {
+          "type": "typecheck_error",
+          "message": "Cannot find name 'summary'.",
+          "statement": "currentTask.resolve(summary);",
+          "attempt": 1
+        }
+      ],
+      "nodes": [
+        {
+          "id": "delegate_2_7c1c2367",
+          "status": "done",
+          "ms": 14749
+        },
+        {
+          "id": "delegate_3_e6d6e399",
+          "status": "done",
+          "ms": 6505
+        },
+        {
+          "id": "delegate_6_b5c66dde",
+          "status": "done",
+          "ms": 55376
+        },
+        {
+          "id": "delegate_5_8ffe53a1",
+          "status": "done",
+          "ms": 178162
+        },
+        {
+          "id": "delegate_4_8997de38",
+          "status": "done",
+          "ms": 189497
+        },
+        {
+          "id": "run_1_0d52980d",
+          "status": "done",
+          "ms": 245794
+        }
+      ],
+      "tokens": {
+        "in": 78114,
+        "out": 8627
+      },
+      "durationMs": 250929,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "attached": [
+    "tanzaniamemories.md",
+    "trip-costs.xlsx",
+    "ngorongoro-conservation-area-tariffs.pdf",
+    "stone-town-zanzibar.jpg",
+    "voice-memo.mp3"
+  ],
+  "state": {
+    "spaces": [],
+    "appTables": {},
+    "appManifest": {
+      "tables": [],
+      "pages": [],
+      "built": false
+    },
+    "error": null
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "bin": "/home/vasilis/.claude-azure/launch.sh",
+  "attempt": null,
+  "sessionId": "b8a0991b-bce4-420b-844a-664f990ff54b",
+  "model": "claude-sonnet-5",
+  "outcome": "error",
+  "intent": null,
+  "stalled": false,
+  "subtype": "success",
+  "isError": true,
+  "usage": {
+    "input_tokens": 424724,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 11367936,
+    "output_tokens": 30634,
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "",
+    "iterations": [],
+    "speed": "standard"
+  },
+  "costUsd": 6.255433799999997,
+  "exitCode": 1,
+  "resetAt": null,
+  "startedAt": "2026-07-15T22:37:41.005Z",
+  "endedAt": "2026-07-15T23:39:12.518Z"
+}

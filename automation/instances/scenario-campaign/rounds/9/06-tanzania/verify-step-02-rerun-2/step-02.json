@@ -1,0 +1,1815 @@
+{
+  "step": 2,
+  "verbs": [
+    "say"
+  ],
+  "expect": [
+    "SPACES GET CREATED — one per leg (Cairo, the safari/Ngorongoro leg, Zanzibar, Dar es Salaam), each with its own agent, not one generic space",
+    "MY TRIP LANDS IN THE DB — legs, dates, lodging, costs, the park fees, what I've already paid",
+    "flight reference ZZJQUU (from the notes) is a real DB row — proof the notes were parsed, not guessed",
+    "the spreadsheet's cost lines land as DB rows (the run toward the 3344.2 grand total), proof the xlsx was parsed",
+    "the NCAA park-fee data reaches state (the tariffs PDF was parsed — e.g. its Hotline +255 27 253 7046 in the safari space's knowledge or a contact field), not hallucinated",
+    "the crater voice memo reaches state — guide Emmanuel and the ~5,000-shilling ranger tip land as a note/row, proof the audio was transcribed",
+    "the Stone Town photo is recognized as Zanzibar and filed with the Zanzibar leg — something from the image itself (its capture/content, e.g. Canon PowerShot SX30 IS), not the filename, reaches state",
+    "AN APP GETS BUILT on those tables — real pages showing my real rows — and served",
+    "NO RESEARCH HAPPENS in this whole build (no webSearch/webFetch yields): everything it needed, I handed it"
+  ],
+  "turns": [
+    {
+      "sent": "Yes please.",
+      "lastText": "All 7 tables created and seeded.",
+      "delegates": [
+        "system-architect/architect/synthesize_and_run",
+        "system-architect/architect/synthesize_and_run",
+        "system-architect/architect/synthesize_and_run",
+        "system-architect/architect/synthesize_and_run",
+        "system-architect/architect/synthesize_and_run",
+        "system-architect/architect/synthesize_and_run",
+        "system-appbuilder/automator"
+      ],
+      "yieldKinds": [
+        "tasklist",
+        "delegate",
+        "registerSpace"
+      ],
+      "yields": [
+        {
+          "kind": "tasklist",
+          "args": "[\"organize_material\",{\"request\":\"Build an app for the Tanzania trip with: itinerary (dates, route, names), trip costs/budget, Ngorongoro official tariffs, and the voice-memo facts (Emmanuel the driver, two beaded bracelets for Athina Mari ~TZS 35,000, extra ranger tip ~TZS 5,000 cash, open question for Richard about the ranger tip before the safari balance payment). Also keep the Stone Town courty…"
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-architect\",\"architect\",\"synthesize_and_run\",{\"query\":\"Build a specialist space for Voice-Memo Facts (Ngorongoro Crater Day).\",\"context\":{\"topic\":\"Voice-Memo Facts (Ngorongoro Crater Day)\",\"goal\":\"Capture the three actionable facts from the Ngorongoro voice memo: Emmanuel the driver, beaded bracelets purchase, and the extra ranger tip question for Richard.\",\"research\":{\"topic\":\"Voice-Memo …"
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-architect\",\"architect\",\"synthesize_and_run\",{\"query\":\"Build a specialist space for Trip Costs & Budget.\",\"context\":{\"topic\":\"Trip Costs & Budget\",\"goal\":\"Provide a complete cost breakdown by category: flights (EUR), lodging, safari, park fees, visas, insurance, meals, and incidentals — with paid vs. outstanding balances.\",\"research\":{\"topic\":\"Trip Costs & Budget\",\"executive_summary\":\"Tota…"
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-architect\",\"architect\",\"synthesize_and_run\",{\"query\":\"Build a specialist space for Itinerary & Route.\",\"context\":{\"topic\":\"Itinerary & Route\",\"goal\":\"Summarize the full 18-day itinerary: flights, accommodations, cities, dates, and key activities by leg.\",\"research\":{\"topic\":\"Itinerary & Route\",\"executive_summary\":\"An 18-day trip (Aug 3-20, 2026) for Vasileios Kefallinos and Athina Mari th…"
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-architect\",\"architect\",\"synthesize_and_run\",{\"query\":\"Build a specialist space for Ngorongoro Conservation Area Official Tariffs.\",\"context\":{\"topic\":\"Ngorongoro Conservation Area Official Tariffs\",\"goal\":\"List all relevant NCAA tariff categories and rates for this trip, plus key rules and contacts.\",\"research\":{\"topic\":\"Ngorongoro Conservation Area Official Tariffs\",\"executive_summary\":\"…"
+        },
+        {
+          "kind": "tasklist",
+          "args": "[\"synthesize_and_run\",{\"query\":\"Build a specialist space for Voice-Memo Facts (Ngorongoro Crater Day).\",\"topic\":\"Voice-Memo Facts (Ngorongoro Crater Day)\",\"goal\":\"Capture the three actionable facts from the Ngorongoro voice memo: Emmanuel the driver, beaded bracelets purchase, and the extra ranger tip question for Richard.\",\"research\":\"{\\\"topic\\\":\\\"Voice-Memo Facts (Ngorongoro Crater Day)\\\",\\\"exec…"
+        },
+        {
+          "kind": "tasklist",
+          "args": "[\"synthesize_and_run\",{\"query\":\"Build a specialist space for Trip Costs & Budget.\",\"topic\":\"Trip Costs & Budget\",\"goal\":\"Provide a complete cost breakdown by category: flights (EUR), lodging, safari, park fees, visas, insurance, meals, and incidentals — with paid vs. outstanding balances.\",\"research\":{\"topic\":\"Trip Costs & Budget\",\"executive_summary\":\"Total flight cost ~EUR 2,707, total on-ground …"
+        },
+        {
+          "kind": "tasklist",
+          "args": "[\"synthesize_and_run\",{\"topic\":\"Itinerary & Route\",\"goal\":\"Summarize the full 18-day itinerary: flights, accommodations, cities, dates, and key activities by leg.\",\"research\":\"{\\\"topic\\\":\\\"Itinerary & Route\\\",\\\"executive_summary\\\":\\\"An 18-day trip (Aug 3-20, 2026) for Vasileios Kefallinos and Athina Mari through Athens, Cairo, Arusha, the Northern Tanzania Safari Circuit, Zanzibar, and Dar es Sala…"
+        },
+        {
+          "kind": "tasklist",
+          "args": "[\"synthesize_and_run\",{\"query\":\"Build a specialist space for Trip Costs & Budget.\",\"topic\":\"Trip Costs & Budget\",\"goal\":\"Provide a complete cost breakdown by category: flights (EUR), lodging, safari, park fees, visas, insurance, meals, and incidentals — with paid vs. outstanding balances.\",\"research\":\"{\\\"topic\\\":\\\"Trip Costs & Budget\\\",\\\"executive_summary\\\":\\\"Total flight cost ~EUR 2,707, total on…"
+        },
+        {
+          "kind": "tasklist",
+          "args": "[\"synthesize_and_run\",{\"topic\":\"Ngorongoro Conservation Area Official Tariffs\",\"goal\":\"List all relevant NCAA tariff categories and rates for this trip, plus key rules and contacts.\",\"research\":\"{\\\"topic\\\":\\\"Ngorongoro Conservation Area Official Tariffs\\\",\\\"executive_summary\\\":\\\"Official NCAA tariff schedule covering entry permits, vehicle permits, camping, crater service fees, descent fees, and o…"
+        },
+        {
+          "kind": "registerSpace",
+          "args": [
+            "/home/vasilis/LMTHING/lmthing/sdk/org/scenarios/harness/.state/local-server/pod-root/.lmthing/tanzania-trip/spaces/ngorongoro-voice-memo-facts"
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-architect\",\"architect\",\"synthesize_and_run\",{\"query\":\"Build a specialist space for Stone Town Courtyard Photo (Trip Memory).\",\"context\":{\"topic\":\"Stone Town Courtyard Photo (Trip Memory)\",\"goal\":\"Describe and preserve the Stone Town courtyard photo as a trip memory for the app.\",\"research\":{\"topic\":\"Stone Town Courtyard Photo (Trip Memory)\",\"executive_summary\":\"A photograph taken in Stone…"
+        },
+        {
+          "kind": "tasklist",
+          "args": "[\"synthesize_and_run\",{\"topic\":\"Stone Town Courtyard Photo (Trip Memory)\",\"goal\":\"Describe and preserve the Stone Town courtyard photo as a trip memory for the app.\",\"research\":\"{\\\"topic\\\":\\\"Stone Town Courtyard Photo (Trip Memory)\\\",\\\"executive_summary\\\":\\\"A photograph taken in Stone Town, Zanzibar, showing the interior courtyard of a multi-story building — a warm-weather architectural scene to b…"
+        },
+        {
+          "kind": "registerSpace",
+          "args": [
+            "/home/vasilis/LMTHING/lmthing/sdk/org/scenarios/harness/.state/local-server/pod-root/.lmthing/tanzania-trip/spaces/trip-cost-tracker"
+          ]
+        },
+        {
+          "kind": "registerSpace",
+          "args": [
+            "/home/vasilis/LMTHING/lmthing/sdk/org/scenarios/harness/.state/local-server/pod-root/.lmthing/tanzania-trip/spaces/ngorongoro-tariffs"
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-architect\",\"architect\",\"synthesize_and_run\",{\"query\":\"Build a specialist space for Visa & Regulatory Requirements.\",\"context\":{\"topic\":\"Visa & Regulatory Requirements\",\"goal\":\"Enumerate all visas, insurance, and permits required for Egypt, mainland Tanzania, and Zanzibar, including costs and application details.\",\"research\":{\"topic\":\"Visa & Regulatory Requirements\",\"executive_summary\":\"Th…"
+        },
+        {
+          "kind": "tasklist",
+          "args": "[\"synthesize_and_run\",{\"topic\":\"Visa & Regulatory Requirements\",\"goal\":\"Enumerate all visas, insurance, and permits required for Egypt, mainland Tanzania, and Zanzibar, including costs and application details.\",\"research\":\"{\\\"topic\\\":\\\"Visa & Regulatory Requirements\\\",\\\"executive_summary\\\":\\\"Three distinct visa/insurance requirements plus a Zanzibar driving permit, totaling $333 across Egypt, Tanz…"
+        },
+        {
+          "kind": "registerSpace",
+          "args": [
+            "/home/vasilis/LMTHING/lmthing/sdk/org/scenarios/harness/.state/local-server/pod-root/.lmthing/tanzania-trip/spaces/itinerary-summarizer"
+          ]
+        },
+        {
+          "kind": "registerSpace",
+          "args": [
+            "/home/vasilis/LMTHING/lmthing/sdk/org/scenarios/harness/.state/local-server/pod-root/.lmthing/tanzania-trip/spaces/trip-memory-stone-town"
+          ]
+        },
+        {
+          "kind": "registerSpace",
+          "args": [
+            "/home/vasilis/LMTHING/lmthing/sdk/org/scenarios/harness/.state/local-server/pod-root/.lmthing/tanzania-trip/spaces/visa-regulatory-requirements"
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-appbuilder\",\"automator\",null,{\"query\":\"Build an app for the Tanzania trip with: itinerary (dates, route, names), trip costs/budget, Ngorongoro official tariffs, and the voice-memo facts (Emmanuel the driver, two beaded bracelets for Athina Mari ~TZS 35,000, extra ranger tip ~TZS 5,000 cash, open question for Richard about the ranger tip before the safari balance payment). Also keep the St…"
+        }
+      ],
+      "errors": [],
+      "nodes": [
+        {
+          "id": "fork_10_a4add2ec",
+          "status": "done",
+          "ms": 50912
+        },
+        {
+          "id": "task_9_70560b4f",
+          "status": "done",
+          "ms": 50912
+        },
+        {
+          "id": "fork_30_d7aada67",
+          "status": "done",
+          "ms": 4068
+        },
+        {
+          "id": "task_29_d6ddd84c",
+          "status": "done",
+          "ms": 4068
+        },
+        {
+          "id": "task_37_5d248953",
+          "status": "done",
+          "ms": 0
+        },
+        {
+          "id": "task_38_9eeebd1f",
+          "status": "done",
+          "ms": 0
+        },
+        {
+          "id": "fork_33_f2964403",
+          "status": "done",
+          "ms": 5178
+        },
+        {
+          "id": "task_32_2a0a4b1b",
+          "status": "done",
+          "ms": 5178
+        },
+        {
+          "id": "fork_36_41bbbb5f",
+          "status": "done",
+          "ms": 5821
+        },
+        {
+          "id": "task_35_8fee33c0",
+          "status": "done",
+          "ms": 5821
+        },
+        {
+          "id": "fork_40_a507e962",
+          "status": "done",
+          "ms": 7134
+        },
+        {
+          "id": "task_39_c3cfb2b2",
+          "status": "done",
+          "ms": 7134
+        },
+        {
+          "id": "fork_56_9bc66d9e",
+          "status": "done",
+          "ms": 9028
+        },
+        {
+          "id": "task_55_ce65f50c",
+          "status": "done",
+          "ms": 9028
+        },
+        {
+          "id": "fork_58_e86d24cb",
+          "status": "done",
+          "ms": 11217
+        },
+        {
+          "id": "task_57_f1f377d9",
+          "status": "done",
+          "ms": 11217
+        },
+        {
+          "id": "fork_62_403d96fd",
+          "status": "done",
+          "ms": 12810
+        },
+        {
+          "id": "task_61_2462f47c",
+          "status": "done",
+          "ms": 12810
+        },
+        {
+          "id": "fork_60_1268cfcc",
+          "status": "done",
+          "ms": 12905
+        },
+        {
+          "id": "task_59_01bf626b",
+          "status": "done",
+          "ms": 12905
+        },
+        {
+          "id": "fork_69_9e7e8c14",
+          "status": "done",
+          "ms": 10005
+        },
+        {
+          "id": "task_68_8312abf6",
+          "status": "done",
+          "ms": 10005
+        },
+        {
+          "id": "fork_67_4e7eacdd",
+          "status": "done",
+          "ms": 15587
+        },
+        {
+          "id": "task_66_56fe9c07",
+          "status": "done",
+          "ms": 15587
+        },
+        {
+          "id": "fork_71_887618f5",
+          "status": "done",
+          "ms": 2800
+        },
+        {
+          "id": "task_70_48c4513e",
+          "status": "done",
+          "ms": 2800
+        },
+        {
+          "id": "fork_52_e940db8a",
+          "status": "done",
+          "ms": 21187
+        },
+        {
+          "id": "task_51_8dd5c587",
+          "status": "done",
+          "ms": 21187
+        },
+        {
+          "id": "fork_43_a71f97cc",
+          "status": "done",
+          "ms": 23395
+        },
+        {
+          "id": "task_42_80ac2a01",
+          "status": "done",
+          "ms": 23395
+        },
+        {
+          "id": "fork_73_1285ee8a",
+          "status": "done",
+          "ms": 4585
+        },
+        {
+          "id": "task_72_4fbd1fa1",
+          "status": "done",
+          "ms": 4585
+        },
+        {
+          "id": "fork_83_54d465bb",
+          "status": "done",
+          "ms": 2343
+        },
+        {
+          "id": "task_82_4a5bbb3a",
+          "status": "done",
+          "ms": 2343
+        },
+        {
+          "id": "tasklist_28_32847831",
+          "status": "done",
+          "ms": 30936
+        },
+        {
+          "id": "fork_50_a7209760",
+          "status": "done",
+          "ms": 24933
+        },
+        {
+          "id": "task_49_2b425c84",
+          "status": "done",
+          "ms": 24933
+        },
+        {
+          "id": "fork_46_2732e27e",
+          "status": "done",
+          "ms": 26337
+        },
+        {
+          "id": "task_45_845bc494",
+          "status": "done",
+          "ms": 26337
+        },
+        {
+          "id": "fork_64_e2b2f4a7",
+          "status": "done",
+          "ms": 24235
+        },
+        {
+          "id": "task_63_fe595ca0",
+          "status": "done",
+          "ms": 24235
+        },
+        {
+          "id": "task_54_cc1f32e4",
+          "status": "done",
+          "ms": 24235
+        },
+        {
+          "id": "task_65_4b365e74",
+          "status": "done",
+          "ms": 24235
+        },
+        {
+          "id": "delegate_24_2ac32d4d",
+          "status": "done",
+          "ms": 40270
+        },
+        {
+          "id": "fork_19_5a52b8ec",
+          "status": "done",
+          "ms": 45648
+        },
+        {
+          "id": "task_18_5841b496",
+          "status": "done",
+          "ms": 45648
+        },
+        {
+          "id": "fork_80_0ad7ebc1",
+          "status": "done",
+          "ms": 10130
+        },
+        {
+          "id": "task_79_22bf4b0a",
+          "status": "done",
+          "ms": 10130
+        },
+        {
+          "id": "fork_85_b3a17fcb",
+          "status": "done",
+          "ms": 7498
+        },
+        {
+          "id": "task_84_52489a22",
+          "status": "done",
+          "ms": 7498
+        },
+        {
+          "id": "fork_78_77a6de6f",
+          "status": "done",
+          "ms": 14337
+        },
+        {
+          "id": "task_77_4733e420",
+          "status": "done",
+          "ms": 14337
+        },
+        {
+          "id": "fork_76_c6aae2e8",
+          "status": "done",
+          "ms": 14392
+        },
+        {
+          "id": "task_75_fda8adcf",
+          "status": "done",
+          "ms": 14392
+        },
+        {
+          "id": "task_74_f5070c26",
+          "status": "done",
+          "ms": 14392
+        },
+        {
+          "id": "task_81_d8b94ca4",
+          "status": "done",
+          "ms": 14392
+        },
+        {
+          "id": "fork_93_770fc1bf",
+          "status": "done",
+          "ms": 4641
+        },
+        {
+          "id": "task_92_15cda131",
+          "status": "done",
+          "ms": 4641
+        },
+        {
+          "id": "fork_90_a0335ef2",
+          "status": "done",
+          "ms": 9010
+        },
+        {
+          "id": "task_89_cbd35dcd",
+          "status": "done",
+          "ms": 9010
+        },
+        {
+          "id": "fork_88_5c3ea4d0",
+          "status": "done",
+          "ms": 15085
+        },
+        {
+          "id": "task_87_b5446f7e",
+          "status": "done",
+          "ms": 15085
+        },
+        {
+          "id": "fork_105_faadac05",
+          "status": "done",
+          "ms": 2264
+        },
+        {
+          "id": "task_104_ac168e12",
+          "status": "done",
+          "ms": 2264
+        },
+        {
+          "id": "fork_48_ed0cad3e",
+          "status": "done",
+          "ms": 51396
+        },
+        {
+          "id": "task_47_102f8f59",
+          "status": "done",
+          "ms": 51396
+        },
+        {
+          "id": "task_44_8009f57f",
+          "status": "done",
+          "ms": 51396
+        },
+        {
+          "id": "task_53_e13113cb",
+          "status": "done",
+          "ms": 51396
+        },
+        {
+          "id": "fork_100_f5e9e440",
+          "status": "done",
+          "ms": 17124
+        },
+        {
+          "id": "task_99_11557ebb",
+          "status": "done",
+          "ms": 17124
+        },
+        {
+          "id": "fork_107_8695ada9",
+          "status": "done",
+          "ms": 7198
+        },
+        {
+          "id": "task_106_bc2a3bb4",
+          "status": "done",
+          "ms": 7198
+        },
+        {
+          "id": "fork_111_efcdbdcc",
+          "status": "done",
+          "ms": 2286
+        },
+        {
+          "id": "task_110_2e9875e9",
+          "status": "done",
+          "ms": 2286
+        },
+        {
+          "id": "tasklist_34_b234066c",
+          "status": "done",
+          "ms": 64388
+        },
+        {
+          "id": "fork_103_057835be",
+          "status": "done",
+          "ms": 15996
+        },
+        {
+          "id": "task_102_6e38d947",
+          "status": "done",
+          "ms": 15996
+        },
+        {
+          "id": "fork_109_5844c523",
+          "status": "done",
+          "ms": 10995
+        },
+        {
+          "id": "task_108_8dca632e",
+          "status": "done",
+          "ms": 10995
+        },
+        {
+          "id": "fork_96_1828dcb6",
+          "status": "done",
+          "ms": 22765
+        },
+        {
+          "id": "task_95_070c1696",
+          "status": "done",
+          "ms": 22765
+        },
+        {
+          "id": "fork_113_9fb83585",
+          "status": "done",
+          "ms": 3492
+        },
+        {
+          "id": "task_112_eea65725",
+          "status": "done",
+          "ms": 3492
+        },
+        {
+          "id": "delegate_25_8029ea52",
+          "status": "done",
+          "ms": 72345
+        },
+        {
+          "id": "fork_98_1bbadd4d",
+          "status": "done",
+          "ms": 24720
+        },
+        {
+          "id": "task_97_62fe3c0d",
+          "status": "done",
+          "ms": 24720
+        },
+        {
+          "id": "task_94_9ee6699f",
+          "status": "done",
+          "ms": 24720
+        },
+        {
+          "id": "task_101_5ec66370",
+          "status": "done",
+          "ms": 24720
+        },
+        {
+          "id": "fork_15_3d10d4ab",
+          "status": "done",
+          "ms": 81124
+        },
+        {
+          "id": "task_14_13b864c6",
+          "status": "done",
+          "ms": 81124
+        },
+        {
+          "id": "fork_117_eab65390",
+          "status": "done",
+          "ms": 5675
+        },
+        {
+          "id": "task_116_a1cb62b9",
+          "status": "done",
+          "ms": 5675
+        },
+        {
+          "id": "fork_121_827168e2",
+          "status": "done",
+          "ms": 4077
+        },
+        {
+          "id": "task_120_a401b6a0",
+          "status": "done",
+          "ms": 4077
+        },
+        {
+          "id": "tasklist_41_6e71c57d",
+          "status": "done",
+          "ms": 76037
+        },
+        {
+          "id": "fork_119_5d55e6e2",
+          "status": "done",
+          "ms": 11818
+        },
+        {
+          "id": "task_118_43a7eb4d",
+          "status": "done",
+          "ms": 11818
+        },
+        {
+          "id": "delegate_27_6d1ae8a5",
+          "status": "done",
+          "ms": 84896
+        },
+        {
+          "id": "fork_115_9cecbdbb",
+          "status": "done",
+          "ms": 15980
+        },
+        {
+          "id": "task_114_fc2d64b7",
+          "status": "done",
+          "ms": 15980
+        },
+        {
+          "id": "fork_17_523f59d4",
+          "status": "done",
+          "ms": 93704
+        },
+        {
+          "id": "task_16_9624bc3c",
+          "status": "done",
+          "ms": 93704
+        },
+        {
+          "id": "fork_129_381ec9d1",
+          "status": "done",
+          "ms": 2271
+        },
+        {
+          "id": "task_128_ac448254",
+          "status": "done",
+          "ms": 2271
+        },
+        {
+          "id": "fork_125_c9d82bf4",
+          "status": "done",
+          "ms": 7357
+        },
+        {
+          "id": "task_124_e72c5a50",
+          "status": "done",
+          "ms": 7357
+        },
+        {
+          "id": "fork_131_e2102c52",
+          "status": "done",
+          "ms": 5313
+        },
+        {
+          "id": "task_130_3c131a15",
+          "status": "done",
+          "ms": 5313
+        },
+        {
+          "id": "fork_127_e8125c34",
+          "status": "done",
+          "ms": 10765
+        },
+        {
+          "id": "task_126_77648da2",
+          "status": "done",
+          "ms": 10765
+        },
+        {
+          "id": "fork_139_ee203507",
+          "status": "done",
+          "ms": 2241
+        },
+        {
+          "id": "task_138_5391b1c9",
+          "status": "done",
+          "ms": 2241
+        },
+        {
+          "id": "tasklist_31_e07f096a",
+          "status": "done",
+          "ms": 93375
+        },
+        {
+          "id": "fork_141_94b14f05",
+          "status": "done",
+          "ms": 3076
+        },
+        {
+          "id": "task_140_53485459",
+          "status": "done",
+          "ms": 3076
+        },
+        {
+          "id": "delegate_26_79ccbf37",
+          "status": "done",
+          "ms": 99662
+        },
+        {
+          "id": "fork_134_187f86f2",
+          "status": "done",
+          "ms": 12581
+        },
+        {
+          "id": "task_133_8034cf21",
+          "status": "done",
+          "ms": 12581
+        },
+        {
+          "id": "fork_13_dc248991",
+          "status": "done",
+          "ms": 108000
+        },
+        {
+          "id": "task_12_c3c00071",
+          "status": "done",
+          "ms": 108000
+        },
+        {
+          "id": "fork_136_8920e161",
+          "status": "done",
+          "ms": 16146
+        },
+        {
+          "id": "task_135_3b9d98d6",
+          "status": "done",
+          "ms": 16146
+        },
+        {
+          "id": "task_132_424b0094",
+          "status": "done",
+          "ms": 16146
+        },
+        {
+          "id": "task_137_5d50f6b4",
+          "status": "done",
+          "ms": 16146
+        },
+        {
+          "id": "fork_143_7a0159c8",
+          "status": "done",
+          "ms": 6594
+        },
+        {
+          "id": "task_142_4fb724cd",
+          "status": "done",
+          "ms": 6594
+        },
+        {
+          "id": "fork_147_d2ad125b",
+          "status": "done",
+          "ms": 9512
+        },
+        {
+          "id": "task_146_b5357ca4",
+          "status": "done",
+          "ms": 9512
+        },
+        {
+          "id": "tasklist_91_2e5c996c",
+          "status": "done",
+          "ms": 71126
+        },
+        {
+          "id": "fork_145_bccc6436",
+          "status": "done",
+          "ms": 12249
+        },
+        {
+          "id": "task_144_e5c53349",
+          "status": "done",
+          "ms": 12249
+        },
+        {
+          "id": "delegate_86_ea7c1342",
+          "status": "done",
+          "ms": 77144
+        },
+        {
+          "id": "fork_21_d511cc63",
+          "status": "done",
+          "ms": 134232
+        },
+        {
+          "id": "task_20_009b65d4",
+          "status": "done",
+          "ms": 134232
+        },
+        {
+          "id": "fork_149_a3ca3764",
+          "status": "done",
+          "ms": 11392
+        },
+        {
+          "id": "task_148_a7e74114",
+          "status": "done",
+          "ms": 11392
+        },
+        {
+          "id": "fork_151_2dcd20a9",
+          "status": "done",
+          "ms": 2267
+        },
+        {
+          "id": "task_150_591815e0",
+          "status": "done",
+          "ms": 2267
+        },
+        {
+          "id": "fork_153_a0768264",
+          "status": "done",
+          "ms": 4524
+        },
+        {
+          "id": "task_152_c5c0db37",
+          "status": "done",
+          "ms": 4524
+        },
+        {
+          "id": "fork_155_9e494b8c",
+          "status": "done",
+          "ms": 1845
+        },
+        {
+          "id": "task_154_430317f8",
+          "status": "done",
+          "ms": 1845
+        },
+        {
+          "id": "tasklist_123_ca392d02",
+          "status": "done",
+          "ms": 55780
+        },
+        {
+          "id": "delegate_122_d724f0ea",
+          "status": "done",
+          "ms": 63493
+        },
+        {
+          "id": "fork_23_5350f336",
+          "status": "done",
+          "ms": 164376
+        },
+        {
+          "id": "task_22_e90d4946",
+          "status": "done",
+          "ms": 164376
+        },
+        {
+          "id": "task_11_02c74135",
+          "status": "done",
+          "ms": 164376
+        },
+        {
+          "id": "delegate_158_6ca01937",
+          "status": "done",
+          "ms": 106163
+        },
+        {
+          "id": "fork_157_9ece4fcb",
+          "status": "done",
+          "ms": 110991
+        },
+        {
+          "id": "task_156_75665963",
+          "status": "done",
+          "ms": 110991
+        },
+        {
+          "id": "tasklist_8_9e088ae8",
+          "status": "done",
+          "ms": 326279
+        },
+        {
+          "id": "run_7_bdfe13e2",
+          "status": "done",
+          "ms": 339040
+        }
+      ],
+      "tokens": {
+        "in": 375599,
+        "out": 42028
+      },
+      "durationMs": 343839,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "state": {
+    "spaces": [
+      "Itinerary Summarizer",
+      "Ngorongoro Tariffs",
+      "Ngorongoro Voice-Memo Facts",
+      "Trip Cost Tracker",
+      "Visa & Regulatory Requirements"
+    ],
+    "appTables": {
+      "contacts": [
+        {
+          "id": "d7c8100a-b6b6-4cef-a8b4-7170cf5df352",
+          "name": "Richard (Suricata Safaris)",
+          "role": "Safari operator contact",
+          "phone": "+255 763 222 293",
+          "email": "info@suricatasafaris.com",
+          "website": "payments.pesapal.com/suricatasafaris",
+          "notes": "Safari balance (USD 960) due on arrival. Ask about ranger tip before payment."
+        },
+        {
+          "id": "b2aefa69-1108-46ea-8b1d-f4b6eb156601",
+          "name": "Emmanuel",
+          "role": "Driver/guide (Ngorongoro crater day)",
+          "phone": "",
+          "email": "",
+          "website": "",
+          "notes": "Actual driver/guide for the crater day. Not the office contact."
+        },
+        {
+          "id": "db3fcfaf-80f4-48e1-8287-0713f3e61ad6",
+          "name": "Eileen Hotel Cairo",
+          "role": "Cairo accommodation",
+          "phone": "+20 15 56434043",
+          "email": "info@eileenhotel.com",
+          "website": "",
+          "notes": "Aug 3-5 and potentially Aug 19-20 stopover stay."
+        },
+        {
+          "id": "31b06aba-70bf-4dbc-8d09-a0a0b2927148",
+          "name": "Serengeti Villa Arusha",
+          "role": "Arusha pre-safari accommodation",
+          "phone": "+255 757 757 928",
+          "email": "",
+          "website": "",
+          "notes": "Aug 5-7, 2 nights."
+        },
+        {
+          "id": "11d058f6-4adc-452a-a95d-f85172663684",
+          "name": "The Rock Restaurant Zanzibar",
+          "role": "Restaurant reservation",
+          "phone": "+255 776 591 360 / +255 763 070 658",
+          "email": "",
+          "website": "",
+          "notes": "Aug 15, 18:00-20:00, 2 adults. Fully paid USD 46. Outdoor seating."
+        },
+        {
+          "id": "f233d25d-eb62-4f82-b2d3-3f02754c9c49",
+          "name": "Ngorongoro Information Office",
+          "role": "NCAA official contact",
+          "phone": "+255 734 160 014 / +255 734 160 015",
+          "email": "cc@ncaa.go.tz",
+          "website": "www.ncaa.go.tz",
+          "notes": "Hotline: +255 27 253 7046. Karatu Office: +255 27 253 4068."
+        },
+        {
+          "id": "8eacaf37-e36c-45be-93c2-03131870a2e8",
+          "name": "Tanzania e-visa portal",
+          "role": "Visa application",
+          "phone": "",
+          "email": "",
+          "website": "visa.immigration.go.tz",
+          "notes": "Mandatory. USD 50/person. Visa-on-arrival no longer available as of Jan 2025."
+        }
+      ],
+      "costs": [
+        {
+          "id": "fa6c9708-129a-41d5-bff6-fa6cfc9d5efa",
+          "category": "Flights",
+          "line_item": "All 6 flight legs (2 pax)",
+          "currency": "EUR",
+          "amount": 2707,
+          "per_person": false,
+          "quantity": 1,
+          "total": 2707,
+          "payment_status": "paid",
+          "notes": "ATH→CAI→DAR→ARK→ZNZ→DAR→CAI→ATH"
+        },
+        {
+          "id": "692abc71-7764-46a9-82dc-20265db1c896",
+          "category": "Safari",
+          "line_item": "Suricata Safaris 3-day group camping safari",
+          "currency": "USD",
+          "amount": 1200,
+          "per_person": false,
+          "quantity": 1,
+          "total": 1200,
+          "payment_status": "partially_paid",
+          "notes": "USD 240 deposit paid. USD 960 balance due on arrival in cash (post-2009 USD notes) or Pesapal online +5%."
+        },
+        {
+          "id": "d46c6626-edcb-4a35-a1a1-52fd24c52021",
+          "category": "Park Fees",
+          "line_item": "Ngorongoro entry permit",
+          "currency": "USD",
+          "amount": 70.8,
+          "per_person": true,
+          "quantity": 2,
+          "total": 141.6,
+          "payment_status": "due",
+          "notes": "Non-EA adult (16+), USD 70.80/person. 24hr single entry."
+        },
+        {
+          "id": "4931b6b4-f1d0-49ff-a7ef-2de8c199d598",
+          "category": "Park Fees",
+          "line_item": "Ngorongoro crater service fee",
+          "currency": "USD",
+          "amount": 70.8,
+          "per_person": true,
+          "quantity": 2,
+          "total": 141.6,
+          "payment_status": "due",
+          "notes": "Non-EA adult rate."
+        },
+        {
+          "id": "80e6f551-177b-4fdc-9cad-713bebe25050",
+          "category": "Park Fees",
+          "line_item": "Ngorongoro crater vehicle descent fee",
+          "currency": "USD",
+          "amount": 295,
+          "per_person": false,
+          "quantity": 1,
+          "total": 295,
+          "payment_status": "due",
+          "notes": "Per vehicle, per trip. Suricata pays this as part of the package."
+        },
+        {
+          "id": "3a8e2a00-4d87-48fa-ac81-ebadf810350f",
+          "category": "Park Fees",
+          "line_item": "Tarangire NP entrance",
+          "currency": "USD",
+          "amount": 59,
+          "per_person": true,
+          "quantity": 2,
+          "total": 118,
+          "payment_status": "due",
+          "notes": "Peak season rate. Paid by Suricata as part of package."
+        },
+        {
+          "id": "8b49cbb0-1e7b-4058-9aa9-b88b8598c70b",
+          "category": "Park Fees",
+          "line_item": "Lake Manyara NP entrance",
+          "currency": "USD",
+          "amount": 59,
+          "per_person": true,
+          "quantity": 2,
+          "total": 118,
+          "payment_status": "due",
+          "notes": "Peak season rate. Paid by Suricata as part of package."
+        },
+        {
+          "id": "3be8ec1a-59ea-45ce-8bf8-13117ee30bf2",
+          "category": "Visas & Insurance",
+          "line_item": "Tanzania e-visa",
+          "currency": "USD",
+          "amount": 50,
+          "per_person": true,
+          "quantity": 2,
+          "total": 100,
+          "payment_status": "due",
+          "notes": "Mandatory at visa.immigration.go.tz. Visa-on-arrival no longer available as of Jan 2025."
+        },
+        {
+          "id": "815195b8-66c0-4494-b6f0-e8f18a72bcb9",
+          "category": "Visas & Insurance",
+          "line_item": "Egypt e-visa (multiple-entry)",
+          "currency": "USD",
+          "amount": 65,
+          "per_person": true,
+          "quantity": 2,
+          "total": 130,
+          "payment_status": "due",
+          "notes": "Must have printed copy. Multiple-entry required for two Cairo stopovers."
+        },
+        {
+          "id": "b6bbbce4-e7e8-4af6-8b86-1bcb1c89e6b3",
+          "category": "Visas & Insurance",
+          "line_item": "Zanzibar mandatory travel insurance (ZIC)",
+          "currency": "USD",
+          "amount": 44,
+          "per_person": true,
+          "quantity": 2,
+          "total": 88,
+          "payment_status": "due",
+          "notes": "From Zanzibar Insurance Corporation."
+        },
+        {
+          "id": "c851b091-8ff2-4a23-b0f8-b81cd4733e4c",
+          "category": "Other",
+          "line_item": "The Rock Restaurant dinner (Aug 15)",
+          "currency": "USD",
+          "amount": 46,
+          "per_person": false,
+          "quantity": 1,
+          "total": 46,
+          "payment_status": "paid",
+          "notes": "2 adults, 18:00-20:00, 2x Tropical Passion Fruit Cheesecake. Outdoor seating requested."
+        },
+        {
+          "id": "8e18a2ce-5c8f-41a2-b7f7-31ee5fd306d1",
+          "category": "Other",
+          "line_item": "Zanzibar local driving permit",
+          "currency": "USD",
+          "amount": 15,
+          "per_person": false,
+          "quantity": 1,
+          "total": 15,
+          "payment_status": "due",
+          "notes": "About USD 15, valid up to 3 months. In addition to IDP."
+        },
+        {
+          "id": "18052744-1292-4718-9c12-a5ae4aa5765f",
+          "category": "Other",
+          "line_item": "Two beaded bracelets (Maasai lady, Ngorongoro rim)",
+          "currency": "TZS",
+          "amount": 35000,
+          "per_person": false,
+          "quantity": 1,
+          "total": 35000,
+          "payment_status": "paid",
+          "notes": "For Athina Mari. Approximately USD 20-25. Paid in shillings."
+        },
+        {
+          "id": "efb15e96-53f8-40ca-b19d-9cd8f2ae483f",
+          "category": "Other",
+          "line_item": "Extra ranger tip (Ngorongoro gate)",
+          "currency": "TZS",
+          "amount": 5000,
+          "per_person": false,
+          "quantity": 1,
+          "total": 5000,
+          "payment_status": "due",
+          "notes": "Emmanuel mentioned ~TZS 5,000 cash. Need to ask Richard before safari balance payment."
+        }
+      ],
+      "flights": [
+        {
+          "id": "ee4a286a-6c58-4b46-a7bb-09eb813773b1",
+          "leg_order": 1,
+          "flight_date": "2026-08-03",
+          "route": "ATH→CAI",
+          "airline": "Aegean",
+          "flight_number": "A3932",
+          "departure_time": "06:55",
+          "arrival_time": "08:50",
+          "reference": "ZZJQUU",
+          "travelers": 2,
+          "notes": ""
+        },
+        {
+          "id": "601f00e3-7669-411c-b5bf-ea4be325587e",
+          "leg_order": 2,
+          "flight_date": "2026-08-04",
+          "route": "CAI→DAR",
+          "airline": "EgyptAir",
+          "flight_number": "",
+          "departure_time": "22:40",
+          "arrival_time": "04:20+1",
+          "reference": "",
+          "travelers": 2,
+          "notes": ""
+        },
+        {
+          "id": "4eb926fb-38b3-43da-ada2-a398a9009d38",
+          "leg_order": 3,
+          "flight_date": "2026-08-05",
+          "route": "DAR→ARK",
+          "airline": "Precision Air",
+          "flight_number": "TC144",
+          "departure_time": "10:50",
+          "arrival_time": "12:00",
+          "reference": "",
+          "travelers": 2,
+          "notes": ""
+        },
+        {
+          "id": "63f69e83-8295-478d-bf9f-af30dbeb7eaa",
+          "leg_order": 4,
+          "flight_date": "2026-08-11",
+          "route": "ARK→ZNZ",
+          "airline": "Precision Air",
+          "flight_number": "TC145",
+          "departure_time": "12:40",
+          "arrival_time": "13:40",
+          "reference": "",
+          "travelers": 2,
+          "notes": ""
+        },
+        {
+          "id": "684f7f12-3da0-492d-be4d-107849ec7970",
+          "leg_order": 5,
+          "flight_date": "2026-08-19",
+          "route": "DAR→CAI",
+          "airline": "EgyptAir",
+          "flight_number": "",
+          "departure_time": "05:20",
+          "arrival_time": "11:05",
+          "reference": "",
+          "travelers": 2,
+          "notes": ""
+        },
+        {
+          "id": "faaefd2d-6325-4530-be7a-ecfc02bf2a57",
+          "leg_order": 6,
+          "flight_date": "2026-08-20",
+          "route": "CAI→ATH",
+          "airline": "Aegean",
+          "flight_number": "A3935",
+          "departure_time": "19:55",
+          "arrival_time": "22:00",
+          "reference": "ZZL22S",
+          "travelers": 2,
+          "notes": ""
+        }
+      ],
+      "itinerary": [
+        {
+          "id": "01fda42b-c528-47ff-853a-a5485d677ee6",
+          "leg_number": 1,
+          "destination": "Cairo (arrival stopover)",
+          "start_date": "2026-08-03",
+          "end_date": "2026-08-05",
+          "nights": 2,
+          "lodging": "Eileen Hotel",
+          "lodging_cost_usd": 102,
+          "notes": "Grand Egyptian Museum, Pyramids of Giza"
+        },
+        {
+          "id": "1a8e5639-fd88-4bb5-88e6-8a4570dec10b",
+          "leg_number": 2,
+          "destination": "Arusha (pre-safari)",
+          "start_date": "2026-08-05",
+          "end_date": "2026-08-07",
+          "nights": 2,
+          "lodging": "Serengeti Villa",
+          "lodging_cost_usd": 62,
+          "notes": ""
+        },
+        {
+          "id": "006f165d-8e52-4e36-8505-9d6cfbf518fd",
+          "leg_number": 3,
+          "destination": "Safari Circuit (Tarangire / Lake Manyara / Ngorongoro)",
+          "start_date": "2026-08-07",
+          "end_date": "2026-08-09",
+          "nights": 2,
+          "lodging": "Suricata Safaris package (Twiga Camps + Jevas Hotel)",
+          "lodging_cost_usd": 1200,
+          "notes": "3-day group camping safari with Suricata Safaris Ltd. Richard +255 763 222 293."
+        },
+        {
+          "id": "6eb75a8d-4947-40e1-87f1-e585ea09b364",
+          "leg_number": 4,
+          "destination": "Arusha (post-safari)",
+          "start_date": "2026-08-09",
+          "end_date": "2026-08-11",
+          "nights": 2,
+          "lodging": "Kutoka Lodge",
+          "lodging_cost_usd": 96,
+          "notes": ""
+        },
+        {
+          "id": "954206b7-6225-4466-a5b0-6b292e487a19",
+          "leg_number": 5,
+          "destination": "Zanzibar – Stone Town",
+          "start_date": "2026-08-11",
+          "end_date": "2026-08-13",
+          "nights": 2,
+          "lodging": "Treasures of Zanzibar House",
+          "lodging_cost_usd": 100,
+          "notes": ""
+        },
+        {
+          "id": "8af93887-7839-4119-9ee2-bf865884212d",
+          "leg_number": 6,
+          "destination": "Zanzibar – Kiwengwa Beach",
+          "start_date": "2026-08-13",
+          "end_date": "2026-08-17",
+          "nights": 4,
+          "lodging": "Ayla Beach House",
+          "lodging_cost_usd": 304,
+          "notes": "The Rock Restaurant Aug 15, Nungwi swimming"
+        },
+        {
+          "id": "d4be9f63-5875-4de2-bcae-18567c64db64",
+          "leg_number": 7,
+          "destination": "Dar es Salaam",
+          "start_date": "2026-08-17",
+          "end_date": "2026-08-19",
+          "nights": 2,
+          "lodging": "Sunny Shore B&B",
+          "lodging_cost_usd": 200,
+          "notes": "Arrive by ferry. Kivukoni Fish Market, Kariakoo, National Museum, Coco Beach, Bongoyo Island"
+        },
+        {
+          "id": "e6d37bbb-876b-4373-a3df-e93e84e85efe",
+          "leg_number": 8,
+          "destination": "Cairo (departure stopover)",
+          "start_date": "2026-08-19",
+          "end_date": "2026-08-20",
+          "nights": 1,
+          "lodging": "Ramses Hilton",
+          "lodging_cost_usd": 87,
+          "notes": "Islamic Cairo, Citadel, Khan el-Khalili, Coptic Cairo"
+        }
+      ],
+      "ngorongoro_tariffs": [
+        {
+          "id": "1ed529b8-3c2f-4b42-b386-68fc31bbd770",
+          "section": "A",
+          "item": "Entry Permit (Non-EA adult 16+)",
+          "unit": "per person per day",
+          "rate_usd": 70.8,
+          "child_rate_usd": 35.4,
+          "notes": "Valid for ONE entry within 24 hours only. Under 5 free."
+        },
+        {
+          "id": "fa3b5bf7-47bb-448e-bbd8-fa1a228d227c",
+          "section": "B",
+          "item": "Motor Vehicle Permit (foreign, 2,001-3,000kg)",
+          "unit": "per vehicle per trip",
+          "rate_usd": 177,
+          "child_rate_usd": 0,
+          "notes": "Only 4x4 vehicles up to 3,500kg tare allowed on crater floor. 3,001-7,000kg is USD 236."
+        },
+        {
+          "id": "96800eac-0bc0-4c00-b552-5ca6521eeb54",
+          "section": "C",
+          "item": "Cultural Bomas",
+          "unit": "per vehicle",
+          "rate_usd": 20,
+          "child_rate_usd": 0,
+          "notes": ""
+        },
+        {
+          "id": "2776c0d8-687c-4f67-9ad4-e8a323b786b8",
+          "section": "D",
+          "item": "Camping Fees (public campsite, Non-EA adult)",
+          "unit": "per person per night",
+          "rate_usd": 70.8,
+          "child_rate_usd": 35.4,
+          "notes": "Non-EA adult rate. Tanzanian adult: TZS 17,700."
+        },
+        {
+          "id": "0d0dd078-b3a5-42ab-b544-966060f22942",
+          "section": "E",
+          "item": "Crater Service Fee (Non-EA adult)",
+          "unit": "per person",
+          "rate_usd": 70.8,
+          "child_rate_usd": 35.4,
+          "notes": "Charged in addition to entry permit."
+        },
+        {
+          "id": "8bd4614c-421d-4f03-88c4-adadf06596fc",
+          "section": "E",
+          "item": "Vehicle Descent Fee (Non-EA)",
+          "unit": "per vehicle per trip",
+          "rate_usd": 295,
+          "child_rate_usd": 0,
+          "notes": "Crater descent. Gates close 16:00; driving hours 06:00-18:00."
+        },
+        {
+          "id": "9cde782e-fd23-4d3b-b364-be28aa50f079",
+          "section": "F",
+          "item": "Walking Safari Guide (short, 1-4hrs)",
+          "unit": "per person",
+          "rate_usd": 23.6,
+          "child_rate_usd": 11.8,
+          "notes": "Walking safaris require NCAA armed ranger. Long (4+hrs): USD 29.50."
+        },
+        {
+          "id": "6a2a136b-c978-454b-a38f-9fa7d724e60c",
+          "section": "G",
+          "item": "Bush Lunch Permit",
+          "unit": "per person",
+          "rate_usd": 23.6,
+          "child_rate_usd": 0,
+          "notes": ""
+        },
+        {
+          "id": "39513de9-f701-4191-8aa0-e6ee466e3586",
+          "section": "I",
+          "item": "Olduvai Gorge / Laetoli Footprints",
+          "unit": "per person",
+          "rate_usd": 35.4,
+          "child_rate_usd": 11.8,
+          "notes": ""
+        },
+        {
+          "id": "a2cea82d-6600-4906-9ff7-c6c5396acbeb",
+          "section": "J",
+          "item": "Hot Air Balloon",
+          "unit": "per person",
+          "rate_usd": 590,
+          "child_rate_usd": 0,
+          "notes": ""
+        },
+        {
+          "id": "a2bebc8e-fb08-4456-b2f8-a42d73296296",
+          "section": "K",
+          "item": "Horse Riding",
+          "unit": "per person",
+          "rate_usd": 35.4,
+          "child_rate_usd": 11.8,
+          "notes": ""
+        },
+        {
+          "id": "df91af05-4b4b-4cae-b6c0-afbcb652d5fd",
+          "section": "L",
+          "item": "Mountain Biking",
+          "unit": "per person",
+          "rate_usd": 5.9,
+          "child_rate_usd": 2.36,
+          "notes": ""
+        },
+        {
+          "id": "aaa9a46a-05a7-4d31-97ad-ba46a4d7f485",
+          "section": "M",
+          "item": "Sundown Fee",
+          "unit": "per person",
+          "rate_usd": 59,
+          "child_rate_usd": 11.8,
+          "notes": ""
+        }
+      ],
+      "trip_memories": [
+        {
+          "id": "806c2b76-20ca-4b4a-aa9b-59cee196189a",
+          "title": "Stone Town Courtyard",
+          "description": "Interior courtyard of a building in Stone Town, Zanzibar.",
+          "location": "Stone Town, Zanzibar",
+          "date": "2026-08-11",
+          "media_type": "photo",
+          "detail": "White stucco walls, arched windows, ornate dark wooden balconies stacked above each other with carved railings. Warm sunlight, clear blue sky overhead. Mediterranean/Middle Eastern feel with an unusual inward-looking layout around the courtyard. Multi-story building or hotel."
+        },
+        {
+          "id": "23064ec0-6b1f-4c5f-831f-dc46af89f1e3",
+          "title": "Ngorongoro Crater Day — Voice Memo",
+          "description": "Voice memo recorded during the Ngorongoro crater descent day.",
+          "location": "Ngorongoro Crater, Tanzania",
+          "date": "2026-08-08",
+          "media_type": "voice_memo",
+          "detail": "Driver/guide is Emmanuel. Bought two beaded bracelets from a Maasai lady at the rim for Athina Mari (~TZS 35,000). Emmanuel mentioned an extra ranger tip of ~TZS 5,000 cash expected at the gate."
+        }
+      ],
+      "voice_memo_facts": [
+        {
+          "id": "4615a94e-12f4-4ff1-b2d7-d65173fbeffb",
+          "fact": "Driver/guide is Emmanuel",
+          "detail": "The driver and guide for the Ngorongoro crater day is Emmanuel (not Richard, who is the office contact at Suricata Safaris).",
+          "category": "contact",
+          "amount_tzs": 0,
+          "amount_usd_approx": 0,
+          "status": "confirmed"
+        },
+        {
+          "id": "7dfb7e09-bc8d-4892-9a85-1ea6a8ea942e",
+          "fact": "Two beaded bracelets for Athina Mari",
+          "detail": "Purchased two beaded bracelets from a Maasai lady at the Ngorongoro crater rim. Approximately USD 20-25 (TZS ~35,000).",
+          "category": "expense",
+          "amount_tzs": 35000,
+          "amount_usd_approx": 23,
+          "status": "paid"
+        },
+        {
+          "id": "e1a449a4-789a-4a0f-96fa-ed8a4b8f29d7",
+          "fact": "Extra ranger tip at Ngorongoro gate",
+          "detail": "Emmanuel mentioned an extra ranger tip expected at the gate: around TZS 5,000 cash, separate from park fees.",
+          "category": "expense",
+          "amount_tzs": 5000,
+          "amount_usd_approx": 2,
+          "status": "to_ask"
+        },
+        {
+          "id": "942d25c7-c10f-4133-82a9-4fafe1c3b9a8",
+          "fact": "Ask Richard about ranger tip before safari balance payment",
+          "detail": "Before paying the USD 960 safari balance to Suricata Safaris, clarify with Richard whether the ranger tip is included or if it needs to be paid separately in cash.",
+          "category": "question",
+          "amount_tzs": 0,
+          "amount_usd_approx": 0,
+          "status": "pending"
+        }
+      ]
+    },
+    "appManifest": {
+      "tables": [
+        {
+          "name": "contacts",
+          "schema": {
+            "title": "Key Contacts",
+            "description": "Important contacts for the Tanzania trip.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "name": {
+                "type": "string",
+                "description": "Contact name or organization"
+              },
+              "role": {
+                "type": "string",
+                "description": "Role or context"
+              },
+              "phone": {
+                "type": "string",
+                "description": "Phone number"
+              },
+              "email": {
+                "type": "string",
+                "description": "Email address"
+              },
+              "website": {
+                "type": "string",
+                "description": "Website URL"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Additional notes"
+              }
+            }
+          }
+        },
+        {
+          "name": "costs",
+          "schema": {
+            "title": "Trip Costs & Budget",
+            "description": "All trip costs broken down by category and line item.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "category": {
+                "type": "string",
+                "description": "Cost category (Flights, Safari, Park Fees, Visas & Insurance, Other, Lodging)"
+              },
+              "line_item": {
+                "type": "string",
+                "description": "Line item description"
+              },
+              "currency": {
+                "type": "string",
+                "description": "Currency (EUR or USD)"
+              },
+              "amount": {
+                "type": "number",
+                "description": "Amount"
+              },
+              "per_person": {
+                "type": "boolean",
+                "description": "Is this per person?"
+              },
+              "quantity": {
+                "type": "number",
+                "description": "Quantity (e.g. 2 travelers)"
+              },
+              "total": {
+                "type": "number",
+                "description": "Total in the stated currency"
+              },
+              "payment_status": {
+                "type": "string",
+                "description": "paid | partially_paid | due"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Additional notes"
+              }
+            }
+          }
+        },
+        {
+          "name": "flights",
+          "schema": {
+            "title": "Flights",
+            "description": "All 6 flight legs for both travelers.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "leg_order": {
+                "type": "number",
+                "description": "Flight order (1-6)"
+              },
+              "flight_date": {
+                "type": "string",
+                "description": "Flight date (YYYY-MM-DD)"
+              },
+              "route": {
+                "type": "string",
+                "description": "Route (e.g. ATH→CAI)"
+              },
+              "airline": {
+                "type": "string",
+                "description": "Airline name"
+              },
+              "flight_number": {
+                "type": "string",
+                "description": "Flight number"
+              },
+              "departure_time": {
+                "type": "string",
+                "description": "Departure time"
+              },
+              "arrival_time": {
+                "type": "string",
+                "description": "Arrival time"
+              },
+              "reference": {
+                "type": "string",
+                "description": "Booking reference"
+              },
+              "travelers": {
+                "type": "number",
+                "description": "Number of travelers"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Notes"
+              }
+            }
+          }
+        },
+        {
+          "name": "itinerary",
+          "schema": {
+            "title": "Trip Itinerary",
+            "description": "Day-by-day itinerary legs for the Tanzania trip (Aug 3-20, 2026).",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "leg_number": {
+                "type": "number",
+                "description": "Order of this leg (1-8)"
+              },
+              "destination": {
+                "type": "string",
+                "description": "Place name (Cairo, Arusha, Safari Circuit, etc.)"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date (YYYY-MM-DD)"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date (YYYY-MM-DD)"
+              },
+              "nights": {
+                "type": "number",
+                "description": "Number of nights"
+              },
+              "lodging": {
+                "type": "string",
+                "description": "Accommodation name"
+              },
+              "lodging_cost_usd": {
+                "type": "number",
+                "description": "Total lodging cost in USD"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Additional notes about this leg"
+              }
+            }
+          }
+        },
+        {
+          "name": "ngorongoro_tariffs",
+          "schema": {
+            "title": "Ngorongoro Official Tariffs",
+            "description": "Official Ngorongoro Conservation Area tariff schedule (non-East African rates relevant to the trip).",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "section": {
+                "type": "string",
+                "description": "Tariff section letter (A-P)"
+              },
+              "item": {
+                "type": "string",
+                "description": "Tariff item name"
+              },
+              "unit": {
+                "type": "string",
+                "description": "Per person / per vehicle / per trip"
+              },
+              "rate_usd": {
+                "type": "number",
+                "description": "Rate in USD (non-EA adult)"
+              },
+              "child_rate_usd": {
+                "type": "number",
+                "description": "Child rate (5-16) in USD"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Additional details"
+              }
+            }
+          }
+        },
+        {
+          "name": "trip_memories",
+          "schema": {
+            "title": "Trip Memories",
+            "description": "Photos, voice memos, and other memories from the trip.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "title": {
+                "type": "string",
+                "description": "Memory title"
+              },
+              "description": {
+                "type": "string",
+                "description": "Description of the memory"
+              },
+              "location": {
+                "type": "string",
+                "description": "Where this was captured"
+              },
+              "date": {
+                "type": "string",
+                "description": "Date captured (YYYY-MM-DD)"
+              },
+              "media_type": {
+                "type": "string",
+                "description": "photo | voice_memo | note"
+              },
+              "detail": {
+                "type": "string",
+                "description": "Detailed narrative about this memory"
+              }
+            }
+          }
+        },
+        {
+          "name": "voice_memo_facts",
+          "schema": {
+            "title": "Voice Memo Facts (Ngorongoro Crater Day)",
+            "description": "Facts captured from the voice memo recorded on the Ngorongoro crater day.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "fact": {
+                "type": "string",
+                "description": "The fact or observation"
+              },
+              "detail": {
+                "type": "string",
+                "description": "Detailed explanation"
+              },
+              "category": {
+                "type": "string",
+                "description": "contact | expense | question | note"
+              },
+              "amount_tzs": {
+                "type": "number",
+                "description": "Amount in TZS if applicable"
+              },
+              "amount_usd_approx": {
+                "type": "number",
+                "description": "Approximate USD equivalent"
+              },
+              "status": {
+                "type": "string",
+                "description": "confirmed | pending | paid | to_ask"
+              }
+            }
+          }
+        }
+      ],
+      "pages": [],
+      "built": false
+    },
+    "error": null
+  }
+}

@@ -1,0 +1,217 @@
+{
+  "step": 1,
+  "verbs": [
+    "attach",
+    "say"
+  ],
+  "expect": [
+    "all five files are actually read — the photo LOOKED AT (vision), the voice memo TRANSCRIBED, the PDF and the spreadsheet PARSED",
+    "it OFFERS to organize this without being asked, naming at least two real specifics of mine (a place, a date, a booking)",
+    "it builds NOTHING yet — no spaces, no tables, no pages, no app (the offer precedes any authoring yield)"
+  ],
+  "turns": [
+    {
+      "sent": "Ok this is getting out of hand. I've got the whole Tanzania trip spread across about six different places — a notes file, a spreadsheet with the costs, the crater park-fee PDF, a photo I liked from Stone Town, and a voice note I left myself at the crater. Attaching all of it. I don't trust myself to keep it straight on my phone once we're actually there — can you help me get on top of it?",
+      "lastText": "{\"type\":\"Stack\",\"props\":{\"gap\":2},\"children\":[{\"type\":\"Heading\",\"props\":{\"level\":2},\"children\":[\"Here's what I've got from everything you sent\"]},{\"type\":\"Callout\",\"props\":{\"variant\":\"info\",\"title\":\"📝 tanzaniamemories.md\"},\"children\":[\"Your trip notes — a full itinerary for you and Athina Mari covering Zanzibar (Stone Town), the Ngorongoro Crater safari, and surrounding logistics. Dates, accommodations, contact names, and practical notes are all in there.\"]},{\"type\":\"Callout\",\"props\":{\"variant\":\"info\",\"title\":\"💰 trip-costs.xlsx\"},\"children\":[\"A cost spreadsheet with line items across the trip — flights, accommodation, park fees, transfers, and extras. I can see it's got categories and figures for each part of the journey.\"]},{\"type\":\"Callout\",\"props\":{\"variant\":\"info\",\"title\":\"🏞️ ngorongoro-conservation-area-tariffs.pdf\"},\"children\":[\"The official Ngorongoro Conservation Area park-fee schedule — the actual tariff rates for entry, vehicle permits, and other charges. This is your ground truth for what the crater should cost.\"]},{\"type\":\"Callout\",\"props\":{\"variant\":\"info\",\"title\":\"🎙️ Voice memo from the crater\"},\"children\":[\"You recorded this at Ngorongoro — one of the best days of your life. Key bits: your driver-guide was \",{\"type\":\"Strong\",\"props\":{},\"children\":[\"Emmanuel\"]},\" (not Richard), a Maasai lady sold you two beaded bracelets for Athina Mari (paid roughly TZS 35,000 in shillings, around $20–25), and Emmanuel mentioned an \",{\"type\":\"Strong\",\"props\":{},\"children\":[\"extra ranger tip of ~TZS 5,000\"]},\" at the gate — separate from park fees — that nobody told you about beforehand. You want to ask Richard about it before the safari balance payment.\"]},{\"type\":\"Callout\",\"props\":{\"variant\":\"info\",\"title\":\"📸 Stone Town photo\"},\"children\":[\"A bright courtyard shot in Zanzibar's Stone Town — white stucco walls, arched wooden windows, ornate dark balconies stacked up the façade under a clear blue sky. A keeper.\"]},{\"type\":\"Divider\",\"props\":{},\"children\":[]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Right now all of this lives in six separate places — notes, a spreadsheet, a PDF, a photo, a voice memo, and your head. When you're on the ground in Tanzania, fumbling through files on your phone to find one figure or remember one name is exactly what you don't want.\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[{\"type\":\"Strong\",\"props\":{},\"children\":[\"Want me to pull all of this into a single Tanzania trip app you can open on your phone?\"]},\" I'd build proper tables for your itinerary, costs (checked against the official park tariffs), contacts, and notes — plus pages to browse everything by part of the trip (Zanzibar, Ngorongoro, logistics). The voice-memo details (Emmanuel, the ranger tip, the bracelets) go in too, not lost in a transcript. One place, one tap.\"]}]}",
+      "delegates": [
+        "system-files/dispatch",
+        "system-vision/vision",
+        "system-files/reader",
+        "system-files/sheet"
+      ],
+      "yieldKinds": [
+        "loadKnowledge",
+        "delegate",
+        "readDocument",
+        "inspect"
+      ],
+      "yields": [
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "instructions.md"
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"dispatch\",null,{\"query\":\"Summarize these documents concisely, listing the key names, dates, figures, and specifics from each. 1) tanzaniamemories.md — notes file about a Tanzania trip. 2) trip-costs.xlsx — spreadsheet with trip costs. 3) ngorongoro-conservation-area-tariffs.pdf — crater park-fee PDF. For each document, tell me the factual contents: what data it contains, what cate…"
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-vision",
+            "vision",
+            null,
+            {
+              "query": "Describe this photo briefly: what is shown, any notable details, location cues, or anything written/visible.",
+              "attachmentIds": [
+                "97c2ccc4-515c-443d-8684-e83af671f27f"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-files",
+            "reader",
+            null,
+            {
+              "query": "Summarize these documents concisely, listing the key names, dates, figures, and specifics from each. For each document, tell me the factual contents: what data it contains, what categories/tables, and the key numbers, names, and dates present.",
+              "attachmentIds": [
+                "5aab9324-cfcb-47f9-bee2-8e5894d0ba93",
+                "cc278389-bf5c-4207-aece-27461c3bbe7a"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-files",
+            "sheet",
+            null,
+            {
+              "query": "Summarize this spreadsheet concisely, listing the key names, dates, figures, and specifics. Tell me the factual contents: what data it contains, what categories/tables, and the key numbers, names, and dates present.",
+              "attachmentIds": [
+                "50549ed6-4466-4f21-849e-7c27e3f1d545"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/text"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/pdf"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/tabular/spreadsheet"
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "5aab9324-cfcb-47f9-bee2-8e5894d0ba93",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "50549ed6-4466-4f21-849e-7c27e3f1d545",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "cc278389-bf5c-4207-aece-27461c3bbe7a",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "5aab9324-cfcb-47f9-bee2-8e5894d0ba93",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "50549ed6-4466-4f21-849e-7c27e3f1d545",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "cc278389-bf5c-4207-aece-27461c3bbe7a",
+            null
+          ]
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"## Document 1: tanzaniamemories.md\\n\\n**Type:** Trip planning itinerary & briefing notes (Markdown)\\n**Content:** A detailed itinerary and planning document for Vasileios Kefallinos and Athina Mari, traveling August 3–20, 2026 across Egypt and Tanzania.\\n\\n**Key names:**\\n- Travelers: Vasileios Kefallinos, Athina Mari\\n- Safari operator: Suricata Safaris Ltd (contact: Richard, +255 763 …"
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"## Document 1: tanzaniamemories.md\\n\\n**Type:** Trip planning itinerary & briefing notes (Markdown)\\n**Content:** A detailed itinerary and planning document for Vasileios Kefallinos and Athina Mari, traveling August 3–20, 2026 across Egypt and Tanzania.\\n\\n**Key names:**\\n- Travelers: Vasileios Kefallinos, Athina Mari\\n- Safari operator: Suricata Safaris Ltd (contact: Richard, +255 763 …"
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"## Document 1: tanzaniamemories.md\\n\\n**Type:** Trip planning itinerary & briefing notes (Markdown)\\n**Content:** A detailed itinerary and planning document for Vasileios Kefallinos and Athina Mari, traveling August 3–20, 2026 across Egypt and Tanzania.\\n\\n**Key names:**\\n- Travelers: Vasileios Kefallinos, Athina Mari\\n- Safari operator: Suricata Safaris Ltd (contact: Richard, +255 763 …"
+        }
+      ],
+      "errors": [
+        {
+          "type": "typecheck_error",
+          "message": "Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Invalid character.; ',' expected.; ',' expected.; ',' expected.; ',' expected.; ',' expected.; ',' expected.; ',' expected.; ',' expected.; ',' expected.; ',' expected.; ',' expected.; ',' expected.; ',' expected.; '(' expected.; ';' expected.; ';' expected.; ')' expected.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Identifier expected.; Cannot find name 'I'.; Cannot find name 'already'.; Cannot find name 'have'.; Block-scoped variable 'the' used before its declaration.; Cannot find name 'full'.; Cannot find name 'document'. Did you mean 'DOCUMENT'?; Cannot find name 'contents'. Did you mean 'CONTENTS'?; Cannot find name 'displayed'. Did you mean 'display'?; Cannot find name 'above'.; Cannot find name 'all'.; Cannot find name 'three'. Did you mean 'the'?; Cannot find name 'files'.; Cannot find name 'parse'.; Cannot find name 'through'.; Cannot find name 'them'.; Cannot find name 'and'.; Cannot find name 'synthesize'.; Cannot find name 'summary'.",
+          "statement": "I already have the full document contents displayed above — let me work from those directly. The DOCUMENT CONTENTS block shows the complete text for all three files. Let me parse through them and synthesize the summary.",
+          "attempt": 1
+        }
+      ],
+      "nodes": [
+        {
+          "id": "delegate_3_cb0bd950",
+          "status": "done",
+          "ms": 5829
+        },
+        {
+          "id": "delegate_5_65cb5b3b",
+          "status": "done",
+          "ms": 21510
+        },
+        {
+          "id": "delegate_4_80513d1a",
+          "status": "done",
+          "ms": 31970
+        },
+        {
+          "id": "delegate_2_d6651ed5",
+          "status": "done",
+          "ms": 44118
+        },
+        {
+          "id": "run_1_024ab906",
+          "status": "done",
+          "ms": 68264
+        }
+      ],
+      "tokens": {
+        "in": 57701,
+        "out": 4759
+      },
+      "durationMs": 73174,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "attached": [
+    "tanzaniamemories.md",
+    "trip-costs.xlsx",
+    "ngorongoro-conservation-area-tariffs.pdf",
+    "stone-town-zanzibar.jpg",
+    "voice-memo.mp3"
+  ],
+  "state": {
+    "spaces": [],
+    "appTables": {},
+    "appManifest": {
+      "tables": [],
+      "pages": [],
+      "built": false
+    },
+    "error": null
+  }
+}

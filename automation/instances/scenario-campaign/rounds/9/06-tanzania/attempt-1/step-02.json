@@ -1,0 +1,1107 @@
+{
+  "step": 2,
+  "verbs": [
+    "say"
+  ],
+  "expect": [
+    "SPACES GET CREATED — one per leg (Cairo, the safari/Ngorongoro leg, Zanzibar, Dar es Salaam), each with its own agent, not one generic space",
+    "MY TRIP LANDS IN THE DB — legs, dates, lodging, costs, the park fees, what I've already paid",
+    "flight reference ZZJQUU (from the notes) is a real DB row — proof the notes were parsed, not guessed",
+    "the spreadsheet's cost lines land as DB rows (the run toward the 3344.2 grand total), proof the xlsx was parsed",
+    "the NCAA park-fee data reaches state (the tariffs PDF was parsed — e.g. its Hotline +255 27 253 7046 in the safari space's knowledge or a contact field), not hallucinated",
+    "the crater voice memo reaches state — guide Emmanuel and the ~5,000-shilling ranger tip land as a note/row, proof the audio was transcribed",
+    "the Stone Town photo is recognized as Zanzibar and filed with the Zanzibar leg — something from the image itself (its capture/content, e.g. Canon PowerShot SX30 IS), not the filename, reaches state",
+    "AN APP GETS BUILT on those tables — real pages showing my real rows — and served",
+    "NO RESEARCH HAPPENS in this whole build (no webSearch/webFetch yields): everything it needed, I handed it"
+  ],
+  "turns": [
+    {
+      "sent": "Yes please.",
+      "lastText": "{\"type\":\"Stack\",\"props\":{\"gap\":2},\"children\":[{\"type\":\"Heading\",\"props\":{\"level\":2},\"children\":[\"Done — your Tanzania trip is now in one place\"]},{\"type\":\"Panel\",\"props\":{\"title\":\"📱 Your trip app\"},\"children\":[{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Built with \",{\"type\":\"Strong\",\"props\":{},\"children\":[\"5 tables\"]},\" (legs, costs, contacts, notes, flights) and \",{\"type\":\"Strong\",\"props\":{},\"children\":[\"58 seeded rows\"]},\" pulled straight from your spreadsheet, notes, and the park-fee PDF. You've got \",{\"type\":\"Strong\",\"props\":{},\"children\":[\"6 pages\"]},\" to browse — itinerary, costs, contacts, notes, flights, and a dashboard overview.\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Open it at \",{\"type\":\"Link\",\"props\":{\"href\":\"/app/tanzania-trip/\"},\"children\":[\"/app/tanzania-trip/\"]},\" — works on your phone, and everything's searchable.\"]}]},{\"type\":\"Panel\",\"props\":{\"title\":\"🧠 Specialist knowledge — for when you have questions later\"},\"children\":[{\"type\":\"List\",\"props\":{\"items\":[\"Zanzibar & Stone Town — knows your accommodations, the photo, and local notes for that leg\",\"Ngorongoro Crater safari — knows Emmanuel, the official tariffs, the ranger-tip warning, the Maasai bracelet story, and your crater-day notes\"]},\"children\":[]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[{\"type\":\"Muted\",\"props\":{},\"children\":[\"Ask me things like \\\"do I need cash for the crater gate?\\\" or \\\"what was our Stone Town hotel called?\\\" and these specialists have the answer — no digging through files.\"]}]}]},{\"type\":\"Callout\",\"props\":{\"variant\":\"warning\",\"title\":\"⚠️ Don't forget\"},\"children\":[\"Emmanuel mentioned a \",{\"type\":\"Strong\",\"props\":{},\"children\":[\"TZS 5,000 ranger tip in cash\"]},\" at the crater gate — separate from park fees, and not in your original budget. Ask \",{\"type\":\"Strong\",\"props\":{},\"children\":[\"Richard\"]},\" about it before you settle the safari balance.\"]}]}",
+      "delegates": [
+        "system-architect/architect/synthesize_and_run",
+        "system-architect/architect/synthesize_and_run",
+        "system-appbuilder/automator"
+      ],
+      "yieldKinds": [
+        "delegate",
+        "tasklist",
+        "registerSpace",
+        "readDocument",
+        "inspect",
+        "setSessionMeta"
+      ],
+      "yields": [
+        {
+          "kind": "delegate",
+          "args": "[\"system-architect\",\"architect\",\"synthesize_and_run\",{\"query\":\"Build a specialist space for the Zanzibar / Stone Town part of this Tanzania trip.\",\"context\":{\"topic\":\"Zanzibar & Stone Town (Tanzania trip)\",\"goal\":\"Answer questions about the Zanzibar portion of this trip — accommodations, activities, notes, and practical details from the provided material.\",\"research\":\"{\\\"topic\\\":\\\"Zanzibar & Stone…"
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-architect\",\"architect\",\"synthesize_and_run\",{\"query\":\"Build a specialist space for the Ngorongoro Crater part of this Tanzania trip.\",\"context\":{\"topic\":\"Ngorongoro Crater safari (Tanzania trip)\",\"goal\":\"Answer questions about the Ngorongoro Crater safari — park fees, driver-guide details, on-the-ground tips, and purchasing notes from the provided material.\",\"research\":\"{\\\"topic\\\":\\\"Ngoro…"
+        },
+        {
+          "kind": "tasklist",
+          "args": "[\"synthesize_and_run\",{\"topic\":\"Ngorongoro Crater safari (Tanzania trip)\",\"goal\":\"Answer questions about the Ngorongoro Crater safari — park fees, driver-guide details, on-the-ground tips, and purchasing notes from the provided material.\",\"research\":\"\\\"{\\\\\\\"topic\\\\\\\":\\\\\\\"Ngorongoro Crater safari\\\\\\\",\\\\\\\"executive_summary\\\\\\\":\\\\\\\"The Ngorongoro Crater was described as \\\\\\\\\\\\\\\"one of the best days o…"
+        },
+        {
+          "kind": "tasklist",
+          "args": "[\"synthesize_and_run\",{\"query\":\"Build a specialist space for the Zanzibar / Stone Town part of this Tanzania trip.\",\"topic\":\"Zanzibar & Stone Town (Tanzania trip)\",\"goal\":\"Answer questions about the Zanzibar portion of this trip — accommodations, activities, notes, and practical details from the provided material.\",\"research\":\"{\\\"topic\\\":\\\"Zanzibar & Stone Town\\\",\\\"executive_summary\\\":\\\"The Zanzib…"
+        },
+        {
+          "kind": "registerSpace",
+          "args": [
+            "/home/vasilis/LMTHING/lmthing/sdk/org/scenarios/harness/.state/local-server/pod-root/.lmthing/tanzania-trip/spaces/zanzibar-stone-town"
+          ]
+        },
+        {
+          "kind": "registerSpace",
+          "args": [
+            "/home/vasilis/LMTHING/lmthing/sdk/org/scenarios/harness/.state/local-server/pod-root/.lmthing/tanzania-trip/spaces/ngorongoro-crater-safari"
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-appbuilder\",\"automator\",null,{\"query\":\"Build a Tanzania trip app IN this live project. Read the attached files and MOVE ALL of their data into the app database as seeded table rows. The app should cover: itinerary, costs/budget, contacts/people, and notes/observations. Pages to browse by trip part (Zanzibar/Stone Town, Ngorongoro Crater safari, general logistics). Also seed these voice-me…"
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "5aab9324-cfcb-47f9-bee2-8e5894d0ba93",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "50549ed6-4466-4f21-849e-7c27e3f1d545",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "cc278389-bf5c-4207-aece-27461c3bbe7a",
+            null
+          ]
+        },
+        {
+          "kind": "inspect",
+          "args": [
+            {
+              "value": {
+                "ok": true
+              },
+              "query": {
+                "depth": 1
+              }
+            }
+          ]
+        },
+        {
+          "kind": "setSessionMeta",
+          "args": [
+            {
+              "title": "Tanzania trip app",
+              "slug": "tanzania-trip-app"
+            }
+          ]
+        }
+      ],
+      "errors": [],
+      "nodes": [
+        {
+          "id": "fork_14_6ecc1ef0",
+          "status": "done",
+          "ms": 4509
+        },
+        {
+          "id": "task_13_d759e1d4",
+          "status": "done",
+          "ms": 4509
+        },
+        {
+          "id": "fork_11_42a63093",
+          "status": "done",
+          "ms": 5541
+        },
+        {
+          "id": "task_10_75da44e2",
+          "status": "done",
+          "ms": 5541
+        },
+        {
+          "id": "fork_17_80a2ffe0",
+          "status": "done",
+          "ms": 12633
+        },
+        {
+          "id": "task_16_e21a05ec",
+          "status": "done",
+          "ms": 12633
+        },
+        {
+          "id": "task_15_dc85729a",
+          "status": "done",
+          "ms": 12633
+        },
+        {
+          "id": "task_18_64e65bbc",
+          "status": "done",
+          "ms": 12633
+        },
+        {
+          "id": "fork_23_45e7a859",
+          "status": "done",
+          "ms": 11938
+        },
+        {
+          "id": "task_22_fe4c36c2",
+          "status": "done",
+          "ms": 11938
+        },
+        {
+          "id": "fork_21_29e53ac8",
+          "status": "done",
+          "ms": 12429
+        },
+        {
+          "id": "task_20_b12d0a24",
+          "status": "done",
+          "ms": 12429
+        },
+        {
+          "id": "task_19_fa939575",
+          "status": "done",
+          "ms": 12429
+        },
+        {
+          "id": "task_24_96a80052",
+          "status": "done",
+          "ms": 12429
+        },
+        {
+          "id": "fork_26_562554b7",
+          "status": "done",
+          "ms": 7187
+        },
+        {
+          "id": "task_25_be90ce71",
+          "status": "done",
+          "ms": 7188
+        },
+        {
+          "id": "fork_28_808caf0c",
+          "status": "done",
+          "ms": 6948
+        },
+        {
+          "id": "task_27_64aa2375",
+          "status": "done",
+          "ms": 6948
+        },
+        {
+          "id": "fork_32_379d5739",
+          "status": "done",
+          "ms": 8522
+        },
+        {
+          "id": "task_31_04ac88f0",
+          "status": "done",
+          "ms": 8522
+        },
+        {
+          "id": "fork_30_33a49cc9",
+          "status": "done",
+          "ms": 9065
+        },
+        {
+          "id": "task_29_5335fe82",
+          "status": "done",
+          "ms": 9065
+        },
+        {
+          "id": "fork_36_99ef40d7",
+          "status": "done",
+          "ms": 2307
+        },
+        {
+          "id": "task_35_0d717bdd",
+          "status": "done",
+          "ms": 2307
+        },
+        {
+          "id": "fork_34_768aa249",
+          "status": "done",
+          "ms": 2727
+        },
+        {
+          "id": "task_33_47e9776a",
+          "status": "done",
+          "ms": 2727
+        },
+        {
+          "id": "fork_40_5d115d17",
+          "status": "done",
+          "ms": 5202
+        },
+        {
+          "id": "task_39_6f061b79",
+          "status": "done",
+          "ms": 5202
+        },
+        {
+          "id": "fork_38_472774b3",
+          "status": "done",
+          "ms": 5618
+        },
+        {
+          "id": "task_37_d55f1521",
+          "status": "done",
+          "ms": 5618
+        },
+        {
+          "id": "fork_44_a7b0d1d4",
+          "status": "done",
+          "ms": 2905
+        },
+        {
+          "id": "task_43_3a08022c",
+          "status": "done",
+          "ms": 2905
+        },
+        {
+          "id": "tasklist_12_c3fa7ff1",
+          "status": "done",
+          "ms": 44225
+        },
+        {
+          "id": "fork_42_7403b31a",
+          "status": "done",
+          "ms": 3069
+        },
+        {
+          "id": "task_41_9bc79186",
+          "status": "done",
+          "ms": 3069
+        },
+        {
+          "id": "tasklist_9_f89e04ea",
+          "status": "done",
+          "ms": 44438
+        },
+        {
+          "id": "delegate_7_c35c7a6c",
+          "status": "done",
+          "ms": 49834
+        },
+        {
+          "id": "delegate_8_081e20c3",
+          "status": "done",
+          "ms": 50353
+        },
+        {
+          "id": "delegate_45_467f73eb",
+          "status": "done",
+          "ms": 144108
+        },
+        {
+          "id": "run_6_5ba5fef7",
+          "status": "done",
+          "ms": 228489
+        }
+      ],
+      "tokens": {
+        "in": 210294,
+        "out": 17860
+      },
+      "durationMs": 233461,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "state": {
+    "spaces": [
+      "Ngorongoro Crater Safari Guide",
+      "Zanzibar & Stone Town Guide"
+    ],
+    "appTables": {
+      "contacts": [
+        {
+          "id": "a5c5fdfe-1ce7-4e4b-be62-605b4928c712",
+          "name": "Richard (Suricata Safaris)",
+          "role": "safari",
+          "phone": "+255 763 222 293",
+          "email": "info@suricatasafaris.com",
+          "website": "payments.pesapal.com/suricatasafaris",
+          "notes": "Main contact for safari. Deposit paid; balance $960 due on arrival.",
+          "trip_part": "arusha"
+        },
+        {
+          "id": "cc29ce6d-717a-4fee-bf11-9f0bb71a9c69",
+          "name": "Emmanuel",
+          "role": "guide",
+          "phone": "",
+          "email": "",
+          "website": "",
+          "notes": "Driver-guide at Ngorongoro (not Richard). Knowledgeable about wildlife. Warned about extra ranger tip ~TZS 5,000 at gate.",
+          "trip_part": "safari"
+        },
+        {
+          "id": "3a3a10b2-c660-4e11-af21-3ceec07dd152",
+          "name": "Serengeti Villa, Arusha",
+          "role": "lodging",
+          "phone": "+255 757 757 928",
+          "email": "",
+          "website": "",
+          "notes": "Pre-safari accommodation Aug 5-7",
+          "trip_part": "arusha"
+        },
+        {
+          "id": "b4fbb6a9-85a1-4d3a-9e9f-b233a148c7f1",
+          "name": "Eileen Hotel, Cairo",
+          "role": "lodging",
+          "phone": "+20 15 56434043",
+          "email": "info@eileenhotel.com",
+          "website": "",
+          "notes": "21 Youssef El-Gendy St, Abdeen, Downtown Cairo (near Tahrir Square). Aug 3-5.",
+          "trip_part": "cairo"
+        },
+        {
+          "id": "f0c43e90-0565-4f34-82af-5fc1fcec7b92",
+          "name": "Kutoka Lodge, Arusha",
+          "role": "lodging",
+          "phone": "",
+          "email": "",
+          "website": "",
+          "notes": "Post-safari accommodation Aug 9-11",
+          "trip_part": "arusha"
+        },
+        {
+          "id": "62e967e4-ac7d-4855-9685-adebbf8212f5",
+          "name": "Treasures of Zanzibar House",
+          "role": "lodging",
+          "phone": "",
+          "email": "",
+          "website": "",
+          "notes": "Stone Town accommodation Aug 11-13",
+          "trip_part": "zanzibar"
+        },
+        {
+          "id": "a3762c0e-8472-4370-9ff8-681e9937c6c1",
+          "name": "Ayla Beach House, Zanzibar",
+          "role": "lodging",
+          "phone": "",
+          "email": "",
+          "website": "",
+          "notes": "Kiwengwa beach accommodation Aug 13-17",
+          "trip_part": "zanzibar"
+        },
+        {
+          "id": "b3b24de5-13a1-43da-93f7-9548f4a54a6e",
+          "name": "Sunny Shore B&B, Dar es Salaam",
+          "role": "lodging",
+          "phone": "",
+          "email": "",
+          "website": "",
+          "notes": "Dar es Salaam accommodation Aug 17-19",
+          "trip_part": "dar"
+        },
+        {
+          "id": "c401e1a7-a756-4352-abd8-d00a89d1e80a",
+          "name": "Ramses Hilton, Cairo",
+          "role": "lodging",
+          "phone": "",
+          "email": "",
+          "website": "",
+          "notes": "Departure stopover Aug 19-20",
+          "trip_part": "cairo"
+        },
+        {
+          "id": "4a0bb46f-4d91-4d44-9abd-ff551ba1d202",
+          "name": "The Rock Restaurant Zanzibar",
+          "role": "dining",
+          "phone": "+255 776 591 360 / +255 763 070 658",
+          "email": "booking@therockrestaurantzanzibar.com",
+          "website": "",
+          "notes": "Aug 15, 18:00-20:00, 2 adults, outdoor seating, fully paid $46",
+          "trip_part": "zanzibar"
+        },
+        {
+          "id": "80b4b463-ce83-45c4-ace5-c41c889a0efc",
+          "name": "Zanzibar Insurance Corporation",
+          "role": "insurance",
+          "phone": "",
+          "email": "",
+          "website": "",
+          "notes": "Mandatory Zanzibar travel insurance; 2 travelers x $44",
+          "trip_part": "zanzibar"
+        },
+        {
+          "id": "d9eff0db-267b-4a8f-9012-e7997d839486",
+          "name": "Suricata Safaris Ltd",
+          "role": "safari",
+          "phone": "+255 763 222 293",
+          "email": "info@suricatasafaris.com",
+          "website": "suricatasafaris.com",
+          "notes": "3-day group camping safari: Tarangire, Lake Manyara, Ngorongoro Crater. Aug 7-9.",
+          "trip_part": "arusha"
+        }
+      ],
+      "costs": [
+        {
+          "id": "95fd0899-ab07-43c6-9fd1-d645b0bf34bf",
+          "item": "Flights - ATH-CAI-DAR-ARK-ZNZ-DAR-CAI-ATH (both travelers, 6 legs)",
+          "category": "flights",
+          "amount": 2707,
+          "currency": "EUR",
+          "paid": true,
+          "notes": "Aegean A3932 + EgyptAir + Precision Air TC144/TC145 + EgyptAir + Aegean A3935"
+        },
+        {
+          "id": "bfe17975-708f-4f6f-8f53-53fe9d36d2ff",
+          "item": "Suricata Safaris package, 3-day group camping safari, 2 pax",
+          "category": "safari",
+          "amount": 1200,
+          "currency": "USD",
+          "paid": false,
+          "notes": "Total safari cost"
+        },
+        {
+          "id": "e35aded9-9b7e-4e38-9fc1-fe9a606f0735",
+          "item": "Suricata Safaris - deposit paid (20%)",
+          "category": "safari",
+          "amount": 240,
+          "currency": "USD",
+          "paid": true,
+          "notes": "Deposit already paid"
+        },
+        {
+          "id": "d088ef7f-85ae-4edb-97a5-bbbd2b1b5dfb",
+          "item": "Suricata Safaris - balance due on arrival (cash, post-2009 USD notes)",
+          "category": "safari",
+          "amount": 960,
+          "currency": "USD",
+          "paid": false,
+          "notes": "Pay on arrival in Arusha; Pesapal online adds 5% surcharge"
+        },
+        {
+          "id": "d920b5b9-3eff-42db-9998-a646e3d18643",
+          "item": "The Rock Restaurant dinner, Zanzibar, Aug 15 (paid)",
+          "category": "dining",
+          "amount": 46,
+          "currency": "USD",
+          "paid": true,
+          "notes": "2 adults, 2x Tropical Passion Fruit Cheesecake, outdoor seating, 18:00-20:00"
+        },
+        {
+          "id": "499bb115-c8dd-49f0-858d-b3ff87e062f3",
+          "item": "Zanzibar local driving permit (per driver, ~3mo validity)",
+          "category": "transport",
+          "amount": 15,
+          "currency": "USD",
+          "paid": false,
+          "notes": "Required in addition to IDP; most rental companies arrange with license photo 24h before"
+        },
+        {
+          "id": "a2aa0e11-f5e0-4b8e-ae15-cba82a0c9bc4",
+          "item": "Tanzania e-visa, visa.immigration.go.tz (2 travelers x $50)",
+          "category": "visa",
+          "amount": 100,
+          "currency": "USD",
+          "paid": false,
+          "notes": "Mandatory online; visa-on-arrival no longer available as of Jan 2025"
+        },
+        {
+          "id": "e9811762-e429-428c-a575-524ca92e8f5d",
+          "item": "Egypt e-visa, multiple-entry (2 travelers x $65)",
+          "category": "visa",
+          "amount": 130,
+          "currency": "USD",
+          "paid": false,
+          "notes": "Both travelers apply separately; printed copy required"
+        },
+        {
+          "id": "0fcdb88b-8377-4a58-b86d-29cf6128dbe5",
+          "item": "Zanzibar mandatory travel insurance, ZIC (2 travelers x $44)",
+          "category": "insurance",
+          "amount": 88,
+          "currency": "USD",
+          "paid": false,
+          "notes": "Separate mandatory insurance from Zanzibar Insurance Corporation"
+        },
+        {
+          "id": "2bf86b77-0777-41c5-8061-978a32d86494",
+          "item": "Ngorongoro Conservation Area entry permit (2 pax x $70.80, 1 day, non-EA adult)",
+          "category": "park fees",
+          "amount": 141.6,
+          "currency": "USD",
+          "paid": false,
+          "notes": "Per the official NCAA tariff: non-EA adult 16+ = $70.80/day"
+        },
+        {
+          "id": "5f55f2a9-c35c-4193-9902-677c4680fef8",
+          "item": "Ngorongoro crater service fee (2 pax x $70.80, non-EA adult)",
+          "category": "park fees",
+          "amount": 141.6,
+          "currency": "USD",
+          "paid": false,
+          "notes": "Crater service fee per the NCAA tariff"
+        },
+        {
+          "id": "13ffb385-cf0a-43d4-b0d3-5cdfcd755cdb",
+          "item": "Ngorongoro crater vehicle descent fee (per vehicle/trip, non-EA)",
+          "category": "park fees",
+          "amount": 295,
+          "currency": "USD",
+          "paid": false,
+          "notes": "Non-EA vehicle descent fee per NCAA tariff"
+        },
+        {
+          "id": "54adfa7a-02ba-4825-8691-52f14c2d69b4",
+          "item": "Tarangire NP entrance (2 pax x $59, peak season)",
+          "category": "park fees",
+          "amount": 118,
+          "currency": "USD",
+          "paid": false,
+          "notes": "Peak season rate"
+        },
+        {
+          "id": "3f372be3-9446-4d8e-9ecf-ad89611a02e6",
+          "item": "Lake Manyara NP entrance (2 pax x $59, peak season)",
+          "category": "park fees",
+          "amount": 118,
+          "currency": "USD",
+          "paid": false,
+          "notes": "Peak season rate"
+        },
+        {
+          "id": "9f9d4a61-f11c-4fec-9505-5aa9c311881f",
+          "item": "Lodging total (from legs sheet, excl. safari package)",
+          "category": "lodging",
+          "amount": 951,
+          "currency": "USD",
+          "paid": false,
+          "notes": "Sum of all accommodations except safari package"
+        },
+        {
+          "id": "c37c1fa2-be14-4511-904a-c5f68fdeb24b",
+          "item": "Extra ranger tip at Ngorongoro gate (cash)",
+          "category": "park fees",
+          "amount": 5,
+          "currency": "USD",
+          "paid": false,
+          "notes": "Emmanuel warned ~TZS 5,000 cash at gate, separate from park fees. Vasileios to confirm with Richard."
+        }
+      ],
+      "flights": [
+        {
+          "id": "032dc33c-ac25-49d0-8a6c-04cf86598c3c",
+          "date": "Aug 3",
+          "route": "ATH→CAI",
+          "airline": "Aegean",
+          "flight_number": "A3932",
+          "dep_time": "06:55",
+          "arr_time": "08:50",
+          "reference": "ZZJQUU",
+          "notes": "Departure from Athens"
+        },
+        {
+          "id": "7c26a858-8e4b-498c-ad2c-7109cb86a4e5",
+          "date": "Aug 4",
+          "route": "CAI→DAR",
+          "airline": "EgyptAir",
+          "flight_number": "",
+          "dep_time": "22:40",
+          "arr_time": "04:20+1",
+          "reference": "",
+          "notes": "Overnight flight to Dar es Salaam"
+        },
+        {
+          "id": "6cf7b193-1a2c-44c6-ad7b-4c0e660541e9",
+          "date": "Aug 5",
+          "route": "DAR→ARK",
+          "airline": "Precision Air",
+          "flight_number": "TC144",
+          "dep_time": "10:50",
+          "arr_time": "12:00",
+          "reference": "",
+          "notes": "Domestic Tanzania flight"
+        },
+        {
+          "id": "42448ded-ee87-42da-883a-4081ef6f73cf",
+          "date": "Aug 11",
+          "route": "ARK→ZNZ",
+          "airline": "Precision Air",
+          "flight_number": "TC145",
+          "dep_time": "12:40",
+          "arr_time": "13:40",
+          "reference": "",
+          "notes": "Arusha to Zanzibar"
+        },
+        {
+          "id": "67a5851c-ee93-4f69-8930-e7f667eb6281",
+          "date": "Aug 19",
+          "route": "DAR→CAI",
+          "airline": "EgyptAir",
+          "flight_number": "",
+          "dep_time": "05:20",
+          "arr_time": "11:05",
+          "reference": "",
+          "notes": "Return via Cairo"
+        },
+        {
+          "id": "2568d006-44ed-4f12-bae8-31eb028383cf",
+          "date": "Aug 20",
+          "route": "CAI→ATH",
+          "airline": "Aegean",
+          "flight_number": "A3935",
+          "dep_time": "19:55",
+          "arr_time": "22:00",
+          "reference": "ZZL22S",
+          "notes": "Final leg home"
+        }
+      ],
+      "legs": [
+        {
+          "id": "0c723640-af48-481c-9a2d-1814759ca536",
+          "leg": "Cairo (arrival stopover)",
+          "dates": "Aug 3-5",
+          "nights": 2,
+          "lodging": "Eileen Hotel",
+          "cost_usd": 102,
+          "trip_part": "cairo"
+        },
+        {
+          "id": "c9ff9061-fbf4-4974-be81-27f333fc96ff",
+          "leg": "Arusha (pre-safari)",
+          "dates": "Aug 5-7",
+          "nights": 2,
+          "lodging": "Serengeti Villa",
+          "cost_usd": 62,
+          "trip_part": "arusha"
+        },
+        {
+          "id": "b8f6ad09-73ef-49df-bd24-b9b8bd45d46e",
+          "leg": "Safari circuit - Tarangire / Lake Manyara / Ngorongoro Crater",
+          "dates": "Aug 7-9",
+          "nights": 2,
+          "lodging": "Suricata Safaris (Twiga camps + Jevas Hotel, package)",
+          "cost_usd": 1200,
+          "trip_part": "safari"
+        },
+        {
+          "id": "249f33b1-a129-4f28-a0d3-8c6cbbfc2bd9",
+          "leg": "Arusha (post-safari)",
+          "dates": "Aug 9-11",
+          "nights": 2,
+          "lodging": "Kutoka Lodge",
+          "cost_usd": 96,
+          "trip_part": "arusha"
+        },
+        {
+          "id": "aa214bc3-ce11-4c8e-aca2-ca0eff4d3d12",
+          "leg": "Zanzibar - Stone Town",
+          "dates": "Aug 11-13",
+          "nights": 2,
+          "lodging": "Treasures of Zanzibar House",
+          "cost_usd": 100,
+          "trip_part": "zanzibar"
+        },
+        {
+          "id": "7e45b0b1-296a-40c2-991e-b28ab2b29d23",
+          "leg": "Zanzibar - beach (Kiwengwa)",
+          "dates": "Aug 13-17",
+          "nights": 4,
+          "lodging": "Ayla Beach House",
+          "cost_usd": 304,
+          "trip_part": "zanzibar"
+        },
+        {
+          "id": "14fe7bce-50e7-402e-ac80-b01a92b02fd4",
+          "leg": "Dar es Salaam",
+          "dates": "Aug 17-19",
+          "nights": 2,
+          "lodging": "Sunny Shore B&B",
+          "cost_usd": 200,
+          "trip_part": "dar"
+        },
+        {
+          "id": "c3111f3f-b0cb-4036-9530-512977260cb6",
+          "leg": "Cairo (departure stopover)",
+          "dates": "Aug 19-20",
+          "nights": 1,
+          "lodging": "Ramses Hilton",
+          "cost_usd": 87,
+          "trip_part": "cairo"
+        }
+      ],
+      "notes": [
+        {
+          "id": "2d320a9a-fdd1-4aeb-9a4e-543850d0b87e",
+          "title": "Driver-guide Emmanuel at Ngorongoro",
+          "body": "Driver-guide Emmanuel (not Richard) was the guide at Ngorongoro Crater. He is knowledgeable about wildlife and provided excellent guiding.",
+          "category": "voice_memo",
+          "trip_part": "safari",
+          "related_contact": "Emmanuel"
+        },
+        {
+          "id": "a3d89255-b5b8-401b-8187-535e4c23fea5",
+          "title": "Maasai bracelet purchase at crater rim",
+          "body": "A Maasai lady at the Ngorongoro crater rim sold two beaded bracelets for Athina Mari. Paid approximately TZS 35,000 (~$20-25 USD).",
+          "category": "voice_memo",
+          "trip_part": "safari",
+          "related_contact": ""
+        },
+        {
+          "id": "241fb553-a6c4-4941-bf29-900deeecdca1",
+          "title": "Extra ranger tip at Ngorongoro gate",
+          "body": "Emmanuel warned of an extra ranger tip of ~TZS 5,000 cash at the gate, separate from park fees. Vasileios wants to confirm this with Richard before the safari balance payment.",
+          "category": "voice_memo",
+          "trip_part": "safari",
+          "related_contact": "Richard (Suricata Safaris)"
+        },
+        {
+          "id": "603a15be-f103-465c-afe6-d7d0178b93a8",
+          "title": "Crater day - best day of my life",
+          "body": "The Ngorongoro Crater day was described as \"one of the best days of my life.\"",
+          "category": "voice_memo",
+          "trip_part": "safari",
+          "related_contact": ""
+        },
+        {
+          "id": "7e0f1146-face-4474-a54c-c513b0976f44",
+          "title": "Stone Town courtyard photo note",
+          "body": "A bright courtyard with white stucco walls, arched windows, and ornate dark balconies under a clear blue sky.",
+          "category": "photo_note",
+          "trip_part": "zanzibar",
+          "related_contact": ""
+        },
+        {
+          "id": "1d816bf3-006e-429a-8252-328ec7edf87e",
+          "title": "Safari balance payment - confirm with Richard",
+          "body": "Balance $960 due on arrival in Arusha. Cash preferred (USD, post-2009 notes). Pesapal online adds 5% surcharge. Vasileios should confirm the ranger tip situation with Richard before paying.",
+          "category": "todo",
+          "trip_part": "arusha",
+          "related_contact": "Richard (Suricata Safaris)"
+        },
+        {
+          "id": "c68b6f34-402d-4dc4-b1e5-4215e4ba67f9",
+          "title": "Ngorongoro nights are cold",
+          "body": "Warm layers needed for Ngorongoro Crater nights. August is cool at elevation.",
+          "category": "key_learning",
+          "trip_part": "safari",
+          "related_contact": ""
+        },
+        {
+          "id": "2febf742-9fcb-4f59-a5d6-02a565364698",
+          "title": "Zanzibar swimming - north coast best",
+          "body": "For Zanzibar swimming: north coast (Nungwi area) offers more consistent conditions vs. east/south coasts where low tide limits access.",
+          "category": "tip",
+          "trip_part": "zanzibar",
+          "related_contact": ""
+        },
+        {
+          "id": "4e22c6de-770c-4882-b640-0f3eb50320d1",
+          "title": "Tanzania e-visa mandatory online",
+          "body": "Tanzania e-visa is mandatory online ($50/person) at visa.immigration.go.tz; visa-on-arrival no longer available as of January 2025. Zanzibar also requires separate mandatory travel insurance from ZIC.",
+          "category": "key_learning",
+          "trip_part": "general",
+          "related_contact": ""
+        },
+        {
+          "id": "570fef74-cab4-4ef0-b66d-ee0ab007e29a",
+          "title": "Egypt e-visa multiple-entry",
+          "body": "Egypt e-visa is multiple-entry ($65); both travelers apply separately. Egyptian e-visa requires a mandatory printed copy.",
+          "category": "key_learning",
+          "trip_part": "cairo",
+          "related_contact": ""
+        },
+        {
+          "id": "e98eab5b-f02f-42b8-b634-d510420cc4bc",
+          "title": "Precision Air luggage restrictions",
+          "body": "Precision Air flights (TC144/TC145) have luggage restrictions favoring soft bags.",
+          "category": "tip",
+          "trip_part": "general",
+          "related_contact": ""
+        },
+        {
+          "id": "09986e1c-a857-4c2c-a81b-fca7fc2fc8f5",
+          "title": "August is peak safari season",
+          "body": "August is peak safari season — ideal for wildlife, including the Great Wildebeest Migration corridor.",
+          "category": "observation",
+          "trip_part": "safari",
+          "related_contact": ""
+        },
+        {
+          "id": "07babe3d-308a-42b0-a976-442cb253909a",
+          "title": "Zanzibar driving permit required",
+          "body": "Vasilis holds an International Driving Permit (IDP). A local Zanzibar Driving Permit is also required (~$15, valid up to 3 months). Most rental companies arrange this with a license photo provided 24+ hours before arrival. Police checkpoints are frequent; carry both IDP and local permit (screenshot acceptable).",
+          "category": "tip",
+          "trip_part": "zanzibar",
+          "related_contact": ""
+        },
+        {
+          "id": "3ec610e2-92fe-4c0c-9888-28cce236ae74",
+          "title": "Cairo Stopover 1 sightseeing",
+          "body": "Grand Egyptian Museum and Pyramids of Giza (Aug 3-4). Eileen Hotel is near Tahrir Square/Nile Corniche.",
+          "category": "observation",
+          "trip_part": "cairo",
+          "related_contact": ""
+        },
+        {
+          "id": "a3f4b401-fa28-4d6b-a5c8-19a2f1d47de9",
+          "title": "Cairo Stopover 2 sightseeing",
+          "body": "Islamic Cairo, the Citadel, Khan el-Khalili bazaar, Coptic Cairo (Aug 19-20). Ramses Hilton is the base; taxi needed between Citadel and Coptic Cairo.",
+          "category": "observation",
+          "trip_part": "cairo",
+          "related_contact": ""
+        },
+        {
+          "id": "faefd84c-604e-43ba-b315-93b242f005f8",
+          "title": "Dar es Salaam exploration ideas",
+          "body": "Arriving by ferry from Zanzibar; interest in city exploration: Kivukoni Fish Market, Kariakoo Market, National Museum, Coco Beach, Bongoyo Island.",
+          "category": "observation",
+          "trip_part": "dar",
+          "related_contact": ""
+        }
+      ]
+    },
+    "appManifest": {
+      "tables": [
+        {
+          "name": "contacts",
+          "schema": {
+            "title": "Contacts & People",
+            "description": "All contacts, service providers, and people involved in the trip.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "name": {
+                "type": "string",
+                "description": "Name of person or business"
+              },
+              "role": {
+                "type": "string",
+                "description": "Role: safari, lodging, dining, transport, insurance, guide, other"
+              },
+              "phone": {
+                "type": "string",
+                "description": "Phone number"
+              },
+              "email": {
+                "type": "string",
+                "description": "Email address"
+              },
+              "website": {
+                "type": "string",
+                "description": "Website or payment URL"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Additional context"
+              },
+              "trip_part": {
+                "type": "string",
+                "description": "Trip part: cairo, arusha, safari, zanzibar, dar"
+              }
+            }
+          }
+        },
+        {
+          "name": "costs",
+          "schema": {
+            "title": "Trip Costs",
+            "description": "All trip costs: flights, safari, dining, visas, park fees, lodging.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "item": {
+                "type": "string",
+                "description": "Cost item description"
+              },
+              "category": {
+                "type": "string",
+                "description": "Category: flights, safari, dining, transport, visa, insurance, park fees, lodging, other"
+              },
+              "amount": {
+                "type": "number",
+                "description": "Amount (USD unless noted)"
+              },
+              "currency": {
+                "type": "string",
+                "description": "EUR or USD"
+              },
+              "paid": {
+                "type": "boolean",
+                "description": "Whether already paid"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Additional notes"
+              }
+            }
+          }
+        },
+        {
+          "name": "flights",
+          "schema": {
+            "title": "Flights",
+            "description": "All flights for both travelers (Vasileios Kefallinos + Athina Mari).",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "date": {
+                "type": "string",
+                "description": "Flight date"
+              },
+              "route": {
+                "type": "string",
+                "description": "Route (e.g., ATH→CAI)"
+              },
+              "airline": {
+                "type": "string",
+                "description": "Airline name"
+              },
+              "flight_number": {
+                "type": "string",
+                "description": "Flight number"
+              },
+              "dep_time": {
+                "type": "string",
+                "description": "Departure time"
+              },
+              "arr_time": {
+                "type": "string",
+                "description": "Arrival time"
+              },
+              "reference": {
+                "type": "string",
+                "description": "Booking reference"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Additional notes"
+              }
+            }
+          }
+        },
+        {
+          "name": "legs",
+          "schema": {
+            "title": "Trip Legs",
+            "description": "Each leg of the Tanzania trip with dates, lodging, and cost.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "leg": {
+                "type": "string",
+                "description": "Leg name / destination"
+              },
+              "dates": {
+                "type": "string",
+                "description": "Date range (e.g., Aug 3-5)"
+              },
+              "nights": {
+                "type": "number",
+                "description": "Number of nights"
+              },
+              "lodging": {
+                "type": "string",
+                "description": "Accommodation name"
+              },
+              "cost_usd": {
+                "type": "number",
+                "description": "Cost in USD"
+              },
+              "trip_part": {
+                "type": "string",
+                "description": "Trip part: cairo, arusha, safari, zanzibar, dar, cairo2"
+              }
+            }
+          }
+        },
+        {
+          "name": "notes",
+          "schema": {
+            "title": "Notes & Observations",
+            "description": "Trip notes, observations, tips, and voice-memo details.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "title": {
+                "type": "string",
+                "description": "Note title"
+              },
+              "body": {
+                "type": "string",
+                "description": "Full note content"
+              },
+              "category": {
+                "type": "string",
+                "description": "Category: voice_memo, photo_note, tip, observation, key_learning, todo"
+              },
+              "trip_part": {
+                "type": "string",
+                "description": "Trip part: cairo, arusha, safari, zanzibar, dar, general"
+              },
+              "related_contact": {
+                "type": "string",
+                "description": "Name of related contact/person if applicable"
+              }
+            }
+          }
+        }
+      ],
+      "pages": [
+        {
+          "routePath": "/",
+          "file": "pages/index.tsx"
+        },
+        {
+          "routePath": "/contacts",
+          "file": "pages/contacts.tsx"
+        },
+        {
+          "routePath": "/costs",
+          "file": "pages/costs.tsx"
+        },
+        {
+          "routePath": "/flights",
+          "file": "pages/flights.tsx"
+        },
+        {
+          "routePath": "/itinerary",
+          "file": "pages/itinerary.tsx"
+        },
+        {
+          "routePath": "/notes",
+          "file": "pages/notes.tsx"
+        }
+      ],
+      "built": false
+    },
+    "error": null
+  }
+}

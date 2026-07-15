@@ -19,11 +19,12 @@ The node `id` comes from an explicit `id:` frontmatter key, else from the filena
 | `condition` | DSL expression; when it evaluates false the task is skipped `sdk/org/libs/core/src/spaces/tasklist-load.ts:124-126` |
 | `optional` | `true` ⇒ a failing branch is skipped, not fatal `sdk/org/libs/core/src/spaces/tasklist-load.ts:127-129` |
 | `goal` | `true` marks this the goal (envelope) task `sdk/org/libs/core/src/spaces/tasklist-load.ts:130-132` |
-| `role` | Fork capability profile — `explore`/`plan` (read-only) or `general` (write); default `general` `sdk/org/libs/core/src/spaces/tasklist-load.ts:133-135` |
-| `functions` | Allowlist of function names available to the fork (least privilege) `sdk/org/libs/core/src/spaces/tasklist-load.ts:136-138` |
-| `forEach` | `"<upstreamTask>.<field>"` (or bare `"<upstreamTask>"`) — host-driven fan-out `sdk/org/libs/core/src/spaces/tasklist-load.ts:139-141` |
-| `canDelegateTo` | Per-task delegation allowlist (`"space/agent"` or `"space/agent#action"`) `sdk/org/libs/core/src/spaces/tasklist-load.ts:142-144` |
-| `prelude` | Host-executed TS statements run in the fork VM before the model's first turn `sdk/org/libs/core/src/spaces/tasklist-load.ts:145-156` |
+| `role` | Fork capability profile — `explore`/`plan` (read-only) or `general` (write); default `general` `sdk/org/libs/core/src/spaces/tasklist-load.ts:139-141` |
+| `functions` | Allowlist of function names available to the fork (least privilege) `sdk/org/libs/core/src/spaces/tasklist-load.ts:142-144` |
+| `forEach` | `"<upstreamTask>.<field>"` (or bare `"<upstreamTask>"`) — host-driven fan-out `sdk/org/libs/core/src/spaces/tasklist-load.ts:145-147` |
+| `canDelegateTo` | Per-task delegation allowlist (`"space/agent"` or `"space/agent#action"`) `sdk/org/libs/core/src/spaces/tasklist-load.ts:148-150` |
+| `capabilities` | Per-node app-capability NARROWING — a bare-id subset of the owning agent's grants (least privilege per step; never widens) `sdk/org/libs/core/src/spaces/tasklist-load.ts:151-165` |
+| `prelude` | Host-executed TS statements run in the fork VM before the model's first turn `sdk/org/libs/core/src/spaces/tasklist-load.ts:166-177` |
 
 ### `dependsOn` and the DAG
 
@@ -35,7 +36,11 @@ The node `id` comes from an explicit `id:` frontmatter key, else from the filena
 
 ### `role`
 
-`role` is one of `explore`, `plan`, `general` `sdk/org/libs/core/src/spaces/tasklist-load.ts:133-135`; read-only roles have write host-tools (e.g. `writeFileRaw`, mutating `execShell`) withheld at VM injection and the fork prompt advertises only the read-only I/O it actually has `sdk/org/libs/core/src/fork/fork.ts:371-380`.
+`role` is one of `explore`, `plan`, `general` `sdk/org/libs/core/src/spaces/tasklist-load.ts:139-141`; read-only roles have write host-tools (e.g. `writeFileRaw`, mutating `execShell`) withheld at VM injection and the fork prompt advertises only the read-only I/O it actually has `sdk/org/libs/core/src/fork/fork.ts:371-380`.
+
+### `capabilities` — per-node grant narrowing
+
+`capabilities:` is a list of bare capability ids (validated against `CAPABILITY_IDS`; an unknown id fails the load) that NARROWS this node's fork to a subset of the OWNING AGENT's declared grants `sdk/org/libs/core/src/spaces/tasklist-load.ts:151-165`. At fork time, `narrowAppCaps(parentAppCapabilities, task.capabilities)` selects only the intersection of the listed ids with what the agent actually holds — a node can never gain a capability the agent lacks — and the result is then run through the role's read-only intersection `sdk/org/libs/core/src/fork/fork.ts#runFork` · `sdk/org/libs/core/src/exec/capability.ts#narrowAppCaps`. Because the same narrowed profile drives both global injection and the ambient DTS, a sibling node that did not list a write cap gets neither the injected global nor its declaration, so a stray write there fails typecheck. This is how one tasklist keeps a dangerous grant (e.g. `db:write`) on only the single node that needs it: the owning agent declares the cap as the ceiling, and only the write node lists it in `capabilities:` (a `general` role — a write cap is dropped from `explore`/`plan`). Omit `capabilities:` to inherit the agent's full set unchanged.
 
 ### `functions` — an allowlist that also gates system functions
 

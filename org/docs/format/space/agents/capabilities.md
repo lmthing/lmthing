@@ -4,7 +4,7 @@
 
 ## The grants and what they unlock
 
-There are 12 recognized capability ids, enumerated in `CapabilityId` / `CAPABILITY_IDS` (`sdk/org/libs/core/src/spaces/capabilities.ts:26-56`).
+There are 13 recognized capability ids, enumerated in `CapabilityId` / `CAPABILITY_IDS` (`sdk/org/libs/core/src/spaces/capabilities.ts:25-57`).
 
 | Capability | Unlocks (global) | Config |
 |---|---|---|
@@ -14,12 +14,15 @@ There are 12 recognized capability ids, enumerated in `CapabilityId` / `CAPABILI
 | `pages:write` | `writePage`, `writeProjectPage` | bare |
 | `api:write` | `writeApi`, `writeProjectApi` | bare |
 | `hooks:write` | `writeHook`, `writeProjectHook`/`Event`/`Function` | bare |
+| `knowledge:write` | `writeKnowledge` (own space only) | optional `{ spaces: [...] }` |
 | `project:manage` | `createProject`, `selectProject` | bare |
 | `api:call` | `apiCall(name, input)` | required `{ allow: [...] }` |
 | `connections:use` | `callConnection(provider, req)` | required `{ providers: [...] }` |
 | `store:read` | `storeSearch`, `storeInspect` | bare |
 | `store:install` | `installSpace` (consent-marked) | bare |
 | `events:emit` | `emitEvent` | bare |
+
+`knowledge:write` earns the SYNCHRONOUS `writeKnowledge(domain, field, option, markdown, opts?)` global (`sdk/org/libs/core/src/globals/write-knowledge.ts#createWriteKnowledgeGlobal`), injected in `createChildVM` on the grant and scoped — like `loadKnowledge` — to the running agent's own `knowledge/` dir, so it can only author its OWN space (there is no `space` parameter to spoof) (`sdk/org/libs/core/src/exec/bootstrap.ts:191-197`). The optional `{ spaces: [...] }` allow-list is parsed for a future cross-space grant but not yet enforced (`sdk/org/libs/core/src/spaces/capabilities.ts#parseKnowledgeWriteConfig`). `opts.source` (`'user'|'researched'|'agent'`) prepends a provenance blockquote used by conflict resolution.
 
 Any `db:*` grant ALSO earns the project-rooted introspection reads `listProjectDir`/`readProjectFile`, but only in a project-rooted session — they are gated on `projectRoot` + any db grant, exactly like `db` itself (`sdk/org/libs/core/src/exec/app-globals.ts:238-241`, DTS at `sdk/org/libs/core/src/exec/bootstrap.ts#AmbientDtsOpts`).
 
@@ -61,7 +64,9 @@ Each `db:*` grant carries an optional `{ tables?: string[] }` narrowing (`sdk/or
 
 ## Read-only fork roles intersect grants
 
-Read-only fork roles (`explore`/`plan`) can never receive a mutating/authoring grant: `intersectAppCaps(app, allowWrite)` drops every write grant, keeping only `db:read`, `api:call`, `connections:use`, and `store:read` (`sdk/org/libs/core/src/exec/capability.ts#intersectAppCaps`). This carries into `forkCapabilities`, where the intersected caps become `CapabilityProfile.app` (`sdk/org/libs/core/src/exec/capability.ts:94-96`).
+Read-only fork roles (`explore`/`plan`) can never receive a mutating/authoring grant: `intersectAppCaps(app, allowWrite)` drops every write grant (including `knowledge:write`), keeping only `db:read`, `api:call`, `connections:use`, and `store:read` (`sdk/org/libs/core/src/exec/capability.ts#intersectAppCaps`). This carries into `forkCapabilities`, where the intersected caps become `CapabilityProfile.app` (`sdk/org/libs/core/src/exec/capability.ts#forkCapabilities`) — so a knowledge-writing tasklist node must run `role: general`.
+
+A tasklist node may further NARROW its inherited grants to a per-node subset via the node's `capabilities:` frontmatter — `narrowAppCaps(app, allow)` selects only the intersection of the requested ids with what the agent declared, never widening (`sdk/org/libs/core/src/exec/capability.ts#narrowAppCaps`). See [../tasklists/step-file.md](../tasklists/step-file.md).
 
 ## Least-privilege split across specialist agents
 

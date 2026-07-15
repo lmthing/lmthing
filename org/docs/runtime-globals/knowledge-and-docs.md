@@ -68,6 +68,24 @@ The two resolution paths are distinct and must not be confused: **preloads** go 
 
 ---
 
+## `writeKnowledge(domain, field, option, markdown, opts?)` — author own-space knowledge
+
+```ts
+declare function writeKnowledge(domain: string, field: string, option: string, markdown: string, opts?: { source?: 'user' | 'researched' | 'agent' }): { ok: boolean; path: string; error?: string };
+```
+`sdk/org/libs/core/src/typecheck/library-dts.ts#KNOWLEDGE_WRITE_DTS`
+
+The runtime twin of `loadKnowledge`, and the write half of the *research-and-store* loop: a synthesized space agent that hits a gap researches the answer, then persists it here so the next question is free. Unlike the yielding `loadKnowledge`, `writeKnowledge` is a **synchronous** host global (execShell-class, no yield-router entry) `sdk/org/libs/core/src/globals/write-knowledge.ts#createWriteKnowledgeGlobal`.
+
+- **Capability-gated.** Injected only when the agent holds `knowledge:write` (`sdk/org/libs/core/src/exec/bootstrap.ts#createChildVM`); absent from the DTS otherwise, so a stray call fails typecheck. It is a WRITE grant, so `intersectAppCaps` drops it from read-only fork roles — a writing tasklist node must be `role: general` `sdk/org/libs/core/src/exec/capability.ts#intersectAppCaps`.
+- **Own-space only, unspoofable.** Like `loadKnowledge`, the write root is closure-bound to `<spaceDir>/knowledge`; there is NO `space` parameter, so sandbox code cannot retarget another space `sdk/org/libs/core/src/globals/write-knowledge.ts#createWriteKnowledgeGlobal`. The `knowledge:write` cap's optional `{ spaces: [...] }` allow-list is parsed for a future cross-space grant but not yet honored.
+- **Where it writes.** `knowledge/<domain>/<field>/<option>.md`, matching what `loadKnowledge('<domain>','<field>','<option>.md')` reads back. A trailing `.md` on `option` is stripped; `option: 'index'` is reserved (that is the architect's `writeKnowledgeIndex`).
+- **Provenance.** When `opts.source` is set, a one-line `> source: …` blockquote is prepended — the signal `reconcile_conflict` reads to rank a stored fact (user-asserted > researched > agent guess).
+
+This is a runtime SIBLING of the architect's build-time `writeKnowledgeOption` builder function (`sdk/org/libs/core/system-spaces/system-architect/functions/writeKnowledgeOption.ts`), which keeps its `space` argument because it authors a space it is constructing; the runtime global drops it to stay own-space.
+
+---
+
 ## `readDocument(attachmentId, opts?)` — read an upload's text
 
 ```ts

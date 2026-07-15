@@ -1,0 +1,226 @@
+{
+  "step": 1,
+  "verbs": [
+    "attach",
+    "say"
+  ],
+  "expect": [
+    "all five files are actually read — the photo LOOKED AT (vision), the voice memo TRANSCRIBED, the PDF and the spreadsheet PARSED",
+    "it OFFERS to organize this without being asked, naming at least two real specifics of mine (a place, a date, a booking)",
+    "it builds NOTHING yet — no spaces, no tables, no pages, no app (the offer precedes any authoring yield)"
+  ],
+  "turns": [
+    {
+      "sent": "Ok this is getting out of hand. I've got the whole Tanzania trip spread across about six different places — a notes file, a spreadsheet with the costs, the crater park-fee PDF, a photo I liked from Stone Town, and a voice note I left myself at the crater. Attaching all of it. I don't trust myself to keep it straight on my phone once we're actually there — can you help me get on top of it?",
+      "lastText": "{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"I've read everything you sent. Here's what I found across your material — then I have a proposal.\"]}",
+      "delegates": [
+        "system-files/dispatch",
+        "system-vision/vision",
+        "system-files/reader",
+        "system-files/sheet"
+      ],
+      "yieldKinds": [
+        "setSessionMeta",
+        "delegate",
+        "loadKnowledge",
+        "readDocument",
+        "inspect"
+      ],
+      "yields": [
+        {
+          "kind": "setSessionMeta",
+          "args": [
+            {
+              "title": "Tanzania trip consolidation",
+              "slug": "tanzania-trip-consolidation"
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-files",
+            "dispatch",
+            null,
+            {
+              "query": "Summarize these documents and list every concrete fact — names, dates, amounts, line items, park fees, costs, phone numbers, reference numbers, deadlines. I need enough to build a trip app from this.",
+              "attachmentIds": [
+                "dbd0da7b-2391-40f8-94e1-65ffb710a103",
+                "d88595e4-2eb0-46ec-a392-4e4621f41921",
+                "b1d021f9-430b-49d8-8e41-d78a1e5e2819"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-vision",
+            "vision",
+            null,
+            {
+              "query": "Describe this photo in detail — what is in it, the mood, any notable details. This is from Stone Town, Zanzibar, and the user liked it.",
+              "attachmentIds": [
+                "4672cc38-9ffb-431c-a3f1-4f8b32da519f"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"reader\",null,{\"query\":\"Extract every single concrete fact from these documents: names, dates, amounts, line items, park fees, costs, phone numbers, reference numbers, deadlines, places, accommodations, activities. List them all exhaustively. I need enough detail to build a trip-planning app.\",\"attachmentIds\":[\"dbd0da7b-2391-40f8-94e1-65ffb710a103\",\"b1d021f9-430b-49d8-8e41-d78a1e5e…"
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-files",
+            "sheet",
+            null,
+            {
+              "query": "Extract every single concrete number and line item from this spreadsheet: all costs, fees, amounts, dates, names of items/services, totals, per-person costs, park fees, accommodation costs, transport costs. List them all exhaustively.",
+              "attachmentIds": [
+                "d88595e4-2eb0-46ec-a392-4e4621f41921"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/tabular/spreadsheet"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/text"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/pdf"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/tabular/spreadsheet"
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "dbd0da7b-2391-40f8-94e1-65ffb710a103",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "d88595e4-2eb0-46ec-a392-4e4621f41921",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "b1d021f9-430b-49d8-8e41-d78a1e5e2819",
+            null
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/overview"
+          ]
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"Purpose & context\\nVasilis is planning a fully booked international trip in August 2026, traveling with a companion named Athina Mari. The trip spans Cairo (Egypt), Arusha and the northern Tanzania safari circuit, Zanzibar, and Dar es Salaam, running August 3–20. The trip combines cultural sightseeing in Cairo, a group camping safari through Tarangire, Lake Manyara, and Ngorongoro Crate…"
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "dbd0da7b-2391-40f8-94e1-65ffb710a103",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "d88595e4-2eb0-46ec-a392-4e4621f41921",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "b1d021f9-430b-49d8-8e41-d78a1e5e2819",
+            null
+          ]
+        }
+      ],
+      "errors": [
+        {
+          "type": "typecheck_error",
+          "message": "Conversion of type 'Promise<any>' to type '{ ok: boolean; data?: { summary: string; facts: any; } | undefined; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.\n  Property 'ok' is missing in type 'Promise<any>' but required in type '{ ok: boolean; data?: { summary: string; facts: any; } | undefined; }'.; Conversion of type 'Promise<any>' to type '{ ok: boolean; data?: { description: string; } | undefined; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.\n  Property 'ok' is missing in type 'Promise<any>' but required in type '{ ok: boolean; data?: { description: string; } | undefined; }'.",
+          "statement": "// Now read everything in one pass — the three files, the image, and the voice note (already transcribed above).\n// I'll send all file ids to system-files and the image id to system-vision in parallel.\nconst [filesResult, visionResult] = await Promise.all([\n  delegate('system-files', 'dispatch', {\n    query: 'Summarize these documents and list every concrete fact — names, dates, amounts, line items, park fees, costs, phone numbers, reference numbers, deadlines. I need enough to build a trip app from this.',\n    attachmentIds: ['dbd0da7b-2391-40f8-94e1-65ffb710a103', 'd88595e4-2eb0-46ec-a392-4e4621f41921', 'b1d021f9-430b-49d8-8e41-d78a1e5e2819'],\n  }) as { ok: boolean; data?: { summary: string; facts: any } },\n  delegate('system-vision', 'vision', {\n    query: 'Describe this photo in detail — what is in it, the mood, any notable details. This is from Stone Town, Zanzibar, and the user liked it.',\n    attachmentIds: ['4672cc38-9ffb-431c-a3f1-4f8b32da519f'],\n  }) as { ok: boolean; data?: { description: string } },\n]);",
+          "attempt": 1
+        }
+      ],
+      "nodes": [
+        {
+          "id": "delegate_3_a5126bd6",
+          "status": "done",
+          "ms": 6793
+        },
+        {
+          "id": "delegate_5_515163f1",
+          "status": "done",
+          "ms": 54909
+        },
+        {
+          "id": "delegate_4_11a54cdb",
+          "status": "done",
+          "ms": 67061
+        },
+        {
+          "id": "delegate_2_5319ba8b",
+          "status": "done",
+          "ms": 77594
+        },
+        {
+          "id": "run_1_e6e7698d",
+          "status": "done",
+          "ms": 105256
+        }
+      ],
+      "tokens": {
+        "in": 56720,
+        "out": 9044
+      },
+      "durationMs": 110766,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "attached": [
+    "tanzaniamemories.md",
+    "trip-costs.xlsx",
+    "ngorongoro-conservation-area-tariffs.pdf",
+    "stone-town-zanzibar.jpg",
+    "voice-memo.mp3"
+  ],
+  "state": {
+    "spaces": [],
+    "appTables": {},
+    "appManifest": {
+      "tables": [],
+      "pages": [],
+      "built": false
+    },
+    "error": null
+  }
+}

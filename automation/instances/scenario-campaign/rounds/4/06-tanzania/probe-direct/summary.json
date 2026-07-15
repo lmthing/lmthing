@@ -1,0 +1,40 @@
+{
+  "scenario": "06-tanzania-probe-direct",
+  "project": "tanzania-trip",
+  "ranSteps": 2,
+  "ofSteps": 2,
+  "sessionStats": {
+    "events": 1110,
+    "llmCalls": 112,
+    "tokens": {
+      "in": 589405,
+      "out": 23316
+    },
+    "errors": 2,
+    "unrecoveredErrors": 0,
+    "delegates": [
+      "system-files/dispatch",
+      "system-files/reader",
+      "system-files/sheet",
+      "system-vision/vision",
+      "system-architect/architect/synthesize_and_run",
+      "system-architect/architect/synthesize_and_run",
+      "/home/vasilis/LMTHING/lmthing/sdk/org/scenarios/harness/.state/local-server/pod-root/.lmthing/tanzania-trip/spaces/zanzibar-trip-planner/zanzibar-trip-planner/answer",
+      "/home/vasilis/LMTHING/lmthing/sdk/org/scenarios/harness/.state/local-server/pod-root/.lmthing/tanzania-trip/spaces/ngorongoro-safari/ngorongoro-safari/answer",
+      "system-appbuilder/automator",
+      "system-appbuilder/automator"
+    ],
+    "yieldKinds": [
+      "setSessionMeta",
+      "delegate",
+      "loadKnowledge",
+      "readDocument",
+      "inspect",
+      "tasklist",
+      "registerSpace",
+      "fetch"
+    ]
+  },
+  "outDir": "/home/vasilis/LMTHING/lmthing/automation/instances/scenario-campaign/rounds/4/06-tanzania/probe-direct",
+  "finishedAt": "2026-07-15T18:31:35.639Z"
+}

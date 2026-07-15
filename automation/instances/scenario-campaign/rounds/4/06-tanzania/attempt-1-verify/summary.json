@@ -1,0 +1,36 @@
+{
+  "scenario": "06-tanzania",
+  "project": "tanzania-trip",
+  "ranSteps": 2,
+  "ofSteps": 18,
+  "sessionStats": {
+    "events": 601,
+    "llmCalls": 58,
+    "tokens": {
+      "in": 442749,
+      "out": 20966
+    },
+    "errors": 9,
+    "unrecoveredErrors": 1,
+    "delegates": [
+      "system-files/dispatch",
+      "system-vision/vision",
+      "system-files/reader",
+      "system-files/sheet",
+      "system-architect/architect/synthesize_and_run",
+      "system-architect/architect/synthesize_and_run",
+      "system-appbuilder/automator"
+    ],
+    "yieldKinds": [
+      "delegate",
+      "loadKnowledge",
+      "readDocument",
+      "inspect",
+      "setSessionMeta",
+      "tasklist",
+      "registerSpace"
+    ]
+  },
+  "outDir": "/home/vasilis/LMTHING/lmthing/automation/instances/scenario-campaign/rounds/4/06-tanzania/attempt-1-verify",
+  "finishedAt": "2026-07-15T18:42:01.060Z"
+}

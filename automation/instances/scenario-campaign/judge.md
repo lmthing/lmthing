@@ -7,33 +7,68 @@ uncommitted and write a full report explaining every one; a human reviews and co
 
 {{include:scenario-spec.md}}
 
-# Target: a local `lmthing serve` (the fast loop)
+# How to run the scenario (the exact commands)
 
-One shared server on `http://localhost:8080`, budget-free Azure keys from `sdk/org/.env`, each run in
-its own fresh `projectId`. Set `SCENARIO_TARGET=local` on every harness command. Rebuild + restart IS
-the deploy — there is no CI / image / kubectl / ArgoCD here:
-`cd sdk/org && pnpm --filter <pkg>... build && node scenarios/harness/local-server.mjs restart`.
-Bring it up + smoke first: `local-server.mjs up`, `provision.mjs {{SCENARIO_ID}}`, `smoke.mjs`.
+Everything runs LOCAL against a throwaway `lmthing serve` (budget-free Azure keys from
+`sdk/org/.env`); there is no CI / image / kubectl / ArgoCD. From the monorepo root:
 
-# You are a HEADLESS session — run the scenario in the FOREGROUND
+1. **Build once** (and again after any code fix): `cd sdk/org && pnpm --filter @lmthing/cli... build`.
+2. **Launch the replay in the BACKGROUND.** The full run is 30–40 min — longer than the 10-min
+   Bash-tool cap — so it CANNOT be one foreground call. The runner wipes the pod runtime root (and
+   prints `confirmed: fresh pod has 0 projects`), starts a clean server, provisions the one project,
+   writes its own `$ART/runner.pid` (so `kill $(cat "$ART/runner.pid")` is always correct — you never
+   improvise the stop), and writes `step-NN.json` + appends `trace.md` after EACH step:
 
-When you stop emitting tool calls your turn ends and every background process dies. Drive the run as
-blocking foreground commands with a long `timeout` (~25 min); never "launch it and wait". The runner
-is a generic driver that reads `scenario.yaml` and plays the steps; you are the persona at the
-keyboard AND the judge watching the trace.
+       ART=<ARTIFACT_DIR>   # the dir holding {{progressFile}}; evidence + your report live here
+       cd sdk/org && SCENARIO_TARGET=local nohup node scenarios/run-yaml.mjs {{SCENARIO_ID}} \
+         --fresh-server --out "$ART" > "$ART/run.log" 2>&1 &
 
-# You ARE the persona — answer THING's questions, never dismiss them
+3. **Immediately POLL — and DO NOT END YOUR TURN.** ⚠️ THE #1 FAILURE MODE: launching the runner,
+   sending a message like "I'll evaluate step-01 when it lands", and stopping. A headless session
+   ENDS the instant you stop emitting tool calls — the run then dies UNJUDGED and the whole
+   invocation is wasted. Your turn ends ONLY after you have judged through the first failing step
+   (and fixed + verified it) or confirmed the scenario fully green. To stay alive AND advance, run
+   this BLOCKING poll as a tool call (set the Bash `timeout` to its max, 600000 ms) with `S` = the
+   next step to judge; it returns the moment that step's evidence lands or the runner ends:
 
-THING may raise an `ask()` mid-turn: a consent card, a Form, or a plain clarifying question. Respond
-to EVERY one in-persona, at runtime — NEVER blanket-settle with `{}` (a dismissed legitimate question
-corrupts both the run and your judgment of it):
-- **Consent card** → approve or deny by the step's intent (a denial-testing step denies; else a plain
-  yes).
-- **Form** → fill it as the real person would, from the persona + fixtures + `knows`.
-- **Clarifying question** → answer as the persona: their words, their knowledge, no product
-  vocabulary, and NEVER hand it a fact it should have looked up or queried. Use the step's `if_asked`
-  / scenario `knows` for load-bearing answers; otherwise answer as the persona plausibly would and
-  keep going. An autonomous run must never hang — but it ANSWERS, it doesn't dismiss.
+       S=01; F="$ART/step-$S.json"
+       for i in $(seq 1 96); do
+         [ -f "$F" ] && { echo "STEP $S READY:"; cat "$F"; exit 0; }
+         grep -qE "played [0-9]+/[0-9]+ steps|run-yaml:" "$ART/run.log" 2>/dev/null \
+           && { echo "RUNNER ENDED before step $S:"; tail -6 "$ART/run.log"; exit 0; }
+         sleep 5
+       done
+       echo "still waiting for step $S (~8m) — RUN THE POLL AGAIN, do not stop"
+
+   Read the returned `step-NN.json` (delegates / yields / errors / reply, the asks, and the real
+   spaces + app tables + DB rows), JUDGE it against that step's `expect` + the invariants, then poll
+   the NEXT step (`S=02`, `S=03`, …). Each poll blocks ≤ ~8 min, safely under the cap; if it prints
+   "still waiting", run it again. `trace.md` carries the same evidence in prose with the checklist.
+4. **At the FIRST failing step, STOP the runner** — `kill $(cat "$ART/runner.pid") 2>/dev/null` — and
+   go to attribute + fix (below). Do NOT wait for later steps; your fix changes the state they'd run
+   on. If a poll returns `RUNNER ENDED … played 18/18`, every step passed → the scenario is fully
+   green → extend.
+5. **Verify-rerun** (after a fix): rebuild if you touched code (`pnpm --filter @lmthing/core... build`
+   for a system-space/core fix — the fresh server adopts the rebuilt `dist/system-spaces` on boot),
+   then relaunch the SAME background+poll but only THROUGH the failed step:
+
+       cd sdk/org && SCENARIO_TARGET=local nohup node scenarios/run-yaml.mjs {{SCENARIO_ID}} \
+         --fresh-server --through <N> --out "$ART" > "$ART/run.log" 2>&1 &
+
+   Poll `S=<N>`, confirm it (and every earlier step) now passes, then stop. `--plan` dry-prints the
+   steps without a pod.
+
+# The persona is played FOR you — you REVIEW the asks, you don't type them
+
+The runner plays the persona: it sends each step's message(s) and answers THING's asks from the
+step's `if_asked` map and the scenario `knows` list (consent is approved unless a step sets
+`deny_consent`). Every ask + how it was answered is recorded in the step evidence, so you do NOT type
+answers turn-by-turn — you REVIEW the recorded asks and SCORE them (below). When the runner logs an
+UNANSWERED ask (no `if_asked` match), decide which it is:
+- a legitimate question the scenario simply didn't ground → add an `if_asked` entry (an **L0**
+  scenario fix) and rerun;
+- an over-ask THING should never have made → an **L1** failure (fix its brain toward "propose and
+  act; only ask when the choice is truly the user's").
 
 # Judge a step — evidence, not vibes
 

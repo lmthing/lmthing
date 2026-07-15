@@ -20,7 +20,9 @@ Everything runs LOCAL against a throwaway `lmthing serve` (budget-free Azure key
    improvise the stop), and writes `step-NN.json` + appends `trace.md` after EACH step:
 
        ART=<ARTIFACT_DIR>   # the dir holding {{progressFile}}; evidence + your report live here
-       cd sdk/org && SCENARIO_TARGET=local nohup node scenarios/run-yaml.mjs {{SCENARIO_ID}} \
+       # ABSOLUTE path to the runner — it must not depend on your current directory (its own imports
+       # and the pod's cwd are script-relative, so it runs correctly from anywhere):
+       SCENARIO_TARGET=local nohup node {{repoRoot}}/sdk/org/scenarios/run-yaml.mjs {{SCENARIO_ID}} \
          --fresh-server --out "$ART" > "$ART/run.log" 2>&1 &
 
 3. **Immediately POLL — and DO NOT END YOUR TURN.** ⚠️ THE #1 FAILURE MODE: launching the runner,
@@ -34,8 +36,12 @@ Everything runs LOCAL against a throwaway `lmthing serve` (budget-free Azure key
        S=01; F="$ART/step-$S.json"
        for i in $(seq 1 96); do
          [ -f "$F" ] && { echo "STEP $S READY:"; cat "$F"; exit 0; }
-         grep -qE "played [0-9]+/[0-9]+ steps|run-yaml:" "$ART/run.log" 2>/dev/null \
-           && { echo "RUNNER ENDED before step $S:"; tail -6 "$ART/run.log"; exit 0; }
+         # Runner ended? clean finish (played N/N), OR a CRASH (module/load error, or its pid died).
+         if grep -qE "played [0-9]+/[0-9]+ steps|run-yaml:|Cannot find module|MODULE_NOT_FOUND|node:internal/modules" "$ART/run.log" 2>/dev/null \
+            || { [ -f "$ART/runner.pid" ] && ! kill -0 "$(cat "$ART/runner.pid")" 2>/dev/null; }; then
+           echo "RUNNER ENDED before step $S (finished or CRASHED — READ the log, don't re-poll blindly):"
+           tail -15 "$ART/run.log"; exit 0
+         fi
          sleep 5
        done
        echo "still waiting for step $S (~8m) — RUN THE POLL AGAIN, do not stop"
@@ -52,7 +58,7 @@ Everything runs LOCAL against a throwaway `lmthing serve` (budget-free Azure key
    for a system-space/core fix — the fresh server adopts the rebuilt `dist/system-spaces` on boot),
    then relaunch the SAME background+poll but only THROUGH the failed step:
 
-       cd sdk/org && SCENARIO_TARGET=local nohup node scenarios/run-yaml.mjs {{SCENARIO_ID}} \
+       SCENARIO_TARGET=local nohup node {{repoRoot}}/sdk/org/scenarios/run-yaml.mjs {{SCENARIO_ID}} \
          --fresh-server --through <N> --out "$ART" > "$ART/run.log" 2>&1 &
 
    Poll `S=<N>`, confirm it (and every earlier step) now passes, then stop. `--plan` dry-prints the

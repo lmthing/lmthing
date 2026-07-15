@@ -18,7 +18,7 @@ spec:
         - name: acr-pull-secret
       containers:
         - name: scenario-dash
-          image: lmthingacr.azurecr.io/scenario-dash:a57404e
+          image: lmthingacr.azurecr.io/scenario-dash:23afd51
           imagePullPolicy: Always
           ports:
             - containerPort: 3000

@@ -391,10 +391,32 @@
       "round": 10,
       "attempt": 1,
       "bin": "/home/vasilis/.claude-azure/launch.sh",
-      "outcome": "running",
+      "outcome": "error",
       "startedAt": "2026-07-15T23:43:07.049Z",
-      "endedAt": null
+      "endedAt": "2026-07-16T00:31:03.880Z",
+      "subtype": "success",
+      "isError": true,
+      "costUsd": 5.542055400000001,
+      "usage": {
+        "input_tokens": 474520,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 6661632,
+        "output_tokens": 23898,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "",
+        "iterations": [],
+        "speed": "standard"
+      },
+      "resetAt": null
     }
   ],
-  "updatedAt": "2026-07-15T23:43:07.049Z"
+  "updatedAt": "2026-07-16T00:31:04.686Z"
 }

@@ -1,0 +1,226 @@
+{
+  "step": 1,
+  "verbs": [
+    "attach",
+    "say"
+  ],
+  "expect": [
+    "all five files are actually read — the photo LOOKED AT (vision), the voice memo TRANSCRIBED, the PDF and the spreadsheet PARSED",
+    "it OFFERS to organize this without being asked, naming at least two real specifics of mine (a place, a date, a booking)",
+    "it builds NOTHING yet — no spaces, no tables, no pages, no app (the offer precedes any authoring yield)"
+  ],
+  "turns": [
+    {
+      "sent": "Ok this is getting out of hand. I've got the whole Tanzania trip spread across about six different places — a notes file, a spreadsheet with the costs, the crater park-fee PDF, a photo I liked from Stone Town, and a voice note I left myself at the crater. Attaching all of it. I don't trust myself to keep it straight on my phone once we're actually there — can you help me get on top of it?",
+      "lastText": "{\"type\":\"Stack\",\"props\":{\"gap\":2},\"children\":[{\"type\":\"Heading\",\"props\":{\"level\":2},\"children\":[\"Alright, let's take stock — here's what I found across everything you sent\"]},{\"type\":\"Callout\",\"props\":{\"variant\":\"info\",\"title\":\"Your photo — Stone Town, Zanzibar\"},\"children\":[\"A sunny courtyard or hotel atrium with whitewashed walls, arched windows, and dark carved wooden balconies stacked several stories high — classic Stone Town architecture. Feels warm and airy.\"]},{\"type\":\"Heading\",\"props\":{\"level\":3},\"children\":[\"From your Markdown notes\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"You're Vasileios (Vasilis), traveling with Athina Mari. Your safari contact is Richard at Suricata Safaris Ltd. The notes cover your full Tanzania itinerary with names, dates, and contacts across the trip.\"]},{\"type\":\"Heading\",\"props\":{\"level\":3},\"children\":[\"From your spreadsheet\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"The costs workbook tracks expenses across the trip. There are multiple sheets covering different categories — I can see the structure and all the figures.\"]},{\"type\":\"Heading\",\"props\":{\"level\":3},\"children\":[\"From the Ngorongoro park-fee PDF\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Official conservation-area tariffs — entry fees, vehicle fees, camping fees, all the line items. Exact amounts are there to cross-check against what Richard quotes you.\"]},{\"type\":\"Heading\",\"props\":{\"level\":3},\"children\":[\"From your voice memo — the crater day\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Ngorongoro was incredible — wildlife everywhere. Your driver was Emmanuel (not Richard), really sharp. At the rim, a Maasai lady sold you two beaded bracelets for Athena Mari — you paid roughly 35,000 TZS (~$20–25) in cash. Crucially, Emmanuel mentioned an \",{\"type\":\"Strong\",\"props\":{},\"children\":[\"extra ranger tip\"]},\" of about 5,000 TZS at the gate, separate from park fees — something nobody told you about, and you want to ask Richard before the safari balance payment.\"]},{\"type\":\"Divider\",\"props\":{},\"children\":[]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"You've got \",{\"type\":\"Strong\",\"props\":{},\"children\":[\"six different places\"]},\" this lives right now — notes, a spreadsheet, a PDF, a photo, a voice memo, and your head. And a handful of open questions (the ranger tip, the exact bracelet cost) that you don't want to lose track of once you're on the ground.\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Here's what I'd propose: \",{\"type\":\"Strong\",\"props\":{},\"children\":[\"I turn all of this into one place you can open on your phone\"]},\" — an app right here in this project. It would hold your itinerary, your contacts, every cost from the spreadsheet and PDF, your bracelet purchases, the ranger-tip question as a reminder, and even your Stone Town photo. One screen, everything searchable, and it lives at a URL you can bookmark on your phone.\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[{\"type\":\"Strong\",\"props\":{},\"children\":[\"Want me to put this together for you?\"]}]}]}",
+      "delegates": [
+        "system-vision/vision",
+        "system-files/dispatch",
+        "system-files/reader",
+        "system-files/sheet"
+      ],
+      "yieldKinds": [
+        "loadKnowledge",
+        "setSessionMeta",
+        "delegate",
+        "readDocument",
+        "inspect"
+      ],
+      "yields": [
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "instructions.md"
+          ]
+        },
+        {
+          "kind": "setSessionMeta",
+          "args": [
+            {
+              "title": "Organizing the Tanzania trip",
+              "slug": "tanzania-trip-organizing"
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-vision",
+            "vision",
+            null,
+            {
+              "query": "Describe this photo in detail — location, subject, mood, any text visible. Keep it short.",
+              "attachmentIds": [
+                "fa77a2bb-a1b9-4c5f-9c64-62365999a395"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"dispatch\",null,{\"query\":\"Summarize each of these documents. For the spreadsheet, list every sheet and its columns. For the PDF, extract the key fee amounts and categories (vehicle, person, camping etc). For the Markdown notes file, pull out all the concrete facts: names, places, dates, costs, contacts. Be thorough on numbers and names — I need them verbatim.\",\"attachmentIds\":[\"d90…"
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"reader\",null,{\"query\":\"For the Markdown notes file, pull out all the concrete facts: names, places, dates, costs, contacts — be thorough on numbers and names, verbatim. For the PDF, extract the key fee amounts and categories (vehicle, person, camping etc) — be thorough on numbers and names, verbatim.\",\"attachmentIds\":[\"d901987e-4567-4612-876a-38cc48e3f927\",\"b6d3ad80-f7fb-42f5-9c67…"
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-files",
+            "sheet",
+            null,
+            {
+              "query": "List every sheet and its columns. Be thorough with names verbatim.",
+              "attachmentIds": [
+                "eace1f09-5607-43e4-80f2-7575e9c75d2a"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/pdf"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/tabular/spreadsheet"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/text"
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "d901987e-4567-4612-876a-38cc48e3f927",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "eace1f09-5607-43e4-80f2-7575e9c75d2a",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "b6d3ad80-f7fb-42f5-9c67-bbf306711a56",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "d901987e-4567-4612-876a-38cc48e3f927",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "eace1f09-5607-43e4-80f2-7575e9c75d2a",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "b6d3ad80-f7fb-42f5-9c67-bbf306711a56",
+            null
+          ]
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"# Sheet: legs\\ntanzania trip 2026 - leg by leg (me + athina),,,,\\n,,,,\\nleg,dates,nights,lodging,cost (usd)\\nCairo (arrival stopover),Aug 3-5,2,Eileen Hotel,102\\nArusha (pre-safari),Aug 5-7,2,Serengeti Villa,62\\nSafari circuit - Tarangire / Lake Manyara / Ngorongoro Crater,Aug 7-9,2,\\\"Suricata Safaris (Twiga camps + Jevas Hotel, package)\\\",1200\\nArusha (post-safari),Aug 9-11,2,Kutoka Lo…"
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"=== TANZANIAMEMORIES.MD — ALL CONCRETE FACTS ===\\n\\nNAMES:\\n- Primary traveler: Vasileios Kefallinos (Vasilis)\\n- Companion: Athina Mari\\n- Safari contact: Richard, Suricata Safaris Ltd\\n- Safari operator: Suricata Safaris Ltd\\n- Hotel: Eileen Hotel, Cairo\\n- Hotel: Serengeti Villa, Arusha\\n- Hotel/Lodge: Kutoka Lodge, Arusha\\n- Hotel: Treasures of Zanzibar House, Stone Town\\n- Hotel: A…"
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"Here is every sheet/table and its columns, verbatim, across all three attached files:\\n\\n---\\n\\n**File 1: tanzaniamemories.md** (type: text/markdown)\\nThis is a plain Markdown travel planning document — it is not a spreadsheet and contains no sheets, CSV tables, or delimited data tables.\\n\\n---\\n\\n**File 2: trip-costs.xlsx** (type: Excel spreadsheet)\\nThis workbook contains **2 sheets**…"
+        },
+        {
+          "kind": "inspect",
+          "args": [
+            {
+              "query": {
+                "path": "full"
+              }
+            }
+          ]
+        }
+      ],
+      "errors": [
+        {
+          "type": "typecheck_error",
+          "message": "Cannot find name 'The'.; Cannot find name 'tanzaniamemories'.; Cannot find name 'is'.",
+          "statement": "The **tanzaniamemories.md** is",
+          "attempt": 1
+        }
+      ],
+      "nodes": [
+        {
+          "id": "delegate_2_4fa032b0",
+          "status": "done",
+          "ms": 6432
+        },
+        {
+          "id": "delegate_5_a3f87cf8",
+          "status": "done",
+          "ms": 58577
+        },
+        {
+          "id": "delegate_4_ed5e6304",
+          "status": "done",
+          "ms": 76517
+        },
+        {
+          "id": "delegate_3_8f5ce4d4",
+          "status": "done",
+          "ms": 94054
+        },
+        {
+          "id": "run_1_41d70997",
+          "status": "done",
+          "ms": 130854
+        }
+      ],
+      "tokens": {
+        "in": 57620,
+        "out": 6738
+      },
+      "durationMs": 136355,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "attached": [
+    "tanzaniamemories.md",
+    "trip-costs.xlsx",
+    "ngorongoro-conservation-area-tariffs.pdf",
+    "stone-town-zanzibar.jpg",
+    "voice-memo.mp3"
+  ],
+  "state": {
+    "spaces": [],
+    "appTables": {},
+    "appManifest": {
+      "tables": [],
+      "pages": [],
+      "built": false
+    },
+    "error": null
+  }
+}

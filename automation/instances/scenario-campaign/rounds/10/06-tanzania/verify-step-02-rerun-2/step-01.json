@@ -1,0 +1,199 @@
+{
+  "step": 1,
+  "verbs": [
+    "attach",
+    "say"
+  ],
+  "expect": [
+    "all five files are actually read — the photo LOOKED AT (vision), the voice memo TRANSCRIBED, the PDF and the spreadsheet PARSED",
+    "it OFFERS to organize this without being asked, naming at least two real specifics of mine (a place, a date, a booking)",
+    "it builds NOTHING yet — no spaces, no tables, no pages, no app (the offer precedes any authoring yield)"
+  ],
+  "turns": [
+    {
+      "sent": "Ok this is getting out of hand. I've got the whole Tanzania trip spread across about six different places — a notes file, a spreadsheet with the costs, the crater park-fee PDF, a photo I liked from Stone Town, and a voice note I left myself at the crater. Attaching all of it. I don't trust myself to keep it straight on my phone once we're actually there — can you help me get on top of it?",
+      "lastText": "{\"type\":\"Stack\",\"props\":{\"gap\":3},\"children\":[{\"type\":\"Heading\",\"props\":{\"level\":2},\"children\":[\"Ok, here's what you've actually got\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Across those five pieces you're carrying a surprising amount — way more than most people have organized. The problem isn't that you're missing anything; it's that it's scattered across formats that are useless when you're standing at a gate with no signal.\"]},{\"type\":\"Callout\",\"props\":{\"variant\":\"info\",\"title\":\"What I found across everything\"},\"children\":[{\"type\":\"List\",\"props\":{\"items\":[\"Trip notes with places, dates, contacts, and day-by-day details — from Arusha through to Zanzibar\",\"A full cost spreadsheet — every expense, broken out, with real figures\",\"The official Ngorongoro park-fee schedule — the exact tariff document, with line-item fees by category\",\"A Stone Town photo — the courtyard shot with the carved balconies and arched windows\",\"Your voice memo from crater day — Emmanuel the driver-guide, two bracelets for Athena Mari (~$20–25 / ~TZS 35,000), and the ranger-tip surprise (~TZS 5,000 cash you weren't told about)\"]},\"children\":[]}]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"You've got costs, places, contacts, official fees, a photo, and a couple of loose ends from the voice memo — the bracelets and that ranger tip. Right now it lives in five different buckets and none of them talk to each other.\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[{\"type\":\"Strong\",\"props\":{},\"children\":[\"Want me to build this into one place you can actually open on your phone?\"]},\" A proper trip hub — your costs tracked with the real park fees wired in, your itinerary from the notes, the photo, the contacts, and all the loose facts from the voice memo (bracelets, Emmanuel, that ranger tip) kept where you can check them at the gate. You'd open one link and everything's there.\"]}]}",
+      "delegates": [
+        "system-vision/vision",
+        "system-files/dispatch",
+        "system-files/reader",
+        "system-files/sheet"
+      ],
+      "yieldKinds": [
+        "delegate",
+        "loadKnowledge",
+        "readDocument",
+        "inspect",
+        "setSessionMeta"
+      ],
+      "yields": [
+        {
+          "kind": "delegate",
+          "args": [
+            "system-vision",
+            "vision",
+            null,
+            {
+              "query": "Describe this photo in a short paragraph — what is it of, what mood or notable details are there? This is from the user's trip to Stone Town, Zanzibar.",
+              "attachmentIds": [
+                "c3919ee6-6388-4587-bd46-6f1e15a36689"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"dispatch\",null,{\"query\":\"I need a structured summary of these three documents. For each, give me: (a) a short summary of what it is, (b) every concrete specific — names, dates, costs, figures, places, items, reference numbers, contact details, rules, amounts, currencies. I need the actual numbers and names verbatim, not paraphrases. Be thorough on the spreadsheet (every row/column…"
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"reader\",null,{\"query\":\"I need a structured summary of these three documents. For each, give me: (a) a short summary of what it is, (b) every concrete specific — names, dates, costs, figures, places, items, reference numbers, contact details, rules, amounts, currencies. I need the actual numbers and names verbatim, not paraphrases. Be thorough on the spreadsheet (every row/column) …"
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"sheet\",null,{\"query\":\"I need a structured summary of these three documents. For each, give me: (a) a short summary of what it is, (b) every concrete specific — names, dates, costs, figures, places, items, reference numbers, contact details, rules, amounts, currencies. I need the actual numbers and names verbatim, not paraphrases. Be thorough on the spreadsheet (every row/column) a…"
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/tabular/spreadsheet"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/text"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/word"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/pdf"
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "1154e18c-19ac-449c-89a3-0742b3f9590a",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "92d2c0e4-9526-4038-a9c8-0dda8a29b877",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "67fc4c1f-91cb-4a45-b5e3-9dad6d363dae",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "1154e18c-19ac-449c-89a3-0742b3f9590a",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "92d2c0e4-9526-4038-a9c8-0dda8a29b877",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "67fc4c1f-91cb-4a45-b5e3-9dad6d363dae",
+            null
+          ]
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":[\"============================================================\\nSTRUCTURED SUMMARY OF THREE DOCUMENTS\\n============================================================\\n\\n---\\nDOCUMENT 1: tanzaniamemories.md (Markdown notes — trip planning narrative)\\n---\\n\\n(a) SUMMARY: This is Vasilis Kefallinos's detailed trip-planning notes for a fully booked international trip to Tanzania, Egypt, and Za…"
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":[\"# Document 1 — tanzaniamemories.md (Trip Notes & Narrative)\\n\\n## (a) What it is\\nA markdown file of narrative trip-planning notes for Vasileios Kefallinos, who is planning a fully booked international trip with companion Athina Mari, spanning August 3–20, 2026 across Egypt and Tanzania. It documents the complete itinerary, accommodations, flights, safari details, key contacts, logisti…"
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"============================================================\\nSTRUCTURED SUMMARY OF THREE DOCUMENTS\\n============================================================\\n\\n---\\nDOCUMENT 1: tanzaniamemories.md (Markdown notes — trip planning narrative)\\n---\\n\\n(a) SUMMARY: This is Vasilis Kefallinos's detailed trip-planning notes for a fully booked international trip to Tanzania, Egypt, and Zan…"
+        },
+        {
+          "kind": "setSessionMeta",
+          "args": [
+            {
+              "title": "Tanzania trip — wrangling the chaos",
+              "slug": "tanzania-trip-wrangling"
+            }
+          ]
+        }
+      ],
+      "errors": [],
+      "nodes": [
+        {
+          "id": "delegate_2_32010449",
+          "status": "done",
+          "ms": 5261
+        },
+        {
+          "id": "delegate_5_10610643",
+          "status": "done",
+          "ms": 77982
+        },
+        {
+          "id": "delegate_4_c4275834",
+          "status": "done",
+          "ms": 83200
+        },
+        {
+          "id": "delegate_3_f695f30f",
+          "status": "done",
+          "ms": 104068
+        },
+        {
+          "id": "run_1_1c9b9223",
+          "status": "done",
+          "ms": 134889
+        }
+      ],
+      "tokens": {
+        "in": 57914,
+        "out": 9663
+      },
+      "durationMs": 140929,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "attached": [
+    "tanzaniamemories.md",
+    "trip-costs.xlsx",
+    "ngorongoro-conservation-area-tariffs.pdf",
+    "stone-town-zanzibar.jpg",
+    "voice-memo.mp3"
+  ],
+  "state": {
+    "spaces": [],
+    "appTables": {},
+    "appManifest": {
+      "tables": [],
+      "pages": [],
+      "built": false
+    },
+    "error": null
+  }
+}

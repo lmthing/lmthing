@@ -1,0 +1,222 @@
+{
+  "step": 1,
+  "verbs": [
+    "attach",
+    "say"
+  ],
+  "expect": [
+    "all five files are actually read — the photo LOOKED AT (vision), the voice memo TRANSCRIBED, the PDF and the spreadsheet PARSED",
+    "it OFFERS to organize this without being asked, naming at least two real specifics of mine (a place, a date, a booking)",
+    "it builds NOTHING yet — no spaces, no tables, no pages, no app (the offer precedes any authoring yield)"
+  ],
+  "turns": [
+    {
+      "sent": "Ok this is getting out of hand. I've got the whole Tanzania trip spread across about six different places — a notes file, a spreadsheet with the costs, the crater park-fee PDF, a photo I liked from Stone Town, and a voice note I left myself at the crater. Attaching all of it. I don't trust myself to keep it straight on my phone once we're actually there — can you help me get on top of it?",
+      "lastText": "{\"type\":\"Stack\",\"props\":{\"gap\":2},\"children\":[{\"type\":\"Heading\",\"props\":{\"level\":2},\"children\":[\"Alright, I've read everything — here's what you've got\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"You're right, it \",{\"type\":\"Em\",\"props\":{},\"children\":[\"is\"]},\" spread across a lot. I've now seen all of it:\"]},{\"type\":\"List\",\"props\":{\"items\":[\"Your full trip-planning notes (Vasileios & Athina Mari, Aug 3–20, 2026, Tanzania & Zanzibar — flights, lodges, safari details, contacts, the works).\",\"A cost spreadsheet with actual figures across multiple categories.\",\"The official Ngorongoro Conservation Area tariff PDF — every park fee, camping fee, and concession charge broken down.\",\"The Stone Town courtyard photo — that warm, white-stucco, arched-balcony shot looking up.\",\"Your voice memo from the crater rim — Emmanuel the driver, two beaded bracelets for Athena (~20-25 USD / ~35,000 TZS), and that ranger-tip gate fee nobody warned you about (5,000 TZS cash). You want Richard asked about that before you settle the safari balance.\"]},\"children\":[]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Right now these live in five separate places — notes, spreadsheet, PDF, photo, and a voice memo — and once you're on the move with just your phone, that's exactly when you'll need a single place to open and check.\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[{\"type\":\"Strong\",\"props\":{},\"children\":[\"Want me to pull all of this together for you?\"]},\" I'd build you an app you can open on your phone — every cost in one place, park fees visible at a glance, your itinerary, the photo saved where you can find it, and all those crater-day details from the voice memo (bracelets, ranger tip, Emmanuel) recorded so you don't have to remember them. One tap, everything's there.\"]}]}",
+      "delegates": [
+        "system-vision/vision",
+        "system-files/dispatch",
+        "user-memory/memory",
+        "system-files/reader",
+        "system-files/sheet"
+      ],
+      "yieldKinds": [
+        "loadKnowledge",
+        "delegate",
+        "readDocument",
+        "inspect",
+        "setSessionMeta"
+      ],
+      "yields": [
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "instructions.md"
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-vision",
+            "vision",
+            null,
+            {
+              "query": "Describe this image in detail — what does it show? Any notable landmarks, colours, text, context? Keep it to a short paragraph.",
+              "attachmentIds": [
+                "624af052-aab2-4807-bd79-20871d47d39e"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"dispatch\",null,{\"query\":\"Summarize these three documents — give me a concise overview of each one, and list the key concrete facts: names, dates, numbers, fees, costs, categories, line items. For the spreadsheet note every sheet and its columns. For the PDF give every fee amount and category you can find. Keep it tight but specific — I need the real figures.\",\"attachmentIds\":[\"879…"
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "user-memory",
+            "memory",
+            null,
+            {
+              "query": "What do you know about the user? Anything about this Tanzania trip, preferences, names, or stored facts?"
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"reader\",null,{\"query\":\"Summarize these two documents — give me a concise overview of each one, and list the key concrete facts: names, dates, numbers, fees, costs, categories, line items. For the PDF give every fee amount and category you can find. Keep it tight but specific — I need the real figures.\",\"attachmentIds\":[\"8791212d-d13c-45e2-8066-8fe3f7c3925e\",\"33b24c17-26c4-4da0-a9f…"
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-files",
+            "sheet",
+            null,
+            {
+              "query": "For this spreadsheet, note every sheet and its columns. List all key concrete facts: names, dates, numbers, fees, costs, categories, line items. Keep it tight but specific — I need the real figures.",
+              "attachmentIds": [
+                "5bf50391-bace-43fa-99e2-37d4cd71328f"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/tabular/spreadsheet"
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "8791212d-d13c-45e2-8066-8fe3f7c3925e",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "5bf50391-bace-43fa-99e2-37d4cd71328f",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "33b24c17-26c4-4da0-a9fd-c12162e48c66",
+            null
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/pdf"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/text"
+          ]
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"# Sheet: legs\\ntanzania trip 2026 - leg by leg (me + athina),,,,\\n,,,,\\nleg,dates,nights,lodging,cost (usd)\\nCairo (arrival stopover),Aug 3-5,2,Eileen Hotel,102\\nArusha (pre-safari),Aug 5-7,2,Serengeti Villa,62\\nSafari circuit - Tarangire / Lake Manyara / Ngorongoro Crater,Aug 7-9,2,\\\"Suricata Safaris (Twiga camps + Jevas Hotel, package)\\\",1200\\nArusha (post-safari),Aug 9-11,2,Kutoka Lo…"
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "8791212d-d13c-45e2-8066-8fe3f7c3925e",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "5bf50391-bace-43fa-99e2-37d4cd71328f",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "33b24c17-26c4-4da0-a9fd-c12162e48c66",
+            null
+          ]
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"=== DOCUMENT 1: tanzaniamemories.md ===\\nThis is a trip-planning document for Vasileios Kefallinos and Athina Mari's fully-booked East Africa trip, August 3–20, 2026.\\n\\nKEY FACTS:\\n- Travelers: Vasileios Kefallinos + Athina Mari\\n- Dates: Aug 3–20, 2026\\n- Route: Athens → Cairo → Dar es Salaam → Arusha → Safari → Arusha → Zanzibar → Dar es Salaam → Cairo → Athens\\n- Total flights cost:…"
+        },
+        {
+          "kind": "setSessionMeta",
+          "args": [
+            {
+              "title": "Tanzania trip organizer",
+              "slug": "tanzania-trip-organizer"
+            }
+          ]
+        }
+      ],
+      "errors": [],
+      "nodes": [
+        {
+          "id": "delegate_4_18067934",
+          "status": "done",
+          "ms": 4498
+        },
+        {
+          "id": "delegate_2_b6fe4d01",
+          "status": "done",
+          "ms": 6590
+        },
+        {
+          "id": "delegate_5_58be905a",
+          "status": "done",
+          "ms": 34300
+        },
+        {
+          "id": "delegate_6_33bea413",
+          "status": "done",
+          "ms": 43380
+        },
+        {
+          "id": "delegate_3_e078c3ee",
+          "status": "done",
+          "ms": 85248
+        },
+        {
+          "id": "run_1_ec59cea8",
+          "status": "done",
+          "ms": 162771
+        }
+      ],
+      "tokens": {
+        "in": 61408,
+        "out": 5157
+      },
+      "durationMs": 167974,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "attached": [
+    "tanzaniamemories.md",
+    "trip-costs.xlsx",
+    "ngorongoro-conservation-area-tariffs.pdf",
+    "stone-town-zanzibar.jpg",
+    "voice-memo.mp3"
+  ],
+  "state": {
+    "spaces": [],
+    "appTables": {},
+    "appManifest": {
+      "tables": [],
+      "pages": [],
+      "built": false
+    },
+    "error": null
+  }
+}

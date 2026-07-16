@@ -1,0 +1,182 @@
+{
+  "step": 1,
+  "verbs": [
+    "attach",
+    "say"
+  ],
+  "expect": [
+    "all five files are actually read — the photo LOOKED AT (vision), the voice memo TRANSCRIBED, the PDF and the spreadsheet PARSED",
+    "it OFFERS to organize this without being asked, naming at least two real specifics of mine (a place, a date, a booking)",
+    "it builds NOTHING yet — no spaces, no tables, no pages, no app (the offer precedes any authoring yield)"
+  ],
+  "turns": [
+    {
+      "sent": "Ok this is getting out of hand. I've got the whole Tanzania trip spread across about six different places — a notes file, a spreadsheet with the costs, the crater park-fee PDF, a photo I liked from Stone Town, and a voice note I left myself at the crater. Attaching all of it. I don't trust myself to keep it straight on my phone once we're actually there — can you help me get on top of it?",
+      "lastText": "",
+      "delegates": [
+        "system-vision/vision",
+        "system-files/dispatch",
+        "system-files/reader",
+        "system-files/sheet"
+      ],
+      "yieldKinds": [
+        "loadKnowledge",
+        "delegate",
+        "readDocument",
+        "inspect"
+      ],
+      "yields": [
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "instructions.md"
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-vision",
+            "vision",
+            null,
+            {
+              "query": "Describe this photo in detail — what do you see? Is it a place, a view, something scenic? Give me a short, vivid description plus any notable details (signs, landmarks, colours, mood).",
+              "attachmentIds": [
+                "37768561-5fd5-46c8-b931-b0a190a3b7f0"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"dispatch\",null,{\"query\":\"These three files are all about a Tanzania trip. Read them all and give me: (1) A structured, complete summary of each file — what it contains, its key facts, names, dates, places, and figures. For the spreadsheet, list EVERY sheet and what columns/rows it has, with all the actual numbers. For the PDF, extract every fee, tariff, price tier, and condition m…"
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"reader\",null,{\"query\":\"These three files are all about a Tanzania trip. Read them all and give me: (1) A structured, complete summary of each file — what it contains, its key facts, names, dates, places, and figures. For the markdown notes, capture every detail. For the PDF, extract every fee, tariff, price tier, and condition mentioned. (2) Cross-reference them: note where the sa…"
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"sheet\",null,{\"query\":\"These three files are all about a Tanzania trip. Read them all and give me: (1) A structured, complete summary of the spreadsheet — list EVERY sheet and what columns/rows it has, with all the actual numbers. (2) Cross-reference them: note where the same person, place, cost, or event appears in more than one file. (3) List any contradictions or gaps.\",\"attachm…"
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/tabular/spreadsheet"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/pdf"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/text"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/overview"
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "a23a3d58-7ddb-46bb-b787-30a35c3d9bbc",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "77ec8c06-fa38-4967-ab9f-bd9a81a57a9a",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "fd4773f7-bdc6-4d21-810f-b1d09a2c06ef",
+            null
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/word"
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "a23a3d58-7ddb-46bb-b787-30a35c3d9bbc",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "77ec8c06-fa38-4967-ab9f-bd9a81a57a9a",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "fd4773f7-bdc6-4d21-810f-b1d09a2c06ef",
+            null
+          ]
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"Purpose & context\\nVasilis is planning a fully booked international trip in August 2026, traveling with a companion named Athina Mari. The trip spans Cairo (Egypt), Arusha and the northern Tanzania safari circuit, Zanzibar, and Dar es Salaam, running August 3–20. The trip combines cultural sightseeing in Cairo, a group camping safari through Tarangire, Lake Manyara, and Ngorongoro Crate…"
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":{\"ok\":true,\"attachmentId\":\"a23a3d58-7ddb-46bb-b787-30a35c3d9bbc\",\"mediaType\":\"text/markdown\",\"filename\":\"tanzaniamemories.md\",\"kind\":\"text\",\"text\":\"Purpose & context\\nVasilis is planning a fully booked international trip in August 2026, traveling with a companion named Athina Mari. The trip spans Cairo (Egypt), Arusha and the northern Tanzania safari circuit, Zanzibar, and Dar es Salaam,…"
+        }
+      ],
+      "errors": [],
+      "nodes": [
+        {
+          "id": "delegate_2_1117d653",
+          "status": "done",
+          "ms": 6124
+        },
+        {
+          "id": "delegate_5_0d9cd3d7",
+          "status": "done",
+          "ms": 70888
+        }
+      ],
+      "tokens": {
+        "in": 17205,
+        "out": 5542
+      },
+      "durationMs": 118342,
+      "interrupted": true
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "attached": [
+    "tanzaniamemories.md",
+    "trip-costs.xlsx",
+    "ngorongoro-conservation-area-tariffs.pdf",
+    "stone-town-zanzibar.jpg",
+    "voice-memo.mp3"
+  ],
+  "state": {
+    "spaces": [],
+    "appTables": {},
+    "appManifest": {
+      "tables": [],
+      "pages": [],
+      "built": false
+    },
+    "error": null
+  }
+}

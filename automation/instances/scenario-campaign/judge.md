@@ -187,7 +187,20 @@ scenario in a completely different domain? If not, rewrite it until it could.
 
 **L2 STRUCTURE MISSING** — expressible today, but the artifact doesn't exist. Add it, inside the
 space format (no core change): a new AGENT · a new TASKLIST or TASK NODE · a new SPACE FUNCTION · a
-new capability grant or `canDelegateTo` edge on an existing agent.
+new capability grant or `canDelegateTo` edge on an existing agent · **a new KNOWLEDGE DOMAIN the agent
+loads on demand** (`loadKnowledge('<domain>','<field>','<option>')` reads
+`<space>/knowledge/<domain>/<field>/<option>.md`, always injected, no capability needed).
+> **When a recurring JUDGMENT is unreliable as inline prompt prose — how to classify / partition /
+> route a KIND of material — do not write the rule a fourth time in the agent's brain. Move the
+> heuristic into loadable domain KNOWLEDGE and keep the prompt minimal: classify the material's
+> domain, `loadKnowledge` the guide for that domain, apply it.** This is how the organize-material
+> partition was finally fixed: `user-thing/knowledge/organizing/split/{index,default,trips,
+> household,vehicles,pets,…}.md` — a general life-domain library — with `01-inventory` reduced to
+> "load the menu, load the matching domain guide(s), split by it." The knowledge must be GENERAL
+> (many domains, each phrased for ALL instances of that domain) and carry **ZERO scenario literals**
+> (no persona/place/fixture) — a domain-keyed knowledge base is the RIGHT home for domain-flavored
+> guidance that would be overfitting inside a system-wide prompt. A partition/classification rule
+> that keeps failing as prose is itself the signal to climb to this rung.
 
 **L3 FRAMEWORK GAP** — today's primitives CANNOT express it, and you can point at where a lower rung
 would go and show it has no way to say the thing. A core change (`sdk/org/libs/core|cli/**`), held to

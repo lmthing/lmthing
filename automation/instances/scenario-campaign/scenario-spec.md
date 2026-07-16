@@ -211,6 +211,13 @@ own specialist; brevity is not a reason to merge") holds for every domain, so wr
 travel/cooking/clinic costume. The test: could this exact sentence have come from a scenario in a
 completely different domain? If not, it is overfit — rewrite it until it could.
 
+But domain-flavored guidance IS sometimes genuinely useful (a trip really does split by place; a
+household by standing bill). Its right home is not a system-wide prompt but a **domain-keyed KNOWLEDGE
+base the agent loads on demand** — a general library (`knowledge/organizing/split/{trips,household,
+…}.md`) covering MANY domains, each phrased for ALL instances, that the prompt loads by the material's
+classified subject. That keeps THING's universal brain domain-neutral while still giving it the right
+per-domain heuristic. See the L2 rung in `judge.md`.
+
 # The layered fix (used by the judge)
 
 When a step fails, the fix lives on a ladder — L0 scenario, L1 prompt, L2 structure (a new

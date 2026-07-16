@@ -24,12 +24,16 @@ demand them, never a feature checklist wearing a persona.
   six fixtures token-asserted). Copy its shape.
 - `sdk/org/scenarios/run-yaml.mjs` — the generic runner that plays a `scenario.yaml`. Read its step
   verbs (`attach`/`say`/`then_say`/`open_app`/`in_app_chat`/`fresh_session`/`restart_pod`/`if_asked`/
-  `expect`). `node sdk/org/scenarios/run-yaml.mjs <id> --plan` dry-prints + checks fixture coverage.
+  `expect`). `attach:` wires files onto the step's `say` ONLY — never `then_say`/`in_app_chat`; a
+  beat that delivers a file must be a `say` step. `node sdk/org/scenarios/run-yaml.mjs <id> --plan`
+  dry-prints + checks fixture coverage.
 
 ## The non-negotiables (each is a FAIL if violated)
 
 1. **The persona knows ZERO lmthing words** — no space/project/app/agent/hook/table/build/… They
-   talk about their life. THING *proposes* the app; a bare "yes" is enough.
+   talk about their life. THING *proposes* the app; a bare "yes" is enough. They MAY echo a
+   plain-English noun THING itself coined ("the vault", "the tracker") — that's how a person refers
+   back, not product vocabulary; a word from the banned list never is.
 2. **Every `expect` is OBSERVABLE on the trace or on disk** — a delegate, a yield, a DB row, a
    knowledge file with its `source` line. Never "the reply mentions X" (passes when broken).
 3. **Real fixtures, each with a token found in NO other fixture**, and an `expect` asserting that
@@ -38,6 +42,9 @@ demand them, never a feature checklist wearing a persona.
    whisper round-trip. Record provenance in `fixtures/links.md`.
 4. **Route every fact by the three-store test** — "would he open a page to look at it?" → DB row;
    "just what an agent needs to advise" → space knowledge; "about him, no app yet" → user memory.
+   **Every invariant you list must have a step that exercises it** — e.g. migrate-from-memory only
+   fires if the arc states a personal fact BEFORE the app is built; a bulk-dump-then-yes arc has no
+   such window, so don't list the migrate invariant it can't test.
 5. **`invariants:` are pulled VERBATIM** from the library (they are what the judge reads and what a
    prompt fix must satisfy) — don't paraphrase the contract.
 6. **An `ask` is behavior**: where a step's correct move is to ask (ambiguous "don't forget",

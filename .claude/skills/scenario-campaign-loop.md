@@ -14,9 +14,33 @@ L3 core)**, verifies with a fresh rerun, writes a report, and **never commits**.
 **You are the human commit-gate.** Per round: launch → monitor → review the diff → when you AGREE
 it's sound, **you** commit it to `main` and relaunch. Correct `judge.md` when the judge misbehaves.
 
+## The operating discipline (do not break these)
+- **You never run the scenario yourself — only the automation runs it.** Do NOT hand-launch
+  `run-yaml.mjs`, a local server, or the replay to "verify" a fix. The judge (spawned by `lmauto run`)
+  is the only thing that drives the pod. Your job is launch → watch → review → commit → relaunch.
+  Verification of a fix is the JOB of the next automation round, not something you do by hand.
+- **Every round, you inspect the changes the automation made** and take exactly one path:
+  1. **Sound** → commit to `main`, relaunch.
+  2. **Overfit but salvageable** → rewrite the diff yourself into the domain-neutral principle
+     (keep the behavior, strip the scenario/domain costume), **AND** update the scenario-campaign
+     prompts so the automation won't produce that overfitting again, then relaunch.
+  3. **Wrong (bad rung, unsalvageable, fake pass)** → reject: discard the diff (`git -C sdk/org
+     checkout -- <files>`), update the scenario-campaign prompts so the automation avoids the
+     mistake, and relaunch.
+- **Overfitting ALWAYS costs a prompt update.** Whether you fixed the diff yourself or rejected it,
+  if the automation overfit then `judge.md` / `scenario-spec.md` failed to stop it — harden them in
+  the SAME breath (see "No overfitting" below) so the next round can't repeat it. A de-overfit with
+  no prompt update is an incomplete fix.
+
 ## Read first
 - `automation/instances/scenario-campaign/judge.md` — the judge's prompt (the loop it runs).
 - `automation/instances/scenario-campaign/config.mjs` — the bin (Azure Sonnet), tasks, `maxParallel:1`.
+  Keep only the ACTIVE scenario in `tasks:`; when it goes fully green, replace it with the next id.
+- `automation/instances/scenario-campaign/attempts/<id>.md` — the **cross-round attempt ledger**: the
+  judge's memory. Each round reads it before attributing and appends its rung + verify outcome. It's
+  how a fresh-context round knows a rung is exhausted and must climb (each judge session starts blank,
+  so without it round N+1 re-tries what round N already proved doesn't work). It persists on disk
+  untracked; **commit it as campaign meta whenever you gate-commit** (the engine won't).
 - `automation/lib/loop.mjs`, `state.mjs` — the engine (path-limited ledger commits; reaps abandoned runs).
 - `sdk/org/scenarios/run-yaml.mjs` — the generic runner the judge drives (`--fresh-server`, self-PID).
 
@@ -52,6 +76,14 @@ When the judge edits source (`git -C sdk/org diff …`), before committing:
 2. **No overfitting.** Grep the diff for scenario literals (persona names, fixture facts, this
    scenario's table names) — any is an automatic reject:
    `git -C sdk/org diff <files> | grep -iE '^\+' | grep -iE '<persona|place|token|number>'`.
+   **The grep is necessary but not sufficient** — also READ the added prose for scenario-DOMAIN
+   framing, which no grep catches: a travel scenario's fix that teaches THING about "itineraries" /
+   "destinations", a cooking one about "recipes", etc. bends a system-wide brain toward this one
+   story's domain and is overfit just as badly as a literal. Demand the domain-NEUTRAL principle (the
+   real Tanzania fix: not "list each destination in an itinerary" but "a distinct part with few facts
+   still gets its own specialist; brevity is not a reason to merge"). Test each added sentence: could
+   it have come from a scenario in a completely different domain? If not, reject — send it back or
+   rewrite it yourself before committing.
 3. **Verified.** The report must show a fresh `--fresh-server --through <N>` replay where the failed
    step (and everything before it) passes. An honest partial-FAIL is fine (next round continues);
    a fake PASS is not.

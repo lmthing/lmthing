@@ -1,0 +1,80 @@
+{
+  "step": 1,
+  "verbs": [
+    "attach",
+    "say"
+  ],
+  "expect": [
+    "all five files are actually read — the photo LOOKED AT (vision), the voice memo TRANSCRIBED, the PDF and the spreadsheet PARSED",
+    "it OFFERS to organize this without being asked, naming at least two real specifics of mine (a place, a date, a booking)",
+    "it builds NOTHING yet — no spaces, no tables, no pages, no app (the offer precedes any authoring yield)"
+  ],
+  "attached": [
+    "tanzaniamemories.md",
+    "trip-costs.xlsx",
+    "ngorongoro-conservation-area-tariffs.pdf",
+    "stone-town-zanzibar.jpg",
+    "voice-memo.mp3"
+  ],
+  "turns": [
+    {
+      "sent": "Ok this is getting out of hand. I've got the whole Tanzania trip spread across about six different places — a notes file, a spreadsheet with the costs, the crater park-fee PDF, a photo I liked from Stone Town, and a voice note I left myself at the crater. Attaching all of it. I don't trust myself to keep it straight on my phone once we're actually there — can you help me get on top of it?",
+      "lastText": "{\"type\":\"Stack\",\"props\":{\"gap\":2},\"children\":[{\"type\":\"Heading\",\"props\":{\"level\":2},\"children\":[\"Here's what you've got — it's actually a great set\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Between your notes, spreadsheet, the park-fee PDF, the photo, and your voice memo, you've actually captured the whole trip. It's just scattered — which is exactly what you said. Here's the inventory:\"]},{\"type\":\"Card\",\"props\":{\"title\":\"📝 tanzaniamemories.md\"},\"children\":[{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Your running trip notes — key stops, practical tips, things to remember, and a few to-dos. Covers the route, the safari operator details (Richard at the office), and assorted advice you've collected.\"]}]},{\"type\":\"Card\",\"props\":{\"title\":\"💰 trip-costs.xlsx\"},\"children\":[{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Your cost tracker spreadsheet — every expense broken down by category with amounts and notes. This has the real numbers: flights, safari balance, accommodation, tips, the works.\"]}]},{\"type\":\"Card\",\"props\":{\"title\":\"🏞️ ngorongoro-conservation-area-tariffs.pdf\"},\"children\":[{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"The official Ngorongoro Conservation Area fee schedule…",
+      "delegates": [
+        "system-vision/vision",
+        "system-files/dispatch",
+        "system-files/reader",
+        "system-files/sheet"
+      ],
+      "yieldKinds": [
+        "delegate",
+        "loadKnowledge",
+        "readDocument",
+        "inspect"
+      ],
+      "yieldCount": 18,
+      "errors": [
+        {
+          "type": "typecheck_error",
+          "message": "Cannot find name 'readerAnswer'.; Cannot find name 'sheetAnswer'.",
+          "statement": "currentTask.resolve([readerAnswer, sheetAnswer].filter(Boolean).join('\\n\\n---\\n\\n'));",
+          "attempt": 1
+        },
+        {
+          "type": "typecheck_error",
+          "message": "Cannot find name 'readerAnswer'.; Cannot find name 'sheetAnswer'.",
+          "statement": "currentTask.resolve((readerAnswer as string) + '\\n\\n---\\n\\n' + (sheetAnswer as string));",
+          "attempt": 1
+        },
+        {
+          "type": "typecheck_error",
+          "message": "Cannot find name 'inspected'. Did you mean 'inspect'?; Cannot find name 'spreadsheet'.",
+          "statement": "// The variables are not persisting across turns despite the SCOPE block. The only value available from the last turn's inspect is fullSheet (undefined). But the delegate results were shown via display() — those results were rendered to the DOCUMENT CONTENTS block in the turn where display() ran. Since this is a fresh turn and I must resolve now, I need to work with what was actually displayed.\n\n// Let me check if the full content was captured in any inspect variable. Per the VARIABLES block, inspected[0] from the last inspect contained the truncated sheetAnswer preview. But the full display outputs were shown — I need to reconstruct from what I can actually reference.\n\n// Looking at the VARIABLES block: \"inspected[0]\" from the sheetAnswer inspect showed \"Done — both sheets...\" — that's the truncated version. But fullSheet is undefined. \n\n// Since I must resolve NOW and the original delegate results are lost to scope, I'll resolve with what's available — the full text was shown via display() in the DOCUMENT CONTENTS and I should reference the content that was displayed. But I don't have a variable holding it.\n\n// The only bound variables available appear to be the inspect results. Let me check what \"inspected\" array is available from the sheetAnswer inspect — the VARIABLES shows inspected[0] has a value. Let me use that and also reference the readerAnswer content that was displayed.\n\n// Actually, looking more carefully: SCOPE says readerAnswer, sheetAnswer, fullReader are declared. The runtime error says they can't be found. This is contradictory. One possibility: only the variable from the MOST RECENT statement (fullSheet) is actually bound. But fullSheet is undefined. \n\n// I need to resolve with whatever I can. The display() calls showed the full content. I don't have direct variable access, so I'll resolve with a note that the full results were displayed and reference what's reconstructable. But the instruction says to reference bound variables. Let me try using the inspected values that are visible.</think>currentTask.resolve({\n  markdownAndPdf: inspected?.[0] ?? '(full content was displayed — see DOCUMENT CONTENTS output above)',\n  spreadsheet",
+          "attempt": 2
+        }
+      ],
+      "nodeCount": 5,
+      "tokens": {
+        "in": 77046,
+        "out": 5816
+      },
+      "durationMs": 232736,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "state": {
+    "spaces": [],
+    "spaceCount": 0,
+    "appTables": {},
+    "appManifest": {
+      "tableNames": [],
+      "pageCount": 0,
+      "built": false
+    },
+    "error": null,
+    "appError": null
+  },
+  "fullEvidence": "step-01.full.json"
+}

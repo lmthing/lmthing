@@ -1,0 +1,211 @@
+{
+  "step": 1,
+  "verbs": [
+    "attach",
+    "say"
+  ],
+  "expect": [
+    "all five files are actually read — the photo LOOKED AT (vision), the voice memo TRANSCRIBED, the PDF and the spreadsheet PARSED",
+    "it OFFERS to organize this without being asked, naming at least two real specifics of mine (a place, a date, a booking)",
+    "it builds NOTHING yet — no spaces, no tables, no pages, no app (the offer precedes any authoring yield)"
+  ],
+  "turns": [
+    {
+      "sent": "Ok this is getting out of hand. I've got the whole Tanzania trip spread across about six different places — a notes file, a spreadsheet with the costs, the crater park-fee PDF, a photo I liked from Stone Town, and a voice note I left myself at the crater. Attaching all of it. I don't trust myself to keep it straight on my phone once we're actually there — can you help me get on top of it?",
+      "lastText": "{\"type\":\"Stack\",\"props\":{\"gap\":2},\"children\":[{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Okay, I've read through everything you sent — and yeah, I can see why this feels scattered. Here's what I'm looking at:\"]},{\"type\":\"List\",\"props\":{\"items\":[\"Your Tanzania trip notes (tanzaniamemories.md) — logistics, dates, contacts, the full plan\",\"The trip-costs spreadsheet — tracking what you've spent across different categories\",\"The Ngorongoro Conservation Area tariff PDF — official park fees, vehicle charges, and rules\",\"Your Stone Town photo — that gorgeous sunlit courtyard shot in Zanzibar\",\"And the crater-day voice memo — Emmanuel the driver-guide, two beaded bracelets for Athena Mari (~TZS 35,000 in shillings), and the ranger-tip question you want to raise with Richard before the safari balance payment\"]},\"children\":[]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Right now this lives in five places, and on a phone in Tanzania that's a recipe for scrolling panic. I can pull all of it into \",{\"type\":\"Strong\",\"props\":{},\"children\":[\"one app you can open right here\"]},\" — your notes, your costs (every sheet and row from the spreadsheet), the park-fee breakdowns, the photo, and the voice-memo details like the bracelet purchase and the ranger-tip flag — so everything is in one place, searchable, and actually usable on a phone.\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Want me to put this together for you?\"]}]}",
+      "delegates": [
+        "system-vision/vision",
+        "system-files/dispatch",
+        "system-files/reader",
+        "system-files/sheet"
+      ],
+      "yieldKinds": [
+        "setSessionMeta",
+        "delegate",
+        "loadKnowledge",
+        "readDocument",
+        "inspect"
+      ],
+      "yields": [
+        {
+          "kind": "setSessionMeta",
+          "args": [
+            {
+              "title": "Tanzania trip — organize material",
+              "slug": "tanzania-trip-organize"
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-vision",
+            "vision",
+            null,
+            {
+              "query": "Describe this photo briefly — what does it show, what is the mood/vibe, any notable details?",
+              "attachmentIds": [
+                "46c71c1d-5124-412e-b55f-c57a152c96f6"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"dispatch\",null,{\"query\":\"Summarize these three documents. For each, give me: (1) what kind of document it is, (2) a concise summary of what it contains — key topics, figures, dates, names, and any concrete data points. For the spreadsheet especially, list every sheet and the columns in each, plus any totals or standout numbers. For the PDF, extract any fee amounts, categories, and…"
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"reader\",null,{\"query\":\"Summarize these documents. Identify the kind of each document, then provide a concise summary of its content — key topics, figures, dates, names, concrete data points. For the PDF specifically, extract any fee amounts, categories, and rules. Be thorough with exact numbers where they exist.\",\"attachmentIds\":[\"7e8fe3cf-baff-4953-87f2-2f2cba6496d6\",\"0dcb652a-b3…"
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-files",
+            "sheet",
+            null,
+            {
+              "query": "Summarize this spreadsheet. List every sheet and the columns in each. Identify what kind of data it contains, and highlight any totals, standout numbers, concrete figures, dates, or names. Be thorough — I need exact numbers where they exist.",
+              "attachmentIds": [
+                "3763adab-7e16-484d-a557-7c929e56f89b"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/text"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/pdf"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/tabular/spreadsheet"
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "7e8fe3cf-baff-4953-87f2-2f2cba6496d6",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "3763adab-7e16-484d-a557-7c929e56f89b",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "0dcb652a-b35c-4462-8290-8ec57e74a378",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "7e8fe3cf-baff-4953-87f2-2f2cba6496d6",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "3763adab-7e16-484d-a557-7c929e56f89b",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "0dcb652a-b35c-4462-8290-8ec57e74a378",
+            null
+          ]
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"# Sheet: legs\\ntanzania trip 2026 - leg by leg (me + athina),,,,\\n,,,,\\nleg,dates,nights,lodging,cost (usd)\\nCairo (arrival stopover),Aug 3-5,2,Eileen Hotel,102\\nArusha (pre-safari),Aug 5-7,2,Serengeti Villa,62\\nSafari circuit - Tarangire / Lake Manyara / Ngorongoro Crater,Aug 7-9,2,\\\"Suricata Safaris (Twiga camps + Jevas Hotel, package)\\\",1200\\nArusha (post-safari),Aug 9-11,2,Kutoka Lo…"
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"TARRIFS VisitNGORONGOROfor Unforgettable Experiences A: ENTRY PERMIT Age Group Non-East African Citizen (USD) Of or above the age of 16 years Children aged 5 years and below 16 years Children below 5 years 35.40 11.80 Free 70.80 23.60 Free Tanzanian and East African Citizen (TZS) Expatriates/Residents Living in Tanzania (USD) or equivalent in (TZS) EXPATRIATES Expatriate referes to a pe…"
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"TARRIFS VisitNGORONGOROfor Unforgettable Experiences A: ENTRY PERMIT Age Group Non-East African Citizen (USD) Of or above the age of 16 years Children aged 5 years and below 16 years Children below 5 years 35.40 11.80 Free 70.80 23.60 Free Tanzanian and East African Citizen (TZS) Expatriates/Residents Living in Tanzania (USD) or equivalent in (TZS) EXPATRIATES Expatriate referes to a pe…"
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"DOCUMENT SUMMARIES\\n\\n---\\n\\n**Document 1: tanzaniamemories.md**\\nKind: Markdown text file — trip planning notes and context.\\n\\nThis is Vasilis's personal trip-planning document for a fully-booked August 2026 international trip with companion Athina Mari. Key details:\\n\\n- **Trip dates**: August 3–20, 2026. Route: Cairo (Egypt) → Arusha/Tanzania safari circuit → Zanzibar → Dar es Salaa…"
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"DOCUMENT SUMMARIES\\n\\n---\\n\\n**Document 1: tanzaniamemories.md**\\nKind: Markdown text file — trip planning notes and context.\\n\\nThis is Vasilis's personal trip-planning document for a fully-booked August 2026 international trip with companion Athina Mari. Key details:\\n\\n- **Trip dates**: August 3–20, 2026. Route: Cairo (Egypt) → Arusha/Tanzania safari circuit → Zanzibar → Dar es Salaa…"
+        }
+      ],
+      "errors": [],
+      "nodes": [
+        {
+          "id": "delegate_2_080a1650",
+          "status": "done",
+          "ms": 4654
+        },
+        {
+          "id": "delegate_5_4967c2eb",
+          "status": "done",
+          "ms": 55969
+        },
+        {
+          "id": "delegate_4_fb4b2f4f",
+          "status": "done",
+          "ms": 68017
+        },
+        {
+          "id": "delegate_3_c3d9c077",
+          "status": "done",
+          "ms": 82250
+        },
+        {
+          "id": "run_1_ad316b71",
+          "status": "done",
+          "ms": 120708
+        }
+      ],
+      "tokens": {
+        "in": 58354,
+        "out": 6998
+      },
+      "durationMs": 125784,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "attached": [
+    "tanzaniamemories.md",
+    "trip-costs.xlsx",
+    "ngorongoro-conservation-area-tariffs.pdf",
+    "stone-town-zanzibar.jpg",
+    "voice-memo.mp3"
+  ],
+  "state": {
+    "spaces": [],
+    "appTables": {},
+    "appManifest": {
+      "tables": [],
+      "pages": [],
+      "built": false
+    },
+    "error": null
+  }
+}

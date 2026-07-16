@@ -602,7 +602,16 @@
         "speed": "standard"
       },
       "resetAt": null
+    },
+    {
+      "task": "06-tanzania",
+      "round": 17,
+      "attempt": 1,
+      "bin": "/home/vasilis/.claude-azure/launch.sh",
+      "outcome": "running",
+      "startedAt": "2026-07-16T06:02:48.764Z",
+      "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-16T04:48:28.745Z"
+  "updatedAt": "2026-07-16T06:02:48.764Z"
 }

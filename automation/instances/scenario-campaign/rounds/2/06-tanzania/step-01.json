@@ -1,0 +1,61 @@
+{
+  "step": 1,
+  "verbs": [
+    "attach",
+    "say"
+  ],
+  "expect": [
+    "all five files are actually read — the photo LOOKED AT (vision), the voice memo TRANSCRIBED, the PDF and the spreadsheet PARSED",
+    "it OFFERS to organize this without being asked, naming at least two real specifics of mine (a place, a date, a booking)",
+    "it builds NOTHING yet — no spaces, no tables, no pages, no app (the offer precedes any authoring yield)"
+  ],
+  "attached": [
+    "tanzaniamemories.md",
+    "trip-costs.xlsx",
+    "ngorongoro-conservation-area-tariffs.pdf",
+    "stone-town-zanzibar.jpg",
+    "voice-memo.mp3"
+  ],
+  "turns": [
+    {
+      "sent": "Ok this is getting out of hand. I've got the whole Tanzania trip spread across about six different places — a notes file, a spreadsheet with the costs, the crater park-fee PDF, a photo I liked from Stone Town, and a voice note I left myself at the crater. Attaching all of it. I don't trust myself to keep it straight on my phone once we're actually there — can you help me get on top of it?",
+      "lastText": "{\"type\":\"Stack\",\"props\":{\"gap\":2},\"children\":[{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"OK Vasilis, I've read through everything — and you're right, it's a lot to keep straight. Here's what I found across your five pieces:\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[{\"type\":\"Strong\",\"props\":{},\"children\":[\"Your notes file\"]},\" covers the trip overview (you + Athena Mari, Aug 3–20, 2026), flights, accommodation across several stops, safari contacts including Richard, a day-by-day itinerary, and a packing list.\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[{\"type\":\"Strong\",\"props\":{},\"children\":[\"The spreadsheet\"]},\" has your cost breakdown — every expense tracked. The \",{\"type\":\"Strong\",\"props\":{},\"children\":[\"Ngorongoro PDF\"]},\" has the official park tariff table with all the fee categories and amounts.\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[{\"type\":\"Strong\",\"props\":{},\"children\":[\"Your voice memo\"]},\" from the crater adds things nowhere else: your driver Emmanuel (not Richard), the two beaded bracelets you bought for Athena Mari (~$20–25 / ~35,000 TZS), and — importantly — that Emmanuel mentioned a ranger tip of ~5,000 TZS at the gate that's separate from the park fees,…",
+      "delegates": [
+        "system-vision/vision",
+        "system-files/dispatch",
+        "system-files/reader",
+        "system-files/sheet"
+      ],
+      "yieldKinds": [
+        "delegate",
+        "loadKnowledge",
+        "readDocument",
+        "inspect"
+      ],
+      "yieldCount": 15,
+      "errors": [],
+      "nodeCount": 5,
+      "tokens": {
+        "in": 65622,
+        "out": 5004
+      },
+      "durationMs": 187592,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "state": {
+    "spaces": [],
+    "spaceCount": 0,
+    "appTables": {},
+    "appManifest": {
+      "tableNames": [],
+      "pageCount": 0,
+      "built": false
+    },
+    "error": null,
+    "appError": null
+  },
+  "fullEvidence": "step-01.full.json"
+}

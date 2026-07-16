@@ -18,6 +18,8 @@ A `cron` hook needs exactly one of `every` / `daily` (`sdk/org/libs/cli/src/app/
 
 **There is no `database` hook type any more.** `{type:'database'}` was removed with no back-compat: a file still declaring it is dropped-with-warn (the rest of the project still loads), and `validateHook` throws a migration error as a backstop (`sdk/org/libs/cli/src/app/hooks/loader.ts:414-418,474-488`). To react to database writes you subscribe an `event` hook to the synthetic `project/db.<table>.<event>` address — this is what [./database.md](./database.md) documents.
 
+The **gross shape** is checked at write time: `writeHook`/`writeProjectHook` evaluate the module and reject (thrown, retryable) a `export default` that is not an object, or one whose `type` is not `cron`/`event`/`webhook` `sdk/org/libs/cli/src/app/authoring/lint.ts#lintHookSource`. The finer per-type shape (`every`/`daily`/`on.event`/`trigger`/`handler`) stays with the **fail-soft** loader, so a hook that misses those is skipped-with-warn at load rather than blocking the write.
+
 ## `trigger` vs `handler`
 
 Both `cron` and `event` hooks need **exactly one** of `trigger` (declarative) or `handler` (imperative) — declaring neither or both throws (`sdk/org/libs/cli/src/app/hooks/loader.ts:396-402,430-436`). The dispatcher branches on which is present (`sdk/org/libs/cli/src/server/routes/hooks.ts#runHook`):

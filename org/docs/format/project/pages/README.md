@@ -4,6 +4,8 @@ A project-app's `pages/` directory holds **real client-side React** — each non
 
 Pages are written by the capability-gated `writePage(route, src)` global (catalog authoring) and its live-project twin `writeProjectPage(route, src)`, both injected only when the agent holds the `pages:write` grant (`sdk/org/libs/cli/src/app/authoring/globals.ts:185-196`, `sdk/org/libs/cli/src/app/authoring/globals.ts:376-395`; DTS gated at `sdk/org/libs/core/src/typecheck/library-dts.ts:268`). See [capabilities.md](../../space/agents/capabilities.md) for the grant model.
 
+A page **must have a default export** (the component the route renders); a write without one is rejected at write time with a thrown, retryable error rather than failing later as an esbuild bundle error `sdk/org/libs/cli/src/app/authoring/lint.ts#lintPageSource`.
+
 ## File routing
 
 Route discovery walks `pages/`; every non-`_`-prefixed `.tsx`/`.jsx` file becomes a route (`sdk/org/libs/cli/src/app/build/pages.ts:155-182`). The route pattern is the file's path relative to `pages/`, with two rules: an `index` basename collapses to its directory's path, and a `[id]` segment becomes a `:id` dynamic param (`sdk/org/libs/cli/src/app/build/pages.ts:184-194`).

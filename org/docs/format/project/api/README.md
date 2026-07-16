@@ -46,6 +46,8 @@ The real example imports `HttpError` from `@app/runtime`, exports `name`/`descri
 
 `Input`/`Output` are turned into JSON Schema per endpoint by `generateEndpointContracts` via `ts-json-schema-generator` `sdk/org/libs/cli/src/app/build/schema.ts:11-12,179-198`.
 
+The `name` + default/`handler` contract is now **enforced at write time**: `writeApi`/`writeProjectApi` run the loader's own name check plus a project-unique-name scan and reject a violating write with a thrown, retryable error, instead of letting it fail later at load `sdk/org/libs/cli/src/app/authoring/lint.ts#lintApiHandler`.
+
 ## `Input` is one object, assembled by method
 
 `Input` is a single object whose fields are sourced by the HTTP method, not declared per-field `sdk/org/libs/cli/src/app/api/input.ts:1-17`: `GET`/`DELETE` take the non-path fields from the **query string**, `POST`/`PATCH`/`PUT` from the **JSON body**, and path params (`[id]`) always merge on top so **path wins on a key clash** `sdk/org/libs/cli/src/app/api/input.ts#QUERY_METHODS,40-53`. A non-object body for a body method is handled leniently (base becomes `{}`, params merge on top) `sdk/org/libs/cli/src/app/api/input.ts#assembleInput`.

@@ -1,0 +1,70 @@
+{
+  "step": 1,
+  "verbs": [
+    "attach",
+    "say"
+  ],
+  "expect": [
+    "all five files are actually read — the photo LOOKED AT (vision), the voice memo TRANSCRIBED, the PDF and the spreadsheet PARSED",
+    "it OFFERS to organize this without being asked, naming at least two real specifics of mine (a place, a date, a booking)",
+    "it builds NOTHING yet — no spaces, no tables, no pages, no app (the offer precedes any authoring yield)"
+  ],
+  "attached": [
+    "tanzaniamemories.md",
+    "trip-costs.xlsx",
+    "ngorongoro-conservation-area-tariffs.pdf",
+    "stone-town-zanzibar.jpg",
+    "voice-memo.mp3"
+  ],
+  "turns": [
+    {
+      "sent": "Ok this is getting out of hand. I've got the whole Tanzania trip spread across about six different places — a notes file, a spreadsheet with the costs, the crater park-fee PDF, a photo I liked from Stone Town, and a voice note I left myself at the crater. Attaching all of it. I don't trust myself to keep it straight on my phone once we're actually there — can you help me get on top of it?",
+      "lastText": "{\"type\":\"Stack\",\"props\":{\"gap\":2},\"children\":[{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Alright, I have read through everything you sent and I can see why this feels scattered. Here is what you have across those six pieces:\"]},{\"type\":\"List\",\"props\":{\"items\":[\"Your trip planning notes with the full itinerary, Richard the safari contact, packing lists, and day-by-day plans for you and Athina Mari.\",\"A cost spreadsheet with flights, park fees, and accommodation broken out — your budget in one place.\",\"The official Ngorongoro Conservation Area tariff PDF with the actual park-fee figures.\",\"A beautiful photo of a sunlit Stone Town courtyard with white stucco and carved balconies — classic Zanzibar.\",\"Your voice memo from the crater with three live facts not written down anywhere: Emmanuel (your driver-guide, not Richard), the Maasai bracelets you bought for Athina Mari (~$20-25 or TZS 35,000), and that ranger tip at the gate (~TZS 5,000) that nobody mentioned — and that you want to ask Richard about before the safari balance payment.\"]},\"children\":[]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"That is your itinerary, your money, your official docs, a personal photo, and on-the-groun…",
+      "delegates": [
+        "system-vision/vision",
+        "system-files/dispatch",
+        "user-memory/memory",
+        "system-files/reader",
+        "system-files/sheet"
+      ],
+      "yieldKinds": [
+        "delegate",
+        "loadKnowledge",
+        "readDocument",
+        "inspect",
+        "setSessionMeta"
+      ],
+      "yieldCount": 20,
+      "errors": [
+        {
+          "type": "typecheck_error",
+          "message": "Property 'error' does not exist on type '{ ok: boolean; facts: Record<string, unknown>; }'.",
+          "statement": "// Check what we found and present it back.\nif (!allFacts.ok) {\n  currentTask.resolve({ ok: false, action: 'recallAll', error: allFacts.error || 'Failed to recall facts' });\n}",
+          "attempt": 1
+        }
+      ],
+      "nodeCount": 6,
+      "tokens": {
+        "in": 84626,
+        "out": 5956
+      },
+      "durationMs": 207201,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "state": {
+    "spaces": [],
+    "spaceCount": 0,
+    "appTables": {},
+    "appManifest": {
+      "tableNames": [],
+      "pageCount": 0,
+      "built": false
+    },
+    "error": null,
+    "appError": null
+  },
+  "fullEvidence": "step-01.full.json"
+}

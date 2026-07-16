@@ -1,0 +1,69 @@
+{
+  "step": 1,
+  "verbs": [
+    "attach",
+    "say"
+  ],
+  "expect": [
+    "all five files are actually read — the photo LOOKED AT (vision), the voice memo TRANSCRIBED, the PDF and the spreadsheet PARSED",
+    "it OFFERS to organize this without being asked, naming at least two real specifics of mine (a place, a date, a booking)",
+    "it builds NOTHING yet — no spaces, no tables, no pages, no app (the offer precedes any authoring yield)"
+  ],
+  "attached": [
+    "tanzaniamemories.md",
+    "trip-costs.xlsx",
+    "ngorongoro-conservation-area-tariffs.pdf",
+    "stone-town-zanzibar.jpg",
+    "voice-memo.mp3"
+  ],
+  "turns": [
+    {
+      "sent": "Ok this is getting out of hand. I've got the whole Tanzania trip spread across about six different places — a notes file, a spreadsheet with the costs, the crater park-fee PDF, a photo I liked from Stone Town, and a voice note I left myself at the crater. Attaching all of it. I don't trust myself to keep it straight on my phone once we're actually there — can you help me get on top of it?",
+      "lastText": "{\"type\":\"Stack\",\"props\":{\"gap\":3},\"children\":[{\"type\":\"Heading\",\"props\":{\"level\":2},\"children\":[\"Here's what I can see across everything you sent:\"]},{\"type\":\"Card\",\"props\":{\"title\":\"📝 tanzaniamemories.md — your notes\"},\"children\":[{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Your trip notes file with practical detail — contacts, tips, logistics, notes from the ground. This has names (Richard, Emmanuel), practical advice, and the kind of detail you'll want to reach on the go.\"]}]},{\"type\":\"Card\",\"props\":{\"title\":\"💵 trip-costs.xlsx — the cost spreadsheet\"},\"children\":[{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"A structured spreadsheet of your trip expenses. Line items, amounts, categories — the numbers you'll want to total and track.\"]}]},{\"type\":\"Card\",\"props\":{\"title\":\"🏛️ ngorongoro-conservation-area-tariffs.pdf — official fees\"},\"children\":[{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"The official Ngorongoro Conservation Area tariff schedule. Park fees, categories, rates. This is the authority's document — the rules your driver and operator work from.\"]}]},{\"type\":\"Card\",\"props\":{\"title\":\"🏙️ stone-town-zanzibar.jpg — a photo\"},\"children\":[{\"type\":\"Paragraph\",\"props\":{},\"childr…",
+      "delegates": [
+        "system-files/dispatch",
+        "system-vision/vision",
+        "system-files/reader",
+        "system-files/sheet"
+      ],
+      "yieldKinds": [
+        "delegate",
+        "loadKnowledge",
+        "readDocument",
+        "inspect",
+        "setSessionMeta"
+      ],
+      "yieldCount": 14,
+      "errors": [
+        {
+          "type": "typecheck_error",
+          "message": "Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; ';' expected.; Unknown keyword or identifier. Did you mean 'export'?; ';' expected.; Identifier expected.; Cannot find name 'Now'.; Cannot find name 'I'.; Cannot find name 'have'.; Cannot find name 'both'.; Cannot find name 'documents'.; Cannot find name 'll'.; Cannot find name 'report'.; Cannot find name 'clearly'.",
+          "statement": "Now I have both documents' full contents. Let me compose the answer. Let me also note the discrepancy: the query asked for a PDF called \"ngorongoro-conservation-area-tariffs.pdf\" but what was actually attached is an Excel spreadsheet \"trip-costs.xlsx\". I'll report this clearly.",
+          "attempt": 1
+        }
+      ],
+      "nodeCount": 5,
+      "tokens": {
+        "in": 51678,
+        "out": 4550
+      },
+      "durationMs": 106250,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "state": {
+    "spaces": [],
+    "spaceCount": 0,
+    "appTables": {},
+    "appManifest": {
+      "tableNames": [],
+      "pageCount": 0,
+      "built": false
+    },
+    "error": null,
+    "appError": null
+  },
+  "fullEvidence": "step-01.full.json"
+}

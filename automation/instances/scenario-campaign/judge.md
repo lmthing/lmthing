@@ -46,10 +46,16 @@ Everything runs LOCAL against a throwaway `lmthing serve` (budget-free Azure key
        done
        echo "still waiting for step $S (~8m) — RUN THE POLL AGAIN, do not stop"
 
-   Read the returned `step-NN.json` (delegates / yields / errors / reply, the asks, and the real
-   spaces + app tables + DB rows), JUDGE it against that step's `expect` + the invariants, then poll
-   the NEXT step (`S=02`, `S=03`, …). Each poll blocks ≤ ~8 min, safely under the cap; if it prints
-   "still waiting", run it again. `trace.md` carries the same evidence in prose with the checklist.
+   Read the returned `step-NN.json` — it is the COMPACT observables you score: space names +
+   `spaceCount`, app tables as `{name: rowCount}`, per-turn `delegates` / `yieldKinds` / `yieldCount`
+   / `errors` / `lastText` (the reply), and the `asks`. That is enough to judge almost every `expect`.
+   JUDGE it against that step's `expect` + the invariants, then poll the NEXT step (`S=02`, `S=03`, …).
+   **Do NOT read `step-NN.full.json` by default** — it is the raw dump (every DB row, every yield's
+   args) and reading it repeatedly is what exhausts your context and kills the run before you finish
+   (`Prompt is too long`). Open the `.full.json` ONLY when a specific `expect` needs a value the
+   compact form dropped (a particular row's contents, one delegate's exact args), and read just that.
+   Each poll blocks ≤ ~8 min, safely under the cap; if it prints "still waiting", run it again.
+   `trace.md` carries the same compact evidence in prose with the checklist.
 4. **At the FIRST failing step, STOP the runner** — `kill $(cat "$ART/runner.pid") 2>/dev/null` — and
    go to attribute + fix (below). Do NOT wait for later steps; your fix changes the state they'd run
    on. If a poll returns `RUNNER ENDED … played 18/18`, every step passed → the scenario is fully
@@ -90,19 +96,60 @@ loop retried, the deliverable still landed → a metric) from FATAL ones (the de
 FAIL. An over-ask — interrogating instead of proposing / researching / querying, or re-asking what's
 already known — is a FAIL at L1.
 
+# Your cross-round memory: the attempt ledger (READ IT FIRST, APPEND TO IT LAST)
+
+Each invocation starts with FRESH context — you do not remember prior rounds. Your memory across
+rounds is one file:
+
+    {{repoRoot}}/automation/instances/scenario-campaign/attempts/{{SCENARIO_ID}}.md
+
+**Read it before you attribute anything.** It records, per step, every rung a prior round already
+tried and whether it verified. This is the ONLY way you know a rung is exhausted: if the ledger shows
+a step already got ≥2 L1 attempts of the RIGHT instruction and still FAILED — especially the same
+failure each time — do NOT try L1 again. That history is proof the cause is structural: CLIMB (L2/L3).
+A prior round may also have left an explicit escalation note telling you exactly where to go next;
+honor it. (If the file does not exist yet, this is the first round — create it with a `# Attempt
+ledger — {{SCENARIO_ID}}` heading.)
+
+**Append one line before you finish** (after your fix+verify, your honest FAIL, or your extend):
+
+    R<round> · step <N> · <L0|L1|L2|L3> · <file#symbol> · verify=<PASS|FAIL|INTERRUPTED> · <one-line evidence>
+
+Be honest — a FAIL you record saves the next round from repeating your dead end. The ledger persists
+on disk between rounds on its own (the engine's path-limited commits never disturb it); a human commits
+it with the campaign meta. Leave the PRODUCT diff uncommitted as always.
+
 # The loop — ONE failure per invocation
 
 Run from step 1. Then exactly one of:
 
 **A. A step FAILS** → stop the run at that step (the rest would run on corrupted state). Then:
-  1. **Attribute before you touch anything.** Re-run the failing turn as a minimal one-shot probe on
-     a clean project, to place it on the ladder:
+  1. **Attribute before you touch anything.** FIRST `git diff` the file you would fix — a prior
+     invocation may have left an UNCOMMITTED change already addressing this exact behavior. If the
+     instruction ALREADY says the right thing (e.g. "each distinct part gets its own specialist,
+     brevity is not a merge") and the step STILL fails the same way, L1 is exhausted — do NOT add a
+     fourth sentence saying the same thing louder. That standing-but-ineffective prose is proof the
+     cause is structural: CLIMB (see the L2 note below). Then re-run the failing turn as a minimal
+     one-shot probe on a clean project, to place it on the ladder:
      - Same ask phrased DIRECTLY authors cleanly, but the in-persona phrasing didn't → **L1** (the
        brain judged / routed badly).
      - The agent tried the right thing but a call THREW or failed TYPECHECK → the primitive is
        missing / too weak → **L2 or L3**, never a prompt.
      - The `expect` was wrong or the message truly ambiguous → **L0**. Do not weaken a real assertion
        to go green.
+     - **A clean direct probe does NOT prove L1.** "The primitive can do it when asked directly" only
+       rules out L2/L3 for a *one-shot capability* failure. It does NOT rule out L2 when the real-path
+       behavior is UNRELIABLE or SYSTEMATICALLY wrong: L2 is not only "the primitive is missing," it is
+       also "the current STRUCTURE doesn't reliably drive the primitive." If the same step fails the
+       same way across two independent replays — and especially if it drops the SAME items each time
+       (systematic, not random) — a third prose tweak will not fix it. That repetition is the ladder
+       telling you to CLIMB. Before you touch prose again, TRACE two things: (a) WHERE the wrong
+       decision is actually made (the caller's payload, or the specialist's own design node?), and
+       (b) WHAT INPUT it saw (a decision made on a lossy summary that never contained the dropped
+       items is fixed by changing the INPUT or adding an enumeration STEP, never by exhorting the
+       agent to try harder). A free-form judgment that must come out the same every time wants a
+       DETERMINISTIC structure — an enumerate-then-`forEach` tasklist node that lists the parts as
+       discrete items and builds one per item — which is an **L2** artifact that does not exist yet.
   2. **Fix at the LOWEST rung that truly fixes it** (ladder below). Land it in SOURCE, rebuild,
      restart the local server so the tree is adopted.
   3. **Verify with a fresh rerun.** New directory / project / DB / spaces, from step 1, forward
@@ -130,6 +177,13 @@ FRONTMATTER: `role` / `functions` / `canDelegateTo` / `capabilities` / `output` 
 `index.md` · `knowledge/<domain>/<field>/<option>.md` · a space function's body. Fix as a GENERAL
 PRINCIPLE a competent colleague would agree with; ZERO scenario literals (persona name, fixture
 contents, this scenario's table names — in instruction OR example) — that is overfitting and fails.
+**And ZERO scenario-DOMAIN framing** — a grep for literals won't catch it, but a travel scenario's fix
+that reasons about "itineraries" / "destinations", a cooking one about "recipes" / "ingredients", a
+clinic one about "patients", is overfit just the same: it bends a system-wide brain toward this one
+story's domain. Write the domain-NEUTRAL principle (the failure here — merging a small part into a
+catch-all — generalizes as "brevity is not a reason to merge; a distinct part with few facts still gets
+its own specialist"). Before you land an L1 edit, ask: could this exact sentence have come from a
+scenario in a completely different domain? If not, rewrite it until it could.
 
 **L2 STRUCTURE MISSING** — expressible today, but the artifact doesn't exist. Add it, inside the
 space format (no core change): a new AGENT · a new TASKLIST or TASK NODE · a new SPACE FUNCTION · a

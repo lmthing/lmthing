@@ -65,12 +65,20 @@ steps:
       - ...
 ```
 
+`attach:` wires files onto the step's `say` message ONLY — the runner has no attachment path for
+`then_say` or `in_app_chat`. So a beat that must deliver a file (a voice note, a photo) has to be a
+`say` step; you cannot upload a file "inside the app" via `in_app_chat`. To exercise both an in-app
+change AND a new file, split them into two steps, or deliver the file through the main-chat `say`.
+
 # The person knows ZERO lmthing words (hard rules)
 
 1. They NEVER say — or imply they know — space · project · app · agent · hook · event · webhook ·
    integration · install · database · table · schema · row · API · build · deploy · function ·
    capability · consent · delegate · THING. They talk about their life. A message only a docs-reader
-   would write is WRONG — rewrite it.
+   would write is WRONG — rewrite it. The persona MAY echo a plain-English noun THING itself coined
+   for the thing it built ("the vault", "the tracker", "that list you made me") — that is how a real
+   person refers back to it, not product vocabulary. The line: a word from the banned list above is
+   always wrong; a lay word THING introduced in-story is fine.
 2. THING PROPOSES the app; the user never asks for one. A bare "yes please" is enough. The offer
    must precede any authoring.
 3. Research and space creation are AUTOMATIC and invisible — the user never asks for a specialist or
@@ -89,6 +97,14 @@ steps:
 
 The test is always: "would he open a page to look at it?" Yes → DB. Just what the agent must
 understand to advise → knowledge. About him, no app yet → memory.
+
+**Migrate-from-memory is CONDITIONAL, not mandatory.** The `A PERSONAL FACT WITH NO APP YET → USER
+MEMORY … then MIGRATES to a DB row` invariant only fires when the arc actually states a personal fact
+BEFORE the app exists. An arc that opens with a bulk file-dump and an immediate "yes" (so the app is
+built in the first breath) never creates that pre-app window — do NOT list the migrate invariant it
+can't exercise. To test migrate on purpose, plant one plain personal fact in an early chat-only step
+before THING's offer, then assert it MOVES into a DB row (and the memory key is dropped) once the app
+is built. Every invariant you list must have a step that exercises it.
 
 # Invariant library — pull the ones your arc actually touches (verbatim, don't paraphrase)
 
@@ -185,6 +201,15 @@ prompt fix it motivates must be a principle a competent colleague would agree wi
 never a hint about this persona. A persona's name, a fixture's contents, or this scenario's table
 names appearing in a system-space prompt (in an instruction OR an example, positive or negative) is
 an automatic FAIL. Grep the prompt diff for scenario literals before it lands.
+
+Overfitting is NOT only literal tokens — **framing drawn from the scenario's own DOMAIN is overfitting
+too**, and a grep won't catch it. A travel scenario whose fix teaches THING about "itineraries" and
+"destinations", a cooking scenario whose fix names "recipes" and "ingredients", a clinic scenario that
+reasons about "patients" — each bends a system-wide brain toward the one story that motivated it. State
+the fix in domain-NEUTRAL terms: the underlying principle (here: "a part with few facts still gets its
+own specialist; brevity is not a reason to merge") holds for every domain, so write THAT, never its
+travel/cooking/clinic costume. The test: could this exact sentence have come from a scenario in a
+completely different domain? If not, it is overfit — rewrite it until it could.
 
 # The layered fix (used by the judge)
 

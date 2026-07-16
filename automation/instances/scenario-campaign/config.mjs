@@ -29,13 +29,10 @@ export default {
 
   // Each task is a scenario id under sdk/org/scenarios/. Round 1 baselines + adds the first new
   // Acts; later rounds add more. Append new scenario ids here to fold them in (they start at round 1).
+  // One scenario at a time (human-gated, serial). Keep only the ACTIVE scenario here; when it goes
+  // fully green, replace it with the next one (06-tanzania → 07-life-admin → …).
   tasks: [
-    '05-latam',
     '06-tanzania',
-    '07-life-admin',
-    '08-small-shop',
-    '09-home-renovation',
-    '10-family-recipes',
   ],
 
   // Every round runs the judge; it decides internally whether to FIX the first failure (and verify)

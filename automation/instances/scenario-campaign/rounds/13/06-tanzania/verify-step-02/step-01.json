@@ -1,0 +1,70 @@
+{
+  "step": 1,
+  "verbs": [
+    "attach",
+    "say"
+  ],
+  "expect": [
+    "all five files are actually read — the photo LOOKED AT (vision), the voice memo TRANSCRIBED, the PDF and the spreadsheet PARSED",
+    "it OFFERS to organize this without being asked, naming at least two real specifics of mine (a place, a date, a booking)",
+    "it builds NOTHING yet — no spaces, no tables, no pages, no app (the offer precedes any authoring yield)"
+  ],
+  "attached": [
+    "tanzaniamemories.md",
+    "trip-costs.xlsx",
+    "ngorongoro-conservation-area-tariffs.pdf",
+    "stone-town-zanzibar.jpg",
+    "voice-memo.mp3"
+  ],
+  "turns": [
+    {
+      "sent": "Ok this is getting out of hand. I've got the whole Tanzania trip spread across about six different places — a notes file, a spreadsheet with the costs, the crater park-fee PDF, a photo I liked from Stone Town, and a voice note I left myself at the crater. Attaching all of it. I don't trust myself to keep it straight on my phone once we're actually there — can you help me get on top of it?",
+      "lastText": "{\"type\":\"Stack\",\"props\":{\"gap\":2},\"children\":[{\"type\":\"Heading\",\"props\":{\"level\":2},\"children\":[\"Here's what I've found across all your material\"]},{\"type\":\"Callout\",\"props\":{\"variant\":\"info\",\"title\":\"Your Tanzania trip at a glance\"},\"children\":[\"Trip for Vasileios Kefallinos & Athina Mari, August 3–20, 2026. Multi-stop: Stone Town (Zanzibar), Ngorongoro Crater, and more — spread across notes, a cost spreadsheet, an official park-fee PDF, a Stone Town photo, and your crater voice memo.\"]},{\"type\":\"Heading\",\"props\":{\"level\":3},\"children\":[\"📝 From your notes (tanzaniamemories.md)\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Full trip reference covering itinerary, bookings, contacts, and practical notes across all stops. Key names include Richard (from the office/your contact) and Emmanuel (your crater driver-guide).\"]},{\"type\":\"Heading\",\"props\":{\"level\":3},\"children\":[\"💰 From your cost spreadsheet (trip-costs.xlsx)\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Multiple sheets breaking down costs by category — flights, accommodation, park fees, transport, misc. This is where your actual numbers live.\"]},{\"type\":\"Heading\",\"props\":{\"level\":3},\"children\":[\"🏞️ From the Ngorongoro ta…",
+      "delegates": [
+        "system-vision/vision",
+        "system-files/dispatch",
+        "system-files/reader",
+        "system-files/sheet",
+        "system-files/reader",
+        "system-files/sheet"
+      ],
+      "yieldKinds": [
+        "delegate",
+        "loadKnowledge",
+        "readDocument",
+        "setSessionMeta"
+      ],
+      "yieldCount": 22,
+      "errors": [
+        {
+          "type": "typecheck_error",
+          "message": "Unexpected keyword or identifier.; ';' expected.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unterminated string literal.; Cannot find name 'The'.; Cannot find name 'tanzaniamemories'.; Cannot find name 'covers'.; Cannot find name 'Vasilis'.; Cannot find name 'and'.; Cannot find name 'Athina'.; Cannot find name 'Mari'.",
+          "statement": "The tanzaniamemories.md covers Vasilis and Athina Mari's fully-booked August 2026 trip across Cairo, northern Tanzania safari circuit, Zanzibar, and Dar es Salaam. Key facts: total flights ~€2,707; safari with Suricata Safaris costs $1,200 total ($240 deposit paid, $960 balance due); The Rock Restaurant dinner in Zanzibar $46 (paid); Tanzania e-visa $50/person; Egypt e-visa $65/person; Zanzibar mandatory travel insurance $44/person; Zanzibar local driving permit ~$15.",
+          "attempt": 1
+        }
+      ],
+      "nodeCount": 7,
+      "tokens": {
+        "in": 68730,
+        "out": 13660
+      },
+      "durationMs": 270336,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "state": {
+    "spaces": [],
+    "spaceCount": 0,
+    "appTables": {},
+    "appManifest": {
+      "tableNames": [],
+      "pageCount": 0,
+      "built": false
+    },
+    "error": null,
+    "appError": null
+  },
+  "fullEvidence": "step-01.full.json"
+}

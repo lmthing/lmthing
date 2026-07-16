@@ -141,7 +141,7 @@ Path 7's flow, once per distinct need (the finder returns ONE space per call, so
 ### 4.4 Standing behaviour (before triage)
 
 - **Project context**, once per conversation: `readFile('instructions.md')` + `listDir('documents')`, both resolved against the project dir (`:L27-L40`).
-- **Name the conversation** once, early: `await setSessionMeta({ title, slug })` (`:L42-L52`).
+- **Name the conversation** in the first statement (fire-and-forget, no `await` — it does not end the turn): `setSessionMeta({ title, slug })` (`:L59-L79`).
 - **Attachments take priority over triage.** THING is a text model and cannot see an image or file: it sends **all** image ids in ONE `delegate('system-vision','vision',{query, attachmentIds})` and **all** file ids in ONE `delegate('system-files','dispatch',…)`. When both groups exist, it awaits those independent calls together with `Promise.all`—the calls are already promises and are not cast before awaiting. Both delegates resolve to plain-text summaries, which THING composes into its reply in that same statement; it does not inspect object fields or render a raw result (`sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:L68-L107`). Audio is already transcribed into the message — no delegation (`sdk/org/libs/core/system-spaces/user-thing/agents/thing/instruct.md:L105-L107`).
 - **Creating a project is a UI action, not a tool.** THING always runs inside an existing project and must not run `build_specialist`/`build_app` to "make a project" (`:L82-L88`).
 - **Orchestrator discipline:** on a failed delegate, report the error — never do the specialist's job (THING cannot scaffold spaces or run builder functions) (`:L376-L380`).

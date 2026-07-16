@@ -35,7 +35,7 @@ Key `TurnLoopDeps` fields (`turn-loop.ts:195-236`):
 | `maxRetries` | default **3** (`turn-loop.ts:302`) |
 | `budget` | `Budget` — episodes / tool calls / wall clock (`eval/budget.ts`) |
 | `initialContext` / `onContextSnapshot` | cross-turn typecheck scope carried by the Session |
-| `beforeTurn()` | transient per-turn reminder (top-level session only — open todos) |
+| `beforeTurn()` | transient per-turn reminder — the composed soft-reminder block (top-level session only: open todos + an unnamed-session naming nudge) |
 | `streamIdleMs` | no-token watchdog, default **60000** (`turn-loop.ts:425`) |
 | `maxContinueNudges` | default **4** (`turn-loop.ts:333`) |
 | `tracer` / `scope` / `traceContext` / `model` | observability + per-request model override |
@@ -153,7 +153,7 @@ only settles when the host resolves it. The type (`eval/yield.ts:3-8`):
 
 ```ts
 export interface YieldRequest {
-  kind: 'ask' | 'inspect' | 'loadKnowledge' | 'sleep' | 'tasklist' | 'fork' | 'delegate' | 'registerSpace' | 'fetch' | 'setSessionMeta' | 'apiCall' | 'callConnection' | 'readDocument' | 'tool' | 'integrationStatus' | 'consent' | 'storeSearch' | 'storeInspect' | 'installSpace' | 'emitEvent';
+  kind: 'ask' | 'inspect' | 'loadKnowledge' | 'sleep' | 'tasklist' | 'fork' | 'delegate' | 'registerSpace' | 'fetch' | 'apiCall' | 'callConnection' | 'readDocument' | 'tool' | 'integrationStatus' | 'consent' | 'storeSearch' | 'storeInspect' | 'installSpace' | 'emitEvent';
   args: unknown[];
   deferred: { resolve: (v: unknown) => void; reject: (e: unknown) => void };
   vmPromiseHandle: QuickJSHandle | undefined;
@@ -274,7 +274,6 @@ everything else to the shared router (`session/session.ts:795-851`):
 | `inspect` | returns `args[0]` (query already applied in the global) (`session.ts:802-805`) |
 | `loadKnowledge` | reads `<spaceDir>/knowledge/<rel>` (`session.ts:806-815`); fork leaves resolve it in the router (`yield-router.ts:345-354`) |
 | `registerSpace` | `loadSpace(dir)` → `dynamicSpaces` (`session.ts:816-826`; fork-leaf twin `yield-router.ts:355-370`) |
-| `setSessionMeta` | emits a `session_meta` trace event; core stays persistence-free (`session.ts:827-842`) |
 | `sleep` | `ctx.clock ?? setTimeout` (`yield-router.ts:147-154`) |
 | `fork` | `ForkEngine.fork(task)`; absent for fork leaves (`yield-router.ts:155-163`) |
 | `tasklist` | `runTasklist({ name, space, forkEngine, seed, codeNodeCtxFactory })` (`yield-router.ts:164-173`) |
@@ -282,6 +281,10 @@ everything else to the shared router (`session/session.ts:795-851`):
 | `fetch` | `resolveFetchYield` — real non-blocking Node I/O (`yield-router.ts:184-189`) |
 | `apiCall` · `callConnection` · `tool` · `readDocument` · `integrationStatus` · `storeSearch` · `storeInspect` · `installSpace` · `emitEvent` | host-supplied resolvers; **absent resolver ⇒ a clear, retryable `throw`** rather than a silent `undefined` (`yield-router.ts:190-344`) |
 | `consent` | the gate a `@consent`-marked *space function* yields through (`yield-router.ts:250-258`) |
+
+> `setSessionMeta` is **not** in this table — it is no longer a yield. It is a fire-and-forget
+> host hook (`onSessionMeta`) that runs synchronously without ending the turn; the session records
+> it in `recordSessionMeta` (`session.ts#Session.recordSessionMeta`) → [session naming](../runtime-globals/session-and-utils.md).
 
 Two host-enforced behaviours live here:
 
@@ -390,11 +393,18 @@ stranded mid-program. `lastStmtNonYieldBinding` — "bound a name AND the statem
 (`:420`) — triggers a `user` message telling it to `inspect(<var>)` if it must see the value, or else
 keep emitting statements. Bounded by `maxContinueNudges` (default 4); `attempt` resets to 0.
 
-**Todo reminder** (`beforeTurn`). The top-level session passes `readTodoReminder()` on all three of
-`continue`/`start`/`resume` (`session.ts:222,369,506`; impl `session.ts:777-793`), which reads open items from `.lmthing/todos.json`
-and returns an "Open todos …" block. It is appended to **this request only** and never written to
-history (`turn-loop.ts:345-349`), so it is re-evaluated fresh each turn and never duplicates. Forks and
-delegates do not set it.
+**Soft reminders** (`beforeTurn`). The top-level session wires `beforeTurn` on all three of
+`continue`/`start`/`resume` (`session.ts:254,403,545`) to `this.reminders.collect()`
+(`session.ts#Session.beforeTurn`). `reminders` is a generic `ReminderRegistry`
+(`sdk/org/libs/core/src/context/reminders.ts#ReminderRegistry`) that composes any number of
+independent providers into one block (blank-line separated, order = registration order), isolating a
+provider that throws. The session registers two in its constructor (`session.ts:177-179`):
+`readTodoReminder` — open items from `.lmthing/todos.json` as an "Open todos …" block
+(`session.ts#Session.readTodoReminder`) — and `namingNudge` — a prompt to call `setSessionMeta` if the
+session still isn't named after two conversational turns (`session.ts#Session.namingNudge`). The block
+is appended to **this request only** and never written to history (`turn-loop.ts:345-349`), so it is
+re-evaluated fresh each turn and never duplicates. Add a reminder by registering another provider — the
+turn loop needs no changes. Forks and delegates do not set `beforeTurn`.
 
 ---
 

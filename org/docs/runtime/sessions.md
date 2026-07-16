@@ -241,11 +241,23 @@ A session's display name has two sources:
    first `sendMessage` (`session-manager.ts:1373`).
 2. **Agent-chosen** — the agent calls the top-level-only global
    `setSessionMeta({ title, slug })` (`globals/set-session-meta.ts:25`). Like
-   `ask`, it is NOT injected into forks/delegates. It yields
-   `kind:'setSessionMeta'`; the session handler slugifies the slug (lowercase,
-   non-alphanumerics → `-`, capped 60 chars) and title (trimmed, capped 120), and
-   emits a `session_meta` trace event **instead of persisting directly** — core
-   stays persistence-free (`session.ts:827-842`).
+   `ask`, it is NOT injected into forks/delegates. It is **fire-and-forget** — a
+   synchronous host hook that does NOT end the turn (it was turn-ending before), so
+   the agent names the session inline alongside its work
+   (`globals/set-session-meta.ts#createSetSessionMetaGlobal`). The hook is
+   `recordSessionMeta` (`session.ts#Session.recordSessionMeta`): it slugifies the
+   slug (lowercase, non-alphanumerics → `-`, capped 60 chars) and title (trimmed,
+   capped 120), sets `sessionNamed`, and emits a `session_meta` trace event
+   **instead of persisting directly** — core stays persistence-free
+   (`session.ts:876-889`).
+
+   Because the agent so often answered without naming, a **soft naming nudge** runs
+   as a `beforeTurn` reminder provider: `namingNudge` re-surfaces a prompt to call
+   `setSessionMeta` once the session still isn't named after two conversational
+   turns — `turnNo` is incremented once per `start`/`continue`/`resume`, not per
+   episode (`session.ts#Session.namingNudge`), and `sessionNamed`/`turnNo` reset in
+   `start()` (`session.ts:338-339`). See the reminder registry in
+   [turn-loop.md](./turn-loop.md).
 
 > **Not everything on the tracer is persisted.** The sibling `activity` trace event
 > — the agent's live "currently doing" status from `setActivity` — is deliberately

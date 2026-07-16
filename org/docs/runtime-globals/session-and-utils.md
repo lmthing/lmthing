@@ -32,7 +32,7 @@ authoring family (app authoring).
 
 | Global | Kind | Gate | Injected in |
 |---|---|---|---|
-| `setSessionMeta(meta)` | value-yield (`kind:'setSessionMeta'`) | `CapabilityProfile.setSessionMeta` | top-level session ONLY `sdk/org/libs/core/src/exec/capability.ts#sessionCapabilities,104,115` |
+| `setSessionMeta(meta)` | synchronous, fire-and-forget | `CapabilityProfile.setSessionMeta` | top-level session ONLY `sdk/org/libs/core/src/exec/capability.ts#sessionCapabilities,104,115` |
 | `sleep(duration)` | value-yield (`kind:'sleep'`) | none | every VM `sdk/org/libs/core/src/exec/bootstrap.ts:182` |
 | `fetch(url, opts?)` | value-yield (`kind:'fetch'`) | none | every VM `sdk/org/libs/core/src/exec/bootstrap.ts:183` |
 | `registerSpace(dir)` | value-yield (`kind:'registerSpace'`) | `CapabilityProfile.registerSpace` | session; write-capable forks; **never** delegates `sdk/org/libs/core/src/exec/bootstrap.ts:234` |
@@ -56,43 +56,50 @@ All of the above are bound at the one injection site, `createChildVM`
 
 ## `setSessionMeta({ title?, slug? })`
 
-The agent names its own conversation. Returns `Promise<{ ok: boolean }>` and **ends the
-turn** (it is a value yield, `kind:'setSessionMeta'`)
-`sdk/org/libs/core/src/globals/set-session-meta.ts#createSetSessionMetaGlobal`. Both fields are optional
+The agent names its own conversation. **Fire-and-forget** — it runs as a bridged host
+call that invokes the host `onSessionMeta` hook synchronously and returns `{ ok: boolean }`
+**without pushing a yield, so it does NOT end the turn** (exactly like
+`setActivity`/`display`/`writeKnowledge`); the agent names the session inline alongside its
+work `sdk/org/libs/core/src/globals/set-session-meta.ts#createSetSessionMetaGlobal`. It was
+turn-ending before — which is why an agent that finishes most requests in one or two turns
+kept skipping it (it couldn't both name AND answer in one turn). Both fields are optional
 `sdk/org/libs/core/src/globals/set-session-meta.ts#SessionMetaInput`.
 
 ```ts
-await setSessionMeta({ title: 'Pasta night', slug: 'pasta-night' });
+setSessionMeta({ title: 'Pasta night', slug: 'pasta-night' });
 ```
-(usage form documented on the global itself, `sdk/org/libs/core/src/globals/set-session-meta.ts:22-23`)
+(usage form documented on the global itself, `sdk/org/libs/core/src/globals/set-session-meta.ts:24-25`)
 
 **Gate — top-level session only.** `sessionCapabilities()` sets `setSessionMeta: true`;
 `forkCapabilities()` and `delegateCapabilities()` set it to `false`
 `sdk/org/libs/core/src/exec/capability.ts#sessionCapabilities,104,115` — forks/delegates are headless
 sub-runs with no session identity to name `sdk/org/libs/core/src/exec/capability.ts:66-69`.
-Injection is `if (caps.setSessionMeta)` `sdk/org/libs/core/src/exec/bootstrap.ts:235`, and
+Injection is `if (caps.setSessionMeta)` `sdk/org/libs/core/src/exec/bootstrap.ts:253`, and
 the DTS fragment is emitted on the same flag, `caps.setSessionMeta ? SET_SESSION_META_DTS : ''`
 `sdk/org/libs/core/src/exec/bootstrap.ts#buildAmbientDts` — so in a fork/delegate a stray
-`setSessionMeta(...)` fails **typecheck**, not at runtime
-(`SET_SESSION_META_DTS`, `sdk/org/libs/core/src/typecheck/library-dts.ts:15-18`).
+`setSessionMeta(...)` fails **typecheck**, not at runtime. `SET_SESSION_META_DTS` now declares
+a **synchronous** `setSessionMeta(meta): { ok: boolean }` (not a `Promise`)
+`sdk/org/libs/core/src/typecheck/library-dts.ts#SET_SESSION_META_DTS`.
 
 ### Host-side normalization (the slugification rule)
 
-The global is a thin pass-through; **all** trimming/slugifying happens host-side in the
-session's yield handler `sdk/org/libs/core/src/session/session.ts:827-842`:
+The global is a thin pass-through; **all** trimming/slugifying happens host-side in
+`recordSessionMeta`, the fire-and-forget hook the global calls
+`sdk/org/libs/core/src/session/session.ts#Session.recordSessionMeta`:
 
 - `title` — kept only if it is a `string`; `.trim()` then **capped at 120 chars**
-  `sdk/org/libs/core/src/session/session.ts:832`.
+  `sdk/org/libs/core/src/session/session.ts:877`.
 - `slug` — lowercased, every run of non-`[a-z0-9]` replaced with `-`, leading/trailing
   dashes stripped, **capped at 60 chars**; an empty result degrades to `undefined`
-  `sdk/org/libs/core/src/session/session.ts:834-837`. So `slug: 'Pasta Night!'` is stored
+  `sdk/org/libs/core/src/session/session.ts:879-882`. So `slug: 'Pasta Night!'` is stored
   as `pasta-night`.
-- Nothing is emitted (and `{ ok: false }` is returned) when neither field survives
-  normalization `sdk/org/libs/core/src/session/session.ts:838-841`.
+- Nothing is emitted (and `false` is returned) when neither field survives
+  normalization `sdk/org/libs/core/src/session/session.ts:883-888`.
 
 Core stays persistence-free: it only writes a `session_meta` **trace event**
 (`{ ts, type:'session_meta', nodeId, title?, slug? }`
-`sdk/org/libs/core/src/sandbox/trace.ts:85-87`) `sdk/org/libs/core/src/session/session.ts:839`.
+`sdk/org/libs/core/src/sandbox/trace.ts:85-87`) and marks the session named so the
+naming nudge falls silent `sdk/org/libs/core/src/session/session.ts:884-885`.
 
 ### Who consumes the event
 
@@ -104,7 +111,11 @@ Core stays persistence-free: it only writes a `session_meta` **trace event**
   and [../cli-api/rest/projects.md](../cli-api/rest/projects.md).
 - The session **ledger** records the title too `sdk/org/libs/cli/src/server/session-ledger.ts:203-206`.
 - The chat UI shows the agent-set title live (store slice reads `session_meta`
-  `sdk/org/libs/ui/src/chat/store/session-slice.ts:79`; the header prefers it over the
+  `sdk/org/libs/ui/src/chat/store/session-slice.ts:82`; until the agent names the
+  session the header shows a client placeholder — the first user message, whitespace-
+  collapsed and capped at 80 chars, set by `noteUserMessage`
+  `sdk/org/libs/ui/src/chat/store/session-slice.ts:156` — which a later
+  `session_meta` overrides; the header prefers it over the
   `space · agent` fallback `sdk/org/libs/ui/src/chat/app/ChatView.tsx:167-173`; a
   slug-only event leaves the title untouched
   `sdk/org/libs/ui/src/chat/store/session-title.test.ts:42-44`) →
@@ -116,9 +127,10 @@ Core stays persistence-free: it only writes a `session_meta` **trace event**
 
 The agent's live "currently doing" status. **Fire-and-forget** — it runs as a
 bridged host call that invokes the host `onActivity` hook synchronously and returns
-`void`, pushing **no** yield, so unlike `setSessionMeta` it does **NOT end the
-turn**; the agent bumps its status inline, repeatedly, as its work changes (exactly
-like `display`/`writeKnowledge`) `sdk/org/libs/core/src/globals/set-activity.ts#createSetActivityGlobal`.
+`void`, pushing **no** yield, so it does **NOT end the turn**; the agent bumps its
+status inline, repeatedly, as its work changes (exactly like `display`/`writeKnowledge`,
+and now `setSessionMeta` too — all four are fire-and-forget)
+`sdk/org/libs/core/src/globals/set-activity.ts#createSetActivityGlobal`.
 A stray non-string argument is coerced host-side rather than thrown — a throw inside
 the bridged call would abort the streaming statement `sdk/org/libs/core/src/globals/set-activity.ts#createSetActivityGlobal`.
 
@@ -132,9 +144,10 @@ setActivity('');   // clear
 **Ungated — injected in every VM.** Bound unconditionally into every context
 (session, fork, delegate) right after `display`, with no capability `if`
 `sdk/org/libs/core/src/exec/bootstrap.ts:188`, and declared in `COMMON_DTS`
-`sdk/org/libs/core/src/typecheck/library-dts.ts:38` — the mirror image of
-`setSessionMeta`, which is session-only behind `caps.setSessionMeta`. Passing `''`
-clears the caller's activity.
+`sdk/org/libs/core/src/typecheck/library-dts.ts:39` — contrast `setSessionMeta`, which
+is **session-only** behind `caps.setSessionMeta`. Both are fire-and-forget; the only
+difference is scope — `setActivity` is the ever-changing status, `setSessionMeta` names
+the conversation once. Passing `''` clears the caller's activity.
 
 **Scope is decided HOST-side, not by the model.** The global closes over an
 `onActivity(text)` hook (`ChildVMOpts.onActivity`
@@ -447,8 +460,11 @@ declared in `COMMON_DTS` itself `sdk/org/libs/core/src/typecheck/library-dts.ts:
   `sdk/org/libs/core/src/globals/host-tools.ts#runShell`, so the per-stream idle watchdog cannot
   fire while it runs. `fetch` is **not** in this category — it is a real yield
   `sdk/org/libs/core/src/globals/fetch.ts:16-21`.
-- **`setSessionMeta` ends the turn.** Like every value yield it aborts the statement stream;
-  call it once, early, rather than after every message.
+- **`setSessionMeta` is fire-and-forget.** It no longer ends the turn (it was value-yielding
+  before), so the agent names the conversation inline alongside its work
+  `sdk/org/libs/core/src/globals/set-session-meta.ts#createSetSessionMetaGlobal`; a soft naming
+  nudge re-surfaces if it still hasn't named the session after two conversational turns
+  `sdk/org/libs/core/src/session/session.ts#Session.namingNudge`.
 
 ---
 

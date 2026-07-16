@@ -35,7 +35,7 @@ Diagnostics from both `getSyntacticDiagnostics()` and `getSemanticDiagnostics()`
 
 **Orchestration globals** (each present in some contexts, absent in others):
 - `ASK_DTS` — `ask()` `library-dts.ts:14`.
-- `SET_SESSION_META_DTS` — `setSessionMeta()` `library-dts.ts:17-18`.
+- `SET_SESSION_META_DTS` — `setSessionMeta()` (synchronous, fire-and-forget) `library-dts.ts#SET_SESSION_META_DTS`.
 - `TASKLIST_DTS` — `tasklist()` `library-dts.ts:22-23`.
 - `FORK_DTS` — `fork()` `library-dts.ts:24`.
 - `DELEGATE_DTS` — the two `delegate()` overloads `library-dts.ts:25-26`.

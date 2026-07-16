@@ -247,7 +247,7 @@ Y = value-yielding (ends the turn). S = synchronous host call. F = fire-and-forg
 | `registerSpace(dir)` | Y | Load a space into the shared `dynamicSpaces` map so `delegate()` reaches it now | `caps.registerSpace` | [delegation.md](./delegation.md) |
 | `loadKnowledge(...path)` | Y | Read `<spaceDir>/knowledge/<...path>` on demand | none | [knowledge-and-docs.md](./knowledge-and-docs.md) |
 | `readDocument(id, opts?)` | Y | Extract text from an uploaded attachment; bytes never enter the sandbox | none (deliberately universal) | [knowledge-and-docs.md](./knowledge-and-docs.md) |
-| `setSessionMeta({title?,slug?})` | Y | Name the current conversation | `caps.setSessionMeta` — session only | [session-and-utils.md](./session-and-utils.md) |
+| `setSessionMeta({title?,slug?})` | F | Name the current conversation; does **not** end the turn | `caps.setSessionMeta` — session only | [session-and-utils.md](./session-and-utils.md) |
 | `sleep(duration)` | Y | Pause (`'500ms'`/`'2min'`/`'3h'`) | none | [session-and-utils.md](./session-and-utils.md) |
 | `fetch(url, opts?)` | Y | Real non-blocking HTTP; `{ok,status,text(),json()}` | none | [session-and-utils.md](./session-and-utils.md) |
 | `apiCall(name, input?)` | Y | Call one of the project's own `api/` endpoints by name | `api:call` (allowlist required) | [data-db.md](./data-db.md) |

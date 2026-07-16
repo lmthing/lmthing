@@ -20,6 +20,25 @@ import { dirname, join } from 'node:path';
 const LIMIT_RE = /(usage|rate|session)\s+limit|limit\s+(reached|exceeded)|resets?\s+(at|on|in)|too many requests|error_max_budget/i;
 const PROMPT_MARKER = '<see prompt.md>';
 
+/** Max chars kept for a tool INPUT / OUTPUT line in the distilled human log (override via env). */
+const TOOL_LOG_MAX = process.env.TOOL_LOG_MAX ? Number(process.env.TOOL_LOG_MAX) : 500;
+
+/** Collapse any value to a single whitespace-normalized line, truncated with a "+N chars" marker. */
+function logLine(v, max = TOOL_LOG_MAX) {
+  let s;
+  if (typeof v === 'string') s = v;
+  else { try { s = JSON.stringify(v); } catch { s = String(v); } }
+  s = (s ?? '').replace(/\s+/g, ' ').trim();
+  return s.length > max ? `${s.slice(0, max)}… (+${s.length - max} chars)` : s;
+}
+
+/** Extract a tool_result's text whether the SDK gives a string or an array of content parts. */
+function toolResultText(content) {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) return content.map((p) => (typeof p === 'string' ? p : (p?.text ?? ''))).join('');
+  return content?.text ?? '';
+}
+
 /** Build the exact claude argv for an attempt. */
 export function buildArgv({ bin, promptText, cfg, resumeSessionId = null }) {
   const c = cfg.claude;
@@ -196,7 +215,17 @@ export function startRun({ bin, promptText, cfg, attemptDir, resumeSessionId = n
           logOut.write(`[assistant] ${t.slice(0, 500)}\n`);
         } else if (block.type === 'tool_use') {
           live.tool = block.name || '';
-          logOut.write(`[tool] ${block.name}\n`);
+          const input = block.input && Object.keys(block.input).length ? ` ${logLine(block.input)}` : '';
+          logOut.write(`[tool] ${block.name}${input}\n`);
+        }
+      }
+    } else if (obj.type === 'user' && Array.isArray(obj.message?.content)) {
+      // Tool RESULTS ride on the user turn that follows a tool_use — log each one truncated so the
+      // human log shows what a Bash/Read/etc. actually returned, not just that a tool was called.
+      for (const block of obj.message.content) {
+        if (block.type === 'tool_result') {
+          const tag = block.is_error ? 'tool-err' : 'tool-out';
+          logOut.write(`[${tag}] ${logLine(toolResultText(block.content))}\n`);
         }
       }
     } else if (obj.type === 'result') {

@@ -1,0 +1,730 @@
+{
+  "step": 3,
+  "verbs": [
+    "open_app"
+  ],
+  "expect": [
+    "the app opens with real values on screen (non-zero counts, actual leg/cost values), not an empty shell",
+    "no console errors and no failed fetches; the app's own API routes return 200 with the right shape"
+  ],
+  "turns": [],
+  "asks": [],
+  "notes": [
+    "opened app (built + fetched root page; browser render is the judge's job)"
+  ],
+  "appBuild": {
+    "built": null,
+    "routes": null,
+    "error": "POST /api/projects/tanzania-trip/app/build → 400: {\"error\":\"Build failed with 5 errors:\\n../../pages/_layout.tsx:1:23: ERROR: Could not resolve \\\"react-router\\\"\\n../../pages/_layout.tsx:2:21: ERROR: Could not resolve \\\"@agent-chat/react\\\"\\n../../pages/_layout.tsx:3:26: ERROR: Could not resolve \\\"@radix-ui/themes\\\"\\n../../pages/index.tsx:1:23: ERROR: Could not resolve \\\"../../use-api\\\"\\n../../pages/index.tsx:13:7: ERROR: Could not resolve \\\"@radix"
+  },
+  "appPageStatus": 404,
+  "state": {
+    "spaces": [
+      "Ngorongoro Safari Advisor",
+      "Safari Logistics & Trip Coordination",
+      "Zanzibar Stone Town Advisor"
+    ],
+    "appTables": {
+      "action_items": [
+        {
+          "id": "a48af4da-f978-4f85-b7bf-33c94608c3ba",
+          "priority": "High",
+          "action": "ASK RICHARD about the ~5,000 TZS ranger tip Emmanuel mentioned. Is it expected? Is it included in the safari price?",
+          "context": "Resolve BEFORE paying safari balance. Emmanuel said it is cash at the gate, separate from official park fees.",
+          "status": "pending"
+        },
+        {
+          "id": "82df79f0-0a20-40c3-b3e3-a3c21ce170bf",
+          "priority": "High",
+          "action": "Confirm safari lodge assignment for Aug 7–10 (Tarangire / Ngorongoro)",
+          "context": "Lodge is currently TBD. Richard should provide details.",
+          "status": "pending"
+        },
+        {
+          "id": "2952b1b0-1ed3-40f1-8a71-11c2dbc39bff",
+          "priority": "Medium",
+          "action": "Confirm exact bracelet cost (35,000 TZS ≈ $20–25) — record for Athena",
+          "context": "Nice to have precise figure for trip expense journal.",
+          "status": "pending"
+        },
+        {
+          "id": "0c76a81f-4449-4a99-89a6-245fe619554e",
+          "priority": "Medium",
+          "action": "Book or confirm Arusha airport transfer (Aug 5 arrival, Aug 10/11 departure)",
+          "context": "Transfers between Kilimanjaro/Arusha airport and Serengeti Villa.",
+          "status": "pending"
+        },
+        {
+          "id": "d6d22cce-e716-4361-b038-3b29f4fe38f8",
+          "priority": "Medium",
+          "action": "Confirm Zanzibar internal transfer (Stone Town ↔ beach, Aug 13)",
+          "context": "Transport between Emerson Spice and Z Hotel.",
+          "status": "pending"
+        },
+        {
+          "id": "69a4c1bb-24d4-42f5-92ff-b0f1e87460c4",
+          "priority": "Medium",
+          "action": "Book or confirm Dar es Salaam departure logistics for Aug 15",
+          "context": "Ferry/flight from Zanzibar to Dar + airport transit.",
+          "status": "pending"
+        }
+      ],
+      "contacts": [
+        {
+          "id": "7dbfe5d5-12a5-4572-96c4-ac836f5533bd",
+          "name": "Richard",
+          "role": "Safari office contact — bookings & logistics",
+          "location": "Arusha / safari office",
+          "phone": "",
+          "email": "",
+          "notes": "Handles safari booking logistics. Not the on-the-ground driver. Richard likely coordinates the safari package and payment."
+        },
+        {
+          "id": "db54d9fa-de83-4362-8336-306b2a92a6db",
+          "name": "Emmanuel",
+          "role": "Driver-guide at Ngorongoro",
+          "location": "Ngorongoro Crater",
+          "phone": "",
+          "email": "",
+          "notes": "Actual on-the-ground driver-guide at Ngorongoro, NOT Richard (confirmed via voice memo). Mentioned the extra ~5,000 TZS ranger tip. Bought bracelets from Maasai lady at crater rim alongside him."
+        },
+        {
+          "id": "9d2a0b8f-ff6a-4423-8104-8db844ac2d79",
+          "name": "Emerson Spice",
+          "role": "Hotel",
+          "location": "Zanzibar Stone Town",
+          "phone": "",
+          "email": "",
+          "notes": "2 nights Aug 11–13. $180/night. Booking ref needed."
+        },
+        {
+          "id": "a97516e1-578e-4dcc-9e44-a1be0a1eb127",
+          "name": "Z Hotel",
+          "role": "Hotel",
+          "location": "Zanzibar beach",
+          "phone": "",
+          "email": "",
+          "notes": "2 nights Aug 13–15. $200/night. Booking ref needed."
+        },
+        {
+          "id": "bd5c23a9-7f6c-4046-a796-d8c86e35fd24",
+          "name": "Serengeti Villa",
+          "role": "Hotel",
+          "location": "Arusha",
+          "phone": "",
+          "email": "",
+          "notes": "Pre-safari 2 nights Aug 5–7 + post-safari buffer 1 night Aug 10–11. $80/night. Booking ref needed."
+        },
+        {
+          "id": "fa798b23-8548-4670-880f-796113cb0a86",
+          "name": "Eileen Hotel",
+          "role": "Hotel",
+          "location": "Cairo",
+          "phone": "",
+          "email": "",
+          "notes": "2 nights Aug 3–5 stopover. $102 total. Confirmed from XLSX."
+        }
+      ],
+      "costs": [
+        {
+          "id": "bb4695cb-11b0-43c7-8f42-20cd94e17a6e",
+          "category": "Flights",
+          "item": "International flights (2 pax, round-trip)",
+          "estimated_cost_usd": 1800,
+          "quantity": 2,
+          "is_estimate": true,
+          "notes": "Estimate — confirm actual fare"
+        },
+        {
+          "id": "c376388a-a9d7-4e2c-a69f-724a1f76ffe3",
+          "category": "Accommodation",
+          "item": "Cairo — Eileen Hotel (2 nights)",
+          "estimated_cost_usd": 102,
+          "quantity": 1,
+          "is_estimate": false,
+          "notes": "From XLSX"
+        },
+        {
+          "id": "079d9fea-33ae-4297-8073-70581c106c79",
+          "category": "Accommodation",
+          "item": "Arusha — Serengeti Villa (pre-safari 2 nights + post-safari 1 night)",
+          "estimated_cost_usd": 240,
+          "quantity": 1,
+          "is_estimate": false,
+          "notes": "$80/night x 3 nights across two stays"
+        },
+        {
+          "id": "d4c64ac3-a8a4-462d-9e97-b3d3ec70ed8a",
+          "category": "Safari",
+          "item": "Tarangire / Ngorongoro safari package (3 nights)",
+          "estimated_cost_usd": 2100,
+          "quantity": 1,
+          "is_estimate": true,
+          "notes": "Lodge TBD — Richard to confirm"
+        },
+        {
+          "id": "e24a2a69-c882-4c6d-96c1-6857b6401242",
+          "category": "Accommodation",
+          "item": "Zanzibar Stone Town — Emerson Spice (2 nights)",
+          "estimated_cost_usd": 360,
+          "quantity": 1,
+          "is_estimate": false,
+          "notes": "$180/night x 2 nights"
+        },
+        {
+          "id": "3309eed2-d0ac-4cba-8c6b-01d761a046f8",
+          "category": "Accommodation",
+          "item": "Zanzibar beach — Z Hotel (2 nights)",
+          "estimated_cost_usd": 400,
+          "quantity": 1,
+          "is_estimate": false,
+          "notes": "$200/night x 2 nights"
+        },
+        {
+          "id": "e2420eef-b84f-4a10-8ed9-6380f193d8ab",
+          "category": "Visas",
+          "item": "Tanzania visas (2 pax)",
+          "estimated_cost_usd": 200,
+          "quantity": 2,
+          "is_estimate": true,
+          "notes": "~$100 each"
+        },
+        {
+          "id": "1437ad38-cd26-4e5f-84ec-81492e4ef3b9",
+          "category": "Insurance",
+          "item": "Travel insurance (2 pax)",
+          "estimated_cost_usd": 120,
+          "quantity": 2,
+          "is_estimate": true,
+          "notes": "~$60 each"
+        },
+        {
+          "id": "46136c3f-f6c1-4984-9f01-bbc4372e134d",
+          "category": "Contingency",
+          "item": "Miscellaneous / contingency",
+          "estimated_cost_usd": 300,
+          "quantity": 1,
+          "is_estimate": true,
+          "notes": "Buffer for incidental costs, tips, transport"
+        }
+      ],
+      "legs": [
+        {
+          "id": "af175f1b-28b8-42e4-b62f-f23ba92295dc",
+          "leg_number": 1,
+          "destination": "Cairo (arrival stopover)",
+          "dates": "Aug 3–5",
+          "nights": 2,
+          "accommodation": "Eileen Hotel",
+          "estimated_cost_usd": 102,
+          "notes": "Stopover en route to Tanzania"
+        },
+        {
+          "id": "b64a7012-87c7-438a-abd8-85994b7b25d5",
+          "leg_number": 2,
+          "destination": "Arusha (pre-safari)",
+          "dates": "Aug 5–7",
+          "nights": 2,
+          "accommodation": "Serengeti Villa",
+          "estimated_cost_usd": 160,
+          "notes": "Base before safari departure"
+        },
+        {
+          "id": "7889ab01-0463-467c-806e-61b3a82f3372",
+          "leg_number": 3,
+          "destination": "Tarangire / Ngorongoro safari",
+          "dates": "Aug 7–10",
+          "nights": 3,
+          "accommodation": "Lodge TBD",
+          "estimated_cost_usd": 2100,
+          "notes": "Safari package — lodge assignment pending"
+        },
+        {
+          "id": "1b13b3fd-53e4-451f-a241-b96f95c8e8e5",
+          "leg_number": 4,
+          "destination": "Arusha (post-safari buffer)",
+          "dates": "Aug 10–11",
+          "nights": 1,
+          "accommodation": "Serengeti Villa",
+          "estimated_cost_usd": 80,
+          "notes": "Buffer night after safari"
+        },
+        {
+          "id": "f6313766-ac90-40da-92f7-215f06c928bc",
+          "leg_number": 5,
+          "destination": "Zanzibar (Stone Town)",
+          "dates": "Aug 11–13",
+          "nights": 2,
+          "accommodation": "Emerson Spice",
+          "estimated_cost_usd": 360,
+          "notes": "Stone Town cultural stay"
+        },
+        {
+          "id": "a02aa474-df09-43df-a62c-59ca8d4818d2",
+          "leg_number": 6,
+          "destination": "Zanzibar (beach)",
+          "dates": "Aug 13–15",
+          "nights": 2,
+          "accommodation": "Z Hotel",
+          "estimated_cost_usd": 400,
+          "notes": "Beach relaxation"
+        },
+        {
+          "id": "d2fb04b6-b65e-423a-a383-29f44cb9a750",
+          "leg_number": 7,
+          "destination": "Dar es Salaam (departure)",
+          "dates": "Aug 15",
+          "nights": 0,
+          "accommodation": "—",
+          "estimated_cost_usd": 0,
+          "notes": "Transit to airport"
+        },
+        {
+          "id": "8f8b153e-1fa2-4616-9447-00060c4cc4fc",
+          "leg_number": 8,
+          "destination": "Return flight",
+          "dates": "Aug 15",
+          "nights": 0,
+          "accommodation": "—",
+          "estimated_cost_usd": 1800,
+          "notes": "International return, 2 pax, estimate"
+        }
+      ],
+      "notes": [
+        {
+          "id": "2897c979-d70b-4bd4-bc94-33de16bde7e4",
+          "topic": "Driver Guide",
+          "title": "Emmanuel is our Ngorongoro driver-guide",
+          "content": "Emmanuel is our actual driver-guide at Ngorongoro — not Richard from the office. Richard handles bookings and safari office logistics. Emmanuel is the one on the ground with the vehicle.",
+          "source": "voice-memo",
+          "location": "Ngorongoro Crater",
+          "date": "Aug 2026"
+        },
+        {
+          "id": "e8ed9853-17b9-4b8c-9079-0f5834788a6a",
+          "topic": "Souvenirs",
+          "title": "Maasai bracelets for Athena Mari",
+          "content": "Bought 2 beaded bracelets for Athena Mari from a Maasai lady at the Ngorongoro crater rim. Estimated cost roughly 35,000 TZS (~$20–25 USD). Beautiful local beadwork.",
+          "source": "voice-memo",
+          "location": "Ngorongoro Crater rim",
+          "date": "Aug 2026"
+        },
+        {
+          "id": "8a0e26ee-1d8d-4d04-ad10-682b6427cdfe",
+          "topic": "Costs",
+          "title": "Ranger tip expected at Ngorongoro gate",
+          "content": "Emmanuel mentioned an extra ranger tip expected at the Ngorongoro gate — approximately 5,000 TZS, in cash. This is separate from the official park entry and crater service fees listed in the tariff PDF. It is NOT clear whether this is included in the safari package or is an additional out-of-pocket cost. MUST ASK RICHARD about this before paying the safari balance.",
+          "source": "voice-memo",
+          "location": "Ngorongoro Crater gate",
+          "date": "Aug 2026"
+        },
+        {
+          "id": "d129c22c-1ba9-46e7-85b7-ac7ac10b26e8",
+          "topic": "Architecture",
+          "title": "Stone Town courtyard — preservation-worthy",
+          "content": "A narrow Stone Town courtyard with white stucco walls, dark carved wooden balconies, and arched windows. Classic Zanzibari architectural heritage — photo captured for preservation and memory.",
+          "source": "image-analysis",
+          "location": "Zanzibar Stone Town",
+          "date": "Aug 2026"
+        },
+        {
+          "id": "37afad29-a70f-4375-b2ad-80458ced693f",
+          "topic": "Planning",
+          "title": "Trip narrative from tanzaniamemories.md",
+          "content": "Full trip narrative covering Cairo stopover, Arusha staging, Tarangire/Ngorongoro safari, Zanzibar Stone Town and beach, and Dar es Salaam departure. Travelers: user + Athina (Athena Mari). Dates: Aug 3–15, 2026. All details captured in legs and costs tables.",
+          "source": "notes-file",
+          "location": "Tanzania (multi-stop)",
+          "date": "2026"
+        }
+      ],
+      "park_fees": [
+        {
+          "id": "3f9880fc-e9aa-4989-98a5-94a837d615b0",
+          "fee_type": "Entry Permit",
+          "description": "Non-East African Citizen, age 16+ — entry fee",
+          "amount_usd": 70.8,
+          "amount_tzs": 0,
+          "per": "person",
+          "source": "pdf",
+          "notes": "Per person per entry"
+        },
+        {
+          "id": "766b13ec-55e6-436c-92a5-a2367d4e6c07",
+          "fee_type": "Crater Service Fee",
+          "description": "Non-East African Citizen, age 16+ — crater service fee",
+          "amount_usd": 295,
+          "amount_tzs": 0,
+          "per": "person",
+          "source": "pdf",
+          "notes": "Per person per descent into the crater"
+        },
+        {
+          "id": "c164b90f-5cf4-431c-8a32-ae50bad5a9e4",
+          "fee_type": "Entry Permit (child)",
+          "description": "Children aged 5–16 — entry fee",
+          "amount_usd": 23.6,
+          "amount_tzs": 0,
+          "per": "person",
+          "source": "pdf",
+          "notes": "Per child per entry"
+        },
+        {
+          "id": "3dff6263-7f4a-4e5a-96b5-184e6ba2d1f7",
+          "fee_type": "Crater Service Fee (child)",
+          "description": "Children aged 5–16 — crater service fee",
+          "amount_usd": 118,
+          "amount_tzs": 0,
+          "per": "person",
+          "source": "pdf",
+          "notes": "Per child per descent"
+        },
+        {
+          "id": "1f4332a4-53b9-45ce-a8cc-112256f3bc4d",
+          "fee_type": "Entry Permit (infant)",
+          "description": "Children below 5 years",
+          "amount_usd": 0,
+          "amount_tzs": 0,
+          "per": "person",
+          "source": "pdf",
+          "notes": "Free"
+        },
+        {
+          "id": "2f256a9e-4392-469a-8070-981fa71e042e",
+          "fee_type": "Vehicle Entry",
+          "description": "Foreign-registered vehicle entry fee",
+          "amount_usd": 300,
+          "amount_tzs": 0,
+          "per": "vehicle",
+          "source": "pdf",
+          "notes": "Per vehicle"
+        },
+        {
+          "id": "5a6756a6-74fe-4645-999b-a18b887ed413",
+          "fee_type": "Camping (public)",
+          "description": "Public campsite fee",
+          "amount_usd": 30,
+          "amount_tzs": 0,
+          "per": "person/night",
+          "source": "pdf",
+          "notes": "Per person per night"
+        },
+        {
+          "id": "97b6acae-6701-4fb4-b49e-d55cafd48475",
+          "fee_type": "Camping (special)",
+          "description": "Special campsite fee",
+          "amount_usd": 50,
+          "amount_tzs": 0,
+          "per": "person/night",
+          "source": "pdf",
+          "notes": "Per person per night"
+        },
+        {
+          "id": "813c35d8-7a8f-490e-8c29-ee641da06e37",
+          "fee_type": "Ranger Tip",
+          "description": "Extra ranger tip expected at the gate — mentioned by Emmanuel, our driver-guide",
+          "amount_usd": 0,
+          "amount_tzs": 5000,
+          "per": "gate entry",
+          "source": "voice-memo",
+          "notes": "Separate from official park fees. MUST ASK RICHARD whether this is expected and if included in the safari package. Pay in cash (TZS)."
+        }
+      ],
+      "photos": [
+        {
+          "id": "2020fc94-9428-483a-a0b7-a1c1e9be81be",
+          "filename": "stone-town-zanzibar.jpg",
+          "title": "Stone Town Courtyard",
+          "description": "Narrow Stone Town courtyard with white stucco walls, dark carved wooden balconies, and arched windows — classic Zanzibari architecture.",
+          "location": "Zanzibar Stone Town",
+          "date_approx": "Aug 2026",
+          "attachment_id": "acc7b4f9-9922-4e55-8385-e993549009fa"
+        }
+      ]
+    },
+    "appManifest": {
+      "tables": [
+        {
+          "name": "action_items",
+          "schema": {
+            "title": "Action Items",
+            "description": "Outstanding tasks and confirmations needed before and during the trip, sourced from voice memo and planning.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "priority": {
+                "type": "string",
+                "description": "High, Medium, or Low"
+              },
+              "action": {
+                "type": "string",
+                "description": "What needs to be done"
+              },
+              "context": {
+                "type": "string",
+                "description": "Why and what depends on it"
+              },
+              "status": {
+                "type": "string",
+                "description": "pending, done"
+              }
+            }
+          }
+        },
+        {
+          "name": "contacts",
+          "schema": {
+            "title": "Contacts",
+            "description": "Trip contacts extracted from notes, XLSX accommodations, and voice-memo driver-guide identification.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "name": {
+                "type": "string",
+                "description": "Contact name or entity"
+              },
+              "role": {
+                "type": "string",
+                "description": "Role (driver-guide, hotel, safari office, etc.)"
+              },
+              "location": {
+                "type": "string",
+                "description": "Location or trip segment"
+              },
+              "phone": {
+                "type": "string",
+                "description": "Phone number (if known)"
+              },
+              "email": {
+                "type": "string",
+                "description": "Email address (if known)"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Context and key facts"
+              }
+            }
+          }
+        },
+        {
+          "name": "costs",
+          "schema": {
+            "title": "Line-Item Costs",
+            "description": "Itemised trip expenses from trip-costs.xlsx and planning estimates.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "category": {
+                "type": "string",
+                "description": "Expense category"
+              },
+              "item": {
+                "type": "string",
+                "description": "Line-item description"
+              },
+              "estimated_cost_usd": {
+                "type": "number",
+                "description": "Estimated cost in USD"
+              },
+              "quantity": {
+                "type": "number",
+                "description": "Multiplier (e.g. 2 pax)"
+              },
+              "is_estimate": {
+                "type": "boolean",
+                "description": "Whether the cost is an estimate vs. confirmed"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Context on the cost"
+              }
+            }
+          }
+        },
+        {
+          "name": "legs",
+          "schema": {
+            "title": "Trip Legs",
+            "description": "Chronological trip segments for Tanzania Aug 3–15 2026, sourced from trip-costs.xlsx.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "leg_number": {
+                "type": "number",
+                "description": "Sequential leg order"
+              },
+              "destination": {
+                "type": "string",
+                "description": "Destination or segment name"
+              },
+              "dates": {
+                "type": "string",
+                "description": "Date range, e.g. Aug 3–5"
+              },
+              "nights": {
+                "type": "number",
+                "description": "Nights stayed"
+              },
+              "accommodation": {
+                "type": "string",
+                "description": "Hotel or lodge name"
+              },
+              "estimated_cost_usd": {
+                "type": "number",
+                "description": "Estimated cost in USD"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Additional notes about this leg"
+              }
+            }
+          }
+        },
+        {
+          "name": "notes",
+          "schema": {
+            "title": "Trip Notes & Journal",
+            "description": "Narrative notes, voice-memo facts, and observations from tanzaniamemories.md and the crater-day voice memo.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "topic": {
+                "type": "string",
+                "description": "Topic or category of the note"
+              },
+              "title": {
+                "type": "string",
+                "description": "Short title for the note"
+              },
+              "content": {
+                "type": "string",
+                "description": "Full note text"
+              },
+              "source": {
+                "type": "string",
+                "description": "Origin: notes-file, voice-memo, or image-analysis"
+              },
+              "location": {
+                "type": "string",
+                "description": "Location this note pertains to"
+              },
+              "date": {
+                "type": "string",
+                "description": "Approximate date, if known"
+              }
+            }
+          }
+        },
+        {
+          "name": "park_fees",
+          "schema": {
+            "title": "Park Fees",
+            "description": "Official Ngorongoro Conservation Area tariffs from the park-fee PDF, plus voice-memo ranger tip note.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "fee_type": {
+                "type": "string",
+                "description": "Category of fee (entry, crater service, vehicle, camping, ranger)"
+              },
+              "description": {
+                "type": "string",
+                "description": "Detailed description of the fee"
+              },
+              "amount_usd": {
+                "type": "number",
+                "description": "Fee amount in USD"
+              },
+              "amount_tzs": {
+                "type": "number",
+                "description": "Fee amount in TZS, if specified"
+              },
+              "per": {
+                "type": "string",
+                "description": "Unit (person, vehicle, night, etc.)"
+              },
+              "source": {
+                "type": "string",
+                "description": "Origin of this fee data: pdf or voice-memo"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Additional context"
+              }
+            }
+          }
+        },
+        {
+          "name": "photos",
+          "schema": {
+            "title": "Photos & Media",
+            "description": "Trip photographs and media assets. The Stone Town courtyard photo is a key preservation-worthy image.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "filename": {
+                "type": "string",
+                "description": "Original filename or descriptive slug"
+              },
+              "title": {
+                "type": "string",
+                "description": "Display title"
+              },
+              "description": {
+                "type": "string",
+                "description": "What the photo depicts"
+              },
+              "location": {
+                "type": "string",
+                "description": "Where it was taken"
+              },
+              "date_approx": {
+                "type": "string",
+                "description": "Approximate date"
+              },
+              "attachment_id": {
+                "type": "string",
+                "description": "Reference to attached media file for preservation"
+              }
+            }
+          }
+        }
+      ],
+      "pages": [
+        {
+          "routePath": "/",
+          "file": "pages/index.tsx"
+        }
+      ],
+      "built": false
+    },
+    "error": null
+  }
+}

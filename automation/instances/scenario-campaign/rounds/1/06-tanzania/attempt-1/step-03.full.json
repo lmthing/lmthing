@@ -1,0 +1,704 @@
+{
+  "step": 3,
+  "verbs": [
+    "open_app"
+  ],
+  "expect": [
+    "the app opens with real values on screen (non-zero counts, actual leg/cost values), not an empty shell",
+    "no console errors and no failed fetches; the app's own API routes return 200 with the right shape"
+  ],
+  "turns": [],
+  "asks": [],
+  "notes": [
+    "opened app (built + fetched root page; browser render is the judge's job)"
+  ],
+  "appBuild": {
+    "built": null,
+    "routes": null,
+    "error": "POST /api/projects/tanzania-trip/app/build → 400: {\"error\":\"[api-loader] /home/vasilis/LMTHING/lmthing/sdk/org/scenarios/harness/.state/local-server/pod-root/.lmthing/tanzania-trip/api/dashboard/GET.ts: missing `export const name` (every endpoint must be named)\"}"
+  },
+  "appPageStatus": 404,
+  "state": {
+    "spaces": [
+      "Ngorongoro Crater Logistics",
+      "Tanzania Travel Advisor",
+      "Zanzibar Advisor"
+    ],
+    "appTables": {
+      "accommodation": [
+        {
+          "id": "acc-01",
+          "location": "Cairo",
+          "property": "Eileen Hotel",
+          "nights": 3,
+          "costUSD": 102
+        },
+        {
+          "id": "acc-02",
+          "location": "Arusha",
+          "property": "Serengeti Villa",
+          "nights": 2,
+          "costUSD": 120
+        },
+        {
+          "id": "acc-03",
+          "location": "Tarangire",
+          "property": "Tarangire Safari Lodge",
+          "nights": 2,
+          "costUSD": 1500
+        },
+        {
+          "id": "acc-04",
+          "location": "Lake Manyara",
+          "property": "Migunga Forest Camp",
+          "nights": 1,
+          "costUSD": 400
+        },
+        {
+          "id": "acc-05",
+          "location": "Ngorongoro",
+          "property": "Rhino Lodge",
+          "nights": 2,
+          "costUSD": 1200
+        },
+        {
+          "id": "acc-06",
+          "location": "Serengeti",
+          "property": "Serengeti Heritage Camp",
+          "nights": 2,
+          "costUSD": 1400
+        },
+        {
+          "id": "acc-07",
+          "location": "Zanzibar / Stone Town",
+          "property": "Emerson Spice Hotel",
+          "nights": 3,
+          "costUSD": 450
+        },
+        {
+          "id": "acc-08",
+          "location": "Dar es Salaam",
+          "property": "Hyatt Regency",
+          "nights": 3,
+          "costUSD": 540
+        }
+      ],
+      "budget_summary": [
+        {
+          "id": "budget-01",
+          "totalAccommodationUSD": 5712,
+          "totalFlightsUSD": 2220,
+          "totalExtrasUSD": 5705,
+          "grandTotalUSD": 13637,
+          "travellers": 2,
+          "notes": "All figures from trip-costs.xlsx — source of truth. Extras total includes visa, safari balance, Ngorongoro fees, tips, activities, insurance, meals, and voice-memo souvenir/tip cash items."
+        }
+      ],
+      "contacts": [
+        {
+          "id": "con-01",
+          "name": "Richard",
+          "role": "Safari operator / office",
+          "notes": "Handles balance payment & gate logistics; need to ask about ranger tip before settling balance"
+        },
+        {
+          "id": "con-02",
+          "name": "Emmanuel",
+          "role": "Driver guide at Ngorongoro",
+          "notes": "Excellent and very knowledgeable (per voice memo); not Richard — was on-site at the crater"
+        }
+      ],
+      "extras": [
+        {
+          "id": "ext-01",
+          "category": "Visas",
+          "description": "e-visas — 2 travellers",
+          "quantity": 2,
+          "unitCostUSD": 100,
+          "totalCostUSD": 200,
+          "localCurrency": null,
+          "localAmount": null,
+          "notes": null
+        },
+        {
+          "id": "ext-02",
+          "category": "Safari",
+          "description": "Safari balance payment",
+          "quantity": 1,
+          "unitCostUSD": 3800,
+          "totalCostUSD": 3800,
+          "localCurrency": null,
+          "localAmount": null,
+          "notes": null
+        },
+        {
+          "id": "ext-03",
+          "category": "Ngorongoro Fees",
+          "description": "Crater descent fee (vehicle, peak)",
+          "quantity": 1,
+          "unitCostUSD": 295,
+          "totalCostUSD": 295,
+          "localCurrency": null,
+          "localAmount": null,
+          "notes": null
+        },
+        {
+          "id": "ext-04",
+          "category": "Ngorongoro Fees",
+          "description": "Park entry — non-EA adult (peak, 2 adults × 2 days)",
+          "quantity": 4,
+          "unitCostUSD": 70,
+          "totalCostUSD": 280,
+          "localCurrency": null,
+          "localAmount": null,
+          "notes": null
+        },
+        {
+          "id": "ext-05",
+          "category": "Tips",
+          "description": "Tips budget",
+          "quantity": 1,
+          "unitCostUSD": 200,
+          "totalCostUSD": 200,
+          "localCurrency": null,
+          "localAmount": null,
+          "notes": null
+        },
+        {
+          "id": "ext-06",
+          "category": "Activities",
+          "description": "Zanzibar activities",
+          "quantity": 1,
+          "unitCostUSD": 150,
+          "totalCostUSD": 150,
+          "localCurrency": null,
+          "localAmount": null,
+          "notes": null
+        },
+        {
+          "id": "ext-07",
+          "category": "Insurance",
+          "description": "Travel insurance",
+          "quantity": 1,
+          "unitCostUSD": 180,
+          "totalCostUSD": 180,
+          "localCurrency": null,
+          "localAmount": null,
+          "notes": null
+        },
+        {
+          "id": "ext-08",
+          "category": "Meals",
+          "description": "Meals and incidentals",
+          "quantity": 1,
+          "unitCostUSD": 600,
+          "totalCostUSD": 600,
+          "localCurrency": null,
+          "localAmount": null,
+          "notes": null
+        },
+        {
+          "id": "ext-09",
+          "category": "Souvenir",
+          "description": "2 beaded bracelets from Maasai lady at crater rim (TZS ~35,000)",
+          "quantity": 2,
+          "unitCostUSD": null,
+          "totalCostUSD": null,
+          "localCurrency": "TZS",
+          "localAmount": 35000,
+          "notes": "Paid in TZS; estimated $20–25 USD equivalent"
+        },
+        {
+          "id": "ext-10",
+          "category": "Tips",
+          "description": "Ranger tip at Ngorongoro gate (Emmanuel advised ~TZS 5,000 cash)",
+          "quantity": 1,
+          "unitCostUSD": null,
+          "totalCostUSD": null,
+          "localCurrency": "TZS",
+          "localAmount": 5000,
+          "notes": "Separate from park fees; must confirm with Richard before settling safari balance"
+        }
+      ],
+      "flights": [
+        {
+          "id": "flt-01",
+          "route": "CAI→JRO",
+          "date": "2026-08-05",
+          "costUSD": 480
+        },
+        {
+          "id": "flt-02",
+          "route": "JRO→ZNZ",
+          "date": "2026-08-14",
+          "costUSD": 360
+        },
+        {
+          "id": "flt-03",
+          "route": "ZNZ→DAR",
+          "date": "2026-08-17",
+          "costUSD": 180
+        },
+        {
+          "id": "flt-04",
+          "route": "DAR→Home",
+          "date": "2026-08-20",
+          "costUSD": 1200
+        }
+      ],
+      "itinerary": [
+        {
+          "id": "seg-01",
+          "startDate": "2026-08-03",
+          "endDate": "2026-08-05",
+          "nights": 3,
+          "location": "Cairo",
+          "accommodation": "Eileen Hotel",
+          "costUSD": 102,
+          "notes": "Pre-safari — Vasileios & Athina Mari"
+        },
+        {
+          "id": "seg-02",
+          "startDate": "2026-08-05",
+          "endDate": "2026-08-07",
+          "nights": 2,
+          "location": "Arusha",
+          "accommodation": "Serengeti Villa",
+          "costUSD": 120,
+          "notes": "Arrival gateway — connect to safari"
+        },
+        {
+          "id": "seg-03",
+          "startDate": "2026-08-07",
+          "endDate": "2026-08-09",
+          "nights": 2,
+          "location": "Tarangire",
+          "accommodation": "Tarangire Safari Lodge",
+          "costUSD": 1500,
+          "notes": "Safari leg 1"
+        },
+        {
+          "id": "seg-04",
+          "startDate": "2026-08-09",
+          "endDate": "2026-08-10",
+          "nights": 1,
+          "location": "Lake Manyara",
+          "accommodation": "Migunga Forest Camp",
+          "costUSD": 400,
+          "notes": "Safari leg 2"
+        },
+        {
+          "id": "seg-05",
+          "startDate": "2026-08-10",
+          "endDate": "2026-08-12",
+          "nights": 2,
+          "location": "Ngorongoro",
+          "accommodation": "Rhino Lodge",
+          "costUSD": 1200,
+          "notes": "Safari leg 3 — crater descent"
+        },
+        {
+          "id": "seg-06",
+          "startDate": "2026-08-12",
+          "endDate": "2026-08-14",
+          "nights": 2,
+          "location": "Serengeti",
+          "accommodation": "Serengeti Heritage Camp",
+          "costUSD": 1400,
+          "notes": "Safari leg 4"
+        },
+        {
+          "id": "seg-07",
+          "startDate": "2026-08-14",
+          "endDate": "2026-08-17",
+          "nights": 3,
+          "location": "Zanzibar / Stone Town",
+          "accommodation": "Emerson Spice Hotel",
+          "costUSD": 450,
+          "notes": "Beach / culture"
+        },
+        {
+          "id": "seg-08",
+          "startDate": "2026-08-17",
+          "endDate": "2026-08-20",
+          "nights": 3,
+          "location": "Dar es Salaam",
+          "accommodation": "Hyatt Regency",
+          "costUSD": 540,
+          "notes": "Departure"
+        }
+      ],
+      "memories": [
+        {
+          "id": "mem-01",
+          "title": "Stone Town courtyard",
+          "location": "Zanzibar / Stone Town",
+          "date": "2026-08-14/2026-08-17",
+          "type": "photo",
+          "attachmentRef": "d0a218fb-0d32-483d-8d50-d1cdcfaaff96",
+          "notes": "Courtyard photo from Emerson Spice area"
+        }
+      ],
+      "ngorongoro_tariffs": [
+        {
+          "id": "nca-01",
+          "feeName": "Entry permit — non-EA adult 16+",
+          "season": "peak",
+          "rateUSD": 70,
+          "unit": "person/day",
+          "applies": "August 2026",
+          "notes": null
+        },
+        {
+          "id": "nca-02",
+          "feeName": "Crater service fee — non-EA vehicle",
+          "season": "peak",
+          "rateUSD": 295,
+          "unit": "descent (6 hr max)",
+          "applies": "August 2026",
+          "notes": null
+        },
+        {
+          "id": "nca-03",
+          "feeName": "Conservation fee — non-EA adult",
+          "season": "peak",
+          "rateUSD": 50,
+          "unit": "person/day",
+          "applies": "August 2026",
+          "notes": null
+        },
+        {
+          "id": "nca-04",
+          "feeName": "Guided walking safari",
+          "season": "peak",
+          "rateUSD": 30,
+          "unit": "person",
+          "applies": "August 2026",
+          "notes": null
+        },
+        {
+          "id": "nca-05",
+          "feeName": "Empakaai crater hike",
+          "season": "peak",
+          "rateUSD": 30,
+          "unit": "person",
+          "applies": "August 2026",
+          "notes": null
+        },
+        {
+          "id": "nca-06",
+          "feeName": "Camping — adult (if used)",
+          "season": "peak",
+          "rateUSD": 50,
+          "unit": "person/night",
+          "applies": "August 2026",
+          "notes": "Range $50–80; lower bound used"
+        }
+      ]
+    },
+    "appManifest": {
+      "tables": [
+        {
+          "name": "accommodation",
+          "schema": {
+            "title": "Accommodation Costs",
+            "description": "Accommodation line items from the trip cost spreadsheet — 8 properties across 17 nights.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "location": {
+                "type": "string",
+                "description": "City or park"
+              },
+              "property": {
+                "type": "string",
+                "description": "Hotel or lodge name"
+              },
+              "nights": {
+                "type": "number",
+                "description": "Number of nights"
+              },
+              "costUSD": {
+                "type": "number",
+                "description": "Total cost in USD"
+              }
+            }
+          }
+        },
+        {
+          "name": "budget_summary",
+          "schema": {
+            "title": "Budget Summary",
+            "description": "Top-level budget from trip-costs.xlsx. Grand total $13,637 for 2 travellers — accommodation $5,712, flights $2,220, extras $5,705.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "totalAccommodationUSD": {
+                "type": "number",
+                "description": "Total accommodation cost"
+              },
+              "totalFlightsUSD": {
+                "type": "number",
+                "description": "Total flight cost"
+              },
+              "totalExtrasUSD": {
+                "type": "number",
+                "description": "Total extras cost (visas, safari balance, fees, tips, activities, insurance, meals, souvenirs)"
+              },
+              "grandTotalUSD": {
+                "type": "number",
+                "description": "Grand total — spreadsheet source of truth"
+              },
+              "travellers": {
+                "type": "number",
+                "description": "Number of travellers"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Source and calculation notes"
+              }
+            }
+          }
+        },
+        {
+          "name": "contacts",
+          "schema": {
+            "title": "Contacts",
+            "description": "People involved in the Tanzania trip — safari operator, driver guide. Sources: itinerary notes and voice memo transcript.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "name": {
+                "type": "string",
+                "description": "Contact name"
+              },
+              "role": {
+                "type": "string",
+                "description": "Role in the trip"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Relevant context"
+              }
+            }
+          }
+        },
+        {
+          "name": "extras",
+          "schema": {
+            "title": "Extra Costs",
+            "description": "Additional costs beyond flights and accommodation: visas, safari balance, Ngorongoro fees, tips, activities, insurance, meals, souvenirs, and gate tips. Includes voice-memo items not in the spreadsheet.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "category": {
+                "type": "string",
+                "description": "Cost category"
+              },
+              "description": {
+                "type": "string",
+                "description": "What the cost covers"
+              },
+              "quantity": {
+                "type": "number",
+                "description": "Multiplier (travellers, days, items)"
+              },
+              "unitCostUSD": {
+                "type": "number",
+                "description": "Cost per unit in USD (null if paid in local currency)"
+              },
+              "totalCostUSD": {
+                "type": "number",
+                "description": "Line total in USD (null for local-currency items)"
+              },
+              "localCurrency": {
+                "type": "string",
+                "description": "Local currency code if paid in cash locally"
+              },
+              "localAmount": {
+                "type": "number",
+                "description": "Amount in local currency"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Additional context"
+              }
+            }
+          }
+        },
+        {
+          "name": "flights",
+          "schema": {
+            "title": "Flights",
+            "description": "Flight bookings for the Tanzania trip. Spreadsheet lists 4 line items (user mentioned 6 — spreadsheet is source of truth).",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "route": {
+                "type": "string",
+                "description": "Flight route"
+              },
+              "date": {
+                "type": "date",
+                "description": "Flight date"
+              },
+              "costUSD": {
+                "type": "number",
+                "description": "Cost in USD"
+              }
+            }
+          }
+        },
+        {
+          "name": "itinerary",
+          "schema": {
+            "title": "Trip Itinerary",
+            "description": "18-day Tanzania trip itinerary for Vasileios Kefallinos and Athina Mari — August 3–20, 2026. 8 stops, 17 nights, Cairo → Arusha → Safari circuit → Zanzibar → Dar es Salaam.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Segment primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "startDate": {
+                "type": "date",
+                "description": "Segment start date"
+              },
+              "endDate": {
+                "type": "date",
+                "description": "Segment end date"
+              },
+              "nights": {
+                "type": "number",
+                "description": "Nights at this stop"
+              },
+              "location": {
+                "type": "string",
+                "description": "City or park name"
+              },
+              "accommodation": {
+                "type": "string",
+                "description": "Hotel or lodge name"
+              },
+              "costUSD": {
+                "type": "number",
+                "description": "Accommodation cost in USD"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Segment notes"
+              }
+            }
+          }
+        },
+        {
+          "name": "memories",
+          "schema": {
+            "title": "Trip Memories",
+            "description": "Photos, voice memos, and other memories from the Tanzania trip. Currently holds the Stone Town courtyard photo.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "title": {
+                "type": "string",
+                "description": "Memory title"
+              },
+              "location": {
+                "type": "string",
+                "description": "Where it was captured"
+              },
+              "date": {
+                "type": "string",
+                "description": "Date or date range"
+              },
+              "type": {
+                "type": "string",
+                "description": "Memory type (photo, audio, text)"
+              },
+              "attachmentRef": {
+                "type": "string",
+                "description": "Reference to the attachment ID"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Description or transcription context"
+              }
+            }
+          }
+        },
+        {
+          "name": "ngorongoro_tariffs",
+          "schema": {
+            "title": "Ngorongoro Conservation Area — Official Tariffs",
+            "description": "Official Ngorongoro park fee schedule for peak season (August 2026), sourced from ngorongoro-conservation-area-tariffs.pdf. Applies to non-EA visitors.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "feeName": {
+                "type": "string",
+                "description": "Fee category name"
+              },
+              "season": {
+                "type": "string",
+                "description": "Season (peak/low)"
+              },
+              "rateUSD": {
+                "type": "number",
+                "description": "Rate in USD"
+              },
+              "unit": {
+                "type": "string",
+                "description": "Rate unit (person/day, descent, etc.)"
+              },
+              "applies": {
+                "type": "string",
+                "description": "When this rate applies"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Clarifying notes"
+              }
+            }
+          }
+        }
+      ],
+      "pages": [
+        {
+          "routePath": "/",
+          "file": "pages/index.tsx"
+        }
+      ],
+      "built": false
+    },
+    "error": null
+  }
+}

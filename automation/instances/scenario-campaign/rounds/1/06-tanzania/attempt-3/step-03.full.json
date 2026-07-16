@@ -1,0 +1,306 @@
+{
+  "step": 3,
+  "verbs": [
+    "open_app"
+  ],
+  "expect": [
+    "the app opens with real values on screen (non-zero counts, actual leg/cost values), not an empty shell",
+    "no console errors and no failed fetches; the app's own API routes return 200 with the right shape"
+  ],
+  "turns": [],
+  "asks": [],
+  "notes": [
+    "opened app (built + fetched root page; browser render is the judge's job)"
+  ],
+  "appBuild": {
+    "built": false,
+    "routes": [],
+    "error": null
+  },
+  "appPageStatus": 404,
+  "state": {
+    "spaces": [
+      "Safari Advisor",
+      "Trip Logistics",
+      "Zanzibar Advisor"
+    ],
+    "appTables": {
+      "itinerary": [
+        {
+          "id": "day-01",
+          "day_num": 1,
+          "date": "Aug 3",
+          "day_label": "Day 1 — Sunday",
+          "location": "Athens → Cairo",
+          "description": "Depart Athens (ATH) on Aegean A3932, 06:55–08:50. Arrive Cairo. Explore Grand Egyptian Museum and Pyramids of Giza.",
+          "accommodation": "Eileen Hotel, Cairo",
+          "flights": "[{\"flight\":\"Aegean A3932\",\"route\":\"ATH→CAI\",\"time\":\"06:55–08:50\",\"ref\":\"ZZJQUU\"}]",
+          "contacts": "[{\"name\":\"Eileen Hotel\",\"phone\":\"+20 15 56434043\",\"email\":\"info@eileenhotel.com\",\"address\":\"21 Youssef El-Gendy St, Abdeen, Downtown Cairo\"}]",
+          "notes": "Eileen Hotel near Tahrir Square/Nile Corniche"
+        },
+        {
+          "id": "day-02",
+          "day_num": 2,
+          "date": "Aug 4",
+          "day_label": "Day 2 — Monday",
+          "location": "Cairo",
+          "description": "Full day in Cairo. Late checkout from Eileen Hotel. Depart CAI on EgyptAir at 22:40.",
+          "accommodation": "Overnight flight (CAI→DAR)",
+          "flights": "[{\"flight\":\"EgyptAir\",\"route\":\"CAI→DAR\",\"time\":\"22:40–04:20+1\"}]",
+          "contacts": "[]",
+          "notes": "Late checkout; flight departs 22:40"
+        },
+        {
+          "id": "day-03",
+          "day_num": 3,
+          "date": "Aug 5",
+          "day_label": "Day 3 — Tuesday",
+          "location": "Dar es Salaam → Arusha",
+          "description": "Arrive DAR 04:20. Connect to Precision Air TC144, DAR→ARK, 10:50–12:00. Arrive Arusha, check into Serengeti Villa.",
+          "accommodation": "Serengeti Villa, Arusha",
+          "flights": "[{\"flight\":\"Precision Air TC144\",\"route\":\"DAR→ARK\",\"time\":\"10:50–12:00\"}]",
+          "contacts": "[{\"name\":\"Serengeti Villa\",\"phone\":\"+255 757 757 928\"}]",
+          "notes": "Precision Air luggage restrictions favor soft bags"
+        },
+        {
+          "id": "day-04",
+          "day_num": 4,
+          "date": "Aug 6",
+          "day_label": "Day 4 — Wednesday",
+          "location": "Arusha",
+          "description": "Rest and preparation day in Arusha. Safari briefing with Suricata Safaris.",
+          "accommodation": "Serengeti Villa, Arusha",
+          "flights": "[]",
+          "contacts": "[{\"name\":\"Richard (Suricata Safaris)\",\"phone\":\"+255 763 222 293\",\"email\":\"info@suricatasafaris.com\"}]",
+          "notes": "Safari balance ($960) due on arrival — cash (post-2009 USD) or Pesapal (+5%)"
+        },
+        {
+          "id": "day-05",
+          "day_num": 5,
+          "date": "Aug 7",
+          "day_label": "Day 5 — Thursday",
+          "location": "Arusha → Tarangire",
+          "description": "Safari Day 1: Depart Arusha for Tarangire National Park. Game drive. Overnight at Twiga Camp Site (FB).",
+          "accommodation": "Twiga Camp Site, Tarangire",
+          "flights": "[]",
+          "contacts": "[]",
+          "notes": "Tarangire NP entrance: $59/person peak season. Suricata Safaris 3-day group camping."
+        },
+        {
+          "id": "day-06",
+          "day_num": 6,
+          "date": "Aug 8",
+          "day_label": "Day 6 — Friday",
+          "location": "Tarangire → Lake Manyara",
+          "description": "Safari Day 2: Lake Manyara National Park game drive. Overnight at Twiga Camp Site (FB).",
+          "accommodation": "Twiga Camp Site, Lake Manyara",
+          "flights": "[]",
+          "contacts": "[]",
+          "notes": "Lake Manyara NP entrance: $59/person peak season"
+        },
+        {
+          "id": "day-07",
+          "day_num": 7,
+          "date": "Aug 9",
+          "day_label": "Day 7 — Saturday",
+          "location": "Ngorongoro Crater",
+          "description": "Safari Day 3: Ngorongoro Crater descent with Emmanuel (driver-guide). Full-day crater game drive. Overnight at Jevas Hotel (HB).",
+          "accommodation": "Jevas Hotel, Ngorongoro",
+          "flights": "[]",
+          "contacts": "[{\"name\":\"Emmanuel\",\"role\":\"Driver-guide, Ngorongoro Crater\"}]",
+          "notes": "Warm layers needed — crater rim is cold. Crater descent gates close 16:00. Emmanuel was the crater driver-guide."
+        },
+        {
+          "id": "day-08",
+          "day_num": 8,
+          "date": "Aug 10",
+          "day_label": "Day 8 — Sunday",
+          "location": "Arusha",
+          "description": "Return to Arusha. Rest and recovery. Check into Kutoka Lodge.",
+          "accommodation": "Kutoka Lodge, Arusha",
+          "flights": "[]",
+          "contacts": "[]",
+          "notes": "Post-safari rest day"
+        },
+        {
+          "id": "day-09",
+          "day_num": 9,
+          "date": "Aug 11",
+          "day_label": "Day 9 — Monday",
+          "location": "Arusha → Zanzibar (Stone Town)",
+          "description": "Fly Precision Air TC145, ARK→ZNZ, 12:40–13:40. Arrive Zanzibar. Check into Treasures of Zanzibar House in Stone Town.",
+          "accommodation": "Treasures of Zanzibar House, Stone Town",
+          "flights": "[{\"flight\":\"Precision Air TC145\",\"route\":\"ARK→ZNZ\",\"time\":\"12:40–13:40\"}]",
+          "contacts": "[]",
+          "notes": "Stone Town exploration begins"
+        },
+        {
+          "id": "day-10",
+          "day_num": 10,
+          "date": "Aug 12",
+          "day_label": "Day 10 — Tuesday",
+          "location": "Stone Town, Zanzibar",
+          "description": "Explore Stone Town: winding alleys, courtyards, arched windows, dark carved wooden balconies. Cultural and historical exploration.",
+          "accommodation": "Treasures of Zanzibar House, Stone Town",
+          "flights": "[]",
+          "contacts": "[]",
+          "notes": "Classic Zanzibari old-town architecture"
+        },
+        {
+          "id": "day-11",
+          "day_num": 11,
+          "date": "Aug 13",
+          "day_label": "Day 11 — Wednesday",
+          "location": "Stone Town → Kendwa Beach",
+          "description": "Transfer to north coast. Check into Ayla Beach House in Kendwa area. Beach time begins.",
+          "accommodation": "Ayla Beach House, Kendwa",
+          "flights": "[]",
+          "contacts": "[]",
+          "notes": "North coast (Nungwi area) offers more consistent swimming conditions. Local Zanzibar driving permit ~$15."
+        },
+        {
+          "id": "day-12",
+          "day_num": 12,
+          "date": "Aug 14",
+          "day_label": "Day 12 — Thursday",
+          "location": "Kendwa Beach",
+          "description": "Beach day. Swimming, snorkeling, relaxation.",
+          "accommodation": "Ayla Beach House, Kendwa",
+          "flights": "[]",
+          "contacts": "[]",
+          "notes": ""
+        },
+        {
+          "id": "day-13",
+          "day_num": 13,
+          "date": "Aug 15",
+          "day_label": "Day 13 — Friday",
+          "location": "Kendwa Beach",
+          "description": "Beach day. Evening: The Rock Restaurant dinner, 18:00–20:00 sitting, 2 adults, outdoor seating for sunset views. 2x Tropical Passion Fruit Cheesecake included.",
+          "accommodation": "Ayla Beach House, Kendwa",
+          "flights": "[]",
+          "contacts": "[{\"name\":\"The Rock Restaurant\",\"phone\":\"+255 776 591 360\",\"altPhone\":\"+255 763 070 658\",\"email\":\"booking@therockrestaurantzanzibar.com\"}]",
+          "notes": "The Rock dinner fully paid ($46). Outdoor seating requested."
+        },
+        {
+          "id": "day-14",
+          "day_num": 14,
+          "date": "Aug 16",
+          "day_label": "Day 14 — Saturday",
+          "location": "Kendwa Beach",
+          "description": "Beach day. Relaxation and local exploration.",
+          "accommodation": "Ayla Beach House, Kendwa",
+          "flights": "[]",
+          "contacts": "[]",
+          "notes": ""
+        },
+        {
+          "id": "day-15",
+          "day_num": 15,
+          "date": "Aug 17",
+          "day_label": "Day 15 — Sunday",
+          "location": "Zanzibar → Dar es Salaam",
+          "description": "Ferry from Zanzibar to Dar es Salaam. Check into Sunny Shore B&B. City exploration.",
+          "accommodation": "Sunny Shore B&B, Dar es Salaam",
+          "flights": "[]",
+          "contacts": "[]",
+          "notes": "Dar exploration: Kivukoni Fish Market, Kariakoo Market, National Museum, Coco Beach, Bongoyo Island"
+        },
+        {
+          "id": "day-16",
+          "day_num": 16,
+          "date": "Aug 18",
+          "day_label": "Day 16 — Monday",
+          "location": "Dar es Salaam",
+          "description": "Full day exploring Dar es Salaam.",
+          "accommodation": "Sunny Shore B&B, Dar es Salaam",
+          "flights": "[]",
+          "contacts": "[]",
+          "notes": ""
+        },
+        {
+          "id": "day-17",
+          "day_num": 17,
+          "date": "Aug 19",
+          "day_label": "Day 17 — Tuesday",
+          "location": "Dar es Salaam → Cairo",
+          "description": "Fly DAR→CAI on EgyptAir, 05:20–11:05. Arrive Cairo. Explore Islamic Cairo, the Citadel, Khan el-Khalili bazaar, Coptic Cairo.",
+          "accommodation": "Ramses Hilton, Cairo",
+          "flights": "[{\"flight\":\"EgyptAir\",\"route\":\"DAR→CAI\",\"time\":\"05:20–11:05\"}]",
+          "contacts": "[]",
+          "notes": "Taxi needed between Citadel and Coptic Cairo"
+        },
+        {
+          "id": "day-18",
+          "day_num": 18,
+          "date": "Aug 20",
+          "day_label": "Day 18 — Wednesday",
+          "location": "Cairo → Athens",
+          "description": "Final day. Fly CAI→ATH on Aegean A3935, 19:55–22:00. Arrive home.",
+          "accommodation": "Home",
+          "flights": "[{\"flight\":\"Aegean A3935\",\"route\":\"CAI→ATH\",\"time\":\"19:55–22:00\",\"ref\":\"ZZL22S\"}]",
+          "contacts": "[]",
+          "notes": "Trip ends. Total flights: ~€2,707."
+        }
+      ]
+    },
+    "appManifest": {
+      "tables": [
+        {
+          "name": "itinerary",
+          "schema": {
+            "title": "Itinerary",
+            "description": "Day-by-day trip itinerary with dates, flights, lodges, and contacts.",
+            "columns": {
+              "id": {
+                "type": "string",
+                "description": "Primary key",
+                "primaryKey": true,
+                "generated": "uuid"
+              },
+              "day_num": {
+                "type": "number",
+                "description": "Day number (1-18)"
+              },
+              "date": {
+                "type": "string",
+                "description": "Date (e.g. Aug 3)"
+              },
+              "day_label": {
+                "type": "string",
+                "description": "Day label (e.g. Day 1 — Monday)"
+              },
+              "location": {
+                "type": "string",
+                "description": "Primary location or leg name"
+              },
+              "description": {
+                "type": "string",
+                "description": "Full day description"
+              },
+              "accommodation": {
+                "type": "string",
+                "description": "Accommodation for the night"
+              },
+              "flights": {
+                "type": "json",
+                "description": "Flight details array for this day"
+              },
+              "contacts": {
+                "type": "json",
+                "description": "Relevant contacts for this day"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Additional notes"
+              }
+            }
+          }
+        }
+      ],
+      "pages": [],
+      "built": false
+    },
+    "error": null
+  }
+}

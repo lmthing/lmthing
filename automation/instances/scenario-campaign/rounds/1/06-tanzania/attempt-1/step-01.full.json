@@ -1,0 +1,201 @@
+{
+  "step": 1,
+  "verbs": [
+    "attach",
+    "say"
+  ],
+  "expect": [
+    "all five files are actually read — the photo LOOKED AT (vision), the voice memo TRANSCRIBED, the PDF and the spreadsheet PARSED",
+    "it OFFERS to organize this without being asked, naming at least two real specifics of mine (a place, a date, a booking)",
+    "it builds NOTHING yet — no spaces, no tables, no pages, no app (the offer precedes any authoring yield)"
+  ],
+  "turns": [
+    {
+      "sent": "Ok this is getting out of hand. I've got the whole Tanzania trip spread across about six different places — a notes file, a spreadsheet with the costs, the crater park-fee PDF, a photo I liked from Stone Town, and a voice note I left myself at the crater. Attaching all of it. I don't trust myself to keep it straight on my phone once we're actually there — can you help me get on top of it?",
+      "lastText": "{\"type\":\"Stack\",\"props\":{\"gap\":2},\"children\":[{\"type\":\"Heading\",\"props\":{\"level\":2},\"children\":[\"I've read everything — here's what you've got\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"You're right, this is a lot to juggle. Between Vasileios and Athina Mari, August 3–20, 2026: Cairo → Arusha → safari (Tarangire, Lake Manyara, Ngorongoro) → Zanzibar → Dar es Salaam, six flights over seventeen nights.\"]},{\"type\":\"Callout\",\"props\":{\"variant\":\"info\",\"title\":\"What's in your material\"},\"children\":[{\"type\":\"List\",\"props\":{\"items\":[\"Trip notes & itinerary (the .md file) — route, dates, contacts, logistics\",\"Full cost spreadsheet (the .xlsx) — budget line items across multiple sheets\",\"Official Ngorongoro park-fee tariff sheet (the PDF) — every fee category and rate\",\"A photo you took in Stone Town — that beautiful courtyard with the carved wooden balconies\",\"Your crater voice memo — driver Emmanuel, two beaded bracelets for Athina Mari (~TZS 35,000), and an unexpected ranger tip (~TZS 5,000 cash) that nobody warned you about\"]},\"children\":[]}]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"The voice memo has the kind of stuff that normally gets lost: it names Emmanuel (not Richard) as your crater guide, flags a ranger-tip you need to ask Richard about before settling the safari balance, and logs the bracelet purchase in shillings even though you weren't sure of the exact dollar amount.\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[{\"type\":\"Strong\",\"props\":{},\"children\":[\"Want me to pull all of this into something you can actually open and check from your phone?\"]},\" A single place with your itinerary, your costs, the official fees, your photo, and those voice-memo-only details — so you're not digging through six different files when you're standing at the gate.\"]}]}",
+      "delegates": [
+        "system-files/dispatch",
+        "system-vision/vision",
+        "system-files/reader",
+        "system-files/sheet"
+      ],
+      "yieldKinds": [
+        "delegate",
+        "loadKnowledge",
+        "readDocument",
+        "inspect"
+      ],
+      "yields": [
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"dispatch\",null,{\"query\":\"Summarise these three documents and extract ALL concrete specifics: any names, dates, amounts, costs, phone numbers, booking references, places, notes, rules, and facts. For the spreadsheet, list every sheet and every column. For the PDF, pull out every fee category, rate, and rule mentioned. Be thorough but concise — I need the real details, not fluff.\",\"…"
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-vision",
+            "vision",
+            null,
+            {
+              "query": "Describe this photo in detail — what is it of, where was it taken, what is notable about it? Keep it to a short paragraph.",
+              "attachmentIds": [
+                "d0a218fb-0d32-483d-8d50-d1cdcfaaff96"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"reader\",null,{\"query\":\"Summarise these documents and extract ALL concrete specifics: any names, dates, amounts, costs, phone numbers, booking references, places, notes, rules, and facts. For the PDF, pull out every fee category, rate, and rule mentioned. Be thorough but concise — I need the real details, not fluff.\",\"attachmentIds\":[\"6b5128a0-fb1f-47db-b283-1c6a36b166e9\",\"96874343…"
+        },
+        {
+          "kind": "delegate",
+          "args": [
+            "system-files",
+            "sheet",
+            null,
+            {
+              "query": "List every sheet and every column. Extract ALL concrete specifics: any names, dates, amounts, costs, phone numbers, booking references, places, notes, rules, and facts. Be thorough but concise.",
+              "attachmentIds": [
+                "b18c3244-0f47-4e51-b614-ac7099e75646"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/pdf"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/pdf"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/tabular/spreadsheet"
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "6b5128a0-fb1f-47db-b283-1c6a36b166e9",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "b18c3244-0f47-4e51-b614-ac7099e75646",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "96874343-0a87-495c-884f-228061b3465f",
+            null
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/text"
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "6b5128a0-fb1f-47db-b283-1c6a36b166e9",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "b18c3244-0f47-4e51-b614-ac7099e75646",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "96874343-0a87-495c-884f-228061b3465f",
+            null
+          ]
+        },
+        {
+          "kind": "inspect",
+          "args": [
+            {
+              "query": {
+                "path": "result"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "inspect",
+          "args": "[{\"value\":\"=== TRIP OVERVIEW ===\\nVasileios (Vasilis) Kefallinos + Athina Mari. August 3–20, 2026. 6 flights, 17 nights total.\\nRoute: Cairo → Arusha → Safari (Tarangire / Lake Manyara / Ngorongoro) → Zanzibar → Dar es Salaam → Cairo.\\nTotal flights: ~€2,707. Total non-flight costs: ~$3,344.20 (USD).\\n\\n=== PEOPLE & CONTACTS ===\\n- Vasileios Kefallinos + companion Athina Mari.\\n- Suricata Safaris …"
+        }
+      ],
+      "errors": [],
+      "nodes": [
+        {
+          "id": "delegate_3_1933f33d",
+          "status": "done",
+          "ms": 5617
+        },
+        {
+          "id": "delegate_4_05c5c469",
+          "status": "done",
+          "ms": 54097
+        },
+        {
+          "id": "delegate_5_9917bb83",
+          "status": "done",
+          "ms": 71811
+        },
+        {
+          "id": "delegate_2_39c2f297",
+          "status": "done",
+          "ms": 79996
+        },
+        {
+          "id": "run_1_33a0abaf",
+          "status": "done",
+          "ms": 133174
+        }
+      ],
+      "tokens": {
+        "in": 56310,
+        "out": 7980
+      },
+      "durationMs": 137972,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "attached": [
+    "tanzaniamemories.md",
+    "trip-costs.xlsx",
+    "ngorongoro-conservation-area-tariffs.pdf",
+    "stone-town-zanzibar.jpg",
+    "voice-memo.mp3"
+  ],
+  "state": {
+    "spaces": [],
+    "appTables": {},
+    "appManifest": {
+      "tables": [],
+      "pages": [],
+      "built": false
+    },
+    "error": null
+  }
+}

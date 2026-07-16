@@ -1,0 +1,42 @@
+{
+  "step": 3,
+  "verbs": [
+    "open_app"
+  ],
+  "expect": [
+    "the app opens with real values on screen (non-zero counts, actual leg/cost values), not an empty shell",
+    "no console errors and no failed fetches; the app's own API routes return 200 with the right shape"
+  ],
+  "turns": [],
+  "asks": [],
+  "appBuild": {
+    "built": false,
+    "routes": [],
+    "error": null
+  },
+  "appPageStatus": 404,
+  "notes": [
+    "opened app (built + fetched root page; browser render is the judge's job)"
+  ],
+  "state": {
+    "spaces": [
+      "Safari Advisor",
+      "Trip Logistics",
+      "Zanzibar Advisor"
+    ],
+    "spaceCount": 3,
+    "appTables": {
+      "itinerary": 18
+    },
+    "appManifest": {
+      "tableNames": [
+        "itinerary"
+      ],
+      "pageCount": 0,
+      "built": false
+    },
+    "error": null,
+    "appError": null
+  },
+  "fullEvidence": "step-03.full.json"
+}

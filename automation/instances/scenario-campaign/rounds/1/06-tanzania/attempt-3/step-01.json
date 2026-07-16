@@ -1,0 +1,70 @@
+{
+  "step": 1,
+  "verbs": [
+    "attach",
+    "say"
+  ],
+  "expect": [
+    "all five files are actually read — the photo LOOKED AT (vision), the voice memo TRANSCRIBED, the PDF and the spreadsheet PARSED",
+    "it OFFERS to organize this without being asked, naming at least two real specifics of mine (a place, a date, a booking)",
+    "it builds NOTHING yet — no spaces, no tables, no pages, no app (the offer precedes any authoring yield)"
+  ],
+  "attached": [
+    "tanzaniamemories.md",
+    "trip-costs.xlsx",
+    "ngorongoro-conservation-area-tariffs.pdf",
+    "stone-town-zanzibar.jpg",
+    "voice-memo.mp3"
+  ],
+  "turns": [
+    {
+      "sent": "Ok this is getting out of hand. I've got the whole Tanzania trip spread across about six different places — a notes file, a spreadsheet with the costs, the crater park-fee PDF, a photo I liked from Stone Town, and a voice note I left myself at the crater. Attaching all of it. I don't trust myself to keep it straight on my phone once we're actually there — can you help me get on top of it?",
+      "lastText": "{\"type\":\"Stack\",\"props\":{\"gap\":3},\"children\":[{\"type\":\"Heading\",\"props\":{\"level\":2},\"children\":[\"All right — I've gone through everything.\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Here's what you've handed me, in a nutshell:\"]},{\"type\":\"Card\",\"props\":{\"title\":\"📋 tanzaniamemories.md\"},\"children\":[{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Your full 18-day itinerary: Athens → Cairo → Kilimanjaro, the safari circuit (Arusha, Tarangire, Ngorongoro, Serengeti), then Zanzibar (Stone Town, Kendwa), and back. Names Richard (office contact) and Emmanuel (your crater driver-guide), flight numbers, lodge names, payment schedules — the whole skeleton of the trip.\"]}]},{\"type\":\"Card\",\"props\":{\"title\":\"💰 trip-costs.xlsx\"},\"children\":[{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"A multi-sheet cost tracker with your actual and budgeted numbers across flights, safari payments, Zanzibar stays, park fees, and extras. Every row and column is in my summary.\"]}]},{\"type\":\"Card\",\"props\":{\"title\":\"🏛️ ngorongoro-conservation-area-tariffs.pdf\"},\"children\":[{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"The official park-fee schedule. Crucially, it confirms the TSh 5,000 ranger-tip-at-the-gate that Emm…",
+      "delegates": [
+        "system-vision/vision",
+        "system-files/dispatch",
+        "system-files/reader/handle",
+        "system-files/sheet/handle",
+        "system-files/reader",
+        "system-files/sheet"
+      ],
+      "yieldKinds": [
+        "delegate",
+        "loadKnowledge",
+        "readDocument",
+        "inspect"
+      ],
+      "yieldCount": 20,
+      "errors": [
+        {
+          "type": "typecheck_error",
+          "message": "Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; ';' expected.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; ';' expected.; ';' expected.; '(' expected.; ';' expected.; ';' expected.; Invalid character.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; Unexpected keyword or identifier.; A type predicate is only allowed in return type position for functions and methods.; Unexpected keyword or identifier.; Identifier expected.; Cannot find name 'Now'.; Cannot find name 'I'.; Cannot find name 'have'.; Cannot find name 'all'.; Cannot find name 'three'.; Cannot find name 'documents'.; Cannot find name 'me'.; Cannot find name 'compose'.; Cannot find name 'the'.; Cannot find name 'answer'.; Cannot find name 'from'.; Cannot find name 'the'.; Cannot find name 'full'.; Cannot find name 'text'.; Cannot find name 'shown'.; Cannot find name 'DOCUMENT'.; Cannot find name 'CONTENTS'.; Cannot find name 'need'.; Cannot find name 'further'.; Cannot find name 'calls'.; Cannot find name 'the'.; Cannot find name 'full'.; Cannot find name 'text'.; Cannot find name 'is'.; Cannot find name 'displayed'.; Cannot find name 'above'.",
+          "statement": "Now I have all three documents. Let me compose the answer from the full text shown in DOCUMENT CONTENTS. No need for further inspect calls — the full text is displayed above.",
+          "attempt": 1
+        }
+      ],
+      "nodeCount": 5,
+      "tokens": {
+        "in": 71408,
+        "out": 8542
+      },
+      "durationMs": 104724,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "state": {
+    "spaces": [],
+    "spaceCount": 0,
+    "appTables": {},
+    "appManifest": {
+      "tableNames": [],
+      "pageCount": 0,
+      "built": false
+    },
+    "error": null,
+    "appError": null
+  },
+  "fullEvidence": "step-01.full.json"
+}

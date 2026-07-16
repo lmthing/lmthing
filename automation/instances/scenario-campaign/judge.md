@@ -215,6 +215,18 @@ test that would have caught the gap, and the matching `org/docs/` page updated i
 only on proof, and flag it loudest of all in the report so the human reviewing knows a framework
 change is in the diff.
 
+> **RUN the test, and prove it is LOAD-BEARING — a written-but-unrun test is not a fix.** After you
+> add it: `cd sdk/org && pnpm test <path>` must PASS with your change, and — the step people skip —
+> must FAIL when you revert your change (stash the one edit, run, confirm red, restore). This is your
+> cheapest, context-cheapest proof and it catches two real failure modes at once: a fix that doesn't
+> actually work, and a test that passes no matter what (mock that never exercises the changed leg).
+> Do this BEFORE the full scenario rerun — the rerun is expensive and can exhaust your context, so a
+> green revert-test is what lets you report an L3 fix with confidence even if the rerun gets cut short.
+> A frequent L3 shape is **host-context DRIFT**: one field (a resolver, a grant, a budget, the shared
+> dynamicSpaces map) is threaded at the session-fork and direct-delegate sites but DROPPED on the
+> task-fork-delegate leg, so a nested build silently invents data instead of reading the real source —
+> look for the field that ONE construction site omits.
+
 > The routing rebuild is the worked example that needs all three: THING misrouting where data lived
 > took L1 (the three-store triage rewrite), L2 (the `write_fact` / `retract_fact` / `reconcile_conflict`
 > / `answer_across_spaces` / `migrate_to_app_db` tasklists + DB grants), and L3 (`writeKnowledge`, the

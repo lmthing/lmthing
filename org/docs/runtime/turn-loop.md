@@ -252,8 +252,14 @@ next turn.
   read document, because the `VARIABLES` preview would only show its first 200 chars;
 - `budget.nearLimitWarning()` when close to a cap (`:734-735`).
 
-`attempt` is reset to `0` and the loop continues (`:738-739`) — a resolved yield starts a *fresh*
-turn, it does not consume a retry.
+On a **clean** resolution `attempt` is reset to `0` and the loop continues (`:747`) — a resolved yield
+starts a *fresh* turn, it does not consume a retry. The reset is **withheld when the turn's yields
+errored** and execution only reached here because `attempt >= maxRetries` (the fall-through binds the
+failed names to `undefined` to limp forward, `:661`): that is not progress, so `attempt` keeps climbing
+and the loop terminates with `'error'`. Otherwise a model that stubbornly re-emits the same failing
+yield (e.g. a forbidden `delegate`) would zero its retry budget every cycle and loop forever, each cycle
+appending another error+VARIABLES block until the history string overflows V8's max length ("Invalid
+string length") `sdk/org/libs/core/src/eval/turn-loop.ts:747`.
 
 ---
 

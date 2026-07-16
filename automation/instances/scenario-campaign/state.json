@@ -1,7 +1,7 @@
 {
   "tasks": {
     "06-tanzania": {
-      "round": 1
+      "round": 2
     }
   },
   "runs": [
@@ -68,5 +68,5 @@
       "resetAt": null
     }
   ],
-  "updatedAt": "2026-07-16T18:51:56.318Z"
+  "updatedAt": "2026-07-16T18:51:56.390Z"
 }

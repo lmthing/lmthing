@@ -184,7 +184,7 @@ What is forwarded down a delegation chain:
 | Fork nesting depth | `forkDepth: opts.depth + 1` — forks under a nested delegate are one level deeper | `sdk/org/libs/core/src/delegate/delegate.ts:315-318` |
 | Registered spaces | the **same** `dynamicSpaces` Map reference, so a `registerSpace()` inside a fork/delegate is visible to the parent's later `delegate()` | `sdk/org/libs/core/src/delegate/delegate.ts:85-88`, `:319`; `sdk/org/libs/core/src/session/session.ts:754` |
 | Project scope + app grants | `projectRoot`/`projectId`/`projectSpacesDir`, `appGlobals`, and `parentAppCapabilities` (role-intersected in the fork) | `sdk/org/libs/core/src/delegate/delegate.ts:306-311` |
-| Attachments resolver | `documentResolver` — a fork/delegate can `readDocument(id)` | `sdk/org/libs/core/src/delegate/delegate.ts:324-325` |
+| Attachments resolver | `documentResolver` — a fork/delegate can `readDocument(id)`, including when a session task fork delegates again | `sdk/org/libs/core/src/delegate/delegate.ts:L324-L326` · `sdk/org/libs/core/src/session/session.ts:L684-L733` |
 
 The delegate leg also re-exposes its own `delegate()` to its tasks: a task's `delegate()` is routed through `delegateRunner`, which recurses with `depth + 1` under the same `maxDepth` bound (`sdk/org/libs/core/src/delegate/delegate.ts:269-285`, `:320-323`; session equivalent at `sdk/org/libs/core/src/session/session.ts#Session.runDelegateForFork`, `:763`).
 

@@ -107,7 +107,7 @@ readDocument is not available here: no document resolver configured
 
 ### The pod resolver (extraction matrix)
 
-`SessionManager` attaches `resolveDocument` to **every** session, project-rooted or not `sdk/org/libs/cli/src/server/session-manager.ts:385-390` · `sdk/org/libs/cli/src/server/session-manager.ts:447`, backed by `resolveUploadDocument(uploadsDir, id, opts)` `sdk/org/libs/cli/src/server/uploads.ts#resolveUploadDocument`. It is server-authoritative (only the id is trusted; bytes + metadata are re-read from disk) and **never throws** — an unreadable file resolves to `kind:'unsupported'` with an `error` string the agent can relay `sdk/org/libs/cli/src/server/uploads.ts:184-191`.
+`SessionManager` attaches `resolveDocument` to **every** session, project-rooted or not `sdk/org/libs/cli/src/server/session-manager.ts:385-390` · `sdk/org/libs/cli/src/server/session-manager.ts:447`, backed by `resolveUploadDocument(uploadsDir, id, opts)` `sdk/org/libs/cli/src/server/uploads.ts#resolveUploadDocument`. The session threads that resolver through its `ForkEngine` and through a delegate launched by a task fork, so an action tasklist reached through either nesting path can call `readDocument(id)` (`sdk/org/libs/core/src/session/session.ts:L684-L733`, `sdk/org/libs/core/src/delegate/delegate.ts:L290-L327`). It is server-authoritative (only the id is trusted; bytes + metadata are re-read from disk) and **never throws** — an unreadable file resolves to `kind:'unsupported'` with an `error` string the agent can relay `sdk/org/libs/cli/src/server/uploads.ts:184-191`. 
 
 | Input | Result |
 |---|---|

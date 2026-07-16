@@ -620,7 +620,16 @@
       "outcome": "abandoned",
       "startedAt": "2026-07-16T06:31:33.655Z",
       "endedAt": "2026-07-16T06:36:02.976Z"
+    },
+    {
+      "task": "06-tanzania",
+      "round": 17,
+      "attempt": 1,
+      "bin": "/home/vasilis/.claude-azure/launch.sh",
+      "outcome": "running",
+      "startedAt": "2026-07-16T06:36:03.013Z",
+      "endedAt": null
     }
   ],
-  "updatedAt": "2026-07-16T06:36:02.976Z"
+  "updatedAt": "2026-07-16T06:36:03.013Z"
 }

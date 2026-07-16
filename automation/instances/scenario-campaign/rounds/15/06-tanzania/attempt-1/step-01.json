@@ -1,0 +1,75 @@
+{
+  "step": 1,
+  "verbs": [
+    "attach",
+    "say"
+  ],
+  "expect": [
+    "all five files are actually read — the photo LOOKED AT (vision), the voice memo TRANSCRIBED, the PDF and the spreadsheet PARSED",
+    "it OFFERS to organize this without being asked, naming at least two real specifics of mine (a place, a date, a booking)",
+    "it builds NOTHING yet — no spaces, no tables, no pages, no app (the offer precedes any authoring yield)"
+  ],
+  "attached": [
+    "tanzaniamemories.md",
+    "trip-costs.xlsx",
+    "ngorongoro-conservation-area-tariffs.pdf",
+    "stone-town-zanzibar.jpg",
+    "voice-memo.mp3"
+  ],
+  "turns": [
+    {
+      "sent": "Ok this is getting out of hand. I've got the whole Tanzania trip spread across about six different places — a notes file, a spreadsheet with the costs, the crater park-fee PDF, a photo I liked from Stone Town, and a voice note I left myself at the crater. Attaching all of it. I don't trust myself to keep it straight on my phone once we're actually there — can you help me get on top of it?",
+      "lastText": "{\"type\":\"Stack\",\"props\":{\"gap\":2},\"children\":[{\"type\":\"Heading\",\"props\":{\"level\":2},\"children\":[\"I see everything you've got — here's what I found\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Across the five pieces you sent, there are actually \",{\"type\":\"Strong\",\"props\":{},\"children\":[\"five distinct datasets\"]},\":\"]},{\"type\":\"OrderedList\",\"props\":{\"items\":[\"tanzaniamemories.md — your journal: notes, contacts, recommendations, the story so far.\",\"trip-costs.xlsx — your cost tracker: line items for the trip, likely across one or more sheets.\",\"ngorongoro-conservation-area-tariffs.pdf — the official Ngorongoro park-fee table: structured rates that matter for your budget.\",\"stone-town-zanzibar.jpg — your Stone Town photo: a visual memory you wanted to keep (those carved wooden balconies between the white buildings).\",\"Voice memo — Ngorongoro crater day: driver Emmanuel, the Maasai bracelets for Athena Mari (~$20–25 / TZS 35,000), and an unresolved ranger-tip question (~TZS 5,000 cash at the gate) you need to ask Richard about before the safari balance payment.\"]},\"children\":[]},{\"type\":\"Callout\",\"props\":{\"variant\":\"info\",\"title\":\"The real problem\"},\"children\":[\"Right now these live i…",
+      "delegates": [
+        "system-vision/vision",
+        "system-files/dispatch",
+        "system-files/reader",
+        "system-files/sheet"
+      ],
+      "yieldKinds": [
+        "delegate",
+        "loadKnowledge",
+        "readDocument",
+        "inspect",
+        "setSessionMeta"
+      ],
+      "yieldCount": 17,
+      "errors": [
+        {
+          "type": "typecheck_error",
+          "message": "Cannot find name 'sheetAnswer'.",
+          "statement": "// The sheetAnswer already contains a full combined summary of all three files.\n// I'll resolve with it directly — it's the most complete answer.\ncurrentTask.resolve(sheetAnswer);",
+          "attempt": 1
+        },
+        {
+          "type": "typecheck_error",
+          "message": "Cannot find name 'readerAnswer'.",
+          "statement": "// sheetAnswer was bound in a prior statement that errored or was dropped.\n// Let me use readerAnswer instead, which is in scope, and note the situation.\ncurrentTask.resolve(readerAnswer);",
+          "attempt": 2
+        }
+      ],
+      "nodeCount": 5,
+      "tokens": {
+        "in": 66984,
+        "out": 5298
+      },
+      "durationMs": 134940,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "state": {
+    "spaces": [],
+    "spaceCount": 0,
+    "appTables": {},
+    "appManifest": {
+      "tableNames": [],
+      "pageCount": 0,
+      "built": false
+    },
+    "error": null,
+    "appError": null
+  },
+  "fullEvidence": "step-01.full.json"
+}

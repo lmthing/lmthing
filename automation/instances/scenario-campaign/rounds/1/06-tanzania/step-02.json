@@ -1,0 +1,103 @@
+{
+  "step": 2,
+  "verbs": [
+    "say"
+  ],
+  "expect": [
+    "SPACES GET CREATED — the supplied material is split across MULTIPLE specialist agents for distinct parts of the trip (the real places/legs it covers), grounded in the supplied content — NOT dumped into a single generic catch-all space. The exact partition is the model's call; what fails is one catch-all, or no specialists at all.",
+    "MY TRIP LANDS IN THE DB — legs, dates, lodging, costs, the park fees, what I've already paid",
+    "flight reference ZZJQUU (from the notes) is a real DB row — proof the notes were parsed, not guessed",
+    "the spreadsheet's cost lines land as DB rows (the run toward the 3344.2 grand total), proof the xlsx was parsed",
+    "the NCAA park-fee data reaches state (the tariffs PDF was parsed — e.g. its Hotline +255 27 253 7046 in the safari space's knowledge or a contact field), not hallucinated",
+    "the crater voice memo reaches state — guide Emmanuel and the ~5,000-shilling ranger tip land as a note/row, proof the audio was transcribed",
+    "the Stone Town photo is recognized as Zanzibar and filed with the Zanzibar leg — something from the image itself (its capture/content, e.g. Canon PowerShot SX30 IS), not the filename, reaches state",
+    "AN APP GETS BUILT on those tables — real pages showing my real rows — and served",
+    "NO RESEARCH HAPPENS in this whole build (no webSearch/webFetch yields): everything it needed, I handed it"
+  ],
+  "turns": [
+    {
+      "sent": "Yes please.",
+      "lastText": "I organized what I could, but part of the setup needs another look. The project has no pages yet and no API routes. Let me know and I'll sort out whatever didn't land right.",
+      "delegates": [
+        "system-architect/architect/synthesize_and_run",
+        "system-architect/architect/synthesize_and_run",
+        "system-architect/architect/synthesize_and_run",
+        "system-appbuilder/automator/build_live_project"
+      ],
+      "yieldKinds": [
+        "tasklist",
+        "readDocument",
+        "loadKnowledge",
+        "delegate",
+        "inspect",
+        "registerSpace"
+      ],
+      "yieldCount": 24,
+      "errors": [
+        {
+          "type": "typecheck_error",
+          "message": "',' expected.; ',' expected.; Cannot find name 'special'.; Expected 5 arguments, but got 7.",
+          "statement": "// Aspect 2: beach-practicalities\nconst opt2 = writeKnowledgeOption(design.slug, f.domain, f.field, f.aspects[1],\n  \"# \" + f.aspects[1] + \"\\n\\n\" +\n  \"Zanzibar's beaches — primarily on the east and north coasts — are the classic tropical unwind after a dusty safari. In August (dry season), days are sunny with temperatures around 25–30°C and low humidity, making beach time very comfortable.\\n\\n\" +\n  \"Practicalities for the fully-booked traveler:\\n\" +\n  \"- **Tides matter enormously**: The east coast (Paje, Jambiani, Dongwe) has extreme tidal swings. At low tide the water recedes hundreds of meters, exposing sea urchins and sharp coral — reef shoes are essential. High tide brings swimmable water right to resort steps. North-coast beaches (Nungwi, Kendwa) have much smaller tidal variation and are swimmable all day.\\n\" +\n  \"- **Beach vendors (\\\"beach boys\\\")**: Persistent salespeople walk the beaches offering excursions, souvenirs, and \"special\" goods. A firm, polite \\\"no thank you\\\" works if you're not interested. Do not engage if you don't intend to buy; even friendly conversation is interpreted as a sales opening.\\n\" +\n  \"- **Resort amenities**: Most resorts on the east coast are self-contained with pools, restaurants, and security; many offer excursions to snorkeling, dolphin watching, and spice tours. Since your itinerary is fully booked, check with your tour operator whether beach transfers and activities are already arranged or offered as add-ons.\\n\" +\n  \"- **Swimming safety**: Rip currents exist on the east coast. Swim in designated areas or where others are swimming. North coast (Kendwa in particular) is calmer. Jellyfish are rare in August but possible — ask locally.\\n\" +\n  \"- **Dress at resorts**: Beachwear is normal at resort pools and beaches. Going topless is illegal in Tanzania. Some resorts tolerate it on private beaches; most do not.\\n\\n\" +\n  \"Source: \" + srcUrl\n);",
+          "attempt": 1
+        },
+        {
+          "type": "eval_error",
+          "message": "api endpoint rejected (not saved): the name \"questions\" is already used by api/questions/[id]/PATCH.ts — endpoint names are unique per project. Pick a different `export const name` (or edit that file).",
+          "statement": "const w = writeProjectApi(ep.route, src);"
+        },
+        {
+          "type": "typecheck_error",
+          "message": "Cannot find name 'envelope'.; Cannot find name 'envelope'.",
+          "statement": "// The delegation has been executed and `envelope` is now in scope with the automator's result.\n// Check the outcome and resolve accordingly.\n\nconst result = envelope.ok === true && envelope.data?.ok === true;",
+          "attempt": 1
+        },
+        {
+          "type": "typecheck_error",
+          "message": "Property 'some' does not exist on type '{ ok: boolean; entries: string[]; error?: string | undefined; }'.",
+          "statement": "// Check that there are pages (not just tables) — an app they can actually open.\nconst hasAppPages = dirContents.some((entry: any) => entry.path && entry.path.startsWith('pages/'));",
+          "attempt": 1
+        }
+      ],
+      "nodeCount": 161,
+      "tokens": {
+        "in": 416479,
+        "out": 54288
+      },
+      "durationMs": 525698,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "state": {
+    "spaces": [
+      "Ngorongoro Advisor",
+      "Tanzania Travel Advisor",
+      "Zanzibar & Stone Town Advisor"
+    ],
+    "spaceCount": 3,
+    "appTables": {
+      "contacts": 7,
+      "costs": 8,
+      "park_fees": 6,
+      "photos": 1,
+      "questions": 2,
+      "trip_legs": 6
+    },
+    "appManifest": {
+      "tableNames": [
+        "contacts",
+        "costs",
+        "park_fees",
+        "photos",
+        "questions",
+        "trip_legs"
+      ],
+      "pageCount": 7,
+      "built": false
+    },
+    "error": null,
+    "appError": null
+  },
+  "fullEvidence": "step-02.full.json"
+}

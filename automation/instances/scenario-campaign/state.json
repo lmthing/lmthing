@@ -608,10 +608,10 @@
       "round": 17,
       "attempt": 1,
       "bin": "/home/vasilis/.claude-azure/launch.sh",
-      "outcome": "running",
+      "outcome": "abandoned",
       "startedAt": "2026-07-16T06:02:48.764Z",
-      "endedAt": null
+      "endedAt": "2026-07-16T06:31:33.613Z"
     }
   ],
-  "updatedAt": "2026-07-16T06:02:48.764Z"
+  "updatedAt": "2026-07-16T06:31:33.613Z"
 }

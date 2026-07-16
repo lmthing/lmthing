@@ -1,0 +1,68 @@
+{
+  "step": 1,
+  "verbs": [
+    "attach",
+    "say"
+  ],
+  "expect": [
+    "all five files are actually read — the photo LOOKED AT (vision), the voice memo TRANSCRIBED, the PDF and the spreadsheet PARSED",
+    "it OFFERS to organize this without being asked, naming at least two real specifics of mine (a place, a date, a booking)",
+    "it builds NOTHING yet — no spaces, no tables, no pages, no app (the offer precedes any authoring yield)"
+  ],
+  "attached": [
+    "tanzaniamemories.md",
+    "trip-costs.xlsx",
+    "ngorongoro-conservation-area-tariffs.pdf",
+    "stone-town-zanzibar.jpg",
+    "voice-memo.mp3"
+  ],
+  "turns": [
+    {
+      "sent": "Ok this is getting out of hand. I've got the whole Tanzania trip spread across about six different places — a notes file, a spreadsheet with the costs, the crater park-fee PDF, a photo I liked from Stone Town, and a voice note I left myself at the crater. Attaching all of it. I don't trust myself to keep it straight on my phone once we're actually there — can you help me get on top of it?",
+      "lastText": "{\"type\":\"Stack\",\"props\":{\"gap\":2},\"children\":[{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"I've read the whole lot — your notes, the cost spreadsheet, the Ngorongoro tariff PDF, the Stone Town photo, and your crater voice memo. There's a \",{\"type\":\"Strong\",\"props\":{},\"children\":[\"lot\"]},\" here: flights, safari logistics, park fees with rules, Zanzibar stays, and a couple of things ONLY in your voice memo (Emmanuel the driver, Athena's bracelets from the Maasai lady, and that question about a 5,000-shilling ranger tip).\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Want me to pull all of it into one app you can open on your phone — with your itinerary, every cost, the park-fee rules, and even the photo and voice-memo details? You'd have one place to check instead of six.\"]}]}",
+      "delegates": [
+        "system-files/dispatch",
+        "system-vision/vision",
+        "system-files/reader",
+        "system-files/sheet"
+      ],
+      "yieldKinds": [
+        "delegate",
+        "loadKnowledge",
+        "readDocument",
+        "inspect"
+      ],
+      "yieldCount": 15,
+      "errors": [
+        {
+          "type": "typecheck_error",
+          "message": "'xlsxText' is possibly 'undefined'.",
+          "statement": "// Split into sheets\nconst sheetBlocks = xlsxText.split(/# Sheet: /).filter(b => b.trim());",
+          "attempt": 1
+        }
+      ],
+      "nodeCount": 5,
+      "tokens": {
+        "in": 56510,
+        "out": 8233
+      },
+      "durationMs": 154504,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "state": {
+    "spaces": [],
+    "spaceCount": 0,
+    "appTables": {},
+    "appManifest": {
+      "tableNames": [],
+      "pageCount": 0,
+      "built": false
+    },
+    "error": null,
+    "appError": null
+  },
+  "fullEvidence": "step-01.full.json"
+}

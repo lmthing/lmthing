@@ -1,5 +1,9 @@
 {
-  "tasks": {},
+  "tasks": {
+    "06-tanzania": {
+      "round": 1
+    }
+  },
   "runs": [
     {
       "task": "06-tanzania",
@@ -33,5 +37,5 @@
       "resetAt": null
     }
   ],
-  "updatedAt": "2026-07-16T16:00:45.778Z"
+  "updatedAt": "2026-07-16T16:00:45.829Z"
 }

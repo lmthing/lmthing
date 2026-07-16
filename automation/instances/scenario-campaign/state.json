@@ -635,10 +635,15 @@
       "round": 17,
       "attempt": 1,
       "bin": "/home/vasilis/.claude-azure/launch.sh",
-      "outcome": "running",
+      "outcome": "interrupted",
       "startedAt": "2026-07-16T07:04:33.179Z",
-      "endedAt": null
+      "endedAt": "2026-07-16T07:05:17.423Z",
+      "subtype": null,
+      "isError": false,
+      "costUsd": null,
+      "usage": null,
+      "resetAt": null
     }
   ],
-  "updatedAt": "2026-07-16T07:04:33.179Z"
+  "updatedAt": "2026-07-16T07:05:18.403Z"
 }

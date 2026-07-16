@@ -1,0 +1,193 @@
+{
+  "step": 1,
+  "verbs": [
+    "attach",
+    "say"
+  ],
+  "expect": [
+    "all five files are actually read — the photo LOOKED AT (vision), the voice memo TRANSCRIBED, the PDF and the spreadsheet PARSED",
+    "it OFFERS to organize this without being asked, naming at least two real specifics of mine (a place, a date, a booking)",
+    "it builds NOTHING yet — no spaces, no tables, no pages, no app (the offer precedes any authoring yield)"
+  ],
+  "turns": [
+    {
+      "sent": "Ok this is getting out of hand. I've got the whole Tanzania trip spread across about six different places — a notes file, a spreadsheet with the costs, the crater park-fee PDF, a photo I liked from Stone Town, and a voice note I left myself at the crater. Attaching all of it. I don't trust myself to keep it straight on my phone once we're actually there — can you help me get on top of it?",
+      "lastText": "{\"type\":\"Stack\",\"props\":{\"gap\":2},\"children\":[{\"type\":\"Heading\",\"props\":{\"level\":2},\"children\":[\"I read everything — here's what I see\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"You and Athina Mari are in Tanzania and Zanzibar from \",{\"type\":\"Strong\",\"props\":{},\"children\":[\"Aug 3–20, 2026\"]},\", with stops in Cairo on both ends. Your notes cover hotels (Eileen Hotel, Ramses Hilton, Serengeti Villa, the Suricata safari camps, and Zanzibar accommodation), a 3-day safari, and a spread of contacts including Richard from the safari office.\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"The spreadsheet tracks costs across several categories, and the Ngorongoro PDF lays out the park-fee tariff structure — vehicle fees, per-person entry, and any concessions — in both dollars and shillings.\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"From your voice memo: the crater day with guide \",{\"type\":\"Strong\",\"props\":{},\"children\":[\"Emmanuel\"]},\" was one of the best of your life. You bought \",{\"type\":\"Strong\",\"props\":{},\"children\":[\"two beaded bracelets for Athina Mari\"]},\" from a Maasai lady at the rim — roughly TZS 35,000 (~$20–25) — and Emmanuel flagged a possible \",{\"type\":\"Strong\",\"props\":{},\"children\":[\"extra ranger tip of ~TZS 5,000\"]},\"at the gate, separate from the park fees, that nobody had told you about. You want to ask Richard about that before settling the safari balance.\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"And the Stone Town photo — warm sunlit courtyard, white stucco, dark wooden balconies, bright blue sky. A keeper.\"]},{\"type\":\"Divider\",\"props\":{},\"children\":[]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Right now this is scattered across a notes file, a spreadsheet, a PDF, a photo, and a voice memo — and you said it yourself, you don't trust keeping it straight on your phone once you're there.\"]},{\"type\":\"Paragraph\",\"props\":{},\"children\":[{\"type\":\"Strong\",\"props\":{},\"children\":[\"Want me to pull it all together into an app you can open on your phone?\"]},\" It would have: a trip dashboard with every stop and hotel, a running cost tracker from your spreadsheet, the Ngorongoro tariff reference, your memories and the Stone Town photo, and everything from the voice memo — the bracelet purchase, the ranger-tip question, and the Richard follow-up — so nothing gets dropped. One place, no digging through files.\"]}]}",
+      "delegates": [
+        "system-vision/vision",
+        "system-files/dispatch",
+        "system-files/reader",
+        "system-files/sheet"
+      ],
+      "yieldKinds": [
+        "delegate",
+        "loadKnowledge",
+        "readDocument",
+        "setSessionMeta"
+      ],
+      "yields": [
+        {
+          "kind": "delegate",
+          "args": [
+            "system-vision",
+            "vision",
+            null,
+            {
+              "query": "Describe this photo in a SHORT paragraph — what it shows, the mood, any notable details. Keep it concise.",
+              "attachmentIds": [
+                "4e835255-b3db-4530-8d15-60332937df47"
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"dispatch\",null,{\"query\":\"Summarize these three documents in a SHORT paragraph each. For the notes file, give the key places/dates/contacts. For the spreadsheet, list the categories of costs and the total if visible. For the PDF, give the tariff structure (vehicle, person, any concessions) and the key dollar/shilling figures. Keep each summary tight — concrete specifics, not narrat…"
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"reader\",null,{\"query\":\"Summarize these three documents in a SHORT paragraph each. For the notes file, give the key places/dates/contacts. For the spreadsheet, list the categories of costs and the total if visible. For the PDF, give the tariff structure (vehicle, person, any concessions) and the key dollar/shilling figures. Keep each summary tight — concrete specifics, not narrativ…"
+        },
+        {
+          "kind": "delegate",
+          "args": "[\"system-files\",\"sheet\",null,{\"query\":\"Summarize these three documents in a SHORT paragraph each. For the notes file, give the key places/dates/contacts. For the spreadsheet, list the categories of costs and the total if visible. For the PDF, give the tariff structure (vehicle, person, any concessions) and the key dollar/shilling figures. Keep each summary tight — concrete specifics, not narrative…"
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/tabular/spreadsheet"
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "ac66dff7-33a7-47d8-81c4-6ade88d68c9c",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "2cb07ba2-58bb-4894-9f49-f5332116f0fe",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "4f719d9d-de00-467a-a3c6-95380b98b2f1",
+            null
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/text"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/word"
+          ]
+        },
+        {
+          "kind": "loadKnowledge",
+          "args": [
+            "documents/formats/pdf"
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "ac66dff7-33a7-47d8-81c4-6ade88d68c9c",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "2cb07ba2-58bb-4894-9f49-f5332116f0fe",
+            null
+          ]
+        },
+        {
+          "kind": "readDocument",
+          "args": [
+            "4f719d9d-de00-467a-a3c6-95380b98b2f1",
+            null
+          ]
+        },
+        {
+          "kind": "setSessionMeta",
+          "args": [
+            {
+              "title": "Tanzania trip organiser",
+              "slug": "tanzania-trip-organiser"
+            }
+          ]
+        }
+      ],
+      "errors": [
+        {
+          "type": "typecheck_error",
+          "message": "Expression expected.; Cannot find name 'Notes'.",
+          "statement": "**Notes",
+          "attempt": 1
+        }
+      ],
+      "nodes": [
+        {
+          "id": "delegate_2_d18abe41",
+          "status": "done",
+          "ms": 6945
+        },
+        {
+          "id": "delegate_4_b85e10d3",
+          "status": "done",
+          "ms": 37696
+        },
+        {
+          "id": "delegate_5_4dd55bd7",
+          "status": "done",
+          "ms": 47430
+        },
+        {
+          "id": "delegate_3_a2600f8e",
+          "status": "done",
+          "ms": 60478
+        },
+        {
+          "id": "run_1_acf3d255",
+          "status": "done",
+          "ms": 88903
+        }
+      ],
+      "tokens": {
+        "in": 55375,
+        "out": 4299
+      },
+      "durationMs": 94264,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "attached": [
+    "tanzaniamemories.md",
+    "trip-costs.xlsx",
+    "ngorongoro-conservation-area-tariffs.pdf",
+    "stone-town-zanzibar.jpg",
+    "voice-memo.mp3"
+  ],
+  "state": {
+    "spaces": [],
+    "appTables": {},
+    "appManifest": {
+      "tables": [],
+      "pages": [],
+      "built": false
+    },
+    "error": null
+  }
+}

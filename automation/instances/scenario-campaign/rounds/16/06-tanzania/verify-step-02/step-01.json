@@ -1,0 +1,76 @@
+{
+  "step": 1,
+  "verbs": [
+    "attach",
+    "say"
+  ],
+  "expect": [
+    "all five files are actually read — the photo LOOKED AT (vision), the voice memo TRANSCRIBED, the PDF and the spreadsheet PARSED",
+    "it OFFERS to organize this without being asked, naming at least two real specifics of mine (a place, a date, a booking)",
+    "it builds NOTHING yet — no spaces, no tables, no pages, no app (the offer precedes any authoring yield)"
+  ],
+  "attached": [
+    "tanzaniamemories.md",
+    "trip-costs.xlsx",
+    "ngorongoro-conservation-area-tariffs.pdf",
+    "stone-town-zanzibar.jpg",
+    "voice-memo.mp3"
+  ],
+  "turns": [
+    {
+      "sent": "Ok this is getting out of hand. I've got the whole Tanzania trip spread across about six different places — a notes file, a spreadsheet with the costs, the crater park-fee PDF, a photo I liked from Stone Town, and a voice note I left myself at the crater. Attaching all of it. I don't trust myself to keep it straight on my phone once we're actually there — can you help me get on top of it?",
+      "lastText": "{\"type\":\"Stack\",\"props\":{\"gap\":3},\"children\":[{\"type\":\"Heading\",\"props\":{\"level\":2},\"children\":[\"Here's what you've actually got across all these pieces\"]},{\"type\":\"Callout\",\"props\":{\"variant\":\"info\",\"title\":\"I pulled it all together\"},\"children\":[\"You weren't exaggerating — there are six distinct sources here, and together they form a pretty complete trip picture. Here's the inventory:\"]},{\"type\":\"Heading\",\"props\":{\"level\":3},\"children\":[\"🧾 What's in your material\"]},{\"type\":\"Panel\",\"props\":{\"title\":\"📋 tanzaniamemories.md — Your master notes\"},\"children\":[{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"A full trip dossier for you (Vasileios Kefallinos) & Athina Mari, Aug 3–20 2026. Covers multiple cities: Dar es Salaam, Arusha, Ngorongoro Crater safari, Zanzibar / Stone Town, and flights. Includes contacts (Richard at the safari office), accommodation names, and day-by-day plans.\"]}]},{\"type\":\"Panel\",\"props\":{\"title\":\"💰 trip-costs.xlsx — Your budget spreadsheet\"},\"children\":[{\"type\":\"Paragraph\",\"props\":{},\"children\":[\"Cost breakdown across the whole trip — flights, accommodation, safari, park fees, transfers, everything with figures. This is your financial picture.\"]}]},{\"type\":\"Pa…",
+      "delegates": [
+        "user-memory/memory",
+        "system-vision/vision",
+        "system-files/dispatch",
+        "system-files/reader",
+        "system-files/sheet"
+      ],
+      "yieldKinds": [
+        "delegate",
+        "loadKnowledge",
+        "readDocument",
+        "inspect",
+        "setSessionMeta"
+      ],
+      "yieldCount": 27,
+      "errors": [
+        {
+          "type": "typecheck_error",
+          "message": "Property 'error' does not exist on type '{ ok: boolean; facts: Record<string, unknown>; }'.",
+          "statement": "const summary = r.ok\n  ? keys.length === 0\n    ? 'No facts stored yet.'\n    : `Found ${keys.length} fact(s): ${keys.map(k => `${k}=${typeof facts[k] === 'string' ? `\"${facts[k]}\"` : JSON.stringify(facts[k])}`).join(', ')}`\n  : `Error recalling facts: ${r.error || 'unknown'}`;",
+          "attempt": 1
+        },
+        {
+          "type": "typecheck_error",
+          "message": "'tripText' is possibly 'undefined'.",
+          "statement": "// Parse the legs sheet\nconst legsLines = tripText.split('\\n');",
+          "attempt": 1
+        }
+      ],
+      "nodeCount": 6,
+      "tokens": {
+        "in": 100203,
+        "out": 22476
+      },
+      "durationMs": 288569,
+      "interrupted": false
+    }
+  ],
+  "asks": [],
+  "notes": [],
+  "state": {
+    "spaces": [],
+    "spaceCount": 0,
+    "appTables": {},
+    "appManifest": {
+      "tableNames": [],
+      "pageCount": 0,
+      "built": false
+    },
+    "error": null,
+    "appError": null
+  },
+  "fullEvidence": "step-01.full.json"
+}

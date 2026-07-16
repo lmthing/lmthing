@@ -112,6 +112,73 @@ Core stays persistence-free: it only writes a `session_meta` **trace event**
 
 ---
 
+## `setActivity(text)`
+
+The agent's live "currently doing" status. **Fire-and-forget** — it runs as a
+bridged host call that invokes the host `onActivity` hook synchronously and returns
+`void`, pushing **no** yield, so unlike `setSessionMeta` it does **NOT end the
+turn**; the agent bumps its status inline, repeatedly, as its work changes (exactly
+like `display`/`writeKnowledge`) `sdk/org/libs/core/src/globals/set-activity.ts#createSetActivityGlobal`.
+A stray non-string argument is coerced host-side rather than thrown — a throw inside
+the bridged call would abort the streaming statement `sdk/org/libs/core/src/globals/set-activity.ts#createSetActivityGlobal`.
+
+```ts
+setActivity('Searching for recipes…');
+// …later, as work changes…
+setActivity('Comparing 3 options');
+setActivity('');   // clear
+```
+
+**Ungated — injected in every VM.** Bound unconditionally into every context
+(session, fork, delegate) right after `display`, with no capability `if`
+`sdk/org/libs/core/src/exec/bootstrap.ts:188`, and declared in `COMMON_DTS`
+`sdk/org/libs/core/src/typecheck/library-dts.ts:38` — the mirror image of
+`setSessionMeta`, which is session-only behind `caps.setSessionMeta`. Passing `''`
+clears the caller's activity.
+
+**Scope is decided HOST-side, not by the model.** The global closes over an
+`onActivity(text)` hook (`ChildVMOpts.onActivity`
+`sdk/org/libs/core/src/exec/bootstrap.ts#ChildVMOpts.onActivity`) that each of the
+three VM sites wires to its own scope, so the *emitting VM* — never a parameter —
+disambiguates and cannot be spoofed:
+
+- the **top-level session** VM writes `scope:'session'` — the MAIN line
+  `sdk/org/libs/core/src/session/session.ts:672-677`;
+- a **fork** leaf writes `scope:'fork'`, keyed by its execution node
+  `sdk/org/libs/core/src/fork/fork.ts:307-311`;
+- a **delegate** writes `scope:'delegate'`, keyed by its node
+  `sdk/org/libs/core/src/delegate/delegate.ts:209-213`.
+
+Concurrent forks/delegates therefore each narrate their own work node.
+
+Each hook writes one **`activity` trace event**, shape
+`{ ts, type:'activity', context, nodeId?, scope:'session'|'fork'|'delegate', text }`
+`sdk/org/libs/core/src/sandbox/trace.ts:88-92`. The event is **ephemeral**: it sits
+in `FILE_EXCLUDED` alongside `llm_progress`, so the `Tracer` never writes it to the
+NDJSON trace file — it only streams to subscribers (the session hub → the client)
+`sdk/org/libs/core/src/sandbox/trace.ts#FILE_EXCLUDED`. Nothing persists it; it is
+purely live UX (contrast `session_meta`, which the server ingests and persists) →
+[../runtime/sessions.md](../runtime/sessions.md).
+
+**Consumers (chat UI) — two distinct sinks by scope.** Only the `session`-scope
+event feeds the header: `feedLive` lifts its `text` into the store's single
+`activity` string — THING's one main "currently doing" line — and ignores a
+non-`session` scope here `sdk/org/libs/ui/src/chat/store/session-slice.ts:82-86,126`.
+A `fork`/`delegate`-scope event is instead applied by the model reducer, which writes
+it onto that work node's `ExecNode.activity` field (an empty `text` clears it, falling
+back to the `//`-comment narration) `sdk/org/libs/ui/src/chat/store/model.ts:138-147`,
+`sdk/org/libs/ui/src/chat/store/model.ts:65-69`. The header renders **only** the main
+session line under the conversation title, not a nested list
+`sdk/org/libs/ui/src/chat/app/ChatView.tsx:187-197`; `setDone` (turn idle) and
+`resetSession` clear it `sdk/org/libs/ui/src/chat/store/session-slice.ts:135`,
+`sdk/org/libs/ui/src/chat/store/session-slice.ts:168`. The sub-activity surfaces in
+the **existing** `LiveActivity`/`WorkBlock` sub-agent panel, not the header: a running
+node's `WorkBlock` shows `node.activity` when set, overriding the `//`-comment
+`narrationOf` heuristic `sdk/org/libs/ui/src/chat/app/WorkBlock.tsx:67` →
+[../chat/views.md](../chat/views.md).
+
+---
+
 ## `sleep(duration)`
 
 Pauses the run: a value yield (`kind:'sleep'`) that resolves to `void` after the parsed

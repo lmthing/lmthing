@@ -247,6 +247,14 @@ A session's display name has two sources:
    emits a `session_meta` trace event **instead of persisting directly** — core
    stays persistence-free (`session.ts:827-842`).
 
+> **Not everything on the tracer is persisted.** The sibling `activity` trace event
+> — the agent's live "currently doing" status from `setActivity` — is deliberately
+> **ephemeral**: it is in `FILE_EXCLUDED` alongside `llm_progress`, so the `Tracer`
+> never writes it to the trace file, and nothing ingests or persists it
+> (`sdk/org/libs/core/src/sandbox/trace.ts#FILE_EXCLUDED`). It exists only to stream
+> the status to the client for the duration of the turn →
+> [../runtime-globals/session-and-utils.md](../runtime-globals/session-and-utils.md).
+
 The server ingests that trace event: `wireTracer` (`session-manager.ts:314-318`)
 adopts `title`/`slug` onto the `SessionEntry` and calls `persistSession`. The
 persisted shape is `PersistedSessionMeta` (`projects.ts:405-421`):

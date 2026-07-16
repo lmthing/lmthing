@@ -108,6 +108,7 @@ The profile has seven boolean flags plus the parsed app grants
 | `delegate` | policy | policy | only via task `canDelegateTo` |
 | `registerSpace` | ✅ | ❌ | only when `allowWrite` |
 | `setSessionMeta` | ✅ | ❌ | ❌ |
+| `setActivity` (ungated — NOT a profile flag; injected in every VM like `display`) | ✅ | ✅ | ✅ |
 | `allowWrite` (mutating `execShell`, the internal `writeFileRaw` — neither on the model DTS) | ✅ | ✅ | `role !== explore\|plan` |
 | `scratchFs` (`createScratch` + a scratch-jailed `execShell` on the model DTS) | `fs:scratch` grant | `fs:scratch` grant | grant, dropped for read-only roles |
 | `app: AppCapabilities` | as granted | as granted | `intersectAppCaps(app, allowWrite)` |
@@ -238,6 +239,7 @@ Y = value-yielding (ends the turn). S = synchronous host call. F = fire-and-forg
 |---|---|---|---|---|
 | `ask(descriptor)` | Y | Prompt the user with a JSX form/descriptor; resolves to their answer | `caps.ask` — **top-level session only** | [conversation.md](./conversation.md) |
 | `display(descriptor)` | F | Render a block into the transcript; does **not** end the turn | none (every VM) | [conversation.md](./conversation.md) |
+| `setActivity(text)` | F | Set the live "currently doing" status — the session's main header line, or a fork/delegate work node's narration; `''` clears | none (every VM) | [session-and-utils.md](./session-and-utils.md) |
 | `inspect(...args)` | Y | Query a large value host-side (path/slice/depth/filter/sample/keys/count/search); emits a VARIABLES block | none | [conversation.md](./conversation.md) |
 | `fork(opts)` | Y | Spawn a headless sub-agent; `output` schema is **required** | `caps.orchestrate` — never a fork leaf | [delegation.md](./delegation.md) |
 | `tasklist(name, seed?)` | Y | Run a named DAG; resolves to a `TaskEnvelope` | `caps.orchestrate` | [delegation.md](./delegation.md) |

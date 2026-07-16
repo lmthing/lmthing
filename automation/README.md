@@ -83,6 +83,14 @@ Round is tracked **per task** in `state.json`. On each selection the engine pick
 to `tasks` later — with 0 completed runs — is picked next and runs its round 1 with the initial
 prompt**, even while the others are on round 5. It then advances through its own rounds.
 
+**A round is consumed (the counter advances) when its run reaches a terminal state:** `done`,
+`error`, `skip`, a deliberate **`stop`**, or an **abandoned** run (the loop died mid-run, detected +
+consumed on the next startup). The **one** non-terminal case is a usage **`limit`** — that round is
+*resumable*, so the counter does NOT advance and the next launch re-selects the same round to
+continue from its `PROGRESS.md`. This is what makes each fresh launch of a killed/crashed round start
+in a **new, clean directory** rather than re-entering the dead one (whose `PROGRESS.md` `seedProgress`
+would refuse to overwrite). Use **`pause`/`continue`**, not `stop`, when you mean "resume later".
+
 ## 5. State, artifacts, and what's committed
 
 - **`state.json`** (instance root) — the **durable, git-committed ledger**: per-task rounds +

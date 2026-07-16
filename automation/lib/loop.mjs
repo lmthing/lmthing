@@ -25,6 +25,7 @@ import { renderTemplate, renderString } from './template.mjs';
 import {
   loadState,
   saveState,
+  taskRound,
   bumpTaskRound,
   writeRuntime,
   takeControl,
@@ -308,6 +309,12 @@ export async function runLoop(cfg, opts = {}) {
       recordRunEnd(cfg, { task: sel.task, round: sel.round, attempt, bin: activeBin.name, result, branch });
 
       if (result.intent === 'stop') {
+        // A deliberate stop ENDS this round. It was neither completed nor is it a resumable usage
+        // limit (pause/continue is the resume path, not stop). If we left the round unconsumed the
+        // next launch would re-select the SAME round and re-enter its now-dead directory — inheriting
+        // the killed attempt's PROGRESS.md (seedProgress won't overwrite) and stale evidence. Consume
+        // it so the next launch starts a fresh round in a clean dir. (Only `limit` keeps the round.)
+        bumpAndCommit(cfg, { task: sel.task, round: sel.round, branch });
         settled = 'stop';
       } else if (result.intent === 'skip') {
         bumpAndCommit(cfg, { task: sel.task, round: sel.round, branch });
@@ -510,12 +517,21 @@ function reapAbandonedRuns(cfg) {
   const stale = state.runs.filter((r) => r.outcome === 'running');
   if (!stale.length) return;
   const endedAt = new Date().toISOString();
+  let consumed = 0;
   for (const r of stale) {
     r.outcome = 'abandoned';
     r.endedAt = endedAt;
+    // A loop that died mid-run leaves an unresumable, half-populated round dir. Consume that round
+    // (like a stop) so the next launch starts fresh instead of re-entering the dead dir. Guarded by
+    // `taskRound < r.round` so it fires ONCE even with several abandoned entries for the same round,
+    // and never rolls a round back that a later done/error already advanced past.
+    if (taskRound(state, r.task) < r.round) {
+      bumpTaskRound(state, r.task);
+      consumed += 1;
+    }
   }
   saveState(cfg.paths.stateJson, state);
-  log(`reaped ${stale.length} abandoned run(s) from a previous loop`);
+  log(`reaped ${stale.length} abandoned run(s) from a previous loop${consumed ? ` (consumed ${consumed} round(s))` : ''}`);
   commitState({
     cwd: cfg.cwd,
     paths: [relative(cfg.cwd, cfg.paths.stateJson)],

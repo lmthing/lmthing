@@ -129,7 +129,7 @@ Each fork is spawned via `forkWithMeta` seeded with the (filtered) tasklist inpu
 
 ### `dependsOn` & upstream outputs
 
-A task's resolved output is stored in `allOutputs[id]` (`sdk/org/libs/core/src/tasklist/orchestrator.ts:288-290`) and passed to dependents as `upstreamOutputs` — each dependency's output injected as a named variable matching its task id (`sdk/org/libs/core/src/fork/fork.ts:301`, `:313-317`). Upstream values stay **raw** schema data; degradation metadata never leaks into them (`sdk/org/libs/core/src/tasklist/orchestrator.ts:60-66`).
+A task's resolved output is stored in `allOutputs[id]` (`sdk/org/libs/core/src/tasklist/orchestrator.ts:288-290`) and passed to dependents as `upstreamOutputs` — each dependency's output is injected as a named variable matching its task id. Its ambient DTS derives from the upstream node's declared top-level output schema, so `array` becomes `any[]` (and callbacks get an inferred parameter) while undeclared fields stay `any`; a `forEach` dependency — whose collected value is an **array** of its output shape — is wrapped `Array<…>`, so the collector's `.map`/`.reduce`/`.find` callback is typed too and does not abort the fork with an implicit-any (`sdk/org/libs/core/src/tasklist/orchestrator.ts:L131-L135`, `sdk/org/libs/core/src/fork/fork.ts#taskOutputDts`). Upstream values stay **raw** schema data; degradation metadata never leaks into them (`sdk/org/libs/core/src/tasklist/orchestrator.ts:60-66`).
 
 ### `forEach` fan-out
 

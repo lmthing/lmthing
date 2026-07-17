@@ -16,7 +16,7 @@ pnpm test libs/core/src/tasklist/condition-dsl # one file (substring filter)
 
 pnpm build && LM_LIVE=1 pnpm exec vitest run libs/cli/src/testing/live-llm.test.ts   # real model
 
-cd sdk/org/scenarios/harness && node smoke.mjs   # live prod scenarios (real cluster, real LLM)
+node sdk/org/scenarios/run-yaml.mjs 06-tanzania --fresh-server   # a live scenario (local serve, real LLM) — §7
 ```
 
 There is **no `test` script at the repo root** (`package.json:L8-L16` — only `dev`, `thing`,
@@ -318,52 +318,61 @@ isolation (`pnpm exec vitest run libs/cli/src/server/serve-tree-ws.test.ts`).
 
 ---
 
-## 7. `sdk/org/scenarios/` — the live prod runner
+## 7. `sdk/org/scenarios/` — the live scenario runner
 
-Vitest stops at the process boundary. The `scenarios/` tree is the layer above: **six end-to-end
-scenarios driven against the live production cluster with a live LLM** — a disposable prod user, a
-real compute pod, a real THING chat session. Nothing is mocked
-(`sdk/org/scenarios/_template/run.mjs:L1-L27`). They ship as `05-latam`, `06-tanzania`,
-`07-life-admin`, `08-small-shop`, `09-home-renovation` and `10-family-recipes`.
+Vitest stops at the process boundary. The `scenarios/` tree is the layer above: **end-to-end
+scenarios played against a real `lmthing serve` with a live LLM** — a real project, a real THING chat
+session, real model calls, nothing mocked. The tree is a script-free workspace package,
+`@lmthing/scenario-harness` (`sdk/org/scenarios/package.json`), whose public surface is the barrel
+`sdk/org/scenarios/index.mjs`.
 
-Each scenario is **`scenario.md` (the spec) + `fixtures/` (real, web-sourced input files)**. Its
-`run.mjs` is **generated from that spec** by the scenario campaign
-(`automation/instances/scenario-campaign/`), starting from `_template/run.mjs` — so a scenario
-directory with no `run.mjs` yet is expected, not broken.
+A scenario is a **single declarative `scenario.yaml`** (persona · promise · invariants · knows ·
+steps) plus a **`fixtures/`** dir of real input files — `06-tanzania` and `07-life-admin` today. It is
+played by the generic runner `run-yaml.mjs`, **local by design** (`SCENARIO_TARGET=local` →
+`http://localhost:8080`, no auth): a product fix is `pnpm build` + a server restart (seconds), not a
+prod image roll. The runner writes per-step **evidence** for a separate judge
+(`automation/instances/scenario-campaign/judge.md`) to score — it does not judge.
 
 ```bash
-cd sdk/org/scenarios/harness
-node smoke.mjs                 # prove the harness + prod are healthy first (≈1 min)
-node ../05-latam/run.mjs       # once its runner exists, it writes its own report
+node scenarios/harness/local-server.mjs up             # a throwaway `lmthing serve` on :8080
+node scenarios/run-yaml.mjs 06-tanzania --plan          # dry-print the step plan + fixture-coverage audit
+node scenarios/run-yaml.mjs 06-tanzania --fresh-server  # wipe the pod root, play every step, write evidence
 ```
 
-A long scenario **checkpoints**: the runner writes `results/checkpoint.json` after every act and a
-re-run resumes the same user/project/session, so a failure in act IV doesn't cost the acts before it;
-`--acts=3,4` runs a subset and `--fresh` starts over (`sdk/org/scenarios/_template/run.mjs:L43-L45`).
+The engine is `ScenarioRunner` (`sdk/org/scenarios/lib/runner.mjs#ScenarioRunner`): it ensures the
+local server (`sdk/org/scenarios/harness/lib/local.mjs#freshLocalServer`), plays each step's verbs
+(`say`, `then_say`, `in_app_chat`, `open_app`, `attach[]`, `fresh_session`, `restart_pod`;
+`if_asked{}`/`deny_consent` ground the driver's in-persona answers via
+`sdk/org/scenarios/lib/asks.mjs#StepAsks`), and after every step writes the raw `step-NN.full.json`,
+the judge-sized `step-NN.json` (`sdk/org/scenarios/lib/evidence.mjs#compactStep`), a `trace.md` block
+(`sdk/org/scenarios/lib/evidence.mjs#traceLines`) and a captured
+`sdk/org/scenarios/lib/evidence.mjs#snapshot` of spaces + app tables. `--through N` replays steps
+1..N — the judge's verify rerun. `expect[]` is passed through, never executed.
 
 `smoke.mjs` walks the whole chain — register → pod → env → THING session → a real LLM turn → trace
-assertions — and exists so no scenario burns an hour on a broken harness
+assertions — so no scenario burns time on a broken harness
 (`sdk/org/scenarios/harness/smoke.mjs:L1-L14`).
 
 ### Layout
 
-- `scenarios/<NN>-<slug>/scenario.md` — the **spec**: the persona, the verbatim user messages, and
-  the Acts table the runner must implement 1:1.
-- `scenarios/<NN>-<slug>/fixtures/` — the real input files (photos, PDFs, spreadsheets, voice memos)
-  and `links.md`, which names the **unique token** each fixture carries.
-- `scenarios/<NN>-<slug>/run.mjs` — the **executable spec**, generated from `scenario.md`. It writes
-  `scenarios/<NN>-<slug>/results/report.md` plus a raw trace JSON `results/trace.json`
-  (`sdk/org/scenarios/_template/run.mjs#RESULTS`; `Report.save`/`Report.saveTrace`,
-  `sdk/org/scenarios/harness/lib/report.mjs:L109-L121`).
-- `scenarios/harness/` — zero-dependency Node ESM. `provision.mjs` (`getUser`, `loadUser` —
-  `:L28-L45`) plus `lib/`: `Pod` (the pod REST client, `lib/pod.mjs:L9`), `ThingSession`
-  (`lib/thing.mjs:L28`), `Report` (`lib/report.mjs:L13`), `gateway.mjs`, `jwt.mjs`, `paths.mjs`.
-- `scenarios/_template/` — `cp -r _template <NN-slug>` scaffold, holding just `scenario.md` +
-  `run.mjs` (`sdk/org/scenarios/_template/`).
-- `scenarios/README.md` — the document format, the authoring workflow and the run-and-fix process.
-  Each scenario dir holds a `scenario.md` (the spec) beside a `run.mjs` (the executable spec) and
-  writes `results/report.md`, whose contents are pasted back into the spec's **Actual results**
-  section — so the document is both the plan and the record (`sdk/org/scenarios/README.md:24-28`).
+- `scenarios/<NN>-<slug>/scenario.yaml` — the **declarative spec**: persona, the verbatim user
+  messages as `say` steps, `if_asked` answers, and the `expect[]` the judge verifies.
+- `scenarios/<NN>-<slug>/fixtures/` — the real input files (photos, PDFs, spreadsheets, voice memos) a
+  `say` step `attach`es.
+- `scenarios/<NN>-<slug>/.run/` — the runner's evidence (`step-NN.json`, `.full.json`, `trace.md`,
+  `summary.json`, `runner.pid`); gitignored.
+- `scenarios/lib/` — the runner library: `scenario.mjs` (`loadScenario`/`planLines`), `runner.mjs`
+  (`ScenarioRunner`/`runScenario`), `evidence.mjs`, `asks.mjs`, `errors.mjs`. Pure-transform tests
+  live beside them (`scenarios/lib/*.test.mjs`, matched in `sdk/org/vitest.config.ts`).
+- `scenarios/harness/` — zero-dependency Node ESM the runner drives: `provision.mjs`
+  (`sdk/org/scenarios/harness/provision.mjs#getUser`), `lib/pod.mjs`
+  (`sdk/org/scenarios/harness/lib/pod.mjs#Pod`), `lib/thing.mjs`
+  (`sdk/org/scenarios/harness/lib/thing.mjs#ThingSession`), `lib/local.mjs` (the local-server
+  lifecycle), `lib/gateway.mjs` (the prod-provisioning path used by `smoke.mjs`), `lib/report.mjs`
+  (`sdk/org/scenarios/harness/lib/report.mjs#Report`), `jwt.mjs`, `paths.mjs`.
+- `scenarios/_template/` — `cp -r _template <NN-slug>` scaffold: a `scenario.yaml` skeleton
+  (`sdk/org/scenarios/_template/`).
+- `scenarios/README.md` — the scenario format, the authoring workflow and the evidence contract.
 
 ### The harness API
 

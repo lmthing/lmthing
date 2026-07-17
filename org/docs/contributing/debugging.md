@@ -301,26 +301,28 @@ carries a `meta.json` (title/slug/lastActivity — `projects.ts:404-450`), which
 
 ---
 
-## 8. Running a scenario (end-to-end, against prod)
+## 8. Running a scenario (end-to-end)
 
-`sdk/org/scenarios/` holds executable end-to-end specs — a disposable prod user, a real pod, a real
-THING session, a real LLM (`sdk/org/scenarios/README.md`). Six exist today, each a directory with a
-`run.mjs`: `05-latam`, `06-tanzania`, `07-life-admin`, `08-small-shop`, `09-home-renovation`,
-`10-family-recipes`; each writes its own `results/report.md` plus a raw trace JSON `results/trace.json`
-(`sdk/org/scenarios/_template/run.mjs#RESULTS`; `sdk/org/scenarios/harness/lib/report.mjs:L109-L121`).
+`sdk/org/scenarios/` holds end-to-end specs played against a real `lmthing serve` with a live LLM — a
+real project, a real THING session, real model calls (`sdk/org/scenarios/README.md`). The current
+scenarios are declarative `scenario.yaml` files (`06-tanzania`, `07-life-admin`) played by the generic
+runner `run-yaml.mjs`, **local by design**. It writes per-step evidence — `step-NN.json` (compact) +
+`.full.json` (raw) + `trace.md` — into `<scenario>/.run/` for a judge to score
+(`sdk/org/scenarios/lib/runner.mjs#ScenarioRunner`, `sdk/org/scenarios/lib/evidence.mjs#compactStep`).
 
 ```bash
-cd sdk/org/scenarios/harness
-node smoke.mjs                 # prove harness + prod are healthy first (≈1 min) — smoke.mjs:1-50
-node ../05-latam/run.mjs       # the runner writes its own report
+node sdk/org/scenarios/harness/local-server.mjs up               # a throwaway `lmthing serve` on :8080
+node sdk/org/scenarios/run-yaml.mjs 06-tanzania --fresh-server    # play every step, write evidence
+node sdk/org/scenarios/run-yaml.mjs 06-tanzania --plan --through 5  # dry-plan / verify-rerun steps 1..5
 ```
 
-The harness is zero-dependency Node ESM driving the pod's HTTP API directly (no browser). It needs a
-gateway JWT: the signing key is read from `<repo>/.etc/.gateway-jwt-secret.b64`
-(`harness/lib/jwt.mjs:22-27`) — fetch it with the `kubectl get secret lmthing-secrets` one-liner in that
-file's header comment (`jwt.mjs:1-20`; mind the double base64). Targets default to
-`https://lmthing.cloud` (`lib/gateway.mjs:16`, override `LM_GATEWAY`) and `https://lmthing.chat`
-(`lib/gateway.mjs:199`, override `LM_POD_BASE`).
+The harness is zero-dependency Node ESM driving the pod's HTTP/WS API directly (no browser). The
+runner uses the local, token-free path (`sdk/org/scenarios/harness/lib/local.mjs#freshLocalServer`);
+`smoke.mjs` and manual prod runs use the gateway path and a minted JWT — the signing key is read from
+`<repo>/.etc/.gateway-jwt-secret.b64` (`harness/lib/jwt.mjs:22-27`), fetched with the
+`kubectl get secret lmthing-secrets` one-liner in that file's header comment (`jwt.mjs:1-20`; mind the
+double base64). Prod targets default to `https://lmthing.cloud` (`lib/gateway.mjs:16`, override
+`LM_GATEWAY`) and `https://lmthing.chat` (`lib/gateway.mjs:199`, override `LM_POD_BASE`).
 
 ```js
 import { getUser } from './provision.mjs';              // register → pod → keys → ready (provision.mjs:37-60)

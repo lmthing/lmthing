@@ -1,6 +1,6 @@
 ---
 name: scenario-authoring
-description: Load when creating a NEW scenario or EXTENDING an existing one — a declarative `sdk/org/scenarios/<id>/scenario.yaml` (persona · promise · invariants · steps) played by the generic runner and judged against the three-store contract. Covers the format, the real-fixture rule, the invariant library, and the generalize-never-overfit rule. NOT for running/judging a scenario — that is `@.claude/skills/scenario-campaign-loop.md`.
+description: Load when creating a NEW scenario or EXTENDING an existing one — a declarative `sdk/org/scenarios/<id>/scenario.yaml` (persona · promise · invariants · steps) played by the generic runner and judged against the three-store contract. Covers the format, the real-fixture rule, the invariant library, and the generalize-never-overfit rule. NOT for running/judging a scenario — that is `sdk/org/scenarios/campaign/judge.md`.
 ---
 
 # Skill: Authoring a scenario
@@ -14,12 +14,12 @@ demand them, never a feature checklist wearing a persona.
 
 ## Read first (the grounded truth)
 
-- `automation/instances/scenario-campaign/scenario-spec.md` — THE spec: the `scenario.yaml` format,
+- `sdk/org/scenarios/campaign/scenario-spec.md` — THE spec: the `scenario.yaml` format,
   the four real-person hard rules, the **three-store contract** (DB row vs space knowledge vs user
   memory), the **invariant library** (pull lines VERBATIM), the feature-surface map, and the
   generalize-never-overfit rule.
-- `automation/instances/scenario-campaign/create.md` — the procedure for a brand-new scenario.
-- `automation/instances/scenario-campaign/extend.md` — the procedure for growing a green one.
+- `sdk/org/scenarios/campaign/create.md` — the procedure for a brand-new scenario.
+- `sdk/org/scenarios/campaign/extend.md` — the procedure for growing a green one.
 - `sdk/org/scenarios/06-tanzania/scenario.yaml` — the worked example (18 steps, full contract, all
   six fixtures token-asserted). Copy its shape.
 - `sdk/org/scenarios/run-yaml.mjs` — the generic runner that plays a `scenario.yaml`. Read its step

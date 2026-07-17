@@ -332,7 +332,7 @@ played by the generic runner `run-scenario.mjs`, **local by design** (`SCENARIO_
 default): every invocation spins up its **own** throwaway `lmthing serve` via
 `pnpm lmthing serve --cwd <run>/data …`, which runs the CLI from TS source through `tsx` — so a
 product fix needs **no `pnpm build`**, just a rerun. The runner writes per-step **evidence** for a
-separate judge (`automation/instances/scenario-campaign/judge.md`) to score — it does not judge.
+separate judge (`sdk/org/scenarios/campaign/judge.md`) to score — it does not judge.
 
 Each invocation is a fresh, uniquely-numbered **run** under `sdk/org/scenarios/<scenario>/runs/<n>/`:
 its own `data/.lmthing`, its own server on an allocated port, and — at the end of every step — a

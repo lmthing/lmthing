@@ -1,6 +1,6 @@
 /**
  * scenario-campaign — run each scenario (sdk/org/scenarios/<id>/scenario.yaml) end-to-end against a
- * LOCAL `lmthing serve` (localhost:8080, budget-free Azure keys from sdk/org/.env), JUDGE every step
+ * LOCAL per-run `lmthing serve` (own OS-allocated port, budget-free Azure keys from sdk/org/.env), JUDGE every step
  * on the trace + real state, and on the FIRST failure fix it at the right rung (L0 scenario / L1
  * prompt / L2 structure / L3 framework), then PROVE the fix with a fresh rerun. One failure per
  * invocation. If a scenario is fully green, the judge authors ONE extension and stops.
@@ -13,9 +13,9 @@
  * run/judge/fix/verify/report loop) + create.md / extend.md (authoring). The engine's own ledger
  * commit only touches automation artifacts, never the product diff under review.
  *
- * PREREQUISITES before a scenario is runnable here: (1) a generic YAML runner in the harness that
- * plays scenario.yaml steps and exposes the trace to the judge; (2) the scenario's scenario.yaml
- * authored (via create.md) — the old scenario.md + run.mjs pairs predate this model.
+ * The generic YAML runner exists (sdk/org/scenarios/run-scenario.mjs — per-run isolated servers, no
+ * build step, --resume/--from). A scenario is runnable once its scenario.yaml is authored; 08/09/10
+ * are migrated from their prose scenario.md via migrate.md first.
  */
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -66,8 +66,8 @@ export default {
     // can't resolve aliases (no shell involved), so it must be the script's absolute path here.
     bins: ['/home/vasilis/.claude-azure/launch.sh'],
     // cwd is the monorepo ROOT — the session has the WHOLE lmthing monorepo (parent repo AND the
-    // sdk/org submodule) in scope, which it needs to edit product source, `pnpm build`, restart the
-    // local server, and commit both repos. No extra --add-dir scoping.
+    // sdk/org submodule) in scope, which it needs to edit product source, run the scenario runner
+    // (tsx from source — no build), and commit both repos. No extra --add-dir scoping.
     addDirs: [],
     flags: ['--verbose'],
     model: 'claude-sonnet-5',

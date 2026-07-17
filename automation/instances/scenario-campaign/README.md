@@ -9,6 +9,14 @@ authors ONE extension and stops. There is **no per-scenario `run.mjs` and no `re
 generic YAML runner plays the steps, and the judge's report lives beside its progress log in the
 round-artifact tree.
 
+> **Two drive modes.** (1) **Autonomous orchestrator (primary):** an Opus session drives the whole
+> campaign — fanning out Sonnet subagents (`judge.md` per scenario, `migrate.md` for 08–10), reviewing
+> each fix under a shared **edit-lock**, and committing+pushing to `main` itself; it drives each
+> scenario to fully green rather than one-failure-per-round. See `orchestrator.md`. (2) **lmauto
+> (human-gated fallback):** `node automation/lmauto.mjs run scenario-campaign` runs one serial round
+> and leaves the diff uncommitted for a human. Both share the same `judge.md` / `scenario-spec.md`
+> brain; the sections below describe the lmauto fallback.
+
 ## The prompts
 
 | File | Role |
@@ -38,18 +46,21 @@ round-artifact commits are path-limited and never touch the product diff.
 
 ## Notes
 
-- **Local target.** `SCENARIO_TARGET=local` is pinned in `config.mjs` — one shared `lmthing serve` on
-  `localhost:8080`, budget-free Azure keys from `sdk/org/.env`, each run in its own fresh `projectId`.
-  Rebuild + restart IS the deploy; no CI / image / kubectl / ArgoCD.
+- **Local target.** `SCENARIO_TARGET=local` (pinned in `config.mjs`). Each run gets its OWN isolated
+  `lmthing serve` on an OS-allocated port under `sdk/org/scenarios/<id>/runs/<n>/`, booted from TS
+  source via tsx — budget-free Azure keys from `sdk/org/.env`. There is **no build step**: a source
+  fix is adopted on the next run's boot. No CI / image / kubectl / ArgoCD.
 - **Backup accounts.** Add bins in `config.mjs` (`claude.bins`) to keep going across a usage-limit
   reset; `prompt.continue.md` resumes the same scenario without committing.
 - **Tasks** = scenario ids in `config.mjs`. Append an id to fold a scenario in.
 
-## Prerequisites (not yet built)
+## The runner (built)
 
-1. **A generic YAML runner** in the harness that plays `scenario.yaml` steps and exposes the trace to
-   the judge (the old bespoke `run.mjs` per scenario is retired).
-2. **The `scenario.yaml` files** — author them with `create.md`; the old `scenario.md` + `run.mjs`
-   pairs predate this model. (`prompt.first/next/common.md` — the old Acts-era prompts — were removed;
-   recover from git history if a distilled recipe, e.g. the chrome-devtools browser-verification
-   steps, needs to migrate into the generic runner.)
+The generic runner exists: `node sdk/org/scenarios/run-scenario.mjs <id>` plays a `scenario.yaml`
+against a per-run isolated server, writes per-step evidence (`runs/<n>/step-NN.json` + `.full.json` +
+`trace.md`), and snapshots each step for `--resume <runId> --from N`. Full docs in
+`sdk/org/scenarios/README.md`.
+
+`06-tanzania` and `07-life-admin` have `scenario.yaml`. **`08-small-shop` / `09-home-renovation` /
+`10-family-recipes`** are still prose `scenario.md` + `fixtures/`; the `migrate.md` round converts each
+to `scenario.yaml` (wiring every fixture) before it can be run.

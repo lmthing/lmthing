@@ -103,6 +103,7 @@ Every flag is a case in the `while (args.shift())` switch `sdk/org/libs/cli/src/
 | Flag | Meaning | Source |
 |---|---|---|
 | `--port <n>` | server port; **default 8080** | `args.ts:71-76`, `bin.ts:337`, `bin.ts:405` |
+| `--cwd <dir>` | switch the working directory before anything resolves, so the runtime root becomes `<dir>/.lmthing` and `<dir>/.env` is loaded from it (created if missing); default = the invocation cwd | `sdk/org/libs/cli/src/cli/cwd.ts#applyCwd`, `args.ts:99-103`, `bin.ts:41` |
 | `--max-sessions <n>` | `SessionManager` concurrency cap | `args.ts:77-80`, `bin.ts:362` |
 | `--snapshots-dir <dir>` | session-snapshot output dir | `args.ts:81-86`, `bin.ts:363` |
 | `--project <name>`, `-p` | **DEAD FLAG** — parsed into `CliArgs.project` and never read | `args.ts:87-93`, `args.ts:38-39` |

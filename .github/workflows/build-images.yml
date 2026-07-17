@@ -304,6 +304,17 @@ jobs:
           path: downloaded-artifacts
           merge-multiple: true
 
+      # Rebase before generating, while the tree is still clean: the step below
+      # rewrites history.json in place, and `git pull --rebase` refuses to run
+      # with unstaged changes. Rebasing first also means history.json is read at
+      # its latest origin/main state, so the commit applies on top rather than
+      # conflicting with a concurrent build's entries.
+      - name: Rebase onto latest main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main
+
       - name: Publish build data to gh-pages
         env:
           MATRIX: ${{ needs.detect.outputs.matrix }}
@@ -353,9 +364,6 @@ jobs:
 
       - name: Commit and push build data
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin main
           git add gh-pages/data/builds/
           git diff --staged --quiet || git commit -m "ci: update build data for ${{ needs.detect.outputs.sha }} [skip ci]"
           git push

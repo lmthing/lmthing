@@ -12,7 +12,7 @@ During route discovery the page builder skips any file whose basename starts wit
 
 ## How it wraps every route
 
-At runtime the router renders the matched page nested inside `_layout` inside `_app`: `wrap(app, layout, page)` applies `Layout` first, then `App` outermost, so `<App><Layout>{page}</Layout></App>` (`sdk/org/libs/cli/src/app/runtime/router.tsx:166-176`). `AppRoot` calls `wrap(app, layout, page)` for whichever route currently matches, meaning the same `App` instance surrounds every route (`sdk/org/libs/cli/src/app/runtime/router.tsx#AppRoot`).
+At runtime the router renders the matched page nested inside `_layout` inside `_app`: `wrap(app, layout, page)` applies `Layout` first, then `App` outermost, so `<App><Layout>{page}</Layout></App>` (`sdk/org/libs/cli/src/app/runtime/router.tsx#wrap`). `AppRoot` calls `wrap(app, layout, page)` for whichever route currently matches, meaning the same `App` instance surrounds every route (`sdk/org/libs/cli/src/app/runtime/router.tsx#AppRoot`).
 
 ## Behavior when omitted
 

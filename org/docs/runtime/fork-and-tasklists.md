@@ -61,7 +61,7 @@ Read-only is enforced physically: `roleProfile(role).allowWrite` is false for ex
 
 ### `prelude` — host-executed setup
 
-A task's `prelude` (TS statements) runs in the fork VM **before** the model's first turn, through the same statement pipeline as the turn loop (yields allowed). Seed vars — including forEach `item`/`index` — are already injected, so the prelude can read them. Its bound values become the fork's first VARIABLES block, and per-statement failures bind the name `undefined` and are noted there — they never kill the fork (`sdk/org/libs/core/src/fork/fork.ts:59-63`, `:468-509`, `sdk/org/libs/core/src/exec/prelude.ts`). The prelude typechecks against an ambient **without** `currentTask` — resolving is the model's job (`sdk/org/libs/core/src/fork/fork.ts:480-487`).
+A task's `prelude` (TS statements) runs in the fork VM **before** the model's first turn, through the same statement pipeline as the turn loop (yields allowed). Seed vars — including forEach `item`/`index` — are already injected, so the prelude can read them. Its bound values become the fork's first VARIABLES block; a successful `readDocument()` also appends a full `DOCUMENT CONTENTS` block, bypassing the lossy variable preview. Per-statement failures bind the name `undefined` and are noted there — they never kill the fork (`sdk/org/libs/core/src/fork/fork.ts:59-63`, `:468-509`, `sdk/org/libs/core/src/exec/prelude.ts#runPrelude`, `sdk/org/libs/core/src/eval/turn-loop.ts#formatReadDocuments`). The prelude typechecks against an ambient **without** `currentTask` — resolving is the model's job (`sdk/org/libs/core/src/fork/fork.ts:480-487`).
 
 ### `currentTask.resolve` — the result channel
 

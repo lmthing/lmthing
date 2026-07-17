@@ -77,7 +77,7 @@ These are enforced automatically — check them before you push.
   root workspace (`.github/workflows/build-images.yml:L13-L16`); some images build from the
   `sdk/org` context with `sdk/org`'s own lockfile (`:L61-L65`), so shared libs must stay inside
   that submodule.
-- **GitHub Pages deploy.** Product SPAs deploy via `.github/workflows/deploy-ghpages.yml`.
+- **GitHub Pages deploy.** Only the build-status page is on Pages; it is deployed as an artifact by `build-images.yml`'s `publish-pages` job. No product SPA is on Pages — they are K8s Deployments.
 
 ---
 

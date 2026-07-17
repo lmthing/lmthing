@@ -7,6 +7,11 @@ on:
         description: 'Comma-separated images to build (leave blank for all)'
         required: false
         default: ''
+      allow_empty_history:
+        description: 'Publish even if the site has no history.json yet (first publish only — otherwise it DESTROYS the rolling history)'
+        required: false
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths:
@@ -23,6 +28,9 @@ on:
       - 'blog/**'
       - 'casa/**'
       - 'automation/app/**'
+      # The status page's own source. Builds no image; publish-pages is the only
+      # deployer of the site, so its source edits must come through here.
+      - 'gh-pages/**'
       # Monorepo-root workspace files: every root-context image runs
       # `pnpm install --frozen-lockfile` against these, so a change to any of
       # them (e.g. a lockfile sync) must trigger a rebuild of the web surfaces.
@@ -35,7 +43,7 @@ on:
       # catalog files ship). Must trigger a rebuild.
       - '.dockerignore'
 
-# Serialize whole runs on the same branch: the manifest/build-data commits push
+# Serialize whole runs on the same branch: update-manifests commits image tags
 # to main, so overlapping runs would race on the ref. Queue rather than cancel —
 # every build's tag update must land.
 concurrency:
@@ -48,6 +56,10 @@ jobs:
     outputs:
       matrix: ${{ steps.build-matrix.outputs.matrix }}
       sha: ${{ steps.tag.outputs.sha }}
+      # Every image name, not just the changed ones: publish-pages carries the
+      # per-image build records of images that did NOT rebuild this run.
+      all_images: ${{ steps.build-matrix.outputs.all_images }}
+      pages_changed: ${{ steps.changes.outputs.pages }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -136,6 +148,11 @@ jobs:
               - 'automation/app/**'
               - 'sdk/org'
               - 'sdk/org/**'
+            # The status page's own source. No image builds from it, but an
+            # edit to it still has to reach publish-pages — that job is the
+            # only thing that deploys the site.
+            pages:
+              - 'gh-pages/**'
 
       - name: Set image tag
         id: tag
@@ -194,6 +211,7 @@ jobs:
             for e in all_images if e["changed"]
           ]
           print("matrix=" + json.dumps(matrix))
+          print("all_images=" + json.dumps([e["image"] for e in all_images]))
           EOF
 
   build:
@@ -284,113 +302,148 @@ jobs:
           path: build-data/${{ matrix.image }}.json
           retention-days: 7
 
-  publish-build-data:
+  # The status page is deployed as a Pages ARTIFACT, never committed. The old
+  # design committed generated build data to main and relied on that push to
+  # fire deploy-ghpages.yml — which it could not do ([skip ci] + GITHUB_TOKEN
+  # pushes do not start workflow runs). This job is now the single deployer of
+  # the site, so it also runs for a gh-pages/** source edit that builds no
+  # images at all.
+  publish-pages:
     needs: [detect, build]
-    if: always() && needs.detect.outputs.matrix != '[]'
+    if: >-
+      always() &&
+      (needs.detect.outputs.matrix != '[]' || needs.detect.outputs.pages_changed == 'true')
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      # Needed to workflow_dispatch deploy-ghpages.yml in the last step.
-      actions: write
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
 
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 1
 
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
+        if: needs.detect.outputs.matrix != '[]'
         with:
           pattern: build-data-*
           path: downloaded-artifacts
           merge-multiple: true
 
-      # Rebase before generating, while the tree is still clean: the step below
-      # rewrites history.json in place, and `git pull --rebase` refuses to run
-      # with unstaged changes. Rebasing first also means history.json is read at
-      # its latest origin/main state, so the commit applies on top rather than
-      # conflicting with a concurrent build's entries.
-      - name: Rebase onto latest main
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin main
-
-      - name: Publish build data to gh-pages
+      - name: Assemble build data
         env:
-          MATRIX: ${{ needs.detect.outputs.matrix }}
           SHA: ${{ needs.detect.outputs.sha }}
+          ALL_IMAGES: ${{ needs.detect.outputs.all_images }}
+          SITE_URL: https://lmthing.github.io/lmthing
+          ALLOW_EMPTY_HISTORY: ${{ github.event.inputs.allow_empty_history }}
         run: |
           python3 << 'EOF'
-          import json, os, glob
-          from datetime import datetime, timezone
+          import json, os, glob, urllib.request, urllib.error, sys
 
-          # Ensure data dirs exist
+          # Nothing is committed any more, so the ONLY copy of the rolling
+          # history is the one on the live site. Read it back and build on top.
+          site = os.environ['SITE_URL'].rstrip('/')
+
+          def fetch(path):
+            """Returns parsed JSON, or None on 404. Any OTHER failure raises:
+            publishing after a failed read would truncate history to this run's
+            records, and the next run would build on the truncated copy —
+            permanent loss."""
+            url = f'{site}/{path}'
+            try:
+              with urllib.request.urlopen(url, timeout=30) as r:
+                return json.loads(r.read().decode())
+            except urllib.error.HTTPError as e:
+              if e.code == 404:
+                return None
+              raise
+            except json.JSONDecodeError:
+              # A corrupt published file must not silently wipe history either.
+              raise RuntimeError(f'{url} is not valid JSON')
+
           os.makedirs('gh-pages/data/builds', exist_ok=True)
 
-          # Collect all downloaded artifacts
-          artifact_files = glob.glob('downloaded-artifacts/*.json')
+          # This run's records (absent entirely on a pages-only change)
           records = []
-          for path in artifact_files:
+          for path in glob.glob('downloaded-artifacts/*.json'):
             with open(path) as f:
-              rec = json.load(f)
-            # Write per-service latest
+              records.append(json.load(f))
+          print(f'This run produced {len(records)} build records')
+
+          # Per-image latest: carry over every image that did NOT rebuild, so a
+          # rarely-built image keeps its card instead of vanishing from the site.
+          built = {r['image'] for r in records}
+          for image in json.loads(os.environ['ALL_IMAGES']):
+            if image in built:
+              continue
+            # A 404 here is ordinary: an image that has never been built has no
+            # record to carry. (Unlike history.json below, where it is not.)
+            prev = fetch(f'data/builds/{image}.json')
+            if prev is None:
+              print(f'  {image}: no published record yet, skipping')
+            else:
+              with open(f'gh-pages/data/builds/{image}.json', 'w') as f:
+                json.dump(prev, f, indent=2)
+
+          for rec in records:
             with open(f'gh-pages/data/builds/{rec["image"]}.json', 'w') as f:
               json.dump(rec, f, indent=2)
-            records.append(rec)
 
-          # Update rolling history (cap at 50)
-          history_path = 'gh-pages/data/builds/history.json'
-          history = []
-          if os.path.exists(history_path):
-            with open(history_path) as f:
-              history = json.load(f)
-
-          # Remove old entries for same SHA to avoid duplicates
+          # Rolling history (deduped by SHA, capped at 50).
+          # A 404 here is NOT treated as "first publish": Pages answers 404 for a
+          # misconfigured or broken site too, so inferring "start fresh" from it
+          # would republish a 1-entry history and destroy the real one for good.
+          # Bootstrapping is opt-in via the workflow_dispatch input instead.
+          history = fetch('data/builds/history.json')
+          if history is None:
+            if os.environ.get('ALLOW_EMPTY_HISTORY') == 'true':
+              print('history.json 404 — starting fresh (explicitly requested)')
+              history = []
+            else:
+              # No escapes here on purpose: this is a python heredoc nested in
+              # YAML, and backslash escapes do not survive the trip.
+              print('FATAL: ' + site + '/data/builds/history.json returned 404.')
+              print('Refusing to publish: it would replace the rolling history')
+              print("with only this run's records, and the next run would then")
+              print('build on the truncated copy. If this really is the first')
+              print('publish, re-run via workflow_dispatch with')
+              print('allow_empty_history=true.')
+              sys.exit(1)
+          before = len(history)
           sha = os.environ.get('SHA', '')
           history = [h for h in history if h.get('sha') != sha]
-
-          # Prepend new records
           for rec in records:
             history.insert(0, rec)
-
-          # Cap at 50
           history = history[:50]
 
-          with open(history_path, 'w') as f:
+          with open('gh-pages/data/builds/history.json', 'w') as f:
             json.dump(history, f, indent=2)
 
-          print(f'Updated history with {len(records)} records, total: {len(history)}')
+          print(f'History: carried {before} -> published {len(history)}')
           EOF
 
-      - name: Commit and push build data
-        id: commit
-        run: |
-          git add gh-pages/data/builds/
-          if git diff --staged --quiet; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            git commit -m "ci: update build data for ${{ needs.detect.outputs.sha }} [skip ci]"
-            git push
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./gh-pages
 
-      # The push above can never fire deploy-ghpages.yml on its own, despite
-      # that workflow watching `gh-pages/**` on main: the commit carries
-      # [skip ci], and GitHub does not start workflow runs from pushes made
-      # with GITHUB_TOKEN. workflow_dispatch is a documented exception to that
-      # rule, so dispatch it explicitly or the published status page goes stale.
-      - name: Trigger status page deploy
-        if: steps.commit.outputs.changed == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run deploy-ghpages.yml --ref main
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
   update-manifests:
-    # Depends on publish-build-data (not for its output, but to serialize the
-    # two jobs' pushes to main — running them in parallel races on the ref).
-    needs: [detect, build, publish-build-data]
+    # Now the ONLY job that pushes to main — publish-pages deploys an artifact
+    # instead of committing — so it no longer needs to serialize behind it and
+    # can run in parallel.
+    needs: [detect, build]
     # Run when at least one image was built (even if some failed, e.g. compute).
     # The script below reads build-data artifacts to skip images that failed.
     if: always() && needs.detect.outputs.matrix != '[]' && needs.build.result != 'cancelled' && needs.build.result != 'skipped'

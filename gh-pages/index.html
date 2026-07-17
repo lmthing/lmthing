@@ -85,6 +85,12 @@
     .overall-status.degraded    { border-color: rgba(245,158,11,0.3);  box-shadow: 0 0 15px rgba(245,158,11,0.05); }
     .overall-status.offline     { border-color: rgba(239,68,68,0.3);   box-shadow: 0 0 15px rgba(239,68,68,0.05); }
 
+    .status-banners { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+
+    .ci-status { text-decoration: none; color: var(--text-main); font-size: 0.875rem; }
+    .ci-status:hover { border-color: var(--card-border-hover); }
+    .ci-status.building { border-color: rgba(56,189,248,0.3); box-shadow: 0 0 15px rgba(56,189,248,0.05); }
+
     /* ── Tab bar ── */
     .tab-bar {
       display: flex; gap: 0.5rem; margin-bottom: 1.75rem; flex-wrap: wrap;
@@ -468,9 +474,17 @@
       <h1 class="logo-title">lmthing</h1>
       <div class="logo-subtitle">System Status &amp; Deployment Dashboard</div>
     </div>
-    <div id="overall-status-banner" class="overall-status">
-      <span id="overall-dot" class="status-dot dot-checking"></span>
-      <span id="overall-text">Loading Status...</span>
+    <div class="status-banners">
+      <div id="overall-status-banner" class="overall-status">
+        <span id="overall-dot" class="status-dot dot-checking"></span>
+        <span id="overall-text">Loading Status...</span>
+      </div>
+      <a id="ci-status-banner" class="overall-status ci-status"
+         href="https://github.com/lmthing/lmthing/actions/workflows/build-images.yml"
+         target="_blank" rel="noopener">
+        <span id="ci-dot" class="status-dot dot-checking"></span>
+        <span id="ci-text">Checking CI...</span>
+      </a>
     </div>
   </header>
 
@@ -910,6 +924,85 @@ function updateOverallBanner() {
     dot.className = 'status-dot dot-offline';
     text.textContent = 'All Services Offline';
   }
+}
+
+/* ── CI status ───────────────────────────────────────────────────────
+   Read live from the GitHub API rather than baked in at publish time: a
+   page deployed when a build ENDS can never show a build running now.
+
+   Unauthenticated the API allows 60 requests/hour per IP, and a
+   conditional 304 still costs a full unit on this path (measured — the
+   "304s are free" rule does not apply unauthenticated). So the poll is
+   deliberately slow, pauses while the tab is hidden, and backs off until
+   the reset when the budget runs low. Leaving fetch's default caching in
+   place is intentional: GitHub sends `cache-control: max-age=60`, so
+   re-entering inside that window is served from the browser cache and
+   spends nothing. */
+const CI_WORKFLOW = 'build-images.yml';
+const CI_POLL_MS  = 90000;
+let ciTimer = null;
+let ciBackoffUntil = 0;
+
+function setCiBanner(state, label, href) {
+  const dot   = document.getElementById('ci-dot');
+  const text  = document.getElementById('ci-text');
+  const link  = document.getElementById('ci-status-banner');
+  if (!dot || !text || !link) return;
+  dot.className  = 'status-dot ' + (state === 'building' ? 'dot-checking' : 'dot-' + state);
+  text.textContent = label;
+  link.className = 'overall-status ci-status' + (state === 'checking' ? '' : ' ' + state);
+  if (href) link.href = href;
+}
+
+async function refreshCiStatus() {
+  if (Date.now() < ciBackoffUntil) return;
+  const url = 'https://api.github.com/repos/' + repoOwner + '/' + repoName +
+              '/actions/workflows/' + CI_WORKFLOW + '/runs?branch=main&per_page=10';
+  try {
+    const r = await fetch(url);
+    const remaining = parseInt(r.headers.get('x-ratelimit-remaining'), 10);
+    const reset     = parseInt(r.headers.get('x-ratelimit-reset'), 10);
+    // Back off before the budget is gone, so the commit lookups elsewhere
+    // on this page keep working.
+    if (r.status === 403 || r.status === 429 || (!isNaN(remaining) && remaining <= 5)) {
+      ciBackoffUntil = !isNaN(reset) ? reset * 1000 : Date.now() + 900000;
+      setCiBanner('checking', 'CI status rate-limited', null);
+      return;
+    }
+    if (!r.ok) throw new Error('status ' + r.status);
+    const runs   = (await r.json()).workflow_runs || [];
+    const active = runs.find(function(x) { return x.status === 'in_progress' || x.status === 'queued'; });
+    const last   = runs.find(function(x) { return x.status === 'completed'; });
+
+    if (active) {
+      setCiBanner('building',
+        'Building ' + active.head_sha.slice(0, 7) + ' · started ' +
+        relativeTime(active.run_started_at || active.created_at), active.html_url);
+    } else if (last && last.conclusion === 'success') {
+      setCiBanner('operational',
+        'Build ' + last.head_sha.slice(0, 7) + ' passed · ' + relativeTime(last.updated_at),
+        last.html_url);
+    } else if (last) {
+      setCiBanner('offline',
+        'Last build ' + (last.conclusion || 'failed') + ' · ' + last.head_sha.slice(0, 7) +
+        ' · ' + relativeTime(last.updated_at), last.html_url);
+    } else {
+      setCiBanner('checking', 'No CI runs found', null);
+    }
+  } catch(e) {
+    setCiBanner('checking', 'CI status unavailable', null);
+  }
+}
+
+function startCiPolling() {
+  refreshCiStatus();
+  if (ciTimer) clearInterval(ciTimer);
+  ciTimer = setInterval(function() {
+    if (document.visibilityState === 'visible') refreshCiStatus();
+  }, CI_POLL_MS);
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') refreshCiStatus();
+  });
 }
 
 async function refreshOverview() {
@@ -1415,6 +1508,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   initOverviewCards();
   refreshOverview();
+  startCiPolling();
 
   if (overviewAutoTimer) clearInterval(overviewAutoTimer);
   overviewAutoTimer = setInterval(refreshOverview, 60000);

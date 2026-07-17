@@ -176,7 +176,7 @@ test` would only reach the two packages that declare a `test` script.
 ### CI
 
 **No workflow runs the test suite.** The four root workflows are `build-images.yml`,
-`deploy-ghpages.yml`, `design-tokens.yml`, `pr-decline.yml`, `stale.yml` — a grep for
+`design-tokens.yml`, `pr-decline.yml`, `stale.yml` — a grep for
 `vitest|pnpm test|vp test` across `.github/workflows/` returns nothing. The only hard automated gate
 is the design-token lint (`.github/workflows/design-tokens.yml`, see
 [`README.md`](./README.md#hard-gates-ci-will-fail-you)). **Running the suite before you push is on

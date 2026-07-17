@@ -306,18 +306,20 @@ carries a `meta.json` (title/slug/lastActivity — `projects.ts:404-450`), which
 `sdk/org/scenarios/` holds end-to-end specs played against a real `lmthing serve` with a live LLM — a
 real project, a real THING session, real model calls (`sdk/org/scenarios/README.md`). The current
 scenarios are declarative `scenario.yaml` files (`06-tanzania`, `07-life-admin`) played by the generic
-runner `run-yaml.mjs`, **local by design**. It writes per-step evidence — `step-NN.json` (compact) +
-`.full.json` (raw) + `trace.md` — into `<scenario>/.run/` for a judge to score
-(`sdk/org/scenarios/lib/runner.mjs#ScenarioRunner`, `sdk/org/scenarios/lib/evidence.mjs#compactStep`).
+runner `run-scenario.mjs`, **local by design**. Each invocation is a fresh, uniquely-numbered run
+under `<scenario>/runs/<n>/` with its own `lmthing serve`; it writes per-step evidence — `step-NN.json`
+(compact) + `.full.json` (raw) + `trace.md` — plus a per-step project-file snapshot, for a judge to
+score (`sdk/org/scenarios/lib/runner.mjs#ScenarioRunner`, `sdk/org/scenarios/lib/evidence.mjs#compactStep`).
 
 ```bash
-node sdk/org/scenarios/harness/local-server.mjs up               # a throwaway `lmthing serve` on :8080
-node sdk/org/scenarios/run-yaml.mjs 06-tanzania --fresh-server    # play every step, write evidence
-node sdk/org/scenarios/run-yaml.mjs 06-tanzania --plan --through 5  # dry-plan / verify-rerun steps 1..5
+node sdk/org/scenarios/run-scenario.mjs 06-tanzania --plan          # dry-plan (no pod)
+node sdk/org/scenarios/run-scenario.mjs 06-tanzania                  # a fresh run, play every step, write evidence
+node sdk/org/scenarios/run-scenario.mjs 06-tanzania --resume 1 --from 2  # seed from run 1's step-2 snapshot, continue
 ```
 
-The harness is zero-dependency Node ESM driving the pod's HTTP/WS API directly (no browser). The
-runner uses the local, token-free path (`sdk/org/scenarios/harness/lib/local.mjs#freshLocalServer`);
+The harness is zero-dependency Node ESM driving the pod's HTTP/WS API directly (no browser). Each run
+spins up its own `pnpm lmthing serve --cwd <run>/data` (TS source via tsx — no build) and kills it with
+the run (`sdk/org/scenarios/harness/lib/local.mjs#startRun`);
 `smoke.mjs` and manual prod runs use the gateway path and a minted JWT — the signing key is read from
 `<repo>/.etc/.gateway-jwt-secret.b64` (`harness/lib/jwt.mjs:22-27`), fetched with the
 `kubectl get secret lmthing-secrets` one-liner in that file's header comment (`jwt.mjs:1-20`; mind the

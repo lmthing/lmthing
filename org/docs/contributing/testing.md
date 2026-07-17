@@ -16,7 +16,7 @@ pnpm test libs/core/src/tasklist/condition-dsl # one file (substring filter)
 
 pnpm build && LM_LIVE=1 pnpm exec vitest run libs/cli/src/testing/live-llm.test.ts   # real model
 
-node sdk/org/scenarios/run-yaml.mjs 06-tanzania --fresh-server   # a live scenario (local serve, real LLM) — §7
+node sdk/org/scenarios/run-scenario.mjs 06-tanzania             # a live scenario (own per-run serve, real LLM) — §7
 ```
 
 There is **no `test` script at the repo root** (`package.json:L8-L16` — only `dev`, `thing`,
@@ -328,26 +328,36 @@ session, real model calls, nothing mocked. The tree is a script-free workspace p
 
 A scenario is a **single declarative `scenario.yaml`** (persona · promise · invariants · knows ·
 steps) plus a **`fixtures/`** dir of real input files — `06-tanzania` and `07-life-admin` today. It is
-played by the generic runner `run-yaml.mjs`, **local by design** (`SCENARIO_TARGET=local` →
-`http://localhost:8080`, no auth): a product fix is `pnpm build` + a server restart (seconds), not a
-prod image roll. The runner writes per-step **evidence** for a separate judge
-(`automation/instances/scenario-campaign/judge.md`) to score — it does not judge.
+played by the generic runner `run-scenario.mjs`, **local by design** (`SCENARIO_TARGET=local`, the
+default): every invocation spins up its **own** throwaway `lmthing serve` via
+`pnpm lmthing serve --cwd <run>/data …`, which runs the CLI from TS source through `tsx` — so a
+product fix needs **no `pnpm build`**, just a rerun. The runner writes per-step **evidence** for a
+separate judge (`automation/instances/scenario-campaign/judge.md`) to score — it does not judge.
+
+Each invocation is a fresh, uniquely-numbered **run** under `sdk/org/scenarios/<scenario>/runs/<n>/`:
+its own `data/.lmthing`, its own server on an allocated port, and — at the end of every step — a
+**snapshot** of the project files under `runs/<n>/snapshots/step-NN/`. A rerun can seed a new run
+from a chosen snapshot and continue instead of replaying (the expensive earlier steps stay done).
 
 ```bash
-node scenarios/harness/local-server.mjs up             # a throwaway `lmthing serve` on :8080
-node scenarios/run-yaml.mjs 06-tanzania --plan          # dry-print the step plan + fixture-coverage audit
-node scenarios/run-yaml.mjs 06-tanzania --fresh-server  # wipe the pod root, play every step, write evidence
+node scenarios/run-scenario.mjs 06-tanzania --plan            # dry-print the step plan + fixture-coverage audit
+node scenarios/run-scenario.mjs 06-tanzania                    # a fresh run (runs/<next>), every step, write evidence
+node scenarios/run-scenario.mjs 06-tanzania --resume 1 --from 2   # new run, seed from run 1's step-2 snapshot, continue at step 3
+node scenarios/harness/runs.mjs 06-tanzania list              # inspect / clean up prior runs (list · path · logs · down · gc)
 ```
 
-The engine is `ScenarioRunner` (`sdk/org/scenarios/lib/runner.mjs#ScenarioRunner`): it ensures the
-local server (`sdk/org/scenarios/harness/lib/local.mjs#freshLocalServer`), plays each step's verbs
+The engine is `ScenarioRunner` (`sdk/org/scenarios/lib/runner.mjs#ScenarioRunner`): it starts the
+per-run server (`sdk/org/scenarios/harness/lib/local.mjs#startRun`), plays each step's verbs
 (`say`, `then_say`, `in_app_chat`, `open_app`, `attach[]`, `fresh_session`, `restart_pod`;
 `if_asked{}`/`deny_consent` ground the driver's in-persona answers via
 `sdk/org/scenarios/lib/asks.mjs#StepAsks`), and after every step writes the raw `step-NN.full.json`,
 the judge-sized `step-NN.json` (`sdk/org/scenarios/lib/evidence.mjs#compactStep`), a `trace.md` block
-(`sdk/org/scenarios/lib/evidence.mjs#traceLines`) and a captured
-`sdk/org/scenarios/lib/evidence.mjs#snapshot` of spaces + app tables. `--through N` replays steps
-1..N — the judge's verify rerun. `expect[]` is passed through, never executed.
+(`sdk/org/scenarios/lib/evidence.mjs#traceLines`), a captured
+`sdk/org/scenarios/lib/evidence.mjs#snapshot` of spaces + app tables, and a project-file snapshot
+(`sdk/org/scenarios/harness/lib/local.mjs#snapshotProject`). The server dies WITH the run — a killed
+`run-scenario` always takes its server down. `--through N` plays steps 1..N; `--resume <runId> [--from N]`
+seeds from a prior run's snapshot and continues — the judge's verify rerun. `expect[]` is passed
+through, never executed.
 
 `smoke.mjs` walks the whole chain — register → pod → env → THING session → a real LLM turn → trace
 assertions — so no scenario burns time on a broken harness
@@ -359,8 +369,10 @@ assertions — so no scenario burns time on a broken harness
   messages as `say` steps, `if_asked` answers, and the `expect[]` the judge verifies.
 - `scenarios/<NN>-<slug>/fixtures/` — the real input files (photos, PDFs, spreadsheets, voice memos) a
   `say` step `attach`es.
-- `scenarios/<NN>-<slug>/.run/` — the runner's evidence (`step-NN.json`, `.full.json`, `trace.md`,
-  `summary.json`, `runner.pid`); gitignored.
+- `scenarios/<NN>-<slug>/runs/<n>/` — one isolated run: `data/.lmthing` (its runtime root),
+  `snapshots/step-NN/` (per-step project-file snapshots for `--resume`), `sessions.log` (the server's
+  stdout+stderr), `run.json`, `runner.pid`, and the evidence (`step-NN.json`, `.full.json`, `trace.md`,
+  `summary.json`), plus a `runs/latest` pointer; all gitignored.
 - `scenarios/lib/` — the runner library: `scenario.mjs` (`loadScenario`/`planLines`), `runner.mjs`
   (`ScenarioRunner`/`runScenario`), `evidence.mjs`, `asks.mjs`, `errors.mjs`. Pure-transform tests
   live beside them (`scenarios/lib/*.test.mjs`, matched in `sdk/org/vitest.config.ts`).
